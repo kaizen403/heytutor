@@ -612,6 +612,38 @@ if (selected("source-authority")) {
   atomicallyRefused(siblingPoint,"a sibling model-authored point cannot add an unproved mark to a protected linear solution");
 }
 
+if(selected("source-union-region")) {
+  const inputs={constraints:["x >= -3","y >= 4"]};
+  const conjunctive=compiled("linear_feasible_region",inputs,
+    "Graph the intersection of x >= -3 and y >= 4 in the coordinate plane.");
+  cornersOracle(solutionFor(conjunctive),[[-3n,1n,4n,1n]]);
+  atomicallyRefused(documentFor("linear_feasible_region",inputs,
+    "Graph the union of x >= -3 and y >= 4 in the coordinate plane."),
+    "a union prefix cannot be compiled as a convex intersection merely because its listed clauses use AND");
+}
+
+if(selected("source-or-system")) {
+  const inputs={equations:["x = -4","y = 6"]};
+  const conjunctive=compiled("linear_system",inputs,"Solve x = -4 and y = 6 graphically.");
+  check(solutionFor(conjunctive).relation==="unique" && pointMatches(solutionFor(conjunctive).intersection,[-4n,1n,6n,1n]),
+    "a conjunctive pair has its independently known common point");
+  atomicallyRefused(documentFor("linear_system",inputs,"Graph x = -4 or y = 6 in the coordinate plane."),
+    "a disjunction of two equations cannot be silently replaced by their unique common point");
+}
+
+if(selected("group-label")) {
+  check(firstHalfPlane.annotations.length===0 && firstCompile.ok,"the annotation-free source has its genuine nonempty positive render");
+  const falseGroupedClaim=structuredClone(firstHalfPlane);
+  falseGroupedClaim.entities.push({id:"title",kind:"group",role:"title"});
+  falseGroupedClaim.revealGroups[0]!.entityIds.push("title");
+  falseGroupedClaim.annotations.push({id:"false_group_title",kind:"label",targetIds:["title"],text:"No solution"});
+  const groupedClaimResult=compileSceneDocument(falseGroupedClaim);
+  console.log(JSON.stringify({case:"same-reveal-group-false-title",ok:groupedClaimResult.ok,
+    issueCodes:groupedClaimResult.report.issues.map((issue)=>issue.code),issueMessages:groupedClaimResult.report.issues.map((issue)=>issue.message)}));
+  atomicallyRefused(falseGroupedClaim,
+    "a false solution claim on an extra semantic group in the same reveal group cannot escape linear claim validation");
+}
+
 if (process.argv.includes("--visuals")) {
   const directory=resolve(dirname(fileURLToPath(import.meta.url)),"../../../../.context/h3r6/dev-visuals");
   mkdirSync(directory,{recursive:true});

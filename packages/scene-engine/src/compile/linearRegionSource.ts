@@ -371,6 +371,13 @@ function signatures(
 function same(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
+function isIntersectionProgram(program: IntervalExpression): boolean {
+  return (
+    "inequality" in program ||
+    ("intersection" in program &&
+      program.intersection.every(isIntersectionProgram))
+  );
+}
 export function validateLinearSourceBinding(
   document: SceneDocument,
 ): SceneIssue[] {
@@ -554,14 +561,9 @@ export function validateLinearSourceBinding(
           throw new Error(
             "System must represent the complete two source equations",
           );
-        if (
-          input.kind === "linear_feasible_region" &&
-          /\bor\b|∪/i.test(
-            body.slice(source[0]?.start ?? 0, source.at(-1)?.end ?? 0),
-          )
-        )
+        if (!isIntersectionProgram(booleanProgram(body, source)))
           throw new Error(
-            "A feasible-region intersection cannot replace a source union",
+            "A planar intersection or system cannot replace a source union or complement",
           );
         const proposed =
           input.kind === "linear_half_plane"
@@ -604,6 +606,8 @@ export function validateLinearClaims(
 ): void {
   const construction = document.constructions[constructionIndex]!;
   const protectedIds = new Set(construction.outputs);
+  for (const entity of document.entities)
+    if (entity.kind === "group") protectedIds.add(entity.id);
   for (const group of document.revealGroups)
     if (group.entityIds.some((id) => protectedIds.has(id)))
       protectedIds.add(group.id);
@@ -647,11 +651,7 @@ export function validateLinearClaims(
       .filter((value): value is string => typeof value === "string"),
   ];
   if (
-    document.annotations.some(
-      (annotation) =>
-        annotation.targetIds.some((id) => protectedIds.has(id)) &&
-        annotation.kind !== "narration",
-    )
+    document.annotations.some((annotation) => annotation.kind !== "narration")
   )
     issues.push({
       code: "untrusted_linear_annotation",
