@@ -105,6 +105,7 @@ const FAMILY_OPERATORS: Record<SceneVisualFamily, readonly string[]> = {
   ],
   state_plot: ["permutation_cycles", "subset_lattice", "elastic_profile", "elastic_state", "flux_process", "induction_state", "flux_sinusoid", "sinusoid_state", "set_partition", "set_select", "harmonic_motion", "harmonic_state", "hydrostatic_profile", "hydrostatic_state", "buoyancy", "axes", "point", "polygon", "polyline", "vector", "label", "histogram", "frequency_polygon", "cumulative_frequency", "probability_tree", "polytropic_process", "isochoric_process", "process_state", "motion_graph", "potential_curve"],
   analytic_curve: ["elastic_profile", "elastic_state",
+    "number_line_set", "linear_half_plane", "linear_feasible_region", "linear_system",
     "axes", "function_curve", "parametric_curve", "polar_curve", "implicit_curve",
     "tangent_line", "normal_line", "function_region", "point", "intersection", "vector_components",
     "conic", "conic_anchor", "conic_directrix", "conic_asymptotes", "conic_tangent",
@@ -116,6 +117,7 @@ const FAMILY_OPERATORS: Record<SceneVisualFamily, readonly string[]> = {
     "histogram", "frequency_polygon", "cumulative_frequency",
   ],
   bounded_region: [
+    "number_line_set", "linear_half_plane", "linear_feasible_region", "linear_system",
     "axes", "function_curve", "function_region", "constraint_region", "representative_slice", "solid_of_revolution", "point",
     "circle", "arc", "rectangle", "polygon", "dimension", "right_angle_mark",
   ],
@@ -124,6 +126,7 @@ const FAMILY_OPERATORS: Record<SceneVisualFamily, readonly string[]> = {
   point_field: ["point", "vector", "circle", "line", "dimension", "angle_mark", "electric_field", "field_components", "coulomb_pair", "point_charge_field", "field_lines", "dipole_field", "dipole_torque", "equipotential", "dipole_energy", "line_charge_field", "gauss_flux", "wire_field", "loop_field", "magnetic_force", "magnetic_components", "gravitational_field", "gravitational_force", "flux_process", "induction_state", "flux_sinusoid", "sinusoid_state", "current_element_field", "conductor_force", "parallel_wire_force", "magnetic_dipole_field", "solenoid_field", "loop_torque", "galvanometer", "bar_magnet", "cyclotron"],
   energy_level: ["axes", "segment", "vector", "dimension", "label", "rectangle", "point"],
   coordinate_figure: ["permutation_cycles", "subset_lattice","set_partition", "set_select",
+    "number_line_set", "linear_half_plane", "linear_feasible_region", "linear_system",
     "complex_point", "complex_transform", "complex_roots",
     "axes", "point", "line", "circle", "polygon", "intersection", "tangent_line",
     "right_angle_mark", "angle_mark", "angle_bisector", "implicit_curve", "function_curve",

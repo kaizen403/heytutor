@@ -530,7 +530,7 @@ function deferralReason(
       ? "annotation"
       : null;
   }
-  if (primitive.provenance?.matrixCell) return null;
+  if (primitive.provenance?.matrixCell || primitive.provenance?.linearSolution) return null;
   const annotationId = typeof primitive.provenance?.annotationId === "string"
     ? primitive.provenance.annotationId
     : undefined;
@@ -562,7 +562,9 @@ function annotationVisualStyle(
     ? provenance.measurementRole
     : undefined;
   const labelLeader = provenance.labelLeader === true;
-  if (!corresponding && !dashed && !strokeRole && !fillRole && !measurementRole && !labelLeader) return {};
+  const pointStyle = provenance.linearSolution && provenance.pointStyle === "open" ? "open" as const : undefined;
+  const linearStrokeWidth = provenance.linearSolution && typeof provenance.strokeWidth === "number" ? provenance.strokeWidth : undefined;
+  if (!corresponding && !dashed && !strokeRole && !fillRole && !measurementRole && !labelLeader && !pointStyle && linearStrokeWidth === undefined) return {};
   return {
     visualStyle: {
       ...command.visualStyle,
@@ -572,7 +574,8 @@ function annotationVisualStyle(
       fillRole,
       ...(measurementRole ? { measurementRole } : {}),
       ...(labelLeader ? { labelLeader: true } : {}),
-      strokeWidth: corresponding === 2 ? 2.9 : command.visualStyle?.strokeWidth,
+      ...(pointStyle ? { pointStyle } : {}),
+      strokeWidth: provenance.fillOnly === true ? 0 : corresponding === 2 ? 2.9 : provenance.linearSolution && typeof provenance.strokeWidth === "number" ? provenance.strokeWidth : command.visualStyle?.strokeWidth,
     },
   };
 }
@@ -1461,7 +1464,9 @@ function addLabel(
   x: number,
   y: number,
 ): void {
-  const text = compactDiagramLabel(primitive.text);
+  const text = primitive.provenance?.linearSolution
+    ? boundedLinearLabel(primitive.text)
+    : compactDiagramLabel(primitive.text);
   if (!text) return;
   const key = primitive.provenance?.matrixCell
     ? `${primitive.entityId}:cell:${primitive.id}`
@@ -1485,7 +1490,8 @@ function addLabel(
       kind: "label",
       bounds: placed,
     });
-    commands.push({ type: "LABEL", params: [placed.x, placed.y, fontPx], text, anchorId: primitive.entityId });
+    const padding=primitive.provenance?.linearSolution?2:0;
+    commands.push({ type: "LABEL", params: [placed.x+padding, placed.y+padding, fontPx], text, anchorId: primitive.entityId });
     return;
   }
   // Feed the solver the renderer's own glyph metrics rather than an average
@@ -1609,6 +1615,11 @@ function preferredSlotFor(placement: string | undefined): Exclude<LabelSlot, "le
 function compactDiagramLabel(text?: string): string | null {
   const normalized = text?.trim().replace(/\s+/g, " ") ?? "";
   return normalized.length > 0 && normalized.length <= 16 ? normalized : null;
+}
+
+function boundedLinearLabel(text?: string): string | null {
+  const normalized = text?.trim().replace(/\s+/g, " ") ?? "";
+  return normalized.length > 0 && normalized.length <= 80 ? normalized : null;
 }
 
 function orderedRevealGroupIds(scene: RenderScene): string[] {
