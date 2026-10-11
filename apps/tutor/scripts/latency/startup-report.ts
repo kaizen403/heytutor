@@ -162,7 +162,7 @@ export function parseLangfuseTrace(trace: { id?: unknown; observations?: unknown
     return [...list].sort((a, b) => (timeMs(a.startTime) ?? 0) - (timeMs(b.startTime) ?? 0))[0]!;
   };
 
-  const known = [...SPAN_STAGES, ...MARK_STAGES, "startup-ask"].some((name) => byName.has(name));
+  const known = [...SPAN_STAGES, ...MARK_STAGES, "startup-ask", "scene-candidate-validation"].some((name) => byName.has(name));
   if (!known) return null;
 
   const startupAsk = first("startup-ask");
@@ -185,6 +185,7 @@ export function parseLangfuseTrace(trace: { id?: unknown; observations?: unknown
     for (const [field, name] of [
       ["queued_for_board_ms", "queued-for-board"],
       ["board_commit_ms", "board-commit"],
+      ["board_commit_total_ms", "board-commit-total"],
       ["begin_turn_ms", "begin-turn"],
       ["board_epoch_ms", "board-epoch"],
       ["pre_telemetry_ms", "pre-telemetry"],
@@ -213,6 +214,20 @@ export function parseLangfuseTrace(trace: { id?: unknown; observations?: unknown
     // First byte reports its own request to bytes span; the rest are points.
     const duration = name === "tts-first-byte" ? num(metadata.since_request_ms) : null;
     stages.push(stageRow(name, at === null ? null : at - originAt, duration, metadata));
+  }
+  // A mark lands at completion, not at validation start. Preserve every local
+  // interval; concurrent candidates must not be collapsed into the first mark.
+  for (const candidate of byName.get("scene-candidate-validation") ?? []) {
+    const metadata = record(candidate.metadata);
+    const index = num(metadata.candidate_index);
+    const context = metadata.context;
+    const safeContext = context === "search" || context === "revalidate" || context === "recovery"
+      ? context : "unknown";
+    stages.push(stageRow(
+      `scene-candidate-validation:${index !== null && Number.isInteger(index) && index > 0 ? index : "unknown"}:${safeContext}`,
+      num(metadata.start_since_ask_ms),
+      num(metadata.duration_ms),
+    ));
   }
 
   const firstAudible = first("first-audible");
@@ -316,7 +331,8 @@ export function summarizeTurns(turns: TurnLatency[]): { askToFirstAudible: Stage
         values.set(stage.name, []);
       }
       // A mark's offset after Ask is its number; a span's is its duration.
-      const value = stage.durationMs ?? stage.startMs;
+      const value = stage.name.startsWith("scene-candidate-validation:")
+        ? stage.durationMs : stage.durationMs ?? stage.startMs;
       if (value !== null) values.get(stage.name)!.push(value);
       if (stage.hitCap) caps.set(stage.name, (caps.get(stage.name) ?? 0) + 1);
     }
