@@ -2705,7 +2705,7 @@ function parametricCurveGeometry(
   const tMin = resolveNumber(first(inputs, ["tMin", "parameterMin"]), quantities);
   const tMax = resolveNumber(first(inputs, ["tMax", "parameterMax"]), quantities);
   if (!(tMin < tMax)) throw new Error("parametric_curve requires tMin < tMax");
-  const samples = curveSampleCount(inputs.samples, quantities, "parametric_curve");
+  const samples = curveSampleCount(inputs.samples, quantities, "parametric_curve", LOOP_CURVE_MAX_SAMPLES);
   const xExpression = parseParameterizedExpression(inputs.xExpression, "t");
   const yExpression = parseParameterizedExpression(inputs.yExpression, "t");
   xExpression.assertContinuousOn(tMin, tMax);
@@ -2728,7 +2728,7 @@ function polarCurveGeometry(
   const thetaMin = resolveNumber(first(inputs, ["thetaMin", "parameterMin"]), quantities);
   const thetaMax = resolveNumber(first(inputs, ["thetaMax", "parameterMax"]), quantities);
   if (!(thetaMin < thetaMax)) throw new Error("polar_curve requires thetaMin < thetaMax");
-  const samples = curveSampleCount(inputs.samples, quantities, "polar_curve");
+  const samples = curveSampleCount(inputs.samples, quantities, "polar_curve", LOOP_CURVE_MAX_SAMPLES);
   const radiusExpression = parseParameterizedExpression(inputs.radiusExpression, "theta");
   radiusExpression.assertContinuousOn(thetaMin, thetaMax);
   const evaluate = (theta: number): Point => {
@@ -3990,14 +3990,18 @@ function assertParameterInDomain(curve: SampledCurve, parameter: number, operato
   }
 }
 
+/** Parametric and polar curves often close a full loop; like conics they may ask for up to 513 samples. */
+const LOOP_CURVE_MAX_SAMPLES = 513;
+
 function curveSampleCount(
   value: unknown,
   quantities: Map<string, Record<string, unknown>>,
   operator: string,
+  maxSamples = 161,
 ): number {
   const samples = value === undefined ? 65 : resolveNumber(value, quantities);
-  if (!Number.isInteger(samples) || samples < 17 || samples > 161 || samples % 2 === 0) {
-    throw new Error(`${operator} samples must be an odd integer from 17 to 161`);
+  if (!Number.isInteger(samples) || samples < 17 || samples > maxSamples || samples % 2 === 0) {
+    throw new Error(`${operator} samples must be an odd integer from 17 to ${maxSamples}`);
   }
   return samples;
 }

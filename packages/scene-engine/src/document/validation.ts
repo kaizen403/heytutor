@@ -6328,7 +6328,7 @@ function validateParameterizedCurveInputs(
       });
     }
   }
-  validateCurveSamples(inputs.samples, index, document, issues, contract.operator);
+  validateCurveSamples(inputs.samples, index, document, issues, contract.operator, LOOP_CURVE_MAX_SAMPLES);
 }
 
 function sampledCurveDomain(
@@ -6348,18 +6348,22 @@ function sampledCurveDomain(
   return min !== null && max !== null && min < max ? { min, max } : null;
 }
 
+/** Parametric and polar curves often close a full loop; like conics they may ask for up to 513 samples. */
+const LOOP_CURVE_MAX_SAMPLES = 513;
+
 function validateCurveSamples(
   value: unknown,
   index: number,
   document: SceneDocument,
   issues: SceneIssue[],
   operator: string,
+  maxSamples = 161,
 ): void {
   const samples = value === undefined ? 65 : validationNumber(value, document);
-  if (samples === null || !Number.isInteger(samples) || samples < 17 || samples > 161 || samples % 2 === 0) {
+  if (samples === null || !Number.isInteger(samples) || samples < 17 || samples > maxSamples || samples % 2 === 0) {
     issues.push({
       code: `invalid_${operator}_samples`,
-      message: `${operator} samples must be an odd integer from 17 to 161`,
+      message: `${operator} samples must be an odd integer from 17 to ${maxSamples}`,
       severity: "fatal",
       path: `constructions[${index}].inputs.samples`,
       actual: samples,
