@@ -28,6 +28,7 @@ import { measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
 import { evaluateTopologyAssertion, validateTopologyInvariants } from "../topology/topology";
 import { implicitSolverEntityIds, validateSceneDocument } from "../document/validation";
 import { validateMatrixSourceBinding } from "./matrixSourceBinding";
+import { compactCalloutLabel, isPointIdentifierText, isViewSummaryText, pointLabelTether } from "./pointLabelText";
 import { validateCircleLabelTraces, validateCircleSourceBinding } from "./circleGeometry";
 import { validateRelativeMotionSourceInputs } from "../synthesize/relativeMotionScene";
 import { validateUniformCircularSourceInputs } from "../physics/uniformCircularSourceBinding";
@@ -945,23 +946,6 @@ function isPageNormalMarker(value: string): boolean {
   return ["×", "⊗", "•", "⊙"].includes(value.trim());
 }
 
-function compactCalloutLabel(text: string | undefined): string | undefined {
-  const normalized = text?.trim();
-  if (!normalized) return undefined;
-  if (normalized.length <= 16) return normalized;
-  const compactResult = normalized
-    .replace(/R_?eq\s*,\s*(?:series|parallel)\s*=/i, "R_eq =")
-    .replace(/\s+/g, " ");
-  if (compactResult.length <= 16) return compactResult;
-  const directionalPrefix = compactResult.match(
-    /^(.{1,16}?)(?:\s+(?:toward|towards|to the|into|out of|leftward|rightward|upward|downward|clockwise|counterclockwise)\b)/i,
-  )?.[1]?.trim();
-  if (directionalPrefix) return directionalPrefix;
-  const head = normalized.split(/[(:,;]/, 1)[0]?.trim();
-  if (head && head.length <= 16) return head;
-  return undefined;
-}
-
 function isComponentDesignator(text: string): boolean {
   return /^[A-Za-z][A-Za-z0-9_₀-₉]{0,7}$/.test(text.trim());
 }
@@ -1044,12 +1028,6 @@ function stackSummaryLabelOwners(
     ordered.forEach((owner, index) => replaced.set(owner, rows[index]!));
   }
   return owners.map((owner) => replaced.get(owner) ?? owner);
-}
-
-function isViewSummaryText(text: string | undefined): boolean {
-  const normalized = text?.trim() ?? "";
-  return /^(?:series|parallel|result|equivalent|total|answer|fbd|free[- ]body)\b/i.test(normalized) ||
-    /^[A-Za-z][A-Za-z0-9_₀-₉,]*\s*=/.test(normalized);
 }
 
 function boundsForPrimitives(
@@ -4884,18 +4862,6 @@ function labelAnchor(value: Geometry): Point {
   if (value.kind === "circle") return { x: value.center.x + value.radius, y: value.center.y };
   if (value.kind === "axes") return { x: 0, y: 0 };
   return centerOf(value);
-}
-
-function isPointIdentifierText(text: string): boolean {
-  return /^[A-Za-zΑ-ω][A-Za-z0-9₀-₉_]{0,2}$/.test(text.trim());
-}
-
-function pointLabelTether(text: string): number {
-  // Keep point identifiers in the same 56 px neighborhood. A measured phrase
-  // needs room for its own glyphs: add only its excess half-width, so text
-  // remains just as close to the anchor instead of failing on box size alone.
-  if (isPointIdentifierText(text)) return POINT_LABEL_TETHER_PX;
-  return POINT_LABEL_TETHER_PX + Math.max(0, measureTextWidth(text, 24) - 24) / 2;
 }
 
 function screenIncidentTangents(
