@@ -51,14 +51,26 @@ const MAX_INTERCEPT_AXIS_LENGTHS = 20;
 const MIN_TRIANGLE_INTERIOR = 0.05;
 const MAX_DEPTH = 64;
 
-const plans = new WeakMap<SceneDocument, SpaceViewPlan | null>();
+/**
+ * Memo by document identity. The stored signature of the constructions and
+ * quantities guards a caller that edits a document in place between compiles.
+ */
+const plans = new WeakMap<SceneDocument, { signature: string; plan: SpaceViewPlan }>();
 
 /** The document's space view, or null when it has no space_frame. */
 export function planSpaceView(document: SceneDocument): SpaceViewPlan | null {
-  if (plans.has(document)) return plans.get(document) ?? null;
+  if (!constructionsOf(document).some((construction) => construction.operator === "space_frame")) return null;
+  const signature = planSignature(document);
+  const memo = plans.get(document);
+  if (memo && signature !== null && memo.signature === signature) return memo.plan;
   const plan = computePlan(document);
-  plans.set(document, plan);
+  if (plan && signature !== null) plans.set(document, { signature, plan });
   return plan;
+}
+
+/** Null when the document cannot be serialised; the plan is then recomputed each time. */
+function planSignature(document: SceneDocument): string | null {
+  try { return JSON.stringify([document.constructions, document.quantities]); } catch { return null; }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
