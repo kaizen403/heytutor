@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import ts from "typescript";
 import { getMockCodeLessonPlan } from "@heytutor/tutor-core";
-import type { StoredTurn } from "../../lib/boards/boardsClient";
+import type { StoredTurn, TurnCheckpointInput } from "../../lib/boards/boardsClient";
 import { CodeLessonController } from "../../features/tutor-session/lib/code-lesson/codeLessonController";
 import { LiveTurnSaveRegistry } from "../../features/tutor-session/lib/turn/liveTurnSave";
 import { lessonPageRecord } from "../../features/tutor-session/lib/turn/doubtTurn";
@@ -30,9 +30,19 @@ function turn(chars: number, status: "live" | "stopped" = "stopped", id = "lesso
     segments: [{ id: `${id}-type`, orderIndex: 0, narration: "Explain the function.", spokenText: "Explain the function.", audioUrl: null, durationMs: null, timings: null,
       command: { type: "TYPE", params: [], charPosition: 0, narrationBefore: "", text: block.code, semanticRef: { entityId: block.id }, shownChars: chars } }] };
 }
-function fixture(options: { holdCheckpoint?: boolean; holdOwnerProbe?: Promise<"inactive"> } = {}) {
+function fixture(options: { holdCheckpoint?: boolean; holdOwnerProbe?: Promise<"inactive">; acknowledgeCheckpointAfter?: Promise<void> } = {}) {
   const controller = new CodeLessonController();
-  const registry = new LiveTurnSaveRegistry({ transport: { checkpoint: async () => {
+  let acknowledgedRows: TurnCheckpointInput["segments"] = [];
+  const registry = new LiveTurnSaveRegistry({ transport: { checkpoint: async (_board, id, input) => {
+    if (options.acknowledgeCheckpointAfter) {
+      await options.acknowledgeCheckpointAfter;
+      acknowledgedRows = [...acknowledgedRows.slice(0, input.baseCount), ...input.segments];
+      const saved: StoredTurn = { ...plainTurn(), id, status: input.status, persistedStatus: input.status,
+        resumeState: input.resumeState ?? null,
+        segments: acknowledgedRows.map((row, orderIndex) => ({ ...row, id: `saved-${orderIndex}`, orderIndex, audioUrl: null })) };
+      return { ok: true, turn: saved, serverSeq: input.seq, serverSceneSeq: input.seq, sceneAccepted: true,
+        serverCount: acknowledgedRows.length, stale: false, final: false };
+    }
     if (options.holdCheckpoint) await new Promise<never>(() => {});
     return { ok: false, status: 403, reason: "forbidden", error: "fixture", retryable: false };
   }, close: async () => ({ ok: false, status: 403, reason: "forbidden", error: "fixture", retryable: false }) }, mintId: () => "attempt", now: () => 1000, isOnline: () => true, setTimer: () => 1, clearTimer() {} });
@@ -109,8 +119,8 @@ function plainTurn(rows = 1): StoredTurn {
     segments: Array.from({ length: rows }, (_, index) => ({ id: `plain-${index}`, orderIndex: index, narration: index ? `Explain step ${index}` : "", spokenText: index ? `Explain step ${index}` : "", audioUrl: null, durationMs: index ? null : 50, timings: null,
       command: index ? { type: "WRITE" as const, params: [90, 145 + index * 40, 28], text: `work = ${index}`, charPosition: 0, narrationBefore: "" } : { type: "CLEAR" as const, params: [], charPosition: 0, narrationBefore: "" } })) };
 }
-function stoppedPendingFixture(holdOwnerProbe?: Promise<"inactive">) {
-  const stopped = fixture({ holdCheckpoint: true, holdOwnerProbe });
+function stoppedPendingFixture(holdOwnerProbe?: Promise<"inactive">, acknowledgeCheckpointAfter?: Promise<void>) {
+  const stopped = fixture({ holdCheckpoint: true, holdOwnerProbe, acknowledgeCheckpointAfter });
   const question = plainTurn().question;
   stopped.params.boardPageRef.current = lessonPageRecord("board", question);
   stopped.registry.begin({ owner: stopped.params.cancelRef, generation: 1, boardId: "board", traceId: "stop", kind: "lesson",
@@ -141,6 +151,12 @@ async function main() {
       assert.equal(restored?.parentTurnId, "attempt", `${staleHistory} history must retain the same locally stopped parent while its checkpoint is pending`);
       assert(stopped.offers.at(-1), `${staleHistory} idle restore must not erase Continue`);
       assert.equal(stopped.asked.length, 0, "retaining the offer never starts a lesson automatically");
+      const visible = await idle.restorePausedLesson(staleHistory === "empty" ? [] : [rawLive], true);
+      assert.equal(visible?.parentTurnId, "attempt", "visible restore retains the locally stopped parent");
+      assert.deepEqual(stopped.paints, ["work = 1"],
+        `${staleHistory} visible refresh must render ended local rows, not the pre-Stop server snapshot`);
+      assert.equal(stopped.params.boardPageRef.current.lessonQuestion, plainTurn().question);
+      assert(stopped.offers.at(-1), "Continue is published only after the stopped page has actually been hydrated");
       idle.flushPausedLesson();
       assert.equal(stopped.asked.length, 1, "the retained native Continue remains actionable");
       await tick();
@@ -165,6 +181,25 @@ async function main() {
       probe.resolve("inactive");
       assert.equal(await pending, null, `${successor}: late ownership probe cannot install the old stopped snapshot`);
       assert.equal(stopped.offers.length, offersBefore, `${successor}: stale probe cannot publish an offer`);
+      timers.clear();
+    }
+    // The local checkpoint can finish during the ownership read. Hydration
+    // must use the already captured ended snapshot: reopen no longer overlays
+    // the mirror once it has been acknowledged, while the effect still owns
+    // its original empty/raw-live server read.
+    for (const staleHistory of ["empty", "live"] as const) {
+      const probe = defer<"inactive">(), checkpoint = defer<void>();
+      const stopped = stoppedPendingFixture(probe.promise, checkpoint.promise);
+      const old = staleHistory === "empty" ? [] : [stopped.rawLive];
+      const pending = stopped.idle.restorePausedLesson(old, true);
+      checkpoint.resolve(); await tick();
+      assert.equal(stopped.registry.resumeTurns("board", []).length, 0,
+        "the actual checkpoint ACK has retired the unsent local mirror before ownership returns");
+      probe.resolve("inactive");
+      assert.equal((await pending)?.parentTurnId, "attempt");
+      assert.deepEqual(stopped.paints, ["work = 1"],
+        `${staleHistory}: checkpoint settlement cannot discard the captured stopped page during visible refresh`);
+      assert(stopped.offers.at(-1));
       timers.clear();
     }
     const h = fixture();

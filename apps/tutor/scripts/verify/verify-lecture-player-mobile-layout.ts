@@ -17,6 +17,9 @@ import type { LecturePlayerBarProps } from "../../features/tutor-session/compone
 import type { BoardViewport } from "../../features/tutor-session/types";
 import type { TutorSessionShellProps } from "../../features/tutor-session/TutorSessionShell";
 import type { StoredTurn } from "../../lib/boards/boardsClient";
+import { getMockCodeLessonPlan } from "@heytutor/tutor-core";
+import { CodeLessonController } from "../../features/tutor-session/lib/code-lesson/codeLessonController";
+import type { CodeLessonPanelProps, CodeLessonPanelVariant } from "../../features/tutor-session/components/CodeLessonPanel";
 
 const appRoot = fileURLToPath(new URL("../../", import.meta.url));
 const requireApp = createRequire(new URL("../../package.json", import.meta.url));
@@ -74,10 +77,18 @@ class HookMount {
   unmount() { for (const slot of this.slots) slot.cleanup?.(); }
 }
 
-function viewportFixture(width: number, height: number, deckHeight: number, mode: "fit" | "fixed" = "fit") {
+function viewportFixture(width: number, height: number, deckHeight: number, mode: "fit" | "fixed" = "fit", panelHeight = 0) {
   const mount = new HookMount();
-  const box = { width, height, deckHeight, keyboardInset: 0 };
-  const deck = { getBoundingClientRect: () => ({ height: box.deckHeight }) };
+  const box = { width, height, deckHeight, keyboardInset: 0, panelShown: panelHeight > 0 };
+  const panelStyle = new Map<string, string>();
+  const panel = panelHeight > 0 ? {
+    getBoundingClientRect: () => ({ height: panelStyle.get("--board-panel-display") === "none" ? 0 : Math.min(panelHeight, Number.parseFloat(panelStyle.get("--board-panel-max-height") ?? "Infinity")) }),
+  } : null;
+  const deck = {
+    style: { setProperty: (key: string, value: string) => panelStyle.set(key, value), removeProperty: (key: string) => panelStyle.delete(key) },
+    querySelector: (selector: string) => selector === '[data-board-code-panel="below"]' && box.panelShown ? panel : null,
+    getBoundingClientRect: () => ({ height: box.deckHeight + (panel && box.panelShown && panelStyle.get("--board-panel-display") !== "none" ? panel.getBoundingClientRect().height + 12 : 0) }),
+  };
   const container = {
     getBoundingClientRect: () => ({ width: box.width, height: box.height }),
     querySelector: (selector: string) => selector === "[data-board-deck]" ? deck : null,
@@ -91,15 +102,27 @@ function viewportFixture(width: number, height: number, deckHeight: number, mode
     addEventListener: (_event: string, callback: () => void) => mediaListeners.add(callback),
     removeEventListener: (_event: string, callback: () => void) => mediaListeners.delete(callback),
   };
+  let nextFrame = 1;
+  const frames = new Map<number, () => void>();
+  const flushFrames = () => {
+    for (let count = 0; frames.size > 0 && count < 40; count++) {
+      const pending = [...frames.values()];
+      frames.clear();
+      for (const callback of pending) callback();
+    }
+    assert.equal(frames.size, 0, "viewport frame scheduling must settle");
+  };
   const original = new Map<string, PropertyDescriptor | undefined>();
   for (const [key, value] of Object.entries({
     window: {
       innerWidth: width, innerHeight: height,
-      visualViewport: { offsetTop: 0, get height() { return height - box.keyboardInset; } },
-      matchMedia: () => media,
+      visualViewport: { offsetTop: 0, get height() { return height - box.keyboardInset; }, addEventListener: () => {}, removeEventListener: () => {} },
+      matchMedia: (query: string) => query.includes("767px") ? { ...media, get matches() { return box.width <= 767; } } : media,
       setTimeout: () => 0, clearTimeout: () => {},
     },
-    requestAnimationFrame: (): number => 0, cancelAnimationFrame: () => {},
+    requestAnimationFrame: (callback: () => void): number => { const id = nextFrame++; frames.set(id, callback); return id; },
+    cancelAnimationFrame: (id: number) => frames.delete(id),
+    getComputedStyle: () => ({ marginTop: "12px", display: panelStyle.get("--board-panel-display") ?? "flex" }),
     ResizeObserver: class {
       constructor(callback: () => void) { observerCallback = callback; }
       observe(element: unknown) { observed.add(element); }
@@ -116,10 +139,11 @@ function viewportFixture(width: number, height: number, deckHeight: number, mode
   const resize = (patch: Partial<typeof box>, target: "container" | "deck" = "container") => {
     Object.assign(box, patch);
     if (observed.has(target === "deck" ? deck : container)) observerCallback();
+    flushFrames();
     return read();
   };
   return {
-    box, deck, container, observed, read, resize,
+    box, deck, panel, panelStyle, container, observed, read, resize,
     get disconnected() { return disconnected; },
     get mediaListenerCount() { return mediaListeners.size; },
     unmount: () => mount.unmount(),
@@ -164,6 +188,19 @@ function stripClass(html: string) {
   assert.ok(classes, "transport has a layout class");
   return classes.split(/\s+/);
 }
+check("actual DSA below-panel consumes the measured cap and board overlay keeps its dimensions", () => {
+  const panelFile = path.join(appRoot, "features/tutor-session/components/CodeLessonPanel.tsx");
+  const panel = load(panelFile, process.env.LECTURE_PLAYER_PANEL_SOURCE ?? panelFile).CodeLessonPanel as ComponentType<CodeLessonPanelProps & { variant?: CodeLessonPanelVariant }>;
+  const controller = new CodeLessonController();
+  controller.commit(getMockCodeLessonPlan("Explain binary search."));
+  controller.revealPanel();
+  const below = renderToStaticMarkup(createElement(panel, { controller, variant: "below" }));
+  assert.match(below, /data-board-code-panel="below"/);
+  assert.match(below, /height:min\(42vh, 340px, var\(--board-panel-max-height, 340px\)\)/, "actual editor height participates in the viewport's bounded budget");
+  const board = renderToStaticMarkup(createElement(panel, { controller, variant: "board" }));
+  assert.match(board, /data-board-code-panel="board"/);
+  assert.ok(!board.includes("--board-panel-max-height"), "desktop board-coordinate panel is unchanged");
+});
 check("below-board transport participates in flow and has no board-covering gradient", () => {
   const html = markup("below");
   const classes = stripClass(html);
@@ -311,10 +348,69 @@ check("stable empty deck is observed and refits when completed controls appear",
   assert.ok(f.observed.has(f.deck), "observe the stable deck, not only its unchanged parent");
   near(f.resize({ deckHeight: 68 }, "deck").scale, 0.4142857143);
 }));
-check("real deck growth still refits while keyboard is present", () => withViewport(844, 390, 68, (f) => {
-  near(f.read().scale, 0.4142857143);
-  near(f.resize({ deckHeight: 112, keyboardInset: 150 }, "deck").scale, 0.3514285714);
-  near(f.resize({ deckHeight: 0 }, "deck").scale, 0.5114285714);
+check("keyboard-shrunken box preserves scale across dock appearance and removal", () => withViewport(390, 450, 82, (f) => {
+  const accepted = f.read().scale;
+  near(f.resize({ height: 200, keyboardInset: 250 }).scale, accepted);
+  near(f.resize({ deckHeight: 0 }, "deck").scale, accepted);
+  near(f.resize({ deckHeight: 82 }, "deck").scale, accepted);
+  near(f.resize({ keyboardInset: 0 }).scale, 0.14);
+  near(f.resize({ height: 450 }).scale, accepted);
+}));
+check("DSA panel and dock retain paper and fit their actual phone container", () => {
+  for (const [width, height, panel] of [[390, 588, 340], [375, 411, 280.125]] as const) {
+    const f = viewportFixture(width, height, 82, "fit", panel);
+    try {
+      const result = f.read();
+      const paperHeight = result.scale * 700;
+      assert.ok(paperHeight >= Math.min((width - 20) / 1200 * 700, (height - 20) * 0.45) - 0.01, "paper retains its width-fit height or45% of its available column height");
+      assert.ok(paperHeight + 20 + f.deck.getBoundingClientRect().height <= height + 0.01, "the real capped panel and transport fit below the paper");
+      assert.ok(f.panel!.getBoundingClientRect().height >= 80, "code remains a scrollable visible editor, not a collapsed panel");
+    } finally { f.close(); }
+  }
+});
+check("DSA cap follows the shell phone breakpoint through667px landscape", () => {
+  const f = viewportFixture(667, 300, 82, "fit", 157.5);
+  try {
+    const result = f.read();
+    assert.ok(f.panelStyle.has("--board-panel-max-height"), "641-767px below-panel must not use its uncapped fallback");
+    assert.ok(result.scale * 700 >= (300 - 32) * 0.45 - 0.01);
+    assert.ok(result.scale * 700 + 32 + f.deck.getBoundingClientRect().height <= 300.01);
+  } finally { f.close(); }
+});
+check("DSA reveal and finished dock cannot bypass a genuine keyboard height drop", () => {
+  const f = viewportFixture(390, 450, 0, "fit", 340);
+  try {
+    const accepted = f.read().scale;
+
+    near(f.resize({ height: 180, keyboardInset: 270 }).scale, accepted);
+    near(f.resize({ deckHeight: 82 }, "deck").scale, accepted);
+    assert.equal(f.panelStyle.get("--board-panel-display"), "none", "panel defers when keyboard leaves no usable editor room, without changing paper scale");
+    f.resize({ height: 450, keyboardInset: 0 });
+    assert.ok(f.panel!.getBoundingClientRect().height + f.read().scale * 700 + 82 + 12 + 20 <= 450.01);
+    const rotated = f.resize({ width: 844, height: 390 });
+    assert.ok(rotated.measured && rotated.scale !== accepted, "a real rotation still refits");
+  } finally { f.close(); }
+});
+check("first DSA panel reveal with keyboard already open receives a bounded budget", () => {
+  const f = viewportFixture(390, 450, 82, "fit", 340);
+  try {
+    f.box.panelShown = false;
+    const accepted = f.read().scale;
+    near(f.resize({ height: 200, keyboardInset: 250 }).scale, accepted);
+    near(f.resize({ panelShown: true }, "deck").scale, accepted);
+    assert.ok(f.panelStyle.has("--board-panel-max-height"), "new panel cannot use its uncapped fallback while keyboard lock returns");
+    assert.equal(f.panelStyle.get("--board-panel-display"), "none");
+    f.resize({ height: 450, keyboardInset: 0 });
+    assert.equal(f.panelStyle.get("--board-panel-display"), "flex", "keyboard close restores code without remounting the controller");
+    assert.ok(f.panel!.getBoundingClientRect().height >= 80);
+  } finally { f.close(); }
+});
+check("keyboard lock releases on an actual width rotation", () => withViewport(390, 450, 82, (f) => {
+  const accepted = f.read().scale;
+  near(f.resize({ height: 200, keyboardInset: 250 }).scale, accepted);
+  const rotated = f.resize({ width: 844, height: 390, keyboardInset: 150 });
+  near(rotated.scale, 0.3942857143);
+  assert.notEqual(rotated.scale, accepted);
 }));
 check("keyboard-only resize and tiny URL-bar jitter preserve lecture scale", () => withViewport(844, 390, 68, (f) => {
   const initial = f.read().scale;

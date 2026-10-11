@@ -16,6 +16,7 @@ const app = fileURLToPath(new URL("../../", import.meta.url));
 const requireApp = createRequire(new URL("../../package.json", import.meta.url));
 const runnerPath = path.join(app, "features/tutor-session/hooks/turn/useSegmentRunner.ts");
 const controlPath = path.join(app, "features/tutor-session/hooks/turn/useTurnControl.ts");
+const timeoutPath = path.join(app, "features/tutor-session/lib/turn/ttsSegmentTimeout.ts");
 const ref = <T,>(current: T) => ({ current });
 const noop = () => {};
 const narration = "Force equals mass times acceleration.";
@@ -26,7 +27,8 @@ type Outcome = "stall" | "reject" | "success" | "pending";
 type Job = { options: SpeakSegmentOptions; resolve: () => void; reject: (error: Error) => void; outcome: Outcome };
 
 /** Controlled render/clock/media ports; real runner, ink planner, queue and save registry. */
-function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw = false) {
+type PlaybackFixture = { narration: string; rate: number; durationMs: number; timings?: boolean };
+function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw = false, playback?: PlaybackFixture) {
   let now = 1_000, sequence = 0, mint = 0, browserAttempts = 0;
   const timers = new Map<number, { at: number; run: () => void }>();
   const jobs: Job[] = [], drawn: string[] = [], errors: Array<{ message: string; question: string }> = [];
@@ -55,18 +57,34 @@ function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw
     }
     now = target; await flush();
   };
-  const timings = { totalDuration: 2, charStartTimes: [...core.mathToSpeech(narration)].map((_, i) => i * .04),
-    charDurations: [...core.mathToSpeech(narration)].map(() => .04) };
+  const spoken = core.mathToSpeech(playback?.narration ?? narration);
+  const durationSec = playback ? playback.durationMs / 1000 : 2;
+  const timings = { totalDuration: durationSec, charStartTimes: [...spoken].map((_, i) => i * durationSec / spoken.length),
+    charDurations: [...spoken].map(() => durationSec / spoken.length) };
+  let rate = playback?.rate ?? 1.25, mediaPosition = 0, mediaLastAt = now, mediaPaused = false;
+  const sampleMedia = () => {
+    if (!mediaPaused) mediaPosition += (now - mediaLastAt) * rate;
+    mediaLastAt = now;
+    return mediaPosition;
+  };
   const tts = {
     speakSegment: (_text: string, options: SpeakSegmentOptions) => new Promise<void>((resolve, reject) => {
+      if (playback) { mediaPosition = 0; mediaLastAt = now; }
       const outcome = outcomes[jobs.length] ?? "pending";
       jobs.push({ options, resolve, reject, outcome });
-      options.onTimings?.(outcome === "pending" ? { ...timings, totalDuration: 60 } : timings); options.onStart?.();
-      if (outcome === "success") setTimer(() => { options.onEnd?.(); resolve(); }, 1_000);
+      if (!playback || playback.timings !== false) options.onTimings?.(outcome === "pending" ? { ...timings, totalDuration: 60 } : timings);
+      options.onStart?.();
+      if (outcome === "success" && playback) {
+        const finish = () => {
+          if (sampleMedia() >= playback.durationMs) { options.onEnd?.(); resolve(); }
+          else setTimer(finish, 100);
+        };
+        setTimer(finish, 100);
+      } else if (outcome === "success") setTimer(() => { options.onEnd?.(); resolve(); }, 1_000);
       else if (outcome === "reject") setTimer(() => reject(new Error("offline primary failed after start")), 200);
     }),
-    getPlaybackPositionMs: () => position, getPlaybackRate: () => 1.25,
-    peekSegmentTimings: () => timings, prefetchSegment: noop, abandonSpeaking: noop, stop: noop,
+    getPlaybackPositionMs: () => playback && jobs[0]?.outcome === "success" ? sampleMedia() : position, getPlaybackRate: () => rate,
+    peekSegmentTimings: () => playback?.timings === false ? null : timings, prefetchSegment: noop, abandonSpeaking: noop, stop: noop,
   } as unknown as TTSClient;
   const registry = new LiveTurnSaveRegistry({ transport: {
     checkpoint: async () => { throw new Error("gate forbids persistence transport"); },
@@ -81,7 +99,8 @@ function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw
   const load = (file: string): Record<string, unknown> => {
     const cached = cache.get(file); if (cached) return cached;
     const sourceFile = file === runnerPath ? process.env.STARTED_SPEECH_RUNNER_SOURCE ?? file
-      : file === controlPath ? process.env.STARTED_SPEECH_CONTROL_SOURCE ?? file : file;
+      : file === controlPath ? process.env.STARTED_SPEECH_CONTROL_SOURCE ?? file
+      : file === timeoutPath ? process.env.STARTED_SPEECH_TIMEOUT_SOURCE ?? file : file;
     const compiled = ts.transpileModule(readFileSync(sourceFile, "utf8"), {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
     }).outputText;
@@ -92,6 +111,7 @@ function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw
       if (specifier === "@heytutor/tutor-core") return { ...core, tutorDebug: noop, SpeechSynthesisTTSClient: BrowserVoice };
       if (specifier.endsWith("/liveTurnSave")) return { liveTurnSave: () => registry };
       if (specifier === "./useSegmentRunner") return load(runnerPath);
+      if (specifier.endsWith("/ttsSegmentTimeout")) return load(timeoutPath);
       return requireApp(specifier.startsWith("@/") ? path.join(app, specifier.slice(2))
         : specifier.startsWith(".") ? path.resolve(path.dirname(file), specifier) : specifier);
     }, mod, mod.exports);
@@ -136,6 +156,11 @@ function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw
   const control = controlHooks.useTurnControl(params as unknown as UseTurnLifecycleParams, ref(async () => {}));
   return { params, control, runner, handle, begin, jobs, drawn, errors, telemetry, registry, flush, advance,
     now: () => now, browserAttempts: () => browserAttempts,
+    setRate: (next: number) => { sampleMedia(); rate = next; },
+    setPaused: (paused: boolean) => {
+      sampleMedia(); mediaPaused = paused; params.isPausedRef.current = paused;
+      if (paused) runner.pauseFallbackSpeech(); else runner.resumeFallbackSpeech();
+    },
     rejectOldDraw: () => { assert(rejectOldDraw, "real old draw entered its asynchronous port"); rejectOldDraw(new Error("obsolete asynchronous ink failed")); },
     close: () => { for (const [key, descriptor] of original) {
       if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key);
@@ -280,8 +305,122 @@ async function newGenerationStartsFresh() {
   } finally { h.close(); }
 }
 
+async function slowPlayback(rate: number, chars: number, durationMs: number, changeRate = false, pause = false) {
+  const text = "a".repeat(chars);
+  const h = mount(0, ["success"], false, { narration: text, rate: changeRate ? 1 : rate, durationMs });
+  const beat: TutorSegment = { narration: text, command: null };
+  try {
+    let settled = false;
+    const result = h.runner.runSegment(beat, 0, [beat], 1).then(() => { settled = true; return null; }, error => { settled = true; return error as unknown; });
+    await h.flush();
+    if (changeRate) { await h.advance(h.now() + 1_000); h.setRate(rate); }
+    if (pause) {
+      await h.advance(h.now() + 1_000); h.setPaused(true);
+      await h.advance(h.now() + 200_000);
+      assert.equal(settled, false, "pause time cannot consume even the slow segment's expanded deadline");
+      h.setPaused(false);
+    }
+    const wallMs = durationMs / rate;
+    await h.advance(h.now() + wallMs + 1_000);
+    assert.equal(await result, null, "valid advancing slow playback must finish rather than reach the character watchdog");
+    assert.equal(h.params.recordedSegmentsRef.current.length, 1, "actual successful slow voice completes exactly one recorded beat");
+    assert.equal(h.browserAttempts(), 0, "slow native playback needs no browser retry");
+    assert(!h.telemetry.some(event => event.name === "tts-segment-failed"));
+    console.log(`started speech slow ${rate}x/${chars} chars${changeRate ? "/live-speed-change" : ""}${pause ? "/pause" : ""}: actual voice completes`);
+  } finally { h.close(); }
+}
+
+async function slowDeadClock(cancelled: boolean, stale = false, rate = .5) {
+  const text = "a".repeat(250);
+  // Missing alignment makes the character watchdog the only completion bound.
+  const h = mount(0, ["pending"], false, { narration: text, rate, durationMs: 21_500, timings: false });
+  const beat: TutorSegment = { narration: text, command: null };
+  try {
+    let settled = false;
+    const result = h.runner.runSegment(beat, 0, [beat], 1).then(() => { settled = true; return null; }, error => { settled = true; return error as unknown; });
+    await h.flush();
+    if (cancelled) { if (stale) h.params.turnGenerationRef.current++; else h.params.cancelRef.current = true; }
+    await h.advance(h.now() + 80_000);
+    assert.equal(settled, true, "missing alignment still has a finite slow-speed watchdog");
+    const error = await result;
+    if (cancelled) assert.equal(error, null, "slow timeout after Stop/successor stays quiet");
+    else { assert(error instanceof Error); assert.match(error.message, /tts segment timeout/); }
+    assert.equal(h.params.recordedSegmentsRef.current.length, 0);
+    assert.equal(h.browserAttempts(), 0);
+    console.log(`started speech slow no-alignment ${cancelled ? stale ? "stale" : "cancel" : "timeout"}: bounded owned release`);
+  } finally { h.close(); }
+}
+
+async function slowAlignmentDeadClock() {
+  const text = "a".repeat(250);
+  const h = mount(0, ["stall"], false, { narration: text, rate: .5, durationMs: 21_500 });
+  const beat: TutorSegment = { narration: text, command: null };
+  try {
+    const result = h.runner.runSegment(beat, 0, [beat], 1).then(() => null, error => error as unknown);
+    await h.advance(h.now() + 70_000);
+    const error = await result;
+    assert(error instanceof Error); assert.match(error.message, /playback stalled/);
+    assert.equal(h.params.recordedSegmentsRef.current.length, 0, "scaled alignment budget remains a watchdog, not a completion claim");
+    console.log("started speech slow aligned zero clock: finite playback-stalled failure");
+  } finally { h.close(); }
+}
+
+async function queuedSlowPlayback() {
+  const text = "a".repeat(250);
+  const h = mount(0, ["success", "success"], false, { narration: text, rate: .5, durationMs: 21_500 });
+  const beat: TutorSegment = { narration: text, command: null };
+  try {
+    h.control.enqueueSegment(beat, 1); h.control.enqueueSegment(beat, 1);
+    await h.advance(h.now() + 90_000); await h.params.segmentChainRef.current;
+    assert.equal(h.params.cancelRef.current, false, "two valid slow sentences cannot reach the repeated-failure stop");
+    assert.equal(h.errors.length, 0, "actual queue must not tell a slow-speed student their valid lesson failed");
+    assert.equal(h.params.recordedSegmentsRef.current.length, 2);
+    assert.equal(h.jobs.length, 2);
+    assert.equal(h.params.pendingSegmentCountRef.current, 0);
+    console.log("started speech slow two-beat queue: both complete without retry warning");
+  } finally { h.close(); }
+}
+
+async function speedIncreaseAfterSlowPlayback() {
+  const text = "a".repeat(1_000);
+  const h = mount(0, ["success"], false, { narration: text, rate: .5, durationMs: 65_000 });
+  const beat: TutorSegment = { narration: text, command: null };
+  try {
+    const result = h.runner.runSegment(beat, 0, [beat], 1).then(() => null, error => error as unknown);
+    await h.advance(h.now() + 60_000); h.setRate(1);
+    await h.advance(h.now() + 36_000);
+    assert.equal(await result, null, "elapsed slow playback must remain valid when the same sentence is sped up");
+    assert.equal(h.params.recordedSegmentsRef.current.length, 1);
+    console.log("started speech live speed increase: prior slow media time remains valid");
+  } finally { h.close(); }
+}
+
+async function timeoutRateControls() {
+  const helper = await import("../../features/tutor-session/lib/turn/ttsSegmentTimeout");
+  assert.equal(helper.speakSegmentTimeoutMs("a".repeat(250), .5), 75_000);
+  assert.equal(helper.speakSegmentTimeoutMs("a".repeat(1_000), .5), 180_000, "natural 90s ceiling scales with slow playback");
+  assert.equal(helper.speakSegmentTimeoutMs("a".repeat(250), 1e-9), 75_000, "an unsupported tiny client rate cannot create an unbounded watchdog");
+  for (const rate of [1, 1.25, 3, 0, -1, NaN, Infinity]) {
+    assert.equal(helper.speakSegmentTimeoutMs("a".repeat(250), rate), 37_500, "fast/default/invalid rates retain the original bounded budget");
+  }
+  console.log("started speech timeout rates: finite slow budget; default/invalid/faster unchanged");
+}
+
 async function main() {
   const cases: Array<{ name: string; run: () => Promise<void> }> = [
+    { name: "timeout-rate-controls", run: timeoutRateControls },
+    { name: "slow-queue", run: queuedSlowPlayback },
+    { name: "slow-half", run: () => slowPlayback(.5, 250, 21_500) },
+    { name: "slow-three-quarter", run: () => slowPlayback(.75, 600, 52_000) },
+    { name: "slow-long-cap", run: () => slowPlayback(.5, 1_000, 65_000) },
+    { name: "slow-live-rise", run: speedIncreaseAfterSlowPlayback },
+    { name: "slow-live-change", run: () => slowPlayback(.5, 250, 21_500, true) },
+    { name: "slow-pause", run: () => slowPlayback(.5, 250, 21_500, false, true) },
+    { name: "malformed-tiny-rate-timeout", run: () => slowDeadClock(false, false, 1e-9) },
+    { name: "slow-alignment-zero-clock", run: slowAlignmentDeadClock },
+    { name: "slow-no-alignment-timeout", run: () => slowDeadClock(false) },
+    { name: "slow-cancel", run: () => slowDeadClock(true) },
+    { name: "slow-stale", run: () => slowDeadClock(true, true) },
     { name: "positive-stall", run: () => runnerFailure(120, "stall") },
     { name: "zero-stall", run: () => runnerFailure(0, "stall") },
     { name: "missing-stall", run: () => runnerFailure(null, "stall") },

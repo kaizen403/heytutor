@@ -2,6 +2,7 @@ import type { RefObject } from "react";
 import { useEffect, useState } from "react";
 import {
   BOARD_FRAME_MOBILE_MQ,
+  BOARD_FRAME_KEYBOARD_INSET_PX,
   boardFramePaddingPx,
   shouldLockBoardScale,
 } from "../lib/board/boardFrame";
@@ -49,7 +50,6 @@ export function useBoardViewport(
      */
     const lastBox = { width: 0, height: 0 };
     let lastScale = 0;
-    let lastDeckHeight = 0;
     let measured = false;
 
     const updateScale = () => {
@@ -81,8 +81,53 @@ export function useBoardViewport(
         window.matchMedia(BOARD_FRAME_MOBILE_MQ).matches,
       );
 
+      const visual = window.visualViewport;
+      const keyboardInset = visual
+        ? Math.max(0, Math.round(window.innerHeight - (visual.offsetTop + visual.height)))
+        : 0;
+      // The keyboard shrinks this container as well as the visual viewport.
+      // A dock or code-panel toggle must not turn that temporary box into the
+      // accepted fit. Keep the paper scale until it closes;
+      // a genuine width change (rotation/sidebar) still accepts a new fit.
+      const keyboardLocked = measured && keyboardInset >= BOARD_FRAME_KEYBOARD_INSET_PX &&
+        shouldLockBoardScale({
+          widthDelta: width - lastBox.width,
+          heightDelta: -keyboardInset,
+          keyboardInset,
+        });
+
       const availWidth = Math.max(width - framePadding, 1);
-      const deckHeight = deck?.getBoundingClientRect().height ?? 0;
+      let deckHeight = deck?.getBoundingClientRect().height ?? 0;
+      const codePanel = deck?.querySelector<HTMLElement>('[data-board-code-panel="below"]');
+      if (deck && codePanel && window.matchMedia("(max-width: 767px)").matches) {
+        // Reserve paper first, then let the real scrollable editor use what
+        // remains after transport and margins. A minimum scale alone would
+        // push the uncapped panel outside the measured column.
+        const paperHeight = keyboardLocked ? lastScale * BOARD_HEIGHT : Math.min(
+          (availWidth / BOARD_WIDTH) * BOARD_HEIGHT,
+          Math.max(height - framePadding, 1) * 0.45,
+        );
+        const panelHeight = codePanel.getBoundingClientRect().height;
+        const panelStyle = getComputedStyle(codePanel);
+        const panelMargin = Number.parseFloat(panelStyle.marginTop) || 0;
+        const renderedMargin = panelStyle.display === "none" ? 0 : panelMargin;
+        const otherDeckHeight = Math.max(deckHeight - panelHeight - renderedMargin, 0);
+        const panelMaxHeight = Math.max(height - framePadding - paperHeight - otherDeckHeight - panelMargin, 0);
+        // A newly revealed panel must receive its budget even with the
+        // keyboard already up. If there is no room for its editor chrome,
+        // defer the below-board panel until the keyboard closes; keep the
+        // controller and its typed text mounted throughout.
+        const deferPanel = keyboardLocked && panelMaxHeight < 64;
+        deck.style.setProperty("--board-panel-max-height", `${panelMaxHeight}px`);
+        deck.style.setProperty("--board-panel-display", deferPanel ? "none" : "flex");
+        // Read the resulting layout, including panel borders and its hidden
+        // margin. This avoids fitting against its previous larger/smaller cap.
+        deckHeight = deck.getBoundingClientRect().height;
+      } else {
+        deck?.style.removeProperty("--board-panel-max-height");
+        deck?.style.removeProperty("--board-panel-display");
+      }
+      if (keyboardLocked) return;
       height = Math.max(height - deckHeight, 1);
       const availHeight = Math.max(height - framePadding, 1);
 
@@ -91,16 +136,8 @@ export function useBoardViewport(
 
       // Fit the board inside the container without cropping.
       const nextScale = Math.min(widthScale, heightScale, windowFallback ? 1 : Number.POSITIVE_INFINITY);
-      const visual = window.visualViewport;
-      const keyboardInset = visual
-        ? Math.max(0, Math.round(window.innerHeight - (visual.offsetTop + visual.height)))
-        : 0;
       // Avoid sub-pixel thrash from ResizeObserver feedback.
       if (measured && Math.abs(lastScale - nextScale) < 0.001) {
-        // A width-limited portrait board can keep its scale when the deck
-        // appears. Still remember that growth so a later keyboard resize
-        // cannot mistake the same deck for newly mounted controls.
-        lastDeckHeight = deckHeight;
         return;
       }
       // Keyboard and tiny height wobble must not rescale a live lecture.
@@ -109,7 +146,6 @@ export function useBoardViewport(
       if (
         measured &&
         lastBox.width > 0 &&
-        deckHeight === lastDeckHeight &&
         shouldLockBoardScale({
           widthDelta: width - lastBox.width,
           heightDelta: height - lastBox.height,
@@ -122,24 +158,32 @@ export function useBoardViewport(
       lastBox.width = width;
       lastBox.height = height;
       lastScale = nextScale;
-      lastDeckHeight = deckHeight;
       measured = true;
       setViewport({ scale: nextScale, offsetX: 0, offsetY: 0, measured: true });
     };
 
     updateScale();
-    const observer = new ResizeObserver(updateScale);
+    // Budget writes can resize the deck itself. Leave observer delivery
+    // before applying them so the next fit cannot feed a same-frame loop.
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(updateScale);
+    });
     observer.observe(container);
     if (deck) observer.observe(deck);
 
     const media = window.matchMedia(BOARD_FRAME_MOBILE_MQ);
     media.addEventListener("change", updateScale);
+    window.visualViewport?.addEventListener("resize", updateScale);
 
     return () => {
       cancelAnimationFrame(rafId);
       window.clearTimeout(timeoutId);
       observer.disconnect();
+      deck?.style.removeProperty("--board-panel-max-height");
+      deck?.style.removeProperty("--board-panel-display");
       media.removeEventListener("change", updateScale);
+      window.visualViewport?.removeEventListener("resize", updateScale);
     };
   }, [containerRef, mode]);
 

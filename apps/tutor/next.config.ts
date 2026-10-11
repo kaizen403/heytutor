@@ -30,8 +30,8 @@ const nextConfig: NextConfig = {
     // In-memory webpack cache can leave those files missing → ENOENT / PageNotFoundError.
     if (dev && isServer) {
       // Next disables filesystem cache's extra in-memory generations in dev.
-      // Replacing its options restores Webpack's default of five generations
-      // alongside Next's own memory cache, retaining repeated route builds.
+      // Preserve that limit and Next's inherited cache identity while adding
+      // our filesystem location and config dependency.
       const inheritedCache = config.cache && typeof config.cache === "object" && config.cache.type === "filesystem"
         ? config.cache
         : undefined;
