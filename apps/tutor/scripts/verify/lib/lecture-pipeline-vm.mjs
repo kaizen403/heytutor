@@ -46,6 +46,7 @@ export function createLecturePipelineVm(input) {
   const observeAcceptedPrefix = result => {
     const drawing = load('packages/drawing/src/index.ts').parseDrawingCommands(result.raw);
     record('setup-prefix-accepted', { commandCount: drawing.commands.length, raw: result.raw });
+    input.onParallelPrefix?.(result);
   };
   function resolveSource(candidate) {
     const absolute = path.isAbsolute(candidate) ? candidate : path.join(root, candidate);
@@ -111,9 +112,10 @@ export function createLecturePipelineVm(input) {
       } });
       await input.scene();
       if (options.holdValidationUntil && !(await options.holdValidationUntil)) return null;
-      if (options.signal?.aborted) return null;
+      if (!input.ignoreSceneAbort && options.signal?.aborted) return null;
       const document = structuredClone(input.sceneDocument);
       const response = { document, rawContent: JSON.stringify(document), phase: 'plan', lane: 'primary', elapsedMs: 0 };
+      record('scene-validation-started');
       const validation = await validate(document);
       options.onResponse?.(response);
       options.onCandidateValidation?.(response, validation);
@@ -135,9 +137,30 @@ export function createLecturePipelineVm(input) {
     }
     const loadedModule = { exports: {} };
     modules.set(filename, loadedModule);
-    const source = raw.toString('utf8').replaceAll('import.meta.url', JSON.stringify(pathToFileURL(filename).href))
+    let source = raw.toString('utf8').replaceAll('import.meta.url', JSON.stringify(pathToFileURL(filename).href))
       .replaceAll('import.meta.dirname', JSON.stringify(path.dirname(filename)));
-    const compilationKey = `${filename}:${hash(raw)}`;
+    // Deliberate opt-in regression mutants run in memory only. No runtime file
+    // is rewritten, and the default fixture executes the untouched source.
+    const mutate = (needle, replacement) => {
+      if (source.split(needle).length !== 2) throw new Error('Pending-figure mutation anchor changed');
+      source = source.replace(needle, replacement);
+    };
+    if (path.relative(root, filename) === pipelinePath) {
+      if (input.pendingFigureMutation === '--mutate-drop-guard') mutate(
+        'const guard = <T,>(operation: Promise<T>): Promise<T> => awaitUnstopped(operation, stopSignal);',
+        'const guard = <T,>(operation: Promise<T>): Promise<T> => operation;');
+      if (input.pendingFigureMutation === '--mutate-drop-restored-prefix') mutate(
+        'acceptedPrefix = restorePendingFigureCheckpoint(options.reopenPendingFigure, checkpointIdentity);',
+        'restorePendingFigureCheckpoint(options.reopenPendingFigure, checkpointIdentity); acceptedPrefix = null;');
+      if (input.pendingFigureMutation === '--mutate-duplicate-restored-prefix') mutate(
+        'fullResponse = (acceptedPrefix?.raw ?? "") + fullResponse;',
+        'fullResponse = (options.reopenPendingFigure !== undefined ? acceptedPrefix?.raw ?? "" : "") + (acceptedPrefix?.raw ?? "") + fullResponse;');
+    }
+    if (path.relative(root, filename) === 'apps/tutor/scripts/lecture-lab/parallelPendingFigure.ts' &&
+        input.pendingFigureMutation === '--mutate-skip-identity-check') mutate(
+      'if (JSON.stringify(value.identity[key]) !== JSON.stringify(identity[key])) throw invalid();',
+      'void key;');
+    const compilationKey = `${filename}:${hash(source)}`;
     if (!transpiled.has(compilationKey)) transpiled.set(compilationKey, ts.transpileModule(source, { fileName: filename,
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true, jsx: ts.JsxEmit.ReactJSX },
     }).outputText);
@@ -218,13 +241,18 @@ export function createLecturePipelineVm(input) {
       process.env.NEXT_PUBLIC_SCENE_SPECULATION = input.speculationEnabled ? '1' : '0';
       try {
         const pipelineModule = load(pipelinePath);
-        return await pipelineModule.runLecture(input.plan.question, {
-          origin: 'http://synthetic.invalid', cookie: '', fastMode: false, arm: 'planner_first',
-          figureOnly: Boolean(input.figureOnly), scenePlannerDeadlineMs: 60_000,
+        return await pipelineModule.runLecture(input.rawQuestion ?? input.plan.question, {
+          origin: 'http://synthetic.invalid', cookie: '', fastMode: input.fastMode ?? false,
+          arm: input.arm ?? 'planner_first', familiarity: input.familiarity,
+          productionStrictSubjects: input.productionStrictSubjects,
+          sceneDeclinePolicy: input.sceneDeclinePolicy,
+          figureOnly: Boolean(input.figureOnly), scenePlannerDeadlineMs: input.scenePlannerDeadlineMs ?? 60_000,
           visualNeedReplay: { decision: null, source: 'unavailable', unavailableReason: 'missing_gateway_key', usage: null, provenance: null },
           traceId: 'synthetic-parallel-prefix',
           parallelTeaching: Boolean(input.parallelEnabled),
           narrationLanguage: input.narrationLanguage,
+          stopSignal: input.stopSignal,
+          reopenPendingFigure: input.reopenPendingFigure,
           onParallelPrefix: observeAcceptedPrefix,
           onPresentation(presentation) {
             verifiedPromptAddon = presentation.diagram?.promptAddon ?? null;
@@ -240,6 +268,7 @@ export function createLecturePipelineVm(input) {
       }
     },
     stats() { return { teachingCalls, prefixCalls, providerAttempts, actualIntegration: true,
+      sourceMutation: input.pendingFigureMutation ?? null,
       sourceSHA256: sources.get(pipelinePath), repositorySources: [...sources].map(([file, sha256]) => ({ file, sha256 })),
       imports: edges, packagesLoadedFromSource: true }; },
   };

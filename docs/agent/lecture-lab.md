@@ -490,7 +490,26 @@ counts, not question or prefix text. `timings.firstSetupReadyMs` is complete hos
 setup admission; `firstMainStepReadyMs` is the first narration segment emitted by
 the existing incremental parser during the main stream. These are availability
 proxies, not acoustic playback or independently proven useful teaching. This
-prototype does not implement live Stop/save/Continue ownership. The existing
+prototype does not implement live Stop/save/Continue ownership. Lab-only
+`stopSignal` returns promptly while selection is pending, even if an external
+port ignores abort. It freezes an incomplete artifact with no committed figure,
+no decline cause and a private `pendingFigureCheckpoint`. The checkpoint carries
+the exact original question (at most 8 KiB), execution policy, selector version,
+host-renderer SHA-256 and admitted setup operation IDs only; total JSON is bounded
+to 16 KiB. It contains no plan, IR, scene or model prose. Keep it ignored.
+
+After persisting that checkpoint in private local JSON, pass it back via
+`reopenPendingFigure` with the same execution options. Validation rejects unknown
+keys, mismatched identity and oversized data before provider I/O. Reopen rebuilds
+all numeric and scene authority. Previously admitted setup enters history and
+raw teaching exactly once, without a second setup callback or a new setup timing.
+The receipt proves lab admission, not that the student heard the words. Stopping
+after a completed figure decision does not create a pending-figure checkpoint.
+The gate exercises disk JSON and a fresh source VM, not browser reload, database
+persistence, native Stop/Continue or audio replay. No live flag is ready on this
+evidence alone.
+
+The existing
 lab's contradiction behavior (teaching continues where live stops) is explicitly
 tested as a mismatch, not claimed as production parity or silently changed.
 
@@ -505,3 +524,7 @@ than dist, verifies identical OFF/ON authority and geometry, tests pending/faili
 prefixes and four-call continuations, and checks that the independently observed
 full verified teaching prompt survives. Its history, figure, prompt and stall
 mutation flags must fail. No HTTP, model, TTS or Jev request is made by the gate.
+
+The pending-figure gate additionally covers Stop before/after setup, uncooperative
+late results, exact original-input preservation, fresh reopen, strict identity and
+size bounds, no setup replay, default-off parity and Stop after verified commit.

@@ -1,5 +1,5 @@
 /** Lab-only setup protocol. It cannot select, describe or draw a figure. */
-export type AcceptedParallelPrefix = { accepted: true; raw: string; narration: string };
+export type AcceptedParallelPrefix = { accepted: true; raw: string; narration: string; actions: SetupAction[] };
 export type ParallelPrefixResult = AcceptedParallelPrefix | { accepted: false; reason: string };
 
 // Model output chooses procedures, never spoken claims. These finite imperative
@@ -16,7 +16,12 @@ const SETUP_ACTIONS = {
   preserve_signs: ["Carry signs and stated conventions consistently through each step, and check them before concluding.", "हर step में signs और stated conventions consistent रखें, और conclude करने से पहले उन्हें check करें."],
   plan_verification: ["Before accepting a conclusion, plan to check it against all the original conditions.", "Conclusion accept करने से पहले उसे सभी original conditions के against check करने की योजना रखें."],
 } as const;
-type SetupAction = keyof typeof SETUP_ACTIONS;
+export type SetupAction = keyof typeof SETUP_ACTIONS;
+
+/** Checkpoints pin the actual host wording, not only the protocol's name. */
+export function parallelPrefixRendererSignature(): string {
+  return JSON.stringify(SETUP_ACTIONS);
+}
 
 export function parallelPrefixPrompt(language: "english" | "hinglish" = "english"): string {
   return `PENDING_FIGURE_PREFIX — experimental setup-only teaching phase.
@@ -47,7 +52,7 @@ export function acceptParallelPrefix(raw: string, _question: string, language: "
     return { accepted: false, reason: "invalid_setup_schema" };
   }
   const narration = (record.actions as SetupAction[]).map(id => SETUP_ACTIONS[id][language === "hinglish" ? 1 : 0]).join(" ");
-  return { accepted: true, raw: `[STEP]${narration}[/STEP]`, narration };
+  return { accepted: true, raw: `[STEP]${narration}[/STEP]`, narration, actions: [...record.actions] as SetupAction[] };
 }
 
 export function parallelContinuationHistory(question: string, prefix: AcceptedParallelPrefix | null): { user: string; assistant: string }[] {
