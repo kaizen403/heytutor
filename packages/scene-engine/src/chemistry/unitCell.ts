@@ -222,8 +222,19 @@ function drawVoidMark(c: ChemScene, id: string, at: Vec2, role: string, label?: 
 
 /* ----------------------------------------------------------- readers */
 
-const EDGE_CUE = /(?:edge(?:\s*length)?|cell edge|axial distance|lattice (?:parameter|constant))(?:\s+of\s+(?:(?:an?|the)\s+)?(?:(?:fcc|bcc|simple cubic|face[ -]?centred|body[ -]?centred)\s+)?(?:unit\s+)?cell)?|side of (?:the )?(?:cube|cell|unit cell)|\ba\s*(?:=|is)/;
-const RADIUS_CUE = /(?:atomic|metallic|ionic|covalent)?\s*radius(?!\s*ratio)(?:\s+of\s+(?:the\s+)?(?:atom|metal|element|[a-z]+))?|\br\s*(?:=|is)/;
+const EDGE_CUE = /(?:edge(?:[ -]*length)?|cell edge(?:[ -]*length)?|axial distance|lattice (?:parameter|constant))(?:\s*\(\s*a\s*\))?(?:\s+of\s+(?:(?:an?|the)\s+)?(?:(?:fcc|bcc|simple cubic|face[ -]?centred|body[ -]?centred)\s+)?(?:unit\s+)?cell)?|side of (?:the )?(?:cube|cell|unit cell)|\ba\s*(?:=|is)/;
+const RADIUS_CUE = /(?:atomic|metallic|ionic|covalent)?\s*radius(?!\s*ratio)(?:\s+of\s+(?:(?:the|an?)\s+)?(?:(?:[a-z]+\s+)?(?:atom|ion)|metal|element|cation|anion|[a-z]+))?|\br\s*(?:=|is)/;
+
+/** A declared but unread physical value cannot be replaced by a relation. */
+function declaredQuantityCue(question: string, cue: RegExp): boolean {
+  for (const match of question.matchAll(new RegExp(cue.source, "gi"))) {
+    const tail = question.slice(match.index! + match[0].length)
+      .split(/\b(?:radius|radii|edge|atomic mass|molar mass|density|find|calculate|what|when|if)\b/i)[0]!;
+    if (/^\s*(?:[,+−\-\d.]|unknown\b|unreadable\b)/i.test(tail)
+      || /^(?:[^.;\n]|\.(?=\d)){0,70}?(?:=|:|\bis\b|\bequal to\b|\bmeasures\b|\bmeasured\b)/i.test(tail)) return true;
+  }
+  return false;
+}
 
 /** Three significant figures, keeping a trailing zero (11.0, 6.23). */
 function fmt(value: number, digits = 3): string {
@@ -617,6 +628,10 @@ function drawLatticeCell(c: ChemScene, slot: Slot, lattice: Exclude<Lattice, "hc
     c.scene.quantity(`${slot.prefix}_a`, "a", numbers.edgePm, "pm");
     captionBits.push(`a = ${fmtPm(numbers.edgePm)} pm as given`);
   }
+  if (numbers.radiusPm !== null) {
+    c.scene.quantity(`${slot.prefix}_r`, "r", numbers.radiusPm, "pm");
+    captionBits.push(`r = ${fmtPm(numbers.radiusPm)} pm as given`);
+  }
   if (computedEdge !== null) { captionBits.push(`a = ${fmtPm(computedEdge)} pm`); c.scene.quantity(`${slot.prefix}_a`, "a", computedEdge, "pm"); }
   if (computedRadius !== null) { captionBits.push(`r = ${fmtPm(computedRadius)} pm`); c.scene.quantity(`${slot.prefix}_r`, "r", computedRadius, "pm"); }
   if (edgePm !== null && numbers.molarMass !== null && numbers.densityGiven === null) {
@@ -742,6 +757,10 @@ export function buildUnitCellScene(question: string, quantities: ChemPlanQuantit
   if (!chemistryQuantityCuesValid(question, [{after: EDGE_CUE, dimensions: ["length"]}, {after: RADIUS_CUE, dimensions: ["length"]}, {after: /molar mass|atomic mass|molecular mass/, dimensions: ["molar_mass"]}, {after: /density/, dimensions: ["density"]}])) return null;
   const stem = chemStem(question);
   const numbers = readNumbers(question, quantities);
+  if ((numbers.edgePm === null && declaredQuantityCue(question, EDGE_CUE))
+    || (numbers.radiusPm === null && declaredQuantityCue(question, RADIUS_CUE))
+    || (numbers.edgePm !== null && !(numbers.edgePm > 0))
+    || (numbers.radiusPm !== null && !(numbers.radiusPm > 0))) return null;
   if (AVOGADRO_CUE.test(question)) {
     const avogadro = resolveChemistryGiven({question,quantities,after:AVOGADRO_CUE,aliases:["NA","avogadro"],dimension:"avogadro_constant",targetUnit:"mol^-1"});
     if (!avogadro.ok || !(avogadro.reading.value > 0)) return null;
