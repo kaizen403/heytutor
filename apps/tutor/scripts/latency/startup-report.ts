@@ -75,6 +75,10 @@ const MARK_STAGES = [
   "teaching-first-token",
   "teaching-hedge-winner",
   "teaching-first-step",
+  "early-lesson-opening-queued",
+  "figure-outcome-decision",
+  "figure-committed",
+  "verified-scene-intro-queued",
   "tts-first-byte",
   "first-audible",
 ] as const;
@@ -218,7 +222,7 @@ export function parseLangfuseTrace(trace: { id?: unknown; observations?: unknown
   const firstAudible = first("first-audible");
   const audibleMeta = record(firstAudible?.metadata);
   const audibleAt = timeMs(firstAudible?.startTime);
-  const askToFirstAudibleMs = num(audibleMeta.since_ask_ms) ??
+  const askToFirstAudibleMs = audibleMeta.muted === true ? null : num(audibleMeta.since_ask_ms) ??
     (audibleAt !== null && origin === "startup-ask" ? Math.round(audibleAt - originAt) : null);
 
   const winner = record(first("teaching-hedge-winner")?.metadata).winner;

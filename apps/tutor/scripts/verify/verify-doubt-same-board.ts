@@ -822,8 +822,8 @@ function between(source: string, file: string, start: string, end: string): stri
     "a doubt continues a page only once the part it continues is saved; if that failed, it opens its own page",
   );
   assert(
-    handler.includes("pendingQuestionOptionsRef.current = options ?"),
-    "a doubt queued while the board loads still runs as a doubt",
+    handler.includes("options: { ...options, originalQuestion }"),
+    "queued doubt options stay paired with their unchanged original source (behavior covered by verify-live-original-question)",
   );
 }
 

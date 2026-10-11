@@ -1,5 +1,6 @@
 import type { TurnTelemetryEvent } from "@/lib/obs/langfuse";
 import { resolveApiUrl } from "@heytutor/tutor-core";
+import { SPEECH_PLAYBACK_EVENT_NAMES } from "./speechPlayback";
 
 interface TurnTelemetryPayload {
   traceId: string;
@@ -67,6 +68,13 @@ export const STARTUP_PRIORITY_EVENTS = [
   "scene-speculative-abort",
   "tts-first-byte",
   "first-audible",
+  "speech-playback-start",
+  "speech-playback-end",
+  "early-lesson-opening-queued",
+  "figure-outcome-decision",
+  "figure-outcome-empty",
+  "figure-committed",
+  "figure-turn-terminal",
 ] as const;
 
 const STARTUP_PRIORITY_SET = new Set<string>(STARTUP_PRIORITY_EVENTS);
@@ -250,11 +258,15 @@ export function createTurnTelemetry(options: CreateTurnTelemetryOptions = {}): T
   let sessionId: string | undefined;
   const traceMetadata: Record<string, unknown> = {};
   let droppedEvents = 0;
+  let speechPlaybackDroppedEvents = 0;
+  let speechPlaybackTotalEvents = 0;
+  let speechPlaybackPendingEvents: number | null = null;
   let lastSentMetadata: string | null = null;
   let removeLifecycle: (() => void) | null = null;
   let lifecycleMarks = 0;
 
   const pushEvent = (event: TurnTelemetryEvent): void => {
+    if (SPEECH_PLAYBACK_EVENT_NAMES.some((name) => name === event.name)) speechPlaybackTotalEvents++;
     if (events.length < MAX_TURN_TELEMETRY_EVENTS) {
       events.push(event);
       return;
@@ -267,6 +279,8 @@ export function createTurnTelemetry(options: CreateTurnTelemetryOptions = {}): T
       ? -1
       : events.findIndex((existing) => turnTelemetryEventTier(existing.name) < tier);
     droppedEvents += 1;
+    const dropped = dropIndex >= 0 ? events[dropIndex]! : event;
+    if (SPEECH_PLAYBACK_EVENT_NAMES.some((name) => name === dropped.name)) speechPlaybackDroppedEvents++;
     if (dropIndex >= 0) {
       events.splice(dropIndex, 1);
       events.push(event);
@@ -286,6 +300,9 @@ export function createTurnTelemetry(options: CreateTurnTelemetryOptions = {}): T
 
   const metadataForSend = (): Record<string, unknown> | undefined => {
     if (droppedEvents > 0) traceMetadata.telemetry_dropped_events = droppedEvents;
+    if (speechPlaybackDroppedEvents > 0) traceMetadata.speech_playback_dropped_events = speechPlaybackDroppedEvents;
+    if (speechPlaybackTotalEvents > 0) traceMetadata.speech_playback_total_events = speechPlaybackTotalEvents;
+    if (speechPlaybackPendingEvents !== null) traceMetadata.speech_playback_pending_events = speechPlaybackPendingEvents;
     return Object.keys(traceMetadata).length > 0 ? { ...traceMetadata } : undefined;
   };
 
@@ -346,21 +363,27 @@ export function createTurnTelemetry(options: CreateTurnTelemetryOptions = {}): T
         });
       }
       let pendingEvents = takePending(lifecycle);
-      const metadata = metadataForSend();
-      const metadataJson = metadata ? JSON.stringify(metadata) : null;
-      const pendingMetadata = metadataJson !== lastSentMetadata ? metadata : undefined;
-      lastSentMetadata = metadataJson;
       if (lifecycle) {
         // The page may be gone after this: one body, startup events first.
-        // What does not fit stays buffered in case the tab comes back.
+        // What does not fit stays buffered in case the tab comes back. Reserve
+        // the counter's bytes before fitting, then report the actual remainder.
+        const speechCandidates = [...events, ...pendingEvents].filter((event) =>
+          SPEECH_PLAYBACK_EVENT_NAMES.some((name) => name === event.name)).length;
+        if (speechCandidates > 0 || speechPlaybackPendingEvents !== null) speechPlaybackPendingEvents = speechCandidates;
         const fitted = fitOneBody(
-          { traceId, sessionId, events: [], traceMetadata: pendingMetadata },
+          { traceId, sessionId, events: [], traceMetadata: metadataForSend() },
           pendingEvents,
           MAX_PAGE_AWAY_TELEMETRY_BYTES,
         );
         events.unshift(...fitted.kept);
         pendingEvents = fitted.sent;
       }
+      if (speechPlaybackPendingEvents !== null) speechPlaybackPendingEvents = events.filter((event) =>
+        SPEECH_PLAYBACK_EVENT_NAMES.some((name) => name === event.name)).length;
+      const metadata = metadataForSend();
+      const metadataJson = metadata ? JSON.stringify(metadata) : null;
+      const pendingMetadata = metadataJson !== lastSentMetadata ? metadata : undefined;
+      lastSentMetadata = metadataJson;
       await send(pendingEvents, pendingMetadata, lifecycle);
     } catch {
       // Telemetry never throws into the turn.
@@ -475,6 +498,7 @@ export function createTurnTelemetry(options: CreateTurnTelemetryOptions = {}): T
       // Drain so a cancel flush plus the turn's `finally` flush cannot
       // duplicate every span. Metadata is resent so later fields still land.
       const pendingEvents = events.splice(0, events.length);
+      if (speechPlaybackPendingEvents !== null) speechPlaybackPendingEvents = 0;
       const pendingMetadata = metadataForSend();
       lastSentMetadata = pendingMetadata ? JSON.stringify(pendingMetadata) : null;
 

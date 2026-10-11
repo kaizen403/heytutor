@@ -50,6 +50,7 @@ import {
 } from "@/features/tutor-session/lib/scene/productionSceneSelection";
 import { diagramStrategyAllowsFigureSource } from "@/features/tutor-session/lib/scene/diagramStrategy";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
+import { isVisualPresentationRefusal } from "@/features/tutor-session/lib/scene/visualPresentationRefusal";
 import {
   selectFastVerifiedRepresentation,
   type RepresentationTier,
@@ -316,6 +317,7 @@ export async function runLecture(
   rawQuestion: string,
   options: RunLectureOptions,
 ): Promise<LectureRun> {
+  const originalQuestion = rawQuestion;
   const question = normalizeTutorQuestion(rawQuestion);
   const familiarity = options.familiarity ?? "normal";
   const fastMode = options.fastMode ?? true;
@@ -746,13 +748,23 @@ export async function runLecture(
 
     let diagramPromptAddon: string | null = null;
     let activeDiagram: VerifiedDiagram | null = null;
-    const presentation = renderScene && sceneDocument && "visualDecision" in sceneDocument
-      ? buildVerifiedDiagramPresentation(
+    let presentation: ReturnType<typeof buildVerifiedDiagramPresentation> | null = null;
+    let presentationRefused = false;
+    try {
+      presentation = renderScene && sceneDocument && "visualDecision" in sceneDocument
+        ? buildVerifiedDiagramPresentation(
           sceneDocument,
           renderScene,
-          figureFamily ? { figureFamily } : {},
-        )
-      : null;
+          { originalQuestion, ...(figureFamily ? { figureFamily } : {}) },
+        ) : null;
+    } catch (error) {
+      if (!isVisualPresentationRefusal(error)) throw error;
+      presentationRefused = true;
+      run.diagram.tier = null;
+      run.diagram.nonMetric = false;
+      run.diagram.family = null;
+      run.diagram.reason = "source_scoped_presentation_refused";
+    }
     if (presentation && renderScene && sceneDocument && verifiedDiagramHasDrawableInk(presentation.diagram)) {
       activeDiagram = presentation.diagram;
       diagramPromptAddon = presentation.diagram.promptAddon;
@@ -794,7 +806,7 @@ export async function runLecture(
       candidateCount: run.diagram.candidateCount ?? 0,
       candidateErrorCodes: run.diagram.candidateErrorCodes,
     });
-    run.diagram.emptyCause = classifyDiagramEmptyCause({
+    run.diagram.emptyCause = presentationRefused ? "presentation_refused" : classifyDiagramEmptyCause({
       committed: run.diagram.committed,
       visualRequirement: turnPlan.visualRequirement,
       declinedUnreadable: run.diagram.declinedUnreadable,

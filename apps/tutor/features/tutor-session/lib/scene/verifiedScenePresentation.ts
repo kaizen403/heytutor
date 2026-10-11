@@ -34,6 +34,8 @@ import { isDsaConstructionGuide } from "./diagramInk";
 const DIAGRAM_POINT_RADIUS = 2;
 
 export interface VerifiedScenePresentationOptions {
+  /** Exact external lesson source; source-scoped chemistry consumers require it. */
+  originalQuestion?: string;
   /**
    * "code_lesson" turns show the IDE panel on the left, so diagram labels
    * clamp to the narrower DSA zone and the protected column widens to cover
