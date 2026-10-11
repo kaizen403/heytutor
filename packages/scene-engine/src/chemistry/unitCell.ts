@@ -231,7 +231,7 @@ function declaredQuantityCuesValid(question: string, cue: RegExp, alias: "a" | "
     const start = match.index! + match[0].length;
     const tail = question.slice(start)
       .split(/\b(?:radius|radii|edge|atomic mass|molar mass|density|find|calculate|what|when|if)\b/i)[0]!;
-    const declared = /^\s*(?:[+−\-\d]|\.(?=\d|\s+(?:pm|nm|cm|m|Å|angstrom)\b)|unknown\b|unreadable\b)/i.test(tail)
+    const declared = /^\s*,?\s*(?:[+−\-\d]|\.(?=\d|\s+(?:pm|nm|cm|m|Å|angstrom)\b)|unknown\b|unreadable\b)/i.test(tail)
       || new RegExp(`^\\s*,\\s*${alias}\\s*(?:=|:|is)`, "i").test(tail)
       || /^(?:[^.;\n]|\.(?=\d)){0,70}?(?:=|:|\bis\b|\bequal to\b|\bmeasures\b|\bmeasured\b)/i.test(tail);
     if (!declared) continue;
