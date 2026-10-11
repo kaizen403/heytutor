@@ -1500,9 +1500,17 @@ const expandedEcUnitLaneRows: readonly ExpandedEcUnitRow[] = [
     "id": "F2-v22",
     "question": "Calculate the emf of a Daniell cell at 298 K where the Zn2+ (aq) concentration is 0.1 M and the Cu2+ (aq) concentration is 0.01 M.",
     "family": "chem_electrochem",
-    "mode": "decline",
+    "mode": "compile",
     "sourceQuestionSha256": "9b82d09c84b262b6ef31379236d90b45665bdd3a13831293ec8e94b7c0233375",
-    "reason": "Unsupported or unowned supplied activity/potential, incomplete reaction cell, or unchanged rounded-constant/unit refusal."
+    "reason": "Complete original (aq) concentration owners bind Zn2+=0.1 M and Cu2+=0.01 M. Require independent Q=10, E0=1.10 V and computed E=1.0705 V at direct/ordinary seams.",
+    "kind": "cell",
+    "e0": 1.1,
+    "n": 2,
+    "q": 10,
+    "activities": {
+      "Zn2+": 0.1,
+      "Cu2+": 0.01
+    }
   },
   {
     "id": "F2-v23",
@@ -3400,14 +3408,14 @@ for(const [id,given,e0,statedE0] of [
 
 // BEGIN EC v7: agreeing repeated electrode values retain every original source owner.
 const ecV7RepeatedStandards = [
- ["repeat-owner-v7-1","E°(Cu2+/Cu) = 0.34 V. E°(Cu2+/Cu) = 0.34 V",undefined],
- ["repeat-owner-v7-2","E°(Zn2+/Zn) is -0.76 V. E°(Zn2+/Zn) is -0.76 V",undefined],
- ["repeat-owner-v7-3","E° Cu2+/Cu = 0.34 V. E° Cu2+/Cu = 0.34 V",undefined],
- ["repeat-owner-v7-4","E°cell = 1.10 V. E°cell = 1.10 V",1.1],
- ["repeat-owner-v7-5","Cu2+ + 2e- → Cu, E° = 0.34 V. Cu2+ + 2e- → Cu, E° = 0.34 V",undefined],
+ ["repeat-owner-v7-1","E°(Cu2+/Cu) = 0.34 V. E°(Cu2+/Cu) = 0.34 V",undefined,"compile"],
+ ["repeat-owner-v7-2","E°(Zn2+/Zn) is -0.76 V. E°(Zn2+/Zn) is -0.76 V",undefined,"compile"],
+ ["repeat-owner-v7-3","E° Cu2+/Cu = 0.34 V. E° Cu2+/Cu = 0.34 V",undefined,"compile"],
+ ["repeat-owner-v7-4","E°cell = 1.10 V. E°cell = 1.10 V",1.1,"compile"],
+ ["repeat-owner-v7-5","Cu2+ + 2e- → Cu, E° = 0.34 V. Cu2+ + 2e- → Cu, E° = 0.34 V",undefined,"decline"],
 ] as const;
-for(const [id,given,statedE0] of ecV7RepeatedStandards)check("Every agreeing repeated E° assignment owns its own source span "+id,()=>expandedEcUnitCompile({id,question:"For Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu, "+given+" at 298 K. Calculate the emf.",family:"chem_electrochem",mode:"compile",kind:"cell",e0:1.1,n:2,q:10,activities:ecV5Activities,statedE0}));
-for(const [id,given,statedE0] of ecV7RepeatedStandards)check("Distinct observed emf survives agreeing repeated E° owners "+id,()=>expandedEcUnitCompile({id,question:"For Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu, "+given+" at 298 K. The observed emf is 1.13 V. Draw the cell.",family:"chem_electrochem",mode:"compile",kind:"cell",e0:1.1,n:2,q:10,activities:ecV5Activities,statedE0,observedE:1.13}));
+for(const [id,given,statedE0,mode] of ecV7RepeatedStandards)check((mode==="compile"?"Every agreeing repeated E° assignment owns its own source span ":"Unsplit half-reaction fails unchanged source temperature guard ")+id,()=>mode==="compile"?expandedEcUnitCompile({id,question:"For Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu, "+given+" at 298 K. Calculate the emf.",family:"chem_electrochem",mode:"compile",kind:"cell",e0:1.1,n:2,q:10,activities:ecV5Activities,statedE0}):expandedEcUnitRefusal({id,question:"For Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu, "+given+" at 298 K. Calculate the emf.",family:"chem_electrochem",mode:"decline"}));
+for(const [id,given,statedE0,mode] of ecV7RepeatedStandards)check((mode==="compile"?"Distinct observed emf survives agreeing repeated E° owners ":"Observed E cannot rescue unsplit half-reaction source temperature refusal ")+id,()=>mode==="compile"?expandedEcUnitCompile({id,question:"For Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu, "+given+" at 298 K. The observed emf is 1.13 V. Draw the cell.",family:"chem_electrochem",mode:"compile",kind:"cell",e0:1.1,n:2,q:10,activities:ecV5Activities,statedE0,observedE:1.13}):expandedEcUnitRefusal({id,question:"For Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu, "+given+" at 298 K. The observed emf is 1.13 V. Draw the cell.",family:"chem_electrochem",mode:"decline"}));
 // END EC v7 original-repeat owner controls.
 
 // BEGIN EC v8: every supplied observed owner is read or refused, including repeats.
@@ -3426,6 +3434,16 @@ for(const tail of [
  "the voltage measured to be 1.13 V; the voltage is 1.13 V",
 ])check("Genuine agreeing measured observed owners retain separate E° authority: "+tail,()=>expandedEcUnitCompile({id:tail,question:"Draw Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu at 298 K. E°cell = 1.10 V. "+tail+".",family:"chem_electrochem",mode:"compile",kind:"cell",e0:1.1,n:2,q:10,activities:ecV5Activities,statedE0:1.1,observedE:1.13}));
 // END EC v8 observed-source consistency controls.
+// BEGIN EC v9: existing unit aliases consume only the audited physical close.
+for(const zinc of ["Zn2+(0.1 mol L-1)","Zn2+(0.1 mol dm-3)","Zn2+(0.1 mol L^-1)","Zn2+(0.1 mol L^(-1))","Zn2+(0.1 mol dm^(-3))"])check("Complete original inverse-volume alias remains a cell activity: "+zinc,()=>expandedEcUnitCompile({id:zinc,question:"Calculate the emf of Zn|"+zinc+"||Cu2+(0.01 mol/L)|Cu at 298 K.",family:"chem_electrochem",mode:"compile",kind:"cell",e0:1.1,n:2,q:10,activities:ecV5Activities}));
+for(const zinc of ["Zn2+(0.1 mol L-1)x","Zn2+(0.1 mol dm-3)/s","Zn2+(0.1 mol L-1foo)","Zn2+(0.1 mol L-1 garbage)","Zn2+(0.1 mol L-1/s)"])check("Audited close never excuses continued or damaged source units: "+zinc,()=>expandedEcUnitRefusal({id:zinc,question:"Draw the galvanic cell Zn|"+zinc+"||Cu2+(0.01 M)|Cu with its salt bridge at 298 K.",family:"chem_electrochem",mode:"decline"}));
+for(const half of ["Cu²⁺ + 2 e⁻ → Cu; E° = 0.34 V","Cu²⁺ + 2 e- → Cu; E° = 0.34 V","Cu²⁺ + 2 e^- → Cu; E° = 0.34 V","Zn²⁺ + 2 e⁻ → Zn; E° = -0.76 V","Zn²⁺ + 2 e- → Zn; E° = -0.76 V"])check("Semicolon role boundary preserves each repeated half-reaction E°: "+half,()=>{
+ const question="For Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu, "+half+". "+half+" at 298 K. ";
+ expandedEcUnitCompile({id:half,question:question+"Calculate the emf.",family:"chem_electrochem",mode:"compile",kind:"cell",e0:1.1,n:2,q:10,activities:ecV5Activities});
+ expandedEcUnitCompile({id:half,question:question+"The observed emf is 1.13 V. Draw the cell.",family:"chem_electrochem",mode:"compile",kind:"cell",e0:1.1,n:2,q:10,activities:ecV5Activities,observedE:1.13});
+});
+for(const zinc of ["0.1 kg Zn2+","0.1 kg.foo Zn2+","0.1 V Zn2+","0.1 kPa Zn2+","0.1 m Zn2+"])check("Actual adjacent reverse wrong-unit ion declaration still refuses: "+zinc,()=>expandedEcUnitRefusal({id:zinc,question:"Calculate the emf of a Daniell cell at 298 K with "+zinc+" and Cu2+ = 0.01 M.",family:"chem_electrochem",mode:"decline"}));
+// END EC v9 complete physical-unit and sentence boundaries.
 const output=process.argv.indexOf("--out");
 const result={passed:rows.filter(r=>r.passed).length,failed:rows.filter(r=>!r.passed).length,rows};
 if(output>=0)writeFileSync(process.argv[output+1]!,JSON.stringify(result,null,2)+"\n");
