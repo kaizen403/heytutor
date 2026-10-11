@@ -64,8 +64,9 @@ export function pageHasExportableAudio(turns: readonly StoredTurn[]): boolean {
 /**
  * Bump when an already-cached file would be wrong for the same page.
  * `video6` drops files that omitted completed verified-figure marks or page resets.
+ * `video7` drops DSA files that stopped on the first worked-example frame.
  */
-export const LECTURE_PAGE_CACHE_REVISION = "video6";
+export const LECTURE_PAGE_CACHE_REVISION = "video7";
 
 /**
  * Cache identity of a page export. It changes whenever a doubt adds a turn to
