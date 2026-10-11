@@ -468,8 +468,9 @@ function sourceActivityConcentrations(source: string): Record<string, number> | 
     if (/^\s*(?:aq|g|s|l)\s*$/.test(inside)) continue;
     const qualifier = /^\s*aq\s*,\s*/.exec(inside);
     const start = open + 1 + (qualifier?.[0].length ?? /^\s*/.exec(inside)![0].length);
-    const read = readChemistryQuantity({question: source, after: /^/, within: {start, end: close}, dimension: "concentration", targetUnit: "mol/L"});
-    if (!read.ok || !/^\s*$/.test(source.slice(read.reading.source.span.end, close))) return null;
+    const read = readChemistryQuantity({question: source, after: /^/, within: {start, end: close + 1}, dimension: "concentration", targetUnit: "mol/L"});
+    // Registered inverse-unit aliases may consume the already-audited phase close.
+    if (!read.ok || !/^\s*$/.test(source.slice(Math.min(read.reading.source.span.end, close), close))) return null;
   }
   const forward = new RegExp(`(?<![\\p{L}\\p{N}\\p{M}_])([\\[]?${SPECIES}[\\]]?)\\s*(?:\\(\\s*(?:aq\\s*,?\\s*)?|(?:\\(aq\\)\\s*)?(?:(?:ions?\\s+)?(?:(?:has|have)\\s+)?(?:concentration\\s*)?(?:is|are|=|:|of|at)?\\s*))$`, "u");
   const reverse = new RegExp(`^\\s*(?:of\\s+)?([\\[]?${SPECIES}[\\]]?)(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-])`, "u");
@@ -483,7 +484,7 @@ function sourceActivityConcentrations(source: string): Record<string, number> | 
       if (owner && isActivitySpecies(owner)) return null;
     }
   }
-  const reversedDeclaration = new RegExp(`(${CHEMISTRY_SCALAR_PATTERN})\\s*([A-Za-z][^\\s,;|]{0,18})\\s+(?:of\\s+)?([\\[]?${SPECIES}[\\]]?)(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-])`, "gdu");
+  const reversedDeclaration = new RegExp(`(${CHEMISTRY_SCALAR_PATTERN})\\s*([A-Za-z](?:[^\\s,;|.]|\\.(?=\\S)){0,18})\\s+(?:of\\s+)?([\\[]?${SPECIES}[\\]]?)(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-])`, "gdu");
   for (const declared of source.matchAll(reversedDeclaration)) {
     if (!isActivitySpecies(declared[3]!)) continue;
     const span = declared.indices![1]!;
