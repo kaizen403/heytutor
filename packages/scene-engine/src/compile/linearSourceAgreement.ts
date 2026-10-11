@@ -1,7 +1,7 @@
 import { validateTurnPlanV3 } from "../contracts/contractsV3";
 import { readSourceLinearCoordinate } from "../ir/linearScalarBinding";
-import { compareRational, deserializeRational, exactRationalText, exactRationalToNumber, type ExactRational } from "../math/exactRational";
-import { parseLinearAffine, solveLinearFigure, type ExactAffine, type FeasibleRegionSolution } from "../math/linearRegion";
+import { compareRational, deserializeRational, divideRational, serializeRational, exactRationalText, exactRationalToNumber, type ExactRational } from "../math/exactRational";
+import { parseLinearAffine, parseLinearConstraint, solveLinearFigure, type ExactAffine, type FeasibleRegionSolution } from "../math/linearRegion";
 import type { SceneIssue } from "../types";
 import { buildLinearSourceDocument } from "./linearRegionSource";
 
@@ -52,8 +52,8 @@ function numericAgreement(value: number, exact: ExactRational): boolean {
 }
 
 /** A finite limit/optimal edge cannot authorize one arbitrary x/y point. */
-function requestedUniqueOptimum(question: string, constraints: string[], expression: string, solution: FeasibleRegionSolution): { x: ExactRational; y: ExactRational } | null {
-  if (!/\b(?:find|determine|calculate|give|state|report|mark|show)\s+(?:(?:the|an)\s+)?(?:optimal|maximizing|minimizing)\s+(?:point|solution|coordinates?|values?)\b/i.test(question)) return null;
+function requestedUniqueOptimum(question: string, constraints: string[], expression: string, solution: FeasibleRegionSolution, explicitRole = false): { x: ExactRational; y: ExactRational } | null {
+  if (!explicitRole && !/\b(?:find|determine|calculate|give|state|report|mark|show)\s+(?:(?:the|an)\s+)?(?:optimal|maximizing|minimizing)\s+(?:point|solution|coordinates?|values?)\b/i.test(question)) return null;
   if (/\b[xy][- ]coordinates?\b|\b(?:twice|square|negative|centimeters?|metres?|meters?)\b/i.test(question)) return null;
   const extremum = solution.objective?.extremum;
   if (!extremum || extremum.status !== "attained") return null;
@@ -64,6 +64,23 @@ function requestedUniqueOptimum(question: string, constraints: string[], express
 
 function fatal(code: string, message: string, path?: string): SceneIssue {
   return { code, message, severity: "fatal", ...(path === undefined ? {} : { path }) };
+}
+
+interface NumericRole { key: string; exact: ExactRational | null }
+
+/** Only an original line label immediately preceding a complete source equation joins an intercept. */
+function labelledEquations(question: string, equations: string[]): Map<string, string> {
+  const source = question.replace(/[−–]/g, "-");
+  const labels = new Map<string, string>();
+  for (const equation of equations) {
+    const escaped = [...equation.replace(/\s/g, "")].map(part => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("\\s*");
+    const matches = [...source.matchAll(new RegExp(escaped, "g"))];
+    if (matches.length !== 1) continue;
+    const prefix = source.slice(0, matches[0]!.index);
+    const label = /\b([A-Za-z][A-Za-z0-9_]*)\s*:\s*$/.exec(prefix)?.[1];
+    if (label && !labels.has(label)) labels.set(label, equation);
+  }
+  return labels;
 }
 
 /** Checks native affine source roles without changing the planner or audit. */
@@ -89,18 +106,41 @@ export function validateLinearSourcePlan(question: string, rawPlan: unknown): Sc
   ];
   try {
     if (construction.operator === "linear_system") {
+      const equations = construction.inputs.equations as [string, string];
+      const system = solveLinearFigure({ kind: "linear_system", equations });
+      if (system.kind !== "linear_system") throw new Error("Native source solver returned a different figure kind");
+      const labels = labelledEquations(question, equations);
+      const sourceRole = (rawSymbol: string): NumericRole | null => {
+        const symbol = normalizeSymbol(rawSymbol);
+        const countQuery = /\b(?:how many solutions|number of solutions)\b/i.test(question)
+          && !/\b(?:twice|squared?|double|half|negative|centimeters?|metres?|meters?)\b/i.test(question);
+        if (/^numberofsolutions$/i.test(symbol) && countQuery) {
+          return { key: "solution_cardinality", exact: system.relation === "coincident" ? null : { numerator: system.relation === "unique" ? "1" : "0", denominator: "1" } };
+        }
+        const intercept = /^([A-Za-z][A-Za-z0-9_]*)([xy])-intercept(?:coordinate)?$/.exec(symbol);
+        const requestedIntercept = intercept && (/\btheir\s+intercepts?\b/i.test(question)
+          || new RegExp(`\\b${intercept[1]}\\s+${intercept[2]}[- ]intercepts?\\b|\\b${intercept[2]}[- ]intercepts?\\s+of\\s+${intercept[1]}\\b`, "i").test(question));
+        if (intercept && requestedIntercept) {
+          const equation = labels.get(intercept[1]!);
+          if (!equation) return null;
+          const row = parseLinearConstraint(equation, ["x", "y"], true)[0]!;
+          const coefficient = deserializeRational(intercept[2] === "x" ? row.a : row.b);
+          return { key: `intercept:${intercept[1]}:${intercept[2]}`, exact: coefficient.n === 0n ? null : serializeRational(divideRational(deserializeRational(row.rhs), coefficient)) };
+        }
+        const role = readSourceLinearCoordinate(question, rawSymbol, { requireRequestedVariable: false, allowFixedCoordinate: true });
+        return role ? { key: `coordinate:${role.variable}`, exact: role.coordinate } : null;
+      };
       for (const quantity of quantities) {
         const symbol = normalizeSymbol(quantity.symbol);
         const declared = plan.unknowns.find(unknown => unknown.id === quantity.id);
-        const role = readSourceLinearCoordinate(question, quantity.symbol, { requireRequestedVariable: false });
+        const role = sourceRole(quantity.symbol);
         if (quantity.path.startsWith("derived[") && declared) {
-          const declaredRole = readSourceLinearCoordinate(question, declared.symbol, { requireRequestedVariable: false });
-          if (!declaredRole || !role || declaredRole.variable !== role.variable) {
+          const declaredRole = sourceRole(declared.symbol);
+          if (!declaredRole || !role || declaredRole.key !== role.key) {
             issues.push(fatal("linear_source_plan_binding_mismatch", `Finite requested answer '${quantity.id}' ('${declared.symbol}' -> '${symbol}') does not preserve the same proved original-source coordinate role`, quantity.path));
           }
         }
-        if (!/^[xy](?:_[A-Za-z][A-Za-z0-9_]*)?$/.test(symbol)) continue;
-        check(symbol, quantity.unit, quantity.value, quantity.path, role?.coordinate ?? null, "unique source intersection coordinate");
+        if (role || /^[xy](?:_[A-Za-z][A-Za-z0-9_]*)?$/.test(symbol)) check(symbol, quantity.unit, quantity.value, quantity.path, role?.exact ?? null, role?.key ?? "source system coordinate");
       }
     } else {
       const { constraints, objective } = construction.inputs;
@@ -115,25 +155,38 @@ export function validateLinearSourcePlan(question: string, rawPlan: unknown): Sc
       // invented supremum/infimum alias.
       const exact = extremum?.status === "attained" ? extremum.value : null;
       const optimum = requestedUniqueOptimum(question, constraints, objective.expression, solution);
+      const explicitOptimum = requestedUniqueOptimum(question, constraints, objective.expression, solution, true);
       const semanticSense = (symbol: string): "max" | "min" | null => /^(?:maximum|max)$/i.test(symbol) ? "max" : /^(?:minimum|min)$/i.test(symbol) ? "min" : null;
-      const objectiveRole = (symbol: string): boolean => aliases.has(symbol) || semanticSense(symbol) === objective.sense;
+      const sourceRole = (symbol: string): NumericRole | null => {
+        const prefix = /^(maximum|minimum|max|min)([A-Za-z][A-Za-z0-9_]*)$/i.exec(symbol);
+        const suffix = /^([A-Za-z][A-Za-z0-9_]*)_(maximum|minimum|max|min)$/i.exec(symbol);
+        const sense = semanticSense(symbol) ?? semanticSense(prefix?.[1] ?? suffix?.[2] ?? "");
+        const alias = prefix?.[2] ?? suffix?.[1];
+        if (aliases.has(symbol) || semanticSense(symbol) || alias && aliases.has(alias)) return { key: `objective:${sense ?? objective.sense}`, exact: !sense || sense === objective.sense ? exact : null };
+        const direct = /^([xy])$/.exec(symbol);
+        const explicit = /^(?:optimal([xy])|([xy])at(optimum|maximum|minimum)|([xy])\*)$/i.exec(symbol);
+        const variable = (direct?.[1] ?? explicit?.[1] ?? explicit?.[2] ?? explicit?.[4]) as "x" | "y" | undefined;
+        if (!variable) return null;
+        const coordinateSense = semanticSense(explicit?.[3] ?? "");
+        return { key: `optimal_coordinate:${variable}`, exact: coordinateSense && coordinateSense !== objective.sense ? null : (explicit ? explicitOptimum : optimum)?.[variable] ?? null };
+      };
       for (const quantity of quantities) {
         const symbol = normalizeSymbol(quantity.symbol);
         const declared = plan.unknowns.find(unknown => unknown.id === quantity.id);
-        if (quantity.value !== undefined && declared && objectiveRole(normalizeSymbol(declared.symbol)) && !objectiveRole(symbol)) {
-          issues.push(fatal("linear_source_plan_binding_mismatch", `Quantity '${quantity.id}' replaces original objective alias '${declared.symbol}' with '${symbol}'`, quantity.path));
-        }
-        if (quantity.path.startsWith("derived[") && declared && /^[xy]$/.test(normalizeSymbol(declared.symbol)) && symbol !== normalizeSymbol(declared.symbol)) {
-          issues.push(fatal("linear_source_plan_binding_mismatch", `Quantity '${quantity.id}' replaces requested optimal coordinate '${declared.symbol}' with '${symbol}'`, quantity.path));
-        }
-        if (objectiveRole(symbol) || semanticSense(symbol)) check(symbol, quantity.unit, quantity.value, quantity.path, objectiveRole(symbol) ? exact : null, `${objective.sense} attained source objective`);
-        if ((symbol === "x" || symbol === "y") && quantity.path.startsWith("derived[")) {
-          check(symbol, quantity.unit, quantity.value, quantity.path, optimum?.[symbol] ?? null, "requested unique attained optimal coordinate");
-        }
+        const role = sourceRole(symbol);
+        // A given may name the objective while explicitly describing one
+        // coefficient. Its complete definition must equal the source objective;
+        // provenance or the word "coefficient" alone cannot bypass agreement.
+        const coefficient = quantity.path.startsWith("givens[") && "sourceText" in quantity ? /^coefficient\s+of\s+([xy])\s+in\s+([A-Za-z][A-Za-z0-9_]*)\s*=\s*(.+)$/i.exec(quantity.sourceText ?? "") : null;
+        const coefficientRole = coefficient && aliases.has(coefficient[2]!) && sameAffine(parseLinearAffine(coefficient[3]!, ["x", "y"]), solution.objective!.coefficients)
+          ? solution.objective!.coefficients[coefficient[1]!.toLowerCase() === "x" ? "a" : "b"] : null;
+        if (coefficientRole) check(symbol, quantity.unit, quantity.value, quantity.path, coefficientRole, "original source objective coefficient");
+        else if (role) check(symbol, quantity.unit, quantity.value, quantity.path, role.exact, role.key);
         if (quantity.path.startsWith("derived[") && declared) {
           const declaredSymbol = normalizeSymbol(declared.symbol);
-          const provedRole = (candidate: string) => objectiveRole(candidate) || ((candidate === "x" || candidate === "y") && optimum !== null);
-          if (!provedRole(declaredSymbol) || !provedRole(symbol)) issues.push(fatal("linear_source_plan_role_unproved", `Finite requested answer '${quantity.id}' ('${declaredSymbol}' -> '${symbol}') has no original-source objective or unique optimal-coordinate role`, quantity.path));
+          const declaredRole = sourceRole(declaredSymbol);
+          if (!declaredRole || !role) issues.push(fatal("linear_source_plan_role_unproved", `Finite requested answer '${quantity.id}' ('${declaredSymbol}' -> '${symbol}') has no original-source objective or unique optimal-coordinate role`, quantity.path));
+          else if (declaredRole.key !== role.key) issues.push(fatal("linear_source_plan_binding_mismatch", `Finite requested answer '${quantity.id}' changes original-source numeric role '${declaredSymbol}' to '${symbol}'`, quantity.path));
         }
       }
     }

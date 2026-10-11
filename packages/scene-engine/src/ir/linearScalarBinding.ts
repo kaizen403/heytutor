@@ -1,6 +1,6 @@
-import { readLinearSystemSource, readLinearSourceReferencePoints } from "../compile/linearRegionSource";
+import { buildLinearSourceDocument, readLinearSystemSource, readLinearSourceReferencePoints } from "../compile/linearRegionSource";
 import { readLinearSourceIntersectionNames } from "../compile/linearSourcePoints";
-import { parseLinearAffine, solveLinearFigure } from "../math/linearRegion";
+import { linearConstraintSignature, parseLinearAffine, parseLinearConstraint, solveLinearFigure, type IntervalExpression } from "../math/linearRegion";
 import {
   deserializeRational,
   divideRational,
@@ -34,10 +34,13 @@ function hasSourceCoordinateQuery(
     if (requests.length) {
       // A tuple variable request is source semantics for native agreement,
       // not permission to cast a set result into one requested scalar.
-      return !requireRequestedVariable && Boolean(solve) && requests.every(request => covered(request.index!, request.index! + request[0].length)
-        && /^(?:(?:the\s+)?values?\s+of\s+)?(?:x\s*(?:,\s*(?:and\s*)?|and\s+)y|y\s*(?:,\s*(?:and\s*)?|and\s+)x)\s*$/i.test(request[1]!.trim()));
+      return !requireRequestedVariable && requests.every(request => covered(request.index!, request.index! + request[0].length)
+        && (Boolean(solve) && /^(?:(?:the\s+)?values?\s+of\s+)?(?:x\s*(?:,\s*(?:and\s*)?|and\s+)y|y\s*(?:,\s*(?:and\s*)?|and\s+)x)\s*$/i.test(request[1]!.trim())
+          || /^(?:the\s+)?number\s+of\s+solutions\s+of\s+the\s+(?:system|pair)(?:\s+and\s+describe\s+them)?\s*$/i.test(request[1]!.trim())));
     }
-    return !requireRequestedVariable || Boolean(solve && covered(solve.index, solve.index + solve[0].length));
+    const intersection = /\b(?:label|mark|show)\s+(?:(?:the|their)\s+)?(?:point\s+of\s+)?intersection\b/i.exec(question);
+    return !requireRequestedVariable || Boolean(solve && (covered(solve.index, solve.index + solve[0].length)
+      || intersection && covered(intersection.index, intersection.index + intersection[0].length)));
   }
   let requested = false;
   const unambiguous = [...pointNames].every((name) => intersectionNames.has(name));
@@ -46,7 +49,13 @@ function hasSourceCoordinateQuery(
     const before = question.slice(0, coordinate.index!);
     const verbs = [...before.matchAll(/\b(?:find|determine|calculate|give|state|report)\b/gi)];
     const verb = verbs.at(-1);
-    if (!verb) return false;
+    // Incidental prose such as "a crossing has fractional coordinates" is
+    // not a transformed numeric request. Native agreement still proves the
+    // coordinate from the complete system; scalar selection needs a request.
+    if (!verb || /[.;?!]/.test(before.slice(verb.index! + verb[0].length))) {
+      if (!coordinate[1] && /\b(?:fractional|rational|integer)\s*$/i.test(before)) continue;
+      return false;
+    }
     const prefix = before.slice(verb.index! + verb[0].length).trim().replace(/’/g, "'");
     const after = question.slice(coordinate.index! + coordinate[0].length);
     const sentenceEnd = after.search(/[.;?!]/);
@@ -81,9 +90,12 @@ export interface SourceLinearCoordinate {
 export function readSourceLinearCoordinate(
   question: string,
   rawSymbol: string,
-  options: { requireRequestedVariable?: boolean; requestedFacts?: ProblemFact[] } = {},
+  options: { requireRequestedVariable?: boolean; requestedFacts?: ProblemFact[]; allowFixedCoordinate?: boolean } = {},
 ): SourceLinearCoordinate | null {
-  const symbol = rawSymbol.normalize("NFKC").replace(/\\(?:mathrm|text)\s*/g, "").replace(/[{}\s]/g, "");
+  const normalized = rawSymbol.normalize("NFKC").replace(/\\(?:mathrm|text)\s*/g, "").replace(/[{}]/g, "").trim();
+  const prose = /^intersection\s+([xy])[- ]coordinate$/i.exec(normalized);
+  const reverse = /^([A-Za-z][A-Za-z0-9_]*)_([xy])$/.exec(normalized);
+  const symbol = prose?.[1] ?? (reverse ? `${reverse[2]}_${reverse[1]}` : normalized.replace(/\s/g, ""));
   const match = /^([xy])(?:_([A-Za-z][A-Za-z0-9_]*))?$/.exec(symbol);
   if (!match) return null;
   try {
@@ -97,26 +109,77 @@ export function readSourceLinearCoordinate(
     const source = readLinearSystemSource(question);
     if (!source) return null;
     const solution = solveLinearFigure(source);
-    if (solution.kind !== "linear_system" || solution.relation !== "unique" || !solution.intersection) return null;
+    if (solution.kind !== "linear_system") return null;
+    if (options.allowFixedCoordinate && solution.relation === "coincident") {
+      const row = solution.equations[0]!;
+      const coefficient = deserializeRational(variable === "x" ? row.a : row.b);
+      const other = deserializeRational(variable === "x" ? row.b : row.a);
+      if (coefficient.n === 0n || other.n !== 0n || match[2]) return null;
+      return { variable, equations: source.equations, coordinate: serializeRational(divideRational(deserializeRational(row.rhs), coefficient)) };
+    }
+    if (solution.relation !== "unique" || !solution.intersection) return null;
     if (references.some((reference) => names.has(reference.label)
       && (["x", "y"] as const).some((axis) => compareRational(deserializeRational(reference[axis]), deserializeRational(solution.intersection![axis])) !== 0))) return null;
     return { variable, equations: source.equations, coordinate: solution.intersection[variable] };
   } catch { return null; }
 }
 
-export interface SourceLinearScalarSelection {
+export type SourceLinearScalarSelection = {
   kind: "unique_source_linear_coordinate";
   variable: "x" | "y";
   equations: [string, string];
   exact: string;
+} | { kind: "unique_source_linear_boundary"; variable: "x"; inequality: string; exact: string };
+
+function sourceBoundary(problem: ProblemIR, request: SolveRequest, symbol: string, question: string) {
+  if (request.kind !== "roots" || request.variable !== "x" || !/^(?:boundary|leftboundary|rightboundary)$/.test(symbol.toLowerCase())) return null;
+  const bindingFacts = request.resultBinding!.evidenceFactIds.map(id => problem.facts.find(fact => fact.id === id));
+  if (!bindingFacts.length || bindingFacts.some(fact => !fact || fact.evidence.source !== "question"
+    || question.slice(fact.evidence.start, fact.evidence.end) !== fact.evidence.quote)
+    || !bindingFacts.some(fact => fact?.kind === "requested" && /\b(?:solve|boundar(?:y|ies))\b/i.test(fact.evidence.quote))) return null;
+  const construction = buildLinearSourceDocument(question)?.constructions[0];
+  if (construction?.operator !== "number_line_set") return null;
+  const expression = construction.inputs.expression as IntervalExpression;
+  const solution = solveLinearFigure({ kind: "number_line_set", variable: "x", expression });
+  if (solution.kind !== "number_line_set") return null;
+  const boundaries = solution.intervals.flatMap(interval => [interval.lower?.value, interval.upper?.value].filter(value => value !== undefined));
+  const unique = boundaries.filter((value, index) => boundaries.findIndex(other => compareRational(deserializeRational(other), deserializeRational(value)) === 0) === index)
+    .sort((a, b) => compareRational(deserializeRational(a), deserializeRational(b)));
+  const expected = symbol.toLowerCase() === "leftboundary" ? unique[0] : symbol.toLowerCase() === "rightboundary" ? unique.at(-1) : unique.length === 1 ? unique[0] : undefined;
+  if (!expected) return null;
+  const atoms = (program: IntervalExpression): string[] => "inequality" in program ? [program.inequality]
+    : "complement" in program ? atoms(program.complement) : ("union" in program ? program.union : program.intersection).flatMap(atoms);
+  const sourceAtoms = atoms(expression);
+  const expressions = new Map(problem.expressions.map(item => [item.id, item]));
+  const rows: Array<{ expressionId: string; inequality: string }> = [];
+  // Require an orientation/strictness-equivalent IR inequality whose actual
+  // original given quote is a complete source atom. A matching root alone
+  // cannot authorize a flipped inequality, forged quote, or redundant bound.
+  for (const constraint of problem.constraints) {
+    if (constraint.kind !== "inequality") return null;
+    const left = expressions.get(constraint.leftExpressionId), right = expressions.get(constraint.rightExpressionId);
+    if (!left || !right) return null;
+    const inequality = `(${expressionToSafeSource(left.root, "x")})${constraint.relation}(${expressionToSafeSource(right.root, "x")})`;
+    const row = parseLinearConstraint(inequality, ["x"])[0]!;
+    const sameSource = sourceAtoms.some(atom => linearConstraintSignature(parseLinearConstraint(atom, ["x"])[0]!) === linearConstraintSignature(row));
+    const grounded = constraint.evidenceFactIds.some(id => {
+      const fact = problem.facts.find(item => item.id === id);
+      if (!fact || fact.kind !== "given" || fact.evidence.source !== "question" || question.slice(fact.evidence.start, fact.evidence.end) !== fact.evidence.quote) return false;
+      try { return linearConstraintSignature(parseLinearConstraint(fact.evidence.quote, ["x"])[0]!) === linearConstraintSignature(row); } catch { return false; }
+    });
+    if (!sameSource || !grounded) return null;
+    rows.push({ expressionId: constraint.leftExpressionId, inequality });
+  }
+  const row = rows.find(item => item.expressionId === request.expressionId);
+  return row ? { coordinate: expected, inequality: row.inequality } : null;
 }
 
 /**
  * A roots/intersections request returns a set. A scalar TurnPlan binding may
- * select its sole member only when the original source independently proves a
- * unique affine two-line intersection and the request proves that same global
- * coordinate. Domain-limited singleton sets and planner-authored coordinates
- * never establish uniqueness or source authority here.
+ * select its sole member only when the complete original source proves the
+ * same global coordinate or finite set boundary. Boundary constraints must
+ * preserve their source orientation, strictness and actual quoted evidence.
+ * Domain-limited singleton sets never establish source authority here.
  */
 export function selectSourceLinearScalar(
   problem: ProblemIR,
@@ -134,17 +197,18 @@ export function selectSourceLinearScalar(
   if (binding.unit !== undefined && binding.unit.trim() !== "1") return null;
   const symbol = binding.symbol.normalize("NFKC").replace(/\\(?:mathrm|text)\s*/g, "").replace(/[{}\s]/g, "");
   const symbolMatch = /^([xy])(?:_([A-Za-z][A-Za-z0-9_]*))?$/.exec(symbol);
-  if (!symbolMatch || symbolMatch[1] !== request.variable) return null;
   const requestFacts = binding.evidenceFactIds.map((id) => problem.facts.find((fact) => fact.id === id));
-  if (!requestFacts.length || requestFacts.some((fact) => !fact || fact.kind !== "requested")) return null;
+  if (!requestFacts.length || requestFacts.some((fact) => !fact)) return null;
   if (requestFacts.some((fact) => fact!.evidence.source !== "question"
     || originalQuestion.slice(fact!.evidence.start, fact!.evidence.end) !== fact!.evidence.quote)) return null;
   try {
     // This join uses the explicit binding id. The complete original request,
     // including its target and transformations, proves the scalar's meaning.
-    const role = readSourceLinearCoordinate(originalQuestion, binding.symbol, { requestedFacts: requestFacts as ProblemFact[] });
-    if (!role || role.variable !== request.variable) return null;
-    const coordinate = role.coordinate;
+    const boundary = sourceBoundary(problem, request, symbol, originalQuestion);
+    const role = symbolMatch?.[1] === request.variable && requestFacts.every(fact => fact!.kind === "requested")
+      ? readSourceLinearCoordinate(originalQuestion, binding.symbol, { requestedFacts: requestFacts as ProblemFact[] }) : null;
+    if (!boundary && (!role || role.variable !== request.variable)) return null;
+    const coordinate = boundary?.coordinate ?? role!.coordinate;
     const expected = deserializeRational(coordinate);
     const expressions = new Map(problem.expressions.map((expression) => [expression.id, expression]));
     const leftId = request.kind === "roots" ? request.expressionId : request.leftExpressionId;
@@ -170,7 +234,8 @@ export function selectSourceLinearScalar(
       || approximate < request.domain.min || approximate > request.domain.max) return null;
     return {
       value: { ...value, valueType: "scalar", approximate, exact: { kind: returnedExact.kind, value: exact }, errorBound: 0 },
-      selection: { kind: "unique_source_linear_coordinate", variable: request.variable, equations: role.equations, exact },
+      selection: boundary ? { kind: "unique_source_linear_boundary", variable: "x", inequality: boundary.inequality, exact }
+        : { kind: "unique_source_linear_coordinate", variable: request.variable, equations: role!.equations, exact },
     };
   } catch {
     return null;
