@@ -449,7 +449,7 @@ const SPECIES_IN_TOKEN = /(?<![A-Za-z])([A-Z][a-z]?(?:[A-Za-z0-9₀₁₂₃₄�
 function completeSpeciesToken(part: string, match: RegExpMatchArray): boolean {
   const start = match.index!; const stop = start + match[1]!.length;
   if (/[\p{L}\p{N}\p{M}_^⁺⁻]$/u.test(part.slice(0, start))
-    || /^[\p{L}\p{N}\p{M}_^⁺⁻+−/\-]/u.test(part.slice(stop))) return false;
+    || /^[\p{L}\p{N}\p{M}_^⁺⁻+−/-]/u.test(part.slice(stop))) return false;
   const raw = match[1]!;
   // Explicit charge parentheses must close in the original source, and a
   // superscript zero or repeated sign is not a supported ion charge.
