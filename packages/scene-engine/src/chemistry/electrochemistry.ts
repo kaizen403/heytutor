@@ -787,7 +787,7 @@ function readStatedCellPotentials(text: string): { e0?: number; e?: number } | n
     out.e0 = read.reading.value;
     standardValueSpans.push(read.reading.source.span);
   }
-  const role = /(?:emf|e\.m\.f\.|cell potential|potential of the cell|voltage)\b((?:[^.;\n]|\.(?=\d)){0,110}?)(?:\bis\b|=|:)|(?:emf|cell potential|voltage)\s*=/gi;
+  const role = /(?:emf|e\.m\.f\.|cell potential|potential of the cell|voltage)\b((?:[^.;\n]|\.(?=\d)){0,110}?)(?:\bis\b(?:\s+measured\s+(?:as|to\s+be))?|measured\s+(?:as|to\s+be)|=|:)|(?:emf|cell potential|voltage)\s*=/gi;
   for (const match of text.matchAll(role)) {
     // Requested emf followed by a concentration declaration is not voltage.
     const owner = match[1] ?? "";
@@ -810,21 +810,19 @@ function readStatedCellPotentials(text: string): { e0?: number; e?: number } | n
     out[kind] = read.reading.value;
   }
   // Implicit observed voltage retains its own role even beside an independent E°cell.
-  if (out.e === undefined) {
-    const implicit = new RegExp(String.raw`(?:emf|e\.m\.f\.|cell potential|potential of the cell|emf of the cell|voltage)(?:[^.;\n]|\.(?=\d)){0,110}?(?:is|=|:|of|measured\s+(?:as|to\s+be))\s*(${CHEMISTRY_SCALAR_PATTERN})\s*(?:V|volt|volts)\b`, "gid");
-    const bare = new RegExp(String.raw`(?:is|=)\s*(${CHEMISTRY_SCALAR_PATTERN})\s*(?:V|volts?)\s+at\s+\d{3}\s*K`, "id").exec(text);
-    for (const observed of [...text.matchAll(implicit), ...(bare ? [bare] : [])]) {
-      const scalar = observed.indices![1]!;
-      // A shortened fallback match cannot discard its original E° owner.
-      if (standardValueSpans.some(span => scalar[0] >= span.start && scalar[1] <= span.end)) continue;
-      if (new RegExp(`${E_NAUGHT}|/`, "i").test(observed[0])
-        || /\bstandard\s+(?:emf|cell\s+potential|electrode\s+potential)\b/i.test(observed[0])
-        || /\bstandard\s+(?:electrode\s+)?$/i.test(text.slice(0, observed.index!))
-        || /\bstandard\s+(?:emf|cell\s+potential)(?:\s+of\s+(?:the\s+)?cell)?\s*$/i.test(text.slice(0, observed.index!))) continue;
-      const value = matchedChemistryQuantity(text, observed, 1, "potential", "V");
-      if (value === null || (out.e !== undefined && !chemistryCanonicalValuesAgree(out.e, value))) return null;
-      out.e = value;
-    }
+  const implicit = new RegExp(String.raw`(?:emf|e\.m\.f\.|cell potential|potential of the cell|emf of the cell|voltage)(?:[^.;\n]|\.(?=\d)){0,110}?(?:is|=|:|of|measured\s+(?:as|to\s+be))\s*(${CHEMISTRY_SCALAR_PATTERN})\s*(?:V|volt|volts)\b`, "gid");
+  const bare = new RegExp(String.raw`(?:is|=)\s*(${CHEMISTRY_SCALAR_PATTERN})\s*(?:V|volts?)\s+at\s+\d{3}\s*K`, "id").exec(text);
+  for (const observed of [...text.matchAll(implicit), ...(bare ? [bare] : [])]) {
+    const scalar = observed.indices![1]!;
+    // A shortened fallback match cannot discard its original E° owner.
+    if (standardValueSpans.some(span => scalar[0] >= span.start && scalar[1] <= span.end)) continue;
+    if (new RegExp(`${E_NAUGHT}|/`, "i").test(observed[0])
+      || /\bstandard\s+(?:emf|cell\s+potential|electrode\s+potential)\b/i.test(observed[0])
+      || /\bstandard\s+(?:electrode\s+)?$/i.test(text.slice(0, observed.index!))
+      || /\bstandard\s+(?:emf|cell\s+potential)(?:\s+of\s+(?:the\s+)?cell)?\s*$/i.test(text.slice(0, observed.index!))) continue;
+    const value = matchedChemistryQuantity(text, observed, 1, "potential", "V");
+    if (value === null || (out.e !== undefined && !chemistryCanonicalValuesAgree(out.e, value))) return null;
+    out.e = value;
   }
   return out;
 }
