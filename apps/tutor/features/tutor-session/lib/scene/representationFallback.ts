@@ -206,8 +206,12 @@ export function selectVerifiedRepresentation(
   // A parameterized archetype computed from source-bound slots and proved by
   // a metric assertion outranks a planner scene that only earned the
   // qualitative tier: the student sees the figure whose numbers were checked.
+  // A lens or mirror scene the optics proof accepts is engine-derived from the
+  // stem's u and f; it earns only the qualitative tier (no metric predicate
+  // covers gaussian_image) yet must not lose to the archetype.
   const unprovenPlannerScene = input.exact && currentCompile?.renderScene &&
-    tierForForeignDocument(input.exact.sceneDocument).tier !== "exact_verified";
+    tierForForeignDocument(input.exact.sceneDocument).tier !== "exact_verified" &&
+    plannerOpticsProof(input.question, input.exact.sceneDocument) !== "proven";
   // When the plan names circular motion, the source owns the figure: the
   // engine recomputes the state from the stated radius and rate, so a planner
   // scene cannot imply a direction or value the source did not give. A source
@@ -442,7 +446,7 @@ function compileUsableExactRepresentation(
     usesMensurationSolidOnContactProblem(expectedQuestion, candidate.sceneDocument) ||
     usesCollidingCircuitViews(expectedQuestion, candidate.sceneDocument) ||
     usesGenericVectorDiagramOnRiverBoat(expectedQuestion, candidate.sceneDocument) ||
-    usesPlannerOpticsOnArchetypeStem(expectedQuestion, candidate.sceneDocument)
+    plannerOpticsProof(expectedQuestion, candidate.sceneDocument) === "unproven"
   ) {
     return null;
   }
@@ -634,14 +638,292 @@ function usesCollidingCircuitViews(
   return false;
 }
 
-function usesPlannerOpticsOnArchetypeStem(
+export type PlannerOpticsProof = "not_optics" | "proven" | "unproven";
+
+/**
+ * On a lens or mirror stem a planner figure is admitted only when the engine,
+ * not the model, placed what the student reads: the object, image and foci are
+ * `gaussian_image` / `optical_focus` outputs whose u, f and element kind match
+ * the stem, the element is drawn on that centre and axis with the stem's sense,
+ * and every ray ends on an engine-derived point. Free-point figures, whose
+ * ratio assertions are self-declared, fail. A model-writable
+ * `source.archetype` label is never read.
+ *
+ * The stem is matched unhinted (no plan), as before; a misspelled stem the
+ * detector misses stays "not_optics".
+ */
+export function plannerOpticsProof(question: string, document: SceneDocument): PlannerOpticsProof {
+  return explainPlannerOpticsProof(question, document).proof;
+}
+
+export function explainPlannerOpticsProof(
   question: string,
   document: SceneDocument,
-): boolean {
+): { proof: PlannerOpticsProof; reason: string } {
   const match = detectArchetype(question);
-  if (match?.id !== "spherical_mirror" && match?.id !== "thin_lens") return false;
-  const source = document.source as { archetype?: unknown } | undefined;
-  return source?.archetype !== match.id;
+  if (match?.id !== "spherical_mirror" && match?.id !== "thin_lens") {
+    return { proof: "not_optics", reason: "not a lens or mirror stem" };
+  }
+  const failure = opticsProofFailure(match, document);
+  return failure === null
+    ? { proof: "proven", reason: "object, image, foci and rays are engine-derived from the stem's u and f" }
+    : { proof: "unproven", reason: failure };
+}
+
+type OpticsStemMatch = NonNullable<ReturnType<typeof detectArchetype>>;
+type OpticsConstruction = SceneDocument["constructions"][number];
+
+const OPTICS_CM_PER_UNIT: Readonly<Record<string, number>> = {
+  cm: 1, centimeter: 1, centimeters: 1, centimetre: 1, centimetres: 1,
+  m: 100, meter: 100, meters: 100, metre: 100, metres: 100,
+  mm: 0.1, millimeter: 0.1, millimeters: 0.1, millimetre: 0.1, millimetres: 0.1,
+};
+const OPTICS_START_KEYS = ["start", "from", "a"] as const;
+const OPTICS_LINE_START_KEYS = ["start", "from", "a", "origin"] as const;
+const OPTICS_END_KEYS = ["end", "to", "b"] as const;
+/** Parameter-free derivations: each output is fixed by its geometric inputs. */
+const OPTICS_DERIVED_INPUTS: Readonly<Record<string, readonly (readonly string[])[]>> = {
+  project: [["point", "source"], ["line", "onto"]],
+  intersection: [["first", "a", "line1"], ["second", "b", "line2"]],
+  perpendicular_through: [["through", "point"], ["line", "reference"]],
+  parallel_through: [["through", "point"], ["line", "reference"]],
+  reflect_point: [["point", "source"], ["line", "axis"]],
+  midpoint: [["a", "start"], ["b", "end"]],
+  rotate: [["point", "source"], ["center"]],
+  line: [OPTICS_LINE_START_KEYS, OPTICS_END_KEYS],
+  ray: [OPTICS_LINE_START_KEYS, OPTICS_END_KEYS],
+  segment: [OPTICS_START_KEYS, OPTICS_END_KEYS],
+  vector: [OPTICS_LINE_START_KEYS, OPTICS_END_KEYS],
+};
+const OPTICS_PATH_OPERATORS = new Set(["segment", "ray", "vector", "line"]);
+/** lens_section and spherical_surface draw a flat element beyond this radius. */
+const OPTICS_PLANO_RATIO = 40;
+
+function opticsProofFailure(match: OpticsStemMatch, document: SceneDocument): string | null {
+  const element = match.id === "thin_lens" ? "lens" : "mirror";
+  const stemKind = match.slots.kind === "convex" ? "convex" : "concave";
+  // P1: one engine image, of the stem's element.
+  const images = document.constructions.filter((construction) => construction.operator === "gaussian_image");
+  if (images.length !== 1) return `gaussian_image count ${images.length}`;
+  const image = images[0]!;
+  const inputs = image.inputs;
+  if (inputs.kind !== element) return `gaussian_image kind ${String(inputs.kind)} on a ${match.id} stem`;
+  if (image.outputs.length !== 4) return "gaussian_image must output object base, object tip, image base and image tip";
+  // P2: a real object with light along +axis, the stem's focal sign, a metric unit.
+  const scale = opticsCmPerUnit(inputs.lengthUnit);
+  if (scale === null) return "gaussian_image lengthUnit must be cm, m or mm";
+  const u = opticsNumber(inputs.objectDistance, document) * scale;
+  const f = opticsNumber(inputs.focalLength, document) * scale;
+  if (!Number.isFinite(u) || !(u < 0)) return "objectDistance must be negative: a real object with light along +axis";
+  const focalSign = element === "lens" ? (stemKind === "convex" ? 1 : -1) : (stemKind === "concave" ? -1 : 1);
+  if (!Number.isFinite(f) || Math.sign(f) !== focalSign) return `focalLength sign contradicts a ${stemKind} ${element}`;
+  // P3: |u| and |f| are the stem's (f = R/2 when only R is stated).
+  for (const [slot, value] of [["u", -u], ["f", Math.abs(f)]] as const) {
+    const stated = match.slots[slot];
+    const source = match.sources[slot];
+    if ((source === "stem" || source === "plan") && typeof stated === "number" && !opticsClose(value, stated)) {
+      return `${slot} = ${value} cm contradicts the stem's ${stated} cm`;
+    }
+  }
+  // P4: every focus is the engine focus of this element.
+  const foci = document.constructions.filter((construction) => construction.operator === "optical_focus");
+  if (foci.length === 0) return "no optical_focus";
+  const displayScale = opticsNumber(inputs.displayScale, document);
+  for (const focus of foci) {
+    const focusScale = opticsCmPerUnit(focus.inputs.lengthUnit);
+    if (
+      focus.inputs.kind !== element || focusScale !== scale ||
+      !sameOpticsInput(focus.inputs.center, inputs.center) || !sameOpticsInput(focus.inputs.axis, inputs.axis) ||
+      !opticsClose(opticsNumber(focus.inputs.focalLength, document) * focusScale, f) ||
+      !opticsClose(opticsNumber(focus.inputs.displayScale, document), displayScale)
+    ) return `optical_focus ${focus.id} disagrees with the gaussian_image element`;
+  }
+  // P5: the element itself, on the same centre and axis, with the stem's sense.
+  const elementFailure = opticsElementFailure(element, stemKind, image, document);
+  if (elementFailure) return elementFailure;
+  // P6: the object and image arrows join the engine anchors.
+  const [objectBase, objectTip, imageBase, imageTip] = image.outputs;
+  const arrows = [[objectBase, objectTip], [imageBase, imageTip]].map(([from, to]) =>
+    document.constructions.find((construction) =>
+      (construction.operator === "vector" || construction.operator === "segment") &&
+      opticsFirst(construction.inputs, construction.operator === "vector" ? OPTICS_LINE_START_KEYS : OPTICS_START_KEYS) === from &&
+      opticsFirst(construction.inputs, OPTICS_END_KEYS) === to));
+  if (arrows.some((arrow) => !arrow)) return "object or image arrow is not drawn on the gaussian_image anchors";
+  // P8: a fatal convergence at the engine image tip.
+  const convergence = document.assertions.filter((assertion) =>
+    assertion.predicate === "converges" && assertion.severity === "fatal" &&
+    assertion.entities.length >= 3 && assertion.entities.at(-1) === imageTip);
+  if (convergence.length === 0) return "no fatal converges assertion ending on the gaussian image tip";
+  // P7: every ray, extension and converging line ends on an engine-derived point.
+  const producer = new Map<string, OpticsConstruction>();
+  for (const construction of document.constructions) {
+    for (const output of construction.outputs) producer.set(output, construction);
+  }
+  const entityText = new Map(document.entities.map((entity) =>
+    [entity.id, `${entity.id} ${entity.role ?? ""} ${entity.label ?? ""}`]));
+  const rays = new Set<OpticsConstruction>();
+  for (const construction of document.constructions) {
+    if (arrows.includes(construction)) continue;
+    if (construction.operator === "segment" || construction.operator === "ray" || construction.operator === "vector") {
+      rays.add(construction);
+    } else if (construction.operator === "line" &&
+      construction.outputs.some((output) => /ray|extension/i.test(entityText.get(output) ?? ""))) {
+      rays.add(construction);
+    }
+  }
+  for (const assertion of convergence) {
+    for (const id of assertion.entities.slice(0, -1)) {
+      const path = producer.get(id);
+      if (!path || !OPTICS_PATH_OPERATORS.has(path.operator)) return `converging line ${id} is not a drawn ray`;
+      rays.add(path);
+    }
+  }
+  if (rays.size < 2) return "fewer than two ray or extension paths";
+  const anchors = new Set<string>([...image.outputs, ...foci.flatMap((focus) => focus.outputs)]);
+  if (typeof inputs.center === "string") anchors.add(inputs.center);
+  if (typeof inputs.axis === "string") anchors.add(inputs.axis);
+  const verdicts = new Map<string, boolean>();
+  const derived = (id: unknown, depth: number): boolean => {
+    if (typeof id !== "string") return false;
+    if (anchors.has(id)) return true;
+    const known = verdicts.get(id);
+    if (known !== undefined) return known;
+    if (depth > 32) return false;
+    verdicts.set(id, false);
+    const construction = producer.get(id);
+    const references = construction ? opticsDerivedReferences(construction, document) : null;
+    const verdict = references !== null && references.every((reference) => derived(reference, depth + 1));
+    verdicts.set(id, verdict);
+    return verdict;
+  };
+  for (const ray of rays) {
+    const references = opticsDerivedReferences(ray, document);
+    if (!references || !references.every((reference) => derived(reference, 0))) {
+      return `ray ${ray.outputs[0] ?? ray.id} has an endpoint the engine did not derive`;
+    }
+  }
+  return null;
+}
+
+/** P5: lens_section for a lens, spherical_surface for a mirror, never the other, never flat. */
+function opticsElementFailure(
+  element: "lens" | "mirror",
+  stemKind: "convex" | "concave",
+  image: OpticsConstruction,
+  document: SceneDocument,
+): string | null {
+  const own = element === "lens" ? "lens_section" : "spherical_surface";
+  const surfaces = document.constructions.filter((construction) =>
+    construction.operator === "lens_section" || construction.operator === "spherical_surface");
+  if (surfaces.length === 0) return `the ${element} is not drawn by ${own}`;
+  const axisSign = element === "mirror" ? opticsAxisSign(image.inputs.axis, document) : 1;
+  for (const surface of surfaces) {
+    if (surface.operator !== own) return `${surface.operator} drawn on a ${element} stem`;
+    const at = opticsFirst(surface.inputs, element === "lens" ? ["center", "opticalCentre", "optical_center"] : ["vertex", "pole"]);
+    if (!sameOpticsInput(at, image.inputs.center) || !sameOpticsInput(surface.inputs.axis, image.inputs.axis)) {
+      return `${own} ${surface.id} is not on the gaussian_image centre and axis`;
+    }
+    const halfHeight = opticsNumber(opticsFirst(surface.inputs, ["halfHeight", "aperture"]), document);
+    if (!(halfHeight > 0)) return `${own} ${surface.id} has no positive halfHeight`;
+    const curvature = (radius: number) => Math.abs(radius) > OPTICS_PLANO_RATIO * halfHeight ? 0 : 1 / radius;
+    if (element === "lens") {
+      // The engine draws in a +x frame: radius1 > 0 and radius2 < 0 bulge outward.
+      const power = curvature(opticsNumber(opticsFirst(surface.inputs, ["radius1", "R1", "signedRadius1"]), document)) -
+        curvature(opticsNumber(opticsFirst(surface.inputs, ["radius2", "R2", "signedRadius2"]), document));
+      if (!Number.isFinite(power) || Math.sign(power) !== (stemKind === "convex" ? 1 : -1)) {
+        return `lens_section ${surface.id} is not drawn ${stemKind}`;
+      }
+      continue;
+    }
+    // A centre-of-curvature point overrides the radius; its sense is not provable here.
+    if (surface.inputs.center !== undefined) return `spherical_surface ${surface.id} must give signedRadius, not a centre point`;
+    if (axisSign === null) return "the principal axis direction is not readable from the document";
+    const radiusInput = opticsFirst(surface.inputs, ["signedRadius", "radius"]);
+    const kind = typeof surface.inputs.kind === "string" ? surface.inputs.kind.toLowerCase() : undefined;
+    const radius = radiusInput === undefined
+      ? (kind === "plano" ? Number.POSITIVE_INFINITY : kind === "concave" ? -1 : 1)
+      : opticsNumber(radiusInput, document);
+    if (!Number.isFinite(radius) || curvature(radius) === 0) return `spherical_surface ${surface.id} is drawn flat`;
+    // The surface frame always points along +x; the object sits on the -axis side.
+    // Concave: the centre of curvature is on the object side.
+    const objectSide = -axisSign;
+    if ((Math.sign(radius) === objectSide) !== (stemKind === "concave")) {
+      return `spherical_surface ${surface.id} is not drawn ${stemKind}`;
+    }
+  }
+  return null;
+}
+
+/** +1 when the principal axis runs toward +x in the engine's surface frame, -1 when it runs toward -x. */
+function opticsAxisSign(axis: unknown, document: SceneDocument): 1 | -1 | null {
+  let dx: number;
+  if (typeof axis === "string") {
+    const line = document.constructions.find((construction) => construction.outputs.includes(axis));
+    if (!line || line.operator !== "line") return null;
+    const start = opticsLiteralPoint(opticsFirst(line.inputs, OPTICS_LINE_START_KEYS), document);
+    const end = opticsLiteralPoint(opticsFirst(line.inputs, OPTICS_END_KEYS), document);
+    if (!start || !end) return null;
+    dx = end.x - start.x;
+  } else if (Array.isArray(axis) && axis.length === 2) {
+    dx = opticsNumber(axis[0], document);
+  } else if (isRecord(axis) && "x" in axis) {
+    dx = opticsNumber(axis.x, document);
+  } else {
+    return null;
+  }
+  if (!Number.isFinite(dx)) return null;
+  return dx < 0 ? -1 : 1;
+}
+
+function opticsLiteralPoint(id: unknown, document: SceneDocument): { x: number; y: number } | null {
+  if (typeof id !== "string") return null;
+  const construction = document.constructions.find((candidate) => candidate.outputs.includes(id));
+  if (!construction || construction.operator !== "point") return null;
+  const x = opticsNumber(construction.inputs.x, document);
+  const y = opticsNumber(construction.inputs.y, document);
+  return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+}
+
+/** The geometric references a derived construction reads, or null when it is not parameter-free. */
+function opticsDerivedReferences(construction: OpticsConstruction, document: SceneDocument): unknown[] | null {
+  const groups = OPTICS_DERIVED_INPUTS[construction.operator];
+  if (!groups) return null;
+  if (construction.operator === "rotate") {
+    // Only a half-turn (C from P through F, 2F from O through F) is free of an authored angle.
+    const value = opticsNumber(construction.inputs.angle, document);
+    const radians = construction.inputs.angleUnit === "degrees" || Math.abs(value) > 2 * Math.PI ? value * Math.PI / 180 : value;
+    if (!(Math.abs(Math.cos(radians) + 1) < 1e-9)) return null;
+  }
+  return groups.map((keys) => opticsFirst(construction.inputs, keys));
+}
+
+function opticsFirst(inputs: Record<string, unknown>, keys: readonly string[]): unknown {
+  for (const key of keys) if (inputs[key] !== undefined) return inputs[key];
+  return undefined;
+}
+
+function opticsNumber(value: unknown, document: SceneDocument, depth = 0): number {
+  if (depth > 32) return Number.NaN;
+  if (typeof value === "number") return value;
+  if (isRecord(value) && "value" in value) return opticsNumber(value.value, document, depth + 1);
+  if (typeof value !== "string" || !value.trim()) return Number.NaN;
+  const quantity = document.quantities.find((item) => item.id === value);
+  return quantity ? opticsNumber(quantity.value, document, depth + 1) : Number(value);
+}
+
+function opticsCmPerUnit(value: unknown): number | null {
+  if (typeof value !== "string") return null;
+  const unit = value.trim().replace(/[A-Za-z]{4,}/g, (word) => word.toLowerCase());
+  return OPTICS_CM_PER_UNIT[unit] ?? null;
+}
+
+function opticsClose(actual: number, expected: number): boolean {
+  return Number.isFinite(actual) && Number.isFinite(expected) &&
+    Math.abs(actual - expected) <= 1e-6 * Math.max(Math.abs(actual), Math.abs(expected));
+}
+
+function sameOpticsInput(a: unknown, b: unknown): boolean {
+  return a !== undefined && JSON.stringify(a) === JSON.stringify(b);
 }
 
 function usesGenericVectorDiagramOnRiverBoat(
