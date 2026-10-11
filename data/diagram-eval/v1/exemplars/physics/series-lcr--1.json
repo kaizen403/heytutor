@@ -1,0 +1,481 @@
+{
+  "topic_id": "physics|14|reactance-impedance-and-lcr",
+  "question": "A series LCR circuit with R = 80 Ω, L = 0.10 H and C = 62.5 μF is driven by an AC source of V = 150 V rms and ω = 800 rad/s. Draw the circuit with a reference current direction and the phasor diagram of VR, VL and VC relative to the current. Find the impedance, the rms current and the phase angle, and state whether the current leads or lags the source voltage.",
+  "figure_kind": "circuit",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "series LCR loop and its phasors"
+    },
+    "source": {
+      "question": "A series LCR circuit with R = 80 Ω, L = 0.10 H and C = 62.5 μF is driven by an AC source of V = 150 V rms and ω = 800 rad/s. Draw the circuit with a reference current direction and the phasor diagram of VR, VL and VC relative to the current. Find the impedance, the rms current and the phase angle, and state whether the current leads or lags the source voltage.",
+      "family": "ac_circuit"
+    },
+    "quantities": [
+      {
+        "id": "qR",
+        "symbol": "R",
+        "value": 80,
+        "unit": "ohm"
+      },
+      {
+        "id": "qL",
+        "symbol": "L",
+        "value": 0.1,
+        "unit": "H"
+      },
+      {
+        "id": "qC",
+        "symbol": "C",
+        "value": 62.5,
+        "unit": "μF"
+      },
+      {
+        "id": "qV",
+        "symbol": "V",
+        "value": 150,
+        "unit": "V"
+      },
+      {
+        "id": "qw",
+        "symbol": "ω",
+        "value": 800,
+        "unit": "rad/s"
+      }
+    ],
+    "entities": [
+      {
+        "id": "src",
+        "kind": "component",
+        "role": "AC source",
+        "label": "150 V, 800 rad/s"
+      },
+      {
+        "id": "R",
+        "kind": "component",
+        "role": "resistor",
+        "label": "R = 80 Ω"
+      },
+      {
+        "id": "L",
+        "kind": "component",
+        "role": "inductor",
+        "label": "L = 0.10 H"
+      },
+      {
+        "id": "C",
+        "kind": "component",
+        "role": "capacitor",
+        "label": "C = 62.5 μF"
+      },
+      {
+        "id": "w",
+        "kind": "connector",
+        "role": "wire"
+      },
+      {
+        "id": "i",
+        "kind": "sign_badge",
+        "role": "reference current",
+        "label": "I"
+      },
+      {
+        "id": "I",
+        "kind": "vector",
+        "role": "current phasor",
+        "label": "I"
+      },
+      {
+        "id": "VR",
+        "kind": "vector",
+        "role": "VR in phase with I",
+        "label": "VR"
+      },
+      {
+        "id": "VL",
+        "kind": "vector",
+        "role": "VL leads I by 90°",
+        "label": "VL"
+      },
+      {
+        "id": "VC",
+        "kind": "vector",
+        "role": "VC lags I by 90°",
+        "label": "VC"
+      },
+      {
+        "id": "V",
+        "kind": "vector",
+        "role": "source voltage phasor",
+        "label": "V"
+      },
+      {
+        "id": "phi",
+        "kind": "angle_mark",
+        "role": "phase angle",
+        "label": "φ"
+      },
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "node"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "node"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "node"
+      },
+      {
+        "id": "Q",
+        "kind": "point",
+        "role": "node"
+      },
+      {
+        "id": "D",
+        "kind": "point",
+        "role": "node"
+      },
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "phasor origin"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "kA",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "kB",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 2.4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "kP",
+        "operator": "point",
+        "inputs": {
+          "x": 1.8,
+          "y": 2.4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "kQ",
+        "operator": "point",
+        "inputs": {
+          "x": 3.6,
+          "y": 2.4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Q"
+        ]
+      },
+      {
+        "id": "kD",
+        "operator": "point",
+        "inputs": {
+          "x": 3.6,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "D"
+        ]
+      },
+      {
+        "id": "ksrc",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "ac_source",
+          "start": "A",
+          "end": "B"
+        },
+        "outputs": [
+          "src"
+        ]
+      },
+      {
+        "id": "kR",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "resistor",
+          "start": "B",
+          "end": "P"
+        },
+        "outputs": [
+          "R"
+        ]
+      },
+      {
+        "id": "kL",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "inductor",
+          "start": "P",
+          "end": "Q"
+        },
+        "outputs": [
+          "L"
+        ]
+      },
+      {
+        "id": "kw",
+        "operator": "connect",
+        "inputs": {
+          "start": "Q",
+          "end": "D"
+        },
+        "outputs": [
+          "w"
+        ]
+      },
+      {
+        "id": "kC",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "capacitor",
+          "start": "D",
+          "end": "A"
+        },
+        "outputs": [
+          "C"
+        ]
+      },
+      {
+        "id": "ki",
+        "operator": "sign_badge",
+        "inputs": {
+          "target": "w",
+          "sense": "positive",
+          "at": 0.5
+        },
+        "outputs": [
+          "i"
+        ]
+      },
+      {
+        "id": "kO",
+        "operator": "point",
+        "inputs": {
+          "x": 5.4,
+          "y": 0.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "kI",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "direction": [
+            1,
+            0
+          ],
+          "length": 2.2
+        },
+        "outputs": [
+          "I"
+        ]
+      },
+      {
+        "id": "kVR",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "direction": [
+            1,
+            0
+          ],
+          "length": 1.6
+        },
+        "outputs": [
+          "VR"
+        ]
+      },
+      {
+        "id": "kVL",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 1.6
+        },
+        "outputs": [
+          "VL"
+        ]
+      },
+      {
+        "id": "kVC",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 0.4
+        },
+        "outputs": [
+          "VC"
+        ]
+      },
+      {
+        "id": "kV",
+        "operator": "vector_sum",
+        "inputs": {
+          "vectors": [
+            "VR",
+            "VL",
+            "VC"
+          ],
+          "origin": "O"
+        },
+        "outputs": [
+          "V"
+        ]
+      },
+      {
+        "id": "kphi",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "O",
+          "a": "I",
+          "b": "V",
+          "radius": 0.9
+        },
+        "outputs": [
+          "phi"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "loop",
+        "predicate": "path",
+        "entities": [
+          "src",
+          "R",
+          "L",
+          "w",
+          "C"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "inphase",
+        "predicate": "parallel",
+        "entities": [
+          "VR",
+          "I"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "lead",
+        "predicate": "perpendicular",
+        "entities": [
+          "VL",
+          "I"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "lag",
+        "predicate": "opposite_direction",
+        "entities": [
+          "VC",
+          "VL"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "src",
+      "R",
+      "L",
+      "w",
+      "C",
+      "i",
+      "I",
+      "VR",
+      "VL",
+      "VC",
+      "V",
+      "phi"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "A",
+          "B",
+          "P",
+          "Q",
+          "D",
+          "src",
+          "R",
+          "L",
+          "w",
+          "C",
+          "i",
+          "O",
+          "I",
+          "VR",
+          "VL",
+          "VC",
+          "V",
+          "phi"
+        ],
+        "dependsOn": [],
+        "narrationCue": "series loop, current, phasors"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "t1",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "series loop with current reference, then phasors relative to the current"
+      }
+    ]
+  }
+}

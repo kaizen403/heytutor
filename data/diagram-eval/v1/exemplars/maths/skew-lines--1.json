@@ -1,0 +1,454 @@
+{
+  "topic_id": "maths|11|skew-lines",
+  "question": "Line L₁ passes through A parallel to b, where b makes angles α, β, γ with the x, y and z axes. Line L₂ through C is skew to L₁. Show their common perpendicular PQ, the shortest distance between the lines, with P on L₁ and Q on L₂.",
+  "figure_kind": "solid_3d",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "symbolic lines in space"
+    },
+    "source": {
+      "question": "Line L₁ passes through A parallel to b, where b makes angles α, β, γ with the x, y and z axes. Line L₂ through C is skew to L₁. Show their common perpendicular PQ, the shortest distance between the lines, with P on L₁ and Q on L₂.",
+      "archetype": "space_lines"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "ax",
+        "kind": "polyline",
+        "role": "3D axes"
+      },
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "origin",
+        "label": "O"
+      },
+      {
+        "id": "X",
+        "kind": "point",
+        "role": "x-axis tip",
+        "label": "x"
+      },
+      {
+        "id": "Y",
+        "kind": "point",
+        "role": "y-axis tip",
+        "label": "y"
+      },
+      {
+        "id": "Z",
+        "kind": "point",
+        "role": "z-axis tip",
+        "label": "z"
+      },
+      {
+        "id": "bT",
+        "kind": "point",
+        "role": "tip of b"
+      },
+      {
+        "id": "b",
+        "kind": "vector",
+        "role": "direction of L₁"
+      },
+      {
+        "id": "al",
+        "kind": "angle_mark",
+        "role": "angle with x-axis",
+        "label": "α"
+      },
+      {
+        "id": "be",
+        "kind": "angle_mark",
+        "role": "angle with y-axis",
+        "label": "β"
+      },
+      {
+        "id": "ga",
+        "kind": "angle_mark",
+        "role": "angle with z-axis",
+        "label": "γ"
+      },
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "point on L₁",
+        "label": "A"
+      },
+      {
+        "id": "L1",
+        "kind": "line",
+        "role": "line through A",
+        "label": "L₁"
+      },
+      {
+        "id": "C",
+        "kind": "point",
+        "role": "point on L₂",
+        "label": "C"
+      },
+      {
+        "id": "L2",
+        "kind": "line",
+        "role": "line skew to L₁",
+        "label": "L₂"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "foot on L₁",
+        "label": "P"
+      },
+      {
+        "id": "Q",
+        "kind": "point",
+        "role": "foot on L₂",
+        "label": "Q"
+      },
+      {
+        "id": "PQ",
+        "kind": "segment",
+        "role": "common perpendicular"
+      },
+      {
+        "id": "rP",
+        "kind": "right_angle_mark",
+        "role": "right angle"
+      },
+      {
+        "id": "rQ",
+        "kind": "right_angle_mark",
+        "role": "right angle"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "kf",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "f"
+        ]
+      },
+      {
+        "id": "kax",
+        "operator": "space_frame",
+        "inputs": {
+          "origin": "f",
+          "axisLength": 3
+        },
+        "outputs": [
+          "ax"
+        ]
+      },
+      {
+        "id": "kO",
+        "operator": "space_point",
+        "inputs": {
+          "frame": "ax",
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "kX",
+        "operator": "space_point",
+        "inputs": {
+          "frame": "ax",
+          "x": 3,
+          "y": 0,
+          "z": 0
+        },
+        "outputs": [
+          "X"
+        ]
+      },
+      {
+        "id": "kY",
+        "operator": "space_point",
+        "inputs": {
+          "frame": "ax",
+          "x": 0,
+          "y": 3,
+          "z": 0
+        },
+        "outputs": [
+          "Y"
+        ]
+      },
+      {
+        "id": "kZ",
+        "operator": "space_point",
+        "inputs": {
+          "frame": "ax",
+          "x": 0,
+          "y": 0,
+          "z": 3
+        },
+        "outputs": [
+          "Z"
+        ]
+      },
+      {
+        "id": "kbT",
+        "operator": "space_point",
+        "inputs": {
+          "frame": "ax",
+          "x": 2.8,
+          "y": 1.4,
+          "z": 0.7
+        },
+        "outputs": [
+          "bT"
+        ]
+      },
+      {
+        "id": "kb",
+        "operator": "space_vector",
+        "inputs": {
+          "frame": "ax",
+          "start": "O",
+          "end": "bT"
+        },
+        "outputs": [
+          "b"
+        ]
+      },
+      {
+        "id": "kal",
+        "operator": "space_angle_mark",
+        "inputs": {
+          "frame": "ax",
+          "vertex": "O",
+          "a": "X",
+          "b": "b",
+          "radius": 1.4
+        },
+        "outputs": [
+          "al"
+        ]
+      },
+      {
+        "id": "kbe",
+        "operator": "space_angle_mark",
+        "inputs": {
+          "frame": "ax",
+          "vertex": "O",
+          "a": "Y",
+          "b": "b",
+          "radius": 1.8
+        },
+        "outputs": [
+          "be"
+        ]
+      },
+      {
+        "id": "kga",
+        "operator": "space_angle_mark",
+        "inputs": {
+          "frame": "ax",
+          "vertex": "O",
+          "a": "Z",
+          "b": "b",
+          "radius": 1.0
+        },
+        "outputs": [
+          "ga"
+        ]
+      },
+      {
+        "id": "kA",
+        "operator": "space_point",
+        "inputs": {
+          "frame": "ax",
+          "x": -2,
+          "y": 0,
+          "z": -4
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "kL1",
+        "operator": "space_line",
+        "inputs": {
+          "frame": "ax",
+          "point": "A",
+          "direction": [
+            4,
+            2,
+            1
+          ]
+        },
+        "outputs": [
+          "L1"
+        ]
+      },
+      {
+        "id": "kC",
+        "operator": "space_point",
+        "inputs": {
+          "frame": "ax",
+          "x": 3,
+          "y": 2,
+          "z": -8
+        },
+        "outputs": [
+          "C"
+        ]
+      },
+      {
+        "id": "kL2",
+        "operator": "space_line",
+        "inputs": {
+          "frame": "ax",
+          "point": "C",
+          "direction": [
+            1,
+            4,
+            2
+          ]
+        },
+        "outputs": [
+          "L2"
+        ]
+      },
+      {
+        "id": "kPQ0",
+        "operator": "space_closest_points",
+        "inputs": {
+          "frame": "ax",
+          "first": "L1",
+          "second": "L2"
+        },
+        "outputs": [
+          "P",
+          "Q"
+        ]
+      },
+      {
+        "id": "kPQ",
+        "operator": "space_segment",
+        "inputs": {
+          "frame": "ax",
+          "a": "P",
+          "b": "Q"
+        },
+        "outputs": [
+          "PQ"
+        ]
+      },
+      {
+        "id": "krP",
+        "operator": "space_right_angle_mark",
+        "inputs": {
+          "frame": "ax",
+          "vertex": "P",
+          "a": "L1",
+          "b": "Q"
+        },
+        "outputs": [
+          "rP"
+        ]
+      },
+      {
+        "id": "krQ",
+        "operator": "space_right_angle_mark",
+        "inputs": {
+          "frame": "ax",
+          "vertex": "Q",
+          "a": "L2",
+          "b": "P"
+        },
+        "outputs": [
+          "rQ"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "par",
+        "predicate": "parallel",
+        "entities": [
+          "b",
+          "L1"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "nb",
+        "kind": "label",
+        "targetIds": [
+          "b"
+        ],
+        "text": "b",
+        "placementIntent": "upper-right"
+      }
+    ],
+    "requiredEntityIds": [
+      "ax",
+      "O",
+      "X",
+      "Y",
+      "Z",
+      "bT",
+      "b",
+      "al",
+      "be",
+      "ga",
+      "A",
+      "L1",
+      "C",
+      "L2",
+      "P",
+      "Q",
+      "PQ",
+      "rP",
+      "rQ"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "ax",
+          "O",
+          "X",
+          "Y",
+          "Z",
+          "bT",
+          "b",
+          "al",
+          "be",
+          "ga",
+          "A",
+          "L1",
+          "C",
+          "L2",
+          "P",
+          "Q",
+          "PQ",
+          "rP",
+          "rQ"
+        ],
+        "dependsOn": [],
+        "narrationCue": "axes, b, α, β, γ, L₁, L₂, PQ"
+      }
+    ],
+    "teachingTimeline": []
+  }
+}

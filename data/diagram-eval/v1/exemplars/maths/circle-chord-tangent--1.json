@@ -1,0 +1,415 @@
+{
+  "topic_id": "maths|10|circle-general-form-radius-and-centre",
+  "question": "The circle x² + y² + 2gx + 2fy = 0 passes through the origin O and has centre C(−g, −f) and radius r. AB is a diameter, with A(x₁, y₁) and B(x₂, y₂). The line y = mx meets the circle again at P. Show C as the midpoint of AB, the radius r, both points where the line meets the circle, the tangent at P, and a point Q on the circle with ∠AQB a right angle, so the circle is the locus of such points Q.",
+  "figure_kind": "geometry",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "symbolic circle through O"
+    },
+    "source": {
+      "question": "The circle x² + y² + 2gx + 2fy = 0 passes through the origin O and has centre C(−g, −f) and radius r. AB is a diameter, with A(x₁, y₁) and B(x₂, y₂). The line y = mx meets the circle again at P. Show C as the midpoint of AB, the radius r, both points where the line meets the circle, the tangent at P, and a point Q on the circle with ∠AQB a right angle, so the circle is the locus of such points Q.",
+      "family": "coordinate_figure"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "ax",
+        "kind": "axes",
+        "role": "axes"
+      },
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "origin on circle",
+        "label": "O(0, 0)"
+      },
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "diameter end",
+        "label": "A(x₁, y₁)"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "diameter end",
+        "label": "B(x₂, y₂)"
+      },
+      {
+        "id": "C",
+        "kind": "point",
+        "role": "centre, mid AB",
+        "label": "C(−g, −f)"
+      },
+      {
+        "id": "k",
+        "kind": "circle",
+        "role": "circle",
+        "label": "x²+y²+2gx+2fy=0"
+      },
+      {
+        "id": "AB",
+        "kind": "segment",
+        "role": "diameter"
+      },
+      {
+        "id": "t1",
+        "kind": "tick_mark",
+        "role": "equal half"
+      },
+      {
+        "id": "t2",
+        "kind": "tick_mark",
+        "role": "equal half"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "second meeting point",
+        "label": "P"
+      },
+      {
+        "id": "L",
+        "kind": "line",
+        "role": "line through O",
+        "label": "y = mx"
+      },
+      {
+        "id": "CP",
+        "kind": "segment",
+        "role": "radius",
+        "label": "r"
+      },
+      {
+        "id": "T",
+        "kind": "line",
+        "role": "tangent at P",
+        "label": "tangent"
+      },
+      {
+        "id": "Q",
+        "kind": "point",
+        "role": "locus point",
+        "label": "Q"
+      },
+      {
+        "id": "QA",
+        "kind": "segment",
+        "role": "chord"
+      },
+      {
+        "id": "QB",
+        "kind": "segment",
+        "role": "chord"
+      },
+      {
+        "id": "rQ",
+        "kind": "right_angle_mark",
+        "role": "right angle AQB"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "kax",
+        "operator": "axes",
+        "inputs": {
+          "xMin": -2.5,
+          "xMax": 10.5,
+          "yMin": -3,
+          "yMax": 9.5
+        },
+        "outputs": [
+          "ax"
+        ]
+      },
+      {
+        "id": "kO",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "kA",
+        "operator": "point",
+        "inputs": {
+          "x": -0.8,
+          "y": 4.4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "kB",
+        "operator": "point",
+        "inputs": {
+          "x": 8.8,
+          "y": 1.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "kC",
+        "operator": "midpoint",
+        "inputs": {
+          "a": "A",
+          "b": "B"
+        },
+        "outputs": [
+          "C"
+        ]
+      },
+      {
+        "id": "kk",
+        "operator": "circle",
+        "inputs": {
+          "center": "C",
+          "radius": 5
+        },
+        "outputs": [
+          "k"
+        ]
+      },
+      {
+        "id": "kAB",
+        "operator": "segment",
+        "inputs": {
+          "start": "A",
+          "end": "B"
+        },
+        "outputs": [
+          "AB"
+        ]
+      },
+      {
+        "id": "kt1",
+        "operator": "tick_mark",
+        "inputs": {
+          "target": "AB",
+          "at": 0.25,
+          "family": "h"
+        },
+        "outputs": [
+          "t1"
+        ]
+      },
+      {
+        "id": "kt2",
+        "operator": "tick_mark",
+        "inputs": {
+          "target": "AB",
+          "at": 0.75,
+          "family": "h"
+        },
+        "outputs": [
+          "t2"
+        ]
+      },
+      {
+        "id": "kP",
+        "operator": "point",
+        "inputs": {
+          "x": 2.6,
+          "y": 7.8,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "kL",
+        "operator": "line",
+        "inputs": {
+          "start": "O",
+          "end": "P"
+        },
+        "outputs": [
+          "L"
+        ]
+      },
+      {
+        "id": "kCP",
+        "operator": "segment",
+        "inputs": {
+          "start": "C",
+          "end": "P"
+        },
+        "outputs": [
+          "CP"
+        ]
+      },
+      {
+        "id": "kT",
+        "operator": "circle_tangent_at",
+        "inputs": {
+          "circle": "k",
+          "point": "P",
+          "span": 5
+        },
+        "outputs": [
+          "T"
+        ]
+      },
+      {
+        "id": "kQ",
+        "operator": "point",
+        "inputs": {
+          "x": 5.4,
+          "y": -1.8,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Q"
+        ]
+      },
+      {
+        "id": "kQA",
+        "operator": "segment",
+        "inputs": {
+          "start": "Q",
+          "end": "A"
+        },
+        "outputs": [
+          "QA"
+        ]
+      },
+      {
+        "id": "kQB",
+        "operator": "segment",
+        "inputs": {
+          "start": "Q",
+          "end": "B"
+        },
+        "outputs": [
+          "QB"
+        ]
+      },
+      {
+        "id": "krQ",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "Q",
+          "a": "QA",
+          "b": "QB",
+          "size": 0.5
+        },
+        "outputs": [
+          "rQ"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "onO",
+        "predicate": "on",
+        "entities": [
+          "O",
+          "k"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "onA",
+        "predicate": "on",
+        "entities": [
+          "A",
+          "k"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "onP",
+        "predicate": "on",
+        "entities": [
+          "P",
+          "k"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "onQ",
+        "predicate": "on",
+        "entities": [
+          "Q",
+          "k"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "semi",
+        "predicate": "perpendicular",
+        "entities": [
+          "QA",
+          "QB"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "ax",
+      "O",
+      "A",
+      "B",
+      "C",
+      "k",
+      "AB",
+      "t1",
+      "t2",
+      "P",
+      "L",
+      "CP",
+      "T",
+      "Q",
+      "QA",
+      "QB",
+      "rQ"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "ax",
+          "O",
+          "A",
+          "B",
+          "C",
+          "k",
+          "AB",
+          "t1",
+          "t2",
+          "P",
+          "L",
+          "CP",
+          "T",
+          "Q",
+          "QA",
+          "QB",
+          "rQ"
+        ],
+        "dependsOn": [],
+        "narrationCue": "circle, centre, diameter, line, tangent, locus"
+      }
+    ],
+    "teachingTimeline": []
+  }
+}

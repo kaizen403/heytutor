@@ -1,0 +1,372 @@
+{
+  "topic_id": "physics|11|equipotential-surfaces",
+  "question": "A point charge +q is fixed at O. Sketch its electric field lines and two equipotential surfaces V₁ (inner) and V₂ (outer). Points A and B lie on V₁, and C lies on V₂ radially outward from B. Show the field at A, then compare the work done moving a test charge from A to B along V₁ with that from B to C.",
+  "figure_kind": "field_lines",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "radial field of +q and two equipotentials"
+    },
+    "source": {
+      "question": "A point charge +q is fixed at O. Sketch its electric field lines and two equipotential surfaces V₁ (inner) and V₂ (outer). Points A and B lie on V₁, and C lies on V₂ radially outward from B. Show the field at A, then compare the work done moving a test charge from A to B along V₁ with that from B to C.",
+      "family": "point_field"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "positive point charge",
+        "label": "+q"
+      },
+      {
+        "id": "lines",
+        "kind": "polyline",
+        "role": "outward radial field lines"
+      },
+      {
+        "id": "V1",
+        "kind": "circle",
+        "role": "inner equipotential"
+      },
+      {
+        "id": "V2",
+        "kind": "circle",
+        "role": "outer equipotential"
+      },
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "point on V₁",
+        "label": "A"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "point on V₁",
+        "label": "B"
+      },
+      {
+        "id": "C",
+        "kind": "point",
+        "role": "point on V₂ radially out from B",
+        "label": "C"
+      },
+      {
+        "id": "AB",
+        "kind": "arc",
+        "role": "tangential path along V₁"
+      },
+      {
+        "id": "BC",
+        "kind": "segment",
+        "role": "radial path along E"
+      },
+      {
+        "id": "E_A",
+        "kind": "vector",
+        "role": "field at A, outward normal to V₁"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_O",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "make_lines",
+        "operator": "field_lines",
+        "inputs": {
+          "charges": [
+            {
+              "id": "q",
+              "position": "O",
+              "charge": 1
+            }
+          ],
+          "starts": [
+            [
+              1.11,
+              0.46
+            ],
+            [
+              0.46,
+              1.11
+            ],
+            [
+              -0.46,
+              1.11
+            ],
+            [
+              -1.11,
+              0.46
+            ],
+            [
+              -1.11,
+              -0.46
+            ],
+            [
+              -0.46,
+              -1.11
+            ],
+            [
+              0.46,
+              -1.11
+            ],
+            [
+              1.11,
+              -0.46
+            ]
+          ],
+          "stepLength": 0.25,
+          "stepCount": 14,
+          "k": 1,
+          "exclusionRadius": 1
+        },
+        "outputs": [
+          "lines"
+        ]
+      },
+      {
+        "id": "make_V1",
+        "operator": "circle",
+        "inputs": {
+          "center": "O",
+          "radius": 2.4
+        },
+        "outputs": [
+          "V1"
+        ]
+      },
+      {
+        "id": "make_V2",
+        "operator": "circle",
+        "inputs": {
+          "center": "O",
+          "radius": 4
+        },
+        "outputs": [
+          "V2"
+        ]
+      },
+      {
+        "id": "make_A",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 2.4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "make_B",
+        "operator": "point",
+        "inputs": {
+          "x": -2.4,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "make_C",
+        "operator": "point",
+        "inputs": {
+          "x": -4,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "C"
+        ]
+      },
+      {
+        "id": "make_AB",
+        "operator": "arc",
+        "inputs": {
+          "center": "O",
+          "radius": 2.4,
+          "startAngle": 90,
+          "endAngle": 180,
+          "angleUnit": "degrees"
+        },
+        "outputs": [
+          "AB"
+        ]
+      },
+      {
+        "id": "make_BC",
+        "operator": "segment",
+        "inputs": {
+          "start": "B",
+          "end": "C"
+        },
+        "outputs": [
+          "BC"
+        ]
+      },
+      {
+        "id": "make_E_A",
+        "operator": "vector",
+        "inputs": {
+          "start": "A",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 1
+        },
+        "outputs": [
+          "E_A"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "A_on_V1",
+        "predicate": "on",
+        "entities": [
+          "A",
+          "V1"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "B_on_V1",
+        "predicate": "on",
+        "entities": [
+          "B",
+          "V1"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "C_on_V2",
+        "predicate": "on",
+        "entities": [
+          "C",
+          "V2"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "BC_radial",
+        "predicate": "collinear",
+        "entities": [
+          "O",
+          "B",
+          "C"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "V1_in_V2",
+        "predicate": "inside",
+        "entities": [
+          "V1",
+          "V2"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "trace_AB",
+        "kind": "trace",
+        "targetIds": [
+          "AB"
+        ],
+        "style": {
+          "transient": false
+        }
+      },
+      {
+        "id": "lab_V1",
+        "kind": "label",
+        "targetIds": [
+          "V1"
+        ],
+        "text": "V₁",
+        "placementIntent": "below"
+      },
+      {
+        "id": "lab_V2",
+        "kind": "label",
+        "targetIds": [
+          "V2"
+        ],
+        "text": "V₂",
+        "placementIntent": "below"
+      },
+      {
+        "id": "lab_E",
+        "kind": "label",
+        "targetIds": [
+          "E_A"
+        ],
+        "text": "E",
+        "placementIntent": "left"
+      }
+    ],
+    "requiredEntityIds": [
+      "O",
+      "lines",
+      "V1",
+      "V2",
+      "A",
+      "B",
+      "C",
+      "AB",
+      "BC",
+      "E_A"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "O",
+          "lines",
+          "V1",
+          "V2",
+          "A",
+          "B",
+          "C",
+          "AB",
+          "BC",
+          "E_A"
+        ],
+        "dependsOn": [],
+        "narrationCue": "lines leave +q and cross each equipotential at right angles"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "lines leave +q and cross each equipotential at right angles"
+      }
+    ]
+  }
+}

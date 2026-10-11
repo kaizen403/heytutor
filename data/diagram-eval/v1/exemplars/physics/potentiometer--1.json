@@ -1,0 +1,421 @@
+{
+  "topic_id": "physics|12|potentiometer",
+  "question": "Draw the potentiometer circuit used to measure the emf ε of a cell. A driver cell E and a rheostat Rh send a steady current I along a uniform wire AB, with the positive terminal of E joined to A. The cell ε has its positive terminal joined to A and its negative terminal joined through a galvanometer G to a jockey J on the wire. G shows no deflection when AJ = ℓ.",
+  "figure_kind": "circuit",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "driver loop along AB; cell loop through G to the null point"
+    },
+    "source": {
+      "question": "Draw the potentiometer circuit used to measure the emf ε of a cell. A driver cell E and a rheostat Rh send a steady current I along a uniform wire AB, with the positive terminal of E joined to A. The cell ε has its positive terminal joined to A and its negative terminal joined through a galvanometer G to a jockey J on the wire. G shows no deflection when AJ = ℓ.",
+      "archetype": "potentiometer"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "E0",
+        "kind": "component",
+        "role": "driver cell",
+        "label": "E"
+      },
+      {
+        "id": "cell",
+        "kind": "component",
+        "role": "test cell",
+        "label": "ε"
+      },
+      {
+        "id": "G",
+        "kind": "component",
+        "role": "galvanometer",
+        "label": "G"
+      },
+      {
+        "id": "Rh",
+        "kind": "component",
+        "role": "rheostat",
+        "label": "Rh"
+      },
+      {
+        "id": "wAJ",
+        "kind": "connector",
+        "role": "potentiometer wire"
+      },
+      {
+        "id": "wJB",
+        "kind": "connector",
+        "role": "potentiometer wire"
+      },
+      {
+        "id": "w1",
+        "kind": "connector",
+        "role": "wire"
+      },
+      {
+        "id": "w2",
+        "kind": "connector",
+        "role": "wire"
+      },
+      {
+        "id": "J",
+        "kind": "point",
+        "role": "jockey at null point",
+        "label": "J"
+      },
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "wire end, + side",
+        "label": "A"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "wire end",
+        "label": "B"
+      },
+      {
+        "id": "p1",
+        "kind": "point",
+        "role": "corner"
+      },
+      {
+        "id": "p2",
+        "kind": "point",
+        "role": "corner"
+      },
+      {
+        "id": "s1",
+        "kind": "point",
+        "role": "corner"
+      },
+      {
+        "id": "s2",
+        "kind": "point",
+        "role": "corner"
+      },
+      {
+        "id": "i",
+        "kind": "sign_badge",
+        "role": "driver current",
+        "label": "I"
+      },
+      {
+        "id": "dl",
+        "kind": "dimension",
+        "role": "balance length",
+        "label": "ℓ"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "kA",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "layout"
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "kJ",
+        "operator": "point",
+        "inputs": {
+          "x": 6,
+          "y": 0,
+          "coordinateSpace": "layout"
+        },
+        "outputs": [
+          "J"
+        ]
+      },
+      {
+        "id": "kB",
+        "operator": "point",
+        "inputs": {
+          "x": 10,
+          "y": 0,
+          "coordinateSpace": "layout"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "kp1",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 3,
+          "coordinateSpace": "layout"
+        },
+        "outputs": [
+          "p1"
+        ]
+      },
+      {
+        "id": "kp2",
+        "operator": "point",
+        "inputs": {
+          "x": 10,
+          "y": 3,
+          "coordinateSpace": "layout"
+        },
+        "outputs": [
+          "p2"
+        ]
+      },
+      {
+        "id": "ks1",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -3,
+          "coordinateSpace": "layout"
+        },
+        "outputs": [
+          "s1"
+        ]
+      },
+      {
+        "id": "ks2",
+        "operator": "point",
+        "inputs": {
+          "x": 6,
+          "y": -3,
+          "coordinateSpace": "layout"
+        },
+        "outputs": [
+          "s2"
+        ]
+      },
+      {
+        "id": "kwAJ",
+        "operator": "connect",
+        "inputs": {
+          "start": "A",
+          "end": "J"
+        },
+        "outputs": [
+          "wAJ"
+        ]
+      },
+      {
+        "id": "kwJB",
+        "operator": "connect",
+        "inputs": {
+          "start": "J",
+          "end": "B"
+        },
+        "outputs": [
+          "wJB"
+        ]
+      },
+      {
+        "id": "kE0",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "cell",
+          "start": "A",
+          "end": "p1"
+        },
+        "outputs": [
+          "E0"
+        ]
+      },
+      {
+        "id": "kw1",
+        "operator": "connect",
+        "inputs": {
+          "start": "p1",
+          "end": "p2"
+        },
+        "outputs": [
+          "w1"
+        ]
+      },
+      {
+        "id": "kRh",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "resistor",
+          "start": "B",
+          "end": "p2"
+        },
+        "outputs": [
+          "Rh"
+        ]
+      },
+      {
+        "id": "kcell",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "cell",
+          "start": "A",
+          "end": "s1"
+        },
+        "outputs": [
+          "cell"
+        ]
+      },
+      {
+        "id": "kw2",
+        "operator": "connect",
+        "inputs": {
+          "start": "s1",
+          "end": "s2"
+        },
+        "outputs": [
+          "w2"
+        ]
+      },
+      {
+        "id": "kG",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "galvanometer",
+          "start": "s2",
+          "end": "J"
+        },
+        "outputs": [
+          "G"
+        ]
+      },
+      {
+        "id": "ki",
+        "operator": "sign_badge",
+        "inputs": {
+          "target": "Rh",
+          "sense": "positive",
+          "at": 0
+        },
+        "outputs": [
+          "i"
+        ]
+      },
+      {
+        "id": "kdl",
+        "operator": "dimension",
+        "inputs": {
+          "start": "A",
+          "end": "J"
+        },
+        "outputs": [
+          "dl"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "driverLoop",
+        "predicate": "path",
+        "entities": [
+          "E0",
+          "w1",
+          "Rh",
+          "wJB",
+          "wAJ"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "cellLoop",
+        "predicate": "path",
+        "entities": [
+          "cell",
+          "w2",
+          "G",
+          "wAJ"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "nullOnWire",
+        "predicate": "between",
+        "entities": [
+          "J",
+          "A",
+          "B"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "polE",
+        "kind": "polarity",
+        "targetIds": [
+          "A",
+          "p1"
+        ],
+        "text": "+−"
+      },
+      {
+        "id": "polC",
+        "kind": "polarity",
+        "targetIds": [
+          "A",
+          "s1"
+        ],
+        "text": "+−"
+      }
+    ],
+    "requiredEntityIds": [
+      "A",
+      "J",
+      "B",
+      "wAJ",
+      "wJB",
+      "E0",
+      "Rh",
+      "cell",
+      "G",
+      "i",
+      "dl"
+    ],
+    "revealGroups": [
+      {
+        "id": "circuit",
+        "entityIds": [
+          "A",
+          "J",
+          "B",
+          "wAJ",
+          "wJB",
+          "p1",
+          "p2",
+          "E0",
+          "w1",
+          "Rh",
+          "i",
+          "s1",
+          "s2",
+          "cell",
+          "w2",
+          "G",
+          "dl"
+        ],
+        "dependsOn": [],
+        "narrationCue": "both + terminals at A; null point J"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "show",
+        "action": "reveal",
+        "targetId": "circuit",
+        "dependsOn": [],
+        "narrationIntent": "no current in G at balance"
+      }
+    ]
+  }
+}

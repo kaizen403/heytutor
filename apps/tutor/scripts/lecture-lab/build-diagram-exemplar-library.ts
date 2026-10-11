@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { basename, join, relative, resolve } from "node:path";
 import {
   compileSceneDocument,
@@ -43,7 +43,8 @@ function readableValidatedDocument(value: unknown): SceneDocument | null {
 
 function curatedExemplars(root: string): DiagramExemplar[] {
   return filesBelow(root)
-    .filter((path) => path.endsWith(".json"))
+    // `_`-prefixed files are library metadata (for example the synthesized review), not exemplars.
+    .filter((path) => path.endsWith(".json") && !basename(path).startsWith("_"))
     .sort()
     .map((path) => {
       const value = JSON.parse(readFileSync(path, "utf8")) as {
@@ -104,6 +105,24 @@ function bankStems(bankPath: string): Stem[] {
     .sort((left, right) => left.id.localeCompare(right.id));
 }
 
+interface SynthesizedReview {
+  keep: ReadonlySet<string>;
+  verdicts: Readonly<Record<string, string>>;
+}
+
+/** Audit verdicts for synthesized physics and maths entries; absent file keeps every entry. */
+function synthesizedReview(path: string): SynthesizedReview | null {
+  if (!existsSync(path)) return null;
+  const value = JSON.parse(readFileSync(path, "utf8")) as { keep?: unknown; verdicts?: unknown };
+  if (!Array.isArray(value.keep) || typeof value.verdicts !== "object" || value.verdicts === null) {
+    throw new Error(`${path}: expected keep[] and verdicts{}`);
+  }
+  return {
+    keep: new Set(value.keep.filter((verdict): verdict is string => typeof verdict === "string")),
+    verdicts: value.verdicts as Record<string, string>,
+  };
+}
+
 function stableSynthesizedId(group: string, question: string): string {
   const digest = createHash("sha256").update(question).digest("hex").slice(0, 12);
   return `synthesized:${group.replace(/[^a-z0-9_-]+/gi, "-")}:${digest}`;
@@ -134,6 +153,7 @@ export function buildDiagramExemplarLibrary(repoRoot: string): DiagramExemplar[]
     groupCounts.set(group, count);
   }
 
+  const review = synthesizedReview(resolve(exemplarsRoot, "_synthesized-review.json"));
   const stems = [
     ...probeStems(resolve(repoRoot, "data/syllabus-probes")),
     ...bankStems(resolve(repoRoot, "data/question-bank/questions.jsonl")),
@@ -148,11 +168,18 @@ export function buildDiagramExemplarLibrary(repoRoot: string): DiagramExemplar[]
     const archetype = detectArchetype(stem.question)?.id ?? null;
     const group = archetype ? `archetype:${archetype}` : `family:${synthesized.family}`;
     if ((groupCounts.get(group) ?? 0) >= 2) continue;
+    const id = stableSynthesizedId(group, stem.question);
+    // Physics and maths builder output is admitted only after a figure audit kept it.
+    // Scope follows the group the entry is filed under (archetype first, as its figure
+    // kind does): chemistry output filed under a physics or maths archetype reaches
+    // those pickers as that kind, so it is audited; chemistry-filed entries are untouched.
+    const reviewScope = archetype ?? synthesized.family;
+    if (review && !reviewScope.startsWith("chem_") && !review.keep.has(review.verdicts[id] ?? "")) continue;
     const family = synthesized.family;
     const figureKind = figureKindForDiagramGroup(family, archetype);
     if (!figureKind) throw new Error(`${group}: missing figure_kind mapping`);
     exemplars.push({
-      id: stableSynthesizedId(group, stem.question),
+      id,
       sourceKind: "synthesized",
       question: null,
       depicts: buildDiagramExemplarDepicts(document as unknown as Record<string, unknown>, family, archetype),
