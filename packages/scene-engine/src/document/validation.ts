@@ -27,6 +27,7 @@ import { DIPOLE_FIELD_OPERATORS, validateDipoleFieldConstruction } from "../comp
 import { ANALYTIC_LINE_OPERATORS, validateAnalyticLineConstruction as validateCoordinateLineConstruction } from "../compile/analyticLineGeometry";
 import { RIGID_MASS_OPERATORS, validateRigidMassConstruction } from "../compile/rigidMassGeometry";
 import { MATRIX_ARRAY_OPERATORS, validateMatrixArrayConstruction } from "../compile/matrixArrayGeometry";
+import { LINEAR_REGION_OPERATORS, validateLinearRegionConstruction } from "../compile/linearRegionGeometry";
 import { validateMatrixSourceBinding } from "../compile/matrixSourceBinding";
 import { CIRCLE_OPERATORS, validateCircleConstruction } from "../compile/circleGeometry";
 import { AFFINE_OPERATORS, validateAffineConstruction } from "../compile/affineGeometry";
@@ -149,6 +150,8 @@ const VISIBLE_ENTITY_KIND_BY_OPERATOR: Readonly<Record<string, string>> = {
   sign_badge: "vector", dimension: "dimension", connect: "connector", symbol: "component", label: "label",
   matrix_array: "matrix_array", matrix_add: "matrix_array", matrix_scale: "matrix_array",
   matrix_product: "matrix_array", matrix_transpose: "matrix_array",
+  number_line_set: "linear_region", linear_half_plane: "linear_region",
+  linear_feasible_region: "linear_region", linear_system: "linear_region",
 };
 
 function visibleConstructionKind(construction: Record<string, unknown>): string | undefined {
@@ -4362,6 +4365,7 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
       if (COORDINATE_LINE_CONSTRUCTIONS.has(construction.operator)) validateCoordinateLineConstruction(construction, index, document, constructionByOutput, issues);
       if (RIGID_MASS_CONSTRUCTIONS.has(construction.operator)) validateRigidMassConstruction(construction, index, document, constructionByOutput, issues);
       if (MATRIX_ARRAY_CONSTRUCTIONS.has(construction.operator)) validateMatrixArrayConstruction(construction, index, document, constructionByOutput, issues);
+      if ((LINEAR_REGION_OPERATORS as readonly string[]).includes(construction.operator)) validateLinearRegionConstruction(construction, index, document, issues);
       if (CIRCLE_CONSTRUCTIONS.has(construction.operator)) validateCircleConstruction(construction, index, document, constructionByOutput, issues);
       if (AFFINE_CONSTRUCTIONS.has(construction.operator)) validateAffineConstruction(construction, index, document, constructionByOutput, issues);
       if (VECTOR_CONSTRUCTIONS.has(construction.operator)) validateVectorConstruction(construction, index, document, constructionByOutput, issues);

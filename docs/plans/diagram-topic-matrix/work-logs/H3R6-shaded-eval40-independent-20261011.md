@@ -1,0 +1,15 @@
+# Independent shaded-regions eval authorship evidence
+
+Owner: independent maths eval author `/root/shaded_eval`. Scope version: `h3r6-shaded-regions-v1`. Authorship completed UTC: 2026-10-11T00:47:53.641433+00:00.
+
+Authorization is the user's narrowly resumed number-line, half-plane, LPP/feasible-region and two-equation-system work, with eval first. The coverage programme's general pause is preserved; no packet was accepted and no topic-progress row/counter was changed.
+
+Read before authoring: root `AGENTS.md`; the coverage plan's authority/evaluation/freeze contract; topic matrix index; topic progress contract; the writing-for-agents skill. Schema learned from exactly the first existing row of `data/diagram-eval/v1/maths.jsonl` plus the neutral row-format README and neutral `apps/tutor/scripts/verify/verify-diagram-eval.ts` harness. No scene-engine implementation, candidate code, prior eval outcome, paid API, generated scene or graded image was inspected. Primary syllabus pages appear in EVAL-SCOPE.md. Existing examples-library files were neither opened nor edited.
+
+Authored 40 rows: 10 per class, 20 topic asks/20 exam stems, every row required-visual, source-complete and authored. Stable local eval topic IDs intentionally stay separate from the accepted ledger. Independent arithmetic uses Python `fractions.Fraction`; exact pair intersections, constraint feasibility and equality substitution are asserted. Witnesses distinguish half-plane sides and check strict/closed boundary inclusion. Unboundedness, finite minima, empty feasibility and optimal edge arguments are proved explicitly rather than guessed from a viewport or corner count.
+
+Verification command: `python3 .context/h3r6/shaded-regions/author_eval40.py`. All assertion checks pass before freeze. Freeze verification command: `shasum -a 256 -c .context/h3r6/shaded-regions/SHA256SUMS` from repository root. The checksum file uses repository-relative paths. Result: 40 unique row IDs and 40 unique local topic IDs; 2–6 must-show obligations per row; nonempty label, forbidden-visual and answer-fact rubrics; 5+5 style split in each family.
+
+Deliverables: eval40.jsonl, EVAL-SCOPE.md, ORACLE-EXACT.json, author_eval40.py, FREEZE-MANIFEST.json and SHA256SUMS in `.context/h3r6/shaded-regions/`, plus this own log. Diagram compile/render/live/persistence/replay/image-grading results are all **not run**. No accepted topic, accuracy rate or implemented-family count is claimed.
+
+Oracle ambiguity resolved before freeze: current CBSE XI two-variable graphical inequalities are formative-only; this is retained in the requested teaching scope and tagged, not silently claimed as summative exam content. All LPP variables are real; no integer programming assumptions. Exact fractions/equivalent algebraic boundary labels are accepted; topological requirements are fixed. Empty, all-real and coincident cases have explicit honest figures, rather than dropping them from the required-visual denominator. No remaining mathematical answer ambiguity identified.
