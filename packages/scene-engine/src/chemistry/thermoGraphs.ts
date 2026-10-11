@@ -90,7 +90,7 @@ export function isThermoGraphStem(question: string): boolean {
 
 /* --------------------------------------------------------- number reading */
 
-import { readChemistryQuantity, findChemistryQuantities, chemistryPlanBindingsValid, chemistryQuantityCuesValid, chemistryCanonicalValuesAgree, type ChemistryDimension } from "./quantityReader";
+import { readChemistryQuantity, findChemistryQuantities, chemistryPlanBindingsValid, chemistryQuantityCuesValid, chemistryCanonicalValuesAgree, chemistryQuestionSpan, type ChemistryDimension } from "./quantityReader";
 
 interface Energy {
   value: number;
@@ -272,6 +272,10 @@ function readMechanismSteps(stem: string): ProfileStep[] | null {
 }
 
 function readProfile(stem: string, question: string, _quantities: ChemPlanQuantity[], schematic: boolean): ProfileSpec | null {
+  // These with/without-catalyst owners are not handled by the current role
+  // reader. Their stated values must never be replaced by qualitative heights.
+  const body = question.slice(0, chemistryQuestionSpan(question).end);
+  if (/(?:activation\s+energy|\be_?a\b)\s+(?:with|without)\s+(?:(?:a|the)\s+)?catalyst\b/i.test(body)) return null;
   const sides = reactionSides(question);
   const reactants = sides?.reactants ?? "R";
   const products = sides?.products ?? "P";
@@ -766,7 +770,7 @@ function buildEllingham(question: string, stem: string): SceneDocument {
 
 /* -------------------------------------------------------------- maxwell */
 
-function buildMaxwell(question: string, stem: string): SceneDocument {
+function buildMaxwell(question: string, stem: string): SceneDocument | null {
   const speeds = /speed|velocit/.test(stem) && !/energy/.test(stem);
   const c = new ChemScene(question, "Maxwell Boltzmann distribution at two temperatures", THERMO_FAMILY);
   const s = c.scene;
@@ -797,6 +801,10 @@ function buildMaxwell(question: string, stem: string): SceneDocument {
 /** The figure, or null when the stem does not ground it. */
 export function buildThermoGraphScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
   if (!chemistryPlanBindingsValid(question, quantities)) return null;
+  // Neither the profile nor the qualitative Maxwell operator solves a
+  // numeric molecular fraction. Do not substitute a two-temperature cartoon.
+  const bodyStem = chemStem(question.slice(0, chemistryQuestionSpan(question).end));
+  if (/\b(?:calculate|compute|determine|find|what)\b[^.?!;]{0,100}\b(?:fraction|percentage|proportion)\s+of\s+(?:the\s+)?molecules\b/.test(bodyStem)) return null;
   // The chapter validates each source owner independently (for example each
   // Hess step). A global profile inventory cannot merge those distinct givens.
   if (claimsChemicalThermodynamics(question)) return buildChemicalThermodynamicsScene(question, quantities, schematic);

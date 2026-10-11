@@ -276,7 +276,14 @@ for (const row of thermoLaneRows) check("coordinator thermochemistry lane: " + r
       const gLabel = text.find(label => label.startsWith("dGo="));
       assert.ok(kLabel && gLabel && text.includes("kJ/mol"));
       const k = Number(kLabel.slice(2));
-      assert.ok(k > 0 && Math.abs(k / eq.K - 1) <= 0.001);
+      // Compare the displayed value at its own last decimal place. This is an
+      // independent rounding oracle; a plain 0.02 label represents 0.015–0.025.
+      const shown = kLabel.slice(2);
+      const parts = /^([+-]?\d+(?:\.\d+)?)(?:e([+-]?\d+))?$/i.exec(shown);
+      assert.ok(parts, "complete numeric K label");
+      const decimals = parts[1]!.split(".")[1]?.length ?? 0;
+      const quantum = 10 ** (Number(parts[2] ?? 0) - decimals);
+      assert.ok(k > 0 && Math.abs(k - eq.K) <= quantum / 2 + Math.abs(eq.K) * 1e-12);
       assert.ok(Math.abs(Number(gLabel.slice(4)) - eq.G) <= 0.00051);
       assert.ok(text.includes(`T=${eq.T} K`));
     } else {
@@ -290,5 +297,80 @@ for (const row of thermoLaneRows) check("coordinator thermochemistry lane: " + r
     }
   }
 });
+check("exact lane-D intensive and extensive wording preserves canonical energy", () => {
+  const question = "The temperature 300 K is intensive and the internal energy is 10 kJ is extensive. The sample is doubled. Draw the distinction.";
+  for (const document of [buildThermoGraphScene(question, [], false), synthesizeFamilyScene({ question })?.document ?? null]) {
+    const text = labels(document);
+    assert.ok(text.includes("T=300 K") && text.includes("U=20000 J"));
+    assert.ok(text.includes("intensive") && text.includes("extensive"));
+  }
+});
+check("exact lane-D Gibbs energy gives a dimensionless equilibrium constant", () => {
+  const question = "ΔG° = -5.708 kJ/mol at 298 K. Find the thermodynamic equilibrium constant K. This is not a reaction rate.";
+  const expected = Math.exp(5708 / (8.314 * 298));
+  for (const document of [buildThermoGraphScene(question, [], false), synthesizeFamilyScene({ question })?.document ?? null]) {
+    const text = labels(document);
+    assert.ok(text.includes("dGo=-5.708") && text.includes("kJ/mol") && text.includes("T=298 K"));
+    const kLabel = text.find(label => label.startsWith("K="));
+    assert.ok(kLabel && Math.abs(Number(kLabel.slice(2)) - expected) <= .005 + expected * 1e-12);
+  }
+});
+// Supplemental lane-D literal questions have their own ordinary-route oracles.
+const laneDPhotoelectric = [
+  "Light of wavelength 300 nm falls on a metal of work function 2.0 eV. Find the stopping potential in volts.",
+  "Light of wavelength 300 nm falls on a metal of work function 2.0 eV. Take hc = 1239.84 eV nm. Find the stopping potential in volts.",
+  "Light of wavelength 300 nm falls on a metal of work function 2.0 eV. Take hc = 1240 eV nm. Find the stopping potential in volts.",
+];
+for (const question of laneDPhotoelectric) check("exact lane-D source hc: " + question, () => {
+  assert.ok(labels(buildAtomicRadiationScene(question, [], false)).includes("K=2.13 eV"));
+  assert.ok(labels(synthesizeFamilyScene({ question })?.document ?? null).includes("K=2.13 eV"));
+});
+check("exact lane-D wave and particle wording retains its source-grounded photon panel", () => {
+  const question = "Light of wavelength 500 nm gives Young fringes with slit separation 0.50 mm and screen distance 1.0 m. The same light falls on a metal of work function 2.0 eV. Using hc=1240 eV nm, find fringe width and maximum photoelectron energy; identify the wave and particle observations.";
+  assert.ok(labels(buildAtomicRadiationScene(question, [], false)).includes("K=0.48 eV"));
+  const ordinary = synthesizeFamilyScene({ question });
+  assert.ok(ordinary);
+  assert.equal(ordinary.document.source.chemistryFamily, "chem_orbital");
+  assert.ok(labels(ordinary.document).includes("K=0.48 eV"));
+});
+const laneDUnsupported = [
+  "Two metals A and B have work functions 2.0 eV and 3.0 eV. Find a single incident wavelength that makes A’s maximum photoelectron kinetic energy twice B’s, with both emitting. Compute their stopping potentials and threshold wavelengths. At 500 nm determine which metal still emits. Use hc=1240 eV nm and the one-photon model.",
+  "A nonrelativistic particle has momentum 3.313×10^-24 kg m/s. Using h=6.626×10^-34 J s, find its de Broglie wavelength.",
+];
+for (const question of laneDUnsupported) check("exact lane-D unsupported physics ask declines honestly: " + question, () => {
+  assert.equal(buildAtomicRadiationScene(question, [], false), null);
+  assert.equal(synthesizeFamilyScene({ question }), null);
+});
+for (const question of [
+  "The activation energy is 209.5 kJ/mol at 581 K. Calculate the fraction of molecules having energy greater than activation energy.",
+  "At 600 K the activation energy is 200 kJ/mol. Find the fraction of molecules with energy above the activation energy.",
+  "For molecules at 550 K with activation energy 150 kJ/mol, determine the fraction of molecules having enough energy to react.",
+  "Compute the percentage of molecules with energy greater than activation energy 100 kJ/mol at 500 K.",
+  "At 450 K, activation energy is 80 kJ/mol. What fraction of molecules has energy above the activation barrier?",
+]) check("numeric fraction ask cannot become a two-temperature cartoon: " + question, () => {
+  assert.equal(buildThermoGraphScene(question, [], false), null);
+  assert.equal(buildThermoGraphScene(question, [], true), null);
+  assert.equal(synthesizeFamilyScene({ question }), null);
+});
+for (const roles of [
+  "The activation energy without catalyst is 100 kJ/mol and with catalyst is 60 kJ/mol",
+  "Activation energy with a catalyst is 60 kJ/mol; activation energy without a catalyst is 100 kJ/mol",
+  "The activation energy without the catalyst is unknown and with the catalyst is 60 kJ/mol",
+  "The activation energy without catalyst is 100 kg and with catalyst is 60 kJ/mol",
+  "Ea without catalyst is 100 kJ/mol and Ea with catalyst is 60 kJ/mol",
+]) check("unread catalyst source roles cannot become qualitative: " + roles, () => {
+  const question = "Draw the reaction energy profile. " + roles + ", ΔH=-20 kJ/mol.";
+  assert.equal(buildThermoGraphScene(question, [], false), null);
+  assert.equal(buildThermoGraphScene(question, [], true), null);
+  assert.equal(synthesizeFamilyScene({ question }), null);
+});
+for (const question of [
+  "Using the Maxwell Boltzmann distribution of molecular energies explain why the fraction of molecules with energy greater than the activation energy increases with temperature.",
+  "Show with an energy profile diagram how a catalyst lowers the activation energy of an exothermic reaction without changing ΔH.",
+]) check("qualitative explanation with no unsupported numeric roles is retained: " + question, () => {
+  labels(buildThermoGraphScene(question, [], false));
+  labels(synthesizeFamilyScene({ question })?.document ?? null);
+});
+
 console.log(`verify-chemistry-rereview-photoelectric-hess: ${checks} checks passed / ${failures.length} failed`);
 if (failures.length) { console.error(failures.join("\n")); process.exitCode = 1; }
