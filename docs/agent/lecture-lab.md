@@ -452,21 +452,26 @@ like the model being down. `docker compose up -d postgres` first.
 
 ## Experimental parallel teaching (lab only, default off)
 
-`runLecture` accepts the explicit option `parallelTeaching: true`; omitted or
-false keeps the existing request order. This is not a live environment switch
-and the ordinary batch CLI does not enable it. A controlled measurement caller
-must cap **every actual upstream attempt**, including transport retries and TTS,
-and record this option in its immutable round identity.
+`runLecture` accepts `parallelTeaching: true`; omitted or false keeps the existing
+request order. The stock CLI exposes `--parallel-teaching true` for full lectures
+(`--figure-only false`) and records the flag and `setup-actions/v1` contract in
+execution identity. It defaults off and is not a live environment switch. Use
+the existing required `--max-usd` for every paid run, including retries; never
+mix flags or contract versions on resume. The stock lab does not call TTS.
 
 On a final scene-planner callback, after numeric authority, the experiment asks
-for one complete question-grounded narration-only STEP. It skips held speculative
+for bounded JSON choosing one or two unique IDs from a closed setup-operation
+menu. Only host-rendered procedural instructions become a narration-only STEP;
+no free-form model prose, question values, laws or requested results are rendered.
+The old digit/source-word checks admitted qualitative requested answers, even
+when correct. A prompt or a correct governing law is not a setup-only boundary.
+The experiment skips held speculative
 planning, authority contradictions, figure-only and DSA runs. It does not add a
-call on deterministic-only paths. Admission rejects commands, figure references
-and promises, newly introduced digit literals, generic acknowledgements and
-incomplete/multiple STEPs. These are structural checks, **not factual proof**;
-an independent reviewer must judge the actual accepted explanations.
-The prefix honors the lesson's English/Hinglish narration option; this does not
-prove generated language quality. Picture/image/photo promises are also refused.
+call on deterministic-only paths. Admission rejects unknown/duplicate action IDs,
+extra parsed keys, free-text payloads, oversized data and non-JSON output. Host
+templates contain no answer assertions or figure promises, in English/Hinglish.
+Independent judging must still assess action fit and usefulness; neither a
+generic setup nor the previous free-prose grades prove useful teaching.
 
 `onParallelPrefix` receives only a completely admitted prefix. Until then no
 prefix is delivered or counted as useful. Selection freezes acceptance and
@@ -481,8 +486,10 @@ retries can cause more paid upstream attempts. Provider usage must be counted
 at the proxy, not inferred from the planner usage field.
 
 Public `parallelTeaching` evidence records states, reasons, timings and character
-counts, not question or prefix text. Accepted timing is not audible playback;
-the measurement caller must independently detect audio/delivery failure. This
+counts, not question or prefix text. `timings.firstSetupReadyMs` is complete host
+setup admission; `firstMainStepReadyMs` is the first narration segment emitted by
+the existing incremental parser during the main stream. These are availability
+proxies, not acoustic playback or independently proven useful teaching. This
 prototype does not implement live Stop/save/Continue ownership. The existing
 lab's contradiction behavior (teaching continues where live stops) is explicitly
 tested as a mismatch, not claimed as production parity or silently changed.
