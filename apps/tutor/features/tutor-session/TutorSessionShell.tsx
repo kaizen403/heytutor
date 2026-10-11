@@ -37,7 +37,7 @@ import {
 import { LandingPixelField } from "@/features/tutor-session/components/LandingPixelField";
 import { type ReplayCue } from "@/lib/replay/replayTimeline";
 import type { WhiteboardHandle, CursorState } from "@heytutor/whiteboard";
-import { useIsCompactNav, useIsMobile } from "@/lib/client/useMediaQuery";
+import { useIsCompactNav, useIsMobile, useMediaQuery } from "@/lib/client/useMediaQuery";
 import { useVisualViewportInset } from "@/lib/client/useVisualViewportInset";
 import { useLockWindowScrollOnFocus } from "@/lib/client/useLockWindowScrollOnFocus";
 import { ThinkingOverlay } from "./components/ThinkingOverlay";
@@ -94,6 +94,7 @@ import {
 } from "@/lib/replay/replayAudio";
 import { canPlayFinishedLecture } from "@/lib/replay/lecturePlayer";
 import { useLecturePlayer } from "./hooks/useLecturePlayer";
+import { LecturePlayerBar } from "./components/LecturePlayerBar";
 import {
   PAGE_GUTTER_X,
   PAGE_GUTTER_Y,
@@ -414,6 +415,8 @@ export function TutorSessionShell({
   const [notesOpenOverride, setNotesOpenOverride] = useState<boolean | null>(null);
   const isCompactNav = useIsCompactNav();
   const isMobile = useIsMobile();
+  const coarsePointer = useMediaQuery("(pointer: coarse)");
+  const dockLecturePlayer = isMobile || coarsePointer;
   const keyboardInset = useVisualViewportInset();
   useLockWindowScrollOnFocus(!isHeadless);
   /**
@@ -1210,6 +1213,7 @@ export function TutorSessionShell({
     enableKeyboard: !isHeadless,
   });
   const lecturePlayerActive = lecturePlayer.active;
+  const showDockedPlayer = dockLecturePlayer && (lecturePlayerAvailable || lecturePlayerActive);
   const closeLecturePlayer = lecturePlayer.close;
   const playLectureFromStart = lecturePlayer.playFromStart;
   /** Replay prefers the player; a lecture missing some audio replays in place. */
@@ -1417,24 +1421,32 @@ export function TutorSessionShell({
    * is one waiting to be asked the next question and the composer is the
    * answer to that.
    */
-  const chromePinned =
+  const chromeInteractionPinned =
     isPaused ||
     rewindActive ||
     marking.armed ||
     marking.marks.length > 0 ||
     pausedLessonOffer ||
     Boolean(lastError) ||
-    saveStatus.kind === "failed" ||
     downloadState.kind !== "idle" ||
     settingsOpen ||
     creditsOpen ||
     mobileNavOpen ||
     notesOpen;
+  const chromePinned = chromeInteractionPinned || saveStatus.kind === "failed";
   const chromeHidden = useSessionChromeHidden({
     fullscreen: boardFullscreen,
     live: phase !== "idle" || isReplaying || lecturePlayer.playing,
     pinned: chromePinned,
   });
+  // The docked transport is the chrome for a finished phone lecture in full
+  // screen. Keep the composer mounted, but clear it and the header from the
+  // paper and transport; the transport's own exit restores both.
+  const fullscreenFinishedTransport = boardFullscreen && showDockedPlayer && phase === "idle" && !isReplaying;
+  const fullscreenTransportOnly = fullscreenFinishedTransport && !chromePinned;
+  // A save warning needs the header's retry action, but does not need the
+  // composer over the transport. Other interactions keep their existing chrome.
+  const fullscreenComposerHidden = fullscreenFinishedTransport && !chromeInteractionPinned;
 
   // `f` takes the board full screen and gives it back, the way a player binds
   // it. Escape is left to whoever already owns it here, which is the lesson.
@@ -1760,7 +1772,8 @@ export function TutorSessionShell({
             showNotesToggle={notesEnabled}
             onToggleNotes={toggleNotes}
             overlay={boardFullscreen}
-            chromeHidden={chromeHidden}
+            chromeHidden={chromeHidden || fullscreenTransportOnly}
+            chromeInert={fullscreenTransportOnly}
             isFullscreen={boardFullscreen}
             onToggleFullscreen={fullscreen.toggle}
             onReplay={startLectureReplay}
@@ -1833,7 +1846,7 @@ export function TutorSessionShell({
             )}
 
             <div
-              className={`wb-stage flex min-h-0 flex-col items-center ${
+              className={`wb-stage flex min-h-0 flex-col items-center ${showDockedPlayer ? "w-full" : ""} ${
                 boardCovered ? "pointer-events-none invisible absolute" : ""
               }`}
               aria-hidden={boardCovered || undefined}
@@ -1935,6 +1948,7 @@ export function TutorSessionShell({
                   : null
               }
               playerActivityRef={boardContainerRef}
+              showPlayerBar={!dockLecturePlayer}
               verifiedDiagram={activeVerifiedDiagram}
               codeLessonPanel={<CodeLessonPanel controller={codeLessonController} />}
               codeLessonController={codeLessonController}
@@ -1957,11 +1971,26 @@ export function TutorSessionShell({
             </div>
             </div>
 
-            {deckPanel ? (
-              <div className="wb-deck">
+              <div
+                className="wb-deck relative shrink-0"
+                data-board-deck
+                style={showDockedPlayer ? { width: "100%" } : undefined}
+              >
+                {showDockedPlayer ? (
+                  <LecturePlayerBar
+                    store={lecturePlayer.store}
+                    controls={lecturePlayer.controls}
+                    placement="below"
+                    fullscreen={
+                      can.appChrome || boardFullscreenApi
+                        ? { active: boardFullscreen, toggle: fullscreen.toggle }
+                        : null
+                    }
+                    activityTargetRef={boardContainerRef}
+                  />
+                ) : null}
                 {deckPanel}
               </div>
-            ) : null}
 
             </div>
 
@@ -2000,7 +2029,9 @@ export function TutorSessionShell({
                 ? "wb-session-chrome wb-session-chrome--bottom absolute"
                 : "relative shrink-0"
             }
-            data-hidden={boardFullscreen && chromeHidden ? "true" : undefined}
+            data-hidden={boardFullscreen && (chromeHidden || fullscreenComposerHidden) ? "true" : undefined}
+            inert={fullscreenComposerHidden || undefined}
+            aria-hidden={fullscreenComposerHidden || undefined}
             style={
               boardFullscreen
                 ? {

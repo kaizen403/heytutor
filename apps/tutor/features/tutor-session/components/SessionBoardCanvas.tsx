@@ -49,6 +49,8 @@ export interface SessionBoardCanvasProps {
   playerFullscreen?: { active: boolean; toggle: () => void } | null;
   /** Pointer movement over this wakes the playback bar. */
   playerActivityRef?: RefObject<HTMLElement | null>;
+  /** A phone's transport is docked outside the scaled paper by its shell. */
+  showPlayerBar?: boolean;
   verifiedDiagram?: VerifiedDiagram | null;
   /** DSA code-lesson overlay, rendered inside the scaled board box. */
   codeLessonPanel?: ReactNode;
@@ -96,6 +98,7 @@ export function SessionBoardCanvas({
   playerFreezeRef,
   playerFullscreen,
   playerActivityRef,
+  showPlayerBar = true,
   verifiedDiagram,
   codeLessonPanel,
   codeLessonController,
@@ -310,7 +313,7 @@ export function SessionBoardCanvas({
 
         {playerView?.active ? (
           // Lifted clear of the playback bar along the bottom edge.
-          <div className="pointer-events-none absolute inset-x-0 top-0" style={{ bottom: 64 }}>
+          <div className="pointer-events-none absolute inset-x-0 top-0" style={{ bottom: showPlayerBar ? 64 : 0 }}>
             <ResponseBubble
               text={playerView.segmentText}
               visible={
@@ -332,7 +335,7 @@ export function SessionBoardCanvas({
           />
         )}
 
-        {playerStore && playerControls ? (
+        {showPlayerBar && playerStore && playerControls ? (
           <LecturePlayerBar
             store={playerStore}
             controls={playerControls}
