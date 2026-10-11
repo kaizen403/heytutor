@@ -40,6 +40,19 @@ for (const hc of ["4e- eV nm", "1e999 eV nm", "unknown", "-1240 eV nm", "0 eV nm
     const question = `Light of wavelength 300 nm falls on a metal. Its work function is 2.0 eV. Take hc=${hc}. Find photoelectron kinetic energy.`;
     assert.equal(buildAtomicRadiationScene(question, [], false), null);
   });
+for (const declaration of ["hc=unknown; hc=1240 eV nm", "hc=1240 eV nm; hc=unknown", "hc=; hc=1240 eV nm", "hc=1240 eV nm; hc=", "hc=1240 eV nm; hc=1240 eV nm"])
+  check("each explicit hc owner must be resolved: " + declaration, () => {
+    const question = `For the photoelectric effect wavelength is 300 nm and work function is 2 eV. ${declaration}. Find kinetic energy.`;
+    assert.equal(buildAtomicRadiationScene(question, [], false), null);
+  });
+for (const [wavelength, expected] of [[300, "K=2.00 eV"], [400, "K=1.00 eV"]] as const)
+  check("source hc changes the computed number: " + wavelength, () => {
+    const question = `For the photoelectric effect wavelength is ${wavelength} nm and work function is 2 eV. hc=1200 eV nm. Find kinetic energy.`;
+    assert.ok(labels(buildAtomicRadiationScene(question, [], false)).includes(expected));
+    const synthesis = synthesizeFamilyScene({ question });
+    assert.ok(synthesis);
+    assert.ok(labels(synthesis.document).includes(expected));
+  });
 check("SI source hc converts value and unit together", () => {
   const question = "For the photoelectric effect, wavelength is 300 nm and work function is 2 eV. Take hc=1.9864458571489286e-25 J m. Find kinetic energy.";
   assert.ok(labels(buildAtomicRadiationScene(question, [], false)).includes("K=2.13 eV"));

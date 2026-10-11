@@ -4,7 +4,7 @@
  * and the read-only Bohr authorities. A missing work function, a nonpositive
  * momentum, an impossible level or a reversed emission draws nothing.
  */
-import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityCuesValid, readChemistryQuantity } from "./quantityReader";
+import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityCuesValid, readChemistryQuantity, chemistryCanonicalValuesAgree, chemistryQuestionSpan } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { deriveBohrOrbit } from "../physics/bohrOrbitAuthority";
 import { deriveBohrTransition } from "../physics/bohrTransitionAuthority";
@@ -293,10 +293,15 @@ export function buildAtomicRadiationScene(
   if (photoelectric && hcCue.test(question)) {
     // The wavelength law may use a declared hc, including a rounded textbook
     // product. This is a source parameter, not a tolerance change to h or c.
+    const hcOwners = [...question.matchAll(new RegExp(hcCue.source, "gi"))]
+      .filter(owner => owner.index! < chemistryQuestionSpan(question).end);
+    // Repeated declarations are not one owner. In particular a missing first
+    // value must never be skipped in favour of a later valid declaration.
+    if (hcOwners.length !== 1) return null;
     const hc = readChemistryQuantity({ question, after: hcCue, dimension: "energy_length", targetUnit: "eV nm" });
     if (!hc.ok || !(hc.reading.value > 0)) return null;
     if (/\bh\s*=|Planck(?:'s)? constant\s*(?:is|=)|\bc\s*=|speed of light\s*(?:is|=)/i.test(question)
-      && Math.abs(hc.reading.value - hcEvNm) > 1e-9) return null;
+      && !chemistryCanonicalValuesAgree(hc.reading.value, hcEvNm)) return null;
     hcEvNm = hc.reading.value;
   } else if (!chemistryReferenceConstantValid(question, hcCue, "energy_length", "J m", PLANCK_J_S * LIGHT_M_PER_S)) return null;
   if (!chemistryReferenceConstantValid(question, /\bh\s*=|Planck(?:'s)? constant\s*(?:is|=)/i, "action", "J s", PLANCK_J_S)
