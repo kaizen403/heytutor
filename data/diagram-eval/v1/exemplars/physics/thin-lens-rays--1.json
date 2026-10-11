@@ -34,13 +34,13 @@
     "id": "F2",
     "kind": "point",
     "role": "second focus",
-    "label": "F₂"
+    "label": "F2"
    },
    {
     "id": "F1",
     "kind": "point",
     "role": "first focus",
-    "label": "F₁"
+    "label": "F1"
    },
    {
     "id": "C1",
