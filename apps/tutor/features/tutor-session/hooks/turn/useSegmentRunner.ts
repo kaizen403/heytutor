@@ -925,9 +925,10 @@ export function useSegmentRunner({
             // the transaction instead of skipping narration and committing ink.
             throw new Error("Provider voice recovery failed", { cause: error });
           }
-          // An interrupted verified reveal is atomic, even if speech started.
-          if (segment.verifiedDiagramIntro === true && !isCancelled()) throw error;
-          if ((audioStartedAtMs === null || usingBrowserFallback) && !isCancelled()) throw error;
+          // A started provider can still fail or stall. Every terminal speech
+          // failure reaches the queue, which stops repeated failures and shows
+          // the student its retry message; cancelled/superseded turns stay quiet.
+          if (!isCancelled()) throw error;
         } finally {
           ownsPrimary = false;
           clearStartupStatus();

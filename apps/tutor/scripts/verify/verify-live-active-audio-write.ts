@@ -170,7 +170,7 @@ async function verifyRunner(mode: "onEnd" | "finally" | "failure" | "cancel" | "
     }
     draw.resolve();
     const outcome = await joined;
-    if (mode === "intro-failure") assert(outcome instanceof Error && outcome.message === "offline provider failed after starting", "a failed verified intro rejects to its transaction owner, never silently commits");
+    if (mode === "failure" || mode === "intro-failure") assert(outcome instanceof Error && outcome.message === "offline provider failed after starting", "failed started speech rejects to its queue/transaction owner, never silently succeeds");
     else assert.equal(outcome, undefined, `${mode}: the actual consumer settles after its owned speech outcome`);
     assert.equal(seenClock?.isAudioActive?.(), false, "a retained schedule never follows a later segment's speech state");
     if (board && transaction) {
