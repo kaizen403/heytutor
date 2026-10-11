@@ -16,7 +16,7 @@
  * lattice (Schottky or Frenkel defects, amorphous solids, a physics block, a
  * cell "shown below" that we do not have) draws nothing.
  */
-import { chemistryPlanBindingsValid, chemistryQuantityCuesValid, resolveChemistryGiven, CHEMISTRY_NUMBER_PATTERN, matchedChemistryScalar } from "./quantityReader";
+import { chemistryPlanBindingsValid, chemistryQuantityCuesValid, resolveChemistryGiven, readChemistryQuantity, CHEMISTRY_NUMBER_PATTERN, matchedChemistryScalar } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { normalizeChemistryText } from "./formula";
@@ -226,14 +226,19 @@ const EDGE_CUE = /(?:edge(?:[ -]*length)?|cell edge(?:[ -]*length)?|axial distan
 const RADIUS_CUE = /(?:atomic|metallic|ionic|covalent)?\s*radius(?!\s*ratio)(?:\s+of\s+(?:(?:the|an?)\s+)?(?:(?:[a-z]+\s+)?(?:atom|ion)|metal|element|cation|anion|[a-z]+))?|\br\s*(?:=|is)/;
 
 /** A declared but unread physical value cannot be replaced by a relation. */
-function declaredQuantityCue(question: string, cue: RegExp): boolean {
+function declaredQuantityCuesValid(question: string, cue: RegExp, alias: "a" | "r"): boolean {
   for (const match of question.matchAll(new RegExp(cue.source, "gi"))) {
-    const tail = question.slice(match.index! + match[0].length)
+    const start = match.index! + match[0].length;
+    const tail = question.slice(start)
       .split(/\b(?:radius|radii|edge|atomic mass|molar mass|density|find|calculate|what|when|if)\b/i)[0]!;
-    if (/^\s*(?:[,+−\-\d.]|unknown\b|unreadable\b)/i.test(tail)
-      || /^(?:[^.;\n]|\.(?=\d)){0,70}?(?:=|:|\bis\b|\bequal to\b|\bmeasures\b|\bmeasured\b)/i.test(tail)) return true;
+    const declared = /^\s*(?:[,+−\-\d.]|unknown\b|unreadable\b)/i.test(tail)
+      || /^(?:[^.;\n]|\.(?=\d)){0,70}?(?:=|:|\bis\b|\bequal to\b|\bmeasures\b|\bmeasured\b)/i.test(tail);
+    if (!declared) continue;
+    const statedAlias = new RegExp(`^\\s*,?\\s*${alias}\\s*(?:=|:|is)`, "i").exec(question.slice(start));
+    const read = readChemistryQuantity({question, after: /^/, within: {start: start + (statedAlias?.[0].length ?? 0), end: question.length}, dimension: "length", targetUnit: "pm"});
+    if (!read.ok || !(read.reading.value > 0)) return false;
   }
-  return false;
+  return true;
 }
 
 /** Three significant figures, keeping a trailing zero (11.0, 6.23). */
@@ -757,8 +762,8 @@ export function buildUnitCellScene(question: string, quantities: ChemPlanQuantit
   if (!chemistryQuantityCuesValid(question, [{after: EDGE_CUE, dimensions: ["length"]}, {after: RADIUS_CUE, dimensions: ["length"]}, {after: /molar mass|atomic mass|molecular mass/, dimensions: ["molar_mass"]}, {after: /density/, dimensions: ["density"]}])) return null;
   const stem = chemStem(question);
   const numbers = readNumbers(question, quantities);
-  if ((numbers.edgePm === null && declaredQuantityCue(question, EDGE_CUE))
-    || (numbers.radiusPm === null && declaredQuantityCue(question, RADIUS_CUE))
+  if (!declaredQuantityCuesValid(question, EDGE_CUE, "a")
+    || !declaredQuantityCuesValid(question, RADIUS_CUE, "r")
     || (numbers.edgePm !== null && !(numbers.edgePm > 0))
     || (numbers.radiusPm !== null && !(numbers.radiusPm > 0))) return null;
   if (AVOGADRO_CUE.test(question)) {

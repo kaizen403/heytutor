@@ -436,8 +436,24 @@ function readPressure(text: string): number | null {
 function sourceActivityConcentrations(source: string): Record<string, number> | null {
   const found = findChemistryQuantities({question: source, dimension: "concentration", targetUnit: "mol/L"});
   if (!found.ok) return null;
+  const isActivitySpecies = (raw: string): boolean => {
+    const species = canonicalSpecies(raw.replace(/^\[|\]$/g, ""));
+    return Boolean(species && (parseFormula(species)?.charge || saltCationCharge(species)));
+  };
+  // Validate each original owner before an aggregate reader can skip a missing
+  // declaration and retain a later good one. Electron coefficients are not activities.
+  const declaration = new RegExp(`(?<![\\p{L}\\p{N}\\p{M}_])([\\[]?(?:${SPECIES}|[A-Z][a-z]?[\\p{N}^()⁺⁻+−-]*)[\\]]?)(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-])\\s*(?:\\(aq\\)\\s*)?(?:(?:ions?\\s+)?(?:(?:has|have)\\s+)?(?:concentration\\s*)?(?:is|are|=|:|of|at)?\\s*)(?=[+−\\-\\d.]|unknown|unreadable)`, "gu");
+  for (const declared of source.matchAll(declaration)) {
+    if (!isActivitySpecies(declared[1]!)) {
+      if (/[⁺⁻+−-]/.test(declared[1]!)) return null;
+      continue;
+    }
+    const start = declared.index! + declared[0].length;
+    if (/^\+\s*\d*\s*e(?:\^?\(?-\)?|⁻)?\s*(?:->|=|→|⟶|⇌|⇄|↔|⇒)/.test(source.slice(start))) continue;
+    if (!readChemistryQuantity({question: source, after: /^/, within: {start, end: source.length}, dimension: "concentration", targetUnit: "mol/L"}).ok) return null;
+  }
   // Unsupported scalar scripts are still supplied material, never an omitted 1 M activity.
-  for (const raw of source.matchAll(/\b(?:[\d⁰¹²³⁴⁵⁶⁷⁸⁹]+[^\s;,]{0,12}|unknown)\s*(?:M|molar|mol\s*\/\s*L)\b/g)) {
+  for (const raw of source.matchAll(/\b(?:[\d⁰¹²³⁴⁵⁶⁷⁸⁹]+[^\s;,]{0,12}|unknown|unreadable)\s*(?:M|molar|mol\s*\/\s*L)\b/g)) {
     const unitStart = raw.index! + raw[0].lastIndexOf(/M\b/.test(raw[0]) ? "M" : "mol");
     if (!found.reading.some(reading => unitStart >= reading.source.span.start && unitStart < reading.source.span.end)) return null;
   }
@@ -450,6 +466,22 @@ function sourceActivityConcentrations(source: string): Record<string, number> | 
   }
   const forward = new RegExp(`(?<![\\p{L}\\p{N}\\p{M}_])([\\[]?${SPECIES}[\\]]?)\\s*(?:\\(\\s*(?:aq\\s*,?\\s*)?|(?:\\(aq\\)\\s*)?(?:(?:ions?\\s+)?(?:(?:has|have)\\s+)?(?:concentration\\s*)?(?:is|are|=|:|of|at)?\\s*))$`, "u");
   const reverse = new RegExp(`^\\s*(?:of\\s+)?([\\[]?${SPECIES}[\\]]?)(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-])`, "u");
+  // A complete incompatible physical unit next to an ion is an unread activity,
+  // not an omitted one. Gas pressure still uses its original neutral-species reader.
+  for (const dimension of ["mass", "length", "time", "temperature", "pressure", "potential", "amount", "molar_mass", "density", "energy", "molar_energy"] as const) {
+    const readings = findChemistryQuantities({question: source, dimension});
+    if (!readings.ok) continue;
+    for (const reading of readings.reading) {
+      const owner = reverse.exec(source.slice(reading.source.span.end))?.[1];
+      if (owner && isActivitySpecies(owner)) return null;
+    }
+  }
+  const reversedDeclaration = new RegExp(`(${CHEMISTRY_SCALAR_PATTERN})\\s*([A-Za-z][^\\s,;|]{0,18})\\s+(?:of\\s+)?([\\[]?${SPECIES}[\\]]?)(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-])`, "gdu");
+  for (const declared of source.matchAll(reversedDeclaration)) {
+    if (!isActivitySpecies(declared[3]!)) continue;
+    const span = declared.indices![1]!;
+    if (!readChemistryLiteral({question: source, scalarSpan: {start: span[0], end: span[1]}, dimension: "concentration", targetUnit: "mol/L"}).ok) return null;
+  }
   const assignments: Record<string, number> = {};
   for (const reading of found.reading) {
     if (!(reading.value > 0)) return null;
@@ -1625,7 +1657,10 @@ function buildGalvanic(question: string, _quantities: ChemPlanQuantity[], schema
   const wantsGibbs = /δg|delta\s*g|gibbs|free energy|ΔrG|\bdg\b/i.test(question) || /gibbs|free energy/.test(lower);
   if (!spec) {
     if (!schematic) return null;
-    if (sourceActivityConcentrations(question) === null) return null;
+    if (sourceActivityConcentrations(question) === null || readTemperature(question) === null
+      || readStatedCellPotentials(question) === null
+      || !findChemistryQuantities({question, dimension: "pressure"}).ok
+      || /\||‖|¦/.test(question) || new RegExp(COUPLE).test(question)) return null;
     return buildSchematicGalvanic(question, lower);
   }
   const emf = cellEmf(spec);
