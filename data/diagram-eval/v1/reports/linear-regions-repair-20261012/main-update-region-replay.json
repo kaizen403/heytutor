@@ -1,0 +1,609 @@
+{
+  "scope": "Frozen60 original-source documents and renderScene objects; no original production scheduling replay or image grading",
+  "before": "2c81544f",
+  "after": "47d9ced1 merging current MAIN0fb7f0b5",
+  "rows": 60,
+  "sourceDocumentsEqual": 60,
+  "sameRenderOutcomes": 60,
+  "renderEqual": 60,
+  "changed": [],
+  "cases": [
+    {
+      "id": "maths|h3r6-shaded-regions|nl01-negative-strict|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "80fa342ddb0314858102117f3d34e7f2ef7235de9b5148a0b32d08c99c09f6eb",
+      "afterRenderSha256": "80fa342ddb0314858102117f3d34e7f2ef7235de9b5148a0b32d08c99c09f6eb",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|nl02-negative-closed-rational|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "35d271c60e6a4192d5b0f0650494ecdd3cddbf7491c2608a002b0e3addfdf5a4",
+      "afterRenderSha256": "35d271c60e6a4192d5b0f0650494ecdd3cddbf7491c2608a002b0e3addfdf5a4",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|nl03-mixed-interval|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "51ca4d1305dbda867397dd02cf5aff987e82b4671352ee1babaa9a6485b8ea08",
+      "afterRenderSha256": "51ca4d1305dbda867397dd02cf5aff987e82b4671352ee1babaa9a6485b8ea08",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|nl04-disjoint-union|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "d78520ca8a0ddb6abef2e5a72b653fd70977a4334be1f8e4cd80c0de6c56865f",
+      "afterRenderSha256": "d78520ca8a0ddb6abef2e5a72b653fd70977a4334be1f8e4cd80c0de6c56865f",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|nl05-overlap-intersection|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "3b6e763160cb8d7063d0df4e722201fd07dedb7434a50a38a7a7371538324e54",
+      "afterRenderSha256": "3b6e763160cb8d7063d0df4e722201fd07dedb7434a50a38a7a7371538324e54",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|nl06-fractional-inequality|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "8e11ab21cb4d96540c4e8fcad78eb825eac44e2be65d3887bc4b0bda73112ac4",
+      "afterRenderSha256": "8e11ab21cb4d96540c4e8fcad78eb825eac44e2be65d3887bc4b0bda73112ac4",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|nl07-empty-intersection|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "246ca6ac805d15c15fd5326d54561434b9f96f504f714dfee157ac33b61716cc",
+      "afterRenderSha256": "246ca6ac805d15c15fd5326d54561434b9f96f504f714dfee157ac33b61716cc",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|nl08-all-real-identity|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "f6ee33a8a45e2568c8bf2b588ceb02e957f6ba86d97025637b6b730d38afba2f",
+      "afterRenderSha256": "f6ee33a8a45e2568c8bf2b588ceb02e957f6ba86d97025637b6b730d38afba2f",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|nl09-union-puncture|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "5bb620eff70dde19d18411e033436c3f78cec8034097bd99b1d754c036fd55b6",
+      "afterRenderSha256": "5bb620eff70dde19d18411e033436c3f78cec8034097bd99b1d754c036fd55b6",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|nl10-singleton-intersection|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "231d97e35470b5b2dde1d8078543a53cb7aecfa1cef480c14b3fa50d26258bd5",
+      "afterRenderSha256": "231d97e35470b5b2dde1d8078543a53cb7aecfa1cef480c14b3fa50d26258bd5",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|hp01-negative-both-closed|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "61f17de5929a883edd0d3e21f2bd2117a3e0c2d2fd2d256da0f186b84cd2c48d",
+      "afterRenderSha256": "61f17de5929a883edd0d3e21f2bd2117a3e0c2d2fd2d256da0f186b84cd2c48d",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|hp02-negative-y-strict|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "36fb013b342805129de54ecb553daeb7848bf8fb68acb230c20652e906569ce5",
+      "afterRenderSha256": "36fb013b342805129de54ecb553daeb7848bf8fb68acb230c20652e906569ce5",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|hp03-vertical-negative-closed|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "d881a7832941c2f923a531c88094d090564e3b848bc3869976c3094974e3946a",
+      "afterRenderSha256": "d881a7832941c2f923a531c88094d090564e3b848bc3869976c3094974e3946a",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|hp04-horizontal-negative-strict|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "b66b9ba06c39be51fec0744313ca0278eac0d989904c61127d8ca4634da88ca7",
+      "afterRenderSha256": "b66b9ba06c39be51fec0744313ca0278eac0d989904c61127d8ca4634da88ca7",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|hp05-origin-on-boundary|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "2d576d5da154259d2ac55ef7f5f8d3f7b165e92b217d6677792791764c9c173f",
+      "afterRenderSha256": "2d576d5da154259d2ac55ef7f5f8d3f7b165e92b217d6677792791764c9c173f",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|hp06-positive-strict-membership|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "ac8c86e165de33b5c19ad4217479feb5028d2f462e63b5d04c62418bc151d276",
+      "afterRenderSha256": "ac8c86e165de33b5c19ad4217479feb5028d2f462e63b5d04c62418bc151d276",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|hp07-negative-constant-membership|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "2f5041f7c1140c877c9cb0dd0613543e8dff9a088f421bd8e2c181f13f585717",
+      "afterRenderSha256": "2f5041f7c1140c877c9cb0dd0613543e8dff9a088f421bd8e2c181f13f585717",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|hp08-vertical-strict-rational|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "f7f54a0b50b27a1f73ce22e81d3e9a8ffe49d7257877a3be18abbd3684e889a0",
+      "afterRenderSha256": "f7f54a0b50b27a1f73ce22e81d3e9a8ffe49d7257877a3be18abbd3684e889a0",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|hp09-horizontal-closed|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "a90bc17d9ba40feeccea8b4f9827c0994214615660dcc70e675172a122a9f118",
+      "afterRenderSha256": "a90bc17d9ba40feeccea8b4f9827c0994214615660dcc70e675172a122a9f118",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|hp10-strict-boundary-point|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "670f4eadf1515f75c1b2cefcd0ca143ea98ec9f50138fea5d16b44944d1850c3",
+      "afterRenderSha256": "670f4eadf1515f75c1b2cefcd0ca143ea98ec9f50138fea5d16b44944d1850c3",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|lpp01-bounded-unique|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "e57be0cdbb6acc4c6a8439f18a9855f6e336a10a68bbf18c5e410fbd26399bf0",
+      "afterRenderSha256": "e57be0cdbb6acc4c6a8439f18a9855f6e336a10a68bbf18c5e410fbd26399bf0",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|lpp02-rational-corner|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "ade6585ceeda4ee1f7cce63687dac9fc05b43604adbb935149a40ff18a37ba01",
+      "afterRenderSha256": "ade6585ceeda4ee1f7cce63687dac9fc05b43604adbb935149a40ff18a37ba01",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|lpp03-redundant-constraint|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "a8fd54509c0afa18bb1df21f0d7f481784c899a3cc8f3470dd13d9236dbb1119",
+      "afterRenderSha256": "a8fd54509c0afa18bb1df21f0d7f481784c899a3cc8f3470dd13d9236dbb1119",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|lpp04-unbounded-region-finite-min|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "430b5fa1ba863b5e7963dc47e4d4863c0e91cc88e1de2004c9bb9386baae0a40",
+      "afterRenderSha256": "430b5fa1ba863b5e7963dc47e4d4863c0e91cc88e1de2004c9bb9386baae0a40",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|lpp05-bounded-multiple-optima|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "0747c56a5d5e6ee8d12110c570ed9d7ece4b30c4e6d07ceeef2fd1722548e57e",
+      "afterRenderSha256": "0747c56a5d5e6ee8d12110c570ed9d7ece4b30c4e6d07ceeef2fd1722548e57e",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|lpp06-resource-pentagon|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "ce6884540a0e0411421d953bd73b8adf250e2dbe9309ab40bbd4969da6fcf991",
+      "afterRenderSha256": "ce6884540a0e0411421d953bd73b8adf250e2dbe9309ab40bbd4969da6fcf991",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|lpp07-unbounded-objective|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "4ce7b7c95384f40a3769b8620f5aba44493c38607049afb0c1aa40469892d2b4",
+      "afterRenderSha256": "4ce7b7c95384f40a3769b8620f5aba44493c38607049afb0c1aa40469892d2b4",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|lpp08-infeasible|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "a6bad1b0c1229a188f99fa3efcdf525cc59b0d62fc6a2be81900f8c3cb634b42",
+      "afterRenderSha256": "a6bad1b0c1229a188f99fa3efcdf525cc59b0d62fc6a2be81900f8c3cb634b42",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|lpp09-shifted-quadrant-finite-min|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "678ed8d69d01ec8df50da526d9e7f3861b4c7a463eac2805f83c59de06da1753",
+      "afterRenderSha256": "678ed8d69d01ec8df50da526d9e7f3861b4c7a463eac2805f83c59de06da1753",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|lpp10-negative-objective-strip|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "e375cedab2201642ce2de4a499cd074780a3558f0376a279afd1aac73c771797",
+      "afterRenderSha256": "e375cedab2201642ce2de4a499cd074780a3558f0376a279afd1aac73c771797",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|sys01-unique-integer|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "29c2b7e4d575a6f6f0557296128084657d2e197b4925baabaf5eff0a2fd913fa",
+      "afterRenderSha256": "29c2b7e4d575a6f6f0557296128084657d2e197b4925baabaf5eff0a2fd913fa",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|sys02-unique-rational|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "0cc3b8592908276337b4c99a181d19b6193bea0271396b1b0666cbcf7297790a",
+      "afterRenderSha256": "0cc3b8592908276337b4c99a181d19b6193bea0271396b1b0666cbcf7297790a",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|sys03-distinct-parallel|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "04e659e17b6d9e8b9ef52ed5d2e298ebd0ee9ba2c374a662566930a42f99624b",
+      "afterRenderSha256": "04e659e17b6d9e8b9ef52ed5d2e298ebd0ee9ba2c374a662566930a42f99624b",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|sys04-coincident-negative-scale|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "a533939aa048487448644ff55b5513304a80e406ff15f639d1e226f3a439b2a6",
+      "afterRenderSha256": "a533939aa048487448644ff55b5513304a80e406ff15f639d1e226f3a439b2a6",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|sys05-vertical-horizontal|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "a79589ca858a3b5873908cf40ace8903a54d9ce42c9744753864e2190636384b",
+      "afterRenderSha256": "a79589ca858a3b5873908cf40ace8903a54d9ce42c9744753864e2190636384b",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|sys06-cbse10-unique|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "836703426806015521af0622c6cd94650138f5fcb942bfb611d89db088865daf",
+      "afterRenderSha256": "836703426806015521af0622c6cd94650138f5fcb942bfb611d89db088865daf",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|sys07-negative-coefficients|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "4e303c5b76c6f11a5bf83b2e49c417b1280dffcf24aef9ffd3b6620cea75f896",
+      "afterRenderSha256": "4e303c5b76c6f11a5bf83b2e49c417b1280dffcf24aef9ffd3b6620cea75f896",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|sys08-distinct-vertical|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "95c17c368bdcb7ef2b2477ebd5665117ddc215f90e500b6eb31cd70f976a9a71",
+      "afterRenderSha256": "95c17c368bdcb7ef2b2477ebd5665117ddc215f90e500b6eb31cd70f976a9a71",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|sys09-coincident-horizontal|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "34935043d71127548d7b054b84919fd6ac9c1dc4b3aabd29c2ee55b1e4d90e7c",
+      "afterRenderSha256": "34935043d71127548d7b054b84919fd6ac9c1dc4b3aabd29c2ee55b1e4d90e7c",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r6-shaded-regions|sys10-opposite-slopes-rational|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "85c48d972c6d5ff02b8070f281cba47e2097f89446075caa21fc0c9aa99f4c5e",
+      "afterRenderSha256": "85c48d972c6d5ff02b8070f281cba47e2097f89446075caa21fc0c9aa99f4c5e",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r8-finish-regions|negative-strict-ray|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "dd188a277ff0b0938d471694e6b630cd4f80d2dd5cd5b1b3b8aa6f8a35ff84af",
+      "afterRenderSha256": "dd188a277ff0b0938d471694e6b630cd4f80d2dd5cd5b1b3b8aa6f8a35ff84af",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r8-finish-regions|interval-intersection|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "6935a6bce58bcd9c084e21cda9e36445ed97d3ea468da7c36a87bc0bec4a26ef",
+      "afterRenderSha256": "6935a6bce58bcd9c084e21cda9e36445ed97d3ea468da7c36a87bc0bec4a26ef",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r8-finish-regions|separated-boolean-union|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "40ed78ac7423ba811a0e91dd59f8dabe1664aa6059f4d98c4997d5b823f89462",
+      "afterRenderSha256": "40ed78ac7423ba811a0e91dd59f8dabe1664aa6059f4d98c4997d5b823f89462",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r8-finish-regions|named-interval-difference|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "99fe9aa84233ab314fb8c8fe84369de8347ea988f0004148fa512be609a70cb6",
+      "afterRenderSha256": "99fe9aa84233ab314fb8c8fe84369de8347ea988f0004148fa512be609a70cb6",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r8-finish-regions|singleton-intersection|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "41f1c0aea8185836dbbeee59717906e8147d1c96cafbb4babe9c733412936724",
+      "afterRenderSha256": "41f1c0aea8185836dbbeee59717906e8147d1c96cafbb4babe9c733412936724",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r8-finish-regions|strict-oblique-half-plane|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "289caf60d80914669abc75ebe0e88cc5b9313d7e3616ac969558843f5d370334",
+      "afterRenderSha256": "289caf60d80914669abc75ebe0e88cc5b9313d7e3616ac969558843f5d370334",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r8-finish-regions|negative-scale-half-plane|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "4c01e3e76f3f98e105fde734edbf8ffe4bae1a7ecfc0b84e356648bf9fff1f42",
+      "afterRenderSha256": "4c01e3e76f3f98e105fde734edbf8ffe4bae1a7ecfc0b84e356648bf9fff1f42",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r8-finish-regions|rational-scaled-strict-half-plane|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "19a428ad09a42a0319930766bca20cfd5e931203748af6ce5c32aab4619aaec9",
+      "afterRenderSha256": "19a428ad09a42a0319930766bca20cfd5e931203748af6ce5c32aab4619aaec9",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r8-finish-regions|vertical-inclusive-half-plane|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "75d8dcdec34620df95c057f5a0f68ba4632bed41d52f129ee73c191308510810",
+      "afterRenderSha256": "75d8dcdec34620df95c057f5a0f68ba4632bed41d52f129ee73c191308510810",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r8-finish-regions|horizontal-strict-half-plane|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "24156d8ad2e4af7c6af8979743adc69dca59943f7a8ca8a52e7b3aba3ad4ba36",
+      "afterRenderSha256": "24156d8ad2e4af7c6af8979743adc69dca59943f7a8ca8a52e7b3aba3ad4ba36",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r8-finish-regions|rational-unique-max|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "6f7eb77d7a9bec0043dbe5883854d9fb3ba4c6f2441130035cc181154b4b6917",
+      "afterRenderSha256": "6f7eb77d7a9bec0043dbe5883854d9fb3ba4c6f2441130035cc181154b4b6917",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r8-finish-regions|multiple-optimum-edge|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "95e5e0f74c9754d05864d5f9372837f782975d23c234112e9106d7f1e860473d",
+      "afterRenderSha256": "95e5e0f74c9754d05864d5f9372837f782975d23c234112e9106d7f1e860473d",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r8-finish-regions|variables-both-sides-region|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "ec0a2f71bf029a699195de84588d548712d4605b71f2f4c03c52973b038571cf",
+      "afterRenderSha256": "ec0a2f71bf029a699195de84588d548712d4605b71f2f4c03c52973b038571cf",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r8-finish-regions|lower-bound-resource-region|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "026a24e574e6633707890bda4dd2ab29b4eff9f5312fc1628ac2ed1540b481c0",
+      "afterRenderSha256": "026a24e574e6633707890bda4dd2ab29b4eff9f5312fc1628ac2ed1540b481c0",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r8-finish-regions|shifted-triangle-minimum|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "84e469d9331f973ebb343700d5afb4316d5d6c50414da7f7d699b197c42acc94",
+      "afterRenderSha256": "84e469d9331f973ebb343700d5afb4316d5d6c50414da7f7d699b197c42acc94",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r8-finish-regions|system-x-coordinate|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": false,
+      "afterCompiled": false,
+      "renderEqual": true,
+      "beforeRenderSha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+      "afterRenderSha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+    },
+    {
+      "id": "maths|h3r8-finish-regions|parallel-system-no-solution|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "ae318ba246d4ca34026f9d56a90e620536748b6de55c479a8dddede3fe93c92b",
+      "afterRenderSha256": "ae318ba246d4ca34026f9d56a90e620536748b6de55c479a8dddede3fe93c92b",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r8-finish-regions|coincident-system-all-points|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": false,
+      "afterCompiled": false,
+      "renderEqual": true,
+      "beforeRenderSha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+      "afterRenderSha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+    },
+    {
+      "id": "maths|h3r8-finish-regions|vertical-line-system|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": true,
+      "afterCompiled": true,
+      "renderEqual": true,
+      "beforeRenderSha256": "4e9f2ab359841c8ea1bef920b68961c7c55b01427bb92ee9e98410d11b2d3e88",
+      "afterRenderSha256": "4e9f2ab359841c8ea1bef920b68961c7c55b01427bb92ee9e98410d11b2d3e88",
+      "afterIssues": []
+    },
+    {
+      "id": "maths|h3r8-finish-regions|scaled-system-x-coordinate|q1",
+      "sourceDocumentsEqual": true,
+      "beforeCompiled": false,
+      "afterCompiled": false,
+      "renderEqual": true,
+      "beforeRenderSha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+      "afterRenderSha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+    }
+  ]
+}
