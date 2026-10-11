@@ -1,0 +1,401 @@
+{
+  "topic_id": "maths|10|triangle-centre-circumcentre",
+  "question": "In triangle ABC, the perpendicular bisectors of BC, CA and AB pass through their midpoints L, M and N and meet at the circumcentre O. Draw them and the circumcircle through A, B and C.",
+  "figure_kind": "geometry",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "circumcentre construction"
+    },
+    "source": {
+      "question": "In triangle ABC, the perpendicular bisectors of BC, CA and AB pass through their midpoints L, M and N and meet at the circumcentre O. Draw them and the circumcircle through A, B and C.",
+      "family": "triangle_centres"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "triangle vertex",
+        "label": "A"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "triangle vertex",
+        "label": "B"
+      },
+      {
+        "id": "C",
+        "kind": "point",
+        "role": "triangle vertex",
+        "label": "C"
+      },
+      {
+        "id": "L",
+        "kind": "point",
+        "role": "midpoint of BC",
+        "label": "L"
+      },
+      {
+        "id": "M",
+        "kind": "point",
+        "role": "midpoint of CA",
+        "label": "M"
+      },
+      {
+        "id": "N",
+        "kind": "point",
+        "role": "midpoint of AB",
+        "label": "N"
+      },
+      {
+        "id": "AB",
+        "kind": "segment",
+        "role": "side of triangle"
+      },
+      {
+        "id": "BC",
+        "kind": "segment",
+        "role": "side of triangle"
+      },
+      {
+        "id": "CA",
+        "kind": "segment",
+        "role": "side of triangle"
+      },
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "circumcentre",
+        "label": "O"
+      },
+      {
+        "id": "pL",
+        "kind": "segment",
+        "role": "perpendicular bisector of BC"
+      },
+      {
+        "id": "rL",
+        "kind": "right_angle_mark",
+        "role": "right angle"
+      },
+      {
+        "id": "pM",
+        "kind": "segment",
+        "role": "perpendicular bisector of CA"
+      },
+      {
+        "id": "rM",
+        "kind": "right_angle_mark",
+        "role": "right angle"
+      },
+      {
+        "id": "pN",
+        "kind": "segment",
+        "role": "perpendicular bisector of AB"
+      },
+      {
+        "id": "rN",
+        "kind": "right_angle_mark",
+        "role": "right angle"
+      },
+      {
+        "id": "cc",
+        "kind": "circle",
+        "role": "circumcircle",
+        "label": "circumcircle"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "kA",
+        "operator": "point",
+        "inputs": {
+          "x": 7.21,
+          "y": 8.08,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "kB",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 1.74,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "kC",
+        "operator": "point",
+        "inputs": {
+          "x": 9.85,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "C"
+        ]
+      },
+      {
+        "id": "kL",
+        "operator": "midpoint",
+        "inputs": {
+          "a": "B",
+          "b": "C"
+        },
+        "outputs": [
+          "L"
+        ]
+      },
+      {
+        "id": "kM",
+        "operator": "midpoint",
+        "inputs": {
+          "a": "C",
+          "b": "A"
+        },
+        "outputs": [
+          "M"
+        ]
+      },
+      {
+        "id": "kN",
+        "operator": "midpoint",
+        "inputs": {
+          "a": "A",
+          "b": "B"
+        },
+        "outputs": [
+          "N"
+        ]
+      },
+      {
+        "id": "kAB",
+        "operator": "segment",
+        "inputs": {
+          "start": "A",
+          "end": "B"
+        },
+        "outputs": [
+          "AB"
+        ]
+      },
+      {
+        "id": "kBC",
+        "operator": "segment",
+        "inputs": {
+          "start": "B",
+          "end": "C"
+        },
+        "outputs": [
+          "BC"
+        ]
+      },
+      {
+        "id": "kCA",
+        "operator": "segment",
+        "inputs": {
+          "start": "C",
+          "end": "A"
+        },
+        "outputs": [
+          "CA"
+        ]
+      },
+      {
+        "id": "kO",
+        "operator": "triangle_center",
+        "inputs": {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "kind": "circumcenter"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "kpL",
+        "operator": "segment",
+        "inputs": {
+          "start": "L",
+          "end": "O"
+        },
+        "outputs": [
+          "pL"
+        ]
+      },
+      {
+        "id": "krL",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "L",
+          "a": "O",
+          "b": "B",
+          "size": 0.6
+        },
+        "outputs": [
+          "rL"
+        ]
+      },
+      {
+        "id": "kpM",
+        "operator": "segment",
+        "inputs": {
+          "start": "M",
+          "end": "O"
+        },
+        "outputs": [
+          "pM"
+        ]
+      },
+      {
+        "id": "krM",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "M",
+          "a": "O",
+          "b": "A",
+          "size": 0.6
+        },
+        "outputs": [
+          "rM"
+        ]
+      },
+      {
+        "id": "kpN",
+        "operator": "segment",
+        "inputs": {
+          "start": "N",
+          "end": "O"
+        },
+        "outputs": [
+          "pN"
+        ]
+      },
+      {
+        "id": "krN",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "N",
+          "a": "O",
+          "b": "B",
+          "size": 0.6
+        },
+        "outputs": [
+          "rN"
+        ]
+      },
+      {
+        "id": "kcc",
+        "operator": "circle_from_three_points",
+        "inputs": {
+          "a": "A",
+          "b": "B",
+          "c": "C"
+        },
+        "outputs": [
+          "cc"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "perpL",
+        "predicate": "perpendicular",
+        "entities": [
+          "pL",
+          "BC"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "perpM",
+        "predicate": "perpendicular",
+        "entities": [
+          "pM",
+          "CA"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "perpN",
+        "predicate": "perpendicular",
+        "entities": [
+          "pN",
+          "AB"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "A",
+      "B",
+      "C",
+      "L",
+      "M",
+      "N",
+      "AB",
+      "BC",
+      "CA",
+      "O",
+      "pL",
+      "rL",
+      "pM",
+      "rM",
+      "pN",
+      "rN",
+      "cc"
+    ],
+    "revealGroups": [
+      {
+        "id": "figure",
+        "entityIds": [
+          "A",
+          "B",
+          "C",
+          "L",
+          "M",
+          "N",
+          "AB",
+          "BC",
+          "CA",
+          "O",
+          "pL",
+          "rL",
+          "pM",
+          "rM",
+          "pN",
+          "rN",
+          "cc"
+        ],
+        "dependsOn": [],
+        "narrationCue": "bisectors meet at O; circle through A, B, C"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "show",
+        "action": "reveal",
+        "targetId": "figure",
+        "dependsOn": [],
+        "narrationIntent": "construct the circumcentre and circumcircle"
+      }
+    ]
+  }
+}
