@@ -66,6 +66,7 @@ import {
 import { appendCompiledAnnotations } from "./sceneAnnotations";
 import { lensSectionOutline, sphericalSurfaceGeometry } from "./opticsSurfaces";
 import { acuteNormalArm, clipLightPathsAtElements, truncateRenderedPath, validateAxisArrowsOnRays } from "./lightPathElements";
+import { continueLightLinesFromElements } from "./emergentLightLines";
 import { readPolyhedralSolid, polyhedralPaths, polyhedralSection, type PolyhedralSolid } from "../math/polyhedralSolid";
 import { evaluateCombinatoricsConstruction, type CombinatoricsGraphDefinition, type CombinatoricsNodeDefinition, type CombinatoricsEdgeDefinition } from "./combinatoricsGeometry";
 import { evaluateElasticityConstruction, type ElasticProfileDefinition, type ElasticStateDefinition } from "./elasticityGeometry";
@@ -406,6 +407,9 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     resolvePoint: (value) => resolvePoint(value, geometry),
     issues,
   });
+  // A line built parallel to a declared ray carries that light: drawn from
+  // where it leaves the glass, never straight through it.
+  continueLightLinesFromElements({ document, geometry, drawn: drawnInk, issues });
   // Object and image arrows on an optical axis stand on the rays drawn there.
   validateAxisArrowsOnRays({ document, geometry, drawn: drawnInk, issues });
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, 0) };
