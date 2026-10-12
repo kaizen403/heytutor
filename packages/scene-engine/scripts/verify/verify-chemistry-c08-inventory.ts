@@ -394,7 +394,10 @@ function checkedScene(scene: SceneDocument, question: string) {
   assert.ok(validated.document, JSON.stringify(validated.report.issues));
   const result = compileSceneDocument(validated.document);
   assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
-  const labels = result.renderScene.primitives.filter(p => p.kind === "label").map(p => p.text);
+  const labels = result.renderScene.primitives.filter(p => p.kind === "label").map(p => {
+    assert.ok(typeof p.text === "string", "Compiled label text required");
+    return p.text;
+  });
   const texts = [...labels, ...scene.annotations.map(a => a.text ?? "")];
   assert.ok(texts.every(text => !/NaN|Infinity/.test(text)), JSON.stringify(texts));
   assert.ok(scene.quantities.every(q => typeof q.value === "number" && Number.isFinite(q.value)), "Nonfinite source quantities");
