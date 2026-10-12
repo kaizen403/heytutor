@@ -22,6 +22,7 @@ import {
   type LabelOwner,
   type TextInkBoundsMeasure,
 } from "../labels/labelEngine";
+import { bindOpticsLabelSides, solveWithSideBoundLabels } from "../labels/opticsLabelSides";
 // The engine reserves the room the board will letter into, so it measures with
 // the board's own glyph metrics rather than an average character box.
 import { measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
@@ -722,7 +723,8 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     }
   }
 
-  const uniqueLabelOwners = [...labelOwners.filter((owner, index, all) => {
+  // A label on a refraction or reflection keeps its medium's side.
+  const uniqueLabelOwners = bindOpticsLabelSides(document, geometry, transformPlan.transformFor, [...labelOwners.filter((owner, index, all) => {
     if (owner.labelId && summaryLabelIds.has(owner.labelId)) {
       return all.findIndex((candidate) => candidate.labelId === owner.labelId) === index;
     }
@@ -730,7 +732,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       candidate.entityId === owner.entityId &&
       (!candidate.labelId || !summaryLabelIds.has(candidate.labelId))
     ) === index;
-  }), ...annotationLabelOwners];
+  }), ...annotationLabelOwners]);
   const pinDsaLabels = document.source.synthesizedDsa === true;
   // A chemistry figure pins its atom symbols on the atom itself (an element
   // symbol beside a bond junction reads as a substituent) while its bond
@@ -770,26 +772,30 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     // rejected labels the document had already accepted.
     ? { fontHeightPx: DSA_LABEL_FONT_PX, paddingPx: 3, minGapPx: 4, maxLabelChars: 16, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk }
     : { measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk };
-  const stackedOwners = pinDsaLabels
-    ? null
-    : stackSummaryLabelOwners(document, placementOwners, summaryLabelIds, primitives, labelObstacles, labelOptions);
-  let labels = placeLabels(stackedOwners ?? placementOwners, labelObstacles, labelOptions);
-  if (stackedOwners && labels.issues.length > 0) {
-    const solved = placeLabels(placementOwners, labelObstacles, labelOptions);
-    if (solved.issues.length < labels.issues.length) labels = solved;
-  }
-  if (axisLetterOwners.length > 0 && labels.issues.length > 0) {
-    // Axis letters are presentation only: a figure whose own labels need
-    // their room keeps those labels and draws its axes unlettered.
-    const letterIds = new Set(axisLetterOwners.map((owner) => owner.labelId));
-    const withoutLetters = (owners: LabelOwner[]) => owners.filter((owner) => !letterIds.has(owner.labelId));
-    let plain = placeLabels(withoutLetters(stackedOwners ?? placementOwners), labelObstacles, labelOptions);
-    if (stackedOwners && plain.issues.length > 0) {
-      const solved = placeLabels(withoutLetters(placementOwners), labelObstacles, labelOptions);
-      if (solved.issues.length < plain.issues.length) plain = solved;
+  const solveOwners = (owners: LabelOwner[]) => {
+    const stackedOwners = pinDsaLabels
+      ? null
+      : stackSummaryLabelOwners(document, owners, summaryLabelIds, primitives, labelObstacles, labelOptions);
+    let solved = placeLabels(stackedOwners ?? owners, labelObstacles, labelOptions);
+    if (stackedOwners && solved.issues.length > 0) {
+      const unstacked = placeLabels(owners, labelObstacles, labelOptions);
+      if (unstacked.issues.length < solved.issues.length) solved = unstacked;
     }
-    if (plain.issues.length < labels.issues.length) labels = plain;
-  }
+    if (axisLetterOwners.length > 0 && solved.issues.length > 0) {
+      // Axis letters are presentation only: a figure whose own labels need
+      // their room keeps those labels and draws its axes unlettered.
+      const letterIds = new Set(axisLetterOwners.map((owner) => owner.labelId));
+      const withoutLetters = (list: LabelOwner[]) => list.filter((owner) => !letterIds.has(owner.labelId));
+      let plain = placeLabels(withoutLetters(stackedOwners ?? owners), labelObstacles, labelOptions);
+      if (stackedOwners && plain.issues.length > 0) {
+        const unstacked = placeLabels(withoutLetters(owners), labelObstacles, labelOptions);
+        if (unstacked.issues.length < plain.issues.length) plain = unstacked;
+      }
+      if (plain.issues.length < solved.issues.length) solved = plain;
+    }
+    return solved;
+  };
+  const labels = solveWithSideBoundLabels(placementOwners, solveOwners);
   for (const issue of labels.issues) {
     issues.push({
       code: issue.code,

@@ -1,0 +1,173 @@
+/**
+ * A ray-optics label stays in its own medium.
+ *
+ * Round 7 physics drew labels across the interface: "glass" in the air
+ * outside a refracting sphere and "iᵣ = 46.2°" inside a prism, though both
+ * name things on the other side. Compass slots know nothing of an interface.
+ * The rules read only the document's optics operators, their paths and
+ * n1/n2 inputs, and each label's quantity binding:
+ *
+ *   R2b  a label on a light path that starts or ends at a refraction or
+ *        reflection contact stays on that path's side; with no slot there
+ *        it is dropped, never carried across.
+ *
+ * Each case is a recorded planner document (fixtures/ray-optics-label-sides.json),
+ * compiled here. The side is checked against the rendered ink: a label box
+ * must lie wholly on the side of the interface where its path runs. Two
+ * negative controls must not move: a correct air and glass pair on their
+ * paths, and a triangle with no optics at all.
+ *
+ *   pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-ray-optics-label-sides.ts
+ */
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { compileSceneDocument, validateSceneDocument, type RenderPoint, type RenderPrimitive } from "../../src/index";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const fixture = JSON.parse(readFileSync(join(here, "fixtures/ray-optics-label-sides.json"), "utf8")) as {
+  documents: Record<string, unknown>;
+};
+const failures: string[] = [];
+
+interface Box { x: number; y: number; width: number; height: number }
+
+function compile(name: string): RenderPrimitive[] | null {
+  const validated = validateSceneDocument(structuredClone(fixture.documents[name]));
+  if (!validated.document) {
+    failures.push(`${name}: document invalid (${validated.report.issues.filter((issue) => issue.severity === "fatal").map((issue) => issue.code).join(", ")})`);
+    return null;
+  }
+  const compiled = compileSceneDocument(validated.document);
+  if (!compiled.ok || !compiled.renderScene) {
+    failures.push(`${name}: did not compile (${compiled.report.issues.filter((issue) => issue.severity === "fatal").map((issue) => issue.code).join(", ")})`);
+    return null;
+  }
+  return compiled.renderScene.primitives;
+}
+
+function primitive(primitives: RenderPrimitive[], id: string): RenderPrimitive {
+  const found = primitives.find((candidate) => candidate.id === id);
+  if (!found) throw new Error(`missing primitive ${id}`);
+  return found;
+}
+
+function labelBox(primitives: RenderPrimitive[], labelId: string): Box | null {
+  const label = primitives.find((candidate) => candidate.id === labelId && candidate.kind === "label");
+  const bounds = label?.provenance?.labelBounds as Box | undefined;
+  return bounds ?? null;
+}
+
+function corners(box: Box): RenderPoint[] {
+  return [
+    { x: box.x, y: box.y },
+    { x: box.x + box.width, y: box.y },
+    { x: box.x + box.width, y: box.y + box.height },
+    { x: box.x, y: box.y + box.height },
+  ];
+}
+
+/** Sign of `point` against the line through the interface segment. */
+function lineSide(line: RenderPrimitive, point: RenderPoint): number {
+  const [a, b] = [line.points[0]!, line.points.at(-1)!];
+  return Math.sign((b.x - a.x) * (point.y - a.y) - (b.y - a.y) * (point.x - a.x));
+}
+
+/** The box lies wholly on the same side of a straight interface as `reference`. */
+function onLineSide(box: Box, line: RenderPrimitive, reference: RenderPoint): boolean {
+  const want = lineSide(line, reference);
+  return want !== 0 && corners(box).every((corner) => lineSide(line, corner) === want);
+}
+
+/** The box lies wholly inside (or wholly outside) a rendered circle. */
+function onCircleSide(box: Box, circle: RenderPrimitive, inside: boolean): boolean {
+  const center = circle.points[0]!;
+  const radius = circle.radius ?? 0;
+  if (inside) return corners(box).every((corner) => Math.hypot(corner.x - center.x, corner.y - center.y) <= radius);
+  const nearestX = Math.max(box.x, Math.min(center.x, box.x + box.width));
+  const nearestY = Math.max(box.y, Math.min(center.y, box.y + box.height));
+  return Math.hypot(nearestX - center.x, nearestY - center.y) >= radius;
+}
+
+function check(condition: boolean, message: string): void {
+  if (!condition) failures.push(message);
+}
+
+// R2b, m1 sphere h8u: rays from the object refract into the glass at one
+// air-glass sphere. "glass" sat on outgoing1 out in the air.
+{
+  const primitives = compile("sphere");
+  if (primitives) {
+    const circle = primitive(primitives, "primitive_boundary");
+    const glass = labelBox(primitives, "glass_label");
+    check(glass !== null, "sphere: the glass label on the refracted ray was dropped though the glass has room for it");
+    if (glass) check(onCircleSide(glass, circle, true), `sphere: "glass" on the refracted ray sits outside the glass at (${glass.x.toFixed(1)}, ${glass.y.toFixed(1)})`);
+    const air = labelBox(primitives, "air_label");
+    if (air) check(onCircleSide(air, circle, false), `sphere: "air" on the incoming ray sits inside the glass`);
+  }
+}
+
+// R2b, m2 prism: the incidence callout on the entry ray sat inside the prism,
+// on the far side of the face the ray meets.
+{
+  const primitives = compile("prism");
+  if (primitives) {
+    const face = primitive(primitives, "primitive_leftFace");
+    const source = primitive(primitives, "primitive_incoming").points[0]!;
+    const incidence = labelBox(primitives, "redIncidence");
+    check(incidence !== null, "prism: the incidence callout was dropped though the air side has room for it");
+    if (incidence) check(onLineSide(incidence, face, source), `prism: "iᵣ = 46.2°" on the entry ray sits inside the glass at (${incidence.x.toFixed(1)}, ${incidence.y.toFixed(1)})`);
+  }
+}
+
+// Negative control, m1 refraction h8u: "air" on the incident ray and "glass"
+// on the refracted ray already sit on their own sides. Neither may move.
+{
+  const primitives = compile("pair");
+  if (primitives) {
+    const boundary = primitive(primitives, "primitive_interface");
+    const air = labelBox(primitives, "air_label");
+    const glass = labelBox(primitives, "glass_label");
+    check(air !== null && glass !== null, "pair: a correct medium label was dropped");
+    if (air) check(onLineSide(air, boundary, primitive(primitives, "primitive_incident").points[0]!), "pair: air left the incident side");
+    if (glass) check(onLineSide(glass, boundary, primitive(primitives, "primitive_refracted").points.at(-1)!), "pair: glass left the refracted side");
+    expectUnmoved("pair", primitives, { air_label: [780, 85], glass_label: [965.22, 574.28] });
+  }
+}
+
+// Negative control: a triangle with no optics keeps every label where main
+// put it, including a label whose intent reads "incident side".
+{
+  const primitives = compile("plain");
+  if (primitives) {
+    expectUnmoved("plain", primitives, {
+      primitive_A_label: [474, 546.1],
+      primitive_B_label: [1086, 546.1],
+      primitive_C_label: [657.6, 118.9],
+      baseLabel: [780, 554.1],
+      sideLabel: [871.8, 114.9],
+    });
+  }
+}
+
+/** Positions main (b57cbecd) compiled for these labels. */
+function expectUnmoved(name: string, primitives: RenderPrimitive[], expected: Record<string, [number, number]>): void {
+  for (const [id, [x, y]] of Object.entries(expected)) {
+    const label = primitives.find((candidate) => candidate.id === id && candidate.kind === "label");
+    if (!label) {
+      failures.push(`${name}: ${id} was dropped`);
+      continue;
+    }
+    const at = label.points[0]!;
+    if (Math.abs(at.x - x) > 0.5 || Math.abs(at.y - y) > 0.5) {
+      failures.push(`${name}: ${id} moved from (${x}, ${y}) to (${at.x}, ${at.y})`);
+    }
+  }
+}
+
+if (failures.length > 0) {
+  console.error(`verify-ray-optics-label-sides: ${failures.length} failure(s)`);
+  for (const failure of failures) console.error(`  - ${failure}`);
+  process.exit(1);
+}
+console.log("verify-ray-optics-label-sides: ok (R2b sphere and prism on their sides; air/glass pair and plain triangle unmoved)");

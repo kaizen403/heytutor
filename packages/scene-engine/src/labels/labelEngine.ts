@@ -44,7 +44,23 @@ export interface LabelOwner {
    * values that belong inside a cell, node, or edge — not beside it.
    */
   pinToAnchor?: boolean;
+  /**
+   * Regions the whole label box must lie in, such as the medium on one side
+   * of a refraction interface. A slot outside any of them is never legal, so
+   * the label is never carried across; the caller decides whether to drop a
+   * label that has no slot left.
+   */
+  sideRegions?: LabelSideRegion[];
 }
+
+/** A screen region bounded by an interface, keeping a label in one medium. */
+export type LabelSideRegion =
+  | { kind: "half_plane"; point: RenderPoint; normal: RenderPoint }
+  | { kind: "circle"; center: RenderPoint; radius: number; inside: boolean }
+  | { kind: "polygon"; points: RenderPoint[]; inside: boolean };
+
+/** Overlap id a candidate carries when its box leaves one of `sideRegions`. */
+export const LABEL_WRONG_SIDE = "wrong_side";
 
 export interface LabelObstacle {
   id: string;
@@ -481,6 +497,7 @@ export function placeLabels(
       });
       const overlaps = [
         ...(outside ? ["view_clip"] : []),
+        ...(offSide(collisionBounds, owner) ? [LABEL_WRONG_SIDE] : []),
         ...protectedHits,
         ...pinnedHits,
       ];
@@ -517,6 +534,7 @@ export function placeLabels(
         .map((obstacle) => obstacle.id);
       const outside = outsideOwnerView(collisionBounds, owner);
       if (outside) overlaps.push("view_clip");
+      if (offSide(collisionBounds, owner)) overlaps.push(LABEL_WRONG_SIDE);
       if (beyondTether(bounds, owner.anchor, owner.tetherPx)) overlaps.push("tether");
       const incident = incidentAligned(slot.slot, owner.incidentTangents);
       const drift = Math.hypot(anchor.x - owner.anchor.x, anchor.y - owner.anchor.y);
@@ -558,6 +576,7 @@ export function placeLabels(
             .map((obstacle) => obstacle.id);
           const outside = outsideOwnerView(collisionBounds, owner);
           if (outside) overlaps.push("view_clip");
+          if (offSide(collisionBounds, owner)) overlaps.push(LABEL_WRONG_SIDE);
           if (beyondTether(bounds, owner.anchor, owner.tetherPx)) overlaps.push("tether");
           // The line stops outside the text. Running it to `center` — which is
           // what the board drew for years — strikes the label through.
@@ -594,6 +613,7 @@ export function placeLabels(
           const collisionBounds = textCollisionBounds(owner.text, bounds, options);
           const overlaps = solverObstacles.filter((obstacle) => labelOverlapsObstacle(collisionBounds, obstacle, minGapPx)).map((obstacle) => obstacle.id);
           if (outsideOwnerView(collisionBounds, owner)) overlaps.push("view_clip");
+          if (offSide(collisionBounds, owner)) overlaps.push(LABEL_WRONG_SIDE);
           if (beyondTether(bounds, owner.anchor, owner.tetherPx)) overlaps.push("tether");
           return { slot: "leader", bounds, collisionBounds, score: 150 + Math.hypot(center.x - owner.anchor.x, center.y - owner.anchor.y), overlaps, usesLeader: false };
         })
@@ -767,6 +787,7 @@ export function stackLabelRows(
       const collisionBounds = textCollisionBounds(owner.text, bounds, options);
       if (
         (viewBounds && !boundsInside(collisionBounds, viewBounds)) ||
+        offSide(collisionBounds, owner) ||
         obstacles.some((obstacle) => labelOverlapsObstacle(collisionBounds, obstacle, minGapPx))
       ) {
         break;
@@ -1124,6 +1145,47 @@ function outsideOwnerView(bounds: LabelBounds, owner: LabelOwner): boolean {
     (owner.viewBounds && !boundsInside(bounds, owner.viewBounds)) ||
     (owner.placementBounds && !boundsInside(bounds, owner.placementBounds)),
   );
+}
+
+function offSide(bounds: LabelBounds, owner: LabelOwner): boolean {
+  return Boolean(owner.sideRegions?.some((region) => !boundsInSideRegion(bounds, region)));
+}
+
+/** True when the whole box lies in the region (touching its edge is legal). */
+export function boundsInSideRegion(bounds: LabelBounds, region: LabelSideRegion): boolean {
+  const corners: RenderPoint[] = [
+    { x: bounds.x, y: bounds.y },
+    { x: bounds.x + bounds.width, y: bounds.y },
+    { x: bounds.x + bounds.width, y: bounds.y + bounds.height },
+    { x: bounds.x, y: bounds.y + bounds.height },
+  ];
+  if (region.kind === "half_plane") {
+    return corners.every((corner) =>
+      (corner.x - region.point.x) * region.normal.x + (corner.y - region.point.y) * region.normal.y >= 0);
+  }
+  if (region.kind === "circle") {
+    if (region.inside) {
+      return corners.every((corner) => Math.hypot(corner.x - region.center.x, corner.y - region.center.y) <= region.radius);
+    }
+    const nearestX = Math.max(bounds.x, Math.min(region.center.x, bounds.x + bounds.width));
+    const nearestY = Math.max(bounds.y, Math.min(region.center.y, bounds.y + bounds.height));
+    return Math.hypot(nearestX - region.center.x, nearestY - region.center.y) >= region.radius;
+  }
+  const crossesEdge = pathSegments(region.points, true).some(([start, end]) => segmentIntersectsBounds(start, end, bounds));
+  if (crossesEdge) return false;
+  const cornersInside = corners.map((corner) => pointInPolygon(corner, region.points));
+  return region.inside ? cornersInside.every(Boolean) : !cornersInside.some(Boolean);
+}
+
+function pointInPolygon(point: RenderPoint, polygon: RenderPoint[]): boolean {
+  let inside = false;
+  for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index++) {
+    const a = polygon[index]!;
+    const b = polygon[previous]!;
+    if ((a.y > point.y) !== (b.y > point.y) &&
+      point.x < (b.x - a.x) * (point.y - a.y) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
 }
 
 function incidentAligned(
