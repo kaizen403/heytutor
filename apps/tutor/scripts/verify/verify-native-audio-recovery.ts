@@ -17,7 +17,7 @@ const requireApp = createRequire(path.join(app, "package.json"));
 const runnerPath = path.join(app, "features/tutor-session/hooks/turn/useSegmentRunner.ts");
 const savePath = path.join(app, "features/tutor-session/lib/turn/liveTurnSave.ts");
 const clientPath = fileURLToPath(new URL("../../../../packages/tutor-core/src/tts/streamingSpeechClient.ts", import.meta.url));
-const cases = ["recover", "healthy", "start", "capture", "ws-capture", "stall-all", "partial", "pause", "cancel", "capture-cancel", "successor", "runner-positive", "runner-zero", "runner-intro", "runner-stop", "runner-stale", "runner-healthy", "runner-slow", "capture-cancel-http", "healthy-pause", "prefetch-cancel", "ws-prefetch-cancel", "ended-zero", "runner-error", "cancel-retry", "ws-no-final", "ws-no-final-healthy", "runner-ws-positive", "runner-ws-healthy", "ws-no-final-webaudio", "ws-no-final-webaudio-healthy"];
+const cases = ["recover", "healthy", "start", "capture", "ws-capture", "stall-all", "partial", "pause", "cancel", "capture-cancel", "successor", "runner-positive", "runner-zero", "runner-intro", "runner-stop", "runner-stale", "runner-healthy", "runner-slow", "capture-cancel-http", "healthy-pause", "prefetch-cancel", "ws-prefetch-cancel", "ended-zero", "runner-error", "cancel-retry", "ws-no-final", "ws-no-final-healthy", "runner-ws-positive", "runner-ws-healthy", "ws-no-final-webaudio", "ws-no-final-webaudio-healthy", "gesture-delay", "gesture-zero-repeated"];
 const noop = () => {};
 const ref = <T,>(current: T) => ({ current });
 
@@ -78,7 +78,9 @@ async function main() {
     }
     now = until; await flush();
   };
-  const healthy = ["healthy", "healthy-pause", "runner-healthy", "runner-slow", "ws-no-final-healthy", "ws-no-final-webaudio-healthy", "runner-ws-healthy"].includes(selected);
+  const gestureCase = selected.startsWith("gesture-");
+  let gesturePermitted = !gestureCase;
+  const healthy = ["healthy", "healthy-pause", "runner-healthy", "runner-slow", "ws-no-final-healthy", "ws-no-final-webaudio-healthy", "runner-ws-healthy", "gesture-delay"].includes(selected);
   const allStalled = selected === "stall-all" || selected.startsWith("runner-") && !healthy;
   const positivePlateau = ["runner-positive", "runner-ws-positive", "runner-intro", "runner-stop", "runner-stale"].includes(selected);
   class NativeAudio {
@@ -89,6 +91,8 @@ async function main() {
     constructor(public src: string) { NativeAudio.instances.push(this); }
     get currentTime(): number {
       if (this.started === null || this.paused) return this.seekOffset;
+      if (selected === "gesture-zero-repeated") return this.seekOffset;
+      if (selected === "gesture-delay") return Math.min(this.seekOffset + Math.max(now - this.started - 300, 0) / 1_000 * this.playbackRate, durationSec);
       if (allStalled) return Math.max(this.seekOffset, positivePlateau ? 0.2 : 0);
       if (!healthy && selected !== "partial" && NativeAudio.instances[0] === this) return this.seekOffset;
       const value = this.seekOffset + (now - this.started) / 1_000 * this.playbackRate;
@@ -96,11 +100,12 @@ async function main() {
     }
     set currentTime(value: number) { this.seekOffset = value; this.started = now; }
     async play() {
+      if (!gesturePermitted) throw new DOMException("offline native gesture required", "NotAllowedError");
       this.playedOffsets.push(this.seekOffset); this.paused = false; this.started = now; this.onplaying?.();
       if (selected === "runner-error") schedule(() => this.onerror?.(), 50);
       if (selected === "ended-zero" && NativeAudio.instances[0] === this) schedule(() => this.onended?.(), 50);
       if (!allStalled && (healthy || NativeAudio.instances[0] !== this)) {
-        this.endTimer = schedule(() => { this.seekOffset = durationSec; this.paused = true; this.onended?.(); }, (durationSec - this.seekOffset) * 1_000 / this.playbackRate);
+        if (selected !== "gesture-zero-repeated") this.endTimer = schedule(() => { this.seekOffset = durationSec; this.paused = true; this.onended?.(); }, (durationSec - this.seekOffset) * 1_000 / this.playbackRate + (selected === "gesture-delay" ? 300 : 0));
       }
     }
     pause() {
@@ -162,6 +167,49 @@ async function main() {
   URL.revokeObjectURL = url => { revokedUrls.add(url); };
   const client = new StreamingSpeechClient(); client.setPlaybackRate(selected === "runner-slow" ? 0.5 : 1.25);
   try {
+    if (gestureCase) {
+      let starts = 0, ends = 0, blocked: string | null = null;
+      let outcome: "pending" | "resolved" | "rejected" = "pending";
+      const job = client.speakSegment(narration, {
+        onStart: () => starts++, onEnd: () => ends++,
+        onPlaybackBlocked: next => { blocked = next?.reason ?? null; },
+      });
+      void job.then(() => { outcome = "resolved"; }, () => { outcome = "rejected"; });
+      await advance(100);
+      assert.equal(NativeAudio.instances.length, 1);
+      const clip = NativeAudio.instances[0]!;
+      assert.equal(blocked, "not-allowed", "the actual client retains the blocked native clip for its owner");
+      await advance(2_500);
+      assert.equal(NativeAudio.instances.length, 1, "waiting for the gesture must not consume native output recovery");
+      assert.equal(outcome, "pending"); assert.equal(starts, 0);
+      gesturePermitted = true;
+      client.resume(); await flush();
+      assert.equal(clip.currentTime, 0);
+      assert.equal(starts, 0, "a delayed tap's zero-clock playing event cannot release audible start");
+      await advance(150);
+      assert.equal(NativeAudio.instances.length, 1,
+        "the accepted native play attempt gets its progress allowance after a delayed gesture");
+      assert.equal(outcome, "pending"); assert.equal(starts, 0);
+      if (selected === "gesture-delay") {
+        await advance(300);
+        assert(clip.currentTime > 0, "genuine clock progress arrives after the zero-clock playing signal");
+        assert.equal(starts, 1); assert.equal(blocked, null);
+        await advance(5_000);
+        assert.equal(outcome, "resolved"); assert.equal(ends, 1);
+        assert.equal(NativeAudio.instances.length, 1, "delayed native progress keeps the original clip without spurious recovery");
+      } else {
+        for (let i = 0; i < 32; i++) {
+          NativeAudio.instances.at(-1)!.onplaying?.();
+          await advance(100);
+        }
+        assert.equal(outcome, "rejected", "repeated zero-clock playing events cannot extend the stall deadline");
+        assert.equal(starts, 0); assert.equal(ends, 0);
+        assert.equal(NativeAudio.instances.length, 2, "two dead native clocks consume only one bounded recovery");
+      }
+      assert.equal(fetches, 1, "gesture retry and local output recovery do not synthesize again");
+      console.log(`native audio ${selected}: GREEN, no providers`);
+      return;
+    }
     if (selected.startsWith("runner-")) {
       let mint = 0, captured = 0;
       const registry = new LiveTurnSaveRegistry({ transport: { checkpoint: async () => { throw new Error("offline checkpoint forbidden"); }, close: async () => { throw new Error("offline close forbidden"); } },

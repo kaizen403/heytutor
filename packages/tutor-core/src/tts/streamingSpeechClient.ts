@@ -2401,7 +2401,14 @@ export class StreamingSpeechClient implements TTSClient {
       };
       const observePlaying = () => {
         announceStart();
-        if (!watching && !settled) { watching = true; progressTimer = setTimeout(checkProgress, 100); }
+        if (!watching && !settled) {
+          watching = true;
+          // A retained NotAllowedError clip may wait on a user gesture. Its
+          // progress allowance starts with actual play, not element creation;
+          // later playing events cannot renew a stalled clock's deadline.
+          lastProgressAt = performance.now();
+          progressTimer = setTimeout(checkProgress, 100);
+        }
       };
       this.currentHtmlOnStart = observePlaying;
       audio.onplaying = observePlaying;
