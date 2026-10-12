@@ -129,6 +129,12 @@ for (const [text, expected] of [
   ["path = [arrow, node]", "path = [arrow, node]"],
   ["Interval [frame, 2]", "Interval [frame, 2]"],
   ["[Type: I] error", "[Type: I] error"],
+  ["[Type: 1] error", "[Type: 1] error"],
+  ["moves = [arrow, 1, 2]", "moves = [arrow, 1, 2]"],
+  ["start at [frame: 0]", "start at [frame: 0]"],
+  ["cells = [highlight, 3, 4]", "cells = [highlight, 3, 4]"],
+  ["[Erase: 2] count", "[Erase: 2] count"],
+  ["y = 2x [HIGHLIGHT: 90, 274, 200, 40] more", "y = 2x [HIGHLIGHT: 90, 274, 200, 40] more"],
 ]) {
   const source = `[STEP]Explain the notation. [WRITE:${text},90,274][/STEP]`;
   for (const width of [1, 7, source.length]) {
@@ -137,6 +143,18 @@ for (const [text, expected] of [
     assert.deepEqual(row(actual.released), [{ text: expected, params: [90, 274, 32] }]);
     assert.deepEqual(actual.parsed.flatMap(getSegmentCommands).map(command => command.type), ["WRITE"]);
     assert.equal(actual.released[0]?.narration, "Explain the notation.");
+  }
+}
+groups++;
+
+for (const ending of ["\n[/STEP]", "[/STEP]", ""]) {
+  const source = `[STEP]Explain the actions. [WRITE]actions = [clear, undo],90,274${ending}`;
+  for (const width of [1, 3, source.length]) {
+    const actual = consume(source, width);
+    assert(actual.hasInk, "header-only command-word list reaches resumed playback");
+    assert.deepEqual(row(actual.released), [{ text: "actions = [clear, undo]", params: [90, 274, 32] }]);
+    assert.deepEqual(actual.parsed.flatMap(getSegmentCommands).map(command => command.type), ["WRITE"]);
+    assert.equal(actual.released[0]?.narration, "Explain the actions.");
   }
 }
 groups++;

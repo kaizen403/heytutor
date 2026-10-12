@@ -104,6 +104,9 @@ for (const name of DRAW_COMMAND_TYPES) {
 for (const text of [
   "actions = [clear, undo]", "row = [type, size]", "path = [arrow, node]",
   "Interval [frame, 2]", "[Type: I] error",
+  "[Type: 1] error", "moves = [arrow, 1, 2]", "start at [frame: 0]",
+  "cells = [highlight, 3, 4]", "[Erase: 2] count",
+  "y = 2x [HIGHLIGHT: 90, 274, 200, 40] more",
 ]) {
   const tag = `[WRITE:${text},90,274]`;
   const whole = parseDrawingCommands(tag);
@@ -133,15 +136,42 @@ for (const text of [
   }
 }
 
-// A real semantic or numeric command still closes a broken text body.
-// Do not borrow its coordinates or reinterpret its diagram ink as WRITE.
+// The malformed bare-header spelling still has an unambiguous row ending.
+// A bracketed word list inside the text must not become CLEAR or spoken ink.
+for (const ending of ["\n", "[/STEP]"]) {
+  const source = `[STEP]Explain the actions. [WRITE]actions = [clear, undo],90,274${ending}`;
+  const whole = parseDrawingCommands(source);
+  assert(whole.commands.length === 1 && whole.commands[0]?.type === "WRITE" &&
+    whole.commands[0]?.text === "actions = [clear, undo]",
+    "header-only command-word list retains one complete row");
+  assert(!whole.narration.includes("actions =") && !whole.narration.includes("90,274"),
+    "header-only list never speaks its row or coordinates");
+  for (const width of [1, 3, 1000]) {
+    const segments: TutorSegment[] = [];
+    const parser = new IncrementalTagParser({ onSegmentReady: segment => segments.push(segment) });
+    for (let from = 0; from < source.length; from += width) parser.push(source.slice(from, from + width));
+    parser.flush();
+    const commands = segments.flatMap(getSegmentCommands);
+    assert(commands.length === 1 && commands[0]?.type === "WRITE" &&
+      commands[0]?.text === "actions = [clear, undo]" && commands[0]?.params.join(",") === "90,274",
+      `header-only list: chunk width ${width} retains the row without CLEAR`);
+    assert(segments.map(segment => segment.narration).join(" ").trim() === "Explain the actions.",
+      `header-only list: chunk width ${width} never speaks coordinates`);
+  }
+}
+
+// An unclosed row must not borrow coordinates from a later tag. A complete
+// canonical row can contain numeric notation, so numeric controls deliberately
+// omit the row's outer closing bracket; semantic controls also exercise a
+// closing suffix because those tags remain explicit body boundaries.
 for (const tag of [
   "[FOCUS:mirror]", "[WRITE:x,90,340]", "[LABEL:A,480,180]",
   "[DRAW_LINE:90,142,1160,600]", "[ARROW,90,142,1160,600]",
   "[FRAME:2]", "[TYPE:90,142,1160,600]",
   "[ARROW,+90,142,1160,600]", "[DRAW_LINE,.5,1e2,1160,600]",
 ]) {
-  const source = `[STEP]Incomplete work. [WRITE:missing ${tag} junk,90,274][/STEP]`;
+  const semantic = /^\[(FOCUS|WRITE|LABEL)[: ,]/.test(tag);
+  const source = `[STEP]Incomplete work. [WRITE:missing ${tag} junk,90,274${semantic ? "]" : ""}[/STEP]`;
   assert(!parseDrawingCommands(source).commands.some(command => command.type === "WRITE" && command.text?.startsWith("missing")),
     `real boundary ${tag}: whole parsing cannot borrow later coordinates`);
   assert(!parseStructuredLessonSteps(source).flatMap(getSegmentCommands).some(command =>
