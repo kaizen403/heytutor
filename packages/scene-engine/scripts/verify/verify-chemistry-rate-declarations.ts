@@ -808,5 +808,59 @@ for(const c of ownerControls)try {
 }catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
 // END ADDITIVE COMPLETE-PAYLOAD AND QUANTITY-REFERENCE OWNER GATES
 
+// BEGIN ADDITIVE NAMED RATE-ALIAS ROLE GATES
+const namedRateAliasCases:RateCase[] = [
+  {
+    "id": "OWN-declared-rate-coefficient-1",
+    "question": "A first order reaction has rate constant = k[A]; its half life is 30 min. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-declared-rate-coefficient-2",
+    "question": "A first order reaction has rate constant is k[A], draw the decay curve. Its half life is 30 min.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-declared-rate-coefficient-3",
+    "question": "The rate constant for a first order reaction is k[A]. Its half life is 30 min. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-declared-rate-numeric-alias-1",
+    "question": "A first order reaction has rate constant: k = 0.0231 min^-1. Draw the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.0231,
+    "unit": "min"
+  },
+  {
+    "id": "OWN-declared-rate-numeric-alias-2",
+    "question": "The rate constant of a first order reaction equals k is 0.0231 min^-1. Draw the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.0231,
+    "unit": "min"
+  },
+  {
+    "id": "OWN-declared-rate-numeric-alias-3",
+    "question": "A first order reaction has rate constant = k = 0.000385 s^-1. Draw the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.000385,
+    "unit": "s"
+  }
+];
+for(const c of namedRateAliasCases)try {
+ const spec=kineticsFromStem(c.question),exact=buildKineticsScene(c.question,[],false),schematic=buildKineticsScene(c.question,[],true),ordinary=synthesizeFamilyScene({question:c.question});
+ if(c.refuse){assert.equal(spec,null);assert.equal(exact,null);assert.equal(schematic,null);assert.equal(ordinary,null);}
+ else {
+  assert.ok(spec);const solved=solveKinetics(spec),truth=expected(c);assert.equal(spec.order,1);assert.equal(solved.timeUnit,c.unit);
+  assert.ok(solved.k!==null&&solved.tHalf!==null);assert.ok(Math.abs(solved.k-truth.k)<=Math.abs(truth.k)*1e-12);assert.ok(Math.abs(solved.tHalf-truth.half)<=Math.abs(truth.half)*1e-12);
+  assert.ok(exact&&schematic&&ordinary);for(const document of [exact,schematic,ordinary.document])checkDocument(c,document);
+ }
+ results.push({id:c.id,passed:true});
+}catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
+// END ADDITIVE NAMED RATE-ALIAS ROLE GATES
+
 const output={schema:"chemistry-rate-declarations-gate/v1",passed:results.filter(x=>x.passed).length,failed:results.filter(x=>!x.passed).length,results};
 console.log(JSON.stringify(output,null,2));assert.equal(output.failed,0);

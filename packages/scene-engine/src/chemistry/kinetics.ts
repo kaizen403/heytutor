@@ -401,7 +401,8 @@ function readRateConstant(stem: string, order: ReactionOrder | null = 1): { valu
     const tail = body.slice(start, end);
     // "The rate constant ... is k = ..." names one value, not two givens.
     if (next && end === next.index && /rate constant/i.test(owner[0])
-      && /^k\b/.test(next[0]) && /^\s*(?:(?:is|was|equals|equal to)|[=:])?\s*$/i.test(tail)) continue;
+      && /^k\b/.test(next[0]) && !/^\s*\[/.test(body.slice(next.index! + next[0].length))
+      && /^\s*(?:(?:is|was|equals|equal to)|[=:])?\s*$/i.test(tail)) continue;
     // Only this owner may supply the already validated complete Arrhenius
     // expression. Other unread k declarations remain independently audited.
     if (equation.ok && /^k\b/.test(owner[0]) && equation.reading.source.span.start >= start
