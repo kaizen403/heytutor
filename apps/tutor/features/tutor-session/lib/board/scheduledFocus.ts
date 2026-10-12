@@ -179,7 +179,7 @@ export async function runScheduledFocus(
   };
   const motionCancelled = () => options.isCancelled() || deadlineExpired();
   const flyTo = async (point: FocusPenPoint, durationMs: number): Promise<void> => {
-    if (durationMs > 0) {
+    if (durationMs > 0 || !deadlineExpired()) {
       await host.flyCursorTo(point.x, point.y, durationMs, undefined, motionCancelled);
     }
   };
@@ -240,8 +240,9 @@ export async function runScheduledFocus(
       const remainingMs = Math.max(0, startMs() - options.getAudioPositionMs());
       const returnMs = boundDuration(focusHopMs(penAt, first, options.flightBudgetMs?.(remainingMs) ?? remainingMs), traceParts + 1);
       if (Math.hypot(penAt.x - first.x, penAt.y - first.y) >= NIB_SETTLE_PX) {
-        // An exhausted lead settles the nib immediately; adding a minimum
-        // hop after the word would delay the explanation a second time.
+        // An exhausted lead settles the nib immediately while this cue still
+        // owns the pen; an expired deadline must never catch up its endpoint.
+        // A minimum hop after the word would delay the explanation again.
         await flyTo(first, returnMs);
         if (options.isCancelled()) return true;
         penAt = first;
