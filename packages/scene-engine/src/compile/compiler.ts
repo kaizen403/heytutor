@@ -2853,7 +2853,12 @@ function clipInfinitePath(start:RenderPoint,next:RenderPoint,directed:boolean,vi
   if(Math.abs(dx)>EPSILON){let t=(left-start.x)/dx;add(t,left,start.y+t*dy);t=(right-start.x)/dx;add(t,right,start.y+t*dy);}
   if(Math.abs(dy)>EPSILON){let t=(top-start.y)/dy;add(t,start.x+t*dx,top);t=(bottom-start.y)/dy;add(t,start.x+t*dx,bottom);}
   const unique=[...new Map(hits.map((hit)=>[`${hit.point.x}:${hit.point.y}`,hit])).values()].sort((a,b)=>a.t-b.t);
-  if(directed){const forward=unique.filter((hit)=>hit.t>EPSILON);return forward.length>0?[start,forward.at(-1)!.point]:[start,next];}
+  // `next` sits a million segment lengths out, so `t` shrinks as the segment
+  // the ray was built from grows. Measure "ahead of the start" in pixels: a
+  // 4.7 unit incident ray put a reflected ray's in-view exit at t < 1e-6, the
+  // exit was dropped, and the ray ran to its far point a hundred million
+  // pixels away.
+  if(directed){const reach=Math.hypot(dx,dy);const forward=unique.filter((hit)=>hit.t*reach>EPSILON);return forward.length>0?[start,forward.at(-1)!.point]:[start,next];}
   return unique.length>=2?[unique[0]!.point,unique.at(-1)!.point]:[start,next];
 }
 

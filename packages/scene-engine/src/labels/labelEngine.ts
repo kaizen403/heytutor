@@ -98,6 +98,8 @@ export interface LabelEngineOptions {
   measureTextPx?: (text: string, fontHeightPx: number) => number;
   /** Actual renderer ink at the top-left run position, including scripts. */
   measureTextInkBounds?: (text: string, x: number, y: number, fontHeightPx: number) => LabelBounds | null;
+  /** Override `LABEL_SEARCH_WORK_BUDGET` for one call. */
+  searchWorkBudget?: number;
 }
 
 export interface LabelEngineResult {
@@ -120,7 +122,34 @@ export interface LabelEngineResult {
     message: string;
     overlappingIds?: string[];
   }>;
+  /** Work units the arrangement search spent; see `LABEL_SEARCH_WORK_BUDGET`. */
+  searchWork: number;
 }
+
+/**
+ * Work units one `placeLabels` call may spend arranging its labels.
+ *
+ * A unit is one pairwise test of a candidate box against a placed label; a
+ * leader routed through the placed labels costs its elbows times the tests
+ * each elbow makes. The search counts units rather than time, so the same
+ * document gets the same answer on any machine. A search that runs out fails
+ * as `label_overlap_unresolved`, as a search that proves no arrangement exists
+ * does.
+ *
+ * Equipotential and LCR candidates with seven to sixteen crowded labels spent
+ * 2.5 to 5.3 minutes of CPU here before failing, on the student's main thread.
+ * The heaviest search that succeeded across 2,522 recorded planner documents
+ * spent 2.03 million units, a quarter of this budget.
+ */
+export const LABEL_SEARCH_WORK_BUDGET = 8_000_000;
+
+interface LabelSearchWork {
+  spent: number;
+  budget: number;
+}
+
+/** Pairs kept in a flat byte table (16 MB) before the memo falls back to a map. */
+const PAIR_MEMO_MAX_CELLS = 1 << 24;
 
 const DEFAULTS = {
   // Matches the 24 px handwritten LABEL renderer used by the board adapter.
@@ -641,16 +670,20 @@ export function placeLabels(
   // surely as overlapping glyphs. Keep that constraint in every solve.
   // Once an owner has no legal glyph slot the whole scene must be rejected.
   // Searching all remaining combinations cannot repair that fixed failure.
+  // Both solves draw on one work budget: once it is spent neither goes on.
+  const work: LabelSearchWork = { spent: 0, budget: options.searchWorkBudget ?? LABEL_SEARCH_WORK_BUDGET };
   const selected = issues.length === 0 && candidatesToSolve.length > 0
-    ? solveLabelPlacements(candidatesToSolve, minGapPx, "straight", solverObstacles)
-      ?? solveLabelPlacements(candidatesToSolve, minGapPx, "routed", solverObstacles)
+    ? solveLabelPlacements(candidatesToSolve, minGapPx, "straight", solverObstacles, work)
+      ?? solveLabelPlacements(candidatesToSolve, minGapPx, "routed", solverObstacles, work)
     : new Map<number, LabelPlacementCandidate>();
   if (!selected && candidatesToSolve.length > 0) {
     const mostConstrained = [...candidatesToSolve].sort(comparePreparedOwners)[0]!;
     issues.push({
       code: "label_overlap_unresolved",
       entityId: mostConstrained.owner.entityId,
-      message: `No globally collision-free label arrangement for ${mostConstrained.owner.entityId}`,
+      message: work.spent >= work.budget
+        ? `No collision-free label arrangement for ${mostConstrained.owner.entityId} within the label search budget`
+        : `No globally collision-free label arrangement for ${mostConstrained.owner.entityId}`,
     });
   }
 
@@ -692,6 +725,7 @@ export function placeLabels(
     ok: issues.length === 0,
     placements,
     issues,
+    searchWork: work.spent,
   };
 }
 
@@ -821,6 +855,7 @@ function solveLabelPlacements(
   minGapPx: number,
   routing: "straight" | "routed",
   obstacles: LabelObstacle[],
+  work: LabelSearchWork,
 ): Map<number, LabelPlacementCandidate> | null {
   const selected = new Map<number, LabelPlacementCandidate>();
   const remaining = new Set(owners.map((owner) => owner.originalIndex));
@@ -828,52 +863,84 @@ function solveLabelPlacements(
   let visited = 0;
   const maxVisited = Math.max(20_000, owners.length * 20_000);
   const fixedLabels = obstacles.filter((obstacle) => obstacle.kind === "label").map((obstacle) => obstacle.bounds);
+  const exhausted = () => work.spent >= work.budget;
 
   const routedSelection = (): Map<number, LabelPlacementCandidate> | null => {
     const routed = new Map<number, LabelPlacementCandidate>();
     for (const [index, candidate] of selected) {
+      if (exhausted()) return null;
       const boxes = [...fixedLabels, ...[...selected].filter(([other]) => other !== index).map(([, placement]) => candidateCollisionBounds(placement))];
       const owner = byIndex.get(index)?.owner;
-      const route = routeLeader(candidate, boxes, owner?.viewBounds, minGapPx,
-        owner?.leaderGeometrySafe ? obstacles.filter((obstacle) => obstacle.kind !== "label") : [],
-        [...routed.values()].flatMap(leaderPoints));
+      const geometry = owner?.leaderGeometrySafe ? obstacles.filter((obstacle) => obstacle.kind !== "label") : [];
+      const otherLeaders = [...routed.values()].flatMap(leaderPoints);
+      work.spent += routeLeaderWork(candidate, boxes, geometry, otherLeaders);
+      const route = routeLeader(candidate, boxes, owner?.viewBounds, minGapPx, geometry, otherLeaders);
       if (!route) return null;
       routed.set(index, route);
     }
     return routed;
   };
 
-  const compatibleCandidates = (owner: PreparedLabelOwner) => owner.validCandidates.filter((candidate) =>
-    [...selected.values()].every((placed) => routing === "routed"
-      ? !boundsOverlap(candidateCollisionBounds(candidate), candidateCollisionBounds(placed), minGapPx)
-      : compatible(candidate, placed, minGapPx)),
-  );
+  // Every candidate gets a number, so a pair's answer can be kept: the search
+  // meets the same two candidates again in branch after branch, and the test
+  // is a pure function of the pair.
+  const pool = owners.flatMap((owner) => owner.validCandidates);
+  let memo: Uint8Array | Map<number, boolean> | null = null;
+  const pairCompatible = (option: number, placed: number): boolean => {
+    work.spent += 1;
+    memo ??= pool.length * pool.length <= PAIR_MEMO_MAX_CELLS ? new Uint8Array(pool.length * pool.length) : new Map();
+    const key = option * pool.length + placed;
+    const known = memo instanceof Map ? memo.get(key) : memo[key] === 0 ? undefined : memo[key] === 1;
+    if (known !== undefined) return known;
+    const candidate = pool[option]!;
+    const other = pool[placed]!;
+    const result = routing === "routed"
+      ? !boundsOverlap(candidateCollisionBounds(candidate), candidateCollisionBounds(other), minGapPx)
+      : compatible(candidate, other, minGapPx);
+    if (memo instanceof Map) memo.set(key, result);
+    else memo[key] = result ? 1 : 2;
+    return result;
+  };
 
-  const search = (): boolean => {
+  // `domains` holds, for each unplaced owner, its candidates that stand with
+  // every placed label, in candidate order. Placing a label narrows each
+  // domain by that one label instead of retesting every candidate against
+  // every placed label, which reaches the same domains in the same order.
+  const search = (domains: Map<number, number[]>): boolean => {
     if (remaining.size === 0) return true;
-    if (visited >= maxVisited) return false;
+    if (visited >= maxVisited || exhausted()) return false;
 
     const next = [...remaining]
-      .map((index) => {
-        const owner = byIndex.get(index)!;
-        return { owner, compatible: compatibleCandidates(owner) };
-      })
+      .map((index) => ({ owner: byIndex.get(index)!, compatible: domains.get(index)! }))
       .sort((a, b) => a.compatible.length - b.compatible.length || comparePreparedOwners(a.owner, b.owner))[0]!;
     if (next.compatible.length === 0) return false;
 
     remaining.delete(next.owner.originalIndex);
-    for (const candidate of next.compatible) {
+    for (const placed of next.compatible) {
       visited += 1;
-      selected.set(next.owner.originalIndex, candidate);
-      if ((routing === "straight" || routedSelection()) && search()) return true;
+      selected.set(next.owner.originalIndex, pool[placed]!);
+      if (routing === "straight" || routedSelection()) {
+        const narrowed = new Map<number, number[]>();
+        for (const index of remaining) {
+          narrowed.set(index, domains.get(index)!.filter((option) => pairCompatible(option, placed)));
+        }
+        if (search(narrowed)) return true;
+      }
       selected.delete(next.owner.originalIndex);
-      if (visited >= maxVisited) break;
+      if (visited >= maxVisited || exhausted()) break;
     }
     remaining.add(next.owner.originalIndex);
     return false;
   };
 
-  return search() ? (routing === "routed" ? routedSelection() : selected) : null;
+  if (exhausted()) return null;
+  let nextId = 0;
+  const domains = new Map(owners.map((owner) => {
+    const ids = owner.validCandidates.map((_, offset) => nextId + offset);
+    nextId += owner.validCandidates.length;
+    return [owner.originalIndex, ids];
+  }));
+  return search(domains) ? (routing === "routed" ? routedSelection() : selected) : null;
 }
 
 /**
@@ -948,6 +1015,29 @@ function leaderCrosses(candidate: LabelPlacementCandidate, bounds: LabelBounds, 
     height: bounds.height + gap * 2,
   };
   return path.slice(1).some((point, index) => segmentIntersectsBounds(path[index]!, point, expanded));
+}
+
+/**
+ * Work units for one `routeLeader` call: every elbow it tries, times the
+ * boxes, strokes and leaders it tests that elbow against. A label without a
+ * leader returns at once and costs one unit.
+ */
+function routeLeaderWork(
+  candidate: LabelPlacementCandidate,
+  obstacles: LabelBounds[],
+  geometry: LabelObstacle[],
+  otherLeaders: RenderPoint[][],
+): number {
+  if (!candidate.leaderFrom || !candidate.leaderTo) return 1;
+  let strokes = 0;
+  let stroked = 0;
+  for (const obstacle of geometry) {
+    if (!obstacle.segments?.length) continue;
+    strokes += obstacle.segments.length;
+    stroked += 1;
+  }
+  const routes = 3 + 4 * (obstacles.length + stroked + otherLeaders.length);
+  return routes * (2 + obstacles.length + strokes + otherLeaders.length);
 }
 
 /** A small deterministic set of elbows around reserved text; no arbitrary pixels. */
