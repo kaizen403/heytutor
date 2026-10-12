@@ -4289,8 +4289,9 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
     // segment/ray provided the construction says so, so the approximation is
     // declared on the construction where this validator can see it rather than
     // hidden by wording the role around the check.
+    // principal_rays traces its rays from the Gaussian model, so they are paraxial by construction.
     const producer = constructionByOutput.get(entity.id);
-    const paraxialConstruction = (producer?.operator === "segment" || producer?.operator === "ray")
+    const paraxialConstruction = producer?.operator === "principal_rays" || (producer?.operator === "segment" || producer?.operator === "ray")
       && isRecord(producer.inputs)
       && producer.inputs.approximation === "paraxial";
     const derivedOperatorAccepted = paraxialConstruction

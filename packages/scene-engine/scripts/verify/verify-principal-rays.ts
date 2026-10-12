@@ -13,6 +13,9 @@
  * [r1, r2, ib] fails. R4: in the compiled scene only extensions and guides are dashed.
  * R5: three source mutants (focal hit at h, mirror sigma +1, extension not dashed) each turn R1
  * or R4 red, and each first proves its replacement changed the text.
+ * R6: a traced ray is paraxial by construction, so a planner role such as "refracted ray
+ * through F2" or "reflected ray" on a principal_rays output validates; the same role on a
+ * free segment without a declared paraxial approximation still fails.
  */
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -272,6 +275,22 @@ function dashFailures(module: RaysModule | null): string[] {
 for (const message of dashFailures(null)) check("R4", false, message);
 check("R4", true, "");
 
+// ---- R6: refracted and reflected roles on traced rays ----
+for (const [test, roles] of [[convexReal, ["refracted ray through F2", "undeviated ray through the optical centre"]], [mirrorReal, ["reflected ray through F", "reflected ray at the pole"]]] as const) {
+  const document = doc(test);
+  document.entities = document.entities.map((entity) => (entity.id === "r1" ? { ...entity, role: roles[0] } : entity.id === "r2" ? { ...entity, role: roles[1] } : entity));
+  const { codes, compiled } = fatalCodes(document);
+  check("R6", compiled.ok && codes.length === 0, `${test.name}: roles ${roles.join(", ")} on traced rays must validate; got ${codes.join(", ")}`);
+}
+{
+  const document = doc(convexReal);
+  document.constructions.push({ id: "c-free", operator: "segment", inputs: { start: "O", end: "it" }, outputs: ["free"] });
+  document.entities.push({ id: "free", kind: "segment", role: "refracted ray" });
+  document.requiredEntityIds.push("free"); document.revealGroups[0]!.entityIds.push("free");
+  const { codes } = fatalCodes(document);
+  check("R6", codes.includes("derived_role_operator_mismatch"), `a free refracted segment must still fail; got ${codes.join(", ") || "nothing"}`);
+}
+
 // ---- R5: source mutants ----
 const source = readFileSync(SOURCE, "utf8");
 for (const [name, from, to, gate] of [
@@ -291,7 +310,7 @@ for (const [name, from, to, gate] of [
   } finally { rmSync(file, { force: true }); }
 }
 
-for (const gate of ["R1", "R2", "R3", "R4", "R5"]) console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
+for (const gate of ["R1", "R2", "R3", "R4", "R5", "R6"]) console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 if (failures.length) {
   for (const failure of failures.slice(0, 40)) console.error(`  ${failure}`);
   process.exit(1);
