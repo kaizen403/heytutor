@@ -484,8 +484,8 @@ const EXEMPLAR_PLANS: Record<string, { givens: PlanRow[]; derived: PlanRow[]; la
     derived: [["v", 42], ["h_i", 12]], law: "mirror_formula",
   },
   "physics/reflection-and-spherical-mirrors--2": {
-    givens: [["R", 52, "radius of curvature of 52 cm"], ["h", 13, "13 cm tall"], ["u", 39, "39 cm in front"]],
-    derived: [["f", 26], ["v", 15.6], ["h_i", 5.2]], law: "mirror_formula",
+    givens: [["R", 66, "radius of curvature of 66 cm"], ["h", 20, "20 cm tall"], ["u", 22, "22 cm in front"]],
+    derived: [["f", 33], ["v", 13.2], ["h_i", 12]], law: "mirror_formula",
   },
   "physics/thin-lens-rays--2": {
     givens: [["h", 7, "7 cm tall"], ["u", 24, "24 cm from"], ["f", 16, "focal length 16 cm"]],
