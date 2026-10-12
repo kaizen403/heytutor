@@ -498,6 +498,20 @@ function buildProfile(question: string, spec: ProfileSpec): SceneDocument {
 
 type GibbsTemperature = { kind: "absent" } | { kind: "given"; value: number } | { kind: "invalid" };
 
+/** Requested thresholds and formula/axis operands do not supply an evaluation point. */
+function gibbsTemperatureReference(body: string, start: number, end: number): boolean {
+  const before = body.slice(0, start);
+  const tail = body.slice(end);
+  if (/\b(?:what|which|all|any|every)\s+(?:absolute\s+)?$/i.test(before)) return true;
+  if (/^\s*(?:[=:]|[+−-]?(?:\d|\.\d))/i.test(tail)) return false;
+  if (/[Δδ∆]\s*G\s*\(\s*$/i.test(before) && /^\s*\)/.test(tail)) return true;
+  const referenceTail = /^\s*(?:[Δδ∆]\s*S\b|\(\s*K\s*\)|[+−*/×·),.;!?]|$|\b(?:and|to|versus|vs|against|at|as|in|above|below|where|of)\b)/i.test(tail);
+  if (!referenceTail) return false;
+  if (/\b(?:versus|vs|against|with|on)\s*$/i.test(before)) return true;
+  const prefix = before.split(/[;.!?\n]/).at(-1)!;
+  if (/(?:[Δδ∆]\s*G(?:\s*\(\s*T\s*\))?|\bT(?:_[a-z]+)?)\s*=\s*[Δδ∆HhSsTt0-9\s*×·/()+−-]*$/i.test(prefix)) return true;
+  return /\b(?:show|find|calculate|determine|compute|mark)\s+(?:(?:the|an?|equilibrium|transition|minimum|threshold|crossover|absolute)\s+)*$/i.test(prefix);
+}
 /** Agreeing absolute readings corroborate one point; an unread owner is not absence. */
 function statedKelvin(question: string): GibbsTemperature {
   const body = question.slice(0, chemistryQuestionSpan(question).end);
@@ -507,14 +521,15 @@ function statedKelvin(question: string): GibbsTemperature {
   if (inventory.reading.some(reading => !(reading.value > 0)
     || !chemistryCanonicalValuesAgree(reading.value, value!))) return {kind: "invalid"};
   const owners = [
-    /\btemperature(?=\s*(?:[=:]|\b(?:is|was|equals|of|for|remains|stays|becomes|unknown|unreadable|which|that|has|reads)\b|[+−-]?(?:\d|\.\d)))/gi,
-    /\bT(?=\s*(?:[=:]|\b(?:is|was|equals|remains|stays|unknown|unreadable|which|that)\b))/gi,
+    /\btemperatures?\b/gi,
+    /\bT\b/g,
     /\bat\b(?!\s+(?:what|which|all|any|every)\b)(?=\s*(?:[+−-]?(?:\d|\.\d)|\b(?:unknown|unreadable|unspecified)\b|[^;,.?!\n]{0,36}(?:\bK\b|\bkelvin\b|°\s*C\b|\btemperature\b)))/gi,
     /\b(?:calculate|compute|determine|find)\s+(?:(?:the|value\s+of)\s+)*(?:[Δδ∆]\s*G\b|Gibbs\s+(?:free\s+)?energy\b|free\s+energy\b)[^.;?!\n]{0,80}?\bat\b/gi,
   ];
   const payloads = new Map<number, number>();
   for (const owner of owners) for (const match of body.matchAll(owner)) {
-    if (/\b(?:what|which)\s+(?:absolute\s+)?$/i.test(body.slice(0, match.index!))) continue;
+    if (match[0] === "T" && /[Δδ∆]\s*$/.test(body.slice(0, match.index!))) return {kind: "invalid"};
+    if (gibbsTemperatureReference(body, match.index!, match.index! + match[0].length)) continue;
     if (/\bat$/i.test(match[0]) && /^\s+(?:(?:a|the)\s+)?(?:absolute\s+)?temperature\b/i.test(body.slice(match.index! + match[0].length))) continue;
     const start = match.index! + match[0].length;
     payloads.set(start, Math.min(payloads.get(start) ?? match.index!, match.index!));
@@ -535,10 +550,10 @@ function statedKelvin(question: string): GibbsTemperature {
 function gibbsEnergyReference(body: string, start: number, end: number): boolean {
   const tail = body.slice(end);
   if (/^\s*(?:[=:]|[+−-]?(?:\d|\.\d)|\b(?:is|was|equals|of|for|remains|stays|unknown|unreadable|unspecified|which|that)\b)/i.test(tail)) return false;
-  if (!/^\s*(?:[+−*/×·)-]|-(?!\s*\d)|[,.;?!]|$|\b(?:and|to|versus|vs|against|at|as|in)\b)/i.test(tail)) return false;
+  if (!/^\s*(?:[+−*/×·)-]|-(?!\s*\d)|[,.;?!]|$|\btogether\s+with\b|\b(?:and|to|versus|vs|against|at|as|in)\b)/i.test(tail)) return false;
   const prefix = body.slice(0, start).split(/[;.!?\n]/).at(-1)!;
   if (/(?:[Δδ∆]\s*G(?:\s*\(\s*T\s*\))?|\bT(?:_[a-z]+)?)\s*=\s*[Δδ∆HhSsTt0-9\s*×·/()+−-]*$/i.test(prefix)) return true;
-  return /\b(?:use|using|from|with)\s+(?:(?:the|given)\s+)?(?:[Δδ∆HhSsTt0-9\s*×·/()+−-]|\band\b|,|enthalpy\s+change|entropy\s+change)*$/i.test(prefix);
+  return /\b(?:use|using|from|with)\s+(?:(?:the|given|known|stated|observed|provided|measured|listed)\s+)*(?:[Δδ∆HhSsTt0-9\s*×·/()+−-]|\band\b|,|enthalpy\s+change|entropy\s+change)*$/i.test(prefix);
 }
 type GibbsEnergies = {enthalpy: Energy; entropy: {value: number; unit: "J"; dimension: ChemistryDimension}};
 

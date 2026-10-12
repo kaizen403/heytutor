@@ -734,6 +734,123 @@ const cases: readonly {id:string; question:string; expected:string; dG:number|nu
     "question": "At a temperature of unknown K; at 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and calculate ΔG.",
     "expected": "decline",
     "dG": null
+  },
+  {
+    "id": "QA-TEMP-UNREAD-1",
+    "question": "The temperature cannot be read; at 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "QA-TEMP-UNREAD-2",
+    "question": "The temperature not readable; at 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "QA-TEMP-UNREAD-3",
+    "question": "The temperature may be unknown; at 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "QA-TEMP-UNREAD-4",
+    "question": "T cannot be read; at 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "QA-TEMP-UNREAD-5",
+    "question": "The temperature is unavailable; at 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "QA-ENERGY-REFERENCE-1",
+    "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Use the known ΔH and ΔS to calculate ΔG and draw ΔG versus T.",
+    "expected": "required-compile",
+    "dG": -10.2,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "QA-ENERGY-REFERENCE-2",
+    "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Use the stated ΔH and ΔS to calculate ΔG and draw ΔG versus T.",
+    "expected": "required-compile",
+    "dG": -10.2,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "QA-ENERGY-REFERENCE-3",
+    "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Use the observed ΔH and ΔS to calculate ΔG and draw ΔG versus T.",
+    "expected": "required-compile",
+    "dG": -10.2,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "QA-ENERGY-REFERENCE-4",
+    "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Use ΔH together with ΔS to calculate ΔG and draw ΔG versus T.",
+    "expected": "required-compile",
+    "dG": -10.2,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "OWN-OPAQUE-TEMP-1",
+    "question": "The temperatures could not be measured; at 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-OPAQUE-TEMP-2",
+    "question": "The temperature has an unspecified value; at 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-OPAQUE-TEMP-3",
+    "question": "T not readable; at 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-TEMPERATURE-CHANGE",
+    "question": "ΔT = 10 K. ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-AXIS-UNIT-REFERENCE",
+    "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG against T (K) and calculate ΔG at 298 K.",
+    "expected": "required-compile",
+    "dG": -10.2
+  },
+  {
+    "id": "OWN-GIBBS-FUNCTION-REFERENCE",
+    "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG(T) = ΔH - TΔS versus T and calculate ΔG at 298 K.",
+    "expected": "required-compile",
+    "dG": -10.2
+  },
+  {
+    "id": "OWN-TEMPERATURE-AXIS",
+    "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG against temperature and mark the equilibrium temperature.",
+    "expected": "graph-only",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENERGY-PROVIDED-REFERENCE",
+    "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Use the provided ΔH and ΔS to calculate ΔG and draw ΔG versus T.",
+    "expected": "required-compile",
+    "dG": -10.2
+  },
+  {
+    "id": "OWN-REQUESTED-T-REFERENCE",
+    "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Find the equilibrium T and draw ΔG versus T.",
+    "expected": "graph-only",
+    "dG": null
   }
 ];
 const results: {id:string;passed:boolean;error?:string}[] = [];
