@@ -716,6 +716,7 @@ function evaluateExplicitArithmetic(
   let signConflict = false;
   let mixedUnits = false;
   for (const clause of splitArithmeticClauses(readableSource)) {
+    const priorAmbiguity = unitContext.ambiguous;
     const equalityParts = splitEqualityParts(clause);
     if (equalityParts.length < 2) continue;
     const clauseTargetKeys = expandDescriptiveAssignmentTargets(equalityParts, targetKeys);
@@ -871,6 +872,13 @@ function evaluateExplicitArithmetic(
       // contains a solvable assignment for that quantity. Incidental
       // equalities such as "with n_air=1" are useful context, but are not
       // evidence for an unrelated target such as theta_r.
+      if (!clauseMentionsTarget(equalityParts, clauseTargetKeys) &&
+        anonymousChainAnchor(equalityParts, expectedUnit, declaredAnchor) === null) {
+        // Failed speculative reading of an incidental, unattributed sentence
+        // cannot invalidate a different quantity already computed above.
+        // Attributed unsupported arithmetic keeps its fail-closed poison.
+        unitContext.ambiguous = priorAmbiguity;
+      }
       continue;
     }
     const expressionCandidates = equalityParts.slice(
@@ -997,26 +1005,12 @@ function evaluateAnchoredAnonymousChain(
   | { kind: "value"; value: number; stated: { value: number; tolerance: number } }
   | { kind: "inconsistent_units" | "no_reading" | "mixed_units" }
   | null {
-  if (!declaredAnchor || equalityParts.length < 3) return null;
+  const stated = anonymousChainAnchor(equalityParts, expectedUnit, declaredAnchor);
+  if (!stated) return null;
   const finalIndex = equalityParts.length - 1;
-  const final = parseMeasuredPart(equalityParts[finalIndex] ?? "");
-  if (!final) return null;
-  const finalUnit = final.unit ?? expectedUnit;
-  const finalValue = convertMeasuredValue(final.value, finalUnit, expectedUnit);
-  const finalTolerance = convertMeasuredValue(final.tolerance, finalUnit, expectedUnit);
-  if (finalValue === null || finalTolerance === null) return null;
-  const stated = { value: finalValue, tolerance: Math.abs(finalTolerance) };
-  if (!withinDisplayedPrecision(declaredAnchor.value, stated)) {
-    // Rounded metadata (3.162 versus 3.16227766) may identify an anonymous
-    // chain, but a one-figure declaration such as 6 is too coarse to attach
-    // incidental nearby calculations to this target. Named assignments are
-    // still independently checked/reconciled without this attribution guess.
-    const significantFigures = String(declaredAnchor.value).split(/[eE]/)[0]!
-      .replace(/^[+-]/, "").replace(".", "").replace(/^0+/, "").length;
-    if (significantFigures < 2 || Math.abs(declaredAnchor.value - stated.value) > declaredAnchor.tolerance + stated.tolerance +
-      Math.max(Math.abs(declaredAnchor.value), Math.abs(stated.value)) * 1e-12) return null;
-  }
-  for (let index = 1; index < finalIndex; index += 1) {
+  // "Evaluate I: 12 V / 6 ohm = 2 A" has two members after its prose
+  // prefix is removed. Its first member is still computed arithmetic.
+  for (let index = equalityParts.length === 2 ? 0 : 1; index < finalIndex; index += 1) {
     const part = equalityParts[index] ?? "";
     if (isMeasuredArithmeticPart(part, knownUnits, numericBindings)) continue;
     const bindingKeys = new Set<string>();
@@ -1028,6 +1022,7 @@ function evaluateAnchoredAnonymousChain(
       bindingKeys,
     );
     if (!expression) continue;
+    if (index === 0 && !/[+\-*/^]|\b(?:sqrt|sin|cos|tan|abs|exp|log|ln)\(/.test(expression)) continue;
     try {
       const value = evaluateMathExpression(expression, 0);
       if (!Number.isFinite(value)) continue;
@@ -1049,13 +1044,41 @@ function evaluateAnchoredAnonymousChain(
   return null;
 }
 
+/** Attribution only, before any unit/symbol normalization can flag ambiguity. */
+function anonymousChainAnchor(
+  equalityParts: string[],
+  expectedUnit: unknown,
+  declaredAnchor: { value: number; tolerance: number } | null,
+): { value: number; tolerance: number } | null {
+  if (!declaredAnchor || equalityParts.length < 2) return null;
+  const finalIndex = equalityParts.length - 1;
+  const final = parseMeasuredPart(equalityParts[finalIndex] ?? "");
+  if (!final) return null;
+  const finalUnit = final.unit ?? expectedUnit;
+  const finalValue = convertMeasuredValue(final.value, finalUnit, expectedUnit);
+  const finalTolerance = convertMeasuredValue(final.tolerance, finalUnit, expectedUnit);
+  if (finalValue === null || finalTolerance === null) return null;
+  const stated = { value: finalValue, tolerance: Math.abs(finalTolerance) };
+  if (!withinDisplayedPrecision(declaredAnchor.value, stated)) {
+    // Rounded metadata (3.162 versus 3.16227766) may identify an anonymous
+    // chain, but a one-figure declaration such as 6 is too coarse to attach
+    // incidental nearby calculations to this target. Named assignments are
+    // still independently checked/reconciled without this attribution guess.
+    const significantFigures = String(declaredAnchor.value).split(/[eE]/)[0]!
+      .replace(/^[+-]/, "").replace(".", "").replace(/^0+/, "").length;
+    if (significantFigures < 2 || Math.abs(declaredAnchor.value - stated.value) > declaredAnchor.tolerance + stated.tolerance +
+      Math.max(Math.abs(declaredAnchor.value), Math.abs(stated.value)) * 1e-12) return null;
+  }
+  return stated;
+}
+
 /**
  * Clauses are separate statements. Implication arrows separate derivation
  * steps ("2(x-30)=x => x=60"); they are never an "=" sign.
  */
 function splitArithmeticClauses(sourceText: string): string[] {
   return sourceText
-    .split(/[;\n]+|==>|=>|⇒|⟹|⟶|→|->|\bimplies\b/)
+    .split(/[;\n]+|\.(?=\s+[A-Za-zΑ-Ωα-ω])|==>|=>|⇒|⟹|⟶|→|->|\bimplies\b/)
     .map((clause) => clause.trim())
     .filter(Boolean);
 }
@@ -1892,7 +1915,7 @@ function stipulatedTrigValue(
 }
 
 // "cosθ" written glued is one token, as it always was; "cos θ" is cos(θ).
-const TRIG_FUNCTION = /(?<![A-Za-z0-9_])(sin|cos|tan)(?![A-Za-z0-9Α-Ωα-ω_])\s*/giu;
+const TRIG_FUNCTION = /(?<![A-Za-z0-9_])(sin|cos|tan)(?![A-Za-z0-9Α-Ωα-ω_])\s*(?:\^\s*([2-9])\s*)?/giu;
 
 /** sin⁻¹ x, sin^-1 x and sin^(-1) x are asin x. */
 function normalizeInverseTrigNotation(source: string): string {
@@ -1944,10 +1967,14 @@ function mapTrigArguments(
     if (argument === null) continue;
     const name = match[1]!.toLowerCase() as "sin" | "cos" | "tan";
     const inner = mapTrigArguments(argument, rewrite);
-    const original = inner === argument
+    const power = match[2];
+    const original = inner === argument && !power
       ? expression.slice(start, argumentStart + consumed)
       : `${name}(${inner})`;
-    output += `${expression.slice(cursor, start)}${rewrite(name, inner, original)}`;
+    const rewritten = rewrite(name, inner, original);
+    // Textbook sin^2(theta) squares the function value, not its argument.
+    // Inverse notation is normalized separately before this bounded rewrite.
+    output += `${expression.slice(cursor, start)}${power ? `(${rewritten})^${power}` : rewritten}`;
     cursor = argumentStart + consumed;
   }
   return output + expression.slice(cursor);
@@ -2264,7 +2291,7 @@ function resolveOperatorUnitReading(
     do { name = `MeasuredUnitDimension${markerIndex++}`; } while (expression.includes(name) || bindings.has(name));
     dimensions.set(name, value); return name;
   };
-  const measurement = labelDimensions ? `${coefficient} ${marker(labelDimensions)}` : null;
+  const measurement = labelDimensions ? `(${coefficient} ${marker(labelDimensions)})` : null;
   const infer = (source: string) => {
     const used = new Map<string, readonly number[]>();
     for (const token of source.match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? []) {
@@ -2296,7 +2323,8 @@ function resolveOperatorUnitReading(
       if (!value) continue;
       const name = marker(value);
       const flags = /^[A-Za-z]+$/.test(label) && label.length > 1 ? "gi" : "g";
-      source = source.replace(new RegExp(`(?<![A-Za-zΑ-Ωα-ω0-9_.])(${NUMBER_SOURCE})\\s*${escapeRegExp(label)}(?=\\s|\\)|\\]|$|[*/+\\-^])`, flags), `$1 ${name}`)
+      // A measured denominator is one operand: V/(6 ohm), not (V/6)*ohm.
+      source = source.replace(new RegExp(`(?<![A-Za-zΑ-Ωα-ω0-9_.])(${NUMBER_SOURCE})\\s*${escapeRegExp(label)}(?=\\s|\\)|\\]|$|[*/+\\-^])`, flags), `($1 ${name})`)
         .replace(new RegExp(`(?<=\\))\\s*${escapeRegExp(label)}(?=\\s|\\)|\\]|$|[*/+\\-^])`, flags), ` ${name}`);
     }
     return source;
@@ -2685,10 +2713,16 @@ function collectPlanUnits(plan: Record<string, unknown>): string[] {
   // excluding A globally made a real ampere operand multiply by area A.
   const units = quantities.flatMap((quantity) =>
     isRecord(quantity) && typeof quantity.unit === "string"
-      ? unitAliases(quantity.unit)
+      ? [...unitAliases(quantity.unit), ...coherentAtomicUnitAliases(quantity.unit)]
       : [],
   );
   return [...new Set(units)].sort((first, second) => second.length - first.length);
+}
+
+/** Supplied g, microfarads or mA may be worked in coherent kg, F or A. */
+function coherentAtomicUnitAliases(unit: string): string[] {
+  const atomic = unitScale(unit)?.signature.match(/^([^·^]+)\^1$/)?.[1];
+  return atomic ? unitAliases(atomic) : [];
 }
 
 function unitAliases(unit: string): string[] {

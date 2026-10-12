@@ -104,6 +104,144 @@ for (const input of reviewUnitProducts) checkPhysicalArithmetic(input);
 // Ten separately authored physical/expression cases. Each has a literal
 // worked truth and a self-consistent arithmetic slip that drops a binding.
 const given = (id: string, symbol: string, value: number, unit: string): TurnPlanV3["givens"][number] => ({ id, symbol, value, unit, provenance: "given" });
+// #160 re-review: textbook measured substitutions must remain readable when
+// their labels collide with symbols or use a different scale from the givens.
+// These questions and circuit fixtures are independently authored here.
+const conversionRegressions: Array<{ name: string; question: string; givens: TurnPlanV3["givens"]; unit: string; truth: number; expression: string; rightResult: string; wrongValue: number; wrongResult: string }> = [
+  { name: "textbook measured Ohm current", question: "An ohmic component has V = 12 V across R = 6 Ω. Calculate the current in amperes.",
+    givens: [given("voltage", "V", 12, "V"), given("resistance", "R", 6, "Ω")], unit: "A", truth: 2,
+    expression: "12 V / 6 Ω", rightResult: "2 A", wrongValue: 24, wrongResult: "24 A" },
+  { name: "gram given with kilogram working", question: "Raise a 500 g parcel through h = 3 m in gravity g = 9.8 m/s^2. Find the gravitational energy gained in joules.",
+    givens: [given("mass", "m", 500, "g"), given("gravity", "g", 9.8, "m/s^2"), given("height", "h", 3, "m")], unit: "J", truth: 14.7,
+    expression: "0.5 kg * 9.8 m/s^2 * 3 m", rightResult: "14.7 J", wrongValue: 14700, wrongResult: "14700 J" },
+  { name: "microfarad given with farad charge working", question: "A capacitor C = 4 μF is held at V = 6 V. Calculate its charge in microcoulombs.",
+    givens: [given("capacitance", "C", 4, "μF"), given("voltage", "V", 6, "V")], unit: "μC", truth: 24,
+    expression: "4e-6 F * 6 V", rightResult: "2.4e-5 C = 24 μC", wrongValue: 2.4, wrongResult: "2.4e-6 C = 2.4 μC" },
+  { name: "microfarad given with farad energy working", question: "A capacitor C = 2 μF has potential difference V = 100 V. Find its stored energy in joules.",
+    givens: [given("capacitance", "C", 2, "μF"), given("voltage", "V", 100, "V")], unit: "J", truth: 0.01,
+    expression: "0.5 * 2e-6 F * (100 V)^2", rightResult: "0.01 J", wrongValue: 10000, wrongResult: "10000 J" },
+  { name: "projectile gravity symbol with gram mass supplied", question: "A 50 g object starts at u = 20 m/s at angle θ = 30 degrees. With g = 10 m/s^2, find its maximum height above the launch point.",
+    givens: [given("mass", "m", 50, "g"), given("speed", "u", 20, "m/s"), given("angle", "θ", 30, "deg"), given("gravity", "g", 10, "m/s^2")], unit: "m", truth: 5,
+    expression: "u^2 sin^2(θ)/(2 g)", rightResult: "5 m", wrongValue: 50, wrongResult: "50 m" },
+];
+for (const entry of conversionRegressions) {
+  for (const [value, valid, result] of [[entry.truth, true, entry.rightResult], [entry.wrongValue, false, entry.wrongResult]] as const) {
+    checkPhysicalArithmetic({ name: `re-review ${entry.name}/${valid ? "right" : "wrong"}`, valid, truth: entry.truth,
+      input: physicalPlan(entry.question, entry.givens, `X = ${entry.expression} = ${result}`, value, entry.unit) });
+  }
+}
+// Coherent-unit givens and an unused-mass-free projectile are paired controls:
+// the same literal working must not acquire or lose authority from metadata.
+const coherentConversionControls = conversionRegressions.map(entry => ({ ...entry, givens: structuredClone(entry.givens), name: `coherent control ${entry.name}` }));
+coherentConversionControls[0]!.givens[0]!.symbol = "U";
+coherentConversionControls[0]!.question = "An ohmic component has U = 12 V across R = 6 Ω. Calculate the current in amperes.";
+coherentConversionControls[1]!.givens[0] = given("mass", "m", 0.5, "kg");
+coherentConversionControls[1]!.question = "Raise a 0.5 kg parcel through h = 3 m in gravity g = 9.8 m/s^2. Find the gravitational energy gained in joules.";
+coherentConversionControls[2]!.givens[0] = given("capacitance", "C", 4e-6, "F");
+coherentConversionControls[2]!.question = "A capacitor C = 4e-6 F is held at V = 6 V. Calculate its charge in microcoulombs.";
+coherentConversionControls[3]!.givens[0] = given("capacitance", "C", 2e-6, "F");
+coherentConversionControls[3]!.question = "A capacitor C = 2e-6 F has potential difference V = 100 V. Find its stored energy in joules.";
+coherentConversionControls[4]!.givens = coherentConversionControls[4]!.givens.filter(quantity => quantity.id !== "mass");
+coherentConversionControls[4]!.question = "An object starts at u = 20 m/s at angle θ = 30 degrees. With g = 10 m/s^2, find its maximum height above the launch point.";
+coherentConversionControls[4]!.expression = "u^2 (sin(θ))^2/(2 g)";
+for (const entry of coherentConversionControls) {
+  for (const [value, valid, result] of [[entry.truth, true, entry.rightResult], [entry.wrongValue, false, entry.wrongResult]] as const) {
+    checkPhysicalArithmetic({ name: `re-review ${entry.name}/${valid ? "right" : "wrong"}`, valid, truth: entry.truth,
+      input: physicalPlan(entry.question, entry.givens, `X = ${entry.expression} = ${result}`, value, entry.unit) });
+  }
+}
+for (const entry of [
+  { name: "explicit voltage symbol product", base: conversionRegressions[0]!, expression: "2 * V / R", truth: 4, wrong: 2 },
+  { name: "explicit capacitance symbol product", base: conversionRegressions[2]!, expression: "2 * C * V", truth: 48, wrong: 12 },
+  { name: "explicit gravity symbol denominator", base: conversionRegressions[4]!, expression: "u^2 (sin(θ))^2/(2 * g)", truth: 5, wrong: 50 },
+]) {
+  for (const [value, valid] of [[entry.truth, true], [entry.wrong, false]] as const) {
+    checkPhysicalArithmetic({ name: `re-review ${entry.name}/${valid ? "right" : "wrong"}`, valid, truth: entry.truth,
+      input: physicalPlan(entry.base.question, entry.base.givens, `X = ${entry.expression} = ${value} ${entry.base.unit}`, value, entry.base.unit) });
+  }
+}
+// Three complete public series plans exercise the recorded regression shapes:
+// explanatory arithmetic with two prose prefixes and a voltage-drop equality.
+for (const style of ["calculation", "explanatory", "voltage-sum"] as const) {
+  for (const [current, valid] of [[2, true], [24, false]] as const) {
+    const question = "A 12 V source drives two series resistors R_a = 2 Ω and R_b = 4 Ω. Find the current and both voltage drops, and show their sum.";
+    const source = (symbol: string, expression: string, result: string) => style === "calculation"
+      ? `Evaluate ${symbol}: ${expression} = ${result}.` : `Calculate ${symbol}: ${expression} = ${result}.`;
+    const input: TurnPlanV3 = { schemaVersion: "turn-plan/v3", question, visualRequirement: "required",
+      givens: [given("supply", "V", 12, "V"), given("first", "R_a", 2, "Ω"), given("second", "R_b", 4, "Ω")],
+      unknowns: [{ id: "current", symbol: "I", unit: "A" }, { id: "first_drop", symbol: "V_a", unit: "V" }, { id: "second_drop", symbol: "V_b", unit: "V" }],
+      derived: [
+        { id: "total", symbol: "R_total", value: 6, unit: "Ω", provenance: "derived", dependsOn: ["first", "second"], sourceText: source("R_total", "2 Ω + 4 Ω", "6 Ω") },
+        { id: "current", symbol: "I", value: current, unit: "A", provenance: "derived", dependsOn: ["supply", "total"], sourceText: source("I", "12 V / 6 Ω", `${current} A`) },
+        { id: "first_drop", symbol: "V_a", value: 4, unit: "V", provenance: "derived", dependsOn: ["current", "first"], sourceText: source("V_a", "2 A * 2 Ω", "4 V") },
+        { id: "second_drop", symbol: "V_b", value: 8, unit: "V", provenance: "derived", dependsOn: ["current", "second"], sourceText: source("V_b", "2 A * 4 Ω", "8 V") + (style === "voltage-sum" ? " The source check is 4 V + 8 V = 12 V." : "") },
+      ], qualitativeClaims: [], lawIds: ["x"], assumptions: [] };
+    const original = JSON.stringify(input);
+    const raw = validateTurnPlanV3(input, question);
+    check(`re-review complete series/${style}/${current}: raw ${valid ? "accepts" : "rejects"}`, raw.valid === valid);
+    const reconciled = reconcileTurnPlanV3ExplicitArithmetic(input);
+    const actualCurrent = reconciled.plan.derived.find(quantity => quantity.id === "current")?.value;
+    check(`re-review complete series/${style}/${current}: current is never replaced by a third value`, actualCurrent === current || actualCurrent === 2);
+    if (valid) {
+      check(`re-review complete series/${style}: correct quantities are not rewritten`, reconciled.reconciliations.length === 0);
+      check(`re-review complete series/${style}: correct plan survives reconciliation`, validateTurnPlanV3(reconciled.plan, question).valid);
+    } else {
+      check(`re-review complete series/${style}: wrong current never gains authority`, !validateTurnPlanV3(reconciled.plan, question).valid || actualCurrent === 2);
+    }
+    check(`re-review complete series/${style}/${current}: input is not mutated`, JSON.stringify(input) === original);
+  }
+}
+// Independent post-fix probes cover the reusable alias/trig paths and the
+// sentence-attribution boundary exercised by the voltage-sum circuit fixture.
+for (const entry of [
+  { name: "milliampere given with ampere power working", question: "An element carries I = 5 mA at V = 12 V. Compute its power in watts.",
+    givens: [given("current", "I", 5, "mA"), given("voltage", "V", 12, "V")], expression: "0.005 A * 12 V", truth: 0.06, wrong: 0.6, unit: "W" },
+  { name: "milligram given with kilogram energy working", question: "Lift a mass m = 500000 mg through h = 3 m with g = 10 m/s^2. Find the energy gained in joules.",
+    givens: [given("mass", "m", 500000, "mg"), given("gravity", "g", 10, "m/s^2"), given("height", "h", 3, "m")], expression: "0.5 kg * 10 m/s^2 * 3 m", truth: 15, wrong: 150, unit: "J" },
+  { name: "nanofarad given with farad charge working", question: "A capacitor C = 4000 nF is held at V = 6 V. Find its charge in coulombs.",
+    givens: [given("capacitance", "C", 4000, "nF"), given("voltage", "V", 6, "V")], expression: "4e-6 F * 6 V", truth: 2.4e-5, wrong: 2.4e-4, unit: "C" },
+]) {
+  for (const [value, valid] of [[entry.truth, true], [entry.wrong, false]] as const) {
+    checkPhysicalArithmetic({ name: `post-fix ${entry.name}/${valid ? "right" : "wrong"}`, truth: entry.truth, valid,
+      input: physicalPlan(entry.question, entry.givens, `X = ${entry.expression} = ${value} ${entry.unit}`, value, entry.unit) });
+  }
+}
+for (const [expression, truth, wrong] of [["cos^2(60°)", 0.25, 2.5], ["sin^3(30°)", 0.125, 1.25]] as const) {
+  for (const [value, valid] of [[truth, true], [wrong, false]] as const) {
+    const input = physicalPlan("Evaluate the supplied trigonometric expression.", [], `X = ${expression} = ${value}`, value, "1");
+    const original = JSON.stringify(input);
+    const raw = validateTurnPlanV3(input, input.question);
+    check(`post-fix textbook ${expression}/${value}: function power has the expected authority`, raw.valid === valid);
+    if (!valid) check(`post-fix textbook ${expression}: computed arithmetic rejects the wrong scalar`, raw.issues.some(issue => issue.code === "source_text_value_mismatch"));
+    const reconciled = reconcileTurnPlanV3ExplicitArithmetic(input);
+    check(`post-fix textbook ${expression}/${value}: reconciliation computes the function power`, reconciled.plan.derived[0]?.value === truth);
+    check(`post-fix textbook ${expression}/${value}: the reconciled arithmetic is valid`, validateTurnPlanV3(reconciled.plan, input.question).valid);
+    if (valid) check(`post-fix textbook ${expression}: the exact correct power is not rewritten`, reconciled.reconciliations.length === 0);
+    check(`post-fix textbook ${expression}/${value}: the original plan is unchanged`, JSON.stringify(input) === original);
+  }
+}
+const sentenceGivens = [given("mass", "m", 2, "kg"), given("speed", "v", 3, "m/s"), given("height", "h", 0.5, "m"), given("force", "N", 40, "N"), given("other", "F", 3, "N")];
+for (const [name, sourceText, value, valid] of [
+  ["unrelated unsupported sentence", "X = 2*3 = 6 J. Check another quantity: 3 N*v = 9 W.", 6, true],
+  ["named ambiguous sentence", "X = 2*3 = 6 J. X = 3 N*v = 9 W.", 6, false],
+  ["anchored ambiguous sentence", "X = 2*3 = 6 J. Check this quantity: 2 N * 3 m * 1 = 6 J.", 6, false],
+  ["wrong earlier named arithmetic", "X = 2*3 = 7 J. Check another quantity: 3 N*v = 9 W.", 7, false],
+] as const) {
+  const input = physicalPlan("Use the supplied physical quantities to evaluate the written source arithmetic.", sentenceGivens, sourceText, value, "J");
+  const original = JSON.stringify(input);
+  check(`post-fix ${name}: raw attribution has the expected authority`, validateTurnPlanV3(input, input.question).valid === valid);
+  const reconciled = reconcileTurnPlanV3ExplicitArithmetic(input);
+  const actual = reconciled.plan.derived[0]?.value;
+  if (valid) {
+    check(`post-fix ${name}: the verified value is not rewritten`, reconciled.reconciliations.length === 0 && actual === 6);
+    check(`post-fix ${name}: unrelated arithmetic cannot poison valid authority`, validateTurnPlanV3(reconciled.plan, input.question).valid);
+  } else if (value === 6) {
+    check(`post-fix ${name}: attributed ambiguity remains rejected after reconciliation`, !validateTurnPlanV3(reconciled.plan, input.question).valid);
+  } else {
+    check(`post-fix ${name}: an unrelated sentence cannot authorize a wrong value`, !validateTurnPlanV3(reconciled.plan, input.question).valid || actual === 6);
+  }
+  check(`post-fix ${name}: the original plan is unchanged`, JSON.stringify(input) === original);
+}
 const additionalUnitProducts: Array<{ name: string; question: string; givens: TurnPlanV3["givens"]; unit: string; truth: number; right: string; wrongValue: number; wrong: string }> = [
   { name: "two-body momentum", question: "Two identical bodies each have m = 4 kg and v = 5 m/s. Their separation is d = 6 m. Find their total momentum.",
     givens: [given("mass", "m", 4, "kg"), given("speed", "v", 5, "m/s"), given("distance", "d", 6, "m")], unit: "kg*m/s", truth: 40,
@@ -591,4 +729,4 @@ for (const [expression, value] of [
   check("invalid-domain cancellation never gains the newly exact declared result", reconcileTurnPlanV3ExplicitArithmetic(input).plan.derived[0]?.value !== value);
 }
 assert.equal(failures.length, 0, `${failures.length}/${checks} failed: ${[...new Set(failures)].join("; ")}`);
-console.log(`verify-turn-plan-measured-operands: ${checks} checks pass; 9 FIX FIRST review plans (4 wrong/5 correct), 10 additional physical cases (10 right/10 wrong), 92 independent operator/claim/exponent/ampere plans, 2 uncomputed-derived measurement trust plans, 8 matching/nearby real-length operator plans, 6 dimensional fail-closed plans, 2 magnetic-radius conversion plans, 2 unused-metadata ampere plans, 4 parenthesized mass/capacitance plans, 1 single-figure nodal-anchor plan, all original 820 checks retained`);
+console.log(`verify-turn-plan-measured-operands: ${checks} checks pass; 9 FIX FIRST review plans (4 wrong/5 correct), 32 re-review conversion/symbol/complete-series plans, 14 post-fix alias/trig/sentence plans, 10 additional physical cases (10 right/10 wrong), 92 independent operator/claim/exponent/ampere plans, 2 uncomputed-derived measurement trust plans, 8 matching/nearby real-length operator plans, 6 dimensional fail-closed plans, 2 magnetic-radius conversion plans, 2 unused-metadata ampere plans, 4 parenthesized mass/capacitance plans, 1 single-figure nodal-anchor plan, all original 1541 checks retained`);
