@@ -1173,7 +1173,16 @@ function buildFirstOrderDecay(question: string, spec: KineticsSpec, solution: Ki
   const K = Number((k / sx).toFixed(6));
   const curve = c.scene.curve("curve", `${Y_SPAN}*exp(-${K}*x)`, 0, X_SPAN, "[A]/[A]_0 against t", undefined, 97);
   panel.ids.push(curve);
-  panel.ids.push(c.text("one", { x: -0.35, y: Y_SPAN }, "1", "tick"));
+  // Keep every numeric tick at its proved Y level; close labels occupy
+  // separate horizontal lanes, including the initial normalized value1.
+  const tickLaneYs: number[] = [];
+  const tickLabel = (id: string, y: number, text: string): string => {
+    let lane = tickLaneYs.findIndex(previousY => Math.abs(previousY - y) >= Y_SPAN / 8);
+    if (lane < 0) lane = tickLaneYs.length;
+    tickLaneYs[lane] = y;
+    return c.text(id, { x: -0.35 - lane * X_SPAN / 3, y }, text, "tick");
+  };
+  panel.ids.push(tickLabel("one", Y_SPAN, "1"));
   const usedTicks = new Set<string>();
   visibleMarks.forEach((mark, index) => {
     const x = Number((mark.t * sx).toFixed(6));
@@ -1184,7 +1193,7 @@ function buildFirstOrderDecay(question: string, spec: KineticsSpec, solution: Ki
     dropLinks(c, id, 0, x, y, panel, y > 0.35, true);
     if (mark.ytick && y > 0.35 && !usedTicks.has(mark.ytick)) {
       usedTicks.add(mark.ytick);
-      panel.ids.push(c.text(`${id}_tick`, { x: -0.35, y }, mark.ytick, "tick"));
+      panel.ids.push(tickLabel(`${id}_tick`, y, mark.ytick));
     }
     c.scene.labelled(id);
   });
