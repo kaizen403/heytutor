@@ -582,6 +582,17 @@ function readRateConstant(stem: string, order: ReactionOrder | null = 1): { valu
   const unit = /min/i.test(raw) ? "min" : /h(?:r|our)?/i.test(raw) ? "h" : /day/i.test(raw) ? "days" : /year|yr/i.test(raw) ? "yr" : "s";
   return {value: reading.value * convertTime(1, unit, "s"), unit};
 }
+/** A complete requested fraction operand supplies no original molarity. */
+function initialFractionRequestOnly(question: string, ownerStart: number, start: number, end: number): boolean {
+  const prefix = question.slice(0,ownerStart);
+  const request = /\b(?:(?:what|which)\s+fraction|(?:find|calculate|determine|compute|evaluate|obtain)\s+(?:the\s+)?fraction)\s+of\s+(?:the\s+)?$/i.test(prefix);
+  if (!request) return false;
+  const predicate = /^\s+(?:(?:that\s+)?remains?|remaining|left|is\s+(?:left|unreacted|remaining))\s+after\s+/i.exec(question.slice(start,end));
+  if (!predicate) return false;
+  const timeStart = start + predicate[0].length;
+  const time = readChemistryQuantity({question,after:/^/,within:{start:timeStart,end},dimension:"time"});
+  return time.ok && time.reading.value > 0 && question.slice(time.reading.source.span.end,end).trim() === "";
+}
 function readInitialConcentration(stem: string): {value: number; unit: string} | null | false {
   const body = questionBody(stem);
   const concentrationRequests = concentrationRatioRequestSpans(stem);
@@ -598,6 +609,7 @@ function readInitialConcentration(stem: string): {value: number; unit: string} |
     const clause = /[;?\n]|\.(?=\s|$)/.exec(body.slice(start, end));
     if (clause) end = start + clause.index;
     const tail = body.slice(start, end);
+    if (initialFractionRequestOnly(stem,owner.index!,start,end)) continue;
     // Complete numerator/denominator math references supply no initial value;
     // an assignment or unread payload after that reference still must refuse.
     const numerator = /^\s*\/\s*(?:\[a\]|a\b)/i.exec(tail);

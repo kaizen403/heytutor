@@ -1434,5 +1434,92 @@ for(const c of symbolicRateConditionCases)try {
 }catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
 // END ADDITIVE SYMBOLIC RATE-CONDITION GATES
 
+// BEGIN ADDITIVE REQUESTED INITIAL-FRACTION OPERAND GATES
+interface InitialFractionRequestCase {id:string;question:string;refuse:boolean;k?:number;unit?:string;time?:number}
+const initialFractionRequestCases:InitialFractionRequestCase[] = [
+  {
+    "id": "FRACTION-request-exact-OWN-close-reference-tick-5",
+    "question": "A first order reaction has k = 0.00693 s^-1. What fraction of [A]0 remains after 200 s?",
+    "refuse": false,
+    "k": 0.00693,
+    "unit": "s",
+    "time": 200
+  },
+  {
+    "id": "FRACTION-request-underscore-symbol",
+    "question": "A first order reaction has k = 0.02 min^-1. Find the fraction of [A]_0 remaining after 60 min. Draw the decay curve.",
+    "refuse": false,
+    "k": 0.02,
+    "unit": "min",
+    "time": 60
+  },
+  {
+    "id": "FRACTION-request-bare-symbol",
+    "question": "A first order reaction has k = 0.01 h^-1. Determine the fraction of A0 left after 2 h. Draw concentration versus time.",
+    "refuse": false,
+    "k": 0.01,
+    "unit": "h",
+    "time": 2
+  },
+  {
+    "id": "FRACTION-request-initial-noun",
+    "question": "A first order reaction has k = 0.012 min^-1. Calculate the fraction of the initial concentration that remains after 60 min. Draw the decay curve.",
+    "refuse": false,
+    "k": 0.012,
+    "unit": "min",
+    "time": 60
+  },
+  {
+    "id": "FRACTION-request-starting-noun",
+    "question": "A first order reaction has k = 0.0231 min^-1. What fraction of starting concentration is left after 60 min? Draw concentration versus time.",
+    "refuse": false,
+    "k": 0.0231,
+    "unit": "min",
+    "time": 60
+  },
+  {
+    "id": "FRACTION-unread-earlier-declaration",
+    "question": "A first order reaction has initial concentration unknown; initial concentration is 2 M. Its k = 0.00693 s^-1. What fraction of [A]0 remains after 200 s?",
+    "refuse": true
+  },
+  {
+    "id": "FRACTION-unread-later-declaration",
+    "question": "A first order reaction has k = 0.00693 s^-1. What fraction of [A]0 remains after 200 s? A0 is unknown; A0 is 2 M.",
+    "refuse": true
+  },
+  {
+    "id": "FRACTION-unread-within-request",
+    "question": "A first order reaction has k = 0.00693 s^-1. What fraction of [A]0 = unknown remains after 200 s?",
+    "refuse": true
+  },
+  {
+    "id": "FRACTION-wrong-request-time-unit",
+    "question": "A first order reaction has k = 0.00693 s^-1. What fraction of [A]0 remains after 200 kg?",
+    "refuse": true
+  },
+  {
+    "id": "FRACTION-damaged-request-time",
+    "question": "A first order reaction has k = 0.00693 s^-1. What fraction of [A]0 remains after 200e- s?",
+    "refuse": true
+  }
+];
+for (const c of initialFractionRequestCases) try {
+ const spec = kineticsFromStem(c.question), direct = buildKineticsScene(c.question, [], false), schematic = buildKineticsScene(c.question, [], true), ordinary = synthesizeFamilyScene({question:c.question});
+ if (c.refuse) { assert.equal(spec,null); assert.equal(direct,null); assert.equal(schematic,null); assert.equal(ordinary,null); }
+ else {
+  assert.ok(spec); assert.equal(spec.order,1); assert.equal(spec.plot,"concentration"); assert.equal(spec.a0,null,"a requested fraction operand supplies no initial molarity"); assert.equal(spec.concUnit,null); assert.equal(spec.timeUnit,c.unit); assert.deepEqual(spec.timesAsked,[c.time]);
+  const solved=solveKinetics(spec),half=Math.LN2/c.k!,fraction=Math.exp(-c.k!*c.time!); assert.ok(solved.k!==null&&solved.tHalf!==null); assert.ok(Math.abs(solved.k-c.k!)<=Math.abs(c.k!)*1e-12); assert.ok(Math.abs(solved.tHalf-half)<=Math.abs(half)*1e-12);
+  const requested=solved.remainingAtTimes.find(t=>t.time===c.time); assert.ok(requested); assert.ok(Math.abs(requested.remaining-fraction)<=Math.abs(fraction)*1e-12); assert.ok(direct&&schematic&&ordinary);
+  for (const doc of [direct,schematic,ordinary.document]) {
+   assert.equal(doc.source.question,c.question); assert.equal(doc.quantities.find(q=>q.id==="k")?.value,Number(c.k!.toFixed(6))); assert.equal(doc.quantities.find(q=>q.id==="k")?.unit,`1/${c.unit}`); assert.equal(doc.quantities.find(q=>q.id==="t_half")?.value,Number(half.toFixed(6))); assert.equal(doc.quantities.find(q=>q.id==="t_half")?.unit,c.unit);
+   assert.ok(!doc.quantities.some(q=>q.id==="a0"||q.id==="A0"||q.unit==="M"||q.unit==="mol/L")); const axis=doc.entities.find(e=>e.kind==="label"&&e.id==="p_yl"&&e.label==="[A]/[A]_0"); assert.ok(axis);
+   const valid=validateSceneDocument(pruneDeadSceneEntities(doc as unknown as Record<string,unknown>)); assert.ok(valid.document); const compiled=compileSceneDocument(valid.document); assert.ok(compiled.ok&&compiled.renderScene); assert.ok(compiled.renderScene.primitives.some(p=>p.kind==="label"&&p.entityId===axis.id&&p.text===axis.label));
+   assert.ok(compiled.renderScene.primitives.some(p=>p.kind==="label"&&new RegExp(`^t\\s*=\\s*${c.time}\\s+${c.unit}$`).test(p.text??""))); assert.ok(!compiled.renderScene.primitives.some(p=>p.kind==="label"&&/\bM\b|mol\s*\/\s*L/.test(p.text??"")));
+  }
+ }
+ results.push({id:c.id,passed:true});
+} catch(error) {results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
+// END ADDITIVE REQUESTED INITIAL-FRACTION OPERAND GATES
+
 console.log(JSON.stringify({total:results.length,passed:results.filter(r=>r.passed).length,rows:results},null,2));
 if(results.some(r=>!r.passed))process.exitCode=1;
