@@ -1136,8 +1136,8 @@ const cases: readonly {id:string; question:string; expected:string; dG:number|nu
   {
     "id": "OWN-GIBBS-ACTIVATION-UNREAD",
     "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Activation energy is unknown; draw Gibbs free energy against T.",
-    "expected": "decline",
-    "dG": null
+    "expected": "required-compile",
+    "dG": -10.2
   }
 ];
 const results: {id:string;passed:boolean;error?:string}[] = [];
@@ -1148,6 +1148,10 @@ function compiled(document: SceneDocument | null, expected: number | null, unit 
   assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
   const dG = document.quantities.find(quantity => quantity.id === "dG");
   const labels = result.renderScene.primitives.flatMap(mark => mark.text ? [mark.text] : []);
+  // Gibbs draws H/S/T authority only. An unrelated unavailable activation
+  // energy must never create an Ea quantity, mark or caption assertion.
+  assert.ok(document.quantities.every(quantity => !/^(?:E_?a|activation)/i.test(quantity.id)));
+  assert.ok(!/activation\s+energy|\bE_?a\b/i.test([...labels, result.renderScene.caption ?? ""].join(" ")));
   assert.ok(!/NaN|Infinity/.test(JSON.stringify(document)));
   if (expected === null) {
     assert.equal(dG, undefined, "graph-only source cannot invent an evaluation point");
