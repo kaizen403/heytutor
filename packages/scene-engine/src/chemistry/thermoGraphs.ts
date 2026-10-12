@@ -514,7 +514,7 @@ function gibbsReferencePayloadOnly(body: string, start: number, ownerEnd: number
     if (!/\b(?:at|T|temperature)\s*(?:(?:is|equals|of)\b|[=:])?\s*$/i.test(prefix)) return false;
     payload = payload.slice(0, reading.source.span.start - start) + " Θ " + payload.slice(reading.source.span.end - start);
   }
-  return /^(?:\s|[(),=+−*/×·-]|Θ|[Δδ∆]\s*[GHS]\b|\bT\b|\bK\b|\b(?:and|together|with|using|from|to|in|versus|vs|against|at|as|on|above|below|where|of|all|any|every|what|which|absolute|draw|plot|sketch|show|calculate|compute|determine|find|mark|the|an?|its|this|reaction|line|graph|curve|diagram|Gibbs|free|energy|temperature|equilibrium|transition|minimum|threshold|crossover|will|does|reach|be|becomes?|is|negative|positive|zero|spontaneous|feasible)\b)*$/i.test(payload);
+  return /^(?:\s|[(),=+−*/×·-]|Θ|[Δδ∆]\s*[GHS]\b|\bT\b|\bK\b|\b(?:and|together|with|using|from|to|in|versus|vs|against|at|as|on|above|below|where|of|all|any|every|what|which|absolute|draw|plot|sketch|show|calculate|compute|determine|find|mark|the|an?|its|this|reaction|point|line|graph|curve|diagram|Gibbs|free|energy|temperature|equilibrium|transition|minimum|threshold|crossover|will|does|reach|be|becomes?|is|negative|positive|zero|spontaneous|feasible)\b)*$/i.test(payload);
 }
 /** Requested thresholds and formula/axis operands do not supply an evaluation point. */
 function gibbsTemperatureReference(body: string, start: number, end: number, ownerEnd: number): boolean {
