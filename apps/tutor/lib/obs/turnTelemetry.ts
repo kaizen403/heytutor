@@ -540,6 +540,7 @@ export function measureSceneSelection<T>(
   stage: "fast" | "final",
   select: () => T,
   now: () => number = () => performance.now(),
+  phase?: "prediction" | "selection",
 ): T {
   if (!tel) return select();
   const startedSinceAsk = diagnosticMilliseconds(() => tel.durationMs());
@@ -555,6 +556,7 @@ export function measureSceneSelection<T>(
       ? Math.round(endedAt - startedAt) : null;
     try {
       tel.mark(stage === "fast" ? "scene-fast-selection" : "scene-final-selection", {
+        ...(stage === "fast" && (phase === "prediction" || phase === "selection") ? { phase } : {}),
         start_since_ask_ms: startedSinceAsk === null ? null : Math.round(startedSinceAsk),
         duration_ms: duration,
         completed,

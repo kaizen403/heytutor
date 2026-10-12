@@ -166,6 +166,7 @@ export function useTurnControl(
   const activeResumeRef = useRef<(ActiveResume & { attempt: object }) | null>(null);
   /** Resets on any segment that completes; see turnFailurePolicy. */
   const consecutiveSegmentFailuresRef = useRef(0);
+  const segmentFailureGenerationRef = useRef(turnGenerationRef.current);
 
   const finishLectureUi = useCallback((turnGeneration?: number) => {
     if (
@@ -259,6 +260,10 @@ export function useTurnControl(
           }
           return;
         }
+        if (segmentFailureGenerationRef.current !== turnGeneration) {
+          segmentFailureGenerationRef.current = turnGeneration;
+          consecutiveSegmentFailuresRef.current = 0;
+        }
 
         try {
           await runSegment(
@@ -267,8 +272,11 @@ export function useTurnControl(
             collectedSegmentsRef.current,
             turnGeneration,
           );
-          consecutiveSegmentFailuresRef.current = 0;
+          if (counted()) consecutiveSegmentFailuresRef.current = 0;
         } catch (error) {
+          // Old async speech/draw cleanup cannot change a successor's failure
+          // history or publish an error against the replacement turn.
+          if (!counted() || cancelRef.current) return;
           consecutiveSegmentFailuresRef.current += 1;
           console.error(`Segment ${index} failed:`, error);
           tutorDebug("segment", "segment failed", {
@@ -1438,9 +1446,19 @@ export function useTurnControl(
     const revision = ++restoreRevisionRef.current;
     const save = liveTurnSave();
     if (turns.some((turn) => save.isLiveHere(turn.id))) return null;
+    // Stop ends the local save before its checkpoint reaches the server. The
+    // idle effect may still hold an empty/raw-live read; capture its ended
+    // mirror before the asynchronous ownership probe can erase that offer.
+    const currentTurns = save.resumeTurns(sessionId, turns);
+    const boardRevision = restoreBoardRevisionRef.current;
+    const generation = turnGenerationRef.current;
+    const page = boardPageRef.current;
     const ownerState = await lessonAdmission().probe(sessionId);
-    if (revision !== restoreRevisionRef.current || phaseRef.current !== "idle" || turnActiveRef.current || activeResumeRef.current || lessonAdmission().hasAttempt(cancelRef)) return null;
-    const recovery = lessonRecoveryFromStoredTurns(turns, { boardId: sessionId, ownerState, isLiveHere: (id) => save.isLiveHere(id) });
+    if (revision !== restoreRevisionRef.current || boardRevision !== restoreBoardRevisionRef.current ||
+      generation !== turnGenerationRef.current || page !== boardPageRef.current ||
+      phaseRef.current !== "idle" || turnActiveRef.current || isReplayingRef.current ||
+      pendingSegmentCountRef.current > 0 || activeResumeRef.current || lessonAdmission().hasAttempt(cancelRef)) return null;
+    const recovery = lessonRecoveryFromStoredTurns(currentTurns, { boardId: sessionId, ownerState, isLiveHere: (id) => save.isLiveHere(id) });
     let restored = recovery?.kind === "continue" ? recovery.request : null;
     if (!recovery) {
       clearPausedLesson();
@@ -1482,7 +1500,7 @@ export function useTurnControl(
         !turnActiveRef.current && !isReplayingRef.current && !boardShowsStoppedReplayRef.current &&
         pendingSegmentCountRef.current === 0 && !activeResumeRef.current && !lessonAdmission().hasAttempt(cancelRef);
       try {
-        if (!current() || !(await refreshBoardFromTurns(sessionId, turns, current)) || !current()) return null;
+        if (!current() || !(await refreshBoardFromTurns(sessionId, currentTurns, current)) || !current()) return null;
         if (restored) boardPageRef.current = resumePageRecord({ boardId: sessionId, lessonQuestion: restored.lessonQuestion,
           turnPlan: restored.turnPlan ?? null, solverProjection: restored.solverProjection ?? null,
           scene: restored.scene ?? null, figureDrawn: restored.figureDrawn });

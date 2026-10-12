@@ -201,6 +201,8 @@ export async function exportLectureMp4(options: {
   tailLimitMs?: number;
   /** Keep the hidden command executor on the same verified page as replay. */
   onTurnStart?: (turn: StoredTurn, diagram: VerifiedDiagram | null) => void;
+  /** FRAME can replace the figure after turn start; completion follows it. */
+  getDiagram?: () => VerifiedDiagram | null;
   resetBoardLayout?: (keepHeading?: boolean, forceSequentialWorkLayout?: boolean) => void;
 }): Promise<LectureExportResult> {
   const pageTurns = options.pageTurns && options.pageTurns.length > 0
@@ -290,17 +292,30 @@ export async function exportLectureMp4(options: {
     let drawError: unknown = undefined;
     let syncedTurnIndex = -1;
     let activeDiagram: VerifiedDiagram | null = null;
+    let activeCue: ReplayCue | undefined;
     const drawPromise = drawReplayDiagramTimeline({
       cues: timeline.cues,
-      executeCommand: options.executeCommand,
+      executeCommand: (command, commandOptions) => {
+        // A short recorded DSA sentence can end while its verified opening is
+        // still revealing. Keep every saved mark/FRAME, but settle the
+        // remaining scene instantly once that cue's audio window has passed.
+        // Narrated work retains its own writing schedule and the tail bound.
+        const diagram = options.getDiagram ? options.getDiagram() : activeDiagram;
+        const verifiedSceneMark = commandOptions?.trustedDiagramGeometry === true &&
+          (command.type.startsWith("DRAW_") || ["LABEL", "DIMENSION", "ARROW", "UNDERLINE", "CIRCLE_AROUND", "HIGHLIGHT", "SCRIBBLE"].includes(command.type));
+        const expiredVerifiedScene = activeCue !== undefined && options.clock.now() >= activeCue.endMs &&
+          diagram?.layout === "code_lesson" && (verifiedSceneMark || command.type === "FRAME");
+        return options.executeCommand(command, expiredVerifiedScene ? { ...commandOptions, durationScale: 0 } : commandOptions);
+      },
       getClockMs: options.clock.now,
       waitForAdvance: options.clock.waitForAdvance,
       shouldCancel: drawShouldCancel,
       setAnimationSpeed: (rate) => options.whiteboard.setAnimationSpeed(rate),
       getTurn: (turnIndex) => pageTurns[turnIndex],
       getPageTurns: (turnIndex) => pageTurnsEndingAt(pageTurns, turnIndex),
-      getDiagram: () => activeDiagram,
+      getDiagram: () => options.getDiagram ? options.getDiagram() : activeDiagram,
       onCueStart: async (cue) => {
+        activeCue = cue;
         if (cue.turnIndex === syncedTurnIndex) return;
         const turn = pageTurns[cue.turnIndex]!;
         if (!await resetReplayPageAtTurn({
