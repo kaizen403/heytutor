@@ -546,10 +546,15 @@ export interface AxisArrowInput {
  * that ray's straight extension. Otherwise the arrows mark an object or
  * image the rays never form: `axis_arrow_off_rays`.
  *
- * Planners often draw rays as plain segments, so a ray here is any drawn
- * open straight path that is not an axis, a normal, an optical element or
- * one of the standing arrows themselves: declared light paths, segments,
- * rays, lines and oblique vectors alike.
+ * Planners often draw rays as plain segments, so a ray here is a declared
+ * light path, or a drawn open straight path (segment, ray, line, polyline,
+ * oblique vector) that is not an axis, a normal, an optical element or one of
+ * the standing arrows themselves, provided it is joined to the light (an end
+ * on a declared ray or a stroke already joined, on an element's boundary,
+ * inside a thin lens or on a lens line) and does not stand across the axis
+ * an arrow stands on. A screen, a lens line, a dimension line or a stray
+ * segment through a misplaced tip supports nothing, and no stroke lying
+ * along an arrow fixes that arrow's height.
  *
  * An image arrow comes from a paraxial model (`gaussian_image`, the mirror
  * and refraction laws), while the engine traces a reflection or refraction
@@ -612,22 +617,96 @@ export function validateAxisArrowsOnRays(input: AxisArrowInput): void {
   if (standing.length === 0) return;
   const standingIds = new Set(standing.map((arrow) => arrow.id));
   const lensLines = new Set(roles.lensPlanes.flatMap((plane) => plane.line === undefined ? [] : [plane.line]));
-  const rays: Point[][] = [];
+  const far = 1e4 * span;
+  // Axes an arrow stands on: a stroke standing across one (a screen, a lens
+  // line, a height mark) runs along the arrow and would pass it at any height.
+  const standingAxes = axes.filter(([a, b]) => standing.some((arrow) => lineDistance(arrow.foot, a, b) <= tolerance));
+  const across = (points: Point[]) => {
+    const vx = points.at(-1)!.x - points[0]!.x;
+    const vy = points.at(-1)!.y - points[0]!.y;
+    const length = Math.hypot(vx, vy);
+    return !(length > 0) || standingAxes.some(([a, b]) =>
+      Math.abs((b.x - a.x) * vx + (b.y - a.y) * vy) <= 0.2 * distance(a, b) * length);
+  };
+  const rays: Array<{ points: Point[]; value: PathValue }> = [];
+  const support: Array<{ points: Point[]; value: PathValue }> = [];
   for (const entity of document.entities ?? []) {
     const id = entity.id;
-    if (!RAY_KINDS.has(entity.kind) && !roles.lightPaths.has(id)) continue;
+    const light = roles.lightPaths.has(id);
+    if (!RAY_KINDS.has(entity.kind) && !light) continue;
     if (!input.drawn(id) || axisIds.has(id) || standingIds.has(id) || lensLines.has(id)) continue;
-    if (roles.normals.has(id) || (roles.elements.has(id) && !roles.lightPaths.has(id))) continue;
+    if (roles.normals.has(id) || (roles.elements.has(id) && !light)) continue;
     const value = geometry.get(id);
-    if (openPath(value)) rays.push(value.points);
+    if (!openPath(value)) continue;
+    if (light) rays.push({ points: value.points, value });
+    else if (!across(value.points)) support.push({ points: value.points, value });
   }
+  // A stroke that is not a declared light path is a ray only when it is
+  // joined to the light: an end on a declared ray (or on a stroke already
+  // joined), on an element's boundary, inside a thin lens, or on a lens line.
+  // A stray segment through a misplaced tip, a dimension line or a screen
+  // edge drawn apart from the rays supports nothing.
+  const anchors: Array<{ id: string; value: ElementValue }> = [];
+  for (const id of roles.elements) {
+    if (!input.drawn(id) || roles.lightPaths.has(id)) continue;
+    const value = geometry.get(id);
+    if (isElement(value)) anchors.push({ id, value });
+  }
+  for (const id of lensLines) {
+    const value = geometry.get(id);
+    if (input.drawn(id) && isElement(value)) anchors.push({ id, value });
+  }
+  // A thin lens drawn as a stroke on a declared lens plane (through `center` across `axis`).
+  const planes: Array<[Point, Point]> = [];
+  for (const plane of roles.lensPlanes) {
+    if (plane.line !== undefined) continue;
+    let center: Point;
+    try { center = geometryPoint(geometry, plane.center); } catch { continue; }
+    const axis = axisDirection(plane.axis, geometry);
+    if (axis) planes.push([center, { x: center.x - axis.y, y: center.y + axis.x }]);
+  }
+  for (const entity of document.entities ?? []) {
+    const value = geometry.get(entity.id);
+    if (!RAY_KINDS.has(entity.kind) || roles.lightPaths.has(entity.id) || standingIds.has(entity.id)) continue;
+    if (!input.drawn(entity.id) || !openPath(value)) continue;
+    if (planes.some(([a, b]) => value.points.every((point) => lineDistance(point, a, b) <= tolerance))) anchors.push({ id: entity.id, value });
+  }
+  const onAnchor = (point: Point) => anchors.some(({ id, value }) => {
+    if (value.kind === "path" && value.infinite) {
+      return strokeSegments(value, far).some(([a, b]) => pointSegmentDistance(point, a, b) <= tolerance);
+    }
+    if (boundaryDistance(point, value) <= tolerance) return true;
+    return roles.thinLenses.has(id) && isClosed(value) && insideElement(point, value);
+  });
+  const onRayStroke = (point: Point) => rays.some(({ value }) =>
+    strokeSegments(value, far).some(([a, b]) => pointSegmentDistance(point, a, b) <= tolerance));
+  for (let joined = true; joined && support.length > 0;) {
+    joined = false;
+    for (let index = support.length - 1; index >= 0; index -= 1) {
+      const { points } = support[index]!;
+      if (![points[0]!, points.at(-1)!].some((end) => onAnchor(end) || onRayStroke(end))) continue;
+      rays.push(...support.splice(index, 1));
+      joined = true;
+    }
+  }
+  const lines: Point[][] = rays.map(({ points }) => points);
   for (const construction of constructions) {
     const counterpart = paraxialCounterpart(input, construction, tolerance);
-    if (counterpart) rays.push(counterpart);
+    if (counterpart) lines.push(counterpart);
   }
   for (const arrow of standing) {
-    const onRay = rays.some((points) => points.some((point, index) =>
-      index + 1 < points.length && lineDistance(arrow.tip, point, points[index + 1]!) <= tolerance));
+    // A stroke along the arrow itself (parallel to it, through its foot) fixes no height.
+    const ax = arrow.tip.x - arrow.foot.x;
+    const ay = arrow.tip.y - arrow.foot.y;
+    const onRay = lines.some((points) => points.some((point, index) => {
+      if (index + 1 >= points.length) return false;
+      const next = points[index + 1]!;
+      if (lineDistance(arrow.tip, point, next) > tolerance) return false;
+      const vx = next.x - point.x;
+      const vy = next.y - point.y;
+      const along = Math.abs(ax * vy - ay * vx) <= 0.2 * Math.hypot(ax, ay) * Math.hypot(vx, vy);
+      return !(along && lineDistance(arrow.foot, point, next) <= tolerance);
+    }));
     if (onRay) continue;
     input.issues.push({
       code: "axis_arrow_off_rays",
@@ -842,6 +921,12 @@ function elementEdges(value: PathValue, far: number): Array<[Point, Point]> {
   for (let index = 0; index + 1 < points.length; index += 1) edges.push([points[index]!, points[index + 1]!]);
   if (value.closed && points.length >= 3) edges.push([points.at(-1)!, points[0]!]);
   return edges;
+}
+
+/** The drawn stroke of an open path as segments: an infinite path runs `far` out, or to its element clip. */
+function strokeSegments(value: PathValue, far: number): Array<[Point, Point]> {
+  if (value.infinite && value.directed && finitePoint(value.elementClip)) return [[value.points[0]!, value.elementClip]];
+  return elementEdges({ ...value, closed: false }, far);
 }
 
 type Hit = { s: number; point: Point; direction: Point; normal: Point };
