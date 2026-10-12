@@ -160,7 +160,7 @@ const compact = (text: string): string => text.replace(/\s+/g, "").replace(/−|
 
 function stored(scene: SceneDocument, value: number, units: readonly string[]): void {
   assert.ok(scene.quantities.some(q => typeof q.value === "number" && Number.isFinite(q.value)
-    && Math.abs(q.value - value) <= 0.500001e-6 && units.includes(q.unit ?? "")),
+    && Math.abs(q.value - value) <= 0.500001e-6 && typeof q.unit === "string" && units.includes(q.unit)),
   `Requested value ${value} ${units.join(" or ")} must be stored with its complete physical unit: ${JSON.stringify(scene.quantities)}`);
 }
 
