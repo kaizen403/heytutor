@@ -3,6 +3,7 @@ import { evaluateMathExpression } from "../math/expression";
 import { validateSolverResult, type SolverResult, type SolverValue } from "./solver";
 import { validateTurnPlanV3, type TurnPlanV3 } from "../contracts/contractsV3";
 import { selectSourceLinearScalar, type SourceLinearScalarSelection } from "./linearScalarBinding";
+import { readLinearSourceSetAliases } from "../compile/linearRegionSource";
 
 export type SolverAuthorityStatus =
   | "verified"
@@ -318,6 +319,7 @@ export function reconcileTurnPlanWithSolver(
   const validatedProblem = validateProblemIR(problem, plan.question).problem;
   const validatedResult = validatedProblem ? validateSolverResult(result, validatedProblem).result : null;
   const selections = new Map<string, SourceLinearScalarSelection>();
+  const unsupportedSourceQuantities = new Set<string>();
   if (validatedProblem && validatedResult?.status === "solved") for (const request of validatedProblem.solveRequests) {
     const value = valuesByRequest.get(request.id);
     if (!value) continue;
@@ -328,11 +330,14 @@ export function reconcileTurnPlanWithSolver(
     }
   }
   if (validatedProblem && validatedResult?.status === "solved") {
-    retainCompleteBoundaryProjections(validatedProblem, plan, validatedResult, valuesByRequest, selections);
+    for (const issue of retainCompleteBoundaryProjections(validatedProblem, plan, validatedResult, valuesByRequest, selections)) {
+      if (issue.quantityId) unsupportedSourceQuantities.add(issue.quantityId);
+    }
   }
   const unknownsById = new Map(plan.unknowns.map((unknown) => [unknown.id, unknown]));
   let changed = false;
   const derived = plan.derived.map((quantity) => {
+    if (unsupportedSourceQuantities.has(quantity.id)) return quantity;
     const request = problem.solveRequests.find(
       (candidate) => candidate.resultBinding?.turnPlanQuantityId === quantity.id,
     );
@@ -382,8 +387,9 @@ function normalizeSymbol(value: string): string {
 
 /**
  * A boundary certificate proves that boundary only. It cannot certify a
- * finite scalar attached to the whole solution set (or another unproved
- * requested answer), even when an unrelated evaluate request shares its id.
+ * finite scalar attached to the whole solution set, even when an unrelated
+ * evaluate request shares its id. Independent native scalar answers retain
+ * their ordinary solver authority and do not need a boundary selection.
  * Symbolic set unknowns have no derived finite value and need no scalar proof.
  * Coordinate projections retain their existing independent native guard.
  */
@@ -396,18 +402,31 @@ function retainCompleteBoundaryProjections(
 ): SolverAuthorityIssue[] {
   const boundaryRequests = [...selections].filter(([, selection]) => selection.kind === "unique_source_linear_boundary");
   if (!boundaryRequests.length) return [];
+  const sourceSetSymbols = new Set([...readLinearSourceSetAliases(problem.question)].map(normalizeSymbol));
+  const wholeSetSymbol = (symbol: string): boolean => sourceSetSymbols.has(normalizeSymbol(symbol))
+    || /^(?:solutionset|solutioninterval|set|interval)$/.test(normalizeSymbol(symbol));
   const unsupported = plan.unknowns.filter(unknown => {
     const derived = plan.derived.find(quantity => quantity.id === unknown.id);
     if (!derived) return false;
     const requests = problem.solveRequests.filter(request => request.resultBinding?.turnPlanQuantityId === unknown.id);
     if (requests.length !== 1) return true;
     const request = requests[0]!, binding = request.resultBinding!, value = values.get(request.id);
-    return !(selections.get(request.id)?.kind === "unique_source_linear_boundary"
-      && normalizeSymbol(binding.symbol) === normalizeSymbol(unknown.symbol)
+    const ownedScalar = normalizeSymbol(binding.symbol) === normalizeSymbol(unknown.symbol)
       && normalizeSymbol(derived.symbol) === normalizeSymbol(unknown.symbol)
       && normalizeUnit(binding.unit) === normalizeUnit(unknown.unit)
       && normalizeUnit(derived.unit) === normalizeUnit(unknown.unit)
-      && value?.valueType === "scalar" && typeof value.approximate === "number");
+      && value?.valueType === "scalar" && typeof value.approximate === "number";
+    const wholeSetEvidence = binding.evidenceFactIds.some(id => {
+      const fact = problem.facts.find(candidate => candidate.id === id);
+      return fact?.kind === "requested"
+        && /\b(?:solution\s+(?:set|interval)|(?:whole|complete)\s+(?:set|interval))\b/i.test(fact.evidence.quote)
+        && !/\b(?:length|cardinality|number|count|membership|whether)\b/i.test(fact.evidence.quote);
+    });
+    const nativeScalar = request.kind !== "roots" && request.kind !== "intersections"
+      && result.values.find(candidate => candidate.requestId === request.id)?.valueType === "scalar"
+      && binding.evidenceFactIds.some(id => problem.facts.some(fact => fact.id === id && fact.kind === "requested"))
+      && ![unknown.symbol, derived.symbol, binding.symbol].some(wholeSetSymbol) && !wholeSetEvidence;
+    return !(ownedScalar && (selections.get(request.id)?.kind === "unique_source_linear_boundary" || nativeScalar));
   });
   if (!unsupported.length) return [];
   for (const [requestId] of boundaryRequests) {
@@ -419,7 +438,7 @@ function retainCompleteBoundaryProjections(
   // Refuse the unsupported finite source role explicitly at this seam.
   return unsupported.map(unknown => ({
     code: "unproved_source_boundary_scalar",
-    message: `Finite requested '${unknown.symbol}' has no independent original-source boundary certificate`,
+    message: `Finite requested '${unknown.symbol}' has no independent scalar authority preserving its original-source role`,
     quantityId: unknown.id,
   }));
 }
