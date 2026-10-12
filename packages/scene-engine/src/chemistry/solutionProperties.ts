@@ -161,7 +161,12 @@ function sourceSoluteAmount(question: string): number | null {
     const request=/\b(?:find|calculate|determine|compute|evaluate|what\s+(?:is|are))\s+(?:(?:the|a|an|its|their)\s+)*$/i.test(clause)
       || /\b(?:find|calculate|determine|compute|evaluate|what\s+(?:is|are))\b[^;.!?]*\band\s+(?:(?:the|a|an|its|their)\s+)*$/i.test(clause);
     const reuse=/\b(?:use|using|from|with)\s+(?:(?:the|given)\s+)*$/i.test(clause);
-    const referenceTail=/^\s*(?:$|[.;?!]|(?:,\s*)?(?:and|to|for|from|using|with|find|calculate|determine|compute|evaluate)\b)/i.test(tail);
+    // A connector alone cannot omit a declared value later in the clause.
+    // Consume the entire non-declarative target of a genuine request/reuse.
+    const payload=tail.split(/[;.!?\n]/)[0]!.trim();
+    const goal=String.raw`(?:(?:the|its|a|an)\s+)?(?:molarity|molality|concentration|solute\s+amount|amount\s+of(?:\s+the)?\s+solute|(?:number\s+of\s+)?moles?\s+of(?:\s+the)?\s+solute)`;
+    const operation=String.raw`(?:find|calculate|determine|compute|evaluate|obtain|draw|plot|sketch|show)\s+${goal}`;
+    const referenceTail=new RegExp(String.raw`^(?:$|(?:to\s+|,\s*|and\s+)?${operation}|and\s+${goal}|for\s+(?:(?:this|the)\s+)?(?:calculation|formula))$`,"i").test(payload);
     const unreadQualifier=/\b(?:unknown|unreadable|unread|unspecified|undefined|cannot|not\s+(?:known|readable))\b/i.test(tail.split(/[;.!?\n]/)[0]!);
     if ((request || reuse) && referenceTail && !unreadQualifier) continue;
     const named=/^\s+([A-Za-z][A-Za-z0-9]*(?:\s+[A-Za-z][A-Za-z0-9]*){0,2}?)\s*(?=[=:]|\b(?:is|was|are|were|equals)\b|[+−-]?(?:\d|\.\d))/id.exec(tail);

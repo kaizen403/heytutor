@@ -491,6 +491,58 @@ const cases:Case[] = [
     "n": 2,
     "denominator": 0.5,
     "expected": 4.0
+  },
+  {
+    "id": "INDEPENDENT-SOLUTE-CLOSED-1",
+    "question": "Use the solute amount for this calculation: 3 mol. The solute amount is 2 mol. The solution volume of 1 L is given. Find molarity.",
+    "refuse": true
+  },
+  {
+    "id": "INDEPENDENT-SOLUTE-CLOSED-2",
+    "question": "Using the amount of solute for the formula, its value is 3 mol. The solute amount is 2 mol. The solution volume of 1 L is given. Find molarity.",
+    "refuse": true
+  },
+  {
+    "id": "INDEPENDENT-SOLUTE-CLOSED-3",
+    "question": "Use the solute amount to apply the formula with a stated value of 3 mol. The solute amount is 2 mol. The solution volume of 1 L is given. Find molarity.",
+    "refuse": true
+  },
+  {
+    "id": "INDEPENDENT-SOLUTE-CLOSED-4",
+    "question": "Calculate the solute amount and take its value as 3 mol. The solute amount is 2 mol. The solution volume of 1 L is given. Find molarity.",
+    "refuse": true
+  },
+  {
+    "id": "INDEPENDENT-SOLUTE-CLOSED-5",
+    "question": "Use the solute amount for this calculation, given as 3 kg. The solute amount is 2 mol. The solution volume of 1 L is given. Find molarity.",
+    "refuse": true
+  },
+  {
+    "id": "INDEPENDENT-SOLUTE-CLOSED-SUPPORT-1",
+    "question": "The solute amount is 2 mol. The solution volume of 1 L is given. Use the solute amount to calculate molarity.",
+    "refuse": false,
+    "kind": "molarity",
+    "n": 2,
+    "denominator": 1,
+    "expected": 2
+  },
+  {
+    "id": "INDEPENDENT-SOLUTE-CLOSED-SUPPORT-2",
+    "question": "The solute amount is 2 mol. The solution volume of 1 L is given. Using the solute amount, find molarity.",
+    "refuse": false,
+    "kind": "molarity",
+    "n": 2,
+    "denominator": 1,
+    "expected": 2
+  },
+  {
+    "id": "INDEPENDENT-SOLUTE-CLOSED-SUPPORT-3",
+    "question": "The solute amount is 2 mol. The solution volume of 1 L is given. Find molarity and the solute amount.",
+    "refuse": false,
+    "kind": "molarity",
+    "n": 2,
+    "denominator": 1,
+    "expected": 2
   }
 ];
 function physical(labels:string[],symbol:string,unit:string,expected:number):void {
