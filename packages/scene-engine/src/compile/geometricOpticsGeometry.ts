@@ -24,9 +24,11 @@ const LENGTH_UNITS: Readonly<Record<string, string>> = {
   km: "km", kilometer: "km", kilometre: "km", um: "um", "µm": "um", "μm": "um", nm: "nm", in: "in", inch: "in", inches: "in", ft: "ft", foot: "ft", feet: "ft",
 };
 const INPUT_KEYS: Readonly<Record<string, readonly string[]>> = {
-  gaussian_image: ["kind", "center", "axis", "objectDistance", "focalLength", "objectHeight", "displayScale", "lengthUnit"],
-  optical_focus: ["kind", "center", "axis", "focalLength", "displayScale", "lengthUnit"],
+  gaussian_image: ["kind", "center", "axis", "objectDistance", "focalLength", "objectHeight", "displayScale", "lengthUnit", "form", "objectSide"],
+  optical_focus: ["kind", "center", "axis", "focalLength", "displayScale", "lengthUnit", "form"],
 };
+/** Textbook focus names: F, F′ (or F'), F1, F2, F₁, F₂. A bare name makes no claim; a value joined to it is checked. */
+const FOCUS_NAME = /^F(?:1|2|₁|₂|′|')?$/u;
 class OpticalInputError extends Error { constructor(readonly key: string, message: string) { super(message); } }
 class UnresolvedOpticalGeometry extends Error {}
 function invalid(key: string, message: string): never { throw new OpticalInputError(key, message); }
@@ -106,20 +108,48 @@ function checkSourceUnits(operator: string, inputs: Record<string, unknown>, doc
     }
   }
 }
+export type OpticalForm = "converging" | "diverging";
+export interface CartesianOpticsInputs { kind: OpticalKind; form?: OpticalForm; focalLength: number; objectDistance?: number; objectHeight?: number }
+/**
+ * The one place the Cartesian sign convention is applied (light along +axis, a real object at u < 0).
+ * Without `form` the inputs are signed Cartesian values, as before. With `form` the plan's unsigned u and f
+ * are magnitudes: a converging lens has f = +|f|, a converging (concave) mirror f = -|f|, and diverging
+ * elements the opposite; u = -|u| for a real object (the default) and +|u| for a virtual one. objectHeight
+ * stays signed (upright positive). A negative lens f is diverging in every school convention, so a
+ * converging lens form with a negative f fails closed; a mirror's stated sign depends on the convention,
+ * so for mirrors the form decides.
+ */
+export function resolveCartesianOpticsInputs(inputs: Record<string, unknown>, number: (value: unknown, key: string) => number, operator: string = "objectDistance" in inputs ? "gaussian_image" : "optical_focus"): CartesianOpticsInputs {
+  if (inputs.kind !== "lens" && inputs.kind !== "mirror") return invalid("kind", "optical kind must be explicit lens or mirror");
+  const kind: OpticalKind = inputs.kind;
+  const form = inputs.form;
+  if (form !== undefined && form !== "converging" && form !== "diverging") invalid("form", 'form must be "converging" or "diverging"');
+  if (inputs.objectSide !== undefined) {
+    if (form === undefined) invalid("objectSide", "objectSide applies only to unsigned magnitudes with form");
+    if (inputs.objectSide !== "real" && inputs.objectSide !== "virtual") invalid("objectSide", 'objectSide must be "real" or "virtual"');
+  }
+  const statedFocal = number(inputs.focalLength, "focalLength"); if (!(Math.abs(statedFocal) > MIN_PHYSICAL)) invalid("focalLength", "signed focal length must be nonzero");
+  if (kind === "lens" && form === "converging" && statedFocal < 0) invalid("form", "a negative lens focal length is diverging in every sign convention, so form converging contradicts it");
+  const focalLength = form === undefined ? statedFocal : (kind === "lens") === (form === "converging") ? Math.abs(statedFocal) : -Math.abs(statedFocal);
+  if (operator !== "gaussian_image") return { kind, ...(form === undefined ? {} : { form }), focalLength };
+  const statedObject = number(inputs.objectDistance, "objectDistance"); if (!(Math.abs(statedObject) > MIN_PHYSICAL)) invalid("objectDistance", "signed object distance must be nonzero");
+  const objectDistance = form === undefined ? statedObject : (inputs.objectSide === "virtual" ? 1 : -1) * Math.abs(statedObject);
+  const objectHeight = number(inputs.objectHeight, "objectHeight");
+  return { kind, ...(form === undefined ? {} : { form }), focalLength, objectDistance, objectHeight };
+}
 function physicalModel(operator: string, inputs: Record<string, unknown>, context: GeometricOpticsEvaluationContext): FocusModel | ImageModel {
   if (!isRecord(inputs)) invalid("fields", "geometric optics inputs must be an object");
   const allowed = INPUT_KEYS[operator]; if (!allowed) return invalid("operator", `unsupported geometric optics operator ${operator}`);
   const extra = Object.keys(inputs).filter((key) => !allowed.includes(key)); if (extra.length) invalid("fields", `unsupported geometric optics inputs: ${extra.join(", ")}`);
   if (inputs.kind !== "lens" && inputs.kind !== "mirror") return invalid("kind", "optical kind must be explicit lens or mirror");
-  const kind: OpticalKind = inputs.kind;
   checkSourceUnits(operator, inputs);
-  const focalLength = scalar(inputs.focalLength, "focalLength", context); if (!(Math.abs(focalLength) > MIN_PHYSICAL)) invalid("focalLength", "signed focal length must be nonzero");
+  const resolved = resolveCartesianOpticsInputs(inputs, (value, key) => scalar(value, key, context), operator);
+  const { kind, focalLength } = resolved;
   const displayScale = scalar(inputs.displayScale, "displayScale", context); if (!(displayScale > 0)) invalid("displayScale", "displayScale must be positive");
   const lengthUnit = inputs.lengthUnit === undefined ? "unit" : typeof inputs.lengthUnit === "string" ? LENGTH_UNITS[normalizedUnit(inputs.lengthUnit)] : undefined;
   if (!lengthUnit) invalid("lengthUnit", "lengthUnit must be a supported common length scale");
   if (operator === "optical_focus") return { kind, focalLength, displayScale, lengthUnit };
-  const objectDistance = scalar(inputs.objectDistance, "objectDistance", context); if (!(Math.abs(objectDistance) > MIN_PHYSICAL)) invalid("objectDistance", "signed object distance must be nonzero");
-  const objectHeight = scalar(inputs.objectHeight, "objectHeight", context);
+  const objectDistance = resolved.objectDistance!; const objectHeight = resolved.objectHeight!;
   const denominator = kind === "lens" ? objectDistance + focalLength : objectDistance - focalLength;
   if (!(Math.abs(denominator) / Math.max(Math.abs(objectDistance), Math.abs(focalLength)) > 1e-10)) invalid("objectDistance", "image at infinity or a numerically singular image cannot be represented by finite landmarks");
   const imageDistance = bounded(focalLength * (objectDistance / denominator), "imageDistance");
@@ -219,6 +249,12 @@ export function validateEvaluatedGeometricOpticsLabels(construction: SceneConstr
       if ("objectDistance" in model) Object.assign(values, { u: model.objectDistance, v: model.imageDistance, h_o: model.objectHeight, h_i: model.imageHeight, m: model.magnification });
       else values[defaultSymbol] = model.axisDistance;
       const agrees = (actual: number, expected: number, tolerance = 5e-4): boolean => Math.abs(actual - expected) <= tolerance * Math.max(1e-9, Math.abs(expected));
+      // Any textbook focus name on a focus output names that output's own focus.
+      const symbolOf = (name: string): string => !("objectDistance" in model) && FOCUS_NAME.test(name) ? defaultSymbol : name;
+      // An unsigned number states a magnitude; the engine-placed point shows the side.
+      // An explicit sign must equal the Cartesian sign. m stays signed: its sign is the orientation.
+      const agreesStated = (raw: string, symbol: string, expected: number, tolerance?: number): boolean =>
+        symbol !== "m" && !/^[+-]/.test(raw) ? agrees(Math.abs(Number(raw)), Math.abs(expected), tolerance) : agrees(Number(raw), expected, tolerance);
       const checkUnits = (units: string[], symbol: string): void => {
         for (const unit of units) if (LENGTH_UNITS[normalizedUnit(unit)] !== (symbol === "m" ? "unit" : model.lengthUnit)) invalid("label", "optical label quantity uses a contradictory physical unit");
       };
@@ -229,21 +265,25 @@ export function validateEvaluatedGeometricOpticsLabels(construction: SceneConstr
         const label = text.trim().replaceAll("−", "-");
         if (Object.hasOwn(values, label)) return label;
         // This grammar checks mathematical scalar labels only; it never interprets question prose.
-        if (/^[A-Za-z][A-Za-z_]*$/.test(label) || /^(?:F1|F2)$/.test(label)) return undefined;
+        if (/^[A-Za-z][A-Za-z_]*$/.test(label) || FOCUS_NAME.test(label)) return undefined;
         for (const part of label.split(";")) {
-          const match = /^\s*(u|v|f|h_o|h_i|m|F1|F2|F)\s*=\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*([^\s]*)\s*$/.exec(part);
-          if (!match || !Object.hasOwn(values, match[1]!)) invalid("label", "optical numeric labels must name a supported physical scalar");
-          if (!agrees(Number(match[2]), values[match[1]!]!)) invalid("label", "optical numeric label contradicts the evaluated Gaussian result");
-          if (match[3]) checkUnits([match[3]], match[1]!);
+          const match = /^\s*(u|v|f|h_o|h_i|m|F[12₁₂′']?)\s*=\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*([^\s]*)\s*$/u.exec(part);
+          const symbol = match ? symbolOf(match[1]!) : undefined;
+          if (!match || symbol === undefined || !Object.hasOwn(values, symbol)) return invalid("label", "optical numeric labels must name a supported physical scalar");
+          if (!agreesStated(match[2]!, symbol, values[symbol]!)) invalid("label", "optical numeric label contradicts the evaluated Gaussian result");
+          if (match[3]) checkUnits([match[3]], symbol);
         }
-        return label.split("=")[0]!.trim();
+        return symbolOf(label.split("=")[0]!.trim());
       };
       checkText(document.entities.find((entity) => entity.id === outputId)?.label);
       for (const annotation of document.annotations) {
         if (!annotation.targetIds.includes(outputId)) continue;
         const symbol = checkText(annotation.text) ?? defaultSymbol;
         if (annotation.quantityId !== undefined) {
-          if (!agrees(validationNumber(annotation.quantityId, document), values[symbol]!, 1e-9)) invalid("label", "source-bound optical annotation contradicts the derived physical scalar");
+          // A non-negative bound value is a magnitude (the plan's unsigned f binds to a concave mirror's focus); a negative one is exact.
+          const bound = validationNumber(annotation.quantityId, document); const expected = values[symbol]!;
+          const ok = symbol !== "m" && bound >= 0 ? agrees(bound, Math.abs(expected), 1e-9) : agrees(bound, expected, 1e-9);
+          if (!ok) invalid("label", "source-bound optical annotation contradicts the derived physical scalar");
           checkUnits(sourceUnits(annotation.quantityId, "label", document), symbol);
         }
       }
