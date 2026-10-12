@@ -17,6 +17,15 @@ function documentFor(question: string, operator: string, inputs: Record<string, 
     teachingTimeline: [{ id: "reveal_solution", action: "reveal", targetId: "solution_group", dependsOn: [], narrationIntent: "Explain the verified solution." }],
   };
 }
+function componentsFor(question: string, operator: string, inputs: Record<string, unknown>[]): SceneDocument {
+  const document = documentFor(question, operator, inputs[0]!);
+  const ids = inputs.map((_, i) => `solution_${i}`);
+  document.entities = ids.map(id => ({ id, kind: "linear_region", role: "solution" }));
+  document.constructions = inputs.map((value, i) => ({ id: `construct_${i}`, operator, inputs: value, outputs: [ids[i]!] }));
+  document.requiredEntityIds = ids;
+  document.revealGroups[0]!.entityIds = ids;
+  return document;
+}
 
 let checks = 0;
 const failures: string[] = [];
@@ -118,6 +127,133 @@ for (const [i, expression, accepted] of [
   const result = compileSceneDocument(documentFor("Represent not x<0 on a number line.", "number_line_set", { variable: "x", expression }));
   assert.equal(Boolean(result.ok && result.renderScene), accepted, JSON.stringify(result.report.issues));
 });
+
+for (const [i, question, planar] of [
+  [1, "Represent x>2 and x<5 using two number lines.", false],
+  [2, "Represent x>2 and x<5 with two number lines.", false],
+  [3, "Represent each solution set x>2 and x<5 on a number line.", false],
+  [4, "Graph x+y<=4 and x+y>=2. Use two graphs.", true],
+  [5, "Graph x+y<=4 and x+y>=2. Draw two graphs.", true],
+  [6, "Represent x>2 and x<5 with two different number lines.", false],
+  [7, "Use two number lines to represent x>2 and x<5.", false],
+  [8, "Graph x+y<=4 and x+y>=2 as two graphs.", true],
+  [9, "Draw two graphs for x+y<=4 and x+y>=2.", true],
+] as Array<[number, string, boolean]>) check(`plural-display-scope-${i}`, () => {
+  assert.equal(buildLinearSourceDocument(question), null);
+  const candidate = componentsFor(question, planar ? "linear_half_plane" : "number_line_set", planar
+    ? [{ variables: ["x", "y"], inequality: "x+y<=4" }, { variables: ["x", "y"], inequality: "x+y>=2" }]
+    : [{ variable: "x", expression: { inequality: "x>2" } }, { variable: "x", expression: { inequality: "x<5" } }]);
+  assert.deepEqual(validateLinearSourceBinding(candidate), []);
+});
+for (const [i, question] of [
+  "Represent x>2 and x<5 on one number line.",
+  "Represent x>2 and x<5 using one number line.",
+  "Graph x+y<=4 and x+y>=2 on one graph.",
+  "Graph x+y<=4 and x+y>=2. Draw one graph.",
+].entries()) check(`single-display-scope-${i + 1}`, () => {
+  const reader = buildLinearSourceDocument(question);
+  assert.ok(reader);
+  assert.ok(compileSceneDocument(reader).ok);
+});
+check("descriptive-two-graphs-retains-proved-coordinate-authority", () => {
+  const question = "Teach me how the two graphs 2x + y = 7 and x - y = 2 show a unique solution.";
+  const reader = buildLinearSourceDocument(question);
+  assert.ok(reader);
+  assert.ok(compileSceneDocument(reader).ok);
+  const plan: TurnPlanV3 = { schemaVersion: "turn-plan/v3", question, visualRequirement: "required", givens: [],
+    unknowns: [{ id: "y", symbol: "y" }], derived: [{ id: "y", symbol: "y", value: 1, provenance: "derived" }],
+    qualitativeClaims: [], lawIds: [], assumptions: [] };
+  assert.deepEqual(validateLinearSourcePlan(question, plan), []);
+  plan.derived[0]!.value = -1;
+  assert.ok(validateLinearSourcePlan(question, plan).some(issue => issue.code === "linear_source_plan_value_mismatch"));
+});
+for (const [i, question] of [
+  "Graph only the boundary of x+y<=4.",
+  "Draw only the boundary of x+y<=4.",
+  "Plot the boundary line of x+y<=4.",
+  "Represent only the boundary points of x+y<=4.",
+  "Show the boundary of the region x+y<=4 only.",
+  "Draw the exact boundary of x+y<=4.",
+  "Graph x+y<=4. Draw only its boundary.",
+].entries()) check(`boundary-result-scope-${i + 1}`, () => {
+  assert.equal(buildLinearSourceDocument(question), null);
+  assert.deepEqual(validateLinearSourceBinding(documentFor(question, "linear_system", { variables: ["x", "y"], equations: ["x+y=4", "x+y=4"] })), []);
+});
+for (const [i, question] of ["Graph x+y<=4 and label its boundary.", "Shade x+y<=4 and show its boundary."].entries()) check(`region-with-boundary-annotation-${i + 1}`, () => {
+  const reader = buildLinearSourceDocument(question);
+  assert.ok(reader);
+  const result = compileSceneDocument(reader);
+  assert.ok(result.ok && result.renderScene);
+  assert.ok(result.renderScene.primitives.some(primitive => primitive.provenance?.linearRole === "feasible_fill"));
+});
+for (const [i, statement] of [
+  "Do not restrict x to integers.",
+  "No restriction to integers is intended.",
+  "The domain includes real numbers, not only integers.",
+  "Do not treat x as integers.",
+  "An integer restriction does not apply.",
+  "It is not limited to whole numbers.",
+  "Are integers required?",
+  "Let x not be an integer.",
+  "An integer x is not required.",
+].entries()) check(`unproved-discrete-domain-statement-${i + 1}`, () => {
+  const question = `Represent x<3 on a number line. ${statement}`;
+  assert.equal(buildLinearSourceDocument(question), null);
+  const result = compileSceneDocument(documentFor(question, "number_line_set", { variable: "x", expression: { inequality: "x<3" } }));
+  assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+});
+for (const [i, statement] of [
+  "for integer x.", "for natural numbers x.", "with x in Z.", "over Z.",
+  ". x is an integer.", ". Restrict x to whole numbers.",
+  "for x∈ℤ.", "for x ∈ ℤ.", "for x ∈ℤ.",
+  "for x \\in \\mathbb{Z}.",
+  "for x \\in \\mathbb{N}.",
+  ". Let x be an integer.", ". Given integer x.",
+].entries()) check(`proved-discrete-domain-${i + 1}`, () => {
+  const question = `Graph x<3 ${statement}`;
+  assert.equal(buildLinearSourceDocument(question), null);
+  const result = compileSceneDocument(documentFor(question, "number_line_set", { variable: "x", expression: { inequality: "x<3" } }));
+  assert.ok(!result.ok && result.renderScene === null && result.report.issues.some(issue => issue.code === "linear_source_mismatch"));
+});
+for (const inequality of ["x<2.5", "x<.5", "x<5/2", "x<2.5e1", "x<2e-1", "2x-1<7"]) check(`proved-discrete-domain-scalar-${inequality}`, () => {
+  const question = `Represent ${inequality} on a number line in Z.`;
+  assert.equal(buildLinearSourceDocument(question), null);
+  const result = compileSceneDocument(documentFor(question, "number_line_set", { variable: "x", expression: { inequality } }));
+  assert.ok(!result.ok && result.renderScene === null && result.report.issues.some(issue => issue.code === "linear_source_mismatch"));
+});
+check("proved-real-set-alias-is-not-an-integer-domain", () => {
+  const question = "For real x, let Z={x:x<3} and I={x:x>0}. Draw Result=Z intersection I on a number line. State x belongs to Z.";
+  assert.equal(buildLinearSourceDocument(question), null, "The extra bare-x membership request is unproved");
+  const candidate = documentFor(question, "number_line_set", { variable: "x", expression: { intersection: [{ inequality: "x<3" }, { inequality: "x>0" }] } });
+  assert.deepEqual(validateLinearSourceBinding(candidate), []);
+  assert.ok(compileSceneDocument(candidate).ok);
+});
+check("planar-witness-proof-budget-defers", () => {
+  const question = `Shade the complement of (${Array(16).fill("x+y<1").join(" or ")}).`;
+  const inputs = { variables: ["x", "y"], constraints: Array(16).fill("x+y>=1") };
+  const result = compileSceneDocument(documentFor(question, "linear_feasible_region", inputs));
+  assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  const wrong = compileSceneDocument(documentFor(question, "linear_feasible_region", { ...inputs, constraints: [...Array(15).fill("x+y>=1"), "x+y>=2"] }));
+  assert.ok(!wrong.ok && wrong.renderScene === null && wrong.report.issues.some(issue => issue.code === "linear_source_mismatch"));
+});
+for (const [i, statement] of [
+  "Mark the intersection AT THE ORIGIN.", "Mark the intersection at THE origin.",
+  "The lines meet at THE origin.", "The lines cross at THE origin.",
+  "Show the point of intersection at THE origin.",
+  "Mark the intersection at AN origin.", "Mark the intersection at BY origin.",
+  "Mark the intersection at A point.",
+].entries()) check(`grammatical-origin-is-not-a-name-${i + 1}`, () => {
+  const question = `Graph x+y=0 and x-y=0. ${statement}`;
+  const result = compileSceneDocument(documentFor(question, "linear_system", { variables: ["x", "y"], equations: ["x+y=0", "x-y=0"] }));
+  assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  assert.ok(!result.renderScene.primitives.some(primitive => primitive.provenance?.linearSourceNames));
+  assert.ok(result.renderScene.primitives.some(primitive => primitive.text === "One solution"));
+});
+for (const [i, prefix] of ["WHY", "RHS", "AND", "AT", "IN"].entries()) check(`grammatical-colon-is-not-a-name-${i + 1}`, () => {
+  const result = compileSceneDocument(documentFor(`Explain ${prefix}: x+y=0 and x-y=0.`, "linear_system", { variables: ["x", "y"], equations: ["x+y=0", "x-y=0"] }));
+  assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  assert.ok(!result.renderScene.primitives.some(primitive => primitive.provenance?.linearRole === "boundary_name"));
+});
 for (const [id, question, operator, inputs] of [
   ["double-complement", "Represent the complement of the complement of x<0 on a number line.", "number_line_set", { variable: "x", expression: { inequality: "x<0" } }],
   ["unfamiliar-adverb", "Show x<3 cautiously on a number line.", "number_line_set", { variable: "x", expression: { inequality: "x<3" } }],
@@ -169,6 +305,8 @@ for (const [i, question, lineNames, point] of [
   [2, "Graph l: x+y=6 and m: x-y=2. Mark the intersection P.", ["l", "m"], "P"],
   [3, "Graph AB: x+y=6 and CD: x-y=2. The intersection is called Crossing.", ["AB", "CD"], "Crossing"],
   [4, "Graph line named Alpha: x+y=6 and line called Beta: x-y=2. The intersection is named Meet.", ["Alpha", "Beta"], "Meet"],
+  [5, "Graph A: x+y=6 and B: x-y=2. The lines meet at P.", ["A", "B"], "P"],
+  [6, "Graph l: x+y=6 and m: x-y=2. The lines meet at A.", ["l", "m"], "A"],
 ] as Array<[number, string, string[], string]>) check(`explicit-names-survive-${i}`, () => {
   const result = compileSceneDocument(documentFor(question, "linear_system", { variables: ["x", "y"], equations: ["x+y=6", "x-y=2"] }));
   assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));

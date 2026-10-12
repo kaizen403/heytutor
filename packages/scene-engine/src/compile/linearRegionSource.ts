@@ -7,7 +7,7 @@ import {
   type IntervalExpression,
   type LinearFigureInput,
 } from "../math/linearRegion";
-import { readLinearSourceIntersectionNames, readLinearSourceReferencePoints } from "./linearSourcePoints";
+import { isLinearSourceIdentifier, readLinearSourceIntersectionNames, readLinearSourceReferencePoints } from "./linearSourcePoints";
 export { readLinearSourceReferencePoints } from "./linearSourcePoints";
 import {
   evaluateLinearRegionConstruction,
@@ -39,7 +39,7 @@ export function readLinearSourceLineName(prefix: string): string | undefined {
   const declared = /\bline\s+(?:named|called)\s+([A-Za-z][A-Za-z0-9_]*)\s*:\s*$/i.exec(prefix);
   if (declared) return declared[1];
   const short = /\b([A-Za-z][A-Za-z0-9_]*)\s*:\s*$/.exec(prefix)?.[1];
-  return short && /^(?:[A-Za-z]|[A-Za-z]\d{1,3}|[A-Z]{2,3})$/.test(short) ? short : undefined;
+  return short && isLinearSourceIdentifier(short) ? short : undefined;
 }
 
 /**
@@ -102,6 +102,23 @@ function normalize(text: string): string {
 }
 /** Refuse source syntax whose scope the bounded reader cannot certify. */
 function assertLinearSourceGrammar(text: string): void {
+  // Display cardinality belongs to the requested object, independent of a
+  // preposition or where the display instruction appears in the request.
+  const singular = new Set(["one", "single"]);
+  const cardinality = /\b(\d+|zero|one|two|three|four|five|six|seven|eight|nine|ten|single|both|many|multiple|several|each|every)\s+(?:(?:same|different|separate|distinct|coordinate|xy)\s+)*(?:number[ -]lines?|graphs?|planes?|canvases?)\b/gi;
+  for (const display of text.matchAll(cardinality)) {
+    const count = display[1]!.toLowerCase();
+    const context = text.slice(0, display.index!);
+    // "The two graphs ... show a unique solution" describes two plotted
+    // functions. Frame cardinality is asserted by a display action or its
+    // governing location/manner preposition, not by a descriptive noun alone.
+    if (!/number[ -]lines?/i.test(display[0])
+      && !/\b(?:on|in|using|with|as|use|graph|draw|plot|represent|show|illustrate)\s+(?:(?:a|an|the|me|same|exact|these|those)\s+)*$/i.test(context)) continue;
+    if (!singular.has(count) && !/^0*1$/.test(count))
+      throw new UnprovedLinearRequest("The requested display cardinality has no single shared figure scope");
+  }
+  if (/\bnumber[ -]lines\b|\b(?:each|every)\s+(?:solution\s+sets?|inequalities|intervals?|sets?|graphs?)\b/i.test(text))
+    throw new UnprovedLinearRequest("Distributed source objects have no single certified result scope");
   if (/\b(?:complement\s+of|not)\s*(?:\(*\s*(?:the\s+)?)?(?:complement\s+of|not)\b/i.test(text))
     throw new Error("Repeated source complement requires an explicit supported scope");
   if (/\b(?:each\s+(?:of|inequality|interval|set|graph)|separately|separate\s+(?:axes|graphs?|number[ -]lines?))\b/i.test(text))
@@ -460,6 +477,15 @@ function booleanProgram(
   // Ordinary instructions such as "and label the axes" remain outside the
   // mathematical program, while "or x" and "or (x+y)" are incomplete math.
   const gaps = [text.slice(0, groups[0]![0]!.start), ...groups.map((group, index) => text.slice(group.at(-1)!.end, groups[index + 1]?.[0].start ?? text.length))];
+  for (const [index, gap] of gaps.entries()) {
+    // The first result noun after an action identifies its requested object.
+    // A boundary request before its operand is not a shaded solution region;
+    // an exclusive boundary request also cannot be a later annotation.
+    const objects = gap.matchAll(/\b(?:graph|shade|show|plot|represent|draw|illustrate)\s+((?:[A-Za-z]+\s+)*?)(boundar(?:y|ies)|regions?|solutions?|sets?|points?|lines?)\b/gi);
+    for (const object of objects)
+      if (/^boundar/i.test(object[2]!) && (index === 0 || /\b(?:only|just)\b/i.test(object[1]!)))
+        throw new UnprovedLinearRequest("The requested boundary object is not a filled solution set");
+  }
   const names = [...sourcePointLabels, ...readLinearSourceIntersectionNames(text)];
   for (const clause of source) {
     const label = readLinearSourceLineName(text.slice(0, clause.start));
@@ -676,6 +702,9 @@ function planarBooleanAgreement(program: IntervalExpression, proposed: string[],
   if (!source || !outsideSource || !outsideCandidate) return null;
   for (const [left, right] of [[source, outsideCandidate], [[proposed], outsideSource]] as const) {
     for (const a of left) for (const b of right) {
+      // Candidate inputs may be within the native budget while a proof-only
+      // witness adds another row. That is absence of proof, not disagreement.
+      if (a.length + b.length > 16) return null;
       const solution = solveLinearFigure({ kind: "linear_feasible_region", variables: [variables[0]!, variables[1]!], constraints: [...a, ...b] });
       if (solution.kind !== "linear_feasible_region") return null;
       if (solution.feasibility.feasible) return false;
@@ -1164,6 +1193,7 @@ interface LinearBindingSource {
   source: SourceClause[];
   program: IntervalExpression;
   objective?: SourceObjective;
+  aliases?: Set<string>;
 }
 
 /** Source reconstruction has no proposed coefficients or candidate solution. */
@@ -1186,12 +1216,14 @@ function readLinearBindingSource(question: string, names: readonly string[], num
       body = body.slice(0, objective.start) + " ".repeat(objective.end - objective.start) + body.slice(objective.end);
     }
     if (numberLine) {
-      const named = setBuilderSourceProgram(body, names[0]!) ?? intervalSourceProgram(body, names[0]!);
+      const aliases = new Set<string>();
+      const named = setBuilderSourceProgram(body, names[0]!, aliases) ?? intervalSourceProgram(body, names[0]!, aliases);
       if (named) {
         signatures(inequalityLeaves(named), names);
         if (/\bstrict[- ]boundary\s+exclusion\b/i.test(body)
           && !inequalityLeaves(named).some(leaf => parseLinearConstraint(leaf, names).some(row => row.strict))) return null;
-        return { source: [], program: named };
+        if (hasAffirmativeDiscreteDomain(question, names, aliases)) return null;
+        return { source: [], program: named, aliases };
       }
     }
     const source = clauses(body, names, proseLabels);
@@ -1199,12 +1231,55 @@ function readLinearBindingSource(question: string, names: readonly string[], num
     signatures(inequalityLeaves(program), names);
     if (/\bstrict[- ]boundary\s+exclusion\b/i.test(body)
       && !inequalityLeaves(program).some(leaf => parseLinearConstraint(leaf, names).some(row => row.strict))) return null;
+    if (hasAffirmativeDiscreteDomain(question, names)) return null;
     return { source, program, ...(objective ? { objective } : {}) };
   } catch {
     // A failed lexical, scope, or request proof is absence of authority. Only
     // the completed result above can enter a proposed/source comparison.
     return null;
   }
+}
+
+/** An independent domain veto requires an affirmative variable-domain clause. */
+function hasAffirmativeDiscreteDomain(question: string, names: readonly string[], aliases: ReadonlySet<string> = new Set()): boolean {
+  const setAliases = new Set(aliases);
+  // A literal real-set given proves its alias independently of the surrounding
+  // request. An unproved later instruction cannot turn that alias into ℤ/ℕ.
+  for (const given of question.matchAll(/\b([NZW])\s*=\s*\{\s*([A-Za-z][A-Za-z0-9_]*)(?:\s+in\s+(?:R|ℝ))?\s*:\s*([^{}]+)\}/g)) {
+    if (!names.includes(given[2]!)) continue;
+    try {
+      const content = normalize(given[3]!);
+      const program = booleanProgram(content, clauses(content, [given[2]!]));
+      signatures(inequalityLeaves(program), [given[2]!]);
+      setAliases.add(given[1]!);
+    } catch { /* The literal source alias itself has no complete proof. */ }
+  }
+  const name = `(?:${names.join("|")})`;
+  const list = `${name}(?:\\s*(?:,\\s*(?:and\\s*)?|and\\s+)${name})*`;
+  const domain = "(?:integers?|natural\\s+numbers?|whole\\s+numbers?|[NZWℤℕ]|\\\\mathbb\\s*\\{?[ZN]\\}?)";
+  const discrete = (text: string): boolean => !setAliases.has(text) && (/^(?:integers?|natural\s+numbers?|whole\s+numbers?)$/i.test(text)
+    || /^(?:[NZWℤℕ]|\\mathbb\s*\{?[ZN]\}?)$/.test(text));
+  const declared = (text: string): boolean => (text.match(/[A-Za-z][A-Za-z0-9_]*/g) ?? [])
+    .filter(token => token.toLowerCase() !== "and").every(token => names.includes(token));
+  const end = "(?=\\s|[.,;?!]|$)";
+  for (const match of question.matchAll(/(?:\.(?=\d)|[^.;?!])+[.;?!]?/g)) {
+    const clause = match[0];
+    // Negation, conditionals and questions do not constitute affirmative
+    // domain assertions, even when a discrete-domain noun occurs within them.
+    if (/\?|\b(?:not|no|never|without|if|unless|whether)\b/i.test(clause)) continue;
+    for (const [pattern, variableIndex, domainIndex] of [
+      [new RegExp(`\\b(?:for|over|in|given|with)\\s+(${domain})\\s+(${list})${end}`, "gi"), 2, 1],
+      [new RegExp(`\\b(${list})\\s*(?:∈\\s*|\\\\in\\s+|(?:is|are|be)\\s+(?:an?\\s+)?|in\\s+|belongs?\\s+to\\s+)(${domain})${end}`, "gi"), 1, 2],
+      [new RegExp(`\\brestrict\\s+(${list})\\s+to\\s+(${domain})${end}`, "gi"), 1, 2],
+    ] as const) for (const assertion of clause.matchAll(pattern))
+      if (declared(assertion[variableIndex]!) && discrete(assertion[domainIndex]!)) return true;
+    // A postfix symbolic domain binds an explicitly quoted mathematical
+    // comparison in the same clause, rather than any nearby prose noun.
+    if (/[<>=]/.test(clause) && new RegExp(`(?<![A-Za-z_])${name}(?![A-Za-z0-9_])`).test(clause))
+      for (const assertion of clause.matchAll(new RegExp(`\\b(?:in|over)\\s+(${domain})${end}`, "gi")))
+        if (discrete(assertion[1]!)) return true;
+  }
+  return false;
 }
 
 export function validateLinearSourceBinding(document: SceneDocument): SceneIssue[] {
@@ -1221,8 +1296,6 @@ export function validateLinearSourceBinding(document: SceneDocument): SceneIssue
       // These are independent contradictions, not request-parser failures.
       if (input.kind !== "number_line_set" && names.includes("x") && names.includes("y") && (names[0] !== "x" || names[1] !== "y"))
         throw new Error("Source x/y coordinates require canonical axis order ['x','y'] for boundary, corner and solution tuples");
-      if (/\b(?:in|over)\s+[NZW]\b|[ℤℕ]|\\(?:mathbb\s*\{?[ZN])\b|\bintegers?\b(?![- ]coefficients?\b)|\b(?:natural\s+numbers?|whole\s+numbers?)\b/i.test(sourceNotation(question, names)))
-        throw new Error("Continuous linear figures contradict an explicit discrete source domain");
       if (geometry.solution.kind !== "number_line_set") {
         const rows = geometry.solution.kind === "linear_system" ? geometry.solution.equations : geometry.solution.constraints;
         for (const free of question.matchAll(/\bno\s+constraint\s+on\s+([xy])\s*(?=[.;?!]|$)/gi)) {
@@ -1243,6 +1316,8 @@ export function validateLinearSourceBinding(document: SceneDocument): SceneIssue
           throw new Error("An original named intersection tuple contradicts the complete source system");
       }
       const authority = readLinearBindingSource(question, names, input.kind === "number_line_set");
+      if (hasAffirmativeDiscreteDomain(question, names, authority?.aliases))
+        throw new Error("Continuous linear figures contradict an explicit discrete source domain");
       if (!authority) continue;
       const ownedOutputs = new Set(document.constructions
         .filter(item => (LINEAR_REGION_OPERATORS as readonly string[]).includes(item.operator))

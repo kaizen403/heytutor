@@ -8,6 +8,12 @@ export interface LinearSourceReferencePoint {
   y: ExactRational;
 }
 
+/** Bare identifiers have a bounded shape and cannot be grammatical operators. */
+export function isLinearSourceIdentifier(name: string): boolean {
+  const functionWord = /^(?:a|an|the|and|or|not|if|then|at|in|on|of|for|to|by|as|with|from|over|under)$/i;
+  return /^[A-Z]$/.test(name) || !functionWord.test(name) && /^(?:[A-Za-z]|[A-Z]{2}|[A-Za-z]\d{1,3}|[A-Za-z]_[A-Za-z0-9_]+)$/.test(name);
+}
+
 /** Explicit source names for the intersection, independent of planner aliases. */
 export function readLinearSourceIntersectionNames(question: string): Set<string> {
   const names = new Set<string>();
@@ -18,7 +24,8 @@ export function readLinearSourceIntersectionNames(question: string): Set<string>
     [/\b(?:point\s+of\s+intersection|intersection(?:\s+point)?)\s+(?:is\s+)?(?:point\s+)?([A-Za-z][A-Za-z0-9_]*)\b\s*(?=[,.;?!=]|$)/gi, false],
   ] as const) for (const match of question.matchAll(pattern)) {
     const name = match[1]!;
-    if (explicit || /^(?:[A-Z]{1,3}|[A-Za-z]\d{1,3}|[A-Za-z]_[A-Za-z0-9_]+)$/.test(name)) names.add(name);
+    const tail = question.slice(match.index! + match[0].length);
+    if (explicit || isLinearSourceIdentifier(name) && /^\s*(?:[,.;?!=()]|$)/.test(tail)) names.add(name);
   }
   return names;
 }
