@@ -12,13 +12,18 @@
  * image point through `evaluateOpticsLaw("spherical_refraction")`.
  *
  * `validateSphericalRefractionImagePlacements` holds a document to it. For
- * each declared `spherical_surface`, a literal point on its axis placed at a
- * plan-derived distance from its vertex is a placed image; it must be the
- * law's image of some declared object (a literal point on the axis at a
- * plan-given distance from a surface vertex) for some pair of the plan's
- * refractive indices (dimensionless values from 1 to 4 written with an n or
- * mu symbol) and 1. Otherwise: `spherical_refraction_image_disagrees`.
- * Nothing is read from the question or from role text.
+ * each `spherical_surface` the document declares refracting, a literal point
+ * on its axis placed at a plan-derived distance from its vertex is a placed
+ * image; it must be the law's image of some declared object (a literal point
+ * on the axis at a plan-given distance from a surface vertex) for some pair
+ * of the plan's refractive indices (dimensionless values from 1 to 4 written
+ * with an n or mu symbol) and 1. Otherwise:
+ * `spherical_refraction_image_disagrees`.
+ *
+ * `spherical_surface` also draws mirrors, and a refractive index in the plan
+ * says nothing about which surface it belongs to. A surface refracts only
+ * when the document says so (`refractingSphericalSurfaces`). Nothing is read
+ * from the question or from role text.
  */
 import type { TurnPlanQuantityV3, TurnPlanV3 } from "../contracts/contractsV3";
 import { sphericalSurfaceGeometry } from "../compile/opticsSurfaces";
@@ -95,28 +100,91 @@ function isRefractiveIndex(quantity: TurnPlanQuantityV3): boolean {
   return /^[nμµ]/iu.test(symbol);
 }
 
-/** Placed images of declared refracting surfaces that the law does not give. */
-export function validateSphericalRefractionImagePlacements(document: SceneDocument, plan: PlanLike): SceneIssue[] {
-  const constructions = document.constructions ?? [];
-  const surfaces = constructions.filter((construction) => construction.operator === "spherical_surface");
-  if (surfaces.length === 0) return [];
-  const indices = [...plan.givens ?? [], ...plan.derived ?? []].filter(isRefractiveIndex).map((quantity) => quantity.value);
-  if (indices.length === 0) return [];
-  const media = [...new Set([1, ...indices])];
-  const pairs = media.flatMap((n1) => media.filter((n2) => n2 !== n1).map((n2) => [n1, n2] as const));
-  const givens = numericValues(plan.givens);
-  const derived = numericValues(plan.derived).filter((value) => !givens.some((given) => matches(value, given)));
-  if (givens.length === 0 || derived.length === 0) return [];
+/** Operators whose `surface` (or `target`) input names the boundary their outputs stand on. */
+const SURFACE_ANCHORED = new Set(["refract_at", "reflect_at", "normal_at", "surface_contact", "surface_intersection"]);
 
-  const literal = new Map<string, RefractionPoint>();
+type Frame = { surfaceId: string; vertexId: string; vertex: RefractionPoint; center: RefractionPoint };
+
+/**
+ * The `spherical_surface` outputs a document declares refracting:
+ * - a refraction event at the surface: `refract_at` on it, a
+ *   `refract_direction` whose normal or origin stands on it (`normal_at`,
+ *   `surface_contact`, `surface_intersection`, or the contact or normal of a
+ *   `refract_at`/`reflect_at` there), or a `snells_law` assertion on such a
+ *   normal;
+ * - or one face of a ball: another `spherical_surface` has the same centre
+ *   with its vertex on the far side of it, so the two faces bound one
+ *   medium. A face with a declared reflection and no refraction event there
+ *   is a mirror.
+ * A surface with no such declaration may be a mirror, and a refractive index
+ * elsewhere in the plan does not make it refract.
+ */
+export function refractingSphericalSurfaces(document: SceneDocument): Set<string> {
+  return refractingFrames(document, sphericalSurfaceFrames(document));
+}
+
+function refractingFrames(document: SceneDocument, frames: Frame[]): Set<string> {
+  const constructions = document.constructions ?? [];
+  const refracts = new Set<string>();
+  const reflects = new Set<string>();
+  const standsOn = new Map<string, string>();
   for (const construction of constructions) {
-    const inputs = construction.inputs as Record<string, unknown>;
+    if (!SURFACE_ANCHORED.has(construction.operator)) continue;
+    const inputs = (construction.inputs ?? {}) as Record<string, unknown>;
+    const surface = inputs.surface ?? inputs.target;
+    if (typeof surface !== "string") continue;
+    const outputs = Array.isArray(construction.outputs) ? construction.outputs : [];
+    const event = construction.operator === "refract_at" || construction.operator === "reflect_at";
+    if (construction.operator === "refract_at") refracts.add(surface);
+    if (construction.operator === "reflect_at") reflects.add(surface);
+    const anchored = event ? [outputs[1], inputs.point ?? inputs.contact] : outputs;
+    for (const id of anchored) if (typeof id === "string") standsOn.set(id, surface);
+  }
+  for (const construction of constructions) {
+    if (construction.operator !== "refract_direction" && construction.operator !== "reflect_direction") continue;
+    const inputs = (construction.inputs ?? {}) as Record<string, unknown>;
+    for (const reference of [inputs.normal, inputs.origin, inputs.point]) {
+      const surface = typeof reference === "string" ? standsOn.get(reference) : undefined;
+      if (surface) (construction.operator === "refract_direction" ? refracts : reflects).add(surface);
+    }
+  }
+  for (const assertion of document.assertions ?? []) {
+    if (assertion?.predicate !== "snells_law" || !Array.isArray(assertion.entities)) continue;
+    for (const id of assertion.entities) {
+      const surface = typeof id === "string" ? standsOn.get(id) : undefined;
+      if (surface) refracts.add(surface);
+    }
+  }
+  const result = new Set<string>();
+  for (const frame of frames) {
+    if (refracts.has(frame.surfaceId)) { result.add(frame.surfaceId); continue; }
+    if (reflects.has(frame.surfaceId)) continue;
+    const { vertex, center } = frame;
+    const radius = Math.hypot(vertex.x - center.x, vertex.y - center.y);
+    const ball = frames.some((other) => other.surfaceId !== frame.surfaceId
+      && Math.hypot(other.center.x - center.x, other.center.y - center.y) <= 1e-6 * radius
+      && (other.vertex.x - center.x) * (vertex.x - center.x) + (other.vertex.y - center.y) * (vertex.y - center.y) < 0);
+    if (ball) result.add(frame.surfaceId);
+  }
+  return result;
+}
+
+function literalPoints(document: SceneDocument): Map<string, RefractionPoint> {
+  const literal = new Map<string, RefractionPoint>();
+  for (const construction of document.constructions ?? []) {
+    const inputs = (construction.inputs ?? {}) as Record<string, unknown>;
     if (construction.operator !== "point" || typeof inputs.x !== "number" || typeof inputs.y !== "number") continue;
     if (inputs.coordinateSpace !== undefined && inputs.coordinateSpace !== "world") continue;
     if (!Number.isFinite(inputs.x) || !Number.isFinite(inputs.y)) continue;
     const id = construction.outputs?.[0];
     if (typeof id === "string") literal.set(id, { x: inputs.x, y: inputs.y });
   }
+  return literal;
+}
+
+/** Each spherical_surface with a literal vertex, an axis and a centre (declared, or from its signed radius). */
+function sphericalSurfaceFrames(document: SceneDocument, literal = literalPoints(document)): Frame[] {
+  const constructions = document.constructions ?? [];
   const axisPoints = (id: unknown): [RefractionPoint, RefractionPoint] | null => {
     const producer = constructions.find((construction) => construction.outputs?.includes(id as string));
     if (!producer || (producer.operator !== "line" && producer.operator !== "segment")) return null;
@@ -130,10 +198,9 @@ export function validateSphericalRefractionImagePlacements(document: SceneDocume
     }
     return null;
   };
-
-  type Frame = { surfaceId: string; vertexId: string; vertex: RefractionPoint; center: RefractionPoint };
   const frames: Frame[] = [];
-  for (const surface of surfaces) {
+  for (const surface of constructions) {
+    if (surface.operator !== "spherical_surface") continue;
     const inputs = surface.inputs as Record<string, unknown>;
     const vertexId = String(inputs.vertex ?? inputs.pole ?? "");
     const vertex = literal.get(vertexId);
@@ -154,7 +221,27 @@ export function validateSphericalRefractionImagePlacements(document: SceneDocume
     if (!center || !(Math.hypot(center.x - vertex.x, center.y - vertex.y) > 0)) continue;
     frames.push({ surfaceId, vertexId, vertex, center });
   }
-  if (frames.length === 0) return [];
+  return frames;
+}
+
+/** Placed images of declared refracting surfaces that the law does not give. */
+export function validateSphericalRefractionImagePlacements(document: SceneDocument, plan: PlanLike): SceneIssue[] {
+  const constructions = document.constructions ?? [];
+  const surfaces = constructions.filter((construction) => construction.operator === "spherical_surface");
+  if (surfaces.length === 0) return [];
+  const indices = [...plan.givens ?? [], ...plan.derived ?? []].filter(isRefractiveIndex).map((quantity) => quantity.value);
+  if (indices.length === 0) return [];
+  const media = [...new Set([1, ...indices])];
+  const pairs = media.flatMap((n1) => media.filter((n2) => n2 !== n1).map((n2) => [n1, n2] as const));
+  const givens = numericValues(plan.givens);
+  const derived = numericValues(plan.derived).filter((value) => !givens.some((given) => matches(value, given)));
+  if (givens.length === 0 || derived.length === 0) return [];
+
+  const literal = literalPoints(document);
+  // Every surface's vertex and centre stay reserved; only refracting ones are held to the law.
+  const frames = sphericalSurfaceFrames(document, literal);
+  const refracting = refractingFrames(document, frames);
+  if (!frames.some((frame) => refracting.has(frame.surfaceId))) return [];
   const reserved = new Set<string>(frames.map((frame) => frame.vertexId));
   for (const surface of surfaces) {
     const center = (surface.inputs as Record<string, unknown>).center;
@@ -165,6 +252,7 @@ export function validateSphericalRefractionImagePlacements(document: SceneDocume
 
   const issues: SceneIssue[] = [];
   for (const frame of frames) {
+    if (!refracting.has(frame.surfaceId)) continue;
     const { vertex, center } = frame;
     const radius = Math.hypot(center.x - vertex.x, center.y - vertex.y);
     const onAxis = (point: RefractionPoint) =>

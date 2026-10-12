@@ -26,6 +26,10 @@
  * 3.2 cm and 16 cm (at the near surface). A literal image at a plan-derived
  * distance from a surface vertex that the law does not give is reported
  * (`spherical_refraction_image_disagrees`); production selection declines it.
+ * Only surfaces the document declares refracting are held to the law (a
+ * refraction event there, or both faces of one ball): spherical_surface also
+ * draws mirrors, and a concave mirror's correct image must not be compared
+ * with the refraction of an index found elsewhere in the plan.
  *
  *   pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-ray-optics-instruments.ts
  */
@@ -354,6 +358,60 @@ check("recorded sphere: images placed at 2.29 and 5.33 cm disagree with the law"
 check("control: recorded b1 sphere with its image at 3.2 cm agrees", () => {
   const issues = placementIssues("sphereCorrect");
   return issues.length === 0 ? null : `flagged ${issues.map((issue) => issue.entityIds?.[0]).join(", ")}`;
+});
+
+// Review of #164: spherical_surface also draws mirrors. A concave mirror (pole 0, centre
+// -30 cm), object at -20 cm, image at -60 cm, in a plan that also carries n = 1.5.
+// Refraction would give -22.5 or -17.14 cm; the mirror's image is right.
+const mirrorPlan = {
+  givens: [
+    { id: "n", symbol: "n", value: 1.5 },
+    { id: "R", symbol: "R", value: 30, unit: "cm" },
+    { id: "u", symbol: "u", value: 20, unit: "cm" },
+  ],
+  derived: [
+    { id: "f", symbol: "f", value: 15, unit: "cm" },
+    { id: "v", symbol: "v", value: 60, unit: "cm" },
+  ],
+};
+const concaveSurface = (declaredRefracting: boolean) => scene("An object 20 cm in front of a concave surface of radius 30 cm.", [
+  { id: "V", kind: "point", role: "pole", label: "P" },
+  { id: "C", kind: "point", role: "centre of curvature", label: "C" },
+  { id: "F", kind: "point", role: "principal focus", label: "F" },
+  { id: "O", kind: "point", role: "object", label: "O" },
+  { id: "I", kind: "point", role: "image", label: "I" },
+  { id: "axis", kind: "line", role: "principal axis" },
+  { id: "surface", kind: "arc", role: declaredRefracting ? "air to glass surface" : "concave mirror" },
+  ...(declaredRefracting ? [
+    { id: "contact", kind: "point", role: "point of incidence" },
+    { id: "incident", kind: "vector", role: "incident ray" },
+    { id: "normal", kind: "segment", role: "normal" },
+    { id: "refracted", kind: "ray", role: "refracted ray" },
+  ] : []),
+], [
+  point("V", 0, 0), point("C", -30, 0), point("F", -15, 0), point("O", -20, 0), point("I", -60, 0),
+  { id: "make_axis", operator: "line", inputs: { start: "V", direction: [1, 0] }, outputs: ["axis"] },
+  { id: "make_surface", operator: "spherical_surface", inputs: { vertex: "V", axis: "axis", center: "C", signedRadius: -30, halfHeight: 12, kind: "concave" }, outputs: ["surface"] },
+  ...(declaredRefracting ? [
+    { id: "make_contact", operator: "surface_contact", inputs: { origin: "O", surface: "surface", direction: [1, 0.05] }, outputs: ["contact", "incident"] },
+    { id: "make_normal", operator: "normal_at", inputs: { point: "contact", surface: "surface" }, outputs: ["normal"] },
+    { id: "refraction", operator: "refract_direction", inputs: { origin: "contact", incoming: "incident", normal: "normal", n1: 1, n2: 1.5 }, outputs: ["refracted"] },
+  ] : []),
+]);
+const surfaceIssues = (declaredRefracting: boolean) => {
+  const validated = validateSceneDocument(pruneDeadSceneEntities(structuredClone(concaveSurface(declaredRefracting))));
+  if (!validated.document) throw new Error(`did not validate: ${validated.report.issues.filter((issue) => issue.severity === "fatal").map((issue) => issue.code).join(", ")}`);
+  return (operator("validateSphericalRefractionImagePlacements")(validated.document, mirrorPlan) as Array<{ code: string; entityIds?: string[]; message?: string }>);
+};
+
+check("a concave mirror's image at -60 cm is not held to the refraction law of an index elsewhere in the plan", () => {
+  const issues = surfaceIssues(false);
+  return issues.length === 0 ? null : `flagged ${issues.map((issue) => issue.message).join("; ")}`;
+});
+
+check("control: the same surface declared refracting (refract_direction there) is still held to the law", () => {
+  const flagged = surfaceIssues(true).filter((issue) => issue.code === "spherical_refraction_image_disagrees").map((issue) => issue.entityIds?.[0]).sort();
+  return JSON.stringify(flagged) === JSON.stringify(["F", "I"]) ? null : `flagged ${JSON.stringify(flagged)}, expected F and I`;
 });
 
 console.log(`${passed} passed, ${failures.length} failed`);

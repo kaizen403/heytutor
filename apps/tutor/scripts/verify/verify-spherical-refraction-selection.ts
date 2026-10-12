@@ -11,7 +11,9 @@
  * spherical_surface's vertex must be the law's image of a declared object,
  * or the candidate declines with `spherical_refraction_image_disagrees`. The
  * same document with the correct 3.2 cm image, and the b1 figure that placed
- * it there, are admitted.
+ * it there, are admitted. Only surfaces the document declares refracting are
+ * checked: a concave mirror's correct image, in a plan that also names a
+ * glass index, is admitted.
  *
  *   pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-spherical-refraction-selection.ts
  */
@@ -87,6 +89,77 @@ check("control: the same figure with the near image at 3.2 cm is admitted", () =
 
 check("control: recorded b1 sphere with its image at 3.2 cm is admitted", () => {
   const { valid, codes } = validate(fixture.documents.sphereCorrect!, fixture.plans.sphereCorrect!);
+  return valid ? null : `declined with ${codes.join(", ")}`;
+});
+
+/**
+ * Review of #164: spherical_surface also draws mirrors. A concave mirror
+ * (vertex 0, centre -30 cm) with its object at -20 cm and the image at -60 cm,
+ * in a plan that also carries a glass index n = 1.5. Refraction would put the
+ * image at -22.5 or -17.14 cm; the mirror's image is right and must stand.
+ */
+function concaveMirror(): { document: Doc; plan: TurnPlanV3 } {
+  const question = "A glass block has refractive index 1.5. Separately, an object stands 20 cm in front of a concave mirror of radius of curvature 30 cm. Where is the image?";
+  const point = (id: string, x: number) => ({ id: `make_${id}`, operator: "point", inputs: { x, y: 0, coordinateSpace: "world" }, outputs: [id] });
+  const entities = [
+    { id: "V", kind: "point", role: "pole", label: "P" },
+    { id: "C", kind: "point", role: "centre of curvature", label: "C" },
+    { id: "F", kind: "point", role: "principal focus", label: "F" },
+    { id: "O", kind: "point", role: "object", label: "O" },
+    { id: "I", kind: "point", role: "real image", label: "I" },
+    { id: "axis", kind: "line", role: "principal axis" },
+    { id: "mirror", kind: "arc", role: "concave mirror" },
+  ];
+  const ids = entities.map((entity) => entity.id);
+  const document = {
+    schemaVersion: "scene-document/v2",
+    visualDecision: { mode: "scene", reason: "The mirror, its axis, the object and the image have stated positions." },
+    source: { question },
+    quantities: [
+      { id: "n", symbol: "n", value: 1.5 },
+      { id: "R", symbol: "R", value: 30, unit: "cm" },
+      { id: "u", symbol: "u", value: 20, unit: "cm" },
+      { id: "f", symbol: "f", value: 15, unit: "cm" },
+      { id: "v", symbol: "v", value: 60, unit: "cm" },
+    ],
+    entities,
+    constructions: [
+      point("V", 0), point("C", -30), point("F", -15), point("O", -20), point("I", -60),
+      { id: "make_axis", operator: "line", inputs: { start: "V", direction: [1, 0] }, outputs: ["axis"] },
+      { id: "make_mirror", operator: "spherical_surface", inputs: { vertex: "V", axis: "axis", center: "C", signedRadius: -30, halfHeight: 12, kind: "concave" }, outputs: ["mirror"] },
+    ],
+    relations: [],
+    assertions: [
+      { id: "objectOnAxis", predicate: "on", entities: ["O", "axis"], expected: true, severity: "fatal" },
+      { id: "imageOnAxis", predicate: "on", entities: ["I", "axis"], expected: true, severity: "fatal" },
+    ],
+    annotations: [],
+    requiredEntityIds: ids,
+    revealGroups: [{ id: "setup", entityIds: ids }],
+    teachingTimeline: [{ action: "reveal", targetId: "setup" }],
+  } as unknown as Doc;
+  const quantity = (id: string, symbol: string, value: number, unit?: string) => ({ id, symbol, value, ...(unit ? { unit } : {}) });
+  const plan = {
+    schemaVersion: "turn-plan/v3",
+    question,
+    givens: [
+      { ...quantity("n", "n", 1.5), provenance: "given", sourceText: "refractive index 1.5" },
+      { ...quantity("R", "R", 30, "cm"), provenance: "given", sourceText: "radius of curvature 30 cm" },
+      { ...quantity("u", "u", 20, "cm"), provenance: "given", sourceText: "20 cm in front" },
+    ],
+    unknowns: [{ id: "v", symbol: "v", unit: "cm" }],
+    derived: [quantity("f", "f", 15, "cm"), quantity("v", "v", 60, "cm")],
+    qualitativeClaims: [],
+    lawIds: ["mirror equation"],
+    assumptions: [],
+    visualRequirement: "required",
+  } as unknown as TurnPlanV3;
+  return { document, plan };
+}
+
+check("control: a concave mirror's correct image at -60 cm is admitted beside a glass index", () => {
+  const { document, plan } = concaveMirror();
+  const { valid, codes } = validate(document, plan);
   return valid ? null : `declined with ${codes.join(", ")}`;
 });
 
