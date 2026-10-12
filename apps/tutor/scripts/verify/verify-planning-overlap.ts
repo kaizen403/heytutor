@@ -78,7 +78,7 @@ interface Script {
   speculationAllowed?: boolean;
   /** Gate per plan and authority. Defaults to one stable projectile gate. */
   gate?: (plan: TurnPlanV3, authority: Authority | null) => Partial<Gate>;
-  fast?: (plan: TurnPlanV3, authority: Authority | null) => Fast | null;
+  fast?: (plan: TurnPlanV3, authority: Authority | null, phase: "prediction" | "selection") => Fast | null;
   recover?: Result | null;
   guard?: <T>(operation: Promise<T>) => Promise<T>;
   plannerStartedAt?: number;
@@ -139,7 +139,7 @@ function harness(script: Script) {
     }),
     fastFigureBlocked: (answered) => answered?.contradiction === true,
     recover: script.recover === undefined ? undefined : () => script.recover ?? null,
-    selectFast: (fastPlan, fastAuthority) => script.fast?.(fastPlan, fastAuthority) ?? null,
+    selectFast: (fastPlan, fastAuthority, _gate, phase) => script.fast?.(fastPlan, fastAuthority, phase) ?? null,
     planScene: (gate, scenePlan, run) => {
       const reply = deferred<Result | null>();
       const hold: PlanCall["hold"] = run.holdValidationUntil ? { value: undefined } : "none";
@@ -268,6 +268,31 @@ assert.deepEqual(
 );
 
 async function main(): Promise<void> {
+  await scenario("fast phases come from actual prediction and selection sites, not null authority or ordinal", async () => {
+    const calls: Array<{ phase: string; authority: Authority | null }> = [];
+    const h = harness({ fast: (_plan, authority, phase) => { calls.push({ phase, authority }); return null; } });
+    await flush();
+    assert.deepEqual(calls, [{ phase: "prediction", authority: null }]);
+    assert.equal(h.planCalls.length, 1, "prediction starts no extra selector or planner operation");
+    h.authority.resolve(null);
+    await flush();
+    assert.deepEqual(calls, [{ phase: "prediction", authority: null }, { phase: "selection", authority: null }],
+      "both calls can have null authority without making their phases ambiguous");
+    assert.equal(h.planCalls.length, 1);
+    h.planCalls[0]!.reply.resolve(h.result("kept", h.planCalls[0]!));
+    assert.equal((await h.outcome).scene?.tag, "kept");
+    const selected = { figure: "unchanged" };
+    for (const script of [{ speculationEnabled: false }, { authority: "none" as const }] as const) {
+      const phases: string[] = [];
+      const serial = harness({ ...script, fast: (_plan, _authority, phase) => { phases.push(phase); return selected; } });
+      serial.authority.resolve(null);
+      const outcome = await serial.outcome;
+      assert.deepEqual(phases, ["selection"], "the first and only call is selection, not prediction");
+      assert.equal(outcome.fast, selected, "phase metadata does not alter selected result identity");
+      assert.equal(serial.planCalls.length, 0);
+    }
+  });
+
   await scenario("planner-first skips the fast family and lets a valid planner scene win", async () => {
     let fastCalls = 0;
     const h = harness({

@@ -1,0 +1,22 @@
+{
+  "previousRegionsHead": "df564f6336b448f85cfb7f960d289f06b40b162a",
+  "mergedMain": "89789f9b5cfe2f0007eb4053695088cb2a2d7413",
+  "measuredSource": "2c81544f",
+  "comparedPaths": [
+    "packages/scene-engine",
+    "packages/drawing",
+    "packages/tutor-core/src",
+    "apps/tutor/features/tutor-session/lib/scene/productionSceneSelection.ts",
+    "apps/tutor/features/tutor-session/lib/scene/diagramGeneration.ts"
+  ],
+  "changedFiles": [],
+  "method": "Exact source-tree preservation check against previously proved 60/60 region document/renderScene replay at df564f63. Not a new grading run or original full pipeline replay.",
+  "checks": [
+    "scene-engine and whiteboard builds pass",
+    "scene-engine and whiteboard typecheck pass",
+    "full verify:linear passes",
+    "open endpoint gate passes",
+    "active audio write gate13 groups passes"
+  ],
+  "conflict": "Unioned verify-open-endpoint and verify-active-audio-write commands; neither gate removed."
+}

@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import ts from "typescript";
 import {
   captureCommandInk,
   inheritCommandInk,
@@ -76,12 +80,11 @@ for (const type of ["FOCUS", "ANNOTATE", "FRAME"] as const) {
   assert.equal(commandInkStyle("pen", current, generatedChild.inkSettings).color, "#123456");
 }
 
-const execution = readFileSync(new URL("../../features/tutor-session/hooks/useCommandExecution.ts", import.meta.url), "utf8");
+const executionPath = fileURLToPath(new URL("../../features/tutor-session/hooks/useCommandExecution.ts", import.meta.url));
+const execution = readFileSync(process.env.REPLAY_INK_TEST_SOURCE ?? executionPath, "utf8");
 const board = readFileSync(new URL("../../../../packages/whiteboard/src/Whiteboard.tsx", import.meta.url), "utf8");
 const replay = readFileSync(new URL("../../features/tutor-session/hooks/useReplay.ts", import.meta.url), "utf8");
 assert.match(execution, /captureCommandInk\(rawCommand, wb\.getInkSettings\(\)\)/, "live execution records ink before persistence");
-assert.match(execution, /wb\.writeText\([^\n]+inkSettings, options\.onInkStarted\)/,
-  "replay supplies recorded ink to handwriting before the optional shown-ink observer");
 assert.match(execution, /wb\.drawShape\(path, duration, \{\s*inkSettings/, "replay supplies recorded ink to figures");
 assert.match(execution, /wb\.drawAnnotation\(kind, path, duration, \{[^}]*inkSettings/s, "replay supplies recorded ink to annotations");
 assert.match(board, /styleForCommand\(inkSettings\)/, "handwriting uses recorded ink, including fallback text");
@@ -97,4 +100,54 @@ assert.equal((annotateBranch.match(/inheritCommandInk\(command,/g) ?? []).length
 assert.doesNotMatch(replay, /command\.type === "PAUSE" \|\| command\.type === "FOCUS"/, "seek must release permanent FOCUS children");
 assert.match(focusBranch, /if \(isSeekCatchUp\) break;/, "seek skips transient FOCUS gestures after releasing permanent ink");
 
-console.log("verify-replay-ink: draw-time ink survives save, rewind, restore, and export");
+async function verifyActualHandwritingForwarding() {
+  const requireApp = createRequire(new URL("../../package.json", import.meta.url));
+  const drawing = requireApp("@heytutor/drawing");
+  const compiled = ts.transpileModule(execution, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const hookExports = { exports: {} as typeof import("../../features/tutor-session/hooks/useCommandExecution") };
+  new Function("require", "module", "exports", compiled)((specifier: string) => {
+    if (specifier === "react") return { useRef: (value: unknown) => ({ current: value }), useCallback: (fn: unknown) => fn };
+    // Rendering is the boundary adapter. Glyph prefetch has no bearing on
+    // recorded ink/observer forwarding, so do not launch background font work.
+    if (specifier === "@heytutor/drawing") return { ...drawing, prefetchStrokePaths() {} };
+    return requireApp(specifier.startsWith(".") ? path.resolve(path.dirname(executionPath), specifier) : specifier);
+  }, hookExports, hookExports.exports);
+  const calls: unknown[][] = [];
+  const ref = <T,>(value: T) => ({ current: value });
+  const wb = { getInkSettings: () => current, setAnimationSpeed() {}, flyCursorTo: async () => {},
+    writeText: async (...args: unknown[]) => { calls.push(args); } };
+  const executor = hookExports.exports.useCommandExecution({
+    whiteboardRef: ref(wb), cancelRef: ref(false), activeVerifiedDiagramRef: ref(null),
+    fbdPhaseStartedRef: ref(false), fbdPhaseMarkedRef: ref(false), boardLayoutRef: ref({ rects: [], nextY: 100 }),
+    inkPaceRef: ref("follow"), speedRef: ref(1), adaptiveFactorRef: ref(1), forceSequentialWorkLayoutRef: ref(false),
+    turnTelemetryRef: ref(null), notesEpochsRef: ref([]), narrationSinceEpochRef: ref(""),
+    raceWithCancel: async (job: Promise<unknown>) => job,
+    resolveTextPlacement: async (_command: unknown, x: number, y: number) => ({ x, y }),
+    cancellableDelay: async () => {}, forgetErasedTextRects() {}, resetBoardLayout() {},
+  } as never);
+  const observer = () => {};
+  await executor.executeCommand(restoredFirst!, { durationScale: 0, onInkStarted: observer, textPlacementReserved: true });
+  const write = calls.at(-1)!;
+  assert.equal(write[0], "before");
+  assert.deepEqual(write[7], first.inkSettings, "actual replay handwriting receives its recorded ink even after current settings change");
+  assert.equal(write[8], observer, "actual executor forwards the shown-ink observer in its own argument slot");
+  assert.equal(write[9], undefined, "ordinary replay rows carry no special lettering budget");
+  assert.equal(typeof write[6], "function", "the cancellation predicate remains between typography and ink");
+
+  const label: DrawCommand = { ...restoredFirst!, type: "LABEL", text: "A", params: [700, 200, 24] };
+  await executor.executeCommand(label, { trustedDiagramGeometry: true, inkPace: "scene" });
+  const ordinary = calls.at(-1)!;
+  await executor.executeCommand(label, { durationScale: 0, trustedDiagramGeometry: true, finishVerifiedDiagramIntro: true,
+    inkPace: "scene", onInkStarted: observer });
+  const finished = calls.at(-1)!;
+  assert.equal(finished[3], 0, "completed intro labels are instantaneous");
+  assert.equal(finished[9], ordinary[3], "instant intro completion still uses ordinary label lettering style");
+  assert(typeof finished[9] === "number" && finished[9] > 0);
+  assert.deepEqual(finished[7], first.inkSettings);
+  assert.equal(finished[8], observer, "adding the lettering budget cannot shift the ink observer argument");
+}
+void verifyActualHandwritingForwarding().then(() => {
+  console.log("verify-replay-ink: draw-time ink survives save, rewind, restore, and export; actual handwriting forwards ink, observer, and lettering budget");
+}).catch((error) => { console.error(error); process.exitCode = 1; });
