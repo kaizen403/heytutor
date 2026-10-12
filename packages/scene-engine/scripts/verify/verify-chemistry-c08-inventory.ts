@@ -356,6 +356,18 @@ const ROWS: readonly Row[] = [
     "questionSha256": "1e24228ad8270a2f0081dde2ce2c787ed59a705f101cf102da715ce7c6ef8c56",
     "kind": "electro-required",
     "e0": 1.2
+  },
+  {
+    "id": "REVIEWER-STANDARD-E298-UNOWNED",
+    "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu if Ecell\u00b0 = 1.10 V at 298 K.",
+    "questionSha256": "95f3d5e9b5c7f8c44742c93680baaa4b4ff3454574fb151ffc56e7e0aa32984b",
+    "kind": "decline"
+  },
+  {
+    "id": "REVIEWER-ELECTRODE-ZN298-UNOWNED",
+    "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu given Zn = -0.80 V at 298 K.",
+    "questionSha256": "073b5f486f3a44f48ab7fff25f9e3726b6a3951252c999b19e6134f02d89fab8",
+    "kind": "decline"
   }
 ];
 
@@ -414,8 +426,8 @@ function verifyElectrochem(scene: SceneDocument, row: Row): void {
   assert.equal(e0?.unit, "V");
   assert.equal(e?.unit, "V");
   // Independent source roles: Zn2+0.1/Cu2+0.01 gives Q=10 and n=2.
-  // Original default 298K convention is0.059V, serialized E to four decimals.
-  const expectedE = Number((row.e0 - 0.059 / 2 * Math.log10(0.1 / 0.01)).toFixed(4));
+  // Original default 298K convention is0.0591V, serialized E to four decimals.
+  const expectedE = Number((row.e0 - 0.0591 / 2 * Math.log10(0.1 / 0.01)).toFixed(4));
   near(e0?.value, row.e0);
   near(e?.value, expectedE);
   near(scene.quantities.find(q => q.id === "n_electrons")?.value, 2);

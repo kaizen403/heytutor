@@ -423,6 +423,10 @@ export function findChemistryQuantities(input: Omit<ChemistryQuantityInput, "aft
     const found = literalAt(input, start, end);
     if (found.ok) { readings.push(found.reading); consumed = found.reading.source.span.end; }
     else if (found.code === "source_conflict") return found;
+    // Unsupported voltage units still declare the potential dimension. They
+    // cannot disappear from the inventory and authorize a table/default value.
+    else if (found.code === "unsupported_unit" && input.dimension === "potential"
+      && /^\s*(?:[mkµu]?V|[Vv][Oo][Ll][Tt][Ss]?)(?![A-Za-z0-9])/.test(input.question.slice(tokenEnd, end))) return found;
     else if (found.code === "malformed") {
       const clause = input.question.slice(start, end).split(/[;\n]/)[0]!.slice(0, 100);
       if (units.some(u => u.dimensions.includes(input.dimension) && new RegExp(u.pattern.source.slice(1)).test(clause))) return found;
