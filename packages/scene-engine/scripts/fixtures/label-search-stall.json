@@ -1,0 +1,670 @@
+{
+ "schemaVersion": "scene-document/v2",
+ "visualDecision": {
+  "mode": "scene",
+  "reason": "Four positioned equipotential surfaces and the stated charge support a plan-backed field and work diagram."
+ },
+ "source": {
+  "question": "Label search budget fixture."
+ },
+ "quantities": [
+  {
+   "id": "x1",
+   "symbol": "x₁",
+   "value": 0,
+   "unit": "m",
+   "provenance": "given"
+  },
+  {
+   "id": "x2",
+   "symbol": "x₂",
+   "value": 0.02,
+   "unit": "m",
+   "provenance": "given"
+  },
+  {
+   "id": "x3",
+   "symbol": "x₃",
+   "value": 0.04,
+   "unit": "m",
+   "provenance": "given"
+  },
+  {
+   "id": "x4",
+   "symbol": "x₄",
+   "value": 0.06,
+   "unit": "m",
+   "provenance": "given"
+  },
+  {
+   "id": "v1",
+   "symbol": "V₁",
+   "value": 8,
+   "unit": "V",
+   "provenance": "given"
+  },
+  {
+   "id": "v2",
+   "symbol": "V₂",
+   "value": 6,
+   "unit": "V",
+   "provenance": "given"
+  },
+  {
+   "id": "v3",
+   "symbol": "V₃",
+   "value": 4,
+   "unit": "V",
+   "provenance": "given"
+  },
+  {
+   "id": "v4",
+   "symbol": "V₄",
+   "value": 2,
+   "unit": "V",
+   "provenance": "given"
+  },
+  {
+   "id": "q",
+   "symbol": "q",
+   "value": -5,
+   "unit": "nC",
+   "sign": "negative",
+   "provenance": "given"
+  },
+  {
+   "id": "e",
+   "symbol": "Eₓ",
+   "value": 100,
+   "unit": "V/m",
+   "sign": "positive",
+   "provenance": "derived",
+   "dependsOn": [
+    "x1",
+    "x4",
+    "v1",
+    "v4"
+   ]
+  },
+  {
+   "id": "w",
+   "symbol": "W₈→₂",
+   "value": -3.0000000000000004e-08,
+   "unit": "J",
+   "sign": "negative",
+   "provenance": "derived",
+   "dependsOn": [
+    "q",
+    "v1",
+    "v4"
+   ]
+  },
+  {
+   "id": "ws",
+   "symbol": "W₆→₆",
+   "value": 0,
+   "unit": "J",
+   "provenance": "derived",
+   "dependsOn": [
+    "q",
+    "v2"
+   ]
+  }
+ ],
+ "entities": [
+  {
+   "id": "axes",
+   "kind": "axes",
+   "role": "x axis"
+  },
+  {
+   "id": "a1",
+   "kind": "point"
+  },
+  {
+   "id": "b1",
+   "kind": "point"
+  },
+  {
+   "id": "a2",
+   "kind": "point"
+  },
+  {
+   "id": "b2",
+   "kind": "point"
+  },
+  {
+   "id": "a3",
+   "kind": "point"
+  },
+  {
+   "id": "b3",
+   "kind": "point"
+  },
+  {
+   "id": "a4",
+   "kind": "point"
+  },
+  {
+   "id": "b4",
+   "kind": "point"
+  },
+  {
+   "id": "s1",
+   "kind": "segment",
+   "role": "equipotential surface",
+   "label": "V₁=8.0 V"
+  },
+  {
+   "id": "s2",
+   "kind": "segment",
+   "role": "equipotential surface",
+   "label": "V₂=6.0 V"
+  },
+  {
+   "id": "s3",
+   "kind": "segment",
+   "role": "equipotential surface",
+   "label": "V₃=4.0 V"
+  },
+  {
+   "id": "s4",
+   "kind": "segment",
+   "role": "equipotential surface",
+   "label": "V₄=2.0 V"
+  },
+  {
+   "id": "charge",
+   "kind": "point",
+   "role": "point charge",
+   "label": "q=−5.0 nC"
+  },
+  {
+   "id": "destination",
+   "kind": "point",
+   "role": "destination on 2.0 V surface"
+  },
+  {
+   "id": "move",
+   "kind": "vector",
+   "role": "movement from 8.0 V to 2.0 V"
+  },
+  {
+   "id": "alongStart",
+   "kind": "point",
+   "role": "start on 6.0 V surface"
+  },
+  {
+   "id": "alongEnd",
+   "kind": "point",
+   "role": "end on 6.0 V surface"
+  },
+  {
+   "id": "along",
+   "kind": "vector",
+   "role": "movement along 6.0 V surface"
+  },
+  {
+   "id": "fieldStart",
+   "kind": "point",
+   "role": "field-vector origin"
+  },
+  {
+   "id": "field",
+   "kind": "vector",
+   "role": "electric field",
+   "label": "Eₓ"
+  }
+ ],
+ "constructions": [
+  {
+   "id": "makeAxes",
+   "operator": "axes",
+   "inputs": {
+    "xMin": -0.01,
+    "xMax": 0.075,
+    "yMin": -0.025,
+    "yMax": 0.025
+   },
+   "outputs": [
+    "axes"
+   ]
+  },
+  {
+   "id": "makeA1",
+   "operator": "point",
+   "inputs": {
+    "x": 0,
+    "y": -0.015,
+    "coordinateSpace": "world"
+   },
+   "outputs": [
+    "a1"
+   ]
+  },
+  {
+   "id": "makeB1",
+   "operator": "point",
+   "inputs": {
+    "x": 0,
+    "y": 0.015,
+    "coordinateSpace": "world"
+   },
+   "outputs": [
+    "b1"
+   ]
+  },
+  {
+   "id": "makeA2",
+   "operator": "point",
+   "inputs": {
+    "x": 0.02,
+    "y": -0.015,
+    "coordinateSpace": "world"
+   },
+   "outputs": [
+    "a2"
+   ]
+  },
+  {
+   "id": "makeB2",
+   "operator": "point",
+   "inputs": {
+    "x": 0.02,
+    "y": 0.015,
+    "coordinateSpace": "world"
+   },
+   "outputs": [
+    "b2"
+   ]
+  },
+  {
+   "id": "makeA3",
+   "operator": "point",
+   "inputs": {
+    "x": 0.04,
+    "y": -0.015,
+    "coordinateSpace": "world"
+   },
+   "outputs": [
+    "a3"
+   ]
+  },
+  {
+   "id": "makeB3",
+   "operator": "point",
+   "inputs": {
+    "x": 0.04,
+    "y": 0.015,
+    "coordinateSpace": "world"
+   },
+   "outputs": [
+    "b3"
+   ]
+  },
+  {
+   "id": "makeA4",
+   "operator": "point",
+   "inputs": {
+    "x": 0.06,
+    "y": -0.015,
+    "coordinateSpace": "world"
+   },
+   "outputs": [
+    "a4"
+   ]
+  },
+  {
+   "id": "makeB4",
+   "operator": "point",
+   "inputs": {
+    "x": 0.06,
+    "y": 0.015,
+    "coordinateSpace": "world"
+   },
+   "outputs": [
+    "b4"
+   ]
+  },
+  {
+   "id": "makeS1",
+   "operator": "segment",
+   "inputs": {
+    "start": "a1",
+    "end": "b1"
+   },
+   "outputs": [
+    "s1"
+   ]
+  },
+  {
+   "id": "makeS2",
+   "operator": "segment",
+   "inputs": {
+    "start": "a2",
+    "end": "b2"
+   },
+   "outputs": [
+    "s2"
+   ]
+  },
+  {
+   "id": "makeS3",
+   "operator": "segment",
+   "inputs": {
+    "start": "a3",
+    "end": "b3"
+   },
+   "outputs": [
+    "s3"
+   ]
+  },
+  {
+   "id": "makeS4",
+   "operator": "segment",
+   "inputs": {
+    "start": "a4",
+    "end": "b4"
+   },
+   "outputs": [
+    "s4"
+   ]
+  },
+  {
+   "id": "makeCharge",
+   "operator": "point",
+   "inputs": {
+    "x": 0,
+    "y": 0,
+    "coordinateSpace": "world"
+   },
+   "outputs": [
+    "charge"
+   ]
+  },
+  {
+   "id": "makeDestination",
+   "operator": "point",
+   "inputs": {
+    "x": 0.06,
+    "y": 0,
+    "coordinateSpace": "world"
+   },
+   "outputs": [
+    "destination"
+   ]
+  },
+  {
+   "id": "makeMove",
+   "operator": "vector",
+   "inputs": {
+    "start": "charge",
+    "end": "destination"
+   },
+   "outputs": [
+    "move"
+   ]
+  },
+  {
+   "id": "makeAlongStart",
+   "operator": "point",
+   "inputs": {
+    "x": 0.02,
+    "y": -0.008,
+    "coordinateSpace": "world"
+   },
+   "outputs": [
+    "alongStart"
+   ]
+  },
+  {
+   "id": "makeAlongEnd",
+   "operator": "point",
+   "inputs": {
+    "x": 0.02,
+    "y": 0.008,
+    "coordinateSpace": "world"
+   },
+   "outputs": [
+    "alongEnd"
+   ]
+  },
+  {
+   "id": "makeAlong",
+   "operator": "vector",
+   "inputs": {
+    "start": "alongStart",
+    "end": "alongEnd"
+   },
+   "outputs": [
+    "along"
+   ]
+  },
+  {
+   "id": "makeFieldStart",
+   "operator": "point",
+   "inputs": {
+    "x": 0.025,
+    "y": 0.011,
+    "coordinateSpace": "world"
+   },
+   "outputs": [
+    "fieldStart"
+   ]
+  },
+  {
+   "id": "makeField",
+   "operator": "vector",
+   "inputs": {
+    "start": "fieldStart",
+    "direction": [
+     1,
+     0
+    ],
+    "length": 0.012
+   },
+   "outputs": [
+    "field"
+   ]
+  }
+ ],
+ "relations": [],
+ "assertions": [
+  {
+   "id": "chargeOnInitial",
+   "predicate": "on",
+   "entities": [
+    "charge",
+    "s1"
+   ],
+   "expected": true,
+   "severity": "fatal"
+  },
+  {
+   "id": "destinationOnFinal",
+   "predicate": "on",
+   "entities": [
+    "destination",
+    "s4"
+   ],
+   "expected": true,
+   "severity": "fatal"
+  },
+  {
+   "id": "alongStartOnSurface",
+   "predicate": "on",
+   "entities": [
+    "alongStart",
+    "s2"
+   ],
+   "expected": true,
+   "severity": "fatal"
+  },
+  {
+   "id": "alongEndOnSurface",
+   "predicate": "on",
+   "entities": [
+    "alongEnd",
+    "s2"
+   ],
+   "expected": true,
+   "severity": "fatal"
+  },
+  {
+   "id": "fieldPerpendicular",
+   "predicate": "perpendicular",
+   "entities": [
+    "field",
+    "s2"
+   ],
+   "expected": true,
+   "severity": "fatal"
+  }
+ ],
+ "annotations": [
+  {
+   "id": "x1Label",
+   "kind": "label",
+   "targetIds": [
+    "a1"
+   ],
+   "text": "x₁=0 m",
+   "quantityId": "x1"
+  },
+  {
+   "id": "x2Label",
+   "kind": "label",
+   "targetIds": [
+    "a2"
+   ],
+   "text": "x₂=0.020 m",
+   "quantityId": "x2"
+  },
+  {
+   "id": "x3Label",
+   "kind": "label",
+   "targetIds": [
+    "a3"
+   ],
+   "text": "x₃=0.040 m",
+   "quantityId": "x3"
+  },
+  {
+   "id": "x4Label",
+   "kind": "label",
+   "targetIds": [
+    "a4"
+   ],
+   "text": "x₄=0.060 m",
+   "quantityId": "x4"
+  },
+  {
+   "id": "fieldResult",
+   "kind": "callout",
+   "targetIds": [
+    "field"
+   ],
+   "text": "+100 V/m",
+   "quantityId": "e"
+  },
+  {
+   "id": "moveResult",
+   "kind": "callout",
+   "targetIds": [
+    "move"
+   ],
+   "text": "−3.0×10⁻⁸ J",
+   "quantityId": "w"
+  },
+  {
+   "id": "alongResult",
+   "kind": "callout",
+   "targetIds": [
+    "along"
+   ],
+   "text": "0 J",
+   "quantityId": "ws"
+  }
+ ],
+ "requiredEntityIds": [
+  "axes",
+  "a1",
+  "b1",
+  "a2",
+  "b2",
+  "a3",
+  "b3",
+  "a4",
+  "b4",
+  "s1",
+  "s2",
+  "s3",
+  "s4",
+  "charge",
+  "destination",
+  "move",
+  "alongStart",
+  "alongEnd",
+  "along",
+  "fieldStart",
+  "field"
+ ],
+ "revealGroups": [
+  {
+   "id": "setup",
+   "entityIds": [
+    "axes",
+    "a1",
+    "b1",
+    "a2",
+    "b2",
+    "a3",
+    "b3",
+    "a4",
+    "b4",
+    "s1",
+    "s2",
+    "s3",
+    "s4",
+    "charge",
+    "destination",
+    "move",
+    "alongStart",
+    "alongEnd",
+    "along"
+   ],
+   "dependsOn": []
+  },
+  {
+   "id": "results",
+   "entityIds": [
+    "fieldStart",
+    "field"
+   ],
+   "dependsOn": [
+    "setup"
+   ]
+  }
+ ],
+ "teachingTimeline": [
+  {
+   "id": "showSetup",
+   "revealGroupId": "setup",
+   "annotationIds": [
+    "x1Label",
+    "x2Label",
+    "x3Label",
+    "x4Label"
+   ]
+  },
+  {
+   "id": "calculate",
+   "revealGroupId": "results",
+   "annotationIds": [
+    "fieldResult",
+    "moveResult",
+    "alongResult"
+   ]
+  }
+ ]
+}
