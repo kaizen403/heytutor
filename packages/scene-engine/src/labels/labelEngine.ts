@@ -864,6 +864,11 @@ function solveLabelPlacements(
   const maxVisited = Math.max(20_000, owners.length * 20_000);
   const fixedLabels = obstacles.filter((obstacle) => obstacle.kind === "label").map((obstacle) => obstacle.bounds);
   const exhausted = () => work.spent >= work.budget;
+  // The routed search routes every leader once more as each owner is placed,
+  // so the pass that places the last owner already holds the arrangement.
+  // Keep it: routing it again would charge the same work twice, and a budget
+  // that covered the first pass could run out on the second.
+  let lastRouted: Map<number, LabelPlacementCandidate> | null = null;
 
   const routedSelection = (): Map<number, LabelPlacementCandidate> | null => {
     const routed = new Map<number, LabelPlacementCandidate>();
@@ -919,7 +924,9 @@ function solveLabelPlacements(
     for (const placed of next.compatible) {
       visited += 1;
       selected.set(next.owner.originalIndex, pool[placed]!);
-      if (routing === "straight" || routedSelection()) {
+      const routed = routing === "routed" ? routedSelection() : null;
+      if (routed) lastRouted = routed;
+      if (routing === "straight" || routed) {
         const narrowed = new Map<number, number[]>();
         for (const index of remaining) {
           narrowed.set(index, domains.get(index)!.filter((option) => pairCompatible(option, placed)));
@@ -940,7 +947,7 @@ function solveLabelPlacements(
     nextId += owner.validCandidates.length;
     return [owner.originalIndex, ids];
   }));
-  return search(domains) ? (routing === "routed" ? routedSelection() : selected) : null;
+  return search(domains) ? (routing === "routed" ? lastRouted : selected) : null;
 }
 
 /**

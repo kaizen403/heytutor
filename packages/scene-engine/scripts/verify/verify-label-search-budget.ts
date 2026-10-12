@@ -19,7 +19,15 @@
  *   - the outcome is deterministic: a second compile reports the same issues;
  *   - `placeLabels` honours the budget: a crowded but solvable layout solves
  *     under the default budget and fails as `label_overlap_unresolved` when
- *     its budget is one unit.
+ *     its budget is one unit;
+ *   - a routed search returns the arrangement it found. The search routes
+ *     every leader as it places each owner, so the last pass already holds
+ *     the answer; the engine used to route it again and charge the work
+ *     twice. With a budget that covered the search but not the second pass
+ *     it failed as out of budget with the arrangement in hand. The fixture
+ *     (eight labels, six strokes, straight solve fails) spends 5,829,728
+ *     units to find and route its arrangement; the second pass cost 6,197
+ *     more, and the old engine needed 5,835,101 to succeed.
  *
  *   pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-label-search-budget.ts
  */
@@ -29,13 +37,16 @@ import { performance } from "node:perf_hooks";
 import { compileSceneDocument, validateSceneDocument } from "../../src";
 // A namespace import, so the gate still loads, and fails on time, against an engine without the budget.
 import * as labelEngine from "../../src/labels/labelEngine";
-import type { LabelOwner } from "../../src/labels/labelEngine";
+import type { LabelObstacle, LabelOwner } from "../../src/labels/labelEngine";
 
 const { LABEL_SEARCH_WORK_BUDGET, placeLabels } = labelEngine;
 
 const LIMIT_MS = 20_000;
 
 const fixture = JSON.parse(readFileSync(new URL("../fixtures/label-search-stall.json", import.meta.url), "utf8"));
+const routedFixture: { owners: LabelOwner[]; obstacles: LabelObstacle[] } = JSON.parse(
+  readFileSync(new URL("../fixtures/label-routed-final-pass.json", import.meta.url), "utf8"),
+);
 assert.equal(fixture.source.question, "Label search budget fixture.", "the fixture must not carry the probe question");
 
 function compileFixture() {
@@ -79,7 +90,31 @@ assert.ok(
 );
 assert.equal(starved.placements.length, 0, "a search that ran out must not place partial labels");
 
+// The work the routed fixture spends to find and route its arrangement. A
+// budget at or below it leaves nothing for a second routing pass, so the
+// check only means something while the search still spends at least this
+// much; if the search changes, pin this to its new `searchWork`.
+const ROUTED_BUDGET = 5_829_728;
+const routedFull = placeLabels(routedFixture.owners, routedFixture.obstacles);
+assert.equal(routedFull.ok, true, `the routed fixture should solve under the default budget: ${JSON.stringify(routedFull.issues)}`);
+assert.ok(
+  routedFull.placements.some((placement) => placement.leaderPath),
+  "the fixture must need the routed solve: no placement carries a routed leader path",
+);
+assert.ok(
+  routedFull.searchWork >= ROUTED_BUDGET,
+  `the routed search now spends ${routedFull.searchWork} units, under the pinned ${ROUTED_BUDGET}; pin ROUTED_BUDGET to it`,
+);
+const routedTight = placeLabels(routedFixture.owners, routedFixture.obstacles, { searchWorkBudget: ROUTED_BUDGET });
+assert.equal(
+  routedTight.ok,
+  true,
+  `a routed search that finds its arrangement within ${ROUTED_BUDGET} units must return it: ${JSON.stringify(routedTight.issues)}`,
+);
+assert.deepEqual(routedTight.placements, routedFull.placements, "the tight budget must return the default budget's arrangement");
+
 console.log(
   `label search budget: stalled candidate fails label_overlap_unresolved in ${Math.round(first.ms)} ms ` +
-  `and ${Math.round(second.ms)} ms (318 s before the budget); budget ${LABEL_SEARCH_WORK_BUDGET} units`,
+  `and ${Math.round(second.ms)} ms (318 s before the budget); budget ${LABEL_SEARCH_WORK_BUDGET} units; ` +
+  `routed fixture solves in ${routedFull.searchWork} units and within a ${ROUTED_BUDGET} unit budget`,
 );
