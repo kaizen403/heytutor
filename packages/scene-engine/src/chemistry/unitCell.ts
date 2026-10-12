@@ -374,9 +374,11 @@ function speciesIn(fragment: string): Array<{ token: string; index: number; end:
     const index = match.index ?? 0;
     const original = /^[^\s,;:!?]+/.exec(fragment.slice(index))![0];
     const token = original.endsWith(".") ? original.slice(0, -1) : original;
-    const rawCharge = token.slice(match[1]!.length);
+    const enclosed = fragment[index - 1] === "(" && token.endsWith(")")
+      && (index === 1 || /[\s,.;:!?]/.test(fragment[index - 2] ?? ""));
+    const rawCharge = token.slice(match[1]!.length, enclosed ? -1 : undefined);
     if (!elementBySymbol(match[1]!)) return null;
-    if (/[0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉^()[\]{}_+⁺⁻−–—-]/.test(fragment[(match.index ?? 0) - 1] ?? "")) return null;
+    if (!enclosed && /[0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉^()[\]{}_+⁺⁻−–—-]/.test(fragment[(match.index ?? 0) - 1] ?? "")) return null;
     const parsedCharge = /^(?:\^?\(([1-9]\d*)?([+-])\)|\^?([1-9]\d*)?([+-]))$/.exec(normalizeChemistryText(rawCharge));
     if (!parsedCharge) return null;
     const end = index + token.length;

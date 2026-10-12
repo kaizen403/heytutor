@@ -4252,6 +4252,52 @@ check("Complete Unicode ions on both sides of an original clause delimiter",()=>
  }
 });
 // END PR137 complete attached Unicode charge boundary.
+// BEGIN PR137 enclosing species source boundary: preserve all912 old assertions.
+const enclosedSpeciesBoundaryRepairs:ReadonlyArray<{id:string;question:string;questionSha256:string;required:string}> = [
+  {
+    "id": "WHOLE-CHARGED-OWNER-SLASH",
+    "question": "Cl⁻ ions form a ccp lattice. Mg²⁺/s ions occupy all octahedral voids. Draw the unit cell.",
+    "questionSha256": "f7fc99627789e3c5e4fb5c41f4c414796452e5d3363a43dfe0144a93e8005126",
+    "required": "decline"
+  },
+  {
+    "id": "WHOLE-CHARGED-OWNER-DOT",
+    "question": "Cl⁻ ions form a ccp lattice. Mg²⁺.5 ions occupy all octahedral voids. Draw the unit cell.",
+    "questionSha256": "1204786d460888269adfb3a6cfeef57201b62a850a0d73cbde26f2cd4488ea7e",
+    "required": "decline"
+  },
+  {
+    "id": "WHOLE-CHARGED-OWNER-OPAQUE",
+    "question": "Cl⁻ ions form a ccp lattice. Mg²⁺α ions occupy all octahedral voids. Draw the unit cell.",
+    "questionSha256": "acb47d0ad55fe40ae6a2d2859a1f0e81b144a2a9f879afda43b4886c612c1389",
+    "required": "decline"
+  },
+  {
+    "id": "ENCLOSED-COMPLETE-UNICODE",
+    "question": "(Cl⁻) ions form a ccp lattice. (Mg²⁺) ions occupy all octahedral voids. Draw the unit cell.",
+    "questionSha256": "f1c1027c92981357c522ae4a1d0d1fabf965177045cafb767d6fc5efffce41ae",
+    "required": "compile"
+  },
+  {
+    "id": "ENCLOSED-COMPLETE-ASCII",
+    "question": "(Cl-) ions form a ccp lattice. (Mg2+) ions occupy all octahedral voids. Draw the unit cell.",
+    "questionSha256": "b96cc8a346a9e7ef0f0f52ffa60943dde22987b139c733ce1755373879a9b0fb",
+    "required": "compile"
+  }
+];
+for(const row of enclosedSpeciesBoundaryRepairs)check("Complete original charged species boundary: "+row.id,()=>{
+ if(row.required==="decline") {
+  assert.equal(buildUnitCellScene(row.question,[],false),null);assert.equal(buildUnitCellScene(row.question,[],true),null);assert.equal(synthesizeFamilyScene({question:row.question}),null);return;
+ }
+ const ordinary=synthesizeFamilyScene({question:row.question});assert.ok(ordinary?.renderScene);assert.equal(ordinary.family,"chem_unit_cell");
+ for(const document of [buildUnitCellScene(row.question,[],false),buildUnitCellScene(row.question,[],true),ordinary.document]) {
+  const result=compiled(document);assert.equal(result.document.source?.question,row.question);
+  assert.ok(result.labels.includes("Cl^-"));assert.ok(result.labels.includes("Mg^(2+)"));
+  near(result.document.quantities.find(q=>q.id==="cell_n1")?.value,4);near(result.document.quantities.find(q=>q.id==="cell_n2")?.value,4);
+  assert.ok(result.document.annotations.some(a=>(a.text??"").endsWith(" → ClMg")));
+ }
+});
+// END PR137 enclosing species source boundary.
 const output=process.argv.indexOf("--out");
 const result={passed:rows.filter(r=>r.passed).length,failed:rows.filter(r=>!r.passed).length,rows};
 if(output>=0)writeFileSync(process.argv[output+1]!,JSON.stringify(result,null,2)+"\n");
