@@ -511,7 +511,8 @@ function gibbsReferencePayloadOnly(body: string, start: number, ownerEnd: number
     // A dimension alone does not establish role: "use ΔH as 298 K" is
     // a wrong-unit enthalpy directive, not a temperature evaluation point.
     const prefix = body.slice(start, reading.source.span.start);
-    if (!/\b(?:at|T|temperature)\s*(?:(?:is|equals|of)\b|[=:])?\s*$/i.test(prefix)) return false;
+    const owner = /\b(at|T|temperature)\s*(?:(?:is|equals|of)\b|[=:])?\s*$/i.exec(prefix);
+    if (!owner || owner[1] === "t") return false;
     payload = payload.slice(0, reading.source.span.start - start) + " Θ " + payload.slice(reading.source.span.end - start);
   }
   return /^(?:\s|[(),=+−*/×·-]|Θ|[Δδ∆]\s*[GHS]\b|\bT\b|\bK\b|\b(?:and|together|with|using|from|to|in|versus|vs|against|at|as|on|above|below|where|of|all|any|every|what|which|absolute|draw|plot|sketch|show|calculate|compute|determine|find|mark|the|an?|its|this|reaction|point|line|graph|curve|diagram|Gibbs|free|energy|temperature|equilibrium|transition|minimum|threshold|crossover|will|does|reach|be|becomes?|is|negative|positive|zero|spontaneous|feasible)\b)*$/i.test(payload);

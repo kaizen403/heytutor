@@ -1072,6 +1072,12 @@ const cases: readonly {id:string; question:string; expected:string; dG:number|nu
     "expected": "graph-only",
     "dG": null,
     "unit": "kJ/mol"
+  },
+  {
+    "id": "OWN-LOWERCASE-TIME-REFERENCE-WRONG-UNIT",
+    "question": "Use ΔH and t = 298 K. ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
   }
 ];
 const results: {id:string;passed:boolean;error?:string}[] = [];
