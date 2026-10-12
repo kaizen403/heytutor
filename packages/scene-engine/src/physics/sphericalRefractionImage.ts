@@ -20,6 +20,14 @@
  * with an n or mu symbol) and 1. Otherwise:
  * `spherical_refraction_image_disagrees`.
  *
+ * Light crosses surfaces in turn. A placed image the law confirms is the
+ * object of the next refracting surface along the light (coaxial, nearest
+ * vertex downstream), in the medium the light entered; lying past that vertex
+ * it is a virtual object, signed along the light like any other distance.
+ * Confirmation repeats until nothing new is confirmed, so a glass sphere's
+ * final image is checked through its first. A confirmed image is not held as
+ * an image at the surface it is the object of.
+ *
  * `spherical_surface` also draws mirrors, and a refractive index in the plan
  * says nothing about which surface it belongs to. A surface refracts only
  * when the document says so (`refractingSphericalSurfaces`). Nothing is read
@@ -39,9 +47,15 @@ export interface SphericalRefractionImageInput {
   center?: RefractionPoint;
   /** Signed radius along the light's direction (object toward vertex), used without `center`. */
   radius?: number;
-  /** Object point on the axis; light travels from it to the vertex. */
+  /** Object point on the axis. Real (before the vertex) unless `direction` puts it beyond. */
   object: RefractionPoint;
-  /** Index of the object's medium. */
+  /**
+   * Direction the light travels along the axis. Without it the light runs from
+   * the object to the vertex (a real object). Give it for a virtual object: the
+   * image of an earlier surface that lies beyond this vertex.
+   */
+  direction?: RefractionPoint;
+  /** Index of the medium the light arrives through (the object's, for a real object). */
   n1: number;
   /** Index beyond the surface. */
   n2: number;
@@ -53,6 +67,8 @@ export interface SphericalRefractionImage {
   objectDistance: number;
   imageDistance: number;
   radius: number;
+  /** Unit direction the light travels, along which the distances are signed. */
+  direction: RefractionPoint;
 }
 
 /** Image point of one refracting spherical surface (paraxial law, Cartesian signs). */
@@ -60,12 +76,19 @@ export function sphericalRefractionImage(input: SphericalRefractionImageInput): 
   const { vertex, object } = input;
   const gap = Math.hypot(vertex.x - object.x, vertex.y - object.y);
   if (!(gap > 0)) throw new Error("spherical refraction object sits on the vertex");
-  const direction = { x: (vertex.x - object.x) / gap, y: (vertex.y - object.y) / gap };
+  const given = input.direction ? Math.hypot(input.direction.x, input.direction.y) : 0;
+  if (input.direction && !(given > 0)) throw new Error("spherical refraction direction has no length");
+  const direction = input.direction
+    ? { x: input.direction.x / given, y: input.direction.y / given }
+    : { x: (vertex.x - object.x) / gap, y: (vertex.y - object.y) / gap };
   const radius = input.center
     ? (input.center.x - vertex.x) * direction.x + (input.center.y - vertex.y) * direction.y
     : input.radius;
   if (radius === undefined || !Number.isFinite(radius)) throw new Error("spherical refraction needs a centre or a radius");
-  const objectDistance = -gap;
+  const objectDistance = input.direction
+    ? (object.x - vertex.x) * direction.x + (object.y - vertex.y) * direction.y
+    : -gap;
+  if (!(Math.abs(objectDistance) > 1e-12 * gap)) throw new Error("spherical refraction object sits off the light's line");
   const { imageDistance } = evaluateOpticsLaw("spherical_refraction", {
     n1: input.n1,
     n2: input.n2,
@@ -77,6 +100,7 @@ export function sphericalRefractionImage(input: SphericalRefractionImageInput): 
     objectDistance,
     imageDistance: imageDistance!,
     radius,
+    direction,
   };
 }
 
@@ -104,6 +128,8 @@ function isRefractiveIndex(quantity: TurnPlanQuantityV3): boolean {
 const SURFACE_ANCHORED = new Set(["refract_at", "reflect_at", "normal_at", "surface_contact", "surface_intersection"]);
 
 type Frame = { surfaceId: string; vertexId: string; vertex: RefractionPoint; center: RefractionPoint };
+/** Light reaching a surface: a declared object, or an image an earlier surface formed (its direction and medium carried). */
+type LightSource = { id: string; point: RefractionPoint; direction?: RefractionPoint; n1?: number };
 
 /**
  * The `spherical_surface` outputs a document declares refracting:
@@ -250,46 +276,99 @@ export function validateSphericalRefractionImagePlacements(document: SceneDocume
   const vertices = frames.map((frame) => frame.vertex);
   const near = (a: RefractionPoint, b: RefractionPoint, scale: number) => Math.hypot(a.x - b.x, a.y - b.y) <= 1e-6 * scale;
 
-  const issues: SceneIssue[] = [];
-  for (const frame of frames) {
-    if (!refracting.has(frame.surfaceId)) continue;
+  const checked = frames.filter((frame) => refracting.has(frame.surfaceId)).map((frame) => {
     const { vertex, center } = frame;
     const radius = Math.hypot(center.x - vertex.x, center.y - vertex.y);
     const onAxis = (point: RefractionPoint) =>
       Math.abs((center.x - vertex.x) * (point.y - vertex.y) - (center.y - vertex.y) * (point.x - vertex.x)) / radius <= 1e-3 * radius;
     const candidates = [...literal].filter(([id, point]) =>
       !reserved.has(id) && onAxis(point) && !near(point, center, radius) && !vertices.some((other) => near(point, other, radius)));
-    const objects = candidates.filter(([, point]) => vertices.some((other) => {
+    const objects: LightSource[] = candidates.filter(([, point]) => vertices.some((other) => {
       const distance = Math.hypot(point.x - other.x, point.y - other.y);
       return givens.some((value) => matches(distance, value));
-    }));
-    for (const [imageId, image] of candidates) {
-      const fromVertex = Math.hypot(image.x - vertex.x, image.y - vertex.y);
-      if (!derived.some((value) => matches(fromVertex, value))) continue;
-      const sources = objects.filter(([id]) => id !== imageId);
-      if (sources.length === 0) continue;
-      const lawImages: number[] = [];
-      let agrees = false;
-      for (const [, object] of sources) {
-        for (const [n1, n2] of pairs) {
-          let result: SphericalRefractionImage;
-          try { result = sphericalRefractionImage({ vertex, center, object, n1, n2 }); } catch { continue; }
-          const gap = Math.hypot(result.image.x - image.x, result.image.y - image.y);
-          if (gap <= IMAGE_TOLERANCE * Math.max(Math.abs(result.imageDistance), radius)) agrees = true;
-          lawImages.push(Math.abs(result.imageDistance));
+    })).map(([id, point]) => ({ id, point }));
+    const placed = candidates.flatMap(([id, point]) => {
+      const fromVertex = Math.hypot(point.x - vertex.x, point.y - vertex.y);
+      return derived.some((value) => matches(fromVertex, value)) ? [{ id, point, fromVertex }] : [];
+    });
+    return { frame, radius, objects, placed };
+  });
+
+  /** The next refracting surface the light meets: coaxial with `from`, its vertex nearest downstream. */
+  const nextSurface = (from: number, direction: RefractionPoint): number => {
+    const { vertex } = checked[from]!.frame;
+    let next = -1;
+    let nearest = Infinity;
+    checked.forEach((surface, index) => {
+      if (index === from) return;
+      const scale = Math.max(checked[from]!.radius, surface.radius);
+      const off = (point: RefractionPoint) => Math.abs(direction.x * (point.y - vertex.y) - direction.y * (point.x - vertex.x));
+      if (off(surface.frame.vertex) > 1e-3 * scale || off(surface.frame.center) > 1e-3 * scale) return;
+      const along = (surface.frame.vertex.x - vertex.x) * direction.x + (surface.frame.vertex.y - vertex.y) * direction.y;
+      if (along > 1e-6 * scale && along < nearest) { next = index; nearest = along; }
+    });
+    return next;
+  };
+
+  // A placed image the law confirms is the object of the next surface along the
+  // light, in the medium the light entered (a virtual object when it lies past
+  // that vertex). Repeat until no new image is confirmed.
+  const confirmed = new Map<string, Array<{ at: number; next: number; direction: RefractionPoint; medium: number }>>();
+  const sourcesAt = (index: number): LightSource[] => [
+    ...checked[index]!.objects,
+    ...[...confirmed].flatMap(([id, list]) => list.filter((entry) => entry.next === index)
+      .map((entry) => ({ id, point: literal.get(id)!, direction: entry.direction, n1: entry.medium }))),
+  ];
+  const lawImages = (index: number, source: LightSource): Array<{ result: SphericalRefractionImage; n2: number }> => {
+    const { vertex, center } = checked[index]!.frame;
+    return pairs.flatMap(([n1, n2]) => {
+      if (source.n1 !== undefined && n1 !== source.n1) return [];
+      try { return [{ result: sphericalRefractionImage({ vertex, center, object: source.point, direction: source.direction, n1, n2 }), n2 }]; } catch { return []; }
+    });
+  };
+  const agrees = (index: number, result: SphericalRefractionImage, image: RefractionPoint) =>
+    Math.hypot(result.image.x - image.x, result.image.y - image.y) <= IMAGE_TOLERANCE * Math.max(Math.abs(result.imageDistance), checked[index]!.radius);
+  const seen = new Set<string>();
+  for (let grew = true, pass = 0; grew && pass <= checked.length * literal.size; pass += 1) {
+    grew = false;
+    checked.forEach((surface, index) => {
+      for (const { id: imageId, point: image } of surface.placed) {
+        for (const source of sourcesAt(index)) {
+          if (source.id === imageId) continue;
+          for (const { result, n2: medium } of lawImages(index, source)) {
+            if (!agrees(index, result, image)) continue;
+            const next = nextSurface(index, result.direction);
+            const key = `${imageId}|${index}|${medium}|${next}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            grew = true;
+            confirmed.set(imageId, [...confirmed.get(imageId) ?? [], { at: index, next, direction: result.direction, medium }]);
+          }
         }
       }
-      if (agrees) continue;
+    });
+  }
+
+  const issues: SceneIssue[] = [];
+  checked.forEach(({ frame, placed }, index) => {
+    for (const { id: imageId, fromVertex } of placed) {
+      const entries = confirmed.get(imageId) ?? [];
+      // Agrees here, or is this surface's object (an image an earlier surface confirmed).
+      if (entries.some((entry) => entry.at === index || entry.next === index)) continue;
+      const sources = sourcesAt(index).filter((source) => source.id !== imageId);
+      if (sources.length === 0) continue;
+      const expected = [...new Set(sources.flatMap((source) => lawImages(index, source)).map(({ result }) => round(Math.abs(result.imageDistance))))];
+      const of = sources.some((source) => source.n1 !== undefined) ? "the declared object or an earlier surface's image" : "the declared object";
       issues.push({
         code: "spherical_refraction_image_disagrees",
-        message: `${imageId} sits ${round(fromVertex)} from the vertex of ${frame.surfaceId}, but refraction at that surface puts the image of the declared object ${[...new Set(lawImages.map(round))].join(" or ")} from it`,
+        message: `${imageId} sits ${round(fromVertex)} from the vertex of ${frame.surfaceId}, but refraction at that surface puts the image of ${of} ${expected.join(" or ")} from it`,
         severity: "fatal",
         entityIds: [imageId, frame.surfaceId],
-        expected: [...new Set(lawImages.map(round))],
+        expected,
         actual: round(fromVertex),
       });
     }
-  }
+  });
   return issues;
 }
 

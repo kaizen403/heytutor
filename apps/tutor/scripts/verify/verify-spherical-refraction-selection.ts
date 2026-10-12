@@ -163,5 +163,88 @@ check("control: a concave mirror's correct image at -60 cm is admitted beside a 
   return valid ? null : `declined with ${codes.join(", ")}`;
 });
 
+/**
+ * Review of #164: a glass sphere seen through both faces (R = 10 cm, n = 1.5,
+ * object 30 cm before the first vertex). The faces stand at x = 0 and x = 20
+ * around the centre x = 10. The first face images the object 90 cm past its
+ * vertex; that image is a virtual object 70 cm past the second vertex, whose
+ * face puts the final image 14 cm past it (x = 34). Only the object sits at a
+ * given distance, so the final image is right only through the first.
+ */
+function twoFaceSphere(finalImageDistance: number): { document: Doc; plan: TurnPlanV3 } {
+  const question = "A glass sphere of radius 10 cm has refractive index 1.5. An object on its axis stands 30 cm before the near surface. Find the image formed by each surface.";
+  const point = (id: string, x: number) => ({ id: `make_${id}`, operator: "point", inputs: { x, y: 0, coordinateSpace: "world" }, outputs: [id] });
+  const entities = [
+    { id: "V1", kind: "point", role: "first vertex", label: "P1" },
+    { id: "V2", kind: "point", role: "second vertex", label: "P2" },
+    { id: "C", kind: "point", role: "centre", label: "C" },
+    { id: "O", kind: "point", role: "object", label: "O" },
+    { id: "I1", kind: "point", role: "first image", label: "I1" },
+    { id: "I2", kind: "point", role: "final image", label: "I2" },
+    { id: "axis", kind: "line", role: "principal axis" },
+    { id: "s1", kind: "arc", role: "first face" },
+    { id: "s2", kind: "arc", role: "second face" },
+  ];
+  const ids = entities.map((entity) => entity.id);
+  const quantity = (id: string, symbol: string, value: number, unit?: string) => ({ id, symbol, value, ...(unit ? { unit } : {}) });
+  const document = {
+    schemaVersion: "scene-document/v2",
+    visualDecision: { mode: "scene", reason: "The sphere, its axis, the object and both images have stated positions." },
+    source: { question },
+    quantities: [
+      quantity("R", "R", 10, "cm"), quantity("n", "n", 1.5), quantity("u", "u", 30, "cm"),
+      quantity("v1", "v1", 90, "cm"), quantity("v2", "v2", finalImageDistance, "cm"),
+    ],
+    entities,
+    constructions: [
+      point("V1", 0), point("V2", 20), point("C", 10), point("O", -30), point("I1", 90), point("I2", 20 + finalImageDistance),
+      { id: "make_axis", operator: "line", inputs: { start: "V1", direction: [1, 0] }, outputs: ["axis"] },
+      { id: "make_s1", operator: "spherical_surface", inputs: { vertex: "V1", axis: "axis", center: "C", halfHeight: 8 }, outputs: ["s1"] },
+      { id: "make_s2", operator: "spherical_surface", inputs: { vertex: "V2", axis: "axis", center: "C", halfHeight: 8 }, outputs: ["s2"] },
+    ],
+    relations: [],
+    assertions: [
+      { id: "objectOnAxis", predicate: "on", entities: ["O", "axis"], expected: true, severity: "fatal" },
+      { id: "firstImageOnAxis", predicate: "on", entities: ["I1", "axis"], expected: true, severity: "fatal" },
+      { id: "finalImageOnAxis", predicate: "on", entities: ["I2", "axis"], expected: true, severity: "fatal" },
+    ],
+    annotations: [],
+    requiredEntityIds: ids,
+    revealGroups: [{ id: "setup", entityIds: ids }],
+    teachingTimeline: [{ action: "reveal", targetId: "setup" }],
+  } as unknown as Doc;
+  const plan = {
+    schemaVersion: "turn-plan/v3",
+    question,
+    givens: [
+      { ...quantity("R", "R", 10, "cm"), provenance: "given", sourceText: "radius 10 cm" },
+      { ...quantity("n", "n", 1.5), provenance: "given", sourceText: "refractive index 1.5" },
+      { ...quantity("u", "u", 30, "cm"), provenance: "given", sourceText: "30 cm before the near surface" },
+    ],
+    unknowns: [{ id: "v1", symbol: "v1", unit: "cm" }, { id: "v2", symbol: "v2", unit: "cm" }],
+    derived: [quantity("v1", "v1", 90, "cm"), quantity("v2", "v2", finalImageDistance, "cm")],
+    qualitativeClaims: [],
+    lawIds: ["paraxial refraction at a spherical surface: n₂/v−n₁/u=(n₂−n₁)/R"],
+    assumptions: [],
+    visualRequirement: "required",
+  } as unknown as TurnPlanV3;
+  return { document, plan };
+}
+
+check("two face glass sphere: the first image (90 cm) is the second face's object, the final image at 14 cm is admitted", () => {
+  const { document, plan } = twoFaceSphere(14);
+  const { valid, codes } = validate(document, plan);
+  return valid ? null : `declined with ${codes.join(", ")}`;
+});
+
+check("control: the same sphere with the final image at 20 cm, not 14, declines for that image", () => {
+  const { document, plan } = twoFaceSphere(20);
+  const { valid, codes } = validate(document, plan);
+  if (valid) return "admitted with the final image 20 cm past the second face (the law gives 14 cm)";
+  const count = codes.filter((code) => code === "spherical_refraction_image_disagrees").length;
+  if (count !== 1) return `declined with ${codes.join(", ")}; expected spherical_refraction_image_disagrees once`;
+  return null;
+});
+
 console.log(`${passed} passed, ${failures.length} failed`);
 if (failures.length > 0) process.exit(1);

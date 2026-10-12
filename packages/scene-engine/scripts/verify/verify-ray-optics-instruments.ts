@@ -414,5 +414,76 @@ check("control: the same surface declared refracting (refract_direction there) i
   return JSON.stringify(flagged) === JSON.stringify(["F", "I"]) ? null : `flagged ${JSON.stringify(flagged)}, expected F and I`;
 });
 
+// Review of #164, R5 chain: a glass sphere seen through both faces (R 10 cm, n 1.5, object O 30 cm
+// before the first vertex). The faces stand at x = 0 and x = 20 around the centre x = 10. The first
+// face puts the image I1 90 cm past its vertex (x = 90). I1 is a virtual object 70 cm past the second
+// vertex, whose face puts the final image I2 14 cm past it (x = 34). Only O sits at a given distance,
+// so I2 is right only if a confirmed image serves as the next face's object.
+const twoFaceSphere = (firstImageX: number, finalImageX: number) => scene("A glass sphere of radius 10 cm and index 1.5, an object 30 cm before it.", [
+  { id: "V1", kind: "point", role: "first vertex", label: "P1" },
+  { id: "V2", kind: "point", role: "second vertex", label: "P2" },
+  { id: "C", kind: "point", role: "centre", label: "C" },
+  { id: "O", kind: "point", role: "object", label: "O" },
+  { id: "I1", kind: "point", role: "first image", label: "I1" },
+  { id: "I2", kind: "point", role: "final image", label: "I2" },
+  { id: "axis", kind: "line", role: "principal axis" },
+  { id: "s1", kind: "arc", role: "first face" },
+  { id: "s2", kind: "arc", role: "second face" },
+], [
+  point("V1", 0, 0), point("V2", 20, 0), point("C", 10, 0), point("O", -30, 0),
+  point("I1", firstImageX, 0), point("I2", finalImageX, 0),
+  { id: "make_axis", operator: "line", inputs: { start: "V1", direction: [1, 0] }, outputs: ["axis"] },
+  { id: "make_s1", operator: "spherical_surface", inputs: { vertex: "V1", axis: "axis", center: "C", halfHeight: 8 }, outputs: ["s1"] },
+  { id: "make_s2", operator: "spherical_surface", inputs: { vertex: "V2", axis: "axis", center: "C", halfHeight: 8 }, outputs: ["s2"] },
+]);
+const twoFacePlan = (derived: Record<string, number>) => ({
+  givens: [
+    { id: "R", symbol: "R", value: 10, unit: "cm" },
+    { id: "n", symbol: "n", value: 1.5 },
+    { id: "u", symbol: "u", value: 30, unit: "cm" },
+  ],
+  derived: Object.entries(derived).map(([id, value]) => ({ id, symbol: id, value, unit: "cm" })),
+});
+const twoFaceFlags = (firstImageX: number, finalImageX: number, derived: Record<string, number>) => {
+  const validated = validateSceneDocument(pruneDeadSceneEntities(structuredClone(twoFaceSphere(firstImageX, finalImageX))));
+  if (!validated.document) throw new Error(`did not validate: ${validated.report.issues.filter((issue) => issue.severity === "fatal").map((issue) => issue.code).join(", ")}`);
+  const issues = operator("validateSphericalRefractionImagePlacements")(validated.document, twoFacePlan(derived)) as Array<{ code: string; entityIds?: string[]; message?: string }>;
+  const flagged = issues.filter((issue) => issue.code === "spherical_refraction_image_disagrees");
+  for (const issue of flagged) console.log(`   ${issue.message}`);
+  return [...new Set(flagged.map((issue) => issue.entityIds?.[0]))].sort();
+};
+
+check("sphericalRefractionImage: a virtual object 70 cm past the second face, light going on, images 14 cm past it", () => {
+  const result = operator("sphericalRefractionImage")({
+    vertex: { x: 20, y: 0 }, center: { x: 10, y: 0 }, object: { x: 90, y: 0 }, direction: { x: 1, y: 0 }, n1: 1.5, n2: 1,
+  }) as { image: LawPoint; objectDistance: number; imageDistance: number; radius: number };
+  if (Math.abs(result.image.x - 34) > 1e-9 || Math.abs(result.image.y) > 1e-9) return `image at x = ${result.image.x}, expected 34`;
+  if (Math.abs(result.objectDistance - 70) > 1e-9 || Math.abs(result.imageDistance - 14) > 1e-9 || Math.abs(result.radius + 10) > 1e-9) {
+    return `u ${result.objectDistance}, v ${result.imageDistance}, R ${result.radius}; expected +70, +14, -10 along the light`;
+  }
+  return null;
+});
+
+check("two face glass sphere: images at 90 and 14 cm agree when u2 = 70 cm is also derived", () => {
+  const flagged = twoFaceFlags(90, 34, { v1: 90, u2: 70, v2: 14 });
+  return flagged.length === 0 ? null : `flagged ${JSON.stringify(flagged)}`;
+});
+
+check("two face glass sphere: images at 90 and 14 cm agree with only v1 and v2 derived", () => {
+  const flagged = twoFaceFlags(90, 34, { v1: 90, v2: 14 });
+  return flagged.length === 0 ? null : `flagged ${JSON.stringify(flagged)}`;
+});
+
+check("control: two face glass sphere with the final image at 20 cm, not 14, flags that image only", () => {
+  const flagged = twoFaceFlags(90, 40, { v1: 90, v2: 20 });
+  return JSON.stringify(flagged) === JSON.stringify(["I2"]) ? null : `flagged ${JSON.stringify(flagged)}, expected I2 only`;
+});
+
+check("control: a wrong first image (60 cm, not 90) confirms nothing downstream", () => {
+  // I2 sits where the second face would image a virtual object at x = 60: v2 = 80/7 cm.
+  const flagged = twoFaceFlags(60, 20 + 80 / 7, { v1: 60, v2: 80 / 7 });
+  return JSON.stringify(flagged) === JSON.stringify(["I1", "I2"]) ? null : `flagged ${JSON.stringify(flagged)}, expected I1 and I2`;
+});
+
 console.log(`${passed} passed, ${failures.length} failed`);
 if (failures.length > 0) process.exit(1);
