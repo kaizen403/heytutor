@@ -1025,6 +1025,7 @@ export function useLecturePlayer({
       store.set({
         durationMs: 0,
         loadedMs: 0,
+        missingAudioCues: null,
         chapters: [],
         positionMs: 0,
         error: null,
@@ -1048,6 +1049,7 @@ export function useLecturePlayer({
       workPages: timeline.workPages,
       reviewPageIndex: null,
       loadedMs: 0,
+      missingAudioCues: null,
       error: null,
     });
     setPlayerStatus("loading");
@@ -1073,7 +1075,7 @@ export function useLecturePlayer({
           }
           audio.playbackRate = lecturePaceRate(rateRef.current);
           trackReadyRef.current = true;
-          store.set({ loadedMs: timeline.totalMs });
+          store.set({ loadedMs: timeline.totalMs, missingAudioCues: track.missingAudioCues });
           if (!activeRef.current) setPlayerStatus("ready");
           const pending = pendingStartRef.current;
           pendingStartRef.current = null;
@@ -1224,9 +1226,12 @@ export function useLecturePlayer({
   }, [active]);
 
   const cursorState: CursorState = active && status !== "ended" ? "drawing" : "idle";
+  // End is the student's finished board. Its last spoken caption must not
+  // stay over the answer; ordinary pauses still keep the current words.
+  const visibleSegmentText = status === "ended" ? "" : segmentText;
   const view = useMemo<LecturePlayerView>(
-    () => ({ active, revealed, cursorState, segmentText }),
-    [active, cursorState, revealed, segmentText],
+    () => ({ active, revealed, cursorState, segmentText: visibleSegmentText }),
+    [active, cursorState, revealed, visibleSegmentText],
   );
 
   return {
@@ -1240,7 +1245,7 @@ export function useLecturePlayer({
     revealed,
     playing: active && status === "playing",
     reviewingStoredPage: store.getSnapshot().reviewPageIndex != null,
-    segmentText,
+    segmentText: visibleSegmentText,
     cursorState,
     playFromStart,
     close,
