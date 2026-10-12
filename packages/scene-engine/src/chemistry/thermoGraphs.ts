@@ -492,10 +492,30 @@ function buildProfile(question: string, spec: ProfileSpec): SceneDocument {
 
 /* ---------------------------------------------------------------- gibbs */
 
-/** A stated absolute temperature, such as "at 298 K". Nonpositive values are rejected by the caller. */
-function statedKelvin(question: string): number | null {
-  const read = findChemistryQuantities({question, dimension: "temperature"});
-  return read.ok && read.reading.length === 1 ? read.reading[0]!.value : null;
+type GibbsTemperature = { kind: "absent" } | { kind: "given"; value: number } | { kind: "invalid" };
+
+/** Agreeing absolute readings corroborate one point; an unread owner is not absence. */
+function statedKelvin(question: string): GibbsTemperature {
+  const body = question.slice(0, chemistryQuestionSpan(question).end);
+  const inventory = findChemistryQuantities({question: body, dimension: "temperature"});
+  if (!inventory.ok) return {kind: "invalid"};
+  const value = inventory.reading[0]?.value;
+  if (inventory.reading.some(reading => !(reading.value > 0)
+    || !chemistryCanonicalValuesAgree(reading.value, value!))) return {kind: "invalid"};
+  const owners = [
+    /\btemperature(?=\s*(?:[=:]|\b(?:is|was|equals|of)\b))/gi,
+    /\bT(?=\s*(?:[=:]|[Ii][Ss]\b|[Ee][Qq][Uu][Aa][Ll][Ss]\b))/g,
+    /\bat\b(?=\s*(?:[+−-]?(?:\d|\.\d)|[^;,.?!\n]{0,36}(?:\bK\b|\bkelvin\b|°\s*C\b|\btemperature\b)))/gi,
+    /\b(?:calculate|compute|determine|find)\s+(?:(?:the|value\s+of)\s+)*(?:[Δδ∆]\s*G\b|Gibbs\s+(?:free\s+)?energy\b|free\s+energy\b)[^.;?!\n]{0,80}?\bat\b/gi,
+  ];
+  for (const owner of owners) for (const match of body.matchAll(owner)) {
+    const read = readChemistryQuantity({question: body, after: /^/,
+      within: {start: match.index! + match[0].length, end: body.length}, dimension: "temperature"});
+    if (!read.ok || value === undefined || !chemistryCanonicalValuesAgree(read.reading.value, value)) {
+      return {kind: "invalid"};
+    }
+  }
+  return value === undefined ? {kind: "absent"} : {kind: "given", value};
 }
 function buildGibbs(question: string, _stem: string, _quantities: ChemPlanQuantity[]): SceneDocument | null {
   const stemH = readEnthalpyChange(question); const stemS = readEntropyChange(question);
@@ -504,8 +524,9 @@ function buildGibbs(question: string, _stem: string, _quantities: ChemPlanQuanti
   if (perMole !== (stemS.dimension === "molar_entropy")) return null;
   const dH = stemH.value; const dSkJ = stemS.value / 1000;
   if (dH === 0 || dSkJ === 0) return null;
-  const at = statedKelvin(question);
-  if (at !== null && !(at > 0)) return null;
+  const temperature = statedKelvin(question);
+  if (temperature.kind === "invalid") return null;
+  const at = temperature.kind === "given" ? temperature.value : null;
   const dgAt = at === null ? null : dH - at * dSkJ;
   const dgUnit = perMole ? "kJ/mol" : "kJ";
   const dgText = dgAt === null ? null : `ΔG=${dgAt.toFixed(1)} ${dgUnit}`;
