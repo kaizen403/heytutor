@@ -66,6 +66,8 @@ const FRAMES: CodeLessonFigureFrame[] = [
   assert(!isExplanationOnlyDsaQuestion("Explain how solving two sum works"), "a solving request still needs code");
   const pythonReversal = "Reverse a singly linked list in Python. Input: head = [1, 2, 3, 4]. Explain prev, curr and next, then return the reversed list.";
   assert(!isExplanationOnlyDsaQuestion(pythonReversal), "an operation explicitly requested in Python still owes code when its variables also need explaining");
+  const pythonSearch = "Search a binary search tree in Python. Input: root = [4, 2, 7, 1, 3], val = 2. Explain which branch to choose and return the subtree rooted at 2.";
+  assert(!isExplanationOnlyDsaQuestion(pythonSearch), "an explicit Python search still owes code alongside its branch explanation");
   for (const language of ["Python", "JavaScript", "TypeScript", "Java", "C++", "cpp"]) {
     assert(!isExplanationOnlyDsaQuestion(`Reverse a linked list in ${language}. Explain the pointer updates.`), `${language}: a named implementation language does not become explanation-only`);
   }
