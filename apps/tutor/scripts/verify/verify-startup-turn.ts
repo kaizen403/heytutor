@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { getSegmentCommands, serializeSegmentCommands, verifiedDiagramCommandToDrawCommand, type DrawCommand, type TutorSegment } from "@heytutor/drawing";
-import { mathToSpeech, voiceSettingsForDelivery, normalizeTutorQuestion, type SpeakSegmentOptions, type TTSClient } from "@heytutor/tutor-core";
+import { mathToSpeech, voiceSettingsForDelivery, normalizeTutorQuestion, TUTOR_SYSTEM_PROMPT, type SpeakSegmentOptions, type TTSClient } from "@heytutor/tutor-core";
 import { validateTurnPlanV3, synthesizeFamilyScene, type TurnPlanV3, type ProblemIR } from "@heytutor/scene-engine";
 import { selectFastVerifiedRepresentation } from "../../features/tutor-session/lib/scene/representationFallback";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
@@ -99,11 +101,13 @@ assert(selectFastVerifiedRepresentation({ question: recordedPlan.question, turnP
 assert.equal(selectFastVerifiedRepresentation({ question: numericQuestion, turnPlan: numericPlan }), null, "the numeric fixture must retain normal model validation");
 assert.equal(synthesizeFamilyScene({ question: failedCompileQuestion, turnPlan: failedCompilePlan }), null, "the pole-crossing fixture must genuinely fail the deterministic family compile");
 
-type Mode = "ready" | "recorded-projectile" | "numeric" | "failed-compile" | "retry" | "prefix-stall" | "partial-stall" | "pause-stall" | "pause-prelude" | "control-eof" | "one-step-stall" | "one-step-split-stall" | "resume-no-ink" | "retry-expires" | "stop-before-expiry" | "stop-during-retry" | "stale-content" | "marker-only" | "hedge-wins" | "hedge-primary-wins" | "hedge-fails" | "early-on" | "early-off" | "early-stop" | "early-doubt" | "early-pause" | "early-parity";
+type Mode = "ready" | "recorded-projectile" | "numeric" | "failed-compile" | "retry" | "prefix-stall" | "partial-stall" | "pause-stall" | "pause-prelude" | "control-eof" | "one-step-stall" | "one-step-split-stall" | "resume-no-ink" | "retry-expires" | "stop-before-expiry" | "stop-during-retry" | "stale-content" | "marker-only" | "hedge-wins" | "hedge-primary-wins" | "hedge-fails" | "early-on" | "early-off" | "early-stop" | "early-doubt" | "early-pause" | "early-parity" | "early-late-ack";
 type Event = { atMs: number; name: string; data?: unknown };
 const HELD_PLANNER_MS = 15_000;
 export interface FrozenStartupFixture {
   plan: TurnPlanV3;
+  /** Require the real Given-row request and committed WRITE path, not a no-givens prompt. */
+  requireGivenRows?: boolean;
   /** A test-only fault at the actual selector boundary proves the parity gate is red-capable. */
   dropSelectedFigureWhenEarly?: boolean;
 }
@@ -113,6 +117,7 @@ const compiledHooks = new Map<string, string>();
 
 export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = false, fixture?: FrozenStartupFixture) {
   const earlyMode = mode.startsWith("early-");
+  const plannerHoldMs = mode === "early-late-ack" ? 10 : HELD_PLANNER_MS;
   const recoveryMode = mode === "early-stop" || mode === "early-doubt";
   const mounted = recoveryMode ? recoveryHookRuntime() : null;
   let detachOpeningMirror = () => {};
@@ -198,6 +203,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
     cancelled: boolean;
   }> = [];
   const telemetry: Array<{ events?: Array<{ name: string; metadata?: Record<string, unknown> }> }> = [];
+  const teachingRequestBodies: Array<{ messages: Array<{ role: string; content: string }> }> = [];
   const encoder = new TextEncoder();
   const content = (index: number, text: string) => {
     const stream = streams[index]!;
@@ -258,7 +264,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
     assert(url.endsWith("/api/chat"), `${mode}: no real network call is permitted: ${url}`);
     if (headers.get("x-turn-planner-version") === "3") {
       record("turn-plan-request");
-      if (earlyMode) await new Promise<void>((resolve) => { setTimer(resolve, HELD_PLANNER_MS); });
+      if (earlyMode) await new Promise<void>((resolve) => { setTimer(resolve, plannerHoldMs); });
       record("turn-plan-response");
       return completion(plan);
     }
@@ -296,6 +302,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
     }
     const hedgeRequest = headers.get("x-heytutor-teaching-hedge") === "1";
     record("teaching-request", { retry: headers.get("x-heytutor-reasoning-retry") === "1", hedge: hedgeRequest });
+    teachingRequestBodies.push(JSON.parse(String(init?.body)));
     if (hedgeRequest && mode === "hedge-fails") {
       return new Response("provider busy", { status: 503 });
     }
@@ -316,6 +323,8 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
     return stream.response;
   });
 
+  const heldAcknowledgement: { finish: (() => void) | null } = { finish: null };
+  let acknowledgementHeld = false;
   const provider = {
     unlockAudio() { record("audio-unlock"); },
     async prewarm(options?: { onConnect?: (result: { ms: number; ok: boolean }) => void }) {
@@ -327,6 +336,9 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
     getPlaybackRate: () => 1,
     setPlaybackRate() {},
     async speakSegment(text: string, options: SpeakSegmentOptions = {}) {
+      if (mode === "early-late-ack" && text === buildEarlyLessonOpeningSegment().narration) {
+        await new Promise<void>((resolve) => { setTimer(resolve, 30); });
+      }
       record("playback", { text, voiceSettings: options.voiceSettings });
       const chars = mathToSpeech(text).length;
       options.onTimings?.({ totalDuration: chars * 0.02,
@@ -335,6 +347,10 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       options.onAudioReady?.();
       options.onStart?.();
       options.onAudioCaptured?.({ bytes: Uint8Array.of(82, 73, 70, 70), mimeType: "audio/wav" });
+      if (mode === "early-stop" && !acknowledgementHeld && text === buildEarlyLessonOpeningSegment().narration) {
+        acknowledgementHeld = true;
+        await new Promise<void>((resolve) => { heldAcknowledgement.finish = resolve; });
+      }
       options.onEnd?.();
     },
     abandonSpeaking() { record("provider-stop"); },
@@ -501,10 +517,26 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       const playbacks = () => events.filter((event) => event.name === "playback");
       assert.equal(streams.length, 0, "teaching must wait for the held authoritative planner");
       assert(!events.some((event) => event.name === "turn-plan-response"));
+      if (mode === "early-late-ack") {
+        await advance(10);
+        assert.equal(streams.length, 1, "fast planning may finish before the acknowledgement becomes audible");
+        assert.equal(lifecycle.phaseRef.current, "thinking");
+        await advance(30);
+      }
       assert.equal(playbacks().length, earlyEnabled ? 1 : 0, "only ON may speak its safe opening before the planner responds");
       if (earlyEnabled) {
         assert.equal((playbacks()[0]!.data as { text: string }).text, opening.narration);
         assert(events.indexOf(playbacks()[0]!) > billingAt, "safe speech must follow admission");
+        if (mode !== "early-stop") {
+          await pump(() => lifecycle.pendingSegmentCountRef.current === 0);
+          if (mode === "early-late-ack") {
+            assert.equal(lifecycle.phaseRef.current, "thinking", "a late acknowledgement must return to the still-pending real teaching wait");
+          } else {
+            assert(!events.some((event) => event.name === "turn-plan-response"), "the acknowledgement really completes while planning is held");
+            assert.equal(lifecycle.phaseRef.current, "planning",
+              "after the acknowledgement finishes, a held planner must show planning rather than silent speaking");
+          }
+        }
       }
       assert.equal(events.filter((event) => ["board-command", "enqueue-intro"].includes(event.name)).length, 0,
         "safe speech cannot acquire figure or numeric ink authority");
@@ -512,6 +544,17 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
         const beforeStop = outputs().length;
         if (mode === "early-doubt") renderControl().handleAskDoubt("What does the launch speed symbol mean?");
         else renderControl().stopTurn();
+        if (mode === "early-stop") {
+          assert(heldAcknowledgement.finish, "the source runner still owns a late acknowledgement completion");
+          assert.equal(lifecycle.phaseRef.current, "idle", "Stop itself finishes idle");
+          // Model a newer generation already speaking before the old voice's
+          // completion. Its phase must survive the old promise continuation.
+          lifecycle.phaseRef.current = "speaking";
+          heldAcknowledgement.finish();
+          await advance(1_000);
+          assert.equal(lifecycle.phaseRef.current, "speaking", "late acknowledgement cannot clobber a successor turn's phase");
+          lifecycle.phaseRef.current = "idle";
+        }
         if (mode === "early-doubt") {
           await flush();
           assert.equal(streams.length, 1, "the actual interruption starts one doubt teaching request");
@@ -571,8 +614,32 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
         return { mode, early: earlyEnabled, events: events.length };
       }
       if (mode === "early-pause") control.pauseTurn();
-      await advance(HELD_PLANNER_MS);
+      await advance(Math.max(now, plannerHoldMs));
       assert.equal(streams.length, 1, "the frozen planner must still start exactly one teaching request");
+      const teachingBody = teachingRequestBodies[0]!;
+      const teachingSystem = teachingBody.messages.find((message) => message.role === "system")!.content;
+      if (fixture?.requireGivenRows) {
+        assert(teachingSystem.includes("GIVEN VALUES ARE ALREADY ON THE BOARD"),
+          "the numeric fixture must exercise the actual generated Given-row addon");
+        assert(teachingSystem.includes("Do not rewrite those givens as a second list"),
+          "acknowledgement framing must preserve runtime ownership of the Given rows");
+      }
+      if (earlyEnabled) {
+        assert(!teachingSystem.includes("THE LESSON HAS ALREADY BEEN OPENED"),
+          "an acknowledgement must not falsely claim question framing was already spoken");
+        assert(!teachingSystem.includes("naming what the question asks for"),
+          "the actual ON base prompt must not claim question framing was already spoken");
+        assert(!teachingSystem.includes("do not say what the question asks for again"),
+          "the actual ON base prompt must not forbid the still-required question framing");
+        assert(!teachingSystem.includes("The runtime already spoke the opening line"),
+          "the actual ON Given-row addon must not falsely claim a question-specific opening");
+        assert(teachingSystem.includes("briefly identify what this question asks"),
+          "the actual teaching request still asks for question-specific framing after the acknowledgement");
+      } else {
+        assert(teachingSystem.startsWith(`${TUTOR_SYSTEM_PROMPT}\n\n--- current lesson (runtime) ---\n`),
+          "OFF retains every byte of the existing tutor base prompt");
+        assert(teachingSystem.includes("THE LESSON HAS ALREADY BEEN OPENED"), "OFF retains its legacy spoken framing policy");
+      }
       content(0, "[STEP]We identify what the question asks us to establish.[WRITE:Identify the target,80,150][/STEP]");
       finishStream(0);
       if (mode === "early-pause") {
@@ -583,6 +650,11 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       }
       await pump(() => done);
       await turn;
+      if (fixture?.requireGivenRows) {
+        assert(events.some((event) => event.name === "board-command" &&
+          (event.data as DrawCommand).type === "WRITE" && (event.data as DrawCommand).text?.startsWith("Given:")),
+        "the numeric fixture must commit real runtime Given rows after release, not only a prompt marker");
+      }
       assert(!events.some((event) => event.name === "turn-error"));
       assert.equal(events.filter((event) => event.name === "enqueue" && (event.data as TutorSegment).delivery === "opening").length, 1,
         "the acknowledgement replaces, rather than duplicates, the legacy opening");
@@ -917,10 +989,33 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
   }
 }
 
+function verifySymlinkEntrypoint() {
+  const directory = mkdtempSync(path.join(tmpdir(), "heytutor-startup-entry-"));
+  const linkedScript = path.join(directory, "verify-startup-turn.ts");
+  try {
+    symlinkSync(fileURLToPath(import.meta.url), linkedScript);
+    // Select one real scenario, not another recursive full-suite parent.
+    const passed = spawnSync(process.execPath, ["--import", "tsx", linkedScript, "early-off"],
+      { cwd: app, encoding: "utf8", timeout: 30_000 });
+    assert.equal(passed.status, 0, `symlink scenario failed: ${passed.error?.message ?? passed.stderr}`);
+    assert(passed.stdout.includes("mode: 'early-off'") && passed.stdout.includes("checked_modes: 1"),
+      "a symlink subprocess must execute a nonzero number of actual hook scenarios, not just import successfully");
+    const rejected = spawnSync(process.execPath, ["--import", "tsx", linkedScript, "not-a-real-case"],
+      { cwd: app, encoding: "utf8", timeout: 30_000 });
+    assert.notEqual(rejected.status, 0, "symlink entry must also propagate assertion failure");
+    assert(rejected.stderr.includes("unknown case: not-a-real-case"), "the real main validates the symlink's selected case");
+    console.log("verify-startup-turn: symlink executed one actual OFF scenario and propagated its invalid-case assertion");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
+
 async function main() {
   const selected = process.argv[2];
+  if (selected === "entrypoint") { verifySymlinkEntrypoint(); return; }
   const failures: string[] = [];
-  const modes: Mode[] = ["ready", "recorded-projectile", "numeric", "failed-compile", "retry", "prefix-stall", "partial-stall", "pause-stall", "pause-prelude", "control-eof", "one-step-stall", "one-step-split-stall", "resume-no-ink", "retry-expires", "stop-before-expiry", "stop-during-retry", "stale-content", "marker-only", "hedge-wins", "hedge-primary-wins", "hedge-fails", "early-on", "early-off", "early-stop", "early-doubt", "early-pause"];
+  let checkedModes = 0;
+  const modes: Mode[] = ["ready", "recorded-projectile", "numeric", "failed-compile", "retry", "prefix-stall", "partial-stall", "pause-stall", "pause-prelude", "control-eof", "one-step-stall", "one-step-split-stall", "resume-no-ink", "retry-expires", "stop-before-expiry", "stop-during-retry", "stale-content", "marker-only", "hedge-wins", "hedge-primary-wins", "hedge-fails", "early-on", "early-off", "early-stop", "early-doubt", "early-pause", "early-late-ack"];
   // Default modes run with the hedge flag off, as shipped. The hedge modes,
   // and one retry with a silent hedge, run with it forced on.
   const runs: Array<[Mode, boolean]> = [
@@ -931,11 +1026,16 @@ async function main() {
   for (const [mode, hedge] of runs) {
     if (selected && selected !== mode) continue;
     const label = hedge && !HEDGE_MODES.includes(mode) ? `${mode}+hedge` : mode;
+    checkedModes += 1;
     try {
       const result = await scenario(mode, hedge, mode.startsWith("early-") && mode !== "early-off");
       console.log("verify-startup-turn:", "drawing" in result
         ? { mode: result.mode, early: result.early, figureDrawn: result.figureDrawn, drawingCount: result.drawing?.length ?? 0 }
         : result);
+      if (mode === "early-pause") {
+        await scenario(mode, hedge, true, { plan: numericPlan, requireGivenRows: true });
+        console.log("verify-startup-turn:", { mode, numeric_given_request_and_rows: true });
+      }
     }
     catch (error) {
       console.error(`verify-startup-turn: ${label}`, error);
@@ -943,8 +1043,16 @@ async function main() {
     }
   }
   assert.equal(failures.length, 0, failures.join("\n"));
+  assert(checkedModes > 0, "a selected entrypoint must actually execute a scenario");
+  console.log("verify-startup-turn:", { checked_modes: checkedModes });
+  if (!selected) verifySymlinkEntrypoint();
   console.log("verify-startup-turn: actual handler, validation, first-step gate, opening delivery, hedge, retry, Stop, and cleanup verified");
 }
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+function isDirectEntrypoint() {
+  if (!process.argv[1]) return false;
+  try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); }
+  catch { return false; }
+}
+if (isDirectEntrypoint()) {
   void main().catch((error) => { console.error(error); process.exitCode = 1; });
 }
