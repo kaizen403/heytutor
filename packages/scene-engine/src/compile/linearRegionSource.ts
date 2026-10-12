@@ -1262,27 +1262,51 @@ function hasAffirmativeDiscreteDomain(question: string, names: readonly string[]
   const declared = (text: string): boolean => (text.match(/[A-Za-z][A-Za-z0-9_]*/g) ?? [])
     .filter(token => token.toLowerCase() !== "and").every(token => names.includes(token));
   const end = "(?=\\s|[.,;?!]|$)";
-  const action = String.raw`(?:graph(?:ing)?|plot(?:ting)?|draw(?:ing)?|shade|shading|represent(?:ing)?|show(?:ing)?|state|stating|give|giving|report(?:ing)?|find(?:ing)?|determine|determining|explain(?:ing)?|ask(?:ing)?|let|given|restrict|label(?:l?ing)?|mark(?:ing)?|write|writing|annotate|annotating|caption(?:ing)?|omit|omitting)`;
+  const premiseHead = String.raw`(?:let|(?:given|assum(?:e|ing)|suppos(?:e|ing))(?:\s+that)?)`;
+  const premisePrefix = new RegExp(String.raw`^\s*(?:(?:please\s+)?${premiseHead}\s*)?$`, "i");
+  const mathematicalAction = String.raw`(?:graph(?:ing)?|plot(?:ting)?|draw(?:ing)?|shade|shading|represent(?:ing)?|show(?:ing)?|illustrate|solve|solving|find(?:ing)?|determine|determining|calculate|calculating|compute|computing)`;
+  const displayTextAction = String.raw`(?:label(?:l?ing)?|mark(?:ing)?|write|writing|annotate|annotating|caption(?:ing)?|omit|omitting)`;
+  const action = String.raw`(?:${mathematicalAction}|state|stating|give|giving|report(?:ing)?|explain(?:ing)?|ask(?:ing)?|${premiseHead}|restrict|${displayTextAction})`;
   const actionHead = String.raw`(?:please\s+)?(?:(?:(?:do|does|did)\s+not|don['’]t|doesn['’]t|didn['’]t|never|not|without)\s+)?${action}\b`;
   const modalHead = String.raw`(?:should|can|could|may|might)\s+(?:[A-Za-z]+\s+){0,3}${action}\b`;
   const domainHead = `${list}\\s*(?:is\\b|are\\b|be\\b|in\\b|belongs?\\s+to\\b|∈|\\\\in\\b)`;
   const conjunction = String.raw`\b(?:and|then|but|yet|while|though|although|however|whereas)\b`;
   const displayObject = String.raw`(?:(?:solution\s+set|point|endpoint|boundary)\s+)?(?:labels?|captions?|annotations?|marks?|text)\b`;
   const displayModifier = String.raw`\b(?:without\s+(?=${action}\b)|without\s+(?:(?:a|an|any|the)\s+)?${displayObject}|with\s+no\s+${displayObject})`;
+  const displayContentPrefix = new RegExp(String.raw`\b(?:${displayTextAction}\b|${displayObject})`, "i");
+  const displayContentSuffix = new RegExp(String.raw`\b(?:as|is|are|was|were)\s+(?:(?:a|an|the)\s+)?${displayObject}`, "i");
+  const mathematicalRequestHead = new RegExp(String.raw`^\s*(?:please\s+)?(?:(?:should|can|could|may|might)\s+(?:[A-Za-z]+\s+){0,3})?${mathematicalAction}\b`, "i");
   for (const match of question.matchAll(/(?:\.(?=\d)|[^.;?!])+[.;?!]?/g)) {
     const clause = match[0];
     // Scope ends only at an independently headed request/domain statement,
     // or a manner modifier governing a request action. Thus "but do not label"
     // and "with no labels" cannot negate the preceding type, whereas "is not
-    // required" remains inside its domain predicate. Variable lists stay whole.
+    // required" remains inside its domain predicate. Modifier boundaries are
+    // zero width so the next instruction retains its head and negation.
     const boundaries = [...clause.matchAll(new RegExp(
-      String.raw`(?:[,;:]\s*(?:${conjunction}\s*)?|${conjunction}\s*)(?=${actionHead}|${modalHead}|${domainHead})|${displayModifier}`, "gi"))];
+      String.raw`(?:[,;:]\s*(?:${conjunction}\s*)?|${conjunction}\s*)(?=${actionHead}|${modalHead}|${domainHead})|(?=${displayModifier})`, "gi"))];
     const affirmative = (assertion: RegExpMatchArray, predicate = false): boolean => {
       const start = assertion.index!, finish = start + assertion[0].length;
       const lower = boundaries.filter(boundary => boundary.index! + boundary[0].length <= start).at(-1);
       const upper = boundaries.find(boundary => boundary.index! >= finish);
       const prefix = clause.slice(lower ? lower.index! + lower[0].length : 0, start);
       const suffix = clause.slice(finish, upper?.index ?? clause.length);
+      // A domain phrase used as requested display content is an operand of
+      // that instruction, never an independent declaration of variable type.
+      if (displayContentPrefix.test(prefix) || displayContentSuffix.test(suffix)) return false;
+      // Prove the governing context instead of promoting every domain-shaped
+      // substring to a type. Unknown instructions supply no independent veto.
+      if (!premisePrefix.test(prefix)
+        && !(/^restrict\b/i.test(assertion[0]) && /^\s*please\s*$/i.test(prefix))) {
+        const head = mathematicalRequestHead.exec(prefix);
+        if (!head) return false;
+        try {
+          let prose = normalize(prefix.slice(head[0].length));
+          for (const operand of clauses(prose, names).reverse())
+            prose = prose.slice(0, operand.start) + " ".repeat(operand.end - operand.start) + prose.slice(operand.end);
+          consumeLinearRequest(prose, names);
+        } catch { return false; }
+      }
       // A domain phrase can be negated or merely proposed after the match.
       // Read a continued predicate, not an unrelated display modifier such
       // as "without writing a caption" or "but do not label the set".

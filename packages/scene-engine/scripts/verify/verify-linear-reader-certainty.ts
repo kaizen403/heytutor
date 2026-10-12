@@ -261,6 +261,64 @@ for (const [i, statement] of [
   assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
 });
 for (const [i, question] of [
+  "Graph x<3 on a number line without writing x in Z on the graph.",
+  "Graph x<3 on a number line without labelling x ∈ ℤ on the axis.",
+  "Graph x<3 on a number line and write x in Z as a caption.",
+  "Graph x<3 on a number line, then omit the annotation x belongs to Z.",
+  "Graph x<3 on a number line with no labels saying x in Z.",
+  "Graph x<3 on a number line. Show x in Z as a caption.",
+  "Graph x<3 on a number line without graphing for integer x.",
+  "Graph x<3 on a number line. Discuss the notation x in Z.",
+].entries()) check(`displayed-domain-text-is-not-a-type-${i + 1}`, () => {
+  assert.equal(buildLinearSourceDocument(question), null, "Unproved display-text scope supplies no reader figure");
+  const candidate = documentFor(question, "number_line_set", { variable: "x", expression: { inequality: "x<3" } });
+  assert.deepEqual(validateLinearSourceBinding(candidate), [], "Displaying or omitting domain text does not assert a variable type");
+  const result = compileSceneDocument(candidate);
+  assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+});
+for (const [i, question] of [
+  "Graph x<3 for integer x without writing x in Z on the graph.",
+  "Graph x<3 without writing x in Z on the graph. Let x be an integer.",
+  "Graph x<3 without writing x in Z on the graph and x is an integer.",
+  "Given integer x, graph x<3 and write x in Z as a caption.",
+  "Graph x<3 and write x in Z as a caption, then restrict x to integers.",
+].entries()) check(`independent-type-before-or-after-display-${i + 1}`, () => {
+  assert.equal(buildLinearSourceDocument(question), null);
+  const candidate = documentFor(question, "number_line_set", { variable: "x", expression: { inequality: "x<3" } });
+  assert.ok(validateLinearSourceBinding(candidate).some(issue => issue.code === "linear_source_mismatch"), "A separate affirmative integer declaration retains its authority");
+  const result = compileSceneDocument(candidate);
+  assert.ok(!result.ok && result.renderScene === null && result.report.issues.some(issue => issue.code === "linear_source_mismatch"));
+});
+for (const [i, question] of [
+  "Assume x is an integer; graph x<3 on a number line, but do not print x in Z.",
+  "Graph x<3 on a number line and write x in Z as a caption; given that x is an integer.",
+  "Graph x<3 on a number line and write x in Z as a caption and assume x is an integer.",
+  "Please assume that x belongs to Z. Graph x<3 on a number line without writing x in Z.",
+  "Assuming x ∈ ℤ, graph x<3 on a number line with no labels.",
+  "Suppose x is an integer and graph x<3 on a number line without captions.",
+  "Supposing that x in Z, graph x<3 on a number line while not marking 2.",
+].entries()) check(`proven-premise-head-retains-type-${i + 1}`, () => {
+  assert.equal(buildLinearSourceDocument(question), null);
+  const candidate = documentFor(question, "number_line_set", { variable: "x", expression: { inequality: "x<3" } });
+  assert.ok(validateLinearSourceBinding(candidate).some(issue => issue.code === "linear_source_mismatch"), "A supplied premise is an actual type fact, including after a display instruction");
+  const result = compileSceneDocument(candidate);
+  assert.ok(!result.ok && result.renderScene === null && result.report.issues.some(issue => issue.code === "linear_source_mismatch"));
+});
+for (const [i, statement] of [
+  "x in Z is the label to omit.",
+  "x in Z is a caption to omit.",
+  "x belongs to Z is the annotation to write.",
+  "x ∈ ℤ is text to display.",
+  "x in Z was the label to show.",
+].entries()) check(`copular-display-role-is-not-a-type-${i + 1}`, () => {
+  const question = `Graph x<3 on a number line. ${statement}`;
+  assert.equal(buildLinearSourceDocument(question), null);
+  const candidate = documentFor(question, "number_line_set", { variable: "x", expression: { inequality: "x<3" } });
+  assert.deepEqual(validateLinearSourceBinding(candidate), [], "A caption, label, or annotation operand cannot assert a variable type");
+  const result = compileSceneDocument(candidate);
+  assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+});
+for (const [i, question] of [
   "Graph x<3 for integer x and state whether 2 belongs to the solution set.",
   "Graph x<3 for integer x and explain whether 2 belongs to the solution set?",
   "Let x be an integer and graph x<3 and do not label the solution set.",
