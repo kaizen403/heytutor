@@ -85,6 +85,7 @@ const HIDDEN_RESYNC_MS = 800;
 const SEEKED_TIMEOUT_MS = 1_500;
 
 type PageCodeTrack = {
+  openingTurnIndex: number;
   startMs: number;
   endMs: number;
   /** The code panel mounts with the page's first typed block. */
@@ -199,13 +200,19 @@ function scheduleIdle(callback: () => void): () => void {
 function buildPageCodeTracks(
   turns: StoredTurn[],
   timeline: LecturePlayerTimeline,
+  review?: Pick<LectureWorkPage, "endCueIndex" | "endCommandCount">,
 ): PageCodeTrack[] {
   const tracks: PageCodeTrack[] = [];
   const pages = new Map<number, ReplayCue[]>();
-  for (const cue of timeline.cues) {
+  for (const [cueIndex, cue] of timeline.cues.entries()) {
+    if (review && cueIndex > review.endCueIndex) break;
     const page = timeline.pageStartTurnIndex[cue.turnIndex] ?? cue.turnIndex;
     const cues = pages.get(page) ?? [];
-    cues.push(cue);
+    // Saved-page review ends at an executed command boundary, even when
+    // later TYPE receipts share that cue's media time. Keep recording data immutable.
+    cues.push(review && cueIndex === review.endCueIndex
+      ? { ...cue, commands: cue.commands.slice(0, review.endCommandCount) }
+      : cue);
     pages.set(page, cues);
   }
   for (const [page, cues] of pages) {
@@ -215,6 +222,7 @@ function buildPageCodeTracks(
     if (!track || track.blocks.length === 0) continue;
     const firstTyped = cues.find((cue) => cue.commands.some((command) => command.type === "TYPE"));
     tracks.push({
+      openingTurnIndex: page,
       startMs: cues[0]!.startMs,
       endMs: cues[cues.length - 1]!.endMs,
       visibleFromMs: firstTyped?.startMs ?? cues[0]!.startMs,
@@ -422,22 +430,32 @@ export function useLecturePlayer({
     setSegmentText(cues[index]?.narration ?? "");
   }, []);
 
-  const renderCodePanel = useCallback((ms: number) => {
+  const renderCodePanel = useCallback((ms: number, review?: LectureWorkPage) => {
     const canvas = codePanelCanvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
     const scale = canvas.width / BOARD_WIDTH;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const page = codeTracksRef.current.find(
+    const timeline = timelineRef.current;
+    const endCue = review && timeline?.cues[review.endCueIndex];
+    if (review && !endCue) return;
+    const openingTurnIndex = endCue
+      ? timeline!.pageStartTurnIndex[endCue.turnIndex] ?? endCue.turnIndex
+      : null;
+    const tracks = review && timeline
+      ? buildPageCodeTracks(storedTurnsRef.current, timeline, review)
+      : codeTracksRef.current;
+    const page = tracks.find(
       (candidate, index, all) =>
+        (openingTurnIndex === null || candidate.openingTurnIndex === openingTurnIndex) &&
         ms >= candidate.startMs &&
         (ms < candidate.endMs || index === all.length - 1),
     );
     if (!page || ms < page.visibleFromMs) return;
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
     renderCodePanelFrame(ctx, codeLessonFrameSpec(page.track, ms), DSA_CODE_PANEL_RECT);
-  }, []);
+  }, [storedTurnsRef]);
 
   const setFreezeVisible = useCallback((visible: boolean) => {
     const canvas = freezeCanvasRef.current;
@@ -674,7 +692,7 @@ export function useLecturePlayer({
       if (!current()) return false;
 
       positionRef.current = plan.targetMs;
-      renderCodePanel(plan.targetMs);
+      renderCodePanel(plan.targetMs, reviewing ? review : undefined);
       publishCueText(cues, plan.targetCueIndex);
       store.set({
         positionMs: plan.targetMs,

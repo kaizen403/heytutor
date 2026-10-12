@@ -10,6 +10,7 @@ import type { StoredTurn } from "../../lib/boards/boardsClient";
 import { boardContinuationArtifacts } from "../../lib/boards/boardContinuation";
 import { getMockCodeLessonPlan } from "@heytutor/tutor-core";
 import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
+import type { CodePanelFrameSpec } from "../../lib/code-render/renderCodeToCanvas";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
 const turn: StoredTurn = {
   id: "pages",
@@ -756,17 +757,30 @@ async function main() {
           command: serializeSegmentCommands([c], { trustedDiagramGeometry: "command" in entry && entry.trusted }) };
       }),
     });
-    const reviewCase = async (id: string, turns: StoredTurn[], check: (player: LecturePlayerApi, totalMs: number) => Promise<void>) => {
+    let renderedCode: CodePanelFrameSpec | null = null;
+    const reviewCase = async (id: string, turns: StoredTurn[], check: (player: LecturePlayerApi, totalMs: number, render: () => LecturePlayerApi) => Promise<void>) => {
       const state = new Mount(); extraMounts.push(state);
       const untouched = JSON.stringify(turns);
       const hooks = load(path.join(app, "features/tutor-session/hooks/useLecturePlayer.ts"), state, {
         "./useBoardViewport": { useBoardViewport: () => ({ scale: 1, offsetX: 0, offsetY: 0, measured: true }) },
         "@/lib/replay/lecturePlayerAudio": { lecturePlayerTrackKey: () => id, getLecturePlayerTrack: async (_key: unknown, make: () => unknown) => make(), buildLecturePlayerTrack: async () => ({ url: `local:${id}` }) },
+        "@/lib/code-render/renderCodeToCanvas": {
+          renderCodePanelFrame: (_ctx: CanvasRenderingContext2D, spec: CodePanelFrameSpec) => {
+            renderedCode = structuredClone(spec);
+          },
+        },
       }) as unknown as { useLecturePlayer: typeof import("../../features/tutor-session/hooks/useLecturePlayer").useLecturePlayer };
-      api = state.render(() => hooks.useLecturePlayer({ sessionId: id, storedTurnsRef: { current: turns }, storedTurnsCount: turns.length, available: true, rate: 1, onRateChange: () => {}, enableKeyboard: false }));
+      const props = { sessionId: id, storedTurnsRef: { current: turns }, storedTurnsCount: turns.length, available: true, rate: 1, onRateChange: () => {}, enableKeyboard: false };
+      const render = () => hooks.useLecturePlayer(props);
+      api = state.render(render);
       api.playerBoardRef.current = board;
+      renderedCode = null;
+      api.codePanelCanvasRef.current = {
+        width: 1200, height: 700,
+        getContext: () => ({ setTransform() {}, clearRect() { renderedCode = null; } }),
+      } as unknown as HTMLCanvasElement;
       await wait(() => api!.store.getSnapshot().status === "ready");
-      await check(api, api.store.getSnapshot().durationMs);
+      await check(api, api.store.getSnapshot().durationMs, () => state.render(render));
       assert.equal(JSON.stringify(turns), untouched, `${id} leaves recorded commands immutable`);
       api.close(); state.close();
     };
@@ -851,6 +865,109 @@ async function main() {
       await review(player, 1); assert.deepEqual(boardRows(), [{ x: 90, y: 142, text: "New" }]);
     });
     console.log("PASS actual installed authority, trusted clip, standalone/retained continuation and compiled code frames govern ERASE");
+
+    // Code canvas uses the actual hook → export track → frame-spec producer.
+    // Only the final canvas-paint port records its input, with inert clear/transform.
+    const codePlan = getMockCodeLessonPlan(codeQuestion);
+    assert.ok(codePlan);
+    assert.equal(codePlan.sections[0]!.blocks.length, 5, "real binary-search fixture has five implementation blocks");
+    assert.equal(codePlan.sections[1]!.blocks.length, 1, "real fixture includes the later example section");
+    const firstBlock = codePlan.sections[0]!.blocks[0]!;
+    const secondBlock = codePlan.sections[0]!.blocks[1]!;
+    const exampleBlock = codePlan.sections[1]!.blocks[0]!;
+    const typed = (id: string): DrawCommand => ({ ...command("TYPE", [], id), semanticRef: { entityId: id } });
+    const oneCodeCue = (id: string, commands: DrawCommand[]): StoredTurn => ({
+      ...codeTurn, id,
+      segments: [{ ...turn.segments[0]!, id: `${id}-cue`, durationMs: 12_000,
+        command: serializeSegmentCommands(commands.map(c => captureCommandInk(structuredClone(c), board.getInkSettings()))) }],
+    });
+    const codeSpec = (): CodePanelFrameSpec | null => renderedCode;
+    const visibleCode = () => { const spec = codeSpec(); return spec?.code.slice(0, spec.revealedChars) ?? ""; };
+    const answerRow = command("WRITE", [90, 142, 32], "Code answer");
+    const nextPageRow = command("WRITE", [90, 142, 32], "Later work");
+    await reviewCase("code-same-cue-cutoff", [oneCodeCue("code-same-cue-cutoff", [
+      typed(firstBlock.id), answerRow, nextPageRow, typed(secondBlock.id),
+    ])], async (player, ms, render) => {
+      const workPages = player.store.getSnapshot().workPages;
+      assert.equal(workPages?.length, 2);
+      assert.equal(workPages?.[0]?.endCueIndex, workPages?.[1]?.endCueIndex,
+        "both saved pages actually end in the same recorded cue");
+      assert.equal(workPages?.[0]?.endCommandCount, 2, "first page ends after its TYPE and answer WRITE");
+      const beforeCommands = executedCommands.length;
+      await review(player, 0);
+      assert.deepEqual(boardRows(), [{ x: 90, y: 142, text: "Code answer" }], "board uses the immutable real command cutoff");
+      assert.ok(!executedCommands.slice(beforeCommands).some(c => c.type === "TYPE" && c.semanticRef?.entityId === secondBlock.id),
+        "board executor does not run later same-cue TYPE");
+      assert.ok(codeSpec(), "the first page retains its actually recorded code block");
+      assert.equal(codeSpec()!.chrome.sectionIndex, 0);
+      assert.equal(visibleCode(), firstBlock.code,
+        "first saved page code excludes the later same-cue TYPE block");
+      assert.ok(codeSpec()!.revealedChars <= firstBlock.code.length, "review cannot expose later code characters");
+      await review(player, 1);
+      assert.deepEqual(boardRows(), [{ x: 90, y: 142, text: "Later work" }]);
+      assert.equal(visibleCode(), `${firstBlock.code}\n${secondBlock.code}`, "later saved page includes its executed second block");
+      await review(player, 0);
+      assert.equal(visibleCode(), firstBlock.code, "backward review rebuilds the earlier code prefix");
+      await end(player, ms);
+      assert.equal(visibleCode(), `${firstBlock.code}\n${secondBlock.code}`, "ordinary End restores the complete recorded prefix");
+      const speechStarts = AudioBoundary.all.reduce((sum, audio) => sum + audio.playCalls, 0);
+      await review(player, 0);
+      assert.equal(visibleCode(), firstBlock.code, "review after End re-applies the command boundary");
+      assert.equal(AudioBoundary.all.reduce((sum, audio) => sum + audio.playCalls, 0), speechStarts);
+      assert.ok(player.playFromStart(), "ordinary playback can leave code-page review through its public start control");
+      await wait(() => player.store.getSnapshot().status === "playing");
+      player = render(); // Install the actual active frame loop.
+      const audio = AudioBoundary.all.at(-1)!;
+      audio.duration = ms / 1000;
+      audio.currentTime = (ms - 500) / 1000;
+      await advanceFrame();
+      assert.ok(player.store.getSnapshot().positionMs >= ms - 500,
+        "ordinary code playback remains driven by the actual media clock");
+      assert.equal(player.store.getSnapshot().reviewPageIndex, null);
+      assert.equal(visibleCode(), `${firstBlock.code}\n${secondBlock.code}`,
+        "ordinary media playback uses the uncut recorded code track");
+      player.controls.pause();
+      const pausedAt = player.store.getSnapshot().positionMs;
+      audio.currentTime = ms / 1000;
+      await advanceFrame();
+      assert.equal(player.store.getSnapshot().positionMs, pausedAt, "paused code playback cannot advance from a media-clock jump");
+      await end(player, ms);
+      assert.equal(visibleCode(), `${firstBlock.code}\n${secondBlock.code}`);
+    });
+    await reviewCase("code-future-section-cutoff", [oneCodeCue("code-future-section-cutoff", [
+      typed(firstBlock.id), answerRow, nextPageRow, typed(exampleBlock.id),
+    ])], async (player, ms) => {
+      await review(player, 0);
+      assert.equal(codeSpec()?.chrome.sectionIndex, 0, "old page cannot select a future code section in the same cue");
+      assert.equal(visibleCode(), firstBlock.code);
+      await review(player, 1);
+      assert.equal(codeSpec()?.chrome.sectionIndex, 1, "later page selects its actually executed example section");
+      assert.equal(visibleCode(), exampleBlock.code);
+      await end(player, ms);
+      assert.equal(codeSpec()?.chrome.sectionIndex, 1, "ordinary End keeps normal time-based section selection");
+      assert.equal(visibleCode(), exampleBlock.code);
+    });
+    await reviewCase("code-future-only-cutoff", [oneCodeCue("code-future-only-cutoff", [
+      answerRow, nextPageRow, typed(firstBlock.id),
+    ])], async (player, ms) => {
+      await review(player, 0);
+      assert.equal(codeSpec(), null, "future-only same-cue TYPE cannot mount an earlier page's code panel");
+      await review(player, 1);
+      assert.equal(visibleCode(), firstBlock.code);
+      await end(player, ms); assert.equal(visibleCode(), firstBlock.code);
+    });
+    const previousCodeBoard = oneCodeCue("previous-code-board", [typed(firstBlock.id), answerRow]);
+    await reviewCase("code-no-type-new-board", [previousCodeBoard,
+      stored("new-board-without-type", [answerRow, nextPageRow], codeTurn),
+    ], async (player) => {
+      assert.equal(player.store.getSnapshot().workPages?.length, 3);
+      await review(player, 0); assert.equal(visibleCode(), firstBlock.code);
+      await review(player, 1);
+      assert.equal(codeSpec(), null, "a reviewed board without TYPE cannot fall back to the previous board's last code track");
+      await review(player, 2); assert.equal(codeSpec(), null);
+      await review(player, 0); assert.equal(visibleCode(), firstBlock.code);
+    });
+    console.log("PASS actual code-frame producer respects saved command cutoff, future-only/section exclusion, opening ownership, End return and immutable recordings with no speech");
 
     // The fallback oracle above declares its inert glyph lookup. This group
     // uses the real writer and real Konva nodes, with only pixel painting inert.
