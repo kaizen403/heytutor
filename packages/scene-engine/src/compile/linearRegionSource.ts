@@ -370,6 +370,7 @@ function booleanProgram(
   text: string,
   source: SourceClause[],
   sourcePointLabels: readonly string[] = [],
+  allowConstraintSentences = false,
 ): IntervalExpression {
   if (!source.length)
     throw new Error("No explicit inequality program in source");
@@ -387,10 +388,11 @@ function booleanProgram(
   ) as IntervalExpression[];
   // A trailing prose domain may restrict the entire union, rather than only
   // its final branch. That scope requires a grammar this reader does not own.
-  let hasUnion = false;
+  let hasUnion = /\bunion\s+of\b/i.test(text.slice(0, groups[0]![0]!.start));
   for (let index = 0; index + 1 < groups.length; index++) {
     const gap = text.slice(groups[index]!.at(-1)!.end, groups[index + 1]![0]!.start);
-    if (hasUnion && /,|\b(?:where|when|for|with|under|subject\s+to|such\s+that|provided)\b/i.test(gap))
+    const explicitConnective = gap.replace(/\b(?:complement\s+of|and|or|union|intersection|not)\b/gi, "").replace(/[()\s]/g, "");
+    if (hasUnion && explicitConnective.length > 0)
       throw new Error("A trailing source domain after a union has unresolved whole-set scope");
     if (/\bor\b|\bunion\b/i.test(gap)) hasUnion = true;
   }
@@ -425,7 +427,11 @@ function booleanProgram(
   const lexemes: string[] = [];
   const context = text.slice(0, groups[0]![0]!.start);
   const complementWhole =
-    /\bcomplement\s+of\b|\b(?:do|does)\s+not\s+satisfy\b/i.test(context);
+    /\b(?:complement\s+of\s+(?:(?:the\s+)?(?:common\s+)?(?:solution(?:\s+set)?|set|region)\s+(?:of|satisfying)\s+)?|(?:do|does)\s+not\s+satisfy\s+)\(*\s*$/i.test(context);
+  const contextNegations = context.match(/\b(?:not|complement)\b/gi) ?? [];
+  if (contextNegations.length > 1 || contextNegations.length === 1
+    && !complementWhole && !/\bnot\s*\(*\s*$/i.test(context))
+    throw new Error("Unsupported original source negation scope cannot be omitted");
   const complementAt = context.search(
     /\bcomplement\s+of\b|\b(?:do|does)\s+not\s+satisfy\b/i,
   );
@@ -457,7 +463,12 @@ function booleanProgram(
       return;
     }
     const words = gap.toLowerCase();
+    const negations = gap.match(/\b(?:not|complement)\b/gi) ?? [];
+    if (negations.length > 1 || negations.length === 1
+      && !/\b(?:not|complement\s+of)\s*\(*\s*$/i.test(gap))
+      throw new Error("Unsupported local source negation scope cannot be omitted");
     if (/;|\bnumber[ -]line\b[^.;?!]*[.;?!]/i.test(gap)
+      || !allowConstraintSentences && /[.?!]/.test(gap)
       || hasGraphicalRequest && graphicalAction.test(gap))
       throw new Error("Additional graphical source requests cannot become a Boolean intersection");
     hasGraphicalRequest ||= graphicalAction.test(gap);
@@ -749,6 +760,36 @@ interface SourceObjective {
   end: number;
   label?: string;
 }
+/** Closed prose grammar for the native two-line graphical solution builder. */
+function hasNativeSystemRequest(body: string, source: SourceClause[], pointLabels: readonly string[]): boolean {
+  const names = new Set([...pointLabels, ...readLinearSourceIntersectionNames(body)]);
+  let prose = body;
+  for (const clause of source.slice().reverse()) {
+    const label = /\b([A-Za-z][A-Za-z0-9_]*)\s*:\s*$/.exec(body.slice(0, clause.start));
+    if (label) names.add(label[1]!);
+    prose = prose.slice(0, clause.start) + " ".repeat(clause.end - clause.start) + prose.slice(clause.end);
+  }
+  // Only names already declared by an equation or intersection can be nouns.
+  const words = new Set((
+    "teach me how the two graphs and show a unique solution explain graphical system whose crossing has fractional coordinates keep intersection exact graphically why have no common help see of using vertical line horizontal solve pair by method label their point lines meet at both find its x coordinate for real y many solutions does use to determine number describe them cross in simultaneous with names simplified equations intercepts classify state full set equivalent where they exist from figure there are " +
+    "please graph draw sketch represent plot mark give report calculate compute all every each value values count one none infinitely infinite parallel coincident consistent inconsistent dependent independent is which this these those it them on xy plane as then also"
+  ).split(" "));
+  for (const token of prose.matchAll(/[A-Za-z][A-Za-z0-9_]*|[^\s]/g)) {
+    if (names.has(token[0]) || words.has(token[0].toLowerCase()) || /^[,;:.?!()'"-]$/.test(token[0])) continue;
+    return false;
+  }
+  // Calculation verbs must request one of the native result roles; the
+  // surrounding display vocabulary cannot turn a different result into one.
+  const resultNouns = /^(?:(?:the|their|its|both|exact|full|complete|common|values?|of|for)\s+)*(?:[xy]\b|(?:point\s+of\s+)?intersection\b|coordinates?\b|intercepts?\b|(?:number|count)\s+of\s+solutions\b|solutions?(?:\s+set)?\b|where\s+they\s+(?:meet|cross)\b)/i;
+  for (const action of prose.matchAll(/\b(?:find|determine|give|report|state|calculate|compute)\b/gi)) {
+    if (!resultNouns.test(prose.slice(action.index! + action[0].length).trimStart())) return false;
+  }
+  for (const query of prose.matchAll(/\b(?:how\s+many|count)\b/gi)) {
+    if (/^\s+of\s+solutions\b/i.test(prose.slice(query.index! + query[0].length))) continue;
+    if (!/^\s+(?:the\s+)?solutions\b/i.test(prose.slice(query.index! + query[0].length))) return false;
+  }
+  return true;
+}
 /** Read an affine objective completely, separately from its prose direction. */
 function sourceObjective(body: string, names: readonly string[]): SourceObjective {
   const directionPattern = /\b(?:maximi[sz](?:e[ds]?|ing|ation)|minimi[sz](?:e[ds]?|ing|ation)|maximum|minimum|max|min)\b/gi;
@@ -864,8 +905,9 @@ export function buildLinearSourceDocument(question: string): SceneDocument | nul
         body = body.slice(0, source.start) + " ".repeat(source.end - source.start) + body.slice(source.end);
       }
       const source = clauses(body, names, points.points.map(point => point.label));
-      if (!source.length || !isIntersectionProgram(booleanProgram(body, source, proseLabels))) return null;
+      if (!source.length || !isIntersectionProgram(booleanProgram(body, source, proseLabels, true))) return null;
       if (source.length === 2 && source.every(clause => clause.equality) && !objective) {
+        if (!hasNativeSystemRequest(body, source, proseLabels)) return null;
         operator = "linear_system";
         inputs = { variables: names, equations: source.map(clause => clause.text) };
       } else if (source.length === 1 && !source[0]!.equality && !objective) {
@@ -1081,7 +1123,7 @@ export function validateLinearSourceBinding(
           throw new Error(
             "System must represent the complete two source equations",
           );
-        if (!isIntersectionProgram(booleanProgram(body, source, proseLabels)))
+        if (!isIntersectionProgram(booleanProgram(body, source, proseLabels, true)))
           throw new Error(
             "A planar intersection or system cannot replace a source union or complement",
           );

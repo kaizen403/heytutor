@@ -110,6 +110,43 @@ const refusals: Refusal[] = [{
   operator: "linear_system", inputs: { equations: ["x-y=0", "x+y=0"] }, builderOnly: true,
 }))];
 
+refusals.push(...[
+  "Represent the following on a number line: x>2. x<=-1.",
+  "Represent on a number line: x>2. x<=-1.",
+  "Represent x>2 on a number line. Then x<1.",
+].map(question => ({
+  group: "sentence-list", question,
+  operator: "number_line_set", inputs: { variable: "x", expression: { intersection: [{ inequality: "x>2" }, { inequality: "x<=-1" }] } },
+})));
+
+refusals.push(...[
+  "Represent the complement of the set not satisfying x<0 on a number line.",
+  "Represent the complement of the set of all x not satisfying x>=1 on a number line.",
+  "Represent the set not satisfying x<0 on a number line.",
+  "Represent x<0 or the set not satisfying x>=1 on a number line.",
+].map(question => ({
+  group: "unsupported-negation-scope", question,
+  operator: "number_line_set", inputs: { variable: "x", expression: { complement: { inequality: "x<0" } } },
+})));
+
+refusals.push(...["given", "assuming", "on the condition that"].map(restriction => ({
+  group: "union-restriction-grammar",
+  question: `Represent x<1 or x>3 ${restriction} x>=0 on a number line.`,
+  operator: "number_line_set", inputs: { variable: "x", expression: { union: [{ inequality: "x<1" }, { intersection: [{ inequality: "x>3" }, { inequality: "x>=0" }] }] } },
+})));
+
+refusals.push(...[
+  "Find the midpoint of the intercepts of x+y=4 and x-y=2.",
+  "Find the determinant of the coefficient matrix of 2x+y=7 and x-y=2.",
+  "Find the product of the solutions of 2x+y=7 and x-y=2.",
+  "Graph x+y=4 and x-y=2 and find the sum of the intercepts.",
+  "What is the quotient of the solutions of x+y=4 and x-y=2?",
+  "Count the intercepts of x+y=4 and x-y=2.",
+].map(question => ({
+  group: "native-system-request-grammar", question,
+  operator: "linear_system", inputs: { equations: ["x+y=4", "x-y=2"] }, builderOnly: true,
+})));
+
 const selected = process.argv[2];
 let checks = 0;
 const failures: string[] = [];
@@ -131,6 +168,7 @@ else {
     ["Represent -2 < x <= 5 on a number line.", "number_line_set"],
     ["Represent x < -1 or x >= 2 on a number line.", "number_line_set"],
     ["Represent the complement of x<0 on a number line.", "number_line_set"],
+    ["Represent the complement of the common solution of x>-1 and x<=4 on a number line.", "number_line_set"],
     ["Let A=[1,5] and B=[3,7]. Represent A union B on a number line.", "number_line_set"],
     ["Shade 2x+3y<=12, x>=0, y>=0.", "linear_feasible_region"],
     ["Shade x+y>4.", "linear_half_plane"],
@@ -139,6 +177,7 @@ else {
     ["Solve the pair 2x+y=7 and x-y=2 graphically.", "linear_system"],
     ["Find the point of intersection of the lines 2x+y=7 and x-y=2.", "linear_system"],
     ["Graph the system 3x=9 and x=-1.", "linear_system"],
+    ["The lines x+y=6 and x-y=2 meet at P. Mark Q=(1,1) and find the x-coordinate of P.", "linear_system"],
     ["Maximise Z=3x+2y subject to x+y<=4, x>=0, y>=0.", "linear_feasible_region"],
     ["Real nonnegative variables x and y satisfy x+y<=8 and x+2y<=11. Profit is Z=2x+3y. Find the maximum profit.", "linear_feasible_region"],
     ["For real x,y>=0, graph the feasible region 2x+3y<=11 and 4x+y<=9. Maximise Z=5x+4y. Also mark A=(1,1) and classify feasibility.", "linear_feasible_region"],
