@@ -23,6 +23,11 @@
  * decline a correct mirror (recorded 42159a885e4a) and an arrow off that
  * paraxial ray still fails closed.
  *
+ * A drawn segment counts as a ray only when it is joined to the light and does
+ * not stand across the axis: a screen at the image's x, a segment along the
+ * arrow, or a stray segment through a misplaced tip passes no image height
+ * (third review of #164).
+ *
  * Arrow and ray positions are read from the rendered primitives, not from the
  * engine's own check.
  *
@@ -393,10 +398,96 @@ const mirrorImageTip = (document: Record<string, any>, tip: P) => {
 };
 const failsOffRays = (document: Record<string, unknown>): string | null => {
   const { ok, fatal } = compile(document);
-  if (ok) return "compiled with the image arrow off the reflected ray";
+  if (ok) return "compiled with the image arrow off every ray";
   if (!fatal.includes("axis_arrow_off_rays")) return `failed with ${fatal.join(", ")}, not axis_arrow_off_rays`;
   return null;
 };
+
+// Third review of #164 (thread "Screens approve wrong image heights"): every drawn segment
+// counted as a ray, so a screen drawn as a `segment` at the image's x passed an image arrow
+// of any height (the arrow lies along the screen), and a stray segment drawn through a
+// misplaced tip passed it too. A stroke that is not a declared light path is a ray only
+// when it does not stand across the axis an arrow stands on and an end of it is joined to
+// the light (a declared ray, an element's boundary, a thin lens, or a stroke already joined).
+const withSegment = (document: ReturnType<typeof reviewed>, id: string, from: [number, number], to: [number, number], role: string) => {
+  const constructions = document.constructions as Construction[];
+  constructions.push(point(`${id}From`, ...from), point(`${id}To`, ...to));
+  constructions.push({ id: `make_${id}`, operator: "segment", inputs: { start: `${id}From`, end: `${id}To` }, outputs: [id] });
+  (document.entities as Entity[]).push({ id: `${id}From`, kind: "point", role: "construction helper" }, { id: `${id}To`, kind: "point", role: "construction helper" }, { id, kind: "segment", role });
+  (document.requiredEntityIds as string[]).push(id);
+  return document;
+};
+/** bcaf2215e808 with its image arrow at x = 6 but 1 below the axis: the rays meet 2 below. */
+const shortImage = () => {
+  const document = reviewed("bcaf2215e808");
+  const constructions = document.constructions as Construction[];
+  constructions.push(point("wrongTip", 6, -1));
+  constructions.find((construction) => construction.outputs.includes("image"))!.inputs = { start: "imageBase", end: "wrongTip" };
+  (document.entities as Entity[]).push({ id: "wrongTip", kind: "point", role: "misplaced image tip" });
+  (document.requiredEntityIds as string[]).push("wrongTip");
+  return document;
+};
+
+check("a screen drawn as a segment at the image's x does not pass an image arrow of the wrong height", () =>
+  failsOffRays(withSegment(shortImage(), "screen", [6, -2.5], [6, 2.5], "screen")));
+
+check("a screen segment ending where the rays meet (joined to them) does not pass it either", () =>
+  failsOffRays(withSegment(shortImage(), "screen", [6, 1.5], [6, -2], "screen")));
+
+check("a screen across the axis passes no tip, even of an arrow standing a little off it (foot x 5.9, tip on the screen at x 6)", () => {
+  const document = withSegment(shortImage(), "screen", [6, 1.5], [6, -2], "screen");
+  (document.constructions as Construction[]).find((construction) => construction.outputs.includes("imageBase"))!.inputs = { x: 5.9, y: 0, coordinateSpace: "world" };
+  return failsOffRays(document);
+});
+
+check("a declared ray drawn along the misplaced arrow itself does not pass it", () => {
+  const document = withSegment(shortImage(), "alongArrow", [6, 0.5], [6, -1.5], "image ray");
+  (document.entities as Entity[]).find((entity) => entity.id === "alongArrow")!.kind = "ray";
+  return failsOffRays(document);
+});
+
+// Corpus 1366f929fd68: a flagpole 12 m tall, 64 m from a lens of focal length 8 cm. The image
+// arrow is shorter than the tolerance, so every ray through its tip also passes its foot; it
+// still stands on the two declared rays that meet at its tip.
+check("control: an image arrow shorter than the tolerance, its tip where two declared rays meet, is on them", () => {
+  const document = scene("A converging lens of focal length 8 cm images a flagpole 12 m tall 64 m away.", [
+    { id: "O", kind: "point", role: "optical centre", label: "O" }, { id: "axis", kind: "line", role: "principal axis" },
+    { id: "lens", kind: "polygon", role: "converging lens" }, { id: "F2", kind: "point", role: "image-side focus" },
+    { id: "ob", kind: "point", role: "flagpole foot" }, { id: "ot", kind: "point", role: "flagpole tip" },
+    { id: "obj", kind: "vector", role: "flagpole" }, { id: "P", kind: "point", role: "parallel-ray lens crossing" },
+    { id: "r1i", kind: "segment", role: "incident parallel ray" }, { id: "r1o", kind: "ray", role: "ray through image-side focus" },
+    { id: "r2", kind: "ray", role: "ray through optical centre" }, { id: "it", kind: "point", role: "image tip" },
+    { id: "ib", kind: "point", role: "image foot" }, { id: "img", kind: "vector", role: "real inverted image" },
+  ], [
+    point("O", 0, 0),
+    { id: "make_axis", operator: "line", inputs: { start: "O", direction: [1, 0] }, outputs: ["axis"] },
+    { id: "make_lens", operator: "lens_section", inputs: { center: "O", axis: "axis", radius1: 40, radius2: -40, halfHeight: 14 }, outputs: ["lens"] },
+    point("F2", 0.08, 0), point("ob", -64, 0), point("ot", -64, 12), point("P", 0, 12),
+    { id: "make_obj", operator: "vector", inputs: { start: "ob", end: "ot" }, outputs: ["obj"] },
+    { id: "make_r1i", operator: "segment", inputs: { start: "ot", end: "P" }, outputs: ["r1i"] },
+    { id: "make_r1o", operator: "ray", inputs: { start: "P", end: "F2" }, outputs: ["r1o"] },
+    { id: "make_r2", operator: "ray", inputs: { start: "ot", end: "O" }, outputs: ["r2"] },
+    { id: "make_it", operator: "intersection", inputs: { first: "r1o", second: "r2" }, outputs: ["it"] },
+    point("ib", 0.08 * 64 / (64 - 0.08), 0),
+    { id: "make_img", operator: "vector", inputs: { start: "ib", end: "it" }, outputs: ["img"] },
+  ]);
+  const { fatal } = compile(document);
+  return fatal.includes("axis_arrow_off_rays") ? `refused the tiny image arrow: ${fatal.join(", ")}` : null;
+});
+
+check("a stray segment through the misplaced tip, joined to no ray, does not pass it", () =>
+  failsOffRays(withSegment(shortImage(), "stray", [4.5, -1], [7.5, -1], "image height mark")));
+
+check("control: bcaf2215e808 with a screen segment at its correct image compiles", () => {
+  const { ok, primitives, fatal } = compile(withSegment(reviewed("bcaf2215e808"), "screen", [6, -2.5], [6, 2.5], "screen"));
+  if (!ok) return `did not compile: ${fatal.join(", ")}`;
+  return tipsOnStrokes(primitives, ["object", "image"], ["parallelRay", "centralIncident", "refractedRay", "centralOutgoing"]);
+});
+
+check("control: 9cfc03a682ea with a screen segment at its virtual image compiles", () => {
+  const { ok, fatal } = compile(withSegment(reviewed("9cfc03a682ea"), "screen", [-18, -3], [-18, 3], "screen"));
+  return ok ? null : `did not compile: ${fatal.join(", ")}`;
+});
 
 check("recorded 42159a885e4a: a concave mirror's paraxial image beside the exactly traced reflected ray compiles", () => {
   const { ok, primitives, fatal } = compile(reviewed("42159a885e4a"));
