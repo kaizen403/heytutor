@@ -648,7 +648,10 @@ export type PlannerOpticsProof = "not_optics" | "proven" | "unproven";
  * the stem, the element is drawn on that centre and axis with the stem's sense,
  * every ray ends on an engine-derived point, and every line converging on the
  * image tip leaves the element after a drawn incident ray from the object tip
- * (or is a lens chief ray through the optical centre). Free-point figures, whose
+ * (or is a lens chief ray through the optical centre). Rays the engine traced
+ * with `principal_rays` from the image tip need no hand `converges`; two of them
+ * prove the rays, and each must meet the element within its drawn half height
+ * (P10). Free-point figures, whose
  * ratio assertions are self-declared, fail. A model-writable
  * `source.archetype` label is never read.
  *
@@ -771,11 +774,18 @@ function opticsProofFailure(question: string, match: OpticsStemMatch, document: 
       opticsFirst(construction.inputs, construction.operator === "vector" ? OPTICS_LINE_START_KEYS : OPTICS_START_KEYS) === from &&
       opticsFirst(construction.inputs, OPTICS_END_KEYS) === to));
   if (arrows.some((arrow) => !arrow)) return "object or image arrow is not drawn on the gaussian_image anchors";
-  // P8: a fatal convergence at the engine image tip.
+  // P8: two or more rays the engine traced from this image tip (principal_rays), or a
+  // fatal convergence of hand-drawn rays at the engine image tip.
+  const traced = document.constructions.filter((construction) => construction.operator === "principal_rays");
+  const untraced = traced.find((construction) => construction.inputs.image !== imageTip);
+  if (untraced) return `principal_rays ${untraced.id} does not trace the gaussian image tip`;
+  const tracedOutputs = new Set(traced.flatMap((construction) => construction.outputs));
   const convergence = document.assertions.filter((assertion) =>
     assertion.predicate === "converges" && assertion.severity === "fatal" &&
     assertion.entities.length >= 3 && assertion.entities.at(-1) === imageTip);
-  if (convergence.length === 0) return "no fatal converges assertion ending on the gaussian image tip";
+  if (convergence.length === 0 && tracedOutputs.size < 2) {
+    return "no fatal converges assertion ending on the gaussian image tip, and fewer than two principal_rays traced from it";
+  }
   // P7: every ray, extension and converging line ends on an engine-derived point.
   const producer = new Map<string, OpticsConstruction>();
   for (const construction of document.constructions) {
@@ -795,12 +805,13 @@ function opticsProofFailure(question: string, match: OpticsStemMatch, document: 
   }
   for (const assertion of convergence) {
     for (const id of assertion.entities.slice(0, -1)) {
+      if (tracedOutputs.has(id)) continue;
       const path = producer.get(id);
       if (!path || !OPTICS_PATH_OPERATORS.has(path.operator)) return `converging line ${id} is not a drawn ray`;
       rays.add(path);
     }
   }
-  if (rays.size < 2) return "fewer than two ray or extension paths";
+  if (rays.size + tracedOutputs.size < 2) return "fewer than two ray or extension paths";
   const anchors = new Set<string>([...image.outputs, ...foci.flatMap((focus) => focus.outputs)]);
   if (typeof inputs.center === "string") anchors.add(inputs.center);
   if (typeof inputs.axis === "string") anchors.add(inputs.axis);
@@ -828,8 +839,51 @@ function opticsProofFailure(question: string, match: OpticsStemMatch, document: 
   const lensImage = element === "lens" ? { u, v: f * u / (u + f) } : null;
   for (const assertion of convergence) {
     for (const id of assertion.entities.slice(0, -1)) {
+      // The engine certified its traced rays; P9 holds the hand-drawn ones.
+      if (tracedOutputs.has(id)) continue;
       const failure = opticsConvergingPathFailure(id, producer.get(id)!, image, lensImage, document, producer);
       if (failure) return failure;
+    }
+  }
+  // P10: every traced ray meets the element within its drawn half height.
+  return opticsTracedHitFailure(traced, element, resolved, displayScale, document);
+}
+
+const OPTICS_DEFAULT_TRACED_RAYS = ["parallel", "central"] as const;
+
+/**
+ * P10. A `principal_rays` ray meets the element plane at height h (parallel), h' = m h (focal) or 0
+ * (central), in physical units times the display scale. Each drawn lens_section or
+ * spherical_surface must reach that height, or the ray would bend in mid air.
+ */
+function opticsTracedHitFailure(
+  traced: readonly OpticsConstruction[],
+  element: "lens" | "mirror",
+  resolved: { focalLength: number; objectDistance?: number; objectHeight?: number },
+  displayScale: number,
+  document: SceneDocument,
+): string | null {
+  if (traced.length === 0) return null;
+  const u = resolved.objectDistance ?? Number.NaN;
+  const f = resolved.focalLength;
+  const h = resolved.objectHeight ?? Number.NaN;
+  const v = element === "lens" ? f * u / (u + f) : f * u / (u - f);
+  const imageHeight = (element === "lens" ? v / u : -v / u) * h;
+  if (![u, f, h, v, imageHeight, displayScale].every(Number.isFinite)) return "principal_rays hit heights are not computable";
+  const surfaces = document.constructions.filter((construction) =>
+    construction.operator === "lens_section" || construction.operator === "spherical_surface");
+  for (const construction of traced) {
+    const rays = Array.isArray(construction.inputs.rays) ? construction.inputs.rays : OPTICS_DEFAULT_TRACED_RAYS;
+    for (const ray of rays) {
+      const height = ray === "parallel" ? Math.abs(h) : ray === "focal" ? Math.abs(imageHeight) : ray === "central" ? 0 : Number.NaN;
+      if (!Number.isFinite(height)) return `principal_rays ${construction.id} names an unknown ray ${String(ray)}`;
+      for (const surface of surfaces) {
+        const halfHeight = opticsNumber(opticsFirst(surface.inputs, ["halfHeight", "aperture"]), document);
+        const needed = height * Math.abs(displayScale);
+        if (!(needed <= halfHeight * (1 + 1e-9))) {
+          return `principal_rays ${construction.id} ${String(ray)} ray hits at ${needed} beyond the ${surface.operator} ${surface.id} half height ${halfHeight}`;
+        }
+      }
     }
   }
   return null;

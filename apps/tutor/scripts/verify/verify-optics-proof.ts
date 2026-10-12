@@ -37,6 +37,16 @@
  * because a negative power is diverging. A stem that names the kind (convex,
  * concave, converging, diverging) or states a power or focal sign still
  * rejects the contradicting form.
+ * G12a: rays traced by the engine (`principal_rays` from the image tip) prove a
+ * lens or mirror figure without a hand-drawn `converges`: a concave and a convex
+ * mirror, a convex lens with a real and with a virtual image, each drawn as the
+ * planner figure in both arms, with and without a stray converges on the rays.
+ * G12b: a free polyline or free segments posing as principal rays, rays traced
+ * from the image base, a second gaussian image, a lens drawn on a mirror stem,
+ * one traced ray, and a free hand ray beside traced ones all stay unproven.
+ * G12c (P10): a traced ray whose hit lies beyond the drawn element's half height
+ * stays unproven and never draws. G12d: in the presentation the traced rays'
+ * back-extensions and guides carry dashed construction ink and nothing else does.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -46,6 +56,7 @@ import {
   type SceneDocument,
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
+import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
 import {
   explainPlannerOpticsProof,
   selectVerifiedRepresentation,
@@ -798,7 +809,143 @@ function spectacleLens(question: string): Doc {
     `a converging figure on the "-6.25 D" stem must fail P2; got ${wrongForm.proof}: ${wrongForm.reason}`);
 }
 
-for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11"]) {
+// ---- G12: rays traced by the engine (principal_rays) ----
+/** Swap every hand ray, hit helper and ray assertion for one principal_rays construction. */
+function traced(base: Doc, rays?: string[], image = "it"): Doc {
+  const document = structuredClone(base);
+  const handOperators = new Set(["segment", "ray", "vector", "perpendicular_through", "project"]);
+  const dropped = new Set(document.constructions
+    .filter((construction) => handOperators.has(construction.operator) && !["c_object", "c_image"].includes(construction.id))
+    .flatMap((construction) => construction.outputs));
+  const outputs = (rays ?? ["parallel", "central"]).map((_, index) => `tr${index + 1}`);
+  document.constructions = [
+    ...document.constructions.filter((construction) => !construction.outputs.some((output) => dropped.has(output))),
+    { id: "c_traced", operator: "principal_rays", inputs: { image, ...(rays ? { rays } : {}) }, outputs },
+  ];
+  document.entities = [
+    ...document.entities.filter((entity) => !dropped.has(entity.id)),
+    ...outputs.map((id, index) => ent(id, "polyline", `${(rays ?? ["parallel", "central"])[index]} principal ray`)),
+  ] as Doc["entities"];
+  document.assertions = document.assertions.filter((assertion) => !assertion.entities.some((id) => dropped.has(id)));
+  document.requiredEntityIds = [...document.requiredEntityIds.filter((id) => !dropped.has(id)), ...outputs];
+  document.revealGroups = document.revealGroups.map((group) => ({
+    ...group, entityIds: group.id === "rays" ? outputs : group.entityIds.filter((id) => !dropped.has(id)),
+  }));
+  return document;
+}
+const withConverges = (document: Doc): Doc => {
+  const copy = structuredClone(document);
+  const outputs = copy.constructions.find((construction) => construction.operator === "principal_rays")!.outputs;
+  copy.assertions = [...copy.assertions, fatal("meet", "converges", [...outputs, "it"])];
+  return copy;
+};
+const expectUnproven = (gate: string, name: string, question: string, document: Doc, reason: RegExp): void => {
+  const result = explainPlannerOpticsProof(question, document);
+  check(gate, result.proof === "unproven" && reason.test(result.reason), `${name} must stay unproven by ${reason}; got ${result.proof}: ${result.reason}`);
+};
+{
+  // G12a: proven without a hand-drawn converges, in both arms.
+  for (const [name, question, turnPlan, document] of [
+    ["the traced concave mirror (default rays)", qMirror, mirrorPlan, traced(goodMirror)],
+    ["the traced concave mirror (parallel and focal)", qMirror, mirrorPlan, traced(goodMirror, ["parallel", "focal"])],
+    ["the traced convex car mirror", qConvex, convexPlan, traced(goodConvex, ["parallel", "focal", "central"])],
+    ["the traced convex lens, virtual image", qLens, lensPlan, traced(goodLens, ["parallel", "focal"])],
+    ["the traced convex lens, real image", qLensReal, lensRealPlan, traced(goodLensReal, ["parallel", "focal", "central"])],
+    ["the traced convex lens with a stray converges on its rays", qLensReal, lensRealPlan, withConverges(traced(goodLensReal))],
+  ] as const) {
+    check("G12a", !document.assertions.some((assertion) => assertion.predicate === "converges") || name.includes("stray"),
+      `${name} must carry no hand-drawn converges`);
+    const result = explainPlannerOpticsProof(question, document);
+    check("G12a", result.proof === "proven", `${name} must be proven; got ${result.proof}: ${result.reason}`);
+    expectDrawnAsPlanner("G12a", name, question, turnPlan, document);
+  }
+
+  // G12b: forged rays, a wrong image, a wrong element, one ray, free hand rays beside traced ones.
+  const forgedPolyline = (withConvergence: boolean): Doc => {
+    const document = traced(goodMirror);
+    document.constructions = document.constructions.filter((construction) => construction.operator !== "principal_rays");
+    document.constructions.push(
+      { id: "c_fake1", operator: "polyline", inputs: { points: ["ot", [0, 2], "it"] }, outputs: ["tr1"] },
+      { id: "c_fake2", operator: "polyline", inputs: { points: ["ot", "P", "it"] }, outputs: ["tr2"] },
+    );
+    if (withConvergence) document.assertions.push(fatal("meet", "converges", ["tr1", "tr2", "it"]));
+    return document;
+  };
+  expectUnproven("G12b", "a free polyline posing as a principal ray", qMirror, forgedPolyline(false), /fewer than two principal_rays/);
+  expectUnproven("G12b", "free polylines under a converges", qMirror, forgedPolyline(true), /converging line tr1 is not a drawn ray/);
+  // Free segments through literal hits at the true heights (h = 2, h' = -6): exact geometry, no engine authority.
+  const freeSegments = traced(goodMirror);
+  freeSegments.constructions = freeSegments.constructions.filter((construction) => construction.operator !== "principal_rays");
+  freeSegments.entities = freeSegments.entities.filter((entity) => !entity.id.startsWith("tr"));
+  freeSegments.requiredEntityIds = freeSegments.requiredEntityIds.filter((id) => !id.startsWith("tr"));
+  const fakeIds = ["H1", "H2", "in1", "out1", "in2", "out2"];
+  freeSegments.constructions.push(pt("H1", 0, 2), pt("H2", 0, -6),
+    { id: "c_in1", operator: "segment", inputs: { start: "ot", end: "H1" }, outputs: ["in1"] },
+    { id: "c_out1", operator: "segment", inputs: { start: "H1", end: "it" }, outputs: ["out1"] },
+    { id: "c_in2", operator: "segment", inputs: { start: "ot", end: "H2" }, outputs: ["in2"] },
+    { id: "c_out2", operator: "segment", inputs: { start: "H2", end: "it" }, outputs: ["out2"] });
+  freeSegments.entities.push(...fakeIds.map((id) => ent(id, id.startsWith("H") ? "point" : "segment", "principal ray") as Doc["entities"][number]));
+  freeSegments.requiredEntityIds.push(...fakeIds);
+  freeSegments.revealGroups = freeSegments.revealGroups.map((group) => (group.id === "rays" ? { ...group, entityIds: fakeIds } : group));
+  freeSegments.assertions.push(fatal("meet", "converges", ["out1", "out2", "it"]));
+  expectUnproven("G12b", "free segments posing as principal rays", qMirror, freeSegments, /endpoint the engine did not derive|does not leave the mirror|incident/);
+  expectNeverPlanner("G12b", "free segments posing as principal rays", qMirror, mirrorPlan, freeSegments);
+  expectUnproven("G12b", "rays traced from the image base", qMirror, traced(goodMirror, undefined, "ib"), /does not trace the gaussian image tip/);
+  const secondImage = traced(goodMirror);
+  secondImage.constructions.push({ ...structuredClone(secondImage.constructions.find((construction) => construction.operator === "gaussian_image")!), id: "c_img2", outputs: ["ob2", "ot2", "ib2", "it2"] });
+  for (const id of ["ob2", "ot2", "ib2", "it2"]) secondImage.entities.push(ent(id, "point", "construction helper") as Doc["entities"][number]);
+  secondImage.constructions.find((construction) => construction.operator === "principal_rays")!.inputs.image = "it2";
+  expectUnproven("G12b", "rays traced from a second gaussian image", qMirror, secondImage, /gaussian_image count 2/);
+  const lensOnMirror = traced(goodMirror);
+  const surface = lensOnMirror.constructions.find((construction) => construction.operator === "spherical_surface")!;
+  Object.assign(surface, { operator: "lens_section", inputs: { center: "P", axis: "axis", radius1: 19, radius2: -19, halfHeight: 9 } });
+  expectUnproven("G12b", "a lens drawn on a mirror stem with traced rays", qMirror, lensOnMirror, /lens_section drawn on a mirror stem/);
+  const oneRay = traced(goodMirror);
+  const tracing = oneRay.constructions.find((construction) => construction.operator === "principal_rays")!;
+  tracing.inputs.rays = ["parallel"]; tracing.outputs = ["tr1"];
+  oneRay.entities = oneRay.entities.filter((entity) => entity.id !== "tr2");
+  oneRay.requiredEntityIds = oneRay.requiredEntityIds.filter((id) => id !== "tr2");
+  expectUnproven("G12b", "one traced ray", qMirror, oneRay, /fewer than two principal_rays/);
+  const handBeside = traced(goodLensReal);
+  handBeside.constructions.push(pt("Z", 6, 5), { id: "c_hand", operator: "segment", inputs: { start: "ot", end: "Z" }, outputs: ["hand"] });
+  handBeside.entities.push(ent("Z", "point", "construction helper") as Doc["entities"][number], ent("hand", "segment", "extra ray") as Doc["entities"][number]);
+  handBeside.requiredEntityIds.push("Z", "hand");
+  handBeside.revealGroups = handBeside.revealGroups.map((group) => (group.id === "rays" ? { ...group, entityIds: [...group.entityIds, "Z", "hand"] } : group));
+  expectUnproven("G12b", "a free hand ray beside traced rays", qLensReal, handBeside, /ray hand has an endpoint the engine did not derive/);
+  expectNeverPlanner("G12b", "a free hand ray beside traced rays", qLensReal, lensRealPlan, handBeside);
+
+  // G12c (P10): the focal ray of the virtual-image lens hits at h' = 6 cm; a 4 cm half height cannot carry it.
+  const shortLens = traced(goodLens, ["parallel", "focal"]);
+  shortLens.constructions.find((construction) => construction.operator === "lens_section")!.inputs.halfHeight = 4;
+  expectUnproven("G12c", "a focal ray beyond the drawn lens", qLens, shortLens, /focal ray hits at 6 beyond the lens_section/);
+  expectNeverPlanner("G12c", "a focal ray beyond the drawn lens", qLens, lensPlan, shortLens);
+  const shortMirror = traced(goodConvex, ["parallel", "central"]);
+  shortMirror.constructions.find((construction) => construction.operator === "spherical_surface")!.inputs.halfHeight = 4;
+  expectUnproven("G12c", "a parallel ray beyond the drawn mirror", qConvex, shortMirror, /parallel ray hits at 4.5 beyond the spherical_surface/);
+  // The central ray hits at the centre, so a short element still carries it with a parallel ray inside.
+  const centralOnly = traced(goodConvex, ["focal", "central"]);
+  centralOnly.constructions.find((construction) => construction.operator === "spherical_surface")!.inputs.halfHeight = 2;
+  check("G12c", explainPlannerOpticsProof(qConvex, centralOnly).proof === "proven", "focal (1.8 cm) and central rays fit a 2 cm mirror");
+
+  // G12d: the presentation dashes the back-extensions and guides, and only them.
+  for (const [name, document] of [["virtual-image lens", traced(goodLens, ["parallel", "focal", "central"])], ["convex mirror", traced(goodConvex, ["parallel", "focal", "central"])]] as const) {
+    const { result } = compiled(document);
+    if (!result.ok || !result.renderScene) { check("G12d", false, `${name} must compile`); continue; }
+    const presentation = buildVerifiedDiagramPresentation(document, result.renderScene);
+    const rayCommands = presentation.diagram.commands.filter((command) => /^tr\d$/.test(command.semanticRef?.entityId ?? "") && command.type !== "LABEL");
+    let dashedCount = 0;
+    for (const command of rayCommands) {
+      const index = Number(/_(\d+)$/.exec(command.semanticRef?.primitiveId ?? "")?.[1]);
+      const dashed = command.visualStyle?.dashed === true;
+      if (dashed) dashedCount += 1;
+      check("G12d", dashed === index >= 2, `${name} ${command.semanticRef?.primitiveId} (${command.type}) dashed ${dashed}`);
+      if (dashed) check("G12d", command.visualStyle?.strokeRole === "construction", `${name} ${command.semanticRef?.primitiveId} dashed ink is construction ink`);
+    }
+    check("G12d", dashedCount >= 3, `${name} must dash its back-extensions (${dashedCount} dashed commands)`);
+  }
+}
+
+for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d"]) {
   console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 }
 if (failures.length > 0) {
