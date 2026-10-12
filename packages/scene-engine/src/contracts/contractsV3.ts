@@ -14,6 +14,7 @@ import type { SceneDocument, SceneIssue, ValidationReport, RenderScene } from ".
 import type { ProblemIR } from "../ir/problemIR";
 import type { SolverResult } from "../ir/solver";
 import type { SolverAuthorityAudit } from "../ir/solverAuthority";
+import { auditInstrumentTurnPlanV3, matchesInstrumentQuantityRole } from "../physics/instrumentPlanAudit";
 
 export const TURN_PLAN_V3_VERSION = "turn-plan/v3" as const;
 export const SCENE_ARTIFACTS_V3_VERSION = "scene-artifacts/v3" as const;
@@ -592,6 +593,26 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
       issues.push({ code: "invalid_assumption", path: `assumptions[${index}]`, message: "assumption must be a non-empty string" });
     }
   });
+
+  // The same additional numeric law check runs at planning and persistence.
+  // It consumes only structurally valid, explicitly tagged instrument plans;
+  // unsupported/ambiguous active inputs never turn into guessed authority.
+  if (issues.length === 0) {
+    const audit = auditInstrumentTurnPlanV3(raw as unknown as TurnPlanV3);
+    if (audit.inconsistencies.length > 0) {
+      issues.push({ code: "instrument_law_mismatch", path: "derived",
+        message: "a declared instrument-conversion result disagrees with its independently unit-converted givens" });
+    }
+    const requestedTotal = unknowns.some(value => isRecord(value) &&
+      typeof value.id === "string" && typeof value.symbol === "string" &&
+      matchesInstrumentQuantityRole({ id: value.id, symbol: value.symbol }, "total_resistance"));
+    const unverified = audit.declined.some(decline => decline.reason !== "missing_output" ||
+      decline.role !== "total_resistance" || requestedTotal);
+    if (unverified) {
+      issues.push({ code: "instrument_law_unverified", path: "lawIds",
+        message: "the declared instrument conversion lacks unambiguous supported inputs or outputs" });
+    }
+  }
 
   return {
     valid: issues.length === 0,
@@ -1981,6 +2002,40 @@ function normalizeExplicitNumericExpression(
     /([+-]?(?:(?:\d+(?:\.\d*)?)|(?:\.\d+))(?:[eE][+-]?\d+)?)\s*(?:(?:degrees?|deg)\b|°)/gi,
     "(($1)*pi/180)",
   );
+  // A measured label immediately after a numeric literal is not a variable. Resolve
+  // it before bindings, even when the same symbol names another quantity
+  // (the A in "(3 A)" is ampere, not an area named A). If a bound symbol
+  // shares that spelling, a glued coefficient such as "2N" remains a
+  // product. The unit label must be space-delimited in that ambiguous case.
+  // Explicit "2*A" and symbolic "mu N" products remain bindings too.
+  for (const unit of knownUnits) {
+    const flags = /^[A-Za-z]+$/.test(unit) && unit.length > 1 ? "gi" : "g";
+    const boundSymbol = numericBindings.has(unit) || (flags === "gi" &&
+      [...numericBindings.keys()].some(key => key.toLowerCase() === unit.toLowerCase()));
+    const gap = boundSymbol ? "\\s+" : "\\s*";
+    expression = expression.replace(
+      new RegExp(`(?<![A-Za-zΑ-Ωα-ω0-9_.])(${NUMBER_SOURCE})(${gap})${escapeRegExp(unit)}(?=\\s|\\)|\\]|$|[*/+\\-^])`, flags),
+      (original, coefficient: string, spacing: string) => {
+        const exponent = /[eE][+-]?\d+$/.exec(coefficient)?.[0];
+        const spelling = original.slice(coefficient.length + spacing.length);
+        // A given named e0N remains an identifier in 2e0N even when no
+        // separate N is bound. Space-delimited 2e0 N is still a measurement.
+        return spacing === "" && exponent && numericBindings.has(`${exponent}${spelling}`)
+          ? original : coefficient;
+      },
+    );
+  }
+  // Separate a scientific coefficient from its following symbol before the
+  // identifier tokenizer can read 'e0N' as one unknown name. An explicitly
+  // bound longer name still wins (2e0N with a given named e0N is its product).
+  expression = expression.replace(
+    new RegExp(`(?<![A-Za-zΑ-Ωα-ω0-9_.])(${NUMBER_SOURCE})([A-Za-zΑ-Ωα-ω_][A-Za-z0-9Α-Ωα-ω_]*)`, "gu"),
+    (original, coefficient: string, symbol: string) => {
+      const exponent = /[eE][+-]?\d+$/.exec(coefficient)?.[0];
+      return exponent && !numericBindings.has(`${exponent}${symbol}`)
+        ? `${coefficient}*${symbol}` : original;
+    },
+  );
   const substitutedKeys = new Set<string>();
   // Trig arguments first: a degree-valued binding becomes radians there
   // ("u cos θ" with θ = 30 deg is u cos(π/6)), and only there.
@@ -1997,16 +2052,6 @@ function normalizeExplicitNumericExpression(
     return stipulated === null ? `${name}(${radians})` : `(${stipulated})`;
   });
   expression = substituteNumericBindings(expression, numericBindings, substitutedKeys);
-  for (const unit of knownUnits) {
-    const flags = /^[A-Za-z]+$/.test(unit) && unit.length > 1 ? "gi" : "g";
-    // A unit label follows a number ("(0.18 N)(4 m/s)"). The same letters
-    // after an operator are a variable ("μk N" is the normal force), and
-    // deleting them silently changes the arithmetic.
-    expression = expression.replace(
-      new RegExp(`(?<=[0-9.)\\]]\\s*)${escapeRegExp(unit)}(?=\\s|\\)|\\]|$|[*/+\\-^])`, flags),
-      "",
-    );
-  }
   expression = expression
     .replace(/\s+/g, "")
     .replace(/\)\(/g, ")*(")
@@ -2399,17 +2444,14 @@ function collectPlanUnits(plan: Record<string, unknown>): string[] {
     ...(Array.isArray(plan.givens) ? plan.givens : []),
     ...(Array.isArray(plan.derived) ? plan.derived : []),
   ];
-  // A plan symbol that spells a unit (N for the normal force) is a
-  // variable; stripping it as a unit label would change the arithmetic.
-  const symbols = new Set(quantities.flatMap((quantity) =>
-    isRecord(quantity)
-      ? [quantity.id, quantity.symbol].filter((key): key is string => typeof key === "string")
-      : []));
+  // Keep labels even when a variable shares the spelling. The expression
+  // reader distinguishes measured labels before substituting variables;
+  // excluding A globally made a real ampere operand multiply by area A.
   const units = quantities.flatMap((quantity) =>
     isRecord(quantity) && typeof quantity.unit === "string"
       ? unitAliases(quantity.unit)
       : [],
-  ).filter((unit) => !symbols.has(unit));
+  );
   return [...new Set(units)].sort((first, second) => second.length - first.length);
 }
 
@@ -2496,13 +2538,17 @@ export function validateSceneQuantityAgreement(
   sceneQuantities: Array<Record<string, unknown> & { id: string }>,
   plan: TurnPlanV3,
   displayedTexts: string[] = [],
+  /** Caller-owned original question, never document.source or a planner rewrite. */
+  trustedQuestion?: string,
 ): TurnPlanValidationIssue[] {
   const issues: TurnPlanValidationIssue[] = [];
   const planQuantities = [...plan.givens, ...plan.derived];
   const qualitativeEvidence = plan.qualitativeClaims.flatMap((claim) => [
     claim.claim,
     ...(claim.relatedEntityHints ?? []),
-  ]).flatMap((text) => extractMeasuredValues(text, plan));
+  ]).flatMap((text) => extractMeasuredValues(text, plan)).concat(
+    signedSourceChargeMembers(plan, trustedQuestion).map(member => ({ ...member, tolerance: 0 })),
+  );
   const authoritative = new Map(planQuantities.map((quantity) => [quantity.id, quantity]));
   sceneQuantities.forEach((quantity, index) => {
     const planned = authoritative.get(quantity.id);
@@ -2540,7 +2586,7 @@ export function validateSceneQuantityAgreement(
     }
   });
 
-  const supportedDisplays = supportedSceneDisplayMeasurements(plan);
+  const supportedDisplays = supportedSceneDisplayMeasurements(plan, trustedQuestion);
   displayedTexts.forEach((text, index) => {
     for (const match of extractMeasuredValues(text, plan)) {
       if (!supportedDisplays.some((quantity) =>
@@ -2570,12 +2616,13 @@ export function validateSceneQuantityAgreement(
 export function pruneUnverifiedSceneAnnotations(
   document: SceneDocument,
   plan: TurnPlanV3,
+  trustedQuestion?: string,
 ): SceneDocument {
   let changed = false;
   const removedIds = new Set<string>();
   const annotations = document.annotations.filter((annotation) => {
     if (!annotation.text) return true;
-    const unsupported = validateSceneQuantityAgreement([], plan, [annotation.text])
+    const unsupported = validateSceneQuantityAgreement([], plan, [annotation.text], trustedQuestion)
       .some((issue) => issue.code === "displayed_quantity_unverified");
     if (unsupported) {
       changed = true;
@@ -2585,7 +2632,7 @@ export function pruneUnverifiedSceneAnnotations(
   });
   const entities = document.entities.map((entity) => {
     if (!entity.label || isMatrixExpressionLabel(document, entity)) return entity;
-    const label = pruneUnsupportedMeasuredFragments(entity.label, plan);
+    const label = pruneUnsupportedMeasuredFragments(entity.label, plan, trustedQuestion);
     if (label === entity.label) return entity;
     changed = true;
     if (label) return { ...entity, label };
@@ -4021,8 +4068,8 @@ function pointForEntity(
     : { x: construction.inputs.x, y: construction.inputs.y };
 }
 
-function pruneUnsupportedMeasuredFragments(text: string, plan: TurnPlanV3): string {
-  const supported = supportedSceneDisplayMeasurements(plan);
+function pruneUnsupportedMeasuredFragments(text: string, plan: TurnPlanV3, trustedQuestion?: string): string {
+  const supported = supportedSceneDisplayMeasurements(plan, trustedQuestion);
   const pruned = text.replace(measuredValuePattern(), (measurement, _number: string, unit: string, index: number) => {
     if (sceneMeasurementIsOwnedFormulaOperand(text, { index, length: measurement.length, unit }, plan)) return measurement;
     const value = Number(_number.replace(/−/g, "-"));
@@ -4038,11 +4085,50 @@ function pruneUnsupportedMeasuredFragments(text: string, plan: TurnPlanV3): stri
     .trim();
 }
 
-function supportedSceneDisplayMeasurements(plan: TurnPlanV3): Array<{ value: number; unit: string }> {
+/**
+ * A paired charge literal is source evidence for its two signed members, not
+ * a new calculation. A magnitude alone, uncertainty, multiple pairs, a mixed
+ * unit pair or a contradictory/ambiguous plan cannot provide that evidence.
+ * The caller's question must match the validated plan; document.source is
+ * deliberately not an input. Existing plan IDs remain authoritative.
+ */
+function signedSourceChargeMembers(plan: TurnPlanV3, trustedQuestion?: string): Array<{ value: number; unit: string }> {
+  if (trustedQuestion === undefined || trustedQuestion.length > 12_000 ||
+    normalizeQuestionText(trustedQuestion) !== normalizeQuestionText(plan.question) ||
+    /\b(?:uncertainty|uncertain|tolerance|error|measured|measurement|no|not|neither|absent|without|except|ignore|example|hypothetical|would|could|might|if|unless)\b/i.test(trustedQuestion)) return [];
+  const charge = (value: number, unit: unknown) => {
+    const result = canonicalMeasurement(value, unit);
+    return result?.dimension === "C^1" ? result : null;
+  };
+  const givens = plan.givens.filter(quantity => charge(quantity.value, quantity.unit));
+  if (givens.length !== 1 || givens[0]!.provenance !== "given" || givens[0]!.value <= 0 ||
+    (givens[0]!.sign !== undefined && givens[0]!.sign !== "unsigned")) return [];
+  const magnitude = charge(givens[0]!.value, givens[0]!.unit)!;
+  const measurements = claimMeasuredValues(trustedQuestion).filter(member => charge(member.value, member.unit));
+  if (measurements.length === 1) {
+    const member = measurements[0]!;
+    if (member.value <= 0 || !/\b(?:charges|charge\s+pair)\s*(?:of\s*)?±\s*$/i.test(trustedQuestion.slice(0, member.index))) return [];
+  } else if (measurements.length === 2) {
+    const [first, second] = measurements;
+    if (!/\b(?:charges|charge\s+pair)\b/i.test(trustedQuestion) ||
+      !/^[+\-−]/.test(trustedQuestion.slice(first!.index, first!.index + first!.length)) ||
+      !/^[+\-−]/.test(trustedQuestion.slice(second!.index, second!.index + second!.length)) ||
+      first!.value * second!.value >= 0 || normalizeUnit(first!.unit) !== normalizeUnit(second!.unit) ||
+      !canonicalMeasurementValuesAgree(Math.abs(first!.value), Math.abs(second!.value))) return [];
+  } else return [];
+  if (!measurements.every(member => {
+    const source = charge(member.value, member.unit)!;
+    return canonicalMeasurementValuesAgree(Math.abs(source.value), magnitude.value);
+  })) return [];
+  const first = measurements[0]!;
+  return [{ value: Math.abs(first.value), unit: first.unit }, { value: -Math.abs(first.value), unit: first.unit }];
+}
+
+function supportedSceneDisplayMeasurements(plan: TurnPlanV3, trustedQuestion?: string): Array<{ value: number; unit: string }> {
   return [...plan.givens, ...plan.derived].map((quantity) => ({
     value: quantity.value, unit: quantity.unit ?? "",
   })).concat(plan.qualitativeClaims.flatMap((claim) => [claim.claim, ...(claim.relatedEntityHints ?? [])])
-    .flatMap((text) => extractMeasuredValues(text, plan)));
+    .flatMap((text) => extractMeasuredValues(text, plan)), signedSourceChargeMembers(plan, trustedQuestion));
 }
 
 function extractMeasuredValues(text: string, plan: TurnPlanV3): Array<{ value: number; unit: string; tolerance: number }> {

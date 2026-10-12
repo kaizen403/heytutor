@@ -22,6 +22,7 @@ export * from "./ir/solverAuthority";
 export * from "./ir/statedCircuitAuthority";
 export * from "./ir/sourceQuantityAuthority";
 export * from "./physics/opticsLaws";
+export * from "./physics/instrumentPlanAudit";
 export * from "./physics/bohrTransitionAuthority";
 export * from "./physics/bohrOrbitAuthority";
 export * from "./physics/elasticModulusAuthority";

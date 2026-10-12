@@ -7,7 +7,7 @@ import {
   normalizeClaimedClosedRouteGeometry, normalizeClaimedParaxialReflectionGeometry,
   pruneDeadSceneEntities, pruneUnverifiedSceneAnnotations, displayedSceneQuantityTexts,
   validateMatrixSourceBinding, validateSceneQuantityAgreement, validateSceneDocument,
-  validateTurnPlanSceneProofs, resolveDiagramFailureStatus,
+  validateTurnPlanSceneProofs, validateTurnPlanV3, resolveDiagramFailureStatus,
   type FigureSource, type ProblemStructureView, type RenderScene, type SceneDocument,
   type TurnPlanV3, type ValidationReport,
 } from "@heytutor/scene-engine";
@@ -19,7 +19,7 @@ import { resolveVisualRequirement } from "./visualRequirement";
 import { selectVerifiedRepresentation, type SelectedRepresentation } from "./representationFallback";
 
 /** Lab execution identity: old rounds did not use all production admission guards. */
-export const PRODUCTION_SCENE_SELECTION_VERSION = "production-scene-selection/v2";
+export const PRODUCTION_SCENE_SELECTION_VERSION = "production-scene-selection/v3";
 
 export interface ProductionSceneInput {
   question: string;
@@ -103,6 +103,12 @@ export function validateProductionSceneCandidate(input: {
   candidate: Record<string, unknown>; question: string; turnPlan: TurnPlanV3;
 }): SceneCandidateValidation<ValidatedSceneCandidate> {
   const { candidate, question, turnPlan: authoritativePlan } = input;
+  const planValidation = validateTurnPlanV3(authoritativePlan, question);
+  if (!planValidation.valid) {
+    return { valid: false, errors: planValidation.issues.map(issue => ({
+      ...issue, severity: "fatal" as const,
+    })) };
+  }
   let validated = validateSceneDocument(pruneDeadSceneEntities(candidate));
   if (!validated.document) {
     return {
@@ -129,7 +135,7 @@ export function validateProductionSceneCandidate(input: {
       };
     }
   }
-  const annotationPruned = pruneUnverifiedSceneAnnotations(validated.document, authoritativePlan);
+  const annotationPruned = pruneUnverifiedSceneAnnotations(validated.document, authoritativePlan, question);
   if (annotationPruned !== validated.document) {
     validated = validateSceneDocument(pruneDeadSceneEntities(
       annotationPruned as unknown as Record<string, unknown>,
@@ -145,6 +151,7 @@ export function validateProductionSceneCandidate(input: {
     validated.document.quantities,
     authoritativePlan,
     displayedSceneQuantityTexts(validated.document),
+    question,
   );
   const authorityIssues = agreementIssues.map((issue) => ({
     code: issue.code,

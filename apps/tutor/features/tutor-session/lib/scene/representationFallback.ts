@@ -156,7 +156,7 @@ export function selectFastVerifiedRepresentation(
   const agreement = validateSceneQuantityAgreement(result.document.quantities, plan,
     result.renderScene.primitives.flatMap((primitive) =>
       (primitive.kind === "label" || primitive.kind === "dimension") && typeof primitive.text === "string"
-        ? [primitive.text] : []));
+        ? [primitive.text] : []), input.question);
   if (agreement.length > 0 || (result.tier === "exact_verified" &&
       validateTurnPlanSceneProofs(result.document, plan).some((issue) => issue.severity === "fatal"))) return null;
   return {
