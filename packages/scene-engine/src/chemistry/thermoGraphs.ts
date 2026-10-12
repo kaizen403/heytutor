@@ -505,7 +505,13 @@ function gibbsReferencePayloadOnly(body: string, start: number, ownerEnd: number
   // An empty operand tail is valid reference grammar. Role/context checks below
   // still distinguish an axis or formula operand from an unread declaration.
   if (end === start) return true;
-  const temperatures = findChemistryQuantities({question: body, within: {start, end}, dimension: "temperature"});
+  // Prove a complete zero-crossing condition in the original clause before
+  // inventorying its temperature operands. A terminal "0." otherwise looks
+  // like a scalar cut by the sentence boundary. Only this closed condition
+  // is excluded; numeric readers still consume unmodified original text.
+  const zeroCondition = /[Δδ∆]\s*G\s*=\s*0(?=\s*\)*\s*$)/i.exec(body.slice(start, end));
+  const temperatureEnd = zeroCondition ? start + zeroCondition.index : end;
+  const temperatures = findChemistryQuantities({question: body, within: {start, end: temperatureEnd}, dimension: "temperature"});
   if (!temperatures.ok) return false;
   let payload = body.slice(start, end);
   // Temperature operands are separately read by statedKelvin. Preserve every
