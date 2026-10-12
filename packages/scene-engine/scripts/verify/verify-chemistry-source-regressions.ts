@@ -4186,6 +4186,50 @@ for(const row of profileReferenceRepairs)check("Closed profile reference repair:
  }
 });
 // END PR137 closed profile diagram references.
+// BEGIN PR137 original Unicode unit-cell species: preserve all891 old assertions.
+const unicodeUnitCellSpeciesRepairs: ReadonlyArray<{
+ id:string; question:string; labels:readonly string[]; counts:readonly [number,number]; formula:string; edgePm?:number;
+}> = [
+ {id:"exact-review",question:"Cl⁻ ions form a ccp lattice. Mg²⁺ ions occupy all octahedral voids. Draw the unit cell and find the formula.",labels:["Cl^-","Mg^(2+)"],counts:[4,4],formula:"ClMg"},
+ {id:"minimal-review",question:"Cl⁻ ions form a ccp lattice. Mg²⁺ ions occupy all octahedral voids.",labels:["Cl^-","Mg^(2+)"],counts:[4,4],formula:"ClMg"},
+ {id:"unicode-anion-only",question:"Cl⁻ ions form a ccp lattice. Mg2+ ions occupy all octahedral voids. Draw the unit cell.",labels:["Cl^-","Mg^(2+)"],counts:[4,4],formula:"ClMg"},
+ {id:"unicode-cation-only",question:"Cl- ions form a ccp lattice. Mg²⁺ ions occupy all octahedral voids. Draw the unit cell.",labels:["Cl^-","Mg^(2+)"],counts:[4,4],formula:"ClMg"},
+ {id:"half-octahedral",question:"Cl⁻ ions form a ccp lattice. Mg²⁺ ions occupy half of the octahedral voids. Draw the unit cell and find the formula.",labels:["Cl^-","Mg^(2+)"],counts:[4,2],formula:"Cl2Mg"},
+ {id:"one-letter-charged-species",question:"O²⁻ ions form a ccp lattice. Zn²⁺ ions occupy all octahedral voids. Draw the unit cell.",labels:["O^(2-)","Zn^(2+)"],counts:[4,4],formula:"OZn"},
+ {id:"ascii-control",question:"Cl- ions form a ccp lattice. Mg2+ ions occupy all octahedral voids. Draw the unit cell and find the formula.",labels:["Cl^-","Mg^(2+)"],counts:[4,4],formula:"ClMg"},
+ {id:"bare-placeholder-control",question:"A atoms form a ccp lattice. B atoms occupy all octahedral voids. Draw the unit cell and find the formula.",labels:["A","B"],counts:[4,4],formula:"AB"},
+ {id:"original-numeric-span",question:"Cl⁻ ions form a ccp lattice. Mg²⁺ ions occupy all octahedral voids. Its lattice parameter is 508 pm. Draw the unit cell.",labels:["Cl^-","Mg^(2+)"],counts:[4,4],formula:"ClMg",edgePm:508},
+];
+for(const row of unicodeUnitCellSpeciesRepairs)check("Original Unicode unit-cell species: "+row.id,()=>{
+ const ordinary=synthesizeFamilyScene({question:row.question});assert.ok(ordinary?.renderScene);assert.equal(ordinary.family,"chem_unit_cell");
+ for(const document of [buildUnitCellScene(row.question,[],false),buildUnitCellScene(row.question,[],true),ordinary.document]) {
+  const result=compiled(document);assert.equal(result.document.source?.question,row.question);
+  for(const label of row.labels)assert.ok(result.labels.includes(label),"Complete stated ion identity must reach the compiled labels: "+label);
+  near(result.document.quantities.find(q=>q.id==="cell_n1")?.value,row.counts[0]);
+  near(result.document.quantities.find(q=>q.id==="cell_n2")?.value,row.counts[1]);
+  const caption=result.document.annotations.map(a=>a.text??"").join(" ");
+  assert.ok(caption.endsWith(" → "+row.formula),caption);
+  if(row.edgePm!==undefined)assert.ok(result.labels.includes(`a = ${row.edgePm} pm`));
+ }
+ if(row.edgePm!==undefined) {
+  const reading=readChemistryQuantity({question:row.question,after:/lattice parameter/,dimension:"length",targetUnit:"pm"});assert.ok(reading.ok);
+  near(reading.reading.value,row.edgePm);assert.equal(row.question.slice(reading.reading.source.span.start,reading.reading.source.span.end),"508 pm");
+ }
+});
+for(const question of [
+ "Cl⁻⁻ ions form a ccp lattice. Mg²⁺ ions occupy all octahedral voids. Draw the unit cell.",
+ "Cl⁻ ions form a ccp lattice. Mg²⁺x ions occupy all octahedral voids. Draw the unit cell.",
+ "Cl⁻ ions form a ccp lattice. Mg² ions occupy all octahedral voids. Draw the unit cell.",
+ "Cl⁻ ions form a ccp lattice. Mg²⁺³ ions occupy all octahedral voids. Draw the unit cell.",
+ "Cl⁻ ions form a ccp lattice. Mg^(2+ ions occupy all octahedral voids. Draw the unit cell.",
+ "Cl⁻ ions form a ccp lattice. Mg2+x ions occupy all octahedral voids. Draw the unit cell.",
+ "Cl⁻x ions form a ccp lattice. Mg²⁺ ions occupy all octahedral voids. Draw the unit cell.",
+])check("Damaged original unit-cell charge refuses before generic lattice: "+question,()=>{
+ assert.equal(buildUnitCellScene(question,[],false),null);
+ assert.equal(buildUnitCellScene(question,[],true),null);
+ assert.equal(synthesizeFamilyScene({question}),null);
+});
+// END PR137 original Unicode unit-cell species.
 const output=process.argv.indexOf("--out");
 const result={passed:rows.filter(r=>r.passed).length,failed:rows.filter(r=>!r.passed).length,rows};
 if(output>=0)writeFileSync(process.argv[output+1]!,JSON.stringify(result,null,2)+"\n");

@@ -360,19 +360,31 @@ function readFraction(before: string): number | null | "unknown" {
 }
 
 /** Species tokens in reading order: single capitals not in option lists, element symbols with charges, named ions. */
-function speciesIn(fragment: string): Array<{ token: string; index: number }> {
-  const found: Array<{ token: string; index: number }> = [];
+function speciesIn(fragment: string): Array<{ token: string; index: number; end: number }> | null {
+  const found: Array<{ token: string; index: number; end: number }> = [];
   const single = /(?<![([])\b([A-Z])(?![a-z])(?!\)|\.)(?=\s*(?:atoms?|ions?|is|are|occup|at\b|form|present|,|and\b|\(|\^|\d|$))/g;
-  for (const match of fragment.matchAll(single)) found.push({ token: match[1]!, index: match.index ?? 0 });
-  const element = /\b([A-Z][a-z])(?:\^?\(?(\d?[+-])\)?)?(?=\s*(?:atoms?|ions?|is|are|occup|at\b|form|present|,|and\b))/g;
+  for (const match of fragment.matchAll(single)) {
+    if (/[0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉^()[\]{}_+⁺⁻−–—-]/.test(fragment[(match.index ?? 0) + match[0].length] ?? "")) continue;
+    found.push({ token: match[1]!, index: match.index ?? 0, end: (match.index ?? 0) + match[0].length });
+  }
+  // Decode only a complete original species token; its original indices remain
+  // authoritative even when a Unicode charge has a longer display spelling.
+  const element = /\b([A-Z][a-z]?)((?:[0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉^()[\]{}_+⁺⁻−–—-][A-Za-z0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉^()[\]{}_+⁺⁻−–—-]*)?)(?=\s*(?:atoms?|ions?|is|are|occup|at\b|form|present|,|and\b))/g;
   for (const match of fragment.matchAll(element)) {
-    if (!elementBySymbol(match[1]!)) continue;
-    const charge = match[2] ? (match[2].length > 1 ? `^(${match[2]})` : `^${match[2]}`) : "";
-    found.push({ token: `${match[1]}${charge}`, index: match.index ?? 0 });
+    const rawCharge = match[2]!;
+    if (!elementBySymbol(match[1]!)) { if (rawCharge) return null; continue; }
+    if (!rawCharge && match[1]!.length === 1) continue;
+    if (/[0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉^()[\]{}_+⁺⁻−–—-]/.test(fragment[(match.index ?? 0) - 1] ?? "")) return null;
+    const parsedCharge = rawCharge ? /^(?:\^?\(([1-9]\d*)?([+-])\)|\^?([1-9]\d*)?([+-]))$/.exec(normalizeChemistryText(rawCharge)) : null;
+    if (rawCharge && !parsedCharge) return null;
+    const magnitude = parsedCharge?.[1] ?? parsedCharge?.[3] ?? "";
+    const sign = parsedCharge?.[2] ?? parsedCharge?.[4] ?? "";
+    const charge = sign ? (magnitude ? `^(${magnitude}${sign})` : `^${sign}`) : "";
+    found.push({ token: `${match[1]}${charge}`, index: match.index ?? 0, end: (match.index ?? 0) + match[0].length });
   }
   for (const [pattern, token] of SPECIES_WORDS) {
     const match = pattern.exec(fragment);
-    if (match) found.push({ token, index: match.index });
+    if (match) found.push({ token, index: match.index, end: match.index + match[0].length });
   }
   return found.sort((a, b) => a.index - b.index);
 }
@@ -416,7 +428,7 @@ function sitePhrases(sentence: string): SitePhrase[] {
  * species named before it in the sentence, or to the species carried over
  * from the previous sentence when the sentence names none first.
  */
-function readOccupancy(question: string): Occupant[] {
+function readOccupancy(question: string): Occupant[] | null {
   const text = question;
   const hcp = /\bhcp\b|hexagonal close/i.test(text);
   const sentences = text.split(/(?<=[.;:?])\s+/);
@@ -430,6 +442,7 @@ function readOccupancy(question: string): Occupant[] {
   for (const sentence of sentences) {
     if (/\b(?:removed|missing|absent|vacant|taken out|replace)/i.test(sentence)) continue;
     const species = speciesIn(sentence);
+    if (!species) return null;
     const phrases = sitePhrases(sentence);
     if (phrases.length === 0) { if (species.length > 0) carried = species.at(-1)!.token; continue; }
     for (const phrase of phrases) {
@@ -762,6 +775,7 @@ export function buildUnitCellScene(question: string, quantities: ChemPlanQuantit
   if (!isUnitCellStem(question) || !chemistryPlanBindingsValid(question, quantities)) return null;
   if (!chemistryQuantityCuesValid(question, [{after: EDGE_CUE, dimensions: ["length"]}, {after: RADIUS_CUE, dimensions: ["length"]}, {after: /molar mass|atomic mass|molecular mass/, dimensions: ["molar_mass"]}, {after: /density/, dimensions: ["density"]}])) return null;
   const stem = chemStem(question);
+  if (!speciesIn(question)) return null;
   const numbers = readNumbers(question, quantities);
   if (!declaredQuantityCuesValid(question, EDGE_CUE, "a")
     || !declaredQuantityCuesValid(question, RADIUS_CUE, "r")
@@ -791,6 +805,7 @@ export function buildUnitCellScene(question: string, quantities: ChemPlanQuantit
     captions.push(drawIonicCell(c, slot, ionic, labels, numbers, stem));
   } else {
     const occupants = readOccupancy(question);
+    if (!occupants) return null;
     const removals = readRemovals(stem);
     const hcpOccupant = occupants.find((occupant) => occupant.hcp);
     const cubicOccupants = occupants.filter((occupant) => !occupant.hcp && Object.keys(occupant.sites).length > 0);
