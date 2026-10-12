@@ -498,8 +498,23 @@ function buildProfile(question: string, spec: ProfileSpec): SceneDocument {
 
 type GibbsTemperature = { kind: "absent" } | { kind: "given"; value: number } | { kind: "invalid" };
 
+/** A reference must close its complete original owner clause, not only a prefix. */
+function gibbsReferencePayloadOnly(body: string, start: number, ownerEnd: number): boolean {
+  const boundary = /[;!?\n]|\.(?=\s|$)/.exec(body.slice(start, ownerEnd));
+  const end = boundary ? start + boundary.index : ownerEnd;
+  const temperatures = findChemistryQuantities({question: body, within: {start, end}, dimension: "temperature"});
+  if (!temperatures.ok) return false;
+  let payload = body.slice(start, end);
+  // Temperature operands are separately read by statedKelvin. Preserve every
+  // other original character, so a hidden H/S scalar or unread value refuses.
+  for (const reading of [...temperatures.reading].sort((a, b) => b.source.span.start - a.source.span.start)) {
+    payload = payload.slice(0, reading.source.span.start - start) + " Θ " + payload.slice(reading.source.span.end - start);
+  }
+  return /^(?:\s|[(),=+−*/×·-]|Θ|[Δδ∆]\s*[GHS]\b|\bT\b|\bK\b|\b(?:and|together|with|to|in|versus|vs|against|at|as|on|above|below|where|of|draw|plot|sketch|show|calculate|compute|determine|find|mark|the|an?|its|this|reaction|line|graph|curve|diagram|energy|temperature|equilibrium|transition|minimum|threshold|crossover|will|be|become|is|negative|positive|zero|spontaneous|feasible)\b)*$/i.test(payload);
+}
 /** Requested thresholds and formula/axis operands do not supply an evaluation point. */
-function gibbsTemperatureReference(body: string, start: number, end: number): boolean {
+function gibbsTemperatureReference(body: string, start: number, end: number, ownerEnd: number): boolean {
+  if (!gibbsReferencePayloadOnly(body, end, ownerEnd)) return false;
   const before = body.slice(0, start);
   const tail = body.slice(end);
   if (/\b(?:what|which|all|any|every)\s+(?:absolute\s+)?$/i.test(before)) return true;
@@ -526,13 +541,16 @@ function statedKelvin(question: string): GibbsTemperature {
     /\bat\b(?!\s+(?:what|which|all|any|every)\b)(?=\s*(?:[+−-]?(?:\d|\.\d)|\b(?:unknown|unreadable|unspecified)\b|[^;,.?!\n]{0,36}(?:\bK\b|\bkelvin\b|°\s*C\b|\btemperature\b)))/gi,
     /\b(?:calculate|compute|determine|find)\s+(?:(?:the|value\s+of)\s+)*(?:[Δδ∆]\s*G\b|Gibbs\s+(?:free\s+)?energy\b|free\s+energy\b)[^.;?!\n]{0,80}?\bat\b/gi,
   ];
+  const originalOwners = owners.flatMap(owner => Array.from(body.matchAll(owner), match => ({
+    cue: match[0], start: match.index!, end: match.index! + match[0].length,
+  }))).sort((a, b) => a.start - b.start);
   const payloads = new Map<number, number>();
-  for (const owner of owners) for (const match of body.matchAll(owner)) {
-    if (match[0] === "T" && /[Δδ∆]\s*$/.test(body.slice(0, match.index!))) return {kind: "invalid"};
-    if (gibbsTemperatureReference(body, match.index!, match.index! + match[0].length)) continue;
-    if (/\bat$/i.test(match[0]) && /^\s+(?:(?:a|the)\s+)?(?:absolute\s+)?temperature\b/i.test(body.slice(match.index! + match[0].length))) continue;
-    const start = match.index! + match[0].length;
-    payloads.set(start, Math.min(payloads.get(start) ?? match.index!, match.index!));
+  for (const owner of originalOwners) {
+    if (owner.cue === "T" && /[Δδ∆]\s*$/.test(body.slice(0, owner.start))) return {kind: "invalid"};
+    const ownerEnd = originalOwners.find(next => next.start >= owner.end)?.start ?? body.length;
+    if (gibbsTemperatureReference(body, owner.start, owner.end, ownerEnd)) continue;
+    if (/\bat$/i.test(owner.cue) && /^\s+(?:(?:a|the)\s+)?(?:absolute\s+)?temperature\b/i.test(body.slice(owner.end))) continue;
+    payloads.set(owner.end, Math.min(payloads.get(owner.end) ?? owner.start, owner.start));
   }
   const declarations = [...payloads].map(([start, ownerStart]) => ({start, ownerStart})).sort((a, b) => a.start - b.start);
   for (const declaration of declarations) {
@@ -547,7 +565,8 @@ function statedKelvin(question: string): GibbsTemperature {
   return value === undefined ? {kind: "absent"} : {kind: "given", value};
 }
 /** An equation operand or an explicitly requested reuse is not a new declaration. */
-function gibbsEnergyReference(body: string, start: number, end: number): boolean {
+function gibbsEnergyReference(body: string, start: number, end: number, ownerEnd: number): boolean {
+  if (!gibbsReferencePayloadOnly(body, end, ownerEnd)) return false;
   const tail = body.slice(end);
   if (/^\s*(?:[=:]|[+−-]?(?:\d|\.\d)|\b(?:is|was|equals|of|for|remains|stays|unknown|unreadable|unspecified|which|that)\b)/i.test(tail)) return false;
   if (!/^\s*(?:[+−*/×·)-]|-(?!\s*\d)|[,.;?!]|$|\btogether\s+with\b|\b(?:and|to|versus|vs|against|at|as|in)\b)/i.test(tail)) return false;
@@ -578,7 +597,7 @@ function readGibbsEnergies(question: string): GibbsEnergies | null {
     const payload = body.slice(owner.end, end);
     // "Enthalpy change, ΔH = ..." names one owner twice, not two supplied values.
     if (owner.sign === 0 && next?.role === owner.role && /^\s*[,:(]?\s*$/.test(payload)) continue;
-    if (owner.sign === 0 && gibbsEnergyReference(body, owner.start, owner.end)) continue;
+    if (owner.sign === 0 && gibbsEnergyReference(body, owner.start, owner.end, end)) continue;
     // A qualitative clause must close its whole owner span. A comma followed
     // by a number or unread payload still states an enthalpy and must decline.
     if (owner.sign !== 0 && /^\s*(?:(?:heat|energy)\s*)?(?:[,.;!?]\s*)?$/i.test(payload)) {

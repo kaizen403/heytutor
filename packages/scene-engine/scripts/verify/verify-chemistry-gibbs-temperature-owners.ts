@@ -914,6 +914,80 @@ const cases: readonly {id:string; question:string; expected:string; dG:number|nu
     "expected": "required-compile",
     "dG": -10.2,
     "unit": "kJ/mol"
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-REFERENCE-CLOSED-1",
+    "question": "Use ΔH to be -50 kJ/mol. ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-REFERENCE-CLOSED-2",
+    "question": "Use the known ΔH and take its value as -50 kJ/mol. ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-REFERENCE-CLOSED-3",
+    "question": "Use the given enthalpy change to have an unreadable value. ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-REFERENCE-CLOSED-4",
+    "question": "Use ΔS to be unknown. ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-REFERENCE-CLOSED-5",
+    "question": "Use the observed ΔS together with its stated value of -200 J/(mol K). ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-REFERENCE-CLOSED-6",
+    "question": "Draw ΔG versus T, which is unreadable. ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-REFERENCE-CLOSED-7",
+    "question": "Draw ΔG against temperature, whose value cannot be read. ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-REFERENCE-CLOSED-8",
+    "question": "Plot ΔG versus T and treat its value as unknown. ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-REFERENCE-CLOSED-9",
+    "question": "Sketch ΔG against temperature, recorded as unavailable. ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-REFERENCE-CLOSED-10",
+    "question": "Draw ΔG against T, with an unknown value. ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-REFERENCE-CLOSED-SUPPORT-1",
+    "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Use the known ΔH and ΔS to calculate ΔG and draw ΔG versus T.",
+    "expected": "required-compile",
+    "dG": -10.2,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-REFERENCE-CLOSED-SUPPORT-2",
+    "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG(T) = ΔH - TΔS against T (K) and calculate ΔG at 298 K.",
+    "expected": "required-compile",
+    "dG": -10.2,
+    "unit": "kJ/mol"
   }
 ];
 const results: {id:string;passed:boolean;error?:string}[] = [];
