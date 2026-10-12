@@ -772,6 +772,7 @@ export function useQuestionHandler(
         current: isCurrentTurn(),
         paused: isPausedRef.current,
       });
+      let earlyOpeningWaitPhase: "planning" | "thinking" | null = earlyOpeningStarted ? "planning" : null;
       if (earlyOpeningStarted) {
         // Fixed acknowledgement only: figure selection and useful teaching
         // below still receive the same original inputs and authority gates.
@@ -780,6 +781,11 @@ export function useQuestionHandler(
         tel.mark("early-lesson-opening-queued", { early_opening: true });
         tel.meta({ early_lesson_opening: true });
         enqueueSegment(buildEarlyLessonOpeningSegment(turnNarrationLanguage), turnGeneration);
+        // The acknowledgement owns only its spoken beat, not the wait for
+        // planning/teaching. A replaced turn must never reset its successor.
+        void segmentChainRef.current.then(() => {
+          if (earlyOpeningWaitPhase && phaseRef.current === "speaking") setPhaseIfCurrent(earlyOpeningWaitPhase);
+        }, () => {});
       }
       let diagramSubject: import("@heytutor/tutor-core").DiagramSubject = "other";
       let diagramStrategyDecision = liveDiagramStrategyDecision({
@@ -1808,6 +1814,7 @@ export function useQuestionHandler(
             alwaysShowUnits: teachingPrefsRef?.current.alwaysShowUnits ?? false,
             alwaysStateLawFirst: teachingPrefsRef?.current.alwaysStateLawFirst ?? false,
             narrationLanguage,
+            earlyOpeningAcknowledgement: earlyOpeningStarted,
           });
       const { givenSegments, lessonBudget, openingSegment } = teachingPrompt;
       tutorDebug("turn", "lesson budget", {
@@ -1822,6 +1829,7 @@ export function useQuestionHandler(
 
       // Transition from planning back to thinking before the LLM stream starts.
       throwIfTurnCancelled();
+      earlyOpeningWaitPhase = earlyOpeningStarted ? "thinking" : null;
       setPhaseIfCurrent("thinking");
       if (!isPausedRef.current) tts.unlockAudio?.();
       if (!earlyOpeningStarted && STREAM_SEGMENTS_LIVE && openingSegment?.narration.trim() && !isPausedRef.current) {
@@ -1913,6 +1921,7 @@ export function useQuestionHandler(
         const enqueueOpeningNotes = () => {
           if (notesEnqueued || !STREAM_SEGMENTS_LIVE) return;
           notesEnqueued = true;
+          earlyOpeningWaitPhase = null;
           // First, before any row and before the figure: what this question is
           // and what we are about to do with it. A lesson that opens on
           // "Given... u equals twenty" has started in the middle of itself.
