@@ -1235,6 +1235,72 @@ const cases: readonly {id:string; question:string; expected:string; dG:number|nu
   "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Find the temperature where (ΔG = 0).",
   "expected": "graph-only",
   "dG": null
+},
+{
+  "id": "OWN-ZERO-ORIGINAL-SPAN-PERIOD",
+  "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Find the temperature where ΔG = 0.",
+  "expected": "graph-only",
+  "dG": null
+},
+{
+  "id": "OWN-ZERO-ORIGINAL-SPAN-END",
+  "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Find the temperature where ΔG = 0",
+  "expected": "graph-only",
+  "dG": null
+},
+{
+  "id": "OWN-ZERO-ORIGINAL-SPAN-QUESTION",
+  "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Find the temperature where ΔG = 0?",
+  "expected": "graph-only",
+  "dG": null
+},
+{
+  "id": "OWN-ZERO-ORIGINAL-SPAN-SEMICOLON",
+  "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Find the temperature where ΔG = 0; show the graph.",
+  "expected": "graph-only",
+  "dG": null
+},
+{
+  "id": "OWN-ZERO-ORIGINAL-SPAN-PAREN-PERIOD",
+  "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Find the temperature where (ΔG = 0).",
+  "expected": "graph-only",
+  "dG": null
+},
+{
+  "id": "OWN-ZERO-ORIGINAL-SPAN-GRAPH-PERIOD",
+  "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Plot ΔG against T and determine the temperature where ΔG = 0.",
+  "expected": "graph-only",
+  "dG": null
+},
+{
+  "id": "OWN-ZERO-ORIGINAL-SPAN-HIDDEN-UNIT",
+  "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Find the temperature where ΔG = 0 K.",
+  "expected": "decline",
+  "dG": null
+},
+{
+  "id": "OWN-ZERO-ORIGINAL-SPAN-HIDDEN-FRACTION",
+  "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Find the temperature where ΔG = 0/mol.",
+  "expected": "decline",
+  "dG": null
+},
+{
+  "id": "OWN-ZERO-ORIGINAL-SPAN-CONTINUED-DECIMAL",
+  "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Find the temperature where ΔG = 0.25.",
+  "expected": "decline",
+  "dG": null
+},
+{
+  "id": "OWN-ZERO-ORIGINAL-SPAN-EXPONENT",
+  "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Find the temperature where ΔG = 0e3.",
+  "expected": "decline",
+  "dG": null
+},
+{
+  "id": "OWN-ZERO-ORIGINAL-SPAN-PAREN-UNIT",
+  "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Find the temperature where (ΔG = 0) kg.",
+  "expected": "decline",
+  "dG": null
 }
 ];
 const results: {id:string;passed:boolean;error?:string}[] = [];
