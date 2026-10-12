@@ -65,7 +65,7 @@ import {
 } from "./annotationMarks";
 import { appendCompiledAnnotations } from "./sceneAnnotations";
 import { lensSectionOutline, sphericalSurfaceGeometry } from "./opticsSurfaces";
-import { acuteNormalArm, clipLightPathsAtElements, truncateRenderedPath } from "./lightPathElements";
+import { acuteNormalArm, clipLightPathsAtElements, truncateRenderedPath, validateAxisArrowsOnRays } from "./lightPathElements";
 import { readPolyhedralSolid, polyhedralPaths, polyhedralSection, type PolyhedralSolid } from "../math/polyhedralSolid";
 import { evaluateCombinatoricsConstruction, type CombinatoricsGraphDefinition, type CombinatoricsNodeDefinition, type CombinatoricsEdgeDefinition } from "./combinatoricsGeometry";
 import { evaluateElasticityConstruction, type ElasticProfileDefinition, type ElasticStateDefinition } from "./elasticityGeometry";
@@ -397,14 +397,17 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   // Light stops at the optical elements it meets: cut outgoing rays at their
   // first crossing, refuse an incident ray that crosses one before its contact.
   const drawnEntityIds = new Set(document.requiredEntityIds);
+  const drawnInk = (id: string) => drawnEntityIds.has(id) && !constructionOnlyIds.has(id) && entityToGroup.has(id) &&
+    document.entities.some((entity) => entity.id === id && entity.kind !== "label");
   clipLightPathsAtElements({
     document,
     geometry,
-    drawn: (id) => drawnEntityIds.has(id) && !constructionOnlyIds.has(id) && entityToGroup.has(id) &&
-      document.entities.some((entity) => entity.id === id && entity.kind !== "label"),
+    drawn: drawnInk,
     resolvePoint: (value) => resolvePoint(value, geometry),
     issues,
   });
+  // Object and image arrows on an optical axis stand on the rays drawn there.
+  validateAxisArrowsOnRays({ document, geometry, drawn: drawnInk, issues });
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, 0) };
   issues.push(...validateCircleLabelTraces(document));
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, 0) };
@@ -3959,8 +3962,14 @@ function opticalTrainGeometry(
   const finalRef = inputs.finalImage !== undefined ? inputs.finalImage : inputs.virtualImage;
   const object = objectRef === undefined ? null : resolvePoint(objectRef, geometry);
   const finalImage = finalRef === undefined ? null : resolvePoint(finalRef, geometry);
-  const incomingUpperStart = object ? offset(object, beamHalfHeight) : advance(objectiveUpper, -raySpan);
-  const incomingLowerStart = object ? offset(object, -beamHalfHeight) : advance(objectiveLower, -raySpan);
+  if (object) {
+    return finiteObjectTrainGeometry({
+      objectiveCenter, eyepieceCenter, axisDirection, transverse, elementSeparation,
+      object, focus, finalImage, beamHalfHeight, raySpan,
+    });
+  }
+  const incomingUpperStart = advance(objectiveUpper, -raySpan);
+  const incomingLowerStart = advance(objectiveLower, -raySpan);
   const outgoingDirection = (hit: Point): Point => {
     if (!finalImage) return axisDirection;
     const delta = { x: hit.x - finalImage.x, y: hit.y - finalImage.y };
@@ -3981,6 +3990,84 @@ function opticalTrainGeometry(
     { kind: "path", directed: true, points: [objectiveLower, focus, eyepieceLower] },
     { kind: "path", directed: true, points: [eyepieceUpper, outgoingUpperEnd] },
     { kind: "path", directed: true, points: [eyepieceLower, outgoingLowerEnd] },
+  ];
+}
+
+/**
+ * Rays of an instrument with a finite object. They leave the object point,
+ * one parallel to the axis and one through the objective centre (two from
+ * the axis point at the beam height when the object sits on the axis). Each
+ * runs straight through the intermediate image, which is where the chief ray
+ * meets the transverse through `focus`, on to the eyepiece. Leaving it, the
+ * rays diverge from (or converge to) the final image, where the chief ray
+ * through the eyepiece centre meets the transverse through `finalImage`;
+ * with no final image they leave parallel to that chief ray (image at
+ * infinity). Tips of arrows drawn at those image points therefore lie on the
+ * rays or their straight extensions.
+ */
+function finiteObjectTrainGeometry(train: {
+  objectiveCenter: Point; eyepieceCenter: Point; axisDirection: Point; transverse: Point; elementSeparation: number;
+  object: Point; focus: Point; finalImage: Point | null; beamHalfHeight: number; raySpan: number;
+}): Geometry[] {
+  const { objectiveCenter, axisDirection, transverse, elementSeparation, beamHalfHeight, raySpan } = train;
+  const along = (point: Point) =>
+    (point.x - objectiveCenter.x) * axisDirection.x + (point.y - objectiveCenter.y) * axisDirection.y;
+  const across = (point: Point) =>
+    (point.x - objectiveCenter.x) * transverse.x + (point.y - objectiveCenter.y) * transverse.y;
+  const at = (s: number, h: number): Point => ({
+    x: objectiveCenter.x + axisDirection.x * s + transverse.x * h,
+    y: objectiveCenter.y + axisDirection.y * s + transverse.y * h,
+  });
+  const tolerance = elementSeparation * 1e-6;
+  const sObject = along(train.object);
+  const hObject = across(train.object);
+  const sImage = along(train.focus);
+  const sEyepiece = elementSeparation;
+  if (!(sObject < -tolerance)) throw new Error("optical_train object must lie before the objective");
+  if (!(sImage > tolerance && sImage < sEyepiece - tolerance)) {
+    throw new Error("optical_train focus must lie between the objective and the eyepiece when an object is given");
+  }
+  // Chief ray through the objective centre: h(s) = hObject * s / sObject.
+  const hImage = hObject * sImage / sObject;
+  const image = at(sImage, hImage);
+  const onAxis = Math.abs(hObject) <= tolerance;
+  const objectiveHits = onAxis
+    ? [at(0, beamHalfHeight), at(0, -beamHalfHeight)]
+    : [at(0, hObject), at(0, 0)];
+  const eyepieceHits = objectiveHits.map((hit) => {
+    const hHit = across(hit);
+    return at(sEyepiece, hHit + (hImage - hHit) * sEyepiece / sImage);
+  });
+  let finalPoint: Point | null = null;
+  let finalIsReal = false;
+  if (train.finalImage) {
+    const sFinal = along(train.finalImage);
+    if (Math.abs(sFinal - sEyepiece) <= tolerance) throw new Error("optical_train final image cannot sit on the eyepiece");
+    // Chief ray through the eyepiece centre: h(s) = hImage * (s - sEyepiece) / (sImage - sEyepiece).
+    finalPoint = at(sFinal, hImage * (sFinal - sEyepiece) / (sImage - sEyepiece));
+    finalIsReal = sFinal > sEyepiece;
+  }
+  const outgoing = (hit: Point): Point[] => {
+    if (!finalPoint) {
+      const direction = Math.abs(hImage) <= tolerance
+        ? axisDirection
+        : normalize({ x: train.eyepieceCenter.x - image.x, y: train.eyepieceCenter.y - image.y });
+      return [hit, { x: hit.x + direction.x * raySpan, y: hit.y + direction.y * raySpan }];
+    }
+    const delta = finalIsReal
+      ? { x: finalPoint.x - hit.x, y: finalPoint.y - hit.y }
+      : { x: hit.x - finalPoint.x, y: hit.y - finalPoint.y };
+    const direction = Math.hypot(delta.x, delta.y) < EPSILON ? axisDirection : normalize(delta);
+    const length = finalIsReal ? distance(hit, finalPoint) + raySpan * 0.5 : raySpan;
+    return [hit, { x: hit.x + direction.x * length, y: hit.y + direction.y * length }];
+  };
+  return [
+    { kind: "path", directed: true, points: [train.object, objectiveHits[0]!] },
+    { kind: "path", directed: true, points: [train.object, objectiveHits[1]!] },
+    { kind: "path", directed: true, points: [objectiveHits[0]!, image, eyepieceHits[0]!] },
+    { kind: "path", directed: true, points: [objectiveHits[1]!, image, eyepieceHits[1]!] },
+    { kind: "path", directed: true, points: outgoing(eyepieceHits[0]!) },
+    { kind: "path", directed: true, points: outgoing(eyepieceHits[1]!) },
   ];
 }
 

@@ -67,6 +67,13 @@ export function opticsRoles(document: SceneDocument): OpticsRoles | null {
     rolesCache.set(document, null);
     return null;
   }
+  const roles = collectOpticsRoles(document);
+  rolesCache.set(document, roles);
+  return roles;
+}
+
+function collectOpticsRoles(document: SceneDocument): OpticsRoles {
+  const constructions = document.constructions ?? [];
   const lightPaths = new Map<string, LightPathRole>();
   const normals = new Set<string>();
   const surfaces = new Set<string>();
@@ -111,9 +118,7 @@ export function opticsRoles(document: SceneDocument): OpticsRoles | null {
   surfaces.forEach((id) => elements.add(id));
   // A normal is never a light path, whatever kind the planner gave it.
   normals.forEach((id) => lightPaths.delete(id));
-  const roles = { lightPaths, normals, surfaces, elements };
-  rolesCache.set(document, roles);
-  return roles;
+  return { lightPaths, normals, surfaces, elements };
 }
 
 export interface LightPathClipInput {
@@ -206,6 +211,98 @@ export function clipLightPathsAtElements(input: LightPathClipInput): void {
       geometry.set(path.id, { ...path.value, points: truncatePoints(path.value.points, best.s, best.point) } as GeometryLike);
     }
   }
+}
+
+/** Operators whose `axis` input declares an optical axis. */
+const AXIS_OPERATORS = new Set(["lens_section", "spherical_surface", "optical_train", "gaussian_image", "optical_focus"]);
+
+export interface AxisArrowInput {
+  document: SceneDocument;
+  geometry: Map<string, GeometryLike>;
+  /** True when the entity is drawn ink in the compiled figure. */
+  drawn: (id: string) => boolean;
+  issues: SceneIssue[];
+}
+
+/**
+ * Object and image arrows stand on their rays. When a figure draws light
+ * paths and declares an optical axis (the `axis` input of an optics
+ * operator), every drawn arrow (`vector` output or entity) whose foot is on
+ * that axis and which stands across it must have its tip on a drawn light
+ * path or that path's straight extension. Otherwise the arrows mark an
+ * object or image the rays never form: `axis_arrow_off_rays`.
+ */
+export function validateAxisArrowsOnRays(input: AxisArrowInput): void {
+  const { document, geometry } = input;
+  const constructions = document.constructions ?? [];
+  const axisIds = new Set<string>();
+  for (const construction of constructions) {
+    const axis = (construction.inputs as Record<string, unknown> | undefined)?.axis;
+    if (AXIS_OPERATORS.has(construction.operator) && typeof axis === "string") axisIds.add(axis);
+  }
+  if (axisIds.size === 0) return;
+  const roles = opticsRoles(document) ?? collectOpticsRoles(document);
+  const rays: Point[][] = [];
+  for (const id of roles.lightPaths.keys()) {
+    if (!input.drawn(id)) continue;
+    const value = geometry.get(id);
+    if (isPath(value) && !value.closed && value.points.length >= 2 && value.points.every(finitePoint)) rays.push(value.points);
+  }
+  if (rays.length === 0) return;
+  const axes: Array<[Point, Point]> = [];
+  for (const id of axisIds) {
+    const value = geometry.get(id);
+    if (isPath(value) && value.points.length >= 2 && value.points.every(finitePoint)) {
+      axes.push([value.points[0]!, value.points.at(-1)!]);
+    }
+  }
+  if (axes.length === 0) return;
+  const vectorOutputs = new Set(constructions.flatMap((construction) =>
+    construction.operator === "vector" && Array.isArray(construction.outputs) ? construction.outputs : []));
+  const arrows: Array<{ id: string; foot: Point; tip: Point }> = [];
+  for (const entity of document.entities ?? []) {
+    if (entity.kind !== "vector" && !vectorOutputs.has(entity.id)) continue;
+    if (roles.lightPaths.has(entity.id) || !input.drawn(entity.id)) continue;
+    const value = geometry.get(entity.id);
+    if (!isPath(value) || value.infinite || value.points.length < 2 || !value.points.every(finitePoint)) continue;
+    const foot = value.points[0]!;
+    const tip = value.points.at(-1)!;
+    if (distance(foot, tip) > 0) arrows.push({ id: entity.id, foot, tip });
+  }
+  if (arrows.length === 0) return;
+  // About 3 px on a full diagram, as for the element crossings.
+  const span = sceneScale([...rays.flat(), ...arrows.flatMap((arrow) => [arrow.foot, arrow.tip])]);
+  if (!(span > 1e-9)) return;
+  const tolerance = 4e-3 * span;
+  for (const arrow of arrows) {
+    const stands = axes.some(([a, b]) => {
+      if (lineDistance(arrow.foot, a, b) > tolerance) return false;
+      const ax = b.x - a.x;
+      const ay = b.y - a.y;
+      const vx = arrow.tip.x - arrow.foot.x;
+      const vy = arrow.tip.y - arrow.foot.y;
+      return Math.abs(ax * vx + ay * vy) <= 0.2 * Math.hypot(ax, ay) * Math.hypot(vx, vy);
+    });
+    if (!stands) continue;
+    const onRay = rays.some((points) => points.some((point, index) =>
+      index + 1 < points.length && lineDistance(arrow.tip, point, points[index + 1]!) <= tolerance));
+    if (onRay) continue;
+    input.issues.push({
+      code: "axis_arrow_off_rays",
+      message: `${arrow.id} stands on the optical axis but its tip is on no drawn ray or ray extension; the rays do not form that object or image`,
+      severity: "fatal",
+      entityIds: [arrow.id],
+    });
+  }
+}
+
+/** Distance from a point to the line through a and b (to a when they coincide). */
+function lineDistance(point: Point, a: Point, b: Point): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const length = Math.hypot(dx, dy);
+  if (!(length > 0)) return distance(point, a);
+  return Math.abs(dy * (point.x - a.x) - dx * (point.y - a.y)) / length;
 }
 
 /** The rendered stroke cut at a clip point that lies on it, else unchanged. */
