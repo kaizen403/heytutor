@@ -11,6 +11,12 @@
  * (wrong f, wrong element kind, wrong drawn sense, an invented ray hit, a
  * free-point mirror with the image at the wrong distance), each also with a
  * forged `source.archetype`, never become planner figures.
+ *
+ * G1a/G1b: the metric unit rule applies only when a stated slot is compared:
+ * a stem with no numbers proves a unitless figure, a stem with numbers does not.
+ * G2c/G2d: magnitude inputs (`form`, plan ids) draw; a form that contradicts the
+ * stem, or an unsigned literal the plan does not support, never does.
+ * G6a: a structural failure still reports plan agreement in the same pass.
  */
 import {
   compileSceneDocument,
@@ -18,7 +24,10 @@ import {
   type SceneDocument,
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
-import { selectVerifiedRepresentation } from "../../features/tutor-session/lib/scene/representationFallback";
+import {
+  explainPlannerOpticsProof,
+  selectVerifiedRepresentation,
+} from "../../features/tutor-session/lib/scene/representationFallback";
 import {
   selectProductionScene,
   validateProductionSceneCandidate,
@@ -322,7 +331,79 @@ for (const [name, question, turnPlan, document, archetype] of wrongFigures) {
   expectNeverPlanner("G3", `${name}, with a forged archetype stamp`, question, turnPlan, stamped(document, archetype));
 }
 
-for (const gate of ["G1", "G2", "G3"]) {
+// ---- G1a: a stem with no numbers proves a unitless figure ----
+const unitless = (document: Doc): Doc => {
+  const copy = structuredClone(document);
+  for (const construction of copy.constructions) {
+    if (construction.operator === "gaussian_image" || construction.operator === "optical_focus") delete construction.inputs.lengthUnit;
+  }
+  return copy;
+};
+const qHowLens = "How does a convex lens form an image?";
+const howLens = unitless(lensDoc(qHowLens, { u: 4, f: 2, h: 1 }));
+howLens.quantities = [];
+for (const [name, document] of [
+  ["a unitless convex lens (u = -4, f = 2)", howLens],
+  ["the same unitless lens in magnitude mode", (() => {
+    const copy = structuredClone(howLens);
+    for (const construction of copy.constructions) {
+      if (construction.operator === "gaussian_image") Object.assign(construction.inputs, { objectDistance: 4, form: "converging" });
+      if (construction.operator === "optical_focus") Object.assign(construction.inputs, { form: "converging" });
+    }
+    return copy;
+  })()],
+] as const) {
+  const { fatalIssues, result } = compiled(document);
+  check("G1a", result.ok && fatalIssues.length === 0, `${name} must compile clean (${fatalIssues.slice(0, 3).join("; ")})`);
+  const proof = explainPlannerOpticsProof(qHowLens, document);
+  check("G1a", proof.proof === "proven", `${name} on "${qHowLens}" must be proven; got ${proof.proof}: ${proof.reason}`);
+}
+
+// ---- G1b: a stem with numbers still needs a metric unit ----
+{
+  const proof = explainPlannerOpticsProof(qLens, unitless(goodLens));
+  check("G1b", proof.proof === "unproven" && /lengthUnit/.test(proof.reason),
+    `the stated-number lens stem with lengthUnit omitted must stay unproven on the unit rule; got ${proof.proof}: ${proof.reason}`);
+}
+
+// ---- G2c: magnitude inputs on the plan's own ids draw ----
+function magnitudeMirror(form: "converging" | "diverging", focal: string | number = "f"): Doc {
+  const copy = structuredClone(goodMirror);
+  for (const construction of copy.constructions) {
+    if (construction.operator === "gaussian_image") Object.assign(construction.inputs, { objectDistance: "u", focalLength: focal, form, objectSide: "real" });
+    if (construction.operator === "optical_focus") Object.assign(construction.inputs, { focalLength: focal, form });
+  }
+  return copy;
+}
+const quantityCodes = (document: Doc): string[] => {
+  const validation = validateProductionSceneCandidate({
+    candidate: structuredClone(document) as unknown as Record<string, unknown>, question: qMirror, turnPlan: mirrorPlan,
+  });
+  return validation.errors.map((issue) => issue.code);
+};
+expectDrawnAsPlanner("G2c", "the concave mirror in magnitude mode on plan ids u and f", qMirror, mirrorPlan, magnitudeMirror("converging"));
+check("G2c", !quantityCodes(magnitudeMirror("converging")).some((code) => code.startsWith("scene_quantity")),
+  `the magnitude mirror must raise no scene_quantity issue; got ${quantityCodes(magnitudeMirror("converging")).join(", ")}`);
+
+// ---- G2d: a contradicting form or an unsupported literal never draws ----
+expectNeverPlanner("G2d", "the concave mirror stem drawn with form diverging", qMirror, mirrorPlan, magnitudeMirror("diverging"));
+expectNeverPlanner("G2d", "the magnitude mirror with a literal f = 10", qMirror, mirrorPlan, magnitudeMirror("converging", 10));
+check("G2d", quantityCodes(magnitudeMirror("converging", 10)).includes("scene_quantity_unverified"),
+  `a magnitude literal f = 10 must fail scene_quantity_unverified; got ${quantityCodes(magnitudeMirror("converging", 10)).join(", ")}`);
+check("G2d", !quantityCodes(magnitudeMirror("converging", 15)).some((code) => code.startsWith("scene_quantity")),
+  `a magnitude literal equal to the plan's f = 15 must pass agreement; got ${quantityCodes(magnitudeMirror("converging", 15)).join(", ")}`);
+
+// ---- G6a: a structural failure still reports plan agreement ----
+{
+  const bad = structuredClone(goodMirror);
+  bad.entities = bad.entities.map((entity) => entity.id === "F" ? { ...entity, label: "F″" } : entity);
+  bad.quantities = bad.quantities.map((quantity) => quantity.id === "u" ? { ...quantity, value: -20 } : quantity);
+  const codes = quantityCodes(bad);
+  check("G6a", codes.includes("invalid_optical_focus_label") && codes.includes("scene_quantity_mismatch"),
+    `a bad focus label and a signed u under the plan's id must both be reported in one validation; got ${codes.join(", ")}`);
+}
+
+for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a"]) {
   console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 }
 if (failures.length > 0) {

@@ -25,6 +25,7 @@ import {
   type FigureSource,
   relativeMotionSource,
   relativeMotionPlanConflicts,
+  resolveCartesianOpticsInputs,
   riverCrossingPlanConflicts,
   riverCrossingSpeeds,
   RELATIVE_MOTION_SOURCE_MODEL,
@@ -709,32 +710,43 @@ function opticsProofFailure(match: OpticsStemMatch, document: SceneDocument): st
   const inputs = image.inputs;
   if (inputs.kind !== element) return `gaussian_image kind ${String(inputs.kind)} on a ${match.id} stem`;
   if (image.outputs.length !== 4) return "gaussian_image must output object base, object tip, image base and image tip";
-  // P2: a real object with light along +axis, the stem's focal sign, a metric unit.
-  const scale = opticsCmPerUnit(inputs.lengthUnit);
-  if (scale === null) return "gaussian_image lengthUnit must be cm, m or mm";
-  const u = opticsNumber(inputs.objectDistance, document) * scale;
-  const f = opticsNumber(inputs.focalLength, document) * scale;
+  // P2: u and f read through the engine's own Cartesian resolver (signed inputs, or
+  // unsigned magnitudes with form), so the proof and the engine cannot disagree.
+  // A real object with light along +axis, the stem's focal sign, and the stem's form.
+  const resolved = opticsResolved(inputs, document, "gaussian_image");
+  if (typeof resolved === "string") return `gaussian_image ${resolved}`;
+  const converges = element === "lens" ? stemKind === "convex" : stemKind === "concave";
+  if (resolved.form !== undefined && (resolved.form === "converging") !== converges) {
+    return `gaussian_image form ${resolved.form} contradicts a ${stemKind} ${element}`;
+  }
+  const u = resolved.objectDistance ?? Number.NaN;
+  const f = resolved.focalLength;
   if (!Number.isFinite(u) || !(u < 0)) return "objectDistance must be negative: a real object with light along +axis";
   const focalSign = element === "lens" ? (stemKind === "convex" ? 1 : -1) : (stemKind === "concave" ? -1 : 1);
   if (!Number.isFinite(f) || Math.sign(f) !== focalSign) return `focalLength sign contradicts a ${stemKind} ${element}`;
-  // P3: |u| and |f| are the stem's (f = R/2 when only R is stated).
-  for (const [slot, value] of [["u", -u], ["f", Math.abs(f)]] as const) {
-    const stated = match.slots[slot];
-    const source = match.sources[slot];
-    if ((source === "stem" || source === "plan") && typeof stated === "number" && !opticsClose(value, stated)) {
-      return `${slot} = ${value} cm contradicts the stem's ${stated} cm`;
-    }
+  // P3: |u| and |f| are the stem's (f = R/2 when only R is stated). A metric unit is
+  // required only when a stated slot is compared; a stem with no numbers draws
+  // representative unitless values.
+  const statedSlots = (["u", "f"] as const).filter((slot) =>
+    (match.sources[slot] === "stem" || match.sources[slot] === "plan") && typeof match.slots[slot] === "number");
+  const scale = opticsCmPerUnit(inputs.lengthUnit);
+  if (statedSlots.length > 0 && scale === null) return "gaussian_image lengthUnit must be cm, m or mm";
+  for (const slot of statedSlots) {
+    const stated = match.slots[slot] as number;
+    const value = (slot === "u" ? -u : Math.abs(f)) * scale!;
+    if (!opticsClose(value, stated)) return `${slot} = ${value} cm contradicts the stem's ${stated} cm`;
   }
-  // P4: every focus is the engine focus of this element.
+  // P4: every focus is the engine focus of this element, in the image's unit.
   const foci = document.constructions.filter((construction) => construction.operator === "optical_focus");
   if (foci.length === 0) return "no optical_focus";
   const displayScale = opticsNumber(inputs.displayScale, document);
   for (const focus of foci) {
-    const focusScale = opticsCmPerUnit(focus.inputs.lengthUnit);
+    const focusResolved = opticsResolved(focus.inputs, document, "optical_focus");
     if (
-      focus.inputs.kind !== element || focusScale !== scale ||
+      typeof focusResolved === "string" ||
+      focus.inputs.kind !== element || opticsUnitKey(focus.inputs.lengthUnit) !== opticsUnitKey(inputs.lengthUnit) ||
       !sameOpticsInput(focus.inputs.center, inputs.center) || !sameOpticsInput(focus.inputs.axis, inputs.axis) ||
-      !opticsClose(opticsNumber(focus.inputs.focalLength, document) * focusScale, f) ||
+      !opticsClose(focusResolved.focalLength, f) ||
       !opticsClose(opticsNumber(focus.inputs.displayScale, document), displayScale)
     ) return `optical_focus ${focus.id} disagrees with the gaussian_image element`;
   }
@@ -909,6 +921,29 @@ function opticsNumber(value: unknown, document: SceneDocument, depth = 0): numbe
   if (typeof value !== "string" || !value.trim()) return Number.NaN;
   const quantity = document.quantities.find((item) => item.id === value);
   return quantity ? opticsNumber(quantity.value, document, depth + 1) : Number(value);
+}
+
+/** The engine's Cartesian reading of optics inputs, or the reason it refuses them. */
+function opticsResolved(
+  inputs: Record<string, unknown>,
+  document: SceneDocument,
+  operator: "gaussian_image" | "optical_focus",
+): ReturnType<typeof resolveCartesianOpticsInputs> | string {
+  try {
+    return resolveCartesianOpticsInputs(inputs, (value) => opticsNumber(value, document), operator);
+  } catch (error) {
+    return error instanceof Error ? error.message : "inputs are not readable";
+  }
+}
+
+/** One key per length scale: metric units by their cm factor, unitless spellings as "unit". */
+function opticsUnitKey(value: unknown): string | null {
+  if (value === undefined) return "unit";
+  if (typeof value !== "string") return null;
+  const scale = opticsCmPerUnit(value);
+  if (scale !== null) return `cm*${scale}`;
+  const unit = value.trim().toLowerCase();
+  return ["unit", "units", "1", "dimensionless"].includes(unit) ? "unit" : unit;
 }
 
 function opticsCmPerUnit(value: unknown): number | null {

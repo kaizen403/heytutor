@@ -98,18 +98,83 @@ export function deriveSceneGate(input: ProductionSceneInput): ProductionSceneGat
   };
 }
 
+type AgreementIssue = { code: string; message: string; path: string; severity: "fatal" };
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+const PLAN_LENGTH_UNIT = /^(?:m|cm|mm|km|um|µm|μm|nm|in|ft|inch(?:es)?|foot|feet|(?:centi|milli|kilo|micro|nano)?met(?:er|re)s?)$/i;
+const OPTICS_MAGNITUDE_INPUTS: Readonly<Record<string, readonly string[]>> = {
+  gaussian_image: ["objectDistance", "focalLength"],
+  optical_focus: ["focalLength"],
+};
+
+/**
+ * In magnitude mode (`form` present) `gaussian_image` and `optical_focus` read
+ * objectDistance and focalLength as the plan's unsigned values. An inline
+ * literal there is checked like a scene quantity, so a number the plan does
+ * not support fails on every stem. Stems whose plan gives no length draw
+ * representative values and are skipped.
+ */
+function opticsMagnitudeLiteralIssues(
+  document: { quantities?: unknown; constructions?: unknown },
+  plan: TurnPlanV3,
+): AgreementIssue[] {
+  if (!plan.givens.some((given) => typeof given.unit === "string" && PLAN_LENGTH_UNIT.test(given.unit.trim()))) return [];
+  const quantityIds = new Set((Array.isArray(document.quantities) ? document.quantities : [])
+    .filter(isPlainRecord).map((quantity) => quantity.id).filter((id) => typeof id === "string"));
+  const issues: AgreementIssue[] = [];
+  (Array.isArray(document.constructions) ? document.constructions : []).forEach((construction, index) => {
+    if (!isPlainRecord(construction) || typeof construction.operator !== "string" || !isPlainRecord(construction.inputs)) return;
+    const keys = OPTICS_MAGNITUDE_INPUTS[construction.operator];
+    const inputs = construction.inputs;
+    if (!keys || inputs.form === undefined) return;
+    for (const key of keys) {
+      const wrapper = isPlainRecord(inputs[key]) ? inputs[key] as Record<string, unknown> : undefined;
+      const raw = wrapper ? wrapper.value : inputs[key];
+      if (typeof raw === "string" && quantityIds.has(raw)) continue;
+      const value = typeof raw === "number" ? raw : typeof raw === "string" && raw.trim() ? Number(raw) : Number.NaN;
+      if (!Number.isFinite(value)) continue;
+      const unit = typeof wrapper?.unit === "string" ? wrapper.unit : inputs.lengthUnit;
+      const id = `${String(construction.id ?? construction.operator)}.${key}`;
+      for (const issue of validateSceneQuantityAgreement([{ id, value: Math.abs(value), ...(unit === undefined ? {} : { unit }) }], plan)) {
+        issues.push({ code: issue.code, message: `${issue.message} (a ${construction.operator} magnitude literal)`, path: `constructions[${index}].inputs.${key}`, severity: "fatal" });
+      }
+    }
+  });
+  return issues;
+}
+
+/**
+ * Plan agreement on the candidate as written, reported alongside a structural
+ * failure so one repair round sees both kinds of error. Only finite numeric
+ * quantities are read: normalization never had a chance to run.
+ */
+function rawQuantityAgreementIssues(candidate: Record<string, unknown>, plan: TurnPlanV3): AgreementIssue[] {
+  const quantities = (Array.isArray(candidate.quantities) ? candidate.quantities : [])
+    .filter((quantity): quantity is Record<string, unknown> & { id: string } =>
+      isPlainRecord(quantity) && typeof quantity.id === "string" &&
+      typeof quantity.value === "number" && Number.isFinite(quantity.value));
+  return [
+    ...validateSceneQuantityAgreement(quantities, plan).map((issue) => ({
+      code: issue.code, message: issue.message, path: issue.path, severity: "fatal" as const,
+    })),
+    ...opticsMagnitudeLiteralIssues(candidate, plan),
+  ];
+}
+
 /** Candidate validation order is unchanged: normalize/prune, quantities, source, obligations, compile. */
 export function validateProductionSceneCandidate(input: {
   candidate: Record<string, unknown>; question: string; turnPlan: TurnPlanV3;
 }): SceneCandidateValidation<ValidatedSceneCandidate> {
   const { candidate, question, turnPlan: authoritativePlan } = input;
+  const structuralFailure = (issues: ValidationReport["issues"]): SceneCandidateValidation<ValidatedSceneCandidate> => ({
+    valid: false,
+    errors: [...issues, ...rawQuantityAgreementIssues(candidate, authoritativePlan)],
+  });
   let validated = validateSceneDocument(pruneDeadSceneEntities(candidate));
-  if (!validated.document) {
-    return {
-      valid: false,
-      errors: validated.report.issues,
-    };
-  }
+  if (!validated.document) return structuralFailure(validated.report.issues);
   const routeNormalized = normalizeClaimedClosedRouteGeometry(
     validated.document,
     authoritativePlan,
@@ -122,36 +187,29 @@ export function validateProductionSceneCandidate(input: {
     validated = validateSceneDocument(pruneDeadSceneEntities(
       constraintNormalized as unknown as Record<string, unknown>,
     ));
-    if (!validated.document) {
-      return {
-        valid: false,
-        errors: validated.report.issues,
-      };
-    }
+    if (!validated.document) return structuralFailure(validated.report.issues);
   }
   const annotationPruned = pruneUnverifiedSceneAnnotations(validated.document, authoritativePlan);
   if (annotationPruned !== validated.document) {
     validated = validateSceneDocument(pruneDeadSceneEntities(
       annotationPruned as unknown as Record<string, unknown>,
     ));
-    if (!validated.document) {
-      return {
-        valid: false,
-        errors: validated.report.issues,
-      };
-    }
+    if (!validated.document) return structuralFailure(validated.report.issues);
   }
   const agreementIssues = validateSceneQuantityAgreement(
     validated.document.quantities,
     authoritativePlan,
     displayedSceneQuantityTexts(validated.document),
   );
-  const authorityIssues = agreementIssues.map((issue) => ({
-    code: issue.code,
-    message: issue.message,
-    path: issue.path,
-    severity: "fatal" as const,
-  }));
+  const authorityIssues = [
+    ...agreementIssues.map((issue) => ({
+      code: issue.code,
+      message: issue.message,
+      path: issue.path,
+      severity: "fatal" as const,
+    })),
+    ...opticsMagnitudeLiteralIssues(validated.document, authoritativePlan),
+  ];
   const sourceIssues = validateMatrixSourceBinding(validated.document, question, authoritativePlan);
   const proofIssues = validateTurnPlanSceneProofs(validated.document, authoritativePlan);
   const compiledScene = compileSceneDocument(validated.document);
