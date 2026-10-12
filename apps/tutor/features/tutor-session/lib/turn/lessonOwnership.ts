@@ -18,7 +18,7 @@ interface Attempt {
   controller: AbortController;
   claim: LessonClaim | null;
 }
-const ADMISSION_VALIDATION_DEADLINE_MS = 12_000;
+const ADMISSION_STAGE_DEADLINE_MS = 12_000;
 
 /** One synchronous attempt per shell, before acquisition or any provider work. */
 export class LessonAdmission {
@@ -35,6 +35,8 @@ export class LessonAdmission {
     boardId: string,
     options: {
       current(): boolean;
+      /** Optional board creation, held under the same exclusive claim. */
+      prepare?(signal: AbortSignal): Promise<boolean>;
       /** Fresh saved last-page chain, checked under the exclusive claim. */
       validate(signal: AbortSignal): Promise<boolean>;
       run(): Promise<void>;
@@ -64,7 +66,9 @@ export class LessonAdmission {
         attempt.claim = claim;
         if (
           !current() ||
-          !(await this.validateUnderDeadline(attempt, options.validate)) ||
+          (options.prepare && !(await this.stageUnderDeadline(attempt, options.prepare))) ||
+          !current() ||
+          !(await this.stageUnderDeadline(attempt, options.validate)) ||
           !current()
         ) {
           acknowledge(false);
@@ -82,8 +86,8 @@ export class LessonAdmission {
     })();
     return { admitted, finished };
   }
-  /** Bound only the fresh-history admission, never an admitted lesson's claim. */
-  private async validateUnderDeadline(
+  /** Bound creation and fresh history separately, never an admitted lesson's claim. */
+  private async stageUnderDeadline(
     attempt: Attempt,
     validate: (signal: AbortSignal) => Promise<boolean>,
   ): Promise<boolean> {
@@ -97,7 +101,7 @@ export class LessonAdmission {
     });
     const deadline = setTimeout(
       () => attempt.controller.abort(),
-      ADMISSION_VALIDATION_DEADLINE_MS,
+      ADMISSION_STAGE_DEADLINE_MS,
     );
     try {
       return await Promise.race([

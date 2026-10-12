@@ -2734,12 +2734,12 @@ export function useQuestionHandler(
       const admissionCurrent = () => admissionBoardRef.current === sessionId && turnGenerationRef.current === generation && phaseRef.current === "idle" && !turnActiveRef.current;
       const receipt = lessonAdmission().start(cancelRef, sessionId, {
         current: admissionCurrent,
+        // Creation must not consume the fresh-history read's bounded window.
+        prepare: isDraft && commitDraftBoard
+          ? async () => { await commitDraftBoard(); return true; }
+          : undefined,
         validate: async (signal) => {
-          // Commit a home draft under the held claim, then require an owned read.
           // A stale draft prop or unavailable GET never stands for empty history.
-          if (isDraft && commitDraftBoard) {
-            try { await commitDraftBoard(); } catch { return false; }
-          }
           if (signal.aborted || !admissionCurrent()) return false;
           const detail = await fetchBoardDetail(sessionId, { signal }).catch(() => null);
           if (signal.aborted || !admissionCurrent()) return false;
