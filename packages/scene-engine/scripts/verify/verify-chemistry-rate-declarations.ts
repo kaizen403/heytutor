@@ -1283,11 +1283,177 @@ for(const c of linearUnitCases)try {
   checkDocument(c,document);
   const valid=validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string,unknown>));assert.ok(valid.document);
   const compiled=compileSceneDocument(valid.document);assert.ok(compiled.ok&&compiled.renderScene);const texts=compiled.renderScene.primitives.filter(p=>p.kind==="label").map(p=>p.text??"");
-  assert.ok(texts.includes(c.axis));assert.ok(texts.some(t=>t.includes("t_1/2")&&t.includes(c.unit!)),"compiled half-life mark must retain its source time unit");
+  const expectedAxis=c.order===0?`${c.axis} (M)`:c.axis;
+  const axisOwner=document.entities.find(e=>e.kind==="label"&&e.role==="axis label"&&e.label===expectedAxis);assert.ok(axisOwner,"the source axis must include its physical concentration unit");
+  assert.ok(compiled.renderScene.primitives.some(p=>p.kind==="label"&&p.entityId===axisOwner.id&&p.text===expectedAxis));assert.ok(texts.some(t=>t.includes("t_1/2")&&t.includes(c.unit!)),"compiled half-life mark must retain its source time unit");
  }
  results.push({id:c.id,passed:true});
 }catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
 // END ADDITIVE LINEAR RATE QUANTITY UNIT-ROLE GATES
+
+// BEGIN ADDITIVE RATE-REPEAT AND USE-DELIMITER REPAIR GATES
+const repairedRateCases:RateCase[] = [
+  {
+    "id": "REPAIR-agree-source-1",
+    "question": "A first order reaction has rate constant is 0.0462 min^-1; its rate constant is 0.0462 min^-1. Draw the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.0462,
+    "unit": "min"
+  },
+  {
+    "id": "REPAIR-agree-source-2",
+    "question": "A first order reaction has k = 0.00077 s^-1 and rate constant is 0.0462 min^-1. Draw the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.00077,
+    "unit": "s"
+  },
+  {
+    "id": "REPAIR-agree-source-3",
+    "question": "At 298 K a first order reaction has Rate Constant = 0.0231 min^-1 and k is 2.31e-2 min^-1. Draw the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.0231,
+    "unit": "min"
+  },
+  {
+    "id": "REPAIR-agree-source-4",
+    "question": "A first order reaction has k = 0.0231 min^-1, rate constant is 0.000385 s^-1, and k = 2.31e-2 min^-1. Draw the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.0231,
+    "unit": "min"
+  },
+  {
+    "id": "REPAIR-use-source-1",
+    "question": "A first order reaction has k = 0.0231 min^-1. Use\tthe\trate constant\tto draw the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.0231,
+    "unit": "min"
+  },
+  {
+    "id": "REPAIR-use-source-2",
+    "question": "A first order reaction has k = 0.0231 min^-1. Use its rate constant to sketch the normalized decay curve.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.0231,
+    "unit": "min"
+  },
+  {
+    "id": "REPAIR-use-source-3",
+    "question": "A first order reaction has k = 0.0231 min^-1. Use a rate constant to plot its decay curve. Then use the rate constant to sketch the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.0231,
+    "unit": "min"
+  },
+  {
+    "id": "REPAIR-use-source-4",
+    "question": "A first order reaction has k = 0.0231 min^-1. Use the rate constant to draw [A]/[A]0 versus time.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.0231,
+    "unit": "min"
+  },
+  {
+    "id": "REPAIR-strict-source-1",
+    "question": "A first order reaction has k = 0.0231 min^-1. Use the rate constantto draw the decay curve.",
+    "refuse": true,
+    "order": 1,
+    "k": 0.0231,
+    "unit": "min"
+  },
+  {
+    "id": "REPAIR-strict-source-2",
+    "question": "A first order reaction has k = 0.0231 min^-1. Use the unreadable rate constant to draw the decay curve.",
+    "refuse": true,
+    "order": 1,
+    "k": 0.0231,
+    "unit": "min"
+  },
+  {
+    "id": "REPAIR-strict-source-3",
+    "question": "A first order reaction has k = unknown; rate constant is 0.0231 min^-1. Use the rate constant to draw the decay curve.",
+    "refuse": true,
+    "order": 1,
+    "k": 0.0231,
+    "unit": "min"
+  },
+  {
+    "id": "REPAIR-strict-source-4",
+    "question": "A first order reaction has k = 0.0231 min^-1; rate constant is 0.0462 min^-1. Use the rate constant to sketch the decay curve.",
+    "refuse": true,
+    "order": 1,
+    "k": 0.0231,
+    "unit": "min"
+  },
+  {
+    "id": "REPAIR-strict-source-5",
+    "question": "A first order reaction has rate constant is 0.0231 min^-1; rate constant is unknown. Draw the decay curve.",
+    "refuse": true,
+    "order": 1,
+    "k": 0.0231,
+    "unit": "min"
+  },
+  {
+    "id": "REPAIR-strict-source-6",
+    "question": "A first order reaction has k = 0.0231 min^-1. Use the rate constant to draw the decay curve taking its value as 0.04 min^-1.",
+    "refuse": true,
+    "order": 1,
+    "k": 0.0231,
+    "unit": "min"
+  }
+];
+for(const c of repairedRateCases)try {
+ const spec=kineticsFromStem(c.question),exact=buildKineticsScene(c.question,[],false),schematic=buildKineticsScene(c.question,[],true),ordinary=synthesizeFamilyScene({question:c.question});
+ if(c.refuse){assert.equal(spec,null);assert.equal(exact,null);assert.equal(schematic,null);assert.equal(ordinary,null);}
+ else {
+  assert.ok(spec);assert.equal(spec.plot,"concentration");assert.equal(spec.arrhenius?.k2??null,null,"agreeing repeats are one singular rate, not a second temperature measurement");
+  const solved=solveKinetics(spec),truth=expected(c);assert.equal(solved.timeUnit,c.unit);assert.ok(solved.k!==null&&solved.tHalf!==null);assert.ok(Math.abs(solved.k-truth.k)<=Math.abs(truth.k)*1e-12);assert.ok(Math.abs(solved.tHalf-truth.half)<=Math.abs(truth.half)*1e-12);
+  assert.ok(exact&&schematic&&ordinary);for(const document of [exact,schematic,ordinary.document])checkDocument(c,document);
+ }
+ results.push({id:c.id,passed:true});
+}catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
+// END ADDITIVE RATE-REPEAT AND USE-DELIMITER REPAIR GATES
+
+// BEGIN ADDITIVE PHYSICAL AXIS SOURCE/RENDER REPAIR GATES
+const repairedAxisCases:(RateCase&{axis:string})[] = [
+  {
+    "id": "REPAIR-qualified-zero-axis",
+    "question": "A zero order reaction has k = 0.3 M min^-1 and initial concentration is 1.8 M. Draw [A] against time.",
+    "refuse": false,
+    "order": 0,
+    "k": 0.3,
+    "half": 3,
+    "initial": 1.8,
+    "unit": "min",
+    "axis": "[A] (M)"
+  },
+  {
+    "id": "REPAIR-source-second-axis",
+    "question": "A second order reaction has k = 0.1 L mol^-1 h^-1 and initial concentration is 5 M. Draw 1/[A] versus time.",
+    "refuse": false,
+    "order": 2,
+    "k": 0.1,
+    "half": 2,
+    "initial": 5,
+    "unit": "h",
+    "axis": "1/[A]"
+  }
+];
+for(const c of repairedAxisCases)try {
+ const spec=kineticsFromStem(c.question);assert.ok(spec);assert.equal(spec.order,c.order);assert.equal(spec.a0,c.initial);const solved=solveKinetics(spec),truth=expected(c);assert.ok(solved.k!==null&&solved.tHalf!==null);assert.ok(Math.abs(solved.k-truth.k)<=Math.abs(truth.k)*1e-12);assert.ok(Math.abs(solved.tHalf-truth.half)<=Math.abs(truth.half)*1e-12);
+ const exact=buildKineticsScene(c.question,[],false),schematic=buildKineticsScene(c.question,[],true),ordinary=synthesizeFamilyScene({question:c.question});assert.ok(exact&&schematic&&ordinary);
+ for(const document of [exact,schematic,ordinary.document]) {
+  checkDocument(c,document);const sourceAxis=document.entities.find(e=>e.kind==="label"&&e.role==="axis label"&&e.label===c.axis);assert.ok(sourceAxis);
+  const valid=validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string,unknown>));assert.ok(valid.document);const compiled=compileSceneDocument(valid.document);assert.ok(compiled.ok&&compiled.renderScene);
+  assert.ok(compiled.renderScene.primitives.some(p=>p.kind==="label"&&p.entityId===sourceAxis.id&&p.text===c.axis));
+ }
+ results.push({id:c.id,passed:true});
+}catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
+// END ADDITIVE PHYSICAL AXIS SOURCE/RENDER REPAIR GATES
 
 const output={schema:"chemistry-rate-declarations-gate/v1",passed:results.filter(x=>x.passed).length,failed:results.filter(x=>!x.passed).length,results};
 console.log(JSON.stringify(output,null,2));assert.equal(output.failed,0);

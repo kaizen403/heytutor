@@ -378,10 +378,11 @@ function pureQuantityRequestTail(tail: string): boolean {
   return request !== null && pureKineticsPlotSubject(tail.slice(request[0].length));
 }
 /** A use-reference carries no scalar, assignment or unread input material. */
-function quantityUseReferenceOnly(body: string, ownerStart: number, tail: string): boolean {
-  const request = /^\s+to\s+(?:draw|plot|sketch)\s+/i.exec(tail);
+function quantityUseReferenceOnly(body: string, ownerStart: number, payloadStart: number, tail: string): boolean {
+  const request = /^\s*to\s+(?:draw|plot|sketch)\s+/i.exec(tail);
+  const delimiter = /^\s/.test(tail) || /\s$/.test(body.slice(ownerStart, payloadStart));
   return /\buse\s+(?:(?:the|its|a)\s+)?$/i.test(body.slice(0, ownerStart))
-    && request !== null && pureKineticsPlotSubject(tail.slice(request[0].length));
+    && delimiter && request !== null && pureKineticsPlotSubject(tail.slice(request[0].length));
 }
 /** A qualitative rate change contains only its complete thermal payload. */
 function qualitativeRateChangeOnly(question: string, start: number, end: number): boolean {
@@ -422,7 +423,7 @@ function readRateConstant(stem: string, order: ReactionOrder | null = 1): { valu
     if (equation.ok && /^k\b/.test(owner[0]) && equation.reading.source.span.start >= start
       && /^\s*=\s*A\s*$/i.test(body.slice(start, equation.reading.source.span.start))
       && equation.reading.source.span.end <= end && body.slice(equation.reading.source.span.end, end).trim() === "") continue;
-    if (qualitativeRateChangeOnly(stem, start, end) || quantityUseReferenceOnly(body, owner.index!, tail)) continue;
+    if (qualitativeRateChangeOnly(stem, start, end) || quantityUseReferenceOnly(body, owner.index!, start, tail)) continue;
     const supplied = /^\s*,?\s*(?:[=:]|(?:is|was|are|equals|equal to|has|takes|value|given|stated|measured|assumed|supplied|provided|with\s+(?:the\s+)?value|unknown|unreadable|unavailable)\b)/i.test(tail)
       || new RegExp(String.raw`^\s*,?\s*(?:(?:of|about|nearly|approximately)\s+)?(?:${SCALAR}|unknown\b|unreadable\b|unavailable\b)`, "i").test(tail);
     if (!supplied) {
@@ -471,7 +472,7 @@ function readInitialConcentration(stem: string): {value: number; unit: string} |
     if (next && end === next.index && /concentration/i.test(owner[0])
       && /^(?:\[a\]|a_?0\b)/i.test(next[0]) && !/^\s*\//.test(body.slice(next.index! + next[0].length))
       && /^\s*(?:(?:is|was|equals|equal to)|[=:])?\s*$/i.test(tail)) continue;
-    if (quantityUseReferenceOnly(body, owner.index!, tail)) continue;
+    if (quantityUseReferenceOnly(body, owner.index!, start, tail)) continue;
     const requested = /\b(?:find|calculate|determine|compute|obtain|evaluate|what\s+(?:is|would\s+be|will\s+be))\s+(?:(?:the|its|a)\s+)?$/i.test(body.slice(0, owner.index));
     if (requested && pureQuantityRequestTail(tail)) continue;
     const read = readChemistryQuantity({question: stem, after: /^/, within: {start, end}, dimension:"concentration"});
@@ -646,7 +647,10 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
   const pattern = /(?:rate constant|(?<!\b(?:ln|log)\s*)\bk\b)\s*(?:_?[12]|₁|₂)?\s*(?:,?\s*k\s*)?(?:=|is|:)/gi;
   for (const match of stem.matchAll(pattern)) {
     const read = readChemistryQuantity({question: stem, after: /^/, within: {start: match.index! + match[0].length, end: stem.length}, dimension: "rate_constant_first"});
-    if (read.ok) constants.push(read.reading.value);
+    // Repeated singular givens do not create a second Arrhenius measurement.
+    // Indexed owners or distinct temperatures retain separate measurement roles.
+    if (read.ok && ((T1 !== null && T2 !== null && T1 !== T2) || /\bk(?:_?[12]|₁|₂)/i.test(match[0])
+      || !constants.some(value => chemistryCanonicalValuesAgree(value, read.reading.value)))) constants.push(read.reading.value);
   }
   const k1 = constants[0] ?? null; const k2 = constants[1] ?? null;
   if (Ea === null && ratio === null && k1 === null && statedSlope === null) return null;
