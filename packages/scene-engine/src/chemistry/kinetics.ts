@@ -784,13 +784,14 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
   const timesOwners = [...stem.matchAll(/\b(?:rate constant|rate)\b/gi)];
   for (const [index, owner] of timesOwners.entries()) {
     const payloadStart = owner.index! + owner[0].length;
-    let ownerEnd = Math.min(timesOwners[index + 1]?.index ?? stem.length, payloadStart + 80);
+    let ownerEnd = timesOwners[index + 1]?.index ?? stem.length;
     const boundary = /[;?\n]/.exec(stem.slice(payloadStart, ownerEnd));
     if (boundary) ownerEnd = payloadStart + boundary.index;
     // The strict reader owns decimal punctuation, including a trailing dot.
     // Any intervening sentence text remains in this payload and must refuse.
-    const marker = /(?:times|fold)/i.exec(stem.slice(payloadStart, ownerEnd));
+    const marker = /\b(?:times|fold)\b/i.exec(stem.slice(payloadStart, ownerEnd));
     if (!marker) continue;
+    if (marker.index > 80) return false;
     const payload = [payloadStart, payloadStart + marker.index] as const;
     const prefix = /^\s*(?:of\s+(?:(?:the|a|this)\s+)?reaction\s*)?(?:(?:becomes?|increases?|decreases?|changes?)(?:\s+by)?\s+)?/i.exec(stem.slice(payload[0],payload[1]))!;
     const start = payload[0] + prefix[0].length;
