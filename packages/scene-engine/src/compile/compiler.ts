@@ -64,6 +64,7 @@ import {
 } from "./annotationMarks";
 import { appendCompiledAnnotations } from "./sceneAnnotations";
 import { lensSectionOutline, sphericalSurfaceGeometry } from "./opticsSurfaces";
+import { clipLightPathsAtElements, truncateRenderedPath } from "./lightPathElements";
 import { readPolyhedralSolid, polyhedralPaths, polyhedralSection, type PolyhedralSolid } from "../math/polyhedralSolid";
 import { evaluateCombinatoricsConstruction, type CombinatoricsGraphDefinition, type CombinatoricsNodeDefinition, type CombinatoricsEdgeDefinition } from "./combinatoricsGeometry";
 import { evaluateElasticityConstruction, type ElasticProfileDefinition, type ElasticStateDefinition } from "./elasticityGeometry";
@@ -188,7 +189,7 @@ type DerivedGeometryMetadata = {
 
 type Geometry =
   | ({ kind: "point"; point: Point; space?: Vec3; spaceFrameId?: string; spaceCross?: SpaceCrossDefinition; sampledCurve?: SampledCurve } & DerivedGeometryMetadata)
-  | ({ kind: "path"; points: Point[]; closed?: boolean; directed?: boolean; infinite?: boolean; sampledCurve?: SampledCurve; markedAngleRadians?: number; spaceLine?: SpaceLineDefinition; spacePlane?: SpacePlaneDefinition; spaceSegment?: SpaceSegmentDefinition; spaceAngle?: SpaceAngleDefinition; spaceCross?: SpaceCrossDefinition } & DerivedGeometryMetadata)
+  | ({ kind: "path"; points: Point[]; closed?: boolean; directed?: boolean; infinite?: boolean; elementClip?: Point; sampledCurve?: SampledCurve; markedAngleRadians?: number; spaceLine?: SpaceLineDefinition; spacePlane?: SpacePlaneDefinition; spaceSegment?: SpaceSegmentDefinition; spaceAngle?: SpaceAngleDefinition; spaceCross?: SpaceCrossDefinition } & DerivedGeometryMetadata)
   | ({
       kind: "multi_path";
       paths: Point[][];
@@ -391,6 +392,18 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   validateDisplayDescendantClaims(document, geometry, checkedClaimOutputIds, issues);
   validateSolidMeasurements(document, issues, (value) => resolveNumber(value, quantities));
   for (const assertion of document.assertions) validateAssertion(assertion, geometry, document, issues);
+  if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, 0) };
+  // Light stops at the optical elements it meets: cut outgoing rays at their
+  // first crossing, refuse an incident ray that crosses one before its contact.
+  const drawnEntityIds = new Set(document.requiredEntityIds);
+  clipLightPathsAtElements({
+    document,
+    geometry,
+    drawn: (id) => drawnEntityIds.has(id) && !constructionOnlyIds.has(id) && entityToGroup.has(id) &&
+      document.entities.some((entity) => entity.id === id && entity.kind !== "label"),
+    resolvePoint: (value) => resolvePoint(value, geometry),
+    issues,
+  });
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, 0) };
   issues.push(...validateCircleLabelTraces(document));
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, 0) };
@@ -2436,6 +2449,11 @@ function toPrimitives(entityId: string, entityKind: string, value: Geometry, gro
         viewport,
       )
     : transformedPoints;
+  // A light path cut at an optical element stops there, inside or past the view clip.
+  if (value.elementClip && renderPoints.length >= 2) {
+    const clip = transform(value.elementClip);
+    renderPoints = truncateRenderedPath(renderPoints, { x: round(clip.x), y: round(clip.y) });
+  }
   if (directionOverlay && renderPoints.length >= 2) {
     renderPoints = offsetDirectionMarker(renderPoints[0]!, renderPoints.at(-1)!);
   }
@@ -4861,6 +4879,11 @@ function screenLabelAnchor(entityId: string, value: Geometry, primitives: Render
     const start = rendered?.points[0];
     const end = rendered?.points.at(-1);
     if (start && end) {
+      // A ray cut at an optical element is a finite stroke; label it like one.
+      if (value.elementClip) {
+        const clip = transform(value.elementClip);
+        if (Math.hypot(end.x - clip.x, end.y - clip.y) < 1) return labelAnchorForPath([start, end], value.directed === true, false);
+      }
       // Infinite lines are clipped independently of their construction span.
       // A label leader must attach to the visible stroke, not an off-board
       // endpoint retained solely for the mathematical line definition.

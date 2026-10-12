@@ -1,0 +1,423 @@
+/**
+ * Light paths stop at the optical elements they meet.
+ *
+ * A ray's drawn extent comes from a construction span or the view edge, so a
+ * refracted ray inside a prism ran straight on through the second face, a ray
+ * refracted into a sphere left through the far side unbent, and a ray to a
+ * convex mirror's centre passed through the mirror. Each is a figure that
+ * shows light crossing glass or a mirror with no event there.
+ *
+ * Rule, from declared operator outputs and inputs only:
+ * - a light path may cross an element boundary only at one of its own
+ *   vertices;
+ * - an outgoing path is cut at its first crossing (drawn extent and label
+ *   anchor both follow the cut);
+ * - a path that is incident on a contact and crosses an element before that
+ *   contact cannot be repaired: `incident_path_crosses_element`.
+ *
+ * Thin lens excuse: a path with a vertex strictly inside a closed element
+ * passes through it (rays meet a thin lens at its centre plane).
+ */
+import type { SceneDocument, SceneIssue } from "../types";
+
+interface Point { x: number; y: number }
+
+type PathValue = {
+  kind: "path";
+  points: Point[];
+  closed?: boolean;
+  directed?: boolean;
+  infinite?: boolean;
+  elementClip?: Point;
+};
+type ElementValue =
+  | PathValue
+  | { kind: "circle"; center: Point; radius: number }
+  | { kind: "arc"; center: Point; radius: number; startAngle: number; endAngle: number };
+type GeometryLike = { kind: string };
+
+/** Operators whose `surface` (or `target`) input is an optical boundary. */
+const SURFACE_OPERATORS = new Set(["refract_at", "reflect_at", "surface_contact", "surface_intersection", "normal_at"]);
+/** Operators whose outputs are optical elements. */
+const ELEMENT_OPERATORS = new Set(["lens_section", "spherical_surface"]);
+/** A document has light paths only when it declares an optical event or element. */
+const OPTICS_OPERATORS = new Set([...SURFACE_OPERATORS, ...ELEMENT_OPERATORS, "refract_direction", "reflect_direction", "optical_train"]);
+
+export interface LightPathRole {
+  /** Contacts this path is incident on (point references as declared). */
+  contacts: unknown[];
+  /** The second point of an infinite path is a declared point it passes through. */
+  declaredThrough: boolean;
+}
+
+export interface OpticsRoles {
+  lightPaths: Map<string, LightPathRole>;
+  normals: Set<string>;
+  surfaces: Set<string>;
+  elements: Set<string>;
+}
+
+const rolesCache = new WeakMap<SceneDocument, OpticsRoles | null>();
+
+/** Light paths, normals and element boundaries a document declares, or null without optics. */
+export function opticsRoles(document: SceneDocument): OpticsRoles | null {
+  if (rolesCache.has(document)) return rolesCache.get(document)!;
+  const constructions = document.constructions ?? [];
+  if (!constructions.some((construction) => OPTICS_OPERATORS.has(construction.operator))) {
+    rolesCache.set(document, null);
+    return null;
+  }
+  const lightPaths = new Map<string, LightPathRole>();
+  const normals = new Set<string>();
+  const surfaces = new Set<string>();
+  const elements = new Set<string>();
+  const light = (id: unknown, contact?: unknown, declaredThrough = false) => {
+    if (typeof id !== "string" || !id) return;
+    const role = lightPaths.get(id) ?? { contacts: [], declaredThrough: false };
+    if (contact !== undefined) role.contacts.push(contact);
+    role.declaredThrough ||= declaredThrough;
+    lightPaths.set(id, role);
+  };
+  for (const construction of constructions) {
+    const inputs = (construction.inputs ?? {}) as Record<string, unknown>;
+    const outputs = Array.isArray(construction.outputs) ? construction.outputs : [];
+    const operator = construction.operator;
+    if (SURFACE_OPERATORS.has(operator)) {
+      const surface = inputs.surface ?? inputs.target;
+      if (typeof surface === "string") surfaces.add(surface);
+    }
+    if (ELEMENT_OPERATORS.has(operator)) outputs.forEach((id) => elements.add(id));
+    if (operator === "refract_at" || operator === "reflect_at") {
+      light(outputs[0], inputs.point ?? inputs.contact);
+      if (outputs[1]) normals.add(outputs[1]);
+      light(outputs[2]);
+    } else if (operator === "refract_direction" || operator === "reflect_direction") {
+      outputs.forEach((id) => light(id));
+      light(inputs.incoming ?? inputs.direction, inputs.origin ?? inputs.point);
+      if (typeof inputs.normal === "string") normals.add(inputs.normal);
+    } else if (operator === "surface_contact") {
+      if (outputs[1]) light(outputs[1], outputs[0]);
+    } else if (operator === "normal_at") {
+      outputs.forEach((id) => normals.add(id));
+    } else if (operator === "optical_train") {
+      outputs.forEach((id) => light(id));
+    } else if (operator === "ray") {
+      light(outputs[0], undefined, true);
+    }
+  }
+  for (const entity of document.entities ?? []) {
+    if (entity.kind === "ray") light(entity.id);
+  }
+  surfaces.forEach((id) => elements.add(id));
+  // A normal is never a light path, whatever kind the planner gave it.
+  normals.forEach((id) => lightPaths.delete(id));
+  const roles = { lightPaths, normals, surfaces, elements };
+  rolesCache.set(document, roles);
+  return roles;
+}
+
+export interface LightPathClipInput {
+  document: SceneDocument;
+  geometry: Map<string, GeometryLike>;
+  /** True when the entity is drawn ink in the compiled figure. */
+  drawn: (id: string) => boolean;
+  resolvePoint: (value: unknown) => Point;
+  issues: SceneIssue[];
+}
+
+/**
+ * Cut every drawn light path at the first element boundary it crosses away
+ * from its own vertices, or report an incident path that crosses one before
+ * its contact. Finite paths are shortened in place; infinite rays keep their
+ * definition and carry `elementClip`, which the renderer applies after the
+ * view clip.
+ */
+export function clipLightPathsAtElements(input: LightPathClipInput): void {
+  const roles = opticsRoles(input.document);
+  if (!roles) return;
+  const { geometry } = input;
+  const paths: Array<{ id: string; value: PathValue; role: LightPathRole; vertices: Point[] }> = [];
+  for (const [id, role] of roles.lightPaths) {
+    if (!input.drawn(id)) continue;
+    const value = geometry.get(id);
+    if (!isPath(value) || value.closed || value.points.length < 2) continue;
+    if (value.infinite && (!value.directed || value.points.length !== 2)) continue;
+    const vertices = value.infinite
+      ? (role.declaredThrough ? value.points.slice(0, 2) : [value.points[0]!])
+      : value.points;
+    paths.push({ id, value, role, vertices });
+  }
+  if (paths.length === 0) return;
+
+  const candidates = new Map<string, ElementValue>();
+  for (const id of roles.elements) {
+    if (!input.drawn(id) || roles.lightPaths.has(id)) continue;
+    const value = geometry.get(id);
+    if (isElement(value)) candidates.set(id, value);
+  }
+  const allVertices = paths.flatMap((path) => path.vertices);
+  // Closed regions become elements once a light path has a vertex on their edge.
+  const closedRegions: Array<[string, ElementValue]> = [];
+  for (const [id, value] of geometry) {
+    if (candidates.has(id) || roles.lightPaths.has(id) || roles.normals.has(id) || !input.drawn(id)) continue;
+    if (!isElement(value) || !isClosed(value)) continue;
+    closedRegions.push([id, value]);
+  }
+  // Tolerances scale with the figure: about 3 px on a full diagram.
+  const span = sceneScale([...allVertices, ...[...candidates.values(), ...closedRegions.map(([, value]) => value)].flatMap(elementExtent)]);
+  if (!(span > 1e-9)) return;
+  const tolerance = 4e-3 * span;
+  for (const [id, value] of closedRegions) {
+    if (allVertices.some((vertex) => boundaryDistance(vertex, value) <= tolerance)) candidates.set(id, value);
+  }
+  if (candidates.size === 0) return;
+  const far = 1e4 * span;
+
+  for (const path of paths) {
+    const segments = pathSegments(path.value, far);
+    let best: { s: number; point: Point; elementId: string } | null = null;
+    for (const [elementId, element] of candidates) {
+      if (elementId === path.id) continue;
+      if (isClosed(element) && path.vertices.some((vertex) => strictlyInside(vertex, element, tolerance))) continue;
+      for (const hit of crossings(segments, element, far)) {
+        if (path.vertices.some((vertex) => distance(vertex, hit.point) <= tolerance)) continue;
+        if (!best || hit.s < best.s) best = { ...hit, elementId };
+      }
+    }
+    if (!best) continue;
+    const incidentCrossing = path.role.contacts.some((reference) => {
+      let contact: Point;
+      try { contact = input.resolvePoint(reference); } catch { return false; }
+      const projected = projectOntoSegments(contact, segments);
+      return projected.distance <= tolerance && best!.s < projected.s - tolerance;
+    });
+    if (incidentCrossing) {
+      input.issues.push({
+        code: "incident_path_crosses_element",
+        message: `${path.id} crosses ${best.elementId} before it reaches its contact; light cannot pass an optical element with no event there`,
+        severity: "fatal",
+        entityIds: [path.id, best.elementId],
+      });
+      continue;
+    }
+    if (path.value.infinite) {
+      geometry.set(path.id, { ...path.value, elementClip: best.point } as GeometryLike);
+    } else {
+      geometry.set(path.id, { ...path.value, points: truncatePoints(path.value.points, best.s, best.point) } as GeometryLike);
+    }
+  }
+}
+
+/** The rendered stroke cut at a clip point that lies on it, else unchanged. */
+export function truncateRenderedPath<T extends Point>(points: T[], clip: T): T[] {
+  if (points.length < 2) return points;
+  const start = points[0]!;
+  const end = points.at(-1)!;
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (!(lengthSquared > 0)) return points;
+  const t = ((clip.x - start.x) * dx + (clip.y - start.y) * dy) / lengthSquared;
+  if (!(t > 1e-6 && t < 1 - 1e-6)) return points;
+  if (points.length === 2) return [start, clip];
+  return points;
+}
+
+function isPath(value: GeometryLike | undefined): value is PathValue {
+  return value?.kind === "path" && Array.isArray((value as PathValue).points);
+}
+
+function isElement(value: GeometryLike | undefined): value is ElementValue {
+  if (!value) return false;
+  if (isPath(value)) return value.points.length >= 2 && value.points.every(finitePoint);
+  if (value.kind === "circle") {
+    const circle = value as unknown as { center: Point; radius: number };
+    return finitePoint(circle.center) && circle.radius > 0;
+  }
+  if (value.kind === "arc") {
+    const arc = value as unknown as { center: Point; radius: number; startAngle: number; endAngle: number };
+    return finitePoint(arc.center) && arc.radius > 0 && Number.isFinite(arc.startAngle) && Number.isFinite(arc.endAngle);
+  }
+  return false;
+}
+
+function isClosed(value: ElementValue): boolean {
+  return value.kind === "circle" || (value.kind === "path" && value.closed === true && value.points.length >= 3);
+}
+
+function finitePoint(point: Point | undefined): point is Point {
+  return Boolean(point) && Number.isFinite(point!.x) && Number.isFinite(point!.y);
+}
+
+function elementExtent(value: ElementValue): Point[] {
+  if (value.kind === "path") return value.infinite ? value.points.slice(0, 1) : value.points;
+  return [
+    { x: value.center.x - value.radius, y: value.center.y - value.radius },
+    { x: value.center.x + value.radius, y: value.center.y + value.radius },
+  ];
+}
+
+function sceneScale(points: Point[]): number {
+  const finite = points.filter(finitePoint);
+  if (finite.length === 0) return 0;
+  const xs = finite.map((point) => point.x);
+  const ys = finite.map((point) => point.y);
+  return Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+}
+
+function distance(a: Point, b: Point): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+type Segment = { a: Point; b: Point; s0: number; length: number };
+
+function pathSegments(value: PathValue, far: number): Segment[] {
+  const points = value.infinite
+    ? (() => {
+        const [start, next] = value.points as [Point, Point];
+        const length = distance(start, next);
+        return [start, { x: start.x + (next.x - start.x) / length * far, y: start.y + (next.y - start.y) / length * far }];
+      })()
+    : value.points;
+  const segments: Segment[] = [];
+  let s0 = 0;
+  for (let index = 0; index + 1 < points.length; index += 1) {
+    const a = points[index]!;
+    const b = points[index + 1]!;
+    const length = distance(a, b);
+    if (length > 0) segments.push({ a, b, s0, length });
+    s0 += length;
+  }
+  return segments;
+}
+
+function elementEdges(value: PathValue, far: number): Array<[Point, Point]> {
+  const points = value.points;
+  if (value.infinite) {
+    const [start, next] = points as [Point, Point];
+    const length = distance(start, next);
+    if (!(length > 0)) return [];
+    const ux = (next.x - start.x) / length;
+    const uy = (next.y - start.y) / length;
+    const from = value.directed ? start : { x: start.x - ux * far, y: start.y - uy * far };
+    return [[from, { x: start.x + ux * far, y: start.y + uy * far }]];
+  }
+  const edges: Array<[Point, Point]> = [];
+  for (let index = 0; index + 1 < points.length; index += 1) edges.push([points[index]!, points[index + 1]!]);
+  if (value.closed && points.length >= 3) edges.push([points.at(-1)!, points[0]!]);
+  return edges;
+}
+
+function crossings(segments: Segment[], element: ElementValue, far: number): Array<{ s: number; point: Point }> {
+  const hits: Array<{ s: number; point: Point }> = [];
+  for (const segment of segments) {
+    if (element.kind === "path") {
+      for (const [c, d] of elementEdges(element, far)) {
+        const t = segmentIntersection(segment.a, segment.b, c, d);
+        if (t !== null) hits.push({ s: segment.s0 + t * segment.length, point: lerp(segment.a, segment.b, t) });
+      }
+    } else {
+      for (const t of segmentCircle(segment.a, segment.b, element.center, element.radius)) {
+        const point = lerp(segment.a, segment.b, t);
+        if (element.kind === "arc" && !angleOnArc(Math.atan2(point.y - element.center.y, point.x - element.center.x), element.startAngle, element.endAngle)) continue;
+        hits.push({ s: segment.s0 + t * segment.length, point });
+      }
+    }
+  }
+  return hits;
+}
+
+/** Parameter along a→b of a proper crossing with c→d, or null (parallel or missing). */
+function segmentIntersection(a: Point, b: Point, c: Point, d: Point): number | null {
+  const rx = b.x - a.x;
+  const ry = b.y - a.y;
+  const sx = d.x - c.x;
+  const sy = d.y - c.y;
+  const denominator = rx * sy - ry * sx;
+  if (Math.abs(denominator) <= 1e-9 * Math.hypot(rx, ry) * Math.hypot(sx, sy)) return null;
+  const t = ((c.x - a.x) * sy - (c.y - a.y) * sx) / denominator;
+  const u = ((c.x - a.x) * ry - (c.y - a.y) * rx) / denominator;
+  if (t < -1e-9 || t > 1 + 1e-9 || u < -1e-9 || u > 1 + 1e-9) return null;
+  return Math.max(0, Math.min(1, t));
+}
+
+function segmentCircle(a: Point, b: Point, center: Point, radius: number): number[] {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const fx = a.x - center.x;
+  const fy = a.y - center.y;
+  const A = dx * dx + dy * dy;
+  const B = 2 * (fx * dx + fy * dy);
+  const C = fx * fx + fy * fy - radius * radius;
+  const discriminant = B * B - 4 * A * C;
+  // A tangent ray touches the boundary without crossing it.
+  if (!(A > 0) || !(discriminant > 1e-12 * A * radius * radius)) return [];
+  const root = Math.sqrt(discriminant);
+  return [(-B - root) / (2 * A), (-B + root) / (2 * A)].filter((t) => t >= -1e-9 && t <= 1 + 1e-9);
+}
+
+function angleOnArc(value: number, start: number, end: number): boolean {
+  const full = Math.PI * 2;
+  const low = Math.min(start, end);
+  const sweep = Math.abs(end - start);
+  if (sweep >= full - 1e-9) return true;
+  const offset = (((value - low) % full) + full) % full;
+  return offset <= sweep + 1e-9;
+}
+
+function lerp(a: Point, b: Point, t: number): Point {
+  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+}
+
+function projectOntoSegments(point: Point, segments: Segment[]): { s: number; distance: number } {
+  let best = { s: 0, distance: Number.POSITIVE_INFINITY };
+  for (const segment of segments) {
+    const dx = segment.b.x - segment.a.x;
+    const dy = segment.b.y - segment.a.y;
+    const t = Math.max(0, Math.min(1, ((point.x - segment.a.x) * dx + (point.y - segment.a.y) * dy) / (dx * dx + dy * dy)));
+    const gap = distance(point, lerp(segment.a, segment.b, t));
+    if (gap < best.distance) best = { s: segment.s0 + t * segment.length, distance: gap };
+  }
+  return best;
+}
+
+function pointSegmentDistance(point: Point, a: Point, b: Point): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lengthSquared = dx * dx + dy * dy;
+  const t = lengthSquared > 0 ? Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared)) : 0;
+  return distance(point, lerp(a, b, t));
+}
+
+function boundaryDistance(point: Point, element: ElementValue): number {
+  if (element.kind === "path") {
+    return Math.min(...elementEdges(element, 0).map(([a, b]) => pointSegmentDistance(point, a, b)));
+  }
+  return Math.abs(distance(point, element.center) - element.radius);
+}
+
+function strictlyInside(point: Point, element: ElementValue, tolerance: number): boolean {
+  if (element.kind === "circle") return distance(point, element.center) < element.radius - tolerance;
+  if (element.kind !== "path" || !element.closed) return false;
+  const points = element.points;
+  let inside = false;
+  for (let index = 0, previous = points.length - 1; index < points.length; previous = index, index += 1) {
+    const a = points[index]!;
+    const b = points[previous]!;
+    if ((a.y > point.y) !== (b.y > point.y) && point.x < (b.x - a.x) * (point.y - a.y) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside && boundaryDistance(point, element) > tolerance;
+}
+
+function truncatePoints(points: Point[], s: number, hit: Point): Point[] {
+  const kept: Point[] = [points[0]!];
+  let walked = 0;
+  for (let index = 0; index + 1 < points.length; index += 1) {
+    const length = distance(points[index]!, points[index + 1]!);
+    if (walked + length >= s) break;
+    kept.push(points[index + 1]!);
+    walked += length;
+  }
+  kept.push(hit);
+  return kept;
+}
