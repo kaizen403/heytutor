@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { applySectionFormulaAuthority, buildSolverAuthorityProjection, compileSceneDocument, LocalDeterministicSolverProvider, verifyTurnPlanAgainstSolver, validateProblemIR, type TurnPlanV3 } from "@heytutor/scene-engine";
 import { IncrementalTagParser, parseDrawingCommands, serializeSegmentCommands, unwrapMathMarkup, type TutorSegment } from "@heytutor/drawing";
 import { requestedNameCases, namedProblemFor } from "../../../../packages/scene-engine/scripts/verify/verify-w1-section-fullir";
@@ -14,8 +15,20 @@ import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersiste
 import { mathToSpeech } from "../../../../packages/tutor-core/src/tts/speechNotation";
 import type { StoredTurn } from "../../lib/boards/boardsClient";
 
+/** Keep the startup gate reachable even if its own publication command is removed. */
+function verifyStartupTelemetryCiPath(publicationScript: string, workflow: string): void {
+  assert(publicationScript.split("&&").map((command) => command.trim()).includes("tsx scripts/verify/verify-startup-telemetry.ts"),
+    "CI publication must run the existing startup telemetry gate");
+  assert(/^\s*run:\s*pnpm --filter @heytutor\/tutor verify:publication\s*$/m.test(workflow),
+    "the tutor CI workflow must reach verify:publication");
+}
+
 async function main(): Promise<void> {
-let checks = 0;
+const manifest = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as { scripts: Record<string, string> };
+const publicationScript = manifest.scripts["verify:publication"]!;
+const workflow = readFileSync(new URL("../../../../.github/workflows/deploy-tutor.yml", import.meta.url), "utf8");
+verifyStartupTelemetryCiPath(publicationScript, workflow);
+let checks = 2;
 for (const [input, expected] of [
   [String.raw`\frac{3}{2}^2`, "(3/2)^2"],
   [String.raw`\frac{1}{\frac{2}{3}}`, "(1/((2/3)))"],
