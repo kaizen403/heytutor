@@ -17,13 +17,13 @@
       {
         "id": "E0",
         "kind": "component",
-        "role": "driver cell",
+        "role": "driver cell, long plate (+) at A",
         "label": "E"
       },
       {
         "id": "cell",
         "kind": "component",
-        "role": "test cell",
+        "role": "test cell, long plate (+) at A",
         "label": "ε"
       },
       {
@@ -40,18 +40,18 @@
       },
       {
         "id": "wAJ",
-        "kind": "connector",
-        "role": "potentiometer wire"
+        "kind": "component",
+        "role": "potentiometer wire, A to the jockey"
       },
       {
         "id": "wJB",
-        "kind": "connector",
-        "role": "potentiometer wire"
+        "kind": "component",
+        "role": "potentiometer wire, jockey to B"
       },
       {
         "id": "w1",
-        "kind": "connector",
-        "role": "wire"
+        "kind": "component",
+        "role": "return wire carrying I"
       },
       {
         "id": "w2",
@@ -151,7 +151,7 @@
         "operator": "point",
         "inputs": {
           "x": 0,
-          "y": 3,
+          "y": 2.5,
           "coordinateSpace": "layout"
         },
         "outputs": [
@@ -163,7 +163,7 @@
         "operator": "point",
         "inputs": {
           "x": 10,
-          "y": 3,
+          "y": 2.5,
           "coordinateSpace": "layout"
         },
         "outputs": [
@@ -175,7 +175,7 @@
         "operator": "point",
         "inputs": {
           "x": 0,
-          "y": -3,
+          "y": -2.5,
           "coordinateSpace": "layout"
         },
         "outputs": [
@@ -187,7 +187,7 @@
         "operator": "point",
         "inputs": {
           "x": 6,
-          "y": -3,
+          "y": -2.5,
           "coordinateSpace": "layout"
         },
         "outputs": [
@@ -196,8 +196,9 @@
       },
       {
         "id": "kwAJ",
-        "operator": "connect",
+        "operator": "symbol",
         "inputs": {
+          "symbol": "wire",
           "start": "A",
           "end": "J"
         },
@@ -207,8 +208,9 @@
       },
       {
         "id": "kwJB",
-        "operator": "connect",
+        "operator": "symbol",
         "inputs": {
+          "symbol": "wire",
           "start": "J",
           "end": "B"
         },
@@ -230,10 +232,11 @@
       },
       {
         "id": "kw1",
-        "operator": "connect",
+        "operator": "symbol",
         "inputs": {
-          "start": "p1",
-          "end": "p2"
+          "symbol": "wire",
+          "start": "p2",
+          "end": "p1"
         },
         "outputs": [
           "w1"
@@ -290,9 +293,9 @@
         "id": "ki",
         "operator": "sign_badge",
         "inputs": {
-          "target": "Rh",
+          "target": "w1",
           "sense": "positive",
-          "at": 0
+          "at": 0.3
         },
         "outputs": [
           "i"
@@ -347,28 +350,19 @@
         ],
         "expected": true,
         "severity": "fatal"
-      }
-    ],
-    "annotations": [
-      {
-        "id": "polE",
-        "kind": "polarity",
-        "targetIds": [
-          "A",
-          "p1"
-        ],
-        "text": "+−"
       },
       {
-        "id": "polC",
-        "kind": "polarity",
-        "targetIds": [
-          "A",
-          "s1"
+        "id": "wirePath",
+        "predicate": "path",
+        "entities": [
+          "wAJ",
+          "wJB"
         ],
-        "text": "+−"
+        "expected": true,
+        "severity": "fatal"
       }
     ],
+    "annotations": [],
     "requiredEntityIds": [
       "A",
       "J",

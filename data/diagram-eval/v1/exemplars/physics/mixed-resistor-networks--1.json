@@ -1,0 +1,415 @@
+{
+  "topic_id": "physics|12|mixed-resistor-networks",
+  "question": "Draw a circuit in which a 30 V cell is connected to a 5 Ω resistor, followed by 24 Ω and 40 Ω resistors joined in parallel between the same two junctions. Show the direction of the current through the cell.",
+  "figure_kind": "circuit",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "cell, a resistor in series, then a parallel pair between junctions P and Q"
+    },
+    "source": {
+      "question": "Draw a circuit in which a 30 V cell is connected to a 5 Ω resistor, followed by 24 Ω and 40 Ω resistors joined in parallel between the same two junctions. Show the direction of the current through the cell.",
+      "archetype": "resistor_network"
+    },
+    "quantities": [
+      {
+        "id": "q_E",
+        "symbol": "E",
+        "value": 30,
+        "unit": "V"
+      },
+      {
+        "id": "q_R1",
+        "symbol": "R1",
+        "value": 5,
+        "unit": "ohm"
+      },
+      {
+        "id": "q_R2",
+        "symbol": "R2",
+        "value": 24,
+        "unit": "ohm"
+      },
+      {
+        "id": "q_R3",
+        "symbol": "R3",
+        "value": 40,
+        "unit": "ohm"
+      }
+    ],
+    "entities": [
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "corner"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "junction",
+        "label": "P"
+      },
+      {
+        "id": "Q",
+        "kind": "point",
+        "role": "junction",
+        "label": "Q"
+      },
+      {
+        "id": "C",
+        "kind": "point",
+        "role": "corner"
+      },
+      {
+        "id": "D",
+        "kind": "point",
+        "role": "corner"
+      },
+      {
+        "id": "G",
+        "kind": "point",
+        "role": "corner"
+      },
+      {
+        "id": "cell",
+        "kind": "component",
+        "role": "source cell, long plate (+) at start",
+        "label": "30 V"
+      },
+      {
+        "id": "R1",
+        "kind": "component",
+        "role": "resistor",
+        "label": "R₁ = 5 Ω"
+      },
+      {
+        "id": "R2",
+        "kind": "component",
+        "role": "resistor",
+        "label": "R₂ = 24 Ω"
+      },
+      {
+        "id": "R3",
+        "kind": "component",
+        "role": "resistor",
+        "label": "R₃ = 40 Ω"
+      },
+      {
+        "id": "w_QC",
+        "kind": "connector",
+        "role": "wire"
+      },
+      {
+        "id": "w_CD",
+        "kind": "connector",
+        "role": "wire"
+      },
+      {
+        "id": "w_DG",
+        "kind": "connector",
+        "role": "wire"
+      },
+      {
+        "id": "current",
+        "kind": "sign_badge",
+        "role": "current through the cell, leaving its + terminal",
+        "label": "I"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_A",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "make_P",
+        "operator": "point",
+        "inputs": {
+          "x": 3,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "make_Q",
+        "operator": "point",
+        "inputs": {
+          "x": 6,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Q"
+        ]
+      },
+      {
+        "id": "make_C",
+        "operator": "point",
+        "inputs": {
+          "x": 7.5,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "C"
+        ]
+      },
+      {
+        "id": "make_D",
+        "operator": "point",
+        "inputs": {
+          "x": 7.5,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "D"
+        ]
+      },
+      {
+        "id": "make_G",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "G"
+        ]
+      },
+      {
+        "id": "make_cell",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "cell",
+          "start": "A",
+          "end": "G"
+        },
+        "outputs": [
+          "cell"
+        ]
+      },
+      {
+        "id": "make_R1",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "resistor",
+          "start": "A",
+          "end": "P"
+        },
+        "outputs": [
+          "R1"
+        ]
+      },
+      {
+        "id": "make_R2",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "resistor",
+          "start": "P",
+          "end": "Q"
+        },
+        "outputs": [
+          "R2"
+        ]
+      },
+      {
+        "id": "make_R3",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "resistor",
+          "start": "P",
+          "end": "Q"
+        },
+        "outputs": [
+          "R3"
+        ]
+      },
+      {
+        "id": "make_w_QC",
+        "operator": "connect",
+        "inputs": {
+          "start": "Q",
+          "end": "C"
+        },
+        "outputs": [
+          "w_QC"
+        ]
+      },
+      {
+        "id": "make_w_CD",
+        "operator": "connect",
+        "inputs": {
+          "start": "C",
+          "end": "D"
+        },
+        "outputs": [
+          "w_CD"
+        ]
+      },
+      {
+        "id": "make_w_DG",
+        "operator": "connect",
+        "inputs": {
+          "start": "D",
+          "end": "G"
+        },
+        "outputs": [
+          "w_DG"
+        ]
+      },
+      {
+        "id": "make_current",
+        "operator": "sign_badge",
+        "inputs": {
+          "target": "R1",
+          "sense": "positive",
+          "at": 0
+        },
+        "outputs": [
+          "current"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "pair_shares_terminals",
+        "predicate": "sameTerminalPair",
+        "entities": [
+          "R2",
+          "R3"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_R2",
+        "predicate": "label_attached",
+        "entities": [
+          "R2"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_R3",
+        "predicate": "label_attached",
+        "entities": [
+          "R3"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_current",
+        "predicate": "label_attached",
+        "entities": [
+          "current"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "A",
+      "P",
+      "Q",
+      "C",
+      "D",
+      "G",
+      "cell",
+      "R1",
+      "R2",
+      "R3",
+      "w_QC",
+      "w_CD",
+      "w_DG",
+      "current"
+    ],
+    "revealGroups": [
+      {
+        "id": "main_loop",
+        "entityIds": [
+          "A",
+          "G",
+          "P",
+          "Q",
+          "C",
+          "D",
+          "cell",
+          "R1",
+          "w_QC",
+          "w_CD",
+          "w_DG"
+        ],
+        "dependsOn": [],
+        "narrationCue": "the cell drives current through R₁ to junction P"
+      },
+      {
+        "id": "parallel_pair",
+        "entityIds": [
+          "R2",
+          "R3"
+        ],
+        "dependsOn": [
+          "main_loop"
+        ],
+        "narrationCue": "R₂ and R₃ in parallel, both between P and Q"
+      },
+      {
+        "id": "current_group",
+        "entityIds": [
+          "current"
+        ],
+        "dependsOn": [
+          "parallel_pair"
+        ],
+        "narrationCue": "the current I leaves the + terminal of the cell and flows through R₁"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_main_loop",
+        "action": "reveal",
+        "targetId": "main_loop",
+        "dependsOn": [],
+        "narrationIntent": "the cell drives current through R₁ to junction P"
+      },
+      {
+        "id": "reveal_parallel_pair",
+        "action": "reveal",
+        "targetId": "parallel_pair",
+        "dependsOn": [
+          "reveal_main_loop"
+        ],
+        "narrationIntent": "R₂ and R₃ in parallel, both between P and Q"
+      },
+      {
+        "id": "reveal_current_group",
+        "action": "reveal",
+        "targetId": "current_group",
+        "dependsOn": [
+          "reveal_parallel_pair"
+        ],
+        "narrationIntent": "the current I leaves the + terminal of the cell and flows through R₁"
+      }
+    ]
+  },
+  "engineCommit": "3f4aeaf3beae281a084b9e25e97a3f502c5b535c",
+  "validatedOn": "2026-10-12"
+}
