@@ -383,6 +383,14 @@ function inventoryNotationSpans(question: string, end: number): ChemistrySpan[] 
     const parsed = unitAt(body.slice(start));
     if (parsed && !continuesUnit(body.slice(start + parsed.text.length))) spans.push({ start, end: start + parsed.text.length });
   }
+  // Integral electrons between reaction separators are chemical notation,
+  // not the start of a broken scientific-notation voltage (e.g. 2e- V).
+  const electrons = /(?:^|\+|->|<=>|→|⟶|⇌|⇄|↔|⇒)\s*([1-9]\d*\s*e(?:\^?\(?-\)?|⁻))(?=\s*(?:\+|->|<=>|→|⟶|⇌|⇄|↔|⇒))/gd;
+  for (const match of body.matchAll(electrons)) {
+    const finish = match.indices![1]![1];
+    // The scalar lexer can include a preceding + as the coefficient's sign.
+    spans.push({start: match.index!, end: finish});
+  }
   const ions = /[A-Z][a-z]?(?:\d*[+-]|\^(?:\(\d*[+-]\)|\{\d*[+-]\}|\d*[+-])|[⁰¹²³⁴⁵⁶⁷⁸⁹]*[⁺⁻])/g;
   for (const match of body.matchAll(ions)) {
     const start = match.index!; const finish = start + match[0].length;
@@ -412,7 +420,7 @@ export function findChemistryQuantities(input: Omit<ChemistryQuantityInput, "aft
     const tokenEnd = match.index! + match[0].trimEnd().length;
     if (tokenEnd <= scope.start || start >= end || start < consumed) continue;
     if (start < scope.start || tokenEnd > end) return fail("source_conflict", {start,end:tokenEnd});
-    if (/[A-Za-z0-9_.]/.test(input.question[start-1] ?? "") || notation.some(span => start > span.start && tokenEnd <= span.end)) continue;
+    if (/[A-Za-z0-9_.]/.test(input.question[start-1] ?? "") || notation.some(span => start >= span.start && tokenEnd <= span.end)) continue;
     // A failed joined token is atomic: never restart at digits following a
     // thousands/decimal comma or an unsupported multiplication separator.
     const prefix = input.question.slice(scope.start, start);
