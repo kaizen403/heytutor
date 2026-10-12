@@ -286,6 +286,9 @@ const PROFILE_CATALYST_ROLE_CUE = /(?:activation\s+energy|e_?a)\s+(?:of|for|in)\
 function profileEnergyReferenceOnly(body: string, start: number, end: number, ownerEnd: number): boolean {
   const before = body.slice(0,start);
   const payload = body.slice(end,ownerEnd);
+  const requestPrefix = before.split(/[;!?\n]|\.(?=\s|$)/).at(-1)!;
+  if (/^\s*(?:(?:draw|sketch|plot|show|illustrate|depict|display)\s+)?(?:(?:the|an?|its)\s+)?$/i.test(requestPrefix)
+    && /^\s+(?:diagram|profile|graph|curve)(?:\s+(?:of|for)\s+(?:(?:the|an?)\s+)?(?:(?:exothermic|endothermic)\s+)?reaction)?\s*$/i.test(payload)) return true;
   if (payload.trim() === "" && /\b(?:find|calculate|compute|determine|mark|show)\s+(?:(?:the|an?|its)\s+)*$/i.test(before)) return true;
   if (payload.trim() === "" && /\bwithout\s+changing\s*$/i.test(before)) return true;
   // This existing qualitative catalyst operator states no energy magnitude.

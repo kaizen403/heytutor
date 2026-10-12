@@ -4094,6 +4094,98 @@ for(const row of fullOwnerSupportRows)check("Full owner/support repair: "+row.id
  }
 });
 // END PR137 full-sweep and single-profile owner repair.
+// BEGIN PR137 closed profile diagram references: preserve all879 old assertions.
+const profileReferenceRepairs:ReadonlyArray<{id:string;question:string;required:string;questionSha256:string}> = [
+  {
+    "id": "PROFILE-REFERENCE-PURE-1",
+    "question": "activation energy diagram",
+    "required": "compile",
+    "questionSha256": "63e22b9827de2a1a9112910b3796d12713917463cb5cfd833e242bb10f73842f"
+  },
+  {
+    "id": "PROFILE-REFERENCE-PURE-2",
+    "question": "Draw an activation energy diagram.",
+    "required": "compile",
+    "questionSha256": "a238036ffcf7e27e19d8766b2cafda57afae4667857cba1288c4f48d6439719e"
+  },
+  {
+    "id": "PROFILE-REFERENCE-PURE-3",
+    "question": "Sketch the activation energy profile for an exothermic reaction.",
+    "required": "compile",
+    "questionSha256": "207141081a17df0809491ee3d19b54383de985e40c4be5ce7a88436f2d6874c4"
+  },
+  {
+    "id": "PROFILE-REFERENCE-PURE-4",
+    "question": "Show an activation energy graph for an endothermic reaction.",
+    "required": "compile",
+    "questionSha256": "baec3719e81764af2d72f323162c6e32814136aeec4e83ff657371811a2ce26f"
+  },
+  {
+    "id": "PROFILE-REFERENCE-PURE-5",
+    "question": "activation energy curve",
+    "required": "compile",
+    "questionSha256": "c8d4e29d0d95b879345666e9d69854e6ba59e04c91e0c7bf81ecb71af8091cdf"
+  },
+  {
+    "id": "PROFILE-REFERENCE-PURE-6",
+    "question": "Plot the threshold energy profile of the reaction.",
+    "required": "compile",
+    "questionSha256": "ab0f4d2fa37615e2e9aad5da487fbff11166830d1c71f3074390718f2072b0fc"
+  },
+  {
+    "id": "PROFILE-REFERENCE-DECLARED-1",
+    "question": "activation energy diagram is unknown.",
+    "required": "decline",
+    "questionSha256": "3e4609053a66f08df14395266eb3a91785c519c0e55a1d389e57023d2051509a"
+  },
+  {
+    "id": "PROFILE-REFERENCE-DECLARED-2",
+    "question": "Draw an activation energy profile = 60 kJ/mol.",
+    "required": "decline",
+    "questionSha256": "e342c28b8bd6570485df62a3916e10e45b9c6e6d6f4070f3349ed4c50df9d608"
+  },
+  {
+    "id": "PROFILE-REFERENCE-DECLARED-3",
+    "question": "activation energy = unknown; draw an activation energy diagram.",
+    "required": "decline",
+    "questionSha256": "6dc6fb2bc26559d8f150ec79823a913362cfce43edb050bfb19a466e7d6a838d"
+  },
+  {
+    "id": "PROFILE-REFERENCE-DECLARED-4",
+    "question": "The activation energy is 60 kJ/mol; activation energy is unknown. Draw an activation energy diagram.",
+    "required": "decline",
+    "questionSha256": "e4f0ddc5eefa1d315827c0de68d9b9db478e206e1aee879561fc2c2d3d3c37e0"
+  },
+  {
+    "id": "PROFILE-REFERENCE-DECLARED-5",
+    "question": "Draw an activation energy profile of an unknown reaction.",
+    "required": "decline",
+    "questionSha256": "174983ac195c6c63c543a24fc71b14da77c606914ee958fbac22bea40a068e8f"
+  },
+  {
+    "id": "PROFILE-REFERENCE-DECLARED-6",
+    "question": "activation energy diagram, 60 kg.",
+    "required": "decline",
+    "questionSha256": "2cb0aad5332e60c877f2c6faeb4ea10496f1837ffc0014b2cd3a928de031aeda"
+  }
+];
+for(const row of profileReferenceRepairs)check("Closed profile reference repair: "+row.id,()=>{
+ const question=row.question;
+ if(row.required==="decline") {
+  assert.equal(buildThermoGraphScene(question,[],false),null);
+  assert.equal(buildThermoGraphScene(question,[],true),null);
+  assert.equal(synthesizeFamilyScene({question}),null);
+  return;
+ }
+ const ordinary=synthesizeFamilyScene({question});assert.ok(ordinary?.renderScene);assert.equal(ordinary.family,"chem_thermo");
+ for(const document of [buildThermoGraphScene(question,[],false),buildThermoGraphScene(question,[],true),ordinary.document]) {
+  const result=compiled(document);assert.equal(result.document.source?.question,question);
+  assert.ok(result.document.quantities.every(q=>!["Ea_forward","Ea_backward","dH","Ea_catalysed"].includes(q.id)),"A pure qualitative reference supplies no physical energy magnitude");
+  assert.ok(result.render.primitives.length>0);
+  assert.match(result.render.caption??"",/qualitative/i);
+ }
+});
+// END PR137 closed profile diagram references.
 const output=process.argv.indexOf("--out");
 const result={passed:rows.filter(r=>r.passed).length,failed:rows.filter(r=>!r.passed).length,rows};
 if(output>=0)writeFileSync(process.argv[output+1]!,JSON.stringify(result,null,2)+"\n");
