@@ -988,6 +988,90 @@ const cases: readonly {id:string; question:string; expected:string; dG:number|nu
     "expected": "required-compile",
     "dG": -10.2,
     "unit": "kJ/mol"
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-ROLE-refuse-1",
+    "question": "Use ΔH as 298 K. ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-ROLE-refuse-2",
+    "question": "Use ΔS as 298 K. ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-ROLE-refuse-3",
+    "question": "Use the known enthalpy change as 25 °C. ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298.15 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-ROLE-refuse-4",
+    "question": "Use the stated entropy change as 3e2 K. ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 300 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-ROLE-refuse-5",
+    "question": "Use the provided ΔH to be 298 kelvin. ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-ROLE-support-1",
+    "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Use ΔH and ΔS to calculate ΔG at 298 K and draw ΔG versus T.",
+    "expected": "required-compile",
+    "dG": -10.2,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-ROLE-support-2",
+    "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Use ΔH and T = 298 K with ΔS to calculate ΔG and draw ΔG versus T.",
+    "expected": "required-compile",
+    "dG": -10.2,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-ROLE-support-3",
+    "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Use the known ΔS to calculate ΔG at 25 °C and draw ΔG versus T.",
+    "expected": "required-compile",
+    "dG": -10.185,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-ROLE-threshold-1",
+    "question": "At which temperature does the reaction reach equilibrium? ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw the Gibbs energy line versus T.",
+    "expected": "graph-only",
+    "dG": null,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-ROLE-threshold-2",
+    "question": "At what temperature will the reaction become spontaneous? ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T.",
+    "expected": "graph-only",
+    "dG": null,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-ROLE-threshold-3",
+    "question": "At what absolute temperature is Gibbs free energy zero? ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T.",
+    "expected": "graph-only",
+    "dG": null,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-ROLE-threshold-4",
+    "question": "At which temperature will this reaction reach the equilibrium point? ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Show the Gibbs energy curve against T.",
+    "expected": "graph-only",
+    "dG": null,
+    "unit": "kJ/mol"
   }
 ];
 const results: {id:string;passed:boolean;error?:string}[] = [];
