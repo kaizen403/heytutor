@@ -19,7 +19,7 @@ import type { SceneDocument } from "../types";
 import { fmt } from "../archetypes/document";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
 
-import { chemistryReferenceConstantValid, CHEMISTRY_NUMBER_PATTERN, CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, chemistryQuestionSpan, chemistryPlanBindingsValid, chemistryQuantityCuesValid, readChemistryQuantity, readChemistryArrheniusEquation, findChemistryQuantities, convertChemistryReading, convertChemistryValue, chemistryUnitSymbol, type ChemistryUnit } from "./quantityReader";
+import { chemistryCanonicalValuesAgree, chemistryReferenceConstantValid, CHEMISTRY_NUMBER_PATTERN, CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, chemistryQuestionSpan, chemistryPlanBindingsValid, chemistryQuantityCuesValid, readChemistryQuantity, readChemistryArrheniusEquation, findChemistryQuantities, convertChemistryReading, convertChemistryValue, chemistryUnitSymbol, type ChemistryUnit, type ChemistryReading } from "./quantityReader";
 
 export const KINETICS_FAMILY = "chem_kinetics" as const;
 
@@ -348,7 +348,7 @@ function halfLifeSourceOwnersValid(question: string): boolean {
       return false;
     }
     const supplied = /\bis$/i.test(owner[0]) || /^\s*(?:[=:]|(?:is|was|equals|equal to|unknown|unreadable|has|takes|with|at|value|given|stated|measured|assumed|supplied|provided)\b)/i.test(tail)
-      || new RegExp(String.raw`^\s*(?:(?:of|about|nearly|approximately)\s+)?(?:${SCALAR}|unknown\b|unreadable\b)`, "i").test(tail);
+      || new RegExp(String.raw`^\s*,?\s*(?:(?:of|about|nearly|approximately)\s+)?(?:${SCALAR}|unknown\b|unreadable\b)`, "i").test(tail);
     if (!supplied) continue; // A genuinely requested half-life supplies no value.
     const read = readChemistryQuantity({question, after: /^/, within: {start:end, end:body.length}, dimension:"time"});
     if (!read.ok || !(read.reading.value > 0)) return false;
@@ -363,13 +363,37 @@ function readHalfLife(stem: string): Reading | null {
 /** Words ignore case, but the rate symbol k differs from equilibrium K. */
 const caseWord = (word: string): string => word.replace(/[a-z]/g, letter => `[${letter}${letter.toUpperCase()}]`);
 const RATE_CUE = new RegExp(String.raw`(?:${caseWord("rate constant")}|(?<!\b(?:${caseWord("ln")}|${caseWord("log")})\s*)\bk\b)(?:\s*,?\s*\(?k\)?)?\s*(?:${caseWord("for")}|${caseWord("of")})?\s*(?:${caseWord("the ")}|${caseWord("this ")}|${caseWord("a ")})?(?:${caseWord("reaction")}|${caseWord("it")})?`);
-function readRateConstant(stem: string, order: ReactionOrder | null = 1): { value: number; unit: string | null } | null {
+/** Each supplied rate owns its original literal; absence and unread are distinct. */
+function readRateConstant(stem: string, order: ReactionOrder | null = 1): { value: number; unit: string | null } | null | false {
+  const body = questionBody(stem);
   const dimension = order === 0 ? "rate_constant_zero" : order === 2 ? "rate_constant_second" : "rate_constant_first";
-  const read = readChemistryQuantity({question: stem, after: RATE_CUE, dimension, cueCaseSensitive:true});
-  if (!read.ok) return null;
-  const raw = read.reading.rawUnit ?? "";
+  const owners = [...body.matchAll(new RegExp(RATE_CUE.source, RATE_CUE.flags + "g"))];
+  let reading: ChemistryReading | null = null;
+  for (const [index, owner] of owners.entries()) {
+    let start = owner.index! + owner[0].length;
+    // The existing cue may end before the order in a named reaction subject.
+    const subject = /^\s*(?:(?:pseudo[ -]?)?(?:zero|zeroth|first|second|0th|1st|2nd)[ -]?order\s+)?reaction\b/i.exec(body.slice(start));
+    if (subject) start += subject[0].length;
+    const next = owners[index + 1];
+    let end = next?.index ?? body.length;
+    const clause = /[;?\n]|\.(?=\s|$)/.exec(body.slice(start, end));
+    if (clause) end = start + clause.index;
+    const tail = body.slice(start, end);
+    // "The rate constant ... is k = ..." names one value, not two givens.
+    if (next && end === next.index && /rate constant/i.test(owner[0])
+      && /^k\b/.test(next[0]) && /^\s*(?:(?:is|was|equals|equal to)|[=:])?\s*$/i.test(tail)) continue;
+    const supplied = /^\s*,?\s*(?:[=:]|(?:is|was|are|equals|equal to|has|takes|value|given|stated|measured|assumed|supplied|provided|with\s+(?:the\s+)?value|unknown|unreadable|unavailable)\b)/i.test(tail)
+      || new RegExp(String.raw`^\s*(?:(?:of|about|nearly|approximately)\s+)?(?:${SCALAR}|unknown\b|unreadable\b|unavailable\b)`, "i").test(tail);
+    if (!supplied) continue; // Requested/qualitative mentions supply no rate.
+    const read = readChemistryQuantity({question: stem, after: /^/, within: {start, end}, dimension});
+    if (!read.ok || !(read.reading.value > 0)) return false;
+    if (reading && !chemistryCanonicalValuesAgree(reading.value, read.reading.value)) return false;
+    reading ??= read.reading;
+  }
+  if (!reading) return null;
+  const raw = reading.rawUnit ?? "";
   const unit = /min/i.test(raw) ? "min" : /h(?:r|our)?/i.test(raw) ? "h" : /day/i.test(raw) ? "days" : /year|yr/i.test(raw) ? "yr" : "s";
-  return {value: read.reading.value * convertTime(1, unit, "s"), unit};
+  return {value: reading.value * convertTime(1, unit, "s"), unit};
 }
 function readInitialConcentration(stem: string): {value: number; unit: string} | null {
   const read = readChemistryQuantity({question: stem, after: /(?:initial concentration(?:[^.;=]{0,60}?(?:is|=|:))?|\[a\]\s*_?\s*0|\ba_?0\b|starting concentration)/, dimension: "concentration"});
@@ -576,7 +600,6 @@ export function kineticsFromStem(question: string, quantities: readonly ChemPlan
   if (!chemistryReferenceConstantValid(question, /\bR\s*=/, "gas_constant", "J/(mol K)", GAS_CONSTANT)) return null;
   if (!chemistryQuantityCuesValid(question, [
     {after: HALF_LIFE_CUE, dimensions: ["time"]},
-    {after: RATE_CUE, dimensions: ["rate_constant_first", "rate_constant_zero", "rate_constant_second"], cueCaseSensitive:true},
     {after: ACTIVATION_CUE, dimensions: ["molar_energy"]},
     {after: TEMPERATURE_RISE_CUE, dimensions: ["temperature_delta"]},
     {after: /initial concentration/, dimensions: ["concentration"]},
@@ -594,6 +617,7 @@ export function kineticsFromStem(question: string, quantities: readonly ChemPlan
   if (halfRead) { tHalf = halfRead.value; timeUnit = halfRead.unit; }
   let k: number | null = null; let kUnit: string | null = null;
   const kRead = readRateConstant(body, order);
+  if (kRead === false) return null;
   if (kRead) { k = kRead.value; kUnit = kRead.unit; }
   const a0Read = readInitialConcentration(body);
   const a0 = a0Read?.value ?? null; const concUnit = a0 !== null ? "M" : null;
