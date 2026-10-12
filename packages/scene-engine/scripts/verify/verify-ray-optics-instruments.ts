@@ -324,6 +324,54 @@ check("control: an object arrow whose tip a ray leaves compiles", () => {
   return ok ? null : `did not compile: ${fatal.join(", ")}`;
 });
 
+// Second review of #164 (R4): planners often draw rays as segments. When one `ray`
+// entity exists, a correct object or image arrow standing on segment rays was refused.
+// A ray now is any drawn open straight path that is not an axis, a normal, an element
+// or a standing arrow.
+const review = JSON.parse(readFileSync(new URL("./fixtures/ray-optics-review-164.json", import.meta.url), "utf8")) as {
+  documents: Record<string, { why: string; document: Record<string, unknown> }>;
+};
+const reviewed = (id: string) => structuredClone(review.documents[id]!.document) as Record<string, any>;
+const tipsOnStrokes = (primitives: Primitive[], arrowIds: string[], rayIds: string[]): string | null => {
+  for (const arrowId of arrowIds) {
+    const arrow = stroke(primitives, arrowId);
+    if (!arrow) return `${arrowId} is not drawn`;
+    const tip = arrow.points.at(-1)!;
+    const on = rayIds.some((rayId) => {
+      const ray = stroke(primitives, rayId);
+      return Boolean(ray) && ray!.points.some((p, index) => index + 1 < ray!.points.length && lineDistance(tip, p, ray!.points[index + 1]!) <= 2);
+    });
+    if (!on) return `${arrowId} tip is on none of ${rayIds.join(", ")}`;
+  }
+  return null;
+};
+
+check("recorded bcaf2215e808: a real image between F and 2F with segment rays compiles", () => {
+  const { ok, primitives, fatal } = compile(reviewed("bcaf2215e808"));
+  if (!ok) return `did not compile: ${fatal.join(", ")}`;
+  return tipsOnStrokes(primitives, ["object", "image"], ["parallelRay", "centralIncident", "refractedRay", "centralOutgoing"]);
+});
+
+check("recorded 9cfc03a682ea: a magnifier's virtual image on the segment rays' extensions compiles", () => {
+  const { ok, primitives, fatal } = compile(reviewed("9cfc03a682ea"));
+  if (!ok) return `did not compile: ${fatal.join(", ")}`;
+  return tipsOnStrokes(primitives, ["object", "image"], ["incoming", "central", "outgoing"]);
+});
+
+check("control: bcaf2215e808 with its image arrow moved to x = 5, off every segment ray, fails closed", () => {
+  const document = reviewed("bcaf2215e808");
+  const constructions = document.constructions as Construction[];
+  constructions.push(point("wrongTip", 5, -2));
+  constructions.find((construction) => construction.outputs.includes("imageBase"))!.inputs = { x: 5, y: 0, coordinateSpace: "world" };
+  constructions.find((construction) => construction.outputs.includes("image"))!.inputs = { start: "imageBase", end: "wrongTip" };
+  (document.entities as Entity[]).push({ id: "wrongTip", kind: "point", role: "misplaced image tip" });
+  (document.requiredEntityIds as string[]).push("wrongTip");
+  const { ok, fatal } = compile(document);
+  if (ok) return "compiled with the image arrow off every ray";
+  if (!fatal.includes("axis_arrow_off_rays")) return `failed with ${fatal.join(", ")}, not axis_arrow_off_rays`;
+  return null;
+});
+
 // R5. Looked up by name so the cases fail, not crash, where the operator is missing.
 type LawPoint = { x: number; y: number };
 const operator = (name: string) => {

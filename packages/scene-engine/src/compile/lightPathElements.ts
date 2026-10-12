@@ -459,6 +459,9 @@ function alongNormal(hit: { direction: Point; normal: Point }): boolean {
   return Math.abs(hit.direction.x * hit.normal.x + hit.direction.y * hit.normal.y) >= NORMAL_INCIDENCE_COS * scale;
 }
 
+/** Entity kinds a planner draws a ray as. */
+const RAY_KINDS = new Set(["ray", "segment", "line", "vector", "polyline", "path"]);
+
 /** Operators whose `axis` input declares an optical axis. */
 const AXIS_OPERATORS = new Set(["lens_section", "spherical_surface", "optical_train", "gaussian_image", "optical_focus"]);
 
@@ -474,9 +477,14 @@ export interface AxisArrowInput {
  * Object and image arrows stand on their rays. When a figure draws light
  * paths and declares an optical axis (the `axis` input of an optics
  * operator), every drawn arrow (`vector` output or entity) whose foot is on
- * that axis and which stands across it must have its tip on a drawn light
- * path or that path's straight extension. Otherwise the arrows mark an
- * object or image the rays never form: `axis_arrow_off_rays`.
+ * that axis and which stands across it must have its tip on a drawn ray or
+ * that ray's straight extension. Otherwise the arrows mark an object or
+ * image the rays never form: `axis_arrow_off_rays`.
+ *
+ * Planners often draw rays as plain segments, so a ray here is any drawn
+ * open straight path that is not an axis, a normal, an optical element or
+ * one of the standing arrows themselves: declared light paths, segments,
+ * rays, lines and oblique vectors alike.
  */
 export function validateAxisArrowsOnRays(input: AxisArrowInput): void {
   const { document, geometry } = input;
@@ -488,13 +496,10 @@ export function validateAxisArrowsOnRays(input: AxisArrowInput): void {
   }
   if (axisIds.size === 0) return;
   const roles = opticsRoles(document) ?? collectOpticsRoles(document);
-  const rays: Point[][] = [];
-  for (const id of roles.lightPaths.keys()) {
-    if (!input.drawn(id)) continue;
-    const value = geometry.get(id);
-    if (isPath(value) && !value.closed && value.points.length >= 2 && value.points.every(finitePoint)) rays.push(value.points);
-  }
-  if (rays.length === 0) return;
+  const openPath = (value: GeometryLike | undefined): value is PathValue =>
+    isPath(value) && !value.closed && value.points.length >= 2 && value.points.every(finitePoint);
+  // The check runs only on figures that draw a declared light path.
+  if (![...roles.lightPaths.keys()].some((id) => input.drawn(id) && openPath(geometry.get(id)))) return;
   const axes: Array<[Point, Point]> = [];
   for (const id of axisIds) {
     const value = geometry.get(id);
@@ -516,20 +521,35 @@ export function validateAxisArrowsOnRays(input: AxisArrowInput): void {
     if (distance(foot, tip) > 0) arrows.push({ id: entity.id, foot, tip });
   }
   if (arrows.length === 0) return;
+  const lightPoints = [...roles.lightPaths.keys()].flatMap((id) => {
+    const value = geometry.get(id);
+    return input.drawn(id) && openPath(value) ? value.points : [];
+  });
   // About 3 px on a full diagram, as for the element crossings.
-  const span = sceneScale([...rays.flat(), ...arrows.flatMap((arrow) => [arrow.foot, arrow.tip])]);
+  const span = sceneScale([...lightPoints, ...arrows.flatMap((arrow) => [arrow.foot, arrow.tip])]);
   if (!(span > 1e-9)) return;
   const tolerance = 4e-3 * span;
-  for (const arrow of arrows) {
-    const stands = axes.some(([a, b]) => {
-      if (lineDistance(arrow.foot, a, b) > tolerance) return false;
-      const ax = b.x - a.x;
-      const ay = b.y - a.y;
-      const vx = arrow.tip.x - arrow.foot.x;
-      const vy = arrow.tip.y - arrow.foot.y;
-      return Math.abs(ax * vx + ay * vy) <= 0.2 * Math.hypot(ax, ay) * Math.hypot(vx, vy);
-    });
-    if (!stands) continue;
+  const standing = arrows.filter((arrow) => axes.some(([a, b]) => {
+    if (lineDistance(arrow.foot, a, b) > tolerance) return false;
+    const ax = b.x - a.x;
+    const ay = b.y - a.y;
+    const vx = arrow.tip.x - arrow.foot.x;
+    const vy = arrow.tip.y - arrow.foot.y;
+    return Math.abs(ax * vx + ay * vy) <= 0.2 * Math.hypot(ax, ay) * Math.hypot(vx, vy);
+  }));
+  if (standing.length === 0) return;
+  const standingIds = new Set(standing.map((arrow) => arrow.id));
+  const lensLines = new Set(roles.lensPlanes.flatMap((plane) => plane.line === undefined ? [] : [plane.line]));
+  const rays: Point[][] = [];
+  for (const entity of document.entities ?? []) {
+    const id = entity.id;
+    if (!RAY_KINDS.has(entity.kind) && !roles.lightPaths.has(id)) continue;
+    if (!input.drawn(id) || axisIds.has(id) || standingIds.has(id) || lensLines.has(id)) continue;
+    if (roles.normals.has(id) || (roles.elements.has(id) && !roles.lightPaths.has(id))) continue;
+    const value = geometry.get(id);
+    if (openPath(value)) rays.push(value.points);
+  }
+  for (const arrow of standing) {
     const onRay = rays.some((points) => points.some((point, index) =>
       index + 1 < points.length && lineDistance(arrow.tip, point, points[index + 1]!) <= tolerance));
     if (onRay) continue;
