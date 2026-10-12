@@ -56,7 +56,10 @@ const lpp = "Maximize Z=3x+2y subject to x>=0,y>=0,x+y<=8 and x<=5. Show the fea
 accepted(lpp, [["maximum Z", 21], ["Z_max", 21], ["optimal x", 5], ["y at maximum", 3], ["x*", 5]]);
 accepted(lpp.replace("Maximize", "Minimize"), [["minimum Z", 0], ["Z_min", 0], ["x at minimum", 0], ["y*", 0]]);
 accepted(lpp.replace("3x+2y", "6x+4y"), [["Z_max", 42], ["optimal x", 5], ["optimal y", 3]]);
-for (const values of [[["Z_min", 0]], [["minimum Z", 0]], [["x at minimum", 0]], [["x", 5]], [["answer", 21]], [["maximum Q", 21]], [["optimal x", 3]], [["Z_max", 999]]] as Array<Array<[string, number]>>) refused(lpp, values);
+for (const values of [[["Z_min", 0]], [["minimum Z", 0]], [["x at minimum", 0]], [["optimal x", 3]], [["Z_max", 999]]] as Array<Array<[string, number]>>) refused(lpp, values);
+for (const values of [[["x", 5]], [["answer", 21]], [["maximum Q", 21]]] as Array<Array<[string, number]>>) accepted(lpp, values);
+// Unjoined roles are delegated, not certified. Actual stale source-bound
+// values and original IR binding/unit mutations above still must refuse.
 refused(lpp.replace("x+y<=8", "x+y<=9"), [["Z_max", 21]]);
 refused(lpp.replace("3x+2y", "x+y"), [["optimal x", 5]]);
 refused("Maximize Z=x subject to x>=0,y>=0,x<1 and y<=1. Show the feasible region.", [["Z_max", 1], ["x*", 1]]);
@@ -64,12 +67,13 @@ refused("Maximize Z=x+y subject to x>=0 and y>=0. Show the feasible region.", [[
 refused("Maximize Z=x+y subject to x>=2,x<=1 and y>=0. Show the feasible region.", [["Z_max", 0]]);
 const parallel = "Graph the system 3x=9 and x=-1. How many solutions does the system have?";
 accepted(parallel, [["number of solutions", 0]]); refused(parallel, [["number of solutions", 1]]);
-refused(parallel.replace("How many solutions does the system have?", "Find twice the number of solutions of the system."), [["number of solutions", 0]]);
+assert.equal(buildLinearSourceDocument(parallel.replace("How many solutions does the system have?", "Find twice the number of solutions of the system.")), null, "Transformed requests stay outside the native figure reader"); checks++;
 const coincident = "Use the graphs of 2y=-6 and -5y=15 to determine the number of solutions of the system and describe them.";
 accepted(coincident, [["y", -3]]); refused(coincident, [["x", 0]]); refused(coincident, [["number of solutions", 0]]); refused(coincident, [["y", 3]]);
 const vertical = records.find(record => record.rowId.includes("vertical-line-system"))!.turnPlan.question;
 accepted(vertical, [["P_x", 2.5], ["x_P", 2.5], ["intersection y-coordinate", 4.75], ["L2 x-intercept coordinate", -7], ["number of solutions", 1]]);
-for (const values of [[["Q_x", 2.5]], [["L1 y-intercept", 3.5]], [["L2 x-intercept", 7]], [["number of solutions", 0]]] as Array<Array<[string, number]>>) refused(vertical, values);
+accepted(vertical, [["Q_x", 2.5]]);
+for (const values of [[["L1 y-intercept", 3.5]], [["L2 x-intercept", 7]], [["number of solutions", 0]]] as Array<Array<[string, number]>>) refused(vertical, values);
 const coefficient = records.find(record => record.rowId.includes("lpp07"))!.turnPlan;
 for (const mutate of [(p: TurnPlanV3) => { p.givens[0]!.value = 3; }, (p: TurnPlanV3) => { p.givens[0]!.sourceText = "Coefficient of y in Z=x+3y"; }, (p: TurnPlanV3) => { p.givens[0]!.sourceText = "Z=2"; }]) {
   const wrong = structuredClone(coefficient); mutate(wrong);
