@@ -789,6 +789,248 @@
    ],
    "teachingTimeline": []
   },
+  "tir": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "Recorded m1 total_internal_reflection_h8a"
+   },
+   "source": {
+    "question": "Inside a cubic zirconia gem of refractive index 2.15, one ra"
+   },
+   "quantities": [
+    {
+     "id": "n",
+     "symbol": "n_gem",
+     "value": 2.15
+    },
+    {
+     "id": "i1",
+     "symbol": "i₁",
+     "value": 13,
+     "unit": "°"
+    },
+    {
+     "id": "i2",
+     "symbol": "i₂",
+     "value": 34,
+     "unit": "°"
+    },
+    {
+     "id": "c",
+     "symbol": "θ_c",
+     "value": 27.71774768960954,
+     "unit": "°"
+    },
+    {
+     "id": "r1",
+     "symbol": "r₁",
+     "value": 28.923719320032745,
+     "unit": "°"
+    },
+    {
+     "id": "r2",
+     "symbol": "r₂",
+     "value": 34,
+     "unit": "°"
+    }
+   ],
+   "entities": [
+    {
+     "id": "face",
+     "kind": "line",
+     "role": "gem–air interface"
+    },
+    {
+     "id": "contact1",
+     "kind": "point",
+     "role": "13° contact"
+    },
+    {
+     "id": "contact2",
+     "kind": "point",
+     "role": "34° contact"
+    },
+    {
+     "id": "incident1",
+     "kind": "ray",
+     "role": "incident ray at 13°"
+    },
+    {
+     "id": "normal1",
+     "kind": "vector",
+     "role": "normal at first contact"
+    },
+    {
+     "id": "transmitted1",
+     "kind": "ray",
+     "role": "ray refracted into air"
+    },
+    {
+     "id": "incident2",
+     "kind": "ray",
+     "role": "incident ray at 34°"
+    },
+    {
+     "id": "normal2",
+     "kind": "vector",
+     "role": "normal at second contact"
+    },
+    {
+     "id": "reflected2",
+     "kind": "ray",
+     "role": "totally internally reflected ray"
+    },
+    {
+     "id": "faceOrigin",
+     "kind": "point",
+     "role": "construction helper"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "makeFaceOrigin",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "faceOrigin"
+     ]
+    },
+    {
+     "id": "makeFace",
+     "operator": "line",
+     "inputs": {
+      "start": "faceOrigin",
+      "direction": [
+       1,
+       0
+      ]
+     },
+     "outputs": [
+      "face"
+     ]
+    },
+    {
+     "id": "makeContact1",
+     "operator": "point",
+     "inputs": {
+      "x": -2,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "contact1"
+     ]
+    },
+    {
+     "id": "makeContact2",
+     "operator": "point",
+     "inputs": {
+      "x": 2,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "contact2"
+     ]
+    },
+    {
+     "id": "firstRay",
+     "operator": "refract_at",
+     "inputs": {
+      "point": "contact1",
+      "surface": "face",
+      "incidentAngleDeg": "i1",
+      "n1": "n",
+      "n2": 1
+     },
+     "outputs": [
+      "incident1",
+      "normal1",
+      "transmitted1"
+     ]
+    },
+    {
+     "id": "secondRay",
+     "operator": "reflect_at",
+     "inputs": {
+      "point": "contact2",
+      "surface": "face",
+      "incidentAngleDeg": "i2"
+     },
+     "outputs": [
+      "incident2",
+      "normal2",
+      "reflected2"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [],
+   "annotations": [
+    {
+     "id": "gemMedium",
+     "kind": "label",
+     "targetIds": [
+      "incident1"
+     ],
+     "text": "n_gem = 2.15",
+     "placementIntent": "gem side"
+    },
+    {
+     "id": "airMedium",
+     "kind": "label",
+     "targetIds": [
+      "face"
+     ],
+     "text": "air",
+     "placementIntent": "air side"
+    }
+   ],
+   "requiredEntityIds": [
+    "face",
+    "contact1",
+    "contact2",
+    "incident1",
+    "normal1",
+    "transmitted1",
+    "incident2",
+    "normal2",
+    "reflected2"
+   ],
+   "revealGroups": [
+    {
+     "id": "setup",
+     "entityIds": [
+      "face",
+      "contact1",
+      "contact2",
+      "incident1",
+      "normal1",
+      "incident2",
+      "normal2"
+     ],
+     "dependsOn": [],
+     "narrationCue": "setup"
+    },
+    {
+     "id": "outcomes",
+     "entityIds": [
+      "transmitted1",
+      "reflected2"
+     ],
+     "dependsOn": [
+      "setup"
+     ],
+     "narrationCue": "outcomes"
+    }
+   ],
+   "teachingTimeline": []
+  },
   "pair": {
    "schemaVersion": "scene-document/v2",
    "visualDecision": {

@@ -12,8 +12,14 @@
  * reflection contact stays on that path's side of the interface.
  * R2c: a label on a refraction whose quantityId, or leading symbol, is the
  * refraction's n1 or n2 input sits on the incident or transmitted side.
+ * R2a: a label on a refraction's interface follows a side placementIntent
+ * (`incident_side`, `transmitted_side`, or "<medium> side" when the medium is
+ * the text of a label or quantity bound to n1 or n2). An unbound, unnumbered
+ * label on the interface with no side it can resolve is dropped; the figure
+ * is not declined.
  */
 
+import { parseSidePlacementIntent } from "../document/placementIntent";
 import type { RenderPoint, SceneAnnotation, SceneDocument } from "../types";
 import type { LabelEngineResult, LabelOwner, LabelSideRegion } from "./labelEngine";
 
@@ -40,8 +46,9 @@ type RefractionSide = "incident" | "transmitted";
 const SIDE_PROBE_PX = 4;
 
 /**
- * Attach side regions to label owners on optics paths. The caller drops an
- * owner that has no legal slot on its side; it is never moved across.
+ * Attach side regions to label owners on refractions and reflections, and
+ * drop the interface labels R2a cannot place. The caller drops an owner that
+ * has no legal slot on its side; it is never moved across.
  */
 export function bindOpticsLabelSides(
   document: SceneDocument,
@@ -54,7 +61,7 @@ export function bindOpticsLabelSides(
   const annotations = new Map(document.annotations
     .filter((annotation) => annotation.kind === "label" || annotation.kind === "callout")
     .map((annotation) => [annotation.id, annotation]));
-  return owners.map((owner) => {
+  return owners.flatMap((owner) => {
     const regions: LabelSideRegion[] = [];
     for (const event of events) {
       if (owner.entityId !== event.incidentPathId && owner.entityId !== event.outgoingPathId) continue;
@@ -62,13 +69,93 @@ export function bindOpticsLabelSides(
       if (region) regions.push(region);
     }
     const annotation = owner.labelId ? annotations.get(owner.labelId) : undefined;
-    for (const event of annotation ? refractionsOn(owner.entityId, events) : []) {
+    const refractions = annotation ? refractionsOn(owner.entityId, events) : [];
+    let bound = false;
+    for (const event of refractions) {
       const side = boundIndexSide(annotation!, event, document);
-      const region = side ? sideRegion(event, side, geometry, transformFor) : null;
+      if (!side) continue;
+      bound = true;
+      const region = sideRegion(event, side, geometry, transformFor);
       if (region) regions.push(region);
     }
-    return regions.length > 0 ? { ...owner, sideRegions: [...(owner.sideRegions ?? []), ...regions] } : owner;
+    if (annotation && refractions.length > 0 && !bound) {
+      const side = intentSide(annotation, refractions, document);
+      const region = side ? sharedSideRegion(refractions, side, geometry, transformFor) : null;
+      if (region) {
+        regions.push(region);
+      } else if (
+        refractions.some((event) => event.surfaceId === owner.entityId) &&
+        !annotation.quantityId &&
+        !/\p{N}/u.test(annotation.text ?? owner.text)
+      ) {
+        return [];
+      }
+    }
+    return [regions.length > 0 ? { ...owner, sideRegions: [...(owner.sideRegions ?? []), ...regions] } : owner];
   });
+}
+
+/**
+ * The side a label's placementIntent names on these refractions. A
+ * "<medium> side" counts only when the medium is the text of a label or
+ * quantity bound to n1 or n2; every other intent is unknown.
+ */
+function intentSide(annotation: SceneAnnotation, refractions: LightEvent[], document: SceneDocument): RefractionSide | null {
+  const intent = parseSidePlacementIntent(annotation.placementIntent);
+  if (!intent) return null;
+  if ("side" in intent) return intent.side === "incident_side" ? "incident" : "transmitted";
+  const sides = new Set<RefractionSide>();
+  for (const event of refractions) {
+    const incident = mediumNames(event.n1, document).has(intent.medium);
+    const transmitted = mediumNames(event.n2, document).has(intent.medium);
+    if (incident !== transmitted) sides.add(incident ? "incident" : "transmitted");
+  }
+  return sides.size === 1 ? [...sides][0]! : null;
+}
+
+/** Lower-case texts naming the medium of an n1 or n2 input. */
+function mediumNames(input: unknown, document: SceneDocument): Set<string> {
+  const names = new Set<string>();
+  if (typeof input !== "string") return names;
+  for (const annotation of document.annotations) {
+    if ((annotation.kind === "label" || annotation.kind === "callout") && annotation.quantityId === input && annotation.text) {
+      names.add(annotation.text.trim().toLowerCase());
+    }
+  }
+  const quantity = document.quantities.find((candidate) => candidate.id === input);
+  for (const key of ["label", "name", "symbol"]) {
+    const value = quantity?.[key];
+    if (typeof value === "string" && value.trim()) names.add(value.trim().toLowerCase());
+  }
+  return names;
+}
+
+/** One region for `side` that every refraction on the entity agrees on, else null. */
+function sharedSideRegion(
+  refractions: LightEvent[],
+  side: RefractionSide,
+  geometry: ReadonlyMap<string, unknown>,
+  transformFor: (entityId: string) => Transform,
+): LabelSideRegion | null {
+  const regions = refractions.map((event) => sideRegion(event, side, geometry, transformFor));
+  const first = regions[0];
+  if (!first || regions.some((region) => !region || !sameRegion(region, first))) return null;
+  return first;
+}
+
+function sameRegion(a: LabelSideRegion, b: LabelSideRegion): boolean {
+  const near = (p: RenderPoint, q: RenderPoint) => distance(p, q) <= 1;
+  if (a.kind === "half_plane" && b.kind === "half_plane") {
+    const offset = (b.point.x - a.point.x) * a.normal.x + (b.point.y - a.point.y) * a.normal.y;
+    return a.normal.x * b.normal.x + a.normal.y * b.normal.y > 0.999 && Math.abs(offset) <= 1;
+  }
+  if (a.kind === "circle" && b.kind === "circle") {
+    return a.inside === b.inside && near(a.center, b.center) && Math.abs(a.radius - b.radius) <= 1;
+  }
+  if (a.kind === "polygon" && b.kind === "polygon") {
+    return a.inside === b.inside && a.points.length === b.points.length && a.points.every((point, index) => near(point, b.points[index]!));
+  }
+  return false;
 }
 
 /** Refractions whose interface, incident path or transmitted path is `entityId`. */
