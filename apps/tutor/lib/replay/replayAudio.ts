@@ -317,6 +317,8 @@ export function waitUntilDrawClock(
     isPaused?: () => boolean;
     getPlaybackRate?: () => number;
     nowMs?: () => number;
+    /** Re-read a cue whose final speech alignment may arrive during the wait. */
+    getTargetMs?: () => number;
   } = {},
 ): Promise<void> {
   return new Promise((resolve) => {
@@ -350,11 +352,15 @@ export function waitUntilDrawClock(
       activeWallMs += now - lastWall;
       lastWall = now;
       const rate = Math.max(options.getPlaybackRate?.() ?? 1, 0.1);
-      if (getPositionMs() + 10 >= targetMs) {
+      const updatedTarget = options.getTargetMs?.();
+      const target = updatedTarget !== undefined && Number.isFinite(updatedTarget)
+        ? Math.max(updatedTarget, 0)
+        : targetMs;
+      if (getPositionMs() + 10 >= target) {
         finish();
         return;
       }
-      if (activeWallMs > Math.max(targetMs / rate + 4_000, 8_000)) {
+      if (activeWallMs > Math.max(target / rate + 4_000, 8_000)) {
         finish();
         return;
       }
