@@ -172,7 +172,7 @@ function sourceSoluteAmount(question: string): number | null {
     if (!read.ok) return null;
     const suffix=body.slice(read.reading.source.span.end);
     if (/^\s*(?:of\s+)?(?:the\s+)?solvent\b/i.test(suffix)) return null;
-    if (name && (/^(?:solvent|solution|mixture)$/i.test(name) || roles.some(role=>role.name===name && role.role==="solvent"))) return null;
+    if (name && (/^(?:solvent|solution|mixture)$/i.test(name) || roles.some(role=>role.name.toLowerCase()===name.toLowerCase() && role.role==="solvent"))) return null;
     if (!admit(read.reading.value,name)) return null;
   }
   // A suffix proves a role only for "mol (of) solute", an independently
@@ -187,13 +187,17 @@ function sourceSoluteAmount(question: string): number | null {
     const explicit=/^\s*(?:of\s+)?(?:the\s+)?(solute|solvent)\b/i.exec(tail);
     if (explicit?.[1]?.toLowerCase()==="solvent") continue;
     if (explicit && (/^\s*(?:of\s+)?(?:the\s+)?solute(?:[-_][A-Za-z0-9]|\s+solution\b)/i.test(tail) || /^\s*(?:of\s+)?(?:the\s+)?solute\s+(?:or|and)\s+(?:the\s+)?solvent\b/i.test(tail))) return null;
+    // A generic role must end before ordinary clause prose. Unsupported
+    // component names/indices cannot be cropped into an unnamed "solute".
+    // Their amounts require separate component identity, not aggregation.
+    if (explicit && !/^\s*(?:$|[,.;?!]|\b(?:and|is|are|was|were|in|with|has|have)\b)/i.test(tail.slice(explicit[0].length))) return null;
     let name: string | undefined;
     let independent: DeclaredRole | undefined;
     if (!explicit) {
       const dissolved=/^\s*(?:of\s+)?(?:the\s+)?([A-Za-z][A-Za-z0-9]*(?:\s+[A-Za-z][A-Za-z0-9]*){0,3}?)\s+(?:(?:is|are|was|were)\s+)?dissolved\s+(?:in|into)\b/.exec(tail);
       if (dissolved) {
         name=dissolved[1]!;
-        if (/^(?:solvent|solution|mixture)$/i.test(name) || roles.some(role=>role.name===name && role.role==="solvent")) return null;
+        if (/^(?:solvent|solution|mixture)$/i.test(name) || roles.some(role=>role.name.toLowerCase()===name!.toLowerCase() && role.role==="solvent")) return null;
       } else {
         independent=roles.find(role=>role.role==="solute" && new RegExp(String.raw`^\s*(?:of\s+)?${role.name}\b`).test(tail));
         if (!independent) continue;

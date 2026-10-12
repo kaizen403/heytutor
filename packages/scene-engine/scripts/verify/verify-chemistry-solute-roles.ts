@@ -423,6 +423,74 @@ const cases:Case[] = [
     "n": 2,
     "denominator": 1,
     "expected": 2.0
+  },
+  {
+    "id": "INDEPENDENT-SOLUTE-case-1",
+    "question": "Urea is the solvent. There are 2 mol of urea dissolved in ethanol. The solution volume of 1 L is given. Find molarity.",
+    "refuse": true
+  },
+  {
+    "id": "INDEPENDENT-SOLUTE-case-2",
+    "question": "urea is the solvent. There are 2 mol of Urea dissolved in ethanol. The solution volume of 1 L is given. Find molarity.",
+    "refuse": true
+  },
+  {
+    "id": "INDEPENDENT-SOLUTE-case-3",
+    "question": "The amount of solute urea is 2 mol. Urea is the solvent. The solution volume of 1 L is given. Find molarity.",
+    "refuse": true
+  },
+  {
+    "id": "INDEPENDENT-SOLUTE-case-4",
+    "question": "Water is the solvent. There are 0.5 mol of water dissolved in ethanol. The solution volume of 250 mL is given. Find molarity.",
+    "refuse": true
+  },
+  {
+    "id": "INDEPENDENT-SOLUTE-case-5",
+    "question": "There are 2 mol of urea dissolved in ethanol. UREA is the solvent. There are 500 g of solvent. Find molality.",
+    "refuse": true
+  },
+  {
+    "id": "INDEPENDENT-SOLUTE-suffix-1",
+    "question": "A solution contains 2 mol of solute A and 2 mol of solute B. The solution volume of 1 L is given. Find molarity.",
+    "refuse": true
+  },
+  {
+    "id": "INDEPENDENT-SOLUTE-suffix-2",
+    "question": "A solution contains 2 mol of solute NaCl and 2 mol of solute KCl. The solution volume of 1 L is given. Find molarity.",
+    "refuse": true
+  },
+  {
+    "id": "INDEPENDENT-SOLUTE-suffix-3",
+    "question": "A solution contains 2 mol of the solute A and 2 mol of the solute B. There are 500 g of solvent. Find molality.",
+    "refuse": true
+  },
+  {
+    "id": "INDEPENDENT-SOLUTE-suffix-4",
+    "question": "A solution contains 2 mol of solute 1 and 2 mol of solute 2. The solution volume of 1 L is given. Find molarity.",
+    "refuse": true
+  },
+  {
+    "id": "INDEPENDENT-SOLUTE-suffix-5",
+    "question": "A solution contains 0.5 mol of solute urea and 0.5 mol of solute glucose. The solution volume of 250 mL is given. Find molarity.",
+    "refuse": true
+  },
+  {
+    "id": "INDEPENDENT-SOLUTE-positive-1",
+    "question": "Urea is the solute. There are 2 mol of Urea dissolved in ethanol. The solution volume of 1 L is given. Find molarity.",
+    "refuse": false,
+    "kind": "molarity",
+    "n": 2,
+    "denominator": 1,
+    "expected": 2.0
+  },
+  {
+    "id": "INDEPENDENT-SOLUTE-positive-2",
+    "question": "A solution contains 2 mol of solute and 55 mol of solvent. There are 500 g of solvent. Find molality.",
+    "refuse": false,
+    "kind": "molality",
+    "n": 2,
+    "denominator": 0.5,
+    "expected": 4.0
   }
 ];
 function physical(labels:string[],symbol:string,unit:string,expected:number):void {
