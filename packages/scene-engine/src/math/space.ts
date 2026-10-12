@@ -14,9 +14,24 @@ export interface Point2 {
   readonly y: number;
 }
 
+/**
+ * One parallel view of world space: canvas x = right·p and canvas y = up·p.
+ * Every candidate keeps world z exactly screen up (right.z = 0, up.z > 0).
+ * `params` are (k, alpha degrees) for the book view and (azimuth, elevation)
+ * degrees for the turntable view.
+ */
+export interface SpaceProjection {
+  readonly right: Vec3;
+  readonly up: Vec3;
+  readonly family: "book" | "turntable";
+  readonly params: readonly [number, number];
+}
+
 export interface SpaceFrame {
   readonly origin: Point2;
   readonly scale: number;
+  /** Absent for unit-level frames and solids, which keep the isometric view. */
+  readonly projection?: SpaceProjection;
 }
 
 const ISO_COS = Math.sqrt(3) / 2;
@@ -60,6 +75,17 @@ export function isometricProject(point: Vec3, frame: SpaceFrame): Point2 {
   return {
     x: frame.origin.x + x * frame.scale,
     y: frame.origin.y + y * frame.scale,
+  };
+}
+
+/** The frame's own view when it has one, else the isometric view unchanged. */
+export function projectSpace(point: Vec3, frame: SpaceFrame): Point2 {
+  const projection = frame.projection;
+  if (!projection) return isometricProject(point, frame);
+  const { right, up } = projection;
+  return {
+    x: frame.origin.x + (right.x * point.x + right.y * point.y + right.z * point.z) * frame.scale,
+    y: frame.origin.y + (up.x * point.x + up.y * point.y + up.z * point.z) * frame.scale,
   };
 }
 

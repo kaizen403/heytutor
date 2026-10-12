@@ -5,6 +5,7 @@ import {
   type RenderPoint,
   type RenderPrimitive,
   type SceneAssertion,
+  type SceneConstruction,
   type SceneDocument,
   type SceneIssue,
   type ValidationReport,
@@ -27,21 +28,24 @@ import { measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
 import { evaluateTopologyAssertion, validateTopologyInvariants } from "../topology/topology";
 import { implicitSolverEntityIds, validateSceneDocument } from "../document/validation";
 import { validateMatrixSourceBinding } from "./matrixSourceBinding";
+import { compactCalloutLabel, isPointIdentifierText, isViewSummaryText, pointLabelTether } from "./pointLabelText";
 import { validateCircleLabelTraces, validateCircleSourceBinding } from "./circleGeometry";
 import { validateRelativeMotionSourceInputs } from "../synthesize/relativeMotionScene";
 import { validateUniformCircularSourceInputs } from "../physics/uniformCircularSourceBinding";
 import { parseMathExpression, parseMathExpression2D } from "../math/expression";
 import {
-  isometricProject,
   planeFromCartesian,
   planePatchCorners,
+  projectSpace,
   spaceFrameAxisTips,
   vec3Add,
   vec3Length,
   vec3Scale,
   type SpaceFrame,
+  type SpaceProjection,
   type Vec3,
 } from "../math/space";
+import { planSpaceView, type SpacePlaneDrawing, type SpaceViewPlan } from "./spaceView";
 import {
   isExecutableSceneConstructionOperator,
   isExecutableSceneProofPredicate,
@@ -227,6 +231,8 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   const issues = [...structural.report.issues];
   const geometry = new Map<string, Geometry>();
   const checkedClaimOutputIds = new Set<string>();
+  // One view for every space frame, planned before the loop reassigns `document`.
+  const spaceView = planSpaceView(document);
   const quantities = new Map(document.quantities.map((quantity) => [quantity.id, quantity]));
   const layoutOverrides = computeLogicalLayout(document);
   const parallelLaneOffsets = computeParallelLaneOffsets(document);
@@ -241,9 +247,8 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       const laneOffset = construction.outputs[0]
         ? parallelLaneOffsets.get(construction.outputs[0])
         : undefined;
-      const inputs = laneOffset === undefined
-        ? construction.inputs
-        : { ...construction.inputs, __parallelLane: laneOffset };
+      const spaceViewInput = spaceView ? spaceViewInputFor(construction, spaceView) : undefined;
+      const inputs = withEngineInputs(construction.inputs, laneOffset, spaceViewInput);
       const operator = construction.operator;
       if (!isExecutableSceneConstructionOperator(operator)) {
         throw new Error(`unsupported operator ${operator}`);
@@ -251,7 +256,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       if (operator === "dimension" && hasDisplayAncestor(construction.outputs, geometry, document, hasIndependentDisplayMetric)) {
         throw new Error("Dimensions cannot measure independently scaled source geometry; use its verified source values");
       }
-      const outputs = evaluateConstruction(operator, inputs, geometry, quantities, document);
+      const outputs = withPlannedSpaceLineExtent(evaluateConstruction(operator, inputs, geometry, quantities, document), construction, spaceView, geometry);
       if (construction.operator === "point" && construction.outputs[0]) {
         const override = layoutOverrides.get(construction.outputs[0]);
         if (override) outputs[0] = { kind: "point", point: override };
@@ -397,7 +402,9 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       Boolean(annotation.kind === "callout"
         ? compactCalloutLabel(annotation.text)
         : annotation.text),
-    );
+    ) ||
+    // Space frames letter their axes.
+    spaceView !== null;
   const transformPlan = createEntityTransformPlan(
     document,
     geometry,
@@ -535,6 +542,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     if (valueAnnotation && useCombinedText) consumedAnnotationIds.add(valueAnnotation.id);
     if (explicitAnnotation && !useCombinedText && !semanticDirectionMarker) continue;
     const transform = transformPlan.transformFor(entity.id);
+    const spaceElementPlacement = spaceElementLabelPlacement(entity.id, target, primitives);
     labelOwners.push({
       labelId: `primitive_${entity.id}_label`,
       entityId: entity.id,
@@ -548,6 +556,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       requireLeader: entity.provenance?.requireLabelLeader === true,
       leaderGeometrySafe: entity.kind === "point" || entity.provenance?.leaderGeometrySafe === true,
       ...dimensionLabelPlacement(entity.id, target, primitives, transformPlan.viewportFor(entity.id)),
+      ...spaceElementPlacement,
     });
   }
   for (const annotation of document.annotations) {
@@ -748,9 +757,13 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       incidentTangents: undefined,
     };
   };
-  const placementOwners = pinDsaLabels
-    ? uniqueLabelOwners.map(pinOwner)
-    : uniqueLabelOwners.map((owner) => (pinnedEntityIds.has(owner.entityId) ? pinOwner(owner) : owner));
+  const axisLetterOwners = spaceAxisLetterOwners(document, geometry, renderableIds, constructionOnlyIds, entityToGroup, transformPlan);
+  const placementOwners = [
+    ...(pinDsaLabels
+      ? uniqueLabelOwners.map(pinOwner)
+      : uniqueLabelOwners.map((owner) => (pinnedEntityIds.has(owner.entityId) ? pinOwner(owner) : owner))),
+    ...axisLetterOwners,
+  ];
   const labelObstacles = [...obstaclesFromPrimitives(primitives), workColumnObstacle()];
   const labelOptions: LabelEngineOptions = pinDsaLabels
     // 16 is the validator's own compact-label ceiling; a lower cap here
@@ -764,6 +777,18 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   if (stackedOwners && labels.issues.length > 0) {
     const solved = placeLabels(placementOwners, labelObstacles, labelOptions);
     if (solved.issues.length < labels.issues.length) labels = solved;
+  }
+  if (axisLetterOwners.length > 0 && labels.issues.length > 0) {
+    // Axis letters are presentation only: a figure whose own labels need
+    // their room keeps those labels and draws its axes unlettered.
+    const letterIds = new Set(axisLetterOwners.map((owner) => owner.labelId));
+    const withoutLetters = (owners: LabelOwner[]) => owners.filter((owner) => !letterIds.has(owner.labelId));
+    let plain = placeLabels(withoutLetters(stackedOwners ?? placementOwners), labelObstacles, labelOptions);
+    if (stackedOwners && plain.issues.length > 0) {
+      const solved = placeLabels(withoutLetters(placementOwners), labelObstacles, labelOptions);
+      if (solved.issues.length < plain.issues.length) plain = solved;
+    }
+    if (plain.issues.length < labels.issues.length) labels = plain;
   }
   for (const issue of labels.issues) {
     issues.push({
@@ -865,25 +890,54 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   };
 }
 
-function isPageNormalMarker(value: string): boolean {
-  return ["×", "⊗", "•", "⊙"].includes(value.trim());
+/** Shorter drawn axes than this carry no letter; three letters would crowd one point. */
+const MIN_LETTERED_AXIS_PX = 16;
+
+/**
+ * Engine-owned letters x, y, z at the positive tips of every drawn space
+ * frame with a planned view. The turntable view may draw x on the left, so a
+ * frame's identity cannot rest on orientation alone.
+ */
+function spaceAxisLetterOwners(
+  document: SceneDocument,
+  geometry: Map<string, Geometry>,
+  renderableIds: ReadonlySet<string>,
+  constructionOnlyIds: ReadonlySet<string>,
+  entityToGroup: ReadonlyMap<string, string>,
+  transformPlan: EntityTransformPlan,
+): LabelOwner[] {
+  const owners: LabelOwner[] = [];
+  for (const entity of document.entities) {
+    const value = geometry.get(entity.id);
+    if (value?.kind !== "compound" || !value.spaceFrame?.projection) continue;
+    if (!renderableIds.has(entity.id) || constructionOnlyIds.has(entity.id) || !entityToGroup.has(entity.id)) continue;
+    const transform = transformPlan.transformFor(entity.id);
+    ["x", "y", "z"].forEach((letter, axis) => {
+      const path = value.paths[axis];
+      if (!path || path.length < 2) return;
+      const origin = transform(path[0]!);
+      const tip = transform(path[1]!);
+      const length = Math.hypot(tip.x - origin.x, tip.y - origin.y);
+      if (!(length >= MIN_LETTERED_AXIS_PX)) return;
+      owners.push({
+        labelId: `primitive_${entity.id}_label_${letter}`,
+        entityId: entity.id,
+        anchor: tip,
+        text: letter,
+        viewBounds: transformPlan.viewportFor(entity.id),
+        useOwnerBounds: false,
+        incidentTangents: [{ x: (origin.x - tip.x) / length, y: (origin.y - tip.y) / length }],
+        tetherPx: pointLabelTether(letter),
+        allowLeader: false,
+        leaderGeometrySafe: true,
+      });
+    });
+  }
+  return owners;
 }
 
-function compactCalloutLabel(text: string | undefined): string | undefined {
-  const normalized = text?.trim();
-  if (!normalized) return undefined;
-  if (normalized.length <= 16) return normalized;
-  const compactResult = normalized
-    .replace(/R_?eq\s*,\s*(?:series|parallel)\s*=/i, "R_eq =")
-    .replace(/\s+/g, " ");
-  if (compactResult.length <= 16) return compactResult;
-  const directionalPrefix = compactResult.match(
-    /^(.{1,16}?)(?:\s+(?:toward|towards|to the|into|out of|leftward|rightward|upward|downward|clockwise|counterclockwise)\b)/i,
-  )?.[1]?.trim();
-  if (directionalPrefix) return directionalPrefix;
-  const head = normalized.split(/[(:,;]/, 1)[0]?.trim();
-  if (head && head.length <= 16) return head;
-  return undefined;
+function isPageNormalMarker(value: string): boolean {
+  return ["×", "⊗", "•", "⊙"].includes(value.trim());
 }
 
 function isComponentDesignator(text: string): boolean {
@@ -968,12 +1022,6 @@ function stackSummaryLabelOwners(
     ordered.forEach((owner, index) => replaced.set(owner, rows[index]!));
   }
   return owners.map((owner) => replaced.get(owner) ?? owner);
-}
-
-function isViewSummaryText(text: string | undefined): boolean {
-  const normalized = text?.trim() ?? "";
-  return /^(?:series|parallel|result|equivalent|total|answer|fbd|free[- ]body)\b/i.test(normalized) ||
-    /^[A-Za-z][A-Za-z0-9_₀-₉,]*\s*=/.test(normalized);
 }
 
 function boundsForPrimitives(
@@ -2153,6 +2201,9 @@ function shouldSplitPlotAxes(
   uniformScale: number,
 ): boolean {
   if (spanX < EPSILON || spanY < EPSILON) return false;
+  // A space frame is one figure in one view; the book view draws x = c planes
+  // as axis-aligned rectangles, which must not license non-uniform scaling.
+  if (values.some((value) => value.kind === "compound" && value.spaceFrame)) return false;
   if (values.some((value) =>
     value.kind === "circle" ||
     value.kind === "arc" ||
@@ -2359,7 +2410,8 @@ function toPrimitives(entityId: string, entityKind: string, value: Geometry, gro
     : entityKind === "vector" || value.directed
       ? "vector"
       : value.closed
-        ? (value.points.length === 4 && value.points.every((point, index) => {
+        // A plane seen face on is still a plane, not a box on the page.
+        ? (value.points.length === 4 && !value.spacePlane && value.points.every((point, index) => {
             const next = value.points[(index + 1) % value.points.length]!;
             return Math.abs(point.x - next.x) < EPSILON || Math.abs(point.y - next.y) < EPSILON;
           }) ? "rectangle" : "polygon")
@@ -2367,7 +2419,16 @@ function toPrimitives(entityId: string, entityKind: string, value: Geometry, gro
           ? "polyline"
           : "line";
   const transformedPoints = value.points.map(transform);
-  let renderPoints = value.infinite && !forceFinite && value.points.length >= 2
+  let renderPoints = drawsFiniteSpaceLine(value) && !forceFinite && transformedPoints.length >= 2
+    // A finite space line that misses the view falls back to the clipped infinite line drawn before
+    // the view plan, so a required line can never sit off the board while compile reports ok.
+    ? clipSegmentToView(transformedPoints[0]!, transformedPoints.at(-1)!, viewport) ?? clipInfinitePath(
+        transform(value.points[0]!),
+        transform(infinitePathFarPoint(value.points[0]!, value.points.at(-1)!)),
+        value.directed === true,
+        viewport,
+      )
+    : value.infinite && !forceFinite && value.points.length >= 2
     ? clipInfinitePath(
         transform(value.points[0]!),
         transform(infinitePathFarPoint(value.points[0]!, value.points[1]!)),
@@ -2633,6 +2694,31 @@ function clipInfinitePath(start:RenderPoint,next:RenderPoint,directed:boolean,vi
   return unique.length>=2?[unique[0]!.point,unique.at(-1)!.point]:[start,next];
 }
 
+/**
+ * A finite space line keeps its drawn extent but stops at the view edge.
+ * Lines stay out of the fit: a long planner range would otherwise shrink
+ * every point and label of the figure.
+ */
+/** The part of a segment inside the view, or null when the segment misses the view. */
+function clipSegmentToView(start: RenderPoint, end: RenderPoint, viewport: { x: number; y: number; width: number; height: number; padding?: number }): RenderPoint[] | null {
+  const padding = viewport.padding ?? 0;
+  const bounds = { left: viewport.x + padding, right: viewport.x + viewport.width - padding, top: viewport.y + padding, bottom: viewport.y + viewport.height - padding };
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  let low = 0;
+  let high = 1;
+  for (const [p, q] of [[-dx, start.x - bounds.left], [dx, bounds.right - start.x], [-dy, start.y - bounds.top], [dy, bounds.bottom - start.y]] as const) {
+    if (Math.abs(p) < EPSILON) { if (q < 0) return null; continue; }
+    const t = q / p;
+    if (p < 0) low = Math.max(low, t); else high = Math.min(high, t);
+  }
+  if (!(high - low > EPSILON)) return null;
+  return [
+    { x: round(start.x + dx * low), y: round(start.y + dy * low) },
+    { x: round(start.x + dx * high), y: round(start.y + dy * high) },
+  ];
+}
+
 function emptyRenderScene(document: SceneDocument) {
   return {
     engineVersion: SCENE_ENGINE_VERSION,
@@ -2705,7 +2791,7 @@ function parametricCurveGeometry(
   const tMin = resolveNumber(first(inputs, ["tMin", "parameterMin"]), quantities);
   const tMax = resolveNumber(first(inputs, ["tMax", "parameterMax"]), quantities);
   if (!(tMin < tMax)) throw new Error("parametric_curve requires tMin < tMax");
-  const samples = curveSampleCount(inputs.samples, quantities, "parametric_curve");
+  const samples = curveSampleCount(inputs.samples, quantities, "parametric_curve", LOOP_CURVE_MAX_SAMPLES);
   const xExpression = parseParameterizedExpression(inputs.xExpression, "t");
   const yExpression = parseParameterizedExpression(inputs.yExpression, "t");
   xExpression.assertContinuousOn(tMin, tMax);
@@ -2728,7 +2814,7 @@ function polarCurveGeometry(
   const thetaMin = resolveNumber(first(inputs, ["thetaMin", "parameterMin"]), quantities);
   const thetaMax = resolveNumber(first(inputs, ["thetaMax", "parameterMax"]), quantities);
   if (!(thetaMin < thetaMax)) throw new Error("polar_curve requires thetaMin < thetaMax");
-  const samples = curveSampleCount(inputs.samples, quantities, "polar_curve");
+  const samples = curveSampleCount(inputs.samples, quantities, "polar_curve", LOOP_CURVE_MAX_SAMPLES);
   const radiusExpression = parseParameterizedExpression(inputs.radiusExpression, "theta");
   radiusExpression.assertContinuousOn(thetaMin, thetaMax);
   const evaluate = (theta: number): Point => {
@@ -3214,19 +3300,47 @@ function spaceFrameGeometry(
   const axisLength = inputs.axisLength === undefined
     ? 2
     : positive(resolveNumber(inputs.axisLength, quantities), "space_frame axisLength");
-  const frame: SpaceFrame = { origin, scale };
-  const [iTip, jTip, kTip] = spaceFrameAxisTips(axisLength);
-  const origin2 = isometricProject({ x: 0, y: 0, z: 0 }, frame);
-  const paths = [iTip, jTip, kTip].map((tip) => {
-    const projected = isometricProject(tip, frame);
-    return [origin2, { x: projected.x, y: projected.y }];
-  });
+  const view = spaceFrameView(inputs.__spaceView, axisLength);
+  const frame: SpaceFrame = view ? { origin, scale, projection: view.projection } : { origin, scale };
+  spaceFrameAxisTips(axisLength);
+  // Positive half-axes keep paths 0 to 2; a negative half-axis is appended
+  // only when a point, vertex or intercept lies there, so ids stay stable.
+  const origin2 = projectSpace({ x: 0, y: 0, z: 0 }, frame);
+  const axisPoint = (axis: number, value: number): Point => {
+    const projected = projectSpace({ x: axis === 0 ? value : 0, y: axis === 1 ? value : 0, z: axis === 2 ? value : 0 }, frame);
+    return { x: projected.x, y: projected.y };
+  };
+  const maxima = view ? [view.axisMax.x, view.axisMax.y, view.axisMax.z] : [axisLength, axisLength, axisLength];
+  const minima = view ? [view.axisMin.x, view.axisMin.y, view.axisMin.z] : [0, 0, 0];
+  const paths = [0, 1, 2].map((axis) => [origin2, axisPoint(axis, maxima[axis]!)]);
+  for (const axis of [0, 1, 2]) if (minima[axis]! < 0) paths.push([origin2, axisPoint(axis, minima[axis]!)]);
   return {
     kind: "compound",
     paths,
-    terminals: [origin2, { x: isometricProject(iTip, frame).x, y: isometricProject(iTip, frame).y }],
+    terminals: [origin2, paths[0]![1]!],
     spaceFrame: frame,
   };
+}
+
+/** The plan's entry for one space_frame, space_line or plane construction. */
+function spaceViewInputFor(construction: SceneConstruction, plan: SpaceViewPlan): unknown {
+  const output = construction.outputs[0];
+  if (typeof output !== "string") return undefined;
+  if (construction.operator === "space_frame") {
+    const frame = plan.frames.get(output);
+    return frame ? { projection: plan.projection, axisMin: frame.axisMin, axisMax: frame.axisMax } : { projection: plan.projection };
+  }
+  if (construction.operator === "space_line") return plan.lines.get(output);
+  if (construction.operator === "plane") return plan.planes.get(output);
+  return undefined;
+}
+
+function spaceFrameView(value: unknown, axisLength: number): { projection: SpaceProjection; axisMin: Vec3; axisMax: Vec3 } | null {
+  if (!isRecord(value) || !isRecord(value.projection)) return null;
+  const projection = value.projection as unknown as SpaceProjection;
+  const axisMin = isRecord(value.axisMin) ? value.axisMin as unknown as Vec3 : { x: 0, y: 0, z: 0 };
+  const axisMax = isRecord(value.axisMax) ? value.axisMax as unknown as Vec3 : { x: axisLength, y: axisLength, z: axisLength };
+  return { projection, axisMin, axisMax };
 }
 
 function spacePointGeometry(
@@ -3236,7 +3350,7 @@ function spacePointGeometry(
 ): Extract<Geometry, { kind: "point" }> {
   const frame = resolveSpaceFrame(first(inputs, ["frame"]), geometry);
   const space = resolveVec3(inputs, quantities, ["x"], ["y"], ["z"]);
-  const projected = isometricProject(space, frame);
+  const projected = projectSpace(space, frame);
   return { kind: "point", point: { x: projected.x, y: projected.y }, space, spaceFrameId: String(inputs.frame) };
 }
 
@@ -3255,11 +3369,104 @@ function spaceLineGeometry(
   if (!(tMin < tMax) || !Number.isFinite(tMin) || !Number.isFinite(tMax)) {
     throw new Error("space_line requires finite tMin < tMax");
   }
-  const start = vec3Add(anchor, vec3Scale(direction, tMin));
-  const end = vec3Add(anchor, vec3Scale(direction, tMax));
-  const a = isometricProject(start, frame);
-  const b = isometricProject(end, frame);
-  return { kind: "path", infinite: true, points: distinctPathPoints({ x: a.x, y: a.y }, { x: b.x, y: b.y }, "space_line"), spaceLine: { frameId: String(inputs.frame), point: anchor, direction } };
+  // The planned range holds every point drawn on the line; it never shrinks the planner's.
+  const extent = spaceLineExtent(inputs.__spaceView);
+  const drawnMin = extent ? Math.min(tMin, extent.tMin) : tMin;
+  const drawnMax = extent ? Math.max(tMax, extent.tMax) : tMax;
+  const a = projectSpace(vec3Add(anchor, vec3Scale(direction, drawnMin)), frame);
+  const b = projectSpace(vec3Add(anchor, vec3Scale(direction, drawnMax)), frame);
+  const spaceLine: SpaceLineDefinition = extent
+    ? { frameId: String(inputs.frame), point: anchor, direction, tMin: drawnMin, tMax: drawnMax }
+    : { frameId: String(inputs.frame), point: anchor, direction };
+  return { kind: "path", infinite: true, points: distinctPathPoints({ x: a.x, y: a.y }, { x: b.x, y: b.y }, "space_line"), spaceLine };
+}
+
+/**
+ * A space line with a planned world extent is drawn as that finite segment,
+ * clipped at the view edge. Without an extent it is clipped to the view like
+ * any infinite line.
+ */
+function drawsFiniteSpaceLine(value: Geometry): boolean {
+  if (value.kind !== "path" || !value.spaceLine) return false;
+  const { tMin, tMax } = value.spaceLine;
+  return typeof tMin === "number" && typeof tMax === "number" && Number.isFinite(tMin) && Number.isFinite(tMax) && tMin < tMax;
+}
+
+/**
+ * A plane/plane intersection line is drawn over the stretch the view plan
+ * gives it, the stretch both planes hold. Its derivation still checks the
+ * planner's own range; dependants read the drawn world extent.
+ */
+function withPlannedSpaceLineExtent(outputs: Geometry[], construction: SceneConstruction, plan: SpaceViewPlan | null, geometry: Map<string, Geometry>): Geometry[] {
+  if (!plan || construction.operator !== "space_intersection") return outputs;
+  return outputs.map((value, index) => {
+    const id = construction.outputs[index];
+    const extent = typeof id === "string" ? plan.lines.get(id) : undefined;
+    if (!extent || value.kind !== "path" || !value.spaceLine) return value;
+    const frame = resolveSpaceFrame(value.spaceLine.frameId, geometry);
+    const { point, direction } = value.spaceLine;
+    const a = projectSpace(vec3Add(point, vec3Scale(direction, extent.tMin)), frame);
+    const b = projectSpace(vec3Add(point, vec3Scale(direction, extent.tMax)), frame);
+    return {
+      ...value,
+      points: distinctPathPoints({ x: a.x, y: a.y }, { x: b.x, y: b.y }, "space_intersection"),
+      spaceLine: { ...value.spaceLine, tMin: extent.tMin, tMax: extent.tMax },
+    };
+  });
+}
+
+/**
+ * A space line or plane carries its name on the drawn element: a line's
+ * label beside the stretch of the line with the most room, a plane's inside
+ * the corner with the most room. The bounding-box slots other paths use put
+ * a long diagonal line's label far from its stroke, and a plane's label above
+ * a patch that reaches the top of the view.
+ */
+function spaceElementLabelPlacement(entityId: string, value: Geometry, primitives: RenderPrimitive[]): Partial<LabelOwner> {
+  if (value.kind !== "path") return {};
+  const isLine = drawsFiniteSpaceLine(value);
+  const isPlane = Boolean(value.spacePlane) && value.closed === true;
+  if (!isLine && !isPlane) return {};
+  const own = primitives.find((primitive) => primitive.entityId === entityId && primitive.kind !== "label");
+  if (!own || own.points.length < 2) return {};
+  const candidates: RenderPoint[] = [];
+  const along = (a: RenderPoint, b: RenderPoint, t: number): RenderPoint => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+  if (isLine) {
+    const start = own.points[0]!;
+    const end = own.points.at(-1)!;
+    for (const t of [0.85, 0.15, 0.7, 0.3, 0.5]) candidates.push(along(start, end, t));
+  } else {
+    const closing = own.points.length > 3 && distance(own.points[0]!, own.points.at(-1)!) < EPSILON;
+    const ring = closing ? own.points.slice(0, -1) : own.points;
+    const centroid = { x: ring.reduce((sum, point) => sum + point.x, 0) / ring.length, y: ring.reduce((sum, point) => sum + point.y, 0) / ring.length };
+    for (const corner of ring) candidates.push(along(corner, centroid, 0.3));
+    candidates.push(centroid);
+  }
+  // Room is the distance to every other drawn stroke and point; a plane's
+  // own edges count too, so its label does not sit in a sharp corner.
+  const segments: Array<[RenderPoint, RenderPoint]> = [];
+  for (const primitive of primitives) {
+    if (primitive.kind === "label" || (isLine && primitive.entityId === entityId)) continue;
+    const points = primitive.points;
+    if (points.length === 1 || primitive.kind === "point") { segments.push([points[0]!, points[0]!]); continue; }
+    for (let index = 1; index < points.length; index += 1) segments.push([points[index - 1]!, points[index]!]);
+    if ((primitive.kind === "polygon" || primitive.kind === "rectangle") && points.length > 2) segments.push([points.at(-1)!, points[0]!]);
+  }
+  const room = (point: RenderPoint): number => segments.length === 0
+    ? Infinity
+    : Math.min(...segments.map(([a, b]) => pointSegmentResidual(point, [a, b])));
+  let best = candidates[0]!;
+  let bestRoom = room(best);
+  for (const candidate of candidates.slice(1)) {
+    const candidateRoom = room(candidate);
+    if (candidateRoom > bestRoom + 1) { best = candidate; bestRoom = candidateRoom; }
+  }
+  return { anchor: { x: best.x, y: best.y }, useOwnerBounds: false };
+}
+
+function spaceLineExtent(value: unknown): { tMin: number; tMax: number } | null {
+  if (!isRecord(value) || typeof value.tMin !== "number" || typeof value.tMax !== "number") return null;
+  return Number.isFinite(value.tMin) && Number.isFinite(value.tMax) && value.tMin < value.tMax ? { tMin: value.tMin, tMax: value.tMax } : null;
 }
 
 function planeGeometry(
@@ -3289,13 +3496,56 @@ function planeGeometry(
     u = resolveVec3Value(first(inputs, ["u"]), quantities, "plane u");
     v = resolveVec3Value(first(inputs, ["v"]), quantities, "plane v");
   }
-  const corners = planePatchCorners(point, u, v, uSpan, vSpan).map((corner) => {
-    const projected = isometricProject(corner, frame);
+  // The planner's own patch is still checked (positive spans, independent u and v).
+  const plannerCorners = planePatchCorners(point, u, v, uSpan, vSpan);
+  // The plan decides only the drawing; the world plane the proofs read is unchanged.
+  const drawing = spacePlaneDrawing(inputs.__spaceView);
+  const plannedCorners = drawing?.kind === "triangle"
+    ? drawing.vertices
+    : drawing?.kind === "patch"
+      ? planePatchCorners(drawing.center, drawing.u, drawing.v, drawing.uSpan, drawing.vSpan)
+      : null;
+  // A planned drawing is used only when every corner lies on this plane; otherwise the planner's own patch.
+  const planeCross = { x: u.y * v.z - u.z * v.y, y: u.z * v.x - u.x * v.z, z: u.x * v.y - u.y * v.x };
+  const unitNormal = vec3Scale(planeCross, 1 / vec3Length(planeCross));
+  const onPlane = (corner: Vec3) => {
+    const offset = { x: corner.x - point.x, y: corner.y - point.y, z: corner.z - point.z };
+    const residual = Math.abs(offset.x * unitNormal.x + offset.y * unitNormal.y + offset.z * unitNormal.z);
+    return Number.isFinite(residual) && residual <= 1e-9 * Math.max(1, vec3Length(offset), vec3Length(point));
+  };
+  const worldCorners = plannedCorners && plannedCorners.every(onPlane) ? plannedCorners : plannerCorners;
+  const corners = worldCorners.map((corner) => {
+    const projected = projectSpace(corner, frame);
     return { x: projected.x, y: projected.y };
   });
   const crossNormal = { x: u.y * v.z - u.z * v.y, y: u.z * v.x - u.x * v.z, z: u.x * v.y - u.y * v.x };
   const normal = vec3Scale(crossNormal, 1 / vec3Length(crossNormal));
   return { kind: "path", closed: true, points: corners, spacePlane: { frameId: String(inputs.frame), point, normal } };
+}
+
+/**
+ * `__`-prefixed inputs belong to the compiler (planned lane offsets and space views). A document's own
+ * copies are dropped, so planner text can never supply a drawing the engine did not plan.
+ */
+function withEngineInputs(
+  inputs: Record<string, unknown>,
+  laneOffset: number | undefined,
+  spaceViewInput: unknown,
+): Record<string, unknown> {
+  const documentHasEngineKeys = Object.keys(inputs).some((key) => key.startsWith("__"));
+  if (!documentHasEngineKeys && laneOffset === undefined && spaceViewInput === undefined) return inputs;
+  return {
+    ...Object.fromEntries(Object.entries(inputs).filter(([key]) => !key.startsWith("__"))),
+    ...(laneOffset === undefined ? {} : { __parallelLane: laneOffset }),
+    ...(spaceViewInput === undefined ? {} : { __spaceView: spaceViewInput }),
+  };
+}
+
+function spacePlaneDrawing(value: unknown): SpacePlaneDrawing | null {
+  if (!isRecord(value)) return null;
+  if (value.kind === "triangle" && Array.isArray(value.vertices) && value.vertices.length === 3) return value as unknown as SpacePlaneDrawing;
+  if (value.kind === "patch" && isRecord(value.center) && isRecord(value.u) && isRecord(value.v) && typeof value.uSpan === "number" && typeof value.vSpan === "number") return value as unknown as SpacePlaneDrawing;
+  return null;
 }
 
 function assertSpacePointFrame(value: unknown, frameId: unknown, geometry: Map<string, Geometry>): void {
@@ -3990,14 +4240,18 @@ function assertParameterInDomain(curve: SampledCurve, parameter: number, operato
   }
 }
 
+/** Parametric and polar curves often close a full loop; like conics they may ask for up to 513 samples. */
+const LOOP_CURVE_MAX_SAMPLES = 513;
+
 function curveSampleCount(
   value: unknown,
   quantities: Map<string, Record<string, unknown>>,
   operator: string,
+  maxSamples = 161,
 ): number {
   const samples = value === undefined ? 65 : resolveNumber(value, quantities);
-  if (!Number.isInteger(samples) || samples < 17 || samples > 161 || samples % 2 === 0) {
-    throw new Error(`${operator} samples must be an odd integer from 17 to 161`);
+  if (!Number.isInteger(samples) || samples < 17 || samples > maxSamples || samples % 2 === 0) {
+    throw new Error(`${operator} samples must be an odd integer from 17 to ${maxSamples}`);
   }
   return samples;
 }
@@ -4637,18 +4891,6 @@ function labelAnchor(value: Geometry): Point {
   if (value.kind === "circle") return { x: value.center.x + value.radius, y: value.center.y };
   if (value.kind === "axes") return { x: 0, y: 0 };
   return centerOf(value);
-}
-
-function isPointIdentifierText(text: string): boolean {
-  return /^[A-Za-zΑ-ω][A-Za-z0-9₀-₉_]{0,2}$/.test(text.trim());
-}
-
-function pointLabelTether(text: string): number {
-  // Keep point identifiers in the same 56 px neighborhood. A measured phrase
-  // needs room for its own glyphs: add only its excess half-width, so text
-  // remains just as close to the anchor instead of failing on box size alone.
-  if (isPointIdentifierText(text)) return POINT_LABEL_TETHER_PX;
-  return POINT_LABEL_TETHER_PX + Math.max(0, measureTextWidth(text, 24) - 24) / 2;
 }
 
 function screenIncidentTangents(
