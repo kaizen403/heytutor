@@ -6,7 +6,7 @@ import { synthesizeFamilyScene } from "../../src/synthesize/familyScene";
 import { compileSceneDocument } from "../../src/compile/compiler";
 import type { SceneDocument } from "../../src/types";
 
-const cases: readonly {id:string; question:string; expected:string; dG:number|null}[] = [
+const cases: readonly {id:string; question:string; expected:string; dG:number|null; unit?:string}[] = [
   {
     "id": "GREPTILE-4244042438",
     "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and calculate ΔG at 298 K.",
@@ -258,10 +258,140 @@ const cases: readonly {id:string; question:string; expected:string; dG:number|nu
     "question": "Enthalpy change for the reaction is -40 kJ/mol. Entropy change = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
     "expected": "required-compile",
     "dG": -10.2
+  },
+  {
+    "id": "GIBBS-FORMULA-SUPPORT-1",
+    "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Plot ΔG = ΔH - TΔS versus T and calculate ΔG at 298 K.",
+    "expected": "required-compile",
+    "dG": -10.2,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "GIBBS-FORMULA-SUPPORT-2",
+    "question": "At 298 K, enthalpy change = -40 kJ/mol and entropy change = -100 J/(mol K). Draw ΔG versus T using ΔH - TΔS and calculate ΔG at 298 K.",
+    "expected": "required-compile",
+    "dG": -10.2,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "GIBBS-FORMULA-SUPPORT-3",
+    "question": "At 298 K, ΔH = 40 kJ/mol and ΔS = 100 J/(mol K). Calculate ΔG from ΔG = ΔH - TΔS and draw ΔG versus T.",
+    "expected": "required-compile",
+    "dG": 10.2,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "GIBBS-FORMULA-SUPPORT-4",
+    "question": "At 300 K, ΔH = -40 kJ/mol and ΔS = 100 J/(mol K). Draw the line ΔG = ΔH - TΔS against T and calculate ΔG at 300 K.",
+    "expected": "required-compile",
+    "dG": -70,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "GIBBS-FORMULA-SUPPORT-5",
+    "question": "At 298 K, ΔH = -40 kJ and ΔS = -100 J/K. Draw ΔG = ΔH - TΔS versus T and calculate ΔG at 298 K.",
+    "expected": "required-compile",
+    "dG": -10.2,
+    "unit": "kJ"
+  },
+  {
+    "id": "GIBBS-THRESHOLD-SUPPORT-1",
+    "question": "At what temperature is ΔG zero? ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T.",
+    "expected": "graph-only",
+    "dG": null,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "GIBBS-THRESHOLD-SUPPORT-2",
+    "question": "At which temperature does the reaction reach equilibrium? ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw the Gibbs energy line versus T.",
+    "expected": "graph-only",
+    "dG": null,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "GIBBS-UNREAD-QUALIFIED-1",
+    "question": "The temperature remains unknown; at 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "GIBBS-UNREAD-QUALIFIED-2",
+    "question": "The temperature which is unreadable is stated; at 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "GIBBS-UNREAD-QUALIFIED-3",
+    "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and calculate ΔG at an unknown temperature.",
+    "expected": "decline",
+    "dG": null,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "OWN-THRESHOLD-1",
+    "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and determine at what temperature the reaction becomes spontaneous.",
+    "expected": "graph-only",
+    "dG": null
+  },
+  {
+    "id": "OWN-THRESHOLD-2",
+    "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At which absolute temperature is ΔG zero? Draw ΔG versus T.",
+    "expected": "graph-only",
+    "dG": null
+  },
+  {
+    "id": "OWN-REFERENCE-1",
+    "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Plot ΔG(T) = ΔH − T × ΔS versus T and calculate ΔG at 298 K.",
+    "expected": "required-compile",
+    "dG": -10.2
+  },
+  {
+    "id": "OWN-REFERENCE-2",
+    "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Use ΔH and ΔS to calculate ΔG and draw ΔG versus T.",
+    "expected": "required-compile",
+    "dG": -10.2
+  },
+  {
+    "id": "OWN-TEMPERATURE-OF",
+    "question": "The temperature of the reaction is 298 K. ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and calculate ΔG at 298 K.",
+    "expected": "required-compile",
+    "dG": -10.2
+  },
+  {
+    "id": "OWN-TEMPERATURE-FOR-UNREAD",
+    "question": "The temperature for the reaction is unknown; at 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-REFERENCE-NOT-READABLE",
+    "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). With ΔH not readable, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-REFERENCE-UNKNOWN",
+    "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Use ΔH = unknown to calculate ΔG and draw ΔG versus T.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-REFERENCE-REDECLARATION",
+    "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG = ΔH - TΔS, ΔH is unknown; calculate ΔG at 298 K.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-TEMP-T-UNKNOWN",
+    "question": "T was unknown; at 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
   }
 ];
 const results: {id:string;passed:boolean;error?:string}[] = [];
-function compiled(document: SceneDocument | null, expected: number | null): void {
+function compiled(document: SceneDocument | null, expected: number | null, unit = "kJ/mol"): void {
   assert.ok(document, "required original Gibbs scene missing");
   assert.equal(document.source.chemistryFamily, "chem_thermo");
   const result = compileSceneDocument(document);
@@ -275,9 +405,9 @@ function compiled(document: SceneDocument | null, expected: number | null): void
   } else {
     assert.ok(dG && typeof dG.value === "number");
     assert.ok(Math.abs(dG.value - expected) <= 1e-10, `${dG.value} != ${expected}`);
-    assert.equal(dG.unit, "kJ/mol");
+    assert.equal(dG.unit, unit);
     assert.ok(labels.some(label => label.replace(/\s+/g, "").includes(`ΔG=${expected.toFixed(1)}`)), JSON.stringify(labels));
-    assert.ok(result.renderScene.caption?.includes(`ΔG=${expected.toFixed(1)} kJ/mol`), result.renderScene.caption);
+    assert.ok(result.renderScene.caption?.includes(`ΔG=${expected.toFixed(1)} ${unit}`), result.renderScene.caption);
   }
 }
 for (const row of cases) {
@@ -290,8 +420,8 @@ for (const row of cases) {
       assert.equal(schematic, null, "invalid temperature cannot render schematic graph");
       assert.equal(ordinary, null, "invalid temperature cannot fall through to another family");
     } else {
-      compiled(direct, row.dG); compiled(schematic, row.dG);
-      assert.ok(ordinary); compiled(ordinary.document, row.dG);
+      compiled(direct, row.dG, row.unit); compiled(schematic, row.dG, row.unit);
+      assert.ok(ordinary); compiled(ordinary.document, row.dG, row.unit);
       assert.equal(ordinary.document.source.question, row.question);
     }
     results.push({id:row.id,passed:true}); console.log(`PASS ${row.id}`);

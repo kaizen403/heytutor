@@ -503,34 +503,52 @@ function statedKelvin(question: string): GibbsTemperature {
   if (inventory.reading.some(reading => !(reading.value > 0)
     || !chemistryCanonicalValuesAgree(reading.value, value!))) return {kind: "invalid"};
   const owners = [
-    /\btemperature(?=\s*(?:[=:]|\b(?:is|was|equals|of)\b))/gi,
-    /\bT(?=\s*(?:[=:]|[Ii][Ss]\b|[Ee][Qq][Uu][Aa][Ll][Ss]\b))/g,
-    /\bat\b(?=\s*(?:[+−-]?(?:\d|\.\d)|[^;,.?!\n]{0,36}(?:\bK\b|\bkelvin\b|°\s*C\b|\btemperature\b)))/gi,
+    /\btemperature(?=\s*(?:[=:]|\b(?:is|was|equals|of|for|remains|stays|becomes|unknown|unreadable|which|that|has|reads)\b|[+−-]?(?:\d|\.\d)))/gi,
+    /\bT(?=\s*(?:[=:]|\b(?:is|was|equals|remains|stays|unknown|unreadable|which|that)\b))/gi,
+    /\bat\b(?!\s+(?:what|which|all|any|every)\b)(?=\s*(?:[+−-]?(?:\d|\.\d)|\b(?:unknown|unreadable|unspecified)\b|[^;,.?!\n]{0,36}(?:\bK\b|\bkelvin\b|°\s*C\b|\btemperature\b)))/gi,
     /\b(?:calculate|compute|determine|find)\s+(?:(?:the|value\s+of)\s+)*(?:[Δδ∆]\s*G\b|Gibbs\s+(?:free\s+)?energy\b|free\s+energy\b)[^.;?!\n]{0,80}?\bat\b/gi,
   ];
+  const payloads = new Map<number, number>();
   for (const owner of owners) for (const match of body.matchAll(owner)) {
-    const read = readChemistryQuantity({question: body, after: /^/,
-      within: {start: match.index! + match[0].length, end: body.length}, dimension: "temperature"});
+    if (/\b(?:what|which)\s+(?:absolute\s+)?$/i.test(body.slice(0, match.index!))) continue;
+    const start = match.index! + match[0].length;
+    payloads.set(start, Math.min(payloads.get(start) ?? match.index!, match.index!));
+  }
+  const declarations = [...payloads].map(([start, ownerStart]) => ({start, ownerStart})).sort((a, b) => a.start - b.start);
+  for (const declaration of declarations) {
+    const end = declarations.find(next => next.ownerStart >= declaration.start)?.ownerStart ?? body.length;
+    const read = readChemistryQuantity({question: body,
+      after: /^\s*(?:(?:of|for)\b[^=,;.!?\n]{0,45}?(?:\bis\b|=|:))?/i,
+      within: {start: declaration.start, end}, dimension: "temperature"});
     if (!read.ok || value === undefined || !chemistryCanonicalValuesAgree(read.reading.value, value)) {
       return {kind: "invalid"};
     }
   }
   return value === undefined ? {kind: "absent"} : {kind: "given", value};
 }
+/** An equation operand or an explicitly requested reuse is not a new declaration. */
+function gibbsEnergyReference(body: string, start: number, end: number): boolean {
+  const tail = body.slice(end);
+  if (/^\s*(?:[=:]|[+−-]?(?:\d|\.\d)|\b(?:is|was|equals|of|for|remains|stays|unknown|unreadable|unspecified|which|that)\b)/i.test(tail)) return false;
+  if (!/^\s*(?:[+−*/×·)-]|-(?!\s*\d)|[,.;?!]|$|\b(?:and|to|versus|vs|against|at|as)\b)/i.test(tail)) return false;
+  const prefix = body.slice(0, start).split(/[;.!?\n]/).at(-1)!;
+  if (/(?:[Δδ∆]\s*G(?:\s*\(\s*T\s*\))?|\bT(?:_[a-z]+)?)\s*=\s*[Δδ∆HhSsTt0-9\s*×·/()+−-]*$/i.test(prefix)) return true;
+  return /\b(?:use|using|from|with)\s+(?:(?:the|given)\s+)?(?:[Δδ∆HhSsTt0-9\s*×·/()+−-]|\band\b|,)*$/i.test(prefix);
+}
 /** Validate every original enthalpy/entropy declaration inside its own owner span. */
 function gibbsEnergyOwnersValid(question: string): boolean {
   const body = question.slice(0, chemistryQuestionSpan(question).end);
   const owners = [
     ...Array.from(body.matchAll(new RegExp(DELTA_H_SYMBOL.source, "gi")), match => ({
-      start: match.index!, cue: energyCueAfter(DELTA_H_SYMBOL), dimensions: ["molar_energy", "energy"] as const,
+      start: match.index!, end: match.index! + match[0].length, cue: energyCueAfter(DELTA_H_SYMBOL), dimensions: ["molar_energy", "energy"] as const,
     })),
     ...Array.from(body.matchAll(new RegExp(DELTA_S_SYMBOL.source, "gi")), match => ({
-      start: match.index!, cue: DELTA_S_SYMBOL, dimensions: ["molar_entropy", "entropy"] as const,
+      start: match.index!, end: match.index! + match[0].length, cue: DELTA_S_SYMBOL, dimensions: ["molar_entropy", "entropy"] as const,
     })),
   ].sort((a, b) => a.start - b.start);
   return owners.every((owner, index) => {
     const end = owners[index + 1]?.start ?? body.length;
-    return owner.dimensions.some(dimension => readChemistryQuantity({question: body,
+    return gibbsEnergyReference(body, owner.start, owner.end) || owner.dimensions.some(dimension => readChemistryQuantity({question: body,
       after: new RegExp(`^(?:${owner.cue.source})`, "i"),
       within: {start: owner.start, end}, dimension}).ok);
   });
