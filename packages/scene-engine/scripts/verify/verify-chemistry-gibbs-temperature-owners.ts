@@ -1078,6 +1078,48 @@ const cases: readonly {id:string; question:string; expected:string; dG:number|nu
     "question": "Use ΔH and t = 298 K. ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
     "expected": "decline",
     "dG": null
+  },
+  {
+    "id": "OWN-EMPTY-AXIS-SEMICOLON",
+    "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T; calculate the Gibbs energy.",
+    "expected": "required-compile",
+    "dG": -10.2
+  },
+  {
+    "id": "OWN-EMPTY-AXIS-END",
+    "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw the Gibbs energy curve against T",
+    "expected": "graph-only",
+    "dG": null
+  },
+  {
+    "id": "OWN-EMPTY-FORMULA-END",
+    "question": "At 300 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw the Gibbs line using ΔG = ΔH - TΔS.",
+    "expected": "required-compile",
+    "dG": -10
+  },
+  {
+    "id": "OWN-EMPTY-UNREAD-T",
+    "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). T; draw ΔG versus T.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-EMPTY-UNREAD-H",
+    "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). ΔH; draw ΔG versus T.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-EMPTY-AXIS-CONFLICT",
+    "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T; T = 299 K.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-CAPTION-OPPOSITE-SIGNS",
+    "question": "At 310 K, ΔH = -40 kJ/mol and ΔS = 100 J/(mol K). Draw ΔG versus T.",
+    "expected": "required-compile",
+    "dG": -71
   }
 ];
 const results: {id:string;passed:boolean;error?:string}[] = [];

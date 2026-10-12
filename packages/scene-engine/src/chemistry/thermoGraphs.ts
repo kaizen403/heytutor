@@ -502,6 +502,9 @@ type GibbsTemperature = { kind: "absent" } | { kind: "given"; value: number } | 
 function gibbsReferencePayloadOnly(body: string, start: number, ownerEnd: number): boolean {
   const boundary = /[;!?\n]|\.(?=\s|$)/.exec(body.slice(start, ownerEnd));
   const end = boundary ? start + boundary.index : ownerEnd;
+  // An empty operand tail is valid reference grammar. Role/context checks below
+  // still distinguish an axis or formula operand from an unread declaration.
+  if (end === start) return true;
   const temperatures = findChemistryQuantities({question: body, within: {start, end}, dimension: "temperature"});
   if (!temperatures.ok) return false;
   let payload = body.slice(start, end);
@@ -680,7 +683,7 @@ function buildGibbs(question: string, _stem: string, _quantities: ChemPlanQuanti
     if (dgAt !== null) s.quantity("dG", "ΔG", dgAt, dgUnit);
     c.text("schematic_l", { x: 1.7, y: 2.7 }, "schematic", "the line is not an energy scale");
     c.text("scale_l", { x: 1.7, y: 1.85 }, "not a kJ scale", "vertical axis is not kJ");
-    const caption = `${hText}, ${sText}. ΔG = ΔH ${MINUS} TΔS is zero at T = ΔH/ΔS = ${fmt(tEq)} K and is negative (spontaneous) ${spontaneousRight ? "above" : "below"} that temperature. The line is schematic: the crossover sits at a fixed display position, and the vertical scale is not kJ.${dgText ? ` At ${fmt(at!)} K the calculated value is ${dgText}.` : ""}`;
+    const caption = `${dgText ? `${dgText} at ${fmt(at!)} K. ` : ""}${hText}, ${sText}. ΔG = ΔH ${MINUS} TΔS is zero at T = ΔH/ΔS = ${fmt(tEq)} K and is negative (spontaneous) ${spontaneousRight ? "above" : "below"} that temperature. The line is schematic: the crossover sits at a fixed display position, and the vertical scale is not kJ.`;
     return c.build({ caption });
   }
   s.curve("gibbs_line", `${num(3 * sign)}*(1+x/8)`, 0, 8, "ΔG line", "ΔG = ΔH − TΔS", 33);
@@ -696,7 +699,7 @@ function buildGibbs(question: string, _stem: string, _quantities: ChemPlanQuanti
   c.text("scale_l", { x: 7.1, y: 2.35 }, "not a kJ scale", "vertical axis is not kJ");
   s.quantity("dH", "ΔH", dH, dgUnit);
   s.quantity("dS", "ΔS", dSkJ * 1000, entropyUnit);
-  const caption = `${hText}, ${sText}. ΔH and ΔS have opposite signs, so ΔG = ΔH ${MINUS} TΔS never changes sign: the reaction is ${sign < 0 ? "spontaneous" : "non spontaneous"} at every temperature. The line is schematic: the vertical scale is not kJ.${dgText ? ` At ${fmt(at!)} K the calculated value is ${dgText}.` : ""}`;
+  const caption = `${dgText ? `${dgText} at ${fmt(at!)} K. ` : ""}${hText}, ${sText}. ΔH and ΔS have opposite signs, so ΔG = ΔH ${MINUS} TΔS never changes sign: the reaction is ${sign < 0 ? "spontaneous" : "non spontaneous"} at every temperature. The line is schematic: the vertical scale is not kJ.`;
   return c.build({ caption });
 }
 
