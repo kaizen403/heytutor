@@ -13,7 +13,7 @@
  * overrides the table. The pure solvers (cell notation, standard potential,
  * cell emf, electrolysis products) are exported for other lanes.
  */
-import { chemistryCanonicalValuesAgree, chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityInventoryOwned, findChemistryQuantities, CHEMISTRY_SCALAR_PATTERN, matchedChemistryQuantity, chemistryQuantityCuesValid, readChemistryQuantity, readChemistryLiteral, type ChemistrySpan, type ChemistryReading, type ChemistryQuantityConsumption } from "./quantityReader";
+import { chemistryCanonicalValuesAgree, chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityInventoryOwned, findChemistryQuantities, CHEMISTRY_SCALAR_PATTERN, chemistryQuantityCuesValid, readChemistryQuantity, readChemistryLiteral, type ChemistrySpan, type ChemistryReading, type ChemistryQuantityConsumption } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { normalizeChemistryText, parseFormula } from "./formula";

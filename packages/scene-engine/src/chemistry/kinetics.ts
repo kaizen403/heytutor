@@ -19,7 +19,7 @@ import type { SceneDocument } from "../types";
 import { fmt } from "../archetypes/document";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
 
-import { chemistryCanonicalValuesAgree, chemistryReferenceConstantValid, CHEMISTRY_NUMBER_PATTERN, CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, chemistryQuestionSpan, chemistryPlanBindingsValid, chemistryQuantityCuesValid, readChemistryQuantity, readChemistryArrheniusEquation, findChemistryQuantities, convertChemistryReading, convertChemistryValue, chemistryUnitSymbol, type ChemistryUnit, type ChemistryReading } from "./quantityReader";
+import { chemistryCanonicalValuesAgree, chemistryReferenceConstantValid, CHEMISTRY_NUMBER_PATTERN, CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, chemistryQuestionSpan, chemistryPlanBindingsValid, chemistryQuantityCuesValid, readChemistryQuantity, readChemistryLiteral, readChemistryArrheniusEquation, findChemistryQuantities, convertChemistryReading, convertChemistryValue, chemistryUnitSymbol, type ChemistryUnit, type ChemistryReading, type ChemistrySpan } from "./quantityReader";
 
 export const KINETICS_FAMILY = "chem_kinetics" as const;
 
@@ -735,12 +735,40 @@ function readTimesAsked(stem: string, givenSpan: [number, number] | null): Array
   return out;
 }
 
-function readConcentrationsAsked(stem: string): number[] {
-  const match = new RegExp(String.raw`from\s*(${SCALAR})\s*(?:M|mol\s*/\s*L)\s*to\s*(${SCALAR})\s*(?:M|mol\s*/\s*L)`, "id").exec(stem);
-  if (!match) return [];
-  const first = matchedChemistryQuantity(stem, match, 1, "concentration");
-  const second = matchedChemistryQuantity(stem, match, 2, "concentration");
-  return first !== null && second !== null ? [first, second] : [];
+function readConcentrationsAsked(stem: string): number[] | null {
+  let requested: number[] = [];
+  // This adapter owns the two operands; the shared reader owns every scalar
+  // and unit. Keep original spans, including a shared trailing unit.
+  const range = /\bfrom\s+([^;\n]*?)\s+to\s+/gid;
+  const scalar = new RegExp(`^(${SCALAR})`, "d");
+  for (const match of stem.matchAll(range)) {
+    const firstPart = match.indices?.[1];
+    if (!firstPart || match.index === undefined) continue;
+    const secondStart = match.index + match[0].length;
+    const firstToken = scalar.exec(stem.slice(firstPart[0], firstPart[1]));
+    const secondToken = scalar.exec(stem.slice(secondStart));
+    const firstSpan: ChemistrySpan | null = firstToken ? { start: firstPart[0], end: firstPart[0] + firstToken[0].length } : null;
+    const secondSpan: ChemistrySpan | null = secondToken ? { start: secondStart, end: secondStart + secondToken[0].length } : null;
+    const firstRead = firstSpan ? readChemistryLiteral({ question: stem, scalarSpan: firstSpan, dimension: "concentration" }) : null;
+    const secondRead = secondSpan ? readChemistryLiteral({ question: stem, scalarSpan: secondSpan, dimension: "concentration" }) : null;
+    const precedingClause = stem.slice(0, match.index).split(/\.(?!\d)|[;\n]/).at(-1) ?? "";
+    const owned = /\bconcentration\b|\[\s*A\s*\]/i.test(precedingClause) || firstRead?.ok || secondRead?.ok;
+    // A temperature/time range is unrelated. An unread concentration request
+    // cannot vanish and leave a generic plot in its place.
+    if (!owned) continue;
+    if (!firstSpan || !secondRead?.ok) return null;
+    let first = firstRead;
+    if (!first?.ok && secondRead.reading.rawUnit) {
+      const unit = chemistryUnitSymbol(secondRead.reading.rawUnit, "concentration");
+      if (!unit) return null;
+      const sourceSpan = { start: secondRead.reading.source.span.end - secondRead.reading.rawUnit.length, end: secondRead.reading.source.span.end };
+      first = readChemistryLiteral({ question: stem, scalarSpan: firstSpan, dimension: "concentration", unitConvention: { unit, sourceSpan } });
+    }
+    if (!first?.ok || stem.slice(first.reading.source.span.end, firstPart[1]).trim()
+      || !(first.reading.value > 0) || !(secondRead.reading.value > 0) || requested.length) return null;
+    requested = [first.reading.value, secondRead.reading.value];
+  }
+  return requested;
 }
 // The cue assigns a source scalar the role of a delta. The shared reader
 // still owns its complete scalar, unit, source span and Celsius conversion.
@@ -958,6 +986,7 @@ export function kineticsFromStem(question: string, quantities: readonly ChemPlan
   const fractionsAsked = asked.completion;
   const remainingAsked = asked.remaining;
   const concentrationsAsked = readConcentrationsAsked(body);
+  if (concentrationsAsked === null) return null;
 
   // One unit for the plot: the half life's, else k's, else the given completion's, else the asked instant's.
   const unit = timeUnit ?? kUnit ?? given?.unit ?? timesAskedRaw[0]?.unit ?? "min";
@@ -1350,8 +1379,10 @@ function buildZeroOrderNumeric(question: string, spec: KineticsSpec, solution: K
   panel.ids.push(curve);
   panel.ids.push(c.text("a0", { x: 1.7, y: Y_SPAN + 0.25 }, fitLabel("[A]_0", `${fmt(a0, 3)} M`), "intercept"));
   const marks: Array<{ t: number; label: string }> = [{ t: tHalf, label: timeLabel("t_1/2", tHalf, unit) }, { t: tEnd, label: timeLabel("t", tEnd, unit) }];
-  for (const entry of solution.timesForConcentrations) {
+  for (const [index, entry] of solution.timesForConcentrations.entries()) {
     marks.push({ t: entry.time, label: `${fmt(entry.concentration, 3)} M, ${fmt(entry.time, 3)} ${unit}`.length <= 16 ? `${fmt(entry.concentration, 3)} M, ${fmt(entry.time, 3)} ${unit}` : timeLabel(`${fmt(entry.concentration, 2)} M`, entry.time, unit) });
+    c.scene.quantity(`asked_concentration_${index + 1}`, `[A]_${index + 1}`, entry.concentration, "M");
+    c.scene.quantity(`asked_time_${index + 1}`, `t_${index + 1}`, entry.time, unit);
   }
   marks.forEach((mark, index) => {
     const x = Number(((mark.t / tEnd) * X_SPAN).toFixed(6));
@@ -1369,7 +1400,10 @@ function buildZeroOrderNumeric(question: string, spec: KineticsSpec, solution: K
   const sentences = [`Zero order: [A] = [A]_0 - kt with k = [A]_0/(2 t_1/2) = ${fmt(k, 3)} M per ${unit}; the line reaches zero at t = ${fmt(tEnd, 3)} ${unit}.`];
   if (solution.timesForConcentrations.length === 2) {
     const [first, second] = solution.timesForConcentrations;
-    sentences.push(`From ${fmt(first!.concentration, 3)} M to ${fmt(second!.concentration, 3)} M takes ${fmt(Math.abs(second!.time - first!.time), 3)} ${unit}.`);
+    const interval = Math.abs(second!.time - first!.time);
+    c.scene.quantity("asked_interval", "Δt", interval, unit);
+    panel.ids.push(c.text("asked_interval", { x: 6.3, y: 5.3 }, timeLabel("Δt", interval, unit), "requested time interval"));
+    sentences.push(`From ${fmt(first!.concentration, 3)} M to ${fmt(second!.concentration, 3)} M takes ${fmt(interval, 3)} ${unit}.`);
   }
   return c.build({ caption: sentences.join(" ") });
 }
