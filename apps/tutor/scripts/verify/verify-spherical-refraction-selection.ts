@@ -13,7 +13,9 @@
  * same document with the correct 3.2 cm image, and the b1 figure that placed
  * it there, are admitted. Only surfaces the document declares refracting are
  * checked: a concave mirror's correct image, in a plan that also names a
- * glass index, is admitted.
+ * glass index, is admitted. A refraction declared at the surface fixes the
+ * order of its media, and only a point at a derived length, bound to a
+ * quantity by id, or named an image is held to the law as an image.
  *
  *   pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-spherical-refraction-selection.ts
  */
@@ -244,6 +246,138 @@ check("control: the same sphere with the final image at 20 cm, not 14, declines 
   const count = codes.filter((code) => code === "spherical_refraction_image_disagrees").length;
   if (count !== 1) return `declined with ${codes.join(", ")}; expected spherical_refraction_image_disagrees once`;
   return null;
+});
+
+/**
+ * Third review of #164. One convex glass face: vertex x = 0, centre x = 30 cm,
+ * object x = -20 cm. Light from air into glass (n1 1, n2 1.5) images the
+ * object at -45 cm; the reversed pair (1.5 to 1) would put it at -120/11 cm.
+ * - "Reversed media approve wrong images": both orders of every index pair
+ *   were tried even where the figure declares its own refraction at the face,
+ *   so an image at -120/11 was admitted beside a declared 1 to 1.5. A
+ *   declared order is now used as declared; both orders only when unknown.
+ * - "Ordinary markers reject correct figures": any literal axis point at a
+ *   derived number's distance was an image, so a derived magnification of 2
+ *   made a plain marker at x = 2 an image the law disagrees with. A point is
+ *   an image only at a derived length, a quantity bound to it by id, or when
+ *   it is named or labelled an image.
+ */
+function glassFace(options: {
+  image: number;
+  declared?: [unknown, unknown];
+  marker?: number;
+  derived?: Array<{ id: string; symbol: string; value: number; unit?: string }>;
+  imageLabel?: string;
+}): { document: Doc; plan: TurnPlanV3 } {
+  const question = "An object stands 20 cm before a convex glass surface of radius 30 cm and refractive index 1.5. Find the image.";
+  const point = (id: string, x: number, y = 0) => ({ id: `make_${id}`, operator: "point", inputs: { x, y, coordinateSpace: "world" }, outputs: [id] });
+  const quantity = (id: string, symbol: string, value: number, unit?: string) => ({ id, symbol, value, ...(unit ? { unit } : {}) });
+  const entities: Array<Record<string, unknown> & { id: string }> = [
+    { id: "V", kind: "point", role: "pole", label: "P" }, { id: "C", kind: "point", role: "centre of curvature", label: "C" },
+    { id: "O", kind: "point", role: "object", label: "O" }, { id: "I", kind: "point", role: "point on the axis", label: options.imageLabel ?? "I" },
+    { id: "axis", kind: "line", role: "principal axis" }, { id: "face", kind: "arc", role: "refracting surface" },
+  ];
+  const constructions: Array<Record<string, unknown> & { id: string; outputs: string[]; inputs: Record<string, unknown> }> = [
+    point("V", 0), point("C", 30), point("O", -20), point("I", options.image),
+    { id: "make_axis", operator: "line", inputs: { start: "O", end: "C" }, outputs: ["axis"] },
+    { id: "make_face", operator: "spherical_surface", inputs: { vertex: "V", axis: "axis", center: "C", halfHeight: 12 }, outputs: ["face"] },
+  ];
+  if (options.declared) {
+    entities.push({ id: "src", kind: "point", role: "ray start" }, { id: "hit", kind: "point", role: "point of incidence" },
+      { id: "inc", kind: "ray", role: "incident ray" }, { id: "nrm", kind: "segment", role: "normal" }, { id: "ref", kind: "ray", role: "refracted ray" });
+    constructions.push(point("src", -20, 4),
+      { id: "meet", operator: "surface_contact", inputs: { origin: "src", surface: "face", direction: [1, 0], which: "nearest_forward" }, outputs: ["hit", "inc"] },
+      { id: "normal", operator: "normal_at", inputs: { point: "hit", surface: "face" }, outputs: ["nrm"] },
+      { id: "refract", operator: "refract_direction", inputs: { origin: "hit", incoming: "inc", normal: "nrm", n1: options.declared[0], n2: options.declared[1] }, outputs: ["ref"] });
+  }
+  if (options.marker !== undefined) {
+    entities.push({ id: "K", kind: "point", role: "reference mark", label: "K" });
+    constructions.push(point("K", options.marker));
+  }
+  const ids = entities.map((entity) => entity.id);
+  const derived = options.derived ?? [quantity("v", "v", Math.abs(options.image), "cm")];
+  const givens = [quantity("n", "n", 1.5), quantity("nAir", "n_1", 1), quantity("R", "R", 30, "cm"), quantity("u", "u", 20, "cm")];
+  const document = {
+    schemaVersion: "scene-document/v2",
+    visualDecision: { mode: "scene", reason: "The surface, its axis, the object and the image have stated positions." },
+    source: { question },
+    quantities: [...givens, ...derived],
+    entities,
+    constructions,
+    relations: [],
+    assertions: [
+      { id: "objectOnAxis", predicate: "on", entities: ["O", "axis"], expected: true, severity: "fatal" },
+      { id: "imageOnAxis", predicate: "on", entities: ["I", "axis"], expected: true, severity: "fatal" },
+    ],
+    annotations: [],
+    requiredEntityIds: ids,
+    revealGroups: [{ id: "setup", entityIds: ids }],
+    teachingTimeline: [{ action: "reveal", targetId: "setup" }],
+  } as unknown as Doc;
+  const plan = {
+    schemaVersion: "turn-plan/v3",
+    question,
+    givens: givens.map((given) => ({ ...given, provenance: "given" })),
+    unknowns: [{ id: "v", symbol: "v", unit: "cm" }],
+    derived,
+    qualitativeClaims: [],
+    lawIds: ["paraxial refraction at a spherical surface: n₂/v−n₁/u=(n₂−n₁)/R"],
+    assumptions: [],
+    visualRequirement: "required",
+  } as unknown as TurnPlanV3;
+  return { document, plan };
+}
+const declinesFor = (built: { document: Doc; plan: TurnPlanV3 }, entityId: string, admitted: string): string | null => {
+  const result = validateProductionSceneCandidate({ candidate: structuredClone(built.document), question: built.plan.question, turnPlan: built.plan });
+  if (result.valid) return admitted;
+  const flagged = (result.errors ?? []).filter((issue) => issue.code === "spherical_refraction_image_disagrees").flatMap((issue) => issue.entityIds ?? []);
+  if (!flagged.includes(entityId)) return `declined with ${(result.errors ?? []).map((issue) => issue.code).join(", ")}, not spherical_refraction_image_disagrees for ${entityId}`;
+  return null;
+};
+
+check("declared refraction 1 to 1.5 at the face: an image at -120/11 cm (the reversed pair's) declines", () =>
+  declinesFor(glassFace({ image: -120 / 11, declared: [1, 1.5] }), "I", "admitted an image the declared 1 to 1.5 puts at -45 cm"));
+
+check("declared refraction by quantity ids (nAir to n): an image at -120/11 cm declines", () =>
+  declinesFor(glassFace({ image: -120 / 11, declared: ["nAir", "n"] }), "I", "admitted an image the declared nAir to n puts at -45 cm"));
+
+check("control: declared refraction 1 to 1.5 with the image at -45 cm is admitted", () => {
+  const { document, plan } = glassFace({ image: -45, declared: [1, 1.5] });
+  const { valid, codes } = validate(document, plan);
+  return valid ? null : `declined with ${codes.join(", ")}`;
+});
+
+check("a plain marker at x = 2 beside a derived magnification of 2 is not an image: the correct figure is admitted", () => {
+  const { document, plan } = glassFace({ image: -45, declared: [1, 1.5], marker: 2, derived: [{ id: "v", symbol: "v", value: 45, unit: "cm" }, { id: "m", symbol: "m", value: 2 }] });
+  const { valid, codes } = validate(document, plan);
+  return valid ? null : `declined with ${codes.join(", ")}`;
+});
+
+check("control: with the marker there, a wrong image at -40 cm (a derived length, the point labelled Q) still declines", () =>
+  declinesFor(glassFace({ image: -40, declared: [1, 1.5], marker: 2, imageLabel: "Q", derived: [{ id: "v", symbol: "v", value: 40, unit: "cm" }, { id: "m", symbol: "m", value: 2 }] }), "I", "admitted the image at -40 cm"));
+
+check("control: an image labelled I at a unitless derived distance (-40, not -45) still declines", () =>
+  declinesFor(glassFace({ image: -40, declared: [1, 1.5], derived: [{ id: "v", symbol: "v", value: 40 }] }), "I", "admitted the labelled image at -40 cm"));
+
+check("control: a unitless derived distance a dimension label binds to the point (point labelled Q) still declines at -40", () => {
+  const built = glassFace({ image: -40, declared: [1, 1.5], imageLabel: "Q", derived: [{ id: "v", symbol: "v", value: 40 }] });
+  const document = built.document as Doc & {
+    entities: Array<Record<string, unknown>>;
+    constructions: Array<Record<string, unknown> & { id: string; outputs: string[]; inputs: Record<string, unknown> }>;
+    annotations: Array<Record<string, unknown> & { targetIds?: string[] }>;
+  };
+  document.entities.push({ id: "vDim", kind: "dimension", role: "image distance" });
+  document.constructions.push({ id: "make_vDim", operator: "dimension", inputs: { start: "V", end: "I" }, outputs: ["vDim"] });
+  document.annotations.push({ id: "vLabel", kind: "label", targetIds: ["vDim"], text: "v = 40", quantityId: "v" });
+  document.requiredEntityIds.push("vDim");
+  document.revealGroups[0]!.entityIds.push("vDim");
+  return declinesFor(built, "I", "admitted the bound image at -40 cm");
+});
+
+check("the same unitless distance on a point neither bound nor named an image places nothing (admitted)", () => {
+  const { document, plan } = glassFace({ image: -40, declared: [1, 1.5], imageLabel: "Q", derived: [{ id: "v", symbol: "v", value: 40 }] });
+  const { valid, codes } = validate(document, plan);
+  return valid ? null : `declined with ${codes.join(", ")}`;
 });
 
 console.log(`${passed} passed, ${failures.length} failed`);

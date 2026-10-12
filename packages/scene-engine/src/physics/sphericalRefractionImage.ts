@@ -14,11 +14,17 @@
  * `validateSphericalRefractionImagePlacements` holds a document to it. For
  * each `spherical_surface` the document declares refracting, a literal point
  * on its axis placed at a plan-derived distance from its vertex is a placed
- * image; it must be the law's image of some declared object (a literal point
- * on the axis at a plan-given distance from a surface vertex) for some pair
- * of the plan's refractive indices (dimensionless values from 1 to 4 written
- * with an n or mu symbol) and 1. Otherwise:
- * `spherical_refraction_image_disagrees`.
+ * image, when that distance is an image distance: a derived quantity in a
+ * unit of length, one the document binds to the point by quantity id (an
+ * annotation or a construction naming both), or a point named or labelled as
+ * an image. A derived magnification or ratio that happens to equal a
+ * marker's distance places nothing. A placed image must be the law's image
+ * of some declared object (a literal point on the axis at a plan-given
+ * distance from a surface vertex). The media are the indices a refraction
+ * declared at that surface gives, in its order (n1 the side the light comes
+ * from); with none declared, any ordered pair of the plan's refractive
+ * indices (dimensionless values from 1 to 4 written with an n or mu symbol)
+ * and 1. Otherwise: `spherical_refraction_image_disagrees`.
  *
  * Light crosses surfaces in turn. A placed image the law confirms is the
  * object of the next refracting surface along the light (coaxial, nearest
@@ -30,8 +36,9 @@
  *
  * `spherical_surface` also draws mirrors, and a refractive index in the plan
  * says nothing about which surface it belongs to. A surface refracts only
- * when the document says so (`refractingSphericalSurfaces`). Nothing is read
- * from the question or from role text.
+ * when the document says so (`refractingSphericalSurfaces`). Whether a
+ * surface refracts, and its media, are never read from the question or from
+ * role text; an id, role or label only marks a point as an image.
  */
 import type { TurnPlanQuantityV3, TurnPlanV3 } from "../contracts/contractsV3";
 import { sphericalSurfaceGeometry } from "../compile/opticsSurfaces";
@@ -116,6 +123,20 @@ function numericValues(quantities: readonly TurnPlanQuantityV3[] | undefined): n
 
 const matches = (distance: number, value: number) => Math.abs(distance - value) <= DISTANCE_TOLERANCE * Math.max(Math.abs(value), 1e-9);
 
+const LENGTH_UNITS = new Set([
+  "m", "meter", "meters", "metre", "metres", "cm", "centimeter", "centimeters", "centimetre", "centimetres",
+  "mm", "millimeter", "millimeters", "millimetre", "millimetres", "km", "kilometer", "kilometers", "kilometre", "kilometres",
+  "um", "µm", "μm", "micrometer", "micrometers", "micrometre", "micrometres", "nm", "nanometer", "nanometers", "nanometre", "nanometres",
+  "in", "inch", "inches", "ft", "foot", "feet", "yd", "yard", "yards",
+]);
+
+function isLengthUnit(unit: unknown): boolean {
+  return typeof unit === "string" && LENGTH_UNITS.has(unit.normalize("NFKC").trim().toLowerCase());
+}
+
+/** A derived number, with what the plan says it measures. */
+type DerivedValue = { value: number; id: string; length: boolean };
+
 function isRefractiveIndex(quantity: TurnPlanQuantityV3): boolean {
   if (typeof quantity?.value !== "number" || !(quantity.value >= 1 && quantity.value <= 4)) return false;
   const unit = typeof quantity.unit === "string" ? quantity.unit.trim().toLowerCase() : "";
@@ -195,6 +216,80 @@ function refractingFrames(document: SceneDocument, frames: Frame[]): Set<string>
   return result;
 }
 
+/**
+ * The media a refraction declared at each surface gives, in its order (n1 the
+ * side the light comes from): `refract_at` on the surface, a
+ * `refract_direction` standing on it (as for `refractingFrames`), or n1 and n2
+ * on the `spherical_surface` itself. Numbers or quantity ids.
+ */
+function declaredMedia(document: SceneDocument, plan: PlanLike): Map<string, Array<readonly [number, number]>> {
+  const values = new Map<string, number>();
+  for (const quantity of [...plan.givens ?? [], ...plan.derived ?? [], ...document.quantities ?? []]) {
+    const value = (quantity as { value?: unknown }).value;
+    if (typeof quantity?.id === "string" && typeof value === "number" && Number.isFinite(value)) values.set(quantity.id, value);
+  }
+  const index = (value: unknown, depth = 0): number | null => {
+    if (typeof value === "number") return Number.isFinite(value) && value > 0 ? value : null;
+    if (typeof value === "string") {
+      const found = values.get(value);
+      return found !== undefined && found > 0 ? found : null;
+    }
+    if (depth < 4 && value && typeof value === "object" && "value" in value) return index((value as { value: unknown }).value, depth + 1);
+    return null;
+  };
+  const media = new Map<string, Array<readonly [number, number]>>();
+  const declare = (surface: unknown, inputs: Record<string, unknown>) => {
+    const n1 = index(inputs.n1);
+    const n2 = index(inputs.n2);
+    if (typeof surface !== "string" || n1 === null || n2 === null || n1 === n2) return;
+    media.set(surface, [...media.get(surface) ?? [], [n1, n2] as const]);
+  };
+  const constructions = document.constructions ?? [];
+  const standsOn = new Map<string, string>();
+  for (const construction of constructions) {
+    const inputs = (construction.inputs ?? {}) as Record<string, unknown>;
+    if (construction.operator === "spherical_surface") declare(construction.outputs?.[0], inputs);
+    if (!SURFACE_ANCHORED.has(construction.operator)) continue;
+    const surface = inputs.surface ?? inputs.target;
+    if (typeof surface !== "string") continue;
+    const outputs = Array.isArray(construction.outputs) ? construction.outputs : [];
+    const event = construction.operator === "refract_at" || construction.operator === "reflect_at";
+    if (construction.operator === "refract_at") declare(surface, inputs);
+    for (const id of event ? [outputs[1], inputs.point ?? inputs.contact] : outputs) if (typeof id === "string") standsOn.set(id, surface);
+  }
+  for (const construction of constructions) {
+    if (construction.operator !== "refract_direction") continue;
+    const inputs = (construction.inputs ?? {}) as Record<string, unknown>;
+    const surfaces = new Set([inputs.normal, inputs.origin, inputs.point].flatMap((reference) =>
+      typeof reference === "string" && standsOn.has(reference) ? [standsOn.get(reference)!] : []));
+    surfaces.forEach((surface) => declare(surface, inputs));
+  }
+  return media;
+}
+
+/** True when the document ties a point to a quantity by id: an annotation or a construction naming both. */
+function boundToQuantity(document: SceneDocument, pointId: string, quantityId: string): boolean {
+  if (!quantityId) return false;
+  const names = (inputs: unknown, id: string) => Object.values((inputs ?? {}) as Record<string, unknown>)
+    .some((value) => value === id || (Array.isArray(value) && value.includes(id)));
+  const constructions = document.constructions ?? [];
+  if (constructions.some((construction) => names(construction.inputs, pointId) && names(construction.inputs, quantityId))) return true;
+  // Entities standing on the point (a dimension or segment to it) carry its annotations too.
+  const standing = new Set([pointId, ...constructions.filter((construction) => names(construction.inputs, pointId))
+    .flatMap((construction) => construction.outputs ?? [])]);
+  return (document.annotations ?? []).some((annotation) =>
+    annotation?.quantityId === quantityId && (annotation.targetIds ?? []).some((id) => standing.has(id)));
+}
+
+const IMAGE_LABEL = /^I(?:\d+|_?\{?\d+\}?|[\u2080-\u2089]+)?['\u2032\u2033\u2019]*$/u;
+
+/** A point the document names or labels as an image (its id, role or label). */
+function namedImage(document: SceneDocument, pointId: string): boolean {
+  const entity = (document.entities ?? []).find((candidate) => candidate.id === pointId);
+  const label = typeof entity?.label === "string" ? entity.label.trim() : "";
+  return /image/i.test(pointId) || /image/i.test(entity?.role ?? "") || /image/i.test(label) || IMAGE_LABEL.test(label);
+}
+
 function literalPoints(document: SceneDocument): Map<string, RefractionPoint> {
   const literal = new Map<string, RefractionPoint>();
   for (const construction of document.constructions ?? []) {
@@ -260,8 +355,16 @@ export function validateSphericalRefractionImagePlacements(document: SceneDocume
   const media = [...new Set([1, ...indices])];
   const pairs = media.flatMap((n1) => media.filter((n2) => n2 !== n1).map((n2) => [n1, n2] as const));
   const givens = numericValues(plan.givens);
-  const derived = numericValues(plan.derived).filter((value) => !givens.some((given) => matches(value, given)));
+  const units = new Map((document.quantities ?? []).map((quantity) => [quantity.id, quantity.unit]));
+  const derived: DerivedValue[] = (plan.derived ?? []).flatMap((quantity) => {
+    if (typeof quantity?.value !== "number" || !Number.isFinite(quantity.value) || quantity.value === 0) return [];
+    const value = Math.abs(quantity.value);
+    if (givens.some((given) => matches(value, given))) return [];
+    const id = typeof quantity.id === "string" ? quantity.id : "";
+    return [{ value, id, length: isLengthUnit(quantity.unit) || isLengthUnit(units.get(id)) }];
+  });
   if (givens.length === 0 || derived.length === 0) return [];
+  const declared = declaredMedia(document, plan);
 
   const literal = literalPoints(document);
   // Every surface's vertex and centre stay reserved; only refracting ones are held to the law.
@@ -287,9 +390,14 @@ export function validateSphericalRefractionImagePlacements(document: SceneDocume
       const distance = Math.hypot(point.x - other.x, point.y - other.y);
       return givens.some((value) => matches(distance, value));
     })).map(([id, point]) => ({ id, point }));
+    // An image sits at an image distance: a derived length, a quantity bound to
+    // the point by id, or any derived distance when the point is named an image.
     const placed = candidates.flatMap(([id, point]) => {
       const fromVertex = Math.hypot(point.x - vertex.x, point.y - vertex.y);
-      return derived.some((value) => matches(fromVertex, value)) ? [{ id, point, fromVertex }] : [];
+      const at = derived.filter((quantity) => matches(fromVertex, quantity.value));
+      if (at.length === 0) return [];
+      const image = at.some((quantity) => quantity.length || boundToQuantity(document, id, quantity.id)) || namedImage(document, id);
+      return image ? [{ id, point, fromVertex }] : [];
     });
     return { frame, radius, objects, placed };
   });
@@ -319,9 +427,10 @@ export function validateSphericalRefractionImagePlacements(document: SceneDocume
     ...[...confirmed].flatMap(([id, list]) => list.filter((entry) => entry.next === index)
       .map((entry) => ({ id, point: literal.get(id)!, direction: entry.direction, n1: entry.medium }))),
   ];
+  // A surface with a declared refraction keeps its declared order; only an undeclared one tries both.
   const lawImages = (index: number, source: LightSource): Array<{ result: SphericalRefractionImage; n2: number }> => {
-    const { vertex, center } = checked[index]!.frame;
-    return pairs.flatMap(([n1, n2]) => {
+    const { vertex, center, surfaceId } = checked[index]!.frame;
+    return (declared.get(surfaceId) ?? pairs).flatMap(([n1, n2]) => {
       if (source.n1 !== undefined && n1 !== source.n1) return [];
       try { return [{ result: sphericalRefractionImage({ vertex, center, object: source.point, direction: source.direction, n1, n2 }), n2 }]; } catch { return []; }
     });
