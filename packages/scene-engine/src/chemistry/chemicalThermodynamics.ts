@@ -7,7 +7,7 @@
  * Maxwell distributions stay in thermoGraphs.ts. A missing number is
  * not replaced with a textbook value.
  */
-import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, findChemistryQuantities, readChemistryQuantity, readChemistryLiteral, CHEMISTRY_SCALAR_PATTERN, chemistryUnitSymbol, chemistryQuantityCuesValid, chemistryQuestionSpan, chemistryCanonicalValuesAgree } from "./quantityReader";
+import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, findChemistryQuantities, readChemistryQuantity, readChemistryLiteral, CHEMISTRY_SCALAR_PATTERN, chemistryUnitSymbol, chemistryQuantityCuesValid, chemistryQuestionSpan, chemistryCanonicalValuesAgree, chemistryQuantityInventoryOwned, readChemistryUnitLiteral } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
 
@@ -198,17 +198,34 @@ function amountMoles(question: string): number | null {
   return r.ok && r.reading.length === 1 ? r.reading[0]!.value : null;
 }
 
+const HEAT_DELTA_CUE = /(?:δ|∆|Δ)\s*t\s*=|delta t\s*=/i;
+
 /** null means no range; false means a stated range cannot be owned. */
 function heatTemperatureRange(question: string): { first: number; second: number } | null | false {
   const body = question.slice(0, chemistryQuestionSpan(question).end);
-  const ranges = [...body.matchAll(/\bfrom\s+([^;\n]*?)\s+to\s+/gid)];
+  const scalar = new RegExp(`^(${CHEMISTRY_SCALAR_PATTERN})`);
+  const ranges = [...body.matchAll(/\bfrom\s+([^;\n]*?)\s+to\s+/gid)].filter(range => {
+    // Prose transfers do not own temperatures. A numeric non-temperature
+    // pair is ignored only after both original unit-inclusive literals verify.
+    const part = range.indices?.[1];
+    if (!part || range.index === undefined) return true;
+    const firstToken = scalar.exec(question.slice(part[0], part[1]));
+    const secondStart = range.index + range[0].length;
+    const secondToken = scalar.exec(question.slice(secondStart));
+    if (!firstToken && !secondToken) return false;
+    if (!firstToken || !secondToken) return true;
+    const first = readChemistryUnitLiteral({ question, scalarSpan: { start: part[0], end: part[0] + firstToken[0].length } });
+    const second = readChemistryUnitLiteral({ question, scalarSpan: { start: secondStart, end: secondStart + secondToken[0].length } });
+    return !(first.ok && second.ok && first.reading.dimension !== "temperature"
+      && first.reading.dimension === second.reading.dimension
+      && !question.slice(first.reading.source.span.end, part[1]).trim());
+  });
   if (ranges.length === 0) return null;
   if (ranges.length !== 1) return false;
   const range = ranges[0]!;
   const firstPart = range.indices?.[1];
   if (!firstPart || range.index === undefined) return false;
   const secondStart = range.index + range[0].length;
-  const scalar = new RegExp(`^(${CHEMISTRY_SCALAR_PATTERN})`);
   const firstToken = scalar.exec(question.slice(firstPart[0], firstPart[1]));
   const secondToken = scalar.exec(question.slice(secondStart));
   if (!firstToken || !secondToken) return false;
@@ -226,6 +243,24 @@ function heatTemperatureRange(question: string): { first: number; second: number
     first = readChemistryLiteral({ question, scalarSpan: firstSpan, dimension: "temperature", targetUnit: "K", unitConvention: { unit, sourceSpan } });
   }
   if (!first.ok || question.slice(first.reading.source.span.end, firstPart[1]).trim()) return false;
+  const consumed = [
+    ...(first.reading.rawUnit ? [{ reading: first.reading, owner: "heat_temperature_1" }] : []),
+    { reading: second.reading, owner: "heat_temperature_2" },
+  ];
+  if (HEAT_DELTA_CUE.test(body)) {
+    const delta = readChemistryQuantity({ question, after: HEAT_DELTA_CUE, dimension: "temperature_delta", targetUnit: "K" });
+    if (!delta.ok || !chemistryCanonicalValuesAgree(delta.reading.value, second.reading.value - first.reading.value)) return false;
+    const token = scalar.exec(question.slice(delta.reading.source.span.start));
+    if (!token) return false;
+    // Inventory uses absolute temperature units; the independently checked
+    // delta above uses no Celsius offset. Both readings cite the same literal.
+    const literal = readChemistryUnitLiteral({ question, scalarSpan: { start: delta.reading.source.span.start, end: delta.reading.source.span.start + token[0].length } });
+    if (!literal.ok || literal.reading.dimension !== "temperature") return false;
+    consumed.push({ reading: literal.reading, owner: "heat_delta_T" });
+  }
+  // Every original temperature literal must have one owner before deriving ΔT.
+  // A bare endpoint with a shared unit is not an inventory literal.
+  if (!chemistryQuantityInventoryOwned(question, "temperature", consumed)) return false;
   return { first: first.reading.value, second: second.reading.value };
 }
 
@@ -252,7 +287,7 @@ function buildHeat(question: string, stem: string): SceneDocument | null {
     const capacity = numberAfter(question, /(?:molar )?heat capacity(?:\s+of a sample)?(?:\s+is)?|c\s*=/, molar ? "molar_heat_capacity" : "heat_capacity", molar ? "J/(mol K)" : "J/K");
     const temperatures = heatTemperatureRange(question);
     if (temperatures === false) return null;
-    const delta = temperatures ? temperatures.second - temperatures.first : numberAfter(question, /(?:δ|∆|Δ)\s*t\s*=|delta t\s*=/, "temperature_delta", "K");
+    const delta = temperatures ? temperatures.second - temperatures.first : numberAfter(question, HEAT_DELTA_CUE, "temperature_delta", "K");
     if (capacity === null || delta === null || !(capacity >= 0) || !(delta !== 0)) return null;
     const sampleC = molar ? (moles === null ? null : capacity * moles) : capacity;
     if (sampleC === null) return null;

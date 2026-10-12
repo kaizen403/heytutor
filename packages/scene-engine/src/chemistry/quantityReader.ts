@@ -312,6 +312,13 @@ export function readChemistryLiteral(input: Omit<ChemistryQuantityInput, "after"
   const scalar = parseChemistryScalar(input.question, input.scalarSpan);
   return scalar.ok && scalar.reading === result.reading.rawValue ? result : fail("malformed", input.scalarSpan);
 }
+/** Read a whole source literal using its registered explicit unit's dimension. */
+export function readChemistryUnitLiteral(input: { question: string; scalarSpan: ChemistrySpan }): ChemRead<ChemistryReading> {
+  if (!validSpan(input.question, input.scalarSpan)) return fail("malformed", input.scalarSpan);
+  const unit = unitAt(input.question.slice(input.scalarSpan.end).trimStart());
+  if (!unit) return fail("unsupported_unit", input.scalarSpan);
+  return readChemistryLiteral({ ...input, dimension: unit.def.dimensions[0]! });
+}
 export function matchedChemistryQuantity(question: string, match: RegExpMatchArray | null, group: number, dimension: ChemistryDimension, targetUnit?: ChemistryUnit): number | null {
   if (!match || match.index === undefined || match[group] === undefined) return null;
   const span = match.indices?.[group];
