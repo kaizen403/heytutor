@@ -363,6 +363,39 @@ function readHalfLife(stem: string): Reading | null {
 /** Words ignore case, but the rate symbol k differs from equilibrium K. */
 const caseWord = (word: string): string => word.replace(/[a-z]/g, letter => `[${letter}${letter.toUpperCase()}]`);
 const RATE_CUE = new RegExp(String.raw`(?:${caseWord("rate constant")}|(?<!\b(?:${caseWord("ln")}|${caseWord("log")})\s*)\bk\b)(?:\s*,?\s*\(?k\)?)?\s*(?:${caseWord("for")}|${caseWord("of")})?\s*(?:${caseWord("the ")}|${caseWord("this ")}|${caseWord("a ")})?(?:${caseWord("reaction")}|${caseWord("it")})?`);
+const ARRHENIUS_RATIO_CUE = new RegExp(String.raw`(?:\b${caseWord("ratio")}\b|k_?2\s*\/\s*k_?1)`, "g");
+/** Every supplied ratio owns its original scalar; a requested ratio is absent. */
+function readArrheniusRatio(stem: string): number | null | false {
+  const body = questionBody(stem);
+  const owners = [...body.matchAll(ARRHENIUS_RATIO_CUE)];
+  let value: number | null = null;
+  for (const [index, owner] of owners.entries()) {
+    let start = owner.index! + owner[0].length;
+    const role = /^\s+of\s+(?:the\s+)?rate[ -]?constants?\b/i.exec(body.slice(start));
+    if (role) start += role[0].length;
+    const next = owners[index + 1];
+    let end = next?.index ?? body.length;
+    const clause = /[;?\n]|\.(?=\s|$)/.exec(body.slice(start,end));
+    if (clause) end = start + clause.index;
+    const tail = body.slice(start,end);
+    // Adjacent named/symbolic aliases refer to the same original value.
+    // Its next alias is still audited, so an unread assignment cannot vanish.
+    if (next && end === next.index && /^\s*$/.test(tail)
+      && (/^k/.test(owner[0]) !== /^k/.test(next[0]))) continue;
+    const prefix = body.slice(0,owner.index);
+    const requested = /\b(?:find|calculate|determine|compute|obtain|evaluate|what\s+is)\s+(?:(?:the|its|a)\s+)?(?:(?:rate[ -]?constants?|ratio|k_?2\s*\/\s*k_?1)\s+)?$/i.test(prefix);
+    if (requested && (tail.trim() === "" || /^\s+and\s+(?:calculate|find|determine)\s+(?:the\s+)?activation energy\s*$/i.test(tail))) continue;
+    const suppliedPrefix = /\b(?:given|supplied|provided|stated|measured|assumed|unknown|unreadable|unavailable)\s+(?:rate[ -]?constants?\s+)?$/i.test(prefix);
+    if (!suppliedPrefix && /^\s*is\s+(?:required|to\s+be\s+found)\s*$/i.test(tail)) continue;
+    if (/\buse\s+(?:(?:the|its|a)\s+)?(?:known\s+)?(?:ratio\s+)?$/i.test(prefix)
+      && /^\s*to\s+(?:draw|plot|sketch)\s+(?:the\s+)?Arrhenius\s+(?:plot|graph)\s*$/i.test(tail)) continue;
+    const read = readChemistryQuantity({question:stem,after:/^/,within:{start,end},dimension:"dimensionless"});
+    if (!read.ok || !(read.reading.value > 0) || body.slice(read.reading.source.span.end,end).trim() !== "") return false;
+    if (value !== null && !chemistryCanonicalValuesAgree(value,read.reading.value)) return false;
+    value ??= read.reading.value;
+  }
+  return value;
+}
 /** A plot target contains only diagram words or complete concentration math. */
 function pureKineticsPlotSubject(subject: string): boolean {
   if (subject.trim() === "") return false;
@@ -474,6 +507,10 @@ function readRateConstant(stem: string, order: ReactionOrder | null = 1): { valu
   let temperaturePair = false;
   for (const {owner,next,start,end} of rateOwnerPayloads(body)) {
     const tail = body.slice(start, end);
+    if (/rate constant/i.test(owner[0]) && /^\s*ratio\b/i.test(tail)) {
+      if (readArrheniusRatio(stem) === false) return false;
+      continue;
+    }
     // "The rate constant ... is k = ..." names one value, not two givens.
     if (next && end === next.index && /rate constant/i.test(owner[0])
       && /^k\b/.test(next[0]) && !/^\s*\[/.test(body.slice(next.index! + next[0].length))
@@ -685,7 +722,7 @@ function readTemperatureInputs(stem: string): TemperatureInputs | null {
 function readTemperatures(stem: string): number[] {
   return readTemperatureInputs(stem)?.absolute ?? [];
 }
-function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): ArrheniusSpec | null {
+function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): ArrheniusSpec | null | false {
   const lower = chemStem(stem);
   if (!/arrhenius|activation energy|e_?a\b|frequency factor|pre[ -]?exponential|ln\s*k|log\s*k|rate constant/.test(lower)) return null;
   const Ea = numberAfter(stem, ACTIVATION_CUE, "molar_energy", "J/mol");
@@ -697,12 +734,15 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
   if (!temperatures) return null;
   const T1 = temperatures.absolute[0] ?? null;
   const T2 = temperatures.absolute[1] ?? (T1 !== null && temperatures.rise !== null ? T1 + temperatures.rise : null);
-  let ratio = numberAfter(stem, /(?:ratio|k_?2\s*\/\s*k_?1)/);
-  const near = /\b(?:rate constant|rate|k)\b[^.;]{0,80}?\b(doubl\w*|tripl\w*|quadrupl\w*|twice|halved)\b/i.exec(stem)
-    ?? /\b(doubl\w*|tripl\w*|quadrupl\w*|halved)\s+(?:(?:the|its)\s+)?(?:rate constant|rate)\b/i.exec(stem);
-  if (near && /temperature|°\s*c|\d\s*k\b|heat|rise|raised|warm/i.test(stem)) {
+  let ratio = readArrheniusRatio(stem);
+  if (ratio === false) return false;
+  const changes = [...stem.matchAll(/\b(?:rate constant|rate|k)\b[^.;]{0,80}?\b(doubl\w*|tripl\w*|quadrupl\w*|twice|halved)\b/gi),
+    ...stem.matchAll(/\b(doubl\w*|tripl\w*|quadrupl\w*|halved)\s+(?:(?:the|its)\s+)?(?:rate constant|rate)\b/gi)];
+  for (const near of changes) if (/temperature|°\s*c|\d\s*k\b|heat|rise|raised|warm/i.test(stem)) {
     const word = near[1]!.toLowerCase();
-    ratio = /^doubl|twice|two/.test(word) ? 2 : /^tripl|three/.test(word) ? 3 : /^quadrupl|four/.test(word) ? 4 : word === "halved" ? .5 : word === "five" ? 5 : 10;
+    const change = /^doubl|twice|two/.test(word) ? 2 : /^tripl|three/.test(word) ? 3 : /^quadrupl|four/.test(word) ? 4 : word === "halved" ? .5 : word === "five" ? 5 : 10;
+    if (ratio !== null && !chemistryCanonicalValuesAgree(ratio,change)) return false;
+    ratio = change;
   }
   if (ratio === null) {
     const times = new RegExp(String.raw`(?:rate constant|rate)\b[^.;]{0,80}?(${SCALAR})\s*(?:times|fold)`, "id").exec(stem);
@@ -728,6 +768,8 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
       || !constants.some(value => chemistryCanonicalValuesAgree(value, read.reading.value)))) constants.push(read.reading.value);
   }
   const k1 = constants[0] ?? null; const k2 = constants[1] ?? null;
+  if (k1 !== null && k2 !== null && ratio !== null
+    && (!(k1 > 0 && k2 > 0 && ratio > 0) || !chemistryCanonicalValuesAgree(k2 / k1, ratio))) return false;
   if (Ea === null && ratio === null && k1 === null && statedSlope === null) return null;
   return {T1, T2, k1, k2, ratio, Ea, A, statedSlope};
 }
@@ -804,6 +846,7 @@ export function kineticsFromStem(question: string, quantities: readonly ChemPlan
   const timesAsked = timesAskedRaw.map((entry) => convertTime(entry.value, entry.unit, unit));
 
   const arrhenius = readArrhenius(body, quantities);
+  if (arrhenius === false) return null;
   const linear = readLinearPlot(stem, ordersNamed);
   const arrheniusPlot = /(?:ln|log)\s*k\b[^.]{0,20}(?:vs\.?|versus|against)\s*(?:1\s*\/\s*t|t\^?\(?-1\)?|reciprocal)|arrhenius plot|plot of (?:ln|log)\s*k\b/.test(stem);
 
