@@ -19,6 +19,8 @@ export {
 export const SCENE_DOCUMENT_VERSION = "scene-document/v2" as const;
 
 export interface ScenePlannerPromptContext {
+  /** Default-off experiment; repairs still expand their actually used operators. */
+  compactOperatorContracts?: boolean;
   conversationContext?: string;
   constructionOperators?: readonly string[];
   proofPredicates?: readonly string[];
@@ -97,7 +99,7 @@ export function buildSceneDocumentPlannerPrompt(
   // A scoped planning request gets full contracts. A universal catalog keeps
   // every input/output shape concise rather than expanding with each feature.
   const operatorContracts = selectConstructionInputContracts(operators,
-    detailedOperators ?? (fullCatalog ? [] : undefined));
+    detailedOperators ?? (context.compactOperatorContracts ? [] : fullCatalog ? [] : undefined));
   const conversation = context.conversationContext?.trim()
     ? `\nCONVERSATION CONTEXT\n${context.conversationContext.trim()}\n`
     : "";

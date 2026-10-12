@@ -134,6 +134,8 @@ export function startTurnTrace({
 }
 
 export interface EndLlmGenerationParams {
+  /** Server-selected planner tier; standard remains unchanged. */
+  costMultiplier?: 1 | 2;
   output: string;
   usageDetails?: {
     input?: number;
@@ -167,6 +169,7 @@ export function endLlmGeneration(
     model,
     updateTrace = true,
     level,
+    costMultiplier = 1,
   }: EndLlmGenerationParams,
 ): void {
   if (!turn?.generation) {
@@ -178,11 +181,14 @@ export function endLlmGeneration(
     turn.model = model;
   }
 
-  const costDetails = mock
+  const baseCostDetails = mock
     ? zeroCostDetails()
     : usageDetails
       ? calculateLlmCostDetails(usageDetails, { model: model ?? turn.model })
       : undefined;
+  const costDetails = baseCostDetails && costMultiplier === 2
+    ? Object.fromEntries(Object.entries(baseCostDetails).map(([key, value]) => [key, value * 2]))
+    : baseCostDetails;
 
   const generationMetadata = {
     ...metadata,
