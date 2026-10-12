@@ -124,6 +124,8 @@ export interface LabelEngineResult {
   }>;
   /** Work units the arrangement search spent; see `LABEL_SEARCH_WORK_BUDGET`. */
   searchWork: number;
+  /** Which arrangement search placed the unpinned labels; null when none ran or none succeeded. */
+  solvedBy: "straight" | "routed" | null;
 }
 
 /**
@@ -672,10 +674,11 @@ export function placeLabels(
   // Searching all remaining combinations cannot repair that fixed failure.
   // Both solves draw on one work budget: once it is spent neither goes on.
   const work: LabelSearchWork = { spent: 0, budget: options.searchWorkBudget ?? LABEL_SEARCH_WORK_BUDGET };
-  const selected = issues.length === 0 && candidatesToSolve.length > 0
-    ? solveLabelPlacements(candidatesToSolve, minGapPx, "straight", solverObstacles, work)
-      ?? solveLabelPlacements(candidatesToSolve, minGapPx, "routed", solverObstacles, work)
-    : new Map<number, LabelPlacementCandidate>();
+  const searches = issues.length === 0 && candidatesToSolve.length > 0;
+  const straight = searches ? solveLabelPlacements(candidatesToSolve, minGapPx, "straight", solverObstacles, work) : null;
+  const routed = searches && !straight ? solveLabelPlacements(candidatesToSolve, minGapPx, "routed", solverObstacles, work) : null;
+  const selected = searches ? straight ?? routed : new Map<number, LabelPlacementCandidate>();
+  const solvedBy: LabelEngineResult["solvedBy"] = straight ? "straight" : routed ? "routed" : null;
   if (!selected && candidatesToSolve.length > 0) {
     const mostConstrained = [...candidatesToSolve].sort(comparePreparedOwners)[0]!;
     issues.push({
@@ -726,6 +729,7 @@ export function placeLabels(
     placements,
     issues,
     searchWork: work.spent,
+    solvedBy,
   };
 }
 

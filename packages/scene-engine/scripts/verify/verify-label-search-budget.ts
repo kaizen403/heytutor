@@ -97,10 +97,8 @@ assert.equal(starved.placements.length, 0, "a search that ran out must not place
 const ROUTED_BUDGET = 5_829_728;
 const routedFull = placeLabels(routedFixture.owners, routedFixture.obstacles);
 assert.equal(routedFull.ok, true, `the routed fixture should solve under the default budget: ${JSON.stringify(routedFull.issues)}`);
-assert.ok(
-  routedFull.placements.some((placement) => placement.leaderPath),
-  "the fixture must need the routed solve: no placement carries a routed leader path",
-);
+// The straight search can also return leader paths, so ask the engine which search placed the labels.
+assert.equal(routedFull.solvedBy, "routed", `the fixture must need the routed solve, but the ${routedFull.solvedBy} search placed it`);
 assert.ok(
   routedFull.searchWork >= ROUTED_BUDGET,
   `the routed search now spends ${routedFull.searchWork} units, under the pinned ${ROUTED_BUDGET}; pin ROUTED_BUDGET to it`,
@@ -111,6 +109,7 @@ assert.equal(
   true,
   `a routed search that finds its arrangement within ${ROUTED_BUDGET} units must return it: ${JSON.stringify(routedTight.issues)}`,
 );
+assert.equal(routedTight.solvedBy, "routed", "under the pinned budget the routed search must still be the one that placed the labels");
 assert.deepEqual(routedTight.placements, routedFull.placements, "the tight budget must return the default budget's arrangement");
 
 console.log(
