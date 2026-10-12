@@ -11,7 +11,8 @@
     },
     "quantities": [
       { "id": "u", "symbol": "u", "value": 21, "unit": "cm" },
-      { "id": "f", "symbol": "f", "value": 14, "unit": "cm" }
+      { "id": "f", "symbol": "f", "value": 14, "unit": "cm" },
+      { "id": "h", "symbol": "h", "value": 6, "unit": "cm" }
     ],
     "entities": [
       { "id": "P", "kind": "point", "role": "pole", "label": "P" },
@@ -38,8 +39,8 @@
       { "id": "cP", "operator": "point", "inputs": { "x": 0, "y": 0 }, "outputs": ["P"] },
       { "id": "cA", "operator": "point", "inputs": { "x": -50, "y": 0 }, "outputs": ["A"] },
       { "id": "cAx", "operator": "line", "inputs": { "start": "A", "end": "P" }, "outputs": ["axis"] },
-      { "id": "cI", "operator": "gaussian_image", "inputs": { "kind": "mirror", "center": "P", "axis": "axis", "objectDistance": -21, "focalLength": -14, "objectHeight": 6, "displayScale": 1, "lengthUnit": "cm" }, "outputs": ["ob", "ot", "ib", "it"] },
-      { "id": "cF", "operator": "optical_focus", "inputs": { "kind": "mirror", "center": "P", "axis": "axis", "focalLength": -14, "displayScale": 1, "lengthUnit": "cm" }, "outputs": ["F"] },
+      { "id": "cI", "operator": "gaussian_image", "inputs": { "kind": "mirror", "center": "P", "axis": "axis", "objectDistance": "u", "focalLength": "f", "objectHeight": "h", "form": "converging", "objectSide": "real", "displayScale": 1, "lengthUnit": "cm" }, "outputs": ["ob", "ot", "ib", "it"] },
+      { "id": "cF", "operator": "optical_focus", "inputs": { "kind": "mirror", "center": "P", "axis": "axis", "focalLength": "f", "form": "converging", "displayScale": 1, "lengthUnit": "cm" }, "outputs": ["F"] },
       { "id": "cC", "operator": "rotate", "inputs": { "point": "P", "center": "F", "angle": 180, "angleUnit": "degrees" }, "outputs": ["C"] },
       { "id": "cM", "operator": "spherical_surface", "inputs": { "vertex": "P", "axis": "axis", "halfHeight": 13, "signedRadius": -28 }, "outputs": ["mirror"] },
       { "id": "cLp", "operator": "perpendicular_through", "inputs": { "through": "P", "line": "axis" }, "outputs": ["lp"] },
@@ -58,7 +59,8 @@
       { "id": "par1", "predicate": "parallel", "entities": ["r1", "axis"], "expected": true, "severity": "fatal" }
     ],
     "annotations": [
-      { "id": "aHi", "kind": "label", "targetIds": ["it"], "text": "h_i=-12 cm" }
+      { "id": "aF", "kind": "label", "targetIds": ["F"], "text": "f=14 cm", "quantityId": "f" },
+      { "id": "aHi", "kind": "label", "targetIds": ["it"], "text": "h_i=12 cm" }
     ],
     "requiredEntityIds": ["axis", "mirror", "P", "F", "C", "ob", "ot", "obj", "ib", "it", "img", "r1", "r1o", "r2", "r2o"],
     "revealGroups": [

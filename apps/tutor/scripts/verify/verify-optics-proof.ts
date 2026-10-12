@@ -17,7 +17,14 @@
  * G2c/G2d: magnitude inputs (`form`, plan ids) draw; a form that contradicts the
  * stem, or an unsigned literal the plan does not support, never does.
  * G6a: a structural failure still reports plan agreement in the same pass.
+ * G5a: every `ray_optics` exemplar with a `gaussian_image` (source files and the
+ * built library) passes the plan's ids with `form`, draws no dimension, and puts
+ * numbers only on the engine's optical points. G5b: each passes production
+ * validation with an unsigned plan of its stem, loses no label to pruning, is
+ * proven, and draws as the planner figure in the strict arm and with no policy.
  */
+import { readFileSync, readdirSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   compileSceneDocument,
   validateSceneDocument,
@@ -403,7 +410,123 @@ check("G2d", !quantityCodes(magnitudeMirror("converging", 15)).some((code) => co
     `a bad focus label and a signed u under the plan's id must both be reported in one validation; got ${codes.join(", ")}`);
 }
 
-for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a"]) {
+// ---- G5a/G5b: the gaussian exemplars teach the shape the engine and proof accept ----
+interface OpticsExemplar { name: string; question: string; figureKind: string; document: Doc }
+const exemplarRoot = resolve(process.cwd(), "../../data/diagram-eval/v1/exemplars");
+const sourceExemplars: OpticsExemplar[] = ["physics", "maths", "chemistry"].flatMap((subject) =>
+  readdirSync(resolve(exemplarRoot, subject)).filter((file) => file.endsWith(".json")).map((file) => {
+    const value = JSON.parse(readFileSync(resolve(exemplarRoot, subject, file), "utf8")) as {
+      question: string; figure_kind: string; sceneDocument: Doc;
+    };
+    return { name: `${subject}/${file.replace(/\.json$/, "")}`, question: value.question, figureKind: value.figure_kind, document: value.sceneDocument };
+  }));
+const libraryExemplars: OpticsExemplar[] = readFileSync(resolve(exemplarRoot, "_library.jsonl"), "utf8")
+  .split("\n").filter(Boolean).map((line) => JSON.parse(line) as { id: string; question: string | null; figureKind: string; document: Doc })
+  .map((entry) => ({ name: `library ${entry.id}`, question: entry.question ?? "", figureKind: entry.figureKind, document: entry.document }));
+const isGaussianExemplar = (exemplar: OpticsExemplar) => exemplar.figureKind === "ray_optics" &&
+  exemplar.document.constructions.some((construction) => construction.operator === "gaussian_image");
+const OPTICS_OPERATORS = new Set(["gaussian_image", "optical_focus"]);
+// The compiler's own test for numeric ink: a number not glued to an identifier (F1 is a name).
+const numericClaim = (text: unknown) => typeof text === "string" &&
+  /(?<![A-Za-z0-9_])[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?(?![A-Za-z0-9_])/.test(text);
+
+/** G5a: plan ids with form on both operators, no dimension, numbers only on the optical points. */
+function gaussianShapeProblems(document: Doc): string[] {
+  const problems: string[] = [];
+  const quantityIds = new Set(document.quantities.map((quantity) => quantity.id));
+  const optical = document.constructions.filter((construction) => OPTICS_OPERATORS.has(construction.operator));
+  for (const construction of optical) {
+    const keys = construction.operator === "gaussian_image" ? ["objectDistance", "focalLength", "objectHeight"] : ["focalLength"];
+    if (construction.inputs.form !== "converging" && construction.inputs.form !== "diverging") {
+      problems.push(`${construction.operator} ${construction.id} has no form`);
+    }
+    for (const key of keys) {
+      const value = construction.inputs[key];
+      if (typeof value !== "string" || !quantityIds.has(value)) {
+        problems.push(`${construction.operator} ${construction.id} ${key} is ${JSON.stringify(value)}, not a quantity id`);
+      }
+    }
+  }
+  const opticalOutputs = new Set(optical.flatMap((construction) => construction.outputs));
+  for (const construction of document.constructions) {
+    if (construction.operator === "dimension") problems.push(`dimension ${construction.outputs.join(",")} on a gaussian figure`);
+  }
+  for (const entity of document.entities) {
+    if (entity.kind === "dimension") problems.push(`dimension entity ${entity.id} on a gaussian figure`);
+    if (numericClaim(entity.label) && !opticalOutputs.has(entity.id)) {
+      problems.push(`numeric label "${entity.label}" on ${entity.id}, not an optical point`);
+    }
+  }
+  for (const annotation of document.annotations) {
+    const claim = numericClaim(annotation.text) || annotation.quantityId !== undefined;
+    if (claim && !annotation.targetIds.every((id) => opticalOutputs.has(id))) {
+      problems.push(`numeric annotation "${annotation.text}" on ${annotation.targetIds.join(",")}, not an optical point`);
+    }
+  }
+  return problems;
+}
+
+const gaussianSources = sourceExemplars.filter(isGaussianExemplar);
+const gaussianLibrary = libraryExemplars.filter(isGaussianExemplar);
+check("G5a", gaussianSources.length >= 4, `expected at least the four lens and mirror exemplars; found ${gaussianSources.length}`);
+check("G5a", gaussianLibrary.length === gaussianSources.length,
+  `the built library must carry every gaussian exemplar (${gaussianLibrary.length} of ${gaussianSources.length})`);
+for (const exemplar of [...gaussianSources, ...gaussianLibrary]) {
+  const problems = gaussianShapeProblems(exemplar.document);
+  check("G5a", problems.length === 0, `${exemplar.name}: ${problems.join("; ")}`);
+}
+
+/** Each stem's plan as the planner states it: unsigned givens, unsigned derived values. */
+type PlanRow = [id: string, value: number, sourceText?: string];
+const EXEMPLAR_PLANS: Record<string, { givens: PlanRow[]; derived: PlanRow[]; law: string }> = {
+  "physics/reflection-and-spherical-mirrors--1": {
+    givens: [["h", 6, "6 cm tall"], ["u", 21, "21 cm in front"], ["f", 14, "focal length 14 cm"]],
+    derived: [["v", 42], ["h_i", 12]], law: "mirror_formula",
+  },
+  "physics/reflection-and-spherical-mirrors--2": {
+    givens: [["R", 52, "radius of curvature of 52 cm"], ["h", 13, "13 cm tall"], ["u", 39, "39 cm in front"]],
+    derived: [["f", 26], ["v", 15.6], ["h_i", 5.2]], law: "mirror_formula",
+  },
+  "physics/thin-lens-rays--2": {
+    givens: [["h", 7, "7 cm tall"], ["u", 24, "24 cm from"], ["f", 16, "focal length 16 cm"]],
+    derived: [["v", 48], ["h_i", 14]], law: "lens_formula",
+  },
+  "physics/thin-lens-rays--3": {
+    givens: [["h", 5, "5 cm tall"], ["u", 27, "27 cm from"], ["f", 18, "focal length 18 cm"]],
+    derived: [["v", 10.8], ["h_i", 2]], law: "lens_formula",
+  },
+};
+for (const exemplar of gaussianSources) {
+  const rows = EXEMPLAR_PLANS[exemplar.name];
+  check("G5b", rows, `${exemplar.name} has no unsigned plan in EXEMPLAR_PLANS; add one built from its stem`);
+  if (!rows) continue;
+  const turnPlan = plan(exemplar.question,
+    rows.givens.map(([id, value, sourceText]) => ({ id, symbol: id, value, unit: "cm", provenance: "given" as const, sourceText: sourceText ?? id })),
+    rows.derived.map(([id, value]) => ({ id, symbol: id, value, unit: "cm", provenance: "derived" as const })),
+    [rows.law]);
+  const planIds = new Set([...rows.givens, ...rows.derived].map(([id]) => id));
+  const unplanned = exemplar.document.quantities.filter((quantity) => !planIds.has(quantity.id)).map((quantity) => quantity.id);
+  check("G5b", unplanned.length === 0, `${exemplar.name} declares quantities the plan does not state: ${unplanned.join(", ")}`);
+  const proof = explainPlannerOpticsProof(exemplar.question, exemplar.document);
+  check("G5b", proof.proof === "proven", `${exemplar.name} must be proven; got ${proof.proof}: ${proof.reason}`);
+  expectDrawnAsPlanner("G5b", exemplar.name, exemplar.question, turnPlan, exemplar.document);
+  // A label the production path prunes teaches the planner ink that vanishes.
+  const validation = validateProductionSceneCandidate({
+    candidate: structuredClone(exemplar.document) as unknown as Record<string, unknown>, question: exemplar.question, turnPlan,
+  });
+  if (validation.valid && validation.value) {
+    const kept = validation.value.document;
+    const lostLabels = exemplar.document.entities.filter((entity) => entity.label &&
+      kept.entities.find((candidate) => candidate.id === entity.id)?.label !== entity.label).map((entity) => entity.label);
+    const lostAnnotations = exemplar.document.annotations.filter((annotation) =>
+      !kept.annotations.some((candidate) => candidate.id === annotation.id && candidate.text === annotation.text))
+      .map((annotation) => annotation.text);
+    check("G5b", lostLabels.length + lostAnnotations.length === 0,
+      `${exemplar.name} loses labels to pruning under its plan: ${[...lostLabels, ...lostAnnotations].join(", ")}`);
+  }
+}
+
+for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b"]) {
   console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 }
 if (failures.length > 0) {
