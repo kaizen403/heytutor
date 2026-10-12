@@ -24,7 +24,7 @@ import {
 } from "../labels/labelEngine";
 // The engine reserves the room the board will letter into, so it measures with
 // the board's own glyph metrics rather than an average character box.
-import { measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
+import { BOARD_TYPE_SCALE, measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
 import { evaluateTopologyAssertion, validateTopologyInvariants } from "../topology/topology";
 import { implicitSolverEntityIds, validateSceneDocument } from "../document/validation";
 import { validateMatrixSourceBinding } from "./matrixSourceBinding";
@@ -695,9 +695,9 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
 
   attachAngleMeasureLabels(document, geometry, labelOwners, transformPlan, consumedAnnotationIds);
 
-  const linearLabels = primitives.filter((primitive) => primitive.kind === "label" && primitive.provenance?.linearSolution);
+  let linearLabels = primitives.filter((primitive) => primitive.kind === "label" && primitive.provenance?.linearSolution);
   if (linearLabels.length) {
-    const owners: LabelOwner[] = linearLabels.map((primitive) => ({
+    const ownersFor = (labels: RenderPrimitive[]): LabelOwner[] => labels.map((primitive) => ({
       labelId: primitive.id, entityId: primitive.id, anchor: primitive.points[0]!, text: primitive.text!,
       viewBounds: transformPlan.viewportFor(primitive.entityId), useOwnerBounds: false,
       pinToAnchor: primitive.provenance?.linearRole === "caption", allowLeader: primitive.provenance?.linearRole !== "caption",
@@ -705,19 +705,57 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
         ? { tetherPx: pointLabelTether(primitive.text!), allowLeader: false } : {}),
       leaderGeometrySafe: true,
     }));
-    const obstacles = [...obstaclesFromPrimitives(primitives.filter((primitive) => primitive.kind !== "label" && primitive.provenance?.fillOnly !== true)), workColumnObstacle()];
-    let fontPx = 18;
-    let placed = placeLabels(owners, obstacles, {fontHeightPx:fontPx,maxLabelChars:80,paddingPx:2,minGapPx:3,measureTextPx:measureTextWidth,measureTextInkBounds:measureLabelInk});
-    while (!placed.ok && fontPx > 14) {
-      fontPx--;
-      placed = placeLabels(owners, obstacles, {fontHeightPx:fontPx,maxLabelChars:80,paddingPx:2,minGapPx:3,measureTextPx:measureTextWidth,measureTextInkBounds:measureLabelInk});
+    // The live pen snaps every smaller size to this floor. Prove its actual
+    // glyph ink; shrinking a checked box cannot make the live lettering fit.
+    const fontPx = BOARD_TYPE_SCALE.annotation;
+    const solve = (marks: RenderPrimitive[]) => placeLabels(
+      ownersFor(marks.filter(primitive => primitive.kind === "label" && primitive.provenance?.linearSolution)),
+      [...obstaclesFromPrimitives(marks.filter(primitive => primitive.kind !== "label" && primitive.provenance?.fillOnly !== true)), workColumnObstacle()],
+      {fontHeightPx:fontPx,maxLabelChars:80,paddingPx:2,minGapPx:3,measureTextPx:measureTextWidth,measureTextInkBounds:measureLabelInk},
+    );
+    let placed = solve(primitives);
+    if (!placed.ok) {
+      // A long fact can be trapped in a cell enclosed by verified boundaries.
+      // Give that mark a short unique name and retain its whole fact in a
+      // measured legend. One bounded retry, with the same ink/tether guards.
+      const legendIds = new Set(placed.issues.flatMap(issue => {
+        const label = linearLabels.find(primitive => primitive.id === issue.entityId);
+        return label && ["corner_label", "boundary_label", "intersection_label"].includes(String(label.provenance?.linearRole)) ? [label.id] : [];
+      }));
+      if (legendIds.size) {
+        const replacements = new Map<string, RenderPrimitive[]>();
+        for (const entityId of new Set(linearLabels.filter(label => legendIds.has(label.id)).map(label => label.entityId))) {
+          const value = geometry.get(entityId);
+          if (value?.kind !== "linear_region") continue;
+          const world = linearRegionLegendPrimitives(linearRegionPrimitives(value, entityId, entityToGroup.get(entityId)!), legendIds);
+          if (!world) continue;
+          try {
+            replacements.set(entityId, compileLinearRegionPrimitives(world, transformPlan.transformFor(entityId), transformPlan.viewportFor(entityId)));
+          } catch { /* An indistinguishable alternative stays atomically refused. */ }
+        }
+        const emitted = new Set<string>();
+        const alternative = primitives.flatMap(primitive => {
+          const replacement = replacements.get(primitive.entityId);
+          if (!replacement) return [primitive];
+          if (emitted.has(primitive.entityId)) return [];
+          emitted.add(primitive.entityId);
+          return replacement;
+        });
+        const retried = solve(alternative);
+        if (retried.ok) {
+          primitives.splice(0, primitives.length, ...alternative);
+          linearLabels = primitives.filter(primitive => primitive.kind === "label" && primitive.provenance?.linearSolution);
+          placed = retried;
+        }
+      }
     }
     for (const issue of placed.issues) issues.push({code:issue.code,message:issue.message,severity:"fatal",entityIds:linearLabels.filter((primitive)=>primitive.id===issue.entityId).map((primitive)=>primitive.entityId)});
     if (placed.ok) for (const placement of placed.placements) {
       const primitive=linearLabels.find((item)=>item.id===placement.labelId)!;
+      const labelAnchor = primitive.points[0]!;
       primitive.points=[{x:round(placement.bounds.x+placement.bounds.width/2),y:round(placement.bounds.y+placement.bounds.height/2)}];
       primitive.labelPlacement="absolute";
-      primitive.provenance={...primitive.provenance,fontPx,labelBounds:placement.bounds,labelCollisionBounds:placement.collisionBounds??placement.bounds};
+      primitive.provenance={...primitive.provenance,fontPx,labelPad:0,labelAnchor,labelBounds:placement.bounds,labelCollisionBounds:placement.collisionBounds??placement.bounds};
       if(placement.usesLeader && placement.leaderFrom && placement.leaderTo) primitives.push({
         id:`${primitive.id}_leader`,entityId:primitive.entityId,groupId:primitive.groupId,kind:"line",
         points:placement.leaderPath??[placement.leaderFrom,placement.leaderTo],
@@ -1228,17 +1266,6 @@ function constructionComponents(document: SceneDocument, geometry: Map<string, G
     });
     const firstId = ids[0];
     if (firstId) ids.slice(1).forEach((id) => union(firstId, id));
-  }
-  // A lone Cartesian axes construction defines the world frame for sampled
-  // function graphs. Reveal groups control time, not new coordinate frames:
-  // fitting the graph into another group slot would detach correct world math
-  // from its axes. Multiple axes retain the existing explicit connection
-  // policy; construction references establish connections without guessing.
-  const axesIds = [...geometry].filter(([, value]) => value.kind === "axes").map(([id]) => id);
-  if (axesIds.length === 1) {
-    for (const [id, value] of geometry) {
-      if (value.kind === "path" && value.sampledCurve?.curveKind === "function") union(axesIds[0]!, id);
-    }
   }
   const byRoot = new Map<string, string[]>();
   geometry.forEach((_, id) => byRoot.set(find(id), [...(byRoot.get(find(id)) ?? []), id]));
@@ -2360,9 +2387,66 @@ function pushDegenerateProjectedGeometryIssues(
   });
 }
 
-function toPrimitives(entityId: string, entityKind: string, value: Geometry, groupId: string, transform: (point: Point) => RenderPoint, viewport: { x: number; y: number; width: number; height: number; padding?: number }, forceFinite: boolean, dimensionOffsetPx = 0, label?: string, provenance?: Record<string, unknown>, directionOverlay = false): RenderPrimitive[] {
-  if (value.kind === "linear_region") {
-    const result = linearRegionPrimitives(value, entityId, groupId).map((primitive) => ({
+function linearRegionLegendPrimitives(world: RenderPrimitive[], legendIds: ReadonlySet<string>): RenderPrimitive[] | null {
+  const used = new Set(world.filter(primitive => primitive.kind === "label").map(primitive => primitive.text));
+  const available = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").filter(name => !used.has(name));
+  const legends: RenderPrimitive[] = [];
+  const marks = world.map(primitive => {
+    if (!legendIds.has(primitive.id)) return primitive;
+    const name = available.shift();
+    if (!name) return primitive;
+    legends.push({ ...primitive, id: `${primitive.id}_legend`, text: `${name}: ${primitive.text}`,
+      provenance: { ...primitive.provenance, linearRole: "caption", linearLegendTargetId: primitive.id } });
+    return { ...primitive, text: name,
+      provenance: { ...primitive.provenance, linearRole: "source_reference_label", linearLegendRole: primitive.provenance?.linearRole } };
+  });
+  return legends.length === world.filter(primitive => legendIds.has(primitive.id)).length ? [...marks, ...legends] : null;
+}
+
+/** Captions are text rows, not metric points in the plot's coordinate frame. */
+function layoutLinearRegionPrimitives(world: RenderPrimitive[], viewport: Viewport): RenderPrimitive[] | null {
+  const captions = world.filter(primitive => primitive.provenance?.linearRole === "caption");
+  if (!captions.length) return null;
+  const options: LabelEngineOptions = {
+    fontHeightPx: BOARD_TYPE_SCALE.annotation, paddingPx: 2, minGapPx: 3,
+    measureTextPx: measureTextWidth, measureTextInkBounds,
+  };
+  const padding = viewport.padding ?? 24;
+  const inner = { x: viewport.x + padding, y: viewport.y + padding,
+    width: viewport.width - 2 * padding, height: viewport.height - 2 * padding };
+  const widest = Math.max(...captions.map(primitive => measureTextWidth(primitive.text!, options.fontHeightPx) + 4));
+  const gap = options.minGapPx! + 2;
+  const columns = captions.length > 4 && widest + gap <= (inner.width - gap) / 2 ? 2 : 1;
+  const columnWidth = (inner.width - gap * (columns - 1)) / columns;
+  const rowsPerColumn = Math.ceil(captions.length / columns);
+  const captionAnchors = new Map<string, RenderPoint>();
+  let bottom = inner.y;
+  for (let column = 0; column < columns; column++) {
+    const members = captions.slice(column * rowsPerColumn, (column + 1) * rowsPerColumn);
+    const columnView = { ...inner, x: inner.x + column * (columnWidth + gap), width: columnWidth };
+    const rows = stackLabelRows(members.map(primitive => ({
+      labelId: primitive.id, entityId: primitive.id, anchor: primitive.points[0]!, text: primitive.text!,
+    })), [{ x: columnView.x + gap, y: columnView.y + gap, align: "left" }], columnView, [], options);
+    if (!rows) return null;
+    for (const row of rows) {
+      captionAnchors.set(row.labelId!, row.anchor);
+      const width = measureTextWidth(row.text, options.fontHeightPx) + 4;
+      const ink = measureTextInkBounds(row.text, row.anchor.x - width / 2 + 2,
+        row.anchor.y - (options.fontHeightPx! + 4) / 2 + 2, options.fontHeightPx!);
+      bottom = Math.max(bottom, row.anchor.y + (options.fontHeightPx! + 4) / 2, ink ? ink.y + ink.height : 0);
+    }
+  }
+  const plotTop = bottom + gap;
+  const plotView = { ...viewport, y: plotTop, height: viewport.y + viewport.height - plotTop };
+  const plot = world.filter(primitive => primitive.provenance?.linearRole !== "caption");
+  const plotTransform = createTransform([{ kind: "path", points: plot.flatMap(primitive => primitive.points) }], plotView);
+  if (!plotTransform) return null;
+  return world.map(primitive => ({ ...primitive, points: captionAnchors.has(primitive.id)
+    ? [captionAnchors.get(primitive.id)!] : primitive.points.map(plotTransform) }));
+}
+
+function compileLinearRegionPrimitives(world: RenderPrimitive[], transform: (point: Point) => RenderPoint, viewport: Viewport): RenderPrimitive[] {
+    const result = layoutLinearRegionPrimitives(world, viewport) ?? world.map((primitive) => ({
       ...primitive,
       points: primitive.points.map(transform),
       provenance: primitive.provenance,
@@ -2378,6 +2462,11 @@ function toPrimitives(entityId: string, entityKind: string, value: Geometry, gro
       if(!Number.isFinite(twiceArea)||perimeter===0||Math.abs(twiceArea)/perimeter<4)throw new Error("Shaded region is not distinguishable at display precision");
     }
     return result;
+}
+
+function toPrimitives(entityId: string, entityKind: string, value: Geometry, groupId: string, transform: (point: Point) => RenderPoint, viewport: { x: number; y: number; width: number; height: number; padding?: number }, forceFinite: boolean, dimensionOffsetPx = 0, label?: string, provenance?: Record<string, unknown>, directionOverlay = false): RenderPrimitive[] {
+  if (value.kind === "linear_region") {
+    return compileLinearRegionPrimitives(linearRegionPrimitives(value, entityId, groupId), transform, viewport);
   }
   if (value.kind === "matrix_array") {
     const sourceProvenance = { ...provenance };
