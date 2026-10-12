@@ -374,7 +374,7 @@ function completeAtomicActivityPhase(question: string, start: number, end: numbe
     return read.ok && /^\s*$/.test(question.slice(read.reading.source.span.end, phaseEnd));
   });
 }
-function inventoryNotationSpans(question: string, end: number): ChemistrySpan[] {
+function inventoryNotationSpans(question: string, end: number, dimension?: ChemistryDimension): ChemistrySpan[] {
   const spans: ChemistrySpan[] = [];
   const body = question.slice(0, end);
   for (const match of body.matchAll(/[A-Za-zÅå°/]/g)) {
@@ -386,7 +386,7 @@ function inventoryNotationSpans(question: string, end: number): ChemistrySpan[] 
   // Integral electrons between reaction separators are chemical notation,
   // not the start of a broken scientific-notation voltage (e.g. 2e- V).
   const electrons = /(?:^|\+|->|<=>|→|⟶|⇌|⇄|↔|⇒)\s*([1-9]\d*\s*e(?:\^?\(?-\)?|⁻))(?=\s*(?:\+|->|<=>|→|⟶|⇌|⇄|↔|⇒))/gd;
-  for (const match of body.matchAll(electrons)) {
+  for (const match of dimension === "potential" ? body.matchAll(electrons) : []) {
     const finish = match.indices![1]![1];
     // The scalar lexer can include a preceding + as the coefficient's sign.
     spans.push({start: match.index!, end: finish});
@@ -414,7 +414,7 @@ export function findChemistryQuantities(input: Omit<ChemistryQuantityInput, "aft
   if (!validSpan(input.question, scope)) return fail("malformed", scope);
   const end = Math.min(scope.end, body.end);
   const readings: ChemistryReading[] = []; let consumed = -1;
-  const notation = inventoryNotationSpans(input.question, end);
+  const notation = inventoryNotationSpans(input.question, end, input.dimension);
   for (const match of input.question.matchAll(new RegExp(SCALAR, "g"))) {
     const start = match.index! + match[0].length - match[0].trimStart().length;
     const tokenEnd = match.index! + match[0].trimEnd().length;
