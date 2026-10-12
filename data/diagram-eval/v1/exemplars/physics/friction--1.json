@@ -1,0 +1,461 @@
+{
+  "topic_id": "physics|3|friction",
+  "question": "A 4 kg wooden block rests without slipping on a rough plank tilted at 28° to the horizontal. Draw its free-body diagram with the weight, the normal reaction and the static friction.",
+  "figure_kind": "vectors_fbd",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "block at rest on a rough incline"
+    },
+    "source": {
+      "question": "A 4 kg wooden block rests without slipping on a rough plank tilted at 28° to the horizontal. Draw its free-body diagram with the weight, the normal reaction and the static friction.",
+      "archetype": "incline_body"
+    },
+    "quantities": [
+      {
+        "id": "theta",
+        "symbol": "theta",
+        "value": 28,
+        "unit": "degree"
+      }
+    ],
+    "entities": [
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "incline foot"
+      },
+      {
+        "id": "T",
+        "kind": "point",
+        "role": "incline top"
+      },
+      {
+        "id": "F",
+        "kind": "point",
+        "role": "base corner"
+      },
+      {
+        "id": "incline",
+        "kind": "segment",
+        "role": "rough inclined plane"
+      },
+      {
+        "id": "ground",
+        "kind": "segment",
+        "role": "ground"
+      },
+      {
+        "id": "rise",
+        "kind": "segment",
+        "role": "vertical side"
+      },
+      {
+        "id": "angle",
+        "kind": "angle_mark",
+        "role": "incline angle",
+        "label": "θ = 28°"
+      },
+      {
+        "id": "b0",
+        "kind": "point",
+        "role": "block corner"
+      },
+      {
+        "id": "b1",
+        "kind": "point",
+        "role": "block corner"
+      },
+      {
+        "id": "b2",
+        "kind": "point",
+        "role": "block corner"
+      },
+      {
+        "id": "b3",
+        "kind": "point",
+        "role": "block corner"
+      },
+      {
+        "id": "body",
+        "kind": "polygon",
+        "role": "body: block at rest",
+        "label": "m = 4 kg"
+      },
+      {
+        "id": "G",
+        "kind": "point",
+        "role": "block centre"
+      },
+      {
+        "id": "weight",
+        "kind": "vector",
+        "role": "weight, vertically down",
+        "label": "mg"
+      },
+      {
+        "id": "normal",
+        "kind": "vector",
+        "role": "normal reaction, perpendicular to incline",
+        "label": "N"
+      },
+      {
+        "id": "friction",
+        "kind": "vector",
+        "role": "static friction, up the slope",
+        "label": "f"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_B",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "make_T",
+        "operator": "point",
+        "inputs": {
+          "x": 6.18063,
+          "y": 3.2863,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "T"
+        ]
+      },
+      {
+        "id": "make_F",
+        "operator": "point",
+        "inputs": {
+          "x": 6.18063,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "F"
+        ]
+      },
+      {
+        "id": "make_incline",
+        "operator": "segment",
+        "inputs": {
+          "start": "B",
+          "end": "T"
+        },
+        "outputs": [
+          "incline"
+        ]
+      },
+      {
+        "id": "make_ground",
+        "operator": "segment",
+        "inputs": {
+          "start": "B",
+          "end": "F"
+        },
+        "outputs": [
+          "ground"
+        ]
+      },
+      {
+        "id": "make_rise",
+        "operator": "segment",
+        "inputs": {
+          "start": "F",
+          "end": "T"
+        },
+        "outputs": [
+          "rise"
+        ]
+      },
+      {
+        "id": "make_angle",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "B",
+          "a": "incline",
+          "b": "ground"
+        },
+        "outputs": [
+          "angle"
+        ]
+      },
+      {
+        "id": "make_b0",
+        "operator": "translate",
+        "inputs": {
+          "point": "B",
+          "vector": [
+            2.64884,
+            1.40841
+          ]
+        },
+        "outputs": [
+          "b0"
+        ]
+      },
+      {
+        "id": "make_b1",
+        "operator": "point",
+        "inputs": {
+          "x": 3.3552,
+          "y": 1.78399,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "b1"
+        ]
+      },
+      {
+        "id": "make_b2",
+        "operator": "point",
+        "inputs": {
+          "x": 3.12047,
+          "y": 2.22547,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "b2"
+        ]
+      },
+      {
+        "id": "make_b3",
+        "operator": "point",
+        "inputs": {
+          "x": 2.41411,
+          "y": 1.84989,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "b3"
+        ]
+      },
+      {
+        "id": "make_body",
+        "operator": "polygon",
+        "inputs": {
+          "points": [
+            "b0",
+            "b1",
+            "b2",
+            "b3"
+          ]
+        },
+        "outputs": [
+          "body"
+        ]
+      },
+      {
+        "id": "make_G",
+        "operator": "midpoint",
+        "inputs": {
+          "a": "b0",
+          "b": "b2"
+        },
+        "outputs": [
+          "G"
+        ]
+      },
+      {
+        "id": "make_weight",
+        "operator": "vector",
+        "inputs": {
+          "start": "G",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 1.6
+        },
+        "outputs": [
+          "weight"
+        ]
+      },
+      {
+        "id": "make_normal",
+        "operator": "vector",
+        "inputs": {
+          "start": "G",
+          "direction": [
+            -0.4695,
+            0.8829
+          ],
+          "length": 1.4127
+        },
+        "outputs": [
+          "normal"
+        ]
+      },
+      {
+        "id": "make_friction",
+        "operator": "vector",
+        "inputs": {
+          "start": "G",
+          "direction": [
+            0.8829,
+            0.4695
+          ],
+          "length": 0.7512
+        },
+        "outputs": [
+          "friction"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "incline_angle",
+        "predicate": "angle_between",
+        "entities": [
+          "incline",
+          "ground"
+        ],
+        "expected": {
+          "value": 28,
+          "unit": "degree"
+        },
+        "severity": "fatal"
+      },
+      {
+        "id": "normal_perp",
+        "predicate": "perpendicular",
+        "entities": [
+          "normal",
+          "incline"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "friction_along",
+        "predicate": "parallel",
+        "entities": [
+          "friction",
+          "incline"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "weight_vertical",
+        "predicate": "perpendicular",
+        "entities": [
+          "weight",
+          "ground"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_friction",
+        "predicate": "label_attached",
+        "entities": [
+          "friction"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "B",
+      "T",
+      "F",
+      "incline",
+      "ground",
+      "rise",
+      "angle",
+      "b0",
+      "b1",
+      "b2",
+      "b3",
+      "body",
+      "G",
+      "weight",
+      "normal",
+      "friction"
+    ],
+    "revealGroups": [
+      {
+        "id": "surface",
+        "entityIds": [
+          "B",
+          "T",
+          "F",
+          "incline",
+          "ground",
+          "rise",
+          "angle"
+        ],
+        "dependsOn": [],
+        "narrationCue": "the rough incline at 28°"
+      },
+      {
+        "id": "block",
+        "entityIds": [
+          "b0",
+          "b1",
+          "b2",
+          "b3",
+          "body",
+          "G"
+        ],
+        "dependsOn": [
+          "surface"
+        ],
+        "narrationCue": "the block at rest on it"
+      },
+      {
+        "id": "forces",
+        "entityIds": [
+          "weight",
+          "normal",
+          "friction"
+        ],
+        "dependsOn": [
+          "block"
+        ],
+        "narrationCue": "weight down, normal reaction perpendicular to the incline, friction up the slope"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_surface",
+        "action": "reveal",
+        "targetId": "surface",
+        "dependsOn": [],
+        "narrationIntent": "the rough incline at 28°"
+      },
+      {
+        "id": "reveal_block",
+        "action": "reveal",
+        "targetId": "block",
+        "dependsOn": [
+          "reveal_surface"
+        ],
+        "narrationIntent": "the block at rest on it"
+      },
+      {
+        "id": "reveal_forces",
+        "action": "reveal",
+        "targetId": "forces",
+        "dependsOn": [
+          "reveal_block"
+        ],
+        "narrationIntent": "weight down, normal reaction perpendicular to the incline, friction up the slope"
+      }
+    ]
+  },
+  "engineCommit": "3f4aeaf3beae281a084b9e25e97a3f502c5b535c",
+  "validatedOn": "2026-10-12"
+}

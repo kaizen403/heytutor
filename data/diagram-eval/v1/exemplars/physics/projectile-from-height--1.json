@@ -1,0 +1,445 @@
+{
+  "topic_id": "physics|2|projectile-from-height",
+  "question": "A stone is thrown horizontally at 7 m/s from the edge of a cliff 44.1 m high (take g = 9.8 m/s²). Draw its path to the ground below, marking the cliff height, the launch velocity, the landing point and the horizontal distance travelled.",
+  "figure_kind": "motion_path",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "stone thrown horizontally off a cliff"
+    },
+    "source": {
+      "question": "A stone is thrown horizontally at 7 m/s from the edge of a cliff 44.1 m high (take g = 9.8 m/s²). Draw its path to the ground below, marking the cliff height, the launch velocity, the landing point and the horizontal distance travelled.",
+      "archetype": "projectile"
+    },
+    "quantities": [
+      {
+        "id": "u",
+        "symbol": "u",
+        "value": 7,
+        "unit": "m/s"
+      },
+      {
+        "id": "h0",
+        "symbol": "h",
+        "value": 44.1,
+        "unit": "m"
+      },
+      {
+        "id": "R",
+        "symbol": "R",
+        "value": 21,
+        "unit": "m"
+      }
+    ],
+    "entities": [
+      {
+        "id": "foot",
+        "kind": "point",
+        "role": "cliff foot"
+      },
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "launch point, cliff edge",
+        "label": "O"
+      },
+      {
+        "id": "c3",
+        "kind": "point",
+        "role": "cliff top end"
+      },
+      {
+        "id": "cliff",
+        "kind": "segment",
+        "role": "cliff face"
+      },
+      {
+        "id": "top",
+        "kind": "segment",
+        "role": "cliff top"
+      },
+      {
+        "id": "ground_end",
+        "kind": "point",
+        "role": "ground end"
+      },
+      {
+        "id": "ground",
+        "kind": "segment",
+        "role": "ground",
+        "label": "ground"
+      },
+      {
+        "id": "aim",
+        "kind": "point",
+        "role": "launch direction"
+      },
+      {
+        "id": "velocity",
+        "kind": "vector",
+        "role": "launch velocity, horizontal",
+        "label": "u = 7 m/s"
+      },
+      {
+        "id": "trajectory",
+        "kind": "polyline",
+        "role": "half-parabola path"
+      },
+      {
+        "id": "landing",
+        "kind": "point",
+        "role": "landing point",
+        "label": "B"
+      },
+      {
+        "id": "d0",
+        "kind": "point",
+        "role": "height foot"
+      },
+      {
+        "id": "d1",
+        "kind": "point",
+        "role": "height top"
+      },
+      {
+        "id": "dim_h",
+        "kind": "dimension",
+        "role": "cliff height",
+        "label": "h = 44.1 m"
+      },
+      {
+        "id": "dim_R",
+        "kind": "dimension",
+        "role": "horizontal distance",
+        "label": "R = 21 m"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_foot",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "foot"
+        ]
+      },
+      {
+        "id": "make_O",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 44.1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "make_c3",
+        "operator": "point",
+        "inputs": {
+          "x": -10,
+          "y": 44.1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "c3"
+        ]
+      },
+      {
+        "id": "make_cliff",
+        "operator": "segment",
+        "inputs": {
+          "start": "O",
+          "end": "foot"
+        },
+        "outputs": [
+          "cliff"
+        ]
+      },
+      {
+        "id": "make_top",
+        "operator": "segment",
+        "inputs": {
+          "start": "c3",
+          "end": "O"
+        },
+        "outputs": [
+          "top"
+        ]
+      },
+      {
+        "id": "make_ground_end",
+        "operator": "point",
+        "inputs": {
+          "x": 30,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ground_end"
+        ]
+      },
+      {
+        "id": "make_ground",
+        "operator": "segment",
+        "inputs": {
+          "start": "foot",
+          "end": "ground_end"
+        },
+        "outputs": [
+          "ground"
+        ]
+      },
+      {
+        "id": "make_aim",
+        "operator": "point",
+        "inputs": {
+          "x": 7,
+          "y": 44.1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "aim"
+        ]
+      },
+      {
+        "id": "make_velocity",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "end": "aim"
+        },
+        "outputs": [
+          "velocity"
+        ]
+      },
+      {
+        "id": "make_trajectory",
+        "operator": "function_curve",
+        "inputs": {
+          "expression": "44.1-0.1*x^2",
+          "variable": "x",
+          "xMin": 0,
+          "xMax": 21,
+          "samples": 81
+        },
+        "outputs": [
+          "trajectory"
+        ]
+      },
+      {
+        "id": "make_landing",
+        "operator": "point",
+        "inputs": {
+          "x": 21,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "landing"
+        ]
+      },
+      {
+        "id": "make_d0",
+        "operator": "point",
+        "inputs": {
+          "x": -11.5,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "d0"
+        ]
+      },
+      {
+        "id": "make_d1",
+        "operator": "point",
+        "inputs": {
+          "x": -11.5,
+          "y": 44.1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "d1"
+        ]
+      },
+      {
+        "id": "make_dim_h",
+        "operator": "dimension",
+        "inputs": {
+          "start": "d0",
+          "end": "d1"
+        },
+        "outputs": [
+          "dim_h"
+        ]
+      },
+      {
+        "id": "make_dim_R",
+        "operator": "dimension",
+        "inputs": {
+          "start": "foot",
+          "end": "landing"
+        },
+        "outputs": [
+          "dim_R"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "launch_horizontal",
+        "predicate": "parallel",
+        "entities": [
+          "velocity",
+          "ground"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "launch_on_path",
+        "predicate": "on",
+        "entities": [
+          "O",
+          "trajectory"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "landing_on_path",
+        "predicate": "on",
+        "entities": [
+          "landing",
+          "trajectory"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_velocity",
+        "predicate": "label_attached",
+        "entities": [
+          "velocity"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_landing",
+        "predicate": "label_attached",
+        "entities": [
+          "landing"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "rock",
+        "kind": "hatch",
+        "targetIds": [
+          "cliff"
+        ]
+      }
+    ],
+    "requiredEntityIds": [
+      "foot",
+      "O",
+      "c3",
+      "cliff",
+      "top",
+      "ground_end",
+      "ground",
+      "aim",
+      "velocity",
+      "trajectory",
+      "landing",
+      "d0",
+      "d1",
+      "dim_h",
+      "dim_R"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "foot",
+          "O",
+          "c3",
+          "cliff",
+          "top",
+          "ground_end",
+          "ground",
+          "d0",
+          "d1",
+          "dim_h"
+        ],
+        "dependsOn": [],
+        "narrationCue": "the cliff of height h"
+      },
+      {
+        "id": "launch",
+        "entityIds": [
+          "aim",
+          "velocity"
+        ],
+        "dependsOn": [
+          "setup"
+        ],
+        "narrationCue": "the stone leaves the edge moving horizontally"
+      },
+      {
+        "id": "path",
+        "entityIds": [
+          "trajectory",
+          "landing",
+          "dim_R"
+        ],
+        "dependsOn": [
+          "launch"
+        ],
+        "narrationCue": "a half parabola to B, a distance R from the foot"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "the cliff of height h"
+      },
+      {
+        "id": "reveal_launch",
+        "action": "reveal",
+        "targetId": "launch",
+        "dependsOn": [
+          "reveal_setup"
+        ],
+        "narrationIntent": "the stone leaves the edge moving horizontally"
+      },
+      {
+        "id": "reveal_path",
+        "action": "reveal",
+        "targetId": "path",
+        "dependsOn": [
+          "reveal_launch"
+        ],
+        "narrationIntent": "a half parabola to B, a distance R from the foot"
+      }
+    ]
+  },
+  "engineCommit": "3f4aeaf3beae281a084b9e25e97a3f502c5b535c",
+  "validatedOn": "2026-10-12"
+}

@@ -35,6 +35,7 @@ import {
   type ScenePlannerRequestOutcome,
   type ScenePlanWithRepairResult,
   type SubjectFamiliarity,
+  type TurnPlanRequestOutcome,
 } from "@heytutor/tutor-core";
 import {
   FIGURE_SOURCES,
@@ -165,6 +166,10 @@ export interface LectureRun {
     projection: unknown;
   } | null;
   planner?: PlannerUsageSummary;
+  /** Observed TurnPlan completions only; absent on historical runs, bounded to three attempts. */
+  turnPlanCallOutcomes?: TurnPlanRequestOutcome[];
+  /** The actual admitted model result versus the existing handled fallback. */
+  turnPlanStatus?: "planned" | "fallback";
   examplePicker?: LectureExamplePickerRecord;
   /** Missing only on historical runs. Null votes mean unavailable evidence, never none. */
   visualNeed?: LabVisualNeedEvidence;
@@ -368,6 +373,7 @@ export async function runLecture(
       estimatedCostUsd: 0,
       modelCalls: [],
     },
+    turnPlanCallOutcomes: [],
     diagram: {
       ...createPlannerEvidence(),
       committed: false,
@@ -434,8 +440,13 @@ export async function runLecture(
       fastMode,
       traceId,
       classifySubject: (options.productionStrictSubjects?.length ?? 0) > 0,
+      onRequestOutcome: (outcome) => {
+        // Late unused peers may report after selection; the saved JSON is a snapshot, not a drain.
+        if (run.turnPlanCallOutcomes && run.turnPlanCallOutcomes.length < 3) run.turnPlanCallOutcomes.push(outcome);
+      },
     });
     stages.turnPlanMs = Date.now() - turnPlanStartedAt;
+    run.turnPlanStatus = plannedTurn ? "planned" : "fallback";
     turnPlan = selectBestAvailableTurnPlan(
       undefined,
       plannedTurn?.turnPlan,
@@ -483,7 +494,7 @@ export async function runLecture(
       const examples = options.diagramExamples ?? [];
       const pickerStartedAt = Date.now();
       const picked = options.productionStrictSubjects ? await pickProductionLabExamples(examples, {
-        origin: options.origin, question, plan: turnPlan, traceId,
+        origin: options.origin, question, plan: turnPlan, traceId, subject: classifiedSubject,
       }) : await pickDiagramExamples(
         examples,
         options.diagramExampleCatalogue ?? buildDiagramExampleCatalogue(examples),

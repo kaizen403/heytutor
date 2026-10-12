@@ -1012,6 +1012,7 @@ export function useQuestionHandler(
           diagramExamplePickerPromise = pickLiveDiagramExampleIds({
             question,
             plan,
+            subject: diagramSubject,
             traceId: turnTraceId ?? undefined,
             sessionId: sessionId ?? undefined,
             signal: abortController.signal,
@@ -1315,7 +1316,7 @@ export function useQuestionHandler(
               question,
               (candidate) => validateCandidateAgainstPlan(candidate, planningTurnPlan),
               {
-                proxyUrl: scenePlannerUrlWithExampleIds(plannerUrl, pickedIds),
+                proxyUrl: scenePlannerUrlWithExampleIds(plannerUrl, pickedIds, diagramSubject),
                 sessionId: sessionId ?? undefined,
                 traceId: turnTraceId ?? undefined,
                 signal: run.signal,

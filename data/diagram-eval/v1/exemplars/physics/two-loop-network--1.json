@@ -48,7 +48,7 @@
       {
         "id": "E1",
         "kind": "component",
-        "role": "source battery",
+        "role": "source battery, long plate (+) at start",
         "label": "E₁ = 17 V"
       },
       {
@@ -72,7 +72,7 @@
       {
         "id": "E2",
         "kind": "component",
-        "role": "source battery",
+        "role": "source battery, long plate (+) at start",
         "label": "E₂ = 19 V"
       },
       {
@@ -400,26 +400,7 @@
         "severity": "fatal"
       }
     ],
-    "annotations": [
-      {
-        "id": "pol1",
-        "kind": "polarity",
-        "targetIds": [
-          "a",
-          "b"
-        ],
-        "text": "+−"
-      },
-      {
-        "id": "pol2",
-        "kind": "polarity",
-        "targetIds": [
-          "c",
-          "d"
-        ],
-        "text": "+−"
-      }
-    ],
+    "annotations": [],
     "requiredEntityIds": [
       "E1",
       "R1",
