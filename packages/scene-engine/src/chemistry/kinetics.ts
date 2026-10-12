@@ -779,10 +779,27 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
     if (ratio !== null && !chemistryCanonicalValuesAgree(ratio,change)) return false;
     ratio = change;
   }
-  const timesPattern = new RegExp(String.raw`(?:rate constant|rate)\b[^.;]{0,80}?(${SCALAR})\s*(?:times|fold)`, "gid");
+  // Inventory the original change owner before any successful scalar match.
+  // Unread or damaged times/fold material cannot disappear behind a pair.
+  const timesPattern = /\b(?:rate constant|rate)\b([^.;?\n]{0,80}?)\b(?:times|fold)\b/gid;
   for (const times of stem.matchAll(timesPattern)) {
-    const change = matchedChemistryScalar(stem,times);
-    if (change === null) return false;
+    const payload = times.indices![1]!;
+    const prefix = /^\s*(?:of\s+(?:(?:the|a|this)\s+)?reaction\s*)?(?:(?:becomes?|increases?|decreases?|changes?)(?:\s+by)?\s+)?/i.exec(stem.slice(payload[0],payload[1]))!;
+    const start = payload[0] + prefix[0].length;
+    const read = readChemistryQuantity({question:stem,after:/^/,within:{start,end:payload[1]},dimension:"dimensionless"});
+    if (!read.ok || !(read.reading.value > 0) || stem.slice(read.reading.source.span.end,payload[1]).trim() !== "") return false;
+    const suffixStart = times.index! + times[0].length;
+    const clause = /[;?\n]|\.(?=\s|$)/.exec(stem.slice(suffixStart));
+    const suffixEnd = clause ? suffixStart + clause.index : stem.length;
+    let suffix = stem.slice(suffixStart,suffixEnd);
+    const thermal = findChemistryQuantities({question:stem,within:{start:suffixStart,end:suffixEnd},dimension:"temperature"});
+    if (!thermal.ok) return false;
+    for (const reading of [...thermal.reading].sort((a,b)=>b.source.span.start-a.source.span.start)) {
+      suffix = suffix.slice(0,reading.source.span.start-suffixStart) + " " + suffix.slice(reading.source.span.end-suffixStart);
+    }
+    suffix = suffix.replace(/\b[Tt]_?[12]\s*=\s*(?=\s|$)/g," ");
+    if (!/^\s*(?:(?:its|the|original|value|when|as|on|from|for|between|in|of|an?|temperature|temperatures|is|was|are|raised|rises|rise|increased|increases|increase|change|by|to|at|and|starting|starts|start|goes|go|went|up)\b\s*)*$/i.test(suffix)) return false;
+    const change = read.reading.value;
     if (ratio !== null && !chemistryCanonicalValuesAgree(ratio,change)) return false;
     ratio = change;
   }

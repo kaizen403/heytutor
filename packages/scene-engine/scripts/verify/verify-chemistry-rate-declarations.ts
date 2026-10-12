@@ -2207,5 +2207,136 @@ for (const c of concentrationRatioRequestCases) try {
 } catch (error) { results.push({id: c.id, passed: false, error: String(error)}); console.error(`FAIL ${c.id}: ${error}`); }
 // END ADDITIVE ARRHENIUS RATIO ROLES AND COMPLETE SCALAR GATES
 
+// BEGIN ADDITIVE COMPLETE ORIGINAL TIMES-FOLD OWNER GATES
+const timesFoldOwnerCases:ArrheniusOwnerCase[] = [
+  {
+    "id": "UNREAD-times",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.07 s^-1. The rate becomes unknown times its original value. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "UNREAD-fold",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.07 s^-1. The rate increases by an unreadable fold. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "DAMAGED-symbol",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.07 s^-1. The rate becomes q times its original value. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "DAMAGED-exponent",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.07 s^-1. The rate becomes 3.5e+ times its original value. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "WRONG-UNIT-times",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.07 s^-1. The rate becomes 3.5 kg times its original value. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "KNOWN-becomes",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.07 s^-1. The rate becomes 3.5 times its original value. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "k1": 0.02,
+    "k2": 0.07,
+    "ratio": 3.5
+  },
+  {
+    "id": "KNOWN-increases",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.07 s^-1. The rate increases 3.5 times. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "k1": 0.02,
+    "k2": 0.07,
+    "ratio": 3.5
+  },
+  {
+    "id": "KNOWN-fold",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.07 s^-1. The rate increases 3.5 fold. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "k1": 0.02,
+    "k2": 0.07,
+    "ratio": 3.5
+  },
+  {
+    "id": "KNOWN-equals",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.07 s^-1. The rate is 3.5 times its original value. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "k1": 0.02,
+    "k2": 0.07,
+    "ratio": 3.5
+  },
+  {
+    "id": "KNOWN-change",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.07 s^-1. The rate changes by 3.5 fold. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "k1": 0.02,
+    "k2": 0.07,
+    "ratio": 3.5
+  },
+  {
+    "id": "OWN-times-unread-before-later-change",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.07 s^-1. The rate becomes unknown times its original value. The rate becomes 3.5 times its original value. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-fold-unread-after-good-change",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.07 s^-1. The rate increases 3.5 fold. The rate increases unavailable fold. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-times-conflicting-repeats",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.07 s^-1. The rate becomes 3.5 times its original value. The rate increases 4 fold. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-times-requested-rate-ratio",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.07 s^-1. The rate becomes 3.5 times its original value. Find the rate-constant ratio and calculate the activation energy.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "k1": 0.02,
+    "k2": 0.07,
+    "ratio": 3.5
+  },
+  {
+    "id": "OWN-fold-known-rate-ratio-reference",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.07 s^-1. The ratio is 3.5. The rate increases 3.5 fold. Use the known ratio to draw the Arrhenius plot.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "k1": 0.02,
+    "k2": 0.07,
+    "ratio": 3.5
+  }
+];
+for(const c of timesFoldOwnerCases)try {
+ const spec=kineticsFromStem(c.question),exact=buildKineticsScene(c.question,[],false),schematic=buildKineticsScene(c.question,[],true),ordinary=synthesizeFamilyScene({question:c.question});
+ if(c.refuse){assert.equal(spec,null,"inconsistent or unread original ratios must not select a replacement scene");assert.equal(exact,null);assert.equal(schematic,null);assert.equal(ordinary,null);}
+ else {
+  assert.ok(spec&&spec.arrhenius);assert.equal(spec.plot,"arrhenius");assert.equal(spec.arrhenius.T1,c.T1);assert.equal(spec.arrhenius.T2,c.T2);assert.ok(spec.arrhenius.k1!==null&&spec.arrhenius.k2!==null);
+  assert.ok(Math.abs(spec.arrhenius.k1-c.k1!)<=Math.abs(c.k1!)*1e-12);assert.ok(Math.abs(spec.arrhenius.k2-c.k2!)<=Math.abs(c.k2!)*1e-12);
+  const solved=solveKinetics(spec),energy=8.314*Math.log(c.k2!/c.k1!)/(1/c.T1!-1/c.T2!);assert.ok(solved.ratio!==null&&solved.Ea!==null);assert.ok(Math.abs(solved.ratio-c.ratio!)<=Math.abs(c.ratio!)*1e-12);assert.ok(Math.abs(solved.Ea-energy)<=Math.abs(energy)*1e-12);
+  assert.ok(exact&&schematic&&ordinary);
+  for(const document of [exact,schematic,ordinary.document]) {
+   assert.equal(document.source?.question,c.question);const valid=validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string,unknown>));assert.ok(valid.document);const compiled=compileSceneDocument(valid.document);assert.ok(compiled.ok&&compiled.renderScene&&compiled.renderScene.primitives.length>0);
+   for(const [id,value,unit] of [["Ea",energy,"J/mol"],["T1",c.T1!,"K"],["T2",c.T2!,"K"],["ratio",c.ratio!,""]] as const){const q=document.quantities.find(q=>q.id===id);assert.ok(q);assert.equal(q.unit,unit);assert.equal(q.value,Number(value.toFixed(6)));}
+   const energyLabel=document.entities.find(e=>e.id==="ea"&&e.kind==="label"&&(e.role==="result"||e.role==="direction marker")&&e.label?.includes("E_a"));assert.ok(energyLabel&&energyLabel.label?.includes("kJ/mol"));assert.ok(compiled.renderScene.primitives.some(p=>p.kind==="label"&&p.entityId===energyLabel.id&&p.text===energyLabel.label));
+  }
+ }
+ results.push({id:c.id,passed:true});
+}catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
+// END ADDITIVE COMPLETE ORIGINAL TIMES-FOLD OWNER GATES
+
 const output={schema:"chemistry-rate-declarations-gate/v1",passed:results.filter(x=>x.passed).length,failed:results.filter(x=>!x.passed).length,results};
 console.log(JSON.stringify(output,null,2));assert.equal(output.failed,0);
