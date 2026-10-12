@@ -7,7 +7,7 @@
  * Maxwell distributions stay in thermoGraphs.ts. A missing number is
  * not replaced with a textbook value.
  */
-import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, findChemistryQuantities, readChemistryQuantity, chemistryQuantityCuesValid, chemistryQuestionSpan, chemistryCanonicalValuesAgree } from "./quantityReader";
+import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, findChemistryQuantities, readChemistryQuantity, readChemistryLiteral, CHEMISTRY_SCALAR_PATTERN, chemistryUnitSymbol, chemistryQuantityCuesValid, chemistryQuestionSpan, chemistryCanonicalValuesAgree } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
 
@@ -198,6 +198,37 @@ function amountMoles(question: string): number | null {
   return r.ok && r.reading.length === 1 ? r.reading[0]!.value : null;
 }
 
+/** null means no range; false means a stated range cannot be owned. */
+function heatTemperatureRange(question: string): { first: number; second: number } | null | false {
+  const body = question.slice(0, chemistryQuestionSpan(question).end);
+  const ranges = [...body.matchAll(/\bfrom\s+([^;\n]*?)\s+to\s+/gid)];
+  if (ranges.length === 0) return null;
+  if (ranges.length !== 1) return false;
+  const range = ranges[0]!;
+  const firstPart = range.indices?.[1];
+  if (!firstPart || range.index === undefined) return false;
+  const secondStart = range.index + range[0].length;
+  const scalar = new RegExp(`^(${CHEMISTRY_SCALAR_PATTERN})`);
+  const firstToken = scalar.exec(question.slice(firstPart[0], firstPart[1]));
+  const secondToken = scalar.exec(question.slice(secondStart));
+  if (!firstToken || !secondToken) return false;
+  const firstSpan = { start: firstPart[0], end: firstPart[0] + firstToken[0].length };
+  const secondSpan = { start: secondStart, end: secondStart + secondToken[0].length };
+  const second = readChemistryLiteral({ question, scalarSpan: secondSpan, dimension: "temperature", targetUnit: "K" });
+  if (!second.ok) return false;
+  let first = readChemistryLiteral({ question, scalarSpan: firstSpan, dimension: "temperature", targetUnit: "K" });
+  // Only a bare first endpoint can borrow the complete original trailing
+  // unit. The shared reader still rejects explicit wrong or damaged units.
+  if (!first.ok && second.reading.rawUnit) {
+    const unit = chemistryUnitSymbol(second.reading.rawUnit, "temperature");
+    if (!unit) return false;
+    const sourceSpan = { start: second.reading.source.span.end - second.reading.rawUnit.length, end: second.reading.source.span.end };
+    first = readChemistryLiteral({ question, scalarSpan: firstSpan, dimension: "temperature", targetUnit: "K", unitConvention: { unit, sourceSpan } });
+  }
+  if (!first.ok || question.slice(first.reading.source.span.end, firstPart[1]).trim()) return false;
+  return { first: first.reading.value, second: second.reading.value };
+}
+
 function buildHeat(question: string, stem: string): SceneDocument | null {
   if (/melt|boiling|boils|vapor|vapour|latent heat|fusion/.test(stem)) return null;
   if (/phase change/.test(stem) && !/no phase change/.test(stem)) return null;
@@ -219,13 +250,20 @@ function buildHeat(question: string, stem: string): SceneDocument | null {
   } else {
     const molar = /molar heat capacity|j\/\(mol/.test(stem);
     const capacity = numberAfter(question, /(?:molar )?heat capacity(?:\s+of a sample)?(?:\s+is)?|c\s*=/, molar ? "molar_heat_capacity" : "heat_capacity", molar ? "J/(mol K)" : "J/K");
-    const t1 = numberAfter(question, /from\s+/, "temperature", "K");
-    const t2 = numberAfter(question, /to\s+/, "temperature", "K");
-    const delta = t1 !== null && t2 !== null ? t2 - t1 : numberAfter(question, /(?:δ|∆|Δ)\s*t\s*=|delta t\s*=/, "temperature_delta", "K");
+    const temperatures = heatTemperatureRange(question);
+    if (temperatures === false) return null;
+    const delta = temperatures ? temperatures.second - temperatures.first : numberAfter(question, /(?:δ|∆|Δ)\s*t\s*=|delta t\s*=/, "temperature_delta", "K");
     if (capacity === null || delta === null || !(capacity >= 0) || !(delta !== 0)) return null;
     const sampleC = molar ? (moles === null ? null : capacity * moles) : capacity;
     if (sampleC === null) return null;
     const q = sampleC * delta;
+    c.scene.quantity("heat_capacity", molar ? "C_m" : "C", capacity, molar ? "J/(mol K)" : "J/K");
+    if (temperatures) {
+      c.scene.quantity("heat_temperature_1", "T_1", temperatures.first, "K");
+      c.scene.quantity("heat_temperature_2", "T_2", temperatures.second, "K");
+    }
+    c.scene.quantity("heat_delta_T", "ΔT", delta, "K");
+    c.scene.quantity("heat_q", "q", q, "J");
     ids.push(c.text("q_l", { x: 0, y: 1.2 }, fit(`q=${q} J`), "heat"));
     ids.push(c.text("kind_l", { x: 0, y: 0.2 }, molar ? "C molar" : "C sample", "heat capacity kind"));
     ids.push(c.text("law_l", { x: 0, y: -0.8 }, "q=C*dT", "constant heat capacity"));
