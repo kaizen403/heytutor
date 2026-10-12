@@ -202,6 +202,35 @@ for (const [i, statement] of [
   const result = compileSceneDocument(documentFor(question, "number_line_set", { variable: "x", expression: { inequality: "x<3" } }));
   assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
 });
+for (const [i, question] of [
+  "Graph x<3 for integer x and state whether 2 belongs to the solution set.",
+  "Graph x<3 for integer x and explain whether 2 belongs to the solution set?",
+  "Let x be an integer and graph x<3 and do not label the solution set.",
+  "Given integer x, graph x<3 without writing a caption.",
+  "Graph x<3 with integer x and do not mark 2.",
+  "Graph x<3 for x in Z and explain whether 2 belongs to the solution set.",
+  "Can you graph x<3 for integer x?",
+].entries()) check(`affirmative-domain-survives-unrelated-instruction-${i + 1}`, () => {
+  const candidate = documentFor(question, "number_line_set", { variable: "x", expression: { inequality: "x<3" } });
+  assert.ok(validateLinearSourceBinding(candidate).some(issue => issue.code === "linear_source_mismatch"), "An independently declared integer domain contradicts this continuous candidate");
+  const result = compileSceneDocument(candidate);
+  assert.ok(!result.ok && result.renderScene === null && result.report.issues.some(issue => issue.code === "linear_source_mismatch"));
+  assert.equal(buildLinearSourceDocument(question), null);
+});
+for (const [i, question] of [
+  "Graph x<3 and state whether x is an integer.",
+  "Graph x<3, is x an integer?",
+  "Graph x<3 and do not restrict x to integers.",
+  "Graph x<3 for x not in Z.",
+  "Graph x<3 and x is not an integer.",
+  "Graph x<3 and ask whether x is in Z.",
+].entries()) check(`unproved-local-domain-declaration-${i + 1}`, () => {
+  assert.equal(buildLinearSourceDocument(question), null);
+  const candidate = documentFor(question, "number_line_set", { variable: "x", expression: { inequality: "x<3" } });
+  // This control proves absence of a reader-domain veto, not correctness of
+  // an arbitrary partial candidate for the unsupported surrounding request.
+  assert.deepEqual(validateLinearSourceBinding(candidate), []);
+});
 for (const [i, statement] of [
   "for integer x.", "for natural numbers x.", "with x in Z.", "over Z.",
   ". x is an integer.", ". Restrict x to whole numbers.",

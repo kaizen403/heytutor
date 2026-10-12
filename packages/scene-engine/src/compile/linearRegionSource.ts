@@ -1264,20 +1264,36 @@ function hasAffirmativeDiscreteDomain(question: string, names: readonly string[]
   const end = "(?=\\s|[.,;?!]|$)";
   for (const match of question.matchAll(/(?:\.(?=\d)|[^.;?!])+[.;?!]?/g)) {
     const clause = match[0];
-    // Negation, conditionals and questions do not constitute affirmative
-    // domain assertions, even when a discrete-domain noun occurs within them.
-    if (/\?|\b(?:not|no|never|without|if|unless|whether)\b/i.test(clause)) continue;
-    for (const [pattern, variableIndex, domainIndex] of [
-      [new RegExp(`\\b(?:for|over|in|given|with)\\s+(${domain})\\s+(${list})${end}`, "gi"), 2, 1],
-      [new RegExp(`\\b(${list})\\s*(?:∈\\s*|\\\\in\\s+|(?:is|are|be)\\s+(?:an?\\s+)?|in\\s+|belongs?\\s+to\\s+)(${domain})${end}`, "gi"), 1, 2],
-      [new RegExp(`\\brestrict\\s+(${list})\\s+to\\s+(${domain})${end}`, "gi"), 1, 2],
+    // Coordinated instructions have separate scopes. In particular, a later
+    // membership question or negative display instruction cannot negate an
+    // already stated variable type. Variable lists such as x and y stay whole.
+    const boundaries = [...clause.matchAll(new RegExp(
+      `(?:[,;:]|\\b(?:and|then)\\b)\\s*(?=(?:graph|plot|draw|shade|represent|show|state|give|report|find|determine|explain|ask|let|given|restrict|do|does|never|without|whether|if|unless|is|are|should|can|could|may|might)\\b|${list}\\s*(?:is\\b|are\\b|be\\b|in\\b|∈|\\\\in\\b))`, "gi"))];
+    const affirmative = (assertion: RegExpMatchArray, predicate = false): boolean => {
+      const start = assertion.index!, finish = start + assertion[0].length;
+      const lower = boundaries.filter(boundary => boundary.index! + boundary[0].length <= start).at(-1);
+      const upper = boundaries.find(boundary => boundary.index! >= finish);
+      const prefix = clause.slice(lower ? lower.index! + lower[0].length : 0, start);
+      const suffix = clause.slice(finish, upper?.index ?? clause.length);
+      if (/\b(?:not|no|never|without|if|unless|whether)\b/i.test(prefix)
+        || /\b(?:is|are|should|can|could|may|might)\s*$/i.test(prefix)) return false;
+      // A bare type predicate followed by '?' asks about the domain. A type
+      // attached to an explicit request/assumption remains a declaration:
+      // "Can you graph ... for integer x?" still requests integer solutions.
+      if (predicate && /\?/.test(suffix) && !/\b(?:let|given|for|over|with)\s*$/i.test(prefix)) return false;
+      return true;
+    };
+    for (const [pattern, variableIndex, domainIndex, predicate] of [
+      [new RegExp(`\\b(?:for|over|in|given|with)\\s+(${domain})\\s+(${list})${end}`, "gi"), 2, 1, false],
+      [new RegExp(`\\b(${list})\\s*(?:∈\\s*|\\\\in\\s+|(?:is|are|be)\\s+(?:an?\\s+)?|in\\s+|belongs?\\s+to\\s+)(${domain})${end}`, "gi"), 1, 2, true],
+      [new RegExp(`\\brestrict\\s+(${list})\\s+to\\s+(${domain})${end}`, "gi"), 1, 2, false],
     ] as const) for (const assertion of clause.matchAll(pattern))
-      if (declared(assertion[variableIndex]!) && discrete(assertion[domainIndex]!)) return true;
+      if (declared(assertion[variableIndex]!) && discrete(assertion[domainIndex]!) && affirmative(assertion, predicate)) return true;
     // A postfix symbolic domain binds an explicitly quoted mathematical
     // comparison in the same clause, rather than any nearby prose noun.
     if (/[<>=]/.test(clause) && new RegExp(`(?<![A-Za-z_])${name}(?![A-Za-z0-9_])`).test(clause))
       for (const assertion of clause.matchAll(new RegExp(`\\b(?:in|over)\\s+(${domain})${end}`, "gi")))
-        if (discrete(assertion[1]!)) return true;
+        if (discrete(assertion[1]!) && affirmative(assertion)) return true;
   }
   return false;
 }
