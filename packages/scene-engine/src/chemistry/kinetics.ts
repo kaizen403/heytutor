@@ -348,7 +348,7 @@ function halfLifeSourceOwnersValid(question: string): boolean {
       return false;
     }
     const supplied = /\bis$/i.test(owner[0]) || /^\s*(?:[=:]|(?:is|was|equals|equal to|unknown|unreadable|has|takes|with|at|value|given|stated|measured|assumed|supplied|provided)\b)/i.test(tail)
-      || new RegExp(String.raw`^\s*,?\s*(?:(?:of|about|nearly|approximately)\s+)?(?:${SCALAR}|unknown\b|unreadable\b)`, "i").test(tail);
+      || new RegExp(String.raw`^\s*(?:(?:of|about|nearly|approximately)\s+)?(?:${SCALAR}|unknown\b|unreadable\b)`, "i").test(tail);
     if (!supplied) continue; // A genuinely requested half-life supplies no value.
     const read = readChemistryQuantity({question, after: /^/, within: {start:end, end:body.length}, dimension:"time"});
     if (!read.ok || !(read.reading.value > 0)) return false;
@@ -383,7 +383,7 @@ function readRateConstant(stem: string, order: ReactionOrder | null = 1): { valu
     if (next && end === next.index && /rate constant/i.test(owner[0])
       && /^k\b/.test(next[0]) && /^\s*(?:(?:is|was|equals|equal to)|[=:])?\s*$/i.test(tail)) continue;
     const supplied = /^\s*,?\s*(?:[=:]|(?:is|was|are|equals|equal to|has|takes|value|given|stated|measured|assumed|supplied|provided|with\s+(?:the\s+)?value|unknown|unreadable|unavailable)\b)/i.test(tail)
-      || new RegExp(String.raw`^\s*(?:(?:of|about|nearly|approximately)\s+)?(?:${SCALAR}|unknown\b|unreadable\b|unavailable\b)`, "i").test(tail);
+      || new RegExp(String.raw`^\s*,?\s*(?:(?:of|about|nearly|approximately)\s+)?(?:${SCALAR}|unknown\b|unreadable\b|unavailable\b)`, "i").test(tail);
     if (!supplied) continue; // Requested/qualitative mentions supply no rate.
     const read = readChemistryQuantity({question: stem, after: /^/, within: {start, end}, dimension});
     if (!read.ok || !(read.reading.value > 0)) return false;
