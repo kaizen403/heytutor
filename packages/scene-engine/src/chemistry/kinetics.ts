@@ -810,7 +810,7 @@ export function kineticsFromStem(question: string, quantities: readonly ChemPlan
   let plot: KineticsPlot | null = null;
   if (reversible && EQUILIBRIUM_PLOT.test(stem)) plot = "equilibrium";
   else if (arrheniusPlot || (arrhenius && (arrhenius.ratio !== null || arrhenius.k2 !== null || arrhenius.statedSlope !== null))) plot = "arrhenius";
-  else if (linear) plot = "linear";
+  else if (linear) plot = order === 1 && linear === "A_t" ? "concentration" : "linear";
   else if (order !== null && (k !== null || tHalf !== null || completion !== null)) plot = "concentration";
   else if (order !== null && /(?:concentration|\[a\])[^.]{0,40}(?:with|vs\.?|versus|against) time|(?<!pre[ -])exponential|decreases with time/.test(stem)) plot = "concentration";
   // With only percentages asked and no rate, the decay can still be drawn in half life units.

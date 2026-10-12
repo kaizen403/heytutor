@@ -1284,7 +1284,7 @@ for(const c of linearUnitCases)try {
   const valid=validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string,unknown>));assert.ok(valid.document);
   const compiled=compileSceneDocument(valid.document);assert.ok(compiled.ok&&compiled.renderScene);const texts=compiled.renderScene.primitives.filter(p=>p.kind==="label").map(p=>p.text??"");
   const expectedAxis=c.order===0?`${c.axis} (M)`:c.axis;
-  const axisOwner=document.entities.find(e=>e.kind==="label"&&e.role==="axis label"&&e.label===expectedAxis);assert.ok(axisOwner,"the source axis must include its physical concentration unit");
+  const axisOwner=document.entities.find(e=>e.id===(c.order===0?"z_yl":"s_yl")&&e.kind==="label"&&(e.role==="axis label"||e.role==="direction marker")&&e.label===expectedAxis);assert.ok(axisOwner,"the source axis must include its physical concentration unit");
   assert.ok(compiled.renderScene.primitives.some(p=>p.kind==="label"&&p.entityId===axisOwner.id&&p.text===expectedAxis));assert.ok(texts.some(t=>t.includes("t_1/2")&&t.includes(c.unit!)),"compiled half-life mark must retain its source time unit");
  }
  results.push({id:c.id,passed:true});
@@ -1447,7 +1447,7 @@ for(const c of repairedAxisCases)try {
  const spec=kineticsFromStem(c.question);assert.ok(spec);assert.equal(spec.order,c.order);assert.equal(spec.a0,c.initial);const solved=solveKinetics(spec),truth=expected(c);assert.ok(solved.k!==null&&solved.tHalf!==null);assert.ok(Math.abs(solved.k-truth.k)<=Math.abs(truth.k)*1e-12);assert.ok(Math.abs(solved.tHalf-truth.half)<=Math.abs(truth.half)*1e-12);
  const exact=buildKineticsScene(c.question,[],false),schematic=buildKineticsScene(c.question,[],true),ordinary=synthesizeFamilyScene({question:c.question});assert.ok(exact&&schematic&&ordinary);
  for(const document of [exact,schematic,ordinary.document]) {
-  checkDocument(c,document);const sourceAxis=document.entities.find(e=>e.kind==="label"&&e.role==="axis label"&&e.label===c.axis);assert.ok(sourceAxis);
+  checkDocument(c,document);const sourceAxis=document.entities.find(e=>e.id===(c.order===0?"z_yl":"s_yl")&&e.kind==="label"&&(e.role==="axis label"||e.role==="direction marker")&&e.label===c.axis);assert.ok(sourceAxis);
   const valid=validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string,unknown>));assert.ok(valid.document);const compiled=compileSceneDocument(valid.document);assert.ok(compiled.ok&&compiled.renderScene);
   assert.ok(compiled.renderScene.primitives.some(p=>p.kind==="label"&&p.entityId===sourceAxis.id&&p.text===c.axis));
  }
@@ -1766,7 +1766,7 @@ for(const c of arrheniusOwnerCases)try {
     for(const [id,value,unit] of [["Ea",energy,"J/mol"],["T1",c.T1!,"K"],["T2",c.T2!,"K"],["ratio",c.ratio!,""]] as const) {
      const q=document.quantities.find(q=>q.id===id);assert.ok(q);assert.equal(q.unit,unit);assert.ok(typeof q.value==="number");assert.equal(q.value,Number(value.toFixed(6)));
     }
-    const energyLabel=document.entities.find(e=>e.kind==="label"&&e.role==="result"&&e.label?.includes("E_a"));assert.ok(energyLabel&&energyLabel.label?.includes("kJ/mol"));
+    const energyLabel=document.entities.find(e=>e.id==="ea"&&e.kind==="label"&&(e.role==="result"||e.role==="direction marker")&&e.label?.includes("E_a"));assert.ok(energyLabel&&energyLabel.label?.includes("kJ/mol"));
     assert.ok(compiled.renderScene.primitives.some(p=>p.kind==="label"&&p.entityId===energyLabel.id&&p.text===energyLabel.label));
    }
   }
@@ -1774,6 +1774,93 @@ for(const c of arrheniusOwnerCases)try {
  results.push({id:c.id,passed:true});
 }catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
 // END ADDITIVE ORIGINAL ARRHENIUS OWNER SUPPORT GATES
+
+// BEGIN ADDITIVE FIRST-ORDER CONCENTRATION TARGET DISPATCH GATES
+const concentrationDispatchCases:RateCase[] = [
+  {
+    "id": "DISPATCH-original-scientific",
+    "question": "For a first order reaction, k equals 2.31 x 10^-2 min^-1 and k: 0.0231 min^-1. Plot [A] versus time.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.0231,
+    "unit": "min"
+  },
+  {
+    "id": "DISPATCH-concentration-target",
+    "question": "A first order reaction has k = 0.02 min^-1. Plot concentration versus time.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.02,
+    "unit": "min"
+  },
+  {
+    "id": "DISPATCH-half-to-concentration",
+    "question": "A first order reaction has half life 20 min. Plot [A] against time.",
+    "refuse": false,
+    "order": 1,
+    "half": 20,
+    "unit": "min"
+  },
+  {
+    "id": "DISPATCH-seconds-target",
+    "question": "A first order reaction has k = 0.01 s^-1. Draw concentration as a function of time.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.01,
+    "unit": "s"
+  },
+  {
+    "id": "DISPATCH-source-requested-time",
+    "question": "A first order reaction has k = 0.012 min^-1. Plot [A] versus time and find the remaining fraction at t = 60 min.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.012,
+    "unit": "min",
+    "askTime": 60
+  },
+  {
+    "id": "DISPATCH-unread-first-rate",
+    "question": "A first order reaction has k = unknown; rate constant is 0.0231 min^-1. Plot [A] versus time.",
+    "refuse": true
+  },
+  {
+    "id": "DISPATCH-conflicting-rates",
+    "question": "A first order reaction has k = 0.0231 min^-1; rate constant is 0.0462 min^-1. Plot concentration versus time.",
+    "refuse": true
+  },
+  {
+    "id": "DISPATCH-unread-initial",
+    "question": "A first order reaction has initial concentration unknown; initial concentration is 2 M and k = 0.0231 min^-1. Plot [A] versus time.",
+    "refuse": true
+  },
+  {
+    "id": "DISPATCH-wrong-order-rate-unit",
+    "question": "A first order reaction has k = 0.2 M min^-1. Plot [A] against time.",
+    "refuse": true
+  },
+  {
+    "id": "DISPATCH-damaged-source-rate",
+    "question": "A first order reaction has k = 1e- min^-1; k = 0.0231 min^-1. Draw concentration as a function of time.",
+    "refuse": true
+  }
+];
+for(const c of concentrationDispatchCases)try {
+ const spec=kineticsFromStem(c.question),exact=buildKineticsScene(c.question,[],false),schematic=buildKineticsScene(c.question,[],true),ordinary=synthesizeFamilyScene({question:c.question});
+ if(c.refuse){assert.equal(spec,null);assert.equal(exact,null);assert.equal(schematic,null);assert.equal(ordinary,null);}
+ else {
+  assert.ok(spec);assert.equal(spec.order,1);assert.equal(spec.plot,"concentration");assert.equal(spec.linear,"A_t");
+  const solved=solveKinetics(spec),truth=expected(c);assert.equal(solved.timeUnit,c.unit);assert.ok(solved.k!==null&&solved.tHalf!==null);assert.ok(Math.abs(solved.k-truth.k)<=Math.abs(truth.k)*1e-12);assert.ok(Math.abs(solved.tHalf-truth.half)<=Math.abs(truth.half)*1e-12);
+  if(c.askTime!==undefined){const point=solved.remainingAtTimes.find(x=>x.time===c.askTime);assert.ok(point);assert.ok(Math.abs(point.remaining-Math.exp(-truth.k*c.askTime))<=1e-12);}
+  assert.ok(exact&&schematic&&ordinary);
+  for(const document of [exact,schematic,ordinary.document]) {
+   checkDocument(c,document);const axis=document.entities.find(e=>e.id==="p_yl"&&e.kind==="label"&&e.label==="[A]/[A]_0");assert.ok(axis);
+   const valid=validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string,unknown>));assert.ok(valid.document);const compiled=compileSceneDocument(valid.document);assert.ok(compiled.ok&&compiled.renderScene);
+   assert.ok(compiled.renderScene.primitives.some(p=>p.kind==="label"&&p.entityId===axis.id&&p.text===axis.label));
+  }
+ }
+ results.push({id:c.id,passed:true});
+}catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
+// END ADDITIVE FIRST-ORDER CONCENTRATION TARGET DISPATCH GATES
 
 const output={schema:"chemistry-rate-declarations-gate/v1",passed:results.filter(x=>x.passed).length,failed:results.filter(x=>!x.passed).length,results};
 console.log(JSON.stringify(output,null,2));assert.equal(output.failed,0);
