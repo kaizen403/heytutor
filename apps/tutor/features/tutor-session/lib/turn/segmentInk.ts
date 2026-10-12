@@ -109,6 +109,8 @@ export type SegmentInkClock = {
   msPerChar?: number;
   /** Media ms since this sentence's audio started. */
   getAudioPositionMs: () => number;
+  /** This live segment still owns provider playback; absent for recorded or wall clocks. */
+  isAudioActive?: () => boolean;
   /** Media ms per wall ms. */
   getPlaybackRate: () => number;
   /** Holds a word wait without spending its deadline while the lesson is paused. */
@@ -368,6 +370,7 @@ export async function drawSegmentInk(input: {
           charStartOffsetsMs: effectiveOffsets,
           charDurationsMs: writeSchedule.charDurationsMs,
           getAudioPositionMs: clock.getAudioPositionMs,
+          isAudioActive: clock.isAudioActive,
           // The slots are media ms; the glyph tween runs in wall time.
           getPlaybackRate: clock.getPlaybackRate,
           onCharacterStart: input.trace?.writeCharStart
@@ -567,6 +570,14 @@ export async function drawSegmentInk(input: {
           : speechWindow?.durationMs || commandSpeechMs,
       ...input.commandOptions(command),
       inkPace: pace,
+      // Finish only the remaining committed figure marks after this intro's
+      // voice ends. The current mark keeps its animation; work WRITE and code
+      // commands keep their schedules. Failed/cancelled live draws exit above.
+      ...(input.verifiedDiagramIntro && command.semanticRef &&
+        (command.type === "LABEL" || command.type.startsWith("DRAW_")) &&
+        clock.isSpeechComplete?.() && !isCancelled()
+        ? { durationScale: 0, finishVerifiedDiagramIntro: true }
+        : {}),
       // The voice is on this part: the whiteboard honours the requested
       // time instead of clipping it to the 320 ms scene ceiling.
       ...(cueWindow ? { cued: true } : {}),
