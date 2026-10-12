@@ -17,6 +17,11 @@
  * the text of a label or quantity bound to n1 or n2). An unbound, unnumbered
  * label on the interface with no side it can resolve is dropped; the figure
  * is not declined.
+ * R2d: a closed region (a drawn closed path or circle) with a refraction on
+ * its edge whose incident or transmitted path runs inside holds that medium.
+ * A label bound to the index of the medium inside it, or an unbound and
+ * unnumbered label on the region itself, names that medium and sits inside
+ * the region; with no slot there it is dropped.
  */
 
 import { parseSidePlacementIntent } from "../document/placementIntent";
@@ -55,9 +60,12 @@ export function bindOpticsLabelSides(
   geometry: ReadonlyMap<string, unknown>,
   transformFor: (entityId: string) => Transform,
   owners: LabelOwner[],
+  /** Header legend rows: R2d leaves them in the legend. */
+  summaryLabelIds: ReadonlySet<string> = new Set(),
 ): LabelOwner[] {
   const events = lightEvents(document, geometry);
   if (events.length === 0) return owners;
+  const media = closedMedia(events, geometry, transformFor);
   const annotations = new Map(document.annotations
     .filter((annotation) => annotation.kind === "label" || annotation.kind === "callout")
     .map((annotation) => [annotation.id, annotation]));
@@ -69,6 +77,13 @@ export function bindOpticsLabelSides(
       if (region) regions.push(region);
     }
     const annotation = owner.labelId ? annotations.get(owner.labelId) : undefined;
+    for (const medium of owner.labelId && summaryLabelIds.has(owner.labelId) ? [] : media) {
+      const bound = Boolean(annotation) && medium.indexInputs.some((input) => boundToIndex(annotation!, input, document));
+      // On the region itself, an unbound label names the medium only when it
+      // carries no quantity and no number ("glass", not "δ = 38.4°").
+      const names = owner.entityId === medium.entityId && !annotation?.quantityId && !/\p{N}/u.test(annotation?.text ?? owner.text);
+      if (bound || names) regions.push(medium.region);
+    }
     const refractions = annotation ? refractionsOn(owner.entityId, events) : [];
     let bound = false;
     for (const event of refractions) {
@@ -179,16 +194,97 @@ function sideRegion(
  * (transmitted) input, through its quantityId or its leading symbol.
  */
 function boundIndexSide(annotation: SceneAnnotation, event: LightEvent, document: SceneDocument): RefractionSide | null {
-  const symbol = leadingSymbol(annotation.text);
-  const bound = (input: unknown) => {
-    if (typeof input !== "string") return false;
-    if (annotation.quantityId === input) return true;
-    return symbol !== null && quantityKeys(input, document).has(symbol);
-  };
-  const incident = bound(event.n1);
-  const transmitted = bound(event.n2);
+  const incident = boundToIndex(annotation, event.n1, document);
+  const transmitted = boundToIndex(annotation, event.n2, document);
   if (incident === transmitted) return null;
   return incident ? "incident" : "transmitted";
+}
+
+/** True when a label is bound to an index input through its quantityId or its leading symbol. */
+function boundToIndex(annotation: SceneAnnotation, input: unknown, document: SceneDocument): boolean {
+  if (typeof input !== "string") return false;
+  if (annotation.quantityId === input) return true;
+  const symbol = leadingSymbol(annotation.text);
+  return symbol !== null && quantityKeys(input, document).has(symbol);
+}
+
+/** A closed region that holds one medium of a refraction on its edge. */
+interface ClosedMedium {
+  entityId: string;
+  region: LabelSideRegion;
+  /** The n1 or n2 inputs, as written, of the medium inside it. */
+  indexInputs: unknown[];
+}
+
+/**
+ * R2d: closed regions (a drawn closed path or circle) with a refraction on
+ * their edge whose incident or transmitted path runs inside. A label on the
+ * region itself, or bound to the index of the medium inside it, names that
+ * medium and must sit inside the region.
+ */
+function closedMedia(
+  events: LightEvent[],
+  geometry: ReadonlyMap<string, unknown>,
+  transformFor: (entityId: string) => Transform,
+): ClosedMedium[] {
+  const refractions = events.filter((event) => event.mode === "refract");
+  if (refractions.length === 0) return [];
+  const media: ClosedMedium[] = [];
+  for (const [entityId, value] of geometry) {
+    const transform = transformFor(entityId);
+    let region: LabelSideRegion;
+    if (isRecord(value) && value.kind === "circle" && isRound(value)) {
+      const center = transform(value.center);
+      const radius = distance(center, transform({ x: value.center.x + value.radius, y: value.center.y }));
+      if (!(radius > 0)) continue;
+      region = { kind: "circle", center, radius, inside: true };
+    } else if (isPath(value) && value.closed === true && value.points.length >= 3) {
+      region = { kind: "polygon", points: value.points.map(transform), inside: true };
+    } else {
+      continue;
+    }
+    const indexInputs: unknown[] = [];
+    for (const event of refractions) {
+      if (!onRegionEdge(transform(event.contact), region)) continue;
+      if (event.outgoingPathId && pathRunsInside(event, event.outgoingPathId, geometry, transform, region)) indexInputs.push(event.n2);
+      if (event.incidentPathId && pathRunsInside(event, event.incidentPathId, geometry, transform, region)) indexInputs.push(event.n1);
+    }
+    if (indexInputs.length > 0) media.push({ entityId, region, indexInputs });
+  }
+  return media;
+}
+
+/** Screen distance within which a contact is on a region's edge. */
+const EDGE_TOLERANCE_PX = 3;
+
+function onRegionEdge(point: RenderPoint, region: LabelSideRegion): boolean {
+  if (region.kind === "circle") return Math.abs(distance(point, region.center) - region.radius) <= EDGE_TOLERANCE_PX;
+  if (region.kind !== "polygon") return false;
+  return region.points.some((a, index) => segmentDistance(point, a, region.points[(index + 1) % region.points.length]!) <= EDGE_TOLERANCE_PX);
+}
+
+/** True when the path leaves the event's contact into the region. */
+function pathRunsInside(
+  event: LightEvent,
+  pathId: string,
+  geometry: ReadonlyMap<string, unknown>,
+  transform: Transform,
+  region: LabelSideRegion,
+): boolean {
+  const path = geometry.get(pathId);
+  if (!isPath(path)) return false;
+  const far = farthestPoint(path.points, event.contact);
+  if (!far) return false;
+  const contact = transform(event.contact);
+  const farScreen = transform(far);
+  const length = distance(farScreen, contact);
+  if (length < 1e-6) return false;
+  const probe = {
+    x: contact.x + (farScreen.x - contact.x) / length * SIDE_PROBE_PX,
+    y: contact.y + (farScreen.y - contact.y) / length * SIDE_PROBE_PX,
+  };
+  if (region.kind === "circle") return distance(probe, region.center) < region.radius;
+  return region.kind === "polygon" && pointInPolygon(probe, region.points);
 }
 
 /** A quantity ID and its declared symbol, normalized for comparison. */
