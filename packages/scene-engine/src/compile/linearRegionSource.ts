@@ -1277,6 +1277,17 @@ function hasAffirmativeDiscreteDomain(question: string, names: readonly string[]
       const suffix = clause.slice(finish, upper?.index ?? clause.length);
       if (/\b(?:not|no|never|without|if|unless|whether)\b/i.test(prefix)
         || /\b(?:is|are|should|can|could|may|might)\s*$/i.test(prefix)) return false;
+      const modal = /\b(?:should|can|could|may|might)\b/i.exec(prefix)?.[0].toLowerCase();
+      if (modal) {
+        const instruction = [...prefix.matchAll(/\b(?:graph|plot|draw|shade|represent|show|illustrate|let|given|restrict|state|give|report|find|determine|explain|ask)\b/gi)].at(-1)?.[0];
+        // Asking whether to impose an assumption supplies no type fact. An
+        // explicit graphical request still owns its supplied integer object.
+        if (modal !== "can" || !instruction || !/^(?:graph|plot|draw|shade|represent|show|illustrate)$/i.test(instruction)) return false;
+      }
+      // Restrict is proved only as an imperative head, using the existing
+      // optional polite request prefix. A modal subject or direct '?' asks
+      // about choosing the restriction rather than independently stating it.
+      if (/^restrict\b/i.test(assertion[0]) && (!/^\s*(?:please\s*)?$/i.test(prefix) || /^\s*\?/.test(suffix))) return false;
       // A bare type predicate followed by '?' asks about the domain. A type
       // attached to an explicit request/assumption remains a declaration:
       // "Can you graph ... for integer x?" still requests integer solutions.

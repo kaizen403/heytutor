@@ -231,6 +231,38 @@ for (const [i, question] of [
   // an arbitrary partial candidate for the unsupported surrounding request.
   assert.deepEqual(validateLinearSourceBinding(candidate), []);
 });
+for (const [i, question] of [
+  "Graph x<3 on a number line. Should we restrict x to integers?",
+  "Graph x<3 on a number line. Should I restrict x to integers?",
+  "Graph x<3 on a number line. Should you restrict x to integers?",
+  "Graph x<3 on a number line. Could we restrict x to integers?",
+  "Graph x<3 on a number line. May we restrict x to integers?",
+  "Graph x<3 on a number line. Might we restrict x to integers?",
+  "Graph x<3. Should we let x be an integer?",
+  "Graph x<3. Should we graph for integer x?",
+  "Graph x<3 on a number line. Should we now restrict x to whole numbers?",
+  "Graph x<3 on a number line. Could students restrict x to integers?",
+  "Graph x<3 on a number line. Might someone let x be a natural number?",
+  "Graph x<3 on a number line. May the class graph for integer x?",
+  "Graph x<3 on a number line. Restrict x to integers?",
+].entries()) check(`asked-restriction-is-not-a-domain-fact-${i + 1}`, () => {
+  assert.equal(buildLinearSourceDocument(question), null);
+  const candidate = documentFor(question, "number_line_set", { variable: "x", expression: { inequality: "x<3" } });
+  assert.deepEqual(validateLinearSourceBinding(candidate), []);
+  const result = compileSceneDocument(candidate);
+  assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+});
+for (const [i, question] of [
+  "Restrict x to integers and graph x<3 on a number line.",
+  "Can you graph x<3 for integer x?",
+  "Graph x<3 for integer x and state whether 2 belongs to the solution set.",
+  "Please restrict x to integers. Graph x<3 on a number line.",
+].entries()) check(`affirmative-domain-request-still-refuses-continuous-scene-${i + 1}`, () => {
+  const candidate = documentFor(question, "number_line_set", { variable: "x", expression: { inequality: "x<3" } });
+  assert.ok(validateLinearSourceBinding(candidate).some(issue => issue.code === "linear_source_mismatch"));
+  const result = compileSceneDocument(candidate);
+  assert.ok(!result.ok && result.renderScene === null && result.report.issues.some(issue => issue.code === "linear_source_mismatch"));
+});
 for (const [i, statement] of [
   "for integer x.", "for natural numbers x.", "with x in Z.", "over Z.",
   ". x is an integer.", ". Restrict x to whole numbers.",
