@@ -79,7 +79,7 @@ const FAMILY_OPERATORS: Record<SceneVisualFamily, readonly string[]> = {
     "surface_contact", "normal_at", "reflect_direction", "refract_direction", "parallel_through",
     "reflect_at", "refract_at", "angle_mark", "right_angle_mark",
   ],
-  axis_view: ["line", "segment", "ray", "arc", "vector", "dimension", "reflect_point", "sign_badge", "spherical_surface", "lens_section", "gaussian_image", "optical_focus"],
+  axis_view: ["line", "segment", "ray", "arc", "vector", "dimension", "reflect_point", "sign_badge", "spherical_surface", "lens_section", "gaussian_image", "optical_focus", "principal_rays"],
   interface: ["line", "circle", "arc", "polygon", "surface_intersection", "surface_contact", "normal_at", "spherical_surface"],
   instrument_chain: ["line", "segment", "ray", "arc", "vector", "dimension", "parallel_through", "perpendicular_through", "optical_train"],
   wavefront: ["wavefront_family", "line", "vector", "perpendicular_through", "harmonic_wave", "wave_superposition", "wave_sample"],
