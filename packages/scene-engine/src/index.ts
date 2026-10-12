@@ -2,6 +2,7 @@ export * from "./types";
 export * from "./capability/capabilityManifest";
 export * from "./document/validation";
 export * from "./document/namedPoints";
+export * from "./document/placementIntent";
 export * from "./compile/compiler";
 export * from "./compile/matrixSourceBinding";
 export * from "./compile/annotationMarks";

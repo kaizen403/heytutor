@@ -12,6 +12,11 @@
  *        it is dropped, never carried across.
  *   R2c  a label whose quantityId, or leading symbol, is a refraction's n1
  *        or n2 input sits on the incident or transmitted side.
+ *   R2a  a label on a refraction interface follows placementIntent
+ *        "incident_side" or "transmitted_side", or "<medium> side" when the
+ *        medium is the text of a label or quantity bound to n1 or n2. An
+ *        unbound, unnumbered interface label with no side it can resolve is
+ *        dropped, and the figure still compiles.
  *
  * Each case is a recorded planner document (fixtures/ray-optics-label-sides.json),
  * compiled here. The side is checked against the rendered ink: a label box
@@ -24,7 +29,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { compileSceneDocument, validateSceneDocument, type RenderPoint, type RenderPrimitive } from "../../src/index";
+import { compileSceneDocument, validateSceneDocument, type RenderPoint, type RenderPrimitive, type SceneDocument } from "../../src/index";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = JSON.parse(readFileSync(join(here, "fixtures/ray-optics-label-sides.json"), "utf8")) as {
@@ -34,8 +39,10 @@ const failures: string[] = [];
 
 interface Box { x: number; y: number; width: number; height: number }
 
-function compile(name: string): RenderPrimitive[] | null {
-  const validated = validateSceneDocument(structuredClone(fixture.documents[name]));
+function compile(name: string, edit?: (document: SceneDocument) => void): RenderPrimitive[] | null {
+  const document = structuredClone(fixture.documents[name]) as SceneDocument;
+  edit?.(document);
+  const validated = validateSceneDocument(document);
   if (!validated.document) {
     failures.push(`${name}: document invalid (${validated.report.issues.filter((issue) => issue.severity === "fatal").map((issue) => issue.code).join(", ")})`);
     return null;
@@ -135,6 +142,43 @@ function check(condition: boolean, message: string): void {
   }
 }
 
+// R2a, m1 TIR h8a: "air" on the gem-air face with intent "air side". Nothing
+// binds "air" to n1 or n2 (n2 is the literal 1), so the side is unknown and
+// the label goes; it had sat on the gem side. The bound gem index stays on
+// the incident side.
+{
+  const primitives = compile("tir");
+  if (primitives) {
+    const face = primitive(primitives, "primitive_face");
+    const gemSource = primitive(primitives, "primitive_incident1").points[0]!;
+    check(labelBox(primitives, "airMedium") === null, `tir: the unbound "air" label with an unresolvable side was drawn`);
+    const gem = labelBox(primitives, "gemMedium");
+    check(gem !== null, "tir: the gem index label was dropped");
+    if (gem) check(onLineSide(gem, face, gemSource), `tir: "n_gem = 2.15" (n1) left the gem side`);
+  }
+}
+
+// R2a: the same "air" label is placed, on the air side, once its side is
+// named: by the new enum value, or by "air side" when a quantity bound to n2
+// is labelled "air".
+for (const [variant, edit] of [
+  ["transmitted_side", (document: SceneDocument) => {
+    document.annotations.find((annotation) => annotation.id === "airMedium")!.placementIntent = "transmitted_side";
+  }],
+  ["air side, n2 labelled air", (document: SceneDocument) => {
+    document.quantities.push({ id: "na", symbol: "n_air", label: "air", value: 1 });
+    document.constructions.find((construction) => construction.id === "firstRay")!.inputs.n2 = "na";
+  }],
+] as const) {
+  const primitives = compile("tir", edit);
+  if (!primitives) continue;
+  const face = primitive(primitives, "primitive_face");
+  const airEnd = primitive(primitives, "primitive_transmitted1").points.at(-1)!;
+  const air = labelBox(primitives, "airMedium");
+  check(air !== null, `tir (${variant}): the "air" label with a named side was dropped`);
+  if (air) check(onLineSide(air, face, airEnd), `tir (${variant}): "air" sits on the gem side`);
+}
+
 // Negative control, m1 refraction h8u: "air" on the incident ray and "glass"
 // on the refracted ray already sit on their own sides. Neither may move.
 {
@@ -185,4 +229,4 @@ if (failures.length > 0) {
   for (const failure of failures) console.error(`  - ${failure}`);
   process.exit(1);
 }
-console.log("verify-ray-optics-label-sides: ok (R2b sphere and prism, R2c flat interface on their sides; air/glass pair and plain triangle unmoved)");
+console.log("verify-ray-optics-label-sides: ok (R2b sphere and prism, R2c flat interface, R2a gem face; air/glass pair and plain triangle unmoved)");

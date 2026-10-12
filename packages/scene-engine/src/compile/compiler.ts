@@ -723,7 +723,8 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     }
   }
 
-  // A label on a refraction or reflection keeps its medium's side.
+  // A label on a refraction or reflection keeps its medium's side; a medium
+  // label on a refraction interface that names no side is dropped.
   const uniqueLabelOwners = bindOpticsLabelSides(document, geometry, transformPlan.transformFor, [...labelOwners.filter((owner, index, all) => {
     if (owner.labelId && summaryLabelIds.has(owner.labelId)) {
       return all.findIndex((candidate) => candidate.labelId === owner.labelId) === index;
