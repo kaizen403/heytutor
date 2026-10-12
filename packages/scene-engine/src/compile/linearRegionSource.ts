@@ -762,7 +762,7 @@ function setBuilderSourceProgram(body: string, variable: string, setAliases?: Se
   // Definitions and the one result expression own all parsed operation spans.
   // A remaining operator adjacent to a bound set is another mathematical
   // request, regardless of identifier length; prose consumption cannot own it.
-  const remaining = [...residual.matchAll(/[A-Za-z][A-Za-z0-9_]*|[()]/g)]
+  const remaining = [...residual.matchAll(/[A-Za-z][A-Za-z0-9_]*|[^\s]/g)]
     .map(token => token[0]).filter(token => !["(", ")", "of"].includes(token.toLowerCase()));
   for (let i = 0; i < remaining.length; i++) {
     const operation = remaining[i]!.toLowerCase();
