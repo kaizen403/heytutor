@@ -2094,7 +2094,7 @@ export function TutorSessionShell({
             )}
 
             <div
-              className={`wb-stage flex min-h-0 flex-col items-center ${showDockedPlayer ? "w-full" : ""} ${
+              className={`wb-stage flex min-h-0 flex-col items-center ${scrollBoard ? "w-full min-w-0" : showDockedPlayer ? "w-full" : ""} ${
                 boardCovered ? "pointer-events-none invisible absolute" : ""
               }`}
               aria-hidden={boardCovered || undefined}

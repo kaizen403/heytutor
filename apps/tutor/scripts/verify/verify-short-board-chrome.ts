@@ -90,12 +90,30 @@ class ShellMount {
     useSyncExternalStore: (_subscribe: unknown, read: () => unknown) => read(),
   };
 }
+// Evaluate the actual hook's CSS query, including every width/height clause.
+// Unknown clauses fail setup rather than being treated as a matching posture.
+function mediaQueryMatches(query: string, width: number, height: number, coarse: boolean): boolean {
+  return query.split(",").some(arm => arm.split(/\s+and\s+/i).every(raw => {
+    const clause = raw.trim();
+    const dimension = /^\((min|max)-(width|height):\s*([0-9.]+)px\)$/.exec(clause);
+    if (dimension) {
+      const actual = dimension[2] === "width" ? width : height;
+      return dimension[1] === "max" ? actual <= Number(dimension[3]) : actual >= Number(dimension[3]);
+    }
+    if (clause === "(pointer: coarse)") return coarse;
+    throw Error(`Unsupported actual media clause: ${clause}`);
+  }));
+}
 function renderShell(
   options: {
     reviewing?: boolean;
     navigation?: boolean;
     actualLanding?: boolean;
     width?: number;
+    height?: number;
+    mediaResults?: Array<{ query: string; matches: boolean }>;
+    livePhase?: "speaking" | "drawing";
+    onStop?: () => void;
     inputInteracted?: boolean;
     boardTitle?: string;
     onNewBoard?: () => void;
@@ -117,6 +135,27 @@ function renderShell(
   },
   mount?: ShellMount,
 ): string | React.ReactElement {
+  const width = options.width ?? (options.mobile ? 390 : options.short ? 844 : 1440);
+  const height = options.height ?? (options.veryShort ? 220 : options.short ? 390 : 844);
+  const mediaFile = path.join(appRoot, "lib/client/useMediaQuery.ts");
+  const mediaHooks = load(mediaFile, mediaFile, {
+    useCallback: <T>(fn: T) => fn,
+    useSyncExternalStore: (_subscribe: unknown, read: () => boolean) => {
+      const descriptor = Object.getOwnPropertyDescriptor(globalThis, "window");
+      Object.defineProperty(globalThis, "window", {
+        configurable: true,
+        value: { matchMedia: (query: string) => {
+          const matches = mediaQueryMatches(query, width, height, options.coarse === true);
+          options.mediaResults?.push({ query, matches });
+          return { matches, addEventListener() {}, removeEventListener() {} };
+        } },
+      });
+      try { return read(); } finally {
+        if (descriptor) Object.defineProperty(globalThis, "window", descriptor);
+        else Reflect.deleteProperty(globalThis, "window");
+      }
+    },
+  });
   const noop = () => {};
   const leaf = () => null;
   const turns: StoredTurn[] =
@@ -178,17 +217,7 @@ function renderShell(
       useAccountMe: () => null,
       toShellProfile: () => undefined,
     },
-    "@/lib/client/useMediaQuery": {
-      useIsMobile: () => options.mobile,
-      useIsCompactNav: () =>
-        options.width == null ? options.mobile : options.width <= 1023,
-      useMediaQuery: (query: string) =>
-        query.includes("300px")
-          ? options.veryShort === true
-          : query.includes("max-height")
-            ? options.short === true
-            : options.coarse === true,
-    },
+    "@/lib/client/useMediaQuery": mediaHooks,
     "@/lib/client/useVisualViewportInset": {
       useVisualViewportInset: () => options.keyboardInset ?? 0,
     },
@@ -246,9 +275,11 @@ function renderShell(
       }),
     },
     "./hooks/useTurnLifecycle": {
-      useTurnLifecycle: () => ({
-        pausedLessonOffer: options.pausedOffer === true,
-      }),
+      useTurnLifecycle: (params: { setPhase: (phase: string) => void }) => {
+        if (options.livePhase) params.setPhase(options.livePhase);
+        return { pausedLessonOffer: options.pausedOffer === true,
+          stopTurn: options.onStop ?? noop };
+      },
     },
     "./hooks/useNotesChat": { useNotesChat: () => ({ messages: [] }) },
     "./hooks/useReplay": {
@@ -887,8 +918,8 @@ for (const [key, boundary] of Object.entries({
       addEventListener() {},
       removeEventListener() {},
     },
-    matchMedia: () => ({
-      matches: true,
+    matchMedia: (query: string) => ({
+      matches: mediaQueryMatches(query, 390, 220, true),
       addEventListener() {},
       removeEventListener() {},
     }),
@@ -1515,6 +1546,59 @@ navigationCheck("compact-composer-keyboard", () => {
   assert.ok(immersive);
   assert.equal((immersive.props.style as React.CSSProperties).bottom, 256,
     "existing fullscreen keyboard authority is unchanged");
+});
+navigationCheck("short-media-query-width-boundaries", () => {
+  for (const [width, height, compact, scroll] of [
+    [390, 220, true, true], [631, 300, true, true],
+    [667, 375, true, false], [844, 390, true, false],
+    [1023, 300, true, true], [1024, 220, false, false],
+    [1440, 220, false, false], [1440, 390, false, false],
+    [390, 844, false, false],
+  ] as const) {
+    const mediaResults: Array<{ query: string; matches: boolean }> = [];
+    const markup = shellMarkup({mobile: width < 768, width, height, coarse: true, mediaResults});
+    const heightQueries = mediaResults.filter(result => /\(max-height:/.test(result.query));
+    assert.equal(heightQueries.length, 2, "actual Shell subscribes to both height postures");
+    for (const result of heightQueries) {
+      const bound = Number(/\(max-height:\s*([0-9.]+)px\)/.exec(result.query)?.[1]);
+      assert.equal(result.matches, width <= 1023 && height <= bound,
+        `both actual height query snapshots exclude desktop widths: ${result.query} at ${width}x${height}`);
+    }
+    assert.equal(markup.includes('data-short-board-chrome="true"'), compact,
+      `actual media hook must constrain compact mode at ${width}x${height}`);
+    assert.equal(markup.includes('data-board-scroll="true"'), scroll,
+      `actual media hook must constrain readable scroll at ${width}x${height}`);
+  }
+});
+navigationCheck("short-live-without-player-scroll-and-stop", () => {
+  for (const livePhase of ["speaking", "drawing"] as const) {
+    let stopped = 0;
+    const mounted = new ShellMount();
+    const options = {mobile: true, width: 390, height: 220, coarse: true,
+      recorded: false, navigation: true, livePhase, onStop: () => stopped++};
+    renderShell(options, mounted);
+    let tree = expandNavigation(renderShell(options, mounted));
+    const stage = find(tree, node => String(node.props.className).split(/\s+/).includes("wb-stage"));
+    assert.ok(stage);
+    assert.match(String(stage.props.className), /\bw-full\b/,
+      "live no-player stage must stay within the available phone width");
+    assert.match(String(stage.props.className), /\bmin-w-0\b/,
+      "live no-player stage must shrink instead of centering an oversized sheet");
+    assert.equal(find(tree, node => node.props["data-compact-transport"] != null), null,
+      "this is the live/no-audio path, not a docked recorded player");
+    const pane = find(tree, node => node.props["data-board-scroll"] === "true");
+    assert.ok(pane);assert.equal(pane.props.tabIndex, 0);
+    const calls: unknown[] = [], current = {clientHeight: 142, scrollHeight: 370,
+      scrollBy: (value: unknown) => calls.push(value), scrollTo: (value: unknown) => calls.push(value)};
+    const key = pane.props.onKeyDown as (event: unknown) => void;
+    key({key:"ArrowRight", target:current, currentTarget:current, preventDefault() {}, stopPropagation() {}});
+    assert.deepEqual(calls, [{left:40,top:0}], "actual live region can pan toward right-side stored geometry");
+    const toggle = find(tree, node => node.props["aria-label"] === "Board controls");
+    assert.ok(toggle);clickControl(toggle);
+    tree = expandNavigation(renderShell(options, mounted));
+    const stop = visibleControl(tree, "Stop teaching", 390);
+    clickControl(stop);assert.equal(stopped, 1, "actual compact header Stop invokes the current live consumer");
+  }
 });
 assert.equal(
   navigationFailures.length,
