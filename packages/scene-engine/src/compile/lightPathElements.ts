@@ -424,22 +424,58 @@ function lineIntersection([a, b]: [Point, Point], [c, d]: [Point, Point]): Point
  * inside closed glass is total internal reflection).
  */
 function isGlass(input: LightPathClipInput, roles: OpticsRoles, id: string, value: ElementValue, tolerance: number): boolean {
+  return glassBody(roles, input.geometry, input.resolvePoint, id, value, tolerance);
+}
+
+/**
+ * The same glass or mirror test for a drawn element, where only the compiled
+ * geometry is at hand: a body light along its normal may cross. Light never
+ * passes through a mirror, whatever angle it meets it at.
+ */
+export function isRefractingBody(
+  document: SceneDocument,
+  geometry: Map<string, GeometryLike>,
+  id: string,
+  value: GeometryLike,
+  tolerance: number,
+): boolean {
+  const roles = opticsRoles(document);
+  if (!roles || !isElement(value)) return false;
+  return glassBody(roles, geometry, (reference) => geometryPoint(geometry, reference), id, value, tolerance);
+}
+
+function glassBody(
+  roles: OpticsRoles,
+  geometry: Map<string, GeometryLike>,
+  resolvePoint: (value: unknown) => Point,
+  id: string,
+  value: ElementValue,
+  tolerance: number,
+): boolean {
   if (roles.thinLenses.has(id) || roles.refracting.has(id)) return true;
   if (!isClosed(value)) return false;
   return !roles.reflections.some((reflection) => {
     if (reflection.surface !== id || typeof reflection.incoming !== "string") return false;
-    const incoming = input.geometry.get(reflection.incoming);
+    const incoming = geometry.get(reflection.incoming);
     if (!isPath(incoming) || incoming.points.length < 2 || !incoming.points.every(finitePoint)) return false;
     const start = incoming.points[0]!;
     const next = incoming.infinite ? incoming.points[1]! : incoming.points.at(-1)!;
     const length = distance(start, next);
     if (!(length > 0)) return false;
     let contact: Point;
-    try { contact = reflection.contact === undefined ? next : input.resolvePoint(reflection.contact); } catch { return false; }
+    try { contact = reflection.contact === undefined ? next : resolvePoint(reflection.contact); } catch { return false; }
     if (!finitePoint(contact)) return false;
     const probe = { x: contact.x - (next.x - start.x) / length * 4 * tolerance, y: contact.y - (next.y - start.y) / length * 4 * tolerance };
     return !insideElement(probe, value);
   });
+}
+
+/** A point reference resolved from compiled geometry: a point id or a literal [x, y]. */
+function geometryPoint(geometry: Map<string, GeometryLike>, reference: unknown): Point {
+  if (Array.isArray(reference) && typeof reference[0] === "number" && typeof reference[1] === "number") return { x: reference[0], y: reference[1] };
+  const value = typeof reference === "string" ? geometry.get(reference) as { kind: string; point?: Point } | undefined : undefined;
+  if (value?.kind === "point" && finitePoint(value.point)) return value.point;
+  throw new Error(`no point for ${String(reference)}`);
 }
 
 /**

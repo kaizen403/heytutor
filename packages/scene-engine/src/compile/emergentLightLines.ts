@@ -23,12 +23,15 @@
  * A closed glass element is a drawn closed path or circle that a declared
  * light path has a vertex on, as for R1.
  *
- * Normal incidence is no event: a line that meets every boundary of an
+ * Normal incidence is no event: a line that meets every boundary of a glass
  * element it runs through within R1's normal incidence angle (a ray square
  * to a slab, along a radius of a sphere) carries light through it unbent.
+ * A mirror is never glass (R1's test: a closed body light reflects from
+ * outside with no refraction declared there), so a line along a diameter of
+ * a reflecting ball is refused like any other line through it.
  */
 import type { SceneDocument, SceneIssue } from "../types";
-import { NORMAL_INCIDENCE_DEG, opticsRoles } from "./lightPathElements";
+import { isRefractingBody, NORMAL_INCIDENCE_DEG, opticsRoles } from "./lightPathElements";
 
 const NORMAL_INCIDENCE_COS = Math.cos(NORMAL_INCIDENCE_DEG * Math.PI / 180);
 
@@ -94,6 +97,9 @@ export function continueLightLinesFromElements(input: EmergentLightLineInput): v
   if (elements.length === 0) return;
   const far = 1e4 * span;
 
+  // Normal incidence excuses glass only: light never passes through a mirror.
+  const glass = new Map(elements.map(([id, value]) => [id, isRefractingBody(document, geometry, id, value, tolerance)]));
+
   for (const line of lines) {
     const probe = 2 * tolerance;
     let directed = false;
@@ -102,7 +108,7 @@ export function continueLightLinesFromElements(input: EmergentLightLineInput): v
       if (boundaryDistance(line.through, element) > tolerance) continue;
       const ahead = inside(add(line.through, scale(line.direction, probe)), element);
       const behind = inside(add(line.through, scale(line.direction, -probe)), element);
-      if (alongNormals(line.through, line.direction, -far, far, element)) continue;
+      if (glass.get(elementId) && alongNormals(line.through, line.direction, -far, far, element)) continue;
       if (!ahead && behind) {
         directed = true;
       } else if (ahead && !behind) {
@@ -120,7 +126,7 @@ export function continueLightLinesFromElements(input: EmergentLightLineInput): v
     for (const [elementId, element] of elements) {
       if (strictlyInside(line.through, element, tolerance)) continue;
       if (!runsInside(line.through, line.direction, start, far, element, tolerance)) continue;
-      if (alongNormals(line.through, line.direction, start, far, element)) continue;
+      if (glass.get(elementId) && alongNormals(line.through, line.direction, start, far, element)) continue;
       input.issues.push({
         code: "light_line_crosses_element",
         message: `${line.id} carries the light of a declared ray straight through ${elementId} with no event there`,

@@ -18,6 +18,10 @@
  * vertex inside it pass: a ray through a point inside a glass sphere or a
  * prism is still cut where it leaves the glass.
  *
+ * Normal incidence lets light through glass only: a line parallel to a ray
+ * along a reflecting ball's diameter is refused, not drawn through the mirror
+ * (third review of #164).
+ *
  * An angle mark between a normal and a light path at a contact is the acute
  * angle: `refract_at` emits its normal on the incident side only, and the arc
  * from that half to the refracted ray drew the 136 to 151 degree supplement.
@@ -884,6 +888,51 @@ check("a line parallel to a ray at normal incidence runs through the slab (R6)",
   const line = stroke(primitives, "onward");
   const bottom = Math.max(...stroke(primitives, "slab").points.map((p) => p.y));
   if (Math.max(...line.points.map((p) => p.y)) < bottom - 1.5) return "the line does not run on through the slab";
+  return null;
+});
+
+// Third review of #164 (thread "Light passes through mirrors"): R6 excused a line meeting
+// every boundary along the normal for any closed body, a mirror too. A line built parallel
+// to a ray along a reflecting ball's diameter, through its contact, was drawn on through
+// the ball. Light never passes a mirror; the normal incidence allowance is glass only (R1's
+// test: a closed body light reflects from outside with no refraction there is a mirror).
+const ballDiameterLine = (body: "mirror" | "glass") => scene(body === "mirror"
+  ? "Light reflects from a polished steel ball; one ray meets it along a diameter."
+  : "Light refracts into a glass ball; one ray meets it along a diameter.", [
+  { id: "C", kind: "point", role: "centre", label: "C" }, { id: "ball", kind: "circle", role: body === "mirror" ? "reflecting ball" : "glass ball" },
+  { id: "src2", kind: "point", role: "source" }, { id: "hit", kind: "point", role: "point of incidence" },
+  { id: "inc", kind: "ray", role: "incident ray" }, { id: "nrm", kind: "segment", role: "normal" },
+  { id: "out", kind: "ray", role: body === "mirror" ? "reflected ray" : "refracted ray" },
+  { id: "src", kind: "point", role: "source" }, { id: "contact", kind: "point", role: "contact on the diameter" },
+  { id: "axial", kind: "ray", role: "ray along the diameter" }, { id: "onward", kind: "line", role: "line parallel to the ray" },
+], [
+  point("C", 0, 0),
+  { id: "make_ball", operator: "circle", inputs: { center: "C", radius: 1.5 }, outputs: ["ball"] },
+  point("src2", -4, 0.75), point("src", -4, 0), point("contact", -1.5, 0),
+  { id: "meet", operator: "surface_contact", inputs: { origin: "src2", surface: "ball", direction: [1, 0], which: "nearest_forward" }, outputs: ["hit", "inc"] },
+  { id: "normal", operator: "normal_at", inputs: { point: "hit", surface: "ball" }, outputs: ["nrm"] },
+  body === "mirror"
+    ? { id: "bounce", operator: "reflect_direction", inputs: { origin: "hit", incoming: "inc", normal: "nrm" }, outputs: ["out"] }
+    : { id: "bend", operator: "refract_direction", inputs: { origin: "hit", incoming: "inc", normal: "nrm", n1: 1, n2: 1.5 }, outputs: ["out"] },
+  { id: "make_axial", operator: "segment", inputs: { start: "src", end: "contact" }, outputs: ["axial"] },
+  { id: "make_onward", operator: "parallel_through", inputs: { through: "contact", line: "axial" }, outputs: ["onward"] },
+]);
+
+check("a line parallel to a ray along a reflecting ball's diameter is refused, not drawn through the mirror (R6)", () => {
+  const { ok, primitives, fatal } = compile(ballDiameterLine("mirror"));
+  if (ok) {
+    const line = stroke(primitives, "onward");
+    const ball = stroke(primitives, "ball");
+    return `compiled with the line from x ${Math.min(...xs(line)).toFixed(0)} to ${Math.max(...xs(line)).toFixed(0)} through the mirror (centre x ${ball.points[0]!.x.toFixed(0)}, radius ${ball.radius!.toFixed(0)})`;
+  }
+  return fatalCodes(fatal).includes("light_line_crosses_element") ? null : `failed with ${fatalCodes(fatal).join(", ")}, not light_line_crosses_element`;
+});
+
+check("control: the same line along a glass ball's diameter runs on through it (R6)", () => {
+  const { ok, primitives, fatal } = compile(ballDiameterLine("glass"));
+  if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
+  const ball = stroke(primitives, "ball");
+  if (Math.max(...xs(stroke(primitives, "onward"))) < ball.points[0]!.x + ball.radius! + 1.5) return "the line does not run on through the glass ball";
   return null;
 });
 
