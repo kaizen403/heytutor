@@ -19,6 +19,7 @@
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import ts from "typescript";
 import {
   FULLSCREEN_CHROME_IDLE_MS,
   FULLSCREEN_DOC_ATTRIBUTE,
@@ -208,7 +209,9 @@ assert(
 
 // ── The layout ──────────────────────────────────────────────────────────────
 
-const shell = read("features/tutor-session/TutorSessionShell.tsx");
+const shell = process.env.BOARD_FULLSCREEN_TEST_SOURCE
+  ? readFileSync(process.env.BOARD_FULLSCREEN_TEST_SOURCE, "utf8")
+  : read("features/tutor-session/TutorSessionShell.tsx");
 assert(
   shell.includes("useBoardFullscreen") && shell.includes("useSessionChromeHidden"),
   "the session owns the full screen state and the chrome idle timer",
@@ -218,9 +221,28 @@ assert(
   "full screen folds the boards rail by prop, so the board is never unmounted and remounted",
 );
 assert(
-  /overlay=\{boardFullscreen\}/.test(shell) && /chromeHidden=\{chromeHidden\}/.test(shell),
+  /overlay=\{boardFullscreen\}/.test(shell),
   "the header floats over the paper in full screen rather than being swapped for another component",
 );
+// Evaluate the actual header prop across both idle-withdrawal and finished
+// phone transport states. A regression to the old prop leaves the header over
+// the finished board even though the phone's transport is already docked.
+const shellAst = ts.createSourceFile("TutorSessionShell.tsx", shell, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+let hiddenExpression: ts.Expression | undefined;
+const visitShell = (node: ts.Node) => {
+  if ((ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) && node.tagName.getText(shellAst) === "SessionHeader") {
+    const hidden = node.attributes.properties.find((attribute) => ts.isJsxAttribute(attribute) && attribute.name.getText(shellAst) === "chromeHidden");
+    if (hidden && ts.isJsxAttribute(hidden) && hidden.initializer && ts.isJsxExpression(hidden.initializer)) hiddenExpression = hidden.initializer.expression;
+  }
+  ts.forEachChild(node, visitShell);
+};
+visitShell(shellAst);
+assert(hiddenExpression, "the actual SessionHeader must receive its visibility prop");
+const headerHidden = new Function("chromeHidden", "fullscreenTransportOnly", `return (${hiddenExpression.getText(shellAst)});`) as (idleHidden: boolean, dockOnly: boolean) => boolean;
+assert(!headerHidden(false, false), "ordinary idle board keeps its header");
+assert(headerHidden(true, false), "a live full screen idle timer can withdraw the header");
+assert(headerHidden(false, true), "finished full screen phone transport withdraws the header without waiting for a live idle timer");
+assert(headerHidden(true, true), "both withdrawal reasons retain hidden header state");
 assert(
   /onToggleFullscreen=\{fullscreen\.toggle\}/.test(shell),
   "the header carries the toggle, so every device has a way in and a way out",
