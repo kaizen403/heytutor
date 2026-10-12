@@ -127,12 +127,31 @@ export class LessonAdmission {
 
 const lockName = (boardId: string) => `heytutor-lesson:${boardId}`;
 export function browserLessonTransport(): LessonOwnershipTransport {
+  // Resolving a held callback asks the browser to release its lock; the
+  // request promise settles only after that release has actually happened.
+  const pendingOwnReleases = new Map<string, Promise<void>>();
+  const waitForOwnReleases = async (boardId: string) => {
+    let pendingRelease = pendingOwnReleases.get(boardId);
+    while (pendingRelease) {
+      await pendingRelease;
+      pendingRelease = pendingOwnReleases.get(boardId);
+    }
+  };
   return {
     acquire: async (boardId, signal) => {
       if (signal.aborted) return "busy";
       if (typeof navigator === "undefined" || !navigator.locks?.request)
         return "unknown";
+      while (pendingOwnReleases.has(boardId)) await waitForOwnReleases(boardId);
+      if (signal.aborted) return "busy";
       return new Promise((resolve) => {
+        let released!: () => void;
+        const afterRelease = new Promise<void>((done) => { released = done; });
+        const finishRelease = () => {
+          released();
+          if (pendingOwnReleases.get(boardId) === afterRelease)
+            pendingOwnReleases.delete(boardId);
+        };
         void navigator.locks
           .request(
             lockName(boardId),
@@ -151,6 +170,7 @@ export function browserLessonTransport(): LessonOwnershipTransport {
                 release: () => {
                   if (!released) {
                     released = true;
+                    pendingOwnReleases.set(boardId, afterRelease);
                     unlock();
                   }
                 },
@@ -160,12 +180,16 @@ export function browserLessonTransport(): LessonOwnershipTransport {
               await held;
             },
           )
-          .catch(() => resolve("unknown"));
+          .then(finishRelease, () => {
+            finishRelease();
+            resolve("unknown");
+          });
       });
     },
     probe: async (boardId) => {
       if (typeof navigator === "undefined" || !navigator.locks?.query)
         return "unknown";
+      while (pendingOwnReleases.has(boardId)) await waitForOwnReleases(boardId);
       const snapshot = await navigator.locks.query();
       return snapshot.held?.some((lock) => lock.name === lockName(boardId))
         ? "active"
