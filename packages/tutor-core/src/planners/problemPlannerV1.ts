@@ -4,6 +4,7 @@ import {
   evaluateMathExpression,
   expressionToSafeSource,
   solveWithDeadline,
+  solverAuthoritySymbolsAgree,
   validateProblemIR,
   validateSolverResult,
   verifyTurnPlanAgainstSolver,
@@ -155,10 +156,9 @@ export function normalizeProblemIRModelOutput(
   question: string,
   turnPlan: TurnPlanV3 | null | undefined,
 ): unknown {
-  // Everything below is origin/main's canonical normalizer, byte for byte
-  // except the bench-only null plan branch in normalizeResultBinding. The
-  // compact wire format is lifted to canonical problem-ir/v1 first, so a
-  // canonical output takes exactly origin/main's path.
+  // Compact and canonical outputs share this model boundary. Result bindings
+  // use the same case-preserving Unicode identity as the question-alone join;
+  // an unsupported identity loses its binding, never invents a plan alias.
   const raw = liftCompactProblemIR(rawOutput, question);
   if (!isRecord(raw)) return raw;
   const facts = arrayRecords(raw.facts).flatMap((fact) => {
@@ -318,9 +318,12 @@ function normalizeResultBinding(
   const derived = turnPlan.derived.find((candidate) => candidate.id === raw.turnPlanQuantityId);
   const evidenceFactIds = filterIds(raw.evidenceFactIds, factIds);
   if (!unknown || !derived || evidenceFactIds.length === 0) return null;
+  // The raw request canonicalizes to the unknown below. Plan symbols remain
+  // unchanged, so their identity must also be compatible with the real audit.
   if (
-    normalizeToken(raw.symbol) !== normalizeToken(unknown.symbol) ||
-    normalizeToken(derived.symbol) !== normalizeToken(unknown.symbol) ||
+    bindingSymbolKey(raw.symbol) !== bindingSymbolKey(unknown.symbol) ||
+    bindingSymbolKey(derived.symbol) !== bindingSymbolKey(unknown.symbol) ||
+    !solverAuthoritySymbolsAgree(derived.symbol, unknown.symbol) ||
     normalizeUnitToken(typeof raw.unit === "string" ? raw.unit : undefined) !== normalizeUnitToken(unknown.unit) ||
     normalizeUnitToken(derived.unit) !== normalizeUnitToken(unknown.unit)
   ) return null;
@@ -446,10 +449,6 @@ function validDomain(raw: unknown): raw is { min: number; max: number } {
 function normalizedQuestionMatches(raw: unknown, question: string): boolean {
   return typeof raw === "string" && raw.trim().replace(/\s+/g, " ").toLowerCase() ===
     question.trim().replace(/\s+/g, " ").toLowerCase();
-}
-
-function normalizeToken(raw: string): string {
-  return raw.toLowerCase().replace(/\\(?:mathrm|text|operatorname)/g, "").replace(/[^a-z0-9]+/g, "");
 }
 
 function normalizeUnitToken(raw: string | undefined): string {
@@ -607,7 +606,7 @@ export function bindProblemIRToTurnPlan(problem: ProblemIR, turnPlan: TurnPlanV3
 }
 
 /**
- * Join keys for a question-alone binding. Case and script are meaning here:
+ * Join keys for live and question-alone bindings. Case and script are meaning:
  * T is not t, and Δv is not v. Only markup and separators are dropped.
  */
 function bindingSymbolKey(raw: string): string {

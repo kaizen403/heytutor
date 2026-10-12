@@ -23,12 +23,26 @@ function verifyStartupTelemetryCiPath(publicationScript: string, workflow: strin
     "the tutor CI workflow must reach verify:publication");
 }
 
+/** The retained first publication gate also detects removal of these later gates. */
+function verifyPlannerBoundaryCiPath(publicationScript: string, boundaryScript: string): void {
+  assert(publicationScript.split("&&").map((command) => command.trim()).includes("pnpm verify:planner-boundary"),
+    "CI publication must reach planner-boundary regressions");
+  const commands = boundaryScript.split("&&").map((command) => command.trim());
+  for (const required of [
+    "pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-request50-binding-boundary.ts",
+    "pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-turn-plan-outcomes.ts",
+    "tsx scripts/verify/verify-request50-binding-admission.ts",
+    "tsx scripts/verify/verify-turn-plan-outcomes.ts",
+  ]) assert(commands.includes(required), `CI planner boundary must run ${required}`);
+}
+
 async function main(): Promise<void> {
 const manifest = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as { scripts: Record<string, string> };
 const publicationScript = manifest.scripts["verify:publication"]!;
 const workflow = readFileSync(new URL("../../../../.github/workflows/deploy-tutor.yml", import.meta.url), "utf8");
 verifyStartupTelemetryCiPath(publicationScript, workflow);
-let checks = 2;
+verifyPlannerBoundaryCiPath(publicationScript, manifest.scripts["verify:planner-boundary"] ?? "");
+let checks = 7;
 for (const [input, expected] of [
   [String.raw`\frac{3}{2}^2`, "(3/2)^2"],
   [String.raw`\frac{1}{\frac{2}{3}}`, "(1/((2/3)))"],
