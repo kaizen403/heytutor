@@ -65,7 +65,7 @@ function classifyThermoStem(question: string): ThermoKind | null {
   }
   if (
     hasDeltaH && hasDeltaS &&
-    /spontaneous|spontaneity|δg\s*=\s*δh|temperature\s+(?:above|below|at|beyond)\s+which|(?:equilibrium|transition|minimum|threshold)\s+temperature|at\s+what\s+temperature|δg\b.*\b(?:zero|negative|positive)|δg\b|feasible/.test(stem)
+    /spontaneous|spontaneity|δg\s*=\s*δh|temperature\s+(?:above|below|at|beyond)\s+which|(?:equilibrium|transition|minimum|threshold)\s+temperature|at\s+what\s+temperature|δg\b.*\b(?:zero|negative|positive)|δg\b|gibbs\s+(?:free\s+)?energy|feasible/.test(stem)
   ) {
     return "gibbs";
   }
@@ -518,7 +518,7 @@ function gibbsReferencePayloadOnly(body: string, start: number, ownerEnd: number
     if (!owner || owner[1] === "t") return false;
     payload = payload.slice(0, reading.source.span.start - start) + " Θ " + payload.slice(reading.source.span.end - start);
   }
-  return /^(?:\s|[(),=+−*/×·-]|Θ|[Δδ∆]\s*[GHS]\b|\bT\b|\bK\b|\b(?:and|together|with|using|from|to|in|versus|vs|against|at|as|on|above|below|where|of|all|any|every|what|which|absolute|draw|plot|sketch|show|calculate|compute|determine|find|mark|the|an?|its|this|reaction|point|line|graph|curve|diagram|Gibbs|free|energy|temperature|equilibrium|transition|minimum|threshold|crossover|will|does|reach|be|becomes?|is|negative|positive|zero|spontaneous|feasible)\b)*$/i.test(payload);
+  return /^(?:\s|[(),=+−*/×·-]|Θ|[Δδ∆]\s*[GHS]\b|\bT\b|\bK\b|\b(?:and|together|with|using|from|to|in|versus|vs|against|at|as|on|above|below|where|of|all|any|every|what|which|absolute|draw|plot|sketch|show|calculate|compute|determine|find|mark|the|an?|its|this|reaction|point|line|graph|curve|diagram|Gibbs|free|energy|temperatures?|equilibrium|transition|minimum|threshold|crossover|will|does|reach|be|becomes?|is|negative|positive|zero|spontaneous|feasible)\b)*$/i.test(payload);
 }
 /** Requested thresholds and formula/axis operands do not supply an evaluation point. */
 function gibbsTemperatureReference(body: string, start: number, end: number, ownerEnd: number): boolean {
@@ -950,13 +950,17 @@ export function buildThermoGraphScene(question: string, quantities: ChemPlanQuan
   // The chapter validates each source owner independently (for example each
   // Hess step). A global profile inventory cannot merge those distinct givens.
   if (claimsChemicalThermodynamics(question)) return buildChemicalThermodynamicsScene(question, quantities, schematic);
-  if (!chemistryQuantityCuesValid(question, [
-    ...[FORWARD_ACTIVATION,BACKWARD_ACTIVATION,GENERIC_ACTIVATION].map(phrase=>({after:energyCueAfter(phrase),dimensions:["energy","molar_energy"] as ChemistryDimension[]})),
-    {after: DELTA_H_SYMBOL, dimensions: ["energy", "molar_energy"]}, {after: DELTA_S_SYMBOL, dimensions: ["entropy", "molar_entropy"]},
-  ])) return null;
   const stem = chemStem(question);
   const kind = classifyThermoStem(question);
   if (!kind) return null;
+  // Gibbs separately proves every H/S declaration and every closed reference
+  // in its original owner span. The aggregate reader counts formula/reuse
+  // operands as extra givens; retain that guard for all other operators.
+  if (!chemistryQuantityCuesValid(question, [
+    ...[FORWARD_ACTIVATION,BACKWARD_ACTIVATION,GENERIC_ACTIVATION].map(phrase=>({after:energyCueAfter(phrase),dimensions:["energy","molar_energy"] as ChemistryDimension[]})),
+  ]) || (kind !== "gibbs" && !chemistryQuantityCuesValid(question, [
+    {after: DELTA_H_SYMBOL, dimensions: ["energy", "molar_energy"]}, {after: DELTA_S_SYMBOL, dimensions: ["entropy", "molar_entropy"]},
+  ]))) return null;
   switch (kind) {
     case "profile": {
       const spec = readProfile(stem, question, quantities, schematic);

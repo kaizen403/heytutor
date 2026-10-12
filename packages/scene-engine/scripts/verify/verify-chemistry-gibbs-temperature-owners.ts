@@ -1120,6 +1120,24 @@ const cases: readonly {id:string; question:string; expected:string; dG:number|nu
     "question": "At 310 K, ΔH = -40 kJ/mol and ΔS = 100 J/(mol K). Draw ΔG versus T.",
     "expected": "required-compile",
     "dG": -71
+  },
+  {
+    "id": "OWN-PLURAL-AXIS-REFERENCE",
+    "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Show Gibbs free energy against T at every temperature.",
+    "expected": "graph-only",
+    "dG": null
+  },
+  {
+    "id": "OWN-PLURAL-UNREAD-OWNER",
+    "question": "The temperatures are unknown. ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K, show Gibbs free energy against T.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-GIBBS-ACTIVATION-UNREAD",
+    "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Activation energy is unknown; draw Gibbs free energy against T.",
+    "expected": "decline",
+    "dG": null
   }
 ];
 const results: {id:string;passed:boolean;error?:string}[] = [];
