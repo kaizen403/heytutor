@@ -830,21 +830,31 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
   }
   if (temperatureRates) constants.push(...temperatureRates.map(value=>value.rate));
   const indexedRates = new Map<1 | 2, number>();
-  const pattern = /(?:rate constant|(?<!\b(?:ln|log)\s*)\bk)(?:\s*(_?[12]|₁|₂))?\s*(?:,?\s*k\s*)?(?:=|is|:)/gi;
+  const indexedOwners = [...stem.matchAll(/\bk(_?[12]|₁|₂)(?![A-Za-z0-9_])/g)];
+  const ratioOperands = [...stem.matchAll(/\bk_?2\s*\/\s*k_?1\b/g)];
+  for (const [index, owner] of indexedOwners.entries()) {
+    // Only the complete original ratio expression owns these operands.
+    if (ratioOperands.some(r => owner.index! >= r.index! && owner.index! < r.index! + r[0].length)) continue;
+    const start = owner.index! + owner[0].length;
+    let end = indexedOwners[index + 1]?.index ?? stem.length;
+    const boundary = /[;?\n]|\.(?=\s|$)/.exec(stem.slice(start,end));
+    if (boundary) end = start + boundary.index;
+    const tail = stem.slice(start,end);
+    const requested = /\b(?:find|calculate|determine|compute|obtain|evaluate|what\s+is)\s+(?:(?:the|its|a)\s+)?$/i.test(stem.slice(0,owner.index));
+    if (requested && pureQuantityRequestTail(tail)) continue;
+    const read = readChemistryQuantity({question:stem,after:/^/,within:{start,end},dimension:"rate_constant_first"});
+    if (!read.ok || !(read.reading.value > 0)) return false;
+    const role: 1 | 2 = /1|₁/.test(owner[1]!) ? 1 : 2;
+    const previous = indexedRates.get(role);
+    if (previous !== undefined && !chemistryCanonicalValuesAgree(previous,read.reading.value)) return false;
+    indexedRates.set(role,read.reading.value);
+  }
+  const pattern = /(?:rate constant|(?<!\b(?:ln|log)\s*)\bk\b)\s*(?:_?[12]|₁|₂)?\s*(?:,?\s*k\s*)?(?:=|is|:)/gi;
   for (const match of stem.matchAll(pattern)) {
-    // A denominator in the original ratio k2/k1 is not a measured k1.
-    if (/^k/i.test(match[0]) && /\/\s*$/.test(stem.slice(0,match.index))) continue;
     const read = readChemistryQuantity({question: stem, after: /^/, within: {start: match.index! + match[0].length, end: stem.length}, dimension: "rate_constant_first"});
-    if (match[1]) {
-      if (!read.ok || !(read.reading.value > 0)) return false;
-      const role: 1 | 2 = /1|₁/.test(match[1]) ? 1 : 2;
-      const previous = indexedRates.get(role);
-      if (previous !== undefined && !chemistryCanonicalValuesAgree(previous,read.reading.value)) return false;
-      indexedRates.set(role,read.reading.value);
-      continue;
-    }
     // Repeated singular givens do not create a second Arrhenius measurement.
-    if (read.ok && ((T1 !== null && T2 !== null && T1 !== T2)
+    // Indexed owners or distinct temperatures retain separate measurement roles.
+    if (read.ok && ((T1 !== null && T2 !== null && T1 !== T2) || /\bk(?:_?[12]|₁|₂)/i.test(match[0])
       || !constants.some(value => chemistryCanonicalValuesAgree(value, read.reading.value)))) constants.push(read.reading.value);
   }
   for (const [role,value] of indexedRates) {

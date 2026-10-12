@@ -2493,5 +2493,91 @@ for(const c of independentHarmlessMarkerCases)try {
 }catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
 // END ADDITIVE INDEPENDENT COMPLETE CHANGE-MARKER GATES
 
+// BEGIN ADDITIVE ORIGINAL INDEXED RATE OWNER GATES
+const indexedRateOwnerCases:ArrheniusOwnerCase[] = [
+  {
+    "id": "REVIEW-indexed-k1-unread-owner",
+    "question": "For a first order reaction at T1 =300 K and T2=310 K, k1 cannot be read; k2 is0.07 s^-1. The ratio k2/k1 is2. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-indexed-k2-unread-before-good-k1",
+    "question": "For a first order reaction at T1 = 300 K and T2 = 310 K, k2 remains unknown; k1 is 0.02 s^-1. The ratio k2/k1 is 3.5. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-indexed-last-unread-repeat",
+    "question": "For a first order reaction at T1 = 300 K and T2 = 310 K, k1 = 0.02 s^-1; k2 = 0.07 s^-1; k1 was reported as unknown. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-indexed-conflicting-repeat",
+    "question": "For a first order reaction at T1 = 300 K and T2 = 310 K, k1 = 0.02 s^-1; k2 = 0.07 s^-1; k1 = 0.04 s^-1. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-indexed-wrong-unit",
+    "question": "For a first order reaction at T1 = 300 K and T2 = 310 K, k1 = 2 kg; k2 = 0.07 s^-1. The ratio k2/k1 is 3.5. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-indexed-measured-pair-agree",
+    "question": "For a first order reaction at T1 = 300 K and T2 = 310 K, k1 = 0.02 s^-1 and k2 = 0.07 s^-1. The ratio k2/k1 is 3.5. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "k1": 0.02,
+    "k2": 0.07,
+    "ratio": 3.5
+  },
+  {
+    "id": "OWN-indexed-reverse-declaration-order",
+    "question": "For a first order reaction at T1 = 300 K and T2 = 310 K, k2 = 0.07 s^-1 and k1 = 0.02 s^-1. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "k1": 0.02,
+    "k2": 0.07,
+    "ratio": 3.5
+  },
+  {
+    "id": "OWN-indexed-canonical-agree-repeat",
+    "question": "For a first order reaction at T1 = 300 K and T2 = 310 K, k1 = 0.02 s^-1; k2 = 0.07 s^-1; k1 = 1.2 min^-1. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "k1": 0.02,
+    "k2": 0.07,
+    "ratio": 3.5
+  },
+  {
+    "id": "OWN-indexed-ratio-request-not-measured-owner",
+    "question": "For a first order reaction at T1 = 300 K and T2 = 310 K, k1 = 0.02 s^-1 and k2 = 0.07 s^-1. Find the ratio k2/k1 and calculate the activation energy.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "k1": 0.02,
+    "k2": 0.07,
+    "ratio": 3.5
+  }
+];
+for(const c of indexedRateOwnerCases)try {
+ const spec=kineticsFromStem(c.question),exact=buildKineticsScene(c.question,[],false),schematic=buildKineticsScene(c.question,[],true),ordinary=synthesizeFamilyScene({question:c.question});
+ if(c.refuse){assert.equal(spec,null,"inconsistent or unread original ratios must not select a replacement scene");assert.equal(exact,null);assert.equal(schematic,null);assert.equal(ordinary,null);}
+ else {
+  assert.ok(spec&&spec.arrhenius);assert.equal(spec.plot,"arrhenius");assert.equal(spec.arrhenius.T1,c.T1);assert.equal(spec.arrhenius.T2,c.T2);assert.ok(spec.arrhenius.k1!==null&&spec.arrhenius.k2!==null);
+  assert.ok(Math.abs(spec.arrhenius.k1-c.k1!)<=Math.abs(c.k1!)*1e-12);assert.ok(Math.abs(spec.arrhenius.k2-c.k2!)<=Math.abs(c.k2!)*1e-12);
+  const solved=solveKinetics(spec),energy=8.314*Math.log(c.k2!/c.k1!)/(1/c.T1!-1/c.T2!);assert.ok(solved.ratio!==null&&solved.Ea!==null);assert.ok(Math.abs(solved.ratio-c.ratio!)<=Math.abs(c.ratio!)*1e-12);assert.ok(Math.abs(solved.Ea-energy)<=Math.abs(energy)*1e-12);
+  assert.ok(exact&&schematic&&ordinary);
+  for(const document of [exact,schematic,ordinary.document]) {
+   assert.equal(document.source?.question,c.question);const valid=validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string,unknown>));assert.ok(valid.document);const compiled=compileSceneDocument(valid.document);assert.ok(compiled.ok&&compiled.renderScene&&compiled.renderScene.primitives.length>0);
+   for(const [id,value,unit] of [["Ea",energy,"J/mol"],["T1",c.T1!,"K"],["T2",c.T2!,"K"],["ratio",c.ratio!,""]] as const){const q=document.quantities.find(q=>q.id===id);assert.ok(q);assert.equal(q.unit,unit);assert.equal(q.value,Number(value.toFixed(6)));}
+   const energyLabel=document.entities.find(e=>e.id==="ea"&&e.kind==="label"&&(e.role==="result"||e.role==="direction marker")&&e.label?.includes("E_a"));assert.ok(energyLabel&&energyLabel.label?.includes("kJ/mol"));assert.ok(compiled.renderScene.primitives.some(p=>p.kind==="label"&&p.entityId===energyLabel.id&&p.text===energyLabel.label));
+  }
+ }
+ results.push({id:c.id,passed:true});
+}catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
+// END ADDITIVE ORIGINAL INDEXED RATE OWNER GATES
+
 const output={schema:"chemistry-rate-declarations-gate/v1",passed:results.filter(x=>x.passed).length,failed:results.filter(x=>!x.passed).length,results};
 console.log(JSON.stringify(output,null,2));assert.equal(output.failed,0);
