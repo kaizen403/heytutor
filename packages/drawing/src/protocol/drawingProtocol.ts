@@ -132,7 +132,20 @@ export const DRAWING_TAG_SCAN_PATTERN = /\[[^\]\n]{1,256}\]/g;
 const WRITE_LABEL_HEADER_PATTERN = /^\[(WRITE|LABEL):/i;
 const WRITE_LABEL_ENDING_PATTERN =
   /,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*(?:,\s*(-?\d+(?:\.\d+)?)\s*)?\]/g;
-const WRITE_LABEL_BODY_BREAK_PATTERN = /\[(WRITE|LABEL|STEP|\/STEP|FOCUS|EMPHASIZE|SUPERSEDE|ANNOTATE|PAUSE)\b/i;
+// Semantic text tags delimit a broken row even with symbolic parameters.
+// Other command words may be ordinary list/notation text, such as
+// [clear, undo], [frame, 2] or [Type: I]. Only a numeric command prefix is
+// unambiguous inside a canonical text body: a colon starts its numeric
+// parameters, while a comma needs a second numeric value to distinguish a list.
+const SEMANTIC_TEXT_COMMANDS = 'WRITE|LABEL|FOCUS|EMPHASIZE|SUPERSEDE|ANNOTATE|PAUSE';
+const NUMERIC_PARAMETER = String.raw`[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?`;
+const NUMERIC_BODY_BOUNDARY = String.raw`\[\s*(?:${DRAW_COMMAND_TYPES.join('|')})\s*(?::\s*(?=[+-]?(?:\d|\.\d))|,\s*(?=${NUMERIC_PARAMETER}\s*,\s*${NUMERIC_PARAMETER}))`;
+const TEXT_BODY_BOUNDARY = String.raw`\[\s*(?:${SEMANTIC_TEXT_COMMANDS})\s*(?=[:,])|${NUMERIC_BODY_BOUNDARY}|\[(?:STEP|\/STEP)\]`;
+const WRITE_LABEL_BODY_BREAK_PATTERN = new RegExp(TEXT_BODY_BOUNDARY, 'iu');
+// Body-outside-header repair remains stricter: it cannot swallow a real tag
+// with symbolic parameters or borrow that tag's coordinates. Bare text-tag
+// boundaries also matter here, unlike names nested inside a canonical body.
+const HEADER_ONLY_BODY_BOUNDARY = String.raw`\[\s*(?:${DRAW_COMMAND_TYPES.join('|')})\s*(?=[:,])|\[(?:STEP|\/STEP)\]|(?<![\p{L}\p{N}_$)\]])\[(?:WRITE|LABEL|DIMENSION)\]`;
 
 /**
  * `[WRITE]text,x,y` instead of `[WRITE:text,x,y]`.
@@ -144,11 +157,12 @@ const WRITE_LABEL_BODY_BREAK_PATTERN = /\[(WRITE|LABEL|STEP|\/STEP|FOCUS|EMPHASI
  * two one one" and watched a blank column. The intent is unambiguous, so the
  * body is repaired back into the tag rather than spoken.
  *
- * Deliberately conservative: the coordinates must close the line, so a line
- * that carries another tag after the body is left alone.
+ * The coordinates must close the line or the teaching STEP. A body cannot
+ * cross another protocol tag and borrow that later tag's coordinates.
  */
-const HEADER_ONLY_TEXT_TAG_PATTERN =
-  /\[(WRITE|LABEL|DIMENSION)\]\s*([^\r\n]*?,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?(?:\s*,\s*-?\d+(?:\.\d+)?)?)\s*(?=\r?\n|$)/gi;
+const HEADER_ONLY_TEXT_TAG_PATTERN = new RegExp(
+  String.raw`\[(WRITE|LABEL|DIMENSION)\]\s*((?:(?!${HEADER_ONLY_BODY_BOUNDARY})[^\r\n])*?,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?(?:\s*,\s*-?\d+(?:\.\d+)?)?)\s*(?=\r?\n|\[\/STEP\]|$)`, 'giu',
+);
 
 /** The same shape with nothing after the name yet, for the streaming parser. */
 export const HEADER_ONLY_TEXT_TAG_EXACT = /^\[(WRITE|LABEL|DIMENSION)\]$/i;
