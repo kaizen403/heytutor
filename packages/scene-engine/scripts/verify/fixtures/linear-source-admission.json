@@ -1,0 +1,531 @@
+[
+  {
+    "question": "Teach me the graphical corner-point method for maximizing Z = 3x + 2y subject to x >= 0, y >= 0, x + y <= 6 and 2x + y <= 8. Show the exact corners and optimum.",
+    "points": []
+  },
+  {
+    "question": "Explain a graphical LPP with a rational optimal corner: maximize Z = 5x + 4y subject to x >= 0, y >= 0, 2x + 3y <= 12 and 4x + y <= 10. Keep the corner coordinates exact.",
+    "points": []
+  },
+  {
+    "question": "Help me see a redundant constraint graphically: maximize Z = 2x + y with x >= 0, y >= 0, x + y <= 5 and 2x + 2y <= 12. Show which boundary actually limits the region.",
+    "points": []
+  },
+  {
+    "question": "Explain why an unbounded feasible region can have a finite minimum: minimize Z = 2x + 3y for x >= 0, y >= 0 and x + y >= 4. Show its corners and minimizing point graphically.",
+    "points": []
+  },
+  {
+    "question": "Show me multiple optimal solutions graphically when Z = 2x + 2y is maximized over x >= 0, y >= 0 and x + y <= 5.",
+    "points": []
+  },
+  {
+    "question": "A workshop chooses real nonnegative production amounts x and y. Its limits are x <= 4, y <= 3 and 2x + y <= 9. Profit is Z = 40x + 30y. Use a graph of the feasible region and its exact corners to find the maximum profit.",
+    "points": []
+  },
+  {
+    "question": "Maximize Z = x + 2y subject to x >= 0, y >= 0 and x - y <= 2. Draw the feasible region, state its exact corners, and determine whether a finite maximum exists.",
+    "points": []
+  },
+  {
+    "question": "Minimize Z = 3x + 4y subject to x >= 1 and y >= 2. Draw the feasible region and its exact corner, and decide whether its unboundedness prevents a finite minimum.",
+    "points": []
+  },
+  {
+    "question": "Use a graph to maximize Z = -x - y subject to x >= 0, y >= 0 and 2 <= x + y <= 6. Label the exact corners and the full set of optimal points.",
+    "points": []
+  },
+  {
+    "question": "Explain a graphical system whose crossing has fractional coordinates: 2x + 3y = 7 and 3x - 2y = 1. Keep the intersection exact.",
+    "points": []
+  },
+  {
+    "question": "Help me see the graphical solution of x = -2 and y = 3 using a vertical line and a horizontal line.",
+    "points": []
+  },
+  {
+    "question": "Graph the system 3x = 9 and x = -1 for real x and y. How many solutions does the system have?",
+    "points": []
+  },
+  {
+    "question": "Use the graphs of 2y = -6 and -5y = 15 to determine the number of solutions of the system and describe them.",
+    "points": []
+  },
+  {
+    "question": "In the real xy-plane, graph -4(y + 1) > 2y - 10. Draw and label the boundary, shade all solutions, and mark P = (0,1), Q = (-2,0), R = (3,2), identifying membership. There is no constraint on x.",
+    "points": [
+      {
+        "label": "P",
+        "x": "0",
+        "y": "1",
+        "included": false
+      },
+      {
+        "label": "Q",
+        "x": "-2",
+        "y": "0",
+        "included": true
+      },
+      {
+        "label": "R",
+        "x": "3",
+        "y": "2",
+        "included": false
+      }
+    ]
+  },
+  {
+    "question": "For real x, let I = {x : 5 - 2x <= x + 1} and J = {x : 3x - 7 < 2}. Draw the number line of K = I intersect J, with both boundary values labelled. Label A = 4/3, B = 5/2, C = 3, and D = 1, and classify their membership in K. Intersection means that both defining inequalities must hold.",
+    "points": [
+      {
+        "label": "A",
+        "x": "4/3",
+        "y": "0",
+        "included": true
+      },
+      {
+        "label": "B",
+        "x": "5/2",
+        "y": "0",
+        "included": true
+      },
+      {
+        "label": "C",
+        "x": "3",
+        "y": "0",
+        "included": false
+      },
+      {
+        "label": "D",
+        "x": "1",
+        "y": "0",
+        "included": false
+      }
+    ]
+  },
+  {
+    "question": "A continuous production model uses real quantities x and y. Its constraints are x >= 1/2, y >= 0, x + 2y <= 7, and 3x + y <= 8. Draw and shade the common feasible region, label every exact corner, and maximise profit F = 4x + 5y. Put F at each corner and mark every maximiser. Mark A = (1,1), B = (0,1), C = (9/5,13/5), and state feasibility. Fractional production is permitted.",
+    "points": [
+      {
+        "label": "A",
+        "x": "1",
+        "y": "1",
+        "included": true
+      },
+      {
+        "label": "B",
+        "x": "0",
+        "y": "1",
+        "included": false
+      },
+      {
+        "label": "C",
+        "x": "9/5",
+        "y": "13/5",
+        "included": true
+      }
+    ],
+    "corners": [
+      [
+        "1/2",
+        "0"
+      ],
+      [
+        "1/2",
+        "13/4"
+      ],
+      [
+        "9/5",
+        "13/5"
+      ],
+      [
+        "8/3",
+        "0"
+      ]
+    ],
+    "cornerValues": [
+      "2",
+      "73/4",
+      "101/5",
+      "32/3"
+    ]
+  },
+  {
+    "question": "Minimise C = 6x + 4y subject to real x,y >= 0, 3x + 2y >= 7, and x + y <= 5. Draw the entire feasible region, label exact corner coordinates and C at every corner, and mark ALL points attaining the minimum. Mark A = (1,1), B = (2,1), D = (0,7/2), and classify feasibility. The domain is continuous, not integer-valued.",
+    "points": [
+      {
+        "label": "A",
+        "x": "1",
+        "y": "1",
+        "included": false
+      },
+      {
+        "label": "B",
+        "x": "2",
+        "y": "1",
+        "included": true
+      },
+      {
+        "label": "D",
+        "x": "0",
+        "y": "7/2",
+        "included": true
+      }
+    ],
+    "corners": [
+      [
+        "0",
+        "7/2"
+      ],
+      [
+        "0",
+        "5"
+      ],
+      [
+        "7/3",
+        "0"
+      ],
+      [
+        "5",
+        "0"
+      ]
+    ],
+    "cornerValues": [
+      "14",
+      "20",
+      "14",
+      "30"
+    ]
+  },
+  {
+    "question": "Over the real numbers, solve -3(2x - 1) > x + 17. Draw a labelled number line for the solution set S. Label the positions P = -3, Q = -2, and R = 0, and indicate whether each belongs to S. Show clearly whether the boundary is included.",
+    "points": [
+      {
+        "label": "P",
+        "x": "-3",
+        "y": "0",
+        "included": true
+      },
+      {
+        "label": "Q",
+        "x": "-2",
+        "y": "0",
+        "included": false
+      },
+      {
+        "label": "R",
+        "x": "0",
+        "y": "0",
+        "included": false
+      }
+    ]
+  },
+  {
+    "question": "In R^2, graph (3/2)(x - 2y) < -x + 5. Label the boundary with an equivalent integer-coefficient equation and label its intercepts. Shade the correct side and mark A = (0,0), B = (2,0), C = (-1,-3), D = (2,1), identifying membership and strict boundary exclusion.",
+    "points": [
+      {
+        "label": "A",
+        "x": "0",
+        "y": "0",
+        "included": true
+      },
+      {
+        "label": "B",
+        "x": "2",
+        "y": "0",
+        "included": false
+      },
+      {
+        "label": "C",
+        "x": "-1",
+        "y": "-3",
+        "included": false
+      },
+      {
+        "label": "D",
+        "x": "2",
+        "y": "1",
+        "included": true
+      }
+    ]
+  },
+  {
+    "question": "For real x,y >= 0, graph the feasible region 2x + 3y <= 11 and 4x + y <= 9. Label every corner with exact coordinates. Maximise Z = 5x + 4y, showing Z at every corner and marking the complete optimum set. Also mark A = (1,1), B = (3,0), C = (8/5,13/5) and classify feasibility. This is continuous optimisation, not an integer problem.",
+    "points": [
+      {
+        "label": "A",
+        "x": "1",
+        "y": "1",
+        "included": true
+      },
+      {
+        "label": "B",
+        "x": "3",
+        "y": "0",
+        "included": false
+      },
+      {
+        "label": "C",
+        "x": "8/5",
+        "y": "13/5",
+        "included": true
+      }
+    ],
+    "corners": [
+      [
+        "0",
+        "0"
+      ],
+      [
+        "0",
+        "11/3"
+      ],
+      [
+        "8/5",
+        "13/5"
+      ],
+      [
+        "9/4",
+        "0"
+      ]
+    ],
+    "cornerValues": [
+      "0",
+      "44/3",
+      "92/5",
+      "45/4"
+    ]
+  },
+  {
+    "question": "For real x, draw the solution set S of (4x + 5 >= 7x + 8) OR (-2(3x - 1) < -x - 21). OR is inclusive: satisfying either inequality is enough. Label P = -1, Q = 0, R = 23/5, and T = 5, and identify their membership. Show all finite boundaries and their inclusion status.",
+    "points": [
+      {
+        "label": "P",
+        "x": "-1",
+        "y": "0",
+        "included": true
+      },
+      {
+        "label": "Q",
+        "x": "0",
+        "y": "0",
+        "included": false
+      },
+      {
+        "label": "R",
+        "x": "23/5",
+        "y": "0",
+        "included": false
+      },
+      {
+        "label": "T",
+        "x": "5",
+        "y": "0",
+        "included": true
+      }
+    ]
+  },
+  {
+    "question": "Minimise Z = 2x + 3y over real pairs satisfying x >= 1, y >= 1, x + 2y >= 6, and 2x + y <= 9. Graph the exact feasible region and label every corner with its coordinates and Z value. Mark the complete minimum set. Mark A = (2,2), B = (1,2), C = (1,5/2), and classify feasibility. Do not impose an integer restriction.",
+    "points": [
+      {
+        "label": "A",
+        "x": "2",
+        "y": "2",
+        "included": true
+      },
+      {
+        "label": "B",
+        "x": "1",
+        "y": "2",
+        "included": false
+      },
+      {
+        "label": "C",
+        "x": "1",
+        "y": "5/2",
+        "included": true
+      }
+    ],
+    "corners": [
+      [
+        "1",
+        "5/2"
+      ],
+      [
+        "1",
+        "7"
+      ],
+      [
+        "4",
+        "1"
+      ]
+    ],
+    "cornerValues": [
+      "19/2",
+      "23",
+      "11"
+    ]
+  },
+  {
+    "question": "For real x, solve both inequalities -2(x - 3) <= x and 4x - 1 <= 7 simultaneously. Draw their common solution set S on a number line, and label A = 1, B = 2, C = 3 with membership. A solution must satisfy BOTH inequalities.",
+    "points": [
+      {
+        "label": "A",
+        "x": "1",
+        "y": "0",
+        "included": false
+      },
+      {
+        "label": "B",
+        "x": "2",
+        "y": "0",
+        "included": true
+      },
+      {
+        "label": "C",
+        "x": "3",
+        "y": "0",
+        "included": false
+      }
+    ]
+  },
+  {
+    "question": "In the real xy-plane, graph the set S = {(x,y) : 2x - 3y < 6}. Draw and label its boundary, use the correct strict-boundary convention, and shade S. Mark A = (0,-2), B = (0,0), C = (3,0), D = (0,-3), and identify which belong to S.",
+    "points": [
+      {
+        "label": "A",
+        "x": "0",
+        "y": "-2",
+        "included": false
+      },
+      {
+        "label": "B",
+        "x": "0",
+        "y": "0",
+        "included": true
+      },
+      {
+        "label": "C",
+        "x": "3",
+        "y": "0",
+        "included": false
+      },
+      {
+        "label": "D",
+        "x": "0",
+        "y": "-3",
+        "included": false
+      }
+    ]
+  },
+  {
+    "question": "For real x,y >= 0, form the common feasible region of -2(x + 2y) >= y - 12 and 3x - y <= x + 4. Draw it with all exact corners labelled. Maximise P = 3x + 2y, showing P at each corner and all maximisers. Mark A = (1,1), B = (3,1), C = (8/3,4/3), and classify feasibility.",
+    "points": [
+      {
+        "label": "A",
+        "x": "1",
+        "y": "1",
+        "included": true
+      },
+      {
+        "label": "B",
+        "x": "3",
+        "y": "1",
+        "included": false
+      },
+      {
+        "label": "C",
+        "x": "8/3",
+        "y": "4/3",
+        "included": true
+      }
+    ],
+    "corners": [
+      [
+        "0",
+        "0"
+      ],
+      [
+        "0",
+        "12/5"
+      ],
+      [
+        "2",
+        "0"
+      ],
+      [
+        "8/3",
+        "4/3"
+      ]
+    ],
+    "cornerValues": [
+      "0",
+      "24/5",
+      "6",
+      "32/3"
+    ]
+  },
+  {
+    "question": "For every real pair (x,y), graph 5 - 3x <= 2x - 10. Draw the solution half-plane, label its boundary, and mark A = (3,-2), B = (2,4), and C = (5,-1), stating membership. There is no constraint on y.",
+    "points": [
+      {
+        "label": "A",
+        "x": "3",
+        "y": "-2",
+        "included": true
+      },
+      {
+        "label": "B",
+        "x": "2",
+        "y": "4",
+        "included": false
+      },
+      {
+        "label": "C",
+        "x": "5",
+        "y": "-1",
+        "included": true
+      }
+    ]
+  },
+  {
+    "question": "Graph the real simultaneous system L1: 4x + 3 = 2x + 8 and L2: 2y - x = 7. Label both lines with equivalent simplified equations, their intercepts where they exist, and the exact intersection P. Explain from the figure how many solutions there are.",
+    "points": []
+  },
+  {
+    "question": "Let I = {x in R : -5 <= 3x - 1 <= 8} and J = {x in R : 0 < 2x + 1 < 5}. Draw K = I minus J on a number line. Here I minus J means x is in I AND x is not in J. Label A = -4/3, B = -1/2, C = 0, D = 2, and E = 3, and identify membership in K. Show every boundary inclusion explicitly.",
+    "points": [
+      {
+        "label": "A",
+        "x": "-4/3",
+        "y": "0",
+        "included": true
+      },
+      {
+        "label": "B",
+        "x": "-1/2",
+        "y": "0",
+        "included": true
+      },
+      {
+        "label": "C",
+        "x": "0",
+        "y": "0",
+        "included": false
+      },
+      {
+        "label": "D",
+        "x": "2",
+        "y": "0",
+        "included": true
+      },
+      {
+        "label": "E",
+        "x": "3",
+        "y": "0",
+        "included": true
+      }
+    ]
+  }
+]

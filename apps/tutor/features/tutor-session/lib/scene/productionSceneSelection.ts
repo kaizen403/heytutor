@@ -280,7 +280,9 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
       gate, representation: selectedIsDrawable ? selected : null, attemptedRepresentation: selected,
       candidateValidation, visualStatus: selectedIsDrawable ? "validated" : failureStatus === "retry_required" ? "retry_required" : "text_only",
       reason: selectedIsDrawable ? selectionReason : input.solverAuthorityBlocked ? "solver_contradiction"
-        : !selectedSourceAllowed ? selectionReason : saveFailure ?? (!selectedHasInk ? "representation carries no readable label" : selected.reason),
+        : !selectedSourceAllowed ? selectionReason : saveFailure ?? (
+          selected.sceneDocument.visualDecision.mode === "scene" && !selectedHasInk
+            ? "representation carries no readable label" : selected.reason),
       selectionReason, hasReadableInk: selectedHasInk, sourceAllowed: selectedSourceAllowed, saveFailure,
     };
   } catch (error) {

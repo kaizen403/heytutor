@@ -4,6 +4,8 @@ export * from "./document/validation";
 export * from "./document/namedPoints";
 export * from "./compile/compiler";
 export * from "./compile/matrixSourceBinding";
+export { buildLinearSourceDocument, readLinearSystemSource } from "./compile/linearRegionSource";
+export { validateLinearSourcePlan } from "./compile/linearSourceAgreement";
 export * from "./compile/annotationMarks";
 export * from "./compile/sceneAnnotations";
 export { directedCurveInk, type DirectedCurveInk } from "./compile/directedCurve";

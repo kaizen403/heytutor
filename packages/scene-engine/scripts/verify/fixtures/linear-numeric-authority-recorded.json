@@ -1,0 +1,3768 @@
+[
+  {
+    "rowId": "maths|h3r6-shaded-regions|lpp01-bounded-unique|q1",
+    "rep": 1,
+    "turnPlan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "Teach me the graphical corner-point method for maximizing Z = 3x + 2y subject to x >= 0, y >= 0, x + y <= 6 and 2x + y <= 8. Show the exact corners and optimum.",
+      "visualRequirement": "required",
+      "givens": [
+        {
+          "id": "gx",
+          "symbol": "Z coefficient of x",
+          "value": 3,
+          "sourceText": "gx = 3",
+          "provenance": "given"
+        },
+        {
+          "id": "gy",
+          "symbol": "Z coefficient of y",
+          "value": 2,
+          "sourceText": "gy = 2",
+          "provenance": "given"
+        },
+        {
+          "id": "g0",
+          "symbol": "lower bound for x and y",
+          "value": 0,
+          "sourceText": "g0 = 0",
+          "provenance": "given"
+        },
+        {
+          "id": "g6",
+          "symbol": "bound for x + y",
+          "value": 6,
+          "sourceText": "g6 = 6",
+          "provenance": "given"
+        },
+        {
+          "id": "g2",
+          "symbol": "coefficient of x in 2x + y",
+          "value": 2,
+          "sourceText": "g2 = 2",
+          "provenance": "given"
+        },
+        {
+          "id": "g8",
+          "symbol": "bound for 2x + y",
+          "value": 8,
+          "sourceText": "g8 = 8",
+          "provenance": "given"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "corners",
+          "symbol": "feasible corners"
+        },
+        {
+          "id": "xs",
+          "symbol": "optimal x"
+        },
+        {
+          "id": "ys",
+          "symbol": "optimal y"
+        },
+        {
+          "id": "zs",
+          "symbol": "maximum Z"
+        }
+      ],
+      "derived": [
+        {
+          "id": "xs",
+          "symbol": "optimal x",
+          "value": 2,
+          "sourceText": "xs = 2",
+          "provenance": "derived",
+          "dependsOn": [
+            "g6",
+            "g2",
+            "g8"
+          ]
+        },
+        {
+          "id": "ys",
+          "symbol": "optimal y",
+          "value": 4,
+          "sourceText": "ys = 4",
+          "provenance": "derived",
+          "dependsOn": [
+            "g6",
+            "g2",
+            "g8"
+          ]
+        },
+        {
+          "id": "zs",
+          "symbol": "maximum Z",
+          "value": 14,
+          "sourceText": "Z = 3(2) + 2(4) = 14",
+          "provenance": "derived",
+          "dependsOn": [
+            "gx",
+            "gy",
+            "xs",
+            "ys"
+          ]
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "method",
+          "claim": "Graph each boundary line and shade the side satisfying its inequality, including both coordinate axes. The overlap is the feasible region; evaluate Z at every corner.",
+          "expected": "A linear objective on this bounded feasible polygon attains its maximum at a corner.",
+          "relatedQuantityIds": [
+            "corners"
+          ],
+          "relatedEntityHints": [
+            "feasible region",
+            "boundary lines"
+          ]
+        },
+        {
+          "id": "vertices",
+          "claim": "Find the axis intercepts and the intersection of x + y = 6 with 2x + y = 8, then retain only feasible intersections.",
+          "expected": "The exact corners are (0,0), (4,0), (2,4), and (0,6).",
+          "relatedQuantityIds": [
+            "corners",
+            "xs",
+            "ys"
+          ]
+        },
+        {
+          "id": "scores",
+          "claim": "Evaluate the objective at every feasible corner.",
+          "expected": "Z(0,0)=0; Z(4,0)=12; Z(2,4)=14; Z(0,6)=12. Thus the unique optimum is (x,y)=(2,4), with maximum Z=14.",
+          "relatedQuantityIds": [
+            "corners",
+            "xs",
+            "ys",
+            "zs"
+          ]
+        }
+      ],
+      "lawIds": [
+        "linear-programming-corner-point-theorem",
+        "intersection-of-linear-boundaries",
+        "substitution-into-objective"
+      ],
+      "assumptions": []
+    }
+  },
+  {
+    "rowId": "maths|h3r6-shaded-regions|lpp02-rational-corner|q1",
+    "rep": 1,
+    "turnPlan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "Explain a graphical LPP with a rational optimal corner: maximize Z = 5x + 4y subject to x >= 0, y >= 0, 2x + 3y <= 12 and 4x + y <= 10. Keep the corner coordinates exact.",
+      "visualRequirement": "required",
+      "givens": [
+        {
+          "id": "a",
+          "symbol": "x coefficient in Z",
+          "value": 5,
+          "sourceText": "a = 5",
+          "provenance": "given"
+        },
+        {
+          "id": "b",
+          "symbol": "y coefficient in Z",
+          "value": 4,
+          "sourceText": "b = 4",
+          "provenance": "given"
+        },
+        {
+          "id": "c",
+          "symbol": "x coefficient in first constraint",
+          "value": 2,
+          "sourceText": "c = 2",
+          "provenance": "given"
+        },
+        {
+          "id": "d",
+          "symbol": "y coefficient in first constraint",
+          "value": 3,
+          "sourceText": "d = 3",
+          "provenance": "given"
+        },
+        {
+          "id": "e",
+          "symbol": "first constraint bound",
+          "value": 12,
+          "sourceText": "e = 12",
+          "provenance": "given"
+        },
+        {
+          "id": "f",
+          "symbol": "x coefficient in second constraint",
+          "value": 4,
+          "sourceText": "f = 4",
+          "provenance": "given"
+        },
+        {
+          "id": "g",
+          "symbol": "y coefficient in second constraint",
+          "value": 1,
+          "sourceText": "g = 1",
+          "provenance": "given"
+        },
+        {
+          "id": "h",
+          "symbol": "second constraint bound",
+          "value": 10,
+          "sourceText": "h = 10",
+          "provenance": "given"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "ux",
+          "symbol": "x at optimum"
+        },
+        {
+          "id": "uy",
+          "symbol": "y at optimum"
+        },
+        {
+          "id": "uz",
+          "symbol": "maximum Z"
+        }
+      ],
+      "derived": [
+        {
+          "id": "ux",
+          "symbol": "x at optimum",
+          "value": 1.8,
+          "sourceText": "At the constraint intersection, x = 9/5.",
+          "provenance": "derived",
+          "dependsOn": [
+            "c",
+            "d",
+            "e",
+            "f",
+            "g",
+            "h"
+          ]
+        },
+        {
+          "id": "uy",
+          "symbol": "y at optimum",
+          "value": 2.8,
+          "sourceText": "At the constraint intersection, y = 14/5.",
+          "provenance": "derived",
+          "dependsOn": [
+            "c",
+            "d",
+            "e",
+            "f",
+            "g",
+            "h"
+          ]
+        },
+        {
+          "id": "uz",
+          "symbol": "maximum Z",
+          "value": 20.2,
+          "sourceText": "5(9/5) + 4(14/5) = 101/5.",
+          "provenance": "derived",
+          "dependsOn": [
+            "a",
+            "b",
+            "ux",
+            "uy"
+          ]
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "region",
+          "claim": "Graph the two constraint lines in the first quadrant and shade the region on or below both lines.",
+          "expected": "The feasible region has exact corners (0,0), (5/2,0), (9/5,14/5), and (0,4)."
+        },
+        {
+          "id": "check",
+          "claim": "Evaluate the objective at every feasible corner.",
+          "expected": "In the listed corner order, Z equals 0, 25/2, 101/5, and 16. A linear objective attains its maximum over this polygon at a corner.",
+          "relatedQuantityIds": [
+            "uz",
+            "uz"
+          ],
+          "relatedEntityHints": [
+            "feasible corners"
+          ]
+        },
+        {
+          "id": "answer",
+          "claim": "Identify the optimal corner and value.",
+          "expected": "The unique optimum is (x,y) = (9/5,14/5), with maximum Z = 101/5.",
+          "relatedQuantityIds": [
+            "ux",
+            "uy",
+            "uz",
+            "ux",
+            "uy",
+            "uz"
+          ]
+        }
+      ],
+      "lawIds": [
+        "graphical-half-plane-feasibility",
+        "intersection-of-boundary-lines",
+        "linear-programming-vertex-optimality"
+      ],
+      "assumptions": []
+    }
+  },
+  {
+    "rowId": "maths|h3r6-shaded-regions|lpp03-redundant-constraint|q1",
+    "rep": 1,
+    "turnPlan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "Help me see a redundant constraint graphically: maximize Z = 2x + y with x >= 0, y >= 0, x + y <= 5 and 2x + 2y <= 12. Show which boundary actually limits the region.",
+      "visualRequirement": "required",
+      "givens": [
+        {
+          "id": "gx",
+          "symbol": "coefficient of x in Z",
+          "value": 2,
+          "sourceText": "gx = 2",
+          "provenance": "given"
+        },
+        {
+          "id": "gy",
+          "symbol": "coefficient of y in Z",
+          "value": 1,
+          "sourceText": "gy = 1",
+          "provenance": "given"
+        },
+        {
+          "id": "g0",
+          "symbol": "lower bound for x and y",
+          "value": 0,
+          "sourceText": "g0 = 0",
+          "provenance": "given"
+        },
+        {
+          "id": "g5",
+          "symbol": "bound on x+y",
+          "value": 5,
+          "sourceText": "g5 = 5",
+          "provenance": "given"
+        },
+        {
+          "id": "g2",
+          "symbol": "coefficient of x and y in the second constraint",
+          "value": 2,
+          "sourceText": "g2 = 2",
+          "provenance": "given"
+        },
+        {
+          "id": "g12",
+          "symbol": "bound on 2x+2y",
+          "value": 12,
+          "sourceText": "g12 = 12",
+          "provenance": "given"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "ux",
+          "symbol": "x at maximum"
+        },
+        {
+          "id": "uy",
+          "symbol": "y at maximum"
+        },
+        {
+          "id": "uz",
+          "symbol": "Z_max"
+        }
+      ],
+      "derived": [
+        {
+          "id": "ux",
+          "symbol": "x at maximum",
+          "value": 5,
+          "sourceText": "ux = 5",
+          "provenance": "derived",
+          "dependsOn": [
+            "g0",
+            "g5",
+            "gx",
+            "gy"
+          ]
+        },
+        {
+          "id": "uy",
+          "symbol": "y at maximum",
+          "value": 0,
+          "sourceText": "uy = 0",
+          "provenance": "derived",
+          "dependsOn": [
+            "g0",
+            "g5",
+            "gx",
+            "gy"
+          ]
+        },
+        {
+          "id": "uz",
+          "symbol": "Z_max",
+          "value": 10,
+          "sourceText": "Z = 2(5)+0 = 10.",
+          "provenance": "derived",
+          "dependsOn": [
+            "ux",
+            "uy",
+            "gx",
+            "gy"
+          ]
+        },
+        {
+          "id": "d6",
+          "symbol": "bound on x+y from the second constraint",
+          "value": 6,
+          "sourceText": "2x+2y ≤ 12 is equivalent to x+y ≤ 12/2 = 6.",
+          "provenance": "derived",
+          "dependsOn": [
+            "g2",
+            "g12"
+          ]
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "region",
+          "claim": "Feasible region",
+          "expected": "In the xy-plane, the region is the first-quadrant triangle with vertices (0,0), (5,0), and (0,5).",
+          "relatedQuantityIds": [
+            "g0",
+            "g5"
+          ]
+        },
+        {
+          "id": "limit",
+          "claim": "Boundaries that limit the region",
+          "expected": "The sloping limiting edge is x+y=5; x=0 and y=0 limit the other two sides.",
+          "relatedQuantityIds": [
+            "g0",
+            "g5"
+          ]
+        },
+        {
+          "id": "redundant",
+          "claim": "Why the second constraint is redundant",
+          "expected": "Its boundary x+y=6 lies farther from the origin than x+y=5 in the first quadrant. Every point with x+y≤5 therefore also satisfies x+y≤6, so the second line does not bound the feasible region.",
+          "relatedQuantityIds": [
+            "g5",
+            "d6"
+          ]
+        },
+        {
+          "id": "optimal",
+          "claim": "Location of the maximum",
+          "expected": "Since Z=2(x+y)−y≤2(5)−0=10, equality occurs at (x,y)=(5,0).",
+          "relatedQuantityIds": [
+            "ux",
+            "uy",
+            "uz",
+            "g5"
+          ]
+        }
+      ],
+      "lawIds": [
+        "equivalent-inequality-division-by-positive-number",
+        "linear-programming-feasible-region",
+        "linear-objective-upper-bound"
+      ],
+      "assumptions": []
+    }
+  },
+  {
+    "rowId": "maths|h3r6-shaded-regions|lpp04-unbounded-region-finite-min|q1",
+    "rep": 1,
+    "turnPlan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "Explain why an unbounded feasible region can have a finite minimum: minimize Z = 2x + 3y for x >= 0, y >= 0 and x + y >= 4. Show its corners and minimizing point graphically.",
+      "visualRequirement": "required",
+      "givens": [
+        {
+          "id": "gx",
+          "symbol": "x coefficient",
+          "value": 2,
+          "sourceText": "Z = 2x + 3y",
+          "provenance": "given"
+        },
+        {
+          "id": "gy",
+          "symbol": "y coefficient",
+          "value": 3,
+          "sourceText": "Z = 2x + 3y",
+          "provenance": "given"
+        },
+        {
+          "id": "g4",
+          "symbol": "boundary constant",
+          "value": 4,
+          "sourceText": "x + y >= 4",
+          "provenance": "given"
+        },
+        {
+          "id": "g0",
+          "symbol": "coordinate lower bound",
+          "value": 0,
+          "sourceText": "x >= 0, y >= 0",
+          "provenance": "given"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "ux",
+          "symbol": "x*"
+        },
+        {
+          "id": "uy",
+          "symbol": "y*"
+        },
+        {
+          "id": "uz",
+          "symbol": "Z_min"
+        }
+      ],
+      "derived": [
+        {
+          "id": "ux",
+          "symbol": "x*",
+          "value": 4,
+          "sourceText": "dx = 4",
+          "provenance": "derived",
+          "dependsOn": [
+            "g4",
+            "g0"
+          ]
+        },
+        {
+          "id": "uy",
+          "symbol": "y*",
+          "value": 0,
+          "sourceText": "dy = 0",
+          "provenance": "derived",
+          "dependsOn": [
+            "g0"
+          ]
+        },
+        {
+          "id": "uz",
+          "symbol": "Z_min",
+          "value": 8,
+          "sourceText": "At (4,0), Z = 2(4) + 3(0) = 8.",
+          "provenance": "derived",
+          "dependsOn": [
+            "gx",
+            "gy",
+            "g4",
+            "ux",
+            "uy"
+          ]
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "corners",
+          "claim": "The feasible region has two corners.",
+          "expected": "(4,0) and (0,4), where x+y=4 meets the coordinate axes.",
+          "relatedQuantityIds": [
+            "g4",
+            "g0"
+          ],
+          "relatedEntityHints": [
+            "x-axis",
+            "y-axis",
+            "boundary x+y=4"
+          ]
+        },
+        {
+          "id": "graph",
+          "claim": "Show the feasible region and minimizer graphically.",
+          "expected": "Plot (4,0) and (0,4); draw the boundary segment between them and its continuation as the feasible region extends upward and rightward in the first quadrant. Mark (4,0) as the minimizing point and draw the objective line 2x+3y=8 through it.",
+          "relatedQuantityIds": [
+            "ux",
+            "uy",
+            "uz"
+          ],
+          "relatedEntityHints": [
+            "feasible region",
+            "minimizing point",
+            "objective line"
+          ]
+        },
+        {
+          "id": "bound",
+          "claim": "Unboundedness does not prevent a finite minimum.",
+          "expected": "For every feasible point, Z=2(x+y)+y≥2(4)+0=8. Equality holds at (4,0), so the lower bound is attained even though the feasible region is unbounded.",
+          "relatedQuantityIds": [
+            "g4",
+            "g0",
+            "ux",
+            "uy",
+            "uz"
+          ]
+        }
+      ],
+      "lawIds": [
+        "Coordinate-axis intercepts of a linear boundary",
+        "Nonnegative-variable inequality bound",
+        "Attainment of a lower bound"
+      ],
+      "assumptions": []
+    }
+  },
+  {
+    "rowId": "maths|h3r6-shaded-regions|lpp05-bounded-multiple-optima|q1",
+    "rep": 1,
+    "turnPlan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "Show me multiple optimal solutions graphically when Z = 2x + 2y is maximized over x >= 0, y >= 0 and x + y <= 5.",
+      "visualRequirement": "required",
+      "givens": [
+        {
+          "id": "gx",
+          "symbol": "coefficient of x",
+          "value": 2,
+          "sourceText": "Z = 2x + 2y",
+          "provenance": "given"
+        },
+        {
+          "id": "gy",
+          "symbol": "coefficient of y",
+          "value": 2,
+          "sourceText": "Z = 2x + 2y",
+          "provenance": "given"
+        },
+        {
+          "id": "gb",
+          "symbol": "upper bound on x + y",
+          "value": 5,
+          "sourceText": "x + y <= 5",
+          "provenance": "given"
+        },
+        {
+          "id": "g0",
+          "symbol": "nonnegativity bound",
+          "value": 0,
+          "sourceText": "x >= 0, y >= 0",
+          "provenance": "given"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "uz",
+          "symbol": "Z_max"
+        }
+      ],
+      "derived": [
+        {
+          "id": "uz",
+          "symbol": "Z_max",
+          "value": 10,
+          "sourceText": "On x + y = 5, Z = 2(x + y) = 2(5) = 10.",
+          "provenance": "derived",
+          "dependsOn": [
+            "gx",
+            "gy",
+            "gb"
+          ]
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "region",
+          "claim": "Use x as the horizontal coordinate and y as the vertical coordinate.",
+          "expected": "The feasible region is the first-quadrant triangle bounded by the coordinate axes and x + y = 5.",
+          "relatedQuantityIds": [
+            "g0",
+            "gb"
+          ]
+        },
+        {
+          "id": "edge",
+          "claim": "Identify every optimal solution on the graph.",
+          "expected": "The entire line segment from (0, 5) to (5, 0) is optimal, including (1, 4), (2, 3), and (3, 2). The objective line Z = 10 coincides with this edge.",
+          "relatedQuantityIds": [
+            "uz",
+            "gb"
+          ]
+        }
+      ],
+      "lawIds": [
+        "linear-programming feasible-region method",
+        "linear objective maximization on a binding constraint"
+      ],
+      "assumptions": []
+    }
+  },
+  {
+    "rowId": "maths|h3r6-shaded-regions|lpp06-resource-pentagon|q1",
+    "rep": 1,
+    "turnPlan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "A workshop chooses real nonnegative production amounts x and y. Its limits are x <= 4, y <= 3 and 2x + y <= 9. Profit is Z = 40x + 30y. Use a graph of the feasible region and its exact corners to find the maximum profit.",
+      "visualRequirement": "required",
+      "givens": [
+        {
+          "id": "gx",
+          "symbol": "x_max",
+          "value": 4,
+          "sourceText": "x <= 4",
+          "provenance": "given"
+        },
+        {
+          "id": "gy",
+          "symbol": "y_max",
+          "value": 3,
+          "sourceText": "y <= 3",
+          "provenance": "given"
+        },
+        {
+          "id": "gc",
+          "symbol": "capacity",
+          "value": 9,
+          "sourceText": "2x + y <= 9",
+          "provenance": "given"
+        },
+        {
+          "id": "px",
+          "symbol": "profit_x",
+          "value": 40,
+          "sourceText": "Z = 40x + 30y",
+          "provenance": "given"
+        },
+        {
+          "id": "py",
+          "symbol": "profit_y",
+          "value": 30,
+          "sourceText": "Z = 40x + 30y",
+          "provenance": "given"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "ux",
+          "symbol": "x at maximum"
+        },
+        {
+          "id": "uy",
+          "symbol": "y at maximum"
+        },
+        {
+          "id": "uz",
+          "symbol": "maximum Z"
+        }
+      ],
+      "derived": [
+        {
+          "id": "ux",
+          "symbol": "x at maximum",
+          "value": 3,
+          "sourceText": "dx = 3",
+          "provenance": "derived",
+          "dependsOn": [
+            "gy",
+            "gc"
+          ]
+        },
+        {
+          "id": "uy",
+          "symbol": "y at maximum",
+          "value": 3,
+          "sourceText": "dy = 3",
+          "provenance": "derived",
+          "dependsOn": [
+            "gy",
+            "gc"
+          ]
+        },
+        {
+          "id": "uz",
+          "symbol": "maximum Z",
+          "value": 210,
+          "sourceText": "40(3) + 30(3) = 210",
+          "provenance": "derived",
+          "dependsOn": [
+            "ux",
+            "uy",
+            "px",
+            "py"
+          ]
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "region",
+          "claim": "Graph the feasible region in the first quadrant, bounded by x = 4, y = 3, and 2x + y = 9.",
+          "expected": "Its exact corners, in boundary order, are (0,0), (4,0), (4,1), (3,3), and (0,3)."
+        },
+        {
+          "id": "test",
+          "claim": "Evaluate profit at every corner.",
+          "expected": "Z is respectively 0, 160, 190, 210, and 90; therefore the maximum is 210 at (3,3).",
+          "relatedQuantityIds": [
+            "ux",
+            "uy",
+            "uz"
+          ]
+        }
+      ],
+      "lawIds": [
+        "linear-programming corner-point theorem",
+        "intersection of boundary lines",
+        "linear objective evaluation"
+      ],
+      "assumptions": []
+    }
+  },
+  {
+    "rowId": "maths|h3r6-shaded-regions|lpp07-unbounded-objective|q1",
+    "rep": 1,
+    "turnPlan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "Maximize Z = x + 2y subject to x >= 0, y >= 0 and x - y <= 2. Draw the feasible region, state its exact corners, and determine whether a finite maximum exists.",
+      "visualRequirement": "required",
+      "givens": [
+        {
+          "id": "g1",
+          "symbol": "Z",
+          "value": 2,
+          "sourceText": "Coefficient of y in Z = x + 2y",
+          "provenance": "given"
+        },
+        {
+          "id": "g2",
+          "symbol": "b",
+          "value": 2,
+          "sourceText": "Right-hand side of x - y <= 2",
+          "provenance": "given"
+        }
+      ],
+      "unknowns": [],
+      "derived": [],
+      "qualitativeClaims": [
+        {
+          "id": "c1",
+          "claim": "Feasible region",
+          "expected": "The first-quadrant region on or above the line y = x - 2; all boundary lines are included. It extends without bound.",
+          "relatedEntityHints": [
+            "x-axis",
+            "y-axis",
+            "line x - y = 2"
+          ]
+        },
+        {
+          "id": "c2",
+          "claim": "Exact corners",
+          "expected": "(0, 0) and (2, 0).",
+          "relatedEntityHints": [
+            "origin",
+            "x-axis intercept"
+          ]
+        },
+        {
+          "id": "c3",
+          "claim": "Maximum",
+          "expected": "No finite maximum exists: (0, t) is feasible for every t >= 0, and Z = 2t grows without bound.",
+          "relatedQuantityIds": [
+            "g1"
+          ]
+        }
+      ],
+      "lawIds": [
+        "linear-inequality-half-plane",
+        "boundary-intersection-vertices",
+        "unbounded-objective-ray"
+      ],
+      "assumptions": []
+    }
+  },
+  {
+    "rowId": "maths|h3r6-shaded-regions|lpp09-shifted-quadrant-finite-min|q1",
+    "rep": 1,
+    "turnPlan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "Minimize Z = 3x + 4y subject to x >= 1 and y >= 2. Draw the feasible region and its exact corner, and decide whether its unboundedness prevents a finite minimum.",
+      "visualRequirement": "required",
+      "givens": [
+        {
+          "id": "gx",
+          "symbol": "x_min",
+          "value": 1,
+          "sourceText": "x >= 1",
+          "provenance": "given"
+        },
+        {
+          "id": "gy",
+          "symbol": "y_min",
+          "value": 2,
+          "sourceText": "y >= 2",
+          "provenance": "given"
+        },
+        {
+          "id": "gc",
+          "symbol": "c_x",
+          "value": 3,
+          "sourceText": "Z = 3x + 4y",
+          "provenance": "given"
+        },
+        {
+          "id": "gd",
+          "symbol": "c_y",
+          "value": 4,
+          "sourceText": "Z = 3x + 4y",
+          "provenance": "given"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "ux",
+          "symbol": "x*"
+        },
+        {
+          "id": "uy",
+          "symbol": "y*"
+        },
+        {
+          "id": "uz",
+          "symbol": "Z_min"
+        }
+      ],
+      "derived": [
+        {
+          "id": "ux",
+          "symbol": "x*",
+          "value": 1,
+          "sourceText": "ux = 1",
+          "provenance": "derived",
+          "dependsOn": [
+            "gx"
+          ]
+        },
+        {
+          "id": "uy",
+          "symbol": "y*",
+          "value": 2,
+          "sourceText": "uy = 2",
+          "provenance": "derived",
+          "dependsOn": [
+            "gy"
+          ]
+        },
+        {
+          "id": "uz",
+          "symbol": "Z_min",
+          "value": 11,
+          "sourceText": "3(1) + 4(2) = 11",
+          "provenance": "derived",
+          "dependsOn": [
+            "ux",
+            "uy",
+            "gc",
+            "gd"
+          ]
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "region",
+          "claim": "Feasible region and exact corner",
+          "expected": "The boundaries x = 1 and y = 2 are included. Their intersection is (1, 2); the feasible region extends rightward and upward without bound.",
+          "relatedQuantityIds": [
+            "ux",
+            "uy"
+          ],
+          "relatedEntityHints": [
+            "coordinate plane",
+            "feasible region",
+            "corner"
+          ]
+        },
+        {
+          "id": "minimum",
+          "claim": "Effect of unboundedness on the minimum",
+          "expected": "Unboundedness does not prevent a finite minimum: since both objective coefficients are positive, increasing either coordinate from its lower bound cannot decrease Z. The minimum is 11 at (1, 2).",
+          "relatedQuantityIds": [
+            "gc",
+            "gd",
+            "ux",
+            "uy",
+            "uz"
+          ]
+        }
+      ],
+      "lawIds": [
+        "intersection-of-boundary-lines",
+        "monotonicity-of-positive-linear-objective"
+      ],
+      "assumptions": []
+    }
+  },
+  {
+    "rowId": "maths|h3r6-shaded-regions|lpp10-negative-objective-strip|q1",
+    "rep": 1,
+    "turnPlan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "Use a graph to maximize Z = -x - y subject to x >= 0, y >= 0 and 2 <= x + y <= 6. Label the exact corners and the full set of optimal points.",
+      "visualRequirement": "required",
+      "givens": [
+        {
+          "id": "g0",
+          "symbol": "coordinate lower bound",
+          "value": 0,
+          "sourceText": "x >= 0, y >= 0",
+          "provenance": "given"
+        },
+        {
+          "id": "g2",
+          "symbol": "lower bound on x+y",
+          "value": 2,
+          "sourceText": "2 <= x + y",
+          "provenance": "given"
+        },
+        {
+          "id": "g6",
+          "symbol": "upper bound on x+y",
+          "value": 6,
+          "sourceText": "x + y <= 6",
+          "provenance": "given"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "uZ",
+          "symbol": "maximum Z"
+        }
+      ],
+      "derived": [
+        {
+          "id": "uZ",
+          "symbol": "maximum Z",
+          "value": -2,
+          "sourceText": "Z=-(x+y); its maximum occurs at x+y=2, giving Z=-2.",
+          "provenance": "derived",
+          "dependsOn": [
+            "g2"
+          ]
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "c1",
+          "claim": "The feasible region has exactly four corners.",
+          "expected": "(2,0), (6,0), (0,6), and (0,2).",
+          "relatedQuantityIds": [
+            "g0",
+            "g2",
+            "g6"
+          ]
+        },
+        {
+          "id": "c2",
+          "claim": "Label the full set of optimal points on the graph.",
+          "expected": "The entire line segment x+y=2 from (2,0) to (0,2), including both endpoints, is optimal.",
+          "relatedQuantityIds": [
+            "g2",
+            "uZ"
+          ]
+        }
+      ],
+      "lawIds": [
+        "linear-programming feasible-region intersection",
+        "linear objective level sets"
+      ],
+      "assumptions": []
+    }
+  },
+  {
+    "rowId": "maths|h3r6-shaded-regions|sys02-unique-rational|q1",
+    "rep": 1,
+    "turnPlan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "Explain a graphical system whose crossing has fractional coordinates: 2x + 3y = 7 and 3x - 2y = 1. Keep the intersection exact.",
+      "visualRequirement": "required",
+      "givens": [
+        {
+          "id": "a1",
+          "symbol": "x coefficient in first equation",
+          "value": 2,
+          "sourceText": "a1 = 2",
+          "provenance": "given"
+        },
+        {
+          "id": "b1",
+          "symbol": "y coefficient in first equation",
+          "value": 3,
+          "sourceText": "b1 = 3",
+          "provenance": "given"
+        },
+        {
+          "id": "c1",
+          "symbol": "first equation constant",
+          "value": 7,
+          "sourceText": "c1 = 7",
+          "provenance": "given"
+        },
+        {
+          "id": "a2",
+          "symbol": "x coefficient in second equation",
+          "value": 3,
+          "sourceText": "a2 = 3",
+          "provenance": "given"
+        },
+        {
+          "id": "b2",
+          "symbol": "y coefficient in second equation",
+          "value": -2,
+          "sourceText": "b2 = -2",
+          "provenance": "given"
+        },
+        {
+          "id": "c2",
+          "symbol": "second equation constant",
+          "value": 1,
+          "sourceText": "c2 = 1",
+          "provenance": "given"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "x",
+          "symbol": "x"
+        },
+        {
+          "id": "y",
+          "symbol": "y"
+        }
+      ],
+      "derived": [
+        {
+          "id": "x",
+          "symbol": "x",
+          "value": 1.3076923076923077,
+          "sourceText": "dx = 1.3076923076923077",
+          "provenance": "derived",
+          "dependsOn": [
+            "a1",
+            "b1",
+            "c1",
+            "a2",
+            "b2",
+            "c2"
+          ]
+        },
+        {
+          "id": "y",
+          "symbol": "y",
+          "value": 1.4615384615384615,
+          "sourceText": "dy = 1.4615384615384615",
+          "provenance": "derived",
+          "dependsOn": [
+            "a1",
+            "b1",
+            "c1",
+            "a2",
+            "b2",
+            "c2"
+          ]
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "crossing",
+          "claim": "The crossing is the point shared by both lines.",
+          "expected": "(x, y) = (17/13, 19/13) exactly.",
+          "relatedQuantityIds": [
+            "x",
+            "y",
+            "x",
+            "y"
+          ]
+        },
+        {
+          "id": "method",
+          "claim": "Solve for the graphical intersection by eliminating y.",
+          "expected": "Twice the first equation plus three times the second gives 13x = 17; substitution gives y = 19/13.",
+          "relatedQuantityIds": [
+            "x",
+            "y"
+          ]
+        }
+      ],
+      "lawIds": [
+        "simultaneous-linear-equations-elimination",
+        "graphical-intersection-of-two-lines"
+      ],
+      "assumptions": []
+    }
+  },
+  {
+    "rowId": "maths|h3r6-shaded-regions|sys05-vertical-horizontal|q1",
+    "rep": 1,
+    "turnPlan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "Help me see the graphical solution of x = -2 and y = 3 using a vertical line and a horizontal line.",
+      "visualRequirement": "required",
+      "givens": [
+        {
+          "id": "g1",
+          "symbol": "x",
+          "value": -2,
+          "sourceText": "x = -2",
+          "provenance": "given"
+        },
+        {
+          "id": "g2",
+          "symbol": "y",
+          "value": 3,
+          "sourceText": "y = 3",
+          "provenance": "given"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "u1",
+          "symbol": "intersection x-coordinate"
+        },
+        {
+          "id": "u2",
+          "symbol": "intersection y-coordinate"
+        }
+      ],
+      "derived": [
+        {
+          "id": "u1",
+          "symbol": "intersection x-coordinate",
+          "value": -2,
+          "sourceText": "d1 = -2",
+          "provenance": "derived",
+          "dependsOn": [
+            "g1"
+          ]
+        },
+        {
+          "id": "u2",
+          "symbol": "intersection y-coordinate",
+          "value": 3,
+          "sourceText": "d2 = 3",
+          "provenance": "derived",
+          "dependsOn": [
+            "g2"
+          ]
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "c1",
+          "claim": "Graph x = -2 as a vertical line and y = 3 as a horizontal line on the same coordinate plane.",
+          "expected": "The lines meet at (-2, 3), the graphical solution.",
+          "relatedQuantityIds": [
+            "g1",
+            "g2",
+            "u1",
+            "u2"
+          ],
+          "relatedEntityHints": [
+            "vertical line",
+            "horizontal line",
+            "intersection"
+          ]
+        }
+      ],
+      "lawIds": [
+        "intersection-of-coordinate-lines"
+      ],
+      "assumptions": []
+    }
+  },
+  {
+    "rowId": "maths|h3r6-shaded-regions|sys06-cbse10-unique|q1",
+    "rep": 1,
+    "turnPlan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "Solve the pair x + y = 6 and x - y = 2 by the graphical method. Label their point of intersection.",
+      "visualRequirement": "required",
+      "givens": [
+        {
+          "id": "g1",
+          "symbol": "c₁",
+          "value": 6,
+          "sourceText": "x + y = 6",
+          "provenance": "given"
+        },
+        {
+          "id": "g2",
+          "symbol": "c₂",
+          "value": 2,
+          "sourceText": "x - y = 2",
+          "provenance": "given"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "ux",
+          "symbol": "x"
+        },
+        {
+          "id": "uy",
+          "symbol": "y"
+        }
+      ],
+      "derived": [
+        {
+          "id": "ux",
+          "symbol": "x",
+          "value": 4,
+          "sourceText": "Adding the equations gives 2x = 8, so x = 4.",
+          "provenance": "derived",
+          "dependsOn": [
+            "g1",
+            "g2"
+          ]
+        },
+        {
+          "id": "uy",
+          "symbol": "y",
+          "value": 2,
+          "sourceText": "Substituting x = 4 into x + y = 6 gives y = 2.",
+          "provenance": "derived",
+          "dependsOn": [
+            "g1",
+            "ux"
+          ]
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "c1",
+          "claim": "Graph both lines on the same coordinate axes and label their intersection (4, 2).",
+          "expected": "The point of intersection is (4, 2), so the graphical solution is x = 4, y = 2.",
+          "relatedQuantityIds": [
+            "ux",
+            "uy"
+          ]
+        }
+      ],
+      "lawIds": [
+        "intersection-of-lines-solves-simultaneous-equations",
+        "addition-method-for-linear-equations"
+      ],
+      "assumptions": []
+    },
+    "problemIR": {
+      "schemaVersion": "problem-ir/v1",
+      "id": "problem",
+      "question": "Solve the pair x + y = 6 and x - y = 2 by the graphical method. Label their point of intersection.",
+      "facts": [
+        {
+          "id": "fEq1",
+          "kind": "given",
+          "statement": "The first line is x+y=6.",
+          "evidence": {
+            "source": "question",
+            "start": 15,
+            "end": 24,
+            "quote": "x + y = 6"
+          }
+        },
+        {
+          "id": "fEq2",
+          "kind": "given",
+          "statement": "The second line is x−y=2.",
+          "evidence": {
+            "source": "question",
+            "start": 29,
+            "end": 38,
+            "quote": "x - y = 2"
+          }
+        },
+        {
+          "id": "fGraph",
+          "kind": "requested",
+          "statement": "Solve by the graphical method.",
+          "evidence": {
+            "source": "question",
+            "start": 39,
+            "end": 62,
+            "quote": "by the graphical method"
+          }
+        },
+        {
+          "id": "fPoint",
+          "kind": "requested",
+          "statement": "Label the lines’ point of intersection.",
+          "evidence": {
+            "source": "question",
+            "start": 64,
+            "end": 98,
+            "quote": "Label their point of intersection."
+          }
+        }
+      ],
+      "entities": [
+        {
+          "id": "line1",
+          "kind": "line",
+          "evidenceFactIds": [
+            "fEq1"
+          ]
+        },
+        {
+          "id": "line2",
+          "kind": "line",
+          "evidenceFactIds": [
+            "fEq2"
+          ]
+        },
+        {
+          "id": "crossing",
+          "kind": "point",
+          "evidenceFactIds": [
+            "fPoint"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "eLine1",
+          "valueType": "function",
+          "root": {
+            "kind": "binary",
+            "operator": "-",
+            "left": {
+              "kind": "number",
+              "value": 6
+            },
+            "right": {
+              "kind": "variable",
+              "name": "x"
+            }
+          },
+          "evidenceFactIds": [
+            "fEq1"
+          ]
+        },
+        {
+          "id": "eLine2",
+          "valueType": "function",
+          "root": {
+            "kind": "binary",
+            "operator": "-",
+            "left": {
+              "kind": "variable",
+              "name": "x"
+            },
+            "right": {
+              "kind": "number",
+              "value": 2
+            }
+          },
+          "evidenceFactIds": [
+            "fEq2"
+          ]
+        },
+        {
+          "id": "eY",
+          "valueType": "scalar",
+          "root": {
+            "kind": "binary",
+            "operator": "-",
+            "left": {
+              "kind": "number",
+              "value": 6
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "number",
+                  "value": 6
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 2
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 2
+              }
+            }
+          },
+          "evidenceFactIds": [
+            "fEq1",
+            "fEq2"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "id": "cCrossing1",
+          "kind": "incident",
+          "entityIds": [
+            "crossing",
+            "line1"
+          ],
+          "evidenceFactIds": [
+            "fPoint"
+          ]
+        },
+        {
+          "id": "cCrossing2",
+          "kind": "incident",
+          "entityIds": [
+            "crossing",
+            "line2"
+          ],
+          "evidenceFactIds": [
+            "fPoint"
+          ]
+        }
+      ],
+      "representationIntents": [
+        {
+          "id": "iGraph",
+          "kind": "graph",
+          "entityIds": [
+            "line1",
+            "line2",
+            "crossing"
+          ],
+          "evidenceFactIds": [
+            "fEq1",
+            "fEq2",
+            "fGraph",
+            "fPoint"
+          ]
+        }
+      ],
+      "solveRequests": [
+        {
+          "id": "sX",
+          "kind": "intersections",
+          "leftExpressionId": "eLine1",
+          "rightExpressionId": "eLine2",
+          "variable": "x",
+          "domain": {
+            "min": 0,
+            "max": 6
+          },
+          "resultBinding": {
+            "turnPlanQuantityId": "ux",
+            "symbol": "x",
+            "evidenceFactIds": [
+              "fPoint"
+            ]
+          }
+        },
+        {
+          "id": "sY",
+          "kind": "evaluate",
+          "expressionId": "eY",
+          "resultBinding": {
+            "turnPlanQuantityId": "uy",
+            "symbol": "y",
+            "evidenceFactIds": [
+              "fPoint"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "rowId": "maths|h3r6-shaded-regions|sys08-distinct-vertical|q1",
+    "rep": 1,
+    "turnPlan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "Graph the system 3x = 9 and x = -1 for real x and y. How many solutions does the system have?",
+      "visualRequirement": "required",
+      "givens": [
+        {
+          "id": "g1",
+          "symbol": "a",
+          "value": 3,
+          "sourceText": "3x = 9",
+          "provenance": "given"
+        },
+        {
+          "id": "g2",
+          "symbol": "b",
+          "value": 9,
+          "sourceText": "3x = 9",
+          "provenance": "given"
+        },
+        {
+          "id": "g3",
+          "symbol": "c",
+          "value": -1,
+          "sourceText": "x = -1",
+          "provenance": "given"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "u1",
+          "symbol": "number of solutions"
+        }
+      ],
+      "derived": [
+        {
+          "id": "u1",
+          "symbol": "number of solutions",
+          "value": 0,
+          "sourceText": "The distinct vertical lines x = 3 and x = -1 do not intersect.",
+          "provenance": "derived",
+          "dependsOn": [
+            "d1",
+            "g3"
+          ]
+        },
+        {
+          "id": "d1",
+          "symbol": "x for 3x = 9",
+          "value": 3,
+          "sourceText": "3x = 9; x = 9 ÷ 3 = 3",
+          "provenance": "derived",
+          "dependsOn": [
+            "g1",
+            "g2"
+          ]
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "c1",
+          "claim": "Graph both equations as vertical lines in the real xy-plane.",
+          "expected": "Draw one line at x = 3 and the other at x = -1; both extend over all real y-values and have no intersection.",
+          "relatedQuantityIds": [
+            "d1",
+            "g3",
+            "u1"
+          ]
+        }
+      ],
+      "lawIds": [
+        "division property of equality",
+        "solution of a system as intersection of its graphs"
+      ],
+      "assumptions": []
+    }
+  },
+  {
+    "rowId": "maths|h3r6-shaded-regions|sys09-coincident-horizontal|q1",
+    "rep": 1,
+    "turnPlan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "Use the graphs of 2y = -6 and -5y = 15 to determine the number of solutions of the system and describe them.",
+      "visualRequirement": "required",
+      "givens": [
+        {
+          "id": "a1",
+          "symbol": "coefficient of y in first equation",
+          "value": 2,
+          "sourceText": "2y = -6",
+          "provenance": "given"
+        },
+        {
+          "id": "b1",
+          "symbol": "constant in first equation",
+          "value": -6,
+          "sourceText": "2y = -6",
+          "provenance": "given"
+        },
+        {
+          "id": "a2",
+          "symbol": "coefficient of y in second equation",
+          "value": -5,
+          "sourceText": "-5y = 15",
+          "provenance": "given"
+        },
+        {
+          "id": "b2",
+          "symbol": "constant in second equation",
+          "value": 15,
+          "sourceText": "-5y = 15",
+          "provenance": "given"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "y",
+          "symbol": "y"
+        },
+        {
+          "id": "n",
+          "symbol": "number of solutions"
+        }
+      ],
+      "derived": [
+        {
+          "id": "y",
+          "symbol": "y",
+          "value": -3,
+          "sourceText": "-6 ÷ 2 = -3; 15 ÷ (-5) = -3",
+          "provenance": "derived",
+          "dependsOn": [
+            "a1",
+            "b1",
+            "a2",
+            "b2"
+          ]
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "graphs",
+          "claim": "Both graphs are the same horizontal line.",
+          "expected": "y = -3",
+          "relatedQuantityIds": [
+            "y"
+          ]
+        },
+        {
+          "id": "solutions",
+          "claim": "The system has infinitely many solutions: every point on that line.",
+          "expected": "{(x, -3) | x is any real number}",
+          "relatedQuantityIds": [
+            "y",
+            "n"
+          ]
+        }
+      ],
+      "lawIds": [
+        "division property of equality",
+        "coincident-line solution rule"
+      ],
+      "assumptions": []
+    }
+  },
+  {
+    "rowId": "maths|h3r8-finish-regions|negative-strict-ray|q1",
+    "rep": 1,
+    "turnPlan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "Over the real numbers, solve -3(2x - 1) > x + 17. Draw a labelled number line for the solution set S. Label the positions P = -3, Q = -2, and R = 0, and indicate whether each belongs to S. Show clearly whether the boundary is included.",
+      "visualRequirement": "required",
+      "givens": [
+        {
+          "id": "g1",
+          "symbol": "coefficient outside parentheses",
+          "value": -3,
+          "sourceText": "-3(2x - 1)",
+          "provenance": "given"
+        },
+        {
+          "id": "g2",
+          "symbol": "coefficient of x inside parentheses",
+          "value": 2,
+          "sourceText": "2x - 1",
+          "provenance": "given"
+        },
+        {
+          "id": "g3",
+          "symbol": "constant inside parentheses",
+          "value": 1,
+          "sourceText": "2x - 1",
+          "provenance": "given"
+        },
+        {
+          "id": "g4",
+          "symbol": "constant on right",
+          "value": 17,
+          "sourceText": "x + 17",
+          "provenance": "given"
+        },
+        {
+          "id": "g5",
+          "symbol": "P",
+          "value": -3,
+          "sourceText": "P = -3",
+          "provenance": "given"
+        },
+        {
+          "id": "g6",
+          "symbol": "Q",
+          "value": -2,
+          "sourceText": "Q = -2",
+          "provenance": "given"
+        },
+        {
+          "id": "g7",
+          "symbol": "R",
+          "value": 0,
+          "sourceText": "R = 0",
+          "provenance": "given"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "u1",
+          "symbol": "boundary of S"
+        }
+      ],
+      "derived": [
+        {
+          "id": "u1",
+          "symbol": "boundary of S",
+          "value": -2,
+          "sourceText": "-3(2x - 1) > x + 17 ⇒ -7x > 14 ⇒ x < -2",
+          "provenance": "derived",
+          "dependsOn": [
+            "g1",
+            "g2",
+            "g3",
+            "g4"
+          ]
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "c1",
+          "claim": "Solution set",
+          "expected": "S = {x ∈ ℝ : x < -2}.",
+          "relatedQuantityIds": [
+            "u1"
+          ]
+        },
+        {
+          "id": "c2",
+          "claim": "Number-line boundary and shading",
+          "expected": "Mark an open circle at Q = -2 and shade to the left; the boundary is not included.",
+          "relatedQuantityIds": [
+            "u1",
+            "g6"
+          ]
+        },
+        {
+          "id": "c3",
+          "claim": "Membership of labelled positions",
+          "expected": "P = -3 belongs to S; Q = -2 and R = 0 do not belong to S.",
+          "relatedQuantityIds": [
+            "g5",
+            "g6",
+            "g7",
+            "u1"
+          ]
+        }
+      ],
+      "lawIds": [
+        "distributive-property",
+        "addition-property-of-inequalities",
+        "negative-multiplication-reverses-inequality",
+        "number-line-interval-representation"
+      ],
+      "assumptions": []
+    },
+    "problemIR": {
+      "schemaVersion": "problem-ir/v1",
+      "id": "problem",
+      "question": "Over the real numbers, solve -3(2x - 1) > x + 17. Draw a labelled number line for the solution set S. Label the positions P = -3, Q = -2, and R = 0, and indicate whether each belongs to S. Show clearly whether the boundary is included.",
+      "facts": [
+        {
+          "id": "fIneq",
+          "kind": "given",
+          "statement": "The inequality is over the real numbers",
+          "evidence": {
+            "source": "question",
+            "start": 0,
+            "end": 48,
+            "quote": "Over the real numbers, solve -3(2x - 1) > x + 17"
+          }
+        },
+        {
+          "id": "fBoundary",
+          "kind": "requested",
+          "statement": "Find the boundary of the solution set",
+          "evidence": {
+            "source": "question",
+            "start": 23,
+            "end": 48,
+            "quote": "solve -3(2x - 1) > x + 17"
+          }
+        },
+        {
+          "id": "fLine",
+          "kind": "requested",
+          "statement": "Draw a labelled number line for S",
+          "evidence": {
+            "source": "question",
+            "start": 50,
+            "end": 101,
+            "quote": "Draw a labelled number line for the solution set S."
+          }
+        },
+        {
+          "id": "fP",
+          "kind": "given",
+          "statement": "P is at -3",
+          "evidence": {
+            "source": "question",
+            "start": 122,
+            "end": 128,
+            "quote": "P = -3"
+          }
+        },
+        {
+          "id": "fQ",
+          "kind": "given",
+          "statement": "Q is at -2",
+          "evidence": {
+            "source": "question",
+            "start": 130,
+            "end": 136,
+            "quote": "Q = -2"
+          }
+        },
+        {
+          "id": "fR",
+          "kind": "given",
+          "statement": "R is at 0",
+          "evidence": {
+            "source": "question",
+            "start": 142,
+            "end": 147,
+            "quote": "R = 0"
+          }
+        },
+        {
+          "id": "fMembership",
+          "kind": "requested",
+          "statement": "Indicate which labelled positions belong to S",
+          "evidence": {
+            "source": "question",
+            "start": 153,
+            "end": 187,
+            "quote": "indicate whether each belongs to S"
+          }
+        },
+        {
+          "id": "fIncluded",
+          "kind": "requested",
+          "statement": "Show whether the boundary is included",
+          "evidence": {
+            "source": "question",
+            "start": 189,
+            "end": 235,
+            "quote": "Show clearly whether the boundary is included."
+          }
+        }
+      ],
+      "entities": [
+        {
+          "id": "numberLine",
+          "kind": "line",
+          "evidenceFactIds": [
+            "fLine"
+          ]
+        },
+        {
+          "id": "solutionSet",
+          "kind": "region",
+          "label": "S",
+          "evidenceFactIds": [
+            "fLine"
+          ]
+        },
+        {
+          "id": "p",
+          "kind": "point",
+          "label": "P",
+          "evidenceFactIds": [
+            "fP"
+          ]
+        },
+        {
+          "id": "q",
+          "kind": "point",
+          "label": "Q",
+          "evidenceFactIds": [
+            "fQ"
+          ]
+        },
+        {
+          "id": "r",
+          "kind": "point",
+          "label": "R",
+          "evidenceFactIds": [
+            "fR"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "eLeft",
+          "valueType": "function",
+          "root": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+              "kind": "unary",
+              "operator": "-",
+              "operand": {
+                "kind": "number",
+                "value": 3
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "-",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 2
+                },
+                "right": {
+                  "kind": "variable",
+                  "name": "x"
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 1
+              }
+            }
+          },
+          "evidenceFactIds": [
+            "fIneq"
+          ]
+        },
+        {
+          "id": "eRight",
+          "valueType": "function",
+          "root": {
+            "kind": "binary",
+            "operator": "+",
+            "left": {
+              "kind": "variable",
+              "name": "x"
+            },
+            "right": {
+              "kind": "number",
+              "value": 17
+            }
+          },
+          "evidenceFactIds": [
+            "fIneq"
+          ]
+        },
+        {
+          "id": "eBoundary",
+          "valueType": "scalar",
+          "root": {
+            "kind": "binary",
+            "operator": "/",
+            "left": {
+              "kind": "binary",
+              "operator": "-",
+              "left": {
+                "kind": "number",
+                "value": 3
+              },
+              "right": {
+                "kind": "number",
+                "value": 17
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 3
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 2
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 1
+              }
+            }
+          },
+          "evidenceFactIds": [
+            "fIneq"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "id": "cIneq",
+          "kind": "inequality",
+          "leftExpressionId": "eLeft",
+          "rightExpressionId": "eRight",
+          "relation": ">",
+          "evidenceFactIds": [
+            "fIneq"
+          ]
+        }
+      ],
+      "representationIntents": [
+        {
+          "id": "iLine",
+          "kind": "bounded_region",
+          "entityIds": [
+            "numberLine",
+            "solutionSet",
+            "p",
+            "q",
+            "r"
+          ],
+          "evidenceFactIds": [
+            "fLine",
+            "fP",
+            "fQ",
+            "fR",
+            "fMembership",
+            "fIncluded"
+          ]
+        }
+      ],
+      "solveRequests": [
+        {
+          "id": "sBoundary",
+          "kind": "evaluate",
+          "expressionId": "eBoundary",
+          "resultBinding": {
+            "turnPlanQuantityId": "u1",
+            "symbol": "boundary of S",
+            "evidenceFactIds": [
+              "fBoundary"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "rowId": "maths|h3r8-finish-regions|separated-boolean-union|q1",
+    "rep": 1,
+    "turnPlan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "For real x, draw the solution set S of (4x + 5 >= 7x + 8) OR (-2(3x - 1) < -x - 21). OR is inclusive: satisfying either inequality is enough. Label P = -1, Q = 0, R = 23/5, and T = 5, and identify their membership. Show all finite boundaries and their inclusion status.",
+      "visualRequirement": "required",
+      "givens": [
+        {
+          "id": "P",
+          "symbol": "P",
+          "value": -1,
+          "sourceText": "P = -1",
+          "provenance": "given"
+        },
+        {
+          "id": "Q",
+          "symbol": "Q",
+          "value": 0,
+          "sourceText": "Q = 0",
+          "provenance": "given"
+        },
+        {
+          "id": "R",
+          "symbol": "R",
+          "value": 4.6,
+          "sourceText": "R = 23/5",
+          "provenance": "given"
+        },
+        {
+          "id": "T",
+          "symbol": "T",
+          "value": 5,
+          "sourceText": "T = 5",
+          "provenance": "given"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "S",
+          "symbol": "S"
+        },
+        {
+          "id": "b1",
+          "symbol": "b₁"
+        },
+        {
+          "id": "b2",
+          "symbol": "b₂"
+        }
+      ],
+      "derived": [
+        {
+          "id": "b1",
+          "symbol": "b₁",
+          "value": -1,
+          "sourceText": "4x+5≥7x+8 gives −3x≥3, hence x≤−1.",
+          "provenance": "derived"
+        },
+        {
+          "id": "b2",
+          "symbol": "b₂",
+          "value": 4.6,
+          "sourceText": "−2(3x−1)<−x−21 gives 23<5x, hence x>23/5.",
+          "provenance": "derived"
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "set",
+          "claim": "Solution set",
+          "expected": "S = (−∞, −1] ∪ (23/5, ∞).",
+          "relatedQuantityIds": [
+            "S",
+            "b1",
+            "b2"
+          ]
+        },
+        {
+          "id": "boundaries",
+          "claim": "Finite boundaries and inclusion",
+          "expected": "−1 is included (closed); 23/5 is excluded (open).",
+          "relatedQuantityIds": [
+            "b1",
+            "b2"
+          ]
+        },
+        {
+          "id": "membership",
+          "claim": "Membership of labeled points",
+          "expected": "P ∈ S; Q ∉ S; R ∉ S; T ∈ S.",
+          "relatedQuantityIds": [
+            "P",
+            "Q",
+            "R",
+            "T",
+            "S"
+          ]
+        }
+      ],
+      "lawIds": [
+        "linear-inequality-equivalence",
+        "reverse-inequality-on-negative-division",
+        "inclusive-disjunction",
+        "interval-notation"
+      ],
+      "assumptions": []
+    },
+    "problemIR": {
+      "schemaVersion": "problem-ir/v1",
+      "id": "problem",
+      "question": "For real x, draw the solution set S of (4x + 5 >= 7x + 8) OR (-2(3x - 1) < -x - 21). OR is inclusive: satisfying either inequality is enough. Label P = -1, Q = 0, R = 23/5, and T = 5, and identify their membership. Show all finite boundaries and their inclusion status.",
+      "facts": [
+        {
+          "id": "fReal",
+          "kind": "given",
+          "statement": "x is real",
+          "evidence": {
+            "source": "question",
+            "start": 0,
+            "end": 10,
+            "quote": "For real x"
+          }
+        },
+        {
+          "id": "fFirst",
+          "kind": "given",
+          "statement": "First inequality",
+          "evidence": {
+            "source": "question",
+            "start": 40,
+            "end": 56,
+            "quote": "4x + 5 >= 7x + 8"
+          }
+        },
+        {
+          "id": "fSecond",
+          "kind": "given",
+          "statement": "Second inequality",
+          "evidence": {
+            "source": "question",
+            "start": 62,
+            "end": 82,
+            "quote": "-2(3x - 1) < -x - 21"
+          }
+        },
+        {
+          "id": "fOr",
+          "kind": "given",
+          "statement": "Either inequality is sufficient",
+          "evidence": {
+            "source": "question",
+            "start": 85,
+            "end": 141,
+            "quote": "OR is inclusive: satisfying either inequality is enough."
+          }
+        },
+        {
+          "id": "fSet",
+          "kind": "requested",
+          "statement": "Draw the solution set S",
+          "evidence": {
+            "source": "question",
+            "start": 12,
+            "end": 35,
+            "quote": "draw the solution set S"
+          }
+        },
+        {
+          "id": "fP",
+          "kind": "given",
+          "statement": "P equals negative one",
+          "evidence": {
+            "source": "question",
+            "start": 148,
+            "end": 154,
+            "quote": "P = -1"
+          }
+        },
+        {
+          "id": "fQ",
+          "kind": "given",
+          "statement": "Q equals zero",
+          "evidence": {
+            "source": "question",
+            "start": 156,
+            "end": 161,
+            "quote": "Q = 0"
+          }
+        },
+        {
+          "id": "fR",
+          "kind": "given",
+          "statement": "R equals twenty-three fifths",
+          "evidence": {
+            "source": "question",
+            "start": 163,
+            "end": 171,
+            "quote": "R = 23/5"
+          }
+        },
+        {
+          "id": "fT",
+          "kind": "given",
+          "statement": "T equals five",
+          "evidence": {
+            "source": "question",
+            "start": 177,
+            "end": 182,
+            "quote": "T = 5"
+          }
+        },
+        {
+          "id": "fMembership",
+          "kind": "requested",
+          "statement": "Identify labeled points' membership",
+          "evidence": {
+            "source": "question",
+            "start": 188,
+            "end": 213,
+            "quote": "identify their membership"
+          }
+        },
+        {
+          "id": "fBoundaries",
+          "kind": "requested",
+          "statement": "Show finite boundaries and inclusion status",
+          "evidence": {
+            "source": "question",
+            "start": 215,
+            "end": 269,
+            "quote": "Show all finite boundaries and their inclusion status."
+          }
+        }
+      ],
+      "entities": [
+        {
+          "id": "solution",
+          "kind": "region",
+          "label": "S",
+          "evidenceFactIds": [
+            "fSet"
+          ]
+        },
+        {
+          "id": "p",
+          "kind": "point",
+          "label": "P",
+          "evidenceFactIds": [
+            "fP"
+          ]
+        },
+        {
+          "id": "q",
+          "kind": "point",
+          "label": "Q",
+          "evidenceFactIds": [
+            "fQ"
+          ]
+        },
+        {
+          "id": "r",
+          "kind": "point",
+          "label": "R",
+          "evidenceFactIds": [
+            "fR"
+          ]
+        },
+        {
+          "id": "t",
+          "kind": "point",
+          "label": "T",
+          "evidenceFactIds": [
+            "fT"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "firstDifference",
+          "valueType": "function",
+          "root": {
+            "kind": "binary",
+            "operator": "-",
+            "left": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 4
+                },
+                "right": {
+                  "kind": "variable",
+                  "name": "x"
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 5
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 7
+                },
+                "right": {
+                  "kind": "variable",
+                  "name": "x"
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 8
+              }
+            }
+          },
+          "evidenceFactIds": [
+            "fFirst"
+          ]
+        },
+        {
+          "id": "secondDifference",
+          "valueType": "function",
+          "root": {
+            "kind": "binary",
+            "operator": "-",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "unary",
+                "operator": "-",
+                "operand": {
+                  "kind": "number",
+                  "value": 2
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 3
+                  },
+                  "right": {
+                    "kind": "variable",
+                    "name": "x"
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 1
+                }
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "-",
+              "left": {
+                "kind": "unary",
+                "operator": "-",
+                "operand": {
+                  "kind": "variable",
+                  "name": "x"
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 21
+              }
+            }
+          },
+          "evidenceFactIds": [
+            "fSecond"
+          ]
+        }
+      ],
+      "constraints": [],
+      "representationIntents": [
+        {
+          "id": "numberLine",
+          "kind": "bounded_region",
+          "entityIds": [
+            "solution",
+            "p",
+            "q",
+            "r",
+            "t"
+          ],
+          "evidenceFactIds": [
+            "fReal",
+            "fFirst",
+            "fSecond",
+            "fOr",
+            "fSet",
+            "fP",
+            "fQ",
+            "fR",
+            "fT",
+            "fMembership",
+            "fBoundaries"
+          ]
+        }
+      ],
+      "solveRequests": []
+    }
+  },
+  {
+    "rowId": "maths|h3r8-finish-regions|vertical-line-system|q1",
+    "rep": 1,
+    "turnPlan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "Graph the real simultaneous system L1: 4x + 3 = 2x + 8 and L2: 2y - x = 7. Label both lines with equivalent simplified equations, their intercepts where they exist, and the exact intersection P. Explain from the figure how many solutions there are.",
+      "visualRequirement": "required",
+      "givens": [
+        {
+          "id": "a",
+          "symbol": "L1 left x coefficient",
+          "value": 4,
+          "sourceText": "a = 4",
+          "provenance": "given"
+        },
+        {
+          "id": "b",
+          "symbol": "L1 constant",
+          "value": 3,
+          "sourceText": "b = 3",
+          "provenance": "given"
+        },
+        {
+          "id": "c",
+          "symbol": "L1 right x coefficient",
+          "value": 2,
+          "sourceText": "c = 2",
+          "provenance": "given"
+        },
+        {
+          "id": "d",
+          "symbol": "L1 right constant",
+          "value": 8,
+          "sourceText": "d = 8",
+          "provenance": "given"
+        },
+        {
+          "id": "e",
+          "symbol": "L2 y coefficient",
+          "value": 2,
+          "sourceText": "e = 2",
+          "provenance": "given"
+        },
+        {
+          "id": "f",
+          "symbol": "L2 constant",
+          "value": 7,
+          "sourceText": "f = 7",
+          "provenance": "given"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "px",
+          "symbol": "P_x"
+        },
+        {
+          "id": "py",
+          "symbol": "P_y"
+        },
+        {
+          "id": "ix",
+          "symbol": "L2 x-intercept"
+        },
+        {
+          "id": "iy",
+          "symbol": "L2 y-intercept"
+        },
+        {
+          "id": "n",
+          "symbol": "number of solutions"
+        }
+      ],
+      "derived": [
+        {
+          "id": "px",
+          "symbol": "P_x",
+          "value": 2.5,
+          "sourceText": "px = 2.5",
+          "provenance": "derived",
+          "dependsOn": [
+            "a",
+            "b",
+            "c",
+            "d"
+          ]
+        },
+        {
+          "id": "py",
+          "symbol": "P_y",
+          "value": 4.75,
+          "sourceText": "py = 4.75",
+          "provenance": "derived",
+          "dependsOn": [
+            "px",
+            "e",
+            "f"
+          ]
+        },
+        {
+          "id": "ix",
+          "symbol": "L2 x-intercept",
+          "value": -7,
+          "sign": "negative",
+          "sourceText": "ix = -7",
+          "provenance": "derived",
+          "dependsOn": [
+            "f"
+          ]
+        },
+        {
+          "id": "iy",
+          "symbol": "L2 y-intercept",
+          "value": 3.5,
+          "sourceText": "iy = 3.5",
+          "provenance": "derived",
+          "dependsOn": [
+            "e",
+            "f"
+          ]
+        },
+        {
+          "id": "n",
+          "symbol": "number of solutions",
+          "value": 1,
+          "sourceText": "n = 1",
+          "provenance": "derived",
+          "dependsOn": [
+            "px",
+            "py"
+          ]
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "l1",
+          "claim": "Simplified L1 and its intercepts",
+          "expected": "L1: x = 5/2. Its x-intercept is (5/2, 0); it has no y-intercept.",
+          "relatedQuantityIds": [
+            "px"
+          ],
+          "relatedEntityHints": [
+            "L1",
+            "x-axis",
+            "y-axis"
+          ]
+        },
+        {
+          "id": "l2",
+          "claim": "Simplified L2 and its intercepts",
+          "expected": "L2: y = (x + 7)/2. Its x-intercept is (-7, 0), and its y-intercept is (0, 7/2).",
+          "relatedQuantityIds": [
+            "ix",
+            "iy"
+          ],
+          "relatedEntityHints": [
+            "L2",
+            "x-axis",
+            "y-axis"
+          ]
+        },
+        {
+          "id": "intersection",
+          "claim": "Exact intersection and graphical solution count",
+          "expected": "P = (5/2, 19/4). The vertical line L1 and nonvertical line L2 cross once, so the system has exactly one solution.",
+          "relatedQuantityIds": [
+            "px",
+            "py",
+            "n"
+          ],
+          "relatedEntityHints": [
+            "L1",
+            "L2",
+            "P"
+          ]
+        }
+      ],
+      "lawIds": [
+        "equivalent-equation transformations",
+        "coordinate-axis intercept definitions",
+        "substitution",
+        "intersection-solution correspondence"
+      ],
+      "assumptions": []
+    }
+  },
+  {
+    "rowId": "maths|h3r8-finish-regions|negative-strict-ray|q1",
+    "rep": 2,
+    "turnPlan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "Over the real numbers, solve -3(2x - 1) > x + 17. Draw a labelled number line for the solution set S. Label the positions P = -3, Q = -2, and R = 0, and indicate whether each belongs to S. Show clearly whether the boundary is included.",
+      "visualRequirement": "required",
+      "givens": [
+        {
+          "id": "p",
+          "symbol": "P",
+          "value": -3,
+          "sourceText": "p = -3",
+          "provenance": "given"
+        },
+        {
+          "id": "q",
+          "symbol": "Q",
+          "value": -2,
+          "sourceText": "q = -2",
+          "provenance": "given"
+        },
+        {
+          "id": "r",
+          "symbol": "R",
+          "value": 0,
+          "sourceText": "r = 0",
+          "provenance": "given"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "boundary",
+          "symbol": "boundary"
+        }
+      ],
+      "derived": [
+        {
+          "id": "boundary",
+          "symbol": "boundary",
+          "value": -2,
+          "sourceText": "-3(2x - 1) > x + 17 simplifies to -7x > 14; dividing by -7 gives x < -2.",
+          "provenance": "derived",
+          "dependsOn": []
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "solution",
+          "claim": "Solution set",
+          "expected": "S = {x ∈ ℝ : x < -2} = (-∞, -2).",
+          "relatedQuantityIds": [
+            "boundary"
+          ]
+        },
+        {
+          "id": "numberLine",
+          "claim": "Labelled number line",
+          "expected": "Mark P at -3, Q at -2 and R at 0. Use an open circle at Q and indicate all points to its left as S.",
+          "relatedQuantityIds": [
+            "p",
+            "q",
+            "r",
+            "boundary"
+          ]
+        },
+        {
+          "id": "membership",
+          "claim": "Membership",
+          "expected": "P belongs to S; Q and R do not. The boundary Q is excluded because the inequality is strict.",
+          "relatedQuantityIds": [
+            "p",
+            "q",
+            "r",
+            "boundary"
+          ]
+        }
+      ],
+      "lawIds": [
+        "distributive-property",
+        "inequality-division-by-negative-reverses-order",
+        "strict-inequality-excludes-boundary"
+      ],
+      "assumptions": [
+        "Removed 1 invalid planner dependency reference."
+      ]
+    },
+    "problemIR": {
+      "schemaVersion": "problem-ir/v1",
+      "id": "problem",
+      "question": "Over the real numbers, solve -3(2x - 1) > x + 17. Draw a labelled number line for the solution set S. Label the positions P = -3, Q = -2, and R = 0, and indicate whether each belongs to S. Show clearly whether the boundary is included.",
+      "facts": [
+        {
+          "id": "fDomain",
+          "kind": "given",
+          "statement": "The domain is the real numbers.",
+          "evidence": {
+            "source": "question",
+            "start": 0,
+            "end": 21,
+            "quote": "Over the real numbers"
+          }
+        },
+        {
+          "id": "fInequality",
+          "kind": "given",
+          "statement": "The inequality is strict.",
+          "evidence": {
+            "source": "question",
+            "start": 29,
+            "end": 48,
+            "quote": "-3(2x - 1) > x + 17"
+          }
+        },
+        {
+          "id": "fSolve",
+          "kind": "requested",
+          "statement": "Solve the inequality.",
+          "evidence": {
+            "source": "question",
+            "start": 23,
+            "end": 48,
+            "quote": "solve -3(2x - 1) > x + 17"
+          }
+        },
+        {
+          "id": "fLine",
+          "kind": "requested",
+          "statement": "Draw a labelled number line for S.",
+          "evidence": {
+            "source": "question",
+            "start": 50,
+            "end": 100,
+            "quote": "Draw a labelled number line for the solution set S"
+          }
+        },
+        {
+          "id": "fP",
+          "kind": "given",
+          "statement": "P is at -3.",
+          "evidence": {
+            "source": "question",
+            "start": 122,
+            "end": 128,
+            "quote": "P = -3"
+          }
+        },
+        {
+          "id": "fQ",
+          "kind": "given",
+          "statement": "Q is at -2.",
+          "evidence": {
+            "source": "question",
+            "start": 130,
+            "end": 136,
+            "quote": "Q = -2"
+          }
+        },
+        {
+          "id": "fR",
+          "kind": "given",
+          "statement": "R is at 0.",
+          "evidence": {
+            "source": "question",
+            "start": 142,
+            "end": 147,
+            "quote": "R = 0"
+          }
+        },
+        {
+          "id": "fMembership",
+          "kind": "requested",
+          "statement": "Indicate membership of P, Q and R.",
+          "evidence": {
+            "source": "question",
+            "start": 153,
+            "end": 187,
+            "quote": "indicate whether each belongs to S"
+          }
+        },
+        {
+          "id": "fBoundary",
+          "kind": "requested",
+          "statement": "Show whether the boundary is included.",
+          "evidence": {
+            "source": "question",
+            "start": 189,
+            "end": 234,
+            "quote": "Show clearly whether the boundary is included"
+          }
+        }
+      ],
+      "entities": [
+        {
+          "id": "numberLine",
+          "kind": "line",
+          "evidenceFactIds": [
+            "fLine"
+          ]
+        },
+        {
+          "id": "solution",
+          "kind": "region",
+          "label": "S",
+          "evidenceFactIds": [
+            "fLine",
+            "fSolve"
+          ]
+        },
+        {
+          "id": "p",
+          "kind": "point",
+          "label": "P",
+          "evidenceFactIds": [
+            "fP"
+          ]
+        },
+        {
+          "id": "q",
+          "kind": "point",
+          "label": "Q",
+          "evidenceFactIds": [
+            "fQ"
+          ]
+        },
+        {
+          "id": "r",
+          "kind": "point",
+          "label": "R",
+          "evidenceFactIds": [
+            "fR"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "eDifference",
+          "valueType": "function",
+          "root": {
+            "kind": "binary",
+            "operator": "-",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "unary",
+                "operator": "-",
+                "operand": {
+                  "kind": "number",
+                  "value": 3
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 2
+                  },
+                  "right": {
+                    "kind": "variable",
+                    "name": "x"
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 1
+                }
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "variable",
+                "name": "x"
+              },
+              "right": {
+                "kind": "number",
+                "value": 17
+              }
+            }
+          },
+          "evidenceFactIds": [
+            "fInequality"
+          ]
+        },
+        {
+          "id": "eZero",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 0
+          },
+          "evidenceFactIds": [
+            "fInequality"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "id": "cInequality",
+          "kind": "inequality",
+          "leftExpressionId": "eDifference",
+          "rightExpressionId": "eZero",
+          "relation": ">",
+          "evidenceFactIds": [
+            "fInequality"
+          ]
+        }
+      ],
+      "representationIntents": [
+        {
+          "id": "iLine",
+          "kind": "bounded_region",
+          "entityIds": [
+            "numberLine",
+            "solution",
+            "p",
+            "q",
+            "r"
+          ],
+          "evidenceFactIds": [
+            "fLine",
+            "fP",
+            "fQ",
+            "fR",
+            "fMembership",
+            "fBoundary",
+            "fInequality"
+          ]
+        }
+      ],
+      "solveRequests": [
+        {
+          "id": "sBoundary",
+          "kind": "roots",
+          "expressionId": "eDifference",
+          "variable": "x",
+          "domain": {
+            "min": -100,
+            "max": 100
+          },
+          "resultBinding": {
+            "turnPlanQuantityId": "boundary",
+            "symbol": "boundary",
+            "evidenceFactIds": [
+              "fSolve",
+              "fInequality"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "rowId": "maths|h3r8-finish-regions|separated-boolean-union|q1",
+    "rep": 2,
+    "turnPlan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "For real x, draw the solution set S of (4x + 5 >= 7x + 8) OR (-2(3x - 1) < -x - 21). OR is inclusive: satisfying either inequality is enough. Label P = -1, Q = 0, R = 23/5, and T = 5, and identify their membership. Show all finite boundaries and their inclusion status.",
+      "visualRequirement": "required",
+      "givens": [
+        {
+          "id": "p",
+          "symbol": "P",
+          "value": -1,
+          "sourceText": "P = -1",
+          "provenance": "given"
+        },
+        {
+          "id": "q",
+          "symbol": "Q",
+          "value": 0,
+          "sourceText": "Q = 0",
+          "provenance": "given"
+        },
+        {
+          "id": "r",
+          "symbol": "R",
+          "value": 4.6,
+          "sourceText": "R = 23/5",
+          "provenance": "given"
+        },
+        {
+          "id": "t",
+          "symbol": "T",
+          "value": 5,
+          "sourceText": "T = 5",
+          "provenance": "given"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "b1",
+          "symbol": "left boundary"
+        },
+        {
+          "id": "b2",
+          "symbol": "right boundary"
+        }
+      ],
+      "derived": [
+        {
+          "id": "b1",
+          "symbol": "left boundary",
+          "value": -1,
+          "sourceText": "4x+5≥7x+8 ⇒ -3x≥3 ⇒ x≤-1",
+          "provenance": "derived",
+          "dependsOn": [
+            "p"
+          ]
+        },
+        {
+          "id": "b2",
+          "symbol": "right boundary",
+          "value": 4.6,
+          "sourceText": "-2(3x-1)<-x-21 ⇒ -6x+2<-x-21 ⇒ 23<5x ⇒ x>23/5",
+          "provenance": "derived",
+          "dependsOn": [
+            "r"
+          ]
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "solution",
+          "claim": "Solution set",
+          "expected": "S = (-∞,-1] ∪ (23/5,∞). On a number line, shade leftward from a filled point at P and rightward from an open point at R.",
+          "relatedQuantityIds": [
+            "b1",
+            "b2"
+          ],
+          "relatedEntityHints": [
+            "number line"
+          ]
+        },
+        {
+          "id": "membership",
+          "claim": "Membership of labeled points",
+          "expected": "P ∈ S; Q ∉ S; R ∉ S; T ∈ S.",
+          "relatedQuantityIds": [
+            "p",
+            "q",
+            "r",
+            "t"
+          ]
+        },
+        {
+          "id": "boundaries",
+          "claim": "All finite boundaries and inclusion",
+          "expected": "P = -1 is included; R = 23/5 is excluded. There are no other finite boundaries.",
+          "relatedQuantityIds": [
+            "b1",
+            "b2"
+          ]
+        }
+      ],
+      "lawIds": [
+        "equivalent-inequality-transformations",
+        "inequality-reversal-on-negative-division",
+        "inclusive-OR-as-set-union"
+      ],
+      "assumptions": []
+    },
+    "problemIR": {
+      "schemaVersion": "problem-ir/v1",
+      "id": "problem",
+      "question": "For real x, draw the solution set S of (4x + 5 >= 7x + 8) OR (-2(3x - 1) < -x - 21). OR is inclusive: satisfying either inequality is enough. Label P = -1, Q = 0, R = 23/5, and T = 5, and identify their membership. Show all finite boundaries and their inclusion status.",
+      "facts": [
+        {
+          "id": "fDomain",
+          "kind": "given",
+          "statement": "x is real",
+          "evidence": {
+            "source": "question",
+            "start": 0,
+            "end": 10,
+            "quote": "For real x"
+          }
+        },
+        {
+          "id": "fLeft",
+          "kind": "given",
+          "statement": "First inequality is inclusive",
+          "evidence": {
+            "source": "question",
+            "start": 40,
+            "end": 56,
+            "quote": "4x + 5 >= 7x + 8"
+          }
+        },
+        {
+          "id": "fRight",
+          "kind": "given",
+          "statement": "Second inequality is strict",
+          "evidence": {
+            "source": "question",
+            "start": 62,
+            "end": 82,
+            "quote": "-2(3x - 1) < -x - 21"
+          }
+        },
+        {
+          "id": "fOr",
+          "kind": "given",
+          "statement": "Either inequality suffices",
+          "evidence": {
+            "source": "question",
+            "start": 85,
+            "end": 140,
+            "quote": "OR is inclusive: satisfying either inequality is enough"
+          }
+        },
+        {
+          "id": "fP",
+          "kind": "given",
+          "statement": "P equals negative one",
+          "evidence": {
+            "source": "question",
+            "start": 148,
+            "end": 154,
+            "quote": "P = -1"
+          }
+        },
+        {
+          "id": "fQ",
+          "kind": "given",
+          "statement": "Q equals zero",
+          "evidence": {
+            "source": "question",
+            "start": 156,
+            "end": 161,
+            "quote": "Q = 0"
+          }
+        },
+        {
+          "id": "fR",
+          "kind": "given",
+          "statement": "R equals twenty-three fifths",
+          "evidence": {
+            "source": "question",
+            "start": 163,
+            "end": 171,
+            "quote": "R = 23/5"
+          }
+        },
+        {
+          "id": "fT",
+          "kind": "given",
+          "statement": "T equals five",
+          "evidence": {
+            "source": "question",
+            "start": 177,
+            "end": 182,
+            "quote": "T = 5"
+          }
+        },
+        {
+          "id": "fDraw",
+          "kind": "requested",
+          "statement": "Draw the solution set",
+          "evidence": {
+            "source": "question",
+            "start": 12,
+            "end": 35,
+            "quote": "draw the solution set S"
+          }
+        },
+        {
+          "id": "fMembership",
+          "kind": "requested",
+          "statement": "Identify labeled points' membership",
+          "evidence": {
+            "source": "question",
+            "start": 188,
+            "end": 213,
+            "quote": "identify their membership"
+          }
+        },
+        {
+          "id": "fBoundaries",
+          "kind": "requested",
+          "statement": "Show finite boundaries and inclusion status",
+          "evidence": {
+            "source": "question",
+            "start": 215,
+            "end": 268,
+            "quote": "Show all finite boundaries and their inclusion status"
+          }
+        }
+      ],
+      "entities": [
+        {
+          "id": "numberLine",
+          "kind": "line",
+          "evidenceFactIds": [
+            "fDomain",
+            "fDraw"
+          ]
+        },
+        {
+          "id": "solution",
+          "kind": "region",
+          "label": "S",
+          "evidenceFactIds": [
+            "fDraw"
+          ]
+        },
+        {
+          "id": "pointP",
+          "kind": "point",
+          "label": "P",
+          "evidenceFactIds": [
+            "fP"
+          ]
+        },
+        {
+          "id": "pointQ",
+          "kind": "point",
+          "label": "Q",
+          "evidenceFactIds": [
+            "fQ"
+          ]
+        },
+        {
+          "id": "pointR",
+          "kind": "point",
+          "label": "R",
+          "evidenceFactIds": [
+            "fR"
+          ]
+        },
+        {
+          "id": "pointT",
+          "kind": "point",
+          "label": "T",
+          "evidenceFactIds": [
+            "fT"
+          ]
+        }
+      ],
+      "expressions": [
+        {
+          "id": "eLeftDifference",
+          "valueType": "function",
+          "root": {
+            "kind": "binary",
+            "operator": "-",
+            "left": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 4
+                },
+                "right": {
+                  "kind": "variable",
+                  "name": "x"
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 5
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 7
+                },
+                "right": {
+                  "kind": "variable",
+                  "name": "x"
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 8
+              }
+            }
+          },
+          "evidenceFactIds": [
+            "fLeft"
+          ]
+        },
+        {
+          "id": "eRightDifference",
+          "valueType": "function",
+          "root": {
+            "kind": "binary",
+            "operator": "-",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "unary",
+                "operator": "-",
+                "operand": {
+                  "kind": "number",
+                  "value": 2
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 3
+                  },
+                  "right": {
+                    "kind": "variable",
+                    "name": "x"
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 1
+                }
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "-",
+              "left": {
+                "kind": "unary",
+                "operator": "-",
+                "operand": {
+                  "kind": "variable",
+                  "name": "x"
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 21
+              }
+            }
+          },
+          "evidenceFactIds": [
+            "fRight"
+          ]
+        },
+        {
+          "id": "eZero",
+          "valueType": "scalar",
+          "root": {
+            "kind": "number",
+            "value": 0
+          },
+          "evidenceFactIds": [
+            "fLeft",
+            "fRight"
+          ]
+        }
+      ],
+      "constraints": [
+        {
+          "id": "cLeft",
+          "kind": "inequality",
+          "leftExpressionId": "eLeftDifference",
+          "rightExpressionId": "eZero",
+          "relation": ">=",
+          "evidenceFactIds": [
+            "fLeft"
+          ]
+        },
+        {
+          "id": "cRight",
+          "kind": "inequality",
+          "leftExpressionId": "eRightDifference",
+          "rightExpressionId": "eZero",
+          "relation": "<",
+          "evidenceFactIds": [
+            "fRight"
+          ]
+        }
+      ],
+      "representationIntents": [
+        {
+          "id": "iSolution",
+          "kind": "bounded_region",
+          "entityIds": [
+            "numberLine",
+            "solution",
+            "pointP",
+            "pointQ",
+            "pointR",
+            "pointT"
+          ],
+          "evidenceFactIds": [
+            "fDomain",
+            "fDraw",
+            "fP",
+            "fQ",
+            "fR",
+            "fT",
+            "fMembership",
+            "fBoundaries"
+          ]
+        }
+      ],
+      "solveRequests": [
+        {
+          "id": "sLeftBoundary",
+          "kind": "roots",
+          "expressionId": "eLeftDifference",
+          "variable": "x",
+          "domain": {
+            "min": -10,
+            "max": 10
+          },
+          "resultBinding": {
+            "turnPlanQuantityId": "b1",
+            "symbol": "left boundary",
+            "evidenceFactIds": [
+              "fBoundaries"
+            ]
+          }
+        },
+        {
+          "id": "sRightBoundary",
+          "kind": "roots",
+          "expressionId": "eRightDifference",
+          "variable": "x",
+          "domain": {
+            "min": -10,
+            "max": 10
+          },
+          "resultBinding": {
+            "turnPlanQuantityId": "b2",
+            "symbol": "right boundary",
+            "evidenceFactIds": [
+              "fBoundaries"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "rowId": "maths|h3r8-finish-regions|vertical-line-system|q1",
+    "rep": 2,
+    "turnPlan": {
+      "schemaVersion": "turn-plan/v3",
+      "question": "Graph the real simultaneous system L1: 4x + 3 = 2x + 8 and L2: 2y - x = 7. Label both lines with equivalent simplified equations, their intercepts where they exist, and the exact intersection P. Explain from the figure how many solutions there are.",
+      "visualRequirement": "required",
+      "givens": [
+        {
+          "id": "g1",
+          "symbol": "L1 left x coefficient",
+          "value": 4,
+          "sourceText": "g1 = 4",
+          "provenance": "given"
+        },
+        {
+          "id": "g2",
+          "symbol": "L1 left constant",
+          "value": 3,
+          "sourceText": "g2 = 3",
+          "provenance": "given"
+        },
+        {
+          "id": "g3",
+          "symbol": "L1 right x coefficient",
+          "value": 2,
+          "sourceText": "g3 = 2",
+          "provenance": "given"
+        },
+        {
+          "id": "g4",
+          "symbol": "L1 right constant",
+          "value": 8,
+          "sourceText": "g4 = 8",
+          "provenance": "given"
+        },
+        {
+          "id": "g5",
+          "symbol": "L2 y coefficient",
+          "value": 2,
+          "sourceText": "g5 = 2",
+          "provenance": "given"
+        },
+        {
+          "id": "g6",
+          "symbol": "L2 constant",
+          "value": 7,
+          "sourceText": "g6 = 7",
+          "provenance": "given"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "u1",
+          "symbol": "P_x"
+        },
+        {
+          "id": "u2",
+          "symbol": "P_y"
+        },
+        {
+          "id": "u3",
+          "symbol": "L2 x-intercept coordinate"
+        },
+        {
+          "id": "u4",
+          "symbol": "L2 y-intercept coordinate"
+        }
+      ],
+      "derived": [
+        {
+          "id": "u1",
+          "symbol": "P_x",
+          "value": 2.5,
+          "sourceText": "4x+3=2x+8 gives x=5/2.",
+          "provenance": "derived",
+          "dependsOn": [
+            "g1",
+            "g2",
+            "g3",
+            "g4"
+          ]
+        },
+        {
+          "id": "u2",
+          "symbol": "P_y",
+          "value": 4.75,
+          "sourceText": "2y−5/2=7 gives y=19/4.",
+          "provenance": "derived",
+          "dependsOn": [
+            "u1",
+            "g5",
+            "g6"
+          ]
+        },
+        {
+          "id": "u3",
+          "symbol": "L2 x-intercept coordinate",
+          "value": -7,
+          "sign": "negative",
+          "sourceText": "At y=0, 2y−x=7 gives x=−7.",
+          "provenance": "derived",
+          "dependsOn": [
+            "g5",
+            "g6"
+          ]
+        },
+        {
+          "id": "u4",
+          "symbol": "L2 y-intercept coordinate",
+          "value": 3.5,
+          "sourceText": "At x=0, 2y−x=7 gives y=7/2.",
+          "provenance": "derived",
+          "dependsOn": [
+            "g5",
+            "g6"
+          ]
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "c1",
+          "claim": "Label L1 with its simplified equation.",
+          "expected": "x=5/2, a vertical line; its x-intercept is (5/2,0), and it has no y-intercept.",
+          "relatedQuantityIds": [
+            "u1"
+          ]
+        },
+        {
+          "id": "c2",
+          "claim": "Label L2 with its simplified equation and intercepts.",
+          "expected": "y=(x+7)/2; its intercepts are (−7,0) and (0,7/2).",
+          "relatedQuantityIds": [
+            "u3",
+            "u4"
+          ]
+        },
+        {
+          "id": "c3",
+          "claim": "Mark the exact intersection and state the number of solutions.",
+          "expected": "P=(5/2,19/4). The figure shows exactly one solution because the two nonparallel lines cross once.",
+          "relatedQuantityIds": [
+            "u1",
+            "u2"
+          ]
+        }
+      ],
+      "lawIds": [
+        "equivalent-equations",
+        "axis-intercepts",
+        "substitution",
+        "intersection-of-nonparallel-lines"
+      ],
+      "assumptions": []
+    }
+  }
+]

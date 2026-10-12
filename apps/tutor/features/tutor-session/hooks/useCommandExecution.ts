@@ -302,6 +302,9 @@ export function useCommandExecution({
           return Promise.resolve();
         }
         if (rawCommand.visualStyle?.fillRole === "region") {
+          if (rawCommand.visualStyle.strokeWidth === 0) return wb.drawAnnotation("highlight", path, duration, {
+            inkSettings, fillColor: "#9CCBFF", fillOpacity: 0.18, shouldCancel: commandCancelled,
+          });
           return Promise.all([
             wb.drawAnnotation("highlight", path, duration, {
               inkSettings,
@@ -335,6 +338,7 @@ export function useCommandExecution({
           dashed: shapeOptions?.dashed
             ?? rawCommand.visualStyle?.dashed
             ?? rawCommand.visualStyle?.correspondingFamily === 3,
+          pointStyle: shapeOptions?.pointStyle ?? rawCommand.visualStyle?.pointStyle,
           shouldCancel: commandCancelled,
         });
       };

@@ -711,6 +711,7 @@ function lectureRun(rawText: string, labelByEntity: Record<string, string>): Lec
     solver: null,
     diagram: {
       plannerDeclineReason: null, plannerDeclines: [], rejectedOperatorCalls: [],
+      candidateRejections: [], rejectionEvidenceTruncation: { candidateRecords: 0, candidateIssues: 0, operatorRecords: 0 },
       committed: true,
       declinedUnreadable: false,
       tier: "exact_verified",
