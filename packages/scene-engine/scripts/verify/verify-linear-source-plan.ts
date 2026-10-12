@@ -50,10 +50,10 @@ intermediate.unknowns = [];
 assert.deepEqual(validateLinearSourcePlan(question, intermediate), [], "Unrelated intermediates retain the existing audit; no guessed corner/objective symbol join"); checks++;
 const noAnswer = plan(question, []);
 assert.deepEqual(validateLinearSourcePlan(question, noAnswer), [], "Missing finite answers do not invent numeric contradictions"); checks++;
-refused(question, [["perimeter", 999]], "A finite requested answer cannot hide behind an unproved source role");
+accepted(question, [["perimeter", 999]], "An unproved perimeter role stays with the existing planner/solver checks");
 refused(question, [["answer", 21]], "A correct derived source alias cannot change the semantic role of its unproved unknown", candidate => { candidate.derived[0]!.symbol = "Z"; });
-refused(question.replace("Z=3x+2y", "3x+2y"), [["Z", 999]], "Unlabelled source does not certify a planner invented Z alias");
-refused(question.replace("Z=3x+2y", "3x+2y"), [["Z", 21]], "Even a numerically correct unlabelled Z role is unproved");
+accepted(question.replace("Z=3x+2y", "3x+2y"), [["Z", 999]], "Unlabelled source does not supply authority to veto an unrelated planner alias");
+accepted(question.replace("Z=3x+2y", "3x+2y"), [["Z", 21]], "An unproved alias does not veto a correct planner answer");
 accepted(question.replace("Z=3x+2y", "3x+2y"), [["maximum", 21]], "Explicit maximum role binds the native source sense without inventing an objective label");
 accepted(question, [["maximum", 21], ["max", 21]], "Source maximum semantic role is independently recomputed");
 refused(question, [["maximum", 999]], "Stale requested maximum semantic role");
@@ -107,13 +107,13 @@ accepted("Solve the pair x+y=6 and x-y=2 by the graphical method. Find x and y."
 accepted("Solve the pair x+y=6 and x-y=2 by the graphical method. Find the values of y and x.", [["x", 4], ["y", 2]], "Reordered direct original variables remain the same source pair");
 for (const suffix of ["find the coordinates of Q.", "find twice the coordinates of P.", "find the exact coordinates of P in centimeters.", "find its coordinates."]) {
   const source = `The lines x+y=6 and x-y=2 meet at P. Mark Q=(1,1) and ${suffix}`;
-  if (buildLinearSourceDocument(source)) refused(source, [["x_P", 4], ["y_P", 2]], `A tuple query cannot erase target/modifier/unit provenance: ${suffix}`);
+  if (buildLinearSourceDocument(source)) accepted(source, [["x_P", 4], ["y_P", 2]], `Unsupported tuple semantics stay with existing planner/solver authority: ${suffix}`);
   else { assert.equal(buildLinearSourceDocument(source), null); checks++; }
 }
 refused(sys07, [["x_P", 7]], "Incorrect intersection scalar");
 refused(sys07, [["y_P", 6]], "Wrong intermediate coordinate");
-refused(sys07, [["x_Q", 6]], "Planner cannot rename the certified intersection");
-for (const symbol of ["xP", "x(P)", "answer", "perimeter"]) refused(sys07, [[symbol, 999]], `A finite requested system answer requires a proved source coordinate role: ${symbol}`);
+accepted(sys07, [["x_Q", 6]], "An unproved different point alias does not borrow source intersection authority");
+for (const symbol of ["xP", "x(P)", "answer", "perimeter"]) accepted(sys07, [[symbol, 999]], `An unproved alias cannot supply a source-plan veto: ${symbol}`);
 refused(sys07, [["xP", 6]], "No numeric/symbol similarity can prove an unsupported unknown alias", candidate => { candidate.derived[0]!.symbol = "x_P"; });
 const systemIntermediate = plan(sys07, [["perimeter", 999]]);
 systemIntermediate.unknowns = [];
@@ -131,7 +131,7 @@ for (const suffix of [
   "find its x-coordinate in centimeters.",
 ]) {
   const source = `The lines x+y=6 and x-y=2 meet at P. Graph both lines and ${suffix}`;
-  if (buildLinearSourceDocument(source)) refused(source, [["x_P", 4]], `Full coordinate request semantics: ${suffix}`);
+  if (buildLinearSourceDocument(source)) accepted(source, [["x_P", 4]], `Unsupported transformed coordinate request stays with existing planner/solver authority: ${suffix}`);
   else { assert.equal(buildLinearSourceDocument(source), null, `Unsupported full query can never obtain native source admission: ${suffix}`); checks++; }
 }
 accepted("The lines x+y=6 and x-y=2 meet at P. Mark Q=(1,1) and find the x-coordinate of P.", [["x_P", 4], ["y_P", 2]], "Explicit correct intersection target is distinguished from unrelated original reference point");

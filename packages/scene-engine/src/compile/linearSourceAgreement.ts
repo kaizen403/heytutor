@@ -167,7 +167,14 @@ export function validateLinearSourcePlan(question: string, rawPlan: unknown): Sc
           return { key: `intercept:${intercept.label}:${intercept.variable}`, exact: coefficient.n === 0n ? null : serializeRational(divideRational(deserializeRational(row.rhs), coefficient)) };
         }
         const role = readSourceLinearCoordinate(question, rawSymbol, { requireRequestedVariable: false, allowFixedCoordinate: true });
-        return role ? { key: `coordinate:${role.variable}`, exact: role.coordinate } : null;
+        if (role) return { key: `coordinate:${role.variable}`, exact: role.coordinate };
+        // The complete native two-equation program itself gives canonical
+        // x/y their coordinate identity. A direct intersection request need
+        // not use the scalar-request reader's narrower "find x and y" prose.
+        // Arbitrary aliases and transformed requests obtain no such join.
+        return /^[xy]$/.test(symbol) && system.relation === "unique" && system.intersection
+          ? { key: `coordinate:${symbol}`, exact: system.intersection[symbol as "x" | "y"] }
+          : null;
       };
       for (const quantity of quantities) {
         const symbol = normalizeSymbol(quantity.symbol);
@@ -175,11 +182,17 @@ export function validateLinearSourcePlan(question: string, rawPlan: unknown): Sc
         const role = sourceRole(quantity.symbol);
         if (quantity.path.startsWith("derived[") && declared) {
           const declaredRole = sourceRole(declared.symbol);
-          if (!declaredRole || !role || declaredRole.key !== role.key) {
+          if ((declaredRole || role) && (!declaredRole || !role || declaredRole.key !== role.key)) {
             issues.push(fatal("linear_source_plan_binding_mismatch", `Finite requested answer '${quantity.id}' ('${declared.symbol}' -> '${symbol}') does not preserve the same proved original-source coordinate role`, quantity.path));
           }
         }
-        if (role || /^[xy](?:_[A-Za-z][A-Za-z0-9_]*)?$/.test(symbol)) check(symbol, quantity.unit, quantity.value, quantity.path, role?.exact ?? null, role?.key ?? "source system coordinate");
+        if (role) check(symbol, quantity.unit, quantity.value, quantity.path, role.exact, role.key);
+        // A source-proved empty or non-singleton solution is not a finite
+        // intersection. This is different from an unsupported query/alias,
+        // which remains owned by the existing planner and solver checks.
+        else if (system.relation !== "unique" && /^[xy]$/.test(symbol)) {
+          check(symbol, quantity.unit, quantity.value, quantity.path, null, "non-unique source system coordinate");
+        }
       }
     } else {
       const { constraints, objective } = construction.inputs;
@@ -248,8 +261,8 @@ export function validateLinearSourcePlan(question: string, rawPlan: unknown): Sc
         if (quantity.path.startsWith("derived[") && declared) {
           const declaredSymbol = normalizeSymbol(declared.symbol);
           const declaredRole = sourceRole(declaredSymbol);
-          if (!declaredRole || !role) issues.push(fatal("linear_source_plan_role_unproved", `Finite requested answer '${quantity.id}' ('${declaredSymbol}' -> '${symbol}') has no original-source objective or unique optimal-coordinate role`, quantity.path));
-          else if (declaredRole.key !== role.key) issues.push(fatal("linear_source_plan_binding_mismatch", `Finite requested answer '${quantity.id}' changes original-source numeric role '${declaredSymbol}' to '${symbol}'`, quantity.path));
+          if ((declaredRole || role) && (!declaredRole || !role)) issues.push(fatal("linear_source_plan_binding_mismatch", `Finite requested answer '${quantity.id}' ('${declaredSymbol}' -> '${symbol}') changes a proved original-source numeric role`, quantity.path));
+          else if (declaredRole && role && declaredRole.key !== role.key) issues.push(fatal("linear_source_plan_binding_mismatch", `Finite requested answer '${quantity.id}' changes original-source numeric role '${declaredSymbol}' to '${symbol}'`, quantity.path));
         }
       }
     }
