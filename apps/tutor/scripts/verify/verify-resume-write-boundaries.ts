@@ -205,7 +205,7 @@ for (const type of DRAW_COMMAND_TYPES) {
       `whole repair cannot swallow the recognized ${type} boundary into a work row`);
   }
 }
-for (const tag of ["[TYPE:s1b4]", "[FRAME:input]", "[CLEAR:board]"]) {
+for (const tag of ["[TYPE:s1b4]", "[TYPE,s1b4]", "[FRAME:input]", "[CLEAR:board]"]) {
   const source = `[STEP]Incomplete work. [WRITE]missing ${tag} junk,90,274[/STEP]`;
   for (const width of [1, 3, source.length]) {
     assert(!row(consume(source, width).parsed).some(command => command.text?.startsWith("missing")),

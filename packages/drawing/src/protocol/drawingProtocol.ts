@@ -145,7 +145,9 @@ const WRITE_LABEL_BODY_BREAK_PATTERN = new RegExp(TEXT_BODY_BOUNDARY, 'iu');
 // In this malformed spelling, a command followed by numeric coordinates or
 // a colon still stops repair. A two-word comma list (e.g. [clear, undo]) is
 // text, while semantic tags retain their boundaries even with word arguments.
-const HEADER_ONLY_BODY_BOUNDARY = String.raw`\[\s*(?:${SEMANTIC_TEXT_COMMANDS})\s*(?=[:,])|\[\s*(?:${DRAW_COMMAND_TYPES.join('|')})\s*(?::|,(?!\s*[\p{L}_][\p{L}\p{N}_]*\s*\]))|\[(?:STEP|\/STEP)\]|(?<![\p{L}\p{N}_$)\]])\[(?:WRITE|LABEL|DIMENSION)\]`;
+// TYPE also takes a symbolic code-block id, so either separator must keep it
+// as a command when there is no canonical outer row bracket.
+const HEADER_ONLY_BODY_BOUNDARY = String.raw`\[\s*(?:${SEMANTIC_TEXT_COMMANDS}|TYPE)\s*(?=[:,])|\[\s*(?:${DRAW_COMMAND_TYPES.join('|')})\s*(?::|,(?!\s*[\p{L}_][\p{L}\p{N}_]*\s*\]))|\[(?:STEP|\/STEP)\]|(?<![\p{L}\p{N}_$)\]])\[(?:WRITE|LABEL|DIMENSION)\]`;
 
 /**
  * `[WRITE]text,x,y` instead of `[WRITE:text,x,y]`.
