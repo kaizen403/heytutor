@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { getSegmentCommands, serializeSegmentCommands, verifiedDiagramCommandToDrawCommand, type DrawCommand, type TutorSegment } from "@heytutor/drawing";
-import { mathToSpeech, voiceSettingsForDelivery, normalizeTutorQuestion, type SpeakSegmentOptions, type TTSClient } from "@heytutor/tutor-core";
+import { mathToSpeech, voiceSettingsForDelivery, normalizeTutorQuestion, TUTOR_SYSTEM_PROMPT, type SpeakSegmentOptions, type TTSClient } from "@heytutor/tutor-core";
 import { validateTurnPlanV3, synthesizeFamilyScene, type TurnPlanV3, type ProblemIR } from "@heytutor/scene-engine";
 import { selectFastVerifiedRepresentation } from "../../features/tutor-session/lib/scene/representationFallback";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
@@ -106,6 +106,8 @@ type Event = { atMs: number; name: string; data?: unknown };
 const HELD_PLANNER_MS = 15_000;
 export interface FrozenStartupFixture {
   plan: TurnPlanV3;
+  /** Require the real Given-row request and committed WRITE path, not a no-givens prompt. */
+  requireGivenRows?: boolean;
   /** A test-only fault at the actual selector boundary proves the parity gate is red-capable. */
   dropSelectedFigureWhenEarly?: boolean;
 }
@@ -616,12 +618,26 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       assert.equal(streams.length, 1, "the frozen planner must still start exactly one teaching request");
       const teachingBody = teachingRequestBodies[0]!;
       const teachingSystem = teachingBody.messages.find((message) => message.role === "system")!.content;
+      if (fixture?.requireGivenRows) {
+        assert(teachingSystem.includes("GIVEN VALUES ARE ALREADY ON THE BOARD"),
+          "the numeric fixture must exercise the actual generated Given-row addon");
+        assert(teachingSystem.includes("Do not rewrite those givens as a second list"),
+          "acknowledgement framing must preserve runtime ownership of the Given rows");
+      }
       if (earlyEnabled) {
         assert(!teachingSystem.includes("THE LESSON HAS ALREADY BEEN OPENED"),
           "an acknowledgement must not falsely claim question framing was already spoken");
+        assert(!teachingSystem.includes("naming what the question asks for"),
+          "the actual ON base prompt must not claim question framing was already spoken");
+        assert(!teachingSystem.includes("do not say what the question asks for again"),
+          "the actual ON base prompt must not forbid the still-required question framing");
+        assert(!teachingSystem.includes("The runtime already spoke the opening line"),
+          "the actual ON Given-row addon must not falsely claim a question-specific opening");
         assert(teachingSystem.includes("briefly identify what this question asks"),
           "the actual teaching request still asks for question-specific framing after the acknowledgement");
       } else {
+        assert(teachingSystem.startsWith(`${TUTOR_SYSTEM_PROMPT}\n\n--- current lesson (runtime) ---\n`),
+          "OFF retains every byte of the existing tutor base prompt");
         assert(teachingSystem.includes("THE LESSON HAS ALREADY BEEN OPENED"), "OFF retains its legacy spoken framing policy");
       }
       content(0, "[STEP]We identify what the question asks us to establish.[WRITE:Identify the target,80,150][/STEP]");
@@ -634,6 +650,11 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       }
       await pump(() => done);
       await turn;
+      if (fixture?.requireGivenRows) {
+        assert(events.some((event) => event.name === "board-command" &&
+          (event.data as DrawCommand).type === "WRITE" && (event.data as DrawCommand).text?.startsWith("Given:")),
+        "the numeric fixture must commit real runtime Given rows after release, not only a prompt marker");
+      }
       assert(!events.some((event) => event.name === "turn-error"));
       assert.equal(events.filter((event) => event.name === "enqueue" && (event.data as TutorSegment).delivery === "opening").length, 1,
         "the acknowledgement replaces, rather than duplicates, the legacy opening");
@@ -1011,6 +1032,10 @@ async function main() {
       console.log("verify-startup-turn:", "drawing" in result
         ? { mode: result.mode, early: result.early, figureDrawn: result.figureDrawn, drawingCount: result.drawing?.length ?? 0 }
         : result);
+      if (mode === "early-pause") {
+        await scenario(mode, hedge, true, { plan: numericPlan, requireGivenRows: true });
+        console.log("verify-startup-turn:", { mode, numeric_given_request_and_rows: true });
+      }
     }
     catch (error) {
       console.error(`verify-startup-turn: ${label}`, error);

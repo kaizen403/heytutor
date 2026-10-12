@@ -53,7 +53,7 @@ function reactSlots() {
   return { api, render<T>(fn: () => T): T { cursor = 0; const value = fn(); const ready = effects; effects = []; ready.forEach((run) => run()); return value; } };
 }
 
-function mount(codeLesson = false) {
+function mount(codeLesson = false, transformSource?: (source: string) => string) {
   const slots = reactSlots();
   const speaking = ref(opening.narration);
   const page = ref<BoardPageRecord | null>({ ...lessonPageRecord("restart-board", question), earlyOpeningStarted: true });
@@ -82,22 +82,24 @@ function mount(codeLesson = false) {
   const ownerProbes: string[] = [];
   const probeOwner = ref(async () => { ownerProbes.push(params.sessionId); return owner.current; });
   const admissionPending = ref(false);
+  const endedMirror = ref<StoredTurn[] | null>(null);
   const handle = ref(async (text: string, options?: HandleQuestionOptions) => { asked.push({ question: text, options }); });
   const filename = path.join(app, "features/tutor-session/hooks/turn/useTurnControl.ts");
-  const compiled = ts.transpileModule(readFileSync(filename, "utf8"), {
+  const source = readFileSync(filename, "utf8");
+  const compiled = ts.transpileModule(transformSource?.(source) ?? source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const mod = { exports: {} as { useTurnControl?: (...args: unknown[]) => TurnControlApi } };
   const localRequire = (specifier: string) => {
     if (specifier === "react") return slots.api;
-    if (specifier.endsWith("/turn/liveTurnSave")) return { liveTurnSave: () => ({ captureShown: noop, closeOwner: noop, turnIdFor: () => "opening-parent", isLiveHere: () => false, resumeTurns: (_board: string, turns: unknown) => turns }) };
+    if (specifier.endsWith("/turn/liveTurnSave")) return { liveTurnSave: () => ({ captureShown: noop, closeOwner: noop, turnIdFor: () => "opening-parent", isLiveHere: () => false, resumeTurns: (_board: string, turns: unknown) => endedMirror.current ?? turns }) };
     if (specifier.endsWith("/turn/lessonOwnership")) return { lessonAdmission: () => ({ probe: () => probeOwner.current(), cancel: noop, hasAttempt: () => admissionPending.current }) };
     if (specifier === "./useSegmentRunner") return { useSegmentRunner: () => ({ runSegment: async () => {}, pauseFallbackSpeech: noop, resumeFallbackSpeech: noop, stopFallbackSpeech: noop, speakingNarrationRef: speaking }) };
     return requireApp(specifier.startsWith("@/") ? path.join(app, specifier.slice(2)) : specifier.startsWith(".") ? path.resolve(path.dirname(filename), specifier) : specifier);
   };
   new Function("require", "module", "exports", "setTimeout", "clearTimeout", compiled)(localRequire, mod, mod.exports, () => 1, noop);
   const render = () => slots.render(() => mod.exports.useTurnControl!({ ...params, phase: params.phaseRef.current }, handle));
-  return { params, asked, render, handle, owner, ownerProbes, probeOwner, admissionPending, speaking, control: render() };
+  return { params, asked, render, handle, owner, ownerProbes, probeOwner, admissionPending, endedMirror, speaking, control: render() };
 }
 
 function restartButton(control: TurnControlApi) {
@@ -384,6 +386,42 @@ async function main() {
     assert.equal(shell.render().earlyLessonRestartOffer, false,
       "a stopped replay reached during an ownership read invalidates that stale restore");
   }
+  // Main's ended local save is newer than an empty authenticated read. Its
+  // mirror must be captured before the ownership probe can clear the offer.
+  {
+    const shell = mount(); idleRuntime(shell);
+    shell.endedMirror.current = [savedLesson];
+    await shell.control.restorePausedLesson([]);
+    assert.equal(shell.render().earlyLessonRestartOffer, true,
+      "an ended local save mirror survives an empty stale read before ownership probing");
+  }
+  // Isolate the added post-probe stopped-replay guard: page and generation
+  // stay unchanged, so neither can accidentally make its removal look safe.
+  const stoppedReplayDuringNullPageProbe = async (transform?: (source: string) => string) => {
+    const shell = mount(false, transform); idleRuntime(shell);
+    shell.params.boardPageRef.current = null;
+    let finishProbe!: (owner: string) => void;
+    let probes = 0;
+    shell.probeOwner.current = () => { probes++; return new Promise<string>((resolve) => { finishProbe = resolve; }); };
+    const recovery = shell.control.restorePausedLesson([savedLesson]);
+    assert.equal(probes, 1, "a null-page control reaches the actual ownership probe");
+    const generation = shell.params.turnGenerationRef.current;
+    shell.params.boardShowsStoppedReplayRef.current = true;
+    finishProbe("inactive"); await recovery;
+    assert.equal(shell.params.boardPageRef.current, null);
+    assert.equal(shell.params.turnGenerationRef.current, generation);
+    assert.equal(shell.render().earlyLessonRestartOffer, false,
+      "post-probe stopped replay alone prevents stale recovery when the page was already null");
+  };
+  await stoppedReplayDuringNullPageProbe();
+  await assert.rejects(stoppedReplayDuringNullPageProbe((source) => {
+    const start = source.indexOf("if (revision !== restoreRevisionRef.current");
+    const end = source.indexOf(") return null;", start);
+    assert(start >= 0 && end > start);
+    const guard = source.slice(start, end);
+    assert.equal(guard.split(" || boardShowsStoppedReplayRef.current").length, 2);
+    return source.slice(0, start) + guard.replace(" || boardShowsStoppedReplayRef.current", "") + source.slice(end);
+  }), (error: unknown) => error instanceof assert.AssertionError && error.actual === true && error.expected === false);
   for (const guard of ["replay", "stopped-replay", "rewound", "unobserved-null-page", "new-generation", "admission", "different-page", "same-text-page", "completed-saved", "newer-saved", "live-saved", "fresh-question"] as const) {
     const shell = mount();
     if (guard === "completed-saved" || guard === "newer-saved" || guard === "live-saved") {

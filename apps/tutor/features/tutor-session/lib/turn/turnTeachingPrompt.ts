@@ -741,6 +741,19 @@ export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTea
   // and a one-line substitution stays short on New.
   const lessonBudget = resolveLessonBudget(question, input.familiarity);
 
+  // Given rows keep their runtime ownership, but an acknowledgement is not
+  // the question-specific opening assumed by the shared legacy addon.
+  const givenAddon = codeLesson ? "" : givenValuesPromptAddon(givenSegments.length > 0);
+  const runtimeGivenAddon = input.earlyOpeningAcknowledgement
+    ? givenAddon.replace(
+        "The runtime already spoke the opening line",
+        "The runtime spoke only an acknowledgement, not this question or its target",
+      ).replace(
+        "do not say what the question asks for again",
+        "briefly identify what this question asks before explaining its symbols",
+      )
+    : givenAddon;
+
   const runtimeAddon = [
     openingSegment
       ? input.earlyOpeningAcknowledgement
@@ -749,7 +762,7 @@ export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTea
       : "",
     codeLesson
       ? dsaOpeningPromptAddon(givenSegments.length > 0, input.codeLessonIncludeCode)
-      : givenValuesPromptAddon(givenSegments.length > 0),
+      : runtimeGivenAddon,
     diagramPromptAddon,
     codeLesson
       ? codeLessonPromptAddon(codeLesson, {
@@ -799,9 +812,21 @@ export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTea
   // physics rules it argued with (one or two sentences a step, a board row in
   // every step, stop before complexity) were being obeyed often enough to
   // shorten lessons and leak handwriting into them.
+  // The shared base assumes the deterministic opening named the question.
+  // An early acknowledgement did not: replace only that framing contract,
+  // leaving OFF bytes and every diagram/numeric rule untouched.
+  const tutorBasePrompt = input.earlyOpeningAcknowledgement
+    ? TUTOR_SYSTEM_PROMPT.replace(
+        "the runtime has already spoken one opening line naming what the question asks for",
+        "the runtime has already spoken only a brief acknowledgement without naming this question or its target",
+      ).replace(
+        "do not open the lesson a second time, do not say what the question asks for again",
+        "briefly identify what this question asks in your first teaching step, but do not greet again",
+      )
+    : TUTOR_SYSTEM_PROMPT;
   const basePrompt = codeLesson && input.codeLessonIncludeCode === false
     ? DSA_EXPLANATION_SYSTEM_PROMPT
-    : codeLesson ? CODE_LESSON_SYSTEM_PROMPT : TUTOR_SYSTEM_PROMPT;
+    : codeLesson ? CODE_LESSON_SYSTEM_PROMPT : tutorBasePrompt;
   const continuationBase = codeLesson && input.codeLessonIncludeCode === false
     ? DSA_EXPLANATION_CONTINUATION_PROMPT
     : codeLesson ? CODE_LESSON_CONTINUATION_PROMPT : TUTOR_CONTINUATION_PROMPT;
