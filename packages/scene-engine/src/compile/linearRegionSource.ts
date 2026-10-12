@@ -48,6 +48,21 @@ function normalize(text: string): string {
     .replace(/∧|∩|\\(?:land|wedge|cap)\b/g, " and ")
     .replace(/¬|\\(?:neg|lnot)\b/g, " not ");
 }
+/** Refuse source syntax whose scope the bounded reader cannot certify. */
+function assertLinearSourceGrammar(text: string): void {
+  if (/\b(?:complement\s+of|not)\s*(?:\(*\s*(?:the\s+)?)?(?:complement\s+of|not)\b/i.test(text))
+    throw new Error("Repeated source complement requires an explicit supported scope");
+  if (/\b(?:each\s+(?:of|inequality|interval|set|graph)|separately|separate\s+(?:axes|graphs?|number[ -]lines?))\b/i.test(text))
+    throw new Error("Separate source requests cannot be merged into one linear program");
+  if (/\bquadrants?\b|\bnon[- ]?negativity\b/i.test(text))
+    throw new Error("Implicit planar domains require explicit supported inequality clauses");
+  if (/\b(?:in|over)\s+[NZW]\b/i.test(text))
+    throw new Error("Discrete source domains cannot be represented by continuous linear figures");
+  if (/\d\s+(?:\d+\s*\/\s*\d+|\(\s*\d+\s*\/\s*\d+\s*\))/.test(text))
+    throw new Error("Mixed source fractions cannot be read as implicit multiplication");
+  if (/\b(?:shad(?:e|ing)|region|strip)\b[^.;?!]*\bbetween\s+(?:the\s+)?(?:two\s+)?lines?\b/i.test(text))
+    throw new Error("A region between source lines cannot become a two-equation system");
+}
 /** Real-domain declarations are syntax, never additional affine operands. */
 function sourceNotation(text: string, names: readonly string[]): string {
   let result = text;
@@ -370,6 +385,15 @@ function booleanProgram(
       ? { inequality: group[0]!.text }
       : { intersection: group.map((clause) => ({ inequality: clause.text })) },
   ) as IntervalExpression[];
+  // A trailing prose domain may restrict the entire union, rather than only
+  // its final branch. That scope requires a grammar this reader does not own.
+  let hasUnion = false;
+  for (let index = 0; index + 1 < groups.length; index++) {
+    const gap = text.slice(groups[index]!.at(-1)!.end, groups[index + 1]![0]!.start);
+    if (hasUnion && /,|\b(?:where|when|for|with|under|subject\s+to|such\s+that|provided)\b/i.test(gap))
+      throw new Error("A trailing source domain after a union has unresolved whole-set scope");
+    if (/\bor\b|\bunion\b/i.test(gap)) hasUnion = true;
+  }
   // No Boolean operand may disappear merely because it lacks a comparison.
   // Ordinary instructions such as "and label the axes" remain outside the
   // mathematical program, while "or x" and "or (x+y)" are incomplete math.
@@ -420,6 +444,8 @@ function booleanProgram(
     (context.match(/\(/g) ?? []).length - (context.match(/\)/g) ?? []).length;
   let level = Math.max(0, opens);
   for (let i = 0; i < Math.max(0, opens); i++) lexemes.push("(");
+  const graphicalAction = /\b(?:graph|shade|show|plot|represent|draw|illustrate)\b/i;
+  let hasGraphicalRequest = graphicalAction.test(context);
   groups.forEach((group, i) => {
     lexemes.push(String(i));
     const end = group.at(-1)!.end,
@@ -431,6 +457,10 @@ function booleanProgram(
       return;
     }
     const words = gap.toLowerCase();
+    if (/;|\bnumber[ -]line\b[^.;?!]*[.;?!]/i.test(gap)
+      || hasGraphicalRequest && graphicalAction.test(gap))
+      throw new Error("Additional graphical source requests cannot become a Boolean intersection");
+    hasGraphicalRequest ||= graphicalAction.test(gap);
     if (/\b(?:unless|except|xor|neither|nor)\b|!=|≠/.test(words))
       throw new Error("Unsupported source Boolean connective");
     for (const ch of gap.match(/^\s*\)+/)?.[0] ?? "")
@@ -667,12 +697,14 @@ function intervalSourceProgram(body: string, variable: string, setAliases?: Set<
   for (const operand of connectiveNeighbors)
     if (!bindings.has(operand[1]!) && !proseActions.has(operand[1]!.toLowerCase()))
       throw new Error(`Unknown named set in source program: ${operand[1]}`);
-  if (/\b(?:unless|except|xor|neither|nor|setminus)\b|[∖\\]/i.test(residual))
+  if (/\b(?:unless|except|xor|neither|nor|setminus|minus)\b|[∖\\]/i.test(residual))
     throw new Error("Unsupported named-interval source connective");
   const references: SourceClause[] = [...residual.matchAll(/\b[A-Za-z][A-Za-z0-9_]*\b/g)]
     .filter((match) => bindings.has(match[0]))
     .map((match) => ({ text: match[0], start: match.index!, end: match.index! + match[0].length, equality: false }));
   if (!references.length) throw new Error("Source must request a complete named-interval program");
+  if (new Set(references.map(reference => reference.text)).size !== references.length)
+    throw new Error("Repeated named-interval operands require an unambiguous single result request");
   const replace = (program: IntervalExpression): IntervalExpression => {
     if ("inequality" in program) return bindings.get(program.inequality)!;
     if ("complement" in program) return { complement: replace(program.complement) };
@@ -699,6 +731,7 @@ export function readLinearSourceSetRoles(question: string): { aliases: Set<strin
   if (buildLinearSourceDocument(question)?.constructions[0]?.operator !== "number_line_set") return empty();
   try {
     const normalized = normalize(question);
+    assertLinearSourceGrammar(normalized);
     const body = readLinearSourceReferencePoints(explicitDomains(sourceNotation(normalized, ["x"]), ["x"]), ["x"]).maskedQuestion;
     const aliases = new Set<string>();
     const intervals = new Map<string, LinearSourceIntervalRole>();
@@ -804,6 +837,10 @@ export function buildLinearSourceDocument(question: string): SceneDocument | nul
   if (typeof question !== "string" || question.length > 8192) return null;
   try {
     const normalized = normalize(question);
+    assertLinearSourceGrammar(normalized);
+    // This builder owns graphical solution sets and exact line intersections.
+    // Additional geometric calculations stay with the planner's constructions.
+    if (/\b(?:angles?|distances?|bisectors?|slopes?|areas?|tan(?:gent)?|reflections?|reflected|rotations?|rotated|translations?|translated)\b/i.test(normalized)) return null;
     const numberLineRequested = /\bnumber[ -]line\b/i.test(normalized)
       || /\breal\s+x\b/i.test(normalized) && !/\by\b|\b(?:half[ -]plane|coordinate\s+plane|pairs?)\b|(?:R|ℝ)(?:\^2|²)/i.test(normalized);
     let operator: string;
@@ -906,8 +943,10 @@ export function validateLinearSourceBinding(
       if (input.kind !== "number_line_set" && names.includes("x") && names.includes("y")
         && (names[0] !== "x" || names[1] !== "y"))
         throw new Error("Source x/y coordinates require canonical axis order ['x','y'] for boundary, corner and solution tuples");
+      const normalized = normalize(document.source.question);
+      assertLinearSourceGrammar(normalized);
       let question = explicitDomains(
-        sourceNotation(normalize(document.source.question), names),
+        sourceNotation(normalized, names),
         names,
       );
       const sourcePoints = readLinearSourceReferencePoints(question, names);
