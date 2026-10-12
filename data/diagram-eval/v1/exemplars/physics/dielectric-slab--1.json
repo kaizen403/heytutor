@@ -1,45 +1,28 @@
 {
   "topic_id": "physics|11|parallel-plate-capacitor-with-dielectric",
-  "question": "A parallel-plate capacitor of plate area A and plate separation d is charged so that its plates carry surface charge densities +σ and −σ, and is then disconnected from the battery. A dielectric slab of dielectric constant K and thickness t (t < d), covering the full plate area, is placed between the plates parallel to them, touching neither plate. Show the free and bound charges and the electric field in the air gaps and inside the slab, and find the new capacitance.",
+  "question": "A parallel-plate capacitor has plate area A and plate separation d. Its plates are charged to surface charge densities +σ and −σ and then disconnected from the battery. A dielectric slab of dielectric constant K and thickness t (t < d), covering the full plate area, is placed between the plates parallel to them, touching neither plate. Show the free and bound charges and the electric field in the air gaps and inside the slab, and find the new capacitance.",
   "figure_kind": "apparatus",
   "sceneDocument": {
     "schemaVersion": "scene-document/v2",
     "visualDecision": {
       "mode": "scene",
-      "reason": "isolated capacitor with dielectric slab: charges and fields"
+      "reason": "isolated capacitor with dielectric slab"
     },
     "source": {
-      "question": "A parallel-plate capacitor of plate area A and plate separation d is charged so that its plates carry surface charge densities +σ and −σ, and is then disconnected from the battery. A dielectric slab of dielectric constant K and thickness t (t < d), covering the full plate area, is placed between the plates parallel to them, touching neither plate. Show the free and bound charges and the electric field in the air gaps and inside the slab, and find the new capacitance.",
+      "question": "A parallel-plate capacitor has plate area A and plate separation d. Its plates are charged to surface charge densities +σ and −σ and then disconnected from the battery. A dielectric slab of dielectric constant K and thickness t (t < d), covering the full plate area, is placed between the plates parallel to them, touching neither plate. Show the free and bound charges and the electric field in the air gaps and inside the slab, and find the new capacitance.",
       "archetype": "parallel_plates"
     },
     "quantities": [],
     "entities": [
       {
-        "id": "cA",
-        "kind": "point",
-        "role": "plate centre"
-      },
-      {
         "id": "pp",
-        "kind": "rectangle",
-        "role": "positive plate",
-        "label": "+σ"
-      },
-      {
-        "id": "cB",
-        "kind": "point",
-        "role": "plate centre"
+        "kind": "segment",
+        "role": "positive plate"
       },
       {
         "id": "pn",
-        "kind": "rectangle",
-        "role": "negative plate",
-        "label": "−σ"
-      },
-      {
-        "id": "cS",
-        "kind": "point",
-        "role": "slab centre"
+        "kind": "segment",
+        "role": "negative plate"
       },
       {
         "id": "sl",
@@ -48,16 +31,34 @@
         "label": "K"
       },
       {
-        "id": "fL",
+        "id": "qA",
         "kind": "point",
-        "role": "bound charge on slab face",
-        "label": "−σb"
+        "role": "free charge"
       },
       {
-        "id": "fR",
+        "id": "qB",
         "kind": "point",
-        "role": "bound charge on slab face",
-        "label": "+σb"
+        "role": "free charge"
+      },
+      {
+        "id": "fT",
+        "kind": "point",
+        "role": "bound charge"
+      },
+      {
+        "id": "fB",
+        "kind": "point",
+        "role": "bound charge"
+      },
+      {
+        "id": "bT",
+        "kind": "point",
+        "role": "bound charge"
+      },
+      {
+        "id": "bB",
+        "kind": "point",
+        "role": "bound charge"
       },
       {
         "id": "E1",
@@ -78,120 +79,159 @@
         "label": "E₀"
       },
       {
-        "id": "p0",
-        "kind": "point",
-        "role": "polarization tail"
-      },
-      {
         "id": "P",
         "kind": "vector",
         "role": "polarization",
         "label": "P"
+      },
+      {
+        "id": "dd",
+        "kind": "dimension",
+        "role": "plate separation",
+        "label": "d"
+      },
+      {
+        "id": "dt",
+        "kind": "dimension",
+        "role": "slab thickness",
+        "label": "t"
       }
     ],
     "constructions": [
       {
-        "id": "kcA",
-        "operator": "point",
-        "inputs": {
-          "x": -3,
-          "y": 0,
-          "coordinateSpace": "world"
-        },
-        "outputs": [
-          "cA"
-        ]
-      },
-      {
         "id": "kpp",
-        "operator": "rectangle",
+        "operator": "segment",
         "inputs": {
-          "center": "cA",
-          "width": 0.16,
-          "height": 4
+          "start": [
+            -2,
+            2.2
+          ],
+          "end": [
+            2,
+            2.2
+          ]
         },
         "outputs": [
           "pp"
         ]
       },
       {
-        "id": "kcB",
-        "operator": "point",
-        "inputs": {
-          "x": 3,
-          "y": 0,
-          "coordinateSpace": "world"
-        },
-        "outputs": [
-          "cB"
-        ]
-      },
-      {
         "id": "kpn",
-        "operator": "rectangle",
+        "operator": "segment",
         "inputs": {
-          "center": "cB",
-          "width": 0.16,
-          "height": 4
+          "start": [
+            -2,
+            -2.2
+          ],
+          "end": [
+            2,
+            -2.2
+          ]
         },
         "outputs": [
           "pn"
         ]
       },
       {
-        "id": "kcS",
-        "operator": "point",
-        "inputs": {
-          "x": 0,
-          "y": 0,
-          "coordinateSpace": "world"
-        },
-        "outputs": [
-          "cS"
-        ]
-      },
-      {
         "id": "ksl",
         "operator": "rectangle",
         "inputs": {
-          "center": "cS",
-          "width": 1.6,
-          "height": 4
+          "center": [
+            0,
+            0
+          ],
+          "width": 4,
+          "height": 1.6
         },
         "outputs": [
           "sl"
         ]
       },
       {
-        "id": "kfL",
+        "id": "kqA",
         "operator": "point",
         "inputs": {
-          "x": -0.8,
-          "y": 0,
+          "x": 0,
+          "y": 2.2,
           "coordinateSpace": "world"
         },
         "outputs": [
-          "fL"
+          "qA"
         ]
       },
       {
-        "id": "kfR",
+        "id": "kqB",
         "operator": "point",
         "inputs": {
-          "x": 0.8,
-          "y": 0,
+          "x": 0,
+          "y": -2.2,
           "coordinateSpace": "world"
         },
         "outputs": [
-          "fR"
+          "qB"
+        ]
+      },
+      {
+        "id": "kfT",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0.8,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "fT"
+        ]
+      },
+      {
+        "id": "kfB",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -0.8,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "fB"
+        ]
+      },
+      {
+        "id": "kbT",
+        "operator": "point",
+        "inputs": {
+          "x": 0.95,
+          "y": 0.8,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "bT"
+        ]
+      },
+      {
+        "id": "kbB",
+        "operator": "point",
+        "inputs": {
+          "x": 0.95,
+          "y": -0.8,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "bB"
         ]
       },
       {
         "id": "kE1",
         "operator": "vector",
         "inputs": {
-          "start": "cA",
-          "end": "fL"
+          "start": [
+            -1.3,
+            2.2
+          ],
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 1.4
         },
         "outputs": [
           "E1"
@@ -201,12 +241,15 @@
         "id": "kE2",
         "operator": "vector",
         "inputs": {
-          "start": "fL",
-          "direction": [
-            1,
-            0
+          "start": [
+            -1.3,
+            0.8
           ],
-          "length": 0.8
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 0.9
         },
         "outputs": [
           "E2"
@@ -216,129 +259,228 @@
         "id": "kE3",
         "operator": "vector",
         "inputs": {
-          "start": "fR",
-          "direction": [
-            1,
-            0
+          "start": [
+            -1.3,
+            -0.8
           ],
-          "length": 2
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 1.4
         },
         "outputs": [
           "E3"
         ]
       },
       {
-        "id": "kp0",
-        "operator": "point",
-        "inputs": {
-          "x": -0.4,
-          "y": -1.2,
-          "coordinateSpace": "world"
-        },
-        "outputs": [
-          "p0"
-        ]
-      },
-      {
         "id": "kP",
         "operator": "vector",
         "inputs": {
-          "start": "p0",
+          "start": [
+            1.55,
+            0.4
+          ],
           "direction": [
-            1,
-            0
+            0,
+            -1
           ],
           "length": 0.8
         },
         "outputs": [
           "P"
         ]
+      },
+      {
+        "id": "kdd",
+        "operator": "dimension",
+        "inputs": {
+          "start": [
+            2.35,
+            2.2
+          ],
+          "end": [
+            2.35,
+            -2.2
+          ]
+        },
+        "outputs": [
+          "dd"
+        ]
+      },
+      {
+        "id": "kdt",
+        "operator": "dimension",
+        "inputs": {
+          "start": [
+            -2.35,
+            0.8
+          ],
+          "end": [
+            -2.35,
+            -0.8
+          ]
+        },
+        "outputs": [
+          "dt"
+        ]
       }
     ],
     "relations": [],
     "assertions": [
       {
+        "id": "par",
+        "predicate": "parallel",
+        "entities": [
+          "pp",
+          "pn"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "onA",
+        "predicate": "on",
+        "entities": [
+          "qA",
+          "pp"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "onT",
+        "predicate": "on",
+        "entities": [
+          "fT",
+          "sl"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
         "id": "gaps",
         "predicate": "ordered_along",
         "entities": [
-          "cA",
-          "fL",
-          "fR",
-          "cB"
+          "qB",
+          "fB",
+          "fT",
+          "qA"
         ],
         "expected": {
-          "axis": "x",
+          "axis": "y",
           "direction": "increasing"
         },
         "severity": "fatal"
-      },
-      {
-        "id": "onL",
-        "predicate": "on",
-        "entities": [
-          "fL",
-          "sl"
-        ],
-        "expected": true,
-        "severity": "fatal"
-      },
-      {
-        "id": "onR",
-        "predicate": "on",
-        "entities": [
-          "fR",
-          "sl"
-        ],
-        "expected": true,
-        "severity": "fatal"
-      },
-      {
-        "id": "pIn",
-        "predicate": "inside",
-        "entities": [
-          "p0",
-          "sl"
-        ],
-        "expected": true,
-        "severity": "fatal"
       }
     ],
-    "annotations": [],
+    "annotations": [
+      {
+        "id": "lp",
+        "kind": "label",
+        "targetIds": [
+          "pp"
+        ],
+        "text": "+σ",
+        "placementIntent": "left"
+      },
+      {
+        "id": "ln",
+        "kind": "label",
+        "targetIds": [
+          "pn"
+        ],
+        "text": "−σ",
+        "placementIntent": "left"
+      },
+      {
+        "id": "sA",
+        "kind": "label",
+        "targetIds": [
+          "qA"
+        ],
+        "text": "+ + + + + + +",
+        "placementIntent": "below"
+      },
+      {
+        "id": "sB",
+        "kind": "label",
+        "targetIds": [
+          "qB"
+        ],
+        "text": "− − − − − − −",
+        "placementIntent": "above"
+      },
+      {
+        "id": "sT",
+        "kind": "label",
+        "targetIds": [
+          "fT"
+        ],
+        "text": "− − − − − − −",
+        "placementIntent": "below"
+      },
+      {
+        "id": "sF",
+        "kind": "label",
+        "targetIds": [
+          "fB"
+        ],
+        "text": "+ + + + + + +",
+        "placementIntent": "above"
+      },
+      {
+        "id": "lT",
+        "kind": "label",
+        "targetIds": [
+          "bT"
+        ],
+        "text": "−σ′",
+        "placementIntent": "below"
+      },
+      {
+        "id": "lB",
+        "kind": "label",
+        "targetIds": [
+          "bB"
+        ],
+        "text": "+σ′",
+        "placementIntent": "above"
+      }
+    ],
     "requiredEntityIds": [
-      "cA",
       "pp",
-      "cB",
       "pn",
-      "cS",
       "sl",
-      "fL",
-      "fR",
       "E1",
       "E2",
       "E3",
-      "p0",
-      "P"
+      "P",
+      "dd",
+      "dt"
     ],
     "revealGroups": [
       {
         "id": "setup",
         "entityIds": [
-          "cA",
           "pp",
-          "cB",
           "pn",
-          "cS",
           "sl",
-          "fL",
-          "fR",
+          "qA",
+          "qB",
+          "fT",
+          "fB",
+          "bT",
+          "bB",
           "E1",
           "E2",
           "E3",
-          "p0",
-          "P"
+          "P",
+          "dd",
+          "dt"
         ],
         "dependsOn": [],
-        "narrationCue": "isolated plates, slab, free and bound charges, fields"
+        "narrationCue": "free and bound charges, fields"
       }
     ],
     "teachingTimeline": [
@@ -347,7 +489,7 @@
         "action": "reveal",
         "targetId": "setup",
         "dependsOn": [],
-        "narrationIntent": "isolated plates, slab, free and bound charges, fields"
+        "narrationIntent": "free and bound charges, fields"
       }
     ]
   }

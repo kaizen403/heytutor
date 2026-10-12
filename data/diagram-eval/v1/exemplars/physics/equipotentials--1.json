@@ -18,7 +18,7 @@
         "id": "O",
         "kind": "point",
         "role": "positive point charge",
-        "label": "+q"
+        "label": "+q at O"
       },
       {
         "id": "lines",
@@ -95,36 +95,28 @@
           ],
           "starts": [
             [
-              1.11,
-              0.46
+              1.1,
+              0
             ],
             [
-              0.46,
-              1.11
+              0.55,
+              0.952627944
             ],
             [
-              -0.46,
-              1.11
+              -0.55,
+              0.952627944
             ],
             [
-              -1.11,
-              0.46
+              -1.1,
+              0
             ],
             [
-              -1.11,
-              -0.46
+              -0.55,
+              -0.952627944
             ],
             [
-              -0.46,
-              -1.11
-            ],
-            [
-              0.46,
-              -1.11
-            ],
-            [
-              1.11,
-              -0.46
+              0.55,
+              -0.952627944
             ]
           ],
           "stepLength": 0.25,
@@ -174,8 +166,8 @@
         "id": "make_B",
         "operator": "point",
         "inputs": {
-          "x": -2.4,
-          "y": 0,
+          "x": -2.078460969,
+          "y": 1.2,
           "coordinateSpace": "world"
         },
         "outputs": [
@@ -186,8 +178,8 @@
         "id": "make_C",
         "operator": "point",
         "inputs": {
-          "x": -4,
-          "y": 0,
+          "x": -3.464101615,
+          "y": 2,
           "coordinateSpace": "world"
         },
         "outputs": [
@@ -201,7 +193,7 @@
           "center": "O",
           "radius": 2.4,
           "startAngle": 90,
-          "endAngle": 180,
+          "endAngle": 150,
           "angleUnit": "degrees"
         },
         "outputs": [
@@ -326,6 +318,15 @@
         ],
         "text": "E",
         "placementIntent": "left"
+      },
+      {
+        "id": "lab_lines",
+        "kind": "label",
+        "targetIds": [
+          "lines"
+        ],
+        "text": "field lines",
+        "placementIntent": "right"
       }
     ],
     "requiredEntityIds": [

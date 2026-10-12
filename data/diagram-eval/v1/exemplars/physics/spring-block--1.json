@@ -1,6 +1,6 @@
 {
   "topic_id": "physics|10|series-and-parallel-springs",
-  "question": "Two light springs, of force constants 240 N/m and 720 N/m, are joined end to end. The first is fixed to a wall and the second is attached to a 0.45 kg block on a smooth horizontal table. The block is pulled 6.5 cm to the right of its equilibrium position and released. Find the effective force constant and the period, and the restoring force, acceleration and speed of the block when it is 3.9 cm from equilibrium on its way back.",
+  "question": "Two light springs are joined end to end. A 240 N/m spring is fixed to a wall, and a 720 N/m spring joins it to a 0.45 kg block on a smooth horizontal table. The block is pulled 6.5 cm to the right of its equilibrium position and released. Find the effective force constant and the period, and the restoring force, acceleration and speed of the block when it is 3.9 cm from equilibrium on its way back.",
   "figure_kind": "apparatus",
   "sceneDocument": {
     "schemaVersion": "scene-document/v2",
@@ -9,7 +9,7 @@
       "reason": "series spring oscillator"
     },
     "source": {
-      "question": "Two light springs, of force constants 240 N/m and 720 N/m, are joined end to end. The first is fixed to a wall and the second is attached to a 0.45 kg block on a smooth horizontal table. The block is pulled 6.5 cm to the right of its equilibrium position and released. Find the effective force constant and the period, and the restoring force, acceleration and speed of the block when it is 3.9 cm from equilibrium on its way back.",
+      "question": "Two light springs are joined end to end. A 240 N/m spring is fixed to a wall, and a 720 N/m spring joins it to a 0.45 kg block on a smooth horizontal table. The block is pulled 6.5 cm to the right of its equilibrium position and released. Find the effective force constant and the period, and the restoring force, acceleration and speed of the block when it is 3.9 cm from equilibrium on its way back.",
       "archetype": "spring_mass"
     },
     "quantities": [
@@ -58,7 +58,7 @@
       {
         "id": "s1",
         "kind": "polyline",
-        "role": "series spring k1",
+        "role": "spring k1 at wall",
         "label": "k₁ = 240 N/m"
       },
       {
@@ -69,7 +69,7 @@
       {
         "id": "s2",
         "kind": "polyline",
-        "role": "series spring k2",
+        "role": "spring k2 at block",
         "label": "k₂ = 720 N/m"
       },
       {
@@ -79,8 +79,13 @@
         "label": "0.45 kg"
       },
       {
+        "id": "X",
+        "kind": "point",
+        "role": "block position"
+      },
+      {
         "id": "x",
-        "kind": "vector",
+        "kind": "dimension",
         "role": "displacement",
         "label": "x = 3.9 cm"
       },
@@ -139,11 +144,6 @@
         "id": "c",
         "kind": "point",
         "role": "block centre"
-      },
-      {
-        "id": "vS",
-        "kind": "point",
-        "role": "velocity tail"
       }
     ],
     "constructions": [
@@ -303,15 +303,23 @@
         ]
       },
       {
+        "id": "cX",
+        "operator": "point",
+        "inputs": {
+          "x": 2.4,
+          "y": -1.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "X"
+        ]
+      },
+      {
         "id": "cx",
-        "operator": "vector",
+        "operator": "dimension",
         "inputs": {
           "start": "O",
-          "direction": [
-            1,
-            0
-          ],
-          "length": 2.4
+          "end": "X"
         },
         "outputs": [
           "x"
@@ -319,14 +327,17 @@
       },
       {
         "id": "cF",
-        "operator": "vector_scale",
+        "operator": "vector",
         "inputs": {
-          "vector": "x",
-          "factor": -0.5,
-          "origin": [
+          "start": [
             2.4,
             2.4
-          ]
+          ],
+          "direction": [
+            -1,
+            0
+          ],
+          "length": 1.0
         },
         "outputs": [
           "F"
@@ -348,27 +359,18 @@
         ]
       },
       {
-        "id": "cvS",
-        "operator": "point",
-        "inputs": {
-          "x": 2.4,
-          "y": 4.4,
-          "coordinateSpace": "world"
-        },
-        "outputs": [
-          "vS"
-        ]
-      },
-      {
         "id": "cv",
         "operator": "vector",
         "inputs": {
-          "start": "vS",
+          "start": [
+            2.4,
+            4.4
+          ],
           "direction": [
             -1,
             0
           ],
-          "length": 1.0
+          "length": 0.8
         },
         "outputs": [
           "v"
@@ -388,23 +390,18 @@
         "severity": "fatal"
       },
       {
-        "id": "rF",
-        "predicate": "opposite_direction",
+        "id": "order",
+        "predicate": "ordered_along",
         "entities": [
-          "F",
-          "x"
+          "mA",
+          "O",
+          "X",
+          "pA"
         ],
-        "expected": true,
-        "severity": "fatal"
-      },
-      {
-        "id": "rv",
-        "predicate": "opposite_direction",
-        "entities": [
-          "v",
-          "x"
-        ],
-        "expected": true,
+        "expected": {
+          "axis": "x",
+          "direction": "increasing"
+        },
         "severity": "fatal"
       }
     ],
@@ -466,6 +463,7 @@
           "J",
           "s2",
           "B",
+          "X",
           "x",
           "mA",
           "O",
@@ -476,8 +474,7 @@
           "w1",
           "w0",
           "t1",
-          "c",
-          "vS"
+          "c"
         ],
         "dependsOn": [],
         "narrationCue": "block returning to O"

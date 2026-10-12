@@ -494,7 +494,7 @@ export async function runLecture(
       const examples = options.diagramExamples ?? [];
       const pickerStartedAt = Date.now();
       const picked = options.productionStrictSubjects ? await pickProductionLabExamples(examples, {
-        origin: options.origin, question, plan: turnPlan, traceId,
+        origin: options.origin, question, plan: turnPlan, traceId, subject: classifiedSubject,
       }) : await pickDiagramExamples(
         examples,
         options.diagramExampleCatalogue ?? buildDiagramExampleCatalogue(examples),
