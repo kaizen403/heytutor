@@ -506,6 +506,204 @@ const ROWS: readonly Row[] = [
     "kind": "raoult",
     "questionSha256": "aab05e5be5dd9611112245b6a775774cd3fda3915553662adb456398c7928d50",
     "xA": 0.25
+  },
+  {
+    "id": "SUPPLEMENT-EXTRA-THEN-TO",
+    "question": "The heat capacity of a sample is 20 J/K. It is heated from 300 to 310 K, then to 320 K with no phase change. Find q.",
+    "family": "thermo",
+    "kind": "decline",
+    "questionSha256": "4a6fc777ad9feb45e6a9bb751eb6d70ddea3f8f7a043b1cc0af514b97217b6a7"
+  },
+  {
+    "id": "SUPPLEMENT-EXTRA-STATED-FINAL",
+    "question": "The heat capacity of a sample is 20 J/K. It is heated from 300 to 310 K with no phase change. Its final temperature is 320 K. Find q.",
+    "family": "thermo",
+    "kind": "decline",
+    "questionSha256": "47d5a74f43223af5c52b43770c4254e6d676d88666648e803f424327504c8fe4"
+  },
+  {
+    "id": "SUPPLEMENT-EXTRA-SAME-VALUE-OCCURRENCE",
+    "question": "The heat capacity of a sample is 20 J/K. It is heated from 300 to 310 K with no phase change. Its final temperature is 310 K. Find q.",
+    "family": "thermo",
+    "kind": "decline",
+    "questionSha256": "7ba337babcda9f98b540df36eb3cdcefd645f5f3674c96e00c4ff90b38cc847a"
+  },
+  {
+    "id": "SUPPLEMENT-EXTRA-CELSIUS",
+    "question": "The heat capacity of a sample is 20 J/K. It is heated from 300 to 310 K with no phase change. Its final temperature is 40 °C. Find q.",
+    "family": "thermo",
+    "kind": "decline",
+    "questionSha256": "2a5991bdd8e5f38234fcadad086f7e2266662b6db8e1ed5c98d4c14ecc5be5cd"
+  },
+  {
+    "id": "SUPPLEMENT-EXTRA-INCONSISTENT-DELTA",
+    "question": "The heat capacity of a sample is 20 J/K. It is heated from 300 to 310 K with no phase change. ΔT = 20 K. Find q.",
+    "family": "thermo",
+    "kind": "decline",
+    "questionSha256": "4a9f21ac59c5774f0883c554effc92b15c37f6fcdb2a29bbdf79095cf5c1ebd2"
+  },
+  {
+    "id": "REVIEW-HEAT-NAMED-TRANSFER-DELTA",
+    "question": "The heat capacity of a sample is 20 J/K. It is transferred from beaker A to beaker B. ΔT = 10 K with no phase change. Find q.",
+    "family": "thermo",
+    "kind": "heat",
+    "capacity": 20,
+    "delta": 10,
+    "heat": 200,
+    "deltaScalarSpan": {
+      "start": 91,
+      "end": 93
+    },
+    "questionSha256": "1d17e9fb4e085cc8951d38ff8c3e2d5978f20f68c3e51e8fd51dc9f8716f59dd"
+  },
+  {
+    "id": "OWN-HEAT-VESSEL-TRANSFER-DELTA",
+    "question": "The heat capacity of a sample is 20 J/K. It is moved from vessel A to vessel B. ΔT = 10 K with no phase change. Find q.",
+    "family": "thermo",
+    "kind": "heat",
+    "capacity": 20,
+    "delta": 10,
+    "heat": 200,
+    "deltaScalarSpan": {
+      "start": 85,
+      "end": 87
+    },
+    "questionSha256": "157db0760b25e39f893c56a31e58210c3ad162ce6eb3870f7ebf89f889280d3b"
+  },
+  {
+    "id": "OWN-HEAT-CONTAINER-TRANSFER-DELTA",
+    "question": "The heat capacity of a sample is 20 J/K. It is transferred from container A to container B. ΔT = 10 K with no phase change. Calculate q.",
+    "family": "thermo",
+    "kind": "heat",
+    "capacity": 20,
+    "delta": 10,
+    "heat": 200,
+    "deltaScalarSpan": {
+      "start": 97,
+      "end": 99
+    },
+    "questionSha256": "af4e91e63c614d5298cb4f53c7fdd50c563d49476f3c938432428f206d1c99bf"
+  },
+  {
+    "id": "OWN-HEAT-POSITION-TRANSFER-DELTA",
+    "question": "The heat capacity of a sample is 20 J/K. The sample is moved from the left beaker to the right beaker. ΔT = 10 K with no phase change. Determine q.",
+    "family": "thermo",
+    "kind": "heat",
+    "capacity": 20,
+    "delta": 10,
+    "heat": 200,
+    "deltaScalarSpan": {
+      "start": 108,
+      "end": 110
+    },
+    "questionSha256": "b95156ecb7ed9a0cdbdc8cc8756cf6c0d2bec47576c0b34396147df7293e1c3a"
+  },
+  {
+    "id": "OWN-HEAT-STATION-TRANSFER-CELSIUS-DELTA",
+    "question": "The heat capacity of a sample is 20 J/K. It passes from station A to station B. ΔT = 10 °C with no phase change. Find q.",
+    "family": "thermo",
+    "kind": "heat",
+    "capacity": 20,
+    "delta": 10,
+    "heat": 200,
+    "deltaScalarSpan": {
+      "start": 85,
+      "end": 87
+    },
+    "questionSha256": "85c4d756ad9946e339f731cd4e3cebabb9e99f8bef5463d666846ad2a4e2b718"
+  },
+  {
+    "id": "OWN-HEAT-GLASS-TRANSFER-DELTA",
+    "question": "The heat capacity of a sample is 20 J/K. It goes from one glass to another glass. ΔT = 10 K with no phase change. Find q.",
+    "family": "thermo",
+    "kind": "heat",
+    "capacity": 20,
+    "delta": 10,
+    "heat": 200,
+    "deltaScalarSpan": {
+      "start": 87,
+      "end": 89
+    },
+    "questionSha256": "573705ca18cfa419b15f692edfb8494138486f81e209fa66d8f20c4a884cc1b0"
+  },
+  {
+    "id": "CONTROL-HEAT-VOLUME-TRANSFER-DELTA",
+    "question": "The heat capacity of a sample is 20 J/K. It is transferred from 20 mL to 30 mL. ΔT = 10 K with no phase change. Find q.",
+    "family": "thermo",
+    "kind": "heat",
+    "capacity": 20,
+    "delta": 10,
+    "heat": 200,
+    "deltaScalarSpan": {
+      "start": 85,
+      "end": 87
+    },
+    "questionSha256": "6d163cbc5606ddab42e16f3c0d3d9baf528a008ad6cb40640ad3598ad6e701c8"
+  },
+  {
+    "id": "REFUSE-HEAT-MALFORMED-VOLUME-TRANSFER",
+    "question": "The heat capacity of a sample is 20 J/K. It is transferred from 20 mL to 1e- mL. ΔT = 10 K with no phase change. Find q.",
+    "family": "thermo",
+    "kind": "decline",
+    "questionSha256": "2367591300089530d2fdf84e5bcf3f88208d2ca6fd357e143b75c7409c931301"
+  },
+  {
+    "id": "CONTROL-HEAT-RANGE-CORROBORATING-DELTA-K",
+    "question": "The heat capacity of a sample is 20 J/K. It is heated from 300 to 310 K with no phase change. ΔT = 10 K. Find q.",
+    "family": "thermo",
+    "kind": "heat",
+    "capacity": 20,
+    "delta": 10,
+    "heat": 200,
+    "deltaScalarSpan": {
+      "start": 99,
+      "end": 101
+    },
+    "t1": 300,
+    "t2": 310,
+    "firstScalarSpan": {
+      "start": 59,
+      "end": 62
+    },
+    "secondScalarSpan": {
+      "start": 66,
+      "end": 69
+    },
+    "sharedUnitSpan": {
+      "start": 70,
+      "end": 71
+    },
+    "sharedUnit": "K",
+    "questionSha256": "c200950db452910d8b158a012f53b6aaee8e9290466b008c07842f5a2b3e5b79"
+  },
+  {
+    "id": "CONTROL-HEAT-RANGE-CORROBORATING-DELTA-C",
+    "question": "The heat capacity of a sample is 20 J/K. It is heated from 300 to 310 K with no phase change. ΔT = 10 °C. Find q.",
+    "family": "thermo",
+    "kind": "heat",
+    "capacity": 20,
+    "delta": 10,
+    "heat": 200,
+    "deltaScalarSpan": {
+      "start": 99,
+      "end": 101
+    },
+    "t1": 300,
+    "t2": 310,
+    "firstScalarSpan": {
+      "start": 59,
+      "end": 62
+    },
+    "secondScalarSpan": {
+      "start": 66,
+      "end": 69
+    },
+    "sharedUnitSpan": {
+      "start": 70,
+      "end": 71
+    },
+    "sharedUnit": "K",
+    "questionSha256": "65cd01750ecc50affcde5e37034838eb244e13e47d26ea6693b382bfe6eed8e4"
   }
 ];
 
