@@ -291,6 +291,8 @@ export function validateEvaluatedGeometricOpticsLabels(construction: SceneConstr
       const defaultSymbol = "objectDistance" in model ? ["u", "h_o", "v", "h_i"][outputIndex]! : model.kind === "lens" ? `F${outputIndex + 1}` : "F";
       if ("objectDistance" in model) Object.assign(values, { u: model.objectDistance, v: model.imageDistance, h_o: model.objectHeight, h_i: model.imageHeight, m: model.magnification });
       else values[defaultSymbol] = model.axisDistance;
+      // A label states a scalar of the point it sits on: the object arrow u or h_o, the image arrow v, h_i or m, a focus f.
+      const own = "objectDistance" in model ? (model.anchorRole.startsWith("object") ? ["u", "h_o"] : ["v", "h_i", "m"]) : Object.keys(values);
       const agrees = (actual: number, expected: number, tolerance = 5e-4): boolean => Math.abs(actual - expected) <= tolerance * Math.max(1e-9, Math.abs(expected));
       // Any textbook focus name on a focus output names that output's own focus.
       const symbolOf = (name: string): string => !("objectDistance" in model) && FOCUS_NAME.test(name) ? defaultSymbol : name;
@@ -345,13 +347,15 @@ export function validateEvaluatedGeometricOpticsLabels(construction: SceneConstr
         const label = text.trim().replaceAll("−", "-");
         if (Object.hasOwn(values, label)) return label;
         // This grammar checks mathematical scalar labels only; it never interprets question prose.
-        if (!label.includes("=") && !/[\s,;]/.test(label) && symbolsOf(label).length) return symbolsOf(label)[0];
+        if (!label.includes("=") && !/[\s,;]/.test(label) && symbolsOf(label).length) return symbolsOf(label).find((symbol) => own.includes(symbol)) ?? symbolsOf(label)[0];
         if (/^[A-Za-z][A-Za-z_]*$/.test(label) || FOCUS_NAME.test(label)) return undefined;
         let first: string | undefined;
         for (const part of label.split(";")) {
           const match = /^\s*([^\s=,;]+)\s*=\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*([^\s]*)\s*$/u.exec(part);
-          const symbols = match ? symbolsOf(match[1]!) : [];
-          if (!match || symbols.length === 0) return invalid("label", "optical numeric labels must name a supported physical scalar (u, v, f, h_o, h_i, m, a focus, or a declared quantity bound to one)");
+          const named = match ? symbolsOf(match[1]!) : [];
+          if (!match || named.length === 0) return invalid("label", "optical numeric labels must name a supported physical scalar (u, v, f, h_o, h_i, m, a focus, or a declared quantity bound to one)");
+          const symbols = named.filter((candidate) => own.includes(candidate));
+          if (symbols.length === 0) return invalid("label", "optical numeric label names a scalar of another point (object u or h_o, image v, h_i or m, focus f)");
           const symbol = symbols.find((candidate) => agreesStated(match[2]!, candidate, values[candidate]!));
           if (symbol === undefined) return invalid("label", "optical numeric label contradicts the evaluated Gaussian result");
           if (match[3]) checkUnits([match[3]], symbol);
@@ -364,6 +368,7 @@ export function validateEvaluatedGeometricOpticsLabels(construction: SceneConstr
         if (!annotation.targetIds.includes(outputId)) continue;
         const symbol = checkText(annotation.text) ?? defaultSymbol;
         if (annotation.quantityId !== undefined) {
+          if (!own.includes(symbol)) invalid("label", "source-bound optical annotation names a scalar of another point");
           // A non-negative bound value is a magnitude (the plan's unsigned f binds to a concave mirror's focus); a negative one is exact.
           const bound = validationNumber(annotation.quantityId, document); const expected = values[symbol]!;
           const ok = symbol !== "m" && bound >= 0 ? agrees(bound, Math.abs(expected), 1e-9) : agrees(bound, expected, 1e-9);

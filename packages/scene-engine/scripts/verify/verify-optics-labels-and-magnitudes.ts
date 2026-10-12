@@ -4,7 +4,7 @@
  * G3a to G3e: textbook focus names (F, F′, F1, F2, F₁, F₂) are names; an unsigned
  * value states a magnitude checked against the engine's own model; an explicit
  * sign must match; wrong values, units, names and bound values stay fatal.
- * G3f: two source mutations of the grammar must turn G3e and G3b red.
+ * G3f: source mutations of the grammar must turn G3e, G3b and G3i red.
  * G3g: a label may name a scalar by the document's own quantity id or symbol
  * (d_o, dₒ, do, w_o, wᵢ, ...). An input symbol binds only through the quantity the
  * operator input references; an output symbol (v, h_i, m) binds only to a
@@ -13,6 +13,10 @@
  * G3h: wrong values (request 57: the plan's h_i = 0.2273 m, the engine's 0.3 m),
  * a non-Cartesian explicit sign, an undeclared symbol, an unreferenced or
  * wrong-role quantity, prose and composite focus names all stay fatal.
+ * G3i: a numeric label states a scalar of the point it sits on. The object arrow
+ * carries u or h_o, the image arrow v, h_i or m, a focus its own distance or f.
+ * "h=2 cm" on a 1 cm image, the object height on the image tip and the image
+ * distance on the object are fatal; the same names on their own points pass.
  * G2a, G2b: `form` and `objectSide` make `gaussian_image` and `optical_focus`
  * read unsigned magnitudes and apply the Cartesian convention in the engine;
  * a converging lens with a negative f fails closed.
@@ -24,8 +28,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import type { SceneConstruction, SceneDocument, SceneIssue } from "../../src/types";
 
 type OpticsModule = typeof import("../../src/compile/geometricOpticsGeometry");
-type Gate = "G3a" | "G3b" | "G3c" | "G3d" | "G3e" | "G3g" | "G3h" | "G2a" | "G2b";
-const GATES: Gate[] = ["G3a", "G3b", "G3c", "G3d", "G3e", "G3g", "G3h", "G2a", "G2b"];
+type Gate = "G3a" | "G3b" | "G3c" | "G3d" | "G3e" | "G3g" | "G3h" | "G3i" | "G2a" | "G2b";
+const GATES: Gate[] = ["G3a", "G3b", "G3c", "G3d", "G3e", "G3g", "G3h", "G3i", "G2a", "G2b"];
 const SOURCE = fileURLToPath(new URL("../../src/compile/geometricOpticsGeometry.ts", import.meta.url));
 
 const base = { kind: "lens", center: "O", axis: "axis", objectDistance: { value: "u" }, focalLength: "f", objectHeight: "h", displayScale: "scale", lengthUnit: "cm" };
@@ -209,6 +213,43 @@ function runGates(optics: OpticsModule): Map<Gate, string[]> {
     ['"d_o=12 cm" on a focus', planScene("lens", "converging", "cm", stampB1, stampB1Refs, { F2: "d_o=12 cm" }), "invalid_optical_focus_label"],
   ] as const) fatal("G3h", name, document, code);
 
+  // G3i: lens f = 10, u = -30, a 2 cm object; engine v = 15, m = -0.5, a 1 cm inverted image (h_i = -1).
+  const twoCm = (labels: Record<string, string>, annotations: Array<{ target: string; text: string; quantityId?: string }> = []): SceneDocument => {
+    const document = labelled("lens", labels, annotations);
+    document.quantities.find((quantity) => quantity.id === "h")!.value = 2;
+    return document;
+  };
+  // The plan's own names d_o, h, d_i (the stamp collector, with the height named h): v = -48, h_i = 3.2.
+  const ownNames = [q("f", 16, "cm", "f"), q("d_o", 12, "cm", "d_o"), q("h", 0.8, "cm", "h"), q("d_i", -48, "cm", "d_i")];
+  const ownRefs = { u: "d_o", f: "f", h: "h" };
+  for (const [name, document, code] of [
+    ['"h=2 cm" on the 1 cm image tip', twoCm({ it: "h=2 cm" }), "invalid_gaussian_image_label"],
+    ['"h=2 cm" annotated on the 1 cm image tip', twoCm({}, [{ target: "it", text: "h=2 cm" }]), "invalid_gaussian_image_label"],
+    ['the object height "h_o=2 cm" on the image tip', twoCm({ it: "h_o=2 cm" }), "invalid_gaussian_image_label"],
+    ['the object height bound by quantityId on the image tip', twoCm({}, [{ target: "it", text: "h", quantityId: "h" }]), "invalid_gaussian_image_label"],
+    ['the image distance "v=15 cm" on the object base', twoCm({ ob: "v=15 cm" }), "invalid_gaussian_image_label"],
+    ['the image distance "v=15 cm" on the object tip', twoCm({}, [{ target: "ot", text: "v=15 cm" }]), "invalid_gaussian_image_label"],
+    ['the object distance "u=30 cm" on the image base', twoCm({ ib: "u=30 cm" }), "invalid_gaussian_image_label"],
+    ['"m=-0.5" on the object tip', twoCm({ ot: "m=-0.5" }), "invalid_gaussian_image_label"],
+    ['"f=10 cm" on the object tip', twoCm({ ot: "f=10 cm" }), "invalid_gaussian_image_label"],
+    ['the plan name "d_i=-48 cm" on the object base', planScene("lens", "converging", "cm", ownNames, ownRefs, { ob: "d_i=-48 cm" }), "invalid_gaussian_image_label"],
+    ['the plan name "d_o=12 cm" on the image base', planScene("lens", "converging", "cm", ownNames, ownRefs, { ib: "d_o=12 cm" }), "invalid_gaussian_image_label"],
+    ['the plan name "w_o=0.8 cm" (object height) on the image tip', planScene("lens", "converging", "cm", stampB2, stampB2Refs, {}, [{ target: "it", text: "w_o=0.8 cm" }]), "invalid_gaussian_image_label"],
+    ['the plan name "d_o" bound by quantityId on the image base', planScene("lens", "converging", "cm", stampB2, stampB2Refs, {}, [{ target: "ib", text: "d_o", quantityId: "d_o" }]), "invalid_gaussian_image_label"],
+  ] as const) fatal("G3i", name, document, code);
+  for (const [name, document] of [
+    ['"h_i=1 cm" on the 1 cm image tip', twoCm({ it: "h_i=1 cm" })],
+    ['"h_i=-1 cm" on the image tip (Cartesian sign)', twoCm({}, [{ target: "it", text: "h_i=-1 cm" }])],
+    ['"h=2 cm" on the 2 cm object tip', twoCm({ ot: "h=2 cm" })],
+    ['"u=30 cm" and "v=15 cm" on their own bases, "m=-0.5" on the image tip', twoCm({ ob: "u=30 cm", ib: "v=15 cm", it: "m=-0.5" })],
+    ['"u=30 cm; h_o=2 cm" on the object tip', twoCm({ ot: "u=30 cm; h_o=2 cm" })],
+    ['"f=10 cm" on a lens focus', twoCm({ F2: "f=10 cm" })],
+    ["the plan names d_o, h, d_i on their own points", planScene("lens", "converging", "cm", ownNames, ownRefs, { ob: "d_o=12 cm", ot: "h=0.8 cm", ib: "d_i=-48 cm" })],
+    ["the plan names d_o, h, d_i bound by quantityId on their own points", planScene("lens", "converging", "cm", ownNames, ownRefs, {},
+      [{ target: "ob", text: "d_o=12 cm", quantityId: "d_o" }, { target: "ot", text: "h=0.8 cm", quantityId: "h" }, { target: "ib", text: "d_i=-48 cm", quantityId: "d_i" }])],
+    ["bare names on any point make no claim", twoCm({ ob: "u", ot: "object", ib: "v", it: "image" })],
+  ] as const) clean("G3i", name, document);
+
   // G2a: magnitude mode equals the signed Cartesian scene, and stored metadata stays Cartesian.
   const context = { number(value: unknown) { const result = Number(value); if (!Number.isFinite(result)) throw new Error("nonfinite"); return result; }, point() { throw new Error("unused"); }, geometry() { return undefined; } };
   const literal = { center: [3, -2], axis: [1, 0], objectHeight: 5, displayScale: 2, lengthUnit: "cm" };
@@ -284,6 +325,8 @@ async function main(): Promise<void> {
     for (const [name, from, to, gate, needle] of [
       ["agreesStated compares magnitudes on both sides", /symbol !== "m" && !\/\^\[\+-\]\/\.test\(raw\) \? (agrees\(Math\.abs\(Number\(raw\)\), Math\.abs\(expected\), tolerance\)) : agrees\(Number\(raw\), expected, tolerance\)/, "$1", "G3e", '"f = +10 cm" on the concave mirror'],
       ["FOCUS_NAME without ₁ and ₂", /const FOCUS_NAME = \/\^F\(\?:1\|2\|₁\|₂\|′\|'\)\?\$\/u;/, "const FOCUS_NAME = /^F(?:1|2|′|')?$/u;", "G3b", "F₁ and F₂"],
+      ["numeric labels ignore the point they sit on", /const symbols = named\.filter\(\(candidate\) => own\.includes\(candidate\)\);/, "const symbols = named;", "G3i", '"h=2 cm" on the 1 cm image tip'],
+      ["bound annotations ignore the point they sit on", /if \(!own\.includes\(symbol\)\) invalid\("label", "source-bound optical annotation names a scalar of another point"\);/, "", "G3i", "the object height bound by quantityId on the image tip"],
     ] as const) {
       const mutated = source.replace(from, to);
       if (mutated === source) { red.push(`G3f: mutation "${name}" did not apply to the source`); continue; }
