@@ -6,7 +6,7 @@ import { synthesizeFamilyScene } from "../../src/synthesize/familyScene";
 import { compileSceneDocument } from "../../src/compile/compiler";
 import type { SceneDocument } from "../../src/types";
 
-const cases: readonly {id:string; question:string; expected:string; dG:number|null; unit?:string}[] = [
+const cases: readonly {id:string; question:string; expected:string; dG:number|null; unit?:string; tEq?:number}[] = [
   {
     "id": "GREPTILE-4244042438",
     "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and calculate ΔG at 298 K.",
@@ -1138,10 +1138,83 @@ const cases: readonly {id:string; question:string; expected:string; dG:number|nu
     "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Activation energy is unknown; draw Gibbs free energy against T.",
     "expected": "required-compile",
     "dG": -10.2
-  }
+  },
+{
+  "id": "PUBLIC-LANEB-M10d",
+  "question": "For a reaction ΔH = 100000 kJ/mol and ΔS = 100 J K−1 mol−1. Draw ΔG vs T and find the temperature where ΔG = 0.",
+  "expected": "graph-only",
+  "dG": null,
+  "tEq": 1000000
+},
+{
+  "id": "OWN-IMPLICIT-USING",
+  "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T using ΔH - TΔS and calculate ΔG at 298 K.",
+  "expected": "required-compile",
+  "dG": -10.2
+},
+{
+  "id": "OWN-IMPLICIT-FROM",
+  "question": "At 300 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Plot ΔG against T from ΔH - TΔS.",
+  "expected": "required-compile",
+  "dG": -10
+},
+{
+  "id": "OWN-IMPLICIT-WITH",
+  "question": "At 310 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Show ΔG versus T with ΔH - TΔS.",
+  "expected": "required-compile",
+  "dG": -9
+},
+{
+  "id": "OWN-ZERO-CONDITION",
+  "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Find the temperature where ΔG = 0.",
+  "expected": "graph-only",
+  "dG": null
+},
+{
+  "id": "OWN-ZERO-CONDITION-PLOT",
+  "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and mark the temperature where ΔG = 0.",
+  "expected": "graph-only",
+  "dG": null
+},
+{
+  "id": "OWN-IMPLICIT-UNREAD",
+  "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T using ΔH - TΔS and T is unknown.",
+  "expected": "decline",
+  "dG": null
+},
+{
+  "id": "OWN-IMPLICIT-WRONG-UNIT",
+  "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T using ΔH as 298 K.",
+  "expected": "decline",
+  "dG": null
+},
+{
+  "id": "OWN-ZERO-CONDITION-UNIT",
+  "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and find the temperature where ΔG = 0 K.",
+  "expected": "decline",
+  "dG": null
+},
+{
+  "id": "OWN-ZERO-CONDITION-NONZERO",
+  "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Find the temperature where ΔG = 1.",
+  "expected": "decline",
+  "dG": null
+},
+{
+  "id": "OWN-ZERO-CONDITION-DECIMAL",
+  "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Find the temperature where ΔG = 0.5.",
+  "expected": "decline",
+  "dG": null
+},
+{
+  "id": "OWN-ZERO-CONDITION-UNREAD",
+  "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Find the temperature where ΔG = unknown.",
+  "expected": "decline",
+  "dG": null
+}
 ];
 const results: {id:string;passed:boolean;error?:string}[] = [];
-function compiled(document: SceneDocument | null, expected: number | null, unit = "kJ/mol"): void {
+function compiled(document: SceneDocument | null, expected: number | null, unit = "kJ/mol", expectedTeq = 400): void {
   assert.ok(document, "required original Gibbs scene missing");
   assert.equal(document.source.chemistryFamily, "chem_thermo");
   const result = compileSceneDocument(document);
@@ -1155,7 +1228,7 @@ function compiled(document: SceneDocument | null, expected: number | null, unit 
   assert.ok(!/NaN|Infinity/.test(JSON.stringify(document)));
   if (expected === null) {
     assert.equal(dG, undefined, "graph-only source cannot invent an evaluation point");
-    assert.ok(document.quantities.some(quantity => quantity.id === "T_eq" && quantity.value === 400));
+    assert.ok(document.quantities.some(quantity => quantity.id === "T_eq" && quantity.value === expectedTeq));
   } else {
     assert.ok(dG && typeof dG.value === "number");
     assert.ok(Math.abs(dG.value - expected) <= 1e-10, `${dG.value} != ${expected}`);
@@ -1174,8 +1247,8 @@ for (const row of cases) {
       assert.equal(schematic, null, "invalid temperature cannot render schematic graph");
       assert.equal(ordinary, null, "invalid temperature cannot fall through to another family");
     } else {
-      compiled(direct, row.dG, row.unit); compiled(schematic, row.dG, row.unit);
-      assert.ok(ordinary); compiled(ordinary.document, row.dG, row.unit);
+      compiled(direct, row.dG, row.unit, row.tEq); compiled(schematic, row.dG, row.unit, row.tEq);
+      assert.ok(ordinary); compiled(ordinary.document, row.dG, row.unit, row.tEq);
       assert.equal(ordinary.document.source.question, row.question);
     }
     results.push({id:row.id,passed:true}); console.log(`PASS ${row.id}`);

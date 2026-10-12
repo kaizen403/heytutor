@@ -518,7 +518,15 @@ function gibbsReferencePayloadOnly(body: string, start: number, ownerEnd: number
     if (!owner || owner[1] === "t") return false;
     payload = payload.slice(0, reading.source.span.start - start) + " Θ " + payload.slice(reading.source.span.end - start);
   }
+  // A requested zero crossing is a condition on the curve, not a supplied
+  // evaluation temperature or an additional H/S value. Mask only a complete
+  // literal zero; scalar continuations and units remain unread payload.
+  payload = payload.replace(/[Δδ∆]\s*G\s*=\s*0(?=\s*(?:$|[,)]|\b(?:and|at|where)\b))/gi, " zero ");
   return /^(?:\s|[(),=+−*/×·-]|Θ|[Δδ∆]\s*[GHS]\b|\bT\b|\bK\b|\b(?:and|together|with|using|from|to|in|versus|vs|against|at|as|on|above|below|where|of|all|any|every|what|which|absolute|draw|plot|sketch|show|calculate|compute|determine|find|mark|the|an?|its|this|reaction|point|line|graph|curve|diagram|Gibbs|free|energy|temperatures?|equilibrium|transition|minimum|threshold|crossover|will|does|reach|be|becomes?|is|negative|positive|zero|spontaneous|feasible)\b)*$/i.test(payload);
+}
+/** Shared prefix proof; complete payload validation still belongs to each owner. */
+function gibbsReusePrefix(prefix: string): boolean {
+  return /\b(?:use|using|from|with)\s+(?:(?:the|given|known|stated|observed|provided|measured|listed)\s+)*(?:[Δδ∆HhSsTt0-9\s*×·/()+−-]|\band\b|,|enthalpy\s+change|entropy\s+change)*$/i.test(prefix);
 }
 /** Requested thresholds and formula/axis operands do not supply an evaluation point. */
 function gibbsTemperatureReference(body: string, start: number, end: number, ownerEnd: number): boolean {
@@ -528,11 +536,12 @@ function gibbsTemperatureReference(body: string, start: number, end: number, own
   if (/\b(?:what|which|all|any|every)\s+(?:absolute\s+)?$/i.test(before)) return true;
   if (/^\s*(?:[=:]|[+−-]?(?:\d|\.\d))/i.test(tail)) return false;
   if (/[Δδ∆]\s*G\s*\(\s*$/i.test(before) && /^\s*\)/.test(tail)) return true;
-  const referenceTail = /^\s*(?:[Δδ∆]\s*S\b|\(\s*K\s*\)|[+−*/×·),.;!?]|$|\b(?:and|to|versus|vs|against|at|as|in|above|below|where|of)\b)/i.test(tail);
+  const referenceTail = /^\s*(?:[Δδ∆]\s*S\b|\(\s*K\s*\)|[+−*/×·),.;!?]|$|\b(?:and|to|versus|vs|against|at|as|in|above|below|where|of|using|from|with)\b)/i.test(tail);
   if (!referenceTail) return false;
   if (/\b(?:versus|vs|against|with|on)\s*$/i.test(before)) return true;
   const prefix = before.split(/[;.!?\n]/).at(-1)!;
   if (/(?:[Δδ∆]\s*G(?:\s*\(\s*T\s*\))?|\bT(?:_[a-z]+)?)\s*=\s*[Δδ∆HhSsTt0-9\s*×·/()+−-]*$/i.test(prefix)) return true;
+  if (gibbsReusePrefix(prefix)) return true;
   return /\b(?:show|find|calculate|determine|compute|mark)\s+(?:(?:the|an?|equilibrium|transition|minimum|threshold|crossover|absolute)\s+)*$/i.test(prefix);
 }
 /** Agreeing absolute readings corroborate one point; an unread owner is not absence. */
@@ -580,7 +589,7 @@ function gibbsEnergyReference(body: string, start: number, end: number, ownerEnd
   if (!/^\s*(?:[+−*/×·)-]|-(?!\s*\d)|[,.;?!]|$|\btogether\s+with\b|\b(?:and|to|versus|vs|against|at|as|in)\b)/i.test(tail)) return false;
   const prefix = body.slice(0, start).split(/[;.!?\n]/).at(-1)!;
   if (/(?:[Δδ∆]\s*G(?:\s*\(\s*T\s*\))?|\bT(?:_[a-z]+)?)\s*=\s*[Δδ∆HhSsTt0-9\s*×·/()+−-]*$/i.test(prefix)) return true;
-  return /\b(?:use|using|from|with)\s+(?:(?:the|given|known|stated|observed|provided|measured|listed)\s+)*(?:[Δδ∆HhSsTt0-9\s*×·/()+−-]|\band\b|,|enthalpy\s+change|entropy\s+change)*$/i.test(prefix);
+  return gibbsReusePrefix(prefix);
 }
 type GibbsEnergies = {enthalpy: Energy; entropy: {value: number; unit: "J"; dimension: ChemistryDimension}};
 
