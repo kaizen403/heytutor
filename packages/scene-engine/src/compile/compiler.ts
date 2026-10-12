@@ -431,6 +431,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   validateReflectionCriticalAngles({
     document,
     geometry,
+    drawn: drawnInk,
     resolvePoint: (value) => resolvePoint(value, geometry),
     resolveNumber: (value) => {
       if (value === undefined || value === null) return null;

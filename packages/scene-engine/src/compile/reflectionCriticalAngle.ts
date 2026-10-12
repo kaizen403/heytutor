@@ -18,6 +18,12 @@
  *   refraction too.
  * Otherwise the figure fails with `reflection_below_critical_angle`. Indices
  * are never read from words; with none declared the rule does not apply.
+ *
+ * The rule judges what the figure draws: only a reflection whose outgoing ray
+ * is drawn is checked, and only a refraction whose outgoing ray is drawn
+ * excuses it. A refraction that is not drawn still declares the indices. The
+ * incoming direction is read from a path or from a literal vector, as the
+ * compiler accepts both.
  */
 import type { SceneDocument, SceneIssue } from "../types";
 
@@ -34,6 +40,8 @@ interface Event {
   /** Unit direction the incident light travels in. */
   incoming: Point;
   outputs: string[];
+  /** The outgoing ray: output 2 of `*_at`, output 0 of `*_direction`. */
+  outgoingId: string | null;
   n1?: number;
   n2?: number;
 }
@@ -44,6 +52,8 @@ export interface ReflectionCriticalAngleInput {
   resolvePoint: (value: unknown) => Point;
   /** A declared numeric input (literal or quantity), or null when it has none. */
   resolveNumber: (value: unknown) => number | null;
+  /** The compiler's drawn check; without it every entity counts as drawn. */
+  drawn?: (entityId: string) => boolean;
   issues: SceneIssue[];
 }
 
@@ -53,6 +63,7 @@ const TOTAL_INTERNAL_REFLECTION_TEXT = /total(?:ly)?[\s-]+internal(?:ly)?[\s-]+r
 
 export function validateReflectionCriticalAngles(input: ReflectionCriticalAngleInput): void {
   const { document, geometry } = input;
+  const drawn = (event: Event) => event.outgoingId !== null && (input.drawn?.(event.outgoingId) ?? true);
   const constructions = document.constructions ?? [];
   if (!constructions.some((construction) => construction.operator === "reflect_at" || construction.operator === "reflect_direction")) return;
   const producers = new Map<string, SceneDocument["constructions"][number]>();
@@ -73,7 +84,7 @@ export function validateReflectionCriticalAngles(input: ReflectionCriticalAngleI
       const n2 = input.resolveNumber(inputs.n2);
       if (n1 === null || n2 === null || !(n1 > 0) || !(n2 > 0)) continue;
       refractions.push({ ...event, n1, n2 });
-    } else {
+    } else if (drawn(event)) {
       reflections.push(event);
     }
   }
@@ -105,7 +116,7 @@ export function validateReflectionCriticalAngles(input: ReflectionCriticalAngleI
     const incidentIndex = indexBySide.get(side);
     const farIndex = indexBySide.get(-side);
     if (side === 0 || incidentIndex === undefined || farIndex === undefined) continue;
-    const refractsThere = onSurface.some((event) => distance(event.contact, reflection.contact) <= tolerance);
+    const refractsThere = onSurface.some((event) => drawn(event) && distance(event.contact, reflection.contact) <= tolerance);
     if (refractsThere) continue;
     const normal = surfaceNormal(surface, reflection.contact);
     if (!normal) continue;
@@ -140,11 +151,15 @@ function readEvent(
   let surfaceId: unknown;
   let contactRef: unknown;
   let incomingPath: unknown;
+  let incomingVector: Point | null = null;
+  let outgoingId: string | null;
   if (construction.operator === "refract_at" || construction.operator === "reflect_at") {
     surfaceId = inputs.surface;
     contactRef = inputs.point ?? inputs.contact;
     incomingPath = input.geometry.get(outputs[0] ?? "");
+    outgoingId = outputs[2] ?? null;
   } else {
+    outgoingId = outputs[0] ?? null;
     contactRef = inputs.origin ?? inputs.point;
     const normalProducer = typeof inputs.normal === "string" ? producers.get(inputs.normal) : undefined;
     const contactProducer = typeof contactRef === "string" ? producers.get(contactRef) : undefined;
@@ -154,18 +169,41 @@ function readEvent(
         ? contactProducer.inputs?.surface
         : undefined;
     const incoming = inputs.incoming ?? inputs.direction;
-    incomingPath = typeof incoming === "string" ? input.geometry.get(incoming) : undefined;
+    if (typeof incoming === "string") incomingPath = input.geometry.get(incoming);
+    else incomingVector = literalVector(incoming);
   }
-  if (typeof surfaceId !== "string" || !isPath(incomingPath as GeometryLike)) return null;
+  if (typeof surfaceId !== "string") return null;
+  let travel: Point;
+  if (incomingVector) {
+    travel = incomingVector;
+  } else {
+    if (!isPath(incomingPath as GeometryLike)) return null;
+    const path = incomingPath as PathValue;
+    travel = path.infinite
+      ? sub(path.points[1]!, path.points[0]!)
+      : sub(path.points.at(-1)!, path.points[0]!);
+  }
   let contact: Point;
   try { contact = input.resolvePoint(contactRef); } catch { return null; }
-  const path = incomingPath as PathValue;
-  const travel = path.infinite
-    ? sub(path.points[1]!, path.points[0]!)
-    : sub(path.points.at(-1)!, path.points[0]!);
   const incoming = unit(travel);
   if (!incoming || !finite(contact)) return null;
-  return { constructionId: construction.id, surfaceId, contact, incoming, outputs };
+  return { constructionId: construction.id, surfaceId, contact, incoming, outputs, outgoingId };
+}
+
+/** A literal direction, [x, y] or { x, y }, as the compiler's resolveVector reads it. */
+function literalVector(value: unknown): Point | null {
+  if (Array.isArray(value) && value.length === 2 && value.every((item) => typeof item === "number")) {
+    const vector = { x: value[0] as number, y: value[1] as number };
+    return finite(vector) ? vector : null;
+  }
+  if (typeof value === "object" && value !== null) {
+    const record = value as Record<string, unknown>;
+    if (typeof record.x === "number" && typeof record.y === "number") {
+      const vector = { x: record.x, y: record.y };
+      return finite(vector) ? vector : null;
+    }
+  }
+  return null;
 }
 
 /** Annotated or entity labels a reflection's outputs carry that say total internal reflection. */
