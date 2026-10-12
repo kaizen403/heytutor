@@ -216,8 +216,11 @@ function heatTemperatureRange(question: string): { first: number; second: number
     if (!firstToken || !secondToken) return true;
     const first = readChemistryUnitLiteral({ question, scalarSpan: { start: part[0], end: part[0] + firstToken[0].length } });
     const second = readChemistryUnitLiteral({ question, scalarSpan: { start: secondStart, end: secondStart + secondToken[0].length } });
+    const heatOperands = ["temperature", "temperature_delta", "heat_capacity", "molar_heat_capacity", "amount", "energy"] as const;
     return !(first.ok && second.ok && first.reading.dimension !== "temperature"
       && first.reading.dimension === second.reading.dimension
+      && [first.reading, second.reading].every(reading => !!reading.rawUnit
+        && !heatOperands.some(dimension => chemistryUnitSymbol(reading.rawUnit!, dimension)))
       && !question.slice(first.reading.source.span.end, part[1]).trim());
   });
   if (ranges.length === 0) return null;
