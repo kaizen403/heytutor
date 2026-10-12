@@ -22,6 +22,16 @@
  * numbers only on the engine's optical points. G5b: each passes production
  * validation with an unsigned plan of its stem, loses no label to pruning, is
  * proven, and draws as the planner figure in the strict arm and with no policy.
+ *
+ * G7: an inline objectHeight the stated height contradicts never draws, in
+ * signed and magnitude mode; the stated height, an inverted object and a
+ * representative height on a stem with no stated height still pass.
+ * G8: every line converging on the image tip starts on the element after a
+ * drawn incident ray from the object tip, or is a lens chief ray whose drawn
+ * path passes the optical centre. Paths ot->it and ob->it never draw on a lens,
+ * a concave mirror or a convex mirror; the correct figures still do.
+ * G9: a correct magnitude passes whatever sign the plan or the stem writes.
+ * G10: a mirror axis written as {start, direction} is read.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -526,7 +536,219 @@ for (const exemplar of gaussianSources) {
   }
 }
 
-for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b"]) {
+/** Every fatal validation issue as `code@path`. */
+const validationIssues = (question: string, turnPlan: TurnPlanV3, document: Doc): string[] => {
+  const validation = validateProductionSceneCandidate({
+    candidate: structuredClone(document) as unknown as Record<string, unknown>, question, turnPlan,
+  });
+  return validation.valid ? [] : validation.errors.filter((issue) => issue.severity === "fatal").map((issue) => `${issue.code}@${issue.path}`);
+};
+const quantityIssues = (question: string, turnPlan: TurnPlanV3, document: Doc): string[] =>
+  validationIssues(question, turnPlan, document).filter((issue) => issue.startsWith("scene_quantity"));
+function withInputs(document: Doc, edits: Record<string, Record<string, unknown>>): Doc {
+  const copy = structuredClone(document);
+  for (const construction of copy.constructions) {
+    const edit = edits[construction.operator];
+    if (edit) Object.assign(construction.inputs, edit);
+  }
+  return copy;
+}
+
+// ---- G7: an inline object height the stem contradicts never draws ----
+// The car mirror stem states the toy is 4.5 cm tall; the plan carries h = 4.5 cm.
+const convexQuantities = [{ id: "u", symbol: "u", value: 27 }, { id: "f", symbol: "f", value: 18 }];
+const tallConvex = mirrorDoc(qConvex, { u: 27, f: 18, h: 9, kind: "convex", quantities: convexQuantities });
+const tallConvexForm = withInputs(tallConvex, {
+  gaussian_image: { objectDistance: "u", focalLength: "f", form: "diverging", objectSide: "real" },
+  optical_focus: { focalLength: "f", form: "diverging" },
+});
+for (const [name, document] of [
+  ["the convex mirror with an inline objectHeight 9 on a 4.5 cm stem (signed mode)", tallConvex],
+  ["the same mirror in magnitude mode on plan ids u and f, objectHeight 9 inline", tallConvexForm],
+] as const) {
+  // The proof reads no height (the stem match has no h slot), so the plan check in production
+  // validation is what keeps this figure off the board in both arms.
+  const { fatalIssues, result } = compiled(document);
+  check("G7", result.ok && result.report.valid && fatalIssues.length === 0, `${name} must compile clean (${fatalIssues.slice(0, 3).join("; ")})`);
+  const { strict, current } = production(qConvex, convexPlan, document);
+  for (const [arm, selection] of [["strict", strict], ["current", current]] as const) {
+    check("G7", selection.representation?.figureSource !== "planner" && selection.attemptedRepresentation?.figureSource !== "planner",
+      `${name} must never be drawn as a planner figure in the ${arm} arm; got ${selection.representation?.figureSource ?? "nothing"}`);
+  }
+  const issues = quantityIssues(qConvex, convexPlan, document);
+  check("G7", issues.some((issue) => issue.startsWith("scene_quantity_unverified@") && issue.endsWith(".inputs.objectHeight")),
+    `${name} must fail scene_quantity_unverified on inputs.objectHeight; got ${issues.join(", ") || "no quantity issue"}`);
+}
+// Controls: the stated height draws in both modes, an inverted object compares by magnitude, and a stem
+// with no stated height keeps a representative one.
+const statedConvexForm = withInputs(goodConvex, {
+  gaussian_image: { objectDistance: "u", focalLength: "f", form: "diverging", objectSide: "real" },
+  optical_focus: { focalLength: "f", form: "diverging" },
+});
+expectDrawnAsPlanner("G7", "the convex mirror with the stated inline objectHeight 4.5 (signed mode)", qConvex, convexPlan, goodConvex);
+expectDrawnAsPlanner("G7", "the convex mirror with the stated inline objectHeight 4.5 (magnitude mode)", qConvex, convexPlan, statedConvexForm);
+for (const [name, question, turnPlan, document] of [
+  ["an inverted inline objectHeight -4.5 on the 4.5 cm stem", qConvex, convexPlan, withInputs(goodConvex, { gaussian_image: { objectHeight: -4.5 } })],
+  ["a representative inline objectHeight 2 on a stem with no stated height", qMirror, mirrorPlan, goodMirror],
+  ["a representative inline objectHeight 7 in magnitude mode on a stem with no stated height", qMirror, mirrorPlan,
+    withInputs(magnitudeMirror("converging"), { gaussian_image: { objectHeight: 7 } })],
+] as const) {
+  const issues = quantityIssues(question, turnPlan, document);
+  check("G7", issues.length === 0, `${name} must raise no scene_quantity issue; got ${issues.join(", ")}`);
+}
+expectDrawnAsPlanner("G7", "a representative inline objectHeight 7 in magnitude mode on a stem with no stated height",
+  qMirror, mirrorPlan, withInputs(magnitudeMirror("converging"), { gaussian_image: { objectHeight: 7 } }));
+
+// ---- G8: every converging line leaves the element after a drawn incident ray, or is the lens chief ray ----
+const qLensReal = "A convex lens of focal length 10 cm forms an image of an object placed 30 cm from it. Draw the ray diagram.";
+const lensRealPlan = plan(qLensReal, [
+  { id: "f", symbol: "f", value: 10, unit: "cm", provenance: "given", sourceText: "focal length 10 cm" },
+  { id: "u", symbol: "u", value: 30, unit: "cm", provenance: "given", sourceText: "placed 30 cm" },
+], [{ id: "v", symbol: "v", value: 15, unit: "cm", provenance: "derived" }], ["lens_formula"]);
+const goodLensReal = lensDoc(qLensReal, { u: 30, f: 10, h: 2 });
+/** Keep only the element, its foci, the arrows and the given converging paths. */
+function onlyPaths(base: Doc, paths: Array<[id: string, operator: string, start: string, end: string]>): Doc {
+  const document = structuredClone(base);
+  const keep = new Set(["point", "line", "gaussian_image", "optical_focus", "lens_section", "spherical_surface"]);
+  document.constructions = document.constructions.filter((construction) => keep.has(construction.operator) ||
+    ["c_object", "c_image"].includes(construction.id));
+  for (const [id, operator, start, end] of paths) {
+    document.constructions.push({ id: `c_${id}`, operator, inputs: { start, end }, outputs: [id] } as Construction);
+  }
+  const outputs = new Set(document.constructions.flatMap((construction) => construction.outputs));
+  document.entities = [...document.entities.filter((entity) => outputs.has(entity.id)), ...paths.map(([id, operator]) => ent(id, operator, "ray"))];
+  document.assertions = [fatal("conv", "converges", [...paths.map(([id]) => id), "it"])];
+  document.requiredEntityIds = document.entities.filter((entity) => !entity.id.startsWith("axis_")).map((entity) => entity.id);
+  const late = new Set([...paths.map(([id]) => id), "ib", "it", "image"]);
+  document.revealGroups = [
+    { id: "setup", entityIds: document.requiredEntityIds.filter((id) => !late.has(id)), dependsOn: [], narrationCue: "setup" },
+    { id: "rays", entityIds: paths.map(([id]) => id), dependsOn: ["setup"], narrationCue: "rays" },
+    { id: "image_group", entityIds: ["ib", "it", "image"], dependsOn: ["rays"], narrationCue: "image" },
+  ];
+  return document;
+}
+const objectToImage: Array<[string, string, string, string]> = [["bad1", "segment", "ot", "it"], ["bad2", "segment", "ob", "it"]];
+const impossibleRayCases: Array<[string, string, TurnPlanV3, Doc, Doc]> = [
+  ["convex lens (real image)", qLensReal, lensRealPlan, goodLensReal, onlyPaths(goodLensReal, objectToImage)],
+  ["concave mirror (real image)", qMirror, mirrorPlan, goodMirror, onlyPaths(goodMirror, objectToImage)],
+  ["convex mirror (virtual image)", qConvex, convexPlan, goodConvex, onlyPaths(goodConvex, objectToImage)],
+];
+const elementRule = /converging line .* (?:does not leave the|has no drawn incident ray)/;
+for (const [name, question, turnPlan, good, bad] of impossibleRayCases) {
+  expectNeverPlanner("G8", `the ${name} drawn with only ot->it and ob->it`, question, turnPlan, bad);
+  const proof = explainPlannerOpticsProof(question, bad);
+  check("G8", proof.proof === "unproven" && elementRule.test(proof.reason),
+    `the ${name} with ot->it and ob->it must fail the element rule; got ${proof.proof}: ${proof.reason}`);
+  expectDrawnAsPlanner("G8", `the correct ${name}`, question, turnPlan, good);
+}
+// A reflected ray that starts on the mirror with no incident ray drawn to that point.
+const noIncident = structuredClone(goodMirror);
+noIncident.constructions = noIncident.constructions.filter((construction) => construction.id !== "c_r1i");
+noIncident.entities = noIncident.entities.filter((entity) => entity.id !== "ray1_in");
+noIncident.assertions = noIncident.assertions.filter((assertion) => assertion.id !== "par1");
+noIncident.requiredEntityIds = noIncident.requiredEntityIds.filter((id) => id !== "ray1_in");
+noIncident.revealGroups = noIncident.revealGroups.map((group) => ({ ...group, entityIds: group.entityIds.filter((id) => id !== "ray1_in") }));
+expectNeverPlanner("G8", "the concave mirror with no incident ray to the first hit point", qMirror, mirrorPlan, noIncident);
+check("G8", /has no drawn incident ray/.test(explainPlannerOpticsProof(qMirror, noIncident).reason),
+  `a reflected ray with no incident ray must fail the incident rule; got ${explainPlannerOpticsProof(qMirror, noIncident).reason}`);
+// The chief ray exception holds only on a lens and only when the drawn path passes the optical centre.
+const lensChief = (base: Doc, operator: string): Doc => {
+  const document = structuredClone(base);
+  document.constructions.push({ id: "c_chief", operator, inputs: { start: "ot", end: "it" }, outputs: ["chief"] } as Construction);
+  document.entities.push(ent("chief", operator, "undeviated ray through the optical centre"));
+  document.requiredEntityIds.push("chief");
+  document.revealGroups = document.revealGroups.map((group) => group.id === "rays" ? { ...group, entityIds: [...group.entityIds, "chief"] } : group);
+  document.assertions = document.assertions.map((assertion) => assertion.id === "conv"
+    ? { ...assertion, entities: [assertion.entities[0]!, "chief", "it"] } : assertion);
+  return document;
+};
+expectDrawnAsPlanner("G8", "the real-image convex lens with the chief ray drawn as one segment ot->it", qLensReal, lensRealPlan,
+  lensChief(goodLensReal, "segment"));
+// u = 10, f = 15: the virtual image lies beyond the object, so a ray from ot through it runs away from the lens.
+expectNeverPlanner("G8", "the virtual-image convex lens with a ray from ot away from the lens through it", qLens, lensPlan,
+  lensChief(goodLens, "ray"));
+check("G8", /chief ray .* optical centre/.test(explainPlannerOpticsProof(qLens, lensChief(goodLens, "ray")).reason),
+  `a chief ray that misses the optical centre must fail on the centre; got ${explainPlannerOpticsProof(qLens, lensChief(goodLens, "ray")).reason}`);
+
+// ---- G9: a correct magnitude passes whatever sign the plan or the stem writes ----
+const qDiverging = "A diverging lens has a focal length of 25 cm. An object is placed 50 cm in front of it. Draw the ray diagram and locate the image.";
+const signedPlan = plan(qDiverging, [
+  { id: "f", symbol: "f", value: -25, unit: "cm", provenance: "given", sourceText: "focal length of 25 cm" },
+  { id: "u", symbol: "u", value: 50, unit: "cm", provenance: "given", sourceText: "50 cm in front" },
+], [{ id: "v", symbol: "v", value: -50 / 3, unit: "cm", provenance: "derived" }], ["lens_formula"]);
+const unsignedPlan = structuredClone(signedPlan);
+unsignedPlan.givens[0]!.value = 25;
+function divergingLens(question: string, opts: { u: number; f: number; h: number; unit: string; scale: number; focal: unknown; quantities: Doc["quantities"] }): Doc {
+  const document = lensDoc(question, { u: opts.u, f: -opts.f, h: opts.h });
+  document.quantities = opts.quantities;
+  for (const construction of document.constructions) {
+    if (construction.id === "c_img") Object.assign(construction.inputs, { objectDistance: "u", focalLength: opts.focal, objectHeight: opts.h, form: "diverging", objectSide: "real", lengthUnit: opts.unit, displayScale: opts.scale });
+    if (construction.id === "c_F") Object.assign(construction.inputs, { focalLength: opts.focal, form: "diverging", lengthUnit: opts.unit, displayScale: opts.scale });
+    if (construction.id === "c_lens") Object.assign(construction.inputs, { radius1: -19, radius2: 19 });
+    if (construction.id === "c_axis_l") construction.inputs.x = -70;
+  }
+  document.entities = document.entities.map((entity) => entity.id === "lens" ? { ...entity, role: "diverging lens" } : entity);
+  return document;
+}
+const cmLens = (focal: unknown, quantities: Doc["quantities"] = [{ id: "u", symbol: "u", value: 50, unit: "cm" }]) =>
+  divergingLens(qDiverging, { u: 50, f: 25, h: 4, unit: "cm", scale: 1, focal, quantities });
+expectDrawnAsPlanner("G9", "the diverging lens with inline focalLength -25 and form under a signed plan f = -25 cm", qDiverging, signedPlan, cmLens(-25));
+expectDrawnAsPlanner("G9", "the diverging lens with inline focalLength 25 and form under a signed plan f = -25 cm", qDiverging, signedPlan, cmLens(25));
+expectDrawnAsPlanner("G9", "control: inline focalLength 25 under an unsigned plan f = 25 cm", qDiverging, unsignedPlan, cmLens(25));
+for (const [name, turnPlan, document, code] of [
+  ["a wrong magnitude 30 under the signed plan", signedPlan, cmLens(30), "scene_quantity_unverified"],
+  ["a wrong magnitude -30 under the signed plan", signedPlan, cmLens(-30), "scene_quantity_unverified"],
+  // Ordinary signed quantity agreement is unchanged: a declared f = 25 under the plan's own id f = -25 still mismatches.
+  ["a declared quantity f = 25 under the signed plan's id f = -25", signedPlan,
+    cmLens("f", [{ id: "u", symbol: "u", value: 50, unit: "cm" }, { id: "f", symbol: "f", value: 25, unit: "cm" }]), "scene_quantity_mismatch"],
+] as const) {
+  const issues = quantityIssues(qDiverging, turnPlan, document);
+  check("G9", issues.some((issue) => issue.startsWith(`${code}@`)), `${name} must fail ${code}; got ${issues.join(", ") || "no quantity issue"}`);
+}
+// A stem that writes the sign: detectArchetype returns f = -25 cm; the proof compares magnitudes.
+const qSignedStem = "A diverging lens has a focal length of -0.25 m. An object is placed 0.5 m in front of it. Draw the ray diagram and locate the image.";
+const signedStemPlan = plan(qSignedStem, [
+  { id: "f", symbol: "f", value: -0.25, unit: "m", provenance: "given", sourceText: "focal length of -0.25 m" },
+  { id: "u", symbol: "u", value: 0.5, unit: "m", provenance: "given", sourceText: "0.5 m in front" },
+], [{ id: "v", symbol: "v", value: -0.5 / 3, unit: "m", provenance: "derived" }], ["lens_formula"]);
+const mLens = (focal: unknown, quantities: Doc["quantities"]) =>
+  divergingLens(qSignedStem, { u: 0.5, f: 0.25, h: 0.04, unit: "m", scale: 100, focal, quantities });
+const uMetres = { id: "u", symbol: "u", value: 0.5, unit: "m" };
+for (const [name, document] of [
+  ["inline focalLength -0.25", mLens(-0.25, [uMetres])],
+  ["inline focalLength 0.25", mLens(0.25, [uMetres])],
+  ["focalLength by plan id f = -0.25", mLens("f", [uMetres, { id: "f", symbol: "f", value: -0.25, unit: "m" }])],
+] as const) {
+  const proof = explainPlannerOpticsProof(qSignedStem, document);
+  check("G9", proof.proof === "proven", `the "-0.25 m" stem with ${name} must be proven; got ${proof.proof}: ${proof.reason}`);
+  expectDrawnAsPlanner("G9", `the "-0.25 m" stem with ${name}`, qSignedStem, signedStemPlan, document);
+}
+
+// ---- G10: a mirror axis written as {start, direction} is read ----
+const directionAxis = (base: Doc, direction: [number, number], signedRadius?: number): Doc => {
+  const document = structuredClone(base);
+  document.constructions = document.constructions.filter((construction) => construction.id !== "c_axis_l" && construction.id !== "c_axis_r");
+  document.entities = document.entities.filter((entity) => entity.id !== "axis_l" && entity.id !== "axis_r");
+  for (const construction of document.constructions) {
+    if (construction.id === "c_axis") construction.inputs = { start: "P", direction };
+    if (construction.id === "c_mirror" && signedRadius !== undefined) construction.inputs.signedRadius = signedRadius;
+  }
+  return document;
+};
+expectDrawnAsPlanner("G10", "the concave mirror with axis {start: P, direction: [1, 0]}", qMirror, mirrorPlan, directionAxis(goodMirror, [1, 0]));
+expectDrawnAsPlanner("G10", "the concave mirror with axis {start: P, direction: [-1, 0]} and the radius flipped", qMirror, mirrorPlan,
+  directionAxis(goodMirror, [-1, 0], 30));
+expectDrawnAsPlanner("G10", "the convex mirror with axis {start: P, direction: [1, 0]}", qConvex, convexPlan, directionAxis(goodConvex, [1, 0]));
+{
+  // Control: once the axis is read, a mirror drawn with the wrong sense still fails on its sense.
+  const wrongSense = directionAxis(goodMirror, [1, 0], 30);
+  const proof = explainPlannerOpticsProof(qMirror, wrongSense);
+  check("G10", proof.proof === "unproven" && /is not drawn concave/.test(proof.reason),
+    `a direction-axis mirror drawn convex on a concave stem must fail on its sense; got ${proof.proof}: ${proof.reason}`);
+  expectNeverPlanner("G10", "a direction-axis mirror drawn convex on a concave stem", qMirror, mirrorPlan, wrongSense);
+}
+
+for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10"]) {
   console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 }
 if (failures.length > 0) {

@@ -646,7 +646,9 @@ export type PlannerOpticsProof = "not_optics" | "proven" | "unproven";
  * not the model, placed what the student reads: the object, image and foci are
  * `gaussian_image` / `optical_focus` outputs whose u, f and element kind match
  * the stem, the element is drawn on that centre and axis with the stem's sense,
- * and every ray ends on an engine-derived point. Free-point figures, whose
+ * every ray ends on an engine-derived point, and every line converging on the
+ * image tip leaves the element after a drawn incident ray from the object tip
+ * (or is a lens chief ray through the optical centre). Free-point figures, whose
  * ratio assertions are self-declared, fail. A model-writable
  * `source.archetype` label is never read.
  *
@@ -732,7 +734,8 @@ function opticsProofFailure(match: OpticsStemMatch, document: SceneDocument): st
   const scale = opticsCmPerUnit(inputs.lengthUnit);
   if (statedSlots.length > 0 && scale === null) return "gaussian_image lengthUnit must be cm, m or mm";
   for (const slot of statedSlots) {
-    const stated = match.slots[slot] as number;
+    // A stem may write the sign ("focal length of -0.25 m"); only the magnitude is the stem's claim.
+    const stated = Math.abs(match.slots[slot] as number);
     const value = (slot === "u" ? -u : Math.abs(f)) * scale!;
     if (!opticsClose(value, stated)) return `${slot} = ${value} cm contradicts the stem's ${stated} cm`;
   }
@@ -814,7 +817,91 @@ function opticsProofFailure(match: OpticsStemMatch, document: SceneDocument): st
       return `ray ${ray.outputs[0] ?? ray.id} has an endpoint the engine did not derive`;
     }
   }
+  // P9: each converging line is a real ray path through the element.
+  const lensImage = element === "lens" ? { u, v: f * u / (u + f) } : null;
+  for (const assertion of convergence) {
+    for (const id of assertion.entities.slice(0, -1)) {
+      const failure = opticsConvergingPathFailure(id, producer.get(id)!, image, lensImage, document, producer);
+      if (failure) return failure;
+    }
+  }
   return null;
+}
+
+/**
+ * P9. By the thin-element imaging property every ray from the object tip that
+ * meets the element at a point S leaves S on a line through the image tip. So a
+ * line converging on the image tip is a real ray (or the back-extension of one)
+ * when it starts at an on-element point S and a drawn incident ray runs from the
+ * object tip to S. None of the engine's own landmarks lie on the element: the
+ * gaussian_image anchors sit at u and v and the optical_focus points at f along
+ * the axis, all nonzero. The on-element points are the centre (pole or optical
+ * centre) and points the document derives on the element plane, the
+ * perpendicular to the axis through the centre: `project` onto that plane, or an
+ * `intersection` with it.
+ *
+ * The one exception is the lens chief ray: a straight path from the object tip
+ * through the optical centre. On a lens the engine's object tip, centre and image
+ * tip are collinear (m = v/u), so a path from the object tip to the image tip or
+ * to the centre lies on that ray; it is accepted when its drawn extent contains
+ * both the centre and the image tip.
+ */
+function opticsConvergingPathFailure(
+  id: string,
+  path: OpticsConstruction,
+  image: OpticsConstruction,
+  lensImage: { u: number; v: number } | null,
+  document: SceneDocument,
+  producer: ReadonlyMap<string, OpticsConstruction>,
+): string | null {
+  const [objectBase, objectTip] = image.outputs;
+  const center = image.inputs.center;
+  const undirected = path.operator === "segment" || path.operator === "line";
+  const startOf = (construction: OpticsConstruction) => opticsFirst(construction.inputs,
+    construction.operator === "segment" ? OPTICS_START_KEYS : OPTICS_LINE_START_KEYS);
+  const start = startOf(path);
+  const end = opticsFirst(path.inputs, OPTICS_END_KEYS);
+  if (lensImage && (start === objectTip || (undirected && end === objectTip))) {
+    const through = start === objectTip ? end : start;
+    const { u, v } = lensImage;
+    // Axial coordinates: the object at u < 0, the centre at 0, the image at v.
+    const to = through === image.outputs[3] ? v : sameOpticsInput(through, center) ? 0 : Number.NaN;
+    if (Number.isFinite(to)) {
+      const covers = (x: number) => path.operator === "line" ? true
+        : path.operator === "ray" ? (to - u) * (x - u) >= 0
+          : (x - u) * (x - to) <= 1e-9 * Math.max(1, Math.abs(u), Math.abs(to));
+      if (covers(0) && covers(v)) return null;
+      return `chief ray ${id} does not run from the object tip through the optical centre to the image tip`;
+    }
+  }
+  const planes = new Set(document.constructions.filter((construction) =>
+    construction.operator === "perpendicular_through" &&
+    sameOpticsInput(opticsFirst(construction.inputs, ["through", "point"]), center) &&
+    sameOpticsInput(opticsFirst(construction.inputs, ["line", "reference"]), image.inputs.axis))
+    .flatMap((construction) => construction.outputs));
+  const onElement = (point: unknown): boolean => {
+    if (typeof point !== "string") return false;
+    if (sameOpticsInput(point, center)) return true;
+    const construction = producer.get(point);
+    if (construction?.operator === "project") return planes.has(opticsFirst(construction.inputs, ["line", "onto"]) as string);
+    if (construction?.operator === "intersection") {
+      return [["first", "a", "line1"], ["second", "b", "line2"]].some((keys) => planes.has(opticsFirst(construction.inputs, keys) as string));
+    }
+    return false;
+  };
+  const hit = onElement(start) ? start : undirected && onElement(end) ? end : undefined;
+  if (hit === undefined) {
+    const from = start === objectBase ? " (it starts at the object base)" : "";
+    return `converging line ${id} does not leave the ${image.inputs.kind === "lens" ? "lens" : "mirror"}${from}`;
+  }
+  const incident = document.constructions.some((construction) => {
+    if (construction === path || !OPTICS_PATH_OPERATORS.has(construction.operator)) return false;
+    const from = startOf(construction);
+    const to = opticsFirst(construction.inputs, OPTICS_END_KEYS);
+    return (from === objectTip && to === hit) ||
+      ((construction.operator === "segment" || construction.operator === "line") && from === hit && to === objectTip);
+  });
+  return incident ? null : `converging line ${id} has no drawn incident ray from the object tip to ${String(hit)}`;
 }
 
 /** P5: lens_section for a lens, spherical_surface for a mirror, never the other, never flat. */
@@ -872,19 +959,32 @@ function opticsAxisSign(axis: unknown, document: SceneDocument): 1 | -1 | null {
   if (typeof axis === "string") {
     const line = document.constructions.find((construction) => construction.outputs.includes(axis));
     if (!line || line.operator !== "line") return null;
-    const start = opticsLiteralPoint(opticsFirst(line.inputs, OPTICS_LINE_START_KEYS), document);
-    const end = opticsLiteralPoint(opticsFirst(line.inputs, OPTICS_END_KEYS), document);
-    if (!start || !end) return null;
-    dx = end.x - start.x;
-  } else if (Array.isArray(axis) && axis.length === 2) {
-    dx = opticsNumber(axis[0], document);
-  } else if (isRecord(axis) && "x" in axis) {
-    dx = opticsNumber(axis.x, document);
+    dx = opticsPathDx(line, document, 0);
   } else {
-    return null;
+    dx = opticsDirectionDx(axis, document, 0);
   }
   if (!Number.isFinite(dx)) return null;
   return dx < 0 ? -1 : 1;
+}
+
+/** dx of a path the way the engine reads it: end minus start, else its `direction` or `vector`. */
+function opticsPathDx(path: OpticsConstruction, document: SceneDocument, depth: number): number {
+  if (opticsFirst(path.inputs, OPTICS_END_KEYS) !== undefined) {
+    const start = opticsLiteralPoint(opticsFirst(path.inputs, OPTICS_LINE_START_KEYS), document);
+    const end = opticsLiteralPoint(opticsFirst(path.inputs, OPTICS_END_KEYS), document);
+    return start && end ? end.x - start.x : Number.NaN;
+  }
+  return opticsDirectionDx(opticsFirst(path.inputs, ["direction", "vector"]), document, depth + 1);
+}
+
+/** dx of a direction input: [dx, dy], {x, y}, or the id of a drawn path. */
+function opticsDirectionDx(value: unknown, document: SceneDocument, depth: number): number {
+  if (depth > 8) return Number.NaN;
+  if (Array.isArray(value) && value.length === 2) return opticsNumber(value[0], document);
+  if (isRecord(value) && "x" in value) return opticsNumber(value.x, document);
+  if (typeof value !== "string") return Number.NaN;
+  const path = document.constructions.find((construction) => construction.outputs.includes(value));
+  return path && OPTICS_PATH_OPERATORS.has(path.operator) ? opticsPathDx(path, document, depth) : Number.NaN;
 }
 
 function opticsLiteralPoint(id: unknown, document: SceneDocument): { x: number; y: number } | null {

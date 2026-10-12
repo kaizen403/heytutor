@@ -109,13 +109,31 @@ const OPTICS_MAGNITUDE_INPUTS: Readonly<Record<string, readonly string[]>> = {
   gaussian_image: ["objectDistance", "focalLength"],
   optical_focus: ["focalLength"],
 };
+/** A plan's object height: h, h_o, h₀, ho, h0, hobj (subscripts folded, case and underscores ignored). */
+const PLAN_OBJECT_HEIGHT = /^h(?:o|0|obj(?:ect)?)?$/;
+
+function planSymbolKey(text: unknown): string {
+  return typeof text === "string" ? text.normalize("NFKC").replace(/[\s_{}]/g, "").toLowerCase() : "";
+}
+
+/** The plan with every value as a magnitude, so a signed plan and an unsigned literal compare equal. */
+function magnitudePlan(plan: TurnPlanV3, givens = plan.givens, derived = plan.derived): TurnPlanV3 {
+  const magnitude = <T extends { value: number }>(quantity: T): T => ({ ...quantity, value: Math.abs(quantity.value) });
+  return { ...plan, givens: givens.map(magnitude), derived: derived.map(magnitude) };
+}
 
 /**
- * In magnitude mode (`form` present) `gaussian_image` and `optical_focus` read
- * objectDistance and focalLength as the plan's unsigned values. An inline
- * literal there is checked like a scene quantity, so a number the plan does
- * not support fails on every stem. Stems whose plan gives no length draw
- * representative values and are skipped.
+ * Inline optics literals checked like scene quantities, by magnitude on both
+ * sides (the Cartesian sign lives in `form` or in the literal, never in the
+ * plan's reading of the stem).
+ *
+ * - objectDistance and focalLength, in magnitude mode (`form` present): a
+ *   number the plan does not support fails on every stem.
+ * - objectHeight, in signed and magnitude mode, only when the plan gives an
+ *   object height: it must equal that height. A stem with no stated height
+ *   still draws a representative one.
+ *
+ * Stems whose plan gives no length draw representative values and are skipped.
  */
 function opticsMagnitudeLiteralIssues(
   document: { quantities?: unknown; constructions?: unknown },
@@ -124,13 +142,19 @@ function opticsMagnitudeLiteralIssues(
   if (!plan.givens.some((given) => typeof given.unit === "string" && PLAN_LENGTH_UNIT.test(given.unit.trim()))) return [];
   const quantityIds = new Set((Array.isArray(document.quantities) ? document.quantities : [])
     .filter(isPlainRecord).map((quantity) => quantity.id).filter((id) => typeof id === "string"));
+  const unsigned = magnitudePlan(plan);
+  const heights = plan.givens.filter((given) => typeof given.unit === "string" && PLAN_LENGTH_UNIT.test(given.unit.trim()) &&
+    (PLAN_OBJECT_HEIGHT.test(planSymbolKey(given.symbol)) || PLAN_OBJECT_HEIGHT.test(planSymbolKey(given.id))));
+  // Only the stated height can support a height literal; a u or f that happens to share its value cannot.
+  const heightPlan = heights.length > 0 ? { ...magnitudePlan(plan, heights, []), qualitativeClaims: [] } : null;
   const issues: AgreementIssue[] = [];
   (Array.isArray(document.constructions) ? document.constructions : []).forEach((construction, index) => {
     if (!isPlainRecord(construction) || typeof construction.operator !== "string" || !isPlainRecord(construction.inputs)) return;
-    const keys = OPTICS_MAGNITUDE_INPUTS[construction.operator];
     const inputs = construction.inputs;
-    if (!keys || inputs.form === undefined) return;
-    for (const key of keys) {
+    const checks: Array<[key: string, against: TurnPlanV3]> = [];
+    if (inputs.form !== undefined) for (const key of OPTICS_MAGNITUDE_INPUTS[construction.operator] ?? []) checks.push([key, unsigned]);
+    if (construction.operator === "gaussian_image" && heightPlan) checks.push(["objectHeight", heightPlan]);
+    for (const [key, against] of checks) {
       const wrapper = isPlainRecord(inputs[key]) ? inputs[key] as Record<string, unknown> : undefined;
       const raw = wrapper ? wrapper.value : inputs[key];
       if (typeof raw === "string" && quantityIds.has(raw)) continue;
@@ -138,7 +162,7 @@ function opticsMagnitudeLiteralIssues(
       if (!Number.isFinite(value)) continue;
       const unit = typeof wrapper?.unit === "string" ? wrapper.unit : inputs.lengthUnit;
       const id = `${String(construction.id ?? construction.operator)}.${key}`;
-      for (const issue of validateSceneQuantityAgreement([{ id, value: Math.abs(value), ...(unit === undefined ? {} : { unit }) }], plan)) {
+      for (const issue of validateSceneQuantityAgreement([{ id, value: Math.abs(value), ...(unit === undefined ? {} : { unit }) }], against)) {
         issues.push({ code: issue.code, message: `${issue.message} (a ${construction.operator} magnitude literal)`, path: `constructions[${index}].inputs.${key}`, severity: "fatal" });
       }
     }
