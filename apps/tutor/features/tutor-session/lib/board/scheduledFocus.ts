@@ -75,7 +75,7 @@ export interface ScheduledFocusHost extends SpotlightHost {
     kind: "underline" | "circle_around",
     path: string,
     durationMs: number,
-    options: { strokeWidth: number; transient: true; shouldCancel?: () => boolean },
+    options: { strokeWidth: number; transient: true; shouldCancel?: () => boolean; shouldStop?: () => boolean },
   ) => Promise<void>;
 }
 
@@ -179,23 +179,18 @@ export async function runScheduledFocus(
   };
   const motionCancelled = () => options.isCancelled() || deadlineExpired();
   const flyTo = async (point: FocusPenPoint, durationMs: number): Promise<void> => {
-    await host.flyCursorTo(point.x, point.y, durationMs, undefined, motionCancelled);
-    if (!options.isCancelled() && deadlineExpired() && durationMs > 0) {
-      await host.flyCursorTo(point.x, point.y, 0, undefined, options.isCancelled);
+    if (durationMs > 0) {
+      await host.flyCursorTo(point.x, point.y, durationMs, undefined, motionCancelled);
     }
   };
   const trace = async (kind: "underline" | "circle_around", path: string,
     durationMs: number, strokeWidth: number): Promise<void> => {
+    if (deadlineExpired() || durationMs <= 0) return;
     await host.drawAnnotation(kind, path, durationMs, {
       strokeWidth, transient: true,
-      shouldCancel: durationMs > 0 ? motionCancelled : options.isCancelled,
+      shouldCancel: options.isCancelled,
+      shouldStop: deadlineExpired,
     });
-    // Final alignment can arrive while a tween is already running. Release
-    // that transient motion at the work cue, then settle the same committed
-    // path as a zero-duration catch-up. A cancelled turn never catches up.
-    if (!options.isCancelled() && deadlineExpired() && durationMs > 0) {
-      await host.drawAnnotation(kind, path, 0, { strokeWidth, transient: true });
-    }
   };
   const spotlight = options.emphasis === "spotlight" && options.veil
     ? {
@@ -235,6 +230,10 @@ export async function runScheduledFocus(
       if (lettered.cancelled) return true;
       if (lettered.penAt) penAt = lettered.penAt;
 
+      // Labels remain committed geometry. Once their cue yields to writing,
+      // leave the nib at its actual position rather than completing gestures.
+      if (deadlineExpired()) continue;
+
       // Writing a label leaves the pen beyond its trace start. Spend the
       // remaining lead on that return, so the calmer hop does not steal the
       // first word of the explanation from the trace itself.
@@ -262,6 +261,7 @@ export async function runScheduledFocus(
       const perPathMs = budgetMs / target.paths.length;
       for (const [pathIndex, candidate] of target.paths.entries()) {
         if (options.isCancelled()) return true;
+        if (deadlineExpired()) break;
         const remainingParts = (target.paths.length - pathIndex) * 2 + pulseParts;
         const hopMs = boundDuration(focusHopMs(penAt, candidate, perPathMs / 3), remainingParts);
         if (hopMs > 0) await flyTo(candidate, hopMs);

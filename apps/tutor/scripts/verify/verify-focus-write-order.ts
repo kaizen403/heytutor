@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import ts from "typescript";
+import Konva from "konva";
 import { compileSceneDocument, type SceneDocument } from "@heytutor/scene-engine";
 import { linePath, resolveVerifiedDiagramFocusTargets, type DrawCommand } from "@heytutor/drawing";
 import { getBestWriteCharScheduleMs, getFocusTargetSchedule, mathToSpeech, type AudioTimings } from "@heytutor/tutor-core";
@@ -12,6 +13,7 @@ import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/l
 import type * as SegmentInk from "../../features/tutor-session/lib/turn/segmentInk";
 import type { useCommandExecution as CommandHook } from "../../features/tutor-session/hooks/useCommandExecution";
 import type { ExecuteCommandOptions } from "../../features/tutor-session/hooks/turn/types";
+import type { runScheduledFocus as RunScheduledFocus } from "../../features/tutor-session/lib/board/scheduledFocus";
 import { mountTestWhiteboard, unmountTestWhiteboard } from "../../../../packages/whiteboard/scripts/whiteboardTestHarness";
 import { createVirtualWhiteboardClock } from "../../../../packages/whiteboard/src/whiteboardClock";
 import retained from "./fixtures/focus-writing/m09.json";
@@ -55,11 +57,17 @@ async function run(name: string, beat: Beat, control?: "cancel" | "pause") {
   diagram.deferredAnnotations = [];
   const board = mountTestWhiteboard(), clock = createVirtualWhiteboardClock();
   board.setTimeSource(clock.source);
+  let focusRunning = false;
+  const focusFlights: number[] = [], nativeFlight = board.flyCursorTo;
+  board.flyCursorTo = async (...args) => {
+    if (focusRunning) focusFlights.push(args[2]);
+    await nativeFlight(...args);
+  };
   const tracedPaths: string[] = [], nativeAnnotation = board.drawAnnotation;
-  const annotations: { kind: string; path: string; durationMs: number; strokeWidth?: number; transient?: boolean; completed: boolean; turnCancelledAtDispatch: boolean }[] = [];
+  const annotations: { kind: string; path: string; durationMs: number; strokeWidth?: number; transient?: boolean; completed: boolean; stoppedAtDeadline: boolean; turnCancelledAtDispatch: boolean }[] = [];
   board.drawAnnotation = async (...args) => {
     tracedPaths.push(args[1]);
-    const annotation = { kind: args[0], path: args[1], durationMs: args[2], strokeWidth: args[3]?.strokeWidth, transient: args[3]?.transient, completed: false, turnCancelledAtDispatch: cancelled };
+    const annotation = { kind: args[0], path: args[1], durationMs: args[2], strokeWidth: args[3]?.strokeWidth, transient: args[3]?.transient, completed: false, stoppedAtDeadline: false, turnCancelledAtDispatch: cancelled };
     annotations.push(annotation);
     let interrupted = false;
     const shouldCancel = args[3]?.shouldCancel;
@@ -67,8 +75,12 @@ async function run(name: string, beat: Beat, control?: "cancel" | "pause") {
       const cancel = shouldCancel?.() ?? false;
       interrupted ||= cancel;
       return cancel;
+    }, shouldStop: () => {
+      const stop = args[3]?.shouldStop?.() ?? false;
+      annotation.stoppedAtDeadline ||= stop;
+      return stop;
     } });
-    annotation.completed = !interrupted;
+    annotation.completed = !interrupted && !annotation.stoppedAtDeadline;
   };
   const saved = new Map<string, PropertyDescriptor | undefined>(), realTimeout = setTimeout;
   const timers = new Map<number, { at: number; run: () => void }>();
@@ -108,11 +120,12 @@ async function run(name: string, beat: Beat, control?: "cancel" | "pause") {
       isPaused: () => paused, nowMs: clock.source.now, isSpeechComplete: () => audio() >= beat.durationMs },
     execute: async (command, options) => {
       events.push({ kind: "start", type: command.type, at: audio(), command, options });
+      focusRunning = command.type === "FOCUS";
       if (active++) simultaneousPens = true;
       try { await hook.executeCommandWithCancel(command, beat.executorClock
         ? { ...options, getAudioPositionMs: beat.executorClock === "stalled" ? () => 0 : undefined }
         : options); }
-      finally { active--; events.push({ kind: "end", type: command.type, at: audio() }); }
+      finally { focusRunning = false; active--; events.push({ kind: "end", type: command.type, at: audio() }); }
     },
     trace: { writeCharStart: () => events.push({ kind: "glyph", at: audio(), command: events.findLast((e) => e.kind === "start" && e.type === "WRITE")?.command }) },
   }).then(() => { settled = true; }, (error) => { failure = error; settled = true; });
@@ -154,6 +167,10 @@ async function run(name: string, beat: Beat, control?: "cancel" | "pause") {
       if (beat.commands.some((command) => command.type === "WRITE")) {
         assert(events.some((e) => e.kind === "glyph"), `${name}: real Whiteboard writes visible glyphs`);
       }
+      assert(!annotations.some(annotation => annotation.durationMs <= 0),
+        `${name}: a deadline must release the pen without teleporting through an invisible full-path redraw`);
+      assert(focusFlights.every(duration => duration > 0),
+        `${name}: an interrupted flight cannot teleport the pen to its endpoint`);
       const focus = started.find((e) => e.type === "FOCUS")!;
       const requested = resolveVerifiedDiagramFocusTargets(focus.command!, diagram);
       assert.deepEqual(focus.options!.focusSchedule!.targets.map((t) => t.id).sort(), requested.map((t) => t.id).sort(), `${name}: every requested verified target remains scheduled`);
@@ -162,8 +179,13 @@ async function run(name: string, beat: Beat, control?: "cancel" | "pause") {
         assert(marks.length > 0, "retained fixture target owns compiled straight strokes");
         for (const mark of marks) {
           const path = linePath(mark.params[0]!, mark.params[1]!, mark.params[2]!, mark.params[3]!);
-          assert(tracedPaths.includes(path), `${name}: actual executor traces all of ${target.id}'s committed geometry`);
-          assert(annotations.some(annotation => annotation.path === path && annotation.completed), `${name}: each committed path completes in the real Whiteboard, not merely an interrupted dispatch`);
+          const annotation = annotations.find(annotation => annotation.path === path);
+          // A work deadline intentionally leaves a transient trace partial;
+          // completing it instantly was invisible and teleported the pen.
+          assert(tracedPaths.includes(path) || focus.options!.focusDeadlineMs !== undefined,
+            `${name}: only a work deadline may omit a later transient path`);
+          assert(!annotation || annotation.completed || annotation.stoppedAtDeadline,
+            `${name}: a dispatched path completes or yields at its explicit work deadline`);
         }
       }
       assert(annotations.filter((annotation) => annotation.kind === "underline")
@@ -173,8 +195,14 @@ async function run(name: string, beat: Beat, control?: "cancel" | "pause") {
           "a known close window leaves time for the first full transient trace instead of collapsing the whole gesture to catch-up");
       }
       assert.equal(focus.command, beat.commands.find((c) => c.type === "FOCUS"), `${name}: authored focus ownership/style is unchanged`);
-      if (name === "close-pulse") assert(annotations.some((annotation) => annotation.kind === "circle_around" && annotation.completed), "bounded pulse completes its original gesture");
-      if (name === "standalone" || name === "resume-tail" || name.startsWith("clock-")) {
+      if (name === "close-pulse") {
+        assert(annotations.filter(annotation => annotation.kind === "circle_around")
+          .every(annotation => annotation.completed || annotation.stoppedAtDeadline),
+          "a close pulse completes or yields its partial trace at the work deadline");
+      }
+      if (name === "standalone-pulse") assert(annotations.some(annotation =>
+        annotation.kind === "circle_around" && annotation.completed), "an unbounded pulse completes its original gesture");
+      if (name.startsWith("standalone") || name === "resume-tail" || name.startsWith("clock-")) {
         assert.deepEqual(focus.options!.focusSchedule, getFocusTargetSchedule({
           narration: beat.narration, command: focus.command!, targets: requested,
           timings: beat.timings, msPerChar: 90,
@@ -185,7 +213,7 @@ async function run(name: string, beat: Beat, control?: "cancel" | "pause") {
       if (name.startsWith("future")) assert.equal(started[0]!.type, "WRITE", "future combined gesture yields before the first work row");
       else if (name !== "resume-tail") assert.equal(started[0]!.type, "FOCUS", "already-due focus keeps its spoken order");
     }
-    receipts.push({ name, beforeCount, simultaneousPens, annotations, commands: started.map((e) => ({ type: e.type, at: e.at, firstGlyphAt: events.find((glyph) => glyph.kind === "glyph" && glyph.command === e.command)?.at, deadlineMs: e.options?.focusDeadlineMs, targets: e.options?.focusSchedule?.targets })), providerCalls: 0 });
+    receipts.push({ name, beforeCount, simultaneousPens, annotations, focusFlights, commands: started.map((e) => ({ type: e.type, at: e.at, firstGlyphAt: events.find((glyph) => glyph.kind === "glyph" && glyph.command === e.command)?.at, deadlineMs: e.options?.focusDeadlineMs, targets: e.options?.focusSchedule?.targets })), providerCalls: 0 });
     await job;
   } finally {
     cancelled = true; board.cancelAnimations();
@@ -193,6 +221,89 @@ async function run(name: string, beat: Beat, control?: "cancel" | "pause") {
     unmountTestWhiteboard(board);
     for (const [key, descriptor] of saved) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); }
   }
+}
+
+/** Actual partial Konva path/cursor lifecycle, independent of dispatch metadata. */
+async function stoppedTransient(cancelDuringFade: boolean, owned = false) {
+  const board = mountTestWhiteboard(), clock = createVirtualWhiteboardClock();
+  board.setTimeSource(clock.source);
+  const transaction = owned ? board.beginDrawTransaction() : null;
+  let stop = false, cancel = false, released = false;
+  const pathData = "M 90 142 L 590 142";
+  const pose = () => board.getCursorLayer()!.getChildren().map(node => ({ x: node.x(), y: node.y() }));
+  const flush = async () => { for (let i = 0; i < 35; i++) await Promise.resolve(); };
+  const tick = async (ms = 16) => { clock.advance(ms); clock.pump(); await flush(); };
+  try {
+    const job = board.drawAnnotation("underline", pathData, 1_000, {
+      transient: true, shouldStop: () => stop, shouldCancel: () => cancel,
+    }).then(() => { released = true; });
+    for (let i = 0; i < 10; i++) await tick();
+    const path = board.getAnimLayer()!.getChildren().find(node => node instanceof Konva.Path && node.data() === pathData);
+    assert(path instanceof Konva.Path && path.dashOffset() > 0 && path.dashOffset() < 500,
+      "deadline fixture has real partially drawn ink before interruption");
+    const partialOffset = path.dashOffset(), stoppedPose = pose();
+    stop = true;
+    await tick();
+    assert.equal(released, !owned,
+      "post-intro stop releases the pen; atomic intro joins its owned fade before commit");
+    assert.equal(path.getParent(), board.getAnimLayer(), "existing partial trace survives the work deadline");
+    assert.equal(path.dashOffset(), partialOffset, "stopping does not finish the path invisibly");
+    assert.deepEqual(pose(), stoppedPose, "stopping leaves the pen at its actual nib position");
+    await tick(); await tick();
+    assert(path.opacity() > 0 && path.opacity() < 1, "partial trace fades visibly rather than disappearing");
+    if (cancelDuringFade) {
+      cancel = true; await tick();
+      assert.equal(path.getParent(), null, "owning turn cancellation promptly removes the fading trace");
+    } else {
+      board.setPaused(true);
+      const pausedOpacity = path.opacity();
+      for (let i = 0; i < 5; i++) await tick();
+      assert.equal(path.opacity(), pausedOpacity, "pause preserves the fading trace");
+      board.setPaused(false);
+      for (let i = 0; i < 14; i++) await tick();
+      assert.equal(path.getParent(), null, "partial trace is removed after the existing bounded fade");
+    }
+    assert.deepEqual(pose(), stoppedPose, "background fade never moves the nib");
+    await job;
+    if (transaction) {
+      board.commitDrawTransaction(transaction);
+      assert.equal(path.getParent(), null, "intro completion cannot adopt a pending transient fade");
+    }
+    receipts.push({ name: owned ? "deadline-fade-owned" : cancelDuringFade ? "deadline-fade-cancel" : "deadline-fade", partialOffset, penStayed: true, releasedBeforeFade: !owned, providers: 0 });
+  } finally { unmountTestWhiteboard(board); }
+}
+
+async function interruptedFlight() {
+  const focus = load(process.env.FOCUS_WRITE_SCHEDULED_SOURCE ?? canonicalFocus, canonicalFocus) as {
+    runScheduledFocus: typeof RunScheduledFocus;
+  };
+  const board = mountTestWhiteboard(), clock = createVirtualWhiteboardClock();
+  board.setTimeSource(clock.source);
+  const flights: number[] = [];
+  let completed = false;
+  const flush = async () => { for (let i = 0; i < 40; i++) await Promise.resolve(); };
+  try {
+    const task = focus.runScheduledFocus({
+      setSpotlight: board.setSpotlight, drawAnnotation: board.drawAnnotation,
+      flyCursorTo: async (...args) => { flights.push(args[2]); await board.flyCursorTo(...args); },
+    }, [{ id: "flight", startMs: 0, endMs: 1_200,
+      paths: [{ x: 500, y: 300, path: "M 500 300 L 1000 300" }], rects: [], pulse: null,
+      letter: async () => ({ cancelled: false, penAt: null }),
+    }], {
+      emphasis: "spotlight", veil: null, getAudioPositionMs: clock.now, waitUntilAudioMs: async () => {},
+      getTiming: () => ({ targets: [{ id: "flight", startMs: 0, endMs: 1_200, anchor: "clause" }],
+        deadlineMs: clock.now() < 200 ? 1_000 : 100 }),
+      isCancelled: () => false, isPaused: () => false, floorMs: 420,
+    }).then(() => { completed = true; });
+    await flush();
+    for (let i = 0; i < 25 && !completed; i++) { clock.advance(16); clock.pump(); await flush(); }
+    assert(completed, "updated alignment deadline bounds the running physical flight");
+    const pose = board.getCursorLayer()!.getChildren().map(node => ({ x: node.x(), y: node.y() }));
+    assert(flights.length === 1 && flights[0]! > 0, "an interrupted flight has no zero-duration endpoint catch-up");
+    assert(pose.every(point => point.x !== 500 || point.y !== 300), "deadline leaves the pen at its actual partial-flight position");
+    await task;
+    receipts.push({ name: "deadline-flight", flights, pose, elapsedMs: clock.now(), providers: 0 });
+  } finally { unmountTestWhiteboard(board); }
 }
 
 async function main() {
@@ -216,9 +327,14 @@ async function main() {
   const firstWork = getBestWriteCharScheduleMs(narration, future.commands[1]!, aligned, future.durationMs, 0, 90)!.offsetsMs[0]!;
   assert(schedule.targets[0]!.startMs < firstWork && schedule.targets[1]!.startMs > firstWork + 1_000, "controlled focus straddles the first WRITE cue");
   const selected = process.env.FOCUS_WRITE_CASE;
+  if (!selected || selected === "deadline-fade") await stoppedTransient(false);
+  if (!selected || selected === "deadline-fade-cancel") await stoppedTransient(true);
+  if (!selected || selected === "deadline-fade-owned") await stoppedTransient(false, true);
+  if (!selected || selected === "deadline-flight") await interruptedFlight();
   const pulse: Beat = { ...close, commands: [{ ...close.commands[0]!, text: "axes|pulse" }, close.commands[1]!] };
   const standalone = { ...original, commands: original.commands.filter((c) => c.type === "FOCUS") };
-  for (const [name, beat, control] of [["original", original], ["future", future], ["future-estimated", { ...future, timings: null }], ["late-alignment", { ...original, initialTimings: slowInitial }], ["during-focus-alignment", { ...original, initialTimings: slowInitial, timingsArriveAtMs: 900 }], ["during-focus-trace", { ...original, initialTimings: lateWorkInitial, timingsArriveAtMs: 2900 }], ["during-trace-paused-alignment", { ...original, initialTimings: lateWorkInitial, timingsArriveDuringPause: true, pauseAtMs: 3200 }, "pause"], ["during-trace-cancelled", { ...original, initialTimings: lateWorkInitial, timingsArriveAtMs: 2900, cancelAtMs: 3000 }, "cancel"], ["close-multi-path", close], ["close-pulse", pulse], ["close-paused", close, "pause"], ["standalone", standalone], ["clock-stalled", { ...standalone, executorClock: "stalled" }], ["clock-absent", { ...standalone, executorClock: "absent" }], ["resume-tail", { ...original, opensSentence: false }], ["paused", original, "pause"], ["cancelled", original, "cancel"]] as const) {
+  const standalonePulse: Beat = { ...pulse, commands: [pulse.commands[0]!] };
+  for (const [name, beat, control] of [["original", original], ["future", future], ["future-estimated", { ...future, timings: null }], ["late-alignment", { ...original, initialTimings: slowInitial }], ["during-focus-alignment", { ...original, initialTimings: slowInitial, timingsArriveAtMs: 900 }], ["during-focus-trace", { ...original, initialTimings: lateWorkInitial, timingsArriveAtMs: 2900 }], ["during-trace-paused-alignment", { ...original, initialTimings: lateWorkInitial, timingsArriveDuringPause: true, pauseAtMs: 3200 }, "pause"], ["during-trace-cancelled", { ...original, initialTimings: lateWorkInitial, timingsArriveAtMs: 2900, cancelAtMs: 3000 }, "cancel"], ["close-multi-path", close], ["close-pulse", pulse], ["close-paused", close, "pause"], ["standalone", standalone], ["standalone-pulse", standalonePulse], ["clock-stalled", { ...standalone, executorClock: "stalled" }], ["clock-absent", { ...standalone, executorClock: "absent" }], ["resume-tail", { ...original, opensSentence: false }], ["paused", original, "pause"], ["cancelled", original, "cancel"]] as const) {
     if (!selected || selected === name) await run(name, beat, control);
   }
   if (process.env.FOCUS_WRITE_RECEIPT) writeFileSync(process.env.FOCUS_WRITE_RECEIPT, JSON.stringify(receipts, null, 2) + "\n");
