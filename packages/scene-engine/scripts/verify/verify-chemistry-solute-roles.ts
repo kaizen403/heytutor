@@ -271,6 +271,158 @@ const cases:Case[] = [
     "id": "OWN-role-adjective",
     "question": "A solution contains 2 mol of solute-like material and has a solution volume of 1 L. Find molarity.",
     "refuse": true
+  },
+  {
+    "id": "OWN-prefix-remains",
+    "question": "A solution has solute amount remains unknown; solute amount is 2 mol and has a solution volume of 1 L. Find its molarity.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-moles-cannot-read",
+    "question": "The moles of solute cannot be read; the solution contains 2 mol of solute and has a solution volume of 1 L. Find its molarity.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-number-moles-unread",
+    "question": "The number of moles of solute which are unreadable is stated. A solution contains 2 mol of solute and has a solution volume of 1 L. Find its molarity.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-nsolute-not-known",
+    "question": "nsolute is not known; nsolute is 2 mol. The solution volume of 1 L is given. Find molarity.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-n_solute-still-unknown",
+    "question": "n_solute remains unknown; 2 mol of solute are stated. The solution volume of 1 L is given. Find molarity.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-amount-of-solute-may-unknown",
+    "question": "The amount of solute may be unknown; the amount of solute is 2 mol. The solution volume of 1 L is given. Find molarity.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-good-then-moles-unread",
+    "question": "A solution contains 2 mol of solute and has a solution volume of 1 L. The moles of solute which are unreadable are recorded. Find molarity.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-good-then-solute-amount-unknown",
+    "question": "The solute amount is 2 mol; solute amount stays unknown. The solution volume of 1 L is given. Find molarity.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-good-then-nsolute-damaged",
+    "question": "The solution contains 2 mol of solute. nsolute = 2e- mol. The solution volume of 1 L is given. Find molarity.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-molality-prefix-remains",
+    "question": "The number of moles of solute remains unknown; 2 mol of solute and 0.5 kg of solvent are given. Find molality.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-use-unread-redeclared",
+    "question": "The solute amount is 2 mol. Use the solute amount which remains unreadable to calculate molarity. The solution volume of 1 L is given.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-amount-prefix-not-known",
+    "question": "The amount of solute is not readable; 2 mol of solute are stated. The solution volume of 1 L is given. Find molarity.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-numeric-role-suffixes",
+    "question": "A solution contains 2 mol of solute-1 and 2 mol of solute-2 and has a solution volume of 1 L. Find molarity.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-underscore-role-suffixes",
+    "question": "A solution contains 2 mol of solute_1 and 2 mol of solute_2 and has a solution volume of 1 L. Find molarity.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-case-named-role-conflict",
+    "question": "Urea is the solute; urea is the solvent. There are 2 mol of Urea dissolved in water. The solution volume of 1 L is given. Find molarity.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-case-named-role-conflict-reverse",
+    "question": "water is the solvent; Water is the solute. There are 0.5 mol of water dissolved in ethanol. The solution volume of 250 mL is given. Find molarity.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-requested-solute-amount",
+    "question": "The solute amount is 2 mol. The solution volume of 1 L is given. Find molarity and the solute amount.",
+    "refuse": false,
+    "kind": "molarity",
+    "n": 2,
+    "denominator": 1,
+    "expected": 2.0
+  },
+  {
+    "id": "OWN-reference-solute-amount",
+    "question": "The solute amount is 2 mol. The solution volume of 1 L is given. Use the solute amount to calculate molarity.",
+    "refuse": false,
+    "kind": "molarity",
+    "n": 2,
+    "denominator": 1,
+    "expected": 2.0
+  },
+  {
+    "id": "OWN-reference-amount-of-solute",
+    "question": "The amount of solute is 0.5 mol. The solution volume of 250 mL is given. Using the amount of solute, find molarity.",
+    "refuse": false,
+    "kind": "molarity",
+    "n": 0.5,
+    "denominator": 0.25,
+    "expected": 2.0
+  },
+  {
+    "id": "OWN-number-moles-readable",
+    "question": "The number of moles of solute is 2 mol. The solution volume of 1 L is given. Find molarity.",
+    "refuse": false,
+    "kind": "molarity",
+    "n": 2,
+    "denominator": 1,
+    "expected": 2.0
+  },
+  {
+    "id": "OWN-n_solute-readable",
+    "question": "n_solute is 2 mol. The solution volume of 1 L is given. Find molarity.",
+    "refuse": false,
+    "kind": "molarity",
+    "n": 2,
+    "denominator": 1,
+    "expected": 2.0
+  },
+  {
+    "id": "OWN-moles-suffix-readable",
+    "question": "The solution contains 2 moles of solute and has a solution volume of 1 L. Find molarity.",
+    "refuse": false,
+    "kind": "molarity",
+    "n": 2,
+    "denominator": 1,
+    "expected": 2.0
+  },
+  {
+    "id": "OWN-requested-number-moles",
+    "question": "The solution contains 2 mol of solute and 0.5 kg of solvent. Find molality and the number of moles of solute.",
+    "refuse": false,
+    "kind": "molality",
+    "n": 2,
+    "denominator": 0.5,
+    "expected": 4.0
+  },
+  {
+    "id": "OWN-options-unread-role-excluded",
+    "question": "The solution contains 2 mol of solute and has a solution volume of 1 L. Find molarity. Options: (a) solute amount is unknown (b) solute amount is 3 mol.",
+    "refuse": false,
+    "kind": "molarity",
+    "n": 2,
+    "denominator": 1,
+    "expected": 2.0
   }
 ];
 function physical(labels:string[],symbol:string,unit:string,expected:number):void {

@@ -9,7 +9,7 @@
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
 
-import { CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, findChemistryQuantities, readChemistryQuantity, readChemistryLiteral, matchedChemistryComponentAmount, convertChemistryReading, chemistryPlanBindingsValid, chemistryCanonicalValuesAgree, chemistryUnitSymbol, type ChemistryDimension, type ChemistryUnit } from "./quantityReader";
+import { CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, findChemistryQuantities, readChemistryQuantity, readChemistryLiteral, matchedChemistryComponentAmount, convertChemistryReading, chemistryPlanBindingsValid, chemistryCanonicalValuesAgree, chemistryQuestionSpan, chemistryUnitSymbol, type ChemistryDimension, type ChemistryUnit } from "./quantityReader";
 
 const FAMILY = "chem_solutions" as const;
 
@@ -126,19 +126,20 @@ export function claimsSolutionLesson(question: string): boolean {
 /** An amount unit is not a component role. Bind every stated solute owner
  * before computing n/V or n/solvent-mass; unrelated solvent moles stay outside. */
 function sourceSoluteAmount(question: string): number | null {
-  if (/\b(?:solute\s+is\s+(?:also\s+)?(?:the\s+)?solvent|solvent\s+is\s+(?:also\s+)?(?:the\s+)?solute)\b/i.test(question)) return null;
+  const body = question.slice(0,chemistryQuestionSpan(question).end);
+  if (/\b(?:solute\s+is\s+(?:also\s+)?(?:the\s+)?solvent|solvent\s+is\s+(?:also\s+)?(?:the\s+)?solute)\b/i.test(body)) return null;
   type DeclaredRole = { name: string; role: "solute" | "solvent"; start: number; end: number };
   const roles: DeclaredRole[] = [];
-  for (const match of question.matchAll(/\b([A-Za-z][A-Za-z0-9]*)\s+is\s+(?:the\s+)?(solute|solvent)\b/gid)) {
+  for (const match of body.matchAll(/\b([A-Za-z][A-Za-z0-9]*)\s+is\s+(?:the\s+)?(solute|solvent)\b/gid)) {
     const span = match.indices![1]!;
     roles.push({name:match[1]!,role:match[2]!.toLowerCase() as "solute" | "solvent",start:span[0],end:span[1]});
   }
-  for (const match of question.matchAll(/\b(?:the\s+)?(solute|solvent)\s+is\s+([A-Za-z][A-Za-z0-9]*)\b/gid)) {
+  for (const match of body.matchAll(/\b(?:the\s+)?(solute|solvent)\s+is\s+([A-Za-z][A-Za-z0-9]*)\b/gid)) {
     const span = match.indices![2]!;
     roles.push({name:match[2]!,role:match[1]!.toLowerCase() as "solute" | "solvent",start:span[0],end:span[1]});
   }
   for (const role of roles) {
-    if (roles.some(other=>other.name===role.name && other.role!==role.role)) return null;
+    if (roles.some(other=>other.name.toLowerCase()===role.name.toLowerCase() && other.role!==role.role)) return null;
   }
   let amount: number | null = null;
   const names = new Set<string>();
@@ -149,32 +150,43 @@ function sourceSoluteAmount(question: string): number | null {
     if (names.size > 1) return false;
     amount=value;return true;
   };
-  // This inventory includes unread declarations, not just successful scalars.
-  // Each original prefix has its own anchored read; no later amount can fill it.
-  const named = String.raw`(?:\s+((?!(?:is|was|are|were|equals|unknown|unreadable|unspecified|undefined|not|NaN)\b)[A-Za-z][A-Za-z0-9]*(?:\s+(?!(?:is|was|are|were|equals|unknown|unreadable|unspecified|undefined|not|NaN)\b)[A-Za-z][A-Za-z0-9]*){0,2}?))?`;
-  const prefix = new RegExp(String.raw`\b(?:amount\s+of(?:\s+the)?\s+solute${named}|solute\s+amount|(?:number\s+of\s+)?moles?\s+of(?:\s+the)?\s+solute|n_?solute)\b(?=\s*(?:[=:]|[+\-−.\d]|is\b|was\b|are\b|were\b|equals\b|unknown\b|unreadable\b|unspecified\b|undefined\b|not\b|NaN\b))`,"gid");
-  for (const owner of question.matchAll(prefix)) {
-    const start=owner.index!+owner[0].length;
-    const read=readChemistryQuantity({question,after:/^/,within:{start,end:question.length},dimension:"amount",targetUnit:"mol"});
+  // Inventory every prefix, including arbitrary unread/damaged qualifiers.
+  // Only a genuine request/reuse without supplied material is a reference.
+  const prefix = /\b(?:amount\s+of(?:\s+the)?\s+solute|solute\s+amount|(?:number\s+of\s+)?moles?\s+of(?:\s+the)?\s+solute|n_?solute)\b/gid;
+  for (const owner of body.matchAll(prefix)) {
+    let start=owner.index!+owner[0].length;
+    if (/^moles?\b/i.test(owner[0]) && new RegExp(String.raw`(?:${CHEMISTRY_SCALAR_PATTERN}|unknown|unreadable|unspecified|undefined|NaN)\s*$`,"i").test(body.slice(0,owner.index!))) continue;
+    const tail=body.slice(start);
+    const clause=body.slice(0,owner.index!).split(/[;.!?\n]/).at(-1) ?? "";
+    const request=/\b(?:find|calculate|determine|compute|evaluate|what\s+(?:is|are))\s+(?:(?:the|a|an|its|their)\s+)*$/i.test(clause)
+      || /\b(?:find|calculate|determine|compute|evaluate|what\s+(?:is|are))\b[^;.!?]*\band\s+(?:(?:the|a|an|its|their)\s+)*$/i.test(clause);
+    const reuse=/\b(?:use|using|from|with)\s+(?:(?:the|given)\s+)*$/i.test(clause);
+    const referenceTail=/^\s*(?:$|[.;?!]|(?:,\s*)?(?:and|to|for|from|using|with|find|calculate|determine|compute|evaluate)\b)/i.test(tail);
+    const unreadQualifier=/\b(?:unknown|unreadable|unread|unspecified|undefined|cannot|not\s+(?:known|readable))\b/i.test(tail.split(/[;.!?\n]/)[0]!);
+    if ((request || reuse) && referenceTail && !unreadQualifier) continue;
+    const named=/^\s+([A-Za-z][A-Za-z0-9]*(?:\s+[A-Za-z][A-Za-z0-9]*){0,2}?)\s*(?=[=:]|\b(?:is|was|are|were|equals)\b|[+−-]?(?:\d|\.\d))/id.exec(tail);
+    const reserved=/\b(?:is|was|are|were|equals|unknown|unreadable|unspecified|undefined|not|NaN|remains|stays|cannot|can|may|which|that|has|have|given|stated|to|for|from|and|or|of|the|a|an|will|must|be)\b/i;
+    const name=named && !reserved.test(named[1]!) ? named[1] : undefined;
+    if (name) start += named!.indices![1]![1];
+    const read=readChemistryQuantity({question,after:/^/,within:{start,end:body.length},dimension:"amount",targetUnit:"mol"});
     if (!read.ok) return null;
-    const name=owner[1];
-    const suffix=question.slice(read.reading.source.span.end);
+    const suffix=body.slice(read.reading.source.span.end);
     if (/^\s*(?:of\s+)?(?:the\s+)?solvent\b/i.test(suffix)) return null;
     if (name && (/^(?:solvent|solution|mixture)$/i.test(name) || roles.some(role=>role.name===name && role.role==="solvent"))) return null;
     if (!admit(read.reading.value,name)) return null;
   }
   // A suffix proves a role only for "mol (of) solute", an independently
   // declared named solute, or the material explicitly dissolved into a medium.
-  for (const unit of question.matchAll(/(?<![A-Za-z_])mol(?:e|es)?\b/gid)) {
-    const before=question.slice(0,unit.index!);
+  for (const unit of body.matchAll(/(?<![A-Za-z_])mol(?:e|es)?\b/gid)) {
+    const before=body.slice(0,unit.index!);
     const valueMatch=new RegExp(String.raw`(${CHEMISTRY_SCALAR_PATTERN}|unknown|unreadable|unspecified|undefined|NaN|[+\-−]?\d[^\s,;]*)\s*$`,"id").exec(before);
     if (!valueMatch?.indices?.[1]) continue; // "number of moles" is a cue, not a literal.
     const scalar=valueMatch.indices![1]!;
     const end=unit.index!+unit[0].length;
-    const tail=question.slice(end);
+    const tail=body.slice(end);
     const explicit=/^\s*(?:of\s+)?(?:the\s+)?(solute|solvent)\b/i.exec(tail);
     if (explicit?.[1]?.toLowerCase()==="solvent") continue;
-    if (explicit && (/^\s*(?:of\s+)?(?:the\s+)?solute(?:[-_][A-Za-z]|\s+solution\b)/i.test(tail) || /^\s*(?:of\s+)?(?:the\s+)?solute\s+(?:or|and)\s+(?:the\s+)?solvent\b/i.test(tail))) return null;
+    if (explicit && (/^\s*(?:of\s+)?(?:the\s+)?solute(?:[-_][A-Za-z0-9]|\s+solution\b)/i.test(tail) || /^\s*(?:of\s+)?(?:the\s+)?solute\s+(?:or|and)\s+(?:the\s+)?solvent\b/i.test(tail))) return null;
     let name: string | undefined;
     let independent: DeclaredRole | undefined;
     if (!explicit) {
