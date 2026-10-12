@@ -704,6 +704,20 @@ const ROWS: readonly Row[] = [
     },
     "sharedUnit": "K",
     "questionSha256": "65cd01750ecc50affcde5e37034838eb244e13e47d26ea6693b382bfe6eed8e4"
+  },
+  {
+    "id": "REFUSE-HEAT-CAPACITY-LINEAR-RISE",
+    "question": "The heat capacity of a sample is 20 J/K. Its heat capacity rises linearly from 20 J/K to 30 J/K as its temperature increases. ΔT = 10 K with no phase change. Find q.",
+    "family": "thermo",
+    "kind": "decline",
+    "questionSha256": "007f41611af662d76684793a894223a8266387661dc2f9d676b5315f3cb1a67f"
+  },
+  {
+    "id": "REFUSE-HEAT-CAPACITY-LINEAR-FALL",
+    "question": "The heat capacity of a sample is 20 J/K. Its heat capacity falls linearly from 20 J/K to 10 J/K as its temperature increases. ΔT = 10 K with no phase change. Find q.",
+    "family": "thermo",
+    "kind": "decline",
+    "questionSha256": "c9edf35d75630a7811bc6e3f01f66bf0bbf4a4d12e3a8bb073954a7578322adb"
   }
 ];
 
