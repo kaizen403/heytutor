@@ -45,6 +45,122 @@ function fixture(total = 2000, series = 1992): TurnPlanV3 {
   };
 }
 
+function textbookFixture(current = "I_g", resistance = "R_g", range = "V", series = "R_s"): TurnPlanV3 {
+  const input = fixture();
+  input.givens[0] = { ...input.givens[0]!, symbol: current, value: 5 };
+  input.givens[1] = { ...input.givens[1]!, symbol: resistance };
+  input.givens[2] = { ...input.givens[2]!, symbol: range, value: 10 };
+  input.unknowns[0] = { ...input.unknowns[0]!, symbol: series };
+  input.derived[1] = { ...input.derived[1]!, symbol: series };
+  return input;
+}
+
+for (const [current, resistance, range, series] of [
+  ["I_g", "G", "V", "R_s"], ["I_g", "R_g", "V", "R"],
+  ["I_g", "R_g", "V", "R_series"], ["I_g", "R_g", "V_max", "R_s"],
+  ["I_g", "R_G", "V", "R_s"], ["i_g", "R_g", "V", "R_s"],
+  ["i_g", "G", "V_max", "R"], ["I_g", "R_G", "V_max", "R_series"],
+] as const) {
+  const correct = textbookFixture(current, resistance, range, series);
+  const observed = auditInstrumentTurnPlanV3(correct);
+  assert.deepEqual(observed.results.map(({ currentAmps, galvanometerResistanceOhms, rangeVolts,
+    totalResistanceOhms, seriesResistanceOhms }) =>
+    [currentAmps, galvanometerResistanceOhms, rangeVolts, totalResistanceOhms, seriesResistanceOhms]),
+  [[0.005, 8, 10, 2000, 1992]], `${current}/${resistance}/${range}/${series} binds exact textbook roles before applying the law`);
+  assert.deepEqual(observed.declined, []);
+  assert.deepEqual(observed.inconsistencies, []);
+  assert(validateInstrumentPlan(correct).valid, "production accepts the independently computed 1992-ohm answer with textbook aliases");
+  for (const wrongSeries of [-6, 2000]) {
+    const wrong = structuredClone(correct); wrong.derived[1]!.value = wrongSeries;
+    const mismatch = auditInstrumentTurnPlanV3(wrong);
+    assert(mismatch.inconsistencies.some((entry) => entry.role === "series_resistance" && entry.expectedOhms === 1992),
+      "aliases do not forgive either the unconverted-mA answer or the total-as-series answer");
+    const rejected = validateInstrumentPlan(wrong);
+    assert(!rejected.valid);
+    assert(rejected.issues.some((entry) => entry.code === "instrument_law_mismatch"));
+  }
+}
+
+for (const [group, index, alias] of [
+  ["given", 0, "i_g"], ["given", 1, "G"], ["given", 1, "R_G"],
+  ["given", 2, "V_max"], ["derived", 1, "R"], ["derived", 1, "R_series"],
+] as const) {
+  const input = textbookFixture();
+  if (group === "given") input.givens[index] = { ...input.givens[index]!, id: alias, symbol: `input_${index}` };
+  else {
+    input.derived[index] = { ...input.derived[index]!, id: alias, symbol: "output_series" };
+    input.unknowns[0] = { ...input.unknowns[0]!, id: alias, symbol: "output_series" };
+  }
+  const observed = auditInstrumentTurnPlanV3(input);
+  assert.equal(observed.results[0]?.seriesResistanceOhms, 1992, "an exact bound alias in a quantity ID has the same role as its symbol");
+  assert.deepEqual(observed.declined, []);
+  assert.deepEqual(observed.inconsistencies, []);
+  assert(validateInstrumentPlan(input).valid);
+}
+
+for (const [current, resistance, range, series] of [
+  [String.raw`i_{g}`, String.raw`\mathrm{G}`, String.raw`V_{max}`, String.raw`\mathrm{R}_{series}`],
+  ["i_g", "R_G", "V_max", "R"],
+] as const) {
+  const input = textbookFixture(current, resistance, range, series);
+  const observed = auditInstrumentTurnPlanV3(input);
+  assert.equal(observed.results[0]?.seriesResistanceOhms, 1992);
+  assert.deepEqual(observed.declined, []);
+  assert(validateInstrumentPlan(input).valid);
+}
+
+for (const [index, symbol] of [[0, "IG"], [1, "g"], [2, "V_MAX"]] as const) {
+  const input = textbookFixture(); input.givens[index]!.symbol = symbol;
+  const observed = auditInstrumentTurnPlanV3(input);
+  assert.equal(observed.results.length, 0, "allowlisted lowercase i_g does not introduce global case-folding");
+  assert(observed.declined.some((entry) => entry.reason === "missing_given"));
+  assert(!validateInstrumentPlan(input).valid);
+}
+for (const symbol of ["r", "R_SERIES"]) {
+  const input = textbookFixture(); input.derived[1]!.symbol = symbol;
+  assert(auditInstrumentTurnPlanV3(input).declined.some((entry) => entry.reason === "missing_output"));
+  assert(!validateInstrumentPlan(input).valid);
+}
+
+for (const [index, unit] of [[0, "MA"], [1, "mA"], [2, "Ω"]] as const) {
+  const input = textbookFixture("i_g", "G", "V_max", "R"); input.givens[index]!.unit = unit;
+  const observed = auditInstrumentTurnPlanV3(input);
+  assert.equal(observed.results.length, 0, "a recognized textbook role never guesses its dimension or prefix");
+  assert(observed.declined.some((entry) => entry.reason === "unsupported_given_unit"));
+  assert(!validateInstrumentPlan(input).valid);
+}
+for (const unit of [undefined, "unrecognized", "V"]) {
+  const input = textbookFixture("i_g", "R_G", "V_max", "R_series"); input.derived[1]!.unit = unit;
+  const observed = auditInstrumentTurnPlanV3(input);
+  assert(unit === "V" ? observed.inconsistencies.some((entry) => entry.reason === "unit_mismatch")
+    : observed.declined.some((entry) => entry.reason === "unsupported_output_unit"));
+  assert(!validateInstrumentPlan(input).valid);
+}
+
+const duplicateTextbookInput = textbookFixture("i_g", "G", "V_max", "R");
+duplicateTextbookInput.givens.push({ ...duplicateTextbookInput.givens[1]!, id: "another_coil", symbol: "R_G" });
+const duplicateInputAudit = auditInstrumentTurnPlanV3(duplicateTextbookInput);
+assert.equal(duplicateInputAudit.results.length, 0);
+assert(duplicateInputAudit.declined.some((entry) => entry.reason === "ambiguous_given" && entry.role === "galvanometer_resistance"));
+assert(!validateInstrumentPlan(duplicateTextbookInput).valid, "equal G and R_G inputs still cannot choose between two quantities");
+const duplicateTextbookOutput = textbookFixture("i_g", "G", "V_max", "R");
+duplicateTextbookOutput.derived.push({ ...duplicateTextbookOutput.derived[1]!, id: "another_series", symbol: "R_series" });
+assert(auditInstrumentTurnPlanV3(duplicateTextbookOutput).declined.some((entry) => entry.reason === "ambiguous_output" && entry.role === "series_resistance"));
+assert(!validateInstrumentPlan(duplicateTextbookOutput).valid, "equal R and R_series outputs remain ambiguous");
+const conflictingTextbookRole = textbookFixture("i_g", "G", "V_max", "R_series");
+conflictingTextbookRole.givens[1]!.id = "R";
+assert(auditInstrumentTurnPlanV3(conflictingTextbookRole).declined.some((entry) => entry.reason === "conflicting_role"));
+assert(!validateInstrumentPlan(conflictingTextbookRole).valid, "G and R cannot pick the role whose unit happens to fit");
+const guessedTextbookResistance = textbookFixture("i_g", "R", "V_max", "R_series");
+assert(auditInstrumentTurnPlanV3(guessedTextbookResistance).declined.some((entry) => entry.reason === "missing_given" && entry.role === "galvanometer_resistance"));
+assert(!validateInstrumentPlan(guessedTextbookResistance).valid, "a bare R input is not silently repurposed as galvanometer resistance");
+const aliasesWithoutLaw = textbookFixture("i_g", "G", "V_max", "R"); aliasesWithoutLaw.lawIds = ["ohms_law"];
+const noAliasAuthority = auditInstrumentTurnPlanV3(aliasesWithoutLaw);
+assert.deepEqual([noAliasAuthority.results, noAliasAuthority.checkedLawIds, noAliasAuthority.inconsistencies, noAliasAuthority.declined], [[], [], [], []],
+  "aliases cannot activate galvanometer authority without an exact conversion law tag");
+const aliasAuditCalls = auditCalls;
+const aliasValidationCalls = validationCalls;
+
 const totalOnly = fixture();
 totalOnly.unknowns = [{ id: "total", symbol: "R_total", unit: "Ω" }];
 totalOnly.derived.pop();
@@ -296,3 +412,4 @@ assert.equal(auditInstrumentTurnPlanV3(megaOhms).inconsistencies.length, 0, "meg
 const overflowOutput = fixture(); overflowOutput.derived[0]!.value = 1e308; overflowOutput.derived[0]!.unit = "MΩ";
 assert(auditInstrumentTurnPlanV3(overflowOutput).declined.some((entry) => entry.reason === "invalid_output_value"));
 console.log(`verify-instrument-plan-audit: ${auditCalls} report-only calls; ${validationCalls} production validations; explicit SI inputs and contradiction controls pass`);
+console.log(`verify-instrument-plan-audit breakdown: legacy ${auditCalls - aliasAuditCalls} report-only calls / ${validationCalls - aliasValidationCalls} production validations; textbook aliases ${aliasAuditCalls} report-only calls / ${aliasValidationCalls} production validations`);

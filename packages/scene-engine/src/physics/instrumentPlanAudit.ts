@@ -173,11 +173,11 @@ const INPUT_DIMENSIONS: Record<InstrumentInputRole, Dimension> = {
   galvanometer_current: "current", galvanometer_resistance: "resistance", voltage_range: "voltage",
 };
 const ROLE_KEYS: Record<InstrumentInputRole | InstrumentOutputRole, readonly string[]> = {
-  galvanometer_current: ["Ig", "galvanometercurrent", "fullscalecurrent"],
-  galvanometer_resistance: ["Rg", "galvanometerresistance"],
-  voltage_range: ["V", "Vrange", "voltagerange"],
+  galvanometer_current: ["Ig", "ig", "galvanometercurrent", "fullscalecurrent"],
+  galvanometer_resistance: ["Rg", "RG", "G", "galvanometerresistance"],
+  voltage_range: ["V", "Vrange", "Vmax", "voltagerange"],
   total_resistance: ["Rtotal", "totalresistance"],
-  series_resistance: ["Rs", "seriesresistance"],
+  series_resistance: ["Rs", "R", "Rseries", "seriesresistance"],
 };
 /** Exact, case-preserving role identity shared by givens, outputs and requests. */
 export function matchesInstrumentQuantityRole(
