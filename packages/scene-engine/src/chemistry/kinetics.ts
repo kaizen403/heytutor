@@ -1403,7 +1403,9 @@ function buildZeroOrderNumeric(question: string, spec: KineticsSpec, solution: K
     const interval = Math.abs(second!.time - first!.time);
     c.scene.quantity("asked_interval", "Δt", interval, unit);
     panel.ids.push(c.text("asked_interval_label", { x: 6.3, y: 5.3 }, timeLabel("Δt", interval, unit), "requested time interval"));
-    sentences.push(`From ${fmt(first!.concentration, 3)} M to ${fmt(second!.concentration, 3)} M takes ${fmt(interval, 3)} ${unit}.`);
+    // The compiled caption has a finite display budget. Lead with the
+    // requested answer so the general law cannot truncate its operands/unit.
+    sentences.unshift(`From ${fmt(first!.concentration, 3)} M to ${fmt(second!.concentration, 3)} M takes ${fmt(interval, 3)} ${unit}.`);
   }
   return c.build({ caption: sentences.join(" ") });
 }
