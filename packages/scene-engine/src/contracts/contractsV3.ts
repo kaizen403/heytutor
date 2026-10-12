@@ -9,7 +9,7 @@ import { validateCoordinateDistanceSourceInputs } from "../ir/coordinateDistance
 import { validatePointLineSourceInputs } from "../ir/pointLineSource";
 import { validateSectionPointSourceInputs } from "../ir/sectionFormulaSource";
 import { evaluateTopologyAssertion } from "../topology/topology";
-import { evaluateSourceMathExpression as evaluateMathExpression } from "../math/expression";
+import { evaluateSourceMathExpression as evaluateMathExpression, inferSourceExpressionDimensions } from "../math/expression";
 import type { SceneDocument, SceneIssue, ValidationReport, RenderScene } from "../types";
 import type { ProblemIR } from "../ir/problemIR";
 import type { SolverResult } from "../ir/solver";
@@ -693,6 +693,8 @@ function evaluateExplicitArithmetic(
   targetKeys: string[] = [],
   options: ExplicitArithmeticOptions = {},
 ): ExplicitArithmeticEvidence {
+  const unitContext: ArithmeticUnitReadingContext = { expectedUnit, meta: options.bindingMeta ?? new Map(), ambiguous: false };
+  ARITHMETIC_UNIT_CONTEXT.set(numericBindings, unitContext);
   const results: Array<{ value: number; tolerance: number }> = [];
   const pushResult = (value: number, stated?: { tolerance: number } | null) => {
     results.push({ value, tolerance: stated?.tolerance ?? 0 });
@@ -898,7 +900,7 @@ function evaluateExplicitArithmetic(
       }
     }
   }
-  if (invalid) return { value: null, conflicting: false, invalid: true, mixedUnits };
+  if (invalid || unitContext.ambiguous) return { value: null, conflicting: false, invalid: true, mixedUnits };
   if (signConflict) return { value: null, conflicting: true, invalid: false, mixedUnits };
   const agree = (
     one: { value: number; tolerance: number },
@@ -1004,10 +1006,19 @@ function evaluateAnchoredAnonymousChain(
   const finalTolerance = convertMeasuredValue(final.tolerance, finalUnit, expectedUnit);
   if (finalValue === null || finalTolerance === null) return null;
   const stated = { value: finalValue, tolerance: Math.abs(finalTolerance) };
-  if (!withinDisplayedPrecision(declaredAnchor.value, stated)) return null;
+  if (!withinDisplayedPrecision(declaredAnchor.value, stated)) {
+    // Rounded metadata (3.162 versus 3.16227766) may identify an anonymous
+    // chain, but a one-figure declaration such as 6 is too coarse to attach
+    // incidental nearby calculations to this target. Named assignments are
+    // still independently checked/reconciled without this attribution guess.
+    const significantFigures = String(declaredAnchor.value).split(/[eE]/)[0]!
+      .replace(/^[+-]/, "").replace(".", "").replace(/^0+/, "").length;
+    if (significantFigures < 2 || Math.abs(declaredAnchor.value - stated.value) > declaredAnchor.tolerance + stated.tolerance +
+      Math.max(Math.abs(declaredAnchor.value), Math.abs(stated.value)) * 1e-12) return null;
+  }
   for (let index = 1; index < finalIndex; index += 1) {
     const part = equalityParts[index] ?? "";
-    if (parseMeasuredPart(part)) continue;
+    if (isMeasuredArithmeticPart(part, knownUnits, numericBindings)) continue;
     const bindingKeys = new Set<string>();
     const expression = normalizeExplicitNumericExpression(
       part,
@@ -1372,7 +1383,7 @@ function solveExplicitTargetEquation(
       .filter((index) => index !== targetIndex && (!isolated || index !== statedIndex))
       // A plain number next to an isolated target restates a value; it is
       // not arithmetic that can confirm or replace one.
-      .filter((index) => !isolated || !parseMeasuredPart(equalityParts[index] ?? ""))
+      .filter((index) => !isolated || !isMeasuredArithmeticPart(equalityParts[index] ?? "", knownUnits, numericBindings))
       .sort((first, second) => {
         const firstUsesBindings = referencesTrustedNumericBinding(
           equalityParts[first] ?? "",
@@ -1464,6 +1475,10 @@ function coherentNumericBindings(
   }
   const stipulations = TRIG_STIPULATIONS.get(numericBindings);
   if (stipulations) TRIG_STIPULATIONS.set(coherent, stipulations);
+  const measured = TRUSTED_MEASURED_BINDINGS.get(numericBindings);
+  if (measured) TRUSTED_MEASURED_BINDINGS.set(coherent, measured);
+  const unitContext = ARITHMETIC_UNIT_CONTEXT.get(numericBindings);
+  if (unitContext) ARITHMETIC_UNIT_CONTEXT.set(coherent, unitContext);
   return coherent;
 }
 
@@ -1501,6 +1516,14 @@ function coherentMemberValue(
 function explicitArithmeticOperation(source: string): boolean {
   const normalized = source.trim().replace(/^[-+]/, "");
   return /[*/^()]|\d\s*[+-]\s*\d/.test(normalized);
+}
+
+/** A coefficient followed by bound operands is a formula, not a restatement. */
+function isMeasuredArithmeticPart(source: string, knownUnits: string[], bindings: Map<string, number>): boolean {
+  if (!parseMeasuredPart(source)) return false;
+  const used = new Set<string>();
+  normalizeExplicitNumericExpression(source, knownUnits, bindings, undefined, used);
+  return used.size === 0;
 }
 
 function referencesTrustedNumericBinding(
@@ -2001,8 +2024,27 @@ function normalizeExplicitNumericExpression(
   // it before bindings, even when the same symbol names another quantity
   // (the A in "(3 A)" is ampere, not an area named A). If a bound symbol
   // shares that spelling, a glued coefficient such as "2N" remains a
-  // product. The unit label must be space-delimited in that ambiguous case.
+  // product. In that ambiguous case a space is necessary but not sufficient:
+  // "0.5 m v^2" still multiplies the bound mass by v^2, while "(3 A)"
+  // ends a measured current. A following operand retains the bound product.
   // Explicit "2*A" and symbolic "mu N" products remain bindings too.
+  expression = replaceMeasuredConversionRatios(expression, numericBindings, (coefficient) => coefficient);
+  // Dimension choices must see every original measured operand, including
+  // labels removed earlier in the longest-unit-first loop. Track deletion
+  // offsets so (3 A)(12 ohm) never loses the ohm before deciding the A.
+  const unitReadingSource = expression;
+  let sourceOffsets = Array.from({ length: expression.length }, (_, index) => index);
+  const replaceUnitLabels = (pattern: RegExp, rewrite: (original: string, captures: string[], offset: number, whole: string) => string) => {
+    const nextOffsets: number[] = []; let cursor = 0;
+    expression = expression.replace(pattern, (original: string, ...args: Array<string | number>) => {
+      const offset = args.at(-2); const whole = args.at(-1);
+      if (typeof offset !== "number" || typeof whole !== "string") throw new Error("invalid unit-label replacement context");
+      const result = rewrite(original, args.slice(0, -2).map(String), offset, whole);
+      nextOffsets.push(...sourceOffsets.slice(cursor, offset), ...sourceOffsets.slice(offset, offset + result.length));
+      cursor = offset + original.length; return result;
+    });
+    nextOffsets.push(...sourceOffsets.slice(cursor)); sourceOffsets = nextOffsets;
+  };
   for (const unit of knownUnits) {
     const flags = /^[A-Za-z]+$/.test(unit) && unit.length > 1 ? "gi" : "g";
     // Use the arithmetic tokenizer itself: a compound spelling such as N*m,
@@ -2021,11 +2063,25 @@ function normalizeExplicitNumericExpression(
     const boundSymbol = boundProduct || numericBindings.has(unit) || (flags === "gi" &&
       [...numericBindings.keys()].some(key => key.toLowerCase() === unit.toLowerCase()));
     const gap = boundSymbol ? "\\s+" : "\\s*";
-    expression = expression.replace(
-      new RegExp(`(?<![A-Za-zΑ-Ωα-ω0-9_.])(${NUMBER_SOURCE})(${gap})${escapeRegExp(unit)}(?=\\s|\\)|\\]|$|[*/+\\-^])`, flags),
-      (original, coefficient: string, spacing: string) => {
+    const labelEnd = boundSymbol
+      ? "(?=\\s*(?:\\)|\\]|$|[=*/+\\-]))"
+      : "(?=\\s|\\)|\\]|$|[*/+\\-^])";
+    replaceUnitLabels(
+      new RegExp(`(?<![A-Za-zΑ-Ωα-ω0-9_.])(${NUMBER_SOURCE})(${gap})${escapeRegExp(unit)}${labelEnd}`, flags),
+      (original, [coefficient = "", spacing = ""], offset, whole) => {
         const exponent = /[eE][+-]?\d+$/.exec(coefficient)?.[0];
         const spelling = original.slice(coefficient.length + spacing.length);
+        // A delimiter inside a larger expression does not distinguish mass
+        // from metres or capacitance from coulombs (Q^2/(2 C)). Choose only
+        // the dimensionally compatible reading. A plain result "36 V" is
+        // still a measurement, not new arithmetic authority.
+        const outside = (whole.slice(0, offset) + whole.slice(offset + original.length)).replace(/[()\]\s]/g, "");
+        if (boundSymbol && outside !== "") {
+          const sourceStart = sourceOffsets[offset]!;
+          const sourceLength = sourceOffsets[offset + original.length - 1]! + 1 - sourceStart;
+          const reading = resolveOperatorUnitReading(unitReadingSource, sourceStart, sourceLength, coefficient, unit, knownUnits, numericBindings);
+          if (reading !== "measurement") return original;
+        }
         // A given named e0N remains an identifier in 2e0N even when no
         // separate N is bound. Space-delimited 2e0 N is still a measurement.
         return spacing === "" && exponent && numericBindings.has(`${exponent}${spelling}`)
@@ -2036,9 +2092,9 @@ function normalizeExplicitNumericExpression(
     // it here, before substitutions introduce their own parentheses. When
     // the spelling is bound, preserve that original variable product.
     if (!boundSymbol) {
-      expression = expression.replace(
+      replaceUnitLabels(
         new RegExp(`(?<=\\))\\s*${escapeRegExp(unit)}(?=\\s|\\)|\\]|$|[*/+\\-^])`, flags),
-        "",
+        () => "",
       );
     }
   }
@@ -2146,6 +2202,164 @@ interface NumericBindingMeta {
 
 type NumericBindingMetaMap = Map<string, NumericBindingMeta>;
 
+interface ArithmeticUnitReadingContext {
+  expectedUnit: unknown;
+  meta: NumericBindingMetaMap;
+  ambiguous: boolean;
+}
+const ARITHMETIC_UNIT_CONTEXT = new WeakMap<Map<string, number>, ArithmeticUnitReadingContext>();
+
+const TRUSTED_MEASURED_BINDINGS = new WeakMap<Map<string, number>, Map<string, { value: number; unit: unknown }>>();
+
+// Fundamental SI dimensions, separate from unitScale's existing conversion
+// identity. This is expression disambiguation, not new scalar or unit rewriting.
+const PHYSICAL_DIMENSIONS: Readonly<Record<string, readonly number[]>> = {
+  kg: [1,0,0,0,0,0,0], m: [0,1,0,0,0,0,0], s: [0,0,1,0,0,0,0], A: [0,0,0,1,0,0,0],
+  K: [0,0,0,0,1,0,0], mol: [0,0,0,0,0,1,0], cd: [0,0,0,0,0,0,1],
+  N: [1,1,-2,0,0,0,0], J: [1,2,-2,0,0,0,0], W: [1,2,-3,0,0,0,0],
+  Pa: [1,-1,-2,0,0,0,0], Hz: [0,0,-1,0,0,0,0], C: [0,0,1,1,0,0,0],
+  V: [1,2,-3,-1,0,0,0], "Ω": [1,2,-3,-2,0,0,0], F: [-1,-2,4,2,0,0,0],
+  H: [1,2,-2,-2,0,0,0], T: [1,0,-2,-1,0,0,0], Wb: [1,2,-2,-1,0,0,0],
+  eV: [1,2,-2,0,0,0,0], L: [0,3,0,0,0,0,0], D: [0,-1,0,0,0,0,0],
+};
+function physicalDimensions(unit: unknown): readonly number[] | null {
+  if (typeof unit === "string") {
+    const spelling = unit.replace(/⁻/g, "^-").replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, digits => `^${fromSuperscriptDigits(digits)}`).replace(/\^-\^/g, "^-");
+    if (spelling.length > 256 || [...spelling.matchAll(/(?:\^\s*)?([-+]?\d+)/g)]
+      .some(match => !Number.isSafeInteger(Number(match[1])) || Math.abs(Number(match[1])) > 32)) return null;
+  }
+  if (["degree", "rad", "radian", "radians"].includes(normalizeUnit(unit) ?? "")) return [0,0,0,0,0,0,0];
+  const scale = unitScale(unit);
+  if (!scale) return null;
+  const dimensions = [0,0,0,0,0,0,0];
+  for (const term of scale.signature.split("·").filter(Boolean)) {
+    const split = term.lastIndexOf("^");
+    const base = PHYSICAL_DIMENSIONS[term.slice(0, split)];
+    const exponent = Number(term.slice(split + 1));
+    if (!base || !Number.isFinite(exponent)) return null;
+    for (let axis = 0; axis < dimensions.length; axis++) dimensions[axis]! += base[axis]! * exponent;
+  }
+  return dimensions.every(value => Number.isSafeInteger(value) && Math.abs(value) <= 32) ? dimensions : null;
+}
+function samePhysicalDimensions(first: readonly number[] | null, second: readonly number[] | null): boolean {
+  return first !== null && second !== null && first.length === second.length && first.every((power, axis) => power === second[axis]);
+}
+function resolveOperatorUnitReading(
+  expression: string, offset: number, length: number, coefficient: string, unit: string,
+  knownUnits: string[], bindings: Map<string, number>,
+): "binding" | "measurement" | "ambiguous" {
+  const context = ARITHMETIC_UNIT_CONTEXT.get(bindings);
+  if (!context) return "binding";
+  const expected = physicalDimensions(context.expectedUnit);
+  const labelDimensions = physicalDimensions(unit);
+  const dimensions = new Map<string, readonly number[]>();
+  for (const [key, meta] of context.meta) {
+    const value = meta.trusted ? physicalDimensions(meta.unit) : null;
+    if (value && /^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) dimensions.set(key, value);
+  }
+  // Opaque typed markers carry unit identity, never numerical coincidences.
+  let markerIndex = 0;
+  const marker = (value: readonly number[]) => {
+    let name: string;
+    do { name = `MeasuredUnitDimension${markerIndex++}`; } while (expression.includes(name) || bindings.has(name));
+    dimensions.set(name, value); return name;
+  };
+  const measurement = labelDimensions ? `${coefficient} ${marker(labelDimensions)}` : null;
+  const infer = (source: string) => {
+    const used = new Map<string, readonly number[]>();
+    for (const token of source.match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? []) {
+      const exact = dimensions.get(token);
+      if (exact) used.set(token, exact);
+      else for (const [key, value] of dimensions) if (token.includes(key)) used.set(key, value);
+    }
+    return inferSourceExpressionDimensions(source, used);
+  };
+  const prepare = (source: string) => {
+    source = mapTrigArguments(source, (name, argument) => `${name}(${argument})`);
+    source = source.replace(/[A-Za-zΑ-Ωα-ω_][A-Za-z0-9Α-Ωα-ω_]*/gu, token => {
+      if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(token)) return token;
+      const meta = context.meta.get(token);
+      const value = meta?.trusted ? physicalDimensions(meta.unit) : null;
+      return value ? marker(value) : token;
+    });
+    source = replaceMeasuredConversionRatios(source, bindings, (coefficient, ratio) => {
+      const value = physicalDimensions(ratio);
+      return value ? `${coefficient} ${marker(value)}` : `${coefficient} UnsupportedUnitDimension`;
+    });
+    for (const label of knownUnits) {
+      // Bound spellings keep their variable meaning in other spans. A second
+      // unresolved collision cannot be silently guessed by this candidate.
+      const used = new Set<string>();
+      const bound = normalizeExplicitNumericExpression(label, [], bindings, undefined, used);
+      if (bound !== null && used.size > 0) continue;
+      const value = physicalDimensions(label);
+      if (!value) continue;
+      const name = marker(value);
+      const flags = /^[A-Za-z]+$/.test(label) && label.length > 1 ? "gi" : "g";
+      source = source.replace(new RegExp(`(?<![A-Za-zΑ-Ωα-ω0-9_.])(${NUMBER_SOURCE})\\s*${escapeRegExp(label)}(?=\\s|\\)|\\]|$|[*/+\\-^])`, flags), `$1 ${name}`)
+        .replace(new RegExp(`(?<=\\))\\s*${escapeRegExp(label)}(?=\\s|\\)|\\]|$|[*/+\\-^])`, flags), ` ${name}`);
+    }
+    return source;
+  };
+  const bindingDimensions = infer(prepare(expression));
+  const measurementDimensions = measurement === null ? null : infer(
+    prepare(expression.slice(0, offset) + measurement + expression.slice(offset + length)));
+  const bindingFits = samePhysicalDimensions(bindingDimensions, expected);
+  const measurementFits = samePhysicalDimensions(measurementDimensions, expected);
+  if (bindingFits !== measurementFits) return measurementFits ? "measurement" : "binding";
+  if (!bindingFits && !measurementFits) {
+    // A complete two-given substitution may omit the second unit ("3 A *
+    // 12" for I=3 A, R=12 ohm). Only exact supplied coherent-unit operands
+    // may restore that dimension; never a result, derived assertion, prefixed
+    // scalar, arbitrary subexpression or a value selected to fit the answer.
+    const simple = expression.trim().match(new RegExp(`^(${NUMBER_SOURCE})\\s+${escapeRegExp(unit)}\\s*([*/])\\s*(${NUMBER_SOURCE})$`));
+    const supplied = [...(TRUSTED_MEASURED_BINDINGS.get(bindings)?.values() ?? [])];
+    const firstIsGiven = supplied.some(quantity => {
+      const value = convertMeasuredValue(quantity.value, quantity.unit, unit);
+      return value !== null && approximatelyEqualArithmetic(value, Number(coefficient));
+    });
+    if (simple && firstIsGiven && labelDimensions) {
+      const scalar = Number(simple[3]);
+      const scalarDimensions = supplied.filter(quantity => unitScale(quantity.unit)?.factor === 1 &&
+        approximatelyEqualArithmetic(quantity.value, scalar)).map(quantity => physicalDimensions(quantity.unit));
+      const unique = new Map(scalarDimensions.filter(value => value !== null).map(value => [value.join(","), value]));
+      if (unique.size === 1) {
+        const scalarDimension = [...unique.values()][0]!;
+        const scalarMarker = marker(scalarDimension);
+        const typedBinding = infer(`${coefficient} ${unit} ${simple[2]} ${scalarMarker}`);
+        const typedMeasurement = infer(`${measurement} ${simple[2]} ${scalarMarker}`);
+        const bindingAgrees = samePhysicalDimensions(typedBinding, expected);
+        const measurementAgrees = samePhysicalDimensions(typedMeasurement, expected);
+        if (bindingAgrees !== measurementAgrees) return measurementAgrees ? "measurement" : "binding";
+      }
+    }
+  }
+  // An exact literal of the same named GIVEN (12 V with V=12 V) retains the
+  // conventional measured reading. Unrelated quantities and derived claims
+  // cannot supply this support, even when their number happens to coincide.
+  const own = TRUSTED_MEASURED_BINDINGS.get(bindings)?.get(unit);
+  const ownValue = own ? convertMeasuredValue(own.value, own.unit, unit) : null;
+  if (bindingFits && ownValue !== null && approximatelyEqualArithmetic(Number(coefficient), ownValue) &&
+    samePhysicalDimensions(physicalDimensions(own?.unit), labelDimensions)) return "measurement";
+  context.ambiguous = true;
+  return "ambiguous";
+}
+
+/** A source-written same-dimension conversion (100 cm/m), not a bound quotient. */
+function replaceMeasuredConversionRatios(
+  source: string, bindings: Map<string, number>, replace: (coefficient: string, ratio: string) => string,
+): string {
+  return source.replace(new RegExp(`(?<![A-Za-zΑ-Ωα-ω0-9_.])(${NUMBER_SOURCE})\\s+([A-Za-zµμΩ]+(?:\\^-?\\d+)?)\\s*/\\s*([A-Za-zµμΩ]+(?:\\^-?\\d+)?)(?=\\s|\\)|\\]|$|[*/+\\-])`, "g"),
+    (original, coefficient: string, first: string, second: string) => {
+      const from = unitScale(first); const to = unitScale(second);
+      if (!from || !to || from.signature === "" || from.signature !== to.signature) return original;
+      const ratio = `${first}/${second}`;
+      const used = new Set<string>();
+      const expression = normalizeExplicitNumericExpression(ratio, [], bindings, undefined, used);
+      return expression !== null && used.size > 0 ? original : replace(coefficient, ratio);
+    });
+}
+
 function collectNumericBindings(
   values: unknown[],
   meta?: NumericBindingMetaMap,
@@ -2190,6 +2404,11 @@ function addNumericBinding(
     bindings.set(normalized, value.value as number);
     meta?.set(normalized, entry);
     markDegreeBinding(bindings, normalized, degrees);
+    let measured = TRUSTED_MEASURED_BINDINGS.get(bindings);
+    if (trusted && value.provenance === "given" && typeof value.unit === "string" && value.unit.trim() !== "") {
+      if (!measured) { measured = new Map(); TRUSTED_MEASURED_BINDINGS.set(bindings, measured); }
+      measured.set(normalized, { value: value.value as number, unit: value.unit });
+    } else measured?.delete(normalized);
   };
   for (const key of [value.id, value.symbol]) {
     if (typeof key !== "string" || key.trim() === "") continue;

@@ -31,6 +31,286 @@ function check(name: string, condition: boolean) {
   checks++;
   if (!condition) failures.push(name);
 }
+// #160 FIX FIRST: a space-delimited mass is still a multiplicand before v.
+// Use a non-routed law ID so only source arithmetic supplies this authority.
+const reviewedKineticQuestion = "A body has mass m = 2 kg, speed v = 3 m/s and height h = 5 m. Find its kinetic energy.";
+const reviewedWrongKinetic: TurnPlanV3 = {
+  schemaVersion: "turn-plan/v3", question: reviewedKineticQuestion, visualRequirement: "required",
+  givens: [
+    { id: "mass", symbol: "m", value: 2, unit: "kg", provenance: "given" },
+    { id: "speed", symbol: "v", value: 3, unit: "m/s", provenance: "given" },
+    { id: "height", symbol: "h", value: 5, unit: "m", provenance: "given" },
+  ],
+  unknowns: [{ id: "result", symbol: "X", unit: "J" }],
+  derived: [{ id: "result", symbol: "X", value: 4.5, unit: "J", provenance: "derived",
+    dependsOn: ["mass", "speed"], sourceText: "KE = 0.5 m v^2 = 0.5 * 9 = 4.5 J" }],
+  qualitativeClaims: [], lawIds: ["x"], assumptions: [],
+};
+type PhysicalArithmeticCase = { name: string; input: TurnPlanV3; valid: boolean; truth: number };
+function physicalPlan(question: string, givens: TurnPlanV3["givens"], sourceText: string, value: number, unit: string): TurnPlanV3 {
+  return { schemaVersion: "turn-plan/v3", question, visualRequirement: "required", givens: structuredClone(givens),
+    unknowns: [{ id: "result", symbol: "X", unit }],
+    derived: [{ id: "result", symbol: "X", value, unit, provenance: "derived", sourceText, dependsOn: givens.map(given => given.id) }],
+    qualitativeClaims: [], lawIds: ["x"], assumptions: [] };
+}
+function checkPhysicalArithmetic({ name, input, valid, truth }: PhysicalArithmeticCase) {
+  const original = JSON.stringify(input);
+  const raw = validateTurnPlanV3(input, input.question);
+  check(`${name}: actual validator ${valid ? "accepts the correct" : "rejects the wrong"} value`, raw.valid === valid);
+  if (!valid) check(`${name}: arithmetic, not a separate law router, rejects the value`, raw.issues.some(issue => issue.code === "source_text_arithmetic_invalid"));
+  const reconciled = reconcileTurnPlanV3ExplicitArithmetic(input);
+  const value = reconciled.plan.derived[0]?.value;
+  const exactTruth = typeof value === "number" && Math.abs(value - truth) <= Math.abs(truth) * 1e-12;
+  if (valid) {
+    // Written rounding can canonicalize to the full correct result, never to
+    // a coefficient left after deleting a physical operand.
+    check(`${name}: reconciliation keeps the correct value or its precise truth`, value === input.derived[0]?.value || exactTruth);
+    if (input.derived[0]?.value === truth) check(`${name}: exact correct arithmetic is not rewritten`, reconciled.reconciliations.length === 0);
+    check(`${name}: the correctly reconciled plan remains valid`, validateTurnPlanV3(reconciled.plan, input.question).valid);
+  } else {
+    check(`${name}: reconciliation never invents a third, stripped-operand value`, value === input.derived[0]?.value || exactTruth);
+    check(`${name}: reconciliation cannot authorize the known wrong result`, !validateTurnPlanV3(reconciled.plan, input.question).valid || exactTruth);
+  }
+  check(`${name}: reconciliation does not mutate the source plan`, JSON.stringify(input) === original);
+}
+const fallQuestion = "A body has mass m = 200 g. With g = 9.8 m/s^2 it falls from rest through h = 5 m. Find its speed.";
+const fallGivens: TurnPlanV3["givens"] = [
+  { id: "mass", symbol: "m", value: 200, unit: "g", provenance: "given" },
+  { id: "gravity", symbol: "g", value: 9.8, unit: "m/s^2", provenance: "given" },
+  { id: "height", symbol: "h", value: 5, unit: "m", provenance: "given" },
+];
+const capacitorQuestion = "A capacitor has capacitance C = 1e-5 F, voltage V = 12 V and charge Q = 1.2e-4 C. Find its stored energy.";
+const capacitorGivens: TurnPlanV3["givens"] = [
+  { id: "capacitance", symbol: "C", value: 1e-5, unit: "F", provenance: "given" },
+  { id: "voltage", symbol: "V", value: 12, unit: "V", provenance: "given" },
+  { id: "charge", symbol: "Q", value: 1.2e-4, unit: "C", provenance: "given" },
+];
+const reviewUnitProducts: PhysicalArithmeticCase[] = [
+  { name: "review wrong decimal KE", input: reviewedWrongKinetic, valid: false, truth: 9 },
+  { name: "review wrong fractional KE", input: physicalPlan(reviewedKineticQuestion, reviewedWrongKinetic.givens, "KE = 1/2 m v^2 = 4.5 J", 4.5, "J"), valid: false, truth: 9 },
+  { name: "review wrong falling speed", input: physicalPlan(fallQuestion, fallGivens, "v = sqrt(2 g h) = 3.16227766 m/s", 3.162, "m/s"), valid: false, truth: 9.899494936611665 },
+  { name: "review wrong capacitor energy", input: physicalPlan(capacitorQuestion, capacitorGivens, "U = 1/2 C V^2 = 72 J", 72, "J"), valid: false, truth: 0.00072 },
+  { name: "review correct decimal KE", input: physicalPlan(reviewedKineticQuestion, reviewedWrongKinetic.givens, "KE = 0.5 m v^2 = 0.5 * 2 * 9 = 9 J", 9, "J"), valid: true, truth: 9 },
+  { name: "review correct fractional KE", input: physicalPlan(reviewedKineticQuestion, reviewedWrongKinetic.givens, "KE = 1/2 m v^2 = 0.5 × 2 × 3^2 = 9 J", 9, "J"), valid: true, truth: 9 },
+  { name: "review correct scaled force", input: physicalPlan("A body has m = 3 kg, acceleration a = 2 m/s^2 and height h = 5 m. Find three times its accelerating force.", [
+    { id: "mass", symbol: "m", value: 3, unit: "kg", provenance: "given" },
+    { id: "acceleration", symbol: "a", value: 2, unit: "m/s^2", provenance: "given" },
+    { id: "height", symbol: "h", value: 5, unit: "m", provenance: "given" },
+  ], "F = 3 m a = 3 × 3 × 2 = 18 N", 18, "N"), valid: true, truth: 18 },
+  { name: "review correct falling speed", input: physicalPlan(fallQuestion, fallGivens, "v = sqrt(2 g h) = sqrt(98) = 9.899 m/s", 9.899, "m/s"), valid: true, truth: 9.899494936611665 },
+  { name: "review correct capacitor energy", input: physicalPlan(capacitorQuestion, capacitorGivens, "U = 1/2 C V^2 = 0.5*1e-5*144 = 7.2e-4 J", 0.00072, "J"), valid: true, truth: 0.00072 },
+];
+for (const input of reviewUnitProducts) checkPhysicalArithmetic(input);
+// Ten separately authored physical/expression cases. Each has a literal
+// worked truth and a self-consistent arithmetic slip that drops a binding.
+const given = (id: string, symbol: string, value: number, unit: string): TurnPlanV3["givens"][number] => ({ id, symbol, value, unit, provenance: "given" });
+const additionalUnitProducts: Array<{ name: string; question: string; givens: TurnPlanV3["givens"]; unit: string; truth: number; right: string; wrongValue: number; wrong: string }> = [
+  { name: "two-body momentum", question: "Two identical bodies each have m = 4 kg and v = 5 m/s. Their separation is d = 6 m. Find their total momentum.",
+    givens: [given("mass", "m", 4, "kg"), given("speed", "v", 5, "m/s"), given("distance", "d", 6, "m")], unit: "kg*m/s", truth: 40,
+    right: "p = 2 m v = 2*4*5 = 40 kg*m/s", wrongValue: 10, wrong: "p = 2 m v = 2*5 = 10 kg*m/s" },
+  { name: "friction work", question: "A block has normal force N = 25 N and friction coefficient mu = 0.4. Find the work magnitude over x = 4 m.",
+    givens: [given("normal", "N", 25, "N"), given("coefficient", "mu", 0.4, "1"), given("distance", "x", 4, "m")], unit: "J", truth: 40,
+    right: "W = 0.4 N x = 0.4*25*4 = 40 J", wrongValue: 1.6, wrong: "W = 0.4 N x = 0.4*4 = 1.6 J" },
+  { name: "two-force torque", question: "Two forces each have magnitude N = 15 N and perpendicular lever arm r = 0.3 m. Find their combined same-sense torque.",
+    givens: [given("force", "N", 15, "N"), given("radius", "r", 0.3, "m")], unit: "N*m", truth: 9,
+    right: "tau = 2 N r = 2*15*0.3 = 9 N*m", wrongValue: 0.6, wrong: "tau = 2 N r = 2*0.3 = 0.6 N*m" },
+  { name: "specific gravitational energy", question: "A body has mass M = 400 g. Gravity is g = 10 m/s^2 and h = 3 m. Find the gravitational energy per unit mass gained on falling through three times h.",
+    givens: [given("mass", "M", 400, "g"), given("gravity", "g", 10, "m/s^2"), given("height", "h", 3, "m")], unit: "m^2/s^2", truth: 90,
+    right: "E = 3 g h = 3*10*3 = 90 m^2/s^2", wrongValue: 9, wrong: "E = 3 g h = 3*3 = 9 m^2/s^2" },
+  { name: "two-load electric power", question: "Two identical loads each operate at V = 6 V and I = 0.5 A. Find their total electric power.",
+    givens: [given("voltage", "V", 6, "V"), given("current", "I", 0.5, "A")], unit: "W", truth: 6,
+    right: "P = 2 V I = 2*6*0.5 = 6 W", wrongValue: 1, wrong: "P = 2 V I = 2*0.5 = 1 W" },
+  { name: "voltage-square Joule heat", question: "A resistor R = 4 ohm is held at V = 8 V for t = 3 s. Find half the Joule heat generated.",
+    givens: [given("resistance", "R", 4, "Ω"), given("voltage", "V", 8, "V"), given("time", "t", 3, "s")], unit: "J", truth: 24,
+    right: "H = 0.5 V^2 t/R = 0.5*8^2*3/4 = 24 J", wrongValue: 0.1875, wrong: "H = 0.5 V^2 t/R = 0.5^2*3/4 = 0.1875 J" },
+  { name: "current-field magnetic force", question: "A straight wire is L = 2 m long and carries current represented by A = 0.25 A, perpendicular to B = 0.4 T. Find its magnetic force.",
+    givens: [given("length", "L", 2, "m"), given("current", "A", 0.25, "A"), given("field", "B", 0.4, "T")], unit: "N", truth: 0.2,
+    right: "F = 2 A B = 2*0.25*0.4 = 0.2 N", wrongValue: 0.8, wrong: "F = 2 A B = 2*0.4 = 0.8 N" },
+  { name: "half capacitor energy with grouped voltage", question: "A capacitor has C = 8e-6 F, V = 10 V and Q = 8e-5 C. Find half its stored energy.",
+    givens: [given("capacitance", "C", 8e-6, "F"), given("voltage", "V", 10, "V"), given("charge", "Q", 8e-5, "C")], unit: "J", truth: 0.0002,
+    right: "U = 0.25 C (V^2) = 0.25*8e-6*100 = 2e-4 J", wrongValue: 25, wrong: "U = 0.25 C (V^2) = 0.25*100 = 25 J" },
+  { name: "parallel capacitor charge", question: "Two identical capacitors each have C = 3e-6 F at V = 5 V, each with charge Q = 1.5e-5 C. Find their total charge in parallel.",
+    givens: [given("capacitance", "C", 3e-6, "F"), given("voltage", "V", 5, "V"), given("charge", "Q", 1.5e-5, "C")], unit: "C", truth: 0.00003,
+    right: "Q_total = 2 C V = 2*3e-6*5 = 3e-5 C", wrongValue: 10, wrong: "Q_total = 2 C V = 2*5 = 10 C" },
+  { name: "parallel-plate capacitor force", question: "A parallel-plate capacitor has C = 2e-6 F, V = 10 V, plate gap d = 0.01 m and charge Q = 2e-5 C. Find the attractive plate force at fixed voltage.",
+    givens: [given("capacitance", "C", 2e-6, "F"), given("voltage", "V", 10, "V"), given("gap", "d", 0.01, "m"), given("charge", "Q", 2e-5, "C")], unit: "N", truth: 0.01,
+    right: "F = 0.5 C V^2/d = 0.5*2e-6*100/0.01 = 0.01 N", wrongValue: 5000, wrong: "F = 0.5 C V^2/d = 0.5*100/0.01 = 5000 N" },
+];
+for (const row of additionalUnitProducts) {
+  checkPhysicalArithmetic({ name: `additional correct ${row.name}`, input: physicalPlan(row.question, row.givens, row.right, row.truth, row.unit), valid: true, truth: row.truth });
+  checkPhysicalArithmetic({ name: `additional wrong ${row.name}`, input: physicalPlan(row.question, row.givens, row.wrong, row.wrongValue, row.unit), valid: false, truth: row.truth });
+}
+// Retain the independent review's operator/casing/scientific-number witnesses
+// at the actual public seam, including an otherwise agreeing wrong claim.
+const independentOperatorProducts = [
+  ["review coefficient", "0.5 m v^2", 9, 4.5, "J"],
+  ["fraction coefficient", "1/2 m v^2", 9, 4.5, "J"],
+  ["bound exponent", "0.5 m^2 v^2", 18, 4.5, "kg^2*m^2/s^2"],
+  ["bound superscript", "0.5 m² v²", 18, 4.5, "kg^2*m^2/s^2"],
+  ["following group", "0.5 m (v^2)", 9, 4.5, "J"],
+  ["following number", "0.5 m 9", 9, 4.5, "kg"],
+  ["following scientific", "0.5 m 9e0", 9, 4.5, "kg"],
+  ["scientific coefficient", "5e-1 m v^2", 9, 4.5, "J"],
+  ["leading dot", ".5 m v^2", 9, 4.5, "J"],
+  ["negative coefficient", "-0.5 m v^2", -9, -4.5, "J"],
+  ["grouped coefficient", "(1/2) m v^2", 9, 4.5, "J"],
+  ["explicit following multiplication", "0.5 m * v^2", 9, 4.5, "J"],
+  ["unicode following multiplication", "0.5 m × v²", 9, 4.5, "J"],
+  ["explicit following division", "18 m / v^2", 4, 2, "kg*s^2/m^2"],
+  ["all explicit product", "0.5 * m * v^2", 9, 4.5, "J"],
+  ["following plus", "0.5 m + n", 10, 9.5, "kg"],
+  ["following minus", "0.5 m - n", -8, -8.5, "kg"],
+  ["unbound compound measurement label", "0.5 m/s * 18", 9, 99, "m/s"],
+] as const;
+const operatorQuestion = "A body has mass m = 2 kg, speed v = 3 m/s and height h = 5 m. Evaluate the explicitly authored energy arithmetic.";
+for (const [name, expression, truth, wrong, unit] of independentOperatorProducts) {
+  const givens = structuredClone(reviewedWrongKinetic.givens);
+  let details = "";
+  if (name === "following plus" || name === "following minus") {
+    givens.push(given("other_mass", "n", 9, "kg")); details = " Another mass n = 9 kg is supplied.";
+  }
+  if (name === "unbound compound measurement label") {
+    givens.push(given("other_speed", "u", 0.5, "m/s")); details = " Another measured speed u = 0.5 m/s is supplied.";
+  }
+  const question = `A body has mass m = 2 kg, speed v = 3 m/s and height h = 5 m.${details} Evaluate X = ${expression} and report it in ${unit}.`;
+  for (const extraChain of [false, true]) {
+    for (const [value, valid] of [[truth, true], [wrong, false]] as const) {
+      checkPhysicalArithmetic({ name: `operator ${name}/${extraChain ? "restated" : "direct"}/${valid ? "right" : "wrong"}`, truth, valid,
+        input: physicalPlan(question, givens, `X = ${expression}${extraChain ? ` = ${value}` : ""} = ${value} ${unit}`, value, unit) });
+    }
+  }
+}
+for (const expression of ["0.5 m v^2", "0.5 m * v^2"]) {
+  const input = physicalPlan(operatorQuestion, reviewedWrongKinetic.givens, `X = ${expression} = 4.5 = 4.5 J`, 4.5, "J");
+  input.qualitativeClaims = [{ id: "claimed", claim: "X = 4.5 J", expected: true, relatedQuantityIds: ["result"] }];
+  checkPhysicalArithmetic({ name: `wrong operator ${expression} reinforced by attributed claim`, input, truth: 9, valid: false });
+}
+for (const unit of ["m^2", "m²"]) {
+  for (const expression of ["0.5 m^2 v^2", "0.5 m² v²", "0.5 m^2 * v^2"]) {
+    for (const [value, valid] of [[18, true], [4.5, false]] as const) {
+      const question = `A body has mass m = 2 kg, speed v = 3 m/s and height h = 5 m. An unrelated area S = 5 m² is supplied. Evaluate X = ${expression}, half the squared momentum, in kg^2*m^2/s^2.`;
+      const input = physicalPlan(question, [...reviewedWrongKinetic.givens, given("unrelated_area", "S", 5, unit)], `X = ${expression} = ${value} kg^2*m^2/s^2`, value, "kg^2*m^2/s^2");
+      checkPhysicalArithmetic({ name: `complete exponent unit ${unit}/${expression}/${value}`, input, truth: 18, valid });
+    }
+  }
+}
+const ampereQuestion = "A conductor has area A = 0.8 mm², current I = 3 A and resistance R = 12 Ω. Find its voltage.";
+for (const expression of ["3 A * R", "3 A * 12", "(3 A) * R"]) {
+  for (const [value, valid] of [[36, true], [28.8, false]] as const) {
+    const input = physicalPlan(ampereQuestion, [given("area", "A", 0.8, "mm²"), given("current", "I", 3, "A"), given("resistance", "R", 12, "Ω")], `X = ${expression} = ${value} V`, value, "V");
+    checkPhysicalArithmetic({ name: `trusted measured ampere ${expression}/${value}`, input, truth: 36, valid });
+  }
+}
+// An uncomputed derived assertion is not an independently supplied
+// measurement and cannot turn the mass coefficient into a length label.
+for (const [value, valid] of [[9, true], [4.5, false]] as const) {
+  const input = physicalPlan(reviewedKineticQuestion, reviewedWrongKinetic.givens, `X = 0.5 m * v^2 = ${value} J`, value, "J");
+  input.derived.unshift({ id: "decoy", symbol: "L", value: 0.5, unit: "m", provenance: "derived", dependsOn: [], sourceText: "L = 0.5 m" });
+  input.derived[1]!.dependsOn!.push("decoy");
+  check(`uncomputed length assertion/${value}: raw kinetic authority is ${valid ? "accepted" : "rejected"}`, validateTurnPlanV3(input, input.question).valid === valid);
+  const reconciled = reconcileTurnPlanV3ExplicitArithmetic(input);
+  const actual = reconciled.plan.derived.find(quantity => quantity.id === "result")?.value;
+  check(`uncomputed length assertion/${value}: reconciliation retains the true mass product`, actual === 9);
+  check(`uncomputed length assertion/${value}: only the true reconciled answer is admitted`, !validateTurnPlanV3(reconciled.plan, input.question).valid || actual === 9);
+  if (valid) check("uncomputed length assertion: correct kinetic value is never rewritten", !reconciled.reconciliations.some(change => change.quantityId === "result"));
+}
+// Even a genuinely supplied matching length is not the mass in kinetic
+// energy. Operand dimensions, not coincidental numeric equality, distinguish
+// the readings. The nearby length also catches any approximate-value guess.
+for (const height of [0.5, 0.5000000001]) {
+  for (const operator of ["*", "×"]) {
+    for (const [value, valid] of [[9, true], [4.5, false]] as const) {
+      const question = `A body has mass m = 2 kg, speed v = 3 m/s and height h = ${height} m. Find its kinetic energy.`;
+      const givens = [given("mass", "m", 2, "kg"), given("speed", "v", 3, "m/s"), given("height", "h", height, "m")];
+      checkPhysicalArithmetic({ name: `real matching length ${height}/${operator}/${value}`, truth: 9, valid,
+        input: physicalPlan(question, givens, `X = 0.5 m ${operator} v^2 = ${value} J`, value, "J") });
+    }
+  }
+}
+// Final six independently reported safety witnesses: dimensional admission
+// must decline rather than later accept whichever arithmetic chain matches.
+let hugeMassPower = "m";
+for (let index = 0; index < 11; index++) hugeMassPower = `(${hugeMassPower}^32)`;
+const incompatibleDimensionCases: Array<{ name: string; input: TurnPlanV3 }> = [
+  { name: "large dimensional intermediate cannot round away the mass axis", input: physicalPlan(
+    "A body has mass m = 1 kg, speed v = 3 m/s and height h = 0.5 m. Evaluate the written expression without inventing dimensionless mass.",
+    [given("mass", "m", 1, "kg"), given("speed", "v", 3, "m/s"), given("height", "h", 0.5, "m")],
+    `X = 0.5 m * ${hugeMassPower} / ${hugeMassPower} = 0.5 dimensionless`, 0.5, "dimensionless") },
+  ...[false, true].map(restated => ({ name: `both force readings fit power dimensions/${restated ? "restated" : "direct"}`, input: physicalPlan(
+    "A body has force N = 40 N, speed v = 3 m/s and another force F = 3 N. Evaluate the ambiguous written expression in watts.",
+    [given("force", "N", 40, "N"), given("speed", "v", 3, "m/s"), given("other_force", "F", 3, "N")],
+    `X = 3 N * v${restated ? " = 9" : ""} = 9 W`, 9, "W") })),
+  { name: "neither mass-plus-speed-squared reading has energy dimensions", input: physicalPlan(
+    "A body has mass m = 2 kg, speed v = 3 m/s and height h = 5 m. Do not treat mass plus squared speed as energy.",
+    reviewedWrongKinetic.givens, "X = 0.5 m + v^2 = 10 = 10 J", 10, "J") },
+  { name: "multiple unit collisions cannot choose a convenient later scalar", input: physicalPlan(
+    "Use mass m = 2 kg, speed v = 3 m/s, height h = 3 m and forces N = 40 N, F = 2 N. Evaluate the ambiguous written expression in joules.",
+    [given("mass", "m", 2, "kg"), given("speed", "v", 3, "m/s"), given("height", "h", 3, "m"), given("force", "N", 40, "N"), given("other_force", "F", 2, "N")],
+    "X = 2 N * 3 m * 1 = 6 = 6 J", 6, "J") },
+  { name: "unknown target units cannot prove the collision interpretation", input: physicalPlan(
+    "A body has mass m = 2 kg, speed v = 3 m/s and height h = 0.5 m. The requested target unit arb has no supplied physical definition.",
+    [given("mass", "m", 2, "kg"), given("speed", "v", 3, "m/s"), given("height", "h", 0.5, "m")],
+    "X = 0.5 m * v^2 = 4.5 = 4.5 arb", 4.5, "arb") },
+];
+for (const { name, input } of incompatibleDimensionCases) {
+  const original = JSON.stringify(input);
+  check(`dimensional safety ${name}: raw validation declines`, !validateTurnPlanV3(input, input.question).valid);
+  const reconciled = reconcileTurnPlanV3ExplicitArithmetic(input);
+  check(`dimensional safety ${name}: no unproved arithmetic rewrite`, reconciled.reconciliations.length === 0);
+  check(`dimensional safety ${name}: reconciliation cannot gain valid authority`, !validateTurnPlanV3(reconciled.plan, input.question).valid);
+  check(`dimensional safety ${name}: original source is unchanged`, JSON.stringify(input) === original);
+}
+for (const [value, valid] of [[4.175, true], [41.75, false]] as const) {
+  const question = "A particle with mass m = 1.67e-27 kg has a verified magnetic-orbit radius r = 0.04175 m. Convert that radius to centimetres using 100 cm per metre.";
+  const input = physicalPlan(question, [given("mass", "m", 1.67e-27, "kg"), given("radius", "r", 0.04175, "m")],
+    `X = 0.04175 m * 100 cm/m = ${value} cm`, value, "cm");
+  checkPhysicalArithmetic({ name: `magnetic-radius centimetre conversion/${value}`, input, valid, truth: 4.175 });
+}
+for (const unused of [given("density", "ρ", 8900, "kg/m³"), given("unrelated-mass", "q", 1, "kg")]) {
+  const detail = unused.id === "density" ? "An unrelated density ρ = 8900 kg/m³ is supplied." : "An unrelated mass q = 1 kg is supplied.";
+  const input = physicalPlan(`${ampereQuestion} ${detail}`, [given("area", "A", 0.8, "mm²"), given("current", "I", 3, "A"), given("resistance", "R", 12, "Ω"), unused],
+    "X = 3 A * R = 36 V", 36, "V");
+  input.derived[0]!.dependsOn = ["current", "resistance"];
+  checkPhysicalArithmetic({ name: `unused ${unused.id}/${unused.symbol} cannot poison proven ampere voltage`, input, valid: true, truth: 36 });
+}
+// Closing a parenthesis does not turn an embedded bound capacitance or mass
+// into a coulomb or metre label. The whole expression fixes its dimensions.
+for (const [value, valid] of [[1e-4, true], [2e-10, false]] as const) {
+  const question = "A capacitor has C = 2e-6 F, voltage V = 10 V and charge Q = 2e-5 C. Find its stored energy from Q squared divided by twice its capacitance.";
+  const input = physicalPlan(question, [given("capacitance", "C", 2e-6, "F"), given("voltage", "V", 10, "V"), given("charge", "Q", 2e-5, "C")],
+    `X = Q²/(2 C) = ${value} J`, value, "J");
+  checkPhysicalArithmetic({ name: `parenthesized capacitance energy/${value}`, input, valid, truth: 1e-4 });
+}
+for (const [value, valid] of [[9, true], [4.5, false]] as const) {
+  const input = physicalPlan(reviewedKineticQuestion, reviewedWrongKinetic.givens,
+    `X = (0.5 m)*v² = ${value} J`, value, "J");
+  checkPhysicalArithmetic({ name: `parenthesized mass kinetic energy/${value}`, input, valid, truth: 9 });
+}
+// A one-figure V=6 must not attach a nearby anonymous 63/11 calculation
+// before the named nodal computation. The written 0.3333 is intentionally
+// retained: reconcile its explicit arithmetic, not an unwritten exact 1/3.
+{
+  const question = "Two batteries have E1 = 9 V, r1 = 1 ohm and E2 = 3 V, r2 = 2 ohm. Their positive terminals are joined and their negative terminals are joined across load R = 3 ohm. Find the load current.";
+  const input: TurnPlanV3 = { schemaVersion: "turn-plan/v3", question, visualRequirement: "required",
+    givens: [given("E1", "E1", 9, "V"), given("r1", "r1", 1, "ohm"), given("E2", "E2", 3, "V"), given("r2", "r2", 2, "ohm"), given("R", "R", 3, "ohm")],
+    unknowns: [{ id: "IL", symbol: "I_L", unit: "A" }],
+    derived: [
+      { id: "V", symbol: "V", value: 6, unit: "V", provenance: "derived", dependsOn: ["E1", "r1", "E2", "r2", "R"],
+        sourceText: "(E1/r1+E2/r2)/(1/r1+1/r2+1/R)=(9/1+3/2)/(1+0.5+1/3)=10.5/(11/6)=63/11? recompute: 10.5*6/11=63/11≈5.727; use nodal: V=(9+1.5)/(1+0.5+0.3333)=10.5/1.8333=5.727" },
+      { id: "IL", symbol: "I_L", value: 1.909, unit: "A", provenance: "derived", dependsOn: ["V", "R"], sourceText: "I_L=V/R=5.727/3=1.909 A" },
+    ], qualitativeClaims: [], lawIds: ["x"], assumptions: [] };
+  const original = JSON.stringify(input);
+  check("single-figure nodal anchor: raw stale voltage is invalid", !validateTurnPlanV3(input, question).valid);
+  const reconciled = reconcileTurnPlanV3ExplicitArithmetic(input);
+  const voltage = reconciled.plan.derived.find(quantity => quantity.id === "V")?.value;
+  const current = reconciled.plan.derived.find(quantity => quantity.id === "IL")?.value;
+  const writtenVoltage = 10.5 / 1.8333;
+  check("single-figure nodal anchor: named explicit denominator supplies voltage", typeof voltage === "number" && Math.abs(voltage - writtenVoltage) <= writtenVoltage * 1e-12);
+  check("single-figure nodal anchor: downstream current uses reconciled voltage", typeof current === "number" && Math.abs(current - writtenVoltage / 3) <= writtenVoltage / 3 * 1e-12);
+  check("single-figure nodal anchor: stale 6 V never survives reconciliation", voltage !== 6);
+  check("single-figure nodal anchor: corrected dependent plan validates", validateTurnPlanV3(reconciled.plan, question).valid);
+  check("single-figure nodal anchor: original source is unchanged", JSON.stringify(input) === original);
+}
 for (const question of wordings) {
   for (const source of [
     "V_max = I_max R = (3.0 A)(12 Ω) = 36 V",
@@ -311,4 +591,4 @@ for (const [expression, value] of [
   check("invalid-domain cancellation never gains the newly exact declared result", reconcileTurnPlanV3ExplicitArithmetic(input).plan.derived[0]?.value !== value);
 }
 assert.equal(failures.length, 0, `${failures.length}/${checks} failed: ${[...new Set(failures)].join("; ")}`);
-console.log(`verify-turn-plan-measured-operands: ${checks} checks pass; five authored wordings, real arithmetic and claim contradictions retained`);
+console.log(`verify-turn-plan-measured-operands: ${checks} checks pass; 9 FIX FIRST review plans (4 wrong/5 correct), 10 additional physical cases (10 right/10 wrong), 92 independent operator/claim/exponent/ampere plans, 2 uncomputed-derived measurement trust plans, 8 matching/nearby real-length operator plans, 6 dimensional fail-closed plans, 2 magnetic-radius conversion plans, 2 unused-metadata ampere plans, 4 parenthesized mass/capacitance plans, 1 single-figure nodal-anchor plan, all original 820 checks retained`);

@@ -133,6 +133,131 @@ export function evaluateMathExpression(source: string, x: number): number {
   return parseMathExpression(source).evaluate(x);
 }
 
+/**
+ * Dimension-only source reading, in kg/m/s/A/K/mol/cd order. This does not
+ * certify numeric values or domains. Unknown or unsupported readings decline.
+ * Axes stay on an exact 1/1024 grid with bounded intermediates; this is not
+ * arbitrary real exponent algebra.
+ */
+export function inferSourceExpressionDimensions(
+  source: string,
+  bindings: ReadonlyMap<string, readonly number[]>,
+): readonly number[] | null {
+  if (typeof source !== "string" || source.trim() === "" || source.length > MAX_EXPRESSION_LENGTH ||
+    bindings.size > MAX_TOKENS) return null;
+  const zero = [0, 0, 0, 0, 0, 0, 0];
+  const bounded = (dimensions: readonly number[]): readonly number[] | null =>
+    dimensions.every(value => Number.isFinite(value) && Math.abs(value) <= 1e6 && Number.isInteger(value * 1024))
+      ? dimensions : null;
+  const known = new Map<string, readonly number[]>();
+  for (const [key, dimensions] of bindings) {
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key) || dimensions.length !== 7 ||
+      [...dimensions].some(value => !Number.isFinite(value) || Math.abs(value) > 32 || !Number.isInteger(value * 1024))) return null;
+    known.set(key, [...dimensions]);
+  }
+  try {
+    const normalized = normalizePlainMathSource(source).trim();
+    if (normalized.length > MAX_EXPRESSION_LENGTH) return null;
+    let prepared = "";
+    let endsOperand = false;
+    const dimensionsByOffset = new Map<number, readonly number[]>();
+    const append = (text: string, startsOperand: boolean, ends: boolean) => {
+      if (endsOperand && startsOperand) prepared += "*";
+      prepared += text;
+      endsOperand = ends;
+    };
+    const keys = [...known.keys()].sort((a, b) => b.length - a.length);
+    const segmentationBudget = { remaining: MAX_EVALUATION_STEPS };
+    const segment = (identifier: string): string[] | null => {
+      if (known.has(identifier)) return [identifier];
+      const solutions: string[][] = [];
+      const visit = (offset: number, parts: string[]): void => {
+        if (--segmentationBudget.remaining < 0 || solutions.length > 1) return;
+        if (offset === identifier.length) { solutions.push(parts); return; }
+        for (const key of keys) {
+          if (identifier.startsWith(key, offset)) visit(offset + key.length, [...parts, key]);
+        }
+      };
+      visit(0, []);
+      return segmentationBudget.remaining >= 0 && solutions.length === 1 ? solutions[0]! : null;
+    };
+    const tokens = tokenize(normalized);
+    for (const [index, token] of tokens.entries()) {
+      if (token.kind === "end") break;
+      if (token.kind === "identifier") {
+        if (token.value === "pi" || token.value === "e") append(token.value, true, true);
+        else if (Object.hasOwn(FUNCTIONS, token.value)) {
+          if (tokens[index + 1]?.kind !== "leftParen") return null;
+          append(token.value, true, false);
+        }
+        else {
+          const parts = segment(token.value);
+          if (!parts) return null;
+          for (const part of parts) {
+            if (endsOperand) prepared += "*";
+            dimensionsByOffset.set(prepared.length + 1, known.get(part)!);
+            prepared += "(1)";
+            endsOperand = true;
+          }
+        }
+      } else if (token.kind === "number") append(token.literal, true, true);
+      else if (token.kind === "leftParen") append("(", true, false);
+      else if (token.kind === "rightParen") append(")", false, true);
+      else append(token.value, false, false);
+      if (prepared.length > MAX_EXPRESSION_LENGTH) return null;
+    }
+    const tagged = new WeakMap<ExpressionNode, readonly number[]>();
+    const root = new Parser(tokenize(prepared), new Set(), (token, node) => {
+      const dimensions = dimensionsByOffset.get(token.position);
+      if (dimensions) tagged.set(node, dimensions);
+    }).parse();
+    const budget = { remaining: MAX_EVALUATION_STEPS };
+    const exponent = (node: ExpressionNode): number | null => {
+      if (--budget.remaining < 0) return null;
+      if (node.kind === "unary") {
+        const value = exponent(node.value);
+        return value === null ? null : node.operator === "-" ? -value : value;
+      }
+      if (node.kind !== "number" || node.constant || tagged.has(node)) return null;
+      const value = decimalFraction(node.literal ?? String(node.value));
+      // Exact bounded dyadic powers only; a rounded decimal is not a square.
+      if (!value || value.d > 1024n || (value.d & (value.d - 1n)) !== 0n ||
+        value.n < -32n * value.d || value.n > 32n * value.d) return null;
+      return Number(value.n) / Number(value.d);
+    };
+    const visit = (node: ExpressionNode): readonly number[] | null => {
+      if (--budget.remaining < 0) return null;
+      if (node.kind === "number") return tagged.get(node) ?? zero;
+      if (node.kind === "variable") return null;
+      if (node.kind === "unary") return visit(node.value);
+      if (node.kind === "function") {
+        const argument = visit(node.argument);
+        if (!argument) return null;
+        if (node.name === "abs") return argument;
+        if (node.name === "sqrt") return bounded(argument.map(value => value / 2));
+        return argument.every(value => value === 0) ? zero : null;
+      }
+      const left = visit(node.left);
+      const right = visit(node.right);
+      if (!left || !right) return null;
+      switch (node.operator) {
+        case "+": case "-": return left.every((value, index) => value === right[index]) ? left : null;
+        case "*": return bounded(left.map((value, index) => value + right[index]!));
+        case "/": return bounded(left.map((value, index) => value - right[index]!));
+        case "^": {
+          if (!right.every(value => value === 0)) return null;
+          const power = exponent(node.right);
+          return power === null ? null : bounded(left.map(value => value * power));
+        }
+      }
+    };
+    const result = visit(root);
+    return result ? result.map(value => value === 0 ? 0 : value) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Source-only exact decimal/identity reading; ordinary geometry evaluation is unchanged. */
 export function evaluateSourceMathExpression(source: string, x: number): number {
   // Native evaluation first retains every existing grammar, range and work limit.
@@ -530,6 +655,10 @@ class Parser {
   constructor(
     private readonly tokens: Token[],
     private readonly variables: ReadonlySet<VariableName>,
+    private readonly onNumber?: (
+      token: Extract<Token, { kind: "number" }>,
+      node: Extract<ExpressionNode, { kind: "number" }>,
+    ) => void,
   ) {}
 
   parse(): ExpressionNode {
@@ -581,7 +710,11 @@ class Parser {
   private parsePrimary(depth: number): ExpressionNode {
     this.checkDepth(depth);
     const token = this.consume();
-    if (token.kind === "number") return { kind: "number", value: token.value, literal: token.literal };
+    if (token.kind === "number") {
+      const node: Extract<ExpressionNode, { kind: "number" }> = { kind: "number", value: token.value, literal: token.literal };
+      this.onNumber?.(token, node);
+      return node;
+    }
     if (token.kind === "leftParen") {
       const value = this.parseAdditive(depth + 1);
       const closing = this.consume();
