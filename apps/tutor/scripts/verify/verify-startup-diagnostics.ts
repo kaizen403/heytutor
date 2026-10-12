@@ -246,18 +246,29 @@ async function verifyNativeRunnerSeam() {
     static clips: NativeAudio[] = [];
     static permitted = false;
     playbackRate = 1; preservesPitch = true; muted = false; volume = 1;
+    duration = 2; paused = true;
     onplaying: (() => void) | null = null; onended: (() => void) | null = null; onerror = null;
-    startedAt: number | null = null;
+    private startedAt: number | null = null;
+    private positionSec = 0;
     plays = 0;
     constructor(public src = "") { if (src.startsWith("blob:")) NativeAudio.clips.push(this); }
-    get currentTime() { return this.startedAt === null ? 0 : (now - this.startedAt) / 1000; }
+    get currentTime() {
+      return Math.min(this.duration, this.positionSec + (this.startedAt === null ? 0 : (now - this.startedAt) / 1000 * this.playbackRate));
+    }
+    set currentTime(position: number) { this.positionSec = position; if (!this.paused) this.startedAt = now; }
     async play() {
       this.plays++;
       if (!this.src.startsWith("blob:")) return;
       if (!NativeAudio.permitted) throw new DOMException("offline native gesture required", "NotAllowedError");
-      this.startedAt = now; this.onplaying?.();
+      if (this.paused) { this.paused = false; this.startedAt = now; }
+      this.onplaying?.();
     }
-    pause() {} removeAttribute() { this.src = ""; } load() {}
+    pause() { this.positionSec = this.currentTime; this.startedAt = null; this.paused = true; }
+    finish() {
+      this.pause(); this.positionSec = this.duration; this.onended?.();
+    }
+    removeAttribute() { this.src = ""; }
+    load() { this.pause(); this.positionSec = 0; }
   }
   replace("AudioContext", Context); replace("Audio", NativeAudio);
   replace("location", { protocol: "http:", host: "localhost:3000", origin: "http://localhost:3000" });
@@ -327,9 +338,22 @@ async function verifyNativeRunnerSeam() {
       const acceptedAt = now;
       enable(); await flush();
       assert.equal(clip.plays, playsBeforeTap + 2);
+      assert.equal(clip.currentTime, 0);
+      assert(getStartup(), "a playing event without media progress must retain the audio enable action");
+      assert.equal(ink.length, 0, "a zero-progress playing event must not begin handwriting");
+      await advance(now + 150);
+      assert(clip.currentTime > 0, "the accepted native clip advances its media clock");
       assert.equal(getStartup(), null, "actual accepted native playback must clear the audio enable action");
+      nativeParams.isPausedRef.current = true; runner.pauseFallbackSpeech(); provider.pause();
+      const pausedAt = clip.currentTime;
+      await advance(now + 300);
+      assert.equal(clip.currentTime, pausedAt, "intentional pause freezes the fake native media clock");
+      nativeParams.isPausedRef.current = false; runner.resumeFallbackSpeech(); provider.resume();
+      await flush();
+      assert.equal(clip.currentTime, pausedAt, "resuming the same clip preserves its media position");
       await advance(now + 1_000);
-      clip.onended?.(); await advance(now + 200);
+      assert(clip.currentTime > pausedAt, "the resumed native media clock advances again");
+      clip.finish(); await advance(now + 200);
       assert.equal(await outcome, null);
       assert(ink.length > 0 && ink.every((at) => at >= acceptedAt));
     } else if (mode === "expire") {

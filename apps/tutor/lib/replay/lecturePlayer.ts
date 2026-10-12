@@ -2,11 +2,19 @@ import type { ReplayCue } from "./replayTimeline";
 import { buildReplayTimeline } from "./replayTimeline";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import { storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
+import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
+import { DsaFrameController, restoreDsaFrames } from "@/features/tutor-session/lib/code-lesson/dsaFrames";
+import { restoreVerifiedDiagramFromTurn } from "@/features/tutor-session/lib/scene/restoreVerifiedDiagram";
+import {
+  recordedLectureWorkPages,
+  type LectureWorkPage,
+} from "./lectureWorkPages";
 
 /**
  * The finished-lecture player: one stitched audio track is the clock, and the
- * board is drawn as a function of that clock. Everything here is pure so the
- * seek rules, the gate and the store can be checked without a browser.
+ * board is drawn as a function of that clock. Seek arithmetic and the store
+ * remain browser-independent; ERASE page discovery also measures writer nodes
+ * and uses browser-font metrics for unsupported fallback glyphs when available.
  */
 
 /** One question or doubt on the board, as a stretch of the timeline. */
@@ -27,6 +35,7 @@ export interface LecturePlayerTimeline {
    * on the lesson's page points back at the lesson; a question points at itself.
    */
   pageStartTurnIndex: number[];
+  workPages: LectureWorkPage[];
 }
 
 export interface LecturePlayerSeekPlan {
@@ -59,6 +68,9 @@ export interface LecturePlayerSnapshot {
   loadedMs: number;
   rate: number;
   chapters: LecturePlayerChapter[];
+  workPages?: LectureWorkPage[];
+  /** Set only while inspecting a completed stored page, with audio paused. */
+  reviewPageIndex?: number | null;
   /** Set when the audio track failed to load. */
   error: string | null;
 }
@@ -77,6 +89,7 @@ export interface LecturePlayerControls {
   seek: (ms: number) => void;
   skip: (deltaMs: number) => void;
   setRate: (rate: number) => void;
+  reviewPage?: (index: number) => void;
 }
 
 export type LecturePlayerKeyAction = "toggle" | "back" | "forward" | "start" | "end";
@@ -163,7 +176,9 @@ function chapterTitle(question: string, chapterNumber: number): string {
   return normalized;
 }
 
-export function buildLecturePlayerTimeline(turns: StoredTurn[]): LecturePlayerTimeline {
+export function buildLecturePlayerTimeline(
+  turns: StoredTurn[],
+): LecturePlayerTimeline {
   const { cues, totalMs } = buildReplayTimeline(turns);
 
   const firstCueStartByTurn = new Map<number, number>();
@@ -194,11 +209,39 @@ export function buildLecturePlayerTimeline(turns: StoredTurn[]): LecturePlayerTi
   const pageStartTurnIndex: number[] = [];
   turns.forEach((turn, turnIndex) => {
     const keepsPage =
-      turnIndex > 0 && (storedTurnContinuesBoard(turn) || !firstCueStartByTurn.has(turnIndex));
+      turnIndex > 0 &&
+      (storedTurnContinuesBoard(turn) || !firstCueStartByTurn.has(turnIndex));
     pageStartTurnIndex.push(keepsPage ? pageStartTurnIndex[turnIndex - 1]! : turnIndex);
   });
 
-  return { cues, totalMs, chapters, pageStartTurnIndex };
+  // Only ERASE discovery needs installed authority. Match syncTurn: turns
+  // without cues never install anything, and a continuation keeps the prior
+  // owner (including null for a first standalone continued turn).
+  const installedDiagramByTurn = new Map<number, boolean>();
+  if (cues.some((cue) => cue.commands.some((command) => command.type === "ERASE"))) {
+    const controller = { frames: new DsaFrameController() };
+    let installedDiagram = false;
+    let previousTurn = -1;
+    for (const cue of cues) {
+      if (cue.turnIndex !== previousTurn) {
+        const turn = turns[cue.turnIndex];
+        if (turn && !storedTurnContinuesBoard(turn)) {
+          restoreDsaFrames(controller, turn, storedCodeLessonPlan(turn.sceneArtifacts));
+          installedDiagram = Boolean(controller.frames.current()?.presentation.diagram ??
+            restoreVerifiedDiagramFromTurn(turn));
+        }
+        previousTurn = cue.turnIndex;
+      }
+      installedDiagramByTurn.set(cue.turnIndex, installedDiagram);
+    }
+  }
+  return {
+    cues,
+    totalMs,
+    chapters,
+    pageStartTurnIndex,
+    workPages: recordedLectureWorkPages(cues, pageStartTurnIndex, installedDiagramByTurn),
+  };
 }
 
 function segmentHasNarration(segment: StoredTurn["segments"][number]): boolean {
@@ -268,7 +311,9 @@ export function planLectureSeek(
 
   const pageStart = timeline.pageStartTurnIndex[targetCue.turnIndex];
   let epochCueIndex =
-    pageStart === undefined ? -1 : cues.findIndex((cue) => cue.turnIndex === pageStart);
+    pageStart === undefined
+      ? -1
+      : cues.findIndex((cue) => cue.turnIndex === pageStart);
   if (epochCueIndex === -1) {
     epochCueIndex = cues.findIndex((cue) => cue.turnIndex === targetCue.turnIndex);
   }
@@ -392,7 +437,10 @@ const DEFAULT_LECTURE_PLAYER_SNAPSHOT: LecturePlayerSnapshot = {
 export function createLecturePlayerStore(
   initial?: Partial<LecturePlayerSnapshot>,
 ): LecturePlayerStore {
-  let snapshot: LecturePlayerSnapshot = { ...DEFAULT_LECTURE_PLAYER_SNAPSHOT, ...initial };
+  let snapshot: LecturePlayerSnapshot = {
+    ...DEFAULT_LECTURE_PLAYER_SNAPSHOT,
+    ...initial,
+  };
   const listeners = new Set<() => void>();
   return {
     getSnapshot: () => snapshot,

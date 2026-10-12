@@ -17,6 +17,7 @@ class NativeAudio {
   static instances: NativeAudio[] = [];
   static hold = false;
   static rejectNext = false;
+  static advanceOnPlay = false;
   releases: Array<() => void> = [];
   playbackRate = 1;
   preservesPitch = false;
@@ -36,6 +37,7 @@ class NativeAudio {
     }
     if (NativeAudio.hold) await new Promise<void>((resolve) => this.releases.push(resolve));
     this.paused = false;
+    if (NativeAudio.advanceOnPlay) this.currentTime += 0.1;
     this.onplaying?.();
   }
   pause() { this.paused = true; }
@@ -60,13 +62,19 @@ try {
   await waitFor(() => NativeAudio.instances.length === 1,
     "complete bytes must reach HTML audio without waiting for AudioContext.resume/decode");
   assert.equal(PendingContext.decodeCalls, 0, "native bytes must not need a WebAudio decode");
-  assert.equal(starts, 1);
   const audio = NativeAudio.instances[0]!;
+  assert.equal(starts, 0, "play resolution/onplaying at clock zero is not an audible start");
+  audio.currentTime = 0.1;
+  audio.onplaying?.();
+  assert.equal(starts, 1, "advancing native media announces speech exactly once");
   assert.equal(audio.playbackRate, 1.25);
   assert.equal(audio.preservesPitch, true);
   audio.end();
   await playback;
 } finally { client.stop(); }
+// The remaining startup cases model healthy native output, including resumed
+// playback, rather than an element whose media clock never moves.
+NativeAudio.advanceOnPlay = true;
 class Socket {
   static OPEN = 1;
   static CONNECTING = 0;
