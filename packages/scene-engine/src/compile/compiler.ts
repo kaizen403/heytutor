@@ -766,7 +766,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       candidate.entityId === owner.entityId &&
       (!candidate.labelId || !summaryLabelIds.has(candidate.labelId))
     ) === index;
-  }), ...annotationLabelOwners]);
+  }), ...annotationLabelOwners], summaryLabelIds);
   const pinDsaLabels = document.source.synthesizedDsa === true;
   // A chemistry figure pins its atom symbols on the atom itself (an element
   // symbol beside a bond junction reads as a substituent) while its bond

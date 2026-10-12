@@ -1,6 +1,6 @@
 {
  "schema": "ray-optics-remaining/v1",
- "note": "Selected planner documents from recorded round 7 physics runs, after production validation, as the engine compiles them: b2 glass slab h8a (emergent line), b1 glass slab h8a (correct slab path), b2 total internal reflection h8a (declared indices) and b2 optical fibre h8u (27 degree reflection).",
+ "note": "Selected planner documents from recorded round 7 physics runs, after production validation, as the engine compiles them: b2 glass slab h8a (emergent line), b1 glass slab h8a (correct slab path), b2 total internal reflection h8a (declared indices), b2 optical fibre h8u (27 degree reflection) and b1 prism refraction h8u (glass label).",
  "documents": {
   "slab": {
    "schemaVersion": "scene-document/v2",
@@ -1685,6 +1685,399 @@
      ],
      "dependsOn": [],
      "narrationCue": "reveal scene"
+    }
+   ],
+   "teachingTimeline": []
+  },
+  "prism": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "A normalized triangular-prism construction shows entry, passage through glass, and emergence without assigning measured values."
+   },
+   "source": {
+    "question": "path of light through a triangular glass prism",
+    "representationTier": "qualitative_verified",
+    "nonMetric": true
+   },
+   "quantities": [],
+   "entities": [
+    {
+     "id": "leftBase",
+     "kind": "point",
+     "role": "helper point"
+    },
+    {
+     "id": "apex",
+     "kind": "point",
+     "role": "helper point",
+     "label": "A"
+    },
+    {
+     "id": "rightBase",
+     "kind": "point",
+     "role": "helper point"
+    },
+    {
+     "id": "prism",
+     "kind": "polygon",
+     "role": "glass prism"
+    },
+    {
+     "id": "firstFace",
+     "kind": "segment",
+     "role": "first refracting face"
+    },
+    {
+     "id": "secondFace",
+     "kind": "segment",
+     "role": "second refracting face"
+    },
+    {
+     "id": "base",
+     "kind": "segment",
+     "role": "prism base"
+    },
+    {
+     "id": "sourcePoint",
+     "kind": "point",
+     "role": "helper point"
+    },
+    {
+     "id": "entry",
+     "kind": "point",
+     "role": "entry contact"
+    },
+    {
+     "id": "incident",
+     "kind": "vector",
+     "role": "incident ray"
+    },
+    {
+     "id": "inside",
+     "kind": "ray",
+     "role": "refracted path inside glass"
+    },
+    {
+     "id": "exit",
+     "kind": "point",
+     "role": "exit contact"
+    },
+    {
+     "id": "exitIncident",
+     "kind": "vector",
+     "role": "incident direction at second face"
+    },
+    {
+     "id": "emergent",
+     "kind": "ray",
+     "role": "emergent ray"
+    },
+    {
+     "id": "entryNormal",
+     "kind": "segment",
+     "role": "normal at geometry"
+    },
+    {
+     "id": "exitNormal",
+     "kind": "segment",
+     "role": "normal at geometry"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "pLeft",
+     "operator": "point",
+     "inputs": {
+      "x": -1,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "leftBase"
+     ]
+    },
+    {
+     "id": "pApex",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 3,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "apex"
+     ]
+    },
+    {
+     "id": "pRight",
+     "operator": "point",
+     "inputs": {
+      "x": 1,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "rightBase"
+     ]
+    },
+    {
+     "id": "cPrism",
+     "operator": "polygon",
+     "inputs": {
+      "points": [
+       "leftBase",
+       "rightBase",
+       "apex"
+      ]
+     },
+     "outputs": [
+      "prism"
+     ]
+    },
+    {
+     "id": "cFirst",
+     "operator": "segment",
+     "inputs": {
+      "start": "leftBase",
+      "end": "apex"
+     },
+     "outputs": [
+      "firstFace"
+     ]
+    },
+    {
+     "id": "cSecond",
+     "operator": "segment",
+     "inputs": {
+      "start": "apex",
+      "end": "rightBase"
+     },
+     "outputs": [
+      "secondFace"
+     ]
+    },
+    {
+     "id": "cBase",
+     "operator": "segment",
+     "inputs": {
+      "start": "leftBase",
+      "end": "rightBase"
+     },
+     "outputs": [
+      "base"
+     ]
+    },
+    {
+     "id": "pSource",
+     "operator": "point",
+     "inputs": {
+      "x": -3,
+      "y": 1.5,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "sourcePoint"
+     ]
+    },
+    {
+     "id": "cEntry",
+     "operator": "surface_contact",
+     "inputs": {
+      "origin": "sourcePoint",
+      "surface": "firstFace",
+      "direction": [
+       1,
+       0
+      ]
+     },
+     "outputs": [
+      "entry",
+      "incident"
+     ]
+    },
+    {
+     "id": "nEntry",
+     "operator": "normal_at",
+     "inputs": {
+      "point": "entry",
+      "surface": "firstFace"
+     },
+     "outputs": [
+      "entryNormal"
+     ]
+    },
+    {
+     "id": "cInside",
+     "operator": "refract_direction",
+     "inputs": {
+      "origin": "entry",
+      "incoming": "incident",
+      "normal": "entryNormal",
+      "n1": 1,
+      "n2": 1.5
+     },
+     "outputs": [
+      "inside"
+     ]
+    },
+    {
+     "id": "cExit",
+     "operator": "surface_contact",
+     "inputs": {
+      "origin": "entry",
+      "surface": "secondFace",
+      "direction": "inside"
+     },
+     "outputs": [
+      "exit",
+      "exitIncident"
+     ]
+    },
+    {
+     "id": "nExit",
+     "operator": "normal_at",
+     "inputs": {
+      "point": "exit",
+      "surface": "secondFace"
+     },
+     "outputs": [
+      "exitNormal"
+     ]
+    },
+    {
+     "id": "cEmergent",
+     "operator": "refract_direction",
+     "inputs": {
+      "origin": "exit",
+      "incoming": "exitIncident",
+      "normal": "exitNormal",
+      "n1": 1.5,
+      "n2": 1
+     },
+     "outputs": [
+      "emergent"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [
+    {
+     "id": "entryOnFace",
+     "predicate": "on",
+     "entities": [
+      "entry",
+      "firstFace"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "exitOnFace",
+     "predicate": "on",
+     "entities": [
+      "exit",
+      "secondFace"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "entryLaw",
+     "predicate": "snells_law",
+     "entities": [
+      "incident",
+      "entryNormal",
+      "inside"
+     ],
+     "expected": {
+      "n1": 1,
+      "n2": 1.5
+     },
+     "severity": "fatal"
+    },
+    {
+     "id": "exitLaw",
+     "predicate": "snells_law",
+     "entities": [
+      "exitIncident",
+      "exitNormal",
+      "emergent"
+     ],
+     "expected": {
+      "n1": 1.5,
+      "n2": 1
+     },
+     "severity": "fatal"
+    },
+    {
+     "id": "assert_label_apex",
+     "predicate": "label_attached",
+     "entities": [
+      "apex"
+     ],
+     "expected": true,
+     "severity": "fatal",
+     "reason": "student-facing points must stay labeled"
+    }
+   ],
+   "annotations": [
+    {
+     "id": "glassLabel",
+     "kind": "label",
+     "targetIds": [
+      "prism"
+     ],
+     "text": "glass",
+     "placementIntent": "inside"
+    },
+    {
+     "id": "airLabel",
+     "kind": "label",
+     "targetIds": [
+      "incident"
+     ],
+     "text": "air",
+     "placementIntent": "above"
+    }
+   ],
+   "requiredEntityIds": [
+    "prism",
+    "firstFace",
+    "secondFace",
+    "base",
+    "entry",
+    "incident",
+    "inside",
+    "exit",
+    "exitIncident",
+    "emergent",
+    "apex",
+    "leftBase",
+    "rightBase",
+    "sourcePoint"
+   ],
+   "revealGroups": [
+    {
+     "id": "setup",
+     "entityIds": [
+      "leftBase",
+      "apex",
+      "rightBase",
+      "prism",
+      "firstFace",
+      "secondFace",
+      "base",
+      "sourcePoint",
+      "entry",
+      "incident",
+      "inside",
+      "exit",
+      "exitIncident",
+      "emergent"
+     ],
+     "dependsOn": [],
+     "narrationCue": "The ray enters the higher-index glass, crosses the prism, and emerges into air."
     }
    ],
    "teachingTimeline": []

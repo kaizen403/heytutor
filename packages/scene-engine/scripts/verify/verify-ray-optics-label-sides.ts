@@ -224,9 +224,78 @@ function expectUnmoved(name: string, primitives: RenderPrimitive[], expected: Re
   }
 }
 
+// R2d, recorded b1 prism refraction h8u (fixtures/ray-optics-remaining.json):
+// "glass" annotates the prism itself, but the side rules only knew
+// interfaces, so it sat out in the air beside the second face. A closed
+// region with a refraction on its edge whose ray runs inside holds that
+// medium: a label on the region (unbound and unnumbered) or bound to the
+// index of the medium inside sits wholly inside the region, or is dropped.
+const remaining = JSON.parse(readFileSync(join(here, "fixtures/ray-optics-remaining.json"), "utf8")) as {
+  documents: Record<string, unknown>;
+};
+
+function compileRemaining(name: string, edit?: (document: SceneDocument) => void): RenderPrimitive[] | null {
+  const document = structuredClone(remaining.documents[name]) as SceneDocument;
+  edit?.(document);
+  const validated = validateSceneDocument(document);
+  const compiled = validated.document ? compileSceneDocument(validated.document) : null;
+  if (!compiled?.ok || !compiled.renderScene) {
+    failures.push(`${name}: did not compile (${(compiled ?? validated).report.issues.filter((issue) => issue.severity === "fatal").map((issue) => issue.code).join(", ")})`);
+    return null;
+  }
+  return compiled.renderScene.primitives;
+}
+
+function insidePolygon(point: RenderPoint, polygon: RenderPoint[]): boolean {
+  let inside = false;
+  for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index++) {
+    const a = polygon[index]!;
+    const b = polygon[previous]!;
+    if ((a.y > point.y) !== (b.y > point.y) && point.x < (b.x - a.x) * (point.y - a.y) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
+}
+
+/** The whole box lies inside the rendered polygon. */
+function boxInsidePolygon(box: Box, polygon: RenderPrimitive): boolean {
+  return corners(box).every((corner) => insidePolygon(corner, polygon.points));
+}
+
+{
+  const primitives = compileRemaining("prism");
+  if (primitives) {
+    const prism = primitive(primitives, "primitive_prism");
+    const glass = labelBox(primitives, "glassLabel");
+    check(glass !== null, "prism glass: the glass label was dropped though the prism has room");
+    if (glass) check(boxInsidePolygon(glass, prism), `prism glass: "glass" sits outside the prism at (${glass.x.toFixed(1)}, ${glass.y.toFixed(1)})`);
+    const air = labelBox(primitives, "airLabel");
+    if (air) check(!corners(air).some((corner) => insidePolygon(corner, prism.points)), "prism glass: air moved into the glass");
+    expectUnmoved("prism glass", primitives, { airLabel: [673.3, 298.5] });
+  }
+}
+
+// Negative control: the same prism with its index declared (quantity n on
+// both refractions) and "n = 1.5" bound to it on the ray inside. The side
+// rules already put it inside the glass; it stays where #164 put it.
+{
+  const primitives = compileRemaining("prism", (document) => {
+    document.quantities.push({ id: "n", symbol: "n", value: 1.5 } as SceneDocument["quantities"][number]);
+    const inputs = (id: string) => document.constructions.find((construction) => construction.id === id)!.inputs as Record<string, unknown>;
+    inputs("cInside").n2 = "n";
+    inputs("cEmergent").n1 = "n";
+    document.annotations = document.annotations.filter((annotation) => annotation.id !== "glassLabel");
+    document.annotations.push({ id: "indexLabel", kind: "label", targetIds: ["inside"], text: "n = 1.5", quantityId: "n" } as SceneDocument["annotations"][number]);
+  });
+  if (primitives) {
+    const index = labelBox(primitives, "indexLabel");
+    if (index) check(boxInsidePolygon(index, primitive(primitives, "primitive_prism")), "prism index: n = 1.5 left the glass");
+    expectUnmoved("prism index", primitives, { indexLabel: [925, 298.5], airLabel: [673.3, 298.5] });
+  }
+}
+
 if (failures.length > 0) {
   console.error(`verify-ray-optics-label-sides: ${failures.length} failure(s)`);
   for (const failure of failures) console.error(`  - ${failure}`);
   process.exit(1);
 }
-console.log("verify-ray-optics-label-sides: ok (R2b sphere and prism, R2c flat interface, R2a gem face; air/glass pair and plain triangle unmoved)");
+console.log("verify-ray-optics-label-sides: ok (R2b sphere and prism, R2c flat interface, R2a gem face, R2d prism glass; air/glass pair, plain triangle and prism index unmoved)");
