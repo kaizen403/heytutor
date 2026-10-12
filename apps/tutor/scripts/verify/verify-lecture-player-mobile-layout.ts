@@ -97,6 +97,7 @@ function viewportFixture(width: number, height: number, deckHeight: number, mode
   const observed = new Set<unknown>();
   let observerCallback = () => {};
   const mediaListeners = new Set<() => void>();
+  const visualListeners = new Map<string, Set<() => void>>();
   const media = {
     get matches() { return box.width <= 640; },
     addEventListener: (_event: string, callback: () => void) => mediaListeners.add(callback),
@@ -116,7 +117,16 @@ function viewportFixture(width: number, height: number, deckHeight: number, mode
   for (const [key, value] of Object.entries({
     window: {
       innerWidth: width, innerHeight: height,
-      visualViewport: { offsetTop: 0, get height() { return height - box.keyboardInset; }, addEventListener: () => {}, removeEventListener: () => {} },
+      visualViewport: {
+        offsetTop: 0,
+        get height() { return height - box.keyboardInset; },
+        addEventListener: (event: string, callback: () => void) => {
+          const listeners = visualListeners.get(event) ?? new Set<() => void>();
+          listeners.add(callback);
+          visualListeners.set(event, listeners);
+        },
+        removeEventListener: (event: string, callback: () => void) => visualListeners.get(event)?.delete(callback),
+      },
       matchMedia: (query: string) => query.includes("767px") ? { ...media, get matches() { return box.width <= 767; } } : media,
       setTimeout: () => 0, clearTimeout: () => {},
     },
@@ -142,10 +152,19 @@ function viewportFixture(width: number, height: number, deckHeight: number, mode
     flushFrames();
     return read();
   };
+  // Deliver the visual viewport event independently: no ResizeObserver
+  // callback may rescue a missing keyboard-close listener in this case.
+  const visualResize = (patch: Partial<typeof box>) => {
+    Object.assign(box, patch);
+    for (const callback of [...(visualListeners.get("resize") ?? [])]) callback();
+    flushFrames();
+    return read();
+  };
   return {
-    box, deck, panel, panelStyle, container, observed, read, resize,
+    box, deck, panel, panelStyle, container, observed, read, resize, visualResize,
     get disconnected() { return disconnected; },
     get mediaListenerCount() { return mediaListeners.size; },
+    get visualResizeListenerCount() { return visualListeners.get("resize")?.size ?? 0; },
     unmount: () => mount.unmount(),
     close() {
       mount.unmount();
@@ -196,7 +215,7 @@ check("actual DSA below-panel consumes the measured cap and board overlay keeps 
   controller.revealPanel();
   const below = renderToStaticMarkup(createElement(panel, { controller, variant: "below" }));
   assert.match(below, /data-board-code-panel="below"/);
-  assert.match(below, /height:min\(42vh, 340px, var\(--board-panel-max-height, 340px\)\)/, "actual editor height participates in the viewport's bounded budget");
+  assert.match(below, /height:var\(--board-panel-height, min\(42vh, 340px, var\(--board-panel-max-height, 340px\)\)\)/, "actual editor height participates in the viewport's bounded budget");
   const board = renderToStaticMarkup(createElement(panel, { controller, variant: "board" }));
   assert.match(board, /data-board-code-panel="board"/);
   assert.ok(!board.includes("--board-panel-max-height"), "desktop board-coordinate panel is unchanged");
@@ -356,6 +375,27 @@ check("keyboard-shrunken box preserves scale across dock appearance and removal"
   near(f.resize({ keyboardInset: 0 }).scale, 0.14);
   near(f.resize({ height: 450 }).scale, accepted);
 }));
+check("visualViewport-only keyboard close refits a dock changed under the lock", () => withViewport(844, 390, 0, (f) => {
+  const accepted = f.read().scale;
+  near(accepted, 0.5114285714);
+  near(f.resize({ height: 250, keyboardInset: 140 }).scale, accepted);
+  near(f.resize({ deckHeight: 82 }, "deck").scale, accepted);
+  // The window and natural-size dock stay put; only the visual viewport
+  // delivers keyboard close. The restored 390px column leaves 276px paper.
+  const closed = f.visualResize({ height: 390, keyboardInset: 0 });
+  near(closed.scale, 0.3942857143);
+  assert.notEqual(closed.scale, accepted, "keyboard close must apply the dock's actual post-keyboard fit without observer delivery");
+  assert.equal(f.visualResizeListenerCount, 1);
+}));
+check("keyboard lock holds when the deck shrinks more than the keyboard inset", () => withViewport(390, 450, 300, (f) => {
+  const accepted = f.read().scale;
+  near(accepted, 0.1857142857);
+  near(f.resize({ height: 350, keyboardInset: 100 }).scale, accepted);
+  // Removing 300px of deck after a 100px keyboard drop increases the usable
+  // height. A later negative-height-only lock cannot preserve this fit.
+  near(f.resize({ deckHeight: 0 }, "deck").scale, accepted);
+  near(f.resize({ height: 450, keyboardInset: 0 }).scale, 0.3083333333);
+}));
 check("DSA panel and dock retain paper and fit their actual phone container", () => {
   for (const [width, height, panel] of [[390, 588, 340], [375, 411, 280.125]] as const) {
     const f = viewportFixture(width, height, 82, "fit", panel);
@@ -431,6 +471,7 @@ check("fixed board mode does not install adaptive observers", () => withViewport
   assert.deepEqual(f.read(), { scale: 1, offsetX: 0, offsetY: 0, measured: true });
   assert.equal(f.observed.size, 0);
   assert.equal(f.mediaListenerCount, 0);
+  assert.equal(f.visualResizeListenerCount, 0);
 }, "fixed"));
 check("unmount disconnects both deck resize and media listeners", () => withViewport(844, 390, 68, (f) => {
   const initial = f.read();
@@ -438,7 +479,9 @@ check("unmount disconnects both deck resize and media listeners", () => withView
   assert.equal(f.disconnected, true);
   assert.equal(f.observed.size, 0);
   assert.equal(f.mediaListenerCount, 0);
+  assert.equal(f.visualResizeListenerCount, 0);
   assert.deepEqual(f.resize({ deckHeight: 112 }, "deck"), initial);
+  assert.deepEqual(f.visualResize({ height: 490 }), initial, "unmounted viewport ignores later visual resize events");
 }));
 assert.ok(groups > 0, "at least one actual consumer group ran");
 assert.equal(failures.length, 0, `${failures.length}/${groups} mobile layout groups failed: ${failures.join(", ")}`);
