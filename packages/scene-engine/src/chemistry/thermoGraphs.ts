@@ -398,6 +398,12 @@ function readProfile(stem: string, question: string, _quantities: ChemPlanQuanti
   if (dH === null && energyR && energyP) dH = energyP.value - energyR.value;
   if (dH === null && ea !== null && eaBack !== null) dH = ea - eaBack;
   if (ea === null && dH !== null && eaBack !== null) ea = eaBack + dH;
+  // Every independently supplied role must agree with the same existing
+  // profile identities, even when another role already determines a value.
+  if (dH !== null && energyR && energyP && !chemistryCanonicalValuesAgree(dH,energyP.value-energyR.value)) return null;
+  if (ea !== null && dH !== null && eaBack !== null && !chemistryCanonicalValuesAgree(eaBack,ea-dH)) return null;
+  if (ea !== null && threshold && energyR && !chemistryCanonicalValuesAgree(ea,threshold.value-energyR.value)) return null;
+  if (ea !== null && dH !== null && threshold && energyP && !chemistryCanonicalValuesAgree(ea-dH,threshold.value-energyP.value)) return null;
   if (/\bnumeric(?:al)?\b/.test(stem) && (ea === null || dH === null)) return null;
 
   const exothermic = EXOTHERMIC.test(stem);
@@ -421,10 +427,12 @@ function readProfile(stem: string, question: string, _quantities: ChemPlanQuanti
   if (catalysed) {
     const lowered = source.get("catalyst_reduction") ?? null;
     const withCatalyst = source.get("catalyst_barrier") ?? null;
+    if (ea === null && (lowered || withCatalyst)) return null;
+    if (ea !== null && lowered && withCatalyst && !chemistryCanonicalValuesAgree(ea-toKj(lowered),toKj(withCatalyst))) return null;
     if (ea !== null && lowered) catalyst = ea - toKj(lowered);
     else if (ea !== null && withCatalyst) catalyst = toKj(withCatalyst);
     else catalyst = "qualitative";
-    if (typeof catalyst === "number" && !(catalyst > 0 && catalyst < step.ea && catalyst > step.dH)) catalyst = "qualitative";
+    if (typeof catalyst === "number" && !(catalyst > 0 && catalyst < step.ea && catalyst > step.dH)) return null;
   }
 
   const u = unitLabel(unit);

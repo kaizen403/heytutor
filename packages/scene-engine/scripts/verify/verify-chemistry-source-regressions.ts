@@ -3952,6 +3952,91 @@ const fullOwnerSupportRows:ReadonlyArray<FullOwnerSupportRow> = [
     "unit": "kJ/mol",
     "catalyst": 40,
     "questionSha256": "e50c4d10a2148a4764bbcd84647c402a132c6dd3507bac762284fed39dbce47b"
+  },
+  {
+    "id": "PROFILE-OWN-IDENTITY-OR-BOUND-1",
+    "question": "The forward activation energy is 60 kJ/mol and backward activation energy is 99 kJ/mol. ΔH = -40 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "ca03c60f7e99ea9b5368a37723692fce5570f0d66553e3ea31411272f5049b42"
+  },
+  {
+    "id": "PROFILE-OWN-IDENTITY-OR-BOUND-2",
+    "question": "The energy of reactants is 20 kJ/mol and energy of products is -20 kJ/mol. ΔH = -50 kJ/mol and threshold energy is 80 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "e7406bd1bb7750802c76112198947dbe9c4b0c05be850da130b67a1c94304558"
+  },
+  {
+    "id": "PROFILE-OWN-IDENTITY-OR-BOUND-3",
+    "question": "The energy of reactants is 20 kJ/mol and threshold energy is 80 kJ/mol. The activation energy is 61 kJ/mol and ΔH = -40 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "e26475cda31a56e09d46814256644c8fb4f7d1c9c7b66ff6be19e24f626676b2"
+  },
+  {
+    "id": "PROFILE-OWN-IDENTITY-OR-BOUND-4",
+    "question": "The energy of products is -20 kJ/mol and threshold energy is 80 kJ/mol. The forward activation energy is 60 kJ/mol, backward activation energy is 90 kJ/mol and ΔH = -40 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "c27a27a1d18397dadc7e6b6dae6b673de0d0b3bcf5f4358ad3cbaeaeff66a0e8"
+  },
+  {
+    "id": "PROFILE-OWN-IDENTITY-OR-BOUND-5",
+    "question": "ΔH = -40 kJ/mol and activation energy is 60 kJ/mol. A catalyst lowers the activation energy by 60 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "62901209b44e85f69b55fd68a974abd94cc3603ce604389099695b35ad7c5be9"
+  },
+  {
+    "id": "PROFILE-OWN-IDENTITY-OR-BOUND-6",
+    "question": "ΔH = -40 kJ/mol and activation energy is 60 kJ/mol. A catalyst lowers the activation energy by 80 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "f2cfb13e9c82ad42ee990a0497f3809bb27530d0ff86b11ed94fa2fd7c41b6e2"
+  },
+  {
+    "id": "PROFILE-OWN-IDENTITY-OR-BOUND-7",
+    "question": "ΔH = -40 kJ/mol and activation energy is 60 kJ/mol. With a catalyst the activation energy is 60 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "1ce7a4f1b96eeced85103a8e49aa623548b146ec4bbeb92944a8d939cd055ee2"
+  },
+  {
+    "id": "PROFILE-OWN-IDENTITY-OR-BOUND-8",
+    "question": "ΔH = 50 kJ/mol and activation energy is 60 kJ/mol. With a catalyst the activation energy is 40 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "b348b9d0817a0b88d594aade131c6ba02c996aaae5b3268718e61be86feaf92c"
+  },
+  {
+    "id": "PROFILE-OWN-IDENTITY-OR-BOUND-9",
+    "question": "ΔH = -40 kJ/mol and activation energy is 60 kJ/mol. A catalyst lowers the activation energy by 20 kJ/mol. With a catalyst the activation energy is 39 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "e485ae48cda958fd999247507c11aeb32b9f5157e71f27f7bb20ff5545a86e90"
+  },
+  {
+    "id": "PROFILE-OWN-CANONICAL-BACKWARD",
+    "question": "The forward activation energy is 60 kJ/mol and backward activation energy is 100000 J/mol. ΔH = -40000 J/mol. Draw the numerical energy profile.",
+    "kind": "profile",
+    "Ea": 60,
+    "dH": -40,
+    "back": 100,
+    "unit": "kJ/mol",
+    "questionSha256": "5953fd1d1c2ea7a8563ccda7feb8f68fe17a2f230fc4ba058e870c24f6fe1d30"
+  },
+  {
+    "id": "PROFILE-OWN-ALL-ENERGY-IDENTITIES",
+    "question": "The energy of reactants is 20 kJ/mol, energy of products is -20 kJ/mol and threshold energy is 80 kJ/mol. Forward activation energy is 60 kJ/mol, backward activation energy is 100 kJ/mol and ΔH = -40 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile",
+    "Ea": 60,
+    "dH": -40,
+    "back": 100,
+    "unit": "kJ/mol",
+    "questionSha256": "c18c28320c37fe7fa09a48aae7a40b53aee38fe549cfcfcd90929e8100997d2c"
+  },
+  {
+    "id": "PROFILE-OWN-CATALYST-DUAL-AGREE",
+    "question": "ΔH = -40 kJ/mol and activation energy is 60 kJ/mol. A catalyst lowers the activation energy by 20 kJ/mol. With a catalyst the activation energy is 40000 J/mol. Draw the numerical energy profile.",
+    "kind": "profile",
+    "Ea": 60,
+    "dH": -40,
+    "back": 100,
+    "unit": "kJ/mol",
+    "questionSha256": "66f3c242a2e5405aa3243ae710ef9da6ca747627e7623981a10f97b980622b2c",
+    "catalyst": 40
   }
 ];
 for(const row of fullOwnerSupportRows)check("Full owner/support repair: "+row.id,()=>{
