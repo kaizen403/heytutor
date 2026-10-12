@@ -851,6 +851,18 @@ const cases: readonly {id:string; question:string; expected:string; dG:number|nu
     "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Find the equilibrium T and draw ΔG versus T.",
     "expected": "graph-only",
     "dG": null
+  },
+  {
+    "id": "OWN-LOWERCASE-TIME-PRESERVED",
+    "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). The elapsed time t = 60 s. Draw ΔG versus T and calculate ΔG at 298 K.",
+    "expected": "required-compile",
+    "dG": -10.2
+  },
+  {
+    "id": "OWN-UPPERCASE-T-WRONG-DIMENSION",
+    "question": "T = 60 s; at 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
   }
 ];
 const results: {id:string;passed:boolean;error?:string}[] = [];
