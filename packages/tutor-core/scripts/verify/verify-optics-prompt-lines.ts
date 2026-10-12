@@ -30,9 +30,9 @@ const opticsQuestion = "Draw the Cartesian image and foci of a converging lens w
 const opticsPrompt = buildSceneDocumentPlannerPrompt(opticsQuestion, inferSceneCapabilities(opticsQuestion));
 assert(opticsPrompt.length + 800 <= 24_500, `the optics capability prompt must fit the initial transport budget: ${opticsPrompt.length}`);
 
-// The compact catalog stays as it was: the new sentences live on the full lines only.
+// The compact catalog keeps only each line's first sentence: the explanatory sentences live on the full lines only.
 const compact = selectConstructionInputContracts(["gaussian_image", "optical_focus"], []);
-for (const text of ["form:", "F′", "never on a focus"]) assert(!compact.includes(text), `the compact optics contracts must not carry ${text}`);
+for (const text of ["F′", "never on a focus"]) assert(!compact.includes(text), `the compact optics contracts must not carry ${text}`);
 const full = selectConstructionInputContracts(["gaussian_image", "optical_focus"]);
 for (const text of REQUIRED) assert(full.includes(text), `the full optics contracts must include ${text}`);
 
@@ -41,6 +41,29 @@ const unknownCapabilities = inferSceneCapabilities(unknownQuestion);
 const universal = buildSceneDocumentPlannerPrompt(unknownQuestion, { ...unknownCapabilities, constructionOperators: SUPPORTED_SCENE_CONSTRUCTION_OPERATORS });
 assert(!universal.includes("never on a focus"), "the universal initial prompt keeps the compact optics lines");
 assert(universal.length + 800 <= 24_500, `the universal initial prompt must keep its budget: ${universal.length}`);
+
+// G4b: compaction keeps sentence 0, so the compact gaussian_image line must still carry the whole
+// required shape. 18 of 21 recorded first-pass candidates copied a 4-key compact shape and then
+// failed on the unit, displayScale, centre and axis it left out.
+const GAUSSIAN_KEYS = ["kind", "center", "axis", "objectDistance", "focalLength", "objectHeight", "displayScale", "lengthUnit", "form", "objectSide"];
+const shapeKeys = (line: string | undefined): Set<string> => {
+  const shape = /\{([^}]*)\}/.exec(line ?? "")?.[1] ?? "";
+  return new Set([...shape.matchAll(/(?:^|,)\s*([A-Za-z]+)\??\s*(?=[:,]|$)/g)].map((match) => match[1]!));
+};
+const compactGaussian = (contracts: string): string | undefined => contracts.split("\n").find((line) => line.startsWith("- gaussian_image:"));
+for (const [where, contracts] of [
+  ["the compact catalog (selectConstructionInputContracts with nothing detailed)", compact],
+  ["the universal initial prompt", universal],
+  ["the compact catalog of every operator", selectConstructionInputContracts(SUPPORTED_SCENE_CONSTRUCTION_OPERATORS, [])],
+] as const) {
+  const line = compactGaussian(contracts);
+  assert(line, `${where} must carry a gaussian_image line`);
+  const keys = shapeKeys(line);
+  const missing = GAUSSIAN_KEYS.filter((key) => !keys.has(key));
+  assert.deepEqual(missing, [], `the gaussian_image line in ${where} must carry ${GAUSSIAN_KEYS.join(", ")}; missing ${missing.join(", ")} in: ${line}`);
+  assert(/form:"converging"\|"diverging"/.test(line) && /objectSide:"real"\|"virtual"/.test(line), `the gaussian_image line in ${where} must give the form and objectSide values: ${line}`);
+}
+console.log(`G4b: pass (compact gaussian_image line: ${compactGaussian(compact)})`);
 
 // A universal repair of a candidate that used the optics operators carries their full lines within budget.
 const originalFetch = globalThis.fetch;
