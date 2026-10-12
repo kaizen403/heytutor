@@ -258,7 +258,8 @@ export async function drawSegmentInk(input: {
       commandOrder.map((commandIndex) => `${segmentCommands[commandIndex]!.type}@${spokenAnchorsMs[commandIndex] ?? "-"}`).join(" "),
     );
   }
-  for (const commandIndex of commandOrder) {
+  for (let commandPosition = 0; commandPosition < commandOrder.length; commandPosition++) {
+    const commandIndex = commandOrder[commandPosition]!;
     const command = segmentCommands[commandIndex]!;
     const pace = commandPaces[commandIndex]!;
     if (isCancelled()) {
@@ -266,6 +267,62 @@ export async function drawSegmentInk(input: {
     }
     if (!(await input.waitWhilePaused())) {
       return;
+    }
+    const focusDiagram = input.getDiagram();
+    const focusTargets =
+      command.type === "FOCUS" && hasNarration && !input.verifiedDiagramIntro &&
+      focusDiagram && focusDiagram.layout !== "code_lesson"
+        ? resolveVerifiedDiagramFocusTargets(command, focusDiagram)
+        : [];
+    let focusSchedule = focusTargets.length > 0
+      ? getFocusTargetSchedule({
+          narration, command, targets: focusTargets,
+          timings: clock.getTimings(), msPerChar: speechMsPerChar,
+        })
+      : null;
+    let focusDeadlineMs: number | undefined;
+    let getFocusTiming: ExecuteCommandOptions["getFocusTiming"];
+    const nextWorkPosition = focusSchedule
+      ? commandOrder.findIndex((nextIndex, position) => position > commandPosition &&
+          (segmentCommands[nextIndex]!.type === "WRITE" || segmentCommands[nextIndex]!.type === "LABEL") &&
+          commandPaces[nextIndex] !== "scene" && typeof spokenAnchorsMs[nextIndex] === "number")
+      : -1;
+    const nextWorkTimings = nextWorkPosition >= 0 ? clock.getTimings() : null;
+    const readWorkCue = (timings: AudioTimings | null) => nextWorkPosition >= 0
+      ? getBestWriteCharScheduleMs(
+          narration, segmentCommands[commandOrder[nextWorkPosition]!]!, timings,
+          timings?.totalDuration ? Math.round(timings.totalDuration * 1000) : totalSpeechMs,
+          textCommandIndex + commandOrder.slice(commandPosition + 1, nextWorkPosition)
+            .filter((nextIndex) => ["WRITE", "LABEL", "TYPE"].includes(segmentCommands[nextIndex]!.type)).length,
+          speechMsPerChar,
+        )?.offsetsMs[0] ?? null
+      : null;
+    const nextWorkCue = readWorkCue(nextWorkTimings);
+    if (focusSchedule && typeof nextWorkCue === "number") {
+      // One combined gesture can name a part after the next row's word.
+      // Yield the whole gesture to that row, preserving all verified targets
+      // and the original command count used by Stop/replay resume.
+      if (focusSchedule.targets.some((target) => target.startMs >= nextWorkCue)) {
+        commandOrder.splice(commandPosition, 1);
+        commandOrder.splice(nextWorkPosition, 0, commandIndex);
+        commandPosition--;
+        continue;
+      }
+      // A clause-length trace may not occupy the pen through a written word.
+      focusSchedule = {
+        ...focusSchedule,
+        targets: focusSchedule.targets.map((target) => ({
+          ...target, endMs: Math.min(target.endMs, nextWorkCue),
+        })),
+      };
+      focusDeadlineMs = nextWorkCue;
+      getFocusTiming = () => {
+        const timings = clock.getTimings();
+        return {
+          schedule: getFocusTargetSchedule({ narration, command, targets: focusTargets, timings, msPerChar: speechMsPerChar }),
+          deadlineMs: readWorkCue(timings) ?? nextWorkCue,
+        };
+      };
     }
     input.beforeCommand?.();
 
@@ -411,25 +468,6 @@ export async function drawSegmentInk(input: {
     // combined tag used to fire once at the top of the sentence for a
     // fixed 900 ms and the pen parked for the rest (136 s of it across
     // six measured lessons).
-    const focusDiagram = input.getDiagram();
-    const focusTargets =
-      command.type === "FOCUS" &&
-      hasNarration &&
-      !input.verifiedDiagramIntro &&
-      focusDiagram &&
-      focusDiagram.layout !== "code_lesson"
-        ? resolveVerifiedDiagramFocusTargets(command, focusDiagram)
-        : [];
-    const focusSchedule =
-      focusTargets.length > 0
-        ? getFocusTargetSchedule({
-            narration,
-            command,
-            targets: focusTargets,
-            timings: clock.getTimings(),
-            msPerChar: speechMsPerChar,
-          })
-        : null;
     if (focusSchedule) {
       input.trace?.focusScheduleReady?.({
         segment_index: index,
@@ -582,6 +620,9 @@ export async function drawSegmentInk(input: {
       // time instead of clipping it to the 320 ms scene ceiling.
       ...(cueWindow ? { cued: true } : {}),
       ...(focusSchedule ? { focusSchedule } : {}),
+      ...(focusDeadlineMs !== undefined ? { focusDeadlineMs } : {}),
+      ...(getFocusTiming ? { getFocusTiming } : {}),
+      ...(clock.isPaused ? { isPaused: clock.isPaused } : {}),
       getAudioPositionMs: clock.getAudioPositionMs,
       getPlaybackRate: clock.getPlaybackRate,
       // The sentence's own clock for the code lesson. TYPE, FRAME and

@@ -330,6 +330,45 @@ async function slowPlayback(rate: number, chars: number, durationMs: number, cha
   } finally { h.close(); }
 }
 
+const mathsDenseNarration = "Simplify each expression: " + Array.from({ length: 30 }, () => "x²+2x=3").join("; ") + ".";
+async function slowMathPlayback(rate: number, changeRate = false) {
+  const text = mathsDenseNarration;
+  assert.equal(text.length, 295);
+  assert.equal(core.mathToSpeech(text).length, 745, "maths notation expands into the actual spoken words");
+  // 64s of native media is valid at the measured slow voice rate (~11.6
+  // spoken chars/s), but exceeds the raw-character wall budget at either rate.
+  const h = mount(0, ["success"], false, { narration: text, rate: changeRate ? 1 : rate, durationMs: 64_000 });
+  const beat: TutorSegment = { narration: text, command: null };
+  try {
+    const result = h.runner.runSegment(beat, 0, [beat], 1).then(() => null, error => error as unknown);
+    if (changeRate) { await h.advance(h.now() + 1_000); h.setRate(rate); }
+    await h.advance(h.now() + 64_000 / rate + 1_000);
+    assert.equal(await result, null, "valid advancing maths-dense speech must use its spoken characters for the watchdog");
+    assert.equal(h.params.recordedSegmentsRef.current.length, 1);
+    assert.equal(h.browserAttempts(), 0);
+    assert(!h.telemetry.some(event => event.name === "tts-segment-failed"));
+    console.log(`started speech maths dense ${rate}x${changeRate ? "/live-speed-change" : ""}: 295 written/745 spoken characters complete`);
+  } finally { h.close(); }
+}
+
+async function mathsDeadClock() {
+  const h = mount(0, ["pending"], false, { narration: mathsDenseNarration, rate: .5, durationMs: 64_000, timings: false });
+  const beat: TutorSegment = { narration: mathsDenseNarration, command: null };
+  try {
+    let settled = false;
+    const result = h.runner.runSegment(beat, 0, [beat], 1).then(() => { settled = true; return null; }, error => { settled = true; return error as unknown; });
+    await h.advance(h.now() + 120_000);
+    assert.equal(settled, false, "maths speech keeps its spoken-character allowance even without final alignment");
+    await h.advance(h.now() + 50_000);
+    assert.equal(settled, true, "nonadvancing maths audio still fails within the bounded slow-speed deadline");
+    const error = await result;
+    assert(error instanceof Error); assert.match(error.message, /tts segment timeout/);
+    assert.equal(h.params.recordedSegmentsRef.current.length, 0, "a bounded real stall never gains a successful recorded beat");
+    assert.equal(h.browserAttempts(), 0);
+    console.log("started speech maths dense zero clock/no alignment: bounded terminal timeout, no success claim");
+  } finally { h.close(); }
+}
+
 async function slowDeadClock(cancelled: boolean, stale = false, rate = .5) {
   const text = "a".repeat(250);
   // Missing alignment makes the character watchdog the only completion bound.
@@ -409,6 +448,10 @@ async function timeoutRateControls() {
 async function main() {
   const cases: Array<{ name: string; run: () => Promise<void> }> = [
     { name: "timeout-rate-controls", run: timeoutRateControls },
+    { name: "maths-slow-half", run: () => slowMathPlayback(.5) },
+    { name: "maths-slow-three-quarter", run: () => slowMathPlayback(.75) },
+    { name: "maths-live-slowdown", run: () => slowMathPlayback(.5, true) },
+    { name: "maths-zero-clock-timeout", run: mathsDeadClock },
     { name: "slow-queue", run: queuedSlowPlayback },
     { name: "slow-half", run: () => slowPlayback(.5, 250, 21_500) },
     { name: "slow-three-quarter", run: () => slowPlayback(.75, 600, 52_000) },
