@@ -796,15 +796,21 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
     const prefix = /^\s*(?:of\s+(?:(?:the|a|this)\s+)?reaction\s*)?(?:(?:becomes?|increases?|decreases?|changes?)(?:\s+by)?\s+)?/i.exec(stem.slice(payload[0],payload[1]))!;
     const start = payload[0] + prefix[0].length;
     const read = readChemistryQuantity({question:stem,after:/^/,within:{start,end:payload[1]},dimension:"dimensionless"});
-    if (!read.ok || !(read.reading.value > 0) || stem.slice(read.reading.source.span.end,payload[1]).trim() !== "") return false;
+    if (!read.ok || !(read.reading.value > 0)) return false;
+    const scalarTail = stem.slice(read.reading.source.span.end,payload[1]);
+    // A single original sentence dot may separate scalar2 from "times";
+    // the shared strict scalar proof remains unchanged and owns the value.
+    if (scalarTail.trim() !== "" && !/^\.\s*$/.test(scalarTail)) return false;
     const suffixStart = payload[1] + marker[0].length;
     const clause = /[;?\n]|\.(?=\s|$)/.exec(stem.slice(suffixStart));
     const suffixEnd = clause ? suffixStart + clause.index : stem.length;
     let suffix = stem.slice(suffixStart,suffixEnd);
-    const thermal = findChemistryQuantities({question:stem,within:{start:suffixStart,end:suffixEnd},dimension:"temperature"});
-    if (!thermal.ok) return false;
-    for (const reading of [...thermal.reading].sort((a,b)=>b.source.span.start-a.source.span.start)) {
-      suffix = suffix.slice(0,reading.source.span.start-suffixStart) + " " + suffix.slice(reading.source.span.end-suffixStart);
+    if (suffixStart < suffixEnd) {
+      const thermal = findChemistryQuantities({question:stem,within:{start:suffixStart,end:suffixEnd},dimension:"temperature"});
+      if (!thermal.ok) return false;
+      for (const reading of [...thermal.reading].sort((a,b)=>b.source.span.start-a.source.span.start)) {
+        suffix = suffix.slice(0,reading.source.span.start-suffixStart) + " " + suffix.slice(reading.source.span.end-suffixStart);
+      }
     }
     suffix = suffix.replace(/\b[Tt]_?[12]\s*=\s*(?=\s|$)/g," ");
     if (!/^\s*(?:(?:its|the|original|value|when|as|on|from|for|between|in|of|an?|temperature|temperatures|is|was|are|raised|rises|rise|increased|increases|increase|change|by|to|at|and|starting|starts|start|goes|go|went|up)\b\s*)*$/i.test(suffix)) return false;
@@ -823,15 +829,29 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
     }
   }
   if (temperatureRates) constants.push(...temperatureRates.map(value=>value.rate));
-  const pattern = /(?:rate constant|(?<!\b(?:ln|log)\s*)\bk\b)\s*(?:_?[12]|₁|₂)?\s*(?:,?\s*k\s*)?(?:=|is|:)/gi;
+  const indexedRates = new Map<1 | 2, number>();
+  const pattern = /(?:rate constant|(?<!\b(?:ln|log)\s*)\bk)(?:\s*(_?[12]|₁|₂))?\s*(?:,?\s*k\s*)?(?:=|is|:)/gi;
   for (const match of stem.matchAll(pattern)) {
+    // A denominator in the original ratio k2/k1 is not a measured k1.
+    if (/^k/i.test(match[0]) && /\/\s*$/.test(stem.slice(0,match.index))) continue;
     const read = readChemistryQuantity({question: stem, after: /^/, within: {start: match.index! + match[0].length, end: stem.length}, dimension: "rate_constant_first"});
+    if (match[1]) {
+      if (!read.ok || !(read.reading.value > 0)) return false;
+      const role: 1 | 2 = /1|₁/.test(match[1]) ? 1 : 2;
+      const previous = indexedRates.get(role);
+      if (previous !== undefined && !chemistryCanonicalValuesAgree(previous,read.reading.value)) return false;
+      indexedRates.set(role,read.reading.value);
+      continue;
+    }
     // Repeated singular givens do not create a second Arrhenius measurement.
-    // Indexed owners or distinct temperatures retain separate measurement roles.
-    if (read.ok && ((T1 !== null && T2 !== null && T1 !== T2) || /\bk(?:_?[12]|₁|₂)/i.test(match[0])
+    if (read.ok && ((T1 !== null && T2 !== null && T1 !== T2)
       || !constants.some(value => chemistryCanonicalValuesAgree(value, read.reading.value)))) constants.push(read.reading.value);
   }
-  const k1 = constants[0] ?? null; const k2 = constants[1] ?? null;
+  for (const [role,value] of indexedRates) {
+    const measured = constants[role - 1];
+    if (measured !== undefined && !chemistryCanonicalValuesAgree(measured,value)) return false;
+  }
+  const k1 = indexedRates.get(1) ?? constants[0] ?? null; const k2 = indexedRates.get(2) ?? constants[1] ?? null;
   if (k1 !== null && k2 !== null && ratio !== null
     && (!(k1 > 0 && k2 > 0 && ratio > 0) || !chemistryCanonicalValuesAgree(k2 / k1, ratio))) return false;
   if (Ea === null && ratio === null && k1 === null && statedSlope === null) return null;
