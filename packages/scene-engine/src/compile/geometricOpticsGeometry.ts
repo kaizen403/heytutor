@@ -119,7 +119,9 @@ export interface CartesianOpticsInputs { kind: OpticalKind; form?: OpticalForm; 
  * converging lens form with a negative f fails closed; a mirror's stated sign depends on the convention,
  * so for mirrors the form decides.
  */
-export function resolveCartesianOpticsInputs(inputs: Record<string, unknown>, number: (value: unknown, key: string) => number, operator: string = "objectDistance" in inputs ? "gaussian_image" : "optical_focus"): CartesianOpticsInputs {
+export function resolveCartesianOpticsInputs(inputs: Record<string, unknown>, number: (value: unknown, key: string) => number, operatorName?: string): CartesianOpticsInputs {
+  // Not a parameter default: Next's SWC parser rejects `in` there, and the tutor compiles this file from source.
+  const operator = operatorName ?? (Object.prototype.hasOwnProperty.call(inputs, "objectDistance") ? "gaussian_image" : "optical_focus");
   if (inputs.kind !== "lens" && inputs.kind !== "mirror") return invalid("kind", "optical kind must be explicit lens or mirror");
   const kind: OpticalKind = inputs.kind;
   const form = inputs.form;
