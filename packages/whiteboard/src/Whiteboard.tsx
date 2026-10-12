@@ -1225,7 +1225,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           const path = new Konva.Path(
             inkPathConfig(pathData, options?.strokeWidth ?? SHAPE_STROKE_WIDTH, inkStyle),
           );
-          if (options?.pointStyle === "open") { path.fill(WHITEBOARD_COLOR); path.opacity(1); }
+          if (options?.pointStyle === "open") { path.fillEnabled(true); path.fill(WHITEBOARD_COLOR); path.opacity(1); }
           if (options?.dashed) {
             path.dash([6, 5]);
           }
@@ -1263,7 +1263,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         const path = new Konva.Path(
           inkPathConfig(pathData, options?.strokeWidth ?? SHAPE_STROKE_WIDTH, inkStyle),
         );
-        if (options?.pointStyle === "open") { path.fill(WHITEBOARD_COLOR); path.opacity(1); }
+        if (options?.pointStyle === "open") { path.fillEnabled(true); path.fill(WHITEBOARD_COLOR); path.opacity(1); }
         tagBoardInk(path, "scene");
         if (Math.abs((options?.strokeWidth ?? SHAPE_STROKE_WIDTH) - SHAPE_STROKE_WIDTH) < 0.01) {
           path.setAttr(SCENE_LEAD_ATTR, true);

@@ -202,6 +202,34 @@ for (const [i, statement] of [
   const result = compileSceneDocument(documentFor(question, "number_line_set", { variable: "x", expression: { inequality: "x<3" } }));
   assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
 });
+for (const [i, statement] of [
+  "x in Z is not required.",
+  "x belongs to Z is not assumed.",
+  "x ∈ ℤ need not hold.",
+  "Restrict x to integers is not required.",
+  "x in Z may be required.",
+].entries()) check(`unproved-suffix-domain-statement-${i + 1}`, () => {
+  const question = `Graph x<3 on a number line. ${statement}`;
+  assert.equal(buildLinearSourceDocument(question), null, "An unproved domain statement supplies no reader figure");
+  const candidate = documentFor(question, "number_line_set", { variable: "x", expression: { inequality: "x<3" } });
+  assert.deepEqual(validateLinearSourceBinding(candidate), [], "A suffix-negated or modal domain statement supplies no veto");
+  const result = compileSceneDocument(candidate);
+  assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+});
+for (const [i, question] of [
+  "Graph x<3 on a number line. x in Z is required.",
+  "Graph x<3 for x in Z and do not label the solution set.",
+  "Graph x<3 for x in Z, then do not label the solution set.",
+  "Graph x<3 for x in Z and should we label the solution set?",
+  "Graph x<3 on a number line. x in Z and x in N is not required.",
+  "Graph x<3 for x in Z without writing a caption.",
+  "Graph x<3 for x in Z but do not label the solution set.",
+].entries()) check(`affirmative-domain-suffix-scope-control-${i + 1}`, () => {
+  assert.equal(buildLinearSourceDocument(question), null);
+  const candidate = documentFor(question, "number_line_set", { variable: "x", expression: { inequality: "x<3" } });
+  const result = compileSceneDocument(candidate);
+  assert.ok(!result.ok && result.renderScene === null && result.report.issues.some(issue => issue.code === "linear_source_mismatch"), "An affirmative discrete domain survives an unrelated later instruction");
+});
 for (const [i, question] of [
   "Graph x<3 for integer x and state whether 2 belongs to the solution set.",
   "Graph x<3 for integer x and explain whether 2 belongs to the solution set?",

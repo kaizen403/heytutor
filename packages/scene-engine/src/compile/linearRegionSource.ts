@@ -1275,7 +1275,12 @@ function hasAffirmativeDiscreteDomain(question: string, names: readonly string[]
       const upper = boundaries.find(boundary => boundary.index! >= finish);
       const prefix = clause.slice(lower ? lower.index! + lower[0].length : 0, start);
       const suffix = clause.slice(finish, upper?.index ?? clause.length);
+      // A domain phrase can be negated or merely proposed after the match.
+      // Read a continued predicate, not an unrelated display modifier such
+      // as "without writing a caption" or "but do not label the set".
+      const continuesDomain = /^\s*[,:(]?\s*(?:is|are|was|were|be|been|being|need|needs|do|does|did|must|will|would|should|can|could|may|might|not|no|never|if|unless|whether)\b/i.test(suffix);
       if (/\b(?:not|no|never|without|if|unless|whether)\b/i.test(prefix)
+        || (continuesDomain && /\b(?:not|no|never|without|if|unless|whether|should|can|could|may|might)\b/i.test(suffix))
         || /\b(?:is|are|should|can|could|may|might)\s*$/i.test(prefix)) return false;
       const modal = /\b(?:should|can|could|may|might)\b/i.exec(prefix)?.[0].toLowerCase();
       if (modal) {

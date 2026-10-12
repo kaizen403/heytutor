@@ -8,6 +8,7 @@ import { createVirtualWhiteboardClock } from "../src/whiteboardClock";
 import { runWhiteboardVerifier } from "./runWhiteboardVerifier";
 
 async function main() {
+  const fillStates: Array<{ duration: number; fillEnabled: boolean }> = [];
   for (const duration of [0, 300]) {
     const board = mountTestWhiteboard();
     const clock = createVirtualWhiteboardClock();
@@ -38,6 +39,7 @@ async function main() {
       .filter((node) => node instanceof Konva.Path) as Konva.Path[];
     assert.equal(paths.length, 2);
     const mark = paths.at(-1)!;
+    fillStates.push({ duration, fillEnabled: mark.fillEnabled() });
     assert.equal(
       mark.fill(),
       "#F6E4C4",
@@ -54,8 +56,14 @@ async function main() {
       mark.fill(),
       "ordinary figure lines must retain their original rendering",
     );
+    assert.equal(paths[0]!.fillEnabled(), false, "ordinary figure lines must remain unfilled");
     unmountTestWhiteboard(board);
   }
+  assert.deepEqual(
+    fillStates,
+    [{ duration: 0, fillEnabled: true }, { duration: 300, fillEnabled: true }],
+    "excluded endpoint masking must enable filling in both final and animated paths",
+  );
   console.log("open endpoint live/catch-up masking passed");
 }
 runWhiteboardVerifier(main);
