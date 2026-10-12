@@ -88,6 +88,11 @@
  * a mirror 15 cm from the object each prove only their kind. A stem with no word on
  * the image (also "-10 cm" on a spherical mirror, an upright pin, a real object, a
  * question, a clause after "whether", "virtual or real") declines both kinds.
+ * G21 (P6): the object and image arrows sit on the engine's anchors. On a traced
+ * lens, an arrow redrawn as a polyline to a literal tip at the wrong height, an
+ * arrow laid flat along the axis to a focus, or no image arrow at all stays
+ * unproven and never draws. None of these is a light path, so with the P6 check
+ * removed every other gate stays green and only G21 goes red.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -1356,7 +1361,38 @@ const expectUnproven = (gate: string, name: string, question: string, document: 
   }
 }
 
-for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20"]) {
+// ---- G21 (P6): the object and image arrows sit on the engine's anchors ----
+{
+  const tracedLens = traced(goodLensReal, ["parallel", "focal", "central"]);
+  check("G21", explainPlannerOpticsProof(qLensReal, tracedLens).proof === "proven", "the traced lens with both arrows on the anchors must be proven");
+  /** The traced lens with one arrow redrawn; none of these is a light path, so only P6 reads them. */
+  const arrowAs = (id: "c_object" | "c_image", edit: Partial<Construction> | null): Doc => {
+    const document = structuredClone(tracedLens);
+    const output = id === "c_object" ? "object" : "image";
+    if (edit === null) {
+      document.constructions = document.constructions.filter((construction) => construction.id !== id);
+      document.entities = document.entities.filter((entity) => entity.id !== output);
+      document.requiredEntityIds = document.requiredEntityIds.filter((entity) => entity !== output);
+      document.revealGroups = document.revealGroups.map((group) => ({ ...group, entityIds: group.entityIds.filter((entity) => entity !== output) }));
+      return document;
+    }
+    document.constructions = document.constructions.map((construction) => construction.id === id ? { ...construction, ...edit } as Construction : construction);
+    if (edit.operator) document.entities = document.entities.map((entity) => entity.id === output ? { ...entity, kind: edit.operator! } : entity) as Doc["entities"];
+    return document;
+  };
+  for (const [name, document] of [
+    ["an object arrow drawn as a polyline to a tip 5 cm high (the engine's tip is 2 cm)", arrowAs("c_object", { operator: "polyline", inputs: { points: ["ob", [-30, 5]] } })],
+    ["an image arrow drawn as a polyline to a tip 3 cm below the axis (the engine's tip is 1 cm)", arrowAs("c_image", { operator: "polyline", inputs: { points: ["ib", [15, -3]] } })],
+    ["an object arrow drawn flat along the axis to F1", arrowAs("c_object", { inputs: { start: "ob", end: "F1" } })],
+    ["an image arrow drawn flat along the axis to F2", arrowAs("c_image", { inputs: { start: "ib", end: "F2" } })],
+    ["no image arrow", arrowAs("c_image", null)],
+  ] as const) {
+    expectUnproven("G21", name, qLensReal, document, /^object or image arrow is not drawn on the gaussian_image anchors$/);
+    expectNeverPlanner("G21", name, qLensReal, lensRealPlan, document);
+  }
+}
+
+for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21"]) {
   console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 }
 if (failures.length > 0) {
