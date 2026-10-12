@@ -1211,6 +1211,30 @@ const cases: readonly {id:string; question:string; expected:string; dG:number|nu
   "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Find the temperature where ΔG = unknown.",
   "expected": "decline",
   "dG": null
+},
+{
+  "id": "OWN-ZERO-CONDITION-PAREN-UNIT",
+  "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Find the temperature where (ΔG = 0) K.",
+  "expected": "decline",
+  "dG": null
+},
+{
+  "id": "OWN-ZERO-CONDITION-PAREN-DIMENSION",
+  "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Find the temperature where (ΔG = 0)/mol.",
+  "expected": "decline",
+  "dG": null
+},
+{
+  "id": "OWN-ZERO-CONDITION-EXPONENT",
+  "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Find the temperature where ΔG = 0e-3.",
+  "expected": "decline",
+  "dG": null
+},
+{
+  "id": "OWN-ZERO-CONDITION-PAREN",
+  "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Find the temperature where (ΔG = 0).",
+  "expected": "graph-only",
+  "dG": null
 }
 ];
 const results: {id:string;passed:boolean;error?:string}[] = [];

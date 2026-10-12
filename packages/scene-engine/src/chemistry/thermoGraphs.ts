@@ -520,8 +520,9 @@ function gibbsReferencePayloadOnly(body: string, start: number, ownerEnd: number
   }
   // A requested zero crossing is a condition on the curve, not a supplied
   // evaluation temperature or an additional H/S value. Mask only a complete
-  // literal zero; scalar continuations and units remain unread payload.
-  payload = payload.replace(/[Δδ∆]\s*G\s*=\s*0(?=\s*(?:$|[,)]|\b(?:and|at|where)\b))/gi, " zero ");
+  // literal zero through the clause end; scalar continuations and units
+  // after optional closing parentheses remain unread payload.
+  payload = payload.replace(/[Δδ∆]\s*G\s*=\s*0(?=\s*\)*\s*$)/gi, " zero ");
   return /^(?:\s|[(),=+−*/×·-]|Θ|[Δδ∆]\s*[GHS]\b|\bT\b|\bK\b|\b(?:and|together|with|using|from|to|in|versus|vs|against|at|as|on|above|below|where|of|all|any|every|what|which|absolute|draw|plot|sketch|show|calculate|compute|determine|find|mark|the|an?|its|this|reaction|point|line|graph|curve|diagram|Gibbs|free|energy|temperatures?|equilibrium|transition|minimum|threshold|crossover|will|does|reach|be|becomes?|is|negative|positive|zero|spontaneous|feasible)\b)*$/i.test(payload);
 }
 /** Shared prefix proof; complete payload validation still belongs to each owner. */
