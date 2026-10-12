@@ -989,7 +989,14 @@ export function useLecturePlayer({
       setPlayerStatus("paused");
     };
     const onPlay = () => {
-      if (!activeRef.current || statusRef.current !== "paused") return;
+      if (!activeRef.current) return;
+      if (reviewPageRef.current) {
+        // Native media controls bypass the bar. Leave its frozen page through
+        // the same seek/rebuild path so voice never runs over stationary ink.
+        play();
+        return;
+      }
+      if (statusRef.current !== "paused") return;
       wantsPlayingRef.current = true;
       smoothClock.reset(positionRef.current, performance.now());
       setPlayerStatus("playing");
@@ -1006,7 +1013,7 @@ export function useLecturePlayer({
       audio.load();
       audioRef.current = null;
     };
-  }, [renderCodePanel, setPlayerStatus, smoothClock, store]);
+  }, [play, renderCodePanel, setPlayerStatus, smoothClock, store]);
 
   // --- timeline + stitched track -------------------------------------------
   useEffect(() => {

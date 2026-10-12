@@ -320,6 +320,14 @@ async function figureFixture(): Promise<StoredTurn> {
 }
 async function main() {
   const original = new Map<string, PropertyDescriptor | undefined>();
+  const frames = new Map<number, FrameRequestCallback>();
+  let nextFrame = 0;
+  const advanceFrame = async () => {
+    const pending = [...frames];
+    frames.clear();
+    for (const [, callback] of pending) callback(performance.now());
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  };
   for (const [key, value] of Object.entries({
     Audio: AudioBoundary,
     window: {
@@ -329,8 +337,12 @@ async function main() {
       clearInterval,
       requestIdleCallback: (fn: () => void) => setTimeout(fn, 0),
       cancelIdleCallback: clearTimeout,
-      requestAnimationFrame: (): number => 1,
-      cancelAnimationFrame: () => {},
+      requestAnimationFrame: (callback: FrameRequestCallback): number => {
+        const id = ++nextFrame;
+        frames.set(id, callback);
+        return id;
+      },
+      cancelAnimationFrame: (id: number) => { frames.delete(id); },
       addEventListener() {},
       removeEventListener() {},
     },
@@ -593,6 +605,93 @@ async function main() {
       "PASS actual bar → player → executor stored-page selection, complete marks, paused audio, final return and Play transition",
     );
     mount.close();
+    // A headset/media-key play changes the native element directly, bypassing
+    // the bar's controls. It must leave the frozen page and rebuild the normal
+    // timeline at that page's boundary before voice and ink advance together.
+    const mediaTurn: StoredTurn = { ...turn, id: "media-key-pages", segments: [
+      ...turn.segments.slice(0, 3),
+      { ...turn.segments[3]!, command: { type: "WRITE", params: [90, 142, 32], text: "Check = 8", charPosition: 0, narrationBefore: "" } },
+      { ...turn.segments[3]!, id: "media-after", orderIndex: 4, durationMs: 5000, command: { type: "WRITE", params: [90, 208, 32], text: "After = 8", charPosition: 0, narrationBefore: "" } },
+    ] };
+    mediaTurn.segments = mediaTurn.segments.map(segment => ({ ...segment,
+      command: captureCommandInk(structuredClone(segment.command as DrawCommand), board.getInkSettings()),
+    }));
+    const mediaOriginal = JSON.stringify(mediaTurn);
+    const mediaTimeline = buildLecturePlayerTimeline([mediaTurn]);
+    const mediaMount = new Mount();
+    extraMounts.push(mediaMount);
+    const mediaHooks = load(path.join(app, "features/tutor-session/hooks/useLecturePlayer.ts"), mediaMount, {
+      "./useBoardViewport": { useBoardViewport: () => ({ scale: 1, offsetX: 0, offsetY: 0, measured: true }) },
+      "@/lib/replay/lecturePlayerAudio": { lecturePlayerTrackKey: () => "media-key-pages", getLecturePlayerTrack: async (_key: unknown, make: () => unknown) => make(), buildLecturePlayerTrack: async () => ({ url: "local:media-keys" }) },
+    }) as unknown as { useLecturePlayer: typeof import("../../features/tutor-session/hooks/useLecturePlayer").useLecturePlayer };
+    const mediaProps = { sessionId: "media-key-pages", storedTurnsRef: { current: [mediaTurn] }, storedTurnsCount: 1, available: true, rate: 1, onRateChange: () => {}, enableKeyboard: false };
+    const renderMedia = () => mediaHooks.useLecturePlayer(mediaProps);
+    const mediaPlayer = mediaMount.render(renderMedia);
+    mediaPlayer.playerBoardRef.current = board;
+    await wait(() => mediaPlayer.store.getSnapshot().status === "ready");
+    mediaPlayer.controls.reviewPage?.(0);
+    await wait(() => mediaPlayer.store.getSnapshot().status === "paused" && mediaPlayer.store.getSnapshot().reviewPageIndex === 0);
+    assert.deepEqual(boardRows(), [
+      { x: 90, y: 64, text: "Given" }, { x: 90, y: 130, text: "Work" }, { x: 90, y: 526, text: "Answer = 8" },
+    ]);
+    mediaMount.render(renderMedia); // Install the actual active player's frame loop.
+    const mediaAudio = AudioBoundary.all.at(-1)!;
+    mediaAudio.duration = mediaTimeline.totalMs / 1000;
+    const pageBoundary = mediaTimeline.workPages[0]!.endMs - 1;
+    await mediaAudio.play();
+    await wait(() => mediaPlayer.store.getSnapshot().status === "playing");
+    assert.equal(mediaPlayer.store.getSnapshot().reviewPageIndex, null,
+      "native media-key play must leave frozen recorded-page review");
+    assert.equal(mediaPlayer.store.getSnapshot().positionMs, pageBoundary,
+      "native media-key play resumes from the reviewed page's end");
+    assert.equal(mediaAudio.currentTime, pageBoundary / 1000);
+    assert.ok(!boardRows().some(row => row.y === 526),
+      "media-key resume rebuilds the ordinary timeline instead of retaining recorded-page placement");
+    mediaAudio.currentTime = 4.75;
+    await advanceFrame();
+    assert.ok(mediaPlayer.store.getSnapshot().positionMs >= 4750,
+      "actual native media clock advances the player after leaving page review");
+    const writingDeadline = Date.now() + 5000;
+    while (!boardRows().some(row => row.text.startsWith("Check"))) {
+      assert.ok(Date.now() < writingDeadline, "native clock drives real future work after media-key resume");
+      mediaAudio.currentTime = Math.min(mediaAudio.currentTime + 0.05, 7.5);
+      await advanceFrame();
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    assert.ok(boardRows().some(row => row.text.startsWith("Check")),
+      "future work is no longer held by the frozen page draw loop");
+    mediaAudio.pause();
+    assert.equal(mediaPlayer.store.getSnapshot().status, "paused", "native pause still pauses the resumed player");
+    const pausedAt = mediaPlayer.store.getSnapshot().positionMs;
+    mediaAudio.currentTime = 4.9;
+    await advanceFrame();
+    assert.equal(mediaPlayer.store.getSnapshot().positionMs, pausedAt, "paused native media cannot advance the player clock");
+    mediaPlayer.controls.reviewPage?.(0);
+    assert.equal(mediaPlayer.store.getSnapshot().status, "seeking");
+    await mediaAudio.play();
+    await wait(() => mediaPlayer.store.getSnapshot().status !== "seeking");
+    assert.equal(mediaPlayer.store.getSnapshot().reviewPageIndex, null,
+      "native play during page reconstruction must queue synchronized playback instead of leaving a frozen page");
+    assert.equal(mediaPlayer.store.getSnapshot().status, "playing");
+    mediaAudio.pause();
+    const ordinaryPosition = mediaPlayer.store.getSnapshot().positionMs;
+    await mediaAudio.play();
+    assert.equal(mediaPlayer.store.getSnapshot().status, "playing");
+    assert.equal(mediaPlayer.store.getSnapshot().positionMs, ordinaryPosition,
+      "ordinary native play keeps its existing position when no page is under review");
+    mediaPlayer.controls.reviewPage?.(0);
+    await mediaAudio.play();
+    mediaPlayer.close();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(mediaPlayer.store.getSnapshot().active, false,
+      "close supersedes a queued native review-resume before its reconstruction can publish");
+    const closedStatus = mediaPlayer.store.getSnapshot().status;
+    await mediaAudio.play();
+    assert.equal(mediaPlayer.store.getSnapshot().active, false, "late native play cannot revive a closed player");
+    assert.equal(mediaPlayer.store.getSnapshot().status, closedStatus, "late native play cannot change closed-player status");
+    assert.equal(JSON.stringify(mediaTurn), mediaOriginal, "native resume cannot mutate stored work commands");
+    mediaMount.close();
+    console.log("PASS native media-key play leaves page review, resumes synchronized ink/audio, pauses and cannot revive a closed player");
     const figureTurn = await figureFixture();
     const figureTimeline = buildLecturePlayerTimeline([figureTurn]);
     const figureHooks = load(path.join(app, "features/tutor-session/hooks/useLecturePlayer.ts"), sceneMount, {
