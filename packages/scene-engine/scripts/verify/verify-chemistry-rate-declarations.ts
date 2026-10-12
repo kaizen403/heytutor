@@ -2053,5 +2053,159 @@ for(const c of pairRatioConsensusCases)try {
 }catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
 // END ADDITIVE ARRHENIUS SOURCE-RATIO CONSENSUS GATES
 
+// BEGIN ADDITIVE ARRHENIUS RATIO ROLES AND COMPLETE SCALAR GATES
+const ratioRoleCases:ArrheniusOwnerCase[] = [
+  {
+    "id": "DECLARED-rate-ratio-unread",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.07 s^-1. The ratio is unknown. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "DECLARED-rate-ratio-cannot",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.07 s^-1. The rate-constant ratio cannot be read. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "DECLARED-rate-ratio-later",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.07 s^-1. The ratio is unknown; the ratio is 3.5. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-ratio-terminal-integer",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.04 s^-1. The rate-constant ratio is 2. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "k1": 0.02,
+    "k2": 0.04,
+    "ratio": 2
+  },
+  {
+    "id": "OWN-ratio-terminal-exponent",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.04 s^-1. The rate-constant ratio is 2e0. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "k1": 0.02,
+    "k2": 0.04,
+    "ratio": 2
+  },
+  {
+    "id": "OWN-ratio-continued-wrong-unit",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.04 s^-1. The rate-constant ratio is 2 kg. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-ratio-damaged-exponent",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.04 s^-1. The rate-constant ratio is 2e-. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-ratio-times-disagreement",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.07 s^-1. The ratio is 3.5. The rate becomes 4 times its original value. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-ratio-times-agreement",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.08 s^-1. The ratio is 4. The rate becomes 4 times its original value. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "k1": 0.02,
+    "k2": 0.08,
+    "ratio": 4
+  },
+  {
+    "id": "OWN-ratio-fold-agreement",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.08 s^-1. The ratio is 4. The rate increases 4 fold. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "k1": 0.02,
+    "k2": 0.08,
+    "ratio": 4
+  }
+];
+for(const c of ratioRoleCases)try {
+ const spec=kineticsFromStem(c.question),exact=buildKineticsScene(c.question,[],false),schematic=buildKineticsScene(c.question,[],true),ordinary=synthesizeFamilyScene({question:c.question});
+ if(c.refuse){assert.equal(spec,null,"inconsistent or unread original ratios must not select a replacement scene");assert.equal(exact,null);assert.equal(schematic,null);assert.equal(ordinary,null);}
+ else {
+  assert.ok(spec&&spec.arrhenius);assert.equal(spec.plot,"arrhenius");assert.equal(spec.arrhenius.T1,c.T1);assert.equal(spec.arrhenius.T2,c.T2);assert.ok(spec.arrhenius.k1!==null&&spec.arrhenius.k2!==null);
+  assert.ok(Math.abs(spec.arrhenius.k1-c.k1!)<=Math.abs(c.k1!)*1e-12);assert.ok(Math.abs(spec.arrhenius.k2-c.k2!)<=Math.abs(c.k2!)*1e-12);
+  const solved=solveKinetics(spec),energy=8.314*Math.log(c.k2!/c.k1!)/(1/c.T1!-1/c.T2!);assert.ok(solved.ratio!==null&&solved.Ea!==null);assert.ok(Math.abs(solved.ratio-c.ratio!)<=Math.abs(c.ratio!)*1e-12);assert.ok(Math.abs(solved.Ea-energy)<=Math.abs(energy)*1e-12);
+  assert.ok(exact&&schematic&&ordinary);
+  for(const document of [exact,schematic,ordinary.document]) {
+   assert.equal(document.source?.question,c.question);const valid=validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string,unknown>));assert.ok(valid.document);const compiled=compileSceneDocument(valid.document);assert.ok(compiled.ok&&compiled.renderScene&&compiled.renderScene.primitives.length>0);
+   for(const [id,value,unit] of [["Ea",energy,"J/mol"],["T1",c.T1!,"K"],["T2",c.T2!,"K"],["ratio",c.ratio!,""]] as const){const q=document.quantities.find(q=>q.id===id);assert.ok(q);assert.equal(q.unit,unit);assert.equal(q.value,Number(value.toFixed(6)));}
+   const energyLabel=document.entities.find(e=>e.id==="ea"&&e.kind==="label"&&(e.role==="result"||e.role==="direction marker")&&e.label?.includes("E_a"));assert.ok(energyLabel&&energyLabel.label?.includes("kJ/mol"));assert.ok(compiled.renderScene.primitives.some(p=>p.kind==="label"&&p.entityId===energyLabel.id&&p.text===energyLabel.label));
+  }
+ }
+ results.push({id:c.id,passed:true});
+}catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
+
+const concentrationRatioRequestCases:RateCase[] = [
+  {
+    "id": "REQUEST-concentration-what",
+    "question": "For a first order reaction, the rate constant k is 0.0231 min^-1. What is the ratio of [A] to [A]0 after 60 min? Draw the decay curve.",
+    "refuse": false,
+    "k": 0.0231,
+    "unit": "min",
+    "askTime": 60,
+    "order": 1
+  },
+  {
+    "id": "REQUEST-concentration-find",
+    "question": "For a first order reaction, the rate constant k is 0.02 s^-1. Find the ratio [A]/[A]0 after 30 s and draw its decay curve.",
+    "refuse": false,
+    "k": 0.02,
+    "unit": "s",
+    "askTime": 30,
+    "order": 1
+  },
+  {
+    "id": "REQUEST-concentration-calculate",
+    "question": "A first order reaction has rate constant k = 0.693 h^-1. Calculate the concentration ratio [A]/[A]0 after 2 h and draw the decay curve.",
+    "refuse": false,
+    "k": 0.693,
+    "unit": "h",
+    "askTime": 2,
+    "order": 1
+  },
+  {
+    "id": "REQUEST-concentration-temperature",
+    "question": "For a first order reaction at 300 K, the rate constant k is 0.0231 min^-1. Determine the ratio of remaining concentration to initial concentration after 60 min. Draw concentration versus time.",
+    "refuse": false,
+    "k": 0.0231,
+    "unit": "min",
+    "askTime": 60,
+    "order": 1
+  },
+  {
+    "id": "REQUEST-concentration-remaining",
+    "question": "The rate constant of a first order reaction is 0.01 min^-1. Find the remaining concentration ratio after 100 min and draw the concentration-time curve.",
+    "refuse": false,
+    "k": 0.01,
+    "unit": "min",
+    "askTime": 100,
+    "order": 1
+  }
+];
+for (const c of concentrationRatioRequestCases) try {
+ const spec = kineticsFromStem(c.question), exact = buildKineticsScene(c.question, [], false), schematic = buildKineticsScene(c.question, [], true), ordinary = synthesizeFamilyScene({question: c.question});
+ assert.ok(spec); assert.equal(spec.order, 1); assert.equal(spec.plot, "concentration"); assert.equal(spec.a0, null, "requested concentration operands must not supply initial molarity"); assert.equal(spec.concUnit, null);
+ const solved = solveKinetics(spec), half = Math.LN2 / c.k!, remaining = Math.exp(-c.k! * c.askTime!);
+ assert.equal(solved.timeUnit, c.unit); assert.ok(solved.k !== null && solved.tHalf !== null); assert.ok(Math.abs(solved.k - c.k!) <= Math.abs(c.k!) * 1e-12); assert.ok(Math.abs(solved.tHalf - half) <= Math.abs(half) * 1e-12);
+ const point = solved.remainingAtTimes.find(p => p.time === c.askTime); assert.ok(point); assert.ok(Math.abs(point.remaining - remaining) <= Math.abs(remaining) * 1e-12);
+ assert.ok(exact && schematic && ordinary);
+ for (const document of [exact, schematic, ordinary.document]) {
+  checkDocument(c, document); assert.equal(document.source?.question, c.question); assert.ok(!document.quantities.some(q => q.id === "a0" || q.id === "A0" || q.unit === "M" || q.unit === "mol/L"));
+  const axis = document.entities.find(e => e.id === "p_yl" && e.kind === "label" && e.label === "[A]/[A]_0"); assert.ok(axis);
+  const valid = validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string, unknown>)); assert.ok(valid.document); const compiled = compileSceneDocument(valid.document); assert.ok(compiled.ok && compiled.renderScene);
+  assert.ok(compiled.renderScene.primitives.some(p => p.kind === "label" && p.entityId === axis.id && p.text === axis.label)); assert.ok(!compiled.renderScene.primitives.some(p => p.kind === "label" && /\bM\b|mol\s*\/\s*L/.test(p.text ?? "")));
+ }
+ results.push({id: c.id, passed: true});
+} catch (error) { results.push({id: c.id, passed: false, error: String(error)}); console.error(`FAIL ${c.id}: ${error}`); }
+// END ADDITIVE ARRHENIUS RATIO ROLES AND COMPLETE SCALAR GATES
+
 const output={schema:"chemistry-rate-declarations-gate/v1",passed:results.filter(x=>x.passed).length,failed:results.filter(x=>!x.passed).length,results};
 console.log(JSON.stringify(output,null,2));assert.equal(output.failed,0);

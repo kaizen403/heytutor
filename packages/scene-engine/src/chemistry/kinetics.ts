@@ -365,12 +365,18 @@ const caseWord = (word: string): string => word.replace(/[a-z]/g, letter => `[${
 const RATE_CUE = new RegExp(String.raw`(?:${caseWord("rate constant")}|(?<!\b(?:${caseWord("ln")}|${caseWord("log")})\s*)\bk\b)(?:\s*,?\s*\(?k\)?)?\s*(?:${caseWord("for")}|${caseWord("of")})?\s*(?:${caseWord("the ")}|${caseWord("this ")}|${caseWord("a ")})?(?:${caseWord("reaction")}|${caseWord("it")})?`);
 const ARRHENIUS_RATIO_CUE = new RegExp(String.raw`(?:\b${caseWord("ratio")}\b|k_?2\s*\/\s*k_?1)`, "g");
 /** Every supplied ratio owns its original scalar; a requested ratio is absent. */
-function readArrheniusRatio(stem: string): number | null | false {
+function readArrheniusRatio(stem: string, arrheniusContext = false): number | null | false {
   const body = questionBody(stem);
   const owners = [...body.matchAll(ARRHENIUS_RATIO_CUE)];
+  const concentrationRequests = concentrationRatioRequestSpans(stem);
   let value: number | null = null;
   for (const [index, owner] of owners.entries()) {
     let start = owner.index! + owner[0].length;
+    const prefix = body.slice(0,owner.index);
+    const explicitRate = /^k/.test(owner[0]) || /\brate[ -]?constants?\s+$/i.test(prefix)
+      || /^\s+of\s+(?:the\s+)?rate[ -]?constants?\b/i.test(body.slice(start));
+    if (!explicitRate && concentrationRequests.some(span=>owner.index! >= span.start && owner.index! < span.end)) continue;
+    if (!explicitRate && !arrheniusContext) continue;
     const role = /^\s+of\s+(?:the\s+)?rate[ -]?constants?\b/i.exec(body.slice(start));
     if (role) start += role[0].length;
     const next = owners[index + 1];
@@ -382,14 +388,14 @@ function readArrheniusRatio(stem: string): number | null | false {
     // Its next alias is still audited, so an unread assignment cannot vanish.
     if (next && end === next.index && /^\s*$/.test(tail)
       && (/^k/.test(owner[0]) !== /^k/.test(next[0]))) continue;
-    const prefix = body.slice(0,owner.index);
     const requested = /\b(?:find|calculate|determine|compute|obtain|evaluate|what\s+is)\s+(?:(?:the|its|a)\s+)?(?:(?:rate[ -]?constants?|ratio|k_?2\s*\/\s*k_?1)\s+)?$/i.test(prefix);
     if (requested && (tail.trim() === "" || /^\s+and\s+(?:calculate|find|determine)\s+(?:the\s+)?activation energy\s*$/i.test(tail))) continue;
     const suppliedPrefix = /\b(?:given|supplied|provided|stated|measured|assumed|unknown|unreadable|unavailable)\s+(?:rate[ -]?constants?\s+)?$/i.test(prefix);
     if (!suppliedPrefix && /^\s*is\s+(?:required|to\s+be\s+found)\s*$/i.test(tail)) continue;
     if (/\buse\s+(?:(?:the|its|a)\s+)?(?:known\s+)?(?:ratio\s+)?$/i.test(prefix)
       && /^\s*to\s+(?:draw|plot|sketch)\s+(?:the\s+)?Arrhenius\s+(?:plot|graph)\s*$/i.test(tail)) continue;
-    const read = readChemistryQuantity({question:stem,after:/^/,within:{start,end},dimension:"dimensionless"});
+    const readEnd = end + (body[end] === "." ? 1 : 0);
+    const read = readChemistryQuantity({question:stem,after:/^/,within:{start,end:readEnd},dimension:"dimensionless"});
     if (!read.ok || !(read.reading.value > 0) || body.slice(read.reading.source.span.end,end).trim() !== "") return false;
     if (value !== null && !chemistryCanonicalValuesAgree(value,read.reading.value)) return false;
     value ??= read.reading.value;
@@ -404,6 +410,32 @@ function pureKineticsPlotSubject(subject: string): boolean {
   words = words.replace(/1\s*\/\s*\[[A-Za-z][A-Za-z0-9]*\]/g, " ");
   words = words.replace(/\[[A-Za-z][A-Za-z0-9]*\](?:_?0)?(?:\s*\/\s*\[[A-Za-z][A-Za-z0-9]*\](?:_?0)?)?/g, " ");
   return /^\s*(?:(?:the|its|a|decay|curve|concentration|remaining|fraction|versus|against|vs|time|graph|plot|variation|of|log|ln|normalized|normalised|and|with|t)\b\s*)*$/i.test(words);
+}
+/** A complete requested concentration ratio supplies no initial concentration. */
+function concentrationRatioRequestSpans(question: string): Array<{start:number;end:number}> {
+  const body = questionBody(question);
+  const spans: Array<{start:number;end:number}> = [];
+  for (const owner of body.matchAll(/\bratio\b/gi)) {
+    const prefix = body.slice(0,owner.index);
+    if (!/\b(?:find|calculate|determine|compute|evaluate|what\s+is)\s+(?:(?:the|its|a)\s+)?(?:(?:remaining\s+)?concentration\s+)?$/i.test(prefix)) continue;
+    let start = owner.index! + owner[0].length;
+    const operand = /^\s*(?:of\s+)?(?:\[([A-Za-z][A-Za-z0-9]*)\]\s*(?:to|\/)\s*\[\1\]\s*_?\s*0|remaining concentration\s+to\s+initial concentration)\s*/i.exec(body.slice(start));
+    if (operand) start += operand[0].length;
+    else if (!/\bconcentration\s+$/i.test(prefix)) continue;
+    const after = /^\s*after\s+/i.exec(body.slice(start));
+    if (!after) continue;
+    start += after[0].length;
+    let end = body.length;
+    const clause = /[;?\n]|\.(?=\s|$)/.exec(body.slice(start));
+    if (clause) end = start + clause.index;
+    const time = readChemistryQuantity({question,after:/^/,within:{start,end},dimension:"time"});
+    if (!time.ok || !(time.reading.value > 0)) continue;
+    const tail = body.slice(time.reading.source.span.end,end);
+    const draw = /^\s+and\s+(?:draw|plot|sketch)\s+/i.exec(tail);
+    if (tail.trim() !== "" && !(draw && pureKineticsPlotSubject(tail.slice(draw[0].length).replace(/concentration-time/ig,"concentration time")))) continue;
+    spans.push({start:owner.index!,end});
+  }
+  return spans;
 }
 function pureQuantityRequestTail(tail: string): boolean {
   if (tail.trim() === "") return true;
@@ -552,10 +584,12 @@ function readRateConstant(stem: string, order: ReactionOrder | null = 1): { valu
 }
 function readInitialConcentration(stem: string): {value: number; unit: string} | null | false {
   const body = questionBody(stem);
+  const concentrationRequests = concentrationRatioRequestSpans(stem);
   // Inventory original owner starts, never a wildcard spanning a later owner.
   const owners = [...body.matchAll(/initial concentration|\[a\]\s*_?\s*0|\ba_?0\b|starting concentration/ig)];
   let reading: ChemistryReading | null = null;
   for (const [index, owner] of owners.entries()) {
+    if (concentrationRequests.some(span=>owner.index! >= span.start && owner.index! < span.end)) continue;
     let start = owner.index! + owner[0].length;
     const subject = /^\s+of\s+(?:(?:the|a)\s+)?(?:reactant|substrate|species)(?:\s+[A-Z]\b)?/i.exec(body.slice(start));
     if (subject) start += subject[0].length;
@@ -734,7 +768,8 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
   if (!temperatures) return null;
   const T1 = temperatures.absolute[0] ?? null;
   const T2 = temperatures.absolute[1] ?? (T1 !== null && temperatures.rise !== null ? T1 + temperatures.rise : null);
-  let ratio = readArrheniusRatio(stem);
+  const ratioContext = T1 !== null && T2 !== null || /arrhenius|activation energy|\be_?a\b|frequency factor|pre[ -]?exponential|ln\s*k|log\s*k/.test(lower);
+  let ratio = readArrheniusRatio(stem,ratioContext);
   if (ratio === false) return false;
   const changes = [...stem.matchAll(/\b(?:rate constant|rate|k)\b[^.;]{0,80}?\b(doubl\w*|tripl\w*|quadrupl\w*|twice|halved)\b/gi),
     ...stem.matchAll(/\b(doubl\w*|tripl\w*|quadrupl\w*|halved)\s+(?:(?:the|its)\s+)?(?:rate constant|rate)\b/gi)];
@@ -744,9 +779,12 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
     if (ratio !== null && !chemistryCanonicalValuesAgree(ratio,change)) return false;
     ratio = change;
   }
-  if (ratio === null) {
-    const times = new RegExp(String.raw`(?:rate constant|rate)\b[^.;]{0,80}?(${SCALAR})\s*(?:times|fold)`, "id").exec(stem);
-    ratio = matchedChemistryScalar(stem, times);
+  const timesPattern = new RegExp(String.raw`(?:rate constant|rate)\b[^.;]{0,80}?(${SCALAR})\s*(?:times|fold)`, "gid");
+  for (const times of stem.matchAll(timesPattern)) {
+    const change = matchedChemistryScalar(stem,times);
+    if (change === null) return false;
+    if (ratio !== null && !chemistryCanonicalValuesAgree(ratio,change)) return false;
+    ratio = change;
   }
   const constants: number[] = [];
   let temperatureRates: Array<{temperature:number;rate:number}> | null = null;
