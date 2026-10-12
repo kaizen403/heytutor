@@ -652,7 +652,8 @@ export type PlannerOpticsProof = "not_optics" | "proven" | "unproven";
  * incident ray from the object tip, or is a lens chief ray through the optical
  * centre. Rays the engine traced with `principal_rays` from the image tip need
  * no hand `converges`; two of them prove the rays, and each must meet the
- * element within its drawn half height (P10). Free-point figures, whose
+ * element within its drawn half height (P10). Every other drawn light path, a
+ * third hand ray included, must be a ray the element forms (P11). Free-point figures, whose
  * ratio assertions are self-declared, fail. A model-writable
  * `source.archetype` label is never read.
  *
@@ -868,7 +869,97 @@ function opticsProofFailure(question: string, match: OpticsStemMatch, document: 
     }
   }
   // P10: every traced ray meets the element within its drawn half height.
-  return opticsTracedHitFailure(traced, element, resolved, displayScale, surfaces, document);
+  const tracedFailure = opticsTracedHitFailure(traced, element, resolved, displayScale, surfaces, document);
+  if (tracedFailure) return tracedFailure;
+  // P11: every other drawn light path, converging or not, is a ray the element forms.
+  const converging = new Set(convergence.flatMap((assertion) => assertion.entities.slice(0, -1)));
+  return opticsLightPathFailure(rays, converging, element, image, document, frame, onElement);
+}
+
+/**
+ * P11. Two traced or converging rays prove the image; every other path P7 classes as light (each
+ * segment, ray and vector other than the two arrows, a line named as a ray or extension, a
+ * converging line) must be one too, or the figure draws a ray no element forms. A path is light
+ * when it is
+ * - on the principal axis (the axial ray; also the axis and distances drawn along it);
+ * - on a lens, on the chief line from the object tip through the optical centre, from the object
+ *   tip onward (back to a virtual image when there is one);
+ * - an incident ray: a segment or vector from the object tip to a point S on the element as drawn;
+ * - an emergent ray: it leaves such an S, reached by a drawn incident ray from the object tip, on
+ *   the line from S through the image tip (by the imaging property every ray from the object tip
+ *   does: a parallel ray leaves through or as if from the focus, a focal ray leaves parallel), on
+ *   the side the light leaves toward (beyond a lens, back in front of a mirror), or, for a virtual
+ *   image, back from S as the extension that meets it (drawn to the image or on to the focus).
+ * Everything is evaluated in the element frame (`opticsFrame`); a line is unbounded both ways, so
+ * one is light only along the axis. Element outlines, the element plane and other helper lines
+ * are not paths and are not read.
+ */
+function opticsLightPathFailure(
+  paths: ReadonlySet<OpticsConstruction>,
+  converging: ReadonlySet<string>,
+  element: "lens" | "mirror",
+  image: OpticsConstruction,
+  document: SceneDocument,
+  frame: { point(id: unknown): OpticsFramePoint | null; tolerance: number },
+  onElement: (point: unknown) => boolean,
+): string | null {
+  const [objectBase, objectTip, , imageTip] = image.outputs;
+  const tip = frame.point(objectTip);
+  const target = frame.point(imageTip);
+  if (!tip || !target) return "the object or image tip cannot be placed on the element";
+  const centre: OpticsFramePoint = { a: 0, y: 0 };
+  const tolerance = frame.tolerance;
+  // Light leaves a lens toward +a and a mirror back toward -a; a virtual image lies on the other side.
+  const side = element === "lens" ? 1 : -1;
+  const onLine = (point: OpticsFramePoint, from: OpticsFramePoint, to: OpticsFramePoint) =>
+    Math.abs((to.a - from.a) * (point.y - from.y) - (to.y - from.y) * (point.a - from.a)) <=
+      tolerance * Math.max(1, Math.hypot(to.a - from.a, to.y - from.y));
+  const startOf = (construction: OpticsConstruction) => opticsFirst(construction.inputs,
+    construction.operator === "segment" ? OPTICS_START_KEYS : OPTICS_LINE_START_KEYS);
+  const endOf = (construction: OpticsConstruction) => opticsFirst(construction.inputs, OPTICS_END_KEYS);
+  const incident = (path: OpticsConstruction, hit: unknown) => document.constructions.some((construction) => {
+    if (construction === path || (construction.operator !== "segment" && construction.operator !== "vector")) return false;
+    return (startOf(construction) === objectTip && endOf(construction) === hit) ||
+      (construction.operator === "segment" && startOf(construction) === hit && endOf(construction) === objectTip);
+  });
+  for (const path of paths) {
+    const id = path.outputs[0] ?? path.id;
+    const name = converging.has(id) ? `converging line ${id}` : `ray ${id}`;
+    const startId = startOf(path);
+    const endId = endOf(path);
+    const start = frame.point(startId);
+    const end = frame.point(endId);
+    if (!start || !end) return `${name} has an endpoint the proof cannot place on the element`;
+    // The axial extent the drawn path covers: a segment or vector between its ends, a ray from its
+    // start through its end and on, a line both ways.
+    const run = end.a - start.a;
+    const low = path.operator === "line" || (path.operator === "ray" && run < 0) ? Number.NEGATIVE_INFINITY : Math.min(start.a, end.a);
+    const high = path.operator === "line" || (path.operator === "ray" && run > 0) ? Number.POSITIVE_INFINITY : Math.max(start.a, end.a);
+    if (Math.abs(start.y) <= tolerance && Math.abs(end.y) <= tolerance) continue;
+    if (element === "lens" && onLine(start, centre, tip) && onLine(end, centre, tip)) {
+      if (low >= Math.min(tip.a, target.a) - tolerance) continue;
+      return `chief ray ${id} runs back past the object tip, where no light on the line through the optical centre goes`;
+    }
+    if ((path.operator === "segment" && ((startId === objectTip && onElement(endId)) || (endId === objectTip && onElement(startId)))) ||
+      (path.operator === "vector" && startId === objectTip && onElement(endId))) continue;
+    const undirected = path.operator === "segment" || path.operator === "line";
+    const hit = onElement(startId) ? startId : undirected && onElement(endId) ? endId : undefined;
+    if (hit === undefined) {
+      return `${name} neither runs from the object tip to the ${element} nor leaves it${startId === objectBase || endId === objectBase ? " (it touches the object base)" : ""}`;
+    }
+    if (!incident(path, hit)) return `${name} has no drawn incident ray from the object tip to ${String(hit)}`;
+    const leave = frame.point(hit)!;
+    if (!onLine(start, leave, target) || !onLine(end, leave, target)) {
+      return `${name} leaves the ${element} at ${String(hit)} off the line to the image tip (a parallel ray leaves through or as if from the focus, a focal ray leaves parallel)`;
+    }
+    // Along this line the light runs from S to the leaving side. Back from S it is only the
+    // extension of a virtual image's ray, drawn to the image or on to the focus.
+    const nearest = side > 0 ? low : -high;
+    if (side * target.a > 0 && !(nearest >= -tolerance)) {
+      return `${name} runs ${element === "lens" ? "back across the lens toward the object" : "behind the mirror"} where its light does not go`;
+    }
+  }
+  return null;
 }
 
 interface OpticsFramePoint { a: number; y: number }

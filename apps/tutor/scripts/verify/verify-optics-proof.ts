@@ -73,6 +73,14 @@
  * declared as 12) and the object distance offered as f (by id p or inline)
  * still fail scene_quantity_unverified and never draw, on the lens and on the
  * "-6.25 D" spectacle lens whose plan calls u p.
+ * G19: every drawn light path is a ray the element forms, not only the two that
+ * prove the image. Beside three traced rays on the review's lens (2 cm tall, 30 cm,
+ * f 10 cm), a segment from the object base to the image tip, a hand parallel ray
+ * bent back to F1 or refracted to the image base, a vector from the object tip to
+ * F2 or from the image tip to F1, the parallel ray's true line drawn back across the
+ * lens, a refracted ray with no incident ray, and a concave mirror's parallel ray
+ * drawn on behind the mirror all stay unproven and never draw. Traced rays alone,
+ * and a correct hand parallel or focal ray beside two traced ones, still draw.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -1209,7 +1217,83 @@ const expectUnproven = (gate: string, name: string, question: string, document: 
   }
 }
 
-for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18"]) {
+// ---- G19: every drawn light path is a ray the element forms, not only the two that prove the image ----
+{
+  const qTall = "An object 2 cm tall is placed at 30 cm from a convex lens of focal length 10 cm. Draw the ray diagram.";
+  const tallPlan = plan(qTall, [
+    { id: "h", symbol: "h_o", value: 2, unit: "cm", provenance: "given", sourceText: "2 cm tall" },
+    { id: "u", symbol: "u", value: 30, unit: "cm", provenance: "given", sourceText: "at 30 cm" },
+    { id: "f", symbol: "f", value: 10, unit: "cm", provenance: "given", sourceText: "focal length 10 cm" },
+  ], [{ id: "v", symbol: "v", value: 15, unit: "cm", provenance: "derived" }], ["lens_formula"]);
+  const tallLens = (rays: string[]) => traced(lensDoc(qTall, { u: 30, f: 10, h: 2 }), rays);
+  /**
+   * Hand paths beside traced rays. On hand: S, where a parallel ray from the object tip meets the
+   * element plane; S2, where the focal ray does (the image tip's height); Sback, a focus turned half
+   * a turn about S, which lies on the parallel ray's true line on the side its light never reaches.
+   */
+  const handPaths = (base: Doc, plane: string, focus: string, paths: Array<[id: string, operator: string, start: string, end: string]>): Doc => {
+    const document = structuredClone(base);
+    // Only the helpers a path reads, so no helper is left unrequired.
+    const ends = new Set(paths.flatMap(([, , start, end]) => [start, end]));
+    if (ends.has("Sback")) ends.add("S");
+    const helpers = ([
+      { id: "c_lp", operator: "perpendicular_through", inputs: { through: plane, line: "axis" }, outputs: ["lp"] },
+      { id: "c_S", operator: "project", inputs: { point: "ot", line: "lp" }, outputs: ["S"] },
+      { id: "c_S2", operator: "project", inputs: { point: "it", line: "lp" }, outputs: ["S2"] },
+      { id: "c_Sback", operator: "rotate", inputs: { point: focus, center: "S", angle: 180, angleUnit: "degrees" }, outputs: ["Sback"] },
+    ] as Construction[]).filter((helper) => helper.id === "c_lp" ? ["S", "S2"].some((id) => ends.has(id)) : ends.has(helper.outputs[0]!));
+    document.constructions.push(...helpers,
+      ...paths.map(([id, operator, start, end]) => ({ id: `c_${id}`, operator, inputs: { start, end }, outputs: [id] }) as Construction));
+    document.entities.push(...helpers.map((helper) => ent(helper.outputs[0]!, helper.id === "c_lp" ? "line" : "point", "construction helper")),
+      ...paths.map(([id, operator]) => ent(id, operator, "light ray")));
+    document.requiredEntityIds.push(...paths.map(([id]) => id));
+    document.revealGroups = document.revealGroups.map((group) =>
+      group.id === "rays" ? { ...group, entityIds: [...group.entityIds, ...paths.map(([id]) => id)] } : group);
+    return document;
+  };
+  const lensWith = (paths: Array<[string, string, string, string]>, rays = ["parallel", "focal", "central"]) =>
+    handPaths(tallLens(rays), "O", "F2", paths);
+  const mirrorWith = (paths: Array<[string, string, string, string]>, rays = ["parallel", "central"]) =>
+    handPaths(traced(goodMirror, rays), "P", "F", paths);
+  // The review's figures: each carries three traced rays that prove the image, plus one wrong ray.
+  for (const [name, question, turnPlan, document, reason] of [
+    ["a segment from the object base to the image tip", qTall, tallPlan, lensWith([["x1", "segment", "ob", "it"]]),
+      /^ray x1 neither runs from the object tip to the lens nor leaves it \(it touches the object base\)$/],
+    ["a hand parallel ray bent back to F1", qTall, tallPlan, lensWith([["x1", "segment", "ot", "S"], ["x2", "segment", "S", "F1"]]),
+      /^ray x2 leaves the lens at S off the line to the image tip/],
+    ["a hand parallel ray refracted to the image base, on the far side but off its line", qTall, tallPlan,
+      lensWith([["x1", "segment", "ot", "S"], ["x2", "segment", "S", "ib"]]), /^ray x2 leaves the lens at S off the line to the image tip/],
+    ["a vector from the object tip straight to F2", qTall, tallPlan, lensWith([["x1", "vector", "ot", "F2"]]),
+      /^ray x1 neither runs from the object tip to the lens nor leaves it$/],
+    ["a vector from the image tip back to F1", qTall, tallPlan, lensWith([["x1", "vector", "it", "F1"]]),
+      /^ray x1 neither runs from the object tip to the lens nor leaves it$/],
+    ["the parallel ray's true line drawn back across the lens", qTall, tallPlan, lensWith([["x1", "segment", "ot", "S"], ["x2", "segment", "S", "Sback"]]),
+      /^ray x2 runs back across the lens toward the object/],
+    ["a refracted ray with no incident ray", qTall, tallPlan, lensWith([["x1", "ray", "S", "F2"]]),
+      /^ray x1 has no drawn incident ray from the object tip to S$/],
+    ["a concave mirror's parallel ray drawn on behind the mirror", qMirror, mirrorPlan, mirrorWith([["x1", "segment", "ot", "S"], ["x2", "segment", "S", "Sback"]]),
+      /^ray x2 runs behind the mirror/],
+  ] as const) {
+    expectUnproven("G19", name, question, document, reason);
+    expectNeverPlanner("G19", name, question, turnPlan, document);
+  }
+  // Controls: traced rays alone, and a correct hand third ray beside two traced ones, still prove and draw.
+  for (const [name, question, turnPlan, document] of [
+    ["the review's lens with only its three traced rays", qTall, tallPlan, tallLens(["parallel", "focal", "central"])],
+    ["a hand focal ray (ot to S2, then on through the image tip) beside traced parallel and central rays", qTall, tallPlan,
+      lensWith([["x1", "segment", "ot", "S2"], ["x2", "ray", "S2", "it"]], ["parallel", "central"])],
+    ["a hand parallel ray (ot to S, then on through F2) beside traced focal and central rays", qTall, tallPlan,
+      lensWith([["x1", "segment", "ot", "S"], ["x2", "ray", "S", "F2"]], ["focal", "central"])],
+    ["a concave mirror's hand focal ray beside traced parallel and central rays", qMirror, mirrorPlan,
+      mirrorWith([["x1", "segment", "ot", "S2"], ["x2", "segment", "S2", "it"]])],
+  ] as const) {
+    const result = explainPlannerOpticsProof(question, document);
+    check("G19", result.proof === "proven", `${name} must be proven; got ${result.proof}: ${result.reason}`);
+    expectDrawnAsPlanner("G19", name, question, turnPlan, document);
+  }
+}
+
+for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19"]) {
   console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 }
 if (failures.length > 0) {
