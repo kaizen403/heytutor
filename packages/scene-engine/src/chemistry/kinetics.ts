@@ -384,7 +384,17 @@ function readRateConstant(stem: string, order: ReactionOrder | null = 1): { valu
       && /^k\b/.test(next[0]) && /^\s*(?:(?:is|was|equals|equal to)|[=:])?\s*$/i.test(tail)) continue;
     const supplied = /^\s*,?\s*(?:[=:]|(?:is|was|are|equals|equal to|has|takes|value|given|stated|measured|assumed|supplied|provided|with\s+(?:the\s+)?value|unknown|unreadable|unavailable)\b)/i.test(tail)
       || new RegExp(String.raw`^\s*,?\s*(?:(?:of|about|nearly|approximately)\s+)?(?:${SCALAR}|unknown\b|unreadable\b|unavailable\b)`, "i").test(tail);
-    if (!supplied) continue; // Requested/qualitative mentions supply no rate.
+    if (!supplied) {
+      // Only a proved request, mathematical coefficient or qualitative change
+      // omits a rate. Opaque declaration payloads are not absence.
+      const unread = /\b(?:unknown|unreadable|unavailable|not known|not given|not supplied)\b/i.test(tail);
+      const requested = /\b(?:find|calculate|determine|compute|obtain|evaluate|what\s+(?:is|would\s+be|will\s+be))\s+(?:(?:the|its|a)\s+)?$/i.test(body.slice(0, owner.index));
+      const requestTail = /^\s*(?:and\s+(?:draw|plot|sketch)\b[^;?\n]*)?$/i.test(tail);
+      const qualitative = /^\s*(?:doubl\w*|tripl\w*|quadrupl\w*|halved)\b/i.test(tail);
+      const coefficient = /^\s*\[[A-Za-z][A-Za-z0-9]*\](?:\s*\^\s*[0-9]+)?\s*$/.test(tail);
+      if (!unread && ((requested && requestTail) || qualitative || coefficient)) continue;
+      return false;
+    }
     const read = readChemistryQuantity({question: stem, after: /^/, within: {start, end}, dimension});
     if (!read.ok || !(read.reading.value > 0)) return false;
     if (reading && !chemistryCanonicalValuesAgree(reading.value, read.reading.value)) return false;
@@ -395,9 +405,34 @@ function readRateConstant(stem: string, order: ReactionOrder | null = 1): { valu
   const unit = /min/i.test(raw) ? "min" : /h(?:r|our)?/i.test(raw) ? "h" : /day/i.test(raw) ? "days" : /year|yr/i.test(raw) ? "yr" : "s";
   return {value: reading.value * convertTime(1, unit, "s"), unit};
 }
-function readInitialConcentration(stem: string): {value: number; unit: string} | null {
-  const read = readChemistryQuantity({question: stem, after: /(?:initial concentration(?:[^.;=]{0,60}?(?:is|=|:))?|\[a\]\s*_?\s*0|\ba_?0\b|starting concentration)/, dimension: "concentration"});
-  return read.ok ? {value: read.reading.value, unit: "M"} : null;
+function readInitialConcentration(stem: string): {value: number; unit: string} | null | false {
+  const body = questionBody(stem);
+  // Inventory original owner starts, never a wildcard spanning a later owner.
+  const owners = [...body.matchAll(/initial concentration|\[a\]\s*_?\s*0|\ba_?0\b|starting concentration/ig)];
+  let reading: ChemistryReading | null = null;
+  for (const [index, owner] of owners.entries()) {
+    let start = owner.index! + owner[0].length;
+    const subject = /^\s+of\s+(?:(?:the|a)\s+)?(?:reactant|substrate|species)(?:\s+[A-Z]\b)?/i.exec(body.slice(start));
+    if (subject) start += subject[0].length;
+    const next = owners[index + 1];
+    let end = next?.index ?? body.length;
+    const clause = /[;?\n]|\.(?=\s|$)/.exec(body.slice(start, end));
+    if (clause) end = start + clause.index;
+    const tail = body.slice(start, end);
+    // A denominator reference in [A]/[A]_0 is not a supplied A_0 value.
+    if (/^\[a\]/i.test(owner[0]) && (/\/\s*$/.test(body.slice(0, owner.index))
+      || /^\s*\/\s*\[a\]/i.test(tail))) continue;
+    if (next && end === next.index && /concentration/i.test(owner[0])
+      && /^(?:\[a\]|a_?0\b)/i.test(next[0]) && /^\s*(?:(?:is|was|equals|equal to)|[=:])?\s*$/i.test(tail)) continue;
+    const requested = /\b(?:find|calculate|determine|compute|obtain|evaluate|what\s+(?:is|would\s+be|will\s+be))\s+(?:(?:the|its|a)\s+)?$/i.test(body.slice(0, owner.index));
+    if (requested && /^\s*(?:and\s+(?:draw|plot|sketch)\b[^;?\n]*)?$/i.test(tail)
+      && !/\b(?:unknown|unreadable|unavailable|given|supplied|provided)\b/i.test(tail)) continue;
+    const read = readChemistryQuantity({question: stem, after: /^/, within: {start, end}, dimension:"concentration"});
+    if (!read.ok || !(read.reading.value > 0)) return false;
+    if (reading && !chemistryCanonicalValuesAgree(reading.value, read.reading.value)) return false;
+    reading ??= read.reading;
+  }
+  return reading ? {value: reading.value, unit:"M"} : null;
 }
 
 /** "50 % of A is decomposed in 120 min" and its relatives. */
@@ -602,7 +637,6 @@ export function kineticsFromStem(question: string, quantities: readonly ChemPlan
     {after: HALF_LIFE_CUE, dimensions: ["time"]},
     {after: ACTIVATION_CUE, dimensions: ["molar_energy"]},
     {after: TEMPERATURE_RISE_CUE, dimensions: ["temperature_delta"]},
-    {after: /initial concentration/, dimensions: ["concentration"]},
   ])) return null;
   const body = questionBody(question);
   const stem = chemStem(body);
@@ -620,6 +654,7 @@ export function kineticsFromStem(question: string, quantities: readonly ChemPlan
   if (kRead === false) return null;
   if (kRead) { k = kRead.value; kUnit = kRead.unit; }
   const a0Read = readInitialConcentration(body);
+  if (a0Read === false) return null;
   const a0 = a0Read?.value ?? null; const concUnit = a0 !== null ? "M" : null;
 
   const given = readCompletionGiven(body);

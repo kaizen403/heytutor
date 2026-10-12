@@ -252,5 +252,215 @@ for(const c of cases)try {
  }
  results.push({id:c.id,passed:true});
 }catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
+
+// BEGIN ADDITIVE RATE-OPAQUE AND INITIAL-CONCENTRATION OWNER GATES
+const additionalRateCases:RateCase[] = [
+  {
+    "id": "RATE-OPAQUE-UNREAD-1",
+    "question": "For a first order reaction, the rate constant remains unknown; the rate constant is 0.0231 min^-1. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "RATE-OPAQUE-UNREAD-2",
+    "question": "A first order reaction has a rate constant which is unknown; k = 0.0231 min^-1. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "RATE-OPAQUE-UNREAD-3",
+    "question": "The rate constant for a first order reaction when measured is unreadable; rate constant is 0.0231 min^-1. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "RATE-OPAQUE-UNREAD-4",
+    "question": "A first order reaction has a rate constant in this experiment is unavailable; k = 0.0231 min^-1. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "RATE-OPAQUE-UNREAD-5",
+    "question": "A first order reaction has a rate constant, previously reported unknown; k = 0.0231 min^-1. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-opaque-rate-remains",
+    "question": "A first order reaction has k remains unknown; k = 0.0231 min^-1. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-opaque-rate-reported",
+    "question": "A first order reaction has rate constant was reported as unknown and k = 0.0231 min^-1. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-opaque-rate-temperature",
+    "question": "The rate constant of a first order reaction at this temperature is unavailable; k = 0.0231 min^-1. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-opaque-rate-numeric",
+    "question": "A first order reaction has rate constant remains 2 kg; its half life is 30 min. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-opaque-rate-request",
+    "question": "Find the rate constant which is unknown for a first order reaction whose half life is 30 min. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-asked-rate-and-plot",
+    "question": "A first order reaction has half life 30 min. Find its rate constant and plot the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "half": 30,
+    "unit": "min"
+  }
+];
+for(const c of additionalRateCases)try {
+ const spec=kineticsFromStem(c.question),exact=buildKineticsScene(c.question,[],false),schematic=buildKineticsScene(c.question,[],true),ordinary=synthesizeFamilyScene({question:c.question});
+ if(c.refuse){assert.equal(spec,null);assert.equal(exact,null);assert.equal(schematic,null);assert.equal(ordinary,null);}
+ else {
+  assert.ok(spec);const solved=solveKinetics(spec),truth=expected(c);
+  assert.ok(solved.k!==null&&solved.tHalf!==null);assert.equal(solved.timeUnit,c.unit);
+  assert.ok(Math.abs(solved.k-truth.k)<=Math.abs(truth.k)*1e-12);assert.ok(Math.abs(solved.tHalf-truth.half)<=Math.abs(truth.half)*1e-12);
+  assert.ok(exact&&schematic&&ordinary);for(const document of [exact,schematic,ordinary.document])checkDocument(c,document);
+ }
+ results.push({id:c.id,passed:true});
+}catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
+interface InitialCase {id:string;question:string;refuse:boolean;initial?:number|null;half?:number}
+const initialCases:InitialCase[] = [
+  {
+    "id": "INITIAL-UNREAD-1",
+    "question": "A first order reaction has initial concentration unknown; initial concentration is 2 M. Its rate constant is 0.0231 min^-1. Draw concentration versus time.",
+    "refuse": true
+  },
+  {
+    "id": "INITIAL-UNREAD-2",
+    "question": "A first order reaction has initial concentration is 2 M; initial concentration is unreadable. Its rate constant is 0.0231 min^-1. Draw concentration versus time.",
+    "refuse": true
+  },
+  {
+    "id": "INITIAL-UNREAD-3",
+    "question": "For a first order reaction, initial concentration = unknown, then initial concentration = 2 mol/L. k = 0.0231 min^-1. Plot the concentration against time.",
+    "refuse": true
+  },
+  {
+    "id": "INITIAL-UNREAD-4",
+    "question": "The initial concentration is unreadable. The initial concentration is 2 M and the first order rate constant is 0.0231 min^-1. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "INITIAL-UNREAD-5",
+    "question": "A first order reaction has initial concentration = 2 kg; initial concentration = 2 M; k = 0.0231 min^-1. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-initial-comma-unread",
+    "question": "A first order reaction has initial concentration unknown, initial concentration is 2 M. Its rate constant is 0.0231 min^-1. Draw the decay curve.",
+    "refuse": true,
+    "initial": null
+  },
+  {
+    "id": "OWN-initial-alias-unread",
+    "question": "A first order reaction has [A]_0 = unknown; initial concentration is 2 M. Its rate constant is 0.0231 min^-1. Draw the decay curve.",
+    "refuse": true,
+    "initial": null
+  },
+  {
+    "id": "OWN-initial-A0-unread",
+    "question": "A first order reaction has A0 has value unreadable; starting concentration is 2 M. Its rate constant is 0.0231 min^-1. Draw the decay curve.",
+    "refuse": true,
+    "initial": null
+  },
+  {
+    "id": "OWN-initial-later-unread",
+    "question": "A first order reaction has initial concentration = 2 M; starting concentration remains unknown. Its rate constant is 0.0231 min^-1. Draw the decay curve.",
+    "refuse": true,
+    "initial": null
+  },
+  {
+    "id": "OWN-initial-conflict",
+    "question": "A first order reaction has initial concentration is 2 M; A0 = 3 M. Its rate constant is 0.0231 min^-1. Draw the decay curve.",
+    "refuse": true,
+    "initial": null
+  },
+  {
+    "id": "OWN-initial-wrong-unit",
+    "question": "A first order reaction has initial concentration is 2 kg; A0 = 2 M. Its rate constant is 0.0231 min^-1. Draw the decay curve.",
+    "refuse": true,
+    "initial": null
+  },
+  {
+    "id": "OWN-initial-missing-unit",
+    "question": "A first order reaction has initial concentration is 2; [A]_0 = 2 M. Its rate constant is 0.0231 min^-1. Draw the decay curve.",
+    "refuse": true,
+    "initial": null
+  },
+  {
+    "id": "OWN-initial-damaged",
+    "question": "A first order reaction has starting concentration = 1e- M; initial concentration is 2 M. Its rate constant is 0.0231 min^-1. Draw the decay curve.",
+    "refuse": true,
+    "initial": null
+  },
+  {
+    "id": "OWN-initial-agree",
+    "question": "A first order reaction has initial concentration is 2 M; initial concentration is 2 mol/L. Its rate constant is 0.0231 min^-1. Draw the decay curve.",
+    "refuse": false,
+    "initial": 2
+  },
+  {
+    "id": "OWN-initial-alias-agree",
+    "question": "A first order reaction has starting concentration = 2 M; [A]_0 = 2 mol L^-1. Its rate constant is 0.0231 min^-1. Draw the decay curve.",
+    "refuse": false,
+    "initial": 2
+  },
+  {
+    "id": "OWN-initial-named-symbol",
+    "question": "A first order reaction has initial concentration is A0 = 2 M. Its rate constant is 0.0231 min^-1. Draw the decay curve.",
+    "refuse": false,
+    "initial": 2
+  },
+  {
+    "id": "OWN-initial-reactant-subject",
+    "question": "A first order reaction has initial concentration of the reactant is 2 M. Its rate constant is 0.0231 min^-1. Draw the decay curve.",
+    "refuse": false,
+    "initial": 2
+  },
+  {
+    "id": "OWN-initial-absent",
+    "question": "A first order reaction has k = 0.0231 min^-1. Draw the decay curve.",
+    "refuse": false,
+    "initial": null
+  },
+  {
+    "id": "OWN-initial-denominator-reference",
+    "question": "A first order reaction has half life 20 min. Draw [A]/[A]_0 versus time and find when one fourth remains.",
+    "refuse": false,
+    "initial": null,
+    "half": 20
+  },
+  {
+    "id": "OWN-initial-numerator-reference",
+    "question": "A first order reaction has k = 0.0231 min^-1. Draw log([A]_0/[A]) versus time.",
+    "refuse": false,
+    "initial": null
+  }
+];
+for(const c of initialCases)try {
+ const spec=kineticsFromStem(c.question),exact=buildKineticsScene(c.question,[],false),schematic=buildKineticsScene(c.question,[],true),ordinary=synthesizeFamilyScene({question:c.question});
+ if(c.refuse){assert.equal(spec,null);assert.equal(exact,null);assert.equal(schematic,null);assert.equal(ordinary,null);}
+ else {
+  assert.ok(spec);assert.equal(spec.a0,c.initial??null);assert.equal(spec.concUnit,c.initial===null?null:"M");
+  const solved=solveKinetics(spec),k=c.half===undefined?0.0231:Math.LN2/c.half;
+  assert.ok(solved.k!==null&&solved.tHalf!==null);assert.ok(Math.abs(solved.k-k)<=Math.abs(k)*1e-12);assert.ok(Math.abs(solved.tHalf-Math.LN2/k)<=Math.abs(Math.LN2/k)*1e-12);
+  assert.ok(exact&&schematic&&ordinary);
+  for(const document of [exact,schematic,ordinary.document]) {
+   const valid=validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string,unknown>));assert.ok(valid.document,JSON.stringify(valid.report.issues));
+   const compiled=compileSceneDocument(valid.document);assert.ok(compiled.ok&&compiled.renderScene,JSON.stringify(compiled.report.issues));
+   assert.ok(!/NaN|Infinity|undefined/.test(compiled.renderScene.primitives.filter(p=>p.kind==="label").map(p=>p.text??"").join(" ")));
+  }
+ }
+ results.push({id:c.id,passed:true});
+}catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
+// END ADDITIVE RATE-OPAQUE AND INITIAL-CONCENTRATION OWNER GATES
+
 const output={schema:"chemistry-rate-declarations-gate/v1",passed:results.filter(x=>x.passed).length,failed:results.filter(x=>!x.passed).length,results};
 console.log(JSON.stringify(output,null,2));assert.equal(output.failed,0);
