@@ -64,7 +64,7 @@ import {
 } from "./annotationMarks";
 import { appendCompiledAnnotations } from "./sceneAnnotations";
 import { lensSectionOutline, sphericalSurfaceGeometry } from "./opticsSurfaces";
-import { clipLightPathsAtElements, truncateRenderedPath } from "./lightPathElements";
+import { acuteNormalArm, clipLightPathsAtElements, truncateRenderedPath } from "./lightPathElements";
 import { readPolyhedralSolid, polyhedralPaths, polyhedralSection, type PolyhedralSolid } from "../math/polyhedralSolid";
 import { evaluateCombinatoricsConstruction, type CombinatoricsGraphDefinition, type CombinatoricsNodeDefinition, type CombinatoricsEdgeDefinition } from "./combinatoricsGeometry";
 import { evaluateElasticityConstruction, type ElasticProfileDefinition, type ElasticStateDefinition } from "./elasticityGeometry";
@@ -189,7 +189,7 @@ type DerivedGeometryMetadata = {
 
 type Geometry =
   | ({ kind: "point"; point: Point; space?: Vec3; spaceFrameId?: string; spaceCross?: SpaceCrossDefinition; sampledCurve?: SampledCurve } & DerivedGeometryMetadata)
-  | ({ kind: "path"; points: Point[]; closed?: boolean; directed?: boolean; infinite?: boolean; elementClip?: Point; sampledCurve?: SampledCurve; markedAngleRadians?: number; spaceLine?: SpaceLineDefinition; spacePlane?: SpacePlaneDefinition; spaceSegment?: SpaceSegmentDefinition; spaceAngle?: SpaceAngleDefinition; spaceCross?: SpaceCrossDefinition } & DerivedGeometryMetadata)
+  | ({ kind: "path"; points: Point[]; closed?: boolean; directed?: boolean; infinite?: boolean; elementClip?: Point; throughFoot?: Point; sampledCurve?: SampledCurve; markedAngleRadians?: number; spaceLine?: SpaceLineDefinition; spacePlane?: SpacePlaneDefinition; spaceSegment?: SpaceSegmentDefinition; spaceAngle?: SpaceAngleDefinition; spaceCross?: SpaceCrossDefinition } & DerivedGeometryMetadata)
   | ({
       kind: "multi_path";
       paths: Point[][];
@@ -1670,8 +1670,21 @@ function evaluateConstruction(
     }
     case "angle_mark": {
       const vertex = point(["vertex"]);
-      const a = resolveAngleArmPoint(first(inputs, ["a", "first"]), vertex, geometry);
-      const b = resolveAngleArmPoint(first(inputs, ["b", "second"]), vertex, geometry);
+      const aRef = first(inputs, ["a", "first"]);
+      const bRef = first(inputs, ["b", "second"]);
+      let a = resolveAngleArmPoint(aRef, vertex, geometry);
+      let b = resolveAngleArmPoint(bRef, vertex, geometry);
+      // An angle between a normal and a light path uses the normal half on
+      // the path's side; that half is then drawn through the contact.
+      const acute = acuteNormalArm(document, vertex, { ref: aRef, point: a }, { ref: bRef, point: b });
+      if (acute) {
+        if (acute.arm === "first") a = acute.point;
+        else b = acute.point;
+        const normal = geometry.get(acute.normalId);
+        if (normal?.kind === "path" && !normal.infinite && normal.points.length === 2) {
+          geometry.set(acute.normalId, { ...normal, throughFoot: vertex });
+        }
+      }
       const radius = inputs.radius === undefined
         ? Math.min(distance(vertex, a), distance(vertex, b)) * 0.2
         : positive(resolveNumber(inputs.radius, quantities), "radius");
@@ -2449,6 +2462,17 @@ function toPrimitives(entityId: string, entityKind: string, value: Geometry, gro
         viewport,
       )
     : transformedPoints;
+  // A normal whose far half carries an angle mark is drawn through its foot.
+  if (value.throughFoot && !value.infinite && value.points.length === 2 && renderPoints.length === 2) {
+    const foot = transform(value.throughFoot);
+    const [start, end] = renderPoints as [RenderPoint, RenderPoint];
+    const footAtStart = distance(start, foot) <= distance(end, foot);
+    const far = footAtStart ? end : start;
+    const mirrored = { x: round(2 * foot.x - far.x), y: round(2 * foot.y - far.y) };
+    // Only the added half is held inside the view; the drawn half keeps its extent.
+    const tail = clipSegmentToView(foot, mirrored, viewport)?.[1];
+    if (tail) renderPoints = footAtStart ? [tail, far] : [far, tail];
+  }
   // A light path cut at an optical element stops there, inside or past the view clip.
   if (value.elementClip && renderPoints.length >= 2) {
     const clip = transform(value.elementClip);

@@ -421,3 +421,33 @@ function truncatePoints(points: Point[], s: number, hit: Point): Point[] {
   kept.push(hit);
   return kept;
 }
+
+/**
+ * A refraction or reflection angle is measured from the half of the normal
+ * on the ray's side, so it is always acute. `refract_at` emits its normal on
+ * the incident side only, and an arc from that half to the refracted ray drew
+ * the 136 to 151 degree supplement. Returns the mirrored arm point when one
+ * arm is a declared normal and the other a light path meeting at an obtuse
+ * angle, else null. A repair: it never declines a figure.
+ */
+export function acuteNormalArm(
+  document: SceneDocument,
+  vertex: Point,
+  first: { ref: unknown; point: Point },
+  second: { ref: unknown; point: Point },
+): { arm: "first" | "second"; normalId: string; point: Point } | null {
+  const roles = opticsRoles(document);
+  if (!roles) return null;
+  const mirrored = (normal: { ref: unknown; point: Point }, path: { ref: unknown; point: Point }): Point | null => {
+    if (typeof normal.ref !== "string" || typeof path.ref !== "string") return null;
+    if (!roles.normals.has(normal.ref) || !roles.lightPaths.has(path.ref)) return null;
+    const dot = (normal.point.x - vertex.x) * (path.point.x - vertex.x) + (normal.point.y - vertex.y) * (path.point.y - vertex.y);
+    if (!(dot < 0)) return null;
+    return { x: 2 * vertex.x - normal.point.x, y: 2 * vertex.y - normal.point.y };
+  };
+  const firstMirror = mirrored(first, second);
+  if (firstMirror) return { arm: "first", normalId: first.ref as string, point: firstMirror };
+  const secondMirror = mirrored(second, first);
+  if (secondMirror) return { arm: "second", normalId: second.ref as string, point: secondMirror };
+  return null;
+}

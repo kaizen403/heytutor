@@ -16,6 +16,10 @@
  * deviation, a ray through a thin lens centre, a reflection that stops at the
  * mirror) must render exactly as they did.
  *
+ * An angle mark between a normal and a light path at a contact is the acute
+ * angle: `refract_at` emits its normal on the incident side only, and the arc
+ * from that half to the refracted ray drew the 136 to 151 degree supplement.
+ *
  *   pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-ray-optics-paths.ts
  */
 import { compileSceneDocument, validateSceneDocument } from "../../src";
@@ -320,6 +324,68 @@ check("control: a reflection that stops at the mirror is unchanged", () => {
   const hit = stroke(primitives, "hit").points[0]!;
   if (dist(incident.points.at(-1)!, hit) > 0.5 || dist(reflected.points[0]!, hit) > 0.5) return "rays no longer meet at the point of incidence";
   if (Math.abs(length(incident) - length(reflected)) > 1) return `reflected ray drawn ${length(reflected).toFixed(1)} px against the incident ${length(incident).toFixed(1)} px of the same span`;
+  return null;
+});
+
+// Recorded m1 refraction h8a: water to crown glass is drawn from glass (n = 1.52) into water
+// (n = 1.33) at 37 degrees; r = asin(1.52 sin 37 / 1.33) = 43.46 degrees. The arc from the
+// incident side normal to the refracted ray measured the 136.5 degree supplement.
+function refractionArcs(mode: "refract" | "reflect") {
+  return scene(mode === "refract" ? "A ray refracts at a plane interface." : "A ray reflects from a plane mirror.", [
+    { id: "a", kind: "point", role: "interface end" },
+    { id: "b", kind: "point", role: "interface end" },
+    { id: "interface", kind: "segment", role: mode === "refract" ? "interface" : "plane mirror" },
+    { id: "contact", kind: "point", role: "point of incidence" },
+    { id: "incident", kind: "ray", role: "incident ray" },
+    { id: "normal", kind: "segment", role: "normal" },
+    { id: "outgoing", kind: "ray", role: mode === "refract" ? "refracted ray" : "reflected ray" },
+    { id: "incidenceAngle", kind: "angle_mark", role: "angle of incidence", label: "i" },
+    { id: "outgoingAngle", kind: "angle_mark", role: mode === "refract" ? "angle of refraction" : "angle of reflection", label: "r" },
+  ], [
+    point("a", -3, 0), point("b", 3, 0),
+    { id: "make_interface", operator: "segment", inputs: { start: "a", end: "b" }, outputs: ["interface"] },
+    point("contact", 0, 0),
+    mode === "refract"
+      ? { id: "event", operator: "refract_at", inputs: { point: "contact", surface: "interface", incidentAngleDeg: 37, n1: 1.52, n2: 1.33, span: 3 }, outputs: ["incident", "normal", "outgoing"] }
+      : { id: "event", operator: "reflect_at", inputs: { point: "contact", surface: "interface", incidentAngleDeg: 40, span: 3 }, outputs: ["incident", "normal", "outgoing"] },
+    { id: "mark_incidence", operator: "angle_mark", inputs: { vertex: "contact", a: "incident", b: "normal" }, outputs: ["incidenceAngle"] },
+    { id: "mark_outgoing", operator: "angle_mark", inputs: { vertex: "contact", a: "normal", b: "outgoing" }, outputs: ["outgoingAngle"] },
+  ]);
+}
+
+function sweepDegrees(arc: Primitive): number {
+  let sweep = Math.abs(arc.endAngle! - arc.startAngle!) % (2 * Math.PI);
+  if (sweep > Math.PI) sweep = 2 * Math.PI - sweep;
+  return sweep / DEG;
+}
+
+check("refraction arc measures the acute angle from the normal", () => {
+  const { ok, primitives, fatal } = compile(refractionArcs("refract"));
+  if (!ok) return `did not compile: ${JSON.stringify(fatal)}`;
+  const expected = Math.asin(1.52 * Math.sin(37 * DEG) / 1.33) / DEG;
+  const r = sweepDegrees(stroke(primitives, "outgoingAngle"));
+  if (Math.abs(r - expected) > 0.5) return `refraction arc spans ${r.toFixed(2)} degrees, expected ${expected.toFixed(2)}`;
+  const i = sweepDegrees(stroke(primitives, "incidenceAngle"));
+  if (Math.abs(i - 37) > 0.5) return `incidence arc spans ${i.toFixed(2)} degrees, expected 37`;
+  // Both arms of the refraction arc are ink: the normal now runs through the contact.
+  const normal = stroke(primitives, "normal");
+  const refracted = stroke(primitives, "outgoing");
+  const contact = refracted.points[0]!;
+  const direction = { x: refracted.points.at(-1)!.x - contact.x, y: refracted.points.at(-1)!.y - contact.y };
+  const transmitted = normal.points.some((p) => (p.x - contact.x) * direction.x + (p.y - contact.y) * direction.y > 10);
+  if (!transmitted) return "the normal is not drawn on the refracted side, where the arc starts";
+  return null;
+});
+
+check("control: a reflection arc keeps its angle and its normal", () => {
+  const { ok, primitives, fatal } = compile(refractionArcs("reflect"));
+  if (!ok) return `did not compile: ${JSON.stringify(fatal)}`;
+  const r = sweepDegrees(stroke(primitives, "outgoingAngle"));
+  if (Math.abs(r - 40) > 0.5) return `reflection arc spans ${r.toFixed(2)} degrees, expected 40`;
+  const normal = stroke(primitives, "normal");
+  const incident = stroke(primitives, "incident");
+  const contact = incident.points.at(-1)!;
+  if (dist(normal.points[0]!, contact) > 0.5) return "the reflection normal no longer starts at the contact";
   return null;
 });
 
