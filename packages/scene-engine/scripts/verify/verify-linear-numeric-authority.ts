@@ -27,9 +27,15 @@ for (const record of records) {
     const wrong = structuredClone(record.turnPlan);
     wrong.derived.find(quantity => quantity.id === answer.id)!.value += 1;
     assert.ok(rejectedNumericPlan(wrong), `${record.rowId}: wrong ${answer.symbol} cannot pair with a correct figure`); checks++;
-    const wrongBinding = structuredClone(record.turnPlan);
-    wrongBinding.unknowns.find(quantity => quantity.id === answer.id)!.symbol = "unrelated";
-    assert.ok(rejectedNumericPlan(wrongBinding), `${record.rowId}: numeric equality cannot authorize an unrelated target`); checks++;
+    const unprovedBinding = structuredClone(record.turnPlan);
+    unprovedBinding.unknowns.find(quantity => quantity.id === answer.id)!.symbol = "unrelated";
+    const unprovedBefore = JSON.stringify(unprovedBinding);
+    assert.deepEqual(validateLinearSourcePlan(unprovedBinding.question, unprovedBinding), [],
+      `${record.rowId}: an unproved declared role cannot veto the correct proved derived coordinate with the same id`); checks++;
+    assert.equal(JSON.stringify(unprovedBinding), unprovedBefore); checks++;
+    const wrongDerived = structuredClone(unprovedBinding);
+    wrongDerived.derived.find(quantity => quantity.id === answer.id)!.value += 1;
+    assert.ok(rejectedNumericPlan(wrongDerived), `${record.rowId}: role uncertainty must not hide a wrong proved coordinate`); checks++;
     const wrongUnit = structuredClone(record.turnPlan);
     wrongUnit.unknowns.find(quantity => quantity.id === answer.id)!.unit = "cm";
     assert.ok(rejectedNumericPlan(wrongUnit), `${record.rowId}: unknown units must remain proved`); checks++;

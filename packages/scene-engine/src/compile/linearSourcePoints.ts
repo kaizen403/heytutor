@@ -11,12 +11,15 @@ export interface LinearSourceReferencePoint {
 /** Explicit source names for the intersection, independent of planner aliases. */
 export function readLinearSourceIntersectionNames(question: string): Set<string> {
   const names = new Set<string>();
-  for (const pattern of [
-    /\b(?:meets?|intersects?|cross(?:es)?)(?:\s+(?:each\s+other|one\s+another))?\s+at\s+(?:(?:the\s+)?point\s+)?([A-Za-z][A-Za-z0-9_]*)\b/gi,
-    /\bintersection(?:\s+point)?\s+(?:is|at|named|called)\s+(?:(?:the\s+)?point\s+)?([A-Za-z][A-Za-z0-9_]*)\b/gi,
-    /\b(?:point\s+of\s+intersection|intersection\s+point)\s+(?:(?:the\s+)?point\s+)?(?!is\b|at\b|named\b|called\b|of\b|and\b|the\b)([A-Za-z][A-Za-z0-9_]*)\b/gi,
-    /\bintersection(?:\s+point)?\s+(?!(?:is|at|named|called|of|and|the|coordinates?)\b)([A-Za-z][A-Za-z0-9_]*)\s*(?=[,.;?!]|$)/gi,
-  ]) for (const match of question.matchAll(pattern)) names.add(match[1]!);
+  for (const [pattern, explicit] of [
+    [/\b(?:meets?|intersects?|cross(?:es)?)(?:\s+(?:each\s+other|one\s+another))?\s+at\s+(?:(?:the\s+)?point\s+)?([A-Za-z][A-Za-z0-9_]*)\b/gi, false],
+    [/\bintersection(?:\s+point)?\s+(?:is\s+)?(?:named|called)\s+(?:(?:the\s+)?point\s+)?([A-Za-z][A-Za-z0-9_]*)\b/gi, true],
+    [/\bintersection(?:\s+point)?\s+(?:is\s+)?at\s+(?:(?:the\s+)?point\s+)?([A-Za-z][A-Za-z0-9_]*)\b/gi, false],
+    [/\b(?:point\s+of\s+intersection|intersection(?:\s+point)?)\s+(?:is\s+)?(?:point\s+)?([A-Za-z][A-Za-z0-9_]*)\b\s*(?=[,.;?!=]|$)/gi, false],
+  ] as const) for (const match of question.matchAll(pattern)) {
+    const name = match[1]!;
+    if (explicit || /^(?:[A-Z]{1,3}|[A-Za-z]\d{1,3}|[A-Za-z]_[A-Za-z0-9_]+)$/.test(name)) names.add(name);
+  }
   return names;
 }
 

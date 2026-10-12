@@ -6524,6 +6524,7 @@ function isImplicitConstructionPoint(entityId: string, document: SceneDocument):
 }
 
 function isGenericHelperPointRole(role: string): boolean {
+  if (typeof role !== "string") return false;
   const normalized = role.replace(/[_-]+/g, " ");
   if (/\b(?:observation|target|charge|object|image|focus|focal|pole|vertex|midpoint|intersection|incidence|source|curvature|mass)\b/i.test(normalized)) {
     return false;

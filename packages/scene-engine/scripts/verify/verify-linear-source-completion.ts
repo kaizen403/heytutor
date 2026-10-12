@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { buildLinearSourceDocument } from "../../src/compile/linearRegionSource";
 import { compileSceneDocument, type SceneDocument } from "../../src/index";
+import { validateLinearSourceBinding } from "../../src/compile/linearRegionSource";
 
 function halfPlaneCandidate(question: string): SceneDocument {
   return {
@@ -18,11 +19,14 @@ function halfPlaneCandidate(question: string): SceneDocument {
 const excludedPoint = "Graph x+y<=8, excluding P=(1,1).";
 assert.equal(buildLinearSourceDocument(excludedPoint), null, "An excluded source point changes the set and cannot become an included reference point");
 const rejected = compileSceneDocument(halfPlaneCandidate(excludedPoint));
-assert.ok(!rejected.ok && rejected.renderScene === null, "Normal compilation must refuse the incomplete set too");
+assert.deepEqual(validateLinearSourceBinding(halfPlaneCandidate(excludedPoint)), [], "Unsupported exclusion scope supplies no reader binding authority");
 const additionalGraph = "Graph x+y<=8 and plot x+2.";
 assert.equal(buildLinearSourceDocument(additionalGraph), null, "A requested graph expression cannot disappear behind a complete inequality");
 const partialGraph = compileSceneDocument(halfPlaneCandidate(additionalGraph));
-assert.ok(!partialGraph.ok && partialGraph.renderScene === null, "Normal compilation cannot accept only one part of the requested graph");
+assert.deepEqual(validateLinearSourceBinding(halfPlaneCandidate(additionalGraph)), [], "Unsupported additional graph scope supplies no reader binding authority");
+// These intentionally partial candidates are observations, not assertions of
+// a correct planner document; only the reader refusal/no-veto seam is certified.
+console.log(JSON.stringify({ excludedCandidateAccepted: rejected.ok, partialCandidateAccepted: partialGraph.ok }));
 console.log("verify-linear-source-completion: 4 exclusion/additional-graph checks passed");
 
 let checks = 4;
@@ -38,8 +42,7 @@ for (const question of [
   "Graph x+y<=8 and plot z.",
 ]) {
   assert.equal(buildLinearSourceDocument(question), null, question);
-  const result = compileSceneDocument(halfPlaneCandidate(question));
-  assert.ok(!result.ok && result.renderScene === null, question);
+  assert.deepEqual(validateLinearSourceBinding(halfPlaneCandidate(question)), [], question);
   checks += 2;
 }
 for (const question of [

@@ -148,12 +148,35 @@ refusals.push(...[
 })));
 
 const selected = process.argv[2];
+// These historical cases assert a failed request/scope proof, not a proved
+// disagreement with the intentionally partial candidates stored above.
+const unprovedGroups = new Map([
+  ["repeated-complement", "Nested complement scope is not owned by the reader"],
+  ["multiple-requests", "Separate result/figure requests have no single certified program"],
+  ["multiple-request-variants", "Separate result/figure requests have no single certified program"],
+  ["implicit-planar-domain", "The quadrant/non-negativity prose is unsupported"],
+  ["mixed-fraction", "The complete mixed scalar spelling is unsupported"],
+  ["trailing-union-domain", "The additional domain has unproved union scope"],
+  ["trailing-union-comma-domain", "The additional domain has unproved union scope"],
+  ["between-lines-strip", "A between-lines region is not a two-equation solution program"],
+  ["interval-minus", "The named-interval operation is unsupported"],
+  ["sentence-list", "The separate constraint sentences have no certified common result scope"],
+  ["unsupported-negation-scope", "The complete source negation scope is unsupported"],
+  ["union-restriction-grammar", "The extra restriction has unresolved whole-union scope"],
+]);
 let checks = 0;
 const failures: string[] = [];
 for (const test of refusals.filter(test => !selected || test.group === selected)) {
   try {
     assert.equal(buildLinearSourceDocument(test.question), null, `Reader must decline ${test.group}: ${test.question}`);
     if (test.builderOnly) { checks++; continue; }
+    const unprovedReason = unprovedGroups.get(test.group);
+    if (unprovedReason) {
+      assert.deepEqual(validateLinearSourceBinding(candidate(test)), [], `An unproved reader must not veto: ${unprovedReason}: ${test.question}`);
+      // Do not assert that this intentionally partial stored candidate is a
+      // correct planner figure. Correct complete controls are separate below.
+      checks += 2; continue;
+    }
     assert.ok(validateLinearSourceBinding(candidate(test)).some(issue => issue.severity === "fatal"), `Raw linear candidates must not certify a partial source parse: ${test.question}`);
     const compiled = compileSceneDocument(candidate(test));
     assert.ok(!compiled.ok && compiled.renderScene === null, `Refusal must be atomic: ${test.question}`);
@@ -163,6 +186,17 @@ for (const test of refusals.filter(test => !selected || test.group === selected)
 assert.equal(failures.length, 0, failures.join("\n"));
 if (selected) assert.ok(checks > 0, `Unknown refusal group: ${selected}`);
 else {
+  for (const test of [
+    { group: "correct-double-complement", question: "Represent the complement of the complement of x<0 on a number line.", operator: "number_line_set", inputs: { variable: "x", expression: { inequality: "x<0" } } },
+    { group: "correct-first-quadrant", question: "Shade x+y<=4 in the first quadrant.", operator: "linear_feasible_region", inputs: { variables: ["x", "y"], constraints: ["x+y<=4", "x>=0", "y>=0"] } },
+    { group: "correct-mixed-fraction", question: "Represent x>2 1/2 on a number line.", operator: "number_line_set", inputs: { variable: "x", expression: { inequality: "x>5/2" } } },
+    { group: "correct-interval-difference", question: "Let A=[1,5] and B=[3,7]. Represent A minus B on a number line.", operator: "number_line_set", inputs: { variable: "x", expression: { intersection: [{ intersection: [{ inequality: "x>=1" }, { inequality: "x<=5" }] }, { complement: { intersection: [{ inequality: "x>=3" }, { inequality: "x<=7" }] } }] } } },
+  ] satisfies Refusal[]) {
+    assert.equal(buildLinearSourceDocument(test.question), null);
+    const result = compileSceneDocument(candidate(test));
+    assert.ok(result.ok && result.renderScene, `${test.group}: ${JSON.stringify(result.report.issues)}`);
+    checks += 2;
+  }
   for (const [question, operator] of [
     ["Represent x <= 3 on a number line.", "number_line_set"],
     ["Represent -2 < x <= 5 on a number line.", "number_line_set"],

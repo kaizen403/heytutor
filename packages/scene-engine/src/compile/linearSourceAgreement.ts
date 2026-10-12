@@ -3,7 +3,7 @@ import { readSourceLinearCoordinate } from "../ir/linearScalarBinding";
 import { addRational, multiplyRational, compareRational, deserializeRational, divideRational, serializeRational, exactRationalText, exactRationalToNumber, type ExactRational } from "../math/exactRational";
 import { parseLinearAffine, parseLinearConstraint, solveLinearFigure, type ExactAffine, type FeasibleRegionSolution } from "../math/linearRegion";
 import type { SceneIssue } from "../types";
-import { buildLinearSourceDocument, readLinearSourceReferencePoints, readLinearSourceSetRoles, type LinearSourceIntervalRole } from "./linearRegionSource";
+import { buildLinearSourceDocument, readLinearSourceLineName, readLinearSourceReferencePoints, readLinearSourceSetRoles, type LinearSourceIntervalRole } from "./linearRegionSource";
 
 const normalizeSymbol = (symbol: string): string => symbol.normalize("NFKC").replace(/\\(?:mathrm|text)\s*/g, "").replace(/[{}\s]/g, "");
 const dimensionless = (unit: string | undefined): boolean => unit === undefined || unit.trim() === "" || unit.trim() === "1";
@@ -101,7 +101,7 @@ function labelledEquations(question: string, equations: string[]): Map<string, s
     const matches = [...source.matchAll(new RegExp(escaped, "g"))];
     if (matches.length !== 1) continue;
     const prefix = source.slice(0, matches[0]!.index);
-    const label = /\b([A-Za-z][A-Za-z0-9_]*)\s*:\s*$/.exec(prefix)?.[1];
+    const label = readLinearSourceLineName(prefix);
     if (label && !labels.has(label)) labels.set(label, equation);
   }
   return labels;
@@ -186,7 +186,7 @@ export function validateLinearSourcePlan(question: string, rawPlan: unknown): Sc
         const role = sourceRole(quantity.symbol);
         if (quantity.path.startsWith("derived[") && declared) {
           const declaredRole = sourceRole(declared.symbol);
-          if ((declaredRole || role) && (!declaredRole || !role || declaredRole.key !== role.key)) {
+          if (declaredRole && (!role || declaredRole.key !== role.key)) {
             issues.push(fatal("linear_source_plan_binding_mismatch", `Finite requested answer '${quantity.id}' ('${declared.symbol}' -> '${symbol}') does not preserve the same proved original-source coordinate role`, quantity.path));
           }
         }
@@ -268,7 +268,7 @@ export function validateLinearSourcePlan(question: string, rawPlan: unknown): Sc
         if (quantity.path.startsWith("derived[") && declared) {
           const declaredSymbol = normalizeSymbol(declared.symbol);
           const declaredRole = sourceRole(declaredSymbol);
-          if ((declaredRole || role) && (!declaredRole || !role)) issues.push(fatal("linear_source_plan_binding_mismatch", `Finite requested answer '${quantity.id}' ('${declaredSymbol}' -> '${symbol}') changes a proved original-source numeric role`, quantity.path));
+          if (declaredRole && !role) issues.push(fatal("linear_source_plan_binding_mismatch", `Finite requested answer '${quantity.id}' ('${declaredSymbol}' -> '${symbol}') changes a proved original-source numeric role`, quantity.path));
           else if (declaredRole && role && declaredRole.key !== role.key) issues.push(fatal("linear_source_plan_binding_mismatch", `Finite requested answer '${quantity.id}' changes original-source numeric role '${declaredSymbol}' to '${symbol}'`, quantity.path));
         }
       }

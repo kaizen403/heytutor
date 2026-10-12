@@ -21,9 +21,9 @@ const issues = validateLinearSourcePlan(question, stale);
 console.log(JSON.stringify({ independentlyComputedObjective: 21, retainedPlannerValue: stale.derived[0]!.value, issues }));
 assert.ok(issues.some(issue => issue.severity === "fatal"), "A native correct feasible region cannot authorize a stale objective scalar when no ProblemIR was supplied");
 let checks = 5;
-function accepted(source: string, values: Array<[string, number, string?]>, reason: string) {
+function accepted(source: string, values: Array<[string, number, string?]>, reason: string, change?: (candidate: TurnPlanV3) => void) {
   assert.ok(buildLinearSourceDocument(source), `Whole original source must be independently supported: ${reason}`);
-  const candidate = plan(source, values);
+  const candidate = plan(source, values); change?.(candidate);
   const before = JSON.stringify(candidate);
   assert.deepEqual(validateLinearSourcePlan(source, candidate), [], reason);
   assert.equal(JSON.stringify(candidate), before, "Numeric agreement does not correct/project planner values"); checks += 3;
@@ -51,7 +51,8 @@ assert.deepEqual(validateLinearSourcePlan(question, intermediate), [], "Unrelate
 const noAnswer = plan(question, []);
 assert.deepEqual(validateLinearSourcePlan(question, noAnswer), [], "Missing finite answers do not invent numeric contradictions"); checks++;
 accepted(question, [["perimeter", 999]], "An unproved perimeter role stays with the existing planner/solver checks");
-refused(question, [["answer", 21]], "A correct derived source alias cannot change the semantic role of its unproved unknown", candidate => { candidate.derived[0]!.symbol = "Z"; });
+accepted(question, [["answer", 21]], "An unproved unknown role cannot veto a correct independently proved objective with the same id", candidate => { candidate.derived[0]!.symbol = "Z"; });
+refused(question, [["answer", 999]], "Unknown-role deferral cannot hide a wrong proved objective", candidate => { candidate.derived[0]!.symbol = "Z"; });
 accepted(question.replace("Z=3x+2y", "3x+2y"), [["Z", 999]], "Unlabelled source does not supply authority to veto an unrelated planner alias");
 accepted(question.replace("Z=3x+2y", "3x+2y"), [["Z", 21]], "An unproved alias does not veto a correct planner answer");
 accepted(question.replace("Z=3x+2y", "3x+2y"), [["maximum", 21]], "Explicit maximum role binds the native source sense without inventing an objective label");
@@ -114,7 +115,8 @@ refused(sys07, [["x_P", 7]], "Incorrect intersection scalar");
 refused(sys07, [["y_P", 6]], "Wrong intermediate coordinate");
 accepted(sys07, [["x_Q", 6]], "An unproved different point alias does not borrow source intersection authority");
 for (const symbol of ["xP", "x(P)", "answer", "perimeter"]) accepted(sys07, [[symbol, 999]], `An unproved alias cannot supply a source-plan veto: ${symbol}`);
-refused(sys07, [["xP", 6]], "No numeric/symbol similarity can prove an unsupported unknown alias", candidate => { candidate.derived[0]!.symbol = "x_P"; });
+accepted(sys07, [["xP", 6]], "An unproved unknown alias cannot contradict a correct, independently proved derived coordinate with the same id", candidate => { candidate.derived[0]!.symbol = "x_P"; });
+refused(sys07, [["xP", 7]], "Deferring an unknown alias cannot authorize a wrong proved derived coordinate", candidate => { candidate.derived[0]!.symbol = "x_P"; });
 const systemIntermediate = plan(sys07, [["perimeter", 999]]);
 systemIntermediate.unknowns = [];
 assert.deepEqual(validateLinearSourcePlan(sys07, systemIntermediate), [], "Unrelated system intermediates keep the existing audit rather than a guessed coordinate join"); checks++;

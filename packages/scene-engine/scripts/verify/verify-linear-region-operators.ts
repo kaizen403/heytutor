@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { renderSceneSvg } from "../lib/renderSceneSvg";
+import { buildLinearSourceDocument, validateLinearSourceBinding } from "../../src/compile/linearRegionSource";
 import {
   compileSceneDocument,
   validateSceneDocument,
@@ -558,6 +559,15 @@ if (selected("view")) {
 }
 
 if (selected("source-authority")) {
+  const unproved = new Map([
+    ["Graph -7x + 4y + z <= 9 in the coordinate plane.", "The complete affine variable grammar is unsupported"],
+    ["Graph -7x + 4y + sin(x) <= 9 in the coordinate plane.", "The complete source function grammar is unsupported"],
+    ["Graph -7x^2 + 4y <= 9 in the coordinate plane.", "The nonlinear source cannot be reconstructed as an affine predicate"],
+    ["Graph -7x + 4y <= 9 if x >= 2 in the coordinate plane.", "The conditional request scope is unproved"],
+    ["Graph -7x + 4y <= 9 for real X and Y.", "The source variable declaration has no canonical x/y binding"],
+    ["Graph (-7x + 4y <= 9) ∖ (x >= 0) in the coordinate plane.", "The complete source set-difference scope is unsupported"],
+    ["Graph -7x + 4y <= 9 ⇒ x >= 0 in the coordinate plane.", "The complete implication scope is unsupported"],
+  ]);
   for(const source of [
     "Graph -7x + 4y + z <= 9 in the coordinate plane.",
     "Graph -7x + 4y + sin(x) <= 9 in the coordinate plane.",
@@ -572,8 +582,15 @@ if (selected("source-authority")) {
     "Graph -7x + 4y <= 9 for x,y in ℤ.",
     "Graph (-7x + 4y <= 9) ∖ (x >= 0) in the coordinate plane.",
     "Graph -7x + 4y <= 9 ⇒ x >= 0 in the coordinate plane.",
-  ]) atomicallyRefused(documentFor("linear_half_plane",{inequality:"-7x + 4y <= 9"},source),
-    `source grammar cannot silently discard meaning: ${source}`);
+  ]) {
+    const candidate = documentFor("linear_half_plane",{inequality:"-7x + 4y <= 9"},source);
+    const reason = unproved.get(source);
+    if (reason) {
+      check(buildLinearSourceDocument(source) === null, `Unproved reader must refuse: ${reason}`);
+      check(validateLinearSourceBinding(candidate).length === 0, `Unproved reader supplies no candidate veto: ${reason}`);
+      // This partial candidate is never asserted to be a correct figure.
+    } else atomicallyRefused(candidate, `Source contradiction cannot silently discard meaning: ${source}`);
+  }
   check(solutionFor(compiled("linear_half_plane",{inequality:"-7x + 4y <= 9"},
     "Graph -7x + 4y <= 9 for real x and y.")).state==="proper_half_plane",
     "an explicit real domain preserves the continuous half-plane");
@@ -581,8 +598,10 @@ if (selected("source-authority")) {
     "Graph -7X + 4Y <= 9 for real X and Y.");
   check(JSON.stringify(solutionFor(upperCase).variables)===JSON.stringify(["X","Y"]),
     "explicit variable names and their domain remain case-sensitive");
-  atomicallyRefused(documentFor("linear_half_plane",{inequality:"x + y <= 8"},
-    "Graph x + a + y <= 8 in the coordinate plane."),"an undeclared affine addend cannot be dropped from the source");
+  const undeclaredAddendQuestion = "Graph x + a + y <= 8 in the coordinate plane.";
+  check(buildLinearSourceDocument(undeclaredAddendQuestion) === null, "The reader must refuse an undeclared affine addend");
+  check(validateLinearSourceBinding(documentFor("linear_half_plane",{inequality:"x + y <= 8"}, undeclaredAddendQuestion)).length === 0,
+    "An unproved affine reader cannot veto the planner; this partial candidate is not certified as correct");
   const tupleQuestion="Graph the common region x, y >= 2 + 1 in the coordinate plane.";
   const tupleRegion=compiled("linear_feasible_region",{constraints:["x >= 3","y >= 3"]},tupleQuestion);
   cornersOracle(solutionFor(tupleRegion),[[3n,1n,3n,1n]]);

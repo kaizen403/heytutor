@@ -470,7 +470,11 @@ export function linearRegionPrimitives(
         (corner) =>
           read(corner.point.x).n === 0n && read(corner.point.y).n === 0n,
       );
-    if (!originNamed) label(point(dx, sub(Z, dy)), "0", "tick");
+    // The system's origin label belongs to the actual axes crossing. A fixed
+    // lower-right offset can put its anchor across a nearby equation, trapping
+    // the lettering in a narrow cell. The normal label solver chooses and
+    // verifies the ink position around the exact origin instead.
+    if (!originNamed) label(solution.kind === "linear_system" ? point(Z, Z) : point(dx, sub(Z, dy)), "0", "tick");
   };
   const summary: string[] = [];
   if (solution.kind === "number_line_set") {
