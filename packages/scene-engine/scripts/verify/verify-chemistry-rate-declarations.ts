@@ -1052,5 +1052,181 @@ for(const c of closedRequestCases)try {
 }catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
 // END ADDITIVE CLOSED REQUESTED-QUANTITY PAYLOAD GATES
 
+// BEGIN ADDITIVE STATED RATE/HALF-LIFE TIME PROJECTION GATES
+import { readChemistryQuantity as readProjectionSourceQuantity } from "../../src/chemistry/quantityReader";
+interface TimeProjectionCase extends RateCase {sourceK:number;sourceTimeUnit:"s"|"min"|"h";sourceRawUnit:string}
+const timeProjectionCases:TimeProjectionCase[] = [
+  {
+    "id": "MIXED-TIME-s-to-min-1",
+    "question": "A first order reaction has k = 0.000385 s^-1 and half life 30.006371452811486 min. Draw the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.0231,
+    "half": 30.006371452811486,
+    "unit": "min",
+    "sourceK": 0.000385,
+    "sourceTimeUnit": "s",
+    "sourceRawUnit": "s^-1"
+  },
+  {
+    "id": "MIXED-TIME-s-to-min-2",
+    "question": "A first order reaction has k = 0.002 s^-1 and half life 5.776226504666211 min. Draw the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.12,
+    "half": 5.776226504666211,
+    "unit": "min",
+    "sourceK": 0.002,
+    "sourceTimeUnit": "s",
+    "sourceRawUnit": "s^-1"
+  },
+  {
+    "id": "MIXED-TIME-s-to-min-3",
+    "question": "A first order reaction has k = 0.001 s^-1 and half life 11.552453009332423 min. Draw the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.06,
+    "half": 11.552453009332423,
+    "unit": "min",
+    "sourceK": 0.001,
+    "sourceTimeUnit": "s",
+    "sourceRawUnit": "s^-1"
+  },
+  {
+    "id": "MIXED-TIME-min-to-s-1",
+    "question": "A first order reaction has k = 0.0231 min^-1 and half life 1800.3822871686891 s. Draw the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.000385,
+    "half": 1800.3822871686891,
+    "unit": "s",
+    "sourceK": 0.0231,
+    "sourceTimeUnit": "min",
+    "sourceRawUnit": "min^-1"
+  },
+  {
+    "id": "MIXED-TIME-min-to-s-2",
+    "question": "A first order reaction has k = 0.12 min^-1 and half life 346.5735902799727 s. Draw the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.002,
+    "half": 346.5735902799727,
+    "unit": "s",
+    "sourceK": 0.12,
+    "sourceTimeUnit": "min",
+    "sourceRawUnit": "min^-1"
+  },
+  {
+    "id": "MIXED-TIME-min-to-s-3",
+    "question": "A first order reaction has k = 0.06 min^-1 and half life 693.1471805599452 s. Draw the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.001,
+    "half": 693.1471805599452,
+    "unit": "s",
+    "sourceK": 0.06,
+    "sourceTimeUnit": "min",
+    "sourceRawUnit": "min^-1"
+  },
+  {
+    "id": "MIXED-TIME-h-to-min",
+    "question": "A first order reaction has k = 0.6931471805599453 h^-1 and half life 60 min. Draw the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.011552453009332421,
+    "half": 60,
+    "unit": "min",
+    "sourceK": 0.6931471805599453,
+    "sourceTimeUnit": "h",
+    "sourceRawUnit": "h^-1"
+  },
+  {
+    "id": "MIXED-TIME-min-to-h",
+    "question": "A first order reaction has k = 0.011552453009332421 min^-1 and half life 1 h. Draw the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.6931471805599453,
+    "half": 1,
+    "unit": "h",
+    "sourceK": 0.011552453009332421,
+    "sourceTimeUnit": "min",
+    "sourceRawUnit": "min^-1"
+  },
+  {
+    "id": "MIXED-TIME-same-min",
+    "question": "A first order reaction has k = 0.0231 min^-1 and half life 30.006371452811486 min. Draw the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.0231,
+    "half": 30.006371452811486,
+    "unit": "min",
+    "sourceK": 0.0231,
+    "sourceTimeUnit": "min",
+    "sourceRawUnit": "min^-1"
+  },
+  {
+    "id": "MIXED-TIME-same-s",
+    "question": "A first order reaction has k = 0.000385 s^-1 and half life 1800.3822871686891 s. Draw the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.000385,
+    "half": 1800.3822871686891,
+    "unit": "s",
+    "sourceK": 0.000385,
+    "sourceTimeUnit": "s",
+    "sourceRawUnit": "s^-1"
+  },
+  {
+    "id": "MIXED-TIME-same-h",
+    "question": "A first order reaction has k = 0.6931471805599453 h^-1 and half life 1 h. Draw the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.6931471805599453,
+    "half": 1,
+    "unit": "h",
+    "sourceK": 0.6931471805599453,
+    "sourceTimeUnit": "h",
+    "sourceRawUnit": "h^-1"
+  },
+  {
+    "id": "MIXED-TIME-zero-s-to-min",
+    "question": "A zero order reaction has k = 0.0016666666666666668 M s^-1 and half life 10 min. The initial concentration is 2 M. Draw [A] versus time.",
+    "refuse": false,
+    "order": 0,
+    "k": 0.1,
+    "half": 10,
+    "unit": "min",
+    "sourceK": 0.0016666666666666668,
+    "sourceTimeUnit": "s",
+    "sourceRawUnit": "M s^-1",
+    "initial": 2
+  },
+  {
+    "id": "MIXED-TIME-second-s-to-min",
+    "question": "A second order reaction has k = 0.0016666666666666668 L mol^-1 s^-1 and half life 5 min. The initial concentration is 2 M. Draw 1/[A] versus time.",
+    "refuse": false,
+    "order": 2,
+    "k": 0.1,
+    "half": 5,
+    "unit": "min",
+    "sourceK": 0.0016666666666666668,
+    "sourceTimeUnit": "s",
+    "sourceRawUnit": "L mol^-1 s^-1",
+    "initial": 2
+  }
+];
+for(const c of timeProjectionCases)try {
+ const dimension=c.order===0?"rate_constant_zero":c.order===2?"rate_constant_second":"rate_constant_first";
+ const raw=readProjectionSourceQuantity({question:c.question,after:/\bk\s*=/,dimension});assert.ok(raw.ok);assert.equal(raw.reading.rawValue,c.sourceK);assert.equal(raw.reading.rawUnit,c.sourceRawUnit);assert.ok(raw.reading.source.text.includes(String(c.sourceK)));
+ const spec=kineticsFromStem(c.question);assert.ok(spec);assert.equal(spec.order,c.order);assert.equal(spec.timeUnit,c.unit);assert.equal(spec.kUnit,c.sourceTimeUnit);assert.equal(spec.a0,c.initial??null);
+ const solved=solveKinetics(spec),truth=expected(c);assert.ok(spec.k!==null&&solved.k!==null&&solved.tHalf!==null);
+ assert.ok(Math.abs(spec.k-truth.k)<=Math.abs(truth.k)*1e-12);assert.ok(Math.abs(solved.k-truth.k)<=Math.abs(truth.k)*1e-12);assert.equal(solved.tHalf,c.half);
+ const law=c.order===0?c.initial!/(2*truth.k):c.order===2?1/(truth.k*c.initial!):Math.LN2/truth.k;assert.ok(Math.abs(solved.tHalf-law)<=Math.abs(law)*1e-12);assert.equal(solved.timeUnit,c.unit);
+ const exact=buildKineticsScene(c.question,[],false),schematic=buildKineticsScene(c.question,[],true),ordinary=synthesizeFamilyScene({question:c.question});assert.ok(exact&&schematic&&ordinary);
+ for(const document of [exact,schematic,ordinary.document])checkDocument(c,document);
+ results.push({id:c.id,passed:true});
+}catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
+// END ADDITIVE STATED RATE/HALF-LIFE TIME PROJECTION GATES
+
 const output={schema:"chemistry-rate-declarations-gate/v1",passed:results.filter(x=>x.passed).length,failed:results.filter(x=>!x.passed).length,results};
 console.log(JSON.stringify(output,null,2));assert.equal(output.failed,0);

@@ -719,7 +719,7 @@ export function kineticsFromStem(question: string, quantities: readonly ChemPlan
 
   // One unit for the plot: the half life's, else k's, else the given completion's, else the asked instant's.
   const unit = timeUnit ?? kUnit ?? given?.unit ?? timesAskedRaw[0]?.unit ?? "min";
-  if (k !== null && kUnit && kUnit !== unit) k = k / convertTime(1, unit, kUnit);
+  if (k !== null && kUnit && kUnit !== unit) k = k * convertTime(1, unit, kUnit);
   if (tHalf !== null && timeUnit && timeUnit !== unit) tHalf = convertTime(tHalf, timeUnit, unit);
   const completion = given ? { fraction: given.fraction, time: convertTime(given.time, given.unit ?? unit, unit) } : null;
   const timesAsked = timesAskedRaw.map((entry) => convertTime(entry.value, entry.unit, unit));
