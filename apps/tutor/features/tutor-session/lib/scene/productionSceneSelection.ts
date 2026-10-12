@@ -137,12 +137,18 @@ function magnitudePlan(plan: TurnPlanV3, givens = plan.givens, derived = plan.de
  * sides (the Cartesian sign lives in `form` or in the literal, never in the
  * plan's reading of the stem), each against its own plan quantity only.
  *
- * - objectDistance and focalLength, in magnitude mode (`form` present): the
- *   number must equal the plan's object distance or focal length
- *   (PLAN_OPTICS_ROLE), not any plan length, so |f| = 112 cm fails where the
- *   plan's 112 cm is the object distance. A plan with no such quantity
- *   supports no literal. An input written as a document quantity id is
- *   checked by that quantity's value the same way.
+ * - objectDistance and focalLength, in magnitude mode (`form` present):
+ *   - written as a plan quantity id (declared in the document), the input is
+ *     that quantity whatever its name, so u called p binds to p. Two
+ *     exceptions keep the binding honest: a quantity named as another input
+ *     (focalLength "do"), or one the plan does not name as this input while
+ *     it names another quantity so (focalLength "p" beside a plan f), is held
+ *     to the plan's own object distance or focal length, as a literal is.
+ *   - a literal, or a document quantity the plan does not declare, must equal
+ *     the plan's object distance or focal length (PLAN_OPTICS_ROLE), not any
+ *     plan length, so |f| = 112 cm fails where the plan's 112 cm is the object
+ *     distance. When the plan names no such quantity, it must equal some plan
+ *     length.
  * - objectHeight, in signed and magnitude mode, only when the plan gives an
  *   object height: it must equal that height. A stem with no stated height
  *   still draws a representative one.
@@ -153,16 +159,30 @@ function opticsMagnitudeLiteralIssues(
   document: { quantities?: unknown; constructions?: unknown },
   plan: TurnPlanV3,
 ): AgreementIssue[] {
+  type PlanQuantity = TurnPlanV3["givens"][number];
   const isLength = (quantity: { unit?: string }) => typeof quantity.unit === "string" && PLAN_LENGTH_UNIT.test(quantity.unit.trim());
   if (!plan.givens.some(isLength)) return [];
   const documentQuantities = new Map((Array.isArray(document.quantities) ? document.quantities : [])
     .filter(isPlainRecord).filter((quantity) => typeof quantity.id === "string").map((quantity) => [quantity.id as string, quantity]));
-  // Each input is held to the plan lengths of its own role; qualitative claims never support a literal.
-  const rolePlan = (key: string): TurnPlanV3 => {
-    const role = PLAN_OPTICS_ROLE[key]!;
-    const matches = (quantity: TurnPlanV3["givens"][number]) => isLength(quantity) &&
-      (role.test(planSymbolKey(quantity.symbol)) || role.test(planSymbolKey(quantity.id)));
-    return { ...magnitudePlan(plan, plan.givens.filter(matches), plan.derived.filter(matches)), qualitativeClaims: [] };
+  const planQuantities = new Map([...plan.givens, ...plan.derived].map((quantity) => [quantity.id, quantity]));
+  const namedAs = (quantity: PlanQuantity, key: string) => isLength(quantity) &&
+    (PLAN_OPTICS_ROLE[key]!.test(planSymbolKey(quantity.symbol)) || PLAN_OPTICS_ROLE[key]!.test(planSymbolKey(quantity.id)));
+  // Qualitative claims never support a literal.
+  const subPlan = (keep: (quantity: PlanQuantity) => boolean): TurnPlanV3 =>
+    ({ ...magnitudePlan(plan, plan.givens.filter(keep), plan.derived.filter(keep)), qualitativeClaims: [] });
+  const rolePlan = (key: string): TurnPlanV3 => subPlan((quantity) => namedAs(quantity, key));
+  const roleName = (key: string) => key === "focalLength" ? "focal length" : key === "objectDistance" ? "object distance" : "object height";
+  /** What one input is held to: its referenced plan quantity, the plan's quantities of its role, or any plan length. */
+  const binding = (key: string, written: unknown): { against: TurnPlanV3; scope: string } => {
+    const role = rolePlan(key);
+    const roleNamed = role.givens.length + role.derived.length > 0;
+    const referenced = typeof written === "string" ? planQuantities.get(written) : undefined;
+    if (referenced && isLength(referenced) && (namedAs(referenced, key) ||
+      (!roleNamed && !Object.keys(PLAN_OPTICS_ROLE).some((other) => other !== key && namedAs(referenced, other))))) {
+      return { against: subPlan((quantity) => quantity === referenced), scope: `the plan's quantity ${referenced.id} only` };
+    }
+    if (referenced || roleNamed) return { against: role, scope: `the plan's ${roleName(key)} only` };
+    return { against: subPlan(isLength), scope: `any plan length, as the plan names no ${roleName(key)}` };
   };
   const heightPlan = plan.givens.some((given) => isLength(given) &&
     (PLAN_OBJECT_HEIGHT.test(planSymbolKey(given.symbol)) || PLAN_OBJECT_HEIGHT.test(planSymbolKey(given.id))))
@@ -171,10 +191,9 @@ function opticsMagnitudeLiteralIssues(
   (Array.isArray(document.constructions) ? document.constructions : []).forEach((construction, index) => {
     if (!isPlainRecord(construction) || typeof construction.operator !== "string" || !isPlainRecord(construction.inputs)) return;
     const inputs = construction.inputs;
-    const checks: Array<[key: string, against: TurnPlanV3]> = [];
-    if (inputs.form !== undefined) for (const key of OPTICS_MAGNITUDE_INPUTS[construction.operator] ?? []) checks.push([key, rolePlan(key)]);
-    if (construction.operator === "gaussian_image" && heightPlan) checks.push(["objectHeight", heightPlan]);
-    for (const [key, against] of checks) {
+    const keys: string[] = inputs.form !== undefined ? [...OPTICS_MAGNITUDE_INPUTS[construction.operator] ?? []] : [];
+    if (construction.operator === "gaussian_image" && heightPlan) keys.push("objectHeight");
+    for (const key of keys) {
       const wrapper = isPlainRecord(inputs[key]) ? inputs[key] as Record<string, unknown> : undefined;
       const written = wrapper ? wrapper.value : inputs[key];
       const quantity = typeof written === "string" ? documentQuantities.get(written) : undefined;
@@ -187,8 +206,9 @@ function opticsMagnitudeLiteralIssues(
         : typeof wrapper?.unit === "string" ? wrapper.unit : inputs.lengthUnit;
       const id = `${String(construction.id ?? construction.operator)}.${key}`;
       const source = quantity ? `quantity ${String(written)}` : "magnitude literal";
+      const { against, scope } = key === "objectHeight" ? { against: heightPlan!, scope: "the plan's object height only" } : binding(key, written);
       for (const issue of validateSceneQuantityAgreement([{ id, value: Math.abs(value), ...(unit === undefined ? {} : { unit }) }], against)) {
-        issues.push({ code: issue.code, message: `${issue.message} (a ${construction.operator} ${key} ${source}, held to the plan's ${key === "focalLength" ? "focal length" : key === "objectDistance" ? "object distance" : "object height"} only)`, path: `constructions[${index}].inputs.${key}`, severity: "fatal" });
+        issues.push({ code: issue.code, message: `${issue.message} (a ${construction.operator} ${key} ${source}, held to ${scope})`, path: `constructions[${index}].inputs.${key}`, severity: "fatal" });
       }
     }
   });

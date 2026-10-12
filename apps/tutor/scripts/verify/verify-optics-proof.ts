@@ -66,6 +66,13 @@
  * half-turn rotate proves; the same operators off the mirror do not. G17: a
  * concave mirror on an endpoint axis toward -x with signedRadius 30 (drawn with
  * the centre on the object side) draws; with -30 the engine refuses it.
+ * G18: an input written as a plan quantity id binds to that quantity whatever
+ * its name: a plan that calls the object distance p draws with objectDistance
+ * "p", and with an inline 10 (no plan name is an object distance, so a literal
+ * must equal some plan length). A wrong object distance (12 inline, or p
+ * declared as 12) and the object distance offered as f (by id p or inline)
+ * still fail scene_quantity_unverified and never draw, on the lens and on the
+ * "-6.25 D" spectacle lens whose plan calls u p.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -1136,7 +1143,73 @@ const expectUnproven = (gate: string, name: string, question: string, document: 
   expectEngineRefuses("G17", "the same reversed-axis mirror drawn convex (signedRadius -30)", qMirror, mirrorPlan, drawnConvex);
 }
 
-for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17"]) {
+// ---- G18: an optics input written as a plan quantity id binds to that quantity, whatever its name ----
+{
+  // Gaussian notation (1/p + 1/q = 1/f): the plan calls the object distance p, a name no role heuristic knows.
+  const gaussPlan = plan(qLens, [
+    { id: "f", symbol: "f", value: 15, unit: "cm", provenance: "given", sourceText: "focal length 15 cm" },
+    { id: "p", symbol: "p", value: 10, unit: "cm", provenance: "given", sourceText: "placed 10 cm" },
+  ], [{ id: "q", symbol: "q", value: 30, unit: "cm", provenance: "derived" }], ["lens_formula"]);
+  const pQuantities = (p = 10) => [{ id: "p", symbol: "p", value: p, unit: "cm" }, { id: "f", symbol: "f", value: 15, unit: "cm" }];
+  const gaussLens = (image: Record<string, unknown>, focus: Record<string, unknown> = {}, quantities = pQuantities()): Doc => {
+    const document = withInputs(goodLens, {
+      gaussian_image: { objectDistance: "p", focalLength: "f", form: "converging", objectSide: "real", ...image },
+      optical_focus: { focalLength: "f", form: "converging", ...focus },
+    });
+    document.quantities = quantities as Doc["quantities"];
+    return document;
+  };
+  // The review's case and its inline twin: both draw.
+  for (const [name, document] of [
+    ["objectDistance by the plan id p", gaussLens({})],
+    ["objectDistance 10 inline (no plan quantity is named as an object distance; 10 cm is the plan's p)", gaussLens({ objectDistance: 10 })],
+  ] as const) {
+    check("G18", quantityIssues(qLens, gaussPlan, document).length === 0,
+      `the p plan lens with ${name} must pass agreement; got ${quantityIssues(qLens, gaussPlan, document).join(", ")}`);
+    expectDrawnAsPlanner("G18", `the p plan lens with ${name}`, qLens, gaussPlan, document);
+  }
+  // Wrong values still fail: a wrong object distance, and the object distance offered as f by its id or inline.
+  for (const [name, document, key] of [
+    ["objectDistance 12 inline", gaussLens({ objectDistance: 12 }), "objectDistance"],
+    ["objectDistance by the id p declared as 12 cm", gaussLens({}, {}, pQuantities(12)), "objectDistance"],
+    ["focalLength by the object distance's id p", gaussLens({ focalLength: "p" }, { focalLength: "p" }), "focalLength"],
+    ["focalLength 10 inline", gaussLens({ focalLength: 10 }, { focalLength: 10 }), "focalLength"],
+  ] as const) {
+    const issues = quantityIssues(qLens, gaussPlan, document);
+    check("G18", issues.some((issue) => issue.startsWith("scene_quantity_unverified@") && issue.endsWith(`.inputs.${key}`)),
+      `the p plan lens with ${name} must fail scene_quantity_unverified on ${key}; got ${issues.join(", ") || "no quantity issue"}`);
+    const { strict, current } = production(qLens, gaussPlan, document);
+    for (const [arm, selection] of [["strict", strict], ["current", current]] as const) {
+      check("G18", selection.representation?.figureSource !== "planner" && selection.attemptedRepresentation?.figureSource !== "planner",
+        `the p plan lens with ${name} must never draw as the planner figure in the ${arm} arm`);
+    }
+  }
+  // The "-6.25 D" spectacle lens on the same footing: its object distance called p, 112 cm offered as f.
+  const spectacleP = (question: string): TurnPlanV3 => {
+    const renamed = spectaclePlan(question);
+    renamed.givens = renamed.givens.map((given) => given.id === "do" ? { ...given, id: "p", symbol: "p" } : given);
+    return renamed;
+  };
+  const spectacleByP = (image: Record<string, unknown>, focus: Record<string, unknown> = {}): Doc => {
+    const document = withInputs(spectacleLens(qSpectacle), { gaussian_image: { objectDistance: "p", ...image }, optical_focus: focus });
+    document.quantities = [{ id: "p", symbol: "p", value: 112, unit: "cm" }] as Doc["quantities"];
+    return document;
+  };
+  check("G18", quantityIssues(qSpectacle, spectacleP(qSpectacle), spectacleByP({})).length === 0,
+    `the "-6.25 D" lens with u by plan id p and |f| = 16 inline must pass agreement; got ${quantityIssues(qSpectacle, spectacleP(qSpectacle), spectacleByP({})).join(", ")}`);
+  expectDrawnAsPlanner("G18", 'the "-6.25 D" lens with u by plan id p', qSpectacle, spectacleP(qSpectacle), spectacleByP({}));
+  for (const [name, document] of [
+    ["focalLength 112 inline", spectacleByP({ focalLength: 112 }, { focalLength: 112 })],
+    ["focalLength by the object distance's id p", spectacleByP({ focalLength: "p" }, { focalLength: "p" })],
+  ] as const) {
+    const issues = quantityIssues(qSpectacle, spectacleP(qSpectacle), document);
+    check("G18", issues.some((issue) => issue.startsWith("scene_quantity_unverified@") && issue.endsWith(".inputs.focalLength")),
+      `the "-6.25 D" lens (u called p) with ${name} must fail scene_quantity_unverified on focalLength; got ${issues.join(", ") || "no quantity issue"}`);
+    expectNeverPlanner("G18", `the "-6.25 D" lens (u called p) with ${name}`, qSpectacle, spectacleP(qSpectacle), document);
+  }
+}
+
+for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18"]) {
   console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 }
 if (failures.length > 0) {
