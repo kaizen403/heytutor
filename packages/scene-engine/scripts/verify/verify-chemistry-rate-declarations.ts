@@ -1228,5 +1228,66 @@ for(const c of timeProjectionCases)try {
 }catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
 // END ADDITIVE STATED RATE/HALF-LIFE TIME PROJECTION GATES
 
+// BEGIN ADDITIVE LINEAR RATE QUANTITY UNIT-ROLE GATES
+const linearUnitCases:(RateCase&{axis:string})[] = [
+  {
+    "id": "LINEAR-RATE-UNIT-zero-min",
+    "question": "A zero order reaction has k = 0.2 M min^-1 and initial concentration is 2 M. Draw [A] against time.",
+    "refuse": false,
+    "order": 0,
+    "k": 0.2,
+    "initial": 2,
+    "half": 5,
+    "unit": "min",
+    "axis": "[A]"
+  },
+  {
+    "id": "LINEAR-RATE-UNIT-zero-h",
+    "question": "A zero order reaction has k = 0.01 M h^-1 and initial concentration is 1 M. Draw [A] versus time.",
+    "refuse": false,
+    "order": 0,
+    "k": 0.01,
+    "initial": 1,
+    "half": 50,
+    "unit": "h",
+    "axis": "[A]"
+  },
+  {
+    "id": "LINEAR-RATE-UNIT-second-min",
+    "question": "A second order reaction has k = 0.05 L mol^-1 min^-1 and initial concentration is 1 M. Draw 1/[A] against time.",
+    "refuse": false,
+    "order": 2,
+    "k": 0.05,
+    "initial": 1,
+    "half": 20,
+    "unit": "min",
+    "axis": "1/[A]"
+  },
+  {
+    "id": "LINEAR-RATE-UNIT-second-h",
+    "question": "A second order reaction has k = 0.25 L mol^-1 h^-1 and initial concentration is 2 M. Draw 1/[A] versus time.",
+    "refuse": false,
+    "order": 2,
+    "k": 0.25,
+    "initial": 2,
+    "half": 2,
+    "unit": "h",
+    "axis": "1/[A]"
+  }
+];
+for(const c of linearUnitCases)try {
+ const spec=kineticsFromStem(c.question);assert.ok(spec);assert.equal(spec.order,c.order);assert.equal(spec.plot,"linear");assert.equal(spec.a0,c.initial);
+ const solved=solveKinetics(spec),truth=expected(c);assert.ok(solved.k!==null&&solved.tHalf!==null);assert.ok(Math.abs(solved.k-truth.k)<=Math.abs(truth.k)*1e-12);assert.ok(Math.abs(solved.tHalf-truth.half)<=Math.abs(truth.half)*1e-12);assert.equal(solved.timeUnit,c.unit);
+ const exact=buildKineticsScene(c.question,[],false),schematic=buildKineticsScene(c.question,[],true),ordinary=synthesizeFamilyScene({question:c.question});assert.ok(exact&&schematic&&ordinary);
+ for(const document of [exact,schematic,ordinary.document]) {
+  checkDocument(c,document);
+  const valid=validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string,unknown>));assert.ok(valid.document);
+  const compiled=compileSceneDocument(valid.document);assert.ok(compiled.ok&&compiled.renderScene);const texts=compiled.renderScene.primitives.filter(p=>p.kind==="label").map(p=>p.text??"");
+  assert.ok(texts.includes(c.axis));assert.ok(texts.some(t=>t.includes("t_1/2")&&t.includes(c.unit!)),"compiled half-life mark must retain its source time unit");
+ }
+ results.push({id:c.id,passed:true});
+}catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
+// END ADDITIVE LINEAR RATE QUANTITY UNIT-ROLE GATES
+
 const output={schema:"chemistry-rate-declarations-gate/v1",passed:results.filter(x=>x.passed).length,failed:results.filter(x=>!x.passed).length,results};
 console.log(JSON.stringify(output,null,2));assert.equal(output.failed,0);

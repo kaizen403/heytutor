@@ -1069,7 +1069,7 @@ function buildLinearPlots(question: string, spec: KineticsSpec, solution: Kineti
     c.scene.assert("m_half_on_line", "function_value", [`${panelSpec.tag}_line`], { x, y });
     panel.ids.push(c.link("m_half_dx", { x, y: 0 }, { x, y }, "drop to the time axis"));
     c.scene.labelled("m_half");
-    c.scene.quantity("k", "k", solution.k, `1/${unit}`);
+    c.scene.quantity("k", "k", solution.k, order === 0 ? `M/${unit}` : order === 2 ? `1/(M ${unit})` : `1/${unit}`);
     c.scene.quantity("t_half", "t_1/2", solution.tHalf, unit);
   }
   const captions: Record<typeof kind, string> = {
