@@ -32,6 +32,11 @@
  * a concave mirror or a convex mirror; the correct figures still do.
  * G9: a correct magnitude passes whatever sign the plan or the stem writes.
  * G10: a mirror axis written as {start, direction} is read.
+ * G11: a stem that names no element kind does not default to convex. The
+ * recorded stem "A spectacle lens marked -6.25 D" proves a diverging figure,
+ * because a negative power is diverging. A stem that names the kind (convex,
+ * concave, converging, diverging) or states a power or focal sign still
+ * rejects the contradicting form.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -748,7 +753,52 @@ expectDrawnAsPlanner("G10", "the convex mirror with axis {start: P, direction: [
   expectNeverPlanner("G10", "a direction-axis mirror drawn convex on a concave stem", qMirror, mirrorPlan, wrongSense);
 }
 
-for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10"]) {
+// ---- G11: the element kind comes from the stem only when the stem names it or signs it ----
+const qSpectacle = "A spectacle lens marked -6.25 D is held 112 cm from a lit sign 5.6 cm high. Work out the focal length of the lens, where the image of the sign is seen, how big it looks and whether it is upright.";
+const spectaclePlan = (question: string): TurnPlanV3 => plan(question, [
+  { id: "P", symbol: "P", value: -6.25, unit: "D", provenance: "given", sourceText: "P = -6.25" },
+  { id: "do", symbol: "d_o", value: 112, unit: "cm", provenance: "given", sourceText: "do = 112" },
+  { id: "ho", symbol: "h_o", value: 5.6, unit: "cm", provenance: "given", sourceText: "ho = 5.6" },
+], [
+  { id: "f", symbol: "f", value: -16, unit: "cm", provenance: "derived" },
+  { id: "di", symbol: "d_i", value: -14, unit: "cm", provenance: "derived" },
+  { id: "hi", symbol: "h_i", value: 0.7, unit: "cm", provenance: "derived" },
+], ["lens_formula"]);
+/** The recorded honest figure's shape: a diverging lens on the plan's d_o, |f| = 16 cm inline, u = 112 cm. */
+function spectacleLens(question: string): Doc {
+  const document = divergingLens(question, { u: 112, f: 16, h: 5.6, unit: "cm", scale: 1, focal: 16, quantities: [{ id: "do", symbol: "d_o", value: 112, unit: "cm" }] });
+  for (const construction of document.constructions) {
+    if (construction.id === "c_img") construction.inputs.objectDistance = "do";
+    if (construction.id === "c_axis_l") construction.inputs.x = -130;
+  }
+  return document;
+}
+{
+  const proof = explainPlannerOpticsProof(qSpectacle, spectacleLens(qSpectacle));
+  check("G11", proof.proof === "proven", `the recorded "-6.25 D" stem names no kind; its diverging figure must be proven; got ${proof.proof}: ${proof.reason}`);
+  expectDrawnAsPlanner("G11", 'the diverging figure on the recorded "-6.25 D" stem', qSpectacle, spectaclePlan(qSpectacle), spectacleLens(qSpectacle));
+  // Controls: a named kind, or a power whose sign implies one, still decides.
+  for (const [name, question, reason] of [
+    ["a stem that names a convex lens", qSpectacle.replace("A spectacle lens marked -6.25 D", "A convex spectacle lens marked +6.25 D"), /contradicts a convex lens/],
+    ["a stem that names a converging lens", qSpectacle.replace("A spectacle lens", "A converging spectacle lens").replace("-6.25 D", "+6.25 D"), /contradicts a convex lens/],
+    ["a stem whose positive power implies a converging lens", qSpectacle.replace("-6.25 D", "+6.25 D"), /contradicts a convex lens/],
+  ] as const) {
+    const control = spectacleLens(question);
+    const result = explainPlannerOpticsProof(question, control);
+    check("G11", result.proof === "unproven" && reason.test(result.reason), `${name} must still reject a diverging form; got ${result.proof}: ${result.reason}`);
+    expectNeverPlanner("G11", `a diverging figure on ${name}`, question, spectaclePlan(question), control);
+  }
+  // A converging figure on the negative power fails on its sign.
+  const converging = spectacleLens(qSpectacle);
+  for (const construction of converging.constructions) {
+    if (construction.id === "c_img" || construction.id === "c_F") construction.inputs.form = "converging";
+  }
+  const wrongForm = explainPlannerOpticsProof(qSpectacle, converging);
+  check("G11", wrongForm.proof === "unproven" && /contradicts a concave lens/.test(wrongForm.reason),
+    `a converging figure on the "-6.25 D" stem must fail P2; got ${wrongForm.proof}: ${wrongForm.reason}`);
+}
+
+for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11"]) {
   console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 }
 if (failures.length > 0) {

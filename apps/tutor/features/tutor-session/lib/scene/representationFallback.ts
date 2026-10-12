@@ -667,7 +667,7 @@ export function explainPlannerOpticsProof(
   if (match?.id !== "spherical_mirror" && match?.id !== "thin_lens") {
     return { proof: "not_optics", reason: "not a lens or mirror stem" };
   }
-  const failure = opticsProofFailure(match, document);
+  const failure = opticsProofFailure(question, match, document);
   return failure === null
     ? { proof: "proven", reason: "object, image, foci and rays are engine-derived from the stem's u and f" }
     : { proof: "unproven", reason: failure };
@@ -702,9 +702,8 @@ const OPTICS_PATH_OPERATORS = new Set(["segment", "ray", "vector", "line"]);
 /** lens_section and spherical_surface draw a flat element beyond this radius. */
 const OPTICS_PLANO_RATIO = 40;
 
-function opticsProofFailure(match: OpticsStemMatch, document: SceneDocument): string | null {
+function opticsProofFailure(question: string, match: OpticsStemMatch, document: SceneDocument): string | null {
   const element = match.id === "thin_lens" ? "lens" : "mirror";
-  const stemKind = match.slots.kind === "convex" ? "convex" : "concave";
   // P1: one engine image, of the stem's element.
   const images = document.constructions.filter((construction) => construction.operator === "gaussian_image");
   if (images.length !== 1) return `gaussian_image count ${images.length}`;
@@ -717,6 +716,14 @@ function opticsProofFailure(match: OpticsStemMatch, document: SceneDocument): st
   // A real object with light along +axis, the stem's focal sign, and the stem's form.
   const resolved = opticsResolved(inputs, document, "gaussian_image");
   if (typeof resolved === "string") return `gaussian_image ${resolved}`;
+  // The kind is the stem's only when the stem names it or a lens power or focal sign implies it.
+  // detectArchetype defaults an unnamed kind to convex; then the figure's own form or sign is the
+  // kind, and P3 to P9 still hold that element to the stem's numbers.
+  const figureConverges = resolved.form !== undefined
+    ? resolved.form === "converging"
+    : element === "lens" ? resolved.focalLength > 0 : resolved.focalLength < 0;
+  const stemKind = opticsStatedKind(question, element, match) ??
+    ((element === "lens") === figureConverges ? "convex" : "concave");
   const converges = element === "lens" ? stemKind === "convex" : stemKind === "concave";
   if (resolved.form !== undefined && (resolved.form === "converging") !== converges) {
     return `gaussian_image form ${resolved.form} contradicts a ${stemKind} ${element}`;
@@ -902,6 +909,27 @@ function opticsConvergingPathFailure(
       ((construction.operator === "segment" || construction.operator === "line") && from === hit && to === objectTip);
   });
   return incident ? null : `converging line ${id} has no drawn incident ray from the object tip to ${String(hit)}`;
+}
+
+/**
+ * The element kind the stem states, or null when it states none. A named kind decides (convex,
+ * concave, converging, diverging; a stem naming both keeps the detector's reading). For a lens, a
+ * stated power or focal length decides by its sign: negative is diverging in every convention. A
+ * mirror's sign depends on the convention, so a number never names a mirror's kind.
+ */
+function opticsStatedKind(question: string, element: "lens" | "mirror", match: OpticsStemMatch): "convex" | "concave" | null {
+  const converging = element === "lens" ? /\b(?:bi)?convex\b|\bconverging\b/i : /\bconcave\b|\bconverging\b/i;
+  const diverging = element === "lens" ? /\b(?:bi)?concave\b|\bdiverging\b/i : /\bconvex\b|\bdiverging\b/i;
+  const namesConverging = converging.test(question);
+  const namesDiverging = diverging.test(question);
+  if (namesConverging && namesDiverging) return match.slots.kind === "convex" ? "convex" : "concave";
+  if (namesConverging || namesDiverging) return (element === "lens") === namesConverging ? "convex" : "concave";
+  if (element === "mirror") return null;
+  const power = /(^|[^\w.])([+\-−–]?)\s*\d+(?:\.\d+)?\s*(?:D|[Dd]ioptres?|[Dd]iopters?)\b/.exec(question);
+  if (power) return power[2] === "" || power[2] === "+" ? "convex" : "concave";
+  const focal = match.slots.f;
+  if (match.sources.f === "stem" && typeof focal === "number" && focal !== 0) return focal > 0 ? "convex" : "concave";
+  return null;
 }
 
 /** P5: lens_section for a lens, spherical_surface for a mirror, never the other, never flat. */
