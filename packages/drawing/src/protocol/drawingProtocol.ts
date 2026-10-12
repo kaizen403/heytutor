@@ -132,8 +132,14 @@ export const DRAWING_TAG_SCAN_PATTERN = /\[[^\]\n]{1,256}\]/g;
 const WRITE_LABEL_HEADER_PATTERN = /^\[(WRITE|LABEL):/i;
 const WRITE_LABEL_ENDING_PATTERN =
   /,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*(?:,\s*(-?\d+(?:\.\d+)?)\s*)?\]/g;
-const TEXT_BODY_BOUNDARY = String.raw`\[(?:${DRAW_COMMAND_TYPES.join('|')}|STEP|\/STEP)\b`;
-const WRITE_LABEL_BODY_BREAK_PATTERN = new RegExp(TEXT_BODY_BOUNDARY, 'i');
+// Parameterized tags need their delimiter: [type] is mathematical text,
+// whereas [TYPE:block] is a protocol boundary. A STEP footer always closes
+// teaching; structural STEP markers never belong to a repaired row.
+const TEXT_BODY_BOUNDARY = String.raw`\[\s*(?:${DRAW_COMMAND_TYPES.join('|')})\s*(?=[:,])|\[(?:STEP|\/STEP)\]`;
+const WRITE_LABEL_BODY_BREAK_PATTERN = new RegExp(TEXT_BODY_BOUNDARY, 'iu');
+// Only the legacy body-outside-header repair needs bare text-tag boundaries.
+// Inside a correctly opened text command, nested bare names are its text.
+const HEADER_ONLY_BODY_BOUNDARY = String.raw`${TEXT_BODY_BOUNDARY}|(?<![\p{L}\p{N}_$)\]])\[(?:WRITE|LABEL|DIMENSION)\]`;
 
 /**
  * `[WRITE]text,x,y` instead of `[WRITE:text,x,y]`.
@@ -149,7 +155,7 @@ const WRITE_LABEL_BODY_BREAK_PATTERN = new RegExp(TEXT_BODY_BOUNDARY, 'i');
  * cross another protocol tag and borrow that later tag's coordinates.
  */
 const HEADER_ONLY_TEXT_TAG_PATTERN = new RegExp(
-  String.raw`\[(WRITE|LABEL|DIMENSION)\]\s*((?:(?!${TEXT_BODY_BOUNDARY})[^\r\n])*?,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?(?:\s*,\s*-?\d+(?:\.\d+)?)?)\s*(?=\r?\n|\[\/STEP\]|$)`, 'gi',
+  String.raw`\[(WRITE|LABEL|DIMENSION)\]\s*((?:(?!${HEADER_ONLY_BODY_BOUNDARY})[^\r\n])*?,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?(?:\s*,\s*-?\d+(?:\.\d+)?)?)\s*(?=\r?\n|\[\/STEP\]|$)`, 'giu',
 );
 
 /** The same shape with nothing after the name yet, for the streaming parser. */

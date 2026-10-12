@@ -99,6 +99,43 @@ assert.deepEqual(row(consume(header, 1).parsed),
   "whole parsing and incremental parsing preserve the same board row");
 groups++;
 
+// Indexed work can name any protocol token without turning into that token.
+// Keep the live markup -> parser -> authority -> resume-ink consumer in the gate.
+for (const type of DRAW_COMMAND_TYPES) {
+  const indexed = `dp[${type.toLowerCase()}] = 3`;
+  for (const header of ["[WRITE:", "[WRITE]"]) {
+    const source = `[STEP]Explain the index. ${header}${indexed},90,274${header.endsWith(":") ? "]" : ""}[/STEP]`;
+    for (const width of [1, 7, source.length]) {
+      const actual = consume(source, width);
+      assert(actual.hasInk, `indexed ${type} reaches resumed spoken-and-written playback`);
+      assert.deepEqual(row(actual.released), [{ text: indexed, params: [90, 274, 32] }]);
+      assert.equal(actual.released[0]?.narration, "Explain the index.");
+      assert(!actual.parsed.flatMap(getSegmentCommands).some(command => command.type !== "WRITE"),
+        `indexed ${type} cannot fabricate another protocol command`);
+    }
+  }
+}
+groups++;
+
+// Exact coordinator examples: prose brackets must never clear the board or
+// leak protocol coordinates into speech, including on actual resumed playback.
+for (const [text, expected] of [
+  ["[Type I error] = alpha", "[Type I error] = α"],
+  ["In [Frame S'] v = 0.5c", "In [Frame S'] v = 0.5c"],
+  ["[Clear] solution", "[Clear] solution"],
+  ["[Arrow] points north", "[Arrow] points north"],
+]) {
+  const source = `[STEP]Explain the notation. [WRITE:${text},90,274][/STEP]`;
+  for (const width of [1, 7, source.length]) {
+    const actual = consume(source, width);
+    assert(actual.hasInk);
+    assert.deepEqual(row(actual.released), [{ text: expected, params: [90, 274, 32] }]);
+    assert.deepEqual(actual.parsed.flatMap(getSegmentCommands).map(command => command.type), ["WRITE"]);
+    assert.equal(actual.released[0]?.narration, "Explain the notation.");
+  }
+}
+groups++;
+
 // Newline, EOF and bracketed mathematics retain the existing format contract.
 for (const ending of ["\n[/STEP]", "", "[/step]"]) {
   const source = `[STEP]The concentration is bracketed. [WRITE][Na^+],90,274${ending}`;
@@ -137,11 +174,17 @@ assert.deepEqual(parseDrawingCommands(malformedThenValid).commands
 const crossTag = "[STEP]Incomplete work. [WRITE]missing [ARROW:90,142,1160,600] junk,90,274[/STEP]";
 assert(!consume(crossTag, 1).hasInk, "a legacy text body cannot borrow coordinates across a drawing protocol tag");
 for (const type of DRAW_COMMAND_TYPES) {
-  const source = `[STEP]Incomplete work. [WRITE]missing [${type}:90,142,1160,600] junk,90,274[/STEP]`;
-  assert(!row(consume(source, 1).parsed).some(command => command.text?.startsWith("missing")),
-    `incremental repair cannot swallow the recognized ${type} boundary into a work row`);
-  assert(!parseDrawingCommands(source).commands.some(command => command.type === "WRITE" && command.text?.startsWith("missing")),
-    `whole repair cannot swallow the recognized ${type} boundary into a work row`);
+  for (const separator of [":", " :", ",", " ,"]) {
+    const source = `[STEP]Incomplete work. [WRITE]missing [${type}${separator}90,142,1160,600] junk,90,274[/STEP]`;
+    assert(!row(consume(source, 1).parsed).some(command => command.text?.startsWith("missing")),
+      `incremental repair cannot swallow the recognized ${type} boundary into a work row`);
+    assert(!parseDrawingCommands(source).commands.some(command => command.type === "WRITE" && command.text?.startsWith("missing")),
+      `whole repair cannot swallow the recognized ${type} boundary into a work row`);
+  }
 }
+const adjacentSteps = "[STEP]Incomplete. [WRITE]missing[/STEP][STEP]x,90,274[/STEP]";
+assert(!row(consume(adjacentSteps, 1).parsed).length);
+assert(!parseDrawingCommands(adjacentSteps).commands.some(command => command.type === "WRITE"),
+  "a STEP footer after ordinary letters cannot lend the next step coordinates to a WRITE");
 groups++;
 console.log(`verify-resume-write-boundaries: ${groups} groups passed; actual markup/parser/ownership/resume queue; controlled continuation; providers0`);

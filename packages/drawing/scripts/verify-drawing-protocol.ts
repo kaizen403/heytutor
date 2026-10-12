@@ -1,5 +1,6 @@
 import {
   IncrementalTagParser,
+  DRAW_COMMAND_TYPES,
   checkSegmentAlignment,
   lessonNarrationText,
   normalizeBoardText,
@@ -59,6 +60,43 @@ for (const [type, text, coordinates] of [
   assert(chunks.length === 1 && chunks[0]?.command?.text === text, "matrix streaming: the complete command emits once");
   assert(chunks[0]?.command?.params.join(",") === coordinates, "matrix streaming: only the outer coordinates survive");
   assert(chunks[0]?.narration === "Show the values.", "matrix streaming: no protocol leak");
+}
+
+// A protocol name inside an indexed expression is text, not a second tag.
+// Exercise the whole-response, structured and actual live character parser.
+for (const name of DRAW_COMMAND_TYPES) {
+  for (const text of [
+    `dp[${name.toLowerCase()}] = 3`, `[${name.toLowerCase()}] = 3`,
+    `dp [${name.toLowerCase()}] = 3`, `(dp)[${name.toLowerCase()}] = 3`,
+    `Σ[${name.toLowerCase()}] = 3`, `dp[table[${name.toLowerCase()}]] = 3`,
+  ]) {
+    // A legacy bare header is ambiguous with a standalone bare text tag.
+    // Its indexed case remains covered; canonical bodies support both forms.
+    for (const header of text.startsWith("dp[") ? ["[WRITE:", "[WRITE]"] : ["[WRITE:"]) {
+      const tag = `${header}${text},90,274${header.endsWith(":") ? "]" : ""}`;
+      const source = `[STEP]Explain the index. ${tag}[/STEP]`;
+      const whole = parseDrawingCommands(source);
+      assert(whole.commands.length === 1 && whole.commands[0]?.type === "WRITE",
+        `indexed ${name}: one WRITE, no fabricated protocol command`);
+      assert(whole.commands[0]?.text === text && whole.commands[0]?.params.join(",") === "90,274",
+        `indexed ${name}: complete text and outer coordinates survive`);
+      const structured = parseStructuredLessonSteps(`[STEP]Explain the index. [WRITE:${text},90,274][/STEP]`);
+      assert(structured[0]?.command?.text === text && structured[0]?.narration === "Explain the index.",
+        `indexed ${name}: structured work never leaks into speech`);
+      for (const width of [1, 2, 7, source.length]) {
+        const segments: TutorSegment[] = [];
+        const parser = new IncrementalTagParser({ onSegmentReady: segment => segments.push(segment) });
+        for (let i = 0; i < source.length; i += width) parser.push(source.slice(i, i + width));
+        parser.flush();
+        const commands = segments.flatMap(getSegmentCommands);
+        assert(commands.length === 1 && commands[0]?.type === "WRITE" && commands[0]?.text === text,
+          `indexed ${name}: chunk width ${width} retains the work exactly once`);
+        assert(commands[0]?.params.join(",") === "90,274" &&
+          segments.map(segment => segment.narration).join(" ").trim() === "Explain the index.",
+          `indexed ${name}: chunk width ${width} never narrates coordinates or brackets`);
+      }
+    }
+  }
 }
 
 function assertNestedMathCommand(
