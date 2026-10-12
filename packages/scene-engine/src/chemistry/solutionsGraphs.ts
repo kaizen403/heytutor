@@ -701,7 +701,7 @@ function readRaoult(stem: string, _quantities: readonly ChemPlanQuantity[]): Rao
     const equimolarCues = [...stem.matchAll(/\bequimolar\b/gi)];
     // An affirmative word owns the 1:1 composition. Case is semantic; all
     // pressure/scalar spans remain original. A local negation owns no .5.
-    const negated = equimolarCues.some(cue => /\b(?:not(?:\s+(?:an?|the))?(?:\s+(?:[a-z]+ly|quite|at\s+all))?|non|unequal)[\s-]*$/i.test(stem.slice(0, cue.index)));
+    const negated = equimolarCues.some(cue => /\b(?:not(?:\s+(?:an?|the))?(?:\s+(?:[a-z]+ly|quite|at\s+all))?|non|unequal)[\s\-−–—]*$/i.test(stem.slice(0, cue.index)));
     if (equimolarCues.length > 0 && !negated) xA = 0.5;
   }
   if (xA === null) {
