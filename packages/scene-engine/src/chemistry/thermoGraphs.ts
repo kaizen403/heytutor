@@ -54,8 +54,9 @@ function classifyThermoStem(question: string): ThermoKind | null {
   ) {
     return "maxwell";
   }
-  const hasDeltaH = readEnthalpyChange(question) !== null;
-  const hasDeltaS = readEntropyChange(question) !== null;
+  const gibbsSource = readGibbsEnergies(question);
+  const hasDeltaH = gibbsSource !== null || readEnthalpyChange(question) !== null;
+  const hasDeltaS = gibbsSource !== null || readEntropyChange(question) !== null;
   if (
     (/haber/.test(stem) && /variation|graph|plot|\bvs\b|versus|represent/.test(stem)) ||
     (/variation\s+of\s+(?:thermodynamic\s+)?(?:properties|parameters|δg|δh|δs)/.test(stem) && /\b(?:with|against|vs|versus)\s+(?:temperature|t)\b/.test(stem) && !(hasDeltaH && hasDeltaS))
@@ -117,12 +118,15 @@ function toKj(energy: Energy): number { return energy.value; }
 const DELTA_H_SYMBOL = /(?:δ|∆|Δ)\s*(?:r|reaction)?\s*h\b(?:°|º)?|\b[ad]h(?:°|º)?\s*(?=[=:]|\s+is\b|\s+of\b|\s+for\b)|(?:enthalpy|heat)\s+(?:change\s+)?(?:of|for)\s+(?:the\s+)?reaction|enthalpy\s+change|heat\s+of\s+reaction|reaction\s+enthalpy/;
 const DELTA_S_SYMBOL = /(?:δ|∆|Δ)\s*(?:r|reaction)?\s*s\b(?:°|º)?|\b[ad]s(?:°|º)?\s*(?=[=:]|\s+is\b|\s+of\b|\s+for\b)|entropy\s+change|change\s+in\s+entropy|reaction\s+entropy/;
 
+const ENTHALPY_RELEASE_CUE = /(?:exothermic\s+(?:by|with)|releases|evolves|liberates|heat\s+(?:evolved|released|liberated)(?:\s+is)?)/;
+const ENTHALPY_ABSORB_CUE = /(?:endothermic\s+(?:by|with)|absorbs|heat\s+absorbed(?:\s+is)?)/;
+
 function readEnthalpyChange(stem: string): Energy | null {
   const direct = energyNear(stem, DELTA_H_SYMBOL, 40);
   if (direct) return direct;
-  const evolved = energyNear(stem, /(?:exothermic\s+(?:by|with)|releases|evolves|liberates|heat\s+(?:evolved|released|liberated)(?:\s+is)?)/, 30);
+  const evolved = energyNear(stem, ENTHALPY_RELEASE_CUE, 30);
   if (evolved) return { value: -Math.abs(evolved.value), unit: evolved.unit };
-  const absorbed = energyNear(stem, /(?:endothermic\s+(?:by|with)|absorbs|heat\s+absorbed(?:\s+is)?)/, 30);
+  const absorbed = energyNear(stem, ENTHALPY_ABSORB_CUE, 30);
   if (absorbed) return { value: Math.abs(absorbed.value), unit: absorbed.unit };
   return null;
 }
@@ -511,6 +515,7 @@ function statedKelvin(question: string): GibbsTemperature {
   const payloads = new Map<number, number>();
   for (const owner of owners) for (const match of body.matchAll(owner)) {
     if (/\b(?:what|which)\s+(?:absolute\s+)?$/i.test(body.slice(0, match.index!))) continue;
+    if (/\bat$/i.test(match[0]) && /^\s+(?:(?:a|the)\s+)?(?:absolute\s+)?temperature\b/i.test(body.slice(match.index! + match[0].length))) continue;
     const start = match.index! + match[0].length;
     payloads.set(start, Math.min(payloads.get(start) ?? match.index!, match.index!));
   }
@@ -530,33 +535,69 @@ function statedKelvin(question: string): GibbsTemperature {
 function gibbsEnergyReference(body: string, start: number, end: number): boolean {
   const tail = body.slice(end);
   if (/^\s*(?:[=:]|[+−-]?(?:\d|\.\d)|\b(?:is|was|equals|of|for|remains|stays|unknown|unreadable|unspecified|which|that)\b)/i.test(tail)) return false;
-  if (!/^\s*(?:[+−*/×·)-]|-(?!\s*\d)|[,.;?!]|$|\b(?:and|to|versus|vs|against|at|as)\b)/i.test(tail)) return false;
+  if (!/^\s*(?:[+−*/×·)-]|-(?!\s*\d)|[,.;?!]|$|\b(?:and|to|versus|vs|against|at|as|in)\b)/i.test(tail)) return false;
   const prefix = body.slice(0, start).split(/[;.!?\n]/).at(-1)!;
   if (/(?:[Δδ∆]\s*G(?:\s*\(\s*T\s*\))?|\bT(?:_[a-z]+)?)\s*=\s*[Δδ∆HhSsTt0-9\s*×·/()+−-]*$/i.test(prefix)) return true;
-  return /\b(?:use|using|from|with)\s+(?:(?:the|given)\s+)?(?:[Δδ∆HhSsTt0-9\s*×·/()+−-]|\band\b|,)*$/i.test(prefix);
+  return /\b(?:use|using|from|with)\s+(?:(?:the|given)\s+)?(?:[Δδ∆HhSsTt0-9\s*×·/()+−-]|\band\b|,|enthalpy\s+change|entropy\s+change)*$/i.test(prefix);
 }
-/** Validate every original enthalpy/entropy declaration inside its own owner span. */
-function gibbsEnergyOwnersValid(question: string): boolean {
+type GibbsEnergies = {enthalpy: Energy; entropy: {value: number; unit: "J"; dimension: ChemistryDimension}};
+
+/** Read every original reader alias inside its own owner span; agreeing facts corroborate. */
+function readGibbsEnergies(question: string): GibbsEnergies | null {
   const body = question.slice(0, chemistryQuestionSpan(question).end);
-  const owners = [
-    ...Array.from(body.matchAll(new RegExp(DELTA_H_SYMBOL.source, "gi")), match => ({
-      start: match.index!, end: match.index! + match[0].length, cue: energyCueAfter(DELTA_H_SYMBOL), dimensions: ["molar_energy", "energy"] as const,
-    })),
-    ...Array.from(body.matchAll(new RegExp(DELTA_S_SYMBOL.source, "gi")), match => ({
-      start: match.index!, end: match.index! + match[0].length, cue: DELTA_S_SYMBOL, dimensions: ["molar_entropy", "entropy"] as const,
-    })),
-  ].sort((a, b) => a.start - b.start);
-  return owners.every((owner, index) => {
-    const end = owners[index + 1]?.start ?? body.length;
-    return gibbsEnergyReference(body, owner.start, owner.end) || owner.dimensions.some(dimension => readChemistryQuantity({question: body,
-      after: new RegExp(`^(?:${owner.cue.source})`, "i"),
-      within: {start: owner.start, end}, dimension}).ok);
-  });
+  const aliases = [
+    {phrase: DELTA_H_SYMBOL, role: "enthalpy", sign: 0},
+    {phrase: ENTHALPY_RELEASE_CUE, role: "enthalpy", sign: -1},
+    {phrase: ENTHALPY_ABSORB_CUE, role: "enthalpy", sign: 1},
+    {phrase: DELTA_S_SYMBOL, role: "entropy", sign: 0},
+  ] as const;
+  const owners = aliases.flatMap(alias => Array.from(body.matchAll(new RegExp(alias.phrase.source, "gi")), match => ({
+    ...alias, start: match.index!, end: match.index! + match[0].length,
+  }))).sort((a, b) => a.start - b.start);
+  let enthalpy: Energy | null = null;
+  let entropy: GibbsEnergies["entropy"] | null = null;
+  const qualitativeSigns: number[] = [];
+  for (const [index, owner] of owners.entries()) {
+    const next = owners[index + 1];
+    const end = next?.start ?? body.length;
+    const payload = body.slice(owner.end, end);
+    // "Enthalpy change, ΔH = ..." names one owner twice, not two supplied values.
+    if (owner.sign === 0 && next?.role === owner.role && /^\s*[,:(]?\s*$/.test(payload)) continue;
+    if (owner.sign === 0 && gibbsEnergyReference(body, owner.start, owner.end)) continue;
+    if (owner.sign !== 0 && (/^\s*(?:(?:heat|energy)\s*)?(?:[,.;!?]|$)/i.test(payload)
+      || new RegExp(String.raw`^\s*(?:${DELTA_H_SYMBOL.source})`, "i").test(payload))) {
+      qualitativeSigns.push(owner.sign); continue;
+    }
+    const isEnthalpy = owner.role === "enthalpy";
+    const dimensions = isEnthalpy ? ["molar_energy", "energy"] as const : ["molar_entropy", "entropy"] as const;
+    let reading: {value: number; dimension: ChemistryDimension; unit: string} | null = null;
+    for (const dimension of dimensions) {
+      const targetUnit = dimension === "molar_energy" ? "kJ/mol" : dimension === "energy" ? "kJ" : undefined;
+      const read = readChemistryQuantity({question: body,
+        after: new RegExp(`^(?:${(isEnthalpy ? energyCueAfter(owner.phrase) : owner.phrase).source})`, "i"),
+        within: {start: owner.start, end}, dimension, ...(targetUnit ? {targetUnit} : {})});
+      if (read.ok) { reading = {value: read.reading.value, dimension, unit: targetUnit ?? "J"}; break; }
+    }
+    if (!reading) return null;
+    const value = owner.sign === -1 ? -Math.abs(reading.value)
+      : owner.sign === 1 ? Math.abs(reading.value) : reading.value;
+    if (isEnthalpy) {
+      if (enthalpy && (enthalpy.unit !== reading.unit || !chemistryCanonicalValuesAgree(enthalpy.value, value))) return null;
+      enthalpy = {value, unit: reading.unit};
+    } else {
+      if (entropy && (entropy.dimension !== reading.dimension || !chemistryCanonicalValuesAgree(entropy.value, value))) return null;
+      entropy = {value, unit: "J", dimension: reading.dimension};
+    }
+  }
+  if (!enthalpy || !entropy) return null;
+  const givenEnthalpy = enthalpy;
+  if (qualitativeSigns.some(sign => sign !== Math.sign(givenEnthalpy.value))) return null;
+  return {enthalpy, entropy};
 }
 function buildGibbs(question: string, _stem: string, _quantities: ChemPlanQuantity[]): SceneDocument | null {
-  if (!gibbsEnergyOwnersValid(question)) return null;
-  const stemH = readEnthalpyChange(question); const stemS = readEntropyChange(question);
-  if (!stemH || !stemS) return null;
+  const source = readGibbsEnergies(question);
+  if (!source) return null;
+  const {enthalpy: stemH, entropy: stemS} = source;
   const perMole = stemH.unit === "kJ/mol";
   if (perMole !== (stemS.dimension === "molar_entropy")) return null;
   const dH = stemH.value; const dSkJ = stemS.value / 1000;

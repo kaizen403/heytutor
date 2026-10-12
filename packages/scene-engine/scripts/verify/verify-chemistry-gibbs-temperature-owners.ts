@@ -388,6 +388,352 @@ const cases: readonly {id:string; question:string; expected:string; dG:number|nu
     "question": "T was unknown; at 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and calculate ΔG.",
     "expected": "decline",
     "dG": null
+  },
+  {
+    "id": "GIBBS-H-ALIAS-REFUSE-1",
+    "question": "The reaction releases unknown; the reaction releases 40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "GIBBS-H-ALIAS-REFUSE-2",
+    "question": "The reaction evolves unknown; the reaction evolves 40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "GIBBS-H-ALIAS-REFUSE-3",
+    "question": "Heat absorbed is unknown; heat absorbed is 40 kJ/mol. ΔS = 100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "GIBBS-H-ALIAS-REFUSE-4",
+    "question": "The reaction is exothermic by unknown; the reaction is exothermic by 40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "GIBBS-H-ALIAS-REFUSE-5",
+    "question": "The reaction is endothermic with unknown; the reaction is endothermic with 40 kJ/mol. ΔS = 100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "GIBBS-H-ALIAS-SUPPORT-1",
+    "question": "The reaction releases heat. ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": -10.2,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "GIBBS-H-ALIAS-SUPPORT-2",
+    "question": "The reaction absorbs heat. ΔH = 40 kJ/mol and ΔS = 100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": 10.2,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "GIBBS-H-ALIAS-SUPPORT-3",
+    "question": "The enthalpy change, ΔH = -40 kJ/mol, and the entropy change, ΔS = -100 J/(mol K), are given. At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": -10.2,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "GIBBS-H-ALIAS-SUPPORT-4",
+    "question": "ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Use the enthalpy change ΔH and entropy change ΔS in ΔG = ΔH - TΔS. At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": -10.2,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "GIBBS-H-ALIAS-SUPPORT-5",
+    "question": "The reaction releases 40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": -10.2,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-1-SUPPORT",
+    "question": "The reaction releases 40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": -10.2
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-1-UNREAD-FIRST",
+    "question": "The reaction releases unknown; The reaction releases 40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-1-UNREAD-LAST",
+    "question": "The reaction releases 40 kJ/mol; The reaction releases unreadable. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-2-SUPPORT",
+    "question": "The reaction evolves 40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": -10.2
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-2-UNREAD-FIRST",
+    "question": "The reaction evolves unknown; The reaction evolves 40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-2-UNREAD-LAST",
+    "question": "The reaction evolves 40 kJ/mol; The reaction evolves unreadable. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-3-SUPPORT",
+    "question": "The reaction liberates 40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": -10.2
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-3-UNREAD-FIRST",
+    "question": "The reaction liberates unknown; The reaction liberates 40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-3-UNREAD-LAST",
+    "question": "The reaction liberates 40 kJ/mol; The reaction liberates unreadable. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-4-SUPPORT",
+    "question": "The heat evolved is 40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": -10.2
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-4-UNREAD-FIRST",
+    "question": "The heat evolved is unknown; The heat evolved is 40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-4-UNREAD-LAST",
+    "question": "The heat evolved is 40 kJ/mol; The heat evolved is unreadable. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-5-SUPPORT",
+    "question": "The heat released is 40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": -10.2
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-5-UNREAD-FIRST",
+    "question": "The heat released is unknown; The heat released is 40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-5-UNREAD-LAST",
+    "question": "The heat released is 40 kJ/mol; The heat released is unreadable. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-6-SUPPORT",
+    "question": "The heat liberated is 40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": -10.2
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-6-UNREAD-FIRST",
+    "question": "The heat liberated is unknown; The heat liberated is 40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-6-UNREAD-LAST",
+    "question": "The heat liberated is 40 kJ/mol; The heat liberated is unreadable. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-7-SUPPORT",
+    "question": "The reaction is exothermic by 40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": -10.2
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-7-UNREAD-FIRST",
+    "question": "The reaction is exothermic by unknown; The reaction is exothermic by 40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-7-UNREAD-LAST",
+    "question": "The reaction is exothermic by 40 kJ/mol; The reaction is exothermic by unreadable. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-8-SUPPORT",
+    "question": "The reaction is exothermic with 40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": -10.2
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-8-UNREAD-FIRST",
+    "question": "The reaction is exothermic with unknown; The reaction is exothermic with 40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-8-UNREAD-LAST",
+    "question": "The reaction is exothermic with 40 kJ/mol; The reaction is exothermic with unreadable. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-9-SUPPORT",
+    "question": "The reaction absorbs 40 kJ/mol. ΔS = 100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": 10.2
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-9-UNREAD-FIRST",
+    "question": "The reaction absorbs unknown; The reaction absorbs 40 kJ/mol. ΔS = 100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-9-UNREAD-LAST",
+    "question": "The reaction absorbs 40 kJ/mol; The reaction absorbs unreadable. ΔS = 100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-10-SUPPORT",
+    "question": "The heat absorbed is 40 kJ/mol. ΔS = 100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": 10.2
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-10-UNREAD-FIRST",
+    "question": "The heat absorbed is unknown; The heat absorbed is 40 kJ/mol. ΔS = 100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-10-UNREAD-LAST",
+    "question": "The heat absorbed is 40 kJ/mol; The heat absorbed is unreadable. ΔS = 100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-11-SUPPORT",
+    "question": "The reaction is endothermic by 40 kJ/mol. ΔS = 100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": 10.2
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-11-UNREAD-FIRST",
+    "question": "The reaction is endothermic by unknown; The reaction is endothermic by 40 kJ/mol. ΔS = 100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-11-UNREAD-LAST",
+    "question": "The reaction is endothermic by 40 kJ/mol; The reaction is endothermic by unreadable. ΔS = 100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-12-SUPPORT",
+    "question": "The reaction is endothermic with 40 kJ/mol. ΔS = 100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": 10.2
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-12-UNREAD-FIRST",
+    "question": "The reaction is endothermic with unknown; The reaction is endothermic with 40 kJ/mol. ΔS = 100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-ALIAS-12-UNREAD-LAST",
+    "question": "The reaction is endothermic with 40 kJ/mol; The reaction is endothermic with unreadable. ΔS = 100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-SOURCE-ROLE-1",
+    "question": "The reaction releases heat. ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": -10.2
+  },
+  {
+    "id": "OWN-ENTHALPY-SOURCE-ROLE-2",
+    "question": "The reaction absorbs heat. ΔH = 40 kJ/mol and ΔS = 100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": 10.2
+  },
+  {
+    "id": "OWN-ENTHALPY-SOURCE-ROLE-3",
+    "question": "The reaction is exothermic with ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": -10.2
+  },
+  {
+    "id": "OWN-ENTHALPY-SOURCE-ROLE-4",
+    "question": "The reaction is endothermic with ΔH = 40 kJ/mol and ΔS = 100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": 10.2
+  },
+  {
+    "id": "OWN-ENTHALPY-SOURCE-ROLE-5",
+    "question": "The reaction releases heat. ΔH = 40 kJ/mol and ΔS = 100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-SOURCE-ROLE-6",
+    "question": "ΔH = -40 kJ/mol; the reaction releases 20 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-SOURCE-ROLE-7",
+    "question": "ΔH = -40 kJ/mol; the reaction releases 40 kJ. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-ENTHALPY-SOURCE-ROLE-8",
+    "question": "ΔH = -40 kJ/mol; the reaction releases 40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": -10.2
+  },
+  {
+    "id": "OWN-TEMPERATURE-NESTED-AT",
+    "question": "At a temperature of 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and calculate ΔG at 298 K.",
+    "expected": "required-compile",
+    "dG": -10.2
+  },
+  {
+    "id": "OWN-TEMPERATURE-NESTED-AT-UNREAD",
+    "question": "At a temperature of unknown K; at 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
   }
 ];
 const results: {id:string;passed:boolean;error?:string}[] = [];
