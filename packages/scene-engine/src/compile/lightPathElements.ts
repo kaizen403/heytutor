@@ -23,7 +23,9 @@
  *   surface with a declared reflection and no refraction, or a closed body
  *   that light reflects from outside) never lets light through.
  * - Thin lens convention. Rays meet a thin lens at its centre plane, so a
- *   path that crosses that plane inside the aperture passes the lens. Thin
+ *   path that bends there (a vertex on the plane inside the aperture, or
+ *   inside the drawn lens) or runs straight through the lens centre passes
+ *   the lens; a straight path across the plane elsewhere is cut. Thin
  *   lenses are `lens_section` outputs (plane through `center` across `axis`,
  *   aperture the drawn half height), the `objective` and `eyepiece` lines of
  *   `optical_train`, and a drawn segment or line lying on such a plane or on
@@ -89,6 +91,7 @@ export interface LensPlane {
   elements: string[];
   line?: string;
   center?: unknown;
+  /** The lens axis: with `line`, it fixes the lens centre on that line. */
   axis?: unknown;
 }
 
@@ -148,7 +151,7 @@ function collectOpticsRoles(document: SceneDocument): OpticsRoles {
       lensPlanes.push({ elements: outputs.filter((id): id is string => typeof id === "string"), center: inputs.center, axis: inputs.axis });
     } else if (operator === "optical_train") {
       for (const line of [inputs.objective, inputs.eyepiece]) {
-        if (typeof line === "string") lensPlanes.push({ elements: [], line });
+        if (typeof line === "string") lensPlanes.push({ elements: [], line, axis: inputs.axis });
       }
     } else if ((operator === "gaussian_image" || operator === "optical_focus") && inputs.kind === "lens") {
       lensPlanes.push({ elements: [], center: inputs.center, axis: inputs.axis });
@@ -268,7 +271,7 @@ export function clipLightPathsAtElements(input: LightPathClipInput): void {
     for (const [elementId, element] of candidates) {
       if (elementId === path.id) continue;
       // Thin lens convention: a path across the centre plane inside the aperture passes the lens.
-      if (lensChords.get(elementId)?.some((chord) => meetsChord(segments, path.vertices, chord, tolerance))) continue;
+      if (lensChords.get(elementId)?.some((lens) => passesThinLens(segments, path.vertices, lens, element, tolerance))) continue;
       for (const hit of crossings(segments, element, far)) {
         if (path.vertices.some((vertex) => distance(vertex, hit.point) <= tolerance)) continue;
         // Normal incidence: light crosses glass along the normal unbent.
@@ -312,10 +315,10 @@ function thinLensChords(
   candidates: Map<string, ElementValue>,
   far: number,
   tolerance: number,
-): Map<string, Array<[Point, Point]>> {
-  const chords = new Map<string, Array<[Point, Point]>>();
-  const add = (id: string, chord: [Point, Point]) => chords.set(id, [...(chords.get(id) ?? []), chord]);
-  const planes: Array<[Point, Point]> = [];
+): Map<string, ThinLens[]> {
+  const chords = new Map<string, ThinLens[]>();
+  const add = (id: string, chord: [Point, Point], center: Point | null) => chords.set(id, [...(chords.get(id) ?? []), { chord, center }]);
+  const planes: Array<{ line: [Point, Point]; center: Point | null }> = [];
   const straight = (value: GeometryLike | undefined): [Point, Point] | null => {
     if (!isPath(value) || value.closed || value.points.length !== 2 || !value.points.every(finitePoint)) return null;
     const [a, b] = value.points as [Point, Point];
@@ -330,8 +333,10 @@ function thinLensChords(
     if (plane.line !== undefined) {
       const chord = straight(input.geometry.get(plane.line));
       if (!chord) continue;
-      planes.push(chord);
-      add(plane.line, chord);
+      const axis = plane.axis === undefined ? null : straight(input.geometry.get(String(plane.axis)));
+      const center = axis ? lineIntersection(chord, axis) : null;
+      planes.push({ line: chord, center });
+      add(plane.line, chord, center);
       continue;
     }
     let center: Point;
@@ -339,7 +344,7 @@ function thinLensChords(
     const axis = axisDirection(plane.axis, input.geometry);
     if (!finitePoint(center) || !axis) continue;
     const across = { x: -axis.y, y: axis.x };
-    planes.push([center, { x: center.x + across.x, y: center.y + across.y }]);
+    planes.push({ line: [center, { x: center.x + across.x, y: center.y + across.y }], center });
     for (const id of plane.elements) {
       const value = input.geometry.get(id);
       if (!isPath(value) || !value.points.every(finitePoint)) continue;
@@ -348,7 +353,7 @@ function thinLensChords(
       add(id, [
         { x: center.x - across.x * half, y: center.y - across.y * half },
         { x: center.x + across.x * half, y: center.y + across.y * half },
-      ]);
+      ], center);
     }
   }
   // A thin lens drawn as a segment or line on a lens plane.
@@ -356,7 +361,8 @@ function thinLensChords(
     if (chords.has(id)) continue;
     const chord = straight(value as GeometryLike);
     if (!chord) continue;
-    if (planes.some(([a, b]) => lineDistance(chord[0], a, b) <= tolerance && lineDistance(chord[1], a, b) <= tolerance)) add(id, chord);
+    const plane = planes.find(({ line: [a, b] }) => lineDistance(chord[0], a, b) <= tolerance && lineDistance(chord[1], a, b) <= tolerance);
+    if (plane) add(id, chord, plane.center);
   }
   return chords;
 }
@@ -376,17 +382,38 @@ function axisDirection(axis: unknown, geometry: Map<string, GeometryLike>): Poin
   return vector && length > 0 ? { x: vector.x / length, y: vector.y / length } : null;
 }
 
-/** True when the path crosses or touches the chord, which is lengthened by the tolerance at both ends. */
-function meetsChord(segments: Segment[], vertices: Point[], chord: [Point, Point], tolerance: number): boolean {
-  const [a, b] = chord;
+interface ThinLens { chord: [Point, Point]; center: Point | null }
+
+/**
+ * Thin lens convention: a path passes the lens when it bends there (a vertex
+ * on the centre plane inside the aperture, or inside the drawn lens) or goes
+ * straight through the lens centre. A straight path across the plane
+ * anywhere else would bend there, so it is cut at the lens as before.
+ */
+function passesThinLens(segments: Segment[], vertices: Point[], lens: ThinLens, element: ElementValue, tolerance: number): boolean {
+  const [a, b] = lens.chord;
   const length = distance(a, b);
   if (!(length > 0)) return false;
   const ux = (b.x - a.x) / length;
   const uy = (b.y - a.y) / length;
   const from = { x: a.x - ux * tolerance, y: a.y - uy * tolerance };
   const to = { x: b.x + ux * tolerance, y: b.y + uy * tolerance };
-  if (segments.some((segment) => segmentIntersection(segment.a, segment.b, from, to) !== null)) return true;
-  return vertices.some((vertex) => pointSegmentDistance(vertex, from, to) <= tolerance);
+  if (vertices.some((vertex) => pointSegmentDistance(vertex, from, to) <= tolerance)) return true;
+  if (isClosed(element) && vertices.some((vertex) => insideElement(vertex, element))) return true;
+  const center = lens.center;
+  return center !== null && finitePoint(center) && segments.some((segment) => pointSegmentDistance(center, segment.a, segment.b) <= tolerance);
+}
+
+/** Where two lines (each through two points) meet, or null when parallel. */
+function lineIntersection([a, b]: [Point, Point], [c, d]: [Point, Point]): Point | null {
+  const rx = b.x - a.x;
+  const ry = b.y - a.y;
+  const sx = d.x - c.x;
+  const sy = d.y - c.y;
+  const denominator = rx * sy - ry * sx;
+  if (Math.abs(denominator) <= 1e-12 * Math.hypot(rx, ry) * Math.hypot(sx, sy)) return null;
+  const t = ((c.x - a.x) * sy - (c.y - a.y) * sx) / denominator;
+  return { x: a.x + rx * t, y: a.y + ry * t };
 }
 
 /**

@@ -687,6 +687,16 @@ check("recorded f782478761ab: the axial ray through the lens centre to a plane m
   return null;
 });
 
+check("control: recorded a885e2eab386, a return ray crossing the lens plane off centre with no bend there, is cut at the lens", () => {
+  const { ok, primitives, fatal } = reviewed("a885e2eab386");
+  if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
+  const lens = stroke(primitives, "lens");
+  const centreX = (Math.min(...xs(lens)) + Math.max(...xs(lens))) / 2;
+  const end = Math.min(...xs(stroke(primitives, "returnRay")));
+  if (end < centreX - 1.5) return `return ray runs on to x ${end.toFixed(1)}, past the lens plane at ${centreX.toFixed(1)}, unbent`;
+  return null;
+});
+
 // The chief ray from the object tip to the image tip goes straight through a thin lens.
 const chiefRay = (operator: "segment" | "ray") => scene("Image formed by a convex lens", [
   { id: "axis_origin", kind: "point", role: "axis start" },

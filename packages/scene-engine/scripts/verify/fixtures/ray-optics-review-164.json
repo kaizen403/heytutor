@@ -2132,6 +2132,402 @@
      }
     ]
    }
+  },
+  "a885e2eab386": {
+   "why": "light through a lens to a mirror and back; the return ray crosses the lens plane 0.54 off the axis with no bend there",
+   "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "Symbolic axial diagram of a convex lens and convex mirror, with the lens image at the mirror\u2019s centre of curvature."
+    },
+    "source": {
+     "question": "Finding the focal length of a convex mirror with a convex lens and parallax",
+     "representationTier": "qualitative_verified",
+     "nonMetric": true
+    },
+    "quantities": [],
+    "entities": [
+     {
+      "id": "L",
+      "kind": "point",
+      "role": "lens centre",
+      "label": "L"
+     },
+     {
+      "id": "axis",
+      "kind": "line",
+      "role": "principal axis"
+     },
+     {
+      "id": "lens",
+      "kind": "polygon",
+      "role": "convex lens"
+     },
+     {
+      "id": "O",
+      "kind": "point",
+      "role": "object position",
+      "label": "O"
+     },
+     {
+      "id": "P",
+      "kind": "point",
+      "role": "mirror pole",
+      "label": "P"
+     },
+     {
+      "id": "I",
+      "kind": "point",
+      "role": "lens real-image position and mirror centre of curvature",
+      "label": "I"
+     },
+     {
+      "id": "mirror",
+      "kind": "arc",
+      "role": "convex mirror"
+     },
+     {
+      "id": "lensRayPoint",
+      "kind": "point",
+      "role": "representative ray position beyond lens"
+     },
+     {
+      "id": "towardImage",
+      "kind": "ray",
+      "role": "converging ray toward the lens image"
+     },
+     {
+      "id": "incident",
+      "kind": "vector",
+      "role": "ray incident on the mirror"
+     },
+     {
+      "id": "returnRay",
+      "kind": "ray",
+      "role": "reflected ray retracing its path"
+     },
+     {
+      "id": "Rdim",
+      "kind": "dimension",
+      "role": "mirror radius of curvature",
+      "label": "R"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "makeL",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "L"
+      ]
+     },
+     {
+      "id": "makeAxis",
+      "operator": "line",
+      "inputs": {
+       "start": "L",
+       "direction": [
+        1,
+        0
+       ]
+      },
+      "outputs": [
+       "axis"
+      ]
+     },
+     {
+      "id": "makeLens",
+      "operator": "lens_section",
+      "inputs": {
+       "center": "L",
+       "axis": "axis",
+       "radius1": 8,
+       "radius2": -8,
+       "halfHeight": 1
+      },
+      "outputs": [
+       "lens"
+      ]
+     },
+     {
+      "id": "makeO",
+      "operator": "point",
+      "inputs": {
+       "x": -4,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "O"
+      ]
+     },
+     {
+      "id": "makeP",
+      "operator": "point",
+      "inputs": {
+       "x": 4,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "P"
+      ]
+     },
+     {
+      "id": "makeI",
+      "operator": "point",
+      "inputs": {
+       "x": 6,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "I"
+      ]
+     },
+     {
+      "id": "makeMirror",
+      "operator": "arc",
+      "inputs": {
+       "center": "I",
+       "radius": 2,
+       "startAngle": 150,
+       "endAngle": 210,
+       "angleUnit": "degrees"
+      },
+      "outputs": [
+       "mirror"
+      ]
+     },
+     {
+      "id": "makeLensRayPoint",
+      "operator": "point",
+      "inputs": {
+       "x": 0.5,
+       "y": 0.5,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "lensRayPoint"
+      ]
+     },
+     {
+      "id": "makeTowardImage",
+      "operator": "ray",
+      "inputs": {
+       "start": "lensRayPoint",
+       "end": "I"
+      },
+      "outputs": [
+       "towardImage"
+      ]
+     },
+     {
+      "id": "makeContact",
+      "operator": "surface_contact",
+      "inputs": {
+       "origin": "lensRayPoint",
+       "through": "I",
+       "surface": "mirror"
+      },
+      "outputs": [
+       "hit",
+       "incident"
+      ]
+     },
+     {
+      "id": "makeNormal",
+      "operator": "normal_at",
+      "inputs": {
+       "point": "hit",
+       "surface": "mirror"
+      },
+      "outputs": [
+       "normal"
+      ]
+     },
+     {
+      "id": "makeReturnRay",
+      "operator": "reflect_direction",
+      "inputs": {
+       "origin": "hit",
+       "incoming": "incident",
+       "normal": "normal"
+      },
+      "outputs": [
+       "returnRay"
+      ]
+     },
+     {
+      "id": "makeRdim",
+      "operator": "dimension",
+      "inputs": {
+       "start": "P",
+       "end": "I"
+      },
+      "outputs": [
+       "Rdim"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "axialOrder",
+      "predicate": "ordered_along",
+      "entities": [
+       "O",
+       "L",
+       "P",
+       "I"
+      ],
+      "expected": {
+       "axis": "x",
+       "direction": "increasing"
+      },
+      "severity": "fatal"
+     },
+     {
+      "id": "poleOnAxis",
+      "predicate": "on",
+      "entities": [
+       "P",
+       "axis"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "imageOnAxis",
+      "predicate": "on",
+      "entities": [
+       "I",
+       "axis"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "rayAimsAtImage",
+      "predicate": "on",
+      "entities": [
+       "I",
+       "towardImage"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "parallaxNote",
+      "kind": "narration",
+      "targetIds": [
+       "O",
+       "I"
+      ],
+      "text": "First locate the lens\u2019s real-image position by removing parallax."
+     },
+     {
+      "id": "coincidenceNote",
+      "kind": "narration",
+      "targetIds": [
+       "mirror",
+       "returnRay"
+      ],
+      "text": "Adjust the mirror until the returned image coincides with the object without parallax. The rays then strike normally and retrace their paths."
+     },
+     {
+      "id": "resultNote",
+      "kind": "narration",
+      "targetIds": [
+       "Rdim"
+      ],
+      "text": "The lens-image position is the mirror\u2019s centre of curvature: R = x_I \u2212 x_P. For a spherical convex mirror, f = R/2."
+     }
+    ],
+    "requiredEntityIds": [
+     "axis",
+     "L",
+     "lens",
+     "O",
+     "P",
+     "I",
+     "mirror",
+     "towardImage",
+     "incident",
+     "returnRay",
+     "Rdim"
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "entityIds": [
+       "axis",
+       "L",
+       "lens",
+       "O",
+       "I",
+       "lensRayPoint",
+       "towardImage"
+      ],
+      "dependsOn": [],
+      "narrationCue": "Locate the convex lens\u2019s real image by removing parallax."
+     },
+     {
+      "id": "mirrorPlacement",
+      "entityIds": [
+       "P",
+       "mirror",
+       "incident",
+       "returnRay"
+      ],
+      "dependsOn": [
+       "setup"
+      ],
+      "narrationCue": "Place and adjust the convex mirror until the reflected image coincides with the object."
+     },
+     {
+      "id": "measurement",
+      "entityIds": [
+       "Rdim"
+      ],
+      "dependsOn": [
+       "mirrorPlacement"
+      ],
+      "narrationCue": "Measure from the mirror pole to the lens-image position, then use the spherical-mirror focal-length relation."
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "id": "locateImage",
+      "revealGroupId": "setup",
+      "annotationIds": [
+       "parallaxNote"
+      ]
+     },
+     {
+      "id": "adjustMirror",
+      "revealGroupId": "mirrorPlacement",
+      "annotationIds": [
+       "coincidenceNote"
+      ]
+     },
+     {
+      "id": "calculateAfterSetup",
+      "revealGroupId": "measurement",
+      "annotationIds": [
+       "resultNote"
+      ]
+     }
+    ]
+   }
   }
  }
 }
