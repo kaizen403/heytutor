@@ -1262,13 +1262,21 @@ function hasAffirmativeDiscreteDomain(question: string, names: readonly string[]
   const declared = (text: string): boolean => (text.match(/[A-Za-z][A-Za-z0-9_]*/g) ?? [])
     .filter(token => token.toLowerCase() !== "and").every(token => names.includes(token));
   const end = "(?=\\s|[.,;?!]|$)";
+  const action = String.raw`(?:graph(?:ing)?|plot(?:ting)?|draw(?:ing)?|shade|shading|represent(?:ing)?|show(?:ing)?|state|stating|give|giving|report(?:ing)?|find(?:ing)?|determine|determining|explain(?:ing)?|ask(?:ing)?|let|given|restrict|label(?:l?ing)?|mark(?:ing)?|write|writing|annotate|annotating|caption(?:ing)?|omit|omitting)`;
+  const actionHead = String.raw`(?:please\s+)?(?:(?:(?:do|does|did)\s+not|don['’]t|doesn['’]t|didn['’]t|never|not|without)\s+)?${action}\b`;
+  const modalHead = String.raw`(?:should|can|could|may|might)\s+(?:[A-Za-z]+\s+){0,3}${action}\b`;
+  const domainHead = `${list}\\s*(?:is\\b|are\\b|be\\b|in\\b|belongs?\\s+to\\b|∈|\\\\in\\b)`;
+  const conjunction = String.raw`\b(?:and|then|but|yet|while|though|although|however|whereas)\b`;
+  const displayObject = String.raw`(?:(?:solution\s+set|point|endpoint|boundary)\s+)?(?:labels?|captions?|annotations?|marks?|text)\b`;
+  const displayModifier = String.raw`\b(?:without\s+(?=${action}\b)|without\s+(?:(?:a|an|any|the)\s+)?${displayObject}|with\s+no\s+${displayObject})`;
   for (const match of question.matchAll(/(?:\.(?=\d)|[^.;?!])+[.;?!]?/g)) {
     const clause = match[0];
-    // Coordinated instructions have separate scopes. In particular, a later
-    // membership question or negative display instruction cannot negate an
-    // already stated variable type. Variable lists such as x and y stay whole.
+    // Scope ends only at an independently headed request/domain statement,
+    // or a manner modifier governing a request action. Thus "but do not label"
+    // and "with no labels" cannot negate the preceding type, whereas "is not
+    // required" remains inside its domain predicate. Variable lists stay whole.
     const boundaries = [...clause.matchAll(new RegExp(
-      `(?:[,;:]|\\b(?:and|then)\\b)\\s*(?=(?:graph|plot|draw|shade|represent|show|state|give|report|find|determine|explain|ask|let|given|restrict|do|does|never|without|whether|if|unless|is|are|should|can|could|may|might)\\b|${list}\\s*(?:is\\b|are\\b|be\\b|in\\b|∈|\\\\in\\b))`, "gi"))];
+      String.raw`(?:[,;:]\s*(?:${conjunction}\s*)?|${conjunction}\s*)(?=${actionHead}|${modalHead}|${domainHead})|${displayModifier}`, "gi"))];
     const affirmative = (assertion: RegExpMatchArray, predicate = false): boolean => {
       const start = assertion.index!, finish = start + assertion[0].length;
       const lower = boundaries.filter(boundary => boundary.index! + boundary[0].length <= start).at(-1);

@@ -230,6 +230,36 @@ for (const [i, question] of [
   const result = compileSceneDocument(candidate);
   assert.ok(!result.ok && result.renderScene === null && result.report.issues.some(issue => issue.code === "linear_source_mismatch"), "An affirmative discrete domain survives an unrelated later instruction");
 });
+for (const [i, statement] of [
+  "x in Z is required but do not label the solution set.",
+  "x ∈ ℤ is required, yet please do not mark 2.",
+  "x belongs to Z is required with no labels.",
+  "x in Z is required without writing a caption.",
+  "x in Z is required while not marking 2.",
+  "x in Z is required without any annotations.",
+  "x in Z is required but x in N is not required.",
+  "x in Z is not required but graph for integer x.",
+  "x in Z is required but x belongs to N is not required.",
+].entries()) check(`affirmative-domain-after-predicate-display-${i + 1}`, () => {
+  const question = `Graph x<3 on a number line. ${statement}`;
+  assert.equal(buildLinearSourceDocument(question), null);
+  const candidate = documentFor(question, "number_line_set", { variable: "x", expression: { inequality: "x<3" } });
+  assert.ok(validateLinearSourceBinding(candidate).some(issue => issue.code === "linear_source_mismatch"), "An independently affirmative integer domain must veto continuous solutions");
+  const result = compileSceneDocument(candidate);
+  assert.ok(!result.ok && result.renderScene === null && result.report.issues.some(issue => issue.code === "linear_source_mismatch"));
+});
+for (const [i, statement] of [
+  "x in Z is not required but do not label the solution set.",
+  "x ∈ ℤ need not hold while not marking 2.",
+  "x in Z may be required with no labels.",
+].entries()) check(`negated-domain-before-display-${i + 1}`, () => {
+  const question = `Graph x<3 on a number line. ${statement}`;
+  assert.equal(buildLinearSourceDocument(question), null);
+  const candidate = documentFor(question, "number_line_set", { variable: "x", expression: { inequality: "x<3" } });
+  assert.deepEqual(validateLinearSourceBinding(candidate), [], "A negative or modal domain predicate remains unproved before a display instruction");
+  const result = compileSceneDocument(candidate);
+  assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+});
 for (const [i, question] of [
   "Graph x<3 for integer x and state whether 2 belongs to the solution set.",
   "Graph x<3 for integer x and explain whether 2 belongs to the solution set?",
