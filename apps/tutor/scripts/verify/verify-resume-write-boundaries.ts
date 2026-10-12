@@ -124,6 +124,11 @@ for (const [text, expected] of [
   ["In [Frame S'] v = 0.5c", "In [Frame S'] v = 0.5c"],
   ["[Clear] solution", "[Clear] solution"],
   ["[Arrow] points north", "[Arrow] points north"],
+  ["actions = [clear, undo]", "actions = [clear, undo]"],
+  ["row = [type, size]", "row = [type, size]"],
+  ["path = [arrow, node]", "path = [arrow, node]"],
+  ["Interval [frame, 2]", "Interval [frame, 2]"],
+  ["[Type: I] error", "[Type: I] error"],
 ]) {
   const source = `[STEP]Explain the notation. [WRITE:${text},90,274][/STEP]`;
   for (const width of [1, 7, source.length]) {
@@ -181,6 +186,15 @@ for (const type of DRAW_COMMAND_TYPES) {
     assert(!parseDrawingCommands(source).commands.some(command => command.type === "WRITE" && command.text?.startsWith("missing")),
       `whole repair cannot swallow the recognized ${type} boundary into a work row`);
   }
+}
+for (const tag of ["[TYPE:s1b4]", "[FRAME:input]", "[CLEAR:board]"]) {
+  const source = `[STEP]Incomplete work. [WRITE]missing ${tag} junk,90,274[/STEP]`;
+  for (const width of [1, 3, source.length]) {
+    assert(!row(consume(source, width).parsed).some(command => command.text?.startsWith("missing")),
+      `header-only repair cannot borrow coordinates across symbolic ${tag}`);
+  }
+  assert(!parseDrawingCommands(source).commands.some(command => command.type === "WRITE" && command.text?.startsWith("missing")),
+    `whole header-only repair cannot borrow coordinates across symbolic ${tag}`);
 }
 const adjacentSteps = "[STEP]Incomplete. [WRITE]missing[/STEP][STEP]x,90,274[/STEP]";
 assert(!row(consume(adjacentSteps, 1).parsed).length);

@@ -99,6 +99,64 @@ for (const name of DRAW_COMMAND_TYPES) {
   }
 }
 
+// Ordinary bracketed lists may name command words without becoming tags.
+// These are board text, so every parser must keep one row and no spoken suffix.
+for (const text of [
+  "actions = [clear, undo]", "row = [type, size]", "path = [arrow, node]",
+  "Interval [frame, 2]", "[Type: I] error",
+]) {
+  const tag = `[WRITE:${text},90,274]`;
+  const whole = parseDrawingCommands(tag);
+  assert(whole.commands.length === 1 && whole.commands[0]?.type === "WRITE",
+    `command-word list ${text}: one WRITE, no fabricated command`);
+  assert(whole.commands[0]?.text === text && whole.commands[0]?.params.join(",") === "90,274",
+    `command-word list ${text}: exact text and outer coordinates survive`);
+  assert(whole.narration === "", `command-word list ${text}: no tag or coordinates spoken`);
+  const source = `[STEP]Explain the notation. ${tag}[/STEP]`;
+  const steps = parseStructuredLessonSteps(source);
+  const stepCommands = steps.flatMap(getSegmentCommands);
+  assert(stepCommands.length === 1 && stepCommands[0]?.type === "WRITE" && stepCommands[0]?.text === text,
+    `command-word list ${text}: STEP retains one exact row`);
+  assert(steps.map(step => step.narration).join(" ") === "Explain the notation.",
+    `command-word list ${text}: STEP never speaks board text`);
+  for (const width of [1, 3, 1000]) {
+    const segments: TutorSegment[] = [];
+    const parser = new IncrementalTagParser({ onSegmentReady: segment => segments.push(segment) });
+    for (let from = 0; from < source.length; from += width) parser.push(source.slice(from, from + width));
+    parser.flush();
+    const commands = segments.flatMap(getSegmentCommands);
+    assert(commands.length === 1 && commands[0]?.type === "WRITE" && commands[0]?.text === text,
+      `command-word list ${text}: chunk width ${width} retains one exact row`);
+    assert(commands[0]?.params.join(",") === "90,274" &&
+      segments.map(segment => segment.narration).join(" ").trim() === "Explain the notation.",
+      `command-word list ${text}: chunk width ${width} never speaks coordinates`);
+  }
+}
+
+// A real semantic or numeric command still closes a broken text body.
+// Do not borrow its coordinates or reinterpret its diagram ink as WRITE.
+for (const tag of [
+  "[FOCUS:mirror]", "[WRITE:x,90,340]", "[LABEL:A,480,180]",
+  "[DRAW_LINE:90,142,1160,600]", "[ARROW,90,142,1160,600]",
+  "[FRAME:2]", "[TYPE:90,142,1160,600]",
+  "[ARROW,+90,142,1160,600]", "[DRAW_LINE,.5,1e2,1160,600]",
+]) {
+  const source = `[STEP]Incomplete work. [WRITE:missing ${tag} junk,90,274][/STEP]`;
+  assert(!parseDrawingCommands(source).commands.some(command => command.type === "WRITE" && command.text?.startsWith("missing")),
+    `real boundary ${tag}: whole parsing cannot borrow later coordinates`);
+  assert(!parseStructuredLessonSteps(source).flatMap(getSegmentCommands).some(command =>
+    command.type === "WRITE" && command.text?.startsWith("missing")),
+    `real boundary ${tag}: STEP parsing cannot borrow later coordinates`);
+  for (const width of [1, 3, 1000]) {
+    const segments: TutorSegment[] = [];
+    const parser = new IncrementalTagParser({ onSegmentReady: segment => segments.push(segment) });
+    for (let from = 0; from < source.length; from += width) parser.push(source.slice(from, from + width));
+    parser.flush();
+    assert(!segments.flatMap(getSegmentCommands).some(command => command.type === "WRITE" && command.text?.startsWith("missing")),
+      `real boundary ${tag}: chunk width ${width} cannot borrow later coordinates`);
+  }
+}
+
 function assertNestedMathCommand(
   command: ReturnType<typeof parseDrawingCommands>["commands"][number] | null | undefined,
   source: string,
