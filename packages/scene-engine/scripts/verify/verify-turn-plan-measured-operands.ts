@@ -134,5 +134,146 @@ for (const value of [160, 43]) {
   input.derived = [{ id: "group_product", symbol: "D", value, unit: "N", provenance: "derived", sourceText: `D = (2+1)N + N = ${value} N`, dependsOn: ["group_force"] }];
   check("an original grouped bound-variable product is not a result unit", validateTurnPlanV3(input).valid === (value === 160));
 }
+// Compound unit spellings may themselves be products of bound variables.
+// Do not erase N*m as a label when its N and m actually supply arithmetic.
+for (const [unit, product, expected] of [
+  ["N*m", "N*m", 240], ["N/m", "N/m", 60],
+  ["N*m^2", "N*m^2", 480], ["N/m^2", "N/m^2", 30],
+  ["Nm", "Nm", 240],
+] as const) {
+  for (const coefficient of ["(2+1)", "(2+1) ", "3", "3e0"]) {
+    for (const value of [expected, 3]) {
+      // A lone "3 N*m" is a measured scalar, not an unambiguous product.
+      // Numeric coefficients include an explicit operation to test arithmetic.
+      const expression = `${coefficient}${product}${coefficient.startsWith("(") ? "" : " + 0"}`;
+      const input = plan("Evaluate a product of authored N = 40 N and m = 2 m quantities.", `D = ${expression} = ${value} ${unit}`, value);
+      input.givens = [
+        { id: "compound_force", symbol: "N", value: 40, unit: "N", provenance: "given" },
+        { id: "compound_length", symbol: "m", value: 2, unit: "m", provenance: "given" },
+      ];
+      input.unknowns = [{ id: "compound_result", symbol: "D", unit }];
+      input.derived = [{ id: "compound_result", symbol: "D", value, unit, provenance: "derived",
+        sourceText: `D = ${expression} = ${value} ${unit}`, dependsOn: ["compound_force", "compound_length"] }];
+      check(`compound ${expression} at ${value} retains every factor`, validateTurnPlanV3(input).valid === (value === expected));
+      check(`compound ${expression} at ${value} reconciles to ${expected}, not a stripped coefficient`, reconcileTurnPlanV3ExplicitArithmetic(input).plan.derived[0]?.value === expected);
+    }
+  }
+}
+for (const unit of ["N*m", "N/m", "N*m^2", "N/m^2"]) {
+  for (const value of [12, 99]) {
+    const source = `D = (3*4) ${unit} = ${value} ${unit}`;
+    const input = plan("Evaluate authored numeric arithmetic followed by an unbound compound unit label.", source, value);
+    input.givens = []; input.unknowns = [{ id: "unbound_compound_result", symbol: "D", unit }];
+    input.derived = [{ id: "unbound_compound_result", symbol: "D", value, unit, provenance: "derived", sourceText: source }];
+    check(`unbound ${unit} result labels cannot hide wrong arithmetic`, validateTurnPlanV3(input).valid === (value === 12));
+    check(`unbound ${unit} result labels reconcile to numeric12`, reconcileTurnPlanV3ExplicitArithmetic(input).plan.derived[0]?.value === 12);
+  }
+}
+// An incompletely bound compound still has its existing unit-label meaning.
+// Protecting only one factor must not make numeric grouped arithmetic unreadable.
+for (const unit of ["N*m", "N/m", "N*m^2", "N/m^2", "Nm", "N*e", "N*E", "N/e", "N/E", "N*e3", "N/e3"]) {
+  for (const symbol of ["N", "m"]) {
+    for (const value of [12, 99]) {
+      const source = `D = (3*4) ${unit} = ${value} ${unit}`;
+      const input = plan("Evaluate authored grouped arithmetic with a compound result unit and one separately bound symbol.", source, value);
+      input.givens = [{ id: "partial_binding", symbol, value: symbol === "N" ? 40 : 2, unit: symbol, provenance: "given" }];
+      input.unknowns = [{ id: "partial_compound_result", symbol: "D", unit }];
+      input.derived = [{ id: "partial_compound_result", symbol: "D", value, unit, provenance: "derived", sourceText: source }];
+      check(`partially bound ${unit}/${symbol} labels keep wrong arithmetic checked`, validateTurnPlanV3(input).valid === (value === 12));
+      check(`partially bound ${unit}/${symbol} labels reconcile to numeric12`, reconcileTurnPlanV3ExplicitArithmetic(input).plan.derived[0]?.value === 12);
+    }
+  }
+}
+// Undefined/overflowing products retain the parent unit-label numeric check.
+// This does not claim general zero-division validation: numeric12 is the label
+// interpretation, but an arbitrary wrong99 must not become newly unreadable.
+for (const [unit, length, force] of [["N/m", 0, 40], ["N/m^2", 0, 40], ["N*m", 1e308, 1e308]] as const) {
+  for (const value of [12, 99]) {
+    const source = `D = (3*4) ${unit} = ${value} ${unit}`;
+    const input = plan("Evaluate authored grouped arithmetic followed by a compound result unit.", source, value);
+    input.givens = [
+      { id: "nonfinite_force", symbol: "N", value: force, unit: "N", provenance: "given" },
+      { id: "nonfinite_length", symbol: "m", value: length, unit: "m", provenance: "given" },
+    ];
+    input.unknowns = [{ id: "nonfinite_label_result", symbol: "D", unit }];
+    input.derived = [{ id: "nonfinite_label_result", symbol: "D", value, unit, provenance: "derived", sourceText: source }];
+    check(`undefined ${unit} products retain the parent wrong-result check`, validateTurnPlanV3(input).valid === (value === 12));
+    check(`undefined ${unit} products retain the numeric-label reconciliation`, reconcileTurnPlanV3ExplicitArithmetic(input).plan.derived[0]?.value === 12);
+  }
+}
+for (const expression of ["(3*4)N*m", "12*N*m"]) {
+  const expected = 9.6e-17;
+  for (const [value, written, valid] of [[expected, expected, true], [1.92e-16, 1.92e-16, false], [1.92e-16, expected, false], [-expected, -expected, false]] as const) {
+    const source = `D = ${expression} = ${written} N*m`;
+    const input = plan("Evaluate an authored product with N = 4e-9 N and m = 2e-9 m.", source, value);
+    input.givens = [
+      { id: "tiny_force", symbol: "N", value: 4e-9, unit: "N", provenance: "given" },
+      { id: "tiny_length", symbol: "m", value: 2e-9, unit: "m", provenance: "given" },
+    ];
+    input.unknowns = [{ id: "tiny_result", symbol: "D", unit: "N*m" }];
+    input.derived = [{ id: "tiny_result", symbol: "D", value, unit: "N*m", provenance: "derived", sourceText: source,
+      dependsOn: ["tiny_force", "tiny_length"] }];
+    check(`tiny ${expression} metadata${value}/written${written} retains numeric authority`, validateTurnPlanV3(input).valid === valid);
+    const reconciled = reconcileTurnPlanV3ExplicitArithmetic(input);
+    check(`tiny ${expression} never retains a two-times or wrong-sign result`, Math.abs((reconciled.plan.derived[0]?.value ?? NaN) - expected) <= expected * 1e-12);
+    if (valid) check(`correct tiny ${expression} is never rewritten`, reconciled.reconciliations.length === 0);
+  }
+  for (const value of [0, 1e-16]) {
+    const source = `D = ${expression} = ${value} N*m`;
+    const input = plan("Evaluate an authored zero force times a length of 2 m.", source, value);
+    input.givens = [{ id: "zero_force", symbol: "N", value: 0, unit: "N", provenance: "given" },
+      { id: "zero_length", symbol: "m", value: 2, unit: "m", provenance: "given" }];
+    input.unknowns = [{ id: "zero_result", symbol: "D", unit: "N*m" }];
+    input.derived = [{ id: "zero_result", symbol: "D", value, unit: "N*m", provenance: "derived", sourceText: source }];
+    check(`zero ${expression} cannot authorize a tiny nonzero answer`, validateTurnPlanV3(input).valid === (value === 0));
+    check(`zero ${expression} reconciles exactly to zero`, reconcileTurnPlanV3ExplicitArithmetic(input).plan.derived[0]?.value === 0);
+  }
+}
+for (const expression of ["0.3-0.2-0.1", "0.3-(0.2+0.1)", "3e-17-2e-17-1e-17", "cos(90°)", "sin(pi)", "sqrt(2)*sqrt(2)-2"]) {
+  for (const literal of ["0", "0.0000000000000000000000000000000000000000"]) {
+    const source = `D = ${expression} = ${literal} V`;
+    const input = plan("Evaluate an authored cancellation that gives zero.", source, 0);
+    input.givens = []; input.unknowns = [{ id: "cancellation_result", symbol: "D", unit: "V" }];
+    input.derived = [{ id: "cancellation_result", symbol: "D", value: 0, sign: "zero", unit: "V", provenance: "derived", sourceText: source }];
+    check(`zero ${expression}/${literal} does not falsely decline`, validateTurnPlanV3(input).valid);
+    const reconciled = reconcileTurnPlanV3ExplicitArithmetic(input);
+    check(`zero ${expression} stays exactly zero`, reconciled.plan.derived[0]?.value === 0);
+    check(`zero ${expression} never gains a floating-residue sign`, reconciled.plan.derived[0]?.sign === "zero");
+    check(`zero ${expression} is not rewritten`, reconciled.reconciliations.length === 0);
+  }
+  const source = `D = ${expression} = 1e-16 V`;
+  const wrong = plan("Evaluate an authored cancellation that gives zero, not a tiny nonzero value.", source, 1e-16);
+  wrong.givens = []; wrong.unknowns = [{ id: "cancellation_result", symbol: "D", unit: "V" }];
+  wrong.derived = [{ id: "cancellation_result", symbol: "D", value: 1e-16, unit: "V", provenance: "derived", sourceText: source }];
+  check(`zero ${expression} cannot support a tiny nonzero claim`, !validateTurnPlanV3(wrong).valid);
+  check(`wrong ${expression} reconciles exactly to zero`, reconcileTurnPlanV3ExplicitArithmetic(wrong).plan.derived[0]?.value === 0);
+}
+for (const [expression, expected] of [["sin(1e-9)", 1e-9], ["sqrt(1e-18)", 1e-9], ["1-1+1e-17", 1e-17],
+  ["1.0000000000000002-1", 2e-16], ["1-(1-1e-16)", 1e-16], ["1.0000000000000001-1", 1e-16],
+  ["0.5-0.5+1e-17", 1e-17], ["0.3-0.3+1e-17", 1e-17]] as const) {
+  for (const value of [expected, expected * 2]) {
+    const source = `D = ${expression} = ${value} V`;
+    const input = plan("Evaluate an authored genuinely nonzero small expression.", source, value);
+    input.givens = []; input.unknowns = [{ id: "nonzero_small_result", symbol: "D", unit: "V" }];
+    input.derived = [{ id: "nonzero_small_result", symbol: "D", value, unit: "V", provenance: "derived", sourceText: source }];
+    check(`real small ${expression} has no absolute slack`, validateTurnPlanV3(input).valid === (value === expected));
+    const reconciled = reconcileTurnPlanV3ExplicitArithmetic(input);
+    check(`real small ${expression} is never erased or doubled`, Math.abs((reconciled.plan.derived[0]?.value ?? NaN) - expected) <= expected * 1e-12);
+    if (value === expected) check(`real small ${expression} stays unchanged`, reconciled.reconciliations.length === 0);
+  }
+  const source = `D = ${expression} = 0.0000000000000000000000000000000000000000 V`;
+  const wrongZero = plan("Evaluate an authored nonzero difference, not an exact zero.", source, 0);
+  wrongZero.givens = []; wrongZero.unknowns = [{ id: "nonzero_small_result", symbol: "D", unit: "V" }];
+  wrongZero.derived = [{ id: "nonzero_small_result", symbol: "D", value: 0, unit: "V", provenance: "derived", sourceText: source }];
+  check(`nonzero ${expression} is not fabricated into a precise zero`, !validateTurnPlanV3(wrongZero).valid);
+}
+for (const expression of ["sqrt(100000000000-100000000000.000001)^2", "sqrt(100000000000-100000000000.000001)*sqrt(100000000000-100000000000.000001)"]) {
+  const source = `D = ${expression} = -1e-6 V`;
+  const input = plan("Do not turn an exactly negative radicand into a real negative square.", source, -1e-6);
+  input.givens = []; input.unknowns = [{ id: "invalid_square_result", symbol: "D", unit: "V" }];
+  input.derived = [{ id: "invalid_square_result", symbol: "D", value: -1e-6, unit: "V", provenance: "derived", sourceText: source }];
+  check("a real square identity needs an exactly nonnegative radicand", !validateTurnPlanV3(input).valid);
+  check("an invalid square identity never authorizes the negative radicand as its result", reconcileTurnPlanV3ExplicitArithmetic(input).plan.derived[0]?.value !== -1e-6);
+}
 assert.equal(failures.length, 0, `${failures.length}/${checks} failed: ${[...new Set(failures)].join("; ")}`);
 console.log(`verify-turn-plan-measured-operands: ${checks} checks pass; five authored wordings, real arithmetic and claim contradictions retained`);

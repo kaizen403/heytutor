@@ -14,14 +14,14 @@ type FunctionName = keyof typeof FUNCTIONS;
 type VariableName = "x" | "y";
 
 type ExpressionNode =
-  | { kind: "number"; value: number }
+  | { kind: "number"; value: number; literal?: string; constant?: "pi" | "e" }
   | { kind: "variable"; name: VariableName }
   | { kind: "unary"; operator: UnaryOperator; value: ExpressionNode }
   | { kind: "binary"; operator: BinaryOperator; left: ExpressionNode; right: ExpressionNode }
   | { kind: "function"; name: FunctionName; argument: ExpressionNode };
 
 type Token =
-  | { kind: "number"; value: number; position: number }
+  | { kind: "number"; value: number; literal: string; position: number }
   | { kind: "identifier"; value: string; position: number }
   | { kind: "operator"; value: BinaryOperator; position: number }
   | { kind: "leftParen"; position: number }
@@ -133,6 +133,140 @@ export function evaluateMathExpression(source: string, x: number): number {
   return parseMathExpression(source).evaluate(x);
 }
 
+/** Source-only exact decimal/identity reading; ordinary geometry evaluation is unchanged. */
+export function evaluateSourceMathExpression(source: string, x: number): number {
+  // Native evaluation first retains every existing grammar, range and work limit.
+  const native = evaluateMathExpression(source, x);
+  const root = new Parser(tokenize(normalizePlainMathSource(source).trim()), new Set(["x"])).parse();
+  const budget = { remaining: MAX_EVALUATION_STEPS };
+  const exact = exactFraction(root, x, budget);
+  if (exact) {
+    if (exact.n === 0n) return 0;
+    const numerator = Number(exact.n); const denominator = Number(exact.d);
+    if (Number.isFinite(numerator) && Number.isFinite(denominator)) {
+      return checked(numerator / denominator, "exact source result");
+    }
+  }
+  const piMultiple = exactPiMultiple(root, x, budget);
+  return piMultiple?.n === 0n ? 0 : native;
+}
+
+type Fraction = { n: bigint; d: bigint };
+const MAX_EXACT_BITS = 4096;
+
+function fraction(n: bigint, d = 1n): Fraction | null {
+  if (d === 0n) return null;
+  if (d < 0n) { n = -n; d = -d; }
+  let a = n < 0n ? -n : n; let b = d;
+  while (b !== 0n) { const remainder = a % b; a = b; b = remainder; }
+  if (a !== 0n) { n /= a; d /= a; }
+  return n.toString(2).length <= MAX_EXACT_BITS && d.toString(2).length <= MAX_EXACT_BITS ? { n, d } : null;
+}
+
+function decimalFraction(literal: string): Fraction | null {
+  const match = /^([+-]?)(\d*)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/.exec(literal);
+  if (!match || !(match[2] || match[3])) return null;
+  const decimal = match[3] ?? "";
+  const exponent = Number(match[4] ?? 0) - decimal.length;
+  if (!Number.isSafeInteger(exponent) || Math.abs(exponent) > 400) return null;
+  const coefficient = BigInt(`${match[1] === "-" ? "-" : ""}${match[2] || "0"}${decimal}`);
+  return exponent >= 0 ? fraction(coefficient * 10n ** BigInt(exponent)) : fraction(coefficient, 10n ** BigInt(-exponent));
+}
+
+function exactStep(budget: { remaining: number }): boolean { return --budget.remaining >= 0; }
+function sameExpression(a: ExpressionNode, b: ExpressionNode): boolean { return JSON.stringify(a) === JSON.stringify(b); }
+
+function combineFractions(a: Fraction, b: Fraction, operator: BinaryOperator): Fraction | null {
+  switch (operator) {
+    case "+": return fraction(a.n * b.d + b.n * a.d, a.d * b.d);
+    case "-": return fraction(a.n * b.d - b.n * a.d, a.d * b.d);
+    case "*": return fraction(a.n * b.n, a.d * b.d);
+    case "/": return fraction(a.n * b.d, a.d * b.n);
+    case "^": {
+      if (b.d !== 1n || b.n < -32n || b.n > 32n) return null;
+      const power = b.n < 0n ? -b.n : b.n;
+      return b.n < 0n ? fraction(a.d ** power, a.n ** power) : fraction(a.n ** power, a.d ** power);
+    }
+  }
+}
+
+function exactFraction(node: ExpressionNode, x: number, budget: { remaining: number }): Fraction | null {
+  if (!exactStep(budget)) return null;
+  if (node.kind === "number") return node.constant ? null : decimalFraction(node.literal ?? String(node.value));
+  if (node.kind === "variable") return decimalFraction(String(x));
+  if (node.kind === "unary") {
+    const value = exactFraction(node.value, x, budget);
+    return value ? fraction(node.operator === "-" ? -value.n : value.n, value.d) : null;
+  }
+  if (node.kind === "binary") {
+    if (node.operator === "-" && sameExpression(node.left, node.right)) return fraction(0n);
+    // Native rounding can hide a negative radicand; prove the exact domain too.
+    if (node.left.kind === "function" && node.left.name === "sqrt") {
+      if (node.operator === "*" && sameExpression(node.left, node.right)) {
+        const argument = exactFraction(node.left.argument, x, budget);
+        return argument && argument.n >= 0n ? argument : null;
+      }
+      if (node.operator === "^") {
+        const exponent = exactFraction(node.right, x, budget);
+        if (exponent?.n === 2n && exponent.d === 1n) {
+          const argument = exactFraction(node.left.argument, x, budget);
+          return argument && argument.n >= 0n ? argument : null;
+        }
+      }
+    }
+    const left = exactFraction(node.left, x, budget); const right = exactFraction(node.right, x, budget);
+    return left && right ? combineFractions(left, right, node.operator) : null;
+  }
+  if (node.name === "sin" || node.name === "cos" || node.name === "tan") {
+    const multiple = exactPiMultiple(node.argument, x, budget);
+    if (!multiple) return null;
+    if (multiple.d === 1n) {
+      return node.name === "cos" ? fraction(multiple.n % 2n === 0n ? 1n : -1n) : fraction(0n);
+    }
+    if (node.name !== "tan" && (2n * multiple.n) % multiple.d === 0n) {
+      const quarter = (2n * multiple.n / multiple.d % 4n + 4n) % 4n;
+      return node.name === "cos" ? fraction(0n) : fraction(quarter === 1n ? 1n : -1n);
+    }
+    return null;
+  }
+  const argument = exactFraction(node.argument, x, budget);
+  if (!argument) return null;
+  if (node.name === "abs") return fraction(argument.n < 0n ? -argument.n : argument.n, argument.d);
+  if (argument.n === 0n && (node.name === "sqrt" || node.name === "asin" || node.name === "atan")) return fraction(0n);
+  if (argument.n === 0n && node.name === "exp") return fraction(1n);
+  if (argument.n === argument.d && (node.name === "log" || node.name === "ln" || node.name === "acos")) return fraction(0n);
+  return null;
+}
+
+/** Prove only rational multiples of the symbolic pi constant, not nearby decimals. */
+function exactPiMultiple(node: ExpressionNode, x: number, budget: { remaining: number }): Fraction | null {
+  if (!exactStep(budget)) return null;
+  if (node.kind === "number") {
+    if (node.constant === "pi") return fraction(1n);
+    const value = node.constant ? null : decimalFraction(node.literal ?? String(node.value));
+    return value?.n === 0n ? value : null;
+  }
+  if (node.kind === "variable") return x === 0 ? fraction(0n) : null;
+  if (node.kind === "unary") {
+    const value = exactPiMultiple(node.value, x, budget);
+    return value ? fraction(node.operator === "-" ? -value.n : value.n, value.d) : null;
+  }
+  if (node.kind !== "binary") return null;
+  if (node.operator === "+" || node.operator === "-") {
+    const left = exactPiMultiple(node.left, x, budget); const right = exactPiMultiple(node.right, x, budget);
+    return left && right ? combineFractions(left, right, node.operator) : null;
+  }
+  if (node.operator === "*" || node.operator === "/") {
+    const left = exactPiMultiple(node.left, x, budget); const right = exactFraction(node.right, x, budget);
+    if (left && right) return combineFractions(left, right, node.operator);
+    if (node.operator === "*") {
+      const other = exactPiMultiple(node.right, x, budget); const coefficient = exactFraction(node.left, x, budget);
+      return other && coefficient ? combineFractions(other, coefficient, "*") : null;
+    }
+  }
+  return null;
+}
+
 const SUPERSCRIPT_POWERS: Readonly<Record<string, string>> = {
   "⁰": "^0", "¹": "^1", "²": "^2", "³": "^3", "⁴": "^4",
   "⁵": "^5", "⁶": "^6", "⁷": "^7", "⁸": "^8", "⁹": "^9",
@@ -167,7 +301,7 @@ function tokenize(source: string): Token[] {
       if (!Number.isFinite(value) || Math.abs(value) > MAX_ABSOLUTE_VALUE) {
         throw new Error(`numeric literal at position ${start} is outside the supported range`);
       }
-      push({ kind: "number", value, position: start });
+      push({ kind: "number", value, literal: match[0], position: start });
       index += match[0].length;
       continue;
     }
@@ -251,7 +385,7 @@ class Parser {
   private parsePrimary(depth: number): ExpressionNode {
     this.checkDepth(depth);
     const token = this.consume();
-    if (token.kind === "number") return { kind: "number", value: token.value };
+    if (token.kind === "number") return { kind: "number", value: token.value, literal: token.literal };
     if (token.kind === "leftParen") {
       const value = this.parseAdditive(depth + 1);
       const closing = this.consume();
@@ -262,8 +396,8 @@ class Parser {
       if ((token.value === "x" || token.value === "y") && this.variables.has(token.value)) {
         return { kind: "variable", name: token.value };
       }
-      if (token.value === "pi") return { kind: "number", value: Math.PI };
-      if (token.value === "e") return { kind: "number", value: Math.E };
+      if (token.value === "pi") return { kind: "number", value: Math.PI, constant: "pi" };
+      if (token.value === "e") return { kind: "number", value: Math.E, constant: "e" };
       if (!Object.prototype.hasOwnProperty.call(FUNCTIONS, token.value)) {
         throw new Error(`unknown identifier '${token.value}' at position ${token.position}`);
       }

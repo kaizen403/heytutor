@@ -9,7 +9,7 @@ import { validateCoordinateDistanceSourceInputs } from "../ir/coordinateDistance
 import { validatePointLineSourceInputs } from "../ir/pointLineSource";
 import { validateSectionPointSourceInputs } from "../ir/sectionFormulaSource";
 import { evaluateTopologyAssertion } from "../topology/topology";
-import { evaluateMathExpression } from "../math/expression";
+import { evaluateSourceMathExpression as evaluateMathExpression } from "../math/expression";
 import type { SceneDocument, SceneIssue, ValidationReport, RenderScene } from "../types";
 import type { ProblemIR } from "../ir/problemIR";
 import type { SolverResult } from "../ir/solver";
@@ -149,7 +149,7 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
       [value.id, value.symbol].filter((key): key is string => typeof key === "string"),
       { bindingMeta, declaredValue: value.value },
     );
-    const agrees = evidence.value !== null && approximatelyEqual(evidence.value, value.value);
+    const agrees = evidence.value !== null && approximatelyEqualArithmetic(evidence.value, value.value);
     if (evidence.mixedUnits && !agrees) {
       // Part of the chain mixes units (6400 km in "g R_e^2" for an SI GM)
       // and only its literal numbers back a reading. Never rewrite through
@@ -332,7 +332,7 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
       });
     } else if (
       evidence.value !== null &&
-      !approximatelyEqual(evidence.value, value.value) &&
+      !approximatelyEqualArithmetic(evidence.value, value.value) &&
       Math.abs(evidence.value - value.value) > (evidence.tolerance ?? 0) &&
       !sourceContainsMatchingMeasuredValue(value.sourceText, value.value, value.unit)
     ) {
@@ -348,7 +348,7 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
       validationBindingMeta,
       evidence.value !== null &&
         Math.abs(evidence.value - (value.value as number)) <= (evidence.tolerance ?? 0) +
-          Math.max(1, Math.abs(evidence.value)) * 1e-9,
+          Math.max(Math.abs(evidence.value), Math.abs(value.value as number)) * 1e-9,
     );
   });
 
@@ -908,9 +908,9 @@ function evaluateExplicitArithmetic(
   const agree = (
     one: { value: number; tolerance: number },
     other: { value: number; tolerance: number },
-  ) => approximatelyEqual(one.value, other.value) ||
+  ) => approximatelyEqualArithmetic(one.value, other.value) ||
     Math.abs(one.value - other.value) <= one.tolerance + other.tolerance +
-      Math.max(1, Math.abs(one.value), Math.abs(other.value)) * 1e-12;
+      Math.max(Math.abs(one.value), Math.abs(other.value)) * 1e-12;
   if (results.length === 0) {
     // A bare restatement is never a reason to overwrite, but validation
     // still holds the declared value to what the sourceText says it is.
@@ -2010,7 +2010,20 @@ function normalizeExplicitNumericExpression(
   // Explicit "2*A" and symbolic "mu N" products remain bindings too.
   for (const unit of knownUnits) {
     const flags = /^[A-Za-z]+$/.test(unit) && unit.length > 1 ? "gi" : "g";
-    const boundSymbol = numericBindings.has(unit) || (flags === "gi" &&
+    // Use the arithmetic tokenizer itself: a compound spelling such as N*m,
+    // N/m^2 or Nm can contain bound factors without being a whole binding.
+    // Erasing it would discard those factors just as erasing a bound N would.
+    const unitBindingKeys = new Set<string>();
+    // Empty knownUnits bounds this normalization to one inner pass. Reuse the
+    // actual reader/evaluator rather than a second numeric-character grammar.
+    const boundUnitExpression = normalizeExplicitNumericExpression(unit, [], numericBindings, undefined, unitBindingKeys);
+    let boundProduct = false;
+    if (unitBindingKeys.size > 0 && boundUnitExpression !== null) {
+      try {
+        boundProduct = Number.isFinite(evaluateMathExpression(boundUnitExpression, 0));
+      } catch { /* Not a fully resolved, defined bound product; retain the label check. */ }
+    }
+    const boundSymbol = boundProduct || numericBindings.has(unit) || (flags === "gi" &&
       [...numericBindings.keys()].some(key => key.toLowerCase() === unit.toLowerCase()));
     const gap = boundSymbol ? "\\s+" : "\\s*";
     expression = expression.replace(
@@ -2073,7 +2086,7 @@ function normalizeExplicitNumericExpression(
   const identifierOnly = Boolean(allowedIdentifier && expression === allowedIdentifier);
   if (
     expression === "" ||
-    (!/[0-9]/.test(expression) && !(allowedIdentifier && expression.includes(allowedIdentifier))) ||
+    (!/[0-9]/.test(expression) && !/\bpi\b/.test(expression) && !(allowedIdentifier && expression.includes(allowedIdentifier))) ||
     (!identifierOnly && !/^[0-9eE+\-*/^().]+$/.test(safetyExpression))
   ) {
     return null;
@@ -2482,12 +2495,17 @@ function approximatelyEqual(first: number, second: number): boolean {
   return Math.abs(first - second) <= scale * 1e-9;
 }
 
+/** Source arithmetic has no absolute unit floor: tiny wrong answers remain wrong. */
+function approximatelyEqualArithmetic(first: number, second: number): boolean {
+  return Math.abs(first - second) <= Math.max(Math.abs(first), Math.abs(second)) * 1e-9;
+}
+
 function withinDisplayedPrecision(
   calculated: number,
   stated: { value: number; tolerance: number },
 ): boolean {
   return Math.abs(calculated - stated.value) <= stated.tolerance +
-    Math.max(1, Math.abs(calculated), Math.abs(stated.value)) * 1e-12;
+    Math.max(Math.abs(calculated), Math.abs(stated.value)) * 1e-12;
 }
 
 function displayedNumberTolerance(source: string): number {

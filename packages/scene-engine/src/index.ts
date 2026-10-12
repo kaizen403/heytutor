@@ -13,7 +13,7 @@ export * from "./ir/pointLineSource";
 export * from "./ir/sectionFormulaSource";
 export * from "./topology/topology";
 export * from "./labels/labelEngine";
-export * from "./math/expression";
+export { parseMathExpression, parseMathExpression2D, evaluateMathExpression, type ParsedMathExpression, type ParsedMathExpression2D } from "./math/expression";
 export * from "./ir/problemIR";
 export * from "./ir/circuitNetwork";
 export * from "./ir/solver";
