@@ -296,14 +296,13 @@ function requestedHalfLifeConditionValid(question: string, ownerStart: number, c
   const inputEnd = clause ? inputStart + clause.index : body.length;
   const input = body.slice(inputStart, inputEnd);
   let valueEnd: number | null = null;
-  if (/^\s*(?:(?:the|a)\s+)?(?:rate constant\b|k\s*=)/i.test(input)) {
+  const firstRateOwner = new RegExp(String.raw`^\s*(?:(?:${caseWord("the")}|${caseWord("a")})\s+)?${RATE_CUE.source}`, RATE_CUE.flags).exec(input);
+  if (firstRateOwner) {
     const orders = readOrders(chemStem(body));
     if (orders.length !== 1) return false;
     const order = orders[0]!;
     const dimension = order === 0 ? "rate_constant_zero" : order === 2 ? "rate_constant_second" : "rate_constant_first";
-    const firstOwner = new RegExp(String.raw`^\s*(?:(?:${caseWord("the")}|${caseWord("a")})\s+)?${RATE_CUE.source}`, RATE_CUE.flags).exec(input);
-    if (!firstOwner) return false;
-    const valueStart = inputStart + firstOwner[0].length;
+    const valueStart = inputStart + firstRateOwner[0].length;
     const read = readChemistryQuantity({question, after: /^/, within: {start:valueStart, end:inputEnd}, dimension});
     if (!read.ok) return false;
     valueEnd = read.reading.source.span.end;
@@ -326,12 +325,12 @@ function halfLifeSourceOwnersValid(question: string): boolean {
     const subjectStart = owner.index! + owner[0].length;
     const tail = body.slice(subjectStart);
     const temperature = String.raw`(?:\s+at\s+[0-9]+(?:\.[0-9]+)?\s*(?:K|°\s*C))?`;
-    const boundary = String.raw`(?=\s*(?:is\b|[.,;?]|$|(?:if|when|whose|with|given|for which)\b))`;
+    const boundary = String.raw`(?=\s*(?:is\b|[.,;?]|$|(?:if|when|whose|with|given|for which|from|using)\b))`;
     const subject = new RegExp(String.raw`^${temperature}${boundary}`, "i").exec(tail)
       ?? new RegExp(String.raw`^\s+${HALF_REACTION}${temperature}${boundary}`, "i").exec(tail);
     if (!subject) return false;
     const end = subjectStart + subject[0].length;
-    if (/^\s*(?:if|when|whose|with|given|for which)\b/i.test(body.slice(end))
+    if (/^\s*(?:if|when|whose|with|given|for which|from|using)\b/i.test(body.slice(end))
       && !requestedHalfLifeConditionValid(question, owner.index!, end)) return false;
   }
   for (const owner of body.matchAll(new RegExp(HALF_LIFE_CUE.source, "ig"))) {

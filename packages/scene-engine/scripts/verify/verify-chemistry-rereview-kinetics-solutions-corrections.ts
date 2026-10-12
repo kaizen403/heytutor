@@ -1231,5 +1231,208 @@ for(const c of compoundHalfRequestCases)try {
 }catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
 // END ADDITIVE COMPOUND HALF-LIFE REQUEST GATES
 
+// BEGIN ADDITIVE SYMBOLIC RATE-CONDITION GATES
+interface SymbolicRateConditionCase extends HalfSubjectCase { askTime?:number; referenceTime?:number; referenceRemaining?:number }
+const symbolicRateConditionCases:SymbolicRateConditionCase[] = [
+  {
+    "id": "original-AB-F7-whatis-hl-k",
+    "question": "What is the half life of a first order reaction for which k is 0.0231 min^-1? What fraction remains after 60 min?",
+    "order": 1,
+    "k": 0.0231,
+    "half": 30.006371452811486,
+    "unit": "min",
+    "referenceTime": 60,
+    "referenceRemaining": 0.25007360111209415,
+    "askTime": 60
+  },
+  {
+    "id": "own-symbolic-is",
+    "question": "Calculate the half life of a first order reaction whose k is 0.0231 min^-1. Draw its decay curve.",
+    "order": 1,
+    "k": 0.0231,
+    "half": 30.006371452811486,
+    "unit": "min",
+    "referenceTime": 60,
+    "referenceRemaining": 0.25007360111209415
+  },
+  {
+    "id": "own-symbolic-equals",
+    "question": "Find the half life of a first order reaction if k equals 0.0231 min^-1. Draw the decay curve.",
+    "order": 1,
+    "k": 0.0231,
+    "half": 30.006371452811486,
+    "unit": "min",
+    "referenceTime": 60,
+    "referenceRemaining": 0.25007360111209415
+  },
+  {
+    "id": "own-symbolic-colon",
+    "question": "Determine the half life of a first order reaction for which k: 0.0231 min^-1. Draw the decay curve.",
+    "order": 1,
+    "k": 0.0231,
+    "half": 30.006371452811486,
+    "unit": "min",
+    "referenceTime": 60,
+    "referenceRemaining": 0.25007360111209415
+  },
+  {
+    "id": "own-symbolic-article",
+    "question": "What is the half life of a first order reaction when the k is 0.0231 min^-1? Draw its concentration curve.",
+    "order": 1,
+    "k": 0.0231,
+    "half": 30.006371452811486,
+    "unit": "min",
+    "referenceTime": 60,
+    "referenceRemaining": 0.25007360111209415
+  },
+  {
+    "id": "own-symbolic-from",
+    "question": "Find the half life of a first order reaction from k = 0.0231 min^-1. Draw the decay curve.",
+    "order": 1,
+    "k": 0.0231,
+    "half": 30.006371452811486,
+    "unit": "min",
+    "referenceTime": 60,
+    "referenceRemaining": 0.25007360111209415
+  },
+  {
+    "id": "own-symbolic-using",
+    "question": "Calculate the half life of a first order reaction using k = 0.0231 min^-1. Draw its decay curve.",
+    "order": 1,
+    "k": 0.0231,
+    "half": 30.006371452811486,
+    "unit": "min",
+    "referenceTime": 60,
+    "referenceRemaining": 0.25007360111209415
+  },
+  {
+    "id": "own-symbolic-unread-first",
+    "question": "Find the half life of a first order reaction if k is unknown and k is 0.0231 min^-1. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "own-symbolic-wrong-unit-first",
+    "question": "Find the half life of a first order reaction whose k is 0.0231 kg and k is 0.0231 min^-1. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "own-symbolic-conflicting-repeat",
+    "question": "What is the half life of a first order reaction for which k is 0.0231 min^-1 and k is 0.0462 min^-1? Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "own-symbolic-missing-unit",
+    "question": "Calculate the half life of a first order reaction if k equals 0.0231. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "own-symbolic-damaged-connector",
+    "question": "Find the half life of a first order reaction for which k is unreadable. The rate constant is 0.0231 min^-1. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "own-symbolic-rate-role-supported-1",
+    "question": "Evaluate the half life of a first order reaction with k equals 0.0462 min^-1. What fraction remains after 30 min?",
+    "order": 1,
+    "k": 0.0462,
+    "half": 15.003185726405743,
+    "unit": "min",
+    "referenceTime": 30,
+    "referenceRemaining": 0.25007360111209415,
+    "askTime": 30
+  },
+  {
+    "id": "own-symbolic-rate-role-supported-2",
+    "question": "Find the half life of a first order reaction R -> S whose k: 0.00693 s^-1. Draw [A]/[A]0 vs t.",
+    "order": 1,
+    "k": 0.00693,
+    "half": 100.02123817603828,
+    "unit": "s",
+    "referenceTime": 200,
+    "referenceRemaining": 0.2500736011120941
+  },
+  {
+    "id": "own-symbolic-rate-role-supported-3",
+    "question": "Determine the half life of a first order reaction from the k is 0.0231 min^-1. Draw its decay curve.",
+    "order": 1,
+    "k": 0.0231,
+    "half": 30.006371452811486,
+    "unit": "min",
+    "referenceTime": 60,
+    "referenceRemaining": 0.25007360111209415
+  },
+  {
+    "id": "own-symbolic-rate-role-supported-4",
+    "question": "Compute the half life of a first order reaction using rate constant k: 0.3465 h^-1. Draw the decay curve.",
+    "order": 1,
+    "k": 0.3465,
+    "half": 2.000424763520766,
+    "unit": "h",
+    "referenceTime": 4,
+    "referenceRemaining": 0.25007360111209415
+  },
+  {
+    "id": "own-symbolic-rate-role-supported-5",
+    "question": "What is the half life of a first order reaction for which k is 0.0231 min^-1, and find the fraction remaining at t = 60 min?",
+    "order": 1,
+    "k": 0.0231,
+    "half": 30.006371452811486,
+    "unit": "min",
+    "referenceTime": 60,
+    "referenceRemaining": 0.25007360111209415,
+    "askTime": 60
+  },
+  {
+    "id": "own-symbolic-rate-role-strict-1",
+    "question": "Find the half life of a first order reaction with k equals unknown and k = 0.0231 min^-1. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "own-symbolic-rate-role-strict-2",
+    "question": "Determine the half life of a first order reaction whose k: 1e- min^-1 and k = 0.0231 min^-1. Draw its decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "own-symbolic-rate-role-strict-3",
+    "question": "Find the half life of a first order reaction from k is -0.0231 min^-1 and k is 0.0231 min^-1. Draw the decay curve.",
+    "refuse": true
+  },
+  {
+    "id": "own-symbolic-rate-role-strict-4",
+    "question": "Calculate the half life of a first order reaction using k: unreadable. The rate constant is 0.0231 min^-1. Draw [A]/[A]0 vs t.",
+    "refuse": true
+  },
+  {
+    "id": "own-symbolic-rate-role-strict-5",
+    "question": "Find the half life of a first order reaction whose k equals 0.0231 kg. Time for 75 % completion is 60 min. Draw the decay curve.",
+    "refuse": true
+  }
+];
+for(const c of symbolicRateConditionCases)try {
+ const spec=kineticsFromStem(c.question);
+ const direct=buildKineticsScene(c.question,[],false);
+ const schematic=buildKineticsScene(c.question,[],true);
+ const ordinary=synthesizeFamilyScene({question:c.question});
+ if(c.refuse){assert.equal(spec,null,"first original symbolic rate must be readable and complete");assert.equal(direct,null);assert.equal(schematic,null);assert.equal(ordinary,null);}
+ else {
+  assert.ok(spec);assert.equal(spec.order,c.order);assert.equal(spec.tHalf,null,"requested half-life does not supply a time");assert.equal(spec.timeUnit,c.unit);
+  assert.deepEqual(spec.timesAsked,c.askTime===undefined?[]:[c.askTime],"only explicitly requested source instants are drawn");
+  const solved=solveKinetics(spec);assert.ok(solved.k!==null && solved.tHalf!==null);
+  assert.ok(Math.abs(solved.k-c.k!)<=Math.abs(c.k!)*1e-12,"independent original source rate");
+  assert.ok(Math.abs(solved.tHalf-c.half!)<=Math.abs(c.half!)*1e-12,"independent ln(2)/k, never a later requested instant");
+  assert.ok(Math.abs(Math.exp(-solved.k*c.referenceTime!)-c.referenceRemaining!)<=1e-12,"independent decay-law reference without inventing an unasked diagram point");
+  if(c.askTime!==undefined){const entry=solved.remainingAtTimes.find(t=>t.time===c.askTime);assert.ok(entry);assert.ok(Math.abs(entry.remaining-Math.exp(-c.k!*c.askTime))<=1e-12);}
+  assert.ok(direct && schematic && ordinary,"supported symbolic source connector must compile at every real seam");
+  for(const doc of [direct,schematic,ordinary.document]){
+   assert.equal(doc.source.question,c.question);assert.equal(doc.quantities.find(q=>q.id==="t_half")?.value,Number(c.half!.toFixed(6)));
+   assert.equal(doc.quantities.find(q=>q.id==="k")?.value,Number(c.k!.toFixed(6)));
+   const displayed=labels(doc);
+   if(c.askTime!==undefined){const requestedLabel=new RegExp(`^t\\s*=\\s*${c.askTime}\\s+${c.unit}$`);assert.ok(displayed.some(text=>requestedLabel.test(text)),JSON.stringify(displayed));}
+  }
+ }
+ results.push({id:c.id,passed:true});
+}catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
+// END ADDITIVE SYMBOLIC RATE-CONDITION GATES
+
 console.log(JSON.stringify({total:results.length,passed:results.filter(r=>r.passed).length,rows:results},null,2));
 if(results.some(r=>!r.passed))process.exitCode=1;
