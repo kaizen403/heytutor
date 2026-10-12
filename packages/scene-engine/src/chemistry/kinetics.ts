@@ -781,14 +781,22 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
   }
   // Inventory the original change owner before any successful scalar match.
   // Unread or damaged times/fold material cannot disappear behind a pair.
-  const timesPattern = /\b(?:rate constant|rate)\b((?:(?![;?\n]|\.(?=\s|$))[\s\S]){0,80}?)(?:times|fold)/gid;
-  for (const times of stem.matchAll(timesPattern)) {
-    const payload = times.indices![1]!;
+  const timesOwners = [...stem.matchAll(/\b(?:rate constant|rate)\b/gi)];
+  for (const [index, owner] of timesOwners.entries()) {
+    const payloadStart = owner.index! + owner[0].length;
+    let ownerEnd = Math.min(timesOwners[index + 1]?.index ?? stem.length, payloadStart + 80);
+    const boundary = /[;?\n]/.exec(stem.slice(payloadStart, ownerEnd));
+    if (boundary) ownerEnd = payloadStart + boundary.index;
+    // The strict reader owns decimal punctuation, including a trailing dot.
+    // Any intervening sentence text remains in this payload and must refuse.
+    const marker = /(?:times|fold)/i.exec(stem.slice(payloadStart, ownerEnd));
+    if (!marker) continue;
+    const payload = [payloadStart, payloadStart + marker.index] as const;
     const prefix = /^\s*(?:of\s+(?:(?:the|a|this)\s+)?reaction\s*)?(?:(?:becomes?|increases?|decreases?|changes?)(?:\s+by)?\s+)?/i.exec(stem.slice(payload[0],payload[1]))!;
     const start = payload[0] + prefix[0].length;
     const read = readChemistryQuantity({question:stem,after:/^/,within:{start,end:payload[1]},dimension:"dimensionless"});
     if (!read.ok || !(read.reading.value > 0) || stem.slice(read.reading.source.span.end,payload[1]).trim() !== "") return false;
-    const suffixStart = times.index! + times[0].length;
+    const suffixStart = payload[1] + marker[0].length;
     const clause = /[;?\n]|\.(?=\s|$)/.exec(stem.slice(suffixStart));
     const suffixEnd = clause ? suffixStart + clause.index : stem.length;
     let suffix = stem.slice(suffixStart,suffixEnd);
