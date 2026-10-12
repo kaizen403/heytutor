@@ -67,6 +67,7 @@ import { appendCompiledAnnotations } from "./sceneAnnotations";
 import { lensSectionOutline, sphericalSurfaceGeometry } from "./opticsSurfaces";
 import { acuteNormalArm, clipLightPathsAtElements, truncateRenderedPath, validateAxisArrowsOnRays } from "./lightPathElements";
 import { continueLightLinesFromElements } from "./emergentLightLines";
+import { validateReflectionCriticalAngles } from "./reflectionCriticalAngle";
 import { readPolyhedralSolid, polyhedralPaths, polyhedralSection, type PolyhedralSolid } from "../math/polyhedralSolid";
 import { evaluateCombinatoricsConstruction, type CombinatoricsGraphDefinition, type CombinatoricsNodeDefinition, type CombinatoricsEdgeDefinition } from "./combinatoricsGeometry";
 import { evaluateElasticityConstruction, type ElasticProfileDefinition, type ElasticStateDefinition } from "./elasticityGeometry";
@@ -412,6 +413,18 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   continueLightLinesFromElements({ document, geometry, drawn: drawnInk, issues });
   // Object and image arrows on an optical axis stand on the rays drawn there.
   validateAxisArrowsOnRays({ document, geometry, drawn: drawnInk, issues });
+  // A reflection on an interface with declared indices is total only above
+  // the critical angle; below it the refraction there must be drawn.
+  validateReflectionCriticalAngles({
+    document,
+    geometry,
+    resolvePoint: (value) => resolvePoint(value, geometry),
+    resolveNumber: (value) => {
+      if (value === undefined || value === null) return null;
+      try { return resolveNumber(value, quantities); } catch { return null; }
+    },
+    issues,
+  });
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, 0) };
   issues.push(...validateCircleLabelTraces(document));
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, 0) };

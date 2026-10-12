@@ -1,6 +1,6 @@
 {
  "schema": "ray-optics-remaining/v1",
- "note": "Selected planner documents from recorded round 7 physics runs, after production validation, as the engine compiles them: b2 glass slab h8a (emergent line) and b1 glass slab h8a (correct slab path).",
+ "note": "Selected planner documents from recorded round 7 physics runs, after production validation, as the engine compiles them: b2 glass slab h8a (emergent line), b1 glass slab h8a (correct slab path), b2 total internal reflection h8a (declared indices) and b2 optical fibre h8u (27 degree reflection).",
  "documents": {
   "slab": {
    "schemaVersion": "scene-document/v2",
@@ -1050,6 +1050,644 @@
      "narrationIntent": "reveal setup"
     }
    ]
+  },
+  "tir": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "Two rays meet the same gem–air face at stated angles; one refracts and the other undergoes total internal reflection."
+   },
+   "source": {
+    "question": "Inside a cubic zirconia gem of refractive index 2.15, one ray meets a gem-air face at 13° to the normal and another meets the same face at 34°. Find the critical angle and describe, with angles, what happens to each ray.",
+    "representationTier": "quantitative_verified",
+    "nonMetric": false
+   },
+   "quantities": [
+    {
+     "id": "n",
+     "symbol": "n_gem",
+     "value": 2.15
+    },
+    {
+     "id": "i1",
+     "symbol": "i₁",
+     "value": 13,
+     "unit": "°"
+    },
+    {
+     "id": "i2",
+     "symbol": "i₂",
+     "value": 34,
+     "unit": "°"
+    },
+    {
+     "id": "c",
+     "symbol": "θc",
+     "value": 27.71774768960954,
+     "unit": "°"
+    },
+    {
+     "id": "r1val",
+     "symbol": "r₁",
+     "value": 28.92,
+     "unit": "°"
+    },
+    {
+     "id": "r2val",
+     "symbol": "i_reflected",
+     "value": 34,
+     "unit": "°"
+    }
+   ],
+   "entities": [
+    {
+     "id": "face",
+     "kind": "line",
+     "role": "gem–air interface"
+    },
+    {
+     "id": "contact1",
+     "kind": "point",
+     "role": "first contact"
+    },
+    {
+     "id": "contact2",
+     "kind": "point",
+     "role": "second contact"
+    },
+    {
+     "id": "incident1",
+     "kind": "ray",
+     "role": "13° incident ray"
+    },
+    {
+     "id": "normal1",
+     "kind": "line",
+     "role": "normal at first contact"
+    },
+    {
+     "id": "refracted1",
+     "kind": "ray",
+     "role": "ray refracted into air"
+    },
+    {
+     "id": "incident2",
+     "kind": "ray",
+     "role": "34° incident ray"
+    },
+    {
+     "id": "normal2",
+     "kind": "line",
+     "role": "normal at second contact"
+    },
+    {
+     "id": "reflected2",
+     "kind": "ray",
+     "role": "totally internally reflected ray"
+    },
+    {
+     "id": "angle1",
+     "kind": "angle_mark",
+     "role": "first incidence angle",
+     "label": "13°"
+    },
+    {
+     "id": "angle2",
+     "kind": "angle_mark",
+     "role": "second incidence angle",
+     "label": "34°"
+    },
+    {
+     "id": "refractedAngle",
+     "kind": "angle_mark",
+     "role": "first refraction angle"
+    },
+    {
+     "id": "reflectedAngle",
+     "kind": "angle_mark",
+     "role": "second reflection angle"
+    },
+    {
+     "id": "faceOrigin",
+     "kind": "point",
+     "role": "construction helper"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "makeFaceOrigin",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "faceOrigin"
+     ]
+    },
+    {
+     "id": "makeFace",
+     "operator": "line",
+     "inputs": {
+      "start": "faceOrigin",
+      "direction": [
+       1,
+       0
+      ]
+     },
+     "outputs": [
+      "face"
+     ]
+    },
+    {
+     "id": "makeContact1",
+     "operator": "point",
+     "inputs": {
+      "x": -1,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "contact1"
+     ]
+    },
+    {
+     "id": "makeContact2",
+     "operator": "point",
+     "inputs": {
+      "x": 1,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "contact2"
+     ]
+    },
+    {
+     "id": "firstRay",
+     "operator": "refract_at",
+     "inputs": {
+      "point": "contact1",
+      "surface": "face",
+      "incidentAngleDeg": "i1",
+      "n1": "n",
+      "n2": 1,
+      "tangentSign": 1
+     },
+     "outputs": [
+      "incident1",
+      "normal1",
+      "refracted1"
+     ]
+    },
+    {
+     "id": "secondRay",
+     "operator": "reflect_at",
+     "inputs": {
+      "point": "contact2",
+      "surface": "face",
+      "incidentAngleDeg": "i2",
+      "tangentSign": 1
+     },
+     "outputs": [
+      "incident2",
+      "normal2",
+      "reflected2"
+     ]
+    },
+    {
+     "id": "markAngle1",
+     "operator": "angle_mark",
+     "inputs": {
+      "vertex": "contact1",
+      "a": "incident1",
+      "b": "normal1"
+     },
+     "outputs": [
+      "angle1"
+     ]
+    },
+    {
+     "id": "markAngle2",
+     "operator": "angle_mark",
+     "inputs": {
+      "vertex": "contact2",
+      "a": "incident2",
+      "b": "normal2"
+     },
+     "outputs": [
+      "angle2"
+     ]
+    },
+    {
+     "id": "markRefraction",
+     "operator": "angle_mark",
+     "inputs": {
+      "vertex": "contact1",
+      "a": "normal1",
+      "b": "refracted1"
+     },
+     "outputs": [
+      "refractedAngle"
+     ]
+    },
+    {
+     "id": "markReflection",
+     "operator": "angle_mark",
+     "inputs": {
+      "vertex": "contact2",
+      "a": "normal2",
+      "b": "reflected2"
+     },
+     "outputs": [
+      "reflectedAngle"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [
+    {
+     "id": "normalToFace1",
+     "predicate": "perpendicular",
+     "entities": [
+      "normal1",
+      "face"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "normalToFace2",
+     "predicate": "perpendicular",
+     "entities": [
+      "normal2",
+      "face"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "firstRaySnell",
+     "predicate": "snells_law",
+     "entities": [
+      "incident1",
+      "normal1",
+      "refracted1"
+     ],
+     "expected": {
+      "n1": 2.15,
+      "n2": 1
+     },
+     "severity": "fatal"
+    },
+    {
+     "id": "secondRayReflection",
+     "predicate": "equal_angle",
+     "entities": [
+      "incident2",
+      "normal2",
+      "normal2",
+      "reflected2"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    }
+   ],
+   "annotations": [
+    {
+     "id": "gemLabel",
+     "kind": "label",
+     "targetIds": [
+      "incident1"
+     ],
+     "text": "gem n = 2.15"
+    },
+    {
+     "id": "airLabel",
+     "kind": "label",
+     "targetIds": [
+      "refracted1"
+     ],
+     "text": "air"
+    },
+    {
+     "id": "criticalResult",
+     "kind": "callout",
+     "targetIds": [
+      "face"
+     ],
+     "text": "θc ≈ 27.72°"
+    },
+    {
+     "id": "refractionResult",
+     "kind": "label",
+     "targetIds": [
+      "refractedAngle"
+     ],
+     "text": "r₁ ≈ 28.92°"
+    },
+    {
+     "id": "reflectionResult",
+     "kind": "label",
+     "targetIds": [
+      "reflectedAngle"
+     ],
+     "text": "34°"
+    },
+    {
+     "id": "tirNote",
+     "kind": "callout",
+     "targetIds": [
+      "reflected2"
+     ],
+     "text": "Total internal reflection"
+    }
+   ],
+   "requiredEntityIds": [
+    "face",
+    "contact1",
+    "contact2",
+    "incident1",
+    "normal1",
+    "refracted1",
+    "incident2",
+    "normal2",
+    "reflected2",
+    "angle1",
+    "angle2",
+    "refractedAngle",
+    "reflectedAngle"
+   ],
+   "revealGroups": [
+    {
+     "id": "setup",
+     "entityIds": [
+      "face",
+      "contact1",
+      "contact2",
+      "incident1",
+      "normal1",
+      "refracted1",
+      "incident2",
+      "normal2",
+      "reflected2",
+      "angle1",
+      "angle2"
+     ],
+     "dependsOn": [],
+     "narrationCue": "Show the gem–air face, both given incidence angles, the refracted first ray, and the internally reflected second ray."
+    },
+    {
+     "id": "results",
+     "entityIds": [
+      "refractedAngle",
+      "reflectedAngle"
+     ],
+     "dependsOn": [
+      "setup"
+     ],
+     "narrationCue": "The critical angle is 27.71774768960954°. The 13° ray refracts into air at 28.92° to the normal. The 34° ray exceeds the critical angle, so no ray enters the air; it reflects inside the gem at 34°."
+    }
+   ],
+   "teachingTimeline": [
+    {
+     "id": "showSetup",
+     "revealGroupId": "setup",
+     "targetIds": [
+      "face",
+      "incident1",
+      "incident2",
+      "angle1",
+      "angle2"
+     ],
+     "action": "reveal",
+     "targetId": "face",
+     "dependsOn": [],
+     "narrationIntent": "reveal face"
+    },
+    {
+     "id": "showResults",
+     "revealGroupId": "results",
+     "targetIds": [
+      "refractedAngle",
+      "reflectedAngle",
+      "refracted1",
+      "reflected2"
+     ],
+     "action": "reveal",
+     "targetId": "refractedAngle",
+     "dependsOn": [],
+     "narrationIntent": "reveal refractedAngle"
+    }
+   ]
+  },
+  "fibre": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "A representative core–cladding boundary can show light reflecting back into the core."
+   },
+   "source": {
+    "question": "why cant light escape a fibre optic cable",
+    "representationTier": "qualitative_verified",
+    "nonMetric": true
+   },
+   "quantities": [],
+   "entities": [
+    {
+     "id": "boundaryOrigin",
+     "kind": "point",
+     "role": "helper point"
+    },
+    {
+     "id": "boundary",
+     "kind": "line",
+     "role": "core–cladding boundary"
+    },
+    {
+     "id": "lightOrigin",
+     "kind": "point",
+     "role": "helper point"
+    },
+    {
+     "id": "contact",
+     "kind": "point",
+     "role": "point of incidence",
+     "label": "P"
+    },
+    {
+     "id": "incoming",
+     "kind": "vector",
+     "role": "light travelling through the core"
+    },
+    {
+     "id": "reflected",
+     "kind": "ray",
+     "role": "light reflected back into the core"
+    },
+    {
+     "id": "contactNormal",
+     "kind": "segment",
+     "role": "normal at geometry"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "makeBoundaryOrigin",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "boundaryOrigin"
+     ]
+    },
+    {
+     "id": "makeBoundary",
+     "operator": "line",
+     "inputs": {
+      "start": "boundaryOrigin",
+      "direction": [
+       1,
+       0
+      ]
+     },
+     "outputs": [
+      "boundary"
+     ]
+    },
+    {
+     "id": "makeLightOrigin",
+     "operator": "point",
+     "inputs": {
+      "x": -1,
+      "y": -2,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "lightOrigin"
+     ]
+    },
+    {
+     "id": "makeContact",
+     "operator": "surface_contact",
+     "inputs": {
+      "origin": "lightOrigin",
+      "surface": "boundary",
+      "direction": [
+       1,
+       2
+      ]
+     },
+     "outputs": [
+      "contact",
+      "incoming"
+     ]
+    },
+    {
+     "id": "makeNormal",
+     "operator": "normal_at",
+     "inputs": {
+      "point": "contact",
+      "surface": "boundary"
+     },
+     "outputs": [
+      "contactNormal"
+     ]
+    },
+    {
+     "id": "makeReflection",
+     "operator": "reflect_direction",
+     "inputs": {
+      "origin": "contact",
+      "incoming": "incoming",
+      "normal": "contactNormal"
+     },
+     "outputs": [
+      "reflected"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [
+    {
+     "id": "contactOnBoundary",
+     "predicate": "on",
+     "entities": [
+      "contact",
+      "boundary"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "assert_label_contact",
+     "predicate": "label_attached",
+     "entities": [
+      "contact"
+     ],
+     "expected": true,
+     "severity": "fatal",
+     "reason": "student-facing points must stay labeled"
+    }
+   ],
+   "annotations": [
+    {
+     "id": "claddingLabel",
+     "kind": "label",
+     "targetIds": [
+      "boundary"
+     ],
+     "text": "cladding",
+     "placementIntent": "above"
+    },
+    {
+     "id": "coreLabel",
+     "kind": "label",
+     "targetIds": [
+      "incoming"
+     ],
+     "text": "core",
+     "placementIntent": "below"
+    },
+    {
+     "id": "explanation",
+     "kind": "narration",
+     "targetIds": [
+      "incoming",
+      "contact",
+      "reflected"
+     ],
+     "text": "The cladding has a lower refractive index than the core. When light reaches their boundary at an incidence angle greater than the critical angle, total internal reflection sends it back into the core. Light can still escape or be lost if it meets the boundary below the critical angle, particularly when the fibre bends too sharply."
+    }
+   ],
+   "requiredEntityIds": [
+    "boundary",
+    "lightOrigin",
+    "contact",
+    "incoming",
+    "reflected",
+    "boundaryOrigin"
+   ],
+   "revealGroups": [
+    {
+     "id": "fibreBoundary",
+     "entityIds": [
+      "boundaryOrigin",
+      "boundary",
+      "lightOrigin",
+      "contact",
+      "incoming",
+      "reflected"
+     ],
+     "dependsOn": [],
+     "narrationCue": "reveal scene"
+    }
+   ],
+   "teachingTimeline": []
   }
  }
 }
