@@ -862,5 +862,195 @@ for(const c of namedRateAliasCases)try {
 }catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
 // END ADDITIVE NAMED RATE-ALIAS ROLE GATES
 
+// BEGIN ADDITIVE CLOSED REQUESTED-QUANTITY PAYLOAD GATES
+const closedRequestCases:RateCase[] = [
+  {
+    "id": "INDEPENDENT-KINETICS-CLOSED-REQUEST-1",
+    "question": "A first order reaction has half life 30 min. Find the rate constant and draw the decay curve, taking its value as 0.04 min^-1.",
+    "refuse": true
+  },
+  {
+    "id": "INDEPENDENT-KINETICS-CLOSED-REQUEST-2",
+    "question": "A first order reaction has half life 30 min. Calculate the rate constant and plot the decay curve, using a supplied value of 0.05 min^-1.",
+    "refuse": true
+  },
+  {
+    "id": "INDEPENDENT-KINETICS-CLOSED-REQUEST-3",
+    "question": "A first order reaction has half life 30 min. Determine the rate constant and sketch the decay curve with its stated value of 0.02 min^-1.",
+    "refuse": true
+  },
+  {
+    "id": "INDEPENDENT-KINETICS-CLOSED-REQUEST-4",
+    "question": "A first order reaction has half life 30 min. Find k and draw the decay curve, where its value is 0.04 min^-1.",
+    "refuse": true
+  },
+  {
+    "id": "INDEPENDENT-KINETICS-CLOSED-REQUEST-5",
+    "question": "A first order reaction has half life 30 min. Evaluate the rate constant and draw the decay curve, taking its value as 3 M.",
+    "refuse": true
+  },
+  {
+    "id": "INDEPENDENT-KINETICS-CLOSED-REQUEST-6",
+    "question": "A first order reaction has half life 30 min. Find the initial concentration and draw the decay curve, taking its value as 3 M.",
+    "refuse": true
+  },
+  {
+    "id": "INDEPENDENT-KINETICS-CLOSED-REQUEST-7",
+    "question": "A first order reaction has half life 30 min. Calculate the initial concentration and plot the decay curve, using a supplied value of 4 M.",
+    "refuse": true
+  },
+  {
+    "id": "INDEPENDENT-KINETICS-CLOSED-REQUEST-8",
+    "question": "A first order reaction has half life 30 min. Determine the starting concentration and sketch the decay curve with its stated value of 5 M.",
+    "refuse": true
+  },
+  {
+    "id": "INDEPENDENT-KINETICS-CLOSED-REQUEST-9",
+    "question": "A first order reaction has half life 30 min. Find A0 and draw the decay curve, where its value is 3 M.",
+    "refuse": true
+  },
+  {
+    "id": "INDEPENDENT-KINETICS-CLOSED-REQUEST-10",
+    "question": "A first order reaction has half life 30 min. Evaluate the initial concentration and draw the decay curve, taking its value as 2 kg.",
+    "refuse": true
+  },
+  {
+    "id": "INDEPENDENT-KINETICS-CLOSED-REQUEST-SUPPORT-1",
+    "question": "A first order reaction has half life 30 min. Find the rate constant and draw the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "unit": "min",
+    "half": 30
+  },
+  {
+    "id": "INDEPENDENT-KINETICS-CLOSED-REQUEST-SUPPORT-2",
+    "question": "A first order reaction has k = 0.0231 min^-1 and initial concentration is 2 M. Find the initial concentration and draw the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "unit": "min",
+    "k": 0.0231,
+    "initial": 2
+  },
+  {
+    "id": "OWN-pure-rate-request-1",
+    "question": "A first order reaction has half life 30 min. Calculate the rate constant and draw [A]/[A]0 versus time.",
+    "refuse": false,
+    "order": 1,
+    "unit": "min",
+    "half": 30
+  },
+  {
+    "id": "OWN-pure-rate-request-2",
+    "question": "A first order reaction has half life 30 min. Find k and sketch the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "unit": "min",
+    "half": 30
+  },
+  {
+    "id": "OWN-pure-rate-request-3",
+    "question": "A first order reaction has half life 30 min. Determine its rate constant and plot the normalized decay curve.",
+    "refuse": false,
+    "order": 1,
+    "unit": "min",
+    "half": 30
+  },
+  {
+    "id": "OWN-pure-rate-request-4",
+    "question": "A first order reaction has half life 30 min. Obtain the rate constant and draw log([A]_0/[A]) against time.",
+    "refuse": false,
+    "order": 1,
+    "unit": "min",
+    "half": 30
+  },
+  {
+    "id": "OWN-pure-initial-request-1",
+    "question": "A first order reaction has initial concentration = 2 M and k = 0.0231 min^-1. Find its initial concentration and sketch the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "unit": "min",
+    "k": 0.0231,
+    "initial": 2
+  },
+  {
+    "id": "OWN-pure-initial-request-2",
+    "question": "A first order reaction has A0 = 2 M and k = 0.0231 min^-1. Calculate A0 and draw the normalized decay curve.",
+    "refuse": false,
+    "order": 1,
+    "unit": "min",
+    "k": 0.0231,
+    "initial": 2
+  },
+  {
+    "id": "OWN-pure-initial-request-3",
+    "question": "A first order reaction has starting concentration = 2 M and k = 0.0231 min^-1. Determine the starting concentration and plot the decay curve.",
+    "refuse": false,
+    "order": 1,
+    "unit": "min",
+    "k": 0.0231,
+    "initial": 2
+  },
+  {
+    "id": "OWN-request-reference-supplied-1",
+    "question": "A first order reaction has half life 30 min. Find the rate constant and draw the decay curve, taking its value as unknown.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-request-reference-supplied-2",
+    "question": "A first order reaction has half life 30 min. Find k and plot the decay curve assuming a value of 1e- min^-1.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-request-reference-supplied-3",
+    "question": "A first order reaction has half life 30 min. Calculate the rate constant and draw [A]/[A]0 versus time, using its value of 0.04 min^-1.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-request-reference-supplied-4",
+    "question": "A first order reaction has half life 30 min. Determine the initial concentration and draw the decay curve taking its amount as unknown.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-request-reference-supplied-5",
+    "question": "A first order reaction has initial concentration = 2 M and k = 0.0231 min^-1. Find the initial concentration and sketch its curve using a supplied value of 3 M.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-request-reference-supplied-6",
+    "question": "A first order reaction has A0 = 2 M and k = 0.0231 min^-1. Calculate A0 and draw the decay curve assuming 2 kg.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-request-reference-supplied-7",
+    "question": "A first order reaction has k = 0.0231 min^-1. Use the rate constant to draw the decay curve taking its value as 0.04 min^-1.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-request-reference-supplied-8",
+    "question": "A first order reaction has k = 0.0231 min^-1. Its rate law is r = k[A], draw the decay curve using its value as 0.04 min^-1.",
+    "refuse": true
+  }
+];
+for(const c of closedRequestCases)try {
+ const spec=kineticsFromStem(c.question),exact=buildKineticsScene(c.question,[],false),schematic=buildKineticsScene(c.question,[],true),ordinary=synthesizeFamilyScene({question:c.question});
+ if(c.refuse){assert.equal(spec,null);assert.equal(exact,null);assert.equal(schematic,null);assert.equal(ordinary,null);}
+ else {
+  assert.ok(spec);assert.equal(spec.a0,c.initial??null);const solved=solveKinetics(spec),truth=expected(c);assert.equal(spec.order,1);assert.equal(solved.timeUnit,c.unit);
+  assert.ok(solved.k!==null&&solved.tHalf!==null);assert.ok(Math.abs(solved.k-truth.k)<=Math.abs(truth.k)*1e-12);assert.ok(Math.abs(solved.tHalf-truth.half)<=Math.abs(truth.half)*1e-12);
+  assert.ok(exact&&schematic&&ordinary);for(const document of [exact,schematic,ordinary.document]) {
+   if(spec.plot!=="linear")checkDocument(c,document);
+   else {
+    const valid=validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string,unknown>));assert.ok(valid.document,JSON.stringify(valid.report.issues));
+    const compiled=compileSceneDocument(valid.document);assert.ok(compiled.ok&&compiled.renderScene,JSON.stringify(compiled.report.issues));
+    const k=document.quantities.find(q=>q.id==="k"),half=document.quantities.find(q=>q.id==="t_half");assert.ok(k&&half);assert.equal(k.value,Number(truth.k.toFixed(6)));assert.equal(half.value,Number(truth.half.toFixed(6)));assert.equal(k.unit,`1/${c.unit}`);assert.equal(half.unit,c.unit);
+    assert.ok(!/NaN|Infinity|undefined/.test(compiled.renderScene.primitives.filter(p=>p.kind==="label").map(p=>p.text??"").join(" ")));
+    assert.equal(spec.linear,"logA0A_t");assert.ok(document.annotations.some(a=>a.id==="figure_caption"&&a.text?.includes(` ${c.unit}.`)));
+   }
+  }
+ }
+ results.push({id:c.id,passed:true});
+}catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
+// END ADDITIVE CLOSED REQUESTED-QUANTITY PAYLOAD GATES
+
 const output={schema:"chemistry-rate-declarations-gate/v1",passed:results.filter(x=>x.passed).length,failed:results.filter(x=>!x.passed).length,results};
 console.log(JSON.stringify(output,null,2));assert.equal(output.failed,0);

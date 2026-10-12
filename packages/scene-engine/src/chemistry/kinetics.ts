@@ -363,11 +363,25 @@ function readHalfLife(stem: string): Reading | null {
 /** Words ignore case, but the rate symbol k differs from equilibrium K. */
 const caseWord = (word: string): string => word.replace(/[a-z]/g, letter => `[${letter}${letter.toUpperCase()}]`);
 const RATE_CUE = new RegExp(String.raw`(?:${caseWord("rate constant")}|(?<!\b(?:${caseWord("ln")}|${caseWord("log")})\s*)\bk\b)(?:\s*,?\s*\(?k\)?)?\s*(?:${caseWord("for")}|${caseWord("of")})?\s*(?:${caseWord("the ")}|${caseWord("this ")}|${caseWord("a ")})?(?:${caseWord("reaction")}|${caseWord("it")})?`);
+/** A plot target contains only diagram words or complete concentration math. */
+function pureKineticsPlotSubject(subject: string): boolean {
+  if (subject.trim() === "") return false;
+  const concentration = String.raw`(?:\[[A-Za-z][A-Za-z0-9]*\](?:_?0)?|[A-Za-z]_?0|[A-Za-z])`;
+  let words = subject.replace(new RegExp(String.raw`\b(?:log|ln)\s*\(\s*${concentration}\s*\/\s*${concentration}\s*\)`, "g"), " ");
+  words = words.replace(/1\s*\/\s*\[[A-Za-z][A-Za-z0-9]*\]/g, " ");
+  words = words.replace(/\[[A-Za-z][A-Za-z0-9]*\](?:_?0)?(?:\s*\/\s*\[[A-Za-z][A-Za-z0-9]*\](?:_?0)?)?/g, " ");
+  return /^\s*(?:(?:the|its|a|decay|curve|concentration|remaining|fraction|versus|against|vs|time|graph|plot|variation|of|log|ln|normalized|normalised|and|with|t)\b\s*)*$/i.test(words);
+}
+function pureQuantityRequestTail(tail: string): boolean {
+  if (tail.trim() === "") return true;
+  const request = /^\s*and\s+(?:draw|plot|sketch)\s+/i.exec(tail);
+  return request !== null && pureKineticsPlotSubject(tail.slice(request[0].length));
+}
 /** A use-reference carries no scalar, assignment or unread input material. */
 function quantityUseReferenceOnly(body: string, ownerStart: number, tail: string): boolean {
+  const request = /^\s+to\s+(?:draw|plot|sketch)\s+/i.exec(tail);
   return /\buse\s+(?:(?:the|its|a)\s+)?$/i.test(body.slice(0, ownerStart))
-    && /^\s+to\s+(?:draw|plot|sketch)\s+(?:[A-Za-z]+\s*)+$/i.test(tail)
-    && !/\b(?:unknown|unreadable|unavailable|given|supplied|provided|value|is|was|equals|has|takes)\b/i.test(tail);
+    && request !== null && pureKineticsPlotSubject(tail.slice(request[0].length));
 }
 /** A qualitative rate change contains only its complete thermal payload. */
 function qualitativeRateChangeOnly(question: string, start: number, end: number): boolean {
@@ -407,7 +421,7 @@ function readRateConstant(stem: string, order: ReactionOrder | null = 1): { valu
     // expression. Other unread k declarations remain independently audited.
     if (equation.ok && /^k\b/.test(owner[0]) && equation.reading.source.span.start >= start
       && /^\s*=\s*A\s*$/i.test(body.slice(start, equation.reading.source.span.start))
-      && body.slice(equation.reading.source.span.end, end).trim() === "") continue;
+      && equation.reading.source.span.end <= end && body.slice(equation.reading.source.span.end, end).trim() === "") continue;
     if (qualitativeRateChangeOnly(stem, start, end) || quantityUseReferenceOnly(body, owner.index!, tail)) continue;
     const supplied = /^\s*,?\s*(?:[=:]|(?:is|was|are|equals|equal to|has|takes|value|given|stated|measured|assumed|supplied|provided|with\s+(?:the\s+)?value|unknown|unreadable|unavailable)\b)/i.test(tail)
       || new RegExp(String.raw`^\s*,?\s*(?:(?:of|about|nearly|approximately)\s+)?(?:${SCALAR}|unknown\b|unreadable\b|unavailable\b)`, "i").test(tail);
@@ -416,10 +430,11 @@ function readRateConstant(stem: string, order: ReactionOrder | null = 1): { valu
       // omits a rate. Opaque declaration payloads are not absence.
       const unread = /\b(?:unknown|unreadable|unavailable|not known|not given|not supplied)\b/i.test(tail);
       const requested = /\b(?:find|calculate|determine|compute|obtain|evaluate|what\s+(?:is|would\s+be|will\s+be))\s+(?:(?:the|its|a)\s+)?$/i.test(body.slice(0, owner.index));
-      const requestTail = /^\s*(?:and\s+(?:draw|plot|sketch)\b[^;?\n]*)?$/i.test(tail);
-      const coefficient = /^\s*\[[A-Za-z][A-Za-z0-9]*\](?:\s*\^\s*[0-9]+)?(?:\s*,?\s*(?:and\s+)?(?:draw|plot|sketch)\s+(?:[A-Za-z]+\s*)+)?\s*$/.test(tail)
-        && !/\b(?:unknown|unreadable|unavailable|given|supplied|provided|value|is|was|equals|has|takes)\b/i.test(tail);
-      if (!unread && ((requested && requestTail) || coefficient)) continue;
+      const coefficient = /^\s*\[[A-Za-z][A-Za-z0-9]*\](?:\s*\^\s*[0-9]+)?/.exec(tail);
+      const rest = coefficient ? tail.slice(coefficient[0].length) : "";
+      const plotted = /^\s*,?\s*(?:and\s+)?(?:draw|plot|sketch)\s+/i.exec(rest);
+      const pureCoefficient = coefficient !== null && (rest.trim() === "" || (plotted !== null && pureKineticsPlotSubject(rest.slice(plotted[0].length))));
+      if (!unread && ((requested && pureQuantityRequestTail(tail)) || pureCoefficient)) continue;
       return false;
     }
     const read = readChemistryQuantity({question: stem, after: /^/, within: {start, end}, dimension});
@@ -458,8 +473,7 @@ function readInitialConcentration(stem: string): {value: number; unit: string} |
       && /^\s*(?:(?:is|was|equals|equal to)|[=:])?\s*$/i.test(tail)) continue;
     if (quantityUseReferenceOnly(body, owner.index!, tail)) continue;
     const requested = /\b(?:find|calculate|determine|compute|obtain|evaluate|what\s+(?:is|would\s+be|will\s+be))\s+(?:(?:the|its|a)\s+)?$/i.test(body.slice(0, owner.index));
-    if (requested && /^\s*(?:and\s+(?:draw|plot|sketch)\b[^;?\n]*)?$/i.test(tail)
-      && !/\b(?:unknown|unreadable|unavailable|given|supplied|provided)\b/i.test(tail)) continue;
+    if (requested && pureQuantityRequestTail(tail)) continue;
     const read = readChemistryQuantity({question: stem, after: /^/, within: {start, end}, dimension:"concentration"});
     if (!read.ok || !(read.reading.value > 0)) return false;
     if (reading && !chemistryCanonicalValuesAgree(reading.value, read.reading.value)) return false;
