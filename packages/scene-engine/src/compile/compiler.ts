@@ -416,7 +416,16 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   // where it leaves the glass, never straight through it.
   continueLightLinesFromElements({ document, geometry, drawn: drawnInk, issues });
   // Object and image arrows on an optical axis stand on the rays drawn there.
-  validateAxisArrowsOnRays({ document, geometry, drawn: drawnInk, issues });
+  validateAxisArrowsOnRays({
+    document,
+    geometry,
+    drawn: drawnInk,
+    resolveNumber: (value) => {
+      if (value === undefined || value === null) return null;
+      try { return resolveNumber(value, quantities); } catch { return null; }
+    },
+    issues,
+  });
   // A reflection on an interface with declared indices is total only above
   // the critical angle; below it the refraction there must be drawn.
   validateReflectionCriticalAngles({

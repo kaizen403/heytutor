@@ -16,6 +16,13 @@
  * heights by those same chief rays. A telescope (no object) keeps its
  * parallel bundle.
  *
+ * Image arrows come from a paraxial model, while the engine traces a
+ * reflection or refraction at a spherical surface exactly. Where a traced ray
+ * leaves a spherical surface along the exact law, the tip is measured against
+ * the paraxial ray from the same contact, so spherical aberration does not
+ * decline a correct mirror (recorded 42159a885e4a) and an arrow off that
+ * paraxial ray still fails closed.
+ *
  * Arrow and ray positions are read from the rendered primitives, not from the
  * engine's own check.
  *
@@ -371,6 +378,84 @@ check("control: bcaf2215e808 with its image arrow moved to x = 5, off every segm
   if (!fatal.includes("axis_arrow_off_rays")) return `failed with ${fatal.join(", ")}, not axis_arrow_off_rays`;
   return null;
 });
+
+// Recorded 42159a885e4a: a concave mirror (R 2, f -1) with the object at u -3 and the image
+// drawn by gaussian_image at v -1.5. The engine traces the reflected ray exactly on the sphere
+// (contact 0.5 above the axis), so spherical aberration takes it across the axis at -0.967 and
+// about 4 px from the paraxial image tip. The image model is paraxial, so the tip is measured
+// against the paraxial ray from the same contact.
+const mirrorImageTip = (document: Record<string, any>, tip: P) => {
+  const constructions = document.constructions as Construction[];
+  constructions.push(point("wrongTip", tip.x, tip.y));
+  constructions.find((construction) => construction.outputs.includes("image"))!.inputs = { start: "imageBase", end: "wrongTip" };
+  (document.entities as Entity[]).push({ id: "wrongTip", kind: "point", role: "misplaced image tip" });
+  return document;
+};
+const failsOffRays = (document: Record<string, unknown>): string | null => {
+  const { ok, fatal } = compile(document);
+  if (ok) return "compiled with the image arrow off the reflected ray";
+  if (!fatal.includes("axis_arrow_off_rays")) return `failed with ${fatal.join(", ")}, not axis_arrow_off_rays`;
+  return null;
+};
+
+check("recorded 42159a885e4a: a concave mirror's paraxial image beside the exactly traced reflected ray compiles", () => {
+  const { ok, primitives, fatal } = compile(reviewed("42159a885e4a"));
+  if (!ok) return `did not compile: ${fatal.join(", ")}`;
+  const tip = stroke(primitives, "image")?.points.at(-1);
+  const reflected = stroke(primitives, "reflected")?.points;
+  if (!tip || !reflected) return "image or reflected ray not drawn";
+  const gap = lineDistance(tip, reflected[0]!, reflected.at(-1)!);
+  console.log(`   reflected ray passes ${gap.toFixed(1)} px from the image tip (spherical aberration)`);
+  return gap > 8 ? `reflected ray passes ${gap.toFixed(1)} px from the image tip` : null;
+});
+
+check("control: 42159a885e4a with its image tip moved 0.04 off the paraxial ray fails closed", () =>
+  failsOffRays(mirrorImageTip(reviewed("42159a885e4a"), { x: -1.5, y: -0.21 })));
+
+check("control: 42159a885e4a reflected about a tilted normal does not borrow the paraxial ray", () => {
+  const document = reviewed("42159a885e4a");
+  const constructions = document.constructions as Construction[];
+  constructions.push(point("tilt", -2, 0.3));
+  const normal = constructions.find((construction) => construction.outputs.includes("normalHelper"))!;
+  Object.assign(normal, { operator: "segment", inputs: { start: "hit", end: "tilt" } });
+  return failsOffRays(document);
+});
+
+// The same for refraction: a convex glass face (R 2, n 1 to 1.5) with the object 8 before it.
+// The law puts the image 12 past the vertex, inverted at the same height; the ray refracted
+// exactly 1 above the axis crosses x = 12 at -1.18.
+const refractingFace = (imageTip: P) => scene("An object 8 units before a convex glass surface of radius 2 and index 1.5.", [
+  { id: "A", kind: "point", role: "axis start" }, { id: "B", kind: "point", role: "axis end" },
+  { id: "V", kind: "point", role: "vertex" }, { id: "C", kind: "point", role: "centre of curvature", label: "C" },
+  { id: "Ob", kind: "point", role: "object foot" }, { id: "Ot", kind: "point", role: "object tip" },
+  { id: "Ib", kind: "point", role: "image foot" }, { id: "It", kind: "point", role: "image tip" },
+  { id: "axis", kind: "line", role: "principal axis" },
+  { id: "face", kind: "arc", role: "refracting surface" },
+  { id: "object", kind: "vector", role: "object" }, { id: "image", kind: "vector", role: "real image" },
+  { id: "incident", kind: "ray", role: "incident ray" }, { id: "refracted", kind: "ray", role: "refracted ray" },
+], [
+  point("A", -9, 0), point("B", 14, 0), point("V", 0, 0), point("C", 2, 0),
+  point("Ob", -8, 0), point("Ot", -8, 1), point("Ib", 12, 0), point("It", imageTip.x, imageTip.y),
+  { id: "make_axis", operator: "line", inputs: { start: "A", end: "B" }, outputs: ["axis"] },
+  { id: "make_face", operator: "spherical_surface", inputs: { vertex: "V", axis: "axis", center: "C", halfHeight: 1.3 }, outputs: ["face"] },
+  { id: "make_object", operator: "vector", inputs: { start: "Ob", end: "Ot" }, outputs: ["object"] },
+  { id: "make_image", operator: "vector", inputs: { start: "Ib", end: "It" }, outputs: ["image"] },
+  { id: "meet", operator: "surface_contact", inputs: { origin: "Ot", surface: "face", direction: [1, 0], which: "nearest_forward" }, outputs: ["hit", "incident"] },
+  { id: "normal", operator: "normal_at", inputs: { point: "hit", surface: "face" }, outputs: ["faceNormal"] },
+  { id: "refract", operator: "refract_direction", inputs: { origin: "hit", incoming: "incident", normal: "faceNormal", n1: 1, n2: 1.5 }, outputs: ["refracted"] },
+]);
+
+check("a convex glass face's paraxial image beside the exactly refracted ray compiles", () => {
+  const { ok, primitives, fatal } = compile(refractingFace({ x: 12, y: -1 }));
+  if (!ok) return `did not compile: ${fatal.join(", ")}`;
+  const tip = stroke(primitives, "image")?.points.at(-1);
+  const refracted = stroke(primitives, "refracted")?.points;
+  if (!tip || !refracted) return "image or refracted ray not drawn";
+  console.log(`   refracted ray passes ${lineDistance(tip, refracted[0]!, refracted.at(-1)!).toFixed(1)} px from the image tip`);
+  return null;
+});
+
+check("control: the glass face's image tip 0.1 off the paraxial ray fails closed", () => failsOffRays(refractingFace({ x: 12, y: -0.9 })));
 
 // R5. Looked up by name so the cases fail, not crash, where the operator is missing.
 type LawPoint = { x: number; y: number };

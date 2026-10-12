@@ -2528,6 +2528,420 @@
      }
     ]
    }
+  },
+  "42159a885e4a": {
+   "why": "concave mirror, object at u -3 with f -1, image drawn by gaussian_image at v -1.5; the reflected ray is traced exactly on the sphere (h 0.5, R 2) and crosses the axis at -0.967, about 4 px from the paraxial image tip",
+   "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "A normalized representative shows a concave mirror with an object beyond C; no physical measurements are stated."
+    },
+    "source": {
+     "question": "concave mirer image formation",
+     "representationTier": "qualitative_verified",
+     "nonMetric": true
+    },
+    "quantities": [],
+    "entities": [
+     {
+      "id": "axisLeft",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "axisRight",
+      "kind": "point",
+      "role": "construction helper"
+     },
+     {
+      "id": "axis",
+      "kind": "line",
+      "role": "principal axis"
+     },
+     {
+      "id": "P",
+      "kind": "point",
+      "role": "mirror pole",
+      "label": "P"
+     },
+     {
+      "id": "C",
+      "kind": "point",
+      "role": "centre of curvature",
+      "label": "C"
+     },
+     {
+      "id": "F",
+      "kind": "point",
+      "role": "focus",
+      "label": "F"
+     },
+     {
+      "id": "mirror",
+      "kind": "arc",
+      "role": "concave mirror"
+     },
+     {
+      "id": "objectBase",
+      "kind": "point",
+      "role": "object base"
+     },
+     {
+      "id": "objectTip",
+      "kind": "point",
+      "role": "object tip"
+     },
+     {
+      "id": "imageBase",
+      "kind": "point",
+      "role": "image base"
+     },
+     {
+      "id": "imageTip",
+      "kind": "point",
+      "role": "image tip"
+     },
+     {
+      "id": "object",
+      "kind": "vector",
+      "role": "object",
+      "label": "object"
+     },
+     {
+      "id": "image",
+      "kind": "vector",
+      "role": "real inverted image",
+      "label": "image"
+     },
+     {
+      "id": "incident",
+      "kind": "vector",
+      "role": "incident ray"
+     },
+     {
+      "id": "reflected",
+      "kind": "ray",
+      "role": "reflected ray"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "makeAxisLeft",
+      "operator": "point",
+      "inputs": {
+       "x": -4,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "axisLeft"
+      ]
+     },
+     {
+      "id": "makeAxisRight",
+      "operator": "point",
+      "inputs": {
+       "x": 1,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "axisRight"
+      ]
+     },
+     {
+      "id": "makeAxis",
+      "operator": "line",
+      "inputs": {
+       "start": "axisLeft",
+       "end": "axisRight"
+      },
+      "outputs": [
+       "axis"
+      ]
+     },
+     {
+      "id": "makeP",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "P"
+      ]
+     },
+     {
+      "id": "makeC",
+      "operator": "point",
+      "inputs": {
+       "x": -2,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "C"
+      ]
+     },
+     {
+      "id": "makeF",
+      "operator": "point",
+      "inputs": {
+       "x": -1,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "F"
+      ]
+     },
+     {
+      "id": "makeMirror",
+      "operator": "spherical_surface",
+      "inputs": {
+       "vertex": "P",
+       "axis": "axis",
+       "center": "C",
+       "signedRadius": -2,
+       "halfHeight": 0.7,
+       "kind": "concave"
+      },
+      "outputs": [
+       "mirror"
+      ]
+     },
+     {
+      "id": "locateRepresentativeImage",
+      "operator": "gaussian_image",
+      "inputs": {
+       "kind": "mirror",
+       "center": "P",
+       "axis": "axis",
+       "objectDistance": -3,
+       "focalLength": -1,
+       "objectHeight": 0.5,
+       "displayScale": 1
+      },
+      "outputs": [
+       "objectBase",
+       "objectTip",
+       "imageBase",
+       "imageTip"
+      ]
+     },
+     {
+      "id": "makeObject",
+      "operator": "vector",
+      "inputs": {
+       "start": "objectBase",
+       "end": "objectTip"
+      },
+      "outputs": [
+       "object"
+      ]
+     },
+     {
+      "id": "makeImage",
+      "operator": "vector",
+      "inputs": {
+       "start": "imageBase",
+       "end": "imageTip"
+      },
+      "outputs": [
+       "image"
+      ]
+     },
+     {
+      "id": "meetMirror",
+      "operator": "surface_contact",
+      "inputs": {
+       "origin": "objectTip",
+       "surface": "mirror",
+       "direction": [
+        1,
+        0
+       ],
+       "which": "nearest_forward"
+      },
+      "outputs": [
+       "hit",
+       "incident"
+      ]
+     },
+     {
+      "id": "findNormal",
+      "operator": "normal_at",
+      "inputs": {
+       "point": "hit",
+       "surface": "mirror"
+      },
+      "outputs": [
+       "normalHelper"
+      ]
+     },
+     {
+      "id": "reflectRay",
+      "operator": "reflect_direction",
+      "inputs": {
+       "origin": "hit",
+       "incoming": "incident",
+       "normal": "normalHelper"
+      },
+      "outputs": [
+       "reflected"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "poleOnAxis",
+      "predicate": "on",
+      "entities": [
+       "P",
+       "axis"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "centreOnAxis",
+      "predicate": "on",
+      "entities": [
+       "C",
+       "axis"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "focusOnAxis",
+      "predicate": "on",
+      "entities": [
+       "F",
+       "axis"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "focusBetweenCentreAndPole",
+      "predicate": "between",
+      "entities": [
+       "F",
+       "C",
+       "P"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "objectBeyondCentre",
+      "predicate": "between",
+      "entities": [
+       "C",
+       "objectBase",
+       "P"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "imageBetweenCentreAndFocus",
+      "predicate": "between",
+      "entities": [
+       "imageBase",
+       "C",
+       "F"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "reflectionNote",
+      "kind": "narration",
+      "targetIds": [
+       "incident",
+       "reflected"
+      ],
+      "text": "Light reflects from the curved mirror."
+     },
+     {
+      "id": "representativeNote",
+      "kind": "narration",
+      "targetIds": [
+       "object",
+       "image"
+      ],
+      "text": "For an object beyond C, the image is real, inverted, and smaller. This is one representative arrangement."
+     }
+    ],
+    "requiredEntityIds": [
+     "axis",
+     "P",
+     "C",
+     "F",
+     "mirror",
+     "object",
+     "image",
+     "incident",
+     "reflected"
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "entityIds": [
+       "axisLeft",
+       "axisRight",
+       "axis",
+       "P",
+       "C",
+       "F",
+       "mirror",
+       "objectBase",
+       "objectTip",
+       "object"
+      ],
+      "dependsOn": []
+     },
+     {
+      "id": "reflection",
+      "entityIds": [
+       "incident",
+       "reflected"
+      ],
+      "dependsOn": [
+       "setup"
+      ]
+     },
+     {
+      "id": "imageFormation",
+      "entityIds": [
+       "imageBase",
+       "imageTip",
+       "image"
+      ],
+      "dependsOn": [
+       "reflection"
+      ]
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "revealGroupId": "setup"
+     },
+     {
+      "revealGroupId": "reflection"
+     },
+     {
+      "revealGroupId": "imageFormation"
+     }
+    ]
+   }
   }
  }
 }

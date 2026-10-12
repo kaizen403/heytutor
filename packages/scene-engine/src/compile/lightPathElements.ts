@@ -497,6 +497,8 @@ export interface AxisArrowInput {
   geometry: Map<string, GeometryLike>;
   /** True when the entity is drawn ink in the compiled figure. */
   drawn: (id: string) => boolean;
+  /** A declared numeric input (literal or quantity), or null when it has none. */
+  resolveNumber?: (value: unknown) => number | null;
   issues: SceneIssue[];
 }
 
@@ -512,6 +514,13 @@ export interface AxisArrowInput {
  * open straight path that is not an axis, a normal, an optical element or
  * one of the standing arrows themselves: declared light paths, segments,
  * rays, lines and oblique vectors alike.
+ *
+ * An image arrow comes from a paraxial model (`gaussian_image`, the mirror
+ * and refraction laws), while the engine traces a reflection or refraction
+ * at a spherical surface exactly, so spherical aberration takes the traced
+ * ray a few pixels off the image. Where a traced ray leaves a spherical
+ * surface along the exact law, the paraxial ray from the same contact counts
+ * as a ray too (see `paraxialCounterpart`).
  */
 export function validateAxisArrowsOnRays(input: AxisArrowInput): void {
   const { document, geometry } = input;
@@ -576,6 +585,10 @@ export function validateAxisArrowsOnRays(input: AxisArrowInput): void {
     const value = geometry.get(id);
     if (openPath(value)) rays.push(value.points);
   }
+  for (const construction of constructions) {
+    const counterpart = paraxialCounterpart(input, construction, tolerance);
+    if (counterpart) rays.push(counterpart);
+  }
   for (const arrow of standing) {
     const onRay = rays.some((points) => points.some((point, index) =>
       index + 1 < points.length && lineDistance(arrow.tip, point, points[index + 1]!) <= tolerance));
@@ -588,6 +601,103 @@ export function validateAxisArrowsOnRays(input: AxisArrowInput): void {
     });
   }
 }
+
+/** A traced ray leaves a spherical surface along the exact law within this angle. */
+const EXACT_LAW_SIN = Math.sin(Math.PI / 180);
+
+type Construction = NonNullable<SceneDocument["constructions"]>[number];
+
+/**
+ * The paraxial ray for a traced reflection or refraction at a spherical
+ * surface, as two points on it, or null.
+ *
+ * Paraxial optics meets the surface at its vertex plane: the incoming line
+ * crosses that plane at Q, and every incoming ray parallel to it leaves
+ * through one point of the image side focal plane, where the ray through the
+ * centre of curvature C (along the normal, so undeviated) meets that plane.
+ * With mu = -1 for a mirror and n1/n2 for refraction, that plane stands at
+ * V + (C - V) / (1 - mu): f = R/2, and f2 = n2 R / (n2 - n1).
+ *
+ * Only a drawn outgoing ray of `reflect_direction`, `refract_direction`,
+ * `reflect_at` or `refract_at` that starts on a spherical surface and leaves
+ * it along the exact law about that sphere's normal has a counterpart; a ray
+ * reflected about some other normal, or refracted with no declared indices,
+ * is measured as drawn.
+ */
+function paraxialCounterpart(input: AxisArrowInput, construction: Construction, tolerance: number): [Point, Point] | null {
+  const operator = construction.operator;
+  const mirror = operator === "reflect_direction" || operator === "reflect_at";
+  const event = operator === "reflect_at" || operator === "refract_at";
+  if (!mirror && operator !== "refract_direction" && operator !== "refract_at") return null;
+  const inputs = (construction.inputs ?? {}) as Record<string, unknown>;
+  const outputs = Array.isArray(construction.outputs) ? construction.outputs : [];
+  const outgoingId = event ? outputs[2] : outputs[0];
+  if (typeof outgoingId !== "string" || !input.drawn(outgoingId)) return null;
+  const outgoing = input.geometry.get(outgoingId);
+  if (!isPath(outgoing) || outgoing.points.length < 2 || !outgoing.points.every(finitePoint)) return null;
+  const contact = outgoing.points[0]!;
+  const out = unit(subtract(outgoing.points[1]!, contact));
+  const incoming = unit(incomingDirection(input.geometry, event ? outputs[0] : inputs.incoming ?? inputs.direction));
+  if (!out || !incoming) return null;
+  let mu = -1;
+  if (!mirror) {
+    const number = (value: unknown) => typeof value === "number" ? value : input.resolveNumber?.(value) ?? null;
+    const n1 = number(inputs.n1);
+    const n2 = number(inputs.n2);
+    if (n1 === null || n2 === null || !(n1 > 0) || !(n2 > 0) || !Number.isFinite(n1 / n2) || Math.abs(n1 - n2) <= 1e-9 * n2) return null;
+    mu = n1 / n2;
+  }
+  for (const surface of input.document.constructions ?? []) {
+    if (surface.operator !== "spherical_surface") continue;
+    const arc = input.geometry.get(String(surface.outputs?.[0] ?? "")) as { kind: string; center?: Point; radius?: number } | undefined;
+    if (arc?.kind !== "arc" || !finitePoint(arc.center) || !(arc.radius! > 0)) continue;
+    const center = arc.center;
+    const radius = arc.radius!;
+    if (Math.abs(distance(contact, center) - radius) > tolerance) continue;
+    const axisPath = input.geometry.get(String((surface.inputs as Record<string, unknown> | undefined)?.axis ?? ""));
+    if (!isPath(axisPath) || axisPath.points.length < 2 || !axisPath.points.every(finitePoint)) continue;
+    const axis = unit(subtract(axisPath.points[1]!, axisPath.points[0]!));
+    if (!axis || lineDistance(center, axisPath.points[0]!, axisPath.points[1]!) > tolerance) continue;
+    // The exact law at the contact, about the sphere's normal facing the light.
+    let normal = { x: (contact.x - center.x) / radius, y: (contact.y - center.y) / radius };
+    if (dot(incoming, normal) > 0) normal = scale(normal, -1);
+    const cosi = -dot(incoming, normal);
+    const k = 1 - mu * mu * (1 - cosi * cosi);
+    if (k < 0) continue;
+    const exact = mirror
+      ? add(incoming, scale(normal, 2 * cosi))
+      : add(scale(incoming, mu), scale(normal, mu * cosi - Math.sqrt(k)));
+    if (Math.abs(out.x * exact.y - out.y * exact.x) > EXACT_LAW_SIN || dot(out, exact) <= 0) continue;
+    const side = Math.sign(dot(subtract(contact, center), axis));
+    const along = dot(incoming, axis);
+    if (side === 0 || Math.abs(along) < 1e-6) continue;
+    const vertex = add(center, scale(axis, side * radius));
+    const focalPlane = add(vertex, scale(subtract(center, vertex), 1 / (1 - mu)));
+    const q = add(contact, scale(incoming, dot(subtract(vertex, contact), axis) / along));
+    const focus = add(center, scale(incoming, dot(subtract(focalPlane, center), axis) / along));
+    if (!finitePoint(q) || !finitePoint(focus) || !(distance(q, focus) > tolerance)) continue;
+    return [q, focus];
+  }
+  return null;
+}
+
+/** The direction light arrives along: a literal vector, or a path's last segment (an infinite path's direction). */
+function incomingDirection(geometry: Map<string, GeometryLike>, value: unknown): Point {
+  if (Array.isArray(value) && typeof value[0] === "number" && typeof value[1] === "number") return { x: value[0], y: value[1] };
+  const path = typeof value === "string" ? geometry.get(value) : undefined;
+  if (!isPath(path) || path.points.length < 2 || !path.points.every(finitePoint)) return { x: 0, y: 0 };
+  const [from, to] = path.infinite ? [path.points[0]!, path.points[1]!] : [path.points.at(-2)!, path.points.at(-1)!];
+  return subtract(to, from);
+}
+
+function unit(vector: Point): Point | null {
+  const length = Math.hypot(vector.x, vector.y);
+  return length > 0 && Number.isFinite(length) ? { x: vector.x / length, y: vector.y / length } : null;
+}
+const subtract = (a: Point, b: Point): Point => ({ x: a.x - b.x, y: a.y - b.y });
+const add = (a: Point, b: Point): Point => ({ x: a.x + b.x, y: a.y + b.y });
+const scale = (a: Point, factor: number): Point => ({ x: a.x * factor, y: a.y * factor });
+const dot = (a: Point, b: Point): number => a.x * b.x + a.y * b.y;
 
 /** Distance from a point to the line through a and b (to a when they coincide). */
 function lineDistance(point: Point, a: Point, b: Point): number {
