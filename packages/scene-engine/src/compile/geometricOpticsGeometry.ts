@@ -208,27 +208,51 @@ function compact(value: number): string {
   const rounded = Number(value.toPrecision(4));
   return Math.abs(rounded) >= 1e6 || Math.abs(rounded) < 1e-3 ? rounded.toExponential().replace("e+", "e") : rounded.toString();
 }
+/** The landmarks the Cartesian model in `model` places, re-derived from its stored signed values. */
+function rederived(operator: string, model: Record<string, unknown>): GeometricOpticsGeometry[] {
+  return evaluateGeometricOpticsConstruction(operator, {
+    kind: model.kind, center: model.center, axis: model.axis, focalLength: model.focalLength, displayScale: model.displayScale, lengthUnit: model.lengthUnit,
+    ...(operator === "gaussian_image" ? { objectDistance: model.objectDistance, objectHeight: model.objectHeight } : {}),
+  }, { number: Number, geometry() { return undefined; }, point(value) { return point(value, "outputs"); } });
+}
+function sameMetadata(actual: unknown, reference: unknown): boolean {
+  if (typeof reference === "number") return typeof actual === "number" && Number.isFinite(actual) && Math.abs(actual - reference) <= 1e-10 * Math.max(1, Math.abs(reference));
+  if (isRecord(reference)) return isRecord(actual) && Object.keys(actual).length === Object.keys(reference).length && Object.entries(reference).every(([key, value]) => sameMetadata(actual[key], value));
+  return actual === reference;
+}
+/** One evaluated landmark agrees with the model its metadata states: same metadata, same point. */
+function checkLandmark(output: unknown, field: "opticalImage" | "opticalFocus", reference: GeometricOpticsGeometry, center: RenderPoint): void {
+  if (!isRecord(output) || output.kind !== "point" || Object.keys(output).some((key) => !["kind", "point", field].includes(key)) || !sameMetadata(output[field], reference[field])) invalid("outputs", "optical landmark metadata is malformed or contradicts the Cartesian model");
+  const actual = point(output.point, "outputs"); const expected = reference.point;
+  const delta = Math.hypot(expected.x - center.x, expected.y - center.y);
+  if (Math.hypot(actual.x - expected.x, actual.y - expected.y) > METRIC_TOLERANCE * Math.max(1, delta)) invalid("outputs", "optical landmark geometry contradicts its physical metadata");
+}
 function evaluatedMetadata(operator: string, outputs: readonly unknown[]): GeometricOpticsGeometry[] {
   const first = outputs[0]; const field = operator === "gaussian_image" ? "opticalImage" : "opticalFocus";
   if (!GEOMETRIC_OPTICS_OPERATORS.some((item) => item === operator) || !isRecord(first) || !isRecord(first[field])) invalid("outputs", "optical labels require complete typed evaluated metadata");
   const model = first[field];
-  const expected = evaluateGeometricOpticsConstruction(operator, {
-    kind: model.kind, center: model.center, axis: model.axis, focalLength: model.focalLength, displayScale: model.displayScale, lengthUnit: model.lengthUnit,
-    ...(operator === "gaussian_image" ? { objectDistance: model.objectDistance, objectHeight: model.objectHeight } : {}),
-  }, { number: Number, geometry() { return undefined; }, point(value) { return point(value, "outputs"); } });
+  const expected = rederived(operator, model);
   if (outputs.length !== expected.length) invalid("outputs", "optical result labels require every ordered landmark");
-  const same = (actual: unknown, reference: unknown): boolean => {
-    if (typeof reference === "number") return typeof actual === "number" && Number.isFinite(actual) && Math.abs(actual - reference) <= 1e-10 * Math.max(1, Math.abs(reference));
-    if (isRecord(reference)) return isRecord(actual) && Object.keys(actual).length === Object.keys(reference).length && Object.entries(reference).every(([key, value]) => same(actual[key], value));
-    return actual === reference;
-  };
-  for (const [index, output] of outputs.entries()) {
-    if (!isRecord(output) || output.kind !== "point" || Object.keys(output).some((key) => !["kind", "point", field].includes(key)) || !same(output[field], expected[index]![field])) invalid("outputs", "optical landmark metadata is malformed or contradicts the Cartesian model");
-    const actual = point(output.point, "outputs"); const reference = expected[index]!.point;
-    const delta = Math.hypot(reference.x - point(model.center, "outputs").x, reference.y - point(model.center, "outputs").y);
-    if (Math.hypot(actual.x - reference.x, actual.y - reference.y) > METRIC_TOLERANCE * Math.max(1, delta)) invalid("outputs", "optical landmark geometry contradicts its physical metadata");
-  }
+  for (const [index, output] of outputs.entries()) checkLandmark(output, field, expected[index]!, point(model.center, "outputs"));
   return expected;
+}
+/**
+ * The image tip of a verified `gaussian_image`: a point whose `opticalImage` metadata has the
+ * image_tip role and re-derives, through the Cartesian model, to exactly this point. Anything
+ * else (another anchor, a free point, forged metadata) is refused with the reason as a string.
+ */
+export function verifiedGaussianImageTip(geometry: unknown): (OpticalImageDefinition & { point: RenderPoint }) | string {
+  if (!isRecord(geometry) || geometry.kind !== "point" || !isRecord(geometry.opticalImage)) return "image must be the imageTip output of a gaussian_image";
+  if (geometry.opticalImage.anchorRole !== "image_tip") return "image must be the imageTip output of a gaussian_image, not its object base, object tip or image base";
+  try {
+    const expected = rederived("gaussian_image", geometry.opticalImage)[3]!;
+    checkLandmark(geometry, "opticalImage", expected, point(geometry.opticalImage.center, "image"));
+    return { ...expected.opticalImage!, point: expected.point };
+  } catch { return "image tip metadata contradicts the Cartesian Gaussian model"; }
+}
+/** The signed Cartesian u, f, h of a gaussian_image construction, read as validation reads its inputs. */
+export function gaussianImageInputsForValidation(construction: SceneConstruction, document: SceneDocument): CartesianOpticsInputs {
+  return resolveCartesianOpticsInputs(construction.inputs, (value) => validationNumber(value, document), "gaussian_image");
 }
 export function geometricOpticsOutputLabels(operator: string, outputs: readonly unknown[]): string[] {
   return evaluatedMetadata(operator, outputs).map((output, index) => {

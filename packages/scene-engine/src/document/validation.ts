@@ -37,6 +37,7 @@ import { CALCULUS_OPERATORS as DERIVED_CURVE_OPERATORS, validateCalculusConstruc
 import { AC_OPERATORS, validateAcConstruction } from "../compile/acGeometry";
 import { WAVES_OPERATORS, validateWavesConstruction } from "../compile/wavesGeometry";
 import { GEOMETRIC_OPTICS_OPERATORS, validateGeometricOpticsConstruction } from "../compile/geometricOpticsGeometry";
+import { PRINCIPAL_RAYS_OPERATORS, validatePrincipalRaysConstruction } from "../compile/principalRaysGeometry";
 import { THERMODYNAMICS_OPERATORS, validateThermodynamicsConstruction } from "../compile/thermodynamicsGeometry";
 
 import { COMPLEX_OPERATORS, validateComplexConstruction } from "../compile/complexGeometry";
@@ -101,6 +102,7 @@ const CALCULUS_CONSTRUCTIONS = new Set<string>(DERIVED_CURVE_OPERATORS);
 const AC_CONSTRUCTIONS = new Set<string>(AC_OPERATORS);
 const WAVES_CONSTRUCTIONS = new Set<string>(WAVES_OPERATORS);
 const GEOMETRIC_OPTICS_CONSTRUCTIONS = new Set<string>(GEOMETRIC_OPTICS_OPERATORS);
+const PRINCIPAL_RAYS_CONSTRUCTIONS = new Set<string>(PRINCIPAL_RAYS_OPERATORS);
 const THERMODYNAMICS_CONSTRUCTIONS = new Set<string>(THERMODYNAMICS_OPERATORS);
 const SPATIAL_POINT_CONSTRUCTIONS = new Set(["space_point", "space_project", "space_closest_points", "space_intersection"]);
 
@@ -111,7 +113,7 @@ const ARRAY_FIELDS = [
 
 const VISIBLE_ENTITY_KIND_BY_OPERATOR: Readonly<Record<string, string>> = {
   elastic_profile: "polyline", elastic_state: "point",
-  flux_process: "polyline", rotational_motion: "point", rotational_state: "vector", planar_torque: "polyline",
+  flux_process: "polyline", rotational_motion: "point", rotational_state: "vector", planar_torque: "polyline", principal_rays: "polyline",
   set_select: "label",
   harmonic_motion: "polyline", harmonic_state: "point", gravitational_field: "vector", gravitational_force: "vector",
   complex_point: "point", complex_transform: "point", complex_roots: "point",
@@ -172,7 +174,7 @@ const CONSTRUCTION_ENTITY_REFERENCE_KEYS = new Set([
   "through", "parallelTo", "first", "second", "point", "line", "incoming",
   "normal", "vertex", "curve", "upper", "lower", "profile", "solid", "basis",
   "vector", "target", "points", "direction", "axis", "objective", "eyepiece", "focus",
-  "object", "finalImage", "virtualImage", "frame", "onto", "at", "position", "field", "circle", "circleA", "circleB", "externalPoint", "path", "vectors", "trajectory", "sources", "impedance", "waves", "wave", "process", "source", "force", "motion", "partition",
+  "object", "image", "finalImage", "virtualImage", "frame", "onto", "at", "position", "field", "circle", "circleA", "circleB", "externalPoint", "path", "vectors", "trajectory", "sources", "impedance", "waves", "wave", "process", "source", "force", "motion", "partition",
 ]);
 
 /** Capability-corpus gate: fixtures may only name executable scene operators. */
@@ -4371,6 +4373,7 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
       if (AC_CONSTRUCTIONS.has(construction.operator)) validateAcConstruction(construction, index, document, constructionByOutput, issues);
       if (WAVES_CONSTRUCTIONS.has(construction.operator)) validateWavesConstruction(construction, index, document, constructionByOutput, issues);
       if (GEOMETRIC_OPTICS_CONSTRUCTIONS.has(construction.operator)) validateGeometricOpticsConstruction(construction, index, document, constructionByOutput, issues);
+      if (PRINCIPAL_RAYS_CONSTRUCTIONS.has(construction.operator)) validatePrincipalRaysConstruction(construction, index, document, constructionByOutput, issues);
       if (THERMODYNAMICS_CONSTRUCTIONS.has(construction.operator)) validateThermodynamicsConstruction(construction, index, document, constructionByOutput, issues);
       if (DISTRIBUTED_FIELDS_CONSTRUCTIONS.has(construction.operator)) validateDistributedFieldsConstruction(construction, index, document, constructionByOutput, issues);
     }
