@@ -517,7 +517,26 @@ function statedKelvin(question: string): GibbsTemperature {
   }
   return value === undefined ? {kind: "absent"} : {kind: "given", value};
 }
+/** Validate every original enthalpy/entropy declaration inside its own owner span. */
+function gibbsEnergyOwnersValid(question: string): boolean {
+  const body = question.slice(0, chemistryQuestionSpan(question).end);
+  const owners = [
+    ...Array.from(body.matchAll(new RegExp(DELTA_H_SYMBOL.source, "gi")), match => ({
+      start: match.index!, cue: energyCueAfter(DELTA_H_SYMBOL), dimensions: ["molar_energy", "energy"] as const,
+    })),
+    ...Array.from(body.matchAll(new RegExp(DELTA_S_SYMBOL.source, "gi")), match => ({
+      start: match.index!, cue: DELTA_S_SYMBOL, dimensions: ["molar_entropy", "entropy"] as const,
+    })),
+  ].sort((a, b) => a.start - b.start);
+  return owners.every((owner, index) => {
+    const end = owners[index + 1]?.start ?? body.length;
+    return owner.dimensions.some(dimension => readChemistryQuantity({question: body,
+      after: new RegExp(`^(?:${owner.cue.source})`, "i"),
+      within: {start: owner.start, end}, dimension}).ok);
+  });
+}
 function buildGibbs(question: string, _stem: string, _quantities: ChemPlanQuantity[]): SceneDocument | null {
+  if (!gibbsEnergyOwnersValid(question)) return null;
   const stemH = readEnthalpyChange(question); const stemS = readEntropyChange(question);
   if (!stemH || !stemS) return null;
   const perMole = stemH.unit === "kJ/mol";

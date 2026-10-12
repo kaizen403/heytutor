@@ -168,6 +168,96 @@ const cases: readonly {id:string; question:string; expected:string; dG:number|nu
     "question": "At 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and calculate ΔG at 298 K. Options: (a) at 0 K (b) T=unknown",
     "expected": "required-compile",
     "dG": -10.2
+  },
+  {
+    "id": "HS-UNREAD-1",
+    "question": "ΔH = unknown; ΔH = -40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "HS-UNREAD-2",
+    "question": "ΔH = -40 kJ/mol. ΔS = unknown; ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "HS-UNREAD-3",
+    "question": "ΔH = -40 kJ/mol; ΔH is unreadable. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "HS-UNREAD-4",
+    "question": "ΔH = -40 kJ/mol. ΔS = -100 J/(mol K); ΔS is unreadable. At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "HS-UNREAD-5",
+    "question": "ΔH = unknown; ΔH = -40 kJ/mol. ΔS = unknown; ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-HS-REFUSE-1",
+    "question": "ΔH of the reaction is unknown, then ΔH of the reaction is -40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-HS-REFUSE-2",
+    "question": "The enthalpy change for the reaction is unreadable; the enthalpy change is -40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-HS-REFUSE-3",
+    "question": "ΔH = -40 kg; ΔH = -40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-HS-REFUSE-4",
+    "question": "ΔH = -40 kJ/mol. ΔS = -100 kg; ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-HS-REFUSE-5",
+    "question": "ΔH = -40 kJ/mol; ΔH remains unknown. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-HS-REFUSE-6",
+    "question": "ΔH = -40 kJ/mol. ΔS remains unknown; ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-HS-REFUSE-7",
+    "question": "ΔH for the reaction is unknown, ΔH for the reaction is -40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-HS-REFUSE-8",
+    "question": "ΔH = -40 kJ/mol. Entropy change is unknown, entropy change is -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "OWN-HS-SUPPORT-1",
+    "question": "ΔH of the reaction is -40 kJ/mol. ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": -10.2
+  },
+  {
+    "id": "OWN-HS-SUPPORT-2",
+    "question": "Enthalpy change for the reaction is -40 kJ/mol. Entropy change = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": -10.2
   }
 ];
 const results: {id:string;passed:boolean;error?:string}[] = [];
