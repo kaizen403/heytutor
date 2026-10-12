@@ -273,13 +273,14 @@ for(const [actual,expected,agrees] of [
 
 // PR137 coordinator public wording controls: the question remains the numeric authority.
 for (const [question,expected] of [
- ["The edge length of an fcc unit cell is 508 pm. If the radius of the cation is 110 pm, what is the radius of the anion?",508],
- ["In an fcc lattice the edge length of the unit cell is 400 pm and the radius of the atom is 141 pm.",400],
+  ["In an fcc lattice the edge length of the unit cell is 400 pm and the radius of the atom is 141 pm.",400],
  ["The edge length of an fcc unit cell is 408 pm. Draw the unit cell.",408],
 ] as const)check("Original connected unit-cell edge: "+question,()=>{
  const r=compiled(buildUnitCellScene(question,[],false));
  assert.ok(r.document.annotations.some(a=>a.text?.includes(`a = ${expected}`)),JSON.stringify(r.document.annotations));
 });
+// Correct the old ionic-radius oracle: a cation radius is not the metal atom r.
+check("Ionic radius cannot own the metal lattice radius",()=>assert.equal(buildUnitCellScene("The edge length of an fcc unit cell is 508 pm. If the radius of the cation is 110 pm, what is the radius of the anion?",[],false),null));
 for(const edge of ["1e- pm","400 kelvin","400 pm; edge length of the unit cell is 500 pm"])check("Damaged supplied edge never derives replacement: "+edge,()=>{
  assert.equal(buildUnitCellScene("Draw an fcc unit cell. The edge length of the unit cell is "+edge+" and the radius of the atom is 141 pm.",[],false),null);
 });
@@ -761,10 +762,9 @@ const expandedEcUnitLaneRows: readonly ExpandedEcUnitRow[] = [
     "id": "F1-o1",
     "question": "The edge length of an fcc unit cell is 508 pm. If the radius of the cation is 110 pm, what is the radius of the anion?",
     "family": "chem_unit_cell",
-    "mode": "compile",
+    "mode": "decline",
     "sourceQuestionSha256": "b9b4643a73aa15ce2ea8d840d9d43c8ccd56af1c8ced1331faf05330f315abb6",
-    "edgePm": 508,
-    "radiusPm": 110
+    "edgePm": 508
   },
   {
     "id": "F1-o2",
@@ -2964,10 +2964,9 @@ const expandedEcUnitLaneRows: readonly ExpandedEcUnitRow[] = [
     "id": "U-2",
     "question": "An fcc unit cell edge length is 508 pm. If the radius of the cation is 110 pm, find the radius of the anion.",
     "family": "chem_unit_cell",
-    "mode": "compile",
+    "mode": "decline",
     "sourceQuestionSha256": "c0b4c0d85a23ab9be24bf5b184ba6e67c79e4b2d26056419a54a78a57be9a597",
-    "edgePm": 508,
-    "radiusPm": 110
+    "edgePm": 508
   },
   {
     "id": "U-3",
@@ -3032,10 +3031,10 @@ for(const row of expandedEcUnitLaneRows)check("Expanded lane source oracle "+row
 for(const [id,question,edgePm,radiusPm,density] of [
  ["own-edge-1","An fcc metal has a unit-cell edge length of 400 pm and an atomic radius of 150 pm. Draw its unit cell.",400,150,undefined],
  ["own-edge-2","For the fcc lattice, edge length (a) = 400 pm; atomic radius = 150 pm; atomic mass = 60 g/mol. Find the density.",400,150,4*60/((400e-10)**3*6.022e23)],
- ["own-edge-3","An fcc unit cell edge length is 508 pm. Its cation radius is 110 pm. Find the anion radius.",508,110,undefined],
  ["own-edge-4","The fcc metal has an edge-length of 0.4 nm and radius 0.15 nm. Draw the unit cell.",400,150,undefined],
  ["own-edge-5","An fcc lattice has a = 400 pm and r = 150 pm. Its molar mass is 60 g/mol. Calculate its density.",400,150,4*60/((400e-10)**3*6.022e23)],
 ] as const)check("Independent stated edge ownership "+id,()=>expandedEcUnitCompile({id,question,family:"chem_unit_cell",mode:"compile",edgePm,radiusPm,densityGPerCm3:density}));
+check("Independent ionic radius cannot own the metal atom role",()=>expandedEcUnitRefusal({id:"own-edge-3",question:"An fcc unit cell edge length is 508 pm. Its cation radius is 110 pm. Find the anion radius.",family:"chem_unit_cell",mode:"decline"}));
 for(const quantity of ["edge length (a) = unknown pm","edge length = 1e- pm","edge length = 400 pmfoo","edge length measured by diffraction is unknown pm","edge length is 400 pm; edge length is 420 pm"])check("Unread/conflicting edge cannot be derived: "+quantity,()=>expandedEcUnitRefusal({id:quantity,question:"Draw an fcc unit cell. Its "+quantity+" and its atomic radius is 150 pm.",family:"chem_unit_cell",mode:"decline"}));
 check("Unstated edge is legitimately derived from source radius",()=>{
  const q="Draw an fcc unit cell with atomic radius 150 pm and calculate the edge length.";
@@ -3109,9 +3108,8 @@ const expandedEcUnitChallenges: readonly ExpandedEcUnitRow[] = [
     "question": "An fcc crystal has a unit-cell edge length of 508 pm, whereas its cation radius is 110 pm. Determine the anion radius.",
     "sourceQuestionSha256": "84997c95d765c4d20f410386e206c8ff1d93307d392f664ca4d8bf9e70ca84d4",
     "family": "chem_unit_cell",
-    "mode": "compile",
-    "edgePm": 508,
-    "radiusPm": 110
+    "mode": "decline",
+    "edgePm": 508
   },
   {
     "id": "independent-unit-cell-edge-2",

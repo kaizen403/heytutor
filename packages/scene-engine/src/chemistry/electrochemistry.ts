@@ -13,7 +13,7 @@
  * overrides the table. The pure solvers (cell notation, standard potential,
  * cell emf, electrolysis products) are exported for other lanes.
  */
-import { chemistryCanonicalValuesAgree, chemistryReferenceConstantValid, chemistryPlanBindingsValid, findChemistryQuantities, CHEMISTRY_SCALAR_PATTERN, matchedChemistryQuantity, chemistryQuantityCuesValid, readChemistryQuantity, readChemistryLiteral, type ChemistrySpan } from "./quantityReader";
+import { chemistryCanonicalValuesAgree, chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityInventoryOwned, findChemistryQuantities, CHEMISTRY_SCALAR_PATTERN, matchedChemistryQuantity, chemistryQuantityCuesValid, readChemistryQuantity, readChemistryLiteral, type ChemistrySpan, type ChemistryReading, type ChemistryQuantityConsumption } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { normalizeChemistryText, parseFormula } from "./formula";
@@ -319,7 +319,7 @@ const E_NAUGHT = String.raw`E(?:°|º|˚|⁰|₀|®|\^\s*(?:0|o|\(0\))|0(?![.\d]
 const SPECIES = String.raw`[A-Z][a-z]?(?:[A-Za-z0-9₀₁₂₃₄₅₆₇₈₉]*?)(?:\^?\(?\d*[+-]\)?|\+{2,}|[⁰¹²³⁴⁵⁶⁷⁸⁹]*[⁺⁻])?`;
 const COUPLE = String.raw`(${SPECIES})\s*(?:\(\s*(?:aq|s|g|l)\s*\))?\s*[\/|]\s*(${SPECIES})(?:\s*\(\s*(?:aq|s|g|l)\s*\))?`;
 const VALUE = `(${CHEMISTRY_SCALAR_PATTERN})\\s*(?:V|volt|volts)\\b`;
-interface StatedPotential { e0:number; n?:number; sourceSpan:ChemistrySpan; sourceText:string }
+interface StatedPotential { e0:number; n?:number; sourceSpan:ChemistrySpan; sourceText:string; readings:ChemistryReading[] }
 
 /**
  * Standard potentials the stem states, keyed by canonical couple. Reads
@@ -351,7 +351,10 @@ function statedPotentials(question: string): Map<string, StatedPotential> | null
     const canonical = record ? record.key : key;
     const previous = found.get(canonical);
     if (previous && previous.e0 !== e0) { invalid = true; return; }
-    if (!previous) found.set(canonical, { e0, ...(n !== undefined ? { n } : {}),sourceSpan:read.reading.source.span,sourceText:read.reading.source.text });
+    if (previous) {
+      if (!previous.readings.some(r => r.source.span.start === read.reading.source.span.start
+        && r.source.span.end === read.reading.source.span.end)) previous.readings.push(read.reading);
+    } else found.set(canonical, { e0, ...(n !== undefined ? { n } : {}),sourceSpan:read.reading.source.span,sourceText:read.reading.source.text,readings:[read.reading] });
   };
   const direct = new RegExp(`${E_NAUGHT}\\s*(?:for|of|value\\s+of|_)?\\s*[\\(\\[]?\\s*${COUPLE}\\s*[\\)\\]]?\\s*(?:=|is|:|as)?\\s*${VALUE}`, "gdi");
   for (const match of text.matchAll(direct)) {
@@ -875,9 +878,34 @@ function readTemperature(text: string): number | undefined | null {
   return temperature;
 }
 
+/** A request for the cell emf cannot own a later electrode/standard assignment. */
+function observedCellOwner(text: string, start: number, reading: ChemistryReading): boolean {
+  const owner = text.slice(start, reading.source.span.start);
+  if (/\b(?:standard|reduction|oxidation|electrode)\b/i.test(owner)) return false;
+  // Read a standard mark anywhere in its E token, without making that token
+  // a newly supported standard-potential parser or trusting its scalar.
+  for (const match of owner.matchAll(/\bE(?:[_{}^()°º˚⁰₀®A-Za-z0-9]+|\s+(?:cell|[°º˚⁰₀®]|\^\s*(?:0|o|\(0\))))*/gi)) {
+    const token = match[0].replace(/[\s_^{}()]/g, "");
+    if (/[\^°º˚⁰₀®]/.test(match[0])
+      || /^E(?:cell|[A-Z][a-z]?)?(?:0|o)(?:cell|[A-Z][a-z]?)?$/i.test(token)) return false;
+  }
+  const suffix = text.slice(reading.source.span.end).split(/[;\n]|\b(?:and|but|while|whereas)\b/i)[0]!;
+  if (/\bstandard\b/i.test(suffix)) return false;
+  const element = /\b([A-Za-z]+)\s*(?:=|:|is)\s*$/i.exec(owner);
+  // Only the local notation terminal (|Cu is ...) can name the whole cell.
+  // Earlier notation bars do not turn a later Zn = ... assignment into emf.
+  if (element && !/\|\s*$/.test(owner.slice(0, element.index))
+    && (METAL_NAMES[element[1]!.toLowerCase()]
+      || Object.values(METAL_NAMES).includes(element[1]!))) return false;
+  if (new RegExp(`${COUPLE}\\s*(?:=|:|is)\\s*$`, "i").test(owner)) return false;
+  return true;
+}
+
 function readStatedCellPotentials(text: string): { e0?: number; e?: number } | null {
   const electrodes = statedPotentials(text);
   if (!electrodes) return null;
+  const consumed: ChemistryQuantityConsumption[] = [...electrodes].flatMap(([couple, potential]) =>
+    potential.readings.map(reading => ({reading, owner: `electrode:${couple}`})));
   const standardValueSpans: ChemistrySpan[] = [...electrodes.values()].map(value => value.sourceSpan);
   // The canonical table keeps one value per role; every original repeat still owns its span.
   const symbolicAssignments = new RegExp(`${E_NAUGHT}\\s*(?:(?:for|of|value\\s+of|_)?\\s*[\\(\\[]?\\s*${COUPLE}\\s*[\\)\\]]?\\s*)?(?:=|is|:)`, "gi");
@@ -890,9 +918,12 @@ function readStatedCellPotentials(text: string): { e0?: number; e?: number } | n
   const standard = new RegExp(`${E_NAUGHT}\\s*_?\\s*\\(?\\s*cell\\s*\\)?\\s*(?:=|is|:|of)?\\s*(?:the\\s+cell\\s+)?(?:=|is)?\\s*${VALUE}`, "id").exec(text)
     ?? new RegExp(`standard\\s+(?:emf|cell\\s+potential|electrode\\s+potential\\s+of\\s+the\\s+cell)[^.\\n]{0,30}?(?:=|is|:)\\s*${VALUE}`, "id").exec(text);
   if (standard) {
-    out.e0 = (matchedChemistryQuantity(text, standard, 1, "potential", "V") ?? NaN);
     const span = standard.indices![1]!;
-    standardValueSpans.push({start: span[0], end: span[1]});
+    const read = readChemistryLiteral({question:text,scalarSpan:{start:span[0],end:span[1]},dimension:"potential",targetUnit:"V"});
+    if (!read.ok) return null;
+    out.e0 = read.reading.value;
+    standardValueSpans.push(read.reading.source.span);
+    consumed.push({reading:read.reading,owner:"standard_cell"});
   }
   const standardAssignments = new RegExp(`(?:${E_NAUGHT}\\s*_?\\s*\\(?\\s*cell\\s*\\)?\\s*|standard\\s+(?:emf|cell\\s+potential|electrode\\s+potential\\s+of\\s+the\\s+cell)[^.\\n]{0,30}?)(?:=|is|:)`, "gi");
   for (const match of text.matchAll(standardAssignments)) {
@@ -900,6 +931,7 @@ function readStatedCellPotentials(text: string): { e0?: number; e?: number } | n
     if (!read.ok || (out.e0 !== undefined && !chemistryCanonicalValuesAgree(out.e0, read.reading.value))) return null;
     out.e0 = read.reading.value;
     standardValueSpans.push(read.reading.source.span);
+    consumed.push({reading:read.reading,owner:"standard_cell"});
   }
   const role = /(?:emf|e\.m\.f\.|cell potential|potential of the cell|voltage)\b((?:[^.;\n]|\.(?=\d)){0,110}?)(?:\bis\b(?:\s+measured\s+(?:as|to\s+be))?|measured\s+(?:as|to\s+be)|=|:)|(?:emf|cell potential|voltage)\s*=/gi;
   for (const match of text.matchAll(role)) {
@@ -921,7 +953,9 @@ function readStatedCellPotentials(text: string): { e0?: number; e?: number } | n
     const kind = standardOwner ? "e0" : "e";
     const read = readChemistryQuantity({question:text,after:/^/,within:{start:match.index!+match[0].length,end:text.length},dimension:"potential",targetUnit:"V"});
     if (!read.ok || (out[kind] !== undefined && !chemistryCanonicalValuesAgree(out[kind]!, read.reading.value))) return null;
+    if (kind === "e" && !observedCellOwner(text, match.index!, read.reading)) continue;
     out[kind] = read.reading.value;
+    consumed.push({reading:read.reading,owner:kind === "e0" ? "standard_cell" : "observed_cell"});
   }
   // Implicit observed voltage retains its own role even beside an independent E°cell.
   const implicit = new RegExp(String.raw`(?:emf|e\.m\.f\.|cell potential|potential of the cell|emf of the cell|voltage)(?:[^.;\n]|\.(?=\d)){0,110}?(?:is|=|:|of|measured\s+(?:as|to\s+be))\s*(${CHEMISTRY_SCALAR_PATTERN})\s*(?:V|volt|volts)\b`, "gid");
@@ -934,10 +968,22 @@ function readStatedCellPotentials(text: string): { e0?: number; e?: number } | n
       || /\bstandard\s+(?:emf|cell\s+potential|electrode\s+potential)\b/i.test(observed[0])
       || /\bstandard\s+(?:electrode\s+)?$/i.test(text.slice(0, observed.index!))
       || /\bstandard\s+(?:emf|cell\s+potential)(?:\s+of\s+(?:the\s+)?cell)?\s*$/i.test(text.slice(0, observed.index!))) continue;
-    const value = matchedChemistryQuantity(text, observed, 1, "potential", "V");
-    if (value === null || (out.e !== undefined && !chemistryCanonicalValuesAgree(out.e, value))) return null;
-    out.e = value;
+    const read = readChemistryLiteral({question:text,scalarSpan:{start:scalar[0],end:scalar[1]},dimension:"potential",targetUnit:"V"});
+    if (!read.ok) return null;
+    // The bare compatibility match begins at the connector, not its owner.
+    // Restore the original clause prefix so E°/element/couple assignments
+    // cannot shed their role merely by ending in "V at 298 K".
+    const boundaries = observed === bare ? [...text.slice(0, observed.index!).matchAll(/[;\n]|\.(?!\d)|\b(?:and|but|while|whereas)\b/gi)] : [];
+    const boundary = boundaries.at(-1);
+    const ownerStart = observed === bare ? (boundary ? boundary.index! + boundary[0].length : 0) : observed.index!;
+    if (!observedCellOwner(text, ownerStart, read.reading)) continue;
+    if (out.e !== undefined && !chemistryCanonicalValuesAgree(out.e, read.reading.value)) return null;
+    out.e = read.reading.value;
+    consumed.push({reading:read.reading,owner:"observed_cell"});
   }
+  const factor = readChemistryQuantity({question:text,after:/(?:2\.303\s*RT\s*\/\s*F|RT\s*\/\s*F)\s*(?:=|is)/,dimension:"potential",targetUnit:"V"});
+  if (factor.ok) consumed.push({reading:factor.reading,owner:"nernst_factor"});
+  if (!chemistryQuantityInventoryOwned(text, "potential", consumed)) return null;
   return out;
 }
 

@@ -430,6 +430,33 @@ export function findChemistryQuantities(input: Omit<ChemistryQuantityInput, "aft
   }
   return { ok: true, reading: readings };
 }
+export interface ChemistryQuantityConsumption {
+  readonly reading: ChemistryReading;
+  /** A family-owned semantic role, never an inferred numeric match. */
+  readonly owner: string;
+}
+/** Before deriving or using a default, every literal of this dimension must
+ * have a successful owner at its complete original number-and-unit span.
+ * Equal values at different occurrences do not share consumption. */
+export function chemistryQuantityInventoryOwned(question: string, dimension: ChemistryDimension,
+  consumed: readonly ChemistryQuantityConsumption[]): boolean {
+  const inventory = findChemistryQuantities({question, dimension});
+  if (!inventory.ok) return false;
+  const sameSpan = (a: ChemistrySpan, b: ChemistrySpan): boolean => a.start === b.start && a.end === b.end;
+  if (consumed.some(({reading, owner}) => !owner || reading.dimension !== dimension
+    || !Number.isFinite(reading.value)
+    || !validSpan(question, reading.source.span)
+    || question.slice(reading.source.span.start, reading.source.span.end) !== reading.source.text
+    || !inventory.reading.some(literal => {
+      if (!sameSpan(literal.source.span, reading.source.span)) return false;
+      const canonical = convertChemistryReading(reading, literal.canonicalUnit);
+      return canonical.ok && valuesAgree(canonical.reading.value, literal.value);
+    }))) return false;
+  return inventory.reading.every(literal => {
+    const owners = new Set(consumed.filter(({reading}) => sameSpan(literal.source.span, reading.source.span)).map(({owner}) => owner));
+    return owners.size === 1;
+  });
+}
 function bindingSpan(question: string, quantity: ChemPlanQuantity): ChemistrySpan | null {
   if (quantity.sourceSpan) return quantity.sourceSpan.end <= chemistryQuestionSpan(question).end && validSpan(question, quantity.sourceSpan) && (!quantity.sourceText || question.slice(quantity.sourceSpan.start, quantity.sourceSpan.end) === quantity.sourceText) ? quantity.sourceSpan : null;
   if (!quantity.sourceText) return null;

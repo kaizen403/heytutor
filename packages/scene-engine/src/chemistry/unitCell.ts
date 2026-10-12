@@ -16,7 +16,7 @@
  * lattice (Schottky or Frenkel defects, amorphous solids, a physics block, a
  * cell "shown below" that we do not have) draws nothing.
  */
-import { chemistryPlanBindingsValid, chemistryQuantityCuesValid, resolveChemistryGiven, readChemistryQuantity, CHEMISTRY_NUMBER_PATTERN, matchedChemistryScalar } from "./quantityReader";
+import { chemistryPlanBindingsValid, chemistryQuantityCuesValid, chemistryQuantityInventoryOwned, resolveChemistryGiven, readChemistryQuantity, CHEMISTRY_NUMBER_PATTERN, matchedChemistryScalar, type ChemistryQuantityConsumption } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { normalizeChemistryText } from "./formula";
@@ -558,19 +558,30 @@ interface CellNumbers {
   molarMass: number | null;
   densityGiven: number | null;
   avogadro: number;
+  lengthReadings: readonly ChemistryQuantityConsumption[];
 }
 
 function readNumbers(question: string, quantities: readonly ChemPlanQuantity[]): CellNumbers {
-  const given = (after: RegExp, aliases: readonly string[], dimension: import("./quantityReader").ChemistryDimension, targetUnit: import("./quantityReader").ChemistryUnit): number | null => {
+  const lengthReadings: ChemistryQuantityConsumption[] = [];
+  const given = (after: RegExp, aliases: readonly string[], dimension: import("./quantityReader").ChemistryDimension, targetUnit: import("./quantityReader").ChemistryUnit, owner?: "edge" | "atomic_radius"): number | null => {
     const r = resolveChemistryGiven({ question, quantities, after, aliases, dimension, targetUnit });
+    if (r.ok && owner) {
+      const prefix = question.slice(0, r.reading.source.span.start).split(/[\n;]|\.(?!\d)/).at(-1)!;
+      // Ionic and covalent radii do not own r in a metallic hard-sphere relation.
+      // Leave their literals unconsumed rather than binding them to that r.
+      if (owner === "edge" || !/\b(?:ionic|covalent|cation|anion|ion)\b/i.test(prefix)) {
+        lengthReadings.push({reading: r.reading, owner});
+      }
+    }
     return r.ok ? r.reading.value : null;
   };
   return {
-    edgePm: given(EDGE_CUE, ["a", "edge", "edge_length", "cellEdge", "lattice_parameter"], "length", "pm"),
-    radiusPm: given(RADIUS_CUE, ["r", "radius", "atomic_radius"], "length", "pm"),
+    edgePm: given(EDGE_CUE, ["a", "edge", "edge_length", "cellEdge", "lattice_parameter"], "length", "pm", "edge"),
+    radiusPm: given(RADIUS_CUE, ["r", "radius", "atomic_radius"], "length", "pm", "atomic_radius"),
     molarMass: given(/(?:atomic|molar|molecular|formula|relative atomic)\s*(?:mass|weight)(?:\s+of\s+(?:the\s+)?[a-z]+)?|\bM\s*=/, ["M", "molar_mass", "atomic_mass"], "molar_mass", "g/mol"),
     densityGiven: given(/density/, ["rho", "density", "ρ", "d"], "density", "g/cm^3"),
     avogadro: given(AVOGADRO_CUE, ["NA", "avogadro"], "avogadro_constant", "mol^-1") ?? AVOGADRO,
+    lengthReadings,
   };
 }
 
@@ -787,6 +798,7 @@ export function buildUnitCellScene(question: string, quantities: ChemPlanQuantit
   const stem = chemStem(question);
   if (!speciesIn(question)) return null;
   const numbers = readNumbers(question, quantities);
+  if (!chemistryQuantityInventoryOwned(question, "length", numbers.lengthReadings)) return null;
   if (!declaredQuantityCuesValid(question, EDGE_CUE, "a")
     || !declaredQuantityCuesValid(question, RADIUS_CUE, "r")
     || (numbers.edgePm !== null && !(numbers.edgePm > 0))
