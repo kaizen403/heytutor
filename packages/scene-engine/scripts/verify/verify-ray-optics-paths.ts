@@ -554,5 +554,84 @@ check("control: recorded b1 slab path (refract_at, intersection, ray) is unchang
   return null;
 });
 
+// R7: b2 optical fibre h8u reflected at 26.6 degrees to the normal where the
+// light should be totally internally reflected. That document declares no
+// index, so it cannot be held; once an interface's indices are declared (by
+// the refractions on it), a reflection from the denser side below the
+// critical angle, with no refraction drawn at its contact, is refused
+// (`reflection_below_critical_angle`).
+//
+// The fibre's own reflection, with the interface indices declared by a
+// refraction that leaves the core at another contact on the same boundary.
+function declareFibreIndices(document: RecordedDocument, options: { sameContact?: boolean } = {}): void {
+  if (options.sameContact) {
+    document.entities.push({ id: "leakOut", kind: "ray", role: "light refracted into the cladding" });
+    document.constructions.push({ id: "makeLeakOut", operator: "refract_direction", inputs: { origin: "contact", incoming: "incoming", normal: "contactNormal", n1: 1.58, n2: 1.47 }, outputs: ["leakOut"] });
+    document.requiredEntityIds.push("leakOut");
+    document.revealGroups.at(-1).entityIds.push("leakOut");
+    return;
+  }
+  const ids = ["leakOrigin", "leak", "leakIncoming", "leakNormal", "leakOut"];
+  document.entities.push(
+    { id: "leakOrigin", kind: "point", role: "helper point" },
+    { id: "leak", kind: "point", role: "second point of incidence" },
+    { id: "leakIncoming", kind: "vector", role: "light in the core" },
+    { id: "leakNormal", kind: "segment", role: "normal" },
+    { id: "leakOut", kind: "ray", role: "light refracted into the cladding" },
+  );
+  document.constructions.push(
+    { id: "makeLeakOrigin", operator: "point", inputs: { x: -4, y: -2, coordinateSpace: "world" }, outputs: ["leakOrigin"] },
+    { id: "makeLeak", operator: "surface_contact", inputs: { origin: "leakOrigin", surface: "boundary", direction: [1, 1] }, outputs: ["leak", "leakIncoming"] },
+    { id: "makeLeakNormal", operator: "normal_at", inputs: { point: "leak", surface: "boundary" }, outputs: ["leakNormal"] },
+    { id: "makeLeakOut", operator: "refract_direction", inputs: { origin: "leak", incoming: "leakIncoming", normal: "leakNormal", n1: 1.58, n2: 1.47 }, outputs: ["leakOut"] },
+  );
+  document.requiredEntityIds.push(...ids);
+  document.revealGroups.at(-1).entityIds.push(...ids);
+}
+
+check("recorded b2 TIR: the second ray at 20 degrees, below the declared 27.7 degree critical angle, is refused", () => {
+  const { ok, fatal } = recorded("tir", (document) => {
+    document.quantities.find((quantity: RecordedDocument) => quantity.id === "i2").value = 20;
+  });
+  if (ok) return "compiled a lone reflection below the critical angle of n = 2.15 to air";
+  if (!fatalCodes(fatal).includes("reflection_below_critical_angle")) return `refused with ${JSON.stringify(fatalCodes(fatal))}, not reflection_below_critical_angle`;
+  return null;
+});
+
+check("recorded b2 fibre: the 26.6 degree reflection is refused once core 1.58 and cladding 1.47 are declared", () => {
+  const { ok, fatal } = recorded("fibre", (document) => declareFibreIndices(document));
+  if (ok) return "compiled a total internal reflection at 26.6 degrees, below the 68.5 degree critical angle";
+  if (!fatalCodes(fatal).includes("reflection_below_critical_angle")) return `refused with ${JSON.stringify(fatalCodes(fatal))}, not reflection_below_critical_angle`;
+  return null;
+});
+
+check("control: recorded b2 TIR at 34 degrees, above the 27.7 degree critical angle, is unchanged", () => {
+  const { ok, primitives, fatal } = recorded("tir");
+  if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
+  const reflected = stroke(primitives, "reflected2");
+  const face = stroke(primitives, "face");
+  if (segmentDistance(reflected.points[0]!, face.points[0]!, face.points.at(-1)!) > 1.5) return "the reflected ray no longer leaves the face";
+  return null;
+});
+
+check("control: the fibre with declared indices and its reflection at 71.6 degrees compiles", () => {
+  const { ok, primitives, fatal } = recorded("fibre", (document) => {
+    declareFibreIndices(document);
+    document.constructions.find((construction: RecordedDocument) => construction.id === "makeContact").inputs.direction = [3, 1];
+  });
+  if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
+  stroke(primitives, "reflected");
+  stroke(primitives, "leakOut");
+  return null;
+});
+
+check("control: a reflection below the critical angle drawn with its refraction at the same contact compiles", () => {
+  const { ok, primitives, fatal } = recorded("fibre", (document) => declareFibreIndices(document, { sameContact: true }));
+  if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
+  stroke(primitives, "reflected");
+  stroke(primitives, "leakOut");
+  return null;
+});
+
 console.log(`${passed} passed, ${failures.length} failed`);
 if (failures.length > 0) process.exit(1);
