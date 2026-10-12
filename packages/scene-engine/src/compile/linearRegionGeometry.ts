@@ -6,6 +6,7 @@ import type {
 } from "../types";
 import { snapshotMathSourceData } from "./mathSourceData";
 import { readLinearSourceReferencePoints, type LinearSourceReferencePoint } from "./linearSourcePoints";
+import { readLinearSourceSystemLabels } from "./linearRegionSource";
 import {
   solveLinearFigure,
   verifyLinearFigureSolution,
@@ -258,7 +259,7 @@ export function evaluateLinearRegionConstruction(
     input,
     solution,
     view: readView(view, solution, references),
-    ...(references.length ? { referencePointQuestion: originalQuestion, referencePoints: references } : {}),
+    ...(originalQuestion && (references.length || solution.kind === "linear_system") ? { referencePointQuestion: originalQuestion, referencePoints: references } : {}),
   };
   linearRegionPrimitives(geometry, "display_check", "display_check");
   return [geometry];
@@ -397,6 +398,10 @@ export function linearRegionPrimitives(
   if (JSON.stringify(references) !== JSON.stringify(expectedReferences))
     throw new Error("Source reference points must preserve every original exact label and coordinate");
   const primitives: RenderPrimitive[] = [];
+  const sourceLabels = solution.kind === "linear_system" && geometry.input.kind === "linear_system" && geometry.referencePointQuestion
+    ? readLinearSourceSystemLabels(geometry.referencePointQuestion, geometry.input) : undefined;
+  if (sourceLabels?.intersectionName && solution.kind === "linear_system" && !solution.intersection)
+    throw new Error("An original named intersection requires a unique exact source intersection");
   const x0 = read(view.xMin),
     x1 = read(view.xMax),
     y0 = read(view.yMin),
@@ -547,7 +552,7 @@ export function linearRegionPrimitives(
     const boundaryLines = new Map<string, RenderPrimitive>();
     const boundaryLabels = new Map<
       string,
-      { points: ExactPoint[]; texts: string[] }
+      { points: ExactPoint[]; texts: string[]; names: string[] }
     >();
     rows.forEach((row, i) => {
       const segment = boundarySegment(row, view);
@@ -599,8 +604,9 @@ export function linearRegionPrimitives(
           const owner = boundaryLabels.get(key);
           if (owner) {
             if (!owner.texts.includes(equation)) owner.texts.push(equation);
+            for (const name of sourceLabels?.lines[i]?.names ?? []) if (!owner.names.includes(name)) owner.names.push(name);
           } else
-            boundaryLabels.set(key, { points: segment, texts: [equation] });
+            boundaryLabels.set(key, { points: segment, texts: [equation], names: sourceLabels?.lines[i]?.names ?? [] });
         }
         if (
           (solution.kind === "linear_half_plane" ||
@@ -637,12 +643,62 @@ export function linearRegionPrimitives(
       }
       return best;
     };
-    for (const boundary of boundaryLabels.values())
+    for (const boundary of boundaryLabels.values()) {
       label(
         boundaryAnchor(boundary),
         boundary.texts.join("; "),
         "boundary_label",
       );
+      if (boundary.names.length) {
+        const anchor = boundaryAnchor(boundary);
+        emit("label", [anchor], "boundary_name", { linearSourceNames: boundary.names }, boundary.names.join(", "));
+        salientPoints.push(anchor);
+      }
+    }
+    const interceptMarks = new Set<string>();
+    const sourceFacts = new Set<string>();
+    rows.forEach((row, index) => {
+      const requested = sourceLabels?.lines[index];
+      if (!requested) return;
+      const names = requested.names;
+      // A normalized native row is an equivalent simplified equation, never
+      // a planner equation or a new metric assumption.
+      const pivot = read(row.a).n !== 0n ? read(row.a) : read(row.b);
+      const equation = (): string => {
+        const coefficient = (value: Q, variable: string): string => {
+          if (value.n === 0n) return "";
+          const magnitude = value.n < 0n ? mul(value, parseRational(-1)) : value;
+          return `${value.n < 0n ? "-" : "+"}${equal(magnitude, O) ? "" : magnitude.d === 1n ? text(out(magnitude)) : `(${text(out(magnitude))})`}${variable}`;
+        };
+        return `${[coefficient(div(read(row.a), pivot), solution.variables[0]), coefficient(div(read(row.b), pivot), solution.variables[1])].join("").replace(/^\+/, "") || "0"}=${text(out(div(read(row.rhs), pivot)))}`;
+      };
+      if (names.length && pivot.n !== 0n) for (const name of names) {
+        const fact = `${name}: ${equation()}`;
+        if (!sourceFacts.has(fact)) emit("label", [boundaryAnchor({ points: boundarySegment(row, view) })], "caption", { linearSourceNames: [name], linearConstraint: row }, fact);
+        sourceFacts.add(fact);
+      }
+      for (const axis of requested.interceptAxes) {
+        const coefficient = read(axis === "x" ? row.a : row.b);
+        if (coefficient.n === 0n) {
+          summary.push(`${names.join(", ") || equation()} ${axis}-intercept: ${read(row.rhs).n === 0n ? "whole axis" : "none"}`);
+          continue;
+        }
+        const value = div(read(row.rhs), coefficient);
+        const exact = axis === "x" ? point(value, Z) : point(Z, value);
+        if (cmp(read(exact.x), x0) < 0 || cmp(read(exact.x), x1) > 0 || cmp(read(exact.y), y0) < 0 || cmp(read(exact.y), y1) > 0)
+          throw new Error("Linear display window excludes a requested exact intercept");
+        const metadata = { linearSourceNames: names, linearConstraint: row, linearInterceptAxis: axis };
+        const key = pointKey(exact);
+        if (!interceptMarks.has(key)) {
+          emit("point", [exact], "source_intercept", metadata);
+          if (value.n !== 0n) emit("label", [exact], "intercept_label", metadata, text(out(value)));
+          interceptMarks.add(key);
+        }
+        const fact = `${names.join(", ") || equation()} ${axis}-intercept=(${text(exact.x)}, ${text(exact.y)})`;
+        if (!sourceFacts.has(fact)) emit("label", [exact], "caption", metadata, fact);
+        sourceFacts.add(fact);
+      }
+    });
     for (const reference of references) {
       const exact = { x: reference.x, y: reference.y };
       const membership = solution.kind === "linear_system"
@@ -751,7 +807,10 @@ export function linearRegionPrimitives(
       }
     }
     if (solution.kind === "linear_system") {
-      summary.push(
+      const name = sourceLabels?.intersectionName;
+      const namedIntersection = name && solution.intersection
+        && !references.some(reference => reference.label === name && pointKey(reference) === pointKey(solution.intersection!));
+      if (!namedIntersection) summary.push(
         solution.relation === "unique"
           ? "One solution"
           : solution.relation === "parallel"
@@ -760,11 +819,10 @@ export function linearRegionPrimitives(
       );
       if (solution.intersection) {
         emit("point", [solution.intersection], "intersection");
-        label(
-          solution.intersection,
-          `(${text(solution.intersection.x)}, ${text(solution.intersection.y)})`,
-          "intersection_label",
-        );
+        if (namedIntersection) {
+          emit("label", [solution.intersection], "source_reference_label", { linearSourceNames: [name] }, name);
+          emit("label", [solution.intersection], "caption", { linearSourceNames: [name] }, `One solution: ${name}=(${text(solution.intersection.x)}, ${text(solution.intersection.y)})`);
+        } else if (!name) label(solution.intersection, `(${text(solution.intersection.x)}, ${text(solution.intersection.y)})`, "intersection_label");
       }
     }
   }

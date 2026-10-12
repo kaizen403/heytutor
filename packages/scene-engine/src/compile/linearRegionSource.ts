@@ -790,6 +790,73 @@ function hasNativeSystemRequest(body: string, source: SourceClause[], pointLabel
   }
   return true;
 }
+
+export interface LinearSourceSystemLabels {
+  lines: Array<{ names: string[]; interceptAxes: Array<"x" | "y"> }>;
+  intersectionName?: string;
+}
+
+/** Source names join complete, equivalent equations; candidate row order supplies no identity. */
+export function readLinearSourceSystemLabels(
+  question: string,
+  input: Extract<LinearFigureInput, { kind: "linear_system" }>,
+): LinearSourceSystemLabels {
+  if (typeof question !== "string" || question.length > 8192)
+    throw new Error("System labels require bounded original source text");
+  const variables = input.variables ?? ["x", "y"];
+  const normalized = normalize(question);
+  assertLinearSourceGrammar(normalized);
+  const references = readLinearSourceReferencePoints(explicitDomains(sourceNotation(normalized, variables), variables), variables);
+  const body = references.maskedQuestion.replace(/\b([A-Za-z][A-Za-z0-9_]*)\s*∈\s*ℝ/g, (_, variable: string) => {
+    if (!variables.includes(variable)) throw new Error("Real domain must use a declared variable");
+    return " ";
+  });
+  const source = clauses(body, variables, references.points.map(point => point.label));
+  if (source.length !== 2 || !source.every(clause => clause.equality)
+    || !isIntersectionProgram(booleanProgram(body, source, references.points.map(point => point.label), true))
+    || !same(signatures(source.map(clause => clause.text), variables, true), signatures(input.equations, variables, true)))
+    throw new Error("System labels require the complete equivalent original two-equation program");
+  const identity = (equation: string): string => JSON.stringify(signatures([equation], variables, true));
+  const owners = source.map(clause => ({
+    identity: identity(clause.text),
+    name: /\b([A-Za-z][A-Za-z0-9_]*)\s*:\s*$/.exec(body.slice(0, clause.start))?.[1],
+  }));
+  const declared = new Map<string, string>();
+  for (const owner of owners) {
+    if (!owner.name) continue;
+    if (owner.name.length > 32 || variables.includes(owner.name) || references.points.some(point => point.label === owner.name)
+      || declared.has(owner.name) && declared.get(owner.name) !== owner.identity)
+      throw new Error("Original line names must have one unambiguous geometric owner");
+    declared.set(owner.name, owner.identity);
+  }
+  let prose = body;
+  for (const clause of source.slice().reverse())
+    prose = prose.slice(0, clause.start) + " ".repeat(clause.end - clause.start) + prose.slice(clause.end);
+  const requested = new Map<string, Set<"x" | "y">>();
+  for (const sentence of prose.split(/[.;?!]|(?:\band\s+|,\s*)(?=(?:label|mark|find|determine|give|report|state|calculate|compute)\b)/i)) {
+    const action = /\b(?:label|mark|find|determine|give|report|state|calculate|compute)\b/i.exec(sentence);
+    const request = action ? sentence.slice(action.index) : "";
+    if (!/\bintercepts?\b/i.test(request)) continue;
+    const mentioned = [...declared.keys()].filter(name => new RegExp(`\\b${name}\\b`).test(request));
+    const all = !mentioned.length || /\btheir\b|\b(?:both|all|every|each)\s+(?:the\s+)?lines?\b/i.test(request);
+    const axes: Array<"x" | "y"> = /\bx[- ]intercepts?\b/i.test(request) && !/\by[- ]intercepts?\b/i.test(request) ? ["x"]
+      : /\by[- ]intercepts?\b/i.test(request) && !/\bx[- ]intercepts?\b/i.test(request) ? ["y"] : ["x", "y"];
+    for (const owner of owners) if (all || owner.name && mentioned.includes(owner.name)) {
+      const selected = requested.get(owner.identity) ?? new Set<"x" | "y">();
+      axes.forEach(axis => selected.add(axis)); requested.set(owner.identity, selected);
+    }
+  }
+  const intersectionNames = [...readLinearSourceIntersectionNames(body)];
+  if (intersectionNames.length > 1 || intersectionNames.some(name => name.length > 32 || variables.includes(name) || declared.has(name)))
+    throw new Error("Original intersection name must have one unambiguous geometric owner");
+  return {
+    lines: input.equations.map(equation => {
+      const key = identity(equation);
+      return { names: [...declared].filter(([, owner]) => owner === key).map(([name]) => name), interceptAxes: [...(requested.get(key) ?? [])] };
+    }),
+    ...(intersectionNames[0] ? { intersectionName: intersectionNames[0] } : {}),
+  };
+}
 /** Read an affine objective completely, separately from its prose direction. */
 function sourceObjective(body: string, names: readonly string[]): SourceObjective {
   const directionPattern = /\b(?:maximi[sz](?:e[ds]?|ing|ation)|minimi[sz](?:e[ds]?|ing|ation)|maximum|minimum|max|min)\b/gi;
