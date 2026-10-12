@@ -229,7 +229,17 @@ for (const expression of ["(3*4)N*m", "12*N*m"]) {
     check(`zero ${expression} reconciles exactly to zero`, reconcileTurnPlanV3ExplicitArithmetic(input).plan.derived[0]?.value === 0);
   }
 }
-for (const expression of ["0.3-0.2-0.1", "0.3-(0.2+0.1)", "3e-17-2e-17-1e-17", "cos(90°)", "sin(pi)", "sqrt(2)*sqrt(2)-2"]) {
+for (const expression of ["0.3-0.2-0.1", "0.3-(0.2+0.1)", "3e-17-2e-17-1e-17", "cos(90°)", "sin(pi)", "sqrt(2)*sqrt(2)-2",
+  "2*sin(30°)-1", "2*cos(60°)-1", "2*sin(150°)-1", "2*cos(120°)+1", "tan(45°)-1", "tan(135°)+1",
+  "2*sin(45°)^2-1", "2*cos(45°)*cos(45°)-1", "4*cos(30°)^2-3", "3*tan(30°)^2-1",
+  "sin(60°)-cos(30°)", "sqrt(3)*sin(30°)-sin(60°)", "sin(45°)+cos(45°)-sqrt(2)",
+  "cos(30°)^2-sin(60°)^2", "sin(60°)^2+cos(60°)^2-1", "tan(30°)^2-1/3",
+  "2*sin(-30°)+1", "2*sin(390°)-1", "2*cos(-60°)-1", "sqrt(0.5)-cos(45°)",
+  "sin(10°)^2+cos(10°)^2-1", "sin(pi/5)^2+cos(pi/5)^2-1",
+  "cos(37°)*cos(37°)+sin(37°)*sin(37°)-1", "sin(1)^2+cos(1)^2-1",
+  "sqrt(18)-3*sqrt(2)", "sqrt(50)-5*sqrt(2)", "sqrt(2)/3-sqrt(18)/9", "sqrt(72)-2*sqrt(18)",
+  "sqrt(18)/sqrt(2)-3", "sqrt(2)^(-2)-1/2", "(sqrt(2)/sqrt(3))^2-2/3",
+  "1/(sqrt(2)^(-2))-2", "sin(pi/4)^(-2)-2", "sqrt(18)/(-sqrt(2))+3"]) {
   for (const literal of ["0", "0.0000000000000000000000000000000000000000"]) {
     const source = `D = ${expression} = ${literal} V`;
     const input = plan("Evaluate an authored cancellation that gives zero.", source, 0);
@@ -250,7 +260,10 @@ for (const expression of ["0.3-0.2-0.1", "0.3-(0.2+0.1)", "3e-17-2e-17-1e-17", "
 }
 for (const [expression, expected] of [["sin(1e-9)", 1e-9], ["sqrt(1e-18)", 1e-9], ["1-1+1e-17", 1e-17],
   ["1.0000000000000002-1", 2e-16], ["1-(1-1e-16)", 1e-16], ["1.0000000000000001-1", 1e-16],
-  ["0.5-0.5+1e-17", 1e-17], ["0.3-0.3+1e-17", 1e-17]] as const) {
+  ["0.5-0.5+1e-17", 1e-17], ["0.3-0.3+1e-17", 1e-17],
+  ["2*sin(pi/6+1e-9)-1", 2 * Math.sin(Math.PI / 6 + 1e-9) - 1],
+  ["2*cos(pi/3+1e-9)-1", 2 * Math.cos(Math.PI / 3 + 1e-9) - 1],
+  ["sin(10°)^2+cos(10°)^2-1+1e-17", 1e-17], ["sqrt(18)-3*sqrt(2)+1e-17", 1e-17]] as const) {
   for (const value of [expected, expected * 2]) {
     const source = `D = ${expression} = ${value} V`;
     const input = plan("Evaluate an authored genuinely nonzero small expression.", source, value);
@@ -258,7 +271,7 @@ for (const [expression, expected] of [["sin(1e-9)", 1e-9], ["sqrt(1e-18)", 1e-9]
     input.derived = [{ id: "nonzero_small_result", symbol: "D", value, unit: "V", provenance: "derived", sourceText: source }];
     check(`real small ${expression} has no absolute slack`, validateTurnPlanV3(input).valid === (value === expected));
     const reconciled = reconcileTurnPlanV3ExplicitArithmetic(input);
-    check(`real small ${expression} is never erased or doubled`, Math.abs((reconciled.plan.derived[0]?.value ?? NaN) - expected) <= expected * 1e-12);
+    check(`real small ${expression} is never erased or doubled`, Math.abs((reconciled.plan.derived[0]?.value ?? NaN) - expected) <= Math.abs(expected) * 1e-12);
     if (value === expected) check(`real small ${expression} stays unchanged`, reconciled.reconciliations.length === 0);
   }
   const source = `D = ${expression} = 0.0000000000000000000000000000000000000000 V`;
@@ -274,6 +287,28 @@ for (const expression of ["sqrt(100000000000-100000000000.000001)^2", "sqrt(1000
   input.derived = [{ id: "invalid_square_result", symbol: "D", value: -1e-6, unit: "V", provenance: "derived", sourceText: source }];
   check("a real square identity needs an exactly nonnegative radicand", !validateTurnPlanV3(input).valid);
   check("an invalid square identity never authorizes the negative radicand as its result", reconcileTurnPlanV3ExplicitArithmetic(input).plan.derived[0]?.value !== -1e-6);
+}
+for (const argument of ["sqrt(100000000000-100000000000.000001)", "acos(1.0000000000000001)"]) {
+  const source = `D = sin(${argument})^2+cos(${argument})^2-(1-1e-17) = 1e-17 V`;
+  const input = plan("An identity must not grant authority outside its exact real domain.", source, 1e-17);
+  input.givens = []; input.unknowns = [{ id: "invalid_identity", symbol: "D", unit: "V" }];
+  input.derived = [{ id: "invalid_identity", symbol: "D", value: 1e-17, unit: "V", provenance: "derived", sourceText: source }];
+  check("a Pythagorean identity requires a supported exact real argument", !validateTurnPlanV3(input).valid);
+  check("undefined real identities do not retain a newly proved nonzero result", reconcileTurnPlanV3ExplicitArithmetic(input).plan.derived[0]?.value !== 1e-17);
+}
+const hiddenInvalidRoot = "sqrt(100000000000-100000000000.000001)";
+for (const [expression, value] of [
+  [`2*sin(pi/6+(${hiddenInvalidRoot}-${hiddenInvalidRoot})*pi)-1+1e-17`, 1e-17],
+  [`sqrt(18+(${hiddenInvalidRoot}-${hiddenInvalidRoot}))-3*sqrt(2)+1e-17`, 1e-17],
+  ["sqrt(acos(1.0000000000000001)-acos(1.0000000000000001)+18)-3*sqrt(2)", 0],
+  [`sqrt(${hiddenInvalidRoot}-${hiddenInvalidRoot}+18)-3*sqrt(2)`, 0],
+] as const) {
+  const source = `D = ${expression} = ${value === 0 ? "0.0000000000000000000000000000000000000000" : value} V`;
+  const input = plan("Hidden invalid domains cannot be canceled into new exact authority.", source, value);
+  input.givens = []; input.unknowns = [{ id: "invalid_cancellation", symbol: "D", unit: "V" }];
+  input.derived = [{ id: "invalid_cancellation", symbol: "D", value, unit: "V", provenance: "derived", sourceText: source }];
+  check("every new exact proof requires recursively valid real domains", !validateTurnPlanV3(input).valid);
+  check("invalid-domain cancellation never gains the newly exact declared result", reconcileTurnPlanV3ExplicitArithmetic(input).plan.derived[0]?.value !== value);
 }
 assert.equal(failures.length, 0, `${failures.length}/${checks} failed: ${[...new Set(failures)].join("; ")}`);
 console.log(`verify-turn-plan-measured-operands: ${checks} checks pass; five authored wordings, real arithmetic and claim contradictions retained`);

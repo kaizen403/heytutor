@@ -139,7 +139,9 @@ export function evaluateSourceMathExpression(source: string, x: number): number 
   const native = evaluateMathExpression(source, x);
   const root = new Parser(tokenize(normalizePlainMathSource(source).trim()), new Set(["x"])).parse();
   const budget = { remaining: MAX_EVALUATION_STEPS };
-  const exact = exactFraction(root, x, budget);
+  // Admit all exact proofs together, including cancellation inside trig/root arguments.
+  if (!proveRealArgument(root, x, budget)) return native;
+  const exact = exactFraction(root, x, budget) ?? exactSurdFraction(root, x, budget);
   if (exact) {
     if (exact.n === 0n) return 0;
     const numerator = Number(exact.n); const denominator = Number(exact.d);
@@ -200,6 +202,11 @@ function exactFraction(node: ExpressionNode, x: number, budget: { remaining: num
   }
   if (node.kind === "binary") {
     if (node.operator === "-" && sameExpression(node.left, node.right)) return fraction(0n);
+    if (node.operator === "+") {
+      const sine = squaredTrigArgument(node.left, "sin", x, budget) ?? squaredTrigArgument(node.right, "sin", x, budget);
+      const cosine = squaredTrigArgument(node.left, "cos", x, budget) ?? squaredTrigArgument(node.right, "cos", x, budget);
+      if (sine && cosine && sameExpression(sine, cosine)) return fraction(1n);
+    }
     // Native rounding can hide a negative radicand; prove the exact domain too.
     if (node.left.kind === "function" && node.left.name === "sqrt") {
       if (node.operator === "*" && sameExpression(node.left, node.right)) {
@@ -238,6 +245,57 @@ function exactFraction(node: ExpressionNode, x: number, budget: { remaining: num
   return null;
 }
 
+/** A literal/expression rounded to two is not proof of a square. */
+function squaredTrigArgument(node: ExpressionNode, name: "sin" | "cos", x: number, budget: { remaining: number }): ExpressionNode | null {
+  if (!exactStep(budget) || node.kind !== "binary" || node.left.kind !== "function" || node.left.name !== name) return null;
+  if (node.operator === "*" && sameExpression(node.left, node.right)) return node.left.argument;
+  if (node.operator !== "^") return null;
+  const power = exactFraction(node.right, x, budget);
+  return power?.n === 2n && power.d === 1n ? node.left.argument : null;
+}
+
+/** Native rounding may conceal an undefined exact argument; do not prove through it. */
+function proveRealArgument(node: ExpressionNode, x: number, budget: { remaining: number }): boolean {
+  if (!exactStep(budget)) return false;
+  if (node.kind === "number" || node.kind === "variable") return true;
+  if (node.kind === "unary") return proveRealArgument(node.value, x, budget);
+  if (node.kind === "binary") {
+    if (!proveRealArgument(node.left, x, budget) || !proveRealArgument(node.right, x, budget)) return false;
+    if (node.operator === "+" || node.operator === "-" || node.operator === "*") return true;
+    const left = exactFraction(node.left, x, budget) ?? exactSurdFraction(node.left, x, budget);
+    if (node.operator === "^") {
+      const power = exactFraction(node.right, x, budget);
+      if (!power) return false;
+      if (power.d === 1n && power.n >= 0n) return true;
+      if (power.d === 1n) return Boolean(left?.n) || proveNonzeroSurd(node.left, x, budget);
+      return Boolean(left && left.n > 0n);
+    }
+    const right = exactFraction(node.right, x, budget) ?? exactSurdFraction(node.right, x, budget) ?? exactPiMultiple(node.right, x, budget);
+    return Boolean(right && right.n !== 0n) || proveNonzeroSurd(node.right, x, budget);
+  }
+  if (!proveRealArgument(node.argument, x, budget)) return false;
+  const value = exactFraction(node.argument, x, budget) ?? exactSurdFraction(node.argument, x, budget);
+  switch (node.name) {
+    case "sqrt": return Boolean(value && value.n >= 0n);
+    case "asin": case "acos": return Boolean(value && value.n >= -value.d && value.n <= value.d);
+    case "log": case "ln": return Boolean(value && value.n > 0n);
+    case "tan": {
+      if (value) return true; // A rational radian value cannot be an odd multiple of pi/2.
+      const multiple = exactPiMultiple(node.argument, x, budget);
+      return Boolean(multiple && ((2n * multiple.n) % multiple.d !== 0n || (2n * multiple.n / multiple.d) % 2n === 0n));
+    }
+    default: return true; // sin, cos, atan, abs and exp are defined for every real argument.
+  }
+}
+
+/** Used only after recursive domain admission: one nonzero real root cannot cancel. */
+function proveNonzeroSurd(node: ExpressionNode, x: number, budget: { remaining: number }): boolean {
+  const terms = exactSurds(node, x, budget);
+  if (!terms || terms.size !== 1) return false;
+  const [root, coefficient] = [...terms][0]!;
+  return root > 0n && coefficient.n !== 0n;
+}
+
 /** Prove only rational multiples of the symbolic pi constant, not nearby decimals. */
 function exactPiMultiple(node: ExpressionNode, x: number, budget: { remaining: number }): Fraction | null {
   if (!exactStep(budget)) return null;
@@ -265,6 +323,144 @@ function exactPiMultiple(node: ExpressionNode, x: number, budget: { remaining: n
     }
   }
   return null;
+}
+
+/** Bounded common-angle/root algebra: coefficients times square roots, not roundoff. */
+type SurdTerms = Map<bigint, Fraction>;
+const MAX_SURD_TERMS = 16;
+
+function exactIntegerRoot(root: bigint, budget: { remaining: number }): bigint | null {
+  if (root <= 0n || root.toString(2).length > MAX_EXACT_BITS) return null;
+  // Integer Newton iteration is bounded by the same proof budget and bit cap.
+  let estimate = 1n << BigInt(Math.ceil(root.toString(2).length / 2));
+  while (true) {
+    if (!exactStep(budget)) return null;
+    const next = (estimate + root / estimate) / 2n;
+    if (next >= estimate) break;
+    estimate = next;
+  }
+  return estimate * estimate === root ? estimate : null;
+}
+
+function addSurdTerm(terms: SurdTerms, root: bigint, coefficient: Fraction, budget: { remaining: number }): boolean {
+  if (!exactStep(budget) || root < 0n || root.toString(2).length > MAX_EXACT_BITS) return false;
+  if (root === 0n || coefficient.n === 0n) return true;
+  const integer = exactIntegerRoot(root, budget);
+  if (budget.remaining < 0) return false;
+  if (integer !== null) {
+    const scaled = fraction(coefficient.n * integer, coefficient.d);
+    if (!scaled) return false;
+    coefficient = scaled; root = 1n;
+  } else {
+    // sqrt(a) / sqrt(b) = sqrt(a*b) / b: exact proportionality, no factor search.
+    for (const existing of terms.keys()) {
+      const ratio = exactIntegerRoot(root * existing, budget);
+      if (budget.remaining < 0) return false;
+      if (ratio === null) continue;
+      const scaled = fraction(coefficient.n * ratio, coefficient.d * existing);
+      if (!scaled) return false;
+      coefficient = scaled; root = existing; break;
+    }
+  }
+  const combined = combineFractions(terms.get(root) ?? { n: 0n, d: 1n }, coefficient, "+");
+  if (!combined) return false;
+  if (combined.n === 0n) terms.delete(root); else terms.set(root, combined);
+  return terms.size <= MAX_SURD_TERMS;
+}
+
+function multiplySurds(a: SurdTerms, b: SurdTerms, budget: { remaining: number }): SurdTerms | null {
+  const terms: SurdTerms = new Map();
+  for (const [one, coefficient] of a) for (const [other, multiplier] of b) {
+    const product = combineFractions(coefficient, multiplier, "*");
+    if (!product || !addSurdTerm(terms, one * other, product, budget)) return null;
+  }
+  return terms;
+}
+
+function divideSurds(a: SurdTerms, b: SurdTerms, budget: { remaining: number }): SurdTerms | null {
+  // Rationalize only a single nonzero root term; sums remain unsupported.
+  if (b.size !== 1) return null;
+  const [root, coefficient] = [...b][0]!;
+  const denominator = combineFractions(coefficient, { n: root, d: 1n }, "*");
+  if (!denominator || denominator.n === 0n) return null;
+  const terms: SurdTerms = new Map();
+  for (const [one, value] of a) {
+    const quotient = combineFractions(value, denominator, "/");
+    if (!quotient || !addSurdTerm(terms, one * root, quotient, budget)) return null;
+  }
+  return terms;
+}
+
+function exactTrigSurds(node: Extract<ExpressionNode, { kind: "function" }>, x: number, budget: { remaining: number }): SurdTerms | null {
+  const multiple = exactPiMultiple(node.argument, x, budget);
+  if (!multiple || (multiple.n * 12n) % multiple.d !== 0n) return null;
+  const phase = Number((multiple.n * 12n / multiple.d % 24n + 24n) % 24n);
+  const sine = (phase: number): SurdTerms | null => {
+    const sign = phase > 12 ? -1n : 1n;
+    const half = phase % 12;
+    const quadrant = Math.min(half, 12 - half);
+    const values: Partial<Record<number, readonly [bigint, bigint, bigint]>> = {
+      0: [1n, 0n, 1n], 2: [1n, 1n, 2n], 3: [2n, 1n, 2n],
+      4: [3n, 1n, 2n], 6: [1n, 1n, 1n],
+    };
+    const value = values[quadrant];
+    if (!value) return null;
+    const terms: SurdTerms = new Map();
+    return addSurdTerm(terms, value[0], { n: sign * value[1], d: value[2] }, budget) ? terms : null;
+  };
+  if (node.name === "sin") return sine(phase);
+  if (node.name === "cos") return sine((phase + 6) % 24);
+  const numerator = sine(phase); const denominator = sine((phase + 6) % 24);
+  return numerator && denominator ? divideSurds(numerator, denominator, budget) : null;
+}
+
+function exactSurds(node: ExpressionNode, x: number, budget: { remaining: number }): SurdTerms | null {
+  if (!exactStep(budget)) return null;
+  const exact = exactFraction(node, x, budget);
+  if (exact) {
+    const terms: SurdTerms = new Map();
+    return addSurdTerm(terms, 1n, exact, budget) ? terms : null;
+  }
+  if (node.kind === "unary") {
+    const terms = exactSurds(node.value, x, budget);
+    if (terms && node.operator === "-") for (const [root, value] of terms) terms.set(root, { n: -value.n, d: value.d });
+    return terms;
+  }
+  if (node.kind === "function") {
+    if (node.name === "sin" || node.name === "cos" || node.name === "tan") return exactTrigSurds(node, x, budget);
+    if (node.name !== "sqrt") return null;
+    const argument = exactFraction(node.argument, x, budget);
+    if (!argument || argument.n < 0n) return null;
+    const terms: SurdTerms = new Map();
+    return addSurdTerm(terms, argument.n * argument.d, { n: 1n, d: argument.d }, budget) ? terms : null;
+  }
+  if (node.kind !== "binary") return null;
+  const left = exactSurds(node.left, x, budget);
+  if (!left) return null;
+  if (node.operator === "^") {
+    const power = exactFraction(node.right, x, budget);
+    if (!power || power.d !== 1n || power.n < -32n || power.n > 32n) return null;
+    let result: SurdTerms = new Map([[1n, { n: 1n, d: 1n }]]);
+    for (let i = 0n; i < (power.n < 0n ? -power.n : power.n); i++) {
+      const product = multiplySurds(result, left, budget);
+      if (!product) return null;
+      result = product;
+    }
+    return power.n < 0n ? divideSurds(new Map([[1n, { n: 1n, d: 1n }]]), result, budget) : result;
+  }
+  const right = exactSurds(node.right, x, budget);
+  if (!right) return null;
+  if (node.operator === "*") return multiplySurds(left, right, budget);
+  if (node.operator === "/") return divideSurds(left, right, budget);
+  for (const [root, value] of right) {
+    if (!addSurdTerm(left, root, { n: node.operator === "-" ? -value.n : value.n, d: value.d }, budget)) return null;
+  }
+  return left;
+}
+
+function exactSurdFraction(node: ExpressionNode, x: number, budget: { remaining: number }): Fraction | null {
+  const terms = exactSurds(node, x, budget);
+  return terms?.size === 0 ? fraction(0n) : terms?.size === 1 ? terms.get(1n) ?? null : null;
 }
 
 const SUPERSCRIPT_POWERS: Readonly<Record<string, string>> = {

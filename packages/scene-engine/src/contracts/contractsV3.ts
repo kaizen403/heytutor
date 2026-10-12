@@ -14,7 +14,7 @@ import type { SceneDocument, SceneIssue, ValidationReport, RenderScene } from ".
 import type { ProblemIR } from "../ir/problemIR";
 import type { SolverResult } from "../ir/solver";
 import type { SolverAuthorityAudit } from "../ir/solverAuthority";
-import { auditInstrumentTurnPlanV3, matchesInstrumentQuantityRole } from "../physics/instrumentPlanAudit";
+import { auditInstrumentTurnPlanV3 } from "../physics/instrumentPlanAudit";
 
 export const TURN_PLAN_V3_VERSION = "turn-plan/v3" as const;
 export const SCENE_ARTIFACTS_V3_VERSION = "scene-artifacts/v3" as const;
@@ -603,12 +603,7 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
       issues.push({ code: "instrument_law_mismatch", path: "derived",
         message: "a declared instrument-conversion result disagrees with its independently unit-converted givens" });
     }
-    const requestedTotal = unknowns.some(value => isRecord(value) &&
-      typeof value.id === "string" && typeof value.symbol === "string" &&
-      matchesInstrumentQuantityRole({ id: value.id, symbol: value.symbol }, "total_resistance"));
-    const unverified = audit.declined.some(decline => decline.reason !== "missing_output" ||
-      decline.role !== "total_resistance" || requestedTotal);
-    if (unverified) {
+    if (audit.declined.length > 0) {
       issues.push({ code: "instrument_law_unverified", path: "lawIds",
         message: "the declared instrument conversion lacks unambiguous supported inputs or outputs" });
     }

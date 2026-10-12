@@ -105,6 +105,7 @@ export function auditInstrumentTurnPlanV3(plan: TurnPlanV3): InstrumentPlanAudit
   audit.results.push({ lawId: LAW_ID, currentAmps, galvanometerResistanceOhms, rangeVolts,
     totalResistanceOhms, seriesResistanceOhms });
   audit.checkedLawIds.push(LAW_ID);
+  const verifiedOutputs = new Set<InstrumentOutputRole>();
   for (const role of OUTPUT_ROLES) {
     const matches = plan.derived.filter((quantity) => matchesInstrumentQuantityRole(quantity, role));
     if (matches.length !== 1) {
@@ -143,8 +144,17 @@ export function auditInstrumentTurnPlanV3(plan: TurnPlanV3): InstrumentPlanAudit
       audit.inconsistencies.push({ lawId: LAW_ID, quantityId: quantity.id, role, planValue: quantity.value,
         actualOhms, expectedOhms, reason: actualOhms === null ? "unit_mismatch"
           : actualOhms < 0 && expectedOhms >= 0 ? "sign_mismatch" : "scalar_mismatch" });
+    } else {
+      verifiedOutputs.add(role);
     }
   }
+  // Either checked output can stand alone when the other was not requested.
+  // Missing requested roles and invalid present outputs remain unverified.
+  audit.declined = audit.declined.filter((decline) => {
+    if (decline.reason !== "missing_output" || !decline.role) return true;
+    const role = decline.role;
+    return verifiedOutputs.size === 0 || plan.unknowns.some((quantity) => matchesInstrumentQuantityRole(quantity, role));
+  });
   return audit;
 }
 

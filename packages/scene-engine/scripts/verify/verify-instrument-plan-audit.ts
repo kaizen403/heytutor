@@ -1,9 +1,10 @@
 /** Synthetic, authored instrument-law fixtures; no historical student question or model reply. */
 import assert from "node:assert/strict";
-import type { TurnPlanV3 } from "../../src/contracts/contractsV3";
+import { validateTurnPlanV3, type TurnPlanV3 } from "../../src/contracts/contractsV3";
 import { auditInstrumentTurnPlanV3 as auditInstrument } from "../../src/physics/instrumentPlanAudit";
 
 let auditCalls = 0;
+let validationCalls = 0;
 function deepFreeze<T>(value: T): T {
   if (typeof value === "object" && value !== null) {
     Object.values(value).forEach(deepFreeze);
@@ -17,6 +18,13 @@ function auditInstrumentTurnPlanV3(plan: TurnPlanV3) {
   auditCalls++;
   assert.equal(result.plan, plan, "every outcome retains the same input reference");
   assert.equal(JSON.stringify(plan), before, "every outcome preserves deep input bytes");
+  return result;
+}
+function validateInstrumentPlan(plan: TurnPlanV3) {
+  const before = JSON.stringify(plan);
+  const result = validateTurnPlanV3(deepFreeze(plan));
+  validationCalls++;
+  assert.equal(JSON.stringify(plan), before, "production validation preserves deep input bytes");
   return result;
 }
 
@@ -35,6 +43,76 @@ function fixture(total = 2000, series = 1992): TurnPlanV3 {
     ],
     qualitativeClaims: [], lawIds: ["galvanometer_to_voltmeter"], assumptions: [],
   };
+}
+
+const totalOnly = fixture();
+totalOnly.unknowns = [{ id: "total", symbol: "R_total", unit: "Ω" }];
+totalOnly.derived.pop();
+const totalOnlyAudit = auditInstrumentTurnPlanV3(totalOnly);
+assert.equal(totalOnlyAudit.declined.length, 0,
+  "a checked total-only answer does not require an unrequested series output");
+assert.equal(totalOnlyAudit.inconsistencies.length, 0);
+assert.deepEqual(totalOnlyAudit.results.map(({ totalResistanceOhms }) => totalResistanceOhms), [2000]);
+assert(validateInstrumentPlan(totalOnly).valid, "the production validator accepts the correct total-only answer");
+
+const bothRequested = fixture();
+bothRequested.unknowns.unshift({ id: "total", symbol: "R_total", unit: "Ω" });
+assert.equal(auditInstrumentTurnPlanV3(bothRequested).declined.length, 0, "both requested outputs are independently checked");
+assert(validateInstrumentPlan(bothRequested).valid);
+const seriesOnly = fixture(); seriesOnly.derived.shift();
+assert.equal(auditInstrumentTurnPlanV3(seriesOnly).declined.length, 0,
+  "a checked series-only answer does not require an unrequested total output");
+assert(validateInstrumentPlan(seriesOnly).valid);
+
+for (const [index, role] of [[0, "total_resistance"], [1, "series_resistance"]] as const) {
+  const missingRequested = structuredClone(bothRequested); missingRequested.derived.splice(index, 1);
+  assert(auditInstrumentTurnPlanV3(missingRequested).declined.some((entry) => entry.reason === "missing_output" && entry.role === role),
+    "a requested output remains required even when its sibling is correct");
+  assert(!validateInstrumentPlan(missingRequested).valid);
+  const wrongUnrequested = fixture();
+  wrongUnrequested.unknowns = [bothRequested.unknowns[1 - index]!];
+  wrongUnrequested.derived[index]!.value += 1;
+  assert(auditInstrumentTurnPlanV3(wrongUnrequested).inconsistencies.some((entry) => entry.role === role),
+    "every present output is checked even when only its sibling was requested");
+  assert(!validateInstrumentPlan(wrongUnrequested).valid);
+}
+for (const [index, id, symbol] of [
+  [0, "total", "Rₜₒₜₐₗ"], [0, "total", String.raw`\mathrm{R}_{total}`], [0, "total_resistance", "X"],
+  [1, "series", "Rₛ"], [1, "series", String.raw`\mathrm{R}_{s}`], [1, "series_resistance", "X"],
+] as const) {
+  const input = fixture(); input.derived.splice(index, 1); input.unknowns = [{ id, symbol, unit: "Ω" }];
+  const role = index === 0 ? "total_resistance" : "series_resistance";
+  assert(auditInstrumentTurnPlanV3(input).declined.some((entry) => entry.reason === "missing_output" && entry.role === role),
+    "Unicode, TeX formatting and exact typed IDs preserve requested role identity");
+  assert(!validateInstrumentPlan(input).valid);
+}
+const wrongCaseRequest = fixture(); wrongCaseRequest.derived.pop();
+wrongCaseRequest.unknowns = [{ id: "other", symbol: "r_s", unit: "Ω" }];
+assert.equal(auditInstrumentTurnPlanV3(wrongCaseRequest).declined.length, 0, "request symbol case is not guessed");
+const misleadingQuestion = structuredClone(totalOnly);
+misleadingQuestion.question = "Find the series resistance R_s, series resistance and total resistance.";
+assert.equal(auditInstrumentTurnPlanV3(misleadingQuestion).declined.length, 0,
+  "question words cannot add a role absent from the structured requests");
+const noOutputs = fixture(); noOutputs.derived = []; noOutputs.unknowns = [];
+assert.equal(auditInstrumentTurnPlanV3(noOutputs).declined.filter((entry) => entry.reason === "missing_output").length, 2,
+  "omitting every output cannot borrow computed law authority");
+assert(!validateInstrumentPlan(noOutputs).valid);
+const wrongOnlyTotal = structuredClone(totalOnly); wrongOnlyTotal.derived[0]!.value = 6;
+const wrongOnlyAudit = auditInstrumentTurnPlanV3(wrongOnlyTotal);
+assert.equal(wrongOnlyAudit.inconsistencies.length, 1);
+assert(wrongOnlyAudit.declined.some((entry) => entry.reason === "missing_output" && entry.role === "series_resistance"),
+  "a wrong sibling cannot authorize an unrequested omission");
+assert(!validateInstrumentPlan(wrongOnlyTotal).valid);
+for (const unsupported of ["given", "output", "ambiguous"] as const) {
+  const input = structuredClone(totalOnly);
+  if (unsupported === "given") input.givens[0]!.unit = "MA";
+  else if (unsupported === "output") input.derived[0]!.unit = "unrecognized";
+  else input.derived.push({ ...input.derived[0]!, id: "duplicate_total" });
+  const observed = auditInstrumentTurnPlanV3(input);
+  assert(observed.declined.some((entry) => entry.reason === (unsupported === "given" ? "unsupported_given_unit"
+    : unsupported === "output" ? "unsupported_output_unit" : "ambiguous_output")),
+  "a total-only request never bypasses unsupported or ambiguous evidence");
+  assert(!validateInstrumentPlan(input).valid);
 }
 
 const wrong = fixture(6, -2);
@@ -217,4 +295,4 @@ const megaOhms = fixture(0.002, 0.001992); megaOhms.derived.forEach((quantity) =
 assert.equal(auditInstrumentTurnPlanV3(megaOhms).inconsistencies.length, 0, "mega and milli prefixes remain distinct");
 const overflowOutput = fixture(); overflowOutput.derived[0]!.value = 1e308; overflowOutput.derived[0]!.unit = "MΩ";
 assert(auditInstrumentTurnPlanV3(overflowOutput).declined.some((entry) => entry.reason === "invalid_output_value"));
-console.log(`verify-instrument-plan-audit: ${auditCalls} report-only calls; explicit SI inputs and contradiction controls pass`);
+console.log(`verify-instrument-plan-audit: ${auditCalls} report-only calls; ${validationCalls} production validations; explicit SI inputs and contradiction controls pass`);
