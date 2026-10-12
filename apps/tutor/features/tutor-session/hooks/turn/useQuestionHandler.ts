@@ -1303,12 +1303,12 @@ export function useQuestionHandler(
               }],
             };
           },
-          selectFast: (planningTurnPlan, authority, gate) => measureSceneSelection(tel, "fast", () => selectFastVerifiedRepresentation({
+          selectFast: (planningTurnPlan, authority, gate, phase) => measureSceneSelection(tel, "fast", () => selectFastVerifiedRepresentation({
             question,
             turnPlan: planningTurnPlan,
             problemIR: authority?.problemIR ?? null,
             families: gate.sceneCapabilities.families,
-          })),
+          }), undefined, phase),
           planScene: (gate, planningTurnPlan, run) => {
             const { diagramExampleIds: pickedIds = [], ...plannerRequest } = gate.request;
             return planSceneDocumentWithRepair(

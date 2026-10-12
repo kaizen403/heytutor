@@ -166,6 +166,7 @@ export function useTurnControl(
   const activeResumeRef = useRef<(ActiveResume & { attempt: object }) | null>(null);
   /** Resets on any segment that completes; see turnFailurePolicy. */
   const consecutiveSegmentFailuresRef = useRef(0);
+  const segmentFailureGenerationRef = useRef(turnGenerationRef.current);
 
   const finishLectureUi = useCallback((turnGeneration?: number) => {
     if (
@@ -259,6 +260,10 @@ export function useTurnControl(
           }
           return;
         }
+        if (segmentFailureGenerationRef.current !== turnGeneration) {
+          segmentFailureGenerationRef.current = turnGeneration;
+          consecutiveSegmentFailuresRef.current = 0;
+        }
 
         try {
           await runSegment(
@@ -267,8 +272,11 @@ export function useTurnControl(
             collectedSegmentsRef.current,
             turnGeneration,
           );
-          consecutiveSegmentFailuresRef.current = 0;
+          if (counted()) consecutiveSegmentFailuresRef.current = 0;
         } catch (error) {
+          // Old async speech/draw cleanup cannot change a successor's failure
+          // history or publish an error against the replacement turn.
+          if (!counted() || cancelRef.current) return;
           consecutiveSegmentFailuresRef.current += 1;
           console.error(`Segment ${index} failed:`, error);
           tutorDebug("segment", "segment failed", {
