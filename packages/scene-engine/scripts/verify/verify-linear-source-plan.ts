@@ -93,7 +93,7 @@ accepted(optimalQuestion, [["Z", 21], ["x", 5], ["y", 3]], "Exact optimal face i
 refused(optimalQuestion, [["Z", 21], ["x", 999], ["y", 3]], "Correct objective cannot authorize a stale optimal coordinate");
 refused(optimalQuestion, [["x", 999]], "Optimal coordinate id cannot hide behind an unrelated symbol", candidate => { candidate.derived[0]!.symbol = "answer"; });
 refused(optimalQuestion, [["x", 3]], "Swapping optimal x/y roles cannot reuse the same unknown id", candidate => { candidate.derived[0]!.symbol = "y"; });
-refused(question, [["Z", 21], ["x", 5]], "Unrequested bare x does not guess a corner or optimum role");
+accepted(question, [["Z", 21], ["x", 5]], "Unrequested bare x has no native optimum role to veto");
 refused(optimalQuestion.replace("Z=3x+2y", "Z=x+y"), [["Z", 8], ["x", 5]], "An optimal edge has no globally unique x/y scalar");
 refused(optimalQuestion.replace("x+y<=8", "x+y<8").replace("x<=5", "x<5"), [["Z", 21], ["x", 5]], "An unattained finite limit does not authorize an optimal point");
 const sys07 = "The lines 2x - y = 5 and -3x + 2y = -4 meet at P. Graph both lines, label P, and find its x-coordinate.";

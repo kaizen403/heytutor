@@ -28,6 +28,8 @@ for (const [symbol, value] of [["Z", 999], ["x", 999], ["y", 999]] as Array<[str
   assert(validateLinearSourcePlan(lp, plan(lp, [[symbol, value]])).some(issue => issue.severity === "fatal")); checks++;
 }
 assert.deepEqual(validateLinearSourcePlan(lp, plan(lp, [["Z", 21], ["x", 5], ["y", 3]])), []); checks++;
+const regionOnly = "Maximize Z=3x+2y subject to x>=0,y>=0,x+y<=8,x<=5. Show feasible region.";
+assert.deepEqual(validateLinearSourcePlan(regionOnly, plan(regionOnly, [["Z", 21], ["x", 5], ["y", 3]])), [], "Bare intermediate coordinates without an optimal-point request have no source role to veto"); checks++;
 const unsupported = plan(lp, [["perimeter", 20]]);
 assert.deepEqual(validateLinearSourcePlan(lp, unsupported), [], "No native perimeter role means existing planner/solver checks own it"); checks++;
 const renamed = plan(lp, [["Z", 21]]); renamed.derived[0]!.symbol = "unrelated";

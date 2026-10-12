@@ -25,6 +25,16 @@ assert.match(liveSceneSaveFailure({ question, turnPlan: stale, document: selecte
 const changed = structuredClone(selected.sceneDocument);
 changed.constructions[0]!.inputs.equations = ["2x+y=8", "x-y=2"];
 assert.equal(selectProductionScene({ question, turnPlan: plan, candidate: changed as unknown as Record<string, unknown>, problemIR: null }).candidateValidation?.valid, false); checks++;
+const regionOnly = "Maximize Z=3x+2y subject to x>=0,y>=0,x+y<=8,x<=5. Show feasible region.";
+const lpPlan = { ...createFallbackTurnPlanV3(regionOnly), visualRequirement: "required" as const,
+  unknowns: [{ id: "z", symbol: "Z" }], derived: [
+    { id: "z", symbol: "Z", value: 21, provenance: "derived" as const },
+    { id: "intermediate_x", symbol: "x", value: 5, provenance: "derived" as const },
+    { id: "intermediate_y", symbol: "y", value: 3, provenance: "derived" as const },
+  ] };
+const region = selectVerifiedRepresentation({ question: regionOnly, turnPlan: lpPlan });
+assert.equal(region.figureSource, "linear_source", "Correct intermediate coordinates cannot veto a region-only request"); checks++;
+assert.equal(liveSceneSaveFailure({ question: regionOnly, turnPlan: lpPlan, document: region.sceneDocument, tier: region.tier }), null); checks++;
 for (const source of [
   "Find the angle between the lines x-y=0 and x+y=0.",
   "Find the distance between the parallel lines 3x+4y=7 and 3x+4y=12.",

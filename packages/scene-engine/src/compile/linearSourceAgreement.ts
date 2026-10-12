@@ -51,9 +51,13 @@ function numericAgreement(value: number, exact: ExactRational): boolean {
   return Math.abs(value - expected) <= 64 * Number.EPSILON * Math.max(Math.abs(expected), Math.abs(value));
 }
 
+function requestsOptimalPoint(question: string): boolean {
+  return /\b(?:find|determine|calculate|give|state|report|mark|show)\s+(?:(?:the|an)\s+)?(?:optimal|maximizing|minimizing)\s+(?:point|solution|coordinates?|values?)\b/i.test(question);
+}
+
 /** A finite limit/optimal edge cannot authorize one arbitrary x/y point. */
 function requestedUniqueOptimum(question: string, constraints: string[], expression: string, solution: FeasibleRegionSolution, explicitRole = false): { x: ExactRational; y: ExactRational } | null {
-  if (!explicitRole && !/\b(?:find|determine|calculate|give|state|report|mark|show)\s+(?:(?:the|an)\s+)?(?:optimal|maximizing|minimizing)\s+(?:point|solution|coordinates?|values?)\b/i.test(question)) return null;
+  if (!explicitRole && !requestsOptimalPoint(question)) return null;
   if (/\b[xy][- ]coordinates?\b|\b(?:twice|square|negative|centimeters?|metres?|meters?)\b/i.test(question)) return null;
   const extremum = solution.objective?.extremum;
   if (!extremum || extremum.status !== "attained") return null;
@@ -243,6 +247,9 @@ export function validateLinearSourcePlan(question: string, rawPlan: unknown): Sc
         const explicit = /^(?:optimal([xy])|([xy])at(optimum|maximum|minimum)|([xy])\*|(maximizing|minimizing)([xy]))$/i.exec(symbol);
         const variable = (direct?.[1] ?? explicit?.[1] ?? explicit?.[2] ?? explicit?.[4] ?? explicit?.[6]) as "x" | "y" | undefined;
         if (!variable) return null;
+        // Bare x/y can be intermediate graph coordinates. An absent point
+        // request supplies no optimum role and no contradiction to veto.
+        if (direct && !requestsOptimalPoint(question)) return null;
         const coordinateSense = semanticSense(explicit?.[3] ?? "") ?? (explicit?.[5]?.toLowerCase() === "maximizing" ? "max" : explicit?.[5]?.toLowerCase() === "minimizing" ? "min" : null);
         return { key: `optimal_coordinate:${variable}`, exact: coordinateSense && coordinateSense !== objective.sense ? null : (explicit ? explicitOptimum : optimum)?.[variable] ?? null };
       };
