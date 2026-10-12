@@ -781,7 +781,7 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
   }
   // Inventory the original change owner before any successful scalar match.
   // Unread or damaged times/fold material cannot disappear behind a pair.
-  const timesPattern = /\b(?:rate constant|rate)\b([^.;?\n]{0,80}?)\b(?:times|fold)\b/gid;
+  const timesPattern = /\b(?:rate constant|rate)\b((?:(?![;?\n]|\.(?=\s|$))[\s\S]){0,80}?)(?:times|fold)/gid;
   for (const times of stem.matchAll(timesPattern)) {
     const payload = times.indices![1]!;
     const prefix = /^\s*(?:of\s+(?:(?:the|a|this)\s+)?reaction\s*)?(?:(?:becomes?|increases?|decreases?|changes?)(?:\s+by)?\s+)?/i.exec(stem.slice(payload[0],payload[1]))!;
