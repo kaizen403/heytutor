@@ -19,7 +19,8 @@ import { compileSceneDocument, validateSceneDocument } from "../../src";
 
 const DEG = Math.PI / 180;
 const REFLECTED_DEGREES = 65;
-const CANVAS = { width: 1200, height: 700 };
+// The compiler's default diagram view (compiler.ts `compileSceneDocument`); clipped rays end inside it.
+const VIEW = { left: 410, top: 55, right: 410 + 740, bottom: 55 + 555 };
 const failures: string[] = [];
 
 function mirrorScene(incidentLength: number) {
@@ -83,7 +84,7 @@ for (const incidentLength of [0.5, 1, 4.7, 20, 100]) {
     continue;
   }
   const [start, end] = [ray.points[0]!, ray.points[1]!];
-  if (!(end.x >= 0 && end.x <= CANVAS.width && end.y >= 0 && end.y <= CANVAS.height)) {
+  if (!(end.x >= VIEW.left - 0.5 && end.x <= VIEW.right + 0.5 && end.y >= VIEW.top - 0.5 && end.y <= VIEW.bottom + 0.5)) {
     failures.push(`${id}: reflected ray ends off the board at (${end.x}, ${end.y})`);
   }
   // Screen y grows downward; the world angle is measured with y up.

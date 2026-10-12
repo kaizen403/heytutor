@@ -55,7 +55,7 @@ class Canvas {
   }
 }
 
-async function exportPage(turns: StoredTurn[], cancelAtMark = false) {
+async function exportPage(turns: StoredTurn[], cancelAtMark = false, throughDownloadHook = false) {
   const board = mountTestWhiteboard();
   const clock = createVirtualWhiteboardClock();
   const diagramRef = ref<VerifiedDiagram | null>(null);
@@ -97,7 +97,36 @@ async function exportPage(turns: StoredTurn[], cancelAtMark = false) {
   new vm.Script(transpiled).runInContext(context);
   let result: { tailTruncated: boolean } | null = null, failure: unknown;
   try {
-    result = await exportModule.exports.exportLectureMp4({
+    const captureBoard = { ...board, captureFrame: () => { const canvas = new Canvas(); canvas.ink = ink(board); return canvas; } };
+    const profile = { container: "mp4", videoCodec: "avc", audioCodec: "pcm-s16", mimeType: "video/mp4", extension: "mp4" };
+    if (throughDownloadHook) {
+      const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+      Object.defineProperty(globalThis, "window", { configurable: true, value: { setTimeout, clearTimeout, setInterval, clearInterval, requestAnimationFrame: (fn: () => void) => setTimeout(fn, 0) } });
+      let downloaded!: () => void;
+      const done = new Promise<void>(resolve => { downloaded = resolve; });
+      try {
+        const api = hook(path.join(hooks, "useLectureExport.ts"), {
+          "@/lib/lecture-export/exportLectureMp4": {
+            supportsLectureMp4Encode: async () => true,
+            // The real Download hook calls the real exporter. Only the codec
+            // profile and capture adapter are deterministic; callback and
+            // layout reset wiring cannot be supplied by this test wrapper.
+            exportLectureMp4: async (options: Record<string, unknown>) => {
+              result = await exportModule.exports.exportLectureMp4({ ...options, profile, tailLimitMs: 8_000 });
+              return result;
+            },
+          },
+          "@/lib/lecture-export/lectureExportCache": { getCachedLectureExport: async () => null, rememberLectureExport: () => {} },
+          "@/lib/lecture-export/downloadBlob": { downloadBlob: downloaded },
+          "@/lib/client/exportNotesPdf": { notesPdfBlob: () => { throw new Error("Video gate never requests PDF"); } },
+        }).useLectureExport({ storedTurnsRef: ref(turns), storedTurnsCount: turns.length, phase: "idle", sessionId: "real-export-hook-gate" });
+        api.exportBoardRef.current = captureBoard;
+        api.downloadVideo();
+        await Promise.race([done, new Promise((_, reject) => setTimeout(() => reject(new Error("real Download hook/exporter did not finish")), 8_000))]);
+      } finally {
+        if (previousWindow) Object.defineProperty(globalThis, "window", previousWindow); else Reflect.deleteProperty(globalThis, "window");
+      }
+    } else result = await exportModule.exports.exportLectureMp4({
       turn: turns.at(-1), pageTurns: turns, whiteboard: { ...board, captureFrame: () => { const canvas = new Canvas(); canvas.ink = ink(board); return canvas; } },
       executeCommand: execute, clock, shouldCancel: () => cancelRef.current, resetBoardLayout: layout.resetBoardLayout,
       onTurnStart: (_turn: StoredTurn, diagram: VerifiedDiagram | null) => { diagramRef.current = diagram; fbdStarted.current = Boolean(diagram); },
@@ -106,20 +135,36 @@ async function exportPage(turns: StoredTurn[], cancelAtMark = false) {
     // Independent oracle: full compiler ink for completed pages, recorded intro
     // ink for partial pages, and the retained narrated work. No completion helper.
     await board.clearBoard(); layout.resetBoardLayout(false, false);
+    board.setTimeSource(clock.source);
+    const oracleCommand = async (command: DrawCommand, options: Record<string, unknown>) => {
+      // The native Download executor animates FOCUS while the standalone
+      // adapter uses instant FOCUS. Preserve that native annotation ink style
+      // in the independent oracle rather than deleting style from comparison.
+      let done = false;
+      const drawing = executor.executeCommand(command, { ...options, durationScale: throughDownloadHook && command.type === "FOCUS" ? 1 : 0 }) as Promise<void>;
+      void drawing.finally(() => { done = true; });
+      for (let index = 0; !done && index < 100; index++) { clock.advance(1_000); clock.pump(); await new Promise<void>(resolve => setImmediate(resolve)); }
+      assert(done, "independent native oracle completes its retained ink");
+      await drawing;
+    };
     let previous: StoredTurn | undefined;
     for (const turn of turns) {
       if (previous && !storedTurnContinuesBoard(turn)) { await board.clearBoard(); layout.resetBoardLayout(false, false); }
       if (!storedTurnContinuesBoard(turn)) {
         const diagram = restoreVerifiedDiagramFromTurn(turn);
+        // The independent oracle owns a fresh restored figure. Export FOCUS
+        // has consumed its runtime's deferred list; never reuse that state.
+        diagramRef.current = turn.visualStatus === "validated" ? diagram : null;
+        fbdStarted.current = Boolean(diagramRef.current);
         const completed = turn.status !== "live" && turn.status !== "stopped";
         if (diagram && turn.visualStatus === "validated") {
           for (const command of completed ? diagram.commands.map(verifiedDiagramCommandToDrawCommand) : turn.segments.flatMap(segment => parseStoredSegmentCommands(segment.command)).filter(command => command.type !== "WRITE")) {
-            await executor.executeCommand(command, { durationScale: 0, trustedDiagramGeometry: true, applyLayout: false });
+            await oracleCommand(command, { trustedDiagramGeometry: true, applyLayout: false });
           }
         }
       }
       for (const command of turn.segments.flatMap(segment => parseStoredSegmentCommands(segment.command)).filter(command => command.type === "WRITE")) {
-        await executor.executeCommand(command, { durationScale: 0, applyLayout: false });
+        await oracleCommand(command, { applyLayout: false });
       }
       previous = turn;
     }
@@ -177,6 +222,21 @@ async function main() {
   };
   const complete = measuredLesson();
   assert.equal(lecturePageCacheKey([complete]).endsWith("@video5"), false, "previous videos missing completed figure marks must be invalidated");
+  const focusedPartial: StoredTurn = {
+    ...complete, id: "stopped-focused-measurement", status: "stopped",
+    segments: [
+      ...complete.segments.slice(0, -1),
+      { ...complete.segments.at(-1)!, id: "retained-focus", orderIndex: complete.segments.length - 1,
+        command: { type: "FOCUS", text: "length", params: [], charPosition: 0, narrationBefore: "", semanticRef: { entityId: "length" } } },
+      { ...complete.segments.at(-1)!, orderIndex: complete.segments.length },
+    ],
+  };
+  const focused = await exportPage([focusedPartial]);
+  success(focused);
+  assert.deepEqual(focused.finalInk, focused.expected, "real exporter publishes its diagram before retained FOCUS marks in a stopped lesson");
+  assert(focused.commands.includes("length"), "stopped fixture actually dispatches recorded FOCUS");
+
+
   const full = await exportPage([complete]);
   success(full);
   assert.equal(full.failure, undefined);
@@ -195,12 +255,20 @@ async function main() {
     assert.equal(local.failure, undefined);
     assert.deepEqual(local.finalInk, saved.finalInk, `${status} in-tab snapshot must preserve partial completion authority`);
   }
+
   const later = { ...measuredLesson("second", false), orderIndex: 1 };
   const pages = await exportPage([complete, later]);
   const last = await exportPage([later]);
   success(pages); success(last);
   assert.equal(pages.failure, undefined); assert.equal(last.failure, undefined);
   assert.deepEqual(pages.finalInk, last.finalInk, "new question without stored CLEAR resets export page and its verified figure");
+  const hookPages = await exportPage([complete, later], false, true);
+  success(hookPages);
+  assert.deepEqual(hookPages.finalInk, last.finalInk, "real Download hook passes layout reset through the real exporter for independent page work rows");
+  const hookFocused = await exportPage([focusedPartial], false, true);
+  success(hookFocused);
+  assert.deepEqual(hookFocused.finalInk, hookFocused.expected, "real Download hook and exporter preserve the stopped student's native FOCUS marks");
+
   const doubt: StoredTurn = { ...complete, id: "doubt", orderIndex: 1, kind: "doubt", sceneDocument: null, visualStatus: "text_only",
     sceneArtifacts: boardContinuationArtifacts(complete.question), segments: [{ ...complete.segments.at(-1)!, id: "doubt-row", command: { type: "WRITE", params: [30, 180, 24], text: "d = L", charPosition: 0, narrationBefore: "" } }] };
   const continued = await exportPage([complete, doubt]);
@@ -236,6 +304,6 @@ async function main() {
   assert.equal((cancelled.failure as { name: string }).name, "AbortError");
   assert.equal(cancelled.finalized, 0, "cancellation during final figure completion never publishes a completed video");
   await exportHookKeepsVerifiedDiagram();
-  console.log("verify-lecture-export-diagram: 14 actual export groups (full figure/work, saved and local partials, pages, doubts, resumes, source validation, cancellation, Download hook FOCUS)");
+  console.log("verify-lecture-export-diagram: 17 actual export groups (full figure/work, saved and local partials, pages, doubts, resumes, source validation, cancellation, Download hook FOCUS and real exporter/layout wiring)");
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

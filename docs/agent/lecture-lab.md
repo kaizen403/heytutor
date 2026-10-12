@@ -271,10 +271,10 @@ classified as unknown or non-maths stay current, recorded in
 `--production-strict-subjects maths,physics` puts physics on the same strict
 path (a candidate production setting); `maths` keeps physics on the current
 production path. The list is recorded in the run's execution config.
-Like the live client, the picker request carries the classified subject, so the
-server's catalogue holds only that subject's library entries and an ID of
-another subject is never admitted. A turn classified `other` (and an old client
-that sends no subject) sees the whole library, as every turn did before.
+Like the live client, the picker request carries the classified subject. Physics
+and chemistry turns see only their own subject's examples, and IDs from another
+subject are never admitted for those turns. Maths keeps the whole library, as do
+turns classified `other` and old clients that send no subject.
 Picked IDs must also survive the lab's full-sample exemplar exclusions. The
 picker is pinned to the configured lab origin's `/api/chat`, even if a public
 API origin is set, so it cannot bypass authentication or hard-cap accounting.

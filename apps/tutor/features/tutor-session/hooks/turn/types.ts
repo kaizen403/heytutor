@@ -41,6 +41,8 @@ export type ExecuteCommandOptions = {
   /** Explicit metadata owner for atomic scene-intro commands. */
   introLayoutCheckpoint?: IntroLayoutCheckpoint;
   durationScale?: number;
+  /** Finish committed intro marks without changing their normal label instrument. */
+  finishVerifiedDiagramIntro?: boolean;
   speechDurationMs?: number;
   /** This command's slice of the segment's spoken time. */
   speechShareMs?: number;
@@ -48,6 +50,8 @@ export type ExecuteCommandOptions = {
     charStartOffsetsMs: number[];
     charDurationsMs: number[];
     getAudioPositionMs: () => number;
+    /** Live segment playback ownership; keeps a positive buffered clock authoritative. */
+    isAudioActive?: () => boolean;
     /** Media ms per wall ms, so a glyph's spoken slot is drawn in wall time. */
     getPlaybackRate?: () => number;
     onCharacterStart?: (info: {
@@ -317,7 +321,7 @@ export type TurnControlApi = {
    * opened board; a no-op while a turn or a replay owns the board, so call it
    * again when that ends. Returns what is offered.
    */
-  restorePausedLesson: (turns: readonly StoredTurn[]) => Promise<PausedLessonRequest | null>;
+  restorePausedLesson: (turns: readonly StoredTurn[], refreshVisible?: boolean) => Promise<PausedLessonRequest | null>;
   /**
    * `options.prompt` carries an already-composed, board-grounded doubt and
    * `options.title` what it is saved under.

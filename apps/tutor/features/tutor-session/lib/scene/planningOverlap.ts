@@ -129,7 +129,7 @@ export interface ScenePlanningOverlapInput<A, G extends SceneGateCore, F, R exte
   fastFigureBlocked(authority: A | null): boolean;
   /** A stored verified scene, validated against the final plan. */
   recover?(gate: G, plan: TurnPlanV3): R | null;
-  selectFast(plan: TurnPlanV3, authority: A | null, gate: G): F | null;
+  selectFast(plan: TurnPlanV3, authority: A | null, gate: G, phase: "prediction" | "selection"): F | null;
   /**
    * One planSceneDocumentWithRepair run whose validator is bound to `plan`.
    * A speculative run passes `holdValidationUntil`: it fetches initial
@@ -384,7 +384,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
       const plannerFirst = selectionOrderFor(gate) === "planner_first";
       const budgetMs = remainingMs();
       const eligible = gate.shouldPlanExactScene && gate.shouldAttemptLlmScene && budgetMs > 0;
-      const deterministicPredicted = !plannerFirst && eligible && input.selectFast(input.turnPlan, null, gate) !== null;
+      const deterministicPredicted = !plannerFirst && eligible && input.selectFast(input.turnPlan, null, gate, "prediction") !== null;
       if (shouldStartSpeculativeScene({
         speculationAllowed: input.speculationAllowed,
         authorityPending,
@@ -422,7 +422,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
       deterministicAttempted = true;
       const span = input.telemetry?.span("deterministic-figure", parent);
       const fastStartedAt = now();
-      fast = input.selectFast(turnPlan, authority, gate);
+      fast = input.selectFast(turnPlan, authority, gate, "selection");
       timings.deterministicFigureMs = now() - fastStartedAt;
       span?.end({ selected: fast !== null });
     }

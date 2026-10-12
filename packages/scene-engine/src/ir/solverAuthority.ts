@@ -328,6 +328,15 @@ export function reconcileTurnPlanWithSolver(
   return changed ? { ...plan, derived } : plan;
 }
 
+/**
+ * Existing auditor spelling compatibility only, not permission to bind a value.
+ * Callers must independently enforce semantic identity, source, unit and value
+ * authority. Keep this projection tied to the unchanged auditor comparison.
+ */
+export function solverAuthoritySymbolsAgree(first: string, second: string): boolean {
+  return normalizeSymbol(first) === normalizeSymbol(second);
+}
+
 function normalizeSymbol(value: string): string {
   return value
     .normalize("NFKC")
