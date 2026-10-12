@@ -45,7 +45,9 @@ for (const [index, wording] of electrodeWordings.entries()) check(`electrode-own
   assert.equal(spec.anode.potentialSource, "stem"); assert.equal(spec.cathode.potentialSource, "stem");
   assert.equal(spec.statedE, undefined, "electrode potential is not observed emf");
   near(cellEmf(spec)?.e0, 1.2);
-  assert.ok(Math.abs(cellEmf(spec)!.e - 1.17045) <= .000051, "existing four-decimal emf precision");
+  const computedEmf = cellEmf(spec)?.e;
+  assert.ok(typeof computedEmf === "number" && Number.isFinite(computedEmf), "finite computed emf required");
+  assert.ok(Math.abs(computedEmf - 1.17045) <= .000051, "existing four-decimal emf precision");
   for (const half of [spec.anode, spec.cathode]) {
     assert.ok(half.potentialSourceSpan);
     assert.equal(question.slice(half.potentialSourceSpan.start, half.potentialSourceSpan.end), half.potentialSourceText);
