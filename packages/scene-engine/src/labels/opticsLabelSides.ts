@@ -10,9 +10,11 @@
  *
  * R2b: a label on a light path that starts or ends at a refraction or
  * reflection contact stays on that path's side of the interface.
+ * R2c: a label on a refraction whose quantityId, or leading symbol, is the
+ * refraction's n1 or n2 input sits on the incident or transmitted side.
  */
 
-import type { RenderPoint, SceneDocument } from "../types";
+import type { RenderPoint, SceneAnnotation, SceneDocument } from "../types";
 import type { LabelEngineResult, LabelOwner, LabelSideRegion } from "./labelEngine";
 
 interface Point { x: number; y: number }
@@ -27,7 +29,12 @@ interface LightEvent {
   incidentPathId: string | null;
   outgoingPathId: string | null;
   normalId: string | null;
+  /** Refractive index inputs, as written: a quantity ID or a literal. */
+  n1: unknown;
+  n2: unknown;
 }
+
+type RefractionSide = "incident" | "transmitted";
 
 /** Screen distance from the contact at which a path's side is sampled. */
 const SIDE_PROBE_PX = 4;
@@ -44,6 +51,9 @@ export function bindOpticsLabelSides(
 ): LabelOwner[] {
   const events = lightEvents(document, geometry);
   if (events.length === 0) return owners;
+  const annotations = new Map(document.annotations
+    .filter((annotation) => annotation.kind === "label" || annotation.kind === "callout")
+    .map((annotation) => [annotation.id, annotation]));
   return owners.map((owner) => {
     const regions: LabelSideRegion[] = [];
     for (const event of events) {
@@ -51,8 +61,66 @@ export function bindOpticsLabelSides(
       const region = pathSideRegion(event, owner.entityId, geometry, transformFor);
       if (region) regions.push(region);
     }
+    const annotation = owner.labelId ? annotations.get(owner.labelId) : undefined;
+    for (const event of annotation ? refractionsOn(owner.entityId, events) : []) {
+      const side = boundIndexSide(annotation!, event, document);
+      const region = side ? sideRegion(event, side, geometry, transformFor) : null;
+      if (region) regions.push(region);
+    }
     return regions.length > 0 ? { ...owner, sideRegions: [...(owner.sideRegions ?? []), ...regions] } : owner;
   });
+}
+
+/** Refractions whose interface, incident path or transmitted path is `entityId`. */
+function refractionsOn(entityId: string, events: LightEvent[]): LightEvent[] {
+  return events.filter((event) => event.mode === "refract" && (
+    entityId === event.surfaceId || entityId === event.incidentPathId || entityId === event.outgoingPathId));
+}
+
+function sideRegion(
+  event: LightEvent,
+  side: RefractionSide,
+  geometry: ReadonlyMap<string, unknown>,
+  transformFor: (entityId: string) => Transform,
+): LabelSideRegion | null {
+  const pathId = side === "incident" ? event.incidentPathId : event.outgoingPathId;
+  return pathId ? pathSideRegion(event, pathId, geometry, transformFor) : null;
+}
+
+/**
+ * The side named by a label bound to the refraction's n1 (incident) or n2
+ * (transmitted) input, through its quantityId or its leading symbol.
+ */
+function boundIndexSide(annotation: SceneAnnotation, event: LightEvent, document: SceneDocument): RefractionSide | null {
+  const symbol = leadingSymbol(annotation.text);
+  const bound = (input: unknown) => {
+    if (typeof input !== "string") return false;
+    if (annotation.quantityId === input) return true;
+    return symbol !== null && quantityKeys(input, document).has(symbol);
+  };
+  const incident = bound(event.n1);
+  const transmitted = bound(event.n2);
+  if (incident === transmitted) return null;
+  return incident ? "incident" : "transmitted";
+}
+
+/** A quantity ID and its declared symbol, normalized for comparison. */
+function quantityKeys(quantityId: string, document: SceneDocument): Set<string> {
+  const keys = new Set([normalizeSymbol(quantityId)]);
+  const quantity = document.quantities.find((candidate) => candidate.id === quantityId);
+  if (typeof quantity?.symbol === "string") keys.add(normalizeSymbol(quantity.symbol));
+  return keys;
+}
+
+/** The symbol a label opens with, when it stands alone or before "=", "≈" or ":". */
+function leadingSymbol(text: string | undefined): string | null {
+  const match = text?.trim().match(/^([^\s=≈:]+)\s*(?:[=≈:]|$)/u);
+  return match ? normalizeSymbol(match[1]!) : null;
+}
+
+/** "n₁", "n_1" and "n1" compare equal; so do "nᵣ" and "nr". */
+function normalizeSymbol(symbol: string): string {
+  return symbol.normalize("NFKC").replace(/[_{}\s]/g, "");
 }
 
 /**
@@ -104,6 +172,8 @@ function lightEvents(document: SceneDocument, geometry: ReadonlyMap<string, unkn
         incidentPathId: outputs[0] ?? null,
         outgoingPathId: outputs[2] ?? null,
         normalId: outputs[1] ?? null,
+        n1: inputs.n1,
+        n2: inputs.n2,
       });
       continue;
     }
@@ -127,6 +197,8 @@ function lightEvents(document: SceneDocument, geometry: ReadonlyMap<string, unkn
         incidentPathId: typeof incoming === "string" && isPath(geometry.get(incoming)) ? incoming : null,
         outgoingPathId: outputs[0] ?? null,
         normalId,
+        n1: inputs.n1,
+        n2: inputs.n2,
       });
     }
   }

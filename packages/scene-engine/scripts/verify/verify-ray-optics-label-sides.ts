@@ -10,6 +10,8 @@
  *   R2b  a label on a light path that starts or ends at a refraction or
  *        reflection contact stays on that path's side; with no slot there
  *        it is dropped, never carried across.
+ *   R2c  a label whose quantityId, or leading symbol, is a refraction's n1
+ *        or n2 input sits on the incident or transmitted side.
  *
  * Each case is a recorded planner document (fixtures/ray-optics-label-sides.json),
  * compiled here. The side is checked against the rendered ink: a label box
@@ -120,6 +122,19 @@ function check(condition: boolean, message: string): void {
   }
 }
 
+// R2c, m1 refraction h8a: "crown glass" is bound to n1, the medium the ray
+// leaves, but sat on the water side of the flat interface.
+{
+  const primitives = compile("flat");
+  if (primitives) {
+    const surface = primitive(primitives, "primitive_interface");
+    const source = primitive(primitives, "primitive_incident").points[0]!;
+    const glass = labelBox(primitives, "glassLabel");
+    check(glass !== null, "flat: the crown glass label was dropped though the glass side has room for it");
+    if (glass) check(onLineSide(glass, surface, source), `flat: "crown glass" (n1) sits on the water side at (${glass.x.toFixed(1)}, ${glass.y.toFixed(1)})`);
+  }
+}
+
 // Negative control, m1 refraction h8u: "air" on the incident ray and "glass"
 // on the refracted ray already sit on their own sides. Neither may move.
 {
@@ -170,4 +185,4 @@ if (failures.length > 0) {
   for (const failure of failures) console.error(`  - ${failure}`);
   process.exit(1);
 }
-console.log("verify-ray-optics-label-sides: ok (R2b sphere and prism on their sides; air/glass pair and plain triangle unmoved)");
+console.log("verify-ray-optics-label-sides: ok (R2b sphere and prism, R2c flat interface on their sides; air/glass pair and plain triangle unmoved)");

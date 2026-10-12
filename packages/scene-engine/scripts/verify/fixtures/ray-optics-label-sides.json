@@ -563,6 +563,232 @@
    ],
    "teachingTimeline": []
   },
+  "flat": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "Recorded m1 refraction_at_surfaces_h8a"
+   },
+   "source": {
+    "question": "A ray travelling in crown glass of refractive index 1.52 mee"
+   },
+   "quantities": [
+    {
+     "id": "n1",
+     "symbol": "n_glass",
+     "value": 1.52
+    },
+    {
+     "id": "n2",
+     "symbol": "n_water",
+     "value": 1.33
+    },
+    {
+     "id": "i",
+     "symbol": "i",
+     "value": 37,
+     "unit": "°"
+    },
+    {
+     "id": "r",
+     "symbol": "r",
+     "value": 43.455311150277296,
+     "unit": "°"
+    },
+    {
+     "id": "d",
+     "symbol": "δ",
+     "value": 6.455311150277296,
+     "unit": "°"
+    }
+   ],
+   "entities": [
+    {
+     "id": "interface",
+     "kind": "line",
+     "role": "interface"
+    },
+    {
+     "id": "contact",
+     "kind": "point",
+     "role": "point of incidence",
+     "label": "P"
+    },
+    {
+     "id": "incident",
+     "kind": "ray",
+     "role": "incident"
+    },
+    {
+     "id": "normal",
+     "kind": "vector",
+     "role": "normal"
+    },
+    {
+     "id": "refracted",
+     "kind": "ray",
+     "role": "refracted"
+    },
+    {
+     "id": "incidenceAngle",
+     "kind": "angle_mark",
+     "role": "angle of incidence",
+     "label": "i"
+    },
+    {
+     "id": "refractionAngle",
+     "kind": "angle_mark",
+     "role": "angle of refraction",
+     "label": "r"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "makeInterface",
+     "operator": "line",
+     "inputs": {
+      "start": "contact",
+      "direction": [
+       1,
+       0
+      ]
+     },
+     "outputs": [
+      "interface"
+     ]
+    },
+    {
+     "id": "placeContact",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "contact"
+     ]
+    },
+    {
+     "id": "refract",
+     "operator": "refract_at",
+     "inputs": {
+      "point": "contact",
+      "surface": "interface",
+      "incidentAngleDeg": "i",
+      "n1": "n1",
+      "n2": "n2",
+      "span": 3
+     },
+     "outputs": [
+      "incident",
+      "normal",
+      "refracted"
+     ]
+    },
+    {
+     "id": "markIncidence",
+     "operator": "angle_mark",
+     "inputs": {
+      "vertex": "contact",
+      "a": "incident",
+      "b": "normal"
+     },
+     "outputs": [
+      "incidenceAngle"
+     ]
+    },
+    {
+     "id": "markRefraction",
+     "operator": "angle_mark",
+     "inputs": {
+      "vertex": "contact",
+      "a": "normal",
+      "b": "refracted"
+     },
+     "outputs": [
+      "refractionAngle"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [],
+   "annotations": [
+    {
+     "id": "glassLabel",
+     "kind": "label",
+     "targetIds": [
+      "interface"
+     ],
+     "text": "crown glass",
+     "placementIntent": "incident side",
+     "quantityId": "n1"
+    },
+    {
+     "id": "waterLabel",
+     "kind": "label",
+     "targetIds": [
+      "interface"
+     ],
+     "text": "water",
+     "placementIntent": "refracted side",
+     "quantityId": "n2"
+    },
+    {
+     "id": "givenAngle",
+     "kind": "callout",
+     "targetIds": [
+      "incidenceAngle"
+     ],
+     "text": "37°",
+     "quantityId": "i"
+    },
+    {
+     "id": "resultAngle",
+     "kind": "callout",
+     "targetIds": [
+      "refractionAngle"
+     ],
+     "text": "≈43.46°",
+     "quantityId": "r"
+    },
+    {
+     "id": "resultDeviation",
+     "kind": "callout",
+     "targetIds": [
+      "refracted"
+     ],
+     "text": "δ ≈ 6.46°",
+     "quantityId": "d"
+    }
+   ],
+   "requiredEntityIds": [
+    "interface",
+    "contact",
+    "incident",
+    "normal",
+    "refracted",
+    "incidenceAngle",
+    "refractionAngle"
+   ],
+   "revealGroups": [
+    {
+     "id": "setup",
+     "entityIds": [
+      "interface",
+      "contact",
+      "incident",
+      "normal",
+      "refracted",
+      "incidenceAngle",
+      "refractionAngle"
+     ],
+     "dependsOn": [],
+     "narrationCue": "setup"
+    }
+   ],
+   "teachingTimeline": []
+  },
   "pair": {
    "schemaVersion": "scene-document/v2",
    "visualDecision": {
