@@ -363,11 +363,31 @@ function readHalfLife(stem: string): Reading | null {
 /** Words ignore case, but the rate symbol k differs from equilibrium K. */
 const caseWord = (word: string): string => word.replace(/[a-z]/g, letter => `[${letter}${letter.toUpperCase()}]`);
 const RATE_CUE = new RegExp(String.raw`(?:${caseWord("rate constant")}|(?<!\b(?:${caseWord("ln")}|${caseWord("log")})\s*)\bk\b)(?:\s*,?\s*\(?k\)?)?\s*(?:${caseWord("for")}|${caseWord("of")})?\s*(?:${caseWord("the ")}|${caseWord("this ")}|${caseWord("a ")})?(?:${caseWord("reaction")}|${caseWord("it")})?`);
+/** A use-reference carries no scalar, assignment or unread input material. */
+function quantityUseReferenceOnly(body: string, ownerStart: number, tail: string): boolean {
+  return /\buse\s+(?:(?:the|its|a)\s+)?$/i.test(body.slice(0, ownerStart))
+    && /^\s+to\s+(?:draw|plot|sketch)\s+(?:[A-Za-z]+\s*)+$/i.test(tail)
+    && !/\b(?:unknown|unreadable|unavailable|given|supplied|provided|value|is|was|equals|has|takes)\b/i.test(tail);
+}
+/** A qualitative rate change contains only its complete thermal payload. */
+function qualitativeRateChangeOnly(question: string, start: number, end: number): boolean {
+  const tail = question.slice(start, end);
+  const change = String.raw`(?:(?:is|was|becomes|become)\s+)?(?:doubl\w*|tripl\w*|quadrupl\w*|halved|twice(?:\s+(?:its|the)\s+value)?)`;
+  if (!new RegExp(String.raw`^\s*${change}(?:\s+(?:when|as|on|from)\b[\s\S]*)?\s*$`, "i").test(tail)) return false;
+  const thermal = findChemistryQuantities({question, within:{start,end}, dimension:"temperature"});
+  if (!thermal.ok) return false;
+  let words = tail;
+  for (const reading of [...thermal.reading].sort((a,b)=>b.source.span.start-a.source.span.start)) {
+    words = words.slice(0, reading.source.span.start-start) + " " + words.slice(reading.source.span.end-start);
+  }
+  return new RegExp(String.raw`^\s*${change}(?:\s+(?:when|as|on|from|the|a|its|temperature|temperatures|is|was|are|raised|rises|rise|increased|increases|increase|by|to|at|and))*\s*$`, "i").test(words);
+}
 /** Each supplied rate owns its original literal; absence and unread are distinct. */
 function readRateConstant(stem: string, order: ReactionOrder | null = 1): { value: number; unit: string | null } | null | false {
   const body = questionBody(stem);
   const dimension = order === 0 ? "rate_constant_zero" : order === 2 ? "rate_constant_second" : "rate_constant_first";
   const owners = [...body.matchAll(new RegExp(RATE_CUE.source, RATE_CUE.flags + "g"))];
+  const equation = readChemistryArrheniusEquation(stem);
   let reading: ChemistryReading | null = null;
   for (const [index, owner] of owners.entries()) {
     let start = owner.index! + owner[0].length;
@@ -382,6 +402,12 @@ function readRateConstant(stem: string, order: ReactionOrder | null = 1): { valu
     // "The rate constant ... is k = ..." names one value, not two givens.
     if (next && end === next.index && /rate constant/i.test(owner[0])
       && /^k\b/.test(next[0]) && /^\s*(?:(?:is|was|equals|equal to)|[=:])?\s*$/i.test(tail)) continue;
+    // Only this owner may supply the already validated complete Arrhenius
+    // expression. Other unread k declarations remain independently audited.
+    if (equation.ok && /^k\b/.test(owner[0]) && equation.reading.source.span.start >= start
+      && /^\s*=\s*A\s*$/i.test(body.slice(start, equation.reading.source.span.start))
+      && body.slice(equation.reading.source.span.end, end).trim() === "") continue;
+    if (qualitativeRateChangeOnly(stem, start, end) || quantityUseReferenceOnly(body, owner.index!, tail)) continue;
     const supplied = /^\s*,?\s*(?:[=:]|(?:is|was|are|equals|equal to|has|takes|value|given|stated|measured|assumed|supplied|provided|with\s+(?:the\s+)?value|unknown|unreadable|unavailable)\b)/i.test(tail)
       || new RegExp(String.raw`^\s*,?\s*(?:(?:of|about|nearly|approximately)\s+)?(?:${SCALAR}|unknown\b|unreadable\b|unavailable\b)`, "i").test(tail);
     if (!supplied) {
@@ -390,9 +416,9 @@ function readRateConstant(stem: string, order: ReactionOrder | null = 1): { valu
       const unread = /\b(?:unknown|unreadable|unavailable|not known|not given|not supplied)\b/i.test(tail);
       const requested = /\b(?:find|calculate|determine|compute|obtain|evaluate|what\s+(?:is|would\s+be|will\s+be))\s+(?:(?:the|its|a)\s+)?$/i.test(body.slice(0, owner.index));
       const requestTail = /^\s*(?:and\s+(?:draw|plot|sketch)\b[^;?\n]*)?$/i.test(tail);
-      const qualitative = /^\s*(?:doubl\w*|tripl\w*|quadrupl\w*|halved)\b/i.test(tail);
-      const coefficient = /^\s*\[[A-Za-z][A-Za-z0-9]*\](?:\s*\^\s*[0-9]+)?\s*$/.test(tail);
-      if (!unread && ((requested && requestTail) || qualitative || coefficient)) continue;
+      const coefficient = /^\s*\[[A-Za-z][A-Za-z0-9]*\](?:\s*\^\s*[0-9]+)?(?:\s*,?\s*(?:and\s+)?(?:draw|plot|sketch)\s+(?:[A-Za-z]+\s*)+)?\s*$/.test(tail)
+        && !/\b(?:unknown|unreadable|unavailable|given|supplied|provided|value|is|was|equals|has|takes)\b/i.test(tail);
+      if (!unread && ((requested && requestTail) || coefficient)) continue;
       return false;
     }
     const read = readChemistryQuantity({question: stem, after: /^/, within: {start, end}, dimension});
@@ -419,11 +445,17 @@ function readInitialConcentration(stem: string): {value: number; unit: string} |
     const clause = /[;?\n]|\.(?=\s|$)/.exec(body.slice(start, end));
     if (clause) end = start + clause.index;
     const tail = body.slice(start, end);
-    // A denominator reference in [A]/[A]_0 is not a supplied A_0 value.
-    if (/^\[a\]/i.test(owner[0]) && (/\/\s*$/.test(body.slice(0, owner.index))
-      || /^\s*\/\s*\[a\]/i.test(tail))) continue;
+    // Complete numerator/denominator math references supply no initial value;
+    // an assignment or unread payload after that reference still must refuse.
+    const numerator = /^\s*\/\s*(?:\[a\]|a\b)/i.exec(tail);
+    const reference = /^(?:\[a\]|a_?0\b)/i.test(owner[0])
+      && (/\/\s*$/.test(body.slice(0, owner.index)) || numerator !== null);
+    const referenceTail = numerator ? tail.slice(numerator[0].length) : tail;
+    if (reference && !/^\s*\)?\s*,?\s*(?:[=:]|(?:is|was|unknown|unreadable|unavailable|given|supplied|provided|value)\b)/i.test(referenceTail)) continue;
     if (next && end === next.index && /concentration/i.test(owner[0])
-      && /^(?:\[a\]|a_?0\b)/i.test(next[0]) && /^\s*(?:(?:is|was|equals|equal to)|[=:])?\s*$/i.test(tail)) continue;
+      && /^(?:\[a\]|a_?0\b)/i.test(next[0]) && !/^\s*\//.test(body.slice(next.index! + next[0].length))
+      && /^\s*(?:(?:is|was|equals|equal to)|[=:])?\s*$/i.test(tail)) continue;
+    if (quantityUseReferenceOnly(body, owner.index!, tail)) continue;
     const requested = /\b(?:find|calculate|determine|compute|obtain|evaluate|what\s+(?:is|would\s+be|will\s+be))\s+(?:(?:the|its|a)\s+)?$/i.test(body.slice(0, owner.index));
     if (requested && /^\s*(?:and\s+(?:draw|plot|sketch)\b[^;?\n]*)?$/i.test(tail)
       && !/\b(?:unknown|unreadable|unavailable|given|supplied|provided)\b/i.test(tail)) continue;
