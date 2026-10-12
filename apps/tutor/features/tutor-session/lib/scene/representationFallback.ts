@@ -191,12 +191,6 @@ export function selectVerifiedRepresentation(
   }
   const linearConflict = linearSourcePlanConflict(input.question, input.turnPlan);
   if (linearConflict) return { ...buildTextOnlySelected(input.question), reason: linearConflict };
-  // The source reader supplies a complete affine program, including original
-  // reference points, rather than inheriting a generic candidate's partial
-  // graph or repairing any rejected marks. Normal compilation proves every
-  // boundary, corner, objective and membership before this path can win.
-  const linear = compileLinearSourceRepresentation(input.question);
-  if (linear) return linear;
   const currentCompile = input.exact
     ? compileUsableExactRepresentation(input.exact, input.question, input.problemIR)
     : null;
@@ -268,6 +262,12 @@ export function selectVerifiedRepresentation(
       };
     }
   }
+
+  // A source reader is a fallback after an admissible planner scene. It must
+  // certify the complete supported request, independently of any rejected
+  // marks; it cannot replace a richer verified line-geometry answer.
+  const linear = compileLinearSourceRepresentation(input.question);
+  if (linear) return linear;
 
   // A complete matrix source program is drawn by the engine from the question
   // when no planner candidate survived. The builder applies the same source

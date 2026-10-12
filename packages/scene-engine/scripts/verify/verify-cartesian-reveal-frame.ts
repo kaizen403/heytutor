@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { compileSceneDocument, type RenderPrimitive, type SceneDocument } from "../../src/index";
 
-// Reveals are time steps, not independent coordinate frames. Each expected
+// Explicit axes ownership persists across time-step reveal groups. Each expected
 // screen point below is computed from rendered axis endpoints and source math.
 function documentFor(expression: string, intercept: number): SceneDocument {
   return {
@@ -11,7 +11,7 @@ function documentFor(expression: string, intercept: number): SceneDocument {
     entities: [{ id: "axes", kind: "axes", role: "Cartesian axes" }, { id: "curve", kind: "polyline", role: "curve", label: "y" }],
     constructions: [
       { id: "frame", operator: "axes", inputs: { xMin: -5, xMax: 5, yMin: -3, yMax: 7 }, outputs: ["axes"] },
-      { id: "graph", operator: "function_curve", inputs: { expression, variable: "x", xMin: -5, xMax: 5, samples: 41 }, outputs: ["curve"] },
+      { id: "graph", operator: "function_curve", inputs: { axes: "axes", expression, variable: "x", xMin: -5, xMax: 5, samples: 41 }, outputs: ["curve"] },
     ], relations: [], annotations: [],
     assertions: [{ id: "value", predicate: "function_value", entities: ["curve"], expected: { x: 0, y: intercept }, severity: "fatal" }],
     requiredEntityIds: ["axes", "curve"],

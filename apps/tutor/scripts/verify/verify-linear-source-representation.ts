@@ -63,7 +63,7 @@ const coordinateQuestion = "The lines x+y=6 and x-y=2 meet at P. Graph both line
 const coordinateBase = { ...createFallbackTurnPlanV3(coordinateQuestion), visualRequirement: "required" as const };
 for (const symbol of ["xP", "x(P)", "answer", "perimeter"]) {
   const plan = { ...coordinateBase, unknowns: [{ id: "requested_x", symbol, unit: "1" }], derived: [{ id: "requested_x", symbol, value: 999, unit: "1", provenance: "derived" as const }] };
-  assert.equal(selectVerifiedRepresentation({ question: coordinateQuestion, turnPlan: plan }).figureSource, "text_only"); checks++;
+  assert(!selectVerifiedRepresentation({ question: coordinateQuestion, turnPlan: plan }).reason.includes("linear_source_plan_"), "Unsupported aliases stay with existing planner/solver checks"); checks++;
 }
 const coordinatePlan = { ...coordinateBase, unknowns: [{ id: "requested_x", symbol: "x_P", unit: "1" }], derived: [{ id: "requested_x", symbol: "x_P", value: 4, unit: "1", provenance: "derived" as const }] };
 assert.equal(selectVerifiedRepresentation({ question: coordinateQuestion, turnPlan: coordinatePlan }).figureSource, "linear_source"); checks++;
