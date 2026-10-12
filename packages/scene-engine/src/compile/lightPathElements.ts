@@ -15,8 +15,10 @@
  * - a path that is incident on a contact and crosses an element before that
  *   contact cannot be repaired: `incident_path_crosses_element`.
  *
- * Thin lens excuse: a path with a vertex strictly inside a closed element
- * passes through it (rays meet a thin lens at its centre plane).
+ * Thin lens excuse: a path with a vertex strictly inside a `lens_section`
+ * passes through it (rays meet a thin lens at its centre plane). Thick glass
+ * (a sphere, a prism, any other closed region) has no such plane: a vertex
+ * inside it never excuses a later crossing of its boundary.
  */
 import type { SceneDocument, SceneIssue } from "../types";
 
@@ -55,6 +57,8 @@ export interface OpticsRoles {
   normals: Set<string>;
   surfaces: Set<string>;
   elements: Set<string>;
+  /** Thin lenses (`lens_section` outputs): rays bend at their centre plane. */
+  thinLenses: Set<string>;
 }
 
 const rolesCache = new WeakMap<SceneDocument, OpticsRoles | null>();
@@ -78,6 +82,7 @@ function collectOpticsRoles(document: SceneDocument): OpticsRoles {
   const normals = new Set<string>();
   const surfaces = new Set<string>();
   const elements = new Set<string>();
+  const thinLenses = new Set<string>();
   const light = (id: unknown, contact?: unknown, declaredThrough = false) => {
     if (typeof id !== "string" || !id) return;
     const role = lightPaths.get(id) ?? { contacts: [], declaredThrough: false };
@@ -94,6 +99,7 @@ function collectOpticsRoles(document: SceneDocument): OpticsRoles {
       if (typeof surface === "string") surfaces.add(surface);
     }
     if (ELEMENT_OPERATORS.has(operator)) outputs.forEach((id) => elements.add(id));
+    if (operator === "lens_section") outputs.forEach((id) => thinLenses.add(id));
     if (operator === "refract_at" || operator === "reflect_at") {
       light(outputs[0], inputs.point ?? inputs.contact);
       if (outputs[1]) normals.add(outputs[1]);
@@ -118,7 +124,7 @@ function collectOpticsRoles(document: SceneDocument): OpticsRoles {
   surfaces.forEach((id) => elements.add(id));
   // A normal is never a light path, whatever kind the planner gave it.
   normals.forEach((id) => lightPaths.delete(id));
-  return { lightPaths, normals, surfaces, elements };
+  return { lightPaths, normals, surfaces, elements, thinLenses };
 }
 
 export interface LightPathClipInput {
@@ -183,7 +189,8 @@ export function clipLightPathsAtElements(input: LightPathClipInput): void {
     let best: { s: number; point: Point; elementId: string } | null = null;
     for (const [elementId, element] of candidates) {
       if (elementId === path.id) continue;
-      if (isClosed(element) && path.vertices.some((vertex) => strictlyInside(vertex, element, tolerance))) continue;
+      if (roles.thinLenses.has(elementId) && isClosed(element)
+        && path.vertices.some((vertex) => strictlyInside(vertex, element, tolerance))) continue;
       for (const hit of crossings(segments, element, far)) {
         if (path.vertices.some((vertex) => distance(vertex, hit.point) <= tolerance)) continue;
         if (!best || hit.s < best.s) best = { ...hit, elementId };

@@ -14,7 +14,9 @@
  * crosses an element before its contact must stop the figure with
  * `incident_path_crosses_element`. Correct paths (a prism at minimum
  * deviation, a ray through a thin lens centre, a reflection that stops at the
- * mirror) must render exactly as they did.
+ * mirror) must render exactly as they did. Only a thin lens lets a ray with a
+ * vertex inside it pass: a ray through a point inside a glass sphere or a
+ * prism is still cut where it leaves the glass.
  *
  * An angle mark between a normal and a light path at a contact is the acute
  * angle: `refract_at` emits its normal on the incident side only, and the arc
@@ -194,6 +196,80 @@ check("ray toward a convex mirror's centre is cut at the mirror", () => {
   if (gap > 1.5) return `ray ends ${gap.toFixed(1)} px off the mirror`;
   const centre = stroke(primitives, "I").points[0]!;
   if (dist(end, centre) < mirror.radius! - 1.5) return "ray still reaches past the mirror";
+  return null;
+});
+
+// Review of #164: a vertex strictly inside a closed element excused every crossing of
+// that element, which is right only for a thin lens (rays bend at its centre plane).
+// A `ray` from a contact on thick glass through a declared point inside the glass
+// skipped the check and ran on through the far face unbent.
+const throughInteriorPoint = (body: "sphere" | "prism") => body === "sphere"
+  ? scene("A ray enters a glass sphere and passes a marked point inside it.", [
+    { id: "center", kind: "point", role: "centre of the sphere" },
+    { id: "boundary", kind: "circle", role: "glass sphere" },
+    { id: "object", kind: "point", role: "object", label: "O" },
+    { id: "contact1", kind: "point", role: "point of incidence" },
+    { id: "incoming1", kind: "vector", role: "incident ray" },
+    { id: "inner", kind: "point", role: "point inside the glass", label: "Q" },
+    { id: "insideRay", kind: "ray", role: "ray in the glass", label: "r" },
+  ], [
+    point("center", 2, 0),
+    { id: "make_boundary", operator: "circle", inputs: { center: "center", radius: 2 }, outputs: ["boundary"] },
+    point("object", -4, 1),
+    { id: "contact", operator: "surface_contact", inputs: { origin: "object", surface: "boundary", direction: [1, -0.1] }, outputs: ["contact1", "incoming1"] },
+    point("inner", 1.5, 0.2),
+    { id: "make_ray", operator: "ray", inputs: { start: "contact1", end: "inner" }, outputs: ["insideRay"] },
+  ])
+  : (() => {
+    const half = 1.0190508989888576;
+    return scene("A ray enters a prism and passes a marked point inside the glass.", [
+      { id: "P", kind: "point", role: "apex", label: "A" },
+      { id: "L", kind: "point", role: "base corner" },
+      { id: "R", kind: "point", role: "base corner" },
+      { id: "prism", kind: "polygon", role: "prism section" },
+      { id: "leftFace", kind: "segment", role: "first face" },
+      { id: "rightFace", kind: "segment", role: "second face" },
+      { id: "contact", kind: "point", role: "point of incidence" },
+      { id: "incoming", kind: "ray", role: "incident ray" },
+      { id: "normal", kind: "vector", role: "normal" },
+      { id: "refracted", kind: "ray", role: "refracted ray" },
+      { id: "inner", kind: "point", role: "point inside the glass", label: "Q" },
+      { id: "insideRay", kind: "ray", role: "ray in the glass", label: "r" },
+    ], [
+      point("P", 0, 2), point("L", -half, 0), point("R", half, 0),
+      { id: "make_prism", operator: "polygon", inputs: { points: ["L", "P", "R"] }, outputs: ["prism"] },
+      { id: "make_left", operator: "segment", inputs: { start: "L", end: "P" }, outputs: ["leftFace"] },
+      { id: "make_right", operator: "segment", inputs: { start: "P", end: "R" }, outputs: ["rightFace"] },
+      point("contact", -half / 2, 1),
+      { id: "entry", operator: "refract_at", inputs: { point: "contact", surface: "leftFace", incidentAngleDeg: 46.2, n1: 1, n2: 1.59, tangentSign: 1, span: 0.4 }, outputs: ["incoming", "normal", "refracted"] },
+      point("inner", 0, 0.9),
+      { id: "make_ray", operator: "ray", inputs: { start: "contact", end: "inner" }, outputs: ["insideRay"] },
+    ]);
+  })();
+
+check("ray through a point inside a glass sphere is cut at the far side", () => {
+  const { ok, primitives, fatal } = compile(throughInteriorPoint("sphere"));
+  if (!ok) return `did not compile: ${JSON.stringify(fatal)}`;
+  const ray = stroke(primitives, "insideRay");
+  const circle = stroke(primitives, "boundary");
+  const center = circle.points[0]!;
+  const end = ray.points.at(-1)!;
+  const past = dist(end, center) - circle.radius!;
+  if (past > 1.5) return `ray runs ${past.toFixed(1)} px past the far side of the sphere`;
+  if (Math.abs(past) > 1.5 || length(ray) < 20) return `ray ends ${Math.abs(past).toFixed(1)} px off the sphere (length ${length(ray).toFixed(0)} px)`;
+  return null;
+});
+
+check("ray through a point inside a prism is cut at the second face", () => {
+  const { ok, primitives, fatal } = compile(throughInteriorPoint("prism"));
+  if (!ok) return `did not compile: ${JSON.stringify(fatal)}`;
+  const ray = stroke(primitives, "insideRay");
+  const prism = stroke(primitives, "prism");
+  const face = stroke(primitives, "rightFace");
+  const end = ray.points.at(-1)!;
+  const gap = segmentDistance(end, face.points[0]!, face.points.at(-1)!);
+  if (!insidePolygon(end, prism.points) && gap > 1.5) return `ray runs ${gap.toFixed(1)} px past the second face`;
+  if (gap > 1.5) return `ray ends ${gap.toFixed(1)} px short of the second face`;
   return null;
 });
 
