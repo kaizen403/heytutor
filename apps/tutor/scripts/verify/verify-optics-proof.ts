@@ -81,6 +81,13 @@
  * lens, a refracted ray with no incident ray, and a concave mirror's parallel ray
  * drawn on behind the mirror all stay unproven and never draw. Traced rays alone,
  * and a correct hand parallel or focal ray beside two traced ones, still draw.
+ * G20: a stem that names no element kind takes it from the image it states, read
+ * from the stem alone, or declines. "A mirror of focal length 10 cm forms a real
+ * image" never proves a convex mirror and draws the concave one; a real or
+ * magnified image, a virtual and diminished one, and an image 30 cm or 6 cm behind
+ * a mirror 15 cm from the object each prove only their kind. A stem with no word on
+ * the image (also "-10 cm" on a spherical mirror, an upright pin, a real object, a
+ * question, a clause after "whether", "virtual or real") declines both kinds.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -1293,7 +1300,63 @@ const expectUnproven = (gate: string, name: string, question: string, document: 
   }
 }
 
-for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19"]) {
+// ---- G20: a stem that names no element kind takes it from the image it states, or declines ----
+{
+  const mirror15 = (question: string, kind: "concave" | "convex", f = 10) =>
+    mirrorDoc(question, { u: 15, f, h: 2, kind, quantities: [{ id: "u", symbol: "u", value: 15 }, { id: "f", symbol: "f", value: f }] });
+  // The review's case: a convex mirror cannot form a real image of a real object.
+  const qRealMirror = "A mirror of focal length 10 cm forms a real image of an object placed at 15 cm. Draw the ray diagram.";
+  const realMirrorPlan = plan(qRealMirror, [
+    { id: "f", symbol: "f", value: 10, unit: "cm", provenance: "given", sourceText: "focal length 10 cm" },
+    { id: "u", symbol: "u", value: 15, unit: "cm", provenance: "given", sourceText: "placed at 15 cm" },
+  ], [{ id: "v", symbol: "v", value: 30, unit: "cm", provenance: "derived" }], ["mirror_formula"]);
+  expectUnproven("G20", "a convex mirror on the real image stem", qRealMirror, mirror15(qRealMirror, "convex"), /contradicts a concave mirror/);
+  expectNeverPlanner("G20", "a convex mirror on the real image stem", qRealMirror, realMirrorPlan, mirror15(qRealMirror, "convex"));
+  check("G20", explainPlannerOpticsProof(qRealMirror, mirror15(qRealMirror, "concave")).proof === "proven",
+    `the concave mirror on the real image stem must be proven; got ${explainPlannerOpticsProof(qRealMirror, mirror15(qRealMirror, "concave")).reason}`);
+  expectDrawnAsPlanner("G20", "the concave mirror on the real image stem", qRealMirror, realMirrorPlan, mirror15(qRealMirror, "concave"));
+  // The stated nature or side decides; the other kind stays unproven.
+  const lensFigure = (question: string, form: "converging" | "diverging", u: number, f: number): Doc => form === "converging"
+    ? lensDoc(question, { u, f, h: 2 })
+    : divergingLens(question, { u, f, h: 2, unit: "cm", scale: 1, focal: f, quantities: [{ id: "u", symbol: "u", value: u, unit: "cm" }] });
+  for (const [name, question, right, wrong, reason] of [
+    ["a lens forming a real, magnified image", "A lens forms a real, magnified image of an object placed 15 cm from it. Draw the ray diagram.",
+      lensFigure("", "converging", 15, 10), lensFigure("", "diverging", 15, 10), /contradicts a convex lens/],
+    ["a lens forming a virtual, diminished image", "A lens forms a virtual, diminished image of an object placed 50 cm from it. Draw the ray diagram.",
+      lensFigure("", "diverging", 50, 25), lensFigure("", "converging", 50, 25), /contradicts a concave lens/],
+    ["a mirror forming a virtual, magnified image", "A mirror of focal length 30 cm forms a virtual, magnified image of an object at 15 cm. Draw the ray diagram.",
+      mirror15("", "concave", 30), mirror15("", "convex", 30), /contradicts a concave mirror/],
+    ["a mirror forming an image 30 cm behind it (virtual, larger than the object)", "An object placed 15 cm in front of a mirror forms an image 30 cm behind it. Draw the ray diagram.",
+      mirror15("", "concave", 30), mirror15("", "convex", 30), /contradicts a concave mirror/],
+    ["a mirror forming an image 6 cm behind it (virtual, smaller than the object)", "An object placed 15 cm in front of a mirror forms an image 6 cm behind it. Draw the ray diagram.",
+      mirror15("", "convex"), mirror15("", "concave"), /contradicts a convex mirror/],
+  ] as const) {
+    const proof = explainPlannerOpticsProof(question, right);
+    check("G20", proof.proof === "proven", `the right kind for ${name} must be proven; got ${proof.proof}: ${proof.reason}`);
+    expectUnproven("G20", `the wrong kind for ${name}`, question, wrong, reason);
+  }
+  // Nothing in the stem states the image, so the kind is unknown: both figures decline and never draw.
+  for (const question of [
+    "A mirror of focal length 10 cm has an object placed 15 cm in front of it. Draw the ray diagram.",
+    "An object 2 cm tall is placed at 15 cm from a spherical mirror of focal length -10 cm. Draw the ray diagram.",
+    "A mirror of focal length 10 cm has an object placed 15 cm in front of it. Does it form a real image?",
+    "A mirror of focal length 10 cm has an object placed 15 cm in front of it. State whether the image is real.",
+    "A mirror of focal length 10 cm forms a virtual or real image of an object 15 cm in front of it, depending on its kind.",
+    "A pin stands upright 15 cm in front of a mirror of focal length 10 cm. Draw the ray diagram.",
+    "A real object is placed 15 cm from a mirror of focal length 10 cm. Draw the ray diagram.",
+  ]) {
+    const declinePlan = plan(question, [
+      { id: "f", symbol: "f", value: 10, unit: "cm", provenance: "given", sourceText: "focal length 10 cm" },
+      { id: "u", symbol: "u", value: 15, unit: "cm", provenance: "given", sourceText: "15 cm" },
+    ], [], ["mirror_formula"]);
+    for (const kind of ["concave", "convex"] as const) {
+      expectUnproven("G20", `a ${kind} figure on "${question}"`, question, mirror15(question, kind), /^the stem names no mirror kind/);
+      expectNeverPlanner("G20", `a ${kind} figure on "${question}"`, question, declinePlan, mirror15(question, kind));
+    }
+  }
+}
+
+for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20"]) {
   console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 }
 if (failures.length > 0) {

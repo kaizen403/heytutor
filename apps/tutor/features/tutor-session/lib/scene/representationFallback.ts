@@ -645,7 +645,8 @@ export type PlannerOpticsProof = "not_optics" | "proven" | "unproven";
  * On a lens or mirror stem a planner figure is admitted only when the engine,
  * not the model, placed what the student reads: the object, image and foci are
  * `gaussian_image` / `optical_focus` outputs whose u, f and element kind match
- * the stem (a stated lens power fixes |f| = 1/|P|), the element is drawn on that
+ * the stem (a stated lens power fixes |f| = 1/|P|; a kind the stem neither names
+ * nor implies by a power, focal sign or the image it states declines), the element is drawn on that
  * centre and axis with the stem's sense, every ray ends on an engine-derived
  * point, and every line affirmatively converging on the image tip leaves the
  * element (a point on its plane within the element as drawn) after a drawn
@@ -721,14 +722,13 @@ function opticsProofFailure(question: string, match: OpticsStemMatch, document: 
   // A real object with light along +axis, the stem's focal sign, and the stem's form.
   const resolved = opticsResolved(inputs, document, "gaussian_image");
   if (typeof resolved === "string") return `gaussian_image ${resolved}`;
-  // The kind is the stem's only when the stem names it or a lens power or focal sign implies it.
-  // detectArchetype defaults an unnamed kind to convex; then the figure's own form or sign is the
-  // kind, and P3 to P9 still hold that element to the stem's numbers.
-  const figureConverges = resolved.form !== undefined
-    ? resolved.form === "converging"
-    : element === "lens" ? resolved.focalLength > 0 : resolved.focalLength < 0;
-  const stemKind = opticsStatedKind(question, element, match) ??
-    ((element === "lens") === figureConverges ? "convex" : "concave");
+  // The kind is the stem's: named, implied by a lens power or focal sign, or by the image the stem
+  // describes. detectArchetype defaults an unnamed kind to convex, and the figure's own form or sign
+  // would only compare the figure with itself, so a stem that implies no kind declines.
+  const stemKind = opticsStatedKind(question, element, match) ?? opticsImpliedKind(question, element, match);
+  if (stemKind === null) {
+    return `the stem names no ${element} kind, and no power, focal sign, image nature or image side implies one`;
+  }
   const converges = element === "lens" ? stemKind === "convex" : stemKind === "concave";
   if (resolved.form !== undefined && (resolved.form === "converging") !== converges) {
     return `gaussian_image form ${resolved.form} contradicts a ${stemKind} ${element}`;
@@ -1215,6 +1215,60 @@ function opticsStatedKind(question: string, element: "lens" | "mirror", match: O
   const focal = match.slots.f;
   if (match.sources.f === "stem" && typeof focal === "number" && focal !== 0) return focal > 0 ? "convex" : "concave";
   return null;
+}
+
+const OPTICS_NATURE = "real|virtual|inverted|erect|upright|enlarged|magnified|diminished";
+const OPTICS_NATURE_WORD = new RegExp(`\\b(?:${OPTICS_NATURE})\\b`, "gi");
+/** Nature words in front of "image": "a real, magnified image", "an erect and diminished image". */
+const OPTICS_NATURE_BEFORE = new RegExp(`\\b((?:(?:${OPTICS_NATURE})(?:\\s*,\\s*(?:and\\s+)?|\\s+and\\s+|\\s+))+)images?\\b`, "gi");
+/** Nature words after it: "the image is virtual, erect and diminished", "an image which is real". */
+const OPTICS_NATURE_AFTER = new RegExp(`\\bimages?\\b(?:\\s+(?:so\\s+)?(?:formed|produced|obtained|seen|which|that))?\\s+(?:is|was|will be|appears(?: to be)?)\\s+` +
+  `((?:${OPTICS_NATURE})(?:(?:\\s*,\\s*(?:and\\s+)?|\\s+and\\s+)(?:${OPTICS_NATURE}))*)\\b`, "gi");
+/** "real or virtual", "upright or inverted": the stem asks about the nature, it does not state it. */
+const OPTICS_NATURE_CHOICE = new RegExp(`\\b(?:${OPTICS_NATURE})\\s+or\\s+(?:an?\\s+)?(?:${OPTICS_NATURE})\\b`, "i");
+/** Where the image forms: "an image 30 cm behind the mirror", "the image forms on the other side of the lens". */
+const OPTICS_IMAGE_SIDE = /\bimages?\b((?:(?!\bobjects?\b)[^.;])*?)\b(behind|in front of|on the (?:other|opposite|far|same) side(?:\s+(?:of|as))?)\s+(?:it|the (?:mirror|lens|object))\b/gi;
+
+/**
+ * The element kind the image the stem describes implies, for a real object, or null. Only the stem
+ * is read, and only its statements: a question, or a clause after "whether" or "if", asks about the
+ * image. A real (or inverted) image needs a converging element. A virtual (erect, upright) image is
+ * enlarged only by a converging element and diminished only by a diverging one. The side the stem
+ * puts the image on is its nature too (behind a mirror is virtual, in front of it real; across a
+ * lens is real, on the object's side virtual), and a virtual image distance against the stem's
+ * object distance gives its size. Real with virtual, or enlarged with diminished, implies nothing.
+ */
+function opticsImpliedKind(question: string, element: "lens" | "mirror", match: OpticsStemMatch): "convex" | "concave" | null {
+  const words = new Set<string>();
+  const sides: Array<{ virtual: boolean; cm: number | null }> = [];
+  for (const sentence of question.split(/(?<=[.!?])\s+/)) {
+    if (sentence.trim().endsWith("?")) continue;
+    const statement = sentence.split(/\b(?:whether|if)\b/i)[0]!;
+    if (OPTICS_NATURE_CHOICE.test(statement)) continue;
+    for (const found of [...statement.matchAll(OPTICS_NATURE_BEFORE), ...statement.matchAll(OPTICS_NATURE_AFTER)]) {
+      for (const word of found[1]!.match(OPTICS_NATURE_WORD) ?? []) words.add(word.toLowerCase());
+    }
+    for (const found of statement.matchAll(OPTICS_IMAGE_SIDE)) {
+      const where = found[2]!.toLowerCase();
+      // "Behind" or "in front of" a lens names no side for certain; a mirror's back is its virtual side.
+      const virtual = element === "mirror" ? /behind|other|opposite|far/.test(where) : /same/.test(where);
+      const real = element === "mirror" ? /in front|same/.test(where) : /other|opposite|far/.test(where);
+      if (virtual === real) continue;
+      const distance = /(\d+(?:\.\d+)?)\s*(mm|cm|m)\s*$/i.exec(found[1]!);
+      sides.push({ virtual, cm: distance ? Number(distance[1]) * OPTICS_CM_PER_UNIT[distance[2]!.toLowerCase()]! : null });
+    }
+  }
+  const real = words.has("real") || words.has("inverted") || sides.some((side) => !side.virtual);
+  const virtual = words.has("virtual") || words.has("erect") || words.has("upright") || sides.some((side) => side.virtual);
+  if (real === virtual) return null;
+  const converging = element === "lens" ? "convex" : "concave";
+  if (real) return converging;
+  const u = match.sources.u === "stem" && typeof match.slots.u === "number" ? Math.abs(match.slots.u) : null;
+  const sized = sides.filter((side) => side.virtual && side.cm !== null && u !== null);
+  const larger = words.has("enlarged") || words.has("magnified") || sized.some((side) => side.cm! > u!);
+  const smaller = words.has("diminished") || sized.some((side) => side.cm! < u!);
+  if (larger === smaller) return null;
+  return larger ? converging : element === "lens" ? "concave" : "convex";
 }
 
 const OPTICS_POWER = /(^|[^\w.])([+\-−–]?)\s*(\d+(?:\.\d+)?)\s*(?:D|[Dd]ioptres?|[Dd]iopters?)\b/g;
