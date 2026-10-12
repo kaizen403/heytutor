@@ -369,18 +369,26 @@ function speciesIn(fragment: string): Array<{ token: string; index: number; end:
   }
   // Decode only a complete original species token; its original indices remain
   // authoritative even when a Unicode charge has a longer display spelling.
-  const element = /\b([A-Z][a-z]?)((?:[0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉^()[\]{}_+⁺⁻−–—-][A-Za-z0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉^()[\]{}_+⁺⁻−–—-]*)?)(?=\s*(?:atoms?|ions?|is|are|occup|at\b|form|present|,|and\b))/g;
+  const element = /\b([A-Z][a-z]?)(?=[0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉^()[\]{}_+⁺⁻−–—-])/g;
   for (const match of fragment.matchAll(element)) {
-    const rawCharge = match[2]!;
-    if (!elementBySymbol(match[1]!)) { if (rawCharge) return null; continue; }
-    if (!rawCharge && match[1]!.length === 1) continue;
+    const index = match.index ?? 0;
+    const original = /^[^\s,;:!?]+/.exec(fragment.slice(index))![0];
+    const token = original.endsWith(".") ? original.slice(0, -1) : original;
+    const rawCharge = token.slice(match[1]!.length);
+    if (!elementBySymbol(match[1]!)) return null;
     if (/[0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉^()[\]{}_+⁺⁻−–—-]/.test(fragment[(match.index ?? 0) - 1] ?? "")) return null;
-    const parsedCharge = rawCharge ? /^(?:\^?\(([1-9]\d*)?([+-])\)|\^?([1-9]\d*)?([+-]))$/.exec(normalizeChemistryText(rawCharge)) : null;
-    if (rawCharge && !parsedCharge) return null;
-    const magnitude = parsedCharge?.[1] ?? parsedCharge?.[3] ?? "";
-    const sign = parsedCharge?.[2] ?? parsedCharge?.[4] ?? "";
+    const parsedCharge = /^(?:\^?\(([1-9]\d*)?([+-])\)|\^?([1-9]\d*)?([+-]))$/.exec(normalizeChemistryText(rawCharge));
+    if (!parsedCharge) return null;
+    const end = index + token.length;
+    if (!/^\s*(?:atoms?|ions?|is|are|occup|at\b|form|present|,|and\b)/.test(fragment.slice(end))) continue;
+    const magnitude = parsedCharge[1] ?? parsedCharge[3] ?? "";
+    const sign = parsedCharge[2] ?? parsedCharge[4] ?? "";
     const charge = sign ? (magnitude ? `^(${magnitude}${sign})` : `^${sign}`) : "";
-    found.push({ token: `${match[1]}${charge}`, index: match.index ?? 0, end: (match.index ?? 0) + match[0].length });
+    found.push({ token: `${match[1]}${charge}`, index, end });
+  }
+  const neutral = /\b([A-Z][a-z])(?=\s*(?:atoms?|ions?|is|are|occup|at\b|form|present|,|and\b))/g;
+  for (const match of fragment.matchAll(neutral)) {
+    if (elementBySymbol(match[1]!)) found.push({ token: match[1]!, index: match.index ?? 0, end: (match.index ?? 0) + match[0].length });
   }
   for (const [pattern, token] of SPECIES_WORDS) {
     const match = pattern.exec(fragment);

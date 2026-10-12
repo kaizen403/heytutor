@@ -4230,6 +4230,28 @@ for(const question of [
  assert.equal(synthesizeFamilyScene({question}),null);
 });
 // END PR137 original Unicode unit-cell species.
+// BEGIN PR137 complete attached Unicode charge boundary: preserve all907 old assertions.
+for(const question of [
+ "Cl⁻ ions form a ccp lattice. Mg²⁺/s ions occupy all octahedral voids. Draw the unit cell.",
+ "Cl⁻ ions form a ccp lattice. Mg²⁺.5 ions occupy all octahedral voids. Draw the unit cell.",
+ "Cl⁻/L ions form a ccp lattice. Mg²⁺ ions occupy all octahedral voids. Draw the unit cell.",
+ "Cl⁻ ions form a ccp lattice. Mg²⁺~ ions occupy all octahedral voids. Draw the unit cell.",
+])check("Complete attached unit-cell charge material must be consumed: "+question,()=>{
+ assert.equal(buildUnitCellScene(question,[],false),null);
+ assert.equal(buildUnitCellScene(question,[],true),null);
+ assert.equal(synthesizeFamilyScene({question}),null);
+});
+check("Complete Unicode ions on both sides of an original clause delimiter",()=>{
+ const question="Cl⁻ ions form a ccp lattice; Mg²⁺ ions occupy all octahedral voids. Draw the unit cell.";
+ const ordinary=synthesizeFamilyScene({question});assert.ok(ordinary?.renderScene);assert.equal(ordinary.family,"chem_unit_cell");
+ for(const document of [buildUnitCellScene(question,[],false),buildUnitCellScene(question,[],true),ordinary.document]) {
+  const result=compiled(document);assert.equal(result.document.source?.question,question);
+  assert.ok(result.labels.includes("Cl^-"));assert.ok(result.labels.includes("Mg^(2+)"));
+  near(result.document.quantities.find(q=>q.id==="cell_n1")?.value,4);near(result.document.quantities.find(q=>q.id==="cell_n2")?.value,4);
+  assert.ok(result.document.annotations.some(a=>(a.text??"").endsWith(" → ClMg")));
+ }
+});
+// END PR137 complete attached Unicode charge boundary.
 const output=process.argv.indexOf("--out");
 const result={passed:rows.filter(r=>r.passed).length,failed:rows.filter(r=>!r.passed).length,rows};
 if(output>=0)writeFileSync(process.argv[output+1]!,JSON.stringify(result,null,2)+"\n");
