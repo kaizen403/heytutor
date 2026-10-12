@@ -465,5 +465,94 @@ check("control: a reflection arc keeps its angle and its normal", () => {
   return null;
 });
 
+// Recorded figures PR #164 still drew wrong. Each document is the
+// selected planner response of a round 7 run after production validation,
+// as the engine compiles it (fixtures/ray-optics-remaining.json).
+//
+// R6: b2 glass slab h8a built its emergent ray as `parallel_through` the
+// incident ray through the exit point. A line runs both ways, so it also
+// crossed the block and its faces without bending. A line that copies a
+// declared ray's direction carries that light: from a point where it leaves
+// a closed glass element it is drawn forward only, and it may not run through
+// glass with no event there (`light_line_crosses_element`).
+const { readFileSync } = await import("node:fs");
+const remaining = JSON.parse(readFileSync(new URL("./fixtures/ray-optics-remaining.json", import.meta.url), "utf8")) as {
+  documents: Record<string, Record<string, unknown>>;
+};
+type RecordedDocument = Record<string, any>;
+function recorded(name: string, edit?: (document: RecordedDocument) => void) {
+  const document = structuredClone(remaining.documents[name]!) as RecordedDocument;
+  edit?.(document);
+  return compile(document as ReturnType<typeof scene>);
+}
+const lerpPoint = (a: P, b: P, t: number): P => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+const edgeDistance = (p: P, polygon: P[]) =>
+  Math.min(...polygon.map((a, index) => segmentDistance(p, a, polygon[(index + 1) % polygon.length]!)));
+function lineDistance(p: P, a: P, b: P): number {
+  return Math.abs((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x)) / dist(a, b);
+}
+/** Angle between two strokes' directions, 0 to 90 degrees. */
+function strokeAngle(a: Primitive, b: Primitive): number {
+  const u = Math.atan2(a.points.at(-1)!.y - a.points[0]!.y, a.points.at(-1)!.x - a.points[0]!.x);
+  const v = Math.atan2(b.points.at(-1)!.y - b.points[0]!.y, b.points.at(-1)!.x - b.points[0]!.x);
+  const difference = Math.abs(u - v) % Math.PI;
+  return Math.min(difference, Math.PI - difference) / DEG;
+}
+/** First sample of a stroke that lies inside a polygon by more than 1.5 px. */
+function runsInsidePolygon(stroke: Primitive, polygon: P[]): P | null {
+  for (let index = 0; index <= 60; index += 1) {
+    const sample = lerpPoint(stroke.points[0]!, stroke.points.at(-1)!, index / 60);
+    if (insidePolygon(sample, polygon) && edgeDistance(sample, polygon) > 1.5) return sample;
+  }
+  return null;
+}
+const fatalCodes = (fatal: Array<{ code: string }>) => fatal.map((issue) => issue.code);
+
+check("recorded b2 slab: the emergent line leaves the block at the exit and never crosses it", () => {
+  const { ok, primitives, fatal } = recorded("slab");
+  if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
+  const block = stroke(primitives, "block").points;
+  const emergent = stroke(primitives, "emergent");
+  const inside = runsInsidePolygon(emergent, block);
+  if (inside) return `the emergent line runs through the block at (${inside.x.toFixed(1)}, ${inside.y.toFixed(1)})`;
+  const start = emergent.points[0]!;
+  const bottom = stroke(primitives, "bottomFace");
+  const offFace = segmentDistance(start, bottom.points[0]!, bottom.points.at(-1)!);
+  if (offFace > 1.5) return `the emergent line starts ${offFace.toFixed(1)} px off the exit face`;
+  const refracted = stroke(primitives, "insideRay");
+  const offPath = lineDistance(start, refracted.points[0]!, refracted.points.at(-1)!);
+  if (offPath > 1.5) return `the emergent line starts ${offPath.toFixed(1)} px off the refracted ray's line`;
+  const turn = strokeAngle(emergent, stroke(primitives, "incident"));
+  if (turn > 0.5) return `the emergent line is ${turn.toFixed(2)} degrees off the incident direction`;
+  return null;
+});
+
+check("recorded b2 slab: a parallel ray meeting the block with no refraction is refused", () => {
+  const { ok, fatal } = recorded("slab", (document) => {
+    document.entities.push({ id: "beamEntry", kind: "point", role: "second ray meets the block" });
+    document.constructions.push({ id: "makeBeamEntry", operator: "point", inputs: { x: -3, y: 7.4, coordinateSpace: "world" }, outputs: ["beamEntry"] });
+    document.requiredEntityIds.push("beamEntry");
+    document.revealGroups.at(-1).entityIds.push("beamEntry");
+    document.constructions.find((construction: RecordedDocument) => construction.id === "emergence").inputs.through = "beamEntry";
+  });
+  if (ok) return "compiled a line carrying the incident light straight through the block";
+  if (!fatalCodes(fatal).includes("light_line_crosses_element")) return `refused with ${JSON.stringify(fatalCodes(fatal))}, not light_line_crosses_element`;
+  return null;
+});
+
+check("control: recorded b1 slab path (refract_at, intersection, ray) is unchanged", () => {
+  const { ok, primitives, fatal } = recorded("slabCorrect");
+  if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
+  const emergent = stroke(primitives, "emergent");
+  const refracted = stroke(primitives, "refracted");
+  const lower = stroke(primitives, "lower");
+  const start = emergent.points[0]!;
+  if (lineDistance(start, refracted.points[0]!, refracted.points.at(-1)!) > 1.5) return "the emergent ray no longer starts on the refracted ray's line";
+  if (segmentDistance(start, lower.points[0]!, lower.points.at(-1)!) > 1.5) return "the emergent ray no longer starts on the lower face";
+  const turn = strokeAngle(emergent, stroke(primitives, "incident"));
+  if (turn > 0.5) return `the emergent ray is ${turn.toFixed(2)} degrees off the incident direction`;
+  return null;
+});
+
 console.log(`${passed} passed, ${failures.length} failed`);
 if (failures.length > 0) process.exit(1);
