@@ -439,7 +439,7 @@ export function validateGeometricOpticsConstruction(construction: SceneConstruct
 }
 
 /** What one construction says about the element it sits on: the signed focal distance along its axis, in world units. */
-interface FocalClaim { index: number; id: string; operator: string; outputs: string[]; kind: OpticalKind | "surface"; center: RenderPoint; axis: RenderPoint; focal: number; signOnly: boolean; detail: string }
+interface FocalClaim { index: number; id: string; operator: string; outputs: string[]; kind: OpticalKind | "surface"; center: RenderPoint; axis: RenderPoint; focal: number; signOnly: boolean; detail: string; drawnReversed?: boolean }
 /** A sign flip or a gross magnitude error is a different element; a rounded copy of the same number is not. */
 const FOCAL_AGREEMENT_TOLERANCE = 0.01;
 function signed(value: number): string { return `${value > 0 ? "+" : ""}${compact(value)}`; }
@@ -447,6 +447,10 @@ function signed(value: number): string { return `${value > 0 ? "+" : ""}${compac
  * A mirror's spherical_surface read the way the compiler draws it: a constructed centre of curvature
  * wins, then signedRadius (or radius), then kind alone, which states only the sense. The mirror's
  * Cartesian focal distance is R/2 (light along +axis: concave R < 0, f < 0; convex R > 0, f > 0).
+ * The renderer draws the surface along its axis turned toward +x (opticsSurfaces' axisDirection), so
+ * the claim is made along that drawn direction: on an axis written toward -x, signedRadius 28 puts the
+ * centre of curvature 28 toward +x, not 28 along the written axis. (This file imports no runtime module:
+ * verify-optics-labels-and-magnitudes loads mutants of it from a temporary directory.)
  */
 function surfaceFocalClaim(construction: SceneConstruction, index: number, document: SceneDocument, constructionByOutput: ReadonlyMap<string, SceneConstruction>, context: GeometricOpticsEvaluationContext): FocalClaim | null {
   const inputs = construction.inputs; const vertexId = inputs.vertex ?? inputs.pole; const axisId = inputs.axis;
@@ -457,7 +461,9 @@ function surfaceFocalClaim(construction: SceneConstruction, index: number, docum
   if (typeof a !== "string" || typeof b !== "string") return null;
   const start = context.point(a); const end = context.point(b); const span = Math.hypot(end.x - start.x, end.y - start.y);
   if (!(span > MIN_DISPLAY)) return null;
-  const axis = { x: (end.x - start.x) / span, y: (end.y - start.y) / span };
+  const written = { x: (end.x - start.x) / span, y: (end.y - start.y) / span }; const drawnReversed = written.x < 0;
+  const axis = drawnReversed ? { x: -written.x, y: -written.y } : written;
+  const along = drawnReversed ? " along the drawn axis (the written axis turned toward +x)" : "";
   const centerInputValue = inputs.center;
   const curvature = typeof centerInputValue === "string" ? context.point(centerInputValue) : Array.isArray(centerInputValue) ? inlinePoint(centerInputValue, "center", context) : undefined;
   const inferred = curvature ? (curvature.x - vertex.x) * axis.x + (curvature.y - vertex.y) * axis.y : 0;
@@ -465,11 +471,11 @@ function surfaceFocalClaim(construction: SceneConstruction, index: number, docum
   const sense = [inputs.kind, inputs.facing].find((value) => value !== undefined);
   let radius: number; let signOnly = false; let detail: string;
   if (Math.abs(inferred) > MIN_DISPLAY) { radius = inferred; detail = `its centre of curvature puts R at ${signed(radius)}, so f = R/2 = ${signed(radius / 2)}`; }
-  else if (statedRadius !== undefined) { radius = validationNumber(statedRadius, document); detail = `its signedRadius ${signed(radius)} world units gives f = R/2 = ${signed(radius / 2)}`; }
-  else if (typeof sense === "string" && /^(?:concave|convex)$/i.test(sense)) { radius = /^concave$/i.test(sense) ? -1 : 1; signOnly = true; detail = `its kind ${sense.toLowerCase()} gives f ${radius < 0 ? "< 0" : "> 0"}`; }
+  else if (statedRadius !== undefined) { radius = validationNumber(statedRadius, document); detail = `its signedRadius ${signed(radius)} world units${along} gives f = R/2 = ${signed(radius / 2)}`; }
+  else if (typeof sense === "string" && /^(?:concave|convex)$/i.test(sense)) { radius = /^concave$/i.test(sense) ? -1 : 1; signOnly = true; detail = `its kind ${sense.toLowerCase()} gives f ${radius < 0 ? "< 0" : "> 0"}${along}`; }
   else return null;
   if (!Number.isFinite(radius) || radius === 0) return null;
-  return { index, id: construction.id, operator: construction.operator, outputs: construction.outputs, kind: "surface", center: vertex, axis, focal: radius / 2, signOnly, detail };
+  return { index, id: construction.id, operator: construction.operator, outputs: construction.outputs, kind: "surface", center: vertex, axis, focal: radius / 2, signOnly, detail, drawnReversed };
 }
 /**
  * Optics operators on one element (same centre or vertex, collinear axis) must give it one Cartesian focal
@@ -510,7 +516,9 @@ export function validateOpticalElementFocalAgreement(document: SceneDocument, co
       const agrees = a.signOnly || b.signOnly ? Math.sign(fa) === Math.sign(fb) : Math.abs(fa - fb) <= FOCAL_AGREEMENT_TOLERANCE * Math.max(Math.abs(fa), Math.abs(fb));
       if (agrees) continue;
       const surface = a.kind === "surface" || b.kind === "surface";
-      const fix = surface
+      const fix = surface && (a.drawnReversed === true || b.drawnReversed === true)
+        ? "Draw the mirror and its focus as one mirror. This principal axis runs toward -x, and a spherical_surface is drawn along it turned toward +x, so its signedRadius is measured toward +x: a concave mirror puts its centre of curvature on the object's side and a convex mirror behind it, with |signedRadius| = 2|f|. Or write the axis toward +x."
+        : surface
         ? "Draw the mirror and its focus as one mirror: a concave mirror has signedRadius < 0 and form converging, a convex mirror signedRadius > 0 and form diverging, with |signedRadius| = 2|f|."
         : a.operator !== b.operator
           ? "Give the optical_focus the same form and focalLength as the gaussian_image on this element."

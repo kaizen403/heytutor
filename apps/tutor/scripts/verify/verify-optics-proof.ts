@@ -29,7 +29,8 @@
  *
  * G7: an inline objectHeight the stated height contradicts never draws, in
  * signed and magnitude mode; the stated height, an inverted object and a
- * representative height on a stem with no stated height still pass.
+ * representative height on a stem with no stated height still pass (the h = 7
+ * control draws its mirror tall enough for the h' = -21 hit, see G15).
  * G8: every line converging on the image tip starts on the element after a
  * drawn incident ray from the object tip, or is a lens chief ray whose drawn
  * path passes the optical centre. Paths ot->it and ob->it never draw on a lens,
@@ -51,6 +52,20 @@
  * G12c (P10): a traced ray whose hit lies beyond the drawn element's half height
  * stays unproven and never draws. G12d: in the presentation the traced rays'
  * back-extensions and guides carry dashed construction ink and nothing else does.
+ * G13: a stated lens power fixes |f| = 1/|P|. On "-6.25 D" a diverging figure
+ * with |f| = 112 cm (the plan's object distance), inline, by the id do, or
+ * signed, stays unproven and never draws; production holds focalLength to the
+ * plan's focal length and objectDistance to its object distance, so 112, do,
+ * an objectDistance of 16 and a mirror focal length of 36 (= R) all fail
+ * scene_quantity_unverified. The honest figures still draw; 33.3 cm on -3 D
+ * proves (three figures), 30 cm does not; +2.5 D proves 0.4 m, not 0.5 m.
+ * G14: a fatal converges with expected false proves nothing: rays from the hits
+ * to the object base and the focus never draw. G15: a hit beyond the element as
+ * drawn (faces of radius 2 stop at 1.9 under halfHeight 8) fails, traced or
+ * hand-drawn. G16: a hit on the mirror made by midpoint, reflect_point or a
+ * half-turn rotate proves; the same operators off the mirror do not. G17: a
+ * concave mirror on an endpoint axis toward -x with signedRadius 30 (drawn with
+ * the centre on the object side) draws; with -30 the engine refuses it.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -620,17 +635,18 @@ const statedConvexForm = withInputs(goodConvex, {
 });
 expectDrawnAsPlanner("G7", "the convex mirror with the stated inline objectHeight 4.5 (signed mode)", qConvex, convexPlan, goodConvex);
 expectDrawnAsPlanner("G7", "the convex mirror with the stated inline objectHeight 4.5 (magnitude mode)", qConvex, convexPlan, statedConvexForm);
+// h = 7 puts the second ray's hit at h' = -21, so the mirror is drawn to a 22 cm half height (|R| = 30 reaches 28.5).
+const tallMirror = withInputs(magnitudeMirror("converging"), { gaussian_image: { objectHeight: 7 }, spherical_surface: { halfHeight: 22 } });
 for (const [name, question, turnPlan, document] of [
   ["an inverted inline objectHeight -4.5 on the 4.5 cm stem", qConvex, convexPlan, withInputs(goodConvex, { gaussian_image: { objectHeight: -4.5 } })],
   ["a representative inline objectHeight 2 on a stem with no stated height", qMirror, mirrorPlan, goodMirror],
-  ["a representative inline objectHeight 7 in magnitude mode on a stem with no stated height", qMirror, mirrorPlan,
-    withInputs(magnitudeMirror("converging"), { gaussian_image: { objectHeight: 7 } })],
+  ["a representative inline objectHeight 7 in magnitude mode on a stem with no stated height", qMirror, mirrorPlan, tallMirror],
 ] as const) {
   const issues = quantityIssues(question, turnPlan, document);
   check("G7", issues.length === 0, `${name} must raise no scene_quantity issue; got ${issues.join(", ")}`);
 }
 expectDrawnAsPlanner("G7", "a representative inline objectHeight 7 in magnitude mode on a stem with no stated height",
-  qMirror, mirrorPlan, withInputs(magnitudeMirror("converging"), { gaussian_image: { objectHeight: 7 } }));
+  qMirror, mirrorPlan, tallMirror);
 
 // ---- G8: every converging line leaves the element after a drawn incident ray, or is the lens chief ray ----
 const qLensReal = "A convex lens of focal length 10 cm forms an image of an object placed 30 cm from it. Draw the ray diagram.";
@@ -962,7 +978,165 @@ const expectUnproven = (gate: string, name: string, question: string, document: 
   }
 }
 
-for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d"]) {
+// ---- G13: a stated lens power fixes |f| = 1/|P|; each magnitude literal binds to its own plan quantity ----
+{
+  const withOptics = (base: Doc, image: Record<string, unknown>, focus: Record<string, unknown> = {}, drop: string[] = []): Doc => {
+    const document = structuredClone(base);
+    for (const construction of document.constructions) {
+      if (construction.id === "c_img" || construction.id === "c_F") {
+        for (const key of drop) delete construction.inputs[key];
+        Object.assign(construction.inputs, construction.id === "c_img" ? image : focus);
+      }
+    }
+    return document;
+  };
+  const spectacle = spectacleLens(qSpectacle);
+  // The review's case: |f| = 112 cm, the plan's object distance, where -6.25 D gives 16 cm.
+  for (const [name, document] of [
+    ["focalLength 112 inline (form diverging)", withOptics(spectacle, { focalLength: 112 }, { focalLength: 112 })],
+    ["focalLength by the object distance's id do", withOptics(spectacle, { focalLength: "do" }, { focalLength: "do" })],
+    ["signed focalLength -112 (no form)", withOptics(spectacle, { objectDistance: -112, focalLength: -112 }, { focalLength: -112 }, ["form", "objectSide"])],
+  ] as const) {
+    expectUnproven("G13", `the "-6.25 D" lens with ${name}`, qSpectacle, document, /f = 112 cm contradicts the stem's power -6\.25 D \(\|f\| = 16 cm\)/);
+    expectNeverPlanner("G13", `the "-6.25 D" lens with ${name}`, qSpectacle, spectaclePlan(qSpectacle), document);
+  }
+  // Production binds objectDistance to the plan's object distance and focalLength to its focal length.
+  for (const [name, question, turnPlan, document, key] of [
+    ['focalLength 112 on the "-6.25 D" lens', qSpectacle, spectaclePlan(qSpectacle), withOptics(spectacle, { focalLength: 112 }, { focalLength: 112 }), "focalLength"],
+    ['focalLength by plan id do on the "-6.25 D" lens', qSpectacle, spectaclePlan(qSpectacle), withOptics(spectacle, { focalLength: "do" }, { focalLength: "do" }), "focalLength"],
+    ['objectDistance 16 (the plan\'s f) on the "-6.25 D" lens', qSpectacle, spectaclePlan(qSpectacle), withOptics(spectacle, { objectDistance: 16 }), "objectDistance"],
+    ["focalLength 36 (the plan's R) on the convex car mirror", qConvex, convexPlan,
+      withInputs(goodConvex, { gaussian_image: { objectDistance: 27, focalLength: 36, form: "diverging", objectSide: "real" }, optical_focus: { focalLength: 36, form: "diverging" } }), "focalLength"],
+  ] as const) {
+    const issues = quantityIssues(question, turnPlan, document);
+    check("G13", issues.some((issue) => issue.startsWith("scene_quantity_unverified@") && issue.endsWith(`.inputs.${key}`)),
+      `${name} must fail scene_quantity_unverified on ${key}; got ${issues.join(", ") || "no quantity issue"}`);
+  }
+  // Controls: the honest figures, inline or by plan id, still prove and pass agreement.
+  for (const [name, question, turnPlan, document] of [
+    ['the "-6.25 D" lens with |f| = 16 inline and u by plan id do', qSpectacle, spectaclePlan(qSpectacle), spectacle],
+    ['the "-6.25 D" lens with u = 112 and |f| = 16 inline', qSpectacle, spectaclePlan(qSpectacle), withOptics(spectacle, { objectDistance: 112 })],
+    ["the convex car mirror with u = 27 and |f| = 18 inline", qConvex, convexPlan,
+      withInputs(goodConvex, { gaussian_image: { objectDistance: 27, focalLength: 18, form: "diverging", objectSide: "real" }, optical_focus: { focalLength: 18, form: "diverging" } })],
+  ] as const) {
+    check("G13", quantityIssues(question, turnPlan, document).length === 0,
+      `${name} must pass agreement; got ${quantityIssues(question, turnPlan, document).join(", ")}`);
+    expectDrawnAsPlanner("G13", name, question, turnPlan, document);
+  }
+  // A power whose reciprocal is not a round number: |f| = 33.3 cm is 1/(3 D) to three figures; 30 cm is not.
+  const qThree = "A spectacle lens marked -3 D is held 50 cm from a lit sign 4 cm high. Where is the image of the sign seen?";
+  const threeLens = (focal: number) => divergingLens(qThree, { u: 50, f: focal, h: 4, unit: "cm", scale: 1, focal, quantities: [{ id: "u", symbol: "u", value: 50, unit: "cm" }] });
+  const rounded = explainPlannerOpticsProof(qThree, threeLens(33.3));
+  check("G13", rounded.proof === "proven", `|f| = 33.3 cm on a -3 D stem must be proven; got ${rounded.proof}: ${rounded.reason}`);
+  expectUnproven("G13", "|f| = 30 cm on a -3 D stem", qThree, threeLens(30), /contradicts the stem's power -3 D/);
+  // A converging power proves its own f in metres too.
+  const qPlus = "A converging lens of power +2.5 D forms an image of an object placed 0.6 m from it. Draw the ray diagram.";
+  const plusLens = (focal: number) => {
+    const document = lensDoc(qPlus, { u: 60, f: focal, h: 2 });
+    for (const construction of document.constructions) {
+      if (construction.operator === "gaussian_image") Object.assign(construction.inputs, { objectDistance: -0.6, focalLength: focal / 100, objectHeight: 0.02, lengthUnit: "m", displayScale: 100 });
+      if (construction.operator === "optical_focus") Object.assign(construction.inputs, { focalLength: focal / 100, lengthUnit: "m", displayScale: 100 });
+    }
+    document.quantities = [];
+    return document;
+  };
+  check("G13", explainPlannerOpticsProof(qPlus, plusLens(40)).proof === "proven",
+    `f = 0.4 m on a +2.5 D stem must be proven; got ${explainPlannerOpticsProof(qPlus, plusLens(40)).reason}`);
+  expectUnproven("G13", "f = 0.6 m on a +2.5 D stem", qPlus, plusLens(60), /f = 60 cm contradicts the stem's power \+2\.5 D \(\|f\| = 40 cm\)/);
+}
+
+// ---- G14: a converges assertion with expected false proves nothing ----
+{
+  // Outgoing rays from the two hits to the object base and the focus: they never pass the image tip.
+  const missing = structuredClone(goodMirror);
+  missing.constructions = missing.constructions.map((construction) =>
+    construction.id === "c_r1o" ? { ...construction, inputs: { start: "M1", end: "ob", approximation: "paraxial" } }
+      : construction.id === "c_r2o" ? { ...construction, inputs: { start: "M2", end: "F", approximation: "paraxial" } } : construction);
+  missing.entities = missing.entities.map((entity) => entity.id === "ray1_out" || entity.id === "ray2_out" ? { ...entity, role: "reflected ray (paraxial)" } : entity);
+  missing.assertions = missing.assertions.filter((assertion) => assertion.id !== "par2")
+    .map((assertion) => assertion.id === "conv" ? { ...assertion, expected: false } : assertion);
+  expectUnproven("G14", "rays that miss the image tip under converges expected false", qMirror, missing, /no fatal converges assertion/);
+  expectNeverPlanner("G14", "rays that miss the image tip under converges expected false", qMirror, mirrorPlan, missing);
+  // Control: the same check on the honest mirror with expected written out as true.
+  const explicitTrue = structuredClone(goodMirror);
+  explicitTrue.assertions = explicitTrue.assertions.map((assertion) => assertion.id === "conv" ? { ...assertion, expected: true } : assertion);
+  expectDrawnAsPlanner("G14", "the concave mirror with converges expected true", qMirror, mirrorPlan, explicitTrue);
+}
+
+// ---- G15: a ray hit must lie within the element as drawn (a curved face stops at 0.95 |R|) ----
+{
+  const pinched = (document: Doc): Doc => {
+    const copy = structuredClone(document);
+    Object.assign(copy.constructions.find((construction) => construction.operator === "lens_section")!.inputs, { radius1: 2, radius2: -2 });
+    return copy;
+  };
+  // halfHeight 8, but faces of radius 2 end 1.9 from the axis: the parallel ray (h = 2) and focal ray (6) miss it.
+  expectUnproven("G15", "traced rays beyond a lens whose faces stop at 1.9", qLens, pinched(traced(goodLens, ["parallel", "focal"])),
+    /parallel ray hits at 2 beyond the lens_section c_lens drawn half height 1\.9/);
+  expectNeverPlanner("G15", "traced rays beyond a lens whose faces stop at 1.9", qLens, lensPlan, pinched(traced(goodLens, ["parallel", "focal"])));
+  // The same drawn extent holds a hand-drawn hit: L1 (h = 2) lies on the lens plane but off the drawn lens.
+  expectUnproven("G15", "a hand ray hit beyond a lens whose faces stop at 1.9", qLens, pinched(goodLens), /converging line ext1 does not leave the lens/);
+  expectNeverPlanner("G15", "a hand ray hit beyond a lens whose faces stop at 1.9", qLens, lensPlan, pinched(goodLens));
+  // Controls: faces of radius 19 reach the 8 cm half height.
+  check("G15", explainPlannerOpticsProof(qLens, traced(goodLens, ["parallel", "focal"])).proof === "proven", "the traced lens with radius 19 faces must stay proven");
+  check("G15", explainPlannerOpticsProof(qLens, goodLens).proof === "proven", "the hand-drawn lens with radius 19 faces must stay proven");
+}
+
+// ---- G16: a hit on the element is accepted whatever parameter-free operator derived it ----
+{
+  /** Swap the second ray pair for ot -> S -> it, with S made by `hit`. */
+  const viaHit = (hit: Construction): Doc => {
+    const document = structuredClone(goodMirror);
+    document.constructions = document.constructions.map((construction) =>
+      construction.id === "c_r2i" ? { ...construction, inputs: { start: "ot", end: "S" } }
+        : construction.id === "c_r2o" ? { ...construction, inputs: { start: "S", end: "it", approximation: "paraxial" } } : construction);
+    document.constructions.splice(document.constructions.findIndex((construction) => construction.id === "c_r2i"), 0, hit);
+    document.constructions = document.constructions.filter((construction) => construction.id !== "c_M2");
+    document.entities = [
+      ...document.entities.filter((entity) => entity.id !== "M2").map((entity) => entity.id === "ray2_in" ? { ...entity, role: "incident ray" }
+        : entity.id === "ray2_out" ? { ...entity, role: "reflected ray (paraxial)" } : entity),
+      ent("S", "point", "ray hit"),
+    ] as Doc["entities"];
+    document.requiredEntityIds = [...document.requiredEntityIds, "S"];
+    document.revealGroups = document.revealGroups.map((group) => group.id === "rays" ? { ...group, entityIds: ["S", ...group.entityIds] } : group);
+    document.assertions = document.assertions.filter((assertion) => assertion.id !== "par2");
+    return document;
+  };
+  for (const [name, hit] of [
+    ["midpoint of the pole and M1", { id: "c_S", operator: "midpoint", inputs: { a: "P", b: "M1" }, outputs: ["S"] }],
+    ["M1 reflected in the axis", { id: "c_S", operator: "reflect_point", inputs: { point: "M1", line: "axis" }, outputs: ["S"] }],
+    ["M1 turned half a turn about the pole", { id: "c_S", operator: "rotate", inputs: { point: "M1", center: "P", angle: 180, angleUnit: "degrees" }, outputs: ["S"] }],
+  ] as Array<[string, Construction]>) {
+    const document = viaHit(hit);
+    const proof = explainPlannerOpticsProof(qMirror, document);
+    check("G16", proof.proof === "proven", `a ray hit at ${name} must be proven; got ${proof.proof}: ${proof.reason}`);
+    expectDrawnAsPlanner("G16", `the concave mirror with a ray hit at ${name}`, qMirror, mirrorPlan, document);
+  }
+  // Controls: the same operators off the mirror stay unproven.
+  for (const [name, hit] of [
+    ["midpoint of the object tip and M1", { id: "c_S", operator: "midpoint", inputs: { a: "ot", b: "M1" }, outputs: ["S"] }],
+    ["the object tip reflected in the mirror plane", { id: "c_S", operator: "reflect_point", inputs: { point: "ot", line: "lp" }, outputs: ["S"] }],
+    ["M1 turned half a turn about the object tip", { id: "c_S", operator: "rotate", inputs: { point: "M1", center: "ot", angle: 180, angleUnit: "degrees" }, outputs: ["S"] }],
+  ] as Array<[string, Construction]>) {
+    expectUnproven("G16", `a ray hit at ${name}`, qMirror, viaHit(hit), /converging line ray2_out does not leave the mirror/);
+  }
+}
+
+// ---- G17: a mirror on an endpoint axis toward -x, radius signed the way the engine draws it ----
+{
+  const reversed = structuredClone(goodMirror);
+  for (const construction of reversed.constructions) {
+    if (construction.id === "c_axis") construction.inputs = { start: "axis_r", end: "axis_l" };
+    // The surface frame always points along +x; the object now sits on the +x side, so concave is R > 0.
+    if (construction.id === "c_mirror") construction.inputs.signedRadius = 30;
+  }
+  expectDrawnAsPlanner("G17", "the concave mirror on the axis axis_r -> axis_l with signedRadius 30", qMirror, mirrorPlan, reversed);
+  const drawnConvex = structuredClone(reversed);
+  drawnConvex.constructions.find((construction) => construction.id === "c_mirror")!.inputs.signedRadius = -30;
+  expectEngineRefuses("G17", "the same reversed-axis mirror drawn convex (signedRadius -30)", qMirror, mirrorPlan, drawnConvex);
+}
+
+for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17"]) {
   console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 }
 if (failures.length > 0) {

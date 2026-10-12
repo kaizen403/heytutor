@@ -23,6 +23,11 @@
  * compiles and draws the focus in front of the mirror. A lens or a convex mirror whose focus, image
  * and surface agree still compiles clean; a lens focus of the wrong sign, a mirror surface of the
  * wrong sense and a mirror surface of the wrong radius each fail closed.
+ * R8: the renderer draws a spherical_surface in a +x frame, so on a principal axis written toward -x
+ * (endpoints B to A) its signedRadius is read along +x. A concave mirror there with signedRadius 28 and
+ * focalLength -14 (and a convex one with -66 and 33) compiles clean, with the centre of curvature and
+ * focus drawn on the correct side; the same surfaces signed along the written axis, which draw the
+ * other sense, and a kind-only concave surface, which draws convex there, fail closed.
  */
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -364,6 +369,48 @@ for (const [name, document] of [
   check("R7", codes.includes(FOCAL_CODE) && !compiled.ok, `${name} must fail closed with ${FOCAL_CODE}; got ${codes.join(", ") || "nothing"}`);
 }
 
+// ---- R8: a mirror surface's radius is read along the axis the renderer draws it on ----
+/** Image, focus and surface all on the principal axis drawn B to A (toward -x); the renderer flips that axis to +x. */
+function reversedEndpointAxis(test: Case, focus: Record<string, unknown>, surface: Record<string, unknown>): SceneDocument {
+  const document = withElement(test, focus, surface);
+  document.constructions.splice(5, 0, { id: "c-axis-r", operator: "line", inputs: { start: "B", end: "A" }, outputs: ["axis-r"] });
+  for (const construction of document.constructions) {
+    if (["c-img", "c-focus", "c-surface"].includes(construction.id)) construction.inputs = { ...construction.inputs, axis: "axis-r" };
+  }
+  document.entities.push(ent("axis-r", "line")); document.requiredEntityIds.push("axis-r"); document.revealGroups[0]!.entityIds.push("axis-r");
+  return document;
+}
+const concaveMirror = mirrorReal; // u 21, f -14: the object sits on the +x side of the pole once the axis runs toward -x
+for (const [name, document] of [
+  // The review's case: concave, focus on the object side, centre of curvature on the object side (+x) as drawn.
+  ["concave mirror, reversed endpoint axis, signedRadius 28 and focalLength -14", reversedEndpointAxis(concaveMirror, { focalLength: -14 }, { signedRadius: 28 })],
+  ["concave mirror, reversed endpoint axis, form converging focus and signedRadius 28", reversedEndpointAxis(concaveMirror, { focalLength: 14, form: "converging" }, { signedRadius: 28 })],
+  ["convex mirror, reversed endpoint axis, signedRadius -66 and focalLength 33", reversedEndpointAxis(convexMirror, { focalLength: 33 }, { signedRadius: -66 })],
+] as const) {
+  const { codes, compiled } = fatalCodes(document);
+  check("R8", compiled.ok && codes.length === 0, `${name} must compile clean; got ${codes.join(", ")}`);
+  if (!compiled.ok) continue;
+  // As drawn: the concave mirror's centre of curvature and focus lie on the object's side of the pole.
+  const at = (id: string) => compiled.renderScene?.primitives.find((primitive) => primitive.entityId === id && primitive.kind === "point")?.points[0];
+  const arc = compiled.renderScene?.primitives.find((primitive) => primitive.entityId === "surface");
+  const [pole, objectBase, focusPoint] = [at("O"), at("ob"), at("F")];
+  const centre = arc?.points[0];
+  const concave = name.startsWith("concave");
+  check("R8", pole && objectBase && focusPoint && centre &&
+    (Math.sign(centre.x - pole.x) === Math.sign(objectBase.x - pole.x)) === concave &&
+    (Math.sign(focusPoint.x - pole.x) === Math.sign(objectBase.x - pole.x)) === concave,
+  `${name}: centre of curvature and focus must sit ${concave ? "on" : "behind"} the object side; pole ${JSON.stringify(pole)}, object ${JSON.stringify(objectBase)}, focus ${JSON.stringify(focusPoint)}, centre ${JSON.stringify(centre)}`);
+}
+for (const [name, document] of [
+  // Read along the supplied axis these agreed; drawn, their centre of curvature sits behind the mirror.
+  ["concave mirror, reversed endpoint axis, signedRadius -28 (drawn convex)", reversedEndpointAxis(concaveMirror, { focalLength: -14 }, { signedRadius: -28 })],
+  ["concave mirror, reversed endpoint axis, kind-only concave (drawn convex)", reversedEndpointAxis(concaveMirror, { focalLength: -14 }, { kind: "concave" })],
+  ["convex mirror, reversed endpoint axis, signedRadius 66 (drawn concave)", reversedEndpointAxis(convexMirror, { focalLength: 33 }, { signedRadius: 66 })],
+] as const) {
+  const { codes, compiled } = fatalCodes(document);
+  check("R8", codes.includes(FOCAL_CODE) && !compiled.ok, `${name} must fail closed with ${FOCAL_CODE}; got ${codes.join(", ") || "nothing"}`);
+}
+
 // ---- R5: source mutants ----
 const source = readFileSync(SOURCE, "utf8");
 for (const [name, from, to, gate] of [
@@ -383,7 +430,7 @@ for (const [name, from, to, gate] of [
   } finally { rmSync(file, { force: true }); }
 }
 
-for (const gate of ["R1", "R2", "R3", "R4", "R5", "R6", "R7"]) console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
+for (const gate of ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8"]) console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 if (failures.length) {
   for (const failure of failures.slice(0, 40)) console.error(`  ${failure}`);
   process.exit(1);

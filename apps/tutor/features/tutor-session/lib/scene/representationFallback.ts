@@ -645,13 +645,14 @@ export type PlannerOpticsProof = "not_optics" | "proven" | "unproven";
  * On a lens or mirror stem a planner figure is admitted only when the engine,
  * not the model, placed what the student reads: the object, image and foci are
  * `gaussian_image` / `optical_focus` outputs whose u, f and element kind match
- * the stem, the element is drawn on that centre and axis with the stem's sense,
- * every ray ends on an engine-derived point, and every line converging on the
- * image tip leaves the element after a drawn incident ray from the object tip
- * (or is a lens chief ray through the optical centre). Rays the engine traced
- * with `principal_rays` from the image tip need no hand `converges`; two of them
- * prove the rays, and each must meet the element within its drawn half height
- * (P10). Free-point figures, whose
+ * the stem (a stated lens power fixes |f| = 1/|P|), the element is drawn on that
+ * centre and axis with the stem's sense, every ray ends on an engine-derived
+ * point, and every line affirmatively converging on the image tip leaves the
+ * element (a point on its plane within the element as drawn) after a drawn
+ * incident ray from the object tip, or is a lens chief ray through the optical
+ * centre. Rays the engine traced with `principal_rays` from the image tip need
+ * no hand `converges`; two of them prove the rays, and each must meet the
+ * element within its drawn half height (P10). Free-point figures, whose
  * ratio assertions are self-declared, fail. A model-writable
  * `source.archetype` label is never read.
  *
@@ -749,6 +750,16 @@ function opticsProofFailure(question: string, match: OpticsStemMatch, document: 
     const value = (slot === "u" ? -u : Math.abs(f)) * scale!;
     if (!opticsClose(value, stated)) return `${slot} = ${value} cm contradicts the stem's ${stated} cm`;
   }
+  // A lens power in dioptres states |f| = 1/|P| metres, so -6.25 D is 16 cm whatever else the stem gives.
+  // detectArchetype reads no focal length from a power; 1/P rounded to three figures still agrees.
+  const power = element === "lens" ? opticsStatedPowerFocal(question) : null;
+  if (power) {
+    if (scale === null) return "gaussian_image lengthUnit must be cm, m or mm";
+    const value = Math.abs(f) * scale;
+    if (!(Math.abs(value - power.cm) <= OPTICS_POWER_TOLERANCE * power.cm)) {
+      return `f = ${opticsCompact(value)} cm contradicts the stem's power ${power.text} D (|f| = ${opticsCompact(power.cm)} cm)`;
+    }
+  }
   // P4: every focus is the engine focus of this element, in the image's unit.
   const foci = document.constructions.filter((construction) => construction.operator === "optical_focus");
   if (foci.length === 0) return "no optical_focus";
@@ -775,13 +786,14 @@ function opticsProofFailure(question: string, match: OpticsStemMatch, document: 
       opticsFirst(construction.inputs, OPTICS_END_KEYS) === to));
   if (arrows.some((arrow) => !arrow)) return "object or image arrow is not drawn on the gaussian_image anchors";
   // P8: two or more rays the engine traced from this image tip (principal_rays), or a
-  // fatal convergence of hand-drawn rays at the engine image tip.
+  // fatal convergence of hand-drawn rays at the engine image tip. The compiler passes a
+  // converges with expected false when the rays miss, so only an affirmative one proves.
   const traced = document.constructions.filter((construction) => construction.operator === "principal_rays");
   const untraced = traced.find((construction) => construction.inputs.image !== imageTip);
   if (untraced) return `principal_rays ${untraced.id} does not trace the gaussian image tip`;
   const tracedOutputs = new Set(traced.flatMap((construction) => construction.outputs));
   const convergence = document.assertions.filter((assertion) =>
-    assertion.predicate === "converges" && assertion.severity === "fatal" &&
+    assertion.predicate === "converges" && assertion.severity === "fatal" && assertion.expected !== false &&
     assertion.entities.length >= 3 && assertion.entities.at(-1) === imageTip);
   if (convergence.length === 0 && tracedOutputs.size < 2) {
     return "no fatal converges assertion ending on the gaussian image tip, and fewer than two principal_rays traced from it";
@@ -835,18 +847,161 @@ function opticsProofFailure(question: string, match: OpticsStemMatch, document: 
       return `ray ${ray.outputs[0] ?? ray.id} has an endpoint the engine did not derive`;
     }
   }
-  // P9: each converging line is a real ray path through the element.
+  // P9: each converging line is a real ray path through the element. A hit is on the
+  // element when it lies on the element plane within the element as drawn, whatever
+  // parameter-free construction placed it.
   const lensImage = element === "lens" ? { u, v: f * u / (u + f) } : null;
+  const surfaces = document.constructions.filter((construction) =>
+    construction.operator === "lens_section" || construction.operator === "spherical_surface");
+  const reach = Math.min(...surfaces.map((surface) => opticsDrawnHalfHeight(surface, document)));
+  const frame = opticsFrame(image, foci, element, resolved, displayScale, document, producer);
+  const onElement = (point: unknown): boolean => {
+    const at = frame.point(point);
+    return at !== null && Math.abs(at.a) <= frame.tolerance && Math.abs(at.y) <= reach * (1 + 1e-9) + frame.tolerance;
+  };
   for (const assertion of convergence) {
     for (const id of assertion.entities.slice(0, -1)) {
       // The engine certified its traced rays; P9 holds the hand-drawn ones.
       if (tracedOutputs.has(id)) continue;
-      const failure = opticsConvergingPathFailure(id, producer.get(id)!, image, lensImage, document, producer);
+      const failure = opticsConvergingPathFailure(id, producer.get(id)!, image, lensImage, document, onElement);
       if (failure) return failure;
     }
   }
   // P10: every traced ray meets the element within its drawn half height.
-  return opticsTracedHitFailure(traced, element, resolved, displayScale, document);
+  return opticsTracedHitFailure(traced, element, resolved, displayScale, surfaces, document);
+}
+
+interface OpticsFramePoint { a: number; y: number }
+interface OpticsFrameLine { at: OpticsFramePoint; along: OpticsFramePoint }
+
+/**
+ * Points in the element's own frame, in world units: `a` along the gaussian_image axis from its
+ * centre, `y` along the engine's normal. The anchors sit where the engine places them (object base
+ * and tip at u and (u, h), image at v and (v, m h), a mirror focus at f, lens foci at -f and f, all
+ * times displayScale; the axis is y = 0). Every other point is evaluated through the parameter-free
+ * operators P7 admits; each is equivariant under the frame's isometry, so a point is on the element
+ * plane in the frame exactly when it is in the world. A literal or unreadable point is null.
+ */
+function opticsFrame(
+  image: OpticsConstruction,
+  foci: readonly OpticsConstruction[],
+  element: "lens" | "mirror",
+  resolved: { focalLength: number; objectDistance?: number; objectHeight?: number },
+  displayScale: number,
+  document: SceneDocument,
+  producer: ReadonlyMap<string, OpticsConstruction>,
+): { point(id: unknown): OpticsFramePoint | null; tolerance: number } {
+  const s = displayScale;
+  const u = resolved.objectDistance ?? Number.NaN;
+  const f = resolved.focalLength;
+  const h = resolved.objectHeight ?? Number.NaN;
+  const v = element === "lens" ? f * u / (u + f) : f * u / (u - f);
+  const m = element === "lens" ? v / u : -v / u;
+  const points = new Map<string, OpticsFramePoint | null>();
+  const lines = new Map<string, OpticsFrameLine | null>();
+  const [objectBase, objectTip, imageBase, imageTip] = image.outputs;
+  for (const [id, a, y] of [[objectBase, u, 0], [objectTip, u, h], [imageBase, v, 0], [imageTip, v, m * h]] as const) {
+    if (id) points.set(id, Number.isFinite(a * s) && Number.isFinite(y * s) ? { a: a * s, y: y * s } : null);
+  }
+  for (const focus of foci) {
+    const distances = element === "lens" ? [-f, f] : [f];
+    focus.outputs.forEach((id, index) => {
+      const distance = distances[index];
+      if (distance !== undefined && !points.has(id)) points.set(id, { a: distance * s, y: 0 });
+    });
+  }
+  if (typeof image.inputs.center === "string") points.set(image.inputs.center, { a: 0, y: 0 });
+  if (typeof image.inputs.axis === "string") lines.set(image.inputs.axis, { at: { a: 0, y: 0 }, along: { a: 1, y: 0 } });
+  const scale = Math.max(1, ...[u, v, f, h, m * h].map((value) => Math.abs(value * s)).filter(Number.isFinite));
+  const tolerance = 1e-6 * scale;
+  const cross = (p: OpticsFramePoint, q: OpticsFramePoint) => p.a * q.y - p.y * q.a;
+  const foot = (p: OpticsFramePoint, line: OpticsFrameLine): OpticsFramePoint => {
+    const t = ((p.a - line.at.a) * line.along.a + (p.y - line.at.y) * line.along.y) /
+      (line.along.a ** 2 + line.along.y ** 2);
+    return { a: line.at.a + t * line.along.a, y: line.at.y + t * line.along.y };
+  };
+  const point = (id: unknown, depth = 0): OpticsFramePoint | null => {
+    if (typeof id !== "string" || depth > 32) return null;
+    if (points.has(id)) return points.get(id)!;
+    points.set(id, null);
+    const construction = producer.get(id);
+    const references = construction && construction.outputs.length === 1 ? opticsDerivedReferences(construction, document) : null;
+    let result: OpticsFramePoint | null = null;
+    if (construction && references) {
+      const at = (index: number) => point(references[index], depth + 1);
+      const along = (index: number) => line(references[index], depth + 1);
+      if (construction.operator === "project") {
+        const p = at(0); const target = along(1);
+        result = p && target ? foot(p, target) : null;
+      } else if (construction.operator === "intersection") {
+        const first = along(0); const second = along(1);
+        const denominator = first && second ? cross(first.along, second.along) : 0;
+        if (first && second && Math.abs(denominator) > 1e-12 * Math.hypot(first.along.a, first.along.y) * Math.hypot(second.along.a, second.along.y)) {
+          const t = cross({ a: second.at.a - first.at.a, y: second.at.y - first.at.y }, second.along) / denominator;
+          result = { a: first.at.a + t * first.along.a, y: first.at.y + t * first.along.y };
+        }
+      } else if (construction.operator === "midpoint") {
+        const p = at(0); const q = at(1);
+        result = p && q ? { a: (p.a + q.a) / 2, y: (p.y + q.y) / 2 } : null;
+      } else if (construction.operator === "reflect_point") {
+        const p = at(0); const mirrorLine = along(1);
+        const base = p && mirrorLine ? foot(p, mirrorLine) : null;
+        result = p && base ? { a: 2 * base.a - p.a, y: 2 * base.y - p.y } : null;
+      } else if (construction.operator === "rotate") {
+        // opticsDerivedReferences admits only a half-turn.
+        const p = at(0); const c = at(1);
+        result = p && c ? { a: 2 * c.a - p.a, y: 2 * c.y - p.y } : null;
+      }
+    }
+    points.set(id, result);
+    return result;
+  };
+  const line = (id: unknown, depth = 0): OpticsFrameLine | null => {
+    if (typeof id !== "string" || depth > 32) return null;
+    if (lines.has(id)) return lines.get(id)!;
+    lines.set(id, null);
+    const construction = producer.get(id);
+    const references = construction && construction.outputs.length === 1 ? opticsDerivedReferences(construction, document) : null;
+    let result: OpticsFrameLine | null = null;
+    if (construction && references) {
+      const through = point(references[0], depth + 1);
+      if (construction.operator === "perpendicular_through" || construction.operator === "parallel_through") {
+        const reference = line(references[1], depth + 1);
+        result = through && reference ? {
+          at: through,
+          along: construction.operator === "parallel_through" ? reference.along : { a: -reference.along.y, y: reference.along.a },
+        } : null;
+      } else if (OPTICS_PATH_OPERATORS.has(construction.operator)) {
+        const end = point(references[1], depth + 1);
+        result = through && end && Math.hypot(end.a - through.a, end.y - through.y) > tolerance
+          ? { at: through, along: { a: end.a - through.a, y: end.y - through.y } } : null;
+      }
+    }
+    lines.set(id, result);
+    return result;
+  };
+  return { point: (id) => point(id), tolerance };
+}
+
+/**
+ * How far from the axis a lens_section or spherical_surface is drawn, in world units. The engine's
+ * surfaces stop a curved face at 0.95 |R| even when halfHeight asks for more (opticsSurfaces); a face
+ * flatter than OPTICS_PLANO_RATIO half heights is drawn flat to halfHeight. A mirror with no radius is
+ * drawn at |R| = 2.8 halfHeight, which never clips.
+ */
+function opticsDrawnHalfHeight(surface: OpticsConstruction, document: SceneDocument): number {
+  const halfHeight = opticsNumber(opticsFirst(surface.inputs, ["halfHeight", "aperture"]), document);
+  if (!(halfHeight > 0)) return Number.NaN;
+  const face = (radius: number) => !Number.isFinite(radius) || Math.abs(radius) > OPTICS_PLANO_RATIO * halfHeight
+    ? halfHeight : Math.min(halfHeight, 0.95 * Math.abs(radius));
+  if (surface.operator === "lens_section") {
+    return Math.min(
+      face(opticsNumber(opticsFirst(surface.inputs, ["radius1", "R1", "signedRadius1"]), document)),
+      face(opticsNumber(opticsFirst(surface.inputs, ["radius2", "R2", "signedRadius2"]), document)),
+    );
+  }
+  const radius = opticsFirst(surface.inputs, ["signedRadius", "radius"]);
+  return radius === undefined ? halfHeight : face(opticsNumber(radius, document));
 }
 
 const OPTICS_DEFAULT_TRACED_RAYS = ["parallel", "central"] as const;
@@ -854,13 +1009,15 @@ const OPTICS_DEFAULT_TRACED_RAYS = ["parallel", "central"] as const;
 /**
  * P10. A `principal_rays` ray meets the element plane at height h (parallel), h' = m h (focal) or 0
  * (central), in physical units times the display scale. Each drawn lens_section or
- * spherical_surface must reach that height, or the ray would bend in mid air.
+ * spherical_surface must reach that height as drawn (`opticsDrawnHalfHeight`: a
+ * curved face stops at 0.95 |R|), or the ray would bend in mid air.
  */
 function opticsTracedHitFailure(
   traced: readonly OpticsConstruction[],
   element: "lens" | "mirror",
   resolved: { focalLength: number; objectDistance?: number; objectHeight?: number },
   displayScale: number,
+  surfaces: readonly OpticsConstruction[],
   document: SceneDocument,
 ): string | null {
   if (traced.length === 0) return null;
@@ -870,18 +1027,16 @@ function opticsTracedHitFailure(
   const v = element === "lens" ? f * u / (u + f) : f * u / (u - f);
   const imageHeight = (element === "lens" ? v / u : -v / u) * h;
   if (![u, f, h, v, imageHeight, displayScale].every(Number.isFinite)) return "principal_rays hit heights are not computable";
-  const surfaces = document.constructions.filter((construction) =>
-    construction.operator === "lens_section" || construction.operator === "spherical_surface");
   for (const construction of traced) {
     const rays = Array.isArray(construction.inputs.rays) ? construction.inputs.rays : OPTICS_DEFAULT_TRACED_RAYS;
     for (const ray of rays) {
       const height = ray === "parallel" ? Math.abs(h) : ray === "focal" ? Math.abs(imageHeight) : ray === "central" ? 0 : Number.NaN;
       if (!Number.isFinite(height)) return `principal_rays ${construction.id} names an unknown ray ${String(ray)}`;
       for (const surface of surfaces) {
-        const halfHeight = opticsNumber(opticsFirst(surface.inputs, ["halfHeight", "aperture"]), document);
+        const reach = opticsDrawnHalfHeight(surface, document);
         const needed = height * Math.abs(displayScale);
-        if (!(needed <= halfHeight * (1 + 1e-9))) {
-          return `principal_rays ${construction.id} ${String(ray)} ray hits at ${needed} beyond the ${surface.operator} ${surface.id} half height ${halfHeight}`;
+        if (!(needed <= reach * (1 + 1e-9))) {
+          return `principal_rays ${construction.id} ${String(ray)} ray hits at ${opticsCompact(needed)} beyond the ${surface.operator} ${surface.id} drawn half height ${opticsCompact(reach)}`;
         }
       }
     }
@@ -896,10 +1051,10 @@ function opticsTracedHitFailure(
  * when it starts at an on-element point S and a drawn incident ray runs from the
  * object tip to S. None of the engine's own landmarks lie on the element: the
  * gaussian_image anchors sit at u and v and the optical_focus points at f along
- * the axis, all nonzero. The on-element points are the centre (pole or optical
- * centre) and points the document derives on the element plane, the
- * perpendicular to the axis through the centre: `project` onto that plane, or an
- * `intersection` with it.
+ * the axis, all nonzero. The on-element points are those the document derives,
+ * by any parameter-free operator, on the element plane (the perpendicular to the
+ * axis through the centre) within the element as drawn: `onElement`, evaluated
+ * in the element frame (`opticsFrame`, `opticsDrawnHalfHeight`).
  *
  * The one exception is the lens chief ray: a straight path from the object tip
  * through the optical centre. On a lens the engine's object tip, centre and image
@@ -913,7 +1068,7 @@ function opticsConvergingPathFailure(
   image: OpticsConstruction,
   lensImage: { u: number; v: number } | null,
   document: SceneDocument,
-  producer: ReadonlyMap<string, OpticsConstruction>,
+  onElement: (point: unknown) => boolean,
 ): string | null {
   const [objectBase, objectTip] = image.outputs;
   const center = image.inputs.center;
@@ -935,21 +1090,6 @@ function opticsConvergingPathFailure(
       return `chief ray ${id} does not run from the object tip through the optical centre to the image tip`;
     }
   }
-  const planes = new Set(document.constructions.filter((construction) =>
-    construction.operator === "perpendicular_through" &&
-    sameOpticsInput(opticsFirst(construction.inputs, ["through", "point"]), center) &&
-    sameOpticsInput(opticsFirst(construction.inputs, ["line", "reference"]), image.inputs.axis))
-    .flatMap((construction) => construction.outputs));
-  const onElement = (point: unknown): boolean => {
-    if (typeof point !== "string") return false;
-    if (sameOpticsInput(point, center)) return true;
-    const construction = producer.get(point);
-    if (construction?.operator === "project") return planes.has(opticsFirst(construction.inputs, ["line", "onto"]) as string);
-    if (construction?.operator === "intersection") {
-      return [["first", "a", "line1"], ["second", "b", "line2"]].some((keys) => planes.has(opticsFirst(construction.inputs, keys) as string));
-    }
-    return false;
-  };
   const hit = onElement(start) ? start : undirected && onElement(end) ? end : undefined;
   if (hit === undefined) {
     const from = start === objectBase ? " (it starts at the object base)" : "";
@@ -979,11 +1119,40 @@ function opticsStatedKind(question: string, element: "lens" | "mirror", match: O
   if (namesConverging && namesDiverging) return match.slots.kind === "convex" ? "convex" : "concave";
   if (namesConverging || namesDiverging) return (element === "lens") === namesConverging ? "convex" : "concave";
   if (element === "mirror") return null;
-  const power = /(^|[^\w.])([+\-−–]?)\s*\d+(?:\.\d+)?\s*(?:D|[Dd]ioptres?|[Dd]iopters?)\b/.exec(question);
-  if (power) return power[2] === "" || power[2] === "+" ? "convex" : "concave";
+  const power = opticsStatedPowers(question)[0];
+  if (power !== undefined && power !== 0) return power > 0 ? "convex" : "concave";
   const focal = match.slots.f;
   if (match.sources.f === "stem" && typeof focal === "number" && focal !== 0) return focal > 0 ? "convex" : "concave";
   return null;
+}
+
+const OPTICS_POWER = /(^|[^\w.])([+\-−–]?)\s*(\d+(?:\.\d+)?)\s*(?:D|[Dd]ioptres?|[Dd]iopters?)\b/g;
+/** 1/P rounded to three figures (|f| = 33.3 cm for 3 D) still agrees; 1 percent, like the engine's own focal agreement. */
+const OPTICS_POWER_TOLERANCE = 0.01;
+
+/**
+ * Every lens power the stem states in dioptres, signed, in order. An unsigned power is positive.
+ * A bare "2D" or "3D" names a dimension, not a power.
+ */
+function opticsStatedPowers(question: string): number[] {
+  return [...question.matchAll(OPTICS_POWER)]
+    .filter((match) => !/^[23]D$/.test(match[0].slice(match[1]!.length)))
+    .map((match) => (match[2] === "" || match[2] === "+" ? 1 : -1) * Number(match[3]));
+}
+
+/**
+ * |f| in cm from the stem's lens power (|f| = 1/|P| m), or null when the stem states no power, a zero
+ * power, or two different powers (lenses in combination, whose element f the stem does not fix).
+ */
+function opticsStatedPowerFocal(question: string): { cm: number; text: string } | null {
+  const powers = opticsStatedPowers(question);
+  const power = powers[0];
+  if (power === undefined || power === 0 || powers.some((other) => other !== power)) return null;
+  return { cm: 100 / Math.abs(power), text: `${power > 0 ? "+" : ""}${opticsCompact(power)}` };
+}
+
+function opticsCompact(value: number): string {
+  return Number.isFinite(value) ? String(Number(value.toPrecision(6))) : String(value);
 }
 
 /** P5: lens_section for a lens, spherical_surface for a mirror, never the other, never flat. */
