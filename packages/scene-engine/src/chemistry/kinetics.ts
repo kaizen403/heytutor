@@ -19,7 +19,7 @@ import type { SceneDocument } from "../types";
 import { fmt } from "../archetypes/document";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
 
-import { chemistryCanonicalValuesAgree, chemistryReferenceConstantValid, CHEMISTRY_NUMBER_PATTERN, CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, chemistryQuestionSpan, chemistryPlanBindingsValid, chemistryQuantityCuesValid, readChemistryQuantity, readChemistryLiteral, readChemistryArrheniusEquation, findChemistryQuantities, convertChemistryReading, convertChemistryValue, chemistryUnitSymbol, type ChemistryUnit, type ChemistryReading, type ChemistrySpan } from "./quantityReader";
+import { chemistryCanonicalValuesAgree, chemistryReferenceConstantValid, CHEMISTRY_NUMBER_PATTERN, CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, chemistryQuestionSpan, chemistryPlanBindingsValid, chemistryQuantityCuesValid, readChemistryQuantity, readChemistryLiteral, readChemistryArrheniusEquation, findChemistryQuantities, convertChemistryReading, convertChemistryValue, chemistryUnitSymbol, type ChemistryUnit, type ChemistryReading, type ChemistrySpan } from "./quantityReader";
 
 export const KINETICS_FAMILY = "chem_kinetics" as const;
 
