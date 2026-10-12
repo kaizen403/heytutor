@@ -544,6 +544,7 @@ const routeChecks: [string, () => Promise<void>][] = [
       reasoning_effort: "low",
       max_completion_tokens: 2800 + 2048,
       model: "gpt-6-1-sol",
+      service_tier: "default",
     });
     const metadata = generations.at(-1)!.metadata!;
     assert.equal(generations.at(-1)!.model, "gpt-6-1-sol");

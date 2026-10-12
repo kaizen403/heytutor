@@ -757,6 +757,7 @@ export class PlannerUsageTracker {
     traceId: string,
     model = "unknown",
     reservedUsd?: number,
+    profile: Pick<PlannerModelCall, "requestKind" | "phase" | "lane" | "elapsedMs" | "requestChars" | "serviceTierRequested"> = {},
   ): void {
     const pending = this.pendingWorstCaseByTrace
       .get(traceId)
@@ -770,6 +771,8 @@ export class PlannerUsageTracker {
       reservedUsd,
       pending?.maxAttempts ?? 1,
       pending?.maxAttempts ?? 1,
+      model,
+      profile,
     );
   }
 

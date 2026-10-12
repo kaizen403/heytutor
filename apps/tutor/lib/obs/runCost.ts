@@ -11,6 +11,7 @@ import {
   type TtsRateLane,
 } from "./usageCost";
 import { resolveLlmEndpoint, type LlmProviderName } from "../llm/llmProvider";
+import { plannerTierCostMultiplier } from "../llm/planningSpeed";
 
 export interface CostObservation {
   id?: string | null;
@@ -340,7 +341,13 @@ export function aggregateRunCost(observations: CostObservation[]): RunCostReport
       unknownUsage += 1;
       continue;
     }
-    const usd = calculateLlmCostDetails(tokens, { model }).total ?? 0;
+    // Only the server planner proxy writes this marker. Old/teaching rows keep
+    // their existing price; returned default overrides a requested priority tier.
+    const plannerMarker = observation.metadata?.planner_cost_multiplier;
+    const multiplier = plannerMarker === 1 || plannerMarker === 2
+      ? plannerTierCostMultiplier(observation.metadata?.service_tier, observation.metadata?.service_tier_requested === "priority")
+      : 1;
+    const usd = (calculateLlmCostDetails(tokens, { model }).total ?? 0) * multiplier;
     let kind = kinds.get(kindName);
     if (!kind) {
       kind = emptyKind(kindName, "llm");

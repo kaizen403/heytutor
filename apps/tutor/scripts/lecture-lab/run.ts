@@ -56,7 +56,6 @@ import {
 import { completionTokenCap, providerChatBody, resolveLlmEndpoint } from "../../lib/llm/llmProvider";
 import { parseProviderUsage } from "../../lib/obs/providerUsage";
 import { normalizeTutorQuestion } from "@heytutor/tutor-core";
-import { COMPACT_SCENE_CONTRACTS_ENABLED } from "@heytutor/tutor-core";
 import { calculateLlmCostDetails, resolveLlmRates } from "../../lib/obs/usageCost";
 import { assertLabSpendMode, assertLabUsageCheckpoint, hasPricedUsage, LabRequestNotDispatchedError, type LabSpendMode, type LabUnresolvedCall, type LabUsageObservation } from "./labSpend";
 import type { SceneDeclinePolicy } from "./sceneDeclineExperiment";
@@ -786,8 +785,7 @@ async function main(): Promise<void> {
   }
   execFileSync(process.execPath, [resolve(process.cwd(), "scripts/lecture-lab/svg2png.mjs"), "--check-browser"], { stdio: "pipe" });
   const executionConfig = {
-    planningSpeed: { compactSceneContracts: COMPACT_SCENE_CONTRACTS_ENABLED,
-      sceneEffort: serverConfig.planningSpeed?.sceneEffort ?? "low",
+    planningSpeed: { sceneEffort: serverConfig.planningSpeed?.sceneEffort ?? "low",
       requestTier: serverConfig.planningSpeed?.requestTier ?? "auto",
       priority: serverConfig.planningSpeed?.priority === true },
     figureSelectionPolicy: PRODUCTION_SCENE_SELECTION_VERSION,
@@ -973,18 +971,28 @@ async function main(): Promise<void> {
         usageTracker.recordRequest(traceId, requestWorstCaseUsd, plannerRequest ? "planner" : "teaching", maxAttempts);
       }
       let accounted = false;
+      let requestChars: number | undefined;
       try {
-        const requestStartedAt = Date.now();
+        if (typeof init?.body === "string") requestChars = JSON.stringify((JSON.parse(init.body) as { messages?: unknown }).messages ?? []).length;
+      } catch {
+        // Diagnostic metadata must not alter dispatch or usage settlement.
+      }
+      const requestProfile = {
+        requestKind: headers.get("x-turn-planner-version") === "3" ? "turn_plan" as const
+          : headers.get("x-problem-ir-version") === "1" ? "problem_ir" as const
+          : headers.get("x-diagram-example-picker") === "1" ? "picker" as const
+          : headers.get("x-scene-planner-version") === "2" ? "scene" as const : "other" as const,
+        phase: headers.get("x-scene-planner-phase") ?? headers.get("x-turn-plan-phase") ?? "plan",
+        lane: headers.get("x-scene-planner-lane") ?? headers.get("x-turn-planner-lane"),
+        serviceTierRequested: serverConfig.planningSpeed?.requestTier ?? "auto",
+        requestChars,
+      };
+      const requestStartedAt = Date.now();
+      try {
         const response = await nativeFetch(input, { ...init, headers });
         if (plannerRequest) await usageTracker.recordResponse(traceId, response, requestWorstCaseUsd, maxAttempts, requestModel, {
-          requestKind: headers.get("x-turn-planner-version") === "3" ? "turn_plan"
-            : headers.get("x-problem-ir-version") === "1" ? "problem_ir"
-            : headers.get("x-diagram-example-picker") === "1" ? "picker"
-            : headers.get("x-scene-planner-version") === "2" ? "scene" : "other",
-          phase: headers.get("x-scene-planner-phase") ?? headers.get("x-turn-plan-phase") ?? "plan", lane: headers.get("x-scene-planner-lane") ?? headers.get("x-turn-planner-lane"),
-          serviceTierRequested: serverConfig.planningSpeed?.requestTier ?? "auto",
+          ...requestProfile,
           elapsedMs: Date.now() - requestStartedAt,
-          requestChars: typeof init?.body === "string" ? JSON.stringify((JSON.parse(init.body) as { messages?: unknown }).messages ?? []).length : 0,
         });
         else if (chatRequest) usageTracker.recordStreamingResponse(traceId, response, requestWorstCaseUsd, maxAttempts, requestModel);
         else if (directProviderRequest) {
@@ -1008,7 +1016,8 @@ async function main(): Promise<void> {
         }
         return response;
       } catch (error) {
-        if (!accounted && chatRequest) usageTracker.recordFailure(traceId, requestModel, requestWorstCaseUsd);
+        if (!accounted && chatRequest) usageTracker.recordFailure(traceId, requestModel, requestWorstCaseUsd,
+          plannerRequest ? { ...requestProfile, elapsedMs: Date.now() - requestStartedAt } : {});
         else if (!accounted && directProviderRequest) settleSpend(requestWorstCaseUsd, options.spendMode === "conservative" ? requestWorstCaseUsd : 0, {
           model: requestModel, measuredUsd: null, unresolvedAttempts: 1, unresolvedAllowanceUsd: requestWorstCaseUsd, reason: "picker_transport_failed_or_interrupted",
         }, { traceId, kind: "picker" });

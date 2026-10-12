@@ -125,8 +125,6 @@ export type SceneCandidateValidator<T> = (
 ) => SceneCandidateValidation<T> | Promise<SceneCandidateValidation<T>>;
 
 export const SCENE_PLANNER_TIMEOUT_MS = 60_000;
-/** Read by both the live client build and the existing lab process. */
-export const COMPACT_SCENE_CONTRACTS_ENABLED = process.env.NEXT_PUBLIC_COMPACT_SCENE_CONTRACTS === "1";
 const PLANNER_MODEL = "server";
 const MAX_SCENE_REPAIR_ROUNDS = 2;
 const REPAIR_CANDIDATES_PER_ROUND = 2;
@@ -141,9 +139,7 @@ export async function planSceneDocument(
   strategy?: string,
   lane: ScenePlannerLane = "primary",
 ): Promise<ScenePlannerResponse | null> {
-  const prompt = buildSceneDocumentPlannerPrompt(question, {
-    ...options, compactOperatorContracts: options.compactOperatorContracts ?? COMPACT_SCENE_CONTRACTS_ENABLED,
-  });
+  const prompt = buildSceneDocumentPlannerPrompt(question, options);
   const response = await requestSceneDocument(
     "plan",
     strategy ? `${prompt}\n\nSYNTHESIS STRATEGY\n${strategy}` : prompt,

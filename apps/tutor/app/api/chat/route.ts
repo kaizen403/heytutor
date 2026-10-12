@@ -682,9 +682,7 @@ async function handlePlannerRequest({
     }
     parsed.stream = false;
     parsed.response_format = { type: "json_object" };
-    const body = providerChatBody(applyPlannerSpeedSettings(parsed, {
-      provider: llm.provider, scene: semanticSceneV2 && !turnPlanV3 && !problemIRV1 && !diagramExamplePicker,
-    }), llm);
+    const body = providerChatBody(applyPlannerSpeedSettings(parsed, { provider: llm.provider }), llm);
     const requestedPriority = body.service_tier === "priority";
 
     const reserved = await reservePaidUsage({ actor, grant, kind: "planner", traceId, usd: maximumLlmCost(body.messages, completionTokenCap(body), plannerModels, plannerModels.length * 2) * (requestedPriority ? 2 : 1) });

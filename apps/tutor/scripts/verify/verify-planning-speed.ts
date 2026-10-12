@@ -10,20 +10,26 @@ import type { TurnPlanV3 } from "@heytutor/scene-engine";
 import { buildSceneDocumentPlannerPrompt } from "../../../../packages/tutor-core/src/planners/scenePlannerV2Prompt";
 
 const ordinary = { max_tokens: 4000, thinking: { type: "disabled" }, messages: [] };
-assert.deepEqual(plannerSpeedSettings({}), { sceneEffort: "low", priority: false });
+assert.deepEqual({
+  unsetTier: applyPlannerSpeedSettings(ordinary, { provider: "azure" }, {}).service_tier,
+  removedEffort: azureChatBody(applyPlannerSpeedSettings(ordinary, { provider: "azure" }, {
+    DIAGRAM_SCENE_REASONING_EFFORT: "medium",
+  }), {}).reasoning_effort,
+}, { unsetTier: "default", removedEffort: "low" }, "unset priority is explicitly standard; failed reasoning control is not shipped");
+assert.deepEqual(plannerSpeedSettings({}), { priority: false });
 for (const value of ["", "true", "0", "off", "HIGH", "high", "none"]) {
   assert.equal(plannerSpeedSettings({ DIAGRAM_PLANNER_PRIORITY: value }).priority, false);
-  assert.equal(plannerSpeedSettings({ DIAGRAM_SCENE_REASONING_EFFORT: value }).sceneEffort, "low");
+  assert.equal(applyPlannerSpeedSettings(ordinary, { provider: "azure" }, { DIAGRAM_PLANNER_PRIORITY: value }).service_tier, "default");
 }
 const env = { DIAGRAM_PLANNER_PRIORITY: "1", DIAGRAM_SCENE_REASONING_EFFORT: "medium" };
-assert.equal(applyPlannerSpeedSettings(ordinary, { provider: "azure", scene: true }, {}), ordinary);
-assert.equal(applyPlannerSpeedSettings(ordinary, { provider: "fireworks", scene: true }, env), ordinary);
-const otherPlanner = applyPlannerSpeedSettings(ordinary, { provider: "azure", scene: false }, env);
+assert.deepEqual(applyPlannerSpeedSettings(ordinary, { provider: "azure" }, {}), { ...ordinary, service_tier: "default" });
+assert.equal(applyPlannerSpeedSettings(ordinary, { provider: "fireworks" }, env), ordinary);
+const otherPlanner = applyPlannerSpeedSettings(ordinary, { provider: "azure" }, env);
 assert.equal(azureChatBody(otherPlanner, {}).reasoning_effort, "low");
 assert.equal(otherPlanner.service_tier, "priority");
-const scene = applyPlannerSpeedSettings(ordinary, { provider: "azure", scene: true }, env);
-assert.equal(azureChatBody(scene, {}).reasoning_effort, "medium");
-assert.equal(azureChatBody(scene, {}).max_completion_tokens, 8096);
+const scene = applyPlannerSpeedSettings(ordinary, { provider: "azure" }, env);
+assert.equal(azureChatBody(scene, {}).reasoning_effort, "low");
+assert.equal(azureChatBody(scene, {}).max_completion_tokens, 6048);
 assert.equal(azureChatBody(ordinary, {}).max_completion_tokens, 6048);
 assert.deepEqual(ordinary, { max_tokens: 4000, thinking: { type: "disabled" }, messages: [] });
 assert.equal(plannerTierCostMultiplier("priority", true), 2);
@@ -33,19 +39,19 @@ assert.equal(plannerTierCostMultiplier("auto", true), 2);
 assert.equal(plannerTierCostMultiplier(null, false), 1);
 const question = "A circle has radius 5. Construct its chord at y=3.";
 const context = { constructionOperators: ["point", "circle", "segment", "intersection"] };
-const baseline = buildSceneDocumentPlannerPrompt(question, { ...context, compactOperatorContracts: false });
-const compact = buildSceneDocumentPlannerPrompt(question, { ...context, compactOperatorContracts: true });
+const baseline = buildSceneDocumentPlannerPrompt(question, context);
+const compact = buildSceneDocumentPlannerPrompt(question, context, []);
 assert.ok(compact.length < baseline.length);
 for (const phrase of ["AUTHORITY", "AVAILABLE PROOF PREDICATES", "QUESTION", question, "point:", "circle:", "segment/connect:", "intersection:"]) {
   assert.ok(compact.includes(phrase), phrase);
 }
-const repair = buildSceneDocumentPlannerPrompt(question, { ...context, compactOperatorContracts: true }, context.constructionOperators);
+const repair = buildSceneDocumentPlannerPrompt(question, context, context.constructionOperators);
 assert.equal(repair, baseline, "repairs retain full contracts for every used operator");
-const standard = applyPlannerSpeedSettings(ordinary, { provider: "azure", scene: true }, { DIAGRAM_PLANNER_PRIORITY: "0" });
+const standard = applyPlannerSpeedSettings(ordinary, { provider: "azure" }, { DIAGRAM_PLANNER_PRIORITY: "0" });
 assert.equal(standard.service_tier, "default", "an explicit standard experiment cannot inherit deployment priority");
 assert.equal(azureChatBody(standard, {}).reasoning_effort, "low");
-assert.equal(applyPlannerSpeedSettings(ordinary, { provider: "fireworks", scene: true }, { DIAGRAM_PLANNER_PRIORITY: "0" }), ordinary);
-assert.equal(applyPlannerSpeedSettings(ordinary, { provider: "azure", scene: true }, {}), ordinary, "omitted controls preserve body identity");
+assert.equal(applyPlannerSpeedSettings(ordinary, { provider: "fireworks" }, { DIAGRAM_PLANNER_PRIORITY: "0" }), ordinary);
+assert.equal(applyPlannerSpeedSettings(ordinary, { provider: "azure" }, {}).service_tier, "default", "omitted controls cannot inherit deployment priority");
 
 // The same trust boundary used by the route rejects client-owned vendor knobs.
 const clientRequest = { messages: [{ role: "user", content: "Explain the supplied calculation." }],
@@ -117,6 +123,22 @@ async function verifyAccounting(): Promise<void> {
       assert.equal(result.knownUsageUsd, 0);
       assert.equal(result.estimatedCostUsd, mode === "conservative" ? 0.4 : 0);
     }
+    const aborted = new PlannerUsageTracker(undefined, "conservative");
+    aborted.recordRequest("aborted-priority", 0.4, "planner", 2);
+    aborted.recordFailure("aborted-priority", "gpt-6.1-sol", 0.4, {
+      requestKind: "scene", phase: "repair", lane: "alternate", elapsedMs: 230,
+      requestChars: 900, serviceTierRequested: "priority",
+    });
+    const abortResult = aborted.finish("aborted-priority");
+    const abortCall = abortResult.modelCalls[0]!;
+    assert.equal(abortCall.costMultiplier, 2, "a headerless abort retains requested-priority provenance");
+    assert.equal(abortCall.serviceTier, undefined, "an abort never invents a returned service tier");
+    assert.equal(abortCall.reasoningTokens, null);
+    assert.equal(abortCall.measuredCostUsd, null);
+    assert.equal(abortCall.unresolvedAllowanceUsd, 0.4);
+    assert.equal(abortResult.estimatedCostUsd, 0.4);
+    assert.deepEqual([abortCall.requestKind, abortCall.phase, abortCall.lane, abortCall.elapsedMs, abortCall.requestChars], ["scene", "repair", "alternate", 230, 900]);
+
     const retryTracker = new PlannerUsageTracker(undefined, "response_usage");
     retryTracker.recordRequest("retried", 0.4, "planner", 2);
     await retryTracker.recordResponse("retried", responseFor("default", 0, "priority", 2), 0.4, 2, "gpt-6.1-sol");
@@ -159,9 +181,9 @@ async function verifyAccounting(): Promise<void> {
     assert.equal(defaultConfig.planningSpeed.sceneEffort, "low");
     assert.equal(defaultConfig.planningSpeed.requestTier, "default", "standard and auto experiments have distinct resume identities");
     assert.equal(experimentConfig.planningSpeed.priority, true);
-    assert.equal(experimentConfig.planningSpeed.sceneEffort, "medium");
+    assert.equal(experimentConfig.planningSpeed.sceneEffort, "low", "the failed medium experiment is not exposed");
     assert.equal(experimentConfig.planningSpeed.requestTier, "priority");
-    assert.ok(experimentConfig.plannerOutputCap > defaultConfig.plannerOutputCap, "preflight reserves medium scene reasoning headroom");
+    assert.equal(experimentConfig.plannerOutputCap, defaultConfig.plannerOutputCap, "priority changes tier, not reasoning or output headroom");
     assert.equal(experimentConfig.teachingOutputCap, defaultConfig.teachingOutputCap, "planner experiments do not expand teaching budgets");
 
     const noneQuestion = "A=[[1,2],[3,4]] and B=[[0,1],[1,0]]. Find AB and BA.";
@@ -170,7 +192,7 @@ async function verifyAccounting(): Promise<void> {
     const selectionInput = { question: noneQuestion, turnPlan: nonePlan, problemIR: null, visualNeedDecision: "none" as const };
     const withExperiments = selectProductionScene(selectionInput);
     delete process.env.DIAGRAM_PLANNER_PRIORITY; delete process.env.DIAGRAM_SCENE_REASONING_EFFORT;
-    assert.equal(labProviderConfig().planningSpeed.requestTier, "auto", "omitted controls retain deployment-auto provenance");
+    assert.equal(labProviderConfig().planningSpeed.requestTier, "default", "omitted controls explicitly retain standard pricing");
     const withoutExperiments = selectProductionScene(selectionInput);
     assert.equal(withExperiments.representation, null);
     assert.equal(withExperiments.gate.shouldAttemptLlmScene, false);
@@ -197,4 +219,4 @@ async function verifyAccounting(): Promise<void> {
   }
 }
 
-void verifyAccounting().then(() => console.log("planning speed: default/provider scoping, compact authority, medium headroom, actual tracker/trace priority pricing, crossed attribution and no-figure admission pass"));
+void verifyAccounting().then(() => console.log("planning speed: explicit standard/default-off provider scoping, unchanged authority/headroom, actual tracker/trace priority pricing, abort/crossed attribution and no-figure admission pass"));
