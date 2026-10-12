@@ -19,9 +19,18 @@
  * Arrow and ray positions are read from the rendered primitives, not from the
  * engine's own check.
  *
+ * R5: the image one refracting spherical surface forms comes from
+ * `evaluateOpticsLaw("spherical_refraction")` through the operator
+ * `sphericalRefractionImage`. Round 7 (m1, glass sphere h8a) placed a bubble's
+ * images at literal points 2.29 and 5.33 cm from the surfaces; the law gives
+ * 3.2 cm and 16 cm (at the near surface). A literal image at a plan-derived
+ * distance from a surface vertex that the law does not give is reported
+ * (`spherical_refraction_image_disagrees`); production selection declines it.
+ *
  *   pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-ray-optics-instruments.ts
  */
 import { readFileSync } from "node:fs";
+import * as engine from "../../src";
 import { compileSceneDocument, pruneDeadSceneEntities, validateSceneDocument } from "../../src";
 
 type P = { x: number; y: number };
@@ -309,6 +318,42 @@ check("an object arrow whose tip is on no ray fails closed", () => {
 check("control: an object arrow whose tip a ray leaves compiles", () => {
   const { ok, fatal } = compile(thinLensArrow("tip"));
   return ok ? null : `did not compile: ${fatal.join(", ")}`;
+});
+
+// R5. Looked up by name so the cases fail, not crash, where the operator is missing.
+type LawPoint = { x: number; y: number };
+const operator = (name: string) => {
+  const found = (engine as unknown as Record<string, unknown>)[name];
+  if (typeof found !== "function") throw new Error(`scene-engine does not export ${name}`);
+  return found as (...args: unknown[]) => unknown;
+};
+
+check("sphericalRefractionImage: a bubble 4 cm inside a glass sphere appears 3.2 cm and 16 cm deep", () => {
+  const image = (vertex: LawPoint) => (operator("sphericalRefractionImage")({
+    vertex, center: { x: 8, y: 0 }, object: { x: 4, y: 0 }, n1: 1.5, n2: 1,
+  }) as { image: LawPoint }).image;
+  const nearView = image({ x: 0, y: 0 });
+  const farView = image({ x: 16, y: 0 });
+  if (Math.abs(nearView.x - 3.2) > 1e-9 || Math.abs(nearView.y) > 1e-9) return `near view image at x = ${nearView.x}, expected 3.2`;
+  if (Math.abs(farView.x - 0) > 1e-9 || Math.abs(farView.y) > 1e-9) return `far view image at x = ${farView.x}, expected 0 (16 cm from the far surface)`;
+  return null;
+});
+
+const placementIssues = (key: string) => {
+  const validated = validateSceneDocument(pruneDeadSceneEntities(structuredClone(fixture.documents[key]!)));
+  if (!validated.document) throw new Error(`recorded ${key} did not validate`);
+  return (operator("validateSphericalRefractionImagePlacements")(validated.document, fixture.plans[key]) as Array<{ code: string; entityIds?: string[] }>);
+};
+
+check("recorded sphere: images placed at 2.29 and 5.33 cm disagree with the law", () => {
+  const issues = placementIssues("sphere");
+  const flagged = issues.filter((issue) => issue.code === "spherical_refraction_image_disagrees").map((issue) => issue.entityIds?.[0]).sort();
+  return JSON.stringify(flagged) === JSON.stringify(["farImage", "nearImage"]) ? null : `flagged ${JSON.stringify(flagged)}`;
+});
+
+check("control: recorded b1 sphere with its image at 3.2 cm agrees", () => {
+  const issues = placementIssues("sphereCorrect");
+  return issues.length === 0 ? null : `flagged ${issues.map((issue) => issue.entityIds?.[0]).join(", ")}`;
 });
 
 console.log(`${passed} passed, ${failures.length} failed`);
