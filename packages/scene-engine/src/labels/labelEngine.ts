@@ -140,6 +140,8 @@ export interface LabelEngineResult {
   }>;
   /** Work units the arrangement search spent; see `LABEL_SEARCH_WORK_BUDGET`. */
   searchWork: number;
+  /** Which arrangement search placed the unpinned labels; null when none ran or none succeeded. */
+  solvedBy: "straight" | "routed" | null;
 }
 
 /**
@@ -692,10 +694,11 @@ export function placeLabels(
   // Searching all remaining combinations cannot repair that fixed failure.
   // Both solves draw on one work budget: once it is spent neither goes on.
   const work: LabelSearchWork = { spent: 0, budget: options.searchWorkBudget ?? LABEL_SEARCH_WORK_BUDGET };
-  const selected = issues.length === 0 && candidatesToSolve.length > 0
-    ? solveLabelPlacements(candidatesToSolve, minGapPx, "straight", solverObstacles, work)
-      ?? solveLabelPlacements(candidatesToSolve, minGapPx, "routed", solverObstacles, work)
-    : new Map<number, LabelPlacementCandidate>();
+  const searches = issues.length === 0 && candidatesToSolve.length > 0;
+  const straight = searches ? solveLabelPlacements(candidatesToSolve, minGapPx, "straight", solverObstacles, work) : null;
+  const routed = searches && !straight ? solveLabelPlacements(candidatesToSolve, minGapPx, "routed", solverObstacles, work) : null;
+  const selected = searches ? straight ?? routed : new Map<number, LabelPlacementCandidate>();
+  const solvedBy: LabelEngineResult["solvedBy"] = straight ? "straight" : routed ? "routed" : null;
   if (!selected && candidatesToSolve.length > 0) {
     const mostConstrained = [...candidatesToSolve].sort(comparePreparedOwners)[0]!;
     issues.push({
@@ -746,6 +749,7 @@ export function placeLabels(
     placements,
     issues,
     searchWork: work.spent,
+    solvedBy,
   };
 }
 
@@ -885,6 +889,11 @@ function solveLabelPlacements(
   const maxVisited = Math.max(20_000, owners.length * 20_000);
   const fixedLabels = obstacles.filter((obstacle) => obstacle.kind === "label").map((obstacle) => obstacle.bounds);
   const exhausted = () => work.spent >= work.budget;
+  // The routed search routes every leader once more as each owner is placed,
+  // so the pass that places the last owner already holds the arrangement.
+  // Keep it: routing it again would charge the same work twice, and a budget
+  // that covered the first pass could run out on the second.
+  let lastRouted: Map<number, LabelPlacementCandidate> | null = null;
 
   const routedSelection = (): Map<number, LabelPlacementCandidate> | null => {
     const routed = new Map<number, LabelPlacementCandidate>();
@@ -940,7 +949,9 @@ function solveLabelPlacements(
     for (const placed of next.compatible) {
       visited += 1;
       selected.set(next.owner.originalIndex, pool[placed]!);
-      if (routing === "straight" || routedSelection()) {
+      const routed = routing === "routed" ? routedSelection() : null;
+      if (routed) lastRouted = routed;
+      if (routing === "straight" || routed) {
         const narrowed = new Map<number, number[]>();
         for (const index of remaining) {
           narrowed.set(index, domains.get(index)!.filter((option) => pairCompatible(option, placed)));
@@ -961,7 +972,7 @@ function solveLabelPlacements(
     nextId += owner.validCandidates.length;
     return [owner.originalIndex, ids];
   }));
-  return search(domains) ? (routing === "routed" ? routedSelection() : selected) : null;
+  return search(domains) ? (routing === "routed" ? lastRouted : selected) : null;
 }
 
 /**
