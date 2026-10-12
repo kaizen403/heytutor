@@ -5,6 +5,14 @@
  * value states a magnitude checked against the engine's own model; an explicit
  * sign must match; wrong values, units, names and bound values stay fatal.
  * G3f: two source mutations of the grammar must turn G3e and G3b red.
+ * G3g: a label may name a scalar by the document's own quantity id or symbol
+ * (d_o, dₒ, do, w_o, wᵢ, ...). An input symbol binds only through the quantity the
+ * operator input references; an output symbol (v, h_i, m) binds only to a
+ * quantity whose own value equals the engine's. The texts are the recorded
+ * planner labels of the p8 lens and mirror runs (DIAG-P8), all honest.
+ * G3h: wrong values (request 57: the plan's h_i = 0.2273 m, the engine's 0.3 m),
+ * a non-Cartesian explicit sign, an undeclared symbol, an unreferenced or
+ * wrong-role quantity, prose and composite focus names all stay fatal.
  * G2a, G2b: `form` and `objectSide` make `gaussian_image` and `optical_focus`
  * read unsigned magnitudes and apply the Cartesian convention in the engine;
  * a converging lens with a negative f fails closed.
@@ -16,8 +24,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import type { SceneConstruction, SceneDocument, SceneIssue } from "../../src/types";
 
 type OpticsModule = typeof import("../../src/compile/geometricOpticsGeometry");
-type Gate = "G3a" | "G3b" | "G3c" | "G3d" | "G3e" | "G2a" | "G2b";
-const GATES: Gate[] = ["G3a", "G3b", "G3c", "G3d", "G3e", "G2a", "G2b"];
+type Gate = "G3a" | "G3b" | "G3c" | "G3d" | "G3e" | "G3g" | "G3h" | "G2a" | "G2b";
+const GATES: Gate[] = ["G3a", "G3b", "G3c", "G3d", "G3e", "G3g", "G3h", "G2a", "G2b"];
 const SOURCE = fileURLToPath(new URL("../../src/compile/geometricOpticsGeometry.ts", import.meta.url));
 
 const base = { kind: "lens", center: "O", axis: "axis", objectDistance: { value: "u" }, focalLength: "f", objectHeight: "h", displayScale: "scale", lengthUnit: "cm" };
@@ -134,6 +142,72 @@ function runGates(optics: OpticsModule): Map<Gate, string[]> {
     ['a bare number on a focus', labelled("lens", { F2: "10 cm" }), "invalid_optical_focus_label"],
     ['a tagged name "f_L = 10 cm" on a focus', labelled("lens", { F2: "f_L = 10 cm" }), "invalid_optical_focus_label"],
   ] as const) fatal("G3e", name, document, code);
+
+  // G3g/G3h: the recorded p8 scenes, rebuilt with the plan's own quantity ids and magnitude inputs.
+  type Q = SceneDocument["quantities"][number];
+  const q = (id: string, value: number, unit?: string, symbol?: string): Q => ({ id, value, ...(unit ? { unit } : {}), ...(symbol ? { symbol } : {}) }) as Q;
+  const planScene = (kind: "lens" | "mirror", form: "converging" | "diverging", unit: string, quantities: Q[], refs: { u: unknown; f: unknown; h: unknown },
+    labels: Record<string, string> = {}, annotations: Array<{ target: string; text: string; quantityId?: string }> = []): SceneDocument => {
+    const document = labelled(kind, labels, annotations);
+    document.quantities = [...quantities, q("scale", 0.5, "dimensionless")];
+    for (const construction of document.constructions) {
+      if (construction.id === "image") Object.assign(construction.inputs, { objectDistance: refs.u, focalLength: refs.f, objectHeight: refs.h, form, objectSide: "real", lengthUnit: unit });
+      if (construction.id === "foci") Object.assign(construction.inputs, { focalLength: refs.f, form, lengthUnit: unit });
+    }
+    return document;
+  };
+  // b1 lens_formulas_h8b (stamp collector): converging lens u = 12, f = 16, h = 0.8; engine v = -48, m = 4, h_i = 3.2.
+  const stampB1 = [q("f", 16, "cm", "f"), q("do", 12, "cm", "d_o"), q("ho", 0.8, "cm", "h_o"), q("di", -48, "cm", "d_i"), q("hi", 3.2, "cm", "h_i"), q("m", 4, undefined, "m")];
+  const stampB1Refs = { u: { value: "do" }, f: "f", h: "ho" };
+  // b2 lens_formulas_h8b: the same stem with the plan ids d_o, w_o, d_i, w_i.
+  const stampB2 = [q("f", 16, "cm", "f"), q("d_o", 12, "cm", "d_o"), q("w_o", 0.8, "cm", "w_o"), q("d_i", -48, "cm", "d_i"), q("w_i", 3.2, "cm", "w_i"), q("m", 4, undefined, "m")];
+  const stampB2Refs = { u: "d_o", f: "f", h: "w_o" };
+  // b2 reflection_h8a: concave mirror u = 48, R = 32, h = 3.4; engine v = -24 (real), h_i = -1.7.
+  const concave = [q("h_o", 3.4, "cm", "h_o"), q("d_o", 48, "cm", "d_o"), q("R", 32, "cm", "R"), q("f", 16, "cm", "f"), q("d_i", 24, "cm", "d_i"), q("h_i", -1.7, "cm", "h_i")];
+  const concaveRefs = { u: "d_o", f: "f", h: "h_o" };
+  // b2 magnification_h8a (spectacle lens, -6.25 D): diverging lens u = 112, f = -16, h = 5.6; engine v = -14, h_i = 0.7.
+  const spectacle = [q("P", -6.25, "D", "P"), q("do", 112, "cm", "d_o"), q("ho", 5.6, "cm", "h_o"), q("f", -16, "cm", "f"), q("di", -14, "cm", "d_i"), q("hi", 0.7, "cm", "h_i")];
+  const spectacleRefs = { u: "do", f: "f", h: "ho" };
+  // b1 reflection_h8b (request 57): convex mirror u = 2.4 m, R = 1.2 m, h = 1.5 m; engine v = +0.48, h_i = 0.3. The plan's h_i = 0.2273 is wrong.
+  const security = [q("R", 1.2, "m", "R"), q("ho", 1.5, "m", "h_o"), q("do", 2.4, "m", "d_o"), q("f", -0.6, "m", "f"), q("di", -0.48, "m", "d_i"), q("hi", 0.22727272727272727, "m", "h_i")];
+  const securityRefs = { u: "do", f: "f", h: "ho" };
+
+  for (const [name, document] of [
+    ["b1 stamp: d_o, h_o, d_i, h_i bound by quantityId", planScene("lens", "converging", "cm", stampB1, stampB1Refs, {},
+      [{ target: "ob", text: "d_o=12 cm", quantityId: "do" }, { target: "ot", text: "h_o=0.8 cm", quantityId: "ho" }, { target: "ib", text: "d_i=-48 cm", quantityId: "di" }, { target: "it", text: "h_i=3.2 cm", quantityId: "hi" }])],
+    ["b1 stamp: dₒ as an entity label, dᵢ and hᵢ as annotations", planScene("lens", "converging", "cm", stampB1, stampB1Refs, { ob: "dₒ=12 cm", F1: "F₁=16 cm" },
+      [{ target: "ib", text: "dᵢ=−48 cm" }, { target: "it", text: "hᵢ=3.2 cm" }])],
+    ["b2 stamp: d_o, w_o, d_i, w_i with no quantityId", planScene("lens", "converging", "cm", stampB2, stampB2Refs, { F1: "F₁", F2: "F₂" },
+      [{ target: "ob", text: "d_o=12 cm" }, { target: "ot", text: "w_o=0.8 cm" }, { target: "ib", text: "d_i=-48 cm" }, { target: "it", text: "w_i=3.2 cm" }])],
+    ["b2 stamp: dₒ, wₒ, dᵢ, wᵢ bound by quantityId", planScene("lens", "converging", "cm", stampB2, stampB2Refs, {},
+      [{ target: "ob", text: "dₒ=12 cm", quantityId: "d_o" }, { target: "ot", text: "wₒ=0.8 cm", quantityId: "w_o" }, { target: "ib", text: "dᵢ=-48 cm", quantityId: "d_i" }, { target: "it", text: "wᵢ=3.2 cm", quantityId: "w_i" }, { target: "F2", text: "f=16 cm", quantityId: "f" }])],
+    ["b2 concave mirror: d_o, h_o, d_i = 24 (a magnitude), h_i = -1.7 (Cartesian)", planScene("mirror", "converging", "cm", concave, concaveRefs, { F: "F" },
+      [{ target: "ob", text: "d_o=48 cm", quantityId: "d_o" }, { target: "ot", text: "h_o=3.4 cm", quantityId: "h_o" }, { target: "ib", text: "d_i=24 cm", quantityId: "d_i" }, { target: "it", text: "h_i=−1.7 cm", quantityId: "h_i" }, { target: "F", text: "f=16 cm", quantityId: "f" }])],
+    ["b2 spectacle lens: d_o, h_o, d_i = -14, h_i, f = -16 on a diverging lens", planScene("lens", "diverging", "cm", spectacle, spectacleRefs, {},
+      [{ target: "ob", text: "d_o=112 cm" }, { target: "ot", text: "h_o=5.6 cm" }, { target: "ib", text: "d_i=-14 cm" }, { target: "it", text: "h_i=0.7 cm" }, { target: "F1", text: "f=-16 cm" }])],
+    ["security mirror: the honest input labels d_o and h_o", planScene("mirror", "diverging", "m", security, securityRefs, {},
+      [{ target: "ob", text: "d_o=2.4 m", quantityId: "do" }, { target: "ot", text: "h_o=1.5 m", quantityId: "ho" }])],
+  ] as const) clean("G3g", name, document);
+
+  for (const [name, document, code] of [
+    ['request 57: "h_i=0.227 m" bound to the plan\'s wrong h_i = 0.2273 m', planScene("mirror", "diverging", "m", security, securityRefs, {}, [{ target: "it", text: "h_i=0.227 m", quantityId: "hi" }]), "invalid_gaussian_image_label"],
+    ['request 57: "hᵢ=0.227 m"', planScene("mirror", "diverging", "m", security, securityRefs, {}, [{ target: "it", text: "hᵢ=0.227 m" }]), "invalid_gaussian_image_label"],
+    ['request 57: "h_i≈0.227 m"', planScene("mirror", "diverging", "m", security, securityRefs, {}, [{ target: "it", text: "h_i≈0.227 m" }]), "invalid_gaussian_image_label"],
+    ['request 57 with the plan id "y_i" = 0.2273 m and its own value "y_i=0.227 m"', planScene("mirror", "diverging", "m", [...security, q("y_i", 0.22727272727272727, "m", "y_i")], securityRefs, {}, [{ target: "it", text: "y_i=0.227 m" }]), "invalid_gaussian_image_label"],
+    ['"y_i=0.3 m": the right value cannot bind through a quantity whose own value is wrong', planScene("mirror", "diverging", "m", [...security, q("y_i", 0.22727272727272727, "m", "y_i")], securityRefs, {}, [{ target: "it", text: "y_i=0.3 m" }]), "invalid_gaussian_image_label"],
+    ['"d_i=-0.48 m" on the convex mirror (real-is-positive sign, Cartesian v = +0.48)', planScene("mirror", "diverging", "m", security, securityRefs, {}, [{ target: "ib", text: "d_i=-0.48 m", quantityId: "di" }]), "invalid_gaussian_image_label"],
+    ['"d_i=24 cm" with no d_i quantity declared', planScene("mirror", "converging", "cm", concave.filter((item) => item.id !== "d_i"), concaveRefs, {}, [{ target: "ib", text: "d_i=24 cm" }]), "invalid_gaussian_image_label"],
+    ['"d_o=13 cm": a bound input symbol with the wrong value', planScene("lens", "converging", "cm", stampB1, stampB1Refs, { ob: "d_o=13 cm" }), "invalid_gaussian_image_label"],
+    ['"d_o=12 mm": a bound input symbol in the wrong unit', planScene("lens", "converging", "cm", stampB1, stampB1Refs, { ob: "d_o=12 mm" }), "invalid_gaussian_image_label"],
+    ['"w_o=12 cm": the object-height id carrying u\'s value', planScene("lens", "converging", "cm", stampB2, stampB2Refs, { ot: "w_o=12 cm" }), "invalid_gaussian_image_label"],
+    ['"s=48 cm": a quantity no input references', planScene("mirror", "converging", "cm", [...concave, q("s", 48, "cm", "s")], concaveRefs, { ob: "s=48 cm" }), "invalid_gaussian_image_label"],
+    ['"d_i=24 cm" as the stamp\'s image distance (engine v = -48)', planScene("lens", "converging", "cm", [...stampB1.filter((item) => item.id !== "di"), q("di", 24, "cm", "d_i")], stampB1Refs, { ib: "d_i=24 cm" }), "invalid_gaussian_image_label"],
+    ['"F, f=16 cm" on the mirror focus', planScene("mirror", "converging", "cm", concave, concaveRefs, {}, [{ target: "F", text: "F, f=16 cm", quantityId: "f" }]), "invalid_optical_focus_label"],
+    ["prose on the mirror focus", planScene("mirror", "converging", "cm", concave, concaveRefs, {}, [{ target: "F", text: "The focal length is half the radius of curvature: 16 cm.", quantityId: "f" }]), "invalid_optical_focus_label"],
+    ['"Fₘ" on the mirror focus', planScene("mirror", "converging", "cm", concave, concaveRefs, { F: "Fₘ" }), "invalid_optical_focus_label"],
+    ["power prose on a lens focus", planScene("lens", "converging", "cm", stampB1, stampB1Refs, {}, [{ target: "F2", text: "Power P = 1/f, with f in metres. Its unit is the dioptre (D)." }]), "invalid_optical_focus_label"],
+    ['"d_o=12 cm" on a focus', planScene("lens", "converging", "cm", stampB1, stampB1Refs, { F2: "d_o=12 cm" }), "invalid_optical_focus_label"],
+  ] as const) fatal("G3h", name, document, code);
 
   // G2a: magnitude mode equals the signed Cartesian scene, and stored metadata stays Cartesian.
   const context = { number(value: unknown) { const result = Number(value); if (!Number.isFinite(result)) throw new Error("nonfinite"); return result; }, point() { throw new Error("unused"); }, geometry() { return undefined; } };

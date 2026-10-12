@@ -29,6 +29,14 @@ const INPUT_KEYS: Readonly<Record<string, readonly string[]>> = {
 };
 /** Textbook focus names: F, F′ (or F'), F1, F2, F₁, F₂. A bare name makes no claim; a value joined to it is checked. */
 const FOCUS_NAME = /^F(?:1|2|₁|₂|′|')?$/u;
+/** The scalars a label may name directly, keyed by their folded spelling. */
+const SCALAR_NAMES: Readonly<Record<string, string>> = { u: "u", v: "v", f: "f", ho: "h_o", hi: "h_i", m: "m" };
+/** The scalar each referenced operator input supplies. */
+const INPUT_SCALARS: Readonly<Record<string, string>> = { objectDistance: "u", focalLength: "f", objectHeight: "h_o" };
+/** Results a document quantity may stand for, when its own value is the engine's. */
+const OUTPUT_SCALARS = ["v", "h_i", "m"] as const;
+/** One spelling per name: subscript letters fold (dₒ is do), and underscores and braces drop (d_o, d_{o}). */
+function foldedName(name: string): string { return name.normalize("NFKC").replace(/[_{}]/g, ""); }
 class OpticalInputError extends Error { constructor(readonly key: string, message: string) { super(message); } }
 class UnresolvedOpticalGeometry extends Error {}
 function invalid(key: string, message: string): never { throw new OpticalInputError(key, message); }
@@ -239,6 +247,15 @@ function validationNumber(value: unknown, document: SceneDocument, seen = new Se
   if (!quantity) return bounded(Number(value), "number", MAX_COORDINATE);
   seen.add(value); return validationNumber(quantity.value, document, seen, depth + 1);
 }
+/** The quantity ids an operator input reaches: a direct id, a value wrapper, and any quantity that id's value names. */
+function referencedQuantityIds(value: unknown, document: SceneDocument, seen = new Set<string>(), depth = 0): string[] {
+  if (depth > 32) return [];
+  if (isRecord(value) && "value" in value) return referencedQuantityIds(value.value, document, seen, depth + 1);
+  if (typeof value !== "string" || seen.has(value)) return [];
+  const quantity = document.quantities.find((item) => item.id === value);
+  if (!quantity) return [];
+  seen.add(value); return [value, ...referencedQuantityIds(quantity.value, document, seen, depth + 1)];
+}
 /** Labels retain source quantities; independently supplied results must satisfy the evaluated Cartesian model. */
 export function validateEvaluatedGeometricOpticsLabels(construction: SceneConstruction, index: number, document: SceneDocument, outputs: readonly unknown[], issues: SceneIssue[]): void {
   try {
@@ -260,6 +277,43 @@ export function validateEvaluatedGeometricOpticsLabels(construction: SceneConstr
       const checkUnits = (units: string[], symbol: string): void => {
         for (const unit of units) if (LENGTH_UNITS[normalizedUnit(unit)] !== (symbol === "m" ? "unit" : model.lengthUnit)) invalid("label", "optical label quantity uses a contradictory physical unit");
       };
+      // A plan's own name (d_o, dₒ, w_i) binds through the document, never through a table of synonyms.
+      // An input name is the quantity this operator's input references; an output name (v, h_i, m) is a
+      // quantity no input references whose own value is the engine's, as a magnitude when non-negative.
+      const boundNames = new Map<string, string[]>();
+      const bind = (quantity: SceneDocument["quantities"][number], symbol: string): void => {
+        for (const name of [quantity.id, quantity.symbol]) {
+          if (typeof name !== "string" || !name.trim()) continue;
+          const key = foldedName(name.trim()); const symbols = boundNames.get(key) ?? [];
+          if (!symbols.includes(symbol)) boundNames.set(key, [...symbols, symbol]);
+        }
+      };
+      const referenced = new Set<string>();
+      for (const [key, symbol] of Object.entries(INPUT_SCALARS)) {
+        for (const id of referencedQuantityIds(construction.inputs[key], document)) {
+          referenced.add(id);
+          if (Object.hasOwn(values, symbol)) bind(document.quantities.find((quantity) => quantity.id === id)!, symbol);
+        }
+      }
+      if ("objectDistance" in model) {
+        for (const quantity of document.quantities) {
+          if (referenced.has(quantity.id)) continue;
+          let value: number; let units: string[];
+          try { value = validationNumber(quantity.id, document); units = sourceUnits(quantity.id, "label", document).map((unit) => LENGTH_UNITS[normalizedUnit(unit)] ?? unit); } catch { continue; }
+          for (const symbol of OUTPUT_SCALARS) {
+            const unit = symbol === "m" ? "unit" : model.lengthUnit;
+            if (units.length ? units.some((item) => item !== unit) : unit !== "unit") continue;
+            if (symbol !== "m" && value >= 0 ? agrees(value, Math.abs(values[symbol]!)) : agrees(value, values[symbol]!)) bind(quantity, symbol);
+          }
+        }
+      }
+      const symbolsOf = (name: string): string[] => {
+        const focus = symbolOf(name);
+        if (Object.hasOwn(values, focus)) return [focus];
+        const folded = foldedName(name);
+        if (Object.hasOwn(SCALAR_NAMES, folded)) return Object.hasOwn(values, SCALAR_NAMES[folded]!) ? [SCALAR_NAMES[folded]!] : [];
+        return boundNames.get(folded) ?? [];
+      };
       const checkText = (text: unknown): string | undefined => {
         if (text === undefined) return undefined;
         if (typeof text !== "string" || !text.trim()) invalid("label", "optical landmark labels must be nonempty strings");
@@ -267,15 +321,19 @@ export function validateEvaluatedGeometricOpticsLabels(construction: SceneConstr
         const label = text.trim().replaceAll("−", "-");
         if (Object.hasOwn(values, label)) return label;
         // This grammar checks mathematical scalar labels only; it never interprets question prose.
+        if (!label.includes("=") && !/[\s,;]/.test(label) && symbolsOf(label).length) return symbolsOf(label)[0];
         if (/^[A-Za-z][A-Za-z_]*$/.test(label) || FOCUS_NAME.test(label)) return undefined;
+        let first: string | undefined;
         for (const part of label.split(";")) {
-          const match = /^\s*(u|v|f|h_o|h_i|m|F[12₁₂′']?)\s*=\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*([^\s]*)\s*$/u.exec(part);
-          const symbol = match ? symbolOf(match[1]!) : undefined;
-          if (!match || symbol === undefined || !Object.hasOwn(values, symbol)) return invalid("label", "optical numeric labels must name a supported physical scalar");
-          if (!agreesStated(match[2]!, symbol, values[symbol]!)) invalid("label", "optical numeric label contradicts the evaluated Gaussian result");
+          const match = /^\s*([^\s=,;]+)\s*=\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*([^\s]*)\s*$/u.exec(part);
+          const symbols = match ? symbolsOf(match[1]!) : [];
+          if (!match || symbols.length === 0) return invalid("label", "optical numeric labels must name a supported physical scalar (u, v, f, h_o, h_i, m, a focus, or a declared quantity bound to one)");
+          const symbol = symbols.find((candidate) => agreesStated(match[2]!, candidate, values[candidate]!));
+          if (symbol === undefined) return invalid("label", "optical numeric label contradicts the evaluated Gaussian result");
           if (match[3]) checkUnits([match[3]], symbol);
+          first ??= symbol;
         }
-        return symbolOf(label.split("=")[0]!.trim());
+        return first;
       };
       checkText(document.entities.find((entity) => entity.id === outputId)?.label);
       for (const annotation of document.annotations) {
