@@ -863,6 +863,57 @@ const cases: readonly {id:string; question:string; expected:string; dG:number|nu
     "question": "T = 60 s; at 298 K, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). Draw ΔG versus T and calculate ΔG.",
     "expected": "decline",
     "dG": null
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-CLOSED-negative-1",
+    "question": "The reaction releases heat, 50 kJ/mol. ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-CLOSED-negative-2",
+    "question": "The reaction releases heat, which is unknown; ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-CLOSED-negative-3",
+    "question": "The reaction releases energy, whose value cannot be read; ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-CLOSED-negative-4",
+    "question": "The reaction absorbs heat, 60 kJ/mol. ΔH = 40 kJ/mol and ΔS = 100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-CLOSED-negative-5",
+    "question": "The reaction liberates heat, with an unreadable value; ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "decline",
+    "dG": null
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-CLOSED-positive-1",
+    "question": "The reaction releases heat. ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": -10.2,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-CLOSED-positive-2",
+    "question": "The reaction absorbs heat; ΔH = 40 kJ/mol and ΔS = 100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": 10.2,
+    "unit": "kJ/mol"
+  },
+  {
+    "id": "INDEPENDENT-GIBBS-CLOSED-positive-3",
+    "question": "The reaction releases heat, ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K, draw ΔG versus T and calculate ΔG.",
+    "expected": "required-compile",
+    "dG": -10.2,
+    "unit": "kJ/mol"
   }
 ];
 const results: {id:string;passed:boolean;error?:string}[] = [];

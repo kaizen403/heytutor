@@ -579,8 +579,9 @@ function readGibbsEnergies(question: string): GibbsEnergies | null {
     // "Enthalpy change, ΔH = ..." names one owner twice, not two supplied values.
     if (owner.sign === 0 && next?.role === owner.role && /^\s*[,:(]?\s*$/.test(payload)) continue;
     if (owner.sign === 0 && gibbsEnergyReference(body, owner.start, owner.end)) continue;
-    if (owner.sign !== 0 && (/^\s*(?:(?:heat|energy)\s*)?(?:[,.;!?]|$)/i.test(payload)
-      || new RegExp(String.raw`^\s*(?:${DELTA_H_SYMBOL.source})`, "i").test(payload))) {
+    // A qualitative clause must close its whole owner span. A comma followed
+    // by a number or unread payload still states an enthalpy and must decline.
+    if (owner.sign !== 0 && /^\s*(?:(?:heat|energy)\s*)?(?:[,.;!?]\s*)?$/i.test(payload)) {
       qualitativeSigns.push(owner.sign); continue;
     }
     const isEnthalpy = owner.role === "enthalpy";
