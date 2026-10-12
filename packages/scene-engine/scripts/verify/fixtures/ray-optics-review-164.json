@@ -1,0 +1,2137 @@
+{
+ "note": "Recorded planner documents (lecture lab runs) named in the PR #164 review; replayed with validateSceneDocument then compileSceneDocument.",
+ "documents": {
+  "1fa5a146ebd6": {
+   "why": "Explain resolving power of a telescope (optical_train beside lens_section lenses)",
+   "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": "scene",
+    "source": {
+     "question": "Explain resolving power of a telescope.",
+     "representationTier": "qualitative_verified",
+     "nonMetric": true
+    },
+    "quantities": [],
+    "entities": [
+     {
+      "id": "axisLeft",
+      "kind": "point"
+     },
+     {
+      "id": "axisRight",
+      "kind": "point"
+     },
+     {
+      "id": "objectiveCenter",
+      "kind": "point"
+     },
+     {
+      "id": "sharedFocus",
+      "kind": "point"
+     },
+     {
+      "id": "eyepieceCenter",
+      "kind": "point"
+     },
+     {
+      "id": "objectiveTop",
+      "kind": "point"
+     },
+     {
+      "id": "objectiveBottom",
+      "kind": "point"
+     },
+     {
+      "id": "eyepieceTop",
+      "kind": "point"
+     },
+     {
+      "id": "eyepieceBottom",
+      "kind": "point"
+     },
+     {
+      "id": "axis",
+      "kind": "line",
+      "role": "optical axis",
+      "label": "Optical axis"
+     },
+     {
+      "id": "objectiveLine",
+      "kind": "line"
+     },
+     {
+      "id": "eyepieceLine",
+      "kind": "line"
+     },
+     {
+      "id": "objective",
+      "kind": "polygon",
+      "role": "objective",
+      "label": "Objective"
+     },
+     {
+      "id": "eyepiece",
+      "kind": "polygon",
+      "role": "eyepiece",
+      "label": "Eyepiece"
+     },
+     {
+      "id": "incomingUpper",
+      "kind": "ray"
+     },
+     {
+      "id": "incomingLower",
+      "kind": "ray"
+     },
+     {
+      "id": "internalUpper",
+      "kind": "ray"
+     },
+     {
+      "id": "internalLower",
+      "kind": "ray"
+     },
+     {
+      "id": "outgoingUpper",
+      "kind": "ray"
+     },
+     {
+      "id": "outgoingLower",
+      "kind": "ray"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "p1",
+      "operator": "point",
+      "inputs": {
+       "x": -3,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "axisLeft"
+      ]
+     },
+     {
+      "id": "p2",
+      "operator": "point",
+      "inputs": {
+       "x": 7,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "axisRight"
+      ]
+     },
+     {
+      "id": "p3",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "objectiveCenter"
+      ]
+     },
+     {
+      "id": "p4",
+      "operator": "point",
+      "inputs": {
+       "x": 2,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "sharedFocus"
+      ]
+     },
+     {
+      "id": "p5",
+      "operator": "point",
+      "inputs": {
+       "x": 4,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "eyepieceCenter"
+      ]
+     },
+     {
+      "id": "p6",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 1,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "objectiveTop"
+      ]
+     },
+     {
+      "id": "p7",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": -1,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "objectiveBottom"
+      ]
+     },
+     {
+      "id": "p8",
+      "operator": "point",
+      "inputs": {
+       "x": 4,
+       "y": 1,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "eyepieceTop"
+      ]
+     },
+     {
+      "id": "p9",
+      "operator": "point",
+      "inputs": {
+       "x": 4,
+       "y": -1,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "eyepieceBottom"
+      ]
+     },
+     {
+      "id": "axisConstruction",
+      "operator": "line",
+      "inputs": {
+       "start": "axisLeft",
+       "end": "axisRight"
+      },
+      "outputs": [
+       "axis"
+      ]
+     },
+     {
+      "id": "objectivePath",
+      "operator": "line",
+      "inputs": {
+       "start": "objectiveBottom",
+       "end": "objectiveTop"
+      },
+      "outputs": [
+       "objectiveLine"
+      ]
+     },
+     {
+      "id": "eyepiecePath",
+      "operator": "line",
+      "inputs": {
+       "start": "eyepieceBottom",
+       "end": "eyepieceTop"
+      },
+      "outputs": [
+       "eyepieceLine"
+      ]
+     },
+     {
+      "id": "objectiveConstruction",
+      "operator": "lens_section",
+      "inputs": {
+       "center": "objectiveCenter",
+       "axis": "axis",
+       "radius1": 2,
+       "radius2": -2,
+       "halfHeight": 0.8
+      },
+      "outputs": [
+       "objective"
+      ]
+     },
+     {
+      "id": "eyepieceConstruction",
+      "operator": "lens_section",
+      "inputs": {
+       "center": "eyepieceCenter",
+       "axis": "axis",
+       "radius1": 2,
+       "radius2": -2,
+       "halfHeight": 0.8
+      },
+      "outputs": [
+       "eyepiece"
+      ]
+     },
+     {
+      "id": "telescopeRays",
+      "operator": "optical_train",
+      "inputs": {
+       "axis": "axis",
+       "objective": "objectiveLine",
+       "eyepiece": "eyepieceLine",
+       "focus": "sharedFocus"
+      },
+      "outputs": [
+       "incomingUpper",
+       "incomingLower",
+       "internalUpper",
+       "internalLower",
+       "outgoingUpper",
+       "outgoingLower"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "incidentParallel",
+      "predicate": "parallel",
+      "entities": [
+       "incomingUpper",
+       "incomingLower"
+      ],
+      "expected": true,
+      "severity": "error"
+     },
+     {
+      "id": "focusConvergence",
+      "predicate": "converges",
+      "entities": [
+       "internalUpper",
+       "internalLower",
+       "sharedFocus"
+      ],
+      "expected": true,
+      "severity": "error"
+     },
+     {
+      "id": "emergentParallel",
+      "predicate": "parallel",
+      "entities": [
+       "outgoingUpper",
+       "outgoingLower"
+      ],
+      "expected": true,
+      "severity": "error"
+     },
+     {
+      "id": "objectiveOrientation",
+      "predicate": "perpendicular",
+      "entities": [
+       "objectiveLine",
+       "axis"
+      ],
+      "expected": true,
+      "severity": "error"
+     },
+     {
+      "id": "eyepieceOrientation",
+      "predicate": "perpendicular",
+      "entities": [
+       "eyepieceLine",
+       "axis"
+      ],
+      "expected": true,
+      "severity": "error"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "definition",
+      "kind": "narration",
+      "targetIds": [
+       "objective"
+      ],
+      "text": "Resolving power describes the ability to distinguish two close objects as separate."
+     },
+     {
+      "id": "rayleigh",
+      "kind": "narration",
+      "targetIds": [
+       "objective"
+      ],
+      "text": "For a diffraction-limited circular aperture, the Rayleigh criterion gives \u03b8_min = 1.22\u03bb/D, where \u03bb is wavelength and D is aperture diameter."
+     },
+     {
+      "id": "power",
+      "kind": "narration",
+      "targetIds": [
+       "objective"
+      ],
+      "text": "R = 1/\u03b8_min = D/(1.22\u03bb). A larger aperture reduces the minimum resolvable angle and improves resolving power."
+     }
+    ],
+    "requiredEntityIds": [
+     "axis",
+     "objective",
+     "eyepiece",
+     "sharedFocus",
+     "incomingUpper",
+     "incomingLower",
+     "internalUpper",
+     "internalLower",
+     "outgoingUpper",
+     "outgoingLower"
+    ],
+    "revealGroups": [
+     {
+      "id": "telescopeSetup",
+      "entityIds": [
+       "axis",
+       "objective",
+       "eyepiece",
+       "incomingUpper",
+       "incomingLower",
+       "internalUpper",
+       "internalLower",
+       "outgoingUpper",
+       "outgoingLower"
+      ]
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "id": "setup",
+      "revealGroupIds": [
+       "telescopeSetup"
+      ],
+      "annotationIds": [
+       "definition"
+      ]
+     },
+     {
+      "id": "criterion",
+      "annotationIds": [
+       "rayleigh"
+      ]
+     },
+     {
+      "id": "resolvingPower",
+      "annotationIds": [
+       "power"
+      ]
+     }
+    ]
+   }
+  },
+  "841475739996": {
+   "why": "light goes through a lens, bounces off a mirror and comes back (returning ray along the axis)",
+   "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "A symbolic representative shows light passing through a lens, reflecting from a mirror, and returning toward the lens."
+    },
+    "source": {
+     "question": "light goes through a lens, bounces off a mirror and comes back",
+     "representationTier": "qualitative_verified",
+     "nonMetric": true
+    },
+    "quantities": [],
+    "entities": [
+     {
+      "id": "start",
+      "kind": "point",
+      "role": "incoming light origin"
+     },
+     {
+      "id": "lensCenter",
+      "kind": "point",
+      "role": "lens centre"
+     },
+     {
+      "id": "axis",
+      "kind": "line",
+      "role": "representative optical axis"
+     },
+     {
+      "id": "lens",
+      "kind": "polygon",
+      "role": "lens",
+      "label": "lens"
+     },
+     {
+      "id": "mirrorVertex",
+      "kind": "point",
+      "role": "mirror vertex"
+     },
+     {
+      "id": "mirror",
+      "kind": "arc",
+      "role": "mirror",
+      "label": "mirror"
+     },
+     {
+      "id": "afterLens",
+      "kind": "point",
+      "role": "point beyond the lens"
+     },
+     {
+      "id": "through",
+      "kind": "point",
+      "role": "contact construction point"
+     },
+     {
+      "id": "incoming",
+      "kind": "segment",
+      "role": "light approaching the lens"
+     },
+     {
+      "id": "throughLens",
+      "kind": "segment",
+      "role": "light after passing through the lens"
+     },
+     {
+      "id": "incidentVector",
+      "kind": "vector",
+      "role": "light approaching the mirror"
+     },
+     {
+      "id": "returning",
+      "kind": "ray",
+      "role": "reflected light returning toward the lens"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "makeStart",
+      "operator": "point",
+      "inputs": {
+       "x": -5,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "start"
+      ]
+     },
+     {
+      "id": "makeLensCenter",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "lensCenter"
+      ]
+     },
+     {
+      "id": "makeAxis",
+      "operator": "line",
+      "inputs": {
+       "start": "lensCenter",
+       "direction": [
+        1,
+        0
+       ]
+      },
+      "outputs": [
+       "axis"
+      ]
+     },
+     {
+      "id": "makeLens",
+      "operator": "lens_section",
+      "inputs": {
+       "center": "lensCenter",
+       "axis": "axis",
+       "radius1": 20,
+       "radius2": -20,
+       "halfHeight": 1,
+       "thickness": 2
+      },
+      "outputs": [
+       "lens"
+      ]
+     },
+     {
+      "id": "makeMirrorVertex",
+      "operator": "point",
+      "inputs": {
+       "x": 6,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "mirrorVertex"
+      ]
+     },
+     {
+      "id": "makeMirror",
+      "operator": "spherical_surface",
+      "inputs": {
+       "vertex": "mirrorVertex",
+       "axis": "axis",
+       "halfHeight": 1,
+       "signedRadius": -10,
+       "kind": "concave"
+      },
+      "outputs": [
+       "mirror"
+      ]
+     },
+     {
+      "id": "makeAfterLens",
+      "operator": "point",
+      "inputs": {
+       "x": 2,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "afterLens"
+      ]
+     },
+     {
+      "id": "makeThrough",
+      "operator": "point",
+      "inputs": {
+       "x": 7,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "through"
+      ]
+     },
+     {
+      "id": "makeIncoming",
+      "operator": "segment",
+      "inputs": {
+       "start": "start",
+       "end": "lensCenter"
+      },
+      "outputs": [
+       "incoming"
+      ]
+     },
+     {
+      "id": "makeThroughLens",
+      "operator": "segment",
+      "inputs": {
+       "start": "lensCenter",
+       "end": "afterLens"
+      },
+      "outputs": [
+       "throughLens"
+      ]
+     },
+     {
+      "id": "makeContact",
+      "operator": "surface_contact",
+      "inputs": {
+       "origin": "afterLens",
+       "through": "through",
+       "surface": "mirror"
+      },
+      "outputs": [
+       "hit",
+       "incidentVector"
+      ]
+     },
+     {
+      "id": "makeNormal",
+      "operator": "normal_at",
+      "inputs": {
+       "point": "hit",
+       "surface": "mirror"
+      },
+      "outputs": [
+       "mirrorNormal"
+      ]
+     },
+     {
+      "id": "makeReturn",
+      "operator": "reflect_direction",
+      "inputs": {
+       "origin": "hit",
+       "incoming": "incidentVector",
+       "normal": "mirrorNormal"
+      },
+      "outputs": [
+       "returning"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "lensOnAxis",
+      "predicate": "on",
+      "entities": [
+       "lensCenter",
+       "axis"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "mirrorOnAxis",
+      "predicate": "on",
+      "entities": [
+       "mirrorVertex",
+       "axis"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "opticalOrder",
+      "predicate": "ordered_along",
+      "entities": [
+       "start",
+       "lensCenter",
+       "afterLens",
+       "mirrorVertex"
+      ],
+      "expected": {
+       "axis": "x",
+       "direction": "increasing"
+      },
+      "severity": "fatal"
+     },
+     {
+      "id": "contactOnMirror",
+      "predicate": "on",
+      "entities": [
+       "hit",
+       "mirror"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "returnNote",
+      "kind": "narration",
+      "targetIds": [
+       "returning"
+      ],
+      "text": "The mirror reflects the light back toward the lens. If the returning path crosses the lens, it refracts again; the exact path depends on the arrangement."
+     }
+    ],
+    "requiredEntityIds": [
+     "axis",
+     "lens",
+     "mirror",
+     "incoming",
+     "throughLens",
+     "incidentVector",
+     "returning"
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "entityIds": [
+       "start",
+       "lensCenter",
+       "axis",
+       "lens",
+       "mirrorVertex",
+       "mirror",
+       "afterLens",
+       "incoming",
+       "throughLens",
+       "incidentVector"
+      ],
+      "dependsOn": [],
+      "narrationCue": "Light passes through the lens and reaches the mirror."
+     },
+     {
+      "id": "reflection",
+      "entityIds": [
+       "returning"
+      ],
+      "dependsOn": [
+       "setup"
+      ],
+      "narrationCue": "The mirror reflects the light back toward the lens."
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "id": "showSetup",
+      "revealGroupId": "setup"
+     },
+     {
+      "id": "showReflection",
+      "revealGroupId": "reflection"
+     }
+    ]
+   }
+  },
+  "f782478761ab": {
+   "why": "light goes through a lens, bounces off a mirror and comes back (incoming ray along the axis to a plane mirror)",
+   "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "A symbolic axial ray illustrates passage through a lens, reflection at a mirror, and return through the lens. It does not determine a unique path or image."
+    },
+    "source": {
+     "question": "light goes through a lens, bounces off a mirror and comes back",
+     "representationTier": "qualitative_verified",
+     "nonMetric": true
+    },
+    "quantities": [],
+    "entities": [
+     {
+      "id": "O",
+      "kind": "point",
+      "role": "lens centre"
+     },
+     {
+      "id": "axis",
+      "kind": "line",
+      "role": "optical axis"
+     },
+     {
+      "id": "lens",
+      "kind": "polygon",
+      "role": "symbolic lens",
+      "label": "lens"
+     },
+     {
+      "id": "sourcePoint",
+      "kind": "point",
+      "role": "incoming-ray origin"
+     },
+     {
+      "id": "contact",
+      "kind": "point",
+      "role": "mirror contact"
+     },
+     {
+      "id": "mirrorTop",
+      "kind": "point",
+      "role": "mirror endpoint"
+     },
+     {
+      "id": "mirrorBottom",
+      "kind": "point",
+      "role": "mirror endpoint"
+     },
+     {
+      "id": "mirror",
+      "kind": "segment",
+      "role": "symbolic plane mirror",
+      "label": "mirror"
+     },
+     {
+      "id": "incoming",
+      "kind": "vector",
+      "role": "light passing through lens",
+      "label": "light"
+     },
+     {
+      "id": "returning",
+      "kind": "ray",
+      "role": "reflected light returning through lens",
+      "label": "return"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "cO",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "O"
+      ]
+     },
+     {
+      "id": "cAxis",
+      "operator": "line",
+      "inputs": {
+       "start": "O",
+       "direction": [
+        1,
+        0
+       ]
+      },
+      "outputs": [
+       "axis"
+      ]
+     },
+     {
+      "id": "cLens",
+      "operator": "lens_section",
+      "inputs": {
+       "center": "O",
+       "axis": "axis",
+       "radius1": 5,
+       "radius2": -5,
+       "halfHeight": 1
+      },
+      "outputs": [
+       "lens"
+      ]
+     },
+     {
+      "id": "cSource",
+      "operator": "point",
+      "inputs": {
+       "x": -3,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "sourcePoint"
+      ]
+     },
+     {
+      "id": "cContact",
+      "operator": "point",
+      "inputs": {
+       "x": 3,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "contact"
+      ]
+     },
+     {
+      "id": "cTop",
+      "operator": "point",
+      "inputs": {
+       "x": 3,
+       "y": 2,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "mirrorTop"
+      ]
+     },
+     {
+      "id": "cBottom",
+      "operator": "point",
+      "inputs": {
+       "x": 3,
+       "y": -2,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "mirrorBottom"
+      ]
+     },
+     {
+      "id": "cMirror",
+      "operator": "segment",
+      "inputs": {
+       "start": "mirrorBottom",
+       "end": "mirrorTop"
+      },
+      "outputs": [
+       "mirror"
+      ]
+     },
+     {
+      "id": "cIncoming",
+      "operator": "surface_contact",
+      "inputs": {
+       "origin": "sourcePoint",
+       "surface": "mirror",
+       "through": "contact"
+      },
+      "outputs": [
+       "hit",
+       "incoming"
+      ]
+     },
+     {
+      "id": "cNormal",
+      "operator": "normal_at",
+      "inputs": {
+       "point": "hit",
+       "surface": "mirror"
+      },
+      "outputs": [
+       "normalHelper"
+      ]
+     },
+     {
+      "id": "cReturning",
+      "operator": "reflect_direction",
+      "inputs": {
+       "origin": "hit",
+       "incoming": "incoming",
+       "normal": "normalHelper"
+      },
+      "outputs": [
+       "returning"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "mirrorIncidence",
+      "predicate": "on",
+      "entities": [
+       "hit",
+       "mirror"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+     "axis",
+     "lens",
+     "mirror",
+     "incoming",
+     "returning"
+    ],
+    "revealGroups": [
+     {
+      "id": "illustration",
+      "entityIds": [
+       "O",
+       "axis",
+       "lens",
+       "sourcePoint",
+       "contact",
+       "mirrorTop",
+       "mirrorBottom",
+       "mirror",
+       "incoming",
+       "returning"
+      ],
+      "dependsOn": [],
+      "narrationCue": "One symbolic axial path goes through the lens, reflects from the mirror, and passes through the lens again. The actual path and any image depend on the lens, mirror, their separation, and the incoming light."
+     }
+    ],
+    "teachingTimeline": []
+   }
+  },
+  "bcaf2215e808": {
+   "why": "real object between F and 2F of a converging thin lens, rays drawn as segments",
+   "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "A normalized geometric construction shows the stated object placement and the two principal rays of a converging lens."
+    },
+    "source": {
+     "question": "Draw the ray construction for a real object between F and 2F of a converging thin lens. Label the principal axis, both focal points and the image.",
+     "representationTier": "qualitative_verified",
+     "nonMetric": true
+    },
+    "quantities": [],
+    "entities": [
+     {
+      "id": "axisLeft",
+      "kind": "point"
+     },
+     {
+      "id": "axisRight",
+      "kind": "point"
+     },
+     {
+      "id": "axis",
+      "kind": "line",
+      "role": "principal axis"
+     },
+     {
+      "id": "centre",
+      "kind": "point",
+      "role": "lens centre"
+     },
+     {
+      "id": "lens",
+      "kind": "polygon",
+      "role": "lens"
+     },
+     {
+      "id": "nearFocus",
+      "kind": "point",
+      "role": "near focal point",
+      "label": "F"
+     },
+     {
+      "id": "farFocus",
+      "kind": "point",
+      "role": "far focal point",
+      "label": "F"
+     },
+     {
+      "id": "near2F",
+      "kind": "point",
+      "role": "near 2F",
+      "label": "2F"
+     },
+     {
+      "id": "far2F",
+      "kind": "point",
+      "role": "far 2F",
+      "label": "2F"
+     },
+     {
+      "id": "objectBase",
+      "kind": "point"
+     },
+     {
+      "id": "objectTip",
+      "kind": "point"
+     },
+     {
+      "id": "object",
+      "kind": "vector",
+      "role": "object",
+      "label": "Object"
+     },
+     {
+      "id": "lensHit",
+      "kind": "point"
+     },
+     {
+      "id": "parallelRay",
+      "kind": "segment",
+      "role": "incident parallel ray"
+     },
+     {
+      "id": "centralIncident",
+      "kind": "segment",
+      "role": "incident central ray"
+     },
+     {
+      "id": "refractedRay",
+      "kind": "ray",
+      "role": "ray through far focus"
+     },
+     {
+      "id": "centralPath",
+      "kind": "line",
+      "role": "central-ray construction"
+     },
+     {
+      "id": "imageTip",
+      "kind": "point"
+     },
+     {
+      "id": "centralOutgoing",
+      "kind": "segment",
+      "role": "undeviated outgoing ray"
+     },
+     {
+      "id": "imageBase",
+      "kind": "point"
+     },
+     {
+      "id": "image",
+      "kind": "vector",
+      "role": "real inverted image",
+      "label": "Image"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "c_axisLeft",
+      "operator": "point",
+      "inputs": {
+       "x": -7,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "axisLeft"
+      ]
+     },
+     {
+      "id": "c_axisRight",
+      "operator": "point",
+      "inputs": {
+       "x": 8,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "axisRight"
+      ]
+     },
+     {
+      "id": "c_axis",
+      "operator": "line",
+      "inputs": {
+       "start": "axisLeft",
+       "end": "axisRight"
+      },
+      "outputs": [
+       "axis"
+      ]
+     },
+     {
+      "id": "c_centre",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "centre"
+      ]
+     },
+     {
+      "id": "c_lens",
+      "operator": "lens_section",
+      "inputs": {
+       "center": "centre",
+       "axis": "axis",
+       "radius1": 8,
+       "radius2": -8,
+       "halfHeight": 1.6
+      },
+      "outputs": [
+       "lens"
+      ]
+     },
+     {
+      "id": "c_nearFocus",
+      "operator": "point",
+      "inputs": {
+       "x": -2,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "nearFocus"
+      ]
+     },
+     {
+      "id": "c_farFocus",
+      "operator": "point",
+      "inputs": {
+       "x": 2,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "farFocus"
+      ]
+     },
+     {
+      "id": "c_near2F",
+      "operator": "point",
+      "inputs": {
+       "x": -4,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "near2F"
+      ]
+     },
+     {
+      "id": "c_far2F",
+      "operator": "point",
+      "inputs": {
+       "x": 4,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "far2F"
+      ]
+     },
+     {
+      "id": "c_objectBase",
+      "operator": "point",
+      "inputs": {
+       "x": -3,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "objectBase"
+      ]
+     },
+     {
+      "id": "c_objectTip",
+      "operator": "point",
+      "inputs": {
+       "x": -3,
+       "y": 1,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "objectTip"
+      ]
+     },
+     {
+      "id": "c_object",
+      "operator": "vector",
+      "inputs": {
+       "start": "objectBase",
+       "end": "objectTip"
+      },
+      "outputs": [
+       "object"
+      ]
+     },
+     {
+      "id": "c_lensHit",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 1,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "lensHit"
+      ]
+     },
+     {
+      "id": "c_parallelRay",
+      "operator": "segment",
+      "inputs": {
+       "start": "objectTip",
+       "end": "lensHit"
+      },
+      "outputs": [
+       "parallelRay"
+      ]
+     },
+     {
+      "id": "c_centralIncident",
+      "operator": "segment",
+      "inputs": {
+       "start": "objectTip",
+       "end": "centre"
+      },
+      "outputs": [
+       "centralIncident"
+      ]
+     },
+     {
+      "id": "c_refractedRay",
+      "operator": "ray",
+      "inputs": {
+       "start": "lensHit",
+       "end": "farFocus"
+      },
+      "outputs": [
+       "refractedRay"
+      ]
+     },
+     {
+      "id": "c_centralPath",
+      "operator": "line",
+      "inputs": {
+       "start": "objectTip",
+       "end": "centre"
+      },
+      "outputs": [
+       "centralPath"
+      ]
+     },
+     {
+      "id": "c_imageTip",
+      "operator": "intersection",
+      "inputs": {
+       "first": "refractedRay",
+       "second": "centralPath"
+      },
+      "outputs": [
+       "imageTip"
+      ]
+     },
+     {
+      "id": "c_centralOutgoing",
+      "operator": "segment",
+      "inputs": {
+       "start": "centre",
+       "end": "imageTip"
+      },
+      "outputs": [
+       "centralOutgoing"
+      ]
+     },
+     {
+      "id": "c_imageBase",
+      "operator": "point",
+      "inputs": {
+       "x": 6,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "imageBase"
+      ]
+     },
+     {
+      "id": "c_image",
+      "operator": "vector",
+      "inputs": {
+       "start": "imageBase",
+       "end": "imageTip"
+      },
+      "outputs": [
+       "image"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "object_between_F_and_2F",
+      "predicate": "between",
+      "entities": [
+       "objectBase",
+       "nearFocus",
+       "near2F"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "parallel_incidence",
+      "predicate": "parallel",
+      "entities": [
+       "parallelRay",
+       "axis"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "far_focus_on_ray",
+      "predicate": "on",
+      "entities": [
+       "farFocus",
+       "refractedRay"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "rays_meet_at_image",
+      "predicate": "converges",
+      "entities": [
+       "refractedRay",
+       "centralOutgoing",
+       "imageTip"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "image_beyond_2F",
+      "predicate": "between",
+      "entities": [
+       "far2F",
+       "centre",
+       "imageBase"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "image_base_on_axis",
+      "predicate": "on",
+      "entities": [
+       "imageBase",
+       "axis"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "axisLabel",
+      "kind": "label",
+      "targetIds": [
+       "axis"
+      ],
+      "text": "Principal axis"
+     }
+    ],
+    "requiredEntityIds": [
+     "axis",
+     "lens",
+     "nearFocus",
+     "farFocus",
+     "near2F",
+     "far2F",
+     "object",
+     "parallelRay",
+     "centralIncident",
+     "refractedRay",
+     "centralOutgoing",
+     "image"
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "entityIds": [
+       "axis",
+       "centre",
+       "lens",
+       "nearFocus",
+       "farFocus",
+       "near2F",
+       "far2F",
+       "objectBase",
+       "objectTip",
+       "object"
+      ],
+      "dependsOn": []
+     },
+     {
+      "id": "rays",
+      "entityIds": [
+       "lensHit",
+       "parallelRay",
+       "centralIncident",
+       "refractedRay",
+       "centralOutgoing"
+      ],
+      "dependsOn": [
+       "setup"
+      ]
+     },
+     {
+      "id": "imageReveal",
+      "entityIds": [
+       "imageTip",
+       "imageBase",
+       "image"
+      ],
+      "dependsOn": [
+       "rays"
+      ]
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "id": "placeObject",
+      "targetIds": [
+       "object",
+       "nearFocus",
+       "near2F"
+      ],
+      "text": "The object is between F and 2F."
+     },
+     {
+      "id": "traceRays",
+      "targetIds": [
+       "parallelRay",
+       "refractedRay",
+       "centralIncident",
+       "centralOutgoing"
+      ],
+      "text": "The parallel ray passes through the far focus; the central ray continues straight."
+     },
+     {
+      "id": "locateImage",
+      "targetIds": [
+       "imageTip",
+       "image"
+      ],
+      "text": "The rays meet at a real, inverted, enlarged image beyond 2F."
+     }
+    ]
+   }
+  },
+  "9cfc03a682ea": {
+   "why": "magnifier, virtual image, rays drawn as segments",
+   "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "A converging-lens diagram shows the stated setup before revealing the derived virtual image."
+    },
+    "source": {
+     "question": "A converging lens of focal length 9.0 cm is held 6.0 cm above a stamp so that it acts as a magnifier. A printed letter on the stamp is 0.7 cm high. Find where the image forms, the magnification and the image height, and state the nature of the image.",
+     "operator": "lens_section"
+    },
+    "quantities": [
+     {
+      "id": "f",
+      "symbol": "f",
+      "value": 9,
+      "unit": "cm",
+      "provenance": "given"
+     },
+     {
+      "id": "d",
+      "symbol": "d",
+      "value": 6,
+      "unit": "cm",
+      "provenance": "given"
+     },
+     {
+      "id": "h",
+      "symbol": "h_o",
+      "value": 0.7,
+      "unit": "cm",
+      "provenance": "given"
+     },
+     {
+      "id": "v",
+      "symbol": "v",
+      "value": -18,
+      "unit": "cm",
+      "provenance": "derived"
+     },
+     {
+      "id": "m",
+      "symbol": "m",
+      "value": 3,
+      "provenance": "derived"
+     },
+     {
+      "id": "hi",
+      "symbol": "h_i",
+      "value": 2.1,
+      "unit": "cm",
+      "provenance": "derived"
+     }
+    ],
+    "entities": [
+     {
+      "id": "O",
+      "kind": "point",
+      "role": "optical centre"
+     },
+     {
+      "id": "axis",
+      "kind": "line",
+      "role": "principal axis"
+     },
+     {
+      "id": "lens",
+      "kind": "polygon",
+      "role": "converging lens"
+     },
+     {
+      "id": "F1",
+      "kind": "point",
+      "role": "stamp-side focus"
+     },
+     {
+      "id": "F2",
+      "kind": "point",
+      "role": "far-side focus"
+     },
+     {
+      "id": "ob",
+      "kind": "point",
+      "role": "letter foot"
+     },
+     {
+      "id": "ot",
+      "kind": "point",
+      "role": "letter tip"
+     },
+     {
+      "id": "object",
+      "kind": "vector",
+      "role": "printed letter"
+     },
+     {
+      "id": "P",
+      "kind": "point",
+      "role": "ray contact on lens"
+     },
+     {
+      "id": "incoming",
+      "kind": "segment",
+      "role": "ray parallel to principal axis"
+     },
+     {
+      "id": "outgoing",
+      "kind": "ray",
+      "role": "outgoing ray through far-side focus"
+     },
+     {
+      "id": "central",
+      "kind": "segment",
+      "role": "ray through optical centre"
+     },
+     {
+      "id": "objectDistance",
+      "kind": "dimension",
+      "role": "lens-to-stamp distance"
+     },
+     {
+      "id": "focalDistance",
+      "kind": "dimension",
+      "role": "focal length"
+     },
+     {
+      "id": "ib",
+      "kind": "point",
+      "role": "virtual image foot"
+     },
+     {
+      "id": "it",
+      "kind": "point",
+      "role": "virtual image tip"
+     },
+     {
+      "id": "image",
+      "kind": "vector",
+      "role": "upright virtual image"
+     },
+     {
+      "id": "extension1",
+      "kind": "segment",
+      "role": "backward extension of outgoing ray"
+     },
+     {
+      "id": "extension2",
+      "kind": "segment",
+      "role": "backward extension of central ray"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "cO",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "O"
+      ]
+     },
+     {
+      "id": "cAxis",
+      "operator": "line",
+      "inputs": {
+       "start": "O",
+       "direction": [
+        1,
+        0
+       ]
+      },
+      "outputs": [
+       "axis"
+      ]
+     },
+     {
+      "id": "cLens",
+      "operator": "lens_section",
+      "inputs": {
+       "center": "O",
+       "axis": "axis",
+       "radius1": 15,
+       "radius2": -15,
+       "halfHeight": 3
+      },
+      "outputs": [
+       "lens"
+      ]
+     },
+     {
+      "id": "cF1",
+      "operator": "point",
+      "inputs": {
+       "x": -9,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "F1"
+      ]
+     },
+     {
+      "id": "cF2",
+      "operator": "point",
+      "inputs": {
+       "x": 9,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "F2"
+      ]
+     },
+     {
+      "id": "cOb",
+      "operator": "point",
+      "inputs": {
+       "x": -6,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "ob"
+      ]
+     },
+     {
+      "id": "cOt",
+      "operator": "point",
+      "inputs": {
+       "x": -6,
+       "y": 0.7,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "ot"
+      ]
+     },
+     {
+      "id": "cObject",
+      "operator": "vector",
+      "inputs": {
+       "start": "ob",
+       "end": "ot"
+      },
+      "outputs": [
+       "object"
+      ]
+     },
+     {
+      "id": "cP",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0.7,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "P"
+      ]
+     },
+     {
+      "id": "cIncoming",
+      "operator": "segment",
+      "inputs": {
+       "start": "ot",
+       "end": "P"
+      },
+      "outputs": [
+       "incoming"
+      ]
+     },
+     {
+      "id": "cOutgoing",
+      "operator": "ray",
+      "inputs": {
+       "start": "P",
+       "end": "F2"
+      },
+      "outputs": [
+       "outgoing"
+      ]
+     },
+     {
+      "id": "cCentral",
+      "operator": "segment",
+      "inputs": {
+       "start": "ot",
+       "end": "O"
+      },
+      "outputs": [
+       "central"
+      ]
+     },
+     {
+      "id": "cObjectDistance",
+      "operator": "dimension",
+      "inputs": {
+       "start": "ob",
+       "end": "O"
+      },
+      "outputs": [
+       "objectDistance"
+      ]
+     },
+     {
+      "id": "cFocalDistance",
+      "operator": "dimension",
+      "inputs": {
+       "start": "F1",
+       "end": "O"
+      },
+      "outputs": [
+       "focalDistance"
+      ]
+     },
+     {
+      "id": "cIb",
+      "operator": "point",
+      "inputs": {
+       "x": -18,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "ib"
+      ]
+     },
+     {
+      "id": "cIt",
+      "operator": "point",
+      "inputs": {
+       "x": -18,
+       "y": 2.1,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "it"
+      ]
+     },
+     {
+      "id": "cImage",
+      "operator": "vector",
+      "inputs": {
+       "start": "ib",
+       "end": "it"
+      },
+      "outputs": [
+       "image"
+      ]
+     },
+     {
+      "id": "cExtension1",
+      "operator": "segment",
+      "inputs": {
+       "start": "it",
+       "end": "P"
+      },
+      "outputs": [
+       "extension1"
+      ]
+     },
+     {
+      "id": "cExtension2",
+      "operator": "segment",
+      "inputs": {
+       "start": "it",
+       "end": "ot"
+      },
+      "outputs": [
+       "extension2"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "aObjectAxis",
+      "predicate": "on",
+      "entities": [
+       "ob",
+       "axis"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "aImageAxis",
+      "predicate": "on",
+      "entities": [
+       "ib",
+       "axis"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "aParallel",
+      "predicate": "parallel",
+      "entities": [
+       "incoming",
+       "axis"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "aVirtualIntersection",
+      "predicate": "converges",
+      "entities": [
+       "extension1",
+       "extension2",
+       "it"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "aSameSide",
+      "predicate": "same_side",
+      "entities": [
+       "ob",
+       "ib",
+       "O"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "nF",
+      "kind": "label",
+      "targetIds": [
+       "focalDistance"
+      ],
+      "text": "f = 9.0 cm",
+      "quantityId": "f"
+     },
+     {
+      "id": "nD",
+      "kind": "label",
+      "targetIds": [
+       "objectDistance"
+      ],
+      "text": "d = 6.0 cm",
+      "quantityId": "d"
+     },
+     {
+      "id": "nH",
+      "kind": "label",
+      "targetIds": [
+       "object"
+      ],
+      "text": "h\u2092 = 0.7 cm",
+      "quantityId": "h"
+     },
+     {
+      "id": "nImage",
+      "kind": "callout",
+      "targetIds": [
+       "image"
+      ],
+      "text": "Virtual, upright and enlarged; 18.0 cm from the lens on the stamp side."
+     },
+     {
+      "id": "nV",
+      "kind": "label",
+      "targetIds": [
+       "ib"
+      ],
+      "text": "v = \u221218 cm",
+      "quantityId": "v"
+     },
+     {
+      "id": "nM",
+      "kind": "label",
+      "targetIds": [
+       "image"
+      ],
+      "text": "m = 3",
+      "quantityId": "m"
+     },
+     {
+      "id": "nHi",
+      "kind": "label",
+      "targetIds": [
+       "image"
+      ],
+      "text": "h\u1d62 = 2.1 cm",
+      "quantityId": "hi"
+     }
+    ],
+    "requiredEntityIds": [
+     "axis",
+     "lens",
+     "F1",
+     "F2",
+     "object",
+     "incoming",
+     "outgoing",
+     "central",
+     "objectDistance",
+     "focalDistance",
+     "image",
+     "extension1",
+     "extension2"
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "entityIds": [
+       "O",
+       "axis",
+       "lens",
+       "F1",
+       "F2",
+       "ob",
+       "ot",
+       "object",
+       "P",
+       "objectDistance",
+       "focalDistance"
+      ],
+      "dependsOn": []
+     },
+     {
+      "id": "rays",
+      "entityIds": [
+       "incoming",
+       "outgoing",
+       "central"
+      ],
+      "dependsOn": [
+       "setup"
+      ]
+     },
+     {
+      "id": "result",
+      "entityIds": [
+       "ib",
+       "it",
+       "image",
+       "extension1",
+       "extension2"
+      ],
+      "dependsOn": [
+       "rays"
+      ]
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "id": "tSetup",
+      "revealGroupId": "setup",
+      "annotationIds": [
+       "nF",
+       "nD",
+       "nH"
+      ]
+     },
+     {
+      "id": "tRays",
+      "revealGroupId": "rays",
+      "annotationIds": []
+     },
+     {
+      "id": "tResult",
+      "revealGroupId": "result",
+      "annotationIds": [
+       "nImage",
+       "nV",
+       "nM",
+       "nHi"
+      ]
+     }
+    ]
+   }
+  }
+ }
+}

@@ -22,9 +22,15 @@
  *
  * A closed glass element is a drawn closed path or circle that a declared
  * light path has a vertex on, as for R1.
+ *
+ * Normal incidence is no event: a line that meets every boundary of an
+ * element it runs through within R1's normal incidence angle (a ray square
+ * to a slab, along a radius of a sphere) carries light through it unbent.
  */
 import type { SceneDocument, SceneIssue } from "../types";
-import { opticsRoles } from "./lightPathElements";
+import { NORMAL_INCIDENCE_DEG, opticsRoles } from "./lightPathElements";
+
+const NORMAL_INCIDENCE_COS = Math.cos(NORMAL_INCIDENCE_DEG * Math.PI / 180);
 
 interface Point { x: number; y: number }
 
@@ -96,6 +102,7 @@ export function continueLightLinesFromElements(input: EmergentLightLineInput): v
       if (boundaryDistance(line.through, element) > tolerance) continue;
       const ahead = inside(add(line.through, scale(line.direction, probe)), element);
       const behind = inside(add(line.through, scale(line.direction, -probe)), element);
+      if (alongNormals(line.through, line.direction, -far, far, element)) continue;
       if (!ahead && behind) {
         directed = true;
       } else if (ahead && !behind) {
@@ -113,6 +120,7 @@ export function continueLightLinesFromElements(input: EmergentLightLineInput): v
     for (const [elementId, element] of elements) {
       if (strictlyInside(line.through, element, tolerance)) continue;
       if (!runsInside(line.through, line.direction, start, far, element, tolerance)) continue;
+      if (alongNormals(line.through, line.direction, start, far, element)) continue;
       input.issues.push({
         code: "light_line_crosses_element",
         message: `${line.id} carries the light of a declared ray straight through ${elementId} with no event there`,
@@ -142,6 +150,32 @@ function runsInside(origin: Point, direction: Point, from: number, to: number, e
     if (strictlyInside(add(origin, scale(direction, (a + b) / 2)), element, tolerance)) return true;
   }
   return false;
+}
+
+/** True when the line meets the element's boundary between `from` and `to` only along its normal. */
+function alongNormals(origin: Point, direction: Point, from: number, to: number, element: ClosedElement): boolean {
+  const normals: Point[] = [];
+  if (element.kind === "circle") {
+    for (const t of boundaryParameters(origin, direction, element)) {
+      if (t > from && t < to) normals.push(sub(add(origin, scale(direction, t)), element.center));
+    }
+  } else {
+    const points = element.points;
+    for (let index = 0; index < points.length; index += 1) {
+      const a = points[index]!;
+      const edge = sub(points[(index + 1) % points.length]!, a);
+      const denominator = cross(direction, edge);
+      if (Math.abs(denominator) < 1e-12) continue;
+      const offset = sub(a, origin);
+      const t = cross(offset, edge) / denominator;
+      const u = cross(offset, direction) / denominator;
+      if (u >= -1e-9 && u <= 1 + 1e-9 && t > from && t < to) normals.push({ x: -edge.y, y: edge.x });
+    }
+  }
+  return normals.length > 0 && normals.every((normal) => {
+    const length = Math.hypot(normal.x, normal.y);
+    return length > 0 && Math.abs(dot(normal, direction)) >= NORMAL_INCIDENCE_COS * length;
+  });
 }
 
 /** Line parameters where `origin + t direction` meets the element boundary. */

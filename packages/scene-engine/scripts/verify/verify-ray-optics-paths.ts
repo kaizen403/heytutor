@@ -217,7 +217,9 @@ const throughInteriorPoint = (body: "sphere" | "prism") => body === "sphere"
     { id: "make_boundary", operator: "circle", inputs: { center: "center", radius: 2 }, outputs: ["boundary"] },
     point("object", -4, 1),
     { id: "contact", operator: "surface_contact", inputs: { origin: "object", surface: "boundary", direction: [1, -0.1] }, outputs: ["contact1", "incoming1"] },
-    point("inner", 1.5, 0.2),
+    // The ray leaves the far side about 30 degrees off the normal. (Through (1.5, 0.2) it
+    // ran 1.7 degrees off a diameter, which is normal incidence and passes unbent.)
+    point("inner", 1.5, 0.9),
     { id: "make_ray", operator: "ray", inputs: { start: "contact1", end: "inner" }, outputs: ["insideRay"] },
   ])
   : (() => {
@@ -630,6 +632,295 @@ check("control: a reflection below the critical angle drawn with its refraction 
   if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
   stroke(primitives, "reflected");
   stroke(primitives, "leakOut");
+  return null;
+});
+
+// Second review of #164 (R1). "Light never crosses glass unbent" is false in two
+// cases: a path along the surface normal (normal incidence, a ray along a radius of a
+// sphere or a semicircular block) and a thin lens, where rays meet the lens at its
+// centre plane. Each correct figure below was cut or refused; each must render, while
+// thick glass crossed away from the normal and mirrors stay cut or refused.
+const review = JSON.parse(readFileSync(new URL("./fixtures/ray-optics-review-164.json", import.meta.url), "utf8")) as {
+  documents: Record<string, { why: string; document: RecordedDocument }>;
+};
+const reviewed = (id: string) => compile(structuredClone(review.documents[id]!.document) as ReturnType<typeof scene>);
+const pointAt = (primitives: Primitive[], id: string) => stroke(primitives, id).points[0]!;
+const xs = (primitive: Primitive) => primitive.points.map((p) => p.x);
+
+check("recorded 1fa5a146ebd6 telescope: optical_train rays run from objective to eyepiece and on", () => {
+  const { ok, primitives, fatal } = reviewed("1fa5a146ebd6");
+  if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
+  // Each lens outline is symmetric about its centre plane.
+  const centreX = (id: string) => (Math.min(...xs(stroke(primitives, id))) + Math.max(...xs(stroke(primitives, id)))) / 2;
+  const eyepieceX = centreX("eyepiece");
+  const objectiveX = centreX("objective");
+  for (const id of ["internalUpper", "internalLower"]) {
+    const ray = stroke(primitives, id);
+    if (Math.abs(ray.points.at(-1)!.x - eyepieceX) > 1.5) return `${id} stops at x ${ray.points.at(-1)!.x.toFixed(1)}, not at the eyepiece (${eyepieceX.toFixed(1)})`;
+    if (Math.abs(ray.points[0]!.x - objectiveX) > 1.5) return `${id} does not start at the objective`;
+  }
+  for (const id of ["outgoingUpper", "outgoingLower"]) {
+    const ray = stroke(primitives, id);
+    if (Math.abs(ray.points[0]!.x - eyepieceX) > 1.5 || length(ray) < 100) return `${id} drawn ${length(ray).toFixed(0)} px from x ${ray.points[0]!.x.toFixed(1)}; it should leave the eyepiece at full span`;
+  }
+  return null;
+});
+
+check("recorded 841475739996: the returning ray along the axis goes back through the lens", () => {
+  const { ok, primitives, fatal } = reviewed("841475739996");
+  if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
+  const ray = stroke(primitives, "returning");
+  const lensLeft = Math.min(...xs(stroke(primitives, "lens")));
+  const end = Math.min(...xs(ray));
+  if (end > lensLeft - 20) return `returning ray ends at x ${end.toFixed(1)}, not past the lens (left edge ${lensLeft.toFixed(1)})`;
+  return null;
+});
+
+check("recorded f782478761ab: the axial ray through the lens centre to a plane mirror renders", () => {
+  const { ok, primitives, fatal } = reviewed("f782478761ab");
+  if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
+  const ray = stroke(primitives, "incoming");
+  const lensLeft = Math.min(...xs(stroke(primitives, "lens")));
+  const mirrorX = stroke(primitives, "mirror").points[0]!.x;
+  if (ray.points[0]!.x > lensLeft - 20) return "incoming ray does not start before the lens";
+  if (Math.abs(ray.points.at(-1)!.x - mirrorX) > 1.5) return "incoming ray does not reach the mirror";
+  return null;
+});
+
+// The chief ray from the object tip to the image tip goes straight through a thin lens.
+const chiefRay = (operator: "segment" | "ray") => scene("Image formed by a convex lens", [
+  { id: "axis_origin", kind: "point", role: "axis start" },
+  { id: "axis", kind: "line", role: "principal axis" },
+  { id: "O", kind: "point", role: "optical centre", label: "O" },
+  { id: "lens", kind: "polygon", role: "convex lens" },
+  { id: "base", kind: "point", role: "object base" },
+  { id: "tip", kind: "point", role: "object tip" },
+  { id: "ibase", kind: "point", role: "image base" },
+  { id: "itip", kind: "point", role: "image tip" },
+  { id: "chief", kind: "ray", role: "ray through the optical centre" },
+], [
+  point("axis_origin", -5, 0),
+  { id: "make_axis", operator: "line", inputs: { start: "axis_origin", direction: [1, 0] }, outputs: ["axis"] },
+  point("O", 0, 0),
+  { id: "make_lens", operator: "lens_section", inputs: { center: "O", axis: "axis", radius1: 5, radius2: -5, halfHeight: 1.2 }, outputs: ["lens"] },
+  point("base", -3, 0), point("tip", -3, 1), point("ibase", 3, 0), point("itip", 3, -1),
+  { id: "make_chief", operator, inputs: { start: "tip", end: "itip" }, outputs: ["chief"] },
+]);
+
+for (const operator of ["segment", "ray"] as const) {
+  check(`chief ray through a lens_section drawn as one ${operator} goes straight on`, () => {
+    const { ok, primitives, fatal } = compile(chiefRay(operator));
+    if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
+    const ray = stroke(primitives, "chief");
+    const itip = pointAt(primitives, "itip");
+    const end = ray.points.at(-1)!;
+    if (operator === "segment" && dist(end, itip) > 1.5) return `chief ray ends ${dist(end, itip).toFixed(1)} px short of the image tip`;
+    if (operator === "ray" && end.x < itip.x - 1.5) return `chief ray stops at x ${end.x.toFixed(1)}, before the image tip`;
+    return null;
+  });
+}
+
+// A slab (closed outline plus a refracting top face) and a plain ray at normal incidence.
+const slabNormal = () => scene("Ray at normal incidence passes straight through a slab; another bends", [
+  { id: "A", kind: "point", role: "corner" }, { id: "B", kind: "point", role: "corner" },
+  { id: "C", kind: "point", role: "corner" }, { id: "D", kind: "point", role: "corner" },
+  { id: "hit1", kind: "point", role: "entry" }, { id: "src", kind: "point", role: "source" }, { id: "nhit", kind: "point", role: "normal exit" },
+  { id: "slab", kind: "polygon", role: "glass slab" }, { id: "top", kind: "segment", role: "top face" },
+  { id: "incident1", kind: "ray", role: "incident ray" }, { id: "normal1", kind: "segment", role: "normal" }, { id: "refracted1", kind: "ray", role: "refracted ray" },
+  { id: "straight", kind: "ray", role: "ray at normal incidence" },
+], [
+  point("A", -2, 0), point("B", 2, 0), point("C", 2, -1.5), point("D", -2, -1.5),
+  point("hit1", -1, 0), point("src", 1, 1.5), point("nhit", 1, -1.5),
+  { id: "make_slab", operator: "polygon", inputs: { points: ["A", "B", "C", "D"] }, outputs: ["slab"] },
+  { id: "make_top", operator: "segment", inputs: { start: "A", end: "B" }, outputs: ["top"] },
+  { id: "r1", operator: "refract_at", inputs: { point: "hit1", surface: "top", incidentAngleDeg: 40, n1: 1, n2: 1.5, span: 1.2 }, outputs: ["incident1", "normal1", "refracted1"] },
+  { id: "make_straight", operator: "ray", inputs: { start: "src", end: "nhit" }, outputs: ["straight"] },
+]);
+
+check("a ray at normal incidence on a slab passes through both faces", () => {
+  const { ok, primitives, fatal } = compile(slabNormal());
+  if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
+  const ray = stroke(primitives, "straight");
+  const bottom = Math.max(...stroke(primitives, "slab").points.map((p) => p.y));
+  // The fitted view ends at the bottom face, so the ray must reach it.
+  if (ray.points.at(-1)!.y < bottom - 1.5) return `ray stops at y ${ray.points.at(-1)!.y.toFixed(1)}; the bottom face is at ${bottom.toFixed(1)}`;
+  return null;
+});
+
+// A glass sphere: one refraction at its surface and a ray along a diameter.
+const sphereDiameter = () => scene("Rays through a glass sphere; the ray along a diameter is undeviated", [
+  { id: "C", kind: "point", role: "centre", label: "C" }, { id: "sphere", kind: "circle", role: "glass sphere" },
+  { id: "hit", kind: "point", role: "entry" }, { id: "src", kind: "point", role: "source" }, { id: "far", kind: "point", role: "far point" },
+  { id: "inc", kind: "ray", role: "incident ray" }, { id: "nrm", kind: "segment", role: "normal" }, { id: "ref", kind: "ray", role: "refracted ray" },
+  { id: "axial", kind: "ray", role: "ray along the diameter" },
+], [
+  point("C", 0, 0),
+  { id: "make_sphere", operator: "circle", inputs: { center: "C", radius: 1.5 }, outputs: ["sphere"] },
+  point("hit", -1.5 * Math.cos(30 * DEG), 1.5 * Math.sin(30 * DEG)), point("src", -4, 0), point("far", 4, 0),
+  { id: "r1", operator: "refract_at", inputs: { point: "hit", surface: "sphere", incidentAngleDeg: 30, n1: 1, n2: 1.5, tangentSign: 1 }, outputs: ["inc", "nrm", "ref"] },
+  { id: "make_axial", operator: "segment", inputs: { start: "src", end: "far" }, outputs: ["axial"] },
+]);
+
+check("a ray along a sphere's diameter passes through", () => {
+  const { ok, primitives, fatal } = compile(sphereDiameter());
+  if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
+  const ray = stroke(primitives, "axial");
+  const circle = stroke(primitives, "sphere");
+  // The far point is 4 units from the centre of a sphere of radius 1.5.
+  const far = { x: circle.points[0]!.x + circle.radius! * 4 / 1.5, y: circle.points[0]!.y };
+  if (dist(ray.points.at(-1)!, far) > 1.5) return `ray stops ${dist(ray.points.at(-1)!, far).toFixed(1)} px short of its far point`;
+  return null;
+});
+
+// Right angle isosceles prism: the ray enters face AB along its normal and is totally
+// internally reflected at the hypotenuse (reflect_at with its default span).
+const rightAnglePrism = (tangentSign: 1 | -1) => scene("A ray enters a right-angled isosceles prism normally and is totally internally reflected at the hypotenuse", [
+  { id: "A", kind: "point", role: "right angle corner", label: "A" }, { id: "B", kind: "point", role: "corner", label: "B" },
+  { id: "C", kind: "point", role: "corner", label: "C" }, { id: "hit", kind: "point", role: "point on hypotenuse" },
+  { id: "prism", kind: "polygon", role: "glass prism" }, { id: "hyp", kind: "segment", role: "hypotenuse face" },
+  { id: "inc", kind: "ray", role: "incident ray" }, { id: "nrm", kind: "segment", role: "normal" }, { id: "refl", kind: "ray", role: "totally internally reflected ray" },
+], [
+  point("A", 0, 0), point("B", 2, 0), point("C", 0, 2), point("hit", 0.6, 1.4),
+  { id: "make_prism", operator: "polygon", inputs: { points: ["A", "B", "C"] }, outputs: ["prism"] },
+  { id: "make_hyp", operator: "segment", inputs: { start: "B", end: "C" }, outputs: ["hyp"] },
+  { id: "tir", operator: "reflect_at", inputs: { point: "hit", surface: "hyp", incidentAngleDeg: 45, tangentSign }, outputs: ["inc", "nrm", "refl"] },
+]);
+
+for (const tangentSign of [1, -1] as const) {
+  check(`right angle prism entered normally with total internal reflection renders (tangentSign ${tangentSign})`, () => {
+    const { ok, primitives, fatal } = compile(rightAnglePrism(tangentSign));
+    if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
+    const inc = stroke(primitives, "inc");
+    if (insidePolygon(inc.points[0]!, stroke(primitives, "prism").points)) return "incident ray starts inside the prism";
+    const hyp = stroke(primitives, "hyp");
+    if (segmentDistance(inc.points.at(-1)!, hyp.points[0]!, hyp.points.at(-1)!) > 1.5) return "incident ray does not reach the hypotenuse";
+    return null;
+  });
+}
+
+// Semicircular block (closed outline), a ray along a radius to the centre of the flat
+// face, totally internally reflected there; a second ray from the air side through the
+// flat face declares the indices, so the critical angle rule (R7) runs too.
+const semicircle = (tangentSign: 1 | -1, declareIndices: boolean) => {
+  const outline: number[][] = [];
+  for (let k = 0; k <= 24; k += 1) outline.push([1.5 * Math.cos(k * Math.PI / 24), 1.5 * Math.sin(k * Math.PI / 24)]);
+  return scene("Critical angle: a ray enters a semicircular glass block along a radius and is totally internally reflected at the flat face", [
+    ...outline.map((_, k) => ({ id: `s${k}`, kind: "point", role: "outline point" })),
+    { id: "O", kind: "point", role: "centre of flat face", label: "O" },
+    { id: "block", kind: "polygon", role: "semicircular glass block" }, { id: "flat", kind: "segment", role: "flat face" },
+    { id: "inc", kind: "ray", role: "incident ray along a radius" }, { id: "nrm", kind: "segment", role: "normal" }, { id: "refl", kind: "ray", role: "reflected ray" },
+    ...(declareIndices ? [
+      { id: "Q", kind: "point", role: "entry on the flat face" },
+      { id: "airRay", kind: "ray", role: "ray from air" }, { id: "nrmQ", kind: "segment", role: "normal" }, { id: "intoGlass", kind: "ray", role: "refracted ray" },
+    ] : []),
+  ], [
+    ...outline.map(([x, y], k) => point(`s${k}`, x!, y!)), point("O", 0, 0),
+    { id: "make_block", operator: "polygon", inputs: { points: outline.map((_, k) => `s${k}`) }, outputs: ["block"] },
+    { id: "make_flat", operator: "segment", inputs: { start: "s24", end: "s0" }, outputs: ["flat"] },
+    { id: "tir", operator: "reflect_at", inputs: { point: "O", surface: "flat", incidentAngleDeg: 50, tangentSign }, outputs: ["inc", "nrm", "refl"] },
+    ...(declareIndices ? [
+      point("Q", 0.7, 0),
+      { id: "refraction", operator: "refract_at", inputs: { point: "Q", surface: "flat", incidentAngleDeg: 30, n1: 1, n2: 1.5, tangentSign: 1, span: 0.6 }, outputs: ["airRay", "nrmQ", "intoGlass"] },
+    ] : []),
+  ]);
+};
+
+for (const [tangentSign, declareIndices] of [[1, false], [-1, false], [-1, true]] as const) {
+  check(`semicircular block, ray along a radius, total internal reflection at the flat face renders (tangentSign ${tangentSign}${declareIndices ? ", indices declared" : ""})`, () => {
+    const { ok, primitives, fatal } = compile(semicircle(tangentSign, declareIndices));
+    if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
+    const inc = stroke(primitives, "inc");
+    if (insidePolygon(inc.points[0]!, stroke(primitives, "block").points)) return "incident ray starts inside the block";
+    if (dist(inc.points.at(-1)!, pointAt(primitives, "O")) > 1.5) return "incident ray does not reach the flat face centre";
+    return null;
+  });
+}
+
+check("semicircular block, ray along a radius refracting out of the flat face below the critical angle renders", () => {
+  const document = semicircle(-1, false);
+  const event = document.constructions.find((construction) => construction.id === "tir")!;
+  event.operator = "refract_at";
+  event.inputs = { point: "O", surface: "flat", incidentAngleDeg: 30, n1: 1.5, n2: 1, tangentSign: -1 };
+  document.entities.find((entity) => entity.id === "refl")!.role = "refracted ray";
+  const { ok, primitives, fatal } = compile(document);
+  if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
+  const inc = stroke(primitives, "inc");
+  if (insidePolygon(inc.points[0]!, stroke(primitives, "block").points)) return "incident ray starts inside the block";
+  if (dist(inc.points.at(-1)!, pointAt(primitives, "O")) > 1.5) return "incident ray does not reach the flat face centre";
+  return null;
+});
+
+// R6: a line built parallel to a ray at normal incidence, through the entry contact,
+// runs straight through the slab; it was refused as light crossing glass unbent.
+const slabNormalLine = () => scene("A ray meets a glass slab along the normal and passes straight through", [
+  { id: "A", kind: "point", role: "corner" }, { id: "B", kind: "point", role: "corner" },
+  { id: "C", kind: "point", role: "corner" }, { id: "D", kind: "point", role: "corner" },
+  { id: "src", kind: "point", role: "source" }, { id: "contact", kind: "point", role: "point of incidence" }, { id: "hit1", kind: "point", role: "entry" },
+  { id: "slab", kind: "polygon", role: "glass slab" }, { id: "top", kind: "segment", role: "top face" },
+  { id: "inc1", kind: "ray", role: "incident ray" }, { id: "nrm1", kind: "segment", role: "normal" }, { id: "ref1", kind: "ray", role: "refracted ray" },
+  { id: "incident", kind: "ray", role: "incident ray along the normal" }, { id: "onward", kind: "line", role: "ray through the slab" },
+], [
+  point("A", -2, 0), point("B", 2, 0), point("C", 2, -1.5), point("D", -2, -1.5), point("src", 1, 1.5), point("contact", 1, 0), point("hit1", -1, 0),
+  { id: "make_slab", operator: "polygon", inputs: { points: ["A", "B", "C", "D"] }, outputs: ["slab"] },
+  { id: "make_top", operator: "segment", inputs: { start: "A", end: "B" }, outputs: ["top"] },
+  { id: "r1", operator: "refract_at", inputs: { point: "hit1", surface: "top", incidentAngleDeg: 40, n1: 1, n2: 1.5, span: 1.2 }, outputs: ["inc1", "nrm1", "ref1"] },
+  { id: "make_incident", operator: "segment", inputs: { start: "src", end: "contact" }, outputs: ["incident"] },
+  { id: "make_onward", operator: "parallel_through", inputs: { through: "contact", line: "incident" }, outputs: ["onward"] },
+]);
+
+check("a line parallel to a ray at normal incidence runs through the slab (R6)", () => {
+  const { ok, primitives, fatal } = compile(slabNormalLine());
+  if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
+  const line = stroke(primitives, "onward");
+  const bottom = Math.max(...stroke(primitives, "slab").points.map((p) => p.y));
+  if (Math.max(...line.points.map((p) => p.y)) < bottom - 1.5) return "the line does not run on through the slab";
+  return null;
+});
+
+// Controls: thick glass crossed a little away from the normal, and a mirror met along
+// its normal, still stop the light.
+const slabNearNormal = () => scene("A ray refracts into a glass slab at 10 degrees.", [
+  { id: "A", kind: "point", role: "corner" }, { id: "B", kind: "point", role: "corner" },
+  { id: "C", kind: "point", role: "corner" }, { id: "D", kind: "point", role: "corner" }, { id: "hit", kind: "point", role: "entry" },
+  { id: "slab", kind: "polygon", role: "glass slab" }, { id: "top", kind: "segment", role: "top face" },
+  { id: "incident", kind: "ray", role: "incident ray" }, { id: "normal", kind: "segment", role: "normal" }, { id: "refracted", kind: "ray", role: "refracted ray" },
+], [
+  point("A", -2, 0), point("B", 2, 0), point("C", 2, -1.5), point("D", -2, -1.5), point("hit", 0, 0),
+  { id: "make_slab", operator: "polygon", inputs: { points: ["A", "B", "C", "D"] }, outputs: ["slab"] },
+  { id: "make_top", operator: "segment", inputs: { start: "A", end: "B" }, outputs: ["top"] },
+  { id: "r", operator: "refract_at", inputs: { point: "hit", surface: "top", incidentAngleDeg: 10, n1: 1, n2: 1.5, span: 3 }, outputs: ["incident", "normal", "refracted"] },
+]);
+
+check("control: a refracted ray meeting the slab's far face 6.6 degrees off the normal is cut there", () => {
+  const { ok, primitives, fatal } = compile(slabNearNormal());
+  if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
+  const ray = stroke(primitives, "refracted");
+  const bottom = Math.max(...stroke(primitives, "slab").points.map((p) => p.y));
+  if (Math.abs(ray.points.at(-1)!.y - bottom) > 1.5) return `refracted ray ends at y ${ray.points.at(-1)!.y.toFixed(1)}, not at the far face (${bottom.toFixed(1)})`;
+  return null;
+});
+
+const mirrorNormal = () => scene("A ray reflects from a plane mirror; another meets it along the normal.", [
+  { id: "m1", kind: "point", role: "mirror end" }, { id: "m2", kind: "point", role: "mirror end" },
+  { id: "mirror", kind: "segment", role: "plane mirror" }, { id: "hit", kind: "point", role: "point of incidence" },
+  { id: "incident", kind: "ray", role: "incident ray" }, { id: "normal", kind: "segment", role: "normal" }, { id: "reflected", kind: "ray", role: "reflected ray" },
+  { id: "s", kind: "point", role: "source" }, { id: "t", kind: "point", role: "point on the ray" },
+  { id: "straight", kind: "ray", role: "ray along the normal" },
+], [
+  point("m1", -2, 0), point("m2", 2, 0),
+  { id: "make_mirror", operator: "segment", inputs: { start: "m1", end: "m2" }, outputs: ["mirror"] },
+  point("hit", 0, 0),
+  { id: "reflect", operator: "reflect_at", inputs: { point: "hit", surface: "mirror", incidentAngleDeg: 40, span: 1.5 }, outputs: ["incident", "normal", "reflected"] },
+  point("s", 1, 1.5), point("t", 1, 0.5),
+  { id: "make_straight", operator: "ray", inputs: { start: "s", end: "t" }, outputs: ["straight"] },
+]);
+
+check("control: a ray meeting a plane mirror along its normal is cut at the mirror", () => {
+  const { ok, primitives, fatal } = compile(mirrorNormal());
+  if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
+  const ray = stroke(primitives, "straight");
+  const mirrorY = stroke(primitives, "mirror").points[0]!.y;
+  if (Math.abs(ray.points.at(-1)!.y - mirrorY) > 1.5) return `ray ends at y ${ray.points.at(-1)!.y.toFixed(1)}, past the mirror at ${mirrorY.toFixed(1)}`;
   return null;
 });
 

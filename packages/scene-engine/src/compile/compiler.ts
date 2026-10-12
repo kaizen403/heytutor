@@ -406,6 +406,10 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     geometry,
     drawn: drawnInk,
     resolvePoint: (value) => resolvePoint(value, geometry),
+    resolveNumber: (value) => {
+      if (value === undefined || value === null) return null;
+      try { return resolveNumber(value, quantities); } catch { return null; }
+    },
     issues,
   });
   // A line built parallel to a declared ray carries that light: drawn from

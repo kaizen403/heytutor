@@ -15,12 +15,25 @@
  * - a path that is incident on a contact and crosses an element before that
  *   contact cannot be repaired: `incident_path_crosses_element`.
  *
- * Thin lens excuse: a path with a vertex strictly inside a `lens_section`
- * passes through it (rays meet a thin lens at its centre plane). Thick glass
- * (a sphere, a prism, any other closed region) has no such plane: a vertex
- * inside it never excuses a later crossing of its boundary.
+ * Two crossings are not errors, because light really does pass there:
+ * - Normal incidence. A path that meets a glass boundary within 4 degrees of
+ *   the surface normal goes on unbent (a ray along a radius of a sphere or a
+ *   semicircular block, a ray square to a slab face). Glass is a closed
+ *   region, a thin lens, or a surface with a declared refraction. A mirror (a
+ *   surface with a declared reflection and no refraction, or a closed body
+ *   that light reflects from outside) never lets light through.
+ * - Thin lens convention. Rays meet a thin lens at its centre plane, so a
+ *   path that crosses that plane inside the aperture passes the lens. Thin
+ *   lenses are `lens_section` outputs (plane through `center` across `axis`,
+ *   aperture the drawn half height), the `objective` and `eyepiece` lines of
+ *   `optical_train`, and a drawn segment or line lying on such a plane or on
+ *   the plane of a `gaussian_image` or `optical_focus` of kind lens.
+ * Thick glass (a sphere, a prism, a slab, a block) has no centre plane: a
+ * path that crosses it away from the normal is cut or refused, whatever
+ * points it passes inside.
  */
 import type { SceneDocument, SceneIssue } from "../types";
+import { refractingSphericalSurfaces } from "../physics/sphericalRefractionImage";
 
 interface Point { x: number; y: number }
 
@@ -44,6 +57,9 @@ const SURFACE_OPERATORS = new Set(["refract_at", "reflect_at", "surface_contact"
 const ELEMENT_OPERATORS = new Set(["lens_section", "spherical_surface"]);
 /** A document has light paths only when it declares an optical event or element. */
 const OPTICS_OPERATORS = new Set([...SURFACE_OPERATORS, ...ELEMENT_OPERATORS, "refract_direction", "reflect_direction", "optical_train"]);
+/** Light within this angle of a glass boundary's normal crosses it unbent (covers a 24 sided outline of a round face). */
+export const NORMAL_INCIDENCE_DEG = 4;
+const NORMAL_INCIDENCE_COS = Math.cos(NORMAL_INCIDENCE_DEG * Math.PI / 180);
 
 export interface LightPathRole {
   /** Contacts this path is incident on (point references as declared). */
@@ -59,6 +75,21 @@ export interface OpticsRoles {
   elements: Set<string>;
   /** Thin lenses (`lens_section` outputs): rays bend at their centre plane. */
   thinLenses: Set<string>;
+  /** Thin lens centre planes the document declares. */
+  lensPlanes: LensPlane[];
+  /** Surfaces with a declared refraction (glass faces). */
+  refracting: Set<string>;
+  /** Surfaces with a declared reflection, and the light each reflection receives. */
+  reflections: Array<{ surface: string; incoming: unknown; contact: unknown }>;
+}
+
+/** A thin lens centre plane: a drawn line, or the plane through `center` across `axis`. */
+export interface LensPlane {
+  /** Elements drawn as this lens; their outline gives the aperture. */
+  elements: string[];
+  line?: string;
+  center?: unknown;
+  axis?: unknown;
 }
 
 const rolesCache = new WeakMap<SceneDocument, OpticsRoles | null>();
@@ -83,6 +114,11 @@ function collectOpticsRoles(document: SceneDocument): OpticsRoles {
   const surfaces = new Set<string>();
   const elements = new Set<string>();
   const thinLenses = new Set<string>();
+  const lensPlanes: LensPlane[] = [];
+  const refracting = new Set<string>();
+  const reflections: OpticsRoles["reflections"] = [];
+  // Normals and contacts standing on a surface, so direction operators find it.
+  const standsOn = new Map<string, string>();
   const light = (id: unknown, contact?: unknown, declaredThrough = false) => {
     if (typeof id !== "string" || !id) return;
     const role = lightPaths.get(id) ?? { contacts: [], declaredThrough: false };
@@ -96,10 +132,27 @@ function collectOpticsRoles(document: SceneDocument): OpticsRoles {
     const operator = construction.operator;
     if (SURFACE_OPERATORS.has(operator)) {
       const surface = inputs.surface ?? inputs.target;
-      if (typeof surface === "string") surfaces.add(surface);
+      if (typeof surface === "string") {
+        surfaces.add(surface);
+        const event = operator === "refract_at" || operator === "reflect_at";
+        if (operator === "refract_at") refracting.add(surface);
+        if (operator === "reflect_at") reflections.push({ surface, incoming: outputs[0], contact: inputs.point ?? inputs.contact });
+        for (const id of event ? [outputs[1], inputs.point ?? inputs.contact] : outputs) {
+          if (typeof id === "string") standsOn.set(id, surface);
+        }
+      }
     }
     if (ELEMENT_OPERATORS.has(operator)) outputs.forEach((id) => elements.add(id));
-    if (operator === "lens_section") outputs.forEach((id) => thinLenses.add(id));
+    if (operator === "lens_section") {
+      outputs.forEach((id) => thinLenses.add(id));
+      lensPlanes.push({ elements: outputs.filter((id): id is string => typeof id === "string"), center: inputs.center, axis: inputs.axis });
+    } else if (operator === "optical_train") {
+      for (const line of [inputs.objective, inputs.eyepiece]) {
+        if (typeof line === "string") lensPlanes.push({ elements: [], line });
+      }
+    } else if ((operator === "gaussian_image" || operator === "optical_focus") && inputs.kind === "lens") {
+      lensPlanes.push({ elements: [], center: inputs.center, axis: inputs.axis });
+    }
     if (operator === "refract_at" || operator === "reflect_at") {
       light(outputs[0], inputs.point ?? inputs.contact);
       if (outputs[1]) normals.add(outputs[1]);
@@ -118,13 +171,31 @@ function collectOpticsRoles(document: SceneDocument): OpticsRoles {
       light(outputs[0], undefined, true);
     }
   }
+  for (const construction of constructions) {
+    if (construction.operator !== "refract_direction" && construction.operator !== "reflect_direction") continue;
+    const inputs = (construction.inputs ?? {}) as Record<string, unknown>;
+    for (const reference of [inputs.normal, inputs.origin, inputs.point]) {
+      const surface = typeof reference === "string" ? standsOn.get(reference) : undefined;
+      if (!surface) continue;
+      if (construction.operator === "refract_direction") refracting.add(surface);
+      else reflections.push({ surface, incoming: inputs.incoming ?? inputs.direction, contact: inputs.origin ?? inputs.point });
+    }
+  }
+  for (const assertion of document.assertions ?? []) {
+    if (assertion?.predicate !== "snells_law" || !Array.isArray(assertion.entities)) continue;
+    for (const id of assertion.entities) {
+      const surface = typeof id === "string" ? standsOn.get(id) : undefined;
+      if (surface) refracting.add(surface);
+    }
+  }
+  refractingSphericalSurfaces(document).forEach((id) => refracting.add(id));
   for (const entity of document.entities ?? []) {
     if (entity.kind === "ray") light(entity.id);
   }
   surfaces.forEach((id) => elements.add(id));
   // A normal is never a light path, whatever kind the planner gave it.
   normals.forEach((id) => lightPaths.delete(id));
-  return { lightPaths, normals, surfaces, elements, thinLenses };
+  return { lightPaths, normals, surfaces, elements, thinLenses, lensPlanes, refracting, reflections };
 }
 
 export interface LightPathClipInput {
@@ -133,6 +204,8 @@ export interface LightPathClipInput {
   /** True when the entity is drawn ink in the compiled figure. */
   drawn: (id: string) => boolean;
   resolvePoint: (value: unknown) => Point;
+  /** A declared numeric input (literal or quantity), or null when it has none. */
+  resolveNumber?: (value: unknown) => number | null;
   issues: SceneIssue[];
 }
 
@@ -183,17 +256,24 @@ export function clipLightPathsAtElements(input: LightPathClipInput): void {
   }
   if (candidates.size === 0) return;
   const far = 1e4 * span;
+  const lensChords = thinLensChords(input, roles, candidates, far, tolerance);
+  const glass = new Map<string, boolean>();
+  for (const [id, value] of candidates) {
+    glass.set(id, isGlass(input, roles, id, value, tolerance) && !(isClosed(value) && insideIndexConflict(input, value, tolerance)));
+  }
 
   for (const path of paths) {
     const segments = pathSegments(path.value, far);
     let best: { s: number; point: Point; elementId: string } | null = null;
     for (const [elementId, element] of candidates) {
       if (elementId === path.id) continue;
-      if (roles.thinLenses.has(elementId) && isClosed(element)
-        && path.vertices.some((vertex) => strictlyInside(vertex, element, tolerance))) continue;
+      // Thin lens convention: a path across the centre plane inside the aperture passes the lens.
+      if (lensChords.get(elementId)?.some((chord) => meetsChord(segments, path.vertices, chord, tolerance))) continue;
       for (const hit of crossings(segments, element, far)) {
         if (path.vertices.some((vertex) => distance(vertex, hit.point) <= tolerance)) continue;
-        if (!best || hit.s < best.s) best = { ...hit, elementId };
+        // Normal incidence: light crosses glass along the normal unbent.
+        if (glass.get(elementId) && alongNormal(hit)) continue;
+        if (!best || hit.s < best.s) best = { s: hit.s, point: hit.point, elementId };
       }
     }
     if (!best) continue;
@@ -218,6 +298,165 @@ export function clipLightPathsAtElements(input: LightPathClipInput): void {
       geometry.set(path.id, { ...path.value, points: truncatePoints(path.value.points, best.s, best.point) } as GeometryLike);
     }
   }
+}
+
+/**
+ * Centre plane chords of the thin lenses among the candidate elements. A
+ * `lens_section` spans its drawn half height about its centre; a drawn
+ * segment or line on a lens plane (an `optical_train` lens line, or a line
+ * across a declared lens centre) is its own chord.
+ */
+function thinLensChords(
+  input: LightPathClipInput,
+  roles: OpticsRoles,
+  candidates: Map<string, ElementValue>,
+  far: number,
+  tolerance: number,
+): Map<string, Array<[Point, Point]>> {
+  const chords = new Map<string, Array<[Point, Point]>>();
+  const add = (id: string, chord: [Point, Point]) => chords.set(id, [...(chords.get(id) ?? []), chord]);
+  const planes: Array<[Point, Point]> = [];
+  const straight = (value: GeometryLike | undefined): [Point, Point] | null => {
+    if (!isPath(value) || value.closed || value.points.length !== 2 || !value.points.every(finitePoint)) return null;
+    const [a, b] = value.points as [Point, Point];
+    const length = distance(a, b);
+    if (!(length > 0)) return null;
+    if (!value.infinite) return [a, b];
+    const ux = (b.x - a.x) / length;
+    const uy = (b.y - a.y) / length;
+    return [value.directed ? a : { x: a.x - ux * far, y: a.y - uy * far }, { x: a.x + ux * far, y: a.y + uy * far }];
+  };
+  for (const plane of roles.lensPlanes) {
+    if (plane.line !== undefined) {
+      const chord = straight(input.geometry.get(plane.line));
+      if (!chord) continue;
+      planes.push(chord);
+      add(plane.line, chord);
+      continue;
+    }
+    let center: Point;
+    try { center = input.resolvePoint(plane.center); } catch { continue; }
+    const axis = axisDirection(plane.axis, input.geometry);
+    if (!finitePoint(center) || !axis) continue;
+    const across = { x: -axis.y, y: axis.x };
+    planes.push([center, { x: center.x + across.x, y: center.y + across.y }]);
+    for (const id of plane.elements) {
+      const value = input.geometry.get(id);
+      if (!isPath(value) || !value.points.every(finitePoint)) continue;
+      const half = Math.max(...value.points.map((point) => Math.abs((point.x - center.x) * across.x + (point.y - center.y) * across.y)));
+      if (!(half > 0)) continue;
+      add(id, [
+        { x: center.x - across.x * half, y: center.y - across.y * half },
+        { x: center.x + across.x * half, y: center.y + across.y * half },
+      ]);
+    }
+  }
+  // A thin lens drawn as a segment or line on a lens plane.
+  for (const [id, value] of candidates) {
+    if (chords.has(id)) continue;
+    const chord = straight(value as GeometryLike);
+    if (!chord) continue;
+    if (planes.some(([a, b]) => lineDistance(chord[0], a, b) <= tolerance && lineDistance(chord[1], a, b) <= tolerance)) add(id, chord);
+  }
+  return chords;
+}
+
+/** Unit direction of an axis given as a drawn line or a literal direction. */
+function axisDirection(axis: unknown, geometry: Map<string, GeometryLike>): Point | null {
+  let vector: Point | null = null;
+  if (typeof axis === "string") {
+    const value = geometry.get(axis);
+    if (isPath(value) && value.points.length >= 2 && value.points.every(finitePoint)) {
+      vector = { x: value.points[1]!.x - value.points[0]!.x, y: value.points[1]!.y - value.points[0]!.y };
+    }
+  } else if (Array.isArray(axis) && axis.length === 2 && axis.every((value) => typeof value === "number")) {
+    vector = { x: axis[0] as number, y: axis[1] as number };
+  }
+  const length = vector ? Math.hypot(vector.x, vector.y) : 0;
+  return vector && length > 0 ? { x: vector.x / length, y: vector.y / length } : null;
+}
+
+/** True when the path crosses or touches the chord, which is lengthened by the tolerance at both ends. */
+function meetsChord(segments: Segment[], vertices: Point[], chord: [Point, Point], tolerance: number): boolean {
+  const [a, b] = chord;
+  const length = distance(a, b);
+  if (!(length > 0)) return false;
+  const ux = (b.x - a.x) / length;
+  const uy = (b.y - a.y) / length;
+  const from = { x: a.x - ux * tolerance, y: a.y - uy * tolerance };
+  const to = { x: b.x + ux * tolerance, y: b.y + uy * tolerance };
+  if (segments.some((segment) => segmentIntersection(segment.a, segment.b, from, to) !== null)) return true;
+  return vertices.some((vertex) => pointSegmentDistance(vertex, from, to) <= tolerance);
+}
+
+/**
+ * Glass lets light along the normal through; a mirror does not. Glass is a
+ * thin lens, a surface with a declared refraction, or a closed region,
+ * unless that region carries a declared reflection, no refraction, and its
+ * reflected light arrives from outside (a mirror body; light reflected
+ * inside closed glass is total internal reflection).
+ */
+function isGlass(input: LightPathClipInput, roles: OpticsRoles, id: string, value: ElementValue, tolerance: number): boolean {
+  if (roles.thinLenses.has(id) || roles.refracting.has(id)) return true;
+  if (!isClosed(value)) return false;
+  return !roles.reflections.some((reflection) => {
+    if (reflection.surface !== id || typeof reflection.incoming !== "string") return false;
+    const incoming = input.geometry.get(reflection.incoming);
+    if (!isPath(incoming) || incoming.points.length < 2 || !incoming.points.every(finitePoint)) return false;
+    const start = incoming.points[0]!;
+    const next = incoming.infinite ? incoming.points[1]! : incoming.points.at(-1)!;
+    const length = distance(start, next);
+    if (!(length > 0)) return false;
+    let contact: Point;
+    try { contact = reflection.contact === undefined ? next : input.resolvePoint(reflection.contact); } catch { return false; }
+    if (!finitePoint(contact)) return false;
+    const probe = { x: contact.x - (next.x - start.x) / length * 4 * tolerance, y: contact.y - (next.y - start.y) / length * 4 * tolerance };
+    return !insideElement(probe, value);
+  });
+}
+
+/**
+ * True when the refractions on a closed element's boundary disagree on the
+ * index inside it (n1 is the side the incident light comes from). Such a
+ * figure has its media inverted somewhere (a recorded prism drew a ray
+ * entering the glass along one face's normal and then refracting from "air"
+ * at the other), so no crossing of it is excused as normal incidence.
+ */
+function insideIndexConflict(input: LightPathClipInput, element: ElementValue, tolerance: number): boolean {
+  const number = (value: unknown): number | null => {
+    if (typeof value === "number") return Number.isFinite(value) ? value : null;
+    return input.resolveNumber?.(value) ?? null;
+  };
+  let inside: number | null = null;
+  for (const construction of input.document.constructions ?? []) {
+    if (construction.operator !== "refract_at" && construction.operator !== "refract_direction") continue;
+    const inputs = (construction.inputs ?? {}) as Record<string, unknown>;
+    const n1 = number(inputs.n1);
+    const n2 = number(inputs.n2);
+    if (n1 === null || n2 === null || !(n1 > 0) || !(n2 > 0)) continue;
+    const incoming = input.geometry.get(construction.operator === "refract_at"
+      ? String((construction.outputs ?? [])[0] ?? "")
+      : String(inputs.incoming ?? inputs.direction ?? ""));
+    if (!isPath(incoming) || incoming.points.length < 2 || !incoming.points.every(finitePoint)) continue;
+    let contact: Point;
+    try { contact = input.resolvePoint(construction.operator === "refract_at" ? inputs.point ?? inputs.contact : inputs.origin ?? inputs.point); } catch { continue; }
+    if (!finitePoint(contact) || boundaryDistance(contact, element) > tolerance) continue;
+    const start = incoming.points[0]!;
+    const next = incoming.infinite ? incoming.points[1]! : incoming.points.at(-1)!;
+    const length = distance(start, next);
+    if (!(length > 0)) continue;
+    const probe = { x: contact.x - (next.x - start.x) / length * 4 * tolerance, y: contact.y - (next.y - start.y) / length * 4 * tolerance };
+    const index = insideElement(probe, element) ? n1 : n2;
+    if (inside !== null && Math.abs(inside - index) > 1e-6 * Math.max(inside, index)) return true;
+    inside = index;
+  }
+  return false;
+}
+
+function alongNormal(hit: { direction: Point; normal: Point }): boolean {
+  const scale = Math.hypot(hit.direction.x, hit.direction.y) * Math.hypot(hit.normal.x, hit.normal.y);
+  if (!(scale > 0)) return false;
+  return Math.abs(hit.direction.x * hit.normal.x + hit.direction.y * hit.normal.y) >= NORMAL_INCIDENCE_COS * scale;
 }
 
 /** Operators whose `axis` input declares an optical axis. */
@@ -412,19 +651,23 @@ function elementEdges(value: PathValue, far: number): Array<[Point, Point]> {
   return edges;
 }
 
-function crossings(segments: Segment[], element: ElementValue, far: number): Array<{ s: number; point: Point }> {
-  const hits: Array<{ s: number; point: Point }> = [];
+type Hit = { s: number; point: Point; direction: Point; normal: Point };
+
+/** Where the path crosses the element, with the path direction and the boundary normal there. */
+function crossings(segments: Segment[], element: ElementValue, far: number): Hit[] {
+  const hits: Hit[] = [];
   for (const segment of segments) {
+    const direction = { x: segment.b.x - segment.a.x, y: segment.b.y - segment.a.y };
     if (element.kind === "path") {
       for (const [c, d] of elementEdges(element, far)) {
         const t = segmentIntersection(segment.a, segment.b, c, d);
-        if (t !== null) hits.push({ s: segment.s0 + t * segment.length, point: lerp(segment.a, segment.b, t) });
+        if (t !== null) hits.push({ s: segment.s0 + t * segment.length, point: lerp(segment.a, segment.b, t), direction, normal: { x: c.y - d.y, y: d.x - c.x } });
       }
     } else {
       for (const t of segmentCircle(segment.a, segment.b, element.center, element.radius)) {
         const point = lerp(segment.a, segment.b, t);
         if (element.kind === "arc" && !angleOnArc(Math.atan2(point.y - element.center.y, point.x - element.center.x), element.startAngle, element.endAngle)) continue;
-        hits.push({ s: segment.s0 + t * segment.length, point });
+        hits.push({ s: segment.s0 + t * segment.length, point, direction, normal: { x: point.x - element.center.x, y: point.y - element.center.y } });
       }
     }
   }
@@ -500,8 +743,8 @@ function boundaryDistance(point: Point, element: ElementValue): number {
   return Math.abs(distance(point, element.center) - element.radius);
 }
 
-function strictlyInside(point: Point, element: ElementValue, tolerance: number): boolean {
-  if (element.kind === "circle") return distance(point, element.center) < element.radius - tolerance;
+function insideElement(point: Point, element: ElementValue): boolean {
+  if (element.kind === "circle") return distance(point, element.center) < element.radius;
   if (element.kind !== "path" || !element.closed) return false;
   const points = element.points;
   let inside = false;
@@ -510,7 +753,7 @@ function strictlyInside(point: Point, element: ElementValue, tolerance: number):
     const b = points[previous]!;
     if ((a.y > point.y) !== (b.y > point.y) && point.x < (b.x - a.x) * (point.y - a.y) / (b.y - a.y) + a.x) inside = !inside;
   }
-  return inside && boundaryDistance(point, element) > tolerance;
+  return inside;
 }
 
 function truncatePoints(points: Point[], s: number, hit: Point): Point[] {
