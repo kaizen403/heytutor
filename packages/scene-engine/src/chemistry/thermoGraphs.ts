@@ -388,6 +388,9 @@ function readProfile(stem: string, question: string, _quantities: ChemPlanQuanti
   const energies = [eaBackStem, eaForwardStem, threshold, energyR, energyP, dHStem].filter((e): e is Energy => e !== null);
   const unit = energies[0]?.unit ?? "";
   if (energies.some(e => e.unit !== unit)) return null;
+  // Catalyst differences share the same extensive/molar physical dimension.
+  if ([source.get("catalyst_reduction"),source.get("catalyst_barrier")]
+    .some(energy => energy !== undefined && energy.unit !== unit)) return null;
   let ea = eaForwardStem?.value ?? null;
   const eaBack = eaBackStem?.value ?? null;
   let dH = dHStem?.value ?? null;

@@ -3901,6 +3901,57 @@ const fullOwnerSupportRows:ReadonlyArray<FullOwnerSupportRow> = [
     "unit": "kJ/mol",
     "catalyst": 40,
     "questionSha256": "1c8621d9117b3afd1623f7cf49da03411d2448a5ce1cce1c9e7dcffff783f9a5"
+  },
+  {
+    "id": "PROFILE-OWN-CATALYST-DIMENSION-1",
+    "question": "ΔH = -40 kJ/mol and activation energy is 60 kJ/mol. The catalyst lowers the activation energy by 20 kJ. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "9260199f9bb6b5f78c99f4d70d644fc3e0ee87816e9bde765010f2d2b1b500f1"
+  },
+  {
+    "id": "PROFILE-OWN-CATALYST-DIMENSION-2",
+    "question": "ΔH = -40 kJ/mol and activation energy is 60 kJ/mol. With a catalyst the activation energy is 40 kJ. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "6a0af302927da785a6324adaba507a30e61d7388e95c346d0e65bbe1c0ea9de5"
+  },
+  {
+    "id": "PROFILE-OWN-CATALYST-DIMENSION-3",
+    "question": "ΔH = -40 kJ and activation energy is 60 kJ. The catalyst lowers the activation energy by 20000 J/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "22d865c0cc100b1eb854e38d0dd34db541d9f6403324fbe44eacfbf95f339876"
+  },
+  {
+    "id": "PROFILE-OWN-CATALYST-MOLAR-CONVERTED",
+    "question": "ΔH = -40 kJ/mol and activation energy is 60 kJ/mol. The catalyst lowers the activation energy by 20000 J/mol. Draw the numerical energy profile.",
+    "kind": "profile",
+    "Ea": 60,
+    "dH": -40,
+    "back": 100,
+    "unit": "kJ/mol",
+    "catalyst": 40,
+    "questionSha256": "e12fdb6b004043e53dcc8afceb2eab292789fb1092f7733d20fa8fccbf70cf34"
+  },
+  {
+    "id": "PROFILE-OWN-CATALYST-EXTENSIVE",
+    "question": "ΔH = -40 kJ and activation energy is 60 kJ. The catalyst lowers the activation energy by 20 kJ. Draw the numerical energy profile.",
+    "kind": "profile",
+    "Ea": 60,
+    "dH": -40,
+    "back": 100,
+    "unit": "kJ",
+    "catalyst": 40,
+    "questionSha256": "6c3b087bc99ba6d5719d5ebef8f5df1396d209489052396d42ea3915e70aeac7"
+  },
+  {
+    "id": "PROFILE-OWN-CATALYST-BARRIER-CONVERTED",
+    "question": "ΔH = -40 kJ/mol and activation energy is 60 kJ/mol. With a catalyst the activation energy is 40000 J/mol. Draw the numerical energy profile.",
+    "kind": "profile",
+    "Ea": 60,
+    "dH": -40,
+    "back": 100,
+    "unit": "kJ/mol",
+    "catalyst": 40,
+    "questionSha256": "e50c4d10a2148a4764bbcd84647c402a132c6dd3507bac762284fed39dbce47b"
   }
 ];
 for(const row of fullOwnerSupportRows)check("Full owner/support repair: "+row.id,()=>{
