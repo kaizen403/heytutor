@@ -46,7 +46,7 @@
     "verify:dev-cache": "tsx scripts/verify/verify-next-dev-cache.ts",
     "db:migrate:deploy": "tsx scripts/live/deploy-migrations.ts",
     "verify:fresh-migrations": "tsx scripts/verify/verify-fresh-migrations.ts",
-    "verify:lesson-qa-2": "tsx scripts/verify/verify-native-audio-recovery.ts && tsx scripts/verify/verify-lecture-work-pages.ts && tsx scripts/verify/verify-focus-write-order.ts && tsx scripts/verify/verify-resume-write-boundaries.ts && tsx scripts/verify/verify-short-board-chrome.ts"
+    "verify:lesson-qa-2": "tsx scripts/verify/verify-native-audio-recovery.ts && tsx scripts/verify/verify-lecture-work-pages.ts && tsx scripts/verify/verify-focus-write-order.ts && tsx scripts/verify/verify-resume-write-boundaries.ts && tsx scripts/verify/verify-short-board-chrome.ts && tsx scripts/verify/verify-startup-diagnostics.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1131.0",

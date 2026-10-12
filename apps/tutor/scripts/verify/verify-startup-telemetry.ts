@@ -783,11 +783,26 @@ async function verifyStreamingClientSeam() {
   let now = 10_000;
   class NativeAudio {
     static clips: NativeAudio[] = [];
-    playbackRate = 1; preservesPitch = true; muted = false; volume = 1; currentTime = 0;
+    playbackRate = 1; preservesPitch = true; muted = false; volume = 1;
+    duration = 2; paused = true;
+    private startedAt: number | null = null;
+    private positionSec = 0;
     onplaying: (() => void) | null = null; onended: (() => void) | null = null; onerror = null;
     constructor(public src = "") { if (src.startsWith("blob:")) NativeAudio.clips.push(this); }
-    async play() { if (this.src.startsWith("blob:")) { now += 30; this.onplaying?.(); } }
-    pause() {} removeAttribute() { this.src = ""; } load() {}
+    get currentTime() {
+      return Math.min(this.duration, this.positionSec + (this.startedAt === null ? 0 : (now - this.startedAt) / 1000 * this.playbackRate));
+    }
+    set currentTime(position: number) { this.positionSec = position; if (!this.paused) this.startedAt = now; }
+    async play() {
+      if (!this.src.startsWith("blob:")) return;
+      now += 30;
+      if (this.paused) { this.paused = false; this.startedAt = now; }
+      this.onplaying?.();
+    }
+    pause() { this.positionSec = this.currentTime; this.startedAt = null; this.paused = true; }
+    finish() { this.pause(); this.positionSec = this.duration; this.onended?.(); }
+    removeAttribute() { this.src = ""; }
+    load() { this.pause(); this.positionSec = 0; }
   }
   const savedAuth = process.env.NEXT_PUBLIC_AUTH_DISABLED;
   delete process.env.NEXT_PUBLIC_AUTH_DISABLED;
@@ -829,7 +844,23 @@ async function verifyStreamingClientSeam() {
     for (let i = 0; i < 200 && NativeAudio.clips.length === 0; i++) await new Promise((resolve) => setTimeout(resolve, 1));
     assert.equal(NativeAudio.clips.length, 1);
     await settle();
-    NativeAudio.clips[0]!.onended?.();
+    const clip = NativeAudio.clips[0]!;
+    assert.equal(clip.currentTime, 0);
+    assert.equal(startSignal, null, "a playing event without media progress is not first audible");
+    now += 150;
+    // The client observes progress on its 100 ms native-media watchdog.
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    assert(clip.currentTime > 0, "the native clip advances before first audible is accepted");
+    assert.deepEqual(startSignal, { signal: "html-audio-playing", leadMs: 0 });
+    client.pause();
+    const pausedAt = clip.currentTime;
+    now += 200;
+    assert.equal(clip.currentTime, pausedAt, "intentional pause freezes the fake native media clock");
+    client.resume(); await settle();
+    assert.equal(clip.currentTime, pausedAt, "resuming the same clip preserves its media position");
+    now += 100;
+    assert(clip.currentTime > pausedAt, "the resumed native media clock advances again");
+    clip.finish();
     await spoken;
     assert.deepEqual(firstBytes, [{ transport: "http", sinceRequestMs: 700, prefetched: false }]);
     assert.deepEqual(startSignal, { signal: "html-audio-playing", leadMs: 0 }, "native playback reports the playing signal");
