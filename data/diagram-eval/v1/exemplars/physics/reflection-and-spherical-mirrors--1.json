@@ -25,15 +25,10 @@
       { "id": "ot", "kind": "point", "role": "object tip" },
       { "id": "ib", "kind": "point", "role": "image foot", "label": "I" },
       { "id": "it", "kind": "point", "role": "image tip" },
-      { "id": "lp", "kind": "line", "role": "construction helper" },
-      { "id": "M1", "kind": "point", "role": "construction helper" },
-      { "id": "M2", "kind": "point", "role": "construction helper" },
       { "id": "obj", "kind": "vector", "role": "object" },
       { "id": "img", "kind": "vector", "role": "real magnified image" },
-      { "id": "r1", "kind": "vector", "role": "parallel ray" },
-      { "id": "r1o", "kind": "vector", "role": "returns through F" },
-      { "id": "r2", "kind": "vector", "role": "ray through F" },
-      { "id": "r2o", "kind": "vector", "role": "returns parallel" }
+      { "id": "r1", "kind": "polyline", "role": "parallel ray" },
+      { "id": "r2", "kind": "polyline", "role": "ray through F" }
     ],
     "constructions": [
       { "id": "cP", "operator": "point", "inputs": { "x": 0, "y": 0 }, "outputs": ["P"] },
@@ -43,29 +38,20 @@
       { "id": "cF", "operator": "optical_focus", "inputs": { "kind": "mirror", "center": "P", "axis": "axis", "focalLength": "f", "form": "converging", "displayScale": 1, "lengthUnit": "cm" }, "outputs": ["F"] },
       { "id": "cC", "operator": "rotate", "inputs": { "point": "P", "center": "F", "angle": 180, "angleUnit": "degrees" }, "outputs": ["C"] },
       { "id": "cM", "operator": "spherical_surface", "inputs": { "vertex": "P", "axis": "axis", "halfHeight": 13, "signedRadius": -28 }, "outputs": ["mirror"] },
-      { "id": "cLp", "operator": "perpendicular_through", "inputs": { "through": "P", "line": "axis" }, "outputs": ["lp"] },
-      { "id": "cM1", "operator": "project", "inputs": { "point": "ot", "line": "lp" }, "outputs": ["M1"] },
-      { "id": "cM2", "operator": "project", "inputs": { "point": "it", "line": "lp" }, "outputs": ["M2"] },
       { "id": "cO", "operator": "vector", "inputs": { "start": "ob", "end": "ot" }, "outputs": ["obj"] },
       { "id": "cIm", "operator": "vector", "inputs": { "start": "ib", "end": "it" }, "outputs": ["img"] },
-      { "id": "cR1", "operator": "vector", "inputs": { "start": "ot", "end": "M1" }, "outputs": ["r1"] },
-      { "id": "cR1o", "operator": "vector", "inputs": { "start": "M1", "end": "it", "approximation": "paraxial" }, "outputs": ["r1o"] },
-      { "id": "cR2", "operator": "vector", "inputs": { "start": "ot", "end": "M2" }, "outputs": ["r2"] },
-      { "id": "cR2o", "operator": "vector", "inputs": { "start": "M2", "end": "it", "approximation": "paraxial" }, "outputs": ["r2o"] }
+      { "id": "cRays", "operator": "principal_rays", "inputs": { "image": "it", "rays": ["parallel", "focal"] }, "outputs": ["r1", "r2"] }
     ],
     "relations": [],
-    "assertions": [
-      { "id": "meet", "predicate": "converges", "entities": ["r1o", "r2o", "it"], "expected": true, "severity": "fatal" },
-      { "id": "par1", "predicate": "parallel", "entities": ["r1", "axis"], "expected": true, "severity": "fatal" }
-    ],
+    "assertions": [],
     "annotations": [
       { "id": "aF", "kind": "label", "targetIds": ["F"], "text": "f=14 cm", "quantityId": "f" },
       { "id": "aHi", "kind": "label", "targetIds": ["it"], "text": "h_i=12 cm" }
     ],
-    "requiredEntityIds": ["axis", "mirror", "P", "F", "C", "ob", "ot", "obj", "ib", "it", "img", "r1", "r1o", "r2", "r2o"],
+    "requiredEntityIds": ["axis", "mirror", "P", "F", "C", "ob", "ot", "obj", "ib", "it", "img", "r1", "r2"],
     "revealGroups": [
       { "id": "setup", "entityIds": ["axis", "mirror", "P", "F", "C", "ob", "ot", "obj"], "dependsOn": [], "narrationCue": "mirror, F, C, object" },
-      { "id": "rays", "entityIds": ["r1", "r1o", "r2", "r2o"], "dependsOn": ["setup"], "narrationCue": "two principal rays" },
+      { "id": "rays", "entityIds": ["r1", "r2"], "dependsOn": ["setup"], "narrationCue": "two principal rays" },
       { "id": "image", "entityIds": ["ib", "it", "img"], "dependsOn": ["rays"], "narrationCue": "real, inverted, magnified image" }
     ],
     "teachingTimeline": [

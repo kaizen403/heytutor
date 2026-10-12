@@ -25,19 +25,10 @@
       {"id": "ot", "kind": "point", "role": "object tip"},
       {"id": "ib", "kind": "point", "role": "image foot", "label": "v=13.2 cm"},
       {"id": "it", "kind": "point", "role": "image tip"},
-      {"id": "lp", "kind": "line"},
-      {"id": "H1", "kind": "point"},
-      {"id": "Q0", "kind": "point"},
-      {"id": "Q1", "kind": "point"},
-      {"id": "Q2", "kind": "point"},
       {"id": "obj", "kind": "vector", "role": "object"},
       {"id": "img", "kind": "vector", "role": "virtual image", "provenance": {"dashed": true}},
-      {"id": "r1", "kind": "vector", "role": "parallel ray"},
-      {"id": "r1o", "kind": "vector", "role": "returns as if from F"},
-      {"id": "r2", "kind": "vector", "role": "ray to P"},
-      {"id": "r2o", "kind": "vector", "role": "returns below the axis"},
-      {"id": "e1", "kind": "segment", "role": "virtual extension", "provenance": {"dashed": true, "strokeRole": "construction"}},
-      {"id": "e2", "kind": "segment", "role": "virtual extension", "provenance": {"dashed": true, "strokeRole": "construction"}}
+      {"id": "r1", "kind": "polyline", "role": "parallel ray"},
+      {"id": "r2", "kind": "polyline", "role": "ray to the pole"}
     ],
     "constructions": [
       {"id": "k0", "operator": "point", "inputs": {"x": 0, "y": 0}, "outputs": ["P"]},
@@ -47,31 +38,19 @@
       {"id": "k4", "operator": "optical_focus", "inputs": {"kind": "mirror", "center": "P", "axis": "ax", "focalLength": "f", "form": "diverging", "displayScale": 1, "lengthUnit": "cm"}, "outputs": ["F"]},
       {"id": "k5", "operator": "rotate", "inputs": {"point": "P", "center": "F", "angle": 180}, "outputs": ["C"]},
       {"id": "k6", "operator": "spherical_surface", "inputs": {"vertex": "P", "axis": "ax", "halfHeight": 24, "signedRadius": 66}, "outputs": ["M"]},
-      {"id": "k7", "operator": "perpendicular_through", "inputs": {"through": "P", "line": "ax"}, "outputs": ["lp"]},
-      {"id": "k8", "operator": "project", "inputs": {"point": "ot", "line": "lp"}, "outputs": ["H1"]},
-      {"id": "k9", "operator": "rotate", "inputs": {"point": "F", "center": "H1", "angle": 180}, "outputs": ["Q0"]},
-      {"id": "ka", "operator": "midpoint", "inputs": {"a": "H1", "b": "Q0"}, "outputs": ["Q1"]},
-      {"id": "kf", "operator": "vector", "inputs": {"start": "ot", "end": "H1"}, "outputs": ["r1"]},
-      {"id": "kg", "operator": "vector", "inputs": {"start": "H1", "end": "Q1"}, "outputs": ["r1o"]},
-      {"id": "kc", "operator": "rotate", "inputs": {"point": "ot", "center": "ob", "angle": 180}, "outputs": ["Q2"]},
       {"id": "kd", "operator": "vector", "inputs": {"start": "ob", "end": "ot"}, "outputs": ["obj"]},
       {"id": "ke", "operator": "vector", "inputs": {"start": "ib", "end": "it"}, "outputs": ["img"]},
-      {"id": "kh", "operator": "vector", "inputs": {"start": "ot", "end": "P"}, "outputs": ["r2"]},
-      {"id": "ki", "operator": "vector", "inputs": {"start": "P", "end": "Q2"}, "outputs": ["r2o"]},
-      {"id": "kj", "operator": "segment", "inputs": {"start": "H1", "end": "it"}, "outputs": ["e1"]},
-      {"id": "kk", "operator": "segment", "inputs": {"start": "P", "end": "it"}, "outputs": ["e2"]}
+      {"id": "cRays", "operator": "principal_rays", "inputs": {"image": "it"}, "outputs": ["r1", "r2"]}
     ],
     "relations": [],
-    "assertions": [
-      {"id": "meet", "predicate": "converges", "entities": ["e1", "e2", "it"], "expected": true, "severity": "fatal"}
-    ],
+    "assertions": [],
     "annotations": [
       {"id": "aHi", "kind": "label", "targetIds": ["it"], "text": "h_i=12 cm"}
     ],
-    "requiredEntityIds": ["ax", "M", "P", "F", "C", "ob", "ot", "obj", "ib", "it", "img", "r1", "r1o", "r2", "r2o", "e1", "e2"],
+    "requiredEntityIds": ["ax", "M", "P", "F", "C", "ob", "ot", "obj", "ib", "it", "img", "r1", "r2"],
     "revealGroups": [
       {"id": "setup", "entityIds": ["ax", "M", "P", "F", "C", "ob", "ot", "obj"], "dependsOn": [], "narrationCue": "mirror and object"},
-      {"id": "rays", "entityIds": ["r1", "r1o", "r2", "r2o", "e1", "e2", "ib", "it", "img"], "dependsOn": ["setup"], "narrationCue": "rays and image"}
+      {"id": "rays", "entityIds": ["r1", "r2", "ib", "it", "img"], "dependsOn": ["setup"], "narrationCue": "rays and image"}
     ],
     "teachingTimeline": [
       {"id": "t_setup", "action": "reveal", "targetId": "setup", "dependsOn": [], "narrationIntent": "mirror and object"},

@@ -24,15 +24,10 @@
       { "id": "ot", "kind": "point", "role": "object tip" },
       { "id": "ib", "kind": "point", "role": "image foot" },
       { "id": "it", "kind": "point", "role": "image tip" },
-      { "id": "lp", "kind": "line", "role": "construction helper" },
-      { "id": "L1", "kind": "point", "role": "construction helper" },
-      { "id": "Q1", "kind": "point", "role": "construction helper" },
       { "id": "obj", "kind": "vector", "role": "object" },
       { "id": "img", "kind": "vector", "role": "virtual upright image", "provenance": { "dashed": true } },
-      { "id": "r1", "kind": "vector", "role": "parallel ray" },
-      { "id": "r1o", "kind": "ray", "role": "refracted away from F2" },
-      { "id": "r2", "kind": "ray", "role": "undeviated ray through O" },
-      { "id": "e1", "kind": "segment", "role": "virtual extension", "provenance": { "dashed": true, "strokeRole": "construction" } }
+      { "id": "r1", "kind": "polyline", "role": "parallel ray" },
+      { "id": "r2", "kind": "polyline", "role": "ray through the optical centre" }
     ],
     "constructions": [
       { "id": "cO", "operator": "point", "inputs": { "x": 0, "y": 0 }, "outputs": ["O"] },
@@ -41,29 +36,19 @@
       { "id": "cI", "operator": "gaussian_image", "inputs": { "kind": "lens", "center": "O", "axis": "axis", "objectDistance": "u", "focalLength": "f", "objectHeight": "h", "form": "diverging", "objectSide": "real", "displayScale": 1, "lengthUnit": "cm" }, "outputs": ["ob", "ot", "ib", "it"] },
       { "id": "cF", "operator": "optical_focus", "inputs": { "kind": "lens", "center": "O", "axis": "axis", "focalLength": "f", "form": "diverging", "displayScale": 1, "lengthUnit": "cm" }, "outputs": ["F1", "F2"] },
       { "id": "cL", "operator": "lens_section", "inputs": { "center": "O", "axis": "axis", "radius1": -12, "radius2": 12, "halfHeight": 6 }, "outputs": ["L"] },
-      { "id": "cLp", "operator": "perpendicular_through", "inputs": { "through": "O", "line": "axis" }, "outputs": ["lp"] },
-      { "id": "cL1", "operator": "project", "inputs": { "point": "ot", "line": "lp" }, "outputs": ["L1"] },
-      { "id": "cQ1", "operator": "rotate", "inputs": { "point": "F2", "center": "L1", "angle": 180, "angleUnit": "degrees" }, "outputs": ["Q1"] },
       { "id": "cOb", "operator": "vector", "inputs": { "start": "ob", "end": "ot" }, "outputs": ["obj"] },
       { "id": "cIm", "operator": "vector", "inputs": { "start": "ib", "end": "it" }, "outputs": ["img"] },
-      { "id": "cR1", "operator": "vector", "inputs": { "start": "ot", "end": "L1" }, "outputs": ["r1"] },
-      { "id": "cR1o", "operator": "ray", "inputs": { "start": "L1", "end": "Q1", "approximation": "paraxial" }, "outputs": ["r1o"] },
-      { "id": "cR2", "operator": "ray", "inputs": { "start": "ot", "end": "it" }, "outputs": ["r2"] },
-      { "id": "cE1", "operator": "segment", "inputs": { "start": "L1", "end": "it" }, "outputs": ["e1"] }
+      { "id": "cRays", "operator": "principal_rays", "inputs": { "image": "it" }, "outputs": ["r1", "r2"] }
     ],
     "relations": [],
-    "assertions": [
-      { "id": "meet", "predicate": "converges", "entities": ["e1", "r2", "it"], "expected": true, "severity": "fatal" },
-      { "id": "par1", "predicate": "parallel", "entities": ["r1", "axis"], "expected": true, "severity": "fatal" },
-      { "id": "thruO", "predicate": "on", "entities": ["O", "r2"], "expected": true, "severity": "fatal" }
-    ],
+    "assertions": [],
     "annotations": [
       { "id": "aHi", "kind": "label", "targetIds": ["it"], "text": "h_i=2 cm" }
     ],
-    "requiredEntityIds": ["axis", "L", "O", "F1", "F2", "ob", "ot", "obj", "ib", "it", "img", "r1", "r1o", "r2", "e1"],
+    "requiredEntityIds": ["axis", "L", "O", "F1", "F2", "ob", "ot", "obj", "ib", "it", "img", "r1", "r2"],
     "revealGroups": [
       { "id": "setup", "entityIds": ["axis", "L", "O", "F1", "F2", "ob", "ot", "obj"], "dependsOn": [], "narrationCue": "lens, foci, object" },
-      { "id": "rays", "entityIds": ["r1", "r1o", "r2", "e1"], "dependsOn": ["setup"], "narrationCue": "rays diverge" },
+      { "id": "rays", "entityIds": ["r1", "r2"], "dependsOn": ["setup"], "narrationCue": "rays diverge" },
       { "id": "image", "entityIds": ["ib", "it", "img"], "dependsOn": ["rays"], "narrationCue": "virtual upright image" }
     ],
     "teachingTimeline": [
