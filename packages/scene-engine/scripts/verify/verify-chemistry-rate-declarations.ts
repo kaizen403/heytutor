@@ -1848,14 +1848,14 @@ for(const c of concentrationDispatchCases)try {
  const spec=kineticsFromStem(c.question),exact=buildKineticsScene(c.question,[],false),schematic=buildKineticsScene(c.question,[],true),ordinary=synthesizeFamilyScene({question:c.question});
  if(c.refuse){assert.equal(spec,null);assert.equal(exact,null);assert.equal(schematic,null);assert.equal(ordinary,null);}
  else {
-  assert.ok(spec);assert.equal(spec.order,1);assert.equal(spec.plot,"concentration");assert.equal(spec.linear,"A_t");
+  assert.ok(spec);assert.equal(spec.order,1);assert.equal(spec.plot,"concentration");assert.equal(spec.linear,"A_t");assert.equal(spec.a0,null,"an absent original initial concentration stays absent");
   const solved=solveKinetics(spec),truth=expected(c);assert.equal(solved.timeUnit,c.unit);assert.ok(solved.k!==null&&solved.tHalf!==null);assert.ok(Math.abs(solved.k-truth.k)<=Math.abs(truth.k)*1e-12);assert.ok(Math.abs(solved.tHalf-truth.half)<=Math.abs(truth.half)*1e-12);
   if(c.askTime!==undefined){const point=solved.remainingAtTimes.find(x=>x.time===c.askTime);assert.ok(point);assert.ok(Math.abs(point.remaining-Math.exp(-truth.k*c.askTime))<=1e-12);}
   assert.ok(exact&&schematic&&ordinary);
   for(const document of [exact,schematic,ordinary.document]) {
-   checkDocument(c,document);const axis=document.entities.find(e=>e.id==="p_yl"&&e.kind==="label"&&e.label==="[A]/[A]_0");assert.ok(axis);
+   checkDocument(c,document);assert.ok(!document.quantities.some(q=>q.id==="a0"||q.id==="A0"||q.unit==="M"||q.unit==="mol/L"),"normalized decay must not fabricate an initial concentration quantity");const axis=document.entities.find(e=>e.id==="p_yl"&&e.kind==="label"&&e.label==="[A]/[A]_0");assert.ok(axis);
    const valid=validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string,unknown>));assert.ok(valid.document);const compiled=compileSceneDocument(valid.document);assert.ok(compiled.ok&&compiled.renderScene);
-   assert.ok(compiled.renderScene.primitives.some(p=>p.kind==="label"&&p.entityId===axis.id&&p.text===axis.label));
+   assert.ok(compiled.renderScene.primitives.some(p=>p.kind==="label"&&p.entityId===axis.id&&p.text===axis.label));assert.ok(!compiled.renderScene.primitives.some(p=>p.kind==="label"&&/\bM\b|mol\s*\/\s*L/.test(p.text??"")),"normalized decay must not fabricate a molar intercept");
   }
  }
  results.push({id:c.id,passed:true});
