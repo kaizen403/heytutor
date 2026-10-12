@@ -36,7 +36,7 @@ import { KINEMATICS_OPERATORS, validateKinematicsConstruction } from "../compile
 import { CALCULUS_OPERATORS as DERIVED_CURVE_OPERATORS, validateCalculusConstruction as validateDerivedCurveConstruction, validateAnalyticLineConstruction as validateCurveAnalyticLineConstruction } from "../compile/calculusGeometry";
 import { AC_OPERATORS, validateAcConstruction } from "../compile/acGeometry";
 import { WAVES_OPERATORS, validateWavesConstruction } from "../compile/wavesGeometry";
-import { GEOMETRIC_OPTICS_OPERATORS, validateGeometricOpticsConstruction } from "../compile/geometricOpticsGeometry";
+import { GEOMETRIC_OPTICS_OPERATORS, validateGeometricOpticsConstruction, validateOpticalElementFocalAgreement } from "../compile/geometricOpticsGeometry";
 import { PRINCIPAL_RAYS_OPERATORS, validatePrincipalRaysConstruction } from "../compile/principalRaysGeometry";
 import { THERMODYNAMICS_OPERATORS, validateThermodynamicsConstruction } from "../compile/thermodynamicsGeometry";
 
@@ -4456,6 +4456,8 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
       }
     }
   });
+  // One lens or mirror, one focal length: its focus, image and mirror surface must agree.
+  validateOpticalElementFocalAgreement(document, constructionByOutput, issues);
   const directionTransforms = document.constructions.filter((construction) =>
     construction.operator === "reflect_direction" || construction.operator === "refract_direction",
   );

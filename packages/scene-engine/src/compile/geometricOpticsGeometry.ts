@@ -376,12 +376,8 @@ export function validateEvaluatedGeometricOpticsLabels(construction: SceneConstr
     issues.push({ code: `invalid_${construction.operator}_label`, severity: "fatal", message: error instanceof Error ? error.message : "invalid optical result labels", path: `constructions[${index}].outputs` });
   }
 }
-export function validateGeometricOpticsConstruction(construction: SceneConstruction, index: number, document: SceneDocument, constructionByOutput: Map<string, SceneConstruction>, issues: SceneIssue[]): void {
-  const add = (key: string, message: string): void => { issues.push({ code: `invalid_${construction.operator}_${key}`, message, severity: "fatal", path: `constructions[${index}].${key === "outputs" || key === "output_kind" ? "outputs" : `inputs.${key}`}` }); };
-  if (!isRecord(construction.inputs)) { add("fields", "geometric optics inputs must be an object"); return; }
-  const outputs = Array.isArray(construction.outputs) ? construction.outputs : []; const count = construction.operator === "gaussian_image" ? 4 : construction.inputs.kind === "lens" ? 2 : 1;
-  if (outputs.length !== count || outputs.some((output) => typeof output !== "string" || !output.trim()) || new Set(outputs).size !== count) add("outputs", `${construction.operator} requires ${count} distinct point outputs`);
-  for (const output of outputs) if (document.entities.find((entity) => entity.id === output)?.kind !== "point") add("output_kind", "optical landmarks must be point entities");
+/** Validation reads optical inputs through constructed points and lines only; anything else is unresolved. */
+function opticsValidationContext(document: SceneDocument, constructionByOutput: ReadonlyMap<string, SceneConstruction>): GeometricOpticsEvaluationContext {
   const context: GeometricOpticsEvaluationContext = {
     number(value) { return validationNumber(value, document); },
     point(value) { const geometry = context.geometry(value); if (!isRecord(geometry) || geometry.kind !== "point") throw new UnresolvedOpticalGeometry(); return point(geometry.point, "center"); },
@@ -397,6 +393,15 @@ export function validateGeometricOpticsConstruction(construction: SceneConstruct
       throw new UnresolvedOpticalGeometry();
     },
   };
+  return context;
+}
+export function validateGeometricOpticsConstruction(construction: SceneConstruction, index: number, document: SceneDocument, constructionByOutput: Map<string, SceneConstruction>, issues: SceneIssue[]): void {
+  const add = (key: string, message: string): void => { issues.push({ code: `invalid_${construction.operator}_${key}`, message, severity: "fatal", path: `constructions[${index}].${key === "outputs" || key === "output_kind" ? "outputs" : `inputs.${key}`}` }); };
+  if (!isRecord(construction.inputs)) { add("fields", "geometric optics inputs must be an object"); return; }
+  const outputs = Array.isArray(construction.outputs) ? construction.outputs : []; const count = construction.operator === "gaussian_image" ? 4 : construction.inputs.kind === "lens" ? 2 : 1;
+  if (outputs.length !== count || outputs.some((output) => typeof output !== "string" || !output.trim()) || new Set(outputs).size !== count) add("outputs", `${construction.operator} requires ${count} distinct point outputs`);
+  for (const output of outputs) if (document.entities.find((entity) => entity.id === output)?.kind !== "point") add("output_kind", "optical landmarks must be point entities");
+  const context = opticsValidationContext(document, constructionByOutput);
   try {
     checkSourceUnits(construction.operator, construction.inputs, document);
     physicalModel(construction.operator, construction.inputs, context);
@@ -431,4 +436,89 @@ export function validateGeometricOpticsConstruction(construction: SceneConstruct
     validateEvaluatedGeometricOpticsLabels(construction, index, document, evaluated, issues);
   }
   catch (error) { if (!(error instanceof UnresolvedOpticalGeometry)) add(error instanceof OpticalInputError ? error.key : "inputs", error instanceof Error ? error.message : "invalid optical construction"); }
+}
+
+/** What one construction says about the element it sits on: the signed focal distance along its axis, in world units. */
+interface FocalClaim { index: number; id: string; operator: string; outputs: string[]; kind: OpticalKind | "surface"; center: RenderPoint; axis: RenderPoint; focal: number; signOnly: boolean; detail: string }
+/** A sign flip or a gross magnitude error is a different element; a rounded copy of the same number is not. */
+const FOCAL_AGREEMENT_TOLERANCE = 0.01;
+function signed(value: number): string { return `${value > 0 ? "+" : ""}${compact(value)}`; }
+/**
+ * A mirror's spherical_surface read the way the compiler draws it: a constructed centre of curvature
+ * wins, then signedRadius (or radius), then kind alone, which states only the sense. The mirror's
+ * Cartesian focal distance is R/2 (light along +axis: concave R < 0, f < 0; convex R > 0, f > 0).
+ */
+function surfaceFocalClaim(construction: SceneConstruction, index: number, document: SceneDocument, constructionByOutput: ReadonlyMap<string, SceneConstruction>, context: GeometricOpticsEvaluationContext): FocalClaim | null {
+  const inputs = construction.inputs; const vertexId = inputs.vertex ?? inputs.pole; const axisId = inputs.axis;
+  if (typeof vertexId !== "string" || typeof axisId !== "string") return null;
+  const vertex = context.point(vertexId); const axisProducer = constructionByOutput.get(axisId);
+  if (axisProducer?.operator !== "line" && axisProducer?.operator !== "segment") return null;
+  const a = axisProducer.inputs.start ?? axisProducer.inputs.from ?? axisProducer.inputs.a; const b = axisProducer.inputs.end ?? axisProducer.inputs.to ?? axisProducer.inputs.b;
+  if (typeof a !== "string" || typeof b !== "string") return null;
+  const start = context.point(a); const end = context.point(b); const span = Math.hypot(end.x - start.x, end.y - start.y);
+  if (!(span > MIN_DISPLAY)) return null;
+  const axis = { x: (end.x - start.x) / span, y: (end.y - start.y) / span };
+  const centerInputValue = inputs.center;
+  const curvature = typeof centerInputValue === "string" ? context.point(centerInputValue) : Array.isArray(centerInputValue) ? inlinePoint(centerInputValue, "center", context) : undefined;
+  const inferred = curvature ? (curvature.x - vertex.x) * axis.x + (curvature.y - vertex.y) * axis.y : 0;
+  const statedRadius = inputs.signedRadius ?? inputs.radius;
+  const sense = [inputs.kind, inputs.facing].find((value) => value !== undefined);
+  let radius: number; let signOnly = false; let detail: string;
+  if (Math.abs(inferred) > MIN_DISPLAY) { radius = inferred; detail = `its centre of curvature puts R at ${signed(radius)}, so f = R/2 = ${signed(radius / 2)}`; }
+  else if (statedRadius !== undefined) { radius = validationNumber(statedRadius, document); detail = `its signedRadius ${signed(radius)} world units gives f = R/2 = ${signed(radius / 2)}`; }
+  else if (typeof sense === "string" && /^(?:concave|convex)$/i.test(sense)) { radius = /^concave$/i.test(sense) ? -1 : 1; signOnly = true; detail = `its kind ${sense.toLowerCase()} gives f ${radius < 0 ? "< 0" : "> 0"}`; }
+  else return null;
+  if (!Number.isFinite(radius) || radius === 0) return null;
+  return { index, id: construction.id, operator: construction.operator, outputs: construction.outputs, kind: "surface", center: vertex, axis, focal: radius / 2, signOnly, detail };
+}
+/**
+ * Optics operators on one element (same centre or vertex, collinear axis) must give it one Cartesian focal
+ * length after resolveCartesianOpticsInputs: every optical_focus and gaussian_image of that kind, and for a
+ * mirror its spherical_surface at f = R/2. A mirror's focus is a world point, so its focal distance is
+ * compared along a shared axis direction; a lens's sign is its own on either direction. A disagreement is
+ * fatal and is never repaired by inheriting a form: the planner states the element once, consistently.
+ */
+export function validateOpticalElementFocalAgreement(document: SceneDocument, constructionByOutput: ReadonlyMap<string, SceneConstruction>, issues: SceneIssue[]): void {
+  const context = opticsValidationContext(document, constructionByOutput);
+  const claims: FocalClaim[] = [];
+  document.constructions.forEach((construction, index) => {
+    if (!isRecord(construction.inputs) || !Array.isArray(construction.outputs)) return;
+    try {
+      if (GEOMETRIC_OPTICS_OPERATORS.some((operator) => operator === construction.operator)) {
+        const first = evaluateGeometricOpticsConstruction(construction.operator, construction.inputs, context)[0];
+        const model = first?.opticalImage ?? first?.opticalFocus; if (!model) return;
+        const form = construction.inputs.form;
+        claims.push({ index, id: construction.id, operator: construction.operator, outputs: construction.outputs, kind: model.kind, center: model.center, axis: model.axis, focal: model.focalLength * model.displayScale, signOnly: false,
+          detail: `it resolves f = ${signed(model.focalLength)}${model.lengthUnit === "unit" ? "" : ` ${model.lengthUnit}`} (${form === undefined ? "signed input, no form" : `form ${String(form)}`})${model.displayScale === 1 ? "" : `, drawn at ${signed(model.focalLength * model.displayScale)} world units`}` });
+      } else if (construction.operator === "spherical_surface") {
+        const claim = surfaceFocalClaim(construction, index, document, constructionByOutput, context); if (claim) claims.push(claim);
+      }
+    } catch { /* malformed optics inputs are reported by each operator's own validator */ }
+  });
+  for (const [later, b] of claims.entries()) {
+    for (const a of claims.slice(0, later)) {
+      if (a.kind === "surface" && b.kind === "surface") continue;
+      const kind = a.kind === "surface" ? b.kind : a.kind;
+      if (b.kind !== "surface" && b.kind !== kind) continue;
+      // A spherical_surface sets the focal length of a mirror only; a lens's f also depends on its other face and index.
+      if (kind !== "mirror" && (a.kind === "surface" || b.kind === "surface")) continue;
+      const scale = Math.max(1, Math.abs(a.center.x), Math.abs(a.center.y));
+      if (Math.hypot(a.center.x - b.center.x, a.center.y - b.center.y) > 1e-6 * scale) continue;
+      if (Math.abs(a.axis.x * b.axis.y - a.axis.y * b.axis.x) > 1e-6) continue;
+      const orientation = a.axis.x * b.axis.x + a.axis.y * b.axis.y > 0 ? 1 : -1;
+      const fa = a.focal; const fb = kind === "mirror" ? orientation * b.focal : b.focal;
+      const agrees = a.signOnly || b.signOnly ? Math.sign(fa) === Math.sign(fb) : Math.abs(fa - fb) <= FOCAL_AGREEMENT_TOLERANCE * Math.max(Math.abs(fa), Math.abs(fb));
+      if (agrees) continue;
+      const surface = a.kind === "surface" || b.kind === "surface";
+      const fix = surface
+        ? "Draw the mirror and its focus as one mirror: a concave mirror has signedRadius < 0 and form converging, a convex mirror signedRadius > 0 and form diverging, with |signedRadius| = 2|f|."
+        : a.operator !== b.operator
+          ? "Give the optical_focus the same form and focalLength as the gaussian_image on this element."
+          : `Give every ${b.operator} on this element the same form and focalLength.`;
+      issues.push({
+        code: "optical_element_focal_length_disagrees", severity: "fatal", path: `constructions[${b.index}].inputs`, entityIds: [...a.outputs, ...b.outputs],
+        message: `${b.operator} ${b.id} and ${a.operator} ${a.id} describe one ${kind} (same centre and axis) but disagree on its focal length: for ${b.id} ${b.detail}; for ${a.id} ${a.detail}. ${fix}`,
+      });
+    }
+  }
 }

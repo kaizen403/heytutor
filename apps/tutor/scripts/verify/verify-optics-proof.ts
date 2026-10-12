@@ -8,14 +8,18 @@
  *
  * G1/G2: proven mirror and lens figures draw as planner figures in both the
  * strict and the current production arms. G3: compiled-clean wrong figures
- * (wrong f, wrong element kind, wrong drawn sense, an invented ray hit, a
- * free-point mirror with the image at the wrong distance), each also with a
- * forged `source.archetype`, never become planner figures.
+ * (wrong f, wrong element kind, an invented ray hit, a free-point mirror with
+ * the image at the wrong distance), each also with a forged `source.archetype`,
+ * never become planner figures. A mirror drawn convex beside a concave image
+ * no longer compiles: the engine refuses it with
+ * optical_element_focal_length_disagrees, and it is never a planner figure.
  *
  * G1a/G1b: the metric unit rule applies only when a stated slot is compared:
  * a stem with no numbers proves a unitless figure, a stem with numbers does not.
  * G2c/G2d: magnitude inputs (`form`, plan ids) draw; a form that contradicts the
- * stem, or an unsigned literal the plan does not support, never does.
+ * stem, or an unsigned literal the plan does not support, never does. Both
+ * leave the drawn mirror (R = -30) at another focal length, so the engine
+ * refuses them before the proof runs.
  * G6a: a structural failure still reports plan agreement in the same pass.
  * G5a: every `ray_optics` exemplar with a `gaussian_image` (source files and the
  * built library) passes the plan's ids with `form`, draws no dimension, and puts
@@ -304,6 +308,18 @@ function expectNeverPlanner(gate: string, name: string, question: string, turnPl
   }
 }
 
+/** A figure whose element disagrees with itself is refused by the engine, before the proof, and never drawn. */
+function expectEngineRefuses(gate: string, name: string, question: string, turnPlan: TurnPlanV3, document: Doc): void {
+  const { fatalIssues, result } = compiled(document);
+  check(gate, !result.ok && fatalIssues.some((issue) => issue.startsWith("optical_element_focal_length_disagrees:")),
+    `${name} must fail closed in the engine with optical_element_focal_length_disagrees; got ${fatalIssues.slice(0, 3).join("; ") || "a clean compile"}`);
+  const { strict, current } = production(question, turnPlan, document);
+  for (const [arm, selection] of [["strict", strict], ["current", current]] as const) {
+    check(gate, selection.representation?.figureSource !== "planner" && selection.attemptedRepresentation?.figureSource !== "planner",
+      `${name} must never be drawn as a planner figure in the ${arm} arm; got ${selection.attemptedRepresentation?.figureSource}`);
+  }
+}
+
 // ---- G1: concave mirror, real image, inline signed literals ----
 const qMirror = "Concave mirror, f = 15 cm, object at 20 cm. Locate the image and draw the ray diagram.";
 const mirrorPlan = plan(qMirror, [
@@ -355,7 +371,6 @@ const freePoint = freePointConvexMirror(qConvex);
 const wrongFigures: Array<[string, string, TurnPlanV3, Doc, string]> = [
   ["a mirror with f = 10 on an f = 15 stem", qMirror, mirrorPlan, wrongFocal, "spherical_mirror"],
   ["a concave lens (f = -15) on a convex lens stem", qLens, lensPlan, wrongKindLens, "thin_lens"],
-  ["a mirror drawn convex on a concave mirror stem", qMirror, mirrorPlan, wrongSenseMirror, "spherical_mirror"],
   ["a mirror whose ray bends at an invented hit point", qMirror, mirrorPlan, inventedHit, "spherical_mirror"],
   ["a free-point arc mirror with the image at the wrong distance", qConvex, convexPlan, freePoint, "spherical_mirror"],
 ];
@@ -363,6 +378,8 @@ for (const [name, question, turnPlan, document, archetype] of wrongFigures) {
   expectNeverPlanner("G3", name, question, turnPlan, document);
   expectNeverPlanner("G3", `${name}, with a forged archetype stamp`, question, turnPlan, stamped(document, archetype));
 }
+expectEngineRefuses("G3", "a mirror drawn convex on a concave mirror stem", qMirror, mirrorPlan, wrongSenseMirror);
+expectEngineRefuses("G3", "a mirror drawn convex on a concave mirror stem, with a forged archetype stamp", qMirror, mirrorPlan, stamped(wrongSenseMirror, "spherical_mirror"));
 
 // ---- G1a: a stem with no numbers proves a unitless figure ----
 const unitless = (document: Doc): Doc => {
@@ -419,8 +436,8 @@ check("G2c", !quantityCodes(magnitudeMirror("converging")).some((code) => code.s
   `the magnitude mirror must raise no scene_quantity issue; got ${quantityCodes(magnitudeMirror("converging")).join(", ")}`);
 
 // ---- G2d: a contradicting form or an unsupported literal never draws ----
-expectNeverPlanner("G2d", "the concave mirror stem drawn with form diverging", qMirror, mirrorPlan, magnitudeMirror("diverging"));
-expectNeverPlanner("G2d", "the magnitude mirror with a literal f = 10", qMirror, mirrorPlan, magnitudeMirror("converging", 10));
+expectEngineRefuses("G2d", "the concave mirror stem drawn with form diverging", qMirror, mirrorPlan, magnitudeMirror("diverging"));
+expectEngineRefuses("G2d", "the magnitude mirror with a literal f = 10", qMirror, mirrorPlan, magnitudeMirror("converging", 10));
 check("G2d", quantityCodes(magnitudeMirror("converging", 10)).includes("scene_quantity_unverified"),
   `a magnitude literal f = 10 must fail scene_quantity_unverified; got ${quantityCodes(magnitudeMirror("converging", 10)).join(", ")}`);
 check("G2d", !quantityCodes(magnitudeMirror("converging", 15)).some((code) => code.startsWith("scene_quantity")),

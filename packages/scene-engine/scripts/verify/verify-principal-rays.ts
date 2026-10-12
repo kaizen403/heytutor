@@ -16,6 +16,13 @@
  * R6: a traced ray is paraxial by construction, so a planner role such as "refracted ray
  * through F2" or "reflected ray" on a principal_rays output validates; the same role on a
  * free segment without a declared paraxial approximation still fails.
+ * R7: one lens or mirror, one focal length. The recorded round 8 two-mirror documents (a concave
+ * optical_focus with no form, so f > 0 and the focus behind the mirror, against its gaussian_image
+ * form converging and its spherical_surface signedRadius < 0) fail closed with
+ * optical_element_focal_length_disagrees; with form converging on that focus the p9b1 document
+ * compiles and draws the focus in front of the mirror. A lens or a convex mirror whose focus, image
+ * and surface agree still compiles clean; a lens focus of the wrong sign, a mirror surface of the
+ * wrong sense and a mirror surface of the wrong radius each fail closed.
  */
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -291,6 +298,72 @@ for (const [test, roles] of [[convexReal, ["refracted ray through F2", "undeviat
   check("R6", codes.includes("derived_role_operator_mismatch"), `a free refracted segment must still fail; got ${codes.join(", ") || "nothing"}`);
 }
 
+// ---- R7: one element, one focal length ----
+const FOCAL_CODE = "optical_element_focal_length_disagrees";
+const recorded = JSON.parse(readFileSync(fileURLToPath(new URL("./fixtures/optics-round8-two-mirror.json", import.meta.url)), "utf8")) as Record<"p9b1" | "p9b2", SceneDocument>;
+for (const arm of ["p9b1", "p9b2"] as const) {
+  const { codes, compiled } = fatalCodes(structuredClone(recorded[arm]));
+  check("R7", codes.includes(FOCAL_CODE) && !compiled.ok, `recorded ${arm} two-mirror document must fail closed with ${FOCAL_CODE}; got ${codes.join(", ") || "nothing"}, compiled ${compiled.ok}`);
+}
+{
+  const document = structuredClone(recorded.p9b1);
+  const focus = document.constructions.find((construction) => construction.id === "cfc")!;
+  focus.inputs = { ...focus.inputs, form: "converging" };
+  const { codes, compiled } = fatalCodes(document);
+  check("R7", compiled.ok && codes.length === 0, `p9b1 with form converging on the concave focus must compile clean; got ${codes.join(", ")}`);
+  const at = (id: string) => compiled.renderScene?.primitives.find((primitive) => primitive.entityId === id && primitive.kind === "point")?.points[0];
+  const [pole, focusPoint, objectBase] = [at("pc"), at("fc"), at("cob")];
+  // The axis runs toward +x from the object side: in front of the mirror is the object's side of the pole.
+  check("R7", pole && focusPoint && objectBase && focusPoint.x < pole.x && objectBase.x < pole.x,
+    `the concave focus must sit in front of the mirror, on the object side; pole ${JSON.stringify(pole)}, focus ${JSON.stringify(focusPoint)}, object ${JSON.stringify(objectBase)}`);
+}
+function withElement(test: Case, focus: Record<string, unknown> | null, surface: Record<string, unknown> | null, gaussian?: Record<string, unknown>): SceneDocument {
+  const document = doc(test, gaussian ? { gaussian } : {});
+  const added: string[] = [];
+  if (focus) {
+    const outputs = test.kind === "lens" ? ["F1", "F2"] : ["F"];
+    document.constructions.push({ id: "c-focus", operator: "optical_focus", inputs: { kind: test.kind, center: "O", axis: "axis", displayScale: 1, lengthUnit: "cm", ...focus }, outputs });
+    for (const id of outputs) { document.entities.push(ent(id, "point", "focus")); added.push(id); }
+  }
+  if (surface) {
+    document.constructions.push({ id: "c-surface", operator: "spherical_surface", inputs: { vertex: "O", axis: "axis", halfHeight: 12, ...surface }, outputs: ["surface"] });
+    document.entities.push(ent("surface", "arc", "mirror")); added.push("surface");
+  }
+  document.requiredEntityIds.push(...added); document.revealGroups[0]!.entityIds.push(...added);
+  return document;
+}
+/** The same focus stated on the principal axis drawn the other way (B to A): a mirror's focus is one world point. */
+function reversedAxisFocus(test: Case, focalLength: number): SceneDocument {
+  const document = withElement(test, { focalLength, axis: "axis-r" }, null);
+  document.constructions.splice(5, 0, { id: "c-axis-r", operator: "line", inputs: { start: "B", end: "A" }, outputs: ["axis-r"] });
+  document.entities.push(ent("axis-r", "line")); document.requiredEntityIds.push("axis-r"); document.revealGroups[0]!.entityIds.push("axis-r");
+  return document;
+}
+const diverging = CASES[5]!;
+for (const [name, document] of [
+  ["convex lens, signed focus agrees", withElement(convexReal, { focalLength: 10 }, null)],
+  ["convex lens, form focus agrees with form image", withElement(convexReal, { focalLength: 10, form: "converging" }, null, { objectDistance: 30, form: "converging", objectSide: "real" })],
+  ["diverging lens, signed focus agrees", withElement(diverging, { focalLength: -18 }, null)],
+  ["convex mirror, signed focus and surface agree", withElement(convexMirror, { focalLength: 33 }, { signedRadius: 66 })],
+  ["convex mirror, form focus and kind-only surface agree", withElement(convexMirror, { focalLength: 33, form: "diverging" }, { kind: "convex" })],
+  ["concave mirror, signed focus and surface agree", withElement(mirrorReal, { focalLength: -14 }, { signedRadius: -28, kind: "concave" })],
+  ["convex mirror, focus stated on the reversed axis", reversedAxisFocus(convexMirror, -33)],
+] as const) {
+  const { codes, compiled } = fatalCodes(document);
+  check("R7", compiled.ok && codes.length === 0, `${name} must compile clean; got ${codes.join(", ")}`);
+}
+for (const [name, document] of [
+  ["convex lens, focus of the wrong sign", withElement(convexReal, { focalLength: -10 }, null)],
+  ["concave mirror, focus without form beside a form image", withElement(mirrorReal, { focalLength: 14 }, null, { objectDistance: 21, focalLength: 14, form: "converging", objectSide: "real" })],
+  ["concave mirror, convex surface", withElement(mirrorReal, { focalLength: -14 }, { signedRadius: 28 })],
+  ["concave mirror, kind-only convex surface", withElement(mirrorReal, null, { kind: "convex" })],
+  ["concave mirror, surface radius not 2f", withElement(mirrorReal, { focalLength: -14 }, { signedRadius: -60 })],
+  ["convex mirror, reversed-axis focus in front of the mirror", reversedAxisFocus(convexMirror, 33)],
+] as const) {
+  const { codes, compiled } = fatalCodes(document);
+  check("R7", codes.includes(FOCAL_CODE) && !compiled.ok, `${name} must fail closed with ${FOCAL_CODE}; got ${codes.join(", ") || "nothing"}`);
+}
+
 // ---- R5: source mutants ----
 const source = readFileSync(SOURCE, "utf8");
 for (const [name, from, to, gate] of [
@@ -310,7 +383,7 @@ for (const [name, from, to, gate] of [
   } finally { rmSync(file, { force: true }); }
 }
 
-for (const gate of ["R1", "R2", "R3", "R4", "R5", "R6"]) console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
+for (const gate of ["R1", "R2", "R3", "R4", "R5", "R6", "R7"]) console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 if (failures.length) {
   for (const failure of failures.slice(0, 40)) console.error(`  ${failure}`);
   process.exit(1);
