@@ -1006,6 +1006,7 @@ export function useQuestionHandler(
           diagramExamplePickerPromise = pickLiveDiagramExampleIds({
             question,
             plan,
+            subject: diagramSubject,
             traceId: turnTraceId ?? undefined,
             sessionId: sessionId ?? undefined,
             signal: abortController.signal,
@@ -1297,19 +1298,19 @@ export function useQuestionHandler(
               }],
             };
           },
-          selectFast: (planningTurnPlan, authority, gate) => measureSceneSelection(tel, "fast", () => selectFastVerifiedRepresentation({
+          selectFast: (planningTurnPlan, authority, gate, phase) => measureSceneSelection(tel, "fast", () => selectFastVerifiedRepresentation({
             question,
             turnPlan: planningTurnPlan,
             problemIR: authority?.problemIR ?? null,
             families: gate.sceneCapabilities.families,
-          })),
+          }), undefined, phase),
           planScene: (gate, planningTurnPlan, run) => {
             const { diagramExampleIds: pickedIds = [], ...plannerRequest } = gate.request;
             return planSceneDocumentWithRepair(
               question,
               (candidate) => validateCandidateAgainstPlan(candidate, planningTurnPlan),
               {
-                proxyUrl: scenePlannerUrlWithExampleIds(plannerUrl, pickedIds),
+                proxyUrl: scenePlannerUrlWithExampleIds(plannerUrl, pickedIds, diagramSubject),
                 sessionId: sessionId ?? undefined,
                 traceId: turnTraceId ?? undefined,
                 signal: run.signal,

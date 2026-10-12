@@ -1,0 +1,430 @@
+{
+  "topic_id": "physics|2|motion-graphs",
+  "question": "A ball is dropped from rest from the top of a tall building. Ignoring air resistance, sketch its velocity-time graph for the first 3.5 s of the fall and shade the area that gives the distance fallen.",
+  "figure_kind": "function_plot",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "velocity-time graph of a ball falling from rest, with the area under it"
+    },
+    "source": {
+      "question": "A ball is dropped from rest from the top of a tall building. Ignoring air resistance, sketch its velocity-time graph for the first 3.5 s of the fall and shade the area that gives the distance fallen.",
+      "archetype": "uniform_acceleration_vt"
+    },
+    "quantities": [
+      {
+        "id": "q_u",
+        "symbol": "u",
+        "value": 0,
+        "unit": "m/s"
+      },
+      {
+        "id": "q_a",
+        "symbol": "a",
+        "value": 9.8,
+        "unit": "m/s^2"
+      },
+      {
+        "id": "q_t",
+        "symbol": "t",
+        "value": 3.5,
+        "unit": "s"
+      },
+      {
+        "id": "q_v",
+        "symbol": "v",
+        "value": 34.3,
+        "unit": "m/s"
+      }
+    ],
+    "entities": [
+      {
+        "id": "axes",
+        "kind": "axes",
+        "role": "v-t axes"
+      },
+      {
+        "id": "v_end",
+        "kind": "point",
+        "role": "velocity axis end"
+      },
+      {
+        "id": "v_title",
+        "kind": "label",
+        "role": "velocity axis title",
+        "label": "v (m/s)"
+      },
+      {
+        "id": "t_end",
+        "kind": "point",
+        "role": "time axis end"
+      },
+      {
+        "id": "t_title",
+        "kind": "label",
+        "role": "time axis title",
+        "label": "t (s)"
+      },
+      {
+        "id": "graph",
+        "kind": "polyline",
+        "role": "velocity v(t) = g t",
+        "label": "slope = g"
+      },
+      {
+        "id": "zero",
+        "kind": "polyline",
+        "role": "time axis under the area"
+      },
+      {
+        "id": "area",
+        "kind": "polygon",
+        "role": "area under the v-t graph = distance fallen"
+      },
+      {
+        "id": "start",
+        "kind": "point",
+        "role": "released from rest",
+        "label": "u = 0"
+      },
+      {
+        "id": "end",
+        "kind": "point",
+        "role": "velocity at the end, gt",
+        "label": "v = 34.3 m/s"
+      },
+      {
+        "id": "foot",
+        "kind": "point",
+        "role": "end of the interval",
+        "label": "t = 3.5 s"
+      },
+      {
+        "id": "drop",
+        "kind": "segment",
+        "role": "ordinate at the end"
+      },
+      {
+        "id": "s_at",
+        "kind": "point",
+        "role": "area label anchor"
+      },
+      {
+        "id": "s_label",
+        "kind": "label",
+        "role": "distance fallen = area",
+        "label": "area = s",
+        "provenance": {
+          "pinLabel": true,
+          "requireLabelLeader": false,
+          "leaderGeometrySafe": false
+        }
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_axes",
+        "operator": "axes",
+        "inputs": {
+          "xMin": -0.21,
+          "xMax": 4.13,
+          "yMin": -0.294,
+          "yMax": 2.989
+        },
+        "outputs": [
+          "axes"
+        ]
+      },
+      {
+        "id": "make_v_end",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 2.989,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "v_end"
+        ]
+      },
+      {
+        "id": "make_v_title",
+        "operator": "label",
+        "inputs": {
+          "target": "v_end",
+          "text": "v (m/s)"
+        },
+        "outputs": [
+          "v_title"
+        ]
+      },
+      {
+        "id": "make_t_end",
+        "operator": "point",
+        "inputs": {
+          "x": 4.13,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "t_end"
+        ]
+      },
+      {
+        "id": "make_t_title",
+        "operator": "label",
+        "inputs": {
+          "target": "t_end",
+          "text": "t (s)"
+        },
+        "outputs": [
+          "t_title"
+        ]
+      },
+      {
+        "id": "make_graph",
+        "operator": "function_curve",
+        "inputs": {
+          "expression": "0.7*x",
+          "variable": "x",
+          "xMin": 0,
+          "xMax": 3.5,
+          "samples": 17
+        },
+        "outputs": [
+          "graph"
+        ]
+      },
+      {
+        "id": "make_zero",
+        "operator": "function_curve",
+        "inputs": {
+          "expression": "0",
+          "variable": "x",
+          "xMin": 0,
+          "xMax": 3.5,
+          "samples": 17
+        },
+        "outputs": [
+          "zero"
+        ]
+      },
+      {
+        "id": "make_area",
+        "operator": "function_region",
+        "inputs": {
+          "upper": "graph",
+          "lower": "zero",
+          "xMin": 0,
+          "xMax": 3.5
+        },
+        "outputs": [
+          "area"
+        ]
+      },
+      {
+        "id": "make_start",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "start"
+        ]
+      },
+      {
+        "id": "make_end",
+        "operator": "point",
+        "inputs": {
+          "x": 3.5,
+          "y": 2.45,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "end"
+        ]
+      },
+      {
+        "id": "make_foot",
+        "operator": "point",
+        "inputs": {
+          "x": 3.5,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "foot"
+        ]
+      },
+      {
+        "id": "make_drop",
+        "operator": "segment",
+        "inputs": {
+          "start": "end",
+          "end": "foot"
+        },
+        "outputs": [
+          "drop"
+        ]
+      },
+      {
+        "id": "make_s_at",
+        "operator": "point",
+        "inputs": {
+          "x": 2.05,
+          "y": 0.6125,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s_at"
+        ]
+      },
+      {
+        "id": "make_s_label",
+        "operator": "label",
+        "inputs": {
+          "target": "s_at",
+          "text": "area = s"
+        },
+        "outputs": [
+          "s_label"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "starts_at_rest",
+        "predicate": "function_value",
+        "entities": [
+          "graph"
+        ],
+        "expected": {
+          "x": 0,
+          "y": 0
+        },
+        "severity": "fatal"
+      },
+      {
+        "id": "v_at_end",
+        "predicate": "function_value",
+        "entities": [
+          "graph"
+        ],
+        "expected": {
+          "x": 3.5,
+          "y": 2.45
+        },
+        "severity": "fatal"
+      },
+      {
+        "id": "label_end",
+        "predicate": "label_attached",
+        "entities": [
+          "end"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "label_foot",
+        "predicate": "label_attached",
+        "entities": [
+          "foot"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "axes",
+      "v_end",
+      "v_title",
+      "t_end",
+      "t_title",
+      "graph",
+      "zero",
+      "area",
+      "start",
+      "end",
+      "foot",
+      "drop",
+      "s_at",
+      "s_label"
+    ],
+    "revealGroups": [
+      {
+        "id": "axes_group",
+        "entityIds": [
+          "axes",
+          "v_end",
+          "v_title",
+          "t_end",
+          "t_title"
+        ],
+        "dependsOn": [],
+        "narrationCue": "velocity up the side, time along the bottom"
+      },
+      {
+        "id": "graph_group",
+        "entityIds": [
+          "graph",
+          "start",
+          "end",
+          "foot",
+          "drop"
+        ],
+        "dependsOn": [
+          "axes_group"
+        ],
+        "narrationCue": "a straight line from the origin with slope g"
+      },
+      {
+        "id": "area_group",
+        "entityIds": [
+          "zero",
+          "area",
+          "s_at",
+          "s_label"
+        ],
+        "dependsOn": [
+          "graph_group"
+        ],
+        "narrationCue": "the area under the line is the distance fallen"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_axes_group",
+        "action": "reveal",
+        "targetId": "axes_group",
+        "dependsOn": [],
+        "narrationIntent": "velocity up the side, time along the bottom"
+      },
+      {
+        "id": "reveal_graph_group",
+        "action": "reveal",
+        "targetId": "graph_group",
+        "dependsOn": [
+          "reveal_axes_group"
+        ],
+        "narrationIntent": "a straight line from the origin with slope g"
+      },
+      {
+        "id": "reveal_area_group",
+        "action": "reveal",
+        "targetId": "area_group",
+        "dependsOn": [
+          "reveal_graph_group"
+        ],
+        "narrationIntent": "the area under the line is the distance fallen"
+      }
+    ]
+  },
+  "engineCommit": "3f4aeaf3beae281a084b9e25e97a3f502c5b535c",
+  "validatedOn": "2026-10-12"
+}

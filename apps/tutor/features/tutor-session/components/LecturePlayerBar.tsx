@@ -40,6 +40,8 @@ export interface LecturePlayerBarProps {
   fullscreen?: { active: boolean; toggle: () => void } | null;
   /** The board container. Pointer movement over it wakes the chrome; the cursor is hidden there while the chrome is hidden during playback. */
   activityTargetRef?: RefObject<HTMLElement | null>;
+  /** Small/touch boards keep the transport below the paper, clear of its ink. */
+  placement?: "overlay" | "below";
   className?: string;
 }
 
@@ -472,6 +474,7 @@ export function LecturePlayerBar({
   speedOptions = REPLAY_SPEED_OPTIONS,
   fullscreen = null,
   activityTargetRef,
+  placement = "overlay",
   className,
 }: LecturePlayerBarProps) {
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
@@ -502,7 +505,7 @@ export function LecturePlayerBar({
   const playing = status === "playing";
   const scrubbing = scrubMs !== null;
   const engaged = hovered || keyboardFocus || menuOpen || scrubbing;
-  const chromeHidden = playing && idle && !engaged;
+  const chromeHidden = placement === "overlay" && playing && idle && !engaged;
   const fullShown = !chromeHidden;
 
   const holdMs =
@@ -826,15 +829,19 @@ export function LecturePlayerBar({
         onBlur={onStripBlur}
         onKeyDown={onStripKeyDown}
         onClick={stopClickPropagation}
-        className={cn("pointer-events-none absolute inset-x-0 bottom-0 z-30 select-none", className)}
+        className={cn(
+          "pointer-events-none z-30 select-none",
+          placement === "below" ? "relative rounded-lg bg-surface" : "absolute inset-x-0 bottom-0",
+          className,
+        )}
       >
-        <div
+        {placement === "overlay" ? <div
           aria-hidden
           className={cn(
             "absolute inset-x-0 bottom-0 h-[108px] bg-gradient-to-t from-black/70 via-black/35 to-transparent transition-opacity duration-200",
             fullShown ? "opacity-100" : "opacity-0",
           )}
-        />
+        /> : null}
 
         <div
           className={cn(

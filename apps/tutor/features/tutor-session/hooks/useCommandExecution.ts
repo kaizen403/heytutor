@@ -211,6 +211,8 @@ export function useCommandExecution({
         onInkStarted?: () => void;
         introLayoutCheckpoint?: IntroLayoutCheckpoint;
         durationScale?: number;
+        /** Instant remaining intro marks retain the ordinary label instrument. */
+        finishVerifiedDiagramIntro?: boolean;
         speechDurationMs?: number;
         writeSchedule?: WriteSchedule;
         applyLayout?: boolean;
@@ -343,7 +345,8 @@ export function useCommandExecution({
         duration: number,
         schedule?: WriteSchedule,
         fontSize?: number,
-      ) => wb.writeText(text, x, y, duration, schedule, fontSize, commandCancelled, inkSettings, options.onInkStarted);
+        letteringDurationMs?: number,
+      ) => wb.writeText(text, x, y, duration, schedule, fontSize, commandCancelled, inkSettings, options.onInkStarted, letteringDurationMs);
       const drawAnnotation: WhiteboardHandle["drawAnnotation"] = (
         kind,
         path,
@@ -420,14 +423,17 @@ export function useCommandExecution({
       // 0 is a seek and 0.05 is a board restore. Both want the finished mark.
       // Flooring the restore at 50ms made every saved stroke take real time,
       // so reopening a lecture sat on "loading the board".
-      const scaledDuration = (duration: number) =>
-        durationScale <= 0.05 ? 0 : Math.max(Math.round(duration * durationScale), 50);
+      const scaledDuration = (duration: number, scale = durationScale) =>
+        scale <= 0.05 ? 0 : Math.max(Math.round(duration * scale), 50);
 
-      const speechSplit = (command: DrawCommand) => {
+      const speechSplit = (command: DrawCommand, scale = durationScale) => {
+        // Explicit seek/restore still means instant ink when a spoken budget
+        // is present; it must not resurrect cursor flights or stroke time.
+        if (scale <= 0.05) return { flightMs: 0, drawMs: 0 };
         if (speechDurationMs === undefined) {
           return {
-            flightMs: scaledDuration(getFlightDuration(command, inkPace)),
-            drawMs: scaledDuration(getDrawingDuration(command, inkPace)),
+            flightMs: scaledDuration(getFlightDuration(command, inkPace), scale),
+            drawMs: scaledDuration(getDrawingDuration(command, inkPace), scale),
           };
         }
 
@@ -745,6 +751,12 @@ export function useCommandExecution({
                 inkPace === "follow" && !isSeekCatchUp
                   ? Math.max(drawMs, getDrawingDuration(command, "follow"))
                   : drawMs;
+              // Whiteboard chooses pen vs pencil from the ordinary lettering
+              // budget. Finishing this intro skips its animation, not that style.
+              const normalLabelDrawMs = options.finishVerifiedDiagramIntro &&
+                trustedDiagramGeometry && command.type === "LABEL" && durationScale === 0
+                ? speechSplit(command, 1).drawMs
+                : undefined;
               await writeText(
                 command.text,
                 placement.x,
@@ -752,6 +764,9 @@ export function useCommandExecution({
                 penDrawMs,
                 undefined,
                 fontSize,
+                normalLabelDrawMs === undefined ? undefined : inkPace === "follow"
+                  ? Math.max(normalLabelDrawMs, getDrawingDuration(command, "follow"))
+                  : normalLabelDrawMs,
               );
             }
             // A WRITE row used to release withheld figure labels whose text it

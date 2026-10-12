@@ -57,6 +57,7 @@ import {
   buildLiveDiagramPickerBody,
   injectLiveDiagramExamples,
   parseLiveDiagramExampleIds,
+  parseLiveDiagramExampleSubject,
   resolveLiveDiagramExamples,
 } from "@/lib/scene/diagramExampleLibrary.server";
 import {
@@ -592,6 +593,8 @@ interface PlannerRequestArgs {
   codeLessonV1: boolean;
   diagramExamplePicker: boolean;
   diagramExampleIds: string[];
+  /** The turn's subject; null (old client, or `other`) resolves from the whole library. */
+  diagramExampleSubject: ReturnType<typeof parseLiveDiagramExampleSubject>;
   question: string;
   plannerPhase: "plan" | "repair";
   plannerLane: "primary" | "alternate";
@@ -617,6 +620,7 @@ async function handlePlannerRequest({
   codeLessonV1,
   diagramExamplePicker,
   diagramExampleIds,
+  diagramExampleSubject,
   question,
   plannerPhase,
   plannerLane,
@@ -650,7 +654,7 @@ async function handlePlannerRequest({
     const preparedBody = diagramExamplePicker
       ? buildLiveDiagramPickerBody(rawBody, question)
       : semanticSceneV2 && diagramExampleIds.length > 0
-        ? injectLiveDiagramExamples(rawBody, resolveLiveDiagramExamples(question, diagramExampleIds))
+        ? injectLiveDiagramExamples(rawBody, resolveLiveDiagramExamples(question, diagramExampleIds, diagramExampleSubject))
         : rawBody;
     const parsed = serverChatBody(JSON.parse(preparedBody), "planner");
     delete parsed.reasoning_effort;
@@ -970,6 +974,7 @@ export async function POST(request: Request): Promise<Response> {
     const codeLessonV1 = request.headers.get("x-code-lesson-version") === "1";
     const semanticSceneV2 = !turnPlanV3 && !problemIRV1 && !codeLessonV1 &&
       request.headers.get("x-scene-planner-version") === "2";
+    const requestUrl = new URL(request.url);
     return handlePlannerRequest({
       rawBody,
       llm,
@@ -982,7 +987,8 @@ export async function POST(request: Request): Promise<Response> {
       problemIRV1,
       codeLessonV1,
       diagramExamplePicker,
-      diagramExampleIds: parseLiveDiagramExampleIds(new URL(request.url).searchParams.get("diagramExampleIds")),
+      diagramExampleIds: parseLiveDiagramExampleIds(requestUrl.searchParams.get("diagramExampleIds")),
+      diagramExampleSubject: parseLiveDiagramExampleSubject(requestUrl.searchParams.get("diagramSubject")),
       question: question ?? "",
       plannerPhase: request.headers.get("x-scene-planner-phase") === "repair" ? "repair" : "plan",
       plannerLane: (
