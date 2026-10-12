@@ -1455,5 +1455,325 @@ for(const c of repairedAxisCases)try {
 }catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
 // END ADDITIVE PHYSICAL AXIS SOURCE/RENDER REPAIR GATES
 
+// BEGIN ADDITIVE ORIGINAL ARRHENIUS OWNER SUPPORT GATES
+interface ArrheniusOwnerCase {id:string;question:string;refuse:boolean;T1?:number;T2?:number;ratio?:number;k1?:number;k2?:number}
+const arrheniusOwnerCases:ArrheniusOwnerCase[] = [
+  {
+    "id": "PUBLIC-RESTORE-F5-Kis",
+    "question": "The rate constant of a reaction at 300 K is 2.0 \u00d7 10^-2 s^-1 and at 310 K is 7.0 \u00d7 10^-2 s^-1. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "ratio": 3.5,
+    "k1": 0.02,
+    "k2": 0.07
+  },
+  {
+    "id": "PUBLIC-RESTORE-F6-change10",
+    "question": "The rate constant of a reaction doubles for a temperature change of 10 K starting at 300 K. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "ratio": 2
+  },
+  {
+    "id": "PUBLIC-RESTORE-F6-delta",
+    "question": "The rate constant of a reaction doubles when the temperature goes up 10 K from 300 K. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "ratio": 2
+  },
+  {
+    "id": "PUBLIC-RESTORE-P1-T1T2",
+    "question": "The rate constant of a reaction doubles between T1 = 300 K and T2 = 310 K. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "ratio": 2
+  },
+  {
+    "id": "PUBLIC-RESTORE-P1-t1t2",
+    "question": "The rate constant of a reaction doubles between t1 = 300 K and t2 = 310 K. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "ratio": 2
+  },
+  {
+    "id": "PUBLIC-RESTORE-F6b-increase-of",
+    "question": "An increase of 10 K in temperature from 300 K doubles the rate constant of a reaction. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "ratio": 2
+  },
+  {
+    "id": "PUBLIC-RESTORE-F6b-10Kincrease-for",
+    "question": "The rate constant of a reaction doubles for a 10 K increase from 300 K. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "ratio": 2
+  },
+  {
+    "id": "PUBLIC-RESTORE-F5b-Ae-nospace",
+    "question": "Using k = Ae^(-Ea/RT), calculate the activation energy if the rate constant doubles when the temperature is raised from 300 K to 310 K.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "ratio": 2
+  },
+  {
+    "id": "PUBLIC-RESTORE-F5b-Aexp",
+    "question": "Using k = A exp(-Ea/RT), calculate the activation energy if the rate constant doubles when the temperature is raised from 300 K to 310 K.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "ratio": 2
+  },
+  {
+    "id": "PUBLIC-RESTORE-M17c",
+    "question": "The Rate constant of a reaction at 300 K is 2.0 \u00d7 10^-2 s^-1 and at 310 K is 7.0 \u00d7 10^-2 s^-1. Calculate the activation energy in kJ/mol.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "ratio": 3.5,
+    "k1": 0.02,
+    "k2": 0.07
+  },
+  {
+    "id": "OWN-temperature-rate-pair-1",
+    "question": "The rate constant of a reaction at 295 K is 0.01 s^-1 and at 305 K is 0.04 s^-1. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 295,
+    "T2": 305,
+    "ratio": 4.0,
+    "k1": 0.01,
+    "k2": 0.04
+  },
+  {
+    "id": "OWN-temperature-rate-pair-2",
+    "question": "The rate constant for the reaction at 290 K equals 0.02 s^-1 and at 300 K equals 0.06 s^-1. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 290,
+    "T2": 300,
+    "ratio": 3.0,
+    "k1": 0.02,
+    "k2": 0.06
+  },
+  {
+    "id": "OWN-temperature-rate-pair-3",
+    "question": "The rate constant of a reaction at 40 Celsius is 0.02 s^-1 and at 50 Celsius is 0.08 s^-1. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 313.15,
+    "T2": 323.15,
+    "ratio": 4.0,
+    "k1": 0.02,
+    "k2": 0.08
+  },
+  {
+    "id": "OWN-temperature-rate-pair-4",
+    "question": "The rate constant of a reaction at 300 K is 1.2 min^-1 and at 310 K is 0.06 s^-1. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 310,
+    "ratio": 3.0,
+    "k1": 0.02,
+    "k2": 0.06
+  },
+  {
+    "id": "OWN-temperature-rate-pair-5",
+    "question": "The RATE CONSTANT of a reaction at 320 K: 0.03 s^-1 and at 330 K: 0.12 s^-1. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 320,
+    "T2": 330,
+    "ratio": 4.0,
+    "k1": 0.03,
+    "k2": 0.12
+  },
+  {
+    "id": "OWN-closed-thermal-change-1",
+    "question": "The rate constant of a reaction triples for a temperature change of 20 K starting at 290 K. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 290,
+    "T2": 310,
+    "ratio": 3
+  },
+  {
+    "id": "OWN-closed-thermal-change-2",
+    "question": "The rate constant doubles between T1 = 315 K and T2 = 325 K. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 315,
+    "T2": 325,
+    "ratio": 2
+  },
+  {
+    "id": "OWN-closed-thermal-change-3",
+    "question": "An increase of 15 K in temperature from 300 K triples the rate constant of a reaction. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 315,
+    "ratio": 3
+  },
+  {
+    "id": "OWN-closed-thermal-change-4",
+    "question": "The rate constant of a reaction doubles when the temperature goes up by 20 K from 280 K. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 280,
+    "T2": 300,
+    "ratio": 2
+  },
+  {
+    "id": "OWN-closed-thermal-change-5",
+    "question": "The rate constant of a reaction is doubled for a 10 K increase from 305 K. Calculate the activation energy.",
+    "refuse": false,
+    "T1": 305,
+    "T2": 315,
+    "ratio": 2
+  },
+  {
+    "id": "OWN-symbolic-identity-1",
+    "question": "Using k = Ae^(-E_a/RT), calculate the activation energy when the rate constant triples when temperature rises from 290 K to 310 K.",
+    "refuse": false,
+    "T1": 290,
+    "T2": 310,
+    "ratio": 3
+  },
+  {
+    "id": "OWN-symbolic-identity-2",
+    "question": "Using k = A exp(-Ea/(RT)), calculate the activation energy if the rate constant doubles when temperature rises from 300 K to 320 K.",
+    "refuse": false,
+    "T1": 300,
+    "T2": 320,
+    "ratio": 2
+  },
+  {
+    "id": "OWN-symbolic-identity-3",
+    "question": "Using k = Ae^(-Ea/RT), find activation energy if the rate constant doubles when the temperature is raised from 310 K to 330 K.",
+    "refuse": false,
+    "T1": 310,
+    "T2": 330,
+    "ratio": 2
+  },
+  {
+    "id": "OWN-symbolic-identity-4",
+    "question": "Using k = A exp(-Ea/RT), determine the activation energy if the rate constant triples when temperature rises from 280 K to 300 K.",
+    "refuse": false,
+    "T1": 280,
+    "T2": 300,
+    "ratio": 3
+  },
+  {
+    "id": "OWN-symbolic-identity-5",
+    "question": "Using k = Ae^(-E_a/(R T)), compute the activation energy if the rate constant doubles when temperature rises from 290 K to 310 K.",
+    "refuse": false,
+    "T1": 290,
+    "T2": 310,
+    "ratio": 2
+  },
+  {
+    "id": "OWN-arrhenius-owner-refuse-1",
+    "question": "The rate constant of a reaction at 300 K is unknown and at 310 K is 0.07 s^-1. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-arrhenius-owner-refuse-2",
+    "question": "The rate constant of a reaction at unknown K is 0.02 s^-1 and at 310 K is 0.07 s^-1. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-arrhenius-owner-refuse-3",
+    "question": "The rate constant of a reaction at 300 K is 2 kg and at 310 K is 0.07 s^-1. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-arrhenius-owner-refuse-4",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is unknown. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-arrhenius-owner-refuse-5",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.07 s^-1. Its k is unknown. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-arrhenius-owner-refuse-6",
+    "question": "The rate constant doubles from 0.02 to 0.07 s^-1 when the temperature rises from 300 K to 310 K. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-arrhenius-owner-refuse-7",
+    "question": "The rate constant doubles between T1 = unknown K and T2 = 310 K. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-arrhenius-owner-refuse-8",
+    "question": "The rate constant doubles for a temperature change of unknown K starting at 300 K. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-arrhenius-owner-refuse-9",
+    "question": "An increase of 10 K in temperature from 300 K doubles the rate constant of a reaction unknown. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-arrhenius-owner-refuse-10",
+    "question": "The rate constant doubles for a 10 K increase from 300 K taking its value as unknown. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-arrhenius-owner-refuse-11",
+    "question": "Using k = Ae^(-Ea/RT) unknown, calculate the activation energy if the rate constant doubles when temperature rises from 300 K to 310 K.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-arrhenius-owner-refuse-12",
+    "question": "Using k = A exp(-Ea/RT), the rate constant is unknown. Its rate constant doubles when temperature rises from 300 K to 310 K. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-arrhenius-owner-refuse-13",
+    "question": "For a reaction, k is unknown. Using k = Ae^(-Ea/RT), calculate the activation energy if the rate constant doubles when temperature rises from 300 K to 310 K.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-arrhenius-owner-refuse-14",
+    "question": "Using k = Ae^(-Ea/RT, calculate the activation energy if the rate constant doubles when temperature rises from 300 K to 310 K.",
+    "refuse": true
+  },
+  {
+    "id": "OWN-arrhenius-owner-refuse-15",
+    "question": "Using k = Ae^(-Ea/RT), calculate the activation energy if the rate constant doubles when temperature rises from 300 K to 310 K. Its k is 2 kg.",
+    "refuse": true
+  }
+];
+for(const c of arrheniusOwnerCases)try {
+ const spec=kineticsFromStem(c.question),exact=buildKineticsScene(c.question,[],false),schematic=buildKineticsScene(c.question,[],true),ordinary=synthesizeFamilyScene({question:c.question});
+ if(c.refuse){assert.equal(spec,null);assert.equal(exact,null);assert.equal(schematic,null);assert.equal(ordinary,null);}
+ else {
+  assert.ok(spec&&spec.arrhenius);assert.equal(spec.plot,"arrhenius");assert.equal(spec.arrhenius.T1,c.T1);assert.equal(spec.arrhenius.T2,c.T2);
+  if(c.k1!==undefined)assert.ok(spec.arrhenius.k1!==null&&Math.abs(spec.arrhenius.k1-c.k1)<=Math.abs(c.k1)*1e-12);
+  if(c.k2!==undefined)assert.ok(spec.arrhenius.k2!==null&&Math.abs(spec.arrhenius.k2-c.k2)<=Math.abs(c.k2)*1e-12);
+  const solved=solveKinetics(spec),energy=8.314*Math.log(c.ratio!)/(1/c.T1!-1/c.T2!);
+  assert.ok(solved.Ea!==null&&Math.abs(solved.Ea-energy)<=Math.abs(energy)*1e-12);assert.ok(solved.ratio!==null&&Math.abs(solved.ratio-c.ratio!)<=Math.abs(c.ratio!)*1e-12);
+  assert.ok(exact&&schematic&&ordinary);
+  for(const document of [exact,schematic,ordinary.document]) {
+   assert.equal(document.source?.question,c.question);
+   const validated=validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string,unknown>));assert.ok(validated.document&&validated.report.issues.length===0);
+   const compiled=compileSceneDocument(validated.document);assert.ok(compiled.ok&&compiled.renderScene&&compiled.renderScene.primitives.length>0);
+   if(document!==schematic) {
+    for(const [id,value,unit] of [["Ea",energy,"J/mol"],["T1",c.T1!,"K"],["T2",c.T2!,"K"],["ratio",c.ratio!,""]] as const) {
+     const q=document.quantities.find(q=>q.id===id);assert.ok(q);assert.equal(q.unit,unit);assert.ok(typeof q.value==="number");assert.equal(q.value,Number(value.toFixed(6)));
+    }
+    const energyLabel=document.entities.find(e=>e.kind==="label"&&e.role==="result"&&e.label?.includes("E_a"));assert.ok(energyLabel&&energyLabel.label?.includes("kJ/mol"));
+    assert.ok(compiled.renderScene.primitives.some(p=>p.kind==="label"&&p.entityId===energyLabel.id&&p.text===energyLabel.label));
+   }
+  }
+ }
+ results.push({id:c.id,passed:true});
+}catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
+// END ADDITIVE ORIGINAL ARRHENIUS OWNER SUPPORT GATES
+
 const output={schema:"chemistry-rate-declarations-gate/v1",passed:results.filter(x=>x.passed).length,failed:results.filter(x=>!x.passed).length,results};
 console.log(JSON.stringify(output,null,2));assert.equal(output.failed,0);

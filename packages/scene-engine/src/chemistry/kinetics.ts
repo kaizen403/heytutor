@@ -385,34 +385,94 @@ function quantityUseReferenceOnly(body: string, ownerStart: number, payloadStart
     && delimiter && request !== null && pureKineticsPlotSubject(tail.slice(request[0].length));
 }
 /** A qualitative rate change contains only its complete thermal payload. */
-function qualitativeRateChangeOnly(question: string, start: number, end: number): boolean {
+function qualitativeRateChangeOnly(question: string, ownerStart: number, start: number, end: number): boolean {
   const tail = question.slice(start, end);
   const change = String.raw`(?:(?:is|was|becomes|become)\s+)?(?:doubl\w*|tripl\w*|quadrupl\w*|halved|twice(?:\s+(?:its|the)\s+value)?)`;
-  if (!new RegExp(String.raw`^\s*${change}(?:\s+(?:when|as|on|from)\b[\s\S]*)?\s*$`, "i").test(tail)) return false;
-  const thermal = findChemistryQuantities({question, within:{start,end}, dimension:"temperature"});
-  if (!thermal.ok) return false;
-  let words = tail;
-  for (const reading of [...thermal.reading].sort((a,b)=>b.source.span.start-a.source.span.start)) {
-    words = words.slice(0, reading.source.span.start-start) + " " + words.slice(reading.source.span.end-start);
+  let payloadStart = start;
+  let payload = tail;
+  if (!new RegExp(String.raw`^\s*${change}(?:\s+(?:when|as|on|from|for|between)\b[\s\S]*)?\s*$`, "i").test(tail)) {
+    // In the inverse wording, the complete thermal subject precedes its rate
+    // owner. An empty owner alone is not evidence for a qualitative input.
+    if (tail.trim() !== "") return false;
+    const prefix = question.slice(0, ownerStart);
+    const boundary = /[;?\n]|\.(?=\s|$)/g;
+    for (const match of prefix.matchAll(boundary)) payloadStart = match.index! + match[0].length;
+    if (payloadStart === start) payloadStart = 0;
+    payload = question.slice(payloadStart, ownerStart);
+    if (!new RegExp(String.raw`\b${change}\s+(?:(?:the|its|a)\s+)?$`, "i").test(payload)) return false;
   }
-  return new RegExp(String.raw`^\s*${change}(?:\s+(?:when|as|on|from|the|a|its|temperature|temperatures|is|was|are|raised|rises|rise|increased|increases|increase|by|to|at|and))*\s*$`, "i").test(words);
+  const payloadEnd = payloadStart + payload.length;
+  const thermal = findChemistryQuantities({question, within:{start:payloadStart,end:payloadEnd}, dimension:"temperature"});
+  if (!thermal.ok) return false;
+  let words = payload;
+  for (const reading of [...thermal.reading].sort((a,b)=>b.source.span.start-a.source.span.start)) {
+    words = words.slice(0, reading.source.span.start-payloadStart) + " " + words.slice(reading.source.span.end-payloadStart);
+  }
+  // The field index is syntax, while its physical scalar was read above.
+  words = words.replace(/\b[Tt]_?[12]\s*=\s*(?=\s|$)/g, " ");
+  return new RegExp(String.raw`^\s*(?:(?:${change}|when|as|on|from|for|between|in|of|the|an?|its|temperature|temperatures|is|was|are|raised|rises|rise|increased|increases|increase|change|by|to|at|and|starting|starts|start|goes|go|went|up)\b\s*)+$`, "i").test(words);
 }
-/** Each supplied rate owns its original literal; absence and unread are distinct. */
-function readRateConstant(stem: string, order: ReactionOrder | null = 1): { value: number; unit: string | null } | null | false {
-  const body = questionBody(stem);
-  const dimension = order === 0 ? "rate_constant_zero" : order === 2 ? "rate_constant_second" : "rate_constant_first";
+
+/** Original owner boundaries are shared by the rate audit and Arrhenius roles. */
+function rateOwnerPayloads(body: string) {
   const owners = [...body.matchAll(new RegExp(RATE_CUE.source, RATE_CUE.flags + "g"))];
-  const equation = readChemistryArrheniusEquation(stem);
-  let reading: ChemistryReading | null = null;
-  for (const [index, owner] of owners.entries()) {
+  return owners.map((owner, index) => {
     let start = owner.index! + owner[0].length;
-    // The existing cue may end before the order in a named reaction subject.
     const subject = /^\s*(?:(?:pseudo[ -]?)?(?:zero|zeroth|first|second|0th|1st|2nd)[ -]?order\s+)?reaction\b/i.exec(body.slice(start));
     if (subject) start += subject[0].length;
     const next = owners[index + 1];
     let end = next?.index ?? body.length;
     const clause = /[;?\n]|\.(?=\s|$)/.exec(body.slice(start, end));
     if (clause) end = start + clause.index;
+    return {owner, next, start, end};
+  });
+}
+
+/** A complete named temperature/rate pair is two measurements, not one k. */
+function readOwnedTemperatureRates(question: string, start: number, end: number): Array<{temperature:number;rate:number}> | null | false {
+  const tail = question.slice(start, end);
+  if (!/^\s*at\b/i.test(tail)) return null;
+  const fields = [...tail.matchAll(/(?:^\s*|\s+and\s+)at\s+/gi)];
+  if (fields.length !== 2 || fields[0]!.index !== 0) return false;
+  const values: Array<{temperature:number;rate:number}> = [];
+  for (const [index, field] of fields.entries()) {
+    const fieldStart = start + field.index! + field[0].length;
+    const fieldEnd = index === 0 ? start + fields[1]!.index! : end;
+    const assignment = /\s+(?:is|equals|equal to)\b\s*|\s*[=:]\s*/i.exec(question.slice(fieldStart, fieldEnd));
+    if (!assignment) return false;
+    const tempEnd = fieldStart + assignment.index;
+    const rateStart = tempEnd + assignment[0].length;
+    const temperature = readChemistryQuantity({question,after:/^/,within:{start:fieldStart,end:tempEnd},dimension:"temperature"});
+    const rate = readChemistryQuantity({question,after:/^/,within:{start:rateStart,end:fieldEnd},dimension:"rate_constant_first"});
+    if (!temperature.ok || !rate.ok || !(rate.reading.value > 0)
+      || question.slice(temperature.reading.source.span.end,tempEnd).trim() !== ""
+      || question.slice(rate.reading.source.span.end,fieldEnd).trim() !== "") return false;
+    values.push({temperature:temperature.reading.value,rate:rate.reading.value});
+  }
+  const temperatures = readTemperatureInputs(question);
+  if (!temperatures || temperatures.rise !== null || temperatures.absolute.length !== 2
+    || values.some((value,index)=>!chemistryCanonicalValuesAgree(value.temperature,temperatures.absolute[index]!))
+    || values[0]!.temperature === values[1]!.temperature) return false;
+  return values;
+}
+
+/** A complete symbolic Arrhenius identity supplies no physical rate scalar. */
+function symbolicArrheniusRateOwnerOnly(body: string, owner: RegExpMatchArray, start: number, end: number): boolean {
+  if (!/^k\b/.test(owner[0])) return false;
+  const tail = body.slice(start,end);
+  const formula = /^\s*=\s*A\s*(?:e\s*\^\s*\(\s*[-−]\s*E_?a\s*\/\s*(?:R\s*T|\(\s*R\s*T\s*\))\s*\)|exp\s*\(\s*[-−]\s*E_?a\s*\/\s*(?:R\s*T|\(\s*R\s*T\s*\))\s*\))/.exec(tail);
+  if (!formula) return false;
+  const rest = tail.slice(formula[0].length);
+  return rest.trim() === "" || /^\s*,\s*(?:find|calculate|determine|compute|evaluate)\s+(?:the\s+)?activation energy\s+(?:if|when)\s+(?:(?:the|a)\s+)?$/i.test(rest);
+}
+/** Each supplied rate owns its original literal; absence and unread are distinct. */
+function readRateConstant(stem: string, order: ReactionOrder | null = 1): { value: number; unit: string | null } | null | false {
+  const body = questionBody(stem);
+  const dimension = order === 0 ? "rate_constant_zero" : order === 2 ? "rate_constant_second" : "rate_constant_first";
+  const equation = readChemistryArrheniusEquation(stem);
+  let reading: ChemistryReading | null = null;
+  let temperaturePair = false;
+  for (const {owner,next,start,end} of rateOwnerPayloads(body)) {
     const tail = body.slice(start, end);
     // "The rate constant ... is k = ..." names one value, not two givens.
     if (next && end === next.index && /rate constant/i.test(owner[0])
@@ -423,7 +483,11 @@ function readRateConstant(stem: string, order: ReactionOrder | null = 1): { valu
     if (equation.ok && /^k\b/.test(owner[0]) && equation.reading.source.span.start >= start
       && /^\s*=\s*A\s*$/i.test(body.slice(start, equation.reading.source.span.start))
       && equation.reading.source.span.end <= end && body.slice(equation.reading.source.span.end, end).trim() === "") continue;
-    if (qualitativeRateChangeOnly(stem, start, end) || quantityUseReferenceOnly(body, owner.index!, start, tail)) continue;
+    if (symbolicArrheniusRateOwnerOnly(body,owner,start,end)) continue;
+    const pair = readOwnedTemperatureRates(stem,start,end);
+    if (pair === false) return false;
+    if (pair) {temperaturePair = true;continue;}
+    if (qualitativeRateChangeOnly(stem, owner.index!, start, end) || quantityUseReferenceOnly(body, owner.index!, start, tail)) continue;
     const supplied = /^\s*,?\s*(?:[=:]|(?:is|was|are|equals|equal to|has|takes|value|given|stated|measured|assumed|supplied|provided|with\s+(?:the\s+)?value|unknown|unreadable|unavailable)\b)/i.test(tail)
       || new RegExp(String.raw`^\s*,?\s*(?:(?:of|about|nearly|approximately)\s+)?(?:${SCALAR}|unknown\b|unreadable\b|unavailable\b)`, "i").test(tail);
     if (!supplied) {
@@ -443,6 +507,7 @@ function readRateConstant(stem: string, order: ReactionOrder | null = 1): { valu
     if (reading && !chemistryCanonicalValuesAgree(reading.value, read.reading.value)) return false;
     reading ??= read.reading;
   }
+  if (temperaturePair && reading) return false;
   if (!reading) return null;
   const raw = reading.rawUnit ?? "";
   const unit = /min/i.test(raw) ? "min" : /h(?:r|our)?/i.test(raw) ? "h" : /day/i.test(raw) ? "days" : /year|yr/i.test(raw) ? "yr" : "s";
@@ -644,6 +709,16 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
     ratio = matchedChemistryScalar(stem, times);
   }
   const constants: number[] = [];
+  let temperatureRates: Array<{temperature:number;rate:number}> | null = null;
+  for (const {start,end} of rateOwnerPayloads(stem)) {
+    const pair = readOwnedTemperatureRates(stem,start,end);
+    if (pair === false) return null;
+    if (pair) {
+      if (temperatureRates && pair.some((value,index)=>!chemistryCanonicalValuesAgree(value.rate,temperatureRates![index]!.rate))) return null;
+      temperatureRates ??= pair;
+    }
+  }
+  if (temperatureRates) constants.push(...temperatureRates.map(value=>value.rate));
   const pattern = /(?:rate constant|(?<!\b(?:ln|log)\s*)\bk\b)\s*(?:_?[12]|₁|₂)?\s*(?:,?\s*k\s*)?(?:=|is|:)/gi;
   for (const match of stem.matchAll(pattern)) {
     const read = readChemistryQuantity({question: stem, after: /^/, within: {start: match.index! + match[0].length, end: stem.length}, dimension: "rate_constant_first"});
