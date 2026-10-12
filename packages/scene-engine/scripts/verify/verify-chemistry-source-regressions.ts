@@ -3444,6 +3444,520 @@ for(const half of ["Cu²⁺ + 2 e⁻ → Cu; E° = 0.34 V","Cu²⁺ + 2 e- → C
 });
 for(const zinc of ["0.1 kg Zn2+","0.1 kg.foo Zn2+","0.1 V Zn2+","0.1 kPa Zn2+","0.1 m Zn2+"])check("Actual adjacent reverse wrong-unit ion declaration still refuses: "+zinc,()=>expandedEcUnitRefusal({id:zinc,question:"Calculate the emf of a Daniell cell at 298 K with "+zinc+" and Cu2+ = 0.01 M.",family:"chem_electrochem",mode:"decline"}));
 // END EC v9 complete physical-unit and sentence boundaries.
+// BEGIN PR137 full-sweep and single-profile owner repair: append-only real wording.
+interface FullOwnerSupportRow {
+ readonly id:string;readonly question:string;readonly kind:"profile"|"profile-decline"|"qual-profile"|"temperature"|"remaining"|"kinetics-decline"|"gibbs";
+ readonly Ea?:number;readonly dH?:number;readonly back?:number;readonly unit?:string;readonly catalyst?:number;
+ readonly T1?:number;readonly T2?:number;readonly ratio?:number;readonly fraction?:number;readonly half?:number;readonly T?:number;readonly dS?:number;readonly questionSha256:string;
+}
+const fullOwnerSupportRows:ReadonlyArray<FullOwnerSupportRow> = [
+  {
+    "id": "PROFILE-H-EXACT-RELEASE",
+    "question": "The reaction releases unknown; the reaction releases 40 kJ/mol. Its activation energy is 60 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "52f3484c8ff25252957f81ede0fd3276318eeba70cf471dd01f2b1627403a926"
+  },
+  {
+    "id": "PROFILE-H-SYMBOL-UNREAD",
+    "question": "ΔH is unknown; ΔH = -40 kJ/mol. The activation energy is 60 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "6585d280a8fec7a83ff7c72d6e9ae7f71068145ff427c40eb73489b5565788d2"
+  },
+  {
+    "id": "PROFILE-H-ABSORB-UNREAD",
+    "question": "The reaction absorbs an unread value; the reaction absorbs 40 kJ/mol. Its activation energy is 60 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "f5cab8f293af1942006496b1e2d66324e0ab906a8f97b4f9ba7d97c57de358de"
+  },
+  {
+    "id": "PROFILE-H-EVOLVE-UNREAD",
+    "question": "The reaction evolves an unknown amount of heat; the reaction evolves 40 kJ/mol. Its activation energy is 60 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "67a991c1415ee337ae3826fd3ef436a94966a2d3e52bb6bc8b57a229e884934a"
+  },
+  {
+    "id": "PROFILE-EA-UNREAD",
+    "question": "Its activation energy is unknown; its activation energy is 60 kJ/mol. ΔH = -40 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "41c301113219f8dcbe72aa43af42f78af4bab900611cf09cc1574304b6068283"
+  },
+  {
+    "id": "PROFILE-EA-FORWARD-UNREAD",
+    "question": "The forward activation energy cannot be read; the forward activation energy is 60 kJ/mol. ΔH = -40 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "ee75c9d572c6d4ee0d02c355711fa56efda07c75ec437c3191c28c613d28d13e"
+  },
+  {
+    "id": "PROFILE-REACTANT-LEVEL-UNREAD",
+    "question": "The energy of reactants is unknown; the energy of reactants is 20 kJ/mol. The energy of products is -20 kJ/mol and the threshold energy is 80 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "1c391b88eef21a65d159b346cab050e67dd5339cdf72874df7e5e89bd4857d25"
+  },
+  {
+    "id": "PROFILE-PRODUCT-LEVEL-UNREAD",
+    "question": "The energy of reactants is 20 kJ/mol. The energy of products is unknown; the energy of products is -20 kJ/mol. The threshold energy is 80 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "4f308958ea9603a7333777ffce660af83a4fe74d694b5677690004f443cb0cd6"
+  },
+  {
+    "id": "PROFILE-THRESHOLD-UNREAD",
+    "question": "The energy of reactants is 20 kJ/mol and the energy of products is -20 kJ/mol. The threshold energy is unknown; the threshold energy is 80 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "7ed1b890ee6ed757926b3d76579c2c2884892f98de885e45ee6e1e62fd5ca30b"
+  },
+  {
+    "id": "PROFILE-CATALYST-REDUCTION-UNREAD",
+    "question": "ΔH = -40 kJ/mol and the activation energy is 60 kJ/mol. A catalyst lowers the activation energy by an unknown amount; the catalyst lowers the activation energy by 20 kJ/mol. Draw the numerical energy profile with and without catalyst.",
+    "kind": "profile-decline",
+    "questionSha256": "1d987a50544ed0cc9afa0d73b2f966b21b392f94c9bf772cf33b15bdd167db4c"
+  },
+  {
+    "id": "PROFILE-H-CANONICAL-REPEAT",
+    "question": "The reaction releases 40 kJ/mol; the reaction releases 40000 J/mol. Its activation energy is 60 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile",
+    "Ea": 60,
+    "dH": -40,
+    "back": 100,
+    "unit": "kJ/mol",
+    "questionSha256": "235ce0a09f25dc797010905b74f5608bacba48c813131f66d00b7669c18a78d8"
+  },
+  {
+    "id": "PROFILE-DISTINCT-FORWARD-BACKWARD",
+    "question": "The forward activation energy is 60 kJ/mol and the backward activation energy is 100 kJ/mol. ΔH = -40 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile",
+    "Ea": 60,
+    "dH": -40,
+    "back": 100,
+    "unit": "kJ/mol",
+    "questionSha256": "b345541518920626f220a336fd646ea62752f826a95b9abee4a5ae6fd7e5ddd3"
+  },
+  {
+    "id": "PROFILE-LEVELS-SUPPORTED",
+    "question": "The energy of reactants is 20 kJ/mol, the energy of products is -20 kJ/mol, and the threshold energy is 80 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile",
+    "Ea": 60,
+    "dH": -40,
+    "back": 100,
+    "unit": "kJ/mol",
+    "questionSha256": "7a706774ff21b98407d2fd7e6bf864ed1e84504c919ccb9fdac1e6de1ff98145"
+  },
+  {
+    "id": "PROFILE-CATALYST-SUPPORTED",
+    "question": "ΔH = -40 kJ/mol and the activation energy is 60 kJ/mol. A catalyst lowers the activation energy by 20 kJ/mol. Draw the numerical energy profile with and without catalyst.",
+    "kind": "profile",
+    "Ea": 60,
+    "dH": -40,
+    "back": 100,
+    "unit": "kJ/mol",
+    "catalyst": 40,
+    "questionSha256": "3010cc31d37818392994af189f03de7d1526a9606e21e721e8ffee97fd76cd83"
+  },
+  {
+    "id": "PROFILE-CLOSED-QUALITATIVE-HEAT",
+    "question": "The reaction releases heat. ΔH = -40 kJ/mol and the activation energy is 60 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile",
+    "Ea": 60,
+    "dH": -40,
+    "back": 100,
+    "unit": "kJ/mol",
+    "questionSha256": "235d3f4b941e0ba5adfe68a19f9610b501939685041ef86f1ffe1f2f6b3589bf"
+  },
+  {
+    "id": "PROFILE-OWN-H-LAST-UNREAD",
+    "question": "The reaction releases 40 kJ/mol; the reaction releases unknown. Its activation energy is 60 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "ae8a6677273dd82891bda707811c328a87cb8a52d94922a875be8a3787f0e134"
+  },
+  {
+    "id": "PROFILE-OWN-H-DAMAGED",
+    "question": "ΔH = 4e- kJ/mol; ΔH = -40 kJ/mol. The activation energy is 60 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "576baf996649627422e6d3dee8ed78ff0f727a93fd7a75486211adb2fc3cf267"
+  },
+  {
+    "id": "PROFILE-OWN-H-WRONG-UNIT",
+    "question": "The reaction evolves 40 kg; the reaction evolves 40 kJ/mol. Its activation energy is 60 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "19e4fb0ebdfe12f725a3f29a17da981384518cb4fb69909b723841e3dd03f2f5"
+  },
+  {
+    "id": "PROFILE-OWN-EA-LAST-UNREAD",
+    "question": "The activation energy is 60 kJ/mol; the activation energy remains unknown. ΔH = -40 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "80ab58628a29767a1023e21f5b09e376dd8758f28f2f007a449a62f05e39d348"
+  },
+  {
+    "id": "PROFILE-OWN-EA-CANONICAL-CONFLICT",
+    "question": "The forward activation energy is 60 kJ/mol; activation energy is 50000 J/mol. ΔH = -40 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "8ce41bfe2afa6db2ec916be38f66d0ba1924304b76e2b18cfa3260a97e5a8c95"
+  },
+  {
+    "id": "PROFILE-OWN-BACK-FIRST-UNREAD",
+    "question": "The backward activation energy is unknown; the backward activation energy is 100 kJ/mol. ΔH = -40 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "7e219348af2df486626689bd211b82471a01fc266958edcd0f87bc1c40118012"
+  },
+  {
+    "id": "PROFILE-OWN-LEVEL-DAMAGED",
+    "question": "The energy of reactants is 1e- kJ/mol; the energy of reactants is 20 kJ/mol. The energy of products is -20 kJ/mol and threshold energy is 80 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "14f40480e3531a9045846ff0c73603630fb5efb836365e47f3e316ccd2242a2e"
+  },
+  {
+    "id": "PROFILE-OWN-CATALYST-LAST-UNREAD",
+    "question": "ΔH = -40 kJ/mol and activation energy is 60 kJ/mol. The catalyst lowers the activation energy by 20 kJ/mol; the catalyst lowers the activation energy by unknown. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "68fd1e3e7a4677e0f7c46937a7102e319e6807983ea492088b359016a4dffa2b"
+  },
+  {
+    "id": "PROFILE-OWN-CATALYST-BARRIER-UNREAD",
+    "question": "ΔH = -40 kJ/mol and activation energy is 60 kJ/mol. With a catalyst the activation energy is unknown; with a catalyst the activation energy is 40 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "9c4737dde25b913acd59734e9b46f7db3dffac0c50b7bdb05dea55ee9a77315e"
+  },
+  {
+    "id": "PROFILE-OWN-REQUEST-UNREAD",
+    "question": "The forward activation energy is 60 kJ/mol and ΔH = -40 kJ/mol. Draw the profile and find the backward activation energy is unknown.",
+    "kind": "profile-decline",
+    "questionSha256": "e7dc615d87ca9c4e5263da3b9630f0549c55a48975e77fdae2c5c78e6fc0c9a3"
+  },
+  {
+    "id": "PROFILE-OWN-EA-CANONICAL",
+    "question": "The forward activation energy is 60 kJ/mol and activation energy is 60000 J/mol. ΔH = -40 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile",
+    "Ea": 60,
+    "dH": -40,
+    "back": 100,
+    "unit": "kJ/mol",
+    "questionSha256": "5ce94e1b9912f7cdf42d868b52e64f2565d726edabc5abc9745184eca1a10745"
+  },
+  {
+    "id": "PROFILE-OWN-ABSORB-SUPPORTED",
+    "question": "The reaction absorbs 40 kJ/mol. Its activation energy is 60 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile",
+    "Ea": 60,
+    "dH": 40,
+    "back": 20,
+    "unit": "kJ/mol",
+    "questionSha256": "8f5a27926190167697a2d5ce4fa79de5f179d37fb64352d641232db712b908a0"
+  },
+  {
+    "id": "PROFILE-OWN-REQUESTED-BACK",
+    "question": "For an exothermic reaction the activation energy of the forward reaction is 60 kJ/mol and ΔH = -20 kJ/mol. Draw the energy profile diagram and find the activation energy of the backward reaction.",
+    "kind": "profile",
+    "Ea": 60,
+    "dH": -20,
+    "back": 80,
+    "unit": "kJ/mol",
+    "questionSha256": "e9d1180e91ac060c44d85770c3ec7bb3679b5d2d976dcf7cf3f0895d3a6020f4"
+  },
+  {
+    "id": "PROFILE-OWN-QUALITATIVE-CATALYST",
+    "question": "Show with an energy profile diagram how a catalyst lowers the activation energy of an exothermic reaction without changing ΔH.",
+    "kind": "qual-profile",
+    "questionSha256": "357d2781f2ef38dbaf669774c0324d17638bca783070394ffad1aeb4fdce516e"
+  },
+  {
+    "id": "PROFILE-OWN-QUALITATIVE-ABSENCE",
+    "question": "Draw a qualitative energy profile of an exothermic reaction.",
+    "kind": "qual-profile",
+    "questionSha256": "0f37876572899b9af24a908ef04b04774a4e1c0fa486145964efc7c53ee4e8be"
+  },
+  {
+    "id": "FULL-RAW-RATE-CASE",
+    "question": "For an Arrhenius reaction the Rate constant doubles at 300 K and 310 K. Draw the graph of ln k versus 1/T.",
+    "kind": "temperature",
+    "T1": 300,
+    "T2": 310,
+    "ratio": 2,
+    "questionSha256": "7cd05b4ad3cceb41718aec797b86115c0473333c104d79ce42f244433cb2f645"
+  },
+  {
+    "id": "FULL-RISE-C",
+    "question": "The rate constant doubles with a 15 °C rise in temperature starting from 20 °C. Calculate the activation energy.",
+    "kind": "temperature",
+    "T1": 293.15,
+    "T2": 308.15,
+    "ratio": 2,
+    "questionSha256": "31ac43b60b81ac93f538ff873cd45d877a1313da444b434c66e2d8449035d473"
+  },
+  {
+    "id": "FULL-HALF-CENTIKELVIN",
+    "question": "The rate constant triples when temperature changes from 25.5 °C to 35.5 °C. Calculate the activation energy.",
+    "kind": "temperature",
+    "T1": 298.65,
+    "T2": 308.65,
+    "ratio": 3,
+    "questionSha256": "2cc5e4675b74f3b8f1bb778b31b377acf41eae168f4dc7eca08952aaa4902dcd"
+  },
+  {
+    "id": "FULL-OWN-RATE-AT-CASE",
+    "question": "The RATE CONSTANT triples at 295 K and 305 K. Calculate the activation energy.",
+    "kind": "temperature",
+    "T1": 295,
+    "T2": 305,
+    "ratio": 3,
+    "questionSha256": "a7c7786bf98e8bdbe7011c6644a8f9fa67ee49d8f21328444005b15bcea1b0c3"
+  },
+  {
+    "id": "FULL-OWN-RISE-C",
+    "question": "The rate constant triples with a 12 °C rise in temperature starting from 18 °C. Draw its Arrhenius plot.",
+    "kind": "temperature",
+    "T1": 291.15,
+    "T2": 303.15,
+    "ratio": 3,
+    "questionSha256": "e7dfc238bed4394df0bbd0d8066db100f47f9cc49a5e9ba78462cca83470b4f7"
+  },
+  {
+    "id": "FULL-OWN-CHANGES-C",
+    "question": "The rate constant doubles when temperature changes from 20.5 °C to 30.5 °C. Draw the Arrhenius plot.",
+    "kind": "temperature",
+    "T1": 293.65,
+    "T2": 303.65,
+    "ratio": 2,
+    "questionSha256": "df64156cb8402a1ab76d800c89dc758e1f9a083a1bf98a6f4a7e2343410c0f6b"
+  },
+  {
+    "id": "FULL-OWN-THERMAL-UNREAD",
+    "question": "The rate constant doubles with an unknown °C rise in temperature starting from 20 °C. Calculate the activation energy.",
+    "kind": "kinetics-decline",
+    "questionSha256": "2ad18290c5fb12279f6810b45b170f8368768b1e415b338f2bf5b9d157329a45"
+  },
+  {
+    "id": "FULL-OWN-THERMAL-NUMERIC-RATE",
+    "question": "The rate constant doubles at 0.02 s^-1 and 0.07 s^-1. Calculate the activation energy.",
+    "kind": "kinetics-decline",
+    "questionSha256": "e1ce2c14c4592430e499a622e8d39c35ca070094d8d15e731231517278be343b"
+  },
+  {
+    "id": "FULL-OWN-THERMAL-DAMAGE",
+    "question": "The rate constant triples when temperature changes from 25.5e+ °C to 35.5 °C. Calculate the activation energy.",
+    "kind": "kinetics-decline",
+    "questionSha256": "219f313a7e00c6b7c2050b1231fa37e853be65fdc18186d67d0461c0e64beacb"
+  },
+  {
+    "id": "FULL-ONE-FOURTH",
+    "question": "A first order reaction has half life 20 min. Find when One Fourth of the initial concentration remains.",
+    "kind": "remaining",
+    "fraction": 0.25,
+    "half": 20,
+    "questionSha256": "54d9bcf79aee78e651f0a4755521b19602f64bd66665aa64755aec371677c9d7"
+  },
+  {
+    "id": "FULL-ONE-FOURTH-UPPER",
+    "question": "A first order reaction has half life 20 min. Find when ONE FOURTH of the INITIAL concentration REMAINS.",
+    "kind": "remaining",
+    "fraction": 0.25,
+    "half": 20,
+    "questionSha256": "0de5fa88b2f92a86a3d5e34428d42ac05ad5edd10567fe62b7a946e16ddb3f8f"
+  },
+  {
+    "id": "FULL-ONE-FOURTH-MIXED",
+    "question": "A first order reaction has half life 20 min. Find when one fOuRtH of the initial concentration ReMaInS.",
+    "kind": "remaining",
+    "fraction": 0.25,
+    "half": 20,
+    "questionSha256": "9c4d3501126727d91c73f5e7307f7c5d7f14d321b22d849031a2a80599e90cb1"
+  },
+  {
+    "id": "FULL-OWN-EIGHTH",
+    "question": "A first order reaction has half life 20 min. Calculate when one eighth of the initial concentration remains.",
+    "kind": "remaining",
+    "fraction": 0.125,
+    "half": 20,
+    "questionSha256": "883914b2b7da8546238135340508d5f70bbee95dd55532c18ad05cb3ddd59103"
+  },
+  {
+    "id": "FULL-OWN-QUARTER",
+    "question": "A first order reaction has half life 20 min. Determine the time when quarter of the initial concentration remains.",
+    "kind": "remaining",
+    "fraction": 0.25,
+    "half": 20,
+    "questionSha256": "3ae5fe06705bd16e222fcf8c88b87b930fd33b2ca367430b9275bdd7707ac85c"
+  },
+  {
+    "id": "FULL-OWN-FOURTH-LEFT",
+    "question": "A first order reaction has half life 20 min. Find when one fourth of the initial concentration is left.",
+    "kind": "remaining",
+    "fraction": 0.25,
+    "half": 20,
+    "questionSha256": "3b5a1168efc21fa884dc7d1da1c6f05efd809ce904ebe24c7cd6d9c4ed46eaff"
+  },
+  {
+    "id": "FULL-OWN-FRACTION-GIVEN-UNREAD",
+    "question": "A first order reaction has half life 20 min. Its initial concentration is unknown. Find when One Fourth of the initial concentration remains.",
+    "kind": "kinetics-decline",
+    "questionSha256": "ae3c3deaa70656df606d2b6d17c5c348196e40d95f9cb786a8fb41c21313a639"
+  },
+  {
+    "id": "FULL-OWN-FRACTION-TAIL-UNREAD",
+    "question": "A first order reaction has half life 20 min. Find when One Fourth of the initial concentration remains unknown.",
+    "kind": "kinetics-decline",
+    "questionSha256": "c9d2d1dc369f1bc089c2e02e16dd2af1bd48df211664ca4c62cab0bdff8ebe5e"
+  },
+  {
+    "id": "FULL-OWN-FRACTION-TAIL-INPUT",
+    "question": "A first order reaction has half life 20 min. Find when One Fourth of the initial concentration remains 2 M.",
+    "kind": "kinetics-decline",
+    "questionSha256": "21be6d6e3de530b83b11f6fb59705c45e2a98eb0bc89082627d29b92cea8654b"
+  },
+  {
+    "id": "FULL-GIBBS-CELSIUS",
+    "question": "Draw ΔG versus temperature for ΔH = 40 kJ/mol and ΔS = 100 J/(mol K) at 25 °C.",
+    "kind": "gibbs",
+    "dH": 40,
+    "dS": 100,
+    "T": 298.15,
+    "questionSha256": "7cef2f2ae55c4c9e4eca61451cb5f31b6bac5fcf7c417d1481c1a61ffa7515c8"
+  },
+  {
+    "id": "FULL-C04-CONJOINED",
+    "question": "For a reaction ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 K find ΔG and the temperature where spontaneity changes.",
+    "kind": "gibbs",
+    "dH": -40,
+    "dS": -100,
+    "T": 298,
+    "questionSha256": "495e16eba6869651350c6d018c937e227625aa09220ab884467b88808fc92de2"
+  },
+  {
+    "id": "FULL-OWN-GIBBS-AXIS",
+    "question": "Plot ΔG against temperature for ΔH = 60 kJ/mol and ΔS = 150 J/(mol K) at 20 °C.",
+    "kind": "gibbs",
+    "dH": 60,
+    "dS": 150,
+    "T": 293.15,
+    "questionSha256": "4c755e5224ddfb3861814c1bd36092f7c61ade8383a4498077a85c4941d5b772"
+  },
+  {
+    "id": "FULL-OWN-GIBBS-CONJOINED",
+    "question": "For a reaction ΔH = -60 kJ/mol and ΔS = -150 J/(mol K). At 300 K calculate ΔG and the temperature where spontaneity changes.",
+    "kind": "gibbs",
+    "dH": -60,
+    "dS": -150,
+    "T": 300,
+    "questionSha256": "e024073c3feb460e18bb3e3e4b06ba37edfd2e26a1599fad463d3f180cb8da85"
+  },
+  {
+    "id": "FULL-OWN-GIBBS-AXIS-UNREAD",
+    "question": "Draw ΔG versus temperature is unknown for ΔH = 40 kJ/mol and ΔS = 100 J/(mol K) at 25 °C.",
+    "kind": "profile-decline",
+    "questionSha256": "3356a7dc19313fe81ea526df39d375f1cc2ec03400635e180addbf55ee7556ad"
+  },
+  {
+    "id": "FULL-OWN-GIBBS-AXIS-UNIT",
+    "question": "Draw ΔG versus temperature = 50 kg for ΔH = 40 kJ/mol and ΔS = 100 J/(mol K) at 25 °C.",
+    "kind": "profile-decline",
+    "questionSha256": "f7f98c0df72a2ed4aed7a3134ee52b72b267f7656da606d516d264d92203e4ac"
+  },
+  {
+    "id": "PROFILE-OWN-CATALYST-CONNECTOR-1",
+    "question": "ΔH = -40 kJ/mol and the activation energy is 60 kJ/mol. The catalyst lowers the activation energy unknown by 20 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "969db23f1f0a6b38fcd70949860188d6f850d760b1e1005727db6daac9d2da7c"
+  },
+  {
+    "id": "PROFILE-OWN-CATALYST-CONNECTOR-2",
+    "question": "ΔH = -40 kJ/mol and the activation energy is 60 kJ/mol. The catalyst lowers the activation energy unreadable by 20 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "f2a3ecbff97443a55c7d41b12e79af7ba125d4b8e2645dc762642050e1411b24"
+  },
+  {
+    "id": "PROFILE-OWN-CATALYST-CONNECTOR-3",
+    "question": "ΔH = -40 kJ/mol and the activation energy is 60 kJ/mol. The catalyst lowers the activation energy 60 kg by 20 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "b752c7aeb5f291a82c4d413107761a5919ff897a7d58250f1653c3ada6dc6714"
+  },
+  {
+    "id": "PROFILE-OWN-CATALYST-CONNECTOR-4",
+    "question": "ΔH = -40 kJ/mol and the activation energy is 60 kJ/mol. The catalyst lowers the activation energy of unknown by 20 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "1e7d3f8644b03b0061b7413d019f8d24b6ba4ef81e8e722e6b6b9d23be568577"
+  },
+  {
+    "id": "PROFILE-OWN-CATALYST-CONNECTOR-5",
+    "question": "ΔH = -40 kJ/mol and the activation energy is 60 kJ/mol. The catalyst lowers the activation energy with value 2 kg by 20 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile-decline",
+    "questionSha256": "dd790b6a4a72f60f6d422d01d40bd6fb1d880cb79d31a0b7e3e8a58df8aecc1d"
+  },
+  {
+    "id": "PROFILE-OWN-CATALYST-CONNECTOR-SUPPORT-1",
+    "question": "ΔH = -40 kJ/mol and the activation energy is 60 kJ/mol. The catalyst lowers the activation energy of the reaction by 20 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile",
+    "Ea": 60,
+    "dH": -40,
+    "back": 100,
+    "unit": "kJ/mol",
+    "catalyst": 40,
+    "questionSha256": "82951055dae26703f721d2b11c64ca1c3491f9d21ae5f6412db20273a77a78c6"
+  },
+  {
+    "id": "PROFILE-OWN-CATALYST-CONNECTOR-SUPPORT-2",
+    "question": "ΔH = -40 kJ/mol and the activation energy is 60 kJ/mol. The catalyst lowers the activation energy for this reaction by 20 kJ/mol. Draw the numerical energy profile.",
+    "kind": "profile",
+    "Ea": 60,
+    "dH": -40,
+    "back": 100,
+    "unit": "kJ/mol",
+    "catalyst": 40,
+    "questionSha256": "1c8621d9117b3afd1623f7cf49da03411d2448a5ce1cce1c9e7dcffff783f9a5"
+  }
+];
+for(const row of fullOwnerSupportRows)check("Full owner/support repair: "+row.id,()=>{
+ const question=row.question;
+ if(row.kind==="profile-decline") {
+  assert.equal(buildThermoGraphScene(question,[],false),null);
+  assert.equal(buildThermoGraphScene(question,[],true),null);
+  assert.equal(synthesizeFamilyScene({question}),null);
+  return;
+ }
+ if(row.kind==="kinetics-decline") {
+  assert.equal(kineticsFromStem(question),null);
+  assert.equal(buildKineticsScene(question,[],false),null);
+  assert.equal(buildKineticsScene(question,[],true),null);
+  assert.equal(synthesizeFamilyScene({question}),null);
+  return;
+ }
+ const kinetic=row.kind==="temperature"||row.kind==="remaining";
+ if(kinetic) {
+  const spec=kineticsFromStem(question);assert.ok(spec);
+  const solution=solveKinetics(spec);
+  if(row.kind==="temperature") {
+   assert.ok(spec.arrhenius);near(spec.arrhenius.T1,row.T1!);near(spec.arrhenius.T2,row.T2!);
+   near(solution.Ea,8.314*Math.log(row.ratio!)/(1/row.T1!-1/row.T2!));
+  } else {
+   assert.equal(spec.a0,null);near(spec.tHalf,row.half!);assert.deepEqual(spec.remainingAsked,[row.fraction!]);
+   near(solution.timesForRemaining[0]?.time,row.half!*Math.log(1/row.fraction!)/Math.LN2);
+  }
+ }
+ const direct=kinetic?buildKineticsScene(question,[],false):buildThermoGraphScene(question,[],false);
+ const schematic=kinetic?buildKineticsScene(question,[],true):buildThermoGraphScene(question,[],true);
+ const ordinary=synthesizeFamilyScene({question});assert.ok(ordinary?.renderScene);
+ assert.equal(ordinary.family,kinetic?"chem_kinetics":"chem_thermo");
+ for(const document of [direct,schematic,ordinary.document]) {
+  const result=compiled(document);assert.equal(result.document.source?.question,question);
+  if(row.kind==="profile") {
+   for(const [id,value] of [["Ea_forward",row.Ea!],["dH",row.dH!],["Ea_backward",row.back!]] as const) {
+    const quantity=result.document.quantities.find(q=>q.id===id);near(quantity?.value,value);assert.equal(quantity?.unit,row.unit);
+   }
+   if(row.catalyst!==undefined)near(result.document.quantities.find(q=>q.id==="Ea_catalysed")?.value,row.catalyst);
+  } else if(row.kind==="gibbs") {
+   near(result.document.quantities.find(q=>q.id==="T_eq")?.value,row.dH!/(row.dS!/1000));
+   const dg=row.dH!-row.T!*row.dS!/1000;near(result.document.quantities.find(q=>q.id==="dG")?.value,dg);
+   assert.equal(result.document.quantities.find(q=>q.id==="dG")?.unit,"kJ/mol");
+   const text=result.labels.join(" ").replace(/\s+/g,"");assert.ok(text.includes(`ΔG=${dg.toFixed(1)}kJ/mol`),text);
+   assert.ok(result.labels.includes("schematic"));assert.ok(result.labels.includes("not a kJ scale"));
+   assert.ok(result.labels.includes("spontaneous"));assert.ok(result.labels.includes("not spontaneous"));
+  } else if(row.kind==="temperature") {
+   near(result.document.quantities.find(q=>q.id==="T1")?.value,row.T1!);near(result.document.quantities.find(q=>q.id==="T2")?.value,row.T2!);
+  } else if(row.kind==="remaining") {
+   assert.ok(result.document.quantities.every(q=>!(q.unit==="M"&&q.id!=="k")),"A fraction request must not invent molarity");
+  } else {
+   assert.ok(result.document.quantities.every(q=>!["Ea_forward","Ea_backward","dH"].includes(q.id)),"Qualitative inputs must not invent physical magnitudes");
+  }
+ }
+});
+// END PR137 full-sweep and single-profile owner repair.
 const output=process.argv.indexOf("--out");
 const result={passed:rows.filter(r=>r.passed).length,failed:rows.filter(r=>!r.passed).length,rows};
 if(output>=0)writeFileSync(process.argv[output+1]!,JSON.stringify(result,null,2)+"\n");

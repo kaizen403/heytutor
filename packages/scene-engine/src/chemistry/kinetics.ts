@@ -455,7 +455,7 @@ function qualitativeRateChangeOnly(question: string, ownerStart: number, start: 
   const change = String.raw`(?:(?:is|was|becomes|become)\s+)?(?:doubl\w*|tripl\w*|quadrupl\w*|halved|twice(?:\s+(?:its|the)\s+value)?)`;
   let payloadStart = start;
   let payload = tail;
-  if (!new RegExp(String.raw`^\s*${change}(?:\s+(?:when|as|on|from|for|between)\b[\s\S]*)?\s*$`, "i").test(tail)) {
+  if (!new RegExp(String.raw`^\s*${change}(?:\s+(?:when|as|on|from|for|between|at|with)\b[\s\S]*)?\s*$`, "i").test(tail)) {
     // In the inverse wording, the complete thermal subject precedes its rate
     // owner. An empty owner alone is not evidence for a qualitative input.
     if (tail.trim() !== "") return false;
@@ -475,7 +475,7 @@ function qualitativeRateChangeOnly(question: string, ownerStart: number, start: 
   }
   // The field index is syntax, while its physical scalar was read above.
   words = words.replace(/\b[Tt]_?[12]\s*=\s*(?=\s|$)/g, " ");
-  return new RegExp(String.raw`^\s*(?:(?:${change}|when|as|on|from|for|between|in|of|the|an?|its|temperature|temperatures|is|was|are|raised|rises|rise|increased|increases|increase|change|by|to|at|and|starting|starts|start|goes|go|went|up)\b\s*)+$`, "i").test(words);
+  return new RegExp(String.raw`^\s*(?:(?:${change}|when|as|on|from|for|between|with|in|of|the|an?|its|temperature|temperatures|is|was|are|raised|rises|rise|increased|increases|increase|change|changes|by|to|at|and|starting|starts|start|goes|go|went|up)\b\s*)+$`, "i").test(words);
 }
 
 /** Original owner boundaries are shared by the rate audit and Arrhenius roles. */
@@ -593,6 +593,20 @@ function initialFractionRequestOnly(question: string, ownerStart: number, start:
   const time = readChemistryQuantity({question,after:/^/,within:{start:timeStart,end},dimension:"time"});
   return time.ok && time.reading.value > 0 && question.slice(time.reading.source.span.end,end).trim() === "";
 }
+/** A requested remaining fraction uses concentration as an operand, not a given. */
+function initialRemainingFractionTargetOnly(question: string, ownerStart: number, start: number, end: number): boolean {
+  if (!/^\s+(?:remains?|is\s+(?:left|remaining|unreacted))\s*$/i.test(question.slice(start,end))) return false;
+  const prefix = question.slice(0,ownerStart);
+  for (const [pattern,fraction] of WORD_FRACTIONS) {
+    if (!(fraction > 0 && fraction < 1)) continue;
+    for (const match of prefix.matchAll(pattern)) {
+      const after = prefix.slice(match.index! + match[0].length);
+      if (!/^\s+of\s+(?:(?:the|its)\s+)?$/i.test(after)) continue;
+      if (/\b(?:find|calculate|determine|compute|evaluate|obtain)\s+(?:when|the\s+time\s+(?:when|for|at\s+which))\s*$/i.test(prefix.slice(0,match.index))) return true;
+    }
+  }
+  return false;
+}
 function readInitialConcentration(stem: string): {value: number; unit: string} | null | false {
   const body = questionBody(stem);
   const concentrationRequests = concentrationRatioRequestSpans(stem);
@@ -609,7 +623,8 @@ function readInitialConcentration(stem: string): {value: number; unit: string} |
     const clause = /[;?\n]|\.(?=\s|$)/.exec(body.slice(start, end));
     if (clause) end = start + clause.index;
     const tail = body.slice(start, end);
-    if (initialFractionRequestOnly(stem,owner.index!,start,end)) continue;
+    if (initialFractionRequestOnly(stem,owner.index!,start,end)
+      || initialRemainingFractionTargetOnly(stem,owner.index!,start,end)) continue;
     // Complete numerator/denominator math references supply no initial value;
     // an assignment or unread payload after that reference still must refuse.
     const numerator = /^\s*\/\s*(?:\[a\]|a\b)/i.exec(tail);

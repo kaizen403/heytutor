@@ -275,6 +275,82 @@ function readMechanismSteps(stem: string): ProfileStep[] | null {
   return signs.map((step) => ({ ea: step.slow ? 2.6 : 1.1, dH: step.sign > 0 ? plusMagnitude : -minusMagnitude, slow: step.slow }));
 }
 
+const PROFILE_THRESHOLD_CUE = /threshold\s+energy/;
+const PROFILE_REACTANT_CUE = /(?:potential\s+)?energy\s+of\s+(?:the\s+)?reactants?/;
+const PROFILE_PRODUCT_CUE = /(?:potential\s+)?energy\s+of\s+(?:the\s+)?products?/;
+const PROFILE_CATALYST_REDUCTION_CUE = /(?:lowers?|reduces?|decreases?|brings?\s+down)\s+(?:the\s+)?(?:activation\s+energy|energy\s+barrier|e_?a)[^.]{0,30}?\bby\b/;
+const PROFILE_CATALYST_BARRIER_CUE = /(?:in\s+(?:the\s+)?presence\s+of\s+(?:a\s+)?catalyst|with\s+(?:a\s+)?catalyst|catalys[ez]d\s+(?:reaction|path|pathway|route))[^.]{0,60}?(?:activation\s+energy|e_?a|barrier)/;
+const PROFILE_CATALYST_ROLE_CUE = /(?:activation\s+energy|e_?a)\s+(?:of|for|in)\s+(?:the\s+)?(?:catalys[ez]d|presence\s+of\s+(?:a\s+)?catalyst)[^.]{0,20}?/;
+
+/** Only complete requested/qualitative roles omit a physical profile input. */
+function profileEnergyReferenceOnly(body: string, start: number, end: number, ownerEnd: number): boolean {
+  const before = body.slice(0,start);
+  const payload = body.slice(end,ownerEnd);
+  if (payload.trim() === "" && /\b(?:find|calculate|compute|determine|mark|show)\s+(?:(?:the|an?|its)\s+)*$/i.test(before)) return true;
+  if (payload.trim() === "" && /\bwithout\s+changing\s*$/i.test(before)) return true;
+  // This existing qualitative catalyst operator states no energy magnitude.
+  // A number, assignment or unread material anywhere in its payload refuses.
+  return /\bcatalyst\s+(?:lowers?|reduces?|decreases?)\s+(?:the\s+)?$/i.test(before)
+    && /^\s+of\s+(?:(?:an?|the)\s+)?(?:exothermic|endothermic)\s+reaction\s+without\s+changing\s*$/i.test(payload);
+}
+/** Every single-profile energy role is checked before reading or derivation. */
+function readProfileEnergyInputs(question: string): Map<string,Energy> | null {
+  const body = question.slice(0,chemistryQuestionSpan(question).end);
+  const aliases = [
+    {phrase:DELTA_H_SYMBOL,role:"dH",sign:0},
+    {phrase:ENTHALPY_RELEASE_CUE,role:"dH",sign:-1},
+    {phrase:ENTHALPY_ABSORB_CUE,role:"dH",sign:1},
+    {phrase:FORWARD_ACTIVATION,role:"forward",sign:0},
+    {phrase:BACKWARD_ACTIVATION,role:"backward",sign:0},
+    {phrase:GENERIC_ACTIVATION,role:"forward",sign:0},
+    {phrase:PROFILE_THRESHOLD_CUE,role:"threshold",sign:0},
+    {phrase:PROFILE_REACTANT_CUE,role:"reactants",sign:0},
+    {phrase:PROFILE_PRODUCT_CUE,role:"products",sign:0},
+    {phrase:PROFILE_CATALYST_REDUCTION_CUE,role:"catalyst_reduction",sign:0},
+    {phrase:PROFILE_CATALYST_BARRIER_CUE,role:"catalyst_barrier",sign:0},
+    {phrase:PROFILE_CATALYST_ROLE_CUE,role:"catalyst_barrier",sign:0},
+  ];
+  const found = aliases.flatMap(alias => Array.from(body.matchAll(new RegExp(alias.phrase.source,"gi")),match => ({
+    ...alias,start:match.index!,end:match.index!+match[0].length,
+  })));
+  // The reduction connector itself carries no magnitude or unread value.
+  // A wildcard inventory may find an owner, but cannot validate that syntax.
+  const reductionSyntax = /^(?:lowers?|reduces?|decreases?|brings?\s+down)\s+(?:the\s+)?(?:activation\s+energy|energy\s+barrier|e_?a)\s+(?:(?:of|for)\s+(?:(?:the|a|this)\s+)?reaction\s+)?by$/i;
+  if (found.some(owner => owner.role === "catalyst_reduction"
+    && !reductionSyntax.test(body.slice(owner.start,owner.end)))) return null;
+  // A specific catalyst/forward/backward role owns any nested generic phrase.
+  const owners = found.filter(owner => !found.some(other => other.start <= owner.start && other.end >= owner.end
+    && (other.start < owner.start || other.end > owner.end))).sort((a,b)=>a.start-b.start);
+  const values = new Map<string,Energy>();
+  const qualitativeSigns: number[] = [];
+  for (const [index,owner] of owners.entries()) {
+    const next = owners[index+1];
+    let end = next?.start ?? body.length;
+    const clause = /[;!?\n]|\.(?=\s|$)/.exec(body.slice(owner.end,end));
+    if (clause) end = owner.end+clause.index;
+    const payload = body.slice(owner.end,end);
+    // Adjacent aliases name one original value, which the next owner validates.
+    if (next && owner.role === next.role && end === next.start && /^\s*[,:(]?\s*$/.test(payload)) continue;
+    if (profileEnergyReferenceOnly(body,owner.start,owner.end,end)) continue;
+    if (owner.sign !== 0 && /^\s*(?:heat|energy)?\s*$/i.test(payload)) {
+      qualitativeSigns.push(owner.sign);continue;
+    }
+    let energy: Energy | null = null;
+    for (const [dimension,targetUnit] of [["molar_energy","kJ/mol"],["energy","kJ"]] as const) {
+      const read = readChemistryQuantity({question:body,after:new RegExp(`^(?:${energyCueAfter(owner.phrase).source})`,"i"),
+        within:{start:owner.start,end},dimension,targetUnit});
+      if (read.ok) {energy={value:read.reading.value,unit:targetUnit};break;}
+    }
+    if (!energy) return null;
+    const value = owner.sign === -1 ? -Math.abs(energy.value) : owner.sign === 1 ? Math.abs(energy.value) : energy.value;
+    const previous = values.get(owner.role);
+    if (previous && (previous.unit !== energy.unit || !chemistryCanonicalValuesAgree(previous.value,value))) return null;
+    values.set(owner.role,{value,unit:energy.unit});
+  }
+  const enthalpy = values.get("dH");
+  return enthalpy === undefined || qualitativeSigns.every(sign=>sign===Math.sign(enthalpy.value)) ? values : null;
+}
+
 function readProfile(stem: string, question: string, _quantities: ChemPlanQuantity[], schematic: boolean): ProfileSpec | null {
   // These with/without-catalyst owners are not handled by the current role
   // reader. Their stated values must never be replaced by qualitative heights.
@@ -300,20 +376,14 @@ function readProfile(stem: string, question: string, _quantities: ChemPlanQuanti
     };
   }
 
-  const eaBackStem = energyNear(question, BACKWARD_ACTIVATION);
-  const eaExplicitForward = energyNear(question, FORWARD_ACTIVATION);
-  const eaGeneric = energyNear(question, GENERIC_ACTIVATION);
-  // Generic and explicit-forward literals independently describe the same
-  // barrier. Require canonical dimensional/value agreement before choosing;
-  // the separately read backward barrier keeps its distinct physical role.
-  if (eaExplicitForward && eaGeneric &&
-      (eaExplicitForward.unit !== eaGeneric.unit ||
-       !chemistryCanonicalValuesAgree(eaGeneric.value, eaExplicitForward.value))) return null;
-  const eaForwardStem = eaExplicitForward ?? eaGeneric;
-  const threshold = energyNear(question, /threshold\s+energy/);
-  const energyR = energyNear(question, /(?:potential\s+)?energy\s+of\s+(?:the\s+)?reactants?/);
-  const energyP = energyNear(question, /(?:potential\s+)?energy\s+of\s+(?:the\s+)?products?/);
-  const dHStem = readEnthalpyChange(question);
+  const source = readProfileEnergyInputs(question);
+  if (!source) return null;
+  const eaBackStem = source.get("backward") ?? null;
+  const eaForwardStem = source.get("forward") ?? null;
+  const threshold = source.get("threshold") ?? null;
+  const energyR = source.get("reactants") ?? null;
+  const energyP = source.get("products") ?? null;
+  const dHStem = source.get("dH") ?? null;
 
   const energies = [eaBackStem, eaForwardStem, threshold, energyR, energyP, dHStem].filter((e): e is Energy => e !== null);
   const unit = energies[0]?.unit ?? "";
@@ -346,9 +416,8 @@ function readProfile(stem: string, question: string, _quantities: ChemPlanQuanti
   const catalysed = /catalys(?:t|ed|is|e)/.test(stem);
   let catalyst: ProfileSpec["catalyst"] = null;
   if (catalysed) {
-    const lowered = energyNear(question, /(?:lowers?|reduces?|decreases?|brings?\s+down)\s+(?:the\s+)?(?:activation\s+energy|energy\s+barrier|e_?a)[^.]{0,30}?\bby\b/);
-    const withCatalyst = energyNear(question, /(?:in\s+(?:the\s+)?presence\s+of\s+(?:a\s+)?catalyst|with\s+(?:a\s+)?catalyst|catalys[ez]d\s+(?:reaction|path|pathway|route))[^.]{0,60}?(?:activation\s+energy|e_?a|barrier)/) ??
-      energyNear(question, /(?:activation\s+energy|e_?a)\s+(?:of|for|in)\s+(?:the\s+)?(?:catalys[ez]d|presence\s+of\s+(?:a\s+)?catalyst)[^.]{0,20}?/);
+    const lowered = source.get("catalyst_reduction") ?? null;
+    const withCatalyst = source.get("catalyst_barrier") ?? null;
     if (ea !== null && lowered) catalyst = ea - toKj(lowered);
     else if (ea !== null && withCatalyst) catalyst = toKj(withCatalyst);
     else catalyst = "qualitative";
@@ -529,7 +598,7 @@ function gibbsReferencePayloadOnly(body: string, start: number, ownerEnd: number
   // literal zero through the clause end; scalar continuations and units
   // after optional closing parentheses remain unread payload.
   payload = payload.replace(/[Δδ∆]\s*G\s*=\s*0(?=\s*\)*\s*$)/gi, " zero ");
-  return /^(?:\s|[(),=+−*/×·-]|Θ|[Δδ∆]\s*[GHS]\b|\bT\b|\bK\b|\b(?:and|together|with|using|from|to|in|versus|vs|against|at|as|on|above|below|where|of|all|any|every|what|which|absolute|draw|plot|sketch|show|calculate|compute|determine|find|mark|the|an?|its|this|reaction|point|line|graph|curve|diagram|Gibbs|free|energy|temperatures?|equilibrium|transition|minimum|threshold|crossover|will|does|reach|be|becomes?|is|negative|positive|zero|spontaneous|feasible)\b)*$/i.test(payload);
+  return /^(?:\s|[(),=+−*/×·-]|Θ|[Δδ∆]\s*[GHS]\b|\bT\b|\bK\b|\b(?:and|together|with|using|from|to|in|versus|vs|against|at|as|on|above|below|where|of|for|all|any|every|what|which|absolute|draw|plot|sketch|show|calculate|compute|determine|find|mark|the|an?|its|this|reaction|point|line|graph|curve|diagram|Gibbs|free|energy|temperatures?|equilibrium|transition|minimum|threshold|crossover|will|does|reach|be|becomes?|is|negative|positive|zero|spontaneous|spontaneity|changes|feasible)\b)*$/i.test(payload);
 }
 /** Shared prefix proof; complete payload validation still belongs to each owner. */
 function gibbsReusePrefix(prefix: string): boolean {
@@ -543,13 +612,13 @@ function gibbsTemperatureReference(body: string, start: number, end: number, own
   if (/\b(?:what|which|all|any|every)\s+(?:absolute\s+)?$/i.test(before)) return true;
   if (/^\s*(?:[=:]|[+−-]?(?:\d|\.\d))/i.test(tail)) return false;
   if (/[Δδ∆]\s*G\s*\(\s*$/i.test(before) && /^\s*\)/.test(tail)) return true;
-  const referenceTail = /^\s*(?:[Δδ∆]\s*S\b|\(\s*K\s*\)|[+−*/×·),.;!?]|$|\b(?:and|to|versus|vs|against|at|as|in|above|below|where|of|using|from|with)\b)/i.test(tail);
+  const referenceTail = /^\s*(?:[Δδ∆]\s*S\b|\(\s*K\s*\)|[+−*/×·),.;!?]|$|\b(?:and|to|versus|vs|against|at|as|in|above|below|where|of|for|using|from|with)\b)/i.test(tail);
   if (!referenceTail) return false;
   if (/\b(?:versus|vs|against|with|on)\s*$/i.test(before)) return true;
   const prefix = before.split(/[;.!?\n]/).at(-1)!;
   if (/(?:[Δδ∆]\s*G(?:\s*\(\s*T\s*\))?|\bT(?:_[a-z]+)?)\s*=\s*[Δδ∆HhSsTt0-9\s*×·/()+−-]*$/i.test(prefix)) return true;
   if (gibbsReusePrefix(prefix)) return true;
-  return /\b(?:show|find|calculate|determine|compute|mark)\s+(?:(?:the|an?|equilibrium|transition|minimum|threshold|crossover|absolute)\s+)*$/i.test(prefix);
+  return /\b(?:show|find|calculate|determine|compute|mark)\s+(?:(?:the|an?|equilibrium|transition|minimum|threshold|crossover|absolute)\s+)*(?:[Δδ∆]\s*G\s+and\s+(?:the\s+)?)?$/i.test(prefix);
 }
 /** Agreeing absolute readings corroborate one point; an unread owner is not absence. */
 function statedKelvin(question: string): GibbsTemperature {
@@ -568,17 +637,23 @@ function statedKelvin(question: string): GibbsTemperature {
   const originalOwners = owners.flatMap(owner => Array.from(body.matchAll(owner), match => ({
     cue: match[0], start: match.index!, end: match.index! + match[0].length,
   }))).sort((a, b) => a.start - b.start);
+  // A requested axis/threshold ends before a separately owned H/S input.
+  // Its original payload must not absorb that input's scalar or assignment.
+  const energyOwnerStarts = [DELTA_H_SYMBOL, DELTA_S_SYMBOL, ENTHALPY_RELEASE_CUE, ENTHALPY_ABSORB_CUE]
+    .flatMap(phrase => Array.from(body.matchAll(new RegExp(phrase.source,"gi")), match => match.index!));
   const payloads = new Map<number, number>();
   for (const owner of originalOwners) {
     if (owner.cue === "T" && /[Δδ∆]\s*$/.test(body.slice(0, owner.start))) return {kind: "invalid"};
-    const ownerEnd = originalOwners.find(next => next.start >= owner.end)?.start ?? body.length;
+    const ownerEnd = Math.min(originalOwners.find(next => next.start >= owner.end)?.start ?? body.length,
+      ...energyOwnerStarts.filter(start => start >= owner.end));
     if (gibbsTemperatureReference(body, owner.start, owner.end, ownerEnd)) continue;
     if (/\bat$/i.test(owner.cue) && /^\s+(?:(?:a|the)\s+)?(?:absolute\s+)?temperature\b/i.test(body.slice(owner.end))) continue;
     payloads.set(owner.end, Math.min(payloads.get(owner.end) ?? owner.start, owner.start));
   }
   const declarations = [...payloads].map(([start, ownerStart]) => ({start, ownerStart})).sort((a, b) => a.start - b.start);
   for (const declaration of declarations) {
-    const end = declarations.find(next => next.ownerStart >= declaration.start)?.ownerStart ?? body.length;
+    const end = Math.min(declarations.find(next => next.ownerStart >= declaration.start)?.ownerStart ?? body.length,
+      ...energyOwnerStarts.filter(start => start >= declaration.start));
     const read = readChemistryQuantity({question: body,
       after: /^\s*(?:(?:of|for)\b[^=,;.!?\n]{0,45}?(?:\bis\b|=|:))?/i,
       within: {start: declaration.start, end}, dimension: "temperature"});
@@ -972,11 +1047,14 @@ export function buildThermoGraphScene(question: string, quantities: ChemPlanQuan
   // Gibbs separately proves every H/S declaration and every closed reference
   // in its original owner span. The aggregate reader counts formula/reuse
   // operands as extra givens; retain that guard for all other operators.
-  if (!chemistryQuantityCuesValid(question, [
+  // Single profiles consume the checked per-original role map below. Keep
+  // aggregate checks for every other operator and qualitative mechanism.
+  const singleProfile = kind === "profile" && readMechanismSteps(stem) === null;
+  if (!singleProfile && (!chemistryQuantityCuesValid(question, [
     ...[FORWARD_ACTIVATION,BACKWARD_ACTIVATION,GENERIC_ACTIVATION].map(phrase=>({after:energyCueAfter(phrase),dimensions:["energy","molar_energy"] as ChemistryDimension[]})),
   ]) || (kind !== "gibbs" && !chemistryQuantityCuesValid(question, [
     {after: DELTA_H_SYMBOL, dimensions: ["energy", "molar_energy"]}, {after: DELTA_S_SYMBOL, dimensions: ["entropy", "molar_entropy"]},
-  ]))) return null;
+  ])))) return null;
   switch (kind) {
     case "profile": {
       const spec = readProfile(stem, question, quantities, schematic);
