@@ -139,7 +139,7 @@ export function auditInstrumentTurnPlanV3(plan: TurnPlanV3): InstrumentPlanAudit
       audit.declined.push({ lawId: LAW_ID, role, reason: "invalid_output_value" });
       continue;
     }
-    if (actualOhms === null || Math.abs(actualOhms - expectedOhms) > Math.max(Math.abs(actualOhms), Math.abs(expectedOhms)) * 1e-9) {
+    if (actualOhms === null || !outputAgreesAtWrittenPrecision(quantity, actualOhms, expectedOhms)) {
       audit.inconsistencies.push({ lawId: LAW_ID, quantityId: quantity.id, role, planValue: quantity.value,
         actualOhms, expectedOhms, reason: actualOhms === null ? "unit_mismatch"
           : actualOhms < 0 && expectedOhms >= 0 ? "sign_mismatch" : "scalar_mismatch" });
@@ -174,8 +174,43 @@ export function matchesInstrumentQuantityRole(
   quantity: Pick<TurnPlanQuantityV3, "id" | "symbol">,
   role: InstrumentInputRole | InstrumentOutputRole,
 ): boolean {
-  const key = (value: string) => value.normalize("NFKC").replace(/\\(?:mathrm|text)\s*/g, "").replace(/[{}_\s]/g, "");
-  return [quantity.id, quantity.symbol].some((value) => ROLE_KEYS[role].includes(key(value)));
+  return [quantity.id, quantity.symbol].some((value) => ROLE_KEYS[role].includes(quantityKey(value)));
+}
+const quantityKey = (value: string) => value.normalize("NFKC").replace(/\\(?:mathrm|text)\s*/g, "").replace(/[{}_\s]/g, "");
+
+/**
+ * Keep the strict relative comparison unless this output's source assignment
+ * explicitly states the same declared value in supported resistance units.
+ * Like contractsV3's displayedNumberTolerance, half the last written place
+ * bounds rounding; like statedCircuitAuthority, retain at least two figures.
+ * The law remains independently recomputed. This does not verify sourceText's
+ * whole arithmetic chain, which the plan validator checks before this audit.
+ */
+function outputAgreesAtWrittenPrecision(quantity: TurnPlanQuantityV3, actualOhms: number, expectedOhms: number): boolean {
+  const difference = Math.abs(actualOhms - expectedOhms);
+  if (difference <= Math.max(Math.abs(actualOhms), Math.abs(expectedOhms)) * 1e-9) return true;
+  if (actualOhms === 0 || expectedOhms === 0 || Math.sign(actualOhms) !== Math.sign(expectedOhms) ||
+    !quantity.sourceText || /[;\n]/.test(quantity.sourceText)) return false;
+  const parts = quantity.sourceText.split(/[=≈≃≅]/).map((part) => part.trim());
+  if (parts.length < 2 || ![quantity.id, quantity.symbol].some((key) => quantityKey(key) === quantityKey(parts[0]!))) return false;
+  const stated = parts.at(-1)!.match(
+    /^([+\-−]?(?:(?:\d+(?:\.\d*)?)|(?:\.\d+))(?:[eE][+\-−]?\d+)?)\s*(.+)$/u,
+  );
+  if (!stated) return false;
+  const written = stated[1]!.replace(/−/g, "-");
+  const unit = measuredUnit(stated[2]!);
+  if (!unit || unit.dimension !== "resistance") return false;
+  const value = Number(written) * unit.factor;
+  const conversionSlack = 16 * Number.EPSILON * Math.max(Math.abs(value), Math.abs(actualOhms));
+  if (!Number.isFinite(value) || Math.abs(value - actualOhms) > conversionSlack) return false;
+  const [mantissa, exponentText = "0"] = written.toLowerCase().split("e");
+  const significantFigures = mantissa!.replace(/^[+-]/, "").replace(".", "").replace(/^0+/, "").length;
+  if (significantFigures < 2) return false;
+  const decimals = (mantissa!.split(".")[1] ?? "").length;
+  const tolerance = 0.5 * 10 ** (Number(exponentText) - decimals) * unit.factor;
+  if (!Number.isFinite(tolerance) || tolerance === 0) return false;
+  const floatingSlack = 16 * Number.EPSILON * Math.max(Math.abs(actualOhms), Math.abs(expectedOhms));
+  return difference <= tolerance + floatingSlack;
 }
 function conflictingRole(quantity: TurnPlanQuantityV3): boolean {
   return [...INPUT_ROLES, ...OUTPUT_ROLES].filter((role) => matchesInstrumentQuantityRole(quantity, role)).length > 1;

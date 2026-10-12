@@ -115,7 +115,7 @@ async function main() {
         reason: "authored instrument admission fixture",
       },
       source: {
-        question: instrumentQuestion,
+        question: plan.question,
         representationTier: tier,
         nonMetric: tier !== "exact_verified",
       },
@@ -151,6 +151,71 @@ async function main() {
       teachingTimeline: [],
     };
   }
+  const rounded = structuredClone(correct);
+  rounded.question = instrumentQuestion.replace("1.5 mA", "7 mA");
+  rounded.givens[0]!.value = 7;
+  rounded.derived[0]!.value = 428.57142857142856;
+  rounded.derived[1]!.value = 420.57;
+  rounded.derived[1]!.sourceText = "R_s = 3/(7e-3)-8 ≈ 420.57 Ω";
+  assert(
+    validateTurnPlanV3(rounded, rounded.question).valid,
+    "the law audit and existing source arithmetic agree on legitimate written precision",
+  );
+  const parsedRounded = parseTurnPlanV3Content(
+    JSON.stringify(rounded),
+    rounded.question,
+  );
+  assert.equal(
+    parsedRounded?.derived.find((quantity) => quantity.symbol === "R_s")?.value,
+    420.57142857142856,
+    "the real parser admits correct rounding and retains its existing exact-arithmetic canonicalization",
+  );
+  const roundedDoc = instrumentScene(rounded, "qualitative_verified");
+  assert(
+    validateProductionSceneCandidate({
+      candidate: roundedDoc as unknown as Record<string, unknown>,
+      question: rounded.question,
+      turnPlan: rounded,
+    }).valid,
+  );
+  assert.equal(
+    liveSceneSaveFailure({
+      document: roundedDoc,
+      question: rounded.question,
+      turnPlan: rounded,
+      tier: "qualitative_verified",
+    }),
+    null,
+  );
+  assert(
+    (
+      await canonicalizeTurnSceneMetadata({
+        question: rounded.question,
+        sceneDocument: roundedDoc,
+        visualStatus: "validated",
+        sceneArtifacts: {
+          schemaVersion: "scene-artifacts/v3",
+          representationTier: "qualitative_verified",
+          nonMetric: true,
+          diagramResultStatus: "ready",
+          turnPlan: rounded,
+        },
+        segments: [],
+      })
+    ).ok,
+    "correct rounding passes the actual live/server boundary",
+  );
+  const falseChain = structuredClone(rounded);
+  falseChain.derived[1]!.sourceText = "R_s = 3/(7e-3)-1 ≈ 420.57 Ω";
+  assert(
+    !validateTurnPlanV3(falseChain, falseChain.question).valid,
+    "a correct final literal cannot forgive a contradictory explicit arithmetic chain",
+  );
+  assert.equal(
+    parseTurnPlanV3Content(JSON.stringify(falseChain), falseChain.question),
+    null,
+    "reconciling a false chain cannot pass the independently computed instrument law",
+  );
   for (const tier of [
     "qualitative_verified",
     "question_representation",
@@ -392,7 +457,11 @@ async function main() {
       "serialization and reopen keep the signed source label",
     );
   }
-  for (const source of ["The charge magnitude is 8 μC.", question]) {
+  for (const source of [
+    "The charge magnitude is 8 μC.",
+    question,
+    "Two charges +8 μC and -8 μC may be present.",
+  ]) {
     const falsePlan = sourcePlan(source);
     const falseScene = document(source);
     assert(

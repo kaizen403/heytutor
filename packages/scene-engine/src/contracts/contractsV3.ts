@@ -2024,6 +2024,15 @@ function normalizeExplicitNumericExpression(
           ? original : coefficient;
       },
     );
+    // A unit following an original grouped result is still a label. Resolve
+    // it here, before substitutions introduce their own parentheses. When
+    // the spelling is bound, preserve that original variable product.
+    if (!boundSymbol) {
+      expression = expression.replace(
+        new RegExp(`(?<=\\))\\s*${escapeRegExp(unit)}(?=\\s|\\)|\\]|$|[*/+\\-^])`, flags),
+        "",
+      );
+    }
   }
   // Separate a scientific coefficient from its following symbol before the
   // identifier tokenizer can read 'e0N' as one unknown name. An explicitly
@@ -4095,7 +4104,7 @@ function pruneUnsupportedMeasuredFragments(text: string, plan: TurnPlanV3, trust
 function signedSourceChargeMembers(plan: TurnPlanV3, trustedQuestion?: string): Array<{ value: number; unit: string }> {
   if (trustedQuestion === undefined || trustedQuestion.length > 12_000 ||
     normalizeQuestionText(trustedQuestion) !== normalizeQuestionText(plan.question) ||
-    /\b(?:uncertainty|uncertain|tolerance|error|measured|measurement|no|not|neither|absent|without|except|ignore|example|hypothetical|would|could|might|if|unless)\b/i.test(trustedQuestion)) return [];
+    /\b(?:uncertainty|uncertain|tolerance|error|measured|measurement|no|not|neither|absent|without|except|ignore|example|hypothetical|would|could|might|may|maybe|perhaps|possible|possibly|potentially|if|unless)\b|\bpotential\s+(?:charges|charge\s+pair)\b/i.test(trustedQuestion)) return [];
   const charge = (value: number, unit: unknown) => {
     const result = canonicalMeasurement(value, unit);
     return result?.dimension === "C^1" ? result : null;

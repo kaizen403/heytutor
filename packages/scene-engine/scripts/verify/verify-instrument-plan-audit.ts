@@ -47,6 +47,54 @@ assert.deepEqual(audit.results.map(({ totalResistanceOhms, seriesResistanceOhms 
 assert.deepEqual(audit.inconsistencies.map(({ role, expectedOhms }) => [role, expectedOhms]),
   [["total_resistance", 2000], ["series_resistance", 1992]], "both wrong outputs are reported, never corrected");
 
+const roundedSeries = fixture(428.57142857142856, 420.57);
+roundedSeries.givens[0]!.value = 7;
+roundedSeries.derived[1]!.sourceText = "R_s = 3/(7e-3)-8 ≈ 420.57 Ω";
+assert.equal(auditInstrumentTurnPlanV3(roundedSeries).inconsistencies.length, 0,
+  "a correct series answer explicitly written to two decimals retains its source precision");
+for (const [value, unit, sourceText] of [
+  [420.57, "Ω", "R_s = 3/(7e-3)-8 ≈ 0.42057 kΩ"],
+  [0.42057, "kΩ", "R_s = 3/(7e-3)-8 ≈ 420.57 Ω"],
+  [420.57, "Ω", "R_s = 3/(7e-3)-8 ≈ 4.2057e2Ω"],
+] as const) {
+  const input = structuredClone(roundedSeries);
+  input.derived[1] = { ...input.derived[1]!, value, unit, sourceText };
+  assert.equal(auditInstrumentTurnPlanV3(input).inconsistencies.length, 0,
+    "explicit scale and exponent preserve the same final written-place precision in ohms");
+}
+for (const [value, sourceText, reason] of [
+  [420.56, "R_s = 3/(7e-3)-8 ≈ 420.56 Ω", "a wrong rounded answer lies outside its half written place"],
+  [420.58, "R_s = 3/(7e-3)-8 ≈ 420.58 Ω", "the neighboring wrong rounded answer is also refused"],
+  [420.57, undefined, "a raw rounded scalar alone never grants a new tolerance"],
+  [400, "R_s = 3/(7e-3)-8 ≈ 4e2 Ω", "one significant figure cannot authorize a coarse answer"],
+  [420.57, "R_total = 3/(7e-3)-8 ≈ 420.57 Ω", "another output's assignment cannot authorize this output"],
+  [420.574, "R_s = 3/(7e-3)-8 ≈ 420.57 Ω", "the source's rounded literal cannot forgive a different raw plan scalar"],
+  [420.57, "R_s = 3/(7e-3)-8 ≈ 420.57000 Ω", "finer written precision is not silently discarded"],
+  [420.57, "R_s = 3/(7e-3)-8 ≈ 420.57 V", "a wrong source dimension is not resistance evidence"],
+  [-420.57, "R_s = 3/(7e-3)-8 ≈ -420.57 Ω", "precision never forgives a negative resistance"],
+] as const) {
+  const input = structuredClone(roundedSeries);
+  input.derived[1] = { ...input.derived[1]!, value, sourceText };
+  assert.equal(auditInstrumentTurnPlanV3(input).inconsistencies.length, 1, reason);
+}
+const outsideHalfPlace = structuredClone(roundedSeries);
+outsideHalfPlace.givens[2]!.value = 3.000025007;
+outsideHalfPlace.derived[0]!.value = 428.575001;
+assert.equal(auditInstrumentTurnPlanV3(outsideHalfPlace).inconsistencies.length, 1,
+  "a result just outside the source's half written-place boundary remains wrong");
+const roundedTinyWrong = fixture(2e-15, 1e-15);
+roundedTinyWrong.givens[0] = { ...roundedTinyWrong.givens[0]!, value: 1, unit: "A" };
+roundedTinyWrong.givens[1]!.value = 2e-16;
+roundedTinyWrong.givens[2]!.value = 2e-15;
+roundedTinyWrong.derived[1]!.sourceText = "R_s = 2e-15/1-2e-16 ≈ 1.00e-15 Ω";
+assert.equal(auditInstrumentTurnPlanV3(roundedTinyWrong).inconsistencies.length, 1,
+  "source precision has no absolute floating-slack floor that forgives wrong tiny outputs");
+const roundedTinyZero = structuredClone(roundedTinyWrong);
+roundedTinyZero.derived[1]!.value = 0;
+roundedTinyZero.derived[1]!.sourceText = "R_s = 2e-15/1-2e-16 ≈ 0.00 Ω";
+assert.equal(auditInstrumentTurnPlanV3(roundedTinyZero).inconsistencies.length, 1,
+  "a rounded zero cannot hide a nonzero independently solved resistance");
+
 for (const [unit, value] of [["A", 0.0015], ["mA", 1.5], ["μA", 1500], ["µA", 1500], ["uA", 1500], ["nA", 1.5e6]] as const) {
   const input = fixture();
   input.givens[0] = { ...input.givens[0]!, value, unit };

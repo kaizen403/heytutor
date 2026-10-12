@@ -36,6 +36,29 @@ for (const source of [
   "A charge pair consists of +8.0 μC and −8.0 μC.",
 ]) check(validateSceneQuantityAgreement([member], plan(source), ["−8 μC"], source).length === 0,
   "two explicitly signed literal charge members are grounded");
+const uncertain = "Two charges ±8 μC may be present.";
+check(validateSceneQuantityAgreement([member], plan(uncertain), [], uncertain)
+  .some(issue => issue.code === "scene_quantity_unverified"),
+  "one possible charge pair cannot authorize its negative numeric member");
+check(validateSceneQuantityAgreement([], plan(uncertain), ["−8 μC"], uncertain)
+  .some(issue => issue.code === "displayed_quantity_unverified"),
+  "one possible charge pair cannot authorize its negative displayed member");
+check(pruneUnverifiedSceneAnnotations(doc(uncertain), plan(uncertain), uncertain).entities[1]!.label === undefined,
+  "a modal source pair stays pruned on the actual label path");
+for (const source of [
+  "Two charges ±8 μC are possibly present.",
+  "Two charges ±8 μC are potentially present.",
+  "Two charges ±8 μC are maybe present.",
+  "Two charges ±8 μC are perhaps present.",
+  "Two charges ±8 μC are possible.",
+  "Potential charges ±8 μC are considered.",
+  "A potential charge pair ±8 μC is considered.",
+]) check(validateSceneQuantityAgreement([member], plan(source), [], source)
+  .some(issue => issue.code === "scene_quantity_unverified"),
+  "a single uncertain modal/adjectival pair is not an affirmed charge source");
+const potentialQuestion = "Two charges ±8 μC are present. Find their electric potential.";
+check(validateSceneQuantityAgreement([member], plan(potentialQuestion), ["−8 μC"], potentialQuestion).length === 0,
+  "an electric-potential task does not negate its affirmed charge premise");
 for (const source of [
   "The charge magnitude is 8 μC.",
   "A charge is measured as ±8 μC.",

@@ -118,5 +118,21 @@ for (const value of [21, 9]) {
   check("longer bindings protect their unit-looking suffix without a second suffix variable", validateTurnPlanV3(input).valid === (value === 21));
   if (value === 21) check("the longer-name product is never rewritten by measured-label stripping", reconcileTurnPlanV3ExplicitArithmetic(input).reconciliations.length === 0);
 }
+for (const expression of ["(3*4) V", "(3*4)V", "(3*(2+2)) V"]) {
+  for (const value of [12, 99]) {
+    const input = plan("Evaluate the explicitly authored voltage arithmetic.", `D = ${expression} = ${value} V`, value);
+    input.givens = []; input.unknowns = [{ id: "group_result", symbol: "D", unit: "V" }];
+    input.derived = [{ id: "group_result", symbol: "D", value, unit: "V", provenance: "derived", sourceText: `D = ${expression} = ${value} V` }];
+    check("an original parenthesized result unit cannot hide wrong arithmetic", validateTurnPlanV3(input).valid === (value === 12));
+    if (value === 12) check("a correct grouped result stays unchanged", reconcileTurnPlanV3ExplicitArithmetic(input).reconciliations.length === 0);
+  }
+}
+for (const value of [160, 43]) {
+  const input = plan("Evaluate an authored grouped coefficient of a normal force N = 40 N.", `D = (2+1)N + N = ${value} N`, value);
+  input.givens = [{ id: "group_force", symbol: "N", value: 40, unit: "N", provenance: "given" }];
+  input.unknowns = [{ id: "group_product", symbol: "D", unit: "N" }];
+  input.derived = [{ id: "group_product", symbol: "D", value, unit: "N", provenance: "derived", sourceText: `D = (2+1)N + N = ${value} N`, dependsOn: ["group_force"] }];
+  check("an original grouped bound-variable product is not a result unit", validateTurnPlanV3(input).valid === (value === 160));
+}
 assert.equal(failures.length, 0, `${failures.length}/${checks} failed: ${[...new Set(failures)].join("; ")}`);
 console.log(`verify-turn-plan-measured-operands: ${checks} checks pass; five authored wordings, real arithmetic and claim contradictions retained`);
