@@ -2436,5 +2436,62 @@ for(const c of completeChangeInventoryCases)try {
 }catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
 // END ADDITIVE COMPLETE CHANGE-INVENTORY BOUNDARY GATES
 
+// BEGIN ADDITIVE INDEPENDENT COMPLETE CHANGE-MARKER GATES
+const independentCompleteMarkerCases:ArrheniusOwnerCase[] = [
+  {
+    "id": "LONG-unread-times",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.07 s^-1. The rate of the catalyzed reaction in the aqueous solution under the stated experimental conditions becomes unknown times its original value. Calculate the activation energy.",
+    "refuse": true
+  },
+  {
+    "id": "LONG-unread-fold",
+    "question": "The rate constant of a reaction at 300 K is 0.02 s^-1 and at 310 K is 0.07 s^-1. The rate of the catalyzed reaction in the aqueous solution under the stated experimental conditions increases by an unreadable fold. Calculate the activation energy.",
+    "refuse": true
+  }
+];
+for(const c of independentCompleteMarkerCases)try {
+ const spec=kineticsFromStem(c.question),exact=buildKineticsScene(c.question,[],false),schematic=buildKineticsScene(c.question,[],true),ordinary=synthesizeFamilyScene({question:c.question});
+ if(c.refuse){assert.equal(spec,null,"inconsistent or unread original ratios must not select a replacement scene");assert.equal(exact,null);assert.equal(schematic,null);assert.equal(ordinary,null);}
+ else {
+  assert.ok(spec&&spec.arrhenius);assert.equal(spec.plot,"arrhenius");assert.equal(spec.arrhenius.T1,c.T1);assert.equal(spec.arrhenius.T2,c.T2);assert.ok(spec.arrhenius.k1!==null&&spec.arrhenius.k2!==null);
+  assert.ok(Math.abs(spec.arrhenius.k1-c.k1!)<=Math.abs(c.k1!)*1e-12);assert.ok(Math.abs(spec.arrhenius.k2-c.k2!)<=Math.abs(c.k2!)*1e-12);
+  const solved=solveKinetics(spec),energy=8.314*Math.log(c.k2!/c.k1!)/(1/c.T1!-1/c.T2!);assert.ok(solved.ratio!==null&&solved.Ea!==null);assert.ok(Math.abs(solved.ratio-c.ratio!)<=Math.abs(c.ratio!)*1e-12);assert.ok(Math.abs(solved.Ea-energy)<=Math.abs(energy)*1e-12);
+  assert.ok(exact&&schematic&&ordinary);
+  for(const document of [exact,schematic,ordinary.document]) {
+   assert.equal(document.source?.question,c.question);const valid=validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string,unknown>));assert.ok(valid.document);const compiled=compileSceneDocument(valid.document);assert.ok(compiled.ok&&compiled.renderScene&&compiled.renderScene.primitives.length>0);
+   for(const [id,value,unit] of [["Ea",energy,"J/mol"],["T1",c.T1!,"K"],["T2",c.T2!,"K"],["ratio",c.ratio!,""]] as const){const q=document.quantities.find(q=>q.id===id);assert.ok(q);assert.equal(q.unit,unit);assert.equal(q.value,Number(value.toFixed(6)));}
+   const energyLabel=document.entities.find(e=>e.id==="ea"&&e.kind==="label"&&(e.role==="result"||e.role==="direction marker")&&e.label?.includes("E_a"));assert.ok(energyLabel&&energyLabel.label?.includes("kJ/mol"));assert.ok(compiled.renderScene.primitives.some(p=>p.kind==="label"&&p.entityId===energyLabel.id&&p.text===energyLabel.label));
+  }
+ }
+ results.push({id:c.id,passed:true});
+}catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
+const independentHarmlessMarkerCases:RateCase[] = [
+  {
+    "id": "WORD-sometimes",
+    "question": "For a first order reaction, the rate constant is 0.0231 min^-1. Students sometimes request a concentration-time graph. Draw concentration versus time.",
+    "refuse": false,
+    "order": 1,
+    "k": 0.0231,
+    "unit": "min"
+  }
+];
+for(const c of independentHarmlessMarkerCases)try {
+ const spec=kineticsFromStem(c.question),exact=buildKineticsScene(c.question,[],false),schematic=buildKineticsScene(c.question,[],true),ordinary=synthesizeFamilyScene({question:c.question});
+ if(c.refuse){assert.equal(spec,null);assert.equal(exact,null);assert.equal(schematic,null);assert.equal(ordinary,null);}
+ else {
+  assert.ok(spec);assert.equal(spec.order,1);assert.equal(spec.plot,"concentration");assert.equal(spec.linear,"A_t");assert.equal(spec.a0,null,"an absent original initial concentration stays absent");
+  const solved=solveKinetics(spec),truth=expected(c);assert.equal(solved.timeUnit,c.unit);assert.ok(solved.k!==null&&solved.tHalf!==null);assert.ok(Math.abs(solved.k-truth.k)<=Math.abs(truth.k)*1e-12);assert.ok(Math.abs(solved.tHalf-truth.half)<=Math.abs(truth.half)*1e-12);
+  if(c.askTime!==undefined){const point=solved.remainingAtTimes.find(x=>x.time===c.askTime);assert.ok(point);assert.ok(Math.abs(point.remaining-Math.exp(-truth.k*c.askTime))<=1e-12);}
+  assert.ok(exact&&schematic&&ordinary);
+  for(const document of [exact,schematic,ordinary.document]) {
+   checkDocument(c,document);assert.ok(!document.quantities.some(q=>q.id==="a0"||q.id==="A0"||q.unit==="M"||q.unit==="mol/L"),"normalized decay must not fabricate an initial concentration quantity");const axis=document.entities.find(e=>e.id==="p_yl"&&e.kind==="label"&&e.label==="[A]/[A]_0");assert.ok(axis);
+   const valid=validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string,unknown>));assert.ok(valid.document);const compiled=compileSceneDocument(valid.document);assert.ok(compiled.ok&&compiled.renderScene);
+   assert.ok(compiled.renderScene.primitives.some(p=>p.kind==="label"&&p.entityId===axis.id&&p.text===axis.label));assert.ok(!compiled.renderScene.primitives.some(p=>p.kind==="label"&&/\bM\b|mol\s*\/\s*L/.test(p.text??"")),"normalized decay must not fabricate a molar intercept");
+  }
+ }
+ results.push({id:c.id,passed:true});
+}catch(error){results.push({id:c.id,passed:false,error:String(error)});console.error(`FAIL ${c.id}: ${error}`);}
+// END ADDITIVE INDEPENDENT COMPLETE CHANGE-MARKER GATES
+
 const output={schema:"chemistry-rate-declarations-gate/v1",passed:results.filter(x=>x.passed).length,failed:results.filter(x=>!x.passed).length,results};
 console.log(JSON.stringify(output,null,2));assert.equal(output.failed,0);
