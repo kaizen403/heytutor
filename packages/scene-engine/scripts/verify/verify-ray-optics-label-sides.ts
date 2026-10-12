@@ -293,9 +293,54 @@ function boxInsidePolygon(box: Box, polygon: RenderPrimitive): boolean {
   }
 }
 
+// R2d with two bodies of the same glass (review of #164, "Shared indices
+// erase labels"): the recorded b1 prism and a second copy of it 4.5 units to
+// the right, both declaring quantity n inside. A label bound to n used to get
+// both prisms as regions; no box lies inside two prisms, so it was dropped
+// though its own prism had room. It now sits in the prism it targets (the
+// prism, or the ray inside it), or failing that the one nearest its anchor
+// (the base carries no refraction, so it is the nearest case).
+function twoPrisms(target: string): (document: SceneDocument) => void {
+  return (document) => {
+    document.quantities.push({ id: "n", symbol: "n", value: 1.5 } as SceneDocument["quantities"][number]);
+    const ids = new Set(document.constructions.flatMap((construction) => construction.outputs ?? []));
+    const rename = (value: unknown): unknown => typeof value === "string" && ids.has(value) ? `${value}2` : Array.isArray(value) ? value.map(rename) : value;
+    for (const construction of [...document.constructions]) {
+      const inputs = Object.fromEntries(Object.entries(construction.inputs as Record<string, unknown>).map(([key, value]) => [key, rename(value)]));
+      if (construction.operator === "point") inputs.x = (inputs.x as number) + 4.5;
+      document.constructions.push({ ...construction, id: `${construction.id}2`, inputs, outputs: construction.outputs.map((output) => `${output}2`) } as SceneDocument["constructions"][number]);
+    }
+    for (const entity of [...document.entities]) {
+      document.entities.push({ ...entity, id: `${entity.id}2`, ...(entity.label ? { label: `${entity.label}′` } : {}) } as SceneDocument["entities"][number]);
+    }
+    const inputs = (id: string) => document.constructions.find((construction) => construction.id === id)!.inputs as Record<string, unknown>;
+    for (const suffix of ["", "2"]) {
+      inputs(`cInside${suffix}`).n2 = "n";
+      inputs(`cEmergent${suffix}`).n1 = "n";
+    }
+    const drawn = document.requiredEntityIds.map((id) => `${id}2`);
+    document.requiredEntityIds.push(...drawn);
+    document.revealGroups[0]!.entityIds.push(...drawn);
+    document.annotations = document.annotations.filter((annotation) => annotation.id !== "glassLabel");
+    document.annotations.push({ id: "indexLabel", kind: "label", targetIds: [target], text: "n = 1.5", quantityId: "n" } as SceneDocument["annotations"][number]);
+  };
+}
+
+for (const [target, body, what] of [
+  ["inside", "prism", "on the first prism's inside ray"],
+  ["prism2", "prism2", "on the second prism"],
+  ["base2", "prism2", "on the second prism's base (no refraction there), nearest that prism"],
+] as const) {
+  const primitives = compileRemaining("prism", twoPrisms(target));
+  if (!primitives) continue;
+  const index = labelBox(primitives, "indexLabel");
+  check(index !== null, `two prisms: "n = 1.5" ${what} was dropped though its prism has room`);
+  if (index) check(boxInsidePolygon(index, primitive(primitives, `primitive_${body}`)), `two prisms: "n = 1.5" ${what} sits outside ${body} at (${index.x.toFixed(1)}, ${index.y.toFixed(1)})`);
+}
+
 if (failures.length > 0) {
   console.error(`verify-ray-optics-label-sides: ${failures.length} failure(s)`);
   for (const failure of failures) console.error(`  - ${failure}`);
   process.exit(1);
 }
-console.log("verify-ray-optics-label-sides: ok (R2b sphere and prism, R2c flat interface, R2a gem face, R2d prism glass; air/glass pair, plain triangle and prism index unmoved)");
+console.log("verify-ray-optics-label-sides: ok (R2b sphere and prism, R2c flat interface, R2a gem face, R2d prism glass and two prisms of one glass; air/glass pair, plain triangle and prism index unmoved)");

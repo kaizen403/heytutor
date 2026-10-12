@@ -21,7 +21,10 @@
  * its edge whose incident or transmitted path runs inside holds that medium.
  * A label bound to the index of the medium inside it, or an unbound and
  * unnumbered label on the region itself, names that medium and sits inside
- * the region; with no slot there it is dropped.
+ * the region; with no slot there it is dropped. When several regions hold
+ * media with that index (two blocks of the same glass), a bound label sits in
+ * the one it targets (the region, a ray inside it or a face of it), else in
+ * the one nearest its anchor; never in all of them, which no box can satisfy.
  */
 
 import { parseSidePlacementIntent } from "../document/placementIntent";
@@ -77,13 +80,16 @@ export function bindOpticsLabelSides(
       if (region) regions.push(region);
     }
     const annotation = owner.labelId ? annotations.get(owner.labelId) : undefined;
+    const boundMedia: ClosedMedium[] = [];
     for (const medium of owner.labelId && summaryLabelIds.has(owner.labelId) ? [] : media) {
       const bound = Boolean(annotation) && medium.indexInputs.some((input) => boundToIndex(annotation!, input, document));
       // On the region itself, an unbound label names the medium only when it
       // carries no quantity and no number ("glass", not "δ = 38.4°").
       const names = owner.entityId === medium.entityId && !annotation?.quantityId && !/\p{N}/u.test(annotation?.text ?? owner.text);
-      if (bound || names) regions.push(medium.region);
+      if (names) regions.push(medium.region);
+      else if (bound) boundMedia.push(medium);
     }
+    for (const medium of ownMedia(boundMedia, owner, annotation)) regions.push(medium.region);
     const refractions = annotation ? refractionsOn(owner.entityId, events) : [];
     let bound = false;
     for (const event of refractions) {
@@ -214,6 +220,35 @@ interface ClosedMedium {
   region: LabelSideRegion;
   /** The n1 or n2 inputs, as written, of the medium inside it. */
   indexInputs: unknown[];
+  /** Paths that run inside it from a contact on its edge, and the surfaces of those contacts. */
+  memberIds: Set<string>;
+}
+
+/**
+ * The regions a label bound to an index belongs in. One region, or several
+ * that coincide, is kept as before. Several distinct bodies with the same
+ * index give the one the label targets (the region itself, a ray inside it or
+ * a face of it), else the one nearest the label's anchor; a tie gives none.
+ */
+function ownMedia(bound: ClosedMedium[], owner: LabelOwner, annotation: SceneAnnotation | undefined): ClosedMedium[] {
+  const distinct = bound.filter((medium, index) => bound.findIndex((other) => sameRegion(other.region, medium.region)) === index);
+  if (distinct.length <= 1) return bound;
+  const targets = [owner.entityId, ...(annotation?.targetIds ?? [])];
+  const targeted = distinct.filter((medium) => targets.some((id) => id === medium.entityId || medium.memberIds.has(id)));
+  const pool = targeted.length > 0 ? targeted : distinct;
+  if (pool.length === 1) return pool;
+  const ranked = pool
+    .map((medium) => ({ medium, gap: regionGap(owner.anchor, medium.region) }))
+    .sort((a, b) => a.gap - b.gap);
+  return ranked[1]!.gap - ranked[0]!.gap > 1 ? [ranked[0]!.medium] : [];
+}
+
+/** Screen distance from a point to a closed region, 0 inside it. */
+function regionGap(point: RenderPoint, region: LabelSideRegion): number {
+  if (region.kind === "circle") return Math.max(0, distance(point, region.center) - region.radius);
+  if (region.kind !== "polygon") return Infinity;
+  if (pointInPolygon(point, region.points)) return 0;
+  return Math.min(...region.points.map((a, index) => segmentDistance(point, a, region.points[(index + 1) % region.points.length]!)));
 }
 
 /**
@@ -244,12 +279,21 @@ function closedMedia(
       continue;
     }
     const indexInputs: unknown[] = [];
+    const memberIds = new Set<string>();
     for (const event of refractions) {
       if (!onRegionEdge(transform(event.contact), region)) continue;
-      if (event.outgoingPathId && pathRunsInside(event, event.outgoingPathId, geometry, transform, region)) indexInputs.push(event.n2);
-      if (event.incidentPathId && pathRunsInside(event, event.incidentPathId, geometry, transform, region)) indexInputs.push(event.n1);
+      const before = indexInputs.length;
+      if (event.outgoingPathId && pathRunsInside(event, event.outgoingPathId, geometry, transform, region)) {
+        indexInputs.push(event.n2);
+        memberIds.add(event.outgoingPathId);
+      }
+      if (event.incidentPathId && pathRunsInside(event, event.incidentPathId, geometry, transform, region)) {
+        indexInputs.push(event.n1);
+        memberIds.add(event.incidentPathId);
+      }
+      if (indexInputs.length > before && event.surfaceId) memberIds.add(event.surfaceId);
     }
-    if (indexInputs.length > 0) media.push({ entityId, region, indexInputs });
+    if (indexInputs.length > 0) media.push({ entityId, region, indexInputs, memberIds });
   }
   return media;
 }
