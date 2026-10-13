@@ -12,6 +12,10 @@
  * completed by one more planner call and replaced only through the same
  * production validator; with less than 20 s left, or for a recovered scene,
  * no call is made. The hook and the lab must wire the round identically.
+ *
+ * Section 8: a completed reply that moves a point, changes an operator, moves
+ * a label to another target or swaps vertex labels is refused even though it
+ * keeps every id and label text and is more complete; the reply may only add.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -183,12 +187,12 @@ async function main(): Promise<void> {
   type Result = ScenePlanWithRepairResult<ValidatedSceneCandidate>;
   const productionValidator = (turnPlan: TurnPlanV3) => (candidate: Record<string, unknown>) =>
     validateProductionSceneCandidate({ candidate, question, turnPlan });
-  async function overlap(input: { complete: SceneDocument; elapsedMs: number; recover?: boolean }) {
+  async function overlap(input: { complete: SceneDocument; elapsedMs: number; recover?: boolean; original?: SceneDocument }) {
     const phases: string[] = [];
     globalThis.fetch = async (_input, init) => {
       const phase = new Headers(init?.headers).get("x-scene-planner-phase") ?? "";
       phases.push(phase);
-      const body = phase === "complete" ? input.complete : sparse;
+      const body = phase === "complete" ? input.complete : input.original ?? sparse;
       return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(body) } }] }),
         { status: 200, headers: { "content-type": "application/json" } });
     };
@@ -244,6 +248,74 @@ async function main(): Promise<void> {
   assert.equal(recovered.outcome.completeness, null, "a recovered scene is never completed");
   assert.equal(recovered.phases.length, 0, "a recovered scene makes no planner call");
 
+  // 8. The reply may only add: a more complete reply that keeps every id and label text but changes
+  // existing geometry or label targets is refused, and the original kept. Every case runs and each
+  // failure is named, so a fail-first run shows them all.
+  const edit = (document: SceneDocument, change: (copy: SceneDocument) => void): SceneDocument => {
+    const copy = structuredClone(document);
+    change(copy);
+    return copy;
+  };
+  const construction = (document: SceneDocument, id: string) => {
+    const found = document.constructions.find((item) => item.id === id);
+    assert(found, `construction ${id}`);
+    return found;
+  };
+  const entity = (document: SceneDocument, id: string) => {
+    const found = document.entities.find((item) => item.id === id);
+    assert(found, `entity ${id}`);
+    return found;
+  };
+  const withBaseLabel = (document: SceneDocument, target = "ab"): SceneDocument => edit(document, (copy) => {
+    copy.annotations.push({ id: "baseLabel", kind: "label", targetIds: [target], text: "base" });
+  });
+  const labelledSparse = withBaseLabel(sparse);
+  const kept = async (reply: SceneDocument, original: SceneDocument, change: string) => {
+    for (const [name, document] of [["original", original], ["reply", reply]] as const) {
+      const validation = validate(document);
+      assert(validation.valid, `the ${name} is valid on its own: ${JSON.stringify(validation.errors.map((error) => error.code))}`);
+    }
+    const round = await overlap({ complete: reply, elapsedMs: 10_000, original });
+    assert.equal(round.outcome.completeness?.outcome, "changed_content", "the round refuses the reply");
+    assert.equal(round.outcome.completeness?.accepted, false);
+    assert((round.outcome.completeness?.changedContent ?? []).includes(change),
+      `the change is named: ${JSON.stringify(round.outcome.completeness?.changedContent)}`);
+    assert.equal(round.outcome.scene?.response.phase, "plan", "the original figure is kept");
+  };
+  const replyCases: Array<readonly [string, () => Promise<void>]> = [
+    ["a reply that moves vertex C along BC (same ids, same labels, angle B unchanged)", () =>
+      kept(edit(complete, (copy) => { construction(copy, "pC").inputs = { x: 4 * Math.cos(rad), y: 4 * Math.sin(rad) }; }),
+        sparse, "construction pC: inputs")],
+    ["a reply that draws side CA with another operator", () =>
+      kept(edit(complete, (copy) => { construction(copy, "sCA").operator = "connect"; }), sparse, "construction sCA: operator")],
+    ["a reply that moves the base label from side AB to side BC", () =>
+      kept(withBaseLabel(complete, "bc"), labelledSparse, "annotation baseLabel: targetIds")],
+    ["a reply that swaps the labels of vertices A and B", () =>
+      kept(edit(complete, (copy) => { entity(copy, "A").label = "B"; entity(copy, "B").label = "A"; }), sparse, "entity A: label")],
+    // Controls: a reply that only adds is still accepted, also when it rounds a long float as it copies the document.
+    ["control: a reply that only adds the mark, rounding C's coordinates to four places, replaces the figure", async () => {
+      const rounded = edit(complete, (copy) => {
+        construction(copy, "pC").inputs = { x: Number((3 * Math.cos(rad)).toFixed(4)), y: Number((3 * Math.sin(rad)).toFixed(4)) };
+      });
+      const round = await overlap({ complete: rounded, elapsedMs: 10_000 });
+      assert.equal(round.outcome.completeness?.outcome, "replaced");
+      assert.equal(round.outcome.completeness?.changedContent?.length ?? 0, 0, "rounding is not a change");
+    }],
+    ["control: a reply that keeps the base label on AB and adds the mark replaces the figure", async () => {
+      const round = await overlap({ complete: withBaseLabel(complete), elapsedMs: 10_000, original: labelledSparse });
+      assert.equal(round.outcome.completeness?.outcome, "replaced");
+    }],
+  ];
+  const replyFailures: string[] = [];
+  for (const [name, run] of replyCases) {
+    try {
+      await run();
+    } catch (error) {
+      replyFailures.push(`${name}: ${(error instanceof Error ? error.message : String(error)).split("\n")[0]}`);
+    }
+  }
+  assert.equal(replyFailures.length, 0, `${replyFailures.length} of ${replyCases.length} reply cases fail\n  ${replyFailures.join("\n  ")}`);
+
   // Live and lab wire the round the same way, with the shared validator bound to the authoritative plan.
   for (const consumer of ["features/tutor-session/hooks/turn/useQuestionHandler.ts", "scripts/lecture-lab/lecturePipeline.ts"]) {
     const source = readFileSync(resolve(process.cwd(), consumer), "utf8");
@@ -257,6 +329,7 @@ async function main(): Promise<void> {
   assert(/completenessMs: planning\.timings\.completenessMs,/.test(lab), "the lab records the time the round added");
   console.log("completeness selection: the more complete valid figure wins, invalid never wins, ties keep the existing order, live and lab share it");
   console.log("completeness round: the overlap completes a valid figure through the production validator, refuses an invalid reply, skips under 20 s and for recovered scenes; live and lab wire it alike");
+  console.log("completeness round: a reply that moves a point, changes an operator, moves a label or swaps vertex labels is refused; a reply that only adds is accepted");
 }
 
 void main().catch((error: unknown) => {

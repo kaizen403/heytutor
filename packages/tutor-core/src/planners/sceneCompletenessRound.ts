@@ -7,11 +7,15 @@
  * the whole valid document plus a numbered list of at most six missing items
  * and asks for exactly those additions. The reply is validated by the same
  * production validator as every candidate. It replaces the figure only if it
- * is valid, shows a scene, misses strictly fewer items, and keeps every old
- * entity id and every old visible label text. Anything else (no reply, a
- * timeout, an invalid or less complete reply, a lost id or label) keeps the
- * original figure. The round never drops a figure and never runs past the
- * figure deadline.
+ * is valid, shows a scene, misses strictly fewer items, keeps every old
+ * entity id and every old visible label text, and changes nothing it had:
+ * every old construction keeps its operator, inputs and outputs, every old
+ * label or mark keeps its targets and text, every old entity its kind and
+ * label, every old quantity its value and unit. The reply may only add.
+ * Anything else (no reply, a timeout, an invalid or less complete reply, a
+ * lost id or label, changed geometry or a moved label) keeps the original
+ * figure. The round never drops a figure and never runs past the figure
+ * deadline.
  *
  * Both the live hook and the lecture lab reach this through
  * runScenePlanningOverlap, so the lab measures what students get.
@@ -68,7 +72,9 @@ export type SceneCompletenessRoundOutcome =
   /** The reply misses as many items as the original, or more. */
   | "not_more_complete"
   /** The reply dropped an old entity id or an old label text. */
-  | "lost_content";
+  | "lost_content"
+  /** The reply changed an old construction, label target, entity kind or quantity. */
+  | "changed_content";
 
 export interface SceneCompletenessRoundRecord {
   /** A completeness call was sent. */
@@ -87,6 +93,8 @@ export interface SceneCompletenessRoundRecord {
   /** Old entity ids and label texts the reply dropped. */
   lostIds: string[];
   lostLabels: string[];
+  /** What the reply changed in the old document ("construction pC: inputs", "annotation l1: targetIds"). */
+  changedContent: string[];
   /** Fatal codes of an invalid reply. */
   replyErrorCodes: string[];
   /** Deadline left when the round was considered. */
@@ -97,19 +105,111 @@ export interface SceneCompletenessRoundRecord {
 
 export interface SceneCompletionDecision {
   accept: boolean;
-  outcome: Extract<SceneCompletenessRoundOutcome, "replaced" | "timeout" | "invalid" | "not_more_complete" | "lost_content">;
+  outcome: Extract<SceneCompletenessRoundOutcome, "replaced" | "timeout" | "invalid" | "not_more_complete" | "lost_content" | "changed_content">;
   replyMissingCount: number | null;
   lostIds: string[];
   lostLabels: string[];
+  changedContent: string[];
 }
 
 const missingCount = (value: CompletableSceneValue | undefined): number | null =>
   value?.completeness ? value.completeness.missing.length : null;
 
+/** Numbers this close are the same input: a model that rounds a long float when it copies the document has not moved anything. */
+const SAME_NUMBER_TOLERANCE = 1e-3;
+
+function sameNumber(first: number, second: number): boolean {
+  return Math.abs(first - second) <= SAME_NUMBER_TOLERANCE * Math.max(1, Math.abs(first), Math.abs(second));
+}
+
+const numeric = (value: unknown): number | null =>
+  typeof value === "number" && Number.isFinite(value) ? value
+    : typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value)) ? Number(value) : null;
+
+/** Structural equality: same keys, same order in arrays, strings after label normalisation, numbers within the tolerance. */
+function sameValue(first: unknown, second: unknown): boolean {
+  const a = numeric(first);
+  const b = numeric(second);
+  if (a !== null || b !== null) return a !== null && b !== null && sameNumber(a, b);
+  if (typeof first === "string" && typeof second === "string") return normalizeLabel(first) === normalizeLabel(second);
+  if (Array.isArray(first) || Array.isArray(second)) {
+    return Array.isArray(first) && Array.isArray(second) && first.length === second.length &&
+      first.every((item, index) => sameValue(item, second[index]));
+  }
+  if (first && second && typeof first === "object" && typeof second === "object") {
+    const keys = (value: object) => Object.entries(value).filter(([, item]) => item !== undefined && item !== null).map(([key]) => key).sort();
+    const firstKeys = keys(first);
+    const secondKeys = keys(second);
+    return firstKeys.length === secondKeys.length && firstKeys.every((key, index) => key === secondKeys[index] &&
+      sameValue((first as Record<string, unknown>)[key], (second as Record<string, unknown>)[key]));
+  }
+  return (first ?? null) === (second ?? null);
+}
+
+/**
+ * What a reply changed in the original document, as "construction pC: inputs"
+ * style entries; empty when the reply only adds. Compared by id: every old
+ * construction keeps its operator, inputs and outputs; every old annotation
+ * other than narration keeps its kind, targets, text and bound quantity; every
+ * old entity keeps its kind and its label; every old quantity keeps its value
+ * and unit. Removed constructions and annotations count as changes (removed
+ * entity ids and label texts are reported as lost content).
+ */
+export function sceneDocumentChanges(before: CompletenessSceneDocument, after: CompletenessSceneDocument): string[] {
+  const changes: string[] = [];
+  const byId = <V extends { id?: unknown }>(items: readonly V[] | undefined) =>
+    new Map((items ?? []).map((item) => [String(item.id ?? ""), item] as const));
+  const afterConstructions = byId(after.constructions);
+  for (const construction of before.constructions ?? []) {
+    const id = String(construction.id ?? "");
+    const reply = afterConstructions.get(id);
+    if (!reply) {
+      changes.push(`construction ${id}: removed`);
+      continue;
+    }
+    for (const field of ["operator", "inputs", "outputs"] as const) {
+      if (!sameValue(construction[field], reply[field])) changes.push(`construction ${id}: ${field}`);
+    }
+  }
+  const afterAnnotations = byId(after.annotations);
+  for (const annotation of before.annotations ?? []) {
+    if (annotation.kind === "narration") continue;
+    const id = String(annotation.id ?? "");
+    const reply = afterAnnotations.get(id);
+    if (!reply) {
+      changes.push(`annotation ${id}: removed`);
+      continue;
+    }
+    for (const field of ["kind", "targetIds", "text", "quantityId"] as const) {
+      if (!sameValue(annotation[field], reply[field])) changes.push(`annotation ${id}: ${field}`);
+    }
+  }
+  const afterEntities = byId(after.entities);
+  for (const entity of before.entities ?? []) {
+    const reply = afterEntities.get(String(entity.id ?? ""));
+    if (!reply) continue;
+    if (!sameValue(entity.kind, reply.kind)) changes.push(`entity ${entity.id}: kind`);
+    if (entity.label && !sameValue(entity.label, reply.label)) changes.push(`entity ${entity.id}: label`);
+  }
+  const afterQuantities = byId(after.quantities);
+  for (const quantity of before.quantities ?? []) {
+    const reply = afterQuantities.get(String(quantity.id ?? ""));
+    if (!reply) {
+      changes.push(`quantity ${quantity.id}: removed`);
+      continue;
+    }
+    for (const field of ["value", "unit"] as const) {
+      if (!sameValue(quantity[field], reply[field])) changes.push(`quantity ${quantity.id}: ${field}`);
+    }
+  }
+  return changes;
+}
+
 /**
  * The replacement rule. The reply wins only if it is valid, is a scene,
- * misses strictly fewer checklist items, and keeps every old entity id and
- * every old visible label text. Every other case keeps the original.
+ * misses strictly fewer checklist items, keeps every old entity id and every
+ * old visible label text, and changes nothing the original had (see
+ * sceneDocumentChanges). Every other case keeps the original.
  */
 export function decideSceneCompletion<T extends CompletableSceneValue>(
   original: SceneCandidateValidation<T>,
@@ -118,7 +218,7 @@ export function decideSceneCompletion<T extends CompletableSceneValue>(
   const keep = (
     outcome: SceneCompletionDecision["outcome"],
     extra: Partial<SceneCompletionDecision> = {},
-  ): SceneCompletionDecision => ({ accept: false, outcome, replyMissingCount: null, lostIds: [], lostLabels: [], ...extra });
+  ): SceneCompletionDecision => ({ accept: false, outcome, replyMissingCount: null, lostIds: [], lostLabels: [], changedContent: [], ...extra });
   if (!reply) return keep("timeout");
   const before = original.value;
   const after = reply.value;
@@ -131,9 +231,11 @@ export function decideSceneCompletion<T extends CompletableSceneValue>(
   const lostLabels = before
     ? [...new Set(sceneVisibleTexts(before.document, before.renderScene))].filter((text) => !newLabels.has(normalizeLabel(text)))
     : [];
-  const detail = { replyMissingCount: newMissing, lostIds, lostLabels };
+  const changedContent = before ? sceneDocumentChanges(before.document, after.document) : [];
+  const detail = { replyMissingCount: newMissing, lostIds, lostLabels, changedContent };
   if (oldMissing === null || newMissing === null || newMissing >= oldMissing) return keep("not_more_complete", detail);
   if (lostIds.length > 0 || lostLabels.length > 0) return keep("lost_content", detail);
+  if (changedContent.length > 0) return keep("changed_content", detail);
   return { accept: true, outcome: "replaced", ...detail };
 }
 
@@ -188,6 +290,7 @@ export async function completeScenePlanWithRepairResult<T extends CompletableSce
     replyMissingCount: null,
     lostIds: [],
     lostLabels: [],
+    changedContent: [],
     replyErrorCodes: [],
     remainingMsAtStart: remainingMs,
     extraMs: 0,
@@ -233,6 +336,7 @@ export async function completeScenePlanWithRepairResult<T extends CompletableSce
   record.replyMissingCount = decision.replyMissingCount;
   record.lostIds = decision.lostIds;
   record.lostLabels = decision.lostLabels;
+  record.changedContent = decision.changedContent;
   record.replyErrorCodes = replyValidation && !replyValidation.valid
     ? [...new Set(replyValidation.errors.filter((error) => error.severity === "fatal").map((error) => error.code))]
     : [];
