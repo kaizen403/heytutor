@@ -1289,6 +1289,9 @@ function hasAffirmativeDiscreteDomain(question: string, names: readonly string[]
   const propositionObject = String.raw`(?:assertion|statement|claim|assumption|notation|proposition)`;
   const mentionedPropositionPrefix = new RegExp(String.raw`\b${propositionObject}(?:\s+(?:that|of|about|for|saying|showing))*\s*$`, "i");
   const mentionedPropositionSuffix = new RegExp(String.raw`^\s*[,:(]?\s*(?:as|is|are|was|were)\s+(?:(?:a|an|the)\s+)?(?:(?:false|invalid|incorrect|hypothetical|example\s+of(?:\s+(?:a|an|the))?)\s+)*${propositionObject}\b`, "i");
+  const mentionedMathematicalObjectPrefix = /\b(?:hypothetical|illustrative|imaginary|counterfactual)\s+(?:(?:linear|number[ -]line|coordinate|integer|continuous|discrete)\s+)*(?:graphs?|plots?|figures?|diagrams?|examples?|regions?|(?:solution\s+)?sets?)\b/i;
+  const mentionedMathematicalObjectSuffix = /^\s*[,:(]?\s*as\s+(?:(?:an?|the)\s+)?(?:hypothetical|illustrative|imaginary|counterfactual)\s+(?:example|graph|plot|figure|diagram)\b/i;
+  const secondaryExamplePrefix = /^\s*(?:please\s+)?(?:discuss|explain|describe|consider|demonstrate|show)\s+(?:(?:me|us)\s+)?(?:an?|the)\s+example\s+of\s+(?:(?:an?|the)\s+)?(?:graphs?|plots?|figures?|diagrams?|(?:solution\s+)?sets?)\b/i;
   const deniedPropositionSuffix = /^\s*[,:(]?\s*(?:(?:is|are|was|were)\s+(?:false|invalid|incorrect|wrong|untrue)\b|without\s+(?:imposing|assuming|requiring|asserting)\b)/i;
   for (const match of question.matchAll(/(?:\.(?=\d)|[^.;?!])+[.;?!]?/g)) {
     const clause = match[0];
@@ -1310,6 +1313,19 @@ function hasAffirmativeDiscreteDomain(question: string, names: readonly string[]
       // given assumption has a different governing role from discussing one.
       if ((!premise && mentionedPropositionPrefix.test(prefix))
         || mentionedPropositionSuffix.test(suffix) || deniedPropositionSuffix.test(suffix)) return false;
+      // An explicitly hypothetical/illustrative mathematical object has its
+      // own mentioned domain. It cannot type the variables of the governing
+      // figure. This local prefix ends at independent request/domain heads,
+      // so an actual given before or after that object keeps its authority.
+      const mentionedObject = mentionedMathematicalObjectPrefix.exec(prefix);
+      const positiveObjectMention = mentionedObject && !/\bnon(?:[-–—]\s*|\s+)$|\b(?:rather\s+than|instead\s+of)\s*$/i.test(prefix.slice(0, mentionedObject.index));
+      if (!premise && (positiveObjectMention || mentionedMathematicalObjectSuffix.test(suffix))) return false;
+      // An unqualified teaching example can itself be a discrete request.
+      // Treat it as a secondary mentioned object only after a complete prior
+      // continuous source program is proved. This reads a strictly shorter
+      // prefix, without guessing a primary figure from nearby math spans.
+      if (!premise && secondaryExamplePrefix.test(prefix)
+        && readLinearBindingSource(question.slice(0, match.index! + (lower?.index ?? 0)), names, names.length === 1)) return false;
       // A domain phrase used as requested display content is an operand of
       // that instruction, never an independent declaration of variable type.
       const displayPrefix = object ? prefix.replace(/^\s*(?:please\s+)?mark\s+(?:the\s+)?$/i, "") : prefix;
