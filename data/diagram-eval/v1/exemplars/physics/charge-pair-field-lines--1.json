@@ -1,0 +1,386 @@
+{
+  "topic_id": "physics|11|electric-field-lines",
+  "covers_topics": [
+    "physics|11|multiple-charges-and-superposition"
+  ],
+  "question": "Sketch the field of +2 nC and −2 nC charges 6 cm apart.",
+  "figure_kind": "field_lines",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "computed field lines of the pair; E₁, E₂ and E at a bisector point"
+    },
+    "source": {
+      "question": "Sketch the field of +2 nC and −2 nC charges 6 cm apart.",
+      "family": "point_field"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "positive charge"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "negative charge"
+      },
+      {
+        "id": "ringA",
+        "kind": "circle",
+        "role": "positive charge outline",
+        "label": "+2 nC"
+      },
+      {
+        "id": "ringB",
+        "kind": "circle",
+        "role": "negative charge outline",
+        "label": "−2 nC"
+      },
+      {
+        "id": "lines",
+        "kind": "polyline",
+        "role": "field lines from + to −",
+        "label": "field lines"
+      },
+      {
+        "id": "sep",
+        "kind": "dimension",
+        "role": "separation",
+        "label": "6 cm"
+      },
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "midpoint",
+        "label": "O"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "point on perpendicular bisector",
+        "label": "P"
+      },
+      {
+        "id": "OP",
+        "kind": "segment",
+        "role": "perpendicular bisector"
+      },
+      {
+        "id": "rO",
+        "kind": "right_angle_mark",
+        "role": "OP ⊥ AB"
+      },
+      {
+        "id": "E1",
+        "kind": "vector",
+        "role": "field of + at P, away from +",
+        "label": "E₁"
+      },
+      {
+        "id": "E2",
+        "kind": "vector",
+        "role": "field of − at P, towards −",
+        "label": "E₂"
+      },
+      {
+        "id": "E",
+        "kind": "vector",
+        "role": "resultant field at P",
+        "label": "E"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "kA",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "kB",
+        "operator": "point",
+        "inputs": {
+          "x": 6,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "kringA",
+        "operator": "circle",
+        "inputs": {
+          "center": "A",
+          "radius": 0.2
+        },
+        "outputs": [
+          "ringA"
+        ]
+      },
+      {
+        "id": "kringB",
+        "operator": "circle",
+        "inputs": {
+          "center": "B",
+          "radius": 0.2
+        },
+        "outputs": [
+          "ringB"
+        ]
+      },
+      {
+        "id": "klines",
+        "operator": "field_lines",
+        "inputs": {
+          "charges": [
+            {
+              "id": "qA",
+              "position": "A",
+              "charge": 2
+            },
+            {
+              "id": "qB",
+              "position": "B",
+              "charge": -2
+            }
+          ],
+          "starts": [
+            [
+              0.4,
+              0
+            ],
+            [
+              0.306,
+              0.257
+            ],
+            [
+              0.306,
+              -0.257
+            ],
+            [
+              0,
+              0.4
+            ],
+            [
+              0,
+              -0.4
+            ]
+          ],
+          "stepLength": 0.15,
+          "stepCount": 120,
+          "k": 1,
+          "exclusionRadius": 0.3
+        },
+        "outputs": [
+          "lines"
+        ]
+      },
+      {
+        "id": "ksep",
+        "operator": "dimension",
+        "inputs": {
+          "start": "A",
+          "end": "B"
+        },
+        "outputs": [
+          "sep"
+        ]
+      },
+      {
+        "id": "kO",
+        "operator": "midpoint",
+        "inputs": {
+          "a": "A",
+          "b": "B"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "kP",
+        "operator": "point",
+        "inputs": {
+          "x": 3,
+          "y": 3.3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "kOP",
+        "operator": "segment",
+        "inputs": {
+          "start": "O",
+          "end": "P"
+        },
+        "outputs": [
+          "OP"
+        ]
+      },
+      {
+        "id": "krO",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "O",
+          "a": "P",
+          "b": "B"
+        },
+        "outputs": [
+          "rO"
+        ]
+      },
+      {
+        "id": "kE1",
+        "operator": "vector",
+        "inputs": {
+          "start": "P",
+          "direction": [
+            3,
+            3.3
+          ],
+          "length": 1.8
+        },
+        "outputs": [
+          "E1"
+        ]
+      },
+      {
+        "id": "kE2",
+        "operator": "vector",
+        "inputs": {
+          "start": "P",
+          "direction": [
+            3,
+            -3.3
+          ],
+          "length": 1.8
+        },
+        "outputs": [
+          "E2"
+        ]
+      },
+      {
+        "id": "kE",
+        "operator": "vector",
+        "inputs": {
+          "start": "P",
+          "direction": [
+            1,
+            0
+          ],
+          "length": 2.422
+        },
+        "outputs": [
+          "E"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "O_mid",
+        "predicate": "between",
+        "entities": [
+          "O",
+          "A",
+          "B"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "E_par_AB",
+        "predicate": "perpendicular",
+        "entities": [
+          "E",
+          "OP"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "E1_eq_E2",
+        "predicate": "equal_length",
+        "entities": [
+          "E1",
+          "E2"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "A",
+      "B",
+      "ringA",
+      "ringB",
+      "lines",
+      "sep",
+      "O",
+      "P",
+      "OP",
+      "rO",
+      "E1",
+      "E2",
+      "E"
+    ],
+    "revealGroups": [
+      {
+        "id": "charges",
+        "entityIds": [
+          "A",
+          "B",
+          "ringA",
+          "ringB",
+          "sep"
+        ],
+        "dependsOn": [],
+        "narrationCue": "the two charges 6 cm apart"
+      },
+      {
+        "id": "field",
+        "entityIds": [
+          "lines"
+        ],
+        "dependsOn": [
+          "charges"
+        ],
+        "narrationCue": "field lines from + to −"
+      },
+      {
+        "id": "atP",
+        "entityIds": [
+          "O",
+          "P",
+          "OP",
+          "rO",
+          "E1",
+          "E2",
+          "E"
+        ],
+        "dependsOn": [
+          "field"
+        ],
+        "narrationCue": "E₁ and E₂ at P add to E"
+      }
+    ],
+    "teachingTimeline": []
+  },
+  "engineCommit": "4ab84cd23c8719babb316bf03f075b57f4947c43",
+  "validatedOn": "2026-10-13"
+}

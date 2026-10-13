@@ -1,0 +1,447 @@
+{
+  "topic_id": "physics|11|capacitors-and-combinations",
+  "question": "9 μF and 18 μF capacitors in series sit across a 9 V battery. Find each charge.",
+  "figure_kind": "circuit",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "battery, C₁ and C₂ in one series loop"
+    },
+    "source": {
+      "question": "9 μF and 18 μF capacitors in series sit across a 9 V battery. Find each charge.",
+      "archetype": "capacitor_network"
+    },
+    "quantities": [
+      {
+        "id": "q_E",
+        "symbol": "E",
+        "value": 9,
+        "unit": "V"
+      },
+      {
+        "id": "q_C1",
+        "symbol": "C1",
+        "value": 9,
+        "unit": "μF"
+      },
+      {
+        "id": "q_C2",
+        "symbol": "C2",
+        "value": 18,
+        "unit": "μF"
+      }
+    ],
+    "entities": [
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "corner"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "corner"
+      },
+      {
+        "id": "D",
+        "kind": "point",
+        "role": "corner"
+      },
+      {
+        "id": "G",
+        "kind": "point",
+        "role": "corner"
+      },
+      {
+        "id": "pp",
+        "kind": "point",
+        "role": "+ marker"
+      },
+      {
+        "id": "pn",
+        "kind": "point",
+        "role": "− marker"
+      },
+      {
+        "id": "a1",
+        "kind": "point",
+        "role": "plate marker"
+      },
+      {
+        "id": "b1",
+        "kind": "point",
+        "role": "plate marker"
+      },
+      {
+        "id": "a2",
+        "kind": "point",
+        "role": "plate marker"
+      },
+      {
+        "id": "b2",
+        "kind": "point",
+        "role": "plate marker"
+      },
+      {
+        "id": "bat",
+        "kind": "component",
+        "role": "battery, long plate (+) at start",
+        "label": "9 V"
+      },
+      {
+        "id": "C1",
+        "kind": "component",
+        "role": "capacitor",
+        "label": "C₁ = 9 μF"
+      },
+      {
+        "id": "C2",
+        "kind": "component",
+        "role": "capacitor, start nearer +",
+        "label": "C₂ = 18 μF"
+      },
+      {
+        "id": "w",
+        "kind": "connector",
+        "role": "wire"
+      },
+      {
+        "id": "V1",
+        "kind": "dimension",
+        "role": "p.d. across C₁",
+        "label": "V₁"
+      },
+      {
+        "id": "V2",
+        "kind": "dimension",
+        "role": "p.d. across C₂",
+        "label": "V₂"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "kA",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "kB",
+        "operator": "point",
+        "inputs": {
+          "x": 4.5,
+          "y": 4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "kD",
+        "operator": "point",
+        "inputs": {
+          "x": 4.5,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "D"
+        ]
+      },
+      {
+        "id": "kG",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "G"
+        ]
+      },
+      {
+        "id": "kpp",
+        "operator": "point",
+        "inputs": {
+          "x": -0.65,
+          "y": 2.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "pp"
+        ]
+      },
+      {
+        "id": "kpn",
+        "operator": "point",
+        "inputs": {
+          "x": -0.65,
+          "y": 1.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "pn"
+        ]
+      },
+      {
+        "id": "ka1",
+        "operator": "point",
+        "inputs": {
+          "x": 1.75,
+          "y": 5.0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "a1"
+        ]
+      },
+      {
+        "id": "kb1",
+        "operator": "point",
+        "inputs": {
+          "x": 2.75,
+          "y": 5.0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "b1"
+        ]
+      },
+      {
+        "id": "ka2",
+        "operator": "point",
+        "inputs": {
+          "x": 2.75,
+          "y": 1.0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "a2"
+        ]
+      },
+      {
+        "id": "kb2",
+        "operator": "point",
+        "inputs": {
+          "x": 1.75,
+          "y": 1.0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "b2"
+        ]
+      },
+      {
+        "id": "kbat",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "battery",
+          "start": "A",
+          "end": "G"
+        },
+        "outputs": [
+          "bat"
+        ]
+      },
+      {
+        "id": "kC1",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "capacitor",
+          "start": "A",
+          "end": "B"
+        },
+        "outputs": [
+          "C1"
+        ]
+      },
+      {
+        "id": "kw",
+        "operator": "connect",
+        "inputs": {
+          "start": "B",
+          "end": "D"
+        },
+        "outputs": [
+          "w"
+        ]
+      },
+      {
+        "id": "kC2",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "capacitor",
+          "start": "D",
+          "end": "G"
+        },
+        "outputs": [
+          "C2"
+        ]
+      },
+      {
+        "id": "kV1",
+        "operator": "dimension",
+        "inputs": {
+          "start": "A",
+          "end": "B"
+        },
+        "outputs": [
+          "V1"
+        ]
+      },
+      {
+        "id": "kV2",
+        "operator": "dimension",
+        "inputs": {
+          "start": "D",
+          "end": "G"
+        },
+        "outputs": [
+          "V2"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "loop",
+        "predicate": "path",
+        "entities": [
+          "bat",
+          "C1",
+          "w",
+          "C2"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "lp",
+        "kind": "label",
+        "targetIds": [
+          "pp"
+        ],
+        "text": "+",
+        "placementIntent": "left"
+      },
+      {
+        "id": "lm",
+        "kind": "label",
+        "targetIds": [
+          "pn"
+        ],
+        "text": "−",
+        "placementIntent": "left"
+      },
+      {
+        "id": "qa1",
+        "kind": "label",
+        "targetIds": [
+          "a1"
+        ],
+        "text": "+Q",
+        "placementIntent": "above"
+      },
+      {
+        "id": "qb1",
+        "kind": "label",
+        "targetIds": [
+          "b1"
+        ],
+        "text": "−Q",
+        "placementIntent": "above"
+      },
+      {
+        "id": "qa2",
+        "kind": "label",
+        "targetIds": [
+          "a2"
+        ],
+        "text": "+Q",
+        "placementIntent": "above"
+      },
+      {
+        "id": "qb2",
+        "kind": "label",
+        "targetIds": [
+          "b2"
+        ],
+        "text": "−Q",
+        "placementIntent": "above"
+      }
+    ],
+    "requiredEntityIds": [
+      "bat",
+      "C1",
+      "C2",
+      "w",
+      "V1",
+      "V2"
+    ],
+    "revealGroups": [
+      {
+        "id": "net",
+        "entityIds": [
+          "A",
+          "B",
+          "D",
+          "G",
+          "pp",
+          "pn",
+          "bat",
+          "C1",
+          "w",
+          "C2"
+        ],
+        "dependsOn": [],
+        "narrationCue": "9 V battery, + on top; C₁ and C₂ in series"
+      },
+      {
+        "id": "charge",
+        "entityIds": [
+          "a1",
+          "b1",
+          "a2",
+          "b2",
+          "V1",
+          "V2"
+        ],
+        "dependsOn": [
+          "net"
+        ],
+        "narrationCue": "each holds +Q and −Q; V₁ + V₂ = 9 V"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_net",
+        "action": "reveal",
+        "targetId": "net",
+        "dependsOn": [],
+        "narrationIntent": "9 V battery, + on top; C₁ and C₂ in series"
+      },
+      {
+        "id": "reveal_charge",
+        "action": "reveal",
+        "targetId": "charge",
+        "dependsOn": [
+          "reveal_net"
+        ],
+        "narrationIntent": "each holds +Q and −Q; V₁ + V₂ = 9 V"
+      }
+    ]
+  },
+  "engineCommit": "4ab84cd23c8719babb316bf03f075b57f4947c43",
+  "validatedOn": "2026-10-13"
+}

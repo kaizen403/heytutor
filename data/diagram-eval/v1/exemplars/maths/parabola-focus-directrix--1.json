@@ -1,0 +1,448 @@
+{
+  "topic_id": "maths|10|eccentricity-foci-and-directrix",
+  "question": "Find the focus and directrix of y² = 12x.",
+  "figure_kind": "geometry",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "parabola with focus, directrix and PS = PM"
+    },
+    "source": {
+      "question": "Find the focus and directrix of y² = 12x.",
+      "archetype": "conic"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "ax",
+        "kind": "axes",
+        "role": "axes"
+      },
+      {
+        "id": "xEnd",
+        "kind": "point"
+      },
+      {
+        "id": "yEnd",
+        "kind": "point"
+      },
+      {
+        "id": "xName",
+        "kind": "label",
+        "role": "x axis name",
+        "label": "x"
+      },
+      {
+        "id": "yName",
+        "kind": "label",
+        "role": "y axis name",
+        "label": "y"
+      },
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "vertex",
+        "label": "O"
+      },
+      {
+        "id": "par",
+        "kind": "polyline",
+        "role": "parabola",
+        "label": "y² = 12x"
+      },
+      {
+        "id": "S",
+        "kind": "point",
+        "role": "focus",
+        "label": "S(a, 0)"
+      },
+      {
+        "id": "dir",
+        "kind": "line",
+        "role": "directrix",
+        "label": "x = −a"
+      },
+      {
+        "id": "Z",
+        "kind": "point",
+        "role": "directrix foot on axis",
+        "label": "Z"
+      },
+      {
+        "id": "L",
+        "kind": "point",
+        "role": "latus rectum end",
+        "label": "L"
+      },
+      {
+        "id": "L2",
+        "kind": "point",
+        "role": "latus rectum end",
+        "label": "L′"
+      },
+      {
+        "id": "LR",
+        "kind": "segment",
+        "role": "latus rectum"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "point on parabola",
+        "label": "P"
+      },
+      {
+        "id": "M",
+        "kind": "point",
+        "role": "foot from P on directrix",
+        "label": "M"
+      },
+      {
+        "id": "PS",
+        "kind": "segment",
+        "role": "focal distance"
+      },
+      {
+        "id": "PM",
+        "kind": "segment",
+        "role": "distance to directrix"
+      },
+      {
+        "id": "rM",
+        "kind": "right_angle_mark",
+        "role": "PM ⊥ directrix"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "kax",
+        "operator": "axes",
+        "inputs": {
+          "xMin": -5,
+          "xMax": 8,
+          "yMin": -9.5,
+          "yMax": 9.5
+        },
+        "outputs": [
+          "ax"
+        ]
+      },
+      {
+        "id": "kxEnd",
+        "operator": "point",
+        "inputs": {
+          "x": 8,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "xEnd"
+        ]
+      },
+      {
+        "id": "kyEnd",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 9.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "yEnd"
+        ]
+      },
+      {
+        "id": "kxName",
+        "operator": "label",
+        "inputs": {
+          "target": "xEnd",
+          "text": "x"
+        },
+        "outputs": [
+          "xName"
+        ]
+      },
+      {
+        "id": "kyName",
+        "operator": "label",
+        "inputs": {
+          "target": "yEnd",
+          "text": "y"
+        },
+        "outputs": [
+          "yName"
+        ]
+      },
+      {
+        "id": "kO",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "kpar",
+        "operator": "conic",
+        "inputs": {
+          "kind": "parabola",
+          "vertex": "O",
+          "p": 3,
+          "tMin": -1.45,
+          "tMax": 1.45
+        },
+        "outputs": [
+          "par"
+        ]
+      },
+      {
+        "id": "kS",
+        "operator": "conic_anchor",
+        "inputs": {
+          "conic": "par",
+          "feature": "focus"
+        },
+        "outputs": [
+          "S"
+        ]
+      },
+      {
+        "id": "kdir",
+        "operator": "conic_directrix",
+        "inputs": {
+          "conic": "par",
+          "span": 17
+        },
+        "outputs": [
+          "dir"
+        ]
+      },
+      {
+        "id": "kZ",
+        "operator": "project",
+        "inputs": {
+          "point": "O",
+          "line": "dir"
+        },
+        "outputs": [
+          "Z"
+        ]
+      },
+      {
+        "id": "kL",
+        "operator": "conic_anchor",
+        "inputs": {
+          "conic": "par",
+          "feature": "latus_rectum_endpoint",
+          "transverseSide": 1
+        },
+        "outputs": [
+          "L"
+        ]
+      },
+      {
+        "id": "kL2",
+        "operator": "conic_anchor",
+        "inputs": {
+          "conic": "par",
+          "feature": "latus_rectum_endpoint",
+          "transverseSide": -1
+        },
+        "outputs": [
+          "L2"
+        ]
+      },
+      {
+        "id": "kLR",
+        "operator": "segment",
+        "inputs": {
+          "start": "L",
+          "end": "L2"
+        },
+        "outputs": [
+          "LR"
+        ]
+      },
+      {
+        "id": "kP",
+        "operator": "conic_anchor",
+        "inputs": {
+          "conic": "par",
+          "feature": "curve_point",
+          "at": 1.2
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "kM",
+        "operator": "project",
+        "inputs": {
+          "point": "P",
+          "line": "dir"
+        },
+        "outputs": [
+          "M"
+        ]
+      },
+      {
+        "id": "kPS",
+        "operator": "segment",
+        "inputs": {
+          "start": "P",
+          "end": "S"
+        },
+        "outputs": [
+          "PS"
+        ]
+      },
+      {
+        "id": "kPM",
+        "operator": "segment",
+        "inputs": {
+          "start": "P",
+          "end": "M"
+        },
+        "outputs": [
+          "PM"
+        ]
+      },
+      {
+        "id": "krM",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "M",
+          "a": "P",
+          "b": "Z"
+        },
+        "outputs": [
+          "rM"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "P_on_par",
+        "predicate": "on",
+        "entities": [
+          "P",
+          "par"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "S_on_LR",
+        "predicate": "on",
+        "entities": [
+          "S",
+          "LR"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "LR_par_dir",
+        "predicate": "parallel",
+        "entities": [
+          "LR",
+          "dir"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "PM_perp_dir",
+        "predicate": "perpendicular",
+        "entities": [
+          "PM",
+          "dir"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "PS_eq_PM",
+        "predicate": "equal_length",
+        "entities": [
+          "PS",
+          "PM"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "ax",
+      "xName",
+      "yName",
+      "O",
+      "par",
+      "S",
+      "dir",
+      "Z",
+      "L",
+      "L2",
+      "LR",
+      "P",
+      "M",
+      "PS",
+      "PM",
+      "rM"
+    ],
+    "revealGroups": [
+      {
+        "id": "curve",
+        "entityIds": [
+          "ax",
+          "xName",
+          "yName",
+          "O",
+          "par"
+        ],
+        "dependsOn": [],
+        "narrationCue": "axes and parabola"
+      },
+      {
+        "id": "focus",
+        "entityIds": [
+          "S",
+          "dir",
+          "Z",
+          "L",
+          "L2",
+          "LR"
+        ],
+        "dependsOn": [
+          "curve"
+        ],
+        "narrationCue": "focus, directrix, LL′"
+      },
+      {
+        "id": "property",
+        "entityIds": [
+          "P",
+          "M",
+          "PS",
+          "PM",
+          "rM"
+        ],
+        "dependsOn": [
+          "focus"
+        ],
+        "narrationCue": "PS = PM"
+      }
+    ],
+    "teachingTimeline": []
+  },
+  "engineCommit": "4ab84cd23c8719babb316bf03f075b57f4947c43",
+  "validatedOn": "2026-10-13"
+}
