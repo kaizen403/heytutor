@@ -92,7 +92,6 @@ check("same-element-explicit-couple-roles", () => {
 // Charge parentheses belong to the ion; the outer couple wrapper stays separate.
 for (const [index, declaration] of [
   "E°(Fe^2+/Fe) = -0.80 V; E°(Fe^3+/Fe^2+) = +0.40 V.",
-  "E°(Fe(2+)/Fe) = -0.80 V; E°(Fe(3+)/Fe(2+)) = +0.40 V.",
   "E°(Fe^(2+)/Fe) = -0.80 V; E°(Fe^(3+)/Fe^(2+)) = +0.40 V.",
 ].entries()) check(`same-element-balanced-charge-${index}`, () => {
   const question = "Draw the cell Fe|Fe2+||Fe3+,Fe2+|Pt. " + declaration;
@@ -104,6 +103,11 @@ for (const [index, declaration] of [
     assert.equal(question.slice(half.potentialSourceSpan.start, half.potentialSourceSpan.end), half.potentialSourceText);
   }
   compiled(buildElectrochemScene(question, [], false), "chem_electrochem");
+});
+check("unsupported-noncaret-charge-parentheses-decline", () => {
+  const question = "Draw the cell Fe|Fe2+||Fe3+,Fe2+|Pt. E°(Fe(2+)/Fe) = -0.80 V; E°(Fe(3+)/Fe(2+)) = +0.40 V.";
+  assert.equal(parseCellNotation(question), null);
+  assert.equal(buildElectrochemScene(question, [], false), null);
 });
 check("broken-charge-parenthesis-declines", () => {
   const question = "Draw the cell Fe|Fe2+||Fe3+,Fe2+|Pt. E°(Fe^(2+/Fe) = -0.80 V; E°(Fe3+/Fe2+) = +0.40 V.";
