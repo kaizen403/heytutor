@@ -282,5 +282,27 @@ for (const [index, question] of [
   const result = compiled(buildElectrochemScene(question, [], false), "chem_electrochem");
   assert.ok(result.labels.includes("E° = 1.20 V"), JSON.stringify(result.labels));
 });
+// PR166 shared directions: a plural header owns each member of its list.
+for (const [index, question] of [
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. Standard oxidation potentials Zn = +0.80 V and Cu = -0.40 V.",
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. Standard oxidation potentials Zn = +0.80 V, Cu = -0.40 V.",
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. Oxidation potentials E°(Zn2+/Zn) = +0.80 V and E°(Cu2+/Cu) = -0.40 V.",
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. The oxidation potential E°Zn = +0.80 V; E°Cu = +0.40 V.",
+].entries()) check(`shared-oxidation-header-and-statement-boundary-${index}`, () => {
+  const spec = parseCellNotation(question); assert.ok(spec, "complete source-owned list/control must draw");
+  near(spec.anode.e0, -.8); near(spec.cathode.e0, .4);
+  assert.equal(spec.anode.potentialSource, "stem"); assert.equal(spec.cathode.potentialSource, "stem");
+  assert.equal(spec.statedE, undefined, "electrode directions do not declare cell emf");
+  near(cellEmf(spec)?.e0, 1.2); near(cellEmf(spec)?.e, 1.2);
+  for (const half of [spec.anode, spec.cathode]) {
+    assert.ok(half.potentialSourceSpan);
+    assert.equal(question.slice(half.potentialSourceSpan.start, half.potentialSourceSpan.end), half.potentialSourceText);
+  }
+  assert.match(spec.anode.potentialSourceText!, /\+0\.80\s*V$/);
+  assert.match(spec.cathode.potentialSourceText!, index === 3 ? /\+0\.40\s*V$/ : /-0\.40\s*V$/);
+  const result = compiled(buildElectrochemScene(question, [], false), "chem_electrochem");
+  near(result.document.quantities.find(q => q.id === "E0_cell")?.value, 1.2);
+  assert.ok(result.labels.includes("E° = 1.20 V"), JSON.stringify(result.labels));
+});
 console.log(JSON.stringify({ passed, failed: failed.length, failures: failed, scope: "offline source only; three next-PR non-regressions" }));
 process.exitCode = failed.length ? 1 : 0;
