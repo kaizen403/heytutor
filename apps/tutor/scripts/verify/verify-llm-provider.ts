@@ -34,7 +34,7 @@ const originalConsoleError = console.error;
 
 // Start from a clean provider environment whatever the shell exported.
 for (const key of Object.keys(process.env)) {
-  if (key === "LLM_PROVIDER" || key.startsWith("AZURE_OPENAI_") || key.startsWith("FIREWORKS_")) delete process.env[key];
+  if (key === "LLM_PROVIDER" || key === "DIAGRAM_PLANNER_PRIORITY" || key.startsWith("AZURE_OPENAI_") || key.startsWith("FIREWORKS_")) delete process.env[key];
 }
 process.env.FIREWORKS_API_KEY = "fireworks-test-key";
 process.env.BILLING_PROVIDER = "";
@@ -418,7 +418,7 @@ const unitChecks: [string, () => void | Promise<void>][] = [
 
 // ---------------------------------------------------------------- route
 function arrange(env: Env): string {
-  for (const key of ["LLM_PROVIDER", ...provider.AZURE_ENV_KEYS]) delete process.env[key];
+  for (const key of ["LLM_PROVIDER", "DIAGRAM_PLANNER_PRIORITY", ...provider.AZURE_ENV_KEYS]) delete process.env[key];
   Object.assign(process.env, env);
   grants.resetTurnGrantsForTests();
   fuses.resetBillingFusesForTests();
@@ -527,31 +527,39 @@ const routeChecks: [string, () => Promise<void>][] = [
     });
   }],
   ["azure: the planner calls the deployment with a body it accepts, priced at Azure rates", async () => {
-    const trace = arrange(AZURE);
-    const sent: Sent[] = [];
-    installProvider(sent, plannerReply({ latency_checkpoint: { service_ttft_ms: 300, service_ttlt_ms: 2300 } }));
-    const response = await chat.POST(chatRequest(trace, PLANNER_HEADERS, { stream: false, temperature: 0 }));
-    assert.equal(response.status, 200);
-    assert.equal(response.headers.get("x-heytutor-planner-model"), "gpt-6-1-sol");
-    assert.equal(sent.length, 1);
-    assert.equal(sent[0]!.url, AZURE_URL);
-    assert.equal(sent[0]!.authorization, "Bearer azure-test-key");
-    assert.deepEqual(sent[0]!.body, {
-      messages: [{ role: "user", content: "Explain force." }],
-      n: 1,
-      stream: false,
-      response_format: { type: "json_object" },
-      reasoning_effort: "low",
-      max_completion_tokens: 2800 + 2048,
-      model: "gpt-6-1-sol",
-      service_tier: "default",
-    });
-    const metadata = generations.at(-1)!.metadata!;
-    assert.equal(generations.at(-1)!.model, "gpt-6-1-sol");
-    assert.equal(metadata.llm_provider, "azure");
-    assert.equal(metadata.reasoning_tokens, 40);
-    assert.equal(metadata.cached_input_tokens, 200);
-    assert.equal(metadata.ttft_ms, 300);
+    const priority = process.env.DIAGRAM_PLANNER_PRIORITY;
+    try {
+      // Default fixtures must ignore a priority flag inherited from the shell.
+      process.env.DIAGRAM_PLANNER_PRIORITY = "1";
+      const trace = arrange(AZURE);
+      const sent: Sent[] = [];
+      installProvider(sent, plannerReply({ latency_checkpoint: { service_ttft_ms: 300, service_ttlt_ms: 2300 } }));
+      const response = await chat.POST(chatRequest(trace, PLANNER_HEADERS, { stream: false, temperature: 0 }));
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get("x-heytutor-planner-model"), "gpt-6-1-sol");
+      assert.equal(sent.length, 1);
+      assert.equal(sent[0]!.url, AZURE_URL);
+      assert.equal(sent[0]!.authorization, "Bearer azure-test-key");
+      assert.deepEqual(sent[0]!.body, {
+        messages: [{ role: "user", content: "Explain force." }],
+        n: 1,
+        stream: false,
+        response_format: { type: "json_object" },
+        reasoning_effort: "low",
+        max_completion_tokens: 2800 + 2048,
+        model: "gpt-6-1-sol",
+        service_tier: "default",
+      });
+      const metadata = generations.at(-1)!.metadata!;
+      assert.equal(generations.at(-1)!.model, "gpt-6-1-sol");
+      assert.equal(metadata.llm_provider, "azure");
+      assert.equal(metadata.reasoning_tokens, 40);
+      assert.equal(metadata.cached_input_tokens, 200);
+      assert.equal(metadata.ttft_ms, 300);
+    } finally {
+      if (priority === undefined) delete process.env.DIAGRAM_PLANNER_PRIORITY;
+      else process.env.DIAGRAM_PLANNER_PRIORITY = priority;
+    }
   }],
   ["azure: Problem IR and the fast planner lane use the same deployment", async () => {
     const trace = arrange(AZURE);

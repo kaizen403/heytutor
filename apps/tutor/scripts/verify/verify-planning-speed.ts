@@ -64,7 +64,8 @@ for (const kind of ["planner", "teaching"] as const) {
 async function verifyAccounting(): Promise<void> {
   const rates = { AZURE_GPT_SOL_INPUT_USD_PER_1M: "2", AZURE_GPT_SOL_OUTPUT_USD_PER_1M: "10", AZURE_GPT_SOL_CACHED_INPUT_USD_PER_1M: "0.1",
     LLM_PROVIDER: "azure", AZURE_OPENAI_ENDPOINT: "https://planning-speed-fixture.invalid", AZURE_OPENAI_API_KEY: "fixture-only", AZURE_OPENAI_DEPLOYMENT: "gpt-6.1-sol",
-    DIAGRAM_PLANNER_PRIORITY: undefined, DIAGRAM_SCENE_REASONING_EFFORT: undefined };
+    DIAGRAM_PLANNER_PRIORITY: undefined, DIAGRAM_SCENE_REASONING_EFFORT: undefined,
+    AZURE_OPENAI_MIN_REASONING_EFFORT: undefined };
   const originalEnv = new Map(Object.keys(rates).map(key => [key, process.env[key]]));
   for (const [key, value] of Object.entries(rates)) {
     if (value === undefined) delete process.env[key]; else process.env[key] = value;
@@ -180,6 +181,11 @@ async function verifyAccounting(): Promise<void> {
     assert.equal(defaultConfig.planningSpeed.priority, false);
     assert.equal(defaultConfig.planningSpeed.sceneEffort, "low");
     assert.equal(defaultConfig.planningSpeed.requestTier, "default", "standard and auto experiments have distinct resume identities");
+    for (const floor of ["low", "medium", "high", "xhigh"]) {
+      process.env.AZURE_OPENAI_MIN_REASONING_EFFORT = floor;
+      assert.equal(labProviderConfig().planningSpeed.sceneEffort, floor, "preflight records the translated Azure scene effort, including its configured floor");
+    }
+    delete process.env.AZURE_OPENAI_MIN_REASONING_EFFORT;
     assert.equal(experimentConfig.planningSpeed.priority, true);
     assert.equal(experimentConfig.planningSpeed.sceneEffort, "low", "the failed medium experiment is not exposed");
     assert.equal(experimentConfig.planningSpeed.requestTier, "priority");
