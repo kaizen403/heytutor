@@ -45,7 +45,7 @@ pnpm turbo run build --filter=@heytutor/tutor...
 
 echo "==> migrate"
 cd apps/tutor
-pnpm exec prisma migrate deploy
+pnpm exec tsx scripts/live/deploy-migrations.ts
 cd "$ROOT"
 
 if ! sudo id heytutor >/dev/null 2>&1 && ! id heytutor >/dev/null 2>&1; then

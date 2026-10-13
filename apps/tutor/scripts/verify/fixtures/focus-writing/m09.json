@@ -1,0 +1,565 @@
+{
+  "source": "Exact retained QA M09 original segment 10; no generated lesson or provider request.",
+  "sceneDocument": {
+    "source": {
+      "question": "Explain the modulus of 3 + 4i with an Argand diagram.",
+      "nonMetric": true,
+      "representationTier": "qualitative_verified"
+    },
+    "entities": [
+      {
+        "id": "axes",
+        "kind": "axes",
+        "role": "Argand axes"
+      },
+      {
+        "id": "origin",
+        "kind": "point",
+        "role": "origin",
+        "label": "O"
+      },
+      {
+        "id": "real_tip",
+        "kind": "point",
+        "role": "real-axis projection"
+      },
+      {
+        "id": "z",
+        "kind": "point",
+        "role": "complex number",
+        "label": "3 + 4i"
+      },
+      {
+        "id": "real_leg",
+        "kind": "segment",
+        "role": "real component"
+      },
+      {
+        "id": "imag_leg",
+        "kind": "segment",
+        "role": "imaginary component"
+      },
+      {
+        "id": "modulus_segment",
+        "kind": "segment",
+        "role": "modulus",
+        "label": "|3 + 4i|"
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "real_axis_incidence",
+        "entities": [
+          "real_tip",
+          "real_leg"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "predicate": "on"
+      },
+      {
+        "id": "complex_point_incidence",
+        "entities": [
+          "z",
+          "modulus_segment"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "predicate": "on"
+      },
+      {
+        "id": "right_triangle",
+        "entities": [
+          "real_leg",
+          "imag_leg"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "predicate": "perpendicular"
+      },
+      {
+        "id": "assert_label_origin",
+        "reason": "student-facing points must stay labeled",
+        "entities": [
+          "origin"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "predicate": "label_attached"
+      },
+      {
+        "id": "assert_label_z",
+        "reason": "student-facing points must stay labeled",
+        "entities": [
+          "z"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "predicate": "label_attached"
+      }
+    ],
+    "quantities": [
+      {
+        "id": "r",
+        "value": 3,
+        "symbol": "Re(z)",
+        "provenance": "given"
+      },
+      {
+        "id": "j",
+        "value": 4,
+        "symbol": "Im(z)",
+        "provenance": "given"
+      },
+      {
+        "id": "m",
+        "value": 5,
+        "symbol": "|3 + 4i|",
+        "dependsOn": [
+          "r",
+          "j"
+        ],
+        "provenance": "derived"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "real_value",
+        "kind": "label",
+        "text": "3",
+        "targetIds": [
+          "real_leg"
+        ],
+        "quantityId": "r"
+      },
+      {
+        "id": "imag_value",
+        "kind": "label",
+        "text": "4",
+        "targetIds": [
+          "imag_leg"
+        ],
+        "quantityId": "j"
+      },
+      {
+        "id": "result",
+        "kind": "narration",
+        "text": "The modulus is the distance from the origin to 3 + 4i. By Pythagoras, \u221a(3\u00b2 + 4\u00b2) = 5.",
+        "targetIds": [
+          "modulus_segment"
+        ],
+        "quantityId": "m"
+      }
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "dependsOn": [],
+        "entityIds": [
+          "axes",
+          "origin",
+          "real_tip",
+          "z",
+          "real_leg",
+          "imag_leg"
+        ],
+        "narrationCue": "reveal scene"
+      },
+      {
+        "id": "distance",
+        "dependsOn": [
+          "setup"
+        ],
+        "entityIds": [
+          "modulus_segment"
+        ],
+        "narrationCue": "reveal scene"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_axes",
+        "inputs": {
+          "xMax": 5,
+          "xMin": -1,
+          "yMax": 6,
+          "yMin": -1
+        },
+        "outputs": [
+          "axes"
+        ],
+        "operator": "axes"
+      },
+      {
+        "id": "make_origin",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "origin"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_real_tip",
+        "inputs": {
+          "x": 3,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "real_tip"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_z",
+        "inputs": {
+          "x": 3,
+          "y": 4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "z"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_real_leg",
+        "inputs": {
+          "end": "real_tip",
+          "start": "origin"
+        },
+        "outputs": [
+          "real_leg"
+        ],
+        "operator": "segment"
+      },
+      {
+        "id": "make_imag_leg",
+        "inputs": {
+          "end": "z",
+          "start": "real_tip"
+        },
+        "outputs": [
+          "imag_leg"
+        ],
+        "operator": "segment"
+      },
+      {
+        "id": "make_modulus_segment",
+        "inputs": {
+          "end": "z",
+          "start": "origin"
+        },
+        "outputs": [
+          "modulus_segment"
+        ],
+        "operator": "segment"
+      }
+    ],
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "The given complex number determines an exact point on an Argand diagram."
+    },
+    "teachingTimeline": [],
+    "requiredEntityIds": [
+      "axes",
+      "origin",
+      "real_tip",
+      "z",
+      "real_leg",
+      "imag_leg",
+      "modulus_segment"
+    ]
+  },
+  "narration": "using the two perpendicular lengths, the modulus of three plus four i equals the square root of three squared plus four squared.",
+  "timings": {
+    "charDurations": [
+      0.08347531999999999,
+      0.08347531999999996,
+      0.08347532000000002,
+      0.08347532000000002,
+      0.08347532000000002,
+      0.07999999999999996,
+      0.01000000000000001,
+      0.01000000000000001,
+      0.01000000000000001,
+      0.08000030000000002,
+      0.05333323333333329,
+      0.0533332333333334,
+      0.05333323333333329,
+      0.01000000000000001,
+      0.05538409461538463,
+      0.05538409461538463,
+      0.05538409461538452,
+      0.05538409461538474,
+      0.05538409461538452,
+      0.05538409461538474,
+      0.05538409461538452,
+      0.05538409461538474,
+      0.05538409461538452,
+      0.05538409461538452,
+      0.05538409461538474,
+      0.05538409461538474,
+      0.05538409461538452,
+      0.01000000000000001,
+      0.05999998749999991,
+      0.05999998750000013,
+      0.05999998750000013,
+      0.05999998749999991,
+      0.05999998749999991,
+      0.05999998750000013,
+      0.05999998750000013,
+      0.05999998749999991,
+      0.3198474999999998,
+      0.05338416666666657,
+      0.05338416666666701,
+      0.05338416666666657,
+      0.08000009999999991,
+      0.06857141428571412,
+      0.06857141428571456,
+      0.06857141428571412,
+      0.06857141428571456,
+      0.06857141428571412,
+      0.06857141428571456,
+      0.06857141428571412,
+      0.01,
+      0.08000000000000007,
+      0.08000000000000007,
+      0.01,
+      0.06399694,
+      0.06399694,
+      0.06399694,
+      0.06399694,
+      0.06399694,
+      0.08000059999999998,
+      0.05999985000000008,
+      0.05999984999999963,
+      0.05999985000000008,
+      0.05999985000000008,
+      0.01,
+      0.08000000000000007,
+      0.08000000000000007,
+      0.08000000000000007,
+      0.08000000000000007,
+      0.08000000000000007,
+      0.2399999999999993,
+      0.1789436000000002,
+      0.07684273333333369,
+      0.0768427333333328,
+      0.07684273333333369,
+      0.07684273333333369,
+      0.0768427333333328,
+      0.07684273333333369,
+      0.08000000000000007,
+      0.01,
+      0.01,
+      0.01,
+      0.01,
+      0.07999996666666664,
+      0.07999996666666664,
+      0.07999996666666664,
+      0.07999996666666664,
+      0.07999996666666664,
+      0.07999996666666664,
+      0.01,
+      0.0799998249999998,
+      0.0799998249999998,
+      0.07999982500000069,
+      0.0799998249999998,
+      0.01476699999999997,
+      0.1126164999999997,
+      0.1126165000000006,
+      0.08000000000000007,
+      0.04800000000000004,
+      0.04800000000000004,
+      0.04799999999999915,
+      0.04800000000000004,
+      0.04800000000000004,
+      0.01,
+      0.0685714285714285,
+      0.0685714285714285,
+      0.0685714285714285,
+      0.0685714285714294,
+      0.0685714285714285,
+      0.0685714285714285,
+      0.0685714285714285,
+      0.08000000000000007,
+      0.0600000000000005,
+      0.05999999999999961,
+      0.05999999999999961,
+      0.0600000000000005,
+      0.01,
+      0.04000000000000004,
+      0.04000000000000004,
+      0.03999999999999915,
+      0.04000000000000004,
+      0.08000000000000007,
+      0.04999999999999982,
+      0.04999999999999982,
+      0.04999999999999982,
+      0.05000000000000071,
+      0.04999999999999982,
+      0.04999999999999982,
+      0.04999999999999982,
+      0.04999999999999982
+    ],
+    "totalDuration": 7.937376599999999,
+    "charStartTimes": [
+      0,
+      0.08347531999999999,
+      0.16695064,
+      0.2504259599999999,
+      0.33390128,
+      0.4173766,
+      0.4973765999999999,
+      0.4973765999999999,
+      0.4973765999999999,
+      0.4973765999999999,
+      0.5773769,
+      0.6307101333333333,
+      0.6840433666666667,
+      0.7373765999999999,
+      0.73738337,
+      0.7927674646153846,
+      0.8481515592307692,
+      0.9035356538461538,
+      0.9589197484615385,
+      1.014303843076923,
+      1.069687937692308,
+      1.125072032307692,
+      1.180456126923077,
+      1.235840221538462,
+      1.291224316153846,
+      1.346608410769231,
+      1.401992505384616,
+      1.4573766,
+      1.4573767,
+      1.5173766875,
+      1.577376675,
+      1.6373766625,
+      1.69737665,
+      1.7573766375,
+      1.817376625,
+      1.8773766125,
+      1.9373766,
+      2.2572241,
+      2.310608266666666,
+      2.363992433333333,
+      2.4173766,
+      2.4973767,
+      2.565948114285714,
+      2.634519528571428,
+      2.703090942857143,
+      2.771662357142857,
+      2.840233771428571,
+      2.908805185714286,
+      2.9773766,
+      2.9773766,
+      3.0573766,
+      3.1373766,
+      3.1373919,
+      3.20138884,
+      3.26538578,
+      3.32938272,
+      3.39337966,
+      3.4573766,
+      3.5373772,
+      3.59737705,
+      3.6573769,
+      3.71737675,
+      3.7773766,
+      3.7773766,
+      3.8573766,
+      3.9373766,
+      4.0173766,
+      4.0973766,
+      4.177376600000001,
+      4.4173766,
+      4.5963202,
+      4.673162933333334,
+      4.750005666666667,
+      4.8268484,
+      4.903691133333334,
+      4.980533866666667,
+      5.0573766,
+      5.137376600000001,
+      5.137376600000001,
+      5.137376600000001,
+      5.137376600000001,
+      5.1373768,
+      5.217376766666667,
+      5.297376733333333,
+      5.3773767,
+      5.457376666666667,
+      5.537376633333333,
+      5.6173766,
+      5.6173773,
+      5.697377125,
+      5.77737695,
+      5.857376775000001,
+      5.9373766,
+      5.9521436,
+      6.0647601,
+      6.177376600000001,
+      6.257376600000001,
+      6.305376600000001,
+      6.353376600000001,
+      6.4013766,
+      6.4493766,
+      6.4973766,
+      6.4973766,
+      6.565948028571428,
+      6.634519457142857,
+      6.703090885714285,
+      6.771662314285715,
+      6.840233742857143,
+      6.908805171428572,
+      6.9773766,
+      7.0573766,
+      7.117376600000001,
+      7.177376600000001,
+      7.2373766,
+      7.297376600000001,
+      7.297376600000001,
+      7.337376600000001,
+      7.377376600000001,
+      7.4173766,
+      7.4573766,
+      7.5373766,
+      7.5873766,
+      7.6373766,
+      7.687376599999999,
+      7.7373766,
+      7.7873766,
+      7.8373766,
+      7.8873766
+    ]
+  },
+  "durationMs": 7937,
+  "commands": [
+    {
+      "text": "|3 + 4i| = \u221a(3^2 + 4^2)",
+      "type": "WRITE",
+      "params": [
+        90,
+        538,
+        32
+      ],
+      "charPosition": 1230,
+      "narrationBefore": "using the two perpendicular lengths, the modulus of three plus four i equals the square root of three squared plus four squared."
+    },
+    {
+      "text": "modulus_segment",
+      "type": "FOCUS",
+      "params": [],
+      "charPosition": 0,
+      "narrationBefore": "using the two perpendicular lengths, the modulus of three plus four i equals the square root of three squared plus four squared."
+    }
+  ]
+}

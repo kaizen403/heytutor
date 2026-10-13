@@ -96,6 +96,13 @@ jobs:
         run: pnpm --filter @heytutor/tutor verify:storage-admission
       - name: Finished playback and MP4 board fidelity regressions
         run: pnpm --filter @heytutor/tutor verify:board-playback-export
+      - name: Voice recovery, stored work pages and compact lesson regressions
+        run: |
+          pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-tts-native-startup.ts
+          pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-tts-pause-resume.ts
+          pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-tts-paused-arrival.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-live-speech-pause.ts
+          pnpm --filter @heytutor/tutor verify:lesson-qa-2
       - name: Live diagram picker regressions (no model calls)
         run: |
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-live-diagram-picker.ts
@@ -107,14 +114,16 @@ jobs:
           pnpm --filter @heytutor/tutor verify:razorpay
       - name: Disposable database concurrency checks
         run: |
-          # The isolated service starts empty. Legacy migration names cannot
-          # bootstrap in lexical order; never db push a deployment database.
+          # Real empty migration deployment, including immutable legacy SQL.
+          createdb heytutor_migrations_verify_ci
+          export MIGRATION_TEST_DATABASE_URL=postgresql://security:security_ci_only@127.0.0.1:5432/heytutor_migrations_verify_ci
+          pnpm --filter @heytutor/tutor verify:fresh-migrations
           pnpm --filter @heytutor/tutor exec prisma validate
-          pnpm --filter @heytutor/tutor exec prisma db push --skip-generate
+          pnpm --filter @heytutor/tutor db:migrate:deploy
           pnpm verify:security-db
           createdb heytutor_razorpay_verify_ci
           export DATABASE_URL=postgresql://security:security_ci_only@127.0.0.1:5432/heytutor_razorpay_verify_ci
-          pnpm --filter @heytutor/tutor exec prisma db push --skip-generate
+          pnpm --filter @heytutor/tutor db:migrate:deploy
           pnpm --filter @heytutor/tutor verify:razorpay-db
       - name: Reject known dependency vulnerabilities
         run: pnpm verify:dependency-security

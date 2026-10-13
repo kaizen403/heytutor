@@ -134,6 +134,45 @@ async function main(): Promise<void> {
     assert(landing.ms === 0, "an exhausted lead must settle the nib at the trace start");
   }
 
+  // A lead may be exhausted while its owning cue still has time left.
+  // Once the actual writing deadline expires, there must be no endpoint jump.
+  for (const deadlineMs of [900, 1800]) {
+    const board = fakeBoard({ letterMs: deadlineMs === 900 ? 440 : 220 });
+    await runScheduledFocus(board.host, [board.target("M", 900, 2600, WINDOWS[0].at)], {
+      emphasis: "trace", veil: VEIL, getAudioPositionMs: board.now,
+      waitUntilAudioMs: board.waitUntil, isCancelled: () => false, floorMs: 420,
+      deadlineMs,
+    });
+    const settles = board.events.filter((event): event is FlyEvent => event.kind === "fly" && event.ms === 0);
+    if (deadlineMs === 1800) {
+      assert(settles.length === 1 && settles[0]?.x === WINDOWS[0].at.x && settles[0]?.y === WINDOWS[0].at.y,
+        "an exhausted lead with a live deadline settles at the trace start exactly once");
+      assert(board.traces()[0]?.at === 900, "a live deadline retains trace onset on the word");
+    } else {
+      assert(settles.length === 0, "an expired deadline never settles an old focus endpoint");
+      assert(board.traces().length === 0, "an expired deadline never starts a catch-up trace");
+    }
+  }
+
+  // Late alignment can expire the deadline after lettering, while sizing
+  // a zero-time return. The dispatch must re-read ownership before settling.
+  {
+    const board = fakeBoard({ letterMs: 220 });
+    let timingReadsAfterLetter = 0;
+    await runScheduledFocus(board.host, [board.target("M", 900, 2600, WINDOWS[0].at)], {
+      emphasis: "trace", veil: VEIL, getAudioPositionMs: board.now,
+      waitUntilAudioMs: board.waitUntil, isCancelled: () => false, floorMs: 420,
+      getTiming: () => ({
+        targets: [{ id: "M", startMs: 900, endMs: 2600, anchor: "clause" }],
+        deadlineMs: board.letters().length && timingReadsAfterLetter++ >= 2 ? 900 : 1800,
+      }),
+    });
+    assert(timingReadsAfterLetter >= 3, "the alignment update actually occurs while sizing the return");
+    assert(!board.events.some(event => event.kind === "fly" && event.ms === 0),
+      "alignment expiry before zero-flight dispatch cannot catch up the endpoint");
+    assert(board.traces().length === 0, "alignment expiry cannot start a catch-up trace");
+  }
+
   // Already-revealed labels, as in the recorded pyramid intro, need no return.
   {
     const board = fakeBoard();
@@ -365,8 +404,8 @@ async function main(): Promise<void> {
       "the FOCUS branch must run a schedule through runScheduledFocus, and never on a code lesson",
     );
     assert(
-      /waitUntilAudioMs: \(targetMs\) =>\s*waitUntilDrawClock\(focusAudioClock, targetMs, \{\s*shouldCancel: commandCancelled,\s*getPlaybackRate: options\.getPlaybackRate,/.test(executor),
-      "the schedule's waits must run on the audio clock with the playback rate, as the runner's do",
+      /waitUntilAudioMs: async \(targetMs, getTargetMs\) =>[\s\S]{0,250}?const waitingFor = nextTarget;\s*await waitUntilDrawClock\(focusAudioClock, waitingFor, \{\s*shouldCancel: \(\) => commandCancelled\(\) \|\| Boolean\(getTargetMs && getTargetMs\(\) !== waitingFor\),\s*getPlaybackRate: options\.getPlaybackRate,/.test(executor),
+      "the schedule's changing target waits retain the audio clock, cancellation and playback rate",
     );
     assert(
       /entityIds: \[\.\.\.spec\.targetIds, \.\.\.targets\.map\(\(target\) => target\.id\)\]/.test(executor),

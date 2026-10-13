@@ -151,7 +151,7 @@ pnpm install --frozen-lockfile --ignore-scripts
 pnpm rebuild @prisma/client @prisma/engines esbuild prisma
 pnpm --filter @heytutor/tutor exec prisma generate
 pnpm turbo run build --filter=@heytutor/tutor...
-pnpm --filter @heytutor/tutor exec prisma migrate deploy
+pnpm --filter @heytutor/tutor exec tsx scripts/live/deploy-migrations.ts
 mkdir -p "${APP_DIR}/apps/tutor/.next/cache"
 chgrp -R heytutor "${APP_DIR}/apps/tutor/.next"
 chmod -R g+rwX "${APP_DIR}/apps/tutor/.next"
