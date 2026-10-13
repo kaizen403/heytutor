@@ -1295,7 +1295,14 @@ function hasAffirmativeDiscreteDomain(question: string, names: readonly string[]
   const mentionedPropositionSuffix = new RegExp(String.raw`^\s*[,:(]?\s*(?:as|is|are|was|were)\s+(?:(?:a|an|the)\s+)?(?:(?:false|invalid|incorrect|hypothetical|example\s+of(?:\s+(?:a|an|the))?)\s+)*${propositionObject}\b`, "i");
   const mentionedMathematicalObjectPrefix = /\b(?:hypothetical|illustrative|imaginary|counterfactual)\s+(?:(?:linear|number[ -]line|coordinate|integer|continuous|discrete)\s+)*(?:graphs?|plots?|figures?|diagrams?|examples?|regions?|(?:solution\s+)?sets?)\b/i;
   const mentionedMathematicalObjectSuffix = /^\s*[,:(]?\s*as\s+(?:(?:an?|the)\s+)?(?:hypothetical|illustrative|imaginary|counterfactual)\s+(?:example|graph|plot|figure|diagram)\b/i;
-  const secondaryExamplePrefix = /^\s*(?:please\s+)?(?:discuss|explain|describe|consider|demonstrate|show)\s+(?:(?:me|us)\s+)?(?:an?|the)\s+example\s+of\s+(?:(?:an?|the)\s+)?(?:graphs?|plots?|figures?|diagrams?|(?:solution\s+)?sets?)\b/i;
+  const secondaryExamplePrefix = /^\s*(?:please\s+)?(?:discuss|explain|describe|consider|demonstrate|show)\s+(?:(?:me|us)\s+)?(?:an?|the|this|that|another)\s+example\s+(?:of\s+(?:(?:an?|the|this|that)\s+)?)?(?:graphs?|plots?|figures?|diagrams?|(?:solution\s+)?sets?)\b/i;
+  // A noun can cite a subsidiary requested action rather than perform it:
+  // discussing a claim to graph is different from explaining how to graph.
+  const citedRequestComplement = new RegExp(String.raw`\b${propositionObject}\s+(?:to\s+|(?:that|of|about)\s+(?:[A-Za-z]+\s+)*?)(?:(?:not|never)\s+)?${mathematicalAction}\b`, "i");
+  const nominalMathematicalHead = /^\s*(?:graphs?|plots?|figures?|diagrams?|regions?|(?:solution\s+)?sets?)\s+of\b/i;
+  const frameAdjunctLead = /\b(?:in|for|at|on|during|after|before|under|within|throughout)\s+(?:[A-Za-z]+\s+)*[A-Za-z]+\s*$/i;
+  const nominalDeterminerLead = /(?:^|\s)(?:an?|the|this|that|these|those|its|their)\s*$/i;
+  const nominalHeadLead = new RegExp(String.raw`\b(?:${propositionObject}|examples?|quotations?)(?:\s+(?:of|to|about|for|that|an?|the))*\s*$`, "i");
   const deniedPropositionSuffix = /^\s*[,:(]?\s*(?:(?:is|are|was|were)\s+(?:false|invalid|incorrect|wrong|untrue)\b|without\s+(?:imposing|assuming|requiring|asserting)\b)/i;
   for (const match of question.matchAll(/(?:\.(?=\d)|[^.;?!])+[.;?!]?/g)) {
     const clause = match[0];
@@ -1318,10 +1325,16 @@ function hasAffirmativeDiscreteDomain(question: string, names: readonly string[]
       const lead = governingHead.exec(prefix + assertion[0])?.[0] ?? "";
       const ownedPrefix = prefix.slice(lead.length);
       const premise = premisePrefix.test(ownedPrefix);
-      const originalPremise = premisePrefix.test(prefix);
-      // A known head inside a cited noun phrase or infinitive is not an
-      // imperative/domain head. Its leading words retain that original role.
-      if (!originalPremise && /\b(?:an?|the|this|that|these|those|its|their|of|examples?|claims?|statements?|assertions?|propositions?|quotations?|whether|if|unless)\b/i.test(lead)) return false;
+      // Test the constituent governing the head, not every determiner in an
+      // adjunct. A completed temporal/prepositional adjunct ("this time",
+      // "in this case") leaves the following imperative or given intact.
+      // A determiner or cited noun directly governing the head makes it a
+      // nominal mention instead. Keep all original words for mood checks.
+      const frameAdjunct = frameAdjunctLead.test(lead)
+        && !/\b(?:of|to|about|for|that)\s*$/i.test(lead);
+      if (!premisePrefix.test(prefix)
+        && (nominalDeterminerLead.test(lead) || (nominalHeadLead.test(lead) && !frameAdjunct)
+          || (lead.trim().length > 0 && nominalMathematicalHead.test(ownedPrefix)))) return false;
       // The independently headed scope does not erase its manner or mood.
       // Tentative/hypothetical instructions supply no affirmative type fact.
       if (/\b(?:hypothetically|illustratively|imaginarily|counterfactually|possibly|perhaps|maybe|potentially|conditionally)\b/i.test(prefix)
@@ -1330,6 +1343,8 @@ function hasAffirmativeDiscreteDomain(question: string, names: readonly string[]
       // given assumption has a different governing role from discussing one.
       if ((!premise && mentionedPropositionPrefix.test(prefix))
         || mentionedPropositionSuffix.test(suffix) || deniedPropositionSuffix.test(suffix)) return false;
+      if (!new RegExp(String.raw`^\s*(?:please\s+)?${premiseHead}\b`, "i").test(ownedPrefix)
+        && citedRequestComplement.test(ownedPrefix)) return false;
       // An explicitly hypothetical/illustrative mathematical object has its
       // own mentioned domain. It cannot type the variables of the governing
       // figure. This local prefix ends at independent request/domain heads,
@@ -1341,7 +1356,7 @@ function hasAffirmativeDiscreteDomain(question: string, names: readonly string[]
       // Treat it as a secondary mentioned object only after a complete prior
       // continuous source program is proved. This reads a strictly shorter
       // prefix, without guessing a primary figure from nearby math spans.
-      if (!premise && secondaryExamplePrefix.test(prefix)
+      if (!premise && secondaryExamplePrefix.test(ownedPrefix)
         && readLinearBindingSource(question.slice(0, match.index! + (lower?.index ?? 0)), names, names.length === 1)) return false;
       // A domain phrase used as requested display content is an operand of
       // that instruction, never an independent declaration of variable type.
