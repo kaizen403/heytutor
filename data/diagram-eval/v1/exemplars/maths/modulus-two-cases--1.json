@@ -1,0 +1,430 @@
+{
+  "topic_id": "maths|7|elementary-functions",
+  "question": "Where does y = |x − 2| meet the line y = 5?",
+  "figure_kind": "function_plot",
+  "covers_topics": [
+    "maths|1|functions",
+    "maths|7|real-valued-functions-and-algebra"
+  ],
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "exact V graph cut by y = 5, one meeting point per case"
+    },
+    "source": {
+      "question": "Where does y = |x − 2| meet the line y = 5?"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "ax",
+        "kind": "axes",
+        "role": "coordinate axes"
+      },
+      {
+        "id": "xEnd",
+        "kind": "point",
+        "role": "x axis end"
+      },
+      {
+        "id": "xName",
+        "kind": "label",
+        "role": "x axis name",
+        "label": "x"
+      },
+      {
+        "id": "yEnd",
+        "kind": "point",
+        "role": "y axis end"
+      },
+      {
+        "id": "yName",
+        "kind": "label",
+        "role": "y axis name",
+        "label": "y"
+      },
+      {
+        "id": "vgraph",
+        "kind": "polyline",
+        "role": "V graph"
+      },
+      {
+        "id": "vgraph_lab",
+        "kind": "label",
+        "role": "V graph equation",
+        "label": "y = |x − 2|"
+      },
+      {
+        "id": "left_lab",
+        "kind": "label",
+        "role": "left branch, case x < 2",
+        "label": "y = 2 − x",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "right_lab",
+        "kind": "label",
+        "role": "right branch, case x ≥ 2",
+        "label": "y = x − 2",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "level",
+        "kind": "polyline",
+        "role": "horizontal line"
+      },
+      {
+        "id": "level_lab",
+        "kind": "label",
+        "role": "line equation",
+        "label": "y = 5"
+      },
+      {
+        "id": "V",
+        "kind": "point",
+        "role": "vertex of the V",
+        "label": "(2, 0)"
+      },
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "meeting point, case x < 2",
+        "label": "A"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "meeting point, case x ≥ 2",
+        "label": "B"
+      },
+      {
+        "id": "FA",
+        "kind": "point",
+        "role": "foot under A",
+        "label": "x = −3"
+      },
+      {
+        "id": "FB",
+        "kind": "point",
+        "role": "foot under B",
+        "label": "x = 7"
+      },
+      {
+        "id": "run",
+        "kind": "segment",
+        "role": "x axis run"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "mk_ax",
+        "operator": "axes",
+        "inputs": {
+          "xMin": -4.5,
+          "xMax": 9,
+          "yMin": -1,
+          "yMax": 7
+        },
+        "outputs": [
+          "ax"
+        ]
+      },
+      {
+        "id": "mk_xEnd",
+        "operator": "point",
+        "inputs": {
+          "x": 9,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "xEnd"
+        ]
+      },
+      {
+        "id": "mk_xName",
+        "operator": "label",
+        "inputs": {
+          "target": "xEnd",
+          "text": "x"
+        },
+        "outputs": [
+          "xName"
+        ]
+      },
+      {
+        "id": "mk_yEnd",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 7,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "yEnd"
+        ]
+      },
+      {
+        "id": "mk_yName",
+        "operator": "label",
+        "inputs": {
+          "target": "yEnd",
+          "text": "y"
+        },
+        "outputs": [
+          "yName"
+        ]
+      },
+      {
+        "id": "mk_vgraph",
+        "operator": "function_curve",
+        "inputs": {
+          "expression": "abs(x-2)",
+          "xMin": -4,
+          "xMax": 8
+        },
+        "outputs": [
+          "vgraph"
+        ]
+      },
+      {
+        "id": "mk_vgraph_lab",
+        "operator": "label",
+        "inputs": {
+          "target": "vgraph",
+          "text": "y = |x − 2|"
+        },
+        "outputs": [
+          "vgraph_lab"
+        ]
+      },
+      {
+        "id": "mk_Lp",
+        "operator": "point",
+        "inputs": {
+          "x": -1.6,
+          "y": 2.2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Lp"
+        ]
+      },
+      {
+        "id": "mk_left_lab",
+        "operator": "label",
+        "inputs": {
+          "target": "Lp",
+          "text": "y = 2 − x"
+        },
+        "outputs": [
+          "left_lab"
+        ]
+      },
+      {
+        "id": "mk_Rp",
+        "operator": "point",
+        "inputs": {
+          "x": 5.6,
+          "y": 2.2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Rp"
+        ]
+      },
+      {
+        "id": "mk_right_lab",
+        "operator": "label",
+        "inputs": {
+          "target": "Rp",
+          "text": "y = x − 2"
+        },
+        "outputs": [
+          "right_lab"
+        ]
+      },
+      {
+        "id": "mk_level",
+        "operator": "function_curve",
+        "inputs": {
+          "expression": "5",
+          "xMin": -4.5,
+          "xMax": 8.5
+        },
+        "outputs": [
+          "level"
+        ]
+      },
+      {
+        "id": "mk_level_lab",
+        "operator": "label",
+        "inputs": {
+          "target": "level",
+          "text": "y = 5"
+        },
+        "outputs": [
+          "level_lab"
+        ]
+      },
+      {
+        "id": "mk_V",
+        "operator": "curve_anchor",
+        "inputs": {
+          "curve": "vgraph",
+          "at": 2
+        },
+        "outputs": [
+          "V"
+        ]
+      },
+      {
+        "id": "mk_A",
+        "operator": "curve_anchor",
+        "inputs": {
+          "curve": "vgraph",
+          "at": -3
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "mk_B",
+        "operator": "curve_anchor",
+        "inputs": {
+          "curve": "vgraph",
+          "at": 7
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "mk_FA",
+        "operator": "point",
+        "inputs": {
+          "x": -3,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "FA"
+        ]
+      },
+      {
+        "id": "mk_FB",
+        "operator": "point",
+        "inputs": {
+          "x": 7,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "FB"
+        ]
+      },
+      {
+        "id": "mk_run",
+        "operator": "segment",
+        "inputs": {
+          "start": "FA",
+          "end": "FB"
+        },
+        "outputs": [
+          "run"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "a_on_line",
+        "predicate": "incident",
+        "entities": [
+          "A",
+          "level"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "b_on_line",
+        "predicate": "incident",
+        "entities": [
+          "B",
+          "level"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "drop_A",
+        "kind": "drop",
+        "targetIds": [
+          "A",
+          "run"
+        ]
+      },
+      {
+        "id": "drop_B",
+        "kind": "drop",
+        "targetIds": [
+          "B",
+          "run"
+        ]
+      }
+    ],
+    "requiredEntityIds": [
+      "ax",
+      "xName",
+      "yName",
+      "vgraph",
+      "vgraph_lab",
+      "left_lab",
+      "right_lab",
+      "V",
+      "level",
+      "level_lab",
+      "A",
+      "B",
+      "run",
+      "FA",
+      "FB"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "ax",
+          "xName",
+          "yName",
+          "vgraph",
+          "vgraph_lab",
+          "left_lab",
+          "right_lab",
+          "V",
+          "level",
+          "level_lab",
+          "A",
+          "B",
+          "run",
+          "FA",
+          "FB"
+        ],
+        "dependsOn": [],
+        "narrationCue": "the V and its two branches, y = 5, and A and B"
+      }
+    ],
+    "teachingTimeline": []
+  },
+  "engineCommit": "4ab84cd23c8719babb316bf03f075b57f4947c43",
+  "validatedOn": "2026-10-13"
+}

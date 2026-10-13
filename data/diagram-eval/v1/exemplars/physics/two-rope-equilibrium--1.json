@@ -1,0 +1,489 @@
+{
+  "topic_id": "physics|3|equilibrium-of-concurrent-forces",
+  "question": "A 6 kg sign hangs from two ropes at 35° and 55° to the ceiling. Find the tensions.",
+  "figure_kind": "vectors_fbd",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "sign hung by two ropes"
+    },
+    "source": {
+      "question": "A 6 kg sign hangs from two ropes at 35° and 55° to the ceiling. Find the tensions.",
+      "family": "contact_body"
+    },
+    "quantities": [
+      {
+        "id": "q_m",
+        "symbol": "m",
+        "value": 6,
+        "unit": "kg"
+      },
+      {
+        "id": "q_a1",
+        "symbol": "alpha",
+        "value": 35,
+        "unit": "degree"
+      },
+      {
+        "id": "q_a2",
+        "symbol": "beta",
+        "value": 55,
+        "unit": "degree"
+      }
+    ],
+    "entities": [
+      {
+        "id": "E1",
+        "kind": "point",
+        "role": "ceiling end"
+      },
+      {
+        "id": "E0",
+        "kind": "point",
+        "role": "ceiling end"
+      },
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "anchor"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "anchor"
+      },
+      {
+        "id": "K",
+        "kind": "point",
+        "role": "knot",
+        "label": "K"
+      },
+      {
+        "id": "S",
+        "kind": "point",
+        "role": "cord end"
+      },
+      {
+        "id": "G",
+        "kind": "point",
+        "role": "sign centre"
+      },
+      {
+        "id": "ceil",
+        "kind": "segment",
+        "role": "ceiling",
+        "label": "ceiling"
+      },
+      {
+        "id": "r1",
+        "kind": "segment",
+        "role": "rope 1"
+      },
+      {
+        "id": "r2",
+        "kind": "segment",
+        "role": "rope 2"
+      },
+      {
+        "id": "cord",
+        "kind": "segment",
+        "role": "cord"
+      },
+      {
+        "id": "sign",
+        "kind": "rectangle",
+        "role": "sign",
+        "label": "m = 6 kg"
+      },
+      {
+        "id": "ang1",
+        "kind": "angle_mark",
+        "role": "angle",
+        "label": "35°"
+      },
+      {
+        "id": "ang2",
+        "kind": "angle_mark",
+        "role": "angle",
+        "label": "55°"
+      },
+      {
+        "id": "rt",
+        "kind": "right_angle_mark",
+        "role": "ropes meet at 90°"
+      },
+      {
+        "id": "T1",
+        "kind": "vector",
+        "role": "tension",
+        "label": "T₁"
+      },
+      {
+        "id": "T2",
+        "kind": "vector",
+        "role": "tension",
+        "label": "T₂"
+      },
+      {
+        "id": "W",
+        "kind": "vector",
+        "role": "weight",
+        "label": "W = mg"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "kE1",
+        "operator": "point",
+        "inputs": {
+          "x": 2.580498091703,
+          "y": 2.4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "E1"
+        ]
+      },
+      {
+        "id": "kE0",
+        "operator": "point",
+        "inputs": {
+          "x": -4.227555216181,
+          "y": 2.4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "E0"
+        ]
+      },
+      {
+        "id": "kA",
+        "operator": "point",
+        "inputs": {
+          "x": -3.427555216181,
+          "y": 2.4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "kB",
+        "operator": "point",
+        "inputs": {
+          "x": 1.680498091703,
+          "y": 2.4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "kK",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "K"
+        ]
+      },
+      {
+        "id": "kS",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -0.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "S"
+        ]
+      },
+      {
+        "id": "kG",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -1.05,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "G"
+        ]
+      },
+      {
+        "id": "kceil",
+        "operator": "segment",
+        "inputs": {
+          "start": "E1",
+          "end": "E0"
+        },
+        "outputs": [
+          "ceil"
+        ]
+      },
+      {
+        "id": "kr1",
+        "operator": "segment",
+        "inputs": {
+          "start": "A",
+          "end": "K"
+        },
+        "outputs": [
+          "r1"
+        ]
+      },
+      {
+        "id": "kr2",
+        "operator": "segment",
+        "inputs": {
+          "start": "B",
+          "end": "K"
+        },
+        "outputs": [
+          "r2"
+        ]
+      },
+      {
+        "id": "kcord",
+        "operator": "segment",
+        "inputs": {
+          "start": "K",
+          "end": "S"
+        },
+        "outputs": [
+          "cord"
+        ]
+      },
+      {
+        "id": "ksign",
+        "operator": "rectangle",
+        "inputs": {
+          "center": "G",
+          "width": 1.8,
+          "height": 0.9
+        },
+        "outputs": [
+          "sign"
+        ]
+      },
+      {
+        "id": "kang1",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "A",
+          "a": "K",
+          "b": "B"
+        },
+        "outputs": [
+          "ang1"
+        ]
+      },
+      {
+        "id": "kang2",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "B",
+          "a": "K",
+          "b": "A"
+        },
+        "outputs": [
+          "ang2"
+        ]
+      },
+      {
+        "id": "krt",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "K",
+          "a": "A",
+          "b": "B"
+        },
+        "outputs": [
+          "rt"
+        ]
+      },
+      {
+        "id": "kT1",
+        "operator": "vector",
+        "inputs": {
+          "start": "K",
+          "direction": [
+            -0.819152,
+            0.573576
+          ],
+          "length": 1.147
+        },
+        "outputs": [
+          "T1"
+        ]
+      },
+      {
+        "id": "kT2",
+        "operator": "vector",
+        "inputs": {
+          "start": "K",
+          "direction": [
+            0.573576,
+            0.819152
+          ],
+          "length": 1.638
+        },
+        "outputs": [
+          "T2"
+        ]
+      },
+      {
+        "id": "kW",
+        "operator": "vector",
+        "inputs": {
+          "start": "G",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 2.0
+        },
+        "outputs": [
+          "W"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "rope1_angle",
+        "predicate": "angle_between",
+        "entities": [
+          "r1",
+          "ceil"
+        ],
+        "expected": {
+          "value": 35,
+          "unit": "degree"
+        },
+        "severity": "fatal"
+      },
+      {
+        "id": "rope2_angle",
+        "predicate": "angle_between",
+        "entities": [
+          "r2",
+          "ceil"
+        ],
+        "expected": {
+          "value": 55,
+          "unit": "degree"
+        },
+        "severity": "fatal"
+      },
+      {
+        "id": "t1_along",
+        "predicate": "parallel",
+        "entities": [
+          "T1",
+          "r1"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "t2_along",
+        "predicate": "parallel",
+        "entities": [
+          "T2",
+          "r2"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "ceil_hatch",
+        "kind": "hatch",
+        "targetIds": [
+          "ceil"
+        ]
+      }
+    ],
+    "requiredEntityIds": [
+      "A",
+      "B",
+      "K",
+      "ceil",
+      "r1",
+      "r2",
+      "cord",
+      "sign",
+      "ang1",
+      "ang2",
+      "rt",
+      "T1",
+      "T2",
+      "W"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "E1",
+          "E0",
+          "A",
+          "B",
+          "K",
+          "S",
+          "G",
+          "ceil",
+          "r1",
+          "r2",
+          "cord",
+          "sign",
+          "ang1",
+          "ang2",
+          "rt"
+        ],
+        "dependsOn": [],
+        "narrationCue": "ropes at 35° and 55° meet at knot K"
+      },
+      {
+        "id": "forces",
+        "entityIds": [
+          "T1",
+          "T2",
+          "W"
+        ],
+        "dependsOn": [
+          "setup"
+        ],
+        "narrationCue": "T₁, T₂ along the ropes; W = mg down"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "ropes at 35° and 55° meet at knot K"
+      },
+      {
+        "id": "reveal_forces",
+        "action": "reveal",
+        "targetId": "forces",
+        "dependsOn": [
+          "reveal_setup"
+        ],
+        "narrationIntent": "T₁, T₂ along the ropes; W = mg down"
+      }
+    ]
+  },
+  "engineCommit": "4ab84cd23c8719babb316bf03f075b57f4947c43",
+  "validatedOn": "2026-10-13"
+}
