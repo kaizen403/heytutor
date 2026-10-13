@@ -368,7 +368,157 @@ const ROWS: readonly Row[] = [
     "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu given Zn = -0.80 V at 298 K.",
     "questionSha256": "073b5f486f3a44f48ab7fff25f9e3726b6a3951252c999b19e6134f02d89fab8",
     "kind": "decline"
-  }
+  },
+{
+  "id": "FOURTH-STANDARD-DECLINE-01",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu if E nought is 1.10 V.",
+  "questionSha256": "1e8bc3c7aea286b664b64b506069a5a0edb90c99a01ea55038c9ac6b98771186",
+  "kind": "decline"
+},
+{
+  "id": "FOURTH-STANDARD-DECLINE-02",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu if E naught = 1.10 V.",
+  "questionSha256": "1bdff4b4841a8cbf36a6b7013a1cc8ff9624b67e65342e14b1c0ec3362546dde",
+  "kind": "decline"
+},
+{
+  "id": "FOURTH-STANDARD-DECLINE-03",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu given that E zero of the cell is 1.10 V.",
+  "questionSha256": "1febf1fc6d9da18546ebcd4a5b031feb890355600c5810461ccd5e11f826ed24",
+  "kind": "decline"
+},
+{
+  "id": "FOURTH-STANDARD-DECLINE-04",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu if E not is 1.10 V.",
+  "questionSha256": "7c788e9001e8cc92e962a496321cd00d79c62d460af71782ff23a34a4db226d7",
+  "kind": "decline"
+},
+{
+  "id": "FOURTH-STANDARD-DECLINE-05",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu if the E-naught value is 1.10 V.",
+  "questionSha256": "26334ea91d1d2bd69d8800a80772f301713f2b514d669d633e38e58c655560bf",
+  "kind": "decline"
+},
+{
+  "id": "FOURTH-STANDARD-DECLINE-06",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu if Enaught = 1.10 V.",
+  "questionSha256": "f7199e90e3a1827b8cadd140412cdb93a4c44e803b94a539683122446ad8ac5a",
+  "kind": "decline"
+},
+{
+  "id": "FOURTH-STANDARD-DECLINE-07",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu if E cell nought is 1.10 V.",
+  "questionSha256": "d425b91e6318c6480eee750b6ea92b460d4d8601a9122146ff905a7d39e941c0",
+  "kind": "decline"
+},
+{
+  "id": "FOURTH-STANDARD-DECLINE-08",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu if E sub zero is 1.10 V.",
+  "questionSha256": "04a86c996518df10efadcf7677b111dab11c0198b27a530c7c5918b697c715ef",
+  "kind": "decline"
+},
+{
+  "id": "FOURTH-STANDARD-DECLINE-09",
+  "question": "Find the emf of the Daniell cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu when its E nought is 1.10 V.",
+  "questionSha256": "4e10793cee129a12469c26d06158d0c5d9ce81f301e2b0f0cd888ca40757ea9c",
+  "kind": "decline"
+},
+{
+  "id": "FOURTH-STANDARD-DECLINE-10",
+  "question": "What is the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu? The E nought of the cell is 1.10 V.",
+  "questionSha256": "37f57cb7b97f5cd993815e1956f1f43777eb9a832f03658440b8556326cede0e",
+  "kind": "decline"
+},
+{
+  "id": "FOURTH-STANDARD-DECLINE-11",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu if the cell's E nought is 1.10 V.",
+  "questionSha256": "af645b76fcd8f7bfe29c57d0015db716ec47722f218c8d0e32c731162e1bea1c",
+  "kind": "decline"
+},
+{
+  "id": "FOURTH-STANDARD-DECLINE-12",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu if E-cell-zero = 1.10 V.",
+  "questionSha256": "62a0c90dc5532b5034cada9ea3635036782fc5df63cc3d9ef73a9dce81af2890",
+  "kind": "decline"
+},
+{
+  "id": "FOURTH-STANDARD-DECLINE-13",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu if E nought is 1.20 V.",
+  "questionSha256": "a2bbf53c7183e81052dc498def110aa37badebddd1d80902cf36e6fb997e4f29",
+  "kind": "decline"
+},
+{
+  "id": "FOURTH-STANDARD-DECLINE-14",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu where E-nought of the cell is 1.10 V.",
+  "questionSha256": "f2ca559ac8fbda689f3f013370ae6e06c8fcd72c7c39a9fac9f70a2256e73cdd",
+  "kind": "decline"
+},
+{
+  "id": "FOURTH-STANDARD-DECLINE-15",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu given E naught for the cell = 1.10 V.",
+  "questionSha256": "9ea596d5910c0582512f07ae9011536e8d566575db831f6e0f95834465aacdce",
+  "kind": "decline"
+},
+{
+  "id": "FOURTH-STANDARD-DECLINE-16",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu when E zero is 1.10 V.",
+  "questionSha256": "965b3c5b59e10164e9dcb9b9cef90a1cf49a8523cb8a4f56b342334314a93f12",
+  "kind": "decline"
+},
+{
+  "id": "FOURTH-STANDARD-DECLINE-17",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu if its E sub naught is 1.10 V.",
+  "questionSha256": "4387190f81f2e95cff3f74891e0d8290f6c392f5565c80817d94b4bc247d2d07",
+  "kind": "decline"
+},
+{
+  "id": "FOURTH-STANDARD-DECLINE-18",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu? The value of E-zero is 1.10 V.",
+  "questionSha256": "97a83bec0ce229884cdde37f9c111a3602ac4fc230c9f5db34c841eb4539034f",
+  "kind": "decline"
+},
+{
+  "id": "FOURTH-STANDARD-DECLINE-19",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu if the reference value is 1.13 V.",
+  "questionSha256": "7be2c628758f379563cdb7772d3a75a6e9b397f862748360a4fde22809367d88",
+  "kind": "decline"
+},
+{
+  "id": "FOURTH-STANDARD-DECLINE-20",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu given the calibration voltage is 1.13 V.",
+  "questionSha256": "ae00165ff0e80f356c0783fa64e9c57840c495695213dd9800a5c666fb8972fc",
+  "kind": "decline"
+},
+{
+  "id": "FOURTH-STANDARD-DECLINE-21",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu when the instrument reading is 1.13 V.",
+  "questionSha256": "804595ec4e95035644415fe46b3f5fe6c21bdc4e37658ef5e09ce4cd25e7d0b9",
+  "kind": "decline"
+},
+{
+  "id": "FOURTH-STANDARD-DECLINE-22",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu where the reference cell is 1.13 V.",
+  "questionSha256": "232cd9c1bda9e76701c7009d41499ac75cecffe684cf09eb7986b9b46ab62e15",
+  "kind": "decline"
+},
+{
+  "id": "FOURTH-STANDARD-DECLINE-23",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu? The reference voltage is 1.13 V.",
+  "questionSha256": "79056216338834026a0bc1c1142c60ad070a00b16363301c1c787a5094affd83",
+  "kind": "decline"
+},
+{
+  "id": "FOURTH-STANDARD-DECLINE-24",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu if its emf at unit concentrations is 1.10 V.",
+  "questionSha256": "e038adc6c9d3673f6f621d4139539f92ab3434555eea4e409d8de32d1be2ec41",
+  "kind": "decline"
+},
+{
+  "id": "FOURTH-STANDARD-DECLINE-25",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu if the theoretical emf is 1.10 V.",
+  "questionSha256": "95f1113f1b0688ee8534c5e454f5f3899b70b76103172139648fb79848b6b6cf",
+  "kind": "decline"
+}
 ];
 
 interface Evidence {
