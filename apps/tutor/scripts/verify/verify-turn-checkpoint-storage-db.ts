@@ -19,6 +19,7 @@ import { resolve } from "node:path";
 import { mock } from "node:test";
 import { isStoredCommandTrustedGeometry, parseStoredSegmentCommands } from "@heytutor/drawing";
 import { getMockCodeLessonPlan } from "@heytutor/tutor-core";
+import { classifySaveFailure } from "../../lib/boards/boardsClient";
 import { checkpointSceneFixture } from "./fixtures/checkpointScene";
 
 async function main() {
@@ -151,8 +152,16 @@ async function main() {
 
     // --- an abandoned attempt deletes only its own folder ----------------------
     failUploadsWith = "object store down";
-    await assert.rejects(put(lesson, { seq: 3, baseCount: 3, appendSegments: [row(3, "So 5.")] }, { 3: MP3(2_000, 3) }),
-      /object store down/);
+    const failedGrowth = await put(lesson, { seq: 3, baseCount: 3, appendSegments: [row(3, "So 5.")] }, { 3: MP3(2_000, 3) });
+    assert.equal(failedGrowth.status, 503, "object-store failure returns clear save feedback instead of throwing");
+    assert.equal(failedGrowth.body.code, "storage_verification_failed");
+    assert.match(String(failedGrowth.body.error), /confirm.*saved.*try saving again/i);
+    const failure = classifySaveFailure(failedGrowth.status, failedGrowth.body);
+    assert.equal(failure.reason, "storage_verification");
+    assert.equal(failure.retryable, true);
+    assert.equal(failure.ok, false);
+    assert.equal((await turnRow(lesson)).checkpointSeq, 2, "a failed upload cannot advance the saved checkpoint");
+    assert.equal(await prisma.segment.count({ where: { turnId: lesson } }), 3, "failed growth keeps earlier rows");
     failUploadsWith = null;
     const jobs = await prisma.objectDeletionJob.findMany({ where: { userId } });
     assert.equal(jobs.length, 1, "the failed attempt left its durable cleanup intent");
@@ -170,7 +179,12 @@ async function main() {
     // --- a retried first create gets a fresh folder ----------------------------
     const retried = randomUUID();
     failUploadsWith = "lost";
-    await assert.rejects(put(retried, { seq: 1, baseCount: 0, appendSegments: [row(0, "", CLEAR), row(1, "Hi.")] }, { 1: MP3(1_000) }));
+    const failedCreate = await put(retried, { seq: 1, baseCount: 0, appendSegments: [row(0, "", CLEAR), row(1, "Hi.")] }, { 1: MP3(1_000) });
+    assert.equal(failedCreate.status, 503);
+    assert.equal(failedCreate.body.code, "storage_verification_failed");
+    assert.equal(classifySaveFailure(failedCreate.status, failedCreate.body).retryable, true);
+    assert.equal(await prisma.turn.count({ where: { id: retried } }), 0, "a failed first upload never publishes a turn");
+    assert.equal(await prisma.segment.count({ where: { turnId: retried } }), 0);
     failUploadsWith = null;
     const abandonedCreate = await prisma.objectDeletionJob.findFirstOrThrow({ where: { userId } });
     assert.equal(abandonedCreate.pendingTurns, 0, "the abandoned create gave its turn slot back");
