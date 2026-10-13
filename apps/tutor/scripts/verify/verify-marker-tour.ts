@@ -251,9 +251,10 @@ async function main(): Promise<void> {
       !/setCursorState\(\s*"idle"\s*\)/.test(source),
       "the command executor must never set the cursor to idle: opacity 0 is a pen that has left the board",
     );
+    const typeBranch = source.slice(source.indexOf('case "TYPE":'), source.indexOf('case "POINT":'));
     assert(
-      /case "TYPE":[\s\S]{0,4500}?setCursorState\("thinking"\)/.test(source),
-      "after typing, the pen must spin (thinking). speaking is a still pen; idle is gone",
+      /await runTypedBlockBeat\(/.test(typeBranch),
+      "TYPE keeps the shared typed beat; the actual pace/window gates check its final thinking cursor",
     );
     const thinkingHolds = source.match(/setCursorState\("thinking"\)/g) ?? [];
     assert(

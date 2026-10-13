@@ -814,73 +814,17 @@ export function useQuestionHandler(
       // Resolve the walk-through first, so the program can be planned against
       // the algorithm the board will actually draw.
       let boardContext: CodeLessonBoardContext | null = null;
-      if (resume) {
-        turnPlan = resume.turnPlan;
-        if (resume.codeLesson) {
-          codeLesson = codeLessonControllerRef?.current?.getActivePlan() ?? null;
-          dsaFrameSet = codeLessonControllerRef?.current?.frames.getSet() ?? null;
-        }
-        if (resume.scene) {
-          sceneV2Document = (resume.scene.sceneDocument as SceneDocument | Record<string, unknown> | null) ?? null;
-          sceneVisualStatus =
-            resume.scene.visualStatus === "validated" || resume.scene.visualStatus === "retry_required"
-              ? resume.scene.visualStatus
-              : "text_only";
-          sceneArtifacts = (resume.scene.sceneArtifacts as SceneArtifactsV3 | null) ?? null;
-          figureSource = sceneArtifacts?.figureSource ?? "text_only";
-        }
-      } else if (!doubt && dsaClassification.isDsa) {
-        boardContext = resolveCodeLessonBoardContext(question);
-        // New and Revision already have fixed motivation rules. Only Normal
-        // needs a semantic choice, and it runs beside the code planner.
-        if (familiarityRef.current === "normal") {
-          void fetchDsaTeachingPolicy({
-            url: resolveApiUrl("/api/dsa-teaching-policy"),
-            question,
-            familiarity: familiarityRef.current,
-            technique: boardContext?.context.familyId ?? null,
-            traceId: turnTraceId,
-            signal: abortController.signal,
-          }).then((policy) => {
-            dsaTeachingPolicy.current = policy;
-          });
-        }
-        const codeLessonResponse = await awaitCurrentTurn(
-          planCodeLessonV1(question, {
-            proxyUrl: plannerUrl,
-            sessionId: sessionId ?? undefined,
-            traceId: turnTraceId ?? undefined,
-            signal: abortController.signal,
-            timeoutMs: SCENE_PLANNER_DEADLINE_MS,
-            fastMode: fastModeRef.current,
-            syntaxCheck: prettierSyntaxCheck,
-            ...(boardContext ? { context: boardContext.context } : {}),
-          }).catch(() => null),
-          isCurrentTurn,
-        );
-        codeLesson = codeLessonResponse?.plan ?? null;
-        tutorDebug("planner", "code lesson lane", {
-          classified: dsaClassification.confidence,
-          language: dsaClassification.language,
-          board_family: boardContext?.context.familyId ?? null,
-          plan_accepted: codeLesson !== null,
-          section_count: codeLesson?.sections.length ?? 0,
-          elapsed_ms: codeLessonResponse?.elapsedMs ?? null,
-        });
-      }
-
-      if (codeLesson && !resume) {
-        turnPlan = createFallbackTurnPlanV3(question);
-        // Prefer a real execution trace: when the algorithm catalog knows this
-        // family we can run it on a concrete example and draw what it actually
-        // did, frame by frame. Otherwise the planner's own hint steps are
-        // compiled one figure per frame, which still keeps the board moving.
-        // Only a hint that will not compile leaves a single static figure.
-        dsaFrameSet = resolveDsaFrames(question, codeLesson.diagramHint, codeLesson);
+      // Fresh lessons and an undrawn code Continue use the same captured
+      // plan and compiler authority. The page still withholds this planned
+      // scene until the queued verified intro actually commits.
+      let rebuildingCodeIntro = false;
+      const rebuildCodeScene = () => {
+        const capturedPlan = codeLesson;
+        if (!capturedPlan) return false;
         const firstTraceFrame = dsaFrameSet?.scenes.frames[0] ?? null;
         const dsaScene = firstTraceFrame
           ? null
-          : synthesizeDsaScene(codeLesson.diagramHint, {
+          : synthesizeDsaScene(capturedPlan.diagramHint, {
               question,
               compile: { viewport: DSA_DIAGRAM_ZONE },
             });
@@ -932,6 +876,13 @@ export function useQuestionHandler(
           // An unsupported hint never blocks the lesson: the code panel and
           // narration still teach, the canvas just stays empty.
           sceneVisualStatus = "text_only";
+          sceneV2Document = null;
+          sceneV2RenderScene = null;
+          sceneV2Report = null;
+          figureSource = "text_only";
+          representationTier = null;
+          representationNonMetric = false;
+          dsaProofAssertions = [];
           representationReason = "dsa_hint_unsupported";
         }
         sceneArtifacts = {
@@ -962,10 +913,76 @@ export function useQuestionHandler(
           },
         };
         tutorDebug("planner", "dsa scene synthesis", {
-          structure: dsaScene?.structure ?? codeLesson.diagramHint.structure ?? null,
+          structure: dsaScene?.structure ?? capturedPlan.diagramHint.structure ?? null,
           compiled: dsaScene !== null,
           primitive_count: dsaScene?.renderScene.primitives.length ?? 0,
         });
+        return sceneVisualStatus === "validated";
+      };
+
+      if (resume) {
+        turnPlan = resume.turnPlan;
+        if (resume.codeLesson) {
+          codeLesson = codeLessonControllerRef?.current?.getActivePlan() ?? null;
+          dsaFrameSet = codeLessonControllerRef?.current?.frames.getSet() ?? null;
+        }
+        if (resume.scene) {
+          sceneV2Document = (resume.scene.sceneDocument as SceneDocument | Record<string, unknown> | null) ?? null;
+          sceneVisualStatus =
+            resume.scene.visualStatus === "validated" || resume.scene.visualStatus === "retry_required"
+              ? resume.scene.visualStatus
+              : "text_only";
+          sceneArtifacts = (resume.scene.sceneArtifacts as SceneArtifactsV3 | null) ?? null;
+          figureSource = sceneArtifacts?.figureSource ?? "text_only";
+        }
+        if (codeLesson && !resume.figureDrawn) {
+          rebuildingCodeIntro = true;
+          rebuildCodeScene();
+        }
+      } else if (!doubt && dsaClassification.isDsa) {
+        boardContext = resolveCodeLessonBoardContext(question);
+        // New and Revision already have fixed motivation rules. Only Normal
+        // needs a semantic choice, and it runs beside the code planner.
+        if (familiarityRef.current === "normal") {
+          void fetchDsaTeachingPolicy({
+            url: resolveApiUrl("/api/dsa-teaching-policy"),
+            question,
+            familiarity: familiarityRef.current,
+            technique: boardContext?.context.familyId ?? null,
+            traceId: turnTraceId,
+            signal: abortController.signal,
+          }).then((policy) => {
+            dsaTeachingPolicy.current = policy;
+          });
+        }
+        const codeLessonResponse = await awaitCurrentTurn(
+          planCodeLessonV1(question, {
+            proxyUrl: plannerUrl,
+            sessionId: sessionId ?? undefined,
+            traceId: turnTraceId ?? undefined,
+            signal: abortController.signal,
+            timeoutMs: SCENE_PLANNER_DEADLINE_MS,
+            fastMode: fastModeRef.current,
+            syntaxCheck: prettierSyntaxCheck,
+            ...(boardContext ? { context: boardContext.context } : {}),
+          }).catch(() => null),
+          isCurrentTurn,
+        );
+        codeLesson = codeLessonResponse?.plan ?? null;
+        tutorDebug("planner", "code lesson lane", {
+          classified: dsaClassification.confidence,
+          language: dsaClassification.language,
+          board_family: boardContext?.context.familyId ?? null,
+          plan_accepted: codeLesson !== null,
+          section_count: codeLesson?.sections.length ?? 0,
+          elapsed_ms: codeLessonResponse?.elapsedMs ?? null,
+        });
+      }
+
+      if (codeLesson && !resume) {
+        turnPlan = createFallbackTurnPlanV3(question);
+        dsaFrameSet = resolveDsaFrames(question, codeLesson.diagramHint, codeLesson);
+        rebuildCodeScene();
       } else if (!doubt && !resume) {
         // A doubt or a resume plans nothing: the page already carries the
         // lesson's figure and rows, and the plan its numbers came from is
@@ -1590,12 +1607,26 @@ export function useQuestionHandler(
         // still has something to point at. A figure a plain Stop caught before
         // its first beat was planned, not drawn: it is drawn whole now.
         activeDiagram = resume.figureDrawn || resume.codeLesson ? activeVerifiedDiagramRef.current : null;
+        if (rebuildingCodeIntro) {
+          activeDiagram = presentation && verifiedDiagramHasDrawableInk(presentation.diagram)
+            ? presentation.diagram : null;
+          sceneV2IntroSegments = activeDiagram ? presentation!.introSegments : null;
+          activeVerifiedDiagramRef.current = activeDiagram;
+          if (!activeDiagram) {
+            setActiveVerifiedDiagram?.(null);
+            dropDiagramRects(boardLayoutRef.current);
+            dsaFrameSet = null;
+            codeLessonControllerRef?.current?.frames.reset();
+            fbdPhaseMarkedRef.current = false;
+            fbdPhaseStartedRef.current = false;
+          }
+        }
         if (activeDiagram && !resume.codeLesson && resume.remainingIntro?.length) {
           // Stop cut the figure off: Continue draws its missing beats first.
           sceneV2IntroSegments = [...resume.remainingIntro];
           resumeIntroRemainder = true;
         }
-        if (!activeDiagram && resume.scene?.sceneDocument) {
+        if (!rebuildingCodeIntro && !activeDiagram && resume.scene?.sceneDocument) {
           const restored = restoreVerifiedPresentationFromTurn({
             sceneDocument: resume.scene.sceneDocument,
           });
@@ -1630,7 +1661,7 @@ export function useQuestionHandler(
         setActiveVerifiedDiagram?.(null);
       }
 
-      if (!doubt && !resume && diagramSource === "none" && sceneVisualStatus === "validated") {
+      if (!doubt && (!resume || rebuildingCodeIntro) && diagramSource === "none" && sceneVisualStatus === "validated") {
         // Compilation can yield no executable board commands. Keep its scene
         // out of persistence and recovery, and retain a required visual failure.
         sceneVisualStatus = resolveSelectedVisualStatus(
@@ -1640,6 +1671,10 @@ export function useQuestionHandler(
         sceneV2Document = null;
         sceneV2RenderScene = null;
         sceneV2IntroSegments = null;
+        if (codeLesson) {
+          dsaFrameSet = null;
+          codeLessonControllerRef?.current?.frames.reset();
+        }
         representationTier = null;
         representationNonMetric = false;
         representationFamily = null;
@@ -1657,11 +1692,11 @@ export function useQuestionHandler(
         }
       }
 
-      if (!doubt && !resume) {
+      if (!doubt && (!resume || rebuildingCodeIntro)) {
         // A doubt asked on this page reuses what the lesson was planned from,
         // and saves the lesson's part with this scene if it stops it.
         page.turnPlan = turnPlan;
-        page.solverProjection = problemAuthority?.projection ?? null;
+        page.solverProjection = resume ? resume.solverProjection : problemAuthority?.projection ?? null;
         liveTurnSave().setResumeState(cancelRef, turnGeneration, lessonResumeState(page.solverProjection));
         page.turn.scene = {
           sceneDocument: sceneV2Document,
@@ -2772,12 +2807,12 @@ export function useQuestionHandler(
       const admissionCurrent = () => admissionBoardRef.current === sessionId && turnGenerationRef.current === generation && phaseRef.current === "idle" && !turnActiveRef.current;
       const receipt = lessonAdmission().start(cancelRef, sessionId, {
         current: admissionCurrent,
+        // Creation must not consume the fresh-history read's bounded window.
+        prepare: isDraft && commitDraftBoard
+          ? async () => { await commitDraftBoard(); return true; }
+          : undefined,
         validate: async (signal) => {
-          // Commit a home draft under the held claim, then require an owned read.
           // A stale draft prop or unavailable GET never stands for empty history.
-          if (isDraft && commitDraftBoard) {
-            try { await commitDraftBoard(); } catch { return false; }
-          }
           if (signal.aborted || !admissionCurrent()) return false;
           const detail = await fetchBoardDetail(sessionId, { signal }).catch(() => null);
           if (signal.aborted || !admissionCurrent()) return false;

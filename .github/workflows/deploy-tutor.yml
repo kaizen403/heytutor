@@ -96,13 +96,14 @@ jobs:
         run: pnpm --filter @heytutor/tutor verify:storage-admission
       - name: Finished playback and MP4 board fidelity regressions
         run: pnpm --filter @heytutor/tutor verify:board-playback-export
-      - name: Voice recovery, stored work pages and compact lesson regressions
+      - name: Lesson admission, voice recovery, work pages and programming sync regressions
         run: |
           pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-tts-native-startup.ts
           pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-tts-pause-resume.ts
           pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-tts-paused-arrival.ts
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-live-speech-pause.ts
           pnpm --filter @heytutor/tutor verify:lesson-qa-2
+          pnpm --filter @heytutor/tutor verify:lesson-qa-3
       - name: Live diagram picker regressions (no model calls)
         run: |
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-live-diagram-picker.ts

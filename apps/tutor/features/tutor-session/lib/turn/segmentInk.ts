@@ -7,6 +7,8 @@ import {
   capSceneBatchDurations,
   catchUpWriteScheduleOffsets,
   classifyTtsScheduleUse,
+  CODE_TYPE_MAX_BLOCK_MS,
+  CODE_TYPE_MS_PER_CHAR,
   cuedInkCapMs,
   cuedInkFloorMs,
   cueWindowRemainingMs,
@@ -139,6 +141,20 @@ function continuesAuthoredWrite(previous: DrawCommand, command: DrawCommand): bo
     previous.charPosition === command.charPosition &&
     previous.narrationBefore === command.narrationBefore &&
     command.params[1]! > previous.params[1]!;
+}
+
+/** Leave room for ordinary code typing, without waiting for final alignment. */
+function typeCommandStartMs(command: DrawCommand, clock: SegmentInkClock, textIndex: number): number {
+  const timings = clock.getTimings() ?? clock.fallbackTimings ?? null;
+  if (!timings) return 0;
+  const window = getCommandSpeechWindow(clock.narration, command, timings, textIndex, clock.msPerChar);
+  const totalMs = timings.totalDuration > 0 && Number.isFinite(timings.totalDuration)
+    ? Math.round(timings.totalDuration * 1000)
+    : clock.totalSpeechMs;
+  return Math.min(window.startMs, Math.max(totalMs - Math.min(
+    (command.text?.length ?? 0) * CODE_TYPE_MS_PER_CHAR,
+    CODE_TYPE_MAX_BLOCK_MS,
+  ), 0));
 }
 
 export async function drawSegmentInk(input: {
@@ -282,21 +298,29 @@ export async function drawSegmentInk(input: {
       : null;
     let focusDeadlineMs: number | undefined;
     let getFocusTiming: ExecuteCommandOptions["getFocusTiming"];
-    const nextWorkPosition = focusSchedule
-      ? commandOrder.findIndex((nextIndex, position) => position > commandPosition &&
-          (segmentCommands[nextIndex]!.type === "WRITE" || segmentCommands[nextIndex]!.type === "LABEL") &&
-          commandPaces[nextIndex] !== "scene" && typeof spokenAnchorsMs[nextIndex] === "number")
+    const nextWorkPosition = focusSchedule || command.type === "POINT"
+      ? commandOrder.findIndex((nextIndex, position) => {
+          if (position <= commandPosition) return false;
+          const next = segmentCommands[nextIndex]!;
+          if (command.type === "POINT" && next.type === "TYPE") return true;
+          return (next.type === "WRITE" || next.type === "LABEL") &&
+            commandPaces[nextIndex] !== "scene" &&
+            (command.type === "POINT" || typeof spokenAnchorsMs[nextIndex] === "number");
+        })
       : -1;
     const nextWorkTimings = nextWorkPosition >= 0 ? clock.getTimings() : null;
-    const readWorkCue = (timings: AudioTimings | null) => nextWorkPosition >= 0
-      ? getBestWriteCharScheduleMs(
-          narration, segmentCommands[commandOrder[nextWorkPosition]!]!, timings,
+    const readWorkCue = (timings: AudioTimings | null): number | null => {
+      if (nextWorkPosition < 0) return null;
+      const nextWork = segmentCommands[commandOrder[nextWorkPosition]!]!;
+      if (nextWork.type === "TYPE") return typeCommandStartMs(nextWork, clock, textCommandIndex);
+      return getBestWriteCharScheduleMs(
+          narration, nextWork, timings,
           timings?.totalDuration ? Math.round(timings.totalDuration * 1000) : totalSpeechMs,
           textCommandIndex + commandOrder.slice(commandPosition + 1, nextWorkPosition)
             .filter((nextIndex) => ["WRITE", "LABEL", "TYPE"].includes(segmentCommands[nextIndex]!.type)).length,
           speechMsPerChar,
-        )?.offsetsMs[0] ?? null
-      : null;
+        )?.offsetsMs[0] ?? null;
+    };
     const nextWorkCue = readWorkCue(nextWorkTimings);
     if (focusSchedule && typeof nextWorkCue === "number") {
       // One combined gesture can name a part after the next row's word.
@@ -513,11 +537,18 @@ export async function drawSegmentInk(input: {
             speechMsPerChar,
           )
         : null;
+    // Code is not spoken character by character. A late explanatory phrase
+    // must still leave room for the block's ordinary typing pace. Start it
+    // earlier within this sentence; preceding commands and short-speech
+    // typing tails keep their existing order and bounds.
+    const commandStartMs = command.type === "TYPE" && speechWindow
+      ? typeCommandStartMs(command, clock, textCommandIndex)
+      : speechWindow?.startMs ?? 0;
     const startDelayMs = cueStartMs !== null
       ? Math.max(Math.round(cueStartMs - elapsedAtCommandStart), 0)
       : speechWindow && !input.verifiedDiagramIntro && !focusSchedule
         ? Math.min(
-            Math.max(Math.round(speechWindow.startMs - elapsedAtCommandStart), 0),
+            Math.max(Math.round(commandStartMs - elapsedAtCommandStart), 0),
             // Allow waiting for the spoken cue; a 400ms cap made shapes appear
             // long before the words they belong to.
             6_000,
@@ -525,11 +556,14 @@ export async function drawSegmentInk(input: {
         : 0;
 
     if (startDelayMs > 0 && (cueStartMs !== null || speechWindow)) {
-      await waitUntilDrawClock(clock.getAudioPositionMs, cueStartMs ?? speechWindow!.startMs, {
+      await waitUntilDrawClock(clock.getAudioPositionMs, cueStartMs ?? commandStartMs, {
         shouldCancel: isCancelled,
         getPlaybackRate: clock.getPlaybackRate,
         ...(clock.isPaused ? { isPaused: clock.isPaused } : {}),
         ...(clock.nowMs ? { nowMs: clock.nowMs } : {}),
+        ...(command.type === "TYPE" && cueStartMs === null
+          ? { getTargetMs: () => typeCommandStartMs(command, clock, textCommandIndex) }
+          : {}),
       });
       if (isCancelled()) {
         return;
@@ -622,6 +656,9 @@ export async function drawSegmentInk(input: {
       ...(focusSchedule ? { focusSchedule } : {}),
       ...(focusDeadlineMs !== undefined ? { focusDeadlineMs } : {}),
       ...(getFocusTiming ? { getFocusTiming } : {}),
+      ...(command.type === "POINT" && nextWorkPosition >= 0
+        ? { getPointDeadlineMs: () => readWorkCue(clock.getTimings()) }
+        : {}),
       ...(clock.isPaused ? { isPaused: clock.isPaused } : {}),
       getAudioPositionMs: clock.getAudioPositionMs,
       getPlaybackRate: clock.getPlaybackRate,
