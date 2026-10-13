@@ -108,6 +108,12 @@ async function verifyFeedbackBounds() {
     assert.ok(feedback.some((entry) => entry.field === "constructions" && JSON.stringify(entry.node).includes("bad-angle-27")),
       `${target ?? "output entity ID"}: exact failing arguments are visible`);
   }
+  const idRequests: SceneRepairRequestEvidence[] = [];
+  await repairSceneDocument(candidate.source.question, candidate, [{ ...errors[0]!,
+    code: "normal_must_be_constructed", path: "constructions.curve-build.inputs.normal", entityIds: undefined,
+  }], { ...options, repairRecoveryEnabled: true, onRepairRequest: (request) => { idRequests.push(request); } });
+  assert.ok(JSON.stringify(idRequests[0]!.previousStructure.failingElements).includes("bad-angle-27"),
+    "production construction-ID paths without entityIds retain exact failing inputs");
   const many = { ...candidate, constructions: Array.from({ length: 12 }, (_, index) => ({
     id: `build-${index}`, operator: "conic", inputs: { note: "🧪".repeat(index === 11 ? 800 : 220) }, outputs: [`curve-${index}`],
   })) };

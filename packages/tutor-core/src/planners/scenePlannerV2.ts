@@ -325,6 +325,8 @@ function summarizeSceneCandidateForRepair(
       const outputs = Array.isArray(node.outputs) ? node.outputs : [];
       const related = failures.filter((failure) =>
         failure.path?.match(new RegExp(`(?:${field}\\[(\\d+)\\]|${field}\\.(\\d+)|/${field}/(\\d+))(?:\\D|$)`))?.slice(1).includes(String(index)) ||
+        (typeof node.id === "string" && (failure.path === `${field}.${node.id}` ||
+          failure.path?.startsWith(`${field}.${node.id}.`))) ||
         failure.entityIds?.some((id) => id === node.id || outputs.includes(id)));
       if (related.length === 0) return [];
       const bytes = new TextEncoder().encode(JSON.stringify(node)).length;
