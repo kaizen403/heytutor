@@ -61,6 +61,8 @@ export const STARTUP_PRIORITY_EVENTS = [
   "scene-fast-selection",
   "scene-final-selection",
   "revalidate",
+  // The completeness round adds to Ask to first ink; its span must survive a write-heavy turn.
+  "scene-complete",
   "teaching-request",
   "teaching-first-token",
   "teaching-first-step",
