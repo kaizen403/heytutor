@@ -268,8 +268,13 @@ function glassFace(options: {
   marker?: number;
   derived?: Array<{ id: string; symbol: string; value: number; unit?: string }>;
   imageLabel?: string;
+  /** Object x (default -20, in the air before the face); inside the glass when positive. */
+  object?: number;
 }): { document: Doc; plan: TurnPlanV3 } {
-  const question = "An object stands 20 cm before a convex glass surface of radius 30 cm and refractive index 1.5. Find the image.";
+  const objectX = options.object ?? -20;
+  const question = objectX < 0
+    ? `An object stands ${-objectX} cm before a convex glass surface of radius 30 cm and refractive index 1.5. Find the image.`
+    : `An object inside the glass stands ${objectX} cm behind a convex glass surface of radius 30 cm and refractive index 1.5, viewed from the air. Find the image.`;
   const point = (id: string, x: number, y = 0) => ({ id: `make_${id}`, operator: "point", inputs: { x, y, coordinateSpace: "world" }, outputs: [id] });
   const quantity = (id: string, symbol: string, value: number, unit?: string) => ({ id, symbol, value, ...(unit ? { unit } : {}) });
   const entities: Array<Record<string, unknown> & { id: string }> = [
@@ -278,7 +283,7 @@ function glassFace(options: {
     { id: "axis", kind: "line", role: "principal axis" }, { id: "face", kind: "arc", role: "refracting surface" },
   ];
   const constructions: Array<Record<string, unknown> & { id: string; outputs: string[]; inputs: Record<string, unknown> }> = [
-    point("V", 0), point("C", 30), point("O", -20), point("I", options.image),
+    point("V", 0), point("C", 30), point("O", objectX), point("I", options.image),
     { id: "make_axis", operator: "line", inputs: { start: "O", end: "C" }, outputs: ["axis"] },
     { id: "make_face", operator: "spherical_surface", inputs: { vertex: "V", axis: "axis", center: "C", halfHeight: 12 }, outputs: ["face"] },
   ];
@@ -296,7 +301,7 @@ function glassFace(options: {
   }
   const ids = entities.map((entity) => entity.id);
   const derived = options.derived ?? [quantity("v", "v", Math.abs(options.image), "cm")];
-  const givens = [quantity("n", "n", 1.5), quantity("nAir", "n_1", 1), quantity("R", "R", 30, "cm"), quantity("u", "u", 20, "cm")];
+  const givens = [quantity("n", "n", 1.5), quantity("nAir", "n_1", 1), quantity("R", "R", 30, "cm"), quantity("u", "u", Math.abs(objectX), "cm")];
   const document = {
     schemaVersion: "scene-document/v2",
     visualDecision: { mode: "scene", reason: "The surface, its axis, the object and the image have stated positions." },
@@ -379,6 +384,30 @@ check("the same unitless distance on a point neither bound nor named an image pl
   const { valid, codes } = validate(document, plan);
   return valid ? null : `declined with ${codes.join(", ")}`;
 });
+
+/**
+ * Fourth review of #164 ("Reverse views reject correct images"). The declared
+ * order kept the indices but not which side of the face each medium is on.
+ * The face above with the same declared refraction, 1 to 1.5 for a ray coming
+ * in from the air at x < 0, and an object inside the glass at x = 12 cm viewed
+ * through the face into the air: light leaves the object in the glass, so the
+ * law runs 1.5 to 1 and the image is at x = 120/13 cm. Tested as 1 to 1.5 it
+ * was expected at 15 cm and the correct figure declined.
+ */
+check("declared refraction 1 to 1.5 from the air: an object inside the glass at 12 cm images at 120/13 cm, admitted", () => {
+  const { document, plan } = glassFace({ object: 12, image: 120 / 13, declared: [1, 1.5] });
+  const { valid, codes } = validate(document, plan);
+  return valid ? null : `declined with ${codes.join(", ")}`;
+});
+
+check("the same by quantity ids (nAir to n): the image at 120/13 cm is admitted", () => {
+  const { document, plan } = glassFace({ object: 12, image: 120 / 13, declared: ["nAir", "n"] });
+  const { valid, codes } = validate(document, plan);
+  return valid ? null : `declined with ${codes.join(", ")}`;
+});
+
+check("control: the object inside the glass with its image at 15 cm (the air side order's) declines", () =>
+  declinesFor(glassFace({ object: 12, image: 15, declared: [1, 1.5] }), "I", "admitted an image the glass side order puts at 120/13 cm"));
 
 console.log(`${passed} passed, ${failures.length} failed`);
 if (failures.length > 0) process.exit(1);

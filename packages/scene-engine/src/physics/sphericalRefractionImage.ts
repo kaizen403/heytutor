@@ -21,8 +21,10 @@
  * marker's distance places nothing. A placed image must be the law's image
  * of some declared object (a literal point on the axis at a plan-given
  * distance from a surface vertex). The media are the indices a refraction
- * declared at that surface gives, in its order (n1 the side the light comes
- * from); with none declared, any ordered pair of the plan's refractive
+ * declared at that surface gives, each on the side of the surface the
+ * figure puts it (n1 where the declared incident ray comes from); light
+ * from an object starts in the medium on the object's side. With none
+ * declared, any ordered pair of the plan's refractive
  * indices (dimensionless values from 1 to 4 written with an n or mu symbol)
  * and 1. Otherwise: `spherical_refraction_image_disagrees`.
  *
@@ -216,13 +218,39 @@ function refractingFrames(document: SceneDocument, frames: Frame[]): Set<string>
   return result;
 }
 
+/** A declared refraction at a surface: n1 on the side its incident ray comes from, when the figure shows that side. */
+type DeclaredMedia = { n1: number; n2: number; n1Side?: "centre" | "far" };
+
+/** A literal vector input: [x, y] or { x, y }. */
+function literalVector(value: unknown): RefractionPoint | null {
+  if (Array.isArray(value) && typeof value[0] === "number" && typeof value[1] === "number") return { x: value[0], y: value[1] };
+  if (value && typeof value === "object" && typeof (value as RefractionPoint).x === "number" && typeof (value as RefractionPoint).y === "number") {
+    return { x: (value as RefractionPoint).x, y: (value as RefractionPoint).y };
+  }
+  return null;
+}
+
 /**
- * The media a refraction declared at each surface gives, in its order (n1 the
- * side the light comes from): `refract_at` on the surface, a
- * `refract_direction` standing on it (as for `refractingFrames`), or n1 and n2
- * on the `spherical_surface` itself. Numbers or quantity ids.
+ * The media a refraction declared at each surface gives (n1 the medium the
+ * light comes from): `refract_at` on the surface, a `refract_direction`
+ * standing on it (as for `refractingFrames`), or n1 and n2 on the
+ * `spherical_surface` itself. Numbers or quantity ids.
+ *
+ * Each pair stays on its geometric sides: n1 is the medium on the side the
+ * declared incident ray comes from, the centre side of the surface or the far
+ * side. `refract_at` draws its incident ray from the centre side (its normal
+ * points to the centre and the source stands along it). A
+ * `refract_direction` reads its incoming direction (a literal vector, a
+ * `surface_contact` ray, or a segment or ray with literal ends) at its
+ * contact. Where the figure does not show the side (n1 and n2 on the surface,
+ * an incoming ray built from other light), the declared order holds as given.
  */
-function declaredMedia(document: SceneDocument, plan: PlanLike): Map<string, Array<readonly [number, number]>> {
+function declaredMedia(
+  document: SceneDocument,
+  plan: PlanLike,
+  frames: Frame[],
+  literal: Map<string, RefractionPoint>,
+): Map<string, DeclaredMedia[]> {
   const values = new Map<string, number>();
   for (const quantity of [...plan.givens ?? [], ...plan.derived ?? [], ...document.quantities ?? []]) {
     const value = (quantity as { value?: unknown }).value;
@@ -237,14 +265,20 @@ function declaredMedia(document: SceneDocument, plan: PlanLike): Map<string, Arr
     if (depth < 4 && value && typeof value === "object" && "value" in value) return index((value as { value: unknown }).value, depth + 1);
     return null;
   };
-  const media = new Map<string, Array<readonly [number, number]>>();
-  const declare = (surface: unknown, inputs: Record<string, unknown>) => {
+  const media = new Map<string, DeclaredMedia[]>();
+  const frameOf = new Map(frames.map((frame) => [frame.surfaceId, frame]));
+  const declare = (surface: unknown, inputs: Record<string, unknown>, n1Side?: (frame: Frame) => DeclaredMedia["n1Side"]) => {
     const n1 = index(inputs.n1);
     const n2 = index(inputs.n2);
     if (typeof surface !== "string" || n1 === null || n2 === null || n1 === n2) return;
-    media.set(surface, [...media.get(surface) ?? [], [n1, n2] as const]);
+    const frame = frameOf.get(surface);
+    const side = frame && n1Side ? n1Side(frame) : undefined;
+    media.set(surface, [...media.get(surface) ?? [], { n1, n2, ...(side ? { n1Side: side } : {}) }]);
   };
   const constructions = document.constructions ?? [];
+  const producer = (id: unknown) => typeof id === "string"
+    ? constructions.find((construction) => Array.isArray(construction.outputs) && construction.outputs.includes(id))
+    : undefined;
   const standsOn = new Map<string, string>();
   for (const construction of constructions) {
     const inputs = (construction.inputs ?? {}) as Record<string, unknown>;
@@ -254,15 +288,60 @@ function declaredMedia(document: SceneDocument, plan: PlanLike): Map<string, Arr
     if (typeof surface !== "string") continue;
     const outputs = Array.isArray(construction.outputs) ? construction.outputs : [];
     const event = construction.operator === "refract_at" || construction.operator === "reflect_at";
-    if (construction.operator === "refract_at") declare(surface, inputs);
+    if (construction.operator === "refract_at") declare(surface, inputs, () => "centre");
     for (const id of event ? [outputs[1], inputs.point ?? inputs.contact] : outputs) if (typeof id === "string") standsOn.set(id, surface);
   }
+  /** The incoming ray of a refract_direction: where it starts (when literal) and which way it runs. */
+  const incomingRay = (value: unknown): { start?: RefractionPoint; direction: RefractionPoint } | null => {
+    const vector = literalVector(value);
+    if (vector) return { direction: vector };
+    const made = producer(value);
+    if (!made) return null;
+    const inputs = (made.inputs ?? {}) as Record<string, unknown>;
+    const start = literal.get(String(inputs.origin ?? inputs.start ?? inputs.from));
+    if (made.operator === "surface_contact" && made.outputs?.[1] === value && start) {
+      const through = literal.get(String(inputs.through));
+      const direction = through ? { x: through.x - start.x, y: through.y - start.y }
+        : literalVector(inputs.parallelTo ?? inputs.direction ?? inputs.incoming);
+      return direction ? { start, direction } : null;
+    }
+    if (["segment", "ray", "line", "vector"].includes(made.operator) && start) {
+      const end = literal.get(String(inputs.end ?? inputs.to ?? inputs.through));
+      const direction = end ? { x: end.x - start.x, y: end.y - start.y } : literalVector(inputs.direction);
+      return direction ? { start, direction } : null;
+    }
+    return null;
+  };
+  /** The side of the surface the incoming light comes from: it leaves that side as it meets the surface. */
+  const incidentSide = (inputs: Record<string, unknown>) => (frame: Frame): DeclaredMedia["n1Side"] => {
+    const ray = incomingRay(inputs.incoming ?? inputs.direction);
+    if (!ray || !(Math.hypot(ray.direction.x, ray.direction.y) > 0)) return undefined;
+    const { center, vertex } = frame;
+    const radius = Math.hypot(vertex.x - center.x, vertex.y - center.y);
+    // The contact: a literal point, else the incoming ray's first crossing of the sphere, else the vertex.
+    let contact = literal.get(String(inputs.origin ?? inputs.point)) ?? vertex;
+    if (!literal.has(String(inputs.origin ?? inputs.point)) && ray.start) {
+      const length = Math.hypot(ray.direction.x, ray.direction.y);
+      const d = { x: ray.direction.x / length, y: ray.direction.y / length };
+      const fx = ray.start.x - center.x;
+      const fy = ray.start.y - center.y;
+      const b = fx * d.x + fy * d.y;
+      const disc = b * b - (fx * fx + fy * fy - radius * radius);
+      if (disc >= 0) {
+        const t = [-b - Math.sqrt(disc), -b + Math.sqrt(disc)].find((value) => value > 1e-9 * radius);
+        if (t !== undefined) contact = { x: ray.start.x + d.x * t, y: ray.start.y + d.y * t };
+      }
+    }
+    const outward = ray.direction.x * (contact.x - center.x) + ray.direction.y * (contact.y - center.y);
+    if (!(Math.abs(outward) > 1e-9 * radius * Math.hypot(ray.direction.x, ray.direction.y))) return undefined;
+    return outward > 0 ? "centre" : "far";
+  };
   for (const construction of constructions) {
     if (construction.operator !== "refract_direction") continue;
     const inputs = (construction.inputs ?? {}) as Record<string, unknown>;
     const surfaces = new Set([inputs.normal, inputs.origin, inputs.point].flatMap((reference) =>
       typeof reference === "string" && standsOn.has(reference) ? [standsOn.get(reference)!] : []));
-    surfaces.forEach((surface) => declare(surface, inputs));
+    surfaces.forEach((surface) => declare(surface, inputs, incidentSide(inputs)));
   }
   return media;
 }
@@ -364,11 +443,10 @@ export function validateSphericalRefractionImagePlacements(document: SceneDocume
     return [{ value, id, length: isLengthUnit(quantity.unit) || isLengthUnit(units.get(id)) }];
   });
   if (givens.length === 0 || derived.length === 0) return [];
-  const declared = declaredMedia(document, plan);
-
   const literal = literalPoints(document);
   // Every surface's vertex and centre stay reserved; only refracting ones are held to the law.
   const frames = sphericalSurfaceFrames(document, literal);
+  const declared = declaredMedia(document, plan, frames, literal);
   const refracting = refractingFrames(document, frames);
   if (!frames.some((frame) => refracting.has(frame.surfaceId))) return [];
   const reserved = new Set<string>(frames.map((frame) => frame.vertexId));
@@ -427,10 +505,23 @@ export function validateSphericalRefractionImagePlacements(document: SceneDocume
     ...[...confirmed].flatMap(([id, list]) => list.filter((entry) => entry.next === index)
       .map((entry) => ({ id, point: literal.get(id)!, direction: entry.direction, n1: entry.medium }))),
   ];
-  // A surface with a declared refraction keeps its declared order; only an undeclared one tries both.
+  // A surface with a declared refraction keeps its declared media on their sides: the
+  // light from a source starts in the medium on the source's side (for a real object,
+  // the side it stands on). Where the figure shows no side, the declared order holds.
+  // Only an undeclared surface tries both orders of every pair.
+  const mediaFor = (frame: Frame, source: LightSource): Array<readonly [number, number]> => {
+    const list = declared.get(frame.surfaceId);
+    if (!list) return pairs;
+    const { vertex, center } = frame;
+    const light = source.direction ?? { x: vertex.x - source.point.x, y: vertex.y - source.point.y };
+    const fromCentre = light.x * (vertex.x - center.x) + light.y * (vertex.y - center.y) > 0;
+    const ordered = list.map(({ n1, n2, n1Side }) =>
+      n1Side === undefined || (n1Side === "centre") === fromCentre ? [n1, n2] as const : [n2, n1] as const);
+    return ordered.filter(([n1, n2], at) => ordered.findIndex(([m1, m2]) => m1 === n1 && m2 === n2) === at);
+  };
   const lawImages = (index: number, source: LightSource): Array<{ result: SphericalRefractionImage; n2: number }> => {
-    const { vertex, center, surfaceId } = checked[index]!.frame;
-    return (declared.get(surfaceId) ?? pairs).flatMap(([n1, n2]) => {
+    const { vertex, center } = checked[index]!.frame;
+    return mediaFor(checked[index]!.frame, source).flatMap(([n1, n2]) => {
       if (source.n1 !== undefined && n1 !== source.n1) return [];
       try { return [{ result: sphericalRefractionImage({ vertex, center, object: source.point, direction: source.direction, n1, n2 }), n2 }]; } catch { return []; }
     });
