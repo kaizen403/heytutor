@@ -344,11 +344,18 @@ function statedPotentials(question: string): Map<string, StatedPotential> | null
     const boundary = [...prefix.matchAll(clauses)].at(-1);
     return boundary ? boundary.index! + boundary[0].length : 0;
   };
-  // A neutral E° mark retains the last explicit direction in this declaration.
+  // E° retains a direction; a plural header also owns comma/and list members.
   const oxidationDirection = (start: number, end: number): boolean => {
-    const localStart = Math.max(start, clauseStart(text.slice(0, end)));
-    const direction = [...text.slice(localStart, end).matchAll(/\b(oxidation|reduction)\s+potentials?\b/gi)].at(-1);
-    return direction?.[1]?.toLowerCase() === "oxidation";
+    const prefix = text.slice(0, end);
+    const localStart = Math.max(start, clauseStart(prefix));
+    const boundary = [...prefix.matchAll(/[;\n]|\.(?!\d)|\b(?:while|whereas|but)\b/gi)].at(-1);
+    const statementStart = boundary ? boundary.index! + boundary[0].length : 0;
+    const direction = [...text.slice(statementStart, end).matchAll(/\b(?:(?:standard\s+)?(?:oxidation|reduction|electrode)\s+potentials?|standard\s+potentials?)\b/gi)].at(-1);
+    if (!direction) return false;
+    const roleStart = statementStart + direction.index!;
+    const sharedList = /\bpotentials$/i.test(direction[0])
+      && /,|\band\b/i.test(text.slice(roleStart + direction[0].length, end));
+    return /\boxidation\b/i.test(direction[0]) && (roleStart >= localStart || sharedList);
   };
   const storeReading = (key: string, reading: ChemistryReading, oxidation: boolean, n?: number): void => {
     const e0 = oxidation ? -reading.value : reading.value;
