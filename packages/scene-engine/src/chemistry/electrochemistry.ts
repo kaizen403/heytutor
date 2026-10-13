@@ -339,6 +339,17 @@ function statedPotentials(question: string): Map<string, StatedPotential> | null
     const read = readChemistryQuantity({question:text,after:/^/,within:{start:match.index!+match[0].length,end:text.length},dimension:"potential",targetUnit:"V"});
     if (!read.ok) return null;
   }
+  const clauses = /[;\n]|\.(?!\d)|\b(?:and|while|whereas|but)\b/gi;
+  const clauseStart = (prefix: string): number => {
+    const boundary = [...prefix.matchAll(clauses)].at(-1);
+    return boundary ? boundary.index! + boundary[0].length : 0;
+  };
+  // A neutral E° mark retains the last explicit direction in this declaration.
+  const oxidationDirection = (start: number, end: number): boolean => {
+    const localStart = Math.max(start, clauseStart(text.slice(0, end)));
+    const direction = [...text.slice(localStart, end).matchAll(/\b(oxidation|reduction)\s+potentials?\b/gi)].at(-1);
+    return direction?.[1]?.toLowerCase() === "oxidation";
+  };
   const storeReading = (key: string, reading: ChemistryReading, oxidation: boolean, n?: number): void => {
     const e0 = oxidation ? -reading.value : reading.value;
     const record = findCouple(key);
@@ -355,8 +366,7 @@ function statedPotentials(question: string): Map<string, StatedPotential> | null
     const pair = match.indices?.[group];
     const read = pair ? readChemistryLiteral({question:text,scalarSpan:{start:pair[0],end:pair[1]},dimension:"potential",targetUnit:"V"}) : null;
     if (!key || !read?.ok) { invalid = true; return; }
-    const before = text.slice(Math.max(0, match.index! - 80), match.index).toLowerCase();
-    storeReading(key, read.reading, /oxidation potential/.test(before), n);
+    storeReading(key, read.reading, oxidationDirection(0, match.index!), n);
   };
   const direct = new RegExp(`${E_NAUGHT}\\s*(?:for|of|value\\s+of|_)?\\s*[\\(\\[]?\\s*${COUPLE}\\s*[\\)\\]]?\\s*(?:=|is|:|as)?\\s*${VALUE}`, "gdi");
   for (const match of text.matchAll(direct)) {
@@ -404,11 +414,6 @@ function statedPotentials(question: string): Map<string, StatedPotential> | null
   const owners = (region: string, offset: number): string[] => [...new Set([...region.matchAll(ownerPattern)]
     .filter(match => !temperatureOwns(offset + match.index!, offset + match.index! + match[0].length))
     .map(match => ownerKey(match[0])).filter((key): key is string => key !== null))];
-  const clauses = /[;\n]|\.(?!\d)|\b(?:and|while|whereas|but)\b/gi;
-  const clauseStart = (prefix: string): number => {
-    const boundary = [...prefix.matchAll(clauses)].at(-1);
-    return boundary ? boundary.index! + boundary[0].length : 0;
-  };
   for (const [index, reading] of literals.reading.entries()) {
     if ([...found.values()].some(value => value.readings.some(r => r.source.span.start === reading.source.span.start && r.source.span.end === reading.source.span.end))) continue;
     const prefix = text.slice(0, reading.source.span.start);
@@ -429,8 +434,7 @@ function statedPotentials(question: string): Map<string, StatedPotential> | null
     const after = owners(tail.split(/[,;\n]|\.(?!\d)|\b(?:and|while|whereas|but)\b/i)[0]!, reading.source.span.end);
     const keys = before.length > 0 ? before : after;
     if (keys.length !== 1 || (before.length > 0 && after.some(key => key !== before[0]))) continue;
-    const cue = cues.at(-1)![0];
-    storeReading(keys[0]!, reading, /oxidation/i.test(cue));
+    storeReading(keys[0]!, reading, oxidationDirection(localStart, reading.source.span.start));
   }
   // An unread declaration has an owner even when no scalar enters the
   // inventory. Validate each assignment instead of borrowing a later value.
