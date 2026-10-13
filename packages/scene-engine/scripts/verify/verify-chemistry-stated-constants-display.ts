@@ -196,5 +196,47 @@ check("actual-potassium-electrode-retains-source-owner", () => {
   assert.equal(spec.anode.potentialSource, "stem"); assert.equal(spec.cathode.potentialSource, "stem");
   compiled(buildElectrochemScene(question, [], false), "chem_electrochem");
 });
+// PR166 review: whole-cell declarations cannot become electrode assignments.
+for (const [index, question, expectedObserved] of [
+  [0, "E°(Zn2+/Zn) = -0.76 V, E°(Cu2+/Cu) = 0.34 V; the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is 1.13 V.", 1.13],
+  [1, "E°(Zn2+/Zn) = -0.76 V; E°(Cu2+/Cu) = 0.34 V; the voltage of Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is 1.15 V.", 1.15],
+  [2, "The standard reduction potentials are zinc = -0.76 V and copper = 0.34 V; the emf of Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is 1.13 V.", 1.13],
+  [3, "E°Zn = -0.76 V, E°Cu = 0.34 V; the measured cell potential of Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is 1.15 V.", 1.15],
+  [4, "For Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu the emf is 1.13 V; E°(Zn2+/Zn) = -0.76 V; E°(Cu2+/Cu) = 0.34 V.", 1.13],
+  [5, "E°(Zn2+/Zn) = -0.76 V; E°(Cu2+/Cu) = 0.34 V; THE EMF OF Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu IS 1.13 V.", 1.13],
+] as const) check(`whole-cell-voltage-local-owner-${index}`, () => {
+  const spec = parseCellNotation(question); assert.ok(spec);
+  near(spec.statedE, expectedObserved); near(cellEmf(spec)?.e0, 1.1);
+  near(spec.anode.e0, -.76); near(spec.cathode.e0, .34);
+  assert.equal(spec.anode.potentialSource, "stem"); assert.equal(spec.cathode.potentialSource, "stem");
+  const result = compiled(buildElectrochemScene(question, [], false), "chem_electrochem");
+  assert.ok(result.text.includes(`emf ${expectedObserved.toFixed(2)} V as given`), result.text);
+});
+for (const [index, question] of [
+  "E°(Zn2+/Zn) = -0.76 V; E°(Cu2+/Cu) = 0.34 V; the emf of Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is unknown V.",
+  "E°(Zn2+/Zn) = -0.76 V; E°(Cu2+/Cu) = 0.34 V; the emf of Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is 1e- V.",
+  "Standard electrode potentials: Zn2+/Zn = -0.76 V; Cu2+/Cu = unknown; the emf of Zn|Zn2+(0.1 M)||Cu2+(1 M)|Cu is 1.13 V.",
+].entries()) check(`whole-cell-exemption-cannot-hide-unread-${index}`, () => {
+  assert.equal(parseCellNotation(question), null);
+  assert.equal(buildElectrochemScene(question, [], false), null);
+});
+for (const [index, logarithm] of [
+  "p Kₐ = 5", "p K(a) = 5", "p K_{a} = 5", "p\tKᵃ = 5", "P  K_a = 5", "p Kₐ = 5",
+].entries()) check(`spaced-acid-logarithm-${index}`, () => {
+  const result = compiled(buildSolutionsGraphScene(acid + logarithm + ". Draw the pH curve.", [], false), "chem_solutions");
+  assert.ok(result.labels.includes("pH = pK_a = 5"), JSON.stringify(result.labels));
+  assert.ok(!result.text.includes("pK_a = 4.76"));
+});
+for (const [index, logarithm] of ["p Kᵦ = 5", "p K(b) = 5", "P K_b = 5", "p\tKᵇ = 5"].entries()) check(`spaced-base-logarithm-${index}`, () => {
+  const result = compiled(buildSolutionsGraphScene(base + logarithm + ". Draw the pH curve.", [], false), "chem_solutions");
+  assert.match(result.text, /pOH = pKb = 5, pH 9/);
+});
+for (const [index, statement] of ["For this setup Kₐ = 1e-5", "In this step K(a) = 1e-5"].entries()) check(`word-ending-p-does-not-create-logarithm-${index}`, () => {
+  const result = compiled(buildSolutionsGraphScene(acid + statement + ". Draw the pH curve.", [], false), "chem_solutions");
+  assert.ok(result.labels.includes("pH = pK_a = 5"));
+});
+for (const [index, declaration] of ["p Kₐ = 5 M", "p K(a) = unknown", "p Kₐ = 5; Ka = 1e-6", "p Kᵦ = 5"].entries()) check(`spaced-logarithm-invalid-or-wrong-owner-${index}`, () => {
+  assert.equal(buildSolutionsGraphScene(acid + declaration + ". Draw the pH curve.", [], false), null);
+});
 console.log(JSON.stringify({ passed, failed: failed.length, failures: failed, scope: "offline source only; three next-PR non-regressions" }));
 process.exitCode = failed.length ? 1 : 0;
