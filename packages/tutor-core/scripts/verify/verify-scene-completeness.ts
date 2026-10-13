@@ -232,6 +232,25 @@ const missingOf = (checklist: CompletenessChecklist, scene: Doc, labels: string[
   assert.deepEqual(missingOf(checklist, scene).missing, [], "the unicode minus and the right-angle mark satisfy the items");
 }
 
+// 6b. A given angle in radians is asked for, and matched, in degrees; a radian label on the mark still counts.
+{
+  const question = "A door swings open through θ = π/2 rad about its hinge. Sketch the door before and after.";
+  const checklist = buildCompletenessChecklist(plan({ givens: [given("theta", "θ", Math.PI / 2, "rad")] }), null, question);
+  const angle = checklist.items.find((item) => item.rule === "stated_angle");
+  assert(angle && angle.matcher.type === "angle", "the radian given is an angle item");
+  assert.equal(angle.text, "mark the angle θ = 90° with an angle_mark and label it", "the request states the angle in degrees");
+  assert(angle.matcher.value !== null && Math.abs(angle.matcher.value - 90) < 1e-9, "the matcher holds the angle in degrees");
+  const rounded = buildCompletenessChecklist(plan({ givens: [given("theta", "θ", 1.5708, "rad")] }), null, question);
+  assert.equal(rounded.items.find((item) => item.rule === "stated_angle")?.text, "mark the angle θ = 90° with an angle_mark and label it",
+    "a rounded radian value is shown as a whole degree");
+  const swing = (label: string) => doc({ entities: [
+    { id: "door", kind: "segment", role: "door" }, { id: "turn", kind: "angle_mark", role: "swing angle", label },
+  ] });
+  assert.deepEqual(missingOf(checklist, swing("90°")).missing, [], "a 90° mark satisfies θ = π/2 rad");
+  assert.deepEqual(missingOf(checklist, swing("θ = π/2")).missing, [], "a mark labelled in radians still satisfies it");
+  assert.deepEqual(signatures(missingOf(checklist, swing("45°")).missing), ["stated_angle:θ"], "a mark with another angle does not");
+}
+
 console.log("scene completeness: triangle, projectile, free body, circuit, cap of six and negative controls pass");
 
 /* ------------------------------------------------------------------------- */

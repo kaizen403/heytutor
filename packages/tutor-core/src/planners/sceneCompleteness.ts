@@ -219,6 +219,14 @@ function unitClass(unit: string | null | undefined): UnitClass {
   return "other";
 }
 
+/** An angle in degrees from a value in an angle unit: radians and multiples of π rad are converted. */
+function angleInDegrees(value: number, unit: string | null | undefined): number {
+  const trimmed = (unit ?? "").trim();
+  if (trimmed === "π rad") return value * 180;
+  if (trimmed.startsWith("rad")) return (value * 180) / Math.PI;
+  return value;
+}
+
 /** A physical constant: the symbol names a constant AND the value is its standard value. */
 const CONSTANTS: Array<[RegExp, number[]]> = [
   [/^g$/, [9.8, 9.81, 10]],
@@ -551,14 +559,19 @@ export function buildCompletenessChecklist(
     if (isConstant(symbol, value)) continue;
     // Not written in the stem outside its equations: not source grounded.
     if (!valueIn(value, stemNumbers, valueClass === "angle")) continue;
-    if (seenValues.some((seen) => close(value, seen))) continue;
-    seenValues.push(value);
     const unit = given.unit ?? "";
-    if (valueClass === "angle") {
+    // The request says degrees and the matcher compares degrees (a radian label still matches), so a
+    // radian given is converted first, as the asked-angle path does.
+    const degrees = valueClass === "angle" ? angleInDegrees(value, unit) : null;
+    const seenValue = degrees ?? value;
+    if (seenValues.some((seen) => close(seenValue, seen))) continue;
+    seenValues.push(seenValue);
+    if (degrees !== null) {
+      const shown = degrees === value ? value : Math.round(degrees * 10) / 10;
       items.push({
         kind: "angle", rule: "stated_angle", key: `${symbol}=${value}${unit}`, source: "plan_given", symbol,
-        text: `mark the angle ${symbol} = ${formatNumber(value)}° with an angle_mark and label it`,
-        matcher: { type: "angle", value, counted: false },
+        text: `mark the angle ${symbol} = ${formatNumber(shown)}° with an angle_mark and label it`,
+        matcher: { type: "angle", value: degrees, counted: false },
       });
     } else {
       items.push({
@@ -593,7 +606,7 @@ export function buildCompletenessChecklist(
     const solved = unknown.id !== undefined ? derived.get(unknown.id) : undefined;
     let value: number | null = solved && finiteNumber(solved.value) ? solved.value : null;
     if (value !== null && solved && !["angle", "none"].includes(unitClass(solved.unit))) value = null;
-    if (value !== null && (solved?.unit ?? "").startsWith("rad")) value = (value * 180) / Math.PI;
+    if (value !== null) value = angleInDegrees(value, solved?.unit);
     items.push({
       kind: "angle", rule: "asked_angle", key: `unknown:${symbol}`, source: "plan_unknown", symbol,
       text: `mark the asked angle ${symbol} with an angle_mark` +
