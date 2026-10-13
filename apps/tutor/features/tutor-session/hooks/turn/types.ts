@@ -83,6 +83,8 @@ export type ExecuteCommandOptions = {
   getAudioPositionMs?: () => number;
   /** Media ms per wall ms; default 1. */
   getPlaybackRate?: () => number;
+  /** A following work cue bounds transient POINT motion; final timing may arrive late. */
+  getPointDeadlineMs?: () => number | null;
   /** The sentence's narration, alignment and audio clock; the code-lesson branches follow its words. */
   spokenClock?: SpokenSegmentClock;
   /** Placed on its spoken cue and given that window; keeps it instead of the scene ceiling. */

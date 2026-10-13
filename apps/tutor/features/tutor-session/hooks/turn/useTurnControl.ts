@@ -18,7 +18,7 @@ import {
   normalizeSegmentForAlignment,
 } from "../../lib/turn/segmentPlanning";
 import { placeDsaFigureIntro, resolveCodeLessonSegments } from "../../lib/code-lesson/codeLessonSegments";
-import { shouldAbandonTurn } from "../../lib/turn/turnFailurePolicy";
+import { IncompleteCodeBeatError, shouldAbandonTurn } from "../../lib/turn/turnFailurePolicy";
 import { clearSpotlight } from "../../lib/board/spotlight";
 import { workColumnRows } from "../../lib/board/boardLayout";
 import { createIntroLayoutCheckpoint } from "../../lib/board/introLayoutCheckpoint";
@@ -293,6 +293,23 @@ export function useTurnControl(
             stack: error instanceof Error ? (error.stack ?? "").slice(0, 600) : "",
             consecutive_failures: consecutiveSegmentFailuresRef.current,
           });
+          if (error instanceof IncompleteCodeBeatError) {
+            const failure = { message: error.message, question: liveQuestionRef.current };
+            turnTelemetryRef.current?.mark("code-beat-incomplete", {
+              segment_index: index,
+              block_id: error.blockId,
+              intended_chars: error.intendedChars,
+              shown_chars: error.shownChars,
+              cause: String(error.cause instanceof Error ? error.cause.message : error.cause).slice(0, 300),
+            });
+            // Stop captures the real prefix and offers Continue with the same
+            // plan. Do not admit later blocks or publish a completed lesson.
+            stopTurnRef.current?.();
+            cancelRef.current = true;
+            setLastError(failure);
+            onError?.(failure);
+            return;
+          }
           // Two in a row means the drawing pipeline is gone, not that one
           // command was unlucky. Stop the turn rather than narrate the rest of
           // the lesson to a board that has stopped moving.
@@ -331,6 +348,7 @@ export function useTurnControl(
       turnTelemetryRef,
       liveQuestionRef,
       setLastError,
+      stopTurnRef,
       onError,
     ],
   );

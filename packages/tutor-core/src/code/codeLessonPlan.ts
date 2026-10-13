@@ -96,7 +96,11 @@ export function isExplanationOnlyDsaQuestion(question: string): boolean {
   const asksToExplain = /\b(?:explain\w*|teach me|intuition|how (?:does|do)|walk (?:me )?through|show (?:me )?how)\b/i.test(question);
   // "programming" stays out: "explain dynamic programming" is not a code request.
   const asksForImplementation = /\b(?:cod(?:e|es|ed|ing)|implement\w*|writ(?:e|es|ing|ten)|programs?|functions?|solv(?:e|es|ed|ing)|solutions?)\b/i.test(question);
-  return asksToExplain && !asksForImplementation;
+  // "Reverse the list in Python. Explain prev and curr" asks for a program
+  // even though its variables need explaining. A language named on its own
+  // ("explain Python references") is still a concept question.
+  const implementationLanguage = /\b(?:in|using|with)\s+(?:python|javascript|typescript|java|cpp|c\+\+)(?=$|[\s.,;:!?])/i.test(question);
+  return asksToExplain && !asksForImplementation && !implementationLanguage;
 }
 
 /**
