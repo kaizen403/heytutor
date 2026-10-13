@@ -232,23 +232,113 @@ const missingOf = (checklist: CompletenessChecklist, scene: Doc, labels: string[
   assert.deepEqual(missingOf(checklist, scene).missing, [], "the unicode minus and the right-angle mark satisfy the items");
 }
 
+/**
+ * Named cases: every case runs and each failure is reported by name, and the
+ * gate fails after the last case section. A fail-first run against older
+ * sources therefore shows every case that fails, not only the first.
+ */
+const caseFailures: string[] = [];
+function runCases(section: string, cases: ReadonlyArray<readonly [string, () => void]>): void {
+  for (const [name, run] of cases) {
+    try {
+      run();
+    } catch (error) {
+      caseFailures.push(`${section} / ${name}: ${(error instanceof Error ? error.message : String(error)).split("\n")[0]}`);
+    }
+  }
+}
+
 // 6b. A given angle in radians is asked for, and matched, in degrees; a radian label on the mark still counts.
 {
   const question = "A door swings open through θ = π/2 rad about its hinge. Sketch the door before and after.";
   const checklist = buildCompletenessChecklist(plan({ givens: [given("theta", "θ", Math.PI / 2, "rad")] }), null, question);
-  const angle = checklist.items.find((item) => item.rule === "stated_angle");
-  assert(angle && angle.matcher.type === "angle", "the radian given is an angle item");
-  assert.equal(angle.text, "mark the angle θ = 90° with an angle_mark and label it", "the request states the angle in degrees");
-  assert(angle.matcher.value !== null && Math.abs(angle.matcher.value - 90) < 1e-9, "the matcher holds the angle in degrees");
-  const rounded = buildCompletenessChecklist(plan({ givens: [given("theta", "θ", 1.5708, "rad")] }), null, question);
-  assert.equal(rounded.items.find((item) => item.rule === "stated_angle")?.text, "mark the angle θ = 90° with an angle_mark and label it",
-    "a rounded radian value is shown as a whole degree");
+  const angleItem = () => {
+    const angle = checklist.items.find((item) => item.rule === "stated_angle");
+    assert(angle && angle.matcher.type === "angle", "the radian given is an angle item");
+    return angle as CompletenessItem & { matcher: { type: "angle"; value: number | null } };
+  };
   const swing = (label: string) => doc({ entities: [
     { id: "door", kind: "segment", role: "door" }, { id: "turn", kind: "angle_mark", role: "swing angle", label },
   ] });
-  assert.deepEqual(missingOf(checklist, swing("90°")).missing, [], "a 90° mark satisfies θ = π/2 rad");
-  assert.deepEqual(missingOf(checklist, swing("θ = π/2")).missing, [], "a mark labelled in radians still satisfies it");
-  assert.deepEqual(signatures(missingOf(checklist, swing("45°")).missing), ["stated_angle:θ"], "a mark with another angle does not");
+  runCases("6b radians", [
+    ["the request states θ = π/2 rad as 90°", () =>
+      assert.equal(angleItem().text, "mark the angle θ = 90° with an angle_mark and label it")],
+    ["the matcher holds the angle in degrees", () => {
+      const { value } = angleItem().matcher;
+      assert(value !== null && Math.abs(value - 90) < 1e-9, `matcher value ${value}`);
+    }],
+    ["a rounded radian value (1.5708 rad) is asked as a whole 90°", () => {
+      const rounded = buildCompletenessChecklist(plan({ givens: [given("theta", "θ", 1.5708, "rad")] }), null, question);
+      assert.equal(rounded.items.find((item) => item.rule === "stated_angle")?.text, "mark the angle θ = 90° with an angle_mark and label it");
+    }],
+    ["a 90° mark satisfies θ = π/2 rad", () => assert.deepEqual(signatures(missingOf(checklist, swing("90°")).missing), [])],
+    // Controls: these held before the fix too.
+    ["control: a mark labelled in radians still satisfies it", () =>
+      assert.deepEqual(signatures(missingOf(checklist, swing("θ = π/2")).missing), [])],
+    ["control: a mark with another angle does not", () =>
+      assert.deepEqual(signatures(missingOf(checklist, swing("45°")).missing), ["stated_angle:θ"])],
+  ]);
+}
+
+// 6c. An angle value is matched only on an angle mark: a length, or a number anywhere else, never satisfies it.
+{
+  const question = "In triangle PQR, angle P = 40° and angle Q = 75°. Sketch the triangle.";
+  const checklist = buildCompletenessChecklist(plan({ givens: [given("angP", "∠P", 40, "°"), given("angQ", "∠Q", 75, "°")] }), null, question);
+  assert.deepEqual(signatures(checklist.items), ["stated_angle:∠P", "stated_angle:∠Q", "point_name:P", "point_name:Q", "point_name:R"]);
+  const vertices = [point("P", "P"), point("Q", "Q"), point("R", "R")];
+  const markP = { id: "aP", kind: "angle_mark", role: "given angle", label: "40°" };
+  const markQ = { id: "aQ", kind: "angle_mark", role: "given angle" };
+  const side = (label?: string) => ({ id: "pq", kind: "segment", role: "side", ...(label ? { label } : {}) });
+  type SceneWithQuantities = Doc & { quantities?: Array<Record<string, unknown> & { id: string }> };
+  const missingAngles = (scene: SceneWithQuantities, labels: Array<{ text: string; entityId?: string }> = []) =>
+    signatures(checkSceneCompleteness(checklist, scene, { primitives: labels.map((label) => ({ kind: "label" as const, ...label })) }).missing);
+  const missingQ = ["stated_angle:∠Q"];
+
+  runCases("6c angle marks", [
+    // The review's example: only the 40° mark, and a side labelled 75 cm.
+    ["a side labelled 75 cm does not stand in for the 75° angle", () =>
+      assert.deepEqual(missingAngles(doc({ entities: [...vertices, markP, side("75 cm")] })), missingQ)],
+    ["nor does a bare 75 on a side", () =>
+      assert.deepEqual(missingAngles(doc({ entities: [...vertices, markP, side("75")] })), missingQ)],
+    ["a length never satisfies an angle, even on a mark (75 cm)", () =>
+      assert.deepEqual(missingAngles(doc({ entities: [...vertices, markP, { ...markQ, label: "75 cm" }] })), missingQ)],
+    ["nor an area on a mark (75 cm²)", () =>
+      assert.deepEqual(missingAngles(doc({ entities: [...vertices, markP, { ...markQ, label: "75 cm²" }] })), missingQ)],
+    ["a bare 75 labelled at the vertex point is not an angle label", () =>
+      assert.deepEqual(missingAngles(doc({ entities: [...vertices, markP], annotations: [{ id: "q", kind: "label", targetIds: ["Q"], text: "75" }] })), missingQ)],
+    ["a compiled length label owned by the side does not count", () =>
+      assert.deepEqual(missingAngles(doc({ entities: [...vertices, markP, side()] }), [{ text: "75 cm", entityId: "pq" }]), missingQ)],
+    ["a compiled 75° owned by the vertex point, not a mark, does not count", () =>
+      assert.deepEqual(missingAngles(doc({ entities: [...vertices, markP] }), [{ text: "75°", entityId: "Q" }]), missingQ)],
+    ["an angle assertion between two sides, with no mark on it, does not count", () =>
+      assert.deepEqual(missingAngles(doc({ entities: [...vertices, markP, side()],
+        assertions: [{ id: "q75", predicate: "angle_between", entities: ["pq", "qr"], expected: { value: 75 }, severity: "fatal" }] })), missingQ)],
+    ["a bare compiled 75 whose owner is unknown does not count", () =>
+      assert.deepEqual(missingAngles(doc({ entities: [...vertices, markP, markQ] }), [{ text: "75" }]), missingQ)],
+    // Controls: an angle mark carries its value in every way the compiler prints one.
+    ["control: the mark's own label", () =>
+      assert.deepEqual(missingAngles(doc({ entities: [...vertices, markP, { ...markQ, label: "∠Q = 75°" }, side("75 cm")] })), [])],
+    ["control: a label annotation aimed at the mark", () =>
+      assert.deepEqual(missingAngles(doc({ entities: [...vertices, markP, markQ], annotations: [{ id: "lq", kind: "label", targetIds: ["aQ"], text: "75°" }] })), [])],
+    ["control: a label operator aimed at the mark", () =>
+      assert.deepEqual(missingAngles(doc({ entities: [...vertices, markP, markQ],
+        constructions: [{ id: "tq", operator: "label", inputs: { target: "aQ", text: "75°" }, outputs: [] }] })), [])],
+    ["a text-less label aimed at the mark counts through the quantity it binds", () =>
+      assert.deepEqual(missingAngles({ ...doc({ entities: [...vertices, markP, markQ],
+        annotations: [{ id: "lq", kind: "label", targetIds: ["aQ"], quantityId: "angQ" }] }),
+      quantities: [{ id: "angQ", symbol: "∠Q", value: 75, unit: "°" }] }), [])],
+    ["control: an angle assertion on the mark", () =>
+      assert.deepEqual(missingAngles(doc({ entities: [...vertices, markP, markQ],
+        assertions: [{ id: "q75", predicate: "angle_between", entities: ["aQ"], expected: { value: 75 }, severity: "fatal" }] })), [])],
+    ["control: a compiled label the mark owns", () =>
+      assert.deepEqual(missingAngles(doc({ entities: [...vertices, markP, markQ] }), [{ text: "75°", entityId: "aQ" }]), [])],
+    ["control: a compiled degree label whose owner is unknown (text only)", () =>
+      assert.deepEqual(missingAngles(doc({ entities: [...vertices, markP, markQ] }), [{ text: "75°" }]), [])],
+  ]);
+}
+
+if (caseFailures.length > 0) {
+  throw new assert.AssertionError({ message: `${caseFailures.length} named cases fail\n  ${caseFailures.join("\n  ")}` });
 }
 
 console.log("scene completeness: triangle, projectile, free body, circuit, cap of six and negative controls pass");

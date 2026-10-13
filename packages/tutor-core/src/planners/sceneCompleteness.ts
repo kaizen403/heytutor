@@ -731,9 +731,14 @@ export function buildCompletenessChecklist(
 /* ------------------------------------------------------------------------- */
 
 /** The parts of a scene document the check reads. */
-export type CompletenessSceneDocument = Partial<Pick<SceneDocument, "entities" | "constructions" | "annotations" | "assertions">>;
-/** The parts of a compiled scene the check reads: its label and dimension text. */
-export type CompletenessCompiledScene = { primitives: ReadonlyArray<Pick<RenderScene["primitives"][number], "kind" | "text">> };
+export type CompletenessSceneDocument = Partial<Pick<SceneDocument, "entities" | "constructions" | "annotations" | "assertions" | "quantities">>;
+/**
+ * The parts of a compiled scene the check reads: its label and dimension text,
+ * and the entity each label belongs to (a compiled RenderScene always has it).
+ */
+export type CompletenessCompiledScene = {
+  primitives: ReadonlyArray<Pick<RenderScene["primitives"][number], "kind" | "text"> & { entityId?: string }>;
+};
 type SceneDocumentLike = CompletenessSceneDocument;
 type CompiledSceneLike = CompletenessCompiledScene;
 
@@ -744,7 +749,8 @@ interface SceneView {
   operators: string[];
   /** [entity kind or "op:operator", its id/role/label or id/outputs words] */
   semantics: Array<[string, string]>;
-  angleValues: number[];
+  /** The numbers angle marks carry; the only place an angle value is matched. */
+  angleNumbers: number[];
   annotationKinds: string[];
   labelNames: Set<string>;
 }
@@ -754,6 +760,102 @@ const ANGLE_MARK_OPERATORS = new Set(["angle_mark", "right_angle_mark", "space_a
 const RIGHT_ANGLE_KINDS = new Set(["right_angle_mark", "space_right_angle_mark"]);
 
 const textOf = (value: unknown): string => value === null || value === undefined ? "" : String(value);
+
+/** A degree sign, an angle unit or an angle symbol: the text states an angle. */
+const ANGLE_TEXT_RE = /°|∠|\b(?:deg|degrees?|rad|radians?)\b|[θαβγφψ]/;
+/** A number followed by a unit: "75 cm", "2.5 N", "60 deg", "75 Ω". */
+const NUMBER_WITH_UNIT_RE = /(\d+(?:\.\d+)?)\s*([A-Za-zΩμ][A-Za-zΩμ/²³^0-9]*)/g;
+
+/** The numbers a text can give as an angle: a number written with a length, mass or other physical unit never is. */
+function angleTextNumbers(text: string): number[] {
+  const withoutQuantities = norm(text).replace(NUMBER_WITH_UNIT_RE, (whole, _value: string, unit: string) => {
+    let unitName = unitClass(unit);
+    if (unitName === "other") unitName = unitClass(unit.replace(/\^?[23²³]$/, ""));
+    // "other" is a word that is not a unit ("75 at Q"); only a physical unit removes the number.
+    return unitName === "angle" || unitName === "other" ? whole : " ";
+  });
+  return numbers(withoutQuantities);
+}
+
+const identifierKey = (value: string): string => value.trim().toLowerCase().replace(/[₀-₉]/g, (digit) => SUBSCRIPT_DIGITS[digit] ?? digit);
+
+/** The text the compiler prints for a quantity it finds by id or symbol (its label, else value and unit). */
+function quantityText(designator: string, quantities: CompletenessSceneDocument["quantities"]): string | undefined {
+  const key = identifierKey(designator);
+  const quantity = (quantities ?? []).find((candidate) => identifierKey(textOf(candidate.id)) === key ||
+    (typeof candidate.symbol === "string" && identifierKey(candidate.symbol) === key));
+  if (!quantity) return undefined;
+  if (typeof quantity.label === "string" && quantity.label.trim()) return quantity.label.trim();
+  const value = quantity.value;
+  if (typeof value !== "number" && typeof value !== "string") return undefined;
+  const unit = typeof quantity.unit === "string" && !/^(?:1|dimensionless)$/i.test(quantity.unit.trim()) ? ` ${quantity.unit.trim()}` : "";
+  return `${value}${unit}`;
+}
+
+const ANGLE_PREDICATES = new Set(["angle_between", "angle_equals", "angle"]);
+const LABEL_TARGET_KEYS = ["target", "at", "point"];
+
+/**
+ * The numbers angle marks carry. An angle value is matched only here, never on
+ * a side length or a label elsewhere in the figure:
+ * - the mark's own label;
+ * - a label annotation aimed at the mark, or the quantity a text-less one binds
+ *   (the compiler prints it on the mark), or a quantity named by the mark's id;
+ * - a `label` operator whose target is the mark;
+ * - an angle assertion on the mark (the compiler prints its value there);
+ * - a compiled label the mark owns. A compiled label whose owner is unknown
+ *   (text only, as in an offline replay) counts only when it states an angle.
+ * A number written with a physical unit ("75 cm") is dropped from every one.
+ */
+function angleMarkNumbers(document: SceneDocumentLike, compiled?: CompiledSceneLike | null): number[] {
+  const entities = document.entities ?? [];
+  const constructions = document.constructions ?? [];
+  const marks = new Set<string>();
+  for (const entity of entities) if (ANGLE_MARK_KINDS.has(textOf(entity.kind))) marks.add(textOf(entity.id));
+  for (const construction of constructions) {
+    if (ANGLE_MARK_OPERATORS.has(textOf(construction.operator))) for (const output of construction.outputs ?? []) marks.add(textOf(output));
+  }
+  if (marks.size === 0) return [];
+  const texts: string[] = [];
+  const values: number[] = [];
+  const spoken = new Set<string>();
+  for (const entity of entities) {
+    if (!marks.has(textOf(entity.id)) || !entity.label) continue;
+    texts.push(textOf(entity.label));
+    spoken.add(textOf(entity.id));
+  }
+  for (const annotation of document.annotations ?? []) {
+    const targets = (annotation.targetIds ?? []).map(textOf).filter((id) => marks.has(id));
+    if (annotation.kind === "narration" || targets.length === 0) continue;
+    if (annotation.text) texts.push(textOf(annotation.text));
+    else if (annotation.quantityId && targets.some((id) => !spoken.has(id))) {
+      const text = quantityText(annotation.quantityId, document.quantities);
+      if (text) texts.push(text);
+    }
+    if (annotation.text || annotation.quantityId) for (const id of targets) spoken.add(id);
+  }
+  for (const id of marks) {
+    if (spoken.has(id)) continue;
+    const text = quantityText(id, document.quantities);
+    if (text) texts.push(text);
+  }
+  for (const construction of constructions) {
+    const inputs = construction.inputs;
+    if (construction.operator !== "label" || !inputs || typeof inputs !== "object" || Array.isArray(inputs)) continue;
+    const target = LABEL_TARGET_KEYS.map((key) => inputs[key]).find((value) => value !== undefined);
+    if (typeof target === "string" && marks.has(target) && inputs.text) texts.push(textOf(inputs.text));
+  }
+  for (const assertion of document.assertions ?? []) {
+    const expected = assertion.expected as { value?: unknown } | null | undefined;
+    if (!ANGLE_PREDICATES.has(assertion.predicate) || !(assertion.entities ?? []).some((id) => marks.has(textOf(id)))) continue;
+    if (expected && typeof expected === "object" && finiteNumber(expected.value)) values.push(expected.value);
+  }
+  for (const primitive of compiled?.primitives ?? []) {
+    if ((primitive.kind !== "label" && primitive.kind !== "dimension") || !primitive.text) continue;
+    if (primitive.entityId !== undefined ? marks.has(primitive.entityId) : ANGLE_TEXT_RE.test(primitive.text)) texts.push(primitive.text);
+  }
+  return [...values, ...texts.flatMap(angleTextNumbers)];
+}
 
 function labelNames(texts: readonly string[]): Set<string> {
   const out = new Set<string>();
@@ -810,13 +912,6 @@ function sceneView(document: SceneDocumentLike, compiled?: CompiledSceneLike | n
   const constructions = document.constructions ?? [];
   const annotations = document.annotations ?? [];
   const texts = sceneVisibleTexts(document, compiled);
-  // The compiler prints the value of an angle assertion on its mark.
-  const angleValues: number[] = [];
-  for (const assertion of document.assertions ?? []) {
-    const expected = assertion.expected as { value?: unknown } | null | undefined;
-    if (["angle_between", "angle_equals", "angle"].includes(assertion.predicate) &&
-      expected && typeof expected === "object" && finiteNumber(expected.value)) angleValues.push(expected.value);
-  }
   const semantics: Array<[string, string]> = [
     ...entities.map((entity): [string, string] =>
       [textOf(entity.kind), [entity.id, entity.role, entity.label].map(textOf).join(" ")]),
@@ -829,7 +924,7 @@ function sceneView(document: SceneDocumentLike, compiled?: CompiledSceneLike | n
     entityKinds: entities.map((entity) => textOf(entity.kind)),
     operators: constructions.map((construction) => textOf(construction.operator)),
     semantics,
-    angleValues,
+    angleNumbers: angleMarkNumbers(document, compiled),
     annotationKinds: annotations.map((annotation) => textOf(annotation.kind)),
     labelNames: labelNames(texts),
   };
@@ -846,7 +941,8 @@ function satisfied(item: CompletenessItem, view: SceneView, countedAngleItems: n
       if (marks === 0) return false;
       if (matcher.counted && marks < countedAngleItems) return false;
       if (matcher.value === null) return true;
-      return valueIn(matcher.value, [...view.numbers, ...view.angleValues], true);
+      // Only on an angle mark: a side labelled "75 cm" or a bare 75 elsewhere is not the 75° angle.
+      return valueIn(matcher.value, view.angleNumbers, true);
     }
     case "right_angle":
       return view.entityKinds.some((kind) => RIGHT_ANGLE_KINDS.has(kind)) ||
