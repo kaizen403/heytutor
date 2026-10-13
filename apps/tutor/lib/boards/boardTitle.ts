@@ -55,7 +55,7 @@ const TOPIC_PATTERNS: Array<{
     },
   },
   {
-    test: /newton|second law|f\s*=\s*ma/i,
+    test: /\bnewton(?:['’]s)?\s+(?:second|2nd)\s+law\b|\bf\s*=\s*ma\b/i,
     title: "Newton's second law",
   },
   {

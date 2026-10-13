@@ -123,26 +123,72 @@ export async function tourMarker(
     now?: () => number;
     /** Cursor state to hold while touring. Never `idle`: that is invisible. */
     cursorState?: MarkerTourCursorState;
+    /** POINT follows the owned speech clock; other tours retain their wall budget. */
+    speechClock?: {
+      getAudioPositionMs: () => number;
+      remainingWallMs: () => number;
+      isComplete: () => boolean;
+      isPaused: () => boolean;
+    };
   },
 ): Promise<boolean> {
   if (stops.length === 0) return options.isCancelled();
   const now = options.now ?? (() => Date.now());
   host.setCursorState?.(options.cursorState ?? "speaking");
   const deadline = now() + Math.max(options.totalMs, 0);
+  const speech = options.speechClock;
+  let lastMediaMs = speech?.getAudioPositionMs() ?? 0;
+  let lastProgressWallMs = now();
+  const leftMs = (): number => {
+    if (!speech) return deadline - now();
+    if (speech.isComplete()) return 0;
+    const mediaMs = speech.getAudioPositionMs();
+    if (mediaMs > lastMediaMs) {
+      lastMediaMs = mediaMs;
+      lastProgressWallMs = now();
+    }
+    // A stalled/missing clock must not trap the command queue. The original
+    // bounded estimate remains the fallback, never a synthetic speech end.
+    if (now() - lastProgressWallMs > 4_000) return deadline - now();
+    const remaining = speech.remainingWallMs();
+    return Number.isFinite(remaining) ? Math.max(remaining, 0) : deadline - now();
+  };
+  const waitWhilePaused = async (): Promise<boolean> => {
+    while (speech?.isPaused()) {
+      if (options.isCancelled()) return true;
+      await options.delay(40);
+      lastProgressWallMs = now();
+    }
+    return options.isCancelled();
+  };
   let index = 0;
   // A first hop always runs, even inside a short window: the point of the
   // command is to put the pen at the thing being talked about.
-  while (index === 0 || now() < deadline - TAIL_MS) {
+  while (index === 0 || leftMs() > TAIL_MS) {
     if (options.isCancelled()) return true;
+    if (await waitWhilePaused()) return true;
+    if (speech?.isComplete()) break;
     const stop = stops[index % stops.length]!;
     index += 1;
-    const left = deadline - now();
+    const left = leftMs();
     const hop = index === 1 ? Math.min(MARKER_HOP_MS, Math.max(left, 200)) : Math.min(MARKER_HOP_MS, Math.max(left - TAIL_MS, 160));
     await host.flyCursorTo(stop.x, stop.y, hop);
     if (options.isCancelled()) return true;
-    const rest = deadline - now() - TAIL_MS;
+    const rest = leftMs() - TAIL_MS;
     if (rest <= 0) break;
-    await options.delay(Math.min(MARKER_DWELL_MS, rest));
+    if (!speech) {
+      await options.delay(Math.min(MARKER_DWELL_MS, rest));
+    } else {
+      // Re-read final alignment, rate, completion and pause during a rest.
+      let spent = 0;
+      while (spent < Math.min(MARKER_DWELL_MS, rest) && leftMs() > TAIL_MS) {
+        if (await waitWhilePaused()) return true;
+        const slice = Math.min(40, MARKER_DWELL_MS - spent, leftMs() - TAIL_MS);
+        if (slice <= 0) break;
+        await options.delay(slice);
+        spent += slice;
+      }
+    }
   }
   return options.isCancelled();
 }
