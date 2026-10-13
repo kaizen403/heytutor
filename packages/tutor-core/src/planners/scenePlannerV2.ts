@@ -49,6 +49,8 @@ export interface ScenePlannerOptions extends ScenePlannerPromptContext {
   /** Total plan/repair hard deadline. Defaults to sixty seconds. */
   timeoutMs?: number;
   fastMode?: boolean;
+  /** Default-off recovery experiment; every replacement still requires full validation. */
+  repairRecoveryEnabled?: boolean;
   /** Evaluation diagnostics for every HTTP attempt, including null candidates. */
   onRequestOutcome?: (outcome: ScenePlannerRequestOutcome) => void;
   /** Optional private diagnostics, including responses from discarded speculative searches. */
@@ -125,6 +127,7 @@ export type SceneCandidateValidator<T> = (
 ) => SceneCandidateValidation<T> | Promise<SceneCandidateValidation<T>>;
 
 export const SCENE_PLANNER_TIMEOUT_MS = 60_000;
+export const SCENE_REPAIR_RECOVERY_ENABLED = process.env.NEXT_PUBLIC_SCENE_REPAIR_RECOVERY === "1";
 const PLANNER_MODEL = "server";
 const MAX_SCENE_REPAIR_ROUNDS = 2;
 const REPAIR_CANDIDATES_PER_ROUND = 2;
@@ -170,7 +173,8 @@ export async function repairSceneDocument(
 ): Promise<ScenePlannerResponse | null> {
   if (errors.length === 0) return null;
 
-  const previousStructure = summarizeSceneCandidateForRepair(candidate);
+  const previousStructure = summarizeSceneCandidateForRepair(candidate,
+    (options.repairRecoveryEnabled ?? SCENE_REPAIR_RECOVERY_ENABLED) ? errors : undefined);
   const usedOperators = Array.isArray(candidate.constructions)
     ? candidate.constructions.flatMap((construction) =>
       isPlainObject(construction) && typeof construction.operator === "string" ? [construction.operator] : [])
@@ -268,6 +272,7 @@ export function normalizeSceneDocumentModelOutput(
 
 function summarizeSceneCandidateForRepair(
   candidate: SceneDocumentCandidate,
+  failures?: readonly SceneRepairError[],
 ): Record<string, unknown> {
   const shortMetadata = Object.fromEntries(Object.entries(candidate).flatMap(([key, value]) =>
     (typeof value === "string" && value.length <= 120) || typeof value === "number" || typeof value === "boolean"
@@ -288,6 +293,21 @@ function summarizeSceneCandidateForRepair(
         }]
       : [])
     : [];
+  let feedbackBytesLeft = 6_000;
+  const failingElements = failures ? ["quantities", "entities", "constructions", "assertions", "annotations", "labels", "revealGroups"]
+    .flatMap((field) => Array.isArray(candidate[field]) ? candidate[field].flatMap((node, index) => {
+      if (!isPlainObject(node)) return [];
+      const outputs = Array.isArray(node.outputs) ? node.outputs : [];
+      const related = failures.filter((failure) =>
+        failure.path?.match(new RegExp(`(?:${field}\\[(\\d+)\\]|${field}\\.(\\d+)|/${field}/(\\d+))(?:\\D|$)`))?.slice(1).includes(String(index)) ||
+        failure.entityIds?.some((id) => id === node.id || outputs.includes(id)));
+      if (related.length === 0) return [];
+      const bytes = new TextEncoder().encode(JSON.stringify(node)).length;
+      const canInclude = bytes <= 2_048 && bytes <= feedbackBytesLeft;
+      if (canInclude) feedbackBytesLeft -= bytes;
+      return [{ field, index, id: node.id, errorCodes: related.map((failure) => failure.code),
+        ...(canInclude ? { node } : { nodeOmitted: true, reason: "repair_feedback_budget" }) }];
+    }) : []) : undefined;
   return {
     ...shortMetadata,
     quantityIds: ids("quantities"),
@@ -298,6 +318,7 @@ function summarizeSceneCandidateForRepair(
       ? candidate.requiredEntityIds.filter((id): id is string => typeof id === "string")
       : [],
     revealGroupIds: ids("revealGroups"),
+    ...(failingElements ? { failingElements } : {}),
   };
 }
 
