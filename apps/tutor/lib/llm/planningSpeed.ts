@@ -10,10 +10,8 @@ export function applyPlannerSpeedSettings(
   context: { provider: string },
   env: Record<string, string | undefined> = process.env,
 ): Record<string, unknown> {
-  if (context.provider !== "azure") return body;
-  const settings = plannerSpeedSettings(env);
-  // Pin the off path too: deployment-auto priority would exceed its 1x reserve.
-  return { ...body, service_tier: settings.priority ? "priority" : "default" };
+  if (context.provider !== "azure" || !plannerSpeedSettings(env).priority) return body;
+  return { ...body, service_tier: "priority" };
 }
 
 /** A missing/unknown returned tier never makes a requested priority call cheap. */

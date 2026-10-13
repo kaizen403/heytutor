@@ -548,7 +548,6 @@ const routeChecks: [string, () => Promise<void>][] = [
         reasoning_effort: "low",
         max_completion_tokens: 2800 + 2048,
         model: "gpt-6-1-sol",
-        service_tier: "default",
       });
       const metadata = generations.at(-1)!.metadata!;
       assert.equal(generations.at(-1)!.model, "gpt-6-1-sol");
@@ -556,6 +555,8 @@ const routeChecks: [string, () => Promise<void>][] = [
       assert.equal(metadata.reasoning_tokens, 40);
       assert.equal(metadata.cached_input_tokens, 200);
       assert.equal(metadata.ttft_ms, 300);
+      assert.equal(metadata.service_tier_requested, "auto");
+      assert.equal(response.headers.get("x-heytutor-service-tier-requested"), "auto");
     } finally {
       if (priority === undefined) delete process.env.DIAGRAM_PLANNER_PRIORITY;
       else process.env.DIAGRAM_PLANNER_PRIORITY = priority;

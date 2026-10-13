@@ -34,7 +34,7 @@ export function labProviderConfig() {
     planningSpeed: { sceneEffort: endpoint.provider === "azure" ? String(plannerBodies[0]?.reasoning_effort ?? "unknown") : "low",
       ...(endpoint.provider === "azure" ? plannerSpeedSettings() : { priority: false }),
       requestTier: endpoint.provider === "azure" && process.env.DIAGRAM_PLANNER_PRIORITY === "1" ? "priority"
-        : endpoint.provider === "azure" ? "default" : "auto" },
+        : "auto" },
     plannerOutputCap: Math.max(...caps), teachingOutputCap: Math.max(...teachingCaps),
     visualNeed: { evidenceVersion: VISUAL_NEED_EVIDENCE_VERSION, model: JEV_GATEWAY_MODEL,
       rubricVersion: rubricVersionForJob("visual_need"), policyVersion: EVALUATION_POLICY_VERSION,

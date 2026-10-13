@@ -177,10 +177,16 @@ async function verifyChatPlannerPriority(): Promise<number> {
     assert(retry.response.headers.get("x-heytutor-upstream-attempts") === "2", "a real retry exposes both attempts without refunding unknown earlier usage");
     for (const flag of [undefined, "0", "true", " 1 "]) {
       const standard = await post({ flag, returnedTier: "default", reserve: 146, settle: 10 });
-      assert(standard.dispatched[0]!.service_tier === "default", "omitted or invalid priority flags explicitly pin planners to standard");
+      assert(JSON.stringify(standard.dispatched[0]) === JSON.stringify({ messages, n: 1, stream: false,
+        response_format: { type: "json_object" }, reasoning_effort: "low", max_completion_tokens: 6848, model: "gpt-6.1-sol" }),
+        "omitted or invalid priority flags preserve the complete legacy Azure planner wire body");
+      assert(standard.response.headers.get("x-heytutor-service-tier-requested") === "auto", "omitted tier diagnostics reflect deployment-auto behavior");
       assert(standard.dispatched[0]!.reasoning_effort === "low" && standard.dispatched[0]!.max_completion_tokens === 6848,
         "client vendor knobs cannot expand standard planner reasoning or output");
     }
+    const autoPriority = await post({ returnedTier: "priority", reserve: 146, settle: 20 });
+    assert(autoPriority.dispatched[0]!.service_tier === undefined && autoPriority.response.headers.get("x-heytutor-service-tier") === "priority",
+      "an off-path deployment-returned priority tier still settles at 2x");
     for (const [plannerHeaders, cap, reserve] of [
       [{ "x-turn-planner-version": "3" }, 4848, 211],
       [{ "x-problem-ir-version": "1" }, 5648, 243],
@@ -192,6 +198,10 @@ async function verifyChatPlannerPriority(): Promise<number> {
     }
     process.env.LLM_PROVIDER = "fireworks";
     const fireworks = await post({ flag: "1", reserve: 157, settle: 15 });
+    for (const flag of [undefined, "0", "true"]) {
+      const unchanged = await post({ flag, reserve: 157, settle: 15 });
+      assert(JSON.stringify(unchanged.dispatched[0]) === JSON.stringify(fireworks.dispatched[0]), "every priority flag value preserves the Fireworks wire body and accounting");
+    }
     assert(fireworks.dispatched[0]!.service_tier === undefined && fireworks.dispatched[0]!.reasoning_effort === undefined,
       "planner priority and client vendor options do not leak to Fireworks");
     assert(fireworks.dispatched[0]!.max_tokens === 4800 && JSON.stringify(fireworks.dispatched[0]!.thinking) === '{"type":"disabled"}',
@@ -199,6 +209,10 @@ async function verifyChatPlannerPriority(): Promise<number> {
     process.env.LLM_PROVIDER = "azure";
     const standardTeaching = await post({ teaching: true, reserve: 183, settle: 10 });
     const priorityTeaching = await post({ teaching: true, flag: "1", reserve: 183, settle: 10 });
+    for (const flag of ["0", "true"]) {
+      const unchanged = await post({ teaching: true, flag, reserve: 183, settle: 10 });
+      assert(JSON.stringify(unchanged.dispatched[0]) === JSON.stringify(standardTeaching.dispatched[0]), "invalid and zero priority flags preserve teaching dispatch and accounting");
+    }
     assert(JSON.stringify(standardTeaching.dispatched[0]) === JSON.stringify(priorityTeaching.dispatched[0]),
       "priority flag changes neither teaching dispatch nor reservation/settlement");
     assert(priorityTeaching.dispatched[0]!.service_tier === undefined && priorityTeaching.dispatched[0]!.reasoning_effort === "low"

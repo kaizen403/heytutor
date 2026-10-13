@@ -10,19 +10,25 @@ import type { TurnPlanV3 } from "@heytutor/scene-engine";
 import { buildSceneDocumentPlannerPrompt } from "../../../../packages/tutor-core/src/planners/scenePlannerV2Prompt";
 
 const ordinary = { max_tokens: 4000, thinking: { type: "disabled" }, messages: [] };
+for (const flag of [undefined, "", "0", "true", "off", "HIGH", "none", " 1 "]) {
+  const off = applyPlannerSpeedSettings(ordinary, { provider: "azure" }, { DIAGRAM_PLANNER_PRIORITY: flag });
+  assert.equal(JSON.stringify(azureChatBody(off, {})), JSON.stringify(azureChatBody(ordinary, {})),
+    "the disabled planner flag preserves the exact legacy Azure wire body");
+  assert.equal(off, ordinary, "unset, zero and invalid flags preserve the original Azure planner body object");
+}
 assert.deepEqual({
   unsetTier: applyPlannerSpeedSettings(ordinary, { provider: "azure" }, {}).service_tier,
   removedEffort: azureChatBody(applyPlannerSpeedSettings(ordinary, { provider: "azure" }, {
     DIAGRAM_SCENE_REASONING_EFFORT: "medium",
   }), {}).reasoning_effort,
-}, { unsetTier: "default", removedEffort: "low" }, "unset priority is explicitly standard; failed reasoning control is not shipped");
+}, { unsetTier: undefined, removedEffort: "low" }, "unset priority preserves the legacy body; failed reasoning control is not shipped");
 assert.deepEqual(plannerSpeedSettings({}), { priority: false });
 for (const value of ["", "true", "0", "off", "HIGH", "high", "none"]) {
   assert.equal(plannerSpeedSettings({ DIAGRAM_PLANNER_PRIORITY: value }).priority, false);
-  assert.equal(applyPlannerSpeedSettings(ordinary, { provider: "azure" }, { DIAGRAM_PLANNER_PRIORITY: value }).service_tier, "default");
+  assert.equal(applyPlannerSpeedSettings(ordinary, { provider: "azure" }, { DIAGRAM_PLANNER_PRIORITY: value }), ordinary);
 }
 const env = { DIAGRAM_PLANNER_PRIORITY: "1", DIAGRAM_SCENE_REASONING_EFFORT: "medium" };
-assert.deepEqual(applyPlannerSpeedSettings(ordinary, { provider: "azure" }, {}), { ...ordinary, service_tier: "default" });
+assert.deepEqual(applyPlannerSpeedSettings(ordinary, { provider: "azure" }, {}), ordinary);
 assert.equal(applyPlannerSpeedSettings(ordinary, { provider: "fireworks" }, env), ordinary);
 const otherPlanner = applyPlannerSpeedSettings(ordinary, { provider: "azure" }, env);
 assert.equal(azureChatBody(otherPlanner, {}).reasoning_effort, "low");
@@ -33,6 +39,7 @@ assert.equal(azureChatBody(scene, {}).max_completion_tokens, 6048);
 assert.equal(azureChatBody(ordinary, {}).max_completion_tokens, 6048);
 assert.deepEqual(ordinary, { max_tokens: 4000, thinking: { type: "disabled" }, messages: [] });
 assert.equal(plannerTierCostMultiplier("priority", true), 2);
+assert.equal(plannerTierCostMultiplier("priority", false), 2, "actual returned priority is priced at 2x even when the flag is off");
 assert.equal(plannerTierCostMultiplier("default", true), 1);
 assert.equal(plannerTierCostMultiplier(null, true), 2);
 assert.equal(plannerTierCostMultiplier("auto", true), 2);
@@ -48,10 +55,10 @@ for (const phrase of ["AUTHORITY", "AVAILABLE PROOF PREDICATES", "QUESTION", que
 const repair = buildSceneDocumentPlannerPrompt(question, context, context.constructionOperators);
 assert.equal(repair, baseline, "repairs retain full contracts for every used operator");
 const standard = applyPlannerSpeedSettings(ordinary, { provider: "azure" }, { DIAGRAM_PLANNER_PRIORITY: "0" });
-assert.equal(standard.service_tier, "default", "an explicit standard experiment cannot inherit deployment priority");
+assert.equal(standard, ordinary, "zero leaves the Azure request byte-identical to the legacy body");
 assert.equal(azureChatBody(standard, {}).reasoning_effort, "low");
 assert.equal(applyPlannerSpeedSettings(ordinary, { provider: "fireworks" }, { DIAGRAM_PLANNER_PRIORITY: "0" }), ordinary);
-assert.equal(applyPlannerSpeedSettings(ordinary, { provider: "azure" }, {}).service_tier, "default", "omitted controls cannot inherit deployment priority");
+assert.equal(applyPlannerSpeedSettings(ordinary, { provider: "azure" }, {}), ordinary, "omitted controls preserve deployment-auto behavior");
 
 // The same trust boundary used by the route rejects client-owned vendor knobs.
 const clientRequest = { messages: [{ role: "user", content: "Explain the supplied calculation." }],
@@ -86,6 +93,7 @@ async function verifyAccounting(): Promise<void> {
     for (const [returnedTier, reasoning, requestedTier, multiplier] of [
       ["priority", 123, "priority", 2], ["default", 0, "priority", 1], [null, undefined, "priority", 2],
       ["unknown", undefined, "priority", 2], ["default", undefined, "default", 1], [null, undefined, "auto", 1],
+      ["priority", 123, "auto", 2],
     ] as const) {
       const settlements: Array<{ charged: number; reserved: number }> = [];
       const tracker = new PlannerUsageTracker((charged, reserved) => settlements.push({ charged, reserved }), "response_usage");
@@ -180,7 +188,7 @@ async function verifyAccounting(): Promise<void> {
     const experimentConfig = labProviderConfig();
     assert.equal(defaultConfig.planningSpeed.priority, false);
     assert.equal(defaultConfig.planningSpeed.sceneEffort, "low");
-    assert.equal(defaultConfig.planningSpeed.requestTier, "default", "standard and auto experiments have distinct resume identities");
+    assert.equal(defaultConfig.planningSpeed.requestTier, "auto", "off reports the actual omitted tier field for resume identity");
     for (const floor of ["low", "medium", "high", "xhigh"]) {
       process.env.AZURE_OPENAI_MIN_REASONING_EFFORT = floor;
       assert.equal(labProviderConfig().planningSpeed.sceneEffort, floor, "preflight records the translated Azure scene effort, including its configured floor");
@@ -198,7 +206,7 @@ async function verifyAccounting(): Promise<void> {
     const selectionInput = { question: noneQuestion, turnPlan: nonePlan, problemIR: null, visualNeedDecision: "none" as const };
     const withExperiments = selectProductionScene(selectionInput);
     delete process.env.DIAGRAM_PLANNER_PRIORITY; delete process.env.DIAGRAM_SCENE_REASONING_EFFORT;
-    assert.equal(labProviderConfig().planningSpeed.requestTier, "default", "omitted controls explicitly retain standard pricing");
+    assert.equal(labProviderConfig().planningSpeed.requestTier, "auto", "omitted controls retain legacy deployment-auto behavior");
     const withoutExperiments = selectProductionScene(selectionInput);
     assert.equal(withExperiments.representation, null);
     assert.equal(withExperiments.gate.shouldAttemptLlmScene, false);
@@ -225,4 +233,4 @@ async function verifyAccounting(): Promise<void> {
   }
 }
 
-void verifyAccounting().then(() => console.log("planning speed: explicit standard/default-off provider scoping, unchanged authority/headroom, actual tracker/trace priority pricing, abort/crossed attribution and no-figure admission pass"));
+void verifyAccounting().then(() => console.log("planning speed: byte-identical default-off provider scoping, unchanged authority/headroom, actual tracker/trace priority pricing, abort/crossed attribution and no-figure admission pass"));
