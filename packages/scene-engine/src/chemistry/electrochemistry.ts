@@ -396,7 +396,14 @@ function statedPotentials(question: string): Map<string, StatedPotential> | null
     const element = METAL_NAMES[raw.toLowerCase()] ?? Object.values(METAL_NAMES).find(symbol => symbol.toLowerCase() === raw.toLowerCase());
     return element ? `@${element}` : null;
   };
-  const owners = (region: string): string[] => [...new Set([...region.matchAll(ownerPattern)].map(match => ownerKey(match[0])).filter((key): key is string => key !== null))];
+  const temperatures = findChemistryQuantities({question:text,dimension:"temperature",targetUnit:"K"});
+  if (!temperatures.ok) return null;
+  // A unit in a complete source quantity is not an electrode declaration.
+  const temperatureOwns = (start: number, end: number): boolean => temperatures.reading.some(reading =>
+    start >= reading.source.span.start && end <= reading.source.span.end);
+  const owners = (region: string, offset: number): string[] => [...new Set([...region.matchAll(ownerPattern)]
+    .filter(match => !temperatureOwns(offset + match.index!, offset + match.index! + match[0].length))
+    .map(match => ownerKey(match[0])).filter((key): key is string => key !== null))];
   const clauses = /[;\n]|\.(?!\d)|\b(?:and|while|whereas|but)\b/gi;
   const clauseStart = (prefix: string): number => {
     const boundary = [...prefix.matchAll(clauses)].at(-1);
@@ -413,13 +420,13 @@ function statedPotentials(question: string): Map<string, StatedPotential> | null
     if (cues.length === 0) continue; // Observed/standard cell E has its own reader.
     const firstCue = start + cues[0]!.index!;
     const beforeCue = text.slice(start, firstCue);
-    const precedingOwner = owners(beforeCue).length === 1 && !/[|]|\b(?:draw|find|calculate|determine)\b/i.test(beforeCue);
+    const precedingOwner = owners(beforeCue, start).length === 1 && !/[|]|\b(?:draw|find|calculate|determine)\b/i.test(beforeCue);
     const previousEnd = literals.reading[index - 1]?.source.span.end ?? 0;
     const localStart = Math.max(precedingOwner ? start : firstCue, previousEnd, clauseStart(prefix));
-    if (previousEnd <= firstCue && owners(text.slice(precedingOwner ? start : firstCue, reading.source.span.start)).length > 1) continue;
-    const before = owners(text.slice(localStart, reading.source.span.start));
+    if (previousEnd <= firstCue && owners(text.slice(precedingOwner ? start : firstCue, reading.source.span.start), precedingOwner ? start : firstCue).length > 1) continue;
+    const before = owners(text.slice(localStart, reading.source.span.start), localStart);
     const tail = text.slice(reading.source.span.end, literals.reading[index + 1]?.source.span.start ?? text.length);
-    const after = owners(tail.split(/[,;\n]|\.(?!\d)|\b(?:and|while|whereas|but)\b/i)[0]!);
+    const after = owners(tail.split(/[,;\n]|\.(?!\d)|\b(?:and|while|whereas|but)\b/i)[0]!, reading.source.span.end);
     const keys = before.length > 0 ? before : after;
     if (keys.length !== 1 || (before.length > 0 && after.some(key => key !== before[0]))) continue;
     const cue = cues.at(-1)![0];
@@ -428,6 +435,7 @@ function statedPotentials(question: string): Map<string, StatedPotential> | null
   // An unread declaration has an owner even when no scalar enters the
   // inventory. Validate each assignment instead of borrowing a later value.
   for (const owner of text.matchAll(ownerPattern)) {
+    if (temperatureOwns(owner.index!, owner.index! + owner[0].length)) continue;
     const prefix = text.slice(0, owner.index!);
     const sentence = prefix.slice([...prefix.matchAll(/\n|\.(?!\d)/g)].at(-1)?.index ?? 0);
     const tail = text.slice(owner.index! + owner[0].length);

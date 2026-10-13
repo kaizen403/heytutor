@@ -168,5 +168,33 @@ check("component-mole-fraction-caption", () => {
   const result = compiled(buildSolutionLessonScene("Find the mole fractions in a mixture of 0.0045 mol of A and 0.9955 mol of B.", [], false), "chem_solutions");
   assert.ok(result.labels.includes("xA=0.0045")); assert.ok(result.text.includes("= 0.0045 and"));
 });
+// Source917 regressions and fresh controls: Kelvin units cannot own potential literals.
+for (const [index, question, expectedEmf, observed] of [
+  [0, "Calculate the emf of the following cell at 298 K: Zn|Zn2+(0.001 M)||Cu2+(0.1 M)|Cu, E°cell = 1.10 V.", 1.1591, undefined],
+  [1, "For Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu, E°cell = 1.10 V at 298 K. Calculate the emf.", 1.0705, undefined],
+  [2, "For Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu, E°(cell) is 1.10 V at 298 K. Calculate the emf.", 1.0705, undefined],
+  [3, "For Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu, E₀cell = 1.10 V at 298 K. Calculate the emf.", 1.0705, undefined],
+  [4, "For Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu, E°cell = 1.10 V. E°cell = 1.10 V at 298 K. The observed emf is 1.13 V. Draw the cell.", 1.0705, 1.13],
+  [5, "At 298 K: draw the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu with E°cell = 1.10 V.", 1.0705, undefined],
+  [6, "Draw Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu. E°cell = 1.10 V at 298 K; the measured cell emf is 1.13 V.", 1.0705, 1.13],
+  [7, "For Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu the standard cell potential is 1.10 V at 298 K. Draw the galvanic cell.", 1.0705, undefined],
+  [8, "At temperature T = 298 K, calculate the emf of Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu. E°cell = 1.10 V.", 1.0705, undefined],
+  [9, "Draw Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu, E°cell = 1.10 V at 298 K and temperature T = 298 K. The observed voltage is 1.13 V.", 1.0705, 1.13],
+] as const) check(`temperature-unit-not-electrode-${index}`, () => {
+  const spec = parseCellNotation(question); assert.ok(spec);
+  near(cellEmf(spec)?.e0, 1.1); near(spec.temperatureK, 298);
+  assert.equal(spec.statedE, observed); near(spec.statedE0, 1.1);
+  const computed = cellEmf(spec)?.e;
+  assert.ok(typeof computed === "number" && Number.isFinite(computed));
+  assert.ok(Math.abs(computed - expectedEmf) <= .000051);
+  compiled(buildElectrochemScene(question, [], false), "chem_electrochem");
+});
+check("actual-potassium-electrode-retains-source-owner", () => {
+  const question = "Draw K|K+(1 M)||Cu2+(1 M)|Cu at 298 K. The standard electrode potential of potassium is -2.90 V and that of copper is +0.40 V.";
+  const spec = parseCellNotation(question); assert.ok(spec);
+  near(spec.anode.e0, -2.9); near(spec.cathode.e0, .4); near(cellEmf(spec)?.e0, 3.3);
+  assert.equal(spec.anode.potentialSource, "stem"); assert.equal(spec.cathode.potentialSource, "stem");
+  compiled(buildElectrochemScene(question, [], false), "chem_electrochem");
+});
 console.log(JSON.stringify({ passed, failed: failed.length, failures: failed, scope: "offline source only; three next-PR non-regressions" }));
 process.exitCode = failed.length ? 1 : 0;
