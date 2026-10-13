@@ -72,12 +72,14 @@ let growthPause: (() => Promise<void>) | null = null;
 let transactionDelay: { query: "turn.update" | "segment.createManyAndReturn"; ms: number } | null = null;
 let activeTransactionBudgetMs: number | null = null;
 let transactionElapsedMs = 0;
+let lastTransactionError: KnownRequestError | null = null;
 const transactionOptions: Array<{ timeout?: number; maxWait?: number } | undefined> = [];
 function delayedQuery(query: "turn.update" | "segment.createManyAndReturn") {
   if (activeTransactionBudgetMs === null || transactionDelay?.query !== query) return;
   transactionElapsedMs += transactionDelay.ms;
   if (transactionElapsedMs > activeTransactionBudgetMs) {
-    throw new KnownRequestError("Transaction already closed: expired interactive transaction", "P2028");
+    lastTransactionError = new KnownRequestError("Transaction already closed: expired interactive transaction", "P2028");
+    throw lastTransactionError;
   }
 }
 
@@ -690,40 +692,74 @@ async function checkpointTransactionBudget() {
   } finally { transactionDelay = null; }
 }
 
+// Supply Next's request-error boundary and the Sentry adapter. Route wrappers,
+// instrumentation and save client remain unchanged; Prisma uses the adapter above.
+const turnRoute = load("app/api/boards/[boardId]/turns/[turnId]/route.ts", {
+  "@/lib/boards/turnCheckpoint": { handleTurnCheckpoint, handleTurnClose },
+});
+const requestErrors: unknown[] = [];
+const instrumentation = load("instrumentation.ts", {
+  "@sentry/nextjs": { captureRequestError: (error: unknown) => requestErrors.push(error) },
+});
+async function nextCheckpointResponse(request: Request, params: Row): Promise<Response> {
+  try {
+    return await turnRoute[request.method === "PUT" ? "PUT" : "PATCH"](request, { params: Promise.resolve(params) });
+  } catch (error) {
+    instrumentation.onRequestError(error, { path: new URL(request.url).pathname, method: request.method, headers: {} },
+      { routerKind: "App Router", routePath: "/api/boards/[boardId]/turns/[turnId]", routeType: "route" });
+    return Response.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
 async function checkpointTransactionExpiry() {
   const lesson = crypto.randomUUID();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    const request = new Request(input, init);
+    const match = /\/api\/boards\/([^/]+)\/turns\/([^/?]+)/.exec(request.url)!;
+    return nextCheckpointResponse(request, { boardId: match[1], turnId: match[2] });
+  };
+  const input = { seq: 1, baseCount: 0, status: "live", question: "Find the slope.", rawResponse: "",
+    scene: { visualStatus: "text_only" }, segments: [row(0, "", CLEAR), { ...row(1, "Retry this exact checkpoint."), audioBytes: MP3(61) }] };
   transactionDelay = { query: "segment.createManyAndReturn", ms: 40_001 };
   try {
-    const expired = await put(lesson, { seq: 1, baseCount: 0,
-      appendSegments: [row(0, "", CLEAR), row(1, "Retry this exact checkpoint.")] }, { 1: MP3(61) })
-      .catch((error: unknown): { status: number; body: Row } => ({ status: 500, body: { exception: error instanceof Error ? error.message : String(error) } }));
-    assert.equal(expired.status, 503, "an expired commit has a clear retryable save response instead of an unhandled 500");
-    assert.equal(expired.body.code, "storage_verification_failed");
-    assert.match(expired.body.error, /saved|saving/i);
-    assert.doesNotMatch(expired.body.error, /P2028|Prisma|transaction/i);
-    const classified = client.classifySaveFailure(expired.status, expired.body);
-    assert.equal(classified.retryable, true);
-    assert.equal(classified.reason, "storage_verification");
+    const beforeErrors = requestErrors.length;
+    const expired = await client.checkpointTurn("board-a", lesson, input);
+    assert.equal(expired.ok, false);
+    assert.equal(expired.reason, "server", "unexpected commit failure must retry quietly instead of showing a false storage-verification banner");
+    assert.equal(expired.status, 500);
+    assert.equal(expired.retryable, true);
+    assert.equal(requestErrors.length, beforeErrors + 1, "unexpected commit cause reaches onRequestError's Sentry adapter");
+    const cause = requestErrors.at(-1);
+    assert(cause instanceof KnownRequestError && cause.code === "P2028", "request diagnostics retain the database error type and code");
+    assert.equal(cause, lastTransactionError, "request diagnostics retain the original exception object");
+    assert.doesNotMatch(expired.error, /P2028|Prisma|transaction/i, "raw exception is not returned to the student");
     assert.equal(stored(lesson), undefined, "expiry rolls back the turn and metadata charge");
     assert.equal(rowsOf(lesson).length, 0);
     assert.equal(reservations.at(-1)!.state, "abandoned");
     transactionDelay = null;
-    const retried = await put(lesson, { seq: 1, baseCount: 0,
-      appendSegments: [row(0, "", CLEAR), row(1, "Retry this exact checkpoint.")] }, { 1: MP3(61) });
-    assert.equal(retried.status, 200);
+    const retried = await client.checkpointTurn("board-a", lesson, input);
+    assert.equal(retried.ok, true);
     assert.equal(rowsOf(lesson).length, 2, "same-id retry retains exactly one checkpoint");
     assert.equal(turns.filter((turn) => turn.id === lesson).length, 1);
     assert.equal(reservations.filter((reservation) => reservation.state === "settled").length, 1);
     assert.equal(reservations.filter((reservation) => reservation.state === "open").length, 0);
     const prior = rowsOf(lesson).map((segment) => ({ ...segment }));
     transactionDelay = { query: "turn.update", ms: 40_001 };
-    const failedClose = await close(lesson, { seq: 2, status: "stopped" })
-      .catch((error: unknown): { status: number; body: Row } => ({ status: 500, body: { exception: error instanceof Error ? error.message : String(error) } }));
-    assert.equal(failedClose.status, 503, "metadata-only expiry also reports retryable save failure");
-    assert.equal(failedClose.body.code, "storage_verification_failed");
-    assert.equal(stored(lesson).status, "live", "failed close does not publish a stopped header");
-    assert.deepEqual(rowsOf(lesson), prior, "failed close cannot discard already saved rows or clips");
-  } finally { transactionDelay = null; }
+    for (const legacy of [false, true]) {
+      if (legacy) stored(lesson).submittedSegments = null;
+      const beforeCloseErrors = requestErrors.length;
+      const failedClose = await client.closeTurnKeepalive("board-a", lesson, { seq: 2, baseCount: 2, status: "stopped", segments: [],
+        ...(legacy ? {} : { rawResponse: "Retry this exact checkpoint." }) });
+      assert.equal(failedClose.ok, false);
+      assert.equal(failedClose.reason, "server", `${legacy ? "legacy status-only" : "metadata"} close does not invent a storage-measurement failure`);
+      assert.equal(failedClose.status, 500);
+      assert.equal(requestErrors.length, beforeCloseErrors + 1, "each close preserves request-error diagnostics");
+      assert.equal(requestErrors.at(-1), lastTransactionError, "both close paths preserve the original cause");
+      assert.doesNotMatch(failedClose.error, /P2028|Prisma|transaction/i);
+      assert.equal(stored(lesson).status, "live", "failed close does not publish a stopped header");
+      assert.deepEqual(rowsOf(lesson), prior, "failed close cannot discard already saved rows or clips");
+    }
+  } finally { transactionDelay = null; globalThis.fetch = originalFetch; }
 }
 
 async function main() {
