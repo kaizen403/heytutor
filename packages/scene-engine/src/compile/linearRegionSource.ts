@@ -1275,16 +1275,20 @@ function hasAffirmativeDiscreteDomain(question: string, names: readonly string[]
   const premisePrefix = new RegExp(String.raw`^\s*(?:(?:please\s+)?(?:${premiseHead}(?:\s+(?:the\s+)?(?:assumption|fact|condition)(?:\s+that)?)?|for|with|when|where)\s*)?$`, "i");
   const mathematicalAction = String.raw`(?:graph(?:ing)?|plot(?:ting)?|draw(?:ing)?|shade|shading|represent(?:ing)?|show(?:ing)?|illustrate|solve|solving|find(?:ing)?|determine|determining|calculate|calculating|compute|computing)`;
   const displayTextAction = String.raw`(?:label(?:l?ing)?|mark(?:ing)?|write|writing|annotate|annotating|caption(?:ing)?|omit|omitting)`;
-  const action = String.raw`(?:${mathematicalAction}|state|stating|give|giving|report(?:ing)?|explain(?:ing)?|ask(?:ing)?|${premiseHead}|restrict|${displayTextAction})`;
+  const domainRequestAction = String.raw`(?:${mathematicalAction}|explain(?:ing)?|teach|help|describe|discuss|demonstrate|walk|list|count|how\s+many)`;
+  const action = String.raw`(?:${domainRequestAction}|consider(?:ing)?|state|stating|give|giving|report(?:ing)?|ask(?:ing)?|${premiseHead}|restrict|${displayTextAction})`;
   const actionHead = String.raw`(?:please\s+)?(?:(?:(?:do|does|did)\s+not|don['’]t|doesn['’]t|didn['’]t|never|not|without)\s+)?${action}\b`;
   const modalHead = String.raw`(?:should|can|could|may|might)\s+(?:[A-Za-z]+\s+){0,3}${action}\b`;
   const domainHead = `${list}\\s*(?:is\\b|are\\b|be\\b|in\\b|belongs?\\s+to\\b|∈|\\\\in\\b)`;
+  // Scope recognition retains leading words; their roles are checked locally.
+  // A later known head must not inherit the preceding object's qualification.
+  const requestLead = String.raw`(?:[A-Za-z]+(?:['’][A-Za-z]+)?\s+)*?`;
+  const governingHead = new RegExp(String.raw`^\s*${requestLead}(?=${actionHead}|${modalHead}|${domainHead})`, "i");
   const conjunction = String.raw`\b(?:and|then|but|yet|while|though|although|however|whereas)\b`;
   const displayObject = String.raw`(?:(?:solution\s+set|point|endpoint|boundary)\s+)?(?:labels?|captions?|annotations?|marks?|text)\b`;
   const displayModifier = String.raw`\b(?:without\s+(?=${action}\b)|without\s+(?:(?:a|an|any|the)\s+)?${displayObject}|with\s+no\s+${displayObject})`;
   const displayContentPrefix = new RegExp(String.raw`\b(?:${displayTextAction}\b|${displayObject}|(?:discuss|explain|describe)\s+(?:(?:the|this|that)\s+)?notation\b|(?:the|this|that)\s+(?:words|phrase)\b)`, "i");
   const displayContentSuffix = new RegExp(String.raw`\b(?:as|is|are|was|were)\s+(?:(?:a|an|the)\s+)?${displayObject}`, "i");
-  const domainRequestAction = String.raw`(?:${mathematicalAction}|explain(?:ing)?|teach|help|describe|discuss|demonstrate|walk|list|count|how\s+many)`;
   const mathematicalRequestHead = new RegExp(String.raw`^\s*(?:please\s+)?(?:(?:should|can|could|may|might)\s+(?:[A-Za-z]+\s+){0,3})?${domainRequestAction}\b`, "i");
   const propositionObject = String.raw`(?:assertion|statement|claim|assumption|notation|proposition)`;
   const mentionedPropositionPrefix = new RegExp(String.raw`\b${propositionObject}(?:\s+(?:that|of|about|for|saying|showing))*\s*$`, "i");
@@ -1300,15 +1304,28 @@ function hasAffirmativeDiscreteDomain(question: string, names: readonly string[]
     // and "with no labels" cannot negate the preceding type, whereas "is not
     // required" remains inside its domain predicate. Modifier boundaries are
     // zero width so the next instruction retains its head and negation.
+    // Independent heads bound their own leading words, including unfamiliar
+    // flow modifiers. Keep those words inside the new scope so negation,
+    // hypothetical qualifications and cited/display roles remain visible.
     const boundaries = [...clause.matchAll(new RegExp(
-      String.raw`(?:[,;:]\s*(?:${conjunction}\s*)?|${conjunction}\s*)(?=${actionHead}|${modalHead}|${domainHead})|(?=${displayModifier})`, "gi"))];
+      String.raw`(?:^\s*|[,;:]\s*(?:${conjunction}\s*)?|${conjunction}\s*)(?=${requestLead}(?:${actionHead}|${modalHead}|${domainHead}))|(?=${displayModifier})`, "gi"))];
     const affirmative = (assertion: RegExpMatchArray, predicate = false, object = false): boolean => {
       const start = assertion.index!, finish = start + assertion[0].length;
       const lower = boundaries.filter(boundary => boundary.index! + boundary[0].length <= start).at(-1);
       const upper = boundaries.find(boundary => boundary.index! >= finish);
       const prefix = clause.slice(lower ? lower.index! + lower[0].length : 0, start);
       const suffix = clause.slice(finish, upper?.index ?? clause.length);
-      const premise = premisePrefix.test(prefix);
+      const lead = governingHead.exec(prefix + assertion[0])?.[0] ?? "";
+      const ownedPrefix = prefix.slice(lead.length);
+      const premise = premisePrefix.test(ownedPrefix);
+      const originalPremise = premisePrefix.test(prefix);
+      // A known head inside a cited noun phrase or infinitive is not an
+      // imperative/domain head. Its leading words retain that original role.
+      if (!originalPremise && /\b(?:an?|the|this|that|these|those|its|their|of|examples?|claims?|statements?|assertions?|propositions?|quotations?|whether|if|unless)\b/i.test(lead)) return false;
+      // The independently headed scope does not erase its manner or mood.
+      // Tentative/hypothetical instructions supply no affirmative type fact.
+      if (/\b(?:hypothetically|illustratively|imaginarily|counterfactually|possibly|perhaps|maybe|potentially|conditionally)\b/i.test(prefix)
+        || /\b(?:hypothetical|illustrative|imaginary|counterfactual)\b/i.test(lead)) return false;
       // A cited or denied proposition supplies no variable type. A genuine
       // given assumption has a different governing role from discussing one.
       if ((!premise && mentionedPropositionPrefix.test(prefix))
@@ -1328,7 +1345,7 @@ function hasAffirmativeDiscreteDomain(question: string, names: readonly string[]
         && readLinearBindingSource(question.slice(0, match.index! + (lower?.index ?? 0)), names, names.length === 1)) return false;
       // A domain phrase used as requested display content is an operand of
       // that instruction, never an independent declaration of variable type.
-      const displayPrefix = object ? prefix.replace(/^\s*(?:please\s+)?mark\s+(?:the\s+)?$/i, "") : prefix;
+      const displayPrefix = object ? lead + ownedPrefix.replace(/^\s*(?:please\s+)?mark\s+(?:the\s+)?$/i, "") : prefix;
       if (displayContentPrefix.test(displayPrefix) || displayContentSuffix.test(suffix)) return false;
       // A quoted domain phrase is requested/reported text, not a type fact.
       if ([...clause.matchAll(/"[^"]*"|“[^”]*”|(?<![\p{L}\p{N}])'[^']*'/gu)]
@@ -1336,16 +1353,16 @@ function hasAffirmativeDiscreteDomain(question: string, names: readonly string[]
       // Prove the governing context instead of promoting every domain-shaped
       // substring to a type. Unknown instructions supply no independent veto.
       if (!premise
-        && !(/^restrict\b/i.test(assertion[0]) && /^\s*please\s*$/i.test(prefix))) {
-        const head = mathematicalRequestHead.exec(prefix)
-          ?? (object ? /^\s*(?:please\s+)?mark\b/i.exec(prefix)
+        && !(/^restrict\b/i.test(assertion[0]) && /^\s*please\s*$/i.test(ownedPrefix))) {
+        const head = mathematicalRequestHead.exec(ownedPrefix)
+          ?? (object ? /^\s*(?:please\s+)?mark\b/i.exec(ownedPrefix)
             : new RegExp(String.raw`\b${mathematicalAction}\b`, "i").exec(prefix));
         if (!head) return false;
         if (object) {
           // A noun is a requested typed object only when its governing role
           // is proved; a comparison discussed elsewhere supplies no such role.
           try {
-            let prose = normalize(prefix.slice(head.index + head[0].length));
+            let prose = normalize(ownedPrefix.slice(head.index + head[0].length));
             for (const operand of clauses(prose, names).reverse())
               prose = prose.slice(0, operand.start) + " ".repeat(operand.end - operand.start) + prose.slice(operand.end);
             consumeLinearRequest(prose, names);
@@ -1375,7 +1392,7 @@ function hasAffirmativeDiscreteDomain(question: string, names: readonly string[]
       // Restrict is proved only as an imperative head, using the existing
       // optional polite request prefix. A modal subject or direct '?' asks
       // about choosing the restriction rather than independently stating it.
-      if (/^restrict\b/i.test(assertion[0]) && (!/^\s*(?:please\s*)?$/i.test(prefix) || /^\s*\?/.test(suffix))) return false;
+      if (/^restrict\b/i.test(assertion[0]) && (!/^\s*(?:please\s*)?$/i.test(ownedPrefix) || /^\s*\?/.test(suffix))) return false;
       // A bare type predicate followed by '?' asks about the domain. A type
       // attached to an explicit request/assumption remains a declaration:
       // "Can you graph ... for integer x?" still requests integer solutions.
