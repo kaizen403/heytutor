@@ -718,6 +718,62 @@ const ROWS: readonly Row[] = [
     "family": "thermo",
     "kind": "decline",
     "questionSha256": "c9edf35d75630a7811bc6e3f01f66bf0bbf4a4d12e3a8bb073954a7578322adb"
+  },
+  {
+    "id": "REVIEW-HEAT-NAMED-TEMPERATURE-CONFLICT",
+    "question": "The heat capacity of a sample is 20 J/K. It is heated from an initial temperature of 300 K to a final temperature of 310 K. ΔT = 20 K with no phase change. Find q.",
+    "family": "thermo",
+    "kind": "decline",
+    "questionSha256": "315cc6110496b4dad5adbfa5b060114b3eac01ee5f035e31e313e77c2d0c164f"
+  },
+  {
+    "id": "OWN-HEAT-NAMED-TEMPERATURE-WARMED",
+    "question": "The heat capacity of a sample is 20 J/K. It is warmed from a starting temperature of 300 K to an ending temperature of 310 K. ΔT = 20 K with no phase change. Determine q.",
+    "family": "thermo",
+    "kind": "decline",
+    "questionSha256": "96ea030f32dbe792109181b2765e6bf753439b978b5fa093d71e2311ba0b1d35"
+  },
+  {
+    "id": "OWN-HEAT-NAMED-TEMPERATURE-TAKEN",
+    "question": "The heat capacity of a sample is 20 J/K. Heating takes it from an initial temperature of 300 K to a final temperature of 310 K. ΔT = 20 K with no phase change. Calculate q.",
+    "family": "thermo",
+    "kind": "decline",
+    "questionSha256": "8f3f9c1516c124b71d49b215348076ef6d6049ca5f8d2291656cebddb9afc25a"
+  },
+  {
+    "id": "OWN-HEAT-NAMED-TEMPERATURE-READINGS",
+    "question": "The heat capacity of a sample is 20 J/K. Its temperature changes from an initial reading of 300 K to a final reading of 310 K. ΔT = 20 K with no phase change. Find q.",
+    "family": "thermo",
+    "kind": "decline",
+    "questionSha256": "85df28f159e23f370a4e53928d0680e9234f9ff4d6855b9f529b79f108cbe415"
+  },
+  {
+    "id": "OWN-HEAT-NAMED-TEMPERATURE-EQUAL",
+    "question": "The heat capacity of a sample is 20 J/K. The sample goes from an initial temperature equal to 300 K to a final temperature equal to 310 K. ΔT = 20 K with no phase change. Find the heat q.",
+    "family": "thermo",
+    "kind": "decline",
+    "questionSha256": "aa5a1c8f6edeea7cdb55d9d93abfdf95693e036e3239e499a1c4eceacada02d9"
+  },
+  {
+    "id": "OWN-HEAT-NAMED-TEMPERATURE-VALUES",
+    "question": "The heat capacity of a sample is 20 J/K. It is heated from an initial temperature value of 300 K to a final temperature value of 310 K. ΔT = 20 K with no phase change. Determine the heat q.",
+    "family": "thermo",
+    "kind": "decline",
+    "questionSha256": "561fa38e06ba4e55ada5f54b8fe195e853ddb10c367bc156ed72158f25cfd885"
+  },
+  {
+    "id": "REFUSE-HEAT-NAMED-CAPACITY-LINEAR-RISE",
+    "question": "The heat capacity of a sample is 20 J/K. Its heat capacity rises linearly from an initial heat capacity of 20 J/K to a final heat capacity of 30 J/K as its temperature increases. ΔT = 10 K with no phase change. Find q.",
+    "family": "thermo",
+    "kind": "decline",
+    "questionSha256": "0e885d72bbdb375e15f903cefdcacf02084f0425ab32f490b4274db2f696a17e"
+  },
+  {
+    "id": "REFUSE-HEAT-NAMED-CAPACITY-LINEAR-FALL",
+    "question": "The heat capacity of a sample is 20 J/K. Its heat capacity falls linearly from an initial heat capacity of 20 J/K to a final heat capacity of 10 J/K during warming. ΔT = 10 K with no phase change. Find q.",
+    "family": "thermo",
+    "kind": "decline",
+    "questionSha256": "b7991c8d712d4a3315254699303d941b921b5631669a3077579bce0a6ac41888"
   }
 ];
 

@@ -7,7 +7,7 @@
  * Maxwell distributions stay in thermoGraphs.ts. A missing number is
  * not replaced with a textbook value.
  */
-import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, findChemistryQuantities, readChemistryQuantity, readChemistryLiteral, CHEMISTRY_SCALAR_PATTERN, chemistryUnitSymbol, chemistryQuantityCuesValid, chemistryQuestionSpan, chemistryCanonicalValuesAgree, chemistryQuantityInventoryOwned, readChemistryUnitLiteral } from "./quantityReader";
+import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, findChemistryQuantities, readChemistryQuantity, readChemistryLiteral, CHEMISTRY_SCALAR_PATTERN, chemistryUnitSymbol, chemistryQuantityCuesValid, chemistryQuestionSpan, chemistryCanonicalValuesAgree, chemistryQuantityInventoryOwned, readChemistryUnitLiteral, type ChemistryReading } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
 
@@ -200,6 +200,18 @@ function amountMoles(question: string): number | null {
 
 const HEAT_DELTA_CUE = /(?:δ|∆|Δ)\s*t\s*=|delta t\s*=/i;
 
+/** The delta value and its inventory view cite one complete original literal. */
+function heatDeltaInput(question: string): { value: number; literal: ChemistryReading } | null {
+  const delta = readChemistryQuantity({ question, after: HEAT_DELTA_CUE, dimension: "temperature_delta", targetUnit: "K" });
+  if (!delta.ok) return null;
+  const token = new RegExp(`^(${CHEMISTRY_SCALAR_PATTERN})`).exec(question.slice(delta.reading.source.span.start));
+  if (!token) return null;
+  // Inventory uses the absolute-temperature view; only the independently read
+  // delta value above enters heat arithmetic, so Celsius offsets never enter q.
+  const literal = readChemistryUnitLiteral({ question, scalarSpan: { start: delta.reading.source.span.start, end: delta.reading.source.span.start + token[0].length } });
+  return literal.ok && literal.reading.dimension === "temperature" ? { value: delta.reading.value, literal: literal.reading } : null;
+}
+
 /** null means no range; false means a stated range cannot be owned. */
 function heatTemperatureRange(question: string): { first: number; second: number } | null | false {
   const body = question.slice(0, chemistryQuestionSpan(question).end);
@@ -251,15 +263,9 @@ function heatTemperatureRange(question: string): { first: number; second: number
     { reading: second.reading, owner: "heat_temperature_2" },
   ];
   if (HEAT_DELTA_CUE.test(body)) {
-    const delta = readChemistryQuantity({ question, after: HEAT_DELTA_CUE, dimension: "temperature_delta", targetUnit: "K" });
-    if (!delta.ok || !chemistryCanonicalValuesAgree(delta.reading.value, second.reading.value - first.reading.value)) return false;
-    const token = scalar.exec(question.slice(delta.reading.source.span.start));
-    if (!token) return false;
-    // Inventory uses absolute temperature units; the independently checked
-    // delta above uses no Celsius offset. Both readings cite the same literal.
-    const literal = readChemistryUnitLiteral({ question, scalarSpan: { start: delta.reading.source.span.start, end: delta.reading.source.span.start + token[0].length } });
-    if (!literal.ok || literal.reading.dimension !== "temperature") return false;
-    consumed.push({ reading: literal.reading, owner: "heat_delta_T" });
+    const delta = heatDeltaInput(question);
+    if (!delta || !chemistryCanonicalValuesAgree(delta.value, second.reading.value - first.reading.value)) return false;
+    consumed.push({ reading: delta.literal, owner: "heat_delta_T" });
   }
   // Every original temperature literal must have one owner before deriving ΔT.
   // A bare endpoint with a shared unit is not an inventory literal.
@@ -287,11 +293,20 @@ function buildHeat(question: string, stem: string): SceneDocument | null {
     ids.push(c.text("r_l", { x: 0, y: -0.8 }, "ideal gas R", "ideal-gas molar relation"));
   } else {
     const molar = /molar heat capacity|j\/\(mol/.test(stem);
-    const capacity = numberAfter(question, /(?:molar )?heat capacity(?:\s+of a sample)?(?:\s+is)?|c\s*=/, molar ? "molar_heat_capacity" : "heat_capacity", molar ? "J/(mol K)" : "J/K");
+    const capacityDimension = molar ? "molar_heat_capacity" : "heat_capacity";
+    const capacityRead = readChemistryQuantity({ question, after: /(?:molar )?heat capacity(?:\s+of a sample)?(?:\s+is)?|c\s*=/i, dimension: capacityDimension, targetUnit: molar ? "J/(mol K)" : "J/K" });
+    if (!capacityRead.ok || !chemistryQuantityInventoryOwned(question, capacityDimension, [{ reading: capacityRead.reading, owner: "heat_capacity" }])) return null;
+    const capacity = capacityRead.reading.value;
     const temperatures = heatTemperatureRange(question);
     if (temperatures === false) return null;
-    const delta = temperatures ? temperatures.second - temperatures.first : numberAfter(question, HEAT_DELTA_CUE, "temperature_delta", "K");
-    if (capacity === null || delta === null || !(capacity >= 0) || !(delta !== 0)) return null;
+    let delta: number;
+    if (temperatures) delta = temperatures.second - temperatures.first;
+    else {
+      const statedDelta = heatDeltaInput(question);
+      if (!statedDelta || !chemistryQuantityInventoryOwned(question, "temperature", [{ reading: statedDelta.literal, owner: "heat_delta_T" }])) return null;
+      delta = statedDelta.value;
+    }
+    if (!(capacity >= 0) || !(delta !== 0)) return null;
     const sampleC = molar ? (moles === null ? null : capacity * moles) : capacity;
     if (sampleC === null) return null;
     const q = sampleC * delta;
