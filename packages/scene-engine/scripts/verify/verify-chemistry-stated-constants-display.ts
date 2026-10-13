@@ -304,5 +304,35 @@ for (const [index, question] of [
   near(result.document.quantities.find(q => q.id === "E0_cell")?.value, 1.2);
   assert.ok(result.labels.includes("E° = 1.20 V"), JSON.stringify(result.labels));
 });
+// PR166 semicolon review: plural list ownership survives separators, not new declarations.
+for (const [name, question, anode, cathode, emf, anodeLiteral, cathodeLiteral] of [
+  ["reported-direct", "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. Standard oxidation potentials: E°(Zn2+/Zn) = +0.80 V; E°(Cu2+/Cu) = -0.40 V.", -.8, .4, 1.2, "+0.80 V", "-0.40 V"],
+  ["fresh-direct-standard-values", "Calculate the standard emf and draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu using standard oxidation potentials E°(Zn2+/Zn) = +0.76 V; E°(Cu2+/Cu) = -0.34 V.", -.76, .34, 1.1, "+0.76 V", "-0.34 V"],
+  ["fresh-named-members", "Draw the galvanic cell Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. Given standard oxidation potentials: zinc = +0.80 V; copper = -0.40 V.", -.8, .4, 1.2, "+0.80 V", "-0.40 V"],
+  ["fresh-symbol-members", "Calculate the emf of Zn|Zn2+(1 M)||Cu2+(1 M)|Cu and draw the cell. Standard oxidation potentials: Zn = +0.76 V; Cu = -0.34 V.", -.76, .34, 1.1, "+0.76 V", "-0.34 V"],
+  ["fresh-standard-symbols", "For Zn|Zn2+(1 M)||Cu2+(1 M)|Cu, use oxidation potentials E°Zn = +0.80 V; E°Cu = -0.40 V. Calculate the emf and draw the cell.", -.8, .4, 1.2, "+0.80 V", "-0.40 V"],
+  ["fresh-reversed-mixed-members", "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu and calculate its emf. Use standard oxidation potentials: E°(Cu2+/Cu) = -0.34 V; zinc = +0.76 V.", -.76, .34, 1.1, "+0.76 V", "-0.34 V"],
+  ["local-reduction-override", "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. Standard oxidation potentials: E°(Zn2+/Zn) = +0.80 V; the reduction potential E°(Cu2+/Cu) = +0.40 V.", -.8, .4, 1.2, "+0.80 V", "+0.40 V"],
+  ["complete-electrode-header-reset", "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. Standard oxidation potentials: zinc = +0.80 V; standard electrode potentials: copper = +0.40 V.", -.8, .4, 1.2, "+0.80 V", "+0.40 V"],
+  ["singular-semicolon-independent", "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. The oxidation potential E°(Zn2+/Zn) = +0.76 V; E°(Cu2+/Cu) = +0.34 V.", -.76, .34, 1.1, "+0.76 V", "+0.34 V"],
+  ["sentence-boundary-independent", "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. Standard oxidation potentials: E°(Zn2+/Zn) = +0.80 V. E°(Cu2+/Cu) = +0.40 V.", -.8, .4, 1.2, "+0.80 V", "+0.40 V"],
+  ["sentence-boundary-reduction-reset", "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. Standard oxidation potentials: zinc = +0.76 V. The standard reduction potential of copper is +0.34 V.", -.76, .34, 1.1, "+0.76 V", "+0.34 V"],
+  ["complete-reduction-header-reset", "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. Standard oxidation potentials: E°Zn = +0.80 V; standard reduction potentials: E°Cu = +0.40 V.", -.8, .4, 1.2, "+0.80 V", "+0.40 V"],
+] as const) check(`semicolon-oxidation-role-${name}`, () => {
+  const spec = parseCellNotation(question); assert.ok(spec, "complete source-owned list/control must draw");
+  near(spec.anode.e0, anode); near(spec.cathode.e0, cathode);
+  assert.equal(spec.anode.potentialSource, "stem"); assert.equal(spec.cathode.potentialSource, "stem");
+  assert.equal(spec.statedE, undefined, "electrode directions do not declare cell emf");
+  near(cellEmf(spec)?.e0, emf); near(cellEmf(spec)?.e, emf);
+  for (const [half, literal] of [[spec.anode, anodeLiteral], [spec.cathode, cathodeLiteral]] as const) {
+    assert.ok(half.potentialSourceSpan);
+    assert.equal(question.slice(half.potentialSourceSpan.start, half.potentialSourceSpan.end), half.potentialSourceText);
+    assert.ok(half.potentialSourceText!.endsWith(literal), half.potentialSourceText);
+  }
+  assert.notDeepEqual(spec.anode.potentialSourceSpan, spec.cathode.potentialSourceSpan);
+  const result = compiled(buildElectrochemScene(question, [], false), "chem_electrochem");
+  near(result.document.quantities.find(q => q.id === "E0_cell")?.value, emf);
+  assert.ok(result.labels.includes(`E° = ${emf.toFixed(2)} V`), JSON.stringify(result.labels));
+});
 console.log(JSON.stringify({ passed, failed: failed.length, failures: failed, scope: "offline source only; three next-PR non-regressions" }));
 process.exitCode = failed.length ? 1 : 0;
