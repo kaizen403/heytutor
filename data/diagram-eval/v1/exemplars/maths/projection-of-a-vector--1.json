@@ -1,166 +1,365 @@
 {
   "topic_id": "maths|12|projection-of-a-vector",
-  "question": "Find the projection of 5i + j on 2i + j.",
+  "question": "Find the projection of p = i + 2j on q = 2i + j.",
   "figure_kind": "vectors_fbd",
   "sceneDocument": {
     "schemaVersion": "scene-document/v2",
     "visualDecision": {
       "mode": "scene",
-      "reason": "verified free-vector arithmetic"
+      "reason": "perpendicular from p's tip onto q"
     },
     "source": {
-      "question": "Find the projection of 5i + j on 2i + j."
+      "question": "Find the projection of p = i + 2j on q = 2i + j."
     },
     "quantities": [],
     "entities": [
       {
-        "id": "a",
+        "id": "O",
         "kind": "point",
-        "role": "vector endpoint"
+        "role": "origin",
+        "label": "O"
       },
       {
-        "id": "b",
+        "id": "P",
         "kind": "point",
-        "role": "vector endpoint"
+        "role": "tip of p"
       },
       {
-        "id": "c",
+        "id": "Q",
         "kind": "point",
-        "role": "vector endpoint"
+        "role": "tip of q"
       },
       {
-        "id": "u",
+        "id": "p",
         "kind": "vector",
-        "role": "free vector",
-        "label": "u"
+        "role": "vector p from O",
+        "label": "p = i + 2j"
       },
       {
-        "id": "w",
+        "id": "q",
         "kind": "vector",
-        "role": "free vector",
-        "label": "w"
+        "role": "vector q from O",
+        "label": "q = 2i + j"
       },
       {
-        "id": "result",
-        "kind": "vector",
-        "role": "free vector",
-        "label": "result"
+        "id": "ax",
+        "kind": "axes",
+        "role": "coordinate axes"
       },
       {
-        "id": "result_origin_anchor",
+        "id": "xEnd",
         "kind": "point",
-        "role": "construction helper"
+        "role": "x axis end"
+      },
+      {
+        "id": "xName",
+        "kind": "label",
+        "role": "x axis name",
+        "label": "x"
+      },
+      {
+        "id": "yEnd",
+        "kind": "point",
+        "role": "y axis end"
+      },
+      {
+        "id": "yName",
+        "kind": "label",
+        "role": "y axis name",
+        "label": "y"
+      },
+      {
+        "id": "th",
+        "kind": "angle_mark",
+        "role": "angle between p and q",
+        "label": "θ"
+      },
+      {
+        "id": "N",
+        "kind": "point",
+        "role": "foot of perpendicular from P on q",
+        "label": "N"
+      },
+      {
+        "id": "PN",
+        "kind": "segment",
+        "role": "perpendicular from P to q"
+      },
+      {
+        "id": "rN",
+        "kind": "right_angle_mark",
+        "role": "right angle at N"
+      },
+      {
+        "id": "ON",
+        "kind": "dimension",
+        "role": "projection ON of p on q",
+        "label": "ON = proj"
       }
     ],
     "constructions": [
       {
-        "id": "a_point",
+        "id": "kO",
         "operator": "point",
         "inputs": {
           "x": 0,
-          "y": 0
-        },
-        "outputs": [
-          "a"
-        ]
-      },
-      {
-        "id": "b_point",
-        "operator": "point",
-        "inputs": {
-          "x": 5,
-          "y": 1
-        },
-        "outputs": [
-          "b"
-        ]
-      },
-      {
-        "id": "c_point",
-        "operator": "point",
-        "inputs": {
-          "x": 2,
-          "y": 1
-        },
-        "outputs": [
-          "c"
-        ]
-      },
-      {
-        "id": "u_vector",
-        "operator": "vector",
-        "inputs": {
-          "start": "a",
-          "end": "b"
-        },
-        "outputs": [
-          "u"
-        ]
-      },
-      {
-        "id": "w_vector",
-        "operator": "vector",
-        "inputs": {
-          "start": "a",
-          "end": "c"
-        },
-        "outputs": [
-          "w"
-        ]
-      },
-      {
-        "id": "construct_result_origin_anchor",
-        "operator": "point",
-        "inputs": {
-          "x": 0,
-          "y": -2,
+          "y": 0,
           "coordinateSpace": "world"
         },
         "outputs": [
-          "result_origin_anchor"
+          "O"
         ]
       },
       {
-        "id": "proj_vector",
-        "operator": "vector_projection",
+        "id": "kP",
+        "operator": "point",
         "inputs": {
-          "vector": "u",
-          "onto": "w",
-          "origin": "result_origin_anchor"
+          "x": 1,
+          "y": 2,
+          "coordinateSpace": "world"
         },
         "outputs": [
-          "result"
+          "P"
+        ]
+      },
+      {
+        "id": "kQ",
+        "operator": "point",
+        "inputs": {
+          "x": 2,
+          "y": 1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Q"
+        ]
+      },
+      {
+        "id": "kp",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "end": "P"
+        },
+        "outputs": [
+          "p"
+        ]
+      },
+      {
+        "id": "kq",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "end": "Q"
+        },
+        "outputs": [
+          "q"
+        ]
+      },
+      {
+        "id": "kax",
+        "operator": "axes",
+        "inputs": {
+          "xMin": -0.8,
+          "xMax": 3,
+          "yMin": -0.8,
+          "yMax": 3
+        },
+        "outputs": [
+          "ax"
+        ]
+      },
+      {
+        "id": "kxEnd",
+        "operator": "point",
+        "inputs": {
+          "x": 3,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "xEnd"
+        ]
+      },
+      {
+        "id": "kxName",
+        "operator": "label",
+        "inputs": {
+          "target": "xEnd",
+          "text": "x"
+        },
+        "outputs": [
+          "xName"
+        ]
+      },
+      {
+        "id": "kyEnd",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "yEnd"
+        ]
+      },
+      {
+        "id": "kyName",
+        "operator": "label",
+        "inputs": {
+          "target": "yEnd",
+          "text": "y"
+        },
+        "outputs": [
+          "yName"
+        ]
+      },
+      {
+        "id": "kth",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "O",
+          "a": "Q",
+          "b": "P",
+          "radius": 0.6
+        },
+        "outputs": [
+          "th"
+        ]
+      },
+      {
+        "id": "kN",
+        "operator": "project",
+        "inputs": {
+          "point": "P",
+          "line": "q"
+        },
+        "outputs": [
+          "N"
+        ]
+      },
+      {
+        "id": "kPN",
+        "operator": "segment",
+        "inputs": {
+          "start": "P",
+          "end": "N"
+        },
+        "outputs": [
+          "PN"
+        ]
+      },
+      {
+        "id": "krN",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "N",
+          "a": "P",
+          "b": "O",
+          "size": 0.2
+        },
+        "outputs": [
+          "rN"
+        ]
+      },
+      {
+        "id": "kON",
+        "operator": "dimension",
+        "inputs": {
+          "start": "O",
+          "end": "N"
+        },
+        "outputs": [
+          "ON"
         ]
       }
     ],
     "relations": [],
-    "assertions": [],
+    "assertions": [
+      {
+        "id": "perpN",
+        "predicate": "perpendicular",
+        "entities": [
+          "PN",
+          "q"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "onN",
+        "predicate": "on",
+        "entities": [
+          "N",
+          "q"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
     "annotations": [],
     "requiredEntityIds": [
-      "a",
-      "b",
-      "c",
-      "u",
-      "w",
-      "result"
+      "ax",
+      "xName",
+      "yName",
+      "O",
+      "p",
+      "q",
+      "th",
+      "N",
+      "PN",
+      "rN",
+      "ON"
     ],
     "revealGroups": [
       {
-        "id": "vectors",
+        "id": "givens",
         "entityIds": [
-          "a",
-          "b",
-          "c",
-          "u",
-          "w",
-          "result"
+          "ax",
+          "xName",
+          "yName",
+          "O",
+          "p",
+          "q",
+          "th"
         ],
         "dependsOn": [],
-        "narrationCue": "project a vector"
+        "narrationCue": "axes, p and q from O, angle θ between them"
+      },
+      {
+        "id": "projection",
+        "entityIds": [
+          "N",
+          "PN",
+          "rN",
+          "ON"
+        ],
+        "dependsOn": [
+          "givens"
+        ],
+        "narrationCue": "drop the perpendicular from P to q; ON is the projection"
       }
     ],
-    "teachingTimeline": []
+    "teachingTimeline": [
+      {
+        "id": "t1",
+        "action": "reveal",
+        "targetId": "givens",
+        "dependsOn": [],
+        "narrationIntent": "draw p and q from the origin and mark θ"
+      },
+      {
+        "id": "t2",
+        "action": "reveal",
+        "targetId": "projection",
+        "dependsOn": [
+          "t1"
+        ],
+        "narrationIntent": "the foot N gives the projection ON = p·q / |q|"
+      }
+    ]
   },
-  "engineCommit": "ab46da7ae7e040d35cae9169afa98c91ca870302",
-  "validatedOn": "2026-10-09"
+  "engineCommit": "4ab84cd23c8719babb316bf03f075b57f4947c43",
+  "validatedOn": "2026-10-13"
 }

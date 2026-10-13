@@ -1,131 +1,371 @@
 {
   "topic_id": "maths|7|tangents-and-normals",
-  "question": "Find the slope of y = x^4 - 4x at x = 1.",
+  "question": "Find the tangent and normal to y = 8/x at (2, 4).",
   "figure_kind": "function_plot",
   "sceneDocument": {
     "schemaVersion": "scene-document/v2",
     "visualDecision": {
       "mode": "scene",
-      "reason": "analytic anchors and exact derivative"
+      "reason": "exact curve with tangent and normal at P"
     },
     "source": {
-      "question": "Find the slope of y = x^4 - 4x at x = 1."
+      "question": "Find the tangent and normal to y = 8/x at (2, 4)."
     },
     "quantities": [],
     "entities": [
       {
         "id": "curve",
         "kind": "polyline",
-        "role": "analytic calculus geometry"
+        "role": "rectangular hyperbola",
+        "label": "y = 8/x"
       },
       {
-        "id": "anchor",
+        "id": "ax",
+        "kind": "axes",
+        "role": "coordinate axes"
+      },
+      {
+        "id": "xEnd",
         "kind": "point",
-        "role": "analytic calculus geometry"
+        "role": "x axis end"
+      },
+      {
+        "id": "xName",
+        "kind": "label",
+        "role": "x axis name",
+        "label": "x"
+      },
+      {
+        "id": "yEnd",
+        "kind": "point",
+        "role": "y axis end"
+      },
+      {
+        "id": "yName",
+        "kind": "label",
+        "role": "y axis name",
+        "label": "y"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "point of contact",
+        "label": "P=(2, 4)"
       },
       {
         "id": "tangent",
         "kind": "line",
-        "role": "analytic calculus geometry"
+        "role": "tangent at P",
+        "label": "tangent"
       },
       {
-        "id": "tangent_label",
-        "kind": "label",
-        "role": "line label",
-        "label": "tangent"
+        "id": "normal",
+        "kind": "line",
+        "role": "normal at P",
+        "label": "normal"
+      },
+      {
+        "id": "right_P",
+        "kind": "right_angle_mark",
+        "role": "right angle at P"
+      },
+      {
+        "id": "OM",
+        "kind": "segment",
+        "role": "x axis run under P"
       }
     ],
     "constructions": [
       {
-        "id": "make-curve",
+        "id": "mk_curve",
         "operator": "function_curve",
         "inputs": {
-          "expression": "x^4-4*x",
-          "xMin": -2,
-          "xMax": 2,
-          "samples": 33
+          "expression": "8/x",
+          "xMin": 0.9,
+          "xMax": 8.5
         },
         "outputs": [
           "curve"
         ]
       },
       {
-        "id": "make-anchor",
-        "operator": "curve_anchor",
+        "id": "mk_ax",
+        "operator": "axes",
         "inputs": {
-          "curve": "curve",
-          "at": 1
+          "xMin": -1.5,
+          "xMax": 9,
+          "yMin": -1,
+          "yMax": 9.4
         },
         "outputs": [
-          "anchor"
+          "ax"
         ]
       },
       {
-        "id": "make-tangent",
+        "id": "mk_xEnd",
+        "operator": "point",
+        "inputs": {
+          "x": 9,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "xEnd"
+        ]
+      },
+      {
+        "id": "mk_xName",
+        "operator": "label",
+        "inputs": {
+          "target": "xEnd",
+          "text": "x"
+        },
+        "outputs": [
+          "xName"
+        ]
+      },
+      {
+        "id": "mk_yEnd",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 9.4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "yEnd"
+        ]
+      },
+      {
+        "id": "mk_yName",
+        "operator": "label",
+        "inputs": {
+          "target": "yEnd",
+          "text": "y"
+        },
+        "outputs": [
+          "yName"
+        ]
+      },
+      {
+        "id": "mk_P",
+        "operator": "curve_anchor",
+        "inputs": {
+          "curve": "curve",
+          "at": 2
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "mk_tangent",
         "operator": "tangent_line",
         "inputs": {
           "curve": "curve",
-          "at": 1,
-          "span": 3
+          "at": 2,
+          "span": 6.5
         },
         "outputs": [
           "tangent"
         ]
       },
       {
-        "id": "label_tangent",
-        "operator": "label",
+        "id": "mk_normal",
+        "operator": "normal_line",
         "inputs": {
-          "target": "anchor",
-          "text": "tangent"
+          "curve": "curve",
+          "at": 2,
+          "span": 6
         },
         "outputs": [
-          "tangent_label"
+          "normal"
+        ]
+      },
+      {
+        "id": "mk_T1",
+        "operator": "point",
+        "inputs": {
+          "x": 3,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "T1"
+        ]
+      },
+      {
+        "id": "mk_N1",
+        "operator": "point",
+        "inputs": {
+          "x": 4,
+          "y": 5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "N1"
+        ]
+      },
+      {
+        "id": "mk_right_P",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "P",
+          "a": "T1",
+          "b": "N1"
+        },
+        "outputs": [
+          "right_P"
+        ]
+      },
+      {
+        "id": "mk_O",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "mk_M",
+        "operator": "point",
+        "inputs": {
+          "x": 2,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "M"
+        ]
+      },
+      {
+        "id": "mk_OM",
+        "operator": "segment",
+        "inputs": {
+          "start": "O",
+          "end": "M"
+        },
+        "outputs": [
+          "OM"
         ]
       }
     ],
     "relations": [],
     "annotations": [
       {
-        "id": "figure_caption",
-        "kind": "callout",
-        "targetIds": [],
-        "text": "tangent at x = 1"
+        "id": "drop_P_y",
+        "kind": "drop",
+        "targetIds": [
+          "P",
+          "ax"
+        ]
+      },
+      {
+        "id": "drop_P_x",
+        "kind": "drop",
+        "targetIds": [
+          "P",
+          "OM"
+        ]
       }
     ],
     "assertions": [
       {
-        "id": "anchor-on-curve",
+        "id": "p_on_curve",
         "predicate": "incident",
         "entities": [
-          "anchor",
+          "P",
           "curve"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "p_on_tangent",
+        "predicate": "incident",
+        "entities": [
+          "P",
+          "tangent"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "p_on_normal",
+        "predicate": "incident",
+        "entities": [
+          "P",
+          "normal"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "t1_on_tangent",
+        "predicate": "incident",
+        "entities": [
+          "T1",
+          "tangent"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "n1_on_normal",
+        "predicate": "incident",
+        "entities": [
+          "N1",
+          "normal"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "normal_perp",
+        "predicate": "perpendicular",
+        "entities": [
+          "tangent",
+          "normal"
         ],
         "expected": true,
         "severity": "fatal"
       }
     ],
     "requiredEntityIds": [
+      "ax",
+      "xName",
+      "yName",
       "curve",
-      "anchor",
+      "P",
       "tangent",
-      "tangent_label"
+      "normal",
+      "right_P",
+      "OM"
     ],
     "revealGroups": [
       {
         "id": "setup",
         "entityIds": [
+          "ax",
+          "xName",
+          "yName",
           "curve",
-          "anchor",
+          "P",
           "tangent",
-          "tangent_label"
+          "normal",
+          "right_P",
+          "OM"
         ],
         "dependsOn": [],
-        "narrationCue": "show the curve and its tangent"
+        "narrationCue": "curve, the point P, and the tangent and normal at P"
       }
     ],
     "teachingTimeline": []
   },
-  "engineCommit": "ab46da7ae7e040d35cae9169afa98c91ca870302",
-  "validatedOn": "2026-10-09"
+  "engineCommit": "4ab84cd23c8719babb316bf03f075b57f4947c43",
+  "validatedOn": "2026-10-13"
 }

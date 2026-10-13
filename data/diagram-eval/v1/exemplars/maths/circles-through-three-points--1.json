@@ -1,132 +1,451 @@
 {
   "topic_id": "maths|10|circles-through-three-points",
-  "question": "Find the circle through the points (0, 0), (6, 0) and (0, 8).",
+  "question": "Find the circle through A(1, 1), B(7, 1) and C(1, 5).",
   "figure_kind": "geometry",
   "sceneDocument": {
     "schemaVersion": "scene-document/v2",
     "visualDecision": {
       "mode": "scene",
-      "reason": "source-grounded circle geometry"
+      "reason": "chord bisectors meet at the centre"
     },
     "source": {
-      "question": "Find the circle through the points (0, 0), (6, 0) and (0, 8)."
+      "question": "Find the circle through A(1, 1), B(7, 1) and C(1, 5)."
     },
     "quantities": [],
     "entities": [
       {
-        "id": "a",
+        "id": "A",
         "kind": "point",
-        "role": "verified circle geometry"
+        "role": "given point",
+        "label": "A(1, 1)"
       },
       {
-        "id": "b",
+        "id": "B",
         "kind": "point",
-        "role": "verified circle geometry"
+        "role": "given point",
+        "label": "B(7, 1)"
       },
       {
-        "id": "c",
+        "id": "C",
         "kind": "point",
-        "role": "verified circle geometry"
+        "role": "given point",
+        "label": "C(1, 5)"
       },
       {
-        "id": "circle",
+        "id": "k",
         "kind": "circle",
-        "role": "verified circle geometry"
+        "role": "circle through A, B, C"
       },
       {
-        "id": "a_label",
+        "id": "ax",
+        "kind": "axes",
+        "role": "coordinate axes"
+      },
+      {
+        "id": "xEnd",
+        "kind": "point",
+        "role": "x axis end"
+      },
+      {
+        "id": "xName",
         "kind": "label",
-        "role": "point label",
-        "label": "A"
+        "role": "x axis name",
+        "label": "x"
+      },
+      {
+        "id": "yEnd",
+        "kind": "point",
+        "role": "y axis end"
+      },
+      {
+        "id": "yName",
+        "kind": "label",
+        "role": "y axis name",
+        "label": "y"
+      },
+      {
+        "id": "AB",
+        "kind": "segment",
+        "role": "chord AB"
+      },
+      {
+        "id": "AC",
+        "kind": "segment",
+        "role": "chord AC"
+      },
+      {
+        "id": "M",
+        "kind": "point",
+        "role": "midpoint of AB",
+        "label": "M"
+      },
+      {
+        "id": "N",
+        "kind": "point",
+        "role": "midpoint of AC",
+        "label": "N"
+      },
+      {
+        "id": "bM",
+        "kind": "segment",
+        "role": "bisector of AB"
+      },
+      {
+        "id": "bN",
+        "kind": "segment",
+        "role": "bisector of AC"
+      },
+      {
+        "id": "M2",
+        "kind": "point",
+        "role": "bisector end"
+      },
+      {
+        "id": "N2",
+        "kind": "point",
+        "role": "bisector end"
+      },
+      {
+        "id": "rM",
+        "kind": "right_angle_mark",
+        "role": "right angle"
+      },
+      {
+        "id": "rN",
+        "kind": "right_angle_mark",
+        "role": "right angle"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "centre",
+        "label": "P"
+      },
+      {
+        "id": "PB",
+        "kind": "segment",
+        "role": "radius",
+        "label": "r"
       }
     ],
     "constructions": [
       {
-        "id": "construct_a",
+        "id": "kA",
         "operator": "point",
         "inputs": {
-          "x": 0,
-          "y": 0
+          "x": 1.0,
+          "y": 1.0,
+          "coordinateSpace": "world"
         },
         "outputs": [
-          "a"
+          "A"
         ]
       },
       {
-        "id": "construct_b",
+        "id": "kB",
         "operator": "point",
         "inputs": {
-          "x": 6,
-          "y": 0
+          "x": 7.0,
+          "y": 1.0,
+          "coordinateSpace": "world"
         },
         "outputs": [
-          "b"
+          "B"
         ]
       },
       {
-        "id": "construct_c",
+        "id": "kC",
         "operator": "point",
         "inputs": {
-          "x": 0,
-          "y": 8
+          "x": 1.0,
+          "y": 5.0,
+          "coordinateSpace": "world"
         },
         "outputs": [
-          "c"
+          "C"
         ]
       },
       {
-        "id": "construct_circle",
+        "id": "kk",
         "operator": "circle_from_three_points",
         "inputs": {
-          "a": "a",
-          "b": "b",
-          "c": "c"
+          "a": "A",
+          "b": "B",
+          "c": "C"
         },
         "outputs": [
-          "circle"
+          "k"
         ]
       },
       {
-        "id": "label_a",
-        "operator": "label",
+        "id": "kax",
+        "operator": "axes",
         "inputs": {
-          "target": "a",
-          "text": "A"
+          "xMin": -1.2,
+          "xMax": 9,
+          "yMin": -2,
+          "yMax": 8
         },
         "outputs": [
-          "a_label"
+          "ax"
+        ]
+      },
+      {
+        "id": "kxEnd",
+        "operator": "point",
+        "inputs": {
+          "x": 9,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "xEnd"
+        ]
+      },
+      {
+        "id": "kxName",
+        "operator": "label",
+        "inputs": {
+          "target": "xEnd",
+          "text": "x"
+        },
+        "outputs": [
+          "xName"
+        ]
+      },
+      {
+        "id": "kyEnd",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 8,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "yEnd"
+        ]
+      },
+      {
+        "id": "kyName",
+        "operator": "label",
+        "inputs": {
+          "target": "yEnd",
+          "text": "y"
+        },
+        "outputs": [
+          "yName"
+        ]
+      },
+      {
+        "id": "kAB",
+        "operator": "segment",
+        "inputs": {
+          "start": "A",
+          "end": "B"
+        },
+        "outputs": [
+          "AB"
+        ]
+      },
+      {
+        "id": "kAC",
+        "operator": "segment",
+        "inputs": {
+          "start": "A",
+          "end": "C"
+        },
+        "outputs": [
+          "AC"
+        ]
+      },
+      {
+        "id": "kM",
+        "operator": "midpoint",
+        "inputs": {
+          "a": "A",
+          "b": "B"
+        },
+        "outputs": [
+          "M"
+        ]
+      },
+      {
+        "id": "kN",
+        "operator": "midpoint",
+        "inputs": {
+          "a": "A",
+          "b": "C"
+        },
+        "outputs": [
+          "N"
+        ]
+      },
+      {
+        "id": "kP",
+        "operator": "triangle_center",
+        "inputs": {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "kind": "circumcenter"
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "kM2",
+        "operator": "rotate",
+        "inputs": {
+          "point": "M",
+          "center": "P",
+          "angle": 180,
+          "angleUnit": "degrees"
+        },
+        "outputs": [
+          "M2"
+        ]
+      },
+      {
+        "id": "kN2",
+        "operator": "rotate",
+        "inputs": {
+          "point": "N",
+          "center": "P",
+          "angle": 180,
+          "angleUnit": "degrees"
+        },
+        "outputs": [
+          "N2"
+        ]
+      },
+      {
+        "id": "kbM",
+        "operator": "segment",
+        "inputs": {
+          "start": "M",
+          "end": "M2"
+        },
+        "outputs": [
+          "bM"
+        ]
+      },
+      {
+        "id": "kbN",
+        "operator": "segment",
+        "inputs": {
+          "start": "N",
+          "end": "N2"
+        },
+        "outputs": [
+          "bN"
+        ]
+      },
+      {
+        "id": "krM",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "M",
+          "a": "B",
+          "b": "P",
+          "size": 0.35
+        },
+        "outputs": [
+          "rM"
+        ]
+      },
+      {
+        "id": "krN",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "N",
+          "a": "C",
+          "b": "P",
+          "size": 0.35
+        },
+        "outputs": [
+          "rN"
+        ]
+      },
+      {
+        "id": "kPB",
+        "operator": "segment",
+        "inputs": {
+          "start": "P",
+          "end": "B"
+        },
+        "outputs": [
+          "PB"
         ]
       }
     ],
     "relations": [],
-    "assertions": [],
-    "annotations": [
+    "assertions": [
       {
-        "id": "figure_caption",
-        "kind": "callout",
-        "targetIds": [],
-        "text": "circumcircle through A, B, C"
+        "id": "perpM",
+        "predicate": "perpendicular",
+        "entities": [
+          "bM",
+          "AB"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "perpN",
+        "predicate": "perpendicular",
+        "entities": [
+          "bN",
+          "AC"
+        ],
+        "expected": true,
+        "severity": "fatal"
       }
     ],
+    "annotations": [],
     "requiredEntityIds": [
-      "a",
-      "b",
-      "c",
-      "circle",
-      "a_label"
+      "ax",
+      "xName",
+      "yName",
+      "A",
+      "B",
+      "C",
+      "AB",
+      "AC",
+      "M",
+      "N",
+      "bM",
+      "bN",
+      "rM",
+      "rN",
+      "P",
+      "PB",
+      "k"
     ],
     "revealGroups": [
       {
         "id": "setup",
         "entityIds": [
-          "a",
-          "b",
-          "c",
-          "circle",
-          "a_label"
+          "ax",
+          "xName",
+          "yName",
+          "A",
+          "B",
+          "C",
+          "AB",
+          "AC",
+          "M",
+          "N",
+          "bM",
+          "bN",
+          "rM",
+          "rN",
+          "P",
+          "PB",
+          "k"
         ],
         "dependsOn": [],
-        "narrationCue": "show circle geometry"
+        "narrationCue": "chords, their perpendicular bisectors meeting at P, radius r, circle"
       }
     ],
     "teachingTimeline": [
@@ -135,10 +454,10 @@
         "action": "reveal",
         "targetId": "setup",
         "dependsOn": [],
-        "narrationIntent": "show verified circle geometry"
+        "narrationIntent": "the centre is where the perpendicular bisectors of AB and AC meet"
       }
     ]
   },
-  "engineCommit": "ab46da7ae7e040d35cae9169afa98c91ca870302",
-  "validatedOn": "2026-10-09"
+  "engineCommit": "4ab84cd23c8719babb316bf03f075b57f4947c43",
+  "validatedOn": "2026-10-13"
 }
