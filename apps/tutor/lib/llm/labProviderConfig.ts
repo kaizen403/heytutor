@@ -28,6 +28,7 @@ export function labProviderConfig() {
   return {
     provider: endpoint.provider, deployment: endpoint.deployment,
     configured: Boolean(endpoint.apiKey && !endpoint.fallbackReason),
+    sceneRepairRecoveryEnabled: process.env.NEXT_PUBLIC_SCENE_REPAIR_RECOVERY === "1",
     plannerOutputCap: Math.max(...caps), teachingOutputCap: Math.max(...teachingCaps),
     visualNeed: { evidenceVersion: VISUAL_NEED_EVIDENCE_VERSION, model: JEV_GATEWAY_MODEL,
       rubricVersion: rubricVersionForJob("visual_need"), policyVersion: EVALUATION_POLICY_VERSION,
