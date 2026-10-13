@@ -55,13 +55,13 @@
         "id": "S",
         "kind": "point",
         "role": "focus",
-        "label": "S(a, 0)"
+        "label": "S(3, 0)"
       },
       {
         "id": "dir",
         "kind": "line",
         "role": "directrix",
-        "label": "x = −a"
+        "label": "x = −3"
       },
       {
         "id": "Z",

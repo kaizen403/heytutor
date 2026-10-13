@@ -10,7 +10,7 @@
     "schemaVersion": "scene-document/v2",
     "visualDecision": {
       "mode": "scene",
-      "reason": "exact V graph cut by a horizontal line, one meeting point per case"
+      "reason": "exact V graph cut by y = 5, one meeting point per case"
     },
     "source": {
       "question": "Where does y = |x − 2| meet the line y = 5?"
@@ -47,13 +47,31 @@
       {
         "id": "vgraph",
         "kind": "polyline",
-        "role": "V graph of the modulus function"
+        "role": "V graph"
       },
       {
         "id": "vgraph_lab",
         "kind": "label",
         "role": "V graph equation",
         "label": "y = |x − 2|"
+      },
+      {
+        "id": "left_lab",
+        "kind": "label",
+        "role": "left branch, case x < 2",
+        "label": "y = 2 − x",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "right_lab",
+        "kind": "label",
+        "role": "right branch, case x ≥ 2",
+        "label": "y = x − 2",
+        "provenance": {
+          "pinLabel": true
+        }
       },
       {
         "id": "level",
@@ -75,19 +93,31 @@
       {
         "id": "A",
         "kind": "point",
-        "role": "meeting point on the left branch, case x < 2",
+        "role": "meeting point, case x < 2",
         "label": "A"
       },
       {
         "id": "B",
         "kind": "point",
-        "role": "meeting point on the right branch, case x ≥ 2",
+        "role": "meeting point, case x ≥ 2",
         "label": "B"
+      },
+      {
+        "id": "FA",
+        "kind": "point",
+        "role": "foot under A",
+        "label": "x = −3"
+      },
+      {
+        "id": "FB",
+        "kind": "point",
+        "role": "foot under B",
+        "label": "x = 7"
       },
       {
         "id": "run",
         "kind": "segment",
-        "role": "x axis run under A and B"
+        "role": "x axis run"
       }
     ],
     "constructions": [
@@ -171,6 +201,52 @@
         },
         "outputs": [
           "vgraph_lab"
+        ]
+      },
+      {
+        "id": "mk_Lp",
+        "operator": "point",
+        "inputs": {
+          "x": -1.6,
+          "y": 2.2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Lp"
+        ]
+      },
+      {
+        "id": "mk_left_lab",
+        "operator": "label",
+        "inputs": {
+          "target": "Lp",
+          "text": "y = 2 − x"
+        },
+        "outputs": [
+          "left_lab"
+        ]
+      },
+      {
+        "id": "mk_Rp",
+        "operator": "point",
+        "inputs": {
+          "x": 5.6,
+          "y": 2.2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Rp"
+        ]
+      },
+      {
+        "id": "mk_right_lab",
+        "operator": "label",
+        "inputs": {
+          "target": "Rp",
+          "text": "y = x − 2"
+        },
+        "outputs": [
+          "right_lab"
         ]
       },
       {
@@ -268,36 +344,6 @@
     "relations": [],
     "assertions": [
       {
-        "id": "v_on_graph",
-        "predicate": "incident",
-        "entities": [
-          "V",
-          "vgraph"
-        ],
-        "expected": true,
-        "severity": "fatal"
-      },
-      {
-        "id": "a_on_graph",
-        "predicate": "incident",
-        "entities": [
-          "A",
-          "vgraph"
-        ],
-        "expected": true,
-        "severity": "fatal"
-      },
-      {
-        "id": "b_on_graph",
-        "predicate": "incident",
-        "entities": [
-          "B",
-          "vgraph"
-        ],
-        "expected": true,
-        "severity": "fatal"
-      },
-      {
         "id": "a_on_line",
         "predicate": "incident",
         "entities": [
@@ -342,12 +388,16 @@
       "yName",
       "vgraph",
       "vgraph_lab",
+      "left_lab",
+      "right_lab",
       "V",
       "level",
       "level_lab",
       "A",
       "B",
-      "run"
+      "run",
+      "FA",
+      "FB"
     ],
     "revealGroups": [
       {
@@ -358,15 +408,19 @@
           "yName",
           "vgraph",
           "vgraph_lab",
+          "left_lab",
+          "right_lab",
           "V",
           "level",
           "level_lab",
           "A",
           "B",
-          "run"
+          "run",
+          "FA",
+          "FB"
         ],
         "dependsOn": [],
-        "narrationCue": "the V graph, the line y = 5, and the two meeting points A and B"
+        "narrationCue": "the V and its two branches, y = 5, and A and B"
       }
     ],
     "teachingTimeline": []

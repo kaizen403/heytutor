@@ -102,21 +102,27 @@
         "label": "C₂ = 18 μF"
       },
       {
-        "id": "w",
-        "kind": "connector",
-        "role": "wire"
-      },
-      {
         "id": "V1",
-        "kind": "dimension",
+        "kind": "label",
         "role": "p.d. across C₁",
-        "label": "V₁"
+        "label": "V₁",
+        "provenance": {
+          "pinLabel": true
+        }
       },
       {
         "id": "V2",
-        "kind": "dimension",
+        "kind": "label",
         "role": "p.d. across C₂",
-        "label": "V₂"
+        "label": "V₂",
+        "provenance": {
+          "pinLabel": true
+        }
+      },
+      {
+        "id": "w",
+        "kind": "connector",
+        "role": "wire"
       }
     ],
     "constructions": [
@@ -288,22 +294,46 @@
         ]
       },
       {
-        "id": "kV1",
-        "operator": "dimension",
+        "id": "kv1",
+        "operator": "point",
         "inputs": {
-          "start": "A",
-          "end": "B"
+          "x": 2.25,
+          "y": 5.35,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "v1"
+        ]
+      },
+      {
+        "id": "kV1",
+        "operator": "label",
+        "inputs": {
+          "target": "v1",
+          "text": "V₁"
         },
         "outputs": [
           "V1"
         ]
       },
       {
-        "id": "kV2",
-        "operator": "dimension",
+        "id": "kv2",
+        "operator": "point",
         "inputs": {
-          "start": "D",
-          "end": "G"
+          "x": 2.25,
+          "y": -1.15,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "v2"
+        ]
+      },
+      {
+        "id": "kV2",
+        "operator": "label",
+        "inputs": {
+          "target": "v2",
+          "text": "V₂"
         },
         "outputs": [
           "V2"
