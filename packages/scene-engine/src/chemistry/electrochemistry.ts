@@ -998,7 +998,7 @@ function observedCellOwner(text: string, start: number, reading: ChemistryReadin
   if (boundary) {
     const subject = owner.slice(boundary.index! + boundary[0].length)
       .replace(/(?:\bis\b(?:\s+measured\s+(?:as|to\s+be))?|measured\s+(?:as|to\s+be)|=|:)\s*$/i, "").trim();
-    if (subject && !/^(?:(?:the|its)\s+)?(?:observed|measured)\s+(?:emf|e\.m\.f\.|cell\s+potential|voltage)$/i.test(subject)) return false;
+    if (subject && !/^(?:(?:the|its)\s+)?(?:(?:observed|measured)\s+)?(?:emf|e\.m\.f\.|cell\s+potential|potential\s+of\s+the\s+cell|voltage)(?:\s+of\s+the\s+cell)?$/i.test(subject)) return false;
   }
   // Read a standard mark anywhere in its E token, without making that token
   // a newly supported standard-potential parser or trusting its scalar.

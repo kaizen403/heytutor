@@ -521,6 +521,48 @@ const ROWS: readonly Row[] = [
   "questionSha256": "32301e276cdc654f16295d3b7c425fd547c95c7cb9d96589b40e33dca344a2c3",
   "kind": "electro-observed",
   "observed": 1.13
+},
+{
+  "id": "LOCAL-PLAIN-OBSERVED-1",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu given that the emf is 1.13 V.",
+  "questionSha256": "6e0683f9e3ad7c44e48faa3106b1b157b0130b3b202dad62fc032564bb3a08d3",
+  "kind": "electro-observed",
+  "observed": 1.13
+},
+{
+  "id": "LOCAL-PLAIN-OBSERVED-2",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu if its emf is 1.13 V.",
+  "questionSha256": "a594f5e2f5c3c5e3671a137acafca4011cc70b7af23bcc003de4992d909c5f06",
+  "kind": "electro-observed",
+  "observed": 1.13
+},
+{
+  "id": "LOCAL-PLAIN-OBSERVED-3",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu where the cell potential = 1.13 V.",
+  "questionSha256": "d97e6c1f59d503cd2b22268911c91894fb85aa4b9816617890a08aa0637ef6e5",
+  "kind": "electro-observed",
+  "observed": 1.13
+},
+{
+  "id": "LOCAL-PLAIN-OBSERVED-4",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu when the voltage is 1.13 V.",
+  "questionSha256": "ff46f00503c954bc717e074f11add6e5d96a076dfbe320f35fc0fc9541f9e37f",
+  "kind": "electro-observed",
+  "observed": 1.13
+},
+{
+  "id": "LOCAL-PLAIN-OBSERVED-5",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu? The emf of the cell is 1.13 V.",
+  "questionSha256": "b82578c80f7435eee7afeac4fa25ece85d7158c3e2464ac224d91e334e8aa680",
+  "kind": "electro-observed",
+  "observed": 1.13
+},
+{
+  "id": "LOCAL-PLAIN-OBSERVED-6",
+  "question": "Calculate the emf of the cell Zn|Zn2+(0.1 M)||Cu2+(0.01 M)|Cu given that the potential of the cell is 1.13 V.",
+  "questionSha256": "5c44bdceca1898aff9d0d396fd41f9b2ef4e03d805b0e723b4fc72224cc0824f",
+  "kind": "electro-observed",
+  "observed": 1.13
 }
 ];
 
