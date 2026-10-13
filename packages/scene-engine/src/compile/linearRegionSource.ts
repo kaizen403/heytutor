@@ -34,11 +34,17 @@ interface SourceClause {
 /** A request the reader cannot prove supplies neither a figure nor a veto. */
 class UnprovedLinearRequest extends Error {}
 
+/** A leading question ordinal is presentation syntax, not an equation name.
+ * Explicit declarations such as "line named Q1" retain their name. */
+function withoutQuestionOrdinal(text: string): string {
+  return text.replace(/^\s*(?:Q|Question\s+)\d+[a-z]?\s*:\s*/i, "");
+}
+
 /** A colon denotes a name only for an identifier or an explicit line declaration. */
 export function readLinearSourceLineName(prefix: string): string | undefined {
   const declared = /\bline\s+(?:named|called)\s+([A-Za-z][A-Za-z0-9_]*)\s*:\s*$/i.exec(prefix);
   if (declared) return declared[1];
-  const short = /\b([A-Za-z][A-Za-z0-9_]*)\s*:\s*$/.exec(prefix)?.[1];
+  const short = /\b([A-Za-z][A-Za-z0-9_]*)\s*:\s*$/.exec(withoutQuestionOrdinal(prefix))?.[1];
   return short && isLinearSourceIdentifier(short) ? short : undefined;
 }
 
@@ -60,8 +66,9 @@ function consumeLinearRequest(prose: string, declaredNames: readonly string[] = 
     "maximise minimise maximised minimised maximising minimising " +
     "x y lpp rational endpoint endpoints ray direction understand works left right interval length vertical horizontal side correct style passes through origin identify identifying membership ordered pairs " +
     "redundant constraint constraints actually limits multiple can workshop chooses production amounts model uses put maximiser maximisers maximizer maximizers minimiser minimisers minimizer minimizers attaining entire feasibility permitted decide unboundedness prevents " +
-    "inclusive either inequality inequalities enough defining must hold means positions numbers labelled labeling labelling inclusion status explicitly clearly geometric even share optimisation optimization convention form actual question asks only though stating describe integer coefficient coefficients simultaneously"
+    "inclusive either inequality inequalities enough defining must hold means positions numbers labelled labeling labelling inclusion status explicitly clearly geometric even share optimisation optimization convention form actual question asks only though stating describe coefficient coefficients simultaneously"
   ).split(" "));
+  prose = prose.replace(/\binteger(?:\s+|-)coefficients?\b/gi, "coefficients");
   prose = prose.replace(/\b(?:the\s+)?two\s+different\s+endpoint\s+marks\b/gi, "endpoint marks");
   prose = prose.replace(/\bif\s+possible\b/gi, "possible");
   for (const location of prose.matchAll(/\b(?:on|in)\s+(?:[A-Za-z]+\s+){0,4}(?:number[ -]lines?|graphs?|axes|planes?)\b/gi)) {
@@ -84,7 +91,7 @@ function consumeLinearRequest(prose: string, declaredNames: readonly string[] = 
 function normalize(text: string): string {
   if (/\d\s*·\s*\d/.test(text))
     throw new UnprovedLinearRequest("A numeric middle dot has ambiguous decimal or multiplication semantics");
-  return text
+  return withoutQuestionOrdinal(text)
     .replace(/\\(?:left|right)/g, "")
     .replace(/\\(?:leq|le)\b/g, "<=")
     .replace(/\\(?:geq|ge)\b/g, ">=")
@@ -1242,10 +1249,11 @@ function readLinearBindingSource(question: string, names: readonly string[], num
 
 /** An independent domain veto requires an affirmative variable-domain clause. */
 function hasAffirmativeDiscreteDomain(question: string, names: readonly string[], aliases: ReadonlySet<string> = new Set()): boolean {
+  question = withoutQuestionOrdinal(question);
   const setAliases = new Set(aliases);
   // A literal real-set given proves its alias independently of the surrounding
   // request. An unproved later instruction cannot turn that alias into ℤ/ℕ.
-  for (const given of question.matchAll(/\b([NZW])\s*=\s*\{\s*([A-Za-z][A-Za-z0-9_]*)(?:\s+in\s+(?:R|ℝ))?\s*:\s*([^{}]+)\}/g)) {
+  for (const given of question.matchAll(/\b([INZW])\s*=\s*\{\s*([A-Za-z][A-Za-z0-9_]*)(?:\s+in\s+(?:R|ℝ))?\s*:\s*([^{}]+)\}/g)) {
     if (!names.includes(given[2]!)) continue;
     try {
       const content = normalize(given[3]!);
@@ -1256,14 +1264,15 @@ function hasAffirmativeDiscreteDomain(question: string, names: readonly string[]
   }
   const name = `(?:${names.join("|")})`;
   const list = `${name}(?:\\s*(?:,\\s*(?:and\\s*)?|and\\s+)${name})*`;
-  const domain = "(?:integers?|natural\\s+numbers?|whole\\s+numbers?|[NZWℤℕ]|\\\\mathbb\\s*\\{?[ZN]\\}?)";
-  const discrete = (text: string): boolean => !setAliases.has(text) && (/^(?:integers?|natural\s+numbers?|whole\s+numbers?)$/i.test(text)
-    || /^(?:[NZWℤℕ]|\\mathbb\s*\{?[ZN]\}?)$/.test(text));
+  const domainWords = "(?:(?:non[- ]?negative|non[- ]?positive|positive|negative)\\s+)?(?:integers?|integral(?:\\s+(?:values?|numbers?))?|natural\\s+numbers?|whole\\s+numbers?)";
+  const domain = `(?:${domainWords}|[INZWℤℕ]|\\\\mathbb\\s*\\{?[INZW]\\}?)`;
+  const discrete = (text: string): boolean => !setAliases.has(text) && (new RegExp(`^${domainWords}$`, "i").test(text)
+    || /^(?:[INZWℤℕ]|\\mathbb\s*\{?[INZW]\}?)$/.test(text));
   const declared = (text: string): boolean => (text.match(/[A-Za-z][A-Za-z0-9_]*/g) ?? [])
     .filter(token => token.toLowerCase() !== "and").every(token => names.includes(token));
   const end = "(?=\\s|[.,;?!]|$)";
   const premiseHead = String.raw`(?:let|(?:given|assum(?:e|ing)|suppos(?:e|ing))(?:\s+that)?)`;
-  const premisePrefix = new RegExp(String.raw`^\s*(?:(?:please\s+)?${premiseHead}\s*)?$`, "i");
+  const premisePrefix = new RegExp(String.raw`^\s*(?:(?:please\s+)?(?:${premiseHead}(?:\s+(?:the\s+)?(?:assumption|fact|condition)(?:\s+that)?)?|for|with|when|where)\s*)?$`, "i");
   const mathematicalAction = String.raw`(?:graph(?:ing)?|plot(?:ting)?|draw(?:ing)?|shade|shading|represent(?:ing)?|show(?:ing)?|illustrate|solve|solving|find(?:ing)?|determine|determining|calculate|calculating|compute|computing)`;
   const displayTextAction = String.raw`(?:label(?:l?ing)?|mark(?:ing)?|write|writing|annotate|annotating|caption(?:ing)?|omit|omitting)`;
   const action = String.raw`(?:${mathematicalAction}|state|stating|give|giving|report(?:ing)?|explain(?:ing)?|ask(?:ing)?|${premiseHead}|restrict|${displayTextAction})`;
@@ -1273,9 +1282,14 @@ function hasAffirmativeDiscreteDomain(question: string, names: readonly string[]
   const conjunction = String.raw`\b(?:and|then|but|yet|while|though|although|however|whereas)\b`;
   const displayObject = String.raw`(?:(?:solution\s+set|point|endpoint|boundary)\s+)?(?:labels?|captions?|annotations?|marks?|text)\b`;
   const displayModifier = String.raw`\b(?:without\s+(?=${action}\b)|without\s+(?:(?:a|an|any|the)\s+)?${displayObject}|with\s+no\s+${displayObject})`;
-  const displayContentPrefix = new RegExp(String.raw`\b(?:${displayTextAction}\b|${displayObject})`, "i");
+  const displayContentPrefix = new RegExp(String.raw`\b(?:${displayTextAction}\b|${displayObject}|(?:discuss|explain|describe)\s+(?:(?:the|this|that)\s+)?notation\b|(?:the|this|that)\s+(?:words|phrase)\b)`, "i");
   const displayContentSuffix = new RegExp(String.raw`\b(?:as|is|are|was|were)\s+(?:(?:a|an|the)\s+)?${displayObject}`, "i");
-  const mathematicalRequestHead = new RegExp(String.raw`^\s*(?:please\s+)?(?:(?:should|can|could|may|might)\s+(?:[A-Za-z]+\s+){0,3})?${mathematicalAction}\b`, "i");
+  const domainRequestAction = String.raw`(?:${mathematicalAction}|explain(?:ing)?|teach|help|describe|discuss|demonstrate|walk|list|count|how\s+many)`;
+  const mathematicalRequestHead = new RegExp(String.raw`^\s*(?:please\s+)?(?:(?:should|can|could|may|might)\s+(?:[A-Za-z]+\s+){0,3})?${domainRequestAction}\b`, "i");
+  const propositionObject = String.raw`(?:assertion|statement|claim|assumption|notation|proposition)`;
+  const mentionedPropositionPrefix = new RegExp(String.raw`\b${propositionObject}(?:\s+(?:that|of|about|for|saying|showing))*\s*$`, "i");
+  const mentionedPropositionSuffix = new RegExp(String.raw`^\s*[,:(]?\s*(?:as|is|are|was|were)\s+(?:(?:a|an|the)\s+)?(?:(?:false|invalid|incorrect|hypothetical|example\s+of(?:\s+(?:a|an|the))?)\s+)*${propositionObject}\b`, "i");
+  const deniedPropositionSuffix = /^\s*[,:(]?\s*(?:(?:is|are|was|were)\s+(?:false|invalid|incorrect|wrong|untrue)\b|without\s+(?:imposing|assuming|requiring|asserting)\b)/i;
   for (const match of question.matchAll(/(?:\.(?=\d)|[^.;?!])+[.;?!]?/g)) {
     const clause = match[0];
     // Scope ends only at an independently headed request/domain statement,
@@ -1285,27 +1299,48 @@ function hasAffirmativeDiscreteDomain(question: string, names: readonly string[]
     // zero width so the next instruction retains its head and negation.
     const boundaries = [...clause.matchAll(new RegExp(
       String.raw`(?:[,;:]\s*(?:${conjunction}\s*)?|${conjunction}\s*)(?=${actionHead}|${modalHead}|${domainHead})|(?=${displayModifier})`, "gi"))];
-    const affirmative = (assertion: RegExpMatchArray, predicate = false): boolean => {
+    const affirmative = (assertion: RegExpMatchArray, predicate = false, object = false): boolean => {
       const start = assertion.index!, finish = start + assertion[0].length;
       const lower = boundaries.filter(boundary => boundary.index! + boundary[0].length <= start).at(-1);
       const upper = boundaries.find(boundary => boundary.index! >= finish);
       const prefix = clause.slice(lower ? lower.index! + lower[0].length : 0, start);
       const suffix = clause.slice(finish, upper?.index ?? clause.length);
+      const premise = premisePrefix.test(prefix);
+      // A cited or denied proposition supplies no variable type. A genuine
+      // given assumption has a different governing role from discussing one.
+      if ((!premise && mentionedPropositionPrefix.test(prefix))
+        || mentionedPropositionSuffix.test(suffix) || deniedPropositionSuffix.test(suffix)) return false;
       // A domain phrase used as requested display content is an operand of
       // that instruction, never an independent declaration of variable type.
-      if (displayContentPrefix.test(prefix) || displayContentSuffix.test(suffix)) return false;
+      const displayPrefix = object ? prefix.replace(/^\s*(?:please\s+)?mark\s+(?:the\s+)?$/i, "") : prefix;
+      if (displayContentPrefix.test(displayPrefix) || displayContentSuffix.test(suffix)) return false;
+      // A quoted domain phrase is requested/reported text, not a type fact.
+      if ([...clause.matchAll(/"[^"]*"|“[^”]*”|(?<![\p{L}\p{N}])'[^']*'/gu)]
+        .some(quote => quote.index! <= start && quote.index! + quote[0].length >= finish)) return false;
       // Prove the governing context instead of promoting every domain-shaped
       // substring to a type. Unknown instructions supply no independent veto.
-      if (!premisePrefix.test(prefix)
+      if (!premise
         && !(/^restrict\b/i.test(assertion[0]) && /^\s*please\s*$/i.test(prefix))) {
-        const head = mathematicalRequestHead.exec(prefix);
+        const head = mathematicalRequestHead.exec(prefix)
+          ?? (object ? /^\s*(?:please\s+)?mark\b/i.exec(prefix)
+            : new RegExp(String.raw`\b${mathematicalAction}\b`, "i").exec(prefix));
         if (!head) return false;
-        try {
-          let prose = normalize(prefix.slice(head[0].length));
-          for (const operand of clauses(prose, names).reverse())
-            prose = prose.slice(0, operand.start) + " ".repeat(operand.end - operand.start) + prose.slice(operand.end);
-          consumeLinearRequest(prose, names);
-        } catch { return false; }
+        if (object) {
+          // A noun is a requested typed object only when its governing role
+          // is proved; a comparison discussed elsewhere supplies no such role.
+          try {
+            let prose = normalize(prefix.slice(head.index + head[0].length));
+            for (const operand of clauses(prose, names).reverse())
+              prose = prose.slice(0, operand.start) + " ".repeat(operand.end - operand.start) + prose.slice(operand.end);
+            consumeLinearRequest(prose, names);
+          } catch { return false; }
+        } else {
+          const scope = prefix + assertion[0] + suffix;
+          if (!/[<>=≤≥]/.test(scope) || !new RegExp(`(?<![A-Za-z_])${name}(?![A-Za-z0-9_])`).test(scope)) return false;
+        }
+        // The requested mathematical object can have a definite domain even
+        // when its teaching prose is outside the whole-program reader grammar.
+        // This proves only the local type, never a source figure or operands.
       }
       // A domain phrase can be negated or merely proposed after the match.
       // Read a continued predicate, not an unrelated display modifier such
@@ -1333,15 +1368,33 @@ function hasAffirmativeDiscreteDomain(question: string, names: readonly string[]
     };
     for (const [pattern, variableIndex, domainIndex, predicate] of [
       [new RegExp(`\\b(?:for|over|in|given|with)\\s+(${domain})\\s+(${list})${end}`, "gi"), 2, 1, false],
-      [new RegExp(`\\b(${list})\\s*(?:∈\\s*|\\\\in\\s+|(?:is|are|be)\\s+(?:an?\\s+)?|in\\s+|belongs?\\s+to\\s+)(${domain})${end}`, "gi"), 1, 2, true],
+      [new RegExp(`\\b(${list})\\s*(?:∈\\s*|\\\\in\\s+|(?:is|are|be)\\s+(?:an?\\s+)?(?:in\\s+)?|in\\s+|(?:belongs?|belonging)\\s+to\\s+(?:the\\s+)?)(${domain})${end}`, "gi"), 1, 2, true],
       [new RegExp(`\\brestrict\\s+(${list})\\s+to\\s+(${domain})${end}`, "gi"), 1, 2, false],
     ] as const) for (const assertion of clause.matchAll(pattern))
       if (declared(assertion[variableIndex]!) && discrete(assertion[domainIndex]!) && affirmative(assertion, predicate)) return true;
+    // These noun phrases name requested solutions/values/points rather than
+    // a coefficient property or incidental discussion of integer arithmetic.
+    // Bind their implicit variable only to math explicitly present in this
+    // clause (or the named "values of x" object), never a nearby caption.
+    for (const assertion of clause.matchAll(new RegExp(
+      `\\b(${domainWords})(?:\\s+(?:solutions?|solution\\s+set|values?|points?))?(?:\\s+(?:of\\s+)?(${list}))?${end}`, "gi"))) {
+      if (/^\s*coefficients?\b/i.test(clause.slice(assertion.index! + assertion[0].length))) continue;
+      const prefix = clause.slice(0, assertion.index!);
+      if (new RegExp(`\\b(?:is|are|be)\\s+(?:${list}\\s+)?(?:an?\\s+)?$`, "i").test(prefix)) continue;
+      const variable = assertion[2];
+      const mathematicalObject = /\b(?:solutions?|values?|points?|numbers?|integers)\b/i.test(assertion[0]) || variable !== undefined;
+      const hasOperand = /[<>=≤≥]/.test(clause) && new RegExp(`(?<![A-Za-z_])${name}(?![A-Za-z0-9_])`).test(clause);
+      if (mathematicalObject && (variable ? declared(variable) : hasOperand) && discrete(assertion[1]!) && affirmative(assertion, false, true)) return true;
+    }
     // A postfix symbolic domain binds an explicitly quoted mathematical
     // comparison in the same clause, rather than any nearby prose noun.
     if (/[<>=]/.test(clause) && new RegExp(`(?<![A-Za-z_])${name}(?![A-Za-z0-9_])`).test(clause))
-      for (const assertion of clause.matchAll(new RegExp(`\\b(?:in|over)\\s+(${domain})${end}`, "gi")))
+      for (const assertion of clause.matchAll(new RegExp(`\\b(?:in|over)\\s+(${domain})${end}`, "gi"))) {
+        // An explicit variable predicate already has its own governing role.
+        // Do not retry a cited "x in Z" as an unqualified postfix domain.
+        if (new RegExp(`\\b${list}\\s*$`).test(clause.slice(0, assertion.index!))) continue;
         if (discrete(assertion[1]!) && affirmative(assertion)) return true;
+      }
   }
   return false;
 }
