@@ -5,6 +5,7 @@ import { VISUAL_NEED_SERVER_TIMEOUT_MS } from "./visualNeedPolicy";
 import { EVALUATION_POLICY_VERSION, JEV_GATEWAY_MODEL } from "./evaluation/types";
 import { rubricVersionForJob } from "./evaluation/rubrics";
 import { VISUAL_NEED_CLIENT_TIMEOUT_MS, VISUAL_NEED_EVIDENCE_VERSION } from "../../features/tutor-session/lib/scene/visualNeedClient";
+import { SCENE_VISUAL_DECISION_POLICY } from "@heytutor/tutor-core";
 
 /** Non-secret, authenticated preflight from the actual server configuration. */
 export function labProviderConfig() {
@@ -29,6 +30,8 @@ export function labProviderConfig() {
     provider: endpoint.provider, deployment: endpoint.deployment,
     configured: Boolean(endpoint.apiKey && !endpoint.fallbackReason),
     sceneRepairRecoveryEnabled: process.env.NEXT_PUBLIC_SCENE_REPAIR_RECOVERY === "1",
+    sceneVisualDecisionEnabled: process.env.NEXT_PUBLIC_SCENE_VISUAL_DECISION === "1",
+    sceneVisualDecisionPolicy: SCENE_VISUAL_DECISION_POLICY,
     plannerOutputCap: Math.max(...caps), teachingOutputCap: Math.max(...teachingCaps),
     visualNeed: { evidenceVersion: VISUAL_NEED_EVIDENCE_VERSION, model: JEV_GATEWAY_MODEL,
       rubricVersion: rubricVersionForJob("visual_need"), policyVersion: EVALUATION_POLICY_VERSION,

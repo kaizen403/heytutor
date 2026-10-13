@@ -8,7 +8,7 @@ import {
   pruneDeadSceneEntities, pruneUnverifiedSceneAnnotations, displayedSceneQuantityTexts,
   validateMatrixSourceBinding, validateSceneQuantityAgreement, validateSceneDocument,
   validateTurnPlanSceneProofs, resolveDiagramFailureStatus,
-  type FigureSource, type ProblemStructureView, type RenderScene, type SceneDocument,
+  type FigureSource, type ProblemIR, type ProblemStructureView, type RenderScene, type SceneDocument,
   type TurnPlanV3, type ValidationReport,
 } from "@heytutor/scene-engine";
 import { inferSceneCapabilities, questionRequiresVisual, type SceneCandidateValidation } from "@heytutor/tutor-core";
@@ -28,6 +28,10 @@ export interface ProductionSceneInput {
   sceneCapabilities?: ReturnType<typeof inferSceneCapabilities>;
   /** Omit only when the plan already contains the merged live decision. Null is unavailable, not none. */
   visualNeedDecision?: VisualNeedDecision | null;
+  /** Full validated IR only; the loose capability view cannot supply visual evidence. */
+  visualDecisionProblemIR?: ProblemIR | null;
+  /** Injectable rollout policy; omitted follows the shared default-off switch. */
+  visualDecisionEnabled?: boolean;
   conversationContext?: string;
 }
 
@@ -62,7 +66,9 @@ export function deriveSceneGate(input: ProductionSceneInput): ProductionSceneGat
   const planningTurnPlan = input.visualNeedDecision === undefined ? input.turnPlan : {
     ...input.turnPlan,
     visualRequirement: resolveVisualRequirement(input.turnPlan.visualRequirement, input.visualNeedDecision,
-      questionRequiresVisual(question), sceneCapabilities.hasSourceProgram === true),
+      questionRequiresVisual(question, input), sceneCapabilities.hasSourceProgram === true,
+      { question, turnPlan: input.turnPlan, problemIR: input.visualDecisionProblemIR,
+        visualDecisionEnabled: input.visualDecisionEnabled }),
   };
   const chemistryLane = sceneCapabilities.families.some(isChemistrySceneFamily) || isChemistryQuestion(question);
   const shouldPlanExactScene = planningTurnPlan.visualRequirement !== "none" && !chemistryLane;
@@ -243,7 +249,7 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
   });
   try {
     // Preserve the live no-figure guard, not just the planner's vote.
-    if (turnPlan.visualRequirement === "none" && !questionRequiresVisual(question)) {
+    if (turnPlan.visualRequirement === "none" && !questionRequiresVisual(question, input)) {
       return empty("the question asks for no figure", "text_only");
     }
     const candidateValidation = input.candidate
@@ -286,6 +292,6 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
   } catch (error) {
     // The pre-existing exception path records required failures regardless of retry opt-out.
     return empty(error instanceof Error ? error.message : String(error),
-      turnPlan.visualRequirement === "required" || questionRequiresVisual(question) ? "retry_required" : "text_only");
+      turnPlan.visualRequirement === "required" || questionRequiresVisual(question, input) ? "retry_required" : "text_only");
   }
 }

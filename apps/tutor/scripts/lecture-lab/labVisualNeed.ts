@@ -24,6 +24,8 @@ export interface LabVisualNeedEvidence {
   plannerRequirement: VisualRequirement | null;
   assessment: VisualNeedAssessment;
   mergedRequirement: VisualRequirement | null;
+  /** After already-requested ProblemIR/solver authority, before scene validation/commit. */
+  finalRequirement?: VisualRequirement;
   origin: "live_service" | "frozen_replay";
   questionHash: string;
   policy: typeof LAB_VISUAL_NEED_POLICY;
