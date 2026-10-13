@@ -548,6 +548,57 @@ check("a convex glass face's paraxial image beside the exactly refracted ray com
 
 check("control: the glass face's image tip 0.1 off the paraxial ray fails closed", () => failsOffRays(refractingFace({ x: 12, y: -0.9 })));
 
+// Fourth review of #164 (thread "Unrelated axes reject valid rays"): the stands across test
+// ran against every axis with an arrow on it. With two setups on different axes, a lens on a
+// horizontal axis whose rays are segments and a lens on a vertical axis, the horizontal
+// setup's segment rays stand across the vertical axis and were dropped, so its correct
+// object arrow failed. A stroke is dropped only for an arrow on the axis it stands across.
+const twoSetups = (objectRayHeight: number) => scene("Two thin lenses, one on a horizontal axis and one on a vertical axis.", [
+  { id: "A1", kind: "point", role: "axis start" },
+  { id: "axis1", kind: "line", role: "principal axis" },
+  { id: "O1", kind: "point", role: "optical centre" },
+  { id: "lens1", kind: "polygon", role: "convex lens" },
+  { id: "foot1", kind: "point", role: "object foot" },
+  { id: "tip1", kind: "point", role: "object tip" },
+  { id: "rayStart1", kind: "point", role: "ray start" },
+  { id: "rayEnd1", kind: "point", role: "ray end at the lens" },
+  { id: "object1", kind: "vector", role: "object" },
+  { id: "parallelRay1", kind: "segment", role: "ray parallel to the axis" },
+  { id: "A2", kind: "point", role: "axis start" },
+  { id: "axis2", kind: "line", role: "principal axis" },
+  { id: "O2", kind: "point", role: "optical centre" },
+  { id: "lens2", kind: "polygon", role: "convex lens" },
+  { id: "foot2", kind: "point", role: "object foot" },
+  { id: "tip2", kind: "point", role: "object tip" },
+  { id: "object2", kind: "vector", role: "object" },
+  { id: "centralRay2", kind: "ray", role: "ray through the optical centre" },
+], [
+  point("A1", -5, 0),
+  { id: "make_axis1", operator: "line", inputs: { start: "A1", direction: [1, 0] }, outputs: ["axis1"] },
+  point("O1", 0, 0),
+  { id: "make_lens1", operator: "lens_section", inputs: { center: "O1", axis: "axis1", radius1: 5, radius2: -5, halfHeight: 1.2 }, outputs: ["lens1"] },
+  point("foot1", -3, 0), point("tip1", -3, 1),
+  point("rayStart1", -3, objectRayHeight), point("rayEnd1", 0, objectRayHeight),
+  { id: "make_object1", operator: "vector", inputs: { start: "foot1", end: "tip1" }, outputs: ["object1"] },
+  { id: "make_parallelRay1", operator: "segment", inputs: { start: "rayStart1", end: "rayEnd1" }, outputs: ["parallelRay1"] },
+  point("A2", 10, -5),
+  { id: "make_axis2", operator: "line", inputs: { start: "A2", direction: [0, 1] }, outputs: ["axis2"] },
+  point("O2", 10, 0),
+  { id: "make_lens2", operator: "lens_section", inputs: { center: "O2", axis: "axis2", radius1: 5, radius2: -5, halfHeight: 1.2 }, outputs: ["lens2"] },
+  point("foot2", 10, -3), point("tip2", 11, -3),
+  { id: "make_object2", operator: "vector", inputs: { start: "foot2", end: "tip2" }, outputs: ["object2"] },
+  { id: "make_centralRay2", operator: "ray", inputs: { start: "tip2", end: "O2" }, outputs: ["centralRay2"] },
+]);
+
+check("two setups on crossed axes: the horizontal setup's segment ray, across only the other axis, holds its object arrow", () => {
+  const { ok, fatal, primitives } = compile(twoSetups(1));
+  if (!ok) return `did not compile: ${fatal.join(", ")}`;
+  return tipsOnStrokes(primitives, ["object1"], ["parallelRay1"]);
+});
+
+check("control: two setups on crossed axes, the horizontal setup's segment ray leaving below its object tip, fails closed", () =>
+  failsOffRays(twoSetups(0.6)));
+
 // R5. Looked up by name so the cases fail, not crash, where the operator is missing.
 type LawPoint = { x: number; y: number };
 const operator = (name: string) => {

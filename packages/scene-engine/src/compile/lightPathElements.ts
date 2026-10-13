@@ -552,7 +552,8 @@ export interface AxisArrowInput {
  * the standing arrows themselves, provided it is joined to the light (an end
  * on a declared ray or a stroke already joined, on an element's boundary,
  * inside a thin lens or on a lens line) and does not stand across the axis
- * an arrow stands on. A screen, a lens line, a dimension line or a stray
+ * the arrow being checked stands on (a ray of a second setup, across another
+ * axis, still counts). A screen, a lens line, a dimension line or a stray
  * segment through a misplaced tip supports nothing, and no stroke lying
  * along an arrow fixes that arrow's height.
  *
@@ -606,30 +607,31 @@ export function validateAxisArrowsOnRays(input: AxisArrowInput): void {
   const span = sceneScale([...lightPoints, ...arrows.flatMap((arrow) => [arrow.foot, arrow.tip])]);
   if (!(span > 1e-9)) return;
   const tolerance = 4e-3 * span;
-  const standing = arrows.filter((arrow) => axes.some(([a, b]) => {
-    if (lineDistance(arrow.foot, a, b) > tolerance) return false;
-    const ax = b.x - a.x;
-    const ay = b.y - a.y;
-    const vx = arrow.tip.x - arrow.foot.x;
-    const vy = arrow.tip.y - arrow.foot.y;
-    return Math.abs(ax * vx + ay * vy) <= 0.2 * Math.hypot(ax, ay) * Math.hypot(vx, vy);
-  }));
+  // A direction stands across an axis when it is within about 11 degrees of its normal.
+  const acrossAxis = ([a, b]: [Point, Point], vx: number, vy: number) =>
+    Math.abs((b.x - a.x) * vx + (b.y - a.y) * vy) <= 0.2 * distance(a, b) * Math.hypot(vx, vy);
+  // Each arrow with the axes it stands on: its foot on the axis, the arrow across it.
+  const standing = arrows.flatMap((arrow) => {
+    const on = axes.flatMap((axis, index) => lineDistance(arrow.foot, axis[0], axis[1]) <= tolerance
+      && acrossAxis(axis, arrow.tip.x - arrow.foot.x, arrow.tip.y - arrow.foot.y) ? [index] : []);
+    return on.length > 0 ? [{ ...arrow, axes: on }] : [];
+  });
   if (standing.length === 0) return;
   const standingIds = new Set(standing.map((arrow) => arrow.id));
   const lensLines = new Set(roles.lensPlanes.flatMap((plane) => plane.line === undefined ? [] : [plane.line]));
   const far = 1e4 * span;
-  // Axes an arrow stands on: a stroke standing across one (a screen, a lens
-  // line, a height mark) runs along the arrow and would pass it at any height.
-  const standingAxes = axes.filter(([a, b]) => standing.some((arrow) => lineDistance(arrow.foot, a, b) <= tolerance));
-  const across = (points: Point[]) => {
+  // The axes a stroke stands across. Against an arrow on one of them, the
+  // stroke (a screen, a lens line, a height mark) runs along the arrow and
+  // would pass it at any height; against an arrow on another axis (a second
+  // setup) it is an ordinary ray. A stroke of no length stands across all.
+  const acrossAxes = (points: Point[]) => {
     const vx = points.at(-1)!.x - points[0]!.x;
     const vy = points.at(-1)!.y - points[0]!.y;
-    const length = Math.hypot(vx, vy);
-    return !(length > 0) || standingAxes.some(([a, b]) =>
-      Math.abs((b.x - a.x) * vx + (b.y - a.y) * vy) <= 0.2 * distance(a, b) * length);
+    if (!(Math.hypot(vx, vy) > 0)) return axes.map((_, index) => index);
+    return axes.flatMap((axis, index) => acrossAxis(axis, vx, vy) ? [index] : []);
   };
   const rays: Array<{ points: Point[]; value: PathValue }> = [];
-  const support: Array<{ points: Point[]; value: PathValue }> = [];
+  const candidates: Array<{ points: Point[]; value: PathValue; across: number[] }> = [];
   for (const entity of document.entities ?? []) {
     const id = entity.id;
     const light = roles.lightPaths.has(id);
@@ -639,7 +641,7 @@ export function validateAxisArrowsOnRays(input: AxisArrowInput): void {
     const value = geometry.get(id);
     if (!openPath(value)) continue;
     if (light) rays.push({ points: value.points, value });
-    else if (!across(value.points)) support.push({ points: value.points, value });
+    else candidates.push({ points: value.points, value, across: acrossAxes(value.points) });
   }
   // A stroke that is not a declared light path is a ray only when it is
   // joined to the light: an end on a declared ray (or on a stroke already
@@ -678,23 +680,37 @@ export function validateAxisArrowsOnRays(input: AxisArrowInput): void {
     if (boundaryDistance(point, value) <= tolerance) return true;
     return roles.thinLenses.has(id) && isClosed(value) && insideElement(point, value);
   });
-  const onRayStroke = (point: Point) => rays.some(({ value }) =>
+  const onRayStroke = (joined: Array<{ value: PathValue }>, point: Point) => joined.some(({ value }) =>
     strokeSegments(value, far).some(([a, b]) => pointSegmentDistance(point, a, b) <= tolerance));
-  for (let joined = true; joined && support.length > 0;) {
-    joined = false;
-    for (let index = support.length - 1; index >= 0; index -= 1) {
-      const { points } = support[index]!;
-      if (![points[0]!, points.at(-1)!].some((end) => onAnchor(end) || onRayStroke(end))) continue;
-      rays.push(...support.splice(index, 1));
-      joined = true;
-    }
-  }
-  const lines: Point[][] = rays.map(({ points }) => points);
+  const counterparts: Point[][] = [];
   for (const construction of constructions) {
     const counterpart = paraxialCounterpart(input, construction, tolerance);
-    if (counterpart) lines.push(counterpart);
+    if (counterpart) counterparts.push(counterpart);
   }
+  // The rays for arrows standing on a set of axes: the declared light paths,
+  // and the strokes across none of those axes that join the light.
+  const linesFor = new Map<string, Point[][]>();
+  const raysFor = (arrowAxes: number[]) => {
+    const key = arrowAxes.join(",");
+    const cached = linesFor.get(key);
+    if (cached) return cached;
+    const joinedRays = [...rays];
+    const support = candidates.filter(({ across }) => !across.some((index) => arrowAxes.includes(index)));
+    for (let joined = true; joined && support.length > 0;) {
+      joined = false;
+      for (let index = support.length - 1; index >= 0; index -= 1) {
+        const { points } = support[index]!;
+        if (![points[0]!, points.at(-1)!].some((end) => onAnchor(end) || onRayStroke(joinedRays, end))) continue;
+        joinedRays.push(...support.splice(index, 1));
+        joined = true;
+      }
+    }
+    const lines = [...joinedRays.map(({ points }) => points), ...counterparts];
+    linesFor.set(key, lines);
+    return lines;
+  };
   for (const arrow of standing) {
+    const lines = raysFor(arrow.axes);
     // A stroke along the arrow itself (parallel to it, through its foot) fixes no height.
     const ax = arrow.tip.x - arrow.foot.x;
     const ay = arrow.tip.y - arrow.foot.y;
