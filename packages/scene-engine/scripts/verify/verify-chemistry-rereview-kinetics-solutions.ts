@@ -1481,7 +1481,7 @@ const cases: Case[] = [
     "kind": "henry",
     "label": "x=4e-5",
     "extraLabels": [
-      "p=0.003 bar"
+      "p=0.003059 bar"
     ]
   },
   {
