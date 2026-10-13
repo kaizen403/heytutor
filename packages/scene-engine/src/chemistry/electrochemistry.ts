@@ -987,6 +987,15 @@ function readTemperature(text: string): number | undefined | null {
 function observedCellOwner(text: string, start: number, reading: ChemistryReading): boolean {
   const owner = text.slice(start, reading.source.span.start);
   if (/\b(?:standard|reduction|oxidation|electrode)\b/i.test(owner)) return false;
+  if (/\bE[\s-]*(?:cell[\s-]*)?(?:sub[\s-]*)?(?:nought|naught|zero|not)\b/i.test(owner)) return false;
+  // An asked-for emf cannot own another subject's later assignment. An
+  // independently stated observed emf still owns its original voltage.
+  const boundary = [...owner.matchAll(/\b(?:if|given(?:\s+that)?|when|where|that)\b|\?/gi)].at(-1);
+  if (boundary) {
+    const subject = owner.slice(boundary.index! + boundary[0].length)
+      .replace(/(?:\bis\b(?:\s+measured\s+(?:as|to\s+be))?|measured\s+(?:as|to\s+be)|=|:)\s*$/i, "").trim();
+    if (subject && !/^(?:(?:the|its)\s+)?(?:observed|measured)\s+(?:emf|e\.m\.f\.|cell\s+potential|voltage)$/i.test(subject)) return false;
+  }
   // Read a standard mark anywhere in its E token, without making that token
   // a newly supported standard-potential parser or trusting its scalar.
   for (const match of owner.matchAll(/\bE(?:[_{}^()°º˚⁰₀®A-Za-z0-9]+|\s+(?:cell|[°º˚⁰₀®]|\^\s*(?:0|o|\(0\))))*/gi)) {
@@ -1057,8 +1066,9 @@ function readStatedCellPotentials(text: string): { e0?: number; e?: number } | n
       || /\bstandard\s+(?:electrode\s+)?$/i.test(text.slice(0, match.index!));
     const kind = standardOwner ? "e0" : "e";
     const read = readChemistryQuantity({question:text,after:/^/,within:{start:match.index!+match[0].length,end:text.length},dimension:"potential",targetUnit:"V"});
-    if (!read.ok || (out[kind] !== undefined && !chemistryCanonicalValuesAgree(out[kind]!, read.reading.value))) return null;
+    if (!read.ok) return null;
     if (kind === "e" && !observedCellOwner(text, match.index!, read.reading)) continue;
+    if (out[kind] !== undefined && !chemistryCanonicalValuesAgree(out[kind]!, read.reading.value)) return null;
     out[kind] = read.reading.value;
     consumed.push({reading:read.reading,owner:kind === "e0" ? "standard_cell" : "observed_cell"});
   }
