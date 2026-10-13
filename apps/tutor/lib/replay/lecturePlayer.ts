@@ -66,6 +66,8 @@ export interface LecturePlayerSnapshot {
   durationMs: number;
   /** How much of the audio track is decoded, in lecture ms (0..durationMs). */
   loadedMs: number;
+  /** Unknown until the stitched track loads; counts spoken cues without usable audio. */
+  missingAudioCues: number | null;
   rate: number;
   chapters: LecturePlayerChapter[];
   workPages?: LectureWorkPage[];
@@ -429,6 +431,7 @@ const DEFAULT_LECTURE_PLAYER_SNAPSHOT: LecturePlayerSnapshot = {
   positionMs: 0,
   durationMs: 0,
   loadedMs: 0,
+  missingAudioCues: null,
   rate: 1,
   chapters: [],
   error: null,

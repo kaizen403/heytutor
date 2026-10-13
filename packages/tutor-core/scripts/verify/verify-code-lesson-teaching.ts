@@ -64,6 +64,15 @@ const FRAMES: CodeLessonFigureFrame[] = [
   assert(!isExplanationOnlyDsaQuestion("Explain and solve Longest Substring Without Repeating Characters"), "a solve request still needs code");
   assert(!isExplanationOnlyDsaQuestion("Walk me through implementing Dijkstra in Java"), "an implementing request still needs code");
   assert(!isExplanationOnlyDsaQuestion("Explain how solving two sum works"), "a solving request still needs code");
+  const pythonReversal = "Reverse a singly linked list in Python. Input: head = [1, 2, 3, 4]. Explain prev, curr and next, then return the reversed list.";
+  assert(!isExplanationOnlyDsaQuestion(pythonReversal), "an operation explicitly requested in Python still owes code when its variables also need explaining");
+  const pythonSearch = "Search a binary search tree in Python. Input: root = [4, 2, 7, 1, 3], val = 2. Explain which branch to choose and return the subtree rooted at 2.";
+  assert(!isExplanationOnlyDsaQuestion(pythonSearch), "an explicit Python search still owes code alongside its branch explanation");
+  for (const language of ["Python", "JavaScript", "TypeScript", "Java", "C++", "cpp"]) {
+    assert(!isExplanationOnlyDsaQuestion(`Reverse a linked list in ${language}. Explain the pointer updates.`), `${language}: a named implementation language does not become explanation-only`);
+  }
+  assert(isExplanationOnlyDsaQuestion("Reverse a linked list. Explain the pointer updates."), "the same explanation without a code request stays explanation-only");
+  assert(isExplanationOnlyDsaQuestion("Explain Python list references."), "mentioning a language concept alone does not request an implementation");
   assert(isExplanationOnlyDsaQuestion("Explain dynamic programming for coin change"), "dynamic programming names a technique, not a program");
   assert(isExplanationOnlyDsaQuestion("What is the intuition behind Kadane's algorithm?"), "an intuition request is an explanation");
   assert(!dsaLessonIncludesCode(true), "an explanation request hides code even when the family drew no frames");

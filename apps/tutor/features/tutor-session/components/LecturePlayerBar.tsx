@@ -881,9 +881,16 @@ export function LecturePlayerBar({
         Audio paused.
       </span>
     ) : null;
+  const audioNotice = snapshot.missingAudioCues != null && snapshot.missingAudioCues > 0 ? (
+    <p role="status" className="px-2 py-1 text-[13px] leading-5 text-white">
+      Some audio is missing. Those parts will be silent.
+    </p>
+  ) : null;
 
   if (compact)
     return (
+      <div className={cn("relative z-30 min-w-0 rounded-lg bg-surface", className)}>
+        {audioNotice}
       <div
         ref={stripRef}
         role="group"
@@ -893,7 +900,6 @@ export function LecturePlayerBar({
         onKeyDown={onStripKeyDown}
         className={cn(
           "relative z-30 flex h-11 min-w-0 items-center gap-1 rounded-lg bg-surface text-white",
-          className,
         )}
       >
         <PlayButton
@@ -980,6 +986,7 @@ export function LecturePlayerBar({
         {auxiliaryControls}
         {pageStatus}
       </div>
+      </div>
     );
 
   return (
@@ -1041,6 +1048,7 @@ export function LecturePlayerBar({
             chromeHidden && "translate-y-1 opacity-0",
           )}
         >
+          {audioNotice}
           <div className="relative">
             {showTooltip ? (
               <div
