@@ -238,5 +238,49 @@ for (const [index, statement] of ["For this setup Kₐ = 1e-5", "In this step K(
 for (const [index, declaration] of ["p Kₐ = 5 M", "p K(a) = unknown", "p Kₐ = 5; Ka = 1e-6", "p Kᵦ = 5"].entries()) check(`spaced-logarithm-invalid-or-wrong-owner-${index}`, () => {
   assert.equal(buildSolutionsGraphScene(acid + declaration + ". Draw the pH curve.", [], false), null);
 });
+// PR166 oxidation review: E° is a standard mark, not a new direction owner.
+for (const [index, question] of [
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. The oxidation potential E°Zn = +0.80 V; the reduction potential E°Cu = +0.40 V.",
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. The standard oxidation potential E°Zn is +0.80 V; the standard reduction potential E°Cu is +0.40 V.",
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. Oxidation potential E°Zn: +0.80 V, while reduction potential E°Cu: +0.40 V.",
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. The oxidation potential of zinc E°Zn = +0.80 V and the reduction potential of copper E°Cu = +0.40 V.",
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. OXIDATION POTENTIAL E°Zn = +0.80 V; REDUCTION POTENTIAL E°Cu = +0.40 V.",
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. Use the oxidation potential E°Zn = +0.80 V.\nFor copper use the reduction potential E°Cu = +0.40 V.",
+].entries()) check(`oxidation-word-and-standard-symbol-${index}`, () => {
+  const spec = parseCellNotation(question); assert.ok(spec, "source-owned oxidation declaration must remain supported");
+  near(spec.anode.e0, -.8); near(spec.cathode.e0, .4);
+  assert.equal(spec.anode.potentialSource, "stem"); assert.equal(spec.cathode.potentialSource, "stem");
+  assert.equal(spec.statedE, undefined, "electrode potential is not an observed cell emf");
+  near(cellEmf(spec)?.e0, 1.2); near(cellEmf(spec)?.e, 1.2);
+  for (const half of [spec.anode, spec.cathode]) {
+    assert.ok(half.potentialSourceSpan);
+    assert.equal(question.slice(half.potentialSourceSpan.start, half.potentialSourceSpan.end), half.potentialSourceText);
+  }
+  assert.match(spec.anode.potentialSourceText!, /\+0\.80\s*V$/);
+  const result = compiled(buildElectrochemScene(question, [], false), "chem_electrochem");
+  near(result.document.quantities.find(q => q.id === "E0_cell")?.value, 1.2);
+  assert.ok(result.labels.includes("E° = 1.20 V"), JSON.stringify(result.labels));
+});
+for (const [index, question] of [
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. The oxidation potential E°Zn = unknown V; the reduction potential E°Cu = +0.40 V.",
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. The oxidation potential E°Zn = +0.80e- V; the reduction potential E°Cu = +0.40 V.",
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. The oxidation potential E°Zn = +0.80 V; the reduction potential E°Zn = -0.70 V; the reduction potential E°Cu = +0.40 V.",
+].entries()) check(`oxidation-symbol-unread-or-conflict-${index}`, () => {
+  assert.equal(parseCellNotation(question), null);
+  assert.equal(buildElectrochemScene(question, [], false), null);
+  assert.equal(buildElectrochemScene(question, [], true), null);
+});
+for (const [index, question] of [
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. The reduction potential E°Zn = -0.80 V; the reduction potential E°Cu = +0.40 V.",
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. E°Zn = -0.80 V; E°Cu = +0.40 V.",
+  "Draw Zn|Zn2+(1 M)||Cu2+(1 M)|Cu. The oxidation potential E°Zn = +0.80 V; E°Cu = +0.40 V.",
+].entries()) check(`standard-symbol-reduction-and-local-direction-control-${index}`, () => {
+  const spec = parseCellNotation(question); assert.ok(spec);
+  near(spec.anode.e0, -.8); near(spec.cathode.e0, .4); near(cellEmf(spec)?.e0, 1.2);
+  assert.equal(spec.anode.potentialSource, "stem"); assert.equal(spec.cathode.potentialSource, "stem");
+  assert.equal(spec.statedE, undefined);
+  const result = compiled(buildElectrochemScene(question, [], false), "chem_electrochem");
+  assert.ok(result.labels.includes("E° = 1.20 V"), JSON.stringify(result.labels));
+});
 console.log(JSON.stringify({ passed, failed: failed.length, failures: failed, scope: "offline source only; three next-PR non-regressions" }));
 process.exitCode = failed.length ? 1 : 0;
