@@ -6,14 +6,22 @@
  * Runs the live planner search (planSceneDocumentWithRepair with a stubbed
  * proxy), the authority revalidation and the final production selection, all
  * with the shared validateProductionSceneCandidate that live and lab use.
+ *
+ * Section 7 drives runScenePlanningOverlap, the orchestrator both callers use,
+ * with the completeness round: a figure that still misses an item is
+ * completed by one more planner call and replaced only through the same
+ * production validator; with less than 20 s left, or for a recovered scene,
+ * no call is made. The hook and the lab must wire the round identically.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
-  planSceneDocumentWithRepair, revalidateScenePlanWithRepairResult,
+  completeScenePlanWithRepairResult, planSceneDocumentWithRepair, revalidateScenePlanWithRepairResult,
+  SCENE_COMPLETENESS_MIN_REMAINING_MS,
   type SceneCandidateValidation, type ScenePlanWithRepairResult,
 } from "@heytutor/tutor-core";
+import { runScenePlanningOverlap, type SceneGateCore } from "../../features/tutor-session/lib/scene/planningOverlap";
 import type { SceneDocument, TurnPlanV3 } from "@heytutor/scene-engine";
 import * as selection from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import type { ValidatedSceneCandidate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
@@ -171,7 +179,84 @@ async function main(): Promise<void> {
     assert(/revalidateScenePlanWithRepairResult\([\s\S]{0,200}validateCandidateAgainstPlan\(candidate, authoritativeTurnPlan/.test(source),
       `${consumer}: the authority revalidation ranks with the shared validator`);
   }
+  // 7. The completeness round inside the shared orchestrator.
+  type Result = ScenePlanWithRepairResult<ValidatedSceneCandidate>;
+  const productionValidator = (turnPlan: TurnPlanV3) => (candidate: Record<string, unknown>) =>
+    validateProductionSceneCandidate({ candidate, question, turnPlan });
+  async function overlap(input: { complete: SceneDocument; elapsedMs: number; recover?: boolean }) {
+    const phases: string[] = [];
+    globalThis.fetch = async (_input, init) => {
+      const phase = new Headers(init?.headers).get("x-scene-planner-phase") ?? "";
+      phases.push(phase);
+      const body = phase === "complete" ? input.complete : sparse;
+      return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(body) } }] }),
+        { status: 200, headers: { "content-type": "application/json" } });
+    };
+    try {
+      const outcome = await runScenePlanningOverlap<null, SceneGateCore, never, Result>({
+        turnPlan: plan, problemAuthority: null, speculationAllowed: false, speculationEnabled: false,
+        plannerStartedAt: 0, deadlineMs: 60_000, now: () => input.elapsedMs,
+        deriveGate: () => ({ shouldPlanExactScene: true, shouldAttemptLlmScene: true, families: [], archetypeId: null, request: {} }),
+        applyAuthority: (turnPlan, authority) => ({ turnPlan, authority }),
+        fastFigureBlocked: () => false,
+        selectFast: () => null,
+        ...(input.recover ? {
+          recover: (): Result => ({ response: { document: sparse as unknown as Record<string, unknown>, rawContent: "", phase: "plan", lane: "primary", elapsedMs: 0 },
+            validation: sparseValidation, repaired: false, candidates: [] }),
+        } : {}),
+        planScene: (_gate, planningTurnPlan, run) => planSceneDocumentWithRepair(question, productionValidator(planningTurnPlan), {
+          proxyUrl: "http://planner.test", signal: run.signal, timeoutMs: Math.min(run.timeoutMs, 5_000),
+          maxConcurrentRequests: run.maxConcurrentRequests, requestBudget: run.requestBudget,
+        }).catch(() => null),
+        revalidate: (result, turnPlan) => revalidateScenePlanWithRepairResult(result, productionValidator(turnPlan)),
+        complete: (_gate, result, turnPlan, round) => completeScenePlanWithRepairResult(question, result, productionValidator(turnPlan), {
+          proxyUrl: "http://planner.test", signal: round.signal, remainingMs: round.remainingMs, requestBudget: round.requestBudget,
+        }),
+      });
+      return { outcome, phases };
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  }
+
+  const completed = await overlap({ complete, elapsedMs: 10_000 });
+  assert.equal(completed.outcome.completeness?.outcome, "replaced", "50 s left: the round runs and the complete reply replaces the figure");
+  assert.deepEqual(completed.phases.filter((phase) => phase === "complete"), ["complete"], "exactly one completeness call");
+  assert.equal(completed.outcome.timings.plannerCalls, 3, "two initial candidates plus the round, counted against the turn budget");
+  assert.equal(completed.outcome.scene?.response.phase, "complete");
+  assert.deepEqual(completed.outcome.completeness?.itemsStillMissing, []);
+  const committed = selectProductionScene({ question, turnPlan: plan, problemIR: null, candidateValidation: completed.outcome.scene?.validation });
+  assert(committed.representation?.renderScene.primitives.some((primitive) => primitive.kind === "label" && primitive.text === "50°"),
+    "the committed figure is the completed one, given angle label included");
+
+  const refused = await overlap({ complete: invalidComplete, elapsedMs: 10_000 });
+  assert.equal(refused.outcome.completeness?.outcome, "invalid", "a reply that fails production validation is refused");
+  assert.equal(refused.outcome.scene?.response.phase, "plan", "the original valid figure is kept");
+  assert(refused.outcome.scene?.validation.valid);
+
+  const late = await overlap({ complete, elapsedMs: 60_000 - SCENE_COMPLETENESS_MIN_REMAINING_MS + 1 });
+  assert.equal(late.outcome.completeness?.outcome, "skipped_deadline", "under 20 s left: no round");
+  assert.equal(late.phases.filter((phase) => phase === "complete").length, 0, "no completeness call under the floor");
+  assert.equal(late.outcome.scene?.response.phase, "plan");
+
+  const recovered = await overlap({ complete, elapsedMs: 10_000, recover: true });
+  assert.equal(recovered.outcome.recovered, true);
+  assert.equal(recovered.outcome.completeness, null, "a recovered scene is never completed");
+  assert.equal(recovered.phases.length, 0, "a recovered scene makes no planner call");
+
+  // Live and lab wire the round the same way, with the shared validator bound to the authoritative plan.
+  for (const consumer of ["features/tutor-session/hooks/turn/useQuestionHandler.ts", "scripts/lecture-lab/lecturePipeline.ts"]) {
+    const source = readFileSync(resolve(process.cwd(), consumer), "utf8");
+    assert(/complete: \(gate, sceneResult, authoritativeTurnPlan, round\) =>[\s\S]{0,200}completeScenePlanWithRepairResult\(\s*question,\s*sceneResult,\s*\(candidate\) => validateCandidateAgainstPlan\(candidate, authoritativeTurnPlan/.test(source),
+      `${consumer}: the completeness round validates with the shared validator on the authoritative plan`);
+    assert(/remainingMs: round\.remainingMs,\s*requestBudget: round\.requestBudget,/.test(source),
+      `${consumer}: the round gets the overlap's deadline and the turn's request budget`);
+  }
+  const lab = readFileSync(resolve(process.cwd(), "scripts/lecture-lab/lecturePipeline.ts"), "utf8");
+  assert(/run\.diagram\.completeness = planning\.completeness;/.test(lab), "the lab records the round in the run JSON");
+  assert(/completenessMs: planning\.timings\.completenessMs,/.test(lab), "the lab records the time the round added");
   console.log("completeness selection: the more complete valid figure wins, invalid never wins, ties keep the existing order, live and lab share it");
+  console.log("completeness round: the overlap completes a valid figure through the production validator, refuses an invalid reply, skips under 20 s and for recovered scenes; live and lab wire it alike");
 }
 
 void main().catch((error: unknown) => {

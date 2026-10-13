@@ -5,7 +5,7 @@ import {
 } from "@heytutor/tutor-core";
 
 const EVIDENCE_LIMIT_BYTES = 2048;
-type EvidenceStage = "initial" | "authority_revalidation";
+type EvidenceStage = "initial" | "authority_revalidation" | "completeness";
 export interface PlannerEvidence {
   plannerDeclineReason: string | null;
   plannerDeclines: Array<{

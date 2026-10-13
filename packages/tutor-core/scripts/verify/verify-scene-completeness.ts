@@ -10,6 +10,13 @@
  * givens the stem never writes, coordinate components, generic force, current
  * in a circuit and velocity from units alone are never demanded; nothing is
  * requested beyond six items.
+ *
+ * The completeness round (sections 7 to 9) runs the planner search and the
+ * round with a stubbed model call: the request names exactly the missing
+ * items and at most six; a reply replaces the figure only when it is valid,
+ * misses strictly fewer items and keeps every old id and label; a failed or
+ * timed out call keeps the original; and the round does not call with less
+ * than SCENE_COMPLETENESS_MIN_REMAINING_MS of the deadline left.
  */
 import assert from "node:assert/strict";
 import type { SceneDocument, TurnPlanV3 } from "@heytutor/scene-engine";
@@ -19,7 +26,20 @@ import {
   COMPLETENESS_REQUEST_CAP,
   type CompletenessChecklist,
   type CompletenessItem,
+  type SceneCompletenessResult,
 } from "../../src/planners/sceneCompleteness";
+import {
+  completeScenePlanWithRepairResult,
+  decideSceneCompletion,
+  SCENE_COMPLETENESS_MIN_REMAINING_MS,
+  type SceneCompletenessRoundRecord,
+} from "../../src/planners/sceneCompletenessRound";
+import {
+  buildSceneCompletenessRequest,
+  planSceneDocumentWithRepair,
+  type SceneCandidateValidation,
+  type ScenePlanWithRepairResult,
+} from "../../src/planners/scenePlannerV2";
 
 type Plan = Pick<TurnPlanV3, "givens" | "unknowns" | "derived" | "lawIds">;
 type Doc = Pick<SceneDocument, "entities" | "constructions" | "annotations" | "assertions">;
@@ -213,3 +233,179 @@ const missingOf = (checklist: CompletenessChecklist, scene: Doc, labels: string[
 }
 
 console.log("scene completeness: triangle, projectile, free body, circuit, cap of six and negative controls pass");
+
+/* ------------------------------------------------------------------------- */
+/* The completeness round                                                    */
+/* ------------------------------------------------------------------------- */
+
+// 7. The request block lists exactly the missing items, numbered, at most six, with the keep rule.
+{
+  const question = "Plot the points A(1, 2), B(3, 4), C(5, 6), D(7, 8), E(9, 1), F(2, 3) and G(4, 5), and join A to G. The angle at D is 35°.";
+  const missing = checkSceneCompleteness(buildCompletenessChecklist(plan({}), null, question), doc({})).missing;
+  assert(missing.length > COMPLETENESS_REQUEST_CAP, "the fixture misses more items than the cap");
+  const text = buildSceneCompletenessRequest(missing);
+  const numbered = text.split("\n").filter((line) => /^\d+\. /.test(line));
+  assert.deepEqual(numbered, missing.slice(0, COMPLETENESS_REQUEST_CAP).map((item, index) => `${index + 1}. ${item.text}`),
+    "the request numbers exactly the first six missing items in priority order");
+  for (const item of missing.slice(COMPLETENESS_REQUEST_CAP)) assert(!text.includes(item.text), `nothing beyond the cap: ${item.text}`);
+  assert(/add exactly these items; keep everything else as it is; every new mark must come from an existing operator/i.test(text),
+    "the request carries the add-exactly, keep-everything, existing-operator rule");
+  assert(text.startsWith("COMPLETENESS REQUEST\n"));
+}
+
+// Fixture for the round: a triangle whose given angle is the one missing item.
+type Value = { document: SceneDocument; renderScene: null; completeness: SceneCompletenessResult };
+const roundQuestion = "In triangle ABC, angle B = 50°. Sketch the triangle.";
+const roundChecklist = buildCompletenessChecklist(plan({ givens: [given("angB", "∠B", 50, "°")] }), null, roundQuestion);
+const triangleDoc = (options: { markAngle?: boolean; dropTriangle?: boolean; relabel?: [string, string]; broken?: boolean; decline?: boolean } = {}): SceneDocument => {
+  const entities: SceneDocument["entities"] = (["A", "B", "C"] as const)
+    .map((name) => ({ id: name, kind: "point", role: "vertex", label: options.relabel?.[0] === name ? options.relabel[1] : name }));
+  if (!options.dropTriangle) entities.push({ id: "tri", kind: "polygon", role: "triangle" });
+  if (options.markAngle) entities.push({ id: "angB", kind: "angle_mark", role: "given angle", label: "50°" });
+  return {
+    schemaVersion: "scene-document/v2", source: { question: roundQuestion },
+    visualDecision: options.decline ? { mode: "text_only", reason: "declined" } : { mode: "scene", reason: "the triangle" },
+    quantities: [], entities: options.decline ? [] : entities, constructions: [], relations: [],
+    assertions: [], annotations: [], requiredEntityIds: [], revealGroups: [], teachingTimeline: [],
+    ...(options.broken ? { broken: true } : {}),
+  } as SceneDocument;
+};
+const roundValidator = (candidate: Record<string, unknown>): SceneCandidateValidation<Value> => {
+  if (candidate.broken) return { valid: false, errors: [{ code: "assertion_failed", message: "stub proof failed", severity: "fatal" }] };
+  const document = candidate as unknown as SceneDocument;
+  const completeness = checkSceneCompleteness(roundChecklist, document);
+  return {
+    valid: true, errors: [], qualityScore: completeness.missing.length * 10_000_000 + document.entities.length,
+    value: { document, renderScene: null, completeness },
+  };
+};
+
+type Seen = { phase: string; prompt: string; deadline: string | null };
+async function withStubbedPlanner<T>(replies: { plan: SceneDocument; complete?: SceneDocument | "fail" }, run: (seen: Seen[]) => Promise<T>): Promise<T> {
+  const originalFetch = globalThis.fetch;
+  const seen: Seen[] = [];
+  globalThis.fetch = async (_input, init) => {
+    const headers = new Headers(init?.headers);
+    const phase = headers.get("x-scene-planner-phase") ?? "";
+    const body = JSON.parse(String(init?.body)) as { messages: Array<{ content: string }> };
+    seen.push({ phase, prompt: body.messages.at(-1)!.content, deadline: headers.get("x-planner-deadline-ms") });
+    const reply = phase === "complete" ? replies.complete : replies.plan;
+    if (!reply || reply === "fail") return new Response("upstream failed", { status: 500 });
+    return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(reply) } }] }),
+      { status: 200, headers: { "content-type": "application/json" } });
+  };
+  try {
+    return await run(seen);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+/** The planner search (two initial candidates, stubbed), then the round. */
+async function plannedRound(complete: SceneDocument | "fail" | undefined, remainingMs = 40_000, budget = 6) {
+  return withStubbedPlanner({ plan: triangleDoc(), complete }, async (seen) => {
+    const searched = await planSceneDocumentWithRepair(roundQuestion, roundValidator, { proxyUrl: "http://planner.test", timeoutMs: 5_000 });
+    assert(searched?.validation.valid, "the stubbed search returns the valid sparse triangle");
+    const requestBudget = { remaining: budget };
+    const round = await completeScenePlanWithRepairResult(roundQuestion, searched, roundValidator, {
+      proxyUrl: "http://planner.test", remainingMs, requestBudget,
+    });
+    return { searched, round, seen, requestBudget };
+  });
+}
+const keptOriginal = (searched: ScenePlanWithRepairResult<Value>, round: { result: ScenePlanWithRepairResult<Value> }) =>
+  round.result.response === searched.response && round.result.validation === searched.validation;
+const recordOf = (round: { record: SceneCompletenessRoundRecord | null }) => {
+  assert(round.record, "a valid figure with a checklist always gets a record");
+  return round.record;
+};
+
+// 8. The replacement rule, through the driven planner loop.
+{
+  // A more complete valid reply replaces the figure.
+  const accepted = await plannedRound(triangleDoc({ markAngle: true }));
+  const record = recordOf(accepted.round);
+  const completeCalls = accepted.seen.filter((call) => call.phase === "complete");
+  assert.equal(completeCalls.length, 1, "exactly one completeness call");
+  const prompt = completeCalls[0]!.prompt;
+  assert(prompt.includes(`PREVIOUS DOCUMENT (VALID)\n${JSON.stringify(accepted.searched.response.document)}`),
+    "the call sends the whole valid document, labels included");
+  const requested = prompt.split("COMPLETENESS REQUEST")[1]!.split("\n").filter((line) => /^\d+\. /.test(line));
+  assert.deepEqual(requested, ["1. mark the angle ∠B = 50° with an angle_mark and label it"],
+    "the call lists exactly the missing item");
+  assert.deepEqual(record.itemsRequested, ["mark the angle ∠B = 50° with an angle_mark and label it"]);
+  assert.equal(record.attempted, true);
+  assert.equal(record.accepted, true);
+  assert.equal(record.outcome, "replaced");
+  assert.deepEqual(record.itemsStillMissing, []);
+  assert.equal(accepted.round.result.response.phase, "complete");
+  assert.deepEqual(accepted.round.result.validation.value?.completeness.missing, [], "the selected figure is the complete reply");
+  assert.deepEqual(accepted.round.result.candidates.filter((candidate) => candidate.selected).map((candidate) => candidate.response.phase), ["complete"],
+    "only the reply is selected; the original stays listed, unselected");
+  assert.equal(accepted.requestBudget.remaining, 5, "the call spends one request from the shared budget");
+  assert(record.extraMs >= 0);
+
+  // Refused: invalid, a decline, not more complete, a lost id, a lost label, a failed call.
+  const refusals: Array<[string, SceneDocument | "fail", SceneCompletenessRoundRecord["outcome"]]> = [
+    ["an invalid reply", triangleDoc({ markAngle: true, broken: true }), "invalid"],
+    ["a text-only reply", triangleDoc({ decline: true }), "invalid"],
+    ["an equally incomplete reply", triangleDoc(), "not_more_complete"],
+    ["a reply that drops the old polygon id", triangleDoc({ markAngle: true, dropTriangle: true }), "lost_content"],
+    ["a reply that drops vertex C", triangleDoc({ markAngle: true, relabel: ["C", ""] }), "not_more_complete"],
+    ["a reply that relabels vertex A", triangleDoc({ markAngle: true, relabel: ["A", "A′"] }), "lost_content"],
+    ["a failed call", "fail", "timeout"],
+  ];
+  for (const [name, reply, outcome] of refusals) {
+    const refused = await plannedRound(reply);
+    const refusedRecord = recordOf(refused.round);
+    assert.equal(refusedRecord.outcome, outcome, `${name}: ${outcome}`);
+    assert.equal(refusedRecord.accepted, false, `${name} never replaces the figure`);
+    assert(keptOriginal(refused.searched, refused.round), `${name}: the original figure is kept`);
+    assert.deepEqual(refusedRecord.itemsStillMissing, refusedRecord.itemsMissingBefore, `${name}: nothing counts as added`);
+    assert.equal(refused.round.result.candidates.filter((candidate) => candidate.selected).length, 1);
+  }
+  const lost = recordOf((await plannedRound(triangleDoc({ markAngle: true, dropTriangle: true }))).round);
+  assert.deepEqual(lost.lostIds, ["tri"], "the dropped id is named");
+  const relabelled = recordOf((await plannedRound(triangleDoc({ markAngle: true, relabel: ["A", "A′"] }))).round);
+  assert.deepEqual(relabelled.lostLabels, ["A"], "the dropped label text is named");
+
+  // The pure rule agrees, and a reply that is merely different never wins.
+  const original = roundValidator(triangleDoc() as unknown as Record<string, unknown>);
+  assert.equal(decideSceneCompletion(original, roundValidator(triangleDoc({ markAngle: true }) as unknown as Record<string, unknown>)).accept, true);
+  assert.equal(decideSceneCompletion(original, null).outcome, "timeout");
+  assert.equal(decideSceneCompletion(original, original).outcome, "not_more_complete", "the same figure is not more complete");
+}
+
+// 9. The deadline floor, the budget and a figure that misses nothing: no call at all.
+{
+  const floor = SCENE_COMPLETENESS_MIN_REMAINING_MS;
+  assert.equal(floor, 20_000, "the round needs at least 20 s of the figure deadline");
+  const short = await plannedRound(triangleDoc({ markAngle: true }), floor - 1);
+  assert.equal(recordOf(short.round).outcome, "skipped_deadline");
+  assert.equal(recordOf(short.round).attempted, false);
+  assert.equal(short.seen.filter((call) => call.phase === "complete").length, 0, "no completeness call with less than 20 s left");
+  assert(keptOriginal(short.searched, short.round), "a skipped round keeps the original");
+  assert.equal(short.requestBudget.remaining, 6, "a skipped round spends nothing");
+
+  const atFloor = await plannedRound(triangleDoc({ markAngle: true }), floor);
+  const call = atFloor.seen.find((entry) => entry.phase === "complete");
+  assert(call, "exactly 20 s left still runs the round");
+  assert.equal(call.deadline, "17000", "the call ends 3 s before the figure deadline");
+  const roomy = await plannedRound(triangleDoc({ markAngle: true }), 55_000);
+  assert.equal(roomy.seen.find((entry) => entry.phase === "complete")?.deadline, "20000", "the call never waits more than 20 s");
+
+  const spent = await plannedRound(triangleDoc({ markAngle: true }), 40_000, 0);
+  assert.equal(recordOf(spent.round).outcome, "skipped_budget");
+  assert.equal(spent.seen.filter((entry) => entry.phase === "complete").length, 0, "no call once the turn's budget is spent");
+
+  const nothingMissing = await withStubbedPlanner({ plan: triangleDoc({ markAngle: true }) }, async (seen) => {
+    const searched = await planSceneDocumentWithRepair(roundQuestion, roundValidator, { proxyUrl: "http://planner.test", timeoutMs: 5_000 });
+    assert(searched);
+    const round = await completeScenePlanWithRepairResult(roundQuestion, searched, roundValidator, { proxyUrl: "http://planner.test", remainingMs: 40_000 });
+    return { round, seen };
+  });
+  assert.equal(recordOf(nothingMissing.round).outcome, "complete");
+  assert.equal(nothingMissing.seen.filter((entry) => entry.phase === "complete").length, 0, "a complete figure is never re-asked");
+}
+
+console.log("scene completeness round: request lists the missing items under the cap, the replacement rule, failures keep the original, the 20 s floor skips the call");

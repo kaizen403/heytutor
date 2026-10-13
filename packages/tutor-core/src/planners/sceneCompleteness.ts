@@ -717,8 +717,12 @@ export function buildCompletenessChecklist(
 /* Scene check                                                               */
 /* ------------------------------------------------------------------------- */
 
-type SceneDocumentLike = Partial<Pick<SceneDocument, "entities" | "constructions" | "annotations" | "assertions">>;
-type CompiledSceneLike = { primitives: ReadonlyArray<Pick<RenderScene["primitives"][number], "kind" | "text">> };
+/** The parts of a scene document the check reads. */
+export type CompletenessSceneDocument = Partial<Pick<SceneDocument, "entities" | "constructions" | "annotations" | "assertions">>;
+/** The parts of a compiled scene the check reads: its label and dimension text. */
+export type CompletenessCompiledScene = { primitives: ReadonlyArray<Pick<RenderScene["primitives"][number], "kind" | "text">> };
+type SceneDocumentLike = CompletenessSceneDocument;
+type CompiledSceneLike = CompletenessCompiledScene;
 
 interface SceneView {
   texts: string[];
@@ -751,8 +755,13 @@ function labelNames(texts: readonly string[]): Set<string> {
   return out;
 }
 
-/** Visible text: entity labels, non-narration annotations, label/dimension operator text and compiled labels. */
-function sceneView(document: SceneDocumentLike, compiled?: CompiledSceneLike | null): SceneView {
+/**
+ * Visible text: entity labels, non-narration annotations, label/dimension
+ * operator text and compiled labels, trimmed, in document order. The
+ * completeness round compares these before and after a reply, so a reply that
+ * drops an old label is refused.
+ */
+export function sceneVisibleTexts(document: SceneDocumentLike, compiled?: CompiledSceneLike | null): string[] {
   const entities = document.entities ?? [];
   const constructions = document.constructions ?? [];
   const annotations = document.annotations ?? [];
@@ -774,6 +783,20 @@ function sceneView(document: SceneDocumentLike, compiled?: CompiledSceneLike | n
     const text = primitive.text?.trim();
     if (text) texts.push(text);
   }
+  return texts.map((text) => text.trim()).filter((text) => text.length > 0);
+}
+
+/** Every entity id the document declares. */
+export function sceneEntityIds(document: SceneDocumentLike): string[] {
+  return (document.entities ?? []).map((entity) => textOf(entity.id)).filter((id) => id.length > 0);
+}
+
+/** Visible text first, then what the check derives from the document. */
+function sceneView(document: SceneDocumentLike, compiled?: CompiledSceneLike | null): SceneView {
+  const entities = document.entities ?? [];
+  const constructions = document.constructions ?? [];
+  const annotations = document.annotations ?? [];
+  const texts = sceneVisibleTexts(document, compiled);
   // The compiler prints the value of an angle assertion on its mark.
   const angleValues: number[] = [];
   for (const assertion of document.assertions ?? []) {

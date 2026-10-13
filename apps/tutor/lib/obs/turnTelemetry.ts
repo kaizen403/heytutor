@@ -500,7 +500,7 @@ function diagnosticMilliseconds(read: () => number | undefined): number | null {
 /** Combined proof/validation/compile interval; diagnostics never change admission. */
 export function measureSceneCandidateValidation<T extends { valid: boolean }>(
   tel: TurnTelemetry | null,
-  input: { validationCallIndex: number; context: "search" | "revalidate" | "recovery" },
+  input: { validationCallIndex: number; context: "search" | "revalidate" | "recovery" | "complete" },
   validate: () => T,
   now: () => number = () => performance.now(),
 ): T {
