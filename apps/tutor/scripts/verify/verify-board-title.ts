@@ -133,6 +133,23 @@ for (const [question, expected] of [
   assert(title === expected, `sentence casing: "${question}" became "${title}", wanted "${expected}"`);
 }
 
+for (const [question, expected] of [
+  ["Explain Newton's first law", "Newton's first law"],
+  ["Explain Newton's third law", "Newton's third law"],
+  ["Explain Newton's law of gravitation", "Newton's law of gravitation"],
+  ["Explain Newton's method for finding roots", "Newton's method for finding roots"],
+  ["Explain force measured in newtons", "Force measured in newtons"],
+  ["Explain the second law of thermodynamics", "Second law of thermodynamics"],
+  ["Explain Newton’s 2nd law", "Newton's second law"],
+  [
+    "Why does a wall push back when I push it? Explain Newton's third law with a simple person-and-wall force diagram.",
+    "Why does a wall push back when I push it",
+  ],
+  ["Explain F = ma", "Newton's second law"],
+] as const) {
+  assert(finalizeBoardTitle(question) === expected, `Newton titles must preserve the requested topic: ${question}`);
+}
+
 // Stripping a question prefix must not leave an ordinary all-caps title shouting.
 for (const question of ["WHAT IS THERMODYNAMICS?", "THERMODYNAMICS", "EXPLAIN THERMODYNAMICS"]) {
   const title = deriveBoardTitleFromQuestion(question);

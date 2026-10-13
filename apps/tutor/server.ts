@@ -76,6 +76,9 @@ app.prepare().then(() => {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024, perMessageDeflate: false });
 
   server.on("upgrade", (request: IncomingMessage, socket, head) => {
+    // Next installs its own upgrade listener via getRequestHandler. Leave HMR
+    // untouched so it can retain the visible page's development entries.
+    if (dev && request.url?.split("?", 1)[0] === "/_next/webpack-hmr") return;
     if (socket instanceof Socket) socket.setTimeout(10_000, () => socket.destroy());
     void (async () => {
     const { pathname, query } = parseUrl(request.url ?? "", true);
