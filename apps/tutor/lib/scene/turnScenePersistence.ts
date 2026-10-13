@@ -200,12 +200,6 @@ export async function canonicalizeTurnSceneMetadata(
 
   const planResult = validateTurnPlanV3(metadata.sceneArtifacts.turnPlan, question);
   const turnPlan = planResult.plan;
-  // Absent plans remain supported for independently source-grounded scenes.
-  // A supplied but rejected plan must not disappear into that absent-plan
-  // path: nonmetric tiers can still carry numbers from the rejected plan.
-  if (metadata.sceneArtifacts.turnPlan != null && !turnPlan) {
-    return failure("scene_turn_plan_invalid", `scene has an invalid supplied TurnPlanV3: ${formatIssues(planResult.issues)}`);
-  }
   if (tier === "exact_verified" && !turnPlan) {
     // A plan is one source of exact numbers, not the only one. When every
     // metric slot was read from the question itself — "Sketch y = x^2", a

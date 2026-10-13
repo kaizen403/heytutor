@@ -47,7 +47,6 @@ const TURN_PLAN_DIAGNOSTIC_ISSUE_CODES = [
   "source_text_arithmetic_conflict", "source_text_arithmetic_invalid",
   "source_text_value_mismatch", "unknown_claim_quantity", "unknown_dependency",
   "unresolved_numeric_unknown", "optics_law_mismatch",
-  "instrument_law_mismatch", "instrument_law_unverified",
 ] as const;
 export type TurnPlanDiagnosticIssueCode = typeof TURN_PLAN_DIAGNOSTIC_ISSUE_CODES[number];
 const diagnosticIssueCodes: ReadonlySet<string> = new Set(TURN_PLAN_DIAGNOSTIC_ISSUE_CODES);
@@ -1133,9 +1132,6 @@ export const TURN_PLAN_V3_VISUAL_GROUNDING =
 /** Prompt length before the visualRequirement grounding line (chars). Growth must stay ≤ 150. */
 export const TURN_PLAN_V3_PROMPT_BASELINE_CHARS = 2648;
 
-const TURN_PLAN_V3_CLAIM_GROUNDING =
-  "Measured claim values, including coordinates, need matching relatedQuantityIds for givens or computed derived.";
-
 export const TURN_PLAN_V3_PROMPT = `Return only one compact turn-plan/v3 JSON object. Do not emit prose, pixels, drawing commands, or scene geometry.
 
 Required keys: schemaVersion, question, givens, unknowns, derived, qualitativeClaims, lawIds, assumptions, visualRequirement.
@@ -1152,7 +1148,7 @@ ${TURN_PLAN_V3_VISUAL_GROUNDING}
 
 Copy numeric givens exactly. Every numerical unknown needs a finite derived answer justified by named lawIds; solve simultaneous equations completely. Never put null, NaN, infinity, or formulas in numeric value fields. Equations belong in sourceText; explicit arithmetic must equal the declared value.
 For symbolic derivations, omit symbolic parameters from numeric quantities. Put formulas in qualitativeClaims.expected as strings, linked to their unknowns by relatedQuantityIds; describe parameters in claims or assumptions. These are teaching relations, not verified numeric results. Mixed formula/numeric requests still need finite numerical answers. Never invent measurements.
-Keep valid JSON compact: givens contains independent stated values only; derived contains all numerical answers and at most four essential intermediate scalars; at most eight claims and six assumptions; sourceText at most 180 characters. ${TURN_PLAN_V3_CLAIM_GROUNDING}
+Keep valid JSON compact: givens contains independent stated values only; derived contains all numerical answers and at most four essential intermediate scalars; at most eight claims and six assumptions; sourceText at most 180 characters. Express coordinate labels, endpoints and repeated multiples from original givens instead of extra quantities.
 Independently recompute scalars and verify units. sign must agree with the scalar; spatial directions belong in claims. For directional claims, define coordinates, compute vectors componentwise, and check conservation laws and physical tendency. Claims must not contradict or ask the user for data. Keep IDs compact. Never invent measurements, topology, directions or assumptions. question must copy the user's exact question.`;
 
 const TURN_PLAN_V3_RETRY_PROMPT = `${TURN_PLAN_V3_PROMPT}
@@ -1168,7 +1164,6 @@ Required checks:
 - recompute every derived scalar from named laws and verify units, scalar signs, and dependency IDs; keep coordinate directions in qualitativeClaims rather than assigning a contradictory sign to a positive magnitude;
 - for directional claims, define a coordinate convention and evaluate vector or orientation operations component by component;
 - check qualitative claims against conservation laws, boundary conditions, limiting cases, and each other;
-- ${TURN_PLAN_V3_CLAIM_GROUNDING}
 - keep only assumptions necessary to make the question well-defined;
 - retain visualRequirement=required whenever the question explicitly requests a visual, the candidate already set required for a spatial setup, quantities/entities must be located or related in space, or an explain question's claims name systems, flows, or apparatus.
 

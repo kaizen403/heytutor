@@ -23,7 +23,6 @@ import {
   validateUniformCircularSourceInputs,
   validateSceneQuantityAgreement,
   validateTurnPlanSceneProofs,
-  validateTurnPlanV3,
   type SceneDocument,
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
@@ -115,10 +114,6 @@ export function sceneSaveAdmissionFailure(input: {
 }): string | null {
   const { document, question, turnPlan, tier } = input;
   if (turnPlan) {
-    const planValidation = validateTurnPlanV3(turnPlan, question);
-    if (!planValidation.valid) {
-      return `scene has an invalid supplied TurnPlanV3: ${formatIssues(planValidation.issues)}`;
-    }
     // Quantities and labels the engine derives from the stem and the plan,
     // recomputed here, are supported alongside the plan's own. Plan ids stay
     // authoritative: a plan quantity is always checked against the plan.
@@ -135,7 +130,6 @@ export function sceneSaveAdmissionFailure(input: {
       audited,
       turnPlan,
       texts,
-      question,
     );
     if (agreementIssues.length > 0) {
       return `scene quantities disagree with TurnPlanV3: ${formatIssues(agreementIssues)}`;
