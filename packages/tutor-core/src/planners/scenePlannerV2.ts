@@ -179,7 +179,7 @@ export async function repairSceneDocument(
     ? candidate.constructions.flatMap((construction) =>
       isPlainObject(construction) && typeof construction.operator === "string" ? [construction.operator] : [])
     : [];
-  const prompt = `${buildSceneDocumentPlannerPrompt(question, options, usedOperators)}
+  const prompt = `${buildSceneDocumentPlannerPrompt(question, options, usedOperators, { completeFigure: false })}
 
 REPAIR REQUEST
 The previous candidate failed deterministic validation. Return a complete replacement document, not a patch. Rebuild the failing subgraph from the authoritative facts and supported operators.
@@ -190,7 +190,7 @@ ${JSON.stringify(previousStructure)}
 STRUCTURED VALIDATION ERRORS
 ${JSON.stringify(errors)}
 
-Resolve every fatal error. Preserve correct stable IDs when useful, but delete invalid, duplicate, or unnecessary entities. Keep consumed construction helpers out of visible ownership. Attach compact labels to their real target. Preserve authoritative claims and required proofs; repair geometry instead of weakening assertions. Return only the replacement JSON object.`;
+Resolve every fatal error. Preserve correct stable IDs when useful; delete invalid or duplicate entities, but keep every named object, given label and angle mark. Keep consumed construction helpers out of visible ownership. Attach compact labels to their real target. Preserve authoritative claims and required proofs; repair geometry instead of weakening assertions. Return only the replacement JSON object.`;
   const connectivityGuidance = errors.some((error) =>
     (error.code === "assertion_failed" && /connect|path|terminal/i.test(error.message)) ||
     error.code === "turnplan_loop_member_not_proven",
@@ -411,14 +411,14 @@ export async function planSceneDocumentWithRepair<T>(
   const timeoutMs = plannerOptions.timeoutMs ?? SCENE_PLANNER_TIMEOUT_MS;
   const remainingMs = () => timeoutMs - (Date.now() - startedAt);
   const initialStrategies = [
-    "Build the smallest sufficient scene. Derive every result, and add only assertions required to prove the question's stated relationships.",
-    "Start from the exact quantities and invariants, then synthesize a minimal construction graph whose outputs satisfy them without duplicate geometry.",
-    "Construct the proof obligations first, then add only the geometry needed to satisfy them; add compact annotations last.",
-    "Use the fewest deterministic operators possible, audit every reference and sign, and omit all optional helpers or decorative ink.",
+    "Build the complete teaching figure: every named object, given value, angle and method helper, with no decorative ink. Derive every result, and add only assertions required to prove the question's stated relationships.",
+    "Start from the exact quantities and invariants, then synthesize a construction graph that shows each of them without duplicate geometry.",
+    "Construct the proof obligations first, then the geometry that satisfies them and every named object, value and angle; add compact labels last.",
+    "Use deterministic operators only, audit every reference and sign, and keep every helper the method uses; add no decorative ink.",
   ].slice(0, INITIAL_SCENE_CANDIDATES);
   const repairStrategies = [
     "Apply the smallest coherent correction that resolves every error while preserving valid geometry.",
-    "Rebuild the failing construction subgraph from first principles; reuse valid entities but remove duplicate or weakly justified geometry.",
+    "Rebuild the failing construction subgraph from first principles; reuse valid entities but remove duplicate geometry.",
   ].slice(0, REPAIR_CANDIDATES_PER_ROUND);
 
   type Evaluated = {
