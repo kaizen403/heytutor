@@ -316,7 +316,7 @@ export interface CellSpec {
 }
 
 const E_NAUGHT = String.raw`E(?:°|º|˚|⁰|₀|®|\^\s*(?:0|o|\(0\))|0(?![.\d])|o\b)`;
-const SPECIES = String.raw`[A-Z][a-z]?(?:[A-Za-z0-9₀₁₂₃₄₅₆₇₈₉]*?)(?:\^?\(?\d*[+-]\)?|\+{2,}|[⁰¹²³⁴⁵⁶⁷⁸⁹]*[⁺⁻])?`;
+const SPECIES = String.raw`[A-Z][a-z]?(?:[A-Za-z0-9₀₁₂₃₄₅₆₇₈₉]*?)(?:\^?(?:\(\d*[+-]\)|\d*[+-])|\+{2,}|[⁰¹²³⁴⁵⁶⁷⁸⁹]*[⁺⁻])?`;
 const COUPLE = String.raw`(${SPECIES})\s*(?:\(\s*(?:aq|s|g|l)\s*\))?\s*[\/|]\s*(${SPECIES})(?:\s*\(\s*(?:aq|s|g|l)\s*\))?`;
 const VALUE = `(${CHEMISTRY_SCALAR_PATTERN})\\s*(?:V|volt|volts)\\b`;
 interface StatedPotential { e0:number; n?:number; sourceSpan:ChemistrySpan; sourceText:string; readings:ChemistryReading[] }
