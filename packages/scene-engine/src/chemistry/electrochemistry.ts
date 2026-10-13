@@ -440,7 +440,15 @@ function statedPotentials(question: string): Map<string, StatedPotential> | null
     const sentence = prefix.slice([...prefix.matchAll(/\n|\.(?!\d)/g)].at(-1)?.index ?? 0);
     const tail = text.slice(owner.index! + owner[0].length);
     if (!new RegExp(roleCue.source, "i").test(sentence + tail.split(/[;\n]|\.(?!\d)/)[0])) continue;
-    if (!/^\s*[)\]]?\s*(?:[=:]|\b(?:is|was|equals|equal\s+to|comes\s+to|unknown|unreadable)\b)/i.test(tail)) continue;
+    const declaration = /^\s*[)\]]?\s*(?:[=:]|\b(?:is|was|equals|equal\s+to|comes\s+to|unknown|unreadable)\b)/i.exec(tail);
+    if (!declaration) continue;
+    const localStart = clauseStart(prefix);
+    // The terminal electrode in a whole-cell voltage declaration does not
+    // inherit a prior clause's electrode-potential cue.
+    if (/\b(?:emf|cell\s+potential|potential\s+of\s+the\s+cell|voltage)\b|e\.m\.f\./i.test(text.slice(localStart, owner.index!))) {
+      const read = readChemistryQuantity({question:text,after:/^/,within:{start:owner.index! + owner[0].length + declaration[0].length,end:text.length},dimension:"potential",targetUnit:"V"});
+      if (read.ok && observedCellOwner(text, localStart, read.reading)) continue;
+    }
     const key = ownerKey(owner[0]);
     const canonical = key && (findCouple(key)?.key ?? key);
     const next = [...text.matchAll(ownerPattern)].find(candidate => candidate.index! > owner.index!);

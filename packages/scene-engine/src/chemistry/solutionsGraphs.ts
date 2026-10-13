@@ -327,7 +327,7 @@ function suppliedAcidBaseConstants(question: string): SuppliedAcidBaseConstants 
     for (const logarithmic of [true,false]) {
       const subscript = which === "a" ? "ₐ|ᵃ" : "ᵦ|ᵇ";
       const role = String.raw`(?:\{\s*${which}\s*\}|\(\s*${which}\s*\)|${which}|${subscript})`;
-      const symbol = String.raw`(?<![a-z])${logarithmic?"p\\s*":"(?<!p)"}k\s*_?\s*${role}(?![a-z])`;
+      const symbol = String.raw`(?<![a-z])${logarithmic?"p\\s*":"(?<!\\bp\\s*)"}k\s*_?\s*${role}(?![a-z])`;
       const word = !logarithmic ? String.raw`|\b(?:${which==="a"?"acid":"base"}\s+(?:dissociation|ioni[sz]ation)|${which==="a"?"acidity":"basicity"}) constant\b` : "";
       const mention = new RegExp(`(?:${symbol}${word})`,"ig");
       const declarations = [...question.matchAll(mention)];
