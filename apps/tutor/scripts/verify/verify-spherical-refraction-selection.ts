@@ -409,5 +409,102 @@ check("the same by quantity ids (nAir to n): the image at 120/13 cm is admitted"
 check("control: the object inside the glass with its image at 15 cm (the air side order's) declines", () =>
   declinesFor(glassFace({ object: 12, image: 15, declared: [1, 1.5] }), "I", "admitted an image the glass side order puts at 120/13 cm"));
 
+/**
+ * Delta review of #164 ("Media sides read off the undrawn half"). To find the
+ * side of a face the light comes from, the incident ray was met with the
+ * whole circle of curvature and its first forward crossing taken. A ray that
+ * starts outside that circle on the centre side first crosses the far half,
+ * which is not drawn, so the side came out reversed and n1 and n2 swapped.
+ * The scenes are the reviewer's (vertex at x = 0, centre at x = center, a
+ * declared refraction from a surface_contact incident ray).
+ * - Concave face R 25 (centre x = -25), object 100 cm before it in air, 1 to
+ *   1.5: the image is at -50 cm; read reversed, +200 cm.
+ * - Convex face R 30, object in the glass at 12 cm, 1.5 to 1 with the ray
+ *   starting in the glass at x = 80 (outside the circle): the image is at
+ *   120/13 cm; read reversed, 15 cm.
+ */
+function curvedFace(o: { center: number; object: number; image: number; declared: [number, number]; source: [number, number]; direction: [number, number] }): { document: Doc; plan: TurnPlanV3 } {
+  const R = Math.abs(o.center);
+  const question = `An object is ${Math.abs(o.object)} cm from a ${o.center * o.object < 0 ? "convex" : "concave"} spherical glass surface of radius ${R} cm, refractive index 1.5, ${o.object > 0 === o.center > 0 ? "on the centre side" : "on the far side"}. Find the image.`;
+  const point = (id: string, x: number, y = 0) => ({ id: `make_${id}`, operator: "point", inputs: { x, y, coordinateSpace: "world" }, outputs: [id] });
+  const quantity = (id: string, symbol: string, value: number, unit?: string) => ({ id, symbol, value, ...(unit ? { unit } : {}) });
+  const entities = [
+    { id: "V", kind: "point", role: "pole", label: "P" }, { id: "C", kind: "point", role: "centre of curvature", label: "C" },
+    { id: "O", kind: "point", role: "object", label: "O" }, { id: "I", kind: "point", role: "image", label: "I" },
+    { id: "axis", kind: "line", role: "principal axis" }, { id: "face", kind: "arc", role: "refracting surface" },
+    { id: "src", kind: "point", role: "ray start" }, { id: "hit", kind: "point", role: "point of incidence" },
+    { id: "inc", kind: "ray", role: "incident ray" }, { id: "nrm", kind: "segment", role: "normal" }, { id: "ref", kind: "ray", role: "refracted ray" },
+  ];
+  const constructions = [
+    point("V", 0), point("C", o.center), point("O", o.object), point("I", o.image),
+    { id: "make_axis", operator: "line", inputs: { start: "O", end: "C" }, outputs: ["axis"] },
+    { id: "make_face", operator: "spherical_surface", inputs: { vertex: "V", axis: "axis", center: "C", halfHeight: Math.min(12, 0.6 * R) }, outputs: ["face"] },
+    point("src", o.source[0], o.source[1]),
+    { id: "meet", operator: "surface_contact", inputs: { origin: "src", surface: "face", direction: o.direction, which: "nearest_forward" }, outputs: ["hit", "inc"] },
+    { id: "normal", operator: "normal_at", inputs: { point: "hit", surface: "face" }, outputs: ["nrm"] },
+    { id: "refract", operator: "refract_direction", inputs: { origin: "hit", incoming: "inc", normal: "nrm", n1: o.declared[0], n2: o.declared[1] }, outputs: ["ref"] },
+  ];
+  const ids = entities.map((entity) => entity.id);
+  const givens = [quantity("n", "n", 1.5), quantity("nAir", "n_1", 1), quantity("R", "R", R, "cm"), quantity("u", "u", Math.abs(o.object), "cm")];
+  const derived = [quantity("v", "v", Math.abs(o.image), "cm")];
+  const document = {
+    schemaVersion: "scene-document/v2",
+    visualDecision: { mode: "scene", reason: question },
+    source: { question },
+    quantities: [...givens, ...derived],
+    entities,
+    constructions,
+    relations: [],
+    assertions: [
+      { id: "objectOnAxis", predicate: "on", entities: ["O", "axis"], expected: true, severity: "fatal" },
+      { id: "imageOnAxis", predicate: "on", entities: ["I", "axis"], expected: true, severity: "fatal" },
+    ],
+    annotations: [],
+    requiredEntityIds: ids,
+    revealGroups: [{ id: "setup", entityIds: ids }],
+    teachingTimeline: [{ action: "reveal", targetId: "setup" }],
+  } as unknown as Doc;
+  const plan = {
+    schemaVersion: "turn-plan/v3",
+    question,
+    givens: givens.map((given) => ({ ...given, provenance: "given" })),
+    unknowns: [{ id: "v", symbol: "v", unit: "cm" }],
+    derived,
+    qualitativeClaims: [],
+    lawIds: ["paraxial refraction at a spherical surface: n₂/v−n₁/u=(n₂−n₁)/R"],
+    assumptions: [],
+    visualRequirement: "required",
+  } as unknown as TurnPlanV3;
+  return { document, plan };
+}
+const concaveFromAir = (image: number, source: [number, number] = [-100, 2]) =>
+  curvedFace({ center: -25, object: -100, image, declared: [1, 1.5], source, direction: [1, 0] });
+const convexFromGlass = (image: number) =>
+  curvedFace({ center: 30, object: 12, image, declared: [1.5, 1], source: [80, 4], direction: [-1, 0] });
+
+check("concave face R 25, object 100 cm in air, declared 1 to 1.5 from the object side: the image at -50 cm is admitted", () => {
+  const { document, plan } = concaveFromAir(-50);
+  const { valid, codes } = validate(document, plan);
+  return valid ? null : `declined with ${codes.join(", ")}`;
+});
+
+check("control: the same concave face with the image at +200 cm (the reversed media answer) declines", () =>
+  declinesFor(concaveFromAir(200), "I", "admitted the image the reversed media put at +200 cm"));
+
+check("the same concave face with the incident ray from the object along the axis: the image at -50 cm is admitted", () => {
+  const { document, plan } = concaveFromAir(-50, [-100, 0]);
+  const { valid, codes } = validate(document, plan);
+  return valid ? null : `declined with ${codes.join(", ")}`;
+});
+
+check("convex face R 30, object in the glass at 12 cm, declared 1.5 to 1 with the ray from x = 80: the image at 120/13 cm is admitted", () => {
+  const { document, plan } = convexFromGlass(120 / 13);
+  const { valid, codes } = validate(document, plan);
+  return valid ? null : `declined with ${codes.join(", ")}`;
+});
+
+check("control: the same convex face with the image at 15 cm (the reversed media answer) declines", () =>
+  declinesFor(convexFromGlass(15), "I", "admitted the image the reversed media put at 15 cm"));
+
 console.log(`${passed} passed, ${failures.length} failed`);
 if (failures.length > 0) process.exit(1);

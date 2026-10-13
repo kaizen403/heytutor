@@ -318,18 +318,27 @@ function declaredMedia(
     if (!ray || !(Math.hypot(ray.direction.x, ray.direction.y) > 0)) return undefined;
     const { center, vertex } = frame;
     const radius = Math.hypot(vertex.x - center.x, vertex.y - center.y);
-    // The contact: a literal point, else the incoming ray's first crossing of the sphere, else the vertex.
+    // The contact: a literal point, else where the incoming ray first meets the
+    // drawn face, else the vertex. The face is the half of the circle of
+    // curvature on the vertex side of the centre, (p - centre) . (vertex - centre) > 0.
+    // A ray that starts outside the circle on the centre side (an object in
+    // air beyond 2R before a concave face, or a ray in the glass more than 2R
+    // behind a convex one) first crosses the far half, which is not drawn;
+    // reading the side there reverses it and swaps n1 and n2.
     let contact = literal.get(String(inputs.origin ?? inputs.point)) ?? vertex;
     if (!literal.has(String(inputs.origin ?? inputs.point)) && ray.start) {
+      const start = ray.start;
       const length = Math.hypot(ray.direction.x, ray.direction.y);
       const d = { x: ray.direction.x / length, y: ray.direction.y / length };
-      const fx = ray.start.x - center.x;
-      const fy = ray.start.y - center.y;
+      const fx = start.x - center.x;
+      const fy = start.y - center.y;
       const b = fx * d.x + fy * d.y;
       const disc = b * b - (fx * fx + fy * fy - radius * radius);
       if (disc >= 0) {
-        const t = [-b - Math.sqrt(disc), -b + Math.sqrt(disc)].find((value) => value > 1e-9 * radius);
-        if (t !== undefined) contact = { x: ray.start.x + d.x * t, y: ray.start.y + d.y * t };
+        const at = (t: number) => ({ x: start.x + d.x * t, y: start.y + d.y * t });
+        const onFace = (p: RefractionPoint) => (p.x - center.x) * (vertex.x - center.x) + (p.y - center.y) * (vertex.y - center.y) > 0;
+        const t = [-b - Math.sqrt(disc), -b + Math.sqrt(disc)].find((value) => value > 1e-9 * radius && onFace(at(value)));
+        if (t !== undefined) contact = at(t);
       }
     }
     const outward = ray.direction.x * (contact.x - center.x) + ray.direction.y * (contact.y - center.y);
