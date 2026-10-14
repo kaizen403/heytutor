@@ -5020,37 +5020,25 @@ const prismMinDeviationPlanner = JSON.parse(
     "utf8",
   ),
 ) as Record<string, unknown>;
+// This recorded planner prism puts both refract_at sources on the glass side
+// of their faces: the incident ray enters from beyond the second face and
+// crosses the glass to reach the first, and the emergent ray runs back through
+// the glass. A light path may not cross an optical element before its contact,
+// so the scene must fail closed. A correct chained prism path is covered by
+// verify-ray-optics-paths.
 const prismValidated = validateSceneDocument(pruneDeadSceneEntities(prismMinDeviationPlanner));
 const prismCompiled = prismValidated.document
   ? compileSceneDocument(prismValidated.document)
   : null;
-if (!prismValidated.document || !prismCompiled?.ok || !prismCompiled.renderScene) {
-  throw new Error(`prism minimum-deviation planner scene did not compile: ${JSON.stringify({
+if (
+  !prismValidated.document ||
+  prismCompiled?.ok ||
+  !prismCompiled?.report.issues.some((issue) => issue.code === "incident_path_crosses_element")
+) {
+  throw new Error(`prism planner scene with its incident ray through the glass must fail closed: ${JSON.stringify({
     validation: prismValidated.report.issues,
-    compile: prismCompiled?.report.issues,
+    compile: prismCompiled?.report.issues.filter((issue) => issue.severity === "fatal"),
   })}`);
-}
-const prismInternal = prismCompiled.renderScene.primitives.find((primitive) =>
-  primitive.entityId === "internal_ray"
-);
-if (!prismInternal || prismInternal.points.length < 2) {
-  throw new Error("prism internal ray was not rendered");
-}
-const prismInternalSpan = Math.hypot(
-  prismInternal.points[0]!.x - prismInternal.points.at(-1)!.x,
-  prismInternal.points[0]!.y - prismInternal.points.at(-1)!.y,
-);
-if (prismInternalSpan < 40) {
-  throw new Error(`prism internal ray collapsed: ${JSON.stringify(prismInternal.points)}`);
-}
-const prismIncident = prismCompiled.renderScene.primitives.find((primitive) =>
-  primitive.entityId === "incident_ray"
-);
-const prismEmergent = prismCompiled.renderScene.primitives.find((primitive) =>
-  primitive.entityId === "emergent_ray"
-);
-if (!prismIncident || !prismEmergent) {
-  throw new Error("prism ray path is missing an incident or emergent ray");
 }
 
 const hingedRodTwoPositions = {
