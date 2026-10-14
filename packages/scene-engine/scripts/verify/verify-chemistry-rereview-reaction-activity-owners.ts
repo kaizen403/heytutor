@@ -1,5 +1,6 @@
 /** Public source regressions: reaction operators never supply ion activities. */
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { buildElectrochemScene, cellEmf, parseCellNotation } from "../../src/chemistry/electrochemistry";
 import { compileSceneDocument } from "../../src/compile/compiler";
@@ -483,6 +484,72 @@ const asciiArrowRefused = [
 ] as const;
 for (const [id, question] of asciiArrowRefused) check(id, question, () => declined(question));
 // END ASCII ARROW OWNERS: retain the original125 cases and assertions whole.
+
+// BEGIN PUBLIC #137 P1: supported ASCII equilibrium half-reaction owners.
+const equilibriumArrowRows = [
+  {
+    id: "P1-EQUILIBRIUM-ARROW-EXACT",
+    question: "Half reaction: Zn2+ + 2e- <=> Zn, E° = -0.76 V; Half reaction: Cu2+ + 2e- <=> Cu, E° = 0.34 V. Draw the galvanic cell.",
+    questionSha256: "3f145ddce29efc4702cb155952377bda83a8d304337ee84f1667fe553f2c8e0f", refuse: false,
+  },
+  {
+    id: "P1-EQUILIBRIUM-ARROW-PHASES",
+    question: "Draw the galvanic cell from these half reactions: Zn2+(aq) + 2e- <=> Zn(s), E° = -0.76 V; Cu2+(aq) + 2e- <=> Cu(s), E° = 0.34 V.",
+    questionSha256: "79c95d8aed9308ce9c0409b3d7d1a0cac69068e606da67bae064bbbe6356f4ee", refuse: false,
+  },
+  {
+    id: "P1-EQUILIBRIUM-ARROW-REORDERED",
+    question: "Half reaction: Cu2+ + 2e- <=> Cu, E° = 0.34 V; Half reaction: Zn2+ + 2e- <=> Zn, E° = -0.76 V. Sketch the galvanic cell.",
+    questionSha256: "093498ebf07b0c98b7b95dd3474136421a56c5d6f88bc4a340cafe278204aed7", refuse: false,
+  },
+  {
+    id: "P1-EQUILIBRIUM-ARROW-UNIT-COEFFICIENTS",
+    question: "Half reaction: 1 Zn2+ + 2e- <=> 1 Zn, E° = -0.76 V; Half reaction: 1 Cu2+ + 2e- <=> 1 Cu, E° = 0.34 V. Draw the galvanic cell.",
+    questionSha256: "da40e299e1b39db8b2e11cafa4c1eb651bbdcc2355826a8b368a8571c9529e08", refuse: false,
+  },
+  {
+    id: "P1-EQUILIBRIUM-ARROW-UNBALANCED-CONTROL",
+    question: "Half reaction: Zn2+ + 2e- <=> Zn, E° = -0.76 V; Half reaction: Cu2+ + e- <=> Cu, E° = 0.34 V. Draw the galvanic cell.",
+    questionSha256: "6e9905091c70b2f7445f7f6c86f8d4d0cc93afac6506fcd1a5c7784c97132661", refuse: true,
+  },
+] as const;
+for (const row of equilibriumArrowRows) check(row.id, row.question, () => {
+  assert.equal(createHash("sha256").update(row.question).digest("hex"), row.questionSha256);
+  if (row.refuse) { declined(row.question); return; }
+  const spec = parseCellNotation(row.question);
+  assert.ok(spec, "Complete supported <=> half reactions must retain their cell");
+  assert.equal(spec.anode.couple, "Zn2+/Zn");
+  assert.equal(spec.cathode.couple, "Cu2+/Cu");
+  near(spec.anode.e0, -0.76); near(spec.cathode.e0, 0.34);
+  assert.equal(spec.anode.potentialSource, "stem");
+  assert.equal(spec.cathode.potentialSource, "stem");
+  assert.equal(spec.statedE0, undefined, "Individual electrode potentials do not state the whole-cell emf");
+  assert.equal(spec.statedE, undefined);
+  assert.deepEqual(spec.anode.concentrations, {});
+  assert.deepEqual(spec.cathode.concentrations, {});
+  const emf = cellEmf(spec); assert.ok(emf);
+  // Independent reduction-potential difference: 0.34 - (-0.76) = 1.10 V; n = 2.
+  near(emf.e0, 1.1); near(emf.n, 2);
+  assert.equal(emf.e, null); assert.equal(emf.q, undefined);
+  const ordinary = synthesizeFamilyScene({question: row.question});
+  assert.ok(ordinary?.renderScene, "Ordinary family path must compile the supported cell");
+  assert.equal(ordinary.family, "chem_electrochem");
+  for (const document of [buildElectrochemScene(row.question, [], false), buildElectrochemScene(row.question, [], true), ordinary.document]) {
+    const scene = compiled(document);
+    assert.equal(scene.source.question, row.question);
+    assert.equal(scene.source.chemistryFamily, "chem_electrochem");
+    quantities(scene, false);
+    const valid = validateSceneDocument(pruneDeadSceneEntities(scene as unknown as Record<string, unknown>));
+    assert.ok(valid.document);
+    const rendered = compileSceneDocument(valid.document);
+    assert.ok(rendered.ok && rendered.renderScene);
+    const labels = rendered.renderScene.primitives.filter(mark => mark.kind === "label").map(mark => mark.text);
+    for (const label of ["Zn", "Cu", "anode (-)", "cathode (+)", "salt bridge"])
+      assert.ok(labels.includes(label), `Compiled cell label missing: ${label}`);
+    assert.ok(labels.some(label => /^E°\s*=\s*1\.10\s+V$/.test(label ?? "")), "Compiled standard cell emf missing");
+  }
+});
+// END PUBLIC #137 P1: supported ASCII equilibrium half-reaction owners.
 
 const summary = {total: rows.length, passed: rows.filter(row => row.passed).length, failed: rows.filter(row => !row.passed).length, rows};
 const outIndex = process.argv.indexOf("--out");

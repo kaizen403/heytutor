@@ -8,7 +8,7 @@ import { compileSceneDocument } from "../../src/compile/compiler";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../../src/document/validation";
 import type { SceneDocument } from "../../src/types";
 
-interface Row { id: string; question: string; questionSha256: string; kind: "interval" | "decline" | "temperature" }
+interface Row { id: string; question: string; questionSha256: string; kind: "interval" | "decline" | "temperature" | "initial"; a0?: number; k?: number; timeUnit?: string }
 const ROWS: readonly Row[] = [
   {
     "id": "legacy-zero-order-reaction-subject",
@@ -147,6 +147,37 @@ const ROWS: readonly Row[] = [
     "question": "The rate constant doubles as temperature increases from 300 K to 310 K. Draw ln k vs 1/T and find Ea.",
     "kind": "temperature",
     "questionSha256": "1a4dfdd0e49e2143b5434820ccb1e0b9efcd4e6f2f679224a8dc09ff09f8d077"
+  },
+  // Public #137 P1 plus fresh source-owned named-reactant declarations.
+  {
+    "id": "P1-NAMED-INITIAL-EXACT",
+    "question": "A first order reaction has initial concentration of A is 2 M. Its rate constant is 0.0231 min^-1. Draw the decay curve.",
+    "kind": "initial", "a0": 2, "k": 0.0231, "timeUnit": "min",
+    "questionSha256": "64165739c33235c00223216d0bf202a44ec9102df8d8f0e2518eceec1d42d5e0"
+  },
+  {
+    "id": "P1-NAMED-INITIAL-A",
+    "question": "For a first order reaction, the initial concentration of A is 3 M and k = 0.015 min^-1. Plot [A] against time.",
+    "kind": "initial", "a0": 3, "k": 0.015, "timeUnit": "min",
+    "questionSha256": "f7f0801c415f76e32202a2eb5f5941b3ec4b91befd55c1d1de4e6e871b81b111"
+  },
+  {
+    "id": "P1-NAMED-INITIAL-BRACKET-A",
+    "question": "A first order reaction has initial concentration of [A] = 0.8 mol/L. The rate constant is 0.02 s^-1. Draw the concentration-time curve.",
+    "kind": "initial", "a0": 0.8, "k": 0.02, "timeUnit": "s",
+    "questionSha256": "f91dfc18fe1ceb27cbb78294e2c1ba3526fb8d79c6f059aa5e54a2f467b0c05d"
+  },
+  {
+    "id": "P1-NAMED-INITIAL-REACTANT-A",
+    "question": "A first order reaction has initial concentration of reactant A = 4 M and k = 0.04 h^-1. Draw [A] versus t.",
+    "kind": "initial", "a0": 4, "k": 0.04, "timeUnit": "h",
+    "questionSha256": "f442942701814168aec35cbdae3d27f82826ec87a425db6686ced5e58a2726cc"
+  },
+  {
+    "id": "P1-NAMED-INITIAL-UNREAD-CONTROL",
+    "question": "A first order reaction has initial concentration of A is unknown. Its rate constant is 0.0231 min^-1. Draw the decay curve.",
+    "kind": "decline",
+    "questionSha256": "b697faa5cd36bb3e6d6ac5f679fbae774cab93e9eb8d41d84de421734f8f83ad"
   }
 ];
 
@@ -204,6 +235,25 @@ for (const row of ROWS) {
         nearRaw(solution.Ea, independentEa);
         stored(scene, independentEa, ["J/mol"]);
         checkedScene(scene, row.question);
+      } else if (row.kind === "initial") {
+        assert.ok(spec && scene, "Complete named-reactant initial concentration must reach the decay figure");
+        assert.ok(row.a0 !== undefined && row.k !== undefined && row.timeUnit !== undefined);
+        assert.equal(spec.order, 1);
+        nearRaw(spec.a0, row.a0);
+        assert.equal(spec.concUnit, "M", "mol/L and M declarations normalize to molarity");
+        nearRaw(spec.k, row.k);
+        assert.equal(spec.timeUnit, row.timeUnit);
+        const solution = solveKinetics(spec);
+        // Independent first-order law: A(t) = A0*exp(-k*t), so tHalf = ln(2)/k.
+        const halfLife = Math.LN2 / row.k;
+        nearRaw(solution.k, row.k);
+        nearRaw(solution.tHalf, halfLife);
+        stored(scene, row.k, [`1/${row.timeUnit}`]);
+        stored(scene, halfLife, [row.timeUnit]);
+        const rendered = checkedScene(scene, row.question);
+        assert.ok(rendered.labels.includes("[A]/[A]_0"), "Compiled normalized concentration axis missing");
+        assert.ok(rendered.labels.some(text => text.startsWith("t_1/2=") && text.endsWith(row.timeUnit!)),
+          "Compiled half-life mark must carry the source time unit");
       } else {
         assert.ok(spec && scene, "Complete source-owned concentration request must reach the figure");
         assert.equal(spec.order, 0);
