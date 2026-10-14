@@ -840,7 +840,8 @@ expectDrawnAsPlanner("G10", "the convex mirror with axis {start: P, direction: [
   const proof = explainPlannerOpticsProof(qMirror, wrongSense);
   check("G10", proof.proof === "unproven" && /is not drawn concave/.test(proof.reason),
     `a direction-axis mirror drawn convex on a concave stem must fail on its sense; got ${proof.proof}: ${proof.reason}`);
-  expectNeverPlanner("G10", "a direction-axis mirror drawn convex on a concave stem", qMirror, mirrorPlan, wrongSense);
+  // The engine now reads the direction axis in the focal agreement check, so it refuses this figure itself.
+  expectEngineRefuses("G10", "a direction-axis mirror drawn convex on a concave stem", qMirror, mirrorPlan, wrongSense);
 }
 
 // ---- G11: the element kind comes from the stem only when the stem names it or signs it ----
