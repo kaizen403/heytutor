@@ -788,6 +788,11 @@ function opticsProofFailure(question: string, match: OpticsStemMatch, document: 
       opticsFirst(construction.inputs, construction.operator === "vector" ? OPTICS_LINE_START_KEYS : OPTICS_START_KEYS) === from &&
       opticsFirst(construction.inputs, OPTICS_END_KEYS) === to));
   if (arrows.some((arrow) => !arrow)) return "object or image arrow is not drawn on the gaussian_image anchors";
+  // The compiler draws a vector's direction in place of its end, so such an arrow is not on the tip it names.
+  const redirected = arrows.find((arrow) => opticsRedirected(arrow!));
+  if (redirected) {
+    return `object or image arrow ${redirected.outputs[0] ?? redirected.id} carries a direction, which the compiler draws in place of its end`;
+  }
   // P8: two or more rays the engine traced from this image tip (principal_rays), or a
   // fatal convergence of hand-drawn rays at the engine image tip. The compiler passes a
   // converges with expected false when the rays miss, so only an affirmative one proves.
@@ -883,7 +888,8 @@ function opticsProofFailure(question: string, match: OpticsStemMatch, document: 
  * P11. Two traced or converging rays prove the image; every other path P7 classes as light (each
  * segment, ray, vector and polyline other than the two arrows, a line named as a ray or extension,
  * a converging line) must be one too, or the figure draws a ray no element forms. A polyline is
- * read as the segments between its points, each held to these rules. A path is light when it is
+ * read as the segments between its points, each held to these rules, and a vector carrying a
+ * `direction` is refused, since the compiler draws that instead of its end. A path is light when it is
  * - on the principal axis (the axial ray; also the axis and distances drawn along it);
  * - on a lens, on the chief line from the object tip through the optical centre, from the object
  *   tip onward (back to a virtual image when there is one);
@@ -976,12 +982,23 @@ function opticsLightPathFailure(
   for (const path of paths) {
     const id = path.outputs[0] ?? path.id;
     const name = converging.has(id) ? `converging line ${id}` : `ray ${id}`;
+    // A vector with a direction is drawn along it, not to the end the rules below read.
+    if (opticsRedirected(path)) return `${name} carries a direction, which the compiler draws in place of its end`;
     for (const piece of piecesOf(path)) {
       const failure = pieceFailure(piece, name, id);
       if (failure) return failure;
     }
   }
   return null;
+}
+
+/**
+ * A vector whose `direction` input the compiler draws instead of its end (start plus the unit
+ * direction times the start to end span, or times `length`). A ray or line with an end ignores a
+ * direction, and a segment has none.
+ */
+function opticsRedirected(path: OpticsConstruction): boolean {
+  return path.operator === "vector" && path.inputs.direction !== undefined;
 }
 
 /** One straight piece of a drawn path, with the operator whose extent and direction it has. */

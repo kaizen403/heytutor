@@ -98,6 +98,9 @@
  * one from the object tip straight to F2, and a hand parallel ray drawn as one polyline bent back
  * to F1 stay unproven and never draw; so does a concave mirror's polyline from the object base to
  * the image tip. Traced rays alone, and a correct hand ray drawn as one polyline, still draw.
+ * G23: the compiler draws a vector's direction in place of its end. An object or image arrow kept
+ * on the engine anchors with a direction, and a hand incident vector with one, stay unproven and
+ * never draw; the same arrows and vector without a direction still draw.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -1447,7 +1450,41 @@ function named(name: string, run: () => void): void {
   }
 }
 
-for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21", "G22"]) {
+// ---- G23: a direction redraws a vector off its end, so a proof-owned vector carries none ----
+{
+  const tracedLens = traced(goodLensReal, ["parallel", "focal", "central"]);
+  const redirected = (id: "c_object" | "c_image", direction: [number, number]): Doc => {
+    const document = structuredClone(tracedLens);
+    document.constructions.find((construction) => construction.id === id)!.inputs.direction = direction;
+    return document;
+  };
+  for (const [name, document, reason] of [
+    ["an object arrow kept on ob and ot with direction [1, 0] (the compiler lays it flat along the axis)", redirected("c_object", [1, 0]),
+      /^object or image arrow object carries a direction, which the compiler draws in place of its end$/],
+    ["an image arrow kept on ib and it with direction [0, 1] (the compiler draws the inverted image upright)", redirected("c_image", [0, 1]),
+      /^object or image arrow image carries a direction, which the compiler draws in place of its end$/],
+  ] as const) {
+    expectUnproven("G23", name, qLensReal, document, reason);
+    expectNeverPlanner("G23", name, qLensReal, lensRealPlan, document);
+  }
+  // A hand parallel ray whose incident vector ot to S is redrawn up and away by a direction.
+  const handVector = (extra?: Record<string, unknown>) =>
+    lensWith([{ id: "x1", operator: "vector", points: ["ot", "S"], ...(extra ? { extra } : {}) }, ["x2", "ray", "S", "F2"]], ["focal", "central"]);
+  expectUnproven("G23", "a hand incident vector ot to S with direction [1, 1]", qTall, handVector({ direction: [1, 1] }),
+    /^ray x1 carries a direction, which the compiler draws in place of its end$/);
+  expectNeverPlanner("G23", "a hand incident vector ot to S with direction [1, 1]", qTall, tallPlan, handVector({ direction: [1, 1] }));
+  // Controls: the arrows and the hand vector on their ends prove and draw.
+  for (const [name, question, turnPlan, document] of [
+    ["the traced lens with a correct object arrow (start ob, end ot)", qLensReal, lensRealPlan, tracedLens],
+    ["a hand incident vector ot to S, then a ray on through F2, beside traced focal and central rays", qTall, tallPlan, handVector()],
+  ] as const) {
+    const result = explainPlannerOpticsProof(question, document);
+    check("G23", result.proof === "proven", `${name} must be proven; got ${result.proof}: ${result.reason}`);
+    expectDrawnAsPlanner("G23", name, question, turnPlan, document);
+  }
+}
+
+for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21", "G22", "G23"]) {
   console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 }
 for (const [name, failed] of namedCases) console.log(`  ${name}: ${failed ? `FAIL (${failed} checks)` : "pass"}`);
