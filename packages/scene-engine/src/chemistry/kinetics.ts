@@ -752,6 +752,13 @@ function readConcentrationsAsked(stem: string): number[] | null {
     const firstRead = firstSpan ? readChemistryLiteral({ question: stem, scalarSpan: firstSpan, dimension: "concentration" }) : null;
     const secondRead = secondSpan ? readChemistryLiteral({ question: stem, scalarSpan: secondSpan, dimension: "concentration" }) : null;
     const precedingClause = stem.slice(0, match.index).split(/\.(?!\d)|[;\n]/).at(-1) ?? "";
+    const rangeSubject = [...precedingClause.matchAll(/\bconcentration\b|\[\s*A\s*\]|\btemperature\b/ig)].at(-1)?.[0];
+    if (/^temperature$/i.test(rangeSubject ?? "") && firstSpan && secondSpan) {
+      const firstTemperature = readChemistryLiteral({ question: stem, scalarSpan: firstSpan, dimension: "temperature" });
+      const secondTemperature = readChemistryLiteral({ question: stem, scalarSpan: secondSpan, dimension: "temperature" });
+      if (firstTemperature.ok && secondTemperature.ok
+        && stem.slice(firstTemperature.reading.source.span.end, firstPart[1]).trim() === "") continue;
+    }
     const owned = /\bconcentration\b|\[\s*A\s*\]/i.test(precedingClause) || firstRead?.ok || secondRead?.ok;
     // A temperature/time range is unrelated. An unread concentration request
     // cannot vanish and leave a generic plot in its place.
