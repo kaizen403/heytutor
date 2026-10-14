@@ -399,6 +399,43 @@ function runCases(section: string, cases: ReadonlyArray<readonly [string, () => 
   ]);
 }
 
+// 6f. Equal numbers in different units are separate givens, and one label shows only the one its unit or symbol names.
+{
+  const capacitor = buildCompletenessChecklist(plan({ givens: [given("V", "V", 9, "V"), given("C", "C", 9, "μF")] }), null,
+    "A 9 V battery charges a 9 μF capacitor. Sketch the circuit.");
+  const resistor = buildCompletenessChecklist(plan({ givens: [given("V", "V", 24, "V"), given("R", "R", 24, "Ω")] }), null,
+    "A 24 V battery drives a current through a 24 Ω resistor. Sketch the circuit.");
+  const missingWith = (checklist: CompletenessChecklist, ...labels: string[]) => signatures(missingOf(checklist, doc({}), labels).missing);
+  runCases("6f equal numbers", [
+    ["9 V and 9 μF are two items", () => assert.deepEqual(signatures(capacitor.items), ["given_value:V", "given_value:C"])],
+    ["a figure with only 9 V misses the capacitor value", () => assert.deepEqual(missingWith(capacitor, "9 V"), ["given_value:C"])],
+    ["a figure with only 9 μF misses the battery value", () => assert.deepEqual(missingWith(capacitor, "C = 9 μF"), ["given_value:V"])],
+    ["one bare 9 shows only one of them", () => assert.deepEqual(missingWith(capacitor, "9"), ["given_value:C"])],
+    ["24 V and 24 Ω: a figure with only 24 V misses the resistance", () => {
+      assert.deepEqual(signatures(resistor.items), ["given_value:V", "given_value:R"]);
+      assert.deepEqual(missingWith(resistor, "24 V"), ["given_value:R"]);
+    }],
+    ["a 30 N force at 30° keeps both the force and the angle", () => {
+      const pull = buildCompletenessChecklist(plan({ givens: [given("F", "F", 30, "N"), given("theta", "θ", 30, "°")] }), null,
+        "A 30 N force pulls a sledge at 30° above the horizontal. Sketch the forces.");
+      assert.deepEqual(signatures(pull.items).filter((signature) => !signature.startsWith("vector")), ["given_value:F", "stated_angle:θ"]);
+    }],
+    // Controls: these held before the fix too.
+    ["control: 9 V and 9 μF labels show both", () => assert.deepEqual(missingWith(capacitor, "9 V", "9 μF"), [])],
+    ["control: labels bound by symbol (V = 9, C = 9) show both", () => assert.deepEqual(missingWith(capacitor, "V = 9", "C = 9"), [])],
+    ["control: two bare labels on a graph show two givens with the same number", () => {
+      const graph = buildCompletenessChecklist(plan({ givens: [given("t1", "t₁", 10, "s"), given("v2", "v₂", 10, "m/s")] }), null,
+        "A car moves at constant speed for 10 s, then reaches 10 m/s. Sketch the velocity time graph.");
+      assert.deepEqual(missingWith(graph, "(10, 6)", "(14, 10)").filter((signature) => signature.startsWith("given")), []);
+    }],
+    ["control: one speed listed twice is one item", () => {
+      const twice = buildCompletenessChecklist(plan({ givens: [given("v", "v", 20, "m/s"), given("u", "u", 20, "m/s")] }), null,
+        "A ball is thrown at 20 m/s. Sketch its path.");
+      assert.deepEqual(signatures(twice.items).filter((signature) => signature.startsWith("given")), ["given_value:v"]);
+    }],
+  ]);
+}
+
 if (caseFailures.length > 0) {
   throw new assert.AssertionError({ message: `${caseFailures.length} named cases fail\n  ${caseFailures.join("\n  ")}` });
 }

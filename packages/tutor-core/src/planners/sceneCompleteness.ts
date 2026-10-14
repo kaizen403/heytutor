@@ -47,9 +47,12 @@ export type CompletenessMatcher =
   /**
    * A visible text carries the value, within 1%, sign ignored. A unit prefix
    * scales it only when the text writes one with the given's base unit ("1 mm"
-   * for 0.001 m); a bare number is compared as written.
+   * for 0.001 m); a bare number is compared as written, and a number with
+   * another known unit never counts. `shared`: another given states the same
+   * number, so each needs its own label (one with its unit or symbol, or a
+   * bare number no other given took).
    */
-  | { type: "value"; value: number; unit?: string }
+  | { type: "value"; value: number; unit?: string; shared?: boolean }
   /** An angle mark exists (enough marks for every angle item when `counted`), carrying the value when one is known. */
   | { type: "angle"; value: number | null; counted: boolean }
   | { type: "right_angle" }
@@ -240,17 +243,55 @@ function parseUnit(raw: string | null | undefined): { base: string; power: numbe
   return { base: rest, power: prefix * (rest === "m²" ? 2 : rest === "m³" ? 3 : 1) };
 }
 
-/** The factor that turns a written number into the given's unit: a power of ten only when both units share a base. */
-function unitFactor(written: string | null, givenUnit: string | null | undefined): number {
+/**
+ * The factor that turns a written number into the given's unit: a power of ten
+ * when both units share a base, 1 when either unit is unknown, and null when
+ * both are known and differ ("9 V" never shows 9 μF).
+ */
+function unitFactor(written: string | null, givenUnit: string | null | undefined): number | null {
   const shown = parseUnit(written);
   const wanted = parseUnit(givenUnit);
-  if (!shown || !wanted || shown.base !== wanted.base) return 1;
+  if (!shown || !wanted) return 1;
+  if (shown.base !== wanted.base) return null;
   return 10 ** (shown.power - wanted.power);
 }
 
 /** A given value among written numbers, scaled only by a unit prefix the text writes ("1 mm" for 0.001 m). */
 function givenValueIn(value: number, unit: string | null | undefined, written: readonly WrittenNumber[]): boolean {
-  return written.some((candidate) => close(candidate.value * unitFactor(candidate.unit, unit), value));
+  return written.some((candidate) => {
+    const factor = unitFactor(candidate.unit, unit);
+    return factor !== null && close(candidate.value * factor, value);
+  });
+}
+
+const symbolKey = (text: string): string => subscriptsToDigits(norm(text)).replace(/_/g, "");
+
+/** The given's symbol written as a token in a text ("C = 9" carries C, "9 V" does not carry C). */
+function symbolIn(symbol: string | undefined, text: string): boolean {
+  const key = symbol ? symbolKey(symbol).trim() : "";
+  if (!key) return false;
+  const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?<![A-Za-z0-9])${escaped}(?![A-Za-z0-9])`).test(symbolKey(text));
+}
+
+/** A known unit, as the key that tells two quantities apart; null when the unit is missing or unknown. */
+function unitBase(unit: string | null | undefined): string | null {
+  return parseUnit(unit)?.base ?? null;
+}
+
+/** A given as the checklist compares it with another: its value in base units, the value as stated, and its unit base. */
+interface SeenQuantity {
+  value: number;
+  stated: number;
+  base: string | null;
+}
+
+/** The same quantity listed twice: equal values with the same unit base, or equal stated values when a unit is unknown. */
+function sameQuantity(first: SeenQuantity, second: SeenQuantity): boolean {
+  if (first.base !== null && second.base !== null) {
+    return first.base === second.base && close(first.value, second.value, SAME_VALUE);
+  }
+  return close(first.stated, second.stated, SAME_VALUE);
 }
 
 /** Python's "%g": six significant digits, no trailing zeros. */
@@ -618,7 +659,7 @@ export function buildCompletenessChecklist(
   const stemWritten = writtenNumbers(stemWithoutEquations);
   const stemNumbers = stemWritten.map((written) => written.value);
   const items: CompletenessItem[] = [];
-  const seenValues: number[] = [];
+  const seen: SeenQuantity[] = [];
   const givens = asQuantities(plan?.givens);
   const unknowns = asQuantities(plan?.unknowns);
 
@@ -637,9 +678,13 @@ export function buildCompletenessChecklist(
     // The request says degrees and the matcher compares degrees (a radian label still matches), so a
     // radian given is converted first, as the asked-angle path does.
     const degrees = valueClass === "angle" ? angleInDegrees(value, unit) : null;
-    const seenValue = degrees ?? value;
-    if (seenValues.some((seen) => close(seenValue, seen, SAME_VALUE))) continue;
-    seenValues.push(seenValue);
+    // Two givens are one item only when they are the same quantity: 9 V and 9 μF stay two.
+    const unitParts = parseUnit(unit);
+    const quantity: SeenQuantity = degrees !== null
+      ? { value: degrees, stated: degrees, base: "angle" }
+      : { value: value * 10 ** (unitParts?.power ?? 0), stated: value, base: unitParts?.base ?? null };
+    if (seen.some((other) => sameQuantity(quantity, other))) continue;
+    seen.push(quantity);
     if (degrees !== null) {
       const shown = degrees === value ? value : Math.round(degrees * 10) / 10;
       items.push({
@@ -658,13 +703,19 @@ export function buildCompletenessChecklist(
   // 1b. Degree values the stem writes and the plan missed.
   for (const match of stemWithoutEquations.matchAll(DEGREE_RE)) {
     const value = Number(match[1]);
-    if (seenValues.some((seen) => close(value, seen, SAME_VALUE))) continue;
-    seenValues.push(value);
+    const quantity: SeenQuantity = { value, stated: value, base: "angle" };
+    if (seen.some((other) => sameQuantity(quantity, other))) continue;
+    seen.push(quantity);
     items.push({
       kind: "angle", rule: "stated_angle", key: `${value}deg`, source: "stem",
       text: `mark the ${formatNumber(value)}° angle with an angle_mark and label it`,
       matcher: { type: "angle", value, counted: true },
     });
+  }
+  // Givens that state the same number in different units (9 V and 9 μF): a label must say which one it shows.
+  const valueItems = items.flatMap((item) => item.matcher.type === "value" ? [item.matcher] : []);
+  for (const matcher of valueItems) {
+    if (valueItems.some((other) => other !== matcher && close(other.value, matcher.value))) matcher.shared = true;
   }
   // 1c. Asked angles: plan unknowns with an angle unit, or a Greek angle symbol when the stem says angle.
   const derived = new Map<string, PlanQuantity>();
@@ -818,7 +869,8 @@ type CompiledSceneLike = CompletenessCompiledScene;
 
 interface SceneView {
   texts: string[];
-  written: WrittenNumber[];
+  /** Every written number with the text it is written in. */
+  written: Array<WrittenNumber & { text: string }>;
   entityKinds: string[];
   operators: string[];
   /** [entity kind or "op:operator", its id/role/label or id/outputs words] */
@@ -994,7 +1046,7 @@ function sceneView(document: SceneDocumentLike, compiled?: CompiledSceneLike | n
   ];
   return {
     texts,
-    written: texts.flatMap(writtenNumbers),
+    written: texts.flatMap((text) => writtenNumbers(text).map((written) => ({ ...written, text }))),
     entityKinds: entities.map((entity) => textOf(entity.kind)),
     operators: constructions.map((construction) => textOf(construction.operator)),
     semantics,
@@ -1004,11 +1056,65 @@ function sceneView(document: SceneDocumentLike, compiled?: CompiledSceneLike | n
   };
 }
 
-function satisfied(item: CompletenessItem, view: SceneView, countedAngleItems: number): boolean {
+type ValueMatcher = Extract<CompletenessMatcher, { type: "value" }>;
+const valueMatcher = (item: CompletenessItem): ValueMatcher | null => item.matcher.type === "value" ? item.matcher : null;
+
+/**
+ * Givens that state the same number (9 V and 9 μF) share the labels out, so
+ * one label never shows two of them. A label with a given's unit base or
+ * symbol can only go to that given; a bare number to any of them, in
+ * checklist order. Each distinct label text counts once (a document label
+ * and its compiled copy are one label).
+ */
+function sharedValuesShown(items: readonly CompletenessItem[], view: SceneView): Set<CompletenessItem> {
+  const shown = new Set<CompletenessItem>();
+  const groups: CompletenessItem[][] = [];
+  for (const item of items) {
+    const matcher = valueMatcher(item);
+    if (!matcher?.shared) continue;
+    const group = groups.find((members) => close(matcher.value, valueMatcher(members[0]!)!.value));
+    if (group) group.push(item);
+    else groups.push([item]);
+  }
+  for (const members of groups) {
+    const labels = new Map<string, CompletenessItem[]>();
+    const counters = new Map<string, number>();
+    for (const written of view.written) {
+      const seenInText = counters.get(written.text) ?? 0;
+      counters.set(written.text, seenInText + 1);
+      const fits = members.filter((member) => givenValueIn(valueMatcher(member)!.value, valueMatcher(member)!.unit, [written]));
+      const bound = fits.filter((member) => {
+        const base = unitBase(valueMatcher(member)!.unit);
+        return (base !== null && unitBase(written.unit) === base) || symbolIn(member.symbol, written.text);
+      });
+      if (fits.length > 0) labels.set(`${written.text}\u0000${seenInText}`, bound.length > 0 ? bound : fits);
+    }
+    // One label per given: a small bipartite matching, members in checklist order.
+    const holder = new Map<string, CompletenessItem>();
+    const place = (member: CompletenessItem, tried: Set<string>): boolean => {
+      for (const [label, fits] of labels) {
+        if (!fits.includes(member) || tried.has(label)) continue;
+        tried.add(label);
+        const current = holder.get(label);
+        if (!current || place(current, tried)) {
+          holder.set(label, member);
+          return true;
+        }
+      }
+      return false;
+    };
+    for (const member of members) place(member, new Set());
+    for (const member of holder.values()) shown.add(member);
+  }
+  return shown;
+}
+
+function satisfied(item: CompletenessItem, view: SceneView, countedAngleItems: number, sharedShown: ReadonlySet<CompletenessItem>): boolean {
   const { matcher } = item;
   switch (matcher.type) {
     case "value":
-      return givenValueIn(matcher.value, matcher.unit, view.written);
+      // Another given states the same number: the labels are shared out, one label per given.
+      return matcher.shared ? sharedShown.has(item) : givenValueIn(matcher.value, matcher.unit, view.written);
     case "angle": {
       let marks = view.entityKinds.filter((kind) => ANGLE_MARK_KINDS.has(kind)).length;
       if (marks === 0) marks = view.operators.filter((operator) => ANGLE_MARK_OPERATORS.has(operator)).length;
@@ -1077,8 +1183,9 @@ export function checkSceneCompleteness(
   const view = sceneView(sceneDocument, compiled);
   // Prototype parity: every angle item (given, stated or asked) needs its own mark.
   const countedAngleItems = items.filter((item) => item.rule === "stated_angle" || item.rule === "asked_angle").length;
+  const sharedShown = sharedValuesShown(items, view);
   const missing = items
-    .filter((item) => !satisfied(item, view, countedAngleItems))
+    .filter((item) => !satisfied(item, view, countedAngleItems, sharedShown))
     .map((item, index) => ({ item, index }))
     .sort((first, second) => RULE_PRIORITY[first.item.rule] - RULE_PRIORITY[second.item.rule] || first.index - second.index)
     .map(({ item }) => item);
