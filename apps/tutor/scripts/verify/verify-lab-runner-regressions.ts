@@ -82,6 +82,23 @@ check("identical execution settings can reuse a saved row", () => {
   );
 });
 
+check("resume cannot mix repair recovery switches", () => {
+  const repairSaved = [{ ...saved[0]!, executionConfig: { ...saved[0]!.executionConfig, sceneRepairRecoveryEnabled: false } }];
+  assert.throws(() => selectResumeProbes(probes, repairSaved, "current", provider,
+    { ...repairSaved[0]!.executionConfig, sceneRepairRecoveryEnabled: true }), /incompatible|execution/i);
+  assert.deepEqual(selectResumeProbes(probes, repairSaved, "current", provider, repairSaved[0]!.executionConfig), []);
+});
+
+check("resume cannot mix visual decision switches or policy versions", () => {
+  const visualSaved = [{ ...saved[0]!, executionConfig: { ...saved[0]!.executionConfig,
+    sceneVisualDecisionEnabled: false, sceneVisualDecisionPolicy: "scene-visual-decision/v1" } }];
+  assert.throws(() => selectResumeProbes(probes, visualSaved, "current", provider,
+    { ...visualSaved[0]!.executionConfig, sceneVisualDecisionEnabled: true }), /incompatible|execution/i);
+  assert.throws(() => selectResumeProbes(probes, visualSaved, "current", provider,
+    { ...visualSaved[0]!.executionConfig, sceneVisualDecisionPolicy: "other" }), /incompatible|execution/i);
+  assert.deepEqual(selectResumeProbes(probes, visualSaved, "current", provider, visualSaved[0]!.executionConfig), []);
+});
+
 check("checkpoint-only spend cannot be overwritten or ignored", () => {
   assert.throws(() => assertLabOutputReusable(true, 0, false), /paid|resume/i);
   assert.throws(() => assertLabOutputReusable(false, 1, true), /checkpoint/i);

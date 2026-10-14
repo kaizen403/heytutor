@@ -23,7 +23,7 @@ import {
   LECTURE_LAB_STANDARD_MODEL_HEADER,
   LECTURE_LAB_ZERO_RETENTION_HEADER,
 } from "../../lib/billing/flags";
-import { parseDiagramSubject, type DiagramSubject, type SubjectFamiliarity } from "@heytutor/tutor-core";
+import { SCENE_REPAIR_RECOVERY_ENABLED, SCENE_VISUAL_DECISION_ENABLED, SCENE_VISUAL_DECISION_POLICY, parseDiagramSubject, type DiagramSubject, type SubjectFamiliarity } from "@heytutor/tutor-core";
 import {
   assertEvaluationCostAllowed,
   assertUniqueArtifactIds,
@@ -775,13 +775,19 @@ async function main(): Promise<void> {
   applyLectureLabHeaders(configHeaders);
   const configResponse = await fetch(`${options.origin}/api/lecture-lab/config`, { headers: configHeaders });
   if (!configResponse.ok) throw new Error("authenticated lab provider preflight failed");
-  const serverConfig = await configResponse.json() as { provider: string; deployment: string; configured: boolean; plannerOutputCap: number; teachingOutputCap: number; visualNeed?: Record<string, unknown> };
+  const serverConfig = await configResponse.json() as { provider: string; deployment: string; configured: boolean; plannerOutputCap: number; teachingOutputCap: number; visualNeed?: Record<string, unknown>; sceneRepairRecoveryEnabled?: boolean; sceneVisualDecisionEnabled?: boolean; sceneVisualDecisionPolicy?: string };
   if (!serverConfig.configured || serverConfig.provider !== providerConfig.provider || serverConfig.deployment !== providerConfig.deployment ||
     !Number.isFinite(serverConfig.plannerOutputCap) || !Number.isFinite(serverConfig.teachingOutputCap)) {
     throw new Error("server provider/deployment does not match the configured Azure lab");
   }
   if (!serverConfig.visualNeed || Object.entries(LAB_VISUAL_NEED_POLICY).some(([key, value]) => serverConfig.visualNeed?.[key] !== value)) {
     throw new Error("server visual-need policy does not match the live-matching lab");
+  }
+  if (serverConfig.sceneRepairRecoveryEnabled !== SCENE_REPAIR_RECOVERY_ENABLED) {
+    throw new Error("server repair recovery switch does not match the lab; restart both with the same setting");
+  }
+  if (serverConfig.sceneVisualDecisionEnabled !== SCENE_VISUAL_DECISION_ENABLED || serverConfig.sceneVisualDecisionPolicy !== SCENE_VISUAL_DECISION_POLICY) {
+    throw new Error("server visual decision policy does not match the lab; restart both with the same setting");
   }
   execFileSync(process.execPath, [resolve(process.cwd(), "scripts/lecture-lab/svg2png.mjs"), "--check-browser"], { stdio: "pipe" });
   const executionConfig = {
@@ -791,6 +797,9 @@ async function main(): Promise<void> {
     exampleLibraryFingerprint: labSampleFingerprint(diagramExamples),
     sceneDeclinePolicy: options.sceneDeclinePolicy, exampleExclusionFingerprint,
     visualNeedPolicy: LAB_VISUAL_NEED_POLICY,
+    sceneRepairRecoveryEnabled: SCENE_REPAIR_RECOVERY_ENABLED,
+    sceneVisualDecisionEnabled: SCENE_VISUAL_DECISION_ENABLED,
+    sceneVisualDecisionPolicy: SCENE_VISUAL_DECISION_POLICY,
     visualNeedReplayFingerprint: replayText === null ? null : labSampleFingerprint([replayText]),
     ...(options.productionStrictSubjects ? { productionStrictSubjects: options.productionStrictSubjects,
       examplePickerProfile: "live-client-4000ms-subject-shelf/v2", subjectClassification: "existing-turn-plan" } : {}),

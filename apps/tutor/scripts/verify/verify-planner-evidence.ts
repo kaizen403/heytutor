@@ -41,6 +41,15 @@ const response = {
   lane: "primary" as const,
   elapsedMs: 1,
 };
+const correlated = createPlannerEvidence();
+const requestContext = { searchId: "search-test", requestId: "repair-test", origin: "repair" as const,
+  seedRequestId: "seed-test", repairRound: 1 };
+const exactErrors = [{ code: "fixture-rule", message: "exact rule", severity: "fatal" as const,
+  path: "constructions[0].inputs", expected: "finite", actual: "bad", residual: 2, details: { bound: 1 } }];
+recordRejectedOperatorCalls(correlated, { ...response, requestContext }, { valid: false, errors: exactErrors }, "initial");
+assert.deepEqual(correlated.plannerValidations?.[0], { phase: "plan", lane: "primary", requestContext,
+  validationPass: "initial", valid: false, errors: exactErrors }, "record full exact validator report with unambiguous seed correlation");
+assert.deepEqual(correlated.rejectedOperatorCalls[0]?.requestContext, requestContext);
 const prefixed = createPlannerEvidence();
 const prefixedResponse = {
   ...response,

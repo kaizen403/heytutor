@@ -68,6 +68,33 @@ decision and the original six live/save figures plus both edited forgeries.
 
 ## Live visual-need parity (Part 14c)
 
+### Default-off recovery policies
+
+`NEXT_PUBLIC_SCENE_REPAIR_RECOVERY=1` adds bounded exact failing-node inputs to
+repair feedback. It uses one fresh fully validated candidate only after a
+settled invalid repair pair repeats the complete seed document and exact fatal
+report. Changed documents or reports retain the ordinary repair path. Historical
+later-repair rescues rule out a global never-repair-error-code blacklist. Request
+ceilings, concurrency, deadlines and all admission guards are unchanged.
+
+`NEXT_PUBLIC_SCENE_VISUAL_DECISION=1` separates family capability from a question's
+visual need. Only family-derived minimum forcing is removed; model-required,
+explicit/reference/spatial requirements and persisted required plans are kept.
+An otherwise `none` plan may become `optional` from an already completed valid
+peer with identical full authority, or an already requested full validated IR
+with source-backed typed structure. This is permission to attempt, not authority
+to render. No new IR call, wait, prompt change or validator bypass is added.
+Unavailable Jev is unknown; an explicit none vote still vetoes optional visuals.
+
+The shared resolver is exported by `@heytutor/tutor-core`. Both live and lab adopt
+the effective plan through final `applyAuthority`, before candidate validation,
+teaching and save. Authenticated preflight and resume identity record both flags
+and the visual policy version. New private records retain declared/minimum/peer
+decision evidence when enabled, plus the final post-IR requirement. Neither flag
+is enabled by default; changing it requires rebuilding any inlined client bundle
+and restarting the server and lab with matching settings. Historical missing
+peer/IR evidence does not prove recovery.
+
 Every new non-DSA lab turn calls the live `/api/visual-need` client beside the
 turn planner, with the same 3,000 ms client and 2,400 ms server limits. Numeric
 authority starts from the unmerged selected plan; Jev is merged by the shared

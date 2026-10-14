@@ -104,7 +104,7 @@ import { beginTurn, parseBillingFailureFromUnknown, rememberBillingFailure, type
 import { studentBillingMessage } from "@/lib/billing/studentCopy";
 import { buildVerifiedDiagramPresentation } from "../../lib/scene/verifiedScenePresentation";
 import { fetchVisualNeed } from "../../lib/scene/visualNeedClient";
-import { resolveSelectedVisualStatus, resolveVisualRequirement } from "../../lib/scene/visualRequirement";
+import { applyVisualDecisionToPlan, resolveSelectedVisualStatus, resolveVisualRequirement } from "../../lib/scene/visualRequirement";
 import { verifiedDiagramHasDrawableInk } from "@heytutor/drawing";
 import {
   buildDoubtTeachingPrompt,
@@ -1002,6 +1002,7 @@ export function useQuestionHandler(
             });
         let problemAuthorityPromise: Promise<ProblemAuthorityV1Response | null> | null = null;
         let visualNeedPromise: ReturnType<typeof fetchVisualNeed> | null = null;
+        let evaluatedVisualNeed: Awaited<ReturnType<typeof fetchVisualNeed>> = null;
         let diagramExampleIds: string[] = [];
         let diagramExamplePickerSettled = false;
         let diagramExamplePickerPromise: Promise<void> | null = null;
@@ -1140,7 +1141,7 @@ export function useQuestionHandler(
           } else if (plannedTurn) {
             tel.mark("planner-numeric-authority-not-needed", { reason: "no_unstated_numeric_results" });
           }
-          const evaluatedVisualNeed = await awaitCurrentTurn(visualNeedPromise, isCurrentTurn);
+          evaluatedVisualNeed = await awaitCurrentTurn(visualNeedPromise, isCurrentTurn);
           turnPlan = {
             ...turnPlan,
             visualRequirement: resolveVisualRequirement(
@@ -1148,6 +1149,7 @@ export function useQuestionHandler(
               evaluatedVisualNeed,
               questionRequiresVisual(question),
               inferSceneCapabilities(question, { turnPlan }).hasSourceProgram === true,
+              { question, turnPlan },
             ),
           };
           tutorDebug("planner", "visual need decision", {
@@ -1259,11 +1261,14 @@ export function useQuestionHandler(
           selectionOrder: (gate) => gate.diagramStrategy.selectionOrder,
           deriveGate: deriveSceneGate,
           applyAuthority: (planToReconcile, authority) => {
-            const reconciledPlan = applyDeterministicSourceAuthority(reconcileTurnPlanWithSolver(
+            const sourcePlan = applyDeterministicSourceAuthority(reconcileTurnPlanWithSolver(
               planToReconcile,
               authority.problemIR,
               authority.solverResult,
             ), authority);
+            const reconciledPlan = applyVisualDecisionToPlan({
+              question, turnPlan: sourcePlan, evaluated: evaluatedVisualNeed, problemIR: authority.problemIR,
+            });
             const refreshedAuthority = refreshSolverAuthorityForPlan(authority, reconciledPlan, question);
             const authorityAudit = refreshedAuthority.audit;
             tutorDebug("planner", "solver authority audit", {

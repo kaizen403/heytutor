@@ -38,6 +38,23 @@ export interface ScenePlannerResponse {
   elapsedMs: number;
   traceId?: string;
   strategy?: string;
+  requestContext?: ScenePlannerRequestContext;
+}
+
+/** Local correlation only; contains no question or model content. */
+export interface ScenePlannerRequestContext {
+  searchId: string;
+  requestId: string;
+  origin: "initial" | "repair" | "fresh" | "fallback";
+  seedRequestId?: string;
+  repairRound?: number;
+}
+
+export interface SceneRepairRequestEvidence {
+  requestContext?: ScenePlannerRequestContext;
+  previousStructure: Record<string, unknown>;
+  errors: readonly SceneRepairError[];
+  promptChars: number;
 }
 
 export interface ScenePlannerOptions extends ScenePlannerPromptContext {
@@ -49,11 +66,16 @@ export interface ScenePlannerOptions extends ScenePlannerPromptContext {
   /** Total plan/repair hard deadline. Defaults to sixty seconds. */
   timeoutMs?: number;
   fastMode?: boolean;
+  /** Default-off recovery experiment; every replacement still requires full validation. */
+  repairRecoveryEnabled?: boolean;
   /** Evaluation diagnostics for every HTTP attempt, including null candidates. */
   onRequestOutcome?: (outcome: ScenePlannerRequestOutcome) => void;
   /** Optional private diagnostics, including responses from discarded speculative searches. */
   onResponse?: (response: ScenePlannerResponse) => void;
   onCandidateValidation?: (response: ScenePlannerResponse, validation: SceneCandidateValidation) => void;
+  /** Private diagnostic observer; the prompt's actual bounded structure and validator report. */
+  onRepairRequest?: (request: SceneRepairRequestEvidence) => void;
+  requestContext?: ScenePlannerRequestContext;
 }
 
 export interface ScenePlannerRequestOutcome {
@@ -67,6 +89,7 @@ export interface ScenePlannerRequestOutcome {
   elapsedMs: number;
   /** Model-stated refusal, never the deterministic fallback's reason. */
   declineReason?: string | null;
+  requestContext?: ScenePlannerRequestContext;
 }
 
 export interface ScenePlannerCandidateDiagnostics {
@@ -125,6 +148,7 @@ export type SceneCandidateValidator<T> = (
 ) => SceneCandidateValidation<T> | Promise<SceneCandidateValidation<T>>;
 
 export const SCENE_PLANNER_TIMEOUT_MS = 60_000;
+export const SCENE_REPAIR_RECOVERY_ENABLED = process.env.NEXT_PUBLIC_SCENE_REPAIR_RECOVERY === "1";
 const PLANNER_MODEL = "server";
 const MAX_SCENE_REPAIR_ROUNDS = 2;
 const REPAIR_CANDIDATES_PER_ROUND = 2;
@@ -170,7 +194,8 @@ export async function repairSceneDocument(
 ): Promise<ScenePlannerResponse | null> {
   if (errors.length === 0) return null;
 
-  const previousStructure = summarizeSceneCandidateForRepair(candidate);
+  const previousStructure = summarizeSceneCandidateForRepair(candidate,
+    (options.repairRecoveryEnabled ?? SCENE_REPAIR_RECOVERY_ENABLED) ? errors : undefined);
   const usedOperators = Array.isArray(candidate.constructions)
     ? candidate.constructions.flatMap((construction) =>
       isPlainObject(construction) && typeof construction.operator === "string" ? [construction.operator] : [])
@@ -213,6 +238,10 @@ Resolve every fatal error. Preserve correct stable IDs when useful, but delete i
   const opticalInstrumentGuidance = buildOpticalInstrumentRepairGuidance(errors);
 
   const diversifiedPrompt = `${prompt}${connectivityGuidance}${closedRouteGuidance}${bypassGuidance}${orderedRouteGuidance}${pageNormalGuidance}${waveOpticsGuidance}${opticalInstrumentGuidance}\n\nREPAIR STRATEGY\n${strategy}`;
+
+  notifySceneObserver(() => options.onRepairRequest?.({
+    requestContext: options.requestContext, previousStructure, errors, promptChars: diversifiedPrompt.length,
+  }));
 
   const response = await requestSceneDocument("repair", diversifiedPrompt, options, lane, question);
   return response
@@ -268,6 +297,7 @@ export function normalizeSceneDocumentModelOutput(
 
 function summarizeSceneCandidateForRepair(
   candidate: SceneDocumentCandidate,
+  failures?: readonly SceneRepairError[],
 ): Record<string, unknown> {
   const shortMetadata = Object.fromEntries(Object.entries(candidate).flatMap(([key, value]) =>
     (typeof value === "string" && value.length <= 120) || typeof value === "number" || typeof value === "boolean"
@@ -288,6 +318,23 @@ function summarizeSceneCandidateForRepair(
         }]
       : [])
     : [];
+  let feedbackBytesLeft = 6_000;
+  const failingElements = failures ? ["quantities", "entities", "constructions", "assertions", "annotations", "labels", "revealGroups"]
+    .flatMap((field) => Array.isArray(candidate[field]) ? candidate[field].flatMap((node, index) => {
+      if (!isPlainObject(node)) return [];
+      const outputs = Array.isArray(node.outputs) ? node.outputs : [];
+      const related = failures.filter((failure) =>
+        failure.path?.match(new RegExp(`(?:${field}\\[(\\d+)\\]|${field}\\.(\\d+)|/${field}/(\\d+))(?:\\D|$)`))?.slice(1).includes(String(index)) ||
+        (typeof node.id === "string" && (failure.path === `${field}.${node.id}` ||
+          failure.path?.startsWith(`${field}.${node.id}.`))) ||
+        failure.entityIds?.some((id) => id === node.id || outputs.includes(id)));
+      if (related.length === 0) return [];
+      const bytes = new TextEncoder().encode(JSON.stringify(node)).length;
+      const canInclude = bytes <= 2_048 && bytes <= feedbackBytesLeft;
+      if (canInclude) feedbackBytesLeft -= bytes;
+      return [{ field, index, id: node.id, errorCodes: related.map((failure) => failure.code),
+        ...(canInclude ? { node } : { nodeOmitted: true, reason: "repair_feedback_budget" }) }];
+    }) : []) : undefined;
   return {
     ...shortMetadata,
     quantityIds: ids("quantities"),
@@ -298,6 +345,7 @@ function summarizeSceneCandidateForRepair(
       ? candidate.requiredEntityIds.filter((id): id is string => typeof id === "string")
       : [],
     revealGroupIds: ids("revealGroups"),
+    ...(failingElements ? { failingElements } : {}),
   };
 }
 
@@ -355,6 +403,7 @@ export async function planSceneDocumentWithRepair<T>(
   },
 ): Promise<ScenePlanWithRepairResult<T> | null> {
   const startedAt = Date.now();
+  const searchId = globalThis.crypto.randomUUID();
   const { holdValidationUntil, maxConcurrentRequests, requestBudget, ...plannerOptions } = options;
   const maxInFlight = maxConcurrentRequests ?? Number.POSITIVE_INFINITY;
   const budgetLeft = () => requestBudget?.remaining ?? Number.POSITIVE_INFINITY;
@@ -376,7 +425,7 @@ export async function planSceneDocumentWithRepair<T>(
     validation: SceneCandidateValidation<T>;
     seededRepair: boolean;
   };
-  type Round = { seed: Evaluated; calls: number; settled: number };
+  type Round = { seed: Evaluated; calls: number; settled: number; results: Evaluated[] };
   type Settled = { key: number; candidate: ScenePlannerResponse | null };
   type InFlight = {
     kind: "plan" | "repair";
@@ -388,9 +437,12 @@ export async function planSceneDocumentWithRepair<T>(
   const evaluated: Evaluated[] = [];
   const inFlight = new Map<number, InFlight>();
   const rounds: Round[] = [];
+  const responseRounds = new WeakMap<ScenePlannerResponse, Round>();
   let nextKey = 0;
   let firstValidAt: number | null = null;
   let fallbackPlanLaunched = false;
+  let freshPlanLaunched = false;
+  const recoveryEnabled = plannerOptions.repairRecoveryEnabled ?? SCENE_REPAIR_RECOVERY_ENABLED;
   let released = holdValidationUntil === undefined;
   const releaseMarker: unique symbol = Symbol("validation-released");
   const releaseDecision = holdValidationUntil?.then(
@@ -410,7 +462,8 @@ export async function planSceneDocumentWithRepair<T>(
   const launch = (
     kind: InFlight["kind"],
     round: Round | null,
-    request: (signal: AbortSignal) => Promise<ScenePlannerResponse | null>,
+    request: (signal: AbortSignal, requestContext: ScenePlannerRequestContext) => Promise<ScenePlannerResponse | null>,
+    origin: ScenePlannerRequestContext["origin"] = kind === "repair" ? "repair" : "initial",
   ) => {
     const key = nextKey;
     nextKey += 1;
@@ -424,7 +477,11 @@ export async function planSceneDocumentWithRepair<T>(
       round,
       controller,
       settled: null,
-      promise: request(signal).then((candidate) => {
+      promise: request(signal, {
+        searchId, requestId: `${searchId}/${key}`, origin,
+        ...(round ? { seedRequestId: round.seed.response.requestContext?.requestId,
+          repairRound: rounds.indexOf(round) + 1 } : {}),
+      }).then((candidate) => {
         entry.settled = { key, candidate };
         return entry.settled;
       }),
@@ -436,6 +493,7 @@ export async function planSceneDocumentWithRepair<T>(
     const round = inFlight.get(settled.key)?.round;
     inFlight.delete(settled.key);
     if (round) round.settled += 1;
+    if (round && settled.candidate) responseRounds.set(settled.candidate, round);
     return settled.candidate;
   };
   const evaluate = async (candidate: ScenePlannerResponse) => {
@@ -447,7 +505,9 @@ export async function planSceneDocumentWithRepair<T>(
       error_codes: candidateValidation.errors.map((error) => error.code),
       fatal_count: candidateValidation.errors.filter((error) => error.severity === "fatal").length,
     });
-    evaluated.push({ response: candidate, validation: candidateValidation, seededRepair: false });
+    const entry = { response: candidate, validation: candidateValidation, seededRepair: false };
+    evaluated.push(entry);
+    responseRounds.get(candidate)?.results.push(entry);
     if (candidateValidation.valid && firstValidAt === null) firstValidAt = Date.now();
   };
 
@@ -459,7 +519,8 @@ export async function planSceneDocumentWithRepair<T>(
     const budgetMs = remainingMs();
     if (budgetMs <= 0) return;
     fallbackPlanLaunched = true;
-    launch("plan", null, (signal) => planSceneDocument(question, { ...plannerOptions, signal, timeoutMs: budgetMs }));
+    launch("plan", null, (signal, requestContext) => planSceneDocument(question,
+      { ...plannerOptions, signal, requestContext, timeoutMs: budgetMs }), "fallback");
   };
 
   const nextSeed = () => evaluated
@@ -467,8 +528,31 @@ export async function planSceneDocumentWithRepair<T>(
     .sort((a, b) => compareValidations(a.validation, b.validation))[0];
   /** Rounds remain and a seed exists: only the hold or the previous round stand in the way. */
   const repairPossible = () =>
-    firstValidAt === null && rounds.length < MAX_SCENE_REPAIR_ROUNDS && budgetLeft() >= 1 &&
+    firstValidAt === null && rounds.length + Number(freshPlanLaunched) < MAX_SCENE_REPAIR_ROUNDS && budgetLeft() >= 1 &&
     nextSeed() !== undefined;
+
+  // Equal codes alone are not stagnation: a changed construction or residual
+  // can be one correction away from valid. Only a fully settled, parsed pair
+  // that repeats both the complete seed and its exact targeted fatal report
+  // forfeits the next repair batch. Missing/canceled responses cannot prove it.
+  const maybeLaunchFreshPlan = () => {
+    if (!recoveryEnabled || freshPlanLaunched || !released || firstValidAt !== null) return;
+    if (plannerOptions.signal?.aborted || budgetLeft() < 1 || inFlight.size > 0 || maxInFlight < 1) return;
+    if (rounds.length === 0 || rounds.length >= MAX_SCENE_REPAIR_ROUNDS) return;
+    const previous = rounds.at(-1)!;
+    if (previous.calls !== REPAIR_CANDIDATES_PER_ROUND || previous.settled !== previous.calls ||
+      previous.results.length !== previous.calls) return;
+    const seedFingerprint = stalledRepairFingerprint(previous.seed.response.document, previous.seed.validation);
+    if (seedFingerprint === null || previous.results.some((entry) =>
+      stalledRepairFingerprint(entry.response.document, entry.validation) !== seedFingerprint)) return;
+    const budgetMs = remainingMs();
+    if (budgetMs <= 0) return;
+    freshPlanLaunched = true;
+    launch("plan", null, (signal, requestContext) => planSceneDocument(question,
+      { ...plannerOptions, signal, requestContext, timeoutMs: Math.min(budgetMs, INITIAL_CANDIDATE_TIMEOUT_MS) },
+      "Construct a fresh minimal candidate from the original question and operator contracts, independently of the previous failed construction.",
+    ), "fresh");
+  };
 
   const maybeLaunchRepairRound = () => {
     if (!released || !repairPossible()) return;
@@ -484,7 +568,7 @@ export async function planSceneDocumentWithRepair<T>(
       if (previous.settled === 0 || !strictlyBetter) return;
     }
     seed.seededRepair = true;
-    const round: Round = { seed, calls: roundStrategies.length, settled: 0 };
+    const round: Round = { seed, calls: roundStrategies.length, settled: 0, results: [] };
     rounds.push(round);
     tutorDebug("planner", "semantic scene repair round", {
       round: rounds.length,
@@ -494,11 +578,11 @@ export async function planSceneDocumentWithRepair<T>(
     });
     const callTimeoutMs = Math.min(budgetMs, INITIAL_CANDIDATE_TIMEOUT_MS);
     roundStrategies.forEach((strategy, index) => {
-      launch("repair", round, (signal) => repairSceneDocument(
+      launch("repair", round, (signal, requestContext) => repairSceneDocument(
         question,
         seed.response.document,
         seed.validation.errors,
-        { ...plannerOptions, signal, timeoutMs: callTimeoutMs },
+        { ...plannerOptions, signal, requestContext, timeoutMs: callTimeoutMs },
         strategy,
         index === 0 ? "primary" : "alternate",
       ));
@@ -507,12 +591,12 @@ export async function planSceneDocumentWithRepair<T>(
 
   const candidateTimeoutMs = Math.min(timeoutMs, INITIAL_CANDIDATE_TIMEOUT_MS);
   initialStrategies.slice(0, Math.max(0, Math.min(budgetLeft(), maxInFlight))).forEach((strategy, index) => {
-    launch("plan", null, (signal) => planSceneDocument(
+    launch("plan", null, (signal, requestContext) => planSceneDocument(
       question,
-      { ...plannerOptions, signal, timeoutMs: candidateTimeoutMs },
+      { ...plannerOptions, signal, requestContext, timeoutMs: candidateTimeoutMs },
       strategy,
       index === 0 ? "primary" : "alternate",
-    ));
+    ), "initial");
   });
 
   for (;;) {
@@ -538,6 +622,7 @@ export async function planSceneDocumentWithRepair<T>(
     if (releaseDecided && !released) break;
 
     maybeLaunchFallbackPlan();
+    maybeLaunchFreshPlan();
     maybeLaunchRepairRound();
     const awaitingRelease = !releaseDecided && held.length > 0;
     if (inFlight.size === 0 && !awaitingRelease) break;
@@ -588,6 +673,21 @@ export async function planSceneDocumentWithRepair<T>(
       selected: candidate === selected,
     })),
   };
+}
+
+/** Exact equality is deliberately conservative; no error-code blacklist. */
+function stalledRepairFingerprint(
+  document: SceneDocumentCandidate,
+  validation: SceneCandidateValidation,
+): string | null {
+  if (validation.valid) return null;
+  const fatal = validation.errors.filter((error) => error.severity === "fatal");
+  if (fatal.length === 0 || fatal.some((error) => !error.path && !error.entityIds?.length)) return null;
+  try {
+    return JSON.stringify({ document, fatal });
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -660,6 +760,7 @@ async function requestSceneDocument(
         promptChars: prompt.length,
         elapsedMs: Date.now() - startedAt,
         declineReason,
+        requestContext: options.requestContext,
       });
     } catch {
       // Diagnostics must never change planning behavior.
@@ -770,6 +871,7 @@ async function requestSceneDocument(
       lane,
       elapsedMs,
       traceId: response.headers.get("x-heytutor-trace-id") ?? undefined,
+      requestContext: options.requestContext,
     };
     notifySceneObserver(() => options.onResponse?.(plannedResponse));
     return plannedResponse;

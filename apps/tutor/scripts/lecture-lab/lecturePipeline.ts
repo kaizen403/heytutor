@@ -33,9 +33,12 @@ import {
   type ProblemAuthorityV1Response,
   type SceneCandidateValidation,
   type ScenePlannerRequestOutcome,
+  type ScenePlannerRequestContext,
+  type SceneRepairRequestEvidence,
   type ScenePlanWithRepairResult,
   type SubjectFamiliarity,
   type TurnPlanRequestOutcome,
+  type TurnPlanVisualDecision,
 } from "@heytutor/tutor-core";
 import {
   FIGURE_SOURCES,
@@ -50,6 +53,7 @@ import {
   type ProductionSceneGate, type ValidatedSceneCandidate,
 } from "@/features/tutor-session/lib/scene/productionSceneSelection";
 import { diagramStrategyAllowsFigureSource } from "@/features/tutor-session/lib/scene/diagramStrategy";
+import { applyVisualDecisionToPlan } from "@/features/tutor-session/lib/scene/visualRequirement";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
 import {
   selectFastVerifiedRepresentation,
@@ -170,6 +174,8 @@ export interface LectureRun {
   turnPlanCallOutcomes?: TurnPlanRequestOutcome[];
   /** The actual admitted model result versus the existing handled fallback. */
   turnPlanStatus?: "planned" | "fallback";
+  /** Declared/minimum/peer decision; enabled-only evidence, never added to plan authority. */
+  turnPlanVisualDecision?: TurnPlanVisualDecision;
   examplePicker?: LectureExamplePickerRecord;
   /** Missing only on historical runs. Null votes mean unavailable evidence, never none. */
   visualNeed?: LabVisualNeedEvidence;
@@ -208,7 +214,9 @@ export interface LectureRun {
     /** HTTP/parse diagnostics for every scene-planner request in this turn. */
     plannerCallOutcomes?: ScenePlannerRequestOutcome[];
     /** Private lab evidence; raw model text, distinct from deterministic fallback reasons. */
-    plannerResponses?: Array<{ phase: string; lane: string; selected: boolean; rawContent: string }>;
+    plannerResponses?: Array<{ phase: string; lane: string; selected: boolean; rawContent: string;
+      requestContext?: ScenePlannerRequestContext; validation?: Pick<SceneCandidateValidation, "valid" | "errors"> }>;
+    plannerRepairRequests?: SceneRepairRequestEvidence[];
     examplesUsed?: Array<Pick<DiagramExemplar,
       "id" | "sourceKind" | "question" | "depicts" | "figureKind" | "family" | "archetype">>;
     validationIssues?: Array<{ code: string; severity: "fatal" | "warning"; message: string }>;
@@ -447,6 +455,7 @@ export async function runLecture(
     });
     stages.turnPlanMs = Date.now() - turnPlanStartedAt;
     run.turnPlanStatus = plannedTurn ? "planned" : "fallback";
+    if (plannedTurn?.visualDecision) run.turnPlanVisualDecision = plannedTurn.visualDecision;
     turnPlan = selectBestAvailableTurnPlan(
       undefined,
       plannedTurn?.turnPlan,
@@ -569,11 +578,14 @@ export async function runLecture(
       deadlineMs: scenePlannerDeadlineMs,
       deriveGate: deriveSceneGate,
       applyAuthority: (planToReconcile, authority) => {
-        const reconciledPlan = reconcileTurnPlanWithSolver(
+        const sourcePlan = reconcileTurnPlanWithSolver(
           planToReconcile,
           authority.problemIR,
           authority.solverResult,
         );
+        const reconciledPlan = applyVisualDecisionToPlan({
+          question, turnPlan: sourcePlan, evaluated: assessment.decision, problemIR: authority.problemIR,
+        });
         const authorityAudit = verifyTurnPlanAgainstSolver(
           authority.problemIR,
           authority.solverResult,
@@ -618,6 +630,7 @@ export async function runLecture(
             fastMode,
             traceId,
             onRequestOutcome: (outcome) => run.diagram.plannerCallOutcomes?.push(outcome),
+            onRepairRequest: (request) => (run.diagram.plannerRepairRequests ??= []).push(request),
             onResponse: (response) => recordPlannerResponse(run.diagram, response),
             onCandidateValidation: (response, validation) => recordRejectedOperatorCalls(run.diagram, response, validation, "initial"),
             ...gate.request,
@@ -630,6 +643,7 @@ export async function runLecture(
         ),
     });
     turnPlan = planning.turnPlan;
+    if (run.visualNeed) run.visualNeed.finalRequirement = turnPlan.visualRequirement;
     problemAuthority = planning.authority;
     const { sceneCapabilities, shouldPlanExactScene, shouldAttemptLlmScene } = planning.gate;
     const fastRepresentation = planning.fast;
@@ -641,6 +655,8 @@ export async function runLecture(
     run.diagram.plannerResponses = result?.candidates.map((candidate) => ({
       phase: candidate.response.phase, lane: candidate.response.lane,
       selected: candidate.selected, rawContent: candidate.response.rawContent,
+      requestContext: candidate.response.requestContext,
+      validation: { valid: candidate.validation.valid, errors: candidate.validation.errors },
     })) ?? [];
     run.diagram.archetypeId = planning.gate.archetypeId;
     run.diagram.examplesUsed = planning.gate.examplesUsed.map(({
