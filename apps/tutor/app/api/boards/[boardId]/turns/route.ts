@@ -10,6 +10,8 @@ import { abandonTurnStorage, reserveTurnStorage, settleTurnStorage, StorageQuota
 import { turnMetadataStorageBytes } from "@/lib/boards/storageAccounting";
 import { mediaProxyUrl } from "@/lib/object-store/mediaUrl";
 import { assertOwnedTrace } from "@/lib/obs/traceOwnership";
+import { queueFailedTurnSentry } from "@/lib/obs/failedTurnSentry";
+import { hasMeaningfulTurnSegments } from "@/lib/boards/turnStatus";
 import { isTurnMetadataPersistable } from "@/lib/scene/turnPersistencePolicy";
 import { canonicalizeTurnSceneMetadata } from "@/lib/scene/turnScenePersistence";
 import { rejectTurnSave as rejectSave } from "@/lib/boards/turnSaveRejection";
@@ -170,6 +172,9 @@ export async function POST(request: Request, context: RouteContext) {
     ...metadata,
     ...canonicalScene.value,
   };
+  if (!hasMeaningfulTurnSegments(metadata.segments.filter(segment => typeof segment.sourceOrderIndex === "number"))) {
+    return rejectSave("lesson_not_taught", "a complete turn requires recorded teaching", 400, { boardId, traceId: metadata.traceId });
+  }
 
   // Skip a second audio upload when a committed response was lost. The
   // transaction repeats this check under the board lock for concurrent saves.
@@ -350,7 +355,8 @@ export async function POST(request: Request, context: RouteContext) {
         });
 
         await settleTurnStorage(reservation, false, tx, retainedBytes);
-        return { turn, insertedSegments };
+        const sentryEventId = await queueFailedTurnSentry(tx, { ...turn, segments: insertedSegments });
+        return { turn: { ...turn, sentryEventId: sentryEventId ?? turn.sentryEventId }, insertedSegments };
       });
       break;
     } catch (error) {

@@ -8,6 +8,8 @@ import {
   synthesizeFamilyScene,
   synthesizeLastResortScene,
   synthesizeUniformCircularScene,
+  synthesizeCoaxialCoilsRepresentation,
+  buildSourceConceptRepresentation,
   demandRejection,
   sceneDemand,
   sourceMensurationStructure,
@@ -78,6 +80,8 @@ export interface RepresentationSelectionInput {
   exactFigureSource?: Extract<FigureSource, "planner" | "verified_recovery">;
   /** An explicit strict policy may retain admissible planner ink before source fallbacks. Default is unchanged. */
   preferPlanner?: boolean;
+  /** Content-free final admission diagnostic; observer errors never affect selection. */
+  onExactRejection?: (code: "scene_relevance_rejected") => void;
 }
 
 interface SourceFunctionFact {
@@ -135,6 +139,26 @@ export function isPlannerQuotedConstant(
     !questionStatesValue(question, given.value);
 }
 
+function selectSourceRepresentation(input: RepresentationSelectionInput): SelectedRepresentation | null {
+  const coaxial = synthesizeCoaxialCoilsRepresentation(input.question);
+  if (coaxial) {
+    return { tier: coaxial.tier, nonMetric: true, sceneDocument: coaxial.document,
+      renderScene: coaxial.renderScene, validationReport: coaxial.validationReport,
+      figureSource: "family", family: coaxial.family, reason: coaxial.reason };
+  }
+  const conceptDocument = buildSourceConceptRepresentation(input.question, input.turnPlan);
+  if (conceptDocument) {
+    const compiled = compileSceneDocument(conceptDocument);
+    if (compiled.ok && compiled.renderScene) {
+      return { tier: "question_representation", nonMetric: true, sceneDocument: conceptDocument,
+        renderScene: compiled.renderScene, validationReport: compiled.report, figureSource: "family",
+        family: "source_concept_relation", reason: "source-bound reference relations; declared limits remain unverified" };
+    }
+  }
+
+  return null;
+}
+
 export function selectFastVerifiedRepresentation(
   input: RepresentationSelectionInput,
 ): SelectedRepresentation | null {
@@ -142,6 +166,12 @@ export function selectFastVerifiedRepresentation(
   if (!plan || plan.visualRequirement === "none") return null;
   if (plan.givens.some((given) => !questionStatesValue(input.question, given.value) &&
       !isQuotedPhysicalConstant(given.symbol, given.value))) return null;
+  // A symbolic source component needs no speculative scene-model request.
+  // Numeric plans retain the existing exact/family search.
+  if (plan.givens.length === 0 && plan.derived.length === 0 && plan.unknowns.length === 0) {
+    const sourceRepresentation = selectSourceRepresentation({ ...input, turnPlan: plan });
+    if (sourceRepresentation) return sourceRepresentation;
+  }
   const result = synthesizeFamilyScene({
     question: input.question,
     turnPlan: plan,
@@ -188,7 +218,7 @@ export function selectVerifiedRepresentation(
     return { ...textOnly, reason: motionConflict };
   }
   const currentCompile = input.exact
-    ? compileUsableExactRepresentation(input.exact, input.question, input.problemIR)
+    ? compileUsableExactRepresentation(input.exact, input.question, input.problemIR, input.onExactRejection)
     : null;
   const families = input.families?.length ? input.families : undefined;
   const synthesize = () => synthesizeFamilyScene({
@@ -258,6 +288,9 @@ export function selectVerifiedRepresentation(
       };
     }
   }
+
+  const sourceRepresentation = selectSourceRepresentation(input);
+  if (sourceRepresentation) return sourceRepresentation;
 
   // A complete matrix source program is drawn by the engine from the question
   // when no planner candidate survived. The builder applies the same source
@@ -421,6 +454,7 @@ function compileUsableExactRepresentation(
   candidate: ExactVerifiedRepresentation,
   expectedQuestion: string,
   problemIR?: ProblemStructureView | null,
+  onExactRejection?: RepresentationSelectionInput["onExactRejection"],
 ): ReturnType<typeof compileSceneDocument> | null {
   // TypeScript's interface is not a runtime proof: the caller may supply an
   // incomplete, forged or stale report despite the ExactVerifiedRepresentation type.
@@ -430,6 +464,7 @@ function compileUsableExactRepresentation(
   // picture demand the synthesized families face, so a validated-but-wrong
   // figure falls through to the fallback instead of being taught.
   if (demandRejection(candidate.sceneDocument, sceneDemand(expectedQuestion, problemIR))) {
+    try { onExactRejection?.("scene_relevance_rejected"); } catch { /* Diagnostics cannot change admission. */ }
     return null;
   }
   const sourceQuestion = candidate.sceneDocument.source.question;

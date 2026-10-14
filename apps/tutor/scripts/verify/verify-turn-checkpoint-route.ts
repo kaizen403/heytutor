@@ -269,6 +269,8 @@ const checkpoint = load("lib/boards/turnCheckpoint.ts", {
   "@/lib/obs/traceOwnership": {
     assertOwnedTrace: async (owner: string, traceId: string) => ownedTraces.get(traceId)?.userId === owner,
   },
+  // Failure telemetry has its own runtime/privacy gate; keep this fixture on checkpoint semantics.
+  "@/lib/obs/failedTurnSentry": { queueFailedTurnSentry: async () => null },
   "@/lib/scene/turnScenePersistence": { canonicalizeTurnSceneMetadata: canonicalize },
   "@/lib/scene/turnUploadLimits": uploadLimits,
   "@/lib/boards/turnStatus": turnStatus,
@@ -726,15 +728,47 @@ async function checkpointTransactionExpiry() {
   } finally { transactionDelay = null; }
 }
 
+async function completionIntegrity() {
+  for (const appendSegments of [[], [row(0, "", CLEAR)], [row(0, "", null)]]) {
+    const id = crypto.randomUUID();
+    const result = await put(id, { seq: 1, baseCount: 0, status: "complete", rawResponse: "Generated but never taught.", appendSegments });
+    assert.equal(result.status, 400, "raw generated text or housekeeping rows cannot manufacture a complete turn");
+    assert.equal(result.body.code, "turn_not_persistable");
+    assert.equal(turns.some(turn => turn.id === id), false, "refused completion leaves no final turn or storage charge");
+  }
+  const fixture = await checkpointSceneFixture();
+  const generatedIntro = await put(crypto.randomUUID(), { ...fixture.metadata, seq: 1, baseCount: 0,
+    status: "complete", rawResponse: "Never taught this verified figure.", appendSegments: [row(0, "", CLEAR)] });
+  assert.equal(generatedIntro.status, 400, "a server-generated figure intro is not evidence of recorded teaching");
+  const openingOnly = await put(crypto.randomUUID(), { seq: 1, baseCount: 0, status: "complete",
+    rawResponse: "An acknowledgement.", resumeState: { v: 1, earlyOpeningOnly: true }, appendSegments: [row(0, "An acknowledgement.")] });
+  assert.equal(openingOnly.status, 400, "an early acknowledgement alone cannot claim a taught lesson");
+  const id = crypto.randomUUID();
+  assert.equal((await put(id, { seq: 1, baseCount: 0, status: "stopped", appendSegments: [] })).status, 200,
+    "a legitimate empty Stop retains the question for retry");
+  assert.equal((await put(id, { seq: 2, baseCount: 0, status: "complete", rawResponse: "Still never taught.", appendSegments: [] })).status, 400);
+  assert.equal(stored(id).status, "stopped", "refused completion preserves the stopped header and late-repair capability");
+  assert.equal((await put(id, { seq: 3, baseCount: 0, status: "complete", rawResponse: "A useful silent row.", appendSegments: [row(0, "A useful silent row.")] })).status, 200,
+    "real teaching can finalize after Stop without requiring audio");
+  assert.equal(stored(id).status, "complete");
+  for (const command of [write("x = 4"), { commands: [{ type: "TYPE", text: "return 4;", params: [] }] }]) {
+    assert.equal((await put(crypto.randomUUID(), { seq: 1, baseCount: 0, status: "complete", rawResponse: "Silent work.",
+      appendSegments: [row(0, "", command)] })).status, 200, "silent handwritten work and typed code remain meaningful teaching");
+  }
+}
+
 async function main() {
   const selected = process.env.CHECKPOINT_CASE;
-  if (selected && !["transaction-budget", "transaction-expiry"].includes(selected)) throw new Error("Unknown checkpoint gate case");
+  if (selected && !["transaction-budget", "transaction-expiry", "completion-integrity"].includes(selected)) throw new Error("Unknown checkpoint gate case");
   if (selected) {
     if (selected === "transaction-budget") await checkpointTransactionBudget();
+    else if (selected === "completion-integrity") await completionIntegrity();
     else await checkpointTransactionExpiry();
     console.log(`checkpoint ${selected}: actual route and storage lock passed`);
     return;
   }
+  await completionIntegrity();
+  turns.length = 0; segments.length = 0; reservations.length = 0; uploads.length = 0;
   await checkpointTransactionBudget();
   turns.length = 0; segments.length = 0; reservations.length = 0; uploads.length = 0; transactionOptions.length = 0;
   await checkpointTransactionExpiry();

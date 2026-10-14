@@ -386,6 +386,8 @@ export class SpeechSynthesisTTSClient implements TTSClient {
       let settled = false;
       let utterance: SpeechSynthesisUtterance | null = null;
       const watches: Array<ReturnType<typeof setTimeout>> = [];
+      let removeVoiceAvailabilityListener: (() => void) | null = null;
+      let voiceAvailabilityRetried = false;
       const detach = () => {
         if (!utterance) return;
         utterance.onstart = null;
@@ -396,6 +398,8 @@ export class SpeechSynthesisTTSClient implements TTSClient {
       const clearWatches = () => {
         for (const id of watches) clearTimeout(id);
         watches.length = 0;
+        removeVoiceAvailabilityListener?.();
+        removeVoiceAvailabilityListener = null;
       };
       const finish = (notify?: () => void, error?: unknown) => {
         if (settled) return;
@@ -490,6 +494,24 @@ export class SpeechSynthesisTTSClient implements TTSClient {
         claimBrowserSpeech(this);
         // cancel() does not clear the browser's paused flag.
         window.speechSynthesis.resume();
+        // Some engines load their voices after the 400ms pending retry. A
+        // readiness event gets one fresh owned utterance within the original
+        // startup deadline; audible or stopped speech can never restart here.
+        if (window.speechSynthesis.getVoices().length === 0 &&
+          typeof window.speechSynthesis.addEventListener === "function") {
+          const onVoicesReady = () => {
+            if (settled || browserSpeechOwner !== this || this.playing || voiceAvailabilityRetried ||
+              window.speechSynthesis.getVoices().length === 0) return;
+            voiceAvailabilityRetried = true;
+            cancelOwnedUtterance();
+            watches.push(setTimeout(() => {
+              if (settled || browserSpeechOwner !== this || this.playing) return;
+              try { speakNow(); } catch (error) { finish(() => onError?.(error), error); }
+            }, 0));
+          };
+          window.speechSynthesis.addEventListener("voiceschanged", onVoicesReady);
+          removeVoiceAvailabilityListener = () => window.speechSynthesis.removeEventListener("voiceschanged", onVoicesReady);
+        }
         watches.push(setTimeout(() => {
           if (settled || browserSpeechOwner !== this || this.playing) return;
           cancelOwnedUtterance();

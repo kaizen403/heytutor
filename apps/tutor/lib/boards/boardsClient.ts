@@ -7,6 +7,7 @@ import { finalizeBoardTitle } from "@/lib/boards/boardTitle";
 import { effectiveTurnStatus, type TurnKind, type TurnStatus } from "@/lib/boards/turnStatus";
 
 export type { TurnKind, TurnStatus } from "@/lib/boards/turnStatus";
+export { hasMeaningfulTurnSegments } from "@/lib/boards/turnStatus";
 
 export interface StoredSegment {
   id: string;

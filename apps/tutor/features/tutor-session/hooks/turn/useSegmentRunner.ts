@@ -920,6 +920,12 @@ export function useSegmentRunner({
           speechAborted = true;
           terminalSpeechFailure = !isCancelled();
           if (browserFallbackOwnerRef.current === segmentFallbackOwner) stopFallbackSpeech();
+          if (!terminalSpeechFailure) {
+            // A tab can stop or replace this beat before its watchdog fires.
+            // Keep the old trace honest and leave shared successor audio alone.
+            tel?.mark("tts-segment-cancelled", { segment_index: index, timed_out: timedOut });
+            return;
+          }
           tutorDebug("tts", "segment speech failed", {
             index,
             error: error instanceof Error ? error.message : String(error),
@@ -991,6 +997,10 @@ export function useSegmentRunner({
             ownedDraw = guardDrawWithSpeech(runDraw(estimateSpeechMs, null, drawGeneration), (error) => {
               speechAborted = true;
               if (browserFallbackOwnerRef.current === segmentFallbackOwner) stopFallbackSpeech();
+              if (isCancelled()) {
+                tel?.mark("segment-draw-cancelled", { segment_index: index });
+                return;
+              }
               tutorDebug("segment", "draw failed; silencing narration", {
                 index,
                 error: error instanceof Error ? error.message : String(error),

@@ -211,8 +211,11 @@ Resolve every fatal error. Preserve correct stable IDs when useful, but delete i
     : "";
   const waveOpticsGuidance = buildWaveOpticsRepairGuidance(errors);
   const opticalInstrumentGuidance = buildOpticalInstrumentRepairGuidance(errors);
+  const relevanceGuidance = errors.some((error) => error.code === "scene_relevance_rejected")
+    ? "\nSOURCE RELEVANCE REBUILD (mandatory): the previous graph compiled but depicts apparatus or relationships contradicted by the submitted source. Discard the unrelated construction graph and rebuild from only the source's explicitly named entities and relationships. A catalog example or an applicable law does not authorize its apparatus. Preserve the relevance guard; do not merely rename unrelated components or weaken proofs. If the source supplies no dimensions, currents, fields or other needed values, use an honest nonmetric question representation and state its limitation rather than inventing numeric inputs."
+    : "";
 
-  const diversifiedPrompt = `${prompt}${connectivityGuidance}${closedRouteGuidance}${bypassGuidance}${orderedRouteGuidance}${pageNormalGuidance}${waveOpticsGuidance}${opticalInstrumentGuidance}\n\nREPAIR STRATEGY\n${strategy}`;
+  const diversifiedPrompt = `${prompt}${connectivityGuidance}${closedRouteGuidance}${bypassGuidance}${orderedRouteGuidance}${pageNormalGuidance}${waveOpticsGuidance}${opticalInstrumentGuidance}${relevanceGuidance}\n\nREPAIR STRATEGY\n${strategy}`;
 
   const response = await requestSceneDocument("repair", diversifiedPrompt, options, lane, question);
   return response

@@ -27,6 +27,7 @@
 import {
   checkpointTurn,
   closeTurnKeepalive,
+  hasMeaningfulTurnSegments,
   type RecordedSegmentPayload,
   type SaveFailure,
   type SaveTurnResult,
@@ -48,6 +49,7 @@ import {
   type PersistedTurnScene,
 } from "./doubtTurn";
 import { IDLE_SAVE, type SaveStatus } from "./saveStatus";
+import { readFailedTurnTelemetry } from "@/lib/obs/failedTurnTelemetry";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -161,6 +163,8 @@ interface RecordedEntry {
   row: RecordedSegmentPayload;
   /** Recorded inside a figure intro transaction: held until the figure commits. */
   intro: boolean;
+  /** Partial shown work/audio survives for recovery but cannot prove completion. */
+  completed: boolean;
 }
 
 export interface PreparedLiveSegment {
@@ -217,6 +221,8 @@ interface LiveTurn {
   status: TurnStatus;
   rawResponse: string;
   textOnly: boolean;
+  /** An owned unrecovered beat failed, even when later beats succeeded. */
+  teachingFailed: boolean;
   resumeState: Record<string, unknown> | null | undefined;
   resumeDirty: boolean;
   resumeRevision: number;
@@ -288,6 +294,26 @@ export function liveTurnScene(input: {
   status: TurnStatus;
   textOnly: boolean;
 }): PersistedTurnScene {
+  const scene = baseLiveTurnScene(input);
+  const failureTelemetry = readFailedTurnTelemetry(input.page?.failureTelemetry);
+  if (!failureTelemetry) return scene;
+  return {
+    ...scene,
+    sceneArtifacts: {
+      ...(scene.sceneArtifacts && typeof scene.sceneArtifacts === "object" && !Array.isArray(scene.sceneArtifacts) ? scene.sceneArtifacts : {}),
+      failureTelemetry,
+    },
+  };
+}
+
+function baseLiveTurnScene(input: {
+  page: BoardPageRecord | null;
+  kind: TurnKind;
+  preview: string;
+  opensPage: boolean;
+  status: TurnStatus;
+  textOnly: boolean;
+}): PersistedTurnScene {
   const { page } = input;
   if (input.kind === "doubt" || page?.turn.kind === "doubt") {
     return doubtTurnScene(page?.lessonQuestion ?? input.preview, !input.opensPage);
@@ -341,6 +367,8 @@ export class LiveTurnSaveRegistry {
   private readonly env: LiveTurnSaveEnv;
   private readonly turns: LiveTurn[] = [];
   private readonly owners = new Map<object, LiveTurnOwnerHooks>();
+  /** Also covers an owned teaching turn that has no persistence handle. */
+  private readonly failedGenerations = new WeakMap<object, number>();
   private readonly listeners = new Set<() => void>();
   private readonly statusCache = new Map<string, { key: string; status: SaveStatus }>();
   private order = 0;
@@ -354,6 +382,7 @@ export class LiveTurnSaveRegistry {
 
   /** Called once billing passed: mints the turn id. Nothing is sent yet. */
   begin(input: LiveTurnBeginInput): LiveTurnHandle {
+    this.failedGenerations.delete(input.owner);
     const turn: LiveTurn = {
       turnId: this.env.mintId(),
       owner: input.owner,
@@ -388,6 +417,7 @@ export class LiveTurnSaveRegistry {
       status: "live",
       rawResponse: "",
       textOnly: false,
+      teachingFailed: false,
       resumeState: undefined,
       resumeDirty: false,
       resumeRevision: 0,
@@ -440,14 +470,14 @@ export class LiveTurnSaveRegistry {
       pending.settled = true;
       turn.pendingSegment = null;
       if (complete && turn.status === "live" && !turn.final) {
-        turn.recorded.push({ row: complete, intro: pending.intro });
+        turn.recorded.push({ row: complete, intro: pending.intro, completed: true });
       } else if (generated?.audioBytes?.length && !pending.intro && turn.status === "live" && !turn.final) {
         // A failed output must not erase a successfully generated clip. Ink
         // that never reached the student is absent; speculative intros stay atomic.
         const shown = pending.shown ? this.shownCutRow(pending) : { ...pending.row, command: null };
-        turn.recorded.push({ row: { ...shown, ...generated }, intro: false });
+        turn.recorded.push({ row: { ...shown, ...generated }, intro: false, completed: false });
       } else if (pending.shown && !pending.intro && !turn.final && turn.status !== "complete") {
-        turn.recorded.push({ row: this.shownCutRow(pending), intro: false });
+        turn.recorded.push({ row: this.shownCutRow(pending), intro: false, completed: false });
       } else return false;
       this.endCutGrace(turn);
       this.mirrorLocal(turn);
@@ -474,7 +504,7 @@ export class LiveTurnSaveRegistry {
     pending.settled = true;
     turn.pendingSegment = null;
     if (pending.shown && !pending.intro && !turn.final && turn.status !== "complete") {
-      turn.recorded.push({ row: this.shownCutRow(pending), intro: false });
+      turn.recorded.push({ row: this.shownCutRow(pending), intro: false, completed: false });
       this.endCutGrace(turn);
       this.mirrorLocal(turn);
       this.emit();
@@ -496,9 +526,24 @@ export class LiveTurnSaveRegistry {
   recordRow(owner: object, generation: number, row: RecordedSegmentPayload, options: { intro: boolean }): void {
     const turn = this.find(owner, generation);
     if (!turn || turn.status !== "live") return;
-    turn.recorded.push({ row, intro: options.intro });
+    turn.recorded.push({ row, intro: options.intro, completed: true });
     this.emit();
     this.pump(turn);
+  }
+
+  /** A fallback that recovered never reaches the queue's terminal catch. */
+  markSegmentFailure(owner: object, generation: number): void {
+    const turn = this.find(owner, generation);
+    if (turn && (turn.status !== "live" || turn.final)) return;
+    this.failedGenerations.set(owner, generation);
+    if (!turn) return;
+    turn.teachingFailed = true;
+    this.emit();
+    this.pump(turn);
+  }
+
+  hasSegmentFailure(owner: object, generation: number): boolean {
+    return this.failedGenerations.get(owner) === generation;
   }
 
   /**
@@ -868,7 +913,7 @@ export class LiveTurnSaveRegistry {
   }
 
   private sceneFor(turn: LiveTurn): PersistedTurnScene {
-    return liveTurnScene({
+    const scene = liveTurnScene({
       page: turn.page,
       kind: turn.kind,
       preview: turn.preview,
@@ -876,6 +921,17 @@ export class LiveTurnSaveRegistry {
       status: turn.status,
       textOnly: turn.textOnly,
     });
+    if (!turn.teachingFailed) return scene;
+    return {
+      ...scene,
+      sceneArtifacts: {
+        ...(scene.sceneArtifacts && typeof scene.sceneArtifacts === "object" && !Array.isArray(scene.sceneArtifacts) ? scene.sceneArtifacts : {}),
+        failureTelemetry: {
+          ...(readFailedTurnTelemetry(turn.page?.failureTelemetry) ?? { subject: "unknown" }),
+          failed: true, stage: "teaching", code: "teaching_segment_failed",
+        },
+      },
+    };
   }
 
   private sceneKey(turn: LiveTurn): string {
@@ -1020,9 +1076,26 @@ export class LiveTurnSaveRegistry {
   }
 
   private completeTurn(turn: LiveTurn, rawResponse: string): Promise<SaveTurnResult> {
+    if (turn.completeResult) return Promise.resolve(turn.completeResult);
     if (turn.status === "complete") {
-      if (turn.completeResult) return Promise.resolve(turn.completeResult);
       return new Promise((resolve) => turn.completeWaiters.push(resolve));
+    }
+    const completedRows = turn.recorded.filter(entry => entry.completed && (!entry.intro || this.figureDrawn(turn))).map(entry => entry.row);
+    if (turn.teachingFailed || turn.resumeState?.earlyOpeningOnly === true || !hasMeaningfulTurnSegments(completedRows)) {
+      // Generated words never reached the lesson. Keep an empty lesson's
+      // question as stopped; doubts/resumes keep their existing empty policy.
+      if (turn.page) turn.page.failureTelemetry = {
+        ...(readFailedTurnTelemetry(turn.page.failureTelemetry) ?? { subject: "unknown" }),
+        failed: true, stage: "teaching", code: "lesson_not_taught",
+      };
+      turn.completeResult = { ok: false, status: 400,
+        error: turn.teachingFailed ? "Part of this lesson did not finish playing. Continue the lesson to finish it." : "The lesson did not record any teaching. Please try again.",
+        reason: "refused", retryable: false };
+      this.closeTurn(turn, { stopped: false });
+      // It may already have been stopped by a close racing completion. The
+      // new failure receipt still has to reach the saved stopped header.
+      this.pump(turn);
+      return Promise.resolve(turn.completeResult);
     }
     this.stopHeartbeat(turn);
     turn.status = "complete";

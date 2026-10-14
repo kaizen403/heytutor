@@ -89,12 +89,14 @@ function load(relativePath: string, dependencies: Record<string, unknown>): Row 
 }
 
 const { POST } = load("app/api/boards/[boardId]/turns/route.ts", {
+  "@/lib/boards/turnStatus": turnStatus,
   "@prisma/client": { Prisma: { DbNull: null, PrismaClientKnownRequestError: class extends Error {} } },
   "next/server": { NextResponse: { json: (body: unknown, options?: ResponseInit) => Response.json(body, options) } },
   "@/lib/auth": { getUserId: async () => userId, ensureUser: async () => {} },
   "@/lib/db/prisma": { prisma },
   "@/lib/http/requestBody": { readBoundedFormData, RequestBodyError },
   "@/lib/obs/traceOwnership": { assertOwnedTrace: async () => true },
+  "@/lib/obs/failedTurnSentry": { queueFailedTurnSentry: async () => null },
   // Storage admission has its own real-helper race tests in
   // verify-resource-abuse. This fixture stays focused on logical-save identity.
   "@/lib/boards/storageQuota": {
@@ -123,7 +125,7 @@ const { POST } = load("app/api/boards/[boardId]/turns/route.ts", {
       ? { segments: metadata.segments.map((segment: Row) => ({
         ...segment, sourceOrderIndex: segment.orderIndex, orderIndex: 0,
       })) }
-      : {},
+      : { segments: metadata.segments.map((segment: Row) => ({ ...segment, sourceOrderIndex: segment.orderIndex })) },
   }) },
   "@/lib/scene/turnUploadLimits": { MAX_TURN_UPLOAD_BYTES: 36 * 1024 * 1024, audioPrefixMatchesType, validateTurnUploadHeaders: () => ({ ok: true }), validateTurnUploadParts: () => ({ ok: true }) },
 });
@@ -171,7 +173,9 @@ async function main() {
     };
     const beforeServerError = turns.length;
     const recovered = await saveTurn("board-a", {
-      question: "Another lecture", rawResponse: "answer", speedMultiplier: 1, segments: [],
+      question: "Another lecture", rawResponse: "answer", speedMultiplier: 1,
+      segments: [{ orderIndex: 0, narration: "Synthetic explanation", spokenText: "Synthetic explanation", command: null,
+        audioBytes: new Uint8Array([73, 68, 51, 1, 2, 3]), durationMs: 100, timings: null }],
     });
     assert.equal(requests, 2, "a 5xx response is retried");
     assert.equal(turns.length, beforeServerError + 1, "5xx after commit cannot duplicate the turn");
@@ -179,7 +183,8 @@ async function main() {
 
     const post = (boardId: string, key?: string) => {
       const form = new FormData();
-      form.append("metadata", JSON.stringify({ question: "Q", rawResponse: "A", segments: [] }));
+      form.append("metadata", JSON.stringify({ question: "Q", rawResponse: "A",
+        segments: [{ orderIndex: 0, narration: "Synthetic explanation", spokenText: "Synthetic explanation", command: null }] }));
       return POST(new Request(`https://example.test/api/boards/${boardId}/turns`, {
         method: "POST", headers: key !== undefined ? { "Idempotency-Key": key } : undefined, body: form,
       }), { params: Promise.resolve({ boardId }) });

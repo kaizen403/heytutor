@@ -278,6 +278,20 @@ const selectedMetricExact = selectVerifiedRepresentation({
 assert(selectedMetricExact.tier === "exact_verified" && !selectedMetricExact.nonMetric, "a planner scene with a metric proof is exact");
 assert(selectedMetricExact.sceneDocument === metricExactDocument, "selector must preserve the accepted metric scene");
 
+const conceptWithExactQuestion = "Explain the probability interpretation of a quantum wavefunction, using a line-segment analogy with AB twice BC.";
+const conceptWithExactPlan: TurnPlanV3 = { schemaVersion: "turn-plan/v3", question: conceptWithExactQuestion,
+  visualRequirement: "required", givens: [], derived: [], unknowns: [], assumptions: [], lawIds: [],
+  qualitativeClaims: [{ id: "born", claim: "The probability density is the squared modulus of the wavefunction.",
+    expected: "Born rule probability density equals the modulus squared." }] };
+const conceptMetricDocument = { ...metricExactDocument, source: { ...metricExactDocument.source, question: conceptWithExactQuestion } };
+const conceptMetricCompile = compileSceneDocument(conceptMetricDocument);
+assert(conceptMetricCompile.ok && conceptMetricCompile.renderScene, "source-requested metric analogy compiles");
+for (const preferPlanner of [false, true]) {
+  const selected = selectVerifiedRepresentation({ question: conceptWithExactQuestion, turnPlan: conceptWithExactPlan, preferPlanner,
+    exact: { sceneDocument: conceptMetricDocument, renderScene: conceptMetricCompile.renderScene, validationReport: conceptMetricCompile.report } });
+  assert(selected.sceneDocument === conceptMetricDocument && selected.tier === "exact_verified", "reference components cannot replace an accepted exact candidate");
+}
+
 const rollingQuestion =
   "A solid cylinder of mass 2 kg and radius 10 cm rolls without slipping down an incline of height 1.5 m, starting from rest. Take g = 10 m/s^2.";
 const guessedRollingDocument: SceneDocument = {

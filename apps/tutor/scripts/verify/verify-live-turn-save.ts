@@ -345,14 +345,25 @@ async function closeIsIdempotentAndKeepsEmptyTurns() {
   assert.equal(h.calls.length, 1, "closing a saved stopped turn again sends nothing");
   const done = handle.complete({ rawResponse: "late" });
   await h.settle();
-  assert.equal(h.calls.length, 2, "a stopped turn may still complete");
-  await h.ack(h.calls[1]!);
-  const result = await done;
-  assert(result.ok, "complete resolves with the server turn");
+  assert.equal(h.calls.length, 2, "an empty stopped completion sends its failure receipt without finalizing");
+  assert.equal(h.calls.at(-1)?.input.status, "stopped");
+  await h.ack(h.calls.at(-1)!);
+  assert.equal((await done).ok, false);
+
+  const taught = harness();
+  const lesson = begin(taught, { generation: 1 });
+  taught.registry.recordRow(owner, 1, row("recorded late completion"), { intro: false });
+  await taught.ack(taught.calls[0]!);
+  lesson.handle.close();
+  await taught.ack(taught.calls.at(-1)!);
+  const complete = lesson.handle.complete({ rawResponse: "recorded late completion" });
+  await taught.settle();
+  await taught.ack(taught.calls.at(-1)!);
+  assert((await complete).ok, "a stopped turn with completed recorded teaching may still complete");
   handle.close();
   h.registry.recordRow(owner, 1, row(), { intro: false });
   await h.settle();
-  assert.equal(h.calls.length, 2, "a complete turn is final");
+  assert.equal(h.calls.length, 2, "an ended turn never records a late live row");
 }
 
 async function emptyDoubtIsNotSaved() {
@@ -374,6 +385,53 @@ async function emptyDoubtIsNotSaved() {
   h.registry.recordRow(owner, 2, row("next lesson"), { intro: false });
   await h.settle();
   assert.equal(h.calls.length, 1, "the next lesson saves at once");
+}
+
+async function emptyCompletionCannotFinalize() {
+  for (const continuesBoard of [false, true]) {
+    const h = harness();
+    const mirrored: LiveTurnMirrorEvent[] = [];
+    h.registry.attach(owner, { openBoardId: () => "board-1", mirror: event => mirrored.push(event) });
+    const { handle } = begin(h, { generation: 1, continuesBoard });
+    const completion = handle.complete({ rawResponse: "Generated text that was never taught." });
+    await h.settle();
+    assert.equal(h.calls[0]?.input.status, "stopped", "generated text without recorded teaching cannot finalize a lesson or continuation");
+    assert(mirrored.every(event => event.turn.status !== "complete"), "empty completion cannot publish a completed local mirror");
+    assert.equal((await completion).ok, false, "the caller receives an explicit teaching failure");
+    await h.ack(h.calls[0]!);
+    assert.equal(h.server.get(handle.turnId)?.status, "stopped", "the question remains resumable");
+  }
+
+  for (const recorded of [row("A useful silent teaching row.", false),
+    { ...row("", false), command: { type: "WRITE", text: "x = 4", params: [90, 145, 28], charPosition: 0, narrationBefore: "" } },
+    { ...row("", false), command: { commands: [{ type: "TYPE", text: "return 4;", params: [], charPosition: 0, narrationBefore: "" }] } },
+  ] as RecordedSegmentPayload[]) {
+    const h = harness();
+    const { handle } = begin(h, { generation: 1 });
+    h.registry.recordRow(owner, 1, recorded, { intro: false });
+    await h.ack(h.calls[0]!);
+    const completion = handle.complete({ rawResponse: "A useful silent teaching row." });
+    await h.settle();
+    assert.equal(h.calls.at(-1)?.input.status, "complete", "muted narration, written work and typed code can complete without audio");
+    await h.ack(h.calls.at(-1)!);
+    assert.equal((await completion).ok, true);
+  }
+
+  for (const generatedAudio of [false, true]) {
+    const h = harness();
+    const { handle } = begin(h, { generation: 1 });
+    const segment = h.registry.prepareSegment(owner, 1, row("Partially taught then failed."), { intro: false })!;
+    segment.markShown();
+    if (generatedAudio) segment.failPlayback({ audioBytes: new Uint8Array([73, 68, 51]), durationMs: 900, timings: null });
+    else segment.interrupt();
+    await h.ack(h.calls[0]!);
+    const completion = handle.complete({ rawResponse: "Partially taught then failed." });
+    await h.settle();
+    assert.equal(h.calls.at(-1)?.input.status, "stopped", "preserved partial ink/audio cannot manufacture a completed lesson");
+    assert.equal((await completion).ok, false);
+    await h.ack(h.calls.at(-1)!);
+    assert(handle.submittedRows().some(row => row.narration === "Partially taught then failed."), "recovery keeps the actual partial row");
+  }
 }
 
 async function doubtWaitsForTheLessonItStopped() {
@@ -1090,6 +1148,7 @@ async function main() {
   await introRowsWaitForTheFigure();
   await closeIsIdempotentAndKeepsEmptyTurns();
   await emptyDoubtIsNotSaved();
+  await emptyCompletionCannotFinalize();
   await doubtWaitsForTheLessonItStopped();
   await backoffThenFailedThenRetry();
   await refusedFigureSavesOnceAsText();
@@ -1103,7 +1162,11 @@ async function main() {
   console.log("verify-live-turn-save: coalescing, intro hold, close, doubt queue, backoff, offline, text only fallback, 409, cut row, cut first step of a doubt or resume, hung checkpoint timeout, reopen keeps unsaved turns, keepalive budget, mirror, export and status verified");
 }
 
-void main().catch((error) => {
+const completionWatchdog = setTimeout(() => {
+  console.error("live turn save gate did not complete its asynchronous cases");
+  process.exitCode = 1;
+}, 15_000);
+void main().finally(() => clearTimeout(completionWatchdog)).catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });

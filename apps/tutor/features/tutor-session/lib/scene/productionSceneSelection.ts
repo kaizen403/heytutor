@@ -8,6 +8,7 @@ import {
   pruneDeadSceneEntities, pruneUnverifiedSceneAnnotations, displayedSceneQuantityTexts,
   validateMatrixSourceBinding, validateSceneQuantityAgreement, validateSceneDocument,
   validateSphericalRefractionImagePlacements, validateTurnPlanSceneProofs, resolveDiagramFailureStatus,
+  demandRejection, sceneDemand, sourceConceptRepresentationRejection, coaxialCoilsRepresentationRejection,
   type FigureSource, type ProblemStructureView, type RenderScene, type SceneDocument,
   type TurnPlanV3, type ValidationReport,
 } from "@heytutor/scene-engine";
@@ -153,11 +154,17 @@ export function validateProductionSceneCandidate(input: {
     severity: "fatal" as const,
   }));
   const sourceIssues = validateMatrixSourceBinding(validated.document, question, authoritativePlan);
+  const conceptRejected = sourceConceptRepresentationRejection(validated.document, question, authoritativePlan);
+  const coilsRejected = coaxialCoilsRepresentationRejection(validated.document, question);
   const proofIssues = validateTurnPlanSceneProofs(validated.document, authoritativePlan);
   // A literal image point at a plan-derived distance from a refracting
   // surface's vertex must be where the spherical refraction law puts it.
   const refractionImageIssues = validateSphericalRefractionImagePlacements(validated.document, authoritativePlan);
   const compiledScene = compileSceneDocument(validated.document);
+  const relevanceRejected = validated.document.visualDecision.mode === "scene" &&
+    Boolean(demandRejection(validated.document, sceneDemand(question)));
+  const requestedFigureDeclined = authoritativePlan.visualRequirement !== "none" &&
+    validated.document.visualDecision.mode === "text_only";
   // Final admission already requires readable ink. Reject the same candidates
   // here so a cheaper unlabelled scene cannot displace a drawable sibling.
   const missingReadableLabel = compiledScene.ok && compiledScene.renderScene &&
@@ -167,10 +174,18 @@ export function validateProductionSceneCandidate(input: {
       typeof primitive.text === "string" && primitive.text.trim().length > 0);
   const fatalIssues = [
     ...sourceIssues,
+    ...(conceptRejected ? [{ code: "scene_source_concept_invalid", message: "The source-bound reference relations did not pass independent admission.", path: "source", severity: "fatal" as const }] : []),
+    ...(coilsRejected ? [{ code: "scene_source_apparatus_invalid", message: "The apparatus did not pass independent source admission.", path: "source", severity: "fatal" as const }] : []),
     ...authorityIssues,
     ...proofIssues,
     ...refractionImageIssues,
     ...compiledScene.report.issues,
+    ...(relevanceRejected ? [{ code: "scene_relevance_rejected",
+      message: "The candidate does not represent the source-described setup; retain the requested objects and relations.",
+      path: "source", severity: "fatal" as const }] : []),
+    ...(requestedFigureDeclined ? [{ code: "planner_declined_required_scene",
+      message: "A figure was requested. Build an honest source-grounded setup without invented values, or let independently compiled fallbacks decide availability.",
+      path: "visualDecision", severity: "fatal" as const }] : []),
     ...(missingReadableLabel ? [{
       code: "scene_without_readable_label",
       message: "A requested scene must contain readable label or dimension text attached to its geometry.",
@@ -230,6 +245,7 @@ export interface ProductionSceneSelection {
   hasReadableInk: boolean;
   sourceAllowed: boolean;
   saveFailure: string | null;
+  exactRejectionCode: "scene_relevance_rejected" | null;
 }
 
 /**
@@ -243,7 +259,7 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
   const turnPlan = gate.turnPlan;
   const empty = (reason: string, visualStatus: ProductionSceneSelection["visualStatus"]): ProductionSceneSelection => ({
     gate, representation: null, attemptedRepresentation: null, candidateValidation: null,
-    visualStatus, reason, selectionReason: reason, hasReadableInk: false, sourceAllowed: true, saveFailure: null,
+    visualStatus, reason, selectionReason: reason, hasReadableInk: false, sourceAllowed: true, saveFailure: null, exactRejectionCode: null,
   });
   try {
     // Preserve the live no-figure guard, not just the planner's vote.
@@ -258,6 +274,7 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
     const fallbackCapabilities = inferSceneCapabilities(question, {
       lawIds: turnPlan.lawIds, problemIR: input.problemIR, turnPlan,
     });
+    let exactRejectionCode: ProductionSceneSelection["exactRejectionCode"] = null;
     const selected = input.fastRepresentation ?? selectVerifiedRepresentation({
       question, turnPlan, problemIR: input.problemIR,
       families: fallbackCapabilities.families.length > 0 ? fallbackCapabilities.families : gate.families,
@@ -266,6 +283,7 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
         sceneDocument: value.document, renderScene: value.renderScene, validationReport: value.report,
       } : null,
       exactFigureSource: input.exactFigureSource ?? "planner",
+      onExactRejection: code => { exactRejectionCode = code; },
     });
     const selectedHasInk = selected.renderScene.primitives.some((primitive) =>
       (primitive.kind === "label" || primitive.kind === "dimension") &&
@@ -285,7 +303,7 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
       candidateValidation, visualStatus: selectedIsDrawable ? "validated" : failureStatus === "retry_required" ? "retry_required" : "text_only",
       reason: selectedIsDrawable ? selectionReason : input.solverAuthorityBlocked ? "solver_contradiction"
         : !selectedSourceAllowed ? selectionReason : saveFailure ?? (!selectedHasInk ? "representation carries no readable label" : selected.reason),
-      selectionReason, hasReadableInk: selectedHasInk, sourceAllowed: selectedSourceAllowed, saveFailure,
+      selectionReason, hasReadableInk: selectedHasInk, sourceAllowed: selectedSourceAllowed, saveFailure, exactRejectionCode,
     };
   } catch (error) {
     // The pre-existing exception path records required failures regardless of retry opt-out.

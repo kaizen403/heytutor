@@ -277,6 +277,10 @@ export function useTurnControl(
           // Old async speech/draw cleanup cannot change a successor's failure
           // history or publish an error against the replacement turn.
           if (!counted() || cancelRef.current) return;
+          // A recovered voice transport never reaches this catch. Preserve an
+          // owned missing beat even if later paragraphs play successfully, so
+          // the whole lesson cannot be saved as complete with a silent gap.
+          liveTurnSave().markSegmentFailure?.(cancelRef, turnGeneration);
           consecutiveSegmentFailuresRef.current += 1;
           console.error(`Segment ${index} failed:`, error);
           tutorDebug("segment", "segment failed", {

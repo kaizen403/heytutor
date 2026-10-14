@@ -50,6 +50,7 @@ import {
   type TurnStorageReservation,
 } from "@/lib/boards/storageQuota";
 import { assertOwnedTrace } from "@/lib/obs/traceOwnership";
+import { queueFailedTurnSentry } from "@/lib/obs/failedTurnSentry";
 import { canonicalizeTurnSceneMetadata, type CanonicalTurnSceneMetadata } from "@/lib/scene/turnScenePersistence";
 import {
   audioPrefixMatchesType,
@@ -63,6 +64,7 @@ import {
 import {
   isTurnKind,
   isTurnStatus,
+  hasMeaningfulTurnSegments,
   nextTurnStatus,
   type TurnKind,
   type TurnStatus,
@@ -543,7 +545,7 @@ async function closeStatusOnly(
       const status = nextTurnStatus(currentStatus, input.status);
       const ownsMetadata = input.seq > current.checkpointSeq;
       const hasMetadata = input.rawResponse !== undefined || input.resumeState !== undefined;
-      return tx.turn.update({
+      const turn = await tx.turn.update({
         where: { id: current.id },
         data: {
           status,
@@ -552,6 +554,9 @@ async function closeStatusOnly(
           ...(ownsMetadata && hasMetadata ? { checkpointSeq: input.seq } : {}),
         },
       });
+      const segments = await tx.segment.findMany({ where: { turnId: turn.id }, orderBy: { orderIndex: "asc" } });
+      const sentryEventId = await queueFailedTurnSentry(tx, { ...turn, segments });
+      return { ...turn, sentryEventId: sentryEventId ?? turn.sentryEventId };
     }, CHECKPOINT_TRANSACTION_OPTIONS);
     const segments = await prisma.segment.findMany({ where: { turnId: turn.id }, orderBy: { orderIndex: "asc" } });
     return json(turnBody({ ...turn, segments }));
@@ -722,6 +727,10 @@ async function applyCheckpoint(
   }
   const sceneSeq = ownsScene ? input.seq : heldSceneSeq(before);
   const canonicalRows = canonical.value.segments.map((row, orderIndex) => ({ ...row, orderIndex }));
+  if (status === "complete" && (isRecord(resumeState) && "earlyOpeningOnly" in resumeState && resumeState.earlyOpeningOnly === true ||
+    !hasMeaningfulTurnSegments(canonicalRows.filter(row => typeof row.sourceOrderIndex === "number")))) {
+    return reject("turn_not_persistable", "A completed lesson must contain recorded teaching. Please try again.", 400);
+  }
   const attemptDir = attemptDirName();
   const prefix = checkpointAttemptPrefix(boardId, turnId, attemptDir);
   const expectedHeld = merged.map((row, index) => uploads.has(index) ? {
@@ -948,7 +957,8 @@ async function applyCheckpoint(
           if (current && current.metadataBytes > BigInt(retainedMetadataBytes)) {
             await refundTurnMetadataStorage(tx, userId, current.metadataBytes - BigInt(retainedMetadataBytes));
           }
-          return { kind: "saved", turn: { ...turn, segments }, sceneAccepted: ownsScene };
+          const sentryEventId = await queueFailedTurnSentry(tx, { ...turn, segments });
+          return { kind: "saved", turn: { ...turn, sentryEventId: sentryEventId ?? turn.sentryEventId, segments }, sceneAccepted: ownsScene };
         }, CHECKPOINT_TRANSACTION_OPTIONS);
       } catch (error) {
         lastError = error;

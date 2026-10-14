@@ -11,6 +11,7 @@ import {
   validateTurnPlanSceneProofs,
   validateTurnPlanV3,
   archetypeProvenance,
+  sourceConceptRepresentationRejection,
   verifyTurnPlanAgainstSolver,
   type SceneArtifactsV3,
   type FigureSource,
@@ -35,6 +36,7 @@ import { canonicalRecordedWorkWrite } from "@/features/tutor-session/lib/board/w
 import { parseStoredCodeLesson } from "@/lib/code-lesson/persistedCodeLesson";
 import { boardContinuationOf, type BoardContinuation } from "@/lib/boards/boardContinuation";
 import type { DiagramStrategy } from "@/features/tutor-session/lib/scene/diagramStrategy";
+import { readFailedTurnTelemetry, type FailedTurnTelemetry } from "@/lib/obs/failedTurnTelemetry";
 
 export interface SubmittedTurnSegment {
   orderIndex: number;
@@ -73,6 +75,7 @@ export type PersistedSceneArtifacts = SceneArtifactsV3 & {
   codeLesson?: CodeLessonPlan;
   boardContinuation?: BoardContinuation;
   diagramStrategy?: DiagramStrategy;
+  failureTelemetry?: FailedTurnTelemetry;
 };
 
 export interface CanonicalTurnSceneMetadata {
@@ -92,6 +95,7 @@ export type TurnSceneRejectionCode =
   | "scene_representation_tier_invalid" | "scene_non_metric_mismatch"
   | "scene_document_invalid" | "scene_turn_plan_invalid" | "scene_representation_not_scene"
   | "scene_source_question_mismatch" | "scene_document_tier_mismatch" | "scene_metric_geometry_outside_exact"
+  | "scene_source_concept_invalid"
   | "scene_compile_failed" | "scene_proof_failed" | "scene_admission_failed" | "scene_validation_report_invalid"
   | "scene_point_line_annotation_invalid" | "scene_point_line_quantity_invalid"
   | "scene_point_line_solver_binding_required" | "scene_point_line_solver_evidence_invalid"
@@ -148,13 +152,14 @@ export async function canonicalizeTurnSceneMetadata(
     const degradation = validatedDegradation(metadata.sceneArtifacts);
     const figureSource = validatedFigureSource(metadata.sceneArtifacts);
     const diagramStrategy = validatedDiagramStrategy(metadata.sceneArtifacts);
+    const failureTelemetry = readFailedTurnTelemetry(isRecord(metadata.sceneArtifacts) ? metadata.sceneArtifacts.failureTelemetry : undefined);
     // A doubt is saved text-only, and without this its marker went with the
     // rest of the artifacts: replay and restore then treated it as a page of
     // its own and dropped the lesson's figure under it.
     const continuation = boardContinuationOf(metadata.sceneArtifacts);
     // A validated plan is kept on its own too: a text-only lesson stopped and
     // reopened needs it for Continue and for a doubt on that page.
-    const baseArtifacts = retryRequired || degradation || figureSource || codeLesson || continuation || diagramStrategy || plan
+    const baseArtifacts = retryRequired || degradation || figureSource || codeLesson || continuation || diagramStrategy || plan || failureTelemetry
       ? minimalFailureArtifacts(
           plan,
           retryRequired ? "retry_required" : "text_only",
@@ -175,6 +180,7 @@ export async function canonicalizeTurnSceneMetadata(
               ...baseArtifacts,
               ...(codeLesson ? { codeLesson } : {}),
               ...(continuation ? { boardContinuation: continuation } : {}),
+              ...(failureTelemetry ? { failureTelemetry } : {}),
             }
           : null,
         segments: teachingCommands.segments,
@@ -240,6 +246,9 @@ export async function canonicalizeTurnSceneMetadata(
     }
     if (!sourceQuestionMatches(document, question)) {
       return failure("scene_source_question_mismatch", "scene source question does not match the submitted question");
+    }
+    if (sourceConceptRepresentationRejection(document, question, planResult.plan)) {
+      return failure("scene_source_concept_invalid", "source concept relations do not match the independently rebuilt model");
     }
     const declaredTier = document.source.representationTier;
     if (declaredTier !== undefined && declaredTier !== tier) {
@@ -374,6 +383,7 @@ export async function canonicalizeTurnSceneMetadata(
     nonMetric,
     figureSource: validatedFigureSource(metadata.sceneArtifacts),
     diagramStrategy: validatedDiagramStrategy(metadata.sceneArtifacts),
+    failureTelemetry: readFailedTurnTelemetry(metadata.sceneArtifacts.failureTelemetry),
     candidates: [{
       candidateId,
       strategy: "server_revalidation",
