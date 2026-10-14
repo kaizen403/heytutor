@@ -763,6 +763,20 @@ function opticsProofFailure(question: string, match: OpticsStemMatch, document: 
       return `f = ${opticsCompact(value)} cm contradicts the stem's power ${power.text} D (|f| = ${opticsCompact(power.cm)} cm)`;
     }
   }
+  // An image distance the stem states is the engine's, within 1 percent, on the side it states
+  // (behind a mirror, or on the object's side of a lens, is virtual).
+  const v = element === "lens" ? f * u / (u + f) : f * u / (u - f);
+  const virtualImage = element === "lens" ? v < 0 : v > 0;
+  for (const side of opticsStemImage(question, element).sides) {
+    if (side.cm === null) continue;
+    if (scale === null) return "gaussian_image lengthUnit must be cm, m or mm";
+    const value = Math.abs(v) * scale;
+    if (!(Math.abs(value - side.cm) <= OPTICS_IMAGE_DISTANCE_TOLERANCE * side.cm) || (side.virtual !== null && side.virtual !== virtualImage)) {
+      const where = element === "mirror" ? (virtualImage ? "behind the mirror" : "in front of the mirror")
+        : virtualImage ? "on the object's side of the lens" : "on the far side of the lens";
+      return `the image at ${opticsCompact(value)} cm ${where} contradicts the stem's ${side.text}`;
+    }
+  }
   // P4: every focus is the engine focus of this element, in the image's unit.
   const foci = document.constructions.filter((construction) => construction.operator === "optical_focus");
   if (foci.length === 0) return "no optical_focus";
@@ -1276,20 +1290,25 @@ const OPTICS_NATURE_AFTER = new RegExp(`\\bimages?\\b(?:\\s+(?:so\\s+)?(?:formed
 /** "real or virtual", "upright or inverted": the stem asks about the nature, it does not state it. */
 const OPTICS_NATURE_CHOICE = new RegExp(`\\b(?:${OPTICS_NATURE})\\s+or\\s+(?:an?\\s+)?(?:${OPTICS_NATURE})\\b`, "i");
 /** Where the image forms: "an image 30 cm behind the mirror", "the image forms on the other side of the lens". */
-const OPTICS_IMAGE_SIDE = /\bimages?\b((?:(?!\bobjects?\b)[^.;])*?)\b(behind|in front of|on the (?:other|opposite|far|same) side(?:\s+(?:of|as))?)\s+(?:it|the (?:mirror|lens|object))\b/gi;
+const OPTICS_IMAGE_SIDE = /\bimages?\b((?:(?!\bobjects?\b)(?:[^.;]|\.(?=\d)))*?)\b(behind|in front of|on the (?:other|opposite|far|same) side(?:\s+(?:of|as))?)\s+(?:it|the (?:mirror|lens|object))\b/gi;
+/** A stated image distance rounded to three figures (33.3 cm for 33.33 cm) still agrees. */
+const OPTICS_IMAGE_DISTANCE_TOLERANCE = 0.01;
 
 /**
- * The element kind the image the stem describes implies, for a real object, or null. Only the stem
+ * What the stem states about the image: nature words next to "image", and where it forms, each with
+ * its distance when one is written just before the side ("an image 30 cm behind it"). Only the stem
  * is read, and only its statements: a question, or a clause after "whether" or "if", asks about the
- * image. A real (or inverted) image needs a converging element. A virtual (erect, upright) image is
- * enlarged only by a converging element and diminished only by a diverging one. The side the stem
- * puts the image on is its nature too (behind a mirror is virtual, in front of it real; across a
- * lens is real, on the object's side virtual), and a virtual image distance against the stem's
- * object distance gives its size. Real with virtual, or enlarged with diminished, implies nothing.
+ * image, and "real or virtual" names no nature. A side is virtual behind a mirror (or on its other
+ * side) and real in front of it (or on the object's side); across a lens it is real and on the
+ * object's side virtual. "Behind" or "in front of" a lens names no side for certain (null), though a
+ * distance there is still the image's.
  */
-function opticsImpliedKind(question: string, element: "lens" | "mirror", match: OpticsStemMatch): "convex" | "concave" | null {
+function opticsStemImage(question: string, element: "lens" | "mirror"): {
+  words: Set<string>;
+  sides: Array<{ virtual: boolean | null; cm: number | null; text: string }>;
+} {
   const words = new Set<string>();
-  const sides: Array<{ virtual: boolean; cm: number | null }> = [];
+  const sides: Array<{ virtual: boolean | null; cm: number | null; text: string }> = [];
   for (const sentence of question.split(/(?<=[.!?])\s+/)) {
     if (sentence.trim().endsWith("?")) continue;
     const statement = sentence.split(/\b(?:whether|if)\b/i)[0]!;
@@ -1299,21 +1318,39 @@ function opticsImpliedKind(question: string, element: "lens" | "mirror", match: 
     }
     for (const found of statement.matchAll(OPTICS_IMAGE_SIDE)) {
       const where = found[2]!.toLowerCase();
-      // "Behind" or "in front of" a lens names no side for certain; a mirror's back is its virtual side.
       const virtual = element === "mirror" ? /behind|other|opposite|far/.test(where) : /same/.test(where);
       const real = element === "mirror" ? /in front|same/.test(where) : /other|opposite|far/.test(where);
-      if (virtual === real) continue;
       const distance = /(\d+(?:\.\d+)?)\s*(mm|cm|m)\s*$/i.exec(found[1]!);
-      sides.push({ virtual, cm: distance ? Number(distance[1]) * OPTICS_CM_PER_UNIT[distance[2]!.toLowerCase()]! : null });
+      if (virtual === real && !distance) continue;
+      // The stem's own words from the side on: "behind it", "on the other side of the lens".
+      const place = found[0].slice(/^images?/i.exec(found[0])![0].length + found[1]!.length);
+      sides.push({
+        virtual: virtual === real ? null : virtual,
+        cm: distance ? Number(distance[1]) * OPTICS_CM_PER_UNIT[distance[2]!.toLowerCase()]! : null,
+        text: distance ? `image ${distance[1]} ${distance[2]} ${place}` : `image ${place}`,
+      });
     }
   }
-  const real = words.has("real") || words.has("inverted") || sides.some((side) => !side.virtual);
-  const virtual = words.has("virtual") || words.has("erect") || words.has("upright") || sides.some((side) => side.virtual);
+  return { words, sides };
+}
+
+/**
+ * The element kind the image the stem describes implies, for a real object, or null
+ * (`opticsStemImage`). A real (or inverted) image needs a converging element. A virtual (erect,
+ * upright) image is enlarged only by a converging element and diminished only by a diverging one.
+ * The side the stem puts the image on is its nature too, and a virtual image distance against the
+ * stem's object distance gives its size. Real with virtual, or enlarged with diminished, implies
+ * nothing.
+ */
+function opticsImpliedKind(question: string, element: "lens" | "mirror", match: OpticsStemMatch): "convex" | "concave" | null {
+  const { words, sides } = opticsStemImage(question, element);
+  const real = words.has("real") || words.has("inverted") || sides.some((side) => side.virtual === false);
+  const virtual = words.has("virtual") || words.has("erect") || words.has("upright") || sides.some((side) => side.virtual === true);
   if (real === virtual) return null;
   const converging = element === "lens" ? "convex" : "concave";
   if (real) return converging;
   const u = match.sources.u === "stem" && typeof match.slots.u === "number" ? Math.abs(match.slots.u) : null;
-  const sized = sides.filter((side) => side.virtual && side.cm !== null && u !== null);
+  const sized = sides.filter((side) => side.virtual === true && side.cm !== null && u !== null);
   const larger = words.has("enlarged") || words.has("magnified") || sized.some((side) => side.cm! > u!);
   const smaller = words.has("diminished") || sized.some((side) => side.cm! < u!);
   if (larger === smaller) return null;

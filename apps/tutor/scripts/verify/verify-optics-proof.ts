@@ -101,6 +101,11 @@
  * G23: the compiler draws a vector's direction in place of its end. An object or image arrow kept
  * on the engine anchors with a direction, and a hand incident vector with one, stay unproven and
  * never draw; the same arrows and vector without a direction still draw.
+ * G24: an image distance the stem states is the engine's, on the stated side, within 1 percent. On
+ * "an image 30 cm behind" a mirror 15 cm from the object, a concave mirror of f 20 cm (image 60 cm
+ * behind) stays unproven and f 30 cm draws. The wrong side (30 cm behind on an "in front" stem) and
+ * a lens image at 20 cm on a 60 cm stem ("on the other side", or "behind the lens", whose side is
+ * not read) stay unproven; the matching figures draw, and 33.3 cm proves 33.33 cm.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -1484,7 +1489,49 @@ function named(name: string, run: () => void): void {
   }
 }
 
-for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21", "G22", "G23"]) {
+// ---- G24: an image distance the stem states is the one the engine draws, on the stated side ----
+{
+  const mirrorAt = (question: string, u: number, f: number) =>
+    mirrorDoc(question, { u, f, h: 2, kind: "concave", quantities: [{ id: "u", symbol: "u", value: u }, { id: "f", symbol: "f", value: f }] });
+  const stated = (question: string, u: number, v: number, f: number, law: string) => plan(question, [
+    { id: "u", symbol: "u", value: u, unit: "cm", provenance: "given", sourceText: `${u} cm` },
+    { id: "v", symbol: "v", value: v, unit: "cm", provenance: "given", sourceText: `${v} cm` },
+  ], [{ id: "f", symbol: "f", value: f, unit: "cm", provenance: "derived" }], [law]);
+  const qBehind = "An object placed 15 cm in front of a mirror forms an image 30 cm behind it. Draw the ray diagram.";
+  const qFront = "An object placed 15 cm in front of a mirror forms an image 30 cm in front of it. Draw the ray diagram.";
+  const qOther = "An object placed 20 cm from a lens forms an image 60 cm on the other side of it. Draw the ray diagram.";
+  const qLensBehind = "An object placed 20 cm in front of a convex lens forms an image 60 cm behind the lens. Draw the ray diagram.";
+  for (const [name, question, turnPlan, document, reason] of [
+    // The review's figure: u = -15 and f = -20 put the image 60 cm behind the mirror.
+    ["a concave mirror of f 20 cm on the 30 cm behind stem (image 60 cm behind)", qBehind, stated(qBehind, 15, 30, 30, "mirror_formula"),
+      mirrorAt(qBehind, 15, 20), /^the image at 60 cm behind the mirror contradicts the stem's image 30 cm behind it$/],
+    ["a concave mirror of f 30 cm on the 30 cm in front stem (image 30 cm behind, the wrong side)", qFront, stated(qFront, 15, 30, 10, "mirror_formula"),
+      mirrorAt(qFront, 15, 30), /^the image at 30 cm behind the mirror contradicts the stem's image 30 cm in front of it$/],
+    ["a convex lens of f 10 cm on the 60 cm other side stem (image 20 cm)", qOther, stated(qOther, 20, 60, 15, "lens_formula"),
+      lensDoc(qOther, { u: 20, f: 10, h: 2 }), /^the image at 20 cm on the far side of the lens contradicts the stem's image 60 cm on the other side of it$/],
+    ["a convex lens of f 10 cm on the 60 cm behind the lens stem (image 20 cm, side unread)", qLensBehind, stated(qLensBehind, 20, 60, 15, "lens_formula"),
+      lensDoc(qLensBehind, { u: 20, f: 10, h: 2 }), /^the image at 20 cm on the far side of the lens contradicts the stem's image 60 cm behind the lens$/],
+  ] as const) {
+    expectUnproven("G24", name, question, document, reason);
+    expectNeverPlanner("G24", name, question, turnPlan, document);
+  }
+  // Controls: the stated distance on the stated side proves and draws; 33.3 cm is 33.33 cm within 1 percent.
+  for (const [name, question, turnPlan, document] of [
+    ["a concave mirror of f 30 cm on the 30 cm behind stem", qBehind, stated(qBehind, 15, 30, 30, "mirror_formula"), mirrorAt(qBehind, 15, 30)],
+    ["a concave mirror of f 10 cm on the 30 cm in front stem", qFront, stated(qFront, 15, 30, 10, "mirror_formula"), mirrorAt(qFront, 15, 10)],
+    ["a convex lens of f 15 cm on the 60 cm other side stem", qOther, stated(qOther, 20, 60, 15, "lens_formula"), lensDoc(qOther, { u: 20, f: 15, h: 2 })],
+    ["a convex lens of f 15 cm on the 60 cm behind the lens stem", qLensBehind, stated(qLensBehind, 20, 60, 15, "lens_formula"), lensDoc(qLensBehind, { u: 20, f: 15, h: 2 })],
+  ] as const) {
+    const result = explainPlannerOpticsProof(question, document);
+    check("G24", result.proof === "proven", `${name} must be proven; got ${result.proof}: ${result.reason}`);
+    expectDrawnAsPlanner("G24", name, question, turnPlan, document);
+  }
+  const qRounded = "An object placed 20 cm in front of a mirror forms an image 33.3 cm in front of it. Draw the ray diagram.";
+  const rounded = explainPlannerOpticsProof(qRounded, mirrorAt(qRounded, 20, 12.5));
+  check("G24", rounded.proof === "proven", `an image 33.33 cm in front on a 33.3 cm stem must be proven (1 percent); got ${rounded.proof}: ${rounded.reason}`);
+}
+
+for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21", "G22", "G23", "G24"]) {
   console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 }
 for (const [name, failed] of namedCases) console.log(`  ${name}: ${failed ? `FAIL (${failed} checks)` : "pass"}`);
