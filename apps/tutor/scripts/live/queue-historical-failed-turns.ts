@@ -5,6 +5,7 @@ import { failedTurnWhere } from "../../lib/admin/turnFilters";
 import { LIVE_TURN_IDLE_MS } from "../../lib/boards/turnStatus";
 import { queueFailedTurnSentry } from "../../lib/obs/failedTurnSentry";
 import { buildFailedTurnSentryEvent } from "../../lib/obs/failedTurnTelemetry";
+import { failedTurnDeliveryEnabled } from "../../lib/obs/failedTurnRuntime";
 
 /** Owner-only backfill after deploying the migration. Dry runs cannot write. */
 export async function queueHistoricalFailedTurns(
@@ -14,8 +15,11 @@ export async function queueHistoricalFailedTurns(
   if (!Number.isInteger(options.limit) || options.limit < 1 || options.limit > 100) {
     throw new Error("limit must be an integer from 1 to 100");
   }
+  if (options.apply && !failedTurnDeliveryEnabled()) {
+    throw new Error("Historical queueing requires the explicit production Sentry environment");
+  }
   const where = {
-    AND: [failedTurnWhere(), { sentryEventId: null }, {
+    AND: [failedTurnWhere(), { sentryReportedAt: null }, { OR: [{ sentryEventId: null }, { sentryNextAttemptAt: null }] }, {
       OR: [
         { status: { not: "live" } },
         { status: "live", updatedAt: { lte: new Date(Date.now() - LIVE_TURN_IDLE_MS) } },
@@ -31,8 +35,8 @@ export async function queueHistoricalFailedTurns(
       take: options.limit,
       select: {
         id: true, status: true, kind: true, visualStatus: true, sceneArtifacts: true,
-        updatedAt: true, sentryEventId: true, resumeState: true,
-        segments: { select: { narration: true, spokenText: true } },
+        updatedAt: true, sentryEventId: true, sentryFailureEvent: true, sentryReportedAt: true, resumeState: true,
+        segments: { select: { narration: true, spokenText: true, command: true } },
       },
     });
     return { eligible, rows };

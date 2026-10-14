@@ -9,3 +9,14 @@ export function sentryEventUrl(
   const query = new URLSearchParams({ query: eventId, statsPeriod: "90d" });
   return `https://sentry.io/organizations/${organization}/issues/?${query}`;
 }
+
+/** A reserved identity with no delivery attempt is a cancelled event. */
+export function sentryReceiptEventUrl(receipt: {
+  sentryEventId?: string | null;
+  sentryFailureEvent?: unknown;
+  sentryReportedAt?: Date | null;
+  sentryNextAttemptAt?: Date | null;
+}, env: NodeJS.ProcessEnv = process.env): string | null {
+  if (!receipt.sentryReportedAt && !(receipt.sentryFailureEvent && receipt.sentryNextAttemptAt)) return null;
+  return sentryEventUrl(receipt.sentryEventId, env);
+}

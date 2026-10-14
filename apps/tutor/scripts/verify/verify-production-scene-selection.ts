@@ -209,7 +209,9 @@ async function verifyLabelledSiblingSelection(): Promise<void> {
     ...candidate, visualDecision: { mode: "text_only", reason: "No faithful figure is available." },
     entities: [], constructions: [], assertions: [], requiredEntityIds: [], revealGroups: [], teachingTimeline: [],
   }, question: segmentQuestion, turnPlan: segmentPlan });
-  assert.equal(decline.valid, true, "an explicit valid text-only decline remains distinct from an unlabelled scene");
+  assert.equal(decline.valid, false, "a requested figure decline must enter repair instead of winning over a drawable sibling");
+  assert(decline.errors.some(issue => issue.code === "planner_declined_required_scene"));
+  assert(!decline.errors.some(issue => issue.code === "scene_without_readable_label"), "declines remain distinct from unlabelled scene candidates");
 }
 
 void verifyLabelledSiblingSelection().then(() => {

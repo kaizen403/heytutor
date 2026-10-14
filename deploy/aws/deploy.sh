@@ -17,6 +17,13 @@ set -a
 source "$ENV_FILE"
 set +a
 
+# Stamp both build-time artifacts and the service's EnvironmentFile with the
+# deployed commit. Do not reuse a release left behind by an earlier deploy.
+SENTRY_RELEASE="$(git rev-parse HEAD)"
+export SENTRY_RELEASE
+# Explicit production-only opt-in. Local and lab servers leave this unset.
+export SENTRY_ENVIRONMENT=production
+
 if [ -z "${DATABASE_URL:-}" ]; then
   echo "DATABASE_URL is required in $ENV_FILE." >&2
   exit 1
@@ -91,6 +98,7 @@ fi
 
 if [ -f /etc/systemd/system/heytutor.service ]; then
   echo "==> restart heytutor.service"
+  sudo node "$ROOT/deploy/aws/set-sentry-release.mjs" "$ENV_FILE" "$SENTRY_RELEASE"
   sudo systemctl reset-failed heytutor || true
   sudo systemctl restart heytutor
 else

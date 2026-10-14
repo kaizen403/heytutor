@@ -1,4 +1,6 @@
-import { effectiveTurnStatus } from "../boards/turnStatus";
+import { effectiveTurnStatus, hasMeaningfulTurnSegments } from "../boards/turnStatus";
+import { classifyTurnFailure } from "./turnFailureClassification";
+import { failedTurnRuntimeEnvironment } from "./failedTurnRuntime";
 
 /** Content-free vocabulary shared by the outbox and Sentry's final privacy boundary. */
 export const FAILED_TURN_STAGES = [
@@ -9,7 +11,7 @@ export const FAILED_TURN_CODES = [
   "required_visual_unavailable", "unrecorded", "turn_plan_rejected", "problem_ir_invalid",
   "scene_planner_invalid", "planner_deadline", "planner_declined", "fallback_suppressed",
   "transport_error", "provider_error", "budget_limit", "rate_limit", "save_failure",
-  "not_needed", "continuation", "checkpoint_abandoned", "scene_relevance_rejected", "lesson_not_taught", "dsa_hint_unsupported", "unknown",
+  "not_needed", "continuation", "checkpoint_abandoned", "scene_relevance_rejected", "lesson_not_taught", "teaching_segment_failed", "dsa_hint_unsupported", "unknown",
 ] as const;
 export const FAILED_TURN_ISSUE_CODES = [
   ...FAILED_TURN_CODES,
@@ -23,9 +25,10 @@ export const FAILED_TURN_ISSUE_CODES = [
   "unknown_claim_quantity", "unknown_dependency", "unresolved_numeric_unknown", "optics_law_mismatch",
   "scene_without_readable_label", "planner_declined_required_scene", "unsupported_operator",
   "scene_source_question_mismatch", "scene_solver_plan_contradiction", "solver_value_mismatch",
+  "scene_source_concept_invalid", "scene_source_apparatus_invalid",
   "numeric_authority_contradiction", "unknown_issue",
 ] as const;
-export const FAILED_TURN_DEPLOYMENTS = ["gpt-6-sol", "gpt-6-1-sol", "gpt-6.1-sol", "gpt-5-4-mini", "fireworks", "unknown"] as const;
+export const FAILED_TURN_DEPLOYMENTS = ["gpt-6-sol", "gpt-6-1-sol", "gpt-6.1-sol", "gpt-5-4-mini", "fireworks", "mock", "unknown"] as const;
 
 type FailureCode = typeof FAILED_TURN_CODES[number];
 type FailureStage = typeof FAILED_TURN_STAGES[number];
@@ -84,7 +87,7 @@ export interface FailedTurnInput {
   sceneArtifacts: unknown;
   resumeState?: unknown;
   updatedAt?: Date;
-  segments: ReadonlyArray<{ narration?: string; spokenText?: string }>;
+  segments: ReadonlyArray<{ narration?: string; spokenText?: string; command?: unknown }>;
 }
 
 export interface FailedTurnSentryEvent {
@@ -116,7 +119,7 @@ function stageFor(code: FailureCode): FailureStage {
   if (code === "solver_contradiction") return "solver";
   if (code === "candidate_invalid") return "validation";
   if (code === "planner_deadline") return "deadline";
-  if (code === "lesson_not_taught") return "teaching";
+  if (code === "lesson_not_taught" || code === "teaching_segment_failed") return "teaching";
   if (code === "save_failure" || code === "checkpoint_abandoned") return "save";
   return code === "unrecorded" || code === "unknown" ? "unknown" : "scene_planner";
 }
@@ -131,18 +134,18 @@ export function buildFailedTurnSentryEvent(
   const staleLive = turn.status === "live" && options.staleLive === true && turn.updatedAt !== undefined &&
     effectiveTurnStatus(turn.status, turn.updatedAt, options.now?.getTime() ?? Date.now()) === "stopped";
   if (turn.status === "live" && !staleLive) return null;
+  const failure = classifyTurnFailure(turn);
+  if (failure.classification !== "failed" && !staleLive) return null;
+  if (failure.classification === "healthy") return null;
   const artifacts = record(turn.sceneArtifacts);
   const telemetry = readFailedTurnTelemetry(artifacts.failureTelemetry) ?? { subject: "unknown" };
   const plan = record(artifacts.turnPlan);
   const degradation = record(artifacts.degradation);
   const taught = record(turn.resumeState).earlyOpeningOnly !== true &&
-    turn.segments.some(segment => Boolean(segment.narration?.trim() || segment.spokenText?.trim()));
+    hasMeaningfulTurnSegments(turn.segments);
   const figureNeed = member(plan.visualRequirement, ["required", "optional", "none", "unknown"] as const, "unknown");
-  if (turn.visualStatus === "validated" && telemetry.failed !== true) return null;
   const subject = member(telemetry.subject, ["maths", "physics", "chemistry", "other", "unknown"] as const, "unknown");
-  const continuation = record(artifacts.boardContinuation).schemaVersion === "board-continuation/v1";
-  const code = member(telemetry.code ?? degradation.reason, FAILED_TURN_CODES,
-    staleLive ? "checkpoint_abandoned" : !taught ? "lesson_not_taught" : continuation ? "continuation" : figureNeed === "none" ? "not_needed" : "unrecorded");
+  const code = member(failure.code, FAILED_TURN_CODES, staleLive ? "checkpoint_abandoned" : "unknown");
   const stage = member(telemetry.stage, FAILED_TURN_STAGES, stageFor(code));
   const rawCodes = [...(Array.isArray(degradation.issueCodes) ? degradation.issueCodes : []), ...(telemetry.issueCodes ?? [])];
   const known = new Set<string>(FAILED_TURN_ISSUE_CODES);
@@ -151,10 +154,10 @@ export function buildFailedTurnSentryEvent(
     .filter(value => ["maths", "physics", "chemistry"].includes(value));
   const azure = env.LLM_PROVIDER === "azure" && Boolean(env.AZURE_OPENAI_ENDPOINT?.trim() && env.AZURE_OPENAI_API_KEY?.trim() && env.AZURE_OPENAI_DEPLOYMENT?.trim());
   const provider = options.historical ? "unknown" : azure ? "azure" : env.FIREWORKS_API_KEY?.trim() ? "fireworks" : "mock";
-  const deployment = options.historical ? "unknown" : member(azure ? env.AZURE_OPENAI_DEPLOYMENT : "fireworks", FAILED_TURN_DEPLOYMENTS, "unknown");
+  const deployment = options.historical ? "unknown" : member(azure ? env.AZURE_OPENAI_DEPLOYMENT : provider === "mock" ? "mock" : "fireworks", FAILED_TURN_DEPLOYMENTS, "unknown");
   const releaseValue = env.SENTRY_RELEASE ?? env.GITHUB_SHA ?? "";
   const release = !options.historical && /^[a-f0-9]{40}$/i.test(releaseValue) ? releaseValue.toLowerCase() : "unknown";
-  const environment = options.historical ? "unknown" : member(env.NODE_ENV, ["production", "development", "test", "unknown"] as const, "unknown");
+  const environment = failedTurnRuntimeEnvironment(env);
   return {
     timestamp: (options.now?.getTime() ?? Date.now()) / 1_000,
     message: "Tutor turn failed",

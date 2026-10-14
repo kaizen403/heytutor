@@ -11,6 +11,7 @@ import {
   validateTurnPlanSceneProofs,
   validateTurnPlanV3,
   archetypeProvenance,
+  sourceConceptRepresentationRejection,
   verifyTurnPlanAgainstSolver,
   type SceneArtifactsV3,
   type FigureSource,
@@ -94,6 +95,7 @@ export type TurnSceneRejectionCode =
   | "scene_representation_tier_invalid" | "scene_non_metric_mismatch"
   | "scene_document_invalid" | "scene_turn_plan_invalid" | "scene_representation_not_scene"
   | "scene_source_question_mismatch" | "scene_document_tier_mismatch" | "scene_metric_geometry_outside_exact"
+  | "scene_source_concept_invalid"
   | "scene_compile_failed" | "scene_proof_failed" | "scene_admission_failed" | "scene_validation_report_invalid"
   | "scene_point_line_annotation_invalid" | "scene_point_line_quantity_invalid"
   | "scene_point_line_solver_binding_required" | "scene_point_line_solver_evidence_invalid"
@@ -244,6 +246,9 @@ export async function canonicalizeTurnSceneMetadata(
     }
     if (!sourceQuestionMatches(document, question)) {
       return failure("scene_source_question_mismatch", "scene source question does not match the submitted question");
+    }
+    if (sourceConceptRepresentationRejection(document, question, planResult.plan)) {
+      return failure("scene_source_concept_invalid", "source concept relations do not match the independently rebuilt model");
     }
     const declaredTier = document.source.representationTier;
     if (declaredTier !== undefined && declaredTier !== tier) {

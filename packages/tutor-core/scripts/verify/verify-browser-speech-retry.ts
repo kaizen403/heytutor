@@ -14,9 +14,14 @@ let dropNext = false;
 let cancelling = false;
 let cancellations = 0;
 let attachedCancellationHandlers = 0;
+let delayedVoices = false;
+let voicesReady = false;
+const voiceListeners = new Set<() => void>();
 const attempts: Utterance[] = [];
 const speech = {
-  getVoices: () => [], resume() {},
+  getVoices: () => voicesReady ? [{ name: "Offline English", lang: "en-US" }] : [], resume() {},
+  addEventListener: (name: string, listener: () => void) => { if (name === "voiceschanged") voiceListeners.add(listener); },
+  removeEventListener: (name: string, listener: () => void) => { if (name === "voiceschanged") voiceListeners.delete(listener); },
   cancel() {
     cancellations++;
     if (pending?.onerror) attachedCancellationHandlers++;
@@ -32,6 +37,7 @@ const speech = {
     if (pending || cancelling) return; // A pending dropped sentence blocks the queue.
     pending = utterance;
     if (dropNext) { dropNext = false; return; }
+    if (delayedVoices && !voicesReady) return;
     utterance.onstart?.();
   },
 };
@@ -106,6 +112,49 @@ try {
   end();
   await queued;
   assert.equal(attachedCancellationHandlers, 0);
+
+  // Voice lists can load after both initial utterance attempts. A readiness
+  // event must rescue the owned sentence without extending its deadline.
+  delayedVoices = true; voicesReady = false; attempts.length = 0;
+  let readyStarts = 0;
+  const voiceLoading = owner.speakSegment("The available voice arrives after startup.", { onStart: () => readyStarts++ });
+  mock.timers.tick(400); mock.timers.tick(1); await flush();
+  assert.equal(readyStarts, 0);
+  voicesReady = true;
+  for (const listener of [...voiceListeners]) listener();
+  mock.timers.tick(1); await flush();
+  assert.equal(readyStarts, 1, "late voice readiness must restart a stalled owned browser sentence");
+  assert.equal(attempts.length, 3, "voice availability grants only one bounded additional startup attempt");
+  for (const listener of [...voiceListeners]) listener();
+  mock.timers.tick(1);
+  assert.equal(attempts.length, 3, "readiness events cannot duplicate audible speech");
+  assert.equal(voiceListeners.size, 0, "audibility detaches the readiness listener");
+  end(); await voiceLoading;
+
+  voicesReady = false;
+  const stoppedLoading = owner.speakSegment("Stop while voices are unavailable.");
+  owner.stop(); await stoppedLoading;
+  const stoppedAttempts = attempts.length;
+  voicesReady = true;
+  for (const listener of [...voiceListeners]) listener();
+  mock.timers.tick(3_000);
+  assert.equal(attempts.length, stoppedAttempts, "readiness after Stop cannot leak an utterance");
+  assert.equal(voiceListeners.size, 0);
+
+  voicesReady = false; attempts.length = 0;
+  let terminalErrors = 0;
+  const stillBroken = owner.speakSegment("An unavailable engine must stay bounded.", { onError: () => terminalErrors++ });
+  void stillBroken.catch(() => undefined);
+  mock.timers.tick(400); mock.timers.tick(1);
+  voicesReady = true; dropNext = true;
+  for (const listener of [...voiceListeners]) listener();
+  mock.timers.tick(1);
+  for (const listener of [...voiceListeners]) listener();
+  mock.timers.tick(2_100);
+  await assert.rejects(stillBroken, /Browser speech did not start/);
+  assert.equal(attempts.length, 3, "repeated readiness events cannot create a retry loop");
+  assert.equal(terminalErrors, 1, "readiness recovery retains the original bounded terminal failure");
+  assert.equal(voiceListeners.size, 0, "deadline detaches the readiness listener");
   console.log("verified pending browser utterance cancellation, later-task retry, and ownership-safe pause/stop");
 } finally {
   owner.stop(); sibling.stop();

@@ -8,6 +8,8 @@ import {
   synthesizeFamilyScene,
   synthesizeLastResortScene,
   synthesizeUniformCircularScene,
+  synthesizeCoaxialCoilsRepresentation,
+  buildSourceConceptRepresentation,
   demandRejection,
   sceneDemand,
   sourceMensurationStructure,
@@ -137,6 +139,26 @@ export function isPlannerQuotedConstant(
     !questionStatesValue(question, given.value);
 }
 
+function selectSourceRepresentation(input: RepresentationSelectionInput): SelectedRepresentation | null {
+  const coaxial = synthesizeCoaxialCoilsRepresentation(input.question);
+  if (coaxial) {
+    return { tier: coaxial.tier, nonMetric: true, sceneDocument: coaxial.document,
+      renderScene: coaxial.renderScene, validationReport: coaxial.validationReport,
+      figureSource: "family", family: coaxial.family, reason: coaxial.reason };
+  }
+  const conceptDocument = buildSourceConceptRepresentation(input.question, input.turnPlan);
+  if (conceptDocument) {
+    const compiled = compileSceneDocument(conceptDocument);
+    if (compiled.ok && compiled.renderScene) {
+      return { tier: "question_representation", nonMetric: true, sceneDocument: conceptDocument,
+        renderScene: compiled.renderScene, validationReport: compiled.report, figureSource: "family",
+        family: "source_concept_relation", reason: "source-bound reference relations; declared limits remain unverified" };
+    }
+  }
+
+  return null;
+}
+
 export function selectFastVerifiedRepresentation(
   input: RepresentationSelectionInput,
 ): SelectedRepresentation | null {
@@ -144,6 +166,12 @@ export function selectFastVerifiedRepresentation(
   if (!plan || plan.visualRequirement === "none") return null;
   if (plan.givens.some((given) => !questionStatesValue(input.question, given.value) &&
       !isQuotedPhysicalConstant(given.symbol, given.value))) return null;
+  // A symbolic source component needs no speculative scene-model request.
+  // Numeric plans retain the existing exact/family search.
+  if (plan.givens.length === 0 && plan.derived.length === 0 && plan.unknowns.length === 0) {
+    const sourceRepresentation = selectSourceRepresentation({ ...input, turnPlan: plan });
+    if (sourceRepresentation) return sourceRepresentation;
+  }
   const result = synthesizeFamilyScene({
     question: input.question,
     turnPlan: plan,
@@ -260,6 +288,9 @@ export function selectVerifiedRepresentation(
       };
     }
   }
+
+  const sourceRepresentation = selectSourceRepresentation(input);
+  if (sourceRepresentation) return sourceRepresentation;
 
   // A complete matrix source program is drawn by the engine from the question
   // when no planner candidate survived. The builder applies the same source

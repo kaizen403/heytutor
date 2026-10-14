@@ -94,6 +94,7 @@ import {
 import { prettierSyntaxCheck } from "../../lib/code-lesson/prettierSyntaxCheck";
 import { recordingAudioCaptureComplete, recordingAudioPersistenceComplete } from "../../lib/turn/recordingAudioCapture";
 import { liveTurnSave, type LiveTurnHandle } from "../../lib/turn/liveTurnSave";
+import { hasMeaningfulTurnSegments } from "@/lib/boards/turnStatus";
 import { lessonResumeState } from "../../lib/turn/pausedLessonRestore";
 import { buildEarlyLessonOpeningSegment, shouldStartEarlyLessonOpening } from "../../lib/turn/earlyLessonOpening";
 import { isBenignTurnAbort } from "../../lib/turn/turnFailurePolicy";
@@ -488,6 +489,7 @@ export function useQuestionHandler(
       }
       turnAbortRef.current = abortController;
       let turnCancelled = false;
+      let teachingCompleted = false;
       // Same tick as the phase, so a doubt never shows a frame of blank paper.
       setLiveTurnKind?.(doubt ? "doubt" : resume ? "resume" : "lesson");
       setPhase("thinking");
@@ -1107,7 +1109,7 @@ export function useQuestionHandler(
             timeoutMs: TURN_PLAN_DEADLINE_MS,
             conversationContext: recentConversation,
             fastMode: fastModeRef.current,
-            classifySubject: (billed.diagramStrictSubjects?.length ?? 0) > 0,
+            classifySubject: true,
             onRequestOutcome: outcome => {
               const previous = page.failureTelemetry ?? { subject: "other" };
               page.failureTelemetry = readFailedTurnTelemetry({
@@ -2568,23 +2570,29 @@ export function useQuestionHandler(
             },
           ]);
 
+          teachingCompleted = hasMeaningfulTurnSegments(recordedSegmentsRef.current) &&
+            !liveTurnSave().hasSegmentFailure(cancelRef, turnGeneration);
           if (liveSave && rawResponseRef.current) {
             // The rows are on the server already; this states the turn
             // complete with its whole response. A lesson opened its page with
             // the runtime CLEAR; a doubt continues its lesson's page under its
             // own title unless that page never reached the server.
             const completed = liveSave.complete({ rawResponse: rawResponseRef.current });
-            void completed.then((result) => {
-              // Fill the next home cards once the question is in saved history.
-              // The endpoint deduplicates tabs and enforces its model-call budget.
-              if (result.ok) void fetch("/api/home-suggestions", { method: "POST", cache: "no-store" }).catch(() => undefined);
-            });
-
+            // Ordinary lessons finish their teaching UI while the durable save
+            // can wait offline. Recording callbacks still require a save receipt.
+            const observeSave = (saved: Awaited<typeof completed>) => {
+              if (!isCurrentTurn() || turnCancelled || cancelRef.current) return;
+              if (saved.ok) {
+                void fetch("/api/home-suggestions", { method: "POST", cache: "no-store" }).catch(() => undefined);
+              } else {
+                teachingCompleted = false;
+                emitError({ message: `lesson stopped before completion (${saved.reason})`, question });
+              }
+            };
             if (onComplete) {
               const saved = await completed;
-              if (!isCurrentTurn() || turnCancelled || cancelRef.current) {
-                return;
-              }
+              observeSave(saved);
+              if (!isCurrentTurn() || turnCancelled || cancelRef.current) return;
               if (saved.ok) {
                 if (
                   !recordingAudioCaptureComplete(recordedSegmentsRef.current) ||
@@ -2599,13 +2607,8 @@ export function useQuestionHandler(
                 } else {
                   onComplete();
                 }
-              } else {
-                emitError({
-                  message: `could not save the lecture recording (${saved.reason})`,
-                  question,
-                });
               }
-            }
+            } else void completed.then(observeSave);
           }
         }
       } catch (error) {
@@ -2712,7 +2715,7 @@ export function useQuestionHandler(
 
         // A finished DSA lesson keeps its panel up and unlocks type-along. A
         // doubt finishes nothing: the lesson it paused continues after this.
-        if (!turnCancelled && !cancelRef.current && !doubt) {
+        if (teachingCompleted && !turnCancelled && !cancelRef.current && !doubt) {
           codeLessonControllerRef?.current?.markLessonComplete();
         }
 

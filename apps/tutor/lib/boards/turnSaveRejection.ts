@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { TurnSceneRejectionCode } from "@/lib/scene/turnScenePersistence";
 
 export type SaveRejectionCode =
+  | "lesson_not_taught"
   | TurnSceneRejectionCode
   | "upload_headers_invalid" | "unauthorized" | "idempotency_key_invalid"
   | "board_not_found" | "multipart_invalid" | "metadata_missing"

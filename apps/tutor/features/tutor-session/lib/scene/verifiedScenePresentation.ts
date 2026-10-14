@@ -60,6 +60,10 @@ export function buildVerifiedDiagramPresentation(
   const layout = labelLayoutFor(options.layout ?? "standard");
   const source = document.source as Record<string, unknown> | undefined;
   const nonMetric = source?.nonMetric === true;
+  const sourceLimits = source?.sourceConceptRepresentation === true && Array.isArray(source.limits)
+    ? source.limits.filter((limit): limit is string => typeof limit === "string").slice(0, 8).join(" ")
+    : source?.sourceModel === "coaxial_coils_inventory" && typeof source.visualLimitation === "string"
+      ? source.visualLimitation : "";
   const representationTier = typeof source?.representationTier === "string"
     ? source.representationTier
     : "exact_verified";
@@ -342,6 +346,7 @@ export function buildVerifiedDiagramPresentation(
     promptAddon: `${nonMetric
       ? `A source-grounded conceptual representation (${representationTier}) has already been compiled and is being explained as it is revealed. It is intentionally non-metric: do not infer scale, missing connections, intersections, regions, directions, or solved values from it.`
       : "A complete metric diagram has already been compiled, validated, and is being explained as it is revealed."}
+${sourceLimits ? `Explain these limits before using the representation: ${sourceLimits} Teach the remaining requested concepts in words and work-area equations; this component is not a whole-question solution.` : ""}
 Do not emit DRAW_*, LABEL, DIMENSION, ARROW, SCRIBBLE, CIRCLE_AROUND, HIGHLIGHT, UNDERLINE, ERASE, or CLEAR tags.
 When you name a listed diagram part, put one [FOCUS:entity_id] for that part inside the sentence, directly after the spoken name (for example "its pole [FOCUS:P] is on the axis"). One id per tag: a sentence that names three parts carries three tags, each right after its own name. Never place the tag at the end of the step after a WRITE row, and never write two ids in one tag. Never provide coordinates.
 Parts the student can read, written as the drawn label then its tag: ${namedTargets || "none"}. Speak the label, never the id; the id belongs inside the tag only. The quotation marks are there to delimit the label and are not spoken.
@@ -748,7 +753,7 @@ function wordStems(word: string): string[] {
   if (word.length > 3 && word.endsWith("es")) stems.push(word.slice(0, -2));
   if (word.length > 3 && word.endsWith("s")) stems.push(word.slice(0, -1));
   if (word.length > 4 && word.endsWith("ies")) stems.push(`${word.slice(0, -3)}y`);
-  const singular = IRREGULAR_SINGULARS[word];
+  const singular = Object.hasOwn(IRREGULAR_SINGULARS, word) ? IRREGULAR_SINGULARS[word] : undefined;
   if (singular) stems.push(singular);
   return [...new Set(stems)];
 }
@@ -757,11 +762,11 @@ function wordVariants(word: string): string[] {
   const variants: string[] = [];
   for (const stem of wordStems(word)) {
     variants.push(stem);
-    const plural = IRREGULAR_PLURALS[stem];
+    const plural = Object.hasOwn(IRREGULAR_PLURALS, stem) ? IRREGULAR_PLURALS[stem] : undefined;
     if (plural) variants.push(plural);
     variants.push(`${stem}s`, `${stem}es`);
     if (stem.endsWith("y")) variants.push(`${stem.slice(0, -1)}ies`);
-    for (const synonym of ROLE_SYNONYMS[stem] ?? []) {
+    for (const synonym of Object.hasOwn(ROLE_SYNONYMS, stem) ? ROLE_SYNONYMS[stem] ?? [] : []) {
       variants.push(synonym, `${synonym}s`, `${synonym}es`);
     }
   }

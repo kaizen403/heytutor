@@ -79,7 +79,17 @@ stated Ea and ΔH). Shapes, level diagrams and cells are
 `classify.ts` reads chemistry vocabulary against physics vocabulary; a lone
 formula is not evidence ("V10" is an OCR'd root, "N/C" a unit), and a
 compound microscope, a hinge reaction, a revolving charge's magnetic moment
-and an isothermal expansion of an ideal gas all stay physics. The router's
+and an isothermal expansion of an ideal gas all stay physics.
+
+Bare monatomic ions such as Na+ and K+ support chemical vocabulary but do
+not establish the subject: they also occur in nerve physiology and charged
+particle motion. The adjective "complex" requires a chemical noun or a
+parsed coordination entity. These checks prevent a biological or general
+lesson from entering the chemistry exemption and losing its normal scene
+planning path. Molecular, coordination and electron-configuration evidence
+still establishes the chemistry subject.
+
+The router's
 cues count as subject evidence too, which is what keeps the archetype layer
 (it runs before any family) from drawing two point charges for "the shape of
 the d_z2 orbital". `sceneDemand` carries `subject: "chemistry"` and
@@ -108,6 +118,7 @@ pnpm verify:chemistry
 | Gate | Package | Proves |
 |---|---|---|
 | `verify-chemistry-subject` | scene-engine | hand stems in both directions; shared figures kept; a bank sweep with loose thresholds (the bank's subject labels are noisy) |
+| `verify-chemistry-subject-context` | scene-engine | synthetic physiology, general language and ionic-motion negatives; molecular, ionic, coordination and orbital positives |
 | `verify-chemistry-families` | scene-engine | every family's probes through the registry and the real family path; physics stems never reach a chemistry family |
 | `verify-chemistry-notation` | drawing | the script rewrite, wired into `normalizeStrokeText` |
 | `verify-chemistry-lane` | tutor | subject offered, addon keyed off the question, exact planner skipped, figure named to the tutor |

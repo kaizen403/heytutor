@@ -5,7 +5,8 @@ import { scopedTraceId } from "@/lib/obs/traceOwnership";
 import { classifyOutcome, extractArtifactSummary } from "./outcome";
 import { userLabel } from "./labels";
 import { failedTurnWhere } from "./turnFilters";
-import { sentryEventUrl } from "./sentryLink";
+import { sentryReceiptEventUrl } from "./sentryLink";
+import { classifyTurnFailure } from "../obs/turnFailureClassification";
 import type { AdminTurnRow, TurnsOutcomeFilter, TurnsPagePayload } from "./types";
 
 const DAY_MS = 86_400_000;
@@ -62,10 +63,15 @@ export async function listTurns(input: ListTurnsInput): Promise<TurnsPagePayload
         id: true,
         question: true,
         visualStatus: true,
+        status: true,
+        _count: { select: { segments: true } },
         sceneArtifacts: true,
         sceneEngineVersion: true,
         traceId: true,
         sentryEventId: true,
+        sentryFailureEvent: true,
+        sentryReportedAt: true,
+        sentryNextAttemptAt: true,
         createdAt: true,
         userId: true,
         user: { select: { name: true, email: true } },
@@ -81,20 +87,23 @@ export async function listTurns(input: ListTurnsInput): Promise<TurnsPagePayload
   const costs = await fetchRunCostForTraces(traceIds, traceOwners);
   const turns: AdminTurnRow[] = rows.map((row) => {
     const summary = extractArtifactSummary(row.sceneArtifacts);
+    const failure = classifyTurnFailure({ visualStatus: row.visualStatus, status: row.status,
+      sceneArtifacts: row.sceneArtifacts, segmentCount: row._count.segments });
     const cost = row.traceId ? costs.byTraceId[row.traceId] : undefined;
     return {
       turnId: row.id,
       question: row.question,
-      outcome: classifyOutcome(row.visualStatus),
+      outcome: classifyOutcome(row.visualStatus, { status: row.status,
+        sceneArtifacts: row.sceneArtifacts, segmentCount: row._count.segments }),
       tier: summary?.representationTier ?? null,
-      degradationReason: summary?.degradationReason ?? null,
+      degradationReason: failure.classification === "failed" ? failure.code : summary?.degradationReason ?? null,
       issueCodes: summary?.issueCodes ?? [],
       candidateCount: summary?.candidateCount ?? null,
       sceneEngineVersion: row.sceneEngineVersion,
       traceId: row.traceId,
       traceUrl: row.traceId && traceBase ? `${traceBase}${cost?.observationTraceId ?? scopedTraceId(row.userId, row.traceId)}` : null,
       sentryEventId: row.sentryEventId,
-      sentryUrl: sentryEventUrl(row.sentryEventId),
+      sentryUrl: sentryReceiptEventUrl(row),
       userId: row.userId,
       userLabel: userLabel({
         userId: row.userId,

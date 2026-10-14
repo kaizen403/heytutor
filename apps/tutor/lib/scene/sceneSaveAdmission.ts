@@ -21,6 +21,8 @@ import {
   validatePointLineSourceInputs, validateSectionPointSourceInputs,
   validateRelativeMotionSourceInputs,
   validateUniformCircularSourceInputs,
+  sourceConceptRepresentationRejection,
+  coaxialCoilsRepresentationRejection,
   validateSceneQuantityAgreement,
   validateTurnPlanSceneProofs,
   type SceneDocument,
@@ -113,6 +115,16 @@ export function sceneSaveAdmissionFailure(input: {
   tier: SaveAdmissionTier;
 }): string | null {
   const { document, question, turnPlan, tier } = input;
+  if (coaxialCoilsRepresentationRejection(document, question)) return "coaxial apparatus does not match the independently rebuilt source inventory";
+  if (document.source.sourceModel === "coaxial_coils_inventory" && tier !== "question_representation") {
+    return "source apparatus retains its declared question-representation limits";
+  }
+  if (sourceConceptRepresentationRejection(document, question, turnPlan)) {
+    return "source concept relations do not match the independently rebuilt model";
+  }
+  if (document.source.sourceConceptRepresentation === true && tier !== "question_representation") {
+    return "source concept relations retain their declared question-representation limits";
+  }
   if (turnPlan) {
     // Quantities and labels the engine derives from the stem and the plan,
     // recomputed here, are supported alongside the plan's own. Plan ids stay

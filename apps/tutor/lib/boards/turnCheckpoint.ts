@@ -64,6 +64,7 @@ import {
 import {
   isTurnKind,
   isTurnStatus,
+  hasMeaningfulTurnSegments,
   nextTurnStatus,
   type TurnKind,
   type TurnStatus,
@@ -726,6 +727,10 @@ async function applyCheckpoint(
   }
   const sceneSeq = ownsScene ? input.seq : heldSceneSeq(before);
   const canonicalRows = canonical.value.segments.map((row, orderIndex) => ({ ...row, orderIndex }));
+  if (status === "complete" && (isRecord(resumeState) && "earlyOpeningOnly" in resumeState && resumeState.earlyOpeningOnly === true ||
+    !hasMeaningfulTurnSegments(canonicalRows.filter(row => typeof row.sourceOrderIndex === "number")))) {
+    return reject("turn_not_persistable", "A completed lesson must contain recorded teaching. Please try again.", 400);
+  }
   const attemptDir = attemptDirName();
   const prefix = checkpointAttemptPrefix(boardId, turnId, attemptDir);
   const expectedHeld = merged.map((row, index) => uploads.has(index) ? {

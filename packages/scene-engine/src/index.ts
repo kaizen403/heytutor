@@ -42,6 +42,8 @@ export * from "./synthesize/sourceMensuration";
 export * from "./synthesize/relativeMotionScene";
 export * from "./synthesize/uniformCircularFamily";
 export * from "./synthesize/conceptSchematic";
+export * from "./physics/coaxialCoilsRepresentation";
+export * from "./synthesize/sourceConceptRepresentation";
 export * from "./synthesize/dsaFamilies";
 export * from "./chemistry";
 

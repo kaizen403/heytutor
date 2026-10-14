@@ -5,9 +5,13 @@ import { prisma } from "../db/prisma";
 import { sentryBeforeSend, sentryDataCollection, sentryServerDsn } from "./sentryPrivacy";
 import { buildFailedTurnSentryEvent, type FailedTurnInput, type FailedTurnSentryEvent } from "./failedTurnTelemetry";
 import { LIVE_TURN_IDLE_MS } from "../boards/turnStatus";
+import { failedTurnWhere } from "../admin/turnFilters";
+import { failedTurnDeliveryEnabled } from "./failedTurnRuntime";
 
 const POLL_MS = 10_000;
 const LEASE_MS = 60_000;
+const RECENT_ABANDONED_MS = 60 * 60_000;
+const WORKER_STARTED_AT = new Date();
 /** One production process: five sends per tick bounds a bad deployment to 30/minute. */
 export const FAILED_TURN_SENTRY_BATCH_LIMIT = 5;
 
@@ -23,9 +27,12 @@ export async function queueFailedTurnSentry(
   },
   options: { env?: Record<string, string | undefined>; eventId?: string; now?: Date; historical?: boolean; staleLive?: boolean } = {},
 ): Promise<string | null> {
+  if (!failedTurnDeliveryEnabled(options.env)) return null;
   const now = options.now ?? new Date();
   const event = buildFailedTurnSentryEvent(turn, options.env, { ...options, now });
-  const matchingTurn = { id: turn.id, status: turn.status, visualStatus: turn.visualStatus, updatedAt: turn.updatedAt };
+  // Legacy PostgreSQL defaults retain microseconds while JS Date truncates.
+  const matchingTurn = { id: turn.id, status: turn.status, visualStatus: turn.visualStatus,
+    ...(turn.updatedAt ? { updatedAt: { gte: turn.updatedAt, lt: new Date(turn.updatedAt.getTime() + 1) } } : {}) };
   if (turn.sentryEventId) {
     // Already-delivered events are immutable. Pending ones can settle to more
     // complete teaching or recover a verified scene without minting another id.
@@ -41,7 +48,11 @@ export async function queueFailedTurnSentry(
     await tx.turn.updateMany({
       where: { ...matchingTurn, sentryEventId: turn.sentryEventId, sentryReportedAt: null },
       data: {
-        sentryFailureEvent: event ? event as unknown as Prisma.InputJsonValue : Prisma.DbNull,
+        // Cancellation keeps only the timestamp for a future resume. A null
+        // next attempt prevents sending and hides the cancelled admin link.
+        sentryFailureEvent: event ? event as unknown as Prisma.InputJsonValue
+          : previous !== null && typeof previous === "object" && "timestamp" in previous && typeof previous.timestamp === "number" && Number.isFinite(previous.timestamp)
+            ? { timestamp: previous.timestamp } : Prisma.DbNull,
         sentryNextAttemptAt: event ? nextFailedTurnAttempt(turn.status, now) : null,
         updatedAt: turn.updatedAt,
       },
@@ -95,7 +106,8 @@ async function claimFailedTurn(now: Date): Promise<PendingFailedTurnSentry | nul
         AND sentry_next_attempt_at <= ${now}
         AND (status = 'complete' OR updated_at <= ${settledBefore})
         AND (visual_status IS DISTINCT FROM 'validated'
-          OR scene_artifacts->'failureTelemetry'->'failed' = 'true'::jsonb)
+          OR scene_artifacts->'failureTelemetry'->'failed' = 'true'::jsonb
+          OR (status = 'complete' AND NOT EXISTS (SELECT 1 FROM segments WHERE turn_id = turns.id)))
       ORDER BY sentry_next_attempt_at, id
       LIMIT 1 FOR UPDATE SKIP LOCKED
     )
@@ -141,7 +153,7 @@ function failedTurnReporter(dsn: string) {
 }
 
 function defaultDelivery(): FailedTurnSentryDelivery {
-  const dsn = sentryServerDsn();
+  const dsn = failedTurnDeliveryEnabled() ? sentryServerDsn() : undefined;
   const sdk = dsn ? failedTurnReporter(dsn) : undefined;
   return {
     configured: Boolean(sdk),
@@ -193,13 +205,16 @@ export async function runFailedTurnSentryBatch(
 }
 
 export function startFailedTurnSentryWorker(): () => void {
+  if (!failedTurnDeliveryEnabled() || !sentryServerDsn()) return () => {};
   let running = false;
   let stopped = false;
   const tick = async () => {
     if (running || stopped) return;
     running = true;
     try {
-      await queueAbandonedFailedTurns();
+      try { await queueAbandonedFailedTurns(); } catch {
+        console.error("[sentry] failed-turn recovery unavailable; events remain queued");
+      }
       await runFailedTurnSentryBatch();
     } catch {
       console.error("[sentry] failed-turn delivery unavailable; events remain queued");
@@ -214,19 +229,25 @@ export function startFailedTurnSentryWorker(): () => void {
 }
 
 /** Recover a tab that disappeared without its terminal checkpoint; never rewrite its lesson status. */
-export async function queueAbandonedFailedTurns(now = new Date()): Promise<number> {
+export async function queueAbandonedFailedTurns(now = new Date(), options: {
+  env?: Record<string, string | undefined>; startedAt?: Date;
+} = {}): Promise<number> {
+  if (!failedTurnDeliveryEnabled(options.env)) return 0;
+  const recentAfter = new Date(Math.max((options.startedAt ?? WORKER_STARTED_AT).getTime(), now.getTime() - RECENT_ABANDONED_MS));
   const rows = await prisma.turn.findMany({
     where: {
-      status: "live", sentryEventId: null, updatedAt: { lt: new Date(now.getTime() - LIVE_TURN_IDLE_MS) },
-      OR: [{ visualStatus: { in: ["text_only", "retry_required", "legacy"] } }, { visualStatus: null }],
+      status: "live", sentryReportedAt: null,
+      updatedAt: { gte: recentAfter, lt: new Date(now.getTime() - LIVE_TURN_IDLE_MS) },
+      AND: [failedTurnWhere(), { OR: [{ sentryEventId: null }, { sentryNextAttemptAt: null }] }],
     },
     orderBy: { updatedAt: "asc" }, take: FAILED_TURN_SENTRY_BATCH_LIMIT,
     select: { id: true, status: true, visualStatus: true, sceneArtifacts: true, updatedAt: true, resumeState: true,
-      segments: { select: { narration: true, spokenText: true } } },
+      sentryEventId: true, sentryFailureEvent: true, sentryReportedAt: true,
+      segments: { select: { narration: true, spokenText: true, command: true } } },
   });
   let queued = 0;
   for (const row of rows) {
-    const id = await prisma.$transaction(tx => queueFailedTurnSentry(tx, row, { now, staleLive: true, historical: true }));
+    const id = await prisma.$transaction(tx => queueFailedTurnSentry(tx, row, { env: options.env, now, staleLive: true }));
     if (id) queued++;
   }
   return queued;

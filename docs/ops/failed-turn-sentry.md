@@ -1,27 +1,37 @@
 # Failed-turn Sentry events
 
-The saved turn is the reporting boundary: a terminal `text_only`,
-`retry_required`, legacy or null visual status queues one content-free event.
-A failed teaching checkpoint also queues an error even if its diagram verified.
-Live checkpoints wait for a terminal outcome; an idle tab is recovered after
-the existing two-minute stopped-turn threshold without changing lesson status.
-The existing admin fails filter
-includes nonvisual lessons and continuations; these keep distinct codes so
-their counts can be separated from actual missing diagrams.
+The saved turn is the reporting boundary. The fails list, KPI, historical queue
+and Sentry use the same positive failure evidence: a requested visual retry,
+an approved failure diagnostic, an explicit teaching failure, or a completed
+turn with zero recorded segments. Each confirmed failed turn queues one
+content-free event, including failed teaching with a verified diagram.
+Live checkpoints wait for a terminal outcome. An idle tab is recovered after
+the existing two-minute stopped-turn threshold without changing lesson status,
+only for activity since this server started and within the last hour. Older
+rows require the explicit backfill; startup does not automatically backfill.
+Queueing and delivery require both `NODE_ENV=production` and the explicit
+`SENTRY_ENVIRONMENT=production` deployment opt-in. Local development, local
+production builds without that marker, tests and lab environments cannot queue,
+scan or send failed-turn events even when a production DSN is present.
+Expected no-figure lessons and healthy continuations do not emit failed-turn
+events. Missing historical evidence remains visible as Unverified in All logs.
 
 ## Delivery and privacy
 
 The event uses fingerprint `turn-failure / stage / code / subject`, with tags
 `area=turn-failure`, `subject`, `stage`, `code`, `figure_need`, `strict_subjects`,
 `provider`, `deployment`, `release` and `environment`. Taught lessons use warning;
-failed teaching or a lesson with no narrated segments uses error. Extras contain
+failed teaching or a lesson with no meaningful teaching uses error. Muted
+handwriting/code counts as teaching. Extras contain
 only bounded counts and approved issue codes.
 
 The turn transaction reserves a random event ID and clean event payload in the
 same commit. Repeated saves and checkpoints reuse the reservation. Stopped
 outcomes wait two minutes so late checkpoints can finish. Pending events refresh
 their severity and counts while preserving ID and timestamp; a verified recovery
-cancels the pending payload. A recovery after an event is accepted cannot retract it.
+cancels the pending delivery. Cancellation keeps only its timestamp so a later
+resume/re-abandonment can reuse the same identity and timestamp. Cancelled
+reservations have no active admin link. A recovery after an event is accepted cannot retract it.
 
 The EC2 process drains five events every ten seconds; surplus stays in Postgres. A
 dedicated Sentry client has no automatic integrations or inherited request
@@ -35,20 +45,25 @@ accepts an event can cause a retry. Sentry deduplicates stored rows by project,
 event ID and timestamp day, so the timestamp must also survive retries.
 Issue counters can count duplicate attempts before that deduplication. This is
 one durable event identity per turn, not a distributed exactly-once guarantee.
-Reported queue payloads are cleared. Pending rows follow turn deletion and
+Reported queue payloads are cleared. Pending rows and timestamp-only cancelled
+reservations follow turn deletion and
 retention. Workers do not extend the turn's activity timestamp.
 
-The admin row shows the event ID and a **View in Sentry** link. A queued event
+The admin row shows the event ID and a **View in Sentry** link only for pending
+or reported receipts. A queued event
 becomes searchable after delivery. Historical rows need the explicit backfill
-below; this PR does not perform it or change production.
+below; this PR does not perform a backfill or deploy its application changes.
 
 ## Owner settings
 
 The read-only audit on 2026-10-14 found runtime variable names `SENTRY_DSN`,
 `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_ORG` and `SENTRY_PROJECT` present. No Sentry
 parameter names were returned by SSM `DescribeParameters`. Values were neither
-printed nor validated, so this confirms configuration names, not ingestion.
-`SENTRY_RELEASE` and `SENTRY_AUTH_TOKEN` names were absent from the running process.
+printed. A later owner-authorized configuration check confirmed both DSN names
+have nonempty settings. The missing `SENTRY_RELEASE` was set to the deployed
+checkout's full SHA; the idle service was restarted and passed its health check.
+No DSN value was copied or printed. `SENTRY_AUTH_TOKEN` remains absent; no token
+is needed for event ingestion.
 
 Before the owner deploys an approved commit:
 
@@ -56,9 +71,12 @@ Before the owner deploys an approved commit:
    `NEXT_PUBLIC_SENTRY_DSN` for browser events. If either is actually empty,
    obtain the DSN from project `personal-9bo/heytutor` settings. The browser
    setting must exist before the build. No new DSN is indicated by this audit.
-2. Set **`SENTRY_RELEASE` to the exact deployed 40-character git SHA** in the
-   server's `.env.production`. Update it for each deployment. Ensure
-   `NODE_ENV=production`; leave `SENTRY_ENABLED` unset or enabled.
+2. Keep **`SENTRY_RELEASE` equal to the exact deployed 40-character git SHA** in
+   the server's `.env.production`. This PR stamps it and
+   `SENTRY_ENVIRONMENT=production` automatically for the build and service on
+   each AWS deployment, preserving other settings and permissions. Ensure
+   `NODE_ENV=production`; leave `SENTRY_ENABLED` unset or enabled. Leave
+   `SENTRY_ENVIRONMENT` unset locally, or set `development`, `test` or `lab`.
 3. Use `SENTRY_ORG=personal-9bo` and `SENTRY_PROJECT=heytutor` for this project.
    The organization also controls admin links. No auth token is needed to send
    events or open the links. Source-map upload is optional and uses the existing
@@ -66,7 +84,9 @@ Before the owner deploys an approved commit:
 4. Provider/deployment come from `LLM_PROVIDER` and the existing Azure/Fireworks
    configuration. Strict subjects come from `DIAGRAM_STRICT_SUBJECTS`.
    Never put student data into any of these settings. Historical backfill marks
-   these values, release and environment as unknown when the old row lacks them.
+   provider/deployment/strict configuration and release as unknown when the old
+   row lacks them. Environment describes the actual emitting production runtime,
+   including an owner-triggered historical backfill.
 
 These settings and the migration are owner deployment work. No environment edit,
 restart, migration, Sentry event or alert was sent to production during this task.

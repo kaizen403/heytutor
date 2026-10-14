@@ -4,6 +4,8 @@ import { resolve } from "node:path";
 import vm from "node:vm";
 import ts from "typescript";
 import * as Sentry from "@sentry/nextjs";
+import * as drawing from "@heytutor/drawing";
+import * as sceneEngine from "@heytutor/scene-engine";
 import { isAuthPublicPath } from "../../lib/auth/publicPaths";
 import { rateLimitBucketForPath } from "../../lib/http/ipRateLimit";
 import {
@@ -23,11 +25,15 @@ import {
 import { SENTRY_TUNNEL_PATH } from "../../lib/obs/sentryTunnel";
 import * as privacy from "../../lib/obs/sentryPrivacy";
 import * as telemetry from "../../lib/obs/failedTurnTelemetry";
+import * as failedTurnRuntime from "../../lib/obs/failedTurnRuntime";
 import type { FailedTurnInput, FailedTurnSentryEvent } from "../../lib/obs/failedTurnTelemetry";
 import type { FailedTurnSentryDelivery, PendingFailedTurnSentry } from "../../lib/obs/failedTurnSentry";
 import * as requestBody from "../../lib/http/requestBody";
 import * as uploadLimits from "../../lib/scene/turnUploadLimits";
 import * as turnStatus from "../../lib/boards/turnStatus";
+import * as turnFilters from "../../lib/admin/turnFilters";
+import * as objectKeys from "../../lib/object-store/keys";
+import * as mediaUrl from "../../lib/object-store/mediaUrl";
 import { sentryEventUrl } from "../../lib/admin/sentryLink";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -218,6 +224,12 @@ function matchesWhere(row: FixtureTurn, where: Record<string, unknown>): boolean
       return key === "AND" ? matches.every(Boolean) : matches.some(Boolean);
     }
     const actual = row[key];
+    if (key === "segments" && expected !== null && typeof expected === "object" && "none" in expected) return row.segments.length === 0;
+    if (key === "sceneArtifacts" && expected !== null && typeof expected === "object" && "path" in expected && Array.isArray(expected.path)) {
+      const value = expected.path.reduce((current: unknown, part: string) => current !== null && typeof current === "object"
+        ? (current as Record<string, unknown>)[part] : undefined, actual);
+      return "equals" in expected && value === expected.equals;
+    }
     if (expected instanceof Date) return actual instanceof Date && actual.getTime() === expected.getTime();
     if (expected && typeof expected === "object" && !Array.isArray(expected)) {
       const predicate = expected as Record<string, unknown>;
@@ -239,9 +251,15 @@ function matchesWhere(row: FixtureTurn, where: Record<string, unknown>): boolean
   });
 }
 
-function loadModule<T>(relative: string, dependencies: Record<string, unknown>, processEnv: Record<string, string> = { NODE_ENV: "test" }): T {
-  const file = relative === "app/api/boards/[boardId]/turns/route.ts" && process.env.SENTRY_TEST_PERSISTENCE_SOURCE
-    ? process.env.SENTRY_TEST_PERSISTENCE_SOURCE : resolve(root, relative);
+function loadModule<T>(relative: string, dependencies: Record<string, unknown>, processEnv: Record<string, string | undefined> = { NODE_ENV: "test" }): T {
+  // Local mutation runs supply ignored source copies; normal runs use the repo.
+  const mutationSources: Record<string, string | undefined> = {
+    "app/api/boards/[boardId]/turns/route.ts": process.env.SENTRY_TEST_PERSISTENCE_SOURCE,
+    "lib/boards/turnCheckpoint.ts": process.env.SENTRY_TEST_CHECKPOINT_SOURCE,
+    "lib/obs/sentryPrivacy.ts": process.env.SENTRY_TEST_PRIVACY_SOURCE,
+    "lib/obs/failedTurnSentry.ts": process.env.SENTRY_TEST_REPORTER_SOURCE,
+  };
+  const file = mutationSources[relative] ?? resolve(root, relative);
   const code = ts.transpileModule(readFileSync(file, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
@@ -250,12 +268,37 @@ function loadModule<T>(relative: string, dependencies: Record<string, unknown>, 
   vm.runInNewContext(code, {
     exports, module: compiledModule, require: (name: string) => {
       assert(name in dependencies, `missing fixture dependency: ${name}`);
+      if (name === "./failedTurnRuntime") {
+        const runtime = dependencies[name] as typeof failedTurnRuntime;
+        // Imported helpers execute outside the VM, so their default env must
+        // resolve to this module's environment, just as a real process does.
+        return { ...runtime,
+          failedTurnDeliveryEnabled: (values?: Record<string, string | undefined>) => runtime.failedTurnDeliveryEnabled(values ?? processEnv),
+          failedTurnRuntimeEnvironment: (values?: Record<string, string | undefined>) => runtime.failedTurnRuntimeEnvironment(values ?? processEnv),
+        };
+      }
       return dependencies[name];
     },
     FormData, Blob, File, Request, Response, Headers, URL, Uint8Array, TextEncoder, TextDecoder,
     crypto, AbortSignal, Date, console, process: { env: processEnv },
   }, { filename: relative });
   return compiledModule.exports as T;
+}
+
+// Bypass the event builder deliberately: the final scrub must stand on its
+// own when a hostile SDK scope puts arbitrary prose into vocabulary tags.
+const finalPrivacy = process.env.SENTRY_TEST_PRIVACY_SOURCE ? loadModule<typeof privacy>("lib/obs/sentryPrivacy.ts", {
+  "./failedTurnTelemetry": telemetry, "./sentryTunnel": { SENTRY_TUNNEL_PATH },
+}) : privacy;
+for (const tag of ["code", "stage", "subject"] as const) {
+  const hostile = `Synthetic private ${tag}: synthetic-user@example.test question text`;
+  const finalScrub = finalPrivacy.scrubSentryEvent({ ...structuredClone(failureEvent),
+    tags: { ...failureEvent.tags, [tag]: hostile },
+  });
+  assert(finalScrub, "the final scrub must retain a clean failure event");
+  strictAssert.equal(finalScrub.tags?.[tag], "unknown", `the final ${tag} boundary enforces its own vocabulary`);
+  assert(!JSON.stringify(finalScrub).includes(hostile), `the final scrub drops prose in the ${tag} tag`);
+  assert(!JSON.stringify(finalScrub).includes("synthetic-user@example.test"), "neither tags nor grouping carry identity");
 }
 
 async function verifyFailedTurnDelivery(): Promise<void> {
@@ -281,9 +324,12 @@ async function verifyFailedTurnDelivery(): Promise<void> {
   });
   const rows = new Map<string, FixtureTurn>();
   const tx = {
+    $transaction: async (run: (client: unknown) => Promise<unknown>) => run(tx),
     $queryRaw: async () => [{ id: "synthetic-board" }],
     board: { findFirst: async () => ({ id: "synthetic-board" }), update: async () => ({}) },
     turn: {
+      findMany: async ({ where, take }: { where: Record<string, unknown>; take: number }) =>
+        [...rows.values()].filter(row => matchesWhere(row, where)).slice(0, take),
       findFirst: async ({ where }: { where: Record<string, unknown> }) =>
         [...rows.values()].find(row => matchesWhere(row, where)) ?? null,
       findUnique: async ({ where }: { where: Record<string, unknown> }) =>
@@ -297,9 +343,9 @@ async function verifyFailedTurnDelivery(): Promise<void> {
           visualStatus: typeof data.visualStatus === "string" ? data.visualStatus : null,
           sceneArtifacts: data.sceneArtifacts,
           rawResponse: typeof data.rawResponse === "string" ? data.rawResponse : "",
-          status: "complete", kind: "lesson", segments: [], sentryEventId: null,
+          status: typeof data.status === "string" ? data.status : "complete", kind: "lesson", segments: [], sentryEventId: null,
           sentryFailureEvent: null, sentryNextAttemptAt: null, sentryReportedAt: null,
-          createdAt: new Date(),
+          createdAt: new Date(), updatedAt: new Date(),
         };
         rows.set(row.id, row);
         return row;
@@ -310,29 +356,46 @@ async function verifyFailedTurnDelivery(): Promise<void> {
         Object.assign(row, data);
         return { count: 1 };
       },
+      update: async ({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
+        const row = [...rows.values()].find(item => matchesWhere(item, where));
+        assert(row, "the saved checkpoint turn exists");
+        Object.assign(row, data, { updatedAt: data.updatedAt ?? new Date() });
+        return { ...row };
+      },
     },
     segment: { createManyAndReturn: async ({ data }: { data: Array<{ turnId: string; narration: string; spokenText: string }> }) => {
       const segments = data.map(item => ({ ...item, id: crypto.randomUUID() }));
-      for (const row of rows.values()) row.segments = segments.filter(item => item.turnId === row.id);
+      for (const row of rows.values()) {
+        const added = segments.filter(item => item.turnId === row.id);
+        if (added.length) row.segments = [...row.segments, ...added];
+      }
       return segments;
+    },
+    findMany: async ({ where }: { where: { turnId: string } }) => rows.get(where.turnId)?.segments ?? [],
+    deleteMany: async ({ where }: { where: { turnId: string } }) => {
+      const row = rows.get(where.turnId); if (row) row.segments = [];
+      return { count: 0 };
     } },
   };
   const failureEnv = {
     NODE_ENV: "production", LLM_PROVIDER: "azure", AZURE_OPENAI_ENDPOINT: "https://synthetic.example.test",
     AZURE_OPENAI_API_KEY: "synthetic-not-a-secret", AZURE_OPENAI_DEPLOYMENT: "gpt-6.1-sol",
-    SENTRY_RELEASE: "a".repeat(40), DIAGRAM_STRICT_SUBJECTS: "physics,chemistry",
+    SENTRY_RELEASE: "a".repeat(40), SENTRY_ENVIRONMENT: "production", DIAGRAM_STRICT_SUBJECTS: "physics,chemistry",
   };
   const reporter = loadModule<{
     queueFailedTurnSentry(tx: unknown, turn: FailedTurnInput & { id: string }, options?: {
-      env?: typeof failureEnv; now?: Date; eventId?: string; historical?: boolean; staleLive?: boolean;
+      env?: Record<string, string | undefined>; now?: Date; eventId?: string; historical?: boolean; staleLive?: boolean;
     }): Promise<string | null>;
     runFailedTurnSentryBatch(options: { limit?: number; now: Date }, delivery?: FailedTurnSentryDelivery): Promise<{ reported: number; pending: number }>;
+    queueAbandonedFailedTurns(now: Date, options?: { env?: Record<string, string | undefined>; startedAt?: Date }): Promise<number>;
+    startFailedTurnSentryWorker(): () => void;
   }>("lib/obs/failedTurnSentry.ts", {
     "node:crypto": { randomUUID: () => crypto.randomUUID() },
     "@prisma/client": { Prisma: { JsonNull: null, DbNull: null } },
     "@sentry/nextjs": Sentry, "../db/prisma": { prisma: tx }, "./sentryPrivacy": privacy,
     "./failedTurnTelemetry": telemetry,
-    "../boards/turnStatus": turnStatus,
+    "./failedTurnRuntime": failedTurnRuntime,
+    "../boards/turnStatus": turnStatus, "../admin/turnFilters": turnFilters,
   });
   class StorageQuotaError extends Error {}
   const route = loadModule<{
@@ -353,7 +416,9 @@ async function verifyFailedTurnDelivery(): Promise<void> {
     },
     "@/lib/obs/traceOwnership": {},
     "@/lib/scene/turnPersistencePolicy": { isTurnMetadataPersistable: () => true },
-    "@/lib/scene/turnScenePersistence": { canonicalizeTurnSceneMetadata: async (metadata: unknown) => ({ ok: true, value: metadata }) },
+    "@/lib/boards/turnStatus": turnStatus,
+    "@/lib/scene/turnScenePersistence": { canonicalizeTurnSceneMetadata: async (metadata: { segments: Array<Record<string, unknown>> }) => ({ ok: true,
+      value: { ...metadata, segments: metadata.segments.map(segment => ({ ...segment, sourceOrderIndex: segment.orderIndex })) } }) },
     "@/lib/boards/turnSaveRejection": { rejectTurnSave: (_code: string, error: string, status: number) => Response.json({ error }, { status }) },
     "@/lib/scene/turnUploadLimits": uploadLimits,
     "@/lib/obs/failedTurnSentry": { queueFailedTurnSentry: (client: unknown, turn: FailedTurnInput & { id: string }) =>
@@ -427,6 +492,95 @@ async function verifyFailedTurnDelivery(): Promise<void> {
   assert(sentryEventUrl("javascript:alert(1)") == null, "admin links reject non-event-id strings");
   assert(sentryEventUrl(persisted.sentryEventId, env({ SENTRY_ORG: "bad/organization" })) == null, "admin links reject unsafe organization slugs");
 
+  // The live client saves through PUT checkpoints and PATCH closes. Execute
+  // those real handlers with the real outbox queue, rather than mocking away
+  // the integration whose removal this gate must detect.
+  const checkpointNow = new Date();
+  const canonicalizeCheckpoint = async (metadata: { segments: Array<Record<string, unknown>> }) => ({ ok: true,
+    value: { ...metadata, segments: metadata.segments.map(segment => ({ ...segment, sourceOrderIndex: segment.orderIndex })) } });
+  const checkpoint = loadModule<{
+    handleTurnCheckpoint(request: Request, params: { boardId: string; turnId: string }): Promise<Response>;
+    handleTurnClose(request: Request, params: { boardId: string; turnId: string }): Promise<Response>;
+  }>("lib/boards/turnCheckpoint.ts", {
+    "@prisma/client": { Prisma: { DbNull: null, PrismaClientKnownRequestError: class extends Error {} } },
+    "next/server": { NextResponse: { json: (body: unknown, init?: ResponseInit) => Response.json(body, init) } },
+    "@heytutor/drawing": drawing, "@heytutor/scene-engine": sceneEngine,
+    "@/lib/auth": { getUserId: async () => "synthetic-user", ensureUser: async () => {} },
+    "@/lib/db/prisma": { prisma: tx },
+    "@/lib/object-store/keys": objectKeys, "@/lib/object-store/mediaUrl": mediaUrl,
+    "@/lib/object-store/s3": { uploadAudio: async () => { throw new Error("the telemetry gate performs no object-store network calls"); } },
+    "@/lib/object-store/lectureAudioPersistence": { allowsMetadataOnlyLectureAudio: () => true },
+    "@/lib/http/requestBody": requestBody,
+    "@/lib/boards/storageAccounting": { turnMetadataStorageBytes: () => 100 },
+    "@/lib/boards/storageQuota": {
+      StorageQuotaError,
+      reserveTurnStorage: async (input: { bytes: number }) => ({ bytes: input.bytes }),
+      reserveTurnGrowthStorage: async (input: { bytes: number }) => ({ bytes: input.bytes }),
+      settleTurnStorage: async () => {}, abandonTurnStorage: async () => {},
+      prepareStorageAccounting: async () => {}, refundTurnMetadataStorage: async () => {},
+      withUserStorageLock: async (_user: string, run: (client: typeof tx) => Promise<unknown>) => run(tx),
+    },
+    "@/lib/obs/traceOwnership": {},
+    "@/lib/scene/turnScenePersistence": { canonicalizeTurnSceneMetadata: canonicalizeCheckpoint },
+    "@/lib/scene/turnUploadLimits": uploadLimits, "@/lib/boards/turnStatus": turnStatus,
+    "@/lib/boards/turnSaveRejection": { rejectTurnSave: (_code: string, error: string, status: number) => Response.json({ error }, { status }) },
+    "@/lib/obs/failedTurnSentry": { queueFailedTurnSentry: (client: unknown, turn: FailedTurnInput & { id: string }) =>
+      reporter.queueFailedTurnSentry(client, turn, { env: failureEnv, now: checkpointNow }) },
+  });
+  const checkpointTurnId = "11111111-1111-4111-8111-111111111111";
+  const putRequest = () => {
+    const form = new FormData();
+    form.set("metadata", JSON.stringify({ ...failedTurn, question: "Synthetic checkpoint question",
+      rawResponse: "Synthetic checkpoint answer", seq: 1, baseCount: 0, status: "complete",
+      appendSegments: [{ orderIndex: 0, narration: "Synthetic checkpoint answer", spokenText: "Synthetic checkpoint answer", command: null }] }));
+    return new Request(`https://example.test/api/boards/synthetic-board/turns/${checkpointTurnId}`, { method: "PUT", body: form });
+  };
+  const eventsBeforeCheckpoint = sentEvents.length;
+  strictAssert.equal((await checkpoint.handleTurnCheckpoint(putRequest(), { boardId: "synthetic-board", turnId: checkpointTurnId })).status,
+    200, "a failed PUT checkpoint still persists");
+  const checkpointTurn = rows.get(checkpointTurnId)!;
+  assert(checkpointTurn.sentryEventId, "the actual failed checkpoint PUT must reserve a Sentry id");
+  assert(checkpointTurn.sentryFailureEvent, "the actual failed checkpoint PUT must queue a clean payload");
+  strictAssert.equal(checkpointTurn.sentryFailureEvent.tags.code, "candidate_invalid");
+  strictAssert.equal(sentEvents.length, eventsBeforeCheckpoint, "checkpoint saves queue locally without awaiting transport");
+  const checkpointEventId = checkpointTurn.sentryEventId;
+  strictAssert.equal((await checkpoint.handleTurnCheckpoint(putRequest(), { boardId: "synthetic-board", turnId: checkpointTurnId })).status, 200);
+  strictAssert.equal(checkpointTurn.sentryEventId, checkpointEventId, "a replayed completed checkpoint retains its event reservation");
+  strictAssert.equal((await reporter.runFailedTurnSentryBatch({ now: checkpointNow }, delivery)).reported, 1);
+  strictAssert.equal(sentEvents.length, eventsBeforeCheckpoint + 1, "a failed checkpoint emits exactly one clean SDK event");
+  strictAssert.equal(sentEvents.at(-1)?.event_id, checkpointEventId);
+  strictAssert.ok(!JSON.stringify(sentEvents.at(-1)).includes("Synthetic"), "checkpoint delivery excludes lesson and identity text");
+
+  // A metadata-free close deliberately enters closeStatusOnly, the separate
+  // queue call on pagehide/Stop, rather than delegating back to the PUT path.
+  const closeTurnId = "22222222-2222-4222-8222-222222222222";
+  const closeTurn = await tx.turn.create({ data: { ...failedTurn, id: closeTurnId, boardId: "synthetic-board", userId: "synthetic-user",
+    idempotencyKey: null, question: "Synthetic closed question", rawResponse: "Synthetic closed answer", status: "live",
+    checkpointSeq: 1, submittedSegments: null, resumeState: null, metadataBytes: 100n, storageBytes: 100n } });
+  closeTurn.segments = [{ narration: "Synthetic closed answer", spokenText: "Synthetic closed answer", command: null }];
+  const closeRequest = () => new Request(`https://example.test/api/boards/synthetic-board/turns/${closeTurnId}`, {
+    method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ seq: 2, status: "stopped", appendSegments: [] }),
+  });
+  const eventsBeforeClose = sentEvents.length;
+  strictAssert.equal((await checkpoint.handleTurnClose(closeRequest(), { boardId: "synthetic-board", turnId: closeTurnId })).status,
+    200, "a failed status-only close still persists");
+  assert(closeTurn.sentryEventId, "the actual failed status close must reserve a Sentry id");
+  assert(closeTurn.sentryFailureEvent, "the actual failed status close must queue a clean payload");
+  strictAssert.equal(closeTurn.status, "stopped");
+  strictAssert.equal(closeTurn.sentryFailureEvent.tags.code, "candidate_invalid");
+  strictAssert.equal(sentEvents.length, eventsBeforeClose, "status close queues locally without awaiting transport");
+  const closeEventId = closeTurn.sentryEventId;
+  strictAssert.equal((await checkpoint.handleTurnClose(closeRequest(), { boardId: "synthetic-board", turnId: closeTurnId })).status, 200);
+  strictAssert.equal(closeTurn.sentryEventId, closeEventId, "repeated pagehide close keeps the same event reservation");
+  strictAssert.equal((await reporter.runFailedTurnSentryBatch({ now: checkpointNow }, delivery)).reported, 0,
+    "the status close keeps the late-checkpoint settlement grace");
+  const settledClose = new Date(checkpointNow.getTime() + turnStatus.LIVE_TURN_IDLE_MS + 1);
+  strictAssert.equal((await reporter.runFailedTurnSentryBatch({ now: settledClose }, delivery)).reported, 1);
+  strictAssert.equal(sentEvents.length, eventsBeforeClose + 1, "a settled failed status close emits exactly one clean SDK event");
+  strictAssert.equal(sentEvents.at(-1)?.event_id, closeEventId);
+  strictAssert.ok(!JSON.stringify(sentEvents.at(-1)).includes("Synthetic"), "status-close delivery excludes lesson and identity text");
+  strictAssert.equal((await reporter.runFailedTurnSentryBatch({ now: new Date(settledClose.getTime() + 120_000) }, delivery)).reported, 0);
+
   // The bounded drain keeps surplus and unsuccessful sends queued for a later tick.
   const pending: PendingFailedTurnSentry[] = Array.from({ length: 7 }, (_, index) => ({
     id: `synthetic-pending-${index}`, sentryEventId: index.toString(16).padStart(32, "0"),
@@ -463,15 +617,18 @@ async function verifyFailedTurnDelivery(): Promise<void> {
 
   for (const kind of ["lesson", "doubt", "resume"]) {
     for (const visualStatus of ["text_only", "retry_required", "legacy"]) {
-      assert(telemetry.buildFailedTurnSentryEvent({ ...failedTurn, kind, visualStatus,
-        sceneArtifacts: { turnPlan: { visualRequirement: "none" } } }, failureEnv),
-      `every admin failed status queues telemetry, including intentional text and ${kind}`);
+      const event = telemetry.buildFailedTurnSentryEvent({ ...failedTurn, kind, visualStatus,
+        sceneArtifacts: { turnPlan: { visualRequirement: "none" } } }, failureEnv);
+      if (visualStatus === "retry_required") assert(event, "an explicit retry outcome still fails");
+      else strictAssert.equal(event, null, `expected text is healthy for ${kind}`);
     }
   }
   strictAssert.equal(telemetry.buildFailedTurnSentryEvent({ ...failedTurn, status: "live" }, failureEnv), null,
     "a provisional live checkpoint waits for final outcome");
   strictAssert.equal(telemetry.buildFailedTurnSentryEvent({ ...failedTurn, visualStatus: "validated" }, failureEnv), null,
     "a taught verified diagram is not a failed turn");
+  strictAssert.equal(telemetry.buildFailedTurnSentryEvent({ ...failedTurn, visualStatus: "validated", segments: [] }, failureEnv)?.tags.code,
+    "lesson_not_taught", "a verified scene cannot conceal a completed zero-teaching turn");
   strictAssert.equal(telemetry.buildFailedTurnSentryEvent({ ...failedTurn, rawResponse: "", segments: [] }, failureEnv)?.level, "error",
     "a finalized failed turn that did not teach reports an error");
   strictAssert.equal(telemetry.buildFailedTurnSentryEvent({ ...failedTurn, visualStatus: "validated",
@@ -479,9 +636,10 @@ async function verifyFailedTurnDelivery(): Promise<void> {
   "a verified scene with finalized teaching failure still reports an error");
   const historical = telemetry.buildFailedTurnSentryEvent(failedTurn, failureEnv, { historical: true });
   assert(historical, "historical failures still get events");
-  for (const tag of ["provider", "deployment", "release", "environment", "strict_subjects"]) {
+  for (const tag of ["provider", "deployment", "release", "strict_subjects"]) {
     strictAssert.equal(historical.tags[tag], "unknown", `historical ${tag} cannot borrow today's deployment`);
   }
+  strictAssert.equal(historical.tags.environment, "production", "an explicit production backfill retains its runtime environment");
   const now = new Date();
   strictAssert.equal(telemetry.buildFailedTurnSentryEvent({ ...failedTurn, status: "live", updatedAt: now }, failureEnv,
     { staleLive: true, now }), null, "an active checkpoint cannot be mistaken for an abandoned tab");
@@ -533,8 +691,9 @@ async function verifyFailedTurnDelivery(): Promise<void> {
       $executeRaw: async () => { successfulCommits++; return 1; },
     } },
     "./sentryPrivacy": { ...privacy, sentryServerDsn: () => "https://synthetic@example.ingest.sentry.io/1" },
-    "./failedTurnTelemetry": telemetry, "../boards/turnStatus": turnStatus,
-  }, { NODE_ENV: "test", SENTRY_DSN: "https://synthetic@example.ingest.sentry.io/1" });
+    "./failedTurnTelemetry": telemetry, "../boards/turnStatus": turnStatus, "../admin/turnFilters": turnFilters,
+    "./failedTurnRuntime": failedTurnRuntime,
+  }, { NODE_ENV: "production", SENTRY_ENVIRONMENT: "production", SENTRY_DSN: "https://synthetic@example.ingest.sentry.io/1" });
   const rejectedAttempt = await productionReporter.runFailedTurnSentryBatch({ now, limit: 1 });
   strictAssert.equal(rejectedAttempt.reported, 0);
   strictAssert.equal(rejectedAttempt.pending, 1);
@@ -553,7 +712,8 @@ async function verifyFailedTurnDelivery(): Promise<void> {
   const stoppedAt = new Date("2026-10-14T10:00:00Z");
   const makeStopped = (id: string): FixtureTurn => ({
     ...persisted, id, status: "stopped", visualStatus: "text_only", rawResponse: "", segments: [],
-    sceneArtifacts: { turnPlan: { visualRequirement: "none" }, failureTelemetry: { subject: "maths" } },
+    sceneArtifacts: { turnPlan: { visualRequirement: "required" }, failureTelemetry: { subject: "maths" },
+      degradation: { reason: "required_visual_unavailable" } },
     resumeState: null, updatedAt: stoppedAt, sentryEventId: null, sentryFailureEvent: null,
     sentryReportedAt: null, sentryNextAttemptAt: null,
   });
@@ -577,7 +737,7 @@ async function verifyFailedTurnDelivery(): Promise<void> {
   strictAssert.equal(laterNarrated.sentryEventId, reservedId, "pending refresh keeps the original event reservation");
   strictAssert.equal(laterNarrated.sentryFailureEvent.timestamp, reservedTimestamp, "pending refresh keeps the first-queue timestamp");
   strictAssert.equal(laterNarrated.sentryFailureEvent.level, "warning", "a later taught lesson replaces the provisional no-teaching error");
-  strictAssert.equal(laterNarrated.sentryFailureEvent.tags.code, "not_needed");
+  strictAssert.equal(laterNarrated.sentryFailureEvent.tags.code, "required_visual_unavailable");
   strictAssert.equal(laterNarrated.sentryFailureEvent.extra.segment_count, 2, "pending counts reflect the accepted late narration");
   strictAssert.equal((await reporter.runFailedTurnSentryBatch({ now: new Date(narrationAt.getTime() + turnStatus.LIVE_TURN_IDLE_MS + 1) }, delivery)).reported, 1);
   strictAssert.equal(sentEvents.length, beforeSettlement + 1, "settled late narration emits one final event");
@@ -589,15 +749,112 @@ async function verifyFailedTurnDelivery(): Promise<void> {
   await reporter.queueFailedTurnSentry(tx, { ...lateScene }, { env: failureEnv, now: stoppedAt });
   assert(lateScene.sentryFailureEvent, "a stopped scene close initially reserves a pending failure");
   const sceneReservation = lateScene.sentryEventId;
+  const sceneTimestamp = lateScene.sentryFailureEvent.timestamp;
   Object.assign(lateScene, { visualStatus: "validated", updatedAt: narrationAt,
     segments: [{ narration: "Synthetic verified scene narration" }] });
   await reporter.queueFailedTurnSentry(tx, { ...lateScene }, { env: failureEnv, now: narrationAt });
-  strictAssert.equal(lateScene.sentryFailureEvent, null, "an accepted late verified scene cancels an unreported failure");
+  strictAssert.deepEqual(Object.keys(lateScene.sentryFailureEvent ?? {}), ["timestamp"], "a recovered scene keeps only its deduplication timestamp");
+  strictAssert.equal(lateScene.sentryFailureEvent?.timestamp, sceneTimestamp);
   strictAssert.equal(lateScene.sentryNextAttemptAt, null, "a recovered scene has no pending send time");
   strictAssert.equal(lateScene.sentryEventId, sceneReservation, "scene recovery does not churn the reserved event identity");
   const beforeRecoveryDrain = sentEvents.length;
   strictAssert.equal((await reporter.runFailedTurnSentryBatch({ now: new Date(narrationAt.getTime() + turnStatus.LIVE_TURN_IDLE_MS + 1) }, delivery)).reported, 0);
   strictAssert.equal(sentEvents.length, beforeRecoveryDrain, "the late verified scene never emits a stale failure");
+  const partialTeaching: FixtureTurn = { ...persisted, id: "synthetic-partial-teaching", status: "stopped",
+    visualStatus: "validated", updatedAt: narrationAt,
+    sceneArtifacts: { failureTelemetry: { failed: true, subject: "other", stage: "teaching", code: "teaching_segment_failed" } },
+    segments: [{ narration: "Synthetic first successful paragraph" }, { narration: "Synthetic final successful paragraph" }],
+    sentryEventId: null, sentryFailureEvent: null, sentryReportedAt: null, sentryNextAttemptAt: null };
+  rows.set(partialTeaching.id, partialTeaching);
+  await reporter.queueFailedTurnSentry(tx, partialTeaching, { env: failureEnv, now: narrationAt });
+  await reporter.queueFailedTurnSentry(tx, partialTeaching, { env: failureEnv, now: narrationAt });
+  const beforePartial = sentEvents.length;
+  strictAssert.equal((await reporter.runFailedTurnSentryBatch({ now: new Date(narrationAt.getTime() + turnStatus.LIVE_TURN_IDLE_MS + 1) }, delivery)).reported, 1);
+  strictAssert.equal(sentEvents.length, beforePartial + 1, "a skipped paragraph emits exactly one event despite surrounding successful paragraphs");
+  const partialEvent = sentEvents.at(-1)!;
+  strictAssert.deepEqual(partialEvent.fingerprint, ["turn-failure", "teaching", "teaching_segment_failed", "other"]);
+  strictAssert.equal(partialEvent.tags?.code, "teaching_segment_failed");
+  strictAssert.equal(partialEvent.extra?.segment_count, 2);
+  strictAssert.ok(!JSON.stringify(partialEvent).includes("Synthetic"), "teaching failure emits no student or paragraph text");
+  const staleAt = new Date(narrationAt.getTime() + 10 * turnStatus.LIVE_TURN_IDLE_MS);
+  const abandoned: FixtureTurn = { ...partialTeaching, id: "synthetic-abandoned-verified-teaching", status: "live",
+    sentryEventId: null, sentryFailureEvent: null, sentryReportedAt: null, sentryNextAttemptAt: null };
+  rows.set(abandoned.id, abandoned);
+  const scanOptions = { env: failureEnv, startedAt: stoppedAt };
+  strictAssert.equal(await reporter.queueAbandonedFailedTurns(staleAt, scanOptions), 1, "a lost close cannot hide terminal teaching failure behind verified geometry");
+  strictAssert.equal(await reporter.queueAbandonedFailedTurns(staleAt, scanOptions), 0, "the abandoned turn reserves one event only");
+  const beforeAbandoned = sentEvents.length;
+  strictAssert.equal((await reporter.runFailedTurnSentryBatch({ now: new Date(staleAt.getTime() + turnStatus.LIVE_TURN_IDLE_MS + 1) }, delivery)).reported, 1);
+  strictAssert.equal(sentEvents.length, beforeAbandoned + 1);
+  strictAssert.equal(sentEvents.at(-1)?.tags?.code, "teaching_segment_failed");
+  strictAssert.equal(sentEvents.at(-1)?.tags?.environment, "production", "recent abandoned tabs reach production alert filters");
+  strictAssert.equal(sentEvents.at(-1)?.tags?.release, failureEnv.SENTRY_RELEASE);
+
+  // A resumed turn cancels its pending send, then can be abandoned again.
+  // The cancelled receipt preserves the original identity and timestamp.
+  const resumed = makeStopped("synthetic-resume-then-abandon");
+  rows.set(resumed.id, resumed);
+  await reporter.queueFailedTurnSentry(tx, resumed, { env: failureEnv, now: stoppedAt });
+  assert(resumed.sentryEventId && resumed.sentryFailureEvent, "the stopped turn has a receipt before resume");
+  const resumedId = resumed.sentryEventId; const resumedTimestamp = resumed.sentryFailureEvent.timestamp;
+  const resumedAt = new Date(stoppedAt.getTime() + 30_000);
+  Object.assign(resumed, { status: "live", updatedAt: resumedAt,
+    rawResponse: "Synthetic resumed narration", segments: [{ narration: "Synthetic resumed narration" }] });
+  await reporter.queueFailedTurnSentry(tx, resumed, { env: failureEnv, now: resumedAt });
+  strictAssert.equal(resumed.sentryEventId, resumedId);
+  strictAssert.equal(resumed.sentryNextAttemptAt, null, "an active resumed turn cancels delivery");
+  strictAssert.deepEqual(Object.keys(resumed.sentryFailureEvent ?? {}), ["timestamp"]);
+  strictAssert.equal(resumed.sentryFailureEvent?.timestamp, resumedTimestamp);
+  const abandonedAgainAt = new Date(resumedAt.getTime() + turnStatus.LIVE_TURN_IDLE_MS + 1);
+  strictAssert.equal(await reporter.queueAbandonedFailedTurns(abandonedAgainAt, scanOptions), 1,
+    "a cleared unreported reservation is rebuilt if the resumed tab disappears again");
+  strictAssert.equal(resumed.sentryEventId, resumedId, "re-abandonment keeps the first event identity");
+  strictAssert.equal(resumed.sentryFailureEvent?.timestamp, resumedTimestamp, "re-abandonment keeps the first event timestamp");
+  strictAssert.equal(resumed.sentryFailureEvent?.tags.environment, "production");
+  strictAssert.equal(resumed.sentryFailureEvent?.tags.provider, "azure", "recent recovery uses its actual deployment");
+  const beforeResumedDelivery = sentEvents.length;
+  strictAssert.equal((await reporter.runFailedTurnSentryBatch({ now: abandonedAgainAt }, delivery)).reported, 1);
+  strictAssert.equal(sentEvents.length, beforeResumedDelivery + 1);
+  strictAssert.equal(sentEvents.at(-1)?.event_id, resumedId);
+  strictAssert.equal(sentEvents.at(-1)?.timestamp, resumedTimestamp);
+
+  const beforeBoot = { ...makeStopped("synthetic-before-current-deploy"), status: "live", updatedAt: new Date(stoppedAt.getTime() - 1) };
+  const beforeHour = { ...makeStopped("synthetic-older-than-one-hour"), status: "live", updatedAt: new Date(staleAt.getTime() - 3_600_001) };
+  rows.set(beforeBoot.id, beforeBoot); rows.set(beforeHour.id, beforeHour);
+  strictAssert.equal(await reporter.queueAbandonedFailedTurns(staleAt, scanOptions), 0,
+    "startup scans leave old rows to the explicit historical backfill");
+  strictAssert.equal(beforeBoot.sentryEventId, null, "pre-deploy abandonment is not attributed to this release");
+  strictAssert.equal(beforeHour.sentryEventId, null, "abandonment older than one hour is not automatically queued");
+
+  // A local server can inherit the same DSN. Neither queueing, startup nor
+  // default delivery is enabled without the explicit production runtime.
+  for (const runtimeEnv of [
+    { NODE_ENV: "development", SENTRY_ENVIRONMENT: "production" },
+    { NODE_ENV: "test", SENTRY_ENVIRONMENT: "production" },
+    { NODE_ENV: "production", SENTRY_ENVIRONMENT: "lab" },
+    { NODE_ENV: "production" },
+  ]) {
+    let databaseReads = 0, databaseWrites = 0, clientConstructions = 0;
+    const offTx = { turn: { updateMany: async () => { databaseWrites++; return { count: 1 }; }, findFirst: async () => null } };
+    const off = loadModule<typeof reporter>("lib/obs/failedTurnSentry.ts", {
+      "node:crypto": { randomUUID: () => crypto.randomUUID() },
+      "@prisma/client": { Prisma: { JsonNull: null, DbNull: null } },
+      "@sentry/nextjs": { ...Sentry, NodeClient: class { constructor() { clientConstructions++; throw new Error("local delivery must stay disabled"); } } },
+      "../db/prisma": { prisma: { $queryRaw: async () => { databaseReads++; return []; },
+        turn: { findMany: async () => { databaseReads++; return []; } } } },
+      "./sentryPrivacy": { ...privacy, sentryServerDsn: () => "https://synthetic@example.ingest.sentry.io/1" },
+      "./failedTurnTelemetry": telemetry, "./failedTurnRuntime": failedTurnRuntime,
+      "../boards/turnStatus": turnStatus, "../admin/turnFilters": turnFilters,
+    }, runtimeEnv);
+    strictAssert.equal(await off.queueFailedTurnSentry(offTx, { ...failedTurn, id: "synthetic-local-fail" }, { env: runtimeEnv }), null);
+    strictAssert.equal(await off.queueAbandonedFailedTurns(staleAt, { env: runtimeEnv, startedAt: stoppedAt }), 0);
+    const disabledBatch = await off.runFailedTurnSentryBatch({ now: staleAt });
+    strictAssert.equal(disabledBatch.reported, 0); strictAssert.equal(disabledBatch.pending, 0);
+    off.startFailedTurnSentryWorker()();
+    strictAssert.equal(databaseReads, 0, "nonproduction delivery and recovery never inspect the database");
+    strictAssert.equal(databaseWrites, 0, "nonproduction failed saves do not write the production outbox");
+    strictAssert.equal(clientConstructions, 0, "a configured DSN cannot enable the local Sentry worker");
+  }
   await Sentry.close();
   console.log("✓ Sentry: persisted fail, one clean SDK event, retry idempotency, bounded durable delivery and admin link verified");
 }
