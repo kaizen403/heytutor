@@ -381,7 +381,32 @@ export function validateEvaluatedGeometricOpticsLabels(construction: SceneConstr
     issues.push({ code: `invalid_${construction.operator}_label`, severity: "fatal", message: error instanceof Error ? error.message : "invalid optical result labels", path: `constructions[${index}].outputs` });
   }
 }
-/** Validation reads optical inputs through constructed points and lines only; anything else is unresolved. */
+/** A point input as the compiler's resolvePoint reads it: a constructed point's id, or a literal [x,y] or {x,y}. */
+function pointInput(value: unknown, key: string, context: GeometricOpticsEvaluationContext): RenderPoint {
+  return typeof value === "string" ? context.point(value) : inlinePoint(value, key, context);
+}
+/**
+ * A constructed line, ray or segment's two defining points, read the way the compiler's linePoints reads
+ * them: start (from, a, or for a line or ray origin), then end (to, b), or else start plus direction (or
+ * vector), a literal [x,y] or {x,y} or another constructed line's span. Anything else is unresolved.
+ */
+function constructedLinePoints(value: unknown, constructionByOutput: ReadonlyMap<string, SceneConstruction>, context: GeometricOpticsEvaluationContext, depth = 0): [RenderPoint, RenderPoint] {
+  const producer = typeof value === "string" ? constructionByOutput.get(value) : undefined;
+  if (!producer || depth > 32 || !["line", "ray", "segment"].includes(producer.operator) || !isRecord(producer.inputs)) throw new UnresolvedOpticalGeometry();
+  const inputs = producer.inputs; const segment = producer.operator === "segment";
+  const pick = (names: readonly string[]): unknown => names.map((name) => inputs[name]).find((item) => item !== undefined);
+  const startValue = pick(segment ? ["start", "from", "a"] : ["start", "from", "a", "origin"]); const endValue = pick(["end", "to", "b"]);
+  if (startValue === undefined) throw new UnresolvedOpticalGeometry();
+  const start = pointInput(startValue, "axis", context);
+  if (endValue !== undefined) return [start, pointInput(endValue, "axis", context)];
+  const directionValue = segment ? undefined : pick(["direction", "vector"]);
+  if (directionValue === undefined) throw new UnresolvedOpticalGeometry();
+  let direction: RenderPoint;
+  if (typeof directionValue === "string") { const [a, b] = constructedLinePoints(directionValue, constructionByOutput, context, depth + 1); direction = { x: b.x - a.x, y: b.y - a.y }; }
+  else direction = inlinePoint(directionValue, "axis", context);
+  return [start, { x: start.x + direction.x, y: start.y + direction.y }];
+}
+/** Validation reads optical inputs through constructed points, lines and rays only (as the compiler draws them); anything else is unresolved. */
 function opticsValidationContext(document: SceneDocument, constructionByOutput: ReadonlyMap<string, SceneConstruction>): GeometricOpticsEvaluationContext {
   const context: GeometricOpticsEvaluationContext = {
     number(value) { return validationNumber(value, document); },
@@ -389,11 +414,8 @@ function opticsValidationContext(document: SceneDocument, constructionByOutput: 
     geometry(value) {
       const producer = typeof value === "string" ? constructionByOutput.get(value) : undefined; if (!producer) return undefined;
       if (producer.operator === "point") return { kind: "point", point: { x: context.number(producer.inputs.x), y: context.number(producer.inputs.y) } };
-      if (producer.operator === "line") {
-        const a = producer.inputs.start ?? producer.inputs.from ?? producer.inputs.a; const b = producer.inputs.end ?? producer.inputs.to ?? producer.inputs.b;
-        if (a === undefined || b === undefined) throw new UnresolvedOpticalGeometry();
-        const start = typeof a === "string" ? context.point(a) : inlinePoint(a, "axis", context); const end = typeof b === "string" ? context.point(b) : inlinePoint(b, "axis", context);
-        return { kind: "path", points: [start, end], infinite: true };
+      if (producer.operator === "line" || producer.operator === "ray") {
+        return { kind: "path", points: constructedLinePoints(value, constructionByOutput, context), infinite: true, ...(producer.operator === "ray" ? { directed: true } : {}) };
       }
       throw new UnresolvedOpticalGeometry();
     },
@@ -458,22 +480,25 @@ function signed(value: number): string { return `${value > 0 ? "+" : ""}${compac
  * verify-optics-labels-and-magnitudes loads mutants of it from a temporary directory.)
  */
 function surfaceFocalClaim(construction: SceneConstruction, index: number, document: SceneDocument, constructionByOutput: ReadonlyMap<string, SceneConstruction>, context: GeometricOpticsEvaluationContext): FocalClaim | null {
-  const inputs = construction.inputs; const vertexId = inputs.vertex ?? inputs.pole; const axisId = inputs.axis;
-  if (typeof vertexId !== "string" || typeof axisId !== "string") return null;
-  const vertex = context.point(vertexId); const axisProducer = constructionByOutput.get(axisId);
-  if (axisProducer?.operator !== "line" && axisProducer?.operator !== "segment") return null;
-  const a = axisProducer.inputs.start ?? axisProducer.inputs.from ?? axisProducer.inputs.a; const b = axisProducer.inputs.end ?? axisProducer.inputs.to ?? axisProducer.inputs.b;
-  if (typeof a !== "string" || typeof b !== "string") return null;
-  const start = context.point(a); const end = context.point(b); const span = Math.hypot(end.x - start.x, end.y - start.y);
+  const inputs = construction.inputs; const vertexValue = inputs.vertex ?? inputs.pole; const axisValue = inputs.axis;
+  const centerInputValue = inputs.center; const statedRadius = inputs.signedRadius ?? inputs.radius;
+  const sense = [inputs.kind, inputs.facing].find((value) => value !== undefined);
+  // A surface that states no centre, radius or sense says nothing about f; one with no vertex or axis the compiler refuses.
+  if (typeof centerInputValue !== "string" && !Array.isArray(centerInputValue) && statedRadius === undefined && !(typeof sense === "string" && /^(?:concave|convex)$/i.test(sense))) return null;
+  if (vertexValue === undefined || axisValue === undefined) return null;
+  // The axis the compiler's resolveLine draws: a constructed line, ray or segment (endpoints or a direction), or a literal pair of points.
+  const vertex = pointInput(vertexValue, "center", context);
+  let axisPoints: [RenderPoint, RenderPoint];
+  if (typeof axisValue === "string") axisPoints = constructedLinePoints(axisValue, constructionByOutput, context);
+  else if (Array.isArray(axisValue) && axisValue.length === 2) axisPoints = [pointInput(axisValue[0], "axis", context), pointInput(axisValue[1], "axis", context)];
+  else throw new UnresolvedOpticalGeometry();
+  const [start, end] = axisPoints; const span = Math.hypot(end.x - start.x, end.y - start.y);
   if (!(span > MIN_DISPLAY)) return null;
   const written = { x: (end.x - start.x) / span, y: (end.y - start.y) / span }; const drawnReversed = written.x < 0;
   const axis = drawnReversed ? { x: -written.x, y: -written.y } : written;
   const along = drawnReversed ? " along the drawn axis (the written axis turned toward +x)" : "";
-  const centerInputValue = inputs.center;
-  const curvature = typeof centerInputValue === "string" ? context.point(centerInputValue) : Array.isArray(centerInputValue) ? inlinePoint(centerInputValue, "center", context) : undefined;
+  const curvature = typeof centerInputValue === "string" || Array.isArray(centerInputValue) ? pointInput(centerInputValue, "center", context) : undefined;
   const inferred = curvature ? (curvature.x - vertex.x) * axis.x + (curvature.y - vertex.y) * axis.y : 0;
-  const statedRadius = inputs.signedRadius ?? inputs.radius;
-  const sense = [inputs.kind, inputs.facing].find((value) => value !== undefined);
   let radius: number; let signOnly = false; let detail: string;
   if (Math.abs(inferred) > MIN_DISPLAY) { radius = inferred; detail = `its centre of curvature puts R at ${signed(radius)}, so f = R/2 = ${signed(radius / 2)}`; }
   else if (statedRadius !== undefined) { radius = validationNumber(statedRadius, document); detail = `its signedRadius ${signed(radius)} world units${along} gives f = R/2 = ${signed(radius / 2)}`; }
@@ -488,24 +513,49 @@ function surfaceFocalClaim(construction: SceneConstruction, index: number, docum
  * mirror its spherical_surface at f = R/2. A mirror's focus is a world point, so its focal distance is
  * compared along a shared axis direction; a lens's sign is its own on either direction. A disagreement is
  * fatal and is never repaired by inheriting a form: the planner states the element once, consistently.
+ * The axis is read as the compiler draws it (endpoints, or a start and a direction or vector). A claim whose
+ * centre or axis the check cannot read is never skipped: beside another claim that may share its element
+ * (a compatible kind, and no readable centre apart), it fails closed with the same code.
  */
 export function validateOpticalElementFocalAgreement(document: SceneDocument, constructionByOutput: ReadonlyMap<string, SceneConstruction>, issues: SceneIssue[]): void {
   const context = opticsValidationContext(document, constructionByOutput);
   const claims: FocalClaim[] = [];
+  const unread: Array<Pick<FocalClaim, "index" | "id" | "operator" | "outputs" | "kind"> & { center?: RenderPoint }> = [];
+  const readCenter = (value: unknown): RenderPoint | undefined => { try { return pointInput(value, "center", context); } catch { return undefined; } };
   document.constructions.forEach((construction, index) => {
     if (!isRecord(construction.inputs) || !Array.isArray(construction.outputs)) return;
-    try {
-      if (GEOMETRIC_OPTICS_OPERATORS.some((operator) => operator === construction.operator)) {
+    const unreadClaim = (kind: OpticalKind | "surface", centerValue: unknown): void => { unread.push({ index, id: construction.id, operator: construction.operator, outputs: construction.outputs, kind, center: readCenter(centerValue) }); };
+    if (GEOMETRIC_OPTICS_OPERATORS.some((operator) => operator === construction.operator)) {
+      try {
         const first = evaluateGeometricOpticsConstruction(construction.operator, construction.inputs, context)[0];
         const model = first?.opticalImage ?? first?.opticalFocus; if (!model) return;
         const form = construction.inputs.form;
         claims.push({ index, id: construction.id, operator: construction.operator, outputs: construction.outputs, kind: model.kind, center: model.center, axis: model.axis, focal: model.focalLength * model.displayScale, signOnly: false,
           detail: `it resolves f = ${signed(model.focalLength)}${model.lengthUnit === "unit" ? "" : ` ${model.lengthUnit}`} (${form === undefined ? "signed input, no form" : `form ${String(form)}`})${model.displayScale === 1 ? "" : `, drawn at ${signed(model.focalLength * model.displayScale)} world units`}` });
-      } else if (construction.operator === "spherical_surface") {
-        const claim = surfaceFocalClaim(construction, index, document, constructionByOutput, context); if (claim) claims.push(claim);
+      } catch (error) {
+        // Malformed optics inputs are reported fatally by each operator's own validator; geometry it cannot read is not.
+        if (error instanceof UnresolvedOpticalGeometry) unreadClaim(construction.inputs.kind as OpticalKind, construction.inputs.center);
       }
-    } catch { /* malformed optics inputs are reported by each operator's own validator */ }
+    } else if (construction.operator === "spherical_surface") {
+      try { const claim = surfaceFocalClaim(construction, index, document, constructionByOutput, context); if (claim) claims.push(claim); }
+      catch { unreadClaim("surface", construction.inputs.vertex ?? construction.inputs.pole); }
+    }
   });
+  const sameElementPossible = (a: { kind: OpticalKind | "surface"; center?: RenderPoint }, b: { kind: OpticalKind | "surface"; center?: RenderPoint }): boolean => {
+    if (a.kind === "surface" && b.kind === "surface") return false;
+    if ((a.kind === "surface" || b.kind === "surface") ? a.kind === "lens" || b.kind === "lens" : a.kind !== b.kind) return false;
+    if (!a.center || !b.center) return true;
+    return Math.hypot(a.center.x - b.center.x, a.center.y - b.center.y) <= 1e-6 * Math.max(1, Math.abs(a.center.x), Math.abs(a.center.y));
+  };
+  for (const item of unread) {
+    const partner = [...claims, ...unread].find((other) => other !== item && sameElementPossible(item, other));
+    if (!partner) continue;
+    const element = item.kind === "surface" ? "mirror" : item.kind;
+    issues.push({
+      code: "optical_element_focal_length_disagrees", severity: "fatal", path: `constructions[${item.index}].inputs`, entityIds: [...item.outputs, ...partner.outputs],
+      message: `${item.operator} ${item.id} may describe the same ${element} as ${partner.operator} ${partner.id}, but the focal length check cannot read its ${item.center ? "principal axis" : "centre or principal axis"}, so it cannot confirm one focal length. Give the ${item.kind === "surface" ? "vertex" : "centre"} as a constructed point and the principal axis as a line through it with start and end points, or a start and a direction.`,
+    });
+  }
   for (const [later, b] of claims.entries()) {
     for (const a of claims.slice(0, later)) {
       if (a.kind === "surface" && b.kind === "surface") continue;

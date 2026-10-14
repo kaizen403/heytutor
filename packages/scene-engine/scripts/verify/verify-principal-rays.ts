@@ -22,7 +22,9 @@
  * optical_element_focal_length_disagrees; with form converging on that focus the p9b1 document
  * compiles and draws the focus in front of the mirror. A lens or a convex mirror whose focus, image
  * and surface agree still compiles clean; a lens focus of the wrong sign, a mirror surface of the
- * wrong sense and a mirror surface of the wrong radius each fail closed.
+ * wrong sense and a mirror surface of the wrong radius each fail closed. The same holds on principal
+ * axes written as a start and a direction or vector (the recorded documents, a surface, a reversed
+ * focus), and a focus whose axis the check cannot read fails closed even when its values agree.
  * R8: the renderer draws a spherical_surface in a +x frame, so on a principal axis written toward -x
  * (endpoints B to A) its signedRadius is read along +x. A concave mirror there with signedRadius 28 and
  * focalLength -14 (and a convex one with -66 and 33) compiles clean, with the centre of curvature and
@@ -367,6 +369,57 @@ for (const [name, document] of [
 ] as const) {
   const { codes, compiled } = fatalCodes(document);
   check("R7", codes.includes(FOCAL_CODE) && !compiled.ok, `${name} must fail closed with ${FOCAL_CODE}; got ${codes.join(", ") || "nothing"}`);
+}
+// The same elements on principal axes written as a start and a direction (or vector): the compiler draws
+// these lines, so the check reads them too, and an axis it cannot read fails closed instead of being skipped.
+function directionAxes(document: SceneDocument, along: (start: unknown) => Record<string, unknown>): SceneDocument {
+  for (const construction of document.constructions) if (construction.operator === "line") construction.inputs = along(construction.inputs.start);
+  return document;
+}
+const directionOf = (start: unknown) => ({ start, direction: [1, 0] });
+const vectorOf = (start: unknown) => ({ start, vector: { x: 2, y: 0 } });
+const withForm = (document: SceneDocument, id: string): SceneDocument => {
+  const focus = document.constructions.find((construction) => construction.id === id)!;
+  focus.inputs = { ...focus.inputs, form: "converging" };
+  return document;
+};
+/** A mirror focus on its own principal axis written from the pole: B to A as a direction toward -x. */
+function directionReversedFocus(test: Case, focalLength: number): SceneDocument {
+  const document = withElement(test, { focalLength, axis: "axis-r" }, null);
+  document.constructions.splice(5, 0, { id: "c-axis-r", operator: "line", inputs: { start: "O", direction: [-1, 0] }, outputs: ["axis-r"] });
+  document.entities.push(ent("axis-r", "line")); document.requiredEntityIds.push("axis-r"); document.revealGroups[0]!.entityIds.push("axis-r");
+  return document;
+}
+/** A mirror focus whose principal axis starts at the image's object base: the compiler draws it, the check cannot read it. */
+function unreadAxisFocus(test: Case, focus: Record<string, unknown>): SceneDocument {
+  const document = withElement(test, { ...focus, axis: "axis-u" }, null);
+  document.constructions.splice(6, 0, { id: "c-axis-u", operator: "line", inputs: { start: "ob", end: "O" }, outputs: ["axis-u"] });
+  document.entities.push(ent("axis-u", "line")); document.requiredEntityIds.push("axis-u"); document.revealGroups[0]!.entityIds.push("axis-u");
+  return document;
+}
+for (const [name, document] of [
+  ["recorded p9b1 on direction axes", directionAxes(structuredClone(recorded.p9b1), directionOf)],
+  ["recorded p9b2 on vector axes", directionAxes(structuredClone(recorded.p9b2), vectorOf)],
+  ["concave mirror on a direction axis, convex surface", directionAxes(withElement(mirrorReal, { focalLength: -14 }, { signedRadius: 28 }), directionOf)],
+  ["convex mirror, focus in front of the mirror on a direction axis toward -x", directionReversedFocus(convexMirror, 33)],
+  ["concave mirror, agreeing focus on an axis the check cannot read", unreadAxisFocus(mirrorReal, { focalLength: -14 })],
+] as const) {
+  const { codes, compiled } = fatalCodes(document);
+  check("R7", codes.includes(FOCAL_CODE) && !compiled.ok, `${name} must fail closed with ${FOCAL_CODE}; got ${codes.join(", ") || "nothing"}`);
+}
+for (const [name, document] of [
+  ["recorded p9b1 on direction axes, form converging on the concave focus", withForm(directionAxes(structuredClone(recorded.p9b1), directionOf), "cfc")],
+  ["recorded p9b2 on vector axes, form converging on the concave focus", withForm(directionAxes(structuredClone(recorded.p9b2), vectorOf), "cf0")],
+  ["concave mirror on a direction axis, focus and surface agree", directionAxes(withElement(mirrorReal, { focalLength: -14 }, { signedRadius: -28 }), directionOf)],
+  ["convex mirror, focus stated on a direction axis toward -x", directionReversedFocus(convexMirror, -33)],
+] as const) {
+  const { codes, compiled } = fatalCodes(document);
+  check("R7", compiled.ok && codes.length === 0, `${name} must compile clean; got ${codes.join(", ")}`);
+  if (!name.startsWith("recorded p9b1") || !compiled.ok) continue;
+  const at = (id: string) => compiled.renderScene?.primitives.find((primitive) => primitive.entityId === id && primitive.kind === "point")?.points[0];
+  const [pole, focusPoint, objectBase] = [at("pc"), at("fc"), at("cob")];
+  check("R7", pole && focusPoint && objectBase && focusPoint.x < pole.x && objectBase.x < pole.x,
+    `${name}: the concave focus must sit in front of the mirror; pole ${JSON.stringify(pole)}, focus ${JSON.stringify(focusPoint)}, object ${JSON.stringify(objectBase)}`);
 }
 
 // ---- R8: a mirror surface's radius is read along the axis the renderer draws it on ----
