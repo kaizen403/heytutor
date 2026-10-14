@@ -78,6 +78,8 @@ export interface RepresentationSelectionInput {
   exactFigureSource?: Extract<FigureSource, "planner" | "verified_recovery">;
   /** An explicit strict policy may retain admissible planner ink before source fallbacks. Default is unchanged. */
   preferPlanner?: boolean;
+  /** Content-free final admission diagnostic; observer errors never affect selection. */
+  onExactRejection?: (code: "scene_relevance_rejected") => void;
 }
 
 interface SourceFunctionFact {
@@ -188,7 +190,7 @@ export function selectVerifiedRepresentation(
     return { ...textOnly, reason: motionConflict };
   }
   const currentCompile = input.exact
-    ? compileUsableExactRepresentation(input.exact, input.question, input.problemIR)
+    ? compileUsableExactRepresentation(input.exact, input.question, input.problemIR, input.onExactRejection)
     : null;
   const families = input.families?.length ? input.families : undefined;
   const synthesize = () => synthesizeFamilyScene({
@@ -421,6 +423,7 @@ function compileUsableExactRepresentation(
   candidate: ExactVerifiedRepresentation,
   expectedQuestion: string,
   problemIR?: ProblemStructureView | null,
+  onExactRejection?: RepresentationSelectionInput["onExactRejection"],
 ): ReturnType<typeof compileSceneDocument> | null {
   // TypeScript's interface is not a runtime proof: the caller may supply an
   // incomplete, forged or stale report despite the ExactVerifiedRepresentation type.
@@ -430,6 +433,7 @@ function compileUsableExactRepresentation(
   // picture demand the synthesized families face, so a validated-but-wrong
   // figure falls through to the fallback instead of being taught.
   if (demandRejection(candidate.sceneDocument, sceneDemand(expectedQuestion, problemIR))) {
+    try { onExactRejection?.("scene_relevance_rejected"); } catch { /* Diagnostics cannot change admission. */ }
     return null;
   }
   const sourceQuestion = candidate.sceneDocument.source.question;

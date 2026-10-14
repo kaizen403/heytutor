@@ -1,4 +1,5 @@
 import type { Breadcrumb, ErrorEvent } from "@sentry/nextjs";
+import { FAILED_TURN_CODES, FAILED_TURN_DEPLOYMENTS, FAILED_TURN_ISSUE_CODES, FAILED_TURN_STAGES } from "./failedTurnTelemetry";
 import { SENTRY_TUNNEL_PATH } from "./sentryTunnel";
 
 const SENSITIVE_HEADER = /^(?:cookie|set-cookie|authorization|proxy-authorization|x-api-key)$/i;
@@ -8,6 +9,16 @@ type QueryValue = string | Record<string, string> | Array<[string, string]>;
 
 export interface SentryScrubEvent {
   message?: string;
+  level?: unknown;
+  platform?: string;
+  event_id?: string;
+  timestamp?: number;
+  tags?: Record<string, unknown>;
+  fingerprint?: string[];
+  extra?: Record<string, unknown>;
+  contexts?: unknown;
+  release?: string;
+  environment?: string;
   request?: {
     url?: string;
     data?: unknown;
@@ -129,6 +140,7 @@ function redactQuery(value: QueryValue): QueryValue | undefined {
 }
 
 export function scrubSentryEvent<T extends SentryScrubEvent>(event: T): T {
+  if (event.tags?.area === "turn-failure") return scrubFailedTurnEvent(event);
   if (event.message) event.message = scrubSecrets(event.message);
   for (const item of event.exception?.values ?? []) {
     if (item.value) item.value = scrubSecrets(item.value);
@@ -156,11 +168,8 @@ export function scrubSentryEvent<T extends SentryScrubEvent>(event: T): T {
     if (request.url) request.url = redactUrl(request.url);
   }
 
-  if (event.user) {
-    delete event.user.email;
-    delete event.user.ip_address;
-    delete event.user.username;
-  }
+  // Persistent user ids are personal data too; reporting never needs identity.
+  delete event.user;
 
   if (event.breadcrumbs) {
     event.breadcrumbs = event.breadcrumbs.flatMap((breadcrumb) => {
@@ -169,6 +178,66 @@ export function scrubSentryEvent<T extends SentryScrubEvent>(event: T): T {
     });
   }
 
+  return event;
+}
+
+const FAILURE_SUBJECTS = ["physics", "chemistry", "maths", "biology", "dsa", "other", "unknown"];
+const FAILURE_PROVIDERS = ["azure", "fireworks", "mock", "unknown"];
+const FAILURE_ENVIRONMENTS = ["production", "development", "test", "unknown"];
+
+function allowedValue(value: unknown, allowed: readonly string[]): string {
+  return typeof value === "string" && allowed.includes(value) ? value : "unknown";
+}
+
+/** Failed-turn events carry counts and vocabulary, even when captured in a dirty request scope. */
+function scrubFailedTurnEvent<T extends SentryScrubEvent>(event: T): T {
+  const supplied = event.tags ?? {};
+  const strictSubjects = typeof supplied.strict_subjects === "string"
+    ? supplied.strict_subjects.split(",") : [];
+  const release = typeof supplied.release === "string" && /^[a-f0-9]{7,64}$/i.test(supplied.release)
+    ? supplied.release : "unknown";
+  const tags = {
+    area: "turn-failure",
+    subject: allowedValue(supplied.subject, FAILURE_SUBJECTS),
+    stage: allowedValue(supplied.stage, FAILED_TURN_STAGES),
+    code: allowedValue(supplied.code, FAILED_TURN_CODES),
+    figure_need: allowedValue(supplied.figure_need, ["required", "optional", "none", "unknown"]),
+    strict_subjects: supplied.strict_subjects === "none" ? "none"
+      : strictSubjects.length > 0 && strictSubjects.length <= FAILURE_SUBJECTS.length &&
+        strictSubjects.every((subject) => FAILURE_SUBJECTS.includes(subject))
+        ? Array.from(new Set(strictSubjects)).join(",") : "unknown",
+    provider: allowedValue(supplied.provider, FAILURE_PROVIDERS),
+    deployment: allowedValue(supplied.deployment, FAILED_TURN_DEPLOYMENTS),
+    release,
+    environment: allowedValue(supplied.environment, FAILURE_ENVIRONMENTS),
+  };
+  const extra: Record<string, unknown> = {};
+  for (const key of ["candidate_count", "validation_issue_count", "segment_count", "unknown_issue_count", "request_count"]) {
+    const value = event.extra?.[key];
+    if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0 && value <= 1_000_000) extra[key] = value;
+  }
+  if (Array.isArray(event.extra?.issue_codes)) {
+    extra.issue_codes = Array.from(new Set(event.extra.issue_codes.slice(0, 32).map((code) =>
+      typeof code === "string" && (FAILED_TURN_ISSUE_CODES as readonly string[]).includes(code)
+        ? code : "unknown_issue")));
+  }
+
+  // SDK scopes can add arbitrary identity, path, breadcrumb and model context.
+  // Allowlist the complete event rather than guessing every sensitive field name.
+  const kept = new Set(["event_id", "timestamp", "platform", "level", "message", "tags", "fingerprint", "extra", "release", "environment"]);
+  for (const key of Object.keys(event)) {
+    if (!kept.has(key)) Reflect.deleteProperty(event, key);
+  }
+  event.message = "Tutor turn failed";
+  event.level = event.level === "error" ? "error" : "warning";
+  event.platform = "node";
+  if (event.event_id !== undefined && !/^[a-f0-9]{32}$/i.test(event.event_id)) delete event.event_id;
+  if (event.timestamp !== undefined && !Number.isFinite(event.timestamp)) delete event.timestamp;
+  event.tags = tags;
+  event.fingerprint = ["turn-failure", tags.stage, tags.code, tags.subject];
+  event.extra = extra;
+  event.release = release;
+  event.environment = tags.environment;
   return event;
 }
 

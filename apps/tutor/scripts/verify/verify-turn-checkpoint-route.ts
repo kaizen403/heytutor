@@ -269,6 +269,8 @@ const checkpoint = load("lib/boards/turnCheckpoint.ts", {
   "@/lib/obs/traceOwnership": {
     assertOwnedTrace: async (owner: string, traceId: string) => ownedTraces.get(traceId)?.userId === owner,
   },
+  // Failure telemetry has its own runtime/privacy gate; keep this fixture on checkpoint semantics.
+  "@/lib/obs/failedTurnSentry": { queueFailedTurnSentry: async () => null },
   "@/lib/scene/turnScenePersistence": { canonicalizeTurnSceneMetadata: canonicalize },
   "@/lib/scene/turnUploadLimits": uploadLimits,
   "@/lib/boards/turnStatus": turnStatus,

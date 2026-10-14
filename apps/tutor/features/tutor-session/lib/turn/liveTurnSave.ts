@@ -48,6 +48,7 @@ import {
   type PersistedTurnScene,
 } from "./doubtTurn";
 import { IDLE_SAVE, type SaveStatus } from "./saveStatus";
+import { readFailedTurnTelemetry } from "@/lib/obs/failedTurnTelemetry";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -281,6 +282,26 @@ export function liveTurnNarration(rows: readonly Pick<RecordedSegmentPayload, "n
  * - The text only fallback (decision 7) drops the figure and keeps the plan.
  */
 export function liveTurnScene(input: {
+  page: BoardPageRecord | null;
+  kind: TurnKind;
+  preview: string;
+  opensPage: boolean;
+  status: TurnStatus;
+  textOnly: boolean;
+}): PersistedTurnScene {
+  const scene = baseLiveTurnScene(input);
+  const failureTelemetry = readFailedTurnTelemetry(input.page?.failureTelemetry);
+  if (!failureTelemetry) return scene;
+  return {
+    ...scene,
+    sceneArtifacts: {
+      ...(scene.sceneArtifacts && typeof scene.sceneArtifacts === "object" && !Array.isArray(scene.sceneArtifacts) ? scene.sceneArtifacts : {}),
+      failureTelemetry,
+    },
+  };
+}
+
+function baseLiveTurnScene(input: {
   page: BoardPageRecord | null;
   kind: TurnKind;
   preview: string;

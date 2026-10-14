@@ -5,6 +5,7 @@ import { scopedTraceId } from "@/lib/obs/traceOwnership";
 import { classifyOutcome, extractArtifactSummary } from "./outcome";
 import { userLabel } from "./labels";
 import { failedTurnWhere } from "./turnFilters";
+import { sentryEventUrl } from "./sentryLink";
 import type { AdminTurnRow, TurnsOutcomeFilter, TurnsPagePayload } from "./types";
 
 const DAY_MS = 86_400_000;
@@ -64,6 +65,7 @@ export async function listTurns(input: ListTurnsInput): Promise<TurnsPagePayload
         sceneArtifacts: true,
         sceneEngineVersion: true,
         traceId: true,
+        sentryEventId: true,
         createdAt: true,
         userId: true,
         user: { select: { name: true, email: true } },
@@ -91,6 +93,8 @@ export async function listTurns(input: ListTurnsInput): Promise<TurnsPagePayload
       sceneEngineVersion: row.sceneEngineVersion,
       traceId: row.traceId,
       traceUrl: row.traceId && traceBase ? `${traceBase}${cost?.observationTraceId ?? scopedTraceId(row.userId, row.traceId)}` : null,
+      sentryEventId: row.sentryEventId,
+      sentryUrl: sentryEventUrl(row.sentryEventId),
       userId: row.userId,
       userLabel: userLabel({
         userId: row.userId,

@@ -57,6 +57,7 @@ import {
 } from "@heytutor/scene-engine";
 import { createTurnTelemetry, measureSceneCandidateValidation, measureSceneSelection } from "@/lib/obs/turnTelemetry";
 import { pageLoadTiming } from "@/lib/obs/pageLoadTiming";
+import { readFailedTurnTelemetry, sceneRequestFailureTelemetry, turnPlanFailureTelemetry, type FailedTurnTelemetry } from "@/lib/obs/failedTurnTelemetry";
 import { boardNeedsGeneratedTitle } from "@/lib/boards/boardTitle";
 import {
   fetchBoardDetail,
@@ -631,6 +632,11 @@ export function useQuestionHandler(
             })
         : lessonPageRecord(sessionId, question);
       boardPageRef.current = page;
+      const inheritedFailureTelemetry = readFailedTurnTelemetry(
+        resume?.scene?.sceneArtifacts && typeof resume.scene.sceneArtifacts === "object"
+          ? (resume.scene.sceneArtifacts as Record<string, unknown>).failureTelemetry : undefined,
+      );
+      page.failureTelemetry = { subject: inheritedFailureTelemetry?.subject ?? "other" };
       liveSave?.setPage(page);
       // What a Continue after a reload cannot rebuild from the saved turns.
       if (resume) liveTurnSave().setResumeState(cancelRef, turnGeneration, lessonResumeState(resume.solverProjection));
@@ -751,6 +757,7 @@ export function useQuestionHandler(
       let turnPlan: TurnPlanV3 | null = null;
       let problemAuthority: ProblemAuthorityV1Response | null = null;
       let turnPlanMs = 0;
+      let sceneRequestFailure: Pick<FailedTurnTelemetry, "stage" | "code"> | undefined;
 
       const plannerUrl = resolveApiUrl("/api/chat");
 
@@ -1101,6 +1108,16 @@ export function useQuestionHandler(
             conversationContext: recentConversation,
             fastMode: fastModeRef.current,
             classifySubject: (billed.diagramStrictSubjects?.length ?? 0) > 0,
+            onRequestOutcome: outcome => {
+              const previous = page.failureTelemetry ?? { subject: "other" };
+              page.failureTelemetry = readFailedTurnTelemetry({
+                ...previous,
+                ...turnPlanFailureTelemetry(outcome),
+                requestCount: (previous.requestCount ?? 0) + 1,
+                issueCodes: [...(previous.issueCodes ?? []), ...outcome.issueCodes],
+                unknownIssueCount: (previous.unknownIssueCount ?? 0) + outcome.unrecognizedIssueCount,
+              });
+            },
           }), isCurrentTurn).catch(closeTurnPlanSpanOnFailure);
           // The turn-plan audit used to run here: a second LLM opinion on the
           // plan, awaited before the scene planner could start. Measured on
@@ -1119,6 +1136,13 @@ export function useQuestionHandler(
           // gate, so restoring it here is a one-line change.
           turnPlanMs = Date.now() - turnPlanStartedAt;
           diagramSubject = plannedTurn?.subject ?? "other";
+          page.failureTelemetry = {
+            subject: diagramSubject,
+            requestCount: page.failureTelemetry?.requestCount,
+            issueCodes: page.failureTelemetry?.issueCodes,
+            unknownIssueCount: page.failureTelemetry?.unknownIssueCount,
+            ...(!plannedTurn ? { stage: page.failureTelemetry?.stage ?? "turn_plan", code: page.failureTelemetry?.code ?? "turn_plan_rejected" } as const : {}),
+          };
           tel.meta({ diagram_subject: diagramSubject });
           turnPlanSpan.end({ ok: plannedTurn !== null, latency_ms: turnPlanMs });
           turnPlan = selectBestAvailableTurnPlan(
@@ -1342,6 +1366,13 @@ export function useQuestionHandler(
                 maxConcurrentRequests: run.maxConcurrentRequests,
                 requestBudget: run.requestBudget,
                 fastMode: fastModeRef.current,
+                onRequestOutcome: outcome => {
+                  sceneRequestFailure = sceneRequestFailureTelemetry({
+                    httpStatus: outcome.httpStatus, bodyParsed: outcome.bodyParsed,
+                    errorPresent: outcome.error !== null, declined: Boolean(outcome.declineReason),
+                    timedOut: outcome.elapsedMs >= run.timeoutMs,
+                  }) ?? sceneRequestFailure;
+                },
                 ...plannerRequest,
               },
             ).catch(() => null);
@@ -1354,6 +1385,7 @@ export function useQuestionHandler(
         turnPlan = planning.turnPlan;
         problemAuthority = planning.authority;
         const { sceneCapabilities, shouldPlanExactScene, shouldAttemptLlmScene } = planning.gate;
+        if (planning.gate.chemistryLane) page.failureTelemetry = { ...page.failureTelemetry, subject: "chemistry" };
         diagramStrategyDecision = planning.gate.diagramStrategy;
         tel.meta({ diagram_strategy: diagramStrategyDecision.strategy });
         const skippedExactForMissingCapability = shouldPlanExactScene && !shouldAttemptLlmScene;
@@ -1435,6 +1467,15 @@ export function useQuestionHandler(
         }));
         const selected = sceneSelection.representation;
         const attempted = sceneSelection.attemptedRepresentation;
+        if (!selected && !page.failureTelemetry?.code) {
+          const failure = solverAuthorityBlocked ? { stage: "solver", code: "solver_contradiction" } as const
+            : sceneSelection.exactRejectionCode ? { stage: "validation", code: sceneSelection.exactRejectionCode } as const
+            : attempted && !sceneSelection.sourceAllowed ? { stage: "scene_planner", code: "fallback_suppressed" } as const
+              : value?.document.visualDecision.mode === "text_only" ? { stage: "scene_planner", code: "planner_declined" } as const
+                : result && !result.validation.valid ? { stage: "validation", code: "candidate_invalid" } as const
+                  : sceneRequestFailure;
+          if (failure) page.failureTelemetry = { ...page.failureTelemetry, subject: page.failureTelemetry?.subject ?? "other", ...failure };
+        }
         if (sceneSelection.reason === "the question asks for no figure") {
           tutorDebug("planner", "no figure asked for, skipping the fallback", { law_ids: turnPlan.lawIds });
         }
@@ -2593,6 +2634,10 @@ export function useQuestionHandler(
         console.error("Tutor error:", error);
         resumeFailed = Boolean(resume);
         const billing = parseBillingFailureFromUnknown(error);
+        page.failureTelemetry = {
+          ...page.failureTelemetry, subject: page.failureTelemetry?.subject ?? "other", failed: true,
+          stage: "teaching", code: billing ? "budget_limit" : error instanceof TypeError ? "transport_error" : "lesson_not_taught",
+        };
         let message = "something went wrong. try asking again.";
         if (billing) {
           message = studentBillingMessage(billing.code);
