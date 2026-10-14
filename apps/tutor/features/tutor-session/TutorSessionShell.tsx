@@ -1342,7 +1342,7 @@ export function TutorSessionShell({
     enableKeyboard: !isHeadless,
   });
   const lecturePlayerActive = lecturePlayer.active;
-  const dockCaption = isMobile || compactBoardChrome;
+  const dockCaption = dockLecturePlayer || compactBoardChrome;
   const caption = sessionCaption({
     enabled: settings.subtitlesEnabled || codeLessonActive,
     phase,
@@ -1351,6 +1351,7 @@ export function TutorSessionShell({
     rewindSegmentText,
     playerView: lecturePlayer.view,
   });
+  const captionShowing = caption.visible && caption.text.length > 0;
   const showDockedPlayer =
     (dockLecturePlayer ||
       compactBoardChrome ||
@@ -2321,12 +2322,17 @@ export function TutorSessionShell({
                 data-board-deck
                 style={showDockedPlayer ? { width: "100%" } : undefined}
               >
-                {dockCaption && caption.visible && caption.text ? (
+                {/* Keep enabled captions' space throughout the session so
+                    silent cues, Stop and End do not refit the paper. */}
+                {dockCaption && (settings.subtitlesEnabled || codeLessonActive) ? (
                   <div
                     role="region"
                     aria-label="Current narration"
-                    tabIndex={0}
+                    aria-hidden={!captionShowing || undefined}
+                    inert={!captionShowing || undefined}
+                    tabIndex={captionShowing ? 0 : undefined}
                     onKeyDown={event => {
+                      if (!captionShowing) return;
                       // Keep native caption scrolling from seeking or pausing
                       // the lecture through its global media shortcuts.
                       if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Home", "End", " "].includes(event.key)) {
@@ -2335,7 +2341,7 @@ export function TutorSessionShell({
                     }}
                     className="h-20 w-full overflow-y-auto overscroll-contain"
                   >
-                    <ResponseBubble text={caption.text} visible placement="below" />
+                    <ResponseBubble text={caption.text} visible={caption.visible} placement="below" />
                   </div>
                 ) : null}
                 {showDockedPlayer ? (

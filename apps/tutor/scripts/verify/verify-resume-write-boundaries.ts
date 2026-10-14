@@ -81,6 +81,31 @@ const row = (segments: TutorSegment[]) => segments.flatMap(getSegmentCommands)
   .map((command) => ({ text: command.text, params: command.params }));
 
 let groups = 0;
+
+// A closed canonical WRITE quotes diagram/code protocol as board text. The
+// outer suffix owns the row; nested tags neither execute nor become speech.
+for (const body of [
+  "missing [DRAW_LINE:90,142,1160,600] junk",
+  "missing [HIGHLIGHT:90,274,200,40] junk",
+  "i = 0 [FRAME:2] and more",
+]) {
+  const source = `[STEP]Explain the quoted tag. [WRITE:${body},90,274][/STEP]`;
+  for (const width of [1, 3, 7, source.length]) {
+    for (const repairMarkup of [false, true]) {
+      const actual = consume(source, width, repairMarkup);
+      assert(actual.hasInk, `closed WRITE quoting ${body} keeps its row`);
+      assert.deepEqual(row(actual.released), [{ text: body, params: [90, 274, 32] }]);
+      assert.deepEqual(actual.parsed.flatMap(getSegmentCommands).map(command => command.type), ["WRITE"],
+        "a nested diagram/code tag cannot escape the closed row");
+      assert.equal(actual.released[0]?.narration, "Explain the quoted tag.",
+        "neither the row nor nested protocol/coordinates are spoken");
+    }
+  }
+  assert.deepEqual(parseDrawingCommands(source).commands.map(command => ({ type: command.type, text: command.text })),
+    [{ type: "WRITE", text: body }], "whole parsing and the live owned consumer agree on closed-row quotation");
+}
+groups++;
+
 for (const width of [1, 2, 7, 19, header.length]) {
   for (const repairMarkup of [false, true]) {
     const control = consume(canonical, width, repairMarkup);

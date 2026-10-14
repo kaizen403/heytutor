@@ -73,7 +73,6 @@ export const MAX_CLOSE_BODY_BYTES = 16 * 1024;
 export const MAX_RESUME_STATE_BYTES = 128 * 1024;
 /** Keep checkpoint commits below the client's 30s minimum save deadline. */
 const CHECKPOINT_TRANSACTION_OPTIONS = { timeout: 15_000, maxWait: 5_000 };
-const CHECKPOINT_RETRY_MESSAGE = "We could not confirm this lesson was saved. Please try saving again.";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const VISUAL_STATUSES = new Set(["validated", "text_only", "legacy", "retry_required"]);
 /** Pointing that names parts of a scene; a text only save has no scene to name. */
@@ -557,7 +556,7 @@ async function closeStatusOnly(
     return json(turnBody({ ...turn, segments }));
   } catch (error) {
     if (error instanceof StorageQuotaError) return reject(error.code ?? "storage_commit_rejected", error.message, error.status);
-    return reject("storage_verification_failed", CHECKPOINT_RETRY_MESSAGE, 503);
+    throw error;
   }
 }
 
@@ -973,6 +972,6 @@ async function applyCheckpoint(
       } catch { /* the durable intent's own deadline still recovers the charge */ }
     }
     if (error instanceof StorageQuotaError) return reject(error.code ?? "storage_commit_rejected", error.message, error.status);
-    return reject("storage_verification_failed", CHECKPOINT_RETRY_MESSAGE, 503);
+    throw error;
   }
 }
