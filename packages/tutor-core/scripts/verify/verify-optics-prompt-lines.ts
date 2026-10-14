@@ -71,6 +71,22 @@ for (const [where, contracts] of [
 }
 console.log(`G4b: pass (compact gaussian_image line: ${compactGaussian(compact)})`);
 
+// G4d: the sentence asking for one form on both operators lives on the full gaussian_image line, which
+// compaction drops. A formless optical_focus on a concave mirror resolves f > 0 against its form
+// gaussian_image (the round 8 two-mirror figures), so the compact optical_focus shape must offer form.
+const compactFocus = (contracts: string): string | undefined => contracts.split("\n").find((line) => line.startsWith("- optical_focus:"));
+for (const [where, contracts] of [
+  ["the compact catalog (selectConstructionInputContracts with nothing detailed)", compact],
+  ["the universal initial prompt", universal],
+  ["the compact catalog of every operator", selectConstructionInputContracts(SUPPORTED_SCENE_CONSTRUCTION_OPERATORS, [])],
+  ["the full contracts", full],
+] as const) {
+  const line = compactFocus(contracts);
+  assert(line, `${where} must carry an optical_focus line`);
+  assert(shapeKeys(line).has("form") && /form\??:"converging"\|"diverging"/.test(line), `the optical_focus line in ${where} must offer form:"converging"|"diverging" in its shape: ${line}`);
+}
+console.log(`G4d: pass (compact optical_focus line: ${compactFocus(compact)})`);
+
 // G4c: the principal_rays line leads with its whole shape wherever it appears, and the
 // gaussian_image line no longer asks for hand rays ending on imageTip with converges.
 const linesOf = (contracts: string, operator: string) => contracts.split("\n").filter((line) => line.startsWith(`- ${operator}:`));
