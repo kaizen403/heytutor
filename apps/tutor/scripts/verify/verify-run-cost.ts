@@ -179,31 +179,45 @@ assert(jevRow.totals.llmUsd === jevAi, "a Jev generation must not also bill its 
 assert(unknownReport.totals.llmUsd === 0, "unknown usage must not be given a made-up token price");
 assert(unknownReport.totals.llmObservations === 0, "unknown usage is not a measured generation");
 
-const azureBaseCost = calculateLlmCostDetails({ input: 1_000, output: 800, cachedInput: 200 }, { model: "gpt-6.1-sol" }).total ?? 0;
-assert(azureBaseCost === 0.00962, "Azure fixture uses $2 input, $0.10 cached and $10 output per million, not fallback rates");
-for (const [returnedTier, requestedTier, multiplier] of [
-  ["priority", "priority", 2], ["default", "priority", 1], [null, "priority", 2],
-  ["unknown", "priority", 2], ["default", "default", 1], [null, undefined, 1],
-] as const) {
-  const priced = aggregateRunCost([{
-    name: "scene-planner-v2", type: "GENERATION", sessionId: "board-priority", model: "gpt-6.1-sol",
-    usageDetails: { input: 1_000, output: 800, cachedInput: 200 },
-    metadata: { planner_cost_multiplier: 2, service_tier: returnedTier, service_tier_requested: requestedTier },
+const azureFixturePrices = {
+  AZURE_GPT_SOL_INPUT_USD_PER_1M: "2",
+  AZURE_GPT_SOL_OUTPUT_USD_PER_1M: "10",
+  AZURE_GPT_SOL_CACHED_INPUT_USD_PER_1M: "0.1",
+};
+const originalAzurePrices = Object.keys(azureFixturePrices).map((key) => [key, process.env[key]] as const);
+try {
+  Object.assign(process.env, azureFixturePrices);
+  const azureBaseCost = calculateLlmCostDetails({ input: 1_000, output: 800, cachedInput: 200 }, { model: "gpt-6.1-sol" }).total ?? 0;
+  assert(azureBaseCost === 0.00962, "Azure fixture uses $2 input, $0.10 cached and $10 output per million, not fallback rates");
+  for (const [returnedTier, requestedTier, multiplier] of [
+    ["priority", "priority", 2], ["default", "priority", 1], [null, "priority", 2],
+    ["unknown", "priority", 2], ["default", "default", 1], [null, undefined, 1],
+  ] as const) {
+    const priced = aggregateRunCost([{
+      name: "scene-planner-v2", type: "GENERATION", sessionId: "board-priority", model: "gpt-6.1-sol",
+      usageDetails: { input: 1_000, output: 800, cachedInput: 200 },
+      metadata: { planner_cost_multiplier: 2, service_tier: returnedTier, service_tier_requested: requestedTier },
+    }]);
+    assert(priced.totals.llmUsd === azureBaseCost * multiplier, `admin cost honors actual ${returnedTier}/requested ${requestedTier} tier`);
+    assert(priced.byKind[0]!.usd === azureBaseCost * multiplier, "the kind cost must agree with the total");
+    assert(priced.bySession[0]!.llmUsd === azureBaseCost * multiplier, "the lesson chip must agree with the total");
+    assert(priced.totals.inputTokens === 1_000 && priced.totals.outputTokens === 800 && priced.totals.cachedInputTokens === 200, "priority changes price, not token counts");
+  }
+  const unknownPriority = aggregateRunCost([{
+    name: "scene-planner-v2", model: "gpt-6.1-sol", metadata: { planner_cost_multiplier: 2, service_tier_requested: "priority" },
   }]);
-  assert(priced.totals.llmUsd === azureBaseCost * multiplier, `admin cost honors actual ${returnedTier}/requested ${requestedTier} tier`);
-  assert(priced.byKind[0]!.usd === azureBaseCost * multiplier, "the kind cost must agree with the total");
-  assert(priced.bySession[0]!.llmUsd === azureBaseCost * multiplier, "the lesson chip must agree with the total");
-  assert(priced.totals.inputTokens === 1_000 && priced.totals.outputTokens === 800 && priced.totals.cachedInputTokens === 200, "priority changes price, not token counts");
+  assert(unknownPriority.totals.unknownUsage === 1 && unknownPriority.totals.llmUsd === 0, "unknown priority usage remains flagged, never fabricated");
+  const teachingStandard = aggregateRunCost([{
+    name: "teaching-llm", model: "gpt-6.1-sol", usageDetails: { input: 1_000, output: 800, cachedInput: 200 },
+    metadata: { service_tier_requested: "priority" },
+  }]);
+  assert(teachingStandard.totals.llmUsd === azureBaseCost, "planner-only transport metadata cannot change unmarked teaching/legacy costs");
+} finally {
+  for (const [key, value] of originalAzurePrices) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
 }
-const unknownPriority = aggregateRunCost([{
-  name: "scene-planner-v2", model: "gpt-6.1-sol", metadata: { planner_cost_multiplier: 2, service_tier_requested: "priority" },
-}]);
-assert(unknownPriority.totals.unknownUsage === 1 && unknownPriority.totals.llmUsd === 0, "unknown priority usage remains flagged, never fabricated");
-const teachingStandard = aggregateRunCost([{
-  name: "teaching-llm", model: "gpt-6.1-sol", usageDetails: { input: 1_000, output: 800, cachedInput: 200 },
-  metadata: { service_tier_requested: "priority" },
-}]);
-assert(teachingStandard.totals.llmUsd === azureBaseCost, "planner-only transport metadata cannot change unmarked teaching/legacy costs");
 
 const summed = sumSessionCosts(report.bySession);
 assert(summed.llmUsd === report.totals.llmUsd, "topic chips sum AI cost across boards");
