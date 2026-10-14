@@ -1,168 +1,400 @@
 {
   "topic_id": "maths|12|vector-addition",
-  "question": "Add the vectors 4i + j and i + 3j.",
+  "question": "Add a = 2i + j and b = −i + j.",
   "figure_kind": "vectors_fbd",
   "sceneDocument": {
     "schemaVersion": "scene-document/v2",
     "visualDecision": {
       "mode": "scene",
-      "reason": "verified free-vector arithmetic"
+      "reason": "triangle and parallelogram law"
     },
     "source": {
-      "question": "Add the vectors 4i + j and i + 3j."
+      "question": "Add a = 2i + j and b = −i + j."
     },
     "quantities": [],
     "entities": [
       {
-        "id": "a",
+        "id": "O",
         "kind": "point",
-        "role": "vector endpoint"
+        "role": "origin",
+        "label": "O"
+      },
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "tip of a"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "tip of b"
+      },
+      {
+        "id": "a",
+        "kind": "vector",
+        "role": "vector a from O",
+        "label": "a = 2i + j"
       },
       {
         "id": "b",
-        "kind": "point",
-        "role": "vector endpoint"
-      },
-      {
-        "id": "c",
-        "kind": "point",
-        "role": "vector endpoint"
-      },
-      {
-        "id": "u",
         "kind": "vector",
-        "role": "free vector",
-        "label": "u"
+        "role": "vector b from O",
+        "label": "b = −i + j"
       },
       {
-        "id": "v",
-        "kind": "vector",
-        "role": "free vector",
-        "label": "v"
+        "id": "ax",
+        "kind": "axes",
+        "role": "coordinate axes"
       },
       {
-        "id": "result",
-        "kind": "vector",
-        "role": "free vector",
-        "label": "result"
-      },
-      {
-        "id": "result_origin_anchor",
+        "id": "xEnd",
         "kind": "point",
-        "role": "construction helper"
+        "role": "x axis end"
+      },
+      {
+        "id": "xName",
+        "kind": "label",
+        "role": "x axis name",
+        "label": "x"
+      },
+      {
+        "id": "yEnd",
+        "kind": "point",
+        "role": "y axis end"
+      },
+      {
+        "id": "yName",
+        "kind": "label",
+        "role": "y axis name",
+        "label": "y"
+      },
+      {
+        "id": "C",
+        "kind": "point",
+        "role": "tip of a + b"
+      },
+      {
+        "id": "b2",
+        "kind": "vector",
+        "role": "b moved to the tip of a",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "a2",
+        "kind": "vector",
+        "role": "a moved to the tip of b",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "s",
+        "kind": "vector",
+        "role": "resultant a + b from O",
+        "label": "a + b"
       }
     ],
     "constructions": [
       {
-        "id": "a_point",
+        "id": "kO",
         "operator": "point",
         "inputs": {
           "x": 0,
-          "y": 0
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "kA",
+        "operator": "point",
+        "inputs": {
+          "x": 2,
+          "y": 1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "kB",
+        "operator": "point",
+        "inputs": {
+          "x": -1,
+          "y": 1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "ka",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "end": "A"
         },
         "outputs": [
           "a"
         ]
       },
       {
-        "id": "b_point",
-        "operator": "point",
+        "id": "kb",
+        "operator": "vector",
         "inputs": {
-          "x": 4,
-          "y": 1
+          "start": "O",
+          "end": "B"
         },
         "outputs": [
           "b"
         ]
       },
       {
-        "id": "c_point",
+        "id": "kax",
+        "operator": "axes",
+        "inputs": {
+          "xMin": -1.8,
+          "xMax": 3,
+          "yMin": -0.8,
+          "yMax": 3
+        },
+        "outputs": [
+          "ax"
+        ]
+      },
+      {
+        "id": "kxEnd",
         "operator": "point",
         "inputs": {
-          "x": 1,
-          "y": 3
-        },
-        "outputs": [
-          "c"
-        ]
-      },
-      {
-        "id": "u_vector",
-        "operator": "vector",
-        "inputs": {
-          "start": "a",
-          "end": "b"
-        },
-        "outputs": [
-          "u"
-        ]
-      },
-      {
-        "id": "v_vector",
-        "operator": "vector",
-        "inputs": {
-          "start": "a",
-          "end": "c"
-        },
-        "outputs": [
-          "v"
-        ]
-      },
-      {
-        "id": "construct_result_origin_anchor",
-        "operator": "point",
-        "inputs": {
-          "x": 6,
+          "x": 3,
           "y": 0,
           "coordinateSpace": "world"
         },
         "outputs": [
-          "result_origin_anchor"
+          "xEnd"
         ]
       },
       {
-        "id": "sum_vector",
+        "id": "kxName",
+        "operator": "label",
+        "inputs": {
+          "target": "xEnd",
+          "text": "x"
+        },
+        "outputs": [
+          "xName"
+        ]
+      },
+      {
+        "id": "kyEnd",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "yEnd"
+        ]
+      },
+      {
+        "id": "kyName",
+        "operator": "label",
+        "inputs": {
+          "target": "yEnd",
+          "text": "y"
+        },
+        "outputs": [
+          "yName"
+        ]
+      },
+      {
+        "id": "kC",
+        "operator": "translate",
+        "inputs": {
+          "point": "A",
+          "vector": "b"
+        },
+        "outputs": [
+          "C"
+        ]
+      },
+      {
+        "id": "kb2",
+        "operator": "vector",
+        "inputs": {
+          "start": "A",
+          "end": "C"
+        },
+        "outputs": [
+          "b2"
+        ]
+      },
+      {
+        "id": "ka2",
+        "operator": "vector",
+        "inputs": {
+          "start": "B",
+          "end": "C"
+        },
+        "outputs": [
+          "a2"
+        ]
+      },
+      {
+        "id": "ks",
         "operator": "vector_sum",
         "inputs": {
           "vectors": [
-            "u",
-            "v"
+            "a",
+            "b"
           ],
-          "origin": "result_origin_anchor"
+          "origin": "O"
         },
         "outputs": [
-          "result"
+          "s"
         ]
       }
     ],
     "relations": [],
-    "assertions": [],
+    "assertions": [
+      {
+        "id": "parB",
+        "predicate": "parallel",
+        "entities": [
+          "b2",
+          "b"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "eqB",
+        "predicate": "equal_length",
+        "entities": [
+          "b2",
+          "b"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "parA",
+        "predicate": "parallel",
+        "entities": [
+          "a2",
+          "a"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "eqA",
+        "predicate": "equal_length",
+        "entities": [
+          "a2",
+          "a"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "onC",
+        "predicate": "on",
+        "entities": [
+          "C",
+          "s"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
     "annotations": [],
     "requiredEntityIds": [
+      "ax",
+      "xName",
+      "yName",
+      "O",
       "a",
       "b",
-      "c",
-      "u",
-      "v",
-      "result"
+      "C",
+      "b2",
+      "s",
+      "a2"
     ],
     "revealGroups": [
       {
-        "id": "vectors",
+        "id": "givens",
         "entityIds": [
+          "ax",
+          "xName",
+          "yName",
+          "O",
           "a",
-          "b",
-          "c",
-          "u",
-          "v",
-          "result"
+          "b"
         ],
         "dependsOn": [],
-        "narrationCue": "free vector arithmetic"
+        "narrationCue": "axes, a and b drawn from O"
+      },
+      {
+        "id": "triangle",
+        "entityIds": [
+          "C",
+          "b2",
+          "s"
+        ],
+        "dependsOn": [
+          "givens"
+        ],
+        "narrationCue": "b moved to the tip of a closes the triangle; a + b from O"
+      },
+      {
+        "id": "parallelogram",
+        "entityIds": [
+          "a2"
+        ],
+        "dependsOn": [
+          "triangle"
+        ],
+        "narrationCue": "a moved to the tip of b completes the parallelogram"
       }
     ],
-    "teachingTimeline": []
+    "teachingTimeline": [
+      {
+        "id": "t1",
+        "action": "reveal",
+        "targetId": "givens",
+        "dependsOn": [],
+        "narrationIntent": "draw a and b from the origin"
+      },
+      {
+        "id": "t2",
+        "action": "reveal",
+        "targetId": "triangle",
+        "dependsOn": [
+          "t1"
+        ],
+        "narrationIntent": "triangle law: tip to tail gives a + b"
+      },
+      {
+        "id": "t3",
+        "action": "reveal",
+        "targetId": "parallelogram",
+        "dependsOn": [
+          "t2"
+        ],
+        "narrationIntent": "parallelogram law gives the same diagonal"
+      }
+    ]
   },
-  "engineCommit": "ab46da7ae7e040d35cae9169afa98c91ca870302",
-  "validatedOn": "2026-10-09"
+  "engineCommit": "4ab84cd23c8719babb316bf03f075b57f4947c43",
+  "validatedOn": "2026-10-13"
 }

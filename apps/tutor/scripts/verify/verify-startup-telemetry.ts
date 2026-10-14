@@ -651,6 +651,18 @@ async function verifyPageLifecycleCheckpoint() {
 async function verifyPriorityRetention() {
   assert(STARTUP_PRIORITY_EVENTS.some((name) => String(name) === "scene-candidate-validation"),
     "candidate completion is a protected startup stage, not evictable drawing noise");
+
+  // The completeness round's span (scene-complete, a child of the planner) survives a full buffer,
+  // so the time the round adds can be read from live traces.
+  const completeHarness = harness();
+  const completeTel = createTurnTelemetry({ originPerf: 0, env: completeHarness.env });
+  completeTel.setTrace("trace-complete");
+  for (let i = 0; i < MAX_TURN_TELEMETRY_EVENTS + 50; i++) completeTel.mark("write-char-start", { index: i });
+  completeTel.span("scene-complete", "planner").end({ outcome: "replaced", attempted: true, accepted: true });
+  await completeTel.flush();
+  assert(completeHarness.names().includes("scene-complete"), "the scene-complete span survives a full buffer");
+  assert(STARTUP_PRIORITY_EVENTS.some((name) => String(name) === "scene-complete"),
+    "the completeness round is a protected startup stage");
   const h = harness();
   const tel = createTurnTelemetry({ originPerf: 0, env: h.env });
   tel.setTrace("trace-pressure");

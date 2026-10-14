@@ -15,6 +15,8 @@ export * from "./tts/createTTSClient";
 export * from "./tts/audioContext";
 export * from "./planners/scenePlannerV2";
 export * from "./planners/scenePlannerV2Prompt";
+export * from "./planners/sceneCompleteness";
+export * from "./planners/sceneCompletenessRound";
 export * from "./planners/turnPlannerV3";
 export * from "./planners/diagramSubject";
 export * from "./text/questionText";

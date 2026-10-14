@@ -1,0 +1,335 @@
+{
+  "topic_id": "physics|16|refraction-at-surfaces",
+  "question": "Light enters water (n = 1.33) from air at 45°. Find the angle of refraction.",
+  "figure_kind": "ray_optics",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "refraction from air into water at a flat surface"
+    },
+    "source": {
+      "question": "Light enters water (n = 1.33) from air at 45°. Find the angle of refraction.",
+      "family": "plane_interface"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "L",
+        "kind": "point",
+        "role": "interface end"
+      },
+      {
+        "id": "surf",
+        "kind": "line",
+        "role": "air-water interface"
+      },
+      {
+        "id": "S",
+        "kind": "point",
+        "role": "incident ray tail"
+      },
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "point of incidence",
+        "label": "O"
+      },
+      {
+        "id": "inc",
+        "kind": "vector",
+        "role": "incident ray in air"
+      },
+      {
+        "id": "N",
+        "kind": "point",
+        "role": "normal end in air",
+        "label": "N"
+      },
+      {
+        "id": "N2",
+        "kind": "point",
+        "role": "normal end in water",
+        "label": "N′"
+      },
+      {
+        "id": "nrm",
+        "kind": "segment",
+        "role": "normal at O",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "refr",
+        "kind": "ray",
+        "role": "refracted ray in water"
+      },
+      {
+        "id": "ai",
+        "kind": "angle_mark",
+        "role": "angle of incidence",
+        "label": "i = 45°"
+      },
+      {
+        "id": "ar",
+        "kind": "angle_mark",
+        "role": "angle of refraction, asked",
+        "label": "r"
+      },
+      {
+        "id": "air",
+        "kind": "label",
+        "role": "air medium",
+        "label": "air n = 1"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "p_L",
+        "operator": "point",
+        "inputs": {
+          "x": -2.6,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "L"
+        ]
+      },
+      {
+        "id": "c_surf",
+        "operator": "line",
+        "inputs": {
+          "start": "L",
+          "direction": [
+            1,
+            0
+          ]
+        },
+        "outputs": [
+          "surf"
+        ]
+      },
+      {
+        "id": "p_S",
+        "operator": "point",
+        "inputs": {
+          "x": -1.6,
+          "y": 1.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "S"
+        ]
+      },
+      {
+        "id": "c_hit",
+        "operator": "surface_contact",
+        "inputs": {
+          "origin": "S",
+          "surface": "surf",
+          "direction": [
+            1,
+            -1
+          ]
+        },
+        "outputs": [
+          "O",
+          "inc"
+        ]
+      },
+      {
+        "id": "c_un",
+        "operator": "normal_at",
+        "inputs": {
+          "point": "O",
+          "surface": "surf"
+        },
+        "outputs": [
+          "un"
+        ]
+      },
+      {
+        "id": "p_N",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 2.2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "N"
+        ]
+      },
+      {
+        "id": "p_N2",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -2.2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "N2"
+        ]
+      },
+      {
+        "id": "c_nrm",
+        "operator": "segment",
+        "inputs": {
+          "start": "N",
+          "end": "N2"
+        },
+        "outputs": [
+          "nrm"
+        ]
+      },
+      {
+        "id": "c_refr",
+        "operator": "refract_direction",
+        "inputs": {
+          "origin": "O",
+          "incoming": "inc",
+          "normal": "un",
+          "n1": 1,
+          "n2": 1.33
+        },
+        "outputs": [
+          "refr"
+        ]
+      },
+      {
+        "id": "c_ai",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "O",
+          "a": "inc",
+          "b": "N",
+          "radius": 0.6
+        },
+        "outputs": [
+          "ai"
+        ]
+      },
+      {
+        "id": "c_ar",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "O",
+          "a": "N2",
+          "b": "refr",
+          "radius": 0.7
+        },
+        "outputs": [
+          "ar"
+        ]
+      },
+      {
+        "id": "c_air",
+        "operator": "label",
+        "inputs": {
+          "target": "surf",
+          "text": "air n = 1"
+        },
+        "outputs": [
+          "air"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "incidence",
+        "predicate": "angle_between",
+        "entities": [
+          "inc",
+          "nrm"
+        ],
+        "expected": {
+          "value": 45,
+          "unit": "degree"
+        },
+        "severity": "fatal"
+      },
+      {
+        "id": "normal",
+        "predicate": "perpendicular",
+        "entities": [
+          "nrm",
+          "surf"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "snell",
+        "predicate": "snells_law",
+        "entities": [
+          "inc",
+          "nrm",
+          "refr"
+        ],
+        "expected": {
+          "n1": 1.0,
+          "n2": 1.33
+        },
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "water",
+        "kind": "label",
+        "targetIds": [
+          "surf"
+        ],
+        "text": "water n = 1.33",
+        "placementIntent": "below"
+      }
+    ],
+    "requiredEntityIds": [
+      "surf",
+      "O",
+      "inc",
+      "N",
+      "N2",
+      "nrm",
+      "refr",
+      "ai",
+      "ar",
+      "air"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "surf",
+          "O",
+          "inc",
+          "N",
+          "N2",
+          "nrm",
+          "refr",
+          "ai",
+          "ar",
+          "air"
+        ],
+        "dependsOn": [],
+        "narrationCue": "air over water, the normal NN′ at O, the incident ray at i = 45° and the refracted ray at r"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "air over water, the normal NN′ at O, the incident ray at i = 45° and the refracted ray at r"
+      }
+    ]
+  },
+  "engineCommit": "4ab84cd23c8719babb316bf03f075b57f4947c43",
+  "validatedOn": "2026-10-13"
+}

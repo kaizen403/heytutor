@@ -13,7 +13,7 @@ import { resolve } from "node:path";
 import { parseProbeFile, type ProbeQuestion } from "@/features/admin/lib/probes";
 import { unitIdFromTopicId } from "@/features/admin/lib/probes";
 import { gradeLecture, type LectureGrade } from "./grade";
-import { printSummary, summarize } from "./summarize";
+import { formatCompletenessSummary, printSummary, summarize } from "./summarize";
 import { runLecture, type LectureRun } from "./lecturePipeline";
 import { PRODUCTION_SCENE_SELECTION_VERSION } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import { LAB_VISUAL_NEED_POLICY, budgetedVisualNeedFetch, parseVisualNeedReplay, summarizeVisualNeedCalls,
@@ -1114,8 +1114,10 @@ async function main(): Promise<void> {
   catch (error) { artifactErrors.push(`gallery failed: ${error instanceof Error ? error.message : String(error)}`); }
   writeFileSync(`${outDir}/summary.json`, JSON.stringify({ ...summary, artifactErrors }, null, 1) + "\n");
   console.log("");
-  if (evaluationRows) console.log(JSON.stringify(summary.evaluation, null, 2));
-  else printSummary(summary);
+  if (evaluationRows) {
+    console.log(JSON.stringify(summary.evaluation, null, 2));
+    console.log(formatCompletenessSummary(summary.completeness));
+  } else printSummary(summary);
   if (summary.stoppedForBudget) {
     console.log(
       `lecture lab stopped for budget after ${summary.rowsDone}/${summary.rowsPlanned} rows at $${summary.chargedUsd.toFixed(6)} / $${summary.maxUsd.toFixed(2)}`,

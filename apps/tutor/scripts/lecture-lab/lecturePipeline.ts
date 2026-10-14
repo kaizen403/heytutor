@@ -22,6 +22,7 @@ import {
 import { repairLectureMarkup } from "../../features/tutor-session/lib/turn/lectureCueRepair";
 import {
   classifyDsaQuestion,
+  completeScenePlanWithRepairResult,
   createFallbackTurnPlanV3,
   normalizeTutorQuestion,
   planAndSolveProblemV1,
@@ -32,6 +33,7 @@ import {
   streamLLMResponse,
   type ProblemAuthorityV1Response,
   type SceneCandidateValidation,
+  type SceneCompletenessRoundRecord,
   type ScenePlannerRequestOutcome,
   type ScenePlanWithRepairResult,
   type SubjectFamiliarity,
@@ -112,6 +114,8 @@ export interface LecturePlanningStages {
   /** Remaining scene-planning deadline budget when the overlap run completed. */
   deadlineRemainingMs?: number;
   revalidateMs: number;
+  /** The completeness round on the planner figure, reply validation included; 0 when it did not call. */
+  completenessMs?: number;
   /** Scene planner requests launched by the shared overlap orchestrator. */
   plannerCalls?: number;
   /** The speculative run started during ProblemIR produced the scene. */
@@ -209,6 +213,12 @@ export interface LectureRun {
     plannerCallOutcomes?: ScenePlannerRequestOutcome[];
     /** Private lab evidence; raw model text, distinct from deterministic fallback reasons. */
     plannerResponses?: Array<{ phase: string; lane: string; selected: boolean; rawContent: string }>;
+    /**
+     * The completeness round on the chosen planner figure (the live round):
+     * attempted, accepted, outcome, items requested, items still missing and
+     * the time it added. Null when no valid planner figure reached it.
+     */
+    completeness?: SceneCompletenessRoundRecord | null;
     examplesUsed?: Array<Pick<DiagramExemplar,
       "id" | "sourceKind" | "question" | "depicts" | "figureKind" | "family" | "archetype">>;
     validationIssues?: Array<{ code: string; severity: "fatal" | "warning"; message: string }>;
@@ -337,6 +347,7 @@ export async function runLecture(
     scenePlannerMs: 0,
     deadlineRemainingMs: scenePlannerDeadlineMs,
     revalidateMs: 0,
+    completenessMs: 0,
     plannerCalls: 0,
     speculative: false,
     restarted: false,
@@ -628,7 +639,26 @@ export async function runLecture(
           validateCandidateAgainstPlan(candidate, authoritativeTurnPlan),
           (response, validation) => recordRejectedOperatorCalls(run.diagram, response, validation, "authority_revalidation"),
         ),
+      complete: (gate, sceneResult, authoritativeTurnPlan, round) =>
+        completeScenePlanWithRepairResult(
+          question,
+          sceneResult,
+          (candidate) => validateCandidateAgainstPlan(candidate, authoritativeTurnPlan),
+          {
+            proxyUrl: plannerUrl,
+            signal: round.signal,
+            remainingMs: round.remainingMs,
+            requestBudget: round.requestBudget,
+            fastMode,
+            traceId,
+            onRequestOutcome: (outcome) => run.diagram.plannerCallOutcomes?.push(outcome),
+            onResponse: (response) => recordPlannerResponse(run.diagram, response),
+            onCandidateValidation: (response, validation) => recordRejectedOperatorCalls(run.diagram, response, validation, "completeness"),
+            ...gate.request,
+          },
+        ),
     });
+    run.diagram.completeness = planning.completeness;
     turnPlan = planning.turnPlan;
     problemAuthority = planning.authority;
     const { sceneCapabilities, shouldPlanExactScene, shouldAttemptLlmScene } = planning.gate;
@@ -664,6 +694,7 @@ export async function runLecture(
       deterministicFigureMs: planning.timings.deterministicFigureMs,
       scenePlannerMs: planning.timings.scenePlannerMs,
       revalidateMs: planning.timings.revalidateMs,
+      completenessMs: planning.timings.completenessMs,
       plannerCalls: planning.timings.plannerCalls,
       deadlineRemainingMs: planning.attempts.deadlineRemainingMs,
       speculative: planning.speculation.kept,

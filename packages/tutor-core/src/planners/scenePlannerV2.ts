@@ -1,6 +1,7 @@
 import { withFastModeHeader } from "../llm/fastMode";
 import { withTurnTraceHeaders } from "../llm/traceHeaders";
 import { tutorDebug } from "../tutorDebug";
+import { COMPLETENESS_REQUEST_CAP, type CompletenessItem } from "./sceneCompleteness";
 import {
   buildSceneDocumentPlannerPrompt,
   SCENE_DOCUMENT_VERSION,
@@ -30,10 +31,13 @@ export interface SceneCandidateValidation<T = unknown> {
   qualityScore?: number;
 }
 
+/** "complete" is the one completeness round on an already valid figure. */
+export type ScenePlannerPhase = "plan" | "repair" | "complete";
+
 export interface ScenePlannerResponse {
   document: SceneDocumentCandidate;
   rawContent: string;
-  phase: "plan" | "repair";
+  phase: ScenePlannerPhase;
   lane: ScenePlannerLane;
   elapsedMs: number;
   traceId?: string;
@@ -57,7 +61,7 @@ export interface ScenePlannerOptions extends ScenePlannerPromptContext {
 }
 
 export interface ScenePlannerRequestOutcome {
-  phase: "plan" | "repair";
+  phase: ScenePlannerPhase;
   lane: ScenePlannerLane;
   httpStatus: number | null;
   error: string | null;
@@ -175,7 +179,7 @@ export async function repairSceneDocument(
     ? candidate.constructions.flatMap((construction) =>
       isPlainObject(construction) && typeof construction.operator === "string" ? [construction.operator] : [])
     : [];
-  const prompt = `${buildSceneDocumentPlannerPrompt(question, options, usedOperators)}
+  const prompt = `${buildSceneDocumentPlannerPrompt(question, options, usedOperators, { completeFigure: false })}
 
 REPAIR REQUEST
 The previous candidate failed deterministic validation. Return a complete replacement document, not a patch. Rebuild the failing subgraph from the authoritative facts and supported operators.
@@ -186,7 +190,7 @@ ${JSON.stringify(previousStructure)}
 STRUCTURED VALIDATION ERRORS
 ${JSON.stringify(errors)}
 
-Resolve every fatal error. Preserve correct stable IDs when useful, but delete invalid, duplicate, or unnecessary entities. Keep consumed construction helpers out of visible ownership. Attach compact labels to their real target. Preserve authoritative claims and required proofs; repair geometry instead of weakening assertions. Return only the replacement JSON object.`;
+Resolve every fatal error. Preserve correct stable IDs when useful; delete invalid or duplicate entities, but keep every named object, given label and angle mark. Keep consumed construction helpers out of visible ownership. Attach compact labels to their real target. Preserve authoritative claims and required proofs; repair geometry instead of weakening assertions. Return only the replacement JSON object.`;
   const connectivityGuidance = errors.some((error) =>
     (error.code === "assertion_failed" && /connect|path|terminal/i.test(error.message)) ||
     error.code === "turnplan_loop_member_not_proven",
@@ -215,6 +219,52 @@ Resolve every fatal error. Preserve correct stable IDs when useful, but delete i
   const diversifiedPrompt = `${prompt}${connectivityGuidance}${closedRouteGuidance}${bypassGuidance}${orderedRouteGuidance}${pageNormalGuidance}${waveOpticsGuidance}${opticalInstrumentGuidance}\n\nREPAIR STRATEGY\n${strategy}`;
 
   const response = await requestSceneDocument("repair", diversifiedPrompt, options, lane, question);
+  return response
+    ? {
+        ...response,
+        document: normalizeSceneDocumentModelOutput(response.document, question),
+        strategy,
+      }
+    : null;
+}
+
+/**
+ * The request block of a completeness round: at most COMPLETENESS_REQUEST_CAP
+ * missing checklist items, numbered, with the keep-everything rule.
+ */
+export function buildSceneCompletenessRequest(items: ReadonlyArray<Pick<CompletenessItem, "text">>): string {
+  const requested = items.slice(0, COMPLETENESS_REQUEST_CAP);
+  return `COMPLETENESS REQUEST
+The previous document is valid but leaves out ${requested.length === 1 ? "one item" : `${requested.length} items`} a complete figure shows. Add exactly these items; keep everything else as it is; every new mark must come from an existing operator. Return the whole document: every existing entity, construction, assertion, annotation, label and id unchanged, plus only these additions. Bind given values to the existing plan quantity ids. If an item cannot be drawn exactly, leave it out rather than approximate it.
+${requested.map((item, index) => `${index + 1}. ${item.text}`).join("\n")}`;
+}
+
+/**
+ * Ask the planner to add named checklist items to a valid document. The reply
+ * is a whole replacement document that the caller validates like any other
+ * candidate; nothing here trusts or patches it.
+ */
+export async function completeSceneDocument(
+  question: string,
+  document: SceneDocumentCandidate,
+  items: ReadonlyArray<Pick<CompletenessItem, "text">>,
+  options: ScenePlannerOptions,
+): Promise<ScenePlannerResponse | null> {
+  if (items.length === 0) return null;
+  const usedOperators = Array.isArray(document.constructions)
+    ? document.constructions.flatMap((construction) =>
+      isPlainObject(construction) && typeof construction.operator === "string" ? [construction.operator] : [])
+    : [];
+  const strategy = "Add exactly the requested items to the valid document.";
+  const prompt = `${buildSceneDocumentPlannerPrompt(question, options, usedOperators)}
+
+PREVIOUS DOCUMENT (VALID)
+${JSON.stringify(document)}
+
+${buildSceneCompletenessRequest(items)}
+
+Return only the complete replacement JSON object.`;
+  const response = await requestSceneDocument("complete", prompt, options, "primary", question);
   return response
     ? {
         ...response,
@@ -361,14 +411,14 @@ export async function planSceneDocumentWithRepair<T>(
   const timeoutMs = plannerOptions.timeoutMs ?? SCENE_PLANNER_TIMEOUT_MS;
   const remainingMs = () => timeoutMs - (Date.now() - startedAt);
   const initialStrategies = [
-    "Build the smallest sufficient scene. Derive every result, and add only assertions required to prove the question's stated relationships.",
-    "Start from the exact quantities and invariants, then synthesize a minimal construction graph whose outputs satisfy them without duplicate geometry.",
-    "Construct the proof obligations first, then add only the geometry needed to satisfy them; add compact annotations last.",
-    "Use the fewest deterministic operators possible, audit every reference and sign, and omit all optional helpers or decorative ink.",
+    "Build the complete teaching figure: every named object, given value, angle and method helper, with no decorative ink. Derive every result, and add only assertions required to prove the question's stated relationships.",
+    "Start from the exact quantities and invariants, then synthesize a construction graph that shows each of them without duplicate geometry.",
+    "Construct the proof obligations first, then the geometry that satisfies them and every named object, value and angle; add compact labels last.",
+    "Use deterministic operators only, audit every reference and sign, and keep every helper the method uses; add no decorative ink.",
   ].slice(0, INITIAL_SCENE_CANDIDATES);
   const repairStrategies = [
     "Apply the smallest coherent correction that resolves every error while preserving valid geometry.",
-    "Rebuild the failing construction subgraph from first principles; reuse valid entities but remove duplicate or weakly justified geometry.",
+    "Rebuild the failing construction subgraph from first principles; reuse valid entities but remove duplicate geometry.",
   ].slice(0, REPAIR_CANDIDATES_PER_ROUND);
 
   type Evaluated = {
@@ -621,6 +671,11 @@ export async function revalidateScenePlanWithRepairResult<T>(
   };
 }
 
+/** The candidate score the search ranks by: a valid candidate's qualityScore, an invalid one above 1e9. */
+export function sceneCandidateValidationScore(validation: SceneCandidateValidation<unknown>): number {
+  return validationScore(validation);
+}
+
 function validationScore(validation: SceneCandidateValidation<unknown>): number {
   if (validation.valid) return Math.max(0, validation.qualityScore ?? 0);
   const fatalCount = validation.errors.filter((error) => error.severity === "fatal").length;
@@ -636,7 +691,7 @@ function compareValidations(
 }
 
 async function requestSceneDocument(
-  phase: "plan" | "repair",
+  phase: ScenePlannerPhase,
   prompt: string,
   options: ScenePlannerOptions,
   lane: ScenePlannerLane,

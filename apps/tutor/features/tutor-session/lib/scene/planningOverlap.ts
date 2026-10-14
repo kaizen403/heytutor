@@ -19,6 +19,7 @@
  * measures the path students get. Everything with I/O is injected.
  */
 import type { FigureSource, TurnPlanV3 } from "@heytutor/scene-engine";
+import type { SceneCompletenessRoundRecord } from "@heytutor/tutor-core";
 import { deepEqual, finalizeScenePlanAfterAuthority } from "./diagramGeneration";
 
 /**
@@ -150,6 +151,18 @@ export interface ScenePlanningOverlapInput<A, G extends SceneGateCore, F, R exte
   ): Promise<R | null>;
   /** Revalidate every candidate against the final plan. */
   revalidate(result: R, plan: TurnPlanV3): Promise<R>;
+  /**
+   * The completeness round (completeScenePlanWithRepairResult) on the chosen
+   * valid planner figure, after revalidation, with the validator bound to
+   * the authoritative plan. It decides for itself whether to call (the
+   * deadline floor, the budget, nothing missing). A failure keeps `scene`.
+   */
+  complete?(
+    gate: G,
+    scene: R,
+    plan: TurnPlanV3,
+    run: { signal: AbortSignal; remainingMs: number; requestBudget: { remaining: number } },
+  ): Promise<{ result: R; record: SceneCompletenessRoundRecord | null }>;
 }
 
 export interface ScenePlanningOverlapOutcome<A, G, F, R> {
@@ -163,6 +176,8 @@ export interface ScenePlanningOverlapOutcome<A, G, F, R> {
   recovered: boolean;
   /** Provenance of the pre-fallback path that produced the usable candidate. */
   figureSource: Extract<FigureSource, "fast_family" | "planner" | "verified_recovery"> | null;
+  /** The completeness round on the planner figure; null when it was not considered. */
+  completeness: SceneCompletenessRoundRecord | null;
   speculation: {
     started: boolean;
     /** The speculative run produced `scene`. */
@@ -179,6 +194,8 @@ export interface ScenePlanningOverlapOutcome<A, G, F, R> {
     scenePlannerMs: number;
     revalidateMs: number;
     revalidateSkipped: boolean | null;
+    /** The completeness round, including validation of its reply; 0 when it did not run. */
+    completenessMs: number;
     /** All scene planner requests launched, including failed or aborted calls. */
     plannerCalls: number;
   };
@@ -275,6 +292,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
     scenePlannerMs: 0,
     revalidateMs: 0,
     revalidateSkipped: null,
+    completenessMs: 0,
     plannerCalls: 0,
   };
   let deterministicAttempted = false;
@@ -361,6 +379,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
   };
 
   let speculative: Run | null = null;
+  let completionController: AbortController | null = null;
   try {
     let authorityPending = false;
     const authorityPromise = input.problemAuthority
@@ -494,6 +513,37 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
       span?.end({ skipped: !revalidated });
     }
 
+    // One completeness round on the chosen valid planner figure, never on a
+    // recovered or deterministic one. The round owns its deadline floor and
+    // keeps the original on any failure; a superseded turn still throws.
+    let completeness: SceneCompletenessRoundRecord | null = null;
+    if (scene && !recovered && run && scene.validation.valid && input.complete) {
+      const span = input.telemetry?.span("scene-complete", parent);
+      const completeStartedAt = now();
+      completionController = new AbortController();
+      const signal = input.signal
+        ? mergeAbortSignals(input.signal, completionController.signal)
+        : completionController.signal;
+      const original: R = scene;
+      const round = await guard(input.complete(gate, original, turnPlan, {
+        signal,
+        remainingMs: remainingMs(),
+        requestBudget,
+      }).catch(() => null));
+      if (round) {
+        scene = round.result;
+        completeness = round.record;
+      }
+      timings.completenessMs = now() - completeStartedAt;
+      span?.end({
+        outcome: completeness?.outcome ?? "failed",
+        attempted: completeness?.attempted ?? false,
+        accepted: completeness?.accepted ?? false,
+        requested: completeness?.itemsRequested.length ?? 0,
+        still_missing: completeness?.itemsStillMissing.length ?? null,
+      });
+    }
+
     timings.plannerCalls = SCENE_REQUEST_BUDGET - requestBudget.remaining;
     return {
       turnPlan,
@@ -503,6 +553,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
       scene,
       recovered,
       figureSource: fast ? "fast_family" : scene ? recovered ? "verified_recovery" : "planner" : null,
+      completeness,
       speculation: { started: kept || abortReason !== null, kept, abortReason, restarted },
       timings,
       attempts: {
@@ -517,6 +568,7 @@ export async function runScenePlanningOverlap<A, G extends SceneGateCore, F, R e
     for (const run of [...inFlight]) {
       stopRun(run, { speculative: run.speculative, restarted: run.restarted, aborted: true });
     }
+    completionController?.abort();
   }
 }
 

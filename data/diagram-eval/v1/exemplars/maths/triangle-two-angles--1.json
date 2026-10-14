@@ -1,0 +1,238 @@
+{
+  "topic_id": "maths|14|heights-and-distances",
+  "covers_topics": [
+    "maths|14|trigonometric-functions"
+  ],
+  "question": "In triangle PQR, PQ = 9 cm, ∠P = 48° and ∠Q = 64°. Find QR.",
+  "figure_kind": "geometry",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "ASA triangle from PQ and the angles at P and Q"
+    },
+    "source": {
+      "question": "In triangle PQR, PQ = 9 cm, ∠P = 48° and ∠Q = 64°. Find QR."
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "vertex",
+        "label": "P"
+      },
+      {
+        "id": "Q",
+        "kind": "point",
+        "role": "vertex",
+        "label": "Q"
+      },
+      {
+        "id": "R",
+        "kind": "point",
+        "role": "vertex",
+        "label": "R"
+      },
+      {
+        "id": "tri",
+        "kind": "polygon",
+        "role": "triangle PQR"
+      },
+      {
+        "id": "mP",
+        "kind": "angle_mark",
+        "role": "given angle at P",
+        "label": "48°"
+      },
+      {
+        "id": "mQ",
+        "kind": "angle_mark",
+        "role": "given angle at Q",
+        "label": "64°"
+      },
+      {
+        "id": "mR",
+        "kind": "angle_mark",
+        "role": "third angle at R, used by the sine rule",
+        "label": "∠R"
+      },
+      {
+        "id": "dPQ",
+        "kind": "dimension",
+        "role": "given side PQ",
+        "label": "9 cm"
+      },
+      {
+        "id": "dQR",
+        "kind": "dimension",
+        "role": "asked side QR",
+        "label": "x"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "kT",
+        "operator": "triangle_from_asa",
+        "inputs": {
+          "sideAB": 9,
+          "angleADeg": 48,
+          "angleBDeg": 64,
+          "origin": [
+            0,
+            0
+          ],
+          "headingDeg": 0,
+          "orientation": 1
+        },
+        "outputs": [
+          "P",
+          "Q",
+          "R",
+          "tri"
+        ]
+      },
+      {
+        "id": "kmP",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "P",
+          "a": "Q",
+          "b": "R",
+          "radius": 1.17
+        },
+        "outputs": [
+          "mP"
+        ]
+      },
+      {
+        "id": "kmQ",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "Q",
+          "a": "R",
+          "b": "P",
+          "radius": 1.17
+        },
+        "outputs": [
+          "mQ"
+        ]
+      },
+      {
+        "id": "kmR",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "R",
+          "a": "P",
+          "b": "Q",
+          "radius": 0.99
+        },
+        "outputs": [
+          "mR"
+        ]
+      },
+      {
+        "id": "kdPQ",
+        "operator": "dimension",
+        "inputs": {
+          "start": "P",
+          "end": "Q"
+        },
+        "outputs": [
+          "dPQ"
+        ]
+      },
+      {
+        "id": "kdQR",
+        "operator": "dimension",
+        "inputs": {
+          "start": "Q",
+          "end": "R"
+        },
+        "outputs": [
+          "dQR"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "angP",
+        "predicate": "angle_between",
+        "entities": [
+          "mP"
+        ],
+        "expected": {
+          "value": 48,
+          "unit": "degree"
+        },
+        "severity": "fatal"
+      },
+      {
+        "id": "angQ",
+        "predicate": "angle_between",
+        "entities": [
+          "mQ"
+        ],
+        "expected": {
+          "value": 64,
+          "unit": "degree"
+        },
+        "severity": "fatal"
+      },
+      {
+        "id": "angR",
+        "predicate": "angle_between",
+        "entities": [
+          "mR"
+        ],
+        "expected": {
+          "value": 68,
+          "unit": "degree"
+        },
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "P",
+      "Q",
+      "R",
+      "tri",
+      "mP",
+      "mQ",
+      "mR",
+      "dPQ",
+      "dQR"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "P",
+          "Q",
+          "R",
+          "tri",
+          "mP",
+          "mQ",
+          "mR",
+          "dPQ",
+          "dQR"
+        ],
+        "dependsOn": [],
+        "narrationCue": "triangle, given side and angles, third angle, asked side x"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "show",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "angle sum gives R; the sine rule gives x"
+      }
+    ]
+  },
+  "engineCommit": "4ab84cd23c8719babb316bf03f075b57f4947c43",
+  "validatedOn": "2026-10-13"
+}

@@ -19,7 +19,65 @@ export interface RoundSummary {
   figureOnlyRows: number;
   findingCounts: Record<string, number>;
   duplicateFigures: { signature: string; probeIds: string[] }[];
+  /** The completeness round over the round's runs (`diagram.completeness`). */
+  completeness: CompletenessRoundsSummary;
   grades: LectureGrade[];
+}
+
+/**
+ * What the completeness round did across a lab round. A row counts once its
+ * run recorded a round (`diagram.completeness`); runs with no planner figure
+ * record none. Items are summed over those rows: missing before the round,
+ * named in a request, and still missing in the figure that was kept. Extra
+ * time is over the rounds that sent a call (nearest rank), since a round that
+ * did not call adds nothing.
+ */
+export interface CompletenessRoundsSummary {
+  /** Runs that recorded a round, whether or not it called. */
+  rounds: number;
+  attempted: number;
+  accepted: number;
+  /** Rounds skipped because less than the floor of the figure deadline was left. */
+  skippedForTime: number;
+  outcomes: Record<string, number>;
+  itemsMissingBefore: number;
+  itemsRequested: number;
+  itemsStillMissing: number;
+  extraMs: { median: number | null; p90: number | null };
+}
+
+function nearestRank(sorted: readonly number[], fraction: number): number | null {
+  if (sorted.length === 0) return null;
+  return sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil(fraction * sorted.length) - 1))]!;
+}
+
+export function summarizeCompleteness(runs: readonly Pick<LectureRun, "diagram">[]): CompletenessRoundsSummary {
+  const records = runs.flatMap((run) => run.diagram.completeness ? [run.diagram.completeness] : []);
+  const outcomes: Record<string, number> = {};
+  for (const record of records) outcomes[record.outcome] = (outcomes[record.outcome] ?? 0) + 1;
+  const extra = records.filter((record) => record.attempted).map((record) => record.extraMs).sort((left, right) => left - right);
+  const sum = (count: (record: (typeof records)[number]) => number) => records.reduce((total, record) => total + count(record), 0);
+  return {
+    rounds: records.length,
+    attempted: records.filter((record) => record.attempted).length,
+    accepted: records.filter((record) => record.accepted).length,
+    skippedForTime: records.filter((record) => record.outcome === "skipped_deadline").length,
+    outcomes: Object.fromEntries(Object.entries(outcomes).sort((left, right) => right[1] - left[1])),
+    itemsMissingBefore: sum((record) => record.itemsMissingBefore.length),
+    itemsRequested: sum((record) => record.itemsRequested.length),
+    itemsStillMissing: sum((record) => record.itemsStillMissing.length),
+    extraMs: { median: nearestRank(extra, 0.5), p90: nearestRank(extra, 0.9) },
+  };
+}
+
+/** One report line for the completeness round. */
+export function formatCompletenessSummary(summary: CompletenessRoundsSummary): string {
+  if (summary.rounds === 0) return "completeness rounds: none recorded";
+  const ms = (value: number | null) => value === null ? "n/a" : `${Math.round(value)} ms`;
+  return `completeness rounds: ${summary.attempted}/${summary.rounds} attempted, ${summary.accepted} accepted, ` +
+    `${summary.skippedForTime} skipped for time; items ${summary.itemsRequested} requested, ` +
+    `${summary.itemsStillMissing} still missing (${summary.itemsMissingBefore} before); ` +
+    `extra median ${ms(summary.extraMs.median)}, p90 ${ms(summary.extraMs.p90)}`;
 }
 
 export function summarize(
@@ -48,11 +106,13 @@ export function summarize(
       [...byCode.entries()].sort((left, right) => right[1] - left[1]),
     ),
     duplicateFigures: duplicateFigureSignatures(runs),
+    completeness: summarizeCompleteness(runs),
     grades: [...grades].sort((left, right) => left.score - right.score),
   };
 }
 
 export function printSummary(summary: RoundSummary): void {
+  console.log(formatCompletenessSummary(summary.completeness));
   if (summary.figureOnlyRows > 0 && summary.graded === 0) {
     console.log(`figure-only ${summary.figureOnlyRows} rows; lesson score and pass rate are not applicable`);
     return;

@@ -1,128 +1,132 @@
 {
   "topic_id": "physics|2|projectile-motion",
-  "question": "A ball is projected from level ground at 40° and later lands back at the launch level. Show the launch direction, trajectory, apex, and landing point.",
+  "question": "A ball is kicked at 16 m/s at 32° above level ground. How far away does it land?",
   "figure_kind": "motion_path",
   "sceneDocument": {
     "schemaVersion": "scene-document/v2",
     "visualDecision": {
       "mode": "scene",
-      "reason": "projectile launched at 40° following the trajectory u and θ imply"
+      "reason": "kicked ball over level ground, range asked"
     },
     "source": {
-      "question": "A ball is projected from level ground at 40° and later lands back at the launch level. Show the launch direction, trajectory, apex, and landing point.",
+      "question": "A ball is kicked at 16 m/s at 32° above level ground. How far away does it land?",
       "synthesizedFamily": true,
       "archetype": "projectile",
-      "slotSources": {
-        "theta": "stem"
-      },
       "exactGrounding": null
     },
-    "quantities": [
-      {
-        "id": "theta",
-        "symbol": "theta",
-        "value": 40,
-        "unit": "degree"
-      }
-    ],
+    "quantities": [],
     "entities": [
       {
         "id": "ground_a",
         "kind": "point",
-        "role": "level ground end"
+        "role": "end"
       },
       {
         "id": "ground_b",
         "kind": "point",
-        "role": "level ground end"
+        "role": "end"
       },
       {
         "id": "ground",
         "kind": "segment",
-        "role": "level ground",
-        "label": "level ground"
+        "role": "ground",
+        "label": "ground"
       },
       {
         "id": "O",
         "kind": "point",
-        "role": "projectile point mass launch point origin",
-        "label": "projectile"
+        "role": "launch",
+        "label": "O"
       },
       {
-        "id": "trajectory",
-        "kind": "polyline",
-        "role": "parabolic trajectory",
-        "label": "trajectory"
-      },
-      {
-        "id": "apex",
+        "id": "B",
         "kind": "point",
-        "role": "highest point",
-        "label": "H"
-      },
-      {
-        "id": "landing",
-        "kind": "point",
-        "role": "landing point",
+        "role": "landing",
         "label": "B"
-      },
-      {
-        "id": "aim",
-        "kind": "point",
-        "role": "launch direction"
       },
       {
         "id": "velocity",
         "kind": "vector",
-        "role": "launch velocity",
-        "label": "u"
+        "role": "velocity u",
+        "label": "u = 16 m/s"
       },
       {
-        "id": "aim_h",
-        "kind": "point",
-        "role": "horizontal reference end"
+        "id": "ux",
+        "kind": "vector",
+        "role": "x component",
+        "label": "u cosθ",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
       },
       {
-        "id": "horizontal",
-        "kind": "segment",
-        "role": "horizontal reference"
+        "id": "uy",
+        "kind": "vector",
+        "role": "y component",
+        "label": "u sinθ",
+        "provenance": {
+          "dashed": true,
+          "strokeRole": "construction"
+        }
       },
       {
         "id": "angle",
         "kind": "angle_mark",
-        "role": "angle mark",
-        "label": "θ=40°"
+        "role": "launch angle",
+        "label": "θ = 32°"
+      },
+      {
+        "id": "trajectory",
+        "kind": "polyline",
+        "role": "trajectory"
+      },
+      {
+        "id": "apex",
+        "kind": "point",
+        "role": "apex"
+      },
+      {
+        "id": "v_top",
+        "kind": "vector",
+        "role": "top velocity",
+        "label": "vₓ = u cosθ"
+      },
+      {
+        "id": "g_at",
+        "kind": "point",
+        "role": "ball"
+      },
+      {
+        "id": "g_vec",
+        "kind": "vector",
+        "role": "gravity",
+        "label": "g"
       },
       {
         "id": "apex_foot",
         "kind": "point",
-        "role": "apex foot",
-        "label": "A"
+        "role": "apex foot"
       },
       {
         "id": "dim_H",
         "kind": "dimension",
-        "role": "maximum height",
+        "role": "max height",
         "label": "H"
-      },
-      {
-        "id": "range_start",
-        "kind": "point",
-        "role": "range start"
       },
       {
         "id": "dim_R",
         "kind": "dimension",
-        "role": "horizontal range",
+        "role": "range",
         "label": "R"
       }
     ],
     "constructions": [
       {
-        "id": "make_ground_a",
+        "id": "c_ground_a",
         "operator": "point",
         "inputs": {
-          "x": -4.8235,
+          "x": -3,
           "y": 0,
           "coordinateSpace": "world"
         },
@@ -131,10 +135,10 @@
         ]
       },
       {
-        "id": "make_ground_b",
+        "id": "c_ground_b",
         "operator": "point",
         "inputs": {
-          "x": 43.4119,
+          "x": 26.5,
           "y": 0,
           "coordinateSpace": "world"
         },
@@ -143,7 +147,7 @@
         ]
       },
       {
-        "id": "make_ground",
+        "id": "c_ground",
         "operator": "segment",
         "inputs": {
           "start": "ground_a",
@@ -154,7 +158,7 @@
         ]
       },
       {
-        "id": "make_O",
+        "id": "c_O",
         "operator": "point",
         "inputs": {
           "x": 0,
@@ -166,25 +170,94 @@
         ]
       },
       {
-        "id": "make_trajectory",
+        "id": "c_B",
+        "operator": "point",
+        "inputs": {
+          "x": 23.4787,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "c_velocity",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "direction": [
+            0.848,
+            0.5299
+          ],
+          "length": 6.0
+        },
+        "outputs": [
+          "velocity"
+        ]
+      },
+      {
+        "id": "c_ux",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "direction": [
+            1,
+            0
+          ],
+          "length": 5.088
+        },
+        "outputs": [
+          "ux"
+        ]
+      },
+      {
+        "id": "c_uy",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 3.179
+        },
+        "outputs": [
+          "uy"
+        ]
+      },
+      {
+        "id": "c_angle",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "O",
+          "a": "velocity",
+          "b": "ux",
+          "radius": 2
+        },
+        "outputs": [
+          "angle"
+        ]
+      },
+      {
+        "id": "c_trajectory",
         "operator": "function_curve",
         "inputs": {
-          "expression": "0+0.8390996311772799*x-0.020875080340262635*x^2",
+          "expression": "0.624869*x-0.0266143*x^2",
           "variable": "x",
           "xMin": 0,
-          "xMax": 40.1962,
-          "samples": 81
+          "xMax": 23.4787
         },
         "outputs": [
           "trajectory"
         ]
       },
       {
-        "id": "make_apex",
+        "id": "c_apex",
         "operator": "point",
         "inputs": {
-          "x": 20.0981,
-          "y": 8.4322,
+          "x": 11.739,
+          "y": 3.668,
           "coordinateSpace": "world"
         },
         "outputs": [
@@ -192,80 +265,52 @@
         ]
       },
       {
-        "id": "make_landing",
-        "operator": "point",
-        "inputs": {
-          "x": 40.1962,
-          "y": 0,
-          "coordinateSpace": "world"
-        },
-        "outputs": [
-          "landing"
-        ]
-      },
-      {
-        "id": "make_aim",
-        "operator": "point",
-        "inputs": {
-          "x": 6.7743,
-          "y": 5.6843,
-          "coordinateSpace": "world"
-        },
-        "outputs": [
-          "aim"
-        ]
-      },
-      {
-        "id": "make_velocity",
+        "id": "c_v_top",
         "operator": "vector",
         "inputs": {
-          "start": "O",
-          "end": "aim"
+          "start": "apex",
+          "direction": [
+            1,
+            0
+          ],
+          "length": 5.088
         },
         "outputs": [
-          "velocity"
+          "v_top"
         ]
       },
       {
-        "id": "make_aim_h",
+        "id": "c_g_at",
         "operator": "point",
         "inputs": {
-          "x": 8.8432,
-          "y": 0,
+          "x": 18.5,
+          "y": 2.451,
           "coordinateSpace": "world"
         },
         "outputs": [
-          "aim_h"
+          "g_at"
         ]
       },
       {
-        "id": "make_horizontal",
-        "operator": "segment",
+        "id": "c_g_vec",
+        "operator": "vector",
         "inputs": {
-          "start": "O",
-          "end": "aim_h"
+          "start": "g_at",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 1.5
         },
         "outputs": [
-          "horizontal"
+          "g_vec"
         ]
       },
       {
-        "id": "make_angle",
-        "operator": "angle_mark",
-        "inputs": {
-          "vertex": "O",
-          "a": "velocity",
-          "b": "horizontal"
-        },
-        "outputs": [
-          "angle"
-        ]
-      },
-      {
-        "id": "make_apex_foot",
+        "id": "c_apex_foot",
         "operator": "point",
         "inputs": {
-          "x": 20.0981,
+          "x": 11.739,
           "y": 0,
           "coordinateSpace": "world"
         },
@@ -274,7 +319,7 @@
         ]
       },
       {
-        "id": "make_dim_H",
+        "id": "c_dim_H",
         "operator": "dimension",
         "inputs": {
           "start": "apex_foot",
@@ -285,23 +330,11 @@
         ]
       },
       {
-        "id": "make_range_start",
-        "operator": "point",
-        "inputs": {
-          "x": 0,
-          "y": 0,
-          "coordinateSpace": "world"
-        },
-        "outputs": [
-          "range_start"
-        ]
-      },
-      {
-        "id": "make_dim_R",
+        "id": "c_dim_R",
         "operator": "dimension",
         "inputs": {
-          "start": "range_start",
-          "end": "landing"
+          "start": "O",
+          "end": "B"
         },
         "outputs": [
           "dim_R"
@@ -315,12 +348,22 @@
         "predicate": "angle_between",
         "entities": [
           "velocity",
-          "horizontal"
+          "ux"
         ],
         "expected": {
-          "value": 40,
+          "value": 32,
           "unit": "degree"
         },
+        "severity": "fatal"
+      },
+      {
+        "id": "top_horizontal",
+        "predicate": "parallel",
+        "entities": [
+          "v_top",
+          "ground"
+        ],
+        "expected": true,
         "severity": "fatal"
       },
       {
@@ -330,88 +373,20 @@
           "trajectory"
         ],
         "expected": {
-          "x": 20.098117,
-          "y": 8.432161
+          "x": 11.7394,
+          "y": 3.6678
         },
-        "severity": "fatal"
-      },
-      {
-        "id": "launch_on_path",
-        "predicate": "on",
-        "entities": [
-          "O",
-          "trajectory"
-        ],
-        "expected": true,
         "severity": "fatal"
       },
       {
         "id": "landing_on_path",
         "predicate": "on",
         "entities": [
-          "landing",
+          "B",
           "trajectory"
         ],
         "expected": true,
         "severity": "fatal"
-      },
-      {
-        "id": "label_O",
-        "predicate": "label_attached",
-        "entities": [
-          "O"
-        ],
-        "expected": true,
-        "severity": "fatal"
-      },
-      {
-        "id": "label_velocity",
-        "predicate": "label_attached",
-        "entities": [
-          "velocity"
-        ],
-        "expected": true,
-        "severity": "fatal"
-      },
-      {
-        "id": "assert_label_O",
-        "predicate": "label_attached",
-        "entities": [
-          "O"
-        ],
-        "expected": true,
-        "severity": "fatal",
-        "reason": "student-facing points must stay labeled"
-      },
-      {
-        "id": "assert_label_apex",
-        "predicate": "label_attached",
-        "entities": [
-          "apex"
-        ],
-        "expected": true,
-        "severity": "fatal",
-        "reason": "student-facing points must stay labeled"
-      },
-      {
-        "id": "assert_label_landing",
-        "predicate": "label_attached",
-        "entities": [
-          "landing"
-        ],
-        "expected": true,
-        "severity": "fatal",
-        "reason": "student-facing points must stay labeled"
-      },
-      {
-        "id": "assert_label_apex_foot",
-        "predicate": "label_attached",
-        "entities": [
-          "apex_foot"
-        ],
-        "expected": true,
-        "severity": "fatal",
-        "reason": "student-facing points must stay labeled"
       }
     ],
     "annotations": [],
@@ -420,17 +395,18 @@
       "ground_b",
       "ground",
       "O",
-      "trajectory",
-      "apex",
-      "landing",
-      "aim",
       "velocity",
-      "aim_h",
-      "horizontal",
+      "ux",
+      "uy",
       "angle",
+      "trajectory",
+      "B",
+      "apex",
+      "v_top",
+      "g_at",
+      "g_vec",
       "apex_foot",
       "dim_H",
-      "range_start",
       "dim_R"
     ],
     "revealGroups": [
@@ -441,33 +417,31 @@
           "ground_b",
           "ground",
           "O",
-          "aim",
           "velocity",
-          "aim_h",
-          "horizontal",
-          "angle",
-          "apex",
-          "landing",
-          "apex_foot"
+          "ux",
+          "uy",
+          "angle"
         ],
         "dependsOn": [],
-        "narrationCue": "the launch: speed, angle and the ground"
+        "narrationCue": "launch: u, θ and its components"
       },
       {
         "id": "path",
         "entityIds": [
           "trajectory",
+          "B",
           "apex",
-          "landing",
+          "v_top",
+          "g_at",
+          "g_vec",
           "apex_foot",
           "dim_H",
-          "range_start",
           "dim_R"
         ],
         "dependsOn": [
           "setup"
         ],
-        "narrationCue": "the parabolic path with its highest point and range"
+        "narrationCue": "path under g, top, H and R"
       }
     ],
     "teachingTimeline": [
@@ -476,7 +450,7 @@
         "action": "reveal",
         "targetId": "setup",
         "dependsOn": [],
-        "narrationIntent": "the launch: speed, angle and the ground"
+        "narrationIntent": "launch: u, θ and its components"
       },
       {
         "id": "reveal_path",
@@ -485,10 +459,10 @@
         "dependsOn": [
           "reveal_setup"
         ],
-        "narrationIntent": "the parabolic path with its highest point and range"
+        "narrationIntent": "path under g, top, H and R"
       }
     ]
   },
-  "engineCommit": "ab46da7ae7e040d35cae9169afa98c91ca870302",
-  "validatedOn": "2026-10-09"
+  "engineCommit": "4ab84cd23c8719babb316bf03f075b57f4947c43",
+  "validatedOn": "2026-10-13"
 }

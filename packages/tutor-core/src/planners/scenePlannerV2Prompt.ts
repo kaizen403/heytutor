@@ -85,7 +85,9 @@ export function buildSceneDocumentPlannerPrompt(
   question: string,
   context: ScenePlannerPromptContext = {},
   detailedOperators?: readonly string[],
+  options: { completeFigure?: boolean } = {},
 ): string {
+  const completeFigure = options.completeFigure === false ? "" : `\n\n${SCENE_COMPLETE_FIGURE_RULES}`;
   const operators = context.constructionOperators === undefined
     ? DEFAULT_SCENE_CONSTRUCTION_OPERATORS
     : [...new Set(context.constructionOperators.filter(isPlannerVisibleSceneConstructionOperator))];
@@ -105,7 +107,7 @@ export function buildSceneDocumentPlannerPrompt(
     ? `\nSELECTED VISUAL INVARIANTS\n${context.planningGuidance.map((item) => `- ${item}`).join("\n")}\n`
     : "";
   const workedExamples = context.workedExamples?.length
-    ? `\nWORKED SCENE EXAMPLES\nCoordinates and engine-only metadata are deliberately omitted. Reuse the structural operator patterns, but derive valid inputs and facts from the current question.\n${context.workedExamples.slice(0, 3).map((example, index) =>
+    ? `\nWORKED SCENE EXAMPLES\nCoordinates and engine-only metadata are deliberately omitted. Reuse the structural operator patterns, but derive valid inputs and facts from the current question, and show every object, value, angle and helper it names even where an example omits one.\n${context.workedExamples.slice(0, 3).map((example, index) =>
       `EXAMPLE ${index + 1} (${example.id})\n${example.sourceKind === "curated" && example.question
         ? `QUESTION\n${example.question}`
         : `Figure: ${example.depicts}`}\nSCENE\n${JSON.stringify(compactSceneExampleDocument(example.document))}`,
@@ -119,7 +121,7 @@ export function buildSceneDocumentPlannerPrompt(
     const named = contractLineOperators(contracts);
     return `Each contract line below names one. Also:${operators.filter((operator) => !named.has(operator)).join(",")}`;
   };
-  const assemble = (contracts: string): string => `${SCENE_DOCUMENT_PLANNER_PROMPT}
+  const assemble = (contracts: string): string => `${SCENE_DOCUMENT_PLANNER_PROMPT}${completeFigure}
 
 AVAILABLE CONSTRUCTION OPERATORS
 ${listOperators(contracts)}
@@ -143,6 +145,20 @@ Return the complete ${SCENE_DOCUMENT_VERSION} JSON object now.`;
     ? assemble(selectConstructionInputContracts(operators, []))
     : prompt;
 }
+
+/**
+ * Sent with every initial plan and completeness request, after the base
+ * prompt. A repair of an invalid candidate gets the short keep rule in its
+ * REPAIR REQUEST instead: the worst-case repair (every rebuild block) has no
+ * room for it under its 27,000-character budget.
+ */
+export const SCENE_COMPLETE_FIGURE_RULES = `COMPLETE FIGURE
+- Show every object,case,state and point the question names. Label each with its name, or its given value and unit; else its symbol.
+- Mark every given or asked angle: angle_mark with value or symbol; right_angle_mark wherever the method uses a perpendicular.
+- Draw the helpers the method relies on even if unasked: perpendiculars,normals,radii,components,intersection/contact points,dimensions.
+- Each directed quantity the question names or gives is a labelled vector at its point of action; unknown sizes stay symbolic.
+- Name both axes. Label each given line or curve with its equation, compact to 16 characters.
+- Before returning, map every noun,value and angle in the question to an entity or label.`;
 
 export const SCENE_DOCUMENT_PLANNER_PROMPT = `Return complete scene-document/v2 JSON only: no pixels,tags,prose,raw paths or topic templates.
 Keys:schemaVersion,visualDecision,source,quantities,entities,constructions,relations:[],assertions,annotations,requiredEntityIds,revealGroups,teachingTimeline.
@@ -193,7 +209,7 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity refe
 - surface_contact: same inputs as surface_intersection and exactly two fresh outputs [hit_point_id, incident_vector_id]. origin must be a distinct off-surface point; through must differ from origin. Use this instead of surface_intersection for visible reflection/refraction paths, and never reuse an ID already produced by another construction.
 - A surface_contact hit point and a normal_at output may be implicit construction helpers when they are consumed by later operators and do not need a visible mark. Visible outputs such as the incident vector still require a declared entity.
 - normal_at: {point: point_id, surface: line_or_circle_or_arc_id}.
-- normal_at outputs solver-only geometry. It is used by reflection/refraction but is not drawn; construct a separate visible normal only when the question explicitly asks for one.
+- normal_at outputs solver-only geometry. It is used by reflection/refraction but is not drawn; construct a separate visible normal whenever an angle is measured from it.
 - normal_at still has exactly one stable output helper ID even when that helper is not declared as a visible entity or added to a reveal group. Never emit outputs:[] for normal_at.
 - project: {point: point_id, line: line_or_segment_id}.
 - translate: {point: point_id, vector: vector_id|[dx,dy]}.
@@ -210,7 +226,7 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity refe
 - refract_at: {point, surface, incidentAngleDeg, n1, n2, tangentSign?:-1|1, span?}. Outputs [incident_ray, normal, refracted_ray] using Snell's law. Prefer it for a stated angle; do not duplicate its rays with low-level operators.
 - parallel_through/perpendicular_through: {through: point_id, line: line_or_segment_id}.
 - angle_bisector: {vertex: point_id, a: point_id, b: point_id}.
-- angle_mark: {vertex: point_id, a: point_or_path_id, b: point_or_path_id, radius?, count?:1|2|3}. Each path must meet the vertex at one endpoint. Marks the smaller angle between the two arms. count draws concentric congruence arcs. Bind a measured value with an annotation quantityId or an angle_between assertion; do not invent a degree label.
+- angle_mark: {vertex: point_id, a: point_or_path_id, b: point_or_path_id, radius?, count?:1|2|3}. Each path must meet the vertex at one endpoint. Marks the smaller angle between the two arms. count draws concentric congruence arcs. Bind a given or measured value with an annotation quantityId or an angle_between assertion; do not invent a degree label.
 - right_angle_mark: {vertex: point_id, a: point_or_path_id, b: point_or_path_id, size?}. Each path must meet the vertex at one endpoint.
 - tick_mark: {target: line_or_segment_id, at?:0..1, size?, count?:1|2|3, family?:string}. Matching family IDs share the same tick count. count is 1, 2, or 3 congruence marks perpendicular to the target at the parametric location.
 - sign_badge: {target: line_or_segment_or_vector_id, sense:"positive"|"clockwise"|"counterclockwise", at?:0..1}. A compact owned direction or rotation convention mark. Never a teaching-model ARROW.
@@ -320,7 +336,7 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity refe
 - crossing_strategies: {v}. Gives six vectors: across current, boat, resultant, then shortest-time current, boat, resultant. Fails closed unless boat speed exceeds current speed. Do not invent a straight-across heading.
 - parallel_guides: {gap}. Gives two parallel segments. separation and halfLength are display lengths, not a physical width.
 - kirchhoff_network: {nodes,branches}. Gives n node points, then b branch polylines, then b current vectors. Wires omit resistance and emf. A supplied multi-loop graph must not be redrawn as a series chain. Currents are solved.
-- free_body: {F}. Gives the body point, then one vector per supplied force. Do not invent a normal, friction, or weight. equilibrium requires a zero sum. mass and acceleration must satisfy sum F = ma.
+- free_body: {F}. Gives the body point, then one vector per supplied force. Supply each force the question names; do not invent any other normal, friction, or weight. equilibrium requires a zero sum. mass and acceleration must satisfy sum F = ma.
 - coupled_bodies: {link,bodies}. Gives [body1,body2,tension1,tension2,accel1,accel2]. stringPull is the direction the link pulls each body. A string rejects compression. External forces include weight; gravity is not inferred.
 - vertical_circle: {R,v,angle}. Gives [circle,mass,radius,weight,constraint]. angleDeg is from the downward vertical. Supply exactly one of speed or speedAtBottom. A slack string or inside track fails closed.
 - mechanical_energy_pair: {states}. Gives [level1,state1,v1,level2,state2,v2]. At least one speed is required. A missing speed is computed. Both speeds must satisfy energy plus supplied work. Do not infer work.
