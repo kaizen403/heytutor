@@ -93,6 +93,11 @@
  * arrow laid flat along the axis to a focus, or no image arrow at all stays
  * unproven and never draws. None of these is a light path, so with the P6 check
  * removed every other gate stays green and only G21 goes red.
+ * G22: every open polyline is a light path, whatever its role. Beside three traced rays on the
+ * review's lens, a polyline from the object base to the image tip (as a "light ray" or a helper),
+ * one from the object tip straight to F2, and a hand parallel ray drawn as one polyline bent back
+ * to F1 stay unproven and never draw; so does a concave mirror's polyline from the object base to
+ * the image tip. Traced rays alone, and a correct hand ray drawn as one polyline, still draw.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -1230,43 +1235,49 @@ const expectUnproven = (gate: string, name: string, question: string, document: 
 }
 
 // ---- G19: every drawn light path is a ray the element forms, not only the two that prove the image ----
+const qTall = "An object 2 cm tall is placed at 30 cm from a convex lens of focal length 10 cm. Draw the ray diagram.";
+const tallPlan = plan(qTall, [
+  { id: "h", symbol: "h_o", value: 2, unit: "cm", provenance: "given", sourceText: "2 cm tall" },
+  { id: "u", symbol: "u", value: 30, unit: "cm", provenance: "given", sourceText: "at 30 cm" },
+  { id: "f", symbol: "f", value: 10, unit: "cm", provenance: "given", sourceText: "focal length 10 cm" },
+], [{ id: "v", symbol: "v", value: 15, unit: "cm", provenance: "derived" }], ["lens_formula"]);
+const tallLens = (rays: string[]) => traced(lensDoc(qTall, { u: 30, f: 10, h: 2 }), rays);
+/** A hand path: a segment, ray or vector from its first point to its second, or a polyline through all of them. */
+interface HandPath { id: string; operator: string; points: string[]; role?: string; extra?: Record<string, unknown> }
+type HandPathInput = [id: string, operator: string, start: string, end: string] | HandPath;
+/**
+ * Hand paths beside traced rays. On hand: S, where a parallel ray from the object tip meets the
+ * element plane; S2, where the focal ray does (the image tip's height); Sback, a focus turned half
+ * a turn about S, which lies on the parallel ray's true line on the side its light never reaches.
+ */
+const handPaths = (base: Doc, plane: string, focus: string, input: HandPathInput[]): Doc => {
+  const document = structuredClone(base);
+  const paths: HandPath[] = input.map((path) => Array.isArray(path) ? { id: path[0], operator: path[1], points: [path[2], path[3]] } : path);
+  // Only the helpers a path reads, so no helper is left unrequired.
+  const ends = new Set(paths.flatMap((path) => path.points));
+  if (ends.has("Sback")) ends.add("S");
+  const helpers = ([
+    { id: "c_lp", operator: "perpendicular_through", inputs: { through: plane, line: "axis" }, outputs: ["lp"] },
+    { id: "c_S", operator: "project", inputs: { point: "ot", line: "lp" }, outputs: ["S"] },
+    { id: "c_S2", operator: "project", inputs: { point: "it", line: "lp" }, outputs: ["S2"] },
+    { id: "c_Sback", operator: "rotate", inputs: { point: focus, center: "S", angle: 180, angleUnit: "degrees" }, outputs: ["Sback"] },
+  ] as Construction[]).filter((helper) => helper.id === "c_lp" ? ["S", "S2"].some((id) => ends.has(id)) : ends.has(helper.outputs[0]!));
+  document.constructions.push(...helpers, ...paths.map(({ id, operator, points, extra }) => ({
+    id: `c_${id}`, operator, outputs: [id],
+    inputs: { ...(operator === "polyline" ? { points } : { start: points[0], end: points[1] }), ...extra },
+  }) as Construction));
+  document.entities.push(...helpers.map((helper) => ent(helper.outputs[0]!, helper.id === "c_lp" ? "line" : "point", "construction helper")),
+    ...paths.map(({ id, operator, role }) => ent(id, operator, role ?? "light ray")));
+  document.requiredEntityIds.push(...paths.map(({ id }) => id));
+  document.revealGroups = document.revealGroups.map((group) =>
+    group.id === "rays" ? { ...group, entityIds: [...group.entityIds, ...paths.map(({ id }) => id)] } : group);
+  return document;
+};
+const lensWith = (paths: HandPathInput[], rays = ["parallel", "focal", "central"]) =>
+  handPaths(tallLens(rays), "O", "F2", paths);
+const mirrorWith = (paths: HandPathInput[], rays = ["parallel", "central"]) =>
+  handPaths(traced(goodMirror, rays), "P", "F", paths);
 {
-  const qTall = "An object 2 cm tall is placed at 30 cm from a convex lens of focal length 10 cm. Draw the ray diagram.";
-  const tallPlan = plan(qTall, [
-    { id: "h", symbol: "h_o", value: 2, unit: "cm", provenance: "given", sourceText: "2 cm tall" },
-    { id: "u", symbol: "u", value: 30, unit: "cm", provenance: "given", sourceText: "at 30 cm" },
-    { id: "f", symbol: "f", value: 10, unit: "cm", provenance: "given", sourceText: "focal length 10 cm" },
-  ], [{ id: "v", symbol: "v", value: 15, unit: "cm", provenance: "derived" }], ["lens_formula"]);
-  const tallLens = (rays: string[]) => traced(lensDoc(qTall, { u: 30, f: 10, h: 2 }), rays);
-  /**
-   * Hand paths beside traced rays. On hand: S, where a parallel ray from the object tip meets the
-   * element plane; S2, where the focal ray does (the image tip's height); Sback, a focus turned half
-   * a turn about S, which lies on the parallel ray's true line on the side its light never reaches.
-   */
-  const handPaths = (base: Doc, plane: string, focus: string, paths: Array<[id: string, operator: string, start: string, end: string]>): Doc => {
-    const document = structuredClone(base);
-    // Only the helpers a path reads, so no helper is left unrequired.
-    const ends = new Set(paths.flatMap(([, , start, end]) => [start, end]));
-    if (ends.has("Sback")) ends.add("S");
-    const helpers = ([
-      { id: "c_lp", operator: "perpendicular_through", inputs: { through: plane, line: "axis" }, outputs: ["lp"] },
-      { id: "c_S", operator: "project", inputs: { point: "ot", line: "lp" }, outputs: ["S"] },
-      { id: "c_S2", operator: "project", inputs: { point: "it", line: "lp" }, outputs: ["S2"] },
-      { id: "c_Sback", operator: "rotate", inputs: { point: focus, center: "S", angle: 180, angleUnit: "degrees" }, outputs: ["Sback"] },
-    ] as Construction[]).filter((helper) => helper.id === "c_lp" ? ["S", "S2"].some((id) => ends.has(id)) : ends.has(helper.outputs[0]!));
-    document.constructions.push(...helpers,
-      ...paths.map(([id, operator, start, end]) => ({ id: `c_${id}`, operator, inputs: { start, end }, outputs: [id] }) as Construction));
-    document.entities.push(...helpers.map((helper) => ent(helper.outputs[0]!, helper.id === "c_lp" ? "line" : "point", "construction helper")),
-      ...paths.map(([id, operator]) => ent(id, operator, "light ray")));
-    document.requiredEntityIds.push(...paths.map(([id]) => id));
-    document.revealGroups = document.revealGroups.map((group) =>
-      group.id === "rays" ? { ...group, entityIds: [...group.entityIds, ...paths.map(([id]) => id)] } : group);
-    return document;
-  };
-  const lensWith = (paths: Array<[string, string, string, string]>, rays = ["parallel", "focal", "central"]) =>
-    handPaths(tallLens(rays), "O", "F2", paths);
-  const mirrorWith = (paths: Array<[string, string, string, string]>, rays = ["parallel", "central"]) =>
-    handPaths(traced(goodMirror, rays), "P", "F", paths);
   // The review's figures: each carries three traced rays that prove the image, plus one wrong ray.
   for (const [name, question, turnPlan, document, reason] of [
     ["a segment from the object base to the image tip", qTall, tallPlan, lensWith([["x1", "segment", "ob", "it"]]),
@@ -1392,9 +1403,54 @@ const expectUnproven = (gate: string, name: string, question: string, document: 
   }
 }
 
-for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21"]) {
+/** Named cases whose own verdict is printed after the gate summary. */
+const namedCases: Array<[name: string, failed: number]> = [];
+function named(name: string, run: () => void): void {
+  const before = failures.length;
+  run();
+  namedCases.push([name, failures.length - before]);
+}
+
+// ---- G22: every open polyline is a light path too; a wrong one beside traced rays never proves ----
+{
+  const polyline = (id: string, points: string[], role?: string): HandPath => ({ id, operator: "polyline", points, ...(role ? { role } : {}) });
+  named("traced principal_rays plus one wrong extra polyline is rejected", () => {
+    const document = lensWith([polyline("x1", ["ob", "it"])]);
+    expectUnproven("G22", "traced principal_rays plus one wrong extra polyline (a \"light ray\" from the object base to the image tip)", qTall, document,
+      /^ray x1 neither runs from the object tip to the lens nor leaves it \(it touches the object base\)$/);
+    expectNeverPlanner("G22", "traced principal_rays plus one wrong extra polyline", qTall, tallPlan, document);
+  });
+  for (const [name, question, turnPlan, document, reason] of [
+    ["the same polyline under a helper role", qTall, tallPlan, lensWith([polyline("x1", ["ob", "it"], "construction helper")]),
+      /^ray x1 neither runs from the object tip to the lens nor leaves it \(it touches the object base\)$/],
+    ["a polyline from the object tip straight to F2", qTall, tallPlan, lensWith([polyline("x1", ["ot", "F2"])]),
+      /^ray x1 neither runs from the object tip to the lens nor leaves it$/],
+    ["a hand parallel ray drawn as one polyline bent back to F1", qTall, tallPlan, lensWith([polyline("x1", ["ot", "S", "F1"])]),
+      /^ray x1 leaves the lens at S off the line to the image tip/],
+    ["a concave mirror's polyline from the object base to the image tip", qMirror, mirrorPlan, mirrorWith([polyline("x1", ["ob", "it"])]),
+      /^ray x1 neither runs from the object tip to the mirror nor leaves it \(it touches the object base\)$/],
+  ] as const) {
+    expectUnproven("G22", name, question, document, reason);
+    expectNeverPlanner("G22", name, question, turnPlan, document);
+  }
+  // Controls: traced rays alone, and a correct hand third ray drawn as one polyline, still prove and draw.
+  for (const [name, question, turnPlan, document] of [
+    ["the review's lens with only its three traced rays", qTall, tallPlan, tallLens(["parallel", "focal", "central"])],
+    ["a hand parallel ray as one polyline (object tip, S, image tip) beside traced focal and central rays", qTall, tallPlan,
+      lensWith([polyline("x1", ["ot", "S", "it"])], ["focal", "central"])],
+    ["a concave mirror's hand focal ray as one polyline (object tip, S2, image tip) beside traced parallel and central rays", qMirror, mirrorPlan,
+      mirrorWith([polyline("x1", ["ot", "S2", "it"])])],
+  ] as const) {
+    const result = explainPlannerOpticsProof(question, document);
+    check("G22", result.proof === "proven", `${name} must be proven; got ${result.proof}: ${result.reason}`);
+    expectDrawnAsPlanner("G22", name, question, turnPlan, document);
+  }
+}
+
+for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21", "G22"]) {
   console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 }
+for (const [name, failed] of namedCases) console.log(`  ${name}: ${failed ? `FAIL (${failed} checks)` : "pass"}`);
 if (failures.length > 0) {
   for (const failure of failures) console.error(`  ${failure}`);
   process.exit(1);
