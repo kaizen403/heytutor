@@ -449,7 +449,7 @@ function originalReactionParticipants(source: string): {operators: Set<number>; 
   const electron = String.raw`e(?:\^?\(?-\)?|⁻)`;
   const term = String.raw`(?:[1-9]\d*\s*)?(${SPECIES}|${electron})(?:\s*\(\s*(?:aq|s|g|l)\s*\))?`;
   const side = `${term}(?:\\s*\\+\\s*${term})*`;
-  const arrow = String.raw`(?:->|→|⟶|⇌|⇄|↔|⇒)`;
+  const arrow = String.raw`(?:->|<=>|→|⟶|⇌|⇄|↔|⇒)`;
   const reactions = new RegExp(`(?<![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/.-])(?<![+−/\\-\\d]\\s*)${side}\\s*${arrow}\\s*${side}(?![\\p{L}\\p{N}\\p{M}_^⁺⁻+−/-]|\\s*(?:\\+|[\\(\\[\\{]))`, "gu");
   const operators = new Set<number>();
   const original: OriginalCellReaction[] = [];
@@ -487,7 +487,7 @@ function originalReactionParticipants(source: string): {operators: Set<number>; 
   for (const owner of source.matchAll(owners)) {
     const start = owner.index! + owner[0].length;
     const tail = source.slice(start);
-    const supplied = Boolean(owner[1] || owner[2]) || /^(?:[A-Z]|\d|[+−/.-]\s*\d|unknown\b|unreadable\b|(?:->|→|⟶|⇌|⇄|↔|⇒))/.test(tail);
+    const supplied = Boolean(owner[1] || owner[2]) || /^(?:[A-Z]|\d|[+−/.-]\s*\d|unknown\b|unreadable\b|(?:->|<=>|→|⟶|⇌|⇄|↔|⇒))/.test(tail);
     if (supplied && !original.some(reaction => reaction.start === start)) invalid = true;
   }
   return {operators, reactions: original, invalid};

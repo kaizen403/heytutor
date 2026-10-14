@@ -616,7 +616,7 @@ function readInitialConcentration(stem: string): {value: number; unit: string} |
   for (const [index, owner] of owners.entries()) {
     if (concentrationRequests.some(span=>owner.index! >= span.start && owner.index! < span.end)) continue;
     let start = owner.index! + owner[0].length;
-    const subject = /^\s+of\s+(?:(?:the|a)\s+)?(?:reactant|substrate|species)(?:\s+[A-Z]\b)?/i.exec(body.slice(start));
+    const subject = /^\s+of\s+(?:(?:the|a)\s+)?(?:(?:reactant|substrate|species)(?:\s+[A-Z]\b)?|[A-Z]\b|\[[A-Z]\](?![A-Za-z0-9_]))/i.exec(body.slice(start));
     if (subject) start += subject[0].length;
     const next = owners[index + 1];
     let end = next?.index ?? body.length;
