@@ -17,8 +17,10 @@
  *   forward: light would cross the glass with no event, so the figure fails
  *   with `light_line_crosses_element`.
  * - What remains drawn may not run through a closed glass element's
- *   interior, unless the through point is strictly inside it (a thin lens
- *   centre): `light_line_crosses_element`.
+ *   interior, unless the through point is strictly inside a thin lens (a
+ *   `lens_section`, or on a declared thin lens centre plane):
+ *   `light_line_crosses_element`. A through point inside thick glass or a
+ *   mirror excuses nothing.
  *
  * A closed glass element is a drawn closed path or circle that a declared
  * light path has a vertex on, as for R1.
@@ -31,7 +33,7 @@
  * a reflecting ball is refused like any other line through it.
  */
 import type { SceneDocument, SceneIssue } from "../types";
-import { isRefractingBody, NORMAL_INCIDENCE_DEG, opticsRoles } from "./lightPathElements";
+import { isRefractingBody, isThinLensAt, NORMAL_INCIDENCE_DEG, opticsRoles } from "./lightPathElements";
 
 const NORMAL_INCIDENCE_COS = Math.cos(NORMAL_INCIDENCE_DEG * Math.PI / 180);
 
@@ -124,7 +126,8 @@ export function continueLightLinesFromElements(input: EmergentLightLineInput): v
     if (refused) continue;
     const start = directed ? 0 : -far;
     for (const [elementId, element] of elements) {
-      if (strictlyInside(line.through, element, tolerance)) continue;
+      // Thin lens convention only: a line through a point inside thick glass or a mirror is light crossing it.
+      if (strictlyInside(line.through, element, tolerance) && isThinLensAt(document, geometry, elementId, line.through, tolerance)) continue;
       if (!runsInside(line.through, line.direction, start, far, element, tolerance)) continue;
       if (glass.get(elementId) && alongNormals(line.through, line.direction, start, far, element)) continue;
       input.issues.push({

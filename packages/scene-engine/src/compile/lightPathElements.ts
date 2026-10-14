@@ -444,6 +444,39 @@ export function isRefractingBody(
   return glassBody(roles, geometry, (reference) => geometryPoint(geometry, reference), id, value, tolerance);
 }
 
+/**
+ * True when a drawn element is a thin lens at `point`: a `lens_section`
+ * output, an outline about the `center` of a `gaussian_image` or
+ * `optical_focus` of kind lens with `point` on its centre plane (across the
+ * axis), or any element with `point` on a drawn `optical_train` lens line.
+ * Rays meet a thin lens at that plane. Thick glass and mirrors have none.
+ */
+export function isThinLensAt(
+  document: SceneDocument,
+  geometry: Map<string, GeometryLike>,
+  id: string,
+  point: Point,
+  tolerance: number,
+): boolean {
+  const roles = opticsRoles(document);
+  const value = geometry.get(id);
+  if (!roles || !isElement(value)) return false;
+  if (roles.thinLenses.has(id)) return true;
+  return roles.lensPlanes.some((plane) => {
+    if (plane.line !== undefined) {
+      const line = geometry.get(plane.line);
+      if (!isPath(line) || line.points.length < 2 || !line.points.every(finitePoint)) return false;
+      const [a, b] = line.points as [Point, Point];
+      return (line.infinite ? lineDistance(point, a, b) : pointSegmentDistance(point, a, b)) <= tolerance;
+    }
+    let center: Point;
+    try { center = geometryPoint(geometry, plane.center); } catch { return false; }
+    const axis = axisDirection(plane.axis, geometry);
+    return axis !== null && insideElement(center, value) &&
+      Math.abs((point.x - center.x) * axis.x + (point.y - center.y) * axis.y) <= tolerance;
+  });
+}
+
 function glassBody(
   roles: OpticsRoles,
   geometry: Map<string, GeometryLike>,

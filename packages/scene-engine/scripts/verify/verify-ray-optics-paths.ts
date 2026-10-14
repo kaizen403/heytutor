@@ -20,7 +20,9 @@
  *
  * Normal incidence lets light through glass only: a line parallel to a ray
  * along a reflecting ball's diameter is refused, not drawn through the mirror
- * (third review of #164).
+ * (third review of #164). A line parallel to a ray through a point inside a
+ * glass or reflecting ball, off the diameter, is refused too; only a thin
+ * lens excuses a through point inside it (sixth review).
  *
  * An angle mark between a normal and a light path at a contact is the acute
  * angle: `refract_at` emits its normal on the incident side only, and the arc
@@ -994,6 +996,83 @@ check("control: the same line along a glass ball's diameter, incoming literal [1
   const ball = stroke(primitives, "ball");
   return Math.max(...xs(stroke(primitives, "onward"))) < ball.points[0]!.x + ball.radius! + 1.5 ? "the line does not run on through the glass ball" : null;
 });
+
+// Sixth review of #164 (thread "Light crosses thick bodies"): R6 skipped every closed
+// element whose interior held the line's through point, which is right only for a thin
+// lens (rays meet it at its centre plane). A line parallel to the incident ray through a
+// point inside a glass ball, off the diameter, was drawn through both faces unbent; inside
+// a reflecting ball it was drawn through the mirror.
+const ballInteriorLine = (body: "mirror" | "glass", through: [number, number]) => {
+  const document = ballDiameterLine(body);
+  document.entities = document.entities.filter((entity) => !["src", "contact", "axial"].includes(entity.id));
+  document.entities.push({ id: "P", kind: "point", role: "point inside the ball" });
+  document.constructions = document.constructions.filter((construction) => !["make_src", "make_contact", "make_axial"].includes(construction.id));
+  document.constructions.splice(-1, 1, point("P", ...through), { id: "make_onward", operator: "parallel_through", inputs: { through: "P", line: "inc" }, outputs: ["onward"] });
+  const ids = document.entities.map((entity) => entity.id);
+  return { ...document, requiredEntityIds: ids, revealGroups: [{ id: "setup", entityIds: ids }] };
+};
+
+// Refused, or drawn so that it never crosses the ball's outline.
+function stopsAtBall(result: ReturnType<typeof compile>, what: string): string | null {
+  if (!result.ok) return fatalCodes(result.fatal).includes("light_line_crosses_element") ? null : `failed with ${fatalCodes(result.fatal).join(", ")}, not light_line_crosses_element`;
+  const ball = stroke(result.primitives, "ball");
+  const line = stroke(result.primitives, "onward");
+  const crossings = xs(line).filter((x) => Math.abs(x - ball.points[0]!.x) > ball.radius! + 1.5).length;
+  return crossings > 0 ? `compiled with the line from x ${Math.min(...xs(line)).toFixed(0)} to ${Math.max(...xs(line)).toFixed(0)} ${what} (centre x ${ball.points[0]!.x.toFixed(0)}, radius ${ball.radius!.toFixed(0)})` : null;
+}
+
+check("a line parallel to the incident ray through a point inside a glass ball, off the diameter, is cut or refused (R6)", () =>
+  stopsAtBall(compile(ballInteriorLine("glass", [0, -0.6])), "through both faces of the glass unbent"));
+
+check("a line parallel to the incident ray through a point inside a reflecting ball, off the diameter, is cut or refused (R6)", () =>
+  stopsAtBall(compile(ballInteriorLine("mirror", [0, -0.6])), "through the mirror"));
+
+check("control: a line parallel to the incident ray through a glass ball's centre, along a diameter, runs on through it (R6)", () => {
+  const { ok, primitives, fatal } = compile(ballInteriorLine("glass", [0, 0]));
+  if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
+  const ball = stroke(primitives, "ball");
+  const line = xs(stroke(primitives, "onward"));
+  return Math.min(...line) > ball.points[0]!.x - ball.radius! - 1.5 || Math.max(...line) < ball.points[0]!.x + ball.radius! + 1.5
+    ? "the line does not run through the glass ball along its diameter" : null;
+});
+
+// A thin lens drawn as a lens_section, or as a closed outline about the centre plane of an
+// optical_focus of kind lens (the ray meets the outline's first edge by surface_contact, so the figure
+// has optics); a line parallel to the ray through the optical centre runs straight through.
+const thinLensParallelLine = (lens: "lens_section" | "optical_focus") => scene("Oblique parallel rays: the line through the optical centre parallel to the ray goes straight through", [
+  { id: "axis_origin", kind: "point", role: "axis start" }, { id: "axis", kind: "line", role: "principal axis" },
+  { id: "O", kind: "point", role: "optical centre", label: "O" }, { id: "lens", kind: "polygon", role: "convex lens" },
+  { id: "S", kind: "point", role: "source" }, { id: "T", kind: "point", role: "point on the lens" },
+  { id: "oblique", kind: "ray", role: "oblique incident ray" }, { id: "onward", kind: "line", role: "line through the optical centre" },
+  ...lens === "optical_focus" ? ["L0", "L1", "L2", "L3"].map((id) => ({ id, kind: "point", role: "lens outline" }))
+    .concat({ id: "F1", kind: "point", role: "first focus" }, { id: "F2", kind: "point", role: "second focus" }) : [],
+], [
+  point("axis_origin", -5, 0),
+  { id: "make_axis", operator: "line", inputs: { start: "axis_origin", direction: [1, 0] }, outputs: ["axis"] },
+  point("O", 0, 0),
+  ...lens === "lens_section" ? [
+    point("T", 0, 1.2), point("S", -3, 2.2),
+    { id: "make_lens", operator: "lens_section", inputs: { center: "O", axis: "axis", radius1: 5, radius2: -5, halfHeight: 1.2 }, outputs: ["lens"] },
+    { id: "make_oblique", operator: "segment", inputs: { start: "S", end: "T" }, outputs: ["oblique"] },
+  ] : [
+    point("L0", 0, 1.2), point("L1", 0.25, 0), point("L2", 0, -1.2), point("L3", -0.25, 0), point("S", -3, 1.6),
+    { id: "make_lens", operator: "polygon", inputs: { points: ["L3", "L0", "L1", "L2"] }, outputs: ["lens"] },
+    { id: "make_focus", operator: "optical_focus", inputs: { kind: "lens", center: "O", axis: "axis", focalLength: 2, displayScale: 1 }, outputs: ["F1", "F2"] },
+    { id: "make_oblique", operator: "surface_contact", inputs: { origin: "S", surface: "lens", direction: [3, -1], which: "nearest_forward" }, outputs: ["T", "oblique"] },
+  ],
+  { id: "make_onward", operator: "parallel_through", inputs: { through: "O", line: "oblique" }, outputs: ["onward"] },
+]);
+
+for (const lens of ["lens_section", "optical_focus"] as const) {
+  check(`control: a line parallel to a ray through the centre of a thin lens drawn as ${lens === "lens_section" ? "a lens_section" : "an outline about an optical_focus centre plane"} runs straight through it (R6)`, () => {
+    const { ok, primitives, fatal } = compile(thinLensParallelLine(lens));
+    if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
+    const outline = xs(stroke(primitives, "lens"));
+    const line = xs(stroke(primitives, "onward"));
+    return Math.min(...line) > Math.min(...outline) - 1.5 || Math.max(...line) < Math.max(...outline) + 1.5
+      ? "the line does not run through the lens" : null;
+  });
+}
 
 // Controls: thick glass crossed a little away from the normal, and a mirror met along
 // its normal, still stop the light.
