@@ -126,11 +126,28 @@ function subscriptsToDigits(text: string): string {
 }
 
 const PI_RE = /(\d*)\s*π\s*(?:\/\s*(\d+))?/g;
+const NUMBER_START = String.raw`(?<![A-Za-z_\d.])`;
+const DECIMAL = String.raw`([-+]?\d+(?:\.\d+)?)`;
+/** "^5", "^-3", "^(−3)" or a unicode exponent "⁵", "⁻³". */
+const POWER = String.raw`(?:\s*\^\s*\(?\s*([-+]?\d+)\s*\)?|([⁻⁺]?[⁰¹²³⁴⁵⁶⁷⁸⁹]+))`;
+/**
+ * The exponent forms come first, so "2e5" is one number and not 2 then a
+ * stray 5: "2e5", "2 × 10^5", "2×10⁵", "2 x 10^5", then a bare power "10^-3",
+ * then a plain decimal.
+ */
 const NUM_RE = new RegExp(
-  String.raw`(?<![A-Za-z_\d.])([-+]?\d+(?:\.\d+)?)(?:\s*(?:×|x|\*)\s*10\s*(?:\^\s*\(?\s*([-+]?\d+)\)?|([⁻⁺]?[⁰¹²³⁴⁵⁶⁷⁸⁹]+)))?` +
-  String.raw`|(?<![A-Za-z_\d.])([-+]?\d+(?:\.\d+)?)[eE]([-+]?\d+)`,
+  `${NUMBER_START}${DECIMAL}[eE]([-+]?\\d+)` +
+  `|${NUMBER_START}${DECIMAL}\\s*(?:×|x|\\*|·)\\s*10${POWER}` +
+  `|${NUMBER_START}([-+]?)10${POWER}` +
+  `|${NUMBER_START}${DECIMAL}`,
   "g",
 );
+
+function powerOf(caret: string | undefined, superscript: string | undefined): number {
+  const exponent = caret ?? [...(superscript ?? "")].map((char) => SUPERSCRIPTS[char] ?? char).join("");
+  const power = Number.parseInt(exponent, 10);
+  return Number.isFinite(power) ? power : 0;
+}
 
 /** Every numeric value written in a text: scientific notation, unicode exponents and π fractions. */
 function numbers(text: string): number[] {
@@ -143,20 +160,10 @@ function numbers(text: string): number[] {
   }
   const withoutPi = normalized.replace(PI_RE, " ");
   for (const match of withoutPi.matchAll(NUM_RE)) {
-    if (match[1] !== undefined) {
-      let value = Number(match[1]);
-      let exponent = match[2];
-      if (exponent === undefined && match[3]) {
-        exponent = [...match[3]].map((char) => SUPERSCRIPTS[char] ?? char).join("");
-      }
-      if (exponent !== undefined) {
-        const power = Number.parseInt(exponent, 10);
-        if (Number.isFinite(power)) value *= 10 ** power;
-      }
-      out.push(value);
-    } else if (match[4] !== undefined && match[5] !== undefined) {
-      out.push(Number(match[4]) * 10 ** Number.parseInt(match[5], 10));
-    }
+    if (match[1] !== undefined) out.push(Number(match[1]) * 10 ** Number.parseInt(match[2]!, 10));
+    else if (match[3] !== undefined) out.push(Number(match[3]) * 10 ** powerOf(match[4], match[5]));
+    else if (match[6] !== undefined) out.push((match[6] === "-" ? -1 : 1) * 10 ** powerOf(match[7], match[8]));
+    else if (match[9] !== undefined) out.push(Number(match[9]));
   }
   return out;
 }

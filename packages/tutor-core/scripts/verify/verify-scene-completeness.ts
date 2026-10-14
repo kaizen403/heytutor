@@ -337,6 +337,39 @@ function runCases(section: string, cases: ReadonlyArray<readonly [string, () => 
   ]);
 }
 
+// 6d. Scientific notation is one number: the exponent forms are read before the plain number.
+{
+  const speed = (question: string, value = 2e5) =>
+    buildCompletenessChecklist(plan({ givens: [given("v", "v", value, "m/s")] }), null, question);
+  const stemPower = "A proton enters the field at 2 × 10^5 m/s. Sketch its path.";
+  const missingWith = (checklist: CompletenessChecklist, label: string) => signatures(missingOf(checklist, doc({}), [label]).missing);
+  runCases("6d scientific notation", [
+    ["a 2e5 m/s label shows a speed the stem writes as 2 × 10^5 m/s", () =>
+      assert.deepEqual(missingWith(speed(stemPower), "v = 2e5 m/s"), [])],
+    ["a stem that writes 2e5 m/s grounds the given", () =>
+      assert.deepEqual(signatures(speed("A proton enters the field at 2e5 m/s. Sketch its path.").items), ["given_value:v"])],
+    ["a 4.5e-2 m label shows a stem's 4.5 × 10^-2 m", () => {
+      const checklist = buildCompletenessChecklist(plan({ givens: [given("d", "d", 0.045, "m")] }), null,
+        "Two plates are 4.5 × 10^-2 m apart. Sketch the field between them.");
+      assert.deepEqual(signatures(checklist.items), ["given_value:d"]);
+      assert.deepEqual(missingWith(checklist, "d = 4.5e-2 m"), []);
+    }],
+    ["a bare negative power 10^-1 m is 0.1 m, in the stem and on a label", () => {
+      const checklist = buildCompletenessChecklist(plan({ givens: [given("a", "a", 0.1, "m")] }), null,
+        "A slit of width 10^-1 m is lit from the left. Sketch the slit.");
+      assert.deepEqual(signatures(checklist.items), ["given_value:a"]);
+      assert.deepEqual(missingWith(checklist, "a = 10^-1 m"), []);
+    }],
+    // Controls: these held before the fix too.
+    ["control: a 2×10⁵ m/s label", () => assert.deepEqual(missingWith(speed(stemPower), "v = 2×10⁵ m/s"), [])],
+    ["control: a 200000 m/s label", () => assert.deepEqual(missingWith(speed(stemPower), "200000 m/s"), [])],
+    ["control: a 2 x 10^5 stem and label", () =>
+      assert.deepEqual(missingWith(speed("A proton enters the field at 2 x 10^5 m/s."), "2 x 10^5 m/s"), [])],
+    ["control: a 3e5 m/s label is another speed", () =>
+      assert.deepEqual(missingWith(speed(stemPower), "v = 3e5 m/s"), ["given_value:v"])],
+  ]);
+}
+
 if (caseFailures.length > 0) {
   throw new assert.AssertionError({ message: `${caseFailures.length} named cases fail\n  ${caseFailures.join("\n  ")}` });
 }
