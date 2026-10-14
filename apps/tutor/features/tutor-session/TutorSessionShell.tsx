@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
   type CSSProperties,
 } from "react";
@@ -61,6 +62,8 @@ import {
 } from "./components/BoardErrorBanner";
 import { NotesChatSidebar } from "./components/NotesChatSidebar";
 import { SessionBoardCanvas } from "./components/SessionBoardCanvas";
+import { ResponseBubble } from "./components/ResponseBubble";
+import { sessionCaption } from "./lib/board/sessionCaption";
 import { UnsavedBoardNotice } from "./components/UnsavedBoardNotice";
 import {
   taughtSegmentCount,
@@ -822,6 +825,11 @@ export function TutorSessionShell({
   // handle) so tutor typing never re-renders the shell per character.
   const [codeLessonController] = useState(() => new CodeLessonController());
   const codeLessonControllerRef = useRef<CodeLessonController | null>(codeLessonController);
+  const codeLessonActive = useSyncExternalStore(
+    listener => codeLessonController.subscribe(listener),
+    () => Boolean(codeLessonController.getActivePlan()),
+    () => false,
+  );
 
   const { executeCommand, executeCommandWithCancel } = useCommandExecution({
     whiteboardRef,
@@ -1334,6 +1342,15 @@ export function TutorSessionShell({
     enableKeyboard: !isHeadless,
   });
   const lecturePlayerActive = lecturePlayer.active;
+  const dockCaption = isMobile || compactBoardChrome;
+  const caption = sessionCaption({
+    enabled: settings.subtitlesEnabled || codeLessonActive,
+    phase,
+    currentSegmentText,
+    rewindActive,
+    rewindSegmentText,
+    playerView: lecturePlayer.view,
+  });
   const showDockedPlayer =
     (dockLecturePlayer ||
       compactBoardChrome ||
@@ -1787,7 +1804,7 @@ export function TutorSessionShell({
   const deckPanel =
     belowBoardPanel ??
     ((isMobile || compactBoardChrome) &&
-    codeLessonController.getActivePlan() ? (
+    codeLessonActive ? (
       <CodeLessonPanel controller={codeLessonController} variant="below" />
     ) : null);
 
@@ -2282,6 +2299,7 @@ export function TutorSessionShell({
                       }
                       playerActivityRef={boardContainerRef}
                       showPlayerBar={!showDockedPlayer}
+                      showCaption={!dockCaption}
                       verifiedDiagram={activeVerifiedDiagram}
                       codeLessonPanel={
                         compactBoardChrome ? null : (
@@ -2303,6 +2321,23 @@ export function TutorSessionShell({
                 data-board-deck
                 style={showDockedPlayer ? { width: "100%" } : undefined}
               >
+                {dockCaption && caption.visible && caption.text ? (
+                  <div
+                    role="region"
+                    aria-label="Current narration"
+                    tabIndex={0}
+                    onKeyDown={event => {
+                      // Keep native caption scrolling from seeking or pausing
+                      // the lecture through its global media shortcuts.
+                      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Home", "End", " "].includes(event.key)) {
+                        event.stopPropagation();
+                      }
+                    }}
+                    className="h-20 w-full overflow-y-auto overscroll-contain"
+                  >
+                    <ResponseBubble text={caption.text} visible placement="below" />
+                  </div>
+                ) : null}
                 {showDockedPlayer ? (
                   <LecturePlayerBar
                     store={lecturePlayer.store}

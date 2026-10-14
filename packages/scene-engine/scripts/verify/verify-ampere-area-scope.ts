@@ -8,7 +8,8 @@
  *
  * Complete validate -> reconcile -> validate outcomes were captured from
  * 1e6e01814cac55e8b8d10b2dfd270add6541693d by compiling its contract module
- * in memory. The expression module is identical at that ref and current main.
+ * in memory. The series-circuit snapshots were updated from main's #169
+ * guard, and every outcome rechecked against 3ed3585b0c34221309a7a68955bb735caeeb981b.
  * Literal snapshots below need no runtime Git, private files, or builds.
  */
 import {
@@ -210,10 +211,10 @@ const fixtures: readonly ScopeFixture[] = freezeDeep([
   {"name":"legacy-percent-right","target":"eta","value":40,"unit":"%","source":"eta = a/b*100 = 40 %","id":"result","givens":39,"baseline":[0,0]},
   {"name":"legacy-percent-wrong","target":"eta","value":20,"unit":"%","source":"eta = a/b*100 = 20 %","id":"result","givens":39,"baseline":[36,37]},
   {"name":"legacy-percent-chain","target":"useful","value":80,"unit":"W","source":"useful = eta/100*P = 80 W","id":"result","givens":40,"baseline":[24,24]},
-  {"name":"legacy-series-bare","target":"I","value":2,"unit":"A","source":"I = 12 V / 6 Ω = 2 A","id":"result","givens":41,"baseline":[38,38]},
-  {"name":"legacy-series-bound","target":"I","value":2,"unit":"A","source":"I = V/(R1+R2) = 12 V / 6 Ω = 2 A","id":"result","givens":41,"baseline":[0,39]},
-  {"name":"legacy-series-parenthesized","target":"I","value":2,"unit":"A","source":"I = (12 V)/(6 Ω) = 2 A","id":"result","givens":41,"baseline":[40,40]},
-  {"name":"legacy-series-wrong","target":"I","value":24,"unit":"A","source":"I = 12 V / 6 Ω = 24 A","id":"result","givens":41,"baseline":[0,0]},
+  {"name":"legacy-series-bare","target":"I","value":2,"unit":"A","source":"I = 12 V / 6 Ω = 2 A","id":"result","givens":41,"baseline":[0,0]},
+  {"name":"legacy-series-bound","target":"I","value":2,"unit":"A","source":"I = V/(R1+R2) = 12 V / 6 Ω = 2 A","id":"result","givens":41,"baseline":[0,0]},
+  {"name":"legacy-series-parenthesized","target":"I","value":2,"unit":"A","source":"I = (12 V)/(6 Ω) = 2 A","id":"result","givens":41,"baseline":[0,0]},
+  {"name":"legacy-series-wrong","target":"I","value":24,"unit":"A","source":"I = 12 V / 6 Ω = 24 A","id":"result","givens":41,"baseline":[38,38]},
   {"name":"legacy-area-pressure","target":"F","value":28.8,"unit":"N","source":"F = 3*A*p = 28.8 N","id":"result","givens":42,"baseline":[0,0]},
   {"name":"legacy-area-glued","target":"F","value":28.8,"unit":"N","source":"F = 3A*p = 28.8 N","id":"result","givens":42,"baseline":[0,0]},
   {"name":"legacy-area-grouped","target":"F","value":28.8,"unit":"N","source":"F = (2+1)A*p = 28.8 N","id":"result","givens":42,"baseline":[0,0]},
@@ -222,7 +223,7 @@ const fixtures: readonly ScopeFixture[] = freezeDeep([
   {"name":"legacy-coherent-omega-binding-right","target":"V","value":6,"unit":"V","source":"V = 3 A * 2 Ω = 6 V","id":"result","givens":44,"baseline":[2,2]},
   {"name":"legacy-coherent-omega-binding-wrong","target":"V","value":12,"unit":"V","source":"V = 3 A * 2 Ω = 12 V","id":"result","givens":44,"baseline":[2,2]},
   {"name":"legacy-coherent-ohms-segmented-binding","target":"V","value":36,"unit":"V","source":"V = 3 A * 2 ohms = 36 V","id":"result","givens":45,"baseline":[2,2]},
-  {"name":"legacy-derived-resistance-symbol-shadow","target":"V","value":36,"unit":"V","source":"V = 3 A * R = 36 V","id":"result","givens":46,"extras":[{"id":"other","symbol":"R","value":12,"unit":"m","sourceText":"R = 12 m","provenance":"derived"}],"baseline":[41,41]},
+  {"name":"legacy-derived-resistance-symbol-shadow","target":"V","value":36,"unit":"V","source":"V = 3 A * R = 36 V","id":"result","givens":46,"extras":[{"id":"other","symbol":"R","value":12,"unit":"m","sourceText":"R = 12 m","provenance":"derived"}],"baseline":[39,39]},
   {"name":"legacy-resistance-question-contradiction","target":"V","value":36,"unit":"V","source":"V = 3 A * R = 36 V","question":"Given A = 0.8 mm², I = 3 A, R = 16 Ω, and unrelated S = 12 Ω, determine V across R.","id":"result","givens":46,"baseline":[2,2]},
   {"name":"legacy-current-question-contradiction","target":"V","value":36,"unit":"V","source":"V = 3 A * R = 36 V","question":"Given A = 0.8 mm², I = 4 A, unrelated J = 3 A, and R = 12 Ω, determine V for I through R.","id":"result","givens":46,"baseline":[2,2]},
   {"name":"legacy-stale-resistance-unmatched-question","target":"V","value":2997,"unit":"V","source":"V = 3 A * R = 2997 V","question":"Given A = 0.8 mm², I = 3 A, and R = 12 Ω, determine V.","id":"result","givens":47,"baseline":[2,2]},
@@ -271,9 +272,7 @@ const baselineSnapshots: readonly BaselineSnapshot[] = freezeDeep([
   {"raw":{"valid":false,"issues":[{"code":"source_text_arithmetic_invalid","path":"derived[0].sourceText","message":"an independently checkable calculation in sourceText is arithmetically incorrect"}]},"patch":[{"path":["derived",0,"value"],"value":3.061616997868383e-15},{"path":["derived",0,"sourceText"],"value":"W = F*d*cos(theta) = 10*5*cos(90°) = 3.06161699787e-15 J"}],"reconciliations":[{"quantityId":"result","previousValue":1,"reconciledValue":3.061616997868383e-15}],"declined":[],"after":{"valid":true,"issues":[]}},
   {"raw":{"valid":false,"issues":[{"code":"source_text_arithmetic_invalid","path":"derived[0].sourceText","message":"an independently checkable calculation in sourceText is arithmetically incorrect"}]},"patch":[{"path":["derived",0,"value"],"value":40},{"path":["derived",0,"sourceText"],"value":"eta = a/b*100 = 40 %"}],"reconciliations":[{"quantityId":"result","previousValue":20,"reconciledValue":40}],"declined":[],"after":{"valid":true,"issues":[]}},
   {"raw":{"valid":false,"issues":[{"code":"source_text_value_mismatch","path":"derived[0].value","message":"declared value 20 disagrees with explicit arithmetic result 40"}]},"patch":[{"path":["derived",0,"value"],"value":40},{"path":["derived",0,"sourceText"],"value":"eta = a/b*100 = 40 %"}],"reconciliations":[{"quantityId":"result","previousValue":20,"reconciledValue":40}],"declined":[],"after":{"valid":true,"issues":[]}},
-  {"raw":{"valid":false,"issues":[{"code":"source_text_arithmetic_invalid","path":"derived[0].sourceText","message":"an independently checkable calculation in sourceText is arithmetically incorrect"}]},"patch":[{"path":["derived",0,"value"],"value":24},{"path":["derived",0,"sourceText"],"value":"I = 12 V / 6 Ω = 24 A"}],"reconciliations":[{"quantityId":"result","previousValue":2,"reconciledValue":24}],"declined":[],"after":{"valid":true,"issues":[]}},
-  {"raw":{"valid":false,"issues":[{"code":"source_text_arithmetic_invalid","path":"derived[0].sourceText","message":"an independently checkable calculation in sourceText is arithmetically incorrect"}]},"patch":[{"path":["derived",0,"value"],"value":24},{"path":["derived",0,"sourceText"],"value":"I = V/(R1+R2) = 12 V / 6 Ω = 24 A"}],"reconciliations":[{"quantityId":"result","previousValue":2,"reconciledValue":24}],"declined":[],"after":{"valid":true,"issues":[]}},
-  {"raw":{"valid":false,"issues":[{"code":"source_text_arithmetic_invalid","path":"derived[0].sourceText","message":"an independently checkable calculation in sourceText is arithmetically incorrect"}]},"patch":[{"path":["derived",0,"value"],"value":24},{"path":["derived",0,"sourceText"],"value":"I = (12 V)/(6 Ω) = 24 A"}],"reconciliations":[{"quantityId":"result","previousValue":2,"reconciledValue":24}],"declined":[],"after":{"valid":true,"issues":[]}},
+  {"raw":{"valid":false,"issues":[{"code":"source_text_arithmetic_invalid","path":"derived[0].sourceText","message":"an independently checkable calculation in sourceText is arithmetically incorrect"}]},"patch":[{"path":["derived",0,"value"],"value":2},{"path":["derived",0,"sourceText"],"value":"I = 12 V / 6 Ω = 2 A"}],"reconciliations":[{"quantityId":"result","previousValue":24,"reconciledValue":2}],"declined":[],"after":{"valid":true,"issues":[]}},
   {"raw":{"valid":false,"issues":[{"code":"source_text_arithmetic_invalid","path":"derived[1].sourceText","message":"an independently checkable calculation in sourceText is arithmetically incorrect"}]},"patch":[],"reconciliations":[],"declined":[],"after":{"valid":false,"issues":[{"code":"source_text_arithmetic_invalid","path":"derived[1].sourceText","message":"an independently checkable calculation in sourceText is arithmetically incorrect"}]}},
 ]);
 
@@ -367,5 +366,5 @@ for (const test of fixtures) {
   }
 }
 for (const failure of failures) console.error(`FAIL ${failure}`);
-console.log(`Ampere-area scope gate ${failures.length === 0 ? "GREEN" : "RED"}: ${failures.length} failures, ${checks} checks, ${plans} plans, ${fixtures.length} immutable fixtures; baseline 1e6e0181.`);
+console.log(`Ampere-area scope gate ${failures.length === 0 ? "GREEN" : "RED"}: ${failures.length} failures, ${checks} checks, ${plans} plans, ${fixtures.length} immutable fixtures; baseline 3ed3585b (#169 retained).`);
 if (failures.length > 0) process.exitCode = 1;

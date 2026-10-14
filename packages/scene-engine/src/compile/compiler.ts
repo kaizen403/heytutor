@@ -22,6 +22,7 @@ import {
   type LabelOwner,
   type TextInkBoundsMeasure,
 } from "../labels/labelEngine";
+import { bindOpticsLabelSides, solveWithSideBoundLabels } from "../labels/opticsLabelSides";
 // The engine reserves the room the board will letter into, so it measures with
 // the board's own glyph metrics rather than an average character box.
 import { measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
@@ -64,6 +65,9 @@ import {
 } from "./annotationMarks";
 import { appendCompiledAnnotations } from "./sceneAnnotations";
 import { lensSectionOutline, sphericalSurfaceGeometry } from "./opticsSurfaces";
+import { acuteNormalArm, clipLightPathsAtElements, truncateRenderedPath, validateAxisArrowsOnRays } from "./lightPathElements";
+import { continueLightLinesFromElements } from "./emergentLightLines";
+import { validateReflectionCriticalAngles } from "./reflectionCriticalAngle";
 import { readPolyhedralSolid, polyhedralPaths, polyhedralSection, type PolyhedralSolid } from "../math/polyhedralSolid";
 import { evaluateCombinatoricsConstruction, type CombinatoricsGraphDefinition, type CombinatoricsNodeDefinition, type CombinatoricsEdgeDefinition } from "./combinatoricsGeometry";
 import { evaluateElasticityConstruction, type ElasticProfileDefinition, type ElasticStateDefinition } from "./elasticityGeometry";
@@ -188,7 +192,7 @@ type DerivedGeometryMetadata = {
 
 type Geometry =
   | ({ kind: "point"; point: Point; space?: Vec3; spaceFrameId?: string; spaceCross?: SpaceCrossDefinition; sampledCurve?: SampledCurve } & DerivedGeometryMetadata)
-  | ({ kind: "path"; points: Point[]; closed?: boolean; directed?: boolean; infinite?: boolean; sampledCurve?: SampledCurve; markedAngleRadians?: number; spaceLine?: SpaceLineDefinition; spacePlane?: SpacePlaneDefinition; spaceSegment?: SpaceSegmentDefinition; spaceAngle?: SpaceAngleDefinition; spaceCross?: SpaceCrossDefinition } & DerivedGeometryMetadata)
+  | ({ kind: "path"; points: Point[]; closed?: boolean; directed?: boolean; infinite?: boolean; elementClip?: Point; throughFoot?: Point; sampledCurve?: SampledCurve; markedAngleRadians?: number; spaceLine?: SpaceLineDefinition; spacePlane?: SpacePlaneDefinition; spaceSegment?: SpaceSegmentDefinition; spaceAngle?: SpaceAngleDefinition; spaceCross?: SpaceCrossDefinition } & DerivedGeometryMetadata)
   | ({
       kind: "multi_path";
       paths: Point[][];
@@ -391,6 +395,50 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   validateDisplayDescendantClaims(document, geometry, checkedClaimOutputIds, issues);
   validateSolidMeasurements(document, issues, (value) => resolveNumber(value, quantities));
   for (const assertion of document.assertions) validateAssertion(assertion, geometry, document, issues);
+  if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, 0) };
+  // Light stops at the optical elements it meets: cut outgoing rays at their
+  // first crossing, refuse an incident ray that crosses one before its contact.
+  const drawnEntityIds = new Set(document.requiredEntityIds);
+  const drawnInk = (id: string) => drawnEntityIds.has(id) && !constructionOnlyIds.has(id) && entityToGroup.has(id) &&
+    document.entities.some((entity) => entity.id === id && entity.kind !== "label");
+  clipLightPathsAtElements({
+    document,
+    geometry,
+    drawn: drawnInk,
+    resolvePoint: (value) => resolvePoint(value, geometry),
+    resolveNumber: (value) => {
+      if (value === undefined || value === null) return null;
+      try { return resolveNumber(value, quantities); } catch { return null; }
+    },
+    issues,
+  });
+  // A line built parallel to a declared ray carries that light: drawn from
+  // where it leaves the glass, never straight through it.
+  continueLightLinesFromElements({ document, geometry, drawn: drawnInk, issues });
+  // Object and image arrows on an optical axis stand on the rays drawn there.
+  validateAxisArrowsOnRays({
+    document,
+    geometry,
+    drawn: drawnInk,
+    resolveNumber: (value) => {
+      if (value === undefined || value === null) return null;
+      try { return resolveNumber(value, quantities); } catch { return null; }
+    },
+    issues,
+  });
+  // A reflection on an interface with declared indices is total only above
+  // the critical angle; below it the refraction there must be drawn.
+  validateReflectionCriticalAngles({
+    document,
+    geometry,
+    drawn: drawnInk,
+    resolvePoint: (value) => resolvePoint(value, geometry),
+    resolveNumber: (value) => {
+      if (value === undefined || value === null) return null;
+      try { return resolveNumber(value, quantities); } catch { return null; }
+    },
+    issues,
+  });
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, 0) };
   issues.push(...validateCircleLabelTraces(document));
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, 0) };
@@ -722,7 +770,9 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     }
   }
 
-  const uniqueLabelOwners = [...labelOwners.filter((owner, index, all) => {
+  // A label on a refraction or reflection keeps its medium's side; a medium
+  // label on a refraction interface that names no side is dropped.
+  const uniqueLabelOwners = bindOpticsLabelSides(document, geometry, transformPlan.transformFor, [...labelOwners.filter((owner, index, all) => {
     if (owner.labelId && summaryLabelIds.has(owner.labelId)) {
       return all.findIndex((candidate) => candidate.labelId === owner.labelId) === index;
     }
@@ -730,7 +780,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       candidate.entityId === owner.entityId &&
       (!candidate.labelId || !summaryLabelIds.has(candidate.labelId))
     ) === index;
-  }), ...annotationLabelOwners];
+  }), ...annotationLabelOwners], summaryLabelIds);
   const pinDsaLabels = document.source.synthesizedDsa === true;
   // A chemistry figure pins its atom symbols on the atom itself (an element
   // symbol beside a bond junction reads as a substituent) while its bond
@@ -770,26 +820,30 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     // rejected labels the document had already accepted.
     ? { fontHeightPx: DSA_LABEL_FONT_PX, paddingPx: 3, minGapPx: 4, maxLabelChars: 16, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk }
     : { measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk };
-  const stackedOwners = pinDsaLabels
-    ? null
-    : stackSummaryLabelOwners(document, placementOwners, summaryLabelIds, primitives, labelObstacles, labelOptions);
-  let labels = placeLabels(stackedOwners ?? placementOwners, labelObstacles, labelOptions);
-  if (stackedOwners && labels.issues.length > 0) {
-    const solved = placeLabels(placementOwners, labelObstacles, labelOptions);
-    if (solved.issues.length < labels.issues.length) labels = solved;
-  }
-  if (axisLetterOwners.length > 0 && labels.issues.length > 0) {
-    // Axis letters are presentation only: a figure whose own labels need
-    // their room keeps those labels and draws its axes unlettered.
-    const letterIds = new Set(axisLetterOwners.map((owner) => owner.labelId));
-    const withoutLetters = (owners: LabelOwner[]) => owners.filter((owner) => !letterIds.has(owner.labelId));
-    let plain = placeLabels(withoutLetters(stackedOwners ?? placementOwners), labelObstacles, labelOptions);
-    if (stackedOwners && plain.issues.length > 0) {
-      const solved = placeLabels(withoutLetters(placementOwners), labelObstacles, labelOptions);
-      if (solved.issues.length < plain.issues.length) plain = solved;
+  const solveOwners = (owners: LabelOwner[]) => {
+    const stackedOwners = pinDsaLabels
+      ? null
+      : stackSummaryLabelOwners(document, owners, summaryLabelIds, primitives, labelObstacles, labelOptions);
+    let solved = placeLabels(stackedOwners ?? owners, labelObstacles, labelOptions);
+    if (stackedOwners && solved.issues.length > 0) {
+      const unstacked = placeLabels(owners, labelObstacles, labelOptions);
+      if (unstacked.issues.length < solved.issues.length) solved = unstacked;
     }
-    if (plain.issues.length < labels.issues.length) labels = plain;
-  }
+    if (axisLetterOwners.length > 0 && solved.issues.length > 0) {
+      // Axis letters are presentation only: a figure whose own labels need
+      // their room keeps those labels and draws its axes unlettered.
+      const letterIds = new Set(axisLetterOwners.map((owner) => owner.labelId));
+      const withoutLetters = (list: LabelOwner[]) => list.filter((owner) => !letterIds.has(owner.labelId));
+      let plain = placeLabels(withoutLetters(stackedOwners ?? owners), labelObstacles, labelOptions);
+      if (stackedOwners && plain.issues.length > 0) {
+        const unstacked = placeLabels(withoutLetters(owners), labelObstacles, labelOptions);
+        if (unstacked.issues.length < plain.issues.length) plain = unstacked;
+      }
+      if (plain.issues.length < solved.issues.length) solved = plain;
+    }
+    return solved;
+  };
+  const labels = solveWithSideBoundLabels(placementOwners, solveOwners);
   for (const issue of labels.issues) {
     issues.push({
       code: issue.code,
@@ -1657,8 +1711,21 @@ function evaluateConstruction(
     }
     case "angle_mark": {
       const vertex = point(["vertex"]);
-      const a = resolveAngleArmPoint(first(inputs, ["a", "first"]), vertex, geometry);
-      const b = resolveAngleArmPoint(first(inputs, ["b", "second"]), vertex, geometry);
+      const aRef = first(inputs, ["a", "first"]);
+      const bRef = first(inputs, ["b", "second"]);
+      let a = resolveAngleArmPoint(aRef, vertex, geometry);
+      let b = resolveAngleArmPoint(bRef, vertex, geometry);
+      // An angle between a normal and a light path uses the normal half on
+      // the path's side; that half is then drawn through the contact.
+      const acute = acuteNormalArm(document, vertex, { ref: aRef, point: a }, { ref: bRef, point: b });
+      if (acute) {
+        if (acute.arm === "first") a = acute.point;
+        else b = acute.point;
+        const normal = geometry.get(acute.normalId);
+        if (normal?.kind === "path" && !normal.infinite && normal.points.length === 2) {
+          geometry.set(acute.normalId, { ...normal, throughFoot: vertex });
+        }
+      }
       const radius = inputs.radius === undefined
         ? Math.min(distance(vertex, a), distance(vertex, b)) * 0.2
         : positive(resolveNumber(inputs.radius, quantities), "radius");
@@ -2436,6 +2503,22 @@ function toPrimitives(entityId: string, entityKind: string, value: Geometry, gro
         viewport,
       )
     : transformedPoints;
+  // A normal whose far half carries an angle mark is drawn through its foot.
+  if (value.throughFoot && !value.infinite && value.points.length === 2 && renderPoints.length === 2) {
+    const foot = transform(value.throughFoot);
+    const [start, end] = renderPoints as [RenderPoint, RenderPoint];
+    const footAtStart = distance(start, foot) <= distance(end, foot);
+    const far = footAtStart ? end : start;
+    const mirrored = { x: round(2 * foot.x - far.x), y: round(2 * foot.y - far.y) };
+    // Only the added half is held inside the view; the drawn half keeps its extent.
+    const tail = clipSegmentToView(foot, mirrored, viewport)?.[1];
+    if (tail) renderPoints = footAtStart ? [tail, far] : [far, tail];
+  }
+  // A light path cut at an optical element stops there, inside or past the view clip.
+  if (value.elementClip && renderPoints.length >= 2) {
+    const clip = transform(value.elementClip);
+    renderPoints = truncateRenderedPath(renderPoints, { x: round(clip.x), y: round(clip.y) });
+  }
   if (directionOverlay && renderPoints.length >= 2) {
     renderPoints = offsetDirectionMarker(renderPoints[0]!, renderPoints.at(-1)!);
   }
@@ -3910,8 +3993,14 @@ function opticalTrainGeometry(
   const finalRef = inputs.finalImage !== undefined ? inputs.finalImage : inputs.virtualImage;
   const object = objectRef === undefined ? null : resolvePoint(objectRef, geometry);
   const finalImage = finalRef === undefined ? null : resolvePoint(finalRef, geometry);
-  const incomingUpperStart = object ? offset(object, beamHalfHeight) : advance(objectiveUpper, -raySpan);
-  const incomingLowerStart = object ? offset(object, -beamHalfHeight) : advance(objectiveLower, -raySpan);
+  if (object) {
+    return finiteObjectTrainGeometry({
+      objectiveCenter, eyepieceCenter, axisDirection, transverse, elementSeparation,
+      object, focus, finalImage, beamHalfHeight, raySpan,
+    });
+  }
+  const incomingUpperStart = advance(objectiveUpper, -raySpan);
+  const incomingLowerStart = advance(objectiveLower, -raySpan);
   const outgoingDirection = (hit: Point): Point => {
     if (!finalImage) return axisDirection;
     const delta = { x: hit.x - finalImage.x, y: hit.y - finalImage.y };
@@ -3932,6 +4021,84 @@ function opticalTrainGeometry(
     { kind: "path", directed: true, points: [objectiveLower, focus, eyepieceLower] },
     { kind: "path", directed: true, points: [eyepieceUpper, outgoingUpperEnd] },
     { kind: "path", directed: true, points: [eyepieceLower, outgoingLowerEnd] },
+  ];
+}
+
+/**
+ * Rays of an instrument with a finite object. They leave the object point,
+ * one parallel to the axis and one through the objective centre (two from
+ * the axis point at the beam height when the object sits on the axis). Each
+ * runs straight through the intermediate image, which is where the chief ray
+ * meets the transverse through `focus`, on to the eyepiece. Leaving it, the
+ * rays diverge from (or converge to) the final image, where the chief ray
+ * through the eyepiece centre meets the transverse through `finalImage`;
+ * with no final image they leave parallel to that chief ray (image at
+ * infinity). Tips of arrows drawn at those image points therefore lie on the
+ * rays or their straight extensions.
+ */
+function finiteObjectTrainGeometry(train: {
+  objectiveCenter: Point; eyepieceCenter: Point; axisDirection: Point; transverse: Point; elementSeparation: number;
+  object: Point; focus: Point; finalImage: Point | null; beamHalfHeight: number; raySpan: number;
+}): Geometry[] {
+  const { objectiveCenter, axisDirection, transverse, elementSeparation, beamHalfHeight, raySpan } = train;
+  const along = (point: Point) =>
+    (point.x - objectiveCenter.x) * axisDirection.x + (point.y - objectiveCenter.y) * axisDirection.y;
+  const across = (point: Point) =>
+    (point.x - objectiveCenter.x) * transverse.x + (point.y - objectiveCenter.y) * transverse.y;
+  const at = (s: number, h: number): Point => ({
+    x: objectiveCenter.x + axisDirection.x * s + transverse.x * h,
+    y: objectiveCenter.y + axisDirection.y * s + transverse.y * h,
+  });
+  const tolerance = elementSeparation * 1e-6;
+  const sObject = along(train.object);
+  const hObject = across(train.object);
+  const sImage = along(train.focus);
+  const sEyepiece = elementSeparation;
+  if (!(sObject < -tolerance)) throw new Error("optical_train object must lie before the objective");
+  if (!(sImage > tolerance && sImage < sEyepiece - tolerance)) {
+    throw new Error("optical_train focus must lie between the objective and the eyepiece when an object is given");
+  }
+  // Chief ray through the objective centre: h(s) = hObject * s / sObject.
+  const hImage = hObject * sImage / sObject;
+  const image = at(sImage, hImage);
+  const onAxis = Math.abs(hObject) <= tolerance;
+  const objectiveHits = onAxis
+    ? [at(0, beamHalfHeight), at(0, -beamHalfHeight)]
+    : [at(0, hObject), at(0, 0)];
+  const eyepieceHits = objectiveHits.map((hit) => {
+    const hHit = across(hit);
+    return at(sEyepiece, hHit + (hImage - hHit) * sEyepiece / sImage);
+  });
+  let finalPoint: Point | null = null;
+  let finalIsReal = false;
+  if (train.finalImage) {
+    const sFinal = along(train.finalImage);
+    if (Math.abs(sFinal - sEyepiece) <= tolerance) throw new Error("optical_train final image cannot sit on the eyepiece");
+    // Chief ray through the eyepiece centre: h(s) = hImage * (s - sEyepiece) / (sImage - sEyepiece).
+    finalPoint = at(sFinal, hImage * (sFinal - sEyepiece) / (sImage - sEyepiece));
+    finalIsReal = sFinal > sEyepiece;
+  }
+  const outgoing = (hit: Point): Point[] => {
+    if (!finalPoint) {
+      const direction = Math.abs(hImage) <= tolerance
+        ? axisDirection
+        : normalize({ x: train.eyepieceCenter.x - image.x, y: train.eyepieceCenter.y - image.y });
+      return [hit, { x: hit.x + direction.x * raySpan, y: hit.y + direction.y * raySpan }];
+    }
+    const delta = finalIsReal
+      ? { x: finalPoint.x - hit.x, y: finalPoint.y - hit.y }
+      : { x: hit.x - finalPoint.x, y: hit.y - finalPoint.y };
+    const direction = Math.hypot(delta.x, delta.y) < EPSILON ? axisDirection : normalize(delta);
+    const length = finalIsReal ? distance(hit, finalPoint) + raySpan * 0.5 : raySpan;
+    return [hit, { x: hit.x + direction.x * length, y: hit.y + direction.y * length }];
+  };
+  return [
+    { kind: "path", directed: true, points: [train.object, objectiveHits[0]!] },
+    { kind: "path", directed: true, points: [train.object, objectiveHits[1]!] },
+    { kind: "path", directed: true, points: [objectiveHits[0]!, image, eyepieceHits[0]!] },
+    { kind: "path", directed: true, points: [objectiveHits[1]!, image, eyepieceHits[1]!] },
+    { kind: "path", directed: true, points: outgoing(eyepieceHits[0]!) },
+    { kind: "path", directed: true, points: outgoing(eyepieceHits[1]!) },
   ];
 }
 
@@ -4861,6 +5028,11 @@ function screenLabelAnchor(entityId: string, value: Geometry, primitives: Render
     const start = rendered?.points[0];
     const end = rendered?.points.at(-1);
     if (start && end) {
+      // A ray cut at an optical element is a finite stroke; label it like one.
+      if (value.elementClip) {
+        const clip = transform(value.elementClip);
+        if (Math.hypot(end.x - clip.x, end.y - clip.y) < 1) return labelAnchorForPath([start, end], value.directed === true, false);
+      }
       // Infinite lines are clipped independently of their construction span.
       // A label leader must attach to the visible stroke, not an off-board
       // endpoint retained solely for the mathematical line definition.
