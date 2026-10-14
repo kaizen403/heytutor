@@ -75,13 +75,17 @@ function setInputs(document: RecordedDocument, id: string, inputs: Record<string
  * at the fibre's own contact. `drawn` false declares the refracted ray as a
  * group entity: validation lets a group stay out of requiredEntityIds and the
  * reveal groups, so the compiler computes the ray and never draws it. At
- * another contact everything else is hidden too.
+ * another contact everything else is hidden too. With other `indices` than
+ * 1.58 to 1.47, the light at another contact meets the boundary at 26.6
+ * degrees, below their critical angle, so it refracts.
  */
-function declareIndices(document: RecordedDocument, options: { sameContact?: boolean; drawn?: boolean; literal?: boolean } = {}): void {
+function declareIndices(document: RecordedDocument, options: { sameContact?: boolean; drawn?: boolean; literal?: boolean; indices?: [number, number] } = {}): void {
   const drawn = options.drawn ?? true;
+  const [n1, n2] = options.indices ?? [1.58, 1.47];
+  const leakDirection = options.indices ? [1, 2] : [1, 1];
   if (options.sameContact) {
     document.entities.push({ id: "leakOut", kind: drawn ? "ray" : "group", role: "light refracted into the cladding" });
-    document.constructions.push({ id: "makeLeakOut", operator: "refract_direction", inputs: { origin: "contact", incoming: options.literal ? [1, 2] : "incoming", normal: "contactNormal", n1: 1.58, n2: 1.47 }, outputs: ["leakOut"] });
+    document.constructions.push({ id: "makeLeakOut", operator: "refract_direction", inputs: { origin: "contact", incoming: options.literal ? [1, 2] : "incoming", normal: "contactNormal", n1, n2 }, outputs: ["leakOut"] });
     if (drawn) show(document, ["leakOut"]);
     return;
   }
@@ -111,9 +115,9 @@ function declareIndices(document: RecordedDocument, options: { sameContact?: boo
   );
   document.constructions.push(
     { id: "makeLeakOrigin", operator: "point", inputs: { x: -4, y: -2, coordinateSpace: "world" }, outputs: ["leakOrigin"] },
-    { id: "makeLeak", operator: "surface_contact", inputs: { origin: "leakOrigin", surface: "boundary", direction: [1, 1] }, outputs: ["leak", "leakIncoming"] },
+    { id: "makeLeak", operator: "surface_contact", inputs: { origin: "leakOrigin", surface: "boundary", direction: leakDirection }, outputs: ["leak", "leakIncoming"] },
     { id: "makeLeakNormal", operator: "normal_at", inputs: { point: "leak", surface: "boundary" }, outputs: ["leakNormal"] },
-    { id: "makeLeakOut", operator: "refract_direction", inputs: { origin: "leak", incoming: options.literal ? [1, 1] : "leakIncoming", normal: "leakNormal", n1: 1.58, n2: 1.47 }, outputs: ["leakOut"] },
+    { id: "makeLeakOut", operator: "refract_direction", inputs: { origin: "leak", incoming: options.literal ? leakDirection : "leakIncoming", normal: "leakNormal", n1, n2 }, outputs: ["leakOut"] },
   );
   show(document, ["leakOrigin", "leak", "leakIncoming", "leakNormal", "leakOut"]);
 }
@@ -198,6 +202,23 @@ check("control: a drawn refraction at the contact admits the partial reflection 
     declareIndices(document, { sameContact: true, literal: true });
     setInputs(document, "makeReflection", { incoming: [1, 2] });
   }), ["reflected", "leakOut"]));
+
+// Tolerance: PRRT_kwDOTGXbp86sZyRj. A 0.1 degree margin above the critical angle refused a
+// correct total internal reflection just above it; only a numerical allowance remains.
+// Declared 1.5 to 1: critical angle asin(1 / 1.5) = 41.81 degrees.
+const incomingAt = (degrees: number) => [Math.sin(degrees * Math.PI / 180), Math.cos(degrees * Math.PI / 180)];
+
+check("just above the critical angle: total internal reflection at 41.85 degrees with declared 1.5 to 1 (critical 41.81) compiles", () =>
+  compiles(fibre((document) => {
+    declareIndices(document, { indices: [1.5, 1] });
+    setInputs(document, "makeContact", { direction: incomingAt(41.85) });
+  }), ["reflected", "leakOut"]));
+
+check("control: a lone reflection at 41.5 degrees, below the 41.81 degree critical angle of 1.5 to 1, is refused", () =>
+  refused(fibre((document) => {
+    declareIndices(document, { indices: [1.5, 1] });
+    setInputs(document, "makeContact", { direction: incomingAt(41.5) });
+  }), "a lone reflection 0.3 degrees below the critical angle"));
 
 console.log(`${passed} passed, ${failures.length} failed`);
 if (failures.length > 0) process.exit(1);

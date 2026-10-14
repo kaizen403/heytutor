@@ -11,7 +11,7 @@
  * by the numeric n1 and n2 inputs of the refractions on it (`refract_at`,
  * `refract_direction`), n1 on the side its incident ray comes from. For each
  * reflection (`reflect_at`, `reflect_direction`) on such an interface:
- * - from the denser side, the incidence must exceed the critical angle, or a
+ * - from the denser side, the incidence must reach the critical angle, or a
  *   refraction must leave from the same contact;
  * - from the rarer side no reflection is total, so a reflection whose drawn
  *   label or callout says it is total internal reflection needs that
@@ -57,8 +57,12 @@ export interface ReflectionCriticalAngleInput {
   issues: SceneIssue[];
 }
 
-/** Incidence above the critical angle by at least this much reads as total. */
-const CRITICAL_MARGIN_DEG = 0.1;
+/**
+ * Numerical allowance only: incidence at or above the critical angle is
+ * total, within this much for rounding in the drawn directions. Anything
+ * clearly below it is refused.
+ */
+const CRITICAL_TOLERANCE_DEG = 0.01;
 const TOTAL_INTERNAL_REFLECTION_TEXT = /total(?:ly)?[\s-]+internal(?:ly)?[\s-]+reflect|\bTIR\b/i;
 
 export function validateReflectionCriticalAngles(input: ReflectionCriticalAngleInput): void {
@@ -123,7 +127,7 @@ export function validateReflectionCriticalAngles(input: ReflectionCriticalAngleI
     const incidence = Math.acos(Math.min(1, Math.abs(dot(reflection.incoming, normal)))) * 180 / Math.PI;
     if (incidentIndex > farIndex) {
       const critical = Math.asin(farIndex / incidentIndex) * 180 / Math.PI;
-      if (incidence >= critical + CRITICAL_MARGIN_DEG) continue;
+      if (incidence >= critical - CRITICAL_TOLERANCE_DEG) continue;
       input.issues.push({
         code: "reflection_below_critical_angle",
         message: `${reflection.constructionId} reflects at ${incidence.toFixed(1)} degrees to the normal, not above the ${critical.toFixed(1)} degree critical angle of the declared indices (${incidentIndex} to ${farIndex}); light refracts out there and no refraction is drawn`,
