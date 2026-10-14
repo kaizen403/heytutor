@@ -936,6 +936,65 @@ check("control: the same line along a glass ball's diameter runs on through it (
   return null;
 });
 
+// Fifth review of #164 (thread "Light passes through mirrors"): the mirror test read a
+// reflection's incoming light only from a path id, but reflect_direction also takes a
+// literal direction. With `incoming: [1, 0]` (or { x: 1, y: 0 }) the reflecting ball
+// counted as glass, so a ray along its diameter, and a line parallel to it through
+// its contact, ran straight through it.
+const ballAlongDiameter = (body: "mirror" | "glass", incoming: unknown, form: "ray" | "line" = "ray") => scene(body === "mirror"
+  ? "Light reflects from a polished steel ball; another ray runs along a diameter."
+  : "Light refracts into a glass ball; another ray runs along a diameter.", [
+  { id: "C", kind: "point", role: "centre", label: "C" }, { id: "ball", kind: "circle", role: body === "mirror" ? "reflecting ball" : "glass ball" },
+  { id: "hit", kind: "point", role: "point of incidence" }, { id: "nrm", kind: "segment", role: "normal" },
+  { id: "out", kind: "ray", role: body === "mirror" ? "reflected ray" : "refracted ray" },
+  { id: "src", kind: "point", role: "source" }, { id: "end", kind: "point", role: form === "ray" ? "far point" : "contact on the diameter" },
+  { id: "axial", kind: "ray", role: "ray along the diameter" },
+  ...form === "line" ? [{ id: "onward", kind: "line", role: "line parallel to the ray" }] : [],
+], [
+  point("C", 0, 0),
+  { id: "make_ball", operator: "circle", inputs: { center: "C", radius: 1.5 }, outputs: ["ball"] },
+  point("hit", -Math.sqrt(1.5 ** 2 - 0.75 ** 2), 0.75), point("src", -4, 0), point("end", form === "ray" ? 4 : -1.5, 0),
+  { id: "normal", operator: "normal_at", inputs: { point: "hit", surface: "ball" }, outputs: ["nrm"] },
+  body === "mirror"
+    ? { id: "bounce", operator: "reflect_direction", inputs: { origin: "hit", incoming, normal: "nrm" }, outputs: ["out"] }
+    : { id: "bend", operator: "refract_direction", inputs: { origin: "hit", incoming, normal: "nrm", n1: 1, n2: 1.5 }, outputs: ["out"] },
+  { id: "make_axial", operator: "segment", inputs: { start: "src", end: "end" }, outputs: ["axial"] },
+  ...form === "line" ? [{ id: "make_onward", operator: "parallel_through", inputs: { through: "end", line: "axial" }, outputs: ["onward"] }] : [],
+]);
+
+for (const [form, incoming] of [["[1, 0]", [1, 0]], ["{ x: 1, y: 0 }", { x: 1, y: 0 }]] as const) {
+  check(`a reflecting ball with literal incoming ${form} cuts a ray along its diameter at its surface`, () => {
+    const { ok, primitives, fatal } = compile(ballAlongDiameter("mirror", incoming));
+    if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
+    const ball = stroke(primitives, "ball");
+    const surface = ball.points[0]!.x - ball.radius!;
+    const end = Math.max(...xs(stroke(primitives, "axial")));
+    return Math.abs(end - surface) > 1.5 ? `the ray ends at x ${end.toFixed(1)}, through the mirror (its near surface is at x ${surface.toFixed(1)})` : null;
+  });
+}
+
+check("control: a glass ball with literal incoming [1, 0] lets the ray along its diameter through", () => {
+  const { ok, primitives, fatal } = compile(ballAlongDiameter("glass", [1, 0]));
+  if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
+  const ball = stroke(primitives, "ball");
+  const far = ball.points[0]!.x + ball.radius! * 4 / 1.5;
+  const end = Math.max(...xs(stroke(primitives, "axial")));
+  return Math.abs(end - far) > 1.5 ? `the ray ends at x ${end.toFixed(1)}, not at its far point x ${far.toFixed(1)}` : null;
+});
+
+check("a line parallel to a ray along a reflecting ball's diameter, the reflection's incoming literal [1, 0], is refused (R6)", () => {
+  const { ok, primitives, fatal } = compile(ballAlongDiameter("mirror", [1, 0], "line"));
+  if (ok) return `compiled with the line running to x ${Math.max(...xs(stroke(primitives, "onward"))).toFixed(0)} through the mirror`;
+  return fatalCodes(fatal).includes("light_line_crosses_element") ? null : `failed with ${fatalCodes(fatal).join(", ")}, not light_line_crosses_element`;
+});
+
+check("control: the same line along a glass ball's diameter, incoming literal [1, 0], runs on through it (R6)", () => {
+  const { ok, primitives, fatal } = compile(ballAlongDiameter("glass", [1, 0], "line"));
+  if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
+  const ball = stroke(primitives, "ball");
+  return Math.max(...xs(stroke(primitives, "onward"))) < ball.points[0]!.x + ball.radius! + 1.5 ? "the line does not run on through the glass ball" : null;
+});
+
 // Controls: thick glass crossed a little away from the normal, and a mirror met along
 // its normal, still stop the light.
 const slabNearNormal = () => scene("A ray refracts into a glass slab at 10 degrees.", [

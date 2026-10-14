@@ -455,19 +455,36 @@ function glassBody(
   if (roles.thinLenses.has(id) || roles.refracting.has(id)) return true;
   if (!isClosed(value)) return false;
   return !roles.reflections.some((reflection) => {
-    if (reflection.surface !== id || typeof reflection.incoming !== "string") return false;
-    const incoming = geometry.get(reflection.incoming);
-    if (!isPath(incoming) || incoming.points.length < 2 || !incoming.points.every(finitePoint)) return false;
-    const start = incoming.points[0]!;
-    const next = incoming.infinite ? incoming.points[1]! : incoming.points.at(-1)!;
-    const length = distance(start, next);
-    if (!(length > 0)) return false;
-    let contact: Point;
-    try { contact = reflection.contact === undefined ? next : resolvePoint(reflection.contact); } catch { return false; }
-    if (!finitePoint(contact)) return false;
-    const probe = { x: contact.x - (next.x - start.x) / length * 4 * tolerance, y: contact.y - (next.y - start.y) / length * 4 * tolerance };
+    if (reflection.surface !== id) return false;
+    // The light a reflection receives: a drawn path, or a literal direction as the compiler's resolveVector reads it.
+    const literal = literalDirection(reflection.incoming);
+    const incoming = typeof reflection.incoming === "string" ? geometry.get(reflection.incoming) : undefined;
+    let travel: Point;
+    let end: Point | undefined;
+    if (literal) travel = literal;
+    else if (isPath(incoming) && incoming.points.length >= 2 && incoming.points.every(finitePoint)) {
+      const start = incoming.points[0]!;
+      end = incoming.infinite ? incoming.points[1]! : incoming.points.at(-1)!;
+      travel = subtract(end, start);
+    } else return false;
+    const length = Math.hypot(travel.x, travel.y);
+    if (!(length > 0) || !Number.isFinite(length)) return false;
+    let contact: Point | undefined;
+    try { contact = reflection.contact === undefined ? end : resolvePoint(reflection.contact); } catch { return false; }
+    if (!contact || !finitePoint(contact)) return false;
+    const probe = { x: contact.x - travel.x / length * 4 * tolerance, y: contact.y - travel.y / length * 4 * tolerance };
     return !insideElement(probe, value);
   });
+}
+
+/** A literal direction, [x, y] or { x, y }, as the compiler's resolveVector reads it. */
+function literalDirection(value: unknown): Point | null {
+  if (Array.isArray(value) && value.length === 2 && value.every((item) => typeof item === "number")) return { x: value[0] as number, y: value[1] as number };
+  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+    const { x, y } = value as Record<string, unknown>;
+    if (typeof x === "number" && typeof y === "number") return { x, y };
+  }
+  return null;
 }
 
 /** A point reference resolved from compiled geometry: a point id or a literal [x, y]. */
