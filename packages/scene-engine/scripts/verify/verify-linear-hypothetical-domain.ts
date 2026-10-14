@@ -1,3 +1,4 @@
+// Fourth-check contract: unproved discrete mentions now decline by default.
 import assert from "node:assert/strict";
 import { buildLinearSourceDocument, compileSceneDocument, type SceneDocument } from "../../src/index";
 import { validateLinearSourceBinding } from "../../src/compile/linearRegionSource";
@@ -18,10 +19,10 @@ function check(name: string, action: () => void): void {
 }
 const exact = "Graph x<4 on a number line. Discuss a hypothetical graph of x<4 for integer x.";
 check("hypothetical request supplies no independent source figure", () => assert.equal(buildLinearSourceDocument(exact), null));
-check("hypothetical request supplies no independent discrete veto", () => assert.deepEqual(validateLinearSourceBinding(candidate(exact)), []));
-check("the correct supplied continuous figure compiles through the public boundary", () => {
+check("hypothetical discrete cue fails closed", () => assert(validateLinearSourceBinding(candidate(exact)).some(issue => issue.code === "linear_source_mismatch")));
+check("the continuous figure is refused through the public boundary", () => {
   const document = candidate(exact), before = structuredClone(document), result = compileSceneDocument(document);
-  assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  assert(!result.ok && result.renderScene === null, JSON.stringify(result.report.issues));
   assert.deepEqual(document, before);
 });
 for (const [name, statement] of [
@@ -33,10 +34,10 @@ for (const [name, statement] of [
 ] as const) {
   const question = `Graph x<4 on a number line. ${statement}`;
   check(`${name}: uncertainty supplies no source figure`, () => assert.equal(buildLinearSourceDocument(question), null));
-  check(`${name}: mention supplies no independent type`, () => assert.deepEqual(validateLinearSourceBinding(candidate(question)), []));
-  check(`${name}: continuous public candidate remains complete and immutable`, () => {
+  check(`${name}: mentioned discrete cue fails closed`, () => assert(validateLinearSourceBinding(candidate(question)).some(issue => issue.code === "linear_source_mismatch")));
+  check(`${name}: continuous public candidate refuses atomically and stays immutable`, () => {
     const document = candidate(question), before = structuredClone(document), result = compileSceneDocument(document);
-    assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+    assert(!result.ok && result.renderScene === null, JSON.stringify(result.report.issues));
     assert.deepEqual(document, before);
   });
 }
@@ -65,11 +66,11 @@ check("integer coefficients leave both reader and supplied figure continuous", (
   assert.ok(compileSceneDocument(candidate(question)).ok);
 });
 for (const statement of ["Explain whether x is an integer.", "Discuss the integer convention.", "Explain a hypothetical graph of x<4 if x might be an integer."]) {
-  check(`unproved request stays neutral: ${statement}`, () => {
+  check(`unproved discrete request fails closed: ${statement}`, () => {
     const question = `Graph x<4 on a number line. ${statement}`;
     assert.equal(buildLinearSourceDocument(question), null);
-    assert.deepEqual(validateLinearSourceBinding(candidate(question)), []);
-    assert.ok(compileSceneDocument(candidate(question)).ok);
+    assert(validateLinearSourceBinding(candidate(question)).some(issue => issue.code === "linear_source_mismatch"));
+    assert(!compileSceneDocument(candidate(question)).ok);
   });
 }
 for (const statement of [
@@ -78,8 +79,8 @@ for (const statement of [
 ]) {
   const question = `Graph x<4 on a number line. ${statement}`;
   check(`secondary mentioned graph remains uncertain: ${statement}`, () => assert.equal(buildLinearSourceDocument(question), null));
-  check(`secondary mentioned graph does not type the primary figure: ${statement}`, () => assert.deepEqual(validateLinearSourceBinding(candidate(question)), []));
-  check(`primary figure remains drawable beside mentioned graph: ${statement}`, () => assert.ok(compileSceneDocument(candidate(question)).ok));
+  check(`secondary discrete cue fails closed: ${statement}`, () => assert(validateLinearSourceBinding(candidate(question)).some(issue => issue.code === "linear_source_mismatch")));
+  check(`primary continuous figure is refused beside a discrete cue: ${statement}`, () => assert(!compileSceneDocument(candidate(question)).ok));
   for (const given of [`Given x is an integer. ${question}`, `${question} Given x is an integer.`]) {
     check(`a real given survives the secondary graph role: ${given}`, () => {
       const result = compileSceneDocument(candidate(given));

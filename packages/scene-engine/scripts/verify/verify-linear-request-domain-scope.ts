@@ -1,3 +1,4 @@
+// Fourth-check contract: unproved discrete mentions now decline by default.
 import assert from "node:assert/strict";
 import { buildLinearSourceDocument, compileSceneDocument, type SceneDocument } from "../../src/index";
 import { validateLinearSourceBinding } from "../../src/compile/linearRegionSource";
@@ -52,9 +53,9 @@ for (const modifier of ["also", "additionally", "then", "separately", "now", "ex
     ["polite modal request", "can you graph x<4 on a number line for integer x?"],
     ["independent domain statement", "x is an integer for the actual graph, and graph x<4 on a number line."],
   ] as const) restrictive(`${modifier} ${name}`, `${mention}, and ${modifier} ${request}`);
-  neutral(`${modifier} secondary hypothetical object`, `Graph x<4 on a number line, and ${modifier} explain a hypothetical graph of x<4 for integer x.`);
-  neutral(`${modifier} negated draw request`, `Graph x<4 on a number line, and ${modifier} do not graph x<4 for integer x.`);
-  neutral(`${modifier} quoted display content`, `Graph x<4 on a number line, and ${modifier} label the graph with the text "for integer x".`);
+  restrictive(`${modifier} secondary hypothetical object`, `Graph x<4 on a number line, and ${modifier} explain a hypothetical graph of x<4 for integer x.`);
+  restrictive(`${modifier} negated draw request`, `Graph x<4 on a number line, and ${modifier} do not graph x<4 for integer x.`);
+  restrictive(`${modifier} quoted display content`, `Graph x<4 on a number line, and ${modifier} label the graph with the text "for integer x".`);
   neutral(`${modifier} real domain`, `${mention}, and ${modifier} graph x<4 on a number line for real x.`);
 }
 for (const modifier of ["next", "again", "once more"]) {
@@ -65,9 +66,9 @@ for (const modifier of ["next", "again", "once more"]) {
     ["actual restriction", "restrict x to integers; graph x<4 on a number line."],
     ["independent domain statement", "x is an integer; graph x<4 on a number line."],
   ] as const) restrictive(`${modifier} ${name}`, `${mention}, and ${modifier} ${request}`);
-  neutral(`${modifier} hypothetical manner stays local`, `${mention}, and ${modifier} hypothetically graph x<4 for integer x.`);
-  neutral(`${modifier} negated draw stays local`, `${mention}, and ${modifier} do not draw x<4 for integer x.`);
-  neutral(`${modifier} hypothetical example stays local`, `${mention}, and ${modifier} show x<4 for integer x as a hypothetical example.`);
+  restrictive(`${modifier} hypothetical manner stays local`, `${mention}, and ${modifier} hypothetically graph x<4 for integer x.`);
+  restrictive(`${modifier} negated draw stays local`, `${mention}, and ${modifier} do not draw x<4 for integer x.`);
+  restrictive(`${modifier} hypothetical example stays local`, `${mention}, and ${modifier} show x<4 for integer x as a hypothetical example.`);
   neutral(`${modifier} real request stays local`, `${mention}, and ${modifier} graph x<4 for real x.`);
 }
 for (const modifier of ["then please explicitly", "please also", "then clearly", "now actually"]) {
@@ -79,23 +80,23 @@ restrictive("actual Explain request", `${mention}, and additionally explain how 
 restrictive("actual Discuss request", `${mention}, and also discuss the graph of x<4 for integer x on a number line.`);
 restrictive("an initial modified typed object", "Additionally please show the integer solutions of x<4 on a number line.");
 restrictive("actual given before later examples", "Given x is an integer, graph x<4 on a number line, and also discuss a hypothetical graph of x<4 for real x.");
-neutral("a negated integer request supplies no type", `${mention}, and also do not graph x<4 for integer x.`);
-neutral("a modal domain question supplies no type", "Graph x<4 on a number line, and now should we graph x<4 for integer x?");
-neutral("an explicit hypothetical modifier is not consumed", `${mention}, and also hypothetically graph x<4 for integer x.`);
+restrictive("a negated integer request supplies no type", `${mention}, and also do not graph x<4 for integer x.`);
+restrictive("a modal domain question supplies no type", "Graph x<4 on a number line, and now should we graph x<4 for integer x?");
+restrictive("an explicit hypothetical modifier is not consumed", `${mention}, and also hypothetically graph x<4 for integer x.`);
 neutral("integer coefficient display does not type x", "Graph x<4 on a number line, and additionally explain why integer coefficients are useful.");
-neutral("a cited type claim remains a mentioned proposition", "Graph x<4 on a number line. The claim x is an integer.");
-neutral("a nominal hypothetical predicate remains unproved", `${mention}, and also a hypothetical x is an integer.`);
-neutral("a mentioned integer solution example has no request head", "Graph x<4 on a number line, and next an example plot of the integer solutions of x<4.");
-neutral("an infinitive description is not an independently requested object", "Graph x<4 on a number line, and next an example to plot the integer solutions of x<4.");
-neutral("an explicitly tentative instruction stays neutral", `${mention}, and next perhaps graph x<4 for integer x.`);
-neutral("a conditional local instruction stays neutral", `${mention}, and next if asked graph x<4 for integer x.`);
+restrictive("a cited type claim remains a mentioned proposition", "Graph x<4 on a number line. The claim x is an integer.");
+restrictive("a nominal hypothetical predicate remains unproved", `${mention}, and also a hypothetical x is an integer.`);
+restrictive("a mentioned integer solution example has no request head", "Graph x<4 on a number line, and next an example plot of the integer solutions of x<4.");
+restrictive("an infinitive description is not an independently requested object", "Graph x<4 on a number line, and next an example to plot the integer solutions of x<4.");
+restrictive("an explicitly tentative instruction stays neutral", `${mention}, and next perhaps graph x<4 for integer x.`);
+restrictive("a conditional local instruction stays neutral", `${mention}, and next if asked graph x<4 for integer x.`);
 restrictive("a real assumption remains restrictive next to a hypothetical mode", "Given x is an integer, graph x<4 on a number line, and next hypothetically graph x<4 for real x.");
 restrictive("a declared assumption preserves its supported proposition role", "Given the assumption that x is an integer, graph x<4 on a number line, and next explain a hypothetical graph for real x.");
 restrictive("a modified genuine assumption retains its premise role", `${mention}, and once more given the assumption that x is an integer, graph x<4 on a number line.`);
 restrictive("a later explicit wanted graph retains its actual domain", `${mention}, and next I want to graph x<4 on a number line for integer x.`);
 restrictive("the local mark head owns its requested typed points", `${mention}, and once more mark the integer points satisfying x<4 on a number line.`);
-neutral("a local mark request for caption content stays neutral", `${mention}, and once more mark the text integer points as a caption.`);
-neutral("a local label request for typed words stays neutral", `${mention}, and next label the graph with the text integer points.`);
+restrictive("a local mark request for caption content stays neutral", `${mention}, and once more mark the text integer points as a caption.`);
+restrictive("a local label request for typed words stays neutral", `${mention}, and next label the graph with the text integer points.`);
 console.log(`request domain scope: ${checks - failures.length}/${checks} checks pass; failures ${failures.length}; paid calls 0`);
 for (const failure of failures) console.error(failure);
 assert.equal(failures.length, 0, failures.join("\n"));

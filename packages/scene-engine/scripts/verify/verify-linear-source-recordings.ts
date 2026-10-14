@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { compileSceneDocument, type SceneDocument } from "../../src/index";
-import { buildLinearSourceDocument } from "../../src/compile/linearRegionSource";
+import { buildLinearSourceDocument, validateLinearSourceBinding } from "../../src/compile/linearRegionSource";
 import { readLinearSourceIntersectionNames } from "../../src/compile/linearSourcePoints";
 import { evaluateLinearRegionConstruction, linearRegionPrimitives, type LinearRegionGeometry } from "../../src/compile/linearRegionGeometry";
 import { parseLinearConstraint } from "../../src/math/linearRegion";
@@ -26,6 +26,33 @@ function sourceDocument(question: string): SceneDocument {
   assert.equal(document.annotations.length, 0); checks++;
   return document;
 }
+// The fourth review requires even negated discrete mentions to decline.
+// Preserve the original fixture stems as refusal cases; only these explicit
+// continuous companions carry their unchanged geometry and point/corner oracles.
+const discreteDisclaimers = [
+  " The domain is continuous, not integer-valued.",
+  " This is continuous optimisation, not an integer problem.",
+  " Do not impose an integer restriction.",
+];
+const migratedQuestions = new Set<string>();
+function migrationAwareSourceDocument(question: string): SceneDocument {
+  const disclaimer = discreteDisclaimers.find(clause => question.endsWith(clause));
+  const aliasMembership = question.includes("Here I minus J means x is in I AND x is not in J.");
+  const companion = disclaimer ? question.slice(0, -disclaimer.length)
+    : aliasMembership ? question.replace(/\bI\b/g, "U") : question;
+  const document = sourceDocument(companion);
+  if (companion !== question) {
+    assert.equal(buildLinearSourceDocument(question), null, "Original unsupported discrete mention must decline"); checks++;
+    const originalCandidate = structuredClone(document);
+    originalCandidate.source.question = question;
+    assert(validateLinearSourceBinding(originalCandidate).some(issue => issue.code === "linear_source_mismatch")); checks++;
+    const refused = compileSceneDocument(originalCandidate);
+    assert(!refused.ok && refused.renderScene === null && refused.report.issues.some(issue => issue.code === "linear_source_mismatch")); checks++;
+    migratedQuestions.add(question);
+    console.log(`MIGRATED original refusal + continuous companion (${disclaimer ? "disclaimer removed" : "set alias I renamed U"}): ${question}`);
+  }
+  return document;
+}
 function assertCompiled(document: SceneDocument): ReturnType<typeof compileSceneDocument> & { renderScene: NonNullable<ReturnType<typeof compileSceneDocument>["renderScene"]> } {
   const compiled = compileSceneDocument(document);
   assert(compiled.ok && compiled.renderScene, JSON.stringify(compiled.report.issues)); checks++;
@@ -33,9 +60,9 @@ function assertCompiled(document: SceneDocument): ReturnType<typeof compileScene
   return compiled as typeof compiled & { renderScene: NonNullable<typeof compiled.renderScene> };
 }
 for (const fixture of fixtures) {
-  const document = sourceDocument(fixture.question), compiled = assertCompiled(document);
+  const document = migrationAwareSourceDocument(fixture.question), compiled = assertCompiled(document);
   const call = document.constructions[0]!;
-  const geometry = evaluateLinearRegionConstruction(call.operator, call.inputs, fixture.question)[0]!;
+  const geometry = evaluateLinearRegionConstruction(call.operator, call.inputs, document.source.question!)[0]!;
   const raw = linearRegionPrimitives(geometry, call.outputs[0]!, "source_linear_setup");
   const marks = compiled.renderScene.primitives.filter(p => p.provenance?.linearRole === "source_reference_point");
   assert.equal(marks.length, fixture.points.length); checks++;
@@ -112,7 +139,7 @@ for (const question of [
   "In R^2, graph S={(x,y):2x-3y<6} and x>=1.",
   "Minimize C=6x+4y subject to real x,y>=0, x+y<=5, and C at every corner. The domain is continuous, not integer-valued.",
   "Graph 2x-3y<6. Label the equivalent integer-coefficient boundary equation.",
-]) assertCompiled(sourceDocument(question));
+]) assertCompiled(migrationAwareSourceDocument(question));
 const complete = sourceDocument("In R^2, graph S={(x,y):2x-3y<6} and x>=1.");
 const dropped = structuredClone(complete); dropped.constructions[0]!.inputs.constraints = ["2x-3y<6"];
 assert.equal(compileSceneDocument(dropped).ok, false); checks++;
@@ -135,7 +162,7 @@ if (diagnosticPath) {
   for (const row of rows) {
     const text = readFileSync(row.runPath, "utf8");
     assert.equal(createHash("sha256").update(text).digest("hex"), row.runSha256); checks++;
-    assertCompiled(sourceDocument(JSON.parse(text).question)); recorded++;
+    assertCompiled(migrationAwareSourceDocument(JSON.parse(text).question)); recorded++;
   }
 }
-console.log(`linear complete-source admission: ${checks} checks, ${fixtures.length} portable original stems, ${recorded} hash-verified recorded stems`);
+console.log(`linear complete-source admission: ${checks} checks, ${fixtures.length} portable original stems, ${recorded} hash-verified recorded stems, ${migratedQuestions.size} original discrete mentions refused with continuous companions`);

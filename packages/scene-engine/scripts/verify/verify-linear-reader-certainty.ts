@@ -186,6 +186,8 @@ for (const [i, question] of ["Graph x+y<=4 and label its boundary.", "Shade x+y<
   assert.ok(result.ok && result.renderScene);
   assert.ok(result.renderScene.primitives.some(primitive => primitive.provenance?.linearRole === "feasible_fill"));
 });
+// Fourth-review migration: retain every original question, but refuse all
+// unsupported discrete mentions, including negated, displayed and asked ones.
 for (const [i, statement] of [
   "Do not restrict x to integers.",
   "No restriction to integers is intended.",
@@ -200,7 +202,7 @@ for (const [i, statement] of [
   const question = `Represent x<3 on a number line. ${statement}`;
   assert.equal(buildLinearSourceDocument(question), null);
   const result = compileSceneDocument(documentFor(question, "number_line_set", { variable: "x", expression: { inequality: "x<3" } }));
-  assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  assert.ok(!result.ok && result.renderScene === null && result.report.issues.some(issue => issue.code === "linear_source_mismatch"), JSON.stringify(result.report.issues));
 });
 for (const [i, statement] of [
   "x in Z is not required.",
@@ -212,9 +214,9 @@ for (const [i, statement] of [
   const question = `Graph x<3 on a number line. ${statement}`;
   assert.equal(buildLinearSourceDocument(question), null, "An unproved domain statement supplies no reader figure");
   const candidate = documentFor(question, "number_line_set", { variable: "x", expression: { inequality: "x<3" } });
-  assert.deepEqual(validateLinearSourceBinding(candidate), [], "A suffix-negated or modal domain statement supplies no veto");
+  assert.ok(validateLinearSourceBinding(candidate).some(issue => issue.code === "linear_source_mismatch"), "Any unsupported discrete mention refuses a continuous candidate");
   const result = compileSceneDocument(candidate);
-  assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  assert.ok(!result.ok && result.renderScene === null && result.report.issues.some(issue => issue.code === "linear_source_mismatch"), JSON.stringify(result.report.issues));
 });
 for (const [i, question] of [
   "Graph x<3 on a number line. x in Z is required.",
@@ -256,9 +258,9 @@ for (const [i, statement] of [
   const question = `Graph x<3 on a number line. ${statement}`;
   assert.equal(buildLinearSourceDocument(question), null);
   const candidate = documentFor(question, "number_line_set", { variable: "x", expression: { inequality: "x<3" } });
-  assert.deepEqual(validateLinearSourceBinding(candidate), [], "A negative or modal domain predicate remains unproved before a display instruction");
+  assert.ok(validateLinearSourceBinding(candidate).some(issue => issue.code === "linear_source_mismatch"), "Any unsupported discrete mention refuses a continuous candidate");
   const result = compileSceneDocument(candidate);
-  assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  assert.ok(!result.ok && result.renderScene === null && result.report.issues.some(issue => issue.code === "linear_source_mismatch"), JSON.stringify(result.report.issues));
 });
 for (const [i, question] of [
   "Graph x<3 on a number line without writing x in Z on the graph.",
@@ -272,9 +274,9 @@ for (const [i, question] of [
 ].entries()) check(`displayed-domain-text-is-not-a-type-${i + 1}`, () => {
   assert.equal(buildLinearSourceDocument(question), null, "Unproved display-text scope supplies no reader figure");
   const candidate = documentFor(question, "number_line_set", { variable: "x", expression: { inequality: "x<3" } });
-  assert.deepEqual(validateLinearSourceBinding(candidate), [], "Displaying or omitting domain text does not assert a variable type");
+  assert.ok(validateLinearSourceBinding(candidate).some(issue => issue.code === "linear_source_mismatch"), "Any unsupported discrete mention refuses a continuous candidate");
   const result = compileSceneDocument(candidate);
-  assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  assert.ok(!result.ok && result.renderScene === null && result.report.issues.some(issue => issue.code === "linear_source_mismatch"), JSON.stringify(result.report.issues));
 });
 for (const [i, question] of [
   "Graph x<3 for integer x without writing x in Z on the graph.",
@@ -314,9 +316,9 @@ for (const [i, statement] of [
   const question = `Graph x<3 on a number line. ${statement}`;
   assert.equal(buildLinearSourceDocument(question), null);
   const candidate = documentFor(question, "number_line_set", { variable: "x", expression: { inequality: "x<3" } });
-  assert.deepEqual(validateLinearSourceBinding(candidate), [], "A caption, label, or annotation operand cannot assert a variable type");
+  assert.ok(validateLinearSourceBinding(candidate).some(issue => issue.code === "linear_source_mismatch"), "Any unsupported discrete mention refuses a continuous candidate");
   const result = compileSceneDocument(candidate);
-  assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  assert.ok(!result.ok && result.renderScene === null && result.report.issues.some(issue => issue.code === "linear_source_mismatch"), JSON.stringify(result.report.issues));
 });
 for (const [i, question] of [
   "Graph x<3 for integer x and state whether 2 belongs to the solution set.",
@@ -343,9 +345,9 @@ for (const [i, question] of [
 ].entries()) check(`unproved-local-domain-declaration-${i + 1}`, () => {
   assert.equal(buildLinearSourceDocument(question), null);
   const candidate = documentFor(question, "number_line_set", { variable: "x", expression: { inequality: "x<3" } });
-  // This control proves absence of a reader-domain veto, not correctness of
-  // an arbitrary partial candidate for the unsupported surrounding request.
-  assert.deepEqual(validateLinearSourceBinding(candidate), []);
+  // The fourth review makes unknown discrete mentions fail closed; unrelated
+  // unknown prose still defers in the unchanged controls below.
+  assert.ok(validateLinearSourceBinding(candidate).some(issue => issue.code === "linear_source_mismatch"), "Any unsupported discrete mention refuses a continuous candidate");
 });
 for (const [i, question] of [
   "Graph x<3 on a number line. Should we restrict x to integers?",
@@ -364,9 +366,9 @@ for (const [i, question] of [
 ].entries()) check(`asked-restriction-is-not-a-domain-fact-${i + 1}`, () => {
   assert.equal(buildLinearSourceDocument(question), null);
   const candidate = documentFor(question, "number_line_set", { variable: "x", expression: { inequality: "x<3" } });
-  assert.deepEqual(validateLinearSourceBinding(candidate), []);
+  assert.ok(validateLinearSourceBinding(candidate).some(issue => issue.code === "linear_source_mismatch"), "Any unsupported discrete mention refuses a continuous candidate");
   const result = compileSceneDocument(candidate);
-  assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  assert.ok(!result.ok && result.renderScene === null && result.report.issues.some(issue => issue.code === "linear_source_mismatch"), JSON.stringify(result.report.issues));
 });
 for (const [i, question] of [
   "Restrict x to integers and graph x<3 on a number line.",
@@ -402,8 +404,9 @@ check("proved-real-set-alias-is-not-an-integer-domain", () => {
   const question = "For real x, let Z={x:x<3} and I={x:x>0}. Draw Result=Z intersection I on a number line. State x belongs to Z.";
   assert.equal(buildLinearSourceDocument(question), null, "The extra bare-x membership request is unproved");
   const candidate = documentFor(question, "number_line_set", { variable: "x", expression: { intersection: [{ inequality: "x<3" }, { inequality: "x>0" }] } });
-  assert.deepEqual(validateLinearSourceBinding(candidate), []);
-  assert.ok(compileSceneDocument(candidate).ok);
+  assert.ok(validateLinearSourceBinding(candidate).some(issue => issue.code === "linear_source_mismatch"), "A discrete-named membership cue is refused even for an independently declared real-set alias");
+  const result = compileSceneDocument(candidate);
+  assert.ok(!result.ok && result.renderScene === null && result.report.issues.some(issue => issue.code === "linear_source_mismatch"));
 });
 check("planar-witness-proof-budget-defers", () => {
   const question = `Shade the complement of (${Array(16).fill("x+y<1").join(" or ")}).`;

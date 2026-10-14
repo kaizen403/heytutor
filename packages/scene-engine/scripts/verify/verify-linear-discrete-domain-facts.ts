@@ -1,3 +1,4 @@
+// Fourth-check contract: unproved discrete mentions now decline by default.
 import assert from "node:assert/strict";
 import { buildLinearSourceDocument, compileSceneDocument, type SceneDocument } from "../../src/index";
 import { readLinearSourceLineName, validateLinearSourceBinding } from "../../src/compile/linearRegionSource";
@@ -74,25 +75,30 @@ for (const [i, statement] of [
   "Do not restrict x to positive integers.", "If x is an integer, explain the alternate method.",
   "x is not a whole number.", "x is in I is not required.",
   "Should we graph only integer values?", "Show the words natural numbers as a label.",
-  "Explain what 'for integer x' means.", "Explain why integer coefficients are useful.",
-].entries()) check(`unproved displayed or asked domain remains neutral-${i}`, () => {
+  "Explain what 'for integer x' means.",
+].entries()) check(`unproved displayed or asked discrete cue fails closed-${i}`, () => {
   const question = `Graph x<4 on a number line. ${statement}`;
   const candidate = documentFor(question);
-  assert.deepEqual(validateLinearSourceBinding(candidate), []);
-  assert(compileSceneDocument(candidate).ok);
+  assert(validateLinearSourceBinding(candidate).some(issue => issue.code === "linear_source_mismatch"));
+  assert(!compileSceneDocument(candidate).ok);
 });
 for (const statement of ["Explain the integer convention.", "Describe integer inclusion status.", "Explain integer values."]) {
   check(`unproved integer prose never becomes reader authority: ${statement}`, () => {
     const question = `Graph x<4 on a number line. ${statement}`;
     assert.equal(buildLinearSourceDocument(question), null);
-    assert.deepEqual(validateLinearSourceBinding(documentFor(question)), []);
+    assert(validateLinearSourceBinding(documentFor(question)).some(issue => issue.code === "linear_source_mismatch"));
   });
 }
-for (const alias of ["I", "N", "Z", "W"]) check(`literal real-set alias stays continuous-${alias}`, () => {
+for (const alias of ["I", "N", "Z", "W"]) check(`discrete-named alias membership declines by default-${alias}`, () => {
   const question = `For real x, let ${alias}={x:x<4}. Draw ${alias} on a number line. State x belongs to ${alias}.`;
   const candidate = documentFor(question);
-  assert.deepEqual(validateLinearSourceBinding(candidate), []);
-  assert(compileSceneDocument(candidate).ok);
+  assert(validateLinearSourceBinding(candidate).some(issue => issue.code === "linear_source_mismatch"));
+  assert(!compileSceneDocument(candidate).ok);
+});
+check("coefficient-only discussion remains continuous", () => {
+  const question = "Graph x<4 on a number line. Explain why integer coefficients are useful.";
+  assert.deepEqual(validateLinearSourceBinding(documentFor(question)), []);
+  assert(compileSceneDocument(documentFor(question)).ok);
 });
 for (const [i, prefix] of ["Q1:", "Q2a:", "Q12:", "Q103b:", "Question 3:"].entries()) {
   const question = `${prefix} 2x+y=7 and x-y=2. Solve graphically.`;
@@ -132,8 +138,8 @@ for (const [i, statement] of [
   const question = `Graph x<4 on a number line. ${statement}`;
   assert.equal(buildLinearSourceDocument(question), null);
   const candidate = documentFor(question);
-  assert.deepEqual(validateLinearSourceBinding(candidate), []);
-  assert(compileSceneDocument(candidate).ok);
+  assert(validateLinearSourceBinding(candidate).some(issue => issue.code === "linear_source_mismatch"));
+  assert(!compileSceneDocument(candidate).ok);
 });
 for (const [i, question] of [
   "Explain why the assertion x<4 holds for integer x on a number line.",

@@ -1,3 +1,4 @@
+// Fourth-check contract: unproved discrete mentions now decline by default.
 import assert from "node:assert/strict";
 import { buildLinearSourceDocument, compileSceneDocument, type SceneDocument } from "../../src/index";
 import { validateLinearSourceBinding } from "../../src/compile/linearRegionSource";
@@ -41,16 +42,16 @@ for (const [name, request] of [
   ["for the moment graph", "for the moment graph x<4 on a number line for integer x."],
   ["this time given", "this time given x is an integer, graph x<4."],
 ] as const) restrictive(`original later ${name}`, `${mention}, and ${request}`);
-neutral("original secondary example graph", "Graph x<4 on a number line. Discuss the example graph of x<4 for integer x.");
-neutral("original secondary claim to graph", "Graph x<4 on a number line. Explain the claim to graph x<4 for integer x.");
+restrictive("original secondary example graph", "Graph x<4 on a number line. Discuss the example graph of x<4 for integer x.");
+restrictive("original secondary claim to graph", "Graph x<4 on a number line. Explain the claim to graph x<4 for integer x.");
 for (const adjunct of ["this time", "in this case", "for the moment"]) {
   restrictive(`${adjunct} actual typed solutions`, `${mention}, and ${adjunct} plot the integer solutions of x<4 on a number line.`);
   restrictive(`${adjunct} declared assumption`, `${mention}, and ${adjunct} given the assumption that x is an integer, graph x<4.`);
   restrictive(`${adjunct} restriction head`, `${mention}, and ${adjunct} restrict x to integers; graph x<4.`);
   restrictive(`${adjunct} domain head`, `${mention}, and ${adjunct} x is an integer; graph x<4.`);
-  neutral(`${adjunct} hypothetical mode`, `${mention}, and ${adjunct} hypothetically graph x<4 for integer x.`);
-  neutral(`${adjunct} negated action`, `${mention}, and ${adjunct} do not graph x<4 for integer x.`);
-  neutral(`${adjunct} display content`, `${mention}, and ${adjunct} label the graph with the text "for integer x".`);
+  restrictive(`${adjunct} hypothetical mode`, `${mention}, and ${adjunct} hypothetically graph x<4 for integer x.`);
+  restrictive(`${adjunct} negated action`, `${mention}, and ${adjunct} do not graph x<4 for integer x.`);
+  restrictive(`${adjunct} display content`, `${mention}, and ${adjunct} label the graph with the text "for integer x".`);
   neutral(`${adjunct} actual real domain`, `${mention}, and ${adjunct} graph x<4 on a number line for real x.`);
 }
 for (const [head, object] of [
@@ -58,24 +59,24 @@ for (const [head, object] of [
   ["Explain", "an example graph"],
   ["Describe", "the example solution set"],
   ["Consider", "an example of the graph"],
-] as const) neutral(`secondary example object ${head}`, `Graph x<4 on a number line. ${head} ${object} of x<4 for integer x.`);
+] as const) restrictive(`secondary example object ${head}`, `Graph x<4 on a number line. ${head} ${object} of x<4 for integer x.`);
 for (const [head, proposition, action] of [
   ["Discuss", "claim", "plot"],
   ["Explain", "statement", "draw"],
   ["Describe", "assumption", "graph"],
-] as const) neutral(`cited infinitive ${head}`, `Graph x<4 on a number line. ${head} the ${proposition} to ${action} x<4 for integer x.`);
+] as const) restrictive(`cited infinitive ${head}`, `Graph x<4 on a number line. ${head} the ${proposition} to ${action} x<4 for integer x.`);
 restrictive("an actual standalone example graph has its own discrete object", "Explain an example graph of x<4 for integer x.");
 restrictive("a real actual Explain request keeps its domain", "Explain how to graph x<4 on a number line for integer x.");
 restrictive("a real actual Discuss graph request keeps its domain", "Discuss the graph of x<4 on a number line for integer x.");
 restrictive("a real assumption survives secondary example discussion", "Given x is an integer, graph x<4 on a number line. Discuss the example graph of x<4 for real x.");
 restrictive("a later real restriction survives a cited proposition", "Graph x<4 on a number line. Explain the claim to graph x<4 for real x, and then given x is an integer, graph x<4.");
-neutral("a prehead cited example keeps its nominal role", "Graph x<4 on a number line, and next an example plot of the integer solutions of x<4.");
-neutral("a prehead type claim stays cited", "Graph x<4 on a number line. The claim x is an integer.");
+restrictive("a prehead cited example keeps its nominal role", "Graph x<4 on a number line, and next an example plot of the integer solutions of x<4.");
+restrictive("a prehead type claim stays cited", "Graph x<4 on a number line. The claim x is an integer.");
 restrictive("a completed example frame does not cite the following command", `${mention}, and in this example graph x<4 on a number line for integer x.`);
 restrictive("a completed example frame keeps a real given", `${mention}, and in this example given x is an integer, graph x<4.`);
-neutral("a cited example infinitive is not a completed frame", "Graph x<4 on a number line, and next an example to plot the integer solutions of x<4.");
-neutral("an incomplete preposition still owns its nominal graph", "Graph x<4 on a number line. For the graph of x<4 for integer x, discuss its endpoints.");
-neutral("a modified object name does not become a graph command", "Graph x<4 on a number line. An unfamiliar plot of x<4 for integer x.");
+restrictive("a cited example infinitive is not a completed frame", "Graph x<4 on a number line, and next an example to plot the integer solutions of x<4.");
+restrictive("an incomplete preposition still owns its nominal graph", "Graph x<4 on a number line. For the graph of x<4 for integer x, discuss its endpoints.");
+restrictive("a modified object name does not become a graph command", "Graph x<4 on a number line. An unfamiliar plot of x<4 for integer x.");
 restrictive("an outer draw command owns its graph object", `${mention}, and in this case draw a graph of x<4 on a number line for integer x.`);
 console.log(`domain mention roles: ${checks - failures.length}/${checks} checks pass; failures ${failures.length}; paid calls 0`);
 for (const failure of failures) console.error(failure);
