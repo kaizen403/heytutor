@@ -954,10 +954,15 @@ function readSuppliedAmpereAreaProduct(
   // measurements make the small supported reading ambiguous, even in prose.
   const measurementText = options.question.replace(/\bamperes?\b/gi, "A");
   if (/\b(?:pico|nano|micro|milli|centi|kilo|mega|giga)(?:amperes?|amps?|ohms?)\b/i.test(measurementText)) return member;
-  for (const match of measurementText.matchAll(measuredValuePattern())) {
-    const scale = unitScale(match[2]);
+  // Read the whole scientific measurement, not an exponent suffix or only its
+  // mantissa, before this narrow guard grants the supplied current authority.
+  for (const match of measurementText.matchAll(measuredValuePattern(true))) {
+    const measurement = parseMeasuredPart(match[0]);
+    // Unit capture 4 follows the mantissa and both exponent spellings. Retain
+    // it even when the numeric reader rejects overflow, so backoff fails closed.
+    const scale = unitScale(match[4]);
     const input = scale?.signature === "A^1" ? current : scale?.signature === "Ω^1" ? resistance : null;
-    if (input && (scale?.factor !== 1 || Number(match[1]!.replace(/−/g, "-")) !== input.value)) return member;
+    if (input && (scale?.factor !== 1 || measurement?.value !== input.value)) return member;
   }
   const sourceClauses = options.question.split(/[,;\n]|\.(?=\s|$)/);
   for (const quantity of [areas[0]!, current, resistance]) {
@@ -4800,12 +4805,13 @@ function isMagnitudeOnlyQuantity(quantity: Record<string, unknown>): boolean {
     typeof quantity.value === "number" && quantity.value >= 0;
 }
 
-function measuredValuePattern(): RegExp {
+function measuredValuePattern(scientific = false): RegExp {
   // Match the whole physical unit, including powers and compound units.
   // Reading only "m" silently missed speed/acceleration labels at the slash.
   const base = String.raw`(?:ohms?|volts?|amps?|deg(?:rees?)?|°|rad(?:ians?)?|[pnumckMGµμ]?(?:mol|Pa|Hz|Wb|eV|[mgsAKNJWCVFHTLΩ]))`;
   const factor = `${base}(?:\\^?-?\\d+|[²³¹⁰⁻]+)?`;
-  return new RegExp(`(${NUMBER_SOURCE})\\s*(${factor}(?:\\s*(?:[/·⋅*]|\\s+)\\s*${factor})*)(?=\\s|$|[,;).!?:])`, "gi");
+  const number = `(${NUMBER_SOURCE})${scientific ? POWER_OF_TEN_SOURCE : ""}`;
+  return new RegExp(`${number}\\s*(${factor}(?:\\s*(?:[/·⋅*]|\\s+)\\s*${factor})*)(?=\\s|$|[,;).!?:])`, "gi");
 }
 
 function sourceContainsMatchingMeasuredValue(
