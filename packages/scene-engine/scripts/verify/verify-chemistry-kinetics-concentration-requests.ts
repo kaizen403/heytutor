@@ -270,6 +270,13 @@ const ROWS: readonly Row[] = [
     "question": "A zero order reaction has initial concentration 2 M and half life 1 h. Calculate the time for concentration to decrease from 0.50 M to 0.25 M/h. Draw [A] against time.",
     "kind": "decline",
     "questionSha256": "81c13d0ac28d5c7c231b1b7c2645d7f91dcb7600e242669217f832fc44db86ed"
+  },
+  // Both Kelvin readings exceed100 K; refusal must retain the nearer concentration owner.
+  {
+    "id": "P1-TEMPERATURE-RANGE-REFUSE-NEAR-CONCENTRATION-OWNER",
+    "question": "A zero order reaction has initial concentration 2 M and half life 1 h. Draw [A] versus time and find the interval as concentration falls from 300 K to 310 K.",
+    "kind": "decline",
+    "questionSha256": "1bed3c4eef4a40baa0c19567088c6ac5e405388bd4e3036d65517e41c4459138"
   }
 ];
 
