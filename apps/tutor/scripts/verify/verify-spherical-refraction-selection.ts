@@ -270,6 +270,8 @@ function glassFace(options: {
   imageLabel?: string;
   /** Object x (default -20, in the air before the face); inside the glass when positive. */
   object?: number;
+  /** Name the indices η and η_1, symbols the plan's index reading does not take for n. */
+  eta?: boolean;
 }): { document: Doc; plan: TurnPlanV3 } {
   const objectX = options.object ?? -20;
   const question = objectX < 0
@@ -301,7 +303,10 @@ function glassFace(options: {
   }
   const ids = entities.map((entity) => entity.id);
   const derived = options.derived ?? [quantity("v", "v", Math.abs(options.image), "cm")];
-  const givens = [quantity("n", "n", 1.5), quantity("nAir", "n_1", 1), quantity("R", "R", 30, "cm"), quantity("u", "u", Math.abs(objectX), "cm")];
+  const givens = [
+    options.eta ? quantity("eta", "η", 1.5) : quantity("n", "n", 1.5), options.eta ? quantity("etaAir", "η_1", 1) : quantity("nAir", "n_1", 1),
+    quantity("R", "R", 30, "cm"), quantity("u", "u", Math.abs(objectX), "cm"),
+  ];
   const document = {
     schemaVersion: "scene-document/v2",
     visualDecision: { mode: "scene", reason: "The surface, its axis, the object and the image have stated positions." },
@@ -505,6 +510,26 @@ check("convex face R 30, object in the glass at 12 cm, declared 1.5 to 1 with th
 
 check("control: the same convex face with the image at 15 cm (the reversed media answer) declines", () =>
   declinesFor(convexFromGlass(15), "I", "admitted the image the reversed media put at 15 cm"));
+
+/**
+ * Fifth review of #164, the glass face above (object at -20 cm, declared 1 to
+ * 1.5, image at -45 cm), "Index symbols disable image checks": the check
+ * returned unless the plan had an index written with n or mu, so with η in
+ * the plan a figure declaring 1 to 1.5 at its face was never checked.
+ * Declared media are read first; the plan's indices are needed only for a
+ * surface that declares none.
+ */
+check("indices named η, declared 1 to 1.5 at the face: an image at -120/11 cm (the reversed pair's) declines", () =>
+  declinesFor(glassFace({ image: -120 / 11, declared: [1, 1.5], eta: true }), "I", "admitted an image the declared 1 to 1.5 puts at -45 cm"));
+
+check("indices named η, declared by quantity ids (etaAir to eta): an image at -40 cm declines", () =>
+  declinesFor(glassFace({ image: -40, declared: ["etaAir", "eta"], eta: true }), "I", "admitted an image the declared etaAir to eta puts at -45 cm"));
+
+check("control: indices named η, declared 1 to 1.5, the image at -45 cm is admitted", () => {
+  const { document, plan } = glassFace({ image: -45, declared: [1, 1.5], eta: true });
+  const { valid, codes } = validate(document, plan);
+  return valid ? null : `declined with ${codes.join(", ")}`;
+});
 
 console.log(`${passed} passed, ${failures.length} failed`);
 if (failures.length > 0) process.exit(1);

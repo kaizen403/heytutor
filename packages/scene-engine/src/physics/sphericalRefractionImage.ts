@@ -26,7 +26,8 @@
  * from an object starts in the medium on the object's side. With none
  * declared, any ordered pair of the plan's refractive
  * indices (dimensionless values from 1 to 4 written with an n or mu symbol)
- * and 1. Otherwise: `spherical_refraction_image_disagrees`.
+ * and 1; with neither, the surface holds no image. Otherwise:
+ * `spherical_refraction_image_disagrees`.
  *
  * Light crosses surfaces in turn. A placed image the law confirms is the
  * object of the next refracting surface along the light (coaxial, nearest
@@ -438,10 +439,10 @@ export function validateSphericalRefractionImagePlacements(document: SceneDocume
   const constructions = document.constructions ?? [];
   const surfaces = constructions.filter((construction) => construction.operator === "spherical_surface");
   if (surfaces.length === 0) return [];
+  // The plan's indices serve only a surface that declares no media of its own.
   const indices = [...plan.givens ?? [], ...plan.derived ?? []].filter(isRefractiveIndex).map((quantity) => quantity.value);
-  if (indices.length === 0) return [];
   const media = [...new Set([1, ...indices])];
-  const pairs = media.flatMap((n1) => media.filter((n2) => n2 !== n1).map((n2) => [n1, n2] as const));
+  const pairs = indices.length === 0 ? [] : media.flatMap((n1) => media.filter((n2) => n2 !== n1).map((n2) => [n1, n2] as const));
   const givens = numericValues(plan.givens);
   const units = new Map((document.quantities ?? []).map((quantity) => [quantity.id, quantity.unit]));
   const derived: DerivedValue[] = (plan.derived ?? []).flatMap((quantity) => {
@@ -457,7 +458,9 @@ export function validateSphericalRefractionImagePlacements(document: SceneDocume
   const frames = sphericalSurfaceFrames(document, literal);
   const declared = declaredMedia(document, plan, frames, literal);
   const refracting = refractingFrames(document, frames);
-  if (!frames.some((frame) => refracting.has(frame.surfaceId))) return [];
+  // A refracting surface is held to the law when its media are known: declared there, or the plan's indices.
+  const known = (frame: Frame) => declared.has(frame.surfaceId) || pairs.length > 0;
+  if (!frames.some((frame) => refracting.has(frame.surfaceId) && known(frame))) return [];
   const reserved = new Set<string>(frames.map((frame) => frame.vertexId));
   for (const surface of surfaces) {
     const center = (surface.inputs as Record<string, unknown>).center;
@@ -479,7 +482,8 @@ export function validateSphericalRefractionImagePlacements(document: SceneDocume
     })).map(([id, point]) => ({ id, point }));
     // An image sits at an image distance: a derived length, a quantity bound to
     // the point by id, or any derived distance when the point is named an image.
-    const placed = candidates.flatMap(([id, point]) => {
+    // A surface whose media are unknown still passes light on but holds no image.
+    const placed = !known(frame) ? [] : candidates.flatMap(([id, point]) => {
       const fromVertex = Math.hypot(point.x - vertex.x, point.y - vertex.y);
       const at = derived.filter((quantity) => matches(fromVertex, quantity.value));
       if (at.length === 0) return [];
