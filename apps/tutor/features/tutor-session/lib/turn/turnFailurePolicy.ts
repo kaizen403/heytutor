@@ -1,3 +1,6 @@
+import type { DrawCommand } from "@heytutor/drawing";
+import type { CodeLessonPlan } from "@heytutor/tutor-core";
+
 /**
  * What a turn does when its visuals stop working.
  *
@@ -26,6 +29,50 @@ export const MAX_CONSECUTIVE_SEGMENT_FAILURES = 2;
 
 export function shouldAbandonTurn(consecutiveFailures: number): boolean {
   return consecutiveFailures >= MAX_CONSECUTIVE_SEGMENT_FAILURES;
+}
+
+export const INCOMPLETE_CODE_BEAT_MESSAGE = "This code block did not finish. Continue the lesson to finish it.";
+
+/** The current admitted TYPE lost required characters, so later blocks cannot follow it. */
+export class IncompleteCodeBeatError extends Error {
+  constructor(readonly blockId: string, readonly intendedChars: number, readonly shownChars: number, cause: unknown) {
+    super(INCOMPLETE_CODE_BEAT_MESSAGE, { cause });
+    this.name = "IncompleteCodeBeatError";
+  }
+}
+
+export interface CodeBeatTarget { blockId: string; intendedChars: number }
+
+/** Capture this segment's validated targets before asynchronous speech or drawing starts. */
+export function requiredCodeBeatTargets(
+  commands: readonly DrawCommand[],
+  plan: CodeLessonPlan | null | undefined,
+): CodeBeatTarget[] {
+  if (!plan) return [];
+  const targets: CodeBeatTarget[] = [];
+  const blocks = plan.sections.flatMap((section) => section.blocks);
+  for (const command of commands) {
+    if (command.type !== "TYPE") continue;
+    const block = blocks.find((candidate) => candidate.id === command.semanticRef?.entityId);
+    if (!block || command.text !== block.code) continue;
+    const intended = command.shownChars === undefined ? block.code.length
+      : Number.isSafeInteger(command.shownChars) ? Math.max(0, Math.min(block.code.length, command.shownChars)) : 0;
+    if (intended > 0) targets.push({ blockId: block.id, intendedChars: intended });
+  }
+  return targets;
+}
+
+/** A failed beat may stop the lesson only for one of its own still-owed targets. */
+export function incompleteCodeBeatFailure(
+  targets: readonly CodeBeatTarget[],
+  revealedChars: Readonly<Record<string, number>>,
+  cause: unknown,
+): IncompleteCodeBeatError | null {
+  for (const target of targets) {
+    const shown = revealedChars[target.blockId] ?? 0;
+    if (shown < target.intendedChars) return new IncompleteCodeBeatError(target.blockId, target.intendedChars, shown, cause);
+  }
+  return null;
 }
 
 /**

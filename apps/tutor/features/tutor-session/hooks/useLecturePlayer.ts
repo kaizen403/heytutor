@@ -85,6 +85,7 @@ const HIDDEN_RESYNC_MS = 800;
 const SEEKED_TIMEOUT_MS = 1_500;
 
 type PageCodeTrack = {
+  openingTurnIndex: number;
   startMs: number;
   endMs: number;
   /** The code panel mounts with the page's first typed block. */
@@ -199,13 +200,19 @@ function scheduleIdle(callback: () => void): () => void {
 function buildPageCodeTracks(
   turns: StoredTurn[],
   timeline: LecturePlayerTimeline,
+  review?: Pick<LectureWorkPage, "endCueIndex" | "endCommandCount">,
 ): PageCodeTrack[] {
   const tracks: PageCodeTrack[] = [];
   const pages = new Map<number, ReplayCue[]>();
-  for (const cue of timeline.cues) {
+  for (const [cueIndex, cue] of timeline.cues.entries()) {
+    if (review && cueIndex > review.endCueIndex) break;
     const page = timeline.pageStartTurnIndex[cue.turnIndex] ?? cue.turnIndex;
     const cues = pages.get(page) ?? [];
-    cues.push(cue);
+    // Saved-page review ends at an executed command boundary, even when
+    // later TYPE receipts share that cue's media time. Keep recording data immutable.
+    cues.push(review && cueIndex === review.endCueIndex
+      ? { ...cue, commands: cue.commands.slice(0, review.endCommandCount) }
+      : cue);
     pages.set(page, cues);
   }
   for (const [page, cues] of pages) {
@@ -215,6 +222,7 @@ function buildPageCodeTracks(
     if (!track || track.blocks.length === 0) continue;
     const firstTyped = cues.find((cue) => cue.commands.some((command) => command.type === "TYPE"));
     tracks.push({
+      openingTurnIndex: page,
       startMs: cues[0]!.startMs,
       endMs: cues[cues.length - 1]!.endMs,
       visibleFromMs: firstTyped?.startMs ?? cues[0]!.startMs,
@@ -422,22 +430,32 @@ export function useLecturePlayer({
     setSegmentText(cues[index]?.narration ?? "");
   }, []);
 
-  const renderCodePanel = useCallback((ms: number) => {
+  const renderCodePanel = useCallback((ms: number, review?: LectureWorkPage) => {
     const canvas = codePanelCanvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
     const scale = canvas.width / BOARD_WIDTH;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const page = codeTracksRef.current.find(
+    const timeline = timelineRef.current;
+    const endCue = review && timeline?.cues[review.endCueIndex];
+    if (review && !endCue) return;
+    const openingTurnIndex = endCue
+      ? timeline!.pageStartTurnIndex[endCue.turnIndex] ?? endCue.turnIndex
+      : null;
+    const tracks = review && timeline
+      ? buildPageCodeTracks(storedTurnsRef.current, timeline, review)
+      : codeTracksRef.current;
+    const page = tracks.find(
       (candidate, index, all) =>
+        (openingTurnIndex === null || candidate.openingTurnIndex === openingTurnIndex) &&
         ms >= candidate.startMs &&
         (ms < candidate.endMs || index === all.length - 1),
     );
     if (!page || ms < page.visibleFromMs) return;
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
     renderCodePanelFrame(ctx, codeLessonFrameSpec(page.track, ms), DSA_CODE_PANEL_RECT);
-  }, []);
+  }, [storedTurnsRef]);
 
   const setFreezeVisible = useCallback((visible: boolean) => {
     const canvas = freezeCanvasRef.current;
@@ -674,7 +692,7 @@ export function useLecturePlayer({
       if (!current()) return false;
 
       positionRef.current = plan.targetMs;
-      renderCodePanel(plan.targetMs);
+      renderCodePanel(plan.targetMs, reviewing ? review : undefined);
       publishCueText(cues, plan.targetCueIndex);
       store.set({
         positionMs: plan.targetMs,
@@ -1025,6 +1043,7 @@ export function useLecturePlayer({
       store.set({
         durationMs: 0,
         loadedMs: 0,
+        missingAudioCues: null,
         chapters: [],
         positionMs: 0,
         error: null,
@@ -1048,6 +1067,7 @@ export function useLecturePlayer({
       workPages: timeline.workPages,
       reviewPageIndex: null,
       loadedMs: 0,
+      missingAudioCues: null,
       error: null,
     });
     setPlayerStatus("loading");
@@ -1073,7 +1093,7 @@ export function useLecturePlayer({
           }
           audio.playbackRate = lecturePaceRate(rateRef.current);
           trackReadyRef.current = true;
-          store.set({ loadedMs: timeline.totalMs });
+          store.set({ loadedMs: timeline.totalMs, missingAudioCues: track.missingAudioCues });
           if (!activeRef.current) setPlayerStatus("ready");
           const pending = pendingStartRef.current;
           pendingStartRef.current = null;
@@ -1224,9 +1244,12 @@ export function useLecturePlayer({
   }, [active]);
 
   const cursorState: CursorState = active && status !== "ended" ? "drawing" : "idle";
+  // End is the student's finished board. Its last spoken caption must not
+  // stay over the answer; ordinary pauses still keep the current words.
+  const visibleSegmentText = status === "ended" ? "" : segmentText;
   const view = useMemo<LecturePlayerView>(
-    () => ({ active, revealed, cursorState, segmentText }),
-    [active, cursorState, revealed, segmentText],
+    () => ({ active, revealed, cursorState, segmentText: visibleSegmentText }),
+    [active, cursorState, revealed, visibleSegmentText],
   );
 
   return {
@@ -1240,7 +1263,7 @@ export function useLecturePlayer({
     revealed,
     playing: active && status === "playing",
     reviewingStoredPage: store.getSnapshot().reviewPageIndex != null,
-    segmentText,
+    segmentText: visibleSegmentText,
     cursorState,
     playFromStart,
     close,

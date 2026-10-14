@@ -18,6 +18,7 @@ import type { CodeLessonController } from "../lib/code-lesson/codeLessonControll
 import type { LecturePlayerView } from "../hooks/useLecturePlayer";
 import type { LecturePlayerControls, LecturePlayerStore } from "@/lib/replay/lecturePlayer";
 import { LecturePlayerBar } from "./LecturePlayerBar";
+import { sessionCaption } from "../lib/board/sessionCaption";
 
 export interface SessionBoardCanvasProps {
   boardViewport: BoardViewport;
@@ -51,6 +52,8 @@ export interface SessionBoardCanvasProps {
   playerActivityRef?: RefObject<HTMLElement | null>;
   /** A phone's transport is docked outside the scaled paper by its shell. */
   showPlayerBar?: boolean;
+  /** A phone's caption is docked outside the paper by its shell. */
+  showCaption?: boolean;
   verifiedDiagram?: VerifiedDiagram | null;
   /** DSA code-lesson overlay, rendered inside the scaled board box. */
   codeLessonPanel?: ReactNode;
@@ -99,6 +102,7 @@ export function SessionBoardCanvas({
   playerFullscreen,
   playerActivityRef,
   showPlayerBar = true,
+  showCaption = true,
   verifiedDiagram,
   codeLessonPanel,
   codeLessonController,
@@ -115,6 +119,14 @@ export function SessionBoardCanvas({
   const retraceBusyRef = useRef(false);
   const [hoveringAnchor, setHoveringAnchor] = useState(false);
   const playerActive = Boolean(playerView?.active);
+  const caption = sessionCaption({
+    enabled: settings.subtitlesEnabled || codeLessonActive,
+    phase,
+    currentSegmentText,
+    rewindActive,
+    rewindSegmentText,
+    playerView,
+  });
   const idle = phase === "idle" && !isReplaying && !rewindActive && !playerActive;
   const markingArmed = Boolean(marking?.armed);
   // The marker owns every pointer while it is out: a stroke must never also
@@ -311,29 +323,20 @@ export function SessionBoardCanvas({
           ) : null}
         </div>
 
-        {playerView?.active ? (
+        {showCaption && (playerView?.active ? (
           // Lifted clear of the playback bar along the bottom edge.
           <div className="pointer-events-none absolute inset-x-0 top-0" style={{ bottom: showPlayerBar ? 64 : 0 }}>
             <ResponseBubble
-              text={playerView.segmentText}
-              visible={
-                (settings.subtitlesEnabled || codeLessonActive) &&
-                playerView.revealed &&
-                playerView.segmentText.length > 0
-              }
+              text={caption.text}
+              visible={caption.visible}
             />
           </div>
         ) : (
           <ResponseBubble
-            text={rewindActive ? rewindSegmentText : currentSegmentText}
-            visible={
-              (settings.subtitlesEnabled || codeLessonActive) &&
-              (rewindActive
-                ? rewindSegmentText.length > 0
-                : phase === "speaking" || phase === "drawing")
-            }
+            text={caption.text}
+            visible={caption.visible}
           />
-        )}
+        ))}
 
         {showPlayerBar && playerStore && playerControls ? (
           <LecturePlayerBar
