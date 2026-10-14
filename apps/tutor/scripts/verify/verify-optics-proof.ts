@@ -112,6 +112,13 @@
  * questions do likewise. A question that states no nature before it asks ("; is the image real?",
  * "Where does ... form a real image", ", and is its image real or virtual?", ", does it form a real
  * image?") declines both kinds.
+ * G27: the image nature the stem states is the engine image's, not only the kind it implies. On "a
+ * real, magnified image of an object placed 15 cm" a convex lens of f 20 cm (a virtual image, |m| = 4)
+ * stays unproven and never draws, and f 10 cm draws. A concave mirror's "real, diminished image" at
+ * 15 cm with f 10 cm (|m| = 2), its "erect, magnified image" with f 10 cm (a real image) and its
+ * "real, magnified image" at 30 cm with f 10 cm (|m| = 0.5) stay unproven; f 5 cm, f 30 cm and f 20 cm
+ * draw, and a diverging lens's diminished image draws. A stem that asks
+ * ("is the image magnified?", "real or virtual") or names a real object fails no figure on nature.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -1593,7 +1600,72 @@ function named(name: string, run: () => void): void {
   }
 }
 
-for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21", "G22", "G23", "G24", "G25"]) {
+// ---- G27: the image nature the stem states is the engine image's ----
+{
+  const naturePlan = (question: string, u: number, f: number, law: string) => plan(question, [
+    { id: "u", symbol: "u", value: u, unit: "cm", provenance: "given", sourceText: `${u} cm` },
+  ], [{ id: "f", symbol: "f", value: f, unit: "cm", provenance: "derived" }], [law]);
+  const concaveAt = (question: string, u: number, f: number) =>
+    mirrorDoc(question, { u, f, h: 2, kind: "concave", quantities: [{ id: "u", symbol: "u", value: u }, { id: "f", symbol: "f", value: f }] });
+  const diverging = (question: string, u: number, f: number) =>
+    divergingLens(question, { u, f, h: 2, unit: "cm", scale: 1, focal: f, quantities: [{ id: "u", symbol: "u", value: u, unit: "cm" }] });
+  const qRealMagnified = "A lens forms a real, magnified image of an object placed 15 cm from it. Draw the ray diagram.";
+  const qRealDiminished = "A concave mirror forms a real, diminished image of an object placed 15 cm in front of it. Draw the ray diagram.";
+  const qErectMagnified = "A concave mirror forms an erect, magnified image of an object placed 15 cm in front of it. Draw the ray diagram.";
+  const qDiminished = "A diverging lens forms a diminished image of an object placed 50 cm in front of it. Draw the ray diagram.";
+  const qRealMagnifiedMirror = "A concave mirror forms a real, magnified image of an object placed 30 cm in front of it. Draw the ray diagram.";
+  for (const [name, question, turnPlan, document, reason] of [
+    // The review's figure: u = -15 and f = 20 put a virtual image 60 cm on the object's side, four times the object.
+    ["a convex lens of f 20 cm on the real, magnified stem (virtual image)", qRealMagnified, naturePlan(qRealMagnified, 15, 20, "lens_formula"),
+      lensDoc(qRealMagnified, { u: 15, f: 20, h: 2 }), /^the engine image \(virtual, \|m\| = 4\) contradicts the stem's real image$/],
+    ["a concave mirror of f 10 cm on the real, diminished stem (|m| = 2)", qRealDiminished, naturePlan(qRealDiminished, 15, 10, "mirror_formula"),
+      concaveAt(qRealDiminished, 15, 10), /^the engine image \(real, \|m\| = 2\) contradicts the stem's diminished image$/],
+    ["a concave mirror of f 10 cm on the erect, magnified stem (real image)", qErectMagnified, naturePlan(qErectMagnified, 15, 10, "mirror_formula"),
+      concaveAt(qErectMagnified, 15, 10), /^the engine image \(real, \|m\| = 2\) contradicts the stem's virtual image$/],
+    ["a concave mirror of f 10 cm on the real, magnified stem at 30 cm (|m| = 0.5)", qRealMagnifiedMirror, naturePlan(qRealMagnifiedMirror, 30, 10, "mirror_formula"),
+      concaveAt(qRealMagnifiedMirror, 30, 10), /^the engine image \(real, \|m\| = 0.5\) contradicts the stem's enlarged image$/],
+  ] as const) {
+    expectUnproven("G27", name, question, document, reason);
+    expectNeverPlanner("G27", name, question, turnPlan, document);
+  }
+  // Controls: the same stems drawn with the stated nature prove and draw.
+  for (const [name, question, turnPlan, document] of [
+    ["a convex lens of f 10 cm on the real, magnified stem (real, |m| = 2)", qRealMagnified, naturePlan(qRealMagnified, 15, 10, "lens_formula"),
+      lensDoc(qRealMagnified, { u: 15, f: 10, h: 2 })],
+    ["a concave mirror of f 5 cm on the real, diminished stem (|m| = 0.5)", qRealDiminished, naturePlan(qRealDiminished, 15, 5, "mirror_formula"),
+      concaveAt(qRealDiminished, 15, 5)],
+    ["a concave mirror of f 30 cm on the erect, magnified stem (virtual, |m| = 2)", qErectMagnified, naturePlan(qErectMagnified, 15, 30, "mirror_formula"),
+      concaveAt(qErectMagnified, 15, 30)],
+    ["a diverging lens of f 25 cm on the diminished stem (virtual, |m| = 1/3)", qDiminished, naturePlan(qDiminished, 50, 25, "lens_formula"),
+      diverging(qDiminished, 50, 25)],
+    ["a concave mirror of f 20 cm on the real, magnified stem at 30 cm (|m| = 2)", qRealMagnifiedMirror, naturePlan(qRealMagnifiedMirror, 30, 20, "mirror_formula"),
+      concaveAt(qRealMagnifiedMirror, 30, 20)],
+  ] as const) {
+    const result = explainPlannerOpticsProof(question, document);
+    check("G27", result.proof === "proven", `${name} must be proven; got ${result.proof}: ${result.reason}`);
+    expectDrawnAsPlanner("G27", name, question, turnPlan, document);
+  }
+  // A stem that asks about the nature, or names a real object, states none: a diminished or a virtual image still proves.
+  for (const [question, u, f] of [
+    ["A convex lens of focal length 10 cm has an object placed 30 cm from it. Is the image magnified?", 30, 10],
+    ["A convex lens of focal length 10 cm has an object placed 30 cm from it; is the image magnified or diminished?", 30, 10],
+    ["A convex lens of focal length 20 cm has an object placed 15 cm from it. Is the image real or virtual?", 15, 20],
+    ["A convex lens of focal length 20 cm forms a real or virtual image of an object 15 cm from it, depending on where it stands.", 15, 20],
+    ["A convex lens of focal length 20 cm has an object placed 15 cm from it. State whether the image is real and magnified.", 15, 20],
+    ["A real object is placed 15 cm from a convex lens of focal length 20 cm. Draw the ray diagram.", 15, 20],
+  ] as const) {
+    const document = lensDoc(question, { u, f, h: 2 });
+    const result = explainPlannerOpticsProof(question, document);
+    check("G27", result.proof === "proven", `the lens on "${question}" must be proven; got ${result.proof}: ${result.reason}`);
+  }
+  const qAsks = "A convex lens of focal length 10 cm has an object placed 30 cm from it. Is the image magnified?";
+  expectDrawnAsPlanner("G27", `the diminished image on "${qAsks}"`, qAsks, plan(qAsks, [
+    { id: "f", symbol: "f", value: 10, unit: "cm", provenance: "given", sourceText: "focal length 10 cm" },
+    { id: "u", symbol: "u", value: 30, unit: "cm", provenance: "given", sourceText: "30 cm" },
+  ], [{ id: "v", symbol: "v", value: 15, unit: "cm", provenance: "derived" }], ["lens_formula"]), lensDoc(qAsks, { u: 30, f: 10, h: 2 }));
+}
+
+for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21", "G22", "G23", "G24", "G25", "G27"]) {
   console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 }
 for (const [name, failed] of namedCases) console.log(`  ${name}: ${failed ? `FAIL (${failed} checks)` : "pass"}`);

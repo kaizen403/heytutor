@@ -646,7 +646,8 @@ export type PlannerOpticsProof = "not_optics" | "proven" | "unproven";
  * not the model, placed what the student reads: the object, image and foci are
  * `gaussian_image` / `optical_focus` outputs whose u, f and element kind match
  * the stem (a stated lens power fixes |f| = 1/|P|; a kind the stem neither names
- * nor implies by a power, focal sign or the image it states declines), the element is drawn on that
+ * nor implies by a power, focal sign or the image it states declines), the engine image has the
+ * distance, side and nature (real or virtual, enlarged or diminished) the stem states, the element is drawn on that
  * centre and axis with the stem's sense, every ray ends on an engine-derived
  * point, and every line affirmatively converging on the image tip leaves the
  * element (a point on its plane within the element as drawn) after a drawn
@@ -776,6 +777,16 @@ function opticsProofFailure(question: string, match: OpticsStemMatch, document: 
         : virtualImage ? "on the object's side of the lens" : "on the far side of the lens";
       return `the image at ${opticsCompact(value)} cm ${where} contradicts the stem's ${side.text}`;
     }
+  }
+  // The image nature the stem states is the engine image's, not only the kind it implies (a convex
+  // lens forms a real image only beyond f): real or virtual, and enlarged (|m| > 1) or diminished
+  // (|m| < 1), with |m| = |v/u| for both elements.
+  const nature = opticsStemNature(question, element, match);
+  const magnification = Math.abs(v / u);
+  const contradicted = nature.real && virtualImage ? "real" : nature.virtual && !virtualImage ? "virtual"
+    : nature.larger && !(magnification > 1) ? "enlarged" : nature.smaller && !(magnification < 1) ? "diminished" : null;
+  if (contradicted) {
+    return `the engine image (${virtualImage ? "virtual" : "real"}, |m| = ${opticsCompact(magnification)}) contradicts the stem's ${contradicted} image`;
   }
   // P4: every focus is the engine focus of this element, in the image's unit.
   const foci = document.constructions.filter((construction) => construction.operator === "optical_focus");
@@ -1361,26 +1372,37 @@ function opticsStatement(sentence: string): string {
 }
 
 /**
- * The element kind the image the stem describes implies, for a real object, or null
- * (`opticsStemImage`). A real (or inverted) image needs a converging element. A virtual (erect,
- * upright) image is enlarged only by a converging element and diminished only by a diverging one.
- * The side the stem puts the image on is its nature too, and a virtual image distance against the
- * stem's object distance gives its size. Real with virtual, or enlarged with diminished, implies
- * nothing.
+ * The nature of the image the stem states, for a real object (`opticsStemImage`): real when it says
+ * real or inverted, virtual when it says virtual, erect or upright, and the side the stem puts the
+ * image on is its nature too. It is larger when enlarged or magnified and smaller when diminished,
+ * and a virtual image distance against the stem's object distance gives its size. Real with virtual,
+ * or enlarged with diminished, states neither.
  */
-function opticsImpliedKind(question: string, element: "lens" | "mirror", match: OpticsStemMatch): "convex" | "concave" | null {
+function opticsStemNature(question: string, element: "lens" | "mirror", match: OpticsStemMatch): {
+  real: boolean; virtual: boolean; larger: boolean; smaller: boolean;
+} {
   const { words, sides } = opticsStemImage(question, element);
   const real = words.has("real") || words.has("inverted") || sides.some((side) => side.virtual === false);
   const virtual = words.has("virtual") || words.has("erect") || words.has("upright") || sides.some((side) => side.virtual === true);
-  if (real === virtual) return null;
-  const converging = element === "lens" ? "convex" : "concave";
-  if (real) return converging;
   const u = match.sources.u === "stem" && typeof match.slots.u === "number" ? Math.abs(match.slots.u) : null;
   const sized = sides.filter((side) => side.virtual === true && side.cm !== null && u !== null);
   const larger = words.has("enlarged") || words.has("magnified") || sized.some((side) => side.cm! > u!);
   const smaller = words.has("diminished") || sized.some((side) => side.cm! < u!);
-  if (larger === smaller) return null;
-  return larger ? converging : element === "lens" ? "concave" : "convex";
+  return { real: real && !virtual, virtual: virtual && !real, larger: larger && !smaller, smaller: smaller && !larger };
+}
+
+/**
+ * The element kind the image the stem describes implies, or null (`opticsStemNature`). A real image
+ * needs a converging element. A virtual image is enlarged only by a converging element and
+ * diminished only by a diverging one.
+ */
+function opticsImpliedKind(question: string, element: "lens" | "mirror", match: OpticsStemMatch): "convex" | "concave" | null {
+  const nature = opticsStemNature(question, element, match);
+  if (!nature.real && !nature.virtual) return null;
+  const converging = element === "lens" ? "convex" : "concave";
+  if (nature.real) return converging;
+  if (!nature.larger && !nature.smaller) return null;
+  return nature.larger ? converging : element === "lens" ? "concave" : "convex";
 }
 
 const OPTICS_POWER = /(^|[^\w.])([+\-−–]?)\s*(\d+(?:\.\d+)?)\s*(?:D|[Dd]ioptres?|[Dd]iopters?)\b/g;
