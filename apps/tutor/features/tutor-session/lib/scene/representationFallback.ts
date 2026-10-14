@@ -1297,8 +1297,8 @@ const OPTICS_IMAGE_DISTANCE_TOLERANCE = 0.01;
 /**
  * What the stem states about the image: nature words next to "image", and where it forms, each with
  * its distance when one is written just before the side ("an image 30 cm behind it"). Only the stem
- * is read, and only its statements: a question, or a clause after "whether" or "if", asks about the
- * image, and "real or virtual" names no nature. A side is virtual behind a mirror (or on its other
+ * is read, and only its statements (`opticsStatement`): what a question asks, or a clause after
+ * "whether" or "if", is not read, and "real or virtual" names no nature. A side is virtual behind a mirror (or on its other
  * side) and real in front of it (or on the object's side); across a lens it is real and on the
  * object's side virtual. "Behind" or "in front of" a lens names no side for certain (null), though a
  * distance there is still the image's.
@@ -1310,8 +1310,7 @@ function opticsStemImage(question: string, element: "lens" | "mirror"): {
   const words = new Set<string>();
   const sides: Array<{ virtual: boolean | null; cm: number | null; text: string }> = [];
   for (const sentence of question.split(/(?<=[.!?])\s+/)) {
-    if (sentence.trim().endsWith("?")) continue;
-    const statement = sentence.split(/\b(?:whether|if)\b/i)[0]!;
+    const statement = opticsStatement(sentence);
     if (OPTICS_NATURE_CHOICE.test(statement)) continue;
     for (const found of [...statement.matchAll(OPTICS_NATURE_BEFORE), ...statement.matchAll(OPTICS_NATURE_AFTER)]) {
       for (const word of found[1]!.match(OPTICS_NATURE_WORD) ?? []) words.add(word.toLowerCase());
@@ -1332,6 +1331,30 @@ function opticsStemImage(question: string, element: "lens" | "mirror"): {
     }
   }
   return { words, sides };
+}
+
+/** Question words that ask wherever they stand: "...; where does the image form?", "find how far". */
+const OPTICS_QUESTION_WORD = /\b(?:where|what|how|why)\b/i;
+/** A clause that opens with an auxiliary or a question word asks: "; is the image real?", ", and which is it?". */
+const OPTICS_QUESTION_CLAUSE = /(?:^|[;,]|\band\b)\s*(?:and\s+)?(?:which|who|whose|whom|when|does|do|did|is|are|was|were|will|would|can|could|should|shall|has|have|had|may|might|must)\b/i;
+/** Where one clause ends and the next begins. */
+const OPTICS_CLAUSE_BREAK = /[;,]|\band\b/gi;
+
+/**
+ * The part of a sentence that states facts. A question still states the clauses before the part
+ * that asks ("forms a real image of an object placed at 15 cm; where does the image form?"): it asks
+ * from its first question word or from a clause an auxiliary opens, else from its last clause, so a
+ * question of one clause states nothing. A clause after "whether" or "if" asks about the image too.
+ */
+function opticsStatement(sentence: string): string {
+  let statement = sentence;
+  if (sentence.trim().endsWith("?")) {
+    const asks = [OPTICS_QUESTION_WORD.exec(sentence)?.index, OPTICS_QUESTION_CLAUSE.exec(sentence)?.index]
+      .filter((index): index is number => index !== undefined);
+    const breaks = [...sentence.matchAll(OPTICS_CLAUSE_BREAK)].map((found) => found.index);
+    statement = sentence.slice(0, asks.length > 0 ? Math.min(...asks) : breaks.at(-1) ?? 0);
+  }
+  return statement.split(/\b(?:whether|if)\b/i)[0]!;
 }
 
 /**
