@@ -27,6 +27,7 @@ import {
   planAndSolveProblemV1,
   planSceneDocumentWithRepair,
   planTurnV3,
+  subjectFromRejectedTurnPlanOutcomes,
   questionRequiresVisual,
   revalidateScenePlanWithRepairResult,
   streamLLMResponse,
@@ -486,7 +487,7 @@ export async function runLecture(
     run.visualNeed = { plannerRequirement, assessment, mergedRequirement: turnPlan.visualRequirement,
       origin: options.visualNeedReplay === undefined ? "live_service" : "frozen_replay",
       questionHash: visualNeedQuestionHash(question), policy: LAB_VISUAL_NEED_POLICY };
-    const classifiedSubject = plannedTurn?.subject ?? "other";
+    const classifiedSubject = plannedTurn?.subject ?? subjectFromRejectedTurnPlanOutcomes(run.turnPlanCallOutcomes ?? []);
     const pickerDecision = labStrategyDecision(options.arm ?? "current", {
       subject: parseDiagramSubject(options.subject), chemistryLane: pickerGate.chemistryLane,
       codeLesson: false, dsa: dsaClassification.isDsa, doubt: false,
