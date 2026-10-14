@@ -1,0 +1,2268 @@
+{
+ "schema": "ray-optics-instruments/v1",
+ "note": "Selected planner documents from recorded round 7 physics runs (h4-p8 m2 microscope and convex mirror parallax h8u, m1 and b1 glass sphere h8a), normalized by tutor-core as production validation receives them, with their turn plans.",
+ "documents": {
+  "microscope": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "A qualitative compound-microscope ray chain shows the object, two lenses, intermediate image, and final virtual image."
+   },
+   "source": {
+    "question": "how a compound microscope magnifies tiny things",
+    "representationTier": "qualitative_verified",
+    "nonMetric": true
+   },
+   "quantities": [],
+   "entities": [
+    {
+     "id": "axisLeft",
+     "kind": "point",
+     "role": "axis construction point"
+    },
+    {
+     "id": "axisRight",
+     "kind": "point",
+     "role": "axis construction point"
+    },
+    {
+     "id": "axis",
+     "kind": "line",
+     "role": "optical axis"
+    },
+    {
+     "id": "objectBase",
+     "kind": "point",
+     "role": "object foot"
+    },
+    {
+     "id": "objectTip",
+     "kind": "point",
+     "role": "object tip"
+    },
+    {
+     "id": "object",
+     "kind": "vector",
+     "role": "tiny object",
+     "label": "Object"
+    },
+    {
+     "id": "objectiveCenter",
+     "kind": "point",
+     "role": "objective centre"
+    },
+    {
+     "id": "objective",
+     "kind": "polygon",
+     "role": "objective",
+     "label": "Objective"
+    },
+    {
+     "id": "intermediateBase",
+     "kind": "point",
+     "role": "intermediate-image foot"
+    },
+    {
+     "id": "intermediateTip",
+     "kind": "point",
+     "role": "intermediate-image tip"
+    },
+    {
+     "id": "intermediate",
+     "kind": "vector",
+     "role": "enlarged inverted real intermediate image",
+     "label": "Real image"
+    },
+    {
+     "id": "eyepieceCenter",
+     "kind": "point",
+     "role": "eyepiece centre"
+    },
+    {
+     "id": "eyepiece",
+     "kind": "polygon",
+     "role": "eyepiece",
+     "label": "Eyepiece"
+    },
+    {
+     "id": "virtualBase",
+     "kind": "point",
+     "role": "virtual-image foot"
+    },
+    {
+     "id": "virtualTip",
+     "kind": "point",
+     "role": "virtual-image tip"
+    },
+    {
+     "id": "virtualImage",
+     "kind": "vector",
+     "role": "larger virtual image inverted relative to the object",
+     "label": "Virtual image"
+    },
+    {
+     "id": "incomingUpper",
+     "kind": "ray",
+     "role": "incoming upper ray"
+    },
+    {
+     "id": "incomingLower",
+     "kind": "ray",
+     "role": "incoming lower ray"
+    },
+    {
+     "id": "internalUpper",
+     "kind": "ray",
+     "role": "internal upper ray"
+    },
+    {
+     "id": "internalLower",
+     "kind": "ray",
+     "role": "internal lower ray"
+    },
+    {
+     "id": "outgoingUpper",
+     "kind": "ray",
+     "role": "outgoing upper ray"
+    },
+    {
+     "id": "outgoingLower",
+     "kind": "ray",
+     "role": "outgoing lower ray"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "makeAxisLeft",
+     "operator": "point",
+     "inputs": {
+      "x": -5,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "axisLeft"
+     ]
+    },
+    {
+     "id": "makeAxisRight",
+     "operator": "point",
+     "inputs": {
+      "x": 5,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "axisRight"
+     ]
+    },
+    {
+     "id": "makeAxis",
+     "operator": "line",
+     "inputs": {
+      "start": "axisLeft",
+      "end": "axisRight"
+     },
+     "outputs": [
+      "axis"
+     ]
+    },
+    {
+     "id": "makeObjectBase",
+     "operator": "point",
+     "inputs": {
+      "x": -4,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "objectBase"
+     ]
+    },
+    {
+     "id": "makeObjectTip",
+     "operator": "point",
+     "inputs": {
+      "x": -4,
+      "y": 0.5,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "objectTip"
+     ]
+    },
+    {
+     "id": "makeObject",
+     "operator": "vector",
+     "inputs": {
+      "start": "objectBase",
+      "end": "objectTip"
+     },
+     "outputs": [
+      "object"
+     ]
+    },
+    {
+     "id": "makeObjectiveCenter",
+     "operator": "point",
+     "inputs": {
+      "x": -2,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "objectiveCenter"
+     ]
+    },
+    {
+     "id": "makeObjective",
+     "operator": "lens_section",
+     "inputs": {
+      "center": "objectiveCenter",
+      "axis": "axis",
+      "radius1": 4,
+      "radius2": -4,
+      "halfHeight": 1.5
+     },
+     "outputs": [
+      "objective"
+     ]
+    },
+    {
+     "id": "makeIntermediateBase",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "intermediateBase"
+     ]
+    },
+    {
+     "id": "makeIntermediateTip",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": -1,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "intermediateTip"
+     ]
+    },
+    {
+     "id": "makeIntermediate",
+     "operator": "vector",
+     "inputs": {
+      "start": "intermediateBase",
+      "end": "intermediateTip"
+     },
+     "outputs": [
+      "intermediate"
+     ]
+    },
+    {
+     "id": "makeEyepieceCenter",
+     "operator": "point",
+     "inputs": {
+      "x": 2,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "eyepieceCenter"
+     ]
+    },
+    {
+     "id": "makeEyepiece",
+     "operator": "lens_section",
+     "inputs": {
+      "center": "eyepieceCenter",
+      "axis": "axis",
+      "radius1": 4,
+      "radius2": -4,
+      "halfHeight": 1.7
+     },
+     "outputs": [
+      "eyepiece"
+     ]
+    },
+    {
+     "id": "makeVirtualBase",
+     "operator": "point",
+     "inputs": {
+      "x": -0.5,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "virtualBase"
+     ]
+    },
+    {
+     "id": "makeVirtualTip",
+     "operator": "point",
+     "inputs": {
+      "x": -0.5,
+      "y": -1.5,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "virtualTip"
+     ]
+    },
+    {
+     "id": "makeVirtualImage",
+     "operator": "vector",
+     "inputs": {
+      "start": "virtualBase",
+      "end": "virtualTip"
+     },
+     "outputs": [
+      "virtualImage"
+     ]
+    },
+    {
+     "id": "makeOpticalTrain",
+     "operator": "optical_train",
+     "inputs": {
+      "axis": "axis",
+      "objective": "objectiveCenter",
+      "eyepiece": "eyepieceCenter",
+      "focus": "intermediateBase"
+     },
+     "outputs": [
+      "incomingUpper",
+      "incomingLower",
+      "internalUpper",
+      "internalLower",
+      "outgoingUpper",
+      "outgoingLower"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [
+    {
+     "id": "lensOrder",
+     "predicate": "ordered_along",
+     "entities": [
+      "objectBase",
+      "objectiveCenter",
+      "intermediateBase",
+      "eyepieceCenter"
+     ],
+     "expected": {
+      "axis": "x",
+      "direction": "increasing"
+     },
+     "severity": "fatal"
+    },
+    {
+     "id": "objectiveOnAxis",
+     "predicate": "on",
+     "entities": [
+      "objectiveCenter",
+      "axis"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "eyepieceOnAxis",
+     "predicate": "on",
+     "entities": [
+      "eyepieceCenter",
+      "axis"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "intermediateOnAxis",
+     "predicate": "on",
+     "entities": [
+      "intermediateBase",
+      "axis"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    }
+   ],
+   "annotations": [
+    {
+     "id": "objectiveExplanation",
+     "kind": "narration",
+     "targetIds": [
+      "object",
+      "objective",
+      "intermediate"
+     ],
+     "text": "The objective, close to the tiny object, forms an enlarged, inverted real intermediate image."
+    },
+    {
+     "id": "eyepieceExplanation",
+     "kind": "narration",
+     "targetIds": [
+      "intermediate",
+      "eyepiece",
+      "virtualImage"
+     ],
+     "text": "The eyepiece acts as a magnifying glass. Its larger virtual image remains inverted relative to the object."
+    },
+    {
+     "id": "sequenceExplanation",
+     "kind": "narration",
+     "targetIds": [
+      "incomingUpper",
+      "internalUpper",
+      "outgoingUpper"
+     ],
+     "text": "Light passes through the objective and then the eyepiece; the successive magnifications make fine details easier to see."
+    }
+   ],
+   "requiredEntityIds": [
+    "axis",
+    "object",
+    "objective",
+    "intermediate",
+    "eyepiece",
+    "virtualImage",
+    "incomingUpper",
+    "incomingLower",
+    "internalUpper",
+    "internalLower",
+    "outgoingUpper",
+    "outgoingLower"
+   ],
+   "revealGroups": [
+    {
+     "id": "scene",
+     "entityIds": [
+      "axisLeft",
+      "axisRight",
+      "axis",
+      "objectBase",
+      "objectTip",
+      "object",
+      "objectiveCenter",
+      "objective",
+      "intermediateBase",
+      "intermediateTip",
+      "intermediate",
+      "eyepieceCenter",
+      "eyepiece",
+      "virtualBase",
+      "virtualTip",
+      "virtualImage",
+      "incomingUpper",
+      "incomingLower",
+      "internalUpper",
+      "internalLower",
+      "outgoingUpper",
+      "outgoingLower"
+     ],
+     "dependsOn": []
+    }
+   ],
+   "teachingTimeline": []
+  },
+  "parallax": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "A symbolic axial setup shows the lens image, the inserted convex mirror, and the measured pole-to-image distance."
+   },
+   "source": {
+    "question": "convex mirror focal length experiment using a lens",
+    "representationTier": "qualitative_verified",
+    "nonMetric": true
+   },
+   "quantities": [],
+   "entities": [
+    {
+     "id": "axis_origin",
+     "kind": "point",
+     "role": "axis construction point"
+    },
+    {
+     "id": "axis",
+     "kind": "line",
+     "role": "optical axis"
+    },
+    {
+     "id": "O",
+     "kind": "point",
+     "role": "object foot"
+    },
+    {
+     "id": "object_tip",
+     "kind": "point",
+     "role": "object tip"
+    },
+    {
+     "id": "object",
+     "kind": "vector",
+     "role": "illuminated object",
+     "label": "O"
+    },
+    {
+     "id": "L",
+     "kind": "point",
+     "role": "lens centre"
+    },
+    {
+     "id": "lens",
+     "kind": "polygon",
+     "role": "convex lens"
+    },
+    {
+     "id": "upper",
+     "kind": "point",
+     "role": "upper lens ray point"
+    },
+    {
+     "id": "lower",
+     "kind": "point",
+     "role": "lower lens ray point"
+    },
+    {
+     "id": "I",
+     "kind": "point",
+     "role": "marked real-image position and mirror centre of curvature",
+     "label": "I"
+    },
+    {
+     "id": "screen_top",
+     "kind": "point",
+     "role": "screen endpoint"
+    },
+    {
+     "id": "screen_bottom",
+     "kind": "point",
+     "role": "screen endpoint"
+    },
+    {
+     "id": "screen",
+     "kind": "segment",
+     "role": "removable screen"
+    },
+    {
+     "id": "ray_upper",
+     "kind": "ray",
+     "role": "lens ray converging toward I"
+    },
+    {
+     "id": "ray_lower",
+     "kind": "ray",
+     "role": "lens ray converging toward I"
+    },
+    {
+     "id": "P",
+     "kind": "point",
+     "role": "mirror pole",
+     "label": "P"
+    },
+    {
+     "id": "mirror",
+     "kind": "arc",
+     "role": "convex mirror"
+    },
+    {
+     "id": "incoming_upper",
+     "kind": "vector",
+     "role": "incident upper ray at mirror"
+    },
+    {
+     "id": "incoming_lower",
+     "kind": "vector",
+     "role": "incident lower ray at mirror"
+    },
+    {
+     "id": "reflected_upper",
+     "kind": "ray",
+     "role": "reflected upper ray"
+    },
+    {
+     "id": "reflected_lower",
+     "kind": "ray",
+     "role": "reflected lower ray"
+    },
+    {
+     "id": "d",
+     "kind": "dimension",
+     "role": "pole-to-marked-image distance",
+     "label": "d"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "make_axis_origin",
+     "operator": "point",
+     "inputs": {
+      "x": -4,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "axis_origin"
+     ]
+    },
+    {
+     "id": "make_axis",
+     "operator": "line",
+     "inputs": {
+      "start": "axis_origin",
+      "direction": [
+       1,
+       0
+      ]
+     },
+     "outputs": [
+      "axis"
+     ]
+    },
+    {
+     "id": "make_O",
+     "operator": "point",
+     "inputs": {
+      "x": -3,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "O"
+     ]
+    },
+    {
+     "id": "make_object_tip",
+     "operator": "point",
+     "inputs": {
+      "x": -3,
+      "y": 1,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "object_tip"
+     ]
+    },
+    {
+     "id": "make_object",
+     "operator": "vector",
+     "inputs": {
+      "start": "O",
+      "end": "object_tip"
+     },
+     "outputs": [
+      "object"
+     ]
+    },
+    {
+     "id": "make_L",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "L"
+     ]
+    },
+    {
+     "id": "make_lens",
+     "operator": "lens_section",
+     "inputs": {
+      "center": "L",
+      "axis": "axis",
+      "radius1": 5,
+      "radius2": -5,
+      "halfHeight": 1.2
+     },
+     "outputs": [
+      "lens"
+     ]
+    },
+    {
+     "id": "make_upper",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 0.6,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "upper"
+     ]
+    },
+    {
+     "id": "make_lower",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": -0.6,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "lower"
+     ]
+    },
+    {
+     "id": "make_I",
+     "operator": "point",
+     "inputs": {
+      "x": 4,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "I"
+     ]
+    },
+    {
+     "id": "make_screen_top",
+     "operator": "point",
+     "inputs": {
+      "x": 4,
+      "y": 1.2,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "screen_top"
+     ]
+    },
+    {
+     "id": "make_screen_bottom",
+     "operator": "point",
+     "inputs": {
+      "x": 4,
+      "y": -1.2,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "screen_bottom"
+     ]
+    },
+    {
+     "id": "make_screen",
+     "operator": "segment",
+     "inputs": {
+      "start": "screen_bottom",
+      "end": "screen_top"
+     },
+     "outputs": [
+      "screen"
+     ]
+    },
+    {
+     "id": "make_ray_upper",
+     "operator": "ray",
+     "inputs": {
+      "start": "upper",
+      "end": "I"
+     },
+     "outputs": [
+      "ray_upper"
+     ]
+    },
+    {
+     "id": "make_ray_lower",
+     "operator": "ray",
+     "inputs": {
+      "start": "lower",
+      "end": "I"
+     },
+     "outputs": [
+      "ray_lower"
+     ]
+    },
+    {
+     "id": "make_P",
+     "operator": "point",
+     "inputs": {
+      "x": 2,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "P"
+     ]
+    },
+    {
+     "id": "make_mirror",
+     "operator": "spherical_surface",
+     "inputs": {
+      "vertex": "P",
+      "axis": "axis",
+      "center": "I",
+      "signedRadius": 2,
+      "halfHeight": 0.8,
+      "kind": "convex"
+     },
+     "outputs": [
+      "mirror"
+     ]
+    },
+    {
+     "id": "contact_upper",
+     "operator": "surface_contact",
+     "inputs": {
+      "origin": "upper",
+      "through": "I",
+      "surface": "mirror"
+     },
+     "outputs": [
+      "hit_upper",
+      "incoming_upper"
+     ]
+    },
+    {
+     "id": "normal_upper",
+     "operator": "normal_at",
+     "inputs": {
+      "point": "hit_upper",
+      "surface": "mirror"
+     },
+     "outputs": [
+      "normal_upper_helper"
+     ]
+    },
+    {
+     "id": "reflect_upper",
+     "operator": "reflect_direction",
+     "inputs": {
+      "origin": "hit_upper",
+      "incoming": "incoming_upper",
+      "normal": "normal_upper_helper"
+     },
+     "outputs": [
+      "reflected_upper"
+     ]
+    },
+    {
+     "id": "contact_lower",
+     "operator": "surface_contact",
+     "inputs": {
+      "origin": "lower",
+      "through": "I",
+      "surface": "mirror"
+     },
+     "outputs": [
+      "hit_lower",
+      "incoming_lower"
+     ]
+    },
+    {
+     "id": "normal_lower",
+     "operator": "normal_at",
+     "inputs": {
+      "point": "hit_lower",
+      "surface": "mirror"
+     },
+     "outputs": [
+      "normal_lower_helper"
+     ]
+    },
+    {
+     "id": "reflect_lower",
+     "operator": "reflect_direction",
+     "inputs": {
+      "origin": "hit_lower",
+      "incoming": "incoming_lower",
+      "normal": "normal_lower_helper"
+     },
+     "outputs": [
+      "reflected_lower"
+     ]
+    },
+    {
+     "id": "make_d",
+     "operator": "dimension",
+     "inputs": {
+      "start": "P",
+      "end": "I"
+     },
+     "outputs": [
+      "d"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [
+    {
+     "id": "object_on_axis",
+     "predicate": "on",
+     "entities": [
+      "O",
+      "axis"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "pole_on_axis",
+     "predicate": "on",
+     "entities": [
+      "P",
+      "axis"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "image_on_axis",
+     "predicate": "on",
+     "entities": [
+      "I",
+      "axis"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "mirror_between_lens_and_image",
+     "predicate": "between",
+     "entities": [
+      "P",
+      "L",
+      "I"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "lens_rays_converge",
+     "predicate": "converges",
+     "entities": [
+      "ray_upper",
+      "ray_lower",
+      "I"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    }
+   ],
+   "annotations": [
+    {
+     "id": "setup_note",
+     "kind": "narration",
+     "targetIds": [
+      "lens",
+      "screen",
+      "I"
+     ],
+     "text": "The convex lens forms a sharp real image at I on the screen."
+    },
+    {
+     "id": "adjust_note",
+     "kind": "narration",
+     "targetIds": [
+      "mirror",
+      "reflected_upper",
+      "reflected_lower"
+     ],
+     "text": "Remove the screen and adjust the mirror until the reflected image coincides with the object. The rays then retrace their paths, and I is the mirror’s centre of curvature."
+    },
+    {
+     "id": "measure_note",
+     "kind": "narration",
+     "targetIds": [
+      "d"
+     ],
+     "text": "Measure d from the mirror pole to the marked position I; then calculate the focal-length magnitude as f = d/2."
+    }
+   ],
+   "requiredEntityIds": [
+    "axis",
+    "object",
+    "lens",
+    "screen",
+    "I",
+    "ray_upper",
+    "ray_lower",
+    "P",
+    "mirror",
+    "reflected_upper",
+    "reflected_lower",
+    "d"
+   ],
+   "revealGroups": [
+    {
+     "id": "setup",
+     "entityIds": [
+      "axis",
+      "O",
+      "object",
+      "L",
+      "lens",
+      "I",
+      "screen",
+      "ray_upper",
+      "ray_lower"
+     ],
+     "dependsOn": [],
+     "narrationCue": "Form and mark the real image on the screen."
+    },
+    {
+     "id": "mirror_adjustment",
+     "entityIds": [
+      "P",
+      "mirror",
+      "incoming_upper",
+      "incoming_lower",
+      "reflected_upper",
+      "reflected_lower"
+     ],
+     "dependsOn": [
+      "setup"
+     ],
+     "narrationCue": "Remove the screen and adjust the convex mirror for coincidence with the object."
+    },
+    {
+     "id": "measurement",
+     "entityIds": [
+      "d"
+     ],
+     "dependsOn": [
+      "mirror_adjustment"
+     ],
+     "narrationCue": "Measure the pole-to-I distance before calculating the focal length."
+    }
+   ],
+   "teachingTimeline": [
+    {
+     "id": "show_setup",
+     "revealGroupId": "setup",
+     "annotationIds": [
+      "setup_note"
+     ]
+    },
+    {
+     "id": "show_adjustment",
+     "revealGroupId": "mirror_adjustment",
+     "hideEntityIds": [
+      "screen"
+     ],
+     "annotationIds": [
+      "adjust_note"
+     ]
+    },
+    {
+     "id": "show_measurement",
+     "revealGroupId": "measurement",
+     "annotationIds": [
+      "measure_note"
+     ]
+    }
+   ]
+  },
+  "sphere": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "A diameter through the bubble supports the given distances and the two apparent-image positions."
+   },
+   "source": {
+    "question": "A solid glass sphere of radius 8 cm and refractive index 1.5 holds a tiny air bubble on a diameter, 4 cm from the nearer surface. Find where the bubble appears, and its magnification, when viewed along that diameter first from the nearer side and then from the far side."
+   },
+   "quantities": [
+    {
+     "id": "r",
+     "symbol": "R",
+     "value": 8,
+     "unit": "cm"
+    },
+    {
+     "id": "ng",
+     "symbol": "n_g",
+     "value": 1.5
+    },
+    {
+     "id": "dn",
+     "symbol": "d_n",
+     "value": 4,
+     "unit": "cm"
+    },
+    {
+     "id": "df",
+     "symbol": "d_f",
+     "value": 12,
+     "unit": "cm"
+    },
+    {
+     "id": "vn",
+     "symbol": "d'_n",
+     "value": 2.2857142857142856,
+     "unit": "cm"
+    },
+    {
+     "id": "mn",
+     "symbol": "m_n",
+     "value": 0.8571428571428571
+    },
+    {
+     "id": "vf",
+     "symbol": "d'_f",
+     "value": 5.333333333333333,
+     "unit": "cm"
+    },
+    {
+     "id": "mf",
+     "symbol": "m_f",
+     "value": 0.6666666666666666
+    }
+   ],
+   "entities": [
+    {
+     "id": "near",
+     "kind": "point",
+     "role": "near vertex",
+     "label": "Vₙ"
+    },
+    {
+     "id": "far",
+     "kind": "point",
+     "role": "far vertex",
+     "label": "V𝒻"
+    },
+    {
+     "id": "center",
+     "kind": "point",
+     "role": "centre of curvature",
+     "label": "C"
+    },
+    {
+     "id": "bubble",
+     "kind": "point",
+     "role": "object",
+     "label": "B"
+    },
+    {
+     "id": "axis",
+     "kind": "line",
+     "role": "principal axis"
+    },
+    {
+     "id": "nearSurface",
+     "kind": "arc",
+     "role": "spherical surface"
+    },
+    {
+     "id": "farSurface",
+     "kind": "arc",
+     "role": "spherical surface"
+    },
+    {
+     "id": "radiusDim",
+     "kind": "dimension",
+     "role": "radius"
+    },
+    {
+     "id": "nearObjectDim",
+     "kind": "dimension",
+     "role": "near-side object depth"
+    },
+    {
+     "id": "nearImage",
+     "kind": "point",
+     "role": "near-side virtual image",
+     "label": "Iₙ"
+    },
+    {
+     "id": "nearImageDim",
+     "kind": "dimension",
+     "role": "near-side apparent depth"
+    },
+    {
+     "id": "farImage",
+     "kind": "point",
+     "role": "far-side virtual image",
+     "label": "I𝒻"
+    },
+    {
+     "id": "farImageDim",
+     "kind": "dimension",
+     "role": "far-side apparent depth"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "makeNear",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "near"
+     ]
+    },
+    {
+     "id": "makeFar",
+     "operator": "point",
+     "inputs": {
+      "x": 16,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "far"
+     ]
+    },
+    {
+     "id": "makeCenter",
+     "operator": "point",
+     "inputs": {
+      "x": 8,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "center"
+     ]
+    },
+    {
+     "id": "makeBubble",
+     "operator": "point",
+     "inputs": {
+      "x": 4,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "bubble"
+     ]
+    },
+    {
+     "id": "makeAxis",
+     "operator": "line",
+     "inputs": {
+      "start": "near",
+      "end": "far"
+     },
+     "outputs": [
+      "axis"
+     ]
+    },
+    {
+     "id": "makeNearSurface",
+     "operator": "spherical_surface",
+     "inputs": {
+      "vertex": "near",
+      "axis": "axis",
+      "halfHeight": 6,
+      "center": "center",
+      "signedRadius": -8,
+      "kind": "convex"
+     },
+     "outputs": [
+      "nearSurface"
+     ]
+    },
+    {
+     "id": "makeFarSurface",
+     "operator": "spherical_surface",
+     "inputs": {
+      "vertex": "far",
+      "axis": "axis",
+      "halfHeight": 6,
+      "center": "center",
+      "signedRadius": 8,
+      "kind": "convex"
+     },
+     "outputs": [
+      "farSurface"
+     ]
+    },
+    {
+     "id": "makeRadiusDim",
+     "operator": "dimension",
+     "inputs": {
+      "start": "near",
+      "end": "center"
+     },
+     "outputs": [
+      "radiusDim"
+     ]
+    },
+    {
+     "id": "makeNearObjectDim",
+     "operator": "dimension",
+     "inputs": {
+      "start": "near",
+      "end": "bubble"
+     },
+     "outputs": [
+      "nearObjectDim"
+     ]
+    },
+    {
+     "id": "makeNearImage",
+     "operator": "point",
+     "inputs": {
+      "x": 2.2857142857142856,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "nearImage"
+     ]
+    },
+    {
+     "id": "makeNearImageDim",
+     "operator": "dimension",
+     "inputs": {
+      "start": "near",
+      "end": "nearImage"
+     },
+     "outputs": [
+      "nearImageDim"
+     ]
+    },
+    {
+     "id": "makeFarImage",
+     "operator": "point",
+     "inputs": {
+      "x": 10.666666666666668,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "farImage"
+     ]
+    },
+    {
+     "id": "makeFarImageDim",
+     "operator": "dimension",
+     "inputs": {
+      "start": "far",
+      "end": "farImage"
+     },
+     "outputs": [
+      "farImageDim"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [
+    {
+     "id": "bubbleOnAxis",
+     "predicate": "on",
+     "entities": [
+      "bubble",
+      "axis"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "centerBetweenVertices",
+     "predicate": "between",
+     "entities": [
+      "center",
+      "near",
+      "far"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "bubbleBetweenNearAndCenter",
+     "predicate": "between",
+     "entities": [
+      "bubble",
+      "near",
+      "center"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "nearImageInside",
+     "predicate": "between",
+     "entities": [
+      "nearImage",
+      "near",
+      "bubble"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "farImageInside",
+     "predicate": "between",
+     "entities": [
+      "farImage",
+      "center",
+      "far"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "equalRadii",
+     "predicate": "equal_length",
+     "entities": [
+      "near",
+      "center",
+      "center",
+      "far"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    }
+   ],
+   "annotations": [
+    {
+     "id": "radiusLabel",
+     "kind": "label",
+     "targetIds": [
+      "radiusDim"
+     ],
+     "text": "R = 8 cm",
+     "quantityId": "r"
+    },
+    {
+     "id": "glassLabel",
+     "kind": "label",
+     "targetIds": [
+      "nearSurface"
+     ],
+     "text": "n_g = 1.5",
+     "quantityId": "ng"
+    },
+    {
+     "id": "objectDepthLabel",
+     "kind": "label",
+     "targetIds": [
+      "nearObjectDim"
+     ],
+     "text": "d_n = 4 cm",
+     "quantityId": "dn"
+    },
+    {
+     "id": "nearDepthLabel",
+     "kind": "label",
+     "targetIds": [
+      "nearImageDim"
+     ],
+     "text": "d′_n = 16/7 cm",
+     "quantityId": "vn"
+    },
+    {
+     "id": "farDepthLabel",
+     "kind": "label",
+     "targetIds": [
+      "farImageDim"
+     ],
+     "text": "d′_f = 16/3 cm",
+     "quantityId": "vf"
+    }
+   ],
+   "requiredEntityIds": [
+    "axis",
+    "near",
+    "far",
+    "center",
+    "bubble",
+    "nearSurface",
+    "farSurface",
+    "radiusDim",
+    "nearObjectDim",
+    "nearImage",
+    "nearImageDim",
+    "farImage",
+    "farImageDim"
+   ],
+   "revealGroups": [
+    {
+     "id": "setup",
+     "entityIds": [
+      "axis",
+      "near",
+      "far",
+      "center",
+      "bubble",
+      "nearSurface",
+      "farSurface",
+      "radiusDim",
+      "nearObjectDim"
+     ],
+     "dependsOn": [],
+     "narrationCue": "Establish the sphere, its diameter, and the bubble four centimetres from the nearer surface."
+    },
+    {
+     "id": "nearView",
+     "entityIds": [
+      "nearImage",
+      "nearImageDim"
+     ],
+     "dependsOn": [
+      "setup"
+     ],
+     "narrationCue": "Viewing from the nearer side gives a virtual upright image at depth 16/7 cm and magnification 6/7."
+    },
+    {
+     "id": "farView",
+     "entityIds": [
+      "farImage",
+      "farImageDim"
+     ],
+     "dependsOn": [
+      "setup"
+     ],
+     "narrationCue": "Viewing from the far side gives a virtual upright image at depth 16/3 cm and magnification 2/3."
+    }
+   ],
+   "teachingTimeline": [
+    {
+     "id": "showSetup",
+     "revealGroupId": "setup"
+    },
+    {
+     "id": "showNear",
+     "revealGroupId": "nearView"
+    },
+    {
+     "id": "showFar",
+     "revealGroupId": "farView"
+    }
+   ]
+  },
+  "sphereCorrect": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "The sphere, axial bubble, and two viewing surfaces have stated geometry."
+   },
+   "source": {
+    "question": "A solid glass sphere of radius 8 cm and refractive index 1.5 holds a tiny air bubble on a diameter, 4 cm from the nearer surface. Find where the bubble appears, and its magnification, when viewed along that diameter first from the nearer side and then from the far side."
+   },
+   "quantities": [
+    {
+     "id": "r",
+     "symbol": "R",
+     "value": 8,
+     "unit": "cm"
+    },
+    {
+     "id": "n",
+     "symbol": "n_g",
+     "value": 1.5
+    },
+    {
+     "id": "d",
+     "symbol": "d_n",
+     "value": 4,
+     "unit": "cm"
+    },
+    {
+     "id": "df",
+     "symbol": "d_f",
+     "value": 12,
+     "unit": "cm"
+    },
+    {
+     "id": "pn",
+     "symbol": "d'_n",
+     "value": 3.2,
+     "unit": "cm"
+    },
+    {
+     "id": "mn",
+     "symbol": "m_n",
+     "value": 1.2
+    },
+    {
+     "id": "pf",
+     "symbol": "d'_f",
+     "value": 16,
+     "unit": "cm"
+    },
+    {
+     "id": "mf",
+     "symbol": "m_f",
+     "value": 2
+    }
+   ],
+   "entities": [
+    {
+     "id": "C",
+     "kind": "point",
+     "role": "centre of curvature",
+     "label": "C"
+    },
+    {
+     "id": "Vn",
+     "kind": "point",
+     "role": "near vertex",
+     "label": "Vₙ"
+    },
+    {
+     "id": "Vf",
+     "kind": "point",
+     "role": "far vertex",
+     "label": "V_f"
+    },
+    {
+     "id": "B",
+     "kind": "point",
+     "role": "bubble object",
+     "label": "B"
+    },
+    {
+     "id": "axis",
+     "kind": "line",
+     "role": "principal axis"
+    },
+    {
+     "id": "nearSurface",
+     "kind": "arc",
+     "role": "spherical surface"
+    },
+    {
+     "id": "farSurface",
+     "kind": "arc",
+     "role": "spherical surface"
+    },
+    {
+     "id": "radius",
+     "kind": "dimension",
+     "role": "radius"
+    },
+    {
+     "id": "nearDepth",
+     "kind": "dimension",
+     "role": "near-side object depth"
+    },
+    {
+     "id": "farDepth",
+     "kind": "dimension",
+     "role": "far-side object depth"
+    },
+    {
+     "id": "In",
+     "kind": "point",
+     "role": "near-side apparent image",
+     "label": "Iₙ"
+    },
+    {
+     "id": "nearImageDepth",
+     "kind": "dimension",
+     "role": "near-side apparent depth"
+    },
+    {
+     "id": "farImageDepth",
+     "kind": "dimension",
+     "role": "far-side apparent depth"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "cC",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "C"
+     ]
+    },
+    {
+     "id": "cVn",
+     "operator": "point",
+     "inputs": {
+      "x": -8,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "Vn"
+     ]
+    },
+    {
+     "id": "cVf",
+     "operator": "point",
+     "inputs": {
+      "x": 8,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "Vf"
+     ]
+    },
+    {
+     "id": "cB",
+     "operator": "point",
+     "inputs": {
+      "x": -4,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "B"
+     ]
+    },
+    {
+     "id": "cAxis",
+     "operator": "line",
+     "inputs": {
+      "start": "Vn",
+      "end": "Vf"
+     },
+     "outputs": [
+      "axis"
+     ]
+    },
+    {
+     "id": "cNearSurface",
+     "operator": "spherical_surface",
+     "inputs": {
+      "vertex": "Vn",
+      "axis": "axis",
+      "center": "C",
+      "signedRadius": 8,
+      "halfHeight": 8
+     },
+     "outputs": [
+      "nearSurface"
+     ]
+    },
+    {
+     "id": "cFarSurface",
+     "operator": "spherical_surface",
+     "inputs": {
+      "vertex": "Vf",
+      "axis": "axis",
+      "center": "C",
+      "signedRadius": -8,
+      "halfHeight": 8
+     },
+     "outputs": [
+      "farSurface"
+     ]
+    },
+    {
+     "id": "cRadius",
+     "operator": "dimension",
+     "inputs": {
+      "start": "C",
+      "end": "Vf"
+     },
+     "outputs": [
+      "radius"
+     ]
+    },
+    {
+     "id": "cNearDepth",
+     "operator": "dimension",
+     "inputs": {
+      "start": "Vn",
+      "end": "B"
+     },
+     "outputs": [
+      "nearDepth"
+     ]
+    },
+    {
+     "id": "cFarDepth",
+     "operator": "dimension",
+     "inputs": {
+      "start": "B",
+      "end": "Vf"
+     },
+     "outputs": [
+      "farDepth"
+     ]
+    },
+    {
+     "id": "cIn",
+     "operator": "point",
+     "inputs": {
+      "x": -4.8,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "In"
+     ]
+    },
+    {
+     "id": "cNearImageDepth",
+     "operator": "dimension",
+     "inputs": {
+      "start": "Vn",
+      "end": "In"
+     },
+     "outputs": [
+      "nearImageDepth"
+     ]
+    },
+    {
+     "id": "cFarImageDepth",
+     "operator": "dimension",
+     "inputs": {
+      "start": "Vf",
+      "end": "Vn"
+     },
+     "outputs": [
+      "farImageDepth"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [
+    {
+     "id": "bubbleOnAxis",
+     "predicate": "on",
+     "entities": [
+      "B",
+      "axis"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "bubbleInside",
+     "predicate": "between",
+     "entities": [
+      "B",
+      "Vn",
+      "Vf"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "nearImageOnAxis",
+     "predicate": "on",
+     "entities": [
+      "In",
+      "axis"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "nearImageInside",
+     "predicate": "between",
+     "entities": [
+      "In",
+      "Vn",
+      "B"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    }
+   ],
+   "annotations": [
+    {
+     "id": "aRadius",
+     "kind": "label",
+     "targetIds": [
+      "radius"
+     ],
+     "text": "R=8 cm",
+     "quantityId": "r"
+    },
+    {
+     "id": "aIndex",
+     "kind": "label",
+     "targetIds": [
+      "nearSurface"
+     ],
+     "text": "n_g=1.5",
+     "quantityId": "n"
+    },
+    {
+     "id": "aNearDepth",
+     "kind": "label",
+     "targetIds": [
+      "nearDepth"
+     ],
+     "text": "d_n=4 cm",
+     "quantityId": "d"
+    },
+    {
+     "id": "aFarDepth",
+     "kind": "label",
+     "targetIds": [
+      "farDepth"
+     ],
+     "text": "d_f=12 cm",
+     "quantityId": "df"
+    },
+    {
+     "id": "aNearImage",
+     "kind": "label",
+     "targetIds": [
+      "nearImageDepth"
+     ],
+     "text": "d′ₙ=3.2 cm",
+     "quantityId": "pn"
+    },
+    {
+     "id": "aNearMag",
+     "kind": "callout",
+     "targetIds": [
+      "In"
+     ],
+     "text": "mₙ=1.2",
+     "quantityId": "mn"
+    },
+    {
+     "id": "aFarImage",
+     "kind": "label",
+     "targetIds": [
+      "farImageDepth"
+     ],
+     "text": "d′_f=16 cm",
+     "quantityId": "pf"
+    },
+    {
+     "id": "aFarMag",
+     "kind": "callout",
+     "targetIds": [
+      "Vn"
+     ],
+     "text": "m_f=2",
+     "quantityId": "mf"
+    }
+   ],
+   "requiredEntityIds": [
+    "C",
+    "Vn",
+    "Vf",
+    "B",
+    "axis",
+    "nearSurface",
+    "farSurface",
+    "In"
+   ],
+   "revealGroups": [
+    {
+     "id": "setup",
+     "entityIds": [
+      "C",
+      "Vn",
+      "Vf",
+      "B",
+      "axis",
+      "nearSurface",
+      "farSurface",
+      "radius",
+      "nearDepth"
+     ],
+     "dependsOn": [],
+     "narrationCue": "Show the sphere and the bubble four centimetres from the nearer surface."
+    },
+    {
+     "id": "nearResult",
+     "entityIds": [
+      "In",
+      "nearImageDepth"
+     ],
+     "dependsOn": [
+      "setup"
+     ],
+     "narrationCue": "From the nearer side, the upright apparent image is 3.2 centimetres deep, with magnification 1.2."
+    },
+    {
+     "id": "farResult",
+     "entityIds": [
+      "farDepth",
+      "farImageDepth"
+     ],
+     "dependsOn": [
+      "nearResult"
+     ],
+     "narrationCue": "From the far side, the upright apparent image is at the opposite surface, 16 centimetres deep, with magnification 2."
+    }
+   ],
+   "teachingTimeline": [
+    {
+     "id": "showSetup",
+     "revealGroupId": "setup"
+    },
+    {
+     "id": "showNear",
+     "revealGroupId": "nearResult"
+    },
+    {
+     "id": "showFar",
+     "revealGroupId": "farResult"
+    }
+   ]
+  }
+ },
+ "plans": {
+  "microscope": {
+   "schemaVersion": "turn-plan/v3",
+   "question": "how a compound microscope magnifies tiny things",
+   "givens": [],
+   "unknowns": [],
+   "derived": [],
+   "qualitativeClaims": [
+    {
+     "id": "c1",
+     "claim": "c1",
+     "expected": "The objective, placed close to the tiny object, produces an enlarged, inverted real intermediate image."
+    },
+    {
+     "id": "c2",
+     "claim": "c2",
+     "expected": "The eyepiece acts as a magnifying glass, making the intermediate image appear as a larger virtual image to the viewer."
+    },
+    {
+     "id": "c3",
+     "claim": "c3",
+     "expected": "Light from the object passes through the objective and then the eyepiece; their successive magnifications make fine details easier to see. The final image remains inverted relative to the object."
+    }
+   ],
+   "lawIds": [
+    "geometrical-optics lens imaging"
+   ],
+   "assumptions": [],
+   "visualRequirement": "required"
+  },
+  "parallax": {
+   "schemaVersion": "turn-plan/v3",
+   "question": "convex mirror focal length experiment using a lens",
+   "givens": [],
+   "unknowns": [
+    {
+     "id": "f",
+     "symbol": "f",
+     "unit": "length"
+    }
+   ],
+   "derived": [],
+   "qualitativeClaims": [
+    {
+     "id": "setup",
+     "claim": "setup",
+     "expected": "The lens provides rays converging toward I."
+    },
+    {
+     "id": "adjust",
+     "claim": "adjust",
+     "expected": "At coincidence, the rays retrace their paths and I is at the mirror’s centre of curvature."
+    },
+    {
+     "id": "result",
+     "claim": "result",
+     "expected": "The magnitude of the convex mirror’s focal length is f = d/2."
+    }
+   ],
+   "lawIds": [
+    "spherical-mirror-radius-focal-length-relation",
+    "normal-incidence-ray-retracing"
+   ],
+   "assumptions": [
+    "Use the paraxial approximation for the lens and spherical convex mirror."
+   ],
+   "visualRequirement": "required"
+  },
+  "sphere": {
+   "schemaVersion": "turn-plan/v3",
+   "question": "A solid glass sphere of radius 8 cm and refractive index 1.5 holds a tiny air bubble on a diameter, 4 cm from the nearer surface. Find where the bubble appears, and its magnification, when viewed along that diameter first from the nearer side and then from the far side.",
+   "givens": [
+    {
+     "id": "r",
+     "symbol": "R",
+     "value": 8,
+     "unit": "cm",
+     "provenance": "given",
+     "sourceText": "r = 8"
+    },
+    {
+     "id": "ng",
+     "symbol": "n_g",
+     "value": 1.5,
+     "provenance": "given",
+     "sourceText": "ng = 1.5"
+    },
+    {
+     "id": "dn",
+     "symbol": "d_n",
+     "value": 4,
+     "unit": "cm",
+     "provenance": "given",
+     "sourceText": "dn = 4"
+    }
+   ],
+   "unknowns": [
+    {
+     "id": "vn",
+     "symbol": "d'_n",
+     "unit": "cm"
+    },
+    {
+     "id": "mn",
+     "symbol": "m_n"
+    },
+    {
+     "id": "vf",
+     "symbol": "d'_f",
+     "unit": "cm"
+    },
+    {
+     "id": "mf",
+     "symbol": "m_f"
+    }
+   ],
+   "derived": [
+    {
+     "id": "df",
+     "symbol": "d_f",
+     "value": 12,
+     "unit": "cm"
+    },
+    {
+     "id": "vn",
+     "symbol": "d'_n",
+     "value": 2.2857142857142856,
+     "unit": "cm"
+    },
+    {
+     "id": "mn",
+     "symbol": "m_n",
+     "value": 0.8571428571428571
+    },
+    {
+     "id": "vf",
+     "symbol": "d'_f",
+     "value": 5.333333333333333,
+     "unit": "cm"
+    },
+    {
+     "id": "mf",
+     "symbol": "m_f",
+     "value": 0.6666666666666666
+    }
+   ],
+   "qualitativeClaims": [
+    {
+     "id": "location",
+     "claim": "location",
+     "expected": "Near-side depth 16/7 cm; far-side depth 16/3 cm. Magnifications are respectively 6/7 and 2/3."
+    }
+   ],
+   "lawIds": [
+    "paraxial refraction at a spherical surface: n₂/v−n₁/u=(n₂−n₁)/R",
+    "transverse magnification at a refracting surface: m=n₁v/(n₂u)"
+   ],
+   "assumptions": [
+    "The surrounding air has refractive index 1.",
+    "Use the paraxial approximation; light travels from the bubble through glass and exits at the surface being viewed."
+   ],
+   "visualRequirement": "required"
+  },
+  "sphereCorrect": {
+   "schemaVersion": "turn-plan/v3",
+   "question": "A solid glass sphere of radius 8 cm and refractive index 1.5 holds a tiny air bubble on a diameter, 4 cm from the nearer surface. Find where the bubble appears, and its magnification, when viewed along that diameter first from the nearer side and then from the far side.",
+   "givens": [
+    {
+     "id": "r",
+     "symbol": "R",
+     "value": 8,
+     "unit": "cm",
+     "provenance": "given",
+     "sourceText": "r = 8"
+    },
+    {
+     "id": "n",
+     "symbol": "n_g",
+     "value": 1.5,
+     "provenance": "given",
+     "sourceText": "n = 1.5"
+    },
+    {
+     "id": "d",
+     "symbol": "d_n",
+     "value": 4,
+     "unit": "cm",
+     "provenance": "given",
+     "sourceText": "d = 4"
+    }
+   ],
+   "unknowns": [
+    {
+     "id": "pn",
+     "symbol": "d'_n",
+     "unit": "cm"
+    },
+    {
+     "id": "mn",
+     "symbol": "m_n"
+    },
+    {
+     "id": "pf",
+     "symbol": "d'_f",
+     "unit": "cm"
+    },
+    {
+     "id": "mf",
+     "symbol": "m_f"
+    }
+   ],
+   "derived": [
+    {
+     "id": "df",
+     "symbol": "d_f",
+     "value": 12,
+     "unit": "cm"
+    },
+    {
+     "id": "pn",
+     "symbol": "d'_n",
+     "value": 3.2,
+     "unit": "cm"
+    },
+    {
+     "id": "mn",
+     "symbol": "m_n",
+     "value": 1.2
+    },
+    {
+     "id": "pf",
+     "symbol": "d'_f",
+     "value": 16,
+     "unit": "cm"
+    },
+    {
+     "id": "mf",
+     "symbol": "m_f",
+     "value": 2
+    }
+   ],
+   "qualitativeClaims": [
+    {
+     "id": "near",
+     "claim": "near",
+     "expected": "3.2 cm deep; magnification 1.2×"
+    },
+    {
+     "id": "far",
+     "claim": "far",
+     "expected": "16 cm deep from the far surface; magnification 2×"
+    }
+   ],
+   "lawIds": [
+    "Refraction at a spherical surface",
+    "Transverse magnification at a spherical refracting surface"
+   ],
+   "assumptions": [
+    "Air has refractive index 1.",
+    "Paraxial viewing along the stated diameter."
+   ],
+   "visualRequirement": "required"
+  }
+ }
+}
