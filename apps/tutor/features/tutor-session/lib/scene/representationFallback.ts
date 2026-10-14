@@ -1290,7 +1290,7 @@ const OPTICS_NATURE_AFTER = new RegExp(`\\bimages?\\b(?:\\s+(?:so\\s+)?(?:formed
 /** "real or virtual", "upright or inverted": the stem asks about the nature, it does not state it. */
 const OPTICS_NATURE_CHOICE = new RegExp(`\\b(?:${OPTICS_NATURE})\\s+or\\s+(?:an?\\s+)?(?:${OPTICS_NATURE})\\b`, "i");
 /** Where the image forms: "an image 30 cm behind the mirror", "the image forms on the other side of the lens". */
-const OPTICS_IMAGE_SIDE = /\bimages?\b((?:(?!\bobjects?\b)(?:[^.;]|\.(?=\d)))*?)\b(behind|in front of|on the (?:other|opposite|far|same) side(?:\s+(?:of|as))?)\s+(?:it|the (?:mirror|lens|object))\b/gi;
+const OPTICS_IMAGE_SIDE = /\bimages?\b((?:(?!\bobjects?\b)(?:[^.;]|\.(?=\d)))*?)\b(behind|in front of|on the (?:other|opposite|far|same) side(?:\s+(?:of|as))?)\s+(it|the (?:mirror|lens|object))\b/gi;
 /** A stated image distance rounded to three figures (33.3 cm for 33.33 cm) still agrees. */
 const OPTICS_IMAGE_DISTANCE_TOLERANCE = 0.01;
 
@@ -1301,7 +1301,7 @@ const OPTICS_IMAGE_DISTANCE_TOLERANCE = 0.01;
  * "whether" or "if", is not read, and "real or virtual" names no nature. A side is virtual behind a mirror (or on its other
  * side) and real in front of it (or on the object's side); across a lens it is real and on the
  * object's side virtual. "Behind" or "in front of" a lens names no side for certain (null), though a
- * distance there is still the image's.
+ * distance there is still the image's. "Behind the object" is not read at all.
  */
 function opticsStemImage(question: string, element: "lens" | "mirror"): {
   words: Set<string>;
@@ -1317,6 +1317,9 @@ function opticsStemImage(question: string, element: "lens" | "mirror"): {
     }
     for (const found of statement.matchAll(OPTICS_IMAGE_SIDE)) {
       const where = found[2]!.toLowerCase();
+      // "Behind the object" or "in front of" it is a place against the object, not a side of the
+      // element, and its distance is not the image distance; only "the same side as the object" is.
+      if (/object/i.test(found[3]!) && !/same/.test(where)) continue;
       const virtual = element === "mirror" ? /behind|other|opposite|far/.test(where) : /same/.test(where);
       const real = element === "mirror" ? /in front|same/.test(where) : /other|opposite|far/.test(where);
       const distance = /(\d+(?:\.\d+)?)\s*(mm|cm|m)\s*$/i.exec(found[1]!);

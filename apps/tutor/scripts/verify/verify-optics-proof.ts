@@ -105,7 +105,8 @@
  * "an image 30 cm behind" a mirror 15 cm from the object, a concave mirror of f 20 cm (image 60 cm
  * behind) stays unproven and f 30 cm draws. The wrong side (30 cm behind on an "in front" stem) and
  * a lens image at 20 cm on a 60 cm stem ("on the other side", or "behind the lens", whose side is
- * not read) stay unproven; the matching figures draw, and 33.3 cm proves 33.33 cm.
+ * not read) stay unproven; the matching figures draw, and 33.3 cm proves 33.33 cm. "6 cm behind the
+ * object" names no side of the mirror, so neither kind proves on it (the convex one did).
  * G25: a question reads the facts stated before it asks. "forms a real image ...; where does the
  * image form?" proves the concave mirror and not the convex one, and "so what" and "and how"
  * questions do likewise. A question that states no nature before it asks ("; is the image real?",
@@ -1530,6 +1531,18 @@ function named(name: string, run: () => void): void {
     const result = explainPlannerOpticsProof(question, document);
     check("G24", result.proof === "proven", `${name} must be proven; got ${result.proof}: ${result.reason}`);
     expectDrawnAsPlanner("G24", name, question, turnPlan, document);
+  }
+  // A place against the object is no side of the mirror: 6 cm behind the object is a real image 18 cm in
+  // front of the mirror (f 7.2 cm), never a virtual one 6 cm behind it. The stem states no kind, so both decline.
+  const qObject = "An object is placed 12 cm in front of a mirror of focal length 7.2 cm, and its image forms 6 cm behind the object. Draw the ray diagram.";
+  const objectPlan = plan(qObject, [
+    { id: "u", symbol: "u", value: 12, unit: "cm", provenance: "given", sourceText: "12 cm" },
+    { id: "f", symbol: "f", value: 7.2, unit: "cm", provenance: "given", sourceText: "focal length 7.2 cm" },
+  ], [{ id: "v", symbol: "v", value: 18, unit: "cm", provenance: "derived" }], ["mirror_formula"]);
+  for (const kind of ["concave", "convex"] as const) {
+    const document = mirrorDoc(qObject, { u: 12, f: 7.2, h: 2, kind, quantities: [{ id: "u", symbol: "u", value: 12 }, { id: "f", symbol: "f", value: 7.2 }] });
+    expectUnproven("G24", `a ${kind} mirror on the 6 cm behind the object stem`, qObject, document, /^the stem names no mirror kind/);
+    expectNeverPlanner("G24", `a ${kind} mirror on the 6 cm behind the object stem`, qObject, objectPlan, document);
   }
   const qRounded = "An object placed 20 cm in front of a mirror forms an image 33.3 cm in front of it. Draw the ray diagram.";
   const rounded = explainPlannerOpticsProof(qRounded, mirrorAt(qRounded, 20, 12.5));
