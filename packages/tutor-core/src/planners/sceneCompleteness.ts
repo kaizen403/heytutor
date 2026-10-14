@@ -44,8 +44,12 @@ export type CompletenessConstructionWord =
   | "midpoint" | "centre" | "median_altitude" | "asymptote" | "region" | "strip";
 
 export type CompletenessMatcher =
-  /** A visible text carries the value (SI prefix scaling, sign ignored). */
-  | { type: "value"; value: number }
+  /**
+   * A visible text carries the value, within 1%, sign ignored. A unit prefix
+   * scales it only when the text writes one with the given's base unit ("1 mm"
+   * for 0.001 m); a bare number is compared as written.
+   */
+  | { type: "value"; value: number; unit?: string }
   /** An angle mark exists (enough marks for every angle item when `counted`), carrying the value when one is known. */
   | { type: "angle"; value: number | null; counted: boolean }
   | { type: "right_angle" }
@@ -149,42 +153,104 @@ function powerOf(caret: string | undefined, superscript: string | undefined): nu
   return Number.isFinite(power) ? power : 0;
 }
 
-/** Every numeric value written in a text: scientific notation, unicode exponents and π fractions. */
-function numbers(text: string): number[] {
+/** A number as written, with the unit word that follows it ("1 mm" gives 1 and "mm"). */
+interface WrittenNumber {
+  value: number;
+  unit: string | null;
+}
+
+/** The unit after a number: "mm", "μF", "m/s²", "m s⁻¹", "°". */
+const UNIT_AFTER_RE = /\s*([A-Za-zΩμµ°][A-Za-zΩμµ°/²³⁻¹^0-9·]*(?:\s+[A-Za-z](?:⁻[¹²³]|\^\(?-[123]\)?))*)/y;
+
+/** Every number written in a text with the unit that follows it: scientific notation, unicode exponents and π fractions. */
+function writtenNumbers(text: string): WrittenNumber[] {
   const normalized = norm(text);
-  const out: number[] = [];
+  const out: WrittenNumber[] = [];
   for (const match of normalized.matchAll(PI_RE)) {
     const numerator = match[1] ? Number(match[1]) : 1;
     const denominator = match[2] ? Number(match[2]) : 1;
-    out.push((numerator * Math.PI) / denominator);
+    out.push({ value: (numerator * Math.PI) / denominator, unit: null });
   }
   const withoutPi = normalized.replace(PI_RE, " ");
   for (const match of withoutPi.matchAll(NUM_RE)) {
-    if (match[1] !== undefined) out.push(Number(match[1]) * 10 ** Number.parseInt(match[2]!, 10));
-    else if (match[3] !== undefined) out.push(Number(match[3]) * 10 ** powerOf(match[4], match[5]));
-    else if (match[6] !== undefined) out.push((match[6] === "-" ? -1 : 1) * 10 ** powerOf(match[7], match[8]));
-    else if (match[9] !== undefined) out.push(Number(match[9]));
+    let value: number;
+    if (match[1] !== undefined) value = Number(match[1]) * 10 ** Number.parseInt(match[2]!, 10);
+    else if (match[3] !== undefined) value = Number(match[3]) * 10 ** powerOf(match[4], match[5]);
+    else if (match[6] !== undefined) value = (match[6] === "-" ? -1 : 1) * 10 ** powerOf(match[7], match[8]);
+    else value = Number(match[9]);
+    UNIT_AFTER_RE.lastIndex = match.index + match[0].length;
+    out.push({ value, unit: UNIT_AFTER_RE.exec(withoutPi)?.[1] ?? null });
   }
   return out;
 }
 
-function close(first: number, second: number, relative = 0.006): boolean {
-  const a = Math.abs(first);
-  const b = Math.abs(second);
-  if (b === 0) return a === 0;
-  return Math.abs(a - b) <= Math.max(relative * b, b < 1 ? 0.0051 : 0);
+/** Every numeric value written in a text. */
+function numbers(text: string): number[] {
+  return writtenNumbers(text).map((written) => written.value);
 }
 
-const PREFIX_POWERS = [0, 3, -3, 6, -6, 9, -9];
+/**
+ * Within 1% of the expected value. There is no absolute floor: a floor for
+ * small values let any small number (or a scaled down 20) equal 0.001.
+ */
+function close(found: number, expected: number, relative = 0.01): boolean {
+  const a = Math.abs(found);
+  const b = Math.abs(expected);
+  if (b === 0) return a === 0;
+  return Math.abs(a - b) <= relative * b * (1 + 1e-9);
+}
 
-function valueIn(value: number, values: readonly number[], angle = false): boolean {
-  for (const candidate of values) {
-    for (const power of PREFIX_POWERS) {
-      if (close(candidate * 10 ** power, value)) return true;
-    }
-    if (angle && (close((candidate * 180) / Math.PI, value) || close(candidate, (value * Math.PI) / 180))) return true;
-  }
-  return false;
+/** One value listed twice (a plan given and the stem's degrees): tighter than a match, so 38° and 38.26° stay two givens. */
+const SAME_VALUE = 0.001;
+
+/** An angle value in degrees among numbers written in degrees or radians. */
+function angleValueIn(value: number, values: readonly number[]): boolean {
+  return values.some((candidate) => close(candidate, value) ||
+    close((candidate * 180) / Math.PI, value) || close(candidate, (value * Math.PI) / 180));
+}
+
+/* Unit prefixes ---------------------------------------------------------- */
+
+const UNIT_PREFIX_POWERS: Record<string, number> = { G: 9, M: 6, k: 3, c: -2, m: -3, μ: -6, u: -6, n: -9, p: -12 };
+/** Units a prefix may scale ("mm", "μF", "kΩ", "cm/s", "cm²"). */
+const PREFIXED_UNITS = new Set([
+  "m", "g", "s", "N", "A", "T", "V", "Ω", "F", "C", "Pa", "J", "W", "Hz", "L", "eV", "Wb", "H", "mol",
+  "m/s", "m/s²", "N/C", "V/m", "N/m", "m²", "m³",
+]);
+/** Units that take no prefix here ("min" is not milli-in). */
+const PLAIN_UNITS = new Set(["min", "h", "hr", "°", "deg", "rad", "K"]);
+
+function normalizeUnit(raw: string): string {
+  return raw.trim().replace(/µ/g, "μ")
+    .replace(/\s*[·.]?\s*([A-Za-z])(?:⁻¹|\^\(?-1\)?)/g, "/$1")
+    .replace(/\s*[·.]?\s*([A-Za-z])(?:⁻²|\^\(?-2\)?)/g, "/$1²")
+    .replace(/\^\(?2\)?/g, "²").replace(/\^\(?3\)?/g, "³")
+    .replace(/^ohms?$/i, "Ω")
+    .replace(/\s+/g, "");
+}
+
+/** A unit as its base and the power of ten its prefix adds ("mm" is m and -3, "cm²" is m² and -4); null when not a known unit. */
+function parseUnit(raw: string | null | undefined): { base: string; power: number } | null {
+  if (!raw) return null;
+  const unit = normalizeUnit(raw);
+  if (PREFIXED_UNITS.has(unit) || PLAIN_UNITS.has(unit)) return { base: unit, power: 0 };
+  const prefix = UNIT_PREFIX_POWERS[unit[0] ?? ""];
+  const rest = unit.slice(1);
+  if (prefix === undefined || !PREFIXED_UNITS.has(rest)) return null;
+  return { base: rest, power: prefix * (rest === "m²" ? 2 : rest === "m³" ? 3 : 1) };
+}
+
+/** The factor that turns a written number into the given's unit: a power of ten only when both units share a base. */
+function unitFactor(written: string | null, givenUnit: string | null | undefined): number {
+  const shown = parseUnit(written);
+  const wanted = parseUnit(givenUnit);
+  if (!shown || !wanted || shown.base !== wanted.base) return 1;
+  return 10 ** (shown.power - wanted.power);
+}
+
+/** A given value among written numbers, scaled only by a unit prefix the text writes ("1 mm" for 0.001 m). */
+function givenValueIn(value: number, unit: string | null | undefined, written: readonly WrittenNumber[]): boolean {
+  return written.some((candidate) => close(candidate.value * unitFactor(candidate.unit, unit), value));
 }
 
 /** Python's "%g": six significant digits, no trailing zeros. */
@@ -549,7 +615,8 @@ export function buildCompletenessChecklist(
   const equations = stemEquations(stem);
   let stemWithoutEquations = stem;
   for (const equation of equations) stemWithoutEquations = stemWithoutEquations.split(equation).join(" ");
-  const stemNumbers = numbers(stemWithoutEquations);
+  const stemWritten = writtenNumbers(stemWithoutEquations);
+  const stemNumbers = stemWritten.map((written) => written.value);
   const items: CompletenessItem[] = [];
   const seenValues: number[] = [];
   const givens = asQuantities(plan?.givens);
@@ -565,13 +632,13 @@ export function buildCompletenessChecklist(
     const valueClass = unitClass(given.unit);
     if (isConstant(symbol, value)) continue;
     // Not written in the stem outside its equations: not source grounded.
-    if (!valueIn(value, stemNumbers, valueClass === "angle")) continue;
+    if (!(valueClass === "angle" ? angleValueIn(value, stemNumbers) : givenValueIn(value, given.unit, stemWritten))) continue;
     const unit = given.unit ?? "";
     // The request says degrees and the matcher compares degrees (a radian label still matches), so a
     // radian given is converted first, as the asked-angle path does.
     const degrees = valueClass === "angle" ? angleInDegrees(value, unit) : null;
     const seenValue = degrees ?? value;
-    if (seenValues.some((seen) => close(seenValue, seen))) continue;
+    if (seenValues.some((seen) => close(seenValue, seen, SAME_VALUE))) continue;
     seenValues.push(seenValue);
     if (degrees !== null) {
       const shown = degrees === value ? value : Math.round(degrees * 10) / 10;
@@ -584,14 +651,14 @@ export function buildCompletenessChecklist(
       items.push({
         kind: "label", rule: "given_value", key: `${symbol}=${value}${unit}`, source: "plan_given", symbol,
         text: `label the given ${symbol} = ${formatNumber(value)} ${unit}`.trim(),
-        matcher: { type: "value", value },
+        matcher: { type: "value", value, ...(unit ? { unit } : {}) },
       });
     }
   }
   // 1b. Degree values the stem writes and the plan missed.
   for (const match of stemWithoutEquations.matchAll(DEGREE_RE)) {
     const value = Number(match[1]);
-    if (seenValues.some((seen) => close(value, seen))) continue;
+    if (seenValues.some((seen) => close(value, seen, SAME_VALUE))) continue;
     seenValues.push(value);
     items.push({
       kind: "angle", rule: "stated_angle", key: `${value}deg`, source: "stem",
@@ -751,7 +818,7 @@ type CompiledSceneLike = CompletenessCompiledScene;
 
 interface SceneView {
   texts: string[];
-  numbers: number[];
+  written: WrittenNumber[];
   entityKinds: string[];
   operators: string[];
   /** [entity kind or "op:operator", its id/role/label or id/outputs words] */
@@ -927,7 +994,7 @@ function sceneView(document: SceneDocumentLike, compiled?: CompiledSceneLike | n
   ];
   return {
     texts,
-    numbers: texts.flatMap(numbers),
+    written: texts.flatMap(writtenNumbers),
     entityKinds: entities.map((entity) => textOf(entity.kind)),
     operators: constructions.map((construction) => textOf(construction.operator)),
     semantics,
@@ -941,7 +1008,7 @@ function satisfied(item: CompletenessItem, view: SceneView, countedAngleItems: n
   const { matcher } = item;
   switch (matcher.type) {
     case "value":
-      return valueIn(matcher.value, view.numbers);
+      return givenValueIn(matcher.value, matcher.unit, view.written);
     case "angle": {
       let marks = view.entityKinds.filter((kind) => ANGLE_MARK_KINDS.has(kind)).length;
       if (marks === 0) marks = view.operators.filter((operator) => ANGLE_MARK_OPERATORS.has(operator)).length;
@@ -949,7 +1016,7 @@ function satisfied(item: CompletenessItem, view: SceneView, countedAngleItems: n
       if (matcher.counted && marks < countedAngleItems) return false;
       if (matcher.value === null) return true;
       // Only on an angle mark: a side labelled "75 cm" or a bare 75 elsewhere is not the 75° angle.
-      return valueIn(matcher.value, view.angleNumbers, true);
+      return angleValueIn(matcher.value, view.angleNumbers);
     }
     case "right_angle":
       return view.entityKinds.some((kind) => RIGHT_ANGLE_KINDS.has(kind)) ||
@@ -958,7 +1025,7 @@ function satisfied(item: CompletenessItem, view: SceneView, countedAngleItems: n
       return view.texts.some((text) => {
         const found = numbers(text);
         return found.length >= matcher.values.length &&
-          matcher.values.every((value) => found.some((candidate) => close(value, candidate)));
+          matcher.values.every((value) => found.some((candidate) => close(candidate, value)));
       });
     case "name":
       return view.labelNames.has(matcher.name);
@@ -986,7 +1053,7 @@ function satisfied(item: CompletenessItem, view: SceneView, countedAngleItems: n
         if (rightSide.length >= 2 && /[a-z]/.test(rightSide) && shown.includes(rightSide)) return true;
         if (!/[=<>≤≥]/.test(shown) || targetNumbers.length === 0) return false;
         const shownNumbers = numbers(text);
-        return targetNumbers.every((value) => shownNumbers.some((candidate) => close(value, candidate)));
+        return targetNumbers.every((value) => shownNumbers.some((candidate) => close(candidate, value)));
       });
     }
     case "count": {

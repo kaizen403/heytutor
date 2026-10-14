@@ -370,6 +370,35 @@ function runCases(section: string, cases: ReadonlyArray<readonly [string, () => 
   ]);
 }
 
+// 6e. A small given needs its own number: 1% tolerance, and a prefix scales only when the label writes the unit.
+{
+  const slit = buildCompletenessChecklist(plan({ givens: [given("a", "a", 0.001, "m")] }), null,
+    "A slit of width 0.001 m is lit from the left. Sketch the slit.");
+  const missingWith = (checklist: CompletenessChecklist, ...labels: string[]) => signatures(missingOf(checklist, doc({}), labels).missing);
+  const missingA = ["given_value:a"];
+  runCases("6e small givens", [
+    ["an unrelated bare 20 does not show 0.001 m", () => assert.deepEqual(missingWith(slit, "20"), missingA)],
+    ["a bare 1 with no unit is not scaled to 0.001 m", () => assert.deepEqual(missingWith(slit, "1"), missingA)],
+    ["0.004 m is not 0.001 m", () => assert.deepEqual(missingWith(slit, "0.004 m"), missingA)],
+    ["a stem's 20 cm grounds a given of 0.2 m, and a 20 cm label shows it", () => {
+      const ruler = buildCompletenessChecklist(plan({ givens: [given("L", "L", 0.2, "m")] }), null, "A rod 20 cm long hangs from a pivot. Sketch the rod.");
+      assert.deepEqual(signatures(ruler.items), ["given_value:L"]);
+      assert.deepEqual(missingWith(ruler, "L = 20 cm"), []);
+    }],
+    // Controls: these held before the fix too.
+    ["control: a 1 mm label shows 0.001 m", () => assert.deepEqual(missingWith(slit, "a = 1 mm"), [])],
+    ["control: a 0.001 m label", () => assert.deepEqual(missingWith(slit, "a = 0.001 m"), [])],
+    ["control: 9 μF shows a given of 9 × 10^-6 F", () => {
+      const capacitor = buildCompletenessChecklist(plan({ givens: [given("C", "C", 9e-6, "F")] }), null, "A 9 μF capacitor is charged. Sketch it.");
+      assert.deepEqual(missingWith(capacitor, "C = 9 μF"), []);
+    }],
+    ["control: 500 g shows a given of 0.5 kg", () => {
+      const mass = buildCompletenessChecklist(plan({ givens: [given("m", "m", 0.5, "kg")] }), null, "A 0.5 kg ball hangs on a string. Sketch it.");
+      assert.deepEqual(missingWith(mass, "500 g"), []);
+    }],
+  ]);
+}
+
 if (caseFailures.length > 0) {
   throw new assert.AssertionError({ message: `${caseFailures.length} named cases fail\n  ${caseFailures.join("\n  ")}` });
 }
