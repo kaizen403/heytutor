@@ -906,13 +906,15 @@ function opticsProofFailure(question: string, match: OpticsStemMatch, document: 
  * `direction` is refused, since the compiler draws that instead of its end. A path is light when it is
  * - on the principal axis (the axial ray; also the axis and distances drawn along it);
  * - on a lens, on the chief line from the object tip through the optical centre, from the object
- *   tip onward (back to a virtual image when there is one);
+ *   tip onward (back to a virtual image when there is one, dashed and arrowless behind the object
+ *   tip), with any arrow pointing on through the centre;
  * - an incident ray: a segment or vector from the object tip to a point S on the element as drawn;
  * - an emergent ray: it leaves such an S, reached by a drawn incident ray from the object tip, on
  *   the line from S through the image tip (by the imaging property every ray from the object tip
  *   does: a parallel ray leaves through or as if from the focus, a focal ray leaves parallel), on
  *   the side the light leaves toward (beyond a lens, back in front of a mirror), or, for a virtual
- *   image, back from S as the extension that meets it (drawn to the image or on to the focus).
+ *   image, back from S as the extension that meets it (drawn to the image or on to the focus),
+ *   dashed and with no arrowhead (`OpticsPathInk`), since no light runs there.
  * Everything is evaluated in the element frame (`opticsFrame`); a line is unbounded both ways, so
  * one is light only along the axis. Element outlines, the element plane and other helper lines
  * are not paths and are not read.
@@ -958,7 +960,7 @@ function opticsLightPathFailure(
     construction.operator === "segment" || construction.operator === "vector" || construction.operator === "polyline" ? piecesOf(construction) : []);
   const incident = (piece: OpticsPathPiece, hit: unknown) => drawn.some((other) => other !== piece &&
     ((other.start === objectTip && other.end === hit) || (other.operator === "segment" && other.start === hit && other.end === objectTip)));
-  const pieceFailure = (piece: OpticsPathPiece, name: string, id: string): string | null => {
+  const pieceFailure = (piece: OpticsPathPiece, name: string, id: string, ink: OpticsPathInk): string | null => {
     const { operator, start: startId, end: endId } = piece;
     const start = frame.point(startId);
     const end = frame.point(endId);
@@ -970,12 +972,20 @@ function opticsLightPathFailure(
     const high = operator === "line" || (operator === "ray" && run > 0) ? Number.POSITIVE_INFINITY : Math.max(start.a, end.a);
     if (Math.abs(start.y) <= tolerance && Math.abs(end.y) <= tolerance) return null;
     if (element === "lens" && onLine(start, centre, tip) && onLine(end, centre, tip)) {
-      if (low >= Math.min(tip.a, target.a) - tolerance) return null;
-      return `chief ray ${id} runs back past the object tip, where no light on the line through the optical centre goes`;
+      if (!(low >= Math.min(tip.a, target.a) - tolerance)) {
+        return `chief ray ${id} runs back past the object tip, where no light on the line through the optical centre goes`;
+      }
+      // Its light runs from the object tip on through the centre, so an arrow points that way. Back
+      // past the object tip (to a virtual image farther out) it is only the extension: dashed, no arrow.
+      if (ink.arrow && run < -tolerance) return `chief ray ${id} points back toward the object, against its light`;
+      if (low < tip.a - tolerance && (ink.arrow || !ink.dashed)) {
+        return `chief ray ${id} runs back past the object tip to the virtual image as ${ink.arrow ? "an arrow" : "solid ink"}; that extension is drawn dashed with no arrow`;
+      }
+      return null;
     }
-    if ((operator === "segment" && ((startId === objectTip && onElement(endId)) || (endId === objectTip && onElement(startId)))) ||
+    const undirected = !ink.arrow && (operator === "segment" || operator === "line");
+    if ((operator === "segment" && startId === objectTip && onElement(endId)) || (undirected && endId === objectTip && onElement(startId)) ||
       (operator === "vector" && startId === objectTip && onElement(endId))) return null;
-    const undirected = operator === "segment" || operator === "line";
     const hit = onElement(startId) ? startId : undirected && onElement(endId) ? endId : undefined;
     if (hit === undefined) {
       return `${name} neither runs from the object tip to the ${element} nor leaves it${startId === objectBase || endId === objectBase ? " (it touches the object base)" : ""}`;
@@ -986,20 +996,31 @@ function opticsLightPathFailure(
       return `${name} leaves the ${element} at ${String(hit)} off the line to the image tip (a parallel ray leaves through or as if from the focus, a focal ray leaves parallel)`;
     }
     // Along this line the light runs from S to the leaving side. Back from S it is only the
-    // extension of a virtual image's ray, drawn to the image or on to the focus.
+    // extension of a virtual image's ray, drawn to the image or on to the focus: dashed, and with no
+    // arrow, which would point back against the light. A line through S is held to this for its back part.
     const nearest = side > 0 ? low : -high;
-    if (side * target.a > 0 && !(nearest >= -tolerance)) {
-      return `${name} runs ${element === "lens" ? "back across the lens toward the object" : "behind the mirror"} where its light does not go`;
+    if (!(nearest >= -tolerance)) {
+      const back = element === "lens" ? "back across the lens toward the object" : "behind the mirror";
+      if (side * target.a > 0) return `${name} runs ${back} where its light does not go`;
+      if (ink.arrow || !ink.dashed) {
+        return `${name} runs ${back} as ${ink.arrow ? "an arrow" : "solid ink"}, where only the virtual image's extension goes, dashed with no arrow`;
+      }
     }
     return null;
   };
+  const entities = new Map(document.entities.map((entity) => [entity.id, entity]));
   for (const path of paths) {
     const id = path.outputs[0] ?? path.id;
     const name = converging.has(id) ? `converging line ${id}` : `ray ${id}`;
     // A vector with a direction is drawn along it, not to the end the rules below read.
     if (opticsRedirected(path)) return `${name} carries a direction, which the compiler draws in place of its end`;
+    const entity = entities.get(id);
+    const ink: OpticsPathInk = {
+      arrow: path.operator === "vector" || path.operator === "ray" || entity?.kind === "vector" || entity?.kind === "ray",
+      dashed: entity?.provenance?.dashed === true,
+    };
     for (const piece of piecesOf(path)) {
-      const failure = pieceFailure(piece, name, id);
+      const failure = pieceFailure(piece, name, id, ink);
       if (failure) return failure;
     }
   }
@@ -1017,6 +1038,13 @@ function opticsRedirected(path: OpticsConstruction): boolean {
 
 /** One straight piece of a drawn path, with the operator whose extent and direction it has. */
 interface OpticsPathPiece { operator: string; start: unknown; end: unknown }
+
+/**
+ * How the compiler inks a path: with an arrowhead for a vector or ray operator, or any path whose
+ * entity kind is vector or ray (toPrimitives draws those as arrows), and dashed when the entity's
+ * provenance says `dashed`, as the presentation reads it.
+ */
+interface OpticsPathInk { arrow: boolean; dashed: boolean }
 
 /** The points a drawn path runs through, as the compiler reads them: a polyline's points, else its two ends. */
 function opticsPathVertices(path: OpticsConstruction, document: SceneDocument): unknown[] | null {

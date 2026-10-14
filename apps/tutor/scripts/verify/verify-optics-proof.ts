@@ -112,6 +112,17 @@
  * questions do likewise. A question that states no nature before it asks ("; is the image real?",
  * "Where does ... form a real image", ", and is its image real or virtual?", ", does it form a real
  * image?") declines both kinds.
+ * G26: on a virtual image figure the back side of S (the object's side of a lens, behind a mirror) is
+ * only the extension, drawn dashed (entity provenance `dashed`) with no arrowhead. Beside traced rays,
+ * a hand incident segment ot to S with a solid vector S to it, on a diverging lens and on a convex
+ * mirror, stays unproven and never draws; so do a ray from S through it, a solid segment S to it, a
+ * solid line through S and it, a dashed segment whose entity kind is vector (drawn with an arrowhead),
+ * a chief vector from the centre back to it (or from a real image back to the object), and a
+ * magnifier's solid chief segment from the object tip back to its image. Traced rays alone, and a ray
+ * or vector leaving S with a dashed segment back to the image or the focus, prove and draw, the
+ * extension as dashed lines with no arrow. The shared lens and
+ * mirror builders draw their virtual extensions this way, and a diverging lens's parallel ray leaves
+ * away from F2 (it ran back toward the object, the review's figure).
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -144,6 +155,8 @@ function check(gate: string, condition: unknown, message: string): void {
 const STRICT = { preferPlanner: true, allowedFigureSources: ["planner", "verified_recovery", "text_only"] as const };
 
 const ent = (id: string, kind: string, role: string, label?: string) => ({ id, kind, role, ...(label ? { label } : {}) });
+/** A virtual image's back-extension as the engine draws one: dashed construction ink (G26). */
+const dashedWhen = <T extends object>(virtual: boolean, entity: T): T => virtual ? { ...entity, provenance: { dashed: true, strokeRole: "construction" } } : entity;
 const pt = (id: string, x: number, y: number): Construction =>
   ({ id: `c_${id}`, operator: "point", inputs: { x, y, coordinateSpace: "world" }, outputs: [id] });
 const fatal = (id: string, predicate: string, entities: string[], expected: unknown = true) =>
@@ -166,6 +179,8 @@ function mirrorDoc(question: string, opts: {
 }): Doc {
   const virtual = opts.kind === "convex";
   const signedF = opts.kind === "concave" ? -opts.f : opts.f;
+  // Behind the mirror (v > 0) the image is virtual, a concave mirror's inside F included.
+  const behind = signedF * -opts.u / (-opts.u - signedF) > 0;
   const entities = [
     ent("P", "point", "pole", "P"), ent("axis_l", "point", "construction helper"), ent("axis_r", "point", "construction helper"),
     ent("axis", "line", "principal axis"), ent("mirror", "arc", `${opts.kind} mirror`, "M"),
@@ -174,9 +189,9 @@ function mirrorDoc(question: string, opts: {
     ent("F", "point", "focus", "F"), ent("lp", "line", "mirror plane"), ent("M1", "point", "ray hit"), ent("M2", "point", "ray hit"),
     ent("object", "vector", "object"), ent("image", "vector", virtual ? "virtual image" : "real image"),
     ent("ray1_in", "segment", "incident ray parallel to the axis"),
-    ent("ray1_out", "segment", virtual ? "reflected ray, extended back (paraxial)" : "reflected ray through F (paraxial)"),
+    dashedWhen(behind, ent("ray1_out", "segment", virtual ? "reflected ray, extended back (paraxial)" : "reflected ray through F (paraxial)")),
     ent("ray2_in", "segment", "incident ray toward the focus"),
-    ent("ray2_out", "segment", virtual ? "reflected ray, extended back (paraxial)" : "reflected ray parallel to the axis (paraxial)"),
+    dashedWhen(behind, ent("ray2_out", "segment", virtual ? "reflected ray, extended back (paraxial)" : "reflected ray parallel to the axis (paraxial)")),
   ];
   const constructions: Construction[] = [
     pt("P", 0, 0), pt("axis_l", -80, 0), pt("axis_r", 40, 0),
@@ -217,6 +232,10 @@ function mirrorDoc(question: string, opts: {
 }
 
 function lensDoc(question: string, opts: { u: number; f: number; h: number }): Doc {
+  // A virtual image (v < 0) is met only by dashed back-extensions; a diverging lens sends its
+  // parallel ray on away from F2, through F2 turned half a turn about the hit.
+  const virtual = opts.f * -opts.u / (opts.f - opts.u) < 0;
+  const diverging = opts.f < 0;
   const entities = [
     ent("O", "point", "optical centre", "O"), ent("axis_l", "point", "construction helper"), ent("axis_r", "point", "construction helper"),
     ent("axis", "line", "principal axis"), ent("lens", "polygon", "convex lens", "L"),
@@ -227,7 +246,8 @@ function lensDoc(question: string, opts: { u: number; f: number; h: number }): D
     ent("ray1_in", "segment", "ray parallel to the axis"),
     ent("ray1_out", "ray", "refracted ray through F2 (paraxial)"),
     ent("ray2", "ray", "undeviated ray through the optical centre"),
-    ent("ext1", "segment", "virtual extension"), ent("ext2", "segment", "virtual extension"),
+    dashedWhen(virtual, ent("ext1", "segment", "virtual extension")), dashedWhen(virtual, ent("ext2", "segment", "virtual extension")),
+    ...(diverging ? [ent("F2away", "point", "construction helper")] : []),
   ];
   const constructions: Construction[] = [
     pt("O", 0, 0), pt("axis_l", -45, 0), pt("axis_r", 40, 0),
@@ -240,7 +260,8 @@ function lensDoc(question: string, opts: { u: number; f: number; h: number }): D
     { id: "c_object", operator: "vector", inputs: { start: "ob", end: "ot" }, outputs: ["object"] },
     { id: "c_image", operator: "vector", inputs: { start: "ib", end: "it" }, outputs: ["image"] },
     { id: "c_r1i", operator: "segment", inputs: { start: "ot", end: "L1" }, outputs: ["ray1_in"] },
-    { id: "c_r1o", operator: "ray", inputs: { start: "L1", end: "F2", approximation: "paraxial" }, outputs: ["ray1_out"] },
+    ...(diverging ? [{ id: "c_F2away", operator: "rotate", inputs: { point: "F2", center: "L1", angle: 180, angleUnit: "degrees" }, outputs: ["F2away"] }] : []),
+    { id: "c_r1o", operator: "ray", inputs: { start: "L1", end: diverging ? "F2away" : "F2", approximation: "paraxial" }, outputs: ["ray1_out"] },
     { id: "c_r2", operator: "ray", inputs: { start: "ot", end: "O" }, outputs: ["ray2"] },
     { id: "c_e1", operator: "segment", inputs: { start: "L1", end: "it" }, outputs: ["ext1"] },
     { id: "c_e2", operator: "segment", inputs: { start: "O", end: "it" }, outputs: ["ext2"] },
@@ -250,7 +271,7 @@ function lensDoc(question: string, opts: { u: number; f: number; h: number }): D
     quantities: [{ id: "u", symbol: "u", value: opts.u, unit: "cm" }, { id: "f", symbol: "f", value: Math.abs(opts.f), unit: "cm" }],
     entities, constructions, relations: [], annotations: [],
     assertions: [fatal("conv", "converges", ["ext1", "ext2", "it"]), fatal("par1", "parallel", ["ray1_in", "axis"]), fatal("lF", "label_attached", ["F2"])],
-    requiredEntityIds: entities.filter((entity) => !["axis_l", "axis_r", "lp", "L1"].includes(entity.id)).map((entity) => entity.id),
+    requiredEntityIds: entities.filter((entity) => !["axis_l", "axis_r", "lp", "L1", "F2away"].includes(entity.id)).map((entity) => entity.id),
     revealGroups: [
       { id: "setup", entityIds: ["axis", "O", "lens", "F1", "F2", "ob", "ot", "object"], dependsOn: [], narrationCue: "lens, foci, object" },
       { id: "rays", entityIds: ["ray1_in", "ray1_out", "ray2", "ext1", "ext2"], dependsOn: ["setup"], narrationCue: "rays" },
@@ -893,7 +914,7 @@ function spectacleLens(question: string): Doc {
 /** Swap every hand ray, hit helper and ray assertion for one principal_rays construction. */
 function traced(base: Doc, rays?: string[], image = "it"): Doc {
   const document = structuredClone(base);
-  const handOperators = new Set(["segment", "ray", "vector", "perpendicular_through", "project"]);
+  const handOperators = new Set(["segment", "ray", "vector", "perpendicular_through", "project", "rotate"]);
   const dropped = new Set(document.constructions
     .filter((construction) => handOperators.has(construction.operator) && !["c_object", "c_image"].includes(construction.id))
     .flatMap((construction) => construction.outputs));
@@ -1258,7 +1279,7 @@ const tallPlan = plan(qTall, [
 ], [{ id: "v", symbol: "v", value: 15, unit: "cm", provenance: "derived" }], ["lens_formula"]);
 const tallLens = (rays: string[]) => traced(lensDoc(qTall, { u: 30, f: 10, h: 2 }), rays);
 /** A hand path: a segment, ray or vector from its first point to its second, or a polyline through all of them. */
-interface HandPath { id: string; operator: string; points: string[]; role?: string; extra?: Record<string, unknown> }
+interface HandPath { id: string; operator: string; points: string[]; role?: string; extra?: Record<string, unknown>; kind?: string; dashed?: boolean }
 type HandPathInput = [id: string, operator: string, start: string, end: string] | HandPath;
 /**
  * Hand paths beside traced rays. On hand: S, where a parallel ray from the object tip meets the
@@ -1282,7 +1303,7 @@ const handPaths = (base: Doc, plane: string, focus: string, input: HandPathInput
     inputs: { ...(operator === "polyline" ? { points } : { start: points[0], end: points[1] }), ...extra },
   }) as Construction));
   document.entities.push(...helpers.map((helper) => ent(helper.outputs[0]!, helper.id === "c_lp" ? "line" : "point", "construction helper")),
-    ...paths.map(({ id, operator, role }) => ent(id, operator, role ?? "light ray")));
+    ...paths.map(({ id, operator, role, kind, dashed }) => dashedWhen(dashed === true, ent(id, kind ?? operator, role ?? "light ray"))));
   document.requiredEntityIds.push(...paths.map(({ id }) => id));
   document.revealGroups = document.revealGroups.map((group) =>
     group.id === "rays" ? { ...group, entityIds: [...group.entityIds, ...paths.map(({ id }) => id)] } : group);
@@ -1593,7 +1614,77 @@ function named(name: string, run: () => void): void {
   }
 }
 
-for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21", "G22", "G23", "G24", "G25"]) {
+// ---- G26: on a virtual image figure the back side of S is only the extension: dashed, no arrow ----
+{
+  // The diverging lens (f -25 cm, u 50 cm: image 16.7 cm on the object's side) and the convex car mirror
+  // (image 10.8 cm behind it), each proven by traced rays. S is the parallel ray's hit; F2 (lens) and F
+  // (mirror) are the virtual foci, so Sback, the focus turned half a turn about S, lies on the side the
+  // reflected or refracted light leaves toward.
+  const virtualLens = (paths: HandPathInput[], rays = ["parallel", "focal", "central"]) =>
+    handPaths(traced(cmLens(-25), rays), "O", "F2", paths);
+  const virtualMirror = (paths: HandPathInput[], rays = ["parallel", "focal", "central"]) =>
+    handPaths(traced(goodConvex, rays), "P", "F", paths);
+  const incident: HandPathInput = ["x1", "segment", "ot", "S"];
+  for (const [name, question, turnPlan, document, reason] of [
+    // The review's case: arrows on the same ray pointing opposite ways.
+    ["a diverging lens's hand incident segment ot to S and a solid vector S to it", qDiverging, signedPlan,
+      virtualLens([incident, ["x2", "vector", "S", "it"]]), /^ray x2 runs back across the lens toward the object as an arrow/],
+    ["a convex mirror's hand incident segment ot to S and a solid vector S to it", qConvex, convexPlan,
+      virtualMirror([incident, ["x2", "vector", "S", "it"]]), /^ray x2 runs behind the mirror as an arrow/],
+    ["a diverging lens's ray from S through it", qDiverging, signedPlan,
+      virtualLens([incident, ["x2", "ray", "S", "it"]]), /^ray x2 runs back across the lens toward the object as an arrow/],
+    ["a convex mirror's ray from S through it", qConvex, convexPlan,
+      virtualMirror([incident, ["x2", "ray", "S", "it"]]), /^ray x2 runs behind the mirror as an arrow/],
+    ["a diverging lens's solid segment S to it", qDiverging, signedPlan,
+      virtualLens([incident, ["x2", "segment", "S", "it"]]), /^ray x2 runs back across the lens toward the object as solid ink/],
+    ["a convex mirror's solid segment S to it", qConvex, convexPlan,
+      virtualMirror([incident, ["x2", "segment", "S", "it"]]), /^ray x2 runs behind the mirror as solid ink/],
+    ["a diverging lens's solid line through S and it (light on one side of S, the extension on the other)", qDiverging, signedPlan,
+      virtualLens([incident, ["x2", "line", "S", "it"]]), /^ray x2 runs back across the lens toward the object as solid ink/],
+    ["a diverging lens's dashed segment S to it whose entity is a vector (drawn with an arrowhead)", qDiverging, signedPlan,
+      virtualLens([incident, { id: "x2", operator: "segment", points: ["S", "it"], kind: "vector", dashed: true }]),
+      /^ray x2 runs back across the lens toward the object as an arrow/],
+    ["a diverging lens's chief vector from the optical centre back to it", qDiverging, signedPlan,
+      virtualLens([["x2", "vector", "O", "it"]]), /^chief ray x2 points back toward the object, against its light$/],
+    ["a magnifier's solid chief segment from the object tip back to its virtual image", qLens, lensPlan,
+      handPaths(traced(goodLens, ["parallel", "focal"]), "O", "F2", [["x2", "segment", "ot", "it"]]),
+      /^chief ray x2 runs back past the object tip to the virtual image as solid ink/],
+    // The chief line's arrow rule holds on a real image too.
+    ["a chief vector from a real image tip back to the object tip", qTall, tallPlan, lensWith([["x2", "vector", "it", "ot"]]),
+      /^chief ray x2 points back toward the object, against its light$/],
+  ] as const) {
+    expectUnproven("G26", name, question, document, reason);
+    expectNeverPlanner("G26", name, question, turnPlan, document);
+  }
+  // Controls: traced rays alone; the extension drawn dashed with no arrow beside a directed ray leaving S.
+  const allowed = (back: string): HandPathInput[] => [incident, ["x2", "ray", "S", "Sback"], { id: "x3", operator: "segment", points: ["S", back], dashed: true }];
+  for (const [name, question, turnPlan, document] of [
+    ["the diverging lens with only its traced rays", qDiverging, signedPlan, traced(cmLens(-25), ["parallel", "focal", "central"])],
+    ["the convex mirror with only its traced rays", qConvex, convexPlan, traced(goodConvex, ["parallel", "focal", "central"])],
+    ["a diverging lens's hand ray leaving S away from F2, with a dashed segment S to it", qDiverging, signedPlan,
+      virtualLens(allowed("it"), ["focal", "central"])],
+    ["a convex mirror's hand ray leaving S away from F, with a dashed segment S to it", qConvex, convexPlan,
+      virtualMirror(allowed("it"), ["focal", "central"])],
+    ["a convex mirror's hand vector leaving S away from F, with a dashed segment on to F", qConvex, convexPlan,
+      virtualMirror([incident, ["x2", "vector", "S", "Sback"], { id: "x3", operator: "segment", points: ["S", "F"], dashed: true }], ["focal", "central"])],
+    ["a magnifier's dashed chief segment from the object tip back to its virtual image", qLens, lensPlan,
+      handPaths(traced(goodLens, ["parallel", "focal"]), "O", "F2", [{ id: "x2", operator: "segment", points: ["ot", "it"], dashed: true }])],
+  ] as const) {
+    const result = explainPlannerOpticsProof(question, document);
+    check("G26", result.proof === "proven", `${name} must be proven; got ${result.proof}: ${result.reason}`);
+    expectDrawnAsPlanner("G26", name, question, turnPlan, document);
+  }
+  // The allowed extension reaches the board dashed and with no arrowhead.
+  const extension = virtualLens(allowed("it"), ["focal", "central"]);
+  const { result } = compiled(extension);
+  const commands = result.ok && result.renderScene
+    ? buildVerifiedDiagramPresentation(extension, result.renderScene).diagram.commands.filter((command) => command.semanticRef?.entityId === "x3" && command.type !== "LABEL")
+    : [];
+  check("G26", commands.length > 0 && commands.every((command) => command.type === "DRAW_LINE" && command.visualStyle?.dashed === true),
+    `the dashed extension S to it must draw as dashed lines with no arrow; got ${commands.map((command) => `${command.type} dashed ${command.visualStyle?.dashed === true}`).join(", ") || "no ink"}`);
+}
+
+for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21", "G22", "G23", "G24", "G25", "G26"]) {
   console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 }
 for (const [name, failed] of namedCases) console.log(`  ${name}: ${failed ? `FAIL (${failed} checks)` : "pass"}`);
