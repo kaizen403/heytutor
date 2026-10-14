@@ -229,8 +229,12 @@ const ENGINE_ONLY_SOURCE_KEYS = ["synthesizedDsa", "dsaTraceFrame", "dsaFitBox"]
 /**
  * Canonicalize provenance that is already fixed by the request envelope. This
  * deliberately leaves all mathematical content untouched for scene-engine to
- * validate. An explicit source.question is never overwritten, so a conflicting
- * model claim still fails the server persistence boundary.
+ * validate. The request was made for the asked question, so source.question is
+ * always that question: a model that restates a messy stem (a bullet, LaTeX,
+ * an OCR slip) in its own words has not drawn a different problem, and final
+ * selection needs the exact asked text. Recovered and persisted scenes never
+ * pass through here, so their exact question match still refuses a scene that
+ * was drawn for another question.
  */
 export function normalizeSceneDocumentModelOutput(
   document: SceneDocumentCandidate,
@@ -244,7 +248,7 @@ export function normalizeSceneDocumentModelOutput(
     document = { ...document, source };
   }
   if (isPlainObject(document.source)) {
-    return typeof document.source.question === "string"
+    return document.source.question === question
       ? document
       : { ...document, source: { ...document.source, question } };
   }

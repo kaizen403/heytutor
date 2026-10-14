@@ -172,6 +172,18 @@ export function selectFastVerifiedRepresentation(
 }
 
 /**
+ * Why a supplied exact candidate was not the representation returned. A code
+ * is a stable issue code; `preferred` marks a policy that draws another
+ * verified figure instead, every other code is a check the per-candidate
+ * validator does not apply.
+ */
+export interface ExactCandidateDecline {
+  code: string;
+  reason: string;
+  preferred: boolean;
+}
+
+/**
  * Select the highest-confidence representation without changing the exact
  * scene's proof contract. An exact candidate wins only when the caller's final
  * report is valid and the current engine supplies the selected render/report.
@@ -179,17 +191,36 @@ export function selectFastVerifiedRepresentation(
 export function selectVerifiedRepresentation(
   input: RepresentationSelectionInput,
 ): SelectedRepresentation {
+  return selectVerifiedRepresentationExplained(input).selected;
+}
+
+/**
+ * The same selection, plus the reason a supplied exact candidate was not
+ * returned. `exactDecline` is null when there was no exact candidate or it was
+ * the representation selected.
+ */
+export function selectVerifiedRepresentationExplained(
+  input: RepresentationSelectionInput,
+): { selected: SelectedRepresentation; exactDecline: ExactCandidateDecline | null } {
   // The question fixes these motion numbers. A plan that would narrate a
   // different value gets no figure at all, so a stale number is never spoken
   // over a correct (or a planner-drawn) picture.
   const motionConflict = motionPlanConflict(input.question, input.turnPlan);
   if (motionConflict) {
     const textOnly = buildTextOnlySelected(input.question);
-    return { ...textOnly, reason: motionConflict };
+    return {
+      selected: { ...textOnly, reason: motionConflict },
+      exactDecline: input.exact ? { code: "motion_plan_conflict", reason: motionConflict, preferred: false } : null,
+    };
   }
-  const currentCompile = input.exact
-    ? compileUsableExactRepresentation(input.exact, input.question, input.problemIR)
+  const exactCheck = input.exact
+    ? checkUsableExactRepresentation(input.exact, input.question, input.problemIR)
     : null;
+  const currentCompile = exactCheck?.compiled ?? null;
+  let exactDecline: ExactCandidateDecline | null = exactCheck?.rejection
+    ? { ...exactCheck.rejection, preferred: false }
+    : null;
+  const explained = (selected: SelectedRepresentation) => ({ selected, exactDecline });
   const families = input.families?.length ? input.families : undefined;
   const synthesize = () => synthesizeFamilyScene({
     question: input.question,
@@ -215,7 +246,12 @@ export function selectVerifiedRepresentation(
   // plan value that disagrees with the recomputed state) teaches without a
   // figure rather than through any other picture.
   const circular = synthesizeUniformCircularScene(input.question, { turnPlan: input.turnPlan, problemIR: input.problemIR });
-  if (circular?.status === "declined" && !circular.legacyOnly) return buildTextOnlySelected(input.question);
+  if (circular?.status === "declined" && !circular.legacyOnly) {
+    if (currentCompile) {
+      exactDecline = { code: "circular_source_declined", reason: "the stated circular motion was declined, so no figure is drawn", preferred: false };
+    }
+    return explained(buildTextOnlySelected(input.question));
+  }
   // An admitted constant-velocity relative-motion source owns its whole
   // figure (bodies, frame, signed velocities, encounter); a planner scene
   // cannot replace it with differently signed or stale motion.
@@ -226,6 +262,9 @@ export function selectVerifiedRepresentation(
     || sourceFigure?.family === "solid_figure" || sourceFigure?.family === "bounded_region"
     || sourceFigure?.document.source.sourceModel === RELATIVE_MOTION_SOURCE_MODEL
     || (unprovenPlannerScene && sourceFigure?.tier === "exact_verified" && typeof sourceFigure.document.source.archetype === "string");
+  if (input.exact && currentCompile?.renderScene && preferSourceFigure && !input.preferPlanner) {
+    exactDecline = { code: "source_figure_preferred", reason: "a source-computed figure outranks the planner scene", preferred: true };
+  }
   if (input.exact && currentCompile?.renderScene && (!preferSourceFigure || input.preferPlanner)) {
     // A validated planner scene wins over every fallback, but its tier is
     // earned, not assumed: exact needs a fatal metric proof (an angle, a ratio,
@@ -245,7 +284,7 @@ export function selectVerifiedRepresentation(
     }
     const compiled = document === input.exact.sceneDocument ? currentCompile : compileSceneDocument(document);
     if (compiled.ok && compiled.renderScene) {
-      return {
+      return explained({
         tier: decision.tier,
         nonMetric: decision.nonMetric,
         sceneDocument: document,
@@ -255,8 +294,9 @@ export function selectVerifiedRepresentation(
         reason: decision.tier === "exact_verified"
           ? `caller supplied a verified scene with ${decision.reason}`
           : `caller supplied a verified scene; ${decision.reason}`,
-      };
+      });
     }
+    exactDecline = { code: "exact_tier_recompile_failed", reason: "the scene did not compile after its earned tier was written in", preferred: false };
   }
 
   // A complete matrix source program is drawn by the engine from the question
@@ -272,7 +312,7 @@ export function selectVerifiedRepresentation(
     matrixDocument.source = { ...matrixDocument.source, representationTier: decision.tier, nonMetric: decision.nonMetric };
     const compiled = compileSceneDocument(matrixDocument);
     if (compiled.ok && compiled.renderScene) {
-      return {
+      return explained({
         tier: decision.tier,
         nonMetric: decision.nonMetric,
         sceneDocument: matrixDocument,
@@ -280,13 +320,13 @@ export function selectVerifiedRepresentation(
         validationReport: compiled.report,
         figureSource: "matrix_source",
         reason: `engine drew the question's matrix source program; ${decision.reason}`,
-      };
+      });
     }
   }
 
   const synthesized = sourceFigure ?? synthesize();
   if (synthesized) {
-    return {
+    return explained({
       tier: synthesized.tier,
       nonMetric: synthesized.nonMetric,
       sceneDocument: synthesized.document,
@@ -295,11 +335,11 @@ export function selectVerifiedRepresentation(
       figureSource: synthesizedFigureSource(synthesized.document, synthesized.family),
       reason: synthesized.reason,
       family: synthesized.family,
-    };
+    });
   }
 
   try {
-    return buildSourceGroundedRepresentation(input.question, input.turnPlan);
+    return explained(buildSourceGroundedRepresentation(input.question, input.turnPlan));
   } catch {
     const lastResort = synthesizeLastResortScene({
       question: input.question,
@@ -308,7 +348,7 @@ export function selectVerifiedRepresentation(
       problemIR: input.problemIR ?? null,
     });
     if (lastResort) {
-      return {
+      return explained({
         tier: lastResort.tier,
         nonMetric: lastResort.nonMetric,
         sceneDocument: lastResort.document,
@@ -316,9 +356,9 @@ export function selectVerifiedRepresentation(
         validationReport: lastResort.validationReport,
         figureSource: "last_resort",
         reason: lastResort.reason,
-      };
+      });
     }
-    return buildTextOnlySelected(input.question);
+    return explained(buildTextOnlySelected(input.question));
   }
 }
 
@@ -417,53 +457,75 @@ function synthesizedFigureSource(document: SceneDocument, family: string | undef
   return typeof document.source.archetype === "string" ? "archetype" : "family";
 }
 
-function compileUsableExactRepresentation(
+type ExactCandidateRejection = Omit<ExactCandidateDecline, "preferred">;
+
+function checkUsableExactRepresentation(
   candidate: ExactVerifiedRepresentation,
   expectedQuestion: string,
   problemIR?: ProblemStructureView | null,
-): ReturnType<typeof compileSceneDocument> | null {
+): { compiled: ReturnType<typeof compileSceneDocument> | null; rejection: ExactCandidateRejection | null } {
+  const reject = (code: string, reason: string) => ({ compiled: null, rejection: { code, reason } });
   // TypeScript's interface is not a runtime proof: the caller may supply an
   // incomplete, forged or stale report despite the ExactVerifiedRepresentation type.
-  if (!isCurrentEngineReport(candidate.validationReport)) return null;
+  if (!isCurrentEngineReport(candidate.validationReport)) {
+    return reject("exact_report_not_current", "the scene report is not a valid report from the current engine");
+  }
   // A planner scene is validated and compiled, which proves the geometry is
   // sound — never that it is this question's geometry. It faces the same
   // picture demand the synthesized families face, so a validated-but-wrong
   // figure falls through to the fallback instead of being taught.
-  if (demandRejection(candidate.sceneDocument, sceneDemand(expectedQuestion, problemIR))) {
-    return null;
-  }
+  const demand = demandRejection(candidate.sceneDocument, sceneDemand(expectedQuestion, problemIR));
+  if (demand) return reject("picture_demand_unmet", `the scene does not show what the question asks for: ${demand}`);
+  // Fresh planner candidates carry the asked question (the planner parse
+  // boundary writes it). A recovered or persisted scene keeps its own, and
+  // this exact match refuses one that was drawn for another question.
   const sourceQuestion = candidate.sceneDocument.source.question;
-  if (
-    typeof sourceQuestion !== "string" ||
-    normalizeQuestion(sourceQuestion) !== normalizeQuestion(expectedQuestion) ||
-    candidate.validationReport.issues.some((issue) =>
-      issue.severity === "fatal" || issue.code === "assertion_failed") ||
-    candidate.sceneDocument.visualDecision.mode !== "scene" ||
-    usesMensurationSolidOnContactProblem(expectedQuestion, candidate.sceneDocument) ||
-    usesCollidingCircuitViews(expectedQuestion, candidate.sceneDocument) ||
-    usesGenericVectorDiagramOnRiverBoat(expectedQuestion, candidate.sceneDocument) ||
-    usesPlannerOpticsOnArchetypeStem(expectedQuestion, candidate.sceneDocument)
-  ) {
-    return null;
+  if (typeof sourceQuestion !== "string" ||
+      normalizeQuestion(sourceQuestion) !== normalizeQuestion(expectedQuestion)) {
+    return reject("source_question_mismatch", "the scene was drawn for a different question");
+  }
+  if (candidate.validationReport.issues.some((issue) =>
+    issue.severity === "fatal" || issue.code === "assertion_failed")) {
+    return reject("exact_assertion_unproven", "the scene report carries a fatal issue or a failed assertion");
+  }
+  if (candidate.sceneDocument.visualDecision.mode !== "scene") {
+    return reject("exact_not_scene", "the candidate declined to draw a scene");
+  }
+  if (usesMensurationSolidOnContactProblem(expectedQuestion, candidate.sceneDocument)) {
+    return reject("mensuration_solid_on_contact_problem", "a mensuration solid was drawn for a contact problem");
+  }
+  if (usesCollidingCircuitViews(expectedQuestion, candidate.sceneDocument)) {
+    return reject("colliding_circuit_views", "two circuit views collide on the board");
+  }
+  if (usesGenericVectorDiagramOnRiverBoat(expectedQuestion, candidate.sceneDocument)) {
+    return reject("generic_vectors_on_river_boat", "a generic vector diagram was drawn for a river crossing");
+  }
+  if (usesPlannerOpticsOnArchetypeStem(expectedQuestion, candidate.sceneDocument)) {
+    return reject("planner_optics_on_archetype_stem", "planner optics was drawn for a stem the optics archetype owns");
   }
   const normalized = validateSceneDocument(candidate.sceneDocument);
   // The compiler validates a normalized copy, but compiles the supplied document.
   // Do not accept a raw document whose actions, proofs or operands were changed
   // (or dropped) by that normalization while returning the raw document to the tutor.
   if (!normalized.document || !sameJsonStructure(normalized.document, candidate.sceneDocument, true)) {
-    return null;
+    return reject("exact_not_normalized", "normalization changed the scene document");
   }
   const currentCompile = compileSceneDocument(candidate.sceneDocument);
   const hasReadableInk = currentCompile.renderScene?.primitives.some((primitive) =>
     (primitive.kind === "label" || primitive.kind === "dimension") &&
     typeof primitive.text === "string" && primitive.text.trim().length > 0);
-  return currentCompile.ok && currentCompile.report.valid &&
-    !currentCompile.report.issues.some((issue) =>
-      issue.severity === "fatal" || issue.code === "assertion_failed") &&
-    reportsAgree(candidate.validationReport, currentCompile.report) &&
-    currentCompile.renderScene?.primitives.length && hasReadableInk
-    ? currentCompile
-    : null;
+  if (!currentCompile.ok || !currentCompile.report.valid ||
+      currentCompile.report.issues.some((issue) =>
+        issue.severity === "fatal" || issue.code === "assertion_failed")) {
+    return reject("exact_recompile_invalid", "the current engine does not compile the scene cleanly");
+  }
+  if (!reportsAgree(candidate.validationReport, currentCompile.report)) {
+    return reject("exact_report_disagrees", "the supplied report disagrees with the current compile");
+  }
+  if (!currentCompile.renderScene?.primitives.length || !hasReadableInk) {
+    return reject("exact_without_readable_ink", "the compiled scene has no readable label");
+  }
+  return { compiled: currentCompile, rejection: null };
 }
 
 function isCurrentEngineReport(value: unknown): value is ValidationReport {

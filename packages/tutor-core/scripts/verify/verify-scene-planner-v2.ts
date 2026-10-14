@@ -19,12 +19,21 @@ if (
 ) {
   throw new Error("planner string source was not bound to the authoritative question");
 }
-const conflictingSource = normalizeSceneDocumentModelOutput(
-  { source: { question: "different question" } },
-  "authoritative question",
+// The request envelope fixes the question: a planner restatement of a messy
+// stem must not make final selection drop a valid figure. Recovered and
+// persisted scenes keep their own question and their exact match.
+const rewordedStem = "\u2022 A 4 kg crate is dragged by a 20 N pull (\\mu _{k} = 0.25). [Take g = 10 m/s^2]";
+const rewordedSource = normalizeSceneDocumentModelOutput(
+  { source: { question: "A 4 kg crate is pulled with a 20 N force; the coefficient of kinetic friction is 0.25.", representationTier: "qualitative_verified" } },
+  rewordedStem,
 );
-if ((conflictingSource.source as Record<string, unknown>).question !== "different question") {
-  throw new Error("planner normalization concealed an explicit source-question conflict");
+if ((rewordedSource.source as Record<string, unknown>).question !== rewordedStem ||
+    (rewordedSource.source as Record<string, unknown>).representationTier !== "qualitative_verified") {
+  throw new Error("planner normalization must write the asked question over a restated one and keep the other source fields");
+}
+const exactSource = { source: { question: rewordedStem } };
+if (normalizeSceneDocumentModelOutput(exactSource, rewordedStem) !== exactSource) {
+  throw new Error("an exact asked question needs no copy");
 }
 const objectSourceWithoutQuestion = normalizeSceneDocumentModelOutput(
   { source: { questionId: "planner-local-id" } },

@@ -121,6 +121,7 @@ import {
 } from "../../lib/scene/representationFallback";
 import {
   deriveSceneGate as deriveProductionSceneGate, selectProductionScene, validateProductionSceneCandidate,
+  validCandidateDropDegradation,
   type ProductionSceneGate, type ValidatedSceneCandidate,
 } from "../../lib/scene/productionSceneSelection";
 import { refreshSolverAuthorityForPlan } from "../../lib/turn/refreshSolverAuthority";
@@ -1452,6 +1453,32 @@ export function useQuestionHandler(
         if (sceneSelection.saveFailure && attempted) {
           tutorDebug("planner", "representation would fail the lecture save, teaching text only", {
             representation_tier: attempted.tier, reason: sceneSelection.saveFailure,
+          });
+        }
+        // A candidate that passed validation and still left the board names
+        // why: saved as a degradation, shown on the admin fails page, and
+        // reported to Sentry (console.warn is captured as a log).
+        const droppedCandidate = sceneSelection.droppedCandidate;
+        if (droppedCandidate) {
+          tutorDebug("planner", "valid scene candidate not drawn", {
+            code: droppedCandidate.code, reason: droppedCandidate.reason, replaced_by: droppedCandidate.replacedBy,
+          });
+        }
+        const droppedDegradation = exactDegradation
+          ? null
+          : validCandidateDropDegradation(sceneSelection, result?.candidates.length ?? 0);
+        if (droppedDegradation && droppedCandidate) {
+          exactDegradation = droppedDegradation;
+          tel.mark("verified-scene-candidate-dropped", {
+            code: droppedCandidate.code,
+            replaced_by: droppedCandidate.replacedBy,
+            diagram_strategy: diagramStrategyDecision.strategy,
+            candidate_count: droppedDegradation.candidateCount,
+          });
+          console.warn("[diagram] a valid figure candidate was dropped at selection", {
+            code: droppedCandidate.code,
+            replacedBy: droppedCandidate.replacedBy,
+            strategy: diagramStrategyDecision.strategy,
           });
         }
         sceneV2Document = selected?.sceneDocument ?? null;

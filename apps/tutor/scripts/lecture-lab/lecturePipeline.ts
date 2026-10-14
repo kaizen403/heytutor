@@ -47,7 +47,7 @@ import {
 } from "@heytutor/scene-engine";
 import {
   deriveSceneGate as deriveProductionSceneGate, selectProductionScene, validateProductionSceneCandidate,
-  type ProductionSceneGate, type ValidatedSceneCandidate,
+  validCandidateDropDegradation, type DroppedSceneCandidate, type ProductionSceneGate, type ValidatedSceneCandidate,
 } from "@/features/tutor-session/lib/scene/productionSceneSelection";
 import { diagramStrategyAllowsFigureSource } from "@/features/tutor-session/lib/scene/diagramStrategy";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
@@ -216,6 +216,8 @@ export interface LectureRun {
     degradationReason: string | null;
     /** Strict-arm fallback that compiled but was intentionally not rendered. */
     suppressedFallback?: { figureSource: FigureSource; family: string | null } | null;
+    /** A candidate that passed validation as a scene but was not the figure drawn. */
+    droppedCandidate?: DroppedSceneCandidate | null;
     /** The committed board figure as SVG, so a reviewer sees what the student saw. */
     svg: string | null;
     png?: string | null;
@@ -402,6 +404,7 @@ export async function runLecture(
       validationIssues: [],
       degradationReason: null,
       suppressedFallback: null,
+      droppedCandidate: null,
       svg: null,
       png: null,
     },
@@ -743,6 +746,12 @@ export async function runLecture(
     if (attempted && !sceneSelection.sourceAllowed && sceneSelection.hasReadableInk) {
       run.diagram.suppressedFallback = { figureSource: attempted.figureSource, family: attempted.family ?? null };
     }
+    // Same rule as the live hook: a dropped valid candidate leaves its reason.
+    run.diagram.droppedCandidate = sceneSelection.droppedCandidate;
+    const droppedDegradation = run.diagram.degradationReason
+      ? null
+      : validCandidateDropDegradation(sceneSelection, result?.candidates.length ?? 0);
+    if (droppedDegradation) run.diagram.degradationReason = droppedDegradation.reason;
 
     run.timings.planMs = Date.now() - plannerStartedAt;
     run.plan = {
