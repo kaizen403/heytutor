@@ -272,6 +272,8 @@ function glassFace(options: {
   object?: number;
   /** Name the indices η and η_1, symbols the plan's index reading does not take for n. */
   eta?: boolean;
+  /** More given quantities. */
+  givens?: Array<{ id: string; symbol: string; value: number; unit?: string }>;
 }): { document: Doc; plan: TurnPlanV3 } {
   const objectX = options.object ?? -20;
   const question = objectX < 0
@@ -305,13 +307,13 @@ function glassFace(options: {
   const derived = options.derived ?? [quantity("v", "v", Math.abs(options.image), "cm")];
   const givens = [
     options.eta ? quantity("eta", "η", 1.5) : quantity("n", "n", 1.5), options.eta ? quantity("etaAir", "η_1", 1) : quantity("nAir", "n_1", 1),
-    quantity("R", "R", 30, "cm"), quantity("u", "u", Math.abs(objectX), "cm"),
+    quantity("R", "R", 30, "cm"), quantity("u", "u", Math.abs(objectX), "cm"), ...options.givens ?? [],
   ];
   const document = {
     schemaVersion: "scene-document/v2",
     visualDecision: { mode: "scene", reason: "The surface, its axis, the object and the image have stated positions." },
     source: { question },
-    quantities: [...givens, ...derived],
+    quantities: [...givens, ...derived.filter((quantity) => !givens.some((given) => given.id === quantity.id))],
     entities,
     constructions,
     relations: [],
@@ -369,8 +371,8 @@ check("control: with the marker there, a wrong image at -40 cm (a derived length
 check("control: an image labelled I at a unitless derived distance (-40, not -45) still declines", () =>
   declinesFor(glassFace({ image: -40, declared: [1, 1.5], derived: [{ id: "v", symbol: "v", value: 40 }] }), "I", "admitted the labelled image at -40 cm"));
 
-check("control: a unitless derived distance a dimension label binds to the point (point labelled Q) still declines at -40", () => {
-  const built = glassFace({ image: -40, declared: [1, 1.5], imageLabel: "Q", derived: [{ id: "v", symbol: "v", value: 40 }] });
+/** A dimension from the vertex to the point, labelled with the derived v by quantity id. */
+function bindImageDistance(built: { document: Doc; plan: TurnPlanV3 }, text: string): { document: Doc; plan: TurnPlanV3 } {
   const document = built.document as Doc & {
     entities: Array<Record<string, unknown>>;
     constructions: Array<Record<string, unknown> & { id: string; outputs: string[]; inputs: Record<string, unknown> }>;
@@ -378,11 +380,15 @@ check("control: a unitless derived distance a dimension label binds to the point
   };
   document.entities.push({ id: "vDim", kind: "dimension", role: "image distance" });
   document.constructions.push({ id: "make_vDim", operator: "dimension", inputs: { start: "V", end: "I" }, outputs: ["vDim"] });
-  document.annotations.push({ id: "vLabel", kind: "label", targetIds: ["vDim"], text: "v = 40", quantityId: "v" });
+  document.annotations.push({ id: "vLabel", kind: "label", targetIds: ["vDim"], text, quantityId: "v" });
   document.requiredEntityIds.push("vDim");
   document.revealGroups[0]!.entityIds.push("vDim");
-  return declinesFor(built, "I", "admitted the bound image at -40 cm");
-});
+  return built;
+}
+
+check("control: a unitless derived distance a dimension label binds to the point (point labelled Q) still declines at -40", () =>
+  declinesFor(bindImageDistance(glassFace({ image: -40, declared: [1, 1.5], imageLabel: "Q", derived: [{ id: "v", symbol: "v", value: 40 }] }), "v = 40"),
+    "I", "admitted the bound image at -40 cm"));
 
 check("the same unitless distance on a point neither bound nor named an image places nothing (admitted)", () => {
   const { document, plan } = glassFace({ image: -40, declared: [1, 1.5], imageLabel: "Q", derived: [{ id: "v", symbol: "v", value: 40 }] });
@@ -513,12 +519,41 @@ check("control: the same convex face with the image at 15 cm (the reversed media
 
 /**
  * Fifth review of #164, the glass face above (object at -20 cm, declared 1 to
- * 1.5, image at -45 cm), "Index symbols disable image checks": the check
- * returned unless the plan had an index written with n or mu, so with η in
- * the plan a figure declaring 1 to 1.5 at its face was never checked.
- * Declared media are read first; the plan's indices are needed only for a
- * surface that declares none.
+ * 1.5, image at -45 cm).
+ * - "Matching numbers hide wrong images": a derived number equal to any given
+ *   was dropped before the image checks ran, so a wrong image at -30 cm with
+ *   derived v = 30 cm escaped beside the given radius of 30 cm, named or bound
+ *   to v or not. Only a derived quantity that restates a given (its id or
+ *   symbol) is that given; any other derived length stays an image distance.
+ * - "Index symbols disable image checks": the check returned unless the plan
+ *   had an index written with n or mu, so with η in the plan a figure declaring
+ *   1 to 1.5 at its face was never checked. Declared media are read first;
+ *   the plan's indices are needed only for a surface that declares none.
  */
+check("derived v = 30 cm equal to the given radius: a wrong image labelled I at -30 cm declines", () =>
+  declinesFor(glassFace({ image: -30, declared: [1, 1.5] }), "I", "admitted the image at -30 cm (the law gives -45 cm)"));
+
+check("derived v = 30 cm equal to the given radius: a wrong image at -30 cm labelled Q still declines", () =>
+  declinesFor(glassFace({ image: -30, declared: [1, 1.5], imageLabel: "Q" }), "I", "admitted the image at -30 cm (the law gives -45 cm)"));
+
+check("a unitless v = 30 equal to the given radius, bound to a point labelled Q by a dimension label: the wrong image declines", () =>
+  declinesFor(bindImageDistance(glassFace({ image: -30, declared: [1, 1.5], imageLabel: "Q", derived: [{ id: "v", symbol: "v", value: 30 }] }), "v = 30"),
+    "I", "admitted the bound image at -30 cm"));
+
+check("control: the correct image at -45 cm beside a given 45 cm (v equal to a given) is admitted", () => {
+  const { document, plan } = glassFace({ image: -45, declared: [1, 1.5], givens: [{ id: "d", symbol: "d", value: 45, unit: "cm" }] });
+  const { valid, codes } = validate(document, plan);
+  return valid ? null : `declined with ${codes.join(", ")}`;
+});
+
+check("control: a derived quantity restating the given radius places nothing: a plain marker Q at -30 cm is admitted", () => {
+  const { document, plan } = glassFace({ image: -30, declared: [1, 1.5], imageLabel: "Q", derived: [
+    { id: "v", symbol: "v", value: 45, unit: "cm" }, { id: "R", symbol: "R", value: 30, unit: "cm" },
+  ] });
+  const { valid, codes } = validate(document, plan);
+  return valid ? null : `declined with ${codes.join(", ")}`;
+});
+
 check("indices named η, declared 1 to 1.5 at the face: an image at -120/11 cm (the reversed pair's) declines", () =>
   declinesFor(glassFace({ image: -120 / 11, declared: [1, 1.5], eta: true }), "I", "admitted an image the declared 1 to 1.5 puts at -45 cm"));
 

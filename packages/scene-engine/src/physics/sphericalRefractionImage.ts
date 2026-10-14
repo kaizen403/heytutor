@@ -18,7 +18,9 @@
  * unit of length, one the document binds to the point by quantity id (an
  * annotation or a construction naming both), or a point named or labelled as
  * an image. A derived magnification or ratio that happens to equal a
- * marker's distance places nothing. A placed image must be the law's image
+ * marker's distance places nothing, and neither does a derived quantity that
+ * restates a given (its id or symbol); a derived number that only happens to
+ * equal a given is still an image distance. A placed image must be the law's image
  * of some declared object (a literal point on the axis at a plan-given
  * distance from a surface vertex). The media are the indices a refraction
  * declared at that surface gives, each on the side of the surface the
@@ -137,8 +139,8 @@ function isLengthUnit(unit: unknown): boolean {
   return typeof unit === "string" && LENGTH_UNITS.has(unit.normalize("NFKC").trim().toLowerCase());
 }
 
-/** A derived number, with what the plan says it measures. */
-type DerivedValue = { value: number; id: string; length: boolean };
+/** A derived number, with what the plan says it measures, and whether it restates a given. */
+type DerivedValue = { value: number; id: string; length: boolean; restates: boolean };
 
 function isRefractiveIndex(quantity: TurnPlanQuantityV3): boolean {
   if (typeof quantity?.value !== "number" || !(quantity.value >= 1 && quantity.value <= 4)) return false;
@@ -445,12 +447,16 @@ export function validateSphericalRefractionImagePlacements(document: SceneDocume
   const pairs = indices.length === 0 ? [] : media.flatMap((n1) => media.filter((n2) => n2 !== n1).map((n2) => [n1, n2] as const));
   const givens = numericValues(plan.givens);
   const units = new Map((document.quantities ?? []).map((quantity) => [quantity.id, quantity.unit]));
+  const symbolOf = (quantity: TurnPlanQuantityV3) => String(quantity?.symbol ?? "").normalize("NFKC").replace(/\s+/gu, "");
   const derived: DerivedValue[] = (plan.derived ?? []).flatMap((quantity) => {
     if (typeof quantity?.value !== "number" || !Number.isFinite(quantity.value) || quantity.value === 0) return [];
     const value = Math.abs(quantity.value);
-    if (givens.some((given) => matches(value, given))) return [];
     const id = typeof quantity.id === "string" ? quantity.id : "";
-    return [{ value, id, length: isLengthUnit(quantity.unit) || isLengthUnit(units.get(id)) }];
+    // A derived quantity restating a given (its id or symbol, the same number) is that given. Any other
+    // derived number stays an image distance, even one that happens to equal a given.
+    const restates = (plan.givens ?? []).some((given) => typeof given?.value === "number" && matches(value, Math.abs(given.value))
+      && ((id !== "" && given.id === id) || (symbolOf(given) !== "" && symbolOf(given) === symbolOf(quantity))));
+    return [{ value, id, length: isLengthUnit(quantity.unit) || isLengthUnit(units.get(id)), restates }];
   });
   if (givens.length === 0 || derived.length === 0) return [];
   const literal = literalPoints(document);
@@ -487,7 +493,8 @@ export function validateSphericalRefractionImagePlacements(document: SceneDocume
       const fromVertex = Math.hypot(point.x - vertex.x, point.y - vertex.y);
       const at = derived.filter((quantity) => matches(fromVertex, quantity.value));
       if (at.length === 0) return [];
-      const image = at.some((quantity) => quantity.length || boundToQuantity(document, id, quantity.id)) || namedImage(document, id);
+      const image = namedImage(document, id)
+        || at.some((quantity) => !quantity.restates && (quantity.length || boundToQuantity(document, id, quantity.id)));
       return image ? [{ id, point, fromVertex }] : [];
     });
     return { frame, radius, objects, placed };
