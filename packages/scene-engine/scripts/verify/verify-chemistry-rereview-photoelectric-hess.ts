@@ -489,5 +489,57 @@ for (const row of workFunctionOwnerRows) check("original work-function owner: " 
 });
 // END PR137 unread work-function owners.
 
+// BEGIN PR137 work-function diagram-reference controls (separate source freeze).
+const workFunctionReferenceRows = [
+  {
+    "id": "WF-REFERENCE-BARE",
+    "question": "The work function is 2 eV. Light of frequency 1e15 Hz falls on the metal. Draw a photoelectric diagram showing the work function.",
+    "questionSha256": "370d111a0b48903c03e24b41e807eabcfc95300849223cdc283327be115f543a",
+    "expected": "draw"
+  },
+  {
+    "id": "WF-REFERENCE-UNKNOWN",
+    "question": "The work function is 2 eV. Light of frequency 1e15 Hz falls on the metal. Draw a photoelectric diagram showing the work function is unknown.",
+    "questionSha256": "f8a55ca3fb5116a0d158ccb18c5f9a96cb043aa6aad25c6141af7e863e0cfb3e",
+    "expected": "decline"
+  },
+  {
+    "id": "WF-REFERENCE-NAMED-OWNER",
+    "question": "The work function is 2 eV. Light of frequency 1e15 Hz falls on the metal. Draw a photoelectric diagram showing the work function of metal A.",
+    "questionSha256": "93197f623e9694b02df83d9283fef01e0b844e20e4a8bf6989bfd4e65fb7a1bd",
+    "expected": "decline"
+  }
+] as const;
+for (const row of workFunctionReferenceRows) check("work-function diagram-reference role: " + row.id, () => {
+  assert.equal(createHash("sha256").update(row.question).digest("hex"), row.questionSha256);
+  const direct = buildAtomicRadiationScene(row.question, [], false);
+  const schematic = buildAtomicRadiationScene(row.question, [], true);
+  const ordinary = synthesizeFamilyScene({ question: row.question });
+  if (row.expected === "decline") {
+    assert.equal(direct, null, "an explicit unread or named owner cannot become a diagram-reference exemption");
+    assert.equal(schematic, null, "schematic builder must retain the declaration boundary");
+    assert.equal(ordinary, null, "ordinary family route must retain the declaration boundary");
+    return;
+  }
+  assert.ok(ordinary?.renderScene, "a bare diagram reference must retain the single declared value");
+  assert.equal(ordinary.family, "chem_orbital");
+  for (const document of [direct, schematic, ordinary.document]) {
+    assert.ok(document);
+    assert.equal(document.source.question, row.question);
+    assert.equal(document.source.chemistryFamily, "chem_orbital");
+    const text = labels(document);
+    assert.ok(text.includes("phi=2.00 eV"), "bare reference must retain the original work-function label");
+    for (const [symbol, expected] of [["phi", 2], ["E", workFunctionPhotonEv], ["K", workFunctionPhotonEv - 2]] as const) {
+      const label = text.find(value => value.startsWith(symbol + "="));
+      assert.ok(label, symbol + " label is required");
+      const scalar = new RegExp("^" + symbol + "=([0-9]+\\.[0-9]{2}) eV$").exec(label);
+      assert.ok(scalar, "complete two-decimal energy label: " + label);
+      assert.ok(Math.abs(Number(scalar[1]) - expected) <= 0.005 + Math.abs(expected) * 1e-12,
+        symbol + " must agree with the independent photoelectric value");
+    }
+  }
+});
+// END PR137 work-function diagram-reference controls.
+
 console.log(`verify-chemistry-rereview-photoelectric-hess: ${checks} checks passed / ${failures.length} failed`);
 if (failures.length) { console.error(failures.join("\n")); process.exitCode = 1; }
