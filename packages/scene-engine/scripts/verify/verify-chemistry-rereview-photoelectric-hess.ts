@@ -1,5 +1,6 @@
 /** Real-source regressions for coordinator #137 re-review; no model calls. */
 import assert from "node:assert/strict";
+import { readChemistryQuantity } from "../../src/chemistry/quantityReader";
 import { createHash } from "node:crypto";
 import { buildAtomicRadiationScene } from "../../src/chemistry/atomicRadiation";
 import { buildChemicalThermodynamicsScene } from "../../src/chemistry/chemicalThermodynamics";
@@ -540,6 +541,47 @@ for (const row of workFunctionReferenceRows) check("work-function diagram-refere
   }
 });
 // END PR137 work-function diagram-reference controls.
+
+// BEGIN PR137 complete decimal work-function scalar controls.
+const workFunctionDecimalRows = [
+  {
+    "id": "WF-DECIMAL-E-EXPONENT",
+    "question": "The work function is 2.e0 eV. Light of frequency 1e15 Hz falls on the metal. Draw the photoelectric diagram.",
+    "questionSha256": "bcfe29494af99804232df335fdad25b8a4ceaddf4ed858705012b00ddeae139a",
+    "expected": "draw"
+  },
+  {
+    "id": "WF-DECIMAL-TIMES-EXPONENT",
+    "question": "The work function is 2.×10^0 eV. Light of frequency 1e15 Hz falls on the metal. Draw the photoelectric diagram.",
+    "questionSha256": "272a8dbd73b18db40426bf512b7354695ed21c08b2c814bde47755427c8ab5b8",
+    "expected": "draw"
+  }
+] as const;
+for (const row of workFunctionDecimalRows) check("complete decimal work-function scalar: " + row.id, () => {
+  assert.equal(createHash("sha256").update(row.question).digest("hex"), row.questionSha256);
+  const source = readChemistryQuantity({ question: row.question, after: /work function/, dimension: "energy", targetUnit: "eV" });
+  assert.ok(source.ok, "the public quantity reader must accept the complete decimal scalar");
+  assert.equal(source.reading.value, 2, "both complete source scalars independently equal 2 eV");
+  const ordinary = synthesizeFamilyScene({ question: row.question });
+  assert.ok(ordinary?.renderScene, "a complete decimal scalar must retain the ordinary figure");
+  assert.equal(ordinary.family, "chem_orbital");
+  for (const document of [buildAtomicRadiationScene(row.question, [], false), buildAtomicRadiationScene(row.question, [], true), ordinary.document]) {
+    assert.ok(document, "a complete decimal scalar must retain direct and schematic figures");
+    assert.equal(document.source.question, row.question);
+    assert.equal(document.source.chemistryFamily, "chem_orbital");
+    const text = labels(document);
+    assert.ok(text.includes("phi=2.00 eV"), "both complete decimal scalar spellings state exactly 2 eV");
+    for (const [symbol, expected] of [["phi", 2], ["E", workFunctionPhotonEv], ["K", workFunctionPhotonEv - 2]] as const) {
+      const label = text.find(value => value.startsWith(symbol + "="));
+      assert.ok(label, symbol + " label is required");
+      const scalar = new RegExp("^" + symbol + "=([0-9]+\\.[0-9]{2}) eV$").exec(label);
+      assert.ok(scalar, "complete two-decimal energy label: " + label);
+      assert.ok(Math.abs(Number(scalar[1]) - expected) <= 0.005 + Math.abs(expected) * 1e-12,
+        symbol + " must agree with the independent photoelectric value");
+    }
+  }
+});
+// END PR137 complete decimal work-function scalar controls.
 
 console.log(`verify-chemistry-rereview-photoelectric-hess: ${checks} checks passed / ${failures.length} failed`);
 if (failures.length) { console.error(failures.join("\n")); process.exitCode = 1; }
