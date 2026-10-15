@@ -102,6 +102,7 @@
     "@types/react-dom": "^19",
     "@types/ws": "^8.18.1",
     "dotenv-cli": "^8.0.0",
+    "esbuild": "0.28.1",
     "eslint": "^9",
     "eslint-config-next": "15.5.27",
     "prisma": "^6.19.3",

@@ -7,7 +7,6 @@
  * --report-baseline prints public-boundary observations for the review companions.
  * No historical questions/plans, model, network, database, rendering, or saves.
  */
-// @ts-expect-error esbuild ships with the tsx test runner, not the app package.
 import { build } from "esbuild";
 import { createRequire, Module } from "node:module";
 import { spawnSync } from "node:child_process";
