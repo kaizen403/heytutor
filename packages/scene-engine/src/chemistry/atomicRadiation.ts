@@ -7,6 +7,7 @@
 import type { SceneDocument } from "../types";
 import { deriveBohrOrbit } from "../physics/bohrOrbitAuthority";
 import { deriveBohrTransition } from "../physics/bohrTransitionAuthority";
+import { isMetal, resolveElement } from "./elements";
 import { ChemScene, chemStem, type ChemPlanQuantity } from "./sceneKit";
 
 const ORBITAL_FAMILY = "chem_orbital" as const;
@@ -110,7 +111,43 @@ function evText(symbol: string, value: number): string {
   return fit(`${symbol}=${value.toFixed(digits)} eV`);
 }
 
+/** The single-phi figure cannot bind different source and illuminated surfaces. */
+function multiplePhotoelectricSurfaces(question: string): boolean {
+  const options = /\boptions?\s*:|\(a\)\s+[^()]{3,}\(b\)/i.exec(question);
+  const body = question.slice(0, options?.index ?? question.length);
+  if (/\b(?:another|other|second|two|multiple)\s+(?:metals?|surfaces?)\b|\bthat of (?:the )?(?:other|second)\b/i.test(body)) return true;
+  const identities = new Set<string>();
+  for (const parallel of body.matchAll(/\bthat of\s+(?:the\s+)?([A-Za-z]+)\b/gi)) {
+    // Keep parallel owners within their work-function sentence.
+    const sentence = body.slice(0, parallel.index!).split(/[.!?](?:\s|$)/).at(-1)!;
+    if (!/\bwork functions?\b[\s\S]*(?:[;,]|\b(?:and|while|whereas|but))\s*$/i.test(sentence)) continue;
+    const element = resolveElement(parallel[1]!);
+    if (!element || !isMetal(element)) return true;
+    identities.add(`element:${element.symbol}`);
+  }
+  const generic = [...body.matchAll(/\b(?:metal|surface)s?\s+([a-z])(?:\s*(?:,|and|or)\s*([a-z]))?\b/gi)];
+  for (const match of generic) {
+    for (const label of match.slice(1)) if (label) identities.add(`generic:${label.toUpperCase()}`);
+  }
+  for (const token of body.matchAll(/\b[A-Za-z]+\b/g)) {
+    const at = token.index!;
+    if (generic.some(match => at >= match.index! && at < match.index! + match[0].length)) continue;
+    const element = resolveElement(token[0]);
+    if (!element || !isMetal(element)) continue;
+    const before = body.slice(0, at);
+    const after = body.slice(at + token[0].length);
+    const owner = /\b(?:work functions?\s+(?:of|for)|that of)\s+(?:(?:the\s+)?[A-Za-z]+\s*(?:,|and|or)\s*)*(?:the\s+)?$/i.test(before)
+      || /^(?:['’]s)?(?:\s*(?:,|and|or)\s+[A-Za-z]+)*\s+(?:(?:has|have|with|of)\s+(?:a\s+)?)?work functions?\b/i.test(after);
+    const target = /\b(?:(?:falls?|incident)\s+on|illuminates?)\s+(?:the\s+)?$/i.test(before)
+      || /^\s+(?:is|was)\s+illuminated\b/i.test(after);
+    const material = /\b(?:metal|surface)\s+$/i.test(before) || /^\s+(?:metal|surface)\b/i.test(after);
+    if (owner || target || material) identities.add(`element:${element.symbol}`);
+  }
+  return identities.size > 1;
+}
+
 function buildPhotoelectric(question: string, stem: string): SceneDocument | null {
+  if (multiplePhotoelectricSurfaces(question)) return null;
   const phi = workFunctionEv(stem);
   const energy = photonEnergyEv(stem);
   if (phi === null || energy === null) return null;
