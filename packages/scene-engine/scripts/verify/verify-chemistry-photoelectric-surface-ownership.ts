@@ -47,7 +47,7 @@ if (snapshot) writeFileSync(snapshot, JSON.stringify(observed, null, 2) + "\n", 
 const baselinePath = argument("--baseline");
 const baseline: typeof observed | null = baselinePath ? JSON.parse(readFileSync(baselinePath, "utf8")) : null;
 if (baseline) {
-  assert.equal(baseline.length, rows.length, "baseline contains all 22 rows");
+  assert.equal(baseline.length, rows.length, "baseline contains all frozen rows");
   assert.deepEqual(baseline.map(({ id, question }) => ({ id, question })), observed.map(({ id, question }) => ({ id, question })), "ordered baseline question identities");
 }
 let passed = 0;

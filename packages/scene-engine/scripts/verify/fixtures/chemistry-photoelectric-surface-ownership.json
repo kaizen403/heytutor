@@ -449,5 +449,92 @@
     },
     "oracleBasis": "Sodium is the source work-function owner; lead is a distinct illuminated metal. The unchanged single-phi builder cannot bind that value to lead.",
     "questionSha256": "1f69dbb500cf4336c95e0063dfa91b872aee38d3bd2ea0919392883677c5a79a"
+  },
+  {
+    "id": "N-ILLUMINATES-COPPER",
+    "question": "The work function of sodium is 2.3 eV. Light of frequency 1e15 Hz illuminates copper. Draw the photoelectric diagram.",
+    "questionSha256": "51226ebb21980c9fb01a6a2257e9d04350559aa9f03e19278ebd9889fe03160b",
+    "kind": "root-requested-additive-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Distinct sodium source/copper target conservatively declines; same-sodium target retains independent source phi, SI h/e energy and complete main documents."
+  },
+  {
+    "id": "N-COPPER-ILLUMINATED",
+    "question": "The work function of sodium is 2.3 eV. Copper is illuminated by light of frequency 1e15 Hz. Draw the photoelectric diagram.",
+    "questionSha256": "ebea2f13e8243a0ead4d2372230d7205f94aae6baa3b4b534b2dad0d0968a088",
+    "kind": "root-requested-additive-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Distinct sodium source/copper target conservatively declines; same-sodium target retains independent source phi, SI h/e energy and complete main documents."
+  },
+  {
+    "id": "P-ILLUMINATES-SODIUM",
+    "question": "The work function of sodium is 2.3 eV. Light of frequency 1e15 Hz illuminates sodium. Draw the photoelectric diagram.",
+    "questionSha256": "dab709e8e8ffa13492f25c0fbd70bec1843826a9795e19b9bc63e8d06ab1c01f",
+    "kind": "root-requested-additive-positive",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "pathsDraw": [
+        "direct",
+        "schematic",
+        "ordinary",
+        "lastResort"
+      ],
+      "family": "chem_orbital",
+      "mustEqualBeforeGuardMainDocumentsAndLabels": true,
+      "phiEv": 2.3,
+      "photonEv": 4.135667696923859,
+      "kineticEv": 1.835667696923859,
+      "labels": [
+        "phi=2.30 eV",
+        "E=4.14 eV",
+        "K=1.84 eV"
+      ]
+    },
+    "oracleBasis": "Distinct sodium source/copper target conservatively declines; same-sodium target retains independent source phi, SI h/e energy and complete main documents."
+  },
+  {
+    "id": "N-UNRESOLVED-PARALLEL",
+    "question": "The work function of Na is 2 eV and that of X is unknown. Light of frequency 1e15 Hz falls on X. Draw the photoelectric diagram.",
+    "questionSha256": "0dcbd33bb0cb11ed2a8365f3411c1c070492ec9d629b3b867ca113a769c27cf4",
+    "kind": "root-authorized-additive-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "The supplied Na value cannot bind to unresolved owner/illumination target X."
+  },
+  {
+    "id": "N-PARALLEL-MATERIAL-LIST",
+    "question": "Na and Cu have work functions of 2 eV and 4 eV, respectively. Light of frequency 1e15 Hz falls on Cu. Draw the photoelectric diagram.",
+    "questionSha256": "b9bd9560119838ca6244bf1f8844fef7cedb1480ce92287aa8a960b5aec06116",
+    "kind": "root-authorized-additive-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Two canonical materials have distinct work functions; Cu phi4 must not borrow first Na phi2. Conservative refusal is required."
   }
 ]
