@@ -378,7 +378,274 @@ const retentionFixtures: readonly Fixture[] = [
     ],
   },
 ];
-const gateFixtures: readonly Fixture[] = [...fixtures, ...sourceCompletenessFixtures, ...retentionFixtures];
+// Public regressions frozen before execution: derivative and bare primes,
+// plural introductions, and genuine quoted-equation controls. Original37
+// oracles and ownership assertions remain unchanged.
+const primeAndPluralRetentionFixtures: readonly Fixture[] = [
+  {
+    id: "retention-ascii-derivative-prime",
+    question: "Find f'(x) for f(x)=x^2. Graph y=x^2 and y=2*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "retention-unicode-derivative-prime",
+    question: "Determine g′(x) when g(x)=x^3. Plot y=x^3 and y=3*x^2.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^3", [[-1, -1], [0, 0], [1, 1], [2, 8]]),
+      sourceEquation("y=3*x^2", [[-1, 3], [0, 0], [1, 3], [2, 12]]),
+    ],
+  },
+  {
+    id: "retention-ascii-second-derivative",
+    question: "Calculate f''(x) for f(x)=x^3-2*x. Sketch y=x^3-2*x and y=6*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^3-2*x", [[-1, 1], [0, 0], [1, -1], [2, 4]]),
+      sourceEquation("y=6*x", [[-1, -6], [0, 0], [1, 6], [2, 12]]),
+    ],
+  },
+  {
+    id: "retention-unicode-second-derivative",
+    question: "Find h″(x) for h(x)=x^3. Draw y=x^3 and y=6*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^3", [[-1, -1], [0, 0], [1, 1], [2, 8]]),
+      sourceEquation("y=6*x", [[-1, -6], [0, 0], [1, 6], [2, 12]]),
+    ],
+  },
+  {
+    id: "retention-ascii-prime-trigonometric",
+    question: "First evaluate h'(x) for h(x)=sin(x). Then plot y=sin(x) and y=cos(x).",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=sin(x)", [[0, 0], [0.5, 0.479425538604203], [1, 0.8414709848078965], [2, 0.9092974268256817]]),
+      sourceEquation("y=cos(x)", [[0, 1], [0.5, 0.8775825618903728], [1, 0.5403023058681398], [2, -0.4161468365471424]]),
+    ],
+  },
+  {
+    id: "retention-plural-curves",
+    question: "Graph the curves y=x^2 and y=2*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "retention-plural-both-curves",
+    question: "Sketch both curves y=x^2+1 and y=3*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2+1", [[-1, 2], [0, 1], [1, 2], [2, 5]]),
+      sourceEquation("y=3*x", [[-1, -3], [0, 0], [1, 3], [2, 6]]),
+    ],
+  },
+  {
+    id: "retention-plural-lines",
+    question: "Plot the lines y=4-x and y=x-2.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=4-x", [[-1, 5], [0, 4], [1, 3], [2, 2]]),
+      sourceEquation("y=x-2", [[-1, -3], [0, -2], [1, -1], [2, 0]]),
+    ],
+  },
+  {
+    id: "retention-plural-functions",
+    question: "Draw these functions y=sin(x) and y=cos(x).",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=sin(x)", [[0, 0], [0.5, 0.479425538604203], [1, 0.8414709848078965], [2, 0.9092974268256817]]),
+      sourceEquation("y=cos(x)", [[0, 1], [0.5, 0.8775825618903728], [1, 0.5403023058681398], [2, -0.4161468365471424]]),
+    ],
+  },
+  {
+    id: "retention-plural-represent-functions",
+    question: "Represent graphically the functions y=x^3 and y=2*x+1.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^3", [[-1, -1], [0, 0], [1, 1], [2, 8]]),
+      sourceEquation("y=2*x+1", [[-1, -1], [0, 1], [1, 3], [2, 5]]),
+    ],
+  },
+  {
+    id: "quoted-ascii-single-equation-negative",
+    question: "Explain why 'y=4' is only a quoted example.",
+    mustDrawExplicitCurves: false,
+    discreteDomain: false,
+    equations: [
+    ],
+  },
+  {
+    id: "quoted-double-equation-negative",
+    question: "Discuss the printed phrase \"y=x^2\" without drawing it.",
+    mustDrawExplicitCurves: false,
+    discreteDomain: false,
+    equations: [
+    ],
+  },
+  {
+    id: "quoted-curly-single-equation-negative",
+    question: "Is the text ‘y=2*x’ a graphing instruction?",
+    mustDrawExplicitCurves: false,
+    discreteDomain: false,
+    equations: [
+    ],
+  },
+  {
+    id: "quoted-example-then-unquoted-functions",
+    question: "The note says 'y=99'. Graph y=x^2 and y=2*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "retention-bare-first-and-second-primes",
+    question: "Find f' and f'' for f(x)=x^3. Graph y=x^3 and y=3*x^2.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^3", [[-1, -1], [0, 0], [1, 1], [2, 8]]),
+      sourceEquation("y=3*x^2", [[-1, 3], [0, 0], [1, 3], [2, 12]]),
+    ],
+  },
+  {
+    id: "retention-bare-prime-comma",
+    question: "Calculate f', then graph y=x^2 and y=2*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "retention-bare-second-prime-comma",
+    question: "Find f'', then graph y=x^3 and y=6*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^3", [[-1, -1], [0, 0], [1, 1], [2, 8]]),
+      sourceEquation("y=6*x", [[-1, -6], [0, 0], [1, 6], [2, 12]]),
+    ],
+  },
+  {
+    id: "retention-bare-typographic-prime",
+    question: "Determine f’ for f(x)=sin(x), then plot y=sin(x) and y=cos(x).",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=sin(x)", [[0, 0], [0.5, 0.479425538604203], [1, 0.8414709848078965], [2, 0.9092974268256817]]),
+      sourceEquation("y=cos(x)", [[0, 1], [0.5, 0.8775825618903728], [1, 0.5403023058681398], [2, -0.4161468365471424]]),
+    ],
+  },
+  {
+    id: "quoted-prime-example-then-unquoted-functions",
+    question: "The note reads 'plot y=99 after computing f’'. Graph y=x^2 and y=2*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+];
+// Quoted derivative-prime ownership and mixed typography regressions,
+// frozen before execution. The prior56 fixture and assertion bytes remain intact.
+const quotedPrimeOwnershipFixtures: readonly Fixture[] = [
+  {
+    id: "quoted-ascii-prime-instruction-negative",
+    question: "The note says 'Compute f'(x), then graph y=x^2 and y=2*x; do not draw it.' Explain the note.",
+    mustDrawExplicitCurves: false,
+    discreteDomain: false,
+    equations: [
+    ],
+  },
+  {
+    id: "quoted-curly-prime-instruction-negative",
+    question: "The note says ‘Compute f’(x), then graph y=x^2 and y=2*x; do not draw it.’ Explain the note.",
+    mustDrawExplicitCurves: false,
+    discreteDomain: false,
+    equations: [
+    ],
+  },
+  {
+    id: "quoted-ascii-second-prime-instruction-negative",
+    question: "The note says 'Compute f''(x), then graph y=x^2 and y=2*x; do not draw it.' Explain the note.",
+    mustDrawExplicitCurves: false,
+    discreteDomain: false,
+    equations: [
+    ],
+  },
+  {
+    id: "quoted-ascii-prime-then-genuine-graphs",
+    question: "The note says 'Compute f'(x), then graph y=99; do not draw it.' Graph y=x^2 and y=2*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "quoted-curly-prime-then-genuine-graphs",
+    question: "The note says ‘Compute f’(x), then graph y=99; do not draw it.’ Graph y=x^2 and y=2*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "mixed-single-quote-later-genuine-graphs",
+    question: "The note prints 'y=99’. Graph y=x^2 and y=2*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "mixed-curly-single-quote-later-genuine-graphs",
+    question: "The note prints ‘y=99'. Graph y=x^2 and y=2*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "mixed-double-quote-later-genuine-graphs",
+    question: "The note prints \"y=99”. Graph y=x^2 and y=2*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+];
+const gateFixtures: readonly Fixture[] = [...fixtures, ...sourceCompletenessFixtures, ...retentionFixtures, ...primeAndPluralRetentionFixtures, ...quotedPrimeOwnershipFixtures];
 
 function normalizeEquation(value: string): string {
   return value.replace(/[−–—]/g, "-").replace(/×/g, "*").replace(/÷/g, "/")

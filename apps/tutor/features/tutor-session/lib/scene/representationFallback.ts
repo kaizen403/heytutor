@@ -821,17 +821,50 @@ const FUNCTION_EXPRESSION_IDENTIFIERS = new Set([
   "sqrt", "abs", "exp", "log", "ln",
 ]);
 const FUNCTION_EQUATION_INTRODUCTIONS = new Set([
-  "graph", "plot", "sketch", "draw", "curve", "line", "function", "equation", "equations",
+  "graph", "plot", "sketch", "draw", "curve", "curves", "line", "lines", "function", "functions", "equation", "equations",
 ]);
 const FUNCTION_EQUATION_ENDPOINTS = new Set(["and", "for", "where", "enclose", "encloses"]);
+
+function hasOpenFunctionSourceQuote(source: string): boolean {
+  let openQuote: "single" | "double" | null = null;
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index]!;
+    // Apostrophes inside words are not quotation boundaries.
+    if (/['’]/.test(character) && /[A-Za-z]/.test(source[index - 1] ?? "") &&
+        /[A-Za-z]/.test(source[index + 1] ?? "")) continue;
+    const quote = /['‘’]/.test(character) ? "single" : /["“”]/.test(character) ? "double" : null;
+    if (openQuote !== null) {
+      if (quote === openQuote) {
+        // A derivative inside quoted text, such as 'compute f'(x)', does
+        // not end that text at its prime. A word's closing quote still does.
+        const primes = quote === "single" && /[A-Za-z0-9_)]/.test(source[index - 1] ?? "")
+          ? source.slice(index).match(/^['’]+/)?.[0]
+          : undefined;
+        if (primes) {
+          index += primes.length - 1;
+          // Before an argument the whole run is primes; otherwise its last
+          // mark closes the quote, including a quoted bare f’ followed by '.
+          if (!/^\s*\(/.test(source.slice(index + 1))) openQuote = null;
+        } else openQuote = null;
+      }
+      continue;
+    }
+    // Outside quoted text, attached primes (including f' and f'') do not
+    // open a quotation.
+    if (/['’]/.test(character) && /[A-Za-z0-9_)]/.test(source[index - 1] ?? "")) {
+      while (/['’]/.test(source[index + 1] ?? "")) index += 1;
+      continue;
+    }
+    openQuote = quote;
+  }
+  return openQuote !== null;
+}
 
 function hasStandaloneFunctionLhs(source: string, index: number, previousEquationEnd: number): boolean {
   const rawPrefix = source.slice(0, index);
   const prefix = rawPrefix.trimEnd();
   // A quoted equation is not an independently asserted source equation.
-  const quotes = prefix.replace(/(?<=[A-Za-z])['’](?=[A-Za-z])/g, "");
-  if ((quotes.match(/["“”]/g)?.length ?? 0) % 2 ||
-      (quotes.match(/['‘’]/g)?.length ?? 0) % 2) return false;
+  if (hasOpenFunctionSourceQuote(prefix)) return false;
   if (previousEquationEnd >= 0 && /^\s*(?:,|and)?\s*$/i.test(rawPrefix.slice(previousEquationEnd))) return true;
   const introduction = prefix.replace(/:$/, "").trimEnd();
   const token = introduction.match(/\b(?:solve|represent)\s+graphically$|[A-Za-z_][A-Za-z0-9_]*$|[^\s]$/i)?.[0];
