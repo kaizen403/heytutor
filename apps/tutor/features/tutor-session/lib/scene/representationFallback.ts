@@ -1385,9 +1385,10 @@ const OPTICS_IMAGE_DISTANCE_TOLERANCE = 0.01;
  * What the stem states about the image: nature words next to "image", and where it forms, each with
  * its distance when one is written just before the side ("an image 30 cm behind it"). Only the stem
  * is read, and only its statements (`opticsStatement`): what a question asks, or a clause after
- * "whether" or "if", is not read, and "real or virtual" names no nature. A side is virtual behind a mirror (or on its other
- * side) and real in front of it (or on the object's side); across a lens it is real and on the
- * object's side virtual. "Behind" or "in front of" a lens names no side for certain (null), though a
+ * "whether" or "if", is not read, and "real or virtual" names no nature in its sentence, though
+ * that sentence's image distance and side are still read. A side is virtual behind a mirror (or on
+ * its other side) and real in front of it (or on the object's side); across a lens it is real and on
+ * the object's side virtual. "Behind" or "in front of" a lens names no side for certain (null), though a
  * distance there is still the image's. "Behind the object" is not read at all. A negated phrase or
  * side ("does not form a real image", "the image is not formed behind the mirror") states nothing:
  * it is kept apart as a nature the image must not have in full (`denied`), and a negated side with a
@@ -1403,8 +1404,10 @@ function opticsStemImage(question: string, element: "lens" | "mirror"): {
   const denied: string[][] = [];
   for (const sentence of question.split(/(?<=[.!?])\s+/)) {
     const statement = opticsStatement(sentence);
-    if (OPTICS_NATURE_CHOICE.test(statement)) continue;
-    for (const found of [...statement.matchAll(OPTICS_NATURE_BEFORE), ...statement.matchAll(OPTICS_NATURE_AFTER)]) {
+    // A choice of nature states none in its sentence, but the image distance and side it states still hold.
+    const natures = OPTICS_NATURE_CHOICE.test(statement) ? []
+      : [...statement.matchAll(OPTICS_NATURE_BEFORE), ...statement.matchAll(OPTICS_NATURE_AFTER)];
+    for (const found of natures) {
       const named = (found[1]!.match(OPTICS_NATURE_WORD) ?? []).map((word) => word.toLowerCase());
       if (OPTICS_NEGATED.test(statement.slice(0, found.index)) || OPTICS_NEGATION_WORD.test(found[0])) denied.push(named);
       else for (const word of named) words.add(word);

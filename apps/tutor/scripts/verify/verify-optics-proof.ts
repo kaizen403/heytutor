@@ -150,6 +150,13 @@
  * ray that runs back across the lens. The axis drawn as a line (between two points or along a
  * direction), an unmarked line along it, the element plane, a screen across the axis and an axial
  * ray drawn as a marked line still prove and draw.
+ * G30: a choice of nature ("real or virtual", "upright or inverted", "enlarged or diminished") states
+ * no nature, but the image distance and side its sentence states still hold. On the review's "An
+ * object placed 20 cm from a convex lens forms an image 60 cm on the other side of it; determine its
+ * nature (real or virtual)." f 10 cm (image 20 cm away) stays unproven and never draws and f 15 cm
+ * draws; so on the other two choices, on an image 60 cm on the object's side (f 10 cm refused, f 20
+ * cm drawn) and on a concave mirror's image 30 cm in front (f 5 cm refused, f 10 cm drawn). With no
+ * distance or side, a real and a virtual image both prove on each choice, and an unnamed lens declines.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -1937,7 +1944,65 @@ function named(name: string, run: () => void): void {
   }
 }
 
-for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21", "G22", "G23", "G24", "G25", "G26", "G27", "G28", "G29"]) {
+// ---- G30: a nature choice states no nature, but its sentence's image distance and side still hold ----
+{
+  // f is the planner's derivation; the stem gives u and where the image forms.
+  const choicePlan = (question: string, u: number, f: number, law: string) => plan(question, [
+    { id: "u", symbol: "u", value: u, unit: "cm", provenance: "given", sourceText: `${u} cm` },
+  ], [{ id: "f", symbol: "f", value: f, unit: "cm", provenance: "derived" }], [law]);
+  const concaveAt = (question: string, u: number, f: number) =>
+    mirrorDoc(question, { u, f, h: 2, kind: "concave", quantities: [{ id: "u", symbol: "u", value: u }, { id: "f", symbol: "f", value: f }] });
+  // The review's stem: f 10 cm puts the image 20 cm on the far side, not the 60 cm it states.
+  const qReview = "An object placed 20 cm from a convex lens forms an image 60 cm on the other side of it; determine its nature (real or virtual).";
+  const qUpright = "An object placed 20 cm from a convex lens forms an image 60 cm on the other side of it; state its nature (upright or inverted).";
+  const qEnlarged = "An object placed 20 cm from a convex lens forms an image 60 cm on the other side of it; describe it as enlarged or diminished.";
+  const qSameSide = "An object placed 15 cm from a convex lens forms an image 60 cm on the same side as the object; determine its nature (real or virtual).";
+  const qMirrorChoice = "An object placed 15 cm in front of a concave mirror forms an image 30 cm in front of it; determine its nature (real or virtual).";
+  for (const [name, question, turnPlan, document, reason] of [
+    ["a convex lens of f 10 cm on the review's stem (image 20 cm on the far side)", qReview, choicePlan(qReview, 20, 10, "lens_formula"),
+      lensDoc(qReview, { u: 20, f: 10, h: 2 }), /^the image at 20 cm on the far side of the lens contradicts the stem's image 60 cm on the other side of it$/],
+    ["a convex lens of f 10 cm on the upright or inverted stem", qUpright, choicePlan(qUpright, 20, 10, "lens_formula"),
+      lensDoc(qUpright, { u: 20, f: 10, h: 2 }), /^the image at 20 cm on the far side of the lens contradicts the stem's image 60 cm on the other side of it$/],
+    ["a convex lens of f 10 cm on the enlarged or diminished stem", qEnlarged, choicePlan(qEnlarged, 20, 10, "lens_formula"),
+      lensDoc(qEnlarged, { u: 20, f: 10, h: 2 }), /^the image at 20 cm on the far side of the lens contradicts the stem's image 60 cm on the other side of it$/],
+    ["a convex lens of f 10 cm on the same side stem (real image 30 cm on the far side)", qSameSide, choicePlan(qSameSide, 15, 10, "lens_formula"),
+      lensDoc(qSameSide, { u: 15, f: 10, h: 2 }), /^the image at 30 cm on the far side of the lens contradicts the stem's image 60 cm on the same side as the object$/],
+    ["a concave mirror of f 5 cm on the mirror stem (image 7.5 cm in front)", qMirrorChoice, choicePlan(qMirrorChoice, 15, 5, "mirror_formula"),
+      concaveAt(qMirrorChoice, 15, 5), /^the image at 7.5 cm in front of the mirror contradicts the stem's image 30 cm in front of it$/],
+  ] as const) {
+    expectUnproven("G30", name, question, document, reason);
+    expectNeverPlanner("G30", name, question, turnPlan, document);
+  }
+  // Controls: the figure with the stated image proves and draws.
+  for (const [name, question, turnPlan, document] of [
+    ["a convex lens of f 15 cm on the review's stem (image 60 cm on the other side)", qReview, choicePlan(qReview, 20, 15, "lens_formula"),
+      lensDoc(qReview, { u: 20, f: 15, h: 2 })],
+    ["a convex lens of f 15 cm on the upright or inverted stem", qUpright, choicePlan(qUpright, 20, 15, "lens_formula"), lensDoc(qUpright, { u: 20, f: 15, h: 2 })],
+    ["a convex lens of f 15 cm on the enlarged or diminished stem", qEnlarged, choicePlan(qEnlarged, 20, 15, "lens_formula"), lensDoc(qEnlarged, { u: 20, f: 15, h: 2 })],
+    ["a convex lens of f 20 cm on the same side stem (virtual image 60 cm on the object's side)", qSameSide, choicePlan(qSameSide, 15, 20, "lens_formula"),
+      lensDoc(qSameSide, { u: 15, f: 20, h: 2 })],
+    ["a concave mirror of f 10 cm on the mirror stem (real image 30 cm in front)", qMirrorChoice, choicePlan(qMirrorChoice, 15, 10, "mirror_formula"),
+      concaveAt(qMirrorChoice, 15, 10)],
+  ] as const) {
+    const proof = explainPlannerOpticsProof(question, document);
+    check("G30", proof.proof === "proven", `${name} must be proven; got ${proof.proof}: ${proof.reason}`);
+    expectDrawnAsPlanner("G30", name, question, turnPlan, document);
+  }
+  // The choice itself states no nature: with no image distance or side, a real and a virtual image both
+  // prove, and a stem that names no kind still declines.
+  for (const choice of ["determine the nature of the image (real or virtual)", "say whether it is upright or inverted",
+    "describe the image as upright or inverted", "describe the image as enlarged or diminished"]) {
+    for (const [u, nature] of [[15, "virtual"], [30, "real"]] as const) {
+      const question = `A convex lens of focal length 20 cm has an object placed ${u} cm from it; ${choice}.`;
+      const proof = explainPlannerOpticsProof(question, lensDoc(question, { u, f: 20, h: 2 }));
+      check("G30", proof.proof === "proven", `the ${nature} image on "${question}" must be proven; got ${proof.proof}: ${proof.reason}`);
+    }
+    const unnamed = `A lens has an object placed 30 cm from it; ${choice}.`;
+    expectUnproven("G30", `a convex lens on "${unnamed}"`, unnamed, lensDoc(unnamed, { u: 30, f: 20, h: 2 }), /^the stem names no lens kind/);
+  }
+}
+
+for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21", "G22", "G23", "G24", "G25", "G26", "G27", "G28", "G29", "G30"]) {
   console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 }
 for (const [name, failed] of namedCases) console.log(`  ${name}: ${failed ? `FAIL (${failed} checks)` : "pass"}`);
