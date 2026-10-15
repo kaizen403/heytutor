@@ -27,6 +27,7 @@ mock.module(resolve(root, "lib/obs/sentryNode.ts"), { namedExports: { captureTts
 mock.module(resolve(root, "lib/obs/langfuse.ts"), { namedExports: { flushInBackground: () => undefined, recordTtsSpan: () => undefined } });
 mock.module(resolve(root, "lib/billing/track.ts"), { namedExports: { recordTtsSpend: () => undefined } });
 mock.module(resolve(root, "lib/object-store/deletionJobs.ts"), { namedExports: { startObjectDeletionWorker: () => () => undefined } });
+mock.module(resolve(root, "lib/obs/failedTurnSentry.ts"), { namedExports: { startFailedTurnSentryWorker: () => () => undefined } });
 mock.module(resolve(root, "lib/db/prisma.ts"), { namedExports: { prisma: {
   objectDeletionJob: { findMany: async () => [] },
   ownedTrace: { deleteMany: async () => ({ count: 0 }) },

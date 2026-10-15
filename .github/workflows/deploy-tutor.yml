@@ -90,6 +90,10 @@ jobs:
           pnpm lint
       - name: Build production applications
         run: pnpm build
+      - name: Failed-turn Sentry privacy and reporting regressions (no external calls)
+        run: |
+          pnpm --filter @heytutor/tutor verify:sentry
+          node deploy/aws/verify-sentry-release.mjs
       - name: Diagram authority and restoration regressions
         run: pnpm --filter @heytutor/tutor verify:publication
       - name: Storage admission and save feedback regressions
