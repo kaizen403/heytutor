@@ -539,9 +539,78 @@ async function comingOnlineRecoversFailedClose() {
   assert.equal(h.registry.statusFor("board-1").kind, "saved");
   assert.equal(h.registry.hasUnsentData(), false);
 }
+async function unexpectedCheckpointRetriesBeforeBanner() {
+  const failure = () => Response.json({ error: "Synthetic transaction failure P2028" }, { status: 500 });
+  const recovered = harness();
+  recovered.registry.recordRow(owner, 1, row, { intro: false });
+  await tick();
+  recovered.calls[0]!.answer(failure());
+  await tick();
+  assert.equal(recovered.registry.statusFor("board-1").kind, "saving", "unexpected checkpoint errors retry quietly before a banner");
+  assert(recovered.registry.hasUnsentData(), "quiet retry retains the lesson and its audio");
+  await recovered.fireTimer(1000);
+  assert.equal(recovered.calls.length, 2);
+  assert.equal(recovered.calls[1]!.method, "PUT");
+  assert.deepEqual(recovered.calls[1]!.metadata.appendSegments, recovered.calls[0]!.metadata.appendSegments);
+  assert.deepEqual(recovered.calls[1]!.audioSizes, [row.audioBytes!.length]);
+  await recovered.ack(1);
+  assert.equal(recovered.registry.statusFor("board-1").kind, "saved", "a brief server blip recovers without showing a save failure");
+
+  const persistent = harness();
+  persistent.registry.recordRow(owner, 1, row, { intro: false });
+  await tick();
+  persistent.calls[0]!.answer(failure());
+  await tick();
+  for (const delay of [1000, 2000, 4000, 8000, 16000, 30000]) {
+    assert.equal(persistent.registry.statusFor("board-1").kind, "saving", "every bounded server retry remains quiet");
+    await persistent.fireTimer(delay);
+    const retry = persistent.calls.at(-1)!;
+    assert.deepEqual(retry.metadata.appendSegments, persistent.calls[0]!.metadata.appendSegments);
+    assert.deepEqual(retry.audioSizes, [row.audioBytes!.length]);
+    retry.answer(failure());
+    await tick();
+  }
+  assert.equal(persistent.calls.length, 7, "unexpected errors exhaust the existing bounded retry budget");
+  const status = persistent.registry.statusFor("board-1");
+  assert(status.kind === "failed");
+  assert.equal(status.message, "This lesson did not save. Keep this tab open and try again.");
+  const banner = renderToStaticMarkup(React.createElement(SaveFailureBanner, {
+    message: status.message, onRetrySave: () => persistent.registry.retry("board-1"), onDismiss: () => {},
+  }));
+  assert(banner.includes(status.message), "persistent failure reaches the actual save banner");
+  assert.doesNotMatch(banner, /verify your storage|P2028|Synthetic transaction/i, "student copy does not mislabel or expose the diagnostic cause");
+  assert(persistent.registry.hasUnsentData(), "exhausted retry retains the original lesson for manual recovery");
+  persistent.registry.retry("board-1");
+  await tick();
+  await persistent.ack(7);
+  assert.equal(persistent.registry.statusFor("board-1").kind, "saved");
+}
+
+async function unexpectedCloseKeepsUnsavedWarning() {
+  const h = harness();
+  h.registry.recordRow(owner, 1, row, { intro: false });
+  await tick();
+  h.registry.pageHideClose();
+  await tick();
+  assert.equal(h.calls[1]!.method, "PATCH");
+  h.calls[1]!.answer(Response.json({ error: "Internal server error" }, { status: 500 }));
+  await tick();
+  const status = h.registry.statusFor("board-1");
+  assert(status.kind === "failed", "an unsaved pagehide close stays visible while the tab survives");
+  assert.equal(status.message, "This lesson did not save. Keep this tab open and try again.");
+  assert(h.registry.hasUnsentData());
+  await h.ack(0);
+  assert.equal(h.registry.statusFor("board-1").kind, "failed", "an older PUT cannot hide the unsaved close");
+  assert.equal(h.calls.at(-1)!.metadata.status, "stopped");
+  await h.ack(h.calls.length - 1);
+  assert.equal(h.registry.statusFor("board-1").kind, "saved", "a covering PUT recovers the unexpected close failure");
+}
+
 async function main() {
   const failures: string[] = [];
   for (const test of [
+    unexpectedCheckpointRetriesBeforeBanner,
+    unexpectedCloseKeepsUnsavedWarning,
     machineCodeClassification,
     specificBannerMessage,
     quotaPutAndStudentRetry,
@@ -563,7 +632,7 @@ async function main() {
   globalThis.fetch = originalFetch;
   assert.equal(failures.length, 0, failures.join("\n"));
   console.log(
-    "verify-storage-save-client: 9 actual-client and consumer groups passed",
+    "verify-storage-save-client: 11 actual-client and consumer groups passed",
   );
 }
 void main().catch((error: unknown) => {
