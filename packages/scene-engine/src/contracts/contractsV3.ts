@@ -4055,7 +4055,7 @@ function pruneUnsupportedMeasuredFragments(text: string, plan: TurnPlanV3): stri
   const supported = supportedSceneDisplayMeasurements(plan);
   const pruned = text.replace(measuredValuePattern(), (measurement, _number: string, unit: string, index: number) => {
     if (sceneMeasurementIsOwnedFormulaOperand(text, { index, length: measurement.length, unit }, plan)) return measurement;
-    const value = Number(_number.replace(/−/g, "-"));
+    const value = displayedMeasurementNumber(_number);
     const tolerance = displayedNumberTolerance(_number.replace(/−/g, "-"));
     return supported.some((quantity) => equivalentDisplayedMeasuredQuantity(
       quantity.value, quantity.unit, value, unit, tolerance,
@@ -4079,9 +4079,9 @@ function extractMeasuredValues(text: string, plan: TurnPlanV3): Array<{ value: n
   const values: Array<{ value: number; unit: string; tolerance: number }> = [];
   const pattern = measuredValuePattern();
   for (const match of text.matchAll(pattern)) {
-    const value = Number(match[1]?.replace(/−/g, "-"));
+    const value = displayedMeasurementNumber(match[1]!);
     const unit = match[2]?.trim();
-    if (Number.isFinite(value) && unit && !sceneMeasurementIsOwnedFormulaOperand(
+    if (unit && !sceneMeasurementIsOwnedFormulaOperand(
       text, { index: match.index!, length: match[0].length, unit }, plan,
     )) {
       values.push({ value, unit, tolerance: displayedNumberTolerance(match[1]!.replace(/−/g, "-")) });
@@ -4738,7 +4738,26 @@ function measuredValuePattern(): RegExp {
   // Reading only "m" silently missed speed/acceleration labels at the slash.
   const base = String.raw`(?:ohms?|volts?|amps?|deg(?:rees?)?|°|rad(?:ians?)?|[pnumckMGµμ]?(?:mol|Pa|Hz|Wb|eV|[mgsAKNJWCVFHTLΩ]))`;
   const factor = `${base}(?:\\^?-?\\d+|[²³¹⁰⁻]+)?`;
-  return new RegExp(`(${NUMBER_SOURCE})\\s*(${factor}(?:\\s*(?:[/·⋅*]|\\s+)\\s*${factor})*)(?=\\s|$|[,;).!?:])`, "gi");
+  // A radicand is part of its number, not a second measured quantity. Matching
+  // only `3 m` in `20√3 m` used to prune it and publish the dangling `20√`.
+  // Consume the full numeric expression (including signs, fractions and
+  // nested roots) before checking its value. The character scanner has no
+  // competing numeric-token repetitions; the bounded parser below owns syntax.
+  // e/E is only an exponent when digits follow, so eV stays a complete unit.
+  const expressionTail = String.raw`(?:[0-9.+\-−*/×·⋅^²³()√\s]|[eE][+\-−]?\d+)*`;
+  const radical = `(?=${expressionTail}√)[+\\-−(]*(?:\\d|\\.\\d|√)${expressionTail}`;
+  return new RegExp(`(${radical}|${NUMBER_SOURCE})\\s*(${factor}(?:\\s*(?:[/·⋅*]|\\s+)\\s*${factor})*)(?=\\s|$|[,;).!?:])`, "gi");
+}
+
+/** Recompute a whole radical with the existing bounded arithmetic evaluator. */
+function displayedMeasurementNumber(source: string): number {
+  if (!source.includes("√")) return Number(source.replace(/−/g, "-"));
+  // Parenthesize a complete numeric radicand first: the general normalizer's
+  // short bare-root spelling otherwise splits `.25` and `2e2` mid-number.
+  const grouped = source.replace(new RegExp(`√\\s*(${NUMBER_SOURCE})`, "g"), "√($1)");
+  const expression = normalizeExplicitNumericExpression(grouped, []);
+  if (!expression) return NaN;
+  try { return evaluateMathExpression(expression, 0); } catch { return NaN; }
 }
 
 function sourceContainsMatchingMeasuredValue(
@@ -4749,7 +4768,7 @@ function sourceContainsMatchingMeasuredValue(
   const unit = normalizeUnit(expectedUnit);
   if (!unit) return false;
   for (const match of sourceText.matchAll(measuredValuePattern())) {
-    const value = Number(match[1]?.replace(/−/g, "-"));
+    const value = displayedMeasurementNumber(match[1]!);
     if (
       Number.isFinite(value) &&
       normalizeUnit(match[2]) === unit &&

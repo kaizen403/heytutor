@@ -25,7 +25,7 @@ import {
   placeLabels,
   workColumnObstacle,
 } from "@heytutor/scene-engine";
-import { CUE_DEFAULT_MS_PER_CHAR, cuedInkFloorMs, findSpokenToken } from "@heytutor/tutor-core";
+import { CUE_DEFAULT_MS_PER_CHAR, cuedInkFloorMs, findSpokenToken, type NarrationLanguage } from "@heytutor/tutor-core";
 import { DSA_CODE_PANEL_RECT, DSA_DIAGRAM_ZONE } from "../../constants";
 import { buildLabelGlossary } from "./labelGlossary";
 import { isDsaConstructionGuide } from "./diagramInk";
@@ -34,6 +34,8 @@ import { isDsaConstructionGuide } from "./diagramInk";
 const DIAGRAM_POINT_RADIUS = 2;
 
 export interface VerifiedScenePresentationOptions {
+  /** Narration follows the turn's voice; every figure label stays unchanged. */
+  narrationLanguage?: NarrationLanguage;
   /**
    * "code_lesson" turns show the IDE panel on the left, so diagram labels
    * clamp to the narrower DSA zone and the protected column widens to cover
@@ -202,6 +204,7 @@ export function buildVerifiedDiagramPresentation(
       // parts it names, so a cued beat is never split.
       const beat = cueRevealBeat({
         cue,
+        language: options.narrationLanguage,
         groupIndex,
         commandIndices,
         commands,
@@ -366,6 +369,7 @@ The scene engine owns all diagram geometry, labels, annotations, directions, con
 
   const spokenIntro = collapseIntroSpeech(introSegments, {
     codeLesson: options.layout === "code_lesson",
+    narrationLanguage: options.narrationLanguage,
     caption: visibleFigureCaption(renderScene.caption ?? captionAnnotationOf(document)),
   }).map((segment) => (options.layout === "code_lesson"
     ? { ...segment, sceneText: true }
@@ -397,7 +401,7 @@ function captionAnnotationOf(document: SceneDocument): string | undefined {
 
 function collapseIntroSpeech(
   segments: TutorSegment[],
-  options: { codeLesson?: boolean; caption?: string } = {},
+  options: { codeLesson?: boolean; caption?: string; narrationLanguage?: NarrationLanguage } = {},
 ): TutorSegment[] {
   const commands = segments.flatMap((segment) =>
     segment.commands ?? (segment.command ? [segment.command] : []),
@@ -414,7 +418,9 @@ function collapseIntroSpeech(
   if (options.codeLesson && commands.length > 0) {
     const caption = options.caption?.trim();
     return [{
-      narration: caption
+      narration: options.narrationLanguage === "hinglish"
+        ? caption ? `इस example में ${caption.replace(/[.!?]+$/, "")} को समझेंगे.` : "अब इस worked example को साथ में समझते हैं."
+        : caption
         ? `Here is the example we will work through: ${caption.charAt(0).toLowerCase()}${caption.slice(1)}.`
         : "Here is the example we will work through.",
       command: commands[0] ?? null,
@@ -915,7 +921,12 @@ function capitaliseSentence(text: string): string {
 }
 
 /** The group's cue as the sentence a teacher says while drawing the group. */
-function spokenCueSentence(cue: string, groupIndex: number): string {
+function spokenCueSentence(cue: string, groupIndex: number, language?: NarrationLanguage): string {
+  // Planner cues use the question's English. For Hinglish, the verified
+  // entity names below supply the English subject terms inside Hindi grammar.
+  if (language === "hinglish") {
+    return groupIndex === 0 ? "पहले इस figure का setup देखते हैं." : "अब figure का अगला हिस्सा देखते हैं.";
+  }
   if (isSpokenProse(cue)) return capitaliseSentence(ensureSpokenSentence(cue));
   const subject = cueSubject(cue);
   return groupIndex === 0 ? `Let’s begin with ${subject}.` : `Next comes ${subject}.`;
@@ -929,7 +940,7 @@ function spokenCueSentence(cue: string, groupIndex: number): string {
  * beat twelve seconds long with the pen idle for two thirds of it. Two parts
  * with the same head phrase share the words, and the window.
  */
-function entityPhrase(entity: SceneEntity): string | null {
+function entityPhrase(entity: SceneEntity, language?: NarrationLanguage): string | null {
   const role = cleanRole(entity.role).replace(/\s+label$/i, "");
   const label = entity.label?.trim();
   if (!role) {
@@ -942,6 +953,7 @@ function entityPhrase(entity: SceneEntity): string | null {
   const spokenLabel = label && SPEAKABLE_LABEL.test(label) && !words.includes(label.toLowerCase())
     ? ` ${label}`
     : "";
+  if (language === "hinglish") return `${headPhrase.replace(/^(?:the|a|an|its)\s/i, "")}${spokenLabel}`;
   const article = /^(?:the|a|an|its)\s/i.test(headPhrase) ? "" : "the ";
   return `${article}${headPhrase}${spokenLabel}`;
 }
@@ -954,7 +966,11 @@ function entityPhrase(entity: SceneEntity): string | null {
 /** Ink may trail the last word of an intro beat by this much before the beat says more. */
 const CUE_OVERRUN_TOLERANCE_MS = 400;
 
-function walkedSetupSentence(phrases: string[], groupIndex: number): string {
+function walkedSetupSentence(phrases: string[], groupIndex: number, language?: NarrationLanguage): string {
+  if (language === "hinglish") {
+    const parts = phrases.map((phrase, index) => `${index === 0 ? "पहले" : index === phrases.length - 1 ? "और आखिर में" : "फिर"} ${phrase}`);
+    return `${groupIndex === 0 ? "ये setup है" : "अब अगला हिस्सा देखते हैं"}. ${parts.join(", ")}. इतना setup तैयार है.`;
+  }
   const opening = groupIndex === 0 ? "Here is the setup. " : "Next, ";
   const parts = phrases.map((phrase, index) => {
     if (index === 0) return `first ${phrase}`;
@@ -981,7 +997,11 @@ function joinSpokenList(items: string[]): string {
  * rest from their roles and labels, so each arrow has a word to be drawn
  * under and each label a moment to be lettered in.
  */
-function extendCueSentence(base: string, phrases: string[], nothingNamed: boolean): string {
+function extendCueSentence(base: string, phrases: string[], nothingNamed: boolean, language?: NarrationLanguage): string {
+  if (language === "hinglish") {
+    const list = phrases.length < 2 ? phrases[0] ?? "" : `${phrases.slice(0, -1).join(", ")} और ${phrases.at(-1)}`;
+    return `${base.trim()} यहाँ ${list} हैं.`;
+  }
   const trimmed = base.trim().replace(/[.!?]+$/, "");
   const list = joinSpokenList(phrases);
   return nothingNamed ? `${trimmed}: ${list}.` : `${trimmed}, with ${list}.`;
@@ -989,6 +1009,7 @@ function extendCueSentence(base: string, phrases: string[], nothingNamed: boolea
 
 function cueRevealBeat(input: {
   cue: string;
+  language?: NarrationLanguage;
   groupIndex: number;
   commandIndices: number[];
   commands: VerifiedDiagramCommand[];
@@ -1035,7 +1056,7 @@ function cueRevealBeat(input: {
     return matches;
   };
 
-  let narration = spokenCueSentence(input.cue, input.groupIndex);
+  let narration = spokenCueSentence(input.cue, input.groupIndex, input.language);
   let matches = matchAll(narration);
   const nameable = entityIds.filter((entityId) => {
     const entity = entitiesById.get(entityId);
@@ -1057,11 +1078,11 @@ function cueRevealBeat(input: {
     const phrases: string[] = [];
     for (const entityId of nameable) {
       if (matches.has(entityId)) continue;
-      const phrase = entityPhrase(entitiesById.get(entityId)!);
+      const phrase = entityPhrase(entitiesById.get(entityId)!, input.language);
       if (phrase && !phrases.includes(phrase)) phrases.push(phrase);
     }
     if (phrases.length > 0) {
-      narration = extendCueSentence(narration, phrases, named.length === 0);
+      narration = extendCueSentence(narration, phrases, named.length === 0, input.language);
       matches = matchAll(narration);
     }
   }
@@ -1127,11 +1148,11 @@ function cueRevealBeat(input: {
   if (overrunMs(narration, placed.ordered) > CUE_OVERRUN_TOLERANCE_MS) {
     const phrases: string[] = [];
     for (const entityId of nameable) {
-      const phrase = entityPhrase(entitiesById.get(entityId)!);
+      const phrase = entityPhrase(entitiesById.get(entityId)!, input.language);
       if (phrase && !phrases.includes(phrase)) phrases.push(phrase);
     }
     if (phrases.length >= 2) {
-      const walked = walkedSetupSentence(phrases, input.groupIndex);
+      const walked = walkedSetupSentence(phrases, input.groupIndex, input.language);
       const walkedMatches = matchAll(walked);
       const walkedPlaced = layout(walked, walkedMatches);
       if (
