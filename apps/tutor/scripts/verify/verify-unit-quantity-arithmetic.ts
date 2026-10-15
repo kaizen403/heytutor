@@ -136,6 +136,87 @@ async function main(): Promise<void> {
   pair("review-blocker/unit-named-products/work", [["N", 20, "N"], ["m", 5, "m"]], "W", "J", "W = 1/2 N m", 50, 0.5);
   pair("review-blocker/unit-named-products/power", [["V", 12, "V"], ["A", 2, "A"]], "P", "W", "P = 1/2 V A", 12, 0.5);
 
+  // Renaming the second factor must not turn the bound mass m into metres.
+  // The named factor is part of the product even when it is not a unit alias.
+  const namedSpeed: readonly Given[] = [["m", 2, "kg"], ["speed", 6, "m/s"]];
+  for (const [name, expression] of [
+    ["review-exact", "0.5 m speed^2 / 1"],
+    ["superscript-power", "0.5 m speed² / 1"],
+    ["parenthesized-power", "0.5 m speed^(2) / 1"],
+    ["explicit-product", "0.5*m*speed^2 / 1"],
+    ["explicit-tail", "0.5 m*speed^2 / 1"],
+    ["times-tail", "0.5 m × speed^2 / 1"],
+    ["compact-mass", ".5m speed^2 / 1"],
+    ["grouped-speed", "0.5 m (speed)^2 / 1"],
+  ] as const) pair(`review-p1/named-bound-product/${name}`, namedSpeed, "E", "J", `E = ${expression}`, 36, 18);
+  pair("review-p1/named-bound-product/velocity", [["m", 2, "kg"], ["velocity", 6, "m/s"]], "E", "J", "E = 0.5 m velocity^2 / 1", 36, 18);
+  pair("review-p1/named-bound-product/potential", [["C", 4, "F"], ["potential", 6, "V"]], "E", "J", "E = 0.5 C potential^2 / 1", 72, 18);
+  pair("review-p1/named-bound-product/ordinary-factors", [["m", 2, "kg"], ["acceleration", 9.8, "m/s^2"], ["height", 3, "m"]],
+    "E", "J", "E = 0.5 m acceleration height / 1", 29.4, 14.7);
+  pair("review-p1/named-bound-product/prefix-collision", [["m", 2, "kg"], ["g", 9.8, "m/s^2"], ["height", 3, "m"]],
+    "E", "J", "E = 0.5mg height / 1", 29.4, 0.0000015);
+
+  // The product exception must not reinterpret whole measured atoms, including
+  // a metre quantity alongside a different mass binding named m.
+  pair("review-p1/named-bound-product/quantity-voltage", circuit, "I", "A", "I = 12V/R", 2, 24);
+  pair("review-p1/named-bound-product/quantity-metre", namedSpeed, "D", "m", "D = 2*(0.5 m)", 1, 2);
+  pair("review-p1/named-bound-product/quantity-metre-sum", namedSpeed, "D", "m", "D = 0.5 m + 1 m", 1.5, 3);
+  pair("review-p1/named-bound-product/quantity-square-metre", namedSpeed, "S", "m^2", "S = 2*(3 m^2)", 6, 18);
+  pair("review-p1/named-bound-product/quantity-compound-power", namedSpeed, "a", "m/s^2", "a = 2*(3 m s^-2)", 6, 18);
+  pair("review-p1/named-bound-product/quantity-grouped-denominator", [["V", 12, "V"], ["R_eq", 12 / 11, "Ω"]],
+    "I", "A", "I = 12 V/(12/11 Ω)", 11, 132);
+  pair("review-p1/named-bound-product/literal-metre-product", namedSpeed, "Q", "m^3/s^2", "Q = 0.5 m speed^2 / 1", 18, 36);
+  pair("review-p1/named-bound-product/grouped-literal-metre-product", namedSpeed, "Q", "m^3/s^2", "Q = (0.5 m)*speed^2", 18, 36);
+  pair("review-p1/named-bound-product/literal-volt-product", [["V", 12, "V"], ["current", 2, "A"]],
+    "P", "W", "P = 2 V*current", 4, 48);
+  const prefixedNamedSpeed: readonly Given[] = [["m", 2000, "g"], ["speed", 6, "m/s"]];
+  pair("review-p1/named-bound-product/prefixed-mass", prefixedNamedSpeed, "E", "J", "E = 0.5 m speed^2 / 1", 36, 36000);
+  wrong("review-p1/named-bound-product/prefixed-mass/lost-binding", plan(prefixedNamedSpeed, "E", "J", 18,
+    "E = 0.5 m speed^2 / 1 = 18 J"), 36);
+
+  // Collision ownership is type evidence, not permission to borrow the result's
+  // magnitude, guess another collision, or use untrusted/unknown input units.
+  pair("review-p1/named-bound-product/prefixed-output", prefixedNamedSpeed, "E", "kJ", "E = 0.5 m speed^2 / 1", 0.036, 36);
+  wrong("review-p1/named-bound-product/prefixed-output/lost-binding", plan(prefixedNamedSpeed, "E", "kJ", 0.018,
+    "E = 0.5 m speed^2 / 1 = 0.018 kJ"), 0.036);
+  // A new type certificate cannot prove whether a second numeric factor has
+  // already converted a scaled input. Never double-convert or borrow an answer.
+  for (const expression of ["0.5 m speed^2 / 1000", "0.5 m speed^2 * 0.001", "0.5 m speed^2 / 1e3",
+    "0.5 m speed^2 / (10^3)", "0.5 m speed^2 * 10^-3", "0.5/1000 m speed^2", "(0.5/1000) m speed^2"])
+    for (const value of [36, 0.036]) decline(`review-p1/named-bound-product/scaled-conversion-refusal/${expression}/${value}`,
+      plan(prefixedNamedSpeed, "E", "J", value, `E = ${expression} = ${value} J`));
+  right("review-p1/named-bound-product/legacy-written-conversion/right", plan(prefixedNamedSpeed,
+    "E", "J", 36, "E = 0.5*m*speed^2/1000 = 36 J"), 36);
+  pair("review-p1/named-bound-product/dimensionless-one-label", [["m", 2, "kg"], ["speed", 0.1, "m/s"], ["gain", 1100, "1"]],
+    "E", "J", "E = 0.5 m speed^2*gain", 11, 0);
+  right("review-p1/named-bound-product/consistent-negative", plan(namedSpeed, "E", "J", -36,
+    "E = -0.5 m speed^2 = -0.5*2*6^2 = -36 J"), -36);
+  wrong("review-p1/named-bound-product/opposite-written-sign", plan(namedSpeed, "E", "J", 36,
+    "E = -0.5 m speed^2 = 0.5*2*6^2 = 36 J"), -36);
+  for (const name of ["speed_1", "speed2", "ω"]) pair(`review-p1/named-bound-product/named-token/${name}`,
+    [["m", 2, "kg"], [name, 6, "m/s"]], "E", "J", `E = 0.5 m ${name}^2 / 1`, 36, 18);
+  pair("review-p1/named-bound-product/single-factor-power/symbolic", namedSpeed, "Q", "kg^2 m^2/s^2", "Q = 0.5 m² speed² / 1", 72, 18);
+  pair("review-p1/named-bound-product/single-factor-power/literal", namedSpeed, "Q", "m^4/s^2", "Q = 0.5 m² speed² / 1", 18, 72);
+  wrong("review-p1/named-bound-product/grouped-literal-is-not-mass", plan(namedSpeed, "E", "J", 36,
+    "E = (0.5 m)*speed^2 = 36 J"), 18);
+  for (const value of [144, 1728]) decline(`review-p1/named-bound-product/two-independent-collisions/${value}`,
+    plan([["m", 2, "kg"], ["speed", 6, "m/s"], ["V", 12, "V"], ["current", 2, "A"]],
+      "Q", "J W", value, `Q = 0.5 m speed^2 * 2 V current = ${value} J W`));
+  decline("review-p1/named-bound-product/unknown-input-unit", plan([["m", 2, "kg"], ["speed", 6, "unrecognized"]],
+    "E", "J", 36, "E = 0.5 m speed^2 / 1 = 36 J"));
+  const untrustedSpeed = plan(namedSpeed, "E", "J", 36, "E = 0.5 m speed^2 / 1 = 36 J");
+  const untrustedSpeedGiven = untrustedSpeed.givens.pop()!;
+  untrustedSpeed.derived.push({ ...untrustedSpeedGiven, provenance: "derived", sourceText: "unverified speed", dependsOn: [] });
+  decline("review-p1/named-bound-product/untrusted-input", untrustedSpeed);
+  decline("review-p1/named-bound-product/unsupported-nonisolated", plan(namedSpeed, "E", "J", 18, "2*E = 0.5 m speed^2 / 1"));
+  decline("review-p1/named-bound-product/unsupported-additive", plan(namedSpeed, "E", "J", 37, "E = 0.5 m speed^2 + 1 J = 37 J"));
+  decline("review-p1/named-bound-product/unknown-output-unit", plan(namedSpeed, "E", "unrecognized", 36,
+    "E = 0.5 m speed^2 / 1 = 36 unrecognized"));
+  pair("review-p1/named-bound-product/named-token/no-prefix-match", [["m", 2, "kg"], ["speed", 6, "m/s"], ["speedy", 2, "m/s"]],
+    "E", "J", "E = 0.5 m speedy^2 / 1", 4, 36);
+  pair("review-p1/named-bound-product/unicode-identifier-digit", [["μ0", 1e-6, "N/A^2"], ["N", 50, "turns"], ["current", 2, "A"], ["r", 0.1, "m"]],
+    "B", "T", "B = μ0 N current / (2 r) = 1e-6*50*2/(2*0.1)", 0.0005, 0.00025);
+
   // Explicit conversion factors already convert the given's declared number.
   right("review-blocker/explicit-conversion/speed", plan([["v0", 36, "km/h"], ["t", 2, "s"]], "D", "m", 20, "D = v0*1000/3600*(2 s) = 20 m"), 20);
   right("review-blocker/explicit-conversion/length", plan([["l", 200, "cm"], ["b", 3, "m"]], "L", "m", 5, "L = l/100 + 3 m = 5 m"), 5);
