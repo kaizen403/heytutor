@@ -1306,7 +1306,8 @@ function normalizeLinearDomainNotation(question: string): string {
     .replace(/[−–—]/g, "-")
     .replace(/\\(?:epsilon|varepsilon|in)\b|[εє∊]/giu, "∈")
     .replace(/\\(?:left|right)\b/g, "")
-    .replace(/\\(?:mathbb|mathbf|mathrm|mathsf|Bbb)\s*(?:\{\s*([^{}]+?)\s*\}|([A-Za-z]))/g, "$1$2")
+    .replace(/\\(?:mathbb|mathbf|mathrm|mathsf|Bbb)\s*(?:\{([^{}]*)\}|([A-Za-z]))/g,
+      (whole, braced?: string, bare?: string) => braced !== undefined ? (braced.trim() || whole) : bare!)
     .replace(/\\([RZNIW])\b/g, "$1")
     .replace(/\\([{}])/g, "$1")
     .replace(/\\(?:ldots|dots|cdots)\b|…|\.\s*\.\s*\./g, "...")
@@ -1378,7 +1379,7 @@ function hasUnsupportedMembership(remaining: string, planar: boolean, sourceProv
     .replace(/\bin\s+(?:(?:a|an|the|same|real)\s+)*(?:(?:coordinate|xy|Cartesian)[ -]+)?(?:number[ -]line|plane|graph)\b/gi, " ")
     .replace(/\belements\s+in\s+([A-Za-z][A-Za-z0-9_]*)\s+but\s+outside\s+([A-Za-z][A-Za-z0-9_]*)\b/gi,
       (whole, first: string, second: string) => sourceProved === undefined || sourceProved && aliases.has(first) && aliases.has(second) ? " " : whole);
-  const heads = /∈|\b(?:in\b|over\b|belongs?\s+to\b(?:\s+(?:the\s+)?set\b)?|(?:elements?|members?)\s+of\b|replacement\s+set\b(?:\s+(?:is\b|as\b)|\s*=)?|domain\b(?:\s+(?:is\b|as\b)|\s*[:=])?)\s*|\bU\s*=/giu;
+  const heads = /∈|\b(?:in\b|over\b|belongs?\s+to\b(?:\s+(?:the\s+)?set\b)?|(?:elements?|members?)\s+of\b|restricted\s+to\b|chosen\s+from\b|taken\s+from\b|from\s+the\s+set\b|replacement\s+set\b(?:\s+(?:is\b|as\b)|\s*=)?|domain\b(?:\s+(?:is\b|as\b)|\s*[:=])?)\s*|\bU\s*=/giu;
   for (const head of source.matchAll(heads)) {
     // Word heads ignore case; the universe symbol U keeps its identity.
     if (/^u\s*=$/.test(head[0])) continue;
@@ -1419,9 +1420,134 @@ function hasScalarRoster(remaining: string): boolean {
   const source = remaining.replace(/\\(?:frac|dfrac|tfrac)\s*\{([^{};,]+)\}\s*\{([^{};,]+)\}/g,
     (match, numerator: string, denominator: string) => [numerator, denominator].every(part => /^[\w\s()+*/^.-]+$/.test(part) && !/\.{2}/.test(part)) ? " " : match);
   const scalar = String.raw`[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?(?:\s*/\s*[+-]?\d+)?`;
+  // Three scalar members are a roster even without braces. Two-coordinate
+  // tuples and constants separated by actual comparisons cannot match.
+  // Inspect the complete text: removing x=0 first would erase a list member.
+  const plain = new RegExp(String.raw`(?<![\p{L}\p{N}_./])${scalar}\s*,\s*${scalar}\s*(?:,\s*|(?:,?\s*\b(?:and|or)\b\s*))${scalar}(?![\p{L}\p{N}_.])`, "giu");
+  if (plain.test(source)) return true;
   const member = String.raw`(?:${scalar}|\.{3})`;
   const roster = new RegExp(String.raw`^\s*${member}(?:\s*[,;]\s*${member})*\s*$`, "u");
   return [...source.matchAll(/\{([^{}]*)\}/g)].some(match => roster.test(match[1]!));
+}
+
+/** Reject-only domain proof over normalized tokens; ordinary membership,
+ * discrete and roster contradictions remain independent. */
+function hasUnsupportedHindiDomain(source: string, names: readonly string[]): boolean {
+  if (source.length > 8192) return true;
+  const tokens = [...source.matchAll(/[\p{L}\p{M}\p{N}_]+|[^\s]/gu)]
+    .map(match => ({ raw: match[0], word: match[0].toLowerCase(), start: match.index!, end: match.index! + match[0].length }));
+  const native = new Set(names), masked = new Set<number>();
+  const deva = (word: string) => /\p{Script=Devanagari}/u.test(word);
+  const numberCue = (word: string) => /^(?:sankhy|purn|poorn|prakr|vastavik)/i.test(word);
+  const locative = new Set(["me", "mein", "mai", "main", "में"]);
+  const possessive = new Set(["ka", "ki", "ke", "का", "की", "के"]);
+  const copula = new Set(["hai", "hain", "ho", "है", "हैं", "हो"]);
+  const word = (index: number) => tokens[index]?.word ?? "";
+  const boundary = (index: number) => index === 0 || /^(?:[.,;!?।])$/.test(word(index - 1)) ||
+    /[\r\n]/.test(source.slice(tokens[index - 1]!.end, tokens[index]?.start ?? source.length));
+  const introducers = new Set(["where", "for", "if", "given", "let", "agar", "jahan", "जहाँ", "अगर", "यदि"]);
+  // Do not start inside a noun's subject list: "coefficients of x, y are real".
+  const start = (index: number) => boundary(index) && !(word(index - 1) === "," && /^[\p{L}\p{M}_]/u.test(word(index - 2))) ||
+    introducers.has(word(index - 1)) && boundary(index - 1);
+  const finish = (index: number) => index === tokens.length || boundary(index) ||
+    /^[,;.!?।]$/.test(word(index)) || ["and", "aur", "और", "तथा"].includes(word(index));
+  const postfix = (index: number) => locative.has(word(index)) &&
+    (copula.has(word(index + 1)) || native.has(tokens[index - 2]?.raw ?? "") ||
+      word(index - 2) === "," && native.has(tokens[index - 3]?.raw ?? "")) ||
+    possessive.has(word(index)) && /^(?:sadasy|सदस्य)/u.test(word(index + 1));
+  if (!tokens.some((token, index) => deva(token.raw) || numberCue(token.word) || copula.has(token.word) || postfix(index))) return false;
+
+  const mark = (first: number, end: number) => { for (let index = first; index < end; index += 1) masked.add(index); };
+  const matchWords = (index: number, pattern: readonly string[]) => pattern.every((part, offset) => word(index + offset) === part);
+  // Capital R is a set; lowercase r, a coefficient, and point labels are not.
+  const real = (index: number): number | null => {
+    const token = tokens[index];
+    if (!token) return null;
+    if (token.raw === "R" || token.raw === "ℝ") return index + 1;
+    if (!["real", "vastavik", "वास्तविक"].includes(token.word)) return null;
+    return index + (["number", "numbers", "sankhya", "संख्या"].includes(word(index + 1)) ? 2 : 1);
+  };
+  const realTarget = (index: number) => {
+    if (word(index) === "the") index += 1;
+    if (matchWords(index, ["set", "of"])) index += 2;
+    if (word(index) === "all") index += 1;
+    return real(index);
+  };
+  const subjects = (index: number): number | null => {
+    if (!native.has(tokens[index]?.raw ?? "")) return null;
+    const seen = new Set<string>([tokens[index]!.raw]);
+    index += 1;
+    // Native subject count bounds the scan even on a long malformed comma list.
+    while (seen.size < native.size) {
+      let next = index;
+      if (word(next) === ",") { next += 1; if (word(next) === "and") next += 1; }
+      else if (word(next) === "and") next += 1;
+      else break;
+      const name = tokens[next]?.raw;
+      if (!name || !native.has(name) || seen.has(name)) break;
+      seen.add(name); index = next + 1;
+    }
+    return index;
+  };
+  const membershipHeads = [["∈"], ["in"], ["belongs", "to"], ["belong", "to"], ["element", "of"], ["member", "of"],
+    ["restricted", "to"], ["chosen", "from"], ["taken", "from"], ["from", "the", "set"], ["ranges", "over"]];
+  let explicitReal = false;
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (!start(index)) continue;
+    let end: number | null = null;
+    const afterSubject = subjects(index);
+    if (afterSubject !== null) {
+      let at = afterSubject;
+      const englishCopula = ["is", "are"].includes(word(at));
+      if (englishCopula) at += 1;
+      for (const head of membershipHeads) if (matchWords(at, head)) {
+        end = realTarget(at + head.length); if (end !== null) break;
+      }
+      if (end === null) {
+        if (["a", "an", "ek", "एक"].includes(word(at))) at += 1;
+        const target = real(at);
+        if (target !== null && (englishCopula || copula.has(word(target)))) end = target;
+      }
+      if (end === null) {
+        const target = real(afterSubject + (word(afterSubject) === "," ? 1 : 0));
+        if (target !== null) {
+          if (locative.has(word(target)) && copula.has(word(target + 1))) end = target + 2;
+          if (possessive.has(word(target)) && /^(?:sadasy|सदस्य)/u.test(word(target + 1)) && copula.has(word(target + 2))) end = target + 3;
+        }
+      }
+    } else {
+      // Only a whole universal-domain head supplies subject-independent proof.
+      let at = index;
+      if (word(at) === "the") at += 1;
+      if (tokens[at]?.raw === "U" && word(at + 1) === "=") end = realTarget(at + 2);
+      else if (["domain", "universe"].includes(word(at)) || matchWords(at, ["replacement", "set"])) {
+        at += matchWords(at, ["replacement", "set"]) ? 2 : 1;
+        if (["is", "as", ":", "="].includes(word(at))) at += 1;
+        end = realTarget(at);
+      }
+    }
+    if (end !== null && copula.has(word(end))) end += 1;
+    // Negations or qualifications before/after the real word cannot be consumed.
+    if (end !== null && finish(end)) {
+      explicitReal = true; mark(index, end);
+      if (introducers.has(word(index - 1)) && boundary(index - 1)) masked.add(index - 1);
+    }
+  }
+  if (!explicitReal) return true;
+
+  // These are positive display phrases, never exemptions for a number domain.
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (masked.has(index)) continue;
+    const numberLine = matchWords(index, ["sankhya", "rekha"]) || matchWords(index, ["संख्या", "रेखा"]);
+    if (numberLine) {
+      let end = index + 2;
+      if (["par", "पर"].includes(word(end))) end += 1;
+      if (["dikhao", "dikhaiye", "दिखाओ", "दिखाइए"].includes(word(end))) end += 1;
+      else if (matchWords(end, ["निरूपित", "कीजिए"])) end += 2;
+      if (finish(end)) { mark(index, end); if (["ko", "को"].includes(word(index - 1))) masked.add(index - 1); }
+    } else if (["दिखाओ", "दिखाइए"].includes(word(index)) && start(index) && finish(index + 1)) masked.add(index);
+  }
+  return tokens.some((token, index) => !masked.has(index) && (deva(token.raw) || numberCue(token.word) || copula.has(token.word) || postfix(index)));
 }
 
 function hasUnsupportedDiscreteDomain(question: string, planar = false, sourceProved?: boolean, aliases?: ReadonlySet<string>,
@@ -1461,7 +1587,7 @@ function hasUnsupportedDiscreteDomain(question: string, planar = false, sourcePr
   }
   if (/\b(?:integers?|intergers?|ints?|integral|whole|naturals?|counting|primes?|odd|even|lattices?|digits?)\b/i.test(remaining)) return true;
   if (/\\not\s*∈|\bnot\s+∈/iu.test(remaining)) return true;
-  if (/पूर्णांक|पूर्ण\s*संख्या|(?:प्राकृत|प्राकृतिक)\s*संख्या|\b(?:poornanks?|purnanks?|(?:poorn|purn|prakritik|prakrit)\s+sankhya)\b/i.test(remaining)) return true;
+  if (hasUnsupportedHindiDomain(remaining, names)) return true;
   if (/[ℤℕ]|\\mathbb\s*(?:\{\s*[INZW]\s*\}|[INZW](?![\p{L}]))/u.test(question)) return true;
   return hasUnsupportedMembership(remaining, planar, sourceProved, aliases) || hasScalarRoster(remaining);
 }

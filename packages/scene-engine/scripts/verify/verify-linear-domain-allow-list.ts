@@ -110,6 +110,130 @@ cases.push({ id: "real-header-unsupported-emdash", group: "alternate", shape: "l
 assert(cases.filter(item => item.origin === "generated").length >= 120);
 assert.equal(new Set(cases.map(item => item.question)).size, cases.length, "Each added question must be distinct");
 
+// Sixth-review literals retain every named spelling/form. Their planar
+// companions and generated variants exercise the same source-domain contract.
+const priorNegativeCases = structuredClone(cases);
+const sixthCases: Case[] = [];
+const sixthReviewQuestions: { id: string; group: Group; question: string }[] = [
+  ...[
+    ["purna-sankhya", "x ek purna sankhya hai"], ["poorna-sankhya", "x ek poorna sankhya hai"],
+    ["prakratik-sankhya", "x ek prakratik sankhya hai"], ["prakrutik-sankhya", "x ek prakrutik sankhya hai"],
+    ["prakrtik-sankhya", "x ek prakrtik sankhya hai"], ["purnaank", "x ek purnaank hai"],
+    ["poornaank", "x ek poornaank hai"], ["purnanka", "x ek purnanka hai"],
+    ["sankhyaen", "x ek prakritik sankhyaen hai"], ["sankhyaon", "x prakritik sankhyaon mein se hai"],
+    ["sankhyayen", "x ek purn sankhyayen hai"], ["purnankon", "x ek purnankon mein se ek hai"],
+    ["Z-mein", "x Z mein hai"], ["N-me", "x N me hai"], ["W-mein-ho", "Agar x W mein ho, to"],
+  ].map(([id, phrase]) => ({ id: id!, group: "hindi" as const, question: `${phrase}, 2x - 3 < 5 ko number line par dikhao.` })),
+  { id: "N-ka-sadasya", group: "hindi", question: "x, N ka sadasya hai. 2x - 3 < 5 ko number line par dikhao." },
+  { id: "hindi-even", group: "hindi", question: "x एक सम संख्या है, 2x - 3 < 5 को संख्या रेखा पर दिखाइए।" },
+  { id: "hindi-prime", group: "hindi", question: "x एक अभाज्य संख्या है, 2x - 3 < 5 को संख्या रेखा पर दिखाइए।" },
+  { id: "hindi-Z-mein", group: "hindi", question: "जहाँ x, Z में है, 2x - 3 < 5 को संख्या रेखा पर दिखाइए।" },
+  { id: "hindi-Z-member", group: "hindi", question: "x, Z का सदस्य है। 2x - 3 < 5 को संख्या रेखा पर दिखाइए।" },
+  { id: "can-be-roster", group: "roster", question: "Solve 2x - 3 < 5 where x can be 0, 1, 2 or 3, and show it on a number line." },
+  { id: "can-only-be-roster", group: "roster", question: "Solve 2x - 3 < 5 if x can only be -1, 0, 1, 2 or 3, and show it on a number line." },
+  { id: "takes-values-roster", group: "roster", question: "Solve 2x - 3 < 5 if x takes the values 0, 1, 2, 3, 4 and 5 only, and show it on a number line." },
+  { id: "possible-values-roster", group: "roster", question: "The possible values of x are 0, 1, 2, 3, 4 and 5. Solve 2x - 3 < 5 and show it on a number line." },
+  { id: "for-equals-roster", group: "roster", question: "Solve 2x - 3 < 5 for x = 0, 1, 2, 3, 4, 5 and show it on a number line." },
+  { id: "for-equals-dots-roster", group: "roster", question: "Solve 2x - 3 < 5 for x = 1, 2, 3, ... and show it on a number line." },
+  { id: "restricted-to", group: "membership", question: "Solve 2x - 3 < 5 where x is restricted to Z, and show it on a number line." },
+  { id: "chosen-from", group: "membership", question: "Solve 2x - 3 < 5 where x is chosen from N, and show it on a number line." },
+  { id: "taken-from", group: "membership", question: "Solve 2x - 3 < 5, x taken from W, and show it on a number line." },
+];
+for (const item of sixthReviewQuestions) for (const shape of ["number_line_set", "linear_half_plane"] as const) {
+  const question = shape === "number_line_set" ? item.question : item.question
+    .replaceAll("2x - 3 < 5", "x + y < 4").replaceAll("number line", "coordinate plane").replaceAll("संख्या रेखा", "निर्देशांक तल");
+  sixthCases.push({ ...item, id: `sixth-review-${item.id}-${shape}`, question, shape, origin: "review" });
+}
+const sixthGeneratedPhrases: { group: Group; phrase: string }[] = [
+  ...["sankhya", "sankhyaen", "sankhyaon", "sankhyayen", "purna", "poorna", "prakratik", "purnaank", "purnankon"]
+    .map(word => ({ group: "hindi" as const, phrase: `{v} ${word} hai` })),
+  ...["me", "mein", "mai", "main"].map(word => ({ group: "hindi" as const, phrase: `{v} Z ${word} hai` })),
+  ...["ka", "ki", "ke"].map(word => ({ group: "hindi" as const, phrase: `{v} N ${word} sadasya hai` })),
+  ...["दिखाओ", "संख्या रेखा पर दिखाइए", "विषम संख्या", "भाज्य संख्या"]
+    .map(word => ({ group: "hindi" as const, phrase: word })),
+  { group: "hindi", phrase: "{v} mein hai" },
+  { group: "hindi", phrase: "sankhya rekha par dikhao" },
+  ...["0, 1, 2", "−3, −1, 1 or 3", "1/2, 3/2, 5/2", "0, 2, 4 and 6", "1, 2, 3, …"]
+    .map(values => ({ group: "roster" as const, phrase: `Use values ${values}` })),
+  ...["restricted to", "chosen from", "taken from", "from the set"].flatMap(head => ["Z", "N", "W", "Q"]
+    .map(set => ({ group: "membership" as const, phrase: `{v} ${head} ${set}` }))),
+];
+for (const [index, item] of sixthGeneratedPhrases.entries()) for (const shape of shapes) {
+  const request = shape === "number_line_set" ? "Graph 2x - 3 < 5 on a number line."
+    : shape === "linear_half_plane" ? "Shade x + y < 4 in the coordinate plane."
+      : "Draw the feasible region x >= 0, y >= 0, x + y < 4.";
+  sixthCases.push({ id: `sixth-generated-${index}-${shape}`, group: item.group, shape,
+    question: `${request} ${item.phrase.replaceAll("{v}", shape === "number_line_set" ? "x" : "x, y")}.`, origin: "generated" });
+}
+for (const shape of shapes) for (const domain of ["x Z mein hai", "x, Z का सदस्य है", "x is restricted to Z", "x chosen from N"]) {
+  const request = shape === "number_line_set" ? "Graph 2x - 3 < 5 on a number line. x ∈ R."
+    : shape === "linear_half_plane" ? "Shade x + y < 4. x, y ∈ R."
+      : "Draw the feasible region x >= 0, y >= 0, x + y < 4. x, y ∈ R.";
+  sixthCases.push({ id: `sixth-mixed-real-discrete-${sixthCases.length}`, group: "membership", shape,
+    question: `${request} ${domain}.`, origin: "generated" });
+}
+// Explicit real evidence belongs to the variable's domain. Incidental labels,
+// coefficient properties, negation and a second unknown/restricted membership
+// cannot supply or override that evidence.
+for (const shape of ["number_line_set", "linear_half_plane"] as const) for (const [id, continuation] of [
+  ["incidental-point-R", "दिखाओ. The point label is R."],
+  ["incidental-coefficient-R", "sankhya rekha par dikhao. R is a coefficient."],
+  ["incidental-real-coefficient", "दिखाओ. The coefficient is real."],
+  ["negated-real", "दिखाओ. x is not real."],
+  ["negated-vastavik", "x vastavik nahi hai."],
+  ["real-plus-unknown-postfix", "x ∈ R. x S mein hai."],
+  ["real-plus-hindi-even", "x ∈ R. x एक सम संख्या है."],
+] as const) {
+  const request = shape === "number_line_set" ? "Graph 2x - 3 < 5 on a number line." : "Shade x + y < 4 in the coordinate plane.";
+  sixthCases.push({ id: `sixth-real-provenance-${id}-${shape}`, group: "hindi", shape,
+    question: `${request} ${continuation}`, origin: "generated" });
+}
+// Independent postfix witnesses put real membership last, avoiding an unrelated
+// real-head continuation refusal in the older generic membership guard.
+sixthCases.push(
+  { id: "sixth-postfix-independent-locative-number_line_set", group: "hindi", shape: "number_line_set", question: "Graph 2x - 3 < 5 on a number line. x S mein hai. x ∈ R.", origin: "generated" },
+  { id: "sixth-postfix-independent-possessive-number_line_set", group: "hindi", shape: "number_line_set", question: "Graph 2x - 3 < 5 on a number line. x S ka sadasya hai. x ∈ R.", origin: "generated" },
+  { id: "sixth-postfix-independent-locative-linear_half_plane", group: "hindi", shape: "linear_half_plane", question: "Shade x + y < 4 in the coordinate plane. x S mein hai. x ∈ R.", origin: "generated" },
+  { id: "sixth-postfix-independent-possessive-linear_half_plane", group: "hindi", shape: "linear_half_plane", question: "Shade x + y < 4 in the coordinate plane. x S ka sadasya hai. x ∈ R.", origin: "generated" },
+);
+// A generic Hinglish copula must not hide an unsupported variable domain.
+sixthCases.push(
+  { id: "sixth-copula-gap-abhajya", group: "hindi", shape: "number_line_set", question: "Graph 2x - 3 < 5 on a number line. x abhajya hai.", origin: "generated" },
+  { id: "sixth-copula-gap-visham", group: "hindi", shape: "number_line_set", question: "Graph 2x - 3 < 5 on a number line. x visham hai.", origin: "generated" },
+  { id: "sixth-copula-gap-abhajya-final-real", group: "hindi", shape: "number_line_set", question: "Graph 2x - 3 < 5 on a number line. x abhajya hai. x ∈ R.", origin: "generated" },
+  { id: "sixth-copula-gap-visham-final-real", group: "hindi", shape: "number_line_set", question: "Graph 2x - 3 < 5 on a number line. x visham hai. x ∈ R.", origin: "generated" },
+);
+cases.push(...sixthCases);
+assert.equal(new Set(cases.map(item => item.question)).size, cases.length, "Sixth-review question literals must remain distinct");
+const sixthControls: { id: string; question: string; shape: Shape; inequality?: string; inputs?: Record<string, unknown> }[] = [];
+for (const shape of ["number_line_set", "linear_half_plane"] as const) for (const phrase of [
+  "x ek vastavik sankhya hai", "x एक वास्तविक संख्या है", "x R mein hai", "sankhya rekha par dikhao. x ∈ R",
+  "संख्या रेखा पर निरूपित कीजिए। x ∈ ℝ", "दिखाओ. x is real", "x chosen from R", "x restricted to the real numbers",
+  "x taken from ℝ", "x from the set R",
+]) sixthControls.push({ id: `sixth-continuous-${sixthControls.length}`, shape,
+  question: `${shape === "number_line_set" ? "Graph 2x - 3 < 5 on a number line." : "Shade x + y < 4 in the coordinate plane."} ${phrase}.` });
+sixthControls.push(
+  { id: "sixth-continuous-three-coordinate-pairs", question: "Graph x + y < 4. Mark A=(0,1), B=(1,2), and C=(2,3).", shape: "linear_half_plane" },
+  { id: "sixth-continuous-three-inequality-constants", question: "Draw the feasible region x >= 0, y >= 0, x + y < 4.", shape: "linear_feasible_region" },
+  { id: "sixth-continuous-affine-coefficients", question: "Graph 2x + 3y < 5 in the coordinate plane with integer coefficients.", shape: "linear_half_plane", inputs: { variables: ["x", "y"], inequality: "2x+3y<5" } },
+  { id: "sixth-continuous-rational-coefficients", question: "The coefficients of x are rational. Graph x < 4 on a number line.", shape: "number_line_set", inequality: "x<4" },
+);
+const sixthResourceCases = ["mathbb", "mathbf"].flatMap(command => ["spaces", "newlines"].map(whitespace => ({
+  id: `sixth-unclosed-${command}-${whitespace}`, command, whitespace,
+  question: `Graph x<4 on a number line. \\${command}{${(whitespace === "spaces" ? " " : "\n").repeat(7900)}end.`,
+  expected: "reader and actual native compiler finish within the existing child's shared 5000ms native-work deadline",
+})));
+if (process.argv.includes("--print-sixth-fixtures")) {
+  const serialized = JSON.stringify({ schemaVersion: "linear-domain-sixth-fixtures/v1", priorNegativeCases,
+    negativeCases: sixthCases, continuousControls: sixthControls, resourceCases: sixthResourceCases,
+    negativeOracle: "reader null; independent source binding reports linear_source_mismatch; actual native compiler returns no renderScene; inputs unchanged",
+    positiveOracle: "independent source binding accepts; actual native compiler renders; inputs unchanged",
+    resourceOracle: { originalCases: 8, appendedCases: 4, expectedChildChecks: 12, nativeDeadlineMs: 5000, startupDeadlineMs: 15000, drainDeadlineMs: 2000 },
+  }, null, 2);
+  await new Promise<void>((resolve, reject) => process.stdout.write(`${serialized}\n`, error => error ? reject(error) : resolve()));
+  process.exit(0);
+}
+
 function candidate(question: string, shape: Shape, objective = false, inequality = "2x-3<5"): SceneDocument {
   const inputs = shape === "number_line_set" ? { variable: "x", expression: { inequality } }
     : shape === "linear_half_plane" ? { variables: ["x", "y"], inequality: "x+y<4" }
@@ -125,11 +249,12 @@ function candidate(question: string, shape: Shape, objective = false, inequality
 
 const selectorIndex = process.argv.indexOf("--case");
 const selectedId = selectorIndex >= 0 ? process.argv[selectorIndex + 1] : undefined;
+const sixthSemanticOnly = process.argv.includes("--sixth-semantic-only");
 const resourceInnerId = "urgent-rational-resource-inner";
 const resourceReadyMarker = "H3_LINEAR_RESOURCE_NATIVE_READY";
 const typedProofIds = ["typed-first-quadrant", "typed-interval-difference", "urgent-continuous", "urgent-system-real", "urgent-quadrant-complement", "urgent-rational-domain", "urgent-quadrant-I", "urgent-quadrant-scope", "urgent-rational-variable-names", "urgent-continuous-property", "urgent-number-line-duplicates", "urgent-real-domain-complement", "urgent-rational-resource", "urgent-coefficient-subject", "urgent-rational-takes", "urgent-rational-joint-subject", "urgent-universe-symbol-role", resourceInnerId];
 if (selectorIndex >= 0) assert(selectedId && (cases.some(item => item.id === selectedId) || typedProofIds.includes(selectedId)), "--case must name an existing case or typed proof group");
-const selected = selectedId ? cases.filter(item => item.id === selectedId) : cases;
+const selected = selectedId ? cases.filter(item => item.id === selectedId) : sixthSemanticOnly ? sixthCases : cases;
 let checks = 0;
 const failures: string[] = [];
 function check(name: string, work: () => void): void {
@@ -186,7 +311,8 @@ const controls: { id: string; question: string; shape: Shape; inequality?: strin
   { id: "recorded-boundary-points-query", question: "Graph the set of all real ordered pairs satisfying -4x < 2. State whether points on the boundary belong to it.", shape: "linear_half_plane", inputs: { variables: ["x", "y"], inequality: "-4x<2" }, reader: true },
   { id: "recorded-boundary-query", question: "For real x and y, graph -2(2x - y) >= 3y - 9. Label the boundary and both intercepts; shade the solution half-plane. Mark P = (1,4), Q = (2,2), and R = (2,1), then classify their membership. Show whether the boundary belongs to the set.", shape: "linear_half_plane", inputs: { variables: ["x", "y"], inequality: "-2(2x-y)>=3y-9" }, reader: true },
 ];
-if (!selectedId) for (const item of controls) check(`continuous ${item.id}: draws without source mutation`, () => {
+controls.push(...sixthControls);
+if (!selectedId) for (const item of controls.filter(item => !sixthSemanticOnly || item.id.startsWith("sixth-"))) check(`continuous ${item.id}: draws without source mutation`, () => {
   const document = candidate(item.question, item.shape, item.objective, item.inequality);
   if (item.inputs) document.constructions[0]!.inputs = item.inputs;
   const before = structuredClone(document);
@@ -201,6 +327,7 @@ if (!selectedId) for (const item of controls) check(`continuous ${item.id}: draw
 });
 let typedChecks = 0;
 function typedCheck(group: string, name: string, work: () => void): void {
+  if (sixthSemanticOnly) return;
   if (selectedId && selectedId !== group) return;
   typedChecks++;
   check(`${group}: ${name}`, work);
@@ -663,6 +790,21 @@ if (selectedId === resourceInnerId) for (const count of [40, 200]) for (const sp
     process.stdout.write(JSON.stringify({ resourceCase: count, coefficientPrefix: true, spaced, readerMs, compilerMs: performance.now() - compilerStart, nativeCompiled: result.ok }) + "\n");
   });
 }
+// Unclosed LaTeX typography must not backtrack across thousands of whitespace
+// characters. Keep these calls exclusively inside the existing bounded child.
+if (selectedId === resourceInnerId) for (const item of sixthResourceCases) {
+  typedCheck(resourceInnerId, `bounded ${item.id}`, () => {
+    process.stdout.write(`resource unclosed reader start ${item.command} ${item.whitespace}\n`);
+    const start = performance.now();
+    buildLinearSourceDocument(item.question);
+    const readerMs = performance.now() - start;
+    const document = candidate(item.question, "number_line_set", false, "x<4"), before = structuredClone(document);
+    const compilerStart = performance.now(), result = compileSceneDocument(document);
+    assert.equal(typeof result.ok, "boolean", "the actual native compiler must complete malformed-typography work");
+    assert.deepEqual(document, before, "bounded malformed typography must preserve the native candidate");
+    process.stdout.write(JSON.stringify({ resourceCase: item.id, readerMs, compilerMs: performance.now() - compilerStart, nativeCompiled: result.ok }) + "\n");
+  });
+}
 interface ResourceChildResult {
   pid: number | undefined;
   status: number | null;
@@ -758,7 +900,7 @@ function runResourceChild(): Promise<ResourceChildResult> {
   });
 }
 
-if (!selectedId || selectedId === "urgent-rational-resource") {
+if ((!selectedId && !sixthSemanticOnly) || selectedId === "urgent-rational-resource") {
   checks++;
   typedChecks++;
   try {
@@ -768,12 +910,12 @@ if (!selectedId || selectedId === "urgent-rational-resource") {
     assert.equal(child.ready, true, `Child must flush readiness before actual engine work: ${detail}`);
     assert.equal(child.reaped, true, `Own resource child must be reaped: ${detail}`);
     assert.equal(child.status, 0, `Resource child failed: ${detail}`);
-    assert.match(child.stdout, /8\/8 domain allow-list checks/, "the child must actually execute all eight native cases");
+    assert.match(child.stdout, /12\/12 domain allow-list checks/, "the child must actually execute the original eight and four appended native cases");
     process.stdout.write(`resource child phases ${JSON.stringify({ pid: child.pid, startupMs: child.startupMs, nativeMs: child.nativeMs, reaped: child.reaped })}\n`);
     process.stdout.write(`resource child timings ${child.stdout.split("\n").filter(line => line.startsWith("{")).join(" ")}\n`);
   } catch (error) { failures.push(`urgent-rational-resource: adversarial subject text completes inside bounded startup and native phases: ${String(error)}`); }
 }
 
-console.log(`${checks - failures.length}/${checks} domain allow-list checks; ${selected.length} negative questions; ${cases.filter(item => item.origin === "review").length} review examples; ${cases.filter(item => item.origin === "generated").length} new generated wordings; ${selectedId ? 0 : controls.length} continuous controls; ${typedChecks} typed source-proof checks; ${failures.length} failures; paid calls 0`);
+console.log(`${checks - failures.length}/${checks} domain allow-list checks; ${selected.length} negative questions; ${cases.filter(item => item.origin === "review").length} review examples; ${cases.filter(item => item.origin === "generated").length} new generated wordings; ${selectedId ? 0 : sixthSemanticOnly ? sixthControls.length : controls.length} continuous controls; ${typedChecks} typed source-proof checks; ${failures.length} failures; paid calls 0`);
 for (const failure of failures) console.error(failure);
 assert.equal(failures.length, 0, failures.join("\n"));
