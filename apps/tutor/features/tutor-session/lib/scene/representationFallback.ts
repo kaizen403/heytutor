@@ -476,9 +476,12 @@ function checkUsableExactRepresentation(
   // figure falls through to the fallback instead of being taught.
   const demand = demandRejection(candidate.sceneDocument, sceneDemand(expectedQuestion, problemIR));
   if (demand) return reject("picture_demand_unmet", `the scene does not show what the question asks for: ${demand}`);
-  // Fresh planner candidates carry the asked question (the planner parse
-  // boundary writes it). A recovered or persisted scene keeps its own, and
-  // this exact match refuses one that was drawn for another question.
+  // The scene must be for the asked question. The planner parse step keeps
+  // an explicit model source.question, and a recovered or persisted scene
+  // keeps its own, so this exact match refuses a scene planned for another
+  // question, or for a restatement of this one (15 Oct 2026: writing the
+  // asked question over restatements drew 9 wrong strict figures in a replay
+  // of 74 restated runs, so the match stays exact).
   const sourceQuestion = candidate.sceneDocument.source.question;
   if (typeof sourceQuestion !== "string" ||
       normalizeQuestion(sourceQuestion) !== normalizeQuestion(expectedQuestion)) {

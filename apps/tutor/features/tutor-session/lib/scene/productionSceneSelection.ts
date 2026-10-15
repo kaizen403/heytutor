@@ -256,7 +256,7 @@ export const VALID_CANDIDATE_DROPPED = "valid_candidate_dropped";
 export function validCandidateDropDegradation(
   selection: Pick<ProductionSceneSelection, "droppedCandidate">,
   candidateCount: number,
-): { attemptedTier: "exact_verified"; reason: "valid_candidate_dropped"; issueCodes: string[]; candidateCount: number } | null {
+): ValidCandidateDropDegradation | null {
   const dropped = selection.droppedCandidate;
   if (!dropped || (dropped.preferred && dropped.replacedBy !== null)) return null;
   return {
@@ -265,6 +265,34 @@ export function validCandidateDropDegradation(
     issueCodes: [VALID_CANDIDATE_DROPPED, dropped.code],
     candidateCount,
   };
+}
+
+export interface ValidCandidateDropDegradation {
+  attemptedTier: "exact_verified";
+  reason: typeof VALID_CANDIDATE_DROPPED;
+  issueCodes: string[];
+  candidateCount: number;
+}
+
+/**
+ * The degradation a turn keeps after final selection. The live hook and the
+ * lab both call this, so the two cannot record different outcomes for the
+ * same selection. A degradation recorded before selection (planner
+ * unavailable, invalid candidates, a solver contradiction) stands; otherwise a
+ * dropped valid candidate leaves its own. `reportedDrop` is set only when the
+ * drop's degradation is the one kept, so the caller traces and reports exactly
+ * what is saved.
+ */
+export function settleSelectionDegradation<Earlier extends { reason: string }>(input: {
+  earlier: Earlier | null | undefined;
+  selection: Pick<ProductionSceneSelection, "droppedCandidate">;
+  candidateCount: number;
+}): { degradation: Earlier | ValidCandidateDropDegradation | null; reportedDrop: DroppedSceneCandidate | null } {
+  if (input.earlier) return { degradation: input.earlier, reportedDrop: null };
+  const dropped = validCandidateDropDegradation(input.selection, input.candidateCount);
+  return dropped
+    ? { degradation: dropped, reportedDrop: input.selection.droppedCandidate }
+    : { degradation: null, reportedDrop: null };
 }
 
 /**

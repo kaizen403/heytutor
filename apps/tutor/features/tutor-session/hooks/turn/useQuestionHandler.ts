@@ -121,7 +121,7 @@ import {
 } from "../../lib/scene/representationFallback";
 import {
   deriveSceneGate as deriveProductionSceneGate, selectProductionScene, validateProductionSceneCandidate,
-  validCandidateDropDegradation,
+  settleSelectionDegradation,
   type ProductionSceneGate, type ValidatedSceneCandidate,
 } from "../../lib/scene/productionSceneSelection";
 import { refreshSolverAuthorityForPlan } from "../../lib/turn/refreshSolverAuthority";
@@ -1464,23 +1464,28 @@ export function useQuestionHandler(
             code: droppedCandidate.code, reason: droppedCandidate.reason, replaced_by: droppedCandidate.replacedBy,
           });
         }
-        const droppedDegradation = exactDegradation
-          ? null
-          : validCandidateDropDegradation(sceneSelection, result?.candidates.length ?? 0);
-        if (droppedDegradation && droppedCandidate) {
-          exactDegradation = droppedDegradation;
+        // The lab runs the same step (settleSelectionDegradation), and
+        // verify-valid-candidate-parity executes the lines between these markers.
+        // settle-selection-degradation:begin
+        const settledDegradation = settleSelectionDegradation({
+          earlier: exactDegradation, selection: sceneSelection, candidateCount: result?.candidates.length ?? 0,
+        });
+        exactDegradation = settledDegradation.degradation ?? undefined;
+        const reportedDrop = settledDegradation.reportedDrop;
+        if (reportedDrop) {
           tel.mark("verified-scene-candidate-dropped", {
-            code: droppedCandidate.code,
-            replaced_by: droppedCandidate.replacedBy,
+            code: reportedDrop.code,
+            replaced_by: reportedDrop.replacedBy,
             diagram_strategy: diagramStrategyDecision.strategy,
-            candidate_count: droppedDegradation.candidateCount,
+            candidate_count: result?.candidates.length ?? 0,
           });
           console.warn("[diagram] a valid figure candidate was dropped at selection", {
-            code: droppedCandidate.code,
-            replacedBy: droppedCandidate.replacedBy,
+            code: reportedDrop.code,
+            replacedBy: reportedDrop.replacedBy,
             strategy: diagramStrategyDecision.strategy,
           });
         }
+        // settle-selection-degradation:end
         sceneV2Document = selected?.sceneDocument ?? null;
         sceneV2RenderScene = selected?.renderScene ?? null;
         sceneV2Report = attempted?.validationReport ?? sceneV2Report;

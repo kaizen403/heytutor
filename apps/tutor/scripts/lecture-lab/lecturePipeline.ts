@@ -47,7 +47,7 @@ import {
 } from "@heytutor/scene-engine";
 import {
   deriveSceneGate as deriveProductionSceneGate, selectProductionScene, validateProductionSceneCandidate,
-  validCandidateDropDegradation, type DroppedSceneCandidate, type ProductionSceneGate, type ValidatedSceneCandidate,
+  settleSelectionDegradation, type DroppedSceneCandidate, type ProductionSceneGate, type ValidatedSceneCandidate,
 } from "@/features/tutor-session/lib/scene/productionSceneSelection";
 import { diagramStrategyAllowsFigureSource } from "@/features/tutor-session/lib/scene/diagramStrategy";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
@@ -746,12 +746,16 @@ export async function runLecture(
     if (attempted && !sceneSelection.sourceAllowed && sceneSelection.hasReadableInk) {
       run.diagram.suppressedFallback = { figureSource: attempted.figureSource, family: attempted.family ?? null };
     }
-    // Same rule as the live hook: a dropped valid candidate leaves its reason.
+    // The live hook runs the same step (settleSelectionDegradation), and
+    // verify-valid-candidate-parity executes the lines between these markers.
+    // settle-selection-degradation:begin
     run.diagram.droppedCandidate = sceneSelection.droppedCandidate;
-    const droppedDegradation = run.diagram.degradationReason
-      ? null
-      : validCandidateDropDegradation(sceneSelection, result?.candidates.length ?? 0);
-    if (droppedDegradation) run.diagram.degradationReason = droppedDegradation.reason;
+    const settledDegradation = settleSelectionDegradation({
+      earlier: run.diagram.degradationReason ? { reason: run.diagram.degradationReason } : null,
+      selection: sceneSelection, candidateCount: result?.candidates.length ?? 0,
+    });
+    run.diagram.degradationReason = settledDegradation.degradation?.reason ?? null;
+    // settle-selection-degradation:end
 
     run.timings.planMs = Date.now() - plannerStartedAt;
     run.plan = {
