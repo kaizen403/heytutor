@@ -3,13 +3,13 @@
  * and presentation stay in the callers; admission and its order live here.
  */
 import {
-  ARCHETYPES, compileSceneDocument, detectArchetype, isChemistryQuestion, isChemistrySceneFamily,
+  ARCHETYPES, compileSceneDocument, completeSceneDocument, detectArchetype, isChemistryQuestion, isChemistrySceneFamily,
   normalizeClaimedClosedRouteGeometry, normalizeClaimedParaxialReflectionGeometry,
   pruneDeadSceneEntities, pruneUnverifiedSceneAnnotations, displayedSceneQuantityTexts,
   validateMatrixSourceBinding, validateSceneQuantityAgreement, validateSceneDocument,
   validateSphericalRefractionImagePlacements, validateTurnPlanSceneProofs, resolveDiagramFailureStatus,
   type FigureSource, type ProblemStructureView, type RenderScene, type SceneDocument,
-  type TurnPlanV3, type ValidationReport,
+  type SceneCompletionResult, type TurnPlanV3, type ValidationReport,
 } from "@heytutor/scene-engine";
 import { inferSceneCapabilities, questionRequiresVisual, type SceneCandidateValidation } from "@heytutor/tutor-core";
 import type { VisualNeedDecision } from "@/lib/llm/visualNeedPolicy";
@@ -214,7 +214,17 @@ export interface ProductionSceneSelectionInput extends ProductionSceneInput {
   solverAuthorityBlocked?: boolean;
   /** Explicit policy inputs: this pure module never reads rollout/retry settings. */
   requiredRetryEnabled?: boolean;
+  /** Additive completion is an explicit final-selection experiment, off by default. */
+  completionEnabled?: boolean;
+  solverAuthority?: unknown;
   policy?: { preferPlanner?: boolean; allowedFigureSources?: readonly FigureSource[] };
+}
+
+export interface SceneCompletionAdmission {
+  adopted: boolean;
+  additions: SceneCompletionResult["additions"];
+  skipped: SceneCompletionResult["skipped"];
+  rejection?: string;
 }
 
 export interface ProductionSceneSelection {
@@ -230,6 +240,137 @@ export interface ProductionSceneSelection {
   hasReadableInk: boolean;
   sourceAllowed: boolean;
   saveFailure: string | null;
+  completion?: SceneCompletionAdmission;
+}
+
+const sameValue = (first: unknown, second: unknown): boolean => JSON.stringify(first) === JSON.stringify(second);
+
+/** Existing model data is immutable; only the proposal's bounded suffixes may be added. */
+function completionRetainsDocument(base: SceneDocument, next: SceneDocument): boolean {
+  const appended = new Set(["entities", "constructions", "annotations", "assertions", "requiredEntityIds"]);
+  const before: Record<string, unknown> = { ...base }, after: Record<string, unknown> = { ...next };
+  for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
+    if (key === "revealGroups") continue;
+    const original = before[key], proposed = after[key];
+    if (appended.has(key)) {
+      if (!Array.isArray(original) || !Array.isArray(proposed) || proposed.length < original.length ||
+          !original.every((item, index) => sameValue(item, proposed[index]))) return false;
+    } else if (!sameValue(original, proposed)) return false;
+  }
+  const originalIds = new Set(base.entities.map(entity => entity.id));
+  const newIds = new Set(next.entities.filter(entity => !originalIds.has(entity.id)).map(entity => entity.id));
+  if (next.revealGroups.length < base.revealGroups.length) return false;
+  if (!base.revealGroups.every((group, index) => {
+    const proposed = next.revealGroups[index];
+    if (!proposed) return false;
+    const { entityIds, ...metadata } = group;
+    const { entityIds: proposedIds, ...proposedMetadata } = proposed;
+    return sameValue(metadata, proposedMetadata) && proposedIds.length >= entityIds.length &&
+      entityIds.every((id, item) => id === proposedIds[item]) &&
+      proposedIds.slice(entityIds.length).every(id => newIds.has(id));
+  })) return false;
+  return next.revealGroups.slice(base.revealGroups.length).every(group =>
+    group.entityIds.every(id => newIds.has(id)));
+}
+
+/** Labels may be laid out again; every old geometry primitive and label statement must survive. */
+function completionRetainsInk(base: RenderScene, next: RenderScene): boolean {
+  const labels = new Map(base.primitives.filter(primitive => primitive.kind === "label").map(primitive => [primitive.id, primitive]));
+  const proposed = new Map(next.primitives.map(primitive => [primitive.id, primitive]));
+  return base.primitives.every(primitive => {
+    if (primitive.kind === "label") return next.primitives.some(candidate =>
+      candidate.kind === "label" && candidate.entityId === primitive.entityId &&
+      candidate.text === primitive.text && candidate.groupId === primitive.groupId);
+    const label = primitive.id.endsWith("_leader") ? labels.get(primitive.id.slice(0, -7)) : undefined;
+    if (primitive.provenance?.labelLeader === true && label &&
+        primitive.entityId === label.entityId && primitive.groupId === label.groupId) return true;
+    return sameValue(primitive, proposed.get(primitive.id));
+  });
+}
+
+function completionLabelGroup(document: SceneDocument, render: RenderScene, targetId: string): string | null {
+  const memberships = document.revealGroups.flatMap(group =>
+    group.entityIds.filter(id => id === targetId).map(() => group.id));
+  if (memberships.length > 0) return memberships.length === 1 ? memberships[0]! : null;
+  const inkGroups = new Set(render.primitives.filter(primitive =>
+    primitive.entityId === targetId && primitive.kind !== "label" && primitive.provenance?.labelLeader !== true,
+  ).map(primitive => primitive.groupId));
+  if (inkGroups.size !== 1) return null;
+  const group = [...inkGroups][0]!;
+  return document.revealGroups.some(existing => existing.id === group) ? group : null;
+}
+
+function hasSingleLabelGroup(document: SceneDocument, entityId: string, expectedGroup: string): boolean {
+  const memberships = document.revealGroups.flatMap(group =>
+    group.entityIds.filter(id => id === entityId).map(() => group.id));
+  return memberships.length === 1 && memberships[0] === expectedGroup;
+}
+
+/** A proposal crosses the same admission/save boundary; failures retain the valid selected scene. */
+function completeSelectedScene(
+  selected: SelectedRepresentation, input: ProductionSceneSelectionInput, turnPlan: TurnPlanV3,
+): { selected: SelectedRepresentation; completion: SceneCompletionAdmission } {
+  let proposal: SceneCompletionResult | undefined;
+  const rejected = (rejection: string) => ({ selected, completion: {
+    adopted: false, additions: proposal?.additions ?? [], skipped: proposal?.skipped ?? [], rejection,
+  } });
+  try {
+    // The proposal may fail or throw. Keep the accepted fallback and all
+    // caller-owned authority isolated from that speculative work.
+    proposal = completeSceneDocument(structuredClone(selected.sceneDocument), {
+      enabled: true, turnPlan: structuredClone(turnPlan),
+      baseRenderScene: structuredClone(selected.renderScene), solverAuthority: structuredClone(input.solverAuthority),
+    });
+    if (!completionRetainsDocument(selected.sceneDocument, proposal.document)) return rejected("completion changed existing document data");
+    if (proposal.additions.length === 0 && proposal.addedEntityIds.length === 0 &&
+        proposal.addedAnnotationIds.length === 0) return { selected, completion: {
+      adopted: false, additions: [], skipped: proposal.skipped,
+    } };
+    const labelGroups = new Map<string, string>();
+    for (const addition of proposal.additions) {
+      if (addition.text === undefined) continue;
+      const group = addition.targetIds.length === 1
+        ? completionLabelGroup(selected.sceneDocument, selected.renderScene, addition.targetIds[0]!) : null;
+      if (!group || labelGroups.has(addition.id) || !hasSingleLabelGroup(proposal.document, addition.id, group)) {
+        return rejected(`completion label has missing or ambiguous owner/reveal scope: ${addition.id}`);
+      }
+      labelGroups.set(addition.id, group);
+    }
+    const admitted = validateProductionSceneCandidate({
+      candidate: proposal.document as unknown as Record<string, unknown>, question: input.question, turnPlan,
+    });
+    if (!admitted.valid || !admitted.value) return rejected(admitted.errors.map(issue => `${issue.code}: ${issue.message}`).join("; "));
+    const value = admitted.value;
+    if (!completionRetainsDocument(selected.sceneDocument, value.document) ||
+        !completionRetainsInk(selected.renderScene, value.renderScene)) return rejected("completion admission changed existing geometry or label information");
+    const missingIds = [
+      ...proposal.addedEntityIds.filter(id => !value.document.entities.some(entity => entity.id === id)),
+      ...proposal.addedAnnotationIds.filter(id => !value.document.annotations.some(annotation => annotation.id === id)),
+    ];
+    if (missingIds.length > 0) return rejected(`completion marks removed by admission: ${missingIds.join(", ")}`);
+    for (const addition of proposal.additions) {
+      const ink = value.renderScene.primitives.filter(primitive => primitive.entityId === addition.id);
+      if (addition.text !== undefined) {
+        const group = labelGroups.get(addition.id)!;
+        const labels = ink.filter(primitive => primitive.kind === "label");
+        const constructors = value.document.constructions.filter(construction => construction.outputs.includes(addition.id));
+        if (constructors.length !== 1 || constructors[0]!.operator !== "label" || addition.targetIds.length !== 1 ||
+            constructors[0]!.inputs.target !== addition.targetIds[0] || constructors[0]!.inputs.text !== addition.text ||
+            !hasSingleLabelGroup(value.document, addition.id, group) || labels.length === 0 ||
+            labels.some(primitive => primitive.text !== addition.text || primitive.groupId !== group)) {
+          return rejected(`completion label/owner did not survive: ${addition.id}`);
+        }
+      } else if (!ink.some(primitive => primitive.kind !== "label")) return rejected(`completion geometry did not survive: ${addition.id}`);
+    }
+    const saveFailure = liveSceneSaveFailure({
+      document: value.document, question: input.question, turnPlan, tier: selected.tier,
+    });
+    if (saveFailure) return rejected(saveFailure);
+    return { selected: { ...selected, sceneDocument: value.document, renderScene: value.renderScene,
+      validationReport: value.report }, completion: { adopted: true, additions: proposal.additions, skipped: proposal.skipped } };
+  } catch (error) {
+    return rejected(error instanceof Error ? error.message : String(error));
+  }
 }
 
 /**
@@ -258,7 +399,7 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
     const fallbackCapabilities = inferSceneCapabilities(question, {
       lawIds: turnPlan.lawIds, problemIR: input.problemIR, turnPlan,
     });
-    const selected = input.fastRepresentation ?? selectVerifiedRepresentation({
+    let selected = input.fastRepresentation ?? selectVerifiedRepresentation({
       question, turnPlan, problemIR: input.problemIR,
       families: fallbackCapabilities.families.length > 0 ? fallbackCapabilities.families : gate.families,
       preferPlanner: input.policy?.preferPlanner,
@@ -276,6 +417,12 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
       ? liveSceneSaveFailure({ document: selected.sceneDocument, question, turnPlan, tier: selected.tier }) : null;
     const selectedIsDrawable = !input.solverAuthorityBlocked && selectedHasInk && selectedSourceAllowed && !saveFailure &&
       selected.sceneDocument.visualDecision.mode === "scene";
+    let completion: SceneCompletionAdmission | undefined;
+    if (selectedIsDrawable && input.completionEnabled === true) {
+      const completed = completeSelectedScene(selected, input, turnPlan);
+      selected = completed.selected;
+      completion = completed.completion;
+    }
     const failureStatus = resolveDiagramFailureStatus({
       visualRequirement: turnPlan.visualRequirement, requiredRetryEnabled: input.requiredRetryEnabled ?? true,
     });
@@ -286,6 +433,7 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
       reason: selectedIsDrawable ? selectionReason : input.solverAuthorityBlocked ? "solver_contradiction"
         : !selectedSourceAllowed ? selectionReason : saveFailure ?? (!selectedHasInk ? "representation carries no readable label" : selected.reason),
       selectionReason, hasReadableInk: selectedHasInk, sourceAllowed: selectedSourceAllowed, saveFailure,
+      ...(completion ? { completion } : {}),
     };
   } catch (error) {
     // The pre-existing exception path records required failures regardless of retry opt-out.

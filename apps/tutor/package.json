@@ -25,7 +25,7 @@
     "verify:production-selection": "tsx scripts/verify/verify-production-scene-selection.ts && tsx scripts/verify/verify-live-save-parity.ts && tsx scripts/verify/verify-lab-production-profile.ts && pnpm verify:lesson-save-reopen",
     "verify:lesson-save-reopen": "node --experimental-test-module-mocks --import tsx scripts/verify/verify-lesson-save-reopen.ts",
     "verify:storage-admission": "node --experimental-test-module-mocks --import tsx scripts/verify/verify-storage-admission.ts && tsx scripts/verify/verify-storage-save-client.ts && tsx scripts/verify/verify-storage-reconciliation-cli.ts && tsx scripts/verify/verify-storage-object-metadata.ts && node --experimental-test-module-mocks --import tsx scripts/verify/verify-storage-admission-fallback.ts && tsx scripts/verify/verify-storage-audio-urls.ts && node --experimental-test-module-mocks --import tsx scripts/verify/verify-storage-historical-accounting.ts && node --experimental-test-module-mocks --import tsx scripts/verify/verify-storage-save-policy.ts",
-    "verify:diagram-experiments": "tsx scripts/verify/verify-physics-hybrid.ts && tsx scripts/verify/verify-scene-decline-experiment.ts && tsx scripts/verify/verify-planner-evidence.ts && tsx scripts/verify/verify-strict-planner-selection.ts",
+    "verify:diagram-experiments": "tsx scripts/verify/verify-physics-hybrid.ts && tsx scripts/verify/verify-scene-decline-experiment.ts && tsx scripts/verify/verify-planner-evidence.ts && tsx scripts/verify/verify-strict-planner-selection.ts && pnpm verify:completion",
     "verify:diagram-client-bundle": "tsx scripts/verify/verify-diagram-client-bundle.ts",
     "verify:lab-rasterization": "node scripts/verify/verify-lab-rasterization.mjs",
     "diagram:anchor-gallery": "tsx scripts/lecture-lab/anchor-gallery.ts",
@@ -49,7 +49,8 @@
     "verify:lesson-qa-2": "tsx scripts/verify/verify-native-audio-recovery.ts && tsx scripts/verify/verify-lecture-work-pages.ts && tsx scripts/verify/verify-focus-write-order.ts && tsx scripts/verify/verify-resume-write-boundaries.ts && tsx scripts/verify/verify-short-board-chrome.ts && tsx scripts/verify/verify-startup-diagnostics.ts",
     "verify:lesson-qa-3": "tsx scripts/verify/verify-lesson-admission-history.ts && tsx scripts/verify/verify-lesson-lock-release.ts && pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-code-lesson-teaching.ts && pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-tts-voice-switch.ts && tsx scripts/verify/verify-code-lesson-stop-continue.ts && tsx scripts/verify/verify-code-speech-failure.ts && tsx scripts/verify/verify-turn-checkpoint-route.ts && tsx scripts/verify/verify-code-lesson-type-window.ts && tsx scripts/verify/verify-point-speech-deadline.ts && tsx scripts/verify/verify-code-lesson-pace.ts && tsx scripts/verify/verify-marker-tour.ts && tsx scripts/verify/verify-mobile-caption-dock.ts",
     "verify:fresh-migrations": "tsx scripts/verify/verify-fresh-migrations.ts",
-    "db:migrate:deploy": "tsx scripts/live/deploy-migrations.ts"
+    "db:migrate:deploy": "tsx scripts/live/deploy-migrations.ts",
+    "verify:completion": "node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-admission.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1131.0",
