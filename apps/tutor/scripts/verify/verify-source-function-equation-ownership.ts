@@ -645,7 +645,169 @@ const quotedPrimeOwnershipFixtures: readonly Fixture[] = [
     ],
   },
 ];
-const gateFixtures: readonly Fixture[] = [...fixtures, ...sourceCompletenessFixtures, ...retentionFixtures, ...primeAndPluralRetentionFixtures, ...quotedPrimeOwnershipFixtures];
+// Real closing quotes followed by parenthesized prose are not derivative
+// primes. These five public oracles were frozen before execution; all prior
+// 64 fixture and128 assertion bytes remain unchanged.
+const quotedCloseProseFixtures: readonly Fixture[] = [
+  {
+    id: "quoted-number-ascii-before-prose-parentheses",
+    question: "The note says 'y=99' (ignore it). Graph y=x^2 and y=2*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "quoted-number-curly-before-prose-parentheses",
+    question: "The note says ‘y=99’ (ignore it). Graph y=x^2 and y=2*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "quoted-number-mixed-before-prose-parentheses",
+    question: "The note says 'y=99’ (ignore it). Graph y=x^2 and y=2*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "quoted-variable-before-prose-parentheses",
+    question: "The sheet prints 'y=x' (a quoted example). Graph y=x^2 and y=2*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "quoted-word-before-prose-parentheses",
+    question: "The note says 'example' (ignore this word). Graph y=x^2 and y=2*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+];
+// Concrete single-word prose regressions and actual quoted symbolic-prime
+// controls, frozen before execution. All prior69 fixtures/138 checks stay intact.
+const quotedCloseSingleProseFixtures: readonly Fixture[] = [
+  {
+    id: "quoted-word-single-prose-token-parentheses",
+    question: "The note says 'note' (ignored). Graph y=x^2 and y=2*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "quoted-variable-single-prose-token-parentheses",
+    question: "The note says 'y=x' (ignore). Graph y=x^2 and y=2*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "quoted-derivative-t-instruction-negative",
+    question: "The note says 'Compute f'(t), then graph y=x^2 and y=2*x; do not draw it.' Explain the note.",
+    mustDrawExplicitCurves: false,
+    discreteDomain: false,
+    equations: [
+    ],
+  },
+  {
+    id: "quoted-derivative-theta-instruction-negative",
+    question: "The note says 'Compute f'(theta), then graph y=x^2 and y=2*x; do not draw it.' Explain the note.",
+    mustDrawExplicitCurves: false,
+    discreteDomain: false,
+    equations: [
+    ],
+  },
+];
+// Exact independently observed unknown-argument/prose-punctuation failures,
+// plus a spaced unknown-parameter quote control. Inputs and whole-equation
+// sample oracles were frozen before execution; all prior146 checks stay intact.
+const quoteArgumentClassFixtures: readonly Fixture[] = [
+  {
+    id: "quote-argument-quoted-time-argument",
+    question: "The note says 'Compute f'(time), then graph y=x^2 and y=2*x; do not draw it.' Explain the note.",
+    mustDrawExplicitCurves: false,
+    discreteDomain: false,
+    equations: [
+    ],
+  },
+  {
+    id: "quote-argument-quoted-speed-argument",
+    question: "The note says 'Compute f'(speed), then graph y=x^2 and y=2*x; do not draw it.' Explain the note.",
+    mustDrawExplicitCurves: false,
+    discreteDomain: false,
+    equations: [
+    ],
+  },
+  {
+    id: "quote-argument-quoted-multiword-argument",
+    question: "The note says 'Compute f'(flow rate), then graph y=x^2 and y=2*x; do not draw it.' Explain the note.",
+    mustDrawExplicitCurves: false,
+    discreteDomain: false,
+    equations: [
+    ],
+  },
+  {
+    id: "quote-argument-closing-prose-period",
+    question: "The note says 'y=x' (ignore it.). Graph y=x^2 and y=2*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "quote-argument-closing-prose-exclamation",
+    question: "The note says 'y=x' (ignore it!). Graph y=x^2 and y=2*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "quote-argument-closing-prose-with-math",
+    question: "The note says 'y=x' (at x=0). Graph y=x^2 and y=2*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "quote-argument-spaced-unknown-parameter-negative",
+    question: "The note says 'Compute f' (time), then graph y=x^2 and y=2*x; do not draw it.' Explain the note.",
+    mustDrawExplicitCurves: false,
+    discreteDomain: false,
+    equations: [
+    ],
+  },
+];
+const gateFixtures: readonly Fixture[] = [...fixtures, ...sourceCompletenessFixtures, ...retentionFixtures, ...primeAndPluralRetentionFixtures, ...quotedPrimeOwnershipFixtures, ...quotedCloseProseFixtures, ...quotedCloseSingleProseFixtures, ...quoteArgumentClassFixtures];
 
 function normalizeEquation(value: string): string {
   return value.replace(/[−–—]/g, "-").replace(/×/g, "*").replace(/÷/g, "/")

@@ -792,10 +792,12 @@ function buildTextOnlyRepresentation(
 
 function extractExplicitFunctionFacts(question: string): SourceFunctionFact[] {
   const normalized = normalizeMathText(question);
+  const unquotedPositions = unquotedFunctionSourcePositions(normalized);
   const facts: SourceFunctionFact[] = [];
   let previousEquationEnd = -1;
   const matches = normalized.matchAll(/\by\s*=\s*/gi);
   for (const match of matches) {
+    if (!unquotedPositions[match.index ?? 0]) continue;
     if (!hasStandaloneFunctionLhs(normalized, match.index ?? 0, previousEquationEnd)) continue;
     const start = (match.index ?? 0) + match[0].length;
     const rawExpression = readCompleteSupportedExpression(normalized.slice(start));
@@ -825,46 +827,56 @@ const FUNCTION_EQUATION_INTRODUCTIONS = new Set([
 ]);
 const FUNCTION_EQUATION_ENDPOINTS = new Set(["and", "for", "where", "enclose", "encloses"]);
 
-function hasOpenFunctionSourceQuote(source: string): boolean {
-  let openQuote: "single" | "double" | null = null;
+function unquotedFunctionSourcePositions(source: string): Uint8Array {
+  // State bits: outside=1, single-quoted=2, double-quoted=4. Each row maps
+  // those three input states to possible output states for the same token.
+  const transitions = [
+    [1, 2, 4], // ordinary text, contraction, or the start of a prime run
+    [2, 1, 4], // nonattached single quotation boundary
+    [4, 2, 1], // double quotation boundary
+    [1, 3, 4], // attached run: all primes, or its last mark closes a quote
+  ] as const;
+  const tokens = new Uint8Array(source.length);
   for (let index = 0; index < source.length; index += 1) {
     const character = source[index]!;
-    // Apostrophes inside words are not quotation boundaries.
     if (/['’]/.test(character) && /[A-Za-z]/.test(source[index - 1] ?? "") &&
         /[A-Za-z]/.test(source[index + 1] ?? "")) continue;
-    const quote = /['‘’]/.test(character) ? "single" : /["“”]/.test(character) ? "double" : null;
-    if (openQuote !== null) {
-      if (quote === openQuote) {
-        // A derivative inside quoted text, such as 'compute f'(x)', does
-        // not end that text at its prime. A word's closing quote still does.
-        const primes = quote === "single" && /[A-Za-z0-9_)]/.test(source[index - 1] ?? "")
-          ? source.slice(index).match(/^['’]+/)?.[0]
-          : undefined;
-        if (primes) {
-          index += primes.length - 1;
-          // Before an argument the whole run is primes; otherwise its last
-          // mark closes the quote, including a quoted bare f’ followed by '.
-          if (!/^\s*\(/.test(source.slice(index + 1))) openQuote = null;
-        } else openQuote = null;
-      }
-      continue;
-    }
-    // Outside quoted text, attached primes (including f' and f'') do not
-    // open a quotation.
     if (/['’]/.test(character) && /[A-Za-z0-9_)]/.test(source[index - 1] ?? "")) {
       while (/['’]/.test(source[index + 1] ?? "")) index += 1;
+      tokens[index] = 3;
       continue;
     }
-    openQuote = quote;
+    if (/['‘’]/.test(character)) tokens[index] = 1;
+    else if (/["“”]/.test(character)) tokens[index] = 2;
   }
-  return openQuote !== null;
+  const forward = new Uint8Array(source.length + 1);
+  const backward = new Uint8Array(source.length + 1);
+  forward[0] = 1;
+  backward[source.length] = 1;
+  for (let index = 0; index < source.length; index += 1) {
+    const transition = transitions[tokens[index]!]!;
+    for (let state = 0; state < 3; state += 1) {
+      if (forward[index]! & (1 << state)) forward[index + 1]! |= transition[state]!;
+    }
+  }
+  for (let index = source.length - 1; index >= 0; index -= 1) {
+    const transition = transitions[tokens[index]!]!;
+    for (let state = 0; state < 3; state += 1) {
+      if (transition[state]! & backward[index + 1]!) backward[index]! |= 1 << state;
+    }
+  }
+  const unquoted = new Uint8Array(source.length + 1);
+  for (let index = 0; index <= source.length; index += 1) {
+    // No balanced interpretation, or any viable quoted interpretation,
+    // withholds source ownership at this position.
+    unquoted[index] = (forward[index]! & backward[index]!) === 1 ? 1 : 0;
+  }
+  return unquoted;
 }
 
 function hasStandaloneFunctionLhs(source: string, index: number, previousEquationEnd: number): boolean {
   const rawPrefix = source.slice(0, index);
   const prefix = rawPrefix.trimEnd();
-  // A quoted equation is not an independently asserted source equation.
-  if (hasOpenFunctionSourceQuote(prefix)) return false;
   if (previousEquationEnd >= 0 && /^\s*(?:,|and)?\s*$/i.test(rawPrefix.slice(previousEquationEnd))) return true;
   const introduction = prefix.replace(/:$/, "").trimEnd();
   const token = introduction.match(/\b(?:solve|represent)\s+graphically$|[A-Za-z_][A-Za-z0-9_]*$|[^\s]$/i)?.[0];
