@@ -175,10 +175,14 @@ function defaultDelivery(): FailedTurnSentryDelivery {
       return acknowledged;
     },
     complete: async (job, now) => {
+      // A checkpoint may refresh its retry/grace time or cancel the pending
+      // failure while this request is in flight. An HTTP-accepted event must
+      // retire that immutable reservation regardless of its current schedule;
+      // subsequent checkpoint updates also require sentry_reported_at IS NULL.
       await prisma.$executeRaw`
         UPDATE turns SET sentry_reported_at = ${now}, sentry_failure_event = NULL, sentry_next_attempt_at = NULL
         WHERE id = ${job.id}::uuid AND sentry_event_id = ${job.sentryEventId}
-          AND sentry_reported_at IS NULL AND sentry_next_attempt_at = ${job.sentryNextAttemptAt}
+          AND sentry_reported_at IS NULL
       `;
     },
   };

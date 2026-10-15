@@ -20,8 +20,9 @@ const databaseName = "heytutor_sentry_verify";
 const fixtureEnvironment = { NODE_ENV: "production", SENTRY_ENVIRONMENT: "production", SENTRY_RELEASE: "a".repeat(40) };
 const mutationExactDate = process.argv.includes("--mutation-exact-date");
 const mutationEmptyCompleteClaim = process.argv.includes("--mutation-empty-complete-claim");
-assert(process.argv.slice(2).every(argument => ["--mutation-exact-date", "--mutation-empty-complete-claim"].includes(argument)), "unsupported verification option");
-assert(!(mutationExactDate && mutationEmptyCompleteClaim), "run database mutations separately");
+const mutationRefreshCompletion = process.argv.includes("--mutation-refresh-completion");
+assert(process.argv.slice(2).every(argument => ["--mutation-exact-date", "--mutation-empty-complete-claim", "--mutation-refresh-completion"].includes(argument)), "unsupported verification option");
+assert([mutationExactDate, mutationEmptyCompleteClaim, mutationRefreshCompletion].filter(Boolean).length <= 1, "run database mutations separately");
 
 /** This gate owns one fresh local container; it never accepts a database URL. */
 function docker(args: string[]): string {
@@ -54,10 +55,19 @@ function emptyCompleteClaimMutation(source: string): string {
   return source.replace(branch, "");
 }
 
+function refreshCompletionMutation(source: string): string {
+  const completedReceipt = "AND sentry_reported_at IS NULL\n      `;";
+  assert.equal(source.split(completedReceipt).length, 2, "the mutation must target exactly the production acknowledgement completion SQL");
+  return source.replace(completedReceipt,
+    "AND sentry_reported_at IS NULL AND sentry_next_attempt_at = ${job.sentryNextAttemptAt}\n      `;");
+}
+
 async function main(): Promise<void> {
   let ownedContainer = false;
   let database: typeof import("../../lib/db/prisma").prisma | undefined;
   let ingest: ReturnType<typeof createServer> | undefined;
+  let beforeAcknowledge: (() => Promise<void>) | undefined;
+  let acknowledgementHookFailure: unknown;
   const received: Sentry.ErrorEvent[] = [];
   const receipts: string[] = [];
   try {
@@ -94,8 +104,14 @@ async function main(): Promise<void> {
           const header = JSON.parse(lines[index]!) as { type?: string };
           if (header.type === "event") received.push(JSON.parse(lines[index + 1]!) as Sentry.ErrorEvent);
         }
-        response.writeHead(200, { "content-type": "application/json" });
-        response.end("{}");
+        // Pause the actual HTTP acknowledgement after capture so a checkpoint
+        // can commit while the production worker owns its delivery lease.
+        void (async () => {
+          try { await beforeAcknowledge?.(); }
+          catch (error) { acknowledgementHookFailure = error; }
+          response.writeHead(200, { "content-type": "application/json" });
+          response.end("{}");
+        })();
       });
     });
     await new Promise<void>(resolveListen => ingest!.listen(0, "127.0.0.1", resolveListen));
@@ -258,6 +274,73 @@ async function main(): Promise<void> {
     assert.equal((await reporter.runFailedTurnSentryBatch({ now: new Date(Date.now() + 86_400_000) })).reported, 0);
     assert.equal(received.length, 5, "the legacy empty lesson must also deliver exactly once");
     receipts.push("validated complete zero-segment legacy row is delivered exactly once; deleting its claim branch strands it and turns the same delivery invariant RED");
+
+    // Reproduce the actual claim -> checkpoint refresh -> HTTP 200 -> complete
+    // interleave. Settlement delay and cancellation both change the scheduling
+    // column, but neither may erase a receipt for an event Sentry accepted.
+    const raceReporter = mutationRefreshCompletion ? loadMutantReporter(refreshCompletionMutation(source)) : reporter;
+    for (const status of ["complete", "stopped", "live", "recovered"] as const) {
+      const race = await makeMicrosecondTurn();
+      const queuedAt = new Date(Date.now() - 600_000);
+      const initial = status === "stopped" || status === "live"
+        ? await db.turn.update({ where: { id: race.id }, data: { status, updatedAt: race.updatedAt }, include: { segments: true } })
+        : race;
+      const reservation = await db.$transaction(tx => queue(tx, initial, {
+        env: fixtureEnvironment, historical: true, now: queuedAt, staleLive: status === "live",
+      }));
+      assert(reservation, `${status}: the race fixture must reserve an event`);
+      const original = await db.turn.findUniqueOrThrow({ where: { id: race.id } });
+      const originalEvent = original.sentryFailureEvent as unknown as FailedTurnSentryEvent;
+      const deliverAt = new Date(Date.now());
+      const refreshAt = new Date(deliverAt.getTime() + 1_000);
+      let refreshed = false;
+      const sentBefore: number = received.length;
+      beforeAcknowledge = async () => {
+        assert(!refreshed, `${status}: the worker must send only one envelope`);
+        refreshed = true;
+        const checkpoint = await db.turn.update({ where: { id: race.id }, data: {
+          ...(status === "recovered" ? { visualStatus: "validated" } : {}), updatedAt: refreshAt,
+        }, include: { segments: true } });
+        await db.$transaction(tx => queue(tx, checkpoint, { env: fixtureEnvironment, now: refreshAt }));
+        const refreshedReceipt = await db.turn.findUniqueOrThrow({ where: { id: race.id } });
+        assert.equal(refreshedReceipt.sentryEventId, reservation, `${status}: refresh keeps the event reservation`);
+        const refreshedEvent = refreshedReceipt.sentryFailureEvent as unknown as FailedTurnSentryEvent;
+        assert.equal(refreshedEvent.timestamp, originalEvent.timestamp, `${status}: refresh keeps the original deduplication timestamp`);
+        assert.equal("tags" in refreshedEvent ? refreshedEvent.tags.reporting_origin :
+          (refreshedReceipt.sentryFailureEvent as { reporting_origin?: string }).reporting_origin, "backfill",
+        `${status}: a refresh cannot turn a backfill into a live alert`);
+        assert.equal(refreshedReceipt.sentryReportedAt, null, `${status}: receipt waits for the HTTP acknowledgement`);
+        if (status === "live" || status === "recovered") assert.equal(refreshedReceipt.sentryNextAttemptAt, null,
+          `${status}: resume or recovery cancels an unsent failure`);
+      };
+      const delivery = await raceReporter.runFailedTurnSentryBatch({ now: deliverAt, limit: 1 });
+      beforeAcknowledge = undefined;
+      assert.equal(acknowledgementHookFailure, undefined, `${status}: checkpoint must finish before the HTTP 200`);
+      assert(refreshed, `${status}: checkpoint refresh must occur between claim and acknowledgement`);
+      assert.equal(delivery.reported, 1);
+      const completed = await db.turn.findUniqueOrThrow({ where: { id: race.id } });
+      assert(completed.sentryReportedAt && completed.sentryFailureEvent === null && completed.sentryNextAttemptAt === null,
+        `${status}: an HTTP-accepted event must retire its receipt despite a checkpoint refresh`);
+      assert.equal(completed.updatedAt.getTime(), refreshAt.getTime(), `${status}: telemetry must preserve checkpoint activity`);
+      assert.equal(received.length, sentBefore + 1);
+      const accepted = received.at(-1)!;
+      assert.equal(accepted.event_id, reservation);
+      assert.equal(accepted.timestamp, originalEvent.timestamp);
+      assert.equal(accepted.tags?.reporting_origin, "backfill");
+      assert(!JSON.stringify(accepted).includes("Synthetic") && !JSON.stringify(accepted).includes(user.id) &&
+        !JSON.stringify(accepted).includes(board.id), `${status}: the concurrent event must remain content-free`);
+
+      // A new failed checkpoint, including re-abandonment after a resume,
+      // cannot resurrect an event already accepted by Sentry.
+      const failedAgain = await db.turn.update({ where: { id: race.id }, data: {
+        status: "stopped", visualStatus: "retry_required", updatedAt: new Date(refreshAt.getTime() + 1_000),
+      }, include: { segments: true } });
+      await db.$transaction(tx => queue(tx, failedAgain, { env: fixtureEnvironment, now: refreshAt }));
+      assert.equal((await raceReporter.runFailedTurnSentryBatch({ now: new Date(deliverAt.getTime() + 86_400_000) })).reported, 0);
+      assert.equal(received.length, sentBefore + 1, `${status}: the next worker tick must not resend an accepted event`);
+      await db.turn.delete({ where: { id: race.id } });
+    }
+    receipts.push("real PG16 checkpoint commits between claim and loopback HTTP 200 preserve one delivered receipt for complete, stopped, resumed-live and recovered turns; later failure never resends");
 
     const mutationFixture = await makeMicrosecondTurn();
     const mutant = loadMutantReporter(exactDateMutation(source)).queueFailedTurnSentry;
