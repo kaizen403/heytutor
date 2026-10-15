@@ -32,7 +32,7 @@ async function main(): Promise<void> {
       qualitativeClaims: [], lawIds: ["ohms_law"], assumptions: [], visualRequirement: "none",
     };
   }
-  function observe(name: string, input: TurnPlanV3, mustDecline: boolean, truth = 36): void {
+  function observe(name: string, input: TurnPlanV3, mustDecline: boolean, truth = 36, expectedLiveGivens = input.givens): void {
     cases++;
     const before = JSON.stringify(input);
     const raw = validateTurnPlanV3(input, input.question);
@@ -50,8 +50,66 @@ async function main(): Promise<void> {
     if (liveParse) {
       check(`${name}/live ${mustDecline ? "declines" : "accepts"}`, mustDecline ? live === null : live?.derived[0]?.value === truth, detail);
       check(`${name}/live question and given bytes`, live === null ||
-        (live.question === input.question && JSON.stringify(live.givens) === JSON.stringify(input.givens)));
+        (live.question === input.question && JSON.stringify(live.givens) === JSON.stringify(expectedLiveGivens)));
     }
+  }
+  const measuredGivenSources = plan(false, "V = I*R = 36 V", "Given I = 3 A, R = 12 Ω. Find V.");
+  measuredGivenSources.givens[0]!.sourceText = "3 A";
+  measuredGivenSources.givens[1]!.sourceText = "12 Ω";
+  observe("source-grounding/plain-measured-source", measuredGivenSources, false);
+  observe("source-grounding/prose-missing-resistance", plan(false, "V = I*R = 36 V",
+    "A wire carries 3 A. Find V."), true);
+  for (const [name, question, currentSource, resistanceSource, mustDecline] of [
+    ["complete-prose", "A wire carries 3 A through a 12 Ω resistance. Find V.", "3 A", "12 Ω", false],
+    ["complete-explicit-missing-optional-sourceText", "Given I = 3 A, R = 12 Ω. Find V.", undefined, undefined, false],
+    ["complete-explicit-scaled-source", "Given I = 3 A, R = 12 Ω. Find V.", "3000 mA", "0.012 kΩ", false],
+    ["complete-explicit-scaled-question", "Given I = 3000 mA, R = 0.012 kΩ. Find V.", "3 A", "12 Ω", false],
+    ["complete-explicit-numeric-source", "Given I = 3 A, R = 12 Ω. Find V.", "3", "12", false],
+    ["complete-explicit-assigned-numeric-source", "Given I = 3 A, R = 12 Ω. Find V.", "I = 3", "R = 12", false],
+    ["contradictory-numeric-current-source", "Given I = 3 A, R = 12 Ω. Find V.", "4", "12", true],
+    ["contradictory-numeric-resistance-source", "Given I = 3 A, R = 12 Ω. Find V.", "3", "16", true],
+    ["contradictory-assigned-numeric-current-source", "Given I = 3 A, R = 12 Ω. Find V.", "I = 4", "R = 12", true],
+    ["contradictory-assigned-numeric-resistance-source", "Given I = 3 A, R = 12 Ω. Find V.", "I = 3", "R = 16", true],
+    ["numeric-source-cannot-ground-missing-resistance", "Given I = 3 A. Find V.", "3", "12", true],
+    ["numeric-source-cannot-supply-question-units", "Given I = 3, R = 12. Find V.", "3", "12", true],
+    ["missing-explicit-resistance", "Given I = 3 A. Find V.", "3 A", "12 Ω", true],
+    ["missing-prose-current", "The resistance is 12 Ω. Find V.", "3 A", "12 Ω", true],
+    ["repeated-current-cannot-ground-resistance", "A wire carries 3 A and 3 A. Find V.", "3 A", "12 Ω", true],
+    ["contradictory-prose-resistance", "A wire carries 3 A through a 16 Ω resistance. Find V.", "3 A", "12 Ω", true],
+    ["contradictory-measured-current-source", "Given I = 3 A, R = 12 Ω. Find V.", "4 A", "12 Ω", true],
+    ["contradictory-measured-resistance-source", "Given I = 3 A, R = 12 Ω. Find V.", "3 A", "16 Ω", true],
+    ["contradictory-assigned-resistance-source", "Given I = 3 A, R = 12 Ω. Find V.", "I = 3 A", "R = 16 Ω", true],
+    ["swapped-explicit-input-roles", "Given I = 12 Ω, R = 3 A. Find V.", "3 A", "12 Ω", true],
+  ] as const) {
+    const input = plan(false, "V = I*R = 36 V", question);
+    if (currentSource === undefined) delete input.givens[0]!.sourceText;
+    else input.givens[0]!.sourceText = currentSource;
+    if (resistanceSource === undefined) delete input.givens[1]!.sourceText;
+    else input.givens[1]!.sourceText = resistanceSource;
+    // The existing live normalizer fills an absent optional sourceText; it
+    // never replaces supplied source bytes. Pin that one metadata-only case.
+    const expectedLiveGivens = name === "complete-explicit-missing-optional-sourceText"
+      ? [{ ...input.givens[0]!, sourceText: "I = 3" }, { ...input.givens[1]!, sourceText: "R = 12" }]
+      : input.givens;
+    observe(`source-grounding/${name}`, input, mustDecline, 36, expectedLiveGivens);
+  }
+  const wrongMeasuredSource = structuredClone(measuredGivenSources);
+  wrongMeasuredSource.derived[0]!.value = 48;
+  wrongMeasuredSource.derived[0]!.sourceText = "V = I*R = 48 V";
+  const wrongMeasuredBefore = JSON.stringify(wrongMeasuredSource);
+  const correctedMeasuredSource = reconcileTurnPlanV3ExplicitArithmetic(wrongMeasuredSource).plan as TurnPlanV3;
+  cases++;
+  check("source-grounding/wrong-arithmetic/raw declines", !validateTurnPlanV3(wrongMeasuredSource, wrongMeasuredSource.question).valid);
+  check("source-grounding/wrong-arithmetic/recomputes 36", correctedMeasuredSource.derived[0]?.value === 36);
+  check("source-grounding/wrong-arithmetic/corrected accepts", validateTurnPlanV3(correctedMeasuredSource, wrongMeasuredSource.question).valid);
+  check("source-grounding/wrong-arithmetic/input immutable", JSON.stringify(wrongMeasuredSource) === wrongMeasuredBefore);
+  check("source-grounding/wrong-arithmetic/question bytes", correctedMeasuredSource.question === wrongMeasuredSource.question);
+  check("source-grounding/wrong-arithmetic/given bytes", JSON.stringify(correctedMeasuredSource.givens) === JSON.stringify(wrongMeasuredSource.givens));
+  if (liveParse) {
+    const liveCorrected = liveParse(JSON.stringify(wrongMeasuredSource), wrongMeasuredSource.question);
+    check("source-grounding/wrong-arithmetic/live recomputes 36", liveCorrected?.derived[0]?.value === 36);
+    check("source-grounding/wrong-arithmetic/live question and given bytes", liveCorrected !== null &&
+      liveCorrected.question === wrongMeasuredSource.question && JSON.stringify(liveCorrected.givens) === JSON.stringify(wrongMeasuredSource.givens));
   }
   // Every previously reported unreadable measurement, plus relative changes.
   const corrections = [

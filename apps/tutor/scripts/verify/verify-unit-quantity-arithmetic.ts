@@ -148,6 +148,18 @@ async function main(): Promise<void> {
   pair("review-blocker/coherent-result/mixed-literal-units", [["a", 2, "cm"], ["b", 3, "m"]], "L", "m", "L = 2 cm + 3 m", 3.02, 5);
   const lengths: readonly Given[] = [["a", 2, "cm"], ["b", 3, "cm"]];
   pair("review-blocker/prefixed-output", lengths, "L", "cm", "L = 2 cm + 3 cm", 5, 0.05);
+  pair("review-p1/binding-with-literal-unit", [["a", 2, "cm"]], "L", "cm", "L = a + 3 mm", 2.3, 5);
+  pair("review-p1/binding-with-literal-unit/subtract", [["a", 2, "cm"]], "L", "cm", "L = a - 3 mm", 1.7, -1);
+  pair("review-p1/binding-with-literal-unit/metres", [["a", 2, "cm"]], "L", "m", "L = a + 3 mm", 0.023, 0.05);
+  pair("review-p1/binding-with-literal-unit/grams", [["a", 2, "kg"]], "M", "kg", "M = a + 3 g", 2.003, 5);
+  pair("review-p1/binding-with-literal-unit/coherent-output", [["a", 2, "cm"]], "L", "m", "L = a + 3 m", 3.02, 5);
+  wrong("review-p1/uncertified-multiple-conversion", plan([["l", 200, "cm"]], "L", "m", 3.04,
+    "L = 2*l/100 + 3 m = 3.04 m"), 7);
+  for (const member of ["a + 3 mm + 0", "1*a + 3 mm", "2*a + 3 mm", "a + 0.003 m"]) {
+    const truth = member.startsWith("2*") ? 4.3 : 2.3;
+    const error = member.startsWith("2*") ? 7 : member.includes("0.003") ? 2.003 : 5;
+    pair(`review-p1/binding-with-literal-unit/neutral/${member}`, [["a", 2, "cm"]], "L", "cm", `L = ${member}`, truth, error);
+  }
   pair("review-blocker/prefixed-output/mixed-binding", lengths, "L", "cm", "L = a + 3 cm", 5, 2.03);
   wrong("review-blocker/prefixed-output/mixed-binding-false-coherent-label", plan(lengths, "L", "cm", 0.05, "L = a + 3 cm = 0.05 cm"), 5);
   wrong("review-blocker/prefixed-output/correct-value-wrong-source", plan(lengths, "L", "cm", 5, "L = 2 cm + 3 cm = 0.05 cm"), 5);
