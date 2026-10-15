@@ -39,6 +39,10 @@ function outcome(question: string) {
     lastResort: synthesized(synthesizeLastResortScene({ question })),
   };
 }
+// A saved baseline omits undefined object fields; compare both sides as JSON.
+function persisted(value: ReturnType<typeof outcome>): ReturnType<typeof outcome> {
+  return JSON.parse(JSON.stringify(value));
+}
 // Capture complete documents/rendered outcomes once. ROOT uses --snapshot on
 // gate-only main, then --baseline for positive/nonclaim whole-outcome parity.
 const observed = rows.map((row) => ({ id: row.id, question: row.question, outcome: outcome(row.question) }));
@@ -57,7 +61,7 @@ for (const [index, row] of rows.entries()) {
     const actual = observed[index]!.outcome;
     assert.equal(actual.atomic, row.expected.isAtomicRadiationStem, `${row.id} recognition`);
     if (row.kind.includes("nonclaim")) {
-      if (baseline) assert.deepEqual(actual, baseline[index]!.outcome, `${row.id} entire main outcome`);
+      if (baseline) assert.deepEqual(persisted(actual), persisted(baseline[index]!.outcome), `${row.id} entire main outcome`);
     } else {
       assert.ok(actual.families.includes("chem_orbital"), `${row.id} ordinary chemistry ownership`);
       if (row.kind.includes("negative")) {
@@ -79,7 +83,7 @@ for (const [index, row] of rows.entries()) {
         }
         assert.equal(actual.ordinary!.family, "chem_orbital");
         assert.equal(actual.lastResort!.family, "chem_orbital");
-        if (baseline) assert.deepEqual(actual, baseline[index]!.outcome, `${row.id} complete main documents and outcomes`);
+        if (baseline) assert.deepEqual(persisted(actual), persisted(baseline[index]!.outcome), `${row.id} complete main documents and outcomes`);
       }
     }
     passed++;
