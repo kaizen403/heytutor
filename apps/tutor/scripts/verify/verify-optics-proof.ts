@@ -130,6 +130,18 @@
  * "real, magnified image" at 30 cm with f 10 cm (|m| = 0.5) stay unproven; f 5 cm, f 30 cm and f 20 cm
  * draw, and a diverging lens's diminished image draws. A stem that asks
  * ("is the image magnified?", "real or virtual") or names a real object fails no figure on nature.
+ * G28: a negated nature or side states nothing, and the engine image must not be what it denies. On
+ * the review's "A convex lens of focal length 20 cm does not form a real image of an object placed
+ * 15 cm from it" the convex figure (virtual, |m| = 4) proves and draws. On "A lens of focal length
+ * 20 cm does not form a real image of an object placed 30 cm from it", read as convex from the
+ * unsigned focal length, the convex figure (real, |m| = 2) stays unproven and never draws, and so it
+ * does on "doesn't", "cannot", "never", "no", "neither ... nor", "is not", "isn't", a negated magnified
+ * image and a negated "real, magnified" image. A denial implies no kind, so "A lens does not form a
+ * real image" declines. "The image does not form behind the mirror" or "no image forms behind the
+ * mirror" refuses a concave mirror's virtual image and proves its real one, and an unnamed mirror or
+ * lens with a negated side declines. A figure without the whole denied nature proves and draws; an
+ * affirmative "forms a real image" still proves the real image and refuses the virtual one; and "no
+ * parallax with the inverted image" still states an inverted image.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -1757,7 +1769,91 @@ function named(name: string, run: () => void): void {
   ], [{ id: "v", symbol: "v", value: 15, unit: "cm", provenance: "derived" }], ["lens_formula"]), lensDoc(qAsks, { u: 30, f: 10, h: 2 }));
 }
 
-for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21", "G22", "G23", "G24", "G25", "G26", "G27"]) {
+// ---- G28: a negated nature or side states nothing; the engine image must not be what it denies ----
+{
+  // f is given when the stem states it, else derived (G27).
+  const lensPlanFor = (question: string, u: number, f: number, given = true) => plan(question, [
+    { id: "u", symbol: "u", value: u, unit: "cm", provenance: "given", sourceText: `${u} cm` },
+    ...(given ? [{ id: "f", symbol: "f", value: f, unit: "cm", provenance: "given" as const, sourceText: `focal length ${f} cm` }] : []),
+  ], given ? [{ id: "v", symbol: "v", value: f * u / Math.abs(u - f), unit: "cm", provenance: "derived" }]
+    : [{ id: "f", symbol: "f", value: f, unit: "cm", provenance: "derived" }], ["lens_formula"]);
+  const mirrorPlanFor = (question: string, u: number, f: number) => plan(question, [
+    { id: "u", symbol: "u", value: u, unit: "cm", provenance: "given", sourceText: `${u} cm` },
+  ], [{ id: "f", symbol: "f", value: f, unit: "cm", provenance: "derived" }], ["mirror_formula"]);
+  const concaveAt = (question: string, u: number, f: number) =>
+    mirrorDoc(question, { u, f, h: 2, kind: "concave", quantities: [{ id: "u", symbol: "u", value: u }, { id: "f", symbol: "f", value: f }] });
+  const diverging = (question: string, u: number, f: number) =>
+    divergingLens(question, { u, f, h: 2, unit: "cm", scale: 1, focal: f, quantities: [{ id: "u", symbol: "u", value: u, unit: "cm" }] });
+  const lens20 = (verb: string, u: number) => `A lens of focal length 20 cm ${verb} of an object placed ${u} cm from it. Draw the ray diagram.`;
+  // The review's stem: a convex lens of f 20 cm with the object at 15 cm forms a virtual image, as it says.
+  const qReview = "A convex lens of focal length 20 cm does not form a real image of an object placed 15 cm from it. Draw the ray diagram.";
+  const qSideNamed = "A concave mirror forms a magnified image of an object placed 15 cm in front of it, and the image does not form behind the mirror. Draw the ray diagram.";
+  const qSideNo = "A concave mirror forms a magnified image of an object placed 15 cm in front of it; no image forms behind the mirror. Draw the ray diagram.";
+  const qSideUnnamed = "A mirror forms a magnified image of an object placed 15 cm in front of it, and the image does not form behind the mirror. Draw the ray diagram.";
+  const qLensSide = "A lens forms a diminished image of an object placed 50 cm from it; the image does not form on the same side as the object. Draw the ray diagram.";
+  const qUnnamed = "A lens does not form a real image of an object placed 30 cm from it. Draw the ray diagram.";
+  // Wrong figures: an unsigned focal length of 20 cm reads as a convex lens, which at 30 cm forms a
+  // real image 60 cm away, twice the object: the very image each stem denies.
+  const realImage = /^the engine image \(real, \|m\| = 2\) is the (?:real|inverted|magnified|real, magnified) image the stem denies$/;
+  const wrong: Array<[string, string, TurnPlanV3, Doc, RegExp]> = [
+    ...[
+      "does not form a real image", "doesn't form a real image", "cannot form a real image", "never forms a real image",
+      "forms no real image", "forms neither a real nor an inverted image", "forms an image which is not real",
+      "forms an image that isn't inverted", "does not form an image which is real", "does not form a magnified image",
+      "does not form a real, magnified image",
+    ].map((verb): [string, string, TurnPlanV3, Doc, RegExp] => [`a convex lens of f 20 cm at 30 cm on "${verb}"`, lens20(verb, 30),
+      lensPlanFor(lens20(verb, 30), 30, 20), lensDoc(lens20(verb, 30), { u: 30, f: 20, h: 2 }), realImage]),
+    // No kind named and no focal length: the denial implies no kind, so the stem declines.
+    ["a convex lens of f 20 cm at 30 cm on the unnamed lens that does not form a real image", qUnnamed, lensPlanFor(qUnnamed, 30, 20, false),
+      lensDoc(qUnnamed, { u: 30, f: 20, h: 2 }), /^the stem names no lens kind/],
+    // A negated side: the image is not behind the mirror, so it is real, not the virtual image of f 20 cm (|m| = 4).
+    ["a concave mirror of f 20 cm on the image that does not form behind the mirror", qSideNamed, mirrorPlanFor(qSideNamed, 15, 20),
+      concaveAt(qSideNamed, 15, 20), /^the engine image \(virtual, \|m\| = 4\) is the virtual image the stem denies$/],
+    ["a concave mirror of f 20 cm on no image forming behind the mirror", qSideNo, mirrorPlanFor(qSideNo, 15, 20),
+      concaveAt(qSideNo, 15, 20), /^the engine image \(virtual, \|m\| = 4\) is the virtual image the stem denies$/],
+    ["a concave mirror of f 20 cm on the unnamed mirror whose image does not form behind it", qSideUnnamed, mirrorPlanFor(qSideUnnamed, 15, 20),
+      concaveAt(qSideUnnamed, 15, 20), /^the stem names no mirror kind/],
+    ["a diverging lens of f 25 cm on the image that does not form on the object's side", qLensSide, lensPlanFor(qLensSide, 50, 25, false),
+      diverging(qLensSide, 50, 25), /^the stem names no lens kind/],
+  ];
+  for (const [name, question, turnPlan, document, reason] of wrong) {
+    expectUnproven("G28", name, question, document, reason);
+    expectNeverPlanner("G28", name, question, turnPlan, document);
+  }
+  // Controls: a figure without the denied nature proves and draws, and an affirmative stem still holds.
+  const qAffirmative = lens20("forms a real image", 30);
+  const qAffirmativeVirtual = lens20("forms a real image", 15);
+  const qParallax = "A lens forms an image of an object placed 30 cm from it, and a pin shows no parallax with the inverted image. Draw the ray diagram.";
+  for (const [name, question, turnPlan, document] of [
+    ["the review's convex lens of f 20 cm at 15 cm (virtual, |m| = 4)", qReview, lensPlanFor(qReview, 15, 20), lensDoc(qReview, { u: 15, f: 20, h: 2 })],
+    ["a convex lens of f 20 cm at 15 cm on the unnamed lens that does not form a real image", lens20("does not form a real image", 15),
+      lensPlanFor(lens20("does not form a real image", 15), 15, 20), lensDoc(lens20("does not form a real image", 15), { u: 15, f: 20, h: 2 })],
+    ["a convex lens of f 20 cm at 15 cm on the image that is not real", lens20("forms an image which is not real", 15),
+      lensPlanFor(lens20("forms an image which is not real", 15), 15, 20), lensDoc(lens20("forms an image which is not real", 15), { u: 15, f: 20, h: 2 })],
+    ["a convex lens of f 20 cm at 60 cm on the lens that does not form a real, magnified image (real, |m| = 0.5)",
+      lens20("does not form a real, magnified image", 60), lensPlanFor(lens20("does not form a real, magnified image", 60), 60, 20),
+      lensDoc(lens20("does not form a real, magnified image", 60), { u: 60, f: 20, h: 2 })],
+    ["a concave mirror of f 10 cm on the image that does not form behind the mirror (real, |m| = 2)", qSideNamed, mirrorPlanFor(qSideNamed, 15, 10),
+      concaveAt(qSideNamed, 15, 10)],
+    ["a convex lens of f 20 cm at 30 cm on the affirmative real image", qAffirmative, lensPlanFor(qAffirmative, 30, 20),
+      lensDoc(qAffirmative, { u: 30, f: 20, h: 2 })],
+    ["a convex lens of f 20 cm at 30 cm on the inverted image a pin shows no parallax with", qParallax, lensPlanFor(qParallax, 30, 20, false),
+      lensDoc(qParallax, { u: 30, f: 20, h: 2 })],
+  ] as const) {
+    const result = explainPlannerOpticsProof(question, document);
+    check("G28", result.proof === "proven", `${name} must be proven; got ${result.proof}: ${result.reason}`);
+    expectDrawnAsPlanner("G28", name, question, turnPlan, document);
+  }
+  // The affirmative stem still refuses the image it contradicts, and the inverted image a pin sees still implies the kind.
+  expectUnproven("G28", "a convex lens of f 20 cm at 15 cm on the affirmative real image", qAffirmativeVirtual,
+    lensDoc(qAffirmativeVirtual, { u: 15, f: 20, h: 2 }), /^the engine image \(virtual, \|m\| = 4\) contradicts the stem's real image$/);
+  expectNeverPlanner("G28", "a convex lens of f 20 cm at 15 cm on the affirmative real image", qAffirmativeVirtual,
+    lensPlanFor(qAffirmativeVirtual, 15, 20), lensDoc(qAffirmativeVirtual, { u: 15, f: 20, h: 2 }));
+  expectUnproven("G28", "a diverging lens on the inverted image a pin shows no parallax with", qParallax,
+    diverging(qParallax, 30, 20), /contradicts a convex lens/);
+}
+
+for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21", "G22", "G23", "G24", "G25", "G26", "G27", "G28"]) {
   console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 }
 for (const [name, failed] of namedCases) console.log(`  ${name}: ${failed ? `FAIL (${failed} checks)` : "pass"}`);
