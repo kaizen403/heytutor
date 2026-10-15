@@ -4053,13 +4053,13 @@ function pointForEntity(
 
 function pruneUnsupportedMeasuredFragments(text: string, plan: TurnPlanV3): string {
   const supported = supportedSceneDisplayMeasurements(plan);
-  const pruned = text.replace(measuredValuePattern(), (measurement, _number: string, unit: string, index: number) => {
-    if (sceneMeasurementIsOwnedFormulaOperand(text, { index, length: measurement.length, unit }, plan)) return measurement;
-    const value = displayedMeasurementNumber(_number);
+  const pruned = text.replace(measuredValuePattern(), (measurement, _number: string, unit: string, closing: string, index: number) => {
+    if (sceneMeasurementIsOwnedFormulaOperand(text, { index, length: measurement.length - closing.length, unit }, plan)) return measurement;
+    const value = displayedMeasurementNumber(_number, closing);
     const tolerance = displayedNumberTolerance(_number.replace(/−/g, "-"));
     return supported.some((quantity) => equivalentDisplayedMeasuredQuantity(
       quantity.value, quantity.unit, value, unit, tolerance,
-    )) ? measurement : "";
+    )) ? measurement : remainingMeasurementPunctuation(_number, closing);
   });
   return pruned
     .replace(/\s*=\s*$/g, "")
@@ -4079,10 +4079,10 @@ function extractMeasuredValues(text: string, plan: TurnPlanV3): Array<{ value: n
   const values: Array<{ value: number; unit: string; tolerance: number }> = [];
   const pattern = measuredValuePattern();
   for (const match of text.matchAll(pattern)) {
-    const value = displayedMeasurementNumber(match[1]!);
+    const value = displayedMeasurementNumber(match[1]!, match[3]!);
     const unit = match[2]?.trim();
     if (unit && !sceneMeasurementIsOwnedFormulaOperand(
-      text, { index: match.index!, length: match[0].length, unit }, plan,
+      text, { index: match.index!, length: match[0].length - match[3]!.length, unit }, plan,
     )) {
       values.push({ value, unit, tolerance: displayedNumberTolerance(match[1]!.replace(/−/g, "-")) });
     }
@@ -4745,16 +4745,41 @@ function measuredValuePattern(): RegExp {
   // competing numeric-token repetitions; the bounded parser below owns syntax.
   // e/E is only an exponent when digits follow, so eV stays a complete unit.
   const expressionTail = String.raw`(?:[0-9.+\-−*/×·⋅^²³()√\s]|[eE][+\-−]?\d+)*`;
-  const radical = `(?=${expressionTail}√)[+\\-−(]*(?:\\d|\\.\\d|√)${expressionTail}`;
-  return new RegExp(`(${radical}|${NUMBER_SOURCE})\\s*(${factor}(?:\\s*(?:[/·⋅*]|\\s+)\\s*${factor})*)(?=\\s|$|[,;).!?:])`, "gi");
+  const radical = `(?=${expressionTail}√)(?:[+\\-−(]\\s*)*(?:\\d|\\.\\d|√)${expressionTail}`;
+  return new RegExp(`(${radical}|${NUMBER_SOURCE})\\s*(${factor}(?:\\s*(?:[/·⋅*]|\\s+)\\s*${factor})*)(?=\\s|$|[,;).!?:])((?:\\s*\\))*)`, "gi");
+}
+
+/** Parentheses enclosing both number and unit are punctuation, not arithmetic. */
+function measurementNumberWithoutWrappers(source: string, closing: string): string {
+  let balance = 0;
+  for (const char of source) {
+    if (char === "(") balance++;
+    if (char === ")") balance--;
+    if (balance < 0) return source;
+  }
+  const prefix = source.match(/^[+\-−(\s]*/)?.[0] ?? "";
+  if (balance === 0 || balance > (prefix.match(/\(/g)?.length ?? 0) ||
+      balance > (closing.match(/\)/g)?.length ?? 0)) return source;
+  let remaining = balance;
+  const unwrappedPrefix = prefix.replace(/\(/g, (paren) => remaining-- > 0 ? "" : paren);
+  return unwrappedPrefix + source.slice(prefix.length);
+}
+
+/** Removing an unsupported value also removes only the wrappers it owns. */
+function remainingMeasurementPunctuation(source: string, closing: string): string {
+  // Rejected syntax may have an unclosed group inside the expression too.
+  // Its opening mark was removed with the value, so consume its closer.
+  let remaining = (source.match(/\(/g)?.length ?? 0) - (source.match(/\)/g)?.length ?? 0);
+  return closing.replace(/\s*\)/g, (paren) => remaining-- > 0 ? "" : paren);
 }
 
 /** Recompute a whole radical with the existing bounded arithmetic evaluator. */
-function displayedMeasurementNumber(source: string): number {
+function displayedMeasurementNumber(source: string, closing = ""): number {
   if (!source.includes("√")) return Number(source.replace(/−/g, "-"));
   // Parenthesize a complete numeric radicand first: the general normalizer's
   // short bare-root spelling otherwise splits `.25` and `2e2` mid-number.
-  const grouped = source.replace(new RegExp(`√\\s*(${NUMBER_SOURCE})`, "g"), "√($1)");
+  const unwrapped = measurementNumberWithoutWrappers(source, closing);
+  const grouped = unwrapped.replace(new RegExp(`√\\s*(${NUMBER_SOURCE})`, "g"), "√($1)");
   const expression = normalizeExplicitNumericExpression(grouped, []);
   if (!expression) return NaN;
   try { return evaluateMathExpression(expression, 0); } catch { return NaN; }
@@ -4768,7 +4793,7 @@ function sourceContainsMatchingMeasuredValue(
   const unit = normalizeUnit(expectedUnit);
   if (!unit) return false;
   for (const match of sourceText.matchAll(measuredValuePattern())) {
-    const value = displayedMeasurementNumber(match[1]!);
+    const value = displayedMeasurementNumber(match[1]!, match[3]!);
     if (
       Number.isFinite(value) &&
       normalizeUnit(match[2]) === unit &&

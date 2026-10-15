@@ -980,7 +980,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
           }
           assert.match(openingSpeech[0]!.text, /range of a projectile/, "ordinary question framing retains its target");
           assert.match(openingSpeech[1]!.text, /launch velocity u/, "the first figure beat keeps its verified physical meaning");
-          assert.match(openingSpeech[2]!.text, /parabolic trajectory/, "the next figure beat keeps its verified physical meaning");
+          assert.match(openingSpeech[2]!.text, /the parabolic path with its highest point and range/, "the next figure beat retains its complete verified source explanation");
         }
         const marks = telemetry.flatMap((payload) => payload.events ?? []);
         const named = (name: string) => marks.filter((event) => event.name === name);

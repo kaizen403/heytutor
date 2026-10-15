@@ -44,6 +44,57 @@ for (const segment of hinglish.introSegments) {
   }
 }
 assert.deepEqual(hinglish.diagram.commands, english.diagram.commands, "changing opening language preserves every verified diagram mark");
+
+// A complete explanation carries a relationship, not just the names of its
+// parts. This is the principal-ray cue emitted by the mirror scene family.
+const mirrorDocument: SceneDocument = {
+  ...document, source: { question: "Show the principal rays from an object to its image in a mirror." },
+  entities: [
+    { id: "object", kind: "vector", role: "object", label: "O" },
+    { id: "image", kind: "vector", role: "image", label: "I" },
+    { id: "rays", kind: "segment", role: "principal rays" },
+  ], requiredEntityIds: ["object", "image", "rays"],
+  revealGroups: [{ id: "rays", entityIds: ["object", "image", "rays"], dependsOn: [], narrationCue: "Follow the principal rays from the object to the image." }],
+};
+const mirrorScene: RenderScene = {
+  ...renderScene, revealGroups: mirrorDocument.revealGroups,
+  primitives: [
+    { id: "object_arrow", entityId: "object", groupId: "rays", kind: "vector", points: [{ x: 500, y: 400 }, { x: 500, y: 250 }] },
+    { id: "image_arrow", entityId: "image", groupId: "rays", kind: "vector", points: [{ x: 950, y: 400 }, { x: 950, y: 450 }] },
+    { id: "principal_ray", entityId: "rays", groupId: "rays", kind: "line", points: [{ x: 500, y: 250 }, { x: 800, y: 250 }, { x: 950, y: 450 }] },
+  ],
+};
+const mirrorHinglish = buildVerifiedDiagramPresentation(mirrorDocument, mirrorScene, { narrationLanguage: "hinglish" });
+assert(mirrorHinglish.introSegments.some(segment => segment.narration.includes("principal rays को object से image तक follow करो.")),
+  "Hinglish must retain the complete instruction: follow the principal rays from the object to the image");
+const denseMirrorScene: RenderScene = {
+  ...mirrorScene,
+  primitives: [
+    ...mirrorScene.primitives.slice(0, 2),
+    ...Array.from({ length: 12 }, (_, index) => ({
+      id: `principal_ray_${index}`, entityId: "rays", groupId: "rays", kind: "line" as const,
+      points: [{ x: 500, y: 200 + index * 10 }, { x: 800, y: 200 + index * 10 }, { x: 950, y: 450 - index * 5 }],
+    })),
+  ],
+};
+const denseMirrorHinglish = buildVerifiedDiagramPresentation(mirrorDocument, denseMirrorScene, { narrationLanguage: "hinglish" });
+assert(denseMirrorHinglish.introSegments.some(segment => segment.narration.includes("इतना setup तैयार है.")), "the dense fixture must actually exercise the spoken walkthrough used when ink outlasts its cue");
+assert(denseMirrorHinglish.introSegments.some(segment => segment.narration.includes("principal rays को object से image तक follow करो.")), "the ink-duration walkthrough must also preserve the complete explanatory instruction");
+const denseMirrorEnglish = buildVerifiedDiagramPresentation(mirrorDocument, denseMirrorScene);
+assert.deepEqual(buildVerifiedDiagramPresentation(mirrorDocument, denseMirrorScene, { narrationLanguage: "english" }), denseMirrorEnglish, "meaning preservation leaves the existing English presentation unchanged");
+assert.deepEqual(denseMirrorHinglish.diagram.commands, denseMirrorEnglish.diagram.commands, "preserving the explanation cannot alter any verified figure geometry or label");
+for (const segment of denseMirrorHinglish.introSegments) {
+  for (const command of segment.commands ?? []) {
+    assert(command.spokenCue?.token && findSpokenToken(mathToSpeech(segment.narration), mathToSpeech(command.spokenCue.token)) >= 0, "dense explanation retains schedulable spoken cue words");
+  }
+}
+const explanatoryCue = "O is the object in front of the mirror, and I is the image.";
+const explainedMirrorDocument: SceneDocument = {
+  ...mirrorDocument, revealGroups: [{ ...mirrorDocument.revealGroups[0]!, narrationCue: explanatoryCue }],
+};
+const explainedMirror = buildVerifiedDiagramPresentation(explainedMirrorDocument, { ...denseMirrorScene, revealGroups: explainedMirrorDocument.revealGroups }, { narrationLanguage: "hinglish" });
+assert(explainedMirror.introSegments.some(segment => segment.narration.includes(explanatoryCue)), "arbitrary explanatory prose keeps the complete object/mirror/image relationship inside the Hinglish framing");
+
 const restoredDocument: SceneDocument = {
   schemaVersion: "scene-document/v2", source: { question: "In Cartesian coordinates, A=(0,0), B=(3,4). Show the distance AB." },
   visualDecision: { mode: "scene", reason: "source-grounded distance" }, quantities: [],

@@ -45,7 +45,10 @@ async function main() {
   board.setTimeSource(clock.source);
   const pump = setInterval(() => { clock.advance(100); clock.pump(); }, 1);
   try {
-    for (const text of ["20√3 m", "100√2 km/h", "√(a²+b²)", "5√2"]) {
+    for (const text of [
+      "20√3 m", "100√2 km/h", "√(a²+b²)", "5√2",
+      "(20√3 m)", "(100√2 km/h)", "((20√3 m))", "((100√2 km/h))",
+    ]) {
       const pruned = pruneUnverifiedSceneAnnotations(scene(text), plan);
       assert.equal(pruned.entities.find(entity => entity.id === "length")?.label, text,
         `${text}: publication must retain the entire label, including radicand and unit`);
@@ -81,6 +84,12 @@ async function main() {
     for (const [text, value, unit] of [
       ["20√3/2 m", 17.32050807568877, "m"],
       ["(20√3)/2 m", 17.32050807568877, "m"],
+      ["((20√3)/2 m)", 17.32050807568877, "m"],
+      ["(((20√3)/2) m)", 17.32050807568877, "m"],
+      ["-(20√3 m)", -34.64101615137754, "m"],
+      ["−(20√3 m)", -34.64101615137754, "m"],
+      ["- ( 20√3 m )", -34.64101615137754, "m"],
+      ["− ( 20√3 m )", -34.64101615137754, "m"],
       ["100+100√3 km/h", 273.2050807568877, "km/h"],
       ["√(2+√3) m", 1.9318516525781366, "m"],
       ["-√3 m", -1.7320508075688772, "m"],
@@ -97,13 +106,19 @@ async function main() {
         text, `${text}: preserve supported signs, fractions, sums and nested numeric roots whole`);
     }
     const positiveRootPlan: TurnPlanV3 = { ...plan, givens: [{ id: "given", symbol: "Q", value: 1.7320508075688772, unit: "m", provenance: "given" }] };
-    for (const text of ["-√3 m", "−√3 m", "1+√3 m", "√(2+√3) m", "√(2+) m", "20√ m", "√(-2) m", "2√3/4 m"]) {
+    for (const text of ["-√3 m", "−√3 m", "1+√3 m", "√(2+√3) m", "√(2+) m", "20√ m", "√(-2) m", "2√3/4 m", "√(2 m)", "√(2+ m)"]) {
       assert(validateSceneQuantityAgreement([], positiveRootPlan, [text]).some(issue => issue.code === "displayed_quantity_unverified"),
         `${text}: suffix agreement cannot validate a different or malformed expression`);
       assert.equal(pruneUnverifiedSceneAnnotations(scene(text), positiveRootPlan).entities.find(entity => entity.id === "length")?.label,
         undefined, `${text}: remove a wrong or malformed expression whole`);
     }
-    console.log("surd publication: four full labels reach immediate/animated Whiteboard; eleven signed/fraction/sum/nested-root values retained and thirteen wrong/malformed measurements rejected whole");
+    for (const text of ["(20√2 m)", "((20√2 m))", "(100√3 km/h)", "((100√3 km/h))", "-(20√3 m)", "−(20√3 m)", "- ( 20√3 m )", "− ( 20√3 m )"]) {
+      assert(validateSceneQuantityAgreement([], plan, [text]).some(issue => issue.code === "displayed_quantity_unverified"),
+        `${text}: surrounding punctuation cannot validate a wrong measurement`);
+      assert.equal(pruneUnverifiedSceneAnnotations(scene(text), plan).entities.find(entity => entity.id === "length")?.label,
+        undefined, `${text}: remove the unsupported measurement with its surrounding wrappers`);
+    }
+    console.log("surd publication: eight full labels reach immediate/animated Whiteboard; seventeen signed/fraction/sum/nested-root values retained and twenty-three wrong/malformed measurements rejected whole");
   } finally { clearInterval(pump); unmountTestWhiteboard(board); }
 }
 runWhiteboardVerifier(main);

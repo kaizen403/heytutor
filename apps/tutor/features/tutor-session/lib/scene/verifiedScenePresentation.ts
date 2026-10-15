@@ -922,10 +922,23 @@ function capitaliseSentence(text: string): string {
 
 /** The group's cue as the sentence a teacher says while drawing the group. */
 function spokenCueSentence(cue: string, groupIndex: number, language?: NarrationLanguage): string {
-  // Planner cues use the question's English. For Hinglish, the verified
-  // entity names below supply the English subject terms inside Hindi grammar.
+  // Keep the cue's explanation, not only its entity names. The grammar
+  // below is independent of the figure's topic; technical terms stay English.
   if (language === "hinglish") {
-    return groupIndex === 0 ? "पहले इस figure का setup देखते हैं." : "अब figure का अगला हिस्सा देखते हैं.";
+    const subject = cueSubject(cue);
+    if (subject === "the physical setup") {
+      return groupIndex === 0 ? "पहले इस figure का setup देखते हैं." : "अब figure का अगला हिस्सा देखते हैं.";
+    }
+    const clause = cue.trim().replace(/[.!?]+$/, "");
+    const directedInstruction = /[.!?]\s/.test(clause) ? null
+      : /^(follow|trace)\s+(?:the\s+)?(.+?)\s+from\s+(?:the\s+)?(.+?)\s+to\s+(?:the\s+)?(.+)$/i.exec(clause);
+    if (directedInstruction) {
+      const [, verb, part, from, to] = directedInstruction;
+      return `${part} को ${from} से ${to} तक ${verb!.toLowerCase()} करो.`;
+    }
+    // Arbitrary source prose can contain a relationship we cannot translate
+    // deterministically. Retain that complete technical clause in the framing.
+    return `ध्यान दो: ${ensureSpokenSentence(cue)}`;
   }
   if (isSpokenProse(cue)) return capitaliseSentence(ensureSpokenSentence(cue));
   const subject = cueSubject(cue);
@@ -1152,7 +1165,12 @@ function cueRevealBeat(input: {
       if (phrase && !phrases.includes(phrase)) phrases.push(phrase);
     }
     if (phrases.length >= 2) {
-      const walked = walkedSetupSentence(phrases, input.groupIndex, input.language);
+      const walkthrough = walkedSetupSentence(phrases, input.groupIndex, input.language);
+      // Expanding names to fill the ink's time must not replace what the cue
+      // explains. This also covers short imperatives isSpokenProse rejects.
+      const explanation = input.language === "hinglish" && cueSubject(input.cue) !== "the physical setup"
+        ? spokenCueSentence(input.cue, input.groupIndex, input.language) : "";
+      const walked = explanation ? `${walkthrough} ${explanation}` : walkthrough;
       const walkedMatches = matchAll(walked);
       const walkedPlaced = layout(walked, walkedMatches);
       if (
