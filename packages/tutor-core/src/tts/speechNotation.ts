@@ -178,9 +178,18 @@ const POWER_WORDS: Record<string, string> = {
 
 /** Parentheses distinguish a squared speed from meters per second squared. */
 function expandGroupedPowers(text: string): string {
-  return text.replace(/\(([^()]+)\)\s*(\^[23](?![\d.]|[⁰¹²³⁴⁵⁶⁷⁸⁹])|[²³](?![⁰¹²³⁴⁵⁶⁷⁸⁹]))/g,
-    (_match, quantity: string, power: string) =>
-      ` the quantity ${quantity} all ${POWER_WORDS[power.replace("^", "")]} `);
+  const functions = text.replace(/\b(sqrt|sin|cos|tan|csc|sec|cot|ln|log|exp)\s+\(/g, "$1(")
+    .replace(/√\s+\(/g, "√(");
+  return functions.replace(/([\p{L}_][\p{L}\p{N}_]*|√)?(\([^()]+\))\s*(\^[23](?![\d.]|[⁰¹²³⁴⁵⁶⁷⁸⁹ⁿⁱ⁺⁻⁼⁽⁾])|[²³](?![⁰¹²³⁴⁵⁶⁷⁸⁹ⁿⁱ⁺⁻⁼⁽⁾]))/gu,
+    (match, functionName: string | undefined, argument: string, power: string) => {
+      // `sqrt(2)^2` squares the whole root. Removing only its argument's
+      // parentheses would also prevent the later root reader recognizing it.
+      // Other adjacent identifiers may be multiplication, e.g. x(a+b)^2:
+      // retain their complete original notation rather than guessing scope.
+      if (functionName && !/^(?:sqrt|√|sin|cos|tan|csc|sec|cot|ln|log|exp)$/i.test(functionName)) return match;
+      const quantity = functionName ? `${functionName}${argument}` : argument.slice(1, -1);
+      return ` the quantity ${quantity} all ${POWER_WORDS[power.replace("^", "")]} `;
+    });
 }
 
 /**

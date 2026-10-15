@@ -43,3 +43,39 @@ assert.equal(mathToSpeech(mathToSpeech("(20 m/s)²")), mathToSpeech("(20 m/s)²"
 for (const text of ["अब one hundred twenty meters per second squared लो.", "अब minus twenty meters per second squared लो.", "अब point twenty meters per second squared लो."]) {
   assert.equal(clarifyGroupedQuantityNarration(text, ["v² = (20 m/s)²"]), text, "a suffix of another signed/decimal scalar is not the paired twenty");
 }
+
+// The exponent belongs to the complete function call, not to its argument.
+for (const [expression, expected] of [
+  ["sqrt(2)^2", "the quantity square root of 2 all squared"],
+  ["√(x+1)^2", "the quantity square root of (x+1) all squared"],
+  ["sin(x)^2", "the quantity sine(x) all squared"],
+  ["cos(θ)^2", "the quantity cosine(theta) all squared"],
+  ["f(x+1)^2", "f(x+1) squared"],
+  ["x(a+b)^2", "x(a+b) squared"],
+  ["sqrt(2)²", "the quantity square root of 2 all squared"],
+  ["√(x+1)²", "the quantity square root of (x+1) all squared"],
+  ["sqrt(2)^3", "the quantity square root of 2 all cubed"],
+]) {
+  assert.equal(mathToSpeech(expression!), expected, `a power must retain the whole function call: ${expression}`);
+}
+assert.equal(mathToSpeech("sqrt(2)"), "square root of 2", "an ordinary root retains its established reading");
+assert.equal(mathToSpeech("sin(x)"), "sine(x)", "an ordinary trig call retains its established reading");
+for (const written of [
+  "v² = sqrt(20 m/s)^2", "v² = √(20m/s)²", "v² = sqrt (20 m/s)^2",
+  "v² = sin(20 m/s)^2", "v² = f(20 m/s)^2", "v² = x(20 m/s)^2",
+]) {
+  assert.equal(clarifyGroupedQuantityNarration(capturedSegment.narration, [written]), capturedSegment.narration,
+    `a powered function argument or ambiguous adjacent identifier cannot prove the spoken quantity square: ${written}`);
+}
+assert.match(clarifyGroupedQuantityNarration(capturedSegment.narration, ["v² = 2(20 m/s)^2"]), /the quantity twenty meters per second all squared/,
+  "a numeric factor leaves the parenthesized speed as a whole squared quantity");
+assert.equal(clarifyGroupedQuantityNarration(capturedSegment.narration, ["v² = (20 m/s)^2 + sqrt(20 m/s)^2"]), capturedSegment.narration,
+  "an identically spoken function argument makes the quantity attribution ambiguous");
+assert.equal(mathToSpeech("sqrt (2)^2"), "the quantity square root of 2 all squared");
+assert.equal(mathToSpeech("√ (x+1)^2"), "the quantity square root of (x+1) all squared");
+assert.equal(mathToSpeech("notice (20 m/s)^2"), "notice the quantity 20 meters per second all squared", "ordinary prose cannot become a function prefix");
+for (const expression of ["(20 m/s)²ⁿ", "(20 m/s)²⁺¹", "(20 m/s)²⁻¹", "(20 m/s)^2⁺¹"]) {
+  assert(!mathToSpeech(expression).includes("all squared"), `a continuing superscript run is not a complete square: ${expression}`);
+  assert.equal(clarifyGroupedQuantityNarration(capturedSegment.narration, [`v = ${expression}`]), capturedSegment.narration,
+    `a continuing superscript run cannot establish the paired speed square: ${expression}`);
+}
