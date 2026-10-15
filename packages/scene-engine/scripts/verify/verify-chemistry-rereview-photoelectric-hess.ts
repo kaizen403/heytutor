@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { readChemistryQuantity } from "../../src/chemistry/quantityReader";
 import { createHash } from "node:crypto";
-import { buildAtomicRadiationScene } from "../../src/chemistry/atomicRadiation";
+import { buildAtomicRadiationScene, isAtomicRadiationStem } from "../../src/chemistry/atomicRadiation";
 import { buildChemicalThermodynamicsScene } from "../../src/chemistry/chemicalThermodynamics";
 import { buildThermoGraphScene } from "../../src/chemistry/thermoGraphs";
 import { compileSceneDocument } from "../../src/compile/compiler";
@@ -582,6 +582,27 @@ for (const row of workFunctionDecimalRows) check("complete decimal work-function
   }
 });
 // END PR137 complete decimal work-function scalar controls.
+
+// BEGIN PR137 public physics asked work-function ownership controls.
+// Asking to infer a work function supplies no declaration for chemistry ink.
+const askedWorkFunctionPhysicsRows = [
+  {
+    "id": "physics|17|photoelectric-effect-and-observations|q2",
+    "question": "A metal emits photoelectrons with stopping potential 0.50 V under 500 nm illumination. Infer its work function and threshold wavelength. Predict stopping potential under 400 nm light. If intensity doubles at 500 nm with fixed absorption and collection efficiency, describe the saturated current and stopping potential. Use hc=1240 eV nm, with electronvolts for energies.",
+    "questionSha256": "15fec9163349c562e92e9b91998a9d0b7bc5b504ecf4917a68b0ef1461a73242"
+  },
+  {
+    "id": "physics|17|photoelectric-graphs-and-stopping-potential|q2",
+    "question": "A metal has stopping potentials 0.40 V and 1.20 V at frequencies 6.0e14 Hz and 8.0e14 Hz. Assume Einstein’s one-photon equation and a straight-line graph of stopping potential against frequency. Infer h/e, work function in eV and threshold frequency. Predict the stopping potential at 7.0e14 Hz and explain how the graph changes if the beam intensity alone triples.",
+    "questionSha256": "e7783213243bb458d62eb1b0b717474d9b4639670f78df2103d70da9c2398c61"
+  }
+] as const;
+for (const row of askedWorkFunctionPhysicsRows) check("public physics asked work-function role: " + row.id, () => {
+  assert.equal(createHash("sha256").update(row.question).digest("hex"), row.questionSha256);
+  assert.equal(isAtomicRadiationStem(row.question), false, "an asked work function without a supplied declaration must retain physics ownership");
+  assert.ok(!inferChemistryFamilies(row.question).includes("chem_orbital"), "an asked work function cannot select the chemistry orbital family");
+});
+// END PR137 public physics asked work-function ownership controls.
 
 console.log(`verify-chemistry-rereview-photoelectric-hess: ${checks} checks passed / ${failures.length} failed`);
 if (failures.length) { console.error(failures.join("\n")); process.exitCode = 1; }
