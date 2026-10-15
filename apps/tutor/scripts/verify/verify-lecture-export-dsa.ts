@@ -229,7 +229,7 @@ async function cacheUpgradePrunesPreviousRevisions(): Promise<void> {
   const file = process.env.DSA_EXPORT_CACHE_SOURCE ?? path.join(app, "lib/lecture-export/lectureExportCache.ts");
   const cacheModule = { exports: {} as typeof import("../../lib/lecture-export/lectureExportCache") };
   const value = { blob: new Blob(["retained current export"]), mimeType: "video/mp4", extension: "mp4", noVoice: true, missingAudioCues: 0 };
-  const keys = ["page@1.25@video6", "page@1.25@video7", "page@1.25@video7.webm", "page@1.25@video8", "page@1.25@video8.webm", "page@1.25@video9", "unrelated"];
+  const keys = ["page@1.25@video6", "page@1.25@video7", "page@1.25@video7.webm", "page@1.25@video8", "page@1.25@video8.webm", "page@1.25@video9", "page@1.25@video9.webm", "page@1.25@video10", "unrelated"];
   const rows = new Map(keys.map(key => [key, value]));
   let openedVersion: number | undefined;
   let finishUpgrade: (() => void) | undefined;
@@ -269,10 +269,10 @@ async function cacheUpgradePrunesPreviousRevisions(): Promise<void> {
     return requireApp(name);
   } });
   new vm.Script(ts.transpileModule(readFileSync(file, "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText).runInContext(context);
-  const current = await cacheModule.exports.getCachedLectureExport("page@1.25@video8");
-  assert.equal(openedVersion, 8, "the actual IndexedDB cache upgrades past truncated video7 files");
+  const current = await cacheModule.exports.getCachedLectureExport("page@1.25@video9");
+  assert.equal(openedVersion, 9, "the actual IndexedDB cache upgrades past early-dump video8 files");
   assert.equal(current?.blob, value.blob, "the current valid cached file remains usable");
-  assert.deepEqual([...rows.keys()], keys.slice(3), "the actual cache cursor deletes only older video6/video7 blobs, retaining current, future and unrelated keys");
+  assert.deepEqual([...rows.keys()], keys.slice(5), "the actual cache cursor deletes older video6/video7/video8 blobs, retaining current, future and unrelated keys");
 }
 
 async function main() {

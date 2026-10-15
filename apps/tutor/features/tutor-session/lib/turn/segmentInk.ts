@@ -118,6 +118,8 @@ export type SegmentInkClock = {
   /** Holds a word wait without spending its deadline while the lesson is paused. */
   isPaused?: () => boolean;
   nowMs?: () => number;
+  /** Recorded players advance a virtual media clock rather than wall timers. */
+  waitForAdvance?: () => Promise<void>;
   /** The voice has ended; a code block still typing finishes on the wall clock. */
   isSpeechComplete?: () => boolean;
   canAdvanceAfterSpeech?: () => boolean;
@@ -556,15 +558,22 @@ export async function drawSegmentInk(input: {
         : 0;
 
     if (startDelayMs > 0 && (cueStartMs !== null || speechWindow)) {
-      await waitUntilDrawClock(clock.getAudioPositionMs, cueStartMs ?? commandStartMs, {
-        shouldCancel: isCancelled,
-        getPlaybackRate: clock.getPlaybackRate,
-        ...(clock.isPaused ? { isPaused: clock.isPaused } : {}),
-        ...(clock.nowMs ? { nowMs: clock.nowMs } : {}),
-        ...(command.type === "TYPE" && cueStartMs === null
-          ? { getTargetMs: () => typeCommandStartMs(command, clock, textCommandIndex) }
-          : {}),
-      });
+      const getTargetMs = command.type === "TYPE" && cueStartMs === null
+        ? () => typeCommandStartMs(command, clock, textCommandIndex)
+        : () => cueStartMs ?? commandStartMs;
+      if (clock.waitForAdvance) {
+        while (!isCancelled() && clock.getAudioPositionMs() + 10 < getTargetMs()) {
+          await clock.waitForAdvance();
+        }
+      } else {
+        await waitUntilDrawClock(clock.getAudioPositionMs, getTargetMs(), {
+          shouldCancel: isCancelled,
+          getPlaybackRate: clock.getPlaybackRate,
+          ...(clock.isPaused ? { isPaused: clock.isPaused } : {}),
+          ...(clock.nowMs ? { nowMs: clock.nowMs } : {}),
+          getTargetMs,
+        });
+      }
       if (isCancelled()) {
         return;
       }
