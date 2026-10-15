@@ -130,7 +130,7 @@ function assertLinearSourceGrammar(text: string): void {
     throw new Error("Repeated source complement requires an explicit supported scope");
   if (/\b(?:each\s+(?:of|inequality|interval|set|graph)|separately|separate\s+(?:axes|graphs?|number[ -]lines?))\b/i.test(text))
     throw new Error("Separate source requests cannot be merged into one linear program");
-  if (/\bquadrants?\b|\bnon[- ]?negativity\b/i.test(text))
+  if (/\bquadrants?\b|\bnon[- ]?negativity\b/i.test(text.replace(/\bin\s+(?:the\s+)?first\s+quadrant\b/gi, " ")))
     throw new Error("Implicit planar domains require explicit supported inequality clauses");
   if (/\b(?:in|over)\s+[NZW]\b/i.test(text))
     throw new Error("Discrete source domains cannot be represented by continuous linear figures");
@@ -162,6 +162,8 @@ function sourceNotation(text: string, names: readonly string[]): string {
 }
 /** Explicit variable-domain grammar; these givens are never assumed by convention. */
 function explicitDomains(text: string, names: readonly string[]): string {
+  if (names.length === 2 && names[0] === "x" && names[1] === "y") text = text.replace(/\bin\s+(?:the\s+)?first\s+quadrant\b/gi,
+    (_, offset: number) => /[<>=]/.test(text.slice(0, offset)) ? " and x>=0 and y>=0 " : " x>=0 and y>=0 and ");
   const name = `(?:${names.join("|")})`;
   const list = `${name}(?:\\s*(?:,\\s*(?:and\\s*)?|and\\s+)${name})*`;
   const domain = "non[- ]?negative|non[- ]?positive|positive|negative";
@@ -865,10 +867,15 @@ function intervalSourceProgram(body: string, variable: string, setAliases?: Set<
   if (bindings.size === 0) return null;
   let residual = body;
   for (const span of spans.reverse()) residual = residual.slice(0, span.start) + " ".repeat(span.end - span.start) + residual.slice(span.end);
+  residual = residual.replace(/\belements\s+in\s+([A-Za-z][A-Za-z0-9_]*)\s+but\s+outside\s+([A-Za-z][A-Za-z0-9_]*)\b/gi,
+    (_, first: string, second: string) => {
+      if (!bindings.has(first) || !bindings.has(second)) throw new Error("Set difference requires two proved continuous interval operands");
+      return `${first} intersection not (${second})`;
+    });
   if (["[", "]", "{", "}"].some((character) => residual.includes(character)))
     throw new Error("Unconsumed interval or unsupported source set literal");
   const namedOperands = [
-    ...residual.matchAll(/\b(?:union|intersection|complement\s+of)\s+(?!of\b)([A-Za-z][A-Za-z0-9_]*)/gi),
+    ...residual.matchAll(/\b(?:union|intersection|complement\s+of)\s+(?:(?:not|complement\s+of)\s*\(*\s*)?(?!of\b)([A-Za-z][A-Za-z0-9_]*)/gi),
     ...residual.matchAll(/\b([A-Za-z][A-Za-z0-9_]*)\s+(?:union|intersection)\b/gi),
     ...residual.matchAll(/[∪∩]\s*([A-Za-z][A-Za-z0-9_]*)/g),
     ...residual.matchAll(/\b([A-Za-z][A-Za-z0-9_]*)\s*[∪∩]/g),
@@ -1125,7 +1132,7 @@ function sourceObjective(body: string, names: readonly string[]): SourceObjectiv
  * ambiguous dimensions are refused rather than guessed from planner output.
  */
 export function buildLinearSourceDocument(question: string): SceneDocument | null {
-  if (typeof question !== "string" || question.length > 8192 || hasUnsupportedDiscreteDomain(question)) return null;
+  if (typeof question !== "string" || question.length > 8192) return null;
   try {
     const normalized = normalize(question);
     assertLinearSourceGrammar(normalized);
@@ -1134,6 +1141,7 @@ export function buildLinearSourceDocument(question: string): SceneDocument | nul
     if (/\b(?:angles?|distances?|bisectors?|slopes?|areas?|tan(?:gent)?|reflections?|reflected|rotations?|rotated|translations?|translated)\b/i.test(normalized)) return null;
     const numberLineRequested = /\bnumber[ -]line\b/i.test(normalized)
       || /\breal\s+x\b/i.test(normalized) && !/\by\b|\b(?:half[ -]plane|coordinate\s+plane|pairs?)\b|(?:R|ℝ)(?:\^2|²)/i.test(normalized);
+    if (hasUnsupportedDiscreteDomain(question, !numberLineRequested)) return null;
     let operator: string;
     let inputs: Record<string, unknown>;
     if (numberLineRequested) {
@@ -1208,7 +1216,7 @@ function readLinearBindingSource(question: string, names: readonly string[], num
   try {
     const normalized = normalize(question);
     assertLinearSourceGrammar(normalized);
-    let body = explicitDomains(sourceNotation(normalized, names), names);
+    let body = explicitDomains(sourceNotation(canonicalRealDomainSource(normalized, names), names), names);
     const points = readLinearSourceReferencePoints(body, names);
     body = points.maskedQuestion;
     body = body.replace(/\b([A-Za-z][A-Za-z0-9_]*)\s*∈\s*ℝ/g, (_, variable: string) => {
@@ -1229,17 +1237,18 @@ function readLinearBindingSource(question: string, names: readonly string[], num
         signatures(inequalityLeaves(named), names);
         if (/\bstrict[- ]boundary\s+exclusion\b/i.test(body)
           && !inequalityLeaves(named).some(leaf => parseLinearConstraint(leaf, names).some(row => row.strict))) return null;
-        if (hasUnsupportedDiscreteDomain(question)) return null;
+        if (hasUnsupportedDiscreteDomain(question, !numberLine, true, aliases)) return null;
         return { source: [], program: named, aliases };
       }
     }
     const source = clauses(body, names, proseLabels);
     const program = booleanProgram(body, source, proseLabels, true);
     signatures(inequalityLeaves(program), names);
+    const aliases = new Set([...body.matchAll(/\bsolution\s+set\s+([A-Za-z][A-Za-z0-9_]*)\s*(?=of\b|for\b|on\b|[.;?!]|$)/gi)].map(match => match[1]!).filter(isLinearSourceIdentifier));
     if (/\bstrict[- ]boundary\s+exclusion\b/i.test(body)
       && !inequalityLeaves(program).some(leaf => parseLinearConstraint(leaf, names).some(row => row.strict))) return null;
-    if (hasUnsupportedDiscreteDomain(question)) return null;
-    return { source, program, ...(objective ? { objective } : {}) };
+    if (hasUnsupportedDiscreteDomain(question, !numberLine, true, aliases)) return null;
+    return { source, program, aliases, ...(objective ? { objective } : {}) };
   } catch {
     // A failed lexical, scope, or request proof is absence of authority. Only
     // the completed result above can enter a proposed/source comparison.
@@ -1251,21 +1260,126 @@ function readLinearBindingSource(question: string, names: readonly string[], num
  * cue is incompatible, even when its prose role is unknown or hypothetical.
  * The safe list removes only the coefficient property itself; a separate
  * integer/prime/membership restriction in the same question still blocks. */
-function hasUnsupportedDiscreteDomain(question: string): boolean {
-  const remaining = question
+function normalizeLinearDomainNotation(question: string): string {
+  return question.replace(/²/g, "^2").normalize("NFKC")
+    .replace(/[−–—]/g, "-")
+    .replace(/\\(?:epsilon|varepsilon|in)\b|[εє∊]/giu, "∈")
+    .replace(/\\(?:left|right)\b/g, "")
+    .replace(/\\(?:mathbb|mathbf|mathrm|mathsf|Bbb)\s*(?:\{\s*([^{}]+?)\s*\}|([A-Za-z]))/g, "$1$2")
+    .replace(/\\([RZNIW])\b/g, "$1")
+    .replace(/\\([{}])/g, "$1")
+    .replace(/\\(?:ldots|dots|cdots)\b|…|\.\s*\.\s*\./g, "...")
+    .replace(/\$/g, "");
+}
+
+/** Canonicalize only literal real declarations; retain every following source
+ * constraint/request for the ordinary complete-program proof and comparison. */
+function canonicalRealDomainSource(question: string, names: readonly string[]): string {
+  // Repair domain notation without reinterpreting unrelated affine arithmetic
+  // (for example, the ordinary reader deliberately declines an em dash).
+  let source = sourceNotation(question
+    .replace(/\\(?:epsilon|varepsilon|in)\b|[εϵє∊]/giu, "∈")
+    .replace(/\\(?:mathbb|mathbf|mathrm|mathsf|Bbb)\s*(?:\{[^{}]{1,32}\}|[A-Za-z])|\\R\b|[\p{L}]/gu,
+      token => normalizeLinearDomainNotation(token) === "R" ? "R" : token), names);
+  const variable = `(?:${names.join("|")})`, list = `${variable}(?:\\s*(?:,\\s*(?:and\\s*)?|and\\s+)${variable})*`;
+  const real = String.raw`(?:R|real(?:\s+numbers?)?)(?![\p{L}\p{N}_]|\s+pairs?\b)`;
+  source = source.replace(new RegExp(`\\b(${list})\\s*(?:(?:is|are)\\s+)?(?:∈|in\\b|ranges?\\s+over|belongs?\\s+to(?:\\s+(?:the\\s+)?set)?|(?:elements?|members?)\\s+of)\\s*(?:the\\s+)?(?:all\\s+)?${real}`, "giu"),
+    (_, variables: string, offset: number, whole: string) => /\{\s*$/.test(whole.slice(0, offset)) ? `${variables} in R` : " ");
+  return source.replace(new RegExp(`\\b(?:U\\s*=|domain\\b(?:\\s+(?:is|as)|\\s*[:=])?|replacement\\s+set\\b(?:\\s+(?:is|as)|\\s*=)?|(?:in|over)\\b)\\s*(?:the\\s+)?(?:all\\s+)?${real}`, "giu"), " ");
+}
+
+/** A finite source point queried against the already drawn region is not a
+ * variable's replacement set. Keep unknown named sets and qualified queries. */
+function withoutLinearMembershipQueries(source: string, planar: boolean, sourceProved?: boolean, aliases: ReadonlySet<string> = new Set()): string {
+  let labels: string[] = [];
+  try {
+    const references = readLinearSourceReferencePoints(source, planar ? ["x", "y"] : ["x"]);
+    labels = references.points.map(point => point.label);
+    source = references.maskedQuestion;
+  } catch { /* An unproved point declaration supplies no exemption. */ }
+  const names = labels.length ? `(?:${labels.join("|")})(?:\\s*(?:,|and|or)\\s*(?:${labels.join("|")}))*` : "(?!)";
+  if (labels.length && sourceProved !== false) {
+    const known = (name: string) => sourceProved === undefined || aliases.has(name);
+    source = source.replace(/\b(?:classify|state|report|determine|identify)\s+(?:(?:their|its)\s+)?membership\s+in\s+([A-Za-z][A-Za-z0-9_]*)\s*(?=[.;?!]|$)/gi,
+      (whole, name: string) => known(name) ? " " : whole);
+    source = source.replace(new RegExp(`\\b(?:whether|which(?:\\s+of)?)\\s+(?:each(?:\\s+point)?|points?|${names})?\\s*belongs?\\s+to\\s+([A-Za-z][A-Za-z0-9_]*)\\s*(?=[.;?!]|$)`, "gi"),
+      (whole, name: string) => known(name) ? " " : whole);
+  }
+  if (sourceProved !== false) source = source.replace(/\bwhether\s+(?:points\s+on\s+)?the\s+boundary\s+belongs?\s+to\s+(?:it|the\s+set)\s*(?=[.;?!]|$)/gi, " ");
+  if (planar && !labels.length) return source;
+  const scalar = String.raw`[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:\s*/\s*\d+)?`;
+  const subject = planar ? `(?:points?|${names})?` : `(?:${scalar}|${names})`;
+  return source.replace(new RegExp(`\\b(?:which(?:\\s+of)?|whether|does|do)\\s+${subject}\\s*(?:belongs?\\s+to|lies?\\s+in|is\\s+in)\\s+(?:the\\s+)?(?:half[ -]plane|(?:shaded\\s+)?(?:solution\\s+)?(?:region|set)|it)\\s*(?=[.;?!]|$)`, "gi"), " ");
+}
+
+/** Membership proves only its complete target. Unknown sets or qualifications
+ * cannot silently become the unrestricted real domain. Location prose is not
+ * membership; the existing leading real-plane notation is dimension checked. */
+function hasUnsupportedMembership(remaining: string, planar: boolean, sourceProved?: boolean, aliases: ReadonlySet<string> = new Set()): boolean {
+  const source = withoutLinearMembershipQueries(remaining, planar, sourceProved, aliases)
+    .replace(/\bin\s+this\s+(?:case|example)\b|\bexplain\s+in\s*:/gi, " ")
+    .replace(/\bin\s+(?:(?:a|an|the|same|real)\s+)*(?:(?:coordinate|xy|Cartesian)[ -]+)?(?:number[ -]line|plane|graph)\b/gi, " ")
+    .replace(/\belements\s+in\s+([A-Za-z][A-Za-z0-9_]*)\s+but\s+outside\s+([A-Za-z][A-Za-z0-9_]*)\b/gi,
+      (whole, first: string, second: string) => sourceProved === undefined || sourceProved && aliases.has(first) && aliases.has(second) ? " " : whole);
+  const heads = /∈|\b(?:in\b|over\b|belongs?\s+to\b(?:\s+(?:the\s+)?set\b)?|(?:elements?|members?)\s+of\b|replacement\s+set\b(?:\s+(?:is\b|as\b)|\s*=)?|domain\b(?:\s+(?:is\b|as\b)|\s*[:=])?)\s*|\bU\s*=/giu;
+  for (const head of source.matchAll(heads)) {
+    const target = source.slice(head.index! + head[0].length).replace(/^\s*(?:the\s+)?(?:set\s+of\s+)?(?:all\s+)?/i, "");
+    // U may be an explicit native interval/set-builder name, not a universe
+    // declaration. The complete native program must subsequently bind it.
+    if (/^U\s*=$/i.test(head[0]) && /^[{[(]/.test(target)
+      && (sourceProved === undefined || sourceProved && aliases.has("U"))) continue;
+    if (/^in\b/i.test(head[0]) && /^first\s+quadrant\b/i.test(target) && planar && sourceProved !== false) continue;
+    // "Maximized over x>=0, ..." is a proved affine constraint scope,
+    // not a named replacement set. Unknown set names cannot pass this path.
+    if (/^over\b/i.test(head[0]) && sourceProved !== false) {
+      try {
+        const variables = planar ? ["x", "y"] : ["x"];
+        const comparisons = clauses(target, variables);
+        if (comparisons.length) {
+          signatures(comparisons.map(clause => clause.text), variables);
+          booleanProgram(target, comparisons, [], true);
+          continue;
+        }
+      } catch { /* The complete affine scope was not proved. */ }
+    }
+    // Preserve set-symbol identity: lowercase r is not the real set R.
+    const real = /^(?:R(?:\s*\^\s*(?:2|\{\s*2\s*\}))?|[rR][eE][aA][lL](?:\s+[nN][uU][mM][bB][eE][rR][sS]?)?)(?=$|\s|[,;:.?!)}\]])/u.exec(target);
+    if (!real) return true;
+    if (real[0].includes("^") && (!planar || !/^(?:in|over)\s*$/i.test(head[0]) || source.slice(0, head.index).trim() !== "")) return true;
+    // Punctuation may precede a separate display request, but cannot erase
+    // an unknown qualification such as "R, excluding 0".
+    const continuation = target.slice(real[0].length).replace(/^[,;:.?!)}\]\s]+/u, "");
+    if (continuation && sourceProved === false) return true;
+  }
+  return false;
+}
+
+function hasScalarRoster(remaining: string): boolean {
+  // Numeric fraction braces are operands, not singleton set declarations.
+  // Mask complete ordinary fractions only; a comma/ellipsis cannot hide here.
+  const source = remaining.replace(/\\(?:frac|dfrac|tfrac)\s*\{([^{};,]+)\}\s*\{([^{};,]+)\}/g,
+    (match, numerator: string, denominator: string) => [numerator, denominator].every(part => /^[\w\s()+*/^.-]+$/.test(part) && !/\.{2}/.test(part)) ? " " : match);
+  const scalar = String.raw`[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?(?:\s*/\s*[+-]?\d+)?`;
+  const member = String.raw`(?:${scalar}|\.{3})`;
+  const roster = new RegExp(String.raw`^\s*${member}(?:\s*[,;]\s*${member})*\s*$`, "u");
+  return [...source.matchAll(/\{([^{}]*)\}/g)].some(match => roster.test(match[1]!));
+}
+
+function hasUnsupportedDiscreteDomain(question: string, planar = false, sourceProved?: boolean, aliases?: ReadonlySet<string>): boolean {
+  // The existing named-set reader checks both sides of this complete identity.
+  // Early reading may defer it; only its actual proved aliases permit removal.
+  question = question.replace(/\b(?:Here\s+)?([A-Za-z][A-Za-z0-9_]*)\s+(?:minus|union|intersect(?:ion)?)\s+([A-Za-z][A-Za-z0-9_]*)\s+means\s+x\s+is\s+in\s+([A-Za-z][A-Za-z0-9_]*)\s+(?:AND|OR)\s+x\s+is\s+(?:not\s+)?in\s+([A-Za-z][A-Za-z0-9_]*)\s*(?=[.;?!]|$)/gi,
+    (whole, a: string, b: string, c: string, d: string) => [a, b, c, d].some(name => /^[INZW]$/.test(name)) ? whole
+      : sourceProved === undefined || sourceProved && [a, b, c, d].every(name => aliases?.has(name)) ? " " : whole);
+  if (/∉|\\notin\b|\\not\s*\\in\b|\bnot\s+in\b/iu.test(question)) return true;
+  const remaining = normalizeLinearDomainNotation(question)
     .replace(/\binteger(?:\s+|-)coefficients?\b/gi, " ")
     .replace(/\bcoefficients?\s+(?:is|are)\s+(?:an?\s+)?integers?\b/gi, " ");
-  if (/\b(?:integers?|integral|whole|natural|counting|primes?|odd|even|lattices?)\b/i.test(remaining)) return true;
-  if (/[ℤℕ]|\\mathbb\s*(?:\{\s*[INZW]\s*\}|[INZW](?![\p{L}]))/u.test(remaining)) return true;
-  // ASCII domain symbols need membership syntax so ordinary set/line names
-  // are not mistaken for domains. Punctuation and signed/subscript suffixes
-  // do not make I, Z, N or W into a continuous real domain.
-  if (/(?:∈\s*|\\in\s*|\b(?:in|over|belongs?\s+to)\s+)(?:the\s+)?(?:[INZW](?![\p{L}])|\\mathbb\s*\{\s*[INZW]\s*\})/u.test(remaining)) return true;
-  // A scalar roster is discrete. A singleton needs membership/assignment
-  // syntax; isolated numeric braces in LaTeX fractions are not set domains.
-  const scalar = String.raw`[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:\s*/\s*[+-]?\d+)?`;
-  const tail = String.raw`(?:\s*[,;]\s*(?:${scalar}|\.{3}|…))`;
-  return new RegExp(String.raw`\{\s*${scalar}${tail}+\s*\\?\}|(?:∈|\\in\b|\b(?:in|over)\s+|=)\s*\\?\{\s*${scalar}${tail}*\s*\\?\}`, "u").test(remaining);
+  if (/\b(?:integers?|intergers?|ints?|integral|whole|naturals?|counting|primes?|odd|even|lattices?|digits?)\b/i.test(remaining)) return true;
+  if (/\\not\s*∈|\bnot\s+∈/iu.test(remaining)) return true;
+  if (/पूर्णांक|पूर्ण\s*संख्या|(?:प्राकृत|प्राकृतिक)\s*संख्या|\b(?:poornanks?|purnanks?|(?:poorn|purn|prakritik|prakrit)\s+sankhya)\b/i.test(remaining)) return true;
+  if (/[ℤℕ]|\\mathbb\s*(?:\{\s*[INZW]\s*\}|[INZW](?![\p{L}]))/u.test(question)) return true;
+  return hasUnsupportedMembership(remaining, planar, sourceProved, aliases) || hasScalarRoster(remaining);
 }
 
 export function validateLinearSourceBinding(document: SceneDocument): SceneIssue[] {
@@ -1302,7 +1416,7 @@ export function validateLinearSourceBinding(document: SceneDocument): SceneIssue
           throw new Error("An original named intersection tuple contradicts the complete source system");
       }
       const authority = readLinearBindingSource(question, names, input.kind === "number_line_set");
-      if (hasUnsupportedDiscreteDomain(question))
+      if (hasUnsupportedDiscreteDomain(question, input.kind !== "number_line_set", authority !== null, authority?.aliases))
         throw new Error("Continuous linear figures cannot represent a source with an unsupported discrete domain cue");
       if (!authority) continue;
       const ownedOutputs = new Set(document.constructions

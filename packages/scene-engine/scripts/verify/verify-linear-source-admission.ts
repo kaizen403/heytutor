@@ -8,6 +8,7 @@ interface Refusal {
   operator: string;
   inputs: Record<string, unknown>;
   builderOnly?: boolean;
+  provedSource?: boolean;
 }
 
 function candidate(test: Refusal): SceneDocument {
@@ -64,6 +65,7 @@ const refusals: Refusal[] = [{
 }, {
   group: "implicit-planar-domain",
   question: "Shade the region x+y<=4 in the first quadrant.",
+  provedSource: true,
   operator: "linear_half_plane", inputs: { variables: ["x", "y"], inequality: "x+y<=4" },
 }, {
   group: "implicit-planar-domain",
@@ -168,9 +170,12 @@ let checks = 0;
 const failures: string[] = [];
 for (const test of refusals.filter(test => !selected || test.group === selected)) {
   try {
-    assert.equal(buildLinearSourceDocument(test.question), null, `Reader must decline ${test.group}: ${test.question}`);
+    const reader = buildLinearSourceDocument(test.question);
+    if (test.provedSource) {
+      assert.ok(reader && compileSceneDocument(reader).ok, `Complete source proof required: ${test.question}`);
+    } else assert.equal(reader, null, `Reader must decline ${test.group}: ${test.question}`);
     if (test.builderOnly) { checks++; continue; }
-    const unprovedReason = unprovedGroups.get(test.group);
+    const unprovedReason = test.provedSource ? undefined : unprovedGroups.get(test.group);
     if (unprovedReason) {
       assert.deepEqual(validateLinearSourceBinding(candidate(test)), [], `An unproved reader must not veto: ${unprovedReason}: ${test.question}`);
       // Do not assert that this intentionally partial stored candidate is a
@@ -188,11 +193,13 @@ if (selected) assert.ok(checks > 0, `Unknown refusal group: ${selected}`);
 else {
   for (const test of [
     { group: "correct-double-complement", question: "Represent the complement of the complement of x<0 on a number line.", operator: "number_line_set", inputs: { variable: "x", expression: { inequality: "x<0" } } },
-    { group: "correct-first-quadrant", question: "Shade x+y<=4 in the first quadrant.", operator: "linear_feasible_region", inputs: { variables: ["x", "y"], constraints: ["x+y<=4", "x>=0", "y>=0"] } },
+    { group: "correct-first-quadrant", provedSource: true, question: "Shade x+y<=4 in the first quadrant.", operator: "linear_feasible_region", inputs: { variables: ["x", "y"], constraints: ["x+y<=4", "x>=0", "y>=0"] } },
     { group: "correct-mixed-fraction", question: "Represent x>2 1/2 on a number line.", operator: "number_line_set", inputs: { variable: "x", expression: { inequality: "x>5/2" } } },
     { group: "correct-interval-difference", question: "Let A=[1,5] and B=[3,7]. Represent A minus B on a number line.", operator: "number_line_set", inputs: { variable: "x", expression: { intersection: [{ intersection: [{ inequality: "x>=1" }, { inequality: "x<=5" }] }, { complement: { intersection: [{ inequality: "x>=3" }, { inequality: "x<=7" }] } }] } } },
   ] satisfies Refusal[]) {
-    assert.equal(buildLinearSourceDocument(test.question), null);
+    const reader = buildLinearSourceDocument(test.question);
+    if ("provedSource" in test && test.provedSource) assert.ok(reader && compileSceneDocument(reader).ok);
+    else assert.equal(reader, null);
     const result = compileSceneDocument(candidate(test));
     assert.ok(result.ok && result.renderScene, `${test.group}: ${JSON.stringify(result.report.issues)}`);
     checks += 2;

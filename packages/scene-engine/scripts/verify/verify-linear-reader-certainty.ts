@@ -64,7 +64,14 @@ const uncertain = [
   "If x>1 then graph x+y<=8.",
   "Represent complement x<0 on a number line.",
 ];
-for (const [i, question] of uncertain.entries()) check(`uncertain-reader-${i + 1}`, () => assert.equal(buildLinearSourceDocument(question), null, question));
+// The exact historical outside-B wording now has a complete interval proof.
+// Every other uncertain source retains the original refusal/no-veto boundary.
+const provedIntervalDifference = "Let A=[0,4] and B=[1,2]. Plot the elements in A but outside B on a number line.";
+for (const [i, question] of uncertain.entries()) check(`uncertain-reader-${i + 1}`, () => {
+  const reader = buildLinearSourceDocument(question);
+  if (question === provedIntervalDifference) assert.ok(reader && compileSceneDocument(reader).ok, question);
+  else assert.equal(reader, null, question);
+});
 
 const difference = { intersection: [
   { intersection: [{ inequality: "x>=0" }, { inequality: "x<=4" }] },

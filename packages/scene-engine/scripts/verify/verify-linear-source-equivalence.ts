@@ -101,7 +101,9 @@ cases.push(
   numberLine("interval-open-closure-mutation", "Let C = [-5, 2) and D = (2, 7]. Show C union D on a number line.", { inequality: "x>=-5" }, false),
   numberLine("interval-unknown-name", "Let C = [-5, 2). Show C union E on a number line.", { intersection: [{ inequality: "x>=-5" }, { inequality: "x<2" }] }, false),
   numberLine("interval-omitted-declared-domain", "Let C = [-5, 2). Show C on a number line for x >= 0.", { intersection: [{ inequality: "x>=-5" }, { inequality: "x<2" }] }, false),
+  // The scalar exclusion must veto a planner interval that still includes -1.
   numberLine("interval-unsupported-operation", "Let C = [-5, 2). Show C except {-1} on a number line.", { intersection: [{ inequality: "x>=-5" }, { inequality: "x<2" }] }, false),
+  numberLine("interval-continuous-companion", "Let C = [-5, 2). Show C on a number line.", { intersection: [{ inequality: "x>=-5" }, { inequality: "x<2" }] }),
   numberLine("interval-variable-endpoint", "Let C = [-5, x). Show C on a number line.", { inequality: "x>=-5" }, false),
   numberLine("boolean-changed-leaf-same-set", "Show x<0 or x>=0 on a number line.", { union: [{ inequality: "x<1" }, { inequality: "x>=1" }] }, false),
 );
@@ -158,7 +160,7 @@ const unprovedSources = new Map<string, string>([
   ...["unknown-addend", "unknown-function", "unknown-coefficient-word", "nonlinear-source", "unknown-hyphen-math", "hyphen-rhs-math",
     "source-superscript-left", "source-superscript-right", "source-subscript-left", "source-square-root", "source-unicode-product", "source-plus-minus", "source-em-dash-arithmetic", "source-fraction-slash", "source-adjoining-nonlinear"]
     .map(id => [id, "The complete affine operand grammar is unsupported"] as const),
-  ...["interval-unknown-name", "interval-omitted-declared-domain", "interval-unsupported-operation", "interval-variable-endpoint", "interval-mixed-or-program", "interval-capitalized-unknown"]
+  ...["interval-unknown-name", "interval-omitted-declared-domain", "interval-variable-endpoint", "interval-mixed-or-program", "interval-capitalized-unknown"]
     .map(id => [id, "The complete named-set operation or shared domain scope is unproved"] as const),
   ...["objective-contradictory-reference", "objective-contradictory-unknown-reference", "objective-undefined-target", "objective-unrelated-maximum", "objective-derived-contradictory-point", "objective-derived-unknown-point-reference", "objective-derived-contradictory-result"]
     .map(id => [id, "Additional objective request/target semantics are outside the native source proof"] as const),
