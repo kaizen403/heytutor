@@ -104,6 +104,7 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
   }
   const reconciliations: TurnPlanArithmeticReconciliation[] = [];
   const originalGivens = Array.isArray(raw.givens) ? raw.givens : [];
+  const originalQuestion = raw.question;
   const prescriptions = collectTrigStipulations({ question: raw.question });
   const givens = originalGivens.map((given) => {
     const corrected = reconcilePrescribedTrigGiven(given, prescriptions);
@@ -146,7 +147,7 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
       numericBindings,
       true,
       [value.id, value.symbol].filter((key): key is string => typeof key === "string"),
-      { bindingMeta, declaredValue: value.value },
+      { bindingMeta, declaredValue: value.value, question: originalQuestion, suppliedGivens: originalGivens },
     );
     const agrees = evidence.value !== null && approximatelyEqual(evidence.value, value.value);
     if (evidence.mixedUnits && !agrees) {
@@ -315,7 +316,7 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
       validationBindings,
       false,
       [value.id, value.symbol].filter((key): key is string => typeof key === "string"),
-      { bindingMeta: validationBindingMeta, declaredValue: value.value },
+      { bindingMeta: validationBindingMeta, declaredValue: value.value, question: expectedQuestion ?? raw.question, suppliedGivens: givens },
     );
     if (evidence.invalid) {
       issues.push({
@@ -666,6 +667,8 @@ interface ExplicitArithmeticOptions {
   bindingMeta?: NumericBindingMetaMap;
   /** The plan's own value, used only to choose between unit readings. */
   declaredValue?: number;
+  question?: unknown;
+  suppliedGivens?: unknown[];
 }
 
 /** Read a supplied volt/ohm measurement before a binding named V can multiply it. */
@@ -727,9 +730,21 @@ function evaluateExplicitArithmetic(
   let signConflict = false;
   let mixedUnits = false;
   for (const clause of splitArithmeticClauses(readableSource)) {
+    // Reading a unit shadowed by a variable must not revive a supplied input
+    // contradicted by the original question. This is backoff, not a solver.
+    if (hasConflictingQuantitySource(clause, numericBindings, bindingMeta, options)) {
+      invalid = true;
+      continue;
+    }
     const equalityParts = splitEqualityParts(clause).map((member) =>
       readLiteralVoltOhmQuotient(member, expectedUnit, numericBindings, bindingMeta));
     if (equalityParts.length < 2) continue;
+    // Bare numeric labels are not implicit multiplication. Refuse before
+    // whitespace or unit filtering could join "2 1" into the number21.
+    if (equalityParts.some((member) => hasAdjacentNumericTokens(normalizeExplicitNumericSyntax(member)))) {
+      invalid = true;
+      continue;
+    }
     const clauseTargetKeys = expandDescriptiveAssignmentTargets(equalityParts, targetKeys);
     let stated: { value: number; tolerance: number } | null = null;
     let statedIndex = -1;
@@ -779,12 +794,21 @@ function evaluateExplicitArithmetic(
       numericBindings,
       statedIndex,
       bindingMeta,
+      expectedUnit,
     );
+    // An unsupported result-label member cannot overwrite the answer. Keep
+    // independent, solvable trusted-input arithmetic; otherwise decline the
+    // entire ungrounded clause instead of partially reading its unit.
+    if (hasUnsupportedRationalQuantity(clause, numericBindings, bindingMeta) &&
+        (!solvedTarget || solvedTarget.bindingKeys.size === 0 || usesUntrustedBinding(solvedTarget, bindingMeta))) {
+      invalid = true;
+      continue;
+    }
     if (solvedTarget !== null) {
       const targetStated = solvedTarget.isolated ? stated : null;
       const anchors = [targetStated, declaredAnchor].filter((anchor) => anchor !== null);
       let reading = readSolvedValueInUnit(solvedTarget, equalityParts, expectedUnit, bindingMeta, anchors);
-      if (solvedTarget.writtenSign) {
+      if (solvedTarget.writtenSign && !solvedTarget.independentProductUnits) {
         // The written sign wins only when the chain's stated result or the
         // plan's value agrees with it. Otherwise the chain contradicts itself
         // on the sign: never overwrite, and report the disagreement.
@@ -838,6 +862,19 @@ function evaluateExplicitArithmetic(
         // overwrite from an unpinned unit; validation reports it.
         if (!reconcile) invalid = true;
         continue;
+      }
+      if (!solvedTarget.isolated && solvedTarget.mixedLiteralValue !== undefined &&
+          declaredAnchor && !withinDisplayedPrecision(reading.value, declaredAnchor)) {
+        // A non-isolated equation has no safely writable target result: a
+        // trailing measurement may be an operand, not the target assertion.
+        if (reconcile) continue;
+        invalid = true;
+      }
+      if (solvedTarget.independentProductUnits && !reconcile && declaredAnchor &&
+          !withinDisplayedPrecision(reading.value, declaredAnchor)) {
+        // A compound written output may be outside the legacy leading-label
+        // grammar. Its restated wrong answer cannot mask this independent proof.
+        invalid = true;
       }
       if (targetStated && !reconcile && !withinDisplayedPrecision(reading.value, targetStated)) {
         invalid = true;
@@ -1019,26 +1056,32 @@ function evaluateAnchoredAnonymousChain(
   if (finalValue === null || finalTolerance === null) return null;
   const stated = { value: finalValue, tolerance: Math.abs(finalTolerance) };
   if (!withinDisplayedPrecision(declaredAnchor.value, stated)) return null;
+  const unresolvedQuantityLabel = equalityParts.some((member) => hasUnsupportedRationalQuantity(member, numericBindings, bindingMeta));
   for (let index = 1; index < finalIndex; index += 1) {
     const part = equalityParts[index] ?? "";
-    if (parseMeasuredPart(part)) continue;
+    if (isPlainMeasuredMember(part, numericBindings, bindingMeta)) continue;
     const bindingKeys = new Set<string>();
+    const measuredAtoms: NonNullable<NumericExpressionUnits["measuredAtoms"]> = { found: false };
     const expression = normalizeExplicitNumericExpression(
       part,
       knownUnits,
       numericBindings,
       undefined,
       bindingKeys,
+      { bindingMeta, measuredAtoms, expectedUnit },
     );
+    if (measuredAtoms.unresolvedOwnership) return { kind: "no_reading" };
     if (!expression) continue;
     try {
       const value = evaluateMathExpression(expression, 0);
       if (!Number.isFinite(value)) continue;
-      const coherentValue = usesScaledBinding(bindingKeys, bindingMeta)
-        ? coherentMemberValue("", part, true, [], knownUnits, coherentNumericBindings(numericBindings, bindingMeta))
+      const coherentValue = !measuredAtoms.unresolvedFraction && (measuredAtoms.found || measuredAtoms.typedProduct || usesScaledBinding(bindingKeys, bindingMeta) || unresolvedQuantityLabel)
+        ? coherentMemberValue("", part, true, [], knownUnits, coherentNumericBindings(numericBindings, bindingMeta), bindingMeta, expectedUnit)
         : undefined;
       const reading = readSolvedValueInUnit(
-        { value, valueIndex: index, isolated: true, bindingKeys, coherentValue },
+        { value, valueIndex: index, isolated: true, bindingKeys, coherentValue, measuredAtoms: measuredAtoms.found && !measuredAtoms.unresolvedFraction, independentProductUnits: measuredAtoms.typedProduct, unresolvedQuantityLabel,
+          mixedLiteralValue: measuredAtoms.found && !measuredAtoms.unresolvedFraction
+            ? mixedLiteralMemberValue(part, true, expectedUnit, knownUnits, numericBindings, bindingMeta, bindingKeys) : undefined },
         equalityParts,
         expectedUnit,
         bindingMeta,
@@ -1133,6 +1176,30 @@ function readSolvedValueInUnit(
   /** The chain's stated result first, then the plan's declared value. */
   anchors: Array<{ value: number; tolerance: number }>,
 ): SolvedValueReading {
+  if (solved.mixedLiteralValue !== undefined) {
+    return solved.mixedLiteralValue === null || solved.unresolvedQuantityLabel
+      ? { kind: "no_reading" } : { kind: "value", value: solved.mixedLiteralValue };
+  }
+  if (solved.unresolvedQuantityLabel && (solved.coherentValue === undefined || solved.coherentValue === null)) {
+    return { kind: "no_reading" };
+  }
+  if (solved.independentProductUnits) {
+    // The new collision-only proof establishes the physical type without an
+    // answer anchor. Prefixed inputs therefore use coherent arithmetic too.
+    const scale = unitScale(expectedUnit);
+    const value = scale && solved.coherentValue !== null && solved.coherentValue !== undefined
+      ? solved.coherentValue / scale.factor : null;
+    return value !== null && Number.isFinite(value) ? { kind: "value", value } : { kind: "no_reading" };
+  }
+  if (solved.measuredAtoms && !usesScaledBinding(solved.bindingKeys, bindingMeta)) {
+    // Measured literals were converted before evaluation. Their coherent
+    // result cannot become a different magnitude by borrowing a false label.
+    const scale = unitScale(expectedUnit);
+    const value = scale && Number.isFinite(scale.factor) && scale.factor > 0 &&
+      solved.coherentValue !== null && solved.coherentValue !== undefined
+      ? solved.coherentValue / scale.factor : null;
+    return value !== null && Number.isFinite(value) ? { kind: "value", value } : { kind: "mixed_units" };
+  }
   const reading = readSolvedValueInDeclaredUnit(solved, equalityParts, expectedUnit, bindingMeta, anchors);
   if (solved.coherentValue === undefined || reading.kind !== "value") return reading;
   const expectedScale = unitScale(expectedUnit);
@@ -1149,14 +1216,17 @@ function readSolvedValueInUnit(
       if (sameDimensionFactor === null) sameDimensionFactor = scale.factor;
       else if (!approximatelyEqual(sameDimensionFactor, scale.factor)) pinnedByOneUnit = false;
     }
-    // f and d_o both in cm for an image distance: the input unit pins the
-    // result, and the declared-unit reader already honours a conversion
-    // written in the expression ("v0*1000/3600").
-    if (pinnedByOneUnit && sameDimensionFactor !== null) return reading;
+    // Preserve explicit numeric conversions, but an unread quantity elsewhere
+    // in the chain cannot pin the raw member to a later display unit. Keep
+    // independent coherent evidence in play instead of trusting that label.
+    if (pinnedByOneUnit && sameDimensionFactor !== null && !solved.unresolvedQuantityLabel) return reading;
   }
   if (!expectedScale || solved.coherentValue === null) return { kind: "mixed_units" };
   const dimensional = solved.coherentValue / expectedScale.factor;
   if (approximatelyEqual(dimensional, reading.value)) return reading;
+  // An unread quantity leaves competing unit readings unresolved. A stated
+  // answer cannot choose between them (including a double conversion).
+  if (solved.unresolvedQuantityLabel) return { kind: "no_reading" };
   const supports = (value: number) => anchors.some((anchor) => withinDisplayedPrecision(value, anchor));
   // The coherent reading replaces a declared value only when the chain's own
   // stated result agrees with it: the chain then writes the conversion out.
@@ -1347,9 +1417,18 @@ interface SolvedTargetValue {
   /**
    * The same member evaluated with every prefixed or non-coherent binding
    * (km, cm, g, min, %) first converted to its coherent SI unit. Absent when
-   * no such binding was substituted; null when the coherent evaluation fails.
+   * neither such bindings, typed literals nor unread quantity labels were used;
+   * null when evaluation fails.
    */
   coherentValue?: number | null;
+  /** Typed literals pin a coherent result when no scaled binding was used. */
+  measuredAtoms?: boolean;
+  /** A newly ambiguous coefficient product has independent physical typing. */
+  independentProductUnits?: boolean;
+  /** Independent reading of a bounded additive binding/literal mixture. */
+  mixedLiteralValue?: number | null;
+  /** An unread rational display member cannot establish a raw unit reading. */
+  unresolvedQuantityLabel?: boolean;
   /** Other members of the chain that also evaluate, in preference order. */
   alternatives?: SolvedTargetValue[];
   /**
@@ -1366,18 +1445,23 @@ function solveExplicitTargetEquation(
   numericBindings: Map<string, number>,
   statedIndex: number,
   bindingMeta: NumericBindingMetaMap = new Map(),
+  expectedUnit?: unknown,
 ): SolvedTargetValue | null {
   if (targetKeys.length === 0 || equalityParts.length < 2) return null;
+  const unresolvedQuantityLabel = equalityParts.some((member) => hasUnsupportedRationalQuantity(member, numericBindings, bindingMeta));
   for (let targetIndex = 0; targetIndex < equalityParts.length; targetIndex += 1) {
     const targetBindingKeys = new Set<string>();
+    const targetAtoms: NonNullable<NumericExpressionUnits["measuredAtoms"]> = { found: false };
+    const targetReference = { found: false };
     const targetExpression = normalizeTargetNumericExpression(
       equalityParts[targetIndex] ?? "",
       targetKeys,
       knownUnits,
       numericBindings,
       targetBindingKeys,
+      { bindingMeta, measuredAtoms: targetAtoms, targetReference },
     );
-    if (!targetExpression) continue;
+    if (!targetExpression && !(targetReference.found && targetAtoms.found)) continue;
     const isolated = targetExpression === "x";
     // A stated result belongs to an isolated target ("x = ... = 30"). In an
     // equation such as "3y - 6 = 9" the plain number is the other side.
@@ -1386,39 +1470,66 @@ function solveExplicitTargetEquation(
       .filter((index) => index !== targetIndex && (!isolated || index !== statedIndex))
       // A plain number next to an isolated target restates a value; it is
       // not arithmetic that can confirm or replace one.
-      .filter((index) => !isolated || !parseMeasuredPart(equalityParts[index] ?? ""))
+      .filter((index) => !isolated || !isPlainMeasuredMember(equalityParts[index] ?? "", numericBindings, bindingMeta))
       .sort((first, second) => {
         const firstUsesBindings = referencesTrustedNumericBinding(
           equalityParts[first] ?? "",
           numericBindings,
+          bindingMeta,
         );
         const secondUsesBindings = referencesTrustedNumericBinding(
           equalityParts[second] ?? "",
           numericBindings,
+          bindingMeta,
         );
-        const firstHasArithmetic = explicitArithmeticOperation(equalityParts[first] ?? "");
-        const secondHasArithmetic = explicitArithmeticOperation(equalityParts[second] ?? "");
+        // A power on a complete unit is not a calculation to prefer over
+        // independently checkable arithmetic (132 Ω^-1 versus 1/2+1/4+1/6).
+        const firstHasArithmetic = !isPlainMeasuredMember(equalityParts[first] ?? "", numericBindings, bindingMeta) &&
+          explicitArithmeticOperation(equalityParts[first] ?? "");
+        const secondHasArithmetic = !isPlainMeasuredMember(equalityParts[second] ?? "", numericBindings, bindingMeta) &&
+          explicitArithmeticOperation(equalityParts[second] ?? "");
         return Number(secondUsesBindings) - Number(firstUsesBindings) ||
           Number(secondHasArithmetic) - Number(firstHasArithmetic) || second - first;
       });
     const candidates: SolvedTargetValue[] = [];
     for (const valueIndex of valueIndices) {
       const bindingKeys = new Set(targetBindingKeys);
+      const measuredAtoms: NonNullable<NumericExpressionUnits["measuredAtoms"]> = { ...targetAtoms };
       const valueExpression = normalizeExplicitNumericExpression(
         equalityParts[valueIndex] ?? "",
         knownUnits,
         numericBindings,
         undefined,
         bindingKeys,
+        { bindingMeta, measuredAtoms, expectedUnit: isolated ? expectedUnit : null },
       );
+      if (measuredAtoms.unresolvedOwnership) {
+        candidates.push({ value: 0, valueIndex, isolated, bindingKeys, mixedLiteralValue: null });
+        continue;
+      }
+      if (!valueExpression && !measuredAtoms.found) continue;
+      const hasMeasuredAtoms = measuredAtoms.found && !measuredAtoms.unresolvedFraction;
+      const mixedLiteralValue = hasMeasuredAtoms ? mixedLiteralMemberValue(
+        equalityParts[valueIndex] ?? "", isolated, expectedUnit, knownUnits, numericBindings, bindingMeta, bindingKeys,
+        equalityParts[targetIndex] ?? "", targetKeys,
+      ) : undefined;
+      if (mixedLiteralValue !== undefined) {
+        // A refused proof is retained as an explicit no-reading candidate;
+        // its bookkeeping zero never becomes numerical authority. Evaluate
+        // independent proofs before any poisoned/nonfinite legacy raw lane.
+        candidates.push({ value: mixedLiteralValue ?? 0, valueIndex, isolated, bindingKeys,
+          measuredAtoms: hasMeasuredAtoms, unresolvedQuantityLabel, mixedLiteralValue });
+        continue;
+      }
       if (!valueExpression) continue;
       try {
         const value = evaluateMathExpression(valueExpression, 0);
         if (!Number.isFinite(value)) continue;
-        const solved = isolated ? value : solveUniqueEquationValue(targetExpression, value);
+        const solved = isolated ? value : targetExpression ? solveUniqueEquationValue(targetExpression, value) : null;
         if (solved === null) continue;
-        const candidate: SolvedTargetValue = { value: solved, valueIndex, isolated, bindingKeys };
-        if (usesScaledBinding(bindingKeys, bindingMeta)) {
+        const candidate: SolvedTargetValue = { value: solved, valueIndex, isolated, bindingKeys,
+          measuredAtoms: hasMeasuredAtoms, independentProductUnits: measuredAtoms.typedProduct, unresolvedQuantityLabel };
+        if (!measuredAtoms.unresolvedFraction && (measuredAtoms.found || measuredAtoms.typedProduct || usesScaledBinding(bindingKeys, bindingMeta) || unresolvedQuantityLabel)) {
           candidate.coherentValue = coherentMemberValue(
             equalityParts[targetIndex] ?? "",
             equalityParts[valueIndex] ?? "",
@@ -1426,6 +1537,8 @@ function solveExplicitTargetEquation(
             targetKeys,
             knownUnits,
             coherentNumericBindings(numericBindings, bindingMeta),
+            bindingMeta,
+            expectedUnit,
           );
         }
         candidates.push(candidate);
@@ -1493,9 +1606,12 @@ function coherentMemberValue(
   targetKeys: string[],
   knownUnits: string[],
   coherentBindings: Map<string, number>,
+  bindingMeta: NumericBindingMetaMap,
+  expectedUnit?: unknown,
 ): number | null {
   try {
-    const valueExpression = normalizeExplicitNumericExpression(valueMember, knownUnits, coherentBindings);
+    const units = { bindingMeta, coherentBindings: true, expectedUnit: isolated ? expectedUnit : null };
+    const valueExpression = normalizeExplicitNumericExpression(valueMember, knownUnits, coherentBindings, undefined, undefined, units);
     if (!valueExpression) return null;
     const value = evaluateMathExpression(valueExpression, 0);
     if (!Number.isFinite(value)) return null;
@@ -1505,11 +1621,247 @@ function coherentMemberValue(
       targetKeys,
       knownUnits,
       coherentBindings,
+      undefined,
+      units,
     );
     return targetExpression ? solveUniqueEquationValue(targetExpression, value) : null;
   } catch {
     return null;
   }
+}
+
+/**
+ * A same-dimension binding cannot pin a different literal unit (a in cm
+ * plus 3 mm). Read bounded additive terms independently of result labels.
+ * Preserve the existing explicit-conversion convention only when a complete
+ * scalar multiple writes exactly the input-to-output factor and every typed
+ * literal independently carries that output unit. Other mixtures decline.
+ */
+function mixedLiteralMemberValue(
+  source: string,
+  isolated: boolean,
+  expectedUnit: unknown,
+  knownUnits: string[],
+  numericBindings: Map<string, number>,
+  bindingMeta: NumericBindingMetaMap,
+  bindingKeys: Set<string>,
+  targetSource = "",
+  targetKeys: string[] = [],
+): number | null | undefined {
+  const expected = unitScale(expectedUnit);
+  if (!expected) return undefined;
+  const expectedBinding = [...bindingKeys].some((key) => {
+    const scale = unitScale(bindingMeta.get(key)?.unit);
+    return scale?.signature === expected.signature;
+  });
+  if (!expectedBinding) {
+    if (isolated || [...bindingKeys].some((key) => unitScale(bindingMeta.get(key)?.unit)?.signature !== "")) return undefined;
+    const scales: UnitScale[] = [];
+    readNumericQuantityAtoms(normalizeExplicitNumericSyntax(source), numericBindings, { bindingMeta,
+      onAtom: (_unit, scale) => scales.push(scale) });
+    if (scales.length === 0 || scales.some((scale) => scale.signature !== expected.signature)) return undefined;
+  }
+  const coherent = coherentNumericBindings(numericBindings, bindingMeta);
+  const syntax = normalizeExplicitNumericSyntax(source);
+  const targetSyntax = normalizeExplicitNumericSyntax(targetSource);
+  // Adjacent numeric tokens are unsupported. Refuse before whitespace or
+  // numeric-unit filtering can turn "2 1" or "2 .01" into a coefficient.
+  if ([syntax, targetSyntax].some(hasAdjacentNumericTokens)) return null;
+  // Numeric dimensionless labels are not unit-letter tokens. Stripping "1"
+  // from a substituted (0.01) would silently change the supplied scalar.
+  knownUnits = knownUnits.filter((unit) => !/^\d+$/.test(unit.trim()));
+  const isScalarMeasuredTerm = (term: string): boolean => {
+    const marker = "MeasuredQuantityAtomQ";
+    const safeBindings = new Map(coherent);
+    safeBindings.delete(marker);
+    const shape = normalizeExplicitNumericExpression(term, knownUnits, safeBindings, marker, undefined, {
+      bindingMeta, coherentBindings: true, atomPlaceholder: marker,
+    });
+    return shape !== null && isMultiplicativeScalarTerm(shape.replaceAll(marker, "x"));
+  };
+  const literalScales: UnitScale[] = [];
+  const bareRhs = syntax.replace(/[()\s]/g, "");
+  const wholeRhs = [...bindingKeys].find((key) => bindingMeta.get(key)?.trusted &&
+    unitScale(bindingMeta.get(key)?.unit)?.signature === expected.signature && [key, `+${key}`, `-${key}`].includes(bareRhs));
+  const wholeRhsScale = wholeRhs === undefined ? null : unitScale(bindingMeta.get(wholeRhs)?.unit);
+  if (!normalizeExplicitNumericExpression(source, knownUnits, coherent, undefined, undefined, {
+    bindingMeta, coherentBindings: true, onAtom: (_unit, scale) => literalScales.push(scale),
+  }) || (literalScales.length === 0 && (isolated || !wholeRhsScale)) ||
+      literalScales.some((scale) => scale.signature !== expected.signature)) return null;
+  const rhsScales = literalScales.length > 0 ? literalScales : wholeRhsScale ? [wholeRhsScale] : [];
+  const terms = splitAdditiveQuantityTerms(syntax);
+  if (!terms) return null;
+  let sum = 0;
+  for (const term of terms) {
+    const keys = new Set<string>();
+    const atoms = { found: false };
+    let atomCount = 0;
+    const expression = normalizeExplicitNumericExpression(term, knownUnits, coherent, undefined, keys, {
+      bindingMeta, coherentBindings: true, measuredAtoms: atoms, onAtom: () => atomCount++,
+    });
+    if (!expression) return null;
+    const dimensionalKeys: string[] = [];
+    const scalarKeys: string[] = [];
+    for (const key of keys) {
+      const meta = bindingMeta.get(key);
+      const scale = unitScale(meta?.unit);
+      if (!scale) return null;
+      if (scale.signature === "") {
+        if (!meta?.trusted) return null;
+        scalarKeys.push(key);
+      } else dimensionalKeys.push(key);
+    }
+    if (atoms.found && dimensionalKeys.length > 0) return null;
+    try {
+      const value = evaluateMathExpression(expression, 0);
+      if (dimensionalKeys.length === 0) {
+        // A bare nonzero scalar has no independently established length,
+        // mass, etc. Zero is unit-independent and may be a neutral term.
+        if (atoms.found ? atomCount !== 1 || !isScalarMeasuredTerm(term) : value !== 0) return null;
+        sum += value / expected.factor;
+        continue;
+      }
+      if (dimensionalKeys.length !== 1) return null;
+      const key = dimensionalKeys[0]!;
+      const input = unitScale(bindingMeta.get(key)?.unit);
+      const scalar = normalizeTargetNumericExpression(term, [key], knownUnits, coherent, undefined, { bindingMeta, coherentBindings: true });
+      // Supplied dimensionless factors participate in the actual arithmetic,
+      // but their values do not prove that a conversion factor was written.
+      const writtenBindings = new Map(coherent);
+      scalarKeys.forEach((scalarKey) => writtenBindings.set(scalarKey, 1));
+      const writtenScalar = normalizeTargetNumericExpression(term, [key], knownUnits, writtenBindings, undefined, { bindingMeta, coherentBindings: true });
+      if (!input || input.signature !== expected.signature || !scalar || !writtenScalar ||
+          !isMultiplicativeScalarTerm(scalar) || !isMultiplicativeScalarTerm(writtenScalar)) return null;
+      const coefficient = evaluateMathExpression(writtenScalar, 1);
+      const magnitude = Math.abs(coefficient);
+      if (magnitude !== 0 && !approximatelyEqual(magnitude, 1)) {
+        const sameLiteralUnit = literalScales.every((scale) => approximatelyEqual(scale.factor / expected.factor, 1));
+        if (sameLiteralUnit && approximatelyEqual(magnitude / (input.factor / expected.factor), 1)) {
+          // Evaluate the written conversion on the original supplied number,
+          // not on an input that was already converted once to coherent SI.
+          sum += evaluateMathExpression(scalar, numericBindings.get(key)!);
+          continue;
+        }
+        // A scalar may itself convert a unit. Without the bounded certificate
+        // above, neither a result label nor a matching answer may choose it.
+        if (!approximatelyEqual(input.factor / expected.factor, 1) || literalScales.some((scale) =>
+          !approximatelyEqual(input.factor / scale.factor, 1) && approximatelyEqual(magnitude / (input.factor / scale.factor), 1))) return null;
+      }
+      sum += value / expected.factor;
+    } catch {
+      return null;
+    }
+  }
+  if (!Number.isFinite(sum)) return null;
+  if (isolated) return sum;
+  try {
+    const leftScales: UnitScale[] = [];
+    const leftKeys = new Set<string>();
+    const left = normalizeTargetNumericExpression(targetSource, targetKeys, knownUnits, coherent, leftKeys, {
+      bindingMeta, coherentBindings: true, onAtom: (_unit, scale) => leftScales.push(scale),
+    });
+    const leftTerms = splitAdditiveQuantityTerms(targetSyntax);
+    if (!left || !leftTerms || leftScales.some((scale) => scale.signature !== expected.signature) ||
+        [...leftKeys].some((key) => !bindingMeta.get(key)?.trusted || !unitScale(bindingMeta.get(key)?.unit))) return null;
+    const coherentOffsets = approximatelyEqual(expected.factor, 1) &&
+      [...rhsScales, ...leftScales].every((scale) => approximatelyEqual(scale.factor, 1));
+    const conversionScales = [...rhsScales, ...leftScales, ...[...leftKeys].flatMap((key) => {
+      const scale = unitScale(bindingMeta.get(key)?.unit);
+      return scale?.signature === expected.signature ? [scale] : [];
+    })];
+    for (const term of leftTerms) {
+      const keys = new Set<string>();
+      const atoms = { found: false };
+      const target = normalizeTargetNumericExpression(term, targetKeys, knownUnits, coherent, keys, {
+        bindingMeta, coherentBindings: true, measuredAtoms: atoms,
+      });
+      const physical = [...keys].filter((key) => unitScale(bindingMeta.get(key)?.unit)?.signature !== "");
+      if (target) {
+        if (atoms.found || physical.length > 0 || !isMultiplicativeScalarTerm(target)) return null;
+        const written = new Map(coherent);
+        keys.forEach((key) => written.set(key, 1));
+        const scalar = normalizeTargetNumericExpression(term, targetKeys, knownUnits, written, undefined, { bindingMeta, coherentBindings: true });
+        if (!scalar) return null;
+        const coefficient = Math.abs(evaluateMathExpression(scalar, 1));
+        // A target-side written conversion is not a dimensionless equation
+        // coefficient merely because its later result uses a matching label.
+        if (conversionScales.some((scale) => !approximatelyEqual(expected.factor / scale.factor, 1) &&
+            approximatelyEqual(coefficient / (expected.factor / scale.factor), 1))) return null;
+        continue;
+      }
+      let offsetAtomCount = 0;
+      const offset = normalizeExplicitNumericExpression(term, knownUnits, coherent, undefined, keys, {
+        bindingMeta, coherentBindings: true, measuredAtoms: atoms, onAtom: () => offsetAtomCount++,
+      });
+      if (!offset) return null;
+      const physicalKeys = [...keys].filter((key) => unitScale(bindingMeta.get(key)?.unit)?.signature !== "");
+      if (atoms.found) { if (physicalKeys.length > 0 || offsetAtomCount !== 1 || !isScalarMeasuredTerm(term)) return null; continue; }
+      if (physicalKeys.length === 0) { if (evaluateMathExpression(offset, 0) !== 0) return null; continue; }
+      if (physicalKeys.length !== 1 || unitScale(bindingMeta.get(physicalKeys[0]!)?.unit)?.signature !== expected.signature) return null;
+      const key = physicalKeys[0]!;
+      const bare = term.replace(/[()\s]/g, "");
+      if ([key, `+${key}`, `-${key}`].includes(bare)) continue;
+      const physicalTerm = normalizeTargetNumericExpression(term, [key], knownUnits, coherent, undefined, { bindingMeta, coherentBindings: true });
+      if (!coherentOffsets || !approximatelyEqual(unitScale(bindingMeta.get(key)?.unit)!.factor, 1) ||
+          !physicalTerm || !isMultiplicativeScalarTerm(physicalTerm)) return null;
+    }
+    const solved = solveUniqueEquationValue(left, sum * expected.factor);
+    return solved !== null && Number.isFinite(solved / expected.factor) ? solved / expected.factor : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Only split complete, balanced top-level additive terms, not exponent signs. */
+function splitAdditiveQuantityTerms(source: string): string[] | null {
+  source = source.trim();
+  while (source.startsWith("(")) {
+    let depth = 0;
+    const close = [...source].findIndex((character) => {
+      if (character === "(") depth++;
+      if (character === ")") depth--;
+      return depth === 0;
+    });
+    if (close !== source.length - 1) break;
+    source = source.slice(1, -1).trim();
+  }
+  const terms: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index < source.length; index++) {
+    const character = source[index]!;
+    if (character === "(") depth++;
+    else if (character === ")") { if (--depth < 0) return null; }
+    else if (depth === 0 && /[+-]/.test(character) && index > start &&
+      !/[eE*/^+(-]$/.test(source.slice(start, index).trimEnd())) {
+      terms.push(source.slice(start, index));
+      start = index;
+    }
+  }
+  if (depth !== 0) return null;
+  terms.push(source.slice(start));
+  return terms.every((term) => term.trim() !== "") ? terms : null;
+}
+
+/** A single numerator binding times/divided by numeric scalar factors only. */
+function isMultiplicativeScalarTerm(expression: string): boolean {
+  const shape = expression.replace(/(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?/g, "0");
+  if ((shape.match(/x/g)?.length ?? 0) !== 1 || !/^[0x*/()+-]+$/.test(shape) || /[0x)][+-]/.test(shape)) return false;
+  for (let index = 0; index < shape.length; index++) {
+    if (shape[index] !== "/") continue;
+    let start = index + 1;
+    while (/[+-]/.test(shape[start] ?? "")) start++;
+    if (shape[start] === "x") return false;
+    if (shape[start] !== "(") continue;
+    let depth = 1;
+    let end = start + 1;
+    for (; end < shape.length && depth > 0; end++) {
+      if (shape[end] === "(") depth++;
+      if (shape[end] === ")") depth--;
+    }
+    if (shape.slice(start, end).includes("x")) return false;
+  }
+  return true;
 }
 
 function explicitArithmeticOperation(source: string): boolean {
@@ -1520,14 +1872,582 @@ function explicitArithmeticOperation(source: string): boolean {
 function referencesTrustedNumericBinding(
   source: string,
   numericBindings: ReadonlyMap<string, number>,
+  bindingMeta: NumericBindingMetaMap,
 ): boolean {
   // Degree-valued variables need an explicit angle-unit conversion before
   // they can safely become arguments to trigonometric functions.
   if (/\b(?:sin|cos|tan)\s*\(/i.test(source)) return false;
-  const identifiers = source.match(/[A-Za-zΑ-Ωα-ω_][A-Za-z0-9Α-Ωα-ω_]*/gu) ?? [];
-  return identifiers.some((identifier) =>
-    numericBindings.has(normalizeNumericBindingKey(identifier)),
-  );
+  const identifiers = readNumericQuantityAtoms(source, numericBindings, { bindingMeta })
+    .match(/[A-Za-zΑ-Ωα-ω_][A-Za-z0-9Α-Ωα-ω_]*/gu) ?? [];
+  const symbols = new Set(numericBindings.keys());
+  return identifiers.some((identifier) => declaredSymbolProduct(normalizeNumericBindingKey(identifier), symbols) !== null);
+}
+
+/** Units belong to written numeric quantities, not to same-named bindings. */
+interface NumericExpressionUnits {
+  bindingMeta: NumericBindingMetaMap;
+  coherentBindings?: boolean;
+  measuredAtoms?: { found: boolean; unresolvedFraction?: boolean; unresolvedOwnership?: boolean; typedProduct?: boolean };
+  /** Present only for actual value members, never for lexical diagnostics. */
+  expectedUnit?: unknown;
+  /** A type probe may not guess a second independent symbol/unit collision. */
+  ownershipProbe?: boolean;
+  /** Private physical-degree proof, protected from binding substitution. */
+  atomPlaceholder?: string | ((unit: string) => string);
+  /** Exact target-token recognition, even when its expression is unsupported. */
+  targetReference?: { found: boolean };
+  /** Original units retained for source-contradiction backoff. */
+  onAtom?: (unit: string, scale: UnitScale, offset: number, source: string) => void;
+}
+
+function isPlainMeasuredMember(source: string, bindings: Map<string, number>, bindingMeta: NumericBindingMetaMap): boolean {
+  if (!parseMeasuredPart(normalizeQuantityUnitPowers(source))) return false;
+  // Legacy measurement syntax accepts V-2 as a unit power. In arithmetic,
+  // '12 V-2 V' is two quantities, not a restated scalar to skip.
+  const number = new RegExp(`^\\s*\\(?\\s*${NUMBER_SOURCE}${POWER_OF_TEN_SOURCE}\\s*\\)?\\s*$`);
+  return number.test(readNumericQuantityAtoms(source, bindings, { bindingMeta }));
+}
+
+function normalizeQuantityUnitPowers(unit: string): string {
+  return unit.replace(/[−–]/g, "-")
+    .replace(/⁻([⁰¹²³⁴⁵⁶⁷⁸⁹]+)/g, (_, digits: string) => `^-${fromSuperscriptDigits(digits)}`)
+    .replace(/\^\(\s*(-?\d+)\s*\)/g, "^$1");
+}
+
+function readNumericQuantityAtoms(
+  source: string,
+  bindings: ReadonlyMap<string, number>,
+  units?: NumericExpressionUnits,
+): string {
+  const folded = foldMeasuredScalarPrefix(source, bindings);
+  const pattern = measuredValuePattern(true, true);
+  return folded.replace(new RegExp(`(?<![A-Za-z0-9_.])${pattern.source}`, pattern.flags),
+    (whole: string, _mantissa: string, _power: string, _superscript: string, unit: string, offset: number) => {
+      // A suffix digit in a complete Unicode identifier (μ0 N current) is
+      // never a numeric quantity atom. Use the binding lexer's whole token.
+      if (offset > 0 && /[\p{L}\p{N}_.]/u.test(folded[offset - 1]!)) return whole;
+      const numericPart = whole.slice(0, -unit.length);
+      const canonicalUnit = normalizeQuantityUnitPowers(unit);
+      const measured = parseMeasuredPart(`${numericPart}${canonicalUnit}`);
+      const scale = unitScale(canonicalUnit);
+      if (!measured || !scale || scale.signature === "" || !Number.isFinite(scale.factor) || scale.factor <= 0) return whole;
+      const base = /^[A-Za-zΩµμ]+/u.exec(unit)?.[0] ?? unit;
+      const bound = bindings.get(base);
+      // A symbolic exponent was not consumed as a whole physical unit.
+      // Never let a partial '12V' atom erase the coefficient in 12V^n.
+      if (/^\s*\^/.test(folded.slice(offset + whole.length))) return whole;
+      // Glued declared products such as 0.5mg are coefficients, unlike a
+      // separated '0.5 mg' measurement. Use the same whole-symbol lexer as
+      // measured formula ownership, not a guessed SI-prefix interpretation.
+      if (!/\s$/.test(numericPart) && (declaredSymbolProduct(base, new Set(bindings.keys()))?.length ?? 0) > 1) return whole;
+      // A coefficient followed by a declared symbolic product (1/2 C V^2,
+      // 0.5 m V^2, m g h) is not a whole physical-unit label. A single
+      // literal '2 m' remains a length even when m also names a mass.
+      if (isDeclaredUnitProduct(unit, bindings)) return whole;
+      const boundScale = unitScale(units?.bindingMeta.get(base)?.unit);
+      const coherentBound = bound === undefined ? undefined :
+        units?.coherentBindings ? bound : bound * (boundScale?.factor ?? 1);
+      // Compact algebra such as 2V and 2V^2 keeps its coefficient. A compact
+      // whole supplied measurement (12V when V=12) is independently pinned.
+      if (!/\s$/.test(numericPart) && bound !== undefined &&
+          (unit !== base || !approximatelyEqual(measured.value * scale.factor, coherentBound!))) return whole;
+      if (hasOrdinaryBoundProductContinuation(folded, offset + whole.length, unit, bindings)) {
+        if (units?.ownershipProbe) {
+          if (units.measuredAtoms) units.measuredAtoms.unresolvedOwnership = true;
+        } else if (units && "expectedUnit" in units) {
+          const ownership = boundProductOwnership(folded, offset, whole, unit, measured.value, bindings, units, source);
+          if (ownership !== null && units.measuredAtoms) units.measuredAtoms.typedProduct = true;
+          if (ownership === "symbolic") {
+            return whole;
+          }
+          if (ownership === null) {
+            if (units.measuredAtoms) units.measuredAtoms.unresolvedOwnership = true;
+            // An unread identifier also prevents callers without atom tracking
+            // from falling through to a legacy numeric reading.
+            return " UnresolvedQuantityOwnership ";
+          }
+        }
+      }
+      const coherent = measured.value * scale.factor;
+      if (!Number.isFinite(coherent)) return whole;
+      if (units?.measuredAtoms) {
+        units.measuredAtoms.found = true;
+        // A unit after an unfurled fraction labels that fraction, not its
+        // denominator. Without whole-scalar evidence retain the old raw lane.
+        if (new RegExp(`${NUMBER_SOURCE}\\s*/\\s*$`).test(folded.slice(0, offset))) {
+          units.measuredAtoms.unresolvedFraction = true;
+        }
+      }
+      units?.onAtom?.(unit, scale, offset, folded);
+      // Keep the raw and coherent lanes distinct. Otherwise a binding in cm
+      // plus a literal in cm becomes a partly converted, meaningless number.
+      const placeholder = typeof units?.atomPlaceholder === "function" ? units.atomPlaceholder(unit) : units?.atomPlaceholder;
+      return `${signedQuantityOperator(whole, folded, offset)}(${placeholder ?? (units?.coherentBindings ? coherent : measured.value)})`;
+    });
+}
+
+/** Only the newly exposed single-unit/ordinary-name collision, not grouped quantities. */
+function hasOrdinaryBoundProductContinuation(
+  source: string, end: number, unit: string, bindings: ReadonlyMap<string, number>,
+): boolean {
+  const factor = /^([A-Za-zΩµμ]+)(?:\^-?\d+)?$/u.exec(normalizeQuantityUnitPowers(unit));
+  if (!factor || !bindings.has(factor[1]!)) return false;
+  const next = /^(?:\s*\*\s*|\s+)\(*\s*([A-Za-zΑ-Ωα-ω_][A-Za-z0-9Α-Ωα-ω_]*)/u.exec(source.slice(end));
+  return next !== null && bindings.has(next[1]!);
+}
+
+type QuantityDimensions = Map<string, number>;
+
+/** SI type expansion only; unsupported non-coherent bases never gain authority. */
+function quantityDimensions(unit: unknown): QuantityDimensions | null {
+  if (typeof unit !== "string" || !unit.trim()) return null;
+  const scale = unitScale(unit);
+  if (!scale) return null;
+  const bases: Record<string, Record<string, number>> = {
+    kg: { kg: 1 }, m: { m: 1 }, s: { s: 1 }, A: { A: 1 }, K: { K: 1 }, mol: { mol: 1 },
+    N: { kg: 1, m: 1, s: -2 }, J: { kg: 1, m: 2, s: -2 }, W: { kg: 1, m: 2, s: -3 },
+    Pa: { kg: 1, m: -1, s: -2 }, Hz: { s: -1 }, C: { A: 1, s: 1 },
+    V: { kg: 1, m: 2, s: -3, A: -1 }, Ω: { kg: 1, m: 2, s: -3, A: -2 },
+    F: { kg: -1, m: -2, s: 4, A: 2 }, H: { kg: 1, m: 2, s: -2, A: -2 },
+    T: { kg: 1, s: -2, A: -1 }, Wb: { kg: 1, m: 2, s: -2, A: -1 }, D: { m: -1 },
+  };
+  let result: QuantityDimensions = new Map();
+  for (const term of scale.signature.split("·").filter(Boolean)) {
+    const match = /^(.+)\^(-?\d+)$/.exec(term);
+    const expansion = match && bases[match[1]!];
+    if (!match || !expansion) return null;
+    const combined = combineQuantityDimensions(result, new Map(Object.entries(expansion)), Number(match[2]));
+    if (!combined) return null;
+    result = combined;
+  }
+  return result;
+}
+
+function combineQuantityDimensions(left: QuantityDimensions, right: QuantityDimensions, power = 1): QuantityDimensions | null {
+  const result = new Map(left);
+  for (const [base, exponent] of right) {
+    const value = (result.get(base) ?? 0) + exponent * power;
+    if (!Number.isInteger(value) || Math.abs(value) > 64) return null;
+    if (value === 0) result.delete(base); else result.set(base, value);
+  }
+  return result;
+}
+
+/** Bounded product type grammar, not numeric evaluation or a general dimensional CAS. */
+function productDimensions(source: string, symbols: ReadonlyMap<string, QuantityDimensions>): QuantityDimensions | null {
+  if (source.length > 512 || /[0-9.)]\s+(?:\d|\.\d)/.test(source)) return null;
+  const lexer = /\s*(\d+(?:\.\d*)?(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?|[A-Za-zΑ-Ωα-ω_][A-Za-z0-9Α-Ωα-ω_]*|[()+\-*/^])/uy;
+  const tokens: string[] = [];
+  source = source.trim();
+  while (lexer.lastIndex < source.length) {
+    const match = lexer.exec(source);
+    if (!match || tokens.length >= 128) return null;
+    tokens.push(match[1]!);
+  }
+  let cursor = 0;
+  function factor(depth: number): QuantityDimensions | null {
+    if (depth > 16) return null;
+    if (tokens[cursor] === "+" || tokens[cursor] === "-") cursor++;
+    const token = tokens[cursor++];
+    let value: QuantityDimensions | null;
+    if (token === "(") {
+      value = product(depth + 1);
+      if (tokens[cursor++] !== ")") return null;
+    } else if (token && /^(?:\d|\.\d)/.test(token)) value = new Map();
+    else value = token ? symbols.get(token) ?? null : null;
+    if (!value) return null;
+    if (tokens[cursor] === "^") {
+      cursor++;
+      const grouped = tokens[cursor] === "(";
+      if (grouped) cursor++;
+      const sign = tokens[cursor] === "-" ? (cursor++, -1) : tokens[cursor] === "+" ? (cursor++, 1) : 1;
+      const writtenPower = tokens[cursor++];
+      if (!writtenPower || !/^\d+$/.test(writtenPower) || Number(writtenPower) > 12 || (grouped && tokens[cursor++] !== ")")) return null;
+      value = combineQuantityDimensions(new Map(), value, sign * Number(writtenPower));
+    }
+    return value;
+  }
+  function product(depth: number): QuantityDimensions | null {
+    let value = factor(depth);
+    while (value && cursor < tokens.length && tokens[cursor] !== ")") {
+      const token = tokens[cursor]!;
+      if (token === "*") cursor++;
+      else if (token === "/") cursor++;
+      else if (!/^(?:[A-Za-zΑ-Ωα-ω_(]|\d|\.\d)/u.test(token)) return null;
+      const right = factor(depth);
+      if (!right) return null;
+      value = combineQuantityDimensions(value, right, token === "/" ? -1 : 1);
+    }
+    return value;
+  }
+  const value = product(0);
+  return cursor === tokens.length ? value : null;
+}
+
+/** Resolve one ungrouped collision by input/output types, never by answer magnitude. */
+function boundProductOwnership(
+  source: string, offset: number, whole: string, unit: string, coefficient: number,
+  bindings: ReadonlyMap<string, number>, units: NumericExpressionUnits, writtenSource: string,
+): "symbolic" | "literal" | null {
+  const expected = quantityDimensions(units.expectedUnit);
+  const literal = quantityDimensions(unit);
+  if (!expected || !literal) return null;
+  const symbols = new Map<string, QuantityDimensions>();
+  const reserved = new Set(["sqrt", "sin", "cos", "tan", "asin", "acos", "atan", "abs", "exp", "log", "ln", "pi", "e"]);
+  for (const key of bindings.keys()) {
+    if (reserved.has(key)) continue;
+    const meta = units.bindingMeta.get(key);
+    const dimensions = meta?.trusted ? quantityDimensions(meta.unit) : null;
+    if (dimensions) symbols.set(key, dimensions);
+  }
+  let markerIndex = 0;
+  const marker = (dimensions: QuantityDimensions): string => {
+    let name: string;
+    do { name = `UnitOwnershipAtom${markerIndex++}`; } while (source.includes(name) || bindings.has(name));
+    symbols.set(name, dimensions);
+    return name;
+  };
+  const matches = (replacement: string): boolean => {
+    const protectedSource = source.slice(0, offset) + signedQuantityOperator(whole, source, offset) + replacement + source.slice(offset + whole.length);
+    const atoms: NonNullable<NumericExpressionUnits["measuredAtoms"]> = { found: false };
+    let unreadUnit = false;
+    const typed = readNumericQuantityAtoms(protectedSource, bindings, {
+      bindingMeta: units.bindingMeta, ownershipProbe: true, measuredAtoms: atoms,
+      atomPlaceholder: (writtenUnit) => {
+        const dimensions = quantityDimensions(writtenUnit);
+        if (!dimensions) unreadUnit = true;
+        return marker(dimensions ?? new Map());
+      },
+    });
+    if (atoms.unresolvedOwnership || unreadUnit) return false;
+    const actual = productDimensions(typed, symbols);
+    return actual !== null && actual.size === expected.size && [...expected].every(([base, power]) => actual.get(base) === power);
+  };
+  // A declared single factor with an ordinary continuation was truncated by
+  // the physical-unit lexer. Protect it from re-atomization during the proof.
+  const symbolicMatches = matches(`(${coefficient})*${normalizeQuantityUnitPowers(unit)}`);
+  const literalMatches = matches(`(${coefficient})*${marker(literal)}`);
+  if (symbolicMatches || literalMatches) {
+    const keys = new Set<string>();
+    substituteNumericBindings(writtenSource, new Map(bindings), keys);
+    if (usesScaledBinding(keys, units.bindingMeta) && !hasSingleWrittenProductCoefficient(writtenSource)) return null;
+  }
+  return literalMatches ? "literal" : symbolicMatches ? "symbolic" : null;
+}
+
+/**
+ * A type proof does not certify a numeric unit-conversion convention. For a
+ * newly ambiguous product with scaled inputs, support one written coefficient
+ * and neutral 1 factors only. A second numeric factor (including /1000) may
+ * already convert the raw input; decline rather than convert it twice. Inspect
+ * the original member, before scalar folding can hide that factor.
+ */
+function hasSingleWrittenProductCoefficient(source: string): boolean {
+  const shape = normalizeExplicitNumericSyntax(source)
+    .replace(/\^\s*(?:\(\s*[+-]?\d+\s*\)|[+-]?\d+)/g, "^p");
+  const tokens = shape.match(new RegExp(`[A-Za-zΑ-Ωα-ω_][A-Za-z0-9Α-Ωα-ω_]*|${NUMBER_SOURCE}`, "gu")) ?? [];
+  const number = new RegExp(`^${NUMBER_SOURCE}$`);
+  const numbers = tokens.filter((token) => number.test(token)).map(Number);
+  return numbers.length > 0 && numbers.slice(1).every((value) => Math.abs(value) === 1);
+}
+
+/** A numeric scalar followed by one unit is a whole measured quantity. */
+function foldMeasuredScalarPrefix(source: string, bindings: ReadonlyMap<string, number>): string {
+  // A grouped denominator owns its scalar and unit independently of earlier
+  // quantities: 12 V/(12/11 kΩ) contains (12/11) kΩ, not 12/(11 kΩ).
+  // Reuse the same numeric-only grammar inside complete balanced groups;
+  // symbolic products and unsupported inverse-prefix forms still back off.
+  let grouped = "";
+  for (let index = 0; index < source.length; index++) {
+    if (source[index] !== "(") { grouped += source[index]; continue; }
+    let depth = 1;
+    let end = index + 1;
+    for (; end < source.length && depth > 0; end++) {
+      if (source[end] === "(") depth++;
+      if (source[end] === ")") depth--;
+    }
+    if (depth !== 0) { grouped += source.slice(index); break; }
+    grouped += `(${foldMeasuredScalarPrefix(source.slice(index + 1, end - 1), bindings)})`;
+    index = end - 1;
+  }
+  source = grouped;
+  const pattern = measuredValuePattern(true, true);
+  const atoms = [...source.matchAll(pattern)].map((match) => ({
+    unit: match[4]!, start: match.index! + match[0].length - match[4]!.length,
+  }));
+  // A scalar may end in a group rather than a digit: '(12/11) kΩ'. Read
+  // its following unit with the existing unit lexer, then evaluate the whole
+  // prefix below. No partial group or inferred symbolic value is accepted.
+  const followingUnit = new RegExp(`^${pattern.source}`, pattern.flags.replace("g", ""));
+  for (const close of source.matchAll(/\)/g)) {
+    const match = followingUnit.exec(`0${source.slice(close.index! + 1)}`);
+    if (match) atoms.push({ unit: match[4]!, start: close.index! + match[0].length - match[4]!.length });
+  }
+  for (const { unit, start } of atoms) {
+    const prefix = source.slice(0, start).trim();
+    const canonicalUnit = normalizeQuantityUnitPowers(unit);
+    const scale = unitScale(canonicalUnit);
+    const symbols = new Set(bindings.keys());
+    const base = /^[A-Za-zΩµμ]+/u.exec(unit)?.[0] ?? unit;
+    // Coherent inverse units label the whole numerical scalar too: 11/12 Ω⁻¹
+    // means (11/12) Ω⁻¹, never 11/(12⁻¹). Prefixed inverse fractions retain
+    // their unsupported/backoff path rather than supplying new unit authority.
+    if (!scale || (/(?:\^-\d|⁻)/.test(canonicalUnit) && scale.factor !== 1) || isDeclaredUnitProduct(unit, bindings) ||
+        (!/\s/.test(source[start - 1] ?? "") && declaredSymbolProduct(base, symbols))) continue;
+    const numericSyntax = prefix
+      .replace(/\b(?:sqrt|sin|cos|tan|asin|acos|atan|abs|exp|log|ln|pi)\b/g, "")
+      .replace(/[eE](?=[+\-−]?\d)/g, "")
+      .replace(/x(?=\s*10)/g, "");
+    if (!/^[0-9+\-−*/^().\s×·⋅π⁺⁻⁰¹²³⁴⁵⁶⁷⁸⁹]+$/u.test(numericSyntax)) continue;
+    // Reuse the existing numerical grammar, never an inferred binding or a
+    // partial exponent suffix. With no units in prefix, normalization cannot
+    // recurse into this measured-scalar path.
+    const expression = normalizeExplicitNumericExpression(prefix, []);
+    if (!expression) continue;
+    try {
+      const value = evaluateMathExpression(expression, 0);
+      if (Number.isFinite(value)) return `${value} ${unit}${source.slice(start + unit.length)}`;
+    } catch {
+      // Unbalanced/grouped denominators are not whole measured scalars.
+    }
+  }
+  return source;
+}
+
+/** Preserve binary signs swallowed by a signed NUMBER token (2 V-1 V). */
+function signedQuantityOperator(whole: string, source: string, offset: number): string {
+  return /^[+\-−]/.test(whole) && /[\p{L}\p{N}Ωµμ)]$/u.test(source.slice(0, offset).trimEnd()) ? "+" : "";
+}
+
+function isDeclaredUnitProduct(unit: string, bindings: ReadonlyMap<string, number>): boolean {
+  const factors = unit.split(/[\s*·⋅]+/).filter(Boolean)
+    .map((factor) => factor.replace(/(?:\^(?:\(-?\d+\)|-?\d+)|\d+|[²³¹⁰⁻]+)$/, ""));
+  return factors.length > 1 && factors.every((factor) => bindings.has(factor));
+}
+
+/** An ungrouped rational quantity's unit labels the whole fraction, not its denominator. */
+function hasUnsupportedRationalQuantity(
+  source: string,
+  bindings: Map<string, number>,
+  bindingMeta: NumericBindingMetaMap,
+): boolean {
+  // A partial read of a rational quantity cannot grant raw-unit authority.
+  // Whole numeric scalars already folded by the quantity reader are safe;
+  // remaining fractions must back off, regardless of the unit's power.
+  // Explicitly grouped quantities and denominators remain distinct syntax.
+  const readable = normalizeQuantityUnitPowers(normalizeExplicitNumericSyntax(source));
+  const numericFunction = "(?:sqrt|sin|cos|tan|asin|acos|atan|abs|exp|log|ln)";
+  const groupedNumerator = `(?:(?:${NUMBER_SOURCE}\\s*\\*?\\s*)?${numericFunction})?\\((?:${numericFunction}|pi|[0-9eE+\\-*/^().\\sπ⁺⁻⁰¹²³⁴⁵⁶⁷⁸⁹])+\\)`;
+  const fractionPrefix = new RegExp(`(?:^|[^A-Za-z0-9_.])(?:${NUMBER_SOURCE}|pi|π|${groupedNumerator})\\s*/\\s*$`);
+  // Whole-scalar folding is member-local. An earlier assignment or equality
+  // must not hide a supported fraction from the same reader used to solve it.
+  return splitEqualityParts(readable).some((member) => {
+    let unsupported = false;
+    readNumericQuantityAtoms(member, bindings, { bindingMeta, onAtom: (_unit, _scale, offset, indexedSource) => {
+      if (fractionPrefix.test(indexedSource.slice(0, offset))) unsupported = true;
+    } });
+    return unsupported;
+  });
+}
+
+/** Source conflicts stop normalization; they never become replacement values. */
+function hasConflictingQuantitySource(
+  source: string,
+  bindings: Map<string, number>,
+  bindingMeta: NumericBindingMetaMap,
+  options: ExplicitArithmeticOptions,
+): boolean {
+  if (typeof options.question !== "string") return false;
+  const givens = (options.suppliedGivens ?? []).filter(isRecord);
+  // The source-change profile is the supplied current/resistance ambiguity
+  // exposed by the ampere/area collision (area is optional). Do not impose a
+  // complete natural-language input grammar on unrelated questions.
+  const signatures = new Set(givens.map((given) => unitScale(given.unit)?.signature).filter(Boolean));
+  if (!signatures.has("A^1") || !signatures.has("Ω^1")) return false;
+  const shadowedDimensions = new Set<string>();
+  readNumericQuantityAtoms(source.replace(/[×·⋅]/g, "*"), bindings, { bindingMeta, onAtom: (unit, scale) => {
+    const key = /^[A-Za-zΩµμ]+/u.exec(unit)?.[0];
+    const meta = key ? bindingMeta.get(key) : undefined;
+    // Preserve the existing supplied-current/area guard's backoff boundary.
+    // Other same-dimension measurements may belong to different roles (a
+    // height and a scale bar), so they cannot establish a source conflict.
+    if (key === "A" && scale.signature === "A^1" && unitScale(meta?.unit)?.signature === "m^2") {
+      shadowedDimensions.add(scale.signature);
+      shadowedDimensions.add("Ω^1");
+    }
+  } });
+  const question = options.question;
+  const identifier = String.raw`[A-Za-zΑ-Ωα-ω_][A-Za-z0-9Α-Ωα-ω_]*`;
+  const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const matchesGiven = (given: Record<string, unknown>, measured: NonNullable<ReturnType<typeof parseMeasuredPart>>) =>
+    typeof given.value === "number" && Number.isFinite(given.value) && (given.unit || measured.unit
+      ? equivalentMeasuredQuantity(measured.value, measured.unit, given.value, given.unit)
+      : approximatelyEqual(measured.value, given.value));
+  // Optional sourceText may be a measured value or a named assignment. It
+  // cannot contradict the given; the question still establishes every input.
+  if (givens.some((given) => {
+    if (given.sourceText === undefined) return false;
+    if (typeof given.sourceText !== "string") return true;
+    const parts = splitEqualityParts(given.sourceText);
+    const measured = parts.length === 1 ? parseMeasuredPart(parts[0]!)
+      : parts.length === 2 && sourceAssignmentAlias(given.sourceText) ? parseMeasuredPart(parts[1]!) : null;
+    if (!measured) return true;
+    // A unitless metadata scalar uses its given's declared unit. Original
+    // question measurements still require their own equivalent typed unit.
+    if (measured.unit === null) return typeof given.value !== "number" || !Number.isFinite(given.value) ||
+      !approximatelyEqual(measured.value, given.value);
+    return !matchesGiven(given, measured);
+  })) return true;
+  const inputKeys = new Set(givens.flatMap((given) => [given.id, given.symbol, sourceAssignmentAlias(given.sourceText)])
+    .filter((key): key is string => typeof key === "string" && new RegExp(`^${identifier}$`, "u").test(key)));
+  // Quantity names identify the input a statement refers to. They do not
+  // interpret a change or decide its multiplier. Unit aliases use the same
+  // dimensional vocabulary as numeric quantity reading.
+  const propertyNames: Record<string, string[]> = {
+    "m^1": ["length", "distance", "height", "radius", "diameter"], "m^2": ["area"], "m^3": ["volume"],
+    "kg^1": ["mass"], "s^1": ["time", "duration"], "A^1": ["current"], "K^1": ["temperature"],
+    "mol^1": ["amount"], "N^1": ["force", "weight"], "J^1": ["energy", "work"], "W^1": ["power"],
+    "Pa^1": ["pressure"], "Hz^1": ["frequency"], "C^1": ["charge"], "V^1": ["voltage", "potential"],
+    "Ω^1": ["resistance"], "F^1": ["capacitance"], "H^1": ["inductance"], "T^1": ["field"],
+  };
+  const properties = new Set([...signatures].flatMap((signature) => propertyNames[signature!] ?? []));
+  const descriptor = `(?:(?:a|an|the)\\s+)?(?:${[...properties].map(escape).join("|")})(?:\\s+(?:is|of))?`;
+  const subject = `(?:a|an|the)\\s+[A-Za-z]+\\s+(?:has|carries)`;
+  const context = `(?:in|for)\\s+(?:this|the|a|an)\\s+[A-Za-z]+\\s*,?`;
+  const introduction = `(?:(?:given|let|suppose|for)|${subject}|${context}|(?:a|an|the))`;
+  const declarationPrefix = (text: string, first: boolean): boolean => new RegExp(first
+    ? `^\\s*(?:${introduction}\\s*)?(?:${descriptor})?\\s*$`
+    : `^[,\\s]*(?:(?:and|with)\\s+)?(?:${descriptor})?\\s*$`, "i").test(text);
+  const explicitInputs = [...inputKeys].some((key) =>
+    new RegExp(`(?<![\\p{L}\\p{N}_])${escape(key)}\\s*=`, "u").test(question));
+  const requestSymbols = new Map([...bindings.keys(), ...((splitEqualityParts(source)[0] ?? "").match(new RegExp(identifier, "gu")) ?? [])]
+    .map((key) => [key, 1] as const));
+  const target = `(?:(?:the|its)\\s+)?(?:(?:total|net|equivalent|effective|resultant|horizontal|vertical|trig|x|y|z)\\s+)?${identifier}`;
+  const request = new RegExp(`^(?:find|calculate|compute|determine|evaluate)\\s+${target}(?:\\s+and\\s+${target})*(?:\\s+in\\s+(.+))?$`, "i");
+  const isRequest = (text: string): boolean => {
+    const query = request.exec(text);
+    if (query && (query[1] === undefined || unitScale(query[1]) !== null)) return true;
+    return text.split(/,\s*then\s*/i).every((step) => {
+      const command = /^(?:find|calculate|compute|determine|evaluate|solve)\s+(.+)$/i.exec(step.trim());
+      if (!command) return false;
+      const expression = command[1]!.replace(/^(?:the\s+)?(?:dimensionless\s+)?(?:value|ratio|result)\s+/i, "");
+      // A request may evaluate an expression, not silently assert a new
+      // equation for an input. The existing numeric grammar rejects '='.
+      return normalizeExplicitNumericExpression(expression, [], requestSymbols) !== null;
+    });
+  };
+  const prescriptions = collectTrigStipulations({ question });
+  const isPrescription = (text: string): boolean => {
+    const parts = splitEqualityParts(text.replace(/^\S+\s+/, ""));
+    const identity = parts.length === 2 ? wholeDegreeTrigIdentity(parts[0]!) : null;
+    const value = parts.length === 2 ? constantEqualityMember(parts[1]!) : null;
+    return identity !== null && value !== null &&
+      collectTrigStipulations({ question: text }).get(`${identity.name}:${identity.angle}`) === value;
+  };
+  if (!explicitInputs && shadowedDimensions.size === 0) {
+    // A prose introduction is not a reason to skip a later assertion about
+    // an input. Inspect independently stated input assertions even when the
+    // original given was written as a measured noun phrase instead of x=... .
+    // Once numeric input data is present, every other clause needs its own
+    // positive reading. A pronoun or unknown synonym cannot skip the check.
+    const clauses = question.split(/(?<!\d)\.|\.(?!\d)|[;?\n]|,\s*then\s*/i);
+    if (!clauses.some((clause) => [...clause.matchAll(measuredValuePattern(true))].some((match) => {
+      const measured = parseMeasuredPart(match[0]);
+      return measured && givens.some((given) => typeof given.value === "number" &&
+        equivalentMeasuredQuantity(measured.value, measured.unit, given.value, given.unit));
+    }))) return true;
+    const groundedGivens = new Set<Record<string, unknown>>();
+    for (const clause of clauses) {
+      const text = clause.trim();
+      if (text === "" || isRequest(text) || isPrescription(text)) continue;
+      const measurements = [...clause.matchAll(measuredValuePattern(true))];
+      const matching = measurements.filter((match) => {
+        const measured = parseMeasuredPart(match[0]);
+        if (!measured) return false;
+        const matchedGivens = givens.filter((given) => matchesGiven(given, measured));
+        matchedGivens.forEach((given) => groundedGivens.add(given));
+        return matchedGivens.length > 0 ||
+          (normalizeUnit(measured.unit) === "degree" && [...prescriptions.keys()].some((key) => Number(key.split(":")[1]) === measured.value));
+      });
+      // A complete matching measured noun phrase has a nominal unit/property
+      // suffix. An unread predicate after it is not part of the measurement.
+      const last = matching.at(-1);
+      const tail = last ? clause.slice(last.index! + last[0].length).trim() : "";
+      const first = matching[0];
+      const prefix = first ? clause.slice(0, first.index).trim() : "";
+      const between = matching.slice(0, -1).every((match, index) => {
+        const connector = clause.slice(match.index! + match[0].length, matching[index + 1]!.index).trim();
+        return connector.split(/[\s,]+/).filter(Boolean).every((word) =>
+          /^(?:through|across|with|of|in|at|and|a|an|the|acts)$/i.test(word) || properties.has(word.toLowerCase()));
+      });
+      if (matching.length === measurements.length && last &&
+          declarationPrefix(prefix, true) && between &&
+          (tail === "" || [...properties].some((name) => tail.toLowerCase() === name) || /^(?:to|from) the [xyz] axis$/i.test(tail))) {
+        continue;
+      }
+      return true;
+    }
+    return groundedGivens.size !== givens.length;
+  }
+  if (explicitInputs || shadowedDimensions.size > 0) {
+    // An explicit input block is evidence only as a whole. Removing exact,
+    // independently checked assignments must leave complete requests, not
+    // arbitrary assertions whose effect on those inputs was never read.
+    // This is a positive grammar, independent of how a change is worded.
+    const spans: Array<{ start: number; end: number }> = [];
+    let grounded = 0;
+    const measurements = [...question.matchAll(measuredValuePattern(true))];
+    for (const given of givens) {
+      const aliases = [given.id, given.symbol, sourceAssignmentAlias(given.sourceText)]
+        .filter((alias): alias is string => typeof alias === "string" && new RegExp(`^${identifier}$`, "u").test(alias));
+      if (aliases.length === 0) continue;
+      const assignment = new RegExp(`(?<![\\p{L}\\p{N}_])(?:${aliases.map(escape).join("|")})\\s*=\\s*$`, "u");
+      const matches = measurements.flatMap((match) => {
+        const measured = parseMeasuredPart(match[0]);
+        if (!measured || !matchesGiven(given, measured)) return [];
+        const head = assignment.exec(question.slice(0, match.index));
+        return head ? [{ start: head.index, end: match.index + match[0].length }] : [];
+      });
+      if (matches.length === 0) continue;
+      grounded++;
+      spans.push(...matches);
+    }
+    if (grounded !== givens.length || grounded === 0) return true;
+    let residual = question;
+    for (const span of spans.sort((left, right) => right.start - left.start)) {
+      residual = `${residual.slice(0, span.start)}${" ".repeat(span.end - span.start)}${residual.slice(span.end)}`;
+    }
+    let clauseStart = 0;
+    for (const clause of residual.split(/[.;?\n]/)) {
+      const clauseSpans = spans.filter((span) => span.start >= clauseStart && span.end <= clauseStart + clause.length);
+      let readableClause = clause;
+      if (clauseSpans.length > 0) {
+        // Every segment around checked assignments needs a complete positive
+        // reading. A matching numeric span cannot erase an unread modifier,
+        // negation, or statement that those values are obsolete.
+        let previous = 0;
+        for (const [index, span] of clauseSpans.sort((left, right) => left.start - right.start).entries()) {
+          const start = span.start - clauseStart;
+          if (!declarationPrefix(readableClause.slice(previous, start), index === 0)) return true;
+          previous = span.end - clauseStart;
+        }
+        readableClause = readableClause.slice(previous);
+      }
+      clauseStart += clause.length + 1;
+      const remainder = readableClause.replace(/^\s*(?:Given|Let)\b/i, "").replace(/^(?:\s|,|\band\b)+|(?:\s|,)+$/g, "");
+      if (remainder === "") continue;
+      if (isRequest(remainder) || isPrescription(remainder)) continue;
+      // A typed drawing size is an independent display request, not an input
+      // assertion. It cannot qualify a shadowed-unit reading, which needs the
+      // fully specified numeric question above and nothing else.
+      const drawing = shadowedDimensions.size === 0 ? /^draw\s+(?:a|an)\s+(.+)$/i.exec(remainder) : null;
+      const size = drawing ? new RegExp(`^${measuredValuePattern(true).source}`, "i").exec(drawing[1]!) : null;
+      const label = size ? drawing![1]!.slice(size[0].length).trim() : "";
+      if (size && parseMeasuredPart(size[0]) && unitScale(size[4])?.signature === "m^1" && /^scale bar$/i.test(label)) continue;
+      return true;
+    }
+  }
+  return false;
 }
 
 function normalizeTargetNumericExpression(
@@ -1536,6 +2456,7 @@ function normalizeTargetNumericExpression(
   knownUnits: string[],
   numericBindings: Map<string, number>,
   usedBindingKeys?: Set<string>,
+  units?: NumericExpressionUnits,
 ): string | null {
   const targets = new Set(targetKeys.map(normalizeNumericBindingKey).filter(Boolean));
   const placeholder = "TargetVariableQ";
@@ -1547,6 +2468,7 @@ function normalizeTargetNumericExpression(
     /[A-Za-zΑ-Ωα-ω_][A-Za-z0-9Α-Ωα-ω_]*/gu,
     (token: string, offset: number, whole: string) => {
       if (!targets.has(normalizeNumericBindingKey(token))) return token;
+      if (units?.targetReference) units.targetReference.found = true;
       // Implicit products written without a space ("3y", "2(x-30)",
       // "I(R+r)"). "6 V" or "6V" for a quantity named V is a unit label,
       // not a product, so a target spelled like a unit never multiplies.
@@ -1563,6 +2485,7 @@ function normalizeTargetNumericExpression(
     numericBindings,
     placeholder,
     usedBindingKeys,
+    units,
   );
   if (!expression) return null;
   expression = expression.replaceAll(placeholder, "x");
@@ -1987,14 +2910,9 @@ function chainWorksInDegrees(
     degreeBindingKeys(numericBindings).size > 0;
 }
 
-function normalizeExplicitNumericExpression(
-  source: string,
-  knownUnits: string[],
-  numericBindings: Map<string, number> = new Map(),
-  allowedIdentifier?: string,
-  usedBindingKeys?: Set<string>,
-): string | null {
-  let expression = normalizeInverseTrigNotation(source.replace(/[−–]/g, "-"))
+/** The same lexical grammar must precede both numeric authority and backoff. */
+function normalizeExplicitNumericSyntax(source: string): string {
+  return normalizeInverseTrigNotation(source.replace(/[−–]/g, "-"))
     .replace(/[×·⋅]/g, "*")
     .replace(/√\s*(?=\()/g, "sqrt")
     .replace(/√\s*(\d+(?:\.\d+)?|[A-Za-zΑ-Ωα-ω_][A-Za-z0-9Α-Ωα-ω_]*)/gu, "sqrt($1)")
@@ -2007,10 +2925,34 @@ function normalizeExplicitNumericExpression(
     .replace(/²/g, "^2")
     .replace(/³/g, "^3")
     .replace(/[{}]/g, "");
+}
+
+/** Separated numbers must never become one number during whitespace removal. */
+function hasAdjacentNumericTokens(source: string): boolean {
+  // Require a complete numeric token, not punctuation in prose ("Eq. 1").
+  // Keep the existing conservative refusal for a separated group and number;
+  // an explicit multiplication operator is required at that boundary.
+  return /[)\]]\s+(?=\d|\.\d)/.test(source) ||
+    new RegExp(`(?<![\\p{L}\\p{N}_.])${NUMBER_SOURCE}\\s+(?=\\d|\\.\\d)`, "u").test(source);
+}
+
+function normalizeExplicitNumericExpression(
+  source: string,
+  knownUnits: string[],
+  numericBindings: Map<string, number> = new Map(),
+  allowedIdentifier?: string,
+  usedBindingKeys?: Set<string>,
+  units?: NumericExpressionUnits,
+): string | null {
+  const readable = normalizeExplicitNumericSyntax(source);
+  if (hasAdjacentNumericTokens(readable)) return null;
+  if (hasUnsupportedRationalQuantity(readable, numericBindings, units?.bindingMeta ?? new Map())) return null;
+  let expression = readable;
   expression = expression.replace(
     /([+-]?(?:(?:\d+(?:\.\d*)?)|(?:\.\d+))(?:[eE][+-]?\d+)?)\s*(?:(?:degrees?|deg)\b|°)/gi,
     "(($1)*pi/180)",
   );
+  expression = readNumericQuantityAtoms(expression, numericBindings, units);
   const substitutedKeys = new Set<string>();
   // Trig arguments first: a degree-valued binding becomes radians there
   // ("u cos θ" with θ = 30 deg is u cos(π/6)), and only there.
@@ -2028,6 +2970,9 @@ function normalizeExplicitNumericExpression(
   });
   expression = substituteNumericBindings(expression, numericBindings, substitutedKeys);
   for (const unit of knownUnits) {
+    // "1" is a dimensionless type, not a removable letter label. Removing
+    // it from (0.1) or (11) corrupts independently computed numeric inputs.
+    if (/^\d+$/.test(unit.trim())) continue;
     const flags = /^[A-Za-z]+$/.test(unit) && unit.length > 1 ? "gi" : "g";
     // A unit label follows a number ("(0.18 N)(4 m/s)"). The same letters
     // after an operator are a variable ("μk N" is the normal force), and
@@ -4733,12 +5678,16 @@ function isMagnitudeOnlyQuantity(quantity: Record<string, unknown>): boolean {
     typeof quantity.value === "number" && quantity.value >= 0;
 }
 
-function measuredValuePattern(): RegExp {
+function measuredValuePattern(scientific = false, arithmetic = false): RegExp {
   // Match the whole physical unit, including powers and compound units.
   // Reading only "m" silently missed speed/acceleration labels at the slash.
   const base = String.raw`(?:ohms?|volts?|amps?|deg(?:rees?)?|°|rad(?:ians?)?|[pnumckMGµμ]?(?:mol|Pa|Hz|Wb|eV|[mgsAKNJWCVFHTLΩ]))`;
-  const factor = `${base}(?:\\^?-?\\d+|[²³¹⁰⁻]+)?`;
-  return new RegExp(`(${NUMBER_SOURCE})\\s*(${factor}(?:\\s*(?:[/·⋅*]|\\s+)\\s*${factor})*)(?=\\s|$|[,;).!?:])`, "gi");
+  const factor = arithmetic
+    ? `${base}(?:\\^(?:\\(-?\\d+\\)|-?\\d+)|\\d+|[²³¹⁰⁻]+)?`
+    : `${base}(?:\\^?-?\\d+|[²³¹⁰⁻]+)?`;
+  const number = `(${NUMBER_SOURCE})${scientific ? POWER_OF_TEN_SOURCE : ""}`;
+  const boundary = arithmetic ? String.raw`(?=\s|$|[,;).!?:*/+\-^])` : String.raw`(?=\s|$|[,;).!?:])`;
+  return new RegExp(`${number}\\s*(${factor}(?:\\s*(?:[/·⋅*]|\\s+)\\s*${factor})*)${boundary}`, "gi");
 }
 
 function sourceContainsMatchingMeasuredValue(
