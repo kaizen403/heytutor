@@ -70,9 +70,9 @@ function photonEnergyEv(question: string, hcEvNm = PLANCK_J_S * LIGHT_M_PER_S / 
 function isPhotoelectricStem(question: string): boolean {
   const stem = chemStem(question);
   if (!/(?:photoelectric|photoelectron|work function)/.test(stem)) return false;
-  // An unread source work-function declaration still owns the atomic lane;
+  // An explicit unread source work-function declaration still owns the atomic lane;
   // it must decline there instead of enabling an unrelated fallback.
-  if (new RegExp(WORK_FUNCTION_CUE.source, "i").test(question.slice(0, chemistryQuestionSpan(question).end))) return true;
+  if (new RegExp(WORK_FUNCTION_CUE.source + String.raw`\s*(?:[=:]|(?:is|was|equals|equal to)\b)`, "i").test(question.slice(0, chemistryQuestionSpan(question).end))) return true;
   // Multiple stated work functions still describe a photoelectric question.
   // The single-metal builder may decline this comparison; subject ownership
   // must not depend on silently selecting one of the metals for a figure.
