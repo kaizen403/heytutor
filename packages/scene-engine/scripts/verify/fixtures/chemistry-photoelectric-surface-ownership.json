@@ -536,5 +536,32 @@
       "lastResort": "null"
     },
     "oracleBasis": "Two canonical materials have distinct work functions; Cu phi4 must not borrow first Na phi2. Conservative refusal is required."
+  },
+  {
+    "id": "P-NONMATERIAL-COMPARISON",
+    "question": "The work function of sodium is 2.3 eV. Light of frequency 1e15 Hz falls on the metal. Compare the photon momentum with that of an electron. Draw the photoelectric diagram.",
+    "questionSha256": "26531498e3798a439b6568237f0543d0273d619ac6916fdcff73a2d7d4a64b7c",
+    "kind": "root-authorized-additive-positive",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "pathsDraw": [
+        "direct",
+        "schematic",
+        "ordinary",
+        "lastResort"
+      ],
+      "family": "chem_orbital",
+      "mustEqualBeforeGuardMainDocumentsAndLabels": true,
+      "phiEv": 2.3,
+      "photonEv": 4.135667696923859,
+      "kineticEv": 1.835667696923859,
+      "labels": [
+        "phi=2.30 eV",
+        "E=4.14 eV",
+        "K=1.84 eV"
+      ]
+    },
+    "oracleBasis": "A photon-momentum comparison is not a parallel work-function material owner. Preserve independent Na phi, SI h/e energy and complete main outcomes."
   }
 ]
