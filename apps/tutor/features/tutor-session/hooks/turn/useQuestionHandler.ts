@@ -20,6 +20,7 @@ import {
   planSceneDocumentWithRepair,
   revalidateScenePlanWithRepairResult,
   planTurnV3,
+  subjectFromRejectedTurnPlanOutcomes,
   planAndSolveProblemV1,
   createFallbackTurnPlanV3,
   inferSceneCapabilities,
@@ -36,6 +37,7 @@ import {
   type ProblemAuthorityV1Response,
   type SceneCandidateValidation,
   type ScenePlanWithRepairResult,
+  type TurnPlanRequestOutcome,
   narrationLanguageForVoice,
 } from "@heytutor/tutor-core";
 import {
@@ -789,9 +791,10 @@ export function useQuestionHandler(
         }, () => {});
       }
       let diagramSubject: import("@heytutor/tutor-core").DiagramSubject = "other";
+      let diagramStrategySubject: import("@heytutor/tutor-core").DiagramSubject = "other";
       let diagramStrategyDecision = liveDiagramStrategyDecision({
         assignedStrategy: billed.diagramStrategy,
-        subject: diagramSubject,
+        subject: diagramStrategySubject,
         strictSubjects: billed.diagramStrictSubjects,
         chemistryLane: false,
         codeLesson: dsaClassification.isDsa,
@@ -1013,7 +1016,7 @@ export function useQuestionHandler(
             isChemistryQuestion(question);
           const decision = liveDiagramStrategyDecision({
             assignedStrategy: billed.diagramStrategy,
-            subject: diagramSubject,
+            subject: diagramStrategySubject,
             strictSubjects: billed.diagramStrictSubjects,
             chemistryLane,
             codeLesson: false,
@@ -1088,6 +1091,7 @@ export function useQuestionHandler(
           });
           const turnPlanStartedAt = Date.now();
           const turnPlanSpan = tel.span("turn-plan", "planner");
+          const turnPlanOutcomes: TurnPlanRequestOutcome[] = [];
           // A cancelled or failed turn plan still closes its span.
           const closeTurnPlanSpanOnFailure = (error: unknown): never => {
             turnPlanSpan.end({ aborted: true });
@@ -1102,6 +1106,9 @@ export function useQuestionHandler(
             conversationContext: recentConversation,
             fastMode: fastModeRef.current,
             classifySubject: (billed.diagramStrictSubjects?.length ?? 0) > 0,
+            onRequestOutcome: (outcome) => {
+              if (turnPlanOutcomes.length < 3) turnPlanOutcomes.push(outcome);
+            },
           }), isCurrentTurn).catch(closeTurnPlanSpanOnFailure);
           // The turn-plan audit used to run here: a second LLM opinion on the
           // plan, awaited before the scene planner could start. Measured on
@@ -1119,7 +1126,9 @@ export function useQuestionHandler(
           // `auditTurnPlanV3` itself is untouched in tutor-core and keeps its
           // gate, so restoring it here is a one-line change.
           turnPlanMs = Date.now() - turnPlanStartedAt;
-          diagramSubject = plannedTurn?.subject ?? "other";
+          diagramSubject = plannedTurn?.subject ?? subjectFromRejectedTurnPlanOutcomes(turnPlanOutcomes);
+          // Rejected-plan consensus is metadata; strict was measured on accepted plans.
+          diagramStrategySubject = plannedTurn ? diagramSubject : "other";
           tel.meta({ diagram_subject: diagramSubject });
           turnPlanSpan.end({ ok: plannedTurn !== null, latency_ms: turnPlanMs });
           turnPlan = selectBestAvailableTurnPlan(
@@ -1185,7 +1194,7 @@ export function useQuestionHandler(
             conversationContext: recentConversation,
           });
           const diagramStrategy = liveDiagramStrategyDecision({
-            assignedStrategy: billed.diagramStrategy, subject: diagramSubject,
+            assignedStrategy: billed.diagramStrategy, subject: diagramStrategySubject,
             strictSubjects: billed.diagramStrictSubjects, chemistryLane: gate.chemistryLane,
             codeLesson: Boolean(codeLesson), dsa: dsaClassification.isDsa, doubt: false,
           });
