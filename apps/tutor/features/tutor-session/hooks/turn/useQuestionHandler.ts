@@ -790,9 +790,10 @@ export function useQuestionHandler(
         }, () => {});
       }
       let diagramSubject: import("@heytutor/tutor-core").DiagramSubject = "other";
+      let diagramStrategySubject: import("@heytutor/tutor-core").DiagramSubject = "other";
       let diagramStrategyDecision = liveDiagramStrategyDecision({
         assignedStrategy: billed.diagramStrategy,
-        subject: diagramSubject,
+        subject: diagramStrategySubject,
         strictSubjects: billed.diagramStrictSubjects,
         chemistryLane: false,
         codeLesson: dsaClassification.isDsa,
@@ -1014,7 +1015,7 @@ export function useQuestionHandler(
             isChemistryQuestion(question);
           const decision = liveDiagramStrategyDecision({
             assignedStrategy: billed.diagramStrategy,
-            subject: diagramSubject,
+            subject: diagramStrategySubject,
             strictSubjects: billed.diagramStrictSubjects,
             chemistryLane,
             codeLesson: false,
@@ -1125,6 +1126,8 @@ export function useQuestionHandler(
           // gate, so restoring it here is a one-line change.
           turnPlanMs = Date.now() - turnPlanStartedAt;
           diagramSubject = plannedTurn?.subject ?? subjectFromRejectedTurnPlanOutcomes(turnPlanOutcomes);
+          // Rejected-plan consensus is metadata; strict was measured on accepted plans.
+          diagramStrategySubject = plannedTurn ? diagramSubject : "other";
           tel.meta({ diagram_subject: diagramSubject });
           turnPlanSpan.end({ ok: plannedTurn !== null, latency_ms: turnPlanMs });
           turnPlan = selectBestAvailableTurnPlan(
@@ -1190,7 +1193,7 @@ export function useQuestionHandler(
             conversationContext: recentConversation,
           });
           const diagramStrategy = liveDiagramStrategyDecision({
-            assignedStrategy: billed.diagramStrategy, subject: diagramSubject,
+            assignedStrategy: billed.diagramStrategy, subject: diagramStrategySubject,
             strictSubjects: billed.diagramStrictSubjects, chemistryLane: gate.chemistryLane,
             codeLesson: Boolean(codeLesson), dsa: dsaClassification.isDsa, doubt: false,
           });

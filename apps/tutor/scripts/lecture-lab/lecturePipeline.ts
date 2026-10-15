@@ -488,10 +488,12 @@ export async function runLecture(
       origin: options.visualNeedReplay === undefined ? "live_service" : "frozen_replay",
       questionHash: visualNeedQuestionHash(question), policy: LAB_VISUAL_NEED_POLICY };
     const classifiedSubject = plannedTurn?.subject ?? subjectFromRejectedTurnPlanOutcomes(run.turnPlanCallOutcomes ?? []);
+    // Match live: rejected-plan consensus is recorded, but cannot enable strict.
+    const strategySubject = plannedTurn ? classifiedSubject : "other";
     const pickerDecision = labStrategyDecision(options.arm ?? "current", {
       subject: parseDiagramSubject(options.subject), chemistryLane: pickerGate.chemistryLane,
       codeLesson: false, dsa: dsaClassification.isDsa, doubt: false,
-    }, options.productionStrictSubjects, classifiedSubject);
+    }, options.productionStrictSubjects, strategySubject);
     if (options.productionStrictSubjects) run.productionStrategy = { classifiedSubject, strategy: pickerDecision.strategy };
     if (pickerGate.shouldPlanExactScene && pickerDecision.usePickedExamples) {
       const examples = options.diagramExamples ?? [];
@@ -555,7 +557,7 @@ export async function runLecture(
       const diagramStrategy = labStrategyDecision(options.arm ?? "current", {
         subject: parseDiagramSubject(options.subject), chemistryLane: gate.chemistryLane,
         codeLesson: false, dsa: dsaClassification.isDsa, doubt: false,
-      }, options.productionStrictSubjects, classifiedSubject);
+      }, options.productionStrictSubjects, strategySubject);
       const examplesUsed = diagramStrategy.usePickedExamples ? pickedExamples : [];
       return {
         ...gate, diagramStrategy, examplesUsed,

@@ -7,8 +7,9 @@ import ts from "typescript";
 import * as planner from "../../../../packages/tutor-core/src/planners/turnPlannerV3";
 import type { TurnPlannerV3Options, TurnPlanRequestOutcome } from "../../../../packages/tutor-core/src/planners/turnPlannerV3";
 import { createPlannerEvidence } from "../lecture-lab/plannerEvidence";
-import { liveDiagramStrategyDecision } from "../../features/tutor-session/lib/scene/diagramStrategy";
-import type { DiagramSubject } from "../../../../packages/tutor-core/src/planners/diagramSubject";
+import { liveDiagramStrategyDecision, type DiagramStrategyDecision } from "../../features/tutor-session/lib/scene/diagramStrategy";
+import { labStrategyDecision } from "../lecture-lab/productionLabProfile";
+import { parseDiagramSubject, type DiagramSubject } from "../../../../packages/tutor-core/src/planners/diagramSubject";
 import { isConceptLessonQuestion } from "../../../../packages/tutor-core/src/llm/reasoningEffort";
 
 const question = "Explain a public test concept.";
@@ -61,13 +62,31 @@ const labEnd = labTry.tryBlock.statements.findIndex((node) => declares(node, "as
 const labSubject = labTry.tryBlock.statements.find((node) => declares(node, "classifiedSubject"));
 assert.ok(labBegin >= 0 && labEnd > labBegin && labSubject);
 const labStatements = labTry.tryBlock.statements.slice(labBegin, labEnd);
-const labSubjectText = labSubject.getText(labSource);
+const labSubjectIndex = labTry.tryBlock.statements.indexOf(labSubject);
+const labPickerIndex = labTry.tryBlock.statements.findIndex((node) => declares(node, "pickerDecision"));
+assert.ok(labPickerIndex > labSubjectIndex);
+const labPickerText = labTry.tryBlock.statements.slice(labSubjectIndex, labPickerIndex + 1).map((node) => node.getText(labSource)).join("\n");
+const strategyCalls = (source: ts.SourceFile, name: string) => {
+  const calls: ts.CallExpression[] = [];
+  const visit = (node: ts.Node) => {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === name) calls.push(node);
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return calls.map((node) => node.getText(source));
+};
+// Skip live's initial pre-planning decision; exercise both the picker and final scene gate.
+const liveStrategyCalls = strategyCalls(liveSource, "liveDiagramStrategyDecision").slice(1);
+const labStrategyCalls = strategyCalls(labSource, "labStrategyDecision");
+assert.equal(liveStrategyCalls.length, 2);
+assert.equal(labStrategyCalls.length, 2);
 
 interface ConsumerResult {
   subject: DiagramSubject;
   planned: boolean;
   turnPlan: { givens: unknown[]; unknowns: unknown[]; derived: unknown[] };
   outcomes: TurnPlanRequestOutcome[];
+  decisions: DiagramStrategyDecision[];
 }
 
 function consumerBlock(statements: readonly ts.Statement[], source: ts.SourceFile, lane: "live" | "lab"): string {
@@ -96,7 +115,9 @@ async function runLiveConsumer(strictSubjects = ["physics"]): Promise<ConsumerRe
   const context = createContext({ ...planner, exports: {}, Date, DOMException, AbortController, isConceptLessonQuestion,
     question, plannerUrl: "http://planner.test", sessionId: undefined, turnTraceId: undefined,
     abortController: new AbortController(), recentConversation: "", fastModeRef: { current: false },
-    billed: { diagramStrictSubjects: strictSubjects }, isCurrentTurn: () => true,
+    billed: { diagramStrategy: "current", diagramStrictSubjects: strictSubjects }, isCurrentTurn: () => true,
+    liveDiagramStrategyDecision, chemistryLane: false, gate: { chemistryLane: false },
+    codeLesson: null, dsaClassification: { isDsa: false },
     tel: { span: () => ({ end() {} }), meta() {}, mark() {} },
     planAndSolveProblemV1: () => { throw new Error("rejected plans cannot start numeric authority"); },
     planTurnV3: (input: string, options: TurnPlannerV3Options) => {
@@ -105,9 +126,9 @@ async function runLiveConsumer(strictSubjects = ["physics"]): Promise<ConsumerRe
     },
   });
   const code = `${deadlineText}\n${selection.map((node) => node.getText(generation)).join("\n")}\n` +
-    `${currentTurnGuardText}\n(async () => { let turnPlan; let turnPlanMs; let diagramSubject = "other";\n` +
+    `${currentTurnGuardText}\n(async () => { let turnPlan; let turnPlanMs; let diagramSubject = "other"; let diagramStrategySubject = "other";\n` +
     `${consumerBlock(liveBlock.statements.slice(liveBegin, liveEnd), liveSource, "live")}\n` +
-    `return { subject: diagramSubject, planned: plannedTurn !== null, turnPlan, outcomes: typeof turnPlanOutcomes === "undefined" ? [] : turnPlanOutcomes }; })()`;
+    `return { subject: diagramSubject, planned: plannedTurn !== null, turnPlan, outcomes: typeof turnPlanOutcomes === "undefined" ? [] : turnPlanOutcomes, decisions: [${liveStrategyCalls.join(",\n")}] }; })()`;
   const result: ConsumerResult = await new Script(ts.transpileModule(code, { compilerOptions: {
     target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS,
   } }).outputText).runInContext(context);
@@ -121,6 +142,7 @@ async function runLiveConsumer(strictSubjects = ["physics"]): Promise<ConsumerRe
 async function runLabConsumer(strictSubjects = ["physics"]): Promise<ConsumerResult> {
   let sink: TurnPlannerV3Options["onRequestOutcome"];
   const context = createContext({ ...planner, exports: {}, Date, question, createPlannerEvidence, isConceptLessonQuestion,
+    labStrategyDecision, parseDiagramSubject, pickerGate: { chemistryLane: false }, gate: { chemistryLane: false },
     options: { origin: "http://planner.test", arm: "current", productionStrictSubjects: strictSubjects },
     familiarity: "normal", fastMode: false, traceId: "public-test-trace", startedAt: Date.now(),
     scenePlannerDeadlineMs: 60_000, dsaClassification: { isDsa: false }, plannerUrl: "http://planner.test",
@@ -132,8 +154,8 @@ async function runLabConsumer(strictSubjects = ["physics"]): Promise<ConsumerRes
   });
   const code = `${deadlineText}\n${selection.map((node) => node.getText(generation)).join("\n")}\n` +
     `(async () => { let turnPlan; ${labInitialization.map((node) => node.getText(labSource)).join("\n")}\n` +
-    `${consumerBlock(labStatements, labSource, "lab")}\n${labSubjectText}\n` +
-    `return { subject: classifiedSubject, planned: run.turnPlanStatus === "planned", turnPlan, outcomes: run.turnPlanCallOutcomes }; })()`;
+    `${consumerBlock(labStatements, labSource, "lab")}\n${labPickerText}\n` +
+    `return { subject: classifiedSubject, planned: run.turnPlanStatus === "planned", turnPlan, outcomes: run.turnPlanCallOutcomes, decisions: [pickerDecision, ${labStrategyCalls[1]}] }; })()`;
   const result: ConsumerResult = await new Script(ts.transpileModule(code, { compilerOptions: {
     target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS,
   } }).outputText).runInContext(context);
@@ -173,6 +195,13 @@ async function main() {
     assert.deepEqual(JSON.parse(JSON.stringify(lab.turnPlan.givens)), []);
     assert.deepEqual(JSON.parse(JSON.stringify(lab.turnPlan.unknowns)), []);
     assert.deepEqual(JSON.parse(JSON.stringify(lab.turnPlan.derived)), []);
+    for (const fallback of [live, lab]) for (const decision of fallback.decisions) {
+      assert.equal(decision.strategy, "current", "unanimous rejected physics remains metadata, not strict strategy authority");
+      assert.equal(decision.selectionOrder, "current", "fallback keeps the current figure selection order");
+      assert.equal(decision.usePickedExamples, false, "fallback metadata adds no example picker or its wait");
+    }
+    assert.deepEqual(JSON.parse(JSON.stringify(live.decisions)), JSON.parse(JSON.stringify(lab.decisions)),
+      "live and production lab keep identical fallback strategy decisions");
     for (const consume of [runLiveConsumer, runLabConsumer]) {
       const cases: { subjects: unknown[]; expected: DiagramSubject }[] = [
         { subjects: ["maths", "maths", "maths"], expected: "maths" },
@@ -208,6 +237,7 @@ async function main() {
       const accepted = await consume();
       assert.equal(accepted.planned, true);
       assert.equal(accepted.subject, "maths", "rejected peer metadata never replaces an accepted plan's subject");
+      assert.ok(accepted.decisions.every((decision) => decision.strategy === "current"), "accepted out-of-scope maths remains current");
       assert.equal(calls, 2);
       const originalClock = Date.now;
       let clock = 10_000;
@@ -236,11 +266,17 @@ async function main() {
     assert.equal(planner.subjectFromRejectedTurnPlanOutcomes([{ ...initialPair[0]!, phase: "audit" }, initialPair[1]!]), "other");
     assert.equal(planner.subjectFromRejectedTurnPlanOutcomes([...outcomes, outcomes[2]!]), "other", "excess notifications cannot manufacture consensus");
     assert.equal(planner.subjectFromRejectedTurnPlanOutcomes(initialPair.map((outcome) => ({ ...outcome, code: "optics_law_mismatch" }))), "physics");
-    const policy = (strictSubjects: DiagramSubject[]) => liveDiagramStrategyDecision({ assignedStrategy: "current", subject: live.subject,
-      strictSubjects, chemistryLane: false, codeLesson: false, dsa: false, doubt: false }).strategy;
-    assert.equal(policy(["physics"]), "strict");
-    assert.equal(policy(["maths"]), "current");
-    assert.equal(policy([]), "current", "recovered subject never enables an unconfigured production policy");
+    for (const consume of [runLiveConsumer, runLabConsumer]) {
+      globalThis.fetch = async () => Response.json({ choices: [{ message: { content: JSON.stringify({ ...plan, subject: "physics" }) } }] });
+      const accepted = await consume();
+      assert.equal(accepted.subject, "physics");
+      assert.equal(accepted.planned, true);
+      for (const decision of accepted.decisions) {
+        assert.equal(decision.strategy, "strict", "accepted physics keeps the configured strict strategy");
+        assert.equal(decision.selectionOrder, "planner_first");
+        assert.equal(decision.usePickedExamples, true);
+      }
+    }
 
     // Observer mutation has no reference to the admitted response's subject or numeric plan.
     globalThis.fetch = async () => Response.json({ choices: [{ message: { content: JSON.stringify({ ...plan, subject: "physics" }) } }] });
