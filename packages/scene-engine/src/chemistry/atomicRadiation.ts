@@ -4,7 +4,7 @@
  * and the read-only Bohr authorities. A missing work function, a nonpositive
  * momentum, an impossible level or a reversed emission draws nothing.
  */
-import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityCuesValid, readChemistryQuantity, chemistryCanonicalValuesAgree, chemistryQuestionSpan } from "./quantityReader";
+import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityCuesValid } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { deriveBohrOrbit } from "../physics/bohrOrbitAuthority";
 import { deriveBohrTransition } from "../physics/bohrTransitionAuthority";
@@ -33,51 +33,47 @@ function fit(text: string): string {
 
 const WORK_FUNCTION_CUE = /work function(?:\s+of\s+(?:(?:a|the)\s+)?[a-z]+)?/;
 const PHOTON_ENERGY_CUE = /photon energy|photons? of energy|energy of (?:the )?photons?/;
-function workFunctionEv(question: string): number | null {
-  const body = question.slice(0, chemistryQuestionSpan(question).end);
-  const owners = [...body.matchAll(new RegExp(WORK_FUNCTION_CUE.source, "gi"))];
-  const values: number[] = [];
-  for (const [index, owner] of owners.entries()) {
-    const start = owner.index!;
-    const cueEnd = start + owner[0].length;
-    const nextOwner = owners[index + 1]?.index ?? body.length;
-    const boundary = /\.(?!\d)|[;!?\n]/.exec(body.slice(cueEnd, nextOwner));
-    const end = boundary ? cueEnd + boundary.index : nextOwner;
-    const read = readChemistryQuantity({ question, after: WORK_FUNCTION_CUE, within: { start, end: nextOwner }, dimension: "energy", targetUnit: "eV" });
-    if (!read.ok) {
-      // A bare requested diagram label supplies no value or metal owner.
-      const prefix = body.slice(0, start);
-      let clauseStart = 0;
-      for (const delimiter of prefix.matchAll(/\.(?!\d)|[;!?\n]/g)) clauseStart = delimiter.index! + delimiter[0].length;
-      if (read.code === "missing" && /^work function$/i.test(owner[0]) && body.slice(cueEnd, end).trim() === ""
-        && /\b(?:draw|sketch|show)\b[^.;!?\n]*\b(?:diagram|figure)\b[^.;!?\n]*\b(?:showing|marking|labelling|labeling|indicating)\s+(?:the\s+)?$/i.test(prefix.slice(clauseStart))) continue;
-      return null;
-    }
-    if (!(read.reading.value > 0)) return null;
-    values.push(read.reading.value);
-  }
-  return values.length === 1 ? values[0]! : null;
-}
-function photonEnergyEv(question: string, hcEvNm = PLANCK_J_S * LIGHT_M_PER_S / JOULE_PER_EV * 1e9): number | null {
-  const stated = numberAfter(question, PHOTON_ENERGY_CUE, "energy", "eV");
-  if (stated !== null && stated > 0) return stated;
-  const hertz = numberAfter(question, /frequency/, "frequency", "Hz");
-  if (hertz !== null && hertz > 0) return PLANCK_J_S * hertz / JOULE_PER_EV;
-  const metres = numberAfter(question, /wavelength/, "length", "m");
-  return metres !== null && metres > 0 ? hcEvNm / (metres * 1e9) : null;
+/** Main's photoelectric parser, isolated from the shared quantity-reader lane. */
+function photoelectricNumberAfter(stem: string, keyword: RegExp): number | null {
+  const found = keyword.exec(stem);
+  if (!found) return null;
+  const slice = stem.slice(found.index + found[0].length, found.index + found[0].length + 48);
+  const match = /^(?:[^0-9]{0,24})(\d+(?:\.\d+)?)(?:e([+-]?\d+)|\s*\*\s*10\^?\(?\s*([+-]?\d+))?/.exec(slice);
+  if (!match) return null;
+  const exp = match[2] ?? match[3];
+  const value = Number(match[1]) * 10 ** (exp !== undefined ? Number(exp) : 0);
+  return Number.isFinite(value) ? value : null;
 }
 
-function isPhotoelectricStem(question: string): boolean {
-  const stem = chemStem(question);
+function workFunctionEv(stem: string): number | null {
+  const value = photoelectricNumberAfter(stem, /work function/);
+  if (value === null || !(value > 0)) return null;
+  const slice = stem.slice(stem.indexOf("work function"));
+  return /ev/.test(slice.slice(0, 40)) ? value : null;
+}
+
+function photonEnergyEv(stem: string): number | null {
+  const stated = photoelectricNumberAfter(stem, /photon energy|photons? of energy|energy of (?:the )?photons?/);
+  if (stated !== null && stated > 0 && /ev/.test(stem.slice(stem.search(/photon energy|photons? of energy|energy of (?:the )?photons?/), stem.search(/photon energy|photons? of energy|energy of (?:the )?photons?/) + 48))) return stated;
+  const hertz = photoelectricNumberAfter(stem, /frequency/);
+  if (hertz !== null && hertz > 0 && /hz/.test(stem.slice(stem.indexOf("frequency"), stem.indexOf("frequency") + 40))) {
+    return (PLANCK_J_S * hertz) / JOULE_PER_EV;
+  }
+  const wave = /wavelength(?:[^0-9]{0,24})(\d+(?:\.\d+)?)\s*(nm|pm|angstrom|angstroms|a|m)\b/.exec(stem);
+  if (!wave) return null;
+  const magnitude = Number(wave[1]);
+  const unit = wave[2]!;
+  const metres = unit === "nm" ? magnitude * 1e-9
+    : unit === "pm" ? magnitude * 1e-12
+      : unit === "m" ? magnitude
+        : magnitude * 1e-10;
+  if (!(metres > 0)) return null;
+  return (PLANCK_J_S * LIGHT_M_PER_S) / metres / JOULE_PER_EV;
+}
+
+function isPhotoelectricStem(stem: string): boolean {
   if (!/(?:photoelectric|photoelectron|work function)/.test(stem)) return false;
-  // An explicit unread source work-function declaration still owns the atomic lane;
-  // it must decline there instead of enabling an unrelated fallback.
-  if (new RegExp(WORK_FUNCTION_CUE.source + String.raw`\s*(?:[=:]|(?:is|was|equals|equal to)\b)`, "i").test(question.slice(0, chemistryQuestionSpan(question).end))) return true;
-  // Multiple stated work functions still describe a photoelectric question.
-  // The single-metal builder may decline this comparison; subject ownership
-  // must not depend on silently selecting one of the metals for a figure.
-  const statedWorkFunctions = numberAfter(question, /work functions/, "energy", "eV");
-  return workFunctionEv(question) !== null || photonEnergyEv(question) !== null || statedWorkFunctions !== null;
+  return workFunctionEv(stem) !== null || photonEnergyEv(stem) !== null;
 }
 
 function hydrogenicZ(stem: string): number | null {
@@ -109,7 +105,7 @@ function isUncertaintyStem(stem: string): boolean {
 export function isAtomicRadiationStem(question: string): boolean {
   const stem = chemStem(question);
   if (SHARED_LEVEL_SENTENCE.test(stem)) return false;
-  return isPhotoelectricStem(question) || isDebroglieStem(stem) || isBohrModelStem(stem) || isUncertaintyStem(stem);
+  return isPhotoelectricStem(stem) || isDebroglieStem(stem) || isBohrModelStem(stem) || isUncertaintyStem(stem);
 }
 
 function evText(symbol: string, value: number): string {
@@ -117,9 +113,9 @@ function evText(symbol: string, value: number): string {
   return fit(`${symbol}=${value.toFixed(digits)} eV`);
 }
 
-function buildPhotoelectric(question: string, _stem: string, hcEvNm: number): SceneDocument | null {
-  const phi = workFunctionEv(question);
-  const energy = photonEnergyEv(question, hcEvNm);
+function buildPhotoelectric(question: string, stem: string): SceneDocument | null {
+  const phi = workFunctionEv(stem);
+  const energy = photonEnergyEv(stem);
   if (phi === null || energy === null) return null;
   const above = energy + 1e-9 >= phi;
   const kinetic = above ? energy - phi : null;
@@ -128,14 +124,14 @@ function buildPhotoelectric(question: string, _stem: string, hcEvNm: number): Sc
   const ids: string[] = [];
   ids.push(c.level("phi_level", { x: 0, y: 0 }, 2.4, "work function mark"));
   ids.push(c.level("photon_level", { x: 0, y: above ? 1.4 : 0.7 }, 2.4, "photon energy mark"));
-  ids.push(c.text("phi_l", { x: 1.55, y: 0 }, evText("phi", phi), "work function value"));
-  ids.push(c.text("e_l", { x: 1.55, y: above ? 1.4 : 0.7 }, evText("E", energy), "photon energy value"));
+  ids.push(c.text("phi_l", { x: 1.55, y: 0 }, evText("phi", phi).slice(0, 16), "work function value"));
+  ids.push(c.text("e_l", { x: 1.55, y: above ? 1.4 : 0.7 }, evText("E", energy).slice(0, 16), "photon energy value"));
   ids.push(c.text("units_l", { x: 0, y: 2.15 }, "E = h*nu", "photon energy relation"));
   if (kinetic === null) {
     ids.push(c.text("none_l", { x: 0, y: -0.7 }, "no emission", "below threshold"));
   } else {
     ids.push(c.arrow("k_arrow", { x: -1.5, y: 0 }, { x: -1.5, y: 1.4 }, "kinetic energy above threshold"));
-    ids.push(c.text("k_l", { x: -1.5, y: -0.55 }, evText("K", kinetic), "maximum kinetic energy"));
+    ids.push(c.text("k_l", { x: -1.5, y: -0.55 }, evText("K", kinetic).slice(0, 16), "maximum kinetic energy"));
   }
   c.scene.group("photoelectric", ids, "work function and photon energy");
   const caption = kinetic === null
@@ -314,30 +310,12 @@ export function buildAtomicRadiationScene(
   quantities: ChemPlanQuantity[],
   _schematic: boolean,
 ): SceneDocument | null {
-  if (!isAtomicRadiationStem(question) || !chemistryPlanBindingsValid(question, quantities)) return null;
-  const photoelectric = isPhotoelectricStem(question);
+  if (!isAtomicRadiationStem(question)) return null;
+  const stem = chemStem(question);
+  if (isPhotoelectricStem(stem)) return buildPhotoelectric(question, stem);
+  if (!chemistryPlanBindingsValid(question, quantities)) return null;
   const hcCue = /\bhc\s*(?:=|is\b)/i;
-  const sourceBody = question.slice(0, chemistryQuestionSpan(question).end);
-  let hcEvNm = PLANCK_J_S * LIGHT_M_PER_S / JOULE_PER_EV * 1e9;
-  if (photoelectric && hcCue.test(sourceBody)) {
-    // The wavelength law may use a declared hc, including a rounded textbook
-    // product. This is a source parameter, not a tolerance change to h or c.
-    const hcOwners = [...question.matchAll(new RegExp(hcCue.source, "gi"))]
-      .filter(owner => owner.index! < chemistryQuestionSpan(question).end);
-    // Repeated declarations are not one owner. In particular a missing first
-    // value must never be skipped in favour of a later valid declaration.
-    if (hcOwners.length !== 1) return null;
-    const hc = readChemistryQuantity({ question, after: hcCue, dimension: "energy_length", targetUnit: "eV nm" });
-    if (!hc.ok || !(hc.reading.value > 0)) return null;
-    // hc is a physical reference, not an arbitrary tunable constant. Admit
-    // the two usual explicitly stated eV-nm rounding conventions as source
-    // parameters; h/c and the shared exact-agreement policy stay unchanged.
-    const supportedProducts = [hcEvNm, Number(hcEvNm.toFixed(2)), Math.round(hcEvNm)];
-    if (!supportedProducts.some(reference => chemistryCanonicalValuesAgree(hc.reading.value, reference))) return null;
-    if (/\bh\s*=|Planck(?:'s)? constant\s*(?:is|=)|\bc\s*=|speed of light\s*(?:is|=)/i.test(sourceBody)
-      && !chemistryCanonicalValuesAgree(hc.reading.value, hcEvNm)) return null;
-    hcEvNm = hc.reading.value;
-  } else if (!chemistryReferenceConstantValid(question, hcCue, "energy_length", "J m", PLANCK_J_S * LIGHT_M_PER_S)) return null;
+  if (!chemistryReferenceConstantValid(question, hcCue, "energy_length", "J m", PLANCK_J_S * LIGHT_M_PER_S)) return null;
   if (!chemistryReferenceConstantValid(question, /\bh\s*=|Planck(?:'s)? constant\s*(?:is|=)/i, "action", "J s", PLANCK_J_S)
     || !chemistryReferenceConstantValid(question, /\bc\s*=|speed of light\s*(?:is|=)/i, "speed", "m/s", LIGHT_M_PER_S)) return null;
   if (!chemistryQuantityCuesValid(question, [
@@ -345,8 +323,6 @@ export function buildAtomicRadiationScene(
     {after: PHOTON_ENERGY_CUE, dimensions: ["energy"]},
     {after: /frequency/, dimensions: ["frequency"]}, {after: /wavelength/, dimensions: ["length"]},
   ])) return null;
-  const stem = chemStem(question);
-  if (photoelectric) return buildPhotoelectric(question, stem, hcEvNm);
   if (isDebroglieStem(stem)) return buildDebroglie(question, stem);
   if (isUncertaintyStem(stem)) return buildUncertainty(question, stem);
   if (isBohrModelStem(stem)) return buildBohr(question, stem);
