@@ -34,8 +34,29 @@ function fit(text: string): string {
 const WORK_FUNCTION_CUE = /work function(?:\s+of\s+(?:(?:a|the)\s+)?[a-z]+)?/;
 const PHOTON_ENERGY_CUE = /photon energy|photons? of energy|energy of (?:the )?photons?/;
 function workFunctionEv(question: string): number | null {
-  const value = numberAfter(question, WORK_FUNCTION_CUE, "energy", "eV");
-  return value !== null && value > 0 ? value : null;
+  const body = question.slice(0, chemistryQuestionSpan(question).end);
+  const owners = [...body.matchAll(new RegExp(WORK_FUNCTION_CUE.source, "gi"))];
+  const values: number[] = [];
+  for (const [index, owner] of owners.entries()) {
+    const start = owner.index!;
+    const cueEnd = start + owner[0].length;
+    const nextOwner = owners[index + 1]?.index ?? body.length;
+    const boundary = /\.(?!\d)|[;!?\n]/.exec(body.slice(cueEnd, nextOwner));
+    const end = boundary ? cueEnd + boundary.index : nextOwner;
+    const read = readChemistryQuantity({ question, after: WORK_FUNCTION_CUE, within: { start, end }, dimension: "energy", targetUnit: "eV" });
+    if (!read.ok) {
+      // A bare requested diagram label supplies no value or metal owner.
+      const prefix = body.slice(0, start);
+      let clauseStart = 0;
+      for (const delimiter of prefix.matchAll(/\.(?!\d)|[;!?\n]/g)) clauseStart = delimiter.index! + delimiter[0].length;
+      if (read.code === "missing" && /^work function$/i.test(owner[0]) && body.slice(cueEnd, end).trim() === ""
+        && /\b(?:draw|sketch|show)\b[^.;!?\n]*\b(?:diagram|figure)\b[^.;!?\n]*\b(?:showing|marking|labelling|labeling|indicating)\s+(?:the\s+)?$/i.test(prefix.slice(clauseStart))) continue;
+      return null;
+    }
+    if (!(read.reading.value > 0)) return null;
+    values.push(read.reading.value);
+  }
+  return values.length === 1 ? values[0]! : null;
 }
 function photonEnergyEv(question: string, hcEvNm = PLANCK_J_S * LIGHT_M_PER_S / JOULE_PER_EV * 1e9): number | null {
   const stated = numberAfter(question, PHOTON_ENERGY_CUE, "energy", "eV");
@@ -49,6 +70,9 @@ function photonEnergyEv(question: string, hcEvNm = PLANCK_J_S * LIGHT_M_PER_S / 
 function isPhotoelectricStem(question: string): boolean {
   const stem = chemStem(question);
   if (!/(?:photoelectric|photoelectron|work function)/.test(stem)) return false;
+  // An unread source work-function declaration still owns the atomic lane;
+  // it must decline there instead of enabling an unrelated fallback.
+  if (new RegExp(WORK_FUNCTION_CUE.source, "i").test(question.slice(0, chemistryQuestionSpan(question).end))) return true;
   // Multiple stated work functions still describe a photoelectric question.
   // The single-metal builder may decline this comparison; subject ownership
   // must not depend on silently selecting one of the metals for a figure.
