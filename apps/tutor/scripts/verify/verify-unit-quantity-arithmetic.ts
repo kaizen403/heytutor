@@ -189,6 +189,11 @@ async function main(): Promise<void> {
     "E", "J", 36, "E = 0.5*m*speed^2/1000 = 36 J"), 36);
   pair("review-p1/named-bound-product/dimensionless-one-label", [["m", 2, "kg"], ["speed", 0.1, "m/s"], ["gain", 1100, "1"]],
     "E", "J", "E = 0.5 m speed^2*gain", 11, 0);
+  for (const expression of ["2 1 + 3 1", "(2) 1 + (3) 1", "2\t1 + 3\t1", "2 .01 + 3 .01"])
+    for (const value of [5, 52]) decline(`review-p1/dimensionless-written-label-refusal/${expression}/${value}`,
+      plan([["n", 2, "1"]], "X", "1", value, `X = ${expression} = ${value}`));
+  for (const source of ["X = 2 + 3 = 5 (from Eq. 1)", "Using Eq. 1, X = 2 + 3 = 5", "with n = 2 (Eq. 1); X = 2 + 3 = 5"])
+    right(`review-p1/numeric-prose-reference/${source}`, plan([["n", 2, "1"]], "X", "1", 5, source), 5);
   right("review-p1/named-bound-product/consistent-negative", plan(namedSpeed, "E", "J", -36,
     "E = -0.5 m speed^2 = -0.5*2*6^2 = -36 J"), -36);
   wrong("review-p1/named-bound-product/opposite-written-sign", plan(namedSpeed, "E", "J", 36,

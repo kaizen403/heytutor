@@ -739,6 +739,12 @@ function evaluateExplicitArithmetic(
     const equalityParts = splitEqualityParts(clause).map((member) =>
       readLiteralVoltOhmQuotient(member, expectedUnit, numericBindings, bindingMeta));
     if (equalityParts.length < 2) continue;
+    // Bare numeric labels are not implicit multiplication. Refuse before
+    // whitespace or unit filtering could join "2 1" into the number21.
+    if (equalityParts.some((member) => hasAdjacentNumericTokens(normalizeExplicitNumericSyntax(member)))) {
+      invalid = true;
+      continue;
+    }
     const clauseTargetKeys = expandDescriptiveAssignmentTargets(equalityParts, targetKeys);
     let stated: { value: number; tolerance: number } | null = null;
     let statedIndex = -1;
@@ -1660,7 +1666,7 @@ function mixedLiteralMemberValue(
   const targetSyntax = normalizeExplicitNumericSyntax(targetSource);
   // Adjacent numeric tokens are unsupported. Refuse before whitespace or
   // numeric-unit filtering can turn "2 1" or "2 .01" into a coefficient.
-  if ([syntax, targetSyntax].some((member) => /[0-9.)\]]\s+(?:\d|\.\d)/.test(member))) return null;
+  if ([syntax, targetSyntax].some(hasAdjacentNumericTokens)) return null;
   // Numeric dimensionless labels are not unit-letter tokens. Stripping "1"
   // from a substituted (0.01) would silently change the supplied scalar.
   knownUnits = knownUnits.filter((unit) => !/^\d+$/.test(unit.trim()));
@@ -2921,6 +2927,15 @@ function normalizeExplicitNumericSyntax(source: string): string {
     .replace(/[{}]/g, "");
 }
 
+/** Separated numbers must never become one number during whitespace removal. */
+function hasAdjacentNumericTokens(source: string): boolean {
+  // Require a complete numeric token, not punctuation in prose ("Eq. 1").
+  // Keep the existing conservative refusal for a separated group and number;
+  // an explicit multiplication operator is required at that boundary.
+  return /[)\]]\s+(?=\d|\.\d)/.test(source) ||
+    new RegExp(`(?<![\\p{L}\\p{N}_.])${NUMBER_SOURCE}\\s+(?=\\d|\\.\\d)`, "u").test(source);
+}
+
 function normalizeExplicitNumericExpression(
   source: string,
   knownUnits: string[],
@@ -2930,6 +2945,7 @@ function normalizeExplicitNumericExpression(
   units?: NumericExpressionUnits,
 ): string | null {
   const readable = normalizeExplicitNumericSyntax(source);
+  if (hasAdjacentNumericTokens(readable)) return null;
   if (hasUnsupportedRationalQuantity(readable, numericBindings, units?.bindingMeta ?? new Map())) return null;
   let expression = readable;
   expression = expression.replace(
