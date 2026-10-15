@@ -142,6 +142,14 @@
  * lens with a negated side declines. A figure without the whole denied nature proves and draws; an
  * affirmative "forms a real image" still proves the real image and refuses the virtual one; and "no
  * parallax with the inverted image" still states an inverted image.
+ * G29: every line that can show light is a light path (P7, P11), not only one named as a ray or
+ * extension. Beside traced rays, the review's line from the object base to the image tip, a vector
+ * entity (drawn with an arrowhead) with role "light path", stays unproven and never draws on a lens
+ * and on a mirror; so does the same line named light path with no arrowhead, a ray entity, a line
+ * named a beam, one whose id names a path, an unmarked one, and an unmarked line along a refracted
+ * ray that runs back across the lens. The axis drawn as a line (between two points or along a
+ * direction), an unmarked line along it, the element plane, a screen across the axis and an axial
+ * ray drawn as a marked line still prove and draw.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -1853,7 +1861,83 @@ function named(name: string, run: () => void): void {
     diverging(qParallax, 30, 20), /contradicts a convex lens/);
 }
 
-for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21", "G22", "G23", "G24", "G25", "G26", "G27", "G28"]) {
+// ---- G29: every line that can show light is a light path; only the axis and lines across it are not ----
+{
+  // Beside the traced rays that prove the image (the convex lens of G19, real image 15 cm on, and the
+  // concave mirror of G1), one more line.
+  const line = (id: string, points: string[], kind: string, role: string, extra?: Record<string, unknown>): HandPath =>
+    ({ id, operator: "line", points, kind, role, ...(extra ? { extra } : {}) });
+  const baseRule = /^ray (\w+) neither runs from the object tip to the (?:lens|mirror) nor leaves it \(it touches the object base\)$/;
+  for (const [name, question, turnPlan, document, reason] of [
+    // The review's case: a vector entity, which the compiler draws with an arrowhead, named a light path.
+    ["a line from the object base to the image tip, a vector entity named light path", qTall, tallPlan,
+      lensWith([line("x1", ["ob", "it"], "vector", "light path")]), baseRule],
+    ["the same line named light path with no arrowhead", qTall, tallPlan, lensWith([line("x1", ["ob", "it"], "line", "light path")]), baseRule],
+    ["a concave mirror's line from the object base to the image tip, a vector entity named light path", qMirror, mirrorPlan,
+      mirrorWith([line("x1", ["ob", "it"], "vector", "light path")]), baseRule],
+    ["a line from the object base to the image tip, a ray entity named construction helper", qTall, tallPlan,
+      lensWith([line("x1", ["ob", "it"], "ray", "construction helper")]), baseRule],
+    ["a line from the object base to the image tip named an incident beam", qTall, tallPlan,
+      lensWith([line("x1", ["ob", "it"], "line", "incident beam")]), baseRule],
+    ["a line from the object base to the image tip whose id names a path", qTall, tallPlan,
+      lensWith([line("path1", ["ob", "it"], "line", "construction helper")]), baseRule],
+    // Unmarked: drawn across the figure at a slant, a line can only show light.
+    ["an unmarked line from the object base to the image tip", qTall, tallPlan,
+      lensWith([line("x1", ["ob", "it"], "line", "construction helper")]), baseRule],
+    ["an unmarked line along the refracted parallel ray, beside its incident segment", qTall, tallPlan,
+      lensWith([["x1", "segment", "ot", "S"], line("x2", ["S", "F2"], "line", "construction helper")]),
+      /^ray x2 runs back across the lens toward the object where its light does not go$/],
+  ] as const) {
+    expectUnproven("G29", name, question, document, reason);
+    expectNeverPlanner("G29", name, question, turnPlan, document);
+  }
+  // The compiler draws the review's line with an arrowhead.
+  const review = lensWith([line("x1", ["ob", "it"], "vector", "light path")]);
+  const { result } = compiled(review);
+  const ink = result.ok && result.renderScene
+    ? buildVerifiedDiagramPresentation(review, result.renderScene).diagram.commands.filter((command) => command.semanticRef?.entityId === "x1" && command.type !== "LABEL")
+    : [];
+  check("G29", ink.some((command) => command.type === "ARROW"), `the review's line must draw with an arrowhead; got ${ink.map((command) => command.type).join(", ") || "no ink"}`);
+  // Controls: the axis, a line along it, the element plane, a screen across the axis, and an axial ray
+  // drawn as a marked line all prove and draw.
+  const directionAxis = (document: Doc): Doc => {
+    const copy = structuredClone(document);
+    copy.constructions = copy.constructions.filter((construction) => !["c_axis_l", "c_axis_r"].includes(construction.id)).map((construction) =>
+      construction.id === "c_axis" ? { ...construction, inputs: { start: "O", direction: [1, 0] } } : construction);
+    copy.entities = copy.entities.filter((entity) => !["axis_l", "axis_r"].includes(entity.id));
+    return copy;
+  };
+  const screen = (document: Doc): Doc => {
+    const copy = structuredClone(document);
+    copy.constructions.push({ id: "c_screen", operator: "line", inputs: { start: "ib", direction: [0, 1] }, outputs: ["screen"] } as Construction);
+    copy.entities.push(ent("screen", "line", "screen", "screen") as Doc["entities"][number]);
+    copy.requiredEntityIds.push("screen");
+    return copy;
+  };
+  const tracedLens = tallLens(["parallel", "focal", "central"]);
+  check("G29", tracedLens.constructions.some((construction) => construction.operator === "line" && construction.outputs[0] === "axis"),
+    "the traced lens must draw its principal axis as a line");
+  for (const [name, question, turnPlan, document] of [
+    ["the traced lens alone (its axis a line between two points)", qTall, tallPlan, tracedLens],
+    ["the traced lens with its axis drawn from the centre along a direction", qTall, tallPlan, directionAxis(tracedLens)],
+    ["the traced concave mirror alone", qMirror, mirrorPlan, traced(goodMirror, ["parallel", "central"])],
+    ["an unmarked line along the axis from F1 to F2", qTall, tallPlan, lensWith([line("x1", ["F1", "F2"], "line", "optical bench")])],
+    // On the convex lenses of f 10 cm a line through O leaves its label no room; the magnifier and the diverging lens draw.
+    ["the magnifier's lens plane drawn as a line from the centre to S", qLens, lensPlan,
+      handPaths(traced(goodLens, ["parallel", "focal"]), "O", "F2", [line("x1", ["O", "S"], "line", "lens plane")])],
+    ["the diverging lens's plane drawn as a line from the centre to S", qDiverging, signedPlan,
+      handPaths(traced(cmLens(-25), ["parallel", "focal", "central"]), "O", "F2", [line("x1", ["O", "S"], "line", "lens plane")])],
+    ["the mirror plane drawn as a line from the pole to S", qMirror, mirrorPlan, mirrorWith([line("x1", ["P", "S"], "line", "mirror plane")])],
+    ["a screen drawn as a line from the image foot across the axis", qTall, tallPlan, screen(tracedLens)],
+    ["the axial ray drawn as a line with an arrowhead, named light path", qTall, tallPlan, lensWith([line("x1", ["F1", "F2"], "vector", "light path")])],
+  ] as const) {
+    const proof = explainPlannerOpticsProof(question, document);
+    check("G29", proof.proof === "proven", `${name} must be proven; got ${proof.proof}: ${proof.reason}`);
+    expectDrawnAsPlanner("G29", name, question, turnPlan, document);
+  }
+}
+
+for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21", "G22", "G23", "G24", "G25", "G26", "G27", "G28", "G29"]) {
   console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 }
 for (const [name, failed] of namedCases) console.log(`  ${name}: ${failed ? `FAIL (${failed} checks)` : "pass"}`);

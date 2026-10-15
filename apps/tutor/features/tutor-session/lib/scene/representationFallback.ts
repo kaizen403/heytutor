@@ -838,20 +838,19 @@ function opticsProofFailure(question: string, match: OpticsStemMatch, document: 
     return "no fatal converges assertion ending on the gaussian image tip, and fewer than two principal_rays traced from it";
   }
   // P7: every ray, extension and converging line ends on an engine-derived point. Each open path
-  // other than the two arrows counts, whatever its role: a polyline draws ink as a segment does.
+  // other than the two arrows counts, whatever its role: a polyline draws ink as a segment does. So
+  // does every line that can show light (`opticsLineShowsLight`).
   const producer = new Map<string, OpticsConstruction>();
   for (const construction of document.constructions) {
     for (const output of construction.outputs) producer.set(output, construction);
   }
-  const entityText = new Map(document.entities.map((entity) =>
-    [entity.id, `${entity.id} ${entity.role ?? ""} ${entity.label ?? ""}`]));
+  const frame = opticsFrame(image, foci, element, resolved, displayScale, document, producer);
+  const entities = new Map(document.entities.map((entity) => [entity.id, entity]));
   const rays = new Set<OpticsConstruction>();
   for (const construction of document.constructions) {
     if (arrows.includes(construction)) continue;
-    if (OPTICS_OPEN_PATH_OPERATORS.has(construction.operator)) {
-      rays.add(construction);
-    } else if (construction.operator === "line" &&
-      construction.outputs.some((output) => /ray|extension/i.test(entityText.get(output) ?? ""))) {
+    if (OPTICS_OPEN_PATH_OPERATORS.has(construction.operator) ||
+      (construction.operator === "line" && opticsLineShowsLight(construction, inputs.axis, entities, frame, document))) {
       rays.add(construction);
     }
   }
@@ -894,7 +893,6 @@ function opticsProofFailure(question: string, match: OpticsStemMatch, document: 
   const surfaces = document.constructions.filter((construction) =>
     construction.operator === "lens_section" || construction.operator === "spherical_surface");
   const reach = Math.min(...surfaces.map((surface) => opticsDrawnHalfHeight(surface, document)));
-  const frame = opticsFrame(image, foci, element, resolved, displayScale, document, producer);
   const onElement = (point: unknown): boolean => {
     const at = frame.point(point);
     return at !== null && Math.abs(at.a) <= frame.tolerance && Math.abs(at.y) <= reach * (1 + 1e-9) + frame.tolerance;
@@ -917,8 +915,8 @@ function opticsProofFailure(question: string, match: OpticsStemMatch, document: 
 
 /**
  * P11. Two traced or converging rays prove the image; every other path P7 classes as light (each
- * segment, ray, vector and polyline other than the two arrows, a line named as a ray or extension,
- * a converging line) must be one too, or the figure draws a ray no element forms. A polyline is
+ * segment, ray, vector and polyline other than the two arrows, a line that can show light, a
+ * converging line) must be one too, or the figure draws a ray no element forms. A polyline is
  * read as the segments between its points, each held to these rules, and a vector carrying a
  * `direction` is refused, since the compiler draws that instead of its end. A path is light when it is
  * - on the principal axis (the axial ray; also the axis and distances drawn along it);
@@ -933,8 +931,8 @@ function opticsProofFailure(question: string, match: OpticsStemMatch, document: 
  *   image, back from S as the extension that meets it (drawn to the image or on to the focus),
  *   dashed and with no arrowhead (`OpticsPathInk`), since no light runs there.
  * Everything is evaluated in the element frame (`opticsFrame`); a line is unbounded both ways, so
- * one is light only along the axis. Element outlines, the element plane and other helper lines
- * are not paths and are not read.
+ * one is light only along the axis. Element outlines, and unmarked lines along or across the axis
+ * (`opticsLineShowsLight`), are not paths and are not read.
  */
 function opticsLightPathFailure(
   paths: ReadonlySet<OpticsConstruction>,
@@ -1042,6 +1040,42 @@ function opticsLightPathFailure(
     }
   }
   return null;
+}
+
+/**
+ * Whether P7 and P11 read a `line` as light. Unbounded, a line drawn anywhere but along or across the
+ * principal axis crosses the figure where only light is drawn, so it is light. A line along the axis
+ * (the axis itself, an optical bench) or square to it (the element plane, a screen, a focal plane),
+ * where no ray from the object tip runs, is not, unless it is marked as light: an arrowhead (an
+ * entity of kind vector or ray, which `toPrimitives` draws as an arrow) or an id, role or label
+ * naming a ray, an extension, light, a path or a beam. The element's own axis is never read (P11
+ * passes the axis). The frame places a line by its two ends; a line it cannot place (a literal end
+ * or a `direction`) is across the axis only when its world direction is square to the axis's.
+ */
+function opticsLineShowsLight(
+  line: OpticsConstruction,
+  axis: unknown,
+  entities: ReadonlyMap<string, SceneDocument["entities"][number]>,
+  frame: { point(id: unknown): OpticsFramePoint | null; tolerance: number },
+  document: SceneDocument,
+): boolean {
+  if (typeof axis === "string" && line.outputs.includes(axis)) return false;
+  const marked = line.outputs.some((output) => {
+    const entity = entities.get(output);
+    return entity?.kind === "vector" || entity?.kind === "ray" ||
+      /ray|extension|light|path|beam/i.test(`${output} ${entity?.role ?? ""} ${entity?.label ?? ""}`);
+  });
+  if (marked) return true;
+  const start = frame.point(opticsFirst(line.inputs, OPTICS_LINE_START_KEYS));
+  const end = frame.point(opticsFirst(line.inputs, OPTICS_END_KEYS));
+  if (start && end) {
+    const along = Math.abs(start.y) <= frame.tolerance && Math.abs(end.y) <= frame.tolerance;
+    return !along && !(Math.abs(start.a - end.a) <= frame.tolerance);
+  }
+  const direction = opticsPathDirection(line, document, 0);
+  const axisDirection = opticsAxisDirection(axis, document);
+  return !(Math.abs(direction.x * axisDirection.x + direction.y * axisDirection.y) <=
+    1e-9 * Math.hypot(direction.x, direction.y) * Math.hypot(axisDirection.x, axisDirection.y));
 }
 
 /**
@@ -1540,36 +1574,37 @@ function opticsElementFailure(
 
 /** +1 when the principal axis runs toward +x in the engine's surface frame, -1 when it runs toward -x. */
 function opticsAxisSign(axis: unknown, document: SceneDocument): 1 | -1 | null {
-  let dx: number;
-  if (typeof axis === "string") {
-    const line = document.constructions.find((construction) => construction.outputs.includes(axis));
-    if (!line || line.operator !== "line") return null;
-    dx = opticsPathDx(line, document, 0);
-  } else {
-    dx = opticsDirectionDx(axis, document, 0);
-  }
+  const dx = opticsAxisDirection(axis, document).x;
   if (!Number.isFinite(dx)) return null;
   return dx < 0 ? -1 : 1;
 }
 
-/** dx of a path the way the engine reads it: end minus start, else its `direction` or `vector`. */
-function opticsPathDx(path: OpticsConstruction, document: SceneDocument, depth: number): number {
+/** World direction (NaN when unread) of a principal axis: its line's, or one written inline. */
+function opticsAxisDirection(axis: unknown, document: SceneDocument): { x: number; y: number } {
+  if (typeof axis !== "string") return opticsDirection(axis, document, 0);
+  const line = document.constructions.find((construction) => construction.outputs.includes(axis));
+  return line && line.operator === "line" ? opticsPathDirection(line, document, 0) : { x: Number.NaN, y: Number.NaN };
+}
+
+/** World direction of a path the way the engine reads it: end minus start, else its `direction` or `vector`. */
+function opticsPathDirection(path: OpticsConstruction, document: SceneDocument, depth: number): { x: number; y: number } {
   if (opticsFirst(path.inputs, OPTICS_END_KEYS) !== undefined) {
     const start = opticsLiteralPoint(opticsFirst(path.inputs, OPTICS_LINE_START_KEYS), document);
     const end = opticsLiteralPoint(opticsFirst(path.inputs, OPTICS_END_KEYS), document);
-    return start && end ? end.x - start.x : Number.NaN;
+    return start && end ? { x: end.x - start.x, y: end.y - start.y } : { x: Number.NaN, y: Number.NaN };
   }
-  return opticsDirectionDx(opticsFirst(path.inputs, ["direction", "vector"]), document, depth + 1);
+  return opticsDirection(opticsFirst(path.inputs, ["direction", "vector"]), document, depth + 1);
 }
 
-/** dx of a direction input: [dx, dy], {x, y}, or the id of a drawn path. */
-function opticsDirectionDx(value: unknown, document: SceneDocument, depth: number): number {
-  if (depth > 8) return Number.NaN;
-  if (Array.isArray(value) && value.length === 2) return opticsNumber(value[0], document);
-  if (isRecord(value) && "x" in value) return opticsNumber(value.x, document);
-  if (typeof value !== "string") return Number.NaN;
+/** A direction input: [dx, dy], {x, y}, or the id of a drawn path. */
+function opticsDirection(value: unknown, document: SceneDocument, depth: number): { x: number; y: number } {
+  const unread = { x: Number.NaN, y: Number.NaN };
+  if (depth > 8) return unread;
+  if (Array.isArray(value) && value.length === 2) return { x: opticsNumber(value[0], document), y: opticsNumber(value[1], document) };
+  if (isRecord(value) && "x" in value) return { x: opticsNumber(value.x, document), y: opticsNumber(value.y, document) };
+  if (typeof value !== "string") return unread;
   const path = document.constructions.find((construction) => construction.outputs.includes(value));
-  return path && OPTICS_PATH_OPERATORS.has(path.operator) ? opticsPathDx(path, document, depth) : Number.NaN;
+  return path && OPTICS_PATH_OPERATORS.has(path.operator) ? opticsPathDirection(path, document, depth) : unread;
 }
 
 function opticsLiteralPoint(id: unknown, document: SceneDocument): { x: number; y: number } | null {
