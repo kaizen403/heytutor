@@ -62,6 +62,7 @@ for (const [index, row] of rows.entries()) {
     const actual = observed[index]!.outcome;
     assert.equal(actual.atomic, row.expected.isAtomicRadiationStem, `${row.id} recognition`);
     if (row.kind.includes("nonclaim")) {
+      // Pin observed legacy main behavior; these are not physical numeric oracles.
       const fixed = nonclaimMain.find((entry) => entry.id === row.id);
       assert.ok(fixed, `${row.id} fixed main scene outcome`);
       assert.equal(fixed.question, row.question);
