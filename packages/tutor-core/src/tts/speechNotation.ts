@@ -176,6 +176,13 @@ const POWER_WORDS: Record<string, string> = {
   "³": "cubed",
 };
 
+/** Parentheses distinguish a squared speed from meters per second squared. */
+function expandGroupedPowers(text: string): string {
+  return text.replace(/\(([^()]+)\)\s*(\^[23](?![\d.]|[⁰¹²³⁴⁵⁶⁷⁸⁹])|[²³](?![⁰¹²³⁴⁵⁶⁷⁸⁹]))/g,
+    (_match, quantity: string, power: string) =>
+      ` the quantity ${quantity} all ${POWER_WORDS[power.replace("^", "")]} `);
+}
+
 /**
  * `200 N/m` and `9.8 m/s^2`. Heard raw as "200 Nmm" and "9.8 mice squared".
  *
@@ -204,6 +211,10 @@ function expandUnitRatios(text: string): string {
   };
 
   return text
+    // This compound unit is unambiguous without a preceding digit too: the
+    // Hinglish narrator writes "ten km/h". Lowercase h is an hour here;
+    // uppercase H remains the existing electrical unit (henry).
+    .replace(/\bkm\s*\/\s*h\b/g, "kilometers per hour")
     .replace(
       new RegExp(`(\\d(?:[\\d.,]*\\d)?)(\\s*)${ratio}`, "gu"),
       (match, value: string, gap: string, top: string, bottom: string, power?: string) =>
@@ -561,6 +572,7 @@ const SPEECH_STAGES: ((text: string) => string)[] = [
   expandUnicodeSubscripts,
   expandUnicodePrimes,
   expandWrittenModifiers,
+  expandGroupedPowers,
   // Read unit ratios before the standalone MICRO SIGN and Greek spacing:
   // `2µm/s²` names micrometers per second squared as a single quantity.
   expandUnitRatios,
