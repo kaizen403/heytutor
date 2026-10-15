@@ -48,6 +48,17 @@ currency, plan, and allowance. Order creation validates the quote and stores
 that immutable amount. An expired quote refreshes the options and asks the
 buyer to review before trying again; it never silently charges a new price.
 
+### Promo codes
+
+Codes live in `apps/tutor/lib/billing/promoCodes.ts`. `PH50` (Product Hunt
+launch) takes 50% off Plus with no expiry and no per-account limit. The buyer
+types it on `/usage` (or opens `/usage?promo=PH50`); the catalog prices the
+discount into the signed quote, so a browser cannot invent one. The month still
+grants the full Plus allowance. Credits are never discounted: they sell at the
+usage they buy, so half price would sell below cost. The purchase row, purchase
+history and the Razorpay order notes record the code. Removing a code or setting
+`expiresAt` stops new quotes and every outstanding quote at once.
+
 The landing's first-party `/api/region` reads the hosting country signal on
 Vercel or Cloudflare Pages and returns only a country code, without IP storage
 or a third-party geolocation service. The tutor uses the same endpoint with

@@ -32,7 +32,7 @@ function readOrderId(value: unknown, offer: { amount: number; currency: string }
 export async function createRazorpayOrder(offer: PaymentOffer, receipt: string): Promise<string> {
   return readOrderId(await api("orders", {
     amount: offer.amount, currency: offer.currency, receipt, partial_payment: false,
-    notes: { purchase_id: receipt, plan_id: offer.planId },
+    notes: { purchase_id: receipt, plan_id: offer.planId, ...(offer.promoCode ? { promo_code: offer.promoCode } : {}) },
   }), offer, receipt);
 }
 

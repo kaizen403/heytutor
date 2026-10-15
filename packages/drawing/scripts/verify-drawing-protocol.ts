@@ -136,6 +136,41 @@ for (const text of [
   }
 }
 
+
+// Quoted full diagram/code tags inside a closed WRITE remain literal board
+// text. They never acquire execution or narration authority from their shape.
+for (const text of [
+  "missing [DRAW_LINE:90,142,1160,600] junk",
+  "missing [HIGHLIGHT:90,274,200,40] junk",
+  "i = 0 [FRAME:2] and more",
+]) {
+  const tag = `[WRITE:${text},90,274]`;
+  const whole = parseDrawingCommands(tag);
+  assert(whole.commands.length === 1 && whole.commands[0]?.type === "WRITE" && whole.commands[0]?.text === text,
+    "a closed WRITE keeps its quoted tag as one exact row");
+  assert(whole.narration === "", "quoted tag and outer coordinates never become narration");
+  const source = `[STEP]Explain the quoted tag. ${tag}[/STEP]`;
+  const steps = parseStructuredLessonSteps(source), stepCommands = steps.flatMap(getSegmentCommands);
+  assert(stepCommands.length === 1 && stepCommands[0]?.type === "WRITE" && stepCommands[0]?.text === text,
+    "STEP parsing retains one exact row without executing a quoted diagram/code tag");
+  assert(steps.map(step => step.narration).join(" ") === "Explain the quoted tag.",
+    "STEP parsing never speaks quoted board protocol");
+  for (const width of [1, 3, 7, 1000]) {
+    const segments: TutorSegment[] = [];
+    const parser = new IncrementalTagParser({ onSegmentReady: segment => segments.push(segment) });
+    for (let from = 0; from < source.length; from += width) parser.push(source.slice(from, from + width));
+    parser.flush();
+    const commands = segments.flatMap(getSegmentCommands);
+    assert(commands.length === 1 && commands[0]?.type === "WRITE" && commands[0]?.text === text,
+      `chunk width ${width} retains the quoted tag inside its row`);
+    assert(segments.map(segment => segment.narration).join(" ").trim() === "Explain the quoted tag.",
+      "streaming never speaks quoted board protocol");
+  }
+  const adjacent = parseDrawingCommands(`${tag}[CLEAR][WRITE:next row,90,340]`);
+  assert(adjacent.commands.map(command => command.type).join(",") === "WRITE,CLEAR,WRITE",
+    "a real tag after the closed row retains its separate command boundary");
+}
+
 // The malformed bare-header spelling still has an unambiguous row ending.
 // A bracketed word list inside the text must not become CLEAR or spoken ink.
 for (const ending of ["\n", "[/STEP]"]) {

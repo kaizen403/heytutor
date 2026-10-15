@@ -136,6 +136,8 @@ const WRITE_LABEL_ENDING_PATTERN =
 // Other command words, including numeric arguments, may be ordinary notation:
 // [Type: 1], [frame: 0] and [highlight, 3, 4]. The outer coordinate suffix
 // closes a canonical row; nested brackets alone do not introduce commands.
+// A closed row may also quote a full DRAW_LINE, HIGHLIGHT or FRAME tag. Keep
+// that tag as literal row text; only a tag outside the row is a command.
 const SEMANTIC_TEXT_COMMANDS = 'WRITE|LABEL|FOCUS|EMPHASIZE|SUPERSEDE|ANNOTATE|PAUSE';
 const TEXT_BODY_BOUNDARY = String.raw`\[\s*(?:${SEMANTIC_TEXT_COMMANDS})\s*(?=[:,])|\[(?:STEP|\/STEP)\]`;
 const WRITE_LABEL_BODY_BREAK_PATTERN = new RegExp(TEXT_BODY_BOUNDARY, 'iu');
