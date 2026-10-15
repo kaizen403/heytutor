@@ -244,9 +244,9 @@ function captionLocation(html: string, text: string) {
   return null;
 }
 function shellMarkup(options: {
-  mobile: boolean; coarse?: boolean; width?: number; height?: number; phase?: "idle" | "speaking" | "drawing"; paused?: boolean; subtitles?: boolean; recorded?: boolean; playerActive?: boolean; playerPlaying?: boolean; playerRevealed?: boolean;
+  mobile: boolean; coarse?: boolean; width?: number; height?: number; phase?: "idle" | "planning" | "thinking" | "speaking" | "drawing"; paused?: boolean; subtitles?: boolean; recorded?: boolean; playerActive?: boolean; playerPlaying?: boolean; playerRevealed?: boolean;
   fullscreen?: boolean; saveFailed?: boolean; codeOnly?: boolean;
-  pausedOffer?: boolean; downloadError?: boolean; rewind?: boolean;
+  pausedOffer?: boolean; downloadError?: boolean; rewind?: boolean; text?: string; playerText?: string;
 }) {
   const mount = new ShellMount(options.subtitles ?? true);
   const setters: { text?: (value: string) => void; phase?: (value: string) => void; paused?: (value: boolean) => void } = {};
@@ -281,7 +281,7 @@ function shellMarkup(options: {
     "./hooks/useReplay": { useReplay: () => ({ replayLecture: () => false, handleReplaySpeedChange: noop }) },
     "./hooks/useLectureRewind": { useLectureRewind: () => ({ rewindActive: options.rewind === true, rewindSegmentText: rewindCaption, rewindBoardRef: { current: null }, rewindCursorState: "hidden" }) },
     "./hooks/useLectureExport": { useLectureExport: () => ({ downloadState: options.downloadError ? { kind: "error", file: "video", message: "Try the download again" } : { kind: "idle" }, lectureFileType: "mp4" }) },
-    "./hooks/useLecturePlayer": { useLecturePlayer: () => ({ store, active: options.playerActive === true, controls: { play: noop, pause: noop, toggle: noop, seek: noop, skip: noop, setRate: noop }, view: { active: options.playerActive === true, revealed: options.playerRevealed !== false, cursorState: "hidden", segmentText: recordedCaption }, playing: options.playerPlaying === true, close: noop, halt: noop }) },
+    "./hooks/useLecturePlayer": { useLecturePlayer: () => ({ store, active: options.playerActive === true, controls: { play: noop, pause: noop, toggle: noop, seek: noop, skip: noop, setRate: noop }, view: { active: options.playerActive === true, revealed: options.playerRevealed !== false, cursorState: "hidden", segmentText: options.playerText ?? recordedCaption }, playing: options.playerPlaying === true, close: noop, halt: noop }) },
     "./hooks/useBoardMarking": { useBoardMarking: () => ({ armed: false, marks: [] }) },
     "./hooks/useLecturePageHalt": { useLecturePageHalt: noop },
     "./hooks/useBoardFullscreen": { useBoardFullscreen: () => ({ active: options.fullscreen === true, toggle: noop }), useSessionChromeHidden: () => false },
@@ -309,7 +309,7 @@ function shellMarkup(options: {
   const shell = load(shellFile, process.env.CAPTION_SHELL_SOURCE ?? shellFile, mount.react, overrides).TutorSessionShell as ComponentType<TutorSessionShellProps>;
   const render = () => { mount.cursor = 0; return (shell as (props: TutorSessionShellProps) => React.ReactElement)({ sessionId: "recorded-board" }); };
   render();
-  setters.text?.(liveCaption); setters.phase?.(options.phase ?? "speaking"); setters.paused?.(options.paused === true);
+  setters.text?.(options.text ?? liveCaption); setters.phase?.(options.phase ?? "speaking"); setters.paused?.(options.paused === true);
   lastShellTree = render();
   const html = renderToStaticMarkup(lastShellTree);
   return html;
@@ -393,8 +393,78 @@ check("focused-caption-keys", () => {
     keyDown!({ key, stopPropagation: () => { stopped++; }, preventDefault: () => { throw Error("unrelated key default changed"); } });
     assert.equal(stopped, 0, `${key} still reaches its existing owner`);
   }
+  for (const state of [
+    { phase: "idle" as const, text: "" },
+    { phase: "speaking" as const, text: "" },
+    { phase: "idle" as const, playerActive: true, playerText: "" },
+  ]) {
+    shellMarkup({ mobile: true, recorded: false, ...state });
+    const empty = find(lastShellTree);
+    assert.ok(empty, "silent captions and End retain the reserved slot");
+    const onKeyDown = empty.props.onKeyDown as typeof keyDown;
+    for (const key of [" ", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"]) {
+      let stopped = 0, prevented = 0;
+      onKeyDown?.({ key, stopPropagation: () => { stopped++; }, preventDefault: () => { prevented++; } });
+      assert.equal(stopped, 0, "a formerly focused empty caption must release media shortcuts");
+      assert.equal(prevented, 0);
+    }
+    assert.equal(empty.props.inert, true, "an empty reservation cannot retain keyboard focus");
+    assert.equal(empty.props.tabIndex, undefined);
+  }
 });
-const required = ["live-and-pause", "rewind-source", "player-play-and-pause", "eligibility-and-stop", "landscape-and-laptop", "actual-viewport-budget", "focused-caption-keys"];
+
+check("session-caption-reservation", () => {
+  const states = [
+    { phase: "idle" as const, text: "" },
+    { phase: "planning" as const, text: "" },
+    { phase: "thinking" as const, text: "" },
+    { phase: "speaking" as const },
+    { phase: "speaking" as const, text: "" },
+    { phase: "idle" as const },
+    { phase: "idle" as const, playerActive: true, playerRevealed: false },
+    { phase: "idle" as const, playerActive: true, playerText: "" },
+  ];
+  const reservedHeight = (html: string): number => {
+    const tag = html.match(/<div[^>]*aria-label="Current narration"[^>]*>/)?.[0];
+    return tag && /class="[^"]*\bh-20\b/.test(tag) ? 80 : 0;
+  };
+  for (const fullscreen of [false, true]) {
+    for (const eligibility of [{ subtitles: true }, { subtitles: false, codeOnly: true }]) {
+      for (const dimensions of [{ mobile: true, width: 390, height: 844 }, { mobile: false, width: 844, height: 390, coarse: true }]) {
+        const heights = states.map(state => reservedHeight(shellMarkup({ ...dimensions, ...eligibility, ...state, fullscreen, recorded: false })));
+        assert.deepEqual(heights, states.map(() => 80), "caption space stays reserved through idle, planning, speech, silent cues, Stop and player End");
+        withViewport(dimensions.width, dimensions.height, heights[0]!, f => {
+          const initial = f.read();
+          for (const deckHeight of heights) {
+            const next = f.resize({ deckHeight }, "deck");
+            near(next.scale, initial.scale); near(next.offsetX, initial.offsetX); near(next.offsetY, initial.offsetY);
+          }
+        });
+        if ("codeOnly" in eligibility && eligibility.codeOnly) {
+          const f = viewportFixture(dimensions.width, dimensions.height, heights[0]!, "fit", 300);
+          try {
+            const initial = f.read(), panelHeight = f.panelStyle.get("--board-panel-max-height");
+            for (const deckHeight of heights) {
+              near(f.resize({ deckHeight }, "deck").scale, initial.scale);
+              assert.equal(f.panelStyle.get("--board-panel-max-height"), panelHeight,
+                "silent captions and End keep the code panel's height budget");
+            }
+          } finally { f.close(); }
+        }
+      }
+    }
+  }
+  const empty = shellMarkup({ mobile: true, phase: "idle", text: "", recorded: false });
+  const tag = empty.match(/<div[^>]*aria-label="Current narration"[^>]*>/)?.[0];
+  assert.ok(tag?.includes('aria-hidden="true"'), "empty reservation is hidden from assistive technology");
+  assert.ok(!tag?.includes('tabindex="0"'), "empty reservation is not a keyboard stop");
+  assert.equal(reservedHeight(shellMarkup({ mobile: true, subtitles: false, codeOnly: false, recorded: false })), 0,
+    "disabled ordinary subtitles do not reserve unused caption space");
+  assert.equal(reservedHeight(shellMarkup({ mobile: false, width: 1440, height: 900, coarse: false, recorded: false })), 0,
+    "desktop caption remains its existing overlay");
+});
+
+const required = ["session-caption-reservation", "live-and-pause", "rewind-source", "player-play-and-pause", "eligibility-and-stop", "landscape-and-laptop", "actual-viewport-budget", "focused-caption-keys"];
 assert.ok(!process.env.CAPTION_DOCK_CASE || required.includes(process.env.CAPTION_DOCK_CASE), "unknown caption gate case");
 assert.ok(groups > 0, "at least one caption group ran");
 assert.equal(failures.length, 0, `${failures.length}/${groups} caption groups failed: ${failures.join(", ")}`);
