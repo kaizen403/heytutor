@@ -30,9 +30,26 @@ interface SourceClause {
   start: number;
   end: number;
   equality: boolean;
+  domainScope?: "global" | "local";
 }
 /** A request the reader cannot prove supplies neither a figure nor a veto. */
 class UnprovedLinearRequest extends Error {}
+const FIRST_QUADRANT = String.raw`in\s+(?:the\s+)?first\s+quadrant|within\s+quadrant\s+I`;
+
+/** Leading/postfix qualifiers restrict the result; parenthesized domains retain local scope. */
+function firstQuadrantDomains(text: string, names: readonly string[]): SourceClause[] {
+  const matches = [...text.matchAll(new RegExp(`\\b(?:${FIRST_QUADRANT})\\b`, "gi"))];
+  if (!matches.length) return [];
+  if (names.length !== 2 || names[0] !== "x" || names[1] !== "y" || matches.length !== 1)
+    throw new UnprovedLinearRequest("First-quadrant scope needs one canonical planar result");
+  const match = matches[0]!, before = text.slice(0, match.index), after = text.slice(match.index! + match[0].length).trimStart();
+  const depth = (before.match(/\(/g)?.length ?? 0) - (before.match(/\)/g)?.length ?? 0);
+  const local = depth > 0 && /^\)+/.test(after);
+  if (depth < 0 || depth > 0 && !local || !local && before.trim() && after && !/^[.;?!]/.test(after))
+    throw new UnprovedLinearRequest("The first-quadrant qualifier has unresolved local scope");
+  return ["x>=0", "y>=0"].map(value => ({ text: value, start: match.index!, end: match.index! + match[0].length, equality: false,
+    domainScope: local ? "local" : "global" }));
+}
 
 /** A leading question ordinal is presentation syntax, not an equation name.
  * Explicit declarations such as "line named Q1" retain their name. */
@@ -130,7 +147,7 @@ function assertLinearSourceGrammar(text: string): void {
     throw new Error("Repeated source complement requires an explicit supported scope");
   if (/\b(?:each\s+(?:of|inequality|interval|set|graph)|separately|separate\s+(?:axes|graphs?|number[ -]lines?))\b/i.test(text))
     throw new Error("Separate source requests cannot be merged into one linear program");
-  if (/\bquadrants?\b|\bnon[- ]?negativity\b/i.test(text.replace(/\bin\s+(?:the\s+)?first\s+quadrant\b/gi, " ")))
+  if (/\bquadrants?\b|\bnon[- ]?negativity\b/i.test(text.replace(new RegExp(`\\b(?:${FIRST_QUADRANT})\\b`, "gi"), " ")))
     throw new Error("Implicit planar domains require explicit supported inequality clauses");
   if (/\b(?:in|over)\s+[NZW]\b/i.test(text))
     throw new Error("Discrete source domains cannot be represented by continuous linear figures");
@@ -162,8 +179,9 @@ function sourceNotation(text: string, names: readonly string[]): string {
 }
 /** Explicit variable-domain grammar; these givens are never assumed by convention. */
 function explicitDomains(text: string, names: readonly string[]): string {
-  if (names.length === 2 && names[0] === "x" && names[1] === "y") text = text.replace(/\bin\s+(?:the\s+)?first\s+quadrant\b/gi,
-    (_, offset: number) => /[<>=]/.test(text.slice(0, offset)) ? " and x>=0 and y>=0 " : " x>=0 and y>=0 and ");
+  const quadrant = firstQuadrantDomains(text, names);
+  if (quadrant.length) text = text.replace(new RegExp(`\\b(?:${FIRST_QUADRANT})\\b`, "gi"),
+    quadrant[0]!.domainScope === "local" ? " and x>=0 and y>=0 " : " ");
   const name = `(?:${names.join("|")})`;
   const list = `${name}(?:\\s*(?:,\\s*(?:and\\s*)?|and\\s+)${name})*`;
   const domain = "non[- ]?negative|non[- ]?positive|positive|negative";
@@ -639,18 +657,37 @@ function booleanProgram(
     throw new Error("Unresolved source Boolean suffix");
   return complementWhole ? { complement: result } : result;
 }
+
+/** Parse the requested set before applying independently typed global domains. */
+function scopedSourceProgram(text: string, source: SourceClause[], labels: readonly string[], question: string, names: readonly string[], allowConstraintSentences = true): IntervalExpression {
+  let program: IntervalExpression;
+  const scopes = [...text.matchAll(/\bsubject\s+to\b/gi)].filter(match => source.some(clause => clause.end <= match.index!) &&
+    source.some(clause => clause.start >= match.index! + match[0].length));
+  if (scopes.length) {
+    const scope = scopes[0]!, offset = scope.index! + scope[0].length, prefix = text.slice(0, scope.index);
+    if (scopes.length !== 1 || (prefix.match(/\(/g)?.length ?? 0) !== (prefix.match(/\)/g)?.length ?? 0))
+      throw new UnprovedLinearRequest("The source domain has unresolved local Boolean scope");
+    if (/\b(?:graph|shade|show|plot|represent|draw|illustrate)\b/i.test(prefix) &&
+      /\b(?:graph|shade|show|plot|represent|draw|illustrate)\b/i.test(text.slice(offset)))
+      throw new UnprovedLinearRequest("Separate graphical requests cannot share a source-domain scope");
+    program = { intersection: [booleanProgram(prefix, source.filter(clause => clause.end <= scope.index!), labels, allowConstraintSentences),
+      booleanProgram(text.slice(offset), source.filter(clause => clause.start >= offset).map(clause => ({ ...clause, start: clause.start - offset, end: clause.end - offset })), labels, allowConstraintSentences)] };
+  } else program = booleanProgram(text, source, labels, allowConstraintSentences);
+  const domains = firstQuadrantDomains(question, names).filter(clause => clause.domainScope === "global");
+  if (!domains.length) return program;
+  source.push(...domains);
+  return { intersection: [program, ...domains.map(clause => ({ inequality: clause.text }))] };
+}
 function signatures(
   expressions: readonly string[],
   names: readonly string[],
   equalityOnly = false,
 ): string[] {
-  return expressions
-    .flatMap((expression) =>
+  return [...new Set(expressions.flatMap((expression) =>
       parseLinearConstraint(expression, names, equalityOnly).map(
         linearConstraintSignature,
       ),
-    )
-    .sort();
+    ))].sort();
 }
 function same(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
@@ -928,7 +965,7 @@ export function readLinearSourceSetRoles(question: string): { aliases: Set<strin
   try {
     const normalized = normalize(question);
     assertLinearSourceGrammar(normalized);
-    const body = readLinearSourceReferencePoints(explicitDomains(sourceNotation(normalized, ["x"]), ["x"]), ["x"]).maskedQuestion;
+    const body = readLinearSourceReferencePoints(explicitDomains(canonicalRealDomainSource(normalized, ["x"]), ["x"]), ["x"]).maskedQuestion;
     const aliases = new Set<string>();
     const intervals = new Map<string, LinearSourceIntervalRole>();
     if (!setBuilderSourceProgram(body, "x", aliases)) intervalSourceProgram(body, "x", aliases, intervals);
@@ -994,7 +1031,7 @@ export function readLinearSourceSystemLabels(
     return { lines: input.equations.map(() => ({ names: [], interceptAxes: [] })) };
   const normalized = normalize(question);
   assertLinearSourceGrammar(normalized);
-  const references = readLinearSourceReferencePoints(explicitDomains(sourceNotation(normalized, variables), variables), variables);
+  const references = readLinearSourceReferencePoints(explicitDomains(canonicalRealDomainSource(normalized, variables), variables), variables);
   const body = references.maskedQuestion.replace(/\b([A-Za-z][A-Za-z0-9_]*)\s*∈\s*ℝ/g, (_, variable: string) => {
     if (!variables.includes(variable)) throw new Error("Real domain must use a declared variable");
     return " ";
@@ -1145,14 +1182,14 @@ export function buildLinearSourceDocument(question: string): SceneDocument | nul
     let operator: string;
     let inputs: Record<string, unknown>;
     if (numberLineRequested) {
-      const points = readLinearSourceReferencePoints(explicitDomains(sourceNotation(normalized, ["x"]), ["x"]), ["x"]);
+      const points = readLinearSourceReferencePoints(explicitDomains(canonicalRealDomainSource(normalized, ["x"]), ["x"]), ["x"]);
       const body = points.maskedQuestion;
-      const program = setBuilderSourceProgram(body, "x") ?? intervalSourceProgram(body, "x") ?? booleanProgram(body, clauses(body, ["x"]), points.points.map(point => point.label));
+      const program = setBuilderSourceProgram(body, "x") ?? intervalSourceProgram(body, "x") ?? scopedSourceProgram(body, clauses(body, ["x"]), points.points.map(point => point.label), normalized, ["x"], false);
       operator = "number_line_set";
       inputs = { variable: "x", expression: program };
     } else {
       const names = ["x", "y"];
-      const points = readLinearSourceReferencePoints(explicitDomains(sourceNotation(normalized, names), names), names);
+      const points = readLinearSourceReferencePoints(explicitDomains(canonicalRealDomainSource(normalized, names), names), names);
       let body = points.maskedQuestion;
       const proseLabels = points.points.map(point => point.label);
       let objective: { expression: string; sense: "max" | "min" } | undefined;
@@ -1163,7 +1200,11 @@ export function buildLinearSourceDocument(question: string): SceneDocument | nul
         body = body.slice(0, source.start) + " ".repeat(source.end - source.start) + body.slice(source.end);
       }
       const source = clauses(body, names, points.points.map(point => point.label));
-      if (!source.length || !isIntersectionProgram(booleanProgram(body, source, proseLabels, true))) return null;
+      const program = scopedSourceProgram(body, source, proseLabels, normalized, names);
+      const branches = planarBranches(program);
+      if (!source.length || !branches || branches.length !== 1 || !isIntersectionProgram(program) &&
+        !firstQuadrantDomains(normalized, names).length && !/\bsubject\s+to\b/i.test(body)) return null;
+      const constraints = branches[0]!;
       if (source.length === 2 && source.every(clause => clause.equality) && !objective) {
         if (!hasNativeSystemRequest(body, source, proseLabels)) return null;
         operator = "linear_system";
@@ -1173,7 +1214,7 @@ export function buildLinearSourceDocument(question: string): SceneDocument | nul
         inputs = { variables: names, inequality: source[0]!.text };
       } else if (source.every(clause => !clause.equality)) {
         operator = "linear_feasible_region";
-        inputs = { variables: names, constraints: source.map(clause => clause.text), ...(objective ? { objective } : {}) };
+        inputs = { variables: names, constraints, ...(objective ? { objective } : {}) };
       } else return null;
     }
     if (!readLinearBindingSource(question, operator === "number_line_set" ? ["x"] : ["x", "y"], operator === "number_line_set")) return null;
@@ -1237,17 +1278,17 @@ function readLinearBindingSource(question: string, names: readonly string[], num
         signatures(inequalityLeaves(named), names);
         if (/\bstrict[- ]boundary\s+exclusion\b/i.test(body)
           && !inequalityLeaves(named).some(leaf => parseLinearConstraint(leaf, names).some(row => row.strict))) return null;
-        if (hasUnsupportedDiscreteDomain(question, !numberLine, true, aliases)) return null;
+        if (hasUnsupportedDiscreteDomain(question, !numberLine, true, aliases, names)) return null;
         return { source: [], program: named, aliases };
       }
     }
     const source = clauses(body, names, proseLabels);
-    const program = booleanProgram(body, source, proseLabels, true);
+    const program = scopedSourceProgram(body, source, proseLabels, normalized, names);
     signatures(inequalityLeaves(program), names);
     const aliases = new Set([...body.matchAll(/\bsolution\s+set\s+([A-Za-z][A-Za-z0-9_]*)\s*(?=of\b|for\b|on\b|[.;?!]|$)/gi)].map(match => match[1]!).filter(isLinearSourceIdentifier));
     if (/\bstrict[- ]boundary\s+exclusion\b/i.test(body)
       && !inequalityLeaves(program).some(leaf => parseLinearConstraint(leaf, names).some(row => row.strict))) return null;
-    if (hasUnsupportedDiscreteDomain(question, !numberLine, true, aliases)) return null;
+    if (hasUnsupportedDiscreteDomain(question, !numberLine, true, aliases, names)) return null;
     return { source, program, aliases, ...(objective ? { objective } : {}) };
   } catch {
     // A failed lexical, scope, or request proof is absence of authority. Only
@@ -1272,19 +1313,34 @@ function normalizeLinearDomainNotation(question: string): string {
     .replace(/\$/g, "");
 }
 
+/** A typed variable's continuous-domain declaration is ordinary real membership. */
+function continuousDomainNotation(question: string, names: readonly string[]): string {
+  const identifier = "[A-Za-z][A-Za-z0-9_]*";
+  const list = `${identifier}(?:\\s*(?:,\\s*(?:and\\s+)?|and\\s+)${identifier})*`;
+  return question.replace(new RegExp(`(^|[.;?!\\r\\n])(\\s*)(${list})\\s+(?:has|have)\\s+(?:(?:a|an|the)\\s+)?continuous\\s+domain\\b`, "gi"),
+    (whole, boundary: string, space: string, subjects: string) => subjects.split(/\s*(?:,|\band\b)\s*/i).every(name => names.includes(name))
+      ? `${boundary}${space}${subjects} in R` : whole);
+}
+
 /** Canonicalize only literal real declarations; retain every following source
  * constraint/request for the ordinary complete-program proof and comparison. */
 function canonicalRealDomainSource(question: string, names: readonly string[]): string {
   // Repair domain notation without reinterpreting unrelated affine arithmetic
   // (for example, the ordinary reader deliberately declines an em dash).
-  let source = sourceNotation(question
+  let source = sourceNotation(continuousDomainNotation(question, names)
     .replace(/\\(?:epsilon|varepsilon|in)\b|[εϵє∊]/giu, "∈")
     .replace(/\\(?:mathbb|mathbf|mathrm|mathsf|Bbb)\s*(?:\{[^{}]{1,32}\}|[A-Za-z])|\\R\b|[\p{L}]/gu,
       token => normalizeLinearDomainNotation(token) === "R" ? "R" : token), names);
   const variable = `(?:${names.join("|")})`, list = `${variable}(?:\\s*(?:,\\s*(?:and\\s*)?|and\\s+)${variable})*`;
   const real = String.raw`(?:R|real(?:\s+numbers?)?)(?![\p{L}\p{N}_]|\s+pairs?\b)`;
-  source = source.replace(new RegExp(`\\b(${list})\\s*(?:(?:is|are)\\s+)?(?:∈|in\\b|ranges?\\s+over|belongs?\\s+to(?:\\s+(?:the\\s+)?set)?|(?:elements?|members?)\\s+of)\\s*(?:the\\s+)?(?:all\\s+)?${real}`, "giu"),
-    (_, variables: string, offset: number, whole: string) => /\{\s*$/.test(whole.slice(0, offset)) ? `${variables} in R` : " ");
+  source = source.replace(new RegExp(`\\b(${list})\\s*(?:(?:is|are)\\s+)?(?:∈|in\\b|ranges?\\s+over|belongs?\\s+to(?:\\s+(?:the\\s+)?set)?|(?:elements?|members?)\\s+of)\\s*(?:the\\s+)?(?:all\\s+)?${real}(\\s*(?:,|with\\b))?`, "giu"),
+    (_, variables: string, connector: string | undefined, offset: number, whole: string) => {
+      const before = whole.slice(0, offset);
+      if (/\{\s*$/.test(before)) return `${variables} in R${connector ?? ""}`;
+      if (connector && /[<>=]/.test(before) && /(?:^|[.;?!]\s*)$/.test(before)) return " subject to ";
+      return ` ${connector ?? ""}`;
+    });
+  source = source.replace(/\bdomain\s+is\s+continuous\b/gi, " ");
   return source.replace(new RegExp(`\\b(?:U\\s*=|domain\\b(?:\\s+(?:is|as)|\\s*[:=])?|replacement\\s+set\\b(?:\\s+(?:is|as)|\\s*=)?|(?:in|over)\\b)\\s*(?:the\\s+)?(?:all\\s+)?${real}`, "giu"), " ");
 }
 
@@ -1317,6 +1373,7 @@ function withoutLinearMembershipQueries(source: string, planar: boolean, sourceP
  * membership; the existing leading real-plane notation is dimension checked. */
 function hasUnsupportedMembership(remaining: string, planar: boolean, sourceProved?: boolean, aliases: ReadonlySet<string> = new Set()): boolean {
   const source = withoutLinearMembershipQueries(remaining, planar, sourceProved, aliases)
+    .replace(new RegExp(`\\b(?:${FIRST_QUADRANT})\\b`, "gi"), whole => planar ? " " : whole)
     .replace(/\bin\s+this\s+(?:case|example)\b|\bexplain\s+in\s*:/gi, " ")
     .replace(/\bin\s+(?:(?:a|an|the|same|real)\s+)*(?:(?:coordinate|xy|Cartesian)[ -]+)?(?:number[ -]line|plane|graph)\b/gi, " ")
     .replace(/\belements\s+in\s+([A-Za-z][A-Za-z0-9_]*)\s+but\s+outside\s+([A-Za-z][A-Za-z0-9_]*)\b/gi,
@@ -1328,7 +1385,6 @@ function hasUnsupportedMembership(remaining: string, planar: boolean, sourceProv
     // declaration. The complete native program must subsequently bind it.
     if (/^U\s*=$/i.test(head[0]) && /^[{[(]/.test(target)
       && (sourceProved === undefined || sourceProved && aliases.has("U"))) continue;
-    if (/^in\b/i.test(head[0]) && /^first\s+quadrant\b/i.test(target) && planar && sourceProved !== false) continue;
     // "Maximized over x>=0, ..." is a proved affine constraint scope,
     // not a named replacement set. Unknown set names cannot pass this path.
     if (/^over\b/i.test(head[0]) && sourceProved !== false) {
@@ -1343,7 +1399,8 @@ function hasUnsupportedMembership(remaining: string, planar: boolean, sourceProv
       } catch { /* The complete affine scope was not proved. */ }
     }
     // Preserve set-symbol identity: lowercase r is not the real set R.
-    const real = /^(?:R(?:\s*\^\s*(?:2|\{\s*2\s*\}))?|[rR][eE][aA][lL](?:\s+[nN][uU][mM][bB][eE][rR][sS]?)?)(?=$|\s|[,;:.?!)}\]])/u.exec(target);
+    const real = /^(?:R(?:\s*\^\s*(?:2|\{\s*2\s*\}))?|[rR][eE][aA][lL](?:\s+[nN][uU][mM][bB][eE][rR][sS]?)?)(?=$|\s|[,;:.?!)}\]])/u.exec(target)
+      ?? (/^domain\b/i.test(head[0]) ? /^continuous(?=$|\s|[,;:.?!)}\]])/iu.exec(target) : null);
     if (!real) return true;
     if (real[0].includes("^") && (!planar || !/^(?:in|over)\s*$/i.test(head[0]) || source.slice(0, head.index).trim() !== "")) return true;
     // Punctuation may precede a separate display request, but cannot erase
@@ -1365,7 +1422,9 @@ function hasScalarRoster(remaining: string): boolean {
   return [...source.matchAll(/\{([^{}]*)\}/g)].some(match => roster.test(match[1]!));
 }
 
-function hasUnsupportedDiscreteDomain(question: string, planar = false, sourceProved?: boolean, aliases?: ReadonlySet<string>): boolean {
+function hasUnsupportedDiscreteDomain(question: string, planar = false, sourceProved?: boolean, aliases?: ReadonlySet<string>,
+  names: readonly string[] = planar ? ["x", "y"] : ["x"]): boolean {
+  question = continuousDomainNotation(question, names);
   // The existing named-set reader checks both sides of this complete identity.
   // Early reading may defer it; only its actual proved aliases permit removal.
   question = question.replace(/\b(?:Here\s+)?([A-Za-z][A-Za-z0-9_]*)\s+(?:minus|union|intersect(?:ion)?)\s+([A-Za-z][A-Za-z0-9_]*)\s+means\s+x\s+is\s+in\s+([A-Za-z][A-Za-z0-9_]*)\s+(?:AND|OR)\s+x\s+is\s+(?:not\s+)?in\s+([A-Za-z][A-Za-z0-9_]*)\s*(?=[.;?!]|$)/gi,
@@ -1375,6 +1434,14 @@ function hasUnsupportedDiscreteDomain(question: string, planar = false, sourcePr
   const remaining = normalizeLinearDomainNotation(question)
     .replace(/\binteger(?:\s+|-)coefficients?\b/gi, " ")
     .replace(/\bcoefficients?\s+(?:is|are)\s+(?:an?\s+)?integers?\b/gi, " ");
+  // Start at a native variable; separators cannot split "and" inside an
+  // identifier. Other trailing variables still restrict the native subject.
+  const variable = `(?:${names.map(name => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`;
+  const subjects = `${variable}(?:\\s*,\\s*[A-Za-z][A-Za-z0-9_]*|\\s+and\\s+[A-Za-z][A-Za-z0-9_]*)*`;
+  const rationalDomain = new RegExp(`\\b(${subjects})\\s+(?:is|are)\\s+(?:an?\\s+)?(?:rational|irrational)(?:\\s+numbers?)?\\b`, "gi");
+  for (const domain of remaining.matchAll(rationalDomain)) {
+    if (domain[1]!.split(/\s*(?:,|\band\b)\s*/i).some(name => names.includes(name))) return true;
+  }
   if (/\b(?:integers?|intergers?|ints?|integral|whole|naturals?|counting|primes?|odd|even|lattices?|digits?)\b/i.test(remaining)) return true;
   if (/\\not\s*∈|\bnot\s+∈/iu.test(remaining)) return true;
   if (/पूर्णांक|पूर्ण\s*संख्या|(?:प्राकृत|प्राकृतिक)\s*संख्या|\b(?:poornanks?|purnanks?|(?:poorn|purn|prakritik|prakrit)\s+sankhya)\b/i.test(remaining)) return true;
@@ -1416,7 +1483,7 @@ export function validateLinearSourceBinding(document: SceneDocument): SceneIssue
           throw new Error("An original named intersection tuple contradicts the complete source system");
       }
       const authority = readLinearBindingSource(question, names, input.kind === "number_line_set");
-      if (hasUnsupportedDiscreteDomain(question, input.kind !== "number_line_set", authority !== null, authority?.aliases))
+      if (hasUnsupportedDiscreteDomain(question, input.kind !== "number_line_set", authority !== null, authority?.aliases, names))
         throw new Error("Continuous linear figures cannot represent a source with an unsupported discrete domain cue");
       if (!authority) continue;
       const ownedOutputs = new Set(document.constructions

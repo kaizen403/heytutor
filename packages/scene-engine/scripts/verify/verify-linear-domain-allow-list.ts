@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { buildLinearSourceDocument, compileSceneDocument, type SceneDocument } from "../../src/index";
-import { validateLinearSourceBinding } from "../../src/compile/linearRegionSource";
+import { readLinearSourceSystemLabels, validateLinearSourceBinding } from "../../src/compile/linearRegionSource";
+import { linearPointSatisfies, solveLinearFigure } from "../../src/math/linearRegion";
 
 type Group = "membership" | "normalization" | "roster" | "hindi" | "alternate";
 type Shape = "number_line_set" | "linear_half_plane" | "linear_feasible_region";
@@ -123,7 +125,8 @@ function candidate(question: string, shape: Shape, objective = false, inequality
 
 const selectorIndex = process.argv.indexOf("--case");
 const selectedId = selectorIndex >= 0 ? process.argv[selectorIndex + 1] : undefined;
-const typedProofIds = ["typed-first-quadrant", "typed-interval-difference"];
+const resourceInnerId = "urgent-rational-resource-inner";
+const typedProofIds = ["typed-first-quadrant", "typed-interval-difference", "urgent-continuous", "urgent-system-real", "urgent-quadrant-complement", "urgent-rational-domain", "urgent-quadrant-I", "urgent-quadrant-scope", "urgent-rational-variable-names", "urgent-continuous-property", "urgent-number-line-duplicates", "urgent-real-domain-complement", "urgent-rational-resource", resourceInnerId];
 if (selectorIndex >= 0) assert(selectedId && (cases.some(item => item.id === selectedId) || typedProofIds.includes(selectedId)), "--case must name an existing case or typed proof group");
 const selected = selectedId ? cases.filter(item => item.id === selectedId) : cases;
 let checks = 0;
@@ -256,6 +259,308 @@ for (const question of [
   "Let A=[0,4]. Plot the elements in A but outside B on a number line.",
   "Let B=[1,2]. Plot the elements in A but outside B on a number line.",
 ]) typedCheck("typed-interval-difference", `unknown interval binding declines: ${question}`, () => expectTypedRejected(differenceDocument(question, difference), true));
+
+// Preserve the original442 checks above. These regressions independently test
+// the reader, exact candidate authority and rendered system-label ownership.
+const continuousQuestion = "Graph x<4 on a number line. The domain is continuous.";
+typedCheck("urgent-continuous", "explicit continuous domain accepts the correct ray through reader and planner", () => {
+  expectTypedAccepted(candidate(continuousQuestion, "number_line_set", false, "x<4"));
+});
+typedCheck("urgent-continuous", "a continuous domain does not change the ray boundary", () => {
+  expectTypedRejected(candidate(continuousQuestion, "number_line_set", false, "x<=4"));
+});
+for (const question of [
+  "Graph x<4 on a number line. The domain is not continuous.",
+  "Graph x<4 on a number line. The domain is continuous and integer.",
+  "Graph x<4 on a number line. The domain is continuous. x IN Z.",
+  "Graph x<4 on a number line. The domain is continuous. x not in R.",
+]) typedCheck("urgent-continuous", `negated or mixed domain remains denied: ${question}`, () => {
+  expectTypedRejected(candidate(question, "number_line_set", false, "x<4"), true);
+});
+
+function systemDocument(question: string, equations = ["x+y=6", "x-y=2"]): SceneDocument {
+  const document = candidate(question, "linear_feasible_region");
+  document.constructions[0]!.operator = "linear_system";
+  document.constructions[0]!.inputs = { variables: ["x", "y"], equations };
+  return document;
+}
+const systemRealQuestion = "Graph x+y=6 and x-y=2. x IN R.";
+typedCheck("urgent-system-real", "real membership accepts the exact two-line system through reader and planner", () => {
+  expectTypedAccepted(systemDocument(systemRealQuestion));
+});
+typedCheck("urgent-system-real", "real membership prose owns no line or intersection label", () => {
+  const labels = readLinearSourceSystemLabels(systemRealQuestion, { kind: "linear_system", variables: ["x", "y"], equations: ["x+y=6", "x-y=2"] });
+  assert.deepEqual(labels, { lines: [{ names: [], interceptAxes: [] }, { names: [], interceptAxes: [] }] });
+  const result = compileSceneDocument(systemDocument(systemRealQuestion));
+  assert(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  assert(!result.renderScene.primitives.some(primitive => primitive.kind === "label" && /\b(?:IN|domain)\b|^R$/i.test(primitive.text ?? "")), "membership prose must never become diagram ink");
+});
+typedCheck("urgent-system-real", "domain normalization does not alter either source equation", () => {
+  expectTypedRejected(systemDocument(systemRealQuestion, ["x+y=6", "x-y=3"]));
+});
+for (const question of [
+  "Graph x+y=6 and x-y=2. x in R.",
+  "Graph x+y=6 and x-y=2. x ∈ ℝ.",
+  "Graph x+y=6 and x-y=2. x IN R. y IN R.",
+]) typedCheck("urgent-system-real", `equivalent real-domain syntax remains accepted: ${question}`, () => expectTypedAccepted(systemDocument(question)));
+for (const question of [
+  "Graph x+y=6 and x-y=2. x IN Z.",
+  "Graph x+y=6 and x-y=2. x NOT IN R.",
+  "Graph x+y=6 and x-y=2. x IN R. y IN Z.",
+]) typedCheck("urgent-system-real", `integer or negated domain remains denied: ${question}`, () => expectTypedRejected(systemDocument(question), true));
+
+const complementQuadrantQuestion = "Shade the complement of x+y<=4 in the first quadrant.";
+function quadrantComplementDocument(question: string, constraints = ["x+y>4", "x>=0", "y>=0"]): SceneDocument {
+  const document = candidate(question, "linear_feasible_region");
+  document.constructions[0]!.inputs = { variables: ["x", "y"], constraints };
+  return document;
+}
+typedCheck("urgent-quadrant-complement", "the correct planner complements the half-plane within the source quadrant", () => {
+  const document = quadrantComplementDocument(complementQuadrantQuestion), before = structuredClone(document);
+  assert.deepEqual(validateLinearSourceBinding(document), []);
+  const result = compileSceneDocument(document);
+  assert(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  assert.deepEqual(document, before);
+});
+typedCheck("urgent-quadrant-complement", "the reader either declines or proves the quadrant stays outside the complement", () => {
+  const built = buildLinearSourceDocument(complementQuadrantQuestion);
+  if (!built) return;
+  const result = compileSceneDocument(built);
+  assert(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  const construction = built.constructions.find(item => item.operator === "linear_feasible_region");
+  assert(construction, "this convex source result requires one proved feasible intersection");
+  const constraints = construction.inputs.constraints;
+  assert(Array.isArray(constraints) && constraints.every(value => typeof value === "string"));
+  const solution = solveLinearFigure({ kind: "linear_feasible_region", variables: ["x", "y"], constraints });
+  assert.equal(solution.kind, "linear_feasible_region");
+  if (solution.kind !== "linear_feasible_region") return;
+  for (const [x, y, included] of [[3, 3, true], [0, 5, true], [5, 0, true], [4, 0, false], [1, 1, false], [-1, 6, false], [6, -1, false], [-1, -1, false]] as const) {
+    assert.equal(linearPointSatisfies(solution.constraints, { x: { numerator: String(x), denominator: "1" }, y: { numerator: String(y), denominator: "1" } }), included, `source membership at (${x},${y})`);
+  }
+});
+for (const [name, constraints] of [
+  ["cannot complement the quadrant as well", ["x+y>4"]],
+  ["cannot include negative x", ["x+y>4", "y>=0"]],
+  ["cannot include negative y", ["x+y>4", "x>=0"]],
+  ["cannot include the original closed boundary", ["x+y>=4", "x>=0", "y>=0"]],
+  ["cannot omit the requested complement", ["x+y<=4", "x>=0", "y>=0"]],
+  ["the quadrant includes its positive axes", ["x+y>4", "x>0", "y>0"]],
+] as const) typedCheck("urgent-quadrant-complement", name, () => expectTypedRejected(quadrantComplementDocument(complementQuadrantQuestion, [...constraints])));
+for (const question of [
+  "Shade the complement of x+y<=4 in the first quadrant. x, y IN Z.",
+  "Shade the complement of x+y<=4 in the first quadrant. x IN R. y IN Z.",
+  "Shade the complement of x+y<=4 in the first quadrant. x not in R.",
+]) typedCheck("urgent-quadrant-complement", `source quadrant never erases a discrete or negated domain: ${question}`, () => expectTypedRejected(quadrantComplementDocument(question), true));
+
+for (const domain of ["rational", "irrational"]) for (const lane of ["number-line", "half-plane", "system"] as const) {
+  const question = lane === "number-line" ? `Graph x<4 on a number line. x is ${domain}.`
+    : lane === "half-plane" ? `Shade x+y<4. x is ${domain}.`
+      : `Graph x+y=6 and x-y=2. x is ${domain}.`;
+  typedCheck("urgent-rational-domain", `${lane} reader refuses plain ${domain} variable domain`, () => assert.equal(buildLinearSourceDocument(question), null));
+  typedCheck("urgent-rational-domain", `${lane} planner cannot erase plain ${domain} variable domain`, () => {
+    const document = lane === "system" ? systemDocument(question)
+      : candidate(question, lane === "number-line" ? "number_line_set" : "linear_half_plane", false, "x<4");
+    expectTypedRejected(document);
+  });
+}
+typedCheck("urgent-rational-domain", "rational coefficients do not restrict the real variable domain", () => {
+  const question = "Graph x<4 on a number line with rational coefficients for real x.";
+  expectTypedAccepted(candidate(question, "number_line_set", false, "x<4"));
+});
+typedCheck("urgent-rational-domain", "an actual rational coefficient retains its exact real half-plane", () => {
+  const question = "Shade (1/2)x+y<4 for real x and y.";
+  const document = candidate(question, "linear_half_plane");
+  document.constructions[0]!.inputs = { variables: ["x", "y"], inequality: "(1/2)x+y<4" };
+  expectTypedAccepted(document);
+});
+
+const quadrantIQuestion = "Shade x+y<=4 within quadrant I.";
+typedCheck("urgent-quadrant-I", "the explicit Roman-numeral qualifier proves the first quadrant", () => {
+  expectTypedAccepted(quadrantComplementDocument(quadrantIQuestion, ["x+y<=4", "x>=0", "y>=0"]));
+});
+for (const [name, constraints] of [
+  ["cannot omit both quadrant axes", ["x+y<=4"]],
+  ["cannot flip the x axis domain", ["x+y<=4", "x<=0", "y>=0"]],
+  ["cannot flip the y axis domain", ["x+y<=4", "x>=0", "y<=0"]],
+  ["cannot replace the source quadrant with its opposite", ["x+y<=4", "x<=0", "y<=0"]],
+] as const) typedCheck("urgent-quadrant-I", name, () => expectTypedRejected(quadrantComplementDocument(quadrantIQuestion, [...constraints])));
+typedCheck("urgent-quadrant-I", "a Roman-numeral qualifier keeps the quadrant outside a preceding complement", () => {
+  expectTypedAccepted(quadrantComplementDocument("Shade the complement of x+y<=4 within quadrant I."));
+});
+typedCheck("urgent-quadrant-I", "a Roman-numeral qualifier cannot be omitted from the complemented result", () => {
+  expectTypedRejected(quadrantComplementDocument("Shade the complement of x+y<=4 within quadrant I.", ["x+y>4"]));
+});
+
+const globalParenthesizedQuadrant = "Shade the complement of (x+y<=4) in the first quadrant.";
+typedCheck("urgent-quadrant-scope", "a global postfix quadrant remains outside the parenthesized complement", () => {
+  expectTypedAccepted(quadrantComplementDocument(globalParenthesizedQuadrant));
+});
+for (const [name, constraints] of [
+  ["opposite inequality", ["x+y<=4", "x>=0", "y>=0"]],
+  ["flipped axes", ["x+y>4", "x<0", "y<0"]],
+] as const) typedCheck("urgent-quadrant-scope", `global postfix rejects ${name}`, () => {
+  expectTypedRejected(quadrantComplementDocument(globalParenthesizedQuadrant, [...constraints]));
+});
+for (const question of [
+  "Shade the complement of (x+y<=4 in the first quadrant).",
+  "Shade the complement of (x+y<=4 and x>=0 and y>=0).",
+]) {
+  for (const [name, constraints] of [
+    ["the convex global-postfix result", ["x+y>4", "x>=0", "y>=0"]],
+    ["the uncomplemented conjunction", ["x+y<=4", "x>=0", "y>=0"]],
+    ["an opposite-quadrant intersection", ["x+y>4", "x<0", "y<0"]],
+  ] as const) typedCheck("urgent-quadrant-scope", `an internal qualifier cannot become ${name}: ${question}`, () => {
+    expectTypedRejected(quadrantComplementDocument(question, [...constraints]));
+  });
+}
+
+for (const domain of ["rational", "irrational"]) for (const lane of ["number-line", "half-plane", "system"] as const) {
+  const question = lane === "number-line" ? `Graph t<4 on a number line. t is ${domain}.`
+    : lane === "half-plane" ? `Shade u+v<4. u is ${domain}.`
+      : `Graph u+v=6 and u-v=2. v is ${domain}.`;
+  typedCheck("urgent-rational-variable-names", `${lane} native variable names cannot erase ${domain} predicates`, () => {
+    const document = lane === "system" ? systemDocument(question, ["u+v=6", "u-v=2"])
+      : candidate(question, lane === "number-line" ? "number_line_set" : "linear_half_plane");
+    document.constructions[0]!.inputs = lane === "number-line" ? { variable: "t", expression: { inequality: "t<4" } }
+      : lane === "half-plane" ? { variables: ["u", "v"], inequality: "u+v<4" }
+        : { variables: ["u", "v"], equations: ["u+v=6", "u-v=2"] };
+    expectTypedRejected(document, true);
+  });
+}
+typedCheck("urgent-rational-variable-names", "rational coefficients remain safe with a native scalar variable", () => {
+  const question = "Graph t<4 on a number line with rational coefficients for real t.";
+  const document = candidate(question, "number_line_set");
+  document.constructions[0]!.inputs = { variable: "t", expression: { inequality: "t<4" } };
+  const before = structuredClone(document);
+  assert.deepEqual(validateLinearSourceBinding(document), []);
+  const result = compileSceneDocument(document);
+  assert(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  assert.deepEqual(document, before);
+});
+typedCheck("urgent-rational-variable-names", "native real-domain system keeps exact variables and owns no prose labels", () => {
+  const question = "Graph u+v=6 and u-v=2. u ∈ R and v ∈ R.";
+  const document = systemDocument(question, ["u+v=6", "u-v=2"]);
+  document.constructions[0]!.inputs = { variables: ["u", "v"], equations: ["u+v=6", "u-v=2"] };
+  const before = structuredClone(document);
+  assert.deepEqual(validateLinearSourceBinding(document), []);
+  const result = compileSceneDocument(document);
+  assert(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  assert.deepEqual(document, before);
+  assert.deepEqual(readLinearSourceSystemLabels(question, { kind: "linear_system", variables: ["u", "v"], equations: ["u+v=6", "u-v=2"] }), { lines: [{ names: [], interceptAxes: [] }, { names: [], interceptAxes: [] }] });
+  assert(!result.renderScene.primitives.some(primitive => primitive.kind === "label" && /∈|^R$/.test(primitive.text ?? "")), "real-domain declarations must not become system labels");
+});
+typedCheck("urgent-rational-variable-names", "native real-domain normalization cannot change an equation", () => {
+  const document = systemDocument("Graph u+v=6 and u-v=2. u ∈ R and v ∈ R.", ["u+v=6", "u-v=3"]);
+  document.constructions[0]!.inputs = { variables: ["u", "v"], equations: ["u+v=6", "u-v=3"] };
+  expectTypedRejected(document);
+});
+typedCheck("urgent-rational-variable-names", "a mixed scalar subject list retains its native rational restriction", () => {
+  expectTypedRejected(candidate("Graph x<4 on a number line. x and z are rational.", "number_line_set", false, "x<4"), true);
+});
+typedCheck("urgent-rational-variable-names", "a mixed planar subject list retains both native rational restrictions", () => {
+  const document = systemDocument("Graph u+v=6 and u-v=2. u,v,w are rational.", ["u+v=6", "u-v=2"]);
+  document.constructions[0]!.inputs = { variables: ["u", "v"], equations: ["u+v=6", "u-v=2"] };
+  expectTypedRejected(document, true);
+});
+
+function propertyDocument(question: string, lane: "number-line" | "half-plane" | "system", native = false): SceneDocument {
+  const first = native ? lane === "number-line" ? "t" : "u" : "x", second = native ? "v" : "y";
+  const document = lane === "system" ? systemDocument(question) : candidate(question, lane === "number-line" ? "number_line_set" : "linear_half_plane");
+  document.constructions[0]!.inputs = lane === "number-line" ? { variable: first, expression: { inequality: `${first}<4` } }
+    : lane === "half-plane" ? { variables: [first, second], inequality: `${first}+${second}<4` }
+      : { variables: [first, second], equations: [`${first}+${second}=6`, `${first}-${second}=2`] };
+  return document;
+}
+const propertyRequests = [
+  ["number-line", "Graph x<4 on a number line."],
+  ["half-plane", "Shade x+y<4."],
+  ["system", "Graph x+y=6 and x-y=2."],
+] as const;
+for (const [lane, request] of propertyRequests) {
+  typedCheck("urgent-continuous-property", `${lane} typed continuous property accepts the actual real source`, () => {
+    expectTypedAccepted(propertyDocument(`${request} x has a continuous domain.`, lane));
+  });
+  for (const [name, declaration] of [
+    ["mixed integer membership", "x has a continuous domain. x IN Z."],
+    ["excluding-zero qualification", "x has a continuous domain excluding 0."],
+    ["unknown named domain qualification", "x has a continuous domain called S."],
+  ] as const) typedCheck("urgent-continuous-property", `${lane} property cannot erase ${name}`, () => {
+    expectTypedRejected(propertyDocument(`${request} ${declaration}`, lane), true);
+  });
+}
+for (const [lane, question] of [
+  ["number-line", "Graph t<4 on a number line. t has a continuous domain."],
+  ["system", "Graph u+v=6 and u-v=2. u and v have a continuous domain."],
+] as const) typedCheck("urgent-continuous-property", `${lane} property uses the actual native variable names`, () => {
+  const document = propertyDocument(question, lane, true), before = structuredClone(document);
+  assert.deepEqual(validateLinearSourceBinding(document), []);
+  const result = compileSceneDocument(document);
+  assert(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  assert.deepEqual(document, before);
+  assert(!result.renderScene.primitives.some(primitive => primitive.kind === "label" && /\b(?:has|have|continuous|domain)\b/i.test(primitive.text ?? "")), "typed domain prose must not become labels");
+});
+for (const question of [
+  "Graph t<4 on a number line. t has a continuous domain. t IN Z.",
+  "Graph t<4 on a number line. t has a continuous domain excluding 0.",
+]) typedCheck("urgent-continuous-property", `native variable property preserves the full restriction: ${question}`, () => {
+  expectTypedRejected(propertyDocument(question, "number-line", true), true);
+});
+
+for (const question of [
+  "Graph x>=0 on a number line. x∈R,x>=0.",
+  "Graph x>=0 on a number line. x∈ℝ,x>=0.",
+  "Graph x>=0 on a number line. x∈R,2x>=0.",
+]) typedCheck("urgent-number-line-duplicates", `an equivalent repeated source bound does not change the ray: ${question}`, () => {
+  expectTypedAccepted(candidate(question, "number_line_set", false, "x>=0"));
+});
+typedCheck("urgent-number-line-duplicates", "a distinct extra bound remains a required source constraint", () => {
+  expectTypedRejected(candidate("Graph x>=0 on a number line. x∈R,x<=4.", "number_line_set", false, "x>=0"));
+});
+typedCheck("urgent-number-line-duplicates", "equal canonical leaf sets do not equate union with intersection", () => {
+  const question = "Graph x>=0 and x<=4 on a number line. x∈R,x>=0.";
+  const document = candidate(question, "number_line_set");
+  document.constructions[0]!.inputs = { variable: "x", expression: { union: [{ inequality: "x>=0" }, { inequality: "x<=4" }] } };
+  expectTypedRejected(document);
+});
+typedCheck("urgent-number-line-duplicates", "two-equation systems cannot omit an additional source domain constraint", () => {
+  expectTypedRejected(systemDocument("Graph x+y=6 and x-y=2. x∈R,x>=0."), true);
+});
+
+const scopedRealDomainQuestion = "Graph the complement of x<4 on a number line. x∈R with x>=0.";
+typedCheck("urgent-real-domain-complement", "a later typed domain restricts the completed number-line complement", () => {
+  expectTypedAccepted(differenceDocument(scopedRealDomainQuestion, { intersection: [{ complement: { inequality: "x<4" } }, { inequality: "x>=0" }] }));
+});
+typedCheck("urgent-real-domain-complement", "canonical leaf agreement cannot move a global domain inside complement", () => {
+  expectTypedRejected(differenceDocument(scopedRealDomainQuestion, { complement: { intersection: [{ inequality: "x<4" }, { inequality: "x>=0" }] } }));
+});
+
+// Only the dedicated child executes adversarial parser inputs. A stuck native
+// call cannot prevent the parent gate from killing its own child after5s.
+if (selectedId === resourceInnerId) for (const count of [40, 200]) for (const spaced of [false, true]) {
+  typedCheck(resourceInnerId, `bounded ${spaced ? "spaced" : "concatenated"} subject text ${count}`, () => {
+    const question = `Graph x<4 on a number line. ${(spaced ? "and " : "and").repeat(count)} tail.`;
+    process.stdout.write(`resource reader start ${count} ${spaced ? "spaced" : "concatenated"}\n`);
+    const start = performance.now();
+    assert.equal(buildLinearSourceDocument(question), null, "unknown prose is not a source-reader figure");
+    const readerMs = performance.now() - start;
+    const document = candidate(question, "number_line_set", false, "x<4"), before = structuredClone(document);
+    const compilerStart = performance.now(), result = compileSceneDocument(document);
+    assert.equal(typeof result.ok, "boolean", "the actual native compiler must complete");
+    assert.deepEqual(document, before, "boundedness checks must preserve the native candidate");
+    process.stdout.write(JSON.stringify({ resourceCase: count, spaced, readerMs, compilerMs: performance.now() - compilerStart, nativeCompiled: result.ok }) + "\n");
+  });
+}
+typedCheck("urgent-rational-resource", "adversarial subject text completes inside an own-child hard timeout", () => {
+  const child = spawnSync(process.execPath, [...process.execArgv, process.argv[1]!, "--case", resourceInnerId], {
+    timeout: 5000, killSignal: "SIGKILL", encoding: "utf8", maxBuffer: 1024 * 1024,
+  });
+  const detail = JSON.stringify({ pid: child.pid, status: child.status, signal: child.signal, error: child.error?.message,
+    stdout: child.stdout, stderr: child.stderr });
+  assert.equal(child.error, undefined, `Resource child must finish rather than time out; SIGKILL targets only this child: ${detail}`);
+  assert.equal(child.status, 0, `Resource child failed: ${detail}`);
+  assert.match(child.stdout, /4\/4 domain allow-list checks/, "the child must actually execute all four native cases");
+  process.stdout.write(`resource child timings ${child.stdout.split("\n").filter(line => line.startsWith("{")).join(" ")}\n`);
+});
 
 console.log(`${checks - failures.length}/${checks} domain allow-list checks; ${selected.length} negative questions; ${cases.filter(item => item.origin === "review").length} review examples; ${cases.filter(item => item.origin === "generated").length} new generated wordings; ${selectedId ? 0 : controls.length} continuous controls; ${typedChecks} typed source-proof checks; ${failures.length} failures; paid calls 0`);
 for (const failure of failures) console.error(failure);
