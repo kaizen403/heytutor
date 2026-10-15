@@ -149,6 +149,13 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
       { bindingMeta, declaredValue: value.value },
     );
     const agrees = evidence.value !== null && approximatelyEqual(evidence.value, value.value);
+    if (evidence.admissionOnly) {
+      // Newly readable unit spellings are evidence for admission, never a
+      // license to change the planner's number or its explanation.
+      addNumericBinding(numericBindings, value, bindingMeta,
+        agrees && !evidence.invalid && !evidence.conflicting);
+      return value;
+    }
     if (evidence.mixedUnits && !agrees) {
       // Part of the chain mixes units (6400 km in "g R_e^2" for an SI GM)
       // and only its literal numbers back a reading. Never rewrite through
@@ -333,7 +340,8 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
       evidence.value !== null &&
       !approximatelyEqual(evidence.value, value.value) &&
       Math.abs(evidence.value - value.value) > (evidence.tolerance ?? 0) &&
-      !sourceContainsMatchingMeasuredValue(value.sourceText, value.value, value.unit)
+      (evidence.admissionOnly ||
+        !sourceContainsMatchingMeasuredValue(value.sourceText, value.value, value.unit))
     ) {
       issues.push({
         code: "source_text_value_mismatch",
@@ -660,6 +668,8 @@ interface ExplicitArithmeticEvidence {
   tolerance?: number;
   /** A clause mixed input units and was set aside as no evidence. */
   mixedUnits?: boolean;
+  /** New unit syntax may admit or reject, but must never rewrite a plan. */
+  admissionOnly?: boolean;
 }
 
 interface ExplicitArithmeticOptions {
@@ -697,7 +707,89 @@ function readLiteralVoltOhmQuotient(
   return `${volts.value}/(${ohms.value})`;
 }
 
+/** Only extend the existing V/Ω boundary for one grouped numeric fraction. */
+function readGroupedVoltOhmQuotient(
+  member: string,
+  expectedUnit: unknown,
+  numericBindings: Map<string, number>,
+  bindingMeta: NumericBindingMetaMap,
+): string | null {
+  const match = member.trim().match(new RegExp(
+    String.raw`^(${NUMBER_SOURCE}\s*(?:V|volts?))\s*/\s*\(\s*(${NUMBER_SOURCE})\s*/\s*(${NUMBER_SOURCE})\s*(Ω|ohms?)\s*\)$`,
+  ));
+  if (!match) return null;
+  const numerator = Number(match[2]!.replace(/−/g, "-"));
+  const denominator = Number(match[3]!.replace(/−/g, "-"));
+  const resistance = numerator / denominator;
+  if (!Number.isFinite(resistance) || resistance <= 0 || denominator === 0) return null;
+  const flat = `${match[1]}/${resistance} ${match[4]}`;
+  const reading = readLiteralVoltOhmQuotient(flat, expectedUnit, numericBindings, bindingMeta);
+  return reading === flat ? null : reading;
+}
+
+/** Strip a known unit and its exponent atomically, before binding substitution. */
+function stripPoweredUnitLabels(
+  source: string,
+  knownUnits: string[],
+  numericBindings: Map<string, number>,
+): string {
+  let expression = source;
+  const power = String.raw`(?:[⁻⁺]?[⁰¹²³⁴⁵⁶⁷⁸⁹]+|\^\s*(?:\(\s*[+−-]?\d+\s*\)|[+−-]?\d+))`;
+  // Only powered compound labels equivalent to an actual plan unit qualify.
+  // This consumes "m s⁻²" together before m/s bindings can multiply it;
+  // it cannot consume coefficient-variable forms such as "2 g" or "2 C".
+  const factor = String.raw`[A-Za-zΩμµ]+(?:${power})?`;
+  expression = expression.replace(new RegExp(
+    String.raw`(?<=[0-9.)\]]\s*)${factor}(?:\s+${factor})+(?=\s|\)|\]|$|[*/+−-])`, "g"), (label) => {
+    if (!new RegExp(power).test(label)) return label;
+    // A whole measured equality member already has unit ownership. Inside
+    // arithmetic, bound component names may instead be genuine products;
+    // leave those on the existing path rather than inventing a type proof.
+    if (parseMeasuredPart(source)?.unit !== label &&
+        [...label.matchAll(/[A-Za-zΩμµ]+/gu)].some(([name]) =>
+          numericBindings.has(normalizeNumericBindingKey(name)))) return label;
+    const scale = unitScale(label);
+    return scale && knownUnits.some((unit) => {
+      const known = unitScale(unit);
+      return known?.signature === scale.signature && known.factor === scale.factor;
+    }) ? "" : label;
+  });
+  for (const knownUnit of knownUnits) {
+    const unit = knownUnit.match(new RegExp(String.raw`^([A-Za-zΩμµ]+)(?:${power})?$`))?.[1];
+    if (!unit || numericBindings.has(normalizeNumericBindingKey(unit))) continue;
+    const label = escapeRegExp(unit);
+    const flags = /^[A-Za-z]{2,}$/.test(unit) ? "gi" : "g";
+    expression = expression.replace(new RegExp(
+      String.raw`(?<=[0-9.)\]]\s*)${label}${power}(?=\s|\)|\]|$|[*/+−-])`, flags), (label) =>
+      // The old path already consumes an exact ASCII powered label whole.
+      // Leave that path (including its existing rounding policy) unchanged.
+      knownUnits.includes(label) && !/[⁻⁺⁰¹²³⁴⁵⁶⁷⁸⁹]/u.test(label) ? label : "");
+    expression = expression.replace(new RegExp(
+      String.raw`(?<=[0-9.)\]]\s+)1\s*/\s*${label}(?=\s|\)|\]|$|[*/+−-])`, flags), "");
+  }
+  return expression;
+}
+
 function evaluateExplicitArithmetic(
+  sourceText: string,
+  expectedUnit: unknown,
+  knownUnits: string[],
+  numericBindings: Map<string, number> = new Map(),
+  reconcile = false,
+  targetKeys: string[] = [],
+  options: ExplicitArithmeticOptions = {},
+): ExplicitArithmeticEvidence {
+  const admissionOnly = splitArithmeticClauses(sourceText).some((clause) =>
+    splitEqualityParts(clause).some((member) =>
+      stripPoweredUnitLabels(member, knownUnits, numericBindings) !== member ||
+      readGroupedVoltOhmQuotient(member, expectedUnit, numericBindings,
+        options.bindingMeta ?? new Map()) !== null));
+  const evidence = evaluateExplicitArithmeticReading(sourceText, expectedUnit, knownUnits,
+    numericBindings, reconcile && !admissionOnly, targetKeys, options);
+  return admissionOnly ? { ...evidence, admissionOnly: true } : evidence;
+}
+
+function evaluateExplicitArithmeticReading(
   sourceText: string,
   expectedUnit: unknown,
   knownUnits: string[],
@@ -728,6 +820,7 @@ function evaluateExplicitArithmetic(
   let mixedUnits = false;
   for (const clause of splitArithmeticClauses(readableSource)) {
     const equalityParts = splitEqualityParts(clause).map((member) =>
+      readGroupedVoltOhmQuotient(member, expectedUnit, numericBindings, bindingMeta) ??
       readLiteralVoltOhmQuotient(member, expectedUnit, numericBindings, bindingMeta));
     if (equalityParts.length < 2) continue;
     const clauseTargetKeys = expandDescriptiveAssignmentTargets(equalityParts, targetKeys);
@@ -1994,7 +2087,7 @@ function normalizeExplicitNumericExpression(
   allowedIdentifier?: string,
   usedBindingKeys?: Set<string>,
 ): string | null {
-  let expression = normalizeInverseTrigNotation(source.replace(/[−–]/g, "-"))
+  let expression = normalizeInverseTrigNotation(stripPoweredUnitLabels(source, knownUnits, numericBindings).replace(/[−–]/g, "-"))
     .replace(/[×·⋅]/g, "*")
     .replace(/√\s*(?=\()/g, "sqrt")
     .replace(/√\s*(\d+(?:\.\d+)?|[A-Za-zΑ-Ωα-ω_][A-Za-z0-9Α-Ωα-ω_]*)/gu, "sqrt($1)")
