@@ -43,7 +43,7 @@ function workFunctionEv(question: string): number | null {
     const nextOwner = owners[index + 1]?.index ?? body.length;
     const boundary = /\.(?!\d)|[;!?\n]/.exec(body.slice(cueEnd, nextOwner));
     const end = boundary ? cueEnd + boundary.index : nextOwner;
-    const read = readChemistryQuantity({ question, after: WORK_FUNCTION_CUE, within: { start, end }, dimension: "energy", targetUnit: "eV" });
+    const read = readChemistryQuantity({ question, after: WORK_FUNCTION_CUE, within: { start, end: nextOwner }, dimension: "energy", targetUnit: "eV" });
     if (!read.ok) {
       // A bare requested diagram label supplies no value or metal owner.
       const prefix = body.slice(0, start);
