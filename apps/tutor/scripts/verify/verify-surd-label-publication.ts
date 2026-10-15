@@ -91,6 +91,9 @@ async function main() {
       ["- ( 20√3 m )", -34.64101615137754, "m"],
       ["− ( 20√3 m )", -34.64101615137754, "m"],
       ["100+100√3 km/h", 273.2050807568877, "km/h"],
+      ["-(100+100√3) km/h", -273.2050807568877, "km/h"],
+      ["-(100+100√3 km/h)", -273.2050807568877, "km/h"],
+      ["−(100+100√3 km/h)", -273.2050807568877, "km/h"],
       ["√(2+√3) m", 1.9318516525781366, "m"],
       ["-√3 m", -1.7320508075688772, "m"],
       ["−√3 m", -1.7320508075688772, "m"],
@@ -106,6 +109,11 @@ async function main() {
         text, `${text}: preserve supported signs, fractions, sums and nested numeric roots whole`);
     }
     const positiveRootPlan: TurnPlanV3 = { ...plan, givens: [{ id: "given", symbol: "Q", value: 1.7320508075688772, unit: "m", provenance: "given" }] };
+    const ungroupedSumPlan: TurnPlanV3 = { ...plan, givens: [{ id: "given", symbol: "v", value: 73.20508075688772, unit: "km/h", provenance: "given" }] };
+    assert(validateSceneQuantityAgreement([], ungroupedSumPlan, ["-(100+100√3 km/h)"]).some(issue => issue.code === "displayed_quantity_unverified"),
+      "removing a unit wrapper cannot change a signed sum into its ungrouped value");
+    assert.equal(pruneUnverifiedSceneAnnotations(scene("-(100+100√3 km/h)"), ungroupedSumPlan).entities.find(entity => entity.id === "length")?.label,
+      undefined, "numeric authority must reject the incorrectly ungrouped positive value");
     for (const text of ["-√3 m", "−√3 m", "1+√3 m", "√(2+√3) m", "√(2+) m", "20√ m", "√(-2) m", "2√3/4 m", "√(2 m)", "√(2+ m)"]) {
       assert(validateSceneQuantityAgreement([], positiveRootPlan, [text]).some(issue => issue.code === "displayed_quantity_unverified"),
         `${text}: suffix agreement cannot validate a different or malformed expression`);
@@ -118,7 +126,7 @@ async function main() {
       assert.equal(pruneUnverifiedSceneAnnotations(scene(text), plan).entities.find(entity => entity.id === "length")?.label,
         undefined, `${text}: remove the unsupported measurement with its surrounding wrappers`);
     }
-    console.log("surd publication: eight full labels reach immediate/animated Whiteboard; seventeen signed/fraction/sum/nested-root values retained and twenty-three wrong/malformed measurements rejected whole");
+    console.log("surd publication: eight full labels reach immediate/animated Whiteboard; grouped expressions keep their values and unsupported measurements are removed whole");
   } finally { clearInterval(pump); unmountTestWhiteboard(board); }
 }
 runWhiteboardVerifier(main);

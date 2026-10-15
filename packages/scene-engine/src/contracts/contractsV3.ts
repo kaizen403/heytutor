@@ -4749,8 +4749,8 @@ function measuredValuePattern(): RegExp {
   return new RegExp(`(${radical}|${NUMBER_SOURCE})\\s*(${factor}(?:\\s*(?:[/·⋅*]|\\s+)\\s*${factor})*)(?=\\s|$|[,;).!?:])((?:\\s*\\))*)`, "gi");
 }
 
-/** Parentheses enclosing both number and unit are punctuation, not arithmetic. */
-function measurementNumberWithoutWrappers(source: string, closing: string): string {
+/** Close numeric grouping with its matching parentheses after the unit. */
+function measurementNumberWithClosedWrappers(source: string, closing: string): string {
   let balance = 0;
   for (const char of source) {
     if (char === "(") balance++;
@@ -4760,9 +4760,8 @@ function measurementNumberWithoutWrappers(source: string, closing: string): stri
   const prefix = source.match(/^[+\-−(\s]*/)?.[0] ?? "";
   if (balance === 0 || balance > (prefix.match(/\(/g)?.length ?? 0) ||
       balance > (closing.match(/\)/g)?.length ?? 0)) return source;
-  let remaining = balance;
-  const unwrappedPrefix = prefix.replace(/\(/g, (paren) => remaining-- > 0 ? "" : paren);
-  return unwrappedPrefix + source.slice(prefix.length);
+  // Keep grouping under signs: -(a+b unit) means -(a+b), never -a+b.
+  return source + ")".repeat(balance);
 }
 
 /** Removing an unsupported value also removes only the wrappers it owns. */
@@ -4778,8 +4777,8 @@ function displayedMeasurementNumber(source: string, closing = ""): number {
   if (!source.includes("√")) return Number(source.replace(/−/g, "-"));
   // Parenthesize a complete numeric radicand first: the general normalizer's
   // short bare-root spelling otherwise splits `.25` and `2e2` mid-number.
-  const unwrapped = measurementNumberWithoutWrappers(source, closing);
-  const grouped = unwrapped.replace(new RegExp(`√\\s*(${NUMBER_SOURCE})`, "g"), "√($1)");
+  const complete = measurementNumberWithClosedWrappers(source, closing);
+  const grouped = complete.replace(new RegExp(`√\\s*(${NUMBER_SOURCE})`, "g"), "√($1)");
   const expression = normalizeExplicitNumericExpression(grouped, []);
   if (!expression) return NaN;
   try { return evaluateMathExpression(expression, 0); } catch { return NaN; }
