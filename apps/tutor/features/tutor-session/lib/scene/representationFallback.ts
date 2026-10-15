@@ -827,6 +827,8 @@ const FUNCTION_EQUATION_INTRODUCTIONS = new Set([
 ]);
 const FUNCTION_EQUATION_ENDPOINTS = new Set(["and", "for", "where", "enclose", "encloses"]);
 const FUNCTION_PRIME_SYMBOL = /^(?:[A-Za-z\u0370-\u03ff](?:[0-9\u2080-\u2089]+|_[A-Za-z0-9\u0370-\u03ff]+)?|alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|omicron|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega)$/i;
+const FUNCTION_PRIME_SCALAR = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
+const FUNCTION_QUOTED_SCALAR = /^\s*(?:[A-Za-z\u0370-\u03ff][A-Za-z0-9_\u0370-\u03ff\u2080-\u2089]*\s*=\s*)?[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?\s*$/i;
 
 function unquotedFunctionSourcePositions(source: string): Uint8Array {
   // State bits: outside=1, single-quoted=2, double-quoted=4. Each row maps
@@ -839,6 +841,8 @@ function unquotedFunctionSourcePositions(source: string): Uint8Array {
     [0, 3, 4], // ordinary closer: ambiguous inside, never a prime outside
   ] as const;
   const tokens = new Uint8Array(source.length);
+  let rawSingleQuote = -1;
+  let rawSingleQuoteCanOpen = false;
   for (let index = 0; index < source.length; index += 1) {
     const character = source[index]!;
     if (/['’]/.test(character) && /[A-Za-z\u0370-\u03ff]/.test(source[index - 1] ?? "") &&
@@ -847,6 +851,15 @@ function unquotedFunctionSourcePositions(source: string): Uint8Array {
       let start = index;
       while (start > 0 && /[A-Za-z0-9_\u0370-\u03ff\u2080-\u2089]/.test(source[start - 1]!)) start -= 1;
       const token = source.slice(start, index);
+      const firstMark = index;
+      let scalarStart = start;
+      while (scalarStart > 0 && /[0-9.eE+\-]/.test(source[scalarStart - 1]!)) scalarStart -= 1;
+      const numeric = FUNCTION_PRIME_SCALAR.test(source.slice(scalarStart, index)) &&
+        !/[A-Za-z0-9_\u0370-\u03ff\u2080-\u2089]/.test(source[scalarStart - 1] ?? "");
+      // Consecutive raw quote spans are disjoint. A quoted scalar/equality
+      // can close a quote without making a bare measurement mark invalid.
+      const literalScalar = numeric && rawSingleQuoteCanOpen &&
+        FUNCTION_QUOTED_SCALAR.test(source.slice(rawSingleQuote + 1, firstMark));
       while (/['’]/.test(source[index + 1] ?? "")) index += 1;
       let following = index + 1;
       while (/\s/.test(source[following] ?? "") && following < source.length) following += 1;
@@ -858,10 +871,16 @@ function unquotedFunctionSourcePositions(source: string): Uint8Array {
       // before punctuation. A directly quoted ordinary word need not be a
       // valid outside possessive/prime to preserve that same inside path.
       const possessive = /s$/i.test(token) && !literalWord;
-      tokens[index] = source[start - 1] === ")" || symbol || application || possessive ? 3 : 4;
+      tokens[index] = source[start - 1] === ")" || symbol || application || possessive || (numeric && !literalScalar) ? 3 : 4;
+      rawSingleQuote = index;
+      rawSingleQuoteCanOpen = false;
       continue;
     }
-    if (/['‘’]/.test(character)) tokens[index] = 1;
+    if (/['‘’]/.test(character)) {
+      tokens[index] = 1;
+      rawSingleQuote = index;
+      rawSingleQuoteCanOpen = true;
+    }
     else if (/["“”]/.test(character)) tokens[index] = 2;
   }
   const forward = new Uint8Array(source.length + 1);

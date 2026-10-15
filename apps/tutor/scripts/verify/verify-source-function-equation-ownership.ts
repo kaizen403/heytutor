@@ -911,7 +911,88 @@ const ordinaryQuoteCombinedFixtures: readonly Fixture[] = [
     ],
   },
 ];
-const gateFixtures: readonly Fixture[] = [...fixtures, ...sourceCompletenessFixtures, ...retentionFixtures, ...primeAndPluralRetentionFixtures, ...quotedPrimeOwnershipFixtures, ...quotedCloseProseFixtures, ...quotedCloseSingleProseFixtures, ...quoteArgumentClassFixtures, ...ordinaryQuoteContextFixtures, ...ordinaryQuoteCombinedFixtures];
+// Numeric measurement apostrophes/primes and quoted numeric instruction
+// controls, frozen before execution. All prior90 fixture and180 assertion
+// bytes remain intact; double-inch syntax is separate historical scope.
+const numericMeasurementMarkFixtures: readonly Fixture[] = [
+  {
+    id: "reported-numeric-foot-mark-retains-genuine-graphs",
+    question: "A ball starts at a height of 5'. Graph y=-x^2+5 and y=0.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=-x^2+5", [[-1, 4], [0, 5], [1, 4], [2, 1]]),
+      sourceEquation("y=0", [[-1, 0], [0, 0], [1, 0], [2, 0]]),
+    ],
+  },
+  {
+    id: "decimal-foot-mark-retains-genuine-graphs",
+    question: "The marker stands 5.5' above the floor. Graph y=-x^2+5.5 and y=0.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=-x^2+5.5", [[-1, 4.5], [0, 5.5], [1, 4.5], [2, 1.5]]),
+      sourceEquation("y=0", [[-1, 0], [0, 0], [1, 0], [2, 0]]),
+    ],
+  },
+  {
+    id: "curly-numeric-measurement-retains-genuine-graphs",
+    question: "A ball starts at a height of 5’. Graph y=-x^2+5 and y=0.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=-x^2+5", [[-1, 4], [0, 5], [1, 4], [2, 1]]),
+      sourceEquation("y=0", [[-1, 0], [0, 0], [1, 0], [2, 0]]),
+    ],
+  },
+  {
+    id: "typographic-prime-measurement-retains-genuine-graphs",
+    question: "A platform is 7′ high. Graph y=x^2 and y=2*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "numeric-foot-mark-before-plural-curve-instruction",
+    question: "The stated length is 12'. Graph the curves y=x^2 and y=2*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "signed-numeric-mark-before-plot-instruction",
+    question: "The survey records a signed offset of -2'. Plot y=x^2 and y=2*x.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "quoted-ascii-numeric-mark-instruction-negative",
+    question: "The note says 'The height is 5', then graph y=x^2 and y=2*x; do not draw it.' Explain the note.",
+    mustDrawExplicitCurves: false,
+    discreteDomain: false,
+    equations: [
+    ],
+  },
+  {
+    id: "quoted-curly-decimal-mark-instruction-negative",
+    question: "The note says ‘The height is 5.5’, then graph y=x^2 and y=2*x; do not draw it.’ Explain the note.",
+    mustDrawExplicitCurves: false,
+    discreteDomain: false,
+    equations: [
+    ],
+  },
+];
+const gateFixtures: readonly Fixture[] = [...fixtures, ...sourceCompletenessFixtures, ...retentionFixtures, ...primeAndPluralRetentionFixtures, ...quotedPrimeOwnershipFixtures, ...quotedCloseProseFixtures, ...quotedCloseSingleProseFixtures, ...quoteArgumentClassFixtures, ...ordinaryQuoteContextFixtures, ...ordinaryQuoteCombinedFixtures, ...numericMeasurementMarkFixtures];
 
 function normalizeEquation(value: string): string {
   return value.replace(/[−–—]/g, "-").replace(/×/g, "*").replace(/÷/g, "/")
