@@ -63,7 +63,7 @@ function mountLayout() {
     eraseWorkInk: async () => { erases += 1; },
   } satisfies Pick<WhiteboardHandle, "captureSnapshot" | "eraseWorkInk">;
   const layout = mountHook({
-    whiteboardRef: { current: nativeBoard as WhiteboardHandle },
+    whiteboardRef: { current: nativeBoard as unknown as WhiteboardHandle },
     cancelRef: { current: false },
     fbdPhaseStartedRef: { current: true },
     liveQuestionRef: { current: "Captured wall trajectory question" },
