@@ -1599,16 +1599,23 @@ function mixedLiteralMemberValue(
 ): number | null | undefined {
   const expected = unitScale(expectedUnit);
   if (!expected || ![...bindingKeys].some((key) => {
-    const scale = scaledBindingUnit(key, bindingMeta);
+    const scale = unitScale(bindingMeta.get(key)?.unit);
     return scale?.signature === expected.signature;
   })) return undefined;
   if (!isolated) return null;
   const coherent = coherentNumericBindings(numericBindings, bindingMeta);
+  const syntax = normalizeExplicitNumericSyntax(source);
+  // Adjacent numeric tokens are unsupported. Refuse before whitespace or
+  // numeric-unit filtering can turn "2 1" or "2 .01" into a coefficient.
+  if (/[0-9.)\]]\s+(?:\d|\.\d)/.test(syntax)) return null;
+  // Numeric dimensionless labels are not unit-letter tokens. Stripping "1"
+  // from a substituted (0.01) would silently change the supplied scalar.
+  knownUnits = knownUnits.filter((unit) => !/^\d+$/.test(unit.trim()));
   const literalScales: UnitScale[] = [];
   if (!normalizeExplicitNumericExpression(source, knownUnits, coherent, undefined, undefined, {
     bindingMeta, coherentBindings: true, onAtom: (_unit, scale) => literalScales.push(scale),
   }) || literalScales.length === 0 || literalScales.some((scale) => scale.signature !== expected.signature)) return null;
-  const terms = splitAdditiveQuantityTerms(normalizeExplicitNumericSyntax(source));
+  const terms = splitAdditiveQuantityTerms(syntax);
   if (!terms) return null;
   let sum = 0;
   for (const term of terms) {
@@ -1617,22 +1624,40 @@ function mixedLiteralMemberValue(
     const expression = normalizeExplicitNumericExpression(term, knownUnits, coherent, undefined, keys, {
       bindingMeta, coherentBindings: true, measuredAtoms: atoms,
     });
-    if (!expression || (atoms.found && keys.size > 0)) return null;
+    if (!expression) return null;
+    const dimensionalKeys: string[] = [];
+    const scalarKeys: string[] = [];
+    for (const key of keys) {
+      const meta = bindingMeta.get(key);
+      const scale = unitScale(meta?.unit);
+      if (!scale) return null;
+      if (scale.signature === "") {
+        if (!meta?.trusted) return null;
+        scalarKeys.push(key);
+      } else dimensionalKeys.push(key);
+    }
+    if (atoms.found && dimensionalKeys.length > 0) return null;
     try {
       const value = evaluateMathExpression(expression, 0);
-      if (keys.size === 0) {
+      if (dimensionalKeys.length === 0) {
         // A bare nonzero scalar has no independently established length,
         // mass, etc. Zero is unit-independent and may be a neutral term.
         if (!atoms.found && value !== 0) return null;
         sum += value / expected.factor;
         continue;
       }
-      if (keys.size !== 1) return null;
-      const key = [...keys][0]!;
+      if (dimensionalKeys.length !== 1) return null;
+      const key = dimensionalKeys[0]!;
       const input = unitScale(bindingMeta.get(key)?.unit);
-      const scalar = normalizeTargetNumericExpression(term, [key], knownUnits, numericBindings, undefined, { bindingMeta });
-      if (!input || input.signature !== expected.signature || !scalar || !isMultiplicativeScalarTerm(scalar)) return null;
-      const coefficient = evaluateMathExpression(scalar, 1);
+      const scalar = normalizeTargetNumericExpression(term, [key], knownUnits, coherent, undefined, { bindingMeta, coherentBindings: true });
+      // Supplied dimensionless factors participate in the actual arithmetic,
+      // but their values do not prove that a conversion factor was written.
+      const writtenBindings = new Map(coherent);
+      scalarKeys.forEach((scalarKey) => writtenBindings.set(scalarKey, 1));
+      const writtenScalar = normalizeTargetNumericExpression(term, [key], knownUnits, writtenBindings, undefined, { bindingMeta, coherentBindings: true });
+      if (!input || input.signature !== expected.signature || !scalar || !writtenScalar ||
+          !isMultiplicativeScalarTerm(scalar) || !isMultiplicativeScalarTerm(writtenScalar)) return null;
+      const coefficient = evaluateMathExpression(writtenScalar, 1);
       const magnitude = Math.abs(coefficient);
       if (magnitude !== 0 && !approximatelyEqual(magnitude, 1)) {
         const sameLiteralUnit = literalScales.every((scale) => approximatelyEqual(scale.factor / expected.factor, 1));

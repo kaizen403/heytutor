@@ -155,6 +155,31 @@ async function main(): Promise<void> {
   pair("review-p1/binding-with-literal-unit/coherent-output", [["a", 2, "cm"]], "L", "m", "L = a + 3 m", 3.02, 5);
   wrong("review-p1/uncertified-multiple-conversion", plan([["l", 200, "cm"]], "L", "m", 3.04,
     "L = 2*l/100 + 3 m = 3.04 m"), 7);
+  const scalarMixtures = [
+    ["supplied", [["a", 2, "cm"], ["n", 2, "1"]], "cm", "n*a + 3 cm", 7, 5],
+    ["scaled-literal", [["a", 2, "cm"], ["n", 2, "1"]], "cm", "n*a + 3 mm", 4.3, 7],
+    ["coherent-output", [["a", 2, "cm"], ["n", 2, "1"]], "m", "n*a + 3 m", 3.04, 7],
+    ["certified-conversion", [["a", 200, "cm"], ["n", 2, "1"]], "m", "n*a/100 + 3 m", 7, 3.04],
+    ["percent", [["a", 2, "cm"], ["n", 50, "%"]], "cm", "n*a + 3 cm", 4, 103],
+    ["percent-coherent-input", [["a", 2, "m"], ["n", 50, "%"]], "m", "n*a + 3 cm", 1.03, 103],
+    ["percent-coherent-input-prefixed-output", [["a", 2, "m"], ["n", 50, "%"]], "cm", "n*a + 3 cm", 103, 10003],
+    ["coefficient-is-not-conversion", [["a", 2, "cm"], ["n", 1, "%"]], "m", "n*a + 3 m", 3.0002, 3.02],
+    ["numeric-scalar-is-not-conversion", [["a", 2, "cm"], ["n", 0.01, "1"]], "m", "n*a + 3 m", 3.0002, 3.02],
+    ["numeric-scalar-is-not-conversion-large", [["a", 200, "cm"], ["n", 0.01, "1"]], "m", "n*a + 3 m", 3.02, 5],
+    ["denominator", [["a", 2, "cm"], ["n", 2, "1"]], "cm", "a/n + 3 mm", 1.3, 4],
+    ["typed-literal-factor", [["a", 2, "cm"], ["n", 2, "1"]], "cm", "a + n*(3 cm)", 8, 5],
+  ] satisfies Array<[string, readonly Given[], string, string, number, number]>;
+  for (const [name, givens, unit, expression, truth, error] of scalarMixtures) {
+    pair(`review-p1/dimensionless-coefficient/${name}`, givens, "L", unit, `L = ${expression}`, truth, error);
+  }
+  for (const factor of ["2 1*a", "(2) 1*a", "2 {1}*a", "2 \r1*a", "2 11*a", "2 .01*a"]) {
+    for (const [inputUnit, outputUnit, literal, truth, error] of [
+      ["cm", "cm", "3 cm", 7, 45], ["cm", "m", "3 m", 3.04, 3.42], ["m", "m", "3 m", 7, 45],
+    ] as const) for (const value of [truth, error]) {
+      decline(`review-p1/explicit-numeric-unit/${factor}/${inputUnit}/${outputUnit}/${value}`,
+        plan([["a", 2, inputUnit], ["n", 2, "1"]], "L", outputUnit, value, `L = ${factor} + ${literal} = ${value} ${outputUnit}`));
+    }
+  }
   for (const member of ["a + 3 mm + 0", "1*a + 3 mm", "2*a + 3 mm", "a + 0.003 m"]) {
     const truth = member.startsWith("2*") ? 4.3 : 2.3;
     const error = member.startsWith("2*") ? 7 : member.includes("0.003") ? 2.003 : 5;
