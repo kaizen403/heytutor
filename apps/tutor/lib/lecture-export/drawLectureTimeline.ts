@@ -111,6 +111,6 @@ async function drawExportCue(options: {
     isCancelled: shouldCancel,
     waitWhilePaused: async () => !shouldCancel(),
     execute: executeCommand,
-    commandOptions: () => ({ applyLayout: false, trustedDiagramGeometry, isCancelled: shouldCancel }),
+    commandOptions: () => ({ applyLayout: false, trustedDiagramGeometry, isCancelled: shouldCancel, waitForAdvance }),
   });
 }

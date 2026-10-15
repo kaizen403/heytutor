@@ -561,19 +561,14 @@ export async function drawSegmentInk(input: {
       const getTargetMs = command.type === "TYPE" && cueStartMs === null
         ? () => typeCommandStartMs(command, clock, textCommandIndex)
         : () => cueStartMs ?? commandStartMs;
-      if (clock.waitForAdvance) {
-        while (!isCancelled() && clock.getAudioPositionMs() + 10 < getTargetMs()) {
-          await clock.waitForAdvance();
-        }
-      } else {
-        await waitUntilDrawClock(clock.getAudioPositionMs, getTargetMs(), {
-          shouldCancel: isCancelled,
-          getPlaybackRate: clock.getPlaybackRate,
-          ...(clock.isPaused ? { isPaused: clock.isPaused } : {}),
-          ...(clock.nowMs ? { nowMs: clock.nowMs } : {}),
-          getTargetMs,
-        });
-      }
+      await waitUntilDrawClock(clock.getAudioPositionMs, getTargetMs(), {
+        shouldCancel: isCancelled,
+        getPlaybackRate: clock.getPlaybackRate,
+        ...(clock.isPaused ? { isPaused: clock.isPaused } : {}),
+        ...(clock.nowMs ? { nowMs: clock.nowMs } : {}),
+        waitForAdvance: clock.waitForAdvance,
+        getTargetMs,
+      });
       if (isCancelled()) {
         return;
       }
