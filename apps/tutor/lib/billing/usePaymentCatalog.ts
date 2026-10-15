@@ -78,7 +78,10 @@ export function usePaymentCatalog() {
   };
   const selectPromo = (value: string | null) => {
     const code = promoCodeInput(value);
-    if (code === promo) return;
+    if (code === promo) {
+      if (failed) { setFailed(false); setRevision(current => current + 1); }
+      return;
+    }
     // A quote priced for the old code must not stay clickable.
     setCatalog(null);
     setFailed(false);

@@ -44,6 +44,9 @@ assert.throws(() => readPriceQuote(`${Buffer.from(JSON.stringify(stripped)).toSt
 const unknownCode = createPriceQuote({ ...plus, promoCode: "FREE100" }, secret, now);
 assert.throws(() => readPriceQuote(unknownCode, "plus", secret, now), /price_changed/, "a withdrawn or unknown code kills its outstanding quotes");
 
+const creditsAtHalf = createPriceQuote({ ...razorpayOffer("lesson_top_up"), amount: 500, promoCode: "PH50" }, secret, now);
+assert.throws(() => readPriceQuote(creditsAtHalf, "lesson_top_up", secret, now), /price_changed/, "a code never discounts a plan it does not cover");
+
 // The wiring: the catalog signs the discounted offer; the code table stays off the client.
 const route = read("app/api/billing/catalog/route.ts");
 assert(/const offer = applyPromoCode\(full, promo\);[\s\S]*createPriceQuote\(offer,/.test(route), "the catalog signs the discounted offer, not the full one");
@@ -52,6 +55,7 @@ assert(read("lib/billing/razorpayApi.ts").includes("promo_code: offer.promoCode"
 assert(/promoCode\s+String\?\s+@map\("promo_code"\)/.test(read("prisma/schema.prisma")), "the purchase row stores the code");
 assert(read("prisma/migrations/24_add_purchase_promo_code/migration.sql").includes('ADD COLUMN "promo_code" TEXT'), "the column is additive");
 assert(read("features/account/PlanUsageCard.tsx").includes("<PromoCodeField"), "the plans page offers the promo field");
+assert(/onboarding\?next=\$\{encodeURIComponent\(next\)\}/.test(read("lib/auth/requireOnboarded.ts")), "a new student keeps a /usage?promo=PH50 link through onboarding");
 for (const client of ["lib/billing/usePaymentCatalog.ts", "features/account/PromoCodeField.tsx", "features/account/PlanUsageCard.tsx"]) {
   assert(!read(client).includes("promoCodes"), `${client} must not bundle the code table`);
 }

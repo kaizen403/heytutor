@@ -79,7 +79,7 @@ export function PlanUsageCard({
           <p className="mt-1 text-xs text-[rgba(237,237,235,0.5)]">{formatResetLabel(entitlement?.nextResetAt ?? null)}</p>
           <UsageMeter remainingPct={remainingPct} staff={staff} />
           {razorpay && !staff ? <p className="mt-3 text-xs text-white/50">One month per purchase. No automatic renewal. Added credits expire with the current usage period.</p> : null}
-          {catalog?.testMode && !staff ? <p role="status" className="mt-2 text-xs text-sky-300">Test checkout — no real money is charged.</p> : null}
+          {catalog?.testMode && !staff ? <p role="status" className="mt-2 text-xs text-sky-300">Test checkout. No real money is charged.</p> : null}
           {teen ? (
             <p className="mt-3 text-sm text-[rgba(237,237,235,0.62)]">{TEEN_CHECKOUT_COPY}</p>
           ) : null}
@@ -91,7 +91,7 @@ export function PlanUsageCard({
 
       {!staff ? <div className="mt-4"><PaymentCurrencyPicker currency={currency} onChange={selectCurrency} disabled={busy !== null} /></div> : null}
       {failed ? <p role="status" className="mt-3 text-xs text-white/50">Could not load payment options. Please refresh to try again.</p> : null}
-      {catalog && !catalog.available && !staff ? <p role="status" className="mt-3 text-xs text-white/50">{catalog.unavailableReason === "exchange_rate_unavailable" ? "Could not get a recent INR amount. Please try again shortly." : "Checkout is not available in this currency yet. You can keep using your current plan."}</p> : null}
+      {catalog && !catalog.available && !staff ? <p role="status" className="mt-3 text-xs text-white/50">{catalog.unavailableReason === "exchange_rate_unavailable" ? "Could not get a recent INR amount. Please try again shortly." : currency === "USD" ? "Checkout in USD is not available yet. Choose INR above to pay in rupees." : "Checkout is not available in this currency yet. You can keep using your current plan."}</p> : null}
 
       {compact ? (
         <div className="mt-3 flex flex-wrap gap-2">
@@ -177,7 +177,7 @@ function PlanOffer({
     <div className={`rounded-xl border p-3 ${selected ? "border-sky-500/60" : "border-white/10"}`}>
       <p className="text-sm font-medium text-frost">{plan.name}</p>
       <p className="mt-1 text-lg text-frost">
-        {price?.fullAmount ? <span className="mr-2 text-sm text-white/45 line-through">{formatCheckoutPrice({ amount: price.fullAmount, currency: price.currency })}</span> : null}
+        {price?.fullAmount ? <span className="mr-2 text-sm text-white/45 line-through"><span className="sr-only">Was </span>{formatCheckoutPrice({ amount: price.fullAmount, currency: price.currency })}<span className="sr-only">, now</span></span> : null}
         {price ? formatCheckoutPrice(price) : currency === "USD" ? `$${plan.priceUsdPerMonth}` : currency === "INR" ? catalog ? "INR amount unavailable" : "Checking INR amount…" : "Loading price…"}
         <span className="text-xs text-[rgba(237,237,235,0.5)]"> / month</span>
       </p>

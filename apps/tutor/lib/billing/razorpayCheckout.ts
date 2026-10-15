@@ -115,7 +115,7 @@ export async function openRazorpayCheckout(checkout: RazorpayCheckout): Promise<
       let confirming = false;
       const sdk = new window.Razorpay!({
         key: checkout.keyId, order_id: checkout.orderId, amount: checkout.amount, currency: checkout.currency,
-        name: "Accelute", description: checkout.planId === "lesson_top_up" ? "Added credits" : "Plus — one month",
+        name: "Accelute", description: checkout.planId === "lesson_top_up" ? "Added credits" : "Plus, one month",
         theme: { color: "#3399cc" },
         handler: response => {
           if (confirming) return;
