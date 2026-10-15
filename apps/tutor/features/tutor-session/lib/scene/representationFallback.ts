@@ -768,7 +768,8 @@ function opticsProofFailure(question: string, match: OpticsStemMatch, document: 
   // (behind a mirror, or on the object's side of a lens, is virtual).
   const v = element === "lens" ? f * u / (u + f) : f * u / (u - f);
   const virtualImage = element === "lens" ? v < 0 : v > 0;
-  for (const side of opticsStemImage(question, element).sides) {
+  const stemImage = opticsStemImage(question, element);
+  for (const side of stemImage.sides) {
     if (side.cm === null) continue;
     if (scale === null) return "gaussian_image lengthUnit must be cm, m or mm";
     const value = Math.abs(v) * scale;
@@ -783,11 +784,16 @@ function opticsProofFailure(question: string, match: OpticsStemMatch, document: 
   // (|m| < 1), with |m| = |v/u| for both elements.
   const nature = opticsStemNature(question, element, match);
   const magnification = Math.abs(v / u);
+  const engineImage = `the engine image (${virtualImage ? "virtual" : "real"}, |m| = ${opticsCompact(magnification)})`;
   const contradicted = nature.real && virtualImage ? "real" : nature.virtual && !virtualImage ? "virtual"
     : nature.larger && !(magnification > 1) ? "enlarged" : nature.smaller && !(magnification < 1) ? "diminished" : null;
-  if (contradicted) {
-    return `the engine image (${virtualImage ? "virtual" : "real"}, |m| = ${opticsCompact(magnification)}) contradicts the stem's ${contradicted} image`;
-  }
+  if (contradicted) return `${engineImage} contradicts the stem's ${contradicted} image`;
+  // A nature the stem denies ("does not form a real image", "no real, magnified image") is not the
+  // engine image's in full. A denial implies no kind (`opticsStemImage`), so it only refuses.
+  const holds = (word: string) => /real|inverted/.test(word) ? !virtualImage : /virtual|erect|upright/.test(word) ? virtualImage
+    : /enlarged|magnified/.test(word) ? magnification > 1 : magnification < 1;
+  const ruledOut = stemImage.denied.find((words) => words.length > 0 && words.every(holds));
+  if (ruledOut) return `${engineImage} is the ${ruledOut.join(", ")} image the stem denies`;
   // P4: every focus is the engine focus of this element, in the image's unit.
   const foci = document.constructions.filter((construction) => construction.operator === "optical_focus");
   if (foci.length === 0) return "no optical_focus";
@@ -1323,9 +1329,17 @@ const OPTICS_NATURE = "real|virtual|inverted|erect|upright|enlarged|magnified|di
 const OPTICS_NATURE_WORD = new RegExp(`\\b(?:${OPTICS_NATURE})\\b`, "gi");
 /** Nature words in front of "image": "a real, magnified image", "an erect and diminished image". */
 const OPTICS_NATURE_BEFORE = new RegExp(`\\b((?:(?:${OPTICS_NATURE})(?:\\s*,\\s*(?:and\\s+)?|\\s+and\\s+|\\s+))+)images?\\b`, "gi");
-/** Nature words after it: "the image is virtual, erect and diminished", "an image which is real". */
-const OPTICS_NATURE_AFTER = new RegExp(`\\bimages?\\b(?:\\s+(?:so\\s+)?(?:formed|produced|obtained|seen|which|that))?\\s+(?:is|was|will be|appears(?: to be)?)\\s+` +
-  `((?:${OPTICS_NATURE})(?:(?:\\s*,\\s*(?:and\\s+)?|\\s+and\\s+)(?:${OPTICS_NATURE}))*)\\b`, "gi");
+/** Nature words after it: "the image is virtual, erect and diminished", "an image which is real", "the image isn't real". */
+const OPTICS_NATURE_AFTER = new RegExp(`\\bimages?\\b(?:\\s+(?:so\\s+)?(?:formed|produced|obtained|seen|which|that))?\\s+(?:is|was|will be|appears(?: to be)?)` +
+  `(?:n['’]t|\\s+(?:not|never|neither))?\\s+((?:${OPTICS_NATURE})(?:(?:\\s*,\\s*(?:and\\s+)?|\\s+and\\s+)(?:${OPTICS_NATURE}))*)\\b`, "gi");
+/**
+ * A negation that governs what follows it: "does not form a", "cannot produce an", "no", "isn't",
+ * "neither a real nor an", "no image forms". Only verbs that make an image, articles and a distance
+ * may stand between, so "no parallax with the" or "not convex forms a" governs nothing.
+ */
+const OPTICS_NEGATED = /(?:\b(?:not|never|no|cannot|neither|nor)\b|n['’]t\b)(?:\s+(?:be|been|able|to|ever|an?|any|the|images?|\d+(?:\.\d+)?|mm|cm|m|(?:form|produce|give|cast|make|create|obtain|get|see|lie|appear)\w*))*\s+$/i;
+/** A negation inside a nature match: "the image is not real", "isn't inverted". */
+const OPTICS_NEGATION_WORD = /n['’]t\b|\b(?:not|never|neither)\b/i;
 /** "real or virtual", "upright or inverted": the stem asks about the nature, it does not state it. */
 const OPTICS_NATURE_CHOICE = new RegExp(`\\b(?:${OPTICS_NATURE})\\s+or\\s+(?:an?\\s+)?(?:${OPTICS_NATURE})\\b`, "i");
 /** Where the image forms: "an image 30 cm behind the mirror", "the image forms on the other side of the lens". */
@@ -1340,19 +1354,26 @@ const OPTICS_IMAGE_DISTANCE_TOLERANCE = 0.01;
  * "whether" or "if", is not read, and "real or virtual" names no nature. A side is virtual behind a mirror (or on its other
  * side) and real in front of it (or on the object's side); across a lens it is real and on the
  * object's side virtual. "Behind" or "in front of" a lens names no side for certain (null), though a
- * distance there is still the image's. "Behind the object" is not read at all.
+ * distance there is still the image's. "Behind the object" is not read at all. A negated phrase or
+ * side ("does not form a real image", "the image is not formed behind the mirror") states nothing:
+ * it is kept apart as a nature the image must not have in full (`denied`), and a negated side with a
+ * distance ("not 30 cm behind it") denies nothing.
  */
 function opticsStemImage(question: string, element: "lens" | "mirror"): {
   words: Set<string>;
   sides: Array<{ virtual: boolean | null; cm: number | null; text: string }>;
+  denied: string[][];
 } {
   const words = new Set<string>();
   const sides: Array<{ virtual: boolean | null; cm: number | null; text: string }> = [];
+  const denied: string[][] = [];
   for (const sentence of question.split(/(?<=[.!?])\s+/)) {
     const statement = opticsStatement(sentence);
     if (OPTICS_NATURE_CHOICE.test(statement)) continue;
     for (const found of [...statement.matchAll(OPTICS_NATURE_BEFORE), ...statement.matchAll(OPTICS_NATURE_AFTER)]) {
-      for (const word of found[1]!.match(OPTICS_NATURE_WORD) ?? []) words.add(word.toLowerCase());
+      const named = (found[1]!.match(OPTICS_NATURE_WORD) ?? []).map((word) => word.toLowerCase());
+      if (OPTICS_NEGATED.test(statement.slice(0, found.index)) || OPTICS_NEGATION_WORD.test(found[0])) denied.push(named);
+      else for (const word of named) words.add(word);
     }
     for (const found of statement.matchAll(OPTICS_IMAGE_SIDE)) {
       const where = found[2]!.toLowerCase();
@@ -1362,9 +1383,15 @@ function opticsStemImage(question: string, element: "lens" | "mirror"): {
       const virtual = element === "mirror" ? /behind|other|opposite|far/.test(where) : /same/.test(where);
       const real = element === "mirror" ? /in front|same/.test(where) : /other|opposite|far/.test(where);
       const distance = /(\d+(?:\.\d+)?)\s*(mm|cm|m)\s*$/i.exec(found[1]!);
+      // The stem's words up to the side: "image does not form ", "image 30 cm ".
+      const lead = found[0].slice(0, /^images?/i.exec(found[0])![0].length + found[1]!.length);
+      if (OPTICS_NEGATED.test(statement.slice(0, found.index) + lead)) {
+        if (virtual !== real && !distance) denied.push([virtual ? "virtual" : "real"]);
+        continue;
+      }
       if (virtual === real && !distance) continue;
       // The stem's own words from the side on: "behind it", "on the other side of the lens".
-      const place = found[0].slice(/^images?/i.exec(found[0])![0].length + found[1]!.length);
+      const place = found[0].slice(lead.length);
       sides.push({
         virtual: virtual === real ? null : virtual,
         cm: distance ? Number(distance[1]) * OPTICS_CM_PER_UNIT[distance[2]!.toLowerCase()]! : null,
@@ -1372,7 +1399,7 @@ function opticsStemImage(question: string, element: "lens" | "mirror"): {
       });
     }
   }
-  return { words, sides };
+  return { words, sides, denied };
 }
 
 /** Question words that ask wherever they stand: "...; where does the image form?", "find how far". */
