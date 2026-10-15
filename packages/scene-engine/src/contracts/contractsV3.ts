@@ -4054,6 +4054,7 @@ function pointForEntity(
 function pruneUnsupportedMeasuredFragments(text: string, plan: TurnPlanV3): string {
   const supported = supportedSceneDisplayMeasurements(plan);
   const pruned = text.replace(measuredValuePattern(), (measurement, _number: string, unit: string, closing: string, index: number) => {
+    if (sceneMeasurementIsSymbolicRadical(text, { index, length: measurement.length, unit }, plan)) return measurement;
     if (sceneMeasurementIsOwnedFormulaOperand(text, { index, length: measurement.length - closing.length, unit }, plan)) return measurement;
     const value = displayedMeasurementNumber(_number, closing);
     const tolerance = displayedNumberTolerance(_number.replace(/−/g, "-"));
@@ -4079,6 +4080,9 @@ function extractMeasuredValues(text: string, plan: TurnPlanV3): Array<{ value: n
   const values: Array<{ value: number; unit: string; tolerance: number }> = [];
   const pattern = measuredValuePattern();
   for (const match of text.matchAll(pattern)) {
+    if (sceneMeasurementIsSymbolicRadical(
+      text, { index: match.index!, length: match[0].length, unit: match[2]! }, plan,
+    )) continue;
     const value = displayedMeasurementNumber(match[1]!, match[3]!);
     const unit = match[2]?.trim();
     if (unit && !sceneMeasurementIsOwnedFormulaOperand(
@@ -4112,7 +4116,7 @@ function declaredSymbolProduct(token: string, symbols: ReadonlySet<string>): str
 /** Lexical ownership only: this does not prove an expression's algebra or physical law. */
 function isDeclaredSymbolExpression(text: string, symbols: ReadonlySet<string>): boolean {
   const functions = /^(?:arcsin|arccos|arctan|asin|acos|atan|sqrt|sin|cos|tan|sec|csc|cot|log|ln|exp)/;
-  const tokens = new RegExp(`${NUMBER_SOURCE}|[\\p{L}_][\\p{L}\\p{N}_]*|[=≈≃≅+−\\-*/×·⋅÷^()\\[\\]{}²³]`, "gu");
+  const tokens = new RegExp(`${NUMBER_SOURCE}|[\\p{L}_][\\p{L}\\p{N}_]*|[=≈≃≅+−\\-*/×·⋅÷^()\\[\\]{}²³√]`, "gu");
   let end = 0;
   for (const match of text.matchAll(tokens)) {
     if (text.slice(end, match.index).trim()) return false;
@@ -4733,11 +4737,67 @@ function isMagnitudeOnlyQuantity(quantity: Record<string, unknown>): boolean {
     typeof quantity.value === "number" && quantity.value >= 0;
 }
 
+const SCENE_MEASUREMENT_UNIT_BASE = String.raw`(?:ohms?|volts?|amps?|deg(?:rees?)?|°|rad(?:ians?)?|[pnumckMGµμ]?(?:mol|Pa|Hz|Wb|eV|[mgsAKNJWCVFHTLΩ]))`;
+const SCENE_MEASUREMENT_UNIT_POWER = String.raw`(?:\^?-?\d+|[²³¹⁰⁻]+)?`;
+
+/** A radical formula may contain numeric operands without stating a measurement. */
+function sceneMeasurementIsSymbolicRadical(
+  text: string,
+  found: { index: number; length: number; unit: string },
+  plan: TurnPlanV3,
+): boolean {
+  if (!text.includes("√")) return false;
+  const end = found.index + found.length;
+  for (const root of text.matchAll(/√/g)) {
+    let start = root.index! + 1;
+    while (/\s/.test(text[start] ?? "") && start < text.length) start++;
+    let finish = start;
+    let body: string;
+    if (text[start] === "(") {
+      let depth = 1;
+      for (finish = start + 1; finish < text.length && depth > 0; finish++) {
+        if (text[finish] === "(") depth++;
+        if (text[finish] === ")") depth--;
+      }
+      body = text.slice(start + 1, depth === 0 ? finish - 1 : finish);
+      // A space-separated unit inside an otherwise numeric root is malformed
+      // numeric notation, not permission to hide it as a symbolic formula.
+      const factor = `${SCENE_MEASUREMENT_UNIT_BASE}${SCENE_MEASUREMENT_UNIT_POWER}`;
+      const spacedUnit = body.match(new RegExp(`^(.*\\S)\\s+(${factor}(?:\\s*(?:[/·⋅*]|\\s+)\\s*${factor})*)\\s*$`, "i"));
+      if (spacedUnit && /\d/.test(spacedUnit[1]!) &&
+          !spacedUnit[1]!.replace(new RegExp(NUMBER_SOURCE, "g"), "").replace(/[\s√()+\-−*/×·⋅^²³.]/g, "")) continue;
+    } else {
+      const identifier = text.slice(start).match(/^[\p{L}_][\p{L}\p{N}_]*/u)?.[0];
+      if (!identifier) continue;
+      // Keep rejecting the captured malformed numeric spelling `20√ m`.
+      if (/\d\s*$/.test(text.slice(0, root.index)) && start > root.index! + 1) continue;
+      body = identifier;
+      finish = start + identifier.length;
+    }
+    const symbolic = body.replace(new RegExp(NUMBER_SOURCE, "g"), "").replace(/[\s√()+\-−*/×·⋅^²³.]/g, "");
+    if (/[\p{L}_]/u.test(symbolic) && found.index < finish && end > root.index!) return true;
+  }
+
+  // After a closed numeric coefficient, a glued lower-case variable such as
+  // `(√3/2)a` is not the SI unit A. A declared factor with a different unit
+  // remains a symbol even when an unrelated plan quantity uses that SI unit.
+  const unitStart = text.indexOf(found.unit, found.index);
+  if (unitStart <= found.index || text[unitStart - 1] !== ")" || !text.slice(found.index, unitStart).includes("√")) return false;
+  const quantities = [...plan.givens, ...plan.derived, ...plan.unknowns];
+  const dimension = canonicalMeasurement(1, found.unit)?.dimension;
+  const symbol = found.unit.replace(/(?:\^-?\d+|[²³])$/, "");
+  if (quantities.some((quantity) => quantity.symbol === symbol &&
+      (quantity.unit === undefined || canonicalMeasurement(1, quantity.unit)?.dimension !== dimension))) return true;
+  // The existing SI parser is case-sensitive: m/A stay units, lower-case a
+  // does not. A plan's explicitly written legacy unit casing stays measured.
+  if (unitScale(found.unit) || ["degree", "radian"].includes(normalizeUnit(found.unit) ?? "")) return false;
+  return !quantities.some((quantity) => quantity.unit !== undefined && normalizeUnit(quantity.unit) === normalizeUnit(found.unit));
+}
+
 function measuredValuePattern(): RegExp {
   // Match the whole physical unit, including powers and compound units.
   // Reading only "m" silently missed speed/acceleration labels at the slash.
-  const base = String.raw`(?:ohms?|volts?|amps?|deg(?:rees?)?|°|rad(?:ians?)?|[pnumckMGµμ]?(?:mol|Pa|Hz|Wb|eV|[mgsAKNJWCVFHTLΩ]))`;
-  const factor = `${base}(?:\\^?-?\\d+|[²³¹⁰⁻]+)?`;
+  const factor = `${SCENE_MEASUREMENT_UNIT_BASE}${SCENE_MEASUREMENT_UNIT_POWER}`;
   // A radicand is part of its number, not a second measured quantity. Matching
   // only `3 m` in `20√3 m` used to prune it and publish the dangling `20√`.
   // Consume the full numeric expression (including signs, fractions and
@@ -4745,7 +4805,7 @@ function measuredValuePattern(): RegExp {
   // competing numeric-token repetitions; the bounded parser below owns syntax.
   // e/E is only an exponent when digits follow, so eV stays a complete unit.
   const expressionTail = String.raw`(?:[0-9.+\-−*/×·⋅^²³()√\s]|[eE][+\-−]?\d+)*`;
-  const radical = `(?=${expressionTail}√)(?:[+\\-−(]\\s*)*(?:\\d|\\.\\d|√)${expressionTail}`;
+  const radical = `(?=${expressionTail}√)(?=${expressionTail}\\d)(?:[+\\-−(]\\s*)*(?:\\d|\\.\\d|√)${expressionTail}`;
   return new RegExp(`(${radical}|${NUMBER_SOURCE})\\s*(${factor}(?:\\s*(?:[/·⋅*]|\\s+)\\s*${factor})*)(?=\\s|$|[,;).!?:])((?:\\s*\\))*)`, "gi");
 }
 
