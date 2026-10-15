@@ -12,6 +12,9 @@ async function main() {
   assert.notEqual(csp, b.headers.get("content-security-policy"), "each response needs its own nonce");
   assert.equal(a.headers.get("x-middleware-request-x-nonce"), nonce, "Next rendering must receive the matching nonce");
   assert.equal(a.headers.get("x-middleware-request-content-security-policy"), csp);
-  console.log("CSP nonce checks passed (4)");
+  // Onboarding returns a new student to the page they opened, e.g. a promo link.
+  const deepLink = await middleware(new NextRequest("https://app.accelute.co/login?promo=PH50&_rsc=abc", { headers: { "x-request-path": "https://evil.test" } }));
+  assert.equal(deepLink.headers.get("x-middleware-request-x-request-path"), "/login?promo=PH50", "the request path is the server's own, without the RSC cache key");
+  console.log("CSP nonce and request path checks passed (5)");
 }
 void main().catch(error => { console.error(error); process.exitCode = 1; });

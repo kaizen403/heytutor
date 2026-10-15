@@ -2750,9 +2750,9 @@ export class StreamingSpeechClient implements TTSClient {
     }
     this.prefetches.clear();
     if (!this.playing && this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.close();
-      this.ws = null;
-      this.connectPromise = null;
+      // Settle a sentence waiting for its first audio before the old socket's
+      // asynchronous close becomes stale. An audible line keeps its socket.
+      this.resetConnection();
     }
   }
 

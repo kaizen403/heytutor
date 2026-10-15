@@ -8,6 +8,8 @@ export interface PaymentOffer {
   amount: number;
   currency: PaymentCurrency;
   usageMillicents: number;
+  /** Set only when a promo code discounted `amount`. */
+  promoCode?: string;
 }
 
 export function razorpayOffer(planId: PurchasePlanId): PaymentOffer {
