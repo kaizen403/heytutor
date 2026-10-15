@@ -563,5 +563,191 @@
       ]
     },
     "oracleBasis": "A photon-momentum comparison is not a parallel work-function material owner. Preserve independent Na phi, SI h/e energy and complete main outcomes."
+  },
+  {
+    "id": "R-PREFIX-FOR-SODIUM",
+    "question": "For sodium, the work function is 2.3 eV. The work function of copper is 4.7 eV. Light of photon energy 3 eV falls on copper. Draw the photoelectric diagram.",
+    "questionSha256": "9fe0b8a0bfac0f2cfbdcd7a5b63e08ef7239a3c9bf6d86b4ae9449405c99be01",
+    "kind": "review-repair1-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Two distinct Na/Cu owners. Illuminated Cu phi4.7 exceeds photon3; first Na phi2.3 must not supply K0.70. Conservative refusal."
+  },
+  {
+    "id": "N-PREFIX-FOR-NA",
+    "question": "For Na, the work function is 2.3 eV. The work function of copper is 4.7 eV. Light of photon energy 3 eV falls on copper. Draw the photoelectric diagram.",
+    "questionSha256": "7327ab1b91fafd0e5fce092d9260a0b7a84b3072c7ae2022b601dcc3cdd67fc6",
+    "kind": "review-repair1-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Two distinct Na/Cu owners. Illuminated Cu phi4.7 exceeds photon3; first Na phi2.3 must not supply K0.70. Conservative refusal."
+  },
+  {
+    "id": "N-PREFIX-FOR-NOCOMMA",
+    "question": "For sodium the work function is 2.3 eV. The work function of copper is 4.7 eV. Light of photon energy 3 eV falls on copper. Draw the photoelectric diagram.",
+    "questionSha256": "7026e8224d16ac27f22a67033c3732afcbeb27d773327a306c03460690417887",
+    "kind": "review-repair1-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Two distinct Na/Cu owners. Illuminated Cu phi4.7 exceeds photon3; first Na phi2.3 must not supply K0.70. Conservative refusal."
+  },
+  {
+    "id": "N-PREFIX-FOR-COLON",
+    "question": "For sodium: the work function is 2.3 eV. The work function of copper is 4.7 eV. Light of photon energy 3 eV falls on copper. Draw the photoelectric diagram.",
+    "questionSha256": "ca095540e53f0eda2ca080eef2f61782cdb1ad4e0bbba84eabd13c1c070005f5",
+    "kind": "review-repair1-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Two distinct Na/Cu owners. Illuminated Cu phi4.7 exceeds photon3; first Na phi2.3 must not supply K0.70. Conservative refusal."
+  },
+  {
+    "id": "N-PREFIX-IN-SODIUM",
+    "question": "In sodium, the work function is 2.3 eV. The work function of copper is 4.7 eV. Light of photon energy 3 eV falls on copper. Draw the photoelectric diagram.",
+    "questionSha256": "1602b3db9db8a5aab54f4909946b95c3f299bf3706fe1fc7ed93d988cd246621",
+    "kind": "review-repair1-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Two distinct Na/Cu owners. Illuminated Cu phi4.7 exceeds photon3; first Na phi2.3 must not supply K0.70. Conservative refusal."
+  },
+  {
+    "id": "N-PREFIX-CASE-OF-SODIUM",
+    "question": "In the case of sodium, the work function is 2.3 eV. The work function of copper is 4.7 eV. Light of photon energy 3 eV falls on copper. Draw the photoelectric diagram.",
+    "questionSha256": "9b0ea4f463a088ade6510584c3291d735f9b31e48b112a8ac2cb0c166fe09160",
+    "kind": "review-repair1-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Two distinct Na/Cu owners. Illuminated Cu phi4.7 exceeds photon3; first Na phi2.3 must not supply K0.70. Conservative refusal."
+  },
+  {
+    "id": "R-K-POTASSIUM-ALIAS",
+    "question": "The work function of potassium is 2 eV. Light of frequency 1e15 Hz falls on metal K. Draw the photoelectric diagram.",
+    "questionSha256": "ee8fa22b76245a1ead2476117363c9b421ea5bca1d223c32724d6972a111bae3",
+    "kind": "review-repair1-positive",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "pathsDraw": [
+        "direct",
+        "schematic",
+        "ordinary",
+        "lastResort"
+      ],
+      "family": "chem_orbital",
+      "mustEqualBeforeGuardMainDocumentsAndLabels": true,
+      "phiEv": 2,
+      "photonEv": 4.135667696923859,
+      "kineticEv": 2.135667696923859,
+      "labels": [
+        "phi=2.00 eV",
+        "E=4.14 eV",
+        "K=2.14 eV"
+      ]
+    },
+    "oracleBasis": "Existing element authority canonicalizes name and valid metal symbol to one identity. Sourcephi2 and independent SIh/e give E4.14/K2.14."
+  },
+  {
+    "id": "P-V-VANADIUM-ALIAS",
+    "question": "The work function of vanadium is 2 eV. Light of frequency 1e15 Hz falls on metal V. Draw the photoelectric diagram.",
+    "questionSha256": "2a25579a7cdca1dbec9e1ea8938309bed6655f57c103b5b7b2993fd8efda75fe",
+    "kind": "review-repair1-positive",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "pathsDraw": [
+        "direct",
+        "schematic",
+        "ordinary",
+        "lastResort"
+      ],
+      "family": "chem_orbital",
+      "mustEqualBeforeGuardMainDocumentsAndLabels": true,
+      "phiEv": 2,
+      "photonEv": 4.135667696923859,
+      "kineticEv": 2.135667696923859,
+      "labels": [
+        "phi=2.00 eV",
+        "E=4.14 eV",
+        "K=2.14 eV"
+      ]
+    },
+    "oracleBasis": "Existing element authority canonicalizes name and valid metal symbol to one identity. Sourcephi2 and independent SIh/e give E4.14/K2.14."
+  },
+  {
+    "id": "P-W-TUNGSTEN-ALIAS",
+    "question": "Metal W has work function 2 eV. Light of frequency 1e15 Hz falls on tungsten. Draw the photoelectric diagram.",
+    "questionSha256": "aa16ef0fc179614d1511a97d8c808deb022d895c244e52583a257312fbd075bb",
+    "kind": "review-repair1-positive",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "pathsDraw": [
+        "direct",
+        "schematic",
+        "ordinary",
+        "lastResort"
+      ],
+      "family": "chem_orbital",
+      "mustEqualBeforeGuardMainDocumentsAndLabels": true,
+      "phiEv": 2,
+      "photonEv": 4.135667696923859,
+      "kineticEv": 2.135667696923859,
+      "labels": [
+        "phi=2.00 eV",
+        "E=4.14 eV",
+        "K=2.14 eV"
+      ]
+    },
+    "oracleBasis": "Existing element authority canonicalizes name and valid metal symbol to one identity. Sourcephi2 and independent SIh/e give E4.14/K2.14."
+  },
+  {
+    "id": "N-K-DISTINCT-NA",
+    "question": "The work function of sodium is 2 eV. Light of frequency 1e15 Hz falls on metal K. Draw the photoelectric diagram.",
+    "questionSha256": "68ac53b15b2b46ed8d1a857031bc138ae88de5a31753666ca2a5bc941dd41840",
+    "kind": "review-repair1-negative",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "inferChemistryFamiliesIncludes": "chem_orbital",
+      "direct": "null",
+      "schematic": "null",
+      "ordinary": "null",
+      "lastResort": "null"
+    },
+    "oracleBasis": "Na and K are genuinely distinct metals; deduplication must not erase this ownership conflict."
   }
 ]

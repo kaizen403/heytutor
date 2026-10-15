@@ -8,6 +8,7 @@ import { compileSceneDocument } from "../../src/compile/compiler";
 import { synthesizeFamilyScene, synthesizeLastResortScene } from "../../src/synthesize/familyScene";
 import type { SceneDocument, RenderScene } from "../../src/types";
 import rows from "./fixtures/chemistry-photoelectric-surface-ownership.json";
+import nonclaimMain from "./fixtures/chemistry-photoelectric-nonclaim-main.json";
 
 function argument(flag: string): string | undefined {
   const index = process.argv.indexOf(flag);
@@ -61,6 +62,10 @@ for (const [index, row] of rows.entries()) {
     const actual = observed[index]!.outcome;
     assert.equal(actual.atomic, row.expected.isAtomicRadiationStem, `${row.id} recognition`);
     if (row.kind.includes("nonclaim")) {
+      const fixed = nonclaimMain.find((entry) => entry.id === row.id);
+      assert.ok(fixed, `${row.id} fixed main scene outcome`);
+      assert.equal(fixed.question, row.question);
+      assert.deepEqual(persisted(actual), fixed.outcome, `${row.id} default entire main outcome`);
       if (baseline) assert.deepEqual(persisted(actual), persisted(baseline[index]!.outcome), `${row.id} entire main outcome`);
     } else {
       assert.ok(actual.families.includes("chem_orbital"), `${row.id} ordinary chemistry ownership`);
