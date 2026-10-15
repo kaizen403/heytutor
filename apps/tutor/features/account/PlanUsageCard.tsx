@@ -17,6 +17,7 @@ import { PaymentHistory } from "./PaymentHistory";
 import { usePaymentCatalog } from "@/lib/billing/usePaymentCatalog";
 import { useBillingActions } from "./useBillingActions";
 import { PaymentCurrencyPicker } from "./PaymentCurrencyPicker";
+import { PromoCodeField } from "./PromoCodeField";
 
 function UsageMeter({
   remainingPct,
@@ -59,7 +60,7 @@ export function PlanUsageCard({
   selectedPlan?: CheckoutPlanId | null;
 }) {
   const { entitlement, loading } = useEntitlement();
-  const { catalog, currency, failed, selectCurrency, refresh } = usePaymentCatalog();
+  const { catalog, currency, promo, failed, selectCurrency, selectPromo, refresh } = usePaymentCatalog();
   const { busy, error, notice, checkout, topUp, portal, revision } = useBillingActions(catalog, refresh);
   const razorpay = catalog?.provider === "razorpay";
   const staff = entitlement?.staff === true;
@@ -125,6 +126,7 @@ export function PlanUsageCard({
             />
 
           </div>
+          <PromoCodeField promo={promo} verdict={catalog?.promo ?? null} loading={!catalog && !failed} onChange={selectPromo} disabled={busy !== null} />
           <div className="flex flex-wrap gap-2">
             <SiteButton
               size="sm"
@@ -138,7 +140,7 @@ export function PlanUsageCard({
               Purchase history
             </SiteButton>
           </div>
-          {currency === "INR" && catalog?.fxDate ? <p className="text-xs text-white/50">INR equivalent of $29 · reference rate from {catalog.fxDate}. The amount above is the checkout total.</p> : null}
+          {currency === "INR" && catalog?.fxDate ? <p className="text-xs text-white/50">INR equivalent of $29{catalog.plans.plus?.fullAmount ? " before the promo code" : ""} · reference rate from {catalog.fxDate}. The amount above is the checkout total.</p> : null}
           {razorpay ? <PaymentHistory revision={revision} /> : null}
         </div>
       ) : null}
@@ -175,6 +177,7 @@ function PlanOffer({
     <div className={`rounded-xl border p-3 ${selected ? "border-sky-500/60" : "border-white/10"}`}>
       <p className="text-sm font-medium text-frost">{plan.name}</p>
       <p className="mt-1 text-lg text-frost">
+        {price?.fullAmount ? <span className="mr-2 text-sm text-white/45 line-through">{formatCheckoutPrice({ amount: price.fullAmount, currency: price.currency })}</span> : null}
         {price ? formatCheckoutPrice(price) : currency === "USD" ? `$${plan.priceUsdPerMonth}` : currency === "INR" ? catalog ? "INR amount unavailable" : "Checking INR amount…" : "Loading price…"}
         <span className="text-xs text-[rgba(237,237,235,0.5)]"> / month</span>
       </p>

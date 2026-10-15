@@ -74,7 +74,7 @@ export async function createRazorpayCheckout(userId: string, planId: PurchasePla
     await lockRazorpayUser(tx, userId);
     const existing = await tx.billingPurchase.findUnique({ where: { userId_idempotencyKey: { userId, idempotencyKey } } });
     if (existing) {
-      if (existing.planId !== planId || existing.keyId !== config.keyId || existing.currency !== offer.currency || existing.amount !== offer.amount || existing.status !== "pending") throw new PaymentError("checkout_conflict", 409);
+      if (existing.planId !== planId || existing.keyId !== config.keyId || existing.currency !== offer.currency || existing.amount !== offer.amount || existing.promoCode !== (offer.promoCode ?? null) || existing.status !== "pending") throw new PaymentError("checkout_conflict", 409);
       return { purchase: existing, created: false };
     }
     const recent = await tx.billingPurchase.count({ where: { userId, createdAt: { gte: new Date(Date.now() - 60_000) } } });
