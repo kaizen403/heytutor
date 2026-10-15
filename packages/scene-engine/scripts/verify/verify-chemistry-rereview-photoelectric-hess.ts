@@ -1,5 +1,6 @@
 /** Real-source regressions for coordinator #137 re-review; no model calls. */
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { buildAtomicRadiationScene } from "../../src/chemistry/atomicRadiation";
 import { buildChemicalThermodynamicsScene } from "../../src/chemistry/chemicalThermodynamics";
 import { buildThermoGraphScene } from "../../src/chemistry/thermoGraphs";
@@ -377,6 +378,116 @@ for (const question of [
   labels(buildThermoGraphScene(question, [], false));
   labels(synthesizeFamilyScene({ question })?.document ?? null);
 });
+
+// BEGIN PR137 unread work-function owners (public-source freeze 15 Oct 2026).
+// Every declaration must resolve before single-metal ink can claim its value.
+// Readable duplicates retain the existing conservative ambiguity decline.
+const workFunctionOwnerRows = [
+  {
+    "id": "WF-REPORTED-UNREAD-FIRST",
+    "question": "Work function is unknown. The work function is 2 eV. Light of frequency 1e15 Hz falls on the metal. Draw the photoelectric diagram.",
+    "questionSha256": "e370d8e9fbcec42830a0df1746905b75506c525f9b692c094f9a21b856daa3b0",
+    "expected": "decline"
+  },
+  {
+    "id": "WF-REPORTED-TWO-METALS",
+    "question": "Metal A’s work function is unknown. Metal B’s is 2 eV. Light falls on metal A.",
+    "questionSha256": "a023398c21662aee3691dec7caab265ee69fddc384a159c37c4ad088d2d1d619",
+    "expected": "decline"
+  },
+  {
+    "id": "WF-FRESH-UNREAD-LAST",
+    "question": "For the photoelectric effect, the work function is 2 eV. The work function is unknown. Light of frequency 1e15 Hz is incident. Draw the energy balance.",
+    "questionSha256": "d67d760ac2e5391c720e29e441d638547a31ed362a206985f6a1dce8f8f7582d",
+    "expected": "decline"
+  },
+  {
+    "id": "WF-FRESH-EMPTY-FIRST",
+    "question": "For the photoelectric effect, the work function is ; the work function is 2 eV. Light of frequency 1e15 Hz is incident. Draw the diagram.",
+    "questionSha256": "bc071b3e88bcfae8967f2c5937582f7115ea6e10f1c3cee1f28bb0cab9570f49",
+    "expected": "decline"
+  },
+  {
+    "id": "WF-FRESH-METAL-A-UNREAD",
+    "question": "Metal A’s work function is unknown. Metal B’s work function is 2 eV. Light of frequency 1e15 Hz falls on metal A. Draw the photoelectric diagram.",
+    "questionSha256": "3d91a5311b5f55e6cfd1713ee6aebcfe34e5dc43d076e7a85756cf82956eabd8",
+    "expected": "decline"
+  },
+  {
+    "id": "WF-FRESH-METAL-B-UNREAD",
+    "question": "Metal A’s work function is 2 eV. Metal B’s work function is unknown. Light of frequency 1e15 Hz falls on metal B. Draw the photoelectric diagram.",
+    "questionSha256": "257f6889f4b4ccd874fe2873a054dcff14efc633fd9233d8b56fbb669dbd7bdd",
+    "expected": "decline"
+  },
+  {
+    "id": "WF-SINGLE-EV",
+    "question": "The work function is 2 eV. Light of frequency 1e15 Hz falls on the metal. Draw the photoelectric diagram.",
+    "questionSha256": "5d89f6cebb1b1943f393e24cc95ec9c9a2ed80e6819058f60f3b1031283639b8",
+    "expected": "draw"
+  },
+  {
+    "id": "WF-SINGLE-J",
+    "question": "The work function is 3.204353268e-19 J. Light of frequency 1e15 Hz falls on the metal. Draw the photoelectric diagram.",
+    "questionSha256": "28cc37084af076316c84bcfa3b04975af65dfe112bc0cef2c499a81596cc21aa",
+    "expected": "draw"
+  },
+  {
+    "id": "WF-DUPLICATE-AGREE-EV",
+    "question": "The work function is 2 eV. The work function is 2 eV. Light of frequency 1e15 Hz falls on the metal. Draw the photoelectric diagram.",
+    "questionSha256": "f7ca9494c69900be7bc49808aa9ee326005193302fa19b9f5ba788ba2884c68a",
+    "expected": "decline"
+  },
+  {
+    "id": "WF-DUPLICATE-AGREE-J-EV",
+    "question": "The work function is 2 eV. The work function is 3.204353268e-19 J. Light of frequency 1e15 Hz falls on the metal. Draw the photoelectric diagram.",
+    "questionSha256": "030f5b7da3dc4fe6b7a7bfee716f75b1640c3083890507b0a069d4683998ae1c",
+    "expected": "decline"
+  },
+  {
+    "id": "WF-DUPLICATE-CONFLICT-EV",
+    "question": "The work function is 2 eV. The work function is 3 eV. Light of frequency 1e15 Hz falls on the metal. Draw the photoelectric diagram.",
+    "questionSha256": "62b219ce6dac71fe7f9556f7079de92e9f2e7f02f9c704a40446c244b835db7b",
+    "expected": "decline"
+  },
+  {
+    "id": "WF-DUPLICATE-CONFLICT-J-EV",
+    "question": "The work function is 2 eV. The work function is 4.806529902e-19 J. Light of frequency 1e15 Hz falls on the metal. Draw the photoelectric diagram.",
+    "questionSha256": "e5bb4c82682e955d71c11d37db346a61b44b457d905533f5463f821be3019dad",
+    "expected": "decline"
+  }
+] as const;
+// Independent SI constants and the source frequency, not a family-derived value.
+const workFunctionPhotonEv = 6.62607015e-34 * 1e15 / 1.602176634e-19;
+for (const row of workFunctionOwnerRows) check("original work-function owner: " + row.id, () => {
+  assert.equal(createHash("sha256").update(row.question).digest("hex"), row.questionSha256);
+  const direct = buildAtomicRadiationScene(row.question, [], false);
+  const schematic = buildAtomicRadiationScene(row.question, [], true);
+  const ordinary = synthesizeFamilyScene({ question: row.question });
+  if (row.expected === "decline") {
+    assert.equal(direct, null, "direct builder must decline every unresolved or ambiguous owner");
+    assert.equal(schematic, null, "schematic builder must preserve the same owner boundary");
+    assert.equal(ordinary, null, "ordinary family route must not draw a substituted work function");
+    return;
+  }
+  assert.ok(ordinary?.renderScene, "single declaration must draw through the ordinary route");
+  assert.equal(ordinary.family, "chem_orbital");
+  for (const document of [direct, schematic, ordinary.document]) {
+    assert.ok(document, "single declaration must retain direct and schematic figures");
+    assert.equal(document.source.question, row.question);
+    assert.equal(document.source.chemistryFamily, "chem_orbital");
+    const text = labels(document);
+    assert.ok(text.includes("phi=2.00 eV"), "work-function label must use the source value after J/eV conversion");
+    for (const [symbol, expected] of [["phi", 2], ["E", workFunctionPhotonEv], ["K", workFunctionPhotonEv - 2]] as const) {
+      const label = text.find(value => value.startsWith(symbol + "="));
+      assert.ok(label, symbol + " label is required");
+      const scalar = new RegExp("^" + symbol + "=([0-9]+\\.[0-9]{2}) eV$").exec(label);
+      assert.ok(scalar, "complete two-decimal energy label: " + label);
+      assert.ok(Math.abs(Number(scalar[1]) - expected) <= 0.005 + Math.abs(expected) * 1e-12,
+        symbol + " must agree with the independent photoelectric value");
+    }
+  }
+});
+// END PR137 unread work-function owners.
 
 console.log(`verify-chemistry-rereview-photoelectric-hess: ${checks} checks passed / ${failures.length} failed`);
 if (failures.length) { console.error(failures.join("\n")); process.exitCode = 1; }
