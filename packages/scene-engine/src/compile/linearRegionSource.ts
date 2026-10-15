@@ -1380,6 +1380,8 @@ function hasUnsupportedMembership(remaining: string, planar: boolean, sourceProv
       (whole, first: string, second: string) => sourceProved === undefined || sourceProved && aliases.has(first) && aliases.has(second) ? " " : whole);
   const heads = /∈|\b(?:in\b|over\b|belongs?\s+to\b(?:\s+(?:the\s+)?set\b)?|(?:elements?|members?)\s+of\b|replacement\s+set\b(?:\s+(?:is\b|as\b)|\s*=)?|domain\b(?:\s+(?:is\b|as\b)|\s*[:=])?)\s*|\bU\s*=/giu;
   for (const head of source.matchAll(heads)) {
+    // Word heads ignore case; the universe symbol U keeps its identity.
+    if (/^u\s*=$/.test(head[0])) continue;
     const target = source.slice(head.index! + head[0].length).replace(/^\s*(?:the\s+)?(?:set\s+of\s+)?(?:all\s+)?/i, "");
     // U may be an explicit native interval/set-builder name, not a universe
     // declaration. The complete native program must subsequently bind it.
@@ -1437,9 +1439,24 @@ function hasUnsupportedDiscreteDomain(question: string, planar = false, sourcePr
   // Start at a native variable; separators cannot split "and" inside an
   // identifier. Other trailing variables still restrict the native subject.
   const variable = `(?:${names.map(name => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`;
-  const subjects = `${variable}(?:\\s*,\\s*[A-Za-z][A-Za-z0-9_]*|\\s+and\\s+[A-Za-z][A-Za-z0-9_]*)*`;
-  const rationalDomain = new RegExp(`\\b(${subjects})\\s+(?:is|are)\\s+(?:an?\\s+)?(?:rational|irrational)(?:\\s+numbers?)?\\b`, "gi");
-  for (const domain of remaining.matchAll(rationalDomain)) {
+  const identifier = "[A-Za-z][A-Za-z0-9_]*";
+  const listTail = `(?:\\s*,\\s*${identifier}|\\s+and\\s+${identifier})*`;
+  const rationalPredicate = "\\s+(?:(?:is|are)\\s+(?:an?\\s+)?(?:rational|irrational)(?:\\s+numbers?)?|takes?\\s+(?:only\\s+)?(?:rational|irrational)\\s+values?)\\b";
+  // A coefficient property has a different whole subject. Mask only that
+  // predicate for this detector; all following restrictions and other guards
+  // retain their original text.
+  const clauseBoundary = "(^|[.;?!\\r\\n])\\s*";
+  const coefficientSubject = `(?:(?:the|all)\\s+)?coefficients?\\s+of\\s+${identifier}${listTail}`;
+  const coefficientProperty = new RegExp(`${clauseBoundary}${coefficientSubject}${rationalPredicate}`, "gi");
+  const rationalSubjects = remaining.replace(coefficientProperty, "$1 ");
+  // In a shared predicate, a native variable remains restricted alongside a
+  // coefficient noun. Start at the whole clause, never inside that noun.
+  const jointDomain = new RegExp(`${clauseBoundary}(${variable}${listTail})(?:\\s*,\\s*|\\s+and\\s+)${coefficientSubject}${rationalPredicate}`, "gi");
+  for (const domain of rationalSubjects.matchAll(jointDomain)) {
+    if (domain[2]!.split(/\s*(?:,|\band\b)\s*/i).some(name => names.includes(name))) return true;
+  }
+  const rationalDomain = new RegExp(`\\b(${variable}${listTail})${rationalPredicate}`, "gi");
+  for (const domain of rationalSubjects.matchAll(rationalDomain)) {
     if (domain[1]!.split(/\s*(?:,|\band\b)\s*/i).some(name => names.includes(name))) return true;
   }
   if (/\b(?:integers?|intergers?|ints?|integral|whole|naturals?|counting|primes?|odd|even|lattices?|digits?)\b/i.test(remaining)) return true;

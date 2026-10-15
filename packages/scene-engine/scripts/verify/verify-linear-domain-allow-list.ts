@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { buildLinearSourceDocument, compileSceneDocument, type SceneDocument } from "../../src/index";
 import { readLinearSourceSystemLabels, validateLinearSourceBinding } from "../../src/compile/linearRegionSource";
 import { linearPointSatisfies, solveLinearFigure } from "../../src/math/linearRegion";
@@ -126,7 +126,8 @@ function candidate(question: string, shape: Shape, objective = false, inequality
 const selectorIndex = process.argv.indexOf("--case");
 const selectedId = selectorIndex >= 0 ? process.argv[selectorIndex + 1] : undefined;
 const resourceInnerId = "urgent-rational-resource-inner";
-const typedProofIds = ["typed-first-quadrant", "typed-interval-difference", "urgent-continuous", "urgent-system-real", "urgent-quadrant-complement", "urgent-rational-domain", "urgent-quadrant-I", "urgent-quadrant-scope", "urgent-rational-variable-names", "urgent-continuous-property", "urgent-number-line-duplicates", "urgent-real-domain-complement", "urgent-rational-resource", resourceInnerId];
+const resourceReadyMarker = "H3_LINEAR_RESOURCE_NATIVE_READY";
+const typedProofIds = ["typed-first-quadrant", "typed-interval-difference", "urgent-continuous", "urgent-system-real", "urgent-quadrant-complement", "urgent-rational-domain", "urgent-quadrant-I", "urgent-quadrant-scope", "urgent-rational-variable-names", "urgent-continuous-property", "urgent-number-line-duplicates", "urgent-real-domain-complement", "urgent-rational-resource", "urgent-coefficient-subject", "urgent-rational-takes", "urgent-rational-joint-subject", "urgent-universe-symbol-role", resourceInnerId];
 if (selectorIndex >= 0) assert(selectedId && (cases.some(item => item.id === selectedId) || typedProofIds.includes(selectedId)), "--case must name an existing case or typed proof group");
 const selected = selectedId ? cases.filter(item => item.id === selectedId) : cases;
 let checks = 0;
@@ -534,6 +535,102 @@ typedCheck("urgent-real-domain-complement", "canonical leaf agreement cannot mov
   expectTypedRejected(differenceDocument(scopedRealDomainQuestion, { complement: { intersection: [{ inequality: "x<4" }, { inequality: "x>=0" }] } }));
 });
 
+// A property of coefficients is not a property of a variable whose name is
+// inside that complete subject. Keep later actual domain restrictions intact.
+const coefficientSubjectControls: { id: string; question: string; lane: "number-line" | "half-plane" | "system"; native?: boolean; fraction?: boolean }[] = [
+  { id: "exact-review", question: "Graph x<4 on a number line. The coefficients of x are rational.", lane: "number-line" },
+  { id: "native-singular", question: "Graph t<4 on a number line. The coefficient of t is rational.", lane: "number-line", native: true },
+  { id: "planar-plural", question: "Shade x+y<4. The coefficients of x and y are rational.", lane: "half-plane" },
+  { id: "native-system-plural", question: "Graph u+v=6 and u-v=2. The coefficients of u and v are rational.", lane: "system", native: true },
+  { id: "actual-rational-fraction", question: "Graph (1/2)t<2 on a number line. The coefficient of t is rational.", lane: "number-line", native: true, fraction: true },
+  { id: "coefficient-case", question: "Graph x<4 on a number line. THE COEFFICIENTS OF x ARE RATIONAL.", lane: "number-line" },
+  { id: "mixed-coefficient-list", question: "Graph x<4 on a number line. The coefficients of x and z are rational.", lane: "number-line" },
+  { id: "comma-coefficient-list", question: "Graph u+v=6 and u-v=2. The coefficients of u,v are rational.", lane: "system", native: true },
+  { id: "compound-coefficient-subject", question: "Graph x<4 on a number line. The coefficients of x and the coefficients of z are rational.", lane: "number-line" },
+];
+for (const fixture of coefficientSubjectControls) typedCheck("urgent-coefficient-subject", `${fixture.id}: complete coefficient subject does not veto its real figure`, () => {
+  const document = propertyDocument(fixture.question, fixture.lane, fixture.native);
+  if (fixture.fraction) document.constructions[0]!.inputs = { variable: "t", expression: { inequality: "(1/2)t<2" } };
+  const before = structuredClone(document), issues = validateLinearSourceBinding(document), result = compileSceneDocument(document);
+  assert.deepEqual(issues, [], JSON.stringify(issues));
+  assert(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  assert.deepEqual(document, before);
+  const built = buildLinearSourceDocument(fixture.question);
+  if (built) assert(compileSceneDocument(built).ok, "a reader figure must still carry complete source proof");
+});
+const coefficientDomainRestrictions: { id: string; question: string; lane: "number-line" | "half-plane" | "system"; native?: boolean }[] = [
+  { id: "later-x-rational", question: "Graph x<4 on a number line. The coefficients of x are rational. x is rational.", lane: "number-line" },
+  { id: "later-t-irrational", question: "Graph t<4 on a number line. The coefficient of t is rational. t is irrational.", lane: "number-line", native: true },
+  { id: "later-u-rational", question: "Shade u+v<4. The coefficients of u and v are rational. u is rational.", lane: "half-plane", native: true },
+  { id: "later-v-rational", question: "Graph u+v=6 and u-v=2. The coefficients of u and v are rational. v is rational.", lane: "system", native: true },
+  { id: "later-mixed-scalar", question: "Graph x<4 on a number line. The coefficients of x and z are rational. x and z are rational.", lane: "number-line" },
+  { id: "later-mixed-system", question: "Graph u+v=6 and u-v=2. The coefficients of u,v are rational. u,v,w are rational.", lane: "system", native: true },
+  { id: "later-unknown-domain", question: "Graph x<4 on a number line. The coefficients of x are rational. x IN S.", lane: "number-line" },
+  { id: "same-clause-variable", question: "Graph x<4 on a number line. The coefficients of x are rational, and x is irrational.", lane: "number-line" },
+];
+for (const fixture of coefficientDomainRestrictions) typedCheck("urgent-coefficient-subject", `${fixture.id}: coefficient prose cannot erase a later variable restriction`, () => {
+  expectTypedRejected(propertyDocument(fixture.question, fixture.lane, fixture.native), true);
+});
+
+const rationalTakingControls: { id: string; question: string; lane: "number-line" | "half-plane" | "system"; inputs: Record<string, unknown>; restricted: boolean }[] = [
+  { id: "exact-coefficient-taking-positive", question: "Graph x<4 on a number line. The coefficients of x take rational values.", lane: "number-line", inputs: { variable: "x", expression: { inequality: "x<4" } }, restricted: false },
+  { id: "coefficient-taking-preserves-variable-tail", question: "Graph x<4 on a number line. The coefficients of x take rational values and x takes rational values.", lane: "number-line", inputs: { variable: "x", expression: { inequality: "x<4" } }, restricted: true },
+  { id: "exact-u-rational", question: "Graph u<4 on a number line. u takes rational values.", lane: "number-line", inputs: { variable: "u", expression: { inequality: "u<4" } }, restricted: true },
+  { id: "native-t-only-irrational", question: "Graph t<4 on a number line. t takes only irrational values.", lane: "number-line", inputs: { variable: "t", expression: { inequality: "t<4" } }, restricted: true },
+  { id: "planar-plural-only-rational", question: "Shade x+y<4. x and y take only rational values.", lane: "half-plane", inputs: { variables: ["x", "y"], inequality: "x+y<4" }, restricted: true },
+  { id: "mixed-system-irrational", question: "Graph u+v=6 and u-v=2. u,v,w take irrational values.", lane: "system", inputs: { variables: ["u", "v"], equations: ["u+v=6", "u-v=2"] }, restricted: true },
+  { id: "coefficient-taking-is-not-variable-taking", question: "Graph u+v=6 and u-v=2. The coefficients of u and v take rational values.", lane: "system", inputs: { variables: ["u", "v"], equations: ["u+v=6", "u-v=2"] }, restricted: false },
+];
+for (const fixture of rationalTakingControls) typedCheck("urgent-rational-takes", fixture.id, () => {
+  const document = propertyDocument(fixture.question, fixture.lane);
+  document.constructions[0]!.inputs = fixture.inputs;
+  if (fixture.restricted) expectTypedRejected(document, true);
+  else {
+    const before = structuredClone(document), issues = validateLinearSourceBinding(document), result = compileSceneDocument(document);
+    assert.deepEqual(issues, [], JSON.stringify(issues));
+    assert(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+    assert.deepEqual(document, before);
+  }
+});
+
+// A shared predicate still restricts a native variable when a coefficient
+// noun is another conjunct in the whole subject, including a different owner.
+const jointRationalSubjects: { id: string; question: string; lane: "number-line" | "half-plane" | "system"; native?: boolean }[] = [
+  { id: "exact-joint-x", question: "Graph x<4 on a number line. x and the coefficients of x are rational.", lane: "number-line" },
+  { id: "native-joint-t", question: "Graph t<4 on a number line. t and the coefficient of t are irrational.", lane: "number-line", native: true },
+  { id: "native-planar-joint-taking", question: "Shade u+v<4. u and the coefficient of v take only rational values.", lane: "half-plane", native: true },
+  { id: "native-system-joint-v", question: "Graph u+v=6 and u-v=2. v and the coefficients of u are rational.", lane: "system", native: true },
+  { id: "mixed-owner-joint-x", question: "Graph x<4 on a number line. x and the coefficients of z are rational.", lane: "number-line" },
+];
+for (const fixture of jointRationalSubjects) typedCheck("urgent-rational-joint-subject", fixture.id, () => {
+  expectTypedRejected(propertyDocument(fixture.question, fixture.lane, fixture.native), true);
+});
+
+// Lowercase coordinate u inside an equation is not the universal-set head U.
+for (const question of [
+  "Graph t+u=6 and t-u=2.",
+  "Graph t+u=6 and t-u=2. The coefficients of t and u are rational.",
+]) typedCheck("urgent-universe-symbol-role", `native t/u equations preserve case-sensitive variable roles: ${question}`, () => {
+  const document = systemDocument(question, ["t+u=6", "t-u=2"]);
+  document.constructions[0]!.inputs = { variables: ["t", "u"], equations: ["t+u=6", "t-u=2"] };
+  const before = structuredClone(document), issues = validateLinearSourceBinding(document), result = compileSceneDocument(document);
+  assert.deepEqual(issues, [], JSON.stringify(issues));
+  assert(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  assert.deepEqual(document, before);
+  assert(!result.renderScene.primitives.some(primitive => primitive.kind === "label" && /coefficients?/i.test(primitive.text ?? "")), "coefficient prose cannot become an equation label");
+});
+for (const set of ["Z", "Q"]) typedCheck("urgent-universe-symbol-role", `uppercase U retains its unsupported universe ${set}`, () => {
+  const document = systemDocument(`Graph t+u=6 and t-u=2. U=${set}.`, ["t+u=6", "t-u=2"]);
+  document.constructions[0]!.inputs = { variables: ["t", "u"], equations: ["t+u=6", "t-u=2"] };
+  expectTypedRejected(document, true);
+});
+
+// Startup is measured separately from actual engine work. Flush readiness
+// after imports/fixture initialization and immediately before the first case.
+if (selectedId === resourceInnerId) await new Promise<void>((resolve, reject) => {
+  process.stdout.write(`${resourceReadyMarker}\n`, (error) => error ? reject(error) : resolve());
+});
+
 // Only the dedicated child executes adversarial parser inputs. A stuck native
 // call cannot prevent the parent gate from killing its own child after5s.
 if (selectedId === resourceInnerId) for (const count of [40, 200]) for (const spaced of [false, true]) {
@@ -550,17 +647,132 @@ if (selectedId === resourceInnerId) for (const count of [40, 200]) for (const sp
     process.stdout.write(JSON.stringify({ resourceCase: count, spaced, readerMs, compilerMs: performance.now() - compilerStart, nativeCompiled: result.ok }) + "\n");
   });
 }
-typedCheck("urgent-rational-resource", "adversarial subject text completes inside an own-child hard timeout", () => {
-  const child = spawnSync(process.execPath, [...process.execArgv, process.argv[1]!, "--case", resourceInnerId], {
-    timeout: 5000, killSignal: "SIGKILL", encoding: "utf8", maxBuffer: 1024 * 1024,
+// Retain the original four inputs above and exercise the coefficient-prefix
+// matcher separately. These use the same bounded child and real public APIs.
+if (selectedId === resourceInnerId) for (const count of [40, 200]) for (const spaced of [false, true]) {
+  typedCheck(resourceInnerId, `bounded coefficient-prefix ${spaced ? "spaced" : "concatenated"} subject text ${count}`, () => {
+    const question = `Graph x<4 on a number line. The coefficients of ${(spaced ? "and " : "and").repeat(count)} tail.`;
+    process.stdout.write(`resource coefficient reader start ${count} ${spaced ? "spaced" : "concatenated"}\n`);
+    const start = performance.now();
+    assert.equal(buildLinearSourceDocument(question), null, "unknown coefficient-prefix prose is not a source-reader figure");
+    const readerMs = performance.now() - start;
+    const document = candidate(question, "number_line_set", false, "x<4"), before = structuredClone(document);
+    const compilerStart = performance.now(), result = compileSceneDocument(document);
+    assert.equal(typeof result.ok, "boolean", "the actual native compiler must complete");
+    assert.deepEqual(document, before, "boundedness checks must preserve the native candidate");
+    process.stdout.write(JSON.stringify({ resourceCase: count, coefficientPrefix: true, spaced, readerMs, compilerMs: performance.now() - compilerStart, nativeCompiled: result.ok }) + "\n");
   });
-  const detail = JSON.stringify({ pid: child.pid, status: child.status, signal: child.signal, error: child.error?.message,
-    stdout: child.stdout, stderr: child.stderr });
-  assert.equal(child.error, undefined, `Resource child must finish rather than time out; SIGKILL targets only this child: ${detail}`);
-  assert.equal(child.status, 0, `Resource child failed: ${detail}`);
-  assert.match(child.stdout, /4\/4 domain allow-list checks/, "the child must actually execute all four native cases");
-  process.stdout.write(`resource child timings ${child.stdout.split("\n").filter(line => line.startsWith("{")).join(" ")}\n`);
-});
+}
+interface ResourceChildResult {
+  pid: number | undefined;
+  status: number | null;
+  signal: NodeJS.Signals | null;
+  failure: string | undefined;
+  timeoutPhase: "startup" | "native" | undefined;
+  ready: boolean;
+  reaped: boolean;
+  startupMs: number | undefined;
+  nativeMs: number | undefined;
+  stdout: string;
+  stderr: string;
+}
+function runResourceChild(): Promise<ResourceChildResult> {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [...process.execArgv, process.argv[1]!, "--case", resourceInnerId], {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const started = performance.now();
+    let readyAt: number | undefined, stdout = "", stderr = "", bytes = 0;
+    let status: number | null = null, signal: NodeJS.Signals | null = null;
+    let failure: string | undefined, timeoutPhase: "startup" | "native" | undefined;
+    let reaped = false, finished = false, stopping = false;
+    let nativeTimer: ReturnType<typeof setTimeout> | undefined;
+    let reapTimer: ReturnType<typeof setTimeout> | undefined;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(startupTimer);
+      clearTimeout(nativeTimer);
+      clearTimeout(reapTimer);
+      resolve({ pid: child.pid, status, signal, failure, timeoutPhase,
+        ready: readyAt !== undefined, reaped,
+        startupMs: readyAt === undefined ? undefined : readyAt - started,
+        nativeMs: readyAt === undefined ? undefined : performance.now() - readyAt, stdout, stderr });
+    };
+    const guardDrain = () => {
+      if (reapTimer) return;
+      reapTimer = setTimeout(() => {
+        failure = `${failure ? `${failure}; ` : ""}own child stdio did not close within2000ms`;
+        child.stdout.destroy();
+        child.stderr.destroy();
+        if (!reaped) {
+          failure += "; own child was not reaped";
+          child.unref();
+        }
+        finish();
+      }, 2000);
+    };
+    const stop = (reason: string) => {
+      if (stopping) return;
+      stopping = true;
+      failure = reason;
+      clearTimeout(startupTimer);
+      clearTimeout(nativeTimer);
+      child.kill("SIGKILL"); // Only the exact child created by this helper.
+      guardDrain();
+    };
+    const startupTimer = setTimeout(() => {
+      timeoutPhase = "startup";
+      stop("startup deadline15000ms");
+    }, 15000);
+    const append = (stream: "stdout" | "stderr", chunk: Buffer) => {
+      const remaining = 1024 * 1024 - bytes;
+      const text = chunk.subarray(0, Math.max(0, remaining)).toString("utf8");
+      bytes += chunk.length;
+      if (stream === "stdout") stdout += text;
+      else stderr += text;
+      if (bytes > 1024 * 1024) { stop("output limit1048576bytes"); return; }
+      if (!stopping && readyAt === undefined && stdout.split("\n").includes(resourceReadyMarker)) {
+        readyAt = performance.now();
+        clearTimeout(startupTimer);
+        nativeTimer = setTimeout(() => {
+          timeoutPhase = "native";
+          stop("native deadline5000ms");
+        }, 5000);
+      }
+    };
+    child.stdout.on("data", (chunk: Buffer) => append("stdout", chunk));
+    child.stderr.on("data", (chunk: Buffer) => append("stderr", chunk));
+    child.once("error", (error) => {
+      failure = error.message;
+      if (child.pid === undefined) finish();
+      else stop(error.message);
+    });
+    child.once("exit", (code, exitSignal) => {
+      reaped = true; status = code; signal = exitSignal;
+      clearTimeout(startupTimer);
+      clearTimeout(nativeTimer);
+      guardDrain();
+    });
+    child.once("close", finish);
+  });
+}
+
+if (!selectedId || selectedId === "urgent-rational-resource") {
+  checks++;
+  typedChecks++;
+  try {
+    const child = await runResourceChild();
+    const detail = JSON.stringify(child);
+    assert.equal(child.failure, undefined, `Own resource child must complete both bounded phases: ${detail}`);
+    assert.equal(child.ready, true, `Child must flush readiness before actual engine work: ${detail}`);
+    assert.equal(child.reaped, true, `Own resource child must be reaped: ${detail}`);
+    assert.equal(child.status, 0, `Resource child failed: ${detail}`);
+    assert.match(child.stdout, /8\/8 domain allow-list checks/, "the child must actually execute all eight native cases");
+    process.stdout.write(`resource child phases ${JSON.stringify({ pid: child.pid, startupMs: child.startupMs, nativeMs: child.nativeMs, reaped: child.reaped })}\n`);
+    process.stdout.write(`resource child timings ${child.stdout.split("\n").filter(line => line.startsWith("{")).join(" ")}\n`);
+  } catch (error) { failures.push(`urgent-rational-resource: adversarial subject text completes inside bounded startup and native phases: ${String(error)}`); }
+}
 
 console.log(`${checks - failures.length}/${checks} domain allow-list checks; ${selected.length} negative questions; ${cases.filter(item => item.origin === "review").length} review examples; ${cases.filter(item => item.origin === "generated").length} new generated wordings; ${selectedId ? 0 : controls.length} continuous controls; ${typedChecks} typed source-proof checks; ${failures.length} failures; paid calls 0`);
 for (const failure of failures) console.error(failure);
