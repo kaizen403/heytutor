@@ -407,6 +407,7 @@ assert.equal(canPlayFinishedLecture({ ...gate, storedTurns: [] }), false);
     positionMs: 0,
     durationMs: 6400,
     loadedMs: 0,
+    missingAudioCues: null,
     rate: 1,
     chapters: [],
     error: null,

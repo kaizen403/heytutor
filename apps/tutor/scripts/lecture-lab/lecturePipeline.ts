@@ -27,6 +27,7 @@ import {
   planAndSolveProblemV1,
   planSceneDocumentWithRepair,
   planTurnV3,
+  subjectFromRejectedTurnPlanOutcomes,
   questionRequiresVisual,
   revalidateScenePlanWithRepairResult,
   streamLLMResponse,
@@ -206,6 +207,7 @@ export interface LectureRun {
     assertionCount: number;
     candidateErrorCodes: string[];
     candidateCount?: number;
+    candidateTimings?: Array<{ phase: string; lane: string; pass: string; validationAndCompileMs: number | null; valid: boolean; errorCodes: string[] }>;
     /** Only true for the selected, validated text_only document, not an invalid refusal. */
     plannerDeclined?: boolean;
     /** HTTP/parse diagnostics for every scene-planner request in this turn. */
@@ -399,6 +401,7 @@ export async function runLecture(
       assertionCount: 0,
       candidateErrorCodes: [],
       candidateCount: 0,
+      candidateTimings: [],
       plannerCallOutcomes: [],
       examplesUsed: [],
       validationIssues: [],
@@ -488,11 +491,13 @@ export async function runLecture(
     run.visualNeed = { plannerRequirement, assessment, mergedRequirement: turnPlan.visualRequirement,
       origin: options.visualNeedReplay === undefined ? "live_service" : "frozen_replay",
       questionHash: visualNeedQuestionHash(question), policy: LAB_VISUAL_NEED_POLICY };
-    const classifiedSubject = plannedTurn?.subject ?? "other";
+    const classifiedSubject = plannedTurn?.subject ?? subjectFromRejectedTurnPlanOutcomes(run.turnPlanCallOutcomes ?? []);
+    // Match live: rejected-plan consensus is recorded, but cannot enable strict.
+    const strategySubject = plannedTurn ? classifiedSubject : "other";
     const pickerDecision = labStrategyDecision(options.arm ?? "current", {
       subject: parseDiagramSubject(options.subject), chemistryLane: pickerGate.chemistryLane,
       codeLesson: false, dsa: dsaClassification.isDsa, doubt: false,
-    }, options.productionStrictSubjects, classifiedSubject);
+    }, options.productionStrictSubjects, strategySubject);
     if (options.productionStrictSubjects) run.productionStrategy = { classifiedSubject, strategy: pickerDecision.strategy };
     if (pickerGate.shouldPlanExactScene && pickerDecision.usePickedExamples) {
       const examples = options.diagramExamples ?? [];
@@ -525,10 +530,22 @@ export async function runLecture(
       };
     }
 
+    const candidateClocks = new WeakMap<Record<string, unknown>, number>();
     const validateCandidateAgainstPlan = (
       candidate: Record<string, unknown>, authoritativePlan: TurnPlanV3,
-    ): SceneCandidateValidation<ValidatedSceneCandidate> =>
-      validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan });
+    ): SceneCandidateValidation<ValidatedSceneCandidate> => {
+      const startedAt = performance.now();
+      const validation = validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan });
+      candidateClocks.set(candidate, performance.now() - startedAt);
+      return validation;
+    };
+    const recordValidation = (response: Parameters<typeof recordRejectedOperatorCalls>[1], validation: SceneCandidateValidation, pass: "initial" | "authority_revalidation") => {
+      run.diagram.candidateTimings?.push({ phase: response.phase, lane: response.lane, pass,
+        validationAndCompileMs: candidateClocks.get(response.document) ?? null,
+        valid: validation.valid, errorCodes: validation.errors.map((error) => error.code),
+      });
+      recordRejectedOperatorCalls(run.diagram, response, validation, pass);
+    };
 
     type BenchSceneGate = ProductionSceneGate & {
       diagramStrategy: ReturnType<typeof evaluationDecision>;
@@ -544,7 +561,7 @@ export async function runLecture(
       const diagramStrategy = labStrategyDecision(options.arm ?? "current", {
         subject: parseDiagramSubject(options.subject), chemistryLane: gate.chemistryLane,
         codeLesson: false, dsa: dsaClassification.isDsa, doubt: false,
-      }, options.productionStrictSubjects, classifiedSubject);
+      }, options.productionStrictSubjects, strategySubject);
       const examplesUsed = diagramStrategy.usePickedExamples ? pickedExamples : [];
       return {
         ...gate, diagramStrategy, examplesUsed,
@@ -623,14 +640,14 @@ export async function runLecture(
             traceId,
             onRequestOutcome: (outcome) => run.diagram.plannerCallOutcomes?.push(outcome),
             onResponse: (response) => recordPlannerResponse(run.diagram, response),
-            onCandidateValidation: (response, validation) => recordRejectedOperatorCalls(run.diagram, response, validation, "initial"),
+            onCandidateValidation: (response, validation) => recordValidation(response, validation, "initial"),
             ...gate.request,
           },
         ).catch(() => null),
       revalidate: (sceneResult, authoritativeTurnPlan) =>
         revalidateScenePlanWithRepairResult(sceneResult, (candidate) =>
           validateCandidateAgainstPlan(candidate, authoritativeTurnPlan),
-          (response, validation) => recordRejectedOperatorCalls(run.diagram, response, validation, "authority_revalidation"),
+          (response, validation) => recordValidation(response, validation, "authority_revalidation"),
         ),
     });
     turnPlan = planning.turnPlan;

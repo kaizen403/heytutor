@@ -375,12 +375,230 @@ async function stalledRead(kind: "deadline" | "cancel" | "supersede", port: "hea
     console.log(`admission history ${kind}/${port}: settled same-InputBar retry, released claim, ignored late response and held valid teaching`);
   } finally { clock.restore(); }
 }
+function actualDraftCommit(sessionId: string, activeSessionIdRef = { current: sessionId }) {
+  const filename = path.join(app, "features/tutor-session/hooks/useBoardSession.ts");
+  const file = ts.createSourceFile(filename, readFileSync(filename, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  let callback = "";
+  const visit = (node: ts.Node) => {
+    if (ts.isVariableDeclaration(node) && node.name.getText(file) === "commitDraftBoard" && node.initializer && ts.isCallExpression(node.initializer)) {
+      callback = node.initializer.arguments[0]!.getText(file);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  assert(callback, "extract the actual board commit callback, not a copied creation bridge");
+  const js = ts.transpileModule(`module.exports = ${callback}`, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+  }).outputText;
+  const mod = { exports: undefined as unknown }, committedDraftRef = { current: null as string | null };
+  let boards: unknown[] = [];
+  const client = loadHook("lib/boards/boardsClient.ts", {}, {});
+  new Function("module", "isDraft", "committedDraftRef", "sessionId", "createBoard", "setBoards", "activeSessionIdRef", "window", "boardPath", js)(
+    mod, true, committedDraftRef, sessionId, client.createBoard,
+    (set: (previous: unknown[]) => unknown[]) => { boards = set(boards); },
+    activeSessionIdRef, { history: { state: { retained: true }, replaceState: () => {} } }, (id: string) => `/c/${id}`,
+  );
+  return mod.exports as () => Promise<boolean>;
+}
+
+async function slowDraftThenFreshHistory() {
+  const locks = locksFixture();
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { locks } });
+  Object.defineProperty(globalThis, "window", { configurable: true, value: {} });
+  const shell = handlerFixture(browserLessonTransport());
+  shell.values.isDraft = true;
+  shell.values.commitDraftBoard = actualDraftCommit("board");
+  let handlerErrors = 0;
+  shell.values.emitError = () => { handlerErrors++; };
+  const created = defer<Response>(), freshHistory = defer<Response>();
+  const requests: Array<{ url: string; method: string; signal?: AbortSignal | null }> = [];
+  globalThis.fetch = ((url: unknown, init?: RequestInit) => {
+    const method = init?.method ?? "GET";
+    requests.push({ url: String(url), method, signal: init?.signal });
+    return method === "POST" ? created.promise : freshHistory.promise;
+  }) as typeof fetch;
+  const clock = clockFixture();
+  try {
+    const handler = shell.render();
+    const caller = actualAskCaller((question, options) => handler.handleQuestion(question, options));
+    const input = inputFixture(caller.submit);
+    input.type("Explain binary search with a sorted array");
+    input.ask();
+    await tick();
+    assert.equal(requests.length, 1, "the actual draft callback creates one board before reading history");
+    assert.equal(requests[0]!.method, "POST");
+    assert.equal(locks.held.size, 1, "creation remains under the exclusive board claim");
+    assert.equal(shell.bills, 0); assert.equal(shell.titles, 0);
+    await clock.advance(11_600);
+    created.resolve(Response.json({ board: { id: "board", title: "new board" } }));
+    await tick();
+    assert.equal(requests.length, 2, "successful creation is followed by exactly one fresh owned read");
+    assert.equal(requests[1]!.method, "GET");
+    assert.equal(requests[1]!.signal?.aborted, false);
+    assert.equal(locks.held.size, 1, "the same claim survives the preparation/read boundary");
+    assert.equal(shell.bills, 0); assert.equal(shell.titles, 0, "preparation cannot admit provider work");
+    assert.equal(input.field().props.value, "Explain binary search with a sorted array");
+    await clock.advance(800);
+    freshHistory.resolve(response());
+    await tick();
+    assert.equal(shell.bills, 1,
+      "two individually bounded valid draft-create/history stages must admit; the fresh read cannot inherit creation's spent deadline");
+    assert.equal(shell.titles, 1);
+    assert.equal(requests.filter(request => request.method === "POST").length, 1,
+      "teaching reuses the committed draft and cannot create it twice");
+    assert.equal(requests[1]!.signal?.aborted, false, "an 800ms fresh read remains live after an 11.6s valid creation");
+    assert.equal(input.field().props.value, "", "only successful fresh validation clears the question");
+    assert.equal(findElement(input.render(), element => element.props.role === "alert"), undefined);
+    assert.equal(handlerErrors, 0);
+    assert.equal(locks.held.size, 1, "admitted teaching retains the same exclusive claim");
+    await clock.advance(60_000);
+    assert.equal(locks.held.size, 1, "preparation/read deadlines never expire admitted teaching");
+    shell.finish(); await tick();
+    assert.equal(locks.held.size, 0);
+    console.log("admission draft11.6s/read800ms: actual commit/owned read admit once under the same claim and preserve the question until validation");
+  } finally { clock.restore(); }
+}
+
+async function failedPreparation(kind: "headers-deadline" | "body-deadline" | "rejected" | "cancel" | "supersede") {
+  const locks = locksFixture();
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { locks } });
+  Object.defineProperty(globalThis, "window", { configurable: true, value: {} });
+  const shell = handlerFixture(browserLessonTransport()), activeBoard = { current: "board" };
+  shell.values.isDraft = true;
+  shell.values.commitDraftBoard = actualDraftCommit("board", activeBoard);
+  let handlerErrors = 0;
+  shell.values.emitError = () => { handlerErrors++; };
+  const created = defer<Response>(), body = defer<unknown>();
+  const stalledBody = Response.json({ board: { id: "board", title: "new board" } });
+  Object.defineProperty(stalledBody, "json", { value: () => kind === "rejected" ? Promise.reject(new Error("controlled creation body rejection")) : body.promise });
+  const requests: Array<{ method: string; signal?: AbortSignal | null }> = [];
+  globalThis.fetch = ((_url: unknown, init?: RequestInit) => {
+    const method = init?.method ?? "GET";
+    requests.push({ method, signal: init?.signal });
+    return method === "POST" ? created.promise : Promise.resolve(response());
+  }) as typeof fetch;
+  const clock = clockFixture();
+  try {
+    let settled = false;
+    const handler = shell.render();
+    const caller = actualAskCaller((question, options) => {
+      const finished = handler.handleQuestion(question, options);
+      void finished.then(() => { settled = true; });
+      return finished;
+    });
+    const input = inputFixture(caller.submit);
+    input.type("Keep the original draft question"); input.ask(); await tick();
+    assert.equal(requests.length, 1); assert.equal(requests[0]!.method, "POST");
+    assert.equal(locks.held.size, 1);
+    if (kind === "body-deadline" || kind === "rejected") {
+      created.resolve(stalledBody); await tick();
+    }
+    if (kind.endsWith("deadline")) {
+      await clock.advance(11_999);
+      assert.equal(settled, false, `${kind}: preparation owns its full bounded window`);
+      assert.equal(locks.held.size, 1);
+      await clock.advance(1);
+    } else if (kind === "cancel") {
+      shell.admission.cancel(shell.values.cancelRef as object); await tick();
+    } else if (kind === "supersede") {
+      activeBoard.current = "successor-board";
+      shell.values.sessionId = "successor-board";
+      (shell.values.turnGenerationRef as { current: number }).current++;
+      shell.render();
+      shell.admission.cancel(shell.values.cancelRef as object); await tick();
+    }
+    assert.equal(settled, true, `${kind}: failed preparation settles without provider work`);
+    assert.equal(shell.admission.hasAttempt(shell.values.cancelRef as object), false);
+    assert.equal(locks.held.size, 0, `${kind}: the held claim releases once`);
+    assert.equal(requests.length, 1, `${kind}: fresh history never runs after failed preparation`);
+    assert.equal(shell.bills, 0); assert.equal(shell.titles, 0); assert.equal(handlerErrors, 0);
+    assert.equal(input.field().props.value, "Keep the original draft question");
+    assert(findElement(input.render(), element => element.props.role === "alert"), `${kind}: caller failure remains visible and retryable`);
+    if (kind === "body-deadline") body.resolve({ board: { id: "board", title: "new board" } });
+    else if (kind !== "rejected") created.resolve(Response.json({ board: { id: "board", title: "new board" } }));
+    await tick();
+    assert.equal(requests.length, 1, `${kind}: a late POST/body cannot revive the read`);
+    assert.equal(shell.bills, 0); assert.equal(shell.titles, 0); assert.equal(handlerErrors, 0);
+    assert.equal(locks.held.size, 0);
+    console.log(`admission preparation ${kind}: bounded settlement, retained question/notice, no late read/provider revival`);
+  } finally { clock.restore(); }
+}
+async function freshReadDeadlineAfterPreparation() {
+  const locks = locksFixture();
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { locks } });
+  Object.defineProperty(globalThis, "window", { configurable: true, value: {} });
+  const shell = handlerFixture(browserLessonTransport());
+  shell.values.isDraft = true; shell.values.commitDraftBoard = actualDraftCommit("board");
+  const created = defer<Response>(), fresh = defer<Response>();
+  const requests: Array<{ method: string; signal?: AbortSignal | null }> = [];
+  globalThis.fetch = ((_url: unknown, init?: RequestInit) => {
+    const method = init?.method ?? "GET"; requests.push({ method, signal: init?.signal });
+    return method === "POST" ? created.promise : fresh.promise;
+  }) as typeof fetch;
+  const clock = clockFixture();
+  try {
+    let settled = false;
+    const handler = shell.render();
+    const caller = actualAskCaller((question, options) => {
+      const finished = handler.handleQuestion(question, options); void finished.then(() => { settled = true; }); return finished;
+    });
+    const input = inputFixture(caller.submit); input.type("Keep question during the fresh read"); input.ask(); await tick();
+    await clock.advance(11_600); created.resolve(Response.json({ board: { id: "board", title: "new board" } })); await tick();
+    assert.equal(requests.length, 2); assert.equal(requests[1]!.method, "GET");
+    await clock.advance(11_999);
+    assert.equal(settled, false, "fresh history receives its own full 12s window after preparation");
+    assert.equal(requests[1]!.signal?.aborted, false); assert.equal(locks.held.size, 1);
+    assert.equal(shell.bills, 0); assert.equal(shell.titles, 0);
+    await clock.advance(1);
+    assert.equal(settled, true); assert.equal(requests[1]!.signal?.aborted, true); assert.equal(locks.held.size, 0);
+    assert.equal(input.field().props.value, "Keep question during the fresh read"); assert(findElement(input.render(), element => element.props.role === "alert"));
+    fresh.resolve(response()); await tick();
+    assert.equal(shell.bills, 0); assert.equal(shell.titles, 0, "late history cannot revive a failed second stage");
+    assert.equal(requests.filter(request => request.method === "POST").length, 1);
+    console.log("admission fresh read after11.6s preparation: independent12s deadline, abort/notice, no late provider revival");
+  } finally { clock.restore(); }
+}
+async function preparationRetainsExclusiveClaim() {
+  const locks = locksFixture();
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { locks } });
+  Object.defineProperty(globalThis, "window", { configurable: true, value: {} });
+  const first = handlerFixture(browserLessonTransport()), other = handlerFixture(browserLessonTransport());
+  for (const shell of [first, other]) { shell.values.isDraft = true; shell.values.commitDraftBoard = actualDraftCommit("board"); }
+  const created = defer<Response>(), fresh = defer<Response>();
+  const requests: string[] = [];
+  globalThis.fetch = ((_url: unknown, init?: RequestInit) => { const method = init?.method ?? "GET"; requests.push(method); return method === "POST" ? created.promise : fresh.promise; }) as typeof fetch;
+  const clock = clockFixture();
+  try {
+    const firstHandler = first.render(), otherHandler = other.render();
+    const input = inputFixture(actualAskCaller((question, options) => firstHandler.handleQuestion(question, options)).submit);
+    input.type("One owned draft"); input.ask(); await tick(); input.ask(); await tick();
+    assert.deepEqual(requests, ["POST"], "duplicate Ask cannot start another draft creation"); assert.equal(locks.requests, 1);
+    const competing = inputFixture(actualAskCaller((question, options) => otherHandler.handleQuestion(question, options)).submit);
+    competing.type("Competing draft"); competing.ask(); await tick();
+    assert.deepEqual(requests, ["POST"]); assert.equal(locks.held.size, 1); assert.equal(locks.requests, 2);
+    assert.equal(other.bills, 0); assert.equal(other.titles, 0); assert.equal(competing.field().props.value, "Competing draft");
+    await clock.advance(11_600); created.resolve(Response.json({ board: { id: "board", title: "new board" } })); await tick();
+    assert.deepEqual(requests, ["POST", "GET"]); assert.equal(locks.held.size, 1);
+    competing.ask(); await tick();
+    assert.deepEqual(requests, ["POST", "GET"], "read stage remains exclusively owned"); assert.equal(other.bills, 0); assert.equal(locks.held.size, 1);
+    await clock.advance(800); fresh.resolve(response()); await tick();
+    assert.equal(first.bills, 1); assert.equal(other.bills, 0); assert.equal(locks.held.size, 1);
+    assert.equal(requests.filter(method => method === "POST").length, 1);
+    first.finish(); await tick(); assert.equal(locks.held.size, 0);
+    console.log("admission preparation/read exclusivity: duplicate and competing Ask stay quiet; one claim and one POST");
+  } finally { clock.restore(); }
+}
+
 async function main() {
   await stalledRead("deadline");
   await stalledRead("deadline", "body");
   await stalledRead("deadline", "second-page");
   await stalledRead("cancel");
   await stalledRead("supersede");
+  await slowDraftThenFreshHistory();
+  for (const kind of ["headers-deadline", "body-deadline", "rejected", "cancel", "supersede"] as const) await failedPreparation(kind);
+  await freshReadDeadlineAfterPreparation();
+  await preparationRetainsExclusiveClaim();
   console.log("verify-lesson-admission-history: actual InputBar/handler/read/lock deadline and cancellation completed");
 }
 const watchdog = nativeSet(() => { console.error("admission history gate did not complete"); process.exit(1); }, 8_000);

@@ -192,6 +192,8 @@ export interface AnnotationOptions {
   transient?: boolean;
   /** Allows the owning turn or transaction to abort stale annotation work. */
   shouldCancel?: () => boolean;
+  /** Stop a transient at its current nib position and fade without holding the pen. */
+  shouldStop?: () => boolean;
 }
 
 export interface ShapeDrawOptions {
@@ -1691,7 +1693,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           path.dashOffset(totalLength - drawnLength);
           moveNib(point.x, point.y, "annotate");
           animLayer.batchDraw();
-        }, isCancelled);
+        }, () => isCancelled() || Boolean(options.transient && options.shouldStop?.()));
 
         if (isCancelled()) {
           discardNode(path, animNodesRef.current);
@@ -1705,12 +1707,19 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             animLayer.batchDraw();
             return;
           }
-          await animateOver(180, (progress) => {
-            path.opacity(1 - progress);
+          const fade = async (): Promise<void> => {
+            await animateOver(180, (progress) => {
+              path.opacity(1 - progress);
+              animLayer.batchDraw();
+            }, isCancelled);
+            discardNode(path, animNodesRef.current);
             animLayer.batchDraw();
-          }, isCancelled);
-          discardNode(path, animNodesRef.current);
-          animLayer.batchDraw();
+          };
+          // A spoken-work deadline releases the nib immediately. Only the
+          // existing partial path fades; the fade never moves the shared pen.
+          // Atomic intro owners must join their nodes before committing them.
+          if (options.shouldStop?.() && !ownership.transactionId) void fade();
+          else await fade();
           return;
         }
 

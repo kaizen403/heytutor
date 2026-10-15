@@ -73,10 +73,18 @@ export type ExecuteCommandOptions = {
   inkPace?: InkPace;
   /** One trace per named part, each on its spoken word (see focusSchedule.ts). */
   focusSchedule?: FocusTargetSchedule;
+  /** A following work cue bounds this gesture's transient motion, in media ms. */
+  focusDeadlineMs?: number;
+  /** Final alignment can replace estimates while a focus is waiting. */
+  getFocusTiming?: () => { schedule: FocusTargetSchedule; deadlineMs: number };
+  /** A paused segment cannot consume a gesture deadline or catch up ink. */
+  isPaused?: () => boolean;
   /** Media ms from the segment's audio start; the FOCUS and cue waits read it. */
   getAudioPositionMs?: () => number;
   /** Media ms per wall ms; default 1. */
   getPlaybackRate?: () => number;
+  /** A following work cue bounds transient POINT motion; final timing may arrive late. */
+  getPointDeadlineMs?: () => number | null;
   /** The sentence's narration, alignment and audio clock; the code-lesson branches follow its words. */
   spokenClock?: SpokenSegmentClock;
   /** Placed on its spoken cue and given that window; keeps it instead of the scene ceiling. */

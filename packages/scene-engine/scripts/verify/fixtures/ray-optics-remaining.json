@@ -1,0 +1,2086 @@
+{
+ "schema": "ray-optics-remaining/v1",
+ "note": "Selected planner documents from recorded round 7 physics runs, after production validation, as the engine compiles them: b2 glass slab h8a (emergent line), b1 glass slab h8a (correct slab path), b2 total internal reflection h8a (declared indices), b2 optical fibre h8u (27 degree reflection) and b1 prism refraction h8u (glass label).",
+ "documents": {
+  "slab": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "The stated thickness and angles determine a parallel-sided glass-block ray diagram."
+   },
+   "source": {
+    "question": "In a glass block experiment, a rectangular block 7.4 cm thick lies on paper. Pins A and B mark an incident ray meeting the long face at 58° to the normal; pins C and D are placed in line with the images of A and B seen through the block. Joining the entry and exit points gives a refracted ray at 33.5° to the normal. Find the refractive index of the glass and the sideways shift of the emergent ray.",
+    "representationTier": "metric_verified",
+    "nonMetric": false
+   },
+   "quantities": [
+    {
+     "id": "t",
+     "symbol": "t",
+     "value": 7.4,
+     "unit": "cm"
+    },
+    {
+     "id": "i",
+     "symbol": "i",
+     "value": 58,
+     "unit": "°"
+    },
+    {
+     "id": "r",
+     "symbol": "r",
+     "value": 33.5,
+     "unit": "°"
+    },
+    {
+     "id": "n",
+     "symbol": "n",
+     "value": 1.5364944164358736,
+     "unit": "",
+     "provenance": "derived",
+     "dependsOn": [
+      "i",
+      "r"
+     ]
+    },
+    {
+     "id": "d",
+     "symbol": "d",
+     "value": 3.6800361805515727,
+     "unit": "cm",
+     "provenance": "derived",
+     "dependsOn": [
+      "t",
+      "i",
+      "r"
+     ]
+    }
+   ],
+   "entities": [
+    {
+     "id": "topLeft",
+     "kind": "point",
+     "role": "helper point"
+    },
+    {
+     "id": "topRight",
+     "kind": "point",
+     "role": "helper point"
+    },
+    {
+     "id": "bottomRight",
+     "kind": "point",
+     "role": "helper point"
+    },
+    {
+     "id": "bottomLeft",
+     "kind": "point",
+     "role": "helper point"
+    },
+    {
+     "id": "block",
+     "kind": "polygon",
+     "role": "glass block"
+    },
+    {
+     "id": "topFace",
+     "kind": "line",
+     "role": "entry interface"
+    },
+    {
+     "id": "bottomFace",
+     "kind": "line",
+     "role": "exit interface"
+    },
+    {
+     "id": "entry",
+     "kind": "point",
+     "role": "entry contact"
+    },
+    {
+     "id": "incident",
+     "kind": "ray",
+     "role": "incident"
+    },
+    {
+     "id": "entryNormal",
+     "kind": "line",
+     "role": "normal"
+    },
+    {
+     "id": "insideRay",
+     "kind": "ray",
+     "role": "refracted"
+    },
+    {
+     "id": "exit",
+     "kind": "point",
+     "role": "exit contact"
+    },
+    {
+     "id": "emergent",
+     "kind": "line",
+     "role": "emergent ray"
+    },
+    {
+     "id": "thickness",
+     "kind": "dimension",
+     "role": "block thickness"
+    },
+    {
+     "id": "entryAngle",
+     "kind": "angle_mark",
+     "role": "incidence angle",
+     "label": "i"
+    },
+    {
+     "id": "refractionAngle",
+     "kind": "angle_mark",
+     "role": "refraction angle",
+     "label": "r"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "p1",
+     "operator": "point",
+     "inputs": {
+      "x": -5,
+      "y": 7.4,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "topLeft"
+     ]
+    },
+    {
+     "id": "p2",
+     "operator": "point",
+     "inputs": {
+      "x": 10,
+      "y": 7.4,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "topRight"
+     ]
+    },
+    {
+     "id": "p3",
+     "operator": "point",
+     "inputs": {
+      "x": 10,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "bottomRight"
+     ]
+    },
+    {
+     "id": "p4",
+     "operator": "point",
+     "inputs": {
+      "x": -5,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "bottomLeft"
+     ]
+    },
+    {
+     "id": "drawBlock",
+     "operator": "polygon",
+     "inputs": {
+      "points": [
+       "topLeft",
+       "topRight",
+       "bottomRight",
+       "bottomLeft"
+      ]
+     },
+     "outputs": [
+      "block"
+     ]
+    },
+    {
+     "id": "entrySurface",
+     "operator": "line",
+     "inputs": {
+      "start": "topLeft",
+      "end": "topRight"
+     },
+     "outputs": [
+      "topFace"
+     ]
+    },
+    {
+     "id": "exitSurface",
+     "operator": "line",
+     "inputs": {
+      "start": "bottomLeft",
+      "end": "bottomRight"
+     },
+     "outputs": [
+      "bottomFace"
+     ]
+    },
+    {
+     "id": "entryPoint",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 7.4,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "entry"
+     ]
+    },
+    {
+     "id": "firstRefraction",
+     "operator": "refract_at",
+     "inputs": {
+      "point": "entry",
+      "surface": "topFace",
+      "incidentAngleDeg": "i",
+      "n1": 1,
+      "n2": "n",
+      "tangentSign": 1
+     },
+     "outputs": [
+      "incident",
+      "entryNormal",
+      "insideRay"
+     ]
+    },
+    {
+     "id": "exitPoint",
+     "operator": "point",
+     "inputs": {
+      "x": 4.897,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "exit"
+     ]
+    },
+    {
+     "id": "emergence",
+     "operator": "parallel_through",
+     "inputs": {
+      "through": "exit",
+      "line": "incident"
+     },
+     "outputs": [
+      "emergent"
+     ]
+    },
+    {
+     "id": "measureThickness",
+     "operator": "dimension",
+     "inputs": {
+      "start": "topLeft",
+      "end": "bottomLeft"
+     },
+     "outputs": [
+      "thickness"
+     ]
+    },
+    {
+     "id": "markIncidence",
+     "operator": "angle_mark",
+     "inputs": {
+      "vertex": "entry",
+      "a": "incident",
+      "b": "entryNormal"
+     },
+     "outputs": [
+      "entryAngle"
+     ]
+    },
+    {
+     "id": "markRefraction",
+     "operator": "angle_mark",
+     "inputs": {
+      "vertex": "entry",
+      "a": "entryNormal",
+      "b": "insideRay"
+     },
+     "outputs": [
+      "refractionAngle"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [
+    {
+     "id": "entryOnFace",
+     "predicate": "on",
+     "entities": [
+      "entry",
+      "topFace"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "exitOnFace",
+     "predicate": "on",
+     "entities": [
+      "exit",
+      "bottomFace"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "parallelEmergence",
+     "predicate": "parallel",
+     "entities": [
+      "incident",
+      "emergent"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "normalToFace",
+     "predicate": "perpendicular",
+     "entities": [
+      "entryNormal",
+      "topFace"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    }
+   ],
+   "annotations": [
+    {
+     "id": "thicknessValue",
+     "kind": "label",
+     "targetIds": [
+      "thickness"
+     ],
+     "quantityId": "t"
+    },
+    {
+     "id": "incidenceValue",
+     "kind": "label",
+     "targetIds": [
+      "entryAngle"
+     ],
+     "quantityId": "i"
+    },
+    {
+     "id": "refractionValue",
+     "kind": "label",
+     "targetIds": [
+      "refractionAngle"
+     ],
+     "quantityId": "r"
+    },
+    {
+     "id": "indexResult",
+     "kind": "callout",
+     "targetIds": [
+      "insideRay"
+     ],
+     "quantityId": "n",
+     "style": {
+      "transient": true
+     }
+    },
+    {
+     "id": "shiftResult",
+     "kind": "callout",
+     "targetIds": [
+      "emergent"
+     ],
+     "quantityId": "d",
+     "style": {
+      "transient": true
+     }
+    }
+   ],
+   "requiredEntityIds": [
+    "block",
+    "topFace",
+    "bottomFace",
+    "entry",
+    "incident",
+    "entryNormal",
+    "insideRay",
+    "exit",
+    "emergent",
+    "thickness",
+    "entryAngle",
+    "refractionAngle",
+    "topLeft",
+    "topRight",
+    "bottomRight",
+    "bottomLeft"
+   ],
+   "revealGroups": [
+    {
+     "id": "setup",
+     "entityIds": [
+      "topLeft",
+      "topRight",
+      "bottomRight",
+      "bottomLeft",
+      "block",
+      "topFace",
+      "bottomFace",
+      "entry",
+      "incident",
+      "entryNormal",
+      "insideRay",
+      "exit",
+      "emergent",
+      "thickness",
+      "entryAngle",
+      "refractionAngle"
+     ],
+     "dependsOn": [],
+     "narrationCue": "Show the slab, the incident and refracted rays, and the parallel emergent direction."
+    }
+   ],
+   "teachingTimeline": [
+    {
+     "id": "showSetup",
+     "groupId": "setup",
+     "narration": "The ray enters the glass at 58° to the normal and travels inside at 33.5°.",
+     "action": "reveal",
+     "targetId": "setup",
+     "dependsOn": [],
+     "narrationIntent": "The ray enters the glass at 58° to the normal and travels inside at 33.5°."
+    },
+    {
+     "id": "calculate",
+     "targetIds": [
+      "insideRay",
+      "emergent"
+     ],
+     "narration": "Apply Snell's law for the index, then the parallel-face displacement relation for the sideways shift.",
+     "action": "reveal",
+     "targetId": "insideRay",
+     "dependsOn": [],
+     "narrationIntent": "Apply Snell's law for the index, then the parallel-face displacement relation for the sideways shift."
+    }
+   ]
+  },
+  "slabCorrect": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "The stated thickness and angles support a parallel-sided glass-block ray diagram."
+   },
+   "source": {
+    "question": "In a glass block experiment, a rectangular block 7.4 cm thick lies on paper. Pins A and B mark an incident ray meeting the long face at 58° to the normal; pins C and D are placed in line with the images of A and B seen through the block. Joining the entry and exit points gives a refracted ray at 33.5° to the normal. Find the refractive index of the glass and the sideways shift of the emergent ray.",
+    "representationTier": "plan_backed"
+   },
+   "quantities": [
+    {
+     "id": "t",
+     "symbol": "t",
+     "value": 7.4,
+     "unit": "cm"
+    },
+    {
+     "id": "i",
+     "symbol": "i",
+     "value": 58,
+     "unit": "°"
+    },
+    {
+     "id": "r",
+     "symbol": "r",
+     "value": 33.5,
+     "unit": "°"
+    },
+    {
+     "id": "n",
+     "symbol": "n",
+     "value": 1.5364944164358736,
+     "unit": "",
+     "provenance": "derived"
+    },
+    {
+     "id": "d",
+     "symbol": "d",
+     "value": 3.6800361805515713,
+     "unit": "cm",
+     "provenance": "derived"
+    }
+   ],
+   "entities": [
+    {
+     "id": "O",
+     "kind": "point",
+     "role": "entry point"
+    },
+    {
+     "id": "U",
+     "kind": "point",
+     "role": "upper face end"
+    },
+    {
+     "id": "V",
+     "kind": "point",
+     "role": "upper face end"
+    },
+    {
+     "id": "W",
+     "kind": "point",
+     "role": "lower face end"
+    },
+    {
+     "id": "Z",
+     "kind": "point",
+     "role": "lower face end"
+    },
+    {
+     "id": "upper",
+     "kind": "segment",
+     "role": "entry interface"
+    },
+    {
+     "id": "lower",
+     "kind": "segment",
+     "role": "exit interface"
+    },
+    {
+     "id": "left",
+     "kind": "segment",
+     "role": "block side"
+    },
+    {
+     "id": "right",
+     "kind": "segment",
+     "role": "block side"
+    },
+    {
+     "id": "incident",
+     "kind": "ray",
+     "role": "incident ray"
+    },
+    {
+     "id": "normal",
+     "kind": "vector",
+     "role": "normal"
+    },
+    {
+     "id": "refracted",
+     "kind": "ray",
+     "role": "refracted ray"
+    },
+    {
+     "id": "X",
+     "kind": "point",
+     "role": "exit point"
+    },
+    {
+     "id": "emergent",
+     "kind": "ray",
+     "role": "emergent ray"
+    },
+    {
+     "id": "A",
+     "kind": "point",
+     "role": "incident pin",
+     "label": "A"
+    },
+    {
+     "id": "B",
+     "kind": "point",
+     "role": "incident pin",
+     "label": "B"
+    },
+    {
+     "id": "C",
+     "kind": "point",
+     "role": "emergent pin",
+     "label": "C"
+    },
+    {
+     "id": "D",
+     "kind": "point",
+     "role": "emergent pin",
+     "label": "D"
+    },
+    {
+     "id": "entryAngle",
+     "kind": "angle_mark",
+     "role": "angle of incidence",
+     "label": "i"
+    },
+    {
+     "id": "innerAngle",
+     "kind": "angle_mark",
+     "role": "angle of refraction",
+     "label": "r"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "pO",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "O"
+     ]
+    },
+    {
+     "id": "pU",
+     "operator": "point",
+     "inputs": {
+      "x": -4,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "U"
+     ]
+    },
+    {
+     "id": "pV",
+     "operator": "point",
+     "inputs": {
+      "x": 4,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "V"
+     ]
+    },
+    {
+     "id": "pW",
+     "operator": "point",
+     "inputs": {
+      "x": -4,
+      "y": -2,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "W"
+     ]
+    },
+    {
+     "id": "pZ",
+     "operator": "point",
+     "inputs": {
+      "x": 4,
+      "y": -2,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "Z"
+     ]
+    },
+    {
+     "id": "cUpper",
+     "operator": "segment",
+     "inputs": {
+      "start": "U",
+      "end": "V"
+     },
+     "outputs": [
+      "upper"
+     ]
+    },
+    {
+     "id": "cLower",
+     "operator": "segment",
+     "inputs": {
+      "start": "W",
+      "end": "Z"
+     },
+     "outputs": [
+      "lower"
+     ]
+    },
+    {
+     "id": "cLeft",
+     "operator": "segment",
+     "inputs": {
+      "start": "U",
+      "end": "W"
+     },
+     "outputs": [
+      "left"
+     ]
+    },
+    {
+     "id": "cRight",
+     "operator": "segment",
+     "inputs": {
+      "start": "V",
+      "end": "Z"
+     },
+     "outputs": [
+      "right"
+     ]
+    },
+    {
+     "id": "cEntry",
+     "operator": "refract_at",
+     "inputs": {
+      "point": "O",
+      "surface": "upper",
+      "incidentAngleDeg": 58,
+      "n1": 1,
+      "n2": "n",
+      "tangentSign": 1
+     },
+     "outputs": [
+      "incident",
+      "normal",
+      "refracted"
+     ]
+    },
+    {
+     "id": "cExit",
+     "operator": "intersection",
+     "inputs": {
+      "first": "refracted",
+      "second": "lower"
+     },
+     "outputs": [
+      "X"
+     ]
+    },
+    {
+     "id": "cEmergent",
+     "operator": "ray",
+     "inputs": {
+      "start": "X",
+      "direction": [
+       1.6003345290410504,
+       -1
+      ]
+     },
+     "outputs": [
+      "emergent"
+     ]
+    },
+    {
+     "id": "pA",
+     "operator": "point",
+     "inputs": {
+      "x": -3.200669058082101,
+      "y": 2,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "A"
+     ]
+    },
+    {
+     "id": "pB",
+     "operator": "point",
+     "inputs": {
+      "x": -1.6003345290410504,
+      "y": 1,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "B"
+     ]
+    },
+    {
+     "id": "pC",
+     "operator": "point",
+     "inputs": {
+      "x": 2.925597908,
+      "y": -3,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "C"
+     ]
+    },
+    {
+     "id": "pD",
+     "operator": "point",
+     "inputs": {
+      "x": 4.525932437,
+      "y": -4,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "D"
+     ]
+    },
+    {
+     "id": "cEntryAngle",
+     "operator": "angle_mark",
+     "inputs": {
+      "vertex": "O",
+      "a": "incident",
+      "b": "normal"
+     },
+     "outputs": [
+      "entryAngle"
+     ]
+    },
+    {
+     "id": "cInnerAngle",
+     "operator": "angle_mark",
+     "inputs": {
+      "vertex": "O",
+      "a": "normal",
+      "b": "refracted"
+     },
+     "outputs": [
+      "innerAngle"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [
+    {
+     "id": "facesParallel",
+     "predicate": "parallel",
+     "entities": [
+      "upper",
+      "lower"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "entryOnFace",
+     "predicate": "on",
+     "entities": [
+      "O",
+      "upper"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "exitOnFace",
+     "predicate": "on",
+     "entities": [
+      "X",
+      "lower"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "emergenceParallel",
+     "predicate": "parallel",
+     "entities": [
+      "incident",
+      "emergent"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "assert_label_A",
+     "predicate": "label_attached",
+     "entities": [
+      "A"
+     ],
+     "expected": true,
+     "severity": "fatal",
+     "reason": "student-facing points must stay labeled"
+    },
+    {
+     "id": "assert_label_B",
+     "predicate": "label_attached",
+     "entities": [
+      "B"
+     ],
+     "expected": true,
+     "severity": "fatal",
+     "reason": "student-facing points must stay labeled"
+    },
+    {
+     "id": "assert_label_C",
+     "predicate": "label_attached",
+     "entities": [
+      "C"
+     ],
+     "expected": true,
+     "severity": "fatal",
+     "reason": "student-facing points must stay labeled"
+    },
+    {
+     "id": "assert_label_D",
+     "predicate": "label_attached",
+     "entities": [
+      "D"
+     ],
+     "expected": true,
+     "severity": "fatal",
+     "reason": "student-facing points must stay labeled"
+    }
+   ],
+   "annotations": [
+    {
+     "id": "thickness",
+     "kind": "brace",
+     "targetIds": [
+      "left"
+     ],
+     "text": "t = 7.4 cm",
+     "quantityId": "t"
+    },
+    {
+     "id": "incidenceValue",
+     "kind": "callout",
+     "targetIds": [
+      "entryAngle"
+     ],
+     "text": "58°",
+     "quantityId": "i"
+    },
+    {
+     "id": "refractionValue",
+     "kind": "callout",
+     "targetIds": [
+      "innerAngle"
+     ],
+     "text": "33.5°",
+     "quantityId": "r"
+    },
+    {
+     "id": "indexResult",
+     "kind": "callout",
+     "targetIds": [
+      "refracted"
+     ],
+     "quantityId": "n"
+    },
+    {
+     "id": "shiftResult",
+     "kind": "callout",
+     "targetIds": [
+      "emergent"
+     ],
+     "quantityId": "d"
+    }
+   ],
+   "requiredEntityIds": [
+    "upper",
+    "lower",
+    "incident",
+    "normal",
+    "refracted",
+    "emergent",
+    "A",
+    "B",
+    "C",
+    "D",
+    "X",
+    "entryAngle",
+    "innerAngle",
+    "O",
+    "U",
+    "V",
+    "W",
+    "Z",
+    "left",
+    "right"
+   ],
+   "revealGroups": [
+    {
+     "id": "setup",
+     "entityIds": [
+      "O",
+      "U",
+      "V",
+      "W",
+      "Z",
+      "upper",
+      "lower",
+      "left",
+      "right",
+      "incident",
+      "normal",
+      "refracted",
+      "X",
+      "emergent",
+      "A",
+      "B",
+      "C",
+      "D",
+      "entryAngle",
+      "innerAngle"
+     ],
+     "dependsOn": [],
+     "narrationCue": "reveal scene"
+    }
+   ],
+   "teachingTimeline": [
+    {
+     "id": "showSetup",
+     "groupId": "setup",
+     "annotationIds": [
+      "thickness",
+      "incidenceValue",
+      "refractionValue"
+     ],
+     "action": "reveal",
+     "targetId": "setup",
+     "dependsOn": [],
+     "narrationIntent": "reveal setup"
+    },
+    {
+     "id": "calculateResults",
+     "groupId": "setup",
+     "annotationIds": [
+      "indexResult",
+      "shiftResult"
+     ],
+     "action": "reveal",
+     "targetId": "setup",
+     "dependsOn": [],
+     "narrationIntent": "reveal setup"
+    }
+   ]
+  },
+  "tir": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "Two rays meet the same gem–air face at stated angles; one refracts and the other undergoes total internal reflection."
+   },
+   "source": {
+    "question": "Inside a cubic zirconia gem of refractive index 2.15, one ray meets a gem-air face at 13° to the normal and another meets the same face at 34°. Find the critical angle and describe, with angles, what happens to each ray.",
+    "representationTier": "quantitative_verified",
+    "nonMetric": false
+   },
+   "quantities": [
+    {
+     "id": "n",
+     "symbol": "n_gem",
+     "value": 2.15
+    },
+    {
+     "id": "i1",
+     "symbol": "i₁",
+     "value": 13,
+     "unit": "°"
+    },
+    {
+     "id": "i2",
+     "symbol": "i₂",
+     "value": 34,
+     "unit": "°"
+    },
+    {
+     "id": "c",
+     "symbol": "θc",
+     "value": 27.71774768960954,
+     "unit": "°"
+    },
+    {
+     "id": "r1val",
+     "symbol": "r₁",
+     "value": 28.92,
+     "unit": "°"
+    },
+    {
+     "id": "r2val",
+     "symbol": "i_reflected",
+     "value": 34,
+     "unit": "°"
+    }
+   ],
+   "entities": [
+    {
+     "id": "face",
+     "kind": "line",
+     "role": "gem–air interface"
+    },
+    {
+     "id": "contact1",
+     "kind": "point",
+     "role": "first contact"
+    },
+    {
+     "id": "contact2",
+     "kind": "point",
+     "role": "second contact"
+    },
+    {
+     "id": "incident1",
+     "kind": "ray",
+     "role": "13° incident ray"
+    },
+    {
+     "id": "normal1",
+     "kind": "line",
+     "role": "normal at first contact"
+    },
+    {
+     "id": "refracted1",
+     "kind": "ray",
+     "role": "ray refracted into air"
+    },
+    {
+     "id": "incident2",
+     "kind": "ray",
+     "role": "34° incident ray"
+    },
+    {
+     "id": "normal2",
+     "kind": "line",
+     "role": "normal at second contact"
+    },
+    {
+     "id": "reflected2",
+     "kind": "ray",
+     "role": "totally internally reflected ray"
+    },
+    {
+     "id": "angle1",
+     "kind": "angle_mark",
+     "role": "first incidence angle",
+     "label": "13°"
+    },
+    {
+     "id": "angle2",
+     "kind": "angle_mark",
+     "role": "second incidence angle",
+     "label": "34°"
+    },
+    {
+     "id": "refractedAngle",
+     "kind": "angle_mark",
+     "role": "first refraction angle"
+    },
+    {
+     "id": "reflectedAngle",
+     "kind": "angle_mark",
+     "role": "second reflection angle"
+    },
+    {
+     "id": "faceOrigin",
+     "kind": "point",
+     "role": "construction helper"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "makeFaceOrigin",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "faceOrigin"
+     ]
+    },
+    {
+     "id": "makeFace",
+     "operator": "line",
+     "inputs": {
+      "start": "faceOrigin",
+      "direction": [
+       1,
+       0
+      ]
+     },
+     "outputs": [
+      "face"
+     ]
+    },
+    {
+     "id": "makeContact1",
+     "operator": "point",
+     "inputs": {
+      "x": -1,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "contact1"
+     ]
+    },
+    {
+     "id": "makeContact2",
+     "operator": "point",
+     "inputs": {
+      "x": 1,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "contact2"
+     ]
+    },
+    {
+     "id": "firstRay",
+     "operator": "refract_at",
+     "inputs": {
+      "point": "contact1",
+      "surface": "face",
+      "incidentAngleDeg": "i1",
+      "n1": "n",
+      "n2": 1,
+      "tangentSign": 1
+     },
+     "outputs": [
+      "incident1",
+      "normal1",
+      "refracted1"
+     ]
+    },
+    {
+     "id": "secondRay",
+     "operator": "reflect_at",
+     "inputs": {
+      "point": "contact2",
+      "surface": "face",
+      "incidentAngleDeg": "i2",
+      "tangentSign": 1
+     },
+     "outputs": [
+      "incident2",
+      "normal2",
+      "reflected2"
+     ]
+    },
+    {
+     "id": "markAngle1",
+     "operator": "angle_mark",
+     "inputs": {
+      "vertex": "contact1",
+      "a": "incident1",
+      "b": "normal1"
+     },
+     "outputs": [
+      "angle1"
+     ]
+    },
+    {
+     "id": "markAngle2",
+     "operator": "angle_mark",
+     "inputs": {
+      "vertex": "contact2",
+      "a": "incident2",
+      "b": "normal2"
+     },
+     "outputs": [
+      "angle2"
+     ]
+    },
+    {
+     "id": "markRefraction",
+     "operator": "angle_mark",
+     "inputs": {
+      "vertex": "contact1",
+      "a": "normal1",
+      "b": "refracted1"
+     },
+     "outputs": [
+      "refractedAngle"
+     ]
+    },
+    {
+     "id": "markReflection",
+     "operator": "angle_mark",
+     "inputs": {
+      "vertex": "contact2",
+      "a": "normal2",
+      "b": "reflected2"
+     },
+     "outputs": [
+      "reflectedAngle"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [
+    {
+     "id": "normalToFace1",
+     "predicate": "perpendicular",
+     "entities": [
+      "normal1",
+      "face"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "normalToFace2",
+     "predicate": "perpendicular",
+     "entities": [
+      "normal2",
+      "face"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "firstRaySnell",
+     "predicate": "snells_law",
+     "entities": [
+      "incident1",
+      "normal1",
+      "refracted1"
+     ],
+     "expected": {
+      "n1": 2.15,
+      "n2": 1
+     },
+     "severity": "fatal"
+    },
+    {
+     "id": "secondRayReflection",
+     "predicate": "equal_angle",
+     "entities": [
+      "incident2",
+      "normal2",
+      "normal2",
+      "reflected2"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    }
+   ],
+   "annotations": [
+    {
+     "id": "gemLabel",
+     "kind": "label",
+     "targetIds": [
+      "incident1"
+     ],
+     "text": "gem n = 2.15"
+    },
+    {
+     "id": "airLabel",
+     "kind": "label",
+     "targetIds": [
+      "refracted1"
+     ],
+     "text": "air"
+    },
+    {
+     "id": "criticalResult",
+     "kind": "callout",
+     "targetIds": [
+      "face"
+     ],
+     "text": "θc ≈ 27.72°"
+    },
+    {
+     "id": "refractionResult",
+     "kind": "label",
+     "targetIds": [
+      "refractedAngle"
+     ],
+     "text": "r₁ ≈ 28.92°"
+    },
+    {
+     "id": "reflectionResult",
+     "kind": "label",
+     "targetIds": [
+      "reflectedAngle"
+     ],
+     "text": "34°"
+    },
+    {
+     "id": "tirNote",
+     "kind": "callout",
+     "targetIds": [
+      "reflected2"
+     ],
+     "text": "Total internal reflection"
+    }
+   ],
+   "requiredEntityIds": [
+    "face",
+    "contact1",
+    "contact2",
+    "incident1",
+    "normal1",
+    "refracted1",
+    "incident2",
+    "normal2",
+    "reflected2",
+    "angle1",
+    "angle2",
+    "refractedAngle",
+    "reflectedAngle"
+   ],
+   "revealGroups": [
+    {
+     "id": "setup",
+     "entityIds": [
+      "face",
+      "contact1",
+      "contact2",
+      "incident1",
+      "normal1",
+      "refracted1",
+      "incident2",
+      "normal2",
+      "reflected2",
+      "angle1",
+      "angle2"
+     ],
+     "dependsOn": [],
+     "narrationCue": "Show the gem–air face, both given incidence angles, the refracted first ray, and the internally reflected second ray."
+    },
+    {
+     "id": "results",
+     "entityIds": [
+      "refractedAngle",
+      "reflectedAngle"
+     ],
+     "dependsOn": [
+      "setup"
+     ],
+     "narrationCue": "The critical angle is 27.71774768960954°. The 13° ray refracts into air at 28.92° to the normal. The 34° ray exceeds the critical angle, so no ray enters the air; it reflects inside the gem at 34°."
+    }
+   ],
+   "teachingTimeline": [
+    {
+     "id": "showSetup",
+     "revealGroupId": "setup",
+     "targetIds": [
+      "face",
+      "incident1",
+      "incident2",
+      "angle1",
+      "angle2"
+     ],
+     "action": "reveal",
+     "targetId": "face",
+     "dependsOn": [],
+     "narrationIntent": "reveal face"
+    },
+    {
+     "id": "showResults",
+     "revealGroupId": "results",
+     "targetIds": [
+      "refractedAngle",
+      "reflectedAngle",
+      "refracted1",
+      "reflected2"
+     ],
+     "action": "reveal",
+     "targetId": "refractedAngle",
+     "dependsOn": [],
+     "narrationIntent": "reveal refractedAngle"
+    }
+   ]
+  },
+  "fibre": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "A representative core–cladding boundary can show light reflecting back into the core."
+   },
+   "source": {
+    "question": "why cant light escape a fibre optic cable",
+    "representationTier": "qualitative_verified",
+    "nonMetric": true
+   },
+   "quantities": [],
+   "entities": [
+    {
+     "id": "boundaryOrigin",
+     "kind": "point",
+     "role": "helper point"
+    },
+    {
+     "id": "boundary",
+     "kind": "line",
+     "role": "core–cladding boundary"
+    },
+    {
+     "id": "lightOrigin",
+     "kind": "point",
+     "role": "helper point"
+    },
+    {
+     "id": "contact",
+     "kind": "point",
+     "role": "point of incidence",
+     "label": "P"
+    },
+    {
+     "id": "incoming",
+     "kind": "vector",
+     "role": "light travelling through the core"
+    },
+    {
+     "id": "reflected",
+     "kind": "ray",
+     "role": "light reflected back into the core"
+    },
+    {
+     "id": "contactNormal",
+     "kind": "segment",
+     "role": "normal at geometry"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "makeBoundaryOrigin",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "boundaryOrigin"
+     ]
+    },
+    {
+     "id": "makeBoundary",
+     "operator": "line",
+     "inputs": {
+      "start": "boundaryOrigin",
+      "direction": [
+       1,
+       0
+      ]
+     },
+     "outputs": [
+      "boundary"
+     ]
+    },
+    {
+     "id": "makeLightOrigin",
+     "operator": "point",
+     "inputs": {
+      "x": -1,
+      "y": -2,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "lightOrigin"
+     ]
+    },
+    {
+     "id": "makeContact",
+     "operator": "surface_contact",
+     "inputs": {
+      "origin": "lightOrigin",
+      "surface": "boundary",
+      "direction": [
+       1,
+       2
+      ]
+     },
+     "outputs": [
+      "contact",
+      "incoming"
+     ]
+    },
+    {
+     "id": "makeNormal",
+     "operator": "normal_at",
+     "inputs": {
+      "point": "contact",
+      "surface": "boundary"
+     },
+     "outputs": [
+      "contactNormal"
+     ]
+    },
+    {
+     "id": "makeReflection",
+     "operator": "reflect_direction",
+     "inputs": {
+      "origin": "contact",
+      "incoming": "incoming",
+      "normal": "contactNormal"
+     },
+     "outputs": [
+      "reflected"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [
+    {
+     "id": "contactOnBoundary",
+     "predicate": "on",
+     "entities": [
+      "contact",
+      "boundary"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "assert_label_contact",
+     "predicate": "label_attached",
+     "entities": [
+      "contact"
+     ],
+     "expected": true,
+     "severity": "fatal",
+     "reason": "student-facing points must stay labeled"
+    }
+   ],
+   "annotations": [
+    {
+     "id": "claddingLabel",
+     "kind": "label",
+     "targetIds": [
+      "boundary"
+     ],
+     "text": "cladding",
+     "placementIntent": "above"
+    },
+    {
+     "id": "coreLabel",
+     "kind": "label",
+     "targetIds": [
+      "incoming"
+     ],
+     "text": "core",
+     "placementIntent": "below"
+    },
+    {
+     "id": "explanation",
+     "kind": "narration",
+     "targetIds": [
+      "incoming",
+      "contact",
+      "reflected"
+     ],
+     "text": "The cladding has a lower refractive index than the core. When light reaches their boundary at an incidence angle greater than the critical angle, total internal reflection sends it back into the core. Light can still escape or be lost if it meets the boundary below the critical angle, particularly when the fibre bends too sharply."
+    }
+   ],
+   "requiredEntityIds": [
+    "boundary",
+    "lightOrigin",
+    "contact",
+    "incoming",
+    "reflected",
+    "boundaryOrigin"
+   ],
+   "revealGroups": [
+    {
+     "id": "fibreBoundary",
+     "entityIds": [
+      "boundaryOrigin",
+      "boundary",
+      "lightOrigin",
+      "contact",
+      "incoming",
+      "reflected"
+     ],
+     "dependsOn": [],
+     "narrationCue": "reveal scene"
+    }
+   ],
+   "teachingTimeline": []
+  },
+  "prism": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "A normalized triangular-prism construction shows entry, passage through glass, and emergence without assigning measured values."
+   },
+   "source": {
+    "question": "path of light through a triangular glass prism",
+    "representationTier": "qualitative_verified",
+    "nonMetric": true
+   },
+   "quantities": [],
+   "entities": [
+    {
+     "id": "leftBase",
+     "kind": "point",
+     "role": "helper point"
+    },
+    {
+     "id": "apex",
+     "kind": "point",
+     "role": "helper point",
+     "label": "A"
+    },
+    {
+     "id": "rightBase",
+     "kind": "point",
+     "role": "helper point"
+    },
+    {
+     "id": "prism",
+     "kind": "polygon",
+     "role": "glass prism"
+    },
+    {
+     "id": "firstFace",
+     "kind": "segment",
+     "role": "first refracting face"
+    },
+    {
+     "id": "secondFace",
+     "kind": "segment",
+     "role": "second refracting face"
+    },
+    {
+     "id": "base",
+     "kind": "segment",
+     "role": "prism base"
+    },
+    {
+     "id": "sourcePoint",
+     "kind": "point",
+     "role": "helper point"
+    },
+    {
+     "id": "entry",
+     "kind": "point",
+     "role": "entry contact"
+    },
+    {
+     "id": "incident",
+     "kind": "vector",
+     "role": "incident ray"
+    },
+    {
+     "id": "inside",
+     "kind": "ray",
+     "role": "refracted path inside glass"
+    },
+    {
+     "id": "exit",
+     "kind": "point",
+     "role": "exit contact"
+    },
+    {
+     "id": "exitIncident",
+     "kind": "vector",
+     "role": "incident direction at second face"
+    },
+    {
+     "id": "emergent",
+     "kind": "ray",
+     "role": "emergent ray"
+    },
+    {
+     "id": "entryNormal",
+     "kind": "segment",
+     "role": "normal at geometry"
+    },
+    {
+     "id": "exitNormal",
+     "kind": "segment",
+     "role": "normal at geometry"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "pLeft",
+     "operator": "point",
+     "inputs": {
+      "x": -1,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "leftBase"
+     ]
+    },
+    {
+     "id": "pApex",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 3,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "apex"
+     ]
+    },
+    {
+     "id": "pRight",
+     "operator": "point",
+     "inputs": {
+      "x": 1,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "rightBase"
+     ]
+    },
+    {
+     "id": "cPrism",
+     "operator": "polygon",
+     "inputs": {
+      "points": [
+       "leftBase",
+       "rightBase",
+       "apex"
+      ]
+     },
+     "outputs": [
+      "prism"
+     ]
+    },
+    {
+     "id": "cFirst",
+     "operator": "segment",
+     "inputs": {
+      "start": "leftBase",
+      "end": "apex"
+     },
+     "outputs": [
+      "firstFace"
+     ]
+    },
+    {
+     "id": "cSecond",
+     "operator": "segment",
+     "inputs": {
+      "start": "apex",
+      "end": "rightBase"
+     },
+     "outputs": [
+      "secondFace"
+     ]
+    },
+    {
+     "id": "cBase",
+     "operator": "segment",
+     "inputs": {
+      "start": "leftBase",
+      "end": "rightBase"
+     },
+     "outputs": [
+      "base"
+     ]
+    },
+    {
+     "id": "pSource",
+     "operator": "point",
+     "inputs": {
+      "x": -3,
+      "y": 1.5,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "sourcePoint"
+     ]
+    },
+    {
+     "id": "cEntry",
+     "operator": "surface_contact",
+     "inputs": {
+      "origin": "sourcePoint",
+      "surface": "firstFace",
+      "direction": [
+       1,
+       0
+      ]
+     },
+     "outputs": [
+      "entry",
+      "incident"
+     ]
+    },
+    {
+     "id": "nEntry",
+     "operator": "normal_at",
+     "inputs": {
+      "point": "entry",
+      "surface": "firstFace"
+     },
+     "outputs": [
+      "entryNormal"
+     ]
+    },
+    {
+     "id": "cInside",
+     "operator": "refract_direction",
+     "inputs": {
+      "origin": "entry",
+      "incoming": "incident",
+      "normal": "entryNormal",
+      "n1": 1,
+      "n2": 1.5
+     },
+     "outputs": [
+      "inside"
+     ]
+    },
+    {
+     "id": "cExit",
+     "operator": "surface_contact",
+     "inputs": {
+      "origin": "entry",
+      "surface": "secondFace",
+      "direction": "inside"
+     },
+     "outputs": [
+      "exit",
+      "exitIncident"
+     ]
+    },
+    {
+     "id": "nExit",
+     "operator": "normal_at",
+     "inputs": {
+      "point": "exit",
+      "surface": "secondFace"
+     },
+     "outputs": [
+      "exitNormal"
+     ]
+    },
+    {
+     "id": "cEmergent",
+     "operator": "refract_direction",
+     "inputs": {
+      "origin": "exit",
+      "incoming": "exitIncident",
+      "normal": "exitNormal",
+      "n1": 1.5,
+      "n2": 1
+     },
+     "outputs": [
+      "emergent"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [
+    {
+     "id": "entryOnFace",
+     "predicate": "on",
+     "entities": [
+      "entry",
+      "firstFace"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "exitOnFace",
+     "predicate": "on",
+     "entities": [
+      "exit",
+      "secondFace"
+     ],
+     "expected": true,
+     "severity": "fatal"
+    },
+    {
+     "id": "entryLaw",
+     "predicate": "snells_law",
+     "entities": [
+      "incident",
+      "entryNormal",
+      "inside"
+     ],
+     "expected": {
+      "n1": 1,
+      "n2": 1.5
+     },
+     "severity": "fatal"
+    },
+    {
+     "id": "exitLaw",
+     "predicate": "snells_law",
+     "entities": [
+      "exitIncident",
+      "exitNormal",
+      "emergent"
+     ],
+     "expected": {
+      "n1": 1.5,
+      "n2": 1
+     },
+     "severity": "fatal"
+    },
+    {
+     "id": "assert_label_apex",
+     "predicate": "label_attached",
+     "entities": [
+      "apex"
+     ],
+     "expected": true,
+     "severity": "fatal",
+     "reason": "student-facing points must stay labeled"
+    }
+   ],
+   "annotations": [
+    {
+     "id": "glassLabel",
+     "kind": "label",
+     "targetIds": [
+      "prism"
+     ],
+     "text": "glass",
+     "placementIntent": "inside"
+    },
+    {
+     "id": "airLabel",
+     "kind": "label",
+     "targetIds": [
+      "incident"
+     ],
+     "text": "air",
+     "placementIntent": "above"
+    }
+   ],
+   "requiredEntityIds": [
+    "prism",
+    "firstFace",
+    "secondFace",
+    "base",
+    "entry",
+    "incident",
+    "inside",
+    "exit",
+    "exitIncident",
+    "emergent",
+    "apex",
+    "leftBase",
+    "rightBase",
+    "sourcePoint"
+   ],
+   "revealGroups": [
+    {
+     "id": "setup",
+     "entityIds": [
+      "leftBase",
+      "apex",
+      "rightBase",
+      "prism",
+      "firstFace",
+      "secondFace",
+      "base",
+      "sourcePoint",
+      "entry",
+      "incident",
+      "inside",
+      "exit",
+      "exitIncident",
+      "emergent"
+     ],
+     "dependsOn": [],
+     "narrationCue": "The ray enters the higher-index glass, crosses the prism, and emerges into air."
+    }
+   ],
+   "teachingTimeline": []
+  }
+ }
+}

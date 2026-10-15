@@ -668,6 +668,35 @@ interface ExplicitArithmeticOptions {
   declaredValue?: number;
 }
 
+/** Read a supplied volt/ohm measurement before a binding named V can multiply it. */
+function readLiteralVoltOhmQuotient(
+  member: string,
+  expectedUnit: unknown,
+  numericBindings: Map<string, number>,
+  bindingMeta: NumericBindingMetaMap,
+): string {
+  const current = unitScale(expectedUnit);
+  const voltage = bindingMeta.get("V");
+  const voltageUnit = voltage ? unitScale(voltage.unit) : null;
+  if (current?.signature !== "A^1" || current.factor !== 1 ||
+      !voltage?.trusted || voltageUnit?.signature !== "V^1" || voltageUnit.factor !== 1) return member;
+  const ungroup = (text: string) => text.trim().replace(/^\(([^()]*)\)$/, "$1").trim();
+  const operands = ungroup(member).split("/").map(ungroup);
+  if (operands.length !== 2 || operands.some((operand) => /[()]/.test(operand))) return member;
+  const volts = parseMeasuredPart(operands[0]!);
+  const ohms = parseMeasuredPart(operands[1]!);
+  const voltsUnit = volts ? unitScale(volts.unit) : null;
+  const ohmsUnit = ohms ? unitScale(ohms.unit) : null;
+  const supplied = numericBindings.get("V");
+  if (!volts || !ohms || supplied === undefined ||
+      voltsUnit?.signature !== "V^1" || voltsUnit.factor !== 1 ||
+      ohmsUnit?.signature !== "Ω^1" || ohmsUnit.factor !== 1 || ohms.value <= 0 ||
+      !approximatelyEqual(volts.value, supplied)) return member;
+  // Only two measured operands qualify. Genuine products (12*V, k V),
+  // prefixed inputs/results and all other unit/binding collisions stay unchanged.
+  return `${volts.value}/(${ohms.value})`;
+}
+
 function evaluateExplicitArithmetic(
   sourceText: string,
   expectedUnit: unknown,
@@ -698,7 +727,8 @@ function evaluateExplicitArithmetic(
   let signConflict = false;
   let mixedUnits = false;
   for (const clause of splitArithmeticClauses(readableSource)) {
-    const equalityParts = splitEqualityParts(clause);
+    const equalityParts = splitEqualityParts(clause).map((member) =>
+      readLiteralVoltOhmQuotient(member, expectedUnit, numericBindings, bindingMeta));
     if (equalityParts.length < 2) continue;
     const clauseTargetKeys = expandDescriptiveAssignmentTargets(equalityParts, targetKeys);
     let stated: { value: number; tolerance: number } | null = null;

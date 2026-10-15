@@ -21,7 +21,10 @@ import type { InkPace } from "@heytutor/tutor-core";
 import { applyHtmlAudioPlaybackRate } from "@heytutor/tutor-core";
 import type { TurnTelemetry } from "@/lib/obs/turnTelemetry";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
-import { pageTurnsEndingAt, storedTurnContinuesBoard } from "@/lib/boards/boardContinuation";
+import {
+  pageTurnsEndingAt,
+  storedTurnContinuesBoard,
+} from "@/lib/boards/boardContinuation";
 import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
 import { renderCodePanelFrame } from "@/lib/code-render/renderCodeToCanvas";
 import {
@@ -53,6 +56,7 @@ import {
   lecturePlayerTrackKey,
 } from "@/lib/replay/lecturePlayerAudio";
 import type { ReplayCue } from "@/lib/replay/replayTimeline";
+import type { LectureWorkPage } from "@/lib/replay/lectureWorkPages";
 import { BOARD_HEIGHT, BOARD_WIDTH, DSA_CODE_PANEL_RECT } from "../constants";
 import { CodeLessonController } from "../lib/code-lesson/codeLessonController";
 import { restoreDsaFrames } from "../lib/code-lesson/dsaFrames";
@@ -81,6 +85,7 @@ const HIDDEN_RESYNC_MS = 800;
 const SEEKED_TIMEOUT_MS = 1_500;
 
 type PageCodeTrack = {
+  openingTurnIndex: number;
   startMs: number;
   endMs: number;
   /** The code panel mounts with the page's first typed block. */
@@ -120,6 +125,7 @@ export interface LecturePlayerApi {
   revealed: boolean;
   /** The voice is running. */
   playing: boolean;
+  reviewingStoredPage: boolean;
   segmentText: string;
   cursorState: CursorState;
   /** Header Replay and `?replay=1`: play the lecture from its start. */
@@ -194,13 +200,19 @@ function scheduleIdle(callback: () => void): () => void {
 function buildPageCodeTracks(
   turns: StoredTurn[],
   timeline: LecturePlayerTimeline,
+  review?: Pick<LectureWorkPage, "endCueIndex" | "endCommandCount">,
 ): PageCodeTrack[] {
   const tracks: PageCodeTrack[] = [];
   const pages = new Map<number, ReplayCue[]>();
-  for (const cue of timeline.cues) {
+  for (const [cueIndex, cue] of timeline.cues.entries()) {
+    if (review && cueIndex > review.endCueIndex) break;
     const page = timeline.pageStartTurnIndex[cue.turnIndex] ?? cue.turnIndex;
     const cues = pages.get(page) ?? [];
-    cues.push(cue);
+    // Saved-page review ends at an executed command boundary, even when
+    // later TYPE receipts share that cue's media time. Keep recording data immutable.
+    cues.push(review && cueIndex === review.endCueIndex
+      ? { ...cue, commands: cue.commands.slice(0, review.endCommandCount) }
+      : cue);
     pages.set(page, cues);
   }
   for (const [page, cues] of pages) {
@@ -210,6 +222,7 @@ function buildPageCodeTracks(
     if (!track || track.blocks.length === 0) continue;
     const firstTyped = cues.find((cue) => cue.commands.some((command) => command.type === "TYPE"));
     tracks.push({
+      openingTurnIndex: page,
       startMs: cues[0]!.startMs,
       endMs: cues[cues.length - 1]!.endMs,
       visibleFromMs: firstTyped?.startMs ?? cues[0]!.startMs,
@@ -247,6 +260,7 @@ export function useLecturePlayer({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const clockRef = useRef<VirtualWhiteboardClock | null>(null);
   const timelineRef = useRef<LecturePlayerTimeline | null>(null);
+  const reviewPageRef = useRef<LectureWorkPage | null>(null);
   const codeTracksRef = useRef<PageCodeTrack[]>([]);
   const trackReadyRef = useRef(false);
 
@@ -380,10 +394,17 @@ export function useLecturePlayer({
 
   const syncTurn = useCallback(
     async (turnIndex: number, shouldCancel: () => boolean = () => false) => {
-      if (!await resetReplayPageAtTurn({
-        turn: storedTurnsRef.current[turnIndex], previousTurnIndex: lastSyncedTurnRef.current, turnIndex,
-        whiteboard: playerBoardRef.current, resetBoardLayout: resetLayoutRef.current, shouldCancel,
-      })) return false;
+      if (
+        !(await resetReplayPageAtTurn({
+          turn: storedTurnsRef.current[turnIndex],
+          previousTurnIndex: lastSyncedTurnRef.current,
+          turnIndex,
+          whiteboard: playerBoardRef.current,
+          resetBoardLayout: resetLayoutRef.current,
+          shouldCancel,
+        }))
+      )
+        return false;
       lastSyncedTurnRef.current = turnIndex;
       const turn = storedTurnsRef.current[turnIndex];
       if (turn && storedTurnContinuesBoard(turn)) return true;
@@ -394,7 +415,8 @@ export function useLecturePlayer({
       else controller.reset();
       restoreDsaFrames(controller, turn, plan);
       const diagram =
-        controller.frames.current()?.presentation.diagram ?? restoreVerifiedDiagramFromTurn(turn);
+        controller.frames.current()?.presentation.diagram ??
+        restoreVerifiedDiagramFromTurn(turn);
       diagramRef.current = diagram;
       fbdStartedRef.current = Boolean(diagram);
       return true;
@@ -408,22 +430,32 @@ export function useLecturePlayer({
     setSegmentText(cues[index]?.narration ?? "");
   }, []);
 
-  const renderCodePanel = useCallback((ms: number) => {
+  const renderCodePanel = useCallback((ms: number, review?: LectureWorkPage) => {
     const canvas = codePanelCanvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
     const scale = canvas.width / BOARD_WIDTH;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const page = codeTracksRef.current.find(
+    const timeline = timelineRef.current;
+    const endCue = review && timeline?.cues[review.endCueIndex];
+    if (review && !endCue) return;
+    const openingTurnIndex = endCue
+      ? timeline!.pageStartTurnIndex[endCue.turnIndex] ?? endCue.turnIndex
+      : null;
+    const tracks = review && timeline
+      ? buildPageCodeTracks(storedTurnsRef.current, timeline, review)
+      : codeTracksRef.current;
+    const page = tracks.find(
       (candidate, index, all) =>
+        (openingTurnIndex === null || candidate.openingTurnIndex === openingTurnIndex) &&
         ms >= candidate.startMs &&
         (ms < candidate.endMs || index === all.length - 1),
     );
     if (!page || ms < page.visibleFromMs) return;
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
     renderCodePanelFrame(ctx, codeLessonFrameSpec(page.track, ms), DSA_CODE_PANEL_RECT);
-  }, []);
+  }, [storedTurnsRef]);
 
   const setFreezeVisible = useCallback((visible: boolean) => {
     const canvas = freezeCanvasRef.current;
@@ -456,7 +488,10 @@ export function useLecturePlayer({
     applyHtmlAudioPlaybackRate(audio, lecturePaceRate(rateRef.current));
     audio.muted = false;
     const seconds = mediaSecondsForSeek(positionRef.current, audio.duration);
-    if (audioIsAtMediaEnd(audio) || Math.abs(audio.currentTime - seconds) > 0.05) {
+    if (
+      audioIsAtMediaEnd(audio) ||
+      Math.abs(audio.currentTime - seconds) > 0.05
+    ) {
       try {
         audio.currentTime = seconds;
       } catch {
@@ -498,6 +533,14 @@ export function useLecturePlayer({
       if (!wb || !clock || !timeline || !audio) return false;
       const plan = planLectureSeek(timeline, targetMs);
       if (!plan) return false;
+      const review = reviewPageRef.current;
+      const reviewing =
+        review !== null && targetMs === Math.max(review.endMs - 1, 0);
+      if (reviewing) {
+        plan.targetCueIndex = review.endCueIndex;
+        plan.targetOffsetMs =
+          plan.targetMs - timeline.cues[review.endCueIndex]!.startMs;
+      }
 
       const generation = ++drawGenerationRef.current;
       const current = () => generation === drawGenerationRef.current && !supersededRef.current;
@@ -528,10 +571,22 @@ export function useLecturePlayer({
 
       const { cues } = timeline;
       const catchUp = (async () => {
-        for (let index = plan.epochCueIndex; index < plan.targetCueIndex; index++) {
+        for (
+          let index = plan.epochCueIndex;
+          index < plan.targetCueIndex + (reviewing ? 1 : 0);
+          index++
+        ) {
           const cue = cues[index]!;
-          if (cue.turnIndex !== lastSyncedTurnRef.current && !await syncTurn(cue.turnIndex, () => !current())) return;
-          for (const command of cue.commands) {
+          if (
+            cue.turnIndex !== lastSyncedTurnRef.current &&
+            !(await syncTurn(cue.turnIndex, () => !current()))
+          )
+            return;
+          const commands =
+            reviewing && index === plan.targetCueIndex
+              ? cue.commands.slice(0, review.endCommandCount)
+              : cue.commands;
+          for (const command of commands) {
             if (!current()) return;
             // Pure dwell and transient emphasis leave no mark to catch up to.
             // FOCUS also releases permanent verified labels. Its instant
@@ -539,14 +594,19 @@ export function useLecturePlayer({
             if (command.type === "PAUSE" || command.type === "POINT") {
               continue;
             }
-            await executeRef.current(command, {
+            await executeRef.current(
+              reviewing ? structuredClone(command) : command,
+              {
               durationScale: 0,
               applyLayout: false,
+              recordedWorkPlacement: reviewing,
               isCancelled: () => !stillOurs(),
               trustedDiagramGeometry: cue.trustedDiagramGeometry,
-            });
+            },
+            );
           }
-          await completeReplayDiagramTurn({
+          if (commands.length === cue.commands.length)
+            await completeReplayDiagramTurn({
             cue,
             nextCue: cues[index + 1],
             turn: storedTurnsRef.current[cue.turnIndex],
@@ -574,52 +634,70 @@ export function useLecturePlayer({
 
       const targetCue = cues[plan.targetCueIndex]!;
       clock.setNow(targetCue.startMs);
-      drawDoneRef.current = false;
-      void drawReplayDiagramTimeline({
-        cues,
-        executeCommand: executePlayerCommand,
-        getClockMs: clock.now,
-        waitForAdvance: clock.waitForAdvance,
-        shouldCancel: () => !stillOurs(),
-        startCueIndex: plan.targetCueIndex,
-        getTurn: (turnIndex) => storedTurnsRef.current[turnIndex],
-        getPageTurns: (turnIndex) => pageTurnsEndingAt(storedTurnsRef.current, turnIndex),
-        getDiagram: () => diagramRef.current,
-        onCueStart: async (cue, index) => {
-          if (cue.turnIndex !== lastSyncedTurnRef.current && !await syncTurn(cue.turnIndex, () => !stillOurs())) return;
-          if (activeRef.current && statusRef.current !== "seeking") publishCueText(cues, index);
-        },
-      })
-        .catch((error: unknown) => {
+      if (reviewing) {
+        // A saved page is its recorded commands through the next work erase.
+        // Do not start a future draw loop or voice while it is being read.
+        drawDoneRef.current = true;
+        clock.setNow(plan.targetMs);
+      } else {
+        drawDoneRef.current = false;
+        void drawReplayDiagramTimeline({
+          cues,
+          executeCommand: executePlayerCommand,
+          getClockMs: clock.now,
+          waitForAdvance: clock.waitForAdvance,
+          shouldCancel: () => !stillOurs(),
+          startCueIndex: plan.targetCueIndex,
+          getTurn: (turnIndex) => storedTurnsRef.current[turnIndex],
+          getPageTurns: (turnIndex) => pageTurnsEndingAt(storedTurnsRef.current, turnIndex),
+          getDiagram: () => diagramRef.current,
+          onCueStart: async (cue, index) => {
+            if (
+              cue.turnIndex !== lastSyncedTurnRef.current &&
+              !(await syncTurn(cue.turnIndex, () => !stillOurs()))
+            )
+              return;
+            if (activeRef.current && statusRef.current !== "seeking") publishCueText(cues, index);
+          },
+        })
+          .catch((error: unknown) => {
           console.error("Lecture player draw failed:", error);
         })
-        .finally(() => {
+          .finally(() => {
           if (stillOurs()) drawDoneRef.current = true;
         });
 
-      await settleFrame(clock);
-      let now = clock.now();
-      while (now < plan.targetMs) {
+        await settleFrame(clock);
+        let now = clock.now();
+        while (now < plan.targetMs) {
         if (!current()) return false;
         now = Math.min(now + SEEK_STEP_MS, plan.targetMs);
         clock.setNow(now);
         await settleFrame(clock);
       }
-      // The end of the lecture is the finished board, including ink that ran
-      // past the last word.
-      const overrunLimitMs = plan.targetMs + END_OVERRUN_LIMIT_MS;
-      while (plan.targetMs >= timeline.totalMs && !drawDoneRef.current && now < overrunLimitMs) {
+        // The end of the lecture is the finished board, including ink that ran
+        // past the last word.
+        const overrunLimitMs = plan.targetMs + END_OVERRUN_LIMIT_MS;
+        while (
+          plan.targetMs >= timeline.totalMs &&
+          !drawDoneRef.current &&
+          now < overrunLimitMs
+        ) {
         if (!current()) return false;
         now += SEEK_STEP_MS;
         clock.setNow(now);
         await settleFrame(clock);
       }
+      }
       if (!current()) return false;
 
       positionRef.current = plan.targetMs;
-      renderCodePanel(plan.targetMs);
+      renderCodePanel(plan.targetMs, reviewing ? review : undefined);
       publishCueText(cues, plan.targetCueIndex);
-      store.set({ positionMs: plan.targetMs });
+      store.set({
+        positionMs: plan.targetMs,
+        reviewPageIndex: reviewing ? review.index : null,
+      });
 
       try {
         audio.currentTime = mediaSecondsForSeek(plan.targetMs, audio.duration);
@@ -759,6 +837,8 @@ export function useLecturePlayer({
     drawGenerationRef.current += 1;
     seekQueue.clear();
     pendingStartRef.current = null;
+    reviewPageRef.current = null;
+    store.set({ reviewPageIndex: null });
     wantsPlayingRef.current = false;
     // Wake the stale draw loop's clock waits so it sees the new generation.
     clockRef.current?.pump();
@@ -789,6 +869,13 @@ export function useLecturePlayer({
   }, []);
 
   const play = useCallback(() => {
+    if (reviewPageRef.current) {
+      const from = Math.max(reviewPageRef.current.endMs - 1, 0);
+      reviewPageRef.current = null;
+      if (activeRef.current) requestSeek(from, true);
+      else start(from, true);
+      return;
+    }
     if (!activeRef.current) {
       const total = timelineRef.current?.totalMs ?? 0;
       const from = positionRef.current >= total ? 0 : positionRef.current;
@@ -817,6 +904,7 @@ export function useLecturePlayer({
 
   const seek = useCallback(
     (ms: number) => {
+      reviewPageRef.current = null;
       if (!activeRef.current) {
         start(ms, true);
         return;
@@ -824,7 +912,9 @@ export function useLecturePlayer({
       // A lecture that ran to its end plays again from wherever it is sent.
       requestSeek(
         ms,
-        statusRef.current === "playing" || statusRef.current === "ended" || wantsPlayingRef.current,
+        statusRef.current === "playing" ||
+          statusRef.current === "ended" ||
+          wantsPlayingRef.current,
       );
     },
     [requestSeek, start],
@@ -842,8 +932,23 @@ export function useLecturePlayer({
     onRateChangeRef.current(next);
   }, []);
 
+  const reviewPage = useCallback(
+    (index: number) => {
+      const page = timelineRef.current?.workPages[index];
+      if (!page || !Number.isInteger(index)) return;
+      reviewPageRef.current = page;
+      wantsPlayingRef.current = false;
+      audioRef.current?.pause();
+      start(Math.max(page.endMs - 1, 0), false);
+    },
+    [start],
+  );
+
   const toggle = useCallback(() => {
-    if (statusRef.current === "playing" || (statusRef.current === "seeking" && wantsPlayingRef.current)) {
+    if (
+      statusRef.current === "playing" ||
+      (statusRef.current === "seeking" && wantsPlayingRef.current)
+    ) {
       pause();
     } else {
       play();
@@ -851,11 +956,14 @@ export function useLecturePlayer({
   }, [pause, play]);
 
   const controls = useMemo<LecturePlayerControls>(
-    () => ({ play, pause, toggle, seek, skip, setRate }),
-    [pause, play, seek, setRate, skip, toggle],
+    () => ({ play, pause, toggle, seek, skip, setRate, reviewPage }),
+    [pause, play, seek, setRate, skip, toggle, reviewPage],
   );
 
-  const playFromStart = useCallback(() => start(0, true), [start]);
+  const playFromStart = useCallback(() => {
+    reviewPageRef.current = null;
+    return start(0, true);
+  }, [start]);
 
   // --- rate -----------------------------------------------------------------
   useEffect(() => {
@@ -878,7 +986,11 @@ export function useLecturePlayer({
     const onEnded = () => {
       if (!activeRef.current || statusRef.current === "seeking") return;
       // A delayed `ended` from the previous finish must not silence a seek back.
-      if (Number.isFinite(audio.duration) && audio.currentTime < audio.duration - 0.2) return;
+      if (
+        Number.isFinite(audio.duration) &&
+        audio.currentTime < audio.duration - 0.2
+      )
+        return;
       const total = timelineRef.current?.totalMs ?? 0;
       positionRef.current = total;
       clockRef.current?.setNow(total);
@@ -895,7 +1007,14 @@ export function useLecturePlayer({
       setPlayerStatus("paused");
     };
     const onPlay = () => {
-      if (!activeRef.current || statusRef.current !== "paused") return;
+      if (!activeRef.current) return;
+      if (reviewPageRef.current) {
+        // Native media controls bypass the bar. Leave its frozen page through
+        // the same seek/rebuild path so voice never runs over stationary ink.
+        play();
+        return;
+      }
+      if (statusRef.current !== "paused") return;
       wantsPlayingRef.current = true;
       smoothClock.reset(positionRef.current, performance.now());
       setPlayerStatus("playing");
@@ -912,7 +1031,7 @@ export function useLecturePlayer({
       audio.load();
       audioRef.current = null;
     };
-  }, [renderCodePanel, setPlayerStatus, smoothClock, store]);
+  }, [play, renderCodePanel, setPlayerStatus, smoothClock, store]);
 
   // --- timeline + stitched track -------------------------------------------
   useEffect(() => {
@@ -921,7 +1040,14 @@ export function useLecturePlayer({
       timelineRef.current = null;
       pendingStartRef.current = null;
       if (activeRef.current) close();
-      store.set({ durationMs: 0, loadedMs: 0, chapters: [], positionMs: 0, error: null });
+      store.set({
+        durationMs: 0,
+        loadedMs: 0,
+        missingAudioCues: null,
+        chapters: [],
+        positionMs: 0,
+        error: null,
+      });
       setPlayerStatus("unavailable");
       return undefined;
     }
@@ -929,6 +1055,7 @@ export function useLecturePlayer({
 
     const turns = storedTurnsRef.current;
     const timeline = buildLecturePlayerTimeline(turns);
+    reviewPageRef.current = null;
     timelineRef.current = timeline;
     codeTracksRef.current = buildPageCodeTracks(turns, timeline);
     trackReadyRef.current = false;
@@ -937,7 +1064,10 @@ export function useLecturePlayer({
       durationMs: timeline.totalMs,
       positionMs: timeline.totalMs,
       chapters: timeline.chapters,
+      workPages: timeline.workPages,
+      reviewPageIndex: null,
       loadedMs: 0,
+      missingAudioCues: null,
       error: null,
     });
     setPlayerStatus("loading");
@@ -963,7 +1093,7 @@ export function useLecturePlayer({
           }
           audio.playbackRate = lecturePaceRate(rateRef.current);
           trackReadyRef.current = true;
-          store.set({ loadedMs: timeline.totalMs });
+          store.set({ loadedMs: timeline.totalMs, missingAudioCues: track.missingAudioCues });
           if (!activeRef.current) setPlayerStatus("ready");
           const pending = pendingStartRef.current;
           pendingStartRef.current = null;
@@ -1002,7 +1132,10 @@ export function useLecturePlayer({
       // Ink that runs past the last word finishes after the voice stops, on
       // the same clock, so the final frame is the finished board.
       if (statusRef.current === "ended" && !drawDoneRef.current) {
-        clock.setNow(clock.now() + wallDeltaMs * Math.max(lecturePaceRate(rateRef.current), 0.1));
+        clock.setNow(
+          clock.now() +
+            wallDeltaMs * Math.max(lecturePaceRate(rateRef.current), 0.1),
+        );
         clock.pump();
         renderCodePanel(timeline.totalMs);
         return;
@@ -1062,7 +1195,9 @@ export function useLecturePlayer({
       const action = lecturePlayerKeyAction({
         key: event.key,
         withModifier: event.ctrlKey || event.metaKey || event.altKey,
-        typing: isPlayerControlElement(event.target) || isTypingElement(document.activeElement),
+        typing:
+          isPlayerControlElement(event.target) ||
+          isTypingElement(document.activeElement),
         dialogOpen: Boolean(document.querySelector('[role="dialog"][data-state="open"]')),
       });
       if (!action) return;
@@ -1098,7 +1233,10 @@ export function useLecturePlayer({
   useEffect(() => {
     if (!active) return;
     const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-    for (const canvas of [codePanelCanvasRef.current, freezeCanvasRef.current]) {
+    for (const canvas of [
+      codePanelCanvasRef.current,
+      freezeCanvasRef.current,
+    ]) {
       if (!canvas) continue;
       canvas.width = Math.round(BOARD_WIDTH * pixelRatio);
       canvas.height = Math.round(BOARD_HEIGHT * pixelRatio);
@@ -1106,9 +1244,12 @@ export function useLecturePlayer({
   }, [active]);
 
   const cursorState: CursorState = active && status !== "ended" ? "drawing" : "idle";
+  // End is the student's finished board. Its last spoken caption must not
+  // stay over the answer; ordinary pauses still keep the current words.
+  const visibleSegmentText = status === "ended" ? "" : segmentText;
   const view = useMemo<LecturePlayerView>(
-    () => ({ active, revealed, cursorState, segmentText }),
-    [active, cursorState, revealed, segmentText],
+    () => ({ active, revealed, cursorState, segmentText: visibleSegmentText }),
+    [active, cursorState, revealed, visibleSegmentText],
   );
 
   return {
@@ -1121,7 +1262,8 @@ export function useLecturePlayer({
     active,
     revealed,
     playing: active && status === "playing",
-    segmentText,
+    reviewingStoredPage: store.getSnapshot().reviewPageIndex != null,
+    segmentText: visibleSegmentText,
     cursorState,
     playFromStart,
     close,

@@ -68,7 +68,7 @@ class FakeAudio {
   onended: (() => void) | null = null;
   onerror: (() => void) | null = null;
   constructor(_url: string) { FakeAudio.latest = this; }
-  play() { FakeAudio.playCalls++; return Promise.resolve(); }
+  play() { FakeAudio.playCalls++; this.currentTime += 0.1; return Promise.resolve(); }
   pause() {}
   removeAttribute(_attribute: string) {}
   load() {}
@@ -109,6 +109,7 @@ while ((!FakeAudio.latest || started === 0) && Date.now() < deadline) {
   await new Promise((resolve) => setTimeout(resolve, 5));
 }
 assert.equal(FakeAudio.playCalls, 1, "resuming must play buffered sentence exactly once");
+assert.equal(started, 1, "advancing resumed media must announce exactly one audible start");
 FakeAudio.latest.end();
 await Promise.race([speech, new Promise<never>((_, reject) => setTimeout(() => reject(new Error("speech did not complete")), 1000))]);
 assert.equal(started, 1);

@@ -1,9 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+  type CSSProperties,
+} from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/features/app-shell/AppShell";
-import { toShellProfile, useAccountMe } from "@/features/app-shell/useAccountMe";
+import {
+  toShellProfile,
+  useAccountMe,
+} from "@/features/app-shell/useAccountMe";
 import {
   lessonSettingsFromAccount,
   readSettingsCache,
@@ -12,11 +24,7 @@ import {
 import type { LectureFileType } from "@/lib/account/lessonSettings";
 import { firstName, parseSubjects, profileSubtitle } from "@/lib/account/types";
 import { suggestionsForSubjects } from "@/lib/account/homeSuggestions";
-import {
-  Sheet,
-  SheetContent,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
   SettingsDrawer,
   DEFAULT_SETTINGS,
@@ -37,24 +45,40 @@ import {
 import { LandingPixelField } from "@/features/tutor-session/components/LandingPixelField";
 import { type ReplayCue } from "@/lib/replay/replayTimeline";
 import type { WhiteboardHandle, CursorState } from "@heytutor/whiteboard";
-import { useIsCompactNav, useIsMobile, useMediaQuery } from "@/lib/client/useMediaQuery";
+import {
+  useIsCompactNav,
+  useIsMobile,
+  useMediaQuery,
+} from "@/lib/client/useMediaQuery";
 import { useVisualViewportInset } from "@/lib/client/useVisualViewportInset";
 import { useLockWindowScrollOnFocus } from "@/lib/client/useLockWindowScrollOnFocus";
 import { ThinkingOverlay } from "./components/ThinkingOverlay";
 import { BoardBootSpinner } from "./components/BoardBootSpinner";
 import { SessionInputChrome } from "./components/SessionInputChrome";
 import { SessionHeader } from "./components/SessionHeader";
+import {
+  BoardErrorBanner,
+  SaveFailureBanner,
+} from "./components/BoardErrorBanner";
 import { NotesChatSidebar } from "./components/NotesChatSidebar";
 import { SessionBoardCanvas } from "./components/SessionBoardCanvas";
+import { ResponseBubble } from "./components/ResponseBubble";
+import { sessionCaption } from "./lib/board/sessionCaption";
 import { UnsavedBoardNotice } from "./components/UnsavedBoardNotice";
-import { taughtSegmentCount, unsavedLessonBoard } from "./lib/board/unsavedBoard";
+import {
+  taughtSegmentCount,
+  unsavedLessonBoard,
+} from "./lib/board/unsavedBoard";
 import { focusQuestionField } from "./lib/turn/lessonFollowUp";
 import type { DownloadState } from "./lib/download/downloadState";
 import { storedTurnIsPartial } from "@/lib/lecture-export/lectureExportSource";
 import { OutOfCreditsDialog } from "@/features/account/OutOfCreditsDialog";
 import type { BillingFailure } from "@/lib/billing/billingClient";
 import { rememberBillingFailure } from "@/lib/billing/billingClient";
-import { isOutOfUsageLock, studentBillingMessage } from "@/lib/billing/studentCopy";
+import {
+  isOutOfUsageLock,
+  studentBillingMessage,
+} from "@/lib/billing/studentCopy";
 import { Whiteboard } from "./components/WhiteboardLoader";
 import { CodeLessonPanel } from "./components/CodeLessonPanel";
 import { CodeLessonController } from "./lib/code-lesson/codeLessonController";
@@ -76,14 +100,8 @@ import { useBoardLayout } from "./hooks/useBoardLayout";
 import { useBoardSession } from "./hooks/useBoardSession";
 import { useAdaptiveDrawSpeed } from "./hooks/useAdaptiveDrawSpeed";
 import { useNotesChat } from "./hooks/useNotesChat";
-import {
-  type TutorSegment,
-  type VerifiedDiagram,
-} from "@heytutor/drawing";
-import {
-  type InkPace,
-  type TTSClient,
-} from "@heytutor/tutor-core";
+import { type TutorSegment, type VerifiedDiagram } from "@heytutor/drawing";
+import { type InkPace, type TTSClient } from "@heytutor/tutor-core";
 import { type TurnTelemetry } from "@/lib/obs/turnTelemetry";
 import { pageLoadTiming } from "@/lib/obs/pageLoadTiming";
 import { type RecordedSegmentPayload } from "@/lib/boards/boardsClient";
@@ -107,11 +125,27 @@ import type { TutorPhase, SegmentPlanStats } from "./types";
 import { createEmptySegmentPlanStats } from "./lib/turn/segmentPlanning";
 import { lessonFollowUpMode } from "./lib/turn/lessonFollowUp";
 import { buildLessonNotes } from "./lib/notes/lessonNotes";
-import { sessionCapabilities, type TutorSessionVariant } from "./lib/sessionCapabilities";
-import { buildMarkedDoubtPrompt, summarizeMarks, type BoardMark } from "./lib/board/boardMarking";
-import { fullscreenKeyAction, isTypingElement } from "./lib/board/boardFullscreen";
-import { isWaitingToTeach, markerCursorState } from "./lib/board/markerVisibility";
-import { DOUBT_THINKING_FALLBACK, doubtThinkingAnchor } from "./lib/board/doubtAnchor";
+import {
+  sessionCapabilities,
+  type TutorSessionVariant,
+} from "./lib/sessionCapabilities";
+import {
+  buildMarkedDoubtPrompt,
+  summarizeMarks,
+  type BoardMark,
+} from "./lib/board/boardMarking";
+import {
+  fullscreenKeyAction,
+  isTypingElement,
+} from "./lib/board/boardFullscreen";
+import {
+  isWaitingToTeach,
+  markerCursorState,
+} from "./lib/board/markerVisibility";
+import {
+  DOUBT_THINKING_FALLBACK,
+  doubtThinkingAnchor,
+} from "./lib/board/doubtAnchor";
 import { doubtTurnTitle, isDoubtPrompt } from "./lib/input/askDoubt";
 import type { BoardPageRecord, PageTurnKind } from "./lib/turn/doubtTurn";
 import { canStartStoredLectureReplay } from "./lib/replay/autoReplay";
@@ -234,7 +268,10 @@ async function requestHomeSuggestions(
   applyGenerated = false,
 ) {
   try {
-    const response = await fetch("/api/home-suggestions", { signal, cache: "no-store" });
+    const response = await fetch("/api/home-suggestions", {
+      signal,
+      cache: "no-store",
+    });
     if (!response.ok) return;
     const result = (await response.json()) as {
       suggestions?: CanvasLandingSuggestion[];
@@ -245,14 +282,21 @@ async function requestHomeSuggestions(
     if (result.suggestions?.length === 5) onSuggestions(result.suggestions);
     if (!result.needsRefresh) return;
     const refreshed = await fetch("/api/home-suggestions", {
-      method: "POST", signal, cache: "no-store",
+      method: "POST",
+      signal,
+      cache: "no-store",
     });
     if (!refreshed.ok || signal?.aborted) return;
     const updated = (await refreshed.json()) as {
       suggestions?: CanvasLandingSuggestion[];
       generated?: boolean;
     };
-    if (signal?.aborted || !updated.generated || updated.suggestions?.length !== 5) return;
+    if (
+      signal?.aborted ||
+      !updated.generated ||
+      updated.suggestions?.length !== 5
+    )
+      return;
     // Refresh replaces the pack; background generation only fills a fallback.
     if (applyGenerated || result.source === "fallback") onSuggestions(updated.suggestions);
   } catch {
@@ -415,6 +459,15 @@ export function TutorSessionShell({
   const [notesOpenOverride, setNotesOpenOverride] = useState<boolean | null>(null);
   const isCompactNav = useIsCompactNav();
   const isMobile = useIsMobile();
+  const shortScreen = useMediaQuery(
+    "(max-height: 450px) and (max-width: 1023px)",
+  );
+  const veryShortScreen = useMediaQuery(
+    "(max-height: 300px) and (max-width: 1023px)",
+  );
+  const [shortPanel, setShortPanel] = useState<
+    "header" | "composer" | "code" | null
+  >(null);
   const coarsePointer = useMediaQuery("(pointer: coarse)");
   const dockLecturePlayer = isMobile || coarsePointer;
   const keyboardInset = useVisualViewportInset();
@@ -431,7 +484,15 @@ export function TutorSessionShell({
   });
   const fullscreen = boardFullscreenApi ?? localFullscreen;
   const boardFullscreen =
-    !isHeadless && (can.appChrome || Boolean(boardFullscreenApi)) && fullscreen.active;
+    !isHeadless &&
+    (can.appChrome || Boolean(boardFullscreenApi)) &&
+    fullscreen.active;
+  // A regular short screen keeps one control row; the original chrome remains
+  // mounted in bounded overlays so drafts, save failures and actions survive.
+  const compactBoardChrome =
+    !isHeadless && can.appChrome && shortScreen && !boardFullscreen;
+  const scrollBoard = compactBoardChrome && veryShortScreen;
+  const shortPanelTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [isReplaying, setIsReplaying] = useState(false);
   const [replayProgressMs, setReplayProgressMs] = useState(0);
   // Written by the session hooks; nothing reads it since the transport went.
@@ -514,7 +575,9 @@ export function TutorSessionShell({
         next.fastMode = true;
         // Hinglish comes only from the server's answer, never the local cache.
         next.audioLanguage =
-          hinglish && data.settings.audioLanguage === "hinglish" ? "hinglish" : DEFAULT_AUDIO_LANGUAGE;
+          hinglish && data.settings.audioLanguage === "hinglish"
+            ? "hinglish"
+            : DEFAULT_AUDIO_LANGUAGE;
         next.narrationEnabled = true;
         next.lowLatencyVoice = false;
         teachingPrefsRef.current = {
@@ -557,11 +620,21 @@ export function TutorSessionShell({
   }, [settings.subtitlesEnabled, isHeadless, settingsHydrated]);
 
   useEffect(() => {
-    if (!settingsHydrated || isHeadless || speedIsControlled || typeof window === "undefined") {
+    if (
+      !settingsHydrated ||
+      isHeadless ||
+      speedIsControlled ||
+      typeof window === "undefined"
+    ) {
       return;
     }
     writeStoredSetting(SPEED_STORAGE_KEY, String(settings.speedMultiplier));
-  }, [settings.speedMultiplier, isHeadless, speedIsControlled, settingsHydrated]);
+  }, [
+    settings.speedMultiplier,
+    isHeadless,
+    speedIsControlled,
+    settingsHydrated,
+  ]);
 
   useEffect(() => {
     if (!settingsHydrated || isHeadless || typeof window === "undefined") {
@@ -591,7 +664,8 @@ export function TutorSessionShell({
       lowLatency: false,
     };
     const switchesLanguage =
-      (voicePreferences.voiceKey === "hi-IN") !== (voicePreferencesRef.current.voiceKey === "hi-IN");
+      (voicePreferences.voiceKey === "hi-IN") !==
+      (voicePreferencesRef.current.voiceKey === "hi-IN");
     if (switchesLanguage && turnActiveRef.current) {
       // This turn's words were written for the old voice; switch at the next question.
       pendingVoicePreferencesRef.current = voicePreferences;
@@ -660,7 +734,11 @@ export function TutorSessionShell({
     const handler = () => {
       ttsClientRef.current?.unlockAudio?.();
     };
-    const events: Array<keyof WindowEventMap> = ["pointerdown", "keydown", "touchstart"];
+    const events: Array<keyof WindowEventMap> = [
+      "pointerdown",
+      "keydown",
+      "touchstart",
+    ];
     for (const event of events) {
       window.addEventListener(event, handler, { passive: true });
     }
@@ -705,8 +783,29 @@ export function TutorSessionShell({
     cancelRef,
     fbdPhaseStartedRef,
     liveQuestionRef,
-    viewportMode: isHeadless ? "fixed" : "fit",
+    viewportMode: isHeadless
+      ? "fixed"
+      : scrollBoard
+        ? "readable-scroll"
+        : "fit",
   });
+  useEffect(() => {
+    // A Sheet owns focus while open; the header returns it on close.
+    if (!compactBoardChrome || mobileNavOpen || settingsOpen) return;
+    const trigger = shortPanelTriggerRef.current;
+    if (!shortPanel) {
+      trigger?.focus();
+      return;
+    }
+    const selector = shortPanel === "header" ? "[data-short-header]" : shortPanel === "composer" ? "[data-short-composer]" : "[data-short-code-panel]";
+    // New/switch can replace the original toggle; the board container stays.
+    const root = boardContainerRef.current?.closest("[data-short-board-chrome]") ?? trigger?.closest("[data-short-board-chrome]");
+    const frame = requestAnimationFrame(() => {
+      const panel = root?.querySelector(selector);
+      (panel?.querySelector(shortPanel === "composer" ? "textarea" : "button:not([disabled]), [contenteditable=true], [tabindex='0']") as HTMLElement | null)?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [compactBoardChrome, shortPanel, mobileNavOpen, settingsOpen, boardContainerRef]);
 
   // Adaptive drawing speed: polls audio lag + queue depth + narration density
   // and pushes a dynamic animation-speed factor to the whiteboard. Pedagogical
@@ -726,6 +825,11 @@ export function TutorSessionShell({
   // handle) so tutor typing never re-renders the shell per character.
   const [codeLessonController] = useState(() => new CodeLessonController());
   const codeLessonControllerRef = useRef<CodeLessonController | null>(codeLessonController);
+  const codeLessonActive = useSyncExternalStore(
+    listener => codeLessonController.subscribe(listener),
+    () => Boolean(codeLessonController.getActivePlan()),
+    () => false,
+  );
 
   const { executeCommand, executeCommandWithCancel } = useCommandExecution({
     whiteboardRef,
@@ -938,15 +1042,28 @@ export function TutorSessionShell({
   useEffect(() => {
     if (!boardLoaded) return;
     restorePausedLesson(storedTurnsRef.current);
-  }, [boardLoaded, phase, isReplaying, storedTurnsCount, restorePausedLesson, storedTurnsRef]);
+  }, [
+    boardLoaded,
+    phase,
+    isReplaying,
+    storedTurnsCount,
+    restorePausedLesson,
+    storedTurnsRef,
+  ]);
 
   // Teach it again on an old board that kept only its title prefills the
   // composer rather than sending.
   const [composerPrefill, setComposerPrefill] = useState<{ text: string; nonce: number } | null>(null);
-  const prefillComposer = useCallback((text: string) => {
-    setInputInteracted(true);
-    setComposerPrefill((previous) => ({ text, nonce: (previous?.nonce ?? 0) + 1 }));
-  }, [setInputInteracted]);
+  const prefillComposer = useCallback(
+    (text: string) => {
+      setInputInteracted(true);
+      setComposerPrefill((previous) => ({
+        text,
+        nonce: (previous?.nonce ?? 0) + 1,
+      }));
+    },
+    [setInputInteracted],
+  );
   // What the unsaved board notice reads: each stored turn's question and the
   // steps it taught. The turns ref is read on the count that mirrors it.
   /* eslint-disable react-hooks/refs, react-hooks/exhaustive-deps -- storedTurnsCount mirrors the ref */
@@ -1192,7 +1309,16 @@ export function TutorSessionShell({
         lectureActive: isReplaying || rewindActive,
         storedTurns: storedTurnsRef.current,
       }),
-    [boardLoaded, isHeadless, isReplaying, lecturePlayback, phase, rewindActive, sessionId, storedTurnsCount],
+    [
+      boardLoaded,
+      isHeadless,
+      isReplaying,
+      lecturePlayback,
+      phase,
+      rewindActive,
+      sessionId,
+      storedTurnsCount,
+    ],
   );
   /* eslint-enable react-hooks/refs, react-hooks/exhaustive-deps */
   const lecturePlayerRate = playbackRate ?? settings.speedMultiplier;
@@ -1216,7 +1342,21 @@ export function TutorSessionShell({
     enableKeyboard: !isHeadless,
   });
   const lecturePlayerActive = lecturePlayer.active;
-  const showDockedPlayer = dockLecturePlayer && (lecturePlayerAvailable || lecturePlayerActive);
+  const dockCaption = dockLecturePlayer || compactBoardChrome;
+  const caption = sessionCaption({
+    enabled: settings.subtitlesEnabled || codeLessonActive,
+    phase,
+    currentSegmentText,
+    rewindActive,
+    rewindSegmentText,
+    playerView: lecturePlayer.view,
+  });
+  const captionShowing = caption.visible && caption.text.length > 0;
+  const showDockedPlayer =
+    (dockLecturePlayer ||
+      compactBoardChrome ||
+      lecturePlayer.reviewingStoredPage) &&
+    (lecturePlayerAvailable || lecturePlayerActive);
   const closeLecturePlayer = lecturePlayer.close;
   const playLectureFromStart = lecturePlayer.playFromStart;
   /** Replay prefers the player; a lecture missing some audio replays in place. */
@@ -1348,7 +1488,13 @@ export function TutorSessionShell({
         void handleQuestion(question, { onAdmission: resolve }).catch(() => resolve(false));
       });
     },
-    [ensureTTSClient, handleQuestion, marking, startNextQuestion, storedTurnsCount],
+    [
+      ensureTTSClient,
+      handleQuestion,
+      marking,
+      startNextQuestion,
+      storedTurnsCount,
+    ],
   );
 
   useEffect(() => {
@@ -1476,9 +1622,20 @@ export function TutorSessionShell({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [boardFullscreenApi, can.appChrome, fullscreen, isHeadless, isReplaying, rewindActive]);
+  }, [
+    boardFullscreenApi,
+    can.appChrome,
+    fullscreen,
+    isHeadless,
+    isReplaying,
+    rewindActive,
+  ]);
 
-  const canReplay = phase === "idle" && storedTurnsCount > 0 && !isReplaying && !isExportingLecture;
+  const canReplay =
+    phase === "idle" &&
+    storedTurnsCount > 0 &&
+    !isReplaying &&
+    !isExportingLecture;
   useEffect(() => {
     if (!onExportApi) {
       return;
@@ -1558,7 +1715,9 @@ export function TutorSessionShell({
             paused={isPaused}
             onResume={resumeTurn}
             onBoardAt={
-              liveTurnKind === "lesson" ? null : (doubtThinkingAt ?? DOUBT_THINKING_FALLBACK)
+              liveTurnKind === "lesson"
+                ? null
+                : (doubtThinkingAt ?? DOUBT_THINKING_FALLBACK)
             }
           />
         )}
@@ -1615,7 +1774,10 @@ export function TutorSessionShell({
   // posing as the home page. Not tied to the input overlay: a lesson that died
   // before its first step restores as a stored turn, which turns that off.
   const unsavedBoard =
-    can.appChrome && phase === "idle" && !isReplaying && unsavedNoticeDismissedFor !== sessionId
+    can.appChrome &&
+    phase === "idle" &&
+    !isReplaying &&
+    unsavedNoticeDismissedFor !== sessionId
       ? unsavedLessonBoard({
           isDraft,
           boardLoaded,
@@ -1642,9 +1804,62 @@ export function TutorSessionShell({
   */
   const deckPanel =
     belowBoardPanel ??
-    (isMobile && codeLessonController.getActivePlan() ? (
+    ((isMobile || compactBoardChrome) &&
+    codeLessonActive ? (
       <CodeLessonPanel controller={codeLessonController} variant="below" />
     ) : null);
+
+  const shortChromeControls = compactBoardChrome ? (
+    <>
+      <button
+        type="button"
+        aria-label="Board controls"
+        aria-expanded={shortPanel === "header"}
+        onClick={event => { shortPanelTriggerRef.current = event.currentTarget; setShortPanel(shortPanel === "header" ? null : "header"); }}
+        className="btn-plain h-11 w-11 shrink-0 rounded-lg"
+        title="Board controls"
+      >
+        ☰
+      </button>
+      {can.askQuestions && !isInputOverlay ? (
+        <button
+          type="button"
+          aria-label="Question composer"
+          aria-expanded={shortPanel === "composer"}
+          onClick={event => { shortPanelTriggerRef.current = event.currentTarget; setShortPanel(shortPanel === "composer" ? null : "composer"); }}
+          className="btn-plain h-11 w-11 shrink-0 rounded-lg"
+          title="Question composer"
+        >
+          ?
+        </button>
+      ) : null}
+      {deckPanel ? (
+        <button
+          type="button"
+          aria-label="Code panel"
+          aria-expanded={shortPanel === "code"}
+          onClick={event => { shortPanelTriggerRef.current = event.currentTarget; setShortPanel(shortPanel === "code" ? null : "code"); }}
+          className="btn-plain h-11 w-11 shrink-0 rounded-lg"
+          title="Code panel"
+        >
+          {"{}"}
+        </button>
+      ) : null}
+    </>
+  ) : null;
+  const retryBoardError = (question: string) => {
+    setLastError(null);
+    if (isDoubtPrompt(question)) {
+      const last = lastDoubtRef.current;
+      if (last) setDoubtThinkingAt(last.at);
+      handleAskDoubt(last?.typed ?? "", {
+        prompt: question,
+        title: last?.title,
+      });
+      return;
+    }
+    void handleQuestion(question);
+  };
 
   const sessionBody = (
     <>
@@ -1717,9 +1932,18 @@ export function TutorSessionShell({
         className={`relative z-10 flex min-h-0 min-w-0 flex-1 flex-col ${
           boardFullscreen ? "wb-board-immersive " : ""
         }${
-          frameless ? "h-full md:mr-[var(--tutor-notes-width)]" : "md:mr-[var(--tutor-notes-width)]"
+          frameless
+            ? "h-full md:mr-[var(--tutor-notes-width)]"
+            : "md:mr-[var(--tutor-notes-width)]"
         }`}
         data-chrome-hidden={boardFullscreen && chromeHidden ? "true" : undefined}
+        data-short-board-chrome={compactBoardChrome ? "true" : undefined}
+        onKeyDown={(event) => {
+          if (compactBoardChrome && event.key === "Escape" && shortPanel) {
+            event.stopPropagation();
+            setShortPanel(null);
+          }
+        }}
         style={{
           ["--tutor-notes-width" as string]: notesRailOpen
             ? `${NOTES_CHAT_RAIL_WIDTH}px`
@@ -1734,7 +1958,7 @@ export function TutorSessionShell({
             : `max(${isMobile ? 6 : PAGE_GUTTER_X}px, env(safe-area-inset-right))`,
           paddingTop: boardFullscreen
             ? "env(safe-area-inset-top)"
-            : `max(${isMobile ? 6 : 12}px, env(safe-area-inset-top))`,
+            : `max(${isMobile || compactBoardChrome ? 6 : 12}px, env(safe-area-inset-top))`,
           paddingBottom: keyboardInset > 0
             ? `${keyboardInset}px`
             : boardFullscreen
@@ -1746,13 +1970,34 @@ export function TutorSessionShell({
         }}
       >
         {can.appChrome ? (
-          <SessionHeader
+          <div
+            data-short-header
+            inert={(compactBoardChrome && (shortPanel !== "header" || mobileNavOpen)) || undefined}
+            aria-hidden={
+              (compactBoardChrome && (shortPanel !== "header" || mobileNavOpen)) || undefined
+            }
+            style={
+              compactBoardChrome
+                ? {
+                    position: "absolute",
+                    top: 6,
+                    left: 6,
+                    right: 6,
+                    zIndex: 60,
+                    maxHeight: "calc(100% - 56px)",
+                    overflowY: "auto",
+                    display: shortPanel === "header" && !mobileNavOpen ? "block" : "none",
+                  }
+                : { display: "contents" }
+            }
+          >
+            <SessionHeader
             // Full screen is a board, not a page: the boards rail is gone and
             // the way back to it is the way out of full screen.
             showNavButton={!boardFullscreen}
-            navButtonClassName={sidebarCollapsed ? undefined : "md:hidden"}
+            navButtonClassName={sidebarCollapsed || compactBoardChrome ? undefined : "md:hidden"}
             onExpandSidebar={() => {
-              if (isMobile) {
+              if (isMobile || compactBoardChrome) {
                 setMobileNavOpen(true);
                 return;
               }
@@ -1786,6 +2031,7 @@ export function TutorSessionShell({
             onReplay={startLectureReplay}
             onStop={stopTurn}
           />
+          </div>
         ) : null}
 
         <main className="relative flex min-h-0 min-w-0 flex-1 flex-col">
@@ -1793,17 +2039,26 @@ export function TutorSessionShell({
             ref={boardContainerRef}
             className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden [isolation:isolate]"
             style={{
-              marginTop: boardFullscreen ? 0 : PAGE_GUTTER_Y,
+              marginTop:
+                boardFullscreen || compactBoardChrome ? 0 : PAGE_GUTTER_Y,
             }}
           >
             {fullBleedLanding && (
-              <div className="glass-deep absolute inset-0 z-20 flex flex-col overflow-hidden rounded-2xl">
+              <div
+                role={compactBoardChrome ? "region" : undefined}
+                aria-label={compactBoardChrome ? "New lesson" : undefined}
+                tabIndex={compactBoardChrome ? 0 : undefined}
+                className={`glass-deep absolute inset-0 z-20 flex flex-col rounded-2xl ${compactBoardChrome ? "overflow-x-hidden overflow-y-auto" : "overflow-hidden"}`}
+              >
                 <LandingPixelField />
                 <div className="relative z-10 flex min-h-full w-full flex-col [justify-content:safe_center] px-3 py-3 sm:px-8 sm:py-5">
                   <CanvasLanding
-                    suggestions={accountMe?.settings.showHomeSuggestions === false
-                      ? []
-                      : homeSuggestions ?? suggestionsForSubjects(parseSubjects(accountMe?.profile?.subjects))}
+                    suggestions={
+                      accountMe?.settings.showHomeSuggestions === false
+                        ? []
+                        : (homeSuggestions ??
+                          suggestionsForSubjects(parseSubjects(accountMe?.profile?.subjects)))
+                    }
                     onRefreshSuggestions={
                       accountMe?.settings.showHomeSuggestions === false
                         ? undefined
@@ -1820,7 +2075,11 @@ export function TutorSessionShell({
                         ? `What are you stuck on, ${firstName(accountMe.profile.name, accountMe.profile.email)}?`
                         : undefined
                     }
-                    goalLabel={accountMe?.profile ? profileSubtitle(accountMe.profile) : null}
+                    goalLabel={
+                      accountMe?.profile
+                        ? profileSubtitle(accountMe.profile)
+                        : null
+                    }
                     billingNotice={billingNotice}
                     onUpgrade={goUsage}
                     onBillingFailure={handleBillingFailure}
@@ -1853,141 +2112,245 @@ export function TutorSessionShell({
             )}
 
             <div
-              className={`wb-stage flex min-h-0 flex-col items-center ${showDockedPlayer ? "w-full" : ""} ${
+              className={`wb-stage flex min-h-0 flex-col items-center ${scrollBoard ? "w-full min-w-0" : showDockedPlayer ? "w-full" : ""} ${
                 boardCovered ? "pointer-events-none invisible absolute" : ""
               }`}
               aria-hidden={boardCovered || undefined}
               style={{
                 ["--board-w" as string]: `${BOARD_WIDTH * boardViewport.scale}px`,
                 ["--board-h" as string]: `${BOARD_HEIGHT * boardViewport.scale}px`,
+                ...(scrollBoard ? { height: "100%" } : {}),
               }}
             >
-            <div className="wb-frame relative">
-            <div className="wb-surface absolute overflow-hidden">
-            {isInputOverlay && !boardCovered && (
+              <div
+                data-board-scroll={scrollBoard ? "true" : undefined}
+                role={scrollBoard ? "region" : undefined}
+                aria-label={
+                  scrollBoard
+                    ? "Whiteboard. Scroll to read all saved work."
+                    : undefined
+                }
+                tabIndex={scrollBoard ? 0 : undefined}
+                onKeyDown={
+                  scrollBoard
+                    ? (event) => {
+                        if (event.target !== event.currentTarget) return;
+                        const pane = event.currentTarget;
+                        const page = Math.max(40, pane.clientHeight - 32);
+                        const movement = {
+                          ArrowDown: [0, 40],
+                          ArrowUp: [0, -40],
+                          ArrowLeft: [-40, 0],
+                          ArrowRight: [40, 0],
+                          PageDown: [0, page],
+                          PageUp: [0, -page],
+                        }[event.key];
+                        if (
+                          !movement &&
+                          event.key !== "Home" &&
+                          event.key !== "End"
+                        )
+                          return;
+                        event.preventDefault();
+                        event.stopPropagation();
+                        if (movement)
+                          pane.scrollBy({
+                            left: movement[0],
+                            top: movement[1],
+                          });
+                        else
+                          pane.scrollTo({
+                            top: event.key === "Home" ? 0 : pane.scrollHeight,
+                          });
+                      }
+                    : undefined
+                }
+                style={
+                  scrollBoard
+                    ? {
+                        width: "100%",
+                        minHeight: 0,
+                        flex: "1 1 0",
+                        overflowY: "auto",
+                        overscrollBehavior: "contain",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "flex-start",
+                      }
+                    : { display: "contents" }
+                }
+              >
+                <div
+                  className="wb-frame relative"
+                  style={scrollBoard ? { flexShrink: 0 } : undefined}
+                >
+                  <div className="wb-surface absolute overflow-hidden">
+                    {isInputOverlay && !boardCovered && (
               <div className="wb-scrim-strong pointer-events-none absolute inset-0 z-10" />
             )}
 
-            {/* The board's off-state: while the Konva chunk loads, the paper
+                    {/* The board's off-state: while the Konva chunk loads, the paper
                 must not show. The face is the bezel's own matte grey,
                 unmarked, with the boot arc on it: the same 252° sweep the
                 on-canvas ThinkingSpinner draws, so boot → thinking reads as
                 one pending family. It stays mounted and fades out when the
                 board reports ready: no hard cut, no white flash. */}
-            <div
+                    <div
               className="wb-boot-face fx-grain absolute inset-0 z-30 flex items-center justify-center"
               data-hidden={boardLoaded || undefined}
               aria-hidden={boardLoaded || undefined}
             >
-              <div className="relative flex flex-col items-center gap-3">
-                <BoardBootSpinner label="Loading the board" />
-                <p className="type-accent-xs wb-boot-label animate-wb-breathe">
-                  loading the board
-                </p>
-              </div>
-            </div>
+                      <div className="relative flex flex-col items-center gap-3">
+                        <BoardBootSpinner label="Loading the board" />
+                        <p className="type-accent-xs wb-boot-label animate-wb-breathe">
+                          loading the board
+                        </p>
+                      </div>
+                    </div>
 
-            {!can.appChrome && boardLoaded && storedTurnsCount === 0 && !can.askQuestions ? (
-              <div className="absolute inset-0 z-20 flex items-center justify-center">
-                <p className="wb-scrim-ink-soft text-sm font-medium">No saved lecture on this board.</p>
-              </div>
-            ) : null}
+                    {!can.appChrome &&
+                    boardLoaded &&
+                    storedTurnsCount === 0 &&
+                    !can.askQuestions ? (
+                      <div className="absolute inset-0 z-20 flex items-center justify-center">
+                        <p className="wb-scrim-ink-soft text-sm font-medium">
+                          No saved lecture on this board.
+                        </p>
+                      </div>
+                    ) : null}
 
-            {isInputOverlay && storedTurnsCount > 0 && !unsavedBoard && (
-              <div
+                    {isInputOverlay &&
+                      storedTurnsCount > 0 &&
+                      !unsavedBoard && (
+                        <div
                 className="absolute inset-0 z-20 flex flex-col items-center justify-center px-3 sm:px-4"
                 style={{ pointerEvents: "none" }}
               >
-                <div className="w-full max-w-[720px]" style={{ pointerEvents: "auto" }}>
-                  {inputChrome}
-                </div>
-              </div>
-            )}
+                          <div className="w-full max-w-[720px]" style={{ pointerEvents: "auto" }}>
+                            {inputChrome}
+                          </div>
+                        </div>
+                      )}
 
-            {/* A rewound lecture is the past: don't cover the board they
+                    {/* A rewound lecture is the past: don't cover the board they
                 are actually watching with the pending clicker. */}
-            {waitingToTeach && !rewindActive && (
-              <ThinkingOverlay
-                ink={pendingInk}
-                paused={isPaused}
-                onResume={resumeTurn}
-                onEnableAudio={
+                    {waitingToTeach && !rewindActive && (
+                      <ThinkingOverlay
+                        ink={pendingInk}
+                        paused={isPaused}
+                        onResume={resumeTurn}
+                        onEnableAudio={
                   !isPaused && !mutePlayback
                     ? speechStartupStatus?.enableAudio
                     : null
                 }
-                onBoardAt={
-                  liveTurnKind === "lesson" ? null : (doubtThinkingAt ?? DOUBT_THINKING_FALLBACK)
-                }
-                scale={boardViewport.scale}
-              />
-            )}
+                        onBoardAt={
+                          liveTurnKind === "lesson"
+                            ? null
+                            : (doubtThinkingAt ?? DOUBT_THINKING_FALLBACK)
+                        }
+                        scale={boardViewport.scale}
+                      />
+                    )}
 
-            <SessionBoardCanvas
-              boardViewport={boardViewport}
-              whiteboardRef={whiteboardRef}
-              cursorState={cursorState}
-              settings={settings}
-              phase={phase}
-              currentSegmentText={currentSegmentText}
-              lastError={lastError}
-              saveFailure={
-                can.appChrome && saveStatus.kind === "failed" && !saveBannerDismissed
-                  ? { message: saveStatus.message, onRetrySave: retrySave, onDismiss: () => setSaveBannerDismissed(true) }
-                  : null
-              }
-              isReplaying={isReplaying}
-              exportBoardRef={exportBoardRef}
-              exportBoardMounted={exportBoardMounted}
-              rewindBoardRef={rewindBoardRef}
-              rewindActive={rewindActive}
-              rewindCursorState={rewindCursorState}
-              rewindSegmentText={rewindSegmentText}
-              playerStore={lecturePlayerAvailable || lecturePlayerActive ? lecturePlayer.store : null}
-              playerControls={lecturePlayer.controls}
-              playerView={lecturePlayer.view}
-              playerBoardRef={lecturePlayer.playerBoardRef}
-              playerCodePanelRef={lecturePlayer.codePanelCanvasRef}
-              playerFreezeRef={lecturePlayer.freezeCanvasRef}
-              playerFullscreen={
-                can.appChrome || boardFullscreenApi
-                  ? { active: boardFullscreen, toggle: fullscreen.toggle }
-                  : null
-              }
-              playerActivityRef={boardContainerRef}
-              showPlayerBar={!dockLecturePlayer}
-              verifiedDiagram={activeVerifiedDiagram}
-              codeLessonPanel={<CodeLessonPanel controller={codeLessonController} />}
-              codeLessonController={codeLessonController}
-              marking={boardMarking}
-              onRetraceEntity={handleRetraceEntity}
-              onRetryError={(question) => {
-                setLastError(null);
-                // A failed doubt is asked again as a doubt, on the same page,
-                // under the same title and from the same place.
-                if (isDoubtPrompt(question)) {
-                  const last = lastDoubtRef.current;
-                  if (last) setDoubtThinkingAt(last.at);
-                  handleAskDoubt(last?.typed ?? "", { prompt: question, title: last?.title });
-                  return;
-                }
-                void handleQuestion(question);
-              }}
-              onDismissError={() => setLastError(null)}
-            />
-            </div>
-            </div>
+                    <SessionBoardCanvas
+                      boardViewport={boardViewport}
+                      whiteboardRef={whiteboardRef}
+                      cursorState={cursorState}
+                      settings={settings}
+                      phase={phase}
+                      currentSegmentText={currentSegmentText}
+                      lastError={scrollBoard ? null : lastError}
+                      saveFailure={
+                        can.appChrome &&
+                        !scrollBoard &&
+                        saveStatus.kind === "failed" &&
+                        !saveBannerDismissed
+                          ? {
+                              message: saveStatus.message,
+                              onRetrySave: retrySave,
+                              onDismiss: () => setSaveBannerDismissed(true),
+                            }
+                          : null
+                      }
+                      isReplaying={isReplaying}
+                      exportBoardRef={exportBoardRef}
+                      exportBoardMounted={exportBoardMounted}
+                      rewindBoardRef={rewindBoardRef}
+                      rewindActive={rewindActive}
+                      rewindCursorState={rewindCursorState}
+                      rewindSegmentText={rewindSegmentText}
+                      playerStore={
+                        lecturePlayerAvailable || lecturePlayerActive
+                          ? lecturePlayer.store
+                          : null
+                      }
+                      playerControls={lecturePlayer.controls}
+                      playerView={lecturePlayer.view}
+                      playerBoardRef={lecturePlayer.playerBoardRef}
+                      playerCodePanelRef={lecturePlayer.codePanelCanvasRef}
+                      playerFreezeRef={lecturePlayer.freezeCanvasRef}
+                      playerFullscreen={
+                        can.appChrome || boardFullscreenApi
+                          ? {
+                              active: boardFullscreen,
+                              toggle: fullscreen.toggle,
+                            }
+                          : null
+                      }
+                      playerActivityRef={boardContainerRef}
+                      showPlayerBar={!showDockedPlayer}
+                      showCaption={!dockCaption}
+                      verifiedDiagram={activeVerifiedDiagram}
+                      codeLessonPanel={
+                        compactBoardChrome ? null : (
+                          <CodeLessonPanel controller={codeLessonController} />
+                        )
+                      }
+                      codeLessonController={codeLessonController}
+                      marking={boardMarking}
+                      onRetraceEntity={handleRetraceEntity}
+                      onRetryError={retryBoardError}
+                      onDismissError={() => setLastError(null)}
+                    />
+                  </div>
+                </div>
+              </div>
 
               <div
                 className="wb-deck relative shrink-0"
                 data-board-deck
                 style={showDockedPlayer ? { width: "100%" } : undefined}
               >
+                {/* Keep enabled captions' space throughout the session so
+                    silent cues, Stop and End do not refit the paper. */}
+                {dockCaption && (settings.subtitlesEnabled || codeLessonActive) ? (
+                  <div
+                    role="region"
+                    aria-label="Current narration"
+                    aria-hidden={!captionShowing || undefined}
+                    inert={!captionShowing || undefined}
+                    tabIndex={captionShowing ? 0 : undefined}
+                    onKeyDown={event => {
+                      if (!captionShowing) return;
+                      // Keep native caption scrolling from seeking or pausing
+                      // the lecture through its global media shortcuts.
+                      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Home", "End", " "].includes(event.key)) {
+                        event.stopPropagation();
+                      }
+                    }}
+                    className="h-20 w-full overflow-y-auto overscroll-contain"
+                  >
+                    <ResponseBubble text={caption.text} visible={caption.visible} placement="below" />
+                  </div>
+                ) : null}
                 {showDockedPlayer ? (
                   <LecturePlayerBar
                     store={lecturePlayer.store}
                     controls={lecturePlayer.controls}
                     placement="below"
+                    compact={compactBoardChrome}
+                    auxiliaryControls={shortChromeControls}
                     fullscreen={
                       can.appChrome || boardFullscreenApi
                         ? { active: boardFullscreen, toggle: fullscreen.toggle }
@@ -1996,9 +2359,69 @@ export function TutorSessionShell({
                     activityTargetRef={boardContainerRef}
                   />
                 ) : null}
-                {deckPanel}
+                {compactBoardChrome && !showDockedPlayer && !boardCovered ? (
+                  <div
+                    className="flex h-11 items-center justify-end"
+                    aria-label="Board controls row"
+                  >
+                    {shortChromeControls}
+                  </div>
+                ) : null}
+                <div
+                  data-short-code-panel={
+                    compactBoardChrome ? "true" : undefined
+                  }
+                  inert={
+                    (compactBoardChrome && shortPanel !== "code") || undefined
+                  }
+                  aria-hidden={
+                    (compactBoardChrome && shortPanel !== "code") || undefined
+                  }
+                  style={
+                    compactBoardChrome
+                      ? ({
+                          position: "fixed",
+                          top: 6,
+                          left: 6,
+                          right: 6,
+                          zIndex: 60,
+                          maxHeight: "calc(100dvh - 64px)",
+                          overflowY: "auto",
+                          display: shortPanel === "code" ? "block" : "none",
+                          "--board-panel-height": "calc(100dvh - 80px)",
+                          "--board-panel-max-height": "calc(100dvh - 80px)",
+                          "--board-panel-display": "flex",
+                        } as CSSProperties)
+                      : { display: "contents" }
+                  }
+                >
+                  {deckPanel}
+                </div>
               </div>
-
+              {scrollBoard ? (
+                <div className="pointer-events-none absolute bottom-14 left-4 right-4 z-40 flex flex-col items-center gap-2">
+                  {saveStatus.kind === "failed" && !saveBannerDismissed ? (
+                    <SaveFailureBanner
+                      message={saveStatus.message}
+                      onRetrySave={retrySave}
+                      onDismiss={() => setSaveBannerDismissed(true)}
+                      className="relative bottom-auto left-auto max-w-full translate-x-0"
+                    />
+                  ) : null}
+                  {phase === "idle" &&
+                  lastError &&
+                  !(
+                    lastError.billing && isOutOfUsageLock(lastError.billing)
+                  ) ? (
+                    <BoardErrorBanner
+                      message={lastError.message}
+                      onRetry={() => retryBoardError(lastError.question)}
+                      onDismiss={() => setLastError(null)}
+                      className="relative bottom-auto left-auto max-w-full translate-x-0"
+                    />
+                  ) : null}
+                </div>
+              ) : null}
             </div>
 
             {/* An iPhone has no orientation lock to grant, so the board asks
@@ -2026,19 +2449,43 @@ export function TutorSessionShell({
           </div>
         </main>
 
+        {compactBoardChrome && boardCovered ? (
+          <div
+            className="relative z-40 flex h-11 shrink-0 items-center justify-end"
+            aria-label="Board controls row"
+          >
+            {shortChromeControls}
+          </div>
+        ) : null}
+
         {can.askQuestions && !isInputOverlay && (
           <footer
+            data-short-composer={compactBoardChrome ? "true" : undefined}
             // Full screen floats the composer over the paper's bottom margin
             // instead of taking layout from it. It is the same element either
             // way, so entering full screen mid-sentence keeps what was typed.
             className={
               boardFullscreen
                 ? "wb-session-chrome wb-session-chrome--bottom absolute"
-                : "relative shrink-0"
+                : compactBoardChrome
+                  ? "absolute z-[60] rounded-lg bg-surface"
+                  : "relative shrink-0"
             }
-            data-hidden={boardFullscreen && (chromeHidden || fullscreenComposerHidden) ? "true" : undefined}
-            inert={fullscreenComposerHidden || undefined}
-            aria-hidden={fullscreenComposerHidden || undefined}
+            data-hidden={
+              boardFullscreen && (chromeHidden || fullscreenComposerHidden)
+                ? "true"
+                : undefined
+            }
+            inert={
+              fullscreenComposerHidden ||
+              (compactBoardChrome && shortPanel !== "composer") ||
+              undefined
+            }
+            aria-hidden={
+              fullscreenComposerHidden ||
+              (compactBoardChrome && shortPanel !== "composer") ||
+              undefined
+            }
             style={
               boardFullscreen
                 ? {
@@ -2053,7 +2500,18 @@ export function TutorSessionShell({
                         : "max(8px, env(safe-area-inset-bottom))",
                     zIndex: 45,
                   }
-                : { paddingTop: isMobile ? 4 : PAGE_GUTTER_Y }
+                : compactBoardChrome
+                  ? {
+                      left: 6,
+                      right: 6,
+                      // Absolute overlays use the padding box; add the same
+                      // visual-viewport inset that already raises the dock.
+                      bottom: keyboardInset + 52,
+                      maxHeight: `calc(100% - ${keyboardInset + 56}px)`,
+                      overflowY: "auto",
+                      display: shortPanel === "composer" ? "block" : "none",
+                    }
+                  : { paddingTop: isMobile ? 4 : PAGE_GUTTER_Y }
             }
           >
             {inputChrome}
@@ -2064,6 +2522,13 @@ export function TutorSessionShell({
           <SettingsDrawer
             open={settingsOpen}
             onOpenChange={setSettingsOpen}
+            onCloseAutoFocus={compactBoardChrome ? (event) => {
+              const root = boardContainerRef.current?.closest("[data-short-board-chrome]");
+              const target = root?.querySelector<HTMLElement>(shortPanel === "header" ? '[data-short-header] button[aria-label="Open navigation"]' : 'button[aria-label="Board controls"]');
+              if (!target || !target.isConnected || !target.getClientRects().length || target.closest("[inert]")) return;
+              event.preventDefault();
+              target.focus();
+            } : undefined}
             settings={settings}
             onSettingsChange={setSettings}
             hinglishAvailable={hinglishAvailable}
@@ -2095,7 +2560,11 @@ export function TutorSessionShell({
       variant="session"
       boards={boards}
       activeBoardId={sessionId}
-      busyBoardId={phase !== "idle" || isReplaying || lecturePlayer.playing ? sessionId : null}
+      busyBoardId={
+        phase !== "idle" || isReplaying || lecturePlayer.playing
+          ? sessionId
+          : null
+      }
       onSelect={switchBoard}
       onNew={createNewBoard}
       onDelete={deleteBoard}
@@ -2108,7 +2577,9 @@ export function TutorSessionShell({
       // Full screen folds the boards rail away and gives its width to the
       // paper. The student's own choice is kept underneath and comes back
       // with the windowed board.
-      sidebarCollapsed={boardFullscreen || sidebarCollapsed}
+      sidebarCollapsed={
+        boardFullscreen || compactBoardChrome || sidebarCollapsed
+      }
       onSidebarCollapsedChange={setSidebarCollapsed}
       mobileNavOpen={mobileNavOpen}
       onMobileNavOpenChange={setMobileNavOpen}

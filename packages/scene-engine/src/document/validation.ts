@@ -2378,6 +2378,22 @@ function finiteInstrumentDisplayLayout(quantities: unknown): Record<"O" | "Fo" |
   return { O: map(xO), Fo: map(xFo), Co: map(xCo), I: map(xI), Fe: map(xFe), Ce: map(xCe), Ip: map(xIp) };
 }
 
+/**
+ * Signed arrow heights (object up) from the chief rays: the objective centre
+ * maps the object tip to the intermediate image, the eyepiece centre maps
+ * that to the final image. The object height shrinks as the magnification
+ * grows so the largest image stays a readable size beside an 8 unit chain.
+ */
+function finiteInstrumentArrowHeights(
+  layout: Record<"O" | "Fo" | "Co" | "I" | "Fe" | "Ce" | "Ip", number>,
+): Record<"object" | "intermediate" | "final", number> {
+  const objectiveGain = Math.abs(layout.O - layout.Co) > 1e-9 ? (layout.I - layout.Co) / (layout.O - layout.Co) : -1;
+  const eyepieceGain = Math.abs(layout.I - layout.Ce) > 1e-9 ? (layout.Ip - layout.Ce) / (layout.I - layout.Ce) : 1;
+  const largest = Math.max(1, Math.abs(objectiveGain), Math.abs(objectiveGain * eyepieceGain));
+  const object = Math.min(0.55, Math.max(0.2, 2.6 / largest));
+  return { object, intermediate: object * objectiveGain, final: object * objectiveGain * eyepieceGain };
+}
+
 function deriveFiniteOpticalInstrumentChain(raw: Record<string, unknown>): Record<string, unknown> {
   const entities = (Array.isArray(raw.entities) ? raw.entities : []).filter(isRecord);
   const entityById = new Map(entities.flatMap((entity) =>
@@ -2463,18 +2479,51 @@ function deriveFiniteOpticalInstrumentChain(raw: Record<string, unknown>): Recor
   ]);
   if (objectiveFocusId) placements.set(objectiveFocusId, { x: layout.Fo, y: 0 });
   if (eyepieceFocusId) placements.set(eyepieceFocusId, { x: layout.Fe, y: 0 });
+  // Arrow heights follow the chief rays through each lens centre, so the
+  // image arrows are scaled by magnification and their tips sit on the rays
+  // optical_train draws from the object tip.
+  const heights = finiteInstrumentArrowHeights(layout);
+  const sourceVectors = (Array.isArray(raw.constructions) ? raw.constructions : []).filter(isRecord)
+    .filter((construction) => construction.operator === "vector" && isRecord(construction.inputs));
+  const tipIds = new Map<"object" | "intermediate" | "final", string>();
+  for (const [role, baseId] of [["object", objectId], ["intermediate", intermediateId], ["final", finalId]] as const) {
+    const vector = sourceVectors.find((construction) =>
+      (construction.inputs as Record<string, unknown>).start === baseId);
+    const tip = vector ? (vector.inputs as Record<string, unknown>).end : undefined;
+    if (typeof tip === "string" && tip !== baseId && entityById.get(tip)?.kind === "point" && !placements.has(tip)) {
+      tipIds.set(role, tip);
+    }
+  }
+  const tipPlacement = (role: "object" | "intermediate" | "final") => ({
+    x: role === "object" ? layout.O : role === "intermediate" ? layout.I : layout.Ip,
+    y: heights[role],
+  });
+  for (const [role, id] of tipIds) placements.set(id, tipPlacement(role));
   for (const [id, entity] of entityById) {
     if (entity.kind !== "point" || placements.has(id)) continue;
     const semantic = instrumentEntitySemantic(entity, id);
-    const height = /\b(?:bottom|base)\b/.test(semantic) ? 0 : 0.55;
-    if (/\bobject\b/.test(semantic) && /\b(?:top|bottom|tip|arrow)\b/.test(semantic)) {
-      placements.set(id, { x: layout.O, y: /\b(?:bottom|base)\b/.test(semantic) ? 0 : height });
-    } else if (/\bintermediate\b/.test(semantic) && /\b(?:top|bottom|tip|arrow)\b/.test(semantic)) {
-      placements.set(id, { x: layout.I, y: /\b(?:bottom|base)\b/.test(semantic) ? 0 : -height });
-    } else if (/\b(?:final|virtual image)\b/.test(semantic) && /\b(?:top|bottom|tip|arrow)\b/.test(semantic)) {
-      placements.set(id, { x: layout.Ip, y: /\b(?:bottom|base)\b/.test(semantic) ? 0 : -height });
+    if (!/\b(?:top|bottom|tip|arrow)\b/.test(semantic)) continue;
+    const role = /\bobject\b/.test(semantic) ? "object"
+      : /\bintermediate\b/.test(semantic) ? "intermediate"
+      : /\b(?:final|virtual image)\b/.test(semantic) ? "final"
+      : null;
+    if (!role) continue;
+    if (/\b(?:bottom|base)\b/.test(semantic)) {
+      placements.set(id, { ...tipPlacement(role), y: 0 });
+    } else {
+      placements.set(id, tipPlacement(role));
+      if (!tipIds.has(role)) tipIds.set(role, id);
     }
   }
+  const objectTipId = tipIds.get("object") ?? null;
+  const intermediateTipId = tipIds.get("intermediate") ?? null;
+  // Rays cross at the intermediate image tip. A tip that is not drawn cannot
+  // carry an assertion; the arrow-on-ray check after compile holds it then.
+  const drawnBefore = new Set((Array.isArray(raw.requiredEntityIds) ? raw.requiredEntityIds : [])
+    .filter((id): id is string => typeof id === "string"));
+  const crossingId = objectTipId
+    ? (intermediateTipId && drawnBefore.has(intermediateTipId) ? intermediateTipId : null)
+    : intermediateId;
 
   const existingRayIds = [...entityById].flatMap(([id, entity]) => entity.kind === "ray" ? [id] : []);
   const trainRayIds = [...existingRayIds.slice(0, 6)];
@@ -2574,7 +2623,7 @@ function deriveFiniteOpticalInstrumentChain(raw: Record<string, unknown>): Recor
         objective: objectiveId,
         eyepiece: eyepieceId,
         focus: intermediateId,
-        object: objectId,
+        object: objectTipId ?? objectId,
         finalImage: finalId,
       },
       outputs: trainRayIds,
@@ -2600,7 +2649,7 @@ function deriveFiniteOpticalInstrumentChain(raw: Record<string, unknown>): Recor
     { id: allocate("assert_final_on_axis"), predicate: "on", entities: [finalId, axisId], expected: true, severity: "fatal" },
     { id: allocate("assert_intermediate_between"), predicate: "between", entities: [intermediateId, objectiveCenterId, eyepieceCenterId], expected: true, severity: "fatal" },
     { id: allocate("assert_virtual_same_side"), predicate: "same_side", entities: [intermediateId, finalId, eyepieceCenterId], expected: true, severity: "fatal" },
-    { id: allocate("assert_intermediate_focus"), predicate: "converges", entities: [trainRayIds[2], trainRayIds[3], intermediateId], expected: true, severity: "fatal" },
+    ...(crossingId ? [{ id: allocate("assert_intermediate_focus"), predicate: "converges", entities: [trainRayIds[2], trainRayIds[3], crossingId], expected: true, severity: "fatal" }] : []),
   ];
 
   for (const id of [objectiveId, eyepieceId]) {

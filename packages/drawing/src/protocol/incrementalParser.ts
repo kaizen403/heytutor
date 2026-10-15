@@ -26,7 +26,7 @@ export class IncrementalTagParser {
   /**
    * The stream opened `[WRITE]` (or LABEL / DIMENSION) with the body outside
    * the tag. The body runs to the end of the line and may contain "]", so the
-   * usual terminators are suspended until the newline arrives.
+   * usual terminators are suspended until a newline or STEP footer arrives.
    */
   private headerOnlyTextTag = false;
   private charPosition = 0;
@@ -80,6 +80,13 @@ export class IncrementalTagParser {
         return;
       }
       this.tagBuffer += char;
+      if (/\[\/STEP\]$/i.test(this.tagBuffer)) {
+        const footer = this.tagBuffer.slice(-7);
+        this.tagBuffer = this.tagBuffer.slice(0, -7);
+        this.closeHeaderOnlyTextTag();
+        for (const footerChar of footer) this.processChar(footerChar);
+        return;
+      }
       if (this.tagBuffer.length > MAX_TAG_BUFFER_LENGTH) {
         this.closeHeaderOnlyTextTag();
       }

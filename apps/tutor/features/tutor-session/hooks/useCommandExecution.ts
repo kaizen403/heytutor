@@ -60,7 +60,7 @@ import { waitUntilDrawClock } from "@/lib/replay/replayAudio";
 import { CODE_FOCUS_SPOTLIGHT_MS, DIAGRAM_ZONE, DSA_DIAGRAM_ZONE, TEXT_LAYOUT } from "../constants";
 import type { CodeLessonController } from "../lib/code-lesson/codeLessonController";
 import { frameAdvanceRole } from "../lib/code-lesson/codeLessonSegments";
-import type { SpokenSegmentClock } from "../lib/code-lesson/codeSpokenSync";
+import { spokenTimeline, type SpokenSegmentClock } from "../lib/code-lesson/codeSpokenSync";
 import { runFrameWalkBeat, runTypedBlockBeat, walkSpokenStops, frameWalkPlan } from "../lib/code-lesson/spokenWalk";
 import type { BoardTextRect, BoardLayoutState } from "../types";
 import type { IntroLayoutCheckpoint } from "../lib/board/introLayoutCheckpoint";
@@ -216,6 +216,8 @@ export function useCommandExecution({
         speechDurationMs?: number;
         writeSchedule?: WriteSchedule;
         applyLayout?: boolean;
+        /** Static saved-page review keeps captured WRITE rows and page erases. */
+        recordedWorkPlacement?: boolean;
         segmentNarration?: string;
         /**
          * This command's slice of the segment's spoken time. A ceiling for
@@ -234,10 +236,16 @@ export function useCommandExecution({
          * lettered and traced when its name is spoken. Needs the audio clock.
          */
         focusSchedule?: FocusTargetSchedule;
+        /** The following work cue bounds only this gesture's transient motion. */
+        focusDeadlineMs?: number;
+        getFocusTiming?: () => { schedule: FocusTargetSchedule; deadlineMs: number };
+        isPaused?: () => boolean;
         /** The segment's audio clock, media ms from its start. */
         getAudioPositionMs?: () => number;
         /** Media ms per wall ms; default 1. Only the waits need it. */
         getPlaybackRate?: () => number;
+        /** A following work cue bounds transient POINT motion. */
+        getPointDeadlineMs?: () => number | null;
         /**
          * The sentence this command sits under, with its alignment and audio
          * clock. The code-lesson branches (TYPE, FRAME, FOCUS) follow its
@@ -667,6 +675,7 @@ export function useCommandExecution({
           let maybeFontSize = requestedFontSize;
           if (
             command.type === "WRITE" &&
+            !options.recordedWorkPlacement &&
             !options.textPlacementReserved &&
             command.text &&
             Number.isFinite(x) &&
@@ -712,7 +721,9 @@ export function useCommandExecution({
                   command,
                   x,
                   y,
-                  command.type === "WRITE" || options.applyLayout !== false,
+                  command.type === "WRITE" && options.recordedWorkPlacement
+                    ? false
+                    : command.type === "WRITE" || options.applyLayout !== false,
                   options.introLayoutCheckpoint,
                 );
             if (isInDiagramZone(placement.x, placement.y)) {
@@ -876,6 +887,7 @@ export function useCommandExecution({
           // in that pass is being watched. Walking a whole spoken step per
           // pointing command would make scrubbing take as long as the lesson.
           if (isSeekCatchUp || durationScale <= 0.05) break;
+          const spokenClock = options.spokenClock;
           const cancelledTour = await tourMarker(
             wb,
             markerTourStops(targets, pointBeatsRef.current),
@@ -888,6 +900,24 @@ export function useCommandExecution({
               isCancelled: commandCancelled,
               delay: cancellableDelay,
               now: nowMs,
+              ...(spokenClock ? {
+                speechClock: {
+                  getAudioPositionMs: spokenClock.getAudioPositionMs,
+                  remainingWallMs: () => {
+                    const totalMs = spokenTimeline(spokenClock.narration, spokenClock.getTimings(), {
+                      estimatedTotalMs: spokenClock.estimatedTotalMs,
+                      msPerChar: spokenClock.msPerChar,
+                    }).totalMs;
+                    const nextWorkMs = options.getPointDeadlineMs?.();
+                    const deadlineMs = nextWorkMs !== undefined && nextWorkMs !== null && Number.isFinite(nextWorkMs)
+                      ? Math.min(totalMs, nextWorkMs)
+                      : totalMs;
+                    return (deadlineMs - spokenClock.getAudioPositionMs()) / Math.max(spokenClock.getPlaybackRate(), 0.1);
+                  },
+                  isComplete: () => spokenClock.isSpeechComplete?.() ?? false,
+                  isPaused: () => options.isPaused?.() ?? false,
+                },
+              } : {}),
             },
           );
           pointBeatsRef.current += 1;
@@ -1153,18 +1183,38 @@ export function useCommandExecution({
                 flyCursorTo: (x, y, durationMs, rotation, shouldCancel) =>
                   wb.flyCursorTo(x, y, durationMs, rotation, shouldCancel),
                 drawAnnotation: (kind, path, durationMs, annotationOptions) =>
-                  drawAnnotation(kind, path, durationMs, annotationOptions),
+                  wb.drawAnnotation(kind, path, durationMs, {
+                    ...annotationOptions,
+                    inkSettings,
+                    shouldCancel: () => commandCancelled() || Boolean(annotationOptions.shouldCancel?.()),
+                  }),
               },
               scheduled,
               {
                 emphasis,
                 veil: DIAGRAM_ZONE,
                 getAudioPositionMs: focusAudioClock,
-                waitUntilAudioMs: (targetMs) =>
-                  waitUntilDrawClock(focusAudioClock, targetMs, {
-                    shouldCancel: commandCancelled,
-                    getPlaybackRate: options.getPlaybackRate,
-                  }),
+                deadlineMs: options.focusDeadlineMs,
+                isPaused: options.isPaused,
+                getTiming: options.getFocusTiming ? () => {
+                  const timing = options.getFocusTiming!();
+                  return { targets: timing.schedule.targets, deadlineMs: timing.deadlineMs };
+                } : undefined,
+                waitUntilAudioMs: async (targetMs, getTargetMs) => {
+                  let nextTarget = targetMs;
+                  while (!commandCancelled()) {
+                    const waitingFor = nextTarget;
+                    await waitUntilDrawClock(focusAudioClock, waitingFor, {
+                      shouldCancel: () => commandCancelled() || Boolean(getTargetMs && getTargetMs() !== waitingFor),
+                      getPlaybackRate: options.getPlaybackRate,
+                      isPaused: options.isPaused,
+                    });
+                    const freshTarget = getTargetMs?.() ?? waitingFor;
+                    // An unchanged clock wait keeps its existing stall bound.
+                    if (freshTarget === waitingFor || focusAudioClock() + 10 >= freshTarget) return;
+                    nextTarget = freshTarget;
+                  }
+                },
                 flightBudgetMs: (audioMs) => {
                   // Lettering can leave the board at scene pace while the
                   // voice keeps its playback rate. Budget against the slowest
@@ -1651,6 +1701,7 @@ export function useCommandExecution({
         speechDurationMs?: number;
         writeSchedule?: WriteSchedule;
         applyLayout?: boolean;
+        recordedWorkPlacement?: boolean;
         segmentNarration?: string;
         speechShareMs?: number;
         trustedDiagramGeometry?: boolean;

@@ -255,7 +255,7 @@ export function CodeLessonPanel({
                 // The slot sits inside the measured board container, so a content-derived
                 // height would feed back into the board's own scale and
                 // oscillate. Same space whether the panel is empty or full.
-                height: "min(42vh, 340px, var(--board-panel-max-height, 340px))",
+                height: "var(--board-panel-height, min(42vh, 340px, var(--board-panel-max-height, 340px)))",
                 marginTop: 12,
               }),
           display: variant === "below" ? "var(--board-panel-display, flex)" : "flex",

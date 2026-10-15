@@ -775,7 +775,7 @@ async function main(): Promise<void> {
   applyLectureLabHeaders(configHeaders);
   const configResponse = await fetch(`${options.origin}/api/lecture-lab/config`, { headers: configHeaders });
   if (!configResponse.ok) throw new Error("authenticated lab provider preflight failed");
-  const serverConfig = await configResponse.json() as { provider: string; deployment: string; configured: boolean; plannerOutputCap: number; teachingOutputCap: number; visualNeed?: Record<string, unknown> };
+  const serverConfig = await configResponse.json() as { provider: string; deployment: string; configured: boolean; plannerOutputCap: number; teachingOutputCap: number; visualNeed?: Record<string, unknown>; planningSpeed?: { sceneEffort: string; priority: boolean; requestTier: string } };
   if (!serverConfig.configured || serverConfig.provider !== providerConfig.provider || serverConfig.deployment !== providerConfig.deployment ||
     !Number.isFinite(serverConfig.plannerOutputCap) || !Number.isFinite(serverConfig.teachingOutputCap)) {
     throw new Error("server provider/deployment does not match the configured Azure lab");
@@ -785,6 +785,9 @@ async function main(): Promise<void> {
   }
   execFileSync(process.execPath, [resolve(process.cwd(), "scripts/lecture-lab/svg2png.mjs"), "--check-browser"], { stdio: "pipe" });
   const executionConfig = {
+    planningSpeed: { sceneEffort: serverConfig.planningSpeed?.sceneEffort ?? "low",
+      requestTier: serverConfig.planningSpeed?.requestTier ?? "auto",
+      priority: serverConfig.planningSpeed?.priority === true },
     figureSelectionPolicy: PRODUCTION_SCENE_SELECTION_VERSION,
     figureOnly: options.figureOnly, scenePlannerLimitMs: options.scenePlannerLimitMs,
     familiarity: options.familiarity, narrationLanguage: options.narrationLanguage,
@@ -953,7 +956,7 @@ async function main(): Promise<void> {
       // The proxy dispatches up to two planner or three teaching attempts.
       const maxAttempts = chatRequest ? plannerRequest ? 2 : 3 : 1;
       const requestWorstCaseUsd = chatRequest || directProviderRequest
-        ? plannerRequestWorstCaseUsd(init, requestModel, chatRequest ? plannerRequest ? serverConfig.plannerOutputCap : serverConfig.teachingOutputCap : 0) * maxAttempts
+        ? plannerRequestWorstCaseUsd(init, requestModel, chatRequest ? plannerRequest ? serverConfig.plannerOutputCap : serverConfig.teachingOutputCap : 0) * maxAttempts * (plannerRequest && serverConfig.planningSpeed?.priority ? 2 : 1)
         : 0;
       if (chatRequest || directProviderRequest) {
         try {
@@ -968,9 +971,29 @@ async function main(): Promise<void> {
         usageTracker.recordRequest(traceId, requestWorstCaseUsd, plannerRequest ? "planner" : "teaching", maxAttempts);
       }
       let accounted = false;
+      let requestChars: number | undefined;
+      try {
+        if (typeof init?.body === "string") requestChars = JSON.stringify((JSON.parse(init.body) as { messages?: unknown }).messages ?? []).length;
+      } catch {
+        // Diagnostic metadata must not alter dispatch or usage settlement.
+      }
+      const requestProfile = {
+        requestKind: headers.get("x-turn-planner-version") === "3" ? "turn_plan" as const
+          : headers.get("x-problem-ir-version") === "1" ? "problem_ir" as const
+          : headers.get("x-diagram-example-picker") === "1" ? "picker" as const
+          : headers.get("x-scene-planner-version") === "2" ? "scene" as const : "other" as const,
+        phase: headers.get("x-scene-planner-phase") ?? headers.get("x-turn-plan-phase") ?? "plan",
+        lane: headers.get("x-scene-planner-lane") ?? headers.get("x-turn-planner-lane"),
+        serviceTierRequested: serverConfig.planningSpeed?.requestTier ?? "auto",
+        requestChars,
+      };
+      const requestStartedAt = Date.now();
       try {
         const response = await nativeFetch(input, { ...init, headers });
-        if (plannerRequest) await usageTracker.recordResponse(traceId, response, requestWorstCaseUsd, maxAttempts, requestModel);
+        if (plannerRequest) await usageTracker.recordResponse(traceId, response, requestWorstCaseUsd, maxAttempts, requestModel, {
+          ...requestProfile,
+          elapsedMs: Date.now() - requestStartedAt,
+        });
         else if (chatRequest) usageTracker.recordStreamingResponse(traceId, response, requestWorstCaseUsd, maxAttempts, requestModel);
         else if (directProviderRequest) {
           let measuredUsd: number | null = null;
@@ -993,7 +1016,8 @@ async function main(): Promise<void> {
         }
         return response;
       } catch (error) {
-        if (!accounted && chatRequest) usageTracker.recordFailure(traceId, requestModel, requestWorstCaseUsd);
+        if (!accounted && chatRequest) usageTracker.recordFailure(traceId, requestModel, requestWorstCaseUsd,
+          plannerRequest ? { ...requestProfile, elapsedMs: Date.now() - requestStartedAt } : {});
         else if (!accounted && directProviderRequest) settleSpend(requestWorstCaseUsd, options.spendMode === "conservative" ? requestWorstCaseUsd : 0, {
           model: requestModel, measuredUsd: null, unresolvedAttempts: 1, unresolvedAllowanceUsd: requestWorstCaseUsd, reason: "picker_transport_failed_or_interrupted",
         }, { traceId, kind: "picker" });

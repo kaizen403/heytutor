@@ -211,7 +211,7 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity refe
 - reflect_direction: {origin: point_id, incoming: vector_id, normal: vector_id}. Output exactly one visible reflected ray entity. Do not output a direction helper or wrap the result in ray/vector.
 - refract_direction: {origin: point_id, incoming: vector_id, normal: vector_id, n1, n2}. Output exactly one visible refracted ray entity. Do not output a direction helper or wrap the result in ray/vector.
 - reflect_at: {point, surface, incidentAngleDeg, tangentSign?:-1|1, span?}. Outputs [incident_ray, normal, reflected_ray]. Prefer it for a stated angle at a known contact.
-- refract_at: {point, surface, incidentAngleDeg, n1, n2, tangentSign?:-1|1, span?}. Outputs [incident_ray, normal, refracted_ray] using Snell's law. Prefer it for a stated angle; do not duplicate its rays with low-level operators.
+- refract_at: {point, surface, incidentAngleDeg, n1, n2, tangentSign?:-1|1, span?}. Outputs [incident_ray, normal, refracted_ray] using Snell's law. Prefer it for a stated angle; do not duplicate its rays with low-level operators. A medium label on the surface needs placementIntent "incident_side" (n1) or "transmitted_side" (n2).
 - parallel_through/perpendicular_through: {through: point_id, line: line_or_segment_id}.
 - angle_bisector: {vertex: point_id, a: point_id, b: point_id}.
 - angle_mark: {vertex: point_id, a: point_or_path_id, b: point_or_path_id, radius?, count?:1|2|3}. Each path must meet the vertex at one endpoint. Marks the smaller angle between the two arms. count draws concentric congruence arcs. Bind a measured value with an annotation quantityId or an angle_between assertion; do not invent a degree label.

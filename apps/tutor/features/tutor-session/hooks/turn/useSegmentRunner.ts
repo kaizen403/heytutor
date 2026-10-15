@@ -26,7 +26,7 @@ import {
   SpeechSynthesisTTSClient,
 } from "@heytutor/tutor-core";
 import { drawSegmentInk, planSegmentInk } from "../../lib/turn/segmentInk";
-import { guardDrawWithSpeech } from "../../lib/turn/turnFailurePolicy";
+import { guardDrawWithSpeech, incompleteCodeBeatFailure, requiredCodeBeatTargets } from "../../lib/turn/turnFailurePolicy";
 import { segmentWatchdogPlaybackRate, speakSegmentTimeoutMs } from "../../lib/turn/ttsSegmentTimeout";
 import { browserRecoveryPlaybackRate, createPauseAwareSpeechClock, requireSpeechStart, speakWithPauseOwnedFallback, speakWithStartupRecovery, speechPlaybackOverdue, type PauseAwareSpeechClock } from "../../lib/turn/speechStartup";
 import { liveTurnSave } from "../../lib/turn/liveTurnSave";
@@ -200,6 +200,9 @@ export function useSegmentRunner({
       // student watched a silent 1.5–2× dump while TTS was still connecting.
       const hasNarration = narration.length > 0;
       const hasCommand = segmentCommands.length > 0;
+      const codeBeatOwner = codeLessonControllerRef?.current;
+      const codeBeatPlan = codeBeatOwner?.getActivePlan();
+      const codeBeatTargets = requiredCodeBeatTargets(segmentCommands, codeBeatPlan);
       const inkPlan = planSegmentInk({
         commands: segmentCommands,
         verifiedDiagramIntro: segment.verifiedDiagramIntro === true,
@@ -221,6 +224,8 @@ export function useSegmentRunner({
       let capturedAudio: Uint8Array | null = null;
       let capturedTimings: AudioTimings | null = null;
       let capturedDurationMs: number | null = null;
+      let generatedAudio: Pick<RecordedSegmentPayload, "audioBytes" | "durationMs" | "timings"> | null = null;
+      let terminalSpeechFailure = false;
       const spokenChars = mathToSpeech(narration).length;
       // The dials this sentence is spoken with. The lookahead generated it
       // with the same ones, and the cache is keyed on them, so the peek
@@ -646,6 +651,7 @@ export function useSegmentRunner({
         onStart: markVoiceStarted,
         onAudioCaptured: (audio: { bytes: Uint8Array }) => {
           capturedAudio = audio.bytes;
+          generatedAudio = { audioBytes: audio.bytes, durationMs: capturedDurationMs, timings: capturedTimings };
         },
         onTimings: captureTimings,
         onFirstAudioByte: (info: FirstAudioByteInfo) => {
@@ -665,8 +671,11 @@ export function useSegmentRunner({
       ): Promise<void> => {
         // First-chunk latency plus the whole playback. An 18s hard cap was
         // shorter than a normal DSA paragraph on HTTP TTS and killed the pen.
+        // Match the words sent to speech: maths notation can expand well beyond
+        // its written character count, including when the student slows it down.
+        const spokenText = mathToSpeech(text);
         let slowestPlaybackRate = segmentWatchdogPlaybackRate(segmentPlaybackRate());
-        let timeoutMs = speakSegmentTimeoutMs(text, slowestPlaybackRate);
+        let timeoutMs = speakSegmentTimeoutMs(spokenText, slowestPlaybackRate);
         let timedOut = false;
         let timeoutId: number | null = null;
         let playbackWatchId: number | null = null;
@@ -896,7 +905,7 @@ export function useSegmentRunner({
                 // the expanded deadline if speed rises again: elapsed slow
                 // playback cannot be judged against a shorter natural budget.
                 slowestPlaybackRate = Math.min(slowestPlaybackRate, segmentWatchdogPlaybackRate(segmentPlaybackRate()));
-                timeoutMs = Math.max(timeoutMs, speakSegmentTimeoutMs(text, slowestPlaybackRate));
+                timeoutMs = Math.max(timeoutMs, speakSegmentTimeoutMs(spokenText, slowestPlaybackRate));
                 if (clock.elapsedMs() >= timeoutMs) {
                   timedOut = true;
                   reject(new Error(`tts segment timeout after ${timeoutMs}ms`));
@@ -909,6 +918,7 @@ export function useSegmentRunner({
           ]));
         } catch (error) {
           speechAborted = true;
+          terminalSpeechFailure = !isCancelled();
           if (browserFallbackOwnerRef.current === segmentFallbackOwner) stopFallbackSpeech();
           tutorDebug("tts", "segment speech failed", {
             index,
@@ -997,6 +1007,8 @@ export function useSegmentRunner({
           if (rollbackIntroInk) introDrawOwnerRef.current = { owner: segmentFallbackOwner, freeze: freezeIntroDraw };
           startOwnedDraw();
 
+          let pairedFailed = false;
+          let pairedFailure: unknown;
           try {
             await Promise.all([
               speakSegmentWithTimeout(narration, {
@@ -1025,10 +1037,22 @@ export function useSegmentRunner({
             // The initial draw may have settled before Pause. Completion still
             // joins the CURRENT replay, not just that first execution.
             await ownedDraw;
+          } catch (error) {
+            pairedFailed = true;
+            pairedFailure = error;
           } finally {
             drawGeneration++;
             await ownedDraw.catch(() => undefined);
             if (introDrawOwnerRef.current?.owner === segmentFallbackOwner) introDrawOwnerRef.current = null;
+          }
+
+          if (pairedFailed) {
+            if (!isCancelled() && codeBeatOwner && codeLessonControllerRef?.current === codeBeatOwner &&
+                codeBeatOwner.getActivePlan() === codeBeatPlan && codeBeatOwner.getState().mode === "lesson") {
+              const incomplete = incompleteCodeBeatFailure(codeBeatTargets, codeBeatOwner.getState().revealedChars, pairedFailure);
+              if (incomplete) throw incomplete;
+            }
+            throw pairedFailure;
           }
 
           if (isCancelled()) return;
@@ -1076,7 +1100,8 @@ export function useSegmentRunner({
         } else {
           // Accepted shown work survives failures as well as cancellation.
           // A synchronously captured Stop/pagehide token is already settled.
-          preparedSave?.interrupt();
+          if (terminalSpeechFailure && generatedAudio && !isCancelled()) preparedSave?.failPlayback(generatedAudio);
+          else preparedSave?.interrupt();
         }
         tutorDebug("segment", "runSegment end", { index, ...segmentMetadata });
         segmentSpan?.end(segmentMetadata);

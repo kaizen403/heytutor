@@ -1789,7 +1789,7 @@ function strokePathCacheKey(
   y: number,
   fontSize: number,
 ): string {
-  return `${rawText}\0${Math.round(x)}\0${Math.round(y)}\0${Math.round(fontSize)}`;
+  return `${rawText}\0${x}\0${y}\0${fontSize}`;
 }
 
 /** Warm Tegaki stroke generation so the first spoken character is not delayed by setup. */
@@ -1833,6 +1833,16 @@ export async function textToStrokePaths(
     strokePathCache.delete(cacheKey);
     throw error;
   }
+}
+
+/** The writer's exact paths, synchronously available for recorded-ink indexing. */
+export function textToStrokePathsSync(
+  rawText: string,
+  x: number,
+  y: number,
+  fontSize: number,
+): CharacterPath[] {
+  return buildStrokePathsSync(rawText, x, y, fontSize);
 }
 
 async function buildStrokePaths(

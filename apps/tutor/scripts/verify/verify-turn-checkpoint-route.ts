@@ -67,6 +67,21 @@ let uploadPause: ((key: string) => Promise<void>) | null = null;
 let canonicalPause: (() => Promise<void>) | null = null;
 let growthBytesLimit: number | null = null;
 let growthPause: (() => Promise<void>) | null = null;
+// Prisma's interactive transaction expires independently of an HTTP request.
+// Advance this database clock at a real query boundary, without slowing gates.
+let transactionDelay: { query: "turn.update" | "segment.createManyAndReturn"; ms: number } | null = null;
+let activeTransactionBudgetMs: number | null = null;
+let transactionElapsedMs = 0;
+let lastTransactionError: KnownRequestError | null = null;
+const transactionOptions: Array<{ timeout?: number; maxWait?: number } | undefined> = [];
+function delayedQuery(query: "turn.update" | "segment.createManyAndReturn") {
+  if (activeTransactionBudgetMs === null || transactionDelay?.query !== query) return;
+  transactionElapsedMs += transactionDelay.ms;
+  if (transactionElapsedMs > activeTransactionBudgetMs) {
+    lastTransactionError = new KnownRequestError("Transaction already closed: expired interactive transaction", "P2028");
+    throw lastTransactionError;
+  }
+}
 
 function clean(value: unknown): unknown {
   return value === DB_NULL ? null : value;
@@ -102,6 +117,7 @@ function makeClient(): Row {
         return { ...turn };
       },
       update: async ({ where, data }: Row) => {
+        delayedQuery("turn.update");
         const turn = turns.find((t) => t.id === where.id);
         if (!turn) throw new Error("missing turn");
         if (typeof data.orderIndex === "number" && turns.some((t) => t.id !== turn.id && t.boardId === turn.boardId && t.orderIndex === data.orderIndex)) throw new KnownRequestError("unique update", "P2002");
@@ -116,6 +132,7 @@ function makeClient(): Row {
     segment: {
       deleteMany: async ({ where }: Row) => { segments = segments.filter((s) => s.turnId !== where.turnId); return {}; },
       createManyAndReturn: async ({ data }: Row) => {
+        delayedQuery("segment.createManyAndReturn");
         const inserted = data.map((s: Row) => ({ ...s, command: s.command ?? null, id: crypto.randomUUID() }));
         segments.push(...inserted);
         return inserted;
@@ -131,11 +148,14 @@ function makeClient(): Row {
 let tail = Promise.resolve();
 const prisma: Row = {
   ...makeClient(),
-  $transaction: async (run: (tx: Row) => Promise<unknown>) => {
+  $transaction: async (run: (tx: Row) => Promise<unknown>, options?: { timeout?: number; maxWait?: number }) => {
     const previous = tail;
     let release!: () => void;
     tail = new Promise<void>((done) => { release = done; });
     await previous;
+    transactionOptions.push(options);
+    activeTransactionBudgetMs = options?.timeout ?? 5_000;
+    transactionElapsedMs = 0;
     // Roll back on a throw, like a real transaction.
     const snapshot = { turns: turns.map((t) => ({ ...t })), segments: segments.map((s) => ({ ...s })) };
     try {
@@ -144,7 +164,7 @@ const prisma: Row = {
       turns = snapshot.turns;
       segments = snapshot.segments;
       throw error;
-    } finally { release(); }
+    } finally { activeTransactionBudgetMs = null; transactionElapsedMs = 0; release(); }
   },
 };
 
@@ -200,6 +220,12 @@ function load(relativePath: string, dependencies: Record<string, unknown>): Row 
   return compiledModule.exports;
 }
 
+const actualStorageLock = load("lib/boards/storageQuota.ts", {
+  "node:crypto": { randomUUID: () => crypto.randomUUID() },
+  "@/lib/db/prisma": { prisma },
+  "./storageAccounting": {},
+}).withUserStorageLock as (owner: string, run: (tx: Row) => Promise<unknown>, options?: { timeout: number; maxWait: number }) => Promise<unknown>;
+
 const checkpoint = load("lib/boards/turnCheckpoint.ts", {
   "@prisma/client": { Prisma: { DbNull: DB_NULL, PrismaClientKnownRequestError: KnownRequestError } },
   "next/server": { NextResponse: { json: (body: unknown, init?: ResponseInit) => Response.json(body, init) } },
@@ -239,7 +265,7 @@ const checkpoint = load("lib/boards/turnCheckpoint.ts", {
     prepareStorageAccounting: async () => {},
     refundTurnMetadataStorage: async (_tx: unknown, owner: string, bytes: bigint) => { metadataRefunds.push({ userId: owner, bytes }); },
     abandonTurnStorage: async (reservation: Row) => { if (reservation.state === "open") reservation.state = "abandoned"; },
-    withUserStorageLock: (_userId: string, run: (tx: Row) => Promise<unknown>) => prisma.$transaction(run),
+    withUserStorageLock: actualStorageLock,
     StorageQuotaError,
   },
   "@/lib/obs/traceOwnership": {
@@ -642,7 +668,113 @@ async function metadataOnlyCloseChargesGrowth() {
   } finally { release(); growthPause = null; }
 }
 
+async function checkpointTransactionBudget() {
+  const lesson = crypto.randomUUID();
+  transactionDelay = { query: "segment.createManyAndReturn", ms: 5_210 };
+  try {
+    const result = await put(lesson, { seq: 1, baseCount: 0,
+      appendSegments: [row(0, "", CLEAR), row(1, "Retain the given value.")] }, { 1: MP3(60) })
+      .catch((error: unknown): { status: number; body: Row } => ({ status: 500, body: { exception: error instanceof Error ? error.message : String(error) } }));
+    assert.equal(result.status, 200, "the observed 5210ms commit must retain rows instead of expiring at Prisma's implicit 5000ms");
+    assert.equal(rowsOf(lesson).length, 2);
+    assert.match(rowsOf(lesson)[1]!.audioUrl, /\/api\/media\?/);
+    assert.equal(reservations.at(-1)!.state, "settled");
+    assert.equal(stored(lesson).checkpointSeq, 1);
+    assert.deepEqual(await freshOrder(), [lesson]);
+    transactionDelay = { query: "turn.update", ms: 5_210 };
+    const stopped = await close(lesson, { seq: 2, status: "stopped" })
+      .catch((error: unknown): { status: number; body: Row } => ({ status: 500, body: { exception: error instanceof Error ? error.message : String(error) } }));
+    assert.equal(stopped.status, 200, "the status-only close shares the bounded checkpoint budget");
+    assert.equal(stored(lesson).status, "stopped");
+    assert.equal(rowsOf(lesson).length, 2, "closing keeps the exact earlier clip and writing");
+    assert(transactionOptions.every((options) => options?.timeout !== undefined && options.timeout < 30_000 && options.maxWait === 5_000),
+      "checkpoint transactions remain bounded below the minimum client deadline, with the existing acquisition wait");
+  } finally { transactionDelay = null; }
+}
+
+// Supply Next's request-error boundary and the Sentry adapter. Route wrappers,
+// instrumentation and save client remain unchanged; Prisma uses the adapter above.
+const turnRoute = load("app/api/boards/[boardId]/turns/[turnId]/route.ts", {
+  "@/lib/boards/turnCheckpoint": { handleTurnCheckpoint, handleTurnClose },
+});
+const requestErrors: unknown[] = [];
+const instrumentation = load("instrumentation.ts", {
+  "@sentry/nextjs": { captureRequestError: (error: unknown) => requestErrors.push(error) },
+});
+async function nextCheckpointResponse(request: Request, params: Row): Promise<Response> {
+  try {
+    return await turnRoute[request.method === "PUT" ? "PUT" : "PATCH"](request, { params: Promise.resolve(params) });
+  } catch (error) {
+    instrumentation.onRequestError(error, { path: new URL(request.url).pathname, method: request.method, headers: {} },
+      { routerKind: "App Router", routePath: "/api/boards/[boardId]/turns/[turnId]", routeType: "route" });
+    return Response.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+async function checkpointTransactionExpiry() {
+  const lesson = crypto.randomUUID();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    const request = new Request(input, init);
+    const match = /\/api\/boards\/([^/]+)\/turns\/([^/?]+)/.exec(request.url)!;
+    return nextCheckpointResponse(request, { boardId: match[1], turnId: match[2] });
+  };
+  const input = { seq: 1, baseCount: 0, status: "live", question: "Find the slope.", rawResponse: "",
+    scene: { visualStatus: "text_only" }, segments: [row(0, "", CLEAR), { ...row(1, "Retry this exact checkpoint."), audioBytes: MP3(61) }] };
+  transactionDelay = { query: "segment.createManyAndReturn", ms: 40_001 };
+  try {
+    const beforeErrors = requestErrors.length;
+    const expired = await client.checkpointTurn("board-a", lesson, input);
+    assert.equal(expired.ok, false);
+    assert.equal(expired.reason, "server", "unexpected commit failure must retry quietly instead of showing a false storage-verification banner");
+    assert.equal(expired.status, 500);
+    assert.equal(expired.retryable, true);
+    assert.equal(requestErrors.length, beforeErrors + 1, "unexpected commit cause reaches onRequestError's Sentry adapter");
+    const cause = requestErrors.at(-1);
+    assert(cause instanceof KnownRequestError && cause.code === "P2028", "request diagnostics retain the database error type and code");
+    assert.equal(cause, lastTransactionError, "request diagnostics retain the original exception object");
+    assert.doesNotMatch(expired.error, /P2028|Prisma|transaction/i, "raw exception is not returned to the student");
+    assert.equal(stored(lesson), undefined, "expiry rolls back the turn and metadata charge");
+    assert.equal(rowsOf(lesson).length, 0);
+    assert.equal(reservations.at(-1)!.state, "abandoned");
+    transactionDelay = null;
+    const retried = await client.checkpointTurn("board-a", lesson, input);
+    assert.equal(retried.ok, true);
+    assert.equal(rowsOf(lesson).length, 2, "same-id retry retains exactly one checkpoint");
+    assert.equal(turns.filter((turn) => turn.id === lesson).length, 1);
+    assert.equal(reservations.filter((reservation) => reservation.state === "settled").length, 1);
+    assert.equal(reservations.filter((reservation) => reservation.state === "open").length, 0);
+    const prior = rowsOf(lesson).map((segment) => ({ ...segment }));
+    transactionDelay = { query: "turn.update", ms: 40_001 };
+    for (const legacy of [false, true]) {
+      if (legacy) stored(lesson).submittedSegments = null;
+      const beforeCloseErrors = requestErrors.length;
+      const failedClose = await client.closeTurnKeepalive("board-a", lesson, { seq: 2, baseCount: 2, status: "stopped", segments: [],
+        ...(legacy ? {} : { rawResponse: "Retry this exact checkpoint." }) });
+      assert.equal(failedClose.ok, false);
+      assert.equal(failedClose.reason, "server", `${legacy ? "legacy status-only" : "metadata"} close does not invent a storage-measurement failure`);
+      assert.equal(failedClose.status, 500);
+      assert.equal(requestErrors.length, beforeCloseErrors + 1, "each close preserves request-error diagnostics");
+      assert.equal(requestErrors.at(-1), lastTransactionError, "both close paths preserve the original cause");
+      assert.doesNotMatch(failedClose.error, /P2028|Prisma|transaction/i);
+      assert.equal(stored(lesson).status, "live", "failed close does not publish a stopped header");
+      assert.deepEqual(rowsOf(lesson), prior, "failed close cannot discard already saved rows or clips");
+    }
+  } finally { transactionDelay = null; globalThis.fetch = originalFetch; }
+}
+
 async function main() {
+  const selected = process.env.CHECKPOINT_CASE;
+  if (selected && !["transaction-budget", "transaction-expiry"].includes(selected)) throw new Error("Unknown checkpoint gate case");
+  if (selected) {
+    if (selected === "transaction-budget") await checkpointTransactionBudget();
+    else await checkpointTransactionExpiry();
+    console.log(`checkpoint ${selected}: actual route and storage lock passed`);
+    return;
+  }
+  await checkpointTransactionBudget();
+  turns.length = 0; segments.length = 0; reservations.length = 0; uploads.length = 0; transactionOptions.length = 0;
+  await checkpointTransactionExpiry();
+  turns.length = 0; segments.length = 0; reservations.length = 0; uploads.length = 0; transactionOptions.length = 0;
   await metadataOnlyCloseChargesGrowth();
   await firstSceneHasIndependentReceipt();
   turns.length = 0; segments.length = 0; reservations.length = 0; uploads.length = 0;
