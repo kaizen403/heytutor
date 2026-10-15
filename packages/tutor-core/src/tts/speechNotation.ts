@@ -180,7 +180,7 @@ const POWER_WORDS: Record<string, string> = {
 function expandGroupedPowers(text: string): string {
   const functions = text.replace(/\b(sqrt|sin|cos|tan|csc|sec|cot|ln|log|exp)\s+\(/g, "$1(")
     .replace(/√\s+\(/g, "√(");
-  return functions.replace(/([\p{L}_][\p{L}\p{N}_]*|√)?(\([^()]+\))\s*(\^[23](?![\d.]|[⁰¹²³⁴⁵⁶⁷⁸⁹ⁿⁱ⁺⁻⁼⁽⁾])|[²³](?![⁰¹²³⁴⁵⁶⁷⁸⁹ⁿⁱ⁺⁻⁼⁽⁾]))/gu,
+  return functions.replace(/([\p{L}_][\p{L}\p{N}_]*|√|(?<![\p{L}\p{N}_])[\p{L}_]\s+)?(\([^()]+\))\s*(\^[23](?![\d.]|[⁰¹²³⁴⁵⁶⁷⁸⁹ⁿⁱ⁺⁻⁼⁽⁾\p{Lm}])|[²³](?![⁰¹²³⁴⁵⁶⁷⁸⁹ⁿⁱ⁺⁻⁼⁽⁾\p{Lm}]))/gu,
     (match, functionName: string | undefined, argument: string, power: string) => {
       // `sqrt(2)^2` squares the whole root. Removing only its argument's
       // parentheses would also prevent the later root reader recognizing it.

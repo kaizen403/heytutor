@@ -1,7 +1,7 @@
 import { mathToSpeech } from "./speechNotation";
 import { numberToSpokenWords } from "./numberWords";
 
-const GROUPED_RATIO_SQUARE = /\(\s*(\d+(?:\.\d+)?)\s*((?:µ?[A-Za-zΩ]{1,3})\s*\/\s*(?:µ?[A-Za-zΩ]{1,3}))\s*\)\s*(?:\^2(?![\d.]|[⁰¹²³⁴⁵⁶⁷⁸⁹ⁿⁱ⁺⁻⁼⁽⁾])|²(?![⁰¹²³⁴⁵⁶⁷⁸⁹ⁿⁱ⁺⁻⁼⁽⁾]))/g;
+const GROUPED_RATIO_SQUARE = /\(\s*(\d+(?:\.\d+)?)\s*((?:µ?[A-Za-zΩ]{1,3})\s*\/\s*(?:µ?[A-Za-zΩ]{1,3}))\s*\)\s*(?:\^2(?![\d.]|[⁰¹²³⁴⁵⁶⁷⁸⁹ⁿⁱ⁺⁻⁼⁽⁾\p{Lm}])|²(?![⁰¹²³⁴⁵⁶⁷⁸⁹ⁿⁱ⁺⁻⁼⁽⁾\p{Lm}]))/gu;
 const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const NUMBER_PREFIX = /\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|billion|point|minus|negative)(?:[\s-]+and)?[\s-]+$/i;
 

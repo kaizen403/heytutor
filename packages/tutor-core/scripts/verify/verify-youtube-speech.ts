@@ -79,3 +79,9 @@ for (const expression of ["(20 m/s)²ⁿ", "(20 m/s)²⁺¹", "(20 m/s)²⁻¹",
   assert.equal(clarifyGroupedQuantityNarration(capturedSegment.narration, [`v = ${expression}`]), capturedSegment.narration,
     `a continuing superscript run cannot establish the paired speed square: ${expression}`);
 }
+for (const expression of ["(20 m/s)²ᵏ", "(20 m/s)²ˣ", "(20 m/s)²ᵃ"]) {
+  assert(!mathToSpeech(expression).includes("all squared"), `a modifier-letter exponent continues after the two: ${expression}`);
+  assert.equal(clarifyGroupedQuantityNarration(capturedSegment.narration, [`v = ${expression}`]), capturedSegment.narration,
+    `a modifier-letter exponent cannot establish a plain speed square: ${expression}`);
+}
+assert.equal(mathToSpeech("f (x+1)^2"), "f (x+1) squared", "a spaced single-letter function retains its complete call notation");

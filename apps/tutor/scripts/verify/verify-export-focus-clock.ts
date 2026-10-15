@@ -44,6 +44,8 @@ const executionHook = hook(path.join(app, "features/tutor-session/hooks/useComma
 async function run(cancelAtMs?: number) {
   const document = validateSceneDocument(retained.sceneDocument).document;
   assert(document);
+  const question = document.source.question;
+  assert(typeof question === "string");
   const compiled = compileSceneDocument(document);
   assert(compiled.ok && compiled.renderScene);
   const diagram = buildVerifiedDiagramPresentation(document, compiled.renderScene).diagram;
@@ -52,7 +54,7 @@ async function run(cancelAtMs?: number) {
   board.setTimeSource(clock.source);
   const cancel = ref(false), started: Array<{ type: string; atMs: number }> = [], traces: number[] = [];
   const layout = layoutHook({ whiteboardRef: ref(board), cancelRef: cancel,
-    fbdPhaseStartedRef: ref(true), liveQuestionRef: ref(document.source.question), viewportMode: "fixed" });
+    fbdPhaseStartedRef: ref(true), liveQuestionRef: ref(question), viewportMode: "fixed" });
   const executor = executionHook({ whiteboardRef: ref(board), cancelRef: cancel, speedRef: ref(1),
     boardLayoutRef: layout.boardLayoutRef, forceSequentialWorkLayoutRef: layout.forceSequentialWorkLayoutRef,
     fbdPhaseMarkedRef: ref(false), fbdPhaseStartedRef: ref(true), activeVerifiedDiagramRef: ref(diagram),
@@ -70,7 +72,7 @@ async function run(cancelAtMs?: number) {
     { narration: "First consider the launch and the branch. Then look at the monkey.", commands: [focus], durationMs: 8_000 },
     { narration: "d equals forty meters.", commands: [write], durationMs: 2_000 },
   ];
-  const turn: StoredTurn = { id: "export-focus-clock", orderIndex: 0, question: document.source.question, rawResponse: "",
+  const turn: StoredTurn = { id: "export-focus-clock", orderIndex: 0, question, rawResponse: "",
     speedMultiplier: 1, traceId: null, sceneDocument: null, sceneEngineVersion: null, validationReport: null,
     visualStatus: "text_only", sceneArtifacts: null, segments: rows.map((row, orderIndex) => ({
       id: `row-${orderIndex}`, orderIndex, narration: row.narration, spokenText: row.narration,
