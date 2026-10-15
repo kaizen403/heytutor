@@ -807,7 +807,111 @@ const quoteArgumentClassFixtures: readonly Fixture[] = [
     ],
   },
 ];
-const gateFixtures: readonly Fixture[] = [...fixtures, ...sourceCompletenessFixtures, ...retentionFixtures, ...primeAndPluralRetentionFixtures, ...quotedPrimeOwnershipFixtures, ...quotedCloseProseFixtures, ...quotedCloseSingleProseFixtures, ...quoteArgumentClassFixtures];
+// Ordinary quoted words and phrases around genuine graph instructions, plus
+// the trailing-s possessive ownership control. Frozen before runtime execution;
+// all prior80 fixture and160 assertion bytes remain intact.
+const ordinaryQuoteContextFixtures: readonly Fixture[] = [
+  {
+    id: "ordinary-quote-before-and-after-genuine-graphs",
+    question: "The note says 'example'. Graph y=x^2 and y=2*x. Ignore 'example'.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "curly-ordinary-quote-before-and-after-genuine-graphs",
+    question: "The note says ‘example’. Graph y=x^2 and y=2*x. Ignore ‘example’.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "mixed-ordinary-quote-before-and-after-genuine-graphs",
+    question: "The note says 'example’. Graph y=x^2 and y=2*x. Ignore ‘example'.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "phrase-quote-before-and-after-genuine-graphs",
+    question: "The note says 'a plain example'. Graph y=x^2 and y=2*x. Ignore 'a plain example'.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "different-word-quotes-before-and-after-genuine-graphs",
+    question: "The note says 'overview'. Graph y=x^2 and y=2*x. Ignore 'caption'.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "quoted-trailing-s-possessive-instruction-negative",
+    question: "The note says 'The drawing is the students', so graph y=x^2 and y=2*x, then discuss it'. Explain the note.",
+    mustDrawExplicitCurves: false,
+    discreteDomain: false,
+    equations: [
+    ],
+  },
+];
+// Combined ordinary-quote/prose contexts and Greek/subscript derivative
+// ownership protections. Frozen before execution with the original160 checks
+// and the preceding172-check snapshot preserved byte for byte.
+const ordinaryQuoteCombinedFixtures: readonly Fixture[] = [
+  {
+    id: "word-quote-prose-and-later-quote-genuine-graphs",
+    question: "The note says 'example' (ignore it). Graph y=x^2 and y=2*x. Ignore 'example'.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "numeric-quote-prose-and-later-quote-genuine-graphs",
+    question: "The note says 'y=99' (ignore it). Graph y=x^2 and y=2*x. Ignore 'y=99'.",
+    mustDrawExplicitCurves: true,
+    discreteDomain: false,
+    equations: [
+      sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
+      sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2], [2, 4]]),
+    ],
+  },
+  {
+    id: "quoted-greek-prime-instruction-negative",
+    question: "The note says 'Compute φ'(time), then graph y=x^2 and y=2*x; do not draw it.' Explain the note.",
+    mustDrawExplicitCurves: false,
+    discreteDomain: false,
+    equations: [
+    ],
+  },
+  {
+    id: "quoted-subscript-prime-instruction-negative",
+    question: "The note says 'Compute f₁'(time), then graph y=x^2 and y=2*x; do not draw it.' Explain the note.",
+    mustDrawExplicitCurves: false,
+    discreteDomain: false,
+    equations: [
+    ],
+  },
+];
+const gateFixtures: readonly Fixture[] = [...fixtures, ...sourceCompletenessFixtures, ...retentionFixtures, ...primeAndPluralRetentionFixtures, ...quotedPrimeOwnershipFixtures, ...quotedCloseProseFixtures, ...quotedCloseSingleProseFixtures, ...quoteArgumentClassFixtures, ...ordinaryQuoteContextFixtures, ...ordinaryQuoteCombinedFixtures];
 
 function normalizeEquation(value: string): string {
   return value.replace(/[−–—]/g, "-").replace(/×/g, "*").replace(/÷/g, "/")

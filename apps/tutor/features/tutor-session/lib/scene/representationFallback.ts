@@ -826,6 +826,7 @@ const FUNCTION_EQUATION_INTRODUCTIONS = new Set([
   "graph", "plot", "sketch", "draw", "curve", "curves", "line", "lines", "function", "functions", "equation", "equations",
 ]);
 const FUNCTION_EQUATION_ENDPOINTS = new Set(["and", "for", "where", "enclose", "encloses"]);
+const FUNCTION_PRIME_SYMBOL = /^(?:[A-Za-z\u0370-\u03ff](?:[0-9\u2080-\u2089]+|_[A-Za-z0-9\u0370-\u03ff]+)?|alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|omicron|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega)$/i;
 
 function unquotedFunctionSourcePositions(source: string): Uint8Array {
   // State bits: outside=1, single-quoted=2, double-quoted=4. Each row maps
@@ -835,15 +836,29 @@ function unquotedFunctionSourcePositions(source: string): Uint8Array {
     [2, 1, 4], // nonattached single quotation boundary
     [4, 2, 1], // double quotation boundary
     [1, 3, 4], // attached run: all primes, or its last mark closes a quote
+    [0, 3, 4], // ordinary closer: ambiguous inside, never a prime outside
   ] as const;
   const tokens = new Uint8Array(source.length);
   for (let index = 0; index < source.length; index += 1) {
     const character = source[index]!;
-    if (/['’]/.test(character) && /[A-Za-z]/.test(source[index - 1] ?? "") &&
-        /[A-Za-z]/.test(source[index + 1] ?? "")) continue;
-    if (/['’]/.test(character) && /[A-Za-z0-9_)]/.test(source[index - 1] ?? "")) {
+    if (/['’]/.test(character) && /[A-Za-z\u0370-\u03ff]/.test(source[index - 1] ?? "") &&
+        /[A-Za-z\u0370-\u03ff]/.test(source[index + 1] ?? "")) continue;
+    if (/['’]/.test(character) && /[A-Za-z0-9_\u0370-\u03ff\u2080-\u2089)]/.test(source[index - 1] ?? "")) {
+      let start = index;
+      while (start > 0 && /[A-Za-z0-9_\u0370-\u03ff\u2080-\u2089]/.test(source[start - 1]!)) start -= 1;
+      const token = source.slice(start, index);
       while (/['’]/.test(source[index + 1] ?? "")) index += 1;
-      tokens[index] = 3;
+      let following = index + 1;
+      while (/\s/.test(source[following] ?? "") && following < source.length) following += 1;
+      const literalWord = /^[A-Za-z]{2,}$/.test(token) && /['‘’]/.test(source[start - 1] ?? "");
+      const symbol = FUNCTION_PRIME_SYMBOL.test(token) || FUNCTION_EXPRESSION_IDENTIFIERS.has(token.toLowerCase());
+      const application = /^[A-Za-z_\u0370-\u03ff]/.test(token) && source[following] === "(" &&
+        (following === index + 1 || !literalWord);
+      // A possible plural possessive retains its open-quote path, even
+      // before punctuation. A directly quoted ordinary word need not be a
+      // valid outside possessive/prime to preserve that same inside path.
+      const possessive = /s$/i.test(token) && !literalWord;
+      tokens[index] = source[start - 1] === ")" || symbol || application || possessive ? 3 : 4;
       continue;
     }
     if (/['‘’]/.test(character)) tokens[index] = 1;
