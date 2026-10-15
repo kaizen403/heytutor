@@ -857,6 +857,13 @@ function evaluateExplicitArithmetic(
         if (!reconcile) invalid = true;
         continue;
       }
+      if (!solvedTarget.isolated && solvedTarget.mixedLiteralValue !== undefined &&
+          declaredAnchor && !withinDisplayedPrecision(reading.value, declaredAnchor)) {
+        // A non-isolated equation has no safely writable target result: a
+        // trailing measurement may be an operand, not the target assertion.
+        if (reconcile) continue;
+        invalid = true;
+      }
       if (targetStated && !reconcile && !withinDisplayedPrecision(reading.value, targetStated)) {
         invalid = true;
       } else {
@@ -1422,15 +1429,16 @@ function solveExplicitTargetEquation(
   for (let targetIndex = 0; targetIndex < equalityParts.length; targetIndex += 1) {
     const targetBindingKeys = new Set<string>();
     const targetAtoms: NonNullable<NumericExpressionUnits["measuredAtoms"]> = { found: false };
+    const targetReference = { found: false };
     const targetExpression = normalizeTargetNumericExpression(
       equalityParts[targetIndex] ?? "",
       targetKeys,
       knownUnits,
       numericBindings,
       targetBindingKeys,
-      { bindingMeta, measuredAtoms: targetAtoms },
+      { bindingMeta, measuredAtoms: targetAtoms, targetReference },
     );
-    if (!targetExpression) continue;
+    if (!targetExpression && !(targetReference.found && targetAtoms.found)) continue;
     const isolated = targetExpression === "x";
     // A stated result belongs to an isolated target ("x = ... = 30"). In an
     // equation such as "3y - 6 = 9" the plain number is the other side.
@@ -1472,16 +1480,28 @@ function solveExplicitTargetEquation(
         bindingKeys,
         { bindingMeta, measuredAtoms },
       );
+      if (!valueExpression && !measuredAtoms.found) continue;
+      const hasMeasuredAtoms = measuredAtoms.found && !measuredAtoms.unresolvedFraction;
+      const mixedLiteralValue = hasMeasuredAtoms ? mixedLiteralMemberValue(
+        equalityParts[valueIndex] ?? "", isolated, expectedUnit, knownUnits, numericBindings, bindingMeta, bindingKeys,
+        equalityParts[targetIndex] ?? "", targetKeys,
+      ) : undefined;
+      if (mixedLiteralValue !== undefined) {
+        // A refused proof is retained as an explicit no-reading candidate;
+        // its bookkeeping zero never becomes numerical authority. Evaluate
+        // independent proofs before any poisoned/nonfinite legacy raw lane.
+        candidates.push({ value: mixedLiteralValue ?? 0, valueIndex, isolated, bindingKeys,
+          measuredAtoms: hasMeasuredAtoms, unresolvedQuantityLabel, mixedLiteralValue });
+        continue;
+      }
       if (!valueExpression) continue;
       try {
         const value = evaluateMathExpression(valueExpression, 0);
         if (!Number.isFinite(value)) continue;
-        const solved = isolated ? value : solveUniqueEquationValue(targetExpression, value);
+        const solved = isolated ? value : targetExpression ? solveUniqueEquationValue(targetExpression, value) : null;
         if (solved === null) continue;
-        const candidate: SolvedTargetValue = { value: solved, valueIndex, isolated, bindingKeys, measuredAtoms: measuredAtoms.found && !measuredAtoms.unresolvedFraction, unresolvedQuantityLabel };
-        if (candidate.measuredAtoms) candidate.mixedLiteralValue = mixedLiteralMemberValue(
-          equalityParts[valueIndex] ?? "", isolated, expectedUnit, knownUnits, numericBindings, bindingMeta, bindingKeys,
-        );
+        const candidate: SolvedTargetValue = { value: solved, valueIndex, isolated, bindingKeys,
+          measuredAtoms: hasMeasuredAtoms, unresolvedQuantityLabel };
         if (!measuredAtoms.unresolvedFraction && (measuredAtoms.found || usesScaledBinding(bindingKeys, bindingMeta) || unresolvedQuantityLabel)) {
           candidate.coherentValue = coherentMemberValue(
             equalityParts[targetIndex] ?? "",
@@ -1596,33 +1616,59 @@ function mixedLiteralMemberValue(
   numericBindings: Map<string, number>,
   bindingMeta: NumericBindingMetaMap,
   bindingKeys: Set<string>,
+  targetSource = "",
+  targetKeys: string[] = [],
 ): number | null | undefined {
   const expected = unitScale(expectedUnit);
-  if (!expected || ![...bindingKeys].some((key) => {
+  if (!expected) return undefined;
+  const expectedBinding = [...bindingKeys].some((key) => {
     const scale = unitScale(bindingMeta.get(key)?.unit);
     return scale?.signature === expected.signature;
-  })) return undefined;
-  if (!isolated) return null;
+  });
+  if (!expectedBinding) {
+    if (isolated || [...bindingKeys].some((key) => unitScale(bindingMeta.get(key)?.unit)?.signature !== "")) return undefined;
+    const scales: UnitScale[] = [];
+    readNumericQuantityAtoms(normalizeExplicitNumericSyntax(source), numericBindings, { bindingMeta,
+      onAtom: (_unit, scale) => scales.push(scale) });
+    if (scales.length === 0 || scales.some((scale) => scale.signature !== expected.signature)) return undefined;
+  }
   const coherent = coherentNumericBindings(numericBindings, bindingMeta);
   const syntax = normalizeExplicitNumericSyntax(source);
+  const targetSyntax = normalizeExplicitNumericSyntax(targetSource);
   // Adjacent numeric tokens are unsupported. Refuse before whitespace or
   // numeric-unit filtering can turn "2 1" or "2 .01" into a coefficient.
-  if (/[0-9.)\]]\s+(?:\d|\.\d)/.test(syntax)) return null;
+  if ([syntax, targetSyntax].some((member) => /[0-9.)\]]\s+(?:\d|\.\d)/.test(member))) return null;
   // Numeric dimensionless labels are not unit-letter tokens. Stripping "1"
   // from a substituted (0.01) would silently change the supplied scalar.
   knownUnits = knownUnits.filter((unit) => !/^\d+$/.test(unit.trim()));
+  const isScalarMeasuredTerm = (term: string): boolean => {
+    const marker = "MeasuredQuantityAtomQ";
+    const safeBindings = new Map(coherent);
+    safeBindings.delete(marker);
+    const shape = normalizeExplicitNumericExpression(term, knownUnits, safeBindings, marker, undefined, {
+      bindingMeta, coherentBindings: true, atomPlaceholder: marker,
+    });
+    return shape !== null && isMultiplicativeScalarTerm(shape.replaceAll(marker, "x"));
+  };
   const literalScales: UnitScale[] = [];
+  const bareRhs = syntax.replace(/[()\s]/g, "");
+  const wholeRhs = [...bindingKeys].find((key) => bindingMeta.get(key)?.trusted &&
+    unitScale(bindingMeta.get(key)?.unit)?.signature === expected.signature && [key, `+${key}`, `-${key}`].includes(bareRhs));
+  const wholeRhsScale = wholeRhs === undefined ? null : unitScale(bindingMeta.get(wholeRhs)?.unit);
   if (!normalizeExplicitNumericExpression(source, knownUnits, coherent, undefined, undefined, {
     bindingMeta, coherentBindings: true, onAtom: (_unit, scale) => literalScales.push(scale),
-  }) || literalScales.length === 0 || literalScales.some((scale) => scale.signature !== expected.signature)) return null;
+  }) || (literalScales.length === 0 && (isolated || !wholeRhsScale)) ||
+      literalScales.some((scale) => scale.signature !== expected.signature)) return null;
+  const rhsScales = literalScales.length > 0 ? literalScales : wholeRhsScale ? [wholeRhsScale] : [];
   const terms = splitAdditiveQuantityTerms(syntax);
   if (!terms) return null;
   let sum = 0;
   for (const term of terms) {
     const keys = new Set<string>();
     const atoms = { found: false };
+    let atomCount = 0;
     const expression = normalizeExplicitNumericExpression(term, knownUnits, coherent, undefined, keys, {
-      bindingMeta, coherentBindings: true, measuredAtoms: atoms,
+      bindingMeta, coherentBindings: true, measuredAtoms: atoms, onAtom: () => atomCount++,
     });
     if (!expression) return null;
     const dimensionalKeys: string[] = [];
@@ -1642,7 +1688,7 @@ function mixedLiteralMemberValue(
       if (dimensionalKeys.length === 0) {
         // A bare nonzero scalar has no independently established length,
         // mass, etc. Zero is unit-independent and may be a neutral term.
-        if (!atoms.found && value !== 0) return null;
+        if (atoms.found ? atomCount !== 1 || !isScalarMeasuredTerm(term) : value !== 0) return null;
         sum += value / expected.factor;
         continue;
       }
@@ -1677,7 +1723,64 @@ function mixedLiteralMemberValue(
       return null;
     }
   }
-  return Number.isFinite(sum) ? sum : null;
+  if (!Number.isFinite(sum)) return null;
+  if (isolated) return sum;
+  try {
+    const leftScales: UnitScale[] = [];
+    const leftKeys = new Set<string>();
+    const left = normalizeTargetNumericExpression(targetSource, targetKeys, knownUnits, coherent, leftKeys, {
+      bindingMeta, coherentBindings: true, onAtom: (_unit, scale) => leftScales.push(scale),
+    });
+    const leftTerms = splitAdditiveQuantityTerms(targetSyntax);
+    if (!left || !leftTerms || leftScales.some((scale) => scale.signature !== expected.signature) ||
+        [...leftKeys].some((key) => !bindingMeta.get(key)?.trusted || !unitScale(bindingMeta.get(key)?.unit))) return null;
+    const coherentOffsets = approximatelyEqual(expected.factor, 1) &&
+      [...rhsScales, ...leftScales].every((scale) => approximatelyEqual(scale.factor, 1));
+    const conversionScales = [...rhsScales, ...leftScales, ...[...leftKeys].flatMap((key) => {
+      const scale = unitScale(bindingMeta.get(key)?.unit);
+      return scale?.signature === expected.signature ? [scale] : [];
+    })];
+    for (const term of leftTerms) {
+      const keys = new Set<string>();
+      const atoms = { found: false };
+      const target = normalizeTargetNumericExpression(term, targetKeys, knownUnits, coherent, keys, {
+        bindingMeta, coherentBindings: true, measuredAtoms: atoms,
+      });
+      const physical = [...keys].filter((key) => unitScale(bindingMeta.get(key)?.unit)?.signature !== "");
+      if (target) {
+        if (atoms.found || physical.length > 0 || !isMultiplicativeScalarTerm(target)) return null;
+        const written = new Map(coherent);
+        keys.forEach((key) => written.set(key, 1));
+        const scalar = normalizeTargetNumericExpression(term, targetKeys, knownUnits, written, undefined, { bindingMeta, coherentBindings: true });
+        if (!scalar) return null;
+        const coefficient = Math.abs(evaluateMathExpression(scalar, 1));
+        // A target-side written conversion is not a dimensionless equation
+        // coefficient merely because its later result uses a matching label.
+        if (conversionScales.some((scale) => !approximatelyEqual(expected.factor / scale.factor, 1) &&
+            approximatelyEqual(coefficient / (expected.factor / scale.factor), 1))) return null;
+        continue;
+      }
+      let offsetAtomCount = 0;
+      const offset = normalizeExplicitNumericExpression(term, knownUnits, coherent, undefined, keys, {
+        bindingMeta, coherentBindings: true, measuredAtoms: atoms, onAtom: () => offsetAtomCount++,
+      });
+      if (!offset) return null;
+      const physicalKeys = [...keys].filter((key) => unitScale(bindingMeta.get(key)?.unit)?.signature !== "");
+      if (atoms.found) { if (physicalKeys.length > 0 || offsetAtomCount !== 1 || !isScalarMeasuredTerm(term)) return null; continue; }
+      if (physicalKeys.length === 0) { if (evaluateMathExpression(offset, 0) !== 0) return null; continue; }
+      if (physicalKeys.length !== 1 || unitScale(bindingMeta.get(physicalKeys[0]!)?.unit)?.signature !== expected.signature) return null;
+      const key = physicalKeys[0]!;
+      const bare = term.replace(/[()\s]/g, "");
+      if ([key, `+${key}`, `-${key}`].includes(bare)) continue;
+      const physicalTerm = normalizeTargetNumericExpression(term, [key], knownUnits, coherent, undefined, { bindingMeta, coherentBindings: true });
+      if (!coherentOffsets || !approximatelyEqual(unitScale(bindingMeta.get(key)?.unit)!.factor, 1) ||
+          !physicalTerm || !isMultiplicativeScalarTerm(physicalTerm)) return null;
+    }
+    const solved = solveUniqueEquationValue(left, sum * expected.factor);
+    return solved !== null && Number.isFinite(solved / expected.factor) ? solved / expected.factor : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Only split complete, balanced top-level additive terms, not exponent signs. */
@@ -1756,6 +1859,10 @@ interface NumericExpressionUnits {
   bindingMeta: NumericBindingMetaMap;
   coherentBindings?: boolean;
   measuredAtoms?: { found: boolean; unresolvedFraction?: boolean };
+  /** Private physical-degree proof, protected from binding substitution. */
+  atomPlaceholder?: string;
+  /** Exact target-token recognition, even when its expression is unsupported. */
+  targetReference?: { found: boolean };
   /** Original units retained for source-contradiction backoff. */
   onAtom?: (unit: string, scale: UnitScale, offset: number, source: string) => void;
 }
@@ -1821,7 +1928,7 @@ function readNumericQuantityAtoms(
       units?.onAtom?.(unit, scale, offset, folded);
       // Keep the raw and coherent lanes distinct. Otherwise a binding in cm
       // plus a literal in cm becomes a partly converted, meaningless number.
-      return `${signedQuantityOperator(whole, folded, offset)}(${units?.coherentBindings ? coherent : measured.value})`;
+      return `${signedQuantityOperator(whole, folded, offset)}(${units?.atomPlaceholder ?? (units?.coherentBindings ? coherent : measured.value)})`;
     });
 }
 
@@ -2142,6 +2249,7 @@ function normalizeTargetNumericExpression(
     /[A-Za-zΑ-Ωα-ω_][A-Za-z0-9Α-Ωα-ω_]*/gu,
     (token: string, offset: number, whole: string) => {
       if (!targets.has(normalizeNumericBindingKey(token))) return token;
+      if (units?.targetReference) units.targetReference.found = true;
       // Implicit products written without a space ("3y", "2(x-30)",
       // "I(R+r)"). "6 V" or "6V" for a quantity named V is a unit label,
       // not a product, so a target spelled like a unit never multiplies.

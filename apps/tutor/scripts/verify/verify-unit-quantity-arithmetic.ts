@@ -172,6 +172,53 @@ async function main(): Promise<void> {
   for (const [name, givens, unit, expression, truth, error] of scalarMixtures) {
     pair(`review-p1/dimensionless-coefficient/${name}`, givens, "L", unit, `L = ${expression}`, truth, error);
   }
+  const targetEquations = [
+    ["coherent", [["a", 2, "m"]], "m", "2*L = a + 4 m", 3, 6],
+    ["prefixed", [["a", 2, "cm"]], "cm", "2*L = a + 4 cm", 3, 6],
+    ["coherent-output", [["a", 2, "cm"]], "m", "2*L = a + 4 cm", 0.03, 3],
+    ["prefixed-output", [["a", 2, "m"]], "cm", "2*L = a + 4 m", 300, 3],
+    ["affine", [["a", 2, "m"]], "m", "L + 4 m = a + 8 m", 6, 10],
+    ["affine-prefixed", [["a", 2, "cm"]], "cm", "L + 4 cm = a + 8 cm", 6, 10],
+    ["scalar-target", [["a", 2, "m"], ["n", 2, "1"]], "m", "n*L = a + 4 m", 3, 6],
+    ["percent-target", [["a", 2, "m"], ["n", 50, "%"]], "m", "n*L = a + 4 m", 12, 0.12],
+    ["decimal-target", [["a", 2, "m"], ["n", 0.01, "1"]], "m", "n*L = a + 4 m", 600, 6],
+    ["percent-rhs", [["a", 2, "m"], ["n", 50, "%"]], "m", "2*L = n*a + 4 m", 2.5, 52],
+    ["scalar-denominator", [["a", 2, "m"], ["n", 2, "1"]], "m", "L/n = a + 4 m", 12, 3],
+    ["rhs-conversion", [["a", 200, "cm"], ["n", 2, "1"]], "m", "2*L = n*a/100 + 3 m", 3.5, 1.52],
+    ["rhs-prefixed-conversion", [["a", 2, "m"]], "cm", "2*L = a*100 + 3 cm", 101.5, 10001.5],
+    ["whole-prefixed-offset", [["a", 2, "m"]], "cm", "L + a = 503 cm", 303, 501],
+    ["decimal-denominator-rhs", [["a", 2, "m"], ["n", 0.01, "1"]], "m", "2*L = a/n + 4 m", 102, 6],
+    ["scalar-typed-offset", [["a", 2, "m"], ["n", 2, "1"]], "m", "L + n*(3 m) = a + 8 m", 4, 8],
+    ["whole-rhs", [["a", 2, "m"]], "m", "L + 4 m = a", -2, 2],
+    ["whole-rhs-coefficient", [["a", 2, "m"]], "m", "2*L + 4 m = a", -1, 1],
+    ["whole-rhs-parenthesized", [["a", 2, "m"]], "m", "L + 4 m = (+a)", -2, 2],
+    ["whole-rhs-negative", [["a", 2, "m"]], "m", "L + 4 m = (-a)", -6, -2],
+  ] satisfies Array<[string, readonly Given[], string, string, number, number]>;
+  for (const [name, givens, unit, source, truth, error] of targetEquations) {
+    right(`review-p1/non-isolated/${name}/right`, plan(givens, "L", unit, truth, source), truth);
+    wrong(`review-p1/non-isolated/${name}/wrong`, plan(givens, "L", unit, error, source), truth);
+  }
+  for (const value of [3, -19797]) decline(`review-p1/non-isolated/unsupported-lhs-conversion/${value}`,
+    plan([["a", 2, "m"]], "L", "cm", value, "L + a*100 = a*100 + 3 cm"));
+  for (const value of [500, 50000]) decline(`review-p1/non-isolated/unsupported-target-conversion/${value}`,
+    plan([["a", 2, "m"]], "L", "cm", value, "L/100 = a + 3 m"));
+  for (const [source, values] of [["L + 3 m*4 m = a + 20 m", [10, 22]], ["2*L = a + 3 m*4 m", [7, 14]]] as const) {
+    for (const value of values) decline(`review-p1/non-isolated/dimensional-product/${source}/${value}`,
+      plan([["a", 2, "m"]], "L", "m", value, source));
+  }
+  for (const [source, values] of [["L + (3 m)^2 = a + 8 m", [1, 10]], ["L + sqrt(4 m) = a + 8 m", [8, 10]],
+    ["2*L = a + (3 m)^2", [5.5, 11]]] as const) {
+    for (const value of values) decline(`review-p1/non-isolated/physical-atom-shape/${source}/${value}`,
+      plan([["a", 2, "m"]], "L", "m", value, source));
+  }
+  for (const source of ["L/100 + a = 503 cm", "L/100 + 2 m = 503 cm"]) for (const value of [303, 30300]) {
+    decline(`review-p1/non-isolated/offset-conversion/${source}/${value}`,
+      plan([["a", 2, "m"]], "L", "cm", value, source));
+  }
+  for (const factor of ["2 1*L", "2 .01*L"]) for (const value of [3, 6 / 21]) {
+    decline(`review-p1/non-isolated/adjacent-lhs/${factor}/${value}`,
+      plan([["a", 2, "m"], ["n", 2, "1"]], "L", "m", value, `${factor} = a + 4 m`));
+  }
   for (const factor of ["2 1*a", "(2) 1*a", "2 {1}*a", "2 \r1*a", "2 11*a", "2 .01*a"]) {
     for (const [inputUnit, outputUnit, literal, truth, error] of [
       ["cm", "cm", "3 cm", 7, 45], ["cm", "m", "3 m", 3.04, 3.42], ["m", "m", "3 m", 7, 45],
