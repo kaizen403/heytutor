@@ -1036,7 +1036,9 @@ const CUE_SETS: readonly CueSet[] = [
       // A planner's derived value is a claim, not a solver result. Bind energy
       // roles to the question and convert units before publishing numeric ink.
       setSlot(bag, "workFunction", energyAfterInEv(stem, /work function(?: of (?:a |the )?(?:metal|surface))?(?: is| of| =)?|(?:φ|phi)\s*=/), "stem");
-      setSlot(bag, "lambda", wavelengthAfterInNm(stem, /wavelength(?: of| is| =)?|(?:λ|lambda)\s*=/), "stem");
+      // The cutoff describes the surface, not the incident photon. Conflicting
+      // remaining wavelengths are ambiguous and the reader returns no value.
+      setSlot(bag, "lambda", wavelengthAfterInNm(stem, /(?<!\b(?:threshold|cut[- ]?off)\s+)(?:\bwavelength(?!\s+(?:threshold|cut[- ]?off))(?: of| is| =)?|(?:λ|lambda)\s*=)/), "stem");
       setSlot(bag, "photonEnergy", energyAfterInEv(stem, /photon energy(?: of| is| =)?|energy of (?:the |a )?photon(?: is| of| =)?|(?:hν|hv|hf)\s*=/), "stem");
     },
   },

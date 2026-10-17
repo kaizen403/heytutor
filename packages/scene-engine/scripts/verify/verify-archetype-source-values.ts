@@ -79,4 +79,39 @@ const inferredPhoton = generated("photoelectric", wavelength.slots, wavelength.s
 assert.equal(inferredPhoton.entities.find((entity) => entity.id === "E_top")?.label, "hν=3.1 eV");
 const contradictoryPlan = detectArchetype("Photoelectric emission: work function is 2 eV.", { plannerArchetype: "photoelectric", turnPlan: { givens: [{ id: "phi", value: 20, unit: "eV" }] } })!;
 assert.equal(contradictoryPlan.slots.workFunction, 2, "role-bound source wins over a contradictory planner value");
+// Unit boundaries must accept Unicode unit symbols without accepting word prefixes.
+for (const unit of ["4000Å", "4000 Å", "4000 angstroms", "400 nm"]) {
+  const match = detectArchetype(`Photoelectric emission: incident wavelength is ${unit}, work function is 2 eV.`, { plannerArchetype: "photoelectric" })!;
+  assert.equal(match.slots.lambda, 400, `incident wavelength unit ${unit}`);
+}
+for (const unit of ["4000Åfoo", "400nmextra", "400nmé"]) {
+  const match = detectArchetype(`Photoelectric emission: wavelength is ${unit}, work function is 2 eV.`, { plannerArchetype: "photoelectric" })!;
+  assert.equal(match.slots.lambda, undefined, `unit cannot be a prefix of ${unit}`);
+}
+for (const threshold of ["threshold", "cutoff", "cut-off", "cut off"]) {
+  for (const clauses of [
+    `${threshold} wavelength is 600 nm; incident wavelength is 400 nm`,
+    `incident wavelength is 400 nm; ${threshold} wavelength is 600 nm`,
+  ]) {
+    const match = detectArchetype(`Photoelectric emission: ${clauses}; work function is 2 eV.`, { plannerArchetype: "photoelectric" })!;
+    assert.equal(match.slots.lambda, 400, "threshold is not the incident wavelength");
+    const scene = generated("photoelectric", match.slots, match.sources)!;
+    assert.equal(scene.entities.find((entity) => entity.id === "E_top")?.label, "hν=3.1 eV");
+    assert.equal(scene.entities.find((entity) => entity.id === "kinetic")?.label, "K=1.1 eV");
+  }
+}
+for (const source of [
+  "threshold wavelength is 600 nm",
+  "threshold λ = 600 nm",
+  "wavelength threshold is 600 nm",
+  "incident wavelength is 400 nm and incident wavelength is 500 nm",
+]) {
+  const match = detectArchetype(`Photoelectric emission: ${source}; work function is 2 eV.`, { plannerArchetype: "photoelectric" })!;
+  assert.equal(match.slots.lambda, undefined, "threshold-only or conflicting incident wavelengths do not ground photon energy");
+  const scene = generated("photoelectric", match.slots, match.sources)!;
+  assert.equal(scene.entities.find((entity) => entity.id === "E_top")?.label, "hν");
+  assert.equal(scene.entities.find((entity) => entity.id === "kinetic")?.label, "K");
+}
+const repeatedWavelength = detectArchetype("Photoelectric emission: wavelength is 400 nm; incident wavelength is 0.4 μm; work function is 2 eV.", { plannerArchetype: "photoelectric" })!;
+assert.equal(repeatedWavelength.slots.lambda, 400, "consistent duplicate source values are unambiguous");
 console.log("archetype source-value gates passed");
