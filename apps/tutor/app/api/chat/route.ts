@@ -693,6 +693,12 @@ async function handlePlannerRequest({
     const transport = await fetchPlannerCompletion({
       url: llm.url,
       apiKey,
+      // Azure scenes are non-streaming. Keep their initial 30s candidate
+      // response window intact instead of canceling at 25s to retry late.
+      // The existing request/client signals still bound setup and both attempts.
+      attemptTimeoutMs: llm.provider === "azure" && semanticSceneV2 && !diagramExamplePicker
+        ? Math.min(30_000, deadlineMs)
+        : undefined,
       body,
       fetchImpl: (input, init) => {
         finalAttemptStartedAt = Date.now();
