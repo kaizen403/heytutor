@@ -224,6 +224,7 @@ for (const [input, expected] of [
   ["60 km/hr, 60 kmph और 60 km/hour", "sixty kilometers per hour, sixty kilometers per hour और sixty kilometers per hour"],
   ["1 km/h, 1km/hr, one kmph और 1 km/hour", "one kilometer per hour, one kilometer per hour, one kilometer per hour और one kilometer per hour"],
   ["21 km/h, 0.1 km/hr और twenty one kmph", "twenty one kilometers per hour, zero point one kilometers per hour और twenty one kilometers per hour"],
+  ["velocity one km/h, one hundred and one kmph और one lakh one km/hr", "velocity one kilometer per hour, one hundred and one kilometers per hour और one lakh one kilometers per hour"],
   ["km/hourglass, xkmph, km/hr_value, km/h²", "km/hourglass, xkmph, km/hr_value, km/h²"],
   ["km/H, H, h, xkm/h, km/h_value", "km/H, H, h, xkm/h, km/h_value"],
 ] as const) {

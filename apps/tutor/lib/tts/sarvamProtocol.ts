@@ -35,7 +35,7 @@ export function sarvamSpeechText(text: string): string {
       // A standalone "one" may already come from mathToSpeech. Do not
       // singularize the final word of "twenty one" or "point one".
       const singular = quantity?.[1] === "one"
-        ? !/\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\w+teen|\w+ty|hundred|thousand|million|billion|point|and)[\s-]*$/i.test(before.slice(0, quantity.index))
+        ? !/\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|billion|lakh|crore|point|and)[\s-]*$/i.test(before.slice(0, quantity.index))
         : quantity ? Number(quantity[1]!.replace(/,/g, "")) === 1 : false;
       return `${singular ? "kilometer" : "kilometers"} per hour`;
     })
