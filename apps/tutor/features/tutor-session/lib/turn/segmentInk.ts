@@ -32,6 +32,7 @@ import { waitUntilDrawClock } from "@/lib/replay/replayAudio";
 import { resolveCommandInkBudgetMs } from "../../types";
 import type { ExecuteCommandOptions } from "../../hooks/turn/types";
 import { orderCommandsBySpokenAnchor } from "./segmentPlanning";
+import { pointThroughExplanation } from "./explanationPointing";
 
 /**
  * How one sentence's ink is paced against its voice.
@@ -473,6 +474,7 @@ export async function drawSegmentInk(input: {
         },
         ...input.commandOptions(command),
         inkPace: pace,
+        ...(command.type === "WRITE" && !input.verifiedDiagramIntro ? { explanationClock: clock } : {}),
       });
       if (isTextCommand) {
         textCommandIndex++;
@@ -556,6 +558,10 @@ export async function drawSegmentInk(input: {
         : 0;
 
     if (startDelayMs > 0 && (cueStartMs !== null || speechWindow)) {
+      if (!input.verifiedDiagramIntro) {
+        await pointThroughExplanation({ clock, execute: input.execute, isCancelled, beforeWriteMs: cueStartMs ?? commandStartMs });
+        if (isCancelled()) return;
+      }
       await waitUntilDrawClock(clock.getAudioPositionMs, cueStartMs ?? commandStartMs, {
         shouldCancel: isCancelled,
         getPlaybackRate: clock.getPlaybackRate,
@@ -682,5 +688,8 @@ export async function drawSegmentInk(input: {
     if (isTextCommand) {
       textCommandIndex++;
     }
+  }
+  if (!input.verifiedDiagramIntro) {
+    await pointThroughExplanation({ clock, execute: input.execute, isCancelled });
   }
 }

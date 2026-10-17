@@ -150,7 +150,7 @@ async function run(name: string, beat: Beat, control?: "cancel" | "pause") {
     }
     assert(settled, `${name}: actual consumers join within a bounded clock`); if (failure) throw failure;
     assert(!simultaneousPens, `${name}: FOCUS and WRITE never race one pen`);
-    const started = events.filter((e) => e.kind === "start");
+    const started = events.filter((e) => e.kind === "start" && !e.options?.explanationPointing);
     if (control === "cancel") {
       assert(!started.some((e) => e.type === "WRITE"), "cancelled focus may not dispatch later work");
       assert(!annotations.some(annotation => annotation.turnCancelledAtDispatch), "turn cancellation cannot finish transient paths as deadline catch-up");

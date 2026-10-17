@@ -10,7 +10,7 @@ import { getMockCodeLessonPlan } from "@heytutor/tutor-core";
 import { getSegmentCommands, parseStoredSegmentCommands, serializeSegmentCommands, verifiedDiagramCommandToDrawCommand, type DrawCommand } from "@heytutor/drawing";
 import type { StoredTurn } from "../../lib/boards/boardsClient";
 import { boardContinuationArtifacts } from "../../lib/boards/boardContinuation";
-import { lecturePageCacheKey } from "../../lib/lecture-export/canExportLectureMp4";
+import { lecturePageCacheKey, LECTURE_PAGE_CACHE_REVISION } from "../../lib/lecture-export/canExportLectureMp4";
 import { resolveDsaFrames } from "../../features/tutor-session/lib/code-lesson/dsaFrames";
 import { storedCodeLessonPlan } from "../../lib/code-lesson/persistedCodeLesson";
 import { mountTestWhiteboard, unmountTestWhiteboard } from "../../../../packages/whiteboard/scripts/whiteboardTestHarness";
@@ -229,7 +229,9 @@ async function cacheUpgradePrunesPreviousRevisions(): Promise<void> {
   const file = process.env.DSA_EXPORT_CACHE_SOURCE ?? path.join(app, "lib/lecture-export/lectureExportCache.ts");
   const cacheModule = { exports: {} as typeof import("../../lib/lecture-export/lectureExportCache") };
   const value = { blob: new Blob(["retained current export"]), mimeType: "video/mp4", extension: "mp4", noVoice: true, missingAudioCues: 0 };
-  const keys = ["page@1.25@video6", "page@1.25@video7", "page@1.25@video7.webm", "page@1.25@video8", "page@1.25@video8.webm", "page@1.25@video9", "unrelated"];
+  const revision = Number(LECTURE_PAGE_CACHE_REVISION.slice("video".length));
+  const keys = [`page@1.25@video${revision - 2}`, `page@1.25@video${revision - 1}`, `page@1.25@video${revision - 1}.webm`,
+    `page@1.25@video${revision}`, `page@1.25@video${revision}.webm`, `page@1.25@video${revision + 1}`, "unrelated"];
   const rows = new Map(keys.map(key => [key, value]));
   let openedVersion: number | undefined;
   let finishUpgrade: (() => void) | undefined;
@@ -269,10 +271,10 @@ async function cacheUpgradePrunesPreviousRevisions(): Promise<void> {
     return requireApp(name);
   } });
   new vm.Script(ts.transpileModule(readFileSync(file, "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText).runInContext(context);
-  const current = await cacheModule.exports.getCachedLectureExport("page@1.25@video8");
-  assert.equal(openedVersion, 8, "the actual IndexedDB cache upgrades past truncated video7 files");
+  const current = await cacheModule.exports.getCachedLectureExport(`page@1.25@video${revision}`);
+  assert.equal(openedVersion, revision, "the actual IndexedDB cache upgrades past earlier export revisions");
   assert.equal(current?.blob, value.blob, "the current valid cached file remains usable");
-  assert.deepEqual([...rows.keys()], keys.slice(3), "the actual cache cursor deletes only older video6/video7 blobs, retaining current, future and unrelated keys");
+  assert.deepEqual([...rows.keys()], keys.slice(3), "the actual cache cursor deletes only older export blobs, retaining current, future and unrelated keys");
 }
 
 async function main() {
