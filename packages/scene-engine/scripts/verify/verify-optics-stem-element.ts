@@ -143,8 +143,12 @@ for (const [question, expected] of ELEMENT_WORDINGS) check(`element wording ${qu
 // 4. Each veto has a case only it catches (main detects every one as a lens or mirror figure).
 check("mirror image of a figure, no mirror named", leaves("Draw the mirror image of triangle ABC in the y-axis."));
 check("mirror image of a figure with a mirror law hint", leaves("Draw the mirror image of triangle ABC in the y-axis.", ["mirror-image-reflection"]));
-// Greptile (c3ab6741e): a named geometry point such as C(1, 2) or F (3, 4) is not a focus position.
+// Greptile (c3ab6741e): a named geometry point such as C(1, 2) or F (3, 4) is not a focus position. PR #189 delta
+// review: a function, a vector or a focal chord is not a focal length or an image distance.
 for (const question of [
+  "If f = 2x + 3, find the mirror image of the graph of f in the y-axis.",
+  "Find the mirror image of the vector v = 2i + 3j in the line y = x.",
+  "The mirror image of the end of the focal chord of y^2 = 4x in the line y = x is (a, b). Find a + b.",
   "A triangle has a vertex at C(1, 2). Draw its mirror image in the y-axis.",
   "The quadrilateral has corners at A(0, 0), B(4, 0) and C(4, 3) and a vertex at F (3, 4). Draw its mirror image in the x-axis.",
 ]) {
@@ -216,6 +220,18 @@ const MIRROR_IMAGE_WITH_MIRROR_FACTS = [
   "Describe the mirror image of an object placed between F and the pole.",
   "Find the mirror image of a point source placed in front of a mirror.",
   "A candle stands in front of a mirror. Describe its mirror image.",
+  // PR #189 delta review: an object placed at a named point of a mirror, and a bare "a mirror" with such a position.
+  "Where is the mirror image of an object kept at 2F of a mirror?",
+  "Describe the mirror image formed when the object is at the focus of a mirror.",
+  "Is the mirror image real or virtual when the object is between the focus and the mirror?",
+  "Explain the mirror image formed for an object placed beyond C.",
+  // One fact each, so removing any single fact from OPTICS_FACT turns this gate red.
+  "Where does the mirror image form relative to the pole?",
+  "What is the magnification of the mirror image?",
+  "Draw a ray diagram for the mirror image.",
+  "Describe the mirror image for a position between F and C.",
+  "Find the radius of curvature from the mirror image.",
+  "Where is the centre of curvature for this mirror image?",
 ];
 for (const question of MIRROR_IMAGE_WITH_MIRROR_FACTS) {
   check(`mirror image with mirror facts ${question.slice(0, 60)}`, keeps(question, "spherical_mirror"));

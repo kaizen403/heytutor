@@ -76,7 +76,7 @@ function objectDistanceFromStem(stem: string): number | null {
  * an object between F and C, an object distance ("the object is at 30 cm") or
  * u, v or f set to a number. "Real" is not one ("let a, b be real numbers").
  */
-const OPTICS_FACT = /\b(?:focal|radius of curvature|pole|principal axis|magnif\w*|cent(?:re|er) of curvature|ray diagram|between F and C)\b|\b[uvf]\s*=\s*[-+−]?\s*\d|\bobjects?\b[^.?!\d]{0,40}?\d+(?:\.\d+)?\s*(?:cm|mm|m)\b|\b(?:beyond|at)\s+(?:the\s+)?(?:2F|F|C)(?![A-Za-z0-9′']|\s*\()|\b(?:objects?|sources?|candles?|pins?)\b[^.?!]{0,60}?\b(?:in\s+front\s+of|before|behind)\s+(?:the|a|an)\s+mirrors?\b/i;
+const OPTICS_FACT = /\b(?:focal(?![\s-]*chords?\b)|radius of curvature|pole|principal axis|magnif\w*|cent(?:re|er) of curvature|ray diagram|between F and C|in front of (?:an?|the) mirror)\b|\b[uvf]\s*=\s*[-+−]?\s*\d+(?:\.\d+)?(?:\s*(?:cm|mm|m)\b|(?![\s\d.]*[a-z(^]))|\b(?:objects?|sources?)\b[^.?!\d]{0,40}?\d+(?:\.\d+)?\s*(?:cm|mm|m)\b|\b(?:objects?|sources?)\b[^.?!]{0,40}?\b(?:at|beyond|between|near|inside|within)\s+(?:the\s+)?(?:2F|F|C|P|focus|pole|infinity)\b|\bobjects?\s+(?:2F|F|C)\s+(?:par|pe)\b/i;
 
 /** A line equation: `4x + 7y + 13 = 0`, `x+y=1`, `y = x`. */
 const LINE_EQUATION = String.raw`[-+−(\d\s.]*[xy]\b[\s\dxy+\-−*/().]*=\s*[-+−]?\s*[\dxy(]`;
