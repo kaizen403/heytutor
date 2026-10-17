@@ -87,6 +87,7 @@ export interface Options {
   model: DiagramEvalModel;
   /** Evaluation-only end-to-end scene planning budget. */
   scenePlannerLimitMs: 60_000 | 120_000;
+  sceneInitialCandidates: 2 | 3;
   figureOnly: boolean;
   yes: boolean;
   maxUsd: number;
@@ -349,6 +350,14 @@ export function parseOptions(argv: string[]): Options {
   if (parsedScenePlannerLimit !== 60_000 && parsedScenePlannerLimit !== 120_000) {
     throw new Error("--scene-planner-limit-ms must be 60000 or 120000");
   }
+  const sceneInitialCandidatesRaw = flags.get("scene-initial-candidates");
+  if (sceneInitialCandidatesRaw !== undefined && evalFiles.length === 0) {
+    throw new Error("--scene-initial-candidates is evaluation-only");
+  }
+  const sceneInitialCandidates = sceneInitialCandidatesRaw === undefined ? 2 : Number(sceneInitialCandidatesRaw);
+  if (sceneInitialCandidates !== 2 && sceneInitialCandidates !== 3) {
+    throw new Error("--scene-initial-candidates must be 2 or 3");
+  }
   const maxUsdRaw = flags.get("max-usd");
   const spendMode = flags.get("spend-mode") ?? "conservative";
   if (spendMode !== "conservative" && spendMode !== "response_usage") throw new Error("--spend-mode must be conservative or response_usage");
@@ -407,6 +416,7 @@ export function parseOptions(argv: string[]): Options {
     arm,
     model,
     scenePlannerLimitMs: parsedScenePlannerLimit,
+    sceneInitialCandidates,
     figureOnly: flags.has("figure-only") ? flags.get("figure-only") !== "false" : evalFiles.length > 0,
     yes: flags.get("yes") === "true",
     maxUsd,
@@ -765,7 +775,7 @@ async function main(): Promise<void> {
       ? loadAskFile(resolve(options.ask))
       : loadProbes(repoRoot, options);
   const preflightEstimateUsd = evaluationRows
-    ? estimateEvaluationCostUsd(probes.length, options.arm, options.model)
+    ? estimateEvaluationCostUsd(probes.length, options.arm, options.model, process.env, options.sceneInitialCandidates)
     : null;
   assertUniqueArtifactIds(probes);
   const replayText = options.visualNeedReplay ? readFileSync(resolve(options.visualNeedReplay), "utf8") : null;
@@ -790,6 +800,8 @@ async function main(): Promise<void> {
       priority: serverConfig.planningSpeed?.priority === true },
     figureSelectionPolicy: PRODUCTION_SCENE_SELECTION_VERSION,
     figureOnly: options.figureOnly, scenePlannerLimitMs: options.scenePlannerLimitMs,
+    // Keep the default wire/resume identity unchanged; absent means two lanes.
+    ...(options.sceneInitialCandidates === 3 ? { sceneInitialCandidates: 3 } : {}),
     familiarity: options.familiarity, narrationLanguage: options.narrationLanguage,
     exampleLibraryFingerprint: labSampleFingerprint(diagramExamples),
     sceneDeclinePolicy: options.sceneDeclinePolicy, exampleExclusionFingerprint,
@@ -1055,6 +1067,7 @@ async function main(): Promise<void> {
           figureOnly: options.figureOnly,
           fastMode: evaluationRunFastMode(Boolean(evaluationRows), options.model),
           scenePlannerDeadlineMs: evaluationRows ? options.scenePlannerLimitMs : undefined,
+          sceneInitialCandidates: options.sceneInitialCandidates,
           subject: parseDiagramSubject(evaluationById.get(probe.id)?.subject),
           productionStrictSubjects: options.productionStrictSubjects,
           sceneDeclinePolicy: options.sceneDeclinePolicy,

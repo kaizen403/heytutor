@@ -82,6 +82,14 @@ check("identical execution settings can reuse a saved row", () => {
   );
 });
 
+check("a three-candidate row cannot resume as the default two-candidate experiment", () => {
+  const thirdConfig = { ...saved[0].executionConfig, sceneInitialCandidates: 3 };
+  const thirdSaved = [{ ...saved[0], executionConfig: thirdConfig }];
+  assert.deepEqual(selectResumeProbes(probes, thirdSaved, "current", provider, thirdConfig), []);
+  assert.throws(() => selectResumeProbes(probes, thirdSaved, "current", provider, saved[0].executionConfig), /incompatible|execution/i);
+  assert.throws(() => selectResumeProbes(probes, saved, "current", provider, thirdConfig), /incompatible|execution/i);
+});
+
 check("checkpoint-only spend cannot be overwritten or ignored", () => {
   assert.throws(() => assertLabOutputReusable(true, 0, false), /paid|resume/i);
   assert.throws(() => assertLabOutputReusable(false, 1, true), /checkpoint/i);

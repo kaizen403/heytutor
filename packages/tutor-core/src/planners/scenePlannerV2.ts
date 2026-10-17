@@ -352,10 +352,13 @@ export async function planSceneDocumentWithRepair<T>(
     holdValidationUntil?: Promise<boolean>;
     maxConcurrentRequests?: number;
     requestBudget?: { remaining: number };
+    /** Evaluation may race the existing third strategy; live callers keep two. */
+    initialCandidates?: 2 | 3;
   },
 ): Promise<ScenePlanWithRepairResult<T> | null> {
   const startedAt = Date.now();
-  const { holdValidationUntil, maxConcurrentRequests, requestBudget, ...plannerOptions } = options;
+  const { holdValidationUntil, maxConcurrentRequests, requestBudget,
+    initialCandidates = INITIAL_SCENE_CANDIDATES, ...plannerOptions } = options;
   const maxInFlight = maxConcurrentRequests ?? Number.POSITIVE_INFINITY;
   const budgetLeft = () => requestBudget?.remaining ?? Number.POSITIVE_INFINITY;
   const timeoutMs = plannerOptions.timeoutMs ?? SCENE_PLANNER_TIMEOUT_MS;
@@ -365,7 +368,7 @@ export async function planSceneDocumentWithRepair<T>(
     "Start from the exact quantities and invariants, then synthesize a minimal construction graph whose outputs satisfy them without duplicate geometry.",
     "Construct the proof obligations first, then add only the geometry needed to satisfy them; add compact annotations last.",
     "Use the fewest deterministic operators possible, audit every reference and sign, and omit all optional helpers or decorative ink.",
-  ].slice(0, INITIAL_SCENE_CANDIDATES);
+  ].slice(0, initialCandidates);
   const repairStrategies = [
     "Apply the smallest coherent correction that resolves every error while preserving valid geometry.",
     "Rebuild the failing construction subgraph from first principles; reuse valid entities but remove duplicate or weakly justified geometry.",

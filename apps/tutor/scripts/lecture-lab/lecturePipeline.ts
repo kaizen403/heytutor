@@ -261,6 +261,8 @@ export interface RunLectureOptions {
   figureOnly?: boolean;
   /** Evaluation-only override; live turns keep SCENE_PLANNER_DEADLINE_MS. */
   scenePlannerDeadlineMs?: number;
+  /** Evaluation-only initial lane count; production/default remains two. */
+  sceneInitialCandidates?: 2 | 3;
   /** Uses the same subject vocabulary as the live semantic planner. */
   subject?: DiagramSubject;
   productionStrictSubjects?: readonly DiagramSubject[] | null;
@@ -635,6 +637,7 @@ export async function runLecture(
             holdValidationUntil: sceneRun.holdValidationUntil,
             maxConcurrentRequests: sceneRun.maxConcurrentRequests,
             requestBudget: sceneRun.requestBudget,
+            initialCandidates: options.sceneInitialCandidates,
             fastMode,
             traceId,
             onRequestOutcome: (outcome) => run.diagram.plannerCallOutcomes?.push(outcome),

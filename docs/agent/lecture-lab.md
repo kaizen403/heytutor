@@ -177,6 +177,15 @@ resident for one hour instead of expiring during slow planner calls; unset and
 production defaults are unchanged. Warm the app, chat and authenticated lab
 config routes before paid calls. Never rebuild packages during a paid round.
 
+For an evaluation-only third initial scene candidate, pass
+`--scene-initial-candidates 3` (default `2`). It races the already-defined third
+strategy; effort, deadlines, request/concurrency budgets, validators and the
+best-valid selector are unchanged. The existing first-valid grace still applies:
+this does not wait for all three responses. Only `3` adds a resume-bound
+`executionConfig.sceneInitialCandidates` field; an absent field means `2`.
+Live callers do not opt in. The rough historical preflight includes the extra
+call; per-request hard-cap reservations still use the actual prompt/output cap.
+
 Output per round: `runs/*.json` (the full record), `transcripts/*.md` (readable
 lesson plus findings), `summary.json` (scores and finding counts), and, for
 diagram evaluations, `gallery.html` plus PNGs under `frames/`. `summarize.ts`

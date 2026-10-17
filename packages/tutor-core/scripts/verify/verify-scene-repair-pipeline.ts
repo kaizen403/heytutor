@@ -13,6 +13,7 @@ import {
 
 type Call = {
   index: number;
+  requestBody: string;
   atMs: number;
   phase: string;
   lane: string;
@@ -78,6 +79,7 @@ function harness(script: (call: Call) => Reply) {
     const seedMatch = prompt.match(/PREVIOUS STRUCTURE\n.*?"tag":"([^"]+)"/);
     const call: Call = {
       index: calls.length,
+      requestBody: String(init?.body),
       atMs: now,
       phase: headers.get("x-scene-planner-phase") ?? "",
       lane: headers.get("x-scene-planner-lane") ?? "",
@@ -142,6 +144,77 @@ async function scenario(name: string, run: () => Promise<void>) {
 }
 
 try {
+  await scenario("an opt-in third initial candidate uses the existing best-valid selector", async () => {
+    const calls = harness((call) => ({ atMs: 1_000 + call.index * 100,
+      doc: { ...doc(`initial-${call.index}`, 0), score: call.index === 2 ? 0 : 2 } }));
+    const result = await settle(planSceneDocumentWithRepair("q", (candidate) => ({
+      ...validate(candidate), qualityScore: Number(candidate.score),
+    }), { ...options(), initialCandidates: 3, maxConcurrentRequests: 3 }));
+    assert.equal(calls.length, 3, "three initial calls, no repair after a valid candidate");
+    assert(calls.every((call) => call.phase === "plan" && call.deadlineMs === 30_000));
+    assert.equal(result.value?.response.document.tag, "initial-2");
+    assert.equal(result.value?.candidates.filter((candidate) => candidate.selected).length, 1);
+    assert(result.atMs <= 1_750, "the existing first-valid grace is not extended");
+  });
+
+  await scenario("default and explicit two preserve the initial request wire", async () => {
+    const script = (call: Call): Reply => ({ atMs: 1_000, doc: doc(`initial-${call.index}`, 0) });
+    const defaults = harness(script);
+    await settle(planSceneDocumentWithRepair("q", validate, options()));
+    assert.equal(defaults.length, 2);
+    now = 0; timers.clear();
+    const explicit = harness(script);
+    await settle(planSceneDocumentWithRepair("q", validate, { ...options(), initialCandidates: 2 }));
+    assert.deepEqual(explicit.map((call) => call.requestBody), defaults.map((call) => call.requestBody));
+    now = 0; timers.clear();
+    const third = harness(script);
+    await settle(planSceneDocumentWithRepair("q", validate, { ...options(), initialCandidates: 3 }));
+    assert.equal(third.length, 3);
+    assert.deepEqual(third.slice(0, 2).map((call) => call.requestBody), defaults.map((call) => call.requestBody));
+  });
+
+  await scenario("a third lane cannot extend grace, deadline, concurrency or shared budget", async () => {
+    const grace = harness((call) => call.index === 0 ? { atMs: 1_000, doc: doc("valid", 0) } : "hang");
+    const first = await settle(planSceneDocumentWithRepair("q", validate, { ...options(), initialCandidates: 3 }));
+    assert.equal(first.atMs, 1_750);
+    assert.equal(grace.length, 3);
+    assert(grace.slice(1).every((call) => call.abortedAtMs === 1_750));
+    now = 0; timers.clear();
+    const deadline = harness(() => "hang");
+    const timed = await settle(planSceneDocumentWithRepair("q", validate, { ...options(1_000), initialCandidates: 3 }));
+    assert.equal(timed.atMs, 1_000); assert.equal(timed.value, null);
+    assert.equal(deadline.length, 3);
+    assert(deadline.every((call) => call.aborted && call.deadlineMs === 1_000));
+    for (const cap of [{ maxConcurrentRequests: 2 }, { requestBudget: { remaining: 2 } }]) {
+      now = 0; timers.clear();
+      const bounded = harness((call) => ({ atMs: 1_000, doc: doc(`valid-${call.index}`, 0) }));
+      await settle(planSceneDocumentWithRepair("q", validate, { ...options(), initialCandidates: 3, ...cap }));
+      assert.equal(bounded.length, 2, "the opt-in does not raise existing admission limits");
+      if (cap.requestBudget) assert.equal(cap.requestBudget.remaining, 0);
+    }
+  });
+
+  await scenario("three candidates do not bypass validation or the caller's refusal", async () => {
+    const budget = { remaining: 8 };
+    const invalid = harness((call) => ({ atMs: call.atMs + 1_000, doc: doc(`bad-${call.index}`, 2) }));
+    const result = await settle(planSceneDocumentWithRepair("q", validate, {
+      ...options(), initialCandidates: 3, maxConcurrentRequests: 3, requestBudget: budget,
+    }));
+    assert.equal(result.value?.validation.valid, false);
+    assert.equal(result.value?.repairRounds, 2);
+    assert.equal(invalid.filter((call) => call.phase === "plan").length, 3);
+    assert.equal(invalid.filter((call) => call.phase === "repair").length, 4);
+    assert.equal(budget.remaining, 1, "same shared eight-call ceiling, no raised allowance");
+    now = 0; timers.clear();
+    const held = harness(() => ({ atMs: 1_000, doc: doc("held", 0) }));
+    let validations = 0;
+    const refused = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 1_500));
+    const denied = await settle(planSceneDocumentWithRepair("q", (candidate) => {
+      validations += 1; return validate(candidate);
+    }, { ...options(), initialCandidates: 3, holdValidationUntil: refused }));
+    assert.equal(held.length, 3); assert.equal(validations, 0); assert.equal(denied.value, null);
+  });
+
   await scenario("an invalid candidate is repaired while the other is still pending", async () => {
     const calls = harness((call) => {
       if (call.phase === "plan") {

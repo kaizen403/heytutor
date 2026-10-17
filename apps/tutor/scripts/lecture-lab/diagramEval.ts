@@ -303,12 +303,15 @@ export function sampleDiagramEvalRows(
  * from Part 11's standard-K3 usage: roughly four planner calls at 1,000-1,600
  * input and 330-360 output tokens per call. Example arms retain the measured
  * larger prompt allowance. The run record stores actual provider usage.
+ * A third initial lane adds one call at that historical profile's upper end;
+ * this is still a rough preflight, not the per-dispatch hard-cap reservation.
  */
 export function estimateEvaluationCostUsd(
   rowCount: number,
   arm: DiagramEvalArm,
   model: DiagramEvalModel = "configured",
   env: Record<string, string | undefined> = process.env,
+  initialCandidates: 2 | 3 = 2,
 ): number {
   if (model === "fast") {
     throw new Error("evaluation cost estimates require the configured provider");
@@ -319,7 +322,8 @@ export function estimateEvaluationCostUsd(
       ? { input: 5_800, output: 1_450 }
       : { input: 11_500, output: 2_000 };
   const planner = calculateLlmCostDetails(
-    { input: rowCount * standardProfile.input, output: rowCount * standardProfile.output },
+    { input: rowCount * (standardProfile.input + (initialCandidates === 3 ? 1_600 : 0)),
+      output: rowCount * (standardProfile.output + (initialCandidates === 3 ? 360 : 0)) },
     { model: resolveFireworksModel({ fastMode: false, env }) },
   ).total ?? 0;
   const picker = evaluationUsesExamples(arm)

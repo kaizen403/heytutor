@@ -93,6 +93,12 @@ assert.equal(strictStandardOptions.arm, "planner_examples_strict");
 assert.equal(strictStandardOptions.model, "standard");
 assert.equal(strictStandardOptions.scenePlannerLimitMs, 120_000);
 assert.equal(strictStandardOptions.maxUsd, 20);
+assert.equal(strictStandardOptions.sceneInitialCandidates, 2, "live-matching default stays two");
+assert.equal(parseLectureLabOptions(["--eval", "sample.jsonl", "--max-usd", "1", "--scene-initial-candidates", "3"]).sceneInitialCandidates, 3);
+assert.throws(() => parseLectureLabOptions(["--max-usd", "1", "--scene-initial-candidates", "3"]), /evaluation-only/);
+for (const value of ["0", "1", "4", "3junk", "2.5", "NaN"]) {
+  assert.throws(() => parseLectureLabOptions(["--eval", "sample.jsonl", "--max-usd", "1", "--scene-initial-candidates", value]), /scene-initial-candidates/);
+}
 const resumeOptions = parseLectureLabOptions(["--eval", "sample.jsonl", "--resume", "--resume-extra-usd", "2.720665", "--max-usd", "65"]);
 assert.equal(resumeOptions.resume, true);
 assert.equal(resumeOptions.resumeExtraUsd, 2.720665);
@@ -684,6 +690,10 @@ const pickerVerification = (async () => {
   assert.equal(azureRequest.temperature, undefined);
   assert.equal(azurePicked.record.estimatedCostUsd, 0.00205);
   assert.equal(estimateEvaluationCostUsd(419, "planner_examples_strict", "configured", azureEnv), 23.2964);
+  const twoLaneEstimate = estimateForProvider(1, "planner_examples_strict", "configured", azureEnv, 2);
+  const threeLaneEstimate = estimateForProvider(1, "planner_examples_strict", "configured", azureEnv, 3);
+  assert.ok(Math.abs(threeLaneEstimate - twoLaneEstimate - 0.0068) < 1e-9,
+    "third-lane preflight adds one historical upper-profile 1600 input/360 output call, not zero cost");
   let retryCalls = 0;
   const retried = await pickDiagramExamples(exemplars, catalogue, {
     question: "Show a resistor circuit.",
