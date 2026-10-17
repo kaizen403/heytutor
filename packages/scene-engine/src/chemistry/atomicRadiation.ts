@@ -8,7 +8,7 @@ import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQ
 import type { SceneDocument } from "../types";
 import { deriveBohrOrbit } from "../physics/bohrOrbitAuthority";
 import { deriveBohrTransition } from "../physics/bohrTransitionAuthority";
-import { multiplePhotoelectricSurfaces } from "../physics/photoelectricSurfaces";
+import { multiplePhotoelectricSurfaces, restoredPhotoelectricInputsValid } from "../physics/photoelectricSurfaces";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
 
 const ORBITAL_FAMILY = "chem_orbital" as const;
@@ -118,6 +118,7 @@ function buildPhotoelectric(question: string, stem: string): SceneDocument | nul
   if (multiplePhotoelectricSurfaces(question)) return null;
   const phi = workFunctionEv(stem);
   const energy = photonEnergyEv(stem);
+  if (!restoredPhotoelectricInputsValid(question,phi,energy)) return null;
   if (phi === null || energy === null) return null;
   const above = energy + 1e-9 >= phi;
   const kinetic = above ? energy - phi : null;

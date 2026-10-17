@@ -46,3 +46,43 @@ supported short same-sodium positive and sodium/copper negative remain gated.
 
 No paid provider calls, merges into main, production changes or native student
 coverage claim are part of this source repair.
+
+## Label and collector-role follow-up (18 October)
+
+A local material-plus-surface label (sodium plate A) is one proved sample;
+separate A/B samples and reused labels with conflicting materials still decline.
+Collector roles are proved by fully consumed source arguments and predicates:
+electron receivers are passive, while photon recipients need their own unique
+threshold. Named, definite, indefinite and pronominal references remain distinct;
+an indefinite collector cannot inherit Collector A's work function. Coordinated
+predicates retain one subject, and every whole-word `it` clause is audited. A
+collector with its own stated work function and incident photons remains valid.
+
+The newly restored contexts must also have strict, agreeing source work-function
+and photon quantities matching the values the chemistry or physics caller will
+draw. Missing, damaged, conflicting or stale inputs cannot expose a loose legacy
+parser or the physics defaults. Existing numeric parser bodies and the shared
+strict reader are unchanged by this follow-up.
+
+A separate family-owned admission check prevents a bare collector threshold
+energy from becoming a reaction-coordinate fallback. Threshold-only inputs need
+a reaction/reactant/product owner; independent activation-energy, barrier and
+catalyst cues, and supported reaction threshold profiles are preserved.
+
+Source gates: the original 173 checks and complete positive outcomes pass
+unchanged; the additive label/role gate passes 599 required checks. Seventeen
+explicit desired-positive diagnostics retain their original positive oracles and
+raw failures (including inherited agreeing-repeat gaps and an unproved passive
+collector context); they are not counted as correct declines. Independent review
+passes 60 fresh and 90 previous five-route checks and preserves 60 complete
+historical positive documents byte-for-byte. Engine typechecking and changed-file
+lint pass. The new gate is registered in both engine verify aggregates.
+
+Historical failed source freezes are preserved, including the four valid
+sole-collector regressions, the indefinite-target wildcard and the final
+object-pronoun omission. The final source review and raw RED/GREEN evidence are
+in `.context/chem/coverage95/pr181-label-role-review-v1/` and
+`.context/chem/coverage95/pr181-role-proof-independent-qa-v3/`. This entry describes
+offline source, normal compile and actual generator checks. Built-package,
+integration, full sweeps and recorded replay checks remain pending for the final
+merged head. No accepted topic or measured student-board coverage changes.

@@ -37,6 +37,14 @@ const PROFILE_EXPLICIT = /reaction\s+coordinate|energy\s+profile|potential\s+ene
 
 const DRAW_CUE = /\b(?:draw|sketch|plot|show|represent|illustrate|depict)\b|\bdiagram\b|\bprofile\b|\bgraph\b|\bcurve\b/;
 
+/** An unqualified threshold is not itself a reaction-coordinate model. */
+function thresholdHasReactionOwner(stem: string): boolean {
+  return PROFILE_REACTANT_CUE.test(stem) || PROFILE_PRODUCT_CUE.test(stem)
+    || /\bthreshold\s+energy\s+(?:of|for)\s+(?:(?:the|a|an|forward|reverse|backward)\s+)*reaction\b/.test(stem)
+    || /\b(?:for|in)\s+(?:(?:the|a|an|forward|reverse|backward)\s+)*reaction\s*[,;:]?\s*(?:the\s+)?threshold\s+energy\b/.test(stem)
+    || /\breaction\s+(?:has|with)\s+(?:(?:a|the)\s+)?threshold\s+energy\b/.test(stem);
+}
+
 function classifyThermoStem(question: string): ThermoKind | null {
   const stem = chemStem(question);
   if (FIGURE_ABSENT.test(stem)) return null;
@@ -71,7 +79,8 @@ function classifyThermoStem(question: string): ThermoKind | null {
   }
   const profileCue =
     PROFILE_EXPLICIT.test(stem) ||
-    /activation\s+energy|energy\s+barrier|threshold\s+energy|catalyst\s+(?:lowers|reduces|decreases|provides)|energy\s+of\s+activation/.test(stem) ||
+    /activation\s+energy|energy\s+barrier|catalyst\s+(?:lowers|reduces|decreases|provides)|energy\s+of\s+activation/.test(stem) ||
+    (PROFILE_THRESHOLD_CUE.test(stem) && thresholdHasReactionOwner(stem)) ||
     (/transition\s+state|activated\s+complex/.test(stem) && /energy|diagram|profile|activation|reaction\s+coordinate/.test(stem)) ||
     (/exothermic|endothermic|evolution\s+of\s+heat|heat\s+is\s+(?:evolved|absorbed)/.test(stem) && /diagram|profile|graph|draw|sketch|plot|curve/.test(stem)) ||
     (/rate\s+determining\s+step|slow\s+step/.test(stem) && /energy|mechanism|reaction\s+coordinate/.test(stem));
