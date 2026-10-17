@@ -175,6 +175,15 @@
  * with an object beyond 2F." with a plan of f = 10 cm only, u 30 with f 10 draws, signed and in
  * magnitude mode, with nothing or f declared, while f 12 fails; under a plan that writes the object
  * distance as x = 30 cm, u 20 fails on its inline objectDistance and u 30 draws.
+ * G33: annotation ink and label leaders are read, not skipped (P12). On the review's figures, extend
+ * on a hand incident ray (D1, the lens; D4, the mirror), on the traced parallel ray (D2) and on both
+ * traced rays of the magnifier (D6, the planner's recorded use), ghost there (D8), and a connect or
+ * circle whose entity writes the labelLeader flag (A4, A5, A7; A6, a flagged segment, is still read
+ * by P11) all stay unproven and never draw, as do a connect whose ink takes the id a label leader
+ * would have and every other annotation that draws on a traced ray (ghost, frame, sense, spin,
+ * hatch, loop, brace, badge, endpoint, equal_tick, parallel_mark). A hand incident ray (D5), a trace,
+ * a polarity mark, the magnifier alone (D7) and the traced mirror with its compiler label leader
+ * still prove and draw.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -2226,7 +2235,100 @@ function named(name: string, run: () => void): void {
   }
 }
 
-for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21", "G22", "G23", "G24", "G25", "G26", "G27", "G28", "G29", "G30", "G31", "G32"]) {
+// ---- G33: annotation ink and label leaders are read, not skipped ----
+{
+  // Beside the traced rays that prove the image (the convex lens of G19, the concave mirror of G1 and
+  // the magnifier of G2), marks drawn in the rays group, and annotations. S is where a ray parallel to
+  // the axis from the object tip meets the element plane.
+  interface Item { c: Construction; kind: string; role: string; provenance?: Record<string, unknown>; helper?: boolean }
+  const annotated = (base: Doc, items: Item[], annotations: Array<Record<string, unknown>> = []): Doc => {
+    const document = structuredClone(base);
+    for (const { c, kind, role, provenance, helper } of items) {
+      document.constructions.push(c);
+      document.entities.push({ ...ent(c.outputs[0]!, kind, role), ...(provenance ? { provenance } : {}) } as Doc["entities"][number]);
+      if (helper) continue;
+      document.requiredEntityIds.push(c.outputs[0]!);
+      document.revealGroups = document.revealGroups.map((group) =>
+        group.id === "rays" ? { ...group, entityIds: [...group.entityIds, c.outputs[0]!] } : group);
+    }
+    document.annotations = [...document.annotations, ...annotations] as Doc["annotations"];
+    return document;
+  };
+  const item = (id: string, operator: string, inputs: Record<string, unknown>, kind: string, role: string, provenance?: Record<string, unknown>): Item =>
+    ({ c: { id: `c_${id}`, operator, inputs, outputs: [id] } as Construction, kind, role, ...(provenance ? { provenance } : {}) });
+  const towardPlane = (plane: string): Item[] => [
+    { ...item("lp2", "perpendicular_through", { through: plane, line: "axis" }, "line", "construction helper"), helper: true },
+    { ...item("S", "project", { point: "ot", line: "lp2" }, "point", "construction helper"), helper: true },
+    item("inc", "segment", { start: "ot", end: "S" }, "segment", "incident ray parallel to the axis"),
+  ];
+  const lens = tallLens(["parallel", "focal", "central"]);
+  const mirror = traced(goodMirror, ["parallel", "central"]);
+  const magnifier = traced(goodLens, ["parallel", "central"]);
+  const leaderFlag = { labelLeader: true };
+  const annotationInk = (kind: string) => new RegExp(`^annotation ann1 \\(${kind}\\) inks an? \\w+ of its own`);
+  const unread = (operator: string) => new RegExp(`^${operator} x inks an? \\w+ the proof does not read`);
+  for (const [name, question, turnPlan, document, reason] of [
+    // D1, D2, D4: extend draws a dashed line on past its target, through the lens or behind the mirror.
+    ["D1: extend on a hand incident ray on the lens", qTall, tallPlan,
+      annotated(lens, towardPlane("O"), [{ id: "ann1", kind: "extend", targetIds: ["inc"] }]), annotationInk("extend")],
+    ["D2: extend on the traced parallel ray on the lens", qTall, tallPlan,
+      annotated(lens, [], [{ id: "ann1", kind: "extend", targetIds: ["tr1"] }]), annotationInk("extend")],
+    ["D4: extend on a hand incident ray on the mirror", qMirror, mirrorPlan,
+      annotated(mirror, towardPlane("P"), [{ id: "ann1", kind: "extend", targetIds: ["inc"] }]), annotationInk("extend")],
+    // D6 and D8: the planner's recorded use on the magnifier (6c1676e09ec2, 1a9a42fb587c).
+    ["D6: extend on both traced rays of the magnifier", qLens, lensPlan,
+      annotated(magnifier, [], [{ id: "ann1", kind: "extend", targetIds: ["tr1", "tr2"] }]), annotationInk("extend")],
+    ["D8: ghost on both traced rays of the magnifier", qLens, lensPlan,
+      annotated(magnifier, [], [{ id: "ann1", kind: "ghost", targetIds: ["tr1", "tr2"] }]), annotationInk("ghost")],
+    // A4, A5, A7: ink whose entity writes the labelLeader flag a leader carries; A6 is still read by P11.
+    ["A4: a connect ot to F2 flagged labelLeader on the lens", qTall, tallPlan,
+      annotated(lens, [item("x", "connect", { start: "ot", end: "F2" }, "polyline", "light ray", leaderFlag)]), unread("connect")],
+    ["A5: a connect ot to F flagged labelLeader on the mirror", qMirror, mirrorPlan,
+      annotated(mirror, [item("x", "connect", { start: "ot", end: "F" }, "polyline", "ray", leaderFlag)]), unread("connect")],
+    ["A6: a segment ot to F2 flagged labelLeader on the lens", qTall, tallPlan,
+      annotated(lens, [item("x", "segment", { start: "ot", end: "F2" }, "segment", "light ray", leaderFlag)]), /^ray x /],
+    ["A7: a circle at F2 flagged labelLeader on the lens", qTall, tallPlan,
+      annotated(lens, [item("x", "circle", { center: "F2", radius: 3 }, "circle", "focal spot", leaderFlag)]), unread("circle")],
+    // A connect named so its ink takes the id a leader of the label on it would have.
+    ["a connect ot to F2 whose ink takes a label leader's id", qTall, tallPlan,
+      annotated(lens, [item("Q_leader", "connect", { start: "ot", end: "F2" }, "polyline", "light ray",
+        { labelLeader: true, annotation: "callout", dashed: true, strokeRole: "construction" })],
+      [{ id: "primitive_Q", kind: "label", targetIds: ["Q_leader"], text: "light ray" }]), /^connect Q_leader inks a polyline the proof does not read/],
+    // Every other annotation kind that draws on a traced ray adds its own geometry.
+    ...["ghost", "frame", "sense", "spin", "hatch", "loop", "brace", "badge", "endpoint", "equal_tick", "parallel_mark"].map((kind) =>
+      [`${kind} on the traced parallel ray on the lens`, qTall, tallPlan,
+        annotated(lens, [], [{ id: "ann1", kind, targetIds: ["tr1"] }]), annotationInk(kind)] as const),
+  ] as const) {
+    expectUnproven("G33", name, question, document, reason);
+    expectNeverPlanner("G33", name, question, turnPlan, document);
+  }
+  // The review's extend inks a line of its own beyond the incident ray.
+  const extended = annotated(lens, towardPlane("O"), [{ id: "ann1", kind: "extend", targetIds: ["inc"] }]);
+  const { result } = compiled(extended);
+  const ink = result.ok && result.renderScene ? result.renderScene.primitives.filter((primitive) => primitive.entityId === "ann1") : [];
+  check("G33", ink.length === 1 && ink[0]!.kind === "line", `the review's extend must ink one line; got ${ink.map((primitive) => primitive.kind).join(", ") || "no ink"}`);
+  // Controls: a hand incident ray, a trace (it retraces read ink), a polarity mark (text) and the
+  // magnifier alone prove and draw; the traced mirror carries a real label leader, which is label ink.
+  const mirrorLeaders = (() => {
+    const { result: mirrorCompile } = compiled(mirror);
+    return mirrorCompile.renderScene?.primitives.filter((primitive) => primitive.id.endsWith("_leader")) ?? [];
+  })();
+  check("G33", mirrorLeaders.length > 0 && mirrorLeaders.every((primitive) => primitive.provenance?.labelLeader === true),
+    `the traced mirror must carry a compiler label leader; got ${mirrorLeaders.map((primitive) => primitive.id).join(", ") || "none"}`);
+  for (const [name, question, turnPlan, document] of [
+    ["D5: a hand incident ray on the lens", qTall, tallPlan, annotated(lens, towardPlane("O"))],
+    ["a trace on the traced parallel ray on the lens", qTall, tallPlan, annotated(lens, [], [{ id: "ann1", kind: "trace", targetIds: ["tr1"] }])],
+    ["a polarity mark on the traced parallel ray on the lens", qTall, tallPlan, annotated(lens, [], [{ id: "ann1", kind: "polarity", targetIds: ["tr1"] }])],
+    ["D7: the traced magnifier", qLens, lensPlan, magnifier],
+    ["the traced concave mirror with its label leader", qMirror, mirrorPlan, mirror],
+  ] as const) {
+    const proof = explainPlannerOpticsProof(question, document);
+    check("G33", proof.proof === "proven", `${name} must be proven; got ${proof.proof}: ${proof.reason}`);
+    expectDrawnAsPlanner("G33", name, question, turnPlan, document);
+  }
+}
+
+for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21", "G22", "G23", "G24", "G25", "G26", "G27", "G28", "G29", "G30", "G31", "G32", "G33"]) {
   console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 }
 for (const [name, failed] of namedCases) console.log(`  ${name}: ${failed ? `FAIL (${failed} checks)` : "pass"}`);

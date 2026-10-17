@@ -722,7 +722,8 @@ export type PlannerOpticsProof = "not_optics" | "proven" | "unproven";
  * element within its drawn half height (P10). Every other drawn light path, a
  * third hand ray, a polyline or polygon and a parallel or perpendicular line
  * included, must be a ray the element forms (P11), and every other mark the
- * compiler inks must be one the proof read (P12). Free-point figures, whose
+ * compiler inks must be one the proof read (P12): annotation ink only as a
+ * trace of read ink, a label leader only as the compiler draws one. Free-point figures, whose
  * ratio assertions are self-declared, fail. A model-writable
  * `source.archetype` label is never read.
  *
@@ -994,13 +995,20 @@ function opticsProofFailure(question: string, match: OpticsStemMatch, document: 
 
 /**
  * P12. The proof reads constructions; the student sees what the compiler inks. So the compiled scene
- * is read back by entity, and every primitive other than a point or a label (a label's leader
- * included) must come from a mark the proof read: the element, the object and image arrows, a traced
- * ray, a light path P7 and P11 hold, or an unbounded line along or square to the axis (the axis, the
- * element plane, a screen). Any other ink (a routed `connect`, a rectangle, a circle, a curve, a
- * symbol, a surface contact, a dimension) is a mark no rule reads, so the figure is unproven.
- * Annotation marks (ids no construction outputs) sit on geometry already read. A figure that does
- * not compile shows nothing to read and is unproven.
+ * is read back, and every primitive must be accounted for, or the figure is unproven:
+ * - a label's text, and its leader only as the compiler draws one (`opticsLabelLeader`): a
+ *   `labelLeader` flag in an entity's provenance is copied onto that entity's ink and proves nothing;
+ * - an annotation's ink only when it is a `trace`, which retraces target ink that is read on its own.
+ *   Every other annotation draws new geometry over the figure (extend runs a line on past its target,
+ *   ghost, drop, frame, sense, spin, hatch, loop, enclose and slope_triangle add their own marks), so
+ *   it leaves the figure unproven;
+ * - a point of a construction (a dot on the figure);
+ * - else ink of a mark the proof read: the element, the object and image arrows, a traced ray, a
+ *   light path P7 and P11 hold, or an unbounded line along or square to the axis (the axis, the
+ *   element plane, a screen).
+ * Any other ink (a routed `connect`, a rectangle, a circle, a curve, a symbol, a surface contact, a
+ * dimension, ink of no construction or annotation) is a mark no rule reads. A figure that does not
+ * compile shows nothing to read and is unproven.
  */
 function opticsUnreadInkFailure(
   document: SceneDocument,
@@ -1020,20 +1028,44 @@ function opticsUnreadInkFailure(
     compiled = null;
   }
   if (!normalized || !compiled?.ok || !compiled.renderScene) return "the figure does not compile, so its ink cannot be read";
-  const constructed = new Set(normalized.constructions.flatMap((construction) => construction.outputs));
-  for (const primitive of compiled.renderScene.primitives) {
-    // A label's leader is placed by the label engine, from its anchor to its text: label ink.
-    if (primitive.kind === "point" || primitive.kind === "label" || primitive.provenance?.labelLeader === true) continue;
+  // Validation keeps annotation ids apart from every entity and construction output (duplicate_id).
+  const annotations = new Map(normalized.annotations.map((annotation) => [annotation.id, annotation]));
+  const primitives = compiled.renderScene.primitives;
+  const seen = new Set<string>();
+  for (const primitive of primitives) {
+    if (seen.has(primitive.id)) return `two marks share the primitive id ${primitive.id}, so a label leader cannot be told apart`;
+    seen.add(primitive.id);
+  }
+  const labels = new Map(primitives.filter((primitive) => primitive.kind === "label").map((primitive) => [primitive.id, primitive]));
+  for (const primitive of primitives) {
+    if (primitive.kind === "label" || opticsLabelLeader(primitive, labels)) continue;
+    const annotation = annotations.get(primitive.entityId);
+    if (annotation) {
+      if (annotation.kind === "trace") continue;
+      return `annotation ${annotation.id} (${annotation.kind}) inks a ${primitive.kind} of its own, geometry the proof does not read`;
+    }
+    if (primitive.kind === "point") continue;
     const construction = producer.get(primitive.entityId);
     // Normalization may add a construction; ink the proof never saw is not read.
-    if (!construction && constructed.has(primitive.entityId)) {
-      return `${primitive.entityId} inks a ${primitive.kind} no construction of the document draws`;
-    }
-    if (!construction || read.has(construction)) continue;
+    if (!construction) return `${primitive.entityId} inks a ${primitive.kind} no construction or annotation of the document draws`;
+    if (read.has(construction)) continue;
     if (OPTICS_LINE_OPERATORS.has(construction.operator) && !opticsLineShowsLight(construction, axis, entities, frame, document)) continue;
     return `${construction.operator} ${primitive.entityId} inks a ${primitive.kind} the proof does not read as the element, an arrow, a traced ray or a light path`;
   }
   return null;
+}
+
+/**
+ * A label leader as the compiler draws one (compiler.ts, label placement): a line or polyline with the
+ * id `${labelId}_leader`, on the entity and in the reveal group of a label it placed with a leader. Its
+ * own provenance flag is not enough, since an entity's provenance is copied onto the entity's ink.
+ * Primitive ids are unique here (checked above), so no mark of the document can take a leader's id.
+ */
+function opticsLabelLeader(primitive: RenderScene["primitives"][number], labels: ReadonlyMap<string, RenderScene["primitives"][number]>): boolean {
+  if ((primitive.kind !== "line" && primitive.kind !== "polyline") || !primitive.id.endsWith("_leader")) return false;
+  const label = labels.get(primitive.id.slice(0, -"_leader".length));
+  return label !== undefined && label.entityId === primitive.entityId && label.groupId === primitive.groupId &&
+    label.provenance?.usesLeader === true && primitive.provenance?.labelLeader === true;
 }
 
 /**
