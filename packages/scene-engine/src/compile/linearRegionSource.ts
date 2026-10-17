@@ -518,7 +518,8 @@ function booleanProgram(
     const label = readLinearSourceLineName(text.slice(0, clause.start));
     if (label) names.push(label);
   }
-  for (let gap of gaps) {
+  for (const [gapIndex, originalGap] of gaps.entries()) {
+    let gap = originalGap;
     for (const name of names) gap = gap.replace(new RegExp(`\\b${name}\\s*:\\s*`, "g"), " ");
     // The article in "and a horizontal line" is not a Boolean variable a.
     // This bounded display instruction cannot hide a mathematical clause.
@@ -539,8 +540,13 @@ function booleanProgram(
       const membership = new RegExp(`\\b(?:[Ww]hich(?:\\s+of)?|[Ww]hether|[Dd]oes|[Dd]o)\\s+(?:points?\\s+)?${labels}(?:\\s*(?:,|and|or)\\s*${labels})*\\s+(?:belongs?|lies?|satisf(?:y|ies)|is|are)\\b`, "g");
       gap = gap.replace(membership, " ");
     }
-    if (/\b(?:and|or|not)\b\s*\(*\s*(?:[+-]?\d|[A-Za-z](?:\b|\s*[+*/-]))/i.test(gap)
-      || /(?:\b[A-Za-z]|\d|\))\s*\)*\s+\b(?:and|or)\b\s*$/i.test(gap))
+    // A pure connective between two scanned operands is complete even when
+    // the preceding operand closes a parenthesized group. The Boolean parser
+    // below still owns balanced parentheses and the complete operator grammar.
+    const completeConnective = gapIndex > 0 && gapIndex < gaps.length - 1
+      && /^\s*(?:\)\s*)*(?:and|or)\s*(?:\(\s*)*$/i.test(gap);
+    if (!completeConnective && (/\b(?:and|or|not)\b\s*\(*\s*(?:[+-]?\d|[A-Za-z](?:\b|\s*[+*/-]))/i.test(gap)
+      || /(?:\b[A-Za-z]|\d|\))\s*\)*\s+\b(?:and|or)\b\s*$/i.test(gap)))
       throw new Error(`Incomplete Boolean mathematical operand in source gap: ${JSON.stringify(gap)}`);
   }
   // Every gap has to be understood, not merely skipped by the affine scanner.
@@ -704,7 +710,7 @@ function inequalityLeaves(program: IntervalExpression): string[] {
   if ("complement" in program) return inequalityLeaves(program.complement);
   return ("union" in program ? program.union : program.intersection).flatMap(inequalityLeaves);
 }
-/** Exact DNF under a small explicit budget; unsupported equivalence defers. */
+/** Exact DNF under a small explicit budget; null is an unfinished proof. */
 function planarBranches(program: IntervalExpression, negate = false): string[][] | null {
   if ("complement" in program) return planarBranches(program.complement, !negate);
   if ("inequality" in program) {
@@ -748,10 +754,13 @@ function planarBooleanAgreement(program: IntervalExpression, proposed: string[],
   if (!source || !outsideSource || !outsideCandidate) return null;
   for (const [left, right] of [[source, outsideCandidate], [[proposed], outsideSource]] as const) {
     for (const a of left) for (const b of right) {
-      // Candidate inputs may be within the native budget while a proof-only
-      // witness adds another row. That is absence of proof, not disagreement.
-      if (a.length + b.length > 16) return null;
-      const solution = solveLinearFigure({ kind: "linear_feasible_region", variables: [variables[0]!, variables[1]!], constraints: [...a, ...b] });
+      // Conjunction is idempotent, including exactly scaled affine rows.
+      // Deduplicate only proved-identical predicates before the native budget;
+      // an unfinished witness search must never authorize a Boolean region.
+      const constraints = [...new Map([...a, ...b].map(expression =>
+        [JSON.stringify(signatures([expression], variables)), expression])).values()];
+      if (constraints.length > 16) return null;
+      const solution = solveLinearFigure({ kind: "linear_feasible_region", variables: [variables[0]!, variables[1]!], constraints });
       if (solution.kind !== "linear_feasible_region") return null;
       if (solution.feasibility.feasible) return false;
     }
@@ -1652,8 +1661,11 @@ export function validateLinearSourceBinding(document: SceneDocument): SceneIssue
           const predicates = planarPredicates(authority.program);
           if (predicates && !same(signatures(predicates, names), signatures(proposed, names)))
             throw new Error("Candidate predicates contradict exact original source boundaries or their Boolean polarity");
-          if (planarBooleanAgreement(authority.program, proposed, names) === false)
-            throw new Error("An exact feasible witness proves the candidate contradicts the original source Boolean region");
+          const agreement = planarBooleanAgreement(authority.program, proposed, names);
+          if (agreement !== true)
+            throw new Error(agreement === false
+              ? "An exact feasible witness proves the candidate contradicts the original source Boolean region"
+              : "Candidate Boolean region requires a completed exact equivalence proof for the complete original source");
           continue;
         }
         const source = authority.source;
