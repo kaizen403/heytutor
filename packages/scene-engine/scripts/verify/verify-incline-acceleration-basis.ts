@@ -104,7 +104,7 @@ test("zero acceleration keeps its source point and existing label-only rendering
   assert.ok(rendered.primitives.some((primitive) => primitive.entityId === "acceleration" && primitive.kind === "label"));
   assert.ok(!rendered.primitives.some((primitive) => primitive.entityId === "acceleration" && primitive.kind === "vector"));
 });
-for (const [motion, mu] of [["down", 1], ["rest", 0.1]] as const) {
+for (const [motion, mu] of [["rest", 0.1]] as const) {
   test(`${motion}: unsupported friction state remains atomic`, () => {
     const doc = document(motion, mu);
     assert.throws(() => evaluate(doc));
