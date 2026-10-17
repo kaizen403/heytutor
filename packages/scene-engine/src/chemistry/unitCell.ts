@@ -20,7 +20,7 @@ import { chemistryPlanBindingsValid, chemistryQuantityCuesValid, chemistryQuanti
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { normalizeChemistryText } from "./formula";
-import { elementBySymbol } from "./elements";
+import { elementByName, elementBySymbol } from "./elements";
 
 export const SOLID_FAMILY = "chem_unit_cell" as const;
 const AVOGADRO = 6.022e23;
@@ -360,7 +360,10 @@ function readFraction(before: string): number | null | "unknown" {
 }
 
 /** Species tokens in reading order: single capitals not in option lists, element symbols with charges, named ions. */
-function speciesIn(fragment: string): Array<{ token: string; index: number; end: number }> | null {
+function speciesIn(
+  fragment: string,
+  source: { question: string; start: number } = { question: fragment, start: 0 },
+): Array<{ token: string; index: number; end: number }> | null {
   const found: Array<{ token: string; index: number; end: number }> = [];
   const single = /(?<![([])\b([A-Z])(?![a-z])(?!\)|\.)(?=\s*(?:atoms?|ions?|is|are|occup|at\b|form|present|,|and\b|\(|\^|\d|$))/g;
   for (const match of fragment.matchAll(single)) {
@@ -374,17 +377,22 @@ function speciesIn(fragment: string): Array<{ token: string; index: number; end:
     const index = match.index ?? 0;
     const original = /^[^\s,;:!?]+/.exec(fragment.slice(index))![0];
     const token = original.endsWith(".") ? original.slice(0, -1) : original;
+    const name = /\b([A-Za-z]+)\s*\($/.exec(fragment.slice(0,index));
+    const alias = name ? elementByName(name[1]!) : null;
+    if (alias && alias.symbol !== match[1]) return null;
     const enclosed = fragment[index - 1] === "(" && token.endsWith(")")
-      && (index === 1 || /[\s,.;:!?]/.test(fragment[index - 2] ?? ""));
+      && (index === 1 || /[\s,.;:!?]/.test(fragment[index - 2] ?? "") || alias !== null);
     const rawCharge = token.slice(match[1]!.length, enclosed ? -1 : undefined);
     if (!elementBySymbol(match[1]!)) return null;
     if (!enclosed && /[0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉^()[\]{}_+⁺⁻−–—-]/.test(fragment[(match.index ?? 0) - 1] ?? "")) return null;
     const parsedCharge = /^(?:\^?\(([1-9]\d*)?([+-])\)|\^?([1-9]\d*)?([+-]))$/.exec(normalizeChemistryText(rawCharge));
-    if (!parsedCharge) return null;
+    // A complete outer wrapper may contain a neutral element. Any nonempty
+    // suffix still needs the complete charge grammar; it cannot become neutral.
+    if (!parsedCharge && !(enclosed && rawCharge === "")) return null;
     const end = index + token.length;
     if (!/^\s*(?:atoms?|ions?|is|are|occup|at\b|form|present|,|and\b)/.test(fragment.slice(end))) continue;
-    const magnitude = parsedCharge[1] ?? parsedCharge[3] ?? "";
-    const sign = parsedCharge[2] ?? parsedCharge[4] ?? "";
+    const magnitude = parsedCharge?.[1] ?? parsedCharge?.[3] ?? "";
+    const sign = parsedCharge?.[2] ?? parsedCharge?.[4] ?? "";
     const charge = sign ? (magnitude ? `^(${magnitude}${sign})` : `^${sign}`) : "";
     found.push({ token: `${match[1]}${charge}`, index, end });
   }
@@ -395,6 +403,20 @@ function speciesIn(fragment: string): Array<{ token: string; index: number; end:
   for (const [pattern, token] of SPECIES_WORDS) {
     const match = pattern.exec(fragment);
     if (match) found.push({ token, index: match.index, end: match.index + match[0].length });
+  }
+  // A species-owned opening must close in the original question, even when
+  // occupancy reading splits a parenthetical sentence into several fragments.
+  // Unrelated prose/algebra parentheses do not enter this token-local check.
+  for (const species of found) {
+    const opening = source.start + species.index - 1;
+    if (source.question[opening] !== "(") continue;
+    let depth = 0;
+    let closed = false;
+    for (let index = opening; index < source.question.length; index++) {
+      if (source.question[index] === "(") depth++;
+      if (source.question[index] === ")" && --depth === 0) { closed = true; break; }
+    }
+    if (!closed) return null;
   }
   return found.sort((a, b) => a.index - b.index);
 }
@@ -449,9 +471,12 @@ function readOccupancy(question: string): Occupant[] | null {
     if (!occupant) { occupant = { species, sites: {} }; occupants.push(occupant); }
     return occupant;
   };
+  let sentenceEnd = 0;
   for (const sentence of sentences) {
+    const sentenceStart = text.indexOf(sentence, sentenceEnd);
+    sentenceEnd = sentenceStart + sentence.length;
     if (/\b(?:removed|missing|absent|vacant|taken out|replace)/i.test(sentence)) continue;
-    const species = speciesIn(sentence);
+    const species = speciesIn(sentence, { question, start: sentenceStart });
     if (!species) return null;
     const phrases = sitePhrases(sentence);
     if (phrases.length === 0) { if (species.length > 0) carried = species.at(-1)!.token; continue; }
