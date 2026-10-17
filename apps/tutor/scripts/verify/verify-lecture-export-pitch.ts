@@ -90,12 +90,12 @@ async function produce(container: LectureContainer) {
     addVideoTrack() {} addAudioTrack() {} async start() {}
     async finalize() { finalized++; } async cancel() {}
   }
-  const module = { exports: {} as { exportLectureMp4: (options: unknown) => Promise<LectureExportResult> } };
+  const exportModule = { exports: {} as { exportLectureMp4: (options: unknown) => Promise<LectureExportResult> } };
   const source = readFileSync(path.join(app, "lib/lecture-export/exportLectureMp4.ts"), "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: {
     target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS,
   } }).outputText;
-  const context = vm.createContext({ module, exports: module.exports, require: (name: string) => {
+  const context = vm.createContext({ module: exportModule, exports: exportModule.exports, require: (name: string) => {
     if (name === "mediabunny") return { AudioBufferSource, CanvasSource, BufferTarget, Output,
       Quality: class {}, Mp4OutputFormat: class {}, WebMOutputFormat: class {} };
     if (name.startsWith("@/")) return requireApp(path.join(app, name.slice(2)));
@@ -113,7 +113,7 @@ async function produce(container: LectureContainer) {
   const profile: LectureExportProfile = container === "mp4"
     ? { container, videoCodec: "avc", audioCodec: "aac", mimeType: "video/mp4", extension: "mp4" }
     : { container, videoCodec: "vp9", audioCodec: "opus", mimeType: "video/webm", extension: "webm" };
-  const result = await module.exports.exportLectureMp4({
+  const result = await exportModule.exports.exportLectureMp4({
     turn, clock, profile, shouldCancel: () => false, cueBytes: () => new Uint8Array(wav),
     executeCommand: async () => { throw new Error("the pitch fixture contains no drawing commands"); },
     whiteboard: {
