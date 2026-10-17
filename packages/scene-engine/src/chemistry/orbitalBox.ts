@@ -14,6 +14,7 @@
 import type { SceneDocument } from "../types";
 import { buildAtomicRadiationScene, isAtomicRadiationStem } from "./atomicRadiation";
 import { buildHydrogenicRadialScene, isHydrogenicRadialStem } from "./hydrogenicRadial";
+import { buildHybridOverlapScene, readHybridCenters } from "./hybridOverlap";
 import { ChemScene, chemStem, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { electronConfiguration, type Subshell } from "./electronConfiguration";
 import { ELEMENTS, elementBySymbol, type ElementRecord } from "./elements";
@@ -41,6 +42,7 @@ const BRACKET_COMPLEX = /\[(?!(?:he|ne|ar|kr|xe|rn)\])[a-z]{1,2}\s*[(\d]/;
 const LIGAND_TOKENS = /\((?:nh3|h2o|cn|en|co|ox|c2o4|ncs|scn|no2|py|bipy|phen|edta|nh 3|h 2 o)\)/;
 
 export function isOrbitalStem(question: string): boolean {
+  if (readHybridCenters(question)) return true;
   if (isAtomicRadiationStem(question) || isHydrogenicRadialStem(question)) return true;
   const stem = chemStem(question);
   if (COMPLEX_VETO.test(stem) || complexTokens(question).length > 0) return false;
@@ -777,6 +779,8 @@ function impossibleQuantumTuple(stem: string): boolean {
 
 /** The figure, or null when the stem does not ground it. */
 export function buildOrbitalScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
+  const hybridOverlap = buildHybridOverlapScene(question);
+  if (hybridOverlap) return hybridOverlap;
   if (isAtomicRadiationStem(question)) return buildAtomicRadiationScene(question, quantities, schematic);
   if (isHydrogenicRadialStem(question)) return buildHydrogenicRadialScene(question, quantities, schematic);
   if (impossibleQuantumTuple(chemStem(question))) return null;

@@ -1,0 +1,17 @@
+{
+  "description": "Synthetic agent-authored question and captured planner output; no student data.",
+  "question": "A projectile is launched from a 45 m high cliff at 20 m/s, at 30 degrees above horizontal. Ignore air resistance and use g = 10 m/s^2. Draw the trajectory and find the time to hit the ground, horizontal distance from the cliff foot, and horizontal and vertical impact velocity components.",
+  "turnPlan": {
+    "givens": [],
+    "lawIds": [],
+    "derived": [],
+    "question": "A projectile is launched from a 45 m high cliff at 20 m/s, at 30 degrees above horizontal. Ignore air resistance and use g = 10 m/s^2. Draw the trajectory and find the time to hit the ground, horizontal distance from the cliff foot, and horizontal and vertical impact velocity components.",
+    "unknowns": [],
+    "assumptions": [
+      "Turn-plan model was unavailable; visual requirement was classified conservatively."
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [],
+    "visualRequirement": "required"
+  }
+}

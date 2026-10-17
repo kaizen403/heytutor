@@ -103,7 +103,7 @@ const LEWIS_CUES: readonly RegExp[] = [
   /resonan(?:ce|t|ting)\s+(?:struct|form|hybrid)|resonating struct|canonical (?:struct|form)|contributing struct/,
   /bond[- ]pair/, /octet/,
   /kossel|electrovalen|electron transfer|ionic bond/,
-  /orbital overlap|head-?on|sideways overlap|end-?on overlap|axial overlap|lateral overlap/,
+  /orbital overlap|head[- ]?on\s+(?:orbital\s+)?overlap|sideways overlap|end-?on overlap|axial overlap|lateral overlap/,
   /hydrogen bond/,
   /metallic bond|electron sea/,
   /bond length|bond energy|bond enthalpy/,

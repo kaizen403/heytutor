@@ -14,6 +14,7 @@
  * or teaches text-only), and (c) the cue tables are exercised as a test
  * oracle by the archetype picture gate rather than grown per question.
  */
+import { projectileLaunchHeight, projectileLaunchSpeed, projectileGravity } from "../physics/projectileLaunchSource";
 import { riverCrossingSpeeds } from "../physics/riverCrossingSource";
 import { riverBoatVariant } from "../synthesize/familyClassification";
 import { levelRelationSource } from "../physics/levelRelationSource";
@@ -259,12 +260,18 @@ const CUE_SETS: readonly CueSet[] = [
       /\b(?:accelerat(?:es|ing)|decelerat\w*|retard(?:s|ing|ation)|brak(?:es|ing))\b/i,
     ],
     extract: (stem, plan, bag) => {
-      setSlot(bag, "u", planNumber(plan, ["u", "v0", "u0", "speed", "initialspeed", "initialvelocity", "velocity", "v"]), "plan");
-      setSlot(bag, "u", speedsOf(stem)[0] ?? null, "stem");
+      const launchSpeed = projectileLaunchSpeed(stem);
+      setSlot(bag, "u", launchSpeed, "stem");
+      if (launchSpeed === null) setSlot(bag, "u", planNumber(plan, ["u", "v0", "u0", "speed", "initialspeed", "initialvelocity", "velocity", "v"]), "plan");
       setSlot(bag, "theta", planNumber(plan, ["theta", "angle", "alpha", "angleofprojection"]), "plan");
       setSlot(bag, "theta", /horizontally/i.test(stem) ? 0 : firstAngle(stem), "stem");
-      setSlot(bag, "h0", planNumber(plan, ["h", "h0", "height", "towerheight"]), "plan");
-      setSlot(bag, "h0", numberAfter(stem, /(?:tower|cliff|building|hill)(?: of height| which is| that is| of)?|from a height of|at a height of|height of (?:a |the )?(?:tower|cliff|building)/, UNIT.metre), "stem");
+      const sourceGravity = projectileGravity(stem);
+      setSlot(bag, "g", sourceGravity, "stem");
+      if (sourceGravity === null) setSlot(bag, "g", planNumber(plan, ["g", "gravity", "gravitationalacceleration"]), "plan");
+      const launchHeight = projectileLaunchHeight(stem);
+      setSlot(bag, "h0", launchHeight, "stem");
+      // A plan value is never permission to replace an independently bound source length.
+      if (launchHeight === null) setSlot(bag, "h0", planNumber(plan, ["h0", "towerheight", "launchheight"]), "plan");
     },
   },
   {

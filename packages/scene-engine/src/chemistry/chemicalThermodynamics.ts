@@ -51,7 +51,7 @@ function claimsFirstLaw(stem: string): boolean {
 }
 
 function claimsHeat(stem: string): boolean {
-  return /heat capacity|molar heat capacity|c_?p|c_?v/.test(stem) && !/rate constant|arrhenius/.test(stem);
+  return /heat capacity|molar heat capacity|\bc_?[pv]\b/.test(stem) && !/rate constant|arrhenius/.test(stem);
 }
 
 function claimsHess(stem: string): boolean {

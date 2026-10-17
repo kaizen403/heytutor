@@ -10,6 +10,7 @@ import type { SpeakSegmentOptions, TTSClient } from "@heytutor/tutor-core";
 import type { TutorSegment } from "@heytutor/drawing";
 import { parseStoredSegmentCommands } from "@heytutor/drawing";
 import type { ExecuteCommandOptions, UseTurnLifecycleParams } from "../../features/tutor-session/hooks/turn/types";
+import { lessonPageRecord, type PausedLessonRequest } from "../../features/tutor-session/lib/turn/doubtTurn";
 import { LiveTurnSaveRegistry } from "../../features/tutor-session/lib/turn/liveTurnSave";
 
 const app = fileURLToPath(new URL("../../", import.meta.url));
@@ -23,13 +24,14 @@ const narration = "Force equals mass times acceleration.";
 const segment: TutorSegment = { narration, command: {
   type: "WRITE", text: "F = ma", params: [90, 142], charPosition: 0, narrationBefore: narration,
 } };
-type Outcome = "stall" | "reject" | "success" | "pending";
+type Outcome = "stall" | "reject" | "success" | "pending" | "blocked";
 type Job = { options: SpeakSegmentOptions; resolve: () => void; reject: (error: Error) => void; outcome: Outcome };
 
 /** Controlled render/clock/media ports; real runner, ink planner, queue and save registry. */
 type PlaybackFixture = { narration: string; rate: number; durationMs: number; timings?: boolean };
 function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw = false, playback?: PlaybackFixture) {
-  let now = 1_000, sequence = 0, mint = 0, browserAttempts = 0;
+  let now = 1_000, sequence = 0, mint = 0, browserAttempts = 0, abandonCalls = 0;
+  let startup: UseTurnLifecycleParams["onSpeechStartupStatus"] extends ((status: infer S) => void) | undefined ? S : never = null;
   const timers = new Map<number, { at: number; run: () => void }>();
   const jobs: Job[] = [], drawn: string[] = [], errors: Array<{ message: string; question: string }> = [];
   const telemetry: Array<{ name: string; [key: string]: unknown }> = [];
@@ -73,7 +75,8 @@ function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw
       const outcome = outcomes[jobs.length] ?? "pending";
       jobs.push({ options, resolve, reject, outcome });
       if (!playback || playback.timings !== false) options.onTimings?.(outcome === "pending" ? { ...timings, totalDuration: 60 } : timings);
-      options.onStart?.();
+      if (outcome === "blocked") options.onPlaybackBlocked?.({ reason: "not-allowed", audioContextState: "running" });
+      else options.onStart?.();
       if (outcome === "success" && playback) {
         const finish = () => {
           if (sampleMedia() >= playback.durationMs) { options.onEnd?.(); resolve(); }
@@ -84,7 +87,8 @@ function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw
       else if (outcome === "reject") setTimer(() => reject(new Error("offline primary failed after start")), 200);
     }),
     getPlaybackPositionMs: () => playback && jobs[0]?.outcome === "success" ? sampleMedia() : position, getPlaybackRate: () => rate,
-    peekSegmentTimings: () => playback?.timings === false ? null : timings, prefetchSegment: noop, abandonSpeaking: noop, stop: noop,
+    peekSegmentTimings: () => playback?.timings === false ? null : timings, prefetchSegment: noop, abandonSpeaking: () => { abandonCalls++; }, stop: noop,
+    unlockAudio: noop, resume: () => { const job = jobs.at(-1)!; job.options.onStart?.(); job.options.onPlaybackBlocked?.(null); setTimer(() => { job.options.onEnd?.(); job.resolve(); }, 1000); },
   } as unknown as TTSClient;
   const registry = new LiveTurnSaveRegistry({ transport: {
     checkpoint: async () => { throw new Error("gate forbids persistence transport"); },
@@ -119,7 +123,7 @@ function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw
   };
   const params = {
     sessionId: "offline-started-speech", phase: "speaking", isReplaying: false, boardLoaded: false, enableKeyboardControls: false,
-    whiteboardRef: ref(null), boardPageRef: ref(null), boardShowsStoppedReplayRef: ref(false),
+    whiteboardRef: ref(null), boardPageRef: ref<UseTurnLifecycleParams["boardPageRef"]["current"]>(null), boardShowsStoppedReplayRef: ref(false),
     pendingQuestionRef: ref(null), autoSubmitDoneRef: ref(null), phaseRef: ref("speaking"),
     isPausedRef: ref(false), rewoundRef: ref(false), conversationHistoryRef: ref([]), liveQuestionRef: ref("Explain force."),
     ttsClientRef: ref(tts), ensureTTSClient: () => tts, currentTraceIdRef: ref(null),
@@ -128,10 +132,11 @@ function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw
     segmentChainRef: ref(Promise.resolve()), drawChainRef: ref(Promise.resolve()), collectedSegmentsRef: ref<TutorSegment[]>([]),
     recordedSegmentsRef: ref<UseTurnLifecycleParams["recordedSegmentsRef"]["current"]>([]), narrationSinceEpochRef: ref(""),
     activeVerifiedDiagramRef: ref(null), fbdPhaseMarkedRef: ref(false), fbdPhaseStartedRef: ref(false),
-    segmentPlanStatsRef: ref({}), stopTurnRef: ref(null), replayGenerationRef: ref(0), replayCueRef: ref(null),
+    segmentPlanStatsRef: ref({}), stopTurnRef: ref<UseTurnLifecycleParams["stopTurnRef"]["current"]>(null), replayGenerationRef: ref(0), replayCueRef: ref(null),
     turnStatsRef: ref({ drawMs: 0, ttsChars: 0 }), narrationDensityRef: ref(0),
     turnTelemetryRef: ref({ mark: (name: string, data: Record<string, unknown>) => telemetry.push({ name, ...data }),
-      span: () => ({ end: noop }) }),
+      span: () => ({ end: noop }), meta: noop, durationMs: () => now, flush: async () => {} }),
+    onSpeechStartupStatus: (value: typeof startup) => { startup = value; },
     setPhase: noop, setIsPaused: noop, setNarrationText: noop, setCurrentSegmentText: noop, setInputInteracted: noop,
     setLastError: (error: { message: string; question: string }) => errors.push(error),
     onError: (error: { message: string; question: string }) => telemetry.push({ name: "student-error", ...error }),
@@ -153,8 +158,14 @@ function mount(position: number | null, outcomes: Outcome[] = [], deferFirstDraw
   const runnerHooks = load(runnerPath) as unknown as typeof import("../../features/tutor-session/hooks/turn/useSegmentRunner");
   const controlHooks = load(controlPath) as unknown as typeof import("../../features/tutor-session/hooks/turn/useTurnControl");
   const runner = runnerHooks.useSegmentRunner({ ...params, applyTurnPhase: noop } as unknown as Parameters<typeof runnerHooks.useSegmentRunner>[0]);
-  const control = controlHooks.useTurnControl(params as unknown as UseTurnLifecycleParams, ref(async () => {}));
-  return { params, control, runner, handle, begin, jobs, drawn, errors, telemetry, registry, flush, advance,
+  const resumes: PausedLessonRequest[] = [];
+  const control = controlHooks.useTurnControl(params as unknown as UseTurnLifecycleParams, ref(async (_question, options) => {
+    if (options?.resume) resumes.push(options.resume);
+    options?.onAdmission?.(true);
+  }));
+  params.stopTurnRef.current = control.stopTurn;
+  return { params, control, runner, handle, begin, resumes, jobs, drawn, errors, telemetry, registry, flush, advance,
+    startup: () => startup, abandonCalls: () => abandonCalls,
     now: () => now, browserAttempts: () => browserAttempts,
     setRate: (next: number) => { sampleMedia(); rate = next; },
     setPaused: (paused: boolean) => {
@@ -193,14 +204,11 @@ async function queueFailures(outcomes: Outcome[]) {
   try {
     for (let index = 0; index < outcomes.length; index++) h.control.enqueueSegment(segment, 1);
     await h.advance(h.now() + 35_000); await h.params.segmentChainRef.current;
-    const consecutive = outcomes[0] === "stall" && outcomes[1] === "stall";
-    assert.equal(h.params.cancelRef.current, consecutive, "two consecutive actual started-speech stalls cancel; a success resets failure history");
-    assert.equal(h.errors.length, consecutive ? 1 : 0, "real queue exposes exactly the existing retryable student error after repeated speech failures");
-    if (consecutive) {
-      assert.deepEqual(h.errors[0], { message: "The lesson could not continue playing. Please try again.", question: "Explain force." });
-      assert.equal(h.telemetry.filter(x => x.name === "student-error").length, 1);
-      assert.equal(h.jobs.length, 2, "queued later paragraph cannot start after the repeated-failure stop");
-    }
+    assert.equal(h.params.cancelRef.current, true, "the first terminal failure stops without omitting a beat");
+    assert.equal(h.errors.length, 1, "one resumable student error is shown");
+    assert.match(h.errors[0]!.message, /Continue the lesson/);
+    assert.equal(h.telemetry.filter(x => x.name === "student-error").length, 1);
+    assert.equal(h.jobs.length, 1, "queued later paragraph cannot skip the failed beat");
     assert.equal(h.params.pendingSegmentCountRef.current, 0, "actual queue drains its pending count");
     console.log(`started speech queue ${outcomes.join("/")}: student retry and recovery semantics`);
   } finally { h.close(); }
@@ -226,25 +234,20 @@ async function staleFailure(cancelled: boolean) {
 }
 
 async function lateOldCompletion(outcome: "resolve" | "reject") {
-  const h = mount(120, ["pending", "stall", "stall"]);
+  const h = mount(120, ["pending", "success", "success"]);
   try {
     h.control.enqueueSegment({ narration, command: null }, 1); await h.flush();
-    assert.equal(h.jobs.length, 1, "obsolete narration is still awaiting its transport");
     h.params.turnGenerationRef.current = 2; h.params.segmentChainRef.current = Promise.resolve();
     h.params.pendingSegmentCountRef.current = 0; h.params.collectedSegmentsRef.current = []; h.begin();
     h.control.enqueueSegment(segment, 2);
-    await h.advance(h.now() + 9_000); await h.params.segmentChainRef.current;
-    assert.equal(h.errors.length, 0, "the successor's first stall remains recoverable");
     if (outcome === "resolve") h.jobs[0]!.resolve();
     else h.jobs[0]!.reject(new Error("late obsolete speech rejection"));
-    await h.flush();
+    await h.advance(h.now() + 1500); await h.params.segmentChainRef.current;
     h.control.enqueueSegment(segment, 2);
-    await h.advance(h.now() + 9_000); await h.params.segmentChainRef.current;
-    assert.equal(h.params.cancelRef.current, true, "an obsolete queue completion cannot reset the successor's real first failure before its second stall");
-    assert.equal(h.errors.length, 1);
-    assert.equal(h.errors[0]!.message, "The lesson could not continue playing. Please try again.");
-    assert.equal(h.telemetry.filter(x => x.name === "student-error").length, 1);
-    console.log(`started speech late old ${outcome}: successor failure counter retained`);
+    await h.advance(h.now() + 1500); await h.params.segmentChainRef.current;
+    assert.equal(h.params.cancelRef.current, false, "obsolete completion cannot stop the successor");
+    assert.equal(h.params.recordedSegmentsRef.current.length, 2);
+    assert.equal(h.errors.length, 0); assert.equal(h.abandonCalls(), 0);
   } finally { h.close(); }
 }
 
@@ -265,43 +268,32 @@ async function cancelledRunnerRejection(stale: boolean) {
 }
 
 async function lateOldDrawFailure() {
-  const h = mount(120, ["success", "stall", "stall"], true);
+  const h = mount(120, ["success", "success"], true);
   try {
-    h.control.enqueueSegment(segment, 1); await h.advance(h.now() + 1_500);
-    assert.deepEqual(h.drawn, ["F = ma"]);
+    h.control.enqueueSegment(segment, 1); await h.advance(h.now() + 1500);
     h.params.turnGenerationRef.current = 2; h.params.segmentChainRef.current = Promise.resolve();
     h.params.pendingSegmentCountRef.current = 0; h.params.collectedSegmentsRef.current = []; h.begin();
     h.control.enqueueSegment(segment, 2); await h.flush();
-    h.rejectOldDraw(); await h.flush();
-    assert(!h.telemetry.some(event => event.name === "segment-failed"), "obsolete real draw rejection cannot publish current-turn failure telemetry");
-    await h.advance(h.now() + 9_000); await h.params.segmentChainRef.current;
-    assert.equal(h.params.cancelRef.current, false, "obsolete catch cannot poison the successor's first actual failure");
-    assert.equal(h.errors.length, 0);
-    h.control.enqueueSegment(segment, 2);
-    await h.advance(h.now() + 9_000); await h.params.segmentChainRef.current;
-    assert.equal(h.params.cancelRef.current, true, "two actual owned failures still stop the successor");
-    assert.equal(h.errors.length, 1);
-    console.log("started speech late old draw: no stale counter/error mutation");
+    h.rejectOldDraw(); await h.advance(h.now() + 1500); await h.params.segmentChainRef.current;
+    assert(!h.telemetry.some(event => event.name === "segment-failed"), "obsolete draw cannot publish a current-turn failure");
+    assert.equal(h.params.cancelRef.current, false); assert.equal(h.errors.length, 0);
+    assert.equal(h.params.recordedSegmentsRef.current.length, 1);
+    assert.equal(h.abandonCalls(), 0, "obsolete draw cleanup cannot silence successor speech");
   } finally { h.close(); }
 }
-
 async function newGenerationStartsFresh() {
-  const h = mount(120, ["stall", "stall", "stall"]);
+  const h = mount(120, ["stall", "success"]);
   try {
     h.control.enqueueSegment(segment, 1);
-    await h.advance(h.now() + 9_000); await h.params.segmentChainRef.current;
-    assert.equal(h.errors.length, 0, "the old generation's single failure is recoverable");
-    h.params.turnGenerationRef.current = 2; h.params.segmentChainRef.current = Promise.resolve();
-    h.params.pendingSegmentCountRef.current = 0; h.params.collectedSegmentsRef.current = []; h.begin();
-    h.control.enqueueSegment(segment, 2);
-    await h.advance(h.now() + 9_000); await h.params.segmentChainRef.current;
-    assert.equal(h.params.cancelRef.current, false, "a new turn's first failure cannot inherit the previous turn's failure count");
-    assert.equal(h.errors.length, 0);
-    h.control.enqueueSegment(segment, 2);
-    await h.advance(h.now() + 9_000); await h.params.segmentChainRef.current;
-    assert.equal(h.params.cancelRef.current, true, "the new generation's own second failure still stops and warns");
+    await h.advance(h.now() + 9000); await h.params.segmentChainRef.current;
     assert.equal(h.errors.length, 1);
-    console.log("started speech new generation: first failure recoverable, own second stops");
+    h.params.cancelRef.current = false; h.params.turnActiveRef.current = true;
+    h.params.turnGenerationRef.current++; h.params.segmentChainRef.current = Promise.resolve();
+    h.params.collectedSegmentsRef.current = []; h.begin();
+    h.control.enqueueSegment(segment, h.params.turnGenerationRef.current);
+    await h.advance(h.now() + 1500); await h.params.segmentChainRef.current;
+    assert.equal(h.params.cancelRef.current, false, "new turn cannot inherit previous failure");
+    assert.equal(h.errors.length, 1); assert.equal(h.params.recordedSegmentsRef.current.length, 1);
   } finally { h.close(); }
 }
 
@@ -445,8 +437,94 @@ async function timeoutRateControls() {
   console.log("started speech timeout rates: finite slow budget; default/invalid/faster unchanged");
 }
 
+
+async function deliveredCompletion(outcomes: Outcome[]) {
+  const h = mount(120, outcomes);
+  try {
+    for (let index = 0; index < outcomes.length; index++) h.control.enqueueSegment({ narration, command: null }, 1);
+    await h.advance(h.now() + 35_000); await h.params.segmentChainRef.current;
+    assert.equal(h.params.cancelRef.current, true, "terminal delivery failure stops before a later beat can skip the missing teaching");
+    assert.equal(h.jobs.length, outcomes.indexOf("reject") + 1);
+    assert.equal(h.params.recordedSegmentsRef.current.length, outcomes.indexOf("reject"));
+    const result = await h.handle.complete({ rawResponse: "Generated synthetic lesson response." });
+    assert.equal(result.ok, false, "generated response cannot override a failed delivery");
+    const turn = h.registry.resumeTurns(h.params.sessionId, [])[0];
+    assert.equal(turn?.status, "stopped");
+    assert.equal((turn?.sceneArtifacts as { failureTelemetry?: { code: string } })?.failureTelemetry?.code, "teaching_segment_failed");
+  } finally { h.close(); }
+}
+async function failedBeatResume() {
+  const h = mount(120, ["success", "reject", "success"]);
+  try {
+    h.params.boardPageRef.current = lessonPageRecord(h.params.sessionId, "Explain force.");
+    h.control.enqueueSegment({ narration: "The first synthetic beat is delivered.", command: null }, 1);
+    h.control.enqueueSegment({ narration: "The second synthetic beat still needs delivery.", command: null }, 1);
+    h.control.enqueueSegment({ narration: "The last synthetic beat must wait.", command: null }, 1);
+    await h.advance(h.now() + 10_000); await h.params.segmentChainRef.current;
+    h.control.flushPausedLesson(); await h.flush();
+    assert.equal(h.resumes.length, 1, "terminal narration failure leaves an actual Continue request");
+    assert.equal(h.resumes[0]!.interruptedStep, "The second synthetic beat still needs delivery.", "Continue retains the failed beat, not its delivered predecessor");
+    assert.equal(h.jobs.length, 2); assert.equal(h.params.recordedSegmentsRef.current.length, 1);
+  } finally { h.close(); }
+}
+
+async function emptyDeliveryCannotComplete() {
+  const h = mount(0);
+  try {
+    const result = await h.handle.complete({ rawResponse: "Generated text without a delivered beat." });
+    assert.equal(result.ok, false);
+    assert.equal(h.registry.resumeTurns(h.params.sessionId, [])[0]?.status, "stopped");
+  } finally { h.close(); }
+}
+async function ownedTimeout(stale: boolean) {
+  const h = mount(0, ["pending"], false, { narration, rate: 1.25, durationMs: 2000, timings: false });
+  try {
+    const done = h.runner.runSegment({ narration, command: null }, 0, [], 1);
+    await h.advance(h.now() + 100);
+    if (stale) h.params.turnGenerationRef.current++; else h.params.cancelRef.current = true;
+    await h.advance(h.now() + 60_000); await done;
+    assert.equal(h.abandonCalls(), 0, "obsolete speech watchdog cannot abandon shared successor audio");
+    assert(!h.telemetry.some(event => event.name === "tts-segment-failed"));
+  } finally { h.close(); }
+}
+async function permissionRecovery(cancel = false, pause = false) {
+  const h = mount(120, ["blocked", "success"]);
+  try {
+    h.control.enqueueSegment({ narration, command: null }, 1);
+    h.control.enqueueSegment({ narration, command: null }, 1);
+    const queue = h.params.segmentChainRef.current;
+    await h.advance(h.now() + 30_000);
+    assert.equal(h.browserAttempts(), 0, "permission denial must retain provider bytes, never race a browser fallback");
+    assert.equal(h.params.recordedSegmentsRef.current.length, 0);
+    assert.equal(h.jobs.length, 1, "blocked beat retains its place");
+    const status = h.startup(); assert(status, "Enable audio action remains available after normal startup deadline");
+    if (cancel) {
+      h.control.stopTurn(); await h.advance(h.now() + 60_000); await queue;
+      status.enableAudio();
+      assert.equal(h.jobs.length, 1); assert.equal(h.errors.length, 0);
+      assert(!h.telemetry.some(event => event.name === "tts-segment-failed"));
+      return;
+    }
+    if (pause) { h.setPaused(true); await h.advance(h.now() + 30_000); h.setPaused(false); }
+    status.enableAudio(); await h.advance(h.now() + 3000); await queue;
+    assert.equal(h.params.recordedSegmentsRef.current.length, 2, "gesture recovery delivers SAME beat before next beat");
+    assert.equal(h.errors.length, 0); assert.equal(h.abandonCalls(), 0);
+    void h.handle.complete({ rawResponse: "Fully delivered synthetic lesson." });
+    assert.equal(h.registry.resumeTurns(h.params.sessionId, [])[0]?.status, "complete", "fully recovered permission block is successful");
+  } finally { h.close(); }
+}
+
 async function main() {
   const cases: Array<{ name: string; run: () => Promise<void> }> = [
+    { name: "failed-beat-resume", run: failedBeatResume },
+    { name: "empty-delivery", run: emptyDeliveryCannotComplete },
+    { name: "missing-beat", run: () => deliveredCompletion(["success", "reject", "success"]) },
+    { name: "failed-only-beat", run: () => deliveredCompletion(["reject"]) },
+    { name: "stale-timeout-owned", run: () => ownedTimeout(true) },
+    { name: "cancel-timeout-owned", run: () => ownedTimeout(false) },
+    { name: "permission-recovery", run: () => permissionRecovery() },
+    { name: "permission-cancel", run: () => permissionRecovery(true) },
+    { name: "permission-pause", run: () => permissionRecovery(false, true) },
     { name: "timeout-rate-controls", run: timeoutRateControls },
     { name: "maths-slow-half", run: () => slowMathPlayback(.5) },
     { name: "maths-slow-three-quarter", run: () => slowMathPlayback(.75) },

@@ -38,7 +38,7 @@ function projectile(context: GeneratorContext) {
   const g = num(context, "g", G);
   const vx = u * Math.cos(theta * DEG);
   const vy = u * Math.sin(theta * DEG);
-  if (vx <= 0 || u <= 0) return null;
+  if (vx <= 0 || u <= 0 || g <= 0) return null;
   const height0 = theta === 0 && h0 === 0 ? 20 : h0;
   const flight = (vy + Math.sqrt(vy * vy + 2 * g * height0)) / g;
   const range = vx * flight;
@@ -67,6 +67,13 @@ function projectile(context: GeneratorContext) {
   scene.curve("trajectory", expression, 0, range, "parabolic trajectory", "trajectory", 81);
   scene.point("apex", { x: apexX, y: apexY }, "highest point", "H");
   scene.point("landing", { x: range, y: 0 }, "landing point", "B");
+  // Curve incidence uses the computed coordinates, not four-decimal display
+  // rounding (which can move steep trajectories outside the proof tolerance).
+  for (const [id, x, y] of [["make_O", 0, height0], ["make_apex", apexX, apexY], ["make_landing", range, 0]] as const) {
+    const construction = scene.constructions.find(row => row.id === id)!;
+    construction.inputs.x = x; construction.inputs.y = y;
+  }
+  scene.constructions.find(row => row.id === "make_trajectory")!.inputs.xMax = range;
   const arrow = Math.max(0.22 * range, 0.15 * apexY, 1);
   scene.point("aim", add({ x: 0, y: height0 }, polar(arrow, theta)), "launch direction");
   scene.vector("velocity", "O", { end: "aim" }, "launch velocity", valueLabel(context, "u", "u", "m/s"));

@@ -1,0 +1,388 @@
+{
+  "facts": [
+    {
+      "id": "fSpacing",
+      "kind": "given",
+      "statement": "slit spacing is 0.50 mm",
+      "evidence": {
+        "source": "question",
+        "start": 35,
+        "end": 62,
+        "quote": "the slit spacing is 0.50 mm"
+      }
+    },
+    {
+      "id": "fDistance",
+      "kind": "given",
+      "statement": "screen is 2 m away",
+      "evidence": {
+        "source": "question",
+        "start": 64,
+        "end": 86,
+        "quote": "the screen is 2 m away"
+      }
+    },
+    {
+      "id": "fWavelength",
+      "kind": "given",
+      "statement": "wavelength is 500 nm",
+      "evidence": {
+        "source": "question",
+        "start": 91,
+        "end": 115,
+        "quote": "the wavelength is 500 nm"
+      }
+    },
+    {
+      "id": "fIndex",
+      "kind": "given",
+      "statement": "film refractive index 1.50",
+      "evidence": {
+        "source": "question",
+        "start": 139,
+        "end": 160,
+        "quote": "refractive index 1.50"
+      }
+    },
+    {
+      "id": "fThickness",
+      "kind": "given",
+      "statement": "film thickness 2 micrometres",
+      "evidence": {
+        "source": "question",
+        "start": 165,
+        "end": 188,
+        "quote": "thickness 2 micrometres"
+      }
+    },
+    {
+      "id": "fCover",
+      "kind": "given",
+      "statement": "film covers the upper slit",
+      "evidence": {
+        "source": "question",
+        "start": 189,
+        "end": 210,
+        "quote": "covers the upper slit"
+      }
+    },
+    {
+      "id": "fParaxial",
+      "kind": "assumption",
+      "statement": "use the paraxial approximation",
+      "evidence": {
+        "source": "question",
+        "start": 212,
+        "end": 244,
+        "quote": "Using the paraxial approximation"
+      }
+    },
+    {
+      "id": "fBeta",
+      "kind": "requested",
+      "statement": "find the fringe spacing",
+      "evidence": {
+        "source": "question",
+        "start": 265,
+        "end": 288,
+        "quote": "find the fringe spacing"
+      }
+    },
+    {
+      "id": "fPhase",
+      "kind": "requested",
+      "statement": "find added phase difference",
+      "evidence": {
+        "source": "question",
+        "start": 290,
+        "end": 312,
+        "quote": "added phase difference"
+      }
+    },
+    {
+      "id": "fShift",
+      "kind": "requested",
+      "statement": "find displacement of zero-order fringe",
+      "evidence": {
+        "source": "question",
+        "start": 317,
+        "end": 362,
+        "quote": "displacement of the tracked zero-order fringe"
+      }
+    },
+    {
+      "id": "fCenter",
+      "kind": "requested",
+      "statement": "is original screen center bright or dark",
+      "evidence": {
+        "source": "question",
+        "start": 364,
+        "end": 408,
+        "quote": "Is the original screen center bright or dark"
+      }
+    },
+    {
+      "id": "fPattern",
+      "kind": "requested",
+      "statement": "does unlabeled intensity pattern differ",
+      "evidence": {
+        "source": "question",
+        "start": 414,
+        "end": 475,
+        "quote": "does the final unlabeled intensity pattern differ from before"
+      }
+    }
+  ],
+  "entities": [
+    {
+      "id": "upperSlit",
+      "kind": "component",
+      "label": "upper slit",
+      "evidenceFactIds": [
+        "fCover"
+      ]
+    },
+    {
+      "id": "lowerSlit",
+      "kind": "component",
+      "label": "lower slit",
+      "evidenceFactIds": [
+        "fSpacing"
+      ]
+    },
+    {
+      "id": "film",
+      "kind": "component",
+      "label": "transparent film",
+      "evidenceFactIds": [
+        "fIndex",
+        "fThickness",
+        "fCover"
+      ]
+    },
+    {
+      "id": "screen",
+      "kind": "line",
+      "label": "observation screen",
+      "evidenceFactIds": [
+        "fDistance"
+      ]
+    },
+    {
+      "id": "axis",
+      "kind": "line",
+      "label": "central axis",
+      "evidenceFactIds": [
+        "fDistance"
+      ]
+    }
+  ],
+  "expressions": [
+    {
+      "id": "eBeta",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+        "fWavelength",
+        "fDistance",
+        "fSpacing",
+        "fBeta"
+      ],
+      "root": {
+        "kind": "binary",
+        "operator": "/",
+        "left": {
+          "kind": "binary",
+          "operator": "*",
+          "left": {
+            "kind": "number",
+            "value": 5e-07
+          },
+          "right": {
+            "kind": "number",
+            "value": 2
+          }
+        },
+        "right": {
+          "kind": "number",
+          "value": 0.0005
+        }
+      }
+    },
+    {
+      "id": "ePhase",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+        "fIndex",
+        "fThickness",
+        "fWavelength",
+        "fPhase"
+      ],
+      "root": {
+        "kind": "binary",
+        "operator": "/",
+        "left": {
+          "kind": "binary",
+          "operator": "*",
+          "left": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "constant",
+                "name": "pi"
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "-",
+              "left": {
+                "kind": "number",
+                "value": 1.5
+              },
+              "right": {
+                "kind": "number",
+                "value": 1
+              }
+            }
+          },
+          "right": {
+            "kind": "number",
+            "value": 2e-06
+          }
+        },
+        "right": {
+          "kind": "number",
+          "value": 5e-07
+        }
+      }
+    },
+    {
+      "id": "eShift",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+        "fDistance",
+        "fIndex",
+        "fThickness",
+        "fSpacing",
+        "fShift"
+      ],
+      "root": {
+        "kind": "binary",
+        "operator": "/",
+        "left": {
+          "kind": "binary",
+          "operator": "*",
+          "left": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+              "kind": "number",
+              "value": 2
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "-",
+              "left": {
+                "kind": "number",
+                "value": 1.5
+              },
+              "right": {
+                "kind": "number",
+                "value": 1
+              }
+            }
+          },
+          "right": {
+            "kind": "number",
+            "value": 2e-06
+          }
+        },
+        "right": {
+          "kind": "number",
+          "value": 0.0005
+        }
+      }
+    }
+  ],
+  "constraints": [
+    {
+      "id": "cCover",
+      "kind": "incident",
+      "entityIds": [
+        "film",
+        "upperSlit"
+      ],
+      "evidenceFactIds": [
+        "fCover"
+      ]
+    }
+  ],
+  "representationIntents": [
+    {
+      "id": "iSetup",
+      "kind": "apparatus",
+      "entityIds": [
+        "upperSlit",
+        "lowerSlit",
+        "film",
+        "screen",
+        "axis"
+      ],
+      "evidenceFactIds": [
+        "fSpacing",
+        "fDistance",
+        "fCover"
+      ]
+    }
+  ],
+  "solveRequests": [
+    {
+      "id": "sBeta",
+      "kind": "evaluate",
+      "expressionId": "eBeta",
+      "resultBinding": {
+        "turnPlanQuantityId": "beta",
+        "symbol": "β",
+        "unit": "m",
+        "evidenceFactIds": [
+          "fBeta"
+        ]
+      }
+    },
+    {
+      "id": "sPhase",
+      "kind": "evaluate",
+      "expressionId": "ePhase",
+      "resultBinding": {
+        "turnPlanQuantityId": "dphi",
+        "symbol": "Δφ",
+        "unit": "rad",
+        "evidenceFactIds": [
+          "fPhase"
+        ]
+      }
+    },
+    {
+      "id": "sShift",
+      "kind": "evaluate",
+      "expressionId": "eShift",
+      "resultBinding": {
+        "turnPlanQuantityId": "y0",
+        "symbol": "y₀",
+        "unit": "m",
+        "evidenceFactIds": [
+          "fShift"
+        ]
+      }
+    }
+  ],
+  "schemaVersion": "problem-ir/v1",
+  "id": "problem",
+  "question": "In a Young double-slit experiment, the slit spacing is 0.50 mm, the screen is 2 m away and the wavelength is 500 nm. A transparent film of refractive index 1.50 and thickness 2 micrometres covers the upper slit. Using the paraxial approximation, draw the setup and find the fringe spacing, added phase difference and displacement of the tracked zero-order fringe. Is the original screen center bright or dark, and does the final unlabeled intensity pattern differ from before?"
+}

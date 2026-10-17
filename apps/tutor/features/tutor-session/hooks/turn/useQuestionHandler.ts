@@ -1440,6 +1440,7 @@ export function useQuestionHandler(
           solverAuthorityBlocked, requiredRetryEnabled: REQUIRED_DIAGRAM_RETRY_ENABLED,
           policy: {
             preferPlanner: diagramStrategyDecision.strategy === "strict",
+            allowVerifiedSourceRecovery: true,
             allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(diagramStrategyDecision, source)),
           },
         }));

@@ -16,6 +16,7 @@ import type { ExecuteCommandOptions, UseTurnLifecycleParams } from "../../featur
 import type { RecordedSegmentPayload } from "../../lib/boards/boardsClient";
 import type { BoardLayoutState } from "../../features/tutor-session/types";
 import { TEXT_LAYOUT } from "../../features/tutor-session/constants";
+import { speechRecoveryStatus } from "../../features/tutor-session/lib/turn/speechRecoveryUi";
 import { createIntroLayoutCheckpoint } from "../../features/tutor-session/lib/board/introLayoutCheckpoint";
 
 /**
@@ -36,7 +37,8 @@ const loaded = new Map<string, Record<string, unknown>>();
 function loadHook(file: string): Record<string, unknown> {
   const cached = loaded.get(file);
   if (cached) return cached;
-  const compiled = ts.transpileModule(readFileSync(file, "utf8"), {
+  const source = file.endsWith("useSegmentRunner.ts") ? process.env.DIAGRAM_AUDIO_RUNNER_SOURCE ?? file : file;
+  const compiled = ts.transpileModule(readFileSync(source, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const hookModule = { exports: {} };
@@ -50,6 +52,9 @@ function loadHook(file: string): Record<string, unknown> {
   loaded.set(file, hookModule.exports);
   return hookModule.exports;
 }
+const selectRecovery = process.env.DIAGRAM_AUDIO_RECOVERY_SOURCE
+  ? loadHook(process.env.DIAGRAM_AUDIO_RECOVERY_SOURCE).speechRecoveryStatus as typeof speechRecoveryStatus
+  : speechRecoveryStatus;
 const runTurnControl = loadHook(path.join(hookApp, "features/tutor-session/hooks/turn/useTurnControl.ts")).useTurnControl as
   typeof import("../../features/tutor-session/hooks/turn/useTurnControl").useTurnControl;
 const scene = synthesizeArchetypeScene({ question: "A 2 kg block on a 30 degree incline with friction coefficient 0.2. Find its acceleration." });
@@ -65,7 +70,7 @@ const lesson: TutorSegment = { narration: "The net force equals mass times accel
   type: "WRITE", text: "F = ma", params: [80, 150], charPosition: 0, narrationBefore: "The net force equals mass times acceleration.",
 } };
 
-type Mode = "intro-command-join" | "later-same-narration-new-turn" | "real-later-same-layout-new-turn" | "third-stop" | "third-no-audio" | "third-failure" | "third-timeout" | "third-draw-failure" | "real-later-stop" | "real-later-new-turn" | "intro-focus-rejected" | "later-new-turn" | "later-doubt" | "real-label-restart" | "real-browser-restart" | "real-provider-restart" | "browser-restart" | "provider-restart" | "later-timeout" | "later-failure" | "later-no-audio" | "later-stop" | "later-draw-failure" | "near" | "late-grace" | "late-grace-paused" | "late-grace-stop" | "ready-no-audio" | "grace-expiry-race" | "grace-expiry-handoff" | "retry-grace-expiry-race" | "retry-late-grace" | "retry-late-grace-paused" | "restart" | "reject-pause" | "never" | "stop" | "stop-error" | "stale" | "retry-fails" | "retry-hangs";
+type Mode = "real-teaching-permission" | "teaching-permission" | "teaching-permission-cancel" | "intro-command-join" | "later-same-narration-new-turn" | "real-later-same-layout-new-turn" | "third-stop" | "third-no-audio" | "third-failure" | "third-timeout" | "third-draw-failure" | "real-later-stop" | "real-later-new-turn" | "intro-focus-rejected" | "later-new-turn" | "later-doubt" | "real-label-restart" | "real-browser-restart" | "real-provider-restart" | "browser-restart" | "provider-restart" | "later-timeout" | "later-failure" | "later-no-audio" | "later-stop" | "later-draw-failure" | "near" | "late-grace" | "late-grace-paused" | "late-grace-stop" | "ready-no-audio" | "grace-expiry-race" | "grace-expiry-handoff" | "retry-grace-expiry-race" | "retry-late-grace" | "retry-late-grace-paused" | "restart" | "reject-pause" | "never" | "stop" | "stop-error" | "stale" | "retry-fails" | "retry-hangs";
 type Event = { atMs: number; name: string; [key: string]: unknown };
 async function scenario(selectedMode: Mode) {
   const realCanvas = selectedMode.startsWith("real-");
@@ -73,7 +78,7 @@ async function scenario(selectedMode: Mode) {
   const failureBeat = selectedMode.startsWith("third-") ? 2 : 1;
   const mode = (selectedMode.includes("same-narration-new-turn") || selectedMode.includes("same-layout-new-turn") ? "later-new-turn" : deferredLabel ? "provider-restart" : realCanvas ? selectedMode.slice(5) : selectedMode.startsWith("third-") ? selectedMode.replace("third-", "later-") : selectedMode) as Mode;
   const restartCase = mode === "browser-restart" || mode === "provider-restart";
-  const directProvider = ["later-new-turn", "later-doubt", "later-timeout", "later-failure", "later-no-audio", "later-stop", "later-draw-failure", "near", "late-grace", "late-grace-paused", "late-grace-stop", "ready-no-audio", "grace-expiry-race", "grace-expiry-handoff"].includes(mode);
+  const directProvider = ["teaching-permission", "teaching-permission-cancel", "later-new-turn", "later-doubt", "later-timeout", "later-failure", "later-no-audio", "later-stop", "later-draw-failure", "near", "late-grace", "late-grace-paused", "late-grace-stop", "ready-no-audio", "grace-expiry-race", "grace-expiry-handoff"].includes(mode);
   const lateRetry = mode === "retry-late-grace" || mode === "retry-late-grace-paused" || mode === "retry-grace-expiry-race";
   const expiryRace = ["grace-expiry-race", "grace-expiry-handoff", "retry-grace-expiry-race"].includes(mode);
   const successful = ["browser-restart", "provider-restart", "near", "late-grace", "late-grace-paused", "retry-late-grace", "retry-late-grace-paused", "restart", "reject-pause", "grace-expiry-handoff"].includes(mode);
@@ -185,6 +190,7 @@ async function scenario(selectedMode: Mode) {
   let providerPausedMs = 0;
   const providerActiveMs = () => (providerPausedAt ?? now) - providerPausedMs;
   let providerCalls = 0;
+  let startup: Parameters<NonNullable<UseTurnLifecycleParams["onSpeechStartupStatus"]>>[0] = null;
   const samplePosition = () => current?.startedAt === null || !current ? null :
     current.position + (providerPaused ? 0 : now - current.startedAt) * 1.25;
   const provider = {
@@ -197,6 +203,11 @@ async function scenario(selectedMode: Mode) {
         const duration = mathToSpeech(text).length * 86;
         const job: Job = { text, options, resolve, startedAt: null, position: 0, duration, dead: false, reject };
         jobs.push(job); current = job;
+        if (mode.startsWith("teaching-permission") && providerCalls === intros.length + 1) {
+          options.onAudioReady?.();
+          options.onPlaybackBlocked?.({ reason: "not-allowed", audioContextState: "running" });
+          return;
+        }
         if (mode === "later-no-audio" && providerCalls === failureBeat + 1) return;
         if (mode === "never" || mode === "stop-error" || (mode === "retry-fails" && providerCalls > 1)) return;
         if (restartCase && providerCalls === 2) return;
@@ -255,6 +266,18 @@ async function scenario(selectedMode: Mode) {
       providerPaused = true;
     },
     resume() {
+      if (mode.startsWith("teaching-permission") && current && current.startedAt === null && jobs.length === intros.length + 1) {
+        const job = current;
+        job.startedAt = now;
+        record("provider-start", { text: job.text }); job.options.onStart?.();
+        job.options.onPlaybackBlocked?.(null);
+        setTimer(() => {
+          if (job.dead) return;
+          job.options.onAudioCaptured?.({ bytes: Uint8Array.of(82, 73, 70, 70), mimeType: "audio/wav" });
+          record("provider-end", { text: job.text }); job.options.onEnd?.();
+          job.dead = true; job.resolve(); if (current === job) current = null;
+        }, 1_000);
+      }
       if (current?.startedAt !== null && current) current.startedAt = now;
       if (providerPausedAt !== null) providerPausedMs += now - providerPausedAt;
       providerPausedAt = null;
@@ -282,7 +305,7 @@ async function scenario(selectedMode: Mode) {
     sessionId: "offline-board", phase: "thinking", isReplaying: false, boardLoaded: false,
     ensureTTSClient: () => provider as unknown as TTSClient, ttsClientRef: ref(provider), phaseRef: ref("thinking"),
     cancelRef: ref(false), turnActiveRef: ref(true), turnGenerationRef: ref(1), isPausedRef: ref(false),
-    turnAbortRef: ref(new AbortController()), currentTraceIdRef: ref("offline-trace"),
+    liveQuestionRef: ref("Synthetic incline lesson."), turnAbortRef: ref(new AbortController()), currentTraceIdRef: ref("offline-trace"),
     segmentChainRef: ref(Promise.resolve()), drawChainRef: ref(Promise.resolve()),
     collectedSegmentsRef: ref<TutorSegment[]>([]), recordedSegmentsRef: ref<RecordedSegmentPayload[]>([]), narrationSinceEpochRef: ref("Earlier work narration."),
     activeVerifiedDiagramRef: ref(presentation.diagram), pendingSegmentCountRef: ref(0),
@@ -323,6 +346,8 @@ async function scenario(selectedMode: Mode) {
       record("command-settled", { beat: options.segmentNarration, cancelled: options.isCancelled?.() ?? false });
     },
     setCurrentSegmentText() {}, setPhase() {}, setIsPaused() {}, setActiveVerifiedDiagram() {},
+    setLastError(error: unknown) { record("student-error", { error }); },
+    onSpeechStartupStatus(value: typeof startup) { startup = value; },
     setInputInteracted() {}, setIsReplaying() {}, setReplayProgressMs() {}, setReplayTotalMs() {},
   };
   const pathGate: { release: (() => void) | null } = { release: null };
@@ -496,6 +521,45 @@ async function scenario(selectedMode: Mode) {
       failure = error; settled = true;
     });
     let replacementRun: Promise<void> = Promise.resolve();
+    if (mode.startsWith("teaching-permission")) {
+      for (let tick = 0; tick < 1_200 && !startup && !settled; tick++) await advance(now + 100);
+      await advance(now + 30_000);
+      assert.equal(committed, true, `all verified intro beats commit before the teaching voice blocks; failure=${String(failure)}; jobs=${jobs.length}; events=${JSON.stringify(events.slice(-5))}`);
+      assert.equal(params.boardPageRef.current.figureDrawn, true);
+      assert.equal(visibleIntro().length, introCommandCount);
+      assert.equal(jobs.length, intros.length + 1, "the first teaching beat is admitted, not missing from the parser");
+      assert.equal(settled, false, "blocked teaching retains its queue position");
+      assert.equal(params.phaseRef.current, "drawing", "completed reveal leaves the live phase outside thinking/planning");
+      assert.equal(ink.filter(row => row.command.type === "WRITE").length, 0);
+      assert.equal(params.recordedSegmentsRef.current.length, intros.length);
+      const blocked = startup as Parameters<NonNullable<UseTurnLifecycleParams["onSpeechStartupStatus"]>>[0];
+      assert(blocked, "blocked teaching exposes a recovery action even after normal deadlines");
+      const recoverable = selectRecovery(blocked, { phase: params.phaseRef.current as "drawing",
+        turnGeneration: params.turnGenerationRef.current, muted: false, rewindActive: false, isReplaying: false });
+      assert(recoverable, "the actual Shell visibility selector must expose recovery after the intro's drawing phase");
+      assert.equal(browserAttempts, 0, "permission wait does not replace the current clip with browser speech");
+      if (mode === "teaching-permission-cancel") {
+        control.stopTurn();
+        blocked.enableAudio(); // A stale retained UI closure cannot restart the cancelled lesson.
+        await advance(now + 5_000); await run;
+        assert.equal(visibleIntro().length, introCommandCount, "Stop retains the already committed verified diagram");
+        assert.equal(ink.filter(row => row.command.type === "WRITE").length, 0);
+        assert(!events.some(event => event.name === "tts-segment-failed"));
+      } else {
+        recoverable.enableAudio();
+        for (let tick = 0; tick < 200 && !settled; tick++) await advance(now + 100);
+        assert(settled, "the gesture must release actual speech AND teaching handwriting");
+        await run;
+        assert.equal(failure, null); assert.equal(settled, true);
+        assert.equal(ink.filter(row => row.command.type === "WRITE").length, 1, "the owed teaching handwriting executes after the gesture");
+        assert.equal(params.recordedSegmentsRef.current.at(-1)?.narration, lesson.narration);
+        assert.equal(visibleIntro().length, introCommandCount, "voice recovery preserves all verified figure marks");
+        assert.equal(jobs.length, intros.length + 1, "gesture retries local output without another provider request");
+      }
+      console.log(`verified diagram audio ${mode}: ${introCommandCount} committed marks then ${ink.filter(row => row.command.type === "WRITE").length} teaching WRITE; queue settled`);
+      return;
+    }
+
     if (restartCase) {
       for (let target = 0; !events.some((event) => event.name === "browser-start"); target += 100) {
         assert(target < 35_000); await advance(target);
@@ -636,7 +700,7 @@ async function scenario(selectedMode: Mode) {
         assert.equal(events.find((event) => event.name === "provider-start")?.atMs, recovery.atMs + 8_995);
         await advance(recovery.atMs + 9_000);
         assert.equal(settled, true, "a provider retry starting after grace must fail, not succeed at the next startup poll");
-        assert(failure instanceof Error && failure.message === "Provider voice recovery failed");
+        assert(failure instanceof Error && failure.message === "Provider voice recovery failed", `owned retry failure: ${String(failure)}`);
         assert.equal(ink.length, 0, "an expired retry cannot release any intro ink");
       } else if (mode === "retry-late-grace-paused") {
         await advance(recovery.atMs + 8_150);
@@ -876,7 +940,7 @@ async function scenario(selectedMode: Mode) {
 }
 async function main() {
   const selection = process.argv.find((arg) => arg.startsWith("--case="))?.slice(7) as Mode | undefined;
-  const cases: Mode[] = ["intro-command-join", "later-same-narration-new-turn", "real-later-same-layout-new-turn", "third-stop", "third-no-audio", "third-failure", "third-timeout", "third-draw-failure", "real-later-stop", "real-later-new-turn", "intro-focus-rejected", "later-new-turn", "later-doubt", "real-label-restart", "real-browser-restart", "real-provider-restart", "browser-restart", "provider-restart", "later-timeout", "later-draw-failure", "later-failure", "later-no-audio", "later-stop", "near", "late-grace", "late-grace-paused", "late-grace-stop", "ready-no-audio", "grace-expiry-race", "grace-expiry-handoff", "retry-grace-expiry-race", "retry-late-grace", "retry-late-grace-paused", "restart", "reject-pause", "never", "stop", "stop-error", "stale", "retry-fails", "retry-hangs"];
+  const cases: Mode[] = ["real-teaching-permission", "teaching-permission", "teaching-permission-cancel", "intro-command-join", "later-same-narration-new-turn", "real-later-same-layout-new-turn", "third-stop", "third-no-audio", "third-failure", "third-timeout", "third-draw-failure", "real-later-stop", "real-later-new-turn", "intro-focus-rejected", "later-new-turn", "later-doubt", "real-label-restart", "real-browser-restart", "real-provider-restart", "browser-restart", "provider-restart", "later-timeout", "later-draw-failure", "later-failure", "later-no-audio", "later-stop", "near", "late-grace", "late-grace-paused", "late-grace-stop", "ready-no-audio", "grace-expiry-race", "grace-expiry-handoff", "retry-grace-expiry-race", "retry-late-grace", "retry-late-grace-paused", "restart", "reject-pause", "never", "stop", "stop-error", "stale", "retry-fails", "retry-hangs"];
   assert(!selection || cases.includes(selection), `unknown case: ${selection}`);
   for (const mode of selection ? [selection] : cases) await scenario(mode);
 }

@@ -5,6 +5,7 @@ import {
   sentryBeforeSendLog,
   sentryDataCollection,
   sentryServerDsn,
+  sentryRelease,
   sentryTracesSampler,
 } from "@/lib/obs/sentryPrivacy";
 
@@ -13,7 +14,8 @@ const dsn = sentryServerDsn();
 if (dsn) {
   Sentry.init({
     dsn,
-    environment: process.env.NODE_ENV,
+    environment: process.env.SENTRY_ENVIRONMENT,
+    release: sentryRelease(),
     dataCollection: sentryDataCollection(),
     tracesSampler: sentryTracesSampler,
     beforeSend: sentryBeforeSend,

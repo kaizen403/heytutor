@@ -92,6 +92,8 @@ jobs:
         run: pnpm build
       - name: Diagram authority and restoration regressions
         run: pnpm --filter @heytutor/tutor verify:publication
+      - name: Production lesson reliability regressions (no provider calls)
+        run: pnpm verify:production-reliability
       - name: Storage admission and save feedback regressions
         run: pnpm --filter @heytutor/tutor verify:storage-admission
       - name: Finished playback and MP4 board fidelity regressions
@@ -111,6 +113,7 @@ jobs:
       - name: Security and payment regressions
         run: |
           python3 deploy/aws/verify-ssm-deploy.py
+          node deploy/aws/verify-release.test.mjs
           pnpm verify:security
           pnpm --filter @heytutor/tutor verify:razorpay
       - name: Disposable database concurrency checks

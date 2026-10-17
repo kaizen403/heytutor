@@ -20,6 +20,7 @@
  */
 import type { SceneDocument } from "../types";
 import { isAtomicTransitionStem, isChemistryQuestion } from "../chemistry";
+import { isSharedPhotoelectricEmissionStem } from "../chemistry/atomicRadiation";
 import {
   circuitTopologyFromProblemStructure,
   isPlanarConicStem,
@@ -287,7 +288,8 @@ export function sceneDemand(
   // The router's cues count as subject evidence: "shape of the d_z2 orbital"
   // carries no chemistry word the classifier knows, but the orbital family
   // claims it, and the archetype layer runs before any family does.
-  const chemistry = isChemistryQuestion(stem) && !isAtomicTransitionStem(stem);
+  const chemistry = isChemistryQuestion(stem) && !isAtomicTransitionStem(stem)
+    && !isSharedPhotoelectricEmissionStem(stem);
   return chemistry ? { requires, forbids, subject: "chemistry" } : { requires, forbids };
 }
 

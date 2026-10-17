@@ -25,7 +25,7 @@ pnpm verify:dependency-security
 |--------|----------|---------|
 | Landing staging | Cloudflare Pages project `accelute`, branch `dev`, domain `dev.accelute.co` | First job on every push to `dev` or `main` (and manual `workflow_dispatch`) |
 | Landing production | [Vercel](https://vercel.com), domain `accelute.co` | Push to `main` (Vercel Git integration). Cloudflare also publishes the same commit to `accelute.pages.dev` after `dev` succeeds |
-| Tutor UI + API + WebSocket | EC2 (`tsx server.ts`) | After the `dev` stage succeeds, GitHub OIDC assumes the restricted AWS deployment role and invokes `AcceluteDeploy` through Systems Manager. Fallback: `./deploy/aws/deploy.sh` on the box |
+| Tutor UI + API + WebSocket | EC2 (`tsx server.ts`) | After the `dev` stage succeeds, GitHub OIDC assumes the restricted AWS deployment role and invokes `AcceluteDeploy` through Systems Manager. Fallback: owner invokes the same Commit-only launcher on the box |
 | Postgres | Hosted (RDS or other). `DATABASE_URL` in `.env.production` | Not on the app box |
 | Lecture audio + question photos | Private S3 bucket | See [s3-setup.md](s3-setup.md) |
 
@@ -61,8 +61,9 @@ Push to `dev` or `main`. The workflow always does this in order:
    do not re-trigger Actions, so this cannot loop.
 4. **Production** — publish the same landing dist to Cloudflare Pages
    `main`, then invoke the restricted `AcceluteDeploy` SSM document with the
-   tested 40-character commit SHA. That document fetches the commit, updates
-   `/opt/heytutor`, runs `deploy/aws/deploy.sh`, and verifies local health.
+   tested 40-character commit SHA. That document fetches the commit without
+   resetting `/opt/heytutor`, exports an isolated release, builds it within a
+   memory-limited cgroup, and activates it only after artifact validation.
    Execution is limited to 40 minutes; Actions polls for at most 250 attempts
    and the whole production job is limited to 50 minutes. Production command
    output stays in AWS Systems Manager rather than Actions logs.
@@ -82,25 +83,69 @@ updates. Vercel's Git integration is a separate deployment path: require the
 
 ## Backend deploy (on the EC2 box)
 
+The fixed SSM launcher remains `/opt/heytutor/deploy/aws/ssm-deploy.sh`.
+It validates the repository and current main/dev head, then reads the requested
+commit's deploy driver with `git show`. Git authentication runs as `ubuntu`;
+installation and service operations run as root. It never resets the source
+checkout. Manual deployment uses the same boundary:
+
 ```bash
-cd /opt/heytutor
-git fetch origin main
-git reset --hard origin/main
-./deploy/aws/deploy.sh
+sudo env SSM_Commit=<reviewed-current-main-or-dev-full-sha> /opt/heytutor/deploy/aws/ssm-deploy.sh
 ```
 
-`deploy.sh`:
+`deploy.sh` exports code into a unique `/opt/heytutor-releases/<sha>.<id>`
+directory. The shared secret file stays at
+`/opt/heytutor/apps/tutor/.env.production`. Installation, Prisma generation
+and sequential package builds happen only in the new release. A systemd scope
+limits the entire build to the smaller of 60% of host RAM or current available
+RAM minus 512 MiB, and at most 1 GiB swap. It refuses to build if less than
+768 MiB is available within that budget. An exhausted
+build fails without deleting or overwriting the live Next artifacts. This
+protects the serving directory; it does not guarantee a build fits a given
+host. Repeated memory failures require additional build capacity or a CI-built
+artifact, not a longer timeout. Failed build directories may be removed by an
+operator after inspecting protected logs; never remove the current or previous
+release while either can be serving.
 
-- Requires Node 24 LTS and ffmpeg/ffprobe; install them with the updated setup
-  script before upgrading an older host
-- Installs deps with scripts disabled, runs the reviewed Prisma/esbuild scripts,
-  explicitly generates Prisma, and builds the tutor monorepo slice
-- Uses checked-in interface fonts with `next/font/local`; build availability
-  does not depend on Google Fonts responses. Sources and licenses are recorded
-  in `apps/tutor/public/fonts/variable-fonts.md`.
-- Runs `db:migrate:deploy` against `DATABASE_URL`, retaining Prisma's original
-  names/checksums while ordering pending legacy files numerically
-- Restarts `heytutor.service`; service startup does not run schema migrations
+After validating build identity, manifests and static artifacts, the deploy
+runs migrations. **Only backward-compatible, expand-first migrations are safe
+for this rollout.** The old process remains live during migration, and application
+rollback cannot undo committed database changes. Destructive migrations require
+a separately reviewed maintenance plan.
+
+Activation atomically replaces `/opt/heytutor-current`, writes the service to
+use that link, then restarts. Its per-release `runtime.env` overrides stale
+Sentry environment/release values from the shared file. The readiness gate
+requires `/api/health` to return the requested SHA, the existing anonymous
+`/?embed=1` route to render the actual tutor shell, and all static assets referenced
+by that page. It rejects redirects and requires the embed shell marker, so a
+working login page cannot satisfy tutor readiness. The probe uses no session
+credentials, submits no question and does not weaken authentication. This checks
+server-rendered shell/asset readiness, not a paid lesson or client hydration.
+Failed activation restores the previous link and exact unit, then restarts it. This also supports the first transition
+from a unit pointing directly at `/opt/heytutor`, and a fresh installation with
+no previous unit. A lock prevents concurrent deployments. No schema migration
+runs at service startup.
+
+### First upgrade from the in-place deploy launcher
+
+**Coordinate this bootstrap before allowing the first deployment of this
+change.** An already-installed old launcher would reset the live checkout
+before it could read the new driver. Merging the code alone does not replace
+that entry point safely. The owner must install the reviewed new
+`deploy/aws/ssm-deploy.sh` at its fixed path, keeping it executable, using an
+out-of-band administrative session. This is a production change and is not
+performed by the regression tests or by preparing the PR. Hold the deployment
+workflow during the bootstrap and verify the installed launcher contains no
+`git reset` before resuming it. Fresh installations use the updated
+`setup-vm.sh`, which installs the launcher and calls the same release flow.
+
+Offline gates (no AWS, secrets, service or database access):
+
+```bash
+python3 deploy/aws/verify-ssm-deploy.py
+node deploy/aws/verify-release.test.mjs
+```
 
 Postgres is not started on this machine.
 
@@ -150,7 +195,14 @@ a rebuild. Warn, error, and `[http]` access lines are logs. Lines starting
 with `[tutor:` stay on the machine because they include the question. Source
 maps upload when `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, and `SENTRY_PROJECT` are
 set. A missing token does not fail the build. `SENTRY_ENABLED=0` stops the
-server SDK on the next process start.
+server SDK on the next process start. Server reporting also requires both
+`NODE_ENV=production` and `SENTRY_ENVIRONMENT=production`; a local production
+build or lab environment does not qualify. The deployment sets environment and
+full-commit release identity in each release's runtime file and the corresponding
+`NEXT_PUBLIC_SENTRY_ENVIRONMENT` / `NEXT_PUBLIC_SENTRY_RELEASE` at build time.
+Browser reporting additionally requires the production tutor hostname. Do not
+copy these deployment markers into local or lab configuration. Intentional TTS
+socket teardown is consumed without reporting a provider failure.
 
 Because `setup-vm.sh` and `deploy.sh` `source` `.env.production`, keep it
 shell-compatible: quote values that contain `#`, spaces, or other

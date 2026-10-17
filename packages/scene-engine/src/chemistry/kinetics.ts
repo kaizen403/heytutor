@@ -667,7 +667,10 @@ export function isKineticsStem(question: string): boolean {
   const logRatio = /log\s*\(?\s*\[a\]\s*_?0\s*\/\s*\[a\]/.test(stem);
   const concTime = /concentration[^.]{0,30}(?:vs\.?|versus|against|with) time|attains? equilibrium/.test(stem);
   const orderPlot = /\border of (?:the |a )?reaction\b/.test(stem) && plotCue;
-  return orderWord || halfLife || rateConstant || rateLaw || arrhenius || activation || lnk || logRatio || concTime || orderPlot;
+  // An interference order labels a fringe, not a chemical reaction.
+  const opticalOrder = /\b(?:slits?|fringes?|diffraction|interference)\b/.test(stem);
+  const chemicalOrder = orderWord && (!opticalOrder || /\breaction|concentration|rate constant\b/.test(stem));
+  return chemicalOrder || halfLife || rateConstant || rateLaw || arrhenius || activation || lnk || logRatio || concTime || orderPlot;
 }
 
 /* ------------------------------------------------------------------------- */

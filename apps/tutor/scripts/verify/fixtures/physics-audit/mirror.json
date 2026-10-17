@@ -1,0 +1,17 @@
+{
+  "description": "Synthetic agent-authored question and captured planner output; no student data.",
+  "question": "A 4 cm tall object is placed 30 cm in front of a concave mirror with focal length 20 cm. Using the standard Cartesian sign convention, draw a ray diagram and determine the image position, nature, magnification and height.",
+  "turnPlan": {
+    "givens": [],
+    "lawIds": [],
+    "derived": [],
+    "question": "A 4 cm tall object is placed 30 cm in front of a concave mirror with focal length 20 cm. Using the standard Cartesian sign convention, draw a ray diagram and determine the image position, nature, magnification and height.",
+    "unknowns": [],
+    "assumptions": [
+      "Turn-plan model was unavailable; visual requirement was classified conservatively."
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [],
+    "visualRequirement": "required"
+  }
+}

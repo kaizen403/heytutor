@@ -1,5 +1,8 @@
 import {
   LocalDeterministicSolverProvider,
+  groundCoupledInclineProblem,
+  groundDoubleSlitProblem,
+  groundStatedCircuitProblem,
   buildSolverAuthorityProjection,
   evaluateMathExpression,
   expressionToSafeSource,
@@ -107,17 +110,24 @@ export async function planAndSolveProblemV1(
       });
       return null;
     }
+    // Arithmetic evaluation cannot establish the direction of kinetic friction.
+    // Compile supported force balances from source roles and current velocity first.
+    const forceBoundProblem = groundCoupledInclineProblem(problemValidation.problem);
+    // Compact source-bound display names keep complete structural obligations
+    // expressible within the scene label limit; ids, facts and relations stay.
+    const opticsBoundProblem = groundDoubleSlitProblem(forceBoundProblem);
+    const sourceProblem = groundStatedCircuitProblem(opticsBoundProblem);
     const elapsedBeforeSolve = Date.now() - startedAt;
     const remainingMs = Math.max(1, options.timeoutMs - elapsedBeforeSolve);
     const solverResult = await solveWithDeadline(
       options.provider ?? new LocalDeterministicSolverProvider(),
-      problemValidation.problem,
+      sourceProblem,
       remainingMs,
       signal,
     );
-    const solverValidation = validateSolverResult(solverResult, problemValidation.problem);
+    const solverValidation = validateSolverResult(solverResult, sourceProblem);
     if (!solverValidation.result || solverValidation.result.status !== "solved") return null;
-    const problem = problemValidation.problem;
+    const problem = sourceProblem;
     // Without a plan there is nothing to audit yet. The binding join and the
     // audit happen once the plan exists; until then no value is authoritative.
     const audit: SolverAuthorityAudit = turnPlan

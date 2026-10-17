@@ -8,6 +8,7 @@ const root = resolve(import.meta.dirname, "../..");
 const load = createRequire(import.meta.url);
 const events: string[] = [];
 let exists = true;
+let reported = 0;
 let revoked: (() => void) | undefined;
 class Socket extends EventEmitter {
   static OPEN = 1; static CONNECTING = 0;
@@ -16,11 +17,11 @@ class Socket extends EventEmitter {
   constructor(url?: string) { super(); if (url) Socket.upstream.push(this); }
   send(data: unknown) { this.sent.push(String(data)); if (Socket.upstream.includes(this)) events.push("send"); }
   close() { if (this.readyState === 3) return; this.readyState = 3; this.emit("close"); }
-  terminate() { this.close(); }
+  terminate() { this.emit("error", new Error("WebSocket was closed before the connection was established")); this.close(); }
 }
 mock.module(load.resolve("ws"), { namedExports: { WebSocket: Socket } });
 mock.module(resolve(root, "lib/db/prisma.ts"), { namedExports: { prisma: { user: { findUnique: async () => exists ? { id: "student" } : null } } } });
-mock.module(resolve(root, "lib/obs/sentryNode.ts"), { namedExports: { captureTtsRelayFailure: () => {} } });
+mock.module(resolve(root, "lib/obs/sentryNode.ts"), { namedExports: { captureTtsRelayFailure: () => { reported++; } } });
 mock.module(resolve(root, "lib/obs/langfuse.ts"), { namedExports: { recordTtsSpan: () => {}, flushInBackground: () => {} } });
 mock.module(resolve(root, "lib/billing/track.ts"), { namedExports: { recordTtsSpend: () => {} } });
 mock.module(resolve(root, "lib/tts/wsTicket.ts"), { namedExports: { registerWsConnectionRevocation: (_id: string, cb: () => void) => { revoked = cb; return () => {}; } } });
@@ -59,6 +60,18 @@ await tick(); assert(!events.includes("send"), "deleted users cannot dispatch us
 ws.close();
 ws = client(); revoked?.(); await tick(); assert.equal(ws.readyState, 3, "account deletion closes already-open speech sockets");
 ws = client(); ws.emit("message", Buffer.from("not text"), true); await tick(); assert.equal(ws.readyState, 3, "binary speech requests are rejected");
-console.log("WebSocket paid usage checks passed (5)");
+
+ws = client();
+Socket.upstream.at(-1)!.readyState = Socket.CONNECTING;
+reported = 0;
+ws.close(); await tick();
+assert.equal(reported, 0, "intentional cancellation during handshake is not a provider failure");
+ws = client();
+reported = 0;
+Socket.upstream.at(-1)!.emit("error", new Error("synthetic provider handshake failure"));
+await tick();
+assert.equal(reported, 1, "an active provider failure is still reported exactly once");
+assert.equal(ws.readyState, 3, "active provider failure closes the client");
+console.log("WebSocket paid usage checks passed (7)");
 }
 void main().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => mock.restoreAll());
