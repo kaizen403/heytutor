@@ -18,6 +18,7 @@ export * from "./planners/scenePlannerV2Prompt";
 export * from "./planners/sceneCompleteness";
 export * from "./planners/sceneCompletenessRound";
 export * from "./planners/turnPlannerV3";
+export * from "./planners/visualDecision";
 export * from "./planners/diagramSubject";
 export * from "./text/questionText";
 export * from "./planners/sceneCapabilities";

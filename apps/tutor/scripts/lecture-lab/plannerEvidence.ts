@@ -2,11 +2,16 @@ import {
   parseScenePlannerResponseJson,
   type SceneCandidateValidation,
   type ScenePlannerResponse,
+  type ScenePlannerRequestContext,
+  type SceneRepairError,
 } from "@heytutor/tutor-core";
 
 const EVIDENCE_LIMIT_BYTES = 2048;
 type EvidenceStage = "initial" | "authority_revalidation" | "completeness";
 export interface PlannerEvidence {
+  /** Private exact validator evidence, including rejected non-construction documents. */
+  plannerValidations?: Array<{ phase: string; lane: string; requestContext?: ScenePlannerRequestContext;
+    validationPass: EvidenceStage; valid: boolean; errors: SceneRepairError[] }>;
   plannerDeclineReason: string | null;
   plannerDeclines: Array<{
     phase: string;
@@ -18,6 +23,7 @@ export interface PlannerEvidence {
   rejectedOperatorCalls: Array<{
     phase: string;
     lane: string;
+    requestContext?: ScenePlannerRequestContext;
     validationPass: EvidenceStage;
     constructionIndex: number;
     constructionId: string | null;
@@ -88,6 +94,10 @@ export function recordRejectedOperatorCalls(
   validation: SceneCandidateValidation,
   validationPass: EvidenceStage,
 ): void {
+  (evidence.plannerValidations ??= []).push({
+    phase: response.phase, lane: response.lane, requestContext: response.requestContext,
+    validationPass, valid: validation.valid, errors: validation.errors,
+  });
   if (validation.valid) return;
   const document = rawDocument(response);
   if (!Array.isArray(document?.constructions)) return;
@@ -113,6 +123,7 @@ export function recordRejectedOperatorCalls(
     evidence.rejectedOperatorCalls.push({
       phase: response.phase,
       lane: response.lane,
+      requestContext: response.requestContext,
       validationPass,
       constructionIndex,
       constructionId,

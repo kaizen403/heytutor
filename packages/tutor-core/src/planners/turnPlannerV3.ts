@@ -9,10 +9,12 @@ import { evaluateMathExpression } from "@heytutor/scene-engine";
 import { withFastModeHeader } from "../llm/fastMode";
 import { withTurnTraceHeaders } from "../llm/traceHeaders";
 import { tutorDebug } from "../tutorDebug";
-import { inferSceneCapabilities, isQualitativeConceptQuestion, qualitativeQuestionAllowsScene, sceneFamiliesForceVisualRequirement } from "./sceneCapabilities";
+import { isVisualDecisionEnabled, questionRequiresVisual, resolveVisualDecision, type VisualDecisionOptions, type VisualDecisionReason } from "./visualDecision";
 import { reconcileTurnPlanWithOpticsLaws, type OpticsPlanAuditResult } from "./opticsPlanAudit";
 import { parseDiagramSubject, subjectFromTurnPlanContent, type DiagramSubject } from "./diagramSubject";
 import { parseTurnPlanJsonObject } from "./turnPlanJson";
+
+export { explicitDiagramRequest, referencesFigure, questionRequiresVisual } from "./visualDecision";
 
 export interface TurnPlannerV3Options {
   proxyUrl: string;
@@ -25,6 +27,8 @@ export interface TurnPlannerV3Options {
   fastMode?: boolean;
   /** Optional policy metadata on the existing call; off preserves prompt bytes. */
   classifySubject?: boolean;
+  /** Default-off visual policy; changes neither prompt bytes nor numeric consensus. */
+  visualDecisionEnabled?: boolean;
   /** Content-free, completion-only diagnostics; observer failures never affect admission. */
   onRequestOutcome?: (outcome: TurnPlanRequestOutcome) => void;
 }
@@ -66,6 +70,12 @@ export interface TurnPlanRequestOutcome {
   subject?: DiagramSubject;
 }
 
+export interface TurnPlanVisualDecision {
+  declaredRequirement: TurnPlanV3["visualRequirement"];
+  minimumRequired: boolean;
+  reason: VisualDecisionReason;
+}
+
 export interface TurnPlanV3Response {
   turnPlan: TurnPlanV3;
   peerTurnPlans?: TurnPlanV3[];
@@ -73,6 +83,8 @@ export interface TurnPlanV3Response {
   elapsedMs: number;
   traceId?: string;
   subject?: DiagramSubject;
+  /** Enabled-only provenance, outside the persisted/numeric plan authority. */
+  visualDecision?: TurnPlanVisualDecision;
 }
 
 const TURN_PLAN_MODEL = "server";
@@ -158,16 +170,26 @@ export async function planTurnV3(
     completed.slice(1).map((response) => response.turnPlan),
   ) ?? completed[0]!.turnPlan;
   const selected = completed.find((response) => response.turnPlan === selectedPlan) ?? completed[0]!;
+  const peerTurnPlans = completed
+    .filter((response) => response !== selected)
+    .map((response) => response.turnPlan);
+  const visualDecision = isVisualDecisionEnabled(options) ? resolveVisualDecision({
+    question, selectedPlan, peerTurnPlans, visualNeedRequirement: null, ...options,
+  }) : null;
   return {
     ...selected,
+    ...(visualDecision ? {
+      turnPlan: visualDecision.requirement === selectedPlan.visualRequirement ? selectedPlan : {
+        ...selectedPlan, visualRequirement: visualDecision.requirement,
+      },
+      ...(selected.visualDecision ? { visualDecision: { ...selected.visualDecision, reason: visualDecision.reason } } : {}),
+    } : {}),
     ...(options.classifySubject ? {
       subject: completed.every((response) => response.subject === selected.subject)
         ? selected.subject
         : "other" as const,
     } : {}),
-    peerTurnPlans: completed
-      .filter((response) => response !== selected)
-      .map((response) => response.turnPlan),
+    peerTurnPlans,
   };
 }
 
@@ -275,7 +297,9 @@ async function requestTurnPlanV3(
     if (typeof content !== "string") return null;
     if (options.classifySubject) subject = subjectFromTurnPlanContent(content);
     outcomeCode = "plan_processing_failed";
-    const turnPlan = parseTurnPlanV3ContentObserved(content, question, undefined, parseOutcome);
+    const visualDecisionEnabled = isVisualDecisionEnabled(options);
+    const parseTrace: TurnPlanV3ParseTrace | undefined = visualDecisionEnabled ? {} : undefined;
+    const turnPlan = parseTurnPlanV3ContentObserved(content, question, parseTrace, parseOutcome, options);
     outcomeCode = parseOutcome.code;
     if (!turnPlan) return null;
     outcomeCode = "accepted";
@@ -286,6 +310,13 @@ async function requestTurnPlanV3(
       elapsedMs: Date.now() - startedAt,
       traceId: response.headers.get("x-heytutor-trace-id") ?? undefined,
       ...(options.classifySubject ? { subject: subject ?? "other" } : {}),
+      ...(parseTrace?.preOptics ? {
+        visualDecision: {
+          declaredRequirement: parseTrace.preOptics.visualRequirement,
+          minimumRequired: questionRequiresVisual(question, options),
+          reason: turnPlan.visualRequirement === "required" ? "required" as const : "planned" as const,
+        },
+      } : {}),
     };
   } catch (error) {
     if (options.signal?.aborted) outcomeCode = "cancelled";
@@ -335,7 +366,7 @@ export function subjectFromRejectedTurnPlanOutcomes(outcomes: readonly TurnPlanR
   ) ? subject : "other";
 }
 
-export function createFallbackTurnPlanV3(question: string): TurnPlanV3 {
+export function createFallbackTurnPlanV3(question: string, options: VisualDecisionOptions = {}): TurnPlanV3 {
   return {
     schemaVersion: "turn-plan/v3",
     question,
@@ -345,29 +376,8 @@ export function createFallbackTurnPlanV3(question: string): TurnPlanV3 {
     qualitativeClaims: [],
     lawIds: [],
     assumptions: ["Turn-plan model was unavailable; visual requirement was classified conservatively."],
-    visualRequirement: questionRequiresVisual(question) ? "required" : "optional",
+    visualRequirement: questionRequiresVisual(question, options) ? "required" : "optional",
   };
-}
-
-export function explicitDiagramRequest(question: string): boolean {
-  return /\b(?:draw|diagram|illustrat(?:e|ion)|sketch|construct|plot|graph|locate|mark|show\s+(?:the\s+)?(?:ray|circuit|figure|geometry|position|image))\b/i.test(question);
-}
-
-/** References an accompanying figure without an explicit draw verb ("as shown in the figure", "the figure shows"). */
-export function referencesFigure(question: string): boolean {
-  return /\b(?:as\s+shown\s+in\s+(?:the\s+)?(?:figure|diagram)|in\s+the\s+(?:figure|diagram)|the\s+(?:figure|diagram)\s+shows|shown\s+in\s+the\s+(?:figure|diagram)|figure\s+below|diagram\s+below|see\s+(?:the\s+)?figure)\b/i.test(question);
-}
-
-export function questionRequiresVisual(question: string): boolean {
-  // A qualitative assertion/reason or multiple-choice concept check teaches
-  // text-only unless the stem still names a spatial apparatus to set up.
-  if (isQualitativeConceptQuestion(question) && !qualitativeQuestionAllowsScene(question)) {
-    return explicitDiagramRequest(question);
-  }
-  return explicitDiagramRequest(question) ||
-    referencesFigure(question) ||
-    sceneFamiliesForceVisualRequirement(inferSceneCapabilities(question).families) ||
-    /\b(?:mirror|lens|prism|ray\s+optics|circuit|free[- ]body|force\s+diagram|field\s+line|vector\s+diagram|geometry\s+construction|apparatus|ray\s+diagram|parabola|ellipse|hyperbola|directrix|eccentricity|foci|latus\s+rectum|tangent\s+to\s+the\s+(?:curve|circle|parabola|ellipse|hyperbola)|normal\s+to\s+the\s+(?:curve|circle))\b/i.test(question);
 }
 
 export function selectTurnPlanV3Consensus(
@@ -471,8 +481,8 @@ function normalizeUnit(value: string | undefined): string {
     .replace(/\s+/g, "");
 }
 
-function enforceMinimumVisualRequirement(plan: TurnPlanV3, question: string): TurnPlanV3 {
-  if (!questionRequiresVisual(question) || plan.visualRequirement === "required") return plan;
+function enforceMinimumVisualRequirement(plan: TurnPlanV3, question: string, options: VisualDecisionOptions): TurnPlanV3 {
+  if (!questionRequiresVisual(question, options) || plan.visualRequirement === "required") return plan;
   return {
     ...plan,
     visualRequirement: "required",
@@ -507,8 +517,9 @@ export function parseTurnPlanV3Content(
   content: string,
   question: string,
   trace?: TurnPlanV3ParseTrace,
+  options: VisualDecisionOptions = {},
 ): TurnPlanV3 | null {
-  return parseTurnPlanV3ContentObserved(content, question, trace);
+  return parseTurnPlanV3ContentObserved(content, question, trace, undefined, options);
 }
 
 interface TurnPlanParseOutcome {
@@ -522,12 +533,13 @@ function parseTurnPlanV3ContentObserved(
   question: string,
   trace?: TurnPlanV3ParseTrace,
   outcome?: TurnPlanParseOutcome,
+  options: VisualDecisionOptions = {},
 ): TurnPlanV3 | null {
-  const parsed = parseTurnPlan(content, question, trace, outcome);
-  return parsed ? enforceMinimumVisualRequirement(parsed, question) : null;
+  const parsed = parseTurnPlan(content, question, trace, outcome, options);
+  return parsed ? enforceMinimumVisualRequirement(parsed, question, options) : null;
 }
 
-function parseTurnPlan(content: string, question: string, trace?: TurnPlanV3ParseTrace, outcome?: TurnPlanParseOutcome): TurnPlanV3 | null {
+function parseTurnPlan(content: string, question: string, trace?: TurnPlanV3ParseTrace, outcome?: TurnPlanParseOutcome, options: VisualDecisionOptions = {}): TurnPlanV3 | null {
   let jsonParsed = false;
   try {
     const parsed = parseTurnPlanJsonObject(content);
@@ -536,7 +548,7 @@ function parseTurnPlan(content: string, question: string, trace?: TurnPlanV3Pars
       return null;
     }
     jsonParsed = true;
-    const normalized = normalizePlannerTurnPlan(parsed, question);
+    const normalized = normalizePlannerTurnPlan(parsed, question, options);
     if (trace) trace.normalized = normalized;
     const reconciled = reconcileTurnPlanV3ExplicitArithmetic(normalized);
     if (trace) trace.arithmetic = reconciled;
@@ -638,7 +650,7 @@ function opticsLawMismatchIssues(audit: OpticsPlanAuditResult): TurnPlanValidati
   }));
 }
 
-function normalizePlannerTurnPlan(value: unknown, question: string): unknown {
+function normalizePlannerTurnPlan(value: unknown, question: string, options: VisualDecisionOptions): unknown {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return value;
   const plan = value as Record<string, unknown>;
   const isRecord = (candidate: unknown): candidate is Record<string, unknown> =>
@@ -901,7 +913,7 @@ function normalizePlannerTurnPlan(value: unknown, question: string): unknown {
     ? "required"
     : ["required", "optional", "none"].includes(String(plan.visualRequirement))
       ? plan.visualRequirement
-      : questionRequiresVisual(question) ? "required" : "optional";
+      : questionRequiresVisual(question, options) ? "required" : "optional";
   return {
     ...plan,
     schemaVersion: "turn-plan/v3",
