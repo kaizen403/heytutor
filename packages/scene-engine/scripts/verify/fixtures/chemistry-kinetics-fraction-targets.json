@@ -1,0 +1,161 @@
+[
+  {
+    "id": "exact-thread",
+    "question": "A first order reaction has half life 20 min. Find when 1/4 of the initial concentration remains.",
+    "draw": true,
+    "minutes": 40,
+    "role": "remaining"
+  },
+  {
+    "id": "word-control",
+    "question": "A first order reaction has half life 20 min. Find when one fourth of the initial concentration remains.",
+    "draw": true,
+    "minutes": 40,
+    "role": "remaining"
+  },
+  {
+    "id": "numeric-eighth-left",
+    "question": "A first order reaction has half life 15 min. Calculate the time when 1/8 of the starting concentration is left.",
+    "draw": true,
+    "minutes": 45,
+    "role": "remaining"
+  },
+  {
+    "id": "numeric-sixteenth-remaining",
+    "question": "The half life of a first order reaction is 30 min. Determine when 1/16 of its initial concentration remains.",
+    "draw": true,
+    "minutes": 120,
+    "role": "remaining"
+  },
+  {
+    "id": "numeric-three-fourths-unreacted",
+    "question": "A first order reaction has half life 10 min. Find when 3/4 of the initial concentration is unreacted.",
+    "draw": true,
+    "minutes": 4.150374992788438,
+    "role": "remaining"
+  },
+  {
+    "id": "numeric-two-thirds-remaining",
+    "question": "A first order reaction has half life 12 min. Find the time for 2/3 of the starting concentration remains.",
+    "draw": true,
+    "minutes": 7.019550008653875,
+    "role": "remaining"
+  },
+  {
+    "id": "numeric-unlisted-five-eighths",
+    "question": "A first order reaction has half life 20 min. Compute when 5/8 of the initial concentration remains.",
+    "draw": true,
+    "minutes": 13.561438102252755,
+    "role": "remaining"
+  },
+  {
+    "id": "numeric-equivalent-two-eighths",
+    "question": "A first order reaction has half life 20 min. Calculate when 2/8 of the initial concentration is remaining.",
+    "draw": true,
+    "minutes": 40,
+    "role": "remaining"
+  },
+  {
+    "id": "numeric-reactant-decayed",
+    "question": "A first order reaction has half life 20 min. Find when 3/4 of the reaction has decayed.",
+    "draw": true,
+    "minutes": 40,
+    "role": "completion"
+  },
+  {
+    "id": "numeric-initial-decayed",
+    "question": "A first order reaction has half life 20 min. Find when 3/4 of the initial concentration has decayed.",
+    "draw": true,
+    "minutes": 40,
+    "role": "completion"
+  },
+  {
+    "id": "word-initial-decayed",
+    "question": "A first order reaction has half life 20 min. Find when three fourths of the initial concentration has decayed.",
+    "draw": true,
+    "minutes": 40,
+    "role": "completion"
+  },
+  {
+    "id": "numeric-completion-control",
+    "question": "A first order reaction has half life 20 min. Calculate the time for 1/4 completion.",
+    "draw": true,
+    "minutes": 8.300749985576877,
+    "role": "completion"
+  },
+  {
+    "id": "given-concentration-and-target",
+    "question": "A first order reaction has half life 20 min. The initial concentration is 0.1 M. Find when 1/4 of the initial concentration remains.",
+    "draw": true,
+    "minutes": 40,
+    "role": "remaining"
+  },
+  {
+    "id": "malformed-zero-denominator",
+    "question": "A first order reaction has half life 20 min. Find when 1/0 of the initial concentration remains.",
+    "draw": false
+  },
+  {
+    "id": "malformed-fraction-exponent",
+    "question": "A first order reaction has half life 20 min. Find when 1/4e- of the initial concentration remains.",
+    "draw": false
+  },
+  {
+    "id": "wrong-unit-fraction",
+    "question": "A first order reaction has half life 20 min. Find when 1/4 kg of the initial concentration remains.",
+    "draw": false
+  },
+  {
+    "id": "unknown-initial-then-readable",
+    "question": "A first order reaction has half life 20 min. The initial concentration is unknown; initial concentration is 0.1 M. Find when 1/4 of the initial concentration remains.",
+    "draw": false
+  },
+  {
+    "id": "conflicting-initial-givens",
+    "question": "A first order reaction has half life 20 min. The initial concentration is 0.1 M; initial concentration is 0.2 M. Find when 1/4 of the initial concentration remains.",
+    "draw": false
+  },
+  {
+    "id": "conflicting-half-lives",
+    "question": "A first order reaction has half life 20 min and half life 30 min. Find when 1/4 of the initial concentration remains.",
+    "draw": false
+  },
+  {
+    "id": "unsupported-initial-unit",
+    "question": "A first order reaction has half life 20 min. The initial concentration is 0.1 kg. Find when one fourth of the initial concentration remains.",
+    "draw": false
+  },
+  {
+    "id": "subject-reactant-decayed",
+    "question": "A first order reaction has half life 20 min. Find when 3/4 of the initial concentration of reactant A has decayed.",
+    "draw": true,
+    "minutes": 40,
+    "role": "completion"
+  },
+  {
+    "id": "subject-A-decayed-word",
+    "question": "A first order reaction has half life 20 min. Find when three fourths of the starting concentration of A has decayed.",
+    "draw": true,
+    "minutes": 40,
+    "role": "completion"
+  },
+  {
+    "id": "subject-reactant-numeric-remaining",
+    "question": "A first order reaction has half life 20 min. Find when 1/4 of the initial concentration of reactant A remains.",
+    "draw": true,
+    "minutes": 40,
+    "role": "remaining"
+  },
+  {
+    "id": "subject-A-word-remaining",
+    "question": "A first order reaction has half life 20 min. Find when one fourth of the starting concentration of A remains.",
+    "draw": true,
+    "minutes": 40,
+    "role": "remaining"
+  },
+  {
+    "id": "subject-unreadable-stays-invalid",
+    "question": "A first order reaction has half life 20 min. The initial concentration of reactant A is unknown; initial concentration of reactant A is 0.1 M. Find when 1/4 of the initial concentration of reactant A remains.",
+    "draw": false
+  }
+]

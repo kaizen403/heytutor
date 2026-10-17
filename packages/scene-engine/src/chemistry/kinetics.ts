@@ -594,19 +594,23 @@ function initialFractionRequestOnly(question: string, ownerStart: number, start:
   const time = readChemistryQuantity({question,after:/^/,within:{start:timeStart,end},dimension:"time"});
   return time.ok && time.reading.value > 0 && question.slice(time.reading.source.span.end,end).trim() === "";
 }
-/** A requested remaining fraction uses concentration as an operand, not a given. */
-function initialRemainingFractionTargetOnly(question: string, ownerStart: number, start: number, end: number): boolean {
-  if (!/^\s+(?:remains?|is\s+(?:left|remaining|unreacted))\s*$/i.test(question.slice(start,end))) return false;
-  const prefix = question.slice(0,ownerStart);
-  for (const [pattern,fraction] of WORD_FRACTIONS) {
-    if (!(fraction > 0 && fraction < 1)) continue;
-    for (const match of prefix.matchAll(pattern)) {
-      const after = prefix.slice(match.index! + match[0].length);
-      if (!/^\s+of\s+(?:(?:the|its)\s+)?$/i.test(after)) continue;
-      if (/\b(?:find|calculate|determine|compute|evaluate|obtain)\s+(?:when|the\s+time\s+(?:when|for|at\s+which))\s*$/i.test(prefix.slice(0,match.index))) return true;
-    }
-  }
-  return false;
+/** Preserve the same complete initial-concentration subject in admission and plotting. */
+function initialConcentrationSubjectEnd(question: string, start: number): number {
+  const subject = /^\s+of\s+(?:(?:the|a)\s+)?(?:(?:reactant|substrate|species)(?:\s+[A-Z]\b)?|[A-Z]\b|\[[A-Z]\](?![A-Za-z0-9_]))/i.exec(question.slice(start));
+  return start + (subject?.[0].length ?? 0);
+}
+/** A complete asked fraction is an operand; its predicate fixes which part it measures. */
+function concentrationFractionTargetRole(question: string, operand: FractionOperand, ownerStart: number, start: number, end: number): "remaining" | "completion" | null {
+  if (!(operand.fraction > 0 && operand.fraction < 1)
+    || !/^\s+of\s+(?:(?:the|its)\s+)?$/i.test(question.slice(operand.end,ownerStart))
+    || !/\b(?:find|calculate|determine|compute|evaluate|obtain)\s+(?:when|the\s+time\s+(?:when|for|at\s+which))\s*$/i.test(question.slice(0,operand.start))) return null;
+  const predicate = question.slice(start,end);
+  if (/^\s+(?:remains?|is\s+(?:left|remaining|unreacted))\s*$/i.test(predicate)) return "remaining";
+  if (/^\s+(?:has\s+(?:decayed|decomposed|reacted|disappeared)|(?:is|has\s+been)\s+(?:consumed|decomposed|converted|reacted))\s*$/i.test(predicate)) return "completion";
+  return null;
+}
+function initialConcentrationFractionTargetOnly(question: string, ownerStart: number, start: number, end: number): boolean {
+  return fractionOperands(question).some(operand => concentrationFractionTargetRole(question,operand,ownerStart,start,end) !== null);
 }
 function readInitialConcentration(stem: string): {value: number; unit: string} | null | false {
   const body = questionBody(stem);
@@ -616,16 +620,14 @@ function readInitialConcentration(stem: string): {value: number; unit: string} |
   let reading: ChemistryReading | null = null;
   for (const [index, owner] of owners.entries()) {
     if (concentrationRequests.some(span=>owner.index! >= span.start && owner.index! < span.end)) continue;
-    let start = owner.index! + owner[0].length;
-    const subject = /^\s+of\s+(?:(?:the|a)\s+)?(?:(?:reactant|substrate|species)(?:\s+[A-Z]\b)?|[A-Z]\b|\[[A-Z]\](?![A-Za-z0-9_]))/i.exec(body.slice(start));
-    if (subject) start += subject[0].length;
+    const start = initialConcentrationSubjectEnd(body,owner.index! + owner[0].length);
     const next = owners[index + 1];
     let end = next?.index ?? body.length;
     const clause = /[;?\n]|\.(?=\s|$)/.exec(body.slice(start, end));
     if (clause) end = start + clause.index;
     const tail = body.slice(start, end);
     if (initialFractionRequestOnly(stem,owner.index!,start,end)
-      || initialRemainingFractionTargetOnly(stem,owner.index!,start,end)) continue;
+      || initialConcentrationFractionTargetOnly(stem,owner.index!,start,end)) continue;
     // Complete numerator/denominator math references supply no initial value;
     // an assignment or unread payload after that reference still must refuse.
     const numerator = /^\s*\/\s*(?:\[a\]|a\b)/i.exec(tail);
@@ -679,6 +681,21 @@ const WORD_FRACTIONS: Array<[RegExp, number]> = [
   [/\btwo[ -]?thirds?\b/gi, 2 / 3],
 ];
 
+interface FractionOperand { start: number; end: number; fraction: number }
+/** Shared source spans and strict scalar policy for both target ownership and plotting. */
+function fractionOperands(question: string): FractionOperand[] {
+  const operands: FractionOperand[] = [];
+  for (const [pattern,fraction] of WORD_FRACTIONS) for (const match of question.matchAll(pattern)) {
+    operands.push({start:match.index!,end:match.index!+match[0].length,fraction});
+  }
+  for (const match of question.matchAll(new RegExp(`(${SCALAR})`, "gd"))) {
+    if (!match[1]!.includes("/")) continue;
+    const fraction = matchedChemistryScalar(question,match);
+    if (fraction !== null) operands.push({start:match.index!,end:match.index!+match[0].length,fraction});
+  }
+  return operands;
+}
+
 /** Completions asked for (as fractions complete) and remaining fractions asked for, excluding the given completion. */
 function readFractionsAsked(stem: string, givenSpan: [number, number] | null): { completion: number[]; remaining: number[] } {
   const completion: number[] = [];
@@ -701,22 +718,23 @@ function readFractionsAsked(stem: string, givenSpan: [number, number] | null): {
     if (asksRemaining) push(remaining, percent / 100);
     else push(completion, percent / 100);
   }
-  const literalFractions = [...stem.matchAll(new RegExp(`(${SCALAR})`, "gd"))].filter(m => m[1]!.includes("/"));
-  const fractions: Array<[RegExp, number]> = [...WORD_FRACTIONS];
-  for (const m of literalFractions) {
-    const fraction = matchedChemistryScalar(stem, m);
-    if (fraction !== null) fractions.push([new RegExp(m[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gd"), fraction]);
-  }
-  for (const [pattern, fraction] of fractions) {
-    for (const match of stem.matchAll(pattern)) {
-      const index = match.index ?? 0;
-      const before = stem.slice(Math.max(0, index - 70), index);
-      const after = stem.slice(index, index + 60);
-      const asksRemaining = /\b(?:to|reduce|fall|decrease|remain|left|becomes?)\b[^.]{0,30}$/i.test(before) || /^[^.]{0,20}(?:of (?:its|the) (?:initial|original)|remain|left)/i.test(after.slice(match[0].length));
-      const asksCompletion = /\b(?:completion|complete|completed|decompos|consum|convert|react)/i.test(after) || /\b(?:for|of)\s*$/i.test(before);
-      if (asksRemaining) push(remaining, fraction);
-      else if (asksCompletion) push(completion, fraction);
+  for (const operand of fractionOperands(stem)) {
+    const {start:index,end,fraction} = operand;
+    const before = stem.slice(Math.max(0,index-70),index);
+    const after = stem.slice(index,index+60);
+    const owner = /^\s+of\s+(?:(?:the|its)\s+)?((?:initial|starting) concentration)\b/i.exec(stem.slice(end));
+    if (owner) {
+      const ownerStart = end + owner[0].length - owner[1]!.length;
+      const predicateStart = initialConcentrationSubjectEnd(stem,end + owner[0].length);
+      const clause = /[;?\n]|\.(?=\s|$)/.exec(stem.slice(predicateStart));
+      const predicateEnd = clause ? predicateStart+clause.index : stem.length;
+      const role = concentrationFractionTargetRole(stem,operand,ownerStart,predicateStart,predicateEnd);
+      if (role) { push(role === "remaining" ? remaining : completion,fraction); continue; }
     }
+    const asksRemaining = /\b(?:to|reduce|fall|decrease|remain|left|becomes?)\b[^.]{0,30}$/i.test(before) || /^[^.]{0,20}(?:of (?:its|the) (?:initial|original)|remain|left)/i.test(after.slice(end-index));
+    const asksCompletion = /\b(?:completion|complete|completed|decompos|consum|convert|react)/i.test(after) || /\b(?:for|of)\s*$/i.test(before);
+    if (asksRemaining) push(remaining,fraction);
+    else if (asksCompletion) push(completion,fraction);
   }
   return { completion, remaining };
 }
