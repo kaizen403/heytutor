@@ -119,6 +119,8 @@ async function runLiveConsumer(strictSubjects = ["physics"]): Promise<ConsumerRe
     liveDiagramStrategyDecision, chemistryLane: false, gate: { chemistryLane: false },
     codeLesson: null, dsaClassification: { isDsa: false },
     tel: { span: () => ({ end() {} }), meta() {}, mark() {} },
+    // #176 failure telemetry runs inside the same block; stub it so only subject behaviour is judged.
+    page: { failureTelemetry: undefined }, readFailedTurnTelemetry: (value: unknown) => value, turnPlanFailureTelemetry: () => ({}),
     planAndSolveProblemV1: () => { throw new Error("rejected plans cannot start numeric authority"); },
     planTurnV3: (input: string, options: TurnPlannerV3Options) => {
       sink = options.onRequestOutcome;
