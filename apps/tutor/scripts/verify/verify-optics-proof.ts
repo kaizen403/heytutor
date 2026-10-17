@@ -165,6 +165,12 @@
  * line), a routed connect from the object tip to the focus and a rectangle band at the object tip's
  * height across the element all stay unproven and never draw. Traced rays alone, the mirror plane and a
  * screen at the image drawn as perpendicular_through still prove and draw.
+ * G32: signed inline u and f, with no `form`, are the plan's by magnitude. On each row of the review's
+ * table (S1, S2, S2b, S3, S3b, S4, S5, S8, S10), where the stem fixes the image by an image distance
+ * with no side word, a magnification, an image height, "at the centre of curvature" or "the same
+ * size", the wrong figure (signed literals inline, the stem's u declared or nothing declared) fails
+ * production validation on its inline objectDistance or focalLength and never draws in either arm;
+ * the right figure, signed and inline, draws.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -2105,7 +2111,74 @@ function named(name: string, run: () => void): void {
   }
 }
 
-for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21", "G22", "G23", "G24", "G25", "G26", "G27", "G28", "G29", "G30", "G31"]) {
+// ---- G32: signed inline u and f are the plan's, by magnitude, when the stem fixes the image another way ----
+{
+  type Row = TurnPlanV3["givens"][number];
+  const given = (id: string, value: number, unit = "cm", symbol = id): Row => ({ id, symbol, value, unit, provenance: "given", sourceText: `${symbol} ${value}` });
+  const derived = (id: string, value: number, unit = "cm", symbol = id): Row => ({ id, symbol, value, unit, provenance: "derived" });
+  /**
+   * The gate's builders traced by the engine (parallel and central rays), with signed literals inline and
+   * no `form`; only the stem's own u is declared as a quantity, or nothing at all.
+   */
+  const signed = (element: "lens" | "mirror", question: string, kind: "concave" | "convex", u: number, f: number, declared: boolean): Doc => {
+    const quantities = declared ? [{ id: "u", symbol: "u", value: u }] : [];
+    if (element === "mirror") return traced(mirrorDoc(question, { u, f, h: 2, kind, quantities }), ["parallel", "central"]);
+    const document = traced(lensDoc(question, { u, f: kind === "convex" ? f : -f, h: 2 }), ["parallel", "central"]);
+    document.quantities = quantities.map((quantity) => ({ ...quantity, unit: "cm" })) as Doc["quantities"];
+    return document;
+  };
+  const rows: Array<{ name: string; element: "lens" | "mirror"; kind: "concave" | "convex"; question: string; givens: Row[]; derived: Row[]; law: string; wrong: [number, number]; right: [number, number] }> = [
+    { name: "S1", element: "mirror", kind: "concave", question: "An object is placed 20 cm in front of a concave mirror. A real image is formed 30 cm from the mirror. Draw the ray diagram.",
+      givens: [given("u", 20), given("v", 30)], derived: [derived("f", 12)], law: "mirror_formula", wrong: [20, 5], right: [20, 12] },
+    { name: "S2", element: "lens", kind: "convex", question: "An object placed 15 cm from a convex lens forms a real image at 30 cm from the lens. Draw the ray diagram.",
+      givens: [given("u", 15), given("v", 30)], derived: [derived("f", 10)], law: "lens_formula", wrong: [15, 5], right: [15, 10] },
+    { name: "S2b", element: "lens", kind: "convex", question: "An object is placed 15 cm from a convex lens. The image distance is 30 cm. Draw the ray diagram.",
+      givens: [given("u", 15), given("v", 30)], derived: [derived("f", 10)], law: "lens_formula", wrong: [15, 5], right: [15, 10] },
+    { name: "S3", element: "lens", kind: "convex", question: "A convex lens of focal length 10 cm forms a real image three times the size of the object. Draw the ray diagram.",
+      givens: [given("f", 10), given("m", 3, "", "m")], derived: [derived("u", 40 / 3), derived("v", 40)], law: "lens_formula", wrong: [30, 10], right: [40 / 3, 10] },
+    { name: "S3b", element: "lens", kind: "convex", question: "A convex lens of focal length 10 cm produces a magnification of -3. Draw the ray diagram.",
+      givens: [given("f", 10), given("m", -3, "", "m")], derived: [derived("u", 40 / 3), derived("v", 40)], law: "lens_formula", wrong: [30, 10], right: [40 / 3, 10] },
+    { name: "S4", element: "mirror", kind: "concave", question: "An object 2 cm tall forms a real image 6 cm tall in a concave mirror of focal length 10 cm. Draw the ray diagram.",
+      givens: [given("h", 2, "cm", "h_o"), given("hi", 6, "cm", "h_i"), given("f", 10)], derived: [derived("u", 40 / 3), derived("v", 40)], law: "mirror_formula", wrong: [30, 10], right: [40 / 3, 10] },
+    { name: "S5", element: "lens", kind: "convex", question: "An object 10 cm from a convex lens forms a sharp image on a screen 40 cm from the lens. Draw the ray diagram.",
+      givens: [given("u", 10), given("v", 40)], derived: [derived("f", 8)], law: "lens_formula", wrong: [10, 20], right: [10, 8] },
+    { name: "S8", element: "mirror", kind: "concave", question: "An object is placed at the centre of curvature of a concave mirror of focal length 10 cm. Draw the ray diagram.",
+      givens: [given("f", 10)], derived: [derived("u", 20), derived("v", 20)], law: "mirror_formula", wrong: [30, 10], right: [20, 10] },
+    { name: "S10", element: "mirror", kind: "concave", question: "A concave mirror of focal length 15 cm forms a real image of the same size as the object. Draw the ray diagram.",
+      givens: [given("f", 15)], derived: [derived("u", 30), derived("v", 30)], law: "mirror_formula", wrong: [20, 15], right: [30, 15] },
+  ];
+  for (const row of rows) {
+    const turnPlan = plan(row.question, row.givens, row.derived, [row.law]);
+    // The stem's own u, when it states one, is declared as a quantity; or nothing is.
+    const statesU = row.givens.some((quantity) => quantity.id === "u");
+    for (const declared of statesU ? [true, false] : [false]) {
+      const where = declared ? "with the stem's u declared" : "with no quantities";
+      const [u, f] = row.wrong;
+      const name = `${row.name} signed u ${+u.toFixed(2)} f ${f} ${where}`;
+      const wrong = signed(row.element, row.question, row.kind, u, f, declared);
+      check("G32", !wrong.constructions.some((construction) => construction.inputs.form !== undefined) &&
+        wrong.constructions.find((construction) => construction.operator === "gaussian_image")!.inputs.objectDistance === -u,
+        `${name} must carry signed literals inline and no form`);
+      // Nothing the proof reads from the stem refuses it; the plan does.
+      const { candidateValidation, strict, current } = production(row.question, turnPlan, wrong);
+      const codes = candidateValidation.valid ? [] : candidateValidation.errors.filter((issue) => issue.severity === "fatal")
+        .map((issue) => `${issue.code}@${issue.path}`);
+      check("G32", explainPlannerOpticsProof(row.question, wrong).proof === "unproven" ||
+        codes.some((code) => /^scene_quantity_unverified@constructions\[\d+\]\.inputs\.(?:objectDistance|focalLength)$/.test(code)),
+        `${name} must be unproven or fail the plan on an inline objectDistance or focalLength; got ${codes.join(", ") || "valid"}`);
+      for (const [arm, selection] of [["strict", strict], ["current", current]] as const) {
+        check("G32", selection.representation?.figureSource !== "planner" && selection.attemptedRepresentation?.figureSource !== "planner",
+          `${name} must never be drawn as a planner figure in the ${arm} arm; got ${selection.representation?.figureSource}`);
+      }
+    }
+    // The figure the stem needs, signed and inline, still draws.
+    const [u, f] = row.right;
+    expectDrawnAsPlanner("G32", `${row.name} signed u ${+u.toFixed(2)} f ${f}`, row.question, turnPlan,
+      signed(row.element, row.question, row.kind, u, f, statesU));
+  }
+}
+
+for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21", "G22", "G23", "G24", "G25", "G26", "G27", "G28", "G29", "G30", "G31", "G32"]) {
   console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 }
 for (const [name, failed] of namedCases) console.log(`  ${name}: ${failed ? `FAIL (${failed} checks)` : "pass"}`);

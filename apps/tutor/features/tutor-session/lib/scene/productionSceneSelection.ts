@@ -139,7 +139,13 @@ function magnitudePlan(plan: TurnPlanV3, givens = plan.givens, derived = plan.de
  * sides (the Cartesian sign lives in `form` or in the literal, never in the
  * plan's reading of the stem), each against its own plan quantity only.
  *
- * - objectDistance and focalLength, in magnitude mode (`form` present):
+ * - objectDistance and focalLength, in signed and magnitude mode (`form`
+ *   present or not): a signed literal is held by its magnitude, so u = -20
+ *   with f = -12 must still be the plan's 20 cm and 12 cm. The proof compares
+ *   u and f only with the numbers it reads from the stem; a stem that fixes
+ *   the image another way (an image distance with no side word, a
+ *   magnification, an image height, "same size", "at C") leaves the plan as
+ *   the only check.
  *   - written as a plan quantity id (declared in the document), the input is
  *     that quantity whatever its name, so u called p binds to p. Two
  *     exceptions keep the binding honest: a quantity named as another input
@@ -193,7 +199,7 @@ function opticsMagnitudeLiteralIssues(
   (Array.isArray(document.constructions) ? document.constructions : []).forEach((construction, index) => {
     if (!isPlainRecord(construction) || typeof construction.operator !== "string" || !isPlainRecord(construction.inputs)) return;
     const inputs = construction.inputs;
-    const keys: string[] = inputs.form !== undefined ? [...OPTICS_MAGNITUDE_INPUTS[construction.operator] ?? []] : [];
+    const keys: string[] = [...OPTICS_MAGNITUDE_INPUTS[construction.operator] ?? []];
     if (construction.operator === "gaussian_image" && heightPlan) keys.push("objectHeight");
     for (const key of keys) {
       const wrapper = isPlainRecord(inputs[key]) ? inputs[key] as Record<string, unknown> : undefined;
@@ -207,7 +213,7 @@ function opticsMagnitudeLiteralIssues(
       const unit = quantity ? (typeof quantity.unit === "string" ? quantity.unit : inputs.lengthUnit)
         : typeof wrapper?.unit === "string" ? wrapper.unit : inputs.lengthUnit;
       const id = `${String(construction.id ?? construction.operator)}.${key}`;
-      const source = quantity ? `quantity ${String(written)}` : "magnitude literal";
+      const source = quantity ? `quantity ${String(written)}` : inputs.form !== undefined ? "magnitude literal" : "signed literal, by magnitude";
       const { against, scope } = key === "objectHeight" ? { against: heightPlan!, scope: "the plan's object height only" } : binding(key, written);
       for (const issue of validateSceneQuantityAgreement([{ id, value: Math.abs(value), ...(unit === undefined ? {} : { unit }) }], against)) {
         issues.push({ code: issue.code, message: `${issue.message} (a ${construction.operator} ${key} ${source}, held to ${scope})`, path: `constructions[${index}].inputs.${key}`, severity: "fatal" });
