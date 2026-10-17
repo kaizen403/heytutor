@@ -241,6 +241,466 @@ for (const question of [
   assert.equal(selected.representation, null, "an unsupported angle, physical number or unresolved member cannot vanish");
 });
 
+
+/** Boolean claim truth and every local hybridisation occurrence. */
+const polarityRows = [
+  {
+    "id": "shape-wrong-expected-true",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 is tetrahedral.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "shape-wrong-expected-false",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 is tetrahedral.",
+    "expected": false,
+    "draw": true
+  },
+  {
+    "id": "shape-right-expected-true",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 is seesaw.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "shape-right-expected-false",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 is seesaw.",
+    "expected": false,
+    "draw": false
+  },
+  {
+    "id": "electron-shape-right-expected-true",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "The electron geometry of SF4 is trigonal bipyramidal.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "electron-shape-right-expected-false",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "The electron geometry of SF4 is trigonal bipyramidal.",
+    "expected": false,
+    "draw": false
+  },
+  {
+    "id": "electron-shape-wrong-expected-true",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "The electron geometry of SF4 is tetrahedral.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "electron-shape-wrong-expected-false",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "The electron geometry of SF4 is tetrahedral.",
+    "expected": false,
+    "draw": true
+  },
+  {
+    "id": "shape-negated-wrong-expected-true",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 is not tetrahedral.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "shape-negated-wrong-expected-false",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 is not tetrahedral.",
+    "expected": false,
+    "draw": false
+  },
+  {
+    "id": "shape-negated-right-expected-true",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 is not seesaw.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "shape-negated-right-expected-false",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 is not seesaw.",
+    "expected": false,
+    "draw": true
+  },
+  {
+    "id": "hybrid-wrong-expected-true",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Sulfur is sp3 hybridised.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "hybrid-wrong-expected-false",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Sulfur is sp3 hybridised.",
+    "expected": false,
+    "draw": true
+  },
+  {
+    "id": "hybrid-right-expected-true",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Sulfur is sp3d hybridised.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "hybrid-right-expected-false",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Sulfur is sp3d hybridised.",
+    "expected": false,
+    "draw": false
+  },
+  {
+    "id": "hybrid-negated-wrong-expected-true",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Sulfur is not sp3 hybridised.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "hybrid-negated-wrong-expected-false",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Sulfur is not sp3 hybridised.",
+    "expected": false,
+    "draw": false
+  },
+  {
+    "id": "hybrid-negated-right-expected-true",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Sulfur is not sp3d hybridised.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "hybrid-negated-right-expected-false",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Sulfur is not sp3d hybridised.",
+    "expected": false,
+    "draw": true
+  },
+  {
+    "id": "count-right-expected-true",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Sulfur has one lone pair.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "count-right-expected-false",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Sulfur has one lone pair.",
+    "expected": false,
+    "draw": false
+  },
+  {
+    "id": "count-wrong-expected-true",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Sulfur has two lone pairs.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "count-wrong-expected-false",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Sulfur has two lone pairs.",
+    "expected": false,
+    "draw": true
+  },
+  {
+    "id": "radical-pair-right-expected-true",
+    "question": "Show the molecular shape of NO2.",
+    "claim": "Nitrogen has no lone pairs.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "radical-pair-right-expected-false",
+    "question": "Show the molecular shape of NO2.",
+    "claim": "Nitrogen has no lone pairs.",
+    "expected": false,
+    "draw": false
+  },
+  {
+    "id": "radical-pair-wrong-expected-true",
+    "question": "Show the molecular shape of NO2.",
+    "claim": "Nitrogen has one lone pair.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "radical-pair-wrong-expected-false",
+    "question": "Show the molecular shape of NO2.",
+    "claim": "Nitrogen has one lone pair.",
+    "expected": false,
+    "draw": true
+  },
+  {
+    "id": "radical-odd-right-expected-true",
+    "question": "Show the molecular shape of NO2.",
+    "claim": "Nitrogen has one unpaired electron.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "radical-odd-right-expected-false",
+    "question": "Show the molecular shape of NO2.",
+    "claim": "Nitrogen has one unpaired electron.",
+    "expected": false,
+    "draw": false
+  },
+  {
+    "id": "radical-odd-wrong-expected-true",
+    "question": "Show the molecular shape of NO2.",
+    "claim": "Nitrogen has no unpaired electron.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "radical-odd-wrong-expected-false",
+    "question": "Show the molecular shape of NO2.",
+    "claim": "Nitrogen has no unpaired electron.",
+    "expected": false,
+    "draw": true
+  },
+  {
+    "id": "position-wrong-expected-true",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "The lone pair occupies an axial site.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "position-wrong-expected-false",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "The lone pair occupies an axial site.",
+    "expected": false,
+    "draw": true
+  },
+  {
+    "id": "position-right-expected-true",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "The lone pair occupies an equatorial site.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "position-right-expected-false",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "The lone pair occupies an equatorial site.",
+    "expected": false,
+    "draw": false
+  },
+  {
+    "id": "exact-negated-hybrid",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Valence-shell description",
+    "expected": "Sulfur is not sp3 hybridised.",
+    "draw": true
+  },
+  {
+    "id": "negated-hybrid-false",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Valence-shell description",
+    "expected": "Sulfur is not sp3d hybridised.",
+    "draw": false
+  },
+  {
+    "id": "hybrid-siblings-both-correct",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Valence-shell description",
+    "expected": "Sulfur is not sp3 hybridised and sulfur is sp3d hybridised.",
+    "draw": true
+  },
+  {
+    "id": "hybrid-siblings-one-wrong",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Valence-shell description",
+    "expected": "Sulfur is sp3d hybridised and sulfur is sp3 hybridised.",
+    "draw": false
+  }
+] as const;
+for (const row of polarityRows) {
+  const plan = planFor(row.question);
+  plan.qualitativeClaims = [{ id: row.id, claim: row.claim, expected: row.expected }];
+  assert.equal(plan.qualitativeClaims.length, 1);
+  assert.equal(plan.qualitativeClaims[0]!.expected, row.expected);
+  assert(validateTurnPlanV3(plan, row.question).valid);
+  test(`polarity/${row.id}/guard`, () => assert.equal(vseprPlanConflict(row.question, plan) === null, row.draw));
+  test(`polarity/${row.id}/native`, () => {
+    const selected = selectProductionScene({ question: row.question, turnPlan: plan, problemIR: null });
+    assert.equal(!!selected.representation, row.draw, selected.reason);
+  });
+}
+
+
+const polarityNeighborRows = [
+  {
+    "id": "terminal-hybrid-correct",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Valence-shell description",
+    "expected": "Fluorine is sp3 hybridised.",
+    "draw": true
+  },
+  {
+    "id": "terminal-plus-central-correct",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Valence-shell description",
+    "expected": "Fluorine is sp3 hybridised and sulfur is sp3d hybridised.",
+    "draw": true
+  },
+  {
+    "id": "terminal-plus-central-wrong",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Valence-shell description",
+    "expected": "Fluorine is sp3 hybridised and sulfur is sp3 hybridised.",
+    "draw": false
+  },
+  {
+    "id": "uppercase-hybrid-correct",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Valence-shell description",
+    "expected": "Sulfur is SP3D hybridised.",
+    "draw": true
+  },
+  {
+    "id": "joined-hybrid-negation-correct",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Valence-shell description",
+    "expected": "Sulfur is not sp2 or sp3 hybridised.",
+    "draw": true
+  },
+  {
+    "id": "joined-hybrid-negation-wrong",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Valence-shell description",
+    "expected": "Sulfur is not sp2 or sp3d hybridised.",
+    "draw": false
+  },
+  {
+    "id": "unicode-hybrid-correct",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Valence-shell description",
+    "expected": "Sulfur is sp\u00b3d hybridised.",
+    "draw": true
+  },
+  {
+    "id": "unicode-hybrid-correct-caret",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Valence-shell description",
+    "expected": "Sulfur is sp^3d hybridised.",
+    "draw": true
+  },
+  {
+    "id": "unicode-hybrid-negated-actual",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Valence-shell description",
+    "expected": "Sulfur is not sp\u00b3d hybridised.",
+    "draw": false
+  },
+  {
+    "id": "terminal-unicode-plus-central-correct",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "Valence-shell description",
+    "expected": "Fluorine is sp\u00b3 hybridised and sulfur is sp\u00b3d hybridised.",
+    "draw": true
+  },
+  {
+    "id": "booleanfalse-compound-conservative",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 is tetrahedral and square planar.",
+    "expected": false,
+    "draw": false
+  },
+  {
+    "id": "booleanfalse-unknown-undecided",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 has an unspecified descriptive property.",
+    "expected": false,
+    "draw": true
+  }
+] as const;
+for (const row of polarityNeighborRows) {
+  const plan = planFor(row.question);
+  plan.qualitativeClaims = [{id:row.id,claim:row.claim,expected:row.expected}];
+  assert(validateTurnPlanV3(plan,row.question).valid);
+  test(`polarity-neighbor/${row.id}/guard`,()=>assert.equal(vseprPlanConflict(row.question,plan)===null,row.draw));
+  test(`polarity-neighbor/${row.id}/native`,()=>assert.equal(!!selectProductionScene({question:row.question,turnPlan:plan,problemIR:null}).representation,row.draw));
+}
+
+const hybridTokenBoundaryRows = [
+  {
+    "id": "unknown-caret-letter",
+    "expected": "Sulfur is sp^x hybridised.",
+    "draw": true
+  },
+  {
+    "id": "unknown-spaced-caret-letter",
+    "expected": "Sulfur is sp ^ x hybridised.",
+    "draw": true
+  },
+  {
+    "id": "unknown-caret-only",
+    "expected": "Sulfur is sp^ hybridised.",
+    "draw": true
+  },
+  {
+    "id": "unknown-double-star",
+    "expected": "Sulfur is sp**3 hybridised.",
+    "draw": true
+  },
+  {
+    "id": "unknown-caret-followed-correct",
+    "expected": "Sulfur is sp^x hybridised and sulfur is sp3d hybridised.",
+    "draw": true
+  },
+  {
+    "id": "unknown-caret-followed-wrong",
+    "expected": "Sulfur is sp^x hybridised and sulfur is sp3 hybridised.",
+    "draw": false
+  },
+  {
+    "id": "ordinary-sp-wrong",
+    "expected": "Sulfur is sp hybridised.",
+    "draw": false
+  },
+  {
+    "id": "caret-supported-correct",
+    "expected": "Sulfur is sp^3d hybridised.",
+    "draw": true
+  },
+  {
+    "id": "caret-supported-wrong",
+    "expected": "Sulfur is sp^3 hybridised.",
+    "draw": false
+  },
+  {
+    "id": "spaced-caret-supported-correct",
+    "expected": "Sulfur is sp ^ 3 d hybridised.",
+    "draw": true
+  },
+  {
+    "id": "unicode-supported-correct-boundary",
+    "expected": "Sulfur is sp\u00b3d hybridised.",
+    "draw": true
+  },
+  {
+    "id": "unknown-negated-caret",
+    "expected": "Sulfur is not sp^x hybridised.",
+    "draw": true
+  }
+] as const;
+for (const row of hybridTokenBoundaryRows) {
+  const plan = planFor(sf4, row.expected);
+  test(`hybrid-token-boundary/${row.id}/guard`, () => assert.equal(vseprPlanConflict(sf4, plan) === null, row.draw));
+  test(`hybrid-token-boundary/${row.id}/native`, () => assert.equal(!!selectProductionScene({ question: sf4, turnPlan: plan, problemIR: null }).representation, row.draw));
+}
+
 const load = createRequire(import.meta.url);
 const enginePath = realpathSync(load.resolve("@heytutor/scene-engine"));
 const sourcePaths = ["packages/scene-engine/src/chemistry/vsepr.ts", "packages/scene-engine/src/chemistry/vseprSource.ts", "apps/tutor/features/tutor-session/lib/scene/productionSceneSelection.ts"];

@@ -515,7 +515,7 @@ function centralCountOwner(text: string, start: number, end: number, result: Vse
   const possessive = /\b([A-Za-z]+)['\u2019]s\s*$/.exec(before);
   const possessiveOwner = possessive ? owner(possessive[1]!) : null;
   if (possessiveOwner !== null) return possessiveOwner;
-  const subjects = [...before.matchAll(/\b(central\s+atom|[A-Za-z]+)(?:\s+atoms?)?(?:\s+in\s+[A-Za-z0-9_()^+-]+)?(?:\s+(?:each|all|both|individually))?\s+(?:has|have|carries|carry|contains|contain)\b/gi)];
+  const subjects = [...before.matchAll(/\b(central\s+atom|[A-Za-z]+)(?:\s+atoms?)?(?:\s+in\s+[A-Za-z0-9_()^+-]+)?(?:\s+(?:each|all|both|individually))?\s+(?:has|have|carries|carry|contains|contain|is|are|uses|use)\b/gi)];
   for (const subject of subjects.reverse()) {
     const subjectOwner = owner(subject[1]!);
     if (subjectOwner !== null) return subjectOwner;
@@ -534,21 +534,38 @@ function electronCountClaims(text: string, result: VseprResult): ElectronCountCl
   }));
 }
 
+/** Each local hybrid claim retains its owner and negation; siblings cannot erase it. */
+function hybridisationClaims(text: string, result: VseprResult): Array<{ value: Hybridisation; negated: boolean }> {
+  const claims: Array<{ value: Hybridisation; negated: boolean }> = [];
+  let previous: { end: number; negated: boolean } | undefined;
+  for (const match of text.matchAll(/(?<![\p{L}\p{N}_])sp(?:\s*[\^*'\u2019"`]?\s*[\d²³])?(?:\s*d(?:\s*[\^*'\u2019"`]?\s*[\d²³])?)?(?![\p{L}\p{N}_]|\s*[\^*'’"`])/giu)) {
+    const token = match[0].toLowerCase().replace(/²/g, "2").replace(/³/g, "3");
+    const value = readHybridisation(`${token} hybridised`);
+    if (!value || !centralCountOwner(text, match.index, match.index + match[0].length, result)) continue;
+    if (/^sp$/i.test(match[0]) && !/hybrid/i.test(text.slice(Math.max(0, match.index - 45), match.index + match[0].length + 20))) continue;
+    const explicit = /\b(?:not|never|neither)\s+(?:an?\s+)?$/i.test(text.slice(0, match.index));
+    const joined = previous?.negated === true && /^(?:\s*,\s*|\s+(?:or|nor)\s+|\s*,\s*(?:or|nor)\s+)(?:an?\s+)?$/i.test(text.slice(previous.end, match.index));
+    const negated = explicit || joined;
+    claims.push({ value, negated });
+    previous = { end: match.index + match[0].length, negated };
+  }
+  return claims;
+}
+
 /** Position belongs to a lone-pair predicate, not an axial ligand nearby. */
-function centralLonePairIsAxial(text: string, result: VseprResult): boolean {
-  const afterPair = /\blone[ -]?pairs?\b(?:(?:\s+(?:on|around|in))\s+(?:(?:the|central)\s+)*[A-Za-z0-9_^()+-]+(?:\s+atom)?)?\s+(?:(?:is|are|occupies|occupy|sits|sit|lies|lie|prefers|prefer)\s+)?(?:(?:placed|located|positioned)\s+)?(?:(?:not|never)\s+)?(?:(?:in|at|on)\s+)?(?:(?:one|either|any|each|both)\s+of\s+)?(?:(?:an?|the|its|one|two|1|2|first|second|both|either|any)\s+)*axial\b/gi;
+function centralLonePairPositions(text: string, result: VseprResult): Array<{ position: string; negated: boolean }> {
+  const claims: Array<{ position: string; negated: boolean }> = [];
+  const afterPair = /\blone[ -]?pairs?\b(?:(?:\s+(?:on|around|in))\s+(?:(?:the|central)\s+)*[A-Za-z0-9_^()+-]+(?:\s+atom)?)?\s+(?:(?:is|are|occupies|occupy|sits|sit|lies|lie|prefers|prefer)\s+)?(?:(?:placed|located|positioned)\s+)?(?:(?:not|never)\s+)?(?:(?:in|at|on)\s+)?(?:(?:one|either|any|each|both)\s+of\s+)?(?:(?:an?|the|its|one|two|1|2|first|second|both|either|any)\s+)*(axial|equatorial)\b/gi;
   for (const match of text.matchAll(afterPair)) {
     const pair = /^lone[ -]?pairs?/i.exec(match[0])!;
     const end = match.index + pair[0].length;
-    if (centralCountOwner(text, match.index, end, result)
-      && !/\b(?:not|never)\b/i.test(match[0].slice(pair[0].length))) return true;
+    if (centralCountOwner(text, match.index, end, result)) claims.push({ position: match[1]!.toLowerCase(), negated: /\b(?:not|never)\b/i.test(match[0].slice(pair[0].length)) });
   }
-  for (const match of text.matchAll(/\baxial\s+(lone[ -]?pairs?)\b/gi)) {
-    const start = match.index + match[0].length - match[1]!.length;
-    if (!/\b(?:not|no|neither)\s+(?:an?\s+)?$/i.test(text.slice(0, match.index))
-      && centralCountOwner(text, start, start + match[1]!.length, result)) return true;
+  for (const match of text.matchAll(/\b(axial|equatorial)\s+(lone[ -]?pairs?)\b/gi)) {
+    const start = match.index + match[0].length - match[2]!.length;
+    if (centralCountOwner(text, start, start + match[2]!.length, result)) claims.push({ position: match[1]!.toLowerCase(), negated: /\b(?:not|no|neither)\s+(?:an?\s+)?$/i.test(text.slice(0, match.index)) });
   }
-  return false;
+  return claims;
 }
 
 /** A correct source molecule must not accompany a contradictory lesson plan. */
@@ -560,27 +577,29 @@ export function vseprPlanConflict(question: string, plan: TurnPlanV3): string | 
   if (species.length !== 1) return null;
   const result = species[0]!;
   for (const claim of plan.qualitativeClaims) {
-    const rawText = `${claim.claim} ${claim.expected}`.replace(/([a-z])[-\u2010-\u2015](?=[a-z])/gi, "$1 ");
+    const rawText = `${claim.claim}${typeof claim.expected === "boolean" ? "" : ` ${claim.expected}`}`.replace(/([a-z])[-\u2010-\u2015](?=[a-z])/gi, "$1 ");
     const text = rawText.toLowerCase();
-    const property = stemProperty(text);
+    const facts: Array<{ truth: boolean; property: string }> = [];
     for (const described of shapeClaims(text)) {
       const sourceShapes = described.target === null ? [result.shape, result.electronGeometry]
         : [described.target === "electron" ? result.electronGeometry : result.shape];
-      if (sourceShapes.every((shape) => described.negated ? described.shape === shape : described.shape !== shape)) {
-        return `VSEPR plan claim ${claim.id} contradicts the source-derived ${described.target === "electron" ? "electron geometry" : described.target === "molecular" ? "molecular shape" : "geometry"}`;
-      }
+      const equal = sourceShapes.map(shape => shape === described.shape);
+      // A property that could refer to either different geometry stays undecided.
+      if (equal.some(Boolean) && !equal.every(Boolean)) continue;
+      facts.push({ truth: described.negated ? !equal[0] : equal[0]!, property: described.target === "electron" ? "electron geometry" : described.target === "molecular" ? "molecular shape" : "geometry" });
     }
-    if (property.hybridisation && property.hybridisation !== result.hybridisation) return `VSEPR plan claim ${claim.id} contradicts the source-derived hybridisation`;
+    for (const described of hybridisationClaims(rawText, result)) facts.push({ truth: described.negated ? described.value !== result.hybridisation : described.value === result.hybridisation, property: "hybridisation" });
     for (const described of electronCountClaims(rawText, result)) {
       if (!described.central) continue;
       const sourceCount = described.kind === "lone-pair" ? actualLonePairs(result) : Number(result.unpairedElectron);
-      if (described.negated ? described.count === sourceCount : described.count !== sourceCount) {
-        return `VSEPR plan claim ${claim.id} contradicts the source-derived ${described.kind === "lone-pair" ? "lone-pair" : "unpaired-electron"} count`;
-      }
+      facts.push({ truth: described.negated ? described.count !== sourceCount : described.count === sourceCount, property: `${described.kind === "lone-pair" ? "lone-pair" : "unpaired-electron"} count` });
     }
-    if (result.stericNumber === 5 && result.lonePairs > 0 && centralLonePairIsAxial(rawText, result)) {
-      return `VSEPR plan claim ${claim.id} contradicts the equatorial lone-pair position`;
+    if (result.stericNumber === 5 && result.lonePairs > 0) {
+      for (const described of centralLonePairPositions(rawText, result)) facts.push({ truth: described.negated ? described.position !== "equatorial" : described.position === "equatorial", property: "equatorial lone-pair position" });
     }
+    if (claim.expected === false && facts.length && (facts.length !== 1 || /\b(?:and|or|but|while|whereas|although|nor)\b/i.test(rawText))) return `VSEPR plan claim ${claim.id} has unsupported compound boolean scope`;
+    const conflict = facts.find(fact => fact.truth !== (claim.expected !== false));
+    if (conflict) return `VSEPR plan claim ${claim.id} contradicts the source-derived ${conflict.property}`;
   }
   return null;
 }
