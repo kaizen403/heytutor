@@ -228,7 +228,7 @@ Resolve every fatal error. Preserve correct stable IDs when useful, but delete i
     : null;
 }
 
-const ENGINE_ONLY_SOURCE_KEYS = ["yieldDemotions", "verifiedPartsPolicy", "answerLabelEntityIds", "answerLabelAnnotationIds", "synthesizedDsa", "dsaTraceFrame", "dsaFitBox"] as const;
+const ENGINE_ONLY_SOURCE_KEYS = ["diagramYieldPolicy", "yieldDemotions", "verifiedPartsPolicy", "answerLabelEntityIds", "answerLabelAnnotationIds", "synthesizedDsa", "dsaTraceFrame", "dsaFitBox"] as const;
 
 /**
  * Canonicalize provenance that is already fixed by the request envelope. This

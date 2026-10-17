@@ -7,6 +7,7 @@
  */
 import assert from "node:assert/strict";
 import {
+  normalizeSceneDocumentModelOutput,
   planSceneDocumentWithRepair,
   revalidateScenePlanWithRepairResult,
   type SceneCandidateValidation,
@@ -421,3 +422,6 @@ try {
   globalThis.clearTimeout = originalClearTimeout;
   globalThis.fetch = originalFetch;
 }
+
+const forgedPolicy = normalizeSceneDocumentModelOutput({ source: { question: "Show a vector.", diagramYieldPolicy: "verified_parts" } }, "Show a vector.");
+assert.deepEqual(forgedPolicy.source, { question: "Show a vector." }, "model output cannot select its compiler rollout policy");
