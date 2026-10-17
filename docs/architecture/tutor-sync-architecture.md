@@ -153,8 +153,8 @@ use the owning audio clock, respect pause and Stop, and skip instant seek/restor
 Finished playback/export animate on their existing media-backed virtual board
 clock, so pausing audio freezes the pen too. With no visible work row there is
 no inferred target or motion: committed but unrevealed diagram anchors are never
-fallback targets. Existing authored POINT/FOCUS and code beats retain their own
-targets. These transient POINTs are not saved as lesson commands and add no ink,
+fallback targets. Sentences with authored POINT/FOCUS retain their own targets for the whole
+sentence and do not use work-row fallback tours. Code beats keep their owners. These transient POINTs are not saved as lesson commands and add no ink,
 labels or geometry. Cached video files use a new revision for the motion.
 
 ### Finished-lecture playback bar

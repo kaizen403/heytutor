@@ -77,6 +77,8 @@ async function drawExportCue(options: {
 }): Promise<void> {
   const { cue, executeCommand, getClockMs, waitForAdvance, shouldCancel } = options;
   const segmentCommands = cue.commands;
+  // Keep the authored gesture's target for its whole spoken sentence.
+  const canPointAtWork = !segmentCommands.some(command => command.type === "FOCUS" || command.type === "POINT");
   const narration = cue.narration;
   const paceContext = inkPaceContextForSegment({
     verifiedDiagramIntro: cue.trustedDiagramGeometry,
@@ -152,7 +154,7 @@ async function drawExportCue(options: {
         isCancelled: shouldCancel,
         trustedDiagramGeometry,
         inkPace: pace,
-        ...(command.type === "WRITE" && !trustedDiagramGeometry ? { explanationClock: speechClock } : {}),
+        ...(command.type === "WRITE" && !trustedDiagramGeometry && canPointAtWork ? { explanationClock: speechClock } : {}),
         writeSchedule: {
           charStartOffsetsMs: effectiveOffsets,
           charDurationsMs: writePlan.charDurationsMs,
@@ -175,7 +177,7 @@ async function drawExportCue(options: {
           };
 
     if (speechWindow.startMs > 0) {
-      if (!trustedDiagramGeometry) {
+      if (!trustedDiagramGeometry && canPointAtWork) {
         await pointThroughExplanation({ clock: speechClock, execute: executeCommand, isCancelled: shouldCancel, beforeWriteMs: speechWindow.startMs });
         if (shouldCancel()) return;
       }
@@ -220,7 +222,7 @@ async function drawExportCue(options: {
       textCommandIndex += 1;
     }
   }
-  if (!trustedDiagramGeometry) {
+  if (!trustedDiagramGeometry && canPointAtWork) {
     await pointThroughExplanation({ clock: speechClock, execute: executeCommand, isCancelled: shouldCancel });
   }
 }

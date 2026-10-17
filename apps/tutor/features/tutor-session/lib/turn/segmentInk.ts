@@ -196,6 +196,9 @@ export async function drawSegmentInk(input: {
     cuedFloors,
     cuedCaps,
   } = plan;
+  // An authored gesture owns what this sentence explains. A fallback work
+  // tour must not pull the pen away from that target, even after its cue ends.
+  const canPointAtWork = !segmentCommands.some(command => command.type === "FOCUS" || command.type === "POINT");
   const narration = clock.narration;
   const hasNarration = narration.length > 0;
   const speechMsPerChar = clock.msPerChar;
@@ -485,7 +488,7 @@ export async function drawSegmentInk(input: {
         },
         ...input.commandOptions(command),
         inkPace: pace,
-        ...(command.type === "WRITE" && !input.verifiedDiagramIntro ? { explanationClock: clock } : {}),
+        ...(command.type === "WRITE" && !input.verifiedDiagramIntro && canPointAtWork ? { explanationClock: clock } : {}),
       });
       if (isTextCommand) {
         textCommandIndex++;
@@ -569,7 +572,7 @@ export async function drawSegmentInk(input: {
         : 0;
 
     if (startDelayMs > 0 && (cueStartMs !== null || speechWindow)) {
-      if (!input.verifiedDiagramIntro) {
+      if (!input.verifiedDiagramIntro && canPointAtWork) {
         await pointThroughExplanation({ clock, execute: executeExplanationPoint, isCancelled, beforeWriteMs: cueStartMs ?? commandStartMs });
         if (isCancelled()) return;
       }
@@ -700,7 +703,7 @@ export async function drawSegmentInk(input: {
       textCommandIndex++;
     }
   }
-  if (!input.verifiedDiagramIntro) {
+  if (!input.verifiedDiagramIntro && canPointAtWork) {
     await pointThroughExplanation({ clock, execute: executeExplanationPoint, isCancelled });
   }
 }
