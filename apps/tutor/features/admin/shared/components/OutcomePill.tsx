@@ -17,6 +17,11 @@ const OUTCOME_STYLE: Record<TurnOutcome, { bg: string; text: string; border: str
     text: "#E06858",
     border: "rgba(224, 104, 88, 0.32)",
   },
+  failed: {
+    bg: "rgba(224, 104, 88, 0.15)",
+    text: "#E06858",
+    border: "rgba(224, 104, 88, 0.32)",
+  },
   unverified: {
     bg: "rgba(255, 255, 255, 0.04)",
     text: "rgba(237, 237, 235, 0.45)",
