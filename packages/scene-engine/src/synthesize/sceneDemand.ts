@@ -204,29 +204,73 @@ const CAPACITOR_NETWORK =
 
 const INSTRUMENT = /(?:microscope|telescope)/i;
 
-/**
+/*
  * A stem that places a point on an ellipse or a hyperbola by its parameter
  * angle: "the eccentric angle θ = π/6", "the points with parameters θ",
- * "P(θ)", "at θ = π/3", "parametric coordinates of a point".
+ * "P(θ)", "at θ = π/3", "(a cos θ, b sin θ)", "parametric form".
  *
  * The conic operator's own parameter is not that angle for a hyperbola (it
  * is hyperbolic, cosh and sinh, where the stem means a sec θ and b tan θ), and
  * on an ellipse the judged figures put the point at the wrong angle or drew
  * the angle to the curve instead of the auxiliary circle. So these stems keep
- * asking for a plotted conic. A parabola's parameter t is not an angle, and
- * the operator's (p t^2, 2 p t) is the textbook point, so it is not listed.
+ * asking for a plotted conic, which is today's rule. Reading too many stems
+ * this way only keeps today's rule; reading too few draws the wrong angle, so
+ * the wordings are wide.
  */
-const PARAMETRIC_ANGLE_POINT =
-  /(?:eccentric angle|parametric (?:coordinates?|points?|angle)|\b(?:parameters?|at|with)\s+(?:θ|theta|φ|phi)|\bparameters?\s+t\b)/i;
 
-/** The point form, case sensitive so that sin(θ) and cos(θ) are not read as P(θ). */
-const NAMED_PARAMETER_POINT = /\b[A-Z]\s*\(\s*(?:θ|theta|φ|phi|t)\s*\)/;
+/**
+ * A parameter angle as stems write it: θ, φ, α or β, in Greek or spelled out,
+ * after an optional LaTeX backslash or dollar, with an optional subscript
+ * (θ1, θ_1, θ_{1}, θ₁). A Greek letter is not a word character, so the name
+ * ends at `(?![A-Za-z0-9])`; `\b` would never match after it.
+ */
+const ANGLE_NAME =
+  String.raw`[\\$]*(?:[θϑΘφϕΦαβ]|(?:var)?theta|(?:var)?phi|alpha|beta)(?:_?\{?\d+\}?|[₀-₉]+)?(?![A-Za-z0-9])`;
+/** The parameter t, which an ellipse also uses for its angle (x = 3 cos t). */
+const PARAMETER_T = String.raw`t(?![A-Za-z0-9])`;
+
+/** The angle named outright: it belongs to an ellipse or a hyperbola, whatever else the stem says. */
+const ECCENTRIC_ANGLE_WORDS = /\be[xc]centric[\s-]+angles?\b|\bauxiliary\s+circles?\b/i;
+
+/** Wordings that place a point by its parameter angle. */
+const PARAMETRIC_ANGLE_POINT = new RegExp([
+  // "parametric coordinates", "parametric form", "the parametric equations".
+  String.raw`\bparametric\s+(?:coordinates?|points?|angles?|forms?|equations?|representations?)\b`,
+  // "parameter θ", "parameters θ", "parameter t", "whose parameter is π/3".
+  String.raw`\bparameters?\s+(?:is\b|are\b|${ANGLE_NAME}|${PARAMETER_T})`,
+  // "at θ", "where θ", "for θ", "corresponding to θ", Hinglish "par θ" and
+  // "pe theta", LaTeX "at $\theta". Quotes as in "at 'θ'".
+  String.raw`\b(?:at|with|where|when|for|corresponding\s+to|par|pe)\s+['‘’"“”]?${ANGLE_NAME}`,
+  // "at t = π/3": t with an angle for its value.
+  String.raw`\b(?:at|with|where|when|for|corresponding\s+to|par|pe)\s+t\s*=\s*[-+]?[^,;]{0,10}?(?:π|\\?pi\b|°|deg)`,
+  // "the point θ = π/4", "the point 'θ'".
+  String.raw`\bpoints?\s+['‘’"“”]?${ANGLE_NAME}`,
+  // A trig function of the parameter: "a cos θ", "(acosθ, bsinθ)", "4 sec θ",
+  // "\cos\theta". Before t the function must be spaced or bracketed
+  // ("x = 3 cos t", "sin(t)"), so "cost" and "constant t" are not read.
+  String.raw`(?:cos|sin|tan|sec|cosec|csc|cot)\s*(?:\^\s*\d+\s*)?\(?\s*${ANGLE_NAME}`,
+  String.raw`(?:cos|sin|tan|sec|cosec|csc|cot)(?:\s*\^\s*\d+)?(?:\s+|\s*\(\s*)${PARAMETER_T}`,
+  // The rectangular hyperbola's point (ct, c/t).
+  String.raw`\(\s*(?:c|\d+(?:\.\d+)?)\s*t\s*,\s*(?:c|\d+(?:\.\d+)?)\s*\/\s*t\s*\)`,
+].join("|"), "i");
+
+/**
+ * The point form P(θ), P(α), P(θ1), P(\theta), P(t). Case sensitive so that a
+ * function such as f(t) or r(θ) is not read as a point.
+ */
+const NAMED_PARAMETER_POINT = new RegExp(String.raw`\b[A-Z]\s*\(\s*(?:${ANGLE_NAME}|${PARAMETER_T})\s*\)`);
 
 const ELLIPSE_OR_HYPERBOLA = /\b(?:ellipse|elipse|hyperbola)\b/i;
+const PARABOLA = /\bparabola\b/i;
 
 function isParametricAnglePointStem(stem: string): boolean {
-  return ELLIPSE_OR_HYPERBOLA.test(stem)
-    && (PARAMETRIC_ANGLE_POINT.test(stem) || NAMED_PARAMETER_POINT.test(stem));
+  if (ECCENTRIC_ANGLE_WORDS.test(stem)) return true;
+  // A parabola's parameter t is not an angle, and the operator's (p t^2, 2 p t)
+  // is the textbook point, so a stem about a parabola alone keeps the conic
+  // operator. Any other conic stem, even one that names its curve only by
+  // the equation, is read for the parameter angle.
+  if (PARABOLA.test(stem) && !ELLIPSE_OR_HYPERBOLA.test(stem)) return false;
+  return PARAMETRIC_ANGLE_POINT.test(stem) || NAMED_PARAMETER_POINT.test(stem);
 }
 
 const OPTICS_CURVED_SURFACE =

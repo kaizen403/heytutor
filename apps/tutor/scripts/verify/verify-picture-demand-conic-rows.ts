@@ -96,4 +96,48 @@ for (const row of rows) {
 }
 assert(counts.drawn >= 25 && counts.protected >= 10 && counts.laterDecline <= 2,
   `fixture coverage: drawn ${counts.drawn}, later decline ${counts.laterDecline}, protected ${counts.protected}`);
-console.log(`verify-picture-demand-conic-rows: ok (drawn ${counts.drawn}, declined by a later check ${counts.laterDecline}, still picture_demand_unmet ${counts.protected})`);
+
+/*
+ * The same protected documents asked in other words (PR #190 review). Each
+ * recorded parameter angle document is paired with a reworded stem, its
+ * source question set to that stem, and must still record
+ * picture_demand_unmet: the wording, not the recorded phrase, keeps today's
+ * rule. pd30 is the study's judged wrong conic operator figure.
+ */
+const REWORDED: [string, string][] = [
+  ["pd30", "parametric form of a point on an ellipse"],
+  ["pd30", "a point on an ellipse written as (a cos θ, b sin θ)"],
+  ["pd30", "ellipse pe point ke coordinates (a cos θ, b sin θ) form mein samjhao"],
+  ["pd33", "what is the angle θ in the point (a cos θ, b sin θ) of an ellipse"],
+  ["pd32", "An ellipse is given by x = 6 cos θ, y = 2 sin θ. Find the points P and Q where θ = pi/6 and θ = -pi/6, and the length of the chord PQ."],
+  ["pd32", "An ellipse is given by x = 6 cos θ, y = 2 sin θ. Find the points P and Q corresponding to θ = pi/6 and θ = -pi/6, and the length of the chord PQ."],
+  ["pd32", "An ellipse is given by x = 6 cos \\theta, y = 2 sin \\theta. Find the points P and Q at \\theta = \\pi/6 and \\theta = -\\pi/6, and the length of the chord PQ."],
+];
+let reworded = 0;
+for (const [id, question] of REWORDED) {
+  const row = rows.find((candidate) => candidate.id === id);
+  assert(row && row.case === "conic_operator_exempt", `${id}: a recorded parameter angle row`);
+  const label = `${id} reworded "${question}"`;
+  const document = structuredClone(row.document);
+  (document.source as Record<string, unknown>).question = question;
+  const turnPlan = { ...row.turnPlan, question };
+  const decision = liveDiagramStrategyDecision({
+    assignedStrategy: "strict", subject: row.subject, strictSubjects: ["maths", "physics"],
+    chemistryLane: false, codeLesson: false, dsa: false, doubt: false,
+  } as Parameters<typeof liveDiagramStrategyDecision>[0]);
+  const policy = {
+    preferPlanner: true,
+    allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(decision, source)),
+  };
+  const validation = validateProductionSceneCandidate({ candidate: document as unknown as Record<string, unknown>, question, turnPlan });
+  assert(validation.valid && validation.value, `${label}: the reworded candidate must still validate`);
+  const selection = selectProductionScene({
+    question, turnPlan, problemIR: null, candidateValidation: validation,
+    fastRepresentation: null, exactFigureSource: "planner", solverAuthorityBlocked: row.solverBlocked,
+    requiredRetryEnabled: true, policy,
+  });
+  assert.equal(selection.droppedCandidate?.code, "picture_demand_unmet", `${label}: still dropped by the picture demand (${selection.reason})`);
+  assert.equal(selection.representation, null, `${label}: strict draws no stand in`);
+  reworded += 1;
+}
+console.log(`verify-picture-demand-conic-rows: ok (drawn ${counts.drawn}, declined by a later check ${counts.laterDecline}, still picture_demand_unmet ${counts.protected}, reworded protected ${reworded})`);
