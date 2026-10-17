@@ -491,7 +491,11 @@ export function TutorSessionShell({
   // mounted in bounded overlays so drafts, save failures and actions survive.
   const compactBoardChrome =
     !isHeadless && can.appChrome && shortScreen && !boardFullscreen;
-  const scrollBoard = compactBoardChrome && veryShortScreen;
+  // Fit-to-sheet made 27px work about 8 CSS px on a portrait phone. Keep the
+  // canonical ink readable and let its bounded region own both pan axes.
+  const scrollBoard = !isHeadless && (
+    isMobile || (coarsePointer && shortScreen) || (compactBoardChrome && veryShortScreen)
+  );
   const shortPanelTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [isReplaying, setIsReplaying] = useState(false);
   const [replayProgressMs, setReplayProgressMs] = useState(0);
@@ -2171,6 +2175,7 @@ export function TutorSessionShell({
                         width: "100%",
                         minHeight: 0,
                         flex: "1 1 0",
+                        overflowX: "auto",
                         overflowY: "auto",
                         overscrollBehavior: "contain",
                         display: "flex",
@@ -2320,7 +2325,7 @@ export function TutorSessionShell({
               <div
                 className="wb-deck relative shrink-0"
                 data-board-deck
-                style={showDockedPlayer ? { width: "100%" } : undefined}
+                style={scrollBoard || showDockedPlayer ? { width: "100%" } : undefined}
               >
                 {/* Keep enabled captions' space throughout the session so
                     silent cues, Stop and End do not refit the paper. */}

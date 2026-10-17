@@ -49,16 +49,14 @@ export async function drawLectureTimeline(options: {
     options.onCueStart?.(cue, index);
     options.setAnimationSpeed?.(1);
 
-    if (cue.commands.length > 0) {
-      await drawExportCue({
-        cue,
-        executeCommand,
-        getClockMs,
-        getDiagram: options.getDiagram,
-        waitForAdvance,
-        shouldCancel,
-      });
-    }
+    await drawExportCue({
+      cue,
+      executeCommand,
+      getClockMs,
+      getDiagram: options.getDiagram,
+      waitForAdvance,
+      shouldCancel,
+    });
 
     await waitUntilExportClock(getClockMs, cue.endMs, waitForAdvance, shouldCancel);
   }
@@ -105,7 +103,9 @@ async function drawExportCue(options: {
       getPlaybackRate: () => 1,
       nowMs: getClockMs,
       waitForAdvance,
-      ...(codeLesson ? { isSpeechComplete: () => getClockMs() >= cue.endMs } : {}),
+      // Ordinary explanation tails end with this recording. Intro marks keep
+      // their existing draw schedule; code keeps its existing completion clock.
+      ...(!trustedDiagramGeometry || codeLesson ? { isSpeechComplete: () => getClockMs() >= cue.endMs } : {}),
     },
     getDiagram: options.getDiagram ?? (() => null),
     isCancelled: shouldCancel,
