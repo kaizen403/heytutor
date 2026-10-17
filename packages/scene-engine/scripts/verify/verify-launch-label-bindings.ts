@@ -1,5 +1,6 @@
 import { strict as assert } from "node:assert";
-import { compileSceneDocument } from "../../src/compile/compiler";
+import { compileSceneDocument as compileWithPolicy } from "../../src/compile/compiler";
+const compileSceneDocument: typeof compileWithPolicy = (document, options) => compileWithPolicy(document, { ...options, yieldPolicy: "verified_parts" });
 import type { SceneDocument } from "../../src/types";
 const base: SceneDocument = { schemaVersion: "scene-document/v2", source: { question: "Show a marked crossing and an interval." }, visualDecision: { mode: "scene", reason: "Bindings." }, quantities: [], entities: [], constructions: [], relations: [], assertions: [], annotations: [], requiredEntityIds: [], revealGroups: [], teachingTimeline: [] };
 function compile(d: SceneDocument) { d.requiredEntityIds = d.entities.map(e => e.id); d.revealGroups = [{ id: "all", entityIds: d.requiredEntityIds, dependsOn: [], narrationCue: "Bindings." }]; const r = compileSceneDocument(d); assert(r.ok && r.renderScene, JSON.stringify(r.report.issues)); return r.renderScene; }

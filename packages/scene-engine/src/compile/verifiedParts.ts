@@ -1,5 +1,6 @@
 import { compileSceneDocument } from "./compiler";
 import type { SceneDocument, SceneIssue } from "../types";
+import { withDiagramYieldPolicy } from "./yieldPolicy";
 
 export type DiagramYieldPolicy = "off" | "verified_parts";
 export function parseDiagramYieldPolicy(value: unknown): DiagramYieldPolicy {
@@ -14,13 +15,14 @@ export function prepareVerifiedParts(
   original: SceneDocument,
   options: { enabled?: boolean } = {},
 ): { document: SceneDocument; issues: SceneIssue[] } {
-  if (!options.enabled) return { document: original, issues: [] };
+  const admitted = withDiagramYieldPolicy(original, options.enabled ? "verified_parts" : "off");
+  if (!options.enabled) return { document: admitted, issues: [] };
   const layoutProofCodes = new Set([
     "label_overlap_unresolved",
     "label_outside_view",
     "label_too_long",
   ]);
-  let document = original;
+  let document = admitted;
   const issues: SceneIssue[] = [];
   // Bounded retries expose errors hidden behind an earlier failed label check.
   for (let pass = 0; pass < 4; pass++) {

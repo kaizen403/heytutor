@@ -1,5 +1,6 @@
 import { strict as assert } from "node:assert";
-import { compileSceneDocument } from "../../src/compile/compiler";
+import { compileSceneDocument as compileWithPolicy } from "../../src/compile/compiler";
+const compileSceneDocument: typeof compileWithPolicy = (document, options) => compileWithPolicy(document, { ...options, yieldPolicy: "verified_parts" });
 import type { SceneDocument } from "../../src/types";
 function train(): SceneDocument {
     const points: Array<[

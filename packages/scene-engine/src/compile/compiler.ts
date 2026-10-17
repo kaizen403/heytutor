@@ -5,6 +5,7 @@ import { clipDeclaredOpticalIncidentPaths, validateOpticalPathTruth } from "./op
 import { mediumBindings, validateOpticalMediumTruth, validateRenderedMediumTruth } from "./opticalMediumTruth";
 import { validateSphericalCurvatureTruth } from "./curvatureTruth";
 import { validateMarkedAngleTruth } from "./angleTruth";
+import { isVerifiedPartsEnabled, withDiagramYieldPolicy } from "./yieldPolicy";
 import {
   SCENE_ENGINE_VERSION,
   type CompileOptions,
@@ -224,6 +225,8 @@ const EPSILON = 1e-6;
 export const labelInkBoundsCache = createTextInkBoundsCache(measureTextInkBounds);
 
 export function compileSceneDocument(document: SceneDocument, options: CompileOptions = {}): CompileResult {
+  if (options.yieldPolicy !== undefined) document = withDiagramYieldPolicy(document, options.yieldPolicy);
+  const verifiedPartsEnabled = isVerifiedPartsEnabled(document);
   const measureLabelInk = options.measureLabelInkBounds ?? labelInkBoundsCache.measure;
   const structural = validateSceneDocument(document);
   if (!structural.document) return { ok: false, renderScene: null, report: structural.report };
@@ -401,13 +404,15 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
 
   validateDisplayDescendantClaims(document, geometry, checkedClaimOutputIds, issues);
   validateSolidMeasurements(document, issues, (value) => resolveNumber(value, quantities));
-  issues.push(...validateMarkedAngleTruth(document, geometry));
-  issues.push(...validateGeometryClaimTruth(document, geometry));
-  issues.push(...validateDeclaredGeometryTruth(document, geometry));
-  validateSphericalCurvatureTruth(document, geometry, issues);
-  validateSolidSourceTruth(document, geometry, issues);
-  validateOpticalPathTruth(document, geometry, issues);
-  issues.push(...validateOpticalMediumTruth(document, geometry));
+  if (verifiedPartsEnabled) {
+    issues.push(...validateMarkedAngleTruth(document, geometry));
+    issues.push(...validateGeometryClaimTruth(document, geometry));
+    issues.push(...validateDeclaredGeometryTruth(document, geometry));
+    validateSphericalCurvatureTruth(document, geometry, issues);
+    validateSolidSourceTruth(document, geometry, issues);
+    validateOpticalPathTruth(document, geometry, issues);
+    issues.push(...validateOpticalMediumTruth(document, geometry));
+  }
   for (const assertion of document.assertions) validateAssertion(assertion, geometry, document, issues);
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, 0) };
   // Light stops at the optical elements it meets: cut outgoing rays at their
@@ -415,7 +420,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   const drawnEntityIds = new Set(document.requiredEntityIds);
   const drawnInk = (id: string) => drawnEntityIds.has(id) && !constructionOnlyIds.has(id) && entityToGroup.has(id) &&
     document.entities.some((entity) => entity.id === id && entity.kind !== "label");
-  clipDeclaredOpticalIncidentPaths(document, geometry, drawnInk);
+  if (verifiedPartsEnabled) clipDeclaredOpticalIncidentPaths(document, geometry, drawnInk);
   clipLightPathsAtElements({
     document,
     geometry,
@@ -616,7 +621,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       incidentTangents: target.kind === "point" && entity.kind === "point" ? screenIncidentTangents(target.point, geometry, transform) : undefined,
       tetherPx: target.kind === "point" && entity.kind === "point" ? pointLabelTether(entity.label) : undefined,
       allowLeader: entity.kind === "point" ? !isPointIdentifierText(entity.label) : true,
-      requireLeader: entity.provenance?.requireLabelLeader === true || document.constructions.some(c => c.operator === "curve_secant" && c.outputs.includes(entity.id)),
+      requireLeader: entity.provenance?.requireLabelLeader === true || (verifiedPartsEnabled && document.constructions.some(c => c.operator === "curve_secant" && c.outputs.includes(entity.id))),
       leaderGeometrySafe: entity.kind === "point" || entity.provenance?.leaderGeometrySafe === true,
       ...dimensionLabelPlacement(entity.id, target, primitives, transformPlan.viewportFor(entity.id)),
       ...spaceElementPlacement,
@@ -631,7 +636,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     if (!targetId) continue;
     const target = geometry.get(targetId);
     const targetEntity = document.entities.find((entity) => entity.id === targetId);
-    const intervalTargets = annotation.kind === "callout" && annotation.targetIds.length === 2
+    const intervalTargets = verifiedPartsEnabled && annotation.kind === "callout" && annotation.targetIds.length === 2
       ? annotation.targetIds.map(id => ({ id, value: geometry.get(id) })) : [];
     if (intervalTargets.length === 2 && intervalTargets.every(t => t.value?.kind === "point")) {
       const anchors = intervalTargets.map(t => transformPlan.transformFor(t.id)((t.value as Extract<Geometry, {kind:"point"}>).point));
@@ -644,7 +649,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
         viewBounds: transformPlan.viewportFor(targetId) });
       continue;
     }
-    const medium = mediumBindings(document, geometry).find(binding => binding.annotationId === annotation.id);
+    const medium = verifiedPartsEnabled ? mediumBindings(document, geometry).find(binding => binding.annotationId === annotation.id) : undefined;
     if (medium && annotation.text) {
       const transform = transformPlan.transformFor(medium.surfaceId);
       const contact = transform(medium.contact), far = transform(medium.far);
@@ -747,7 +752,8 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       continue;
     }
     const center = screenLabelAnchor(targetId, target, primitives, transformPlan.transformFor(targetId));
-    const endpointLabel = target.kind === "point" && document.annotations.some(a => a.kind === "endpoint" && a.targetIds.includes(targetId));
+    const endpointLabel = verifiedPartsEnabled && target.kind === "point" && document.annotations.some(a => a.kind === "endpoint" && a.targetIds.includes(targetId));
+    const secantLabel = verifiedPartsEnabled && document.constructions.some(c => c.operator === "curve_secant" && c.outputs.includes(targetId));
     if (annotation.kind === "label" || annotation.kind === "callout") {
       const rawText = annotation.text ?? document.entities.find((entity) => entity.id === targetId)?.label;
       const text = annotation.kind === "callout" ? compactCalloutLabel(rawText) : rawText;
@@ -763,8 +769,8 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
           ? screenIncidentTangents(target.point, geometry, transformPlan.transformFor(targetId))
           : undefined,
         tetherPx: target.kind === "point" && targetEntity?.kind === "point" ? pointLabelTether(text) : undefined,
-        requireLeader: endpointLabel || document.constructions.some(c => c.operator === "curve_secant" && c.outputs.includes(targetId)),
-        leaderGeometrySafe: targetEntity?.kind === "point" || document.constructions.some(c => c.operator === "curve_secant" && c.outputs.includes(targetId)),
+        ...(verifiedPartsEnabled ? { requireLeader: endpointLabel || secantLabel } : {}),
+        leaderGeometrySafe: targetEntity?.kind === "point" || secantLabel,
         allowLeader: endpointLabel || (targetEntity?.kind === "point" ? !isPointIdentifierText(text) : undefined),
         ...dimensionLabelPlacement(targetId, target, primitives, transformPlan.viewportFor(targetId)),
       });
@@ -940,7 +946,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     if (!renderedIds.has(id) && !constructionOnlyIds.has(id)) issues.push({ code: "required_entity_not_rendered", message: `Required entity ${id} produced no render primitive`, severity: "fatal", entityIds: [id] });
   }
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
-  issues.push(...validateRenderedMediumTruth(document, geometry, primitives, transformPlan.transformFor));
+  if (verifiedPartsEnabled) issues.push(...validateRenderedMediumTruth(document, geometry, primitives, transformPlan.transformFor));
   pushDegenerateProjectedGeometryIssues(geometry, primitives, constructionOnlyIds, issues);
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
 
@@ -1211,6 +1217,7 @@ function createEntityTransformPlan(
   const connectsComponents = document.assertions.some((assertion) =>
     // A common transform preserves every proved geometric relation, including
     // incidence, midpoint and relative distance, not just circuit connections.
+    (isVerifiedPartsEnabled(document) || (assertion.predicate === "connected" && assertion.expected !== false)) &&
     new Set(assertion.entities.flatMap((id) => {
       const component = componentByEntity.get(id);
       return component === undefined ? [] : [component];
@@ -1222,7 +1229,7 @@ function createEntityTransformPlan(
   const canPack = document.source.synthesizedDsa !== true &&
     // Cartesian axes and all planar geometry share the document world frame.
     // Reveal order cannot turn that frame into independently fitted panels.
-    !renderGeometry.some(([, value]) => value.kind === "axes") &&
+    (!isVerifiedPartsEnabled(document) || !renderGeometry.some(([, value]) => value.kind === "axes")) &&
     !connectsComponents &&
     components.length > 1 &&
     componentGroups.every((groups) => groups.length === 1) &&
@@ -1672,7 +1679,7 @@ function evaluateConstruction(
     case "screen_pattern": return [screenPatternGeometry(inputs, geometry, quantities)];
     case "transverse_field": return [transverseFieldGeometry(inputs, geometry, quantities)];
     case "polarizer": return [polarizerGeometry(inputs, geometry, quantities)];
-    case "optical_train": return opticalTrainGeometry(inputs, geometry, quantities);
+    case "optical_train": return opticalTrainGeometry(inputs, geometry, quantities, isVerifiedPartsEnabled(document));
     case "spherical_surface": return [sphericalSurfaceFromInputs(inputs, geometry, quantities)];
     case "lens_section": return [lensSectionFromInputs(inputs, geometry, quantities)];
     case "reflect_at": return surfaceRayBundleGeometry(inputs, geometry, quantities, "reflect");
@@ -1729,7 +1736,7 @@ function evaluateConstruction(
       const symbol = first(inputs, ["symbol"]);
       if (typeof symbol !== "string") throw new Error("symbol must be a string");
       const lane = typeof inputs.__parallelLane === "number" ? inputs.__parallelLane : 0;
-      return [{ kind: "compound", paths: routedSymbolPaths(symbol, start, end, lane), terminals: [start, end] }];
+      return [{ kind: "compound", paths: routedSymbolPaths(symbol, start, end, lane, isVerifiedPartsEnabled(document)), terminals: [start, end] }];
     }
     case "vector_components": {
       const origin = point(["origin", "start"]); const vector = resolveVector(first(inputs, ["vector"]), geometry);
@@ -3987,6 +3994,7 @@ function opticalTrainGeometry(
   inputs: Record<string, unknown>,
   geometry: Map<string, Geometry>,
   quantities: Map<string, Record<string, unknown>>,
+  verifiedPartsEnabled: boolean,
 ): Geometry[] {
   const axis = resolveLine(first(inputs, ["axis"]), geometry);
   const objective = resolveLine(first(inputs, ["objective"]), geometry);
@@ -4047,14 +4055,15 @@ function opticalTrainGeometry(
   // they remain straight through that focus; the focus itself cannot bend light.
   const focusAlong = (focus.x - objectiveCenter.x) * axisDirection.x + (focus.y - objectiveCenter.y) * axisDirection.y;
   const focusAcross = (focus.x - objectiveCenter.x) * transverse.x + (focus.y - objectiveCenter.y) * transverse.y;
-  if (!(focusAlong > EPSILON && focusAlong < elementSeparation - EPSILON) || Math.abs(focusAcross) > EPSILON) {
+  if (verifiedPartsEnabled && (!(focusAlong > EPSILON && focusAlong < elementSeparation - EPSILON) || Math.abs(focusAcross) > EPSILON)) {
     throw new Error("optical_train axis-parallel beam requires an on-axis focus between the elements");
   }
-  if (finalImage && Math.abs((finalImage.x - objectiveCenter.x) * transverse.x + (finalImage.y - objectiveCenter.y) * transverse.y) > EPSILON) {
+  if (verifiedPartsEnabled && finalImage && Math.abs((finalImage.x - objectiveCenter.x) * transverse.x + (finalImage.y - objectiveCenter.y) * transverse.y) > EPSILON) {
     throw new Error("optical_train axis-parallel beam cannot form an off-axis final image");
   }
-  const eyepieceUpper = offset(eyepieceCenter, beamHalfHeight * (1 - elementSeparation / focusAlong));
-  const eyepieceLower = offset(eyepieceCenter, -beamHalfHeight * (1 - elementSeparation / focusAlong));
+  const eyepieceHeight = verifiedPartsEnabled ? beamHalfHeight * (1 - elementSeparation / focusAlong) : beamHalfHeight;
+  const eyepieceUpper = offset(eyepieceCenter, eyepieceHeight);
+  const eyepieceLower = offset(eyepieceCenter, -eyepieceHeight);
   const incomingUpperStart = advance(objectiveUpper, -raySpan);
   const incomingLowerStart = advance(objectiveLower, -raySpan);
   const outgoingDirection = (hit: Point): Point => {
@@ -5737,7 +5746,7 @@ function coincidentAxisRayAliases(
     (second.includes("axis") && first.includes("ray"));
 }
 
-function symbolPaths(symbol: string, start: Point, end: Point): Point[][] {
+function symbolPaths(symbol: string, start: Point, end: Point, verifiedPartsEnabled: boolean): Point[][] {
   const normalizedSymbol = symbol.trim().toLowerCase().replace(/[\s-]+/g, "_");
   const direction = normalize({ x: end.x - start.x, y: end.y - start.y });
   const normal = { x: -direction.y, y: direction.x };
@@ -5820,7 +5829,7 @@ function symbolPaths(symbol: string, start: Point, end: Point): Point[][] {
       : [at(0.68, -0.17), at(0.68, 0.17)];
     return [
       [at(0), at(0.32)],
-      [at(0.32, -0.16), at(0.32, 0.16), at(0.68), at(0.32, -0.16)],
+      [at(0.32, -0.16), at(0.32, 0.16), at(verifiedPartsEnabled ? 0.68 : 0.64), at(0.32, -0.16)],
       cathode,
       [at(0.68), at(1)],
     ];
@@ -5835,8 +5844,8 @@ function symbolPaths(symbol: string, start: Point, end: Point): Point[][] {
   throw new Error(`unsupported symbol ${normalizedSymbol}`);
 }
 
-function routedSymbolPaths(symbol: string, start: Point, end: Point, lane: number): Point[][] {
-  if (Math.abs(lane) < EPSILON) return symbolPaths(symbol, start, end);
+function routedSymbolPaths(symbol: string, start: Point, end: Point, lane: number, verifiedPartsEnabled: boolean): Point[][] {
+  if (Math.abs(lane) < EPSILON) return symbolPaths(symbol, start, end, verifiedPartsEnabled);
   const direction = normalize({ x: end.x - start.x, y: end.y - start.y });
   const normal = { x: -direction.y, y: direction.x };
   const offset = distance(start, end) * lane;
@@ -5844,7 +5853,7 @@ function routedSymbolPaths(symbol: string, start: Point, end: Point, lane: numbe
   const shiftedEnd = { x: end.x + normal.x * offset, y: end.y + normal.y * offset };
   return [
     [start, shiftedStart],
-    ...symbolPaths(symbol, shiftedStart, shiftedEnd),
+    ...symbolPaths(symbol, shiftedStart, shiftedEnd, verifiedPartsEnabled),
     [shiftedEnd, end],
   ];
 }

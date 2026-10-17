@@ -1,5 +1,6 @@
 import { strict as assert } from "node:assert";
-import { compileSceneDocument } from "../../src/compile/compiler";
+import { compileSceneDocument as compileWithPolicy } from "../../src/compile/compiler";
+const compileSceneDocument: typeof compileWithPolicy = (document, options) => compileWithPolicy(document, { ...options, yieldPolicy: "verified_parts" });
 import type { SceneDocument } from "../../src/types";
 // Reveal groups describe teaching order, not independent coordinate systems.
 for (const [cx, cy, radius] of [[-1, 4, 3], [3, -2, 1], [-4, -3, 2]]) {

@@ -1,5 +1,6 @@
 import { strict as assert } from "node:assert";
-import { compileSceneDocument } from "../../src/compile/compiler";
+import { compileSceneDocument as compileWithPolicy } from "../../src/compile/compiler";
+const compileSceneDocument: typeof compileWithPolicy = (document, options) => compileWithPolicy(document, { ...options, yieldPolicy: "verified_parts" });
 import type { SceneDocument } from "../../src/types";
 const base: SceneDocument = { schemaVersion: "scene-document/v2", source: { question: "Show the named mathematical points." }, visualDecision: { mode: "scene", reason: "Relations." }, quantities: [], entities: [], constructions: [], relations: [], assertions: [], annotations: [], requiredEntityIds: [], revealGroups: [], teachingTimeline: [] };
 for (const at of [-1, 0]) {

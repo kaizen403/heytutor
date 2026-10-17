@@ -12,6 +12,7 @@ import {
   type SceneDocument,
   type SceneIssue,
 } from "../types";
+import { isVerifiedPartsEnabled } from "./yieldPolicy";
 import {
   bracePoints,
   congruenceCount,
@@ -48,11 +49,12 @@ export function appendCompiledAnnotations(
   issues: SceneIssue[],
   anchorPrimitives: RenderPrimitive[] = [],
 ): void {
+  const verifiedPartsEnabled = isVerifiedPartsEnabled(document);
   for (const annotation of document.annotations) {
     if (TEXT_KINDS.has(annotation.kind)) continue;
     // Text is not an endpoint reference. Never turn "+ toward B" into "+ "
     // and silently put the positive terminal on the opposite end.
-    if (annotation.kind === "polarity" && annotation.text !== undefined &&
+    if (verifiedPartsEnabled && annotation.kind === "polarity" && annotation.text !== undefined &&
         !/^(?:\+[-−]|[-−]\+)$/.test(annotation.text.trim())) {
       issues.push({ code: "polarity_binding_ambiguous", severity: "fatal", failureKind: "truth",
         entityIds: [annotation.id, ...annotation.targetIds],
@@ -106,7 +108,7 @@ export function appendCompiledAnnotations(
     const extra = targetSets.flatMap((targetSet) => {
       let marks: ReturnType<typeof geometryFor>;
       try {
-        marks = geometryFor(annotation, targetSet);
+        marks = geometryFor(annotation, targetSet, verifiedPartsEnabled);
       } catch (error) {
         issues.push({
           code: "annotation_geometry_unresolved",
@@ -163,7 +165,7 @@ function groupFor(annotation: SceneAnnotation, entityToGroup: Map<string, string
   return undefined;
 }
 
-function geometryFor(annotation: SceneAnnotation, targets: RenderPrimitive[]): Omit<RenderPrimitive, "id" | "entityId" | "groupId">[] {
+function geometryFor(annotation: SceneAnnotation, targets: RenderPrimitive[], verifiedPartsEnabled: boolean): Omit<RenderPrimitive, "id" | "entityId" | "groupId">[] {
   const count = congruenceCount(annotation.style?.count ?? 1);
   const ink = targets;
   const points = ink.flatMap((primitive) => primitive.points);
@@ -382,7 +384,9 @@ function geometryFor(annotation: SceneAnnotation, targets: RenderPrimitive[]): O
       const start = path?.start ?? points[0];
       const end = path?.end ?? points.at(-1);
       if (!start || !end) return [];
-      const marks = annotation.text?.trim().replace(/−/g, "-") ?? "+-";
+      const marks = verifiedPartsEnabled
+        ? annotation.text?.trim().replace(/−/g, "-") ?? "+-"
+        : (annotation.text && annotation.text.length >= 2 ? annotation.text : "+-").slice(0, 2);
       return [
         { kind: "label" as const, points: [start], text: marks[0]!, labelPlacement: "automatic", provenance: { annotation: "polarity" } },
         { kind: "label" as const, points: [end], text: marks[1]!, labelPlacement: "automatic", provenance: { annotation: "polarity" } },

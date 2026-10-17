@@ -44,7 +44,16 @@ export function validateDeclaredGeometryTruth(document: SceneDocument, geometry:
         if (/\bsemicircular\b/i.test(entity.role ?? "")) {
             const center = { x: (points[0]!.x + points.at(-1)!.x) / 2, y: (points[0]!.y + points.at(-1)!.y) / 2 };
             const radius = Math.hypot(points[0]!.x - center.x, points[0]!.y - center.y);
-            if (!(radius > 0) || points.some(p => Math.abs(Math.hypot(p.x - center.x, p.y - center.y) - radius) > radius * 0.005) || points.slice(1).some((p, i) => Math.hypot(p.x - points[i]!.x, p.y - points[i]!.y) > radius * 0.19975))
+            const radial = points.map(p => subtract(p, center));
+            const steps = radial.slice(1).map((p, i) => Math.atan2(cross(radial[i]!, p), radial[i]!.x * p.x + radial[i]!.y * p.y));
+            const turn = steps.reduce((sum, step) => sum + step, 0);
+            const orientation = Math.sign(turn);
+            // Radius/chord checks alone also admit repeated revolutions and
+            // backtracking. A semicircle traverses one half-plane monotonically.
+            const invalidTraversal = Math.abs(Math.abs(turn) - Math.PI) > 1e-7
+                || steps.some(step => orientation * step < -1e-7)
+                || radial.some(p => orientation * cross(radial[0]!, p) < -1e-7 * radius * radius);
+            if (invalidTraversal || !(radius > 0) || points.some(p => Math.abs(Math.hypot(p.x - center.x, p.y - center.y) - radius) > radius * 0.005) || points.slice(1).some((p, i) => Math.hypot(p.x - points[i]!.x, p.y - points[i]!.y) > radius * 0.19975))
                 fail([entity.id], "A declared semicircular path must approximate a semicircle within geometric tolerance.");
         }
     }
@@ -96,12 +105,14 @@ export function validateDeclaredGeometryTruth(document: SceneDocument, geometry:
             const points = shape(entity.id)?.points;
             if (!points || points.length < 3)
                 continue;
-            for (let i = 1; i < points.length - 1; i++) {
+            for (let i = 1; i < points.length; i++) {
                 const p = points[i - 1]!, q = points[i]!, step = subtract(q, p), den = cross(step, direction);
                 if (Math.abs(den) < 1e-12)
                     continue;
                 const offset = subtract(a, p), t = cross(offset, direction) / den, u = cross(offset, step) / den;
-                if (t > 1e-7 && t <= 1 && u >= 0 && u <= 1) {
+                const isLaunch = i === 1 && t <= 1e-7;
+                const continuesAfterHit = t < 1 - 1e-7 || i < points.length - 1;
+                if (!isLaunch && continuesAfterHit && t >= -1e-7 && t <= 1 + 1e-7 && u >= 0 && u <= 1) {
                     fail([entity.id, ground.id], "A physical projectile path continues beyond its intersection with declared terrain.");
                     break;
                 }

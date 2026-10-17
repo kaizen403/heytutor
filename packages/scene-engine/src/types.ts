@@ -191,6 +191,8 @@ export interface ValidationResult {
 }
 
 export interface CompileOptions {
+  /** Explicit rollout override. Otherwise retain an admitted document's policy. */
+  yieldPolicy?: "off" | "verified_parts";
   viewport?: { x: number; y: number; width: number; height: number; padding?: number };
   /**
    * Ink measure for label collision boxes. Defaults to the shared exact

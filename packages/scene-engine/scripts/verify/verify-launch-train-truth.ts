@@ -1,5 +1,6 @@
 import { strict as assert } from "node:assert";
-import { compileSceneDocument } from "../../src/compile/compiler";
+import { compileSceneDocument as compileWithPolicy } from "../../src/compile/compiler";
+const compileSceneDocument: typeof compileWithPolicy = (document, options) => compileWithPolicy(document, { ...options, yieldPolicy: "verified_parts" });
 import type { SceneDocument } from "../../src/types";
 function train(focusHeight = 0): SceneDocument {
     const points: Record<string, number[]> = { A: [-4, 0], B: [8, 0], Co: [0, 0], Ce: [5, 0], F: [3, focusHeight] };

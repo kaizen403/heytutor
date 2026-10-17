@@ -1,5 +1,6 @@
 import { strict as assert } from "node:assert";
-import { compileSceneDocument } from "../../src/compile/compiler";
+import { compileSceneDocument as compileWithPolicy } from "../../src/compile/compiler";
+const compileSceneDocument: typeof compileWithPolicy = (document, options) => compileWithPolicy(document, { ...options, yieldPolicy: "verified_parts" });
 import type { SceneDocument } from "../../src/types";
 const base: SceneDocument = { schemaVersion: "scene-document/v2", source: { question: "Show the declared geometry." }, visualDecision: { mode: "scene", reason: "Geometry." }, quantities: [], entities: [], constructions: [], relations: [], assertions: [], annotations: [], requiredEntityIds: [], revealGroups: [], teachingTimeline: [] };
 function finish(d: SceneDocument) { d.constructions.forEach(c => c.id = "make_" + c.id); d.requiredEntityIds = d.entities.map(e => e.id); d.revealGroups = [{ id: "setup", entityIds: d.requiredEntityIds, dependsOn: [], narrationCue: "Geometry." }]; return compileSceneDocument(d); }
@@ -21,6 +22,28 @@ for (const count of [5, 33]) {
     d.constructions.push({ id: "curve", operator: "polyline", inputs: { points: d.entities.slice(0, -1).map(e => e.id) }, outputs: ["curve"] });
     const r = finish(d);
     assert.equal(r.report.issues.some(i => i.code === "declared_geometry_contradiction"), count === 5, "semicircular curve must not be a coarse polygon");
+}
+// Dense cocircular samples can still retrace or wind past one half-turn.
+for (const [name, angles, good] of [
+    ["counterclockwise half-turn", Array.from({ length: 33 }, (_, i) => i / 32 * Math.PI), true],
+    ["clockwise half-turn", Array.from({ length: 33 }, (_, i) => -i / 32 * Math.PI), true],
+    ["three-half-turn winding", Array.from({ length: 97 }, (_, i) => i / 32 * Math.PI), false],
+    ["backtracking within one half-plane", [
+        ...Array.from({ length: 25 }, (_, i) => i / 32 * Math.PI),
+        ...Array.from({ length: 8 }, (_, i) => (23 - i) / 32 * Math.PI),
+        ...Array.from({ length: 16 }, (_, i) => (17 + i) / 32 * Math.PI),
+    ], false],
+] as const) {
+    const d = structuredClone(base);
+    angles.forEach((angle, i) => {
+        d.entities.push({ id: `p${i}`, kind: "point", role: "sample" });
+        d.constructions.push({ id: `p${i}`, operator: "point", inputs: { x: 3 + 2 * Math.cos(angle + 0.7), y: -4 + 2 * Math.sin(angle + 0.7), coordinateSpace: "world" }, outputs: [`p${i}`] });
+    });
+    d.entities.push({ id: "curve", kind: "polyline", role: "semicircular path" });
+    d.constructions.push({ id: "curve", operator: "polyline", inputs: { points: d.entities.slice(0, -1).map(e => e.id) }, outputs: ["curve"] });
+    const r = finish(d);
+    assert.equal(r.report.issues.some(i => i.code === "declared_geometry_contradiction"), !good, name);
+    if (good) assert(r.ok, JSON.stringify(r.report.issues));
 }
 for (const failedForce of ["none", "normal", "friction"]) {
     const good = failedForce === "none";
@@ -51,10 +74,10 @@ for (const count of [4, 64]) {
     const r = finish(d);
     assert.equal(r.report.issues.some(i => i.code === "declared_geometry_contradiction"), count === 4, "a smooth orbit cannot contain polygon corners");
 }
-for (const end of [2, 4]) {
+for (const end of [2, 2.01, 4]) {
     const d = structuredClone(base);
     d.entities = [{ id: "path", kind: "polyline", role: "projectile path" }, { id: "a", kind: "point", role: "endpoint" }, { id: "b", kind: "point", role: "endpoint" }, { id: "ground", kind: "segment", role: "ground" }];
     d.constructions = [{ id: "path", operator: "function_curve", inputs: { expression: "2*x-x^2", xMin: 0, xMax: end }, outputs: ["path"] }, { id: "a", operator: "point", inputs: { x: 1, y: 0, coordinateSpace: "world" }, outputs: ["a"] }, { id: "b", operator: "point", inputs: { x: 5, y: 0, coordinateSpace: "world" }, outputs: ["b"] }, { id: "ground", operator: "segment", inputs: { start: "a", end: "b" }, outputs: ["ground"] }];
     const r = finish(d);
-    assert.equal(r.report.issues.some(i => i.code === "declared_geometry_contradiction"), end === 4, "physical path cannot continue beyond impact");
+    assert.equal(r.report.issues.some(i => i.code === "declared_geometry_contradiction"), end > 2, "physical path cannot continue beyond impact");
 }

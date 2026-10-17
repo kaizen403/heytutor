@@ -1,5 +1,6 @@
 import { strict as assert } from 'node:assert';
-import { compileSceneDocument } from '../../src/compile/compiler';
+import { compileSceneDocument as compileWithPolicy } from '../../src/compile/compiler';
+const compileSceneDocument: typeof compileWithPolicy = (document, options) => compileWithPolicy(document, { ...options, yieldPolicy: "verified_parts" });
 import type { SceneDocument } from '../../src/types';
 for (const symbol of ['diode', 'zener'])
     for (const [dx, dy] of [[6, 2], [-4, 3], [0, -5], [2, 0]]) {

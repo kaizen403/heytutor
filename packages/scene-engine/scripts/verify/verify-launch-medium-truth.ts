@@ -1,5 +1,6 @@
 import { strict as assert } from "node:assert";
-import { compileSceneDocument } from "../../src/compile/compiler";
+import { compileSceneDocument as compileWithPolicy } from "../../src/compile/compiler";
+const compileSceneDocument: typeof compileWithPolicy = (document, options) => compileWithPolicy(document, { ...options, yieldPolicy: "verified_parts" });
 import type { SceneDocument } from "../../src/types";
 for (const side of ["above", "below"] as const) {
     const d: SceneDocument = { schemaVersion: "scene-document/v2", source: { question: "Show a ray passing from medium A to B." }, visualDecision: { mode: "scene", reason: "Refraction." }, quantities: [{ id: "nA", symbol: "n_A", value: 1.5 }],
