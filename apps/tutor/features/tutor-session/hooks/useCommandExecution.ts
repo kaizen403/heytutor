@@ -77,7 +77,7 @@ import {
   type ScheduledFocusTarget,
 } from "../lib/board/scheduledFocus";
 import { markerTourStops, narrationTourMs, tourMarker } from "../lib/board/markerTour";
-import { pointThroughExplanation } from "../lib/turn/explanationPointing";
+import { pointThroughExplanation, resolveCompletedExplanationTargets } from "../lib/turn/explanationPointing";
 import type { SegmentInkClock } from "../lib/turn/segmentInk";
 import { resultSpanOfRow } from "../lib/board/formulaEmphasis";
 import { focusTraceCommands, isDsaConstructionGuide } from "../lib/scene/diagramInk";
@@ -250,6 +250,7 @@ export function useCommandExecution({
         getPointDeadlineMs?: () => number | null;
         /** Runtime-only motion over visible work; cannot reveal or target a figure. */
         explanationPointing?: boolean;
+        verifiedPointingOnly?: boolean;
         explanationClock?: SegmentInkClock;
         /**
          * The sentence this command sits under, with its alignment and audio
@@ -887,11 +888,13 @@ export function useCommandExecution({
           // what the pen does while the tutor is talking rather than writing:
           // before, a spoken step with no tag left it wherever it happened to
           // be, for as long as the step ran.
-          const diagramTargets = options.explanationPointing ? [] : resolveVerifiedDiagramFocusTargets(
+          const diagramTargets = options.explanationPointing ? [] : options.verifiedPointingOnly
+            ? resolveCompletedExplanationTargets(command, activeVerifiedDiagramRef.current, true)
+            : resolveVerifiedDiagramFocusTargets(
             { ...command, type: "FOCUS" },
             activeVerifiedDiagramRef.current,
           );
-          const targets = diagramTargets.length > 0
+          const targets = diagramTargets.length > 0 || options.verifiedPointingOnly
             ? diagramTargets
             : pointWorkRowTargets(command, boardLayoutRef.current.rects);
           if (targets.length === 0) break;
@@ -905,7 +908,7 @@ export function useCommandExecution({
               flyCursorTo: (x, y, ms) => wb.flyCursorTo(x, y, ms, undefined, commandCancelled),
               setCursorState: wb.setCursorState,
             },
-            markerTourStops(targets, pointBeatsRef.current, options.explanationPointing === true),
+            markerTourStops(targets, pointBeatsRef.current, options.explanationPointing === true || options.verifiedPointingOnly === true),
             {
               totalMs: narrationTourMs(
                 options.segmentNarration,
@@ -1725,6 +1728,7 @@ export function useCommandExecution({
         textPlacementReserved?: boolean;
         inkPace?: InkPace;
         explanationPointing?: boolean;
+        verifiedPointingOnly?: boolean;
         explanationClock?: SegmentInkClock;
       } = {},
     ): Promise<void> => {

@@ -1,4 +1,4 @@
-import type { DrawCommand } from "@heytutor/drawing";
+import type { DrawCommand, VerifiedDiagram } from "@heytutor/drawing";
 import {
   capSceneBatchDurations,
   isCuedSceneBatch,
@@ -16,7 +16,7 @@ import { isStoredCommandTrustedGeometry } from "@heytutor/drawing";
 import type { ReplayCue } from "@/lib/replay/replayTimeline";
 import type { ExecuteCommandOptions } from "@/features/tutor-session/hooks/turn/types";
 import type { SegmentInkClock } from "@/features/tutor-session/lib/turn/segmentInk";
-import { pointThroughExplanation } from "@/features/tutor-session/lib/turn/explanationPointing";
+import { advanceExplanationTarget, pointThroughExplanation, type CompletedExplanationTarget } from "@/features/tutor-session/lib/turn/explanationPointing";
 
 export type ExportExecuteCommand = (
   command: DrawCommand,
@@ -41,6 +41,7 @@ export async function drawLectureTimeline(options: {
   waitForAdvance: () => Promise<void>;
   shouldCancel: () => boolean;
   setAnimationSpeed?: (rate: number) => void;
+  getDiagram?: () => VerifiedDiagram | null;
   /** Cues before this one are already on the board. */
   startCueIndex?: number;
   /** Runs as each cue begins, before it draws. */
@@ -62,7 +63,7 @@ export async function drawLectureTimeline(options: {
     options.onCueStart?.(cue, index);
     options.setAnimationSpeed?.(1);
 
-    await drawExportCue({ cue, executeCommand, getClockMs, waitForAdvance, shouldCancel });
+    await drawExportCue({ cue, executeCommand, getClockMs, waitForAdvance, shouldCancel, getDiagram: options.getDiagram });
 
     await waitUntilExportClock(getClockMs, cue.endMs, waitForAdvance, shouldCancel);
   }
@@ -74,11 +75,18 @@ async function drawExportCue(options: {
   getClockMs: () => number;
   waitForAdvance: () => Promise<void>;
   shouldCancel: () => boolean;
+  getDiagram?: () => VerifiedDiagram | null;
 }): Promise<void> {
   const { cue, executeCommand, getClockMs, waitForAdvance, shouldCancel } = options;
   const segmentCommands = cue.commands;
   // Keep the authored gesture's target for its whole spoken sentence.
   const canPointAtWork = !segmentCommands.some(command => command.type === "FOCUS" || command.type === "POINT");
+  let completedTarget: CompletedExplanationTarget | null = null;
+  const executeAuthored: ExportExecuteCommand = async (command, commandOptions) => {
+    const diagram = options.getDiagram?.() ?? null;
+    await executeCommand(command, commandOptions);
+    completedTarget = advanceExplanationTarget(completedTarget, command, diagram === options.getDiagram?.() ? diagram : null);
+  };
   const narration = cue.narration;
   const paceContext = inkPaceContextForSegment({
     verifiedDiagramIntro: cue.trustedDiagramGeometry,
@@ -149,7 +157,7 @@ async function drawExportCue(options: {
         leadWriteScheduleToSpeech(writePlan.offsetsMs, audioPosAtScheduleMs, writePlan.maxInitialWaitMs),
         audioPosAtScheduleMs,
       );
-      await executeCommand(command, {
+      await executeAuthored(command, {
         applyLayout: false,
         isCancelled: shouldCancel,
         trustedDiagramGeometry,
@@ -199,7 +207,7 @@ async function drawExportCue(options: {
         ? Math.max(Math.round(durationMs * (commandWeight / totalDrawWeight)), 50)
         : Math.max(Math.round(speechWindow.durationMs), 50);
 
-    await executeCommand(command, {
+    await executeAuthored(command, {
       applyLayout: false,
       isCancelled: shouldCancel,
       speechDurationMs: commandBudgetMs,
@@ -222,7 +230,8 @@ async function drawExportCue(options: {
       textCommandIndex += 1;
     }
   }
-  if (!trustedDiagramGeometry && canPointAtWork) {
-    await pointThroughExplanation({ clock: speechClock, execute: executeCommand, isCancelled: shouldCancel });
+  if (!trustedDiagramGeometry && (canPointAtWork || completedTarget)) {
+    await pointThroughExplanation({ clock: speechClock, execute: executeCommand, isCancelled: shouldCancel,
+      ...(completedTarget ? { completedTarget, getDiagram: options.getDiagram } : {}) });
   }
 }

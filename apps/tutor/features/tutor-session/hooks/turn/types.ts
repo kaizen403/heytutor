@@ -88,6 +88,8 @@ export type ExecuteCommandOptions = {
   getPointDeadlineMs?: () => number | null;
   /** Runtime-only explanation motion; resolves already-written work, never figure anchors. */
   explanationPointing?: boolean;
+  /** Runtime continuation: verified targets only, never an unresolved work-row fallback. */
+  verifiedPointingOnly?: boolean;
   /** Existing WRITE scheduling clock; gaps run only after row/page placement. */
   explanationClock?: SegmentInkClock;
   /** The sentence's narration, alignment and audio clock; the code-lesson branches follow its words. */

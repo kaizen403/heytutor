@@ -218,6 +218,7 @@ export function useReplay({
       startAtMs = 0,
       opensSentence = true,
       fallbackSpeechComplete?: () => boolean,
+      completedSentenceCommandCount = 0,
     ): Promise<void> => {
       const isCurrentReplay = () =>
         isReplayGenerationCurrent({
@@ -275,6 +276,7 @@ export function useReplay({
           // A seek may have completed the gesture but still be inside its
           // sentence. Its target ownership survives the remaining-command slice.
           sentenceCommands: parseStoredSegmentCommands(segment.command),
+          completedSentenceCommandCount,
           verifiedDiagramIntro: trustedDiagramGeometry,
           clock: {
             narration,
@@ -288,6 +290,10 @@ export function useReplay({
               : undefined,
             getAudioPositionMs: getDrawClockMs,
             getPlaybackRate: getRate,
+            // Drawing starts only after accepted voice start (or voiceDone).
+            // A missing recording's owned TTS may outlast the stored duration.
+            isSpeechActive: () => audio && replayAudioRef.current === audio
+              ? !audio.ended : fallbackSpeechComplete ? !fallbackSpeechComplete() : false,
             isPaused,
             nowMs: wallClock.nowMs,
             // A recorded clip's position stops at its end; a code block still
@@ -519,6 +525,7 @@ export function useReplay({
           offsetMs,
           startIdx === 0,
           () => fallbackSpeechComplete,
+          startIdx,
         );
 
       try {
@@ -634,6 +641,7 @@ export function useReplay({
             offsetMs,
             startIdx === 0,
             () => fallbackSpeechComplete,
+            startIdx,
           );
         }
       }

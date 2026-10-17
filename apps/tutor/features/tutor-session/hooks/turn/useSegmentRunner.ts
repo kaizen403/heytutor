@@ -506,6 +506,7 @@ export function useSegmentRunner({
               // stalls. Accepted onEnd and the bounded speech finally path
               // release it; browser recovery has only an estimated wall clock.
               isAudioActive: () => !speechComplete && !speechAborted && audioStartedAtMs !== null && !usingBrowserFallback,
+              isSpeechActive: () => !speechComplete && !speechAborted && audioStartedAtMs !== null,
               getPlaybackRate: segmentPlaybackRate,
               isSpeechComplete: () => speechComplete,
               canAdvanceAfterSpeech: () => !isPausedRef.current,

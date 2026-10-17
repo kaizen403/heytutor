@@ -155,7 +155,12 @@ clock, so pausing audio freezes the pen too. With no visible work row there is
 no inferred target or motion: committed but unrevealed diagram anchors are never
 fallback targets. Sentences with authored POINT/FOCUS retain their own targets for the whole
 sentence and do not use work-row fallback tours, including a replay seek past
-the gesture into that sentence’s remaining commands. Code beats keep their owners. These transient POINTs are not saved as lesson commands and add no ink,
+the gesture into that sentence’s remaining commands. After the authored commands
+finish, a transient POINT can continue their latest completed, visible canonical
+anchor IDs. It releases no withheld marks and stops if its diagram/anchors are
+replaced or a later FRAME/CLEAR/ERASE retires that target. Only this tail follows
+accepted provider/browser/replacement voice completion beyond a duration estimate;
+the original WRITE schedules stay unchanged. Code beats keep their owners. These transient POINTs are not saved as lesson commands and add no ink,
 labels or geometry. Cached video files use a new revision for the motion.
 
 ### Finished-lecture playback bar
