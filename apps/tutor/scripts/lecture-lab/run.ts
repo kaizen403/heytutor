@@ -1,3 +1,4 @@
+import { parseDiagramYieldPolicy } from "@heytutor/scene-engine";
 /**
  * Lecture lab batch runner.
  *
@@ -817,6 +818,7 @@ async function main(): Promise<void> {
       requestTier: serverConfig.planningSpeed?.requestTier ?? "auto",
       priority: serverConfig.planningSpeed?.priority === true },
     figureSelectionPolicy: PRODUCTION_SCENE_SELECTION_VERSION,
+    diagramYieldPolicy: parseDiagramYieldPolicy(process.env.DIAGRAM_YIELD_POLICY),
     figureOnly: options.figureOnly, scenePlannerLimitMs: options.scenePlannerLimitMs,
     parallelTeaching: options.parallelTeaching, parallelTeachingContract: "setup-actions/v1",
     familiarity: options.familiarity, narrationLanguage: options.narrationLanguage,

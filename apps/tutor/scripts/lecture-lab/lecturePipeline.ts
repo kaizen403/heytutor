@@ -1,3 +1,4 @@
+import { parseDiagramYieldPolicy } from "@heytutor/scene-engine";
 /**
  * Runs one whole lecture turn without a browser.
  *
@@ -678,7 +679,7 @@ export async function runLecture(
     ): SceneCandidateValidation<ValidatedSceneCandidate> => {
       assertUnstopped();
       const startedAt = performance.now();
-      const validation = validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, experimentalCompleteness: process.env.NEXT_PUBLIC_EXPERIMENTAL_SCENE_COMPLETENESS === "1" });
+      const validation = validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, yieldPolicy: parseDiagramYieldPolicy(process.env.DIAGRAM_YIELD_POLICY), experimentalCompleteness: process.env.NEXT_PUBLIC_EXPERIMENTAL_SCENE_COMPLETENESS === "1" });
       candidateClocks.set(candidate, performance.now() - startedAt);
       return validation;
     };
@@ -795,6 +796,7 @@ export async function runLecture(
             proxyUrl: plannerUrl,
             signal: sceneRun.signal,
             timeoutMs: sceneRun.timeoutMs,
+            preserveRequiredGeometry: parseDiagramYieldPolicy(process.env.DIAGRAM_YIELD_POLICY) === "verified_parts",
             holdValidationUntil: sceneRun.holdValidationUntil,
             maxConcurrentRequests: sceneRun.maxConcurrentRequests,
             requestBudget: sceneRun.requestBudget,

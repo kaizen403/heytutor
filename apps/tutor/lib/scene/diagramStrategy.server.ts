@@ -1,3 +1,4 @@
+import { parseDiagramYieldPolicy } from "@heytutor/scene-engine";
 import { createHash } from "node:crypto";
 import { parseDiagramStrictSubjects } from "@heytutor/tutor-core";
 import { parsePhysicsDiagramMode, type DiagramStrategy } from "@/features/tutor-session/lib/scene/diagramStrategy";
@@ -51,4 +52,8 @@ export function resolveDiagramStrategyAssignment(
   if (allowlist.has(userId) || (email.length > 0 && allowlist.has(email))) return "strict";
   const threshold = Math.round(rolloutPercent(environment.percent) * 100);
   return stableBucket(actor.userId) < threshold ? "strict" : "current";
+}
+
+export function resolveDiagramYieldPolicy(raw = process.env.DIAGRAM_YIELD_POLICY) {
+  return parseDiagramYieldPolicy(raw);
 }

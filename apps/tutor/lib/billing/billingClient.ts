@@ -1,3 +1,4 @@
+import { parseDiagramYieldPolicy, type DiagramYieldPolicy } from "@heytutor/scene-engine";
 import { resolveApiUrl, parseDiagramStrictSubjects, type DiagramSubject } from "@heytutor/tutor-core";
 import type { CheckoutPlanId } from "./catalog";
 import { isBillingErrorCode } from "./errors";
@@ -24,6 +25,7 @@ export interface BeginTurnOk {
   diagramStrategy: DiagramStrategy;
   diagramStrictSubjects?: DiagramSubject[];
   diagramPhysicsMode?: PhysicsDiagramMode | null;
+  diagramYieldPolicy?: DiagramYieldPolicy;
 }
 
 export interface BeginTurnErr {
@@ -225,6 +227,7 @@ async function beginTurnOnce(input: {
     diagramStrategy: payload.diagramStrategy === "strict" ? "strict" : "current",
     diagramStrictSubjects: parseDiagramStrictSubjects(payload.diagramStrictSubjects),
     diagramPhysicsMode: parsePhysicsDiagramMode(payload.diagramPhysicsMode),
+    diagramYieldPolicy: parseDiagramYieldPolicy(payload.diagramYieldPolicy),
     nextResetAt: typeof payload.nextResetAt === "number" ? payload.nextResetAt : null,
     ttsCharsRemaining: typeof payload.ttsCharsRemaining === "number" ? payload.ttsCharsRemaining : 0,
   };

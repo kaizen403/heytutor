@@ -1260,7 +1260,7 @@ export function useQuestionHandler(
           context: "search" | "revalidate" | "recovery" | "complete" = "search",
         ): SceneCandidateValidation<ValidatedSceneCandidate> =>
           measureSceneCandidateValidation(tel, { validationCallIndex: ++validationCallIndex, context }, () =>
-            validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, experimentalCompleteness: process.env.NEXT_PUBLIC_EXPERIMENTAL_SCENE_COMPLETENESS === "1" }));
+            validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, yieldPolicy: context === "recovery" ? "off" : billed.diagramYieldPolicy, experimentalCompleteness: process.env.NEXT_PUBLIC_EXPERIMENTAL_SCENE_COMPLETENESS === "1" }));
         const deriveSceneGate = (
           planningTurnPlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null,
         ): SceneGate => {
@@ -1428,6 +1428,7 @@ export function useQuestionHandler(
                 traceId: turnTraceId ?? undefined,
                 signal: run.signal,
                 timeoutMs: run.timeoutMs,
+                preserveRequiredGeometry: billed.diagramYieldPolicy === "verified_parts",
                 holdValidationUntil: run.holdValidationUntil,
                 maxConcurrentRequests: run.maxConcurrentRequests,
                 requestBudget: run.requestBudget,
