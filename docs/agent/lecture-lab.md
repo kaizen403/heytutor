@@ -181,6 +181,13 @@ execution identity and per-call records capture the selected/actual effort.
 Absent or unauthorized headers leave production unchanged. `--figure-only`
 costs are planning costs per question, not full narrated-lesson/TTS costs.
 
+For long local batches, start the development server with
+`NODE_ENV=development LECTURE_LAB_KEEP_ROUTES_HOT=1`. This opt-in retains dev
+route entries for an hour instead of evicting them during a slow compile/idle
+gap; production and ordinary dev defaults are unchanged. Warm `/`, `/api/chat`
+and authenticated `/api/lecture-lab/config` before the paid batch. Do not rebuild
+packages or run verification chains while a paid batch is active.
+
 Output per round: `runs/*.json` (the full record), `transcripts/*.md` (readable
 lesson plus findings), `summary.json` (scores and finding counts), and, for
 diagram evaluations, `gallery.html` plus PNGs under `frames/`. `summarize.ts`

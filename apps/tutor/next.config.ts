@@ -3,8 +3,10 @@ import { withSentryConfig } from "@sentry/nextjs/config";
 import path from "path";
 import { securityHeaderEntries } from "./lib/http/securityHeaders";
 import { SENTRY_TUNNEL_PATH } from "./lib/obs/sentryTunnel";
+import { labRouteRetention } from "./lib/dev/labRouteRetention";
 
 const nextConfig: NextConfig = {
+  onDemandEntries: labRouteRetention(),
   outputFileTracingRoot: path.join(process.cwd(), "../.."),
   async headers() {
     return [
