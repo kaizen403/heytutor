@@ -1,0 +1,1413 @@
+{
+ "note": "Recorded lens and mirror stems (lecture-lab runs and repo data sets, none held out) with main's archetype at aeb3eb11e. `leavesOptics` marks the stems whose only mirror is a mirror image of a point.",
+ "stems": [
+  {
+   "question": "(a)\n\n(b)\n\nEne\nEe\n\nGi) The coil of an ac generator consists of 100 turns of wire, each of\narea 0.5 m?. The resistance of the wire is 100 Q. The coil is\nrotating in a magnetic field of 0.8 T perpendicular to its axis of\nrotation, at a constant angular speed of 60 radian per second.\nCalculate the maximum emf generated and power dissipated in\nthe coil.\n\nG) State Huygen’s principle. With the help of a diagram, show how\na plane wave is reflected from a surface. Hence verify the law of\n\nreflection. 5\n\nGi) A concave mirror of focal length 12 cm forms a three times\nmagnified virtual image of an object. Find the distance of the\n\nobject from the mirror.\nOR\n\nG) Draw a labelled ray diagram showing the image formation by a\nrefracting telescope. Define its magnifying power. Write two\n\nlimitations of a refracting telescope over a reflecting telescope.\n\nGi) The focal lengths of the objective and the eye-piece of a\ncompound microscope are 1.0 cm and 2.5 cm respectively. Find\nthe tube length of the microscope for obtaining a magnification\nof 300.",
+   "source": "repo data set",
+   "archetype": "compound_microscope"
+  },
+  {
+   "question": "(a)\n(b)\n2155/4/3\n\n@\n\n(ai)\n\n(iii)\n\n@\n(ai)\n\n(ii)\n\n@\n\nGai)\n\n(ii)\n\n@\n\nGi)\n\nDraw a ray diagram for the formation of the image of an object\nby a convex mirror. Hence, obtain the mirror equation.\n\nWhy are multi-component lenses used for both the objective and\nthe eyepiece in optical instruments ?\n\nThe magnification of a small object produced by a compound\nmicroscope is 200. The focal length of the eyepiece is 2 cm and\nthe final image is formed at infinity. Find the magnification\nproduced by the objective.\n\nOR\nDifferentiate between a wavefront and a ray.\n\nState Huygen’s principle and verify laws of reflection using\nsuitable diagram.\n\nIn Young’s double slit experiment, the slits S, and S, are 3 mm\n\napart and the screen is placed 1.0 m away from the slits. It is\nobserved that the fourth bright fringe is at a distance of 5 mm\nfrom the second dark fringe. Find the wavelength of light used.\n\nMention the factors on which the resonant frequency of a series\nLCR circuit depends. Plot a graph showing variation of\nimpedance of a series LCR circuit with the frequency of the\napplied a.c. source.\n\nWith the help of a suitable diagram, explain the working of a\nstep-up transformer.\n\nWrite two causes of energy loss in a real transformer.\nOR\n\nWith the help of a diagram, briefly explain the construction and\nworking of ac generator.\n\nAn electron is revolving around a proton in an orbit of radius r with\na speed v. Obtain expression for magnetic moment associated with\nthe electron.\n\n23\n\n2155/4/3 PPARe\n\n24",
+   "source": "repo data set",
+   "archetype": "compound_microscope"
+  },
+  {
+   "question": "A 0.8 cm object stands 44 cm in front of a converging lens of focal length 28 cm. A concave mirror of focal length 14 cm faces the lens on the far side, 98 cm away. Light passes through the lens, reflects from the mirror and passes back through the lens. Locate each intermediate image and the final image, and find the overall magnification.",
+   "source": "recorded run",
+   "archetype": null,
+   "lawIds": [
+    "thin-lens equation",
+    "spherical-mirror equation",
+    "transverse magnification"
+   ],
+   "hintedArchetype": null
+  },
+  {
+   "question": "A 2.0 cm object is 30 cm in front of a concave mirror of focal length 10 cm. Find image distance, height and orientation using paraxial rays.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "concave-mirror equation: 1/f = 1/u + 1/v",
+    "mirror magnification: h_i/h_o = −v/u",
+    "paraxial reflection ray rules"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "A 3.0 cm object is 30 cm in front of a thin lens of power +5.0 D. Find image position and height.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "Lens power P = 1/f (f in metres)",
+    "Thin-lens equation 1/f = 1/d_o + 1/d_i",
+    "Lateral magnification h_i/h_o = −d_i/d_o"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "A 3.4 cm tall object is placed 48 cm in front of a concave mirror whose radius of curvature is 32 cm. Find where the image forms, its height, and describe it.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "spherical-mirror-focal-length",
+    "mirror-equation",
+    "mirror-magnification"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "A 4.0 cm tall candle stands 0.36 m in front of a thin converging lens of focal length 0.24 m. Where must a screen be placed to catch a sharp image, and how tall is the image? Is it upright or inverted?",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens equation",
+    "transverse magnification"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "A 4.0 cm tall object is placed 40 cm in front of a thin lens of power -2.5 D. Find the focal length, the image position and the image height.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "A 5.0 cm tall object stands 0.60 m in front of a convex mirror whose radius of curvature is 0.80 m. Find the position, height and nature of the image.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "spherical-mirror focal length f = -R/2 for a convex mirror",
+    "mirror equation 1/f = 1/d_o + 1/d_i",
+    "mirror magnification h_i/h_o = -d_i/d_o"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "A 5.0 cm tall object stands 24 cm in front of a convex mirror of focal length 12 cm. Find the image position, height and nature.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "mirror equation: 1/f = 1/v + 1/u",
+    "mirror magnification: h_i/h_o = −v/u"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "A biconcave lens is ground from glass of refractive index 1.65, with surfaces of radii 26 cm and 39 cm. Find its focal length and power in air, then locate the image of an object placed 72 cm in front of it.",
+   "source": "recorded run",
+   "archetype": "lens_maker",
+   "lawIds": [],
+   "hintedArchetype": "lens_maker"
+  },
+  {
+   "question": "A biconcave lens is made from glass of refractive index 1.52 and both faces have radius of curvature 26 cm. Using the lensmaker's formula, find its focal length and power in air, then locate the image of an object placed 75 cm in front of it.",
+   "source": "recorded run",
+   "archetype": "lens_maker",
+   "lawIds": [],
+   "hintedArchetype": "lens_maker"
+  },
+  {
+   "question": "A car's convex side mirror has a radius of curvature of 36 cm. A toy 4.5 cm tall stands upright on the axis 27 cm in front of it. Locate the image, find its height, and say whether it is real or virtual, upright or inverted.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "convex-mirror focal length f = -R/2",
+    "mirror equation 1/f = 1/d_o + 1/d_i",
+    "mirror magnification h_i/h_o = -d_i/d_o"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "A car's convex wing mirror has a radius of curvature of 2.4 m. A van 1.5 m tall is 6.0 m from the mirror. Find the position and height of the van's image and state its nature.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "Spherical mirror focal length f = R/2 with convex-mirror sign convention",
+    "Mirror equation 1/f = 1/u + 1/v",
+    "Mirror magnification h_i/h_o = −v/u"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "A concave mirror has a radius of curvature of 32 cm. An object 3.0 cm tall is placed 48 cm in front of it. Find the image distance, the image height and the nature of the image.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "Concave-mirror focal length f = R/2",
+    "Mirror equation 1/f = 1/v + 1/u",
+    "Mirror magnification h_i/h_o = -v/u"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "A concave mirror has focal length 15 cm and an object is 45 cm in front of it. Locate the image and represent the principal rays.",
+   "source": "repo data set",
+   "archetype": "spherical_mirror"
+  },
+  {
+   "question": "A concave mirror of focal length 36 cm is pointed at a radio mast 32 m tall that stands 640 m away. Find the distance of the image from the mirror and the height of the image, and describe it.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "concave-mirror equation: 1/f = 1/u + 1/v, using positive object and real-image distances",
+    "mirror magnification: h/H = -v/u"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "A concave shaving mirror has a radius of curvature of 0.72 m. A man's chin is 0.24 m from the mirror, and a scar on it is 0.020 m long. Find the image position, the magnification and the length of the scar's image, and describe the image.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "Concave-mirror focal length f = R/2",
+    "Spherical-mirror equation 1/f = 1/u + 1/v",
+    "Mirror lateral magnification M = −v/u",
+    "Image length h′ = Mh"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "A converging lens of focal length 6 cm is at x = 0 and a concave mirror of focal length 4 cm stands at x = 26 cm facing it. A small object is at x = -9 cm. Light passes through the lens, reflects from the mirror and passes back through the lens. Find each intermediate image and the final image position and magnification.",
+   "source": "recorded run",
+   "archetype": null,
+   "lawIds": [
+    "thin-lens equation",
+    "spherical-mirror equation",
+    "lateral magnification for a lens and mirror",
+    "product of successive magnifications"
+   ],
+   "hintedArchetype": null
+  },
+  {
+   "question": "A converging lens of focal length 8.0 cm forms an image of a flagpole 12 m tall that is 64 m away. Find the image distance and the height of the image, and state its nature.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "A converging lens of focal length 9.0 cm is held 6.0 cm above a stamp so that it acts as a magnifier. A printed letter on the stamp is 0.7 cm high. Find where the image forms, the magnification and the image height, and state the nature of the image.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "A converging ray bundle is intercepted by a diverging thin lens before reaching its intended focus. Draw the incoming bundle, the virtual-object location relative to the lens, and the outgoing rays for a virtual object closer to the lens than the magnitude of its focal length. Distinguish actual rays from backward extensions.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens equation",
+    "thin-lens ray refraction"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "A convex lens has focal length 10 cm. An object is 30 cm from the lens. Find the image distance and magnification, and show the principal rays.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens equation",
+    "lateral magnification relation",
+    "convex-lens principal-ray rules"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "A convex lens of focal length 15 cm has an object placed 10 cm from it. Draw the ray diagram and describe the image.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens equation",
+    "lateral magnification",
+    "principal-ray rules for a convex lens"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "A convex mirror with radius of curvature 48 cm has an object 4.0 cm tall placed 8.0 cm in front of it. Find the image distance, magnification and image height, and state whether the image is real or virtual.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "Mirror focal length: |f| = R/2, with f < 0 for a convex mirror",
+    "Mirror equation: 1/f = 1/d_o + 1/d_i",
+    "Mirror magnification: m = -d_i/d_o = h_i/h_o"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "A diverging lens has focal length 33 cm. An object 4.0 cm tall is placed 11 cm from it. Find the position, size and nature of the image.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens equation",
+    "lens magnification relation"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "A diverging lens of focal length 120 mm is followed by a converging lens of focal length 180 mm placed 270 mm behind it on the same axis. An object 48 mm tall is 360 mm in front of the diverging lens. Find the position, size and nature of the final image.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens equation",
+    "lateral magnification for a thin lens"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "A diverging lens of focal length 14 cm stands 33 cm in front of a converging lens of focal length 29 cm on the same axis. A 2.2 cm object is 42 cm in front of the diverging lens. Find the position, nature and size of the final image.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens equation",
+    "lateral magnification",
+    "successive-lens image formation"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "A letter 0.025 m tall on a postage stamp is 0.16 m from a thin convex lens of focal length 0.24 m used as a magnifying glass. Calculate the image position, the image height and the nature of the image.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens equation",
+    "lateral magnification"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "A magnifying glass is modelled as a thin converging lens with focal length +12 cm. A 2.0 cm tall object is placed 8.0 cm to its left. Draw principal rays and their backward extensions, then calculate the image distance and height. Use Cartesian distances positive to the right and identify whether the image can be caught on a screen.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens equation: 1/f = 1/d_o + 1/d_i, with d_o positive for an object to the left and d_i positive for a real image to the right",
+    "thin-lens transverse magnification: h_i/h_o = −d_i/d_o"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "A make-up mirror is concave with radius of curvature 44 cm. A person holds her face 11 cm from it. Find where the image forms, the magnification, and whether the image is real or virtual.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "Spherical-mirror focal length f = R/2",
+    "Mirror equation 1/f = 1/d_o + 1/d_i",
+    "Mirror magnification m = -d_i/d_o"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "A pencil 2.5 cm tall stands upright on the principal axis 21 cm in front of a thin converging lens of focal length 14 cm. Locate the image, find its height and say whether it is real or virtual, upright or inverted.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "A plane wavefront in air meets a plane mirror with its propagation direction at 35° to the normal. Use Huygens' construction to find the reflected angle; how far does each secondary wavelet expand in 2.0 ns at 3.0*10^8 m/s?",
+   "source": "recorded run",
+   "archetype": null,
+   "lawIds": [
+    "Huygens' principle",
+    "law of reflection",
+    "distance = speed × time"
+   ],
+   "hintedArchetype": null
+  },
+  {
+   "question": "A shop uses a convex security mirror with a radius of curvature of 1.2 m. A customer 1.5 m tall stands 2.4 m in front of it. Find the position and height of the customer's image and describe it.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "Convex-mirror focal length f = −R/2",
+    "Mirror equation 1/f = 1/d_o + 1/d_i",
+    "Mirror magnification h_i/h_o = −d_i/d_o"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "A slide 3.6 cm tall sits 27.5 cm behind the converging lens of a projector whose focal length is 22 cm. How far from the lens must the screen stand for a sharp picture, and how tall is the picture? Is it upright or inverted?",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens equation",
+    "lens magnification"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "A slide projector lens is a converging lens of focal length 52 mm. A picture 6.0 mm tall on the slide sits 78 mm from the lens. Find where the image forms, how tall it is, and whether it is real or virtual.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "A small object stands 30 cm in front of a concave spherical mirror and its real image is 60 cm in front of the mirror. Use the paraxial mirror model. Infer the focal length and initial magnification. The object is then moved to 15 cm in front of the mirror: locate its new image, give its magnification, and determine whether it can be caught on a screen.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "paraxial mirror equation: 1/f = 1/u + 1/v",
+    "mirror transverse magnification: m = -v/u"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "A spectacle lens has a power of -2.0 D. A printed letter 4.0 cm tall is 75 cm from the lens. Find the focal length, the position of the image, the magnification and the image height.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "A spectacle lens marked -6.25 D is held 112 cm from a lit sign 5.6 cm high. Work out the focal length of the lens, where the image of the sign is seen, how big it looks and whether it is upright.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "dioptre-power relation P=1/f (f in metres)",
+    "thin-lens equation 1/f=1/d_o+1/d_i",
+    "lateral magnification h_i/h_o=-d_i/d_o"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "A stamp collector holds a converging lens of focal length 16 cm at 12 cm from a stamp 0.8 cm wide. Where is the image, what is its nature, and how wide does the stamp appear?",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens equation",
+    "transverse magnification"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "A student projects a candle flame 1.8 cm tall onto a screen with a lens marked +4.0 D. The candle is 37.5 cm from the lens. Where must the screen stand, how tall is the flame on the screen, and what is the nature of the image?",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "lens power P = 1/f (f in metres)",
+    "thin-lens equation 1/f = 1/d_o + 1/d_i",
+    "lateral magnification m = h_i/h_o = −d_i/d_o"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "A thin converging lens at x=0 has focal length 12 cm. An upright object of height 3 cm stands at x=-18 cm on the principal axis, and light travels left to right. Draw a principal-ray diagram, label both focal points, and locate the image with its height and orientation.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "A thin converging lens is at x=0 with focal length +8 cm. Light travels toward +x. An upright object of height 3 cm is at x=-24 cm. Draw the principal axis, both foci, object, and image using a parallel ray and a central ray; calculate signed image position and height.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens-equation",
+    "lateral-magnification",
+    "converging-lens-principal-rays"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "A thin converging lens of focal length 0.16 m shares its axis with a concave mirror of focal length 0.09 m placed 0.66 m beyond the lens. An object 0.025 m tall is 0.24 m in front of the lens. Light passes through the lens, reflects from the mirror and passes back through the lens. Find the final image position, its height and its nature.",
+   "source": "recorded run",
+   "archetype": null,
+   "lawIds": [
+    "thin-lens equation 1/f = 1/u + 1/v, applied in each direction of propagation",
+    "concave-mirror equation 1/f = 1/u + 1/v",
+    "transverse magnification: −v/u for each lens or mirror interaction; multiply successive magnifications"
+   ],
+   "hintedArchetype": null
+  },
+  {
+   "question": "A thin converging lens of focal length 10 cm is at x=0. A plane mirror is at x=30 cm facing the lens, and a point object is at x=-20 cm. Paraxial light passes through the lens, reflects, then returns through the lens. Find the final image coordinate.",
+   "source": "recorded run",
+   "archetype": null,
+   "lawIds": [
+    "thin-lens equation",
+    "plane-mirror image symmetry"
+   ],
+   "hintedArchetype": null
+  },
+  {
+   "question": "A thin converging lens of focal length 14 cm and a concave mirror of focal length 7 cm share a principal axis and are 56 cm apart, with the mirror facing the lens. An object 0.8 cm tall is placed 21 cm from the lens on the side away from the mirror. Light passes through the lens, reflects once from the mirror and passes back through the lens. Find the position, size and orientation of each image.",
+   "source": "recorded run",
+   "archetype": null,
+   "lawIds": [
+    "thin-lens-equation",
+    "concave-mirror-equation",
+    "transverse-magnification"
+   ],
+   "hintedArchetype": null
+  },
+  {
+   "question": "A thin convex lens in air has focal length 12 cm. A 3 cm tall object stands upright 30 cm to the left of the lens on its principal axis. Draw the principal-ray construction, locate the image, and calculate its distance from the lens and signed magnification. Use a ray initially parallel to the axis and a ray through the optical centre; take rightward distances as positive.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens equation: 1/f=1/v-1/u, with u=-d_o",
+    "signed lateral magnification: m=v/u=h_i/h_o",
+    "thin-lens principal-ray rules"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "A thin meniscus lens of glass with refractive index 1.6 is used in air. Light meets first a convex surface of radius 12 cm, then a concave surface of radius 36 cm, with both centres of curvature on the outgoing side. Find the focal length and power of the lens, then locate the image of an object 2.0 cm tall placed 42 cm in front of it and find the image height.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens lensmaker equation",
+    "thin-lens imaging equation",
+    "lateral magnification",
+    "dioptre definition"
+   ],
+   "hintedArchetype": "lens_maker"
+  },
+  {
+   "question": "A toy 4.8 cm tall stands 54 cm in front of a convex mirror whose radius of curvature is 36 cm. Find the image distance, the magnification and the image height, and describe the image.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "Spherical-mirror focal length f = R/2",
+    "Mirror equation 1/f = 1/v + 1/u",
+    "Mirror magnification m = -v/u = h_i/h_o"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "An astronomical telescope has an objective of focal length 1.4 m and an eyepiece of focal length 3.5 cm. The eyepiece is adjusted so that the final image forms at the near point, 0.25 m from the eye. Find the distance of the intermediate image from the eyepiece, the separation of the lenses and the angular magnification.",
+   "source": "recorded run",
+   "archetype": "telescope",
+   "lawIds": [],
+   "hintedArchetype": "telescope"
+  },
+  {
+   "question": "An astronomical telescope uses an objective of focal length 1.2 m and an eyepiece of focal length 4.0 cm, set in normal adjustment. The Moon subtends 0.52° at the naked eye. Find the separation of the lenses, the angular magnification, and the angle the final image of the Moon subtends at the eye.",
+   "source": "recorded run",
+   "archetype": "telescope",
+   "lawIds": [
+    "Normal-adjustment lens separation: L = f_o + f_e",
+    "Astronomical telescope angular magnification: M = −f_o/f_e",
+    "Paraxial angular approximation: θ_final ≈ |M|θ"
+   ],
+   "hintedArchetype": "telescope"
+  },
+  {
+   "question": "An auxiliary lens would form a real image at x = 60 cm. Insert a convex mirror at x = 40 cm facing the incoming converging light. Its reflected rays meet without parallax with a pin at x = 0 cm. Find the convex mirror focal length, with +x along the original incident light.",
+   "source": "recorded run",
+   "archetype": null,
+   "lawIds": [
+    "paraxial mirror equation with directed distances: 1/f = 1/u + 1/v"
+   ],
+   "hintedArchetype": null
+  },
+  {
+   "question": "An object 2 cm tall stands 30 cm in front of a concave mirror of focal length 10 cm. Draw the ray diagram and locate the image.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "mirror equation: 1/f = 1/d_o + 1/d_i",
+    "mirror magnification: h_i/h_o = −d_i/d_o",
+    "concave-mirror principal-ray rules"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "An object 2.0 cm tall is placed 8.0 cm from a thin converging lens of focal length 12 cm. Find the position, size and nature of the image.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens equation: 1/f=1/v−1/u",
+    "lateral magnification: h_i/h_o=v/u"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "An object 3.5 cm tall is placed 0.25 m from a lens of power -4.0 D. Find the focal length, the image distance, the magnification and the image height, and describe the image.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "Lens power P=1/f (f in metres)",
+    "Thin-lens equation 1/f=1/v−1/u (Cartesian sign convention)",
+    "Lateral magnification m=v/u=h_i/h_o"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "An object 3.6 cm tall is 36 cm in front of a thin converging lens of focal length 12 cm. A concave mirror of focal length 8.0 cm faces the lens 42 cm behind it on the same axis. After passing through the lens, light reflects from the mirror and passes back through the lens. Locate the final image and find its height and nature.",
+   "source": "recorded run",
+   "archetype": "relative_motion_line",
+   "lawIds": [
+    "thin-lens equation",
+    "concave-mirror equation",
+    "lateral magnification"
+   ],
+   "hintedArchetype": "relative_motion_line"
+  },
+  {
+   "question": "An object 5.0 mm tall is 56 mm in front of a concave mirror of focal length 42 mm. Calculate where the image forms and its height, and state whether it is real or virtual and upright or inverted.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "mirror equation",
+    "mirror magnification equation"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "An object 6.0 cm tall is placed 0.75 m from a thin lens of power -4.0 D. Find the focal length, the image position and the image height, and state whether the image is erect or inverted.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "lens power P = 1/f (f in metres)",
+    "thin-lens equation 1/f = 1/v - 1/u",
+    "lateral magnification h_i/h_o = v/u"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "An object 7.5 cm high is 104 cm from a concave lens of focal length 26 cm. Using the lens formula, find the image distance, the magnification and the image height, and say whether the image is real or virtual.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens formula: 1/v - 1/u = 1/f",
+    "lens magnification: m = v/u = h_i/h_o"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "An object is placed 30 cm from a concave mirror of focal length 10 cm. Find the image distance.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "An object stands 0.18 m to the left of a thin convex lens of focal length 0.12 m. A concave mirror of focal length 0.08 m is placed 0.60 m to the right of the lens, facing it, on the same axis. Light passes through the lens, reflects from the mirror and passes back through the lens. Find the position, nature and overall magnification of the final image.",
+   "source": "recorded run",
+   "archetype": null,
+   "lawIds": [
+    "thin-lens-equation",
+    "concave-mirror-equation",
+    "transverse-magnification-product"
+   ],
+   "hintedArchetype": null
+  },
+  {
+   "question": "An upright object 4.0 cm tall stands on the principal axis 36 cm in front of a thin converging lens of focal length 12 cm. Use the lens formula to locate the image, then give its height and describe its nature.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens formula: 1/f = 1/v - 1/u",
+    "lateral magnification: h_i/h_o = v/u"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "combinaton of two lenses kept touching each other",
+   "source": "recorded run",
+   "archetype": null,
+   "lawIds": [
+    "thin-lenses-in-contact",
+    "lens-power-definition"
+   ],
+   "hintedArchetype": null
+  },
+  {
+   "question": "Complete reaction of acetaldehyde with excess formaldehyde, on heating with conc. NaOH solution, gives P and Q. Compound P does not give Tollens' test, whereas Q on acidification gives a positive Tollens' test. Treatment of P with excess cyclohexanone in the presence of a catalytic amount of p-toluenesulfonic acid gives product R. What is the sum of the number of methylene groups (-CH2-) and oxygen atoms in R?",
+   "source": "repo data set",
+   "archetype": null
+  },
+  {
+   "question": "convex lens plus concave mirrror image, so confused",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens equation",
+    "mirror equation",
+    "successive image formation"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "convex mirror focal length experiment using a lens",
+   "source": "recorded run",
+   "archetype": null,
+   "lawIds": [
+    "reversibility-of-light",
+    "spherical-mirror-radius-focal-length-relation"
+   ],
+   "hintedArchetype": null
+  },
+  {
+   "question": "Derivation of the lensmaker's formula for a biconvex lens",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "paraxial refraction at a spherical surface",
+    "thin-lens approximation",
+    "definition of focal length"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "dioptre power vs magnification of a lens, how are they linked",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens equation",
+    "transverse magnification definition",
+    "dioptre definition"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "Draw a concave-mirror image construction for an object beyond the center of curvature and another object between the focus and mirror. Include the same principal axis, focus and center in both panels, and distinguish actual reflected rays from extensions used to locate a virtual image.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "law-of-reflection",
+    "concave-mirror-principal-ray-rules"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "Draw a labelled diagram for Combination of a thin lens and a spherical mirror. Show the principal axis and the named rays.",
+   "source": "repo data set",
+   "archetype": "capacitor_network"
+  },
+  {
+   "question": "Draw a labelled diagram for Combination of thin lenses in contact. Show the principal axis and the named rays.",
+   "source": "repo data set",
+   "archetype": null
+  },
+  {
+   "question": "Draw a labelled diagram for Focal length of a concave mirror using the parallax method. Show the principal axis and the named rays.",
+   "source": "repo data set",
+   "archetype": "spherical_mirror"
+  },
+  {
+   "question": "Draw a labelled diagram for Focal length of a convex lens using the parallax method. Show the principal axis and the named rays.",
+   "source": "repo data set",
+   "archetype": "thin_lens"
+  },
+  {
+   "question": "Draw a labelled diagram for Focal length of a convex mirror using the parallax method. Show the principal axis and the named rays.",
+   "source": "repo data set",
+   "archetype": "spherical_mirror"
+  },
+  {
+   "question": "Draw a labelled diagram for Lens maker's formula. Show the principal axis and the named rays.",
+   "source": "repo data set",
+   "archetype": "lens_maker"
+  },
+  {
+   "question": "Draw a labelled diagram for Magnification and power of a lens. Show the principal axis and the named rays.",
+   "source": "repo data set",
+   "archetype": "thin_lens"
+  },
+  {
+   "question": "Draw a labelled diagram for Plotting the graph between distance and magnification for a convex lens. Show the principal axis and the named rays.",
+   "source": "repo data set",
+   "archetype": "thin_lens"
+  },
+  {
+   "question": "Draw a labelled diagram for Reflection of light, spherical mirrors, and the mirror formula. Show the principal axis and the named rays.",
+   "source": "repo data set",
+   "archetype": "spherical_mirror"
+  },
+  {
+   "question": "Draw a labelled diagram for Thin lens formula. Show the principal axis and the named rays.",
+   "source": "repo data set",
+   "archetype": "thin_lens"
+  },
+  {
+   "question": "Draw Combination of a thin lens and a spherical mirror and mark any named directions, levels, or components on the figure. Show the principal axis and the named rays.",
+   "source": "recorded run",
+   "archetype": "capacitor_network",
+   "lawIds": [
+    "geometric_optics_ray_tracing",
+    "thin_lens_equation",
+    "mirror_equation"
+   ],
+   "hintedArchetype": "capacitor_network"
+  },
+  {
+   "question": "Draw Combination of thin lenses in contact and mark any named directions, levels, or components on the figure.",
+   "source": "recorded run",
+   "archetype": null,
+   "lawIds": [
+    "thin lens combination in contact",
+    "additivity of optical power",
+    "paraxial ray optics"
+   ],
+   "hintedArchetype": null
+  },
+  {
+   "question": "Draw Combination of thin lenses in contact and mark any named directions, levels, or components on the figure. Show the principal axis and the named rays.",
+   "source": "recorded run",
+   "archetype": null,
+   "lawIds": [
+    "thin_lens_combination",
+    "lens_maker_equation",
+    "sign_convention"
+   ],
+   "hintedArchetype": "lens_maker"
+  },
+  {
+   "question": "Draw Focal length of a concave mirror using the parallax method and mark any named directions, levels, or components on the figure. Show the principal axis and the named rays.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "mirror_equation",
+    "parallax_method",
+    "ray_diagram_rules"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "Draw Focal length of a convex lens using the parallax method and mark any named directions, levels, or components on the figure. Show the principal axis and the named rays.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "lens_maker_equation",
+    "parallax_method"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "Draw Focal length of a convex mirror using the parallax method and mark any named directions, levels, or components on the figure. Show the principal axis and the named rays.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "mirror_formula",
+    "parallax_method",
+    "ray_diagram_rules"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "Draw Lens maker's formula and mark any named directions, levels, or components on the figure. Show the principal axis and the named rays.",
+   "source": "recorded run",
+   "archetype": "lens_maker",
+   "lawIds": [
+    "lens_maker_formula",
+    "ray_optics_refraction"
+   ],
+   "hintedArchetype": "lens_maker"
+  },
+  {
+   "question": "Draw Magnification and power of a lens and mark any named directions, levels, or components on the figure.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens magnification relation",
+    "lens power definition"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "Draw Magnification and power of a lens and mark any named directions, levels, or components on the figure. Show the principal axis and the named rays.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "lens_maker_equation",
+    "magnification_definition",
+    "power_definition"
+   ],
+   "hintedArchetype": "lens_maker"
+  },
+  {
+   "question": "Draw Plotting the graph between distance and magnification for a convex lens and mark any named directions, levels, or components on the figure. Show the principal axis and the named rays.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "lens_maker_equation",
+    "magnification_equation",
+    "ray_diagram_rules"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "Draw Reflection of light, spherical mirrors, and the mirror formula and mark any named directions, levels, or components on the figure. Show the principal axis and the named rays.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "law_of_reflection",
+    "mirror_formula",
+    "spherical_mirror_sign_convention"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "Draw the ray construction for a real object between F and 2F of a converging thin lens. Label the principal axis, both focal points and the image.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "converging-lens principal-ray rules"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "Draw the standard ray diagram for a real object beyond the centre of curvature of a concave mirror. Mark the principal axis, focus, centre and image.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "concave-mirror principal-ray rules"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "Draw the standard setup for Combination of a thin lens and a spherical mirror and label the named quantities. Show the principal axis and the named rays.",
+   "source": "repo data set",
+   "archetype": "capacitor_network"
+  },
+  {
+   "question": "Draw the standard setup for Combination of thin lenses in contact and label the named quantities. Show the principal axis and the named rays.",
+   "source": "repo data set",
+   "archetype": null
+  },
+  {
+   "question": "Draw the standard setup for Focal length of a concave mirror using the parallax method and label the named quantities. Show the principal axis and the named rays.",
+   "source": "repo data set",
+   "archetype": "spherical_mirror"
+  },
+  {
+   "question": "Draw the standard setup for Focal length of a convex lens using the parallax method and label the named quantities. Show the principal axis and the named rays.",
+   "source": "repo data set",
+   "archetype": "thin_lens"
+  },
+  {
+   "question": "Draw the standard setup for Focal length of a convex mirror using the parallax method and label the named quantities. Show the principal axis and the named rays.",
+   "source": "repo data set",
+   "archetype": "spherical_mirror"
+  },
+  {
+   "question": "Draw the standard setup for Lens maker's formula and label the named quantities. Show the principal axis and the named rays.",
+   "source": "repo data set",
+   "archetype": "lens_maker"
+  },
+  {
+   "question": "Draw the standard setup for Magnification and power of a lens and label the named quantities. Show the principal axis and the named rays.",
+   "source": "repo data set",
+   "archetype": "thin_lens"
+  },
+  {
+   "question": "Draw the standard setup for Plotting the graph between distance and magnification for a convex lens and label the named quantities. Show the principal axis and the named rays.",
+   "source": "repo data set",
+   "archetype": "thin_lens"
+  },
+  {
+   "question": "Draw the standard setup for Reflection of light, spherical mirrors, and the mirror formula and label the named quantities. Show the principal axis and the named rays.",
+   "source": "repo data set",
+   "archetype": "spherical_mirror"
+  },
+  {
+   "question": "Draw the standard setup for Thin lens formula and label the named quantities. Show the principal axis and the named rays.",
+   "source": "repo data set",
+   "archetype": "thin_lens"
+  },
+  {
+   "question": "Draw Thin lens formula and mark any named directions, levels, or components on the figure.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens equation"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "Draw Thin lens formula and mark any named directions, levels, or components on the figure. Show the principal axis and the named rays.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin_lens_equation",
+    "ray_diagram_rules"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "Explain combination of a thin lens and a spherical mirror.",
+   "source": "recorded run",
+   "archetype": "capacitor_network",
+   "lawIds": [
+    "paraxial thin-lens power addition",
+    "paraxial spherical-mirror focal-length relation"
+   ],
+   "hintedArchetype": "capacitor_network"
+  },
+  {
+   "question": "Explain combination of thin lenses in contact.",
+   "source": "recorded run",
+   "archetype": null,
+   "lawIds": [
+    "thin-lens equation",
+    "thin-lens power addition for lenses in contact"
+   ],
+   "hintedArchetype": null
+  },
+  {
+   "question": "Explain focal length of a concave mirror using the parallax method.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "concave-mirror centre-of-curvature imaging",
+    "no-parallax coincidence criterion",
+    "spherical-mirror focal-length relation"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "Explain focal length of a convex mirror using the parallax method.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "no-parallax coincidence",
+    "spherical-mirror relation R = 2f",
+    "ray retracing through centre of curvature"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "Explain plotting the graph between distance and magnification for a convex lens.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens formula",
+    "lens magnification relation"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "Explain reflection of light, spherical mirrors, and the mirror formula.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "law-of-reflection",
+    "paraxial-spherical-mirror-formula",
+    "spherical-mirror-focal-length-relation",
+    "mirror-magnification-relation"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "Explain thin lens formula.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens equation",
+    "Cartesian lens sign convention"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "fehling and tollens tests",
+   "source": "repo data set",
+   "archetype": null
+  },
+  {
+   "question": "finding the final image with a lens and a mirror",
+   "source": "recorded run",
+   "archetype": null,
+   "lawIds": [
+    "thin-lens equation",
+    "mirror equation"
+   ],
+   "hintedArchetype": null
+  },
+  {
+   "question": "Finding the focal length of a convex mirror with a convex lens and parallax",
+   "source": "recorded run",
+   "archetype": null,
+   "lawIds": [
+    "principle of reversibility of light",
+    "spherical-mirror focal-length relation"
+   ],
+   "hintedArchetype": null
+  },
+  {
+   "question": "focal lenght of convex lens experiment with pins on optical bench",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens equation: 1/f = 1/u + 1/v"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "how do i use the lens equation for a convex lens",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens equation",
+    "thin-lens sign convention"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "How do we find the focal length of a convex mirror in the lab?",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "A ray directed toward a spherical mirror’s centre of curvature retraces its path after reflection.",
+    "For a spherical mirror, focal-length magnitude equals half the radius of curvature."
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "How does a convex lens form an image?",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "How does a lens and mirror combination form the final image?",
+   "source": "recorded run",
+   "archetype": "capacitor_network",
+   "lawIds": [
+    "refraction by a lens",
+    "law of reflection",
+    "ray-tracing principle"
+   ],
+   "hintedArchetype": "capacitor_network"
+  },
+  {
+   "question": "image formed by a concave mirror",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "law-of-reflection",
+    "concave-mirror-ray-rules"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  },
+  {
+   "question": "image of an image when a lens faces a curved mirror",
+   "source": "recorded run",
+   "archetype": null,
+   "lawIds": [
+    "thin-lens imaging equation",
+    "spherical-mirror imaging equation"
+   ],
+   "hintedArchetype": null
+  },
+  {
+   "question": "In a compound microscope the objective has focal length 1.2 cm and the eyepiece focal length 3.0 cm. A specimen is 1.5 cm in front of the objective, and the final image is at infinity for a viewer whose near point is 0.25 m. Find the objective image distance, the lens separation and the magnifying power.",
+   "source": "recorded run",
+   "archetype": "compound_microscope",
+   "lawIds": [
+    "thin-lens equation",
+    "normal-adjustment eyepiece condition",
+    "compound-microscope magnifying-power formula"
+   ],
+   "hintedArchetype": "compound_microscope"
+  },
+  {
+   "question": "In a compound microscope the objective has focal length 1.8 cm and the eyepiece 3.5 cm. A tiny specimen sits 2.1 cm from the objective, and the eyepiece is set for a relaxed eye so the final image is at infinity. Taking the standard near point, find the position of the intermediate image, the separation of the lenses and the total magnifying power.",
+   "source": "recorded run",
+   "archetype": "compound_microscope",
+   "lawIds": [
+    "thin-lens equation",
+    "relaxed-eye microscope magnification"
+   ],
+   "hintedArchetype": "compound_microscope"
+  },
+  {
+   "question": "In a compound microscope, a specimen 0.20 mm tall is placed 1.8 cm from an objective of focal length 1.5 cm. The eyepiece has focal length 4.0 cm and the final image is formed at the observer's near point, 26 cm from the eye. Find the position of the intermediate image, the lens separation, the total magnification and the height of the final image.",
+   "source": "recorded run",
+   "archetype": "compound_microscope",
+   "lawIds": [
+    "thin-lens equation",
+    "lens magnification",
+    "compound magnification as product of lens magnifications"
+   ],
+   "hintedArchetype": "compound_microscope"
+  },
+  {
+   "question": "In an optical bench experiment a convex lens is fixed at the 47.0 cm mark and the object pin at the 11.0 cm mark. The image pin is moved until there is no parallax between it and the inverted image, which happens at the 92.0 cm mark. The object pin tip is 2.4 cm above the axis. Find the focal length of the lens and the height of the image.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens equation",
+    "lateral magnification equation"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "lens formula derivation convex lense",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "undeviated central ray of a thin lens",
+    "parallel ray passes through the far focus of a convex lens",
+    "similar triangles"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "lens formula with object and image distances, walk me through it",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens equation"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "lens makers formula, how the two curved faces set the focal length",
+   "source": "recorded run",
+   "archetype": "lens_maker",
+   "lawIds": [
+    "thin-lens lensmaker equation"
+   ],
+   "hintedArchetype": "lens_maker"
+  },
+  {
+   "question": "lens powr vs magnificaton whats the difference",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "lens-power definition",
+    "lateral-magnification definition"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "light goes through a lens, bounces off a mirror and comes back",
+   "source": "recorded run",
+   "archetype": null,
+   "lawIds": [
+    "law-of-reflection",
+    "refraction-through-a-lens"
+   ],
+   "hintedArchetype": null
+  },
+  {
+   "question": "mirror imag of point in plane",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "reflection-in-a-plane"
+   ],
+   "hintedArchetype": "spherical_mirror",
+   "leavesOptics": true
+  },
+  {
+   "question": "mirror image of a point in a plane explained",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "orthogonal projection onto a plane",
+    "reflection across a plane"
+   ],
+   "hintedArchetype": "spherical_mirror",
+   "leavesOptics": true
+  },
+  {
+   "question": "On an optical bench a convex lens sits at the 38.5 cm mark and the object pin at the 11.5 cm mark. An image pin shows no parallax with the inverted image when it is at the 92.5 cm mark. Find the object and image distances, the focal length and the magnification.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens equation",
+    "transverse magnification relation"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "On an optical bench a convex lens sits at the 57.0 cm mark and the object pin at the 13.0 cm mark. The image pin is moved until parallax between it and the inverted image vanishes at the 134.0 cm mark. Find the object and image distances, the focal length and the magnification.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "object and image distances from bench positions",
+    "thin-lens equation: 1/f = 1/u + 1/v",
+    "transverse magnification: m = −v/u"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "pls explain focal length of a convex lens using the parallax method",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "convex-lens focal-point property",
+    "reversibility of light rays",
+    "plane-mirror reflection",
+    "no-parallax coincidence criterion"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "pls explain lens maker's formula",
+   "source": "recorded run",
+   "archetype": "lens_maker",
+   "lawIds": [
+    "thin-lens lens maker's formula",
+    "signed radius-of-curvature convention"
+   ],
+   "hintedArchetype": "lens_maker"
+  },
+  {
+   "question": "removing parallax to get a convex lens focal length",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "autocollimation",
+    "parallax-test"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "Sucrose is dextrorotatory, but the solution becomes laevorotatory after hydrolysis. Name the monosaccharides and the linkage. Why does sucrose give neither Tollens' nor Fehling's test, while maltose does?",
+   "source": "repo data set",
+   "archetype": null
+  },
+  {
+   "question": "The point B(5, 2, 8) is the mirror image of A(-1, 8, 2) in a plane. Find the equation of the plane and the distance of A from it.",
+   "source": "recorded run",
+   "archetype": "spherical_mirror",
+   "lawIds": [
+    "midpoint formula",
+    "perpendicular-bisector property of a reflection plane",
+    "point-to-plane distance formula"
+   ],
+   "hintedArchetype": "spherical_mirror",
+   "leavesOptics": true
+  },
+  {
+   "question": "To find the focal length of a convex mirror, an object pin is at the 11.0 cm mark of an optical bench and a convex lens at the 37.0 cm mark forms a real image of it at the 103.0 cm mark. A convex mirror facing the lens is then slid in between them until the light reflected back through the lens forms an image coinciding with the object pin without parallax. This happens with the mirror at the 77.0 cm mark. Find the radius of curvature and focal length of the mirror.",
+   "source": "recorded run",
+   "archetype": null,
+   "lawIds": [
+    "mirror ray retracing at centre of curvature",
+    "spherical mirror focal-length relation f = R/2"
+   ],
+   "hintedArchetype": null
+  },
+  {
+   "question": "To find the focal length of a convex mirror, an object pin is at the 6.0 cm mark and a convex lens at the 27.0 cm mark of an optical bench. Without the mirror, the lens forms a real image located by a pin at the 69.0 cm mark. The convex mirror is then placed at the 57.5 cm mark facing the lens, and the image of the object pin now falls back on the object pin with no parallax. Find the radius of curvature and focal length of the mirror, and the focal length of the lens.",
+   "source": "recorded run",
+   "archetype": null,
+   "lawIds": [
+    "thin-lens equation",
+    "spherical-mirror focal-length relation",
+    "ray retracing at normal incidence"
+   ],
+   "hintedArchetype": null
+  },
+  {
+   "question": "To find the focal length of a convex mirror, an object pin is set at the 6.0 cm mark of an optical bench and a convex lens at the 34.0 cm mark; the lens alone forms a real image of the pin at the 118.0 cm mark. A convex mirror is then placed between the lens and that image, facing the lens. When the mirror stands at the 104.0 cm mark, the image formed by the reflected light coincides with the object pin with no parallax. Find the radius of curvature and focal length of the mirror.",
+   "source": "recorded run",
+   "archetype": null,
+   "lawIds": [
+    "reversibility-of-light",
+    "spherical-mirror-centre-of-curvature",
+    "spherical-mirror-focal-length-f-equals-R-over-2"
+   ],
+   "hintedArchetype": null
+  },
+  {
+   "question": "To project an image of the Sun safely, an astronomical telescope with an objective of focal length 96 cm and an eyepiece of focal length 3.5 cm is adjusted so that a sharp real image forms on a card 21.7 cm behind the eyepiece. The Sun subtends 9.3 milliradians. Find the diameter of the intermediate image, the distance of that image from the eyepiece, the lens separation and the diameter of the Sun's image on the card.",
+   "source": "recorded run",
+   "archetype": "telescope",
+   "lawIds": [
+    "small-angle image diameter d ≈ fθ (θ in radians)",
+    "thin-lens equation 1/f = 1/u + 1/v",
+    "transverse magnification magnitude |m| = v/u"
+   ],
+   "hintedArchetype": "telescope"
+  },
+  {
+   "question": "Two converging lenses share a principal axis and are 38 cm apart. The first has focal length 13 cm and the second 9.0 cm. An object 2.4 cm tall is 26 cm in front of the first lens. Find the position, height and nature of the final image.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens equation: 1/f = 1/u + 1/v",
+    "transverse magnification: m = −v/u"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "Two converging lenses share an axis. Lens A has focal length 9 cm and lens B has focal length 4 cm; B is 33 cm to the right of A. An object is 13.5 cm to the left of A. Find the position of the intermediate image, the final image and the overall magnification.",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "thin-lens equation: 1/f=1/u+1/v",
+    "lens magnification: m=−v/u",
+    "successive magnifications multiply"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "two lenses one after another, finding the final image",
+   "source": "recorded run",
+   "archetype": null,
+   "lawIds": [
+    "thin-lens equation: 1/f=1/p+1/q",
+    "successive-lens object–image relation"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "two lenses together how u find the final image",
+   "source": "recorded run",
+   "archetype": null,
+   "lawIds": [
+    "thin-lens equation: 1/v−1/u=1/f",
+    "signed transverse magnification: m=v/u"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "wat does no parallax mean in the convex lens pin experiment",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "parallax principle"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "What do power and magnification of a lens mean?",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "lens_power_definition",
+    "lateral_magnification_definition"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "what is the power of a lens in dioptre",
+   "source": "recorded run",
+   "archetype": "thin_lens",
+   "lawIds": [
+    "lens-power definition"
+   ],
+   "hintedArchetype": "thin_lens"
+  },
+  {
+   "question": "where does the lens maker equation come from",
+   "source": "recorded run",
+   "archetype": "lens_maker",
+   "lawIds": [
+    "paraxial spherical-surface refraction",
+    "thin-lens approximation"
+   ],
+   "hintedArchetype": "lens_maker"
+  },
+  {
+   "question": "where images form in concave and convex mirrors",
+   "source": "recorded run",
+   "archetype": null,
+   "lawIds": [
+    "law-of-reflection",
+    "principal-ray-rules-for-spherical-mirrors"
+   ],
+   "hintedArchetype": "spherical_mirror"
+  }
+ ]
+}
