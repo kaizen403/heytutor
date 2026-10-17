@@ -244,6 +244,8 @@ const MIRROR_IMAGE_WITH_MIRROR_FACTS = [
   "For a mirror, u = -30 and v = -60 are the object and image distances. Describe the mirror image.",
   "A candle stands before a mirror. Describe its mirror image.",
   "Find the mirror image of a point source behind a mirror.",
+  // Greptile (0ad93c47d): spelled out units. With the geometry evidence veto no unit reading is needed.
+  "For a mirror, u = -0.30metres and v = -0.60metres. Describe the mirror image.",
   // One fact each, so removing any single fact from OPTICS_FACT turns this gate red.
   "Where does the mirror image form relative to the pole?",
   "What is the magnification of the mirror image?",
