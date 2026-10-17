@@ -244,21 +244,21 @@ assert.equal(
   }),
   "turn-1:2:blob:a|",
 );
-assert.equal(LECTURE_EXPORT_PLAYBACK_RATE, 1.25, "downloaded lectures are 1.25× so any player plays them fast");
-assert.equal(lectureExportFileMs(1000), 800, "a 1s lesson becomes 0.8s in the file");
-assert.equal(lectureExportMediaMs(800), 1000, "file time 0.8s is lesson time 1s");
+assert.equal(LECTURE_EXPORT_PLAYBACK_RATE, 1, "downloaded lectures keep the recorded voice pitch at natural speed");
+assert.equal(lectureExportFileMs(1000), 1000, "a 1s lesson keeps a 1s file timeline");
+assert.equal(lectureExportMediaMs(1000), 1000, "picture time and recorded speech time stay aligned");
 {
   const ones = new Float32Array(1000).fill(1);
   const sped = speedPcmTrack({ channels: [ones], sampleRate: 1000 }, LECTURE_EXPORT_PLAYBACK_RATE);
   assert.equal(sped.sampleRate, 1000, "sped audio stays at the export sample rate");
-  assert.equal(sped.channels[0]?.length, 800, "1.25× shortens PCM to 80% so the file is not 1×");
+  assert.equal(sped.channels[0]?.length, 1000, "natural-speed export does not shorten the recorded PCM");
   const unchanged = speedPcmTrack({ channels: [ones], sampleRate: 1000 }, 1);
   assert.equal(unchanged.channels[0]?.length, 1000, "1× export must not resample");
 }
 assert.equal(
   lecturePageCacheKey([first]),
   `${lectureExportCacheKey(first)}@${LECTURE_EXPORT_PLAYBACK_RATE}@${LECTURE_PAGE_CACHE_REVISION}`,
-  "cache key includes 1.25× so a previously downloaded 1× file is not reused",
+  "cache key includes the export rate so a previously sped-up file is not reused",
 );
 assert.equal(
   lecturePageCacheKey([first], "webm"),
@@ -273,17 +273,17 @@ assert.equal(
   assert.equal(
     exportSource.includes("LECTURE_EXPORT_PLAYBACK_RATE"),
     true,
-    "MP4 encode must run the virtual clock in 1.25× file time",
+    "MP4 encode must use the shared file-time policy",
   );
   assert.equal(
     exportSource.includes("speedPcmTrack"),
     true,
-    "MP4 audio must be time-compressed to 1.25×, not left at recorded 1×",
+    "MP4 audio must follow the shared rate policy, which preserves pitch at natural speed",
   );
   assert.equal(
     exportSource.includes("lectureExportMediaMs"),
     true,
-    "each encoded frame must sample the board at 1.25× media time",
+    "each encoded frame must sample the board at its matching media time",
   );
   assert.equal(
     exportSource.includes("preferredContainer"),
