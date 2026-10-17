@@ -226,7 +226,12 @@ const bar = load(barFile, barFile).LecturePlayerBar as ComponentType<LecturePlay
 const bubbleFile = path.join(appRoot, "features/tutor-session/components/ResponseBubble.tsx");
 const bubble = load(bubbleFile, process.env.CAPTION_BUBBLE_SOURCE ?? bubbleFile).ResponseBubble as ComponentType;
 const canvasFile = path.join(appRoot, "features/tutor-session/components/SessionBoardCanvas.tsx");
-const canvas = load(canvasFile, process.env.CAPTION_CANVAS_SOURCE ?? canvasFile, undefined, {
+const canvas = load(canvasFile, process.env.CAPTION_CANVAS_SOURCE ?? canvasFile, {
+  ...React,
+  // This is a mounted-session fixture: read the code controller's client
+  // snapshot rather than React's empty server-render snapshot.
+  useSyncExternalStore: (_subscribe: unknown, read: () => unknown) => read(),
+}, {
   "./WhiteboardLoader": { Whiteboard: () => null },
   "./BoardMarkingLayer": { BoardMarkingLayer: () => null },
   "./DiagramLabelInspector": { DiagramLabelInspector: () => null },
@@ -358,6 +363,23 @@ check("landscape-and-laptop", () => {
   const caption = captionLocation(html, "we want the largest sum");
   assert.ok(caption && !caption.inDeck && caption.inPaper, "laptop retains existing paper overlay");
 });
+check("tablet-landscape", () => {
+  for (const [width, height] of [[1024, 768], [1180, 820]] as const) {
+    for (const fullscreen of [false, true]) {
+      for (const eligibility of [{ subtitles: true }, { subtitles: false, codeOnly: true }]) {
+        const options = { mobile: false, coarse: true, width, height, fullscreen, recorded: false, ...eligibility };
+        const caption = captionLocation(shellMarkup(options), "we want the largest sum");
+        assert.ok(caption && !caption.inDeck && caption.inPaper,
+          `landscape tablet ${width}×${height}, fullscreen=${fullscreen}, subtitles=${eligibility.subtitles}: captions stay on paper rather than a phone dock`);
+        for (const phase of ["idle", "planning", "speaking"] as const) {
+          const html = shellMarkup({ ...options, phase });
+          assert.doesNotMatch(html, /<div[^>]*aria-label="Current narration"[^>]*class="[^"]*\bh-20\b/,
+            "a coarse pointer alone cannot reserve an 80 px caption deck on a tablet");
+        }
+      }
+    }
+  }
+});
 check("actual-viewport-budget", () => {
   withViewport(390, 600, 80, f => {
     const fitted = f.read(); near(fitted.scale, 370 / 1200);
@@ -464,7 +486,7 @@ check("session-caption-reservation", () => {
     "desktop caption remains its existing overlay");
 });
 
-const required = ["session-caption-reservation", "live-and-pause", "rewind-source", "player-play-and-pause", "eligibility-and-stop", "landscape-and-laptop", "actual-viewport-budget", "focused-caption-keys"];
+const required = ["session-caption-reservation", "live-and-pause", "rewind-source", "player-play-and-pause", "eligibility-and-stop", "landscape-and-laptop", "tablet-landscape", "actual-viewport-budget", "focused-caption-keys"];
 assert.ok(!process.env.CAPTION_DOCK_CASE || required.includes(process.env.CAPTION_DOCK_CASE), "unknown caption gate case");
 assert.ok(groups > 0, "at least one caption group ran");
 assert.equal(failures.length, 0, `${failures.length}/${groups} caption groups failed: ${failures.join(", ")}`);
