@@ -9,7 +9,7 @@
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
 
-import { CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, findChemistryQuantities, readChemistryQuantity, readChemistryLiteral, matchedChemistryComponentAmount, convertChemistryReading, chemistryPlanBindingsValid, chemistryCanonicalValuesAgree, chemistryQuestionSpan, chemistryUnitSymbol, type ChemistryDimension, type ChemistryUnit } from "./quantityReader";
+import { CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, findChemistryQuantities, readChemistryQuantity, readChemistryQuantityDeclaration, readChemistryLiteral, matchedChemistryComponentAmount, convertChemistryReading, chemistryPlanBindingsValid, chemistryCanonicalValuesAgree, chemistryQuestionSpan, chemistryUnitSymbol, type ChemistryDimension, type ChemistryUnit } from "./quantityReader";
 
 const FAMILY = "chem_solutions" as const;
 
@@ -69,8 +69,8 @@ function suppliedVanthoffFactor(question: string): {value:number|null} | null {
     if (start >= end) return null;
     // Read this original declaration alone: a later good i cannot hide an
     // earlier unknown, and a supplied unit cannot disappear in a scalar match.
-    const read = readChemistryQuantity({question,after:/^/,within:{start,end},dimension:"dimensionless"});
-    if (!read.ok || read.reading.rawUnit !== null || !(read.reading.value > 0)) return null;
+    const read = readChemistryQuantityDeclaration({question,after:/^/,within:{start,end},dimension:"dimensionless",owner:"van't Hoff factor"});
+    if (read.state !== "valid" || read.reading.rawUnit !== null || !(read.reading.value > 0)) return null;
     if (value !== null && !chemistryCanonicalValuesAgree(value,read.reading.value)) return null;
     value = read.reading.value;
   }
@@ -487,7 +487,9 @@ function colligativeScene(question: string, stem: string): SceneDocument | null 
   const constant = numberAfter(question, boiling ? /k_?b\s*=/ : /k_?f\s*=/, "colligative_constant", "K kg/mol");
   if (constant === null || !(constant > 0)) return null;
   const delta = i * constant * molality;
-  const reference = numberAfter(question, boiling ? /boiling point of (?:the )?pure solvent/ : /freezing point of (?:the )?pure solvent/, "temperature", "K");
+  const referenceRead = readChemistryQuantityDeclaration({question,after:boiling ? /boiling point of (?:the )?pure solvent/ : /freezing point of (?:the )?pure solvent/,dimension:"temperature",targetUnit:"K",owner:"pure-solvent reference temperature"});
+  if (referenceRead.state === "invalid") return null;
+  const reference = referenceRead.state === "valid" ? referenceRead.reading.value : null;
     const labels = boiling
     ? [`dTb=${shown(delta)} K`, `m=${molality}`, "boiling up", reference === null ? "Tb not given" : `Tb=${shown(reference + delta)} K`]
     : [`dTf=${shown(delta)} K`, `m=${molality}`, "freezing down", reference === null ? "Tf not given" : `Tf=${shown(reference - delta)} K`];
@@ -531,7 +533,9 @@ function molarMassScene(question: string, stem: string): SceneDocument | null {
   }
   if ((dissociation || association) && factor === null) return null;
 
-  const trueMass = numberAfter(question, /(?:true )?molar mass/, "molar_mass", "g/mol");
+  const trueMassRead = readChemistryQuantityDeclaration({question,after:/(?:true )?molar mass/,dimension:"molar_mass",targetUnit:"g/mol",owner:"true molar mass"});
+  if (trueMassRead.state === "invalid") return null;
+  const trueMass = trueMassRead.state === "valid" ? trueMassRead.reading.value : null;
   if (trueMass !== null && factor !== null) {
     // A given factor and mass do not change a freezing/boiling/osmotic request
     // into an apparent-mass question.

@@ -19,7 +19,7 @@ import type { SceneDocument } from "../types";
 import { fmt } from "../archetypes/document";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
 
-import { chemistryCanonicalValuesAgree, chemistryReferenceConstantValid, CHEMISTRY_NUMBER_PATTERN, CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, chemistryQuestionSpan, chemistryPlanBindingsValid, chemistryQuantityCuesValid, readChemistryQuantity, readChemistryLiteral, readChemistryArrheniusEquation, findChemistryQuantities, convertChemistryReading, convertChemistryValue, chemistryUnitSymbol, type ChemistryUnit, type ChemistryReading, type ChemistrySpan } from "./quantityReader";
+import { chemistryCanonicalValuesAgree, chemistryReferenceConstantValid, CHEMISTRY_NUMBER_PATTERN, CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, chemistryQuestionSpan, chemistryPlanBindingsValid, chemistryQuantityCuesValid, readChemistryQuantity, readChemistryQuantityDeclaration, readChemistryLiteral, readChemistryArrheniusEquation, findChemistryQuantities, convertChemistryReading, convertChemistryValue, chemistryUnitSymbol, type ChemistryUnit, type ChemistryReading, type ChemistrySpan } from "./quantityReader";
 
 export const KINETICS_FAMILY = "chem_kinetics" as const;
 
@@ -333,7 +333,9 @@ function halfLifeSourceOwnersValid(question: string): boolean {
     if (/^\s*(?:if|when|whose|with|given|for which|from|using)\b/i.test(body.slice(end))
       && !requestedHalfLifeConditionValid(question, owner.index!, end)) return false;
   }
-  for (const owner of body.matchAll(new RegExp(HALF_LIFE_CUE.source, "ig"))) {
+  const owners = [...body.matchAll(new RegExp(HALF_LIFE_CUE.source, "ig"))];
+  let suppliedOwners = 0;
+  for (const [index,owner] of owners.entries()) {
     const end = owner.index! + owner[0].length;
     const tail = body.slice(end);
     const predicate = /^\s*(?:is\s+)?(?:to\s+be\s+(?:found|calculated|determined)|required|asked)\b/i.exec(tail);
@@ -347,11 +349,10 @@ function halfLifeSourceOwnersValid(question: string): boolean {
       if (requestedHalfLifeConditionValid(question, owner.index!, end)) continue;
       return false;
     }
-    const supplied = /\bis$/i.test(owner[0]) || /^\s*(?:[=:]|(?:is|was|equals|equal to|unknown|unreadable|has|takes|with|at|value|given|stated|measured|assumed|supplied|provided)\b)/i.test(tail)
-      || new RegExp(String.raw`^\s*(?:(?:of|about|nearly|approximately)\s+)?(?:${SCALAR}|unknown\b|unreadable\b)`, "i").test(tail);
-    if (!supplied) continue; // A genuinely requested half-life supplies no value.
-    const read = readChemistryQuantity({question, after: /^/, within: {start:end, end:body.length}, dimension:"time"});
-    if (!read.ok || !(read.reading.value > 0)) return false;
+    const read = readChemistryQuantityDeclaration({question,after:HALF_LIFE_CUE,
+      within:{start:owner.index!,end:owners[index+1]?.index ?? body.length},dimension:"time",owner:"reaction half-life"});
+    if (read.state === "invalid") return false;
+    if (read.state === "valid" && (!(read.reading.value > 0) || ++suppliedOwners > 1)) return false;
   }
   return true;
 }
@@ -799,7 +800,17 @@ function readTemperatureInputs(stem: string): TemperatureInputs | null {
   if (!rise.ok && /\d\s*(?:degree\w*|kelvin\w*)\s+(?:rise|increase|change)\b/i.test(stem)) return null;
   const delta = rise.ok ? rise.reading : null;
   const absoluteReadings = temps.reading.filter(r => !delta || r.source.span.start !== delta.source.span.start);
-  const absolute = absoluteReadings.map(r => r.value);
+  let absolute = absoluteReadings.map(r => r.value);
+  const indexed = ([1,2] as const).map(role => readChemistryQuantityDeclaration({question:stem,
+    after:new RegExp(`\\bT(?:_?${role}|${role === 1 ? "₁" : "₂"})(?![A-Za-z0-9_/])`),cueCaseSensitive:true,
+    dimension:"temperature",targetUnit:"K",owner:`temperature T${role}`,allowAgreeingRepeats:true}));
+  if (indexed.some(read => read.state === "invalid")) return null;
+  if (indexed.some(read => read.state === "valid")) {
+    if (indexed[0]!.state !== "valid") return null;
+    const ownedSpans = indexed.flatMap(read => read.state === "valid" ? read.occurrences.flatMap(occurrence => occurrence.read.ok ? [occurrence.read.reading.source.span] : []) : []);
+    if (absoluteReadings.some(read => !ownedSpans.some(span => span.start === read.source.span.start && span.end === read.source.span.end))) return null;
+    absolute = indexed.flatMap(read => read.state === "valid" ? [read.reading.value] : []);
+  }
   // Preserve the adapter's ordinary-temperature safety boundary. A stated
   // low absolute T is a refusal, not a value to silently filter away.
   if (absolute.some(t => t < 100) || absolute.length > 2) return null;
@@ -913,10 +924,13 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
   }
   const pattern = /(?:rate constant|(?<!\b(?:ln|log)\s*)\bk\b)\s*(?:_?[12]|₁|₂)?\s*(?:,?\s*k\s*)?(?:=|is|:)/gi;
   for (const match of stem.matchAll(pattern)) {
+    // Numbered rates have already been read under their numbered owners;
+    // their encounter order is never an independent measurement sequence.
+    if (/\bk(?:_?[12]|₁|₂)/i.test(match[0])) continue;
     const read = readChemistryQuantity({question: stem, after: /^/, within: {start: match.index! + match[0].length, end: stem.length}, dimension: "rate_constant_first"});
     // Repeated singular givens do not create a second Arrhenius measurement.
     // Indexed owners or distinct temperatures retain separate measurement roles.
-    if (read.ok && ((T1 !== null && T2 !== null && T1 !== T2) || /\bk(?:_?[12]|₁|₂)/i.test(match[0])
+    if (read.ok && ((T1 !== null && T2 !== null && T1 !== T2)
       || !constants.some(value => chemistryCanonicalValuesAgree(value, read.reading.value)))) constants.push(read.reading.value);
   }
   for (const [role,value] of indexedRates) {
@@ -949,6 +963,8 @@ const EQUILIBRIUM_PLOT = /(?:variation (?:of|in) (?:the )?concentrations?[^.]{0,
 /** Everything the stem (and the plan) says about the kinetics, or null when nothing is readable. */
 export function kineticsFromStem(question: string, quantities: readonly ChemPlanQuantity[] = []): KineticsSpec | null {
   if (!chemistryPlanBindingsValid(question, quantities)) return null;
+  // This family reader binds passive requests and supplied half-lives before
+  // any default; a bare aggregate cue would conflate their different roles.
   if (!halfLifeSourceOwnersValid(question)) return null;
   // This adapter does not yet bind plural constants to their corresponding
   // temperatures. Refuse that scope rather than treating "two" as a ratio.
@@ -958,9 +974,9 @@ export function kineticsFromStem(question: string, quantities: readonly ChemPlan
   if (!readTemperatureInputs(question)) return null;
   if (!chemistryReferenceConstantValid(question, /\bR\s*=/, "gas_constant", "J/(mol K)", GAS_CONSTANT)) return null;
   if (!chemistryQuantityCuesValid(question, [
-    {after: HALF_LIFE_CUE, dimensions: ["time"]},
     {after: ACTIVATION_CUE, dimensions: ["molar_energy"]},
     {after: TEMPERATURE_RISE_CUE, dimensions: ["temperature_delta"]},
+    {after: /frequency factor|pre[ -]?exponential factor/, dimensions: ["rate_constant_first"],owner:"Arrhenius pre-exponential factor"},
   ])) return null;
   const body = questionBody(question);
   const stem = chemStem(body);

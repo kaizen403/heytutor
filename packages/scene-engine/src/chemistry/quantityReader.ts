@@ -36,6 +36,16 @@ export interface ChemistryQuantityInput {
   dimension: ChemistryDimension; targetUnit?: ChemistryUnit;
   unitConvention?: { unit: ChemistryUnit; sourceSpan: ChemistrySpan };
 }
+export interface ChemistryDeclarationOccurrence {
+  /** Inventory-bound literals have no textual cue; their source span is unchanged. */
+  readonly cueSpan?: ChemistrySpan;
+  readonly payloadSpan: ChemistrySpan;
+  readonly read: ChemRead<ChemistryReading>;
+}
+export type ChemistryQuantityDeclaration =
+  | { state: "absent"; owner: string; occurrences: readonly ChemistryDeclarationOccurrence[] }
+  | { state: "valid"; owner: string; reading: ChemistryReading; occurrences: readonly ChemistryDeclarationOccurrence[] }
+  | { state: "invalid"; owner: string; code: Extract<ChemRead<never>, {ok:false}>["code"]; failure: Extract<ChemRead<never>, {ok:false}>; occurrences: readonly ChemistryDeclarationOccurrence[] };
 
 const DECIMAL = String.raw`(?:\d+(?:\.\d+|\.(?!\s+[A-Za-z]))?|\.\d+)`;
 const EXPONENT = String.raw`(?:[+\-−]?\d{1,4}|\(\s*[+\-−]?\d{1,4}\s*\))`;
@@ -361,6 +371,76 @@ export function readChemistryQuantity(input: ChemistryQuantityInput): ChemRead<C
   }
   return readings.length === 1 ? { ok: true, reading: readings[0]! } : fail(readings.length ? "ambiguous" : "missing");
 }
+
+/** Source material requiring a strict quantity read; this classifier grants no numeric authority. */
+export function chemistryQuantityPayloadPresent(text: string): boolean {
+  return new RegExp(`(?<![A-Za-z0-9_.])${SCALAR}`).test(text)
+    || [...text.matchAll(/(?<![\p{L}\p{N}_])(?=[A-Za-z\u00b0\u00b5\u00c5])/gu)].some(match => unitAt(text.slice(match.index)) !== null)
+    || /\b(?:unknown|unreadable|unspecified|undefined|NaN)\b/i.test(text);
+}
+
+/** A mention/request is not a declaration; an assignment or supplied payload is. */
+function isQuantityDeclaration(question: string, cue: ChemistrySpan, end: number): boolean {
+  const cueText = question.slice(cue.start, cue.end);
+  const tail = question.slice(cue.end, end);
+  const prefix = question.slice(0,cue.start).split(/[.;?!\n]/).at(-1) ?? "";
+  const local = tail.split(/[;?!\n]|\.(?=\s|$)|,(?=\s*[A-Za-z])|\b(?:and|but|while|whereas|with|using|from|where|when|whose|which)\b|\bgiven\b(?!\s+(?:as\b|[+\-−.\d]|unknown\b|unreadable\b))/i)[0]!;
+  // A conditional comparison with another named quantity supplies no new
+  // scalar. A stated numeric bound still remains supplied input.
+  if (/\bif\s+(?:(?:the|a|an|its)\s+)*$/i.test(prefix)
+    && /^\s*(?:(?:is|was|are|were)\s+)?(?:less|greater|higher|lower|larger|smaller)\s+than\b/i.test(tail)
+    && !new RegExp(SCALAR).test(local)) return false;
+  if (/[=:]\s*$|\b(?:is|was|are|equals|equal\s+to)\s*$/i.test(cueText)) return true;
+  const supplied = /^\s*(?:(?:of|about|nearly|approximately)\s+)?(?:[=:]|\d|[+\-−](?=\s*(?:\d|\.\d))|\.(?=\d)|\\(?:frac|dfrac|tfrac)\b|\b(?:is|was|are|equals|equal\s+to|unknown|unreadable|unspecified|undefined|not|NaN)\b)/i.test(tail);
+  if (supplied) return true;
+  const requested = /\b(?:find|calculate|determine|evaluate|compute|what\s+(?:is|are))\s+(?:(?:the|a|an|its|their)\s+)*$/i.test(prefix);
+  if (requested) return false;
+  // A scalar in this owner's argument cannot disappear merely because the
+  // strict reader does not support its intervening verb phrase. Stop at an
+  // argument boundary, before a speed or other owner can lend its value.
+  return chemistryQuantityPayloadPresent(local)
+    || /\b(?:has|have)\s+(?:(?:a|an|the)\s+)*$/i.test(prefix) && local.replace(/[\s,]/g, "").length > 0;
+}
+
+/**
+ * Read one family-bound quantity owner without erasing supplied-invalid state.
+ * The strict literal/unit readers are unchanged. Repeats are accepted only by
+ * an explicit same-owner opt-in, and retain every original occurrence span.
+ */
+export function readChemistryQuantityDeclaration(input: ChemistryQuantityInput & {
+  owner: string; allowAgreeingRepeats?: boolean;
+}): ChemistryQuantityDeclaration {
+  const body = chemistryQuestionSpan(input.question); const scope = input.within ?? body;
+  const invalid = (failure: Extract<ChemRead<never>, {ok:false}>, occurrences: readonly ChemistryDeclarationOccurrence[]): ChemistryQuantityDeclaration =>
+    ({state:"invalid",owner:input.owner,code:failure.code,failure,occurrences});
+  if (!input.owner || !validSpan(input.question, scope)) return invalid({ok:false,code:"malformed",span:scope},[]);
+  const end = Math.min(scope.end,body.end);
+  const flags = input.after.flags.replace(/[gy]/g, "");
+  const cue = new RegExp(input.after.source, flags + (flags.includes("i") || input.cueCaseSensitive ? "g" : "ig"));
+  const matches = [...input.question.slice(scope.start,end).matchAll(cue)];
+  const occurrences: ChemistryDeclarationOccurrence[] = [];
+  const readings: ChemistryReading[] = [];
+  for (const [index,match] of matches.entries()) {
+    const cueSpan = {start:scope.start+match.index!,end:scope.start+match.index!+match[0].length};
+    const stop = matches[index+1] ? scope.start+matches[index+1]!.index! : end;
+    const payloadSpan = {start:cueSpan.end,end:stop};
+    // An anchored, family-selected payload is itself a declaration, including
+    // a damaged/empty value. Ordinary bare mentions remain genuine absence.
+    const declared = match[0].length === 0 || isQuantityDeclaration(input.question,cueSpan,stop);
+    if (!declared) continue;
+    const read = payloadSpan.start < payloadSpan.end
+      ? readChemistryQuantity({...input,after:/^/,within:payloadSpan})
+      : {ok:false,code:"missing"} as const;
+    occurrences.push({cueSpan,payloadSpan,read});
+    if (!read.ok) return invalid(read,occurrences);
+    readings.push(read.reading);
+  }
+  if (readings.length === 0) return {state:"absent",owner:input.owner,occurrences};
+  if (readings.length > 1 && (!input.allowAgreeingRepeats || readings.some(reading => !valuesAgree(reading.value,readings[0]!.value)))) {
+    return invalid({ok:false,code:"ambiguous"},occurrences);
+  }
+  return {state:"valid",owner:input.owner,reading:readings[0]!,occurrences};
+}
 /** Exponent digits in a complete registered unit or parsed atomic charge are
  * notation, not independent physical scalars. Evidence uses original spans;
  * damaged or continued expressions receive no exemption. */
@@ -448,6 +528,20 @@ export function findChemistryQuantities(input: Omit<ChemistryQuantityInput, "aft
     }
   }
   return { ok: true, reading: readings };
+}
+/** All literals within a family-bound owner, such as one gas phase. */
+export function readChemistryQuantityInventoryDeclaration(input: Omit<ChemistryQuantityInput,"after"> & {
+  owner: string; allowAgreeingRepeats?: boolean;
+}): ChemistryQuantityDeclaration {
+  const inventory = findChemistryQuantities(input);
+  if (!inventory.ok) return {state:"invalid",owner:input.owner,code:inventory.code,failure:inventory,occurrences:[]};
+  const occurrences = inventory.reading.map((reading): ChemistryDeclarationOccurrence => ({payloadSpan:reading.source.span,read:{ok:true,reading}}));
+  if (!input.owner) return {state:"invalid",owner:input.owner,code:"source_conflict",failure:{ok:false,code:"source_conflict"},occurrences};
+  if (inventory.reading.length === 0) return {state:"absent",owner:input.owner,occurrences};
+  if (inventory.reading.length > 1 && (!input.allowAgreeingRepeats || inventory.reading.some(reading => !valuesAgree(reading.value,inventory.reading[0]!.value)))) {
+    return {state:"invalid",owner:input.owner,code:"ambiguous",failure:{ok:false,code:"ambiguous"},occurrences};
+  }
+  return {state:"valid",owner:input.owner,reading:inventory.reading[0]!,occurrences};
 }
 export interface ChemistryQuantityConsumption {
   readonly reading: ChemistryReading;
@@ -538,10 +632,10 @@ export function resolveChemistryGiven(input: ChemistryQuantityInput & { quantiti
   return { ok: true, reading: { ...stem.reading, source: { ...stem.reading.source, kind: "plan_given", planQuantityId: boundGivens[0]!.id } } };
 }
 /** Family-local semantic expectations: a present damaged or incompatible literal is never omitted. */
-export function chemistryQuantityCuesValid(question: string, cues: readonly {after: RegExp; dimensions: readonly ChemistryDimension[]; cueCaseSensitive?: boolean}[]): boolean {
+export function chemistryQuantityCuesValid(question: string, cues: readonly {after: RegExp; dimensions: readonly ChemistryDimension[]; cueCaseSensitive?: boolean; owner?: string; allowAgreeingRepeats?: boolean}[]): boolean {
   return cues.every(cue => {
-    const reads = cue.dimensions.map(dimension => readChemistryQuantity({question, after: cue.after, dimension, cueCaseSensitive:cue.cueCaseSensitive}));
-    return reads.some(r => r.ok) || reads.every(r => !r.ok && r.code === "missing");
+    const reads = cue.dimensions.map(dimension => readChemistryQuantityDeclaration({question, after: cue.after, dimension, cueCaseSensitive:cue.cueCaseSensitive,owner:cue.owner ?? cue.after.source,allowAgreeingRepeats:cue.allowAgreeingRepeats}));
+    return reads.some(r => r.state === "valid") || reads.every(r => r.state === "absent");
   });
 }
 /** Reject contradictory supported physical givens before a legacy adapter can mask a failed binding. */

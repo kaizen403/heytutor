@@ -4,7 +4,7 @@
  * and the read-only Bohr authorities. A missing work function, a nonpositive
  * momentum, an impossible level or a reversed emission draws nothing.
  */
-import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityCuesValid } from "./quantityReader";
+import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityCuesValid, readChemistryQuantityDeclaration } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { deriveBohrOrbit } from "../physics/bohrOrbitAuthority";
 import { deriveBohrTransition } from "../physics/bohrTransitionAuthority";
@@ -141,9 +141,12 @@ function buildPhotoelectric(question: string, stem: string): SceneDocument | nul
 }
 
 function momentumKgMPerS(question: string): number | null {
-  const stated = numberAfter(question, /momentum/, "momentum", "kg m/s");
-  if (stated !== null) return stated;
-  const speed = numberAfter(question, /speed|velocity|moving at/, "speed", "m/s");
+  const stated = readChemistryQuantityDeclaration({question,after:/\bmomentum\b/,owner:"particle momentum",dimension:"momentum",targetUnit:"kg m/s",allowAgreeingRepeats:true});
+  if (stated.state === "invalid") return null;
+  if (stated.state === "valid") return stated.reading.value;
+  const speedRead = readChemistryQuantityDeclaration({question,after:/speed|velocity|moving at/,owner:"particle speed",dimension:"speed",targetUnit:"m/s",allowAgreeingRepeats:true});
+  if (speedRead.state === "invalid") return null;
+  const speed = speedRead.state === "valid" ? speedRead.reading.value : null;
   if (speed === null || !(speed > 0)) return speed;
   if (/\belectron\b/i.test(question)) return ELECTRON_MASS_KG * speed;
   const mass = numberAfter(question, /mass/, "mass", "kg");
@@ -312,17 +315,21 @@ export function buildAtomicRadiationScene(
 ): SceneDocument | null {
   if (!isAtomicRadiationStem(question)) return null;
   const stem = chemStem(question);
+  if (!chemistryQuantityCuesValid(question, [
+    {after: WORK_FUNCTION_CUE, dimensions: ["energy"],owner:"work function"},
+    {after: PHOTON_ENERGY_CUE, dimensions: ["energy"],owner:"photon energy"},
+    {after: /frequency/, dimensions: ["frequency"],owner:"photon frequency"},
+    {after: /(?:de\s+broglie\s+)?wavelength/, dimensions: ["length"],owner:"wavelength"},
+    {after: /\bmomentum\b/, dimensions: ["momentum"],owner:"momentum"},
+    {after: /speed|velocity|moving at/, dimensions: ["speed"],owner:"speed"},
+    {after: /\bmass\b/, dimensions: ["mass"],owner:"particle mass"},
+  ])) return null;
   if (isPhotoelectricStem(stem)) return buildPhotoelectric(question, stem);
   if (!chemistryPlanBindingsValid(question, quantities)) return null;
   const hcCue = /\bhc\s*(?:=|is\b)/i;
   if (!chemistryReferenceConstantValid(question, hcCue, "energy_length", "J m", PLANCK_J_S * LIGHT_M_PER_S)) return null;
   if (!chemistryReferenceConstantValid(question, /\bh\s*=|Planck(?:'s)? constant\s*(?:is|=)/i, "action", "J s", PLANCK_J_S)
     || !chemistryReferenceConstantValid(question, /\bc\s*=|speed of light\s*(?:is|=)/i, "speed", "m/s", LIGHT_M_PER_S)) return null;
-  if (!chemistryQuantityCuesValid(question, [
-    {after: WORK_FUNCTION_CUE, dimensions: ["energy"]},
-    {after: PHOTON_ENERGY_CUE, dimensions: ["energy"]},
-    {after: /frequency/, dimensions: ["frequency"]}, {after: /wavelength/, dimensions: ["length"]},
-  ])) return null;
   if (isDebroglieStem(stem)) return buildDebroglie(question, stem);
   if (isUncertaintyStem(stem)) return buildUncertainty(question, stem);
   if (isBohrModelStem(stem)) return buildBohr(question, stem);

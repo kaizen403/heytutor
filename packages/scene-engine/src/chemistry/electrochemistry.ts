@@ -13,7 +13,7 @@
  * overrides the table. The pure solvers (cell notation, standard potential,
  * cell emf, electrolysis products) are exported for other lanes.
  */
-import { chemistryCanonicalValuesAgree, chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityInventoryOwned, findChemistryQuantities, CHEMISTRY_SCALAR_PATTERN, chemistryQuantityCuesValid, readChemistryQuantity, readChemistryLiteral, type ChemistrySpan, type ChemistryReading, type ChemistryQuantityConsumption } from "./quantityReader";
+import { chemistryCanonicalValuesAgree, chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityInventoryOwned, findChemistryQuantities, CHEMISTRY_SCALAR_PATTERN, chemistryQuantityCuesValid, readChemistryQuantity, readChemistryQuantityDeclaration, readChemistryQuantityInventoryDeclaration, readChemistryLiteral, type ChemistrySpan, type ChemistryReading, type ChemistryQuantityConsumption, type ChemistryQuantityDeclaration } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { normalizeChemistryText, parseFormula } from "./formula";
@@ -424,15 +424,17 @@ interface SpeciesToken {
 }
 
 function literalValue(text: string, dimension: import("./quantityReader").ChemistryDimension, targetUnit: import("./quantityReader").ChemistryUnit): number | null {
-  const r = findChemistryQuantities({ question: text, dimension, targetUnit });
-  return r.ok && r.reading.length === 1 ? r.reading[0]!.value : null;
+  const r = readChemistryQuantityInventoryDeclaration({ question: text, dimension, targetUnit,owner:dimension });
+  return r.state === "valid" ? r.reading.value : null;
 }
 function readConcentration(text: string): number | null {
   return literalValue(text, "concentration", "mol/L");
 }
-function readPressure(text: string): number | null {
+function readPressure(text: string): ChemistryQuantityDeclaration {
   // Cell gas activities are relative to the 1 bar standard state.
-  return literalValue(text, "pressure", "bar");
+  const declared = readChemistryQuantityDeclaration({question:text,after:/\bpressure\b/,owner:"gas-phase pressure",dimension:"pressure",targetUnit:"bar",allowAgreeingRepeats:true});
+  if (declared.state === "invalid") return declared;
+  return readChemistryQuantityInventoryDeclaration({question:text,dimension:"pressure",targetUnit:"bar",owner:"gas-phase pressure",allowAgreeingRepeats:true});
 }
 
 interface OriginalCellReaction {
@@ -692,11 +694,13 @@ function readSpeciesTokens(text: string): SpeciesToken[] | null {
         continue;
       }
       const phaseMatch = /\(\s*(aq|s|g|l)\b/.exec(part);
+      const pressure = readPressure(part);
+      if (pressure.state === "invalid") return null;
       tokens.push({
         formula,
         phase: (phaseMatch?.[1] as SpeciesToken["phase"]) ?? null,
         concentration: readConcentration(part),
-        pressure: readPressure(part),
+        pressure: pressure.state === "valid" ? pressure.reading.value : null,
       });
       break;
     }

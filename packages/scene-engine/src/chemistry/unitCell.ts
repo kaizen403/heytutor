@@ -16,7 +16,7 @@
  * lattice (Schottky or Frenkel defects, amorphous solids, a physics block, a
  * cell "shown below" that we do not have) draws nothing.
  */
-import { chemistryPlanBindingsValid, chemistryQuantityCuesValid, chemistryQuantityInventoryOwned, resolveChemistryGiven, readChemistryQuantity, CHEMISTRY_NUMBER_PATTERN, matchedChemistryScalar, type ChemistryQuantityConsumption } from "./quantityReader";
+import { chemistryPlanBindingsValid, chemistryQuantityCuesValid, chemistryQuantityInventoryOwned, resolveChemistryGiven, readChemistryQuantityDeclaration, CHEMISTRY_NUMBER_PATTERN, matchedChemistryScalar, type ChemistryQuantityConsumption } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { normalizeChemistryText } from "./formula";
@@ -236,8 +236,8 @@ function declaredQuantityCuesValid(question: string, cue: RegExp, alias: "a" | "
       || /^(?:[^.;\n]|\.(?=\d)){0,70}?(?:=|:|\bis\b|\bequal to\b|\bmeasures\b|\bmeasured\b)/i.test(tail);
     if (!declared) continue;
     const statedAlias = new RegExp(`^\\s*,?\\s*${alias}\\s*(?:=|:|is)`, "i").exec(question.slice(start));
-    const read = readChemistryQuantity({question, after: /^/, within: {start: start + (statedAlias?.[0].length ?? 0), end: question.length}, dimension: "length", targetUnit: "pm"});
-    if (!read.ok || !(read.reading.value > 0)) return false;
+    const read = readChemistryQuantityDeclaration({question, after: /^/, within: {start: start + (statedAlias?.[0].length ?? 0), end: question.length}, dimension: "length", targetUnit: "pm",owner:alias === "a" ? "unit-cell edge" : "unit-cell radius"});
+    if (read.state !== "valid" || !(read.reading.value > 0)) return false;
   }
   return true;
 }

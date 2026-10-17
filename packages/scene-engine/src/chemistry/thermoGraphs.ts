@@ -91,7 +91,7 @@ export function isThermoGraphStem(question: string): boolean {
 
 /* --------------------------------------------------------- number reading */
 
-import { readChemistryQuantity, findChemistryQuantities, chemistryPlanBindingsValid, chemistryQuantityCuesValid, chemistryCanonicalValuesAgree, chemistryQuestionSpan, type ChemistryDimension } from "./quantityReader";
+import { readChemistryQuantity, readChemistryQuantityDeclaration, findChemistryQuantities, chemistryPlanBindingsValid, chemistryQuantityCuesValid, chemistryCanonicalValuesAgree, chemistryQuestionSpan, type ChemistryDimension } from "./quantityReader";
 
 interface Energy {
   value: number;
@@ -107,9 +107,9 @@ function energyCueAfter(phrase: RegExp): RegExp {
 function energyNear(question: string, phrase: RegExp, _window = 70): Energy | null {
   for (const [dimension, targetUnit] of [["molar_energy", "kJ/mol"], ["energy", "kJ"]] as const) {
     const after = energyCueAfter(phrase);
-    const read = readChemistryQuantity({question, after, dimension, targetUnit});
-    if (read.ok) return {value: read.reading.value, unit: targetUnit};
-    if (read.code === "malformed" || read.code === "ambiguous") return null;
+    const read = readChemistryQuantityDeclaration({question, after, dimension, targetUnit,owner:phrase.source});
+    if (read.state === "valid") return {value: read.reading.value, unit: targetUnit};
+    if (read.state === "invalid" && (read.code === "malformed" || read.code === "ambiguous")) return null;
   }
   return null;
 }
@@ -1018,6 +1018,7 @@ function buildEllingham(question: string, stem: string): SceneDocument {
 /* -------------------------------------------------------------- maxwell */
 
 function buildMaxwell(question: string, stem: string): SceneDocument | null {
+  if (!chemistryQuantityCuesValid(question,[{after:/\btemperatures?\b/,dimensions:["temperature"],owner:"Maxwell temperature"}])) return null;
   const speeds = /speed|velocit/.test(stem) && !/energy/.test(stem);
   const c = new ChemScene(question, "Maxwell Boltzmann distribution at two temperatures", THERMO_FAMILY);
   const s = c.scene;
@@ -1064,11 +1065,11 @@ export function buildThermoGraphScene(question: string, quantities: ChemPlanQuan
   // Single profiles consume the checked per-original role map below. Keep
   // aggregate checks for every other operator and qualitative mechanism.
   const singleProfile = kind === "profile" && readMechanismSteps(stem) === null;
-  if (!singleProfile && (!chemistryQuantityCuesValid(question, [
+  if (!singleProfile && kind !== "gibbs" && (!chemistryQuantityCuesValid(question, [
     ...[FORWARD_ACTIVATION,BACKWARD_ACTIVATION,GENERIC_ACTIVATION].map(phrase=>({after:energyCueAfter(phrase),dimensions:["energy","molar_energy"] as ChemistryDimension[]})),
-  ]) || (kind !== "gibbs" && !chemistryQuantityCuesValid(question, [
+  ]) || !chemistryQuantityCuesValid(question, [
     {after: DELTA_H_SYMBOL, dimensions: ["energy", "molar_energy"]}, {after: DELTA_S_SYMBOL, dimensions: ["entropy", "molar_entropy"]},
-  ])))) return null;
+  ]))) return null;
   switch (kind) {
     case "profile": {
       const spec = readProfile(stem, question, quantities, schematic);

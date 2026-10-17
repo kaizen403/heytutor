@@ -24,8 +24,8 @@
  * inputs they agree with the exact curve to two decimals.
  */
 import type { SceneDocument } from "../types";
-import { ChemScene, chemStem, numberAfter, round, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
-import { CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, matchedChemistryComponentAmount, readChemistryLiteral, readChemistryQuantity, chemistryCanonicalValuesAgree, convertChemistryValue, chemistryPlanBindingsValid, type ChemistryUnit, type ChemistrySpan } from "./quantityReader";
+import { ChemScene, chemStem, round, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
+import { CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, matchedChemistryComponentAmount, readChemistryLiteral, readChemistryQuantityDeclaration, chemistryCanonicalValuesAgree, convertChemistryValue, chemistryPlanBindingsValid, type ChemistryUnit, type ChemistrySpan } from "./quantityReader";
 import { buildSolutionLessonScene, claimsSolutionLesson } from "./solutionProperties";
 
 export const SOLUTIONS_FAMILY = "chem_solutions" as const;
@@ -348,9 +348,9 @@ function suppliedAcidBaseConstants(question: string): SuppliedAcidBaseConstants 
       }
       // Anchor the read after this one source declaration. Missing is fatal
       // here, rather than silently skipped by a whole-question cue scan.
-      const read = readChemistryQuantity({question,after:/^/,within:{start:owner.index!+owner[0].length,end:question.length},dimension:"dimensionless"});
+      const read = readChemistryQuantityDeclaration({question,after:/^/,within:{start:owner.index!+owner[0].length,end:question.length},dimension:"dimensionless",owner:`${logarithmic?"pK":"K"}${which}`});
       const limit = logarithmic ? 14 : 1;
-      if (!read.ok || !(read.reading.value > 0 && read.reading.value < limit)) return null;
+      if (read.state !== "valid" || !(read.reading.value > 0 && read.reading.value < limit)) return null;
       if (logarithmic) pK = read.reading.value; else k = read.reading.value;
     }
     const fromK = k === null ? null : -Math.log10(k);
@@ -862,13 +862,15 @@ function idealQualitativeScene(question: string): SceneDocument | null {
 /* Colligative vapour pressure diagram                                        */
 /* ------------------------------------------------------------------------- */
 
-function statedDeltaT(stem: string, _quantities: readonly ChemPlanQuantity[], which: "b" | "f"): number | null {
+function statedDeltaT(stem: string, _quantities: readonly ChemPlanQuantity[], which: "b" | "f"): number | null | false {
   const phrases = which === "b"
     ? [/(?:elevation (?:in|of) (?:the )?boiling point|boiling point elevation|(?:δ|Δ|delta ?)t_?b)(?:\s*of (?:the |a |an |this )?(?:[a-z]+ )?(?:solution|water|solvent|benzene))?(?:\s+(?:is|was|of|=|:))?(?:\s+found to be|\s+observed(?: to be)?)?/]
     : [/(?:depression (?:in|of) (?:the )?freezing point|freezing point depression|(?:δ|Δ|delta ?)t_?f)(?:\s*of (?:the |a |an |this )?(?:[a-z]+ )?(?:solution|water|solvent|benzene))?(?:\s+(?:is|was|of|=|:))?(?:\s+found to be|\s+observed(?: to be)?)?/];
-  const value = numberAfter(stem, phrases[0]!, "temperature_delta", "K");
-  if (value === null || !(value > 0) || value > 50) return null;
-  return value;
+  const read = readChemistryQuantityDeclaration({question:stem,after:phrases[0]!,dimension:"temperature_delta",targetUnit:"K",owner:which === "b" ? "boiling-point elevation" : "freezing-point depression"});
+  if (read.state === "invalid") return false;
+  if (read.state === "absent") return null;
+  const value = read.reading.value;
+  return value > 0 && value <= 50 ? value : false;
 }
 
 function colligativeScene(question: string, mode: "boiling" | "freezing", deltaT: number | null): SceneDocument | null {
@@ -949,6 +951,15 @@ export function buildSolutionsGraphScene(
   if (FIGURE_PRESENT.test(stem)) return null;
   if (claimsSolutionLesson(question)) return buildSolutionLessonScene(question, quantities, schematic);
   if (titrationCue(stem)) {
+    // Each textual concentration is checked independently here. Species
+    // binding and agreement still belong to the ordinary titration reader;
+    // valid acid/base concentrations are not coalesced into one owner.
+    const concentrations = [...question.matchAll(/\bconcentrations?\b/gi)];
+    for (const [index,cue] of concentrations.entries()) {
+      const within = {start:cue.index!,end:concentrations[index+1]?.index ?? question.length};
+      const reads = (["concentration","normality"] as const).map(dimension => readChemistryQuantityDeclaration({question,after:/\bconcentrations?\b/,within,dimension,owner:"titration concentration declaration"}));
+      if (!reads.some(read => read.state === "valid") && !reads.every(read => read.state === "absent")) return null;
+    }
     const supplied = suppliedAcidBaseConstants(question);
     if (!supplied) return null;
     const mentions = readSpeciesMentions(question);
@@ -977,7 +988,8 @@ export function buildSolutionsGraphScene(
     const freezingAt = stem.search(/depression (?:in|of) (?:the )?freezing point|freezing point depression|cryoscop/);
     if (boilingAt < 0 && freezingAt < 0) return null;
     const mode: "boiling" | "freezing" = boilingAt >= 0 && (freezingAt < 0 || boilingAt < freezingAt) ? "boiling" : "freezing";
-    return colligativeScene(question, mode, statedDeltaT(question, quantities, mode === "boiling" ? "b" : "f"));
+    const deltaT = statedDeltaT(question, quantities, mode === "boiling" ? "b" : "f");
+    return deltaT === false ? null : colligativeScene(question, mode, deltaT);
   }
   if (RAOULT_CUE.test(stem)) {
     if (/azeotrope/.test(stem) && !/minimum boiling|maximum boiling|azeotropic composition/.test(stem)) return null;

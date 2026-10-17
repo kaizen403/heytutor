@@ -7,7 +7,7 @@
  * Maxwell distributions stay in thermoGraphs.ts. A missing number is
  * not replaced with a textbook value.
  */
-import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, findChemistryQuantities, readChemistryQuantity, readChemistryLiteral, CHEMISTRY_SCALAR_PATTERN, chemistryUnitSymbol, chemistryQuantityCuesValid, chemistryQuestionSpan, chemistryCanonicalValuesAgree, chemistryQuantityInventoryOwned, readChemistryUnitLiteral, type ChemistryReading } from "./quantityReader";
+import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityPayloadPresent, findChemistryQuantities, readChemistryQuantity, readChemistryQuantityDeclaration, readChemistryLiteral, CHEMISTRY_SCALAR_PATTERN, chemistryUnitSymbol, chemistryQuantityCuesValid, chemistryQuestionSpan, chemistryCanonicalValuesAgree, chemistryQuantityInventoryOwned, readChemistryUnitLiteral, type ChemistryReading, type ChemistryQuantityDeclaration, type ChemistryDeclarationOccurrence } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
 
@@ -79,6 +79,14 @@ function box(c: ChemScene, ids: string[]): void {
 }
 
 function buildSystems(question: string, stem: string): SceneDocument | null {
+  if (!chemistryQuantityCuesValid(question,[
+    {after:/\btemperature\b/,dimensions:["temperature"],owner:"system temperature"},
+    {after:/\binternal energy\b/,dimensions:["energy"],owner:"system internal energy"},
+    ...(/isothermal|isobaric|adiabatic|isochoric/.test(stem) ? [
+      {after:/\bfrom\b/,dimensions:["volume"] as const,owner:"initial process volume"},
+      {after:/\bto\b/,dimensions:["volume"] as const,owner:"final process volume"},
+    ] : []),
+  ])) return null;
   const isolated = /\bisolated\b/.test(stem);
   const closed = /\bclosed\b/.test(stem);
   const open = /\bopen\b/.test(stem);
@@ -157,22 +165,74 @@ function pressureVolumeWorkJ(stem: string): number | null {
   return compressed ? magnitude : -magnitude;
 }
 
+/** The solver's complete symbolic identities supply no numeric given. */
+function firstLawDeclaration(question: string, after: RegExp, owner: string, reference?: RegExp): ChemistryQuantityDeclaration {
+  const matches = [...question.slice(0,chemistryQuestionSpan(question).end).matchAll(new RegExp(after.source,"gi"))];
+  const occurrences: ChemistryDeclarationOccurrence[] = [];
+  let reading: ChemistryReading | undefined;
+  for (const [index,cue] of matches.entries()) {
+    const end = matches[index+1]?.index ?? chemistryQuestionSpan(question).end;
+    const tail = question.slice(cue.index!+cue[0].length,end);
+    const identity = reference?.exec(tail);
+    if (identity) {
+      const rest = tail.slice(identity[0].length);
+      const otherOwner = /\b(?:q|w|du|p_?ext)\b|(?:δ|∆|Δ)\s*(?:u\b|\(pv\))|internal energy|external pressure/i.exec(rest);
+      const clause = /[;?!\n]|\.(?=\s|$)/.exec(rest);
+      const boundary = Math.min(otherOwner?.index ?? rest.length,clause?.index ?? rest.length);
+      // The identity must close before a new, independently checked owner
+      // or sentence. "and equals 900 kg" extends this same owner and cannot
+      // hide behind a correct identity prefix.
+      const bridge = rest.slice(0,boundary);
+      const extendsExpression = /[=:+*/^×·−-]/.test(bridge)
+        || /^[\s,]*(?:and\s*)?(?:is|was|are|equals|equal\s+to)\b/i.test(bridge);
+      if (!extendsExpression && !chemistryQuantityPayloadPresent(bridge)) continue;
+    }
+    const read = readChemistryQuantityDeclaration({question,after,within:{start:cue.index!,end},dimension:"energy",targetUnit:"J",owner});
+    occurrences.push(...read.occurrences);
+    if (read.state === "invalid") return {...read,occurrences};
+    if (read.state === "valid") {
+      if (reading && !chemistryCanonicalValuesAgree(reading.value,read.reading.value)) return {state:"invalid",owner,code:"source_conflict",failure:{ok:false,code:"source_conflict"},occurrences};
+      reading = read.reading;
+    }
+  }
+  return reading ? {state:"valid",owner,reading,occurrences} : {state:"absent",owner,occurrences};
+}
+
 function buildFirstLaw(question: string, stem: string): SceneDocument | null {
-  const q = /\bq\s*=/.test(stem) ? numberAfter(question, /q\s*=/, "energy", "J") : null;
-  const statedW = /\bw\s*=/.test(stem) && !/w\s*=\s*-/.test(stem) ? numberAfter(question, /w\s*=/, "energy", "J") : null;
+  const deltaURead = firstLawDeclaration(question,/(?:δ|∆|Δ)\s*u\b|\bdu\b|internal energy(?:\s+change)?/,"first-law internal-energy change",
+    /^\s*=\s*q\s*\+\s*w\b/i);
+  if (deltaURead.state === "invalid") return null;
+  const duStated = deltaURead.state === "valid" ? deltaURead.reading.value : null;
+  const dpvRead = readChemistryQuantityDeclaration({question,after:/(?:δ|∆|Δ)\s*\(pv\)|delta\(pv\)/,dimension:"energy",targetUnit:"J",owner:"first-law pressure-volume change",allowAgreeingRepeats:true});
+  if (dpvRead.state === "invalid" || !chemistryQuantityCuesValid(question,[
+    {after:/external pressure|\bp_?ext\b/,dimensions:["pressure"],owner:"external pressure"},
+    ...(/\bexpan|compress/.test(stem) ? [
+      {after:/\bby\b/,dimensions:["volume"] as const,owner:"process volume change"},
+      {after:/\bfrom\b/,dimensions:["volume"] as const,owner:"initial process volume"},
+      {after:/\bto\b/,dimensions:["volume"] as const,owner:"final process volume"},
+    ] : []),
+  ])) return null;
+  const heatRead = firstLawDeclaration(question,/\bq\b/,"first-law heat");
+  const workRead = firstLawDeclaration(question,/\bw\b/,"first-law work",
+    /^\s*=\s*[-−]\s*(?:p_?ext\s*(?:[*×·]\s*)?(?:δ|∆|Δ)\s*v|(?:δ|∆|Δ)\s*v\s*(?:[*×·]\s*)?p_?ext)\b/i);
+  if (heatRead.state === "invalid" || workRead.state === "invalid") return null;
+  const q = heatRead.state === "valid" ? heatRead.reading.value : null;
+  const statedW = workRead.state === "valid" ? workRead.reading.value : null;
   const pv = pressureVolumeWorkJ(question);
   const isochoric = /isochoric|constant volume/.test(stem);
   const adiabatic = /adiabatic/.test(stem);
   if (isochoric && pv !== null) return null;
+  if (isochoric && statedW !== null && statedW !== 0) return null;
   if (adiabatic && q !== null && q !== 0) return null;
+  if (pv !== null && statedW !== null && !chemistryCanonicalValuesAgree(pv,statedW)) return null;
   const w = isochoric ? 0 : adiabatic && pv === null && statedW !== null ? statedW : pv ?? statedW;
   const heat = adiabatic ? 0 : q;
-  const duStated = numberAfter(question, /(?:δ|∆|Δ)\s*u\s*=|internal energy(?:\s+change)?\s*(?:=|is)/, "energy", "J");
-  const dpv = numberAfter(question, /(?:δ|∆|Δ)\s*\(pv\)\s*=|delta\(pv\)\s*=/, "energy", "J");
+  const dpv = dpvRead.state === "valid" ? dpvRead.reading.value : null;
   const c = new ChemScene(question, "chemistry first law", FAMILY);
   const ids: string[] = [];
   if (w !== null && heat !== null) {
     const du = heat + w;
+    if (duStated !== null && !chemistryCanonicalValuesAgree(duStated,du)) return null;
     ids.push(c.text("q_l", { x: 0, y: 1.6 }, fit(`q=${heat > 0 ? "+" : ""}${heat} J`), "heat"));
     ids.push(c.text("w_l", { x: 0, y: 0.6 }, fit(`w=${w > 0 ? "+" : ""}${w} J`), "work on the system"));
     ids.push(c.text("du_l", { x: 0, y: -0.4 }, fit(`dU=${du > 0 ? "+" : ""}${du} J`), "internal energy change"));
