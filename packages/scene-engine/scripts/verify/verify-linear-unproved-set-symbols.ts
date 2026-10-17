@@ -59,6 +59,11 @@ else if (resourceMode) {
       roleSixteenWords: ("Q:".repeat(16) + "unrelated ".repeat(length)).slice(0, length),
       roleSixteenLongEquation: ("Q:".repeat(16) + "x=").padEnd(length, "1"),
       roleOnePadded: "Q:".padEnd(length, " "),
+      rationalLongSubject: ("A".repeat(Math.floor(length * 0.75)) + ": are rational;".repeat(length)).slice(0, length),
+      irrationalLongSubject: ("a".repeat(Math.floor(length * 0.75)) + "\n: is irrational;".repeat(length)).slice(0, length),
+      rationalSixteenLongSubject: "A".repeat(length - ": are rational;".repeat(16).length) + ": are rational;".repeat(16),
+      rationalCoefficientProperties: "The coefficients of x are rational;\n".repeat(length).slice(0, length),
+      rationalIdentityPadded: "Graph x<4 on a number line. ".padEnd(length - "x must be a rational coefficient.".length, " ") + "x must be a rational coefficient.",
     };
     for (const [shape, question] of Object.entries(pumps)) {
       assert.equal(question.length, length);

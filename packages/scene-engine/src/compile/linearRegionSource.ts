@@ -179,6 +179,256 @@ function sourceNotation(text: string, names: readonly string[]): string {
   result = result.replace(/\bdo\s+not\s+impose\s+an?\s+integer\s+restriction\s*(?=[.;?!]|$)/gi, " ");
   return result;
 }
+const SIGN_DOMAIN_PROPERTY = "non[- ]?negative|non[- ]?positive|positive|negative";
+
+/** Do not reinterpret a coordinate inside a different complete noun subject.
+ * This proves only the subject's role; it does not consume the property or
+ * make an otherwise uncertain source request authoritative. */
+function linearIdentifierSubjectStart(text: string, subjectEnd: number): number | null {
+  let cursor = subjectEnd;
+  while (true) {
+    while (cursor > 0 && /\s/.test(text[cursor - 1]!)) cursor--;
+    const end = cursor;
+    while (cursor > 0 && /[A-Za-z0-9_]/.test(text[cursor - 1]!)) cursor--;
+    if (cursor === end || !/[A-Za-z]/.test(text[cursor]!)) return null;
+    const start = cursor;
+    while (cursor > 0 && /\s/.test(text[cursor - 1]!)) cursor--;
+    if (text.slice(cursor - 3, cursor).toLowerCase() === "and" && !/[A-Za-z0-9_]/.test(text[cursor - 4] ?? "")) {
+      cursor -= 3;
+      while (cursor > 0 && /\s/.test(text[cursor - 1]!)) cursor--;
+      if (text[cursor - 1] === ",") cursor--;
+    } else if (text[cursor - 1] === ",") cursor--;
+    else return start;
+  }
+}
+
+function linearCoefficientSubjectStart(text: string, subjectEnd: number): number | null {
+  const start = linearIdentifierSubjectStart(text, subjectEnd);
+  if (start === null) return null;
+  const tail = text.slice(Math.max(0, start - 96), subjectEnd);
+  const offset = Math.max(0, start - 96);
+  const head = /\b(?:(?:the|all|its|polynomial)\s+)?coefficients?\s+(?:of|for|on|in|multiplying)\s*$/i.exec(text.slice(offset, start));
+  if (head) return offset + head.index;
+  const bare = /\b(?:(?:the|all|its|polynomial)\s+)?coefficients?\s*$/i.exec(tail);
+  return bare ? offset + bare.index : null;
+}
+
+function hasLinearCoefficientSubject(text: string, subjectEnd: number): boolean {
+  return linearCoefficientSubjectStart(text, subjectEnd) !== null;
+}
+
+/** A shared predicate may belong to several coefficient nouns, but never to
+ * a bare variable joined to them. A preceding complete mathematical operand
+ * is outside that noun subject, rather than another bare variable. */
+function pureLinearCoefficientSubjectStart(text: string, subjectEnd: number): number | null {
+  let start = linearCoefficientSubjectStart(text, subjectEnd);
+  if (start === null) return null;
+  while (true) {
+    const prefix = text.slice(0, start);
+    const separator = /(?:\s*,\s*(?:and\s*)?|\s+and\s+)$/.exec(prefix);
+    if (separator) {
+      const previous = linearCoefficientSubjectStart(text, separator.index);
+      if (previous !== null) { start = previous; continue; }
+    }
+    const before = (separator ? prefix.slice(0, separator.index) : prefix)
+      .split(/[.;?!\r\n]/).at(-1)!.trimEnd();
+    if (!before.trim() || /^(?:(?:if|for|given|where|with|subject\s+to)\s*)+$/i.test(before.trim())) return start;
+    const context = before.replace(/\b(?:for|given|where|with|subject\s+to)\s*$/i, "").trimEnd();
+    if (!/[<>=]/.test(context)) return null;
+    if (/[0-9)]$/.test(context)) return start;
+    const operand = /[A-Za-z][A-Za-z0-9_]*$/.exec(context);
+    return operand !== null && /[<>=+*/^-]\s*$/.test(context.slice(0, operand.index)) ? start : null;
+  }
+}
+
+/** Term attachment is ownership, unlike assigning the coefficient's value to
+ * a native variable. Chained links retain each exact referenced term slot. */
+function linearCoefficientTermEnd(source: string, start: number, plural: boolean): number {
+  let end = start;
+  for (let links = 0; links < 16; links++) {
+    const link = /^\s+(?:(?:of|for|on|in)|multipl(?:y|ies|ying)|multiplied\s+by|attached\s+to)\s+(?:real\s+)?((?:the\s+)?[A-Za-z][A-Za-z0-9_]*(?:\s*(?:,\s*(?:and\s*)?|and\s+)(?:the\s+)?[A-Za-z][A-Za-z0-9_]*){0,8})\b/i.exec(source.slice(end));
+    if (!link) break;
+    const terms = link[1]!.match(/[A-Za-z][A-Za-z0-9_]*/g)!.filter(term => !/^(?:and|the)$/i.test(term));
+    // A repeated term, or several terms attached to a singular coefficient,
+    // may instead be a separate variable subject. Neither role is proved.
+    if (new Set(terms).size !== terms.length || !plural && terms.length > 1) break;
+    end += link[0].length;
+  }
+  return end;
+}
+
+/** Every unproved rational type word is a domain restriction. Exempt only
+ * its exact occurrence in an owned coefficient/property noun or predicate;
+ * no request-parser failure or verb wording can erase a remaining type. */
+function linearRationalPropertySource(source: string, names: readonly string[]): string {
+  const words = [...source.matchAll(/\b(?:ir)?rational\b/gi)];
+  if (!words.length && !/\bcoefficients?\s+in\b/i.test(source) || words.length > 16) return source;
+  const proved = new Set<number>();
+  const nounSpans: Array<{ start: number; end: number }> = [];
+  const nativePositions = [...source.matchAll(/[A-Za-z][A-Za-z0-9_]*/g)]
+    .filter(token => names.includes(token[0]) || /^(?:unknowns?|variables?)$/i.test(token[0])).map(token => token.index!);
+  const mathOwned = new Set<number>();
+  const coefficientTermOwned = new Set<number>();
+  const comparisons: string[] = [];
+  let runStart = -1, runEnd = -1;
+  const finishRun = () => {
+    if (runStart < 0) return;
+    const start = runStart, end = runEnd;
+    const text = source.slice(start, end);
+    if (/[<>=]/.test(text)) try {
+      parseLinearConstraint(text, names);
+      comparisons.push(text);
+      for (const position of nativePositions) if (position >= start && position < end) {
+        const after = /^[A-Za-z][A-Za-z0-9_]*/.exec(source.slice(position))![0].length + position;
+        // A dangling native token before unfamiliar prose can be a new scalar
+        // subject, rather than the preceding inequality's implicit factor.
+        if (after === end && !/^\s*(?:$|[,;:.?!\r\n]|(?:and|or|subject\s+to|on|in|with|for|where)\b)/i.test(source.slice(after))) continue;
+        mathOwned.add(position);
+      }
+    } catch { /* An unproved operand supplies no alternate-role ownership. */ }
+    runStart = -1; runEnd = -1;
+  };
+  for (const token of source.matchAll(/(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?|[A-Za-z][A-Za-z0-9_]*|<=|>=|[^\s]/g)) {
+    if (names.includes(token[0]) || /^(?:\d|\.\d)/.test(token[0]) || /^(?:<=|>=|[<>=()+*/-])$/.test(token[0])) {
+      if (runStart < 0) runStart = token.index!;
+      runEnd = token.index! + token[0].length;
+    } else finishRun();
+  }
+  finishRun();
+  let objective = false;
+  try {
+    const parsed = sourceObjective(source, names); objective = true;
+    for (const position of nativePositions) if (position >= parsed.start && position < parsed.end) mathOwned.add(position);
+  } catch { /* No objective type or value is inferred from an uncertain query. */ }
+  const ownsContext = (position: number, allowedStart: number, allowedEnd: number): boolean => {
+    let start = position, end = position;
+    while (start > 0 && !/[.;?!\r\n]/.test(source[start - 1]!)) start--;
+    while (end < source.length && !/[.;?!\r\n]/.test(source[end]!)) end++;
+    return nativePositions.every(native => native < start || native >= end || mathOwned.has(native) || coefficientTermOwned.has(native) || native >= allowedStart && native < allowedEnd);
+  };
+  const ownsNounContext = (position: number, allowedStart: number, allowedEnd: number): boolean => {
+    if (!ownsContext(position, allowedStart, allowedEnd)) return false;
+    let end = position;
+    while (end < source.length && !/[.;?!\r\n]/.test(source[end]!)) end++;
+    return nativePositions.every(native => native < allowedEnd || native >= end || coefficientTermOwned.has(native) || /\b(?:and|or|subject\s+to)\b/i.test(source.slice(allowedEnd, native)));
+  };
+  const unprovedScalarComplement = (position: number): boolean => {
+    let start = position;
+    while (start > 0 && !/[.;?!\r\n]/.test(source[start - 1]!)) start--;
+    const links = [...source.slice(start, position).matchAll(/\b(?:is|are|be|equals?|becomes?)\b/gi)];
+    const link = links.at(-1);
+    // A typed property is not neutral when an unproved scalar subject is
+    // being identified with that property. The subject's noun
+    // spelling does not establish an alternate mathematical role.
+    return link !== undefined && pureLinearCoefficientSubjectStart(source, start + link.index!) === null;
+  };
+  // Coefficient noun phrases own their scalar properties independently of
+  // predicate wording. Exact native term slots, rather than request words or
+  // determiners, distinguish this noun from a variable's scalar identity.
+  const coefficientNouns = [...source.matchAll(/\bcoefficients?\b/gi)].slice(0, 16).map(head => {
+    const beforeHeadStart = Math.max(0, head.index! - 128);
+    const beforeHead = source.slice(beforeHeadStart, head.index!);
+    const modifiers = /\b(?:(?:the|a|an|some|all|any|its|each|every|polynomial|rational|irrational|positive|negative|nonnegative|nonpositive|and|or)\s+)+$/i.exec(beforeHead);
+    const start = modifiers ? beforeHeadStart + modifiers.index : head.index!;
+    const headEnd = head.index! + head[0].length;
+    const end = linearCoefficientTermEnd(source, headEnd, /coefficients$/i.test(head[0]));
+    for (const position of nativePositions) if (position >= headEnd && position < end) coefficientTermOwned.add(position);
+    return { start, end };
+  });
+  // Populate all term slots first: a later independent coefficient noun may
+  // own another native reference in this same clause.
+  for (const { start, end } of coefficientNouns) {
+    if (unprovedScalarComplement(start)) continue;
+    for (const type of words) {
+      let boundaryStart = type.index!, boundaryEnd = type.index!;
+      while (boundaryStart > 0 && !/[.;?!\r\n]/.test(source[boundaryStart - 1]!)) boundaryStart--;
+      while (boundaryEnd < source.length && !/[.;?!\r\n]/.test(source[boundaryEnd]!)) boundaryEnd++;
+      if (start < boundaryStart || end > boundaryEnd || type.index! < start || !ownsNounContext(type.index!, start, end)) continue;
+      const nextValue = /^\s+([A-Za-z][A-Za-z0-9_]*)\b/.exec(source.slice(type.index! + type[0].length));
+      if (nextValue && (names.includes(nextValue[1]!) || isLinearSourceIdentifier(nextValue[1]!))) continue;
+      if (type.index! >= end) {
+        const predicate = source.slice(end, type.index!);
+        if ([...predicate.matchAll(/[A-Za-z][A-Za-z0-9_]*/g)].some(token => isLinearSourceIdentifier(token[0]))) continue;
+        const conjunction = [...predicate.matchAll(/\b(?:and|or)\b/gi)].at(-1);
+        if (conjunction && !/^(?:(?:rational|irrational|positive|negative|nonnegative|nonpositive|strictly|only)\s+)*$/i.test(predicate.slice(conjunction.index! + conjunction[0].length).trimStart())) continue;
+      }
+      proved.add(type.index!);
+      nounSpans.push({ start, end });
+    }
+  }
+  const property = `(?:${SIGN_DOMAIN_PROPERTY}|(?:ir)?rational(?:\\s+numbers?)?)`;
+  const predicates = new RegExp(`\\b(?:is|are)\\s+(?:an?\\s+)?${property}(?:\\s+(?:and|or)\\s+${property})*\\b|\\btakes?\\s+(?:only\\s+)?(?:ir)?rational\\s+values?\\b`, "gi");
+  for (const predicate of source.matchAll(predicates)) {
+    const subjectStart = pureLinearCoefficientSubjectStart(source, predicate.index!);
+    const coefficient = subjectStart !== null && nativePositions.every(native => native < subjectStart || native >= predicate.index! || coefficientTermOwned.has(native));
+    const endpoint = names.length === 1 && comparisons.length > 0 && /\b(?:the|its)\s+endpoints?\s*$/i.test(source.slice(0, predicate.index!));
+    const corner = names.length === 2 && comparisons.length >= 2 && /\b(?:the|its)\s+corner\s+coordinates\s*$/i.test(source.slice(0, predicate.index!));
+    const continuation = /^\s+([A-Za-z][A-Za-z0-9_]*)\b/.exec(source.slice(predicate.index! + predicate[0].length));
+    if (continuation && names.includes(continuation[1]!)) continue;
+    if (!coefficient && (!(endpoint || corner) || !ownsContext(predicate.index!, predicate.index!, predicate.index! + predicate[0].length))) continue;
+    if (coefficient) nounSpans.push({ start: subjectStart!, end: predicate.index! });
+    for (const word of predicate[0].matchAll(/\b(?:ir)?rational\b/gi)) proved.add(predicate.index! + word.index!);
+  }
+  const modifier = new RegExp(`(?:strictly|only|real|non[- ]?zero|${SIGN_DOMAIN_PROPERTY})\\b\\s+`, "iy");
+  const propertyNoun = /(?:intercepts?|coefficients?|ax(?:is|es)|directions?)\b/iy;
+  const geometricField = /(?:optimal\s+)?(endpoints?|corners?)\b/iy;
+  const identifier = /[A-Za-z][A-Za-z0-9_]*/y;
+  const nextSubject = /\s*(?:,\s*(?:and\s*)?|and\s+)([A-Za-z][A-Za-z0-9_]*)/iy;
+  for (const type of source.matchAll(/\b(?:ir)?rational(?:[- ]valued)?\s+/gi)) {
+    let cursor = type.index! + type[0].length;
+    modifier.lastIndex = cursor;
+    while (modifier.exec(source)) { cursor = modifier.lastIndex; modifier.lastIndex = cursor; }
+    geometricField.lastIndex = cursor;
+    const fieldRole = geometricField.exec(source);
+    if (fieldRole) {
+      const geometric = /^endpoints?$/i.test(fieldRole[1]!)
+        ? names.length === 1 && comparisons.length > 0
+        : names.length === 2 && objective && comparisons.length >= 2;
+      if (geometric && !unprovedScalarComplement(type.index!)
+        && ownsContext(type.index!, type.index!, type.index!)) proved.add(type.index!);
+      continue;
+    }
+    propertyNoun.lastIndex = cursor;
+    if (propertyNoun.exec(source)) {
+      let end = propertyNoun.lastIndex;
+      if (/^coefficients?$/i.test(source.slice(cursor, end))) {
+        if (unprovedScalarComplement(type.index!)) continue;
+        end = linearCoefficientTermEnd(source, end, /^coefficients$/i.test(source.slice(cursor, end)));
+      }
+      if (ownsNounContext(type.index!, cursor, end)) proved.add(type.index!);
+      continue;
+    }
+    identifier.lastIndex = cursor;
+    const first = identifier.exec(source);
+    if (!first) continue;
+    cursor = identifier.lastIndex;
+    nextSubject.lastIndex = cursor;
+    while (nextSubject.exec(source)) {
+      cursor = nextSubject.lastIndex; nextSubject.lastIndex = cursor;
+    }
+    // x is a modifier inside these property nouns, not the declared subject.
+    const field = /^(?:\s+|\s*-\s*)(?:intercepts?|coefficients?|ax(?:is|es)|directions?)\b/i.exec(source.slice(cursor));
+    if (field && (!/coefficients?/i.test(field[0]) || !unprovedScalarComplement(type.index!))
+      && ownsNounContext(type.index!, identifier.lastIndex - first[0].length, cursor + field[0].length)) proved.add(type.index!);
+  }
+  for (const type of words) if (/\buse\s+$/i.test(source.slice(0, type.index!)) && /^\s+arithmetic\b/i.test(source.slice(type.index! + type[0].length))
+    && comparisons.length > 0 && ownsContext(type.index!, type.index!, type.index!)) proved.add(type.index!);
+  for (const type of words) {
+    const prefix = source.slice(0, type.index!).split(/[.;?!\r\n]/).at(-1)!.trim();
+    const after = source.slice(type.index! + type[0].length);
+    const intercept = /^\s+([A-Za-z][A-Za-z0-9_]*)[- ]intercept\b/i.exec(after);
+    if (comparisons.length > 0 && /\b(?:show|find|determine|give|report|state|calculate|compute)(?:\s+the)?$/i.test(prefix)
+      && intercept && names.includes(intercept[1]!) && ownsNounContext(type.index!, type.index! + type[0].length, type.index! + type[0].length + intercept[0].length)) proved.add(type.index!);
+  }
+  const masked = source.split("");
+  for (const word of words) if (proved.has(word.index!)) for (let index = word.index!; index < word.index! + word[0].length; index++) masked[index] = " ";
+  // Only this owned preposition is membership-like. Keep every other token:
+  // a property proof cannot remove an integer/set cue or a later predicate.
+  for (const span of nounSpans) for (const head of source.slice(span.start, span.end).matchAll(/\bin\b/gi))
+    for (let index = span.start + head.index!; index < span.start + head.index! + head[0].length; index++) masked[index] = " ";
+  return masked.join("");
+}
+
 /** Explicit variable-domain grammar; these givens are never assumed by convention. */
 function explicitDomains(text: string, names: readonly string[]): string {
   const quadrant = firstQuadrantDomains(text, names);
@@ -186,7 +436,7 @@ function explicitDomains(text: string, names: readonly string[]): string {
     quadrant[0]!.domainScope === "local" ? " and x>=0 and y>=0 " : " ");
   const name = `(?:${names.join("|")})`;
   const list = `${name}(?:\\s*(?:,\\s*(?:and\\s*)?|and\\s+)${name}){0,8}`;
-  const domain = "non[- ]?negative|non[- ]?positive|positive|negative";
+  const domain = SIGN_DOMAIN_PROPERTY;
   const expand = (variables: string, word: string): string => {
     const relation = /^non[- ]?negative$/i.test(word)
       ? ">="
@@ -220,7 +470,8 @@ function explicitDomains(text: string, names: readonly string[]): string {
       `\\b(${list})\\s+(?:are\\s+|is\\s+|both\\s+)?(${domain})\\b`,
       "gi",
     ),
-    (_, variables: string, word: string) => expand(variables, word),
+    (whole: string, variables: string, word: string, offset: number, source: string) =>
+      hasLinearCoefficientSubject(source, offset + variables.length) ? whole : expand(variables, word),
   );
   const realDomain = (variables: string): string => {
     const selected =
@@ -1675,33 +1926,12 @@ function hasUnsupportedDiscreteDomain(question: string, planar = false, sourcePr
     (whole, a: string, b: string, c: string, d: string) => [a, b, c, d].some(name => /^[INZW]$/.test(name)) ? whole
       : sourceProved === undefined || sourceProved && [a, b, c, d].every(name => aliases?.has(name)) ? " " : whole);
   if (/∉|\\notin\b|\\not\s*\\in\b|\bnot\s+in\b/iu.test(question)) return true;
-  const remaining = normalizeLinearDomainNotation(question)
+  let remaining = normalizeLinearDomainNotation(question)
     .replace(/\binteger(?:\s+|-)coefficients?\b/gi, " ")
     .replace(/\bcoefficients?\s+(?:is|are)\s+(?:an?\s+)?integers?\b/gi, " ");
   if (hasUnprovedSetSymbol(remaining, names, planar)) return true;
-  // Start at a native variable; separators cannot split "and" inside an
-  // identifier. Other trailing variables still restrict the native subject.
-  const variable = `(?:${names.map(name => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`;
-  const identifier = "[A-Za-z][A-Za-z0-9_]*";
-  const listTail = `(?:\\s*,\\s*${identifier}|\\s+and\\s+${identifier}){0,8}`;
-  const rationalPredicate = "\\s+(?:(?:is|are)\\s+(?:an?\\s+)?(?:rational|irrational)(?:\\s+numbers?)?|takes?\\s+(?:only\\s+)?(?:rational|irrational)\\s+values?)\\b";
-  // A coefficient property has a different whole subject. Mask only that
-  // predicate for this detector; all following restrictions and other guards
-  // retain their original text.
-  const clauseBoundary = "(^|[.;?!\\r\\n])\\s*";
-  const coefficientSubject = `(?:(?:the|all)\\s+)?coefficients?\\s+of\\s+${identifier}${listTail}`;
-  const coefficientProperty = new RegExp(`${clauseBoundary}${coefficientSubject}${rationalPredicate}`, "gi");
-  const rationalSubjects = remaining.replace(coefficientProperty, "$1 ");
-  // In a shared predicate, a native variable remains restricted alongside a
-  // coefficient noun. Start at the whole clause, never inside that noun.
-  const jointDomain = new RegExp(`${clauseBoundary}(${variable}${listTail})(?:\\s*,\\s*|\\s+and\\s+)${coefficientSubject}${rationalPredicate}`, "gi");
-  for (const domain of rationalSubjects.matchAll(jointDomain)) {
-    if (domain[2]!.split(/\s*(?:,|\band\b)\s*/i).some(name => names.includes(name))) return true;
-  }
-  const rationalDomain = new RegExp(`\\b(${variable}${listTail})${rationalPredicate}`, "gi");
-  for (const domain of rationalSubjects.matchAll(rationalDomain)) {
-    if (domain[1]!.split(/\s*(?:,|\band\b)\s*/i).some(name => names.includes(name))) return true;
-  }
+  remaining = linearRationalPropertySource(remaining, names);
+  if (/\b(?:ir)?rational\b/i.test(remaining)) return true;
   if (/\b(?:integers?|intergers?|ints?|integral|whole|naturals?|counting|primes?|odd|even|lattices?|digits?)\b/i.test(remaining)) return true;
   if (/\\not\s*∈|\bnot\s+∈/iu.test(remaining)) return true;
   if (hasUnsupportedHindiDomain(remaining, names)) return true;
