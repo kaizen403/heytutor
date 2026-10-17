@@ -5,7 +5,7 @@
  * passed). Parse each file Next compiles with the SWC binding Next ships.
  */
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 
@@ -59,16 +59,23 @@ async function main(): Promise<void> {
   const appRoots = readdirSync(app, { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && !entry.name.startsWith(".") && !["node_modules", "scripts", "public", "prisma"].includes(entry.name))
     .map((entry) => path.join(app, entry.name));
+  // Next's entry points and configs at the app root (middleware.ts, instrumentation.ts, next.config.ts, ...).
+  const appFiles = readdirSync(app, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && /\.tsx?$/.test(entry.name) && !entry.name.endsWith(".d.ts"))
+    .map((entry) => path.join(app, entry.name));
 
-  const files = [...packageRoots, ...appRoots].flatMap((root) => walk(root, []));
+  const files = [...[...packageRoots, ...appRoots].flatMap((root) => walk(root, [])), ...appFiles];
   assert.ok(files.length > 300, `G1: only ${files.length} files found; the roots are wrong`);
+  for (const entry of ["middleware.ts", "instrumentation.ts", "instrumentation-client.ts"]) {
+    if (existsSync(path.join(app, entry))) assert.ok(files.includes(path.join(app, entry)), `G1: the entry point ${entry} is not in the sweep`);
+  }
   const failures: string[] = [];
   for (const file of files) {
     const error = await parseError(readFileSync(file, "utf8"), file);
     if (error) failures.push(`${path.relative(app, file)}: ${error}`);
   }
   assert.deepEqual(failures, [], `G2: Next's SWC parser rejects ${failures.length} file(s):\n${failures.join("\n")}`);
-  console.log(`next-parses-package-source: ok (${files.length} files from ${packageRoots.size} packages and ${appRoots.length} app folders)`);
+  console.log(`next-parses-package-source: ok (${files.length} files from ${packageRoots.size} packages, ${appRoots.length} app folders and ${appFiles.length} root files)`);
 }
 
 void main().catch((error) => {
