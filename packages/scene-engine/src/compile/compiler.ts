@@ -1785,7 +1785,7 @@ function evaluateConstruction(
       const [start, end] = asLine(targetGeom);
       const at = inputs.at === undefined ? 0.72 : resolveNumber(inputs.at, quantities);
       if (at < 0 || at > 1) throw new Error("sign_badge at must be between 0 and 1");
-      const sense = String(first(inputs, ["sense", "kind"]) ?? "positive");
+      const sense = String(first(inputs, ["sense", "kind"]));
       const badge = signBadgeGeometry({ start, end }, sense, at);
       return [{ kind: "compound", paths: badge.paths, terminals: [start, end] }];
     }

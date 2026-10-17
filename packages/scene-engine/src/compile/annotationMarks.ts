@@ -91,13 +91,19 @@ export function signBadgeGeometry(
     x: target.start.x + (target.end.x - target.start.x) * at,
     y: target.start.y + (target.end.y - target.start.y) * at,
   };
-  const ux = span < EPSILON ? 1 : (target.end.x - target.start.x) / span;
-  const uy = span < EPSILON ? 0 : (target.end.y - target.start.y) / span;
+  const normalized = sense.trim().toLowerCase();
+  if (!["positive", "negative", "clockwise", "counterclockwise"].includes(normalized)) {
+    throw new Error("sign_badge sense must be positive, negative, clockwise, or counterclockwise");
+  }
+  if (span < EPSILON) throw new Error("sign_badge requires a nonzero reference direction");
+  const direction = normalized === "negative" ? -1 : 1;
+  const ux = direction * (target.end.x - target.start.x) / span;
+  const uy = direction * (target.end.y - target.start.y) / span;
   const nx = -uy;
   const ny = ux;
-  const normalized = sense.trim().toLowerCase();
   if (normalized === "clockwise" || normalized === "counterclockwise") {
-    const sign = normalized === "clockwise" ? 1 : -1;
+    // Construction coordinates are y-up; the renderer flips y for the canvas.
+    const sign = normalized === "clockwise" ? -1 : 1;
     const radius = Math.max(span * 0.12, 0.28);
     const startAngle = -Math.PI * 0.65;
     const endAngle = Math.PI * 0.55;
