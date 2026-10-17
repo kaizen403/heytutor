@@ -114,4 +114,29 @@ for (const source of [
 }
 const repeatedWavelength = detectArchetype("Photoelectric emission: wavelength is 400 nm; incident wavelength is 0.4 μm; work function is 2 eV.", { plannerArchetype: "photoelectric" })!;
 assert.equal(repeatedWavelength.slots.lambda, 400, "consistent duplicate source values are unambiguous");
+for (const [question, harmonic] of [
+  ["Draw a standing wave on a string", undefined],
+  ["Draw a standing wave on the first string", undefined],
+  ["Draw the fundamental standing wave on a string", 1],
+  ["Draw a standing wave on a string with fundamental frequency 100 Hz", undefined],
+  ["Draw the third harmonic standing wave on a string with fundamental frequency 100 Hz", 3],
+  ["Draw the third harmonic standing wave on a string", 3],
+  ["Draw the 6th harmonic standing wave on a string", 6],
+  ["Draw the 16th harmonic standing wave on a string", 16],
+] as const) {
+  const match = detectArchetype(question, { plannerArchetype: "standing_wave" })!;
+  assert.equal(match.slots.harmonic, harmonic, "only an explicitly named harmonic is source-grounded");
+  const scene = generated("standing_wave", match.slots, match.sources, question);
+  if (harmonic === 16) assert.equal(scene, null, "unsupported source harmonic is never truncated or clamped");
+  else assert.equal(scene?.entities.find((entity) => entity.id === "wave")?.label, harmonic === undefined ? "envelope" : `n=${harmonic}`);
+}
+for (const [leastCount, division] of [[0.05, 15], [0.05, 4], [0.1, 15], [0.1, -1], [0.1, 4.5]]) {
+  const question = `Draw vernier callipers with main scale reading 23 mm, least count ${leastCount} mm and vernier division ${division}.`;
+  const match = detectArchetype(question, { plannerArchetype: "vernier_calliper" })!;
+  // Signed/fractional division spellings may be outside the detector grammar;
+  // the generator must still refuse such typed values rather than draw false ink.
+  const slots = { ...match.slots, vernierDivision: division };
+  assert.equal(generated("vernier_calliper", slots, match.sources, question), null,
+    "unsupported vernier scales and coincidence indices cannot draw beyond the supported plate");
+}
 console.log("archetype source-value gates passed");

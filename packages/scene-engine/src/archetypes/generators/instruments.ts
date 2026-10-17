@@ -29,7 +29,9 @@ function vernierCalliper(context: GeneratorContext) {
   const exampleMain = zeroError === "none" ? (msr ?? 23) : 0;
   const exampleDivision = zeroError === "none" ? (vsd ?? 4) : zeroError === "positive" ? 3 : 8;
   const leastCount = maybeNum(context, "leastCount") ?? 0.1;
-  if (leastCount <= 0 || leastCount >= 1) return null;
+  // This operator draws a ten-division vernier against one-millimetre main
+  // divisions. Other least counts need a different scale/plate construction.
+  if (Math.abs(leastCount - 0.1) > 1e-9 || (vsd !== null && (!Number.isInteger(vsd) || vsd < 0 || vsd > 10))) return null;
   const scaleGiven = grounded(context, "leastCount");
   const readingGiven = scaleGiven && grounded(context, "mainScaleReading") && grounded(context, "vernierDivision") && zeroError === "none";
   const vernierOffset = zeroError === "negative" ? -(10 - exampleDivision) * leastCount : exampleMain + exampleDivision * leastCount;
