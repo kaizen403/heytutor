@@ -66,8 +66,9 @@ export function pageHasExportableAudio(turns: readonly StoredTurn[]): boolean {
  * `video6` drops files that omitted completed verified-figure marks or page resets.
  * `video7` drops DSA files that stopped on the first worked-example frame.
  * `video8` drops truncated DSA files whose short opening exhausted the drawing tail.
+ * `video9` drops files that drew figure cues early or let FOCUS delay spoken work.
  */
-export const LECTURE_PAGE_CACHE_REVISION = "video8";
+export const LECTURE_PAGE_CACHE_REVISION = "video9";
 
 /**
  * Cache identity of a page export. It changes whenever a doubt adds a turn to

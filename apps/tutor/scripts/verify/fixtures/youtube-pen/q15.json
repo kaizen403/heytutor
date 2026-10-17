@@ -1,0 +1,465 @@
+{
+  "source": "YouTube lesson q15-t1, video 008, recorded 14 Oct 2026",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "The stated distances, launch speed, and gravitational acceleration support a ground-level projectile path and a simultaneous vertical fall."
+    },
+    "source": {
+      "question": "A monkey sits on a branch 30 m above level ground at a horizontal distance of 40 m from a hunter. The hunter fires a tranquilliser dart from ground level at 25 m/s aimed straight at the monkey, and the monkey lets go of the branch at the same instant the dart is fired. Take g = 10 m/s^2. After how much time does the dart hit the monkey, and at what height above the ground?"
+    },
+    "quantities": [
+      {
+        "id": "h",
+        "symbol": "h",
+        "value": 30,
+        "unit": "m",
+        "provenance": "given"
+      },
+      {
+        "id": "d",
+        "symbol": "d",
+        "value": 40,
+        "unit": "m",
+        "provenance": "given"
+      },
+      {
+        "id": "v",
+        "symbol": "v",
+        "value": 25,
+        "unit": "m/s",
+        "provenance": "given"
+      },
+      {
+        "id": "g",
+        "symbol": "g",
+        "value": 10,
+        "unit": "m/s^2",
+        "provenance": "given"
+      },
+      {
+        "id": "t",
+        "symbol": "t",
+        "value": 2,
+        "unit": "s",
+        "provenance": "derived"
+      },
+      {
+        "id": "y",
+        "symbol": "y",
+        "value": 10,
+        "unit": "m",
+        "provenance": "derived"
+      }
+    ],
+    "entities": [
+      {
+        "id": "launch",
+        "kind": "point",
+        "role": "hunter and dart launch point"
+      },
+      {
+        "id": "foot",
+        "kind": "point",
+        "role": "ground directly below the monkey"
+      },
+      {
+        "id": "ground_end",
+        "kind": "point",
+        "role": "ground endpoint"
+      },
+      {
+        "id": "ground",
+        "kind": "segment",
+        "role": "level ground"
+      },
+      {
+        "id": "monkey_start",
+        "kind": "point",
+        "role": "monkey's initial position"
+      },
+      {
+        "id": "branch_end",
+        "kind": "point",
+        "role": "branch endpoint"
+      },
+      {
+        "id": "branch",
+        "kind": "segment",
+        "role": "branch"
+      },
+      {
+        "id": "distance",
+        "kind": "dimension",
+        "role": "given horizontal distance",
+        "label": "d = 40 m"
+      },
+      {
+        "id": "height",
+        "kind": "dimension",
+        "role": "given initial height",
+        "label": "h = 30 m"
+      },
+      {
+        "id": "aim",
+        "kind": "segment",
+        "role": "straight initial line of aim"
+      },
+      {
+        "id": "velocity",
+        "kind": "vector",
+        "role": "launch velocity",
+        "label": "v = 25 m/s"
+      },
+      {
+        "id": "dart_path",
+        "kind": "polyline",
+        "role": "dart trajectory"
+      },
+      {
+        "id": "monkey_path",
+        "kind": "polyline",
+        "role": "monkey's falling path"
+      },
+      {
+        "id": "meeting",
+        "kind": "point",
+        "role": "dart–monkey meeting point"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "c_launch",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "launch"
+        ]
+      },
+      {
+        "id": "c_foot",
+        "operator": "point",
+        "inputs": {
+          "x": 40,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "foot"
+        ]
+      },
+      {
+        "id": "c_ground_end",
+        "operator": "point",
+        "inputs": {
+          "x": 50,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ground_end"
+        ]
+      },
+      {
+        "id": "c_ground",
+        "operator": "segment",
+        "inputs": {
+          "start": "launch",
+          "end": "ground_end"
+        },
+        "outputs": [
+          "ground"
+        ]
+      },
+      {
+        "id": "c_monkey_start",
+        "operator": "point",
+        "inputs": {
+          "x": 40,
+          "y": 30,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "monkey_start"
+        ]
+      },
+      {
+        "id": "c_branch_end",
+        "operator": "point",
+        "inputs": {
+          "x": 48,
+          "y": 30,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "branch_end"
+        ]
+      },
+      {
+        "id": "c_branch",
+        "operator": "segment",
+        "inputs": {
+          "start": "monkey_start",
+          "end": "branch_end"
+        },
+        "outputs": [
+          "branch"
+        ]
+      },
+      {
+        "id": "c_distance",
+        "operator": "dimension",
+        "inputs": {
+          "start": "launch",
+          "end": "foot"
+        },
+        "outputs": [
+          "distance"
+        ]
+      },
+      {
+        "id": "c_height",
+        "operator": "dimension",
+        "inputs": {
+          "start": "foot",
+          "end": "monkey_start"
+        },
+        "outputs": [
+          "height"
+        ]
+      },
+      {
+        "id": "c_aim",
+        "operator": "segment",
+        "inputs": {
+          "start": "launch",
+          "end": "monkey_start"
+        },
+        "outputs": [
+          "aim"
+        ]
+      },
+      {
+        "id": "c_velocity",
+        "operator": "vector",
+        "inputs": {
+          "start": "launch",
+          "direction": [
+            20,
+            15
+          ],
+          "length": 12
+        },
+        "outputs": [
+          "velocity"
+        ]
+      },
+      {
+        "id": "c_dart_path",
+        "operator": "parametric_curve",
+        "inputs": {
+          "xExpression": "20*t",
+          "yExpression": "15*t-5*t^2",
+          "parameter": "t",
+          "tMin": 0,
+          "tMax": 2,
+          "samples": 81
+        },
+        "outputs": [
+          "dart_path"
+        ]
+      },
+      {
+        "id": "c_monkey_path",
+        "operator": "parametric_curve",
+        "inputs": {
+          "xExpression": "40+0*t",
+          "yExpression": "30-5*t^2",
+          "parameter": "t",
+          "tMin": 0,
+          "tMax": 2,
+          "samples": 81
+        },
+        "outputs": [
+          "monkey_path"
+        ]
+      },
+      {
+        "id": "c_meeting",
+        "operator": "curve_anchor",
+        "inputs": {
+          "curve": "dart_path",
+          "at": 2
+        },
+        "outputs": [
+          "meeting"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "foot_on_ground",
+        "predicate": "on",
+        "entities": [
+          "foot",
+          "ground"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "height_vertical",
+        "predicate": "perpendicular",
+        "entities": [
+          "height",
+          "ground"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "aimed_at_monkey",
+        "predicate": "on",
+        "entities": [
+          "monkey_start",
+          "aim"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "dart_starts_at_launch",
+        "predicate": "on",
+        "entities": [
+          "launch",
+          "dart_path"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "monkey_starts_on_path",
+        "predicate": "on",
+        "entities": [
+          "monkey_start",
+          "monkey_path"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "meeting_on_monkey_path",
+        "predicate": "on",
+        "entities": [
+          "meeting",
+          "monkey_path"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "monkey_name",
+        "kind": "label",
+        "targetIds": [
+          "monkey_start"
+        ],
+        "text": "monkey"
+      },
+      {
+        "id": "hunter_name",
+        "kind": "label",
+        "targetIds": [
+          "launch"
+        ],
+        "text": "hunter"
+      },
+      {
+        "id": "gravity",
+        "kind": "callout",
+        "targetIds": [
+          "monkey_path"
+        ],
+        "text": "g = 10 m/s²"
+      }
+    ],
+    "requiredEntityIds": [
+      "launch",
+      "foot",
+      "ground",
+      "monkey_start",
+      "branch",
+      "distance",
+      "height",
+      "aim",
+      "velocity",
+      "dart_path",
+      "monkey_path",
+      "meeting"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "launch",
+          "foot",
+          "ground_end",
+          "ground",
+          "monkey_start",
+          "branch_end",
+          "branch",
+          "distance",
+          "height",
+          "aim",
+          "velocity"
+        ],
+        "dependsOn": [],
+        "narrationCue": "The hunter aims directly at the monkey's initial position."
+      },
+      {
+        "id": "motion",
+        "entityIds": [
+          "dart_path",
+          "monkey_path"
+        ],
+        "dependsOn": [
+          "setup"
+        ],
+        "narrationCue": "At the same instant, the dart is fired and the monkey begins to fall."
+      },
+      {
+        "id": "result",
+        "entityIds": [
+          "meeting"
+        ],
+        "dependsOn": [
+          "motion"
+        ],
+        "narrationCue": "Both reach the meeting point after 2 s, at a height of 10 m."
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "revealGroupId": "setup"
+      },
+      {
+        "revealGroupId": "motion"
+      },
+      {
+        "revealGroupId": "result"
+      }
+    ]
+  },
+  "introDurationMs": 8058,
+  "workNarration": "देखो d equals forty meters hunter से monkey तक horizontal distance है. Aim की horizontal reach d equals forty meters.",
+  "workDurationMs": 9394,
+  "workText": "d = horizontal reach",
+  "focusTarget": "distance"
+}
