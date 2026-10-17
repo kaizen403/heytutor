@@ -20,6 +20,7 @@
  */
 import type { SceneDocument } from "../types";
 import { isAtomicTransitionStem, isChemistryQuestion } from "../chemistry";
+import { CONIC_OPERATORS } from "../compile/conicGeometry";
 import {
   circuitTopologyFromProblemStructure,
   isPlanarConicStem,
@@ -32,6 +33,13 @@ import {
 /** Observable properties of a compiled document, read from operators and entities. */
 export type PictureFeature =
   | "conic"
+  /**
+   * A conic plotted by a general curve operator from its equation (an
+   * implicit curve, a circle, or a function curve in x^2), as opposed to the
+   * engine's own conic operator, which places every point by its parameter.
+   * Every plotted conic is also a `conic`.
+   */
+  | "plotted_conic"
   | "point_charges"
   | "bohr_levels"
   | "resistor_chain"
@@ -196,6 +204,31 @@ const CAPACITOR_NETWORK =
 
 const INSTRUMENT = /(?:microscope|telescope)/i;
 
+/**
+ * A stem that places a point on an ellipse or a hyperbola by its parameter
+ * angle: "the eccentric angle θ = π/6", "the points with parameters θ",
+ * "P(θ)", "at θ = π/3", "parametric coordinates of a point".
+ *
+ * The conic operator's own parameter is not that angle for a hyperbola (it
+ * is hyperbolic, cosh and sinh, where the stem means a sec θ and b tan θ), and
+ * on an ellipse the judged figures put the point at the wrong angle or drew
+ * the angle to the curve instead of the auxiliary circle. So these stems keep
+ * asking for a plotted conic. A parabola's parameter t is not an angle, and
+ * the operator's (p t^2, 2 p t) is the textbook point, so it is not listed.
+ */
+const PARAMETRIC_ANGLE_POINT =
+  /(?:eccentric angle|parametric (?:coordinates?|points?|angle)|\b(?:parameters?|at|with)\s+(?:θ|theta|φ|phi)|\bparameters?\s+t\b)/i;
+
+/** The point form, case sensitive so that sin(θ) and cos(θ) are not read as P(θ). */
+const NAMED_PARAMETER_POINT = /\b[A-Z]\s*\(\s*(?:θ|theta|φ|phi|t)\s*\)/;
+
+const ELLIPSE_OR_HYPERBOLA = /\b(?:ellipse|elipse|hyperbola)\b/i;
+
+function isParametricAnglePointStem(stem: string): boolean {
+  return ELLIPSE_OR_HYPERBOLA.test(stem)
+    && (PARAMETRIC_ANGLE_POINT.test(stem) || NAMED_PARAMETER_POINT.test(stem));
+}
+
 const OPTICS_CURVED_SURFACE =
   /(?:lens maker|thin lens formula|spherical (?:surface|interface|mirror)|refraction at a spherical|(?:convex|concave) (?:lens|mirror))/i;
 
@@ -210,8 +243,12 @@ export function sceneDemand(
   const forbids: PictureFeature[] = [];
 
   // A stem that names a conic must show one. Without this a tangent line, or a
-  // constant lifted out of "2x + y = 1", satisfies the compile and wins.
-  if (isPlanarConicStem(stem)) requires.push("conic");
+  // constant lifted out of "2x + y = 1", satisfies the compile and wins. A
+  // point placed by its parameter angle still needs a plotted conic: the
+  // reader cannot see the stem, so the exception lives here.
+  if (isPlanarConicStem(stem)) {
+    requires.push(isParametricAnglePointStem(stem) ? "plotted_conic" : "conic");
+  }
 
   if (isRiverBoatStem(stem)) requires.push("river_banks");
 
@@ -308,13 +345,16 @@ export function pictureFeatures(document: SceneDocument): Set<PictureFeature> {
     `${entity.id} ${entity.role} ${entity.label ?? ""}`;
   const entityText = document.entities.map(describe).join(" | ");
 
-  if (
-    operators.has("implicit_curve")
+  const plottedConic = operators.has("implicit_curve")
     || operators.has("circle")
     || document.constructions.some((construction) =>
       construction.operator === "function_curve"
-      && /x\s*\^\s*2/.test(String(construction.inputs.expression ?? "")))
-  ) {
+      && /x\s*\^\s*2/.test(String(construction.inputs.expression ?? "")));
+  if (plottedConic) features.add("plotted_conic");
+  // The engine's own conic operator draws an ellipse, a hyperbola or a
+  // parabola from its parameters; its anchors, directrices, asymptotes and
+  // tangents all reference one. A figure drawn that way shows the conic.
+  if (plottedConic || CONIC_OPERATORS.some((operator) => operators.has(operator))) {
     features.add("conic");
   }
 
