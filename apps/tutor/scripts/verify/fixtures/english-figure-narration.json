@@ -1,0 +1,62 @@
+{
+  "sourceCommit": "31d653cd46cbdc23afe9c2d1621a424259aef045",
+  "rows": [
+    {
+      "id": "river",
+      "intro": [
+        "Let’s begin with the physical setup: the bank, the boat B, and the current u.",
+        "Next comes the physical setup: the upstream boat heading v."
+      ],
+      "reveals": [
+        "Let’s begin with the physical setup: the bank, the boat B, and the current u.",
+        "Next comes the physical setup: the upstream boat heading v."
+      ]
+    },
+    {
+      "id": "mirror",
+      "intro": [
+        "Let’s begin with the principal rays from the object to the image."
+      ],
+      "reveals": [
+        "Let’s begin with the principal rays from the object to the image."
+      ]
+    },
+    {
+      "id": "dense-mirror",
+      "intro": [
+        "Here is the setup. First the principal rays, then the object O, and finally the image I. That is the setup."
+      ],
+      "reveals": [
+        "Here is the setup. First the principal rays, then the object O, and finally the image I. That is the setup."
+      ]
+    },
+    {
+      "id": "captioned-code",
+      "intro": [
+        "Here is the example we will work through: o is the object in front of the mirror, and I is the image.."
+      ],
+      "reveals": [
+        "Let’s begin with the principal rays from the object to the image."
+      ]
+    },
+    {
+      "id": "chunked-code",
+      "intro": [
+        "Here is the example we will work through."
+      ],
+      "reveals": [
+        "Let’s begin with the principal rays from the object to the image.",
+        "The rest of this setup completes the figure."
+      ]
+    },
+    {
+      "id": "unlabelled-code",
+      "intro": [
+        "Here is the example we will work through."
+      ],
+      "reveals": [
+        "O is the object in front of the mirror, and I is the image."
+      ]
+    }
+  ]
+}
