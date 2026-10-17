@@ -113,7 +113,21 @@ const claimRows: ClaimRow[] = [
     "The lone pair is axial.",
     "The lone pair on sulfur is in an axial site.",
     "SF4 has an axial lone pair.",
+    "The lone pair occupies one of the axial sites.",
+    "The lone pair on sulfur occupies one of the two axial sites.",
+    "The central lone pair is located in either of the axial positions.",
+    "Sulfur has one lone pair placed at one of its axial sites.",
+    "The lone pair sits in one of the axial sites.",
+    "The lone pair prefers either axial position.",
   ].map((expected, index): ClaimRow => ({ id: `central-position-invalid-${index + 1}`, question: sf4, expected, draw: false, family: "control" })),
+  ...[
+    "The lone pair does not occupy one of the axial sites.",
+    "The lone pair is not in either of the axial positions.",
+    "The lone pair is equatorial; the two axial F atoms each have three lone pairs.",
+    "The axial fluorine atoms each have three lone pairs; sulfur has one equatorial lone pair.",
+    "The fluorine atoms each have three lone pairs; sulfur has one lone pair in an equatorial site.",
+    "The lone pair is equatorial and the fluorine atoms occupy the axial sites.",
+  ].map((expected, index): ClaimRow => ({ id: `quantified-position-valid-${index + 1}`, question: sf4, expected, draw: true, family: "control" })),
 ];
 const unresolvedRows = [
   "Show the shape of SF4. Include water.",
