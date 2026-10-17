@@ -16,6 +16,7 @@ import {
   type SupportedSceneComponentSymbol,
 } from "../capability/capabilityManifest";
 import { ensureStudentFacingPointMarks, promoteAngleMarkVertices } from "./namedPoints";
+import { normalizeOperatorInputAliases } from "./operatorInputAliases";
 import { readPolyhedralSolid } from "../math/polyhedralSolid";
 import { STATISTICS_OPERATORS, validateStatisticsConstruction } from "../compile/statistics";
 import { TRIANGLE_OPERATORS, validateTriangleConstruction } from "../compile/triangleGeometry";
@@ -4830,7 +4831,7 @@ function normalizeGenericPlannerSchema(raw: Record<string, unknown>): Record<str
   return {
     ...raw,
     entities,
-    constructions,
+    constructions: normalizeOperatorInputAliases(constructions, raw.quantities),
   };
 }
 
