@@ -230,6 +230,7 @@ async function cacheUpgradePrunesPreviousRevisions(): Promise<void> {
   const cacheModule = { exports: {} as typeof import("../../lib/lecture-export/lectureExportCache") };
   const value = { blob: new Blob(["retained current export"]), mimeType: "video/mp4", extension: "mp4", noVoice: true, missingAudioCues: 0 };
   const currentVersion = Number(LECTURE_PAGE_CACHE_REVISION.slice("video".length));
+  assert.ok(currentVersion >= 11, "shared media-clock exports must invalidate video10 and earlier caches");
   const currentKey = `page@1@${LECTURE_PAGE_CACHE_REVISION}`;
   const keys = ["page@1.25@video6", "page@1.25@video7", "page@1.25@video7.webm", "page@1.25@video8", "page@1.25@video8.webm", "page@1.25@video9", "page@1.25@video9.webm", "page@1@video10", "page@1@video10.webm", currentKey, `${currentKey}.webm`, `page@1@video${currentVersion + 1}`, "unrelated"];
   const rows = new Map(keys.map(key => [key, value]));

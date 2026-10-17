@@ -10,6 +10,22 @@ import { createTtsRelay } from "../../lib/tts/ttsProvider";
 // this provider boundary: raw digits there do not prove Hindi number audio.
 const config = ttsConfig("hi-IN", false, { SARVAM_API_KEY: "test-only-no-network-key" });
 assert.equal(config.provider, "sarvam");
+for (const [input, expected] of [
+  ["speed 1 km/h है", "speed one kilometer per hour है"],
+  ["speed one km/h है", "speed one kilometer per hour है"],
+  ["1km/hr, one kmph और 1 km/hour", "one kilometer per hour, one kilometer per hour और one kilometer per hour"],
+  ["21 km/h, 0.1 km/hr और twenty one kmph", "twenty one kilometers per hour, zero point one kilometers per hour और twenty one kilometers per hour"],
+  ["one hundred and one km/h और one lakh one km/h", "one hundred and one kilometers per hour और one lakh one kilometers per hour"],
+  ["speed ten km/h और 60 km/h²", "speed ten kilometers per hour और sixty kilometers per hour squared"],
+] as const) {
+  const relay = createTtsRelay(config);
+  // The real clients normalize before sending, then Sarvam normalizes again.
+  // Testing the producer alone misses a plural already introduced upstream.
+  const packets = relay.segment("hourly-unit", mathToSpeech(input), { stability: 0.4, similarity_boost: 0.75, speed: 1 });
+  const text = packets.map((packet) => (packet as { data?: { text?: string } }).data?.text ?? "").join("");
+  assert.equal(text, expected, `client and producer preserve the hourly quantity: ${input}`);
+}
+console.log("youtube speech boundary: the actual client-to-Sarvam chain preserves singular, plural and hourly aliases");
 const given = buildGivenValueSegments(
   "A ball is projected from level ground with a speed of 20 m/s at 60° above the horizontal. Take g = 10 m/s². Find the radius of curvature of its path at the highest point and at the point of projection.",
   { givens: [{ id: "u", symbol: "u", value: 20, unit: "m/s", provenance: "given" }, { id: "g", symbol: "g", value: 10, unit: "m/s²", provenance: "given" }] },

@@ -83,5 +83,6 @@ async function verifyUpgrade(fromVersion: number) {
 async function main() {
   await verifyUpgrade(8);
   await verifyUpgrade(9);
+  await verifyUpgrade(10);
 }
 void main().catch((error) => { console.error(error); process.exitCode = 1; });

@@ -223,7 +223,16 @@ function expandUnitRatios(text: string): string {
     // This compound unit is unambiguous without a preceding digit too: the
     // Hinglish narrator writes "ten km/h". Lowercase h is an hour here;
     // uppercase H remains the existing electrical unit (henry).
-    .replace(/\bkm\s*\/\s*h\b/g, "kilometers per hour")
+    .replace(/\bkm\s*\/\s*h\b/g, (_unit, offset: number, whole: string) => {
+      // The client runs before Sarvam's unit reader. Preserve its standalone
+      // one rule here, before the raw symbol becomes an already-spoken unit.
+      const before = whole.slice(0, offset);
+      const quantity = /(?<![\p{L}\p{N}_.])([+-]?(?:\d[\d,]*(?:\.\d+)?|\.\d+)|one)\s*$/u.exec(before);
+      const singular = quantity?.[1] === "one"
+        ? !/\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|billion|lakh|crore|point|and)[\s-]*$/i.test(before.slice(0, quantity.index))
+        : quantity ? Number(quantity[1]!.replace(/,/g, "")) === 1 : false;
+      return `${singular ? "kilometer" : "kilometers"} per hour`;
+    })
     .replace(
       new RegExp(`(\\d(?:[\\d.,]*\\d)?)(\\s*)${ratio}`, "gu"),
       (match, value: string, gap: string, top: string, bottom: string, power?: string) =>

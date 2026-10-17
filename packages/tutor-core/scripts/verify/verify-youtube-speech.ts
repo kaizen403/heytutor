@@ -7,6 +7,9 @@ import { normalizeForSpeechMatch } from "../../src/sync/audioSync";
 // Actual figure-tour values from YouTube 001. `H` remains the electrical unit.
 assert.equal(mathToSpeech("At 5 km/h east, the girl observes vertical rain."), "At 5 kilometers per hour east, the girl observes vertical rain.");
 assert.equal(mathToSpeech("यहाँ speed ten km/h है."), "यहाँ speed ten kilometers per hour है.");
+assert.equal(mathToSpeech("speed 1 km/h"), "speed 1 kilometer per hour", "client normalization must preserve a singular raw quantity before producer normalization");
+assert.equal(mathToSpeech("speed one km/h"), "speed one kilometer per hour", "an already-spoken standalone one remains singular");
+assert.equal(mathToSpeech("21 km/h, 0.1 km/h, twenty one km/h"), "21 kilometers per hour, 0.1 kilometers per hour, twenty one kilometers per hour", "one inside another numeric quantity cannot singularize the unit");
 assert.equal(mathToSpeech("2 H/s"), "2 henries per second");
 console.log("youtube speech: the captured rain velocities say kilometers per hour");
 
