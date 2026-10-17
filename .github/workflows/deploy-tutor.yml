@@ -97,6 +97,8 @@ jobs:
           node deploy/aws/verify-sentry-release.mjs
       - name: Diagram authority and restoration regressions
         run: pnpm --filter @heytutor/tutor verify:publication
+      - name: Atomic scene label regressions
+        run: pnpm --filter @heytutor/tutor verify:atomic-labels
       - name: Storage admission and save feedback regressions
         run: pnpm --filter @heytutor/tutor verify:storage-admission
       - name: Finished playback and MP4 board fidelity regressions
