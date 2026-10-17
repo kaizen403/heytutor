@@ -11,7 +11,7 @@ import { withTurnTraceHeaders } from "../llm/traceHeaders";
 import { tutorDebug } from "../tutorDebug";
 import { inferSceneCapabilities, isQualitativeConceptQuestion, qualitativeQuestionAllowsScene, sceneFamiliesForceVisualRequirement } from "./sceneCapabilities";
 import { reconcileTurnPlanWithOpticsLaws, type OpticsPlanAuditResult } from "./opticsPlanAudit";
-import { subjectFromTurnPlanContent, type DiagramSubject } from "./diagramSubject";
+import { parseDiagramSubject, subjectFromTurnPlanContent, type DiagramSubject } from "./diagramSubject";
 import { parseTurnPlanJsonObject } from "./turnPlanJson";
 
 export interface TurnPlannerV3Options {
@@ -62,6 +62,8 @@ export interface TurnPlanRequestOutcome {
   unrecognizedIssueCount: number;
   /** Unknown diagnostic clock readings remain null, never fabricated zero. */
   elapsedMs: number | null;
+  /** Opted-in policy metadata only; a subject never establishes plan or numeric authority. */
+  subject?: DiagramSubject;
 }
 
 export interface TurnPlanV3Response {
@@ -202,6 +204,7 @@ async function requestTurnPlanV3(
   const startedAt = Date.now();
   let httpStatus: number | null = null;
   let outcomeCode: TurnPlanOutcomeCode = "transport_failed";
+  let subject: DiagramSubject | undefined;
   const parseOutcome: TurnPlanParseOutcome = {
     code: "plan_processing_failed", issueCodes: [], unrecognizedIssueCount: 0,
   };
@@ -270,6 +273,7 @@ async function requestTurnPlanV3(
     outcomeCode = "content_missing";
     const content = payload.choices?.[0]?.message?.content;
     if (typeof content !== "string") return null;
+    if (options.classifySubject) subject = subjectFromTurnPlanContent(content);
     outcomeCode = "plan_processing_failed";
     const turnPlan = parseTurnPlanV3ContentObserved(content, question, undefined, parseOutcome);
     outcomeCode = parseOutcome.code;
@@ -281,7 +285,7 @@ async function requestTurnPlanV3(
       rawContent: content,
       elapsedMs: Date.now() - startedAt,
       traceId: response.headers.get("x-heytutor-trace-id") ?? undefined,
-      ...(options.classifySubject ? { subject: subjectFromTurnPlanContent(content) } : {}),
+      ...(options.classifySubject ? { subject: subject ?? "other" } : {}),
     };
   } catch (error) {
     if (options.signal?.aborted) outcomeCode = "cancelled";
@@ -308,10 +312,27 @@ async function requestTurnPlanV3(
           phase, lane, requestKind, httpStatus, code: outcomeCode,
           issueCodes: [...parseOutcome.issueCodes],
           unrecognizedIssueCount: parseOutcome.unrecognizedIssueCount, elapsedMs,
+          ...(options.classifySubject ? { subject: subject ?? "other" } : {}),
         })).catch(() => {});
       }
     } catch { /* Diagnostics must never change planning behavior. */ }
   }
+}
+
+/** Recover policy metadata only after both initial plans were rejected; never recover their facts. */
+export function subjectFromRejectedTurnPlanOutcomes(outcomes: readonly TurnPlanRequestOutcome[]): DiagramSubject {
+  if (outcomes.length < 2 || outcomes.length > 3) return "other";
+  const initial = outcomes.filter((outcome) => outcome.requestKind === "initial");
+  if (initial.length !== 2 || !initial.some((outcome) => outcome.lane === "primary") ||
+    !initial.some((outcome) => outcome.lane === "alternate")) return "other";
+  const subject = parseDiagramSubject(outcomes[0]?.subject);
+  if (subject === "other") return "other";
+  return outcomes.every((outcome) =>
+    outcome.phase === "plan" &&
+    (outcome.requestKind === "initial" || (outcome.requestKind === "retry" && outcome.lane === "alternate")) &&
+    (outcome.code === "plan_validation_failed" || outcome.code === "optics_law_mismatch") &&
+    outcome.subject === subject
+  ) ? subject : "other";
 }
 
 export function createFallbackTurnPlanV3(question: string): TurnPlanV3 {

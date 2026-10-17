@@ -27,6 +27,7 @@ import {
   planAndSolveProblemV1,
   planSceneDocumentWithRepair,
   planTurnV3,
+  subjectFromRejectedTurnPlanOutcomes,
   questionRequiresVisual,
   revalidateScenePlanWithRepairResult,
   streamLLMResponse,
@@ -47,7 +48,7 @@ import {
 } from "@heytutor/scene-engine";
 import {
   deriveSceneGate as deriveProductionSceneGate, selectProductionScene, validateProductionSceneCandidate,
-  type ProductionSceneGate, type ValidatedSceneCandidate,
+  settleSelectionDegradation, type DroppedSceneCandidate, type ProductionSceneGate, type ValidatedSceneCandidate,
 } from "@/features/tutor-session/lib/scene/productionSceneSelection";
 import { diagramStrategyAllowsFigureSource } from "@/features/tutor-session/lib/scene/diagramStrategy";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
@@ -216,6 +217,8 @@ export interface LectureRun {
     degradationReason: string | null;
     /** Strict-arm fallback that compiled but was intentionally not rendered. */
     suppressedFallback?: { figureSource: FigureSource; family: string | null } | null;
+    /** A candidate that passed validation as a scene but was not the figure drawn. */
+    droppedCandidate?: DroppedSceneCandidate | null;
     /** The committed board figure as SVG, so a reviewer sees what the student saw. */
     svg: string | null;
     png?: string | null;
@@ -402,6 +405,7 @@ export async function runLecture(
       validationIssues: [],
       degradationReason: null,
       suppressedFallback: null,
+      droppedCandidate: null,
       svg: null,
       png: null,
     },
@@ -486,11 +490,13 @@ export async function runLecture(
     run.visualNeed = { plannerRequirement, assessment, mergedRequirement: turnPlan.visualRequirement,
       origin: options.visualNeedReplay === undefined ? "live_service" : "frozen_replay",
       questionHash: visualNeedQuestionHash(question), policy: LAB_VISUAL_NEED_POLICY };
-    const classifiedSubject = plannedTurn?.subject ?? "other";
+    const classifiedSubject = plannedTurn?.subject ?? subjectFromRejectedTurnPlanOutcomes(run.turnPlanCallOutcomes ?? []);
+    // Match live: rejected-plan consensus is recorded, but cannot enable strict.
+    const strategySubject = plannedTurn ? classifiedSubject : "other";
     const pickerDecision = labStrategyDecision(options.arm ?? "current", {
       subject: parseDiagramSubject(options.subject), chemistryLane: pickerGate.chemistryLane,
       codeLesson: false, dsa: dsaClassification.isDsa, doubt: false,
-    }, options.productionStrictSubjects, classifiedSubject);
+    }, options.productionStrictSubjects, strategySubject);
     if (options.productionStrictSubjects) run.productionStrategy = { classifiedSubject, strategy: pickerDecision.strategy };
     if (pickerGate.shouldPlanExactScene && pickerDecision.usePickedExamples) {
       const examples = options.diagramExamples ?? [];
@@ -554,7 +560,7 @@ export async function runLecture(
       const diagramStrategy = labStrategyDecision(options.arm ?? "current", {
         subject: parseDiagramSubject(options.subject), chemistryLane: gate.chemistryLane,
         codeLesson: false, dsa: dsaClassification.isDsa, doubt: false,
-      }, options.productionStrictSubjects, classifiedSubject);
+      }, options.productionStrictSubjects, strategySubject);
       const examplesUsed = diagramStrategy.usePickedExamples ? pickedExamples : [];
       return {
         ...gate, diagramStrategy, examplesUsed,
@@ -743,6 +749,16 @@ export async function runLecture(
     if (attempted && !sceneSelection.sourceAllowed && sceneSelection.hasReadableInk) {
       run.diagram.suppressedFallback = { figureSource: attempted.figureSource, family: attempted.family ?? null };
     }
+    // The live hook runs the same step (settleSelectionDegradation), and
+    // verify-valid-candidate-parity executes the lines between these markers.
+    // settle-selection-degradation:begin
+    run.diagram.droppedCandidate = sceneSelection.droppedCandidate;
+    const settledDegradation = settleSelectionDegradation({
+      earlier: run.diagram.degradationReason ? { reason: run.diagram.degradationReason } : null,
+      selection: sceneSelection, candidateCount: result?.candidates.length ?? 0,
+    });
+    run.diagram.degradationReason = settledDegradation.degradation?.reason ?? null;
+    // settle-selection-degradation:end
 
     run.timings.planMs = Date.now() - plannerStartedAt;
     run.plan = {
