@@ -1548,10 +1548,7 @@ function evaluateConstruction(
     case "space_angle_mark":
     case "space_right_angle_mark": return evaluateSpaceDerivationConstruction(operator, inputs, constructionContext);
     case "point": return [{ kind: "point", point: { x: number(["x"]), y: number(["y"]) } }];
-    case "label": return [{
-      kind: "point",
-      point: centerOf(resolveGeometry(first(inputs, ["target", "at", "point"]), geometry)),
-    }];
+    case "label": return [labelAnchorGeometry(inputs, geometry)];
     case "segment": return [{
       kind: "path",
       points: distinctPathPoints(point(["start", "from", "a"]), point(["end", "to", "b"]), operator),
@@ -4817,6 +4814,31 @@ function resolveVector(value: unknown, geometry: Map<string, Geometry>): Point {
   }
   throw new Error("invalid vector");
 }
+/** Framed labels retain world authority even though their ink is laid out on the page. */
+function labelAnchorGeometry(inputs: Record<string, unknown>, geometry: Map<string, Geometry>): Extract<Geometry, { kind: "point" }> {
+  const target = resolveGeometry(first(inputs, ["target", "at", "point"]), geometry, true);
+  if (inputs.frame !== undefined) {
+    const world = target.kind === "point" && target.space && typeof target.spaceFrameId === "string"
+      ? { point: target.space, frameId: target.spaceFrameId }
+      : target.kind === "path" && target.spaceSegment
+        ? { point: {
+          x: (target.spaceSegment.a.x + target.spaceSegment.b.x) / 2,
+          y: (target.spaceSegment.a.y + target.spaceSegment.b.y) / 2,
+          z: (target.spaceSegment.a.z + target.spaceSegment.b.z) / 2,
+        }, frameId: target.spaceSegment.frameId }
+        : null;
+    if (world) {
+      if (inputs.frame !== world.frameId) throw new Error("label frame must match its world owner frame");
+      const point = projectSpace(world.point, resolveSpaceFrame(inputs.frame, geometry));
+      return { kind: "point", point, space: world.point, spaceFrameId: world.frameId };
+    }
+  }
+  // Keep the existing planar contract, including rejection of world targets
+  // without an explicit frame and of unsupported world geometry kinds.
+  assertPlanarGeometry(target);
+  return { kind: "point", point: centerOf(target) };
+}
+
 function resolveGeometry(value: unknown, geometry: Map<string, Geometry>, allowWorld = false): Geometry {
   if (typeof value !== "string") throw new Error("surface must reference constructed geometry");
   const resolved = geometry.get(value);
