@@ -93,6 +93,11 @@ assert.equal(strictStandardOptions.arm, "planner_examples_strict");
 assert.equal(strictStandardOptions.model, "standard");
 assert.equal(strictStandardOptions.scenePlannerLimitMs, 120_000);
 assert.equal(strictStandardOptions.maxUsd, 20);
+assert.equal(parseLectureLabOptions(["--max-usd", "5"]).parallelTeaching, false,
+  "the stock lab's setup overlap is off unless explicitly requested");
+assert.equal(parseLectureLabOptions(["--eval", "sample.jsonl", "--figure-only", "false", "--parallel-teaching", "true", "--max-usd", "5"]).parallelTeaching, true);
+assert.throws(() => parseLectureLabOptions(["--eval", "sample.jsonl", "--parallel-teaching", "true", "--max-usd", "5"]), /full lecture/);
+assert.throws(() => parseLectureLabOptions(["--parallel-teaching", "sometimes", "--max-usd", "5"]), /true or false/);
 const resumeOptions = parseLectureLabOptions(["--eval", "sample.jsonl", "--resume", "--resume-extra-usd", "2.720665", "--max-usd", "65"]);
 assert.equal(resumeOptions.resume, true);
 assert.equal(resumeOptions.resumeExtraUsd, 2.720665);
