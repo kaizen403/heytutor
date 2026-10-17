@@ -147,6 +147,7 @@ check("mirror image of a figure with a mirror law hint", leaves("Draw the mirror
 // review: a function, a vector or a focal chord is not a focal length or an image distance.
 for (const question of [
   "If f = 2x + 3, find the mirror image of the graph of f in the y-axis.",
+  "If f = 25x + 3, find the mirror image of the graph of f in the y-axis.",
   "Find the mirror image of the vector v = 2i + 3j in the line y = x.",
   "The mirror image of the end of the focal chord of y^2 = 4x in the line y = x is (a, b). Find a + b.",
   "A triangle has a vertex at C(1, 2). Draw its mirror image in the y-axis.",
@@ -227,6 +228,10 @@ const MIRROR_IMAGE_WITH_MIRROR_FACTS = [
   "Explain the mirror image formed for an object placed beyond C.",
   // Greptile (6fb788d45): a descriptive parenthesis after the position is not a coordinate.
   "Describe the mirror image of an object placed at F (principal focus).",
+  // Greptile (c983abea2): a unitless u or v followed by a word, and a candle or source before or behind a mirror.
+  "For a mirror, u = -30 and v = -60 are the object and image distances. Describe the mirror image.",
+  "A candle stands before a mirror. Describe its mirror image.",
+  "Find the mirror image of a point source behind a mirror.",
   // One fact each, so removing any single fact from OPTICS_FACT turns this gate red.
   "Where does the mirror image form relative to the pole?",
   "What is the magnification of the mirror image?",
