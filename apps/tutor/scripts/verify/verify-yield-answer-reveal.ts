@@ -54,6 +54,8 @@ const render: RenderScene = {
   entityBounds: { range: { x: 500, y: 400, width: 400, height: 25 } },
 };
 const presentation = buildVerifiedDiagramPresentation(document, render);
+assert(!presentation.diagram.promptAddon.includes("80"), "hidden answer is not advertised as readable ink");
+assert(presentation.diagram.promptAddon.includes("with one of: none"), "hidden answer is not an available ANNOTATE target");
 assert(
   presentation.introSegments
     .flatMap((s) => s.commands ?? [])
@@ -86,6 +88,7 @@ const ordinary = buildVerifiedDiagramPresentation(
   { ...document, source: { question: "Find range R." } },
   render,
 );
+assert(ordinary.diagram.promptAddon.includes('"R=80 m" = [FOCUS:range]'), "ordinary labels stay in the readable-parts list");
 assert(
   ordinary.introSegments
     .flatMap((s) => s.commands ?? [])
@@ -117,6 +120,17 @@ const annotated = buildVerifiedDiagramPresentation(
   annotatedDocument,
   annotatedRender,
 );
+assert(!annotated.diagram.promptAddon.includes("80"), "hidden annotation is not advertised as readable ink");
+const mixed = buildVerifiedDiagramPresentation(annotatedDocument, {
+  ...render,
+  primitives: [
+    render.primitives[0]!,
+    { ...render.primitives[1]!, text: "R" },
+    { ...render.primitives[1]!, id: "answer_label", provenance: { annotationId: "answer" } },
+  ],
+});
+assert(mixed.diagram.promptAddon.includes('"R" = [FOCUS:range]'), "visible symbolic sibling remains readable");
+assert(!mixed.diagram.promptAddon.includes("80"), "hidden answer cannot replace its visible symbolic sibling");
 assert(
   !annotated.introSegments.some((segment) => segment.narration.includes("80")),
   "answer annotation cannot leak through its owning group's narration",

@@ -300,6 +300,7 @@ export function buildVerifiedDiagramPresentation(
   const drawnTextByEntity = new Map<string, string>();
   for (const primitive of renderScene.primitives) {
     if (primitive.kind !== "label" && primitive.kind !== "dimension") continue;
+    if (answerEntityIds.has(primitive.entityId) || answerAnnotationIds.has(String(primitive.provenance?.annotationId))) continue;
     const text = primitive.text?.trim();
     if (!text) continue;
     // Composite entities carry content glyphs as well as their own name.
@@ -330,7 +331,7 @@ export function buildVerifiedDiagramPresentation(
     existing.push(commands[entry.index]!);
     deferredByEntity.set(entry.entityId, existing);
   }
-  const deferredIds = [...deferredByEntity.keys()].join(", ");
+  const deferredIds = [...deferredByEntity.keys()].filter(id => !answerTargets.has(id)).join(", ");
   const hasDrawableInk = verifiedDiagramHasDrawableInk({ commands });
   const diagram: VerifiedDiagram = {
     id: "verified_scene",
@@ -364,7 +365,7 @@ Verified meaning of each focus target: ${targetMeanings || "none"}. A target den
 Parts with no label on the board: ${unnamedTargets || "none"}. You may FOCUS these, but do not give them a name aloud and do not claim the figure marks them.
 Reveal groups, which are sets of the parts above and not objects in their own right: ${groupTargets || "none"}. Never describe a group as a component, a block, an instrument, or a piece of apparatus.
 Optional FOCUS forms: [FOCUS:entity_id], [FOCUS:entity_id|spotlight], [FOCUS:entity_id|pulse], or a reveal-group id.
-When you say what a labeled point is, for example the object O or the image I, the tag follows the name inside the sentence. FOCUS also reveals that entity's withheld label.
+When you say what a labeled point is, for example the object O or the image I, the tag follows the name inside the sentence. ${answerTargets.size ? "FOCUS may reveal ordinary withheld labels; computed answer labels wait for completion." : "FOCUS also reveals that entity's withheld label."}
 To box the current work-area equation and highlight its result, use [EMPHASIZE:last]. To reveal a withheld measurement, enclose, or other compiled annotation, use [ANNOTATE:entity_id] with one of: ${deferredIds || "none"}.
 Do not describe marker movement or pretend to add, point at, circle, or redraw anything. Say "notice", "follow", "look at", or "this is" the named entity when using FOCUS.
 Refer to diagram entities by their visible labels in narration.
