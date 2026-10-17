@@ -1,0 +1,1038 @@
+{
+ "_source": "Round 8 (H4 p9) branch runs physics_16_reflection_and_spherical_mirrors_h9u: the selected (committed) planner document of arms p9b1 and p9b2, recorded verbatim. Each concave mirror's optical_focus has no form, so it resolves f > 0 and draws the focus behind the mirror, against its gaussian_image (form converging) and its spherical_surface (signedRadius < 0).",
+ "p9b1": {
+  "schemaVersion": "scene-document/v2",
+  "visualDecision": {
+   "mode": "scene",
+   "reason": "Normalized symbolic representatives show a concave and a convex spherical mirror with their principal rays; no physical measurements are supplied."
+  },
+  "source": {
+   "question": "concave and convex mirors, where does the image form",
+   "representationTier": "qualitative_verified",
+   "nonMetric": true
+  },
+  "quantities": [],
+  "entities": [
+   {
+    "id": "pc",
+    "kind": "point",
+    "role": "concave mirror pole",
+    "label": "P"
+   },
+   {
+    "id": "ac",
+    "kind": "point",
+    "role": "axis construction point"
+   },
+   {
+    "id": "axc",
+    "kind": "line",
+    "role": "principal axis"
+   },
+   {
+    "id": "mc",
+    "kind": "arc",
+    "role": "concave mirror"
+   },
+   {
+    "id": "fc",
+    "kind": "point",
+    "role": "focus",
+    "label": "F"
+   },
+   {
+    "id": "cob",
+    "kind": "point",
+    "role": "object base"
+   },
+   {
+    "id": "cot",
+    "kind": "point",
+    "role": "object tip"
+   },
+   {
+    "id": "cib",
+    "kind": "point",
+    "role": "image base"
+   },
+   {
+    "id": "cit",
+    "kind": "point",
+    "role": "image tip"
+   },
+   {
+    "id": "co",
+    "kind": "vector",
+    "role": "object"
+   },
+   {
+    "id": "ci",
+    "kind": "vector",
+    "role": "real image"
+   },
+   {
+    "id": "cr1",
+    "kind": "polyline",
+    "role": "parallel principal ray"
+   },
+   {
+    "id": "cr2",
+    "kind": "polyline",
+    "role": "central principal ray"
+   },
+   {
+    "id": "pv",
+    "kind": "point",
+    "role": "convex mirror pole",
+    "label": "P"
+   },
+   {
+    "id": "av",
+    "kind": "point",
+    "role": "axis construction point"
+   },
+   {
+    "id": "axv",
+    "kind": "line",
+    "role": "principal axis"
+   },
+   {
+    "id": "mv",
+    "kind": "arc",
+    "role": "convex mirror"
+   },
+   {
+    "id": "fv",
+    "kind": "point",
+    "role": "focus",
+    "label": "F"
+   },
+   {
+    "id": "vob",
+    "kind": "point",
+    "role": "object base"
+   },
+   {
+    "id": "vot",
+    "kind": "point",
+    "role": "object tip"
+   },
+   {
+    "id": "vib",
+    "kind": "point",
+    "role": "image base"
+   },
+   {
+    "id": "vit",
+    "kind": "point",
+    "role": "image tip"
+   },
+   {
+    "id": "vo",
+    "kind": "vector",
+    "role": "object"
+   },
+   {
+    "id": "vi",
+    "kind": "vector",
+    "role": "virtual image"
+   },
+   {
+    "id": "vr1",
+    "kind": "polyline",
+    "role": "parallel principal ray"
+   },
+   {
+    "id": "vr2",
+    "kind": "polyline",
+    "role": "central principal ray"
+   }
+  ],
+  "constructions": [
+   {
+    "id": "cpc",
+    "operator": "point",
+    "inputs": {
+     "x": 0,
+     "y": 0,
+     "coordinateSpace": "world"
+    },
+    "outputs": [
+     "pc"
+    ]
+   },
+   {
+    "id": "cac",
+    "operator": "point",
+    "inputs": {
+     "x": -1,
+     "y": 0,
+     "coordinateSpace": "world"
+    },
+    "outputs": [
+     "ac"
+    ]
+   },
+   {
+    "id": "caxc",
+    "operator": "line",
+    "inputs": {
+     "start": "ac",
+     "end": "pc"
+    },
+    "outputs": [
+     "axc"
+    ]
+   },
+   {
+    "id": "cmc",
+    "operator": "spherical_surface",
+    "inputs": {
+     "vertex": "pc",
+     "axis": "axc",
+     "halfHeight": 0.8,
+     "signedRadius": -2,
+     "kind": "concave"
+    },
+    "outputs": [
+     "mc"
+    ]
+   },
+   {
+    "id": "cfc",
+    "operator": "optical_focus",
+    "inputs": {
+     "kind": "mirror",
+     "center": "pc",
+     "axis": "axc",
+     "focalLength": 1,
+     "displayScale": 1,
+     "lengthUnit": "m"
+    },
+    "outputs": [
+     "fc"
+    ]
+   },
+   {
+    "id": "cg",
+    "operator": "gaussian_image",
+    "inputs": {
+     "kind": "mirror",
+     "center": "pc",
+     "axis": "axc",
+     "objectDistance": 3,
+     "focalLength": 1,
+     "objectHeight": 0.3,
+     "displayScale": 1,
+     "lengthUnit": "m",
+     "form": "converging",
+     "objectSide": "real"
+    },
+    "outputs": [
+     "cob",
+     "cot",
+     "cib",
+     "cit"
+    ]
+   },
+   {
+    "id": "cco",
+    "operator": "vector",
+    "inputs": {
+     "start": "cob",
+     "end": "cot"
+    },
+    "outputs": [
+     "co"
+    ]
+   },
+   {
+    "id": "cci",
+    "operator": "vector",
+    "inputs": {
+     "start": "cib",
+     "end": "cit"
+    },
+    "outputs": [
+     "ci"
+    ]
+   },
+   {
+    "id": "ccr",
+    "operator": "principal_rays",
+    "inputs": {
+     "image": "cit",
+     "rays": [
+      "parallel",
+      "central"
+     ]
+    },
+    "outputs": [
+     "cr1",
+     "cr2"
+    ]
+   },
+   {
+    "id": "cpv",
+    "operator": "point",
+    "inputs": {
+     "x": 0,
+     "y": 4,
+     "coordinateSpace": "world"
+    },
+    "outputs": [
+     "pv"
+    ]
+   },
+   {
+    "id": "cav",
+    "operator": "point",
+    "inputs": {
+     "x": -1,
+     "y": 4,
+     "coordinateSpace": "world"
+    },
+    "outputs": [
+     "av"
+    ]
+   },
+   {
+    "id": "caxv",
+    "operator": "line",
+    "inputs": {
+     "start": "av",
+     "end": "pv"
+    },
+    "outputs": [
+     "axv"
+    ]
+   },
+   {
+    "id": "cmv",
+    "operator": "spherical_surface",
+    "inputs": {
+     "vertex": "pv",
+     "axis": "axv",
+     "halfHeight": 0.8,
+     "signedRadius": 2,
+     "kind": "convex"
+    },
+    "outputs": [
+     "mv"
+    ]
+   },
+   {
+    "id": "cfv",
+    "operator": "optical_focus",
+    "inputs": {
+     "kind": "mirror",
+     "center": "pv",
+     "axis": "axv",
+     "focalLength": 1,
+     "displayScale": 1,
+     "lengthUnit": "m"
+    },
+    "outputs": [
+     "fv"
+    ]
+   },
+   {
+    "id": "vg",
+    "operator": "gaussian_image",
+    "inputs": {
+     "kind": "mirror",
+     "center": "pv",
+     "axis": "axv",
+     "objectDistance": 3,
+     "focalLength": 1,
+     "objectHeight": 0.3,
+     "displayScale": 1,
+     "lengthUnit": "m",
+     "form": "diverging",
+     "objectSide": "real"
+    },
+    "outputs": [
+     "vob",
+     "vot",
+     "vib",
+     "vit"
+    ]
+   },
+   {
+    "id": "cvo",
+    "operator": "vector",
+    "inputs": {
+     "start": "vob",
+     "end": "vot"
+    },
+    "outputs": [
+     "vo"
+    ]
+   },
+   {
+    "id": "cvi",
+    "operator": "vector",
+    "inputs": {
+     "start": "vib",
+     "end": "vit"
+    },
+    "outputs": [
+     "vi"
+    ]
+   },
+   {
+    "id": "cvr",
+    "operator": "principal_rays",
+    "inputs": {
+     "image": "vit",
+     "rays": [
+      "parallel",
+      "central"
+     ]
+    },
+    "outputs": [
+     "vr1",
+     "vr2"
+    ]
+   }
+  ],
+  "relations": [],
+  "assertions": [],
+  "annotations": [
+   {
+    "id": "concaveCases",
+    "kind": "narration",
+    "targetIds": [
+     "mc"
+    ],
+    "text": "Beyond F: a real image forms in front of the mirror, at a position depending on object distance. At F: reflected rays are parallel, so no image forms at a finite distance. Between F and the mirror: a virtual image forms behind the mirror."
+   },
+   {
+    "id": "convexCase",
+    "kind": "narration",
+    "targetIds": [
+     "mv"
+    ],
+    "text": "A convex mirror always forms a virtual image behind the mirror, between the mirror and its focal point."
+   }
+  ],
+  "requiredEntityIds": [
+   "axc",
+   "mc",
+   "co",
+   "ci",
+   "fc",
+   "cr1",
+   "cr2",
+   "axv",
+   "mv",
+   "vo",
+   "vi",
+   "fv",
+   "vr1",
+   "vr2"
+  ],
+  "revealGroups": [
+   {
+    "id": "concave",
+    "entityIds": [
+     "pc",
+     "ac",
+     "axc",
+     "mc",
+     "fc",
+     "cob",
+     "cot",
+     "cib",
+     "cit",
+     "co",
+     "ci",
+     "cr1",
+     "cr2"
+    ],
+    "dependsOn": [],
+    "narrationCue": "Concave mirror: the ray diagram represents an object beyond the focus; discuss the other two object positions."
+   },
+   {
+    "id": "convex",
+    "entityIds": [
+     "pv",
+     "av",
+     "axv",
+     "mv",
+     "fv",
+     "vob",
+     "vot",
+     "vib",
+     "vit",
+     "vo",
+     "vi",
+     "vr1",
+     "vr2"
+    ],
+    "dependsOn": [],
+    "narrationCue": "Convex mirror: the virtual image lies between the mirror and its focus."
+   }
+  ],
+  "teachingTimeline": [
+   {
+    "id": "concaveStep",
+    "revealGroupId": "concave"
+   },
+   {
+    "id": "convexStep",
+    "revealGroupId": "convex"
+   }
+  ]
+ },
+ "p9b2": {
+  "schemaVersion": "scene-document/v2",
+  "visualDecision": {
+   "mode": "scene",
+   "reason": "Symbolic representative ray diagrams show image formation for concave and convex mirrors."
+  },
+  "source": {
+   "question": "concave and convex mirors, where does the image form",
+   "representationTier": "qualitative_verified",
+   "nonMetric": true
+  },
+  "quantities": [],
+  "entities": [
+   {
+    "id": "cp",
+    "kind": "point",
+    "role": "concave mirror pole",
+    "label": "P"
+   },
+   {
+    "id": "ca",
+    "kind": "point",
+    "role": "axis construction helper"
+   },
+   {
+    "id": "caxis",
+    "kind": "line",
+    "role": "principal axis"
+   },
+   {
+    "id": "cmirror",
+    "kind": "arc",
+    "role": "concave mirror"
+   },
+   {
+    "id": "cf",
+    "kind": "point",
+    "role": "focus",
+    "label": "F"
+   },
+   {
+    "id": "cc",
+    "kind": "point",
+    "role": "centre of curvature",
+    "label": "C"
+   },
+   {
+    "id": "cob",
+    "kind": "point",
+    "role": "object base"
+   },
+   {
+    "id": "cot",
+    "kind": "point",
+    "role": "object tip"
+   },
+   {
+    "id": "cib",
+    "kind": "point",
+    "role": "image base"
+   },
+   {
+    "id": "cit",
+    "kind": "point",
+    "role": "image tip"
+   },
+   {
+    "id": "cobj",
+    "kind": "vector",
+    "role": "object",
+    "label": "Object"
+   },
+   {
+    "id": "cimg",
+    "kind": "vector",
+    "role": "real image",
+    "label": "Image"
+   },
+   {
+    "id": "cr1",
+    "kind": "polyline",
+    "role": "parallel principal ray"
+   },
+   {
+    "id": "cr2",
+    "kind": "polyline",
+    "role": "central principal ray"
+   },
+   {
+    "id": "vp",
+    "kind": "point",
+    "role": "convex mirror pole",
+    "label": "P"
+   },
+   {
+    "id": "va",
+    "kind": "point",
+    "role": "axis construction helper"
+   },
+   {
+    "id": "vaxis",
+    "kind": "line",
+    "role": "principal axis"
+   },
+   {
+    "id": "vmirror",
+    "kind": "arc",
+    "role": "convex mirror"
+   },
+   {
+    "id": "vf",
+    "kind": "point",
+    "role": "focus",
+    "label": "F"
+   },
+   {
+    "id": "vob",
+    "kind": "point",
+    "role": "object base"
+   },
+   {
+    "id": "vot",
+    "kind": "point",
+    "role": "object tip"
+   },
+   {
+    "id": "vib",
+    "kind": "point",
+    "role": "image base"
+   },
+   {
+    "id": "vit",
+    "kind": "point",
+    "role": "image tip"
+   },
+   {
+    "id": "vobj",
+    "kind": "vector",
+    "role": "object",
+    "label": "Object"
+   },
+   {
+    "id": "vimg",
+    "kind": "vector",
+    "role": "virtual image",
+    "label": "Image"
+   },
+   {
+    "id": "vr1",
+    "kind": "polyline",
+    "role": "parallel principal ray"
+   },
+   {
+    "id": "vr2",
+    "kind": "polyline",
+    "role": "central principal ray"
+   }
+  ],
+  "constructions": [
+   {
+    "id": "cp0",
+    "operator": "point",
+    "inputs": {
+     "x": 0,
+     "y": 5,
+     "coordinateSpace": "world"
+    },
+    "outputs": [
+     "cp"
+    ]
+   },
+   {
+    "id": "ca0",
+    "operator": "point",
+    "inputs": {
+     "x": -1,
+     "y": 5,
+     "coordinateSpace": "world"
+    },
+    "outputs": [
+     "ca"
+    ]
+   },
+   {
+    "id": "cax0",
+    "operator": "line",
+    "inputs": {
+     "start": "ca",
+     "end": "cp"
+    },
+    "outputs": [
+     "caxis"
+    ]
+   },
+   {
+    "id": "cm0",
+    "operator": "spherical_surface",
+    "inputs": {
+     "vertex": "cp",
+     "axis": "caxis",
+     "halfHeight": 2,
+     "signedRadius": -4,
+     "kind": "concave"
+    },
+    "outputs": [
+     "cmirror"
+    ]
+   },
+   {
+    "id": "ci0",
+    "operator": "gaussian_image",
+    "inputs": {
+     "kind": "mirror",
+     "center": "cp",
+     "axis": "caxis",
+     "objectDistance": 6,
+     "focalLength": 2,
+     "objectHeight": 1,
+     "form": "converging",
+     "objectSide": "real",
+     "displayScale": 1,
+     "lengthUnit": "unit"
+    },
+    "outputs": [
+     "cob",
+     "cot",
+     "cib",
+     "cit"
+    ]
+   },
+   {
+    "id": "cf0",
+    "operator": "optical_focus",
+    "inputs": {
+     "kind": "mirror",
+     "center": "cp",
+     "axis": "caxis",
+     "focalLength": 2,
+     "displayScale": 1,
+     "lengthUnit": "unit"
+    },
+    "outputs": [
+     "cf"
+    ]
+   },
+   {
+    "id": "cc0",
+    "operator": "point",
+    "inputs": {
+     "x": -4,
+     "y": 5,
+     "coordinateSpace": "world"
+    },
+    "outputs": [
+     "cc"
+    ]
+   },
+   {
+    "id": "co0",
+    "operator": "vector",
+    "inputs": {
+     "start": "cob",
+     "end": "cot"
+    },
+    "outputs": [
+     "cobj"
+    ]
+   },
+   {
+    "id": "cv0",
+    "operator": "vector",
+    "inputs": {
+     "start": "cib",
+     "end": "cit"
+    },
+    "outputs": [
+     "cimg"
+    ]
+   },
+   {
+    "id": "cr0",
+    "operator": "principal_rays",
+    "inputs": {
+     "image": "cit",
+     "rays": [
+      "parallel",
+      "central"
+     ]
+    },
+    "outputs": [
+     "cr1",
+     "cr2"
+    ]
+   },
+   {
+    "id": "vp0",
+    "operator": "point",
+    "inputs": {
+     "x": 0,
+     "y": -5,
+     "coordinateSpace": "world"
+    },
+    "outputs": [
+     "vp"
+    ]
+   },
+   {
+    "id": "va0",
+    "operator": "point",
+    "inputs": {
+     "x": -1,
+     "y": -5,
+     "coordinateSpace": "world"
+    },
+    "outputs": [
+     "va"
+    ]
+   },
+   {
+    "id": "vax0",
+    "operator": "line",
+    "inputs": {
+     "start": "va",
+     "end": "vp"
+    },
+    "outputs": [
+     "vaxis"
+    ]
+   },
+   {
+    "id": "vm0",
+    "operator": "spherical_surface",
+    "inputs": {
+     "vertex": "vp",
+     "axis": "vaxis",
+     "halfHeight": 2,
+     "signedRadius": 4,
+     "kind": "convex"
+    },
+    "outputs": [
+     "vmirror"
+    ]
+   },
+   {
+    "id": "vi0",
+    "operator": "gaussian_image",
+    "inputs": {
+     "kind": "mirror",
+     "center": "vp",
+     "axis": "vaxis",
+     "objectDistance": 6,
+     "focalLength": 2,
+     "objectHeight": 1,
+     "form": "diverging",
+     "objectSide": "real",
+     "displayScale": 1,
+     "lengthUnit": "unit"
+    },
+    "outputs": [
+     "vob",
+     "vot",
+     "vib",
+     "vit"
+    ]
+   },
+   {
+    "id": "vf0",
+    "operator": "point",
+    "inputs": {
+     "x": 2,
+     "y": -5,
+     "coordinateSpace": "world"
+    },
+    "outputs": [
+     "vf"
+    ]
+   },
+   {
+    "id": "vo0",
+    "operator": "vector",
+    "inputs": {
+     "start": "vob",
+     "end": "vot"
+    },
+    "outputs": [
+     "vobj"
+    ]
+   },
+   {
+    "id": "vv0",
+    "operator": "vector",
+    "inputs": {
+     "start": "vib",
+     "end": "vit"
+    },
+    "outputs": [
+     "vimg"
+    ]
+   },
+   {
+    "id": "vr0",
+    "operator": "principal_rays",
+    "inputs": {
+     "image": "vit",
+     "rays": [
+      "parallel",
+      "central"
+     ]
+    },
+    "outputs": [
+     "vr1",
+     "vr2"
+    ]
+   }
+  ],
+  "relations": [],
+  "assertions": [
+   {
+    "id": "ac1",
+    "predicate": "between",
+    "entities": [
+     "cib",
+     "cf",
+     "cc"
+    ],
+    "expected": true,
+    "severity": "error"
+   },
+   {
+    "id": "ac2",
+    "predicate": "on",
+    "entities": [
+     "cc",
+     "caxis"
+    ],
+    "expected": true,
+    "severity": "error"
+   },
+   {
+    "id": "av1",
+    "predicate": "on",
+    "entities": [
+     "vf",
+     "vaxis"
+    ],
+    "expected": true,
+    "severity": "error"
+   }
+  ],
+  "annotations": [
+   {
+    "id": "cn",
+    "kind": "narration",
+    "targetIds": [
+     "cmirror"
+    ],
+    "text": "Concave: beyond C → between F and C; at C → C; between C and F → beyond C; at F → infinity; inside F → virtual image behind the mirror. A distant object's image approaches F."
+   },
+   {
+    "id": "vn",
+    "kind": "narration",
+    "targetIds": [
+     "vmirror"
+    ],
+    "text": "Convex: for a real object, the virtual image forms behind the mirror, between the mirror and F. As the object recedes, its image approaches F."
+   }
+  ],
+  "requiredEntityIds": [
+   "caxis",
+   "cmirror",
+   "cobj",
+   "cimg",
+   "cf",
+   "cc",
+   "cr1",
+   "cr2",
+   "vaxis",
+   "vmirror",
+   "vobj",
+   "vimg",
+   "vf",
+   "vr1",
+   "vr2"
+  ],
+  "revealGroups": [
+   {
+    "id": "concave",
+    "entityIds": [
+     "cp",
+     "caxis",
+     "cmirror",
+     "cf",
+     "cc",
+     "cob",
+     "cot",
+     "cobj",
+     "cr1",
+     "cr2",
+     "cib",
+     "cit",
+     "cimg"
+    ],
+    "dependsOn": [],
+    "narrationCue": "Concave mirror image locations"
+   },
+   {
+    "id": "convex",
+    "entityIds": [
+     "vp",
+     "vaxis",
+     "vmirror",
+     "vf",
+     "vob",
+     "vot",
+     "vobj",
+     "vr1",
+     "vr2",
+     "vib",
+     "vit",
+     "vimg"
+    ],
+    "dependsOn": [],
+    "narrationCue": "Convex mirror image location"
+   }
+  ],
+  "teachingTimeline": [
+   {
+    "id": "t1",
+    "groupId": "concave",
+    "targetIds": [
+     "cmirror",
+     "cobj",
+     "cr1",
+     "cr2",
+     "cimg"
+    ]
+   },
+   {
+    "id": "t2",
+    "groupId": "convex",
+    "targetIds": [
+     "vmirror",
+     "vobj",
+     "vr1",
+     "vr2",
+     "vimg"
+    ]
+   }
+  ]
+ }
+}

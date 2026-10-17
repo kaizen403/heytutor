@@ -17,7 +17,7 @@ import { liveSceneSaveFailure } from "@/lib/scene/sceneSaveAdmission";
 import { shouldAttemptExactScene } from "./diagramGeneration";
 import { resolveVisualRequirement } from "./visualRequirement";
 import {
-  selectVerifiedRepresentationExplained, type ExactCandidateDecline, type SelectedRepresentation,
+  OPTICS_PLAN_ROLE, opticsPlanKey, selectVerifiedRepresentationExplained, type ExactCandidateDecline, type SelectedRepresentation,
 } from "./representationFallback";
 
 /** Lab execution identity: old rounds did not use all production admission guards. */
@@ -100,18 +100,135 @@ export function deriveSceneGate(input: ProductionSceneInput): ProductionSceneGat
   };
 }
 
+type AgreementIssue = { code: string; message: string; path: string; severity: "fatal" };
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+const PLAN_LENGTH_UNIT = /^(?:m|cm|mm|km|um|µm|μm|nm|in|ft|inch(?:es)?|foot|feet|(?:centi|milli|kilo|micro|nano)?met(?:er|re)s?)$/i;
+const OPTICS_MAGNITUDE_INPUTS: Readonly<Record<string, readonly ("objectDistance" | "focalLength")[]>> = {
+  gaussian_image: ["objectDistance", "focalLength"],
+  optical_focus: ["focalLength"],
+};
+/** The plan with every value as a magnitude, so a signed plan and an unsigned literal compare equal. */
+function magnitudePlan(plan: TurnPlanV3, givens = plan.givens, derived = plan.derived): TurnPlanV3 {
+  const magnitude = <T extends { value: number }>(quantity: T): T => ({ ...quantity, value: Math.abs(quantity.value) });
+  return { ...plan, givens: givens.map(magnitude), derived: derived.map(magnitude) };
+}
+
+/**
+ * Inline optics literals checked like scene quantities, by magnitude on both
+ * sides (the Cartesian sign lives in `form` or in the literal, never in the
+ * plan's reading of the stem), each against its own plan quantity only.
+ *
+ * - objectDistance and focalLength, in signed and magnitude mode (`form`
+ *   present or not): a signed literal is held by its magnitude, so u = -20
+ *   with f = -12 must still be the plan's 20 cm and 12 cm. Each must equal a
+ *   quantity the plan names in that role (OPTICS_PLAN_ROLE, read by
+ *   opticsPlanKey, as the optics proof reads it), and nothing else:
+ *   - written as a plan quantity id (declared in the document) the plan
+ *     names in this role, the input is that quantity only;
+ *   - any other literal or quantity must equal the plan's object distance or
+ *     focal length, so |f| = 112 cm fails where the plan's 112 cm is the
+ *     object distance. No other plan length stands in, so u never passes as
+ *     an image distance, image position or image height (x_i = 36 cm), and a
+ *     plan with lengths that names no object distance or no focal length
+ *     fails the input: a representative u cannot be held to "beyond 2F".
+ * - objectHeight, in signed and magnitude mode, only when the plan gives an
+ *   object height: it must equal that height. A stem with no stated height
+ *   still draws a representative one.
+ *
+ * Stems whose plan gives no length are skipped here; the optics proof leaves
+ * their lens or mirror figure unproven, as the plan names no u or f.
+ */
+function opticsMagnitudeLiteralIssues(
+  document: { quantities?: unknown; constructions?: unknown },
+  plan: TurnPlanV3,
+): AgreementIssue[] {
+  type PlanQuantity = TurnPlanV3["givens"][number];
+  const isLength = (quantity: { unit?: string }) => typeof quantity.unit === "string" && PLAN_LENGTH_UNIT.test(quantity.unit.trim());
+  if (!plan.givens.some(isLength)) return [];
+  const documentQuantities = new Map((Array.isArray(document.quantities) ? document.quantities : [])
+    .filter(isPlainRecord).filter((quantity) => typeof quantity.id === "string").map((quantity) => [quantity.id as string, quantity]));
+  const planQuantities = new Map([...plan.givens, ...plan.derived].map((quantity) => [quantity.id, quantity]));
+  const namedAs = (quantity: PlanQuantity, key: keyof typeof OPTICS_PLAN_ROLE) => isLength(quantity) &&
+    OPTICS_PLAN_ROLE[key].test(opticsPlanKey(quantity));
+  // Qualitative claims never support a literal.
+  const subPlan = (keep: (quantity: PlanQuantity) => boolean): TurnPlanV3 =>
+    ({ ...magnitudePlan(plan, plan.givens.filter(keep), plan.derived.filter(keep)), qualitativeClaims: [] });
+  const rolePlan = (key: keyof typeof OPTICS_PLAN_ROLE): TurnPlanV3 => subPlan((quantity) => namedAs(quantity, key));
+  const roleName = (key: keyof typeof OPTICS_PLAN_ROLE) => key === "focalLength" ? "focal length" : key === "objectDistance" ? "object distance" : "object height";
+  /** What one input is held to: its referenced plan quantity of this role, else the plan's quantities of this role, none included. */
+  const binding = (key: "objectDistance" | "focalLength", written: unknown): { against: TurnPlanV3; scope: string } => {
+    const referenced = typeof written === "string" ? planQuantities.get(written) : undefined;
+    if (referenced && namedAs(referenced, key)) {
+      return { against: subPlan((quantity) => quantity === referenced), scope: `the plan's quantity ${referenced.id} only` };
+    }
+    const role = rolePlan(key);
+    return role.givens.length + role.derived.length > 0
+      ? { against: role, scope: `the plan's ${roleName(key)} only` }
+      : { against: role, scope: `the plan's ${roleName(key)}, which it does not name` };
+  };
+  const heightPlan = plan.givens.some((given) => namedAs(given, "objectHeight"))
+    ? { ...rolePlan("objectHeight"), derived: [] } : null;
+  const issues: AgreementIssue[] = [];
+  (Array.isArray(document.constructions) ? document.constructions : []).forEach((construction, index) => {
+    if (!isPlainRecord(construction) || typeof construction.operator !== "string" || !isPlainRecord(construction.inputs)) return;
+    const inputs = construction.inputs;
+    const keys: Array<"objectDistance" | "focalLength" | "objectHeight"> = [...OPTICS_MAGNITUDE_INPUTS[construction.operator] ?? []];
+    if (construction.operator === "gaussian_image" && heightPlan) keys.push("objectHeight");
+    for (const key of keys) {
+      const wrapper = isPlainRecord(inputs[key]) ? inputs[key] as Record<string, unknown> : undefined;
+      const written = wrapper ? wrapper.value : inputs[key];
+      const quantity = typeof written === "string" ? documentQuantities.get(written) : undefined;
+      // The height check keeps its old scope: a height by quantity id is held by plan agreement.
+      if (quantity && key === "objectHeight") continue;
+      const raw = quantity ? quantity.value : written;
+      const value = typeof raw === "number" ? raw : typeof raw === "string" && raw.trim() ? Number(raw) : Number.NaN;
+      if (!Number.isFinite(value)) continue;
+      const unit = quantity ? (typeof quantity.unit === "string" ? quantity.unit : inputs.lengthUnit)
+        : typeof wrapper?.unit === "string" ? wrapper.unit : inputs.lengthUnit;
+      const id = `${String(construction.id ?? construction.operator)}.${key}`;
+      const source = quantity ? `quantity ${String(written)}` : inputs.form !== undefined ? "magnitude literal" : "signed literal, by magnitude";
+      const { against, scope } = key === "objectHeight" ? { against: heightPlan!, scope: "the plan's object height only" } : binding(key, written);
+      for (const issue of validateSceneQuantityAgreement([{ id, value: Math.abs(value), ...(unit === undefined ? {} : { unit }) }], against)) {
+        issues.push({ code: issue.code, message: `${issue.message} (a ${construction.operator} ${key} ${source}, held to ${scope})`, path: `constructions[${index}].inputs.${key}`, severity: "fatal" });
+      }
+    }
+  });
+  return issues;
+}
+
+/**
+ * Plan agreement on the candidate as written, reported alongside a structural
+ * failure so one repair round sees both kinds of error. Only finite numeric
+ * quantities are read: normalization never had a chance to run.
+ */
+function rawQuantityAgreementIssues(candidate: Record<string, unknown>, plan: TurnPlanV3): AgreementIssue[] {
+  const quantities = (Array.isArray(candidate.quantities) ? candidate.quantities : [])
+    .filter((quantity): quantity is Record<string, unknown> & { id: string } =>
+      isPlainRecord(quantity) && typeof quantity.id === "string" &&
+      typeof quantity.value === "number" && Number.isFinite(quantity.value));
+  return [
+    ...validateSceneQuantityAgreement(quantities, plan).map((issue) => ({
+      code: issue.code, message: issue.message, path: issue.path, severity: "fatal" as const,
+    })),
+    ...opticsMagnitudeLiteralIssues(candidate, plan),
+  ];
+}
+
 /** Candidate validation order is unchanged: normalize/prune, quantities, source, obligations, compile. */
 export function validateProductionSceneCandidate(input: {
   candidate: Record<string, unknown>; question: string; turnPlan: TurnPlanV3;
 }): SceneCandidateValidation<ValidatedSceneCandidate> {
   const { candidate, question, turnPlan: authoritativePlan } = input;
+  const structuralFailure = (issues: ValidationReport["issues"]): SceneCandidateValidation<ValidatedSceneCandidate> => ({
+    valid: false,
+    errors: [...issues, ...rawQuantityAgreementIssues(candidate, authoritativePlan)],
+  });
   let validated = validateSceneDocument(pruneDeadSceneEntities(candidate));
-  if (!validated.document) {
-    return {
-      valid: false,
-      errors: validated.report.issues,
-    };
-  }
+  if (!validated.document) return structuralFailure(validated.report.issues);
   const routeNormalized = normalizeClaimedClosedRouteGeometry(
     validated.document,
     authoritativePlan,
@@ -124,36 +241,29 @@ export function validateProductionSceneCandidate(input: {
     validated = validateSceneDocument(pruneDeadSceneEntities(
       constraintNormalized as unknown as Record<string, unknown>,
     ));
-    if (!validated.document) {
-      return {
-        valid: false,
-        errors: validated.report.issues,
-      };
-    }
+    if (!validated.document) return structuralFailure(validated.report.issues);
   }
   const annotationPruned = pruneUnverifiedSceneAnnotations(validated.document, authoritativePlan);
   if (annotationPruned !== validated.document) {
     validated = validateSceneDocument(pruneDeadSceneEntities(
       annotationPruned as unknown as Record<string, unknown>,
     ));
-    if (!validated.document) {
-      return {
-        valid: false,
-        errors: validated.report.issues,
-      };
-    }
+    if (!validated.document) return structuralFailure(validated.report.issues);
   }
   const agreementIssues = validateSceneQuantityAgreement(
     validated.document.quantities,
     authoritativePlan,
     displayedSceneQuantityTexts(validated.document),
   );
-  const authorityIssues = agreementIssues.map((issue) => ({
-    code: issue.code,
-    message: issue.message,
-    path: issue.path,
-    severity: "fatal" as const,
-  }));
+  const authorityIssues = [
+    ...agreementIssues.map((issue) => ({
+      code: issue.code,
+      message: issue.message,
+      path: issue.path,
+      severity: "fatal" as const,
+    })),
+    ...opticsMagnitudeLiteralIssues(validated.document, authoritativePlan),
+  ];
   const sourceIssues = validateMatrixSourceBinding(validated.document, question, authoritativePlan);
   const proofIssues = validateTurnPlanSceneProofs(validated.document, authoritativePlan);
   // A literal image point at a plan-derived distance from a refracting

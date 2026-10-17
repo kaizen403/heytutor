@@ -8,6 +8,7 @@ export * from "./compile/matrixSourceBinding";
 export * from "./compile/annotationMarks";
 export * from "./compile/sceneAnnotations";
 export { directedCurveInk, type DirectedCurveInk } from "./compile/directedCurve";
+export { resolveCartesianOpticsInputs, type CartesianOpticsInputs, type OpticalForm } from "./compile/geometricOpticsGeometry";
 export * from "./contracts/contractsV3";
 export * from "./ir/coordinateDistanceSource";
 export * from "./ir/pointLineSource";

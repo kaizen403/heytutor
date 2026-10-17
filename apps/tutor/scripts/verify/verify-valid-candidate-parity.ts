@@ -238,10 +238,11 @@ const fixtures: DeclineFixture[] = [
     input: { question: conicQuestion, turnPlan: planFor(conicQuestion, []), output: segmentOutput(conicQuestion, "major axis"), policy: strictPolicy } },
   { name: "picture demand, current", code: "picture_demand_unmet", preferred: false, drawn: "family", saved: true,
     input: { question: conicQuestion, turnPlan: planFor(conicQuestion, []), output: segmentOutput(conicQuestion, "major axis"), policy: currentPolicy } },
-  { name: "optics rule, strict", code: "planner_optics_on_archetype_stem", preferred: false, drawn: null, saved: true,
+  // A lens or mirror stem: a planner scene the optics proof does not accept is refused under its own code.
+  { name: "optics rule, strict", code: "planner_optics_unproven", preferred: false, drawn: null, saved: true,
     input: { question: opticsQuestion, turnPlan: planFor(opticsQuestion, [{ id: "u", value: 30, unit: "cm" }, { id: "f", value: 10, unit: "cm" }]),
       output: segmentOutput(opticsQuestion, "principal axis"), policy: strictPolicy } },
-  { name: "optics rule, current", code: "planner_optics_on_archetype_stem", preferred: false, drawn: null, saved: true,
+  { name: "optics rule, current", code: "planner_optics_unproven", preferred: false, drawn: null, saved: true,
     input: { question: opticsQuestion, turnPlan: planFor(opticsQuestion, [{ id: "u", value: 30, unit: "cm" }, { id: "f", value: 10, unit: "cm" }]),
       output: segmentOutput(opticsQuestion, "principal axis"), policy: currentPolicy } },
   { name: "source figure preferred and drawn", code: "source_figure_preferred", preferred: true, drawn: "archetype", saved: false,
@@ -292,7 +293,7 @@ for (const fixture of fixtures) {
   assert.equal(settled.reportedDrop, fixture.saved ? dropped : null, `${fixture.name}: the reported drop is the saved one`);
   covered.add(fixture.code);
 }
-for (const code of ["source_question_mismatch", "picture_demand_unmet", "planner_optics_on_archetype_stem", "source_figure_preferred",
+for (const code of ["source_question_mismatch", "picture_demand_unmet", "planner_optics_unproven", "source_figure_preferred",
   "source_policy_suppressed", "save_admission_refused", "fast_figure_preferred"]) {
   assert(covered.has(code), `the decline path ${code} needs a fixture`);
 }

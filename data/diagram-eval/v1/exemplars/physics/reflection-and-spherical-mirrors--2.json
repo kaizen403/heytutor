@@ -1,0 +1,60 @@
+{
+  "topic_id": "physics|16|reflection-and-spherical-mirrors",
+  "question": "A convex security mirror has a radius of curvature of 66 cm. A toy 20 cm tall is 22 cm in front of it on the axis. Find where the image forms and how tall it is, and draw the ray diagram.",
+  "figure_kind": "ray_optics",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {"mode": "scene", "reason": "ray diagram"},
+    "source": {
+      "question": "A convex security mirror has a radius of curvature of 66 cm. A toy 20 cm tall is 22 cm in front of it on the axis. Find where the image forms and how tall it is, and draw the ray diagram.",
+      "archetype": "spherical_mirror"
+    },
+    "quantities": [
+      {"id": "u", "symbol": "u", "value": 22, "unit": "cm"},
+      {"id": "f", "symbol": "f", "value": 33, "unit": "cm"},
+      {"id": "h", "symbol": "h", "value": 20, "unit": "cm"}
+    ],
+    "entities": [
+      {"id": "P", "kind": "point", "role": "pole", "label": "P"},
+      {"id": "A", "kind": "point"},
+      {"id": "ax", "kind": "line", "role": "principal axis"},
+      {"id": "M", "kind": "arc", "role": "convex mirror"},
+      {"id": "F", "kind": "point", "role": "focus", "label": "F"},
+      {"id": "C", "kind": "point", "role": "centre of curvature", "label": "C"},
+      {"id": "ob", "kind": "point", "role": "object foot"},
+      {"id": "ot", "kind": "point", "role": "object tip"},
+      {"id": "ib", "kind": "point", "role": "image foot", "label": "v=13.2 cm"},
+      {"id": "it", "kind": "point", "role": "image tip"},
+      {"id": "obj", "kind": "vector", "role": "object"},
+      {"id": "img", "kind": "vector", "role": "virtual image", "provenance": {"dashed": true}},
+      {"id": "r1", "kind": "polyline", "role": "parallel ray"},
+      {"id": "r2", "kind": "polyline", "role": "ray to the pole"}
+    ],
+    "constructions": [
+      {"id": "k0", "operator": "point", "inputs": {"x": 0, "y": 0}, "outputs": ["P"]},
+      {"id": "k1", "operator": "point", "inputs": {"x": -31, "y": 0}, "outputs": ["A"]},
+      {"id": "k2", "operator": "line", "inputs": {"start": "A", "end": "P"}, "outputs": ["ax"]},
+      {"id": "k3", "operator": "gaussian_image", "inputs": {"kind": "mirror", "center": "P", "axis": "ax", "objectDistance": "u", "focalLength": "f", "objectHeight": "h", "form": "diverging", "objectSide": "real", "displayScale": 1, "lengthUnit": "cm"}, "outputs": ["ob", "ot", "ib", "it"]},
+      {"id": "k4", "operator": "optical_focus", "inputs": {"kind": "mirror", "center": "P", "axis": "ax", "focalLength": "f", "form": "diverging", "displayScale": 1, "lengthUnit": "cm"}, "outputs": ["F"]},
+      {"id": "k5", "operator": "rotate", "inputs": {"point": "P", "center": "F", "angle": 180}, "outputs": ["C"]},
+      {"id": "k6", "operator": "spherical_surface", "inputs": {"vertex": "P", "axis": "ax", "halfHeight": 24, "signedRadius": 66}, "outputs": ["M"]},
+      {"id": "kd", "operator": "vector", "inputs": {"start": "ob", "end": "ot"}, "outputs": ["obj"]},
+      {"id": "ke", "operator": "vector", "inputs": {"start": "ib", "end": "it"}, "outputs": ["img"]},
+      {"id": "cRays", "operator": "principal_rays", "inputs": {"image": "it"}, "outputs": ["r1", "r2"]}
+    ],
+    "relations": [],
+    "assertions": [],
+    "annotations": [
+      {"id": "aHi", "kind": "label", "targetIds": ["it"], "text": "h_i=12 cm"}
+    ],
+    "requiredEntityIds": ["ax", "M", "P", "F", "C", "ob", "ot", "obj", "ib", "it", "img", "r1", "r2"],
+    "revealGroups": [
+      {"id": "setup", "entityIds": ["ax", "M", "P", "F", "C", "ob", "ot", "obj"], "dependsOn": [], "narrationCue": "mirror and object"},
+      {"id": "rays", "entityIds": ["r1", "r2", "ib", "it", "img"], "dependsOn": ["setup"], "narrationCue": "rays and image"}
+    ],
+    "teachingTimeline": [
+      {"id": "t_setup", "action": "reveal", "targetId": "setup", "dependsOn": [], "narrationIntent": "mirror and object"},
+      {"id": "t_rays", "action": "reveal", "targetId": "rays", "dependsOn": ["t_setup"], "narrationIntent": "rays and virtual image"}
+    ]
+  }
+}

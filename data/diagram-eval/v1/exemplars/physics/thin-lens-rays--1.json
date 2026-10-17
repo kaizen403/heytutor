@@ -82,7 +82,7 @@
    },
    {
     "id": "r1i",
-    "kind": "segment",
+    "kind": "vector",
     "role": "parallel ray"
    },
    {
@@ -130,8 +130,7 @@
     "operator": "point",
     "inputs": {
      "x": 0,
-     "y": 0,
-     "coordinateSpace": "world"
+     "y": 0
     },
     "outputs": [
      "O"
@@ -157,9 +156,9 @@
     "inputs": {
      "center": "O",
      "axis": "axis",
-     "radius1": 14,
-     "radius2": -14,
-     "halfHeight": 2.8
+     "radius1": 5,
+     "radius2": -5,
+     "halfHeight": 1.2
     },
     "outputs": [
      "lens"
@@ -170,8 +169,7 @@
     "operator": "point",
     "inputs": {
      "x": 2,
-     "y": 0,
-     "coordinateSpace": "world"
+     "y": 0
     },
     "outputs": [
      "F2"
@@ -183,8 +181,7 @@
     "inputs": {
      "point": "F2",
      "center": "O",
-     "angle": 180,
-     "angleUnit": "degrees"
+     "angle": 180
     },
     "outputs": [
      "F1"
@@ -196,8 +193,7 @@
     "inputs": {
      "point": "O",
      "center": "F1",
-     "angle": 180,
-     "angleUnit": "degrees"
+     "angle": 180
     },
     "outputs": [
      "C1"
@@ -209,8 +205,7 @@
     "inputs": {
      "point": "O",
      "center": "F2",
-     "angle": 180,
-     "angleUnit": "degrees"
+     "angle": 180
     },
     "outputs": [
      "C2"
@@ -221,8 +216,7 @@
     "operator": "point",
     "inputs": {
      "x": -3,
-     "y": 1.2,
-     "coordinateSpace": "world"
+     "y": 1
     },
     "outputs": [
      "ot"
@@ -274,7 +268,7 @@
    },
    {
     "id": "mR1i",
-    "operator": "segment",
+    "operator": "vector",
     "inputs": {
      "start": "ot",
      "end": "P1"

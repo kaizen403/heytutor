@@ -96,6 +96,7 @@ import { calculusAnchorResidual, evaluateCalculusConstruction, type CalculusAnch
 import { evaluateAcConstruction, type AcImpedanceDefinition, type AcPhasorDefinition } from "./acGeometry";
 import { evaluateWavesConstruction, type WaveDefinition, type WaveSampleDefinition } from "./wavesGeometry";
 import { evaluateGeometricOpticsConstruction, type OpticalImageDefinition, type OpticalFocusDefinition } from "./geometricOpticsGeometry";
+import { evaluatePrincipalRaysConstruction, type OpticalRayDefinition } from "./principalRaysGeometry";
 import { evaluateThermodynamicsConstruction, type ThermodynamicProcessDefinition, type ThermodynamicStateDefinition } from "./thermodynamicsGeometry";
 import { evaluateFieldConstruction, type ElectricFieldDefinition } from "./fieldGeometry";
 import { evaluateDipoleFieldConstruction, type DipoleFieldMetadata, type DipoleGeometry } from "./dipoleFieldGeometry";
@@ -186,6 +187,7 @@ type DerivedGeometryMetadata = {
   waveSample?: WaveSampleDefinition;
   opticalImage?: OpticalImageDefinition;
   opticalFocus?: OpticalFocusDefinition;
+  opticalRay?: OpticalRayDefinition;
   physicalProcess?: ThermodynamicProcessDefinition;
   thermodynamicState?: ThermodynamicStateDefinition;
 };
@@ -199,6 +201,8 @@ type Geometry =
       /** Per-path arrow semantics retained by operators that return several
        * independent curves. Undefined means every path is ordinary ink. */
       pathDirections?: boolean[];
+      /** Per-path construction ink (back-extensions, guides): drawn dashed. */
+      pathDashed?: boolean[];
     } & DerivedGeometryMetadata)
   | ({ kind: "circle"; center: Point; radius: number } & DerivedGeometryMetadata)
   | { kind: "arc"; center: Point; radius: number; startAngle: number; endAngle: number; count?: number }
@@ -1527,6 +1531,7 @@ function evaluateConstruction(
     case "wave_sample": return evaluateWavesConstruction(operator, inputs, constructionContext);
     case "gaussian_image":
     case "optical_focus": return evaluateGeometricOpticsConstruction(operator, inputs, constructionContext);
+    case "principal_rays": return evaluatePrincipalRaysConstruction(inputs, constructionContext);
     case "polytropic_process":
     case "isochoric_process":
     case "process_state": return evaluateThermodynamicsConstruction(operator, inputs, constructionContext);
@@ -2433,7 +2438,7 @@ function toPrimitives(entityId: string, entityKind: string, value: Geometry, gro
       groupId,
       kind: value.pathDirections?.[index] === true ? "vector" : "polyline",
       points: path.map(transform),
-      provenance,
+      provenance: value.pathDashed?.[index] === true ? { ...provenance, dashed: true, strokeRole: "construction" } : provenance,
     }));
     if (label) {
       primitives.push({
@@ -4833,7 +4838,7 @@ function linePoints(inputs: Record<string, unknown>, geometry: Map<string, Geome
 function distinctPathPoints(a:Point,b:Point,operator:string):[Point,Point]{if(distance(a,b)<EPSILON)throw new Error(`${operator} endpoints must be distinct`);return[a,b];}
 function assertPathMeetsOrigin(value:unknown,origin:Point,geometry:Map<string,Geometry>,name:string):void{if(typeof value!=="string")return;const resolved=geometry.get(value);if(resolved?.kind!=="path")throw new Error(`${name} must reference constructed path geometry`);const endpoints=[resolved.points[0],resolved.points.at(-1)].filter((point):point is Point=>Boolean(point));if(!endpoints.some((point)=>distance(point,origin)<EPSILON))throw new Error(`${name} geometry must meet the transform origin`);}
 function asPoint(value: Geometry | undefined): Point { if (!value) throw new Error("missing geometry"); if (value.kind === "point") return value.point; throw new Error("expected point geometry"); }
-function asLine(value: Geometry | undefined): [Point, Point] { if (value?.kind === "path" && value.points.length >= 2) return [value.points[0]!, value.points[1]!]; if (value?.kind === "multi_path" && value.paths[0]?.length >= 2) return [value.paths[0][0]!, value.paths[0][1]!]; if (value?.kind === "compound") return value.terminals; if (value?.kind === "dimension") return [value.a, value.b]; throw new Error("expected line geometry"); }
+function asLine(value: Geometry | undefined): [Point, Point] { if (value && "opticalRay" in value && value.opticalRay) return [value.opticalRay.hit, value.opticalRay.imageTip]; if (value?.kind === "path" && value.points.length >= 2) return [value.points[0]!, value.points[1]!]; if (value?.kind === "multi_path" && value.paths[0]?.length >= 2) return [value.paths[0][0]!, value.paths[0][1]!]; if (value?.kind === "compound") return value.terminals; if (value?.kind === "dimension") return [value.a, value.b]; throw new Error("expected line geometry"); }
 function acuteAngleBetween(firstLine: [Point, Point], secondLine: [Point, Point]): number {
   const firstDirection = normalize({ x: firstLine[1].x - firstLine[0].x, y: firstLine[1].y - firstLine[0].y });
   const secondDirection = normalize({ x: secondLine[1].x - secondLine[0].x, y: secondLine[1].y - secondLine[0].y });

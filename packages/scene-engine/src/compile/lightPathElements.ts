@@ -367,7 +367,7 @@ function thinLensChords(
   return chords;
 }
 
-/** Unit direction of an axis given as a drawn line or a literal direction. */
+/** Unit direction of an axis given as a drawn line or a literal direction ([x, y] or { x, y }). */
 function axisDirection(axis: unknown, geometry: Map<string, GeometryLike>): Point | null {
   let vector: Point | null = null;
   if (typeof axis === "string") {
@@ -375,11 +375,9 @@ function axisDirection(axis: unknown, geometry: Map<string, GeometryLike>): Poin
     if (isPath(value) && value.points.length >= 2 && value.points.every(finitePoint)) {
       vector = { x: value.points[1]!.x - value.points[0]!.x, y: value.points[1]!.y - value.points[0]!.y };
     }
-  } else if (Array.isArray(axis) && axis.length === 2 && axis.every((value) => typeof value === "number")) {
-    vector = { x: axis[0] as number, y: axis[1] as number };
-  }
+  } else vector = literalDirection(axis);
   const length = vector ? Math.hypot(vector.x, vector.y) : 0;
-  return vector && length > 0 ? { x: vector.x / length, y: vector.y / length } : null;
+  return vector && length > 0 && Number.isFinite(length) ? { x: vector.x / length, y: vector.y / length } : null;
 }
 
 interface ThinLens { chord: [Point, Point]; center: Point | null }
@@ -520,10 +518,14 @@ function literalDirection(value: unknown): Point | null {
   return null;
 }
 
-/** A point reference resolved from compiled geometry: a point id or a literal [x, y]. */
+/** A point reference resolved from compiled geometry: a point id, or a literal [x, y] or { x, y } as the compiler's resolvePoint reads it. */
 function geometryPoint(geometry: Map<string, GeometryLike>, reference: unknown): Point {
-  if (Array.isArray(reference) && typeof reference[0] === "number" && typeof reference[1] === "number") return { x: reference[0], y: reference[1] };
-  const value = typeof reference === "string" ? geometry.get(reference) as { kind: string; point?: Point } | undefined : undefined;
+  if (typeof reference !== "string") {
+    const literal = literalDirection(reference);
+    if (literal && finitePoint(literal)) return literal;
+    throw new Error(`no point for ${String(reference)}`);
+  }
+  const value = geometry.get(reference) as { kind: string; point?: Point } | undefined;
   if (value?.kind === "point" && finitePoint(value.point)) return value.point;
   throw new Error(`no point for ${String(reference)}`);
 }
@@ -682,8 +684,21 @@ export function validateAxisArrowsOnRays(input: AxisArrowInput): void {
   };
   const rays: Array<{ points: Point[]; value: PathValue }> = [];
   const candidates: Array<{ points: Point[]; value: PathValue; across: number[] }> = [];
+  // A traced principal ray is light the engine ran from the object tip through
+  // the element to the image tip; each stroke of it (incident, emergent, and
+  // the dashed extension or focus guide on the same line) is a ray here.
+  const tracedRayIds = new Set(constructions.flatMap((construction) =>
+    construction.operator === "principal_rays" && Array.isArray(construction.outputs) ? construction.outputs : []));
   for (const entity of document.entities ?? []) {
     const id = entity.id;
+    if (tracedRayIds.has(id)) {
+      const value = geometry.get(id) as { kind: string; paths?: unknown } | undefined;
+      if (!input.drawn(id) || value?.kind !== "multi_path" || !Array.isArray(value.paths)) continue;
+      for (const points of value.paths as Point[][]) {
+        if (Array.isArray(points) && points.length >= 2 && points.every(finitePoint)) rays.push({ points, value: { kind: "path", points } });
+      }
+      continue;
+    }
     const light = roles.lightPaths.has(id);
     if (!RAY_KINDS.has(entity.kind) && !light) continue;
     if (!input.drawn(id) || axisIds.has(id) || standingIds.has(id) || lensLines.has(id)) continue;

@@ -207,6 +207,7 @@ export const SCENE_CAPABILITY_MANIFEST = defineSceneCapabilityManifest({
     "wave_sample",
     "gaussian_image",
     "optical_focus",
+    "principal_rays",
     "polytropic_process",
     "isochoric_process",
     "process_state",

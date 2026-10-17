@@ -1039,7 +1039,9 @@ check("control: a line parallel to the incident ray through a glass ball's centr
 // A thin lens drawn as a lens_section, or as a closed outline about the centre plane of an
 // optical_focus of kind lens (the ray meets the outline's first edge by surface_contact, so the figure
 // has optics); a line parallel to the ray through the optical centre runs straight through.
-const thinLensParallelLine = (lens: "lens_section" | "optical_focus") => scene("Oblique parallel rays: the line through the optical centre parallel to the ray goes straight through", [
+// The optical_focus reads its centre and axis as ids or as literals, so the lens plane does too.
+type LensPlaneRefs = { center: unknown; axis: unknown };
+const thinLensParallelLine = (lens: "lens_section" | "optical_focus", refs: LensPlaneRefs = { center: "O", axis: "axis" }) => scene("Oblique parallel rays: the line through the optical centre parallel to the ray goes straight through", [
   { id: "axis_origin", kind: "point", role: "axis start" }, { id: "axis", kind: "line", role: "principal axis" },
   { id: "O", kind: "point", role: "optical centre", label: "O" }, { id: "lens", kind: "polygon", role: "convex lens" },
   { id: "S", kind: "point", role: "source" }, { id: "T", kind: "point", role: "point on the lens" },
@@ -1057,7 +1059,7 @@ const thinLensParallelLine = (lens: "lens_section" | "optical_focus") => scene("
   ] : [
     point("L0", 0, 1.2), point("L1", 0.25, 0), point("L2", 0, -1.2), point("L3", -0.25, 0), point("S", -3, 1.6),
     { id: "make_lens", operator: "polygon", inputs: { points: ["L3", "L0", "L1", "L2"] }, outputs: ["lens"] },
-    { id: "make_focus", operator: "optical_focus", inputs: { kind: "lens", center: "O", axis: "axis", focalLength: 2, displayScale: 1 }, outputs: ["F1", "F2"] },
+    { id: "make_focus", operator: "optical_focus", inputs: { kind: "lens", center: refs.center, axis: refs.axis, focalLength: 2, displayScale: 1 }, outputs: ["F1", "F2"] },
     { id: "make_oblique", operator: "surface_contact", inputs: { origin: "S", surface: "lens", direction: [3, -1], which: "nearest_forward" }, outputs: ["T", "oblique"] },
   ],
   { id: "make_onward", operator: "parallel_through", inputs: { through: "O", line: "oblique" }, outputs: ["onward"] },
@@ -1066,6 +1068,23 @@ const thinLensParallelLine = (lens: "lens_section" | "optical_focus") => scene("
 for (const lens of ["lens_section", "optical_focus"] as const) {
   check(`control: a line parallel to a ray through the centre of a thin lens drawn as ${lens === "lens_section" ? "a lens_section" : "an outline about an optical_focus centre plane"} runs straight through it (R6)`, () => {
     const { ok, primitives, fatal } = compile(thinLensParallelLine(lens));
+    if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
+    const outline = xs(stroke(primitives, "lens"));
+    const line = xs(stroke(primitives, "onward"));
+    return Math.min(...line) > Math.min(...outline) - 1.5 || Math.max(...line) < Math.max(...outline) + 1.5
+      ? "the line does not run through the lens" : null;
+  });
+}
+
+// The same outline lens with the optical_focus centre, axis, or both written as literals
+// rather than ids: the lens plane is the same, so the line still runs straight through.
+for (const [form, refs] of [
+  ["a literal centre", { center: { x: 0, y: 0 }, axis: "axis" }],
+  ["a literal axis", { center: "O", axis: { x: 1, y: 0 } }],
+  ["a literal centre and axis", { center: { x: 0, y: 0 }, axis: { x: 1, y: 0 } }],
+] as const) {
+  check(`control: a line parallel to a ray through the centre of an outline lens whose optical_focus has ${form} runs straight through it (R6)`, () => {
+    const { ok, primitives, fatal } = compile(thinLensParallelLine("optical_focus", refs));
     if (!ok) return `did not compile: ${JSON.stringify(fatalCodes(fatal))}`;
     const outline = xs(stroke(primitives, "lens"));
     const line = xs(stroke(primitives, "onward"));
