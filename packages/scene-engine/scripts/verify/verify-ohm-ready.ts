@@ -159,7 +159,7 @@ check("authority: rounded thirds agree, conflicting given withdrawn", () => {
   assert.equal(value(result, "I2"), 0.67, "2/3 A written 0.67 stands");
   assert.equal(value(result, "I3"), 1.33, "4/3 A written 1.33 stands");
   assert.equal(value(result, "I"), 2, "I_source = 10/(3 + 2) = 2 A");
-  assert.equal(result.plan.givens.length, 0, "5 Ω is not a stated resistance");
+  assert.ok(!result.plan.givens.some(quantity => quantity.id === "Rx" || quantity.unit === "Ω" && quantity.value === 5), "5 Ω is not a stated resistance; source recovery must not retain it");
 });
 
 check("authority: meter readings", () => {
@@ -249,9 +249,9 @@ check("an ask the reader cannot pin to one quantity binds nothing", () => {
 
 check("unbound wrong values of each recomputed class are withdrawn", () => {
   const question = "A 3 Ω resistor is connected in series with a parallel combination of 6 Ω and 3 Ω resistors across a 10 V battery. Find the current from the battery.";
-  // Recomputed: currents 2, 2/3, 4/3; voltages 10, 6, 4; resistances 3, 6, 3, 5; power 20, 12, 8/3, 16/3.
+  // Recomputed: currents 2, 2/3, 4/3; voltages 10, 6, 4; resistances 3, 6, 3, 5 plus the explicit parallel group 2; power 20, 12, 8/3, 16/3.
   const result = applyStatedCircuitAuthority(question, plan(question, [], [
-    q("Ia", "I_a", 1, "A"), q("Va", "V_a", 5, "V"), q("Ra", "R_a", 2, "Ω"), q("Pa", "P_a", 30, "W"),
+    q("Ia", "I_a", 1, "A"), q("Va", "V_a", 5, "V"), q("Ra", "R_a", 7, "Ω"), q("Pa", "P_a", 30, "W"),
     q("Ib", "I_b", 0.67, "A"), q("Vb", "V_b", 4, "V"), q("Rb", "R_b", 5, "Ω"), q("Pb", "P_b", 12, "W"),
   ]));
   assert.ok(result);

@@ -1,0 +1,562 @@
+{
+  "facts": [
+    {
+      "id": "fM1",
+      "kind": "given",
+      "statement": "incline block mass is 2 kg",
+      "evidence": {
+        "source": "question",
+        "start": 2,
+        "end": 12,
+        "quote": "2 kg block"
+      }
+    },
+    {
+      "id": "fM2",
+      "kind": "given",
+      "statement": "hanging mass is 3 kg",
+      "evidence": {
+        "source": "question",
+        "start": 137,
+        "end": 154,
+        "quote": "hanging 3 kg mass"
+      }
+    },
+    {
+      "id": "fTheta",
+      "kind": "given",
+      "statement": "incline angle is 30 degrees",
+      "evidence": {
+        "source": "question",
+        "start": 24,
+        "end": 41,
+        "quote": "30 degree incline"
+      }
+    },
+    {
+      "id": "fMu",
+      "kind": "given",
+      "statement": "kinetic friction coefficient is 0.20",
+      "evidence": {
+        "source": "question",
+        "start": 210,
+        "end": 246,
+        "quote": "kinetic friction coefficient is 0.20"
+      }
+    },
+    {
+      "id": "fG",
+      "kind": "given",
+      "statement": "gravitational acceleration is 10 m/s^2",
+      "evidence": {
+        "source": "question",
+        "start": 252,
+        "end": 264,
+        "quote": "g = 10 m/s^2"
+      }
+    },
+    {
+      "id": "fSliding",
+      "kind": "given",
+      "statement": "incline block currently sliding downslope",
+      "evidence": {
+        "source": "question",
+        "start": 177,
+        "end": 204,
+        "quote": "currently sliding downslope"
+      }
+    },
+    {
+      "id": "fRope",
+      "kind": "assumption",
+      "statement": "taut massless rope parallel to incline",
+      "evidence": {
+        "source": "question",
+        "start": 60,
+        "end": 102,
+        "quote": "taut massless rope parallel to the incline"
+      }
+    },
+    {
+      "id": "fPulley",
+      "kind": "assumption",
+      "statement": "frictionless pulley",
+      "evidence": {
+        "source": "question",
+        "start": 111,
+        "end": 130,
+        "quote": "frictionless pulley"
+      }
+    },
+    {
+      "id": "fReqA",
+      "kind": "requested",
+      "statement": "calculate acceleration direction and magnitude",
+      "evidence": {
+        "source": "question",
+        "start": 298,
+        "end": 348,
+        "quote": "calculate the acceleration direction and magnitude"
+      }
+    },
+    {
+      "id": "fReqT",
+      "kind": "requested",
+      "statement": "calculate the tension",
+      "evidence": {
+        "source": "question",
+        "start": 349,
+        "end": 364,
+        "quote": "and the tension"
+      }
+    }
+  ],
+  "entities": [
+    {
+      "id": "block",
+      "kind": "body",
+      "label": "2 kg block on incline",
+      "evidenceFactIds": [
+        "fM1",
+        "fTheta"
+      ]
+    },
+    {
+      "id": "mass",
+      "kind": "body",
+      "label": "hanging 3 kg mass",
+      "evidenceFactIds": [
+        "fM2"
+      ]
+    },
+    {
+      "id": "incline",
+      "kind": "region",
+      "label": "rough 30 degree incline",
+      "evidenceFactIds": [
+        "fTheta",
+        "fMu"
+      ]
+    },
+    {
+      "id": "rope",
+      "kind": "component",
+      "label": "taut massless rope",
+      "evidenceFactIds": [
+        "fRope"
+      ]
+    },
+    {
+      "id": "pulley",
+      "kind": "component",
+      "label": "frictionless pulley",
+      "evidenceFactIds": [
+        "fPulley"
+      ]
+    }
+  ],
+  "expressions": [
+    {
+      "id": "eAccel",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+        "fM1",
+        "fM2",
+        "fTheta",
+        "fMu",
+        "fG",
+        "fSliding"
+      ],
+      "root": {
+        "kind": "binary",
+        "operator": "/",
+        "left": {
+          "kind": "binary",
+          "operator": "-",
+          "left": {
+            "kind": "binary",
+            "operator": "-",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 3
+              },
+              "right": {
+                "kind": "number",
+                "value": 10
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 2
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 10
+                }
+              },
+              "right": {
+                "kind": "call",
+                "function": "sin",
+                "argument": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 30
+                    },
+                    "right": {
+                      "kind": "constant",
+                      "name": "pi"
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 180
+                  }
+                }
+              }
+            }
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 0.2
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 2
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 10
+              }
+            },
+            "right": {
+              "kind": "call",
+              "function": "cos",
+              "argument": {
+                "kind": "binary",
+                "operator": "/",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 30
+                  },
+                  "right": {
+                    "kind": "constant",
+                    "name": "pi"
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 180
+                }
+              }
+            }
+          }
+        },
+        "right": {
+          "kind": "binary",
+          "operator": "+",
+          "left": {
+            "kind": "number",
+            "value": 2
+          },
+          "right": {
+            "kind": "number",
+            "value": 3
+          }
+        }
+      }
+    },
+    {
+      "id": "eTension",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+        "fM1",
+        "fM2",
+        "fTheta",
+        "fMu",
+        "fG",
+        "fSliding"
+      ],
+      "root": {
+        "kind": "binary",
+        "operator": "*",
+        "left": {
+          "kind": "number",
+          "value": 3
+        },
+        "right": {
+          "kind": "binary",
+          "operator": "-",
+          "left": {
+            "kind": "number",
+            "value": 10
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "/",
+            "left": {
+              "kind": "binary",
+              "operator": "-",
+              "left": {
+                "kind": "binary",
+                "operator": "-",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "number",
+                    "value": 3
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 10
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 2
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 10
+                    }
+                  },
+                  "right": {
+                    "kind": "call",
+                    "function": "sin",
+                    "argument": {
+                      "kind": "binary",
+                      "operator": "/",
+                      "left": {
+                        "kind": "binary",
+                        "operator": "*",
+                        "left": {
+                          "kind": "number",
+                          "value": 30
+                        },
+                        "right": {
+                          "kind": "constant",
+                          "name": "pi"
+                        }
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 180
+                      }
+                    }
+                  }
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "number",
+                      "value": 0.2
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 10
+                  }
+                },
+                "right": {
+                  "kind": "call",
+                  "function": "cos",
+                  "argument": {
+                    "kind": "binary",
+                    "operator": "/",
+                    "left": {
+                      "kind": "binary",
+                      "operator": "*",
+                      "left": {
+                        "kind": "number",
+                        "value": 30
+                      },
+                      "right": {
+                        "kind": "constant",
+                        "name": "pi"
+                      }
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 180
+                    }
+                  }
+                }
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "number",
+                "value": 3
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "constraints": [
+    {
+      "id": "cRopeBlock",
+      "kind": "connected",
+      "entityIds": [
+        "rope",
+        "block"
+      ],
+      "evidenceFactIds": [
+        "fRope",
+        "fM1"
+      ]
+    },
+    {
+      "id": "cRopeMass",
+      "kind": "connected",
+      "entityIds": [
+        "rope",
+        "mass"
+      ],
+      "evidenceFactIds": [
+        "fRope",
+        "fM2"
+      ]
+    },
+    {
+      "id": "cBlockIncline",
+      "kind": "inside",
+      "entityIds": [
+        "block",
+        "incline"
+      ],
+      "evidenceFactIds": [
+        "fM1",
+        "fTheta"
+      ]
+    }
+  ],
+  "representationIntents": [
+    {
+      "id": "iFbdBlock",
+      "kind": "free_body",
+      "entityIds": [
+        "block"
+      ],
+      "evidenceFactIds": [
+        "fM1",
+        "fTheta",
+        "fMu",
+        "fSliding",
+        "fRope"
+      ]
+    },
+    {
+      "id": "iFbdMass",
+      "kind": "free_body",
+      "entityIds": [
+        "mass"
+      ],
+      "evidenceFactIds": [
+        "fM2",
+        "fRope"
+      ]
+    },
+    {
+      "id": "iSetup",
+      "kind": "apparatus",
+      "entityIds": [
+        "block",
+        "mass",
+        "incline",
+        "rope",
+        "pulley"
+      ],
+      "evidenceFactIds": [
+        "fM1",
+        "fM2",
+        "fTheta",
+        "fRope",
+        "fPulley"
+      ]
+    }
+  ],
+  "solveRequests": [
+    {
+      "id": "sAccel",
+      "kind": "evaluate",
+      "expressionId": "eAccel",
+      "resultBinding": {
+        "turnPlanQuantityId": "a",
+        "symbol": "a",
+        "unit": "m/s^2",
+        "evidenceFactIds": [
+          "fReqA"
+        ]
+      }
+    },
+    {
+      "id": "sTension",
+      "kind": "evaluate",
+      "expressionId": "eTension",
+      "resultBinding": {
+        "turnPlanQuantityId": "T",
+        "symbol": "T",
+        "unit": "N",
+        "evidenceFactIds": [
+          "fReqT"
+        ]
+      }
+    }
+  ],
+  "schemaVersion": "problem-ir/v1",
+  "id": "problem",
+  "question": "A 2 kg block on a rough 30 degree incline is connected by a taut massless rope parallel to the incline, over a frictionless pulley, to a hanging 3 kg mass. The incline block is currently sliding downslope. Its kinetic friction coefficient is 0.20; use g = 10 m/s^2. Draw the free-body diagrams and calculate the acceleration direction and magnitude and the tension while it is still sliding downslope. Explain the direction of friction."
+}

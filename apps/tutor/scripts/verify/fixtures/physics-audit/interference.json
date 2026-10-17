@@ -1,0 +1,203 @@
+{
+  "description": "Synthetic agent-authored question and captured planner output; no student data.",
+  "question": "In a Young double-slit experiment, the slit spacing is 0.50 mm, the screen is 2 m away and the wavelength is 500 nm. A transparent film of refractive index 1.50 and thickness 2 micrometres covers the upper slit. Using the paraxial approximation, draw the setup and find the fringe spacing, added phase difference and displacement of the tracked zero-order fringe. Is the original screen center bright or dark, and does the final unlabeled intensity pattern differ from before?",
+  "turnPlan": {
+    "givens": [
+      {
+        "id": "d",
+        "unit": "m",
+        "value": 0.0005,
+        "symbol": "d",
+        "provenance": "given",
+        "sourceText": "slit spacing 0.50 mm"
+      },
+      {
+        "id": "L",
+        "unit": "m",
+        "value": 2,
+        "symbol": "L",
+        "provenance": "given",
+        "sourceText": "screen is 2 m away"
+      },
+      {
+        "id": "lam",
+        "unit": "m",
+        "value": 5e-07,
+        "symbol": "λ",
+        "provenance": "given",
+        "sourceText": "wavelength 500 nm"
+      },
+      {
+        "id": "n",
+        "value": 1.5,
+        "symbol": "n",
+        "provenance": "given",
+        "sourceText": "refractive index 1.50"
+      },
+      {
+        "id": "t",
+        "unit": "m",
+        "value": 2e-06,
+        "symbol": "t",
+        "provenance": "given",
+        "sourceText": "thickness 2 micrometres"
+      }
+    ],
+    "lawIds": [
+      "young-double-slit-fringe-spacing",
+      "optical-path-length",
+      "phase-from-path-difference",
+      "paraxial-approximation",
+      "thin-film-optical-path-shift",
+      "interference-constructive-condition"
+    ],
+    "derived": [
+      {
+        "id": "beta",
+        "unit": "m",
+        "value": 0.002,
+        "symbol": "β",
+        "dependsOn": [
+          "lam",
+          "L",
+          "d"
+        ],
+        "provenance": "derived",
+        "sourceText": "β = λL/d = (5e-7)(2)/(5e-4) = 2e-3 m"
+      },
+      {
+        "id": "opl",
+        "unit": "m",
+        "value": 1e-06,
+        "symbol": "Δ",
+        "dependsOn": [
+          "n",
+          "t"
+        ],
+        "provenance": "derived",
+        "sourceText": "Δ = (n−1)t = (0.5)(2e-6) = 1e-6 m"
+      },
+      {
+        "id": "dphi",
+        "unit": "rad",
+        "value": 12.56637061435917,
+        "symbol": "Δφ",
+        "dependsOn": [
+          "n",
+          "t",
+          "lam"
+        ],
+        "provenance": "derived",
+        "sourceText": "Δφ = 2π(n−1)t/λ = 2π(1e-6)/(5e-7) = 4π ≈ 12.5663706144 rad"
+      },
+      {
+        "id": "y0",
+        "unit": "m",
+        "value": 0.004,
+        "symbol": "y₀",
+        "dependsOn": [
+          "L",
+          "n",
+          "t",
+          "d"
+        ],
+        "provenance": "derived",
+        "sourceText": "y₀ = L(n−1)t/d = (2)(1e-6)/(5e-4) = 4e-3 m, toward covered (upper) slit"
+      }
+    ],
+    "question": "In a Young double-slit experiment, the slit spacing is 0.50 mm, the screen is 2 m away and the wavelength is 500 nm. A transparent film of refractive index 1.50 and thickness 2 micrometres covers the upper slit. Using the paraxial approximation, draw the setup and find the fringe spacing, added phase difference and displacement of the tracked zero-order fringe. Is the original screen center bright or dark, and does the final unlabeled intensity pattern differ from before?",
+    "unknowns": [
+      {
+        "id": "beta",
+        "unit": "m",
+        "symbol": "β"
+      },
+      {
+        "id": "dphi",
+        "unit": "rad",
+        "symbol": "Δφ"
+      },
+      {
+        "id": "y0",
+        "unit": "m",
+        "symbol": "y₀"
+      }
+    ],
+    "assumptions": [
+      "Light is monochromatic and coherent; slits identical and narrow.",
+      "Film covers only the upper slit and introduces no absorption or tilt.",
+      "Paraxial (small-angle) approximation: sinθ ≈ tanθ ≈ y/L.",
+      "Wavelength 500 nm is the vacuum/air wavelength; refractive index of air ≈ 1.",
+      "Positive y direction is toward the upper (covered) slit."
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+      {
+        "id": "c1",
+        "claim": "Fringe spacing is unchanged by the film because β depends only on λ, L, d.",
+        "expected": "β = λL/d = 2 mm",
+        "relatedQuantityIds": [
+          "beta",
+          "lam",
+          "L",
+          "d"
+        ]
+      },
+      {
+        "id": "c2",
+        "claim": "Film adds optical path (n−1)t to the upper slit, giving constant added phase Δφ = 4π rad (two full wavelengths of path).",
+        "expected": "Δφ = 2π(n−1)t/λ = 4π ≈ 12.57 rad",
+        "relatedQuantityIds": [
+          "dphi",
+          "opl",
+          "n",
+          "t",
+          "lam"
+        ]
+      },
+      {
+        "id": "c3",
+        "claim": "Zero-order fringe shifts toward the covered (upper) slit by y₀ = L(n−1)t/d = 4 mm, i.e. 2 fringe spacings.",
+        "expected": "y₀ = L(n−1)t/d = 4 mm upward = 2β",
+        "relatedQuantityIds": [
+          "y0",
+          "beta",
+          "L",
+          "d",
+          "opl"
+        ]
+      },
+      {
+        "id": "c4",
+        "claim": "At the original screen center the path difference is now (n−1)t = 2λ, so the center is bright (constructive interference).",
+        "expected": "Δ = 2λ → bright",
+        "relatedQuantityIds": [
+          "opl",
+          "lam"
+        ]
+      },
+      {
+        "id": "c5",
+        "claim": "The unlabeled intensity pattern is identical to before: a uniform shift by exactly 2β maps the fringe set onto itself, so only tracked fringe labels change.",
+        "expected": "I(y) = I₀cos²(πd(y−y₀)/(λL)) with y₀ = 2β; same set of bright/dark positions",
+        "relatedQuantityIds": [
+          "y0",
+          "beta",
+          "dphi"
+        ]
+      },
+      {
+        "id": "c6",
+        "claim": "Paraxial geometry: slits separated by d along vertical y axis, screen at distance L, fringe position y ≈ L sinθ ≈ L(mλ − (n−1)t)/d.",
+        "expected": "y_m = (L/d)(mλ − (n−1)t)",
+        "relatedQuantityIds": [
+          "d",
+          "L",
+          "lam",
+          "opl"
+        ]
+      }
+    ],
+    "visualRequirement": "required"
+  }
+}

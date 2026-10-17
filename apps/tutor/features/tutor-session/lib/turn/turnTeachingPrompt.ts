@@ -44,6 +44,7 @@ import { isChemistryQuestion, type TurnPlanV3 } from "@heytutor/scene-engine";
 import { teachingPromptAddon } from "@/lib/account/userSettings";
 import { BOARD_WORK_ROWS_PER_PAGE } from "../../constants";
 import type { PausedLessonReason } from "./doubtTurn";
+import { sourceTeachingFacts } from "./sourceTeachingFacts";
 
 export interface TurnTeachingPromptInput {
   question: string;
@@ -175,7 +176,7 @@ function turnPlanPromptAddons(
   const assumptions = (turnPlan?.assumptions ?? []).filter((text) =>
     !/^(?:A verified illustration is required|Turn-plan model was unavailable|Mock mode does not solve|Removed \d+ (?:invalid planner dependency|directional sign))/.test(text),
   );
-  const turnPlanPromptAddon = turnPlan
+  const planPrompt = turnPlan
     ? `${solverVerified ? "AUTHORITATIVE TURN PLAN V3" : "TURN PLAN V3 (NOT INDEPENDENTLY CHECKED)"}
 ${solverVerified
   ? "Use these verified quantities and qualitative claims for the explanation. Do not replace them with independently guessed values or contradict them."
@@ -198,6 +199,7 @@ Never call them given. Say "suppose" or "take, for example" the first time each 
   : ""}`
     : "";
 
+  const turnPlanPromptAddon = [planPrompt, sourceTeachingFacts(question)].filter(Boolean).join("\n\n");
   const solverPromptAddon = solverProjection
     ? `INDEPENDENT SOLVER AUTHORITY V1
 Use exactly these solver-verified values and formulation inputs. Do not independently replace or contradict them.

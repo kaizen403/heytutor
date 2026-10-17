@@ -1,0 +1,182 @@
+{
+  "description": "Synthetic agent-authored question and captured planner output; no student data.",
+  "question": "A 2 kg block on a rough 30 degree incline is connected by a taut massless rope parallel to the incline, over a frictionless pulley, to a hanging 3 kg mass. The incline block is currently sliding downslope. Its kinetic friction coefficient is 0.20; use g = 10 m/s^2. Draw the free-body diagrams and calculate the acceleration direction and magnitude and the tension while it is still sliding downslope. Explain the direction of friction.",
+  "turnPlan": {
+    "givens": [
+      {
+        "id": "m1",
+        "unit": "kg",
+        "value": 2,
+        "symbol": "m1",
+        "provenance": "given",
+        "sourceText": "2 kg block on incline"
+      },
+      {
+        "id": "m2",
+        "unit": "kg",
+        "value": 3,
+        "symbol": "m2",
+        "provenance": "given",
+        "sourceText": "hanging 3 kg mass"
+      },
+      {
+        "id": "theta",
+        "unit": "deg",
+        "value": 30,
+        "symbol": "theta",
+        "provenance": "given",
+        "sourceText": "30 degree incline"
+      },
+      {
+        "id": "mu",
+        "value": 0.2,
+        "symbol": "mu_k",
+        "provenance": "given",
+        "sourceText": "kinetic friction coefficient 0.20"
+      },
+      {
+        "id": "g",
+        "unit": "m/s^2",
+        "value": 10,
+        "symbol": "g",
+        "provenance": "given",
+        "sourceText": "g = 10 m/s^2"
+      }
+    ],
+    "lawIds": [
+      "Newton's second law",
+      "kinetic friction f_k = mu_k N",
+      "constraint of inextensible rope over pulley (equal acceleration magnitude)"
+    ],
+    "derived": [
+      {
+        "id": "a",
+        "unit": "m/s^2",
+        "value": 3.307179676972449,
+        "symbol": "a",
+        "dependsOn": [
+          "m1",
+          "m2",
+          "g",
+          "theta",
+          "fk"
+        ],
+        "provenance": "derived",
+        "sourceText": "Solver-verified a = 3.3071796769724493 m/s^2",
+        "uncertainty": 0
+      },
+      {
+        "id": "T",
+        "unit": "N",
+        "value": 20.07846096908265,
+        "symbol": "T",
+        "dependsOn": [
+          "m2",
+          "g",
+          "a"
+        ],
+        "provenance": "derived",
+        "sourceText": "Solver-verified T = 20.078460969082652 N",
+        "uncertainty": 0
+      },
+      {
+        "id": "N",
+        "unit": "N",
+        "value": 17.32,
+        "symbol": "N",
+        "dependsOn": [
+          "m1",
+          "theta",
+          "g"
+        ],
+        "provenance": "derived",
+        "sourceText": "N = m1*g*cos(30) = 2*10*0.8660"
+      },
+      {
+        "id": "fk",
+        "unit": "N",
+        "value": 3.464,
+        "symbol": "f_k",
+        "dependsOn": [
+          "mu",
+          "N"
+        ],
+        "provenance": "derived",
+        "sourceText": "f_k = mu_k*N = 0.20*17.32"
+      }
+    ],
+    "question": "A 2 kg block on a rough 30 degree incline is connected by a taut massless rope parallel to the incline, over a frictionless pulley, to a hanging 3 kg mass. The incline block is currently sliding downslope. Its kinetic friction coefficient is 0.20; use g = 10 m/s^2. Draw the free-body diagrams and calculate the acceleration direction and magnitude and the tension while it is still sliding downslope. Explain the direction of friction.",
+    "unknowns": [
+      {
+        "id": "a",
+        "unit": "m/s^2",
+        "symbol": "a"
+      },
+      {
+        "id": "T",
+        "unit": "N",
+        "symbol": "T"
+      }
+    ],
+    "assumptions": [
+      "massless rope and frictionless pulley so tension is uniform",
+      "kinetic friction applies because block is sliding",
+      "positive direction taken up the incline for block / downward for hanging mass",
+      "g = 10 m/s^2 exactly"
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+      {
+        "id": "c1",
+        "claim": "Kinetic friction on the incline block acts up the slope, opposing its current downslope sliding.",
+        "expected": "friction opposes relative motion",
+        "relatedQuantityIds": [
+          "fk",
+          "mu",
+          "N"
+        ]
+      },
+      {
+        "id": "c2",
+        "claim": "The hanging mass accelerates downward and the incline block accelerates up the slope while it is still sliding downslope (decelerating).",
+        "expected": "a = +3.31 m/s^2 up-slope for block, downward for hanging mass",
+        "relatedQuantityIds": [
+          "a",
+          "m1",
+          "m2"
+        ]
+      },
+      {
+        "id": "c3",
+        "claim": "FBD block: weight m1*g down, normal N perpendicular to plane, tension T up-slope, kinetic friction f_k up-slope.",
+        "expected": "four forces on incline block",
+        "relatedQuantityIds": [
+          "m1",
+          "N",
+          "T",
+          "fk"
+        ]
+      },
+      {
+        "id": "c4",
+        "claim": "FBD hanging mass: weight m2*g down, tension T up.",
+        "expected": "two forces on hanging mass",
+        "relatedQuantityIds": [
+          "m2",
+          "T"
+        ]
+      },
+      {
+        "id": "c5",
+        "claim": "Equations: m2*g - T = m2*a; T - m1*g*sin30 - f_k = m1*a.",
+        "expected": "a=(m2*g-m1*g*sin30-mu_k*m1*g*cos30)/(m1+m2); T=m2*(g-a)",
+        "relatedQuantityIds": [
+          "a",
+          "T",
+          "fk"
+        ]
+      }
+    ],
+    "visualRequirement": "required"
+  }
+}

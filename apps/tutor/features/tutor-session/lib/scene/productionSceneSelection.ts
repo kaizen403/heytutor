@@ -8,6 +8,7 @@ import {
   pruneDeadSceneEntities, pruneUnverifiedSceneAnnotations, displayedSceneQuantityTexts,
   validateMatrixSourceBinding, validateSceneQuantityAgreement, validateSceneDocument,
   validateSphericalRefractionImagePlacements, validateTurnPlanSceneProofs, resolveDiagramFailureStatus,
+  projectileSourceIssues, coupledInclineSourceIssues,
   type FigureSource, type ProblemStructureView, type RenderScene, type SceneDocument,
   type TurnPlanV3, type ValidationReport,
 } from "@heytutor/scene-engine";
@@ -172,6 +173,8 @@ export function validateProductionSceneCandidate(input: {
     ...authorityIssues,
     ...proofIssues,
     ...refractionImageIssues,
+    ...projectileSourceIssues(question, validated.document).map((issue) => ({ ...issue, severity: "fatal" as const })),
+    ...coupledInclineSourceIssues(question, validated.document).map((issue) => ({ ...issue, severity: "fatal" as const })),
     ...compiledScene.report.issues,
     ...(missingReadableLabel ? [{
       code: "scene_without_readable_label",

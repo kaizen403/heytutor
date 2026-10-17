@@ -11,6 +11,8 @@
  * The grammar is small and closed. Every word between the first and last
  * resistance must belong to it; every stated resistance must be a leaf
  * exactly once; nesting is at most three levels and at most four resistors.
+ * Explicit branch declarations may span sentences: each named branch is a
+ * complete expression, bound once into the declared parallel group.
  * A phrase with two readings is not resolved by preference: it yields null.
  * That covers a list on either side of "with" ("X in parallel with Y and Z in
  * series", "X and Y in parallel with Z"), a second "in ... with" chained on
@@ -159,6 +161,69 @@ function parse(tokens: string[]): ResistorTree {
   return complete.values().next().value!;
 }
 
+/**
+ * Resolve explicitly enumerated branch declarations before the expression
+ * reader. Sentence boundaries are meaningful here: each declaration supplies
+ * one complete operand of the named parallel group. No nearest-reference or
+ * conjunction guessing is used, and every resistance must occur once.
+ */
+function readBranchDeclarations(stem: string): ResistorTree | null {
+  let count = 0;
+  const marked = stem.replace(OHM, () => ` #${count++} `).toLowerCase();
+  if (count < 2 || count > 4 || /[-+]\s*#/.test(marked)) return null;
+  const clauses = marked.split(/[.;]\s+/).map((part) => part.trim());
+  const header = clauses.shift() ?? "";
+  const group = /\b(two|three|2|3) parallel branches\s*[.]?$/.exec(header);
+  if (!group) return null;
+  const expected = group[1] === "two" || group[1] === "2" ? 2 : 3;
+  const branches: ResistorTree[] = [];
+  const names = new Set<string>();
+  // Ordered names bind to a branch exactly once; "the other" is only
+  // meaningful for a pair. Unparsed trailing declarations never disappear.
+  const ordinals: Record<string, number> = { one: 0, first: 0, second: 1, third: 2, other: 1 };
+  for (const clause of clauses) {
+    if (/^(?:draw|find|calculate|determine|explain|what)\b/.test(clause)) {
+      if (branches.length !== expected || /#\d|\b(?:connect(?:ed|ing)?|disconnect(?:ed|ing)?|short(?:ed|ing)?|open(?:ed|ing)?|switch(?:ed|ing)?|replac(?:e|ed|ing))\b/.test(clause)) return null;
+      continue;
+    }
+    const declaration = /^(?:the )?(one|first|second|third|other)(?: branch)? (?:contains|has|consists of) (.+?)[.]?$/.exec(clause);
+    if (!declaration) return null;
+    const name = declaration[1]!;
+    const index = ordinals[name]!;
+    if (index !== branches.length || names.has(name) || (name === "other" && expected !== 2)) return null;
+    names.add(name);
+    const words = declaration[2]!.match(/#\d|[a-z]+|[,.;?]/g) ?? [];
+    const tokens: string[] = [];
+    for (const word of words) {
+      if (word.startsWith("#") || KEPT.has(word)) tokens.push(word);
+      else if (!DROPPED.has(word)) return null;
+    }
+    branches.push(parse(tokens));
+  }
+  if (branches.length !== expected) return null;
+  const parallel = node("parallel", branches);
+  const prefix = header.slice(0, group.index).trim();
+  if (!/#\d/.test(prefix)) {
+    // A source can be connected directly across the declared branch group.
+    if (!/\b(?:across|to)\s*$/.test(prefix)) return null;
+    return parallel;
+  }
+  // A placeholder denotes the already-bound group, never an invented
+  // resistor. The ordinary expression grammar still proves its attachment.
+  const placeholder = count;
+  const first = prefix.indexOf("#");
+  const words = `${prefix.slice(first)} #${placeholder}`.match(/#\d|[a-z]+|[,.;?]/g) ?? [];
+  const tokens: string[] = [];
+  for (const word of words) {
+    if (word.startsWith("#") || KEPT.has(word)) tokens.push(word);
+    else if (!DROPPED.has(word)) return null;
+  }
+  const substitute = (tree: ResistorTree): ResistorTree => tree.kind === "leaf"
+    ? tree.index === placeholder ? parallel : tree
+    : node(tree.kind, tree.children.map(substitute));
+  return substitute(parse(tokens));
+}
+
 function depth(tree: ResistorTree): number {
   return tree.kind === "leaf" ? 0 : 1 + Math.max(...tree.children.map(depth));
 }
@@ -173,12 +238,14 @@ function leaves(tree: ResistorTree): number[] {
  * not at all, a phrase with two readings, deeper than three levels).
  */
 export function readResistorTree(stem: string): ResistorTree | null {
-  const clause = clauseTokens(stem);
-  if (!clause) return null;
   try {
-    const tree = parse(clause.tokens);
+    const declared = readBranchDeclarations(stem);
+    const clause = declared ? null : clauseTokens(stem);
+    if (!declared && !clause) return null;
+    const tree = declared ?? parse(clause!.tokens);
+    const count = [...stem.matchAll(OHM)].length;
     const used = leaves(tree).sort((a, b) => a - b);
-    if (tree.kind === "leaf" || depth(tree) > 3 || used.length !== clause.count || used.some((index, position) => index !== position)) return null;
+    if (tree.kind === "leaf" || depth(tree) > 3 || used.length !== count || used.some((index, position) => index !== position)) return null;
     return tree;
   } catch (error) {
     if (error instanceof Unreadable) return null;

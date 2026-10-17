@@ -1,0 +1,1295 @@
+{
+  "facts": [
+    {
+      "id": "fVs",
+      "kind": "given",
+      "statement": "ideal 18 V source",
+      "evidence": {
+        "source": "question",
+        "start": 3,
+        "end": 20,
+        "quote": "ideal 18 V source"
+      }
+    },
+    {
+      "id": "fR1",
+      "kind": "given",
+      "statement": "2 ohm resistor in series",
+      "evidence": {
+        "source": "question",
+        "start": 39,
+        "end": 63,
+        "quote": "2 ohm resistor in series"
+      }
+    },
+    {
+      "id": "fR2",
+      "kind": "given",
+      "statement": "6 ohm resistor in series branch",
+      "evidence": {
+        "source": "question",
+        "start": 112,
+        "end": 117,
+        "quote": "6 ohm"
+      }
+    },
+    {
+      "id": "fR3",
+      "kind": "given",
+      "statement": "3 ohm resistor in series branch",
+      "evidence": {
+        "source": "question",
+        "start": 122,
+        "end": 127,
+        "quote": "3 ohm"
+      }
+    },
+    {
+      "id": "fR4",
+      "kind": "given",
+      "statement": "18 ohm resistor in parallel branch",
+      "evidence": {
+        "source": "question",
+        "start": 171,
+        "end": 186,
+        "quote": "18 ohm resistor"
+      }
+    },
+    {
+      "id": "fReq",
+      "kind": "requested",
+      "statement": "find equivalent resistance",
+      "evidence": {
+        "source": "question",
+        "start": 206,
+        "end": 236,
+        "quote": "find the equivalent resistance"
+      }
+    },
+    {
+      "id": "fIt",
+      "kind": "requested",
+      "statement": "find total current",
+      "evidence": {
+        "source": "question",
+        "start": 238,
+        "end": 251,
+        "quote": "total current"
+      }
+    },
+    {
+      "id": "fIeach",
+      "kind": "requested",
+      "statement": "find current through each resistor",
+      "evidence": {
+        "source": "question",
+        "start": 256,
+        "end": 285,
+        "quote": "current through each resistor"
+      }
+    },
+    {
+      "id": "fVdrop",
+      "kind": "requested",
+      "statement": "explain voltage drops",
+      "evidence": {
+        "source": "question",
+        "start": 291,
+        "end": 316,
+        "quote": "explain the voltage drops"
+      }
+    },
+    {
+      "id": "fDraw",
+      "kind": "requested",
+      "statement": "draw the circuit",
+      "evidence": {
+        "source": "question",
+        "start": 188,
+        "end": 204,
+        "quote": "Draw the circuit"
+      }
+    }
+  ],
+  "entities": [
+    {
+      "id": "src",
+      "kind": "component",
+      "label": "18 V source",
+      "evidenceFactIds": [
+        "fVs"
+      ]
+    },
+    {
+      "id": "r1",
+      "kind": "component",
+      "label": "2 ohm resistor",
+      "evidenceFactIds": [
+        "fR1"
+      ]
+    },
+    {
+      "id": "r2",
+      "kind": "component",
+      "label": "6 ohm resistor",
+      "evidenceFactIds": [
+        "fR2"
+      ]
+    },
+    {
+      "id": "r3",
+      "kind": "component",
+      "label": "3 ohm resistor",
+      "evidenceFactIds": [
+        "fR3"
+      ]
+    },
+    {
+      "id": "r4",
+      "kind": "component",
+      "label": "18 ohm resistor",
+      "evidenceFactIds": [
+        "fR4"
+      ]
+    }
+  ],
+  "expressions": [
+    {
+      "id": "eReq",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+        "fR1",
+        "fR2",
+        "fR3",
+        "fR4"
+      ],
+      "root": {
+        "kind": "binary",
+        "operator": "+",
+        "left": {
+          "kind": "number",
+          "value": 2
+        },
+        "right": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "number",
+                "value": 6
+              },
+              "right": {
+                "kind": "number",
+                "value": 3
+              }
+            },
+            "right": {
+              "kind": "number",
+              "value": 18
+            }
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "+",
+            "left": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "number",
+                "value": 6
+              },
+              "right": {
+                "kind": "number",
+                "value": 3
+              }
+            },
+            "right": {
+              "kind": "number",
+              "value": 18
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "eIt",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+        "fVs",
+        "fR1",
+        "fR2",
+        "fR3",
+        "fR4"
+      ],
+      "root": {
+        "kind": "binary",
+        "operator": "/",
+        "left": {
+          "kind": "number",
+          "value": 18
+        },
+        "right": {
+          "kind": "binary",
+          "operator": "+",
+          "left": {
+            "kind": "number",
+            "value": 2
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "/",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "number",
+                  "value": 6
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 3
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 18
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "number",
+                  "value": 6
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 3
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 18
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "eI1",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+        "fVs",
+        "fR1",
+        "fR2",
+        "fR3",
+        "fR4"
+      ],
+      "root": {
+        "kind": "binary",
+        "operator": "/",
+        "left": {
+          "kind": "number",
+          "value": 18
+        },
+        "right": {
+          "kind": "binary",
+          "operator": "+",
+          "left": {
+            "kind": "number",
+            "value": 2
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "/",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "number",
+                  "value": 6
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 3
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 18
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "number",
+                  "value": 6
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 3
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 18
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "eVp",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+        "fVs",
+        "fR1",
+        "fR2",
+        "fR3",
+        "fR4"
+      ],
+      "root": {
+        "kind": "binary",
+        "operator": "-",
+        "left": {
+          "kind": "number",
+          "value": 18
+        },
+        "right": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+              "kind": "number",
+              "value": 2
+            },
+            "right": {
+              "kind": "number",
+              "value": 18
+            }
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "+",
+            "left": {
+              "kind": "number",
+              "value": 2
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "binary",
+                  "operator": "+",
+                  "left": {
+                    "kind": "number",
+                    "value": 6
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 18
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "binary",
+                  "operator": "+",
+                  "left": {
+                    "kind": "number",
+                    "value": 6
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 18
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "eI2",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+        "fVs",
+        "fR1",
+        "fR2",
+        "fR3",
+        "fR4"
+      ],
+      "root": {
+        "kind": "binary",
+        "operator": "/",
+        "left": {
+          "kind": "binary",
+          "operator": "-",
+          "left": {
+            "kind": "number",
+            "value": 18
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "/",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "number",
+                "value": 18
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "/",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "+",
+                    "left": {
+                      "kind": "number",
+                      "value": 6
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 3
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 18
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "+",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "+",
+                    "left": {
+                      "kind": "number",
+                      "value": 6
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 3
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 18
+                  }
+                }
+              }
+            }
+          }
+        },
+        "right": {
+          "kind": "binary",
+          "operator": "+",
+          "left": {
+            "kind": "number",
+            "value": 6
+          },
+          "right": {
+            "kind": "number",
+            "value": 3
+          }
+        }
+      }
+    },
+    {
+      "id": "eI3",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+        "fVs",
+        "fR1",
+        "fR2",
+        "fR3",
+        "fR4"
+      ],
+      "root": {
+        "kind": "binary",
+        "operator": "/",
+        "left": {
+          "kind": "binary",
+          "operator": "-",
+          "left": {
+            "kind": "number",
+            "value": 18
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "/",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "number",
+                "value": 18
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "/",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "+",
+                    "left": {
+                      "kind": "number",
+                      "value": 6
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 3
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 18
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "+",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "+",
+                    "left": {
+                      "kind": "number",
+                      "value": 6
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 3
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 18
+                  }
+                }
+              }
+            }
+          }
+        },
+        "right": {
+          "kind": "binary",
+          "operator": "+",
+          "left": {
+            "kind": "number",
+            "value": 6
+          },
+          "right": {
+            "kind": "number",
+            "value": 3
+          }
+        }
+      }
+    },
+    {
+      "id": "eI4",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+        "fVs",
+        "fR1",
+        "fR2",
+        "fR3",
+        "fR4"
+      ],
+      "root": {
+        "kind": "binary",
+        "operator": "/",
+        "left": {
+          "kind": "binary",
+          "operator": "-",
+          "left": {
+            "kind": "number",
+            "value": 18
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "/",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "number",
+                "value": 18
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "number",
+                "value": 2
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "/",
+                "left": {
+                  "kind": "binary",
+                  "operator": "*",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "+",
+                    "left": {
+                      "kind": "number",
+                      "value": 6
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 3
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 18
+                  }
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "+",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "+",
+                    "left": {
+                      "kind": "number",
+                      "value": 6
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 3
+                    }
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 18
+                  }
+                }
+              }
+            }
+          }
+        },
+        "right": {
+          "kind": "number",
+          "value": 18
+        }
+      }
+    },
+    {
+      "id": "eV1",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+        "fVs",
+        "fR1",
+        "fR2",
+        "fR3",
+        "fR4"
+      ],
+      "root": {
+        "kind": "binary",
+        "operator": "/",
+        "left": {
+          "kind": "binary",
+          "operator": "*",
+          "left": {
+            "kind": "number",
+            "value": 2
+          },
+          "right": {
+            "kind": "number",
+            "value": 18
+          }
+        },
+        "right": {
+          "kind": "binary",
+          "operator": "+",
+          "left": {
+            "kind": "number",
+            "value": 2
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "/",
+            "left": {
+              "kind": "binary",
+              "operator": "*",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "number",
+                  "value": 6
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 3
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 18
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "+",
+              "left": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "number",
+                  "value": 6
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 3
+                }
+              },
+              "right": {
+                "kind": "number",
+                "value": 18
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "eV2",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+        "fVs",
+        "fR1",
+        "fR2",
+        "fR3",
+        "fR4"
+      ],
+      "root": {
+        "kind": "binary",
+        "operator": "/",
+        "left": {
+          "kind": "binary",
+          "operator": "*",
+          "left": {
+            "kind": "number",
+            "value": 6
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "-",
+            "left": {
+              "kind": "number",
+              "value": 18
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 2
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 18
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "number",
+                  "value": 2
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "binary",
+                      "operator": "+",
+                      "left": {
+                        "kind": "number",
+                        "value": 6
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 3
+                      }
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 18
+                    }
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "+",
+                    "left": {
+                      "kind": "binary",
+                      "operator": "+",
+                      "left": {
+                        "kind": "number",
+                        "value": 6
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 3
+                      }
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 18
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "right": {
+          "kind": "binary",
+          "operator": "+",
+          "left": {
+            "kind": "number",
+            "value": 6
+          },
+          "right": {
+            "kind": "number",
+            "value": 3
+          }
+        }
+      }
+    },
+    {
+      "id": "eV3",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+        "fVs",
+        "fR1",
+        "fR2",
+        "fR3",
+        "fR4"
+      ],
+      "root": {
+        "kind": "binary",
+        "operator": "/",
+        "left": {
+          "kind": "binary",
+          "operator": "*",
+          "left": {
+            "kind": "number",
+            "value": 3
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "-",
+            "left": {
+              "kind": "number",
+              "value": 18
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "number",
+                  "value": 2
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 18
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "number",
+                  "value": 2
+                },
+                "right": {
+                  "kind": "binary",
+                  "operator": "/",
+                  "left": {
+                    "kind": "binary",
+                    "operator": "*",
+                    "left": {
+                      "kind": "binary",
+                      "operator": "+",
+                      "left": {
+                        "kind": "number",
+                        "value": 6
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 3
+                      }
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 18
+                    }
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "operator": "+",
+                    "left": {
+                      "kind": "binary",
+                      "operator": "+",
+                      "left": {
+                        "kind": "number",
+                        "value": 6
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 3
+                      }
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 18
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "right": {
+          "kind": "binary",
+          "operator": "+",
+          "left": {
+            "kind": "number",
+            "value": 6
+          },
+          "right": {
+            "kind": "number",
+            "value": 3
+          }
+        }
+      }
+    },
+    {
+      "id": "eV4",
+      "valueType": "scalar",
+      "evidenceFactIds": [
+        "fVs",
+        "fR1",
+        "fR2",
+        "fR3",
+        "fR4"
+      ],
+      "root": {
+        "kind": "binary",
+        "operator": "-",
+        "left": {
+          "kind": "number",
+          "value": 18
+        },
+        "right": {
+          "kind": "binary",
+          "operator": "/",
+          "left": {
+            "kind": "binary",
+            "operator": "*",
+            "left": {
+              "kind": "number",
+              "value": 2
+            },
+            "right": {
+              "kind": "number",
+              "value": 18
+            }
+          },
+          "right": {
+            "kind": "binary",
+            "operator": "+",
+            "left": {
+              "kind": "number",
+              "value": 2
+            },
+            "right": {
+              "kind": "binary",
+              "operator": "/",
+              "left": {
+                "kind": "binary",
+                "operator": "*",
+                "left": {
+                  "kind": "binary",
+                  "operator": "+",
+                  "left": {
+                    "kind": "number",
+                    "value": 6
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 18
+                }
+              },
+              "right": {
+                "kind": "binary",
+                "operator": "+",
+                "left": {
+                  "kind": "binary",
+                  "operator": "+",
+                  "left": {
+                    "kind": "number",
+                    "value": 6
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 3
+                  }
+                },
+                "right": {
+                  "kind": "number",
+                  "value": 18
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "constraints": [],
+  "representationIntents": [
+    {
+      "id": "iCircuit",
+      "kind": "network",
+      "entityIds": [
+        "src",
+        "r1",
+        "r2",
+        "r3",
+        "r4"
+      ],
+      "evidenceFactIds": [
+        "fDraw",
+        "fVs",
+        "fR1",
+        "fR2",
+        "fR3",
+        "fR4"
+      ]
+    }
+  ],
+  "solveRequests": [
+    {
+      "id": "sReq",
+      "kind": "evaluate",
+      "expressionId": "eReq",
+      "resultBinding": {
+        "turnPlanQuantityId": "Req",
+        "symbol": "R_eq",
+        "unit": "ohm",
+        "evidenceFactIds": [
+          "fReq"
+        ]
+      }
+    },
+    {
+      "id": "sIt",
+      "kind": "evaluate",
+      "expressionId": "eIt",
+      "resultBinding": {
+        "turnPlanQuantityId": "It",
+        "symbol": "I_total",
+        "unit": "A",
+        "evidenceFactIds": [
+          "fIt"
+        ]
+      }
+    },
+    {
+      "id": "sI1",
+      "kind": "evaluate",
+      "expressionId": "eI1",
+      "resultBinding": {
+        "turnPlanQuantityId": "I1",
+        "symbol": "I_R1",
+        "unit": "A",
+        "evidenceFactIds": [
+          "fIeach"
+        ]
+      }
+    },
+    {
+      "id": "sI2",
+      "kind": "evaluate",
+      "expressionId": "eI2",
+      "resultBinding": {
+        "turnPlanQuantityId": "I2",
+        "symbol": "I_R2",
+        "unit": "A",
+        "evidenceFactIds": [
+          "fIeach"
+        ]
+      }
+    },
+    {
+      "id": "sI3",
+      "kind": "evaluate",
+      "expressionId": "eI3",
+      "resultBinding": {
+        "turnPlanQuantityId": "I3",
+        "symbol": "I_R3",
+        "unit": "A",
+        "evidenceFactIds": [
+          "fIeach"
+        ]
+      }
+    },
+    {
+      "id": "sI4",
+      "kind": "evaluate",
+      "expressionId": "eI4",
+      "resultBinding": {
+        "turnPlanQuantityId": "I4",
+        "symbol": "I_R4",
+        "unit": "A",
+        "evidenceFactIds": [
+          "fIeach"
+        ]
+      }
+    },
+    {
+      "id": "sV1",
+      "kind": "evaluate",
+      "expressionId": "eV1",
+      "resultBinding": {
+        "turnPlanQuantityId": "V1",
+        "symbol": "V_R1",
+        "unit": "V",
+        "evidenceFactIds": [
+          "fVdrop"
+        ]
+      }
+    },
+    {
+      "id": "sV2",
+      "kind": "evaluate",
+      "expressionId": "eV2",
+      "resultBinding": {
+        "turnPlanQuantityId": "V2",
+        "symbol": "V_R2",
+        "unit": "V",
+        "evidenceFactIds": [
+          "fVdrop"
+        ]
+      }
+    },
+    {
+      "id": "sV3",
+      "kind": "evaluate",
+      "expressionId": "eV3",
+      "resultBinding": {
+        "turnPlanQuantityId": "V3",
+        "symbol": "V_R3",
+        "unit": "V",
+        "evidenceFactIds": [
+          "fVdrop"
+        ]
+      }
+    },
+    {
+      "id": "sV4",
+      "kind": "evaluate",
+      "expressionId": "eV4",
+      "resultBinding": {
+        "turnPlanQuantityId": "V4",
+        "symbol": "V_R4",
+        "unit": "V",
+        "evidenceFactIds": [
+          "fVdrop"
+        ]
+      }
+    }
+  ],
+  "schemaVersion": "problem-ir/v1",
+  "id": "problem",
+  "question": "An ideal 18 V source is connected to a 2 ohm resistor in series with two parallel branches. One branch contains 6 ohm and 3 ohm resistors in series; the other contains an 18 ohm resistor. Draw the circuit, find the equivalent resistance, total current and current through each resistor, and explain the voltage drops."
+}

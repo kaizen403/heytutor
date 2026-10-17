@@ -73,6 +73,16 @@ function isPhotoelectricStem(stem: string): boolean {
   return workFunctionEv(stem) !== null || photonEnergyEv(stem) !== null;
 }
 
+/** The emission energy diagram is shared by physics and atomic chemistry.
+ * This does not admit an emission picture for a request about orbital structure.
+ */
+export function isSharedPhotoelectricEmissionStem(question: string): boolean {
+  const stem = chemStem(question);
+  return isPhotoelectricStem(stem)
+    && /photoelectric|photoelectrons?|electron emission|emission of electrons/.test(stem)
+    && !/orbitals?|subshell|electron(?:ic)? configuration|covalent|coordination|electrolys/.test(stem);
+}
+
 function hydrogenicZ(stem: string): number | null {
   if (/\b(?:helium atom|neutral helium|li atom|lithium atom)\b/.test(stem)) return null;
   if (/li\s*\^?\(?\s*2\s*\+|li2\+/.test(stem)) return 3;

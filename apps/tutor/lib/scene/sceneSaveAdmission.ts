@@ -14,6 +14,8 @@
  */
 import {
   displayedSceneQuantityTexts,
+  projectileSourceIssues,
+  coupledInclineSourceIssues,
   RELATIVE_MOTION_SOURCE_MODEL,
   synthesizeFamilyScene,
   validateCoordinateDistanceSourceInputs,
@@ -136,6 +138,8 @@ export function sceneSaveAdmissionFailure(input: {
     }
   }
   const sourceInputIssues = [
+    ...projectileSourceIssues(question, document).map((issue) => ({ ...issue, severity: "fatal" as const })),
+    ...coupledInclineSourceIssues(question, document).map((issue) => ({ ...issue, severity: "fatal" as const })),
     ...validateCoordinateDistanceSourceInputs(document, question),
     ...validatePointLineSourceInputs(document, question),
     ...validateSectionPointSourceInputs(document, question),
