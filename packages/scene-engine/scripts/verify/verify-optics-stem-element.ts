@@ -143,6 +143,14 @@ for (const [question, expected] of ELEMENT_WORDINGS) check(`element wording ${qu
 // 4. Each veto has a case only it catches (main detects every one as a lens or mirror figure).
 check("mirror image of a figure, no mirror named", leaves("Draw the mirror image of triangle ABC in the y-axis."));
 check("mirror image of a figure with a mirror law hint", leaves("Draw the mirror image of triangle ABC in the y-axis.", ["mirror-image-reflection"]));
+// Greptile (c3ab6741e): a named geometry point such as C(1, 2) or F (3, 4) is not a focus position.
+for (const question of [
+  "A triangle has a vertex at C(1, 2). Draw its mirror image in the y-axis.",
+  "The quadrilateral has corners at A(0, 0), B(4, 0) and C(4, 3) and a vertex at F (3, 4). Draw its mirror image in the x-axis.",
+]) {
+  check(`geometry point is not a focus ${question.slice(0, 50)}`, leaves(question));
+  check(`geometry point is not a focus ${question.slice(0, 50)} with a mirror law hint`, leaves(question, ["mirror formula 1/v + 1/u = 1/f", "magnification m = -v/u"]));
+}
 check("image of a coordinate point in a line, mirror law hint", leaves("Find the image of the point (1, 2) in the line x + y = 5.", ["mirror-image-formula"]));
 check("reflection of a named point in a line, mirror law hint", leaves("Find the reflection of the point A(3, -2) in the line y = x.", ["mirror-image-formula"]));
 check("image of a coordinate point in a line, lens law hint", leaves("Find the image of the point (1, 2) in the line x + y = 5.", ["lens-formula"]));
