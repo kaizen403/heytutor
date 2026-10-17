@@ -142,4 +142,28 @@ refused("Solve the pair x+y=6 and 2x+2y=14 by the graphical method.", [["x", 4]]
 assert.deepEqual(validateLinearSourcePlan("Explain why prime numbers are infinite.", null), [], "Nonlinear/unrelated source stays outside this narrow native authority"); checks++;
 assert.deepEqual(validateLinearSourcePlan(question, null), [], "A missing plan is not a numeric contradiction"); checks++;
 assert.deepEqual(validateLinearSourcePlan(question, undefined), [], "Native whole-source proof can stand alone without a supplied plan"); checks++;
+// Exercise numeric admission at the source-row capacity without requiring
+// redundant boundary lines to pass the independent diagram layout stage.
+const capacityConstraints = (count: number, required = ["x>=0", "y>=0", "x+y<=8", "x<=5"]) => [...required, ...Array.from({ length: count - required.length }, (_, index) => `x<=${index + 6}`)];
+const capacitySource = (count: number, required?: string[], objective = "Z=3x+2y") => `Maximize ${objective} subject to ${capacityConstraints(count, required).join(",")}. Show the feasible region.`;
+for (const count of [15, 16]) {
+  const source = capacitySource(count);
+  const capacityDoc = buildLinearSourceDocument(source)!;
+  assert.ok(capacityDoc, `${count} original constraints remain source-supported`);
+  assert.equal((capacityDoc.constructions[0]!.inputs.constraints as string[]).length, count); checks += 2;
+  accepted(source, [], `${count} source rows permit a correct region-only plan`);
+  accepted(source, [["Z", 21]], `${count} source rows preserve the exact objective21`);
+  accepted(`${source} Find the optimal point.`, [["Z", 21], ["x", 5], ["y", 3]], `${count} source rows preserve the unique optimum(5,3)`);
+  refused(source, [["Z", 20]], `${count} source rows still reject a wrong objective scalar`);
+  refused(`${source} Find the optimal point.`, [["Z", 21], ["x", 4], ["y", 3]], `${count} source rows still reject a wrong optimal point`);
+  refused(`${source.replace("Z=3x+2y", "Z=x+y")} Find the optimal point.`, [["Z", 8], ["x", 5], ["y", 3]], `${count} source rows do not authorize an arbitrary point on an optimal edge`);
+  refused(`${capacitySource(count, ["x>=0", "y>=0", "x<=1"], "Z=x")} Find the optimal point.`, [["Z", 1], ["x", 1], ["y", 0]], `${count} source rows do not authorize an arbitrary point on an optimal ray`);
+  refused(`${source.replace("Z=3x+2y", "C=9")} Find the optimal point.`, [["C", 9], ["x", 5], ["y", 3]], `${count} source rows keep a constant objective nonunique on a two-dimensional region`);
+  accepted(`${capacitySource(count, ["x>=5", "x<=5", "y>=3", "y<=3"], "C=9")} Find the optimal point.`, [["C", 9], ["x", 5], ["y", 3]], `${count} source rows prove a constant objective unique on a singleton region`);
+  accepted(`${capacitySource(count, ["x>=0", "x<=5", "y>=3", "y<=3"])} Find the optimal point.`, [["Z", 21], ["x", 5], ["y", 3]], `${count} source rows prove the unique optimum on a one-dimensional region`);
+  refused(`${capacitySource(count, ["x>=0", "x<=5", "y>=3", "y<=3"], "Z=y")} Find the optimal point.`, [["Z", 3], ["x", 5], ["y", 3]], `${count} source rows keep a whole optimal segment nonunique`);
+  accepted(`${capacitySource(count, ["x>=0", "y>=0", "x+y<=8", "x<=5", "y<100"])} Find the optimal point.`, [["Z", 21], ["x", 5], ["y", 3]], `${count} source rows permit inactive strict rows at an attained unique optimum`);
+  refused(`${source.replace("x+y<=8", "x+y<8")} Find the optimal point.`, [["Z", 21], ["x", 5], ["y", 3]], `${count} source rows cannot turn a strict unattained limit into an optimal point`);
+}
+assert.throws(() => solveLinearFigure({ kind: "linear_feasible_region", constraints: capacityConstraints(17), objective: { expression: "3x+2y", sense: "max" } }), /at most 16 source constraints/, "The public solver still refuses 17 original source constraints"); checks++;
 console.log(`Linear source-plan numeric agreement gate passed: ${checks} checks`);

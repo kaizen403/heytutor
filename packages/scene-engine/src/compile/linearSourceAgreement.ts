@@ -1,6 +1,6 @@
 import { validateTurnPlanV3 } from "../contracts/contractsV3";
 import { readSourceLinearCoordinate } from "../ir/linearScalarBinding";
-import { addRational, multiplyRational, compareRational, deserializeRational, divideRational, serializeRational, exactRationalText, exactRationalToNumber, type ExactRational } from "../math/exactRational";
+import { addRational, subtractRational, multiplyRational, compareRational, deserializeRational, divideRational, serializeRational, exactRationalText, exactRationalToNumber, type ExactRational } from "../math/exactRational";
 import { parseLinearAffine, parseLinearConstraint, solveLinearFigure, type ExactAffine, type FeasibleRegionSolution } from "../math/linearRegion";
 import type { SceneIssue } from "../types";
 import { buildLinearSourceDocument, readLinearSourceLineName, readLinearSourceReferencePoints, readLinearSourceSetRoles, type LinearSourceIntervalRole } from "./linearRegionSource";
@@ -56,14 +56,31 @@ function requestsOptimalPoint(question: string): boolean {
 }
 
 /** A finite limit/optimal edge cannot authorize one arbitrary x/y point. */
-function requestedUniqueOptimum(question: string, constraints: string[], expression: string, solution: FeasibleRegionSolution, explicitRole = false): { x: ExactRational; y: ExactRational } | null {
+function requestedUniqueOptimum(question: string, solution: FeasibleRegionSolution, explicitRole = false): { x: ExactRational; y: ExactRational } | null {
   if (!explicitRole && !requestsOptimalPoint(question)) return null;
   if (/\b[xy][- ]coordinates?\b|\b(?:twice|square|negative|centimeters?|metres?|meters?)\b/i.test(question)) return null;
-  const extremum = solution.objective?.extremum;
-  if (!extremum || extremum.status !== "attained") return null;
-  const value = exactRationalText(extremum.value);
-  const face = solveLinearFigure({ kind: "linear_feasible_region", variables: ["x", "y"], constraints: [...constraints, `(${expression})<=(${value})`, `(${expression})>=(${value})`] });
-  return face.kind === "linear_feasible_region" && face.feasibility.feasible && face.dimension === 0 ? face.feasibility.witness : null;
+  const objective = solution.objective;
+  const extremum = objective?.extremum;
+  if (!objective || !extremum || extremum.status !== "attained") return null;
+  const a = deserializeRational(objective.coefficients.a), b = deserializeRational(objective.coefficients.b);
+  if (a.n === 0n && b.n === 0n) return solution.dimension === 0 ? extremum.point : null;
+  const x = deserializeRational(extremum.point.x), y = deserializeRational(extremum.point.y);
+  let blocksPositive = false, blocksNegative = false;
+  // Every equal-objective point is p + t*(b,-a). Only rows active at p
+  // can block arbitrarily small moves; inactive rows have positive slack.
+  // Both signs must be blocked to make p the sole optimum. A strict row
+  // cannot be active at an attained point.
+  for (const row of solution.constraints) {
+    if (row.strict) continue;
+    const rowA = deserializeRational(row.a), rowB = deserializeRational(row.b);
+    const lhs = addRational(multiplyRational(rowA, x), multiplyRational(rowB, y));
+    if (compareRational(lhs, deserializeRational(row.rhs)) !== 0) continue;
+    const direction = subtractRational(multiplyRational(rowA, b), multiplyRational(rowB, a));
+    blocksPositive ||= direction.n > 0n;
+    blocksNegative ||= direction.n < 0n;
+    if (blocksPositive && blocksNegative) return extremum.point;
+  }
+  return null;
 }
 
 function fatal(code: string, message: string, path?: string): SceneIssue {
@@ -210,8 +227,8 @@ export function validateLinearSourcePlan(question: string, rawPlan: unknown): Sc
       // native scalar role is the source's requested extremum, not an
       // invented supremum/infimum alias.
       const exact = extremum?.status === "attained" ? extremum.value : null;
-      const optimum = requestedUniqueOptimum(question, constraints, objective.expression, solution);
-      const explicitOptimum = requestedUniqueOptimum(question, constraints, objective.expression, solution, true);
+      const optimum = requestedUniqueOptimum(question, solution);
+      const explicitOptimum = requestedUniqueOptimum(question, solution, true);
       const references = readLinearSourceReferencePoints(question, ["x", "y"]).points;
       const semanticSense = (symbol: string): "max" | "min" | null => /^(?:maximum|max)$/i.test(symbol) ? "max" : /^(?:minimum|min)$/i.test(symbol) ? "min" : null;
       const sourceRole = (symbol: string): NumericRole | null => {
