@@ -127,7 +127,11 @@ function multiplePhotoelectricSurfaces(question: string): boolean {
   }
   const generic = [...body.matchAll(/\b(?:metal|surface)s?\s+([a-z])(?:\s*(?:,|and|or)\s*([a-z]))?\b/gi)];
   for (const match of generic) {
-    for (const label of match.slice(1)) if (label) identities.add(`generic:${label.toUpperCase()}`);
+    for (const label of match.slice(1)) {
+      if (!label) continue;
+      const element = resolveElement(label);
+      identities.add(element && isMetal(element) ? `element:${element.symbol}` : `generic:${label.toUpperCase()}`);
+    }
   }
   for (const token of body.matchAll(/\b[A-Za-z]+\b/g)) {
     const at = token.index!;
@@ -136,12 +140,14 @@ function multiplePhotoelectricSurfaces(question: string): boolean {
     if (!element || !isMetal(element)) continue;
     const before = body.slice(0, at);
     const after = body.slice(at + token[0].length);
+    const prefixedOwner = /\b(?:for|in(?:\s+the\s+case\s+of)?)\s+(?:the\s+)?$/i.test(before)
+      && /^[\s,:;]*(?:the\s+)?work functions?\b/i.test(after);
     const owner = /\b(?:work functions?\s+(?:of|for)|that of)\s+(?:(?:the\s+)?[A-Za-z]+\s*(?:,|and|or)\s*)*(?:the\s+)?$/i.test(before)
       || /^(?:['’]s)?(?:\s*(?:,|and|or)\s+[A-Za-z]+)*\s+(?:(?:has|have|with|of)\s+(?:a\s+)?)?work functions?\b/i.test(after);
     const target = /\b(?:(?:falls?|incident)\s+on|illuminates?)\s+(?:the\s+)?$/i.test(before)
       || /^\s+(?:is|was)\s+illuminated\b/i.test(after);
     const material = /\b(?:metal|surface)\s+$/i.test(before) || /^\s+(?:metal|surface)\b/i.test(after);
-    if (owner || target || material) identities.add(`element:${element.symbol}`);
+    if (owner || prefixedOwner || target || material) identities.add(`element:${element.symbol}`);
   }
   return identities.size > 1;
 }
