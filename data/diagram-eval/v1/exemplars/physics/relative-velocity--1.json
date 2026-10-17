@@ -1,0 +1,366 @@
+{
+  "topic_id": "physics|2|relative-velocity",
+  "question": "Car A travels due east at 9 m/s and car B travels due north at 12 m/s on flat ground. Find the magnitude and direction of the velocity of A relative to B.",
+  "figure_kind": "vectors_fbd",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "velocity of one car relative to another"
+    },
+    "source": {
+      "question": "Car A travels due east at 9 m/s and car B travels due north at 12 m/s on flat ground. Find the magnitude and direction of the velocity of A relative to B."
+    },
+    "quantities": [
+      {
+        "id": "vA",
+        "symbol": "vA",
+        "value": 9,
+        "unit": "m/s"
+      },
+      {
+        "id": "vB",
+        "symbol": "vB",
+        "value": 12,
+        "unit": "m/s"
+      }
+    ],
+    "entities": [
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "tail of both car velocities",
+        "label": "O"
+      },
+      {
+        "id": "v_A",
+        "kind": "vector",
+        "role": "car A, due east"
+      },
+      {
+        "id": "v_B",
+        "kind": "vector",
+        "role": "car B, due north"
+      },
+      {
+        "id": "v_AB",
+        "kind": "vector",
+        "role": "A relative to B"
+      },
+      {
+        "id": "TA",
+        "kind": "point",
+        "role": "tip of vA",
+        "label": "A: 9 m/s"
+      },
+      {
+        "id": "TB",
+        "kind": "point",
+        "role": "tip of vB",
+        "label": "B: 12 m/s"
+      },
+      {
+        "id": "C",
+        "kind": "point",
+        "role": "tip of vA - vB"
+      },
+      {
+        "id": "minus_B",
+        "kind": "vector",
+        "role": "minus vB at the tip of vA",
+        "label": "-vB"
+      },
+      {
+        "id": "phi",
+        "kind": "angle_mark",
+        "role": "direction south of east",
+        "label": "φ"
+      },
+      {
+        "id": "N0",
+        "kind": "point",
+        "role": "compass centre"
+      },
+      {
+        "id": "N1",
+        "kind": "point",
+        "role": "compass north"
+      },
+      {
+        "id": "E1",
+        "kind": "point",
+        "role": "compass east"
+      },
+      {
+        "id": "north",
+        "kind": "segment",
+        "role": "north",
+        "label": "N"
+      },
+      {
+        "id": "east",
+        "kind": "segment",
+        "role": "east",
+        "label": "E"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "c_O",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "c_rel",
+        "operator": "relative_velocity",
+        "inputs": {
+          "velocityA": [
+            "vA",
+            0
+          ],
+          "velocityB": [
+            0,
+            "vB"
+          ],
+          "units": {
+            "velocity": "m/s"
+          },
+          "origin": "O",
+          "displayScale": 15
+        },
+        "outputs": [
+          "v_A",
+          "v_B",
+          "v_AB"
+        ]
+      },
+      {
+        "id": "c_TA",
+        "operator": "point",
+        "inputs": {
+          "x": 9,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "TA"
+        ]
+      },
+      {
+        "id": "c_TB",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 12,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "TB"
+        ]
+      },
+      {
+        "id": "c_C",
+        "operator": "point",
+        "inputs": {
+          "x": 9,
+          "y": -12,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "C"
+        ]
+      },
+      {
+        "id": "c_minus_B",
+        "operator": "vector",
+        "inputs": {
+          "start": "TA",
+          "end": "C"
+        },
+        "outputs": [
+          "minus_B"
+        ]
+      },
+      {
+        "id": "c_phi",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "O",
+          "a": "C",
+          "b": "TA",
+          "radius": 3
+        },
+        "outputs": [
+          "phi"
+        ]
+      },
+      {
+        "id": "c_N0",
+        "operator": "point",
+        "inputs": {
+          "x": -9,
+          "y": 9,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "N0"
+        ]
+      },
+      {
+        "id": "c_N1",
+        "operator": "point",
+        "inputs": {
+          "x": -9,
+          "y": 13,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "N1"
+        ]
+      },
+      {
+        "id": "c_E1",
+        "operator": "point",
+        "inputs": {
+          "x": -5,
+          "y": 9,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "E1"
+        ]
+      },
+      {
+        "id": "c_north",
+        "operator": "segment",
+        "inputs": {
+          "start": "N0",
+          "end": "N1"
+        },
+        "outputs": [
+          "north"
+        ]
+      },
+      {
+        "id": "c_east",
+        "operator": "segment",
+        "inputs": {
+          "start": "N0",
+          "end": "E1"
+        },
+        "outputs": [
+          "east"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "minus_B_antiparallel",
+        "predicate": "parallel",
+        "entities": [
+          "minus_B",
+          "v_B"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "A_east",
+        "predicate": "parallel",
+        "entities": [
+          "v_A",
+          "east"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "B_north",
+        "predicate": "parallel",
+        "entities": [
+          "v_B",
+          "north"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "O",
+      "v_A",
+      "v_B",
+      "v_AB",
+      "TA",
+      "TB",
+      "C",
+      "minus_B",
+      "phi",
+      "N0",
+      "N1",
+      "E1",
+      "north",
+      "east"
+    ],
+    "revealGroups": [
+      {
+        "id": "frame",
+        "entityIds": [
+          "N0",
+          "N1",
+          "E1",
+          "north",
+          "east",
+          "O",
+          "v_A",
+          "TA",
+          "v_B",
+          "TB"
+        ],
+        "dependsOn": [],
+        "narrationCue": "A moves east, B moves north"
+      },
+      {
+        "id": "subtract",
+        "entityIds": [
+          "C",
+          "minus_B",
+          "v_AB",
+          "phi"
+        ],
+        "dependsOn": [
+          "frame"
+        ],
+        "narrationCue": "vA plus (-vB) gives A relative to B, south of east at φ"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_frame",
+        "action": "reveal",
+        "targetId": "frame",
+        "dependsOn": [],
+        "narrationIntent": "A moves east, B moves north"
+      },
+      {
+        "id": "reveal_subtract",
+        "action": "reveal",
+        "targetId": "subtract",
+        "dependsOn": [
+          "reveal_frame"
+        ],
+        "narrationIntent": "vA plus (-vB) gives A relative to B, south of east at φ"
+      }
+    ]
+  },
+  "engineCommit": "cf900d35e",
+  "validatedOn": "2026-10-18"
+}
