@@ -66,7 +66,8 @@ export function pageHasExportableAudio(turns: readonly StoredTurn[]): boolean {
  * `video6` drops files that omitted completed verified-figure marks or page resets.
  * `video7` drops DSA files that stopped on the first worked-example frame.
  * `video8` drops truncated DSA files whose short opening exhausted the drawing tail.
- * `video9` and `video10` are reserved by queued board timing and pitch fixes.
+ * `video9` is reserved by the YouTube board-timing fixes.
+ * `video10` frees pitched 1.25x downloads from either prior release.
  * `video11` keeps transient explanation pointing on the recorded speech clock.
  */
 export const LECTURE_PAGE_CACHE_REVISION = "video11";

@@ -4,19 +4,25 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import ts from "typescript";
 import { LECTURE_PAGE_CACHE_REVISION } from "../../lib/lecture-export/canExportLectureMp4";
+import { LECTURE_EXPORT_PLAYBACK_RATE } from "../../lib/lecture-export/lectureExportSpeed";
 
-async function main() {
+async function verifyUpgrade(fromVersion: number) {
   const current = Number(LECTURE_PAGE_CACHE_REVISION.slice("video".length));
-  const prefix = "revision-gate:1:@1.25@video";
+  const prefix = `revision-gate:1:@${LECTURE_EXPORT_PLAYBACK_RATE}@video`;
+  const oldRatePrefix = "revision-gate:1:@1.25@video";
   const retained = { blob: new Blob(["current export"]), noVoice: false, missingAudioCues: 0, mimeType: "video/mp4", extension: "mp4" };
   const records = new Map<IDBValidKey, unknown>([
+    [oldRatePrefix + 8, { ...retained, blob: new Blob(["old pitched mp4"]) }],
+    [oldRatePrefix + "8.webm", { ...retained, blob: new Blob(["old pitched webm"]) }],
+    [oldRatePrefix + 9, { ...retained, blob: new Blob(["pitched YouTube mp4"]) }],
+    [oldRatePrefix + "9.webm", { ...retained, blob: new Blob(["pitched YouTube webm"]) }],
     [prefix + (current - 1), { ...retained, blob: new Blob(["old mp4"]) }],
     [prefix + (current - 2) + ".webm", { ...retained, blob: new Blob(["old webm"]) }],
     [prefix + current, retained],
     [prefix + (current + 1), retained],
     ["unrelated-key", retained],
   ]);
-  let version = 1;
+  let version = fromVersion; // Released main (8) or the pending YouTube fixes (9).
   let upgrades = 0;
   let pendingUpgradeRequests = 0;
   let finishOpen = () => {};
@@ -63,11 +69,19 @@ async function main() {
   new Function("require", "module", "exports", "indexedDB", js)(require, cacheModule, cacheModule.exports, indexedDb);
   assert.equal(await cacheModule.exports.getCachedLectureExport(prefix + current), retained, "The current cached video remains usable.");
   assert.equal(upgrades, 1, "Opening an old cache triggers the revision upgrade.");
+  assert(!records.has(oldRatePrefix + 8), "The old 1.25x video8 MP4 blob is freed after the rate change.");
+  assert(!records.has(oldRatePrefix + "8.webm"), "The old 1.25x video8 WebM blob is freed too.");
+  assert(!records.has(oldRatePrefix + 9), "The pending YouTube 1.25x video9 MP4 blob is freed too.");
+  assert(!records.has(oldRatePrefix + "9.webm"), "The pending YouTube 1.25x video9 WebM blob is freed too.");
   assert(!records.has(prefix + (current - 1)), "Old MP4 blobs are removed, not only ignored by new cache keys.");
   assert(!records.has(prefix + (current - 2) + ".webm"), "Old WebM blobs are removed too.");
   assert(records.has(prefix + current));
   assert(records.has(prefix + (current + 1)), "A future revision is never deleted by an older client.");
   assert(records.has("unrelated-key"), "Unrecognized keys are preserved.");
   console.log("verify-lecture-cache-revisions: old IndexedDB revisions pruned on upgrade; current/future/unknown retained");
+}
+async function main() {
+  await verifyUpgrade(8);
+  await verifyUpgrade(9);
 }
 void main().catch((error) => { console.error(error); process.exitCode = 1; });
