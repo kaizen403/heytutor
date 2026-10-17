@@ -109,6 +109,7 @@ jobs:
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-live-speech-pause.ts
           pnpm --filter @heytutor/tutor verify:lesson-qa-2
           pnpm --filter @heytutor/tutor verify:lesson-qa-3
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-two-sum-grounding.ts
       - name: Live diagram picker regressions (no model calls)
         run: |
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-live-diagram-picker.ts
