@@ -96,6 +96,7 @@ import { useCommandExecution } from "./hooks/useCommandExecution";
 import { useCancelControl } from "./hooks/useCancelControl";
 import { useTurnLifecycle } from "./hooks/useTurnLifecycle";
 import type { SpeechStartupStatus } from "./hooks/turn/types";
+import { speechRecoveryStatus } from "./lib/turn/speechRecoveryUi";
 import { useBoardLayout } from "./hooks/useBoardLayout";
 import { useBoardSession } from "./hooks/useBoardSession";
 import { useAdaptiveDrawSpeed } from "./hooks/useAdaptiveDrawSpeed";
@@ -1686,6 +1687,17 @@ export function TutorSessionShell({
     return () => onExportApi?.(null);
   }, [onExportApi]);
 
+  const audioRecovery = speechRecoveryStatus(speechStartupStatus, {
+    phase,
+    // Phase/status state drive renders; this identity check only rejects a stale callback.
+    // eslint-disable-next-line react-hooks/refs
+    turnGeneration: turnGenerationRef.current,
+    muted: mutePlayback || !settings.narrationEnabled,
+    rewindActive,
+    isReplaying,
+  });
+  const showPendingOrRecovery = !rewindActive && (waitingToTeach || audioRecovery !== null);
+
   if (isHeadless) {
     return (
       <div
@@ -1709,11 +1721,14 @@ export function TutorSessionShell({
           pencilThickness={settings.pencilThickness}
           markerStunts={settings.markerStunts}
         />
-        {waitingToTeach && (
+        {showPendingOrRecovery && (
           <ThinkingOverlay
             ink={pendingInk}
             paused={isPaused}
             onResume={resumeTurn}
+            onEnableAudio={!isPaused ? audioRecovery?.enableAudio : null}
+            preserveBoard={!waitingToTeach}
+            muted={mutePlayback || !settings.narrationEnabled}
             onBoardAt={
               liveTurnKind === "lesson"
                 ? null
@@ -2234,16 +2249,14 @@ export function TutorSessionShell({
 
                     {/* A rewound lecture is the past: don't cover the board they
                 are actually watching with the pending clicker. */}
-                    {waitingToTeach && !rewindActive && (
+                    {showPendingOrRecovery && (
                       <ThinkingOverlay
                         ink={pendingInk}
                         paused={isPaused}
                         onResume={resumeTurn}
-                        onEnableAudio={
-                  !isPaused && !mutePlayback
-                    ? speechStartupStatus?.enableAudio
-                    : null
-                }
+                        onEnableAudio={!isPaused ? audioRecovery?.enableAudio : null}
+                        preserveBoard={!waitingToTeach}
+                        muted={mutePlayback || !settings.narrationEnabled}
                         onBoardAt={
                           liveTurnKind === "lesson"
                             ? null

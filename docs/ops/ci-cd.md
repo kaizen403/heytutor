@@ -116,9 +116,13 @@ a separately reviewed maintenance plan.
 Activation atomically replaces `/opt/heytutor-current`, writes the service to
 use that link, then restarts. Its per-release `runtime.env` overrides stale
 Sentry environment/release values from the shared file. The readiness gate
-requires `/api/health` to return the requested SHA, a working root page, and all
-static assets referenced by that page. Failed activation restores the previous
-link and exact unit, then restarts it. This also supports the first transition
+requires `/api/health` to return the requested SHA, the existing anonymous
+`/?embed=1` route to render the actual tutor shell, and all static assets referenced
+by that page. It rejects redirects and requires the embed shell marker, so a
+working login page cannot satisfy tutor readiness. The probe uses no session
+credentials, submits no question and does not weaken authentication. This checks
+server-rendered shell/asset readiness, not a paid lesson or client hydration.
+Failed activation restores the previous link and exact unit, then restarts it. This also supports the first transition
 from a unit pointing directly at `/opt/heytutor`, and a fresh installation with
 no previous unit. A lock prevents concurrent deployments. No schema migration
 runs at service startup.

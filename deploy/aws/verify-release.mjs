@@ -8,13 +8,14 @@ export async function verifyArtifacts(root) {
   if (!build) throw new Error('Missing build identity');
   for (const path of ['required-server-files.json', 'server/app-paths-manifest.json', 'build-manifest.json']) {
     JSON.parse(await readFile(resolve(next, path), 'utf8'));
-}
-if (!(await stat(resolve(next, 'static'))).isDirectory()) throw new Error('Missing static artifacts');
+  }
+  if (!(await stat(resolve(next, 'static'))).isDirectory()) throw new Error('Missing static artifacts');
 }
 
 export async function verifyReadiness(origin, commit, { attempts = 24, delayMs = 5000 } = {}) {
   async function get(path) {
-    const response = await fetch(new URL(path, origin), { signal: AbortSignal.timeout(5000) });
+    const response = await fetch(new URL(path, origin), { signal: AbortSignal.timeout(5000), redirect: 'manual' });
+    if (response.status >= 300 && response.status < 400) throw new Error('Unexpected readiness redirect');
     if (!response.ok) throw new Error('Release readiness HTTP check failed');
     return response;
   }
@@ -23,15 +24,18 @@ export async function verifyReadiness(origin, commit, { attempts = 24, delayMs =
     try {
       const health = await (await get('/api/health')).json();
       if (!health.ok || health.release !== commit) throw new Error('Running release does not match requested commit');
-      const html = await (await get('/')).text();
+      // The protected root redirects anonymous clients to login. The existing
+      // read-only embed route renders the actual tutor shell without credentials.
+      const html = await (await get('/?embed=1')).text();
+      if (!/\bdata-tutor-session=["']embed["']/.test(html)) throw new Error('Tutor embed shell is missing');
       const assets = [...new Set([...html.matchAll(/(?:src|href)=["']([^"']*\/_next\/static\/[^"']+)["']/g)].map(match => match[1]))];
-      if (!assets.length) throw new Error('Root page has no build assets');
+      if (!assets.length) throw new Error('Tutor embed page has no build assets');
       for (const asset of assets) {
         const url = new URL(asset, origin);
         if (url.origin !== origin) throw new Error('Unexpected asset origin');
         await get(url.pathname + url.search);
       }
-      console.log('Requested release, root route and static assets are ready.');
+      console.log('Requested release, tutor embed shell and static assets are ready.');
       return;
     } catch (error) { lastError = error; }
     if (attempt + 1 < attempts) await new Promise(resolve => setTimeout(resolve, delayMs));

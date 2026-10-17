@@ -10,10 +10,12 @@ directory and verifies the new release before accepting activation.
 | Trigger | Result | Regression |
 |---|---|---|
 | Native audio playback is permission-blocked | Retain the clip and current beat; show Enable audio and suspend its startup/playback budgets until the gesture, cancellation, or replacement | Actual runner/native player with strict Chrome autoplay and a synthetic local WAV; deterministic pause/cancel controls |
+| Playback is blocked after the verified diagram appears | Keep the recovery action visible in drawing/speaking phases without covering the existing board | Actual shell/overlay rendering plus compiled intro, blocked teaching beat, recovery WRITE and cancellation |
 | A beat fails after recovery is exhausted | Stop with delivered work retained and the unfinished sentence available to Continue; do not skip ahead and report complete | Actual runner → queue → save registry, failed middle/only beat, successful and resumed controls |
 | An obsolete speech/draw task fails | Leave successor audio and narration state alone | Stale timeout, late rejection and draw cleanup cases |
 | An older client submits complete with no canonical teaching | Save the attempt as stopped, retaining its checkpoint state | Actual checkpoint handler; narration-only browser speech remains complete without uploaded audio |
 | Reciprocal arithmetic includes an inverse unit | Remove the unit exponent with the unit, rather than applying it to the number | Correct equivalent-resistance equations pass; incorrect equations fail |
+| A resistor network explicitly nests series/parallel groups | Accept only a unique complete grouping, bounded to four resistors and three levels | Source authority, selection and canonical save; independent nodal solve of emitted wires/symbols; ambiguous and excessive inputs decline |
 | A projectile question supplies gravity | Bind that gravity into the trajectory and derived range | Supplied gravity reaches figure and canonical save; stale range remains blocked |
 | Optics plan uses distance magnitudes | Reconcile the magnitude convention with signed Cartesian geometry when values agree | Unsigned and signed controls; wrong distance/sign/magnification rejected |
 | Planner candidate cannot be admitted under strict policy | Live and lab may independently regenerate and verify source-grounded family/archetype geometry | Source match, demand, compilation, quantity/save checks and solver-block controls; caller-provided fast geometry gets no exception |

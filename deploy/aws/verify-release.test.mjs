@@ -10,10 +10,18 @@ const next = join(root, 'apps/tutor/.next');
 const commit = 'a'.repeat(40);
 let release = commit;
 let assetStatus = 200;
-let rootHtml = '<script src="/_next/static/fixture.js"></script>';
+const tutorHtml = body => `<main data-tutor-session="embed">${body}</main>`;
+let rootHtml = tutorHtml('<script src="/_next/static/fixture.js"></script>');
+let pageRedirect = false;
+const requests = [];
 const server = createServer((req, res) => {
+  requests.push(req.url);
   if (req.url === '/api/health') res.end(JSON.stringify({ ok: true, release }));
-  else if (req.url === '/') res.end(rootHtml);
+  else if (req.url === '/' || req.url === '/?embed=1') {
+    if (pageRedirect) { res.statusCode = 307; res.setHeader('Location', '/login'); res.end(); }
+    else res.end(rootHtml);
+  }
+  else if (req.url === '/login') res.end('<form>Login</form><script src="/_next/static/login.js"></script>');
   else { res.statusCode = assetStatus; res.end('fixture'); }
 });
 try {
@@ -33,11 +41,19 @@ try {
   await assert.rejects(verifyReadiness(origin, commit, options), /release does not match/, 'old process cannot satisfy readiness');
   release = commit; assetStatus = 404;
   await assert.rejects(verifyReadiness(origin, commit, options), /HTTP check failed/, 'health alone cannot hide missing assets');
-  assetStatus = 200; rootHtml = '<html>broken build</html>';
+  assetStatus = 200; rootHtml = tutorHtml('<p>broken build</p>');
   await assert.rejects(verifyReadiness(origin, commit, options), /no build assets/);
-  rootHtml = '<script src="https://untrusted.invalid/_next/static/fixture.js"></script>';
+  rootHtml = tutorHtml('<script src="https://untrusted.invalid/_next/static/fixture.js"></script>');
   await assert.rejects(verifyReadiness(origin, commit, options), /Unexpected asset origin/);
-  console.log('Release artifact and HTTP readiness regressions passed (6).');
+  pageRedirect = true;
+  await assert.rejects(verifyReadiness(origin, commit, options), /Unexpected readiness redirect/, 'a healthy login page cannot satisfy tutor readiness');
+  pageRedirect = false;
+  rootHtml = '<form>Login</form><script src="/_next/static/login.js"></script>';
+  await assert.rejects(verifyReadiness(origin, commit, options), /Tutor embed shell is missing/, 'HTTP 200 with unrelated page assets is insufficient');
+  assert(requests.includes('/?embed=1'), 'readiness must use the supported anonymous tutor shell route');
+  assert(!requests.includes('/'), 'the protected root is never used as an anonymous tutor probe');
+  assert(!requests.includes('/login'), 'redirects must not be followed');
+  console.log('Release artifact and HTTP readiness regressions passed (9).');
 } finally {
   await new Promise(resolve => server.close(resolve));
   await rm(root, { recursive: true, force: true });

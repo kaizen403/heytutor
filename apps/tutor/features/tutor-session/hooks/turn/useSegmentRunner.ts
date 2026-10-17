@@ -940,6 +940,12 @@ export function useSegmentRunner({
           // Cancellation already stopped its owned output. An obsolete timer
           // must never silence the successor using the same TTS client.
           if (isCancelled()) {
+            // The browser client leases page-global speech. Release THIS
+            // fallback without touching the successor's primary or clocks.
+            if (browserFallbackOwnerRef.current === segmentFallbackOwner) {
+              browserFallbackOwnerRef.current = null;
+              browserSpeechRef.current?.stop();
+            }
             tel?.mark("tts-segment-cancelled", { segment_index: index });
             return;
           }

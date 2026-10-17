@@ -376,6 +376,8 @@ check("an explicit 'this combination' scopes a second attachment", () => {
 // Structural reader: explicit series/parallel trees from the stem's clause.
 // R_eq and source current are hand computed; the figure must solve to them.
 const TREES: Array<[string, string, number, number]> = [
+  ["A 2 Ω resistor is connected in series with a parallel combination of 3 Ω and 6 Ω, and this combination is connected in parallel with a 4 Ω resistor across an 8 V battery.",
+    "P(S(0,P(1,2)),3)", 2, 4], // (2 + (3 || 6)) || 4
   ["Resistors of 2 Ω and 4 Ω are connected in series, and this combination is connected in parallel with a 6 Ω resistor across a 12 V battery. Find the current drawn.",
     "P(S(0,1),2)", 3, 4], // (2+4) || 6 = 3 Ω, 12/3 = 4 A
   ["A series combination of 1 Ω and 2 Ω is connected in parallel with a series combination of 3 Ω and 3 Ω across a 9 V battery. Find the current.",
@@ -415,8 +417,6 @@ check("unbound groupings decline (figure and authority)", () => {
     "A 2 Ω resistor and a 3 Ω resistor are in series with a 6 Ω resistor which is in parallel with a 4 Ω resistor across a 6 V battery.",
     // the 3 Ω resistance is named twice; the clause is not one tree
     "A 2 Ω resistor and a 3 Ω resistor are in parallel, and a 6 Ω resistor is in series with the 3 Ω resistor, across a 6 V battery.",
-    // three levels deep
-    "A 2 Ω resistor is connected in series with a parallel combination of 3 Ω and 6 Ω, and this combination is connected in parallel with a 4 Ω resistor across an 8 V battery.",
     // words outside the closed grammar
     "A 5 Ω resistor is connected between A and B in parallel with a series combination of 2 Ω and 3 Ω across a 10 V battery.",
     // two arrangements, not one tree
@@ -454,14 +454,31 @@ check("authority: declined circuits leave the plan alone", () => {
 // prompt. Both anchors are required; a missing one fails, not passes.
 check("authority is wired into the live turn", () => {
   const source = readFileSync(new URL("../../../../apps/tutor/features/tutor-session/hooks/turn/useQuestionHandler.ts", import.meta.url), "utf8");
-  const start = source.indexOf("turnPlan = reconcileTurnPlanWithSolver(");
-  // The circuit authority runs through the one shared source quantity seam.
-  const call = source.indexOf("applySourceQuantityAuthority(turnPlan, ");
-  const assign = source.indexOf("turnPlan = sourceAuthority.plan;");
-  const end = source.indexOf("const authoritativeTurnPlan = turnPlan;");
-  const teaching = source.indexOf("buildTurnTeachingPrompt({");
-  assert.ok(start > 0 && call > start && assign > call && end > assign && teaching > end, "order: solver reconcile < source quantity authority < authoritative plan < teaching prompt");
-  assert.equal(source.indexOf("applySourceQuantityAuthority(", call + 1), -1, "exactly one live call site");
+  const assertLiveAuthorityOrder = (text: string): void => {
+    const helper = text.indexOf("const applyDeterministicSourceAuthority = (");
+    const call = text.indexOf("applySourceQuantityAuthority(sourcePlan, ", helper);
+    const assign = text.indexOf("sourcePlan = sourceAuthority.plan;", call);
+    const returned = text.indexOf("return sourcePlan;", assign);
+    const initial = text.indexOf("turnPlan = applyDeterministicSourceAuthority(turnPlan, null);", returned);
+    const reconcile = text.indexOf("const reconciledPlan = applyDeterministicSourceAuthority(reconcileTurnPlanWithSolver(", initial);
+    const finalAuthority = text.indexOf("turnPlan: reconciledPlan,", reconcile);
+    const handoff = text.indexOf("turnPlan = planning.turnPlan;", finalAuthority);
+    const teaching = text.indexOf("buildTurnTeachingPrompt({", handoff);
+    assert.ok(helper > 0 && call > helper && assign > call && returned > assign && initial > returned
+      && reconcile > initial && finalAuthority > reconcile && handoff > finalAuthority && teaching > handoff,
+    "source authority runs before initial planning and after solver reconciliation; final plan reaches teaching");
+    assert.equal(text.indexOf("applySourceQuantityAuthority(", call + 1), -1, "exactly one shared live source-authority call site");
+    assert.match(text.slice(teaching, text.indexOf("solverProjection:", teaching)), /\bturnPlan,/,
+      "teaching receives the authoritative planning result");
+  };
+  assertLiveAuthorityOrder(source);
+  for (const removed of [
+    "sourcePlan = sourceAuthority.plan;",
+    "turnPlan = applyDeterministicSourceAuthority(turnPlan, null);",
+    "const reconciledPlan = applyDeterministicSourceAuthority(reconcileTurnPlanWithSolver(",
+    "turnPlan = planning.turnPlan;",
+  ]) assert.throws(() => assertLiveAuthorityOrder(source.replace(removed, "/* removed by mutation */")),
+    `live authority wiring mutation must fail: ${removed}`);
   // The seam must still apply the circuit authority, with the same result.
   const question = "A 4 Ω resistor and a 6 Ω resistor are connected in series across a 10 V battery. Find the current.";
   const turnPlan = plan(question, [q("R1", "R_1", 4, "Ω", "given"), q("R2", "R_2", 6, "Ω", "given"), q("V", "V", 10, "V", "given")], [q("I", "I", 1.2, "A")]);
