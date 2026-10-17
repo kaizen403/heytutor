@@ -109,9 +109,6 @@ const BARE_MIRROR = new RegExp(String.raw`\bmirrors?\b(?<!(?:\bline[\s-]+|${LINE
  */
 const NAMES_OPTICAL_ELEMENT = String.raw`[\s\S]*(?:\blens(?:es)?\b|${QUALIFIED_MIRROR.source})|(?=[\s\S]*(?:${BARE_MIRROR.source}))[\s\S]*(?:${OPTICS_FACT.source})`;
 
-/** A stem that gives an optics fact. A lookahead body, read from the start of the stem. */
-const GIVES_OPTICS_FACT = String.raw`[\s\S]*(?:${OPTICS_FACT.source})`;
-
 /**
  * `pattern`, in a stem where no `absent` lookahead body holds. A stem that
  * names a lens or a mirror element is optics whatever else it says ("a convex
@@ -122,12 +119,19 @@ function inStemWithout(pattern: RegExp, ...absent: readonly string[]): RegExp {
 }
 
 /**
- * A stem whose only mirror is a "mirror image" ("B is the mirror image of A
- * in a plane") is coordinate geometry or symmetry, never a mirror stem,
- * unless it gives mirror facts ("the mirror image of an object placed between
- * F and C", "the object is at 30 cm and its mirror image at 60 cm").
+ * Positive evidence of reflection geometry: a coordinate point ("(2, 3)", "A(-1, 8, 2)"), the plane or line
+ * the reflection is taken in ("in the plane", "in a line", "with respect to the plane"), the x, y or z axis,
+ * a vector, or a line equation.
  */
-const MIRROR_IMAGE_WITHOUT_MIRROR = inStemWithout(/\bmirror[\s-]*imag(?:es?)?\b/i, NAMES_OPTICAL_ELEMENT, GIVES_OPTICS_FACT);
+const REFLECTION_GEOMETRY = new RegExp(String.raw`\(\s*[-+−]?\d+(?:\.\d+)?\s*,|\b(?:in|about|across|with\s+respect\s+to|w\.?r\.?t\.?)\s+(?:(?:the|a|given)\s+)*(?:plane|line)s?\b|\b[xyz][\s-]*axis\b|\bvectors?\b|${LINE_EQUATION}`, "i");
+
+/**
+ * A "mirror image" is coordinate geometry or symmetry ("B is the mirror image of A in a plane") only when the
+ * stem shows reflection geometry and names no optical element. Without that evidence the stem is read exactly
+ * as before: "the mirror image of an object placed beyond C" stays a mirror stem, and so does any other wording.
+ */
+const MIRROR_IMAGE_IN_GEOMETRY = new RegExp(
+  `^(?=[\\s\\S]*(?:${REFLECTION_GEOMETRY.source}))${inStemWithout(/\bmirror[\s-]*imag(?:es?)?\b/i, NAMES_OPTICAL_ELEMENT).source.slice(1)}`, "i");
 
 /**
  * The image or reflection of a point (named, or given by coordinates, which
@@ -927,7 +931,7 @@ const CUE_SETS: readonly CueSet[] = [
     cues: [[/\b(?:concave|convex) mirror\b/i, 5], [/\bmirror\b/i, 3], [/\b(?:focal length|radius of curvature|image|object)\b/i, 1]],
     // A lens or mirror stem names the element; a mirror image, the
     // reflection of a coordinate point and a line given as the mirror are not one.
-    vetoes: [/\bplane mirror\b/i, /\blens\b/i, MIRROR_IMAGE_WITHOUT_MIRROR, COORDINATE_POINT_REFLECTION, LINE_GIVEN_AS_MIRROR],
+    vetoes: [/\bplane mirror\b/i, /\blens\b/i, MIRROR_IMAGE_IN_GEOMETRY, COORDINATE_POINT_REFLECTION, LINE_GIVEN_AS_MIRROR],
     extract: (stem, plan, bag) => {
       setSlot(bag, "kind", /\bconvex\b/i.test(stem) ? "convex" : "concave", "stem");
       setSlot(bag, "u", planNumber(plan, ["u", "objectdistance", "do"]), "plan");

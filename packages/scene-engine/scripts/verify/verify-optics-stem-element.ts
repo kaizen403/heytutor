@@ -143,6 +143,16 @@ for (const [question, expected] of ELEMENT_WORDINGS) check(`element wording ${qu
 // 4. Each veto has a case only it catches (main detects every one as a lens or mirror figure).
 check("mirror image of a figure, no mirror named", leaves("Draw the mirror image of triangle ABC in the y-axis."));
 check("mirror image of a figure with a mirror law hint", leaves("Draw the mirror image of triangle ABC in the y-axis.", ["mirror-image-reflection"]));
+// The fail safe inversion: a mirror image is coordinate geometry only with reflection geometry evidence. One
+// stem per kind of evidence, so removing any kind turns this gate red.
+for (const question of [
+  "The point B(5, 2, 8) is the mirror image of A(-1, 8, 2). Find the length AB.",
+  "Describe the mirror image of a triangle in the line of symmetry.",
+  "Draw the mirror image of the letter L in the x-axis.",
+  "Explain how a vector changes under a mirror image.",
+  "Find the mirror image of P across y = 2x + 1.",
+  "What is the mirror image of the origin about x + y = 4?",
+]) check(`one kind of reflection geometry ${question.slice(0, 50)}`, leaves(question));
 // Greptile (c3ab6741e): a named geometry point such as C(1, 2) or F (3, 4) is not a focus position. PR #189 delta
 // review: a function, a vector or a focal chord is not a focal length or an image distance.
 for (const question of [
