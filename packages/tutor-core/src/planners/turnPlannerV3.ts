@@ -1,5 +1,6 @@
 import {
-  admitTurnPlanV3,
+  reconcileTurnPlanV3ExplicitArithmetic,
+  validateTurnPlanV3,
   type TurnPlanArithmeticReconciliationResult,
   type TurnPlanV3,
   type TurnPlanValidationIssue,
@@ -537,7 +538,7 @@ function parseTurnPlan(content: string, question: string, trace?: TurnPlanV3Pars
     jsonParsed = true;
     const normalized = normalizePlannerTurnPlan(parsed, question);
     if (trace) trace.normalized = normalized;
-    const { arithmetic: reconciled, validation } = admitTurnPlanV3(normalized, question);
+    const reconciled = reconcileTurnPlanV3ExplicitArithmetic(normalized);
     if (trace) trace.arithmetic = reconciled;
     if (reconciled.reconciliations.length > 0) {
       tutorDebug("planner", "turn plan v3 reconciled explicit arithmetic", {
@@ -553,6 +554,7 @@ function parseTurnPlan(content: string, question: string, trace?: TurnPlanV3Pars
         declined: reconciled.declined.map((item) => ({ quantity_id: item.quantityId, reason: item.reason })),
       });
     }
+    const validation = validateTurnPlanV3(reconciled.plan, question);
     let result = validation;
     if (validation.plan) {
       // The optics audit never changes a plan value. A value that disagrees
