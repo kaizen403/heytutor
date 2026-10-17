@@ -1,0 +1,298 @@
+{
+  "topic_id": "physics|3|friction",
+  "question": "A 7.2 kg crate slides right along a rough horizontal floor while a horizontal pull of 31 N acts right. Draw the complete free-body diagram and indicate its current velocity. The kinetic friction coefficient is μk = 0.18.",
+  "figure_kind": "vectors_fbd",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "Sliding crate, weight, normal, applied pull, kinetic friction and separate velocity"
+    },
+    "source": {
+      "question": "A 7.2 kg crate slides right along a rough horizontal floor while a horizontal pull of 31 N acts right. Draw the complete free-body diagram and indicate its current velocity. The kinetic friction coefficient is μk = 0.18.",
+      "family": "contact_body"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "L",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "R",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "floor",
+        "kind": "segment",
+        "role": "floor"
+      },
+      {
+        "id": "body",
+        "kind": "rectangle",
+        "role": "body",
+        "label": "m = 7.2 kg"
+      },
+      {
+        "id": "weight",
+        "kind": "vector",
+        "role": "weight",
+        "label": "mg"
+      },
+      {
+        "id": "normal",
+        "kind": "vector",
+        "role": "normal",
+        "label": "N"
+      },
+      {
+        "id": "pull",
+        "kind": "vector",
+        "role": "pull",
+        "label": "F = 31 N"
+      },
+      {
+        "id": "friction",
+        "kind": "vector",
+        "role": "friction",
+        "label": "f_k = μk N"
+      },
+      {
+        "id": "mu",
+        "kind": "point",
+        "role": "mu",
+        "label": "μk = 0.18"
+      },
+      {
+        "id": "velocity",
+        "kind": "vector",
+        "role": "velocity",
+        "label": "v"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_O",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "make_L",
+        "operator": "point",
+        "inputs": {
+          "x": -3,
+          "y": -0.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "L"
+        ]
+      },
+      {
+        "id": "make_R",
+        "operator": "point",
+        "inputs": {
+          "x": 3,
+          "y": -0.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "R"
+        ]
+      },
+      {
+        "id": "make_floor",
+        "operator": "segment",
+        "inputs": {
+          "start": "L",
+          "end": "R"
+        },
+        "outputs": [
+          "floor"
+        ]
+      },
+      {
+        "id": "make_body",
+        "operator": "rectangle",
+        "inputs": {
+          "center": "O",
+          "width": 1.4,
+          "height": 1
+        },
+        "outputs": [
+          "body"
+        ]
+      },
+      {
+        "id": "make_weight",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 2
+        },
+        "outputs": [
+          "weight"
+        ]
+      },
+      {
+        "id": "make_normal",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 2
+        },
+        "outputs": [
+          "normal"
+        ]
+      },
+      {
+        "id": "make_pull",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "direction": [
+            1,
+            0
+          ],
+          "length": 2.3
+        },
+        "outputs": [
+          "pull"
+        ]
+      },
+      {
+        "id": "make_friction",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "direction": [
+            -1,
+            0
+          ],
+          "length": 1.7
+        },
+        "outputs": [
+          "friction"
+        ]
+      },
+      {
+        "id": "make_mu",
+        "operator": "point",
+        "inputs": {
+          "x": -3,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mu"
+        ]
+      },
+      {
+        "id": "make_velocity",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            -0.7,
+            2.8
+          ],
+          "direction": [
+            1,
+            0
+          ],
+          "length": 1.4
+        },
+        "outputs": [
+          "velocity"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "proof_0",
+        "predicate": "perpendicular",
+        "entities": [
+          "normal",
+          "floor"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "proof_1",
+        "predicate": "parallel",
+        "entities": [
+          "friction",
+          "floor"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "O",
+      "L",
+      "R",
+      "floor",
+      "body",
+      "weight",
+      "normal",
+      "pull",
+      "friction",
+      "mu",
+      "velocity"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "O",
+          "L",
+          "R",
+          "floor",
+          "body",
+          "weight",
+          "normal",
+          "pull",
+          "friction",
+          "mu",
+          "velocity"
+        ],
+        "dependsOn": [],
+        "narrationCue": "Sliding crate, weight, normal, applied pull, kinetic friction and separate velocity"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "Sliding crate, weight, normal, applied pull, kinetic friction and separate velocity"
+      }
+    ]
+  }
+}
