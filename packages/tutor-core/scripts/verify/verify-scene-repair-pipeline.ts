@@ -8,6 +8,7 @@
 import assert from "node:assert/strict";
 import {
   planSceneDocumentWithRepair,
+  revalidateScenePlanWithRepairResult,
   type SceneCandidateValidation,
 } from "../../src/planners/scenePlannerV2";
 
@@ -384,6 +385,33 @@ try {
     assert.equal(atMs, 3_000);
     assert(calls.slice(1).every((call) => call.aborted));
     assert.equal(result?.validation.valid, false);
+  });
+
+  const pathDoc = (tag: string, fatal: number) => ({
+    ...doc(tag, fatal), entities: [{ id: "flight", kind: "curve", role: "trajectory" }],
+    requiredEntityIds: ["flight"], revealGroups: [{ id: "setup", entityIds: ["flight"] }],
+    constructions: [{ id: "motion", operator: "constant_acceleration_trajectory", inputs: { initialPosition: [0,0], initialVelocity: [3,4], acceleration: [0,-10], tMin: 0, tMax: 1 }, outputs: ["flight"] }],
+  });
+  await scenario("yield policy keeps the original geometry obligation through repair and revalidation", async () => {
+    harness((call) => call.phase === "plan"
+      ? (call.lane === "primary" ? { atMs: 1_000, doc: pathDoc("original", 2) } : "hang")
+      : { atMs: call.atMs + 1_000, doc: doc("deleted-path", 0) });
+    const { value: result } = await settle(planSceneDocumentWithRepair("q", validate, { ...options(8_000), preserveRequiredGeometry: true }));
+    assert(result);
+    const repairs = result.candidates.filter(c => c.response.phase === "repair");
+    assert(repairs.length > 0);
+    assert(repairs.every(c => !c.validation.valid && c.response.repairSeed?.tag === "original"));
+    const refreshed = await revalidateScenePlanWithRepairResult(result, candidate => ({ valid: true, errors: [], value: candidate }));
+    assert(refreshed.candidates.filter(c => c.response.phase === "repair").every(c => !c.validation.valid), "new numeric authority cannot resurrect a geometry-dropping repair");
+  });
+  await scenario("a late initial lane still protects the typed motion path from a different lane's repair", async () => {
+    harness((call) => call.phase === "plan"
+      ? { atMs: call.lane === "primary" ? 1_000 : 2_000, doc: call.lane === "primary" ? doc("incomplete", 1) : pathDoc("path-lane", 2) }
+      : { atMs: 1_500, doc: doc("empty-repair", 0) });
+    const { value: result } = await settle(planSceneDocumentWithRepair("q", validate, { ...options(), preserveRequiredGeometry: true }));
+    assert(result);
+    assert.equal(result.validation.valid, false);
+    assert(result.candidates.filter(c => c.response.phase === "repair").every(c => c.validation.errors.some(e => e.code === "repair_required_geometry_lost")));
   });
 
   console.log(`verify-scene-repair-pipeline: ${passed} scenarios passed`);

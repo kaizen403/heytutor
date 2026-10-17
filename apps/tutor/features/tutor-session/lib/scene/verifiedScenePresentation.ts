@@ -61,6 +61,10 @@ export function buildVerifiedDiagramPresentation(
 ): VerifiedDiagramPresentation {
   const layout = labelLayoutFor(options.layout ?? "standard");
   const source = document.source as Record<string, unknown> | undefined;
+  const answerEntityIds = new Set(Array.isArray(source?.answerLabelEntityIds) ? source.answerLabelEntityIds.filter((id): id is string => typeof id === "string") : []);
+  const answerAnnotationIds = new Set(Array.isArray(source?.answerLabelAnnotationIds) ? source.answerLabelAnnotationIds.filter((id): id is string => typeof id === "string") : []);
+  const answerTargets = new Set<string>();
+  const answerGroupIds = new Set<string>();
   const nonMetric = source?.nonMetric === true;
   const representationTier = typeof source?.representationTier === "string"
     ? source.representationTier
@@ -155,7 +159,13 @@ export function buildVerifiedDiagramPresentation(
       const commandPhase = primitive.provenance?.matrixCell
         ? "structure"
         : command.type === "LABEL" || command.type === "DIMENSION" ? "detail" : phase;
-      const deferReason = deferralReason(
+      const answerLabel = (command.type === "LABEL" || command.type === "DIMENSION") &&
+        (answerEntityIds.has(primitive.entityId) || answerAnnotationIds.has(String(primitive.provenance?.annotationId)));
+      if (answerLabel) {
+        answerTargets.add(primitive.entityId);
+        answerGroupIds.add(primitive.groupId);
+      }
+      const deferReason = answerLabel ? "answer" : deferralReason(
         primitive,
         command,
         annotateTargetIds,
@@ -175,7 +185,7 @@ export function buildVerifiedDiagramPresentation(
 
   const introSegments: TutorSegment[] = [];
   const reveals: VerifiedDiagram["reveals"] = [];
-  const entitiesById = new Map(document.entities.map((entity) => [entity.id, entity]));
+  const entitiesById = new Map(document.entities.map((entity) => [entity.id, answerEntityIds.has(entity.id) ? { ...entity, label: undefined } : entity]));
   const pulled = new Set<number>();
   orderedGroupIds.forEach((groupId, groupIndex) => {
     const phaseIndices = indicesByGroup.get(groupId) ?? emptyPhaseIndices();
@@ -189,7 +199,7 @@ export function buildVerifiedDiagramPresentation(
       .map((entry) => entry.narrationIntent?.trim())
       .filter((cue): cue is string => Boolean(cue && isSpokenProse(cue))))];
     // Prefer planner prose when present; short group cues still drive the fallback templates.
-    const cue = (timelineCue && isSpokenProse(timelineCue) ? timelineCue : null)
+    const cue = answerGroupIds.has(groupId) || [...memberIds].some(id => answerTargets.has(id)) ? "Here is the setup." : (timelineCue && isSpokenProse(timelineCue) ? timelineCue : null)
       || (group?.narrationCue && isSpokenProse(group.narrationCue) ? group.narrationCue : null)
       || memberCues.join(" ")
       || group?.narrationCue
@@ -337,6 +347,7 @@ export function buildVerifiedDiagramPresentation(
     layout: options.layout === "code_lesson" ? "code_lesson" : undefined,
     deferredAnnotations: [...deferredByEntity.entries()].map(([entityId, deferredCommands]) => ({
       entityId,
+      ...(answerTargets.has(entityId) ? { revealAfterLesson: true } : {}),
       commands: deferredCommands,
     })),
     // Symbols on the figure stay short; the expansion and solved value travel
@@ -345,6 +356,7 @@ export function buildVerifiedDiagramPresentation(
     promptAddon: `${nonMetric
       ? `A source-grounded conceptual representation (${representationTier}) has already been compiled and is being explained as it is revealed. It is intentionally non-metric: do not infer scale, missing connections, intersections, regions, directions, or solved values from it.`
       : "A complete metric diagram has already been compiled, validated, and is being explained as it is revealed."}
+${answerTargets.size ? "Computed answer labels stay hidden until this teaching sequence ends. Derive their values in narration and WRITE before the lesson ends; FOCUS only traces their geometry." : ""}
 Do not emit DRAW_*, LABEL, DIMENSION, ARROW, SCRIBBLE, CIRCLE_AROUND, HIGHLIGHT, UNDERLINE, ERASE, or CLEAR tags.
 When you name a listed diagram part, put one [FOCUS:entity_id] for that part inside the sentence, directly after the spoken name (for example "its pole [FOCUS:P] is on the axis"). One id per tag: a sentence that names three parts carries three tags, each right after its own name. Never place the tag at the end of the step after a WRITE row, and never write two ids in one tag. Never provide coordinates.
 Parts the student can read, written as the drawn label then its tag: ${namedTargets || "none"}. Speak the label, never the id; the id belongs inside the tag only. The quotation marks are there to delimit the label and are not spoken.

@@ -50,6 +50,15 @@ export function appendCompiledAnnotations(
 ): void {
   for (const annotation of document.annotations) {
     if (TEXT_KINDS.has(annotation.kind)) continue;
+    // Text is not an endpoint reference. Never turn "+ toward B" into "+ "
+    // and silently put the positive terminal on the opposite end.
+    if (annotation.kind === "polarity" && annotation.text !== undefined &&
+        !/^(?:\+[-−]|[-−]\+)$/.test(annotation.text.trim())) {
+      issues.push({ code: "polarity_binding_ambiguous", severity: "fatal", failureKind: "truth",
+        entityIds: [annotation.id, ...annotation.targetIds],
+        message: "Polarity requires ordered +- or -+ terminal marks; prose cannot establish a terminal binding." });
+      continue;
+    }
     if (!isSceneAnnotationKind(annotation.kind)) {
       issues.push({
         code: "unknown_annotation_kind",
@@ -373,7 +382,7 @@ function geometryFor(annotation: SceneAnnotation, targets: RenderPrimitive[]): O
       const start = path?.start ?? points[0];
       const end = path?.end ?? points.at(-1);
       if (!start || !end) return [];
-      const marks = (annotation.text && annotation.text.length >= 2 ? annotation.text : "+-").slice(0, 2);
+      const marks = annotation.text?.trim().replace(/−/g, "-") ?? "+-";
       return [
         { kind: "label" as const, points: [start], text: marks[0]!, labelPlacement: "automatic", provenance: { annotation: "polarity" } },
         { kind: "label" as const, points: [end], text: marks[1]!, labelPlacement: "automatic", provenance: { annotation: "polarity" } },

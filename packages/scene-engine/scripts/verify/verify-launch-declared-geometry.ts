@@ -1,0 +1,60 @@
+import { strict as assert } from "node:assert";
+import { compileSceneDocument } from "../../src/compile/compiler";
+import type { SceneDocument } from "../../src/types";
+const base: SceneDocument = { schemaVersion: "scene-document/v2", source: { question: "Show the declared geometry." }, visualDecision: { mode: "scene", reason: "Geometry." }, quantities: [], entities: [], constructions: [], relations: [], assertions: [], annotations: [], requiredEntityIds: [], revealGroups: [], teachingTimeline: [] };
+function finish(d: SceneDocument) { d.constructions.forEach(c => c.id = "make_" + c.id); d.requiredEntityIds = d.entities.map(e => e.id); d.revealGroups = [{ id: "setup", entityIds: d.requiredEntityIds, dependsOn: [], narrationCue: "Geometry." }]; return compileSceneDocument(d); }
+for (const [label, x, y, good] of [["i", 1, 0, true], ["i", 1, 2, false], ["2i-j", 2, -1, true], ["-3i+2j", -3, 2, true], ["-j", 0, 1, false]] as const) {
+    const d = structuredClone(base);
+    d.entities = [{ id: "o", kind: "point", role: "origin" }, { id: "v", kind: "vector", role: "vector", label }];
+    d.constructions = [{ id: "o", operator: "point", inputs: { x: 0, y: 0, coordinateSpace: "world" }, outputs: ["o"] }, { id: "v", operator: "vector", inputs: { start: "o", direction: [x, y], length: Math.hypot(x, y) }, outputs: ["v"] }];
+    const r = finish(d);
+    assert.equal(r.ok, good, "Cartesian basis label must match vector geometry " + JSON.stringify(r.report.issues));
+}
+for (const count of [5, 33]) {
+    const d = structuredClone(base);
+    for (let i = 0; i < count; i++) {
+        const angle = i / (count - 1) * Math.PI;
+        d.entities.push({ id: `p${i}`, kind: "point", role: "sample" });
+        d.constructions.push({ id: `p${i}`, operator: "point", inputs: { x: Math.cos(angle), y: Math.sin(angle), coordinateSpace: "world" }, outputs: [`p${i}`] });
+    }
+    d.entities.push({ id: "curve", kind: "polyline", role: "semicircular path" });
+    d.constructions.push({ id: "curve", operator: "polyline", inputs: { points: d.entities.slice(0, -1).map(e => e.id) }, outputs: ["curve"] });
+    const r = finish(d);
+    assert.equal(r.report.issues.some(i => i.code === "declared_geometry_contradiction"), count === 5, "semicircular curve must not be a coarse polygon");
+}
+for (const failedForce of ["none", "normal", "friction"]) {
+    const good = failedForce === "none";
+    const d = structuredClone(base);
+    d.entities = [{ id: "o", kind: "point", role: "origin" }, { id: "s", kind: "segment", role: "inclined plane" }, { id: "n", kind: "vector", role: "normal force" }, { id: "f", kind: "vector", role: "static friction" }];
+    d.constructions = [{ id: "o", operator: "point", inputs: { x: 0, y: 0, coordinateSpace: "world" }, outputs: ["o"] }, { id: "s", operator: "line", inputs: { start: "o", direction: [1, 1] }, outputs: ["s"] }, { id: "n", operator: "vector", inputs: { start: "o", direction: failedForce !== "normal" ? [-1, 1] : [0, 1], length: 1 }, outputs: ["n"] }, { id: "f", operator: "vector", inputs: { start: "o", direction: failedForce !== "friction" ? [1, 1] : [1, 0], length: 1 }, outputs: ["f"] }];
+    const r = finish(d);
+    assert.equal(r.ok, good, JSON.stringify(r.report.issues));
+}
+console.log("launch: vector labels, circular paths and contact force geometry retain declared truth");
+for (const coordinateSpace of ["world", "layout"]) {
+    const d = structuredClone(base);
+    d.entities = [{ id: "axes", kind: "axes", role: "axes" }, { id: "a", kind: "point", role: "item", label: "A" }];
+    d.constructions = [{ id: "axes", operator: "axes", inputs: { xMin: -2, xMax: 2, yMin: -2, yMax: 2 }, outputs: ["axes"] }, { id: "a", operator: "point", inputs: { x: 1, y: 1, coordinateSpace }, outputs: ["a"] }];
+    assert.equal(finish(d).ok, coordinateSpace === "world", "layout points cannot inherit numeric axis meaning");
+}
+for (const count of [4, 64]) {
+    const d = structuredClone(base);
+    for (let i = 0; i < count; i++) {
+        const angle = i / count * 2 * Math.PI;
+        d.entities.push({ id: `p${i}`, kind: "point", role: "sample" });
+        d.constructions.push({ id: `p${i}`, operator: "point", inputs: { x: 2 * Math.cos(angle), y: Math.sin(angle), coordinateSpace: "world" }, outputs: [`p${i}`] });
+    }
+    d.entities[0]!.role = "orbital focus";
+    const points = d.entities.map(e => e.id);
+    d.entities.push({ id: "curve", kind: "polyline", role: "closed orbit" });
+    d.constructions.push({ id: "curve", operator: "polyline", inputs: { points: [...points, points[0]] }, outputs: ["curve"] });
+    const r = finish(d);
+    assert.equal(r.report.issues.some(i => i.code === "declared_geometry_contradiction"), count === 4, "a smooth orbit cannot contain polygon corners");
+}
+for (const end of [2, 4]) {
+    const d = structuredClone(base);
+    d.entities = [{ id: "path", kind: "polyline", role: "projectile path" }, { id: "a", kind: "point", role: "endpoint" }, { id: "b", kind: "point", role: "endpoint" }, { id: "ground", kind: "segment", role: "ground" }];
+    d.constructions = [{ id: "path", operator: "function_curve", inputs: { expression: "2*x-x^2", xMin: 0, xMax: end }, outputs: ["path"] }, { id: "a", operator: "point", inputs: { x: 1, y: 0, coordinateSpace: "world" }, outputs: ["a"] }, { id: "b", operator: "point", inputs: { x: 5, y: 0, coordinateSpace: "world" }, outputs: ["b"] }, { id: "ground", operator: "segment", inputs: { start: "a", end: "b" }, outputs: ["ground"] }];
+    const r = finish(d);
+    assert.equal(r.report.issues.some(i => i.code === "declared_geometry_contradiction"), end === 4, "physical path cannot continue beyond impact");
+}
