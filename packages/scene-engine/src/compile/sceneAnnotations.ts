@@ -207,7 +207,7 @@ function geometryFor(annotation: SceneAnnotation, targets: RenderPrimitive[]): O
     case "spin": {
       const path = lineEnds(ink);
       if (!path) return [];
-      const badge = signBadgeGeometry(path, annotation.text ?? "clockwise", 0.72, "down");
+      const badge = signBadgeGeometry(path, annotation.text ?? "", 0.72, "down");
       return badge.paths.map((segment) => ({
         kind: "polyline" as const,
         points: segment,

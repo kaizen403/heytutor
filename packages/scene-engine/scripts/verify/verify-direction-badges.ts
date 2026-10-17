@@ -112,5 +112,33 @@ for (const end of [{ x: 4, y: 0 }, { x: -3, y: 4 }, { x: 0, y: -4 }]) {
   }
 }
 
+// A spin with no sense text, or on a closed outline (zero reference span), must reject the scene atomically.
+function spinScene(text: string | undefined, closed: boolean): SceneDocument {
+  const candidate = scene("positive");
+  candidate.entities = candidate.entities.filter((entity) => entity.id !== "badge");
+  candidate.constructions.pop();
+  candidate.requiredEntityIds = candidate.requiredEntityIds.filter((id) => id !== "badge");
+  if (closed) {
+    candidate.entities.push({ id: "c", kind: "point", role: "corner" }, { id: "outline", kind: "polyline", role: "outline" });
+    candidate.constructions.push(
+      { id: "c0", operator: "point", inputs: { x: 2, y: 3 }, outputs: ["c"] },
+      { id: "outline0", operator: "polyline", inputs: { points: ["a", "b", "c", "a"] }, outputs: ["outline"] },
+    );
+    candidate.requiredEntityIds.push("c", "outline");
+  }
+  candidate.revealGroups[0]!.entityIds = [...candidate.requiredEntityIds];
+  candidate.annotations = [{ id: "spin", kind: "spin", targetIds: [closed ? "outline" : "axis"], ...(text === undefined ? {} : { text }) }];
+  return candidate;
+}
+for (const [label, candidate] of [["no sense text", spinScene(undefined, false)], ["closed outline", spinScene("clockwise", true)]] as const) {
+  try {
+    const validated = validateSceneDocument(candidate);
+    const result = validated.document ? compileSceneDocument(validated.document) : null;
+    check(!result || (!result.ok && result.renderScene === null), `Spin with ${label} must fail closed.`);
+  } catch (error) {
+    check(false, `Spin with ${label} must return a result instead of throwing: ${String(error)}`);
+  }
+}
+
 assert.equal(failures.length, 0, failures.join("\n"));
 console.log(`Direction badge verification passed (${checks} checks).`);
