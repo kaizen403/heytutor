@@ -8,12 +8,60 @@ type Shape = {
     point?: Point;
     points?: Point[];
     closed?: boolean;
+    sampledCurve?: {
+        curveKind: string;
+        parameterMin: number;
+        parameterMax: number;
+        evaluate: (parameter: number) => Point;
+    };
 };
 const subtract = (a: Point, b: Point): Point => ({ x: a.x - b.x, y: a.y - b.y });
 const cross = (a: Point, b: Point): number => a.x * b.y - a.y * b.x;
+/** Refine only a declared semicircle produced by an analytic function operator.
+ * Every inserted point is evaluated from the original function, never fitted to
+ * a circle. Preserve existing points/order and the 0.5% radius sagitta bound;
+ * x-uniform sampling is angularly sparse at vertical circle endpoints.
+ * Compiler assertions and all label/layout guards still run after this helper.
+ */
+function refineAnalyticSemicircleSamples(document: SceneDocument, geometry: ReadonlyMap<string, unknown>): void {
+    for (const entity of document.entities) {
+        if (!/\bsemicircular\b/i.test(entity.role ?? "") ||
+            !document.constructions.some(c => c.operator === "function_curve" && c.outputs.includes(entity.id))) continue;
+        const value = geometry.get(entity.id) as Shape | undefined;
+        const curve = value?.sampledCurve, points = value?.points;
+        if (value?.kind !== "path" || curve?.curveKind !== "function" || !points || points.length < 2 || points.length > 2049) continue;
+        const center = { x: (points[0]!.x + points.at(-1)!.x) / 2, y: (points[0]!.y + points.at(-1)!.y) / 2 };
+        const radius = Math.hypot(points[0]!.x - center.x, points[0]!.y - center.y);
+        const onCircle = (p: Point) => Number.isFinite(p.x) && Number.isFinite(p.y) &&
+            Math.abs(Math.hypot(p.x - center.x, p.y - center.y) - radius) <= radius * 0.005;
+        if (!(radius > 0) || !points.every(onCircle) || points.some((p, i) =>
+            p.x < curve.parameterMin || p.x > curve.parameterMax || (i > 0 && p.x <= points[i - 1]!.x))) continue;
+        const refined: Point[] = [points[0]!];
+        const append = (a: Point, b: Point, depth: number): boolean => {
+            if (Math.hypot(b.x - a.x, b.y - a.y) <= radius * 0.19975) {
+                if (refined.length >= 2049) return false;
+                refined.push(b);
+                return true;
+            }
+            if (depth >= 12) return false;
+            const parameter = (a.x + b.x) / 2;
+            if (!(parameter > a.x && parameter < b.x)) return false;
+            const midpoint = curve.evaluate(parameter);
+            if (Math.abs(midpoint.x - parameter) > 1e-9 * Math.max(1, Math.abs(parameter)) || !onCircle(midpoint)) return false;
+            return append(a, midpoint, depth + 1) && append(midpoint, b, depth + 1);
+        };
+        try {
+            if (points.slice(1).every((point, i) => append(points[i]!, point, 0))) value.points = refined;
+        } catch {
+            // An unevaluable interval retains its original samples and fails the
+            // same geometric guard; no analytic evaluation failure is waived.
+        }
+    }
+}
 /** Validate mathematical claims carried by entity roles/labels. These checks
  * never infer a construction from a chapter name or a question identifier. */
 export function validateDeclaredGeometryTruth(document: SceneDocument, geometry: ReadonlyMap<string, unknown>): SceneIssue[] {
+    refineAnalyticSemicircleSamples(document, geometry);
     const issues: SceneIssue[] = [];
     const shape = (id: string) => geometry.get(id) as Shape | undefined;
     const fail = (ids: string[], message: string) => issues.push({ code: "declared_geometry_contradiction", severity: "fatal", failureKind: "truth", entityIds: ids, message });

@@ -45,6 +45,45 @@ for (const [name, angles, good] of [
     assert.equal(r.report.issues.some(i => i.code === "declared_geometry_contradiction"), !good, name);
     if (good) assert(r.ok, JSON.stringify(r.report.issues));
 }
+// Uniform x sampling is sparse in angle near a circle's vertical endpoints.
+// Analytic sampling must meet the same geometric bound without rejecting the circle.
+for (const [expression, xMin, xMax, good] of [
+    ["sqrt(1-x^2)", -1, 1, true],
+    ["2+sqrt(9-(x-4)^2)", 1, 7, true],
+    ["-2-sqrt(4-(x+3)^2)", -5, -1, true],
+    ["1-x^2", -1, 1, false],
+    ["2*sqrt(1-x^2)", -1, 1, false],
+] as const) {
+    const d = structuredClone(base);
+    d.entities = [{ id: "curve", kind: "polyline", role: "semicircular path" }];
+    d.constructions = [{ id: "curve", operator: "function_curve", inputs: { expression, xMin, xMax }, outputs: ["curve"] }];
+    const originalConstructions = structuredClone(d.constructions);
+    // finish supplies required/reveal data but must not rewrite the expression.
+    const r = finish(d);
+    assert.equal(d.constructions[0]!.inputs.expression, originalConstructions[0]!.inputs.expression);
+    if (good) {
+        const legacyDocument = structuredClone(d);
+        const legacy = compileWithPolicy(legacyDocument, { yieldPolicy: "off" });
+        assert(legacy.ok && legacy.renderScene);
+        assert.equal(legacy.renderScene.primitives.find(p => p.entityId === "curve" && p.kind !== "label")!.points.length, 65,
+            "flag off preserves the original uniform-x samples");
+        assert.deepEqual(legacyDocument, d, "analytic refinement never changes the source document");
+    }
+    assert.equal(r.ok, good, `analytic semicircle truth: ${expression}: ${JSON.stringify(r.report.issues)}`);
+    if (good && r.renderScene) {
+        const points = r.renderScene.primitives.find(p => p.entityId === "curve" && p.kind !== "label")!.points;
+        const radius = Math.hypot(points[0]!.x - points.at(-1)!.x, points[0]!.y - points.at(-1)!.y) / 2;
+        assert(points.slice(1).every((p, i) => Math.hypot(p.x - points[i]!.x, p.y - points[i]!.y) <= radius * 0.19975 + 0.02),
+            "analytic semicircle rendering retains the 0.5% sagitta quality bound");
+    }
+}
+{
+    const d = structuredClone(base);
+    d.entities = [{ id: "curve", kind: "polyline", role: "semicircular path" }];
+    d.constructions = [{ id: "curve", operator: "parametric_curve", inputs: { xExpression: "cos(t)", yExpression: "sin(t)", tMin: 0, tMax: 3 * Math.PI }, outputs: ["curve"] }];
+    const r = finish(d);
+    assert(!r.ok && r.report.issues.some(i => i.code === "declared_geometry_contradiction"), "analytic metadata cannot waive the three-half-turn blocker");
+}
 for (const failedForce of ["none", "normal", "friction"]) {
     const good = failedForce === "none";
     const d = structuredClone(base);
