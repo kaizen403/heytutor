@@ -90,6 +90,34 @@ const segmentConstruction = segment.document.constructions.find(item => item.id 
 segmentConstruction.operator = "segment"; segmentConstruction.inputs = { start: "center", end: "otherCenter" };
 fixtures.push(segment);
 
+for (const operator of ["line", "ray", "rectangle", "segment"] as const) {
+  const unbounded = operator === "line" || operator === "ray";
+  const fixture = scalarFixture(`explicit-unknown-${operator}-${unbounded ? "has-no-region-owner" : "finite-owner-remains-completable"}`);
+  const question = unbounded
+    ? "Draw a straight boundary between two regions. The scalar property n of the region above the boundary is undetermined."
+    : "Draw bodies B and C with the unknown property n attached to B. The value of n is undetermined.";
+  fixture.turnPlan.question = question;
+  fixture.turnPlan.givens = [];
+  fixture.turnPlan.unknowns = [{ id: "property", symbol: "n" }];
+  fixture.turnPlan.qualitativeClaims = [{ id: "undeterminedProperty", claim: "The value of n is undetermined",
+    expected: "undetermined", relatedQuantityIds: ["property"] }];
+  fixture.document.source.question = question;
+  fixture.document.quantities = [{ id: "property", symbol: "n" }];
+  fixture.document.annotations = [{ id: "unknownAttachment", kind: "callout", quantityId: "property", targetIds: ["body"] }];
+  const owner = fixture.document.entities.find(entity => entity.id === "body")!;
+  const construction = fixture.document.constructions.find(item => item.id === "makeBody")!;
+  owner.kind = operator;
+  if (unbounded) {
+    delete owner.label;
+    construction.operator = operator; construction.inputs = { start: "center", direction: [1, 0] };
+    fixture.document.constructions.find(item => item.id === "makeOtherCenter")!.inputs = { x: 0, y: 0, coordinateSpace: "world" };
+  } else if (operator === "segment") {
+    construction.operator = operator; construction.inputs = { start: "center", end: "otherCenter" };
+  }
+  fixture.expected = unbounded ? [] : [{ targetId: "body", quantityId: "property", text: "n = ?" }];
+  fixtures.push(fixture);
+}
+
 // The complete literal contract is printable before any validation or runtime call.
 if (process.argv.includes("--print-fixtures")) {
   console.log(JSON.stringify({ schemaVersion: "structured-completion-annotation-context-fixtures/v1", fixtures }, null, 2));

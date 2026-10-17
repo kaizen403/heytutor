@@ -378,17 +378,17 @@ function annotationLabels(context: CompletionContext): void {
     if (typedOwners && [...typedOwners].some(owner => owner !== target)) {
       context.skip("quantity_owner_conflict", quantityId, [...typedOwners, target]); continue;
     }
+    const angle = ["angle_mark", "space_angle_mark", "right_angle_mark", "space_right_angle_mark"].includes(context.producers.get(target)?.operator ?? "");
+    // Both a value and an unknown scalar need a proved region/side owner.
+    // Finite segments may also render as lines; keep them eligible.
+    if (!angle && ["line", "ray"].includes(context.entities.get(target)?.kind ?? "") &&
+        context.input.baseRenderScene.primitives.some(primitive => primitive.entityId === target &&
+          ["line", "ray"].includes(primitive.kind) && primitive.provenance?.labelLeader !== true)) {
+      context.skip("annotation_scalar_carrier_has_no_region_owner", quantityId, [target]); continue;
+    }
     const given = context.given(quantityId);
     if (given) {
-      const angle = ["angle_mark", "space_angle_mark", "right_angle_mark", "space_right_angle_mark"].includes(context.producers.get(target)?.operator ?? "");
       if (angle && !provenAngle(context, target, given)) { context.skip("angle_attachment_not_proved", quantityId, [target]); continue; }
-      // A scalar attached only to an unbounded carrier has no region/side
-      // owner contract. Finite segments may also render as lines; keep them.
-      if (!angle && ["line", "ray"].includes(context.entities.get(target)?.kind ?? "") &&
-          context.input.baseRenderScene.primitives.some(primitive => primitive.entityId === target &&
-            ["line", "ray"].includes(primitive.kind) && primitive.provenance?.labelLeader !== true)) {
-        context.skip("annotation_scalar_carrier_has_no_region_owner", quantityId, [target]); continue;
-      }
       context.label({ kind: angle ? "given_angle" : "given_label", quantityIds: [quantityId], targetIds: [target], text: statement(given) });
       continue;
     }
