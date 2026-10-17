@@ -119,6 +119,11 @@ const claimRows: ClaimRow[] = [
     "Sulfur has one lone pair placed at one of its axial sites.",
     "The lone pair sits in one of the axial sites.",
     "The lone pair prefers either axial position.",
+    "The lone pair occupies one axial site.",
+    "The lone pair occupies the first axial site.",
+    "The lone pair occupies the second axial position.",
+    "The lone pair lies in 1 axial site.",
+    "The lone pair on sulfur is at one axial position.",
   ].map((expected, index): ClaimRow => ({ id: `central-position-invalid-${index + 1}`, question: sf4, expected, draw: false, family: "control" })),
   ...[
     "The lone pair does not occupy one of the axial sites.",
@@ -127,6 +132,11 @@ const claimRows: ClaimRow[] = [
     "The axial fluorine atoms each have three lone pairs; sulfur has one equatorial lone pair.",
     "The fluorine atoms each have three lone pairs; sulfur has one lone pair in an equatorial site.",
     "The lone pair is equatorial and the fluorine atoms occupy the axial sites.",
+    "The lone pair is not in one axial site.",
+    "The lone pair on sulfur is not at the first axial site.",
+    "The axial F atoms each have three lone pairs and sulfur has one equatorial lone pair.",
+    "The lone pair is located at one equatorial site.",
+    "The lone pair occupies one equatorial site and the F atoms occupy the axial sites.",
   ].map((expected, index): ClaimRow => ({ id: `quantified-position-valid-${index + 1}`, question: sf4, expected, draw: true, family: "control" })),
 ];
 const unresolvedRows = [

@@ -536,7 +536,7 @@ function electronCountClaims(text: string, result: VseprResult): ElectronCountCl
 
 /** Position belongs to a lone-pair predicate, not an axial ligand nearby. */
 function centralLonePairIsAxial(text: string, result: VseprResult): boolean {
-  const afterPair = /\blone[ -]?pairs?\b(?:(?:\s+(?:on|around|in))\s+(?:(?:the|central)\s+)*[A-Za-z0-9_^()+-]+(?:\s+atom)?)?\s+(?:(?:is|are|occupies|occupy|sits|sit|lies|lie|prefers|prefer)\s+)?(?:(?:placed|located|positioned)\s+)?(?:(?:not|never)\s+)?(?:(?:in|at|on)\s+)?(?:(?:one|either|any|each|both)\s+of\s+)?(?:(?:an?|the|its|two|both|either|any)\s+)*axial\b/gi;
+  const afterPair = /\blone[ -]?pairs?\b(?:(?:\s+(?:on|around|in))\s+(?:(?:the|central)\s+)*[A-Za-z0-9_^()+-]+(?:\s+atom)?)?\s+(?:(?:is|are|occupies|occupy|sits|sit|lies|lie|prefers|prefer)\s+)?(?:(?:placed|located|positioned)\s+)?(?:(?:not|never)\s+)?(?:(?:in|at|on)\s+)?(?:(?:one|either|any|each|both)\s+of\s+)?(?:(?:an?|the|its|one|two|1|2|first|second|both|either|any)\s+)*axial\b/gi;
   for (const match of text.matchAll(afterPair)) {
     const pair = /^lone[ -]?pairs?/i.exec(match[0])!;
     const end = match.index + pair[0].length;
