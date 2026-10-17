@@ -246,10 +246,10 @@ const PARAMETRIC_ANGLE_POINT = new RegExp([
   // "the point θ = π/4", "the point 'θ'".
   String.raw`\bpoints?\s+['‘’"“”]?${ANGLE_NAME}`,
   // A trig function of the parameter: "a cos θ", "(acosθ, bsinθ)", "4 sec θ",
-  // "\cos\theta". Before t the function must be spaced or bracketed
+  // "\cos\theta", "\sec{\theta}". Before t the function must be spaced or bracketed
   // ("x = 3 cos t", "sin(t)"), so "cost" and "constant t" are not read.
-  String.raw`(?:cos|sin|tan|sec|cosec|csc|cot)\s*(?:\^\s*\d+\s*)?\(?\s*${ANGLE_NAME}`,
-  String.raw`(?:cos|sin|tan|sec|cosec|csc|cot)(?:\s*\^\s*\d+)?(?:\s+|\s*\(\s*)${PARAMETER_T}`,
+  String.raw`(?:cos|sin|tan|sec|cosec|csc|cot)\s*(?:\^\s*\d+\s*)?[({]?\s*${ANGLE_NAME}`,
+  String.raw`(?:cos|sin|tan|sec|cosec|csc|cot)(?:\s*\^\s*\d+)?(?:\s+|\s*[({]\s*)${PARAMETER_T}`,
   // The rectangular hyperbola's point (ct, c/t).
   String.raw`\(\s*(?:c|\d+(?:\.\d+)?)\s*t\s*,\s*(?:c|\d+(?:\.\d+)?)\s*\/\s*t\s*\)`,
 ].join("|"), "i");

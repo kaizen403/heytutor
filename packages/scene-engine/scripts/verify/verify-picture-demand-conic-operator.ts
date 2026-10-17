@@ -188,6 +188,8 @@ const PARAMETER_ANGLE_STEMS: [string, string][] = [
   ["only parameter is", "Find the point on the hyperbola x^2/16 - y^2/9 = 1 whose parameter is π/6."],
   ["only a trig function of θ", "Find the tangent to the hyperbola x^2/a^2 - y^2/b^2 = 1 at the point (a sec θ, b tan θ)."],
   ["only a trig function of θ, unspaced", "Find the tangent to the ellipse at (acosθ, bsinθ)."],
+  ["only braced LaTeX trig of θ", "Find the tangent to the hyperbola x^2/16 - y^2/9 = 1 at (4\\sec{\\theta}, 3\\tan{\\theta})."],
+  ["only braced LaTeX trig of t", "The ellipse x = 3\\cos{t}, y = 2\\sin{t}: find its foci."],
   ["only a trig function of t", "The ellipse x = 3 cos t, y = 2 sin t: find its foci."],
   ["only a trig function of t, unspaced before", "Find the foci of the ellipse (acos t, bsin t)."],
   ["only at t with an angle", "Find the tangent to the ellipse x^2/9 + y^2/4 = 1 at t = π/3."],

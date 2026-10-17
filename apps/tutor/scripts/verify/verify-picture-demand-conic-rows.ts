@@ -109,6 +109,7 @@ const REWORDED: [string, string][] = [
   ["pd30", "a point on an ellipse written as (a cos θ, b sin θ)"],
   ["pd30", "ellipse pe point ke coordinates (a cos θ, b sin θ) form mein samjhao"],
   ["pd33", "what is the angle θ in the point (a cos θ, b sin θ) of an ellipse"],
+  ["pd33", "what is the point (a\\cos{\\theta}, b\\sin{\\theta}) of an ellipse"],
   ["pd32", "An ellipse is given by x = 6 cos θ, y = 2 sin θ. Find the points P and Q where θ = pi/6 and θ = -pi/6, and the length of the chord PQ."],
   ["pd32", "An ellipse is given by x = 6 cos θ, y = 2 sin θ. Find the points P and Q corresponding to θ = pi/6 and θ = -pi/6, and the length of the chord PQ."],
   ["pd32", "An ellipse is given by x = 6 cos \\theta, y = 2 sin \\theta. Find the points P and Q at \\theta = \\pi/6 and \\theta = -\\pi/6, and the length of the chord PQ."],
