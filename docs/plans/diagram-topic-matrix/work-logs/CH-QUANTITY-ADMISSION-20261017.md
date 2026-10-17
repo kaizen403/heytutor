@@ -23,3 +23,60 @@ Independent QA preserved the original 369 assertions and added the exact aggrega
 The own engine delta build passes against this frozen repair on top of bebf5aeb. Its entry SHA-256 is `8c32ef17ee2000b476b6dbc4cfb174e9fe07040d7f21d5a666ce11762a6b4447`; input hashes did not move during the build. Independent plain-Node public-module verification passes 259/259 semantic calls and 200/200 declaration API calls, and all 83 positive complete SceneDocuments match frozen source-public snapshots and compile. The authoritative independent compiled receipt is `.context/chem/coverage95/pr137-aggregate-regressions-qa/compiled402/compiled-boundary.json`. The separate supplemental actual-module check passes 291/291 in `pr137-aggregate-repair-built-boundary-v1/RESULTS.json`. These are intermediate build-boundary proofs on the repaired source, not a final integrated-head sweep or a board coverage measurement.
 
 The integration owner must commit the repair, incorporate the latest main normally, and run the exact-head 604 recorded replay comparison, both physics/maths route maps and full engine/core sweeps before READY. Historical RED and passing receipts above remain distinct. No paid model call was made for this repair.
+
+
+The 4655f926 integrated-head sweep subsequently passed 118/121 engine leaves;
+the three inherited complete failure logs matched c6b85a48 after checkout-prefix
+normalization. The core retry passed 52/56 with four inherited failures; its
+initial startup timing failure and successful unchanged retries remain recorded.
+Those receipts prove 4655f926 only. Its READY was superseded by a new concrete
+molar-mass alpha review finding.
+
+The further bounded repair changes only `solutionProperties.ts` at runtime.
+A supplied unreadable alpha could previously become null and allow the separate
+i factor to produce an apparent mass. Alpha/α/degree aliases now use the shared
+owner declaration state, including every repeated occurrence, canonical extent
+bounds and agreement with the existing process formula. Particle/monomer
+multiplicity is process-bound, integral and at least two; all nu/k aliases and
+every quantified noun argument must agree. A closed quantified argument cannot
+leave a unit, damaged suffix, second value or arithmetic continuation unread.
+Explicit number/count/multiplicity properties are distinct from a particle or
+monomer subject describing unrelated temperature. The shared strict reader and
+existing i inventory are unchanged.
+
+The independent initial 50-wording RED found 24 unsafe wordings across strict,
+schematic and ordinary public-family paths. Its source and actual 4655f926
+package outcomes agreed. The owned gate preserves the original 402 assertions
+byte-for-byte and appends those 50 frozen wordings plus five reordered natural
+wordings: RED 480 passes / 87 failures became 567 passes. A demonstrated second
+particle-noun gap was captured as 582 passes / six failures and closed by full
+noun inventory. Two introduced foreign-temperature subject regressions were
+then proved against the actual prior package (six baseline passes, six new
+failures) and restored by explicit count-property binding. Final source checks
+pass 594/594. The unchanged C05 and colligative-i owner gates, source typecheck,
+changed-file lint and diff checks pass on the same source freeze.
+
+Evidence is in `.context/chem/coverage95/pr137-alpha-owner-builder-v1/` and
+`pr137-alpha-qa/`. The final source freeze is `source-freeze594.json`; earlier
+RED, intermediate passing receipts and the exact original gate remain distinct.
+The independently observed readable-i feasible-range error with genuinely
+absent alpha is byte-equivalent on the prior and repaired paths; the integration
+owner explicitly deferred that existing physical-consistency issue to a bounded
+follow-up. It is not silently counted as repaired here.
+
+Independent final source QA passes all 594 owned checks and 192 frozen fresh
+route calls. All 66 positive complete SceneDocuments match the actual prior
+4655f926 package, including the foreign-temperature subject controls. The own
+engine-only build passes with all 604 tracked package files stable before and
+after the build. The resulting engine entry SHA-256 is
+`ad639d08ba3200351b62e20f1e5b94bd4921bf7cc4fa82ef8c107df020a090ff`;
+drawing, tutor-core and whiteboard entries remain unchanged. Build proof is in
+`pr137-alpha-owner-builder-v1/own-engine-build/RESULTS.json`. Independent actual
+plain-Node checks pass 192/192 fresh routes and all 459 existing checks; all 66
+fresh positive complete documents and all 83 existing complete-document snapshots
+match their frozen prior-package expectations. This proof uses the actual own
+compiled module with no aliases, loaders or regenerated gold documents, and is
+sealed in `pr137-alpha-qa/FINAL-REVIEW.json`. Final committed-head sweeps, replay
+comparison and route maps remain with the integration owner. This is an
+intermediate frozen build, not final PR READY or a board-coverage claim. No
+model, database or production operation was performed for this repair.

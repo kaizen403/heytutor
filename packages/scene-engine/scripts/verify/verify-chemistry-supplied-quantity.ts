@@ -529,6 +529,434 @@ const hyphenatedMechanismRequest = "An exothermic reaction proceeds in two steps
 for (const schematic of [false, true]) test(`reference-owner/hyphenated-request/${schematic ? "schematic" : "strict"}`, () => compiled(buildThermoGraphScene(hyphenatedMechanismRequest, [], schematic)));
 test("reference-owner/hyphenated-request/ordinary", () => compiled(synthesizeFamilyScene({ question: hyphenatedMechanismRequest })?.document ?? null));
 
+// Extent and particle-count owners cannot disappear behind a separately supplied i.
+const molarMassOwnerRegressions: ReadonlyArray<{ id: string; question: string; expectedDraw: boolean; expectedApparent: number | null }> = [
+  {
+    "id": "EXACT-alpha-damaged-exponent",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 2e-. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "ALPHA-invalid-1",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha =. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "ALPHA-invalid-2",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = NaN. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "ALPHA-invalid-3",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = unknown. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "ALPHA-invalid-4",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 0.5 kg. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "ALPHA-invalid-5",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha reads 2e-. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "ALPHA-invalid-6",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with \u03b1 = 2e-. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "ALPHA-invalid-7",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with degree of dissociation is 2e-. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "ALPHA-invalid-8",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 0.5 and alpha = 2e-. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "ALPHA-invalid-9",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 2e- and alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "ALPHA-invalid-10",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 0.5 and alpha = 0.25. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "ALPHA-invalid-11",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = -0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "ALPHA-invalid-12",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 1.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "ALPHA-positive-1",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120.0
+  },
+  {
+    "id": "ALPHA-positive-2",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with \u03b1 = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120.0
+  },
+  {
+    "id": "ALPHA-positive-3",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with degree of dissociation is 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120.0
+  },
+  {
+    "id": "ALPHA-positive-4",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 0.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120.0
+  },
+  {
+    "id": "ALPHA-positive-5",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120.0
+  },
+  {
+    "id": "ALPHA-positive-6",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 0. i = 1. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 180.0
+  },
+  {
+    "id": "ALPHA-positive-7",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 1. i = 2. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 90.0
+  },
+  {
+    "id": "ALPHA-positive-8",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 0.5 and alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120.0
+  },
+  {
+    "id": "ALPHA-contradicts-i",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 0.25. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "ASSOC-invalid-1",
+    "question": "The true molar mass is 180 g/mol. The solute associates as 2 monomers with alpha = 2e-. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "ASSOC-invalid-2",
+    "question": "The true molar mass is 180 g/mol. The solute associates as 2 monomers with alpha = 0.5 kg. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "ASSOC-invalid-3",
+    "question": "The true molar mass is 180 g/mol. The solute associates as 2 monomers with alpha = 0.5 and alpha = 0.25. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "ASSOC-invalid-4",
+    "question": "The true molar mass is 180 g/mol. The solute associates as 2 monomers with alpha = 0.5 and alpha = 2e-. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "ASSOC-positive-1",
+    "question": "The true molar mass is 180 g/mol. The solute associates as 2 monomers with alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  },
+  {
+    "id": "ASSOC-positive-2",
+    "question": "The true molar mass is 180 g/mol. The solute associates as 2 monomers. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  },
+  {
+    "id": "ASSOC-positive-3",
+    "question": "The true molar mass is 180 g/mol. The solute associates as 2 monomers with alpha = 0.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  },
+  {
+    "id": "ASSOC-positive-4",
+    "question": "The true molar mass is 180 g/mol. The solute associates as 2 monomers with alpha = 0. i = 1. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 180
+  },
+  {
+    "id": "ASSOC-positive-5",
+    "question": "The true molar mass is 180 g/mol. The solute associates as 2 monomers with alpha = 1. i = 0.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 360
+  },
+  {
+    "id": "ASSOC-positive-6",
+    "question": "The true molar mass is 180 g/mol. The solute associates as 2 monomers with alpha = 0.5 and alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  },
+  {
+    "id": "NU-invalid-1",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles. nu = 3 with alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "NU-invalid-2",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles. \u03bd = 3 with alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "NU-invalid-3",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles. nu = 2e- with alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "NU-invalid-4",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles. nu = 2 kg with alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "NU-invalid-5",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles. nu = 2.5 with alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "MONOMERS-invalid-1",
+    "question": "The true molar mass is 180 g/mol. The solute associates as 2 monomers. k = 3 with alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "MONOMERS-invalid-2",
+    "question": "The true molar mass is 180 g/mol. The solute associates as 2 monomers. k = 2e- with alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "MONOMERS-invalid-3",
+    "question": "The true molar mass is 180 g/mol. The solute associates as 2 monomers. k = 2 kg with alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "MONOMERS-invalid-4",
+    "question": "The true molar mass is 180 g/mol. The solute associates as 2 monomers. k = 2.5 with alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "NU-agreeing-repeat",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles. nu = 2 with alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "MONOMERS-agreeing-repeat",
+    "question": "The true molar mass is 180 g/mol. The solute associates as 2 monomers. k = 2 with alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  },
+  {
+    "id": "I-existing-invalid-1",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 0.5. i = 2e-. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "I-existing-invalid-2",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 0.5. i = 1.5 and i = 2. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "I-existing-invalid-3",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 0.5. i = unknown. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "I-existing-invalid-4",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 0.5. i = 1.5 kg. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "I-existing-agreeing",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles with alpha = 0.5. i = 1.5 and i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "TRUE-absence-no-alpha-no-i",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "TRUE-absence-plain-i",
+    "question": "The true molar mass is 180 g/mol. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "ALPHA-natural-order-1",
+    "question": "A solute has a true molar mass of 180 g/mol and dissociates into 2 particles. Its degree of dissociation is unreadable; i = 1.5. Calculate the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "ALPHA-natural-order-2",
+    "question": "For dissociation into 2 particles, alpha has a value of 2e-. The true molar mass is 180 g/mol and i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "ALPHA-natural-order-3",
+    "question": "The true molar mass is 180 g/mol. Association joins 2 monomers, but the degree of association is NaN. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "ALPHA-natural-order-4",
+    "question": "With i = 1.5, find the apparent molar mass of a solute with true molar mass 180 g/mol. It dissociates into 2 particles with \u03b1 = 0.5 kg.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "ALPHA-natural-order-5",
+    "question": "The true molar mass is 180 g/mol. It dissociates into 2 particles. Alpha = 0.5 is stated first; \u03b1 = 2e- is also stated. Given i = 1.5, calculate the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  }
+];
+for (const row of molarMassOwnerRegressions) {
+  for (const mode of ["strict", "schematic", "ordinary"] as const) test(`molar-mass-owner/${row.id}/${mode}`, () => {
+    const raw = mode === "ordinary" ? synthesizeFamilyScene({ question: row.question })?.document ?? null
+      : buildSolutionLessonScene(row.question, [], mode === "schematic");
+    if (!row.expectedDraw) { assert(!drawable(raw), "every supplied extent/count must be consumed or refuse before i fallback"); return; }
+    compiled(raw);
+    const result = compileSceneDocument(raw!);
+    assert(result.ok && result.renderScene);
+    assert(result.renderScene.primitives.some(primitive => primitive.kind === "label" && primitive.text === `M'=${row.expectedApparent} g/mol`), "actual rendered apparent mass must match the independently expected value");
+  });
+}
+
+// Quantified noun siblings are separate declarations even without a repeated into/as.
+const molarMassCountSiblings: ReadonlyArray<{ id: string; question: string; expectedDraw: boolean; expectedApparent: number | null }> = [
+  {
+    "id": "particle-conflict",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and 3 particles with alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "particle-unread-sibling",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and unknown particles with alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "particle-agreeing",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and 2 particles with alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120.0
+  },
+  {
+    "id": "particle-conflict-separate",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and into 3 particles with alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "monomer-conflict",
+    "question": "The true molar mass is 180 g/mol. The solute associates as 2 monomers and 3 monomers with alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "monomer-unread-sibling",
+    "question": "The true molar mass is 180 g/mol. The solute associates as 2 monomers and unknown monomers with alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "monomer-agreeing",
+    "question": "The true molar mass is 180 g/mol. The solute associates as 2 monomers and 2 monomers with alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240.0
+  }
+];
+for (const row of molarMassCountSiblings) {
+  for (const mode of ["strict", "schematic", "ordinary"] as const) test(`molar-mass-count-sibling/${row.id}/${mode}`, () => {
+    const raw = mode === "ordinary" ? synthesizeFamilyScene({ question: row.question })?.document ?? null
+      : buildSolutionLessonScene(row.question, [], mode === "schematic");
+    if (!row.expectedDraw) { assert(!drawable(raw), "every process-count declaration must agree or refuse"); return; }
+    compiled(raw);
+    const result = compileSceneDocument(raw!);
+    assert(result.ok && result.renderScene);
+    assert(result.renderScene.primitives.some(primitive => primitive.kind === "label" && primitive.text === `M'=${row.expectedApparent} g/mol`));
+  });
+}
+
+// A particle/monomer subject is not a count declaration of its foreign temperature.
+const molarMassSubjectReferences: ReadonlyArray<{ id: string; question: string; expectedDraw: boolean; expectedApparent: number | null }> = [
+  {
+    "id": "particle-subject-foreign-temperature",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles that remain at 300 K, with alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "monomer-subject-foreign-temperature",
+    "question": "The true molar mass is 180 g/mol. The solute associates as 2 monomers that remain at 300 K, with alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  }
+];
+for (const row of molarMassSubjectReferences) {
+  for (const mode of ["strict", "schematic", "ordinary"] as const) test(`molar-mass-subject-reference/${row.id}/${mode}`, () => {
+    const raw = mode === "ordinary" ? synthesizeFamilyScene({ question: row.question })?.document ?? null
+      : buildSolutionLessonScene(row.question, [], mode === "schematic");
+    compiled(raw);
+    const result = compileSceneDocument(raw!);
+    assert(result.ok && result.renderScene);
+    assert(result.renderScene.primitives.some(primitive => primitive.kind === "label" && primitive.text === `M'=${row.expectedApparent} g/mol`));
+  });
+}
+
 const sourceFiles = ["quantityReader", "sceneKit", "atomicRadiation", "chemicalThermodynamics", "electrochemistry", "kinetics", "solutionProperties", "solutionsGraphs", "thermoGraphs", "unitCell"];
 const sourceHashes = Object.fromEntries(sourceFiles.map(name => [name + ".ts", createHash("sha256").update(readFileSync(new URL(`../../src/chemistry/${name}.ts`, import.meta.url))).digest("hex")]));
 const output = { passed, failures, sourceHashes, dimensions: Object.keys(dimensions).length, families: Object.keys(builders).length, numericOwnerCases: cases.length, evidence, scope: "Source-only independent owner-declaration/family admission matrix with valid positive and absent controls. Declaration fixtures are byte-identical to red-gate-v1.ts; assertions use the new owner seam while strict literal valid/missing behavior remains unchanged. No built package, provider, DB, server, browser, production or coverage claim." };

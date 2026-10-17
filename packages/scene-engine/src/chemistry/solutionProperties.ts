@@ -9,7 +9,7 @@
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
 
-import { CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, findChemistryQuantities, readChemistryQuantity, readChemistryQuantityDeclaration, readChemistryLiteral, matchedChemistryComponentAmount, convertChemistryReading, chemistryPlanBindingsValid, chemistryCanonicalValuesAgree, chemistryQuestionSpan, chemistryUnitSymbol, type ChemistryDimension, type ChemistryUnit } from "./quantityReader";
+import { chemistryQuantityPayloadPresent, CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, findChemistryQuantities, readChemistryQuantity, readChemistryQuantityDeclaration, readChemistryLiteral, matchedChemistryComponentAmount, convertChemistryReading, chemistryPlanBindingsValid, chemistryCanonicalValuesAgree, chemistryQuestionSpan, chemistryUnitSymbol, type ChemistryDimension, type ChemistryUnit } from "./quantityReader";
 
 const FAMILY = "chem_solutions" as const;
 
@@ -508,13 +508,73 @@ function colligativeScene(question: string, stem: string): SceneDocument | null 
   );
 }
 
+/** All aliases and quantified noun arguments belong to one process-count owner. */
+function molarMassMultiplicity(question: string, association: boolean): {value:number|null} | null {
+  const owner = association ? "association monomer multiplicity" : "dissociation particle multiplicity";
+  let value: number | null = null;
+  const accept = (read: ReturnType<typeof readChemistryQuantityDeclaration>, closedEnd?: number): boolean => {
+    if (read.state === "invalid") return false;
+    if (read.state === "absent") return true;
+    if (read.reading.rawUnit !== null || !Number.isInteger(read.reading.value) || read.reading.value < 2) return false;
+    // A quantified noun closes this argument. A successful first number may
+    // not hide a damaged unit, second literal, or arithmetic continuation.
+    if (closedEnd !== undefined && question.slice(read.reading.source.span.end,closedEnd).trim()) return false;
+    if (value !== null && !chemistryCanonicalValuesAgree(value,read.reading.value)) return false;
+    value = read.reading.value;
+    return true;
+  };
+  const aliases = readChemistryQuantityDeclaration({question,after:association ? /\bk\b/ : /\bnu\b|ν/i,
+    cueCaseSensitive:association,dimension:"dimensionless",owner,allowAgreeingRepeats:true});
+  if (!accept(aliases)) return null;
+  const body = chemistryQuestionSpan(question);
+  const text = question.slice(body.start,body.end);
+  const nounCue = association ? /(?<![A-Za-z])monomers\b/ig : /(?<![A-Za-z])particles\b/ig;
+  // Only an explicit count property heads a value after the noun. A bare
+  // particle/monomer subject may instead introduce foreign temperature or mass.
+  const countCue = association
+    ? /\b(?:(?:number|count) of (?:the )?monomers|monomers? (?:count|multiplicity))\b/i
+    : /\b(?:(?:number|count) of (?:the )?particles|particles? (?:count|multiplicity))\b/i;
+  if (!accept(readChemistryQuantityDeclaration({question,after:countCue,dimension:"dimensionless",owner,allowAgreeingRepeats:true}))) return null;
+  let previousEnd = 0;
+  for (const noun of text.matchAll(nounCue)) {
+    const prefix = text.slice(previousEnd,noun.index);
+    const clauseStart = [...prefix.matchAll(/[;?!\n]|\.(?=\s|$)/g)].at(-1);
+    const localStart = clauseStart ? clauseStart.index! + clauseStart[0].length : 0;
+    const local = prefix.slice(localStart);
+    const introducer = [...local.matchAll(association ? /\b(?:as|into|from)\s+/ig : /\binto\s+/ig)].at(-1);
+    const continuation = previousEnd > 0 && !clauseStart ? /^\s*(?:and\b|or\b|,)\s*/i.exec(local) : null;
+    const lastToken = /\S+\s*$/.exec(local);
+    // A reference such as "the number of particles" supplies no nominal
+    // value. An explicit argument/list sibling is still a declaration even
+    // when its payload is unknown or unreadable.
+    if (!introducer && !continuation && (!lastToken || !chemistryQuantityPayloadPresent(lastToken[0]))) {
+      previousEnd = noun.index! + noun[0].length;
+      continue;
+    }
+    const offset = introducer ? introducer.index! + introducer[0].length
+      : continuation ? continuation[0].length : lastToken!.index;
+    const start = body.start + previousEnd + localStart + offset;
+    const end = body.start + noun.index!;
+    const read = readChemistryQuantityDeclaration({question,after:/^/,within:{start,end},dimension:"dimensionless",owner});
+    if (!accept(read,end)) return null;
+    previousEnd = noun.index! + noun[0].length;
+  }
+  return {value};
+}
+
 function molarMassScene(question: string, stem: string): SceneDocument | null {
   const dissociation = /dissociat/.test(stem);
   const association = /associat/.test(stem);
   if (dissociation && association) return null;
-  const alpha = take(new RegExp(String.raw`alpha\s*=\s*(${CHEMISTRY_SCALAR_PATTERN})|α\s*=\s*(${CHEMISTRY_SCALAR_PATTERN})|degree of (?:dissociation|association)(?:\s+is)?\s*(${CHEMISTRY_SCALAR_PATTERN})`, "id").exec(question));
-  const nu = take(/into\s+(\d+)\s+particles|ν\s*=\s*(\d+)|\bnu\s*=\s*(\d+)/id.exec(question));
-  const monomers = take(/(\d+)\s+monomers|\bk\s*=\s*(\d+)/id.exec(question));
+  const alphaRead = readChemistryQuantityDeclaration({question,after:/\balpha\b|α|degree of (?:dissociation|association)/i,
+    dimension:"dimensionless",owner:"association or dissociation extent",allowAgreeingRepeats:true});
+  if (alphaRead.state === "invalid") return null;
+  const alpha = alphaRead.state === "valid" ? alphaRead.reading.value : null;
+  if (alpha !== null && !dissociation && !association) return null;
+  const multiplicity = dissociation || association ? molarMassMultiplicity(question,association) : {value:null};
+  if (!multiplicity) return null;
+  const nu = dissociation ? multiplicity.value : null;
+  const monomers = association ? multiplicity.value : null;
   if (alpha !== null && (alpha < 0 || alpha > 1)) return null;
   if (dissociation && (nu === null || nu < 2)) return null;
   if (association && (monomers === null || monomers < 2)) return null;
