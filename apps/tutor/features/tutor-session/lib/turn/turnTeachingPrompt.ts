@@ -190,8 +190,7 @@ ${JSON.stringify({
 })}${assumptions.length > 0 ? `
 PROBLEM CONDITIONS
 The assumptions listed above are modelling conditions, not extra givens. Read the user's exact question to distinguish stated conditions from unstated assumptions; neither the drawing nor a qualitative claim establishes an unstated condition.
-Before the first calculation that depends on an unstated assumption, explicitly say "assuming" and explain the condition. Say which requested result is not uniquely determined without it.
-When giving that dependent answer, say "under that assumption" in the SAME STEP as its numeric value. The answer's [WRITE] row must carry a compact condition too, or follow a row stating it, so the student's saved notes remain conditional. This applies even when some other quantity in the plan is solver-verified. Do not silently drop the condition at the final answer.` : ""}${assumedSymbols.length > 0
+Apply DERIVATION BEFORE RESULTS: distinguish stated conditions from unstated assumptions, introduce each genuinely unstated condition once before its first use, and write one condition row so the saved notes scope all dependent working and results. Say once which result is not uniquely determined without that condition. Preserve that scope even when other quantities are solver-verified; a new condition starts a new case, not a repeated suffix on each answer.` : ""}${assumedSymbols.length > 0
   ? `
 NOT STATED BY THE QUESTION: ${assumedSymbols.join(", ")}. The question never supplies these; they are illustrative values chosen so the idea can be worked through.
 Never call them given. Say "suppose" or "take, for example" the first time each one is spoken, and [WRITE] that word on the row that carries it. Never present a result computed from them as a fact about the world.`
@@ -299,6 +298,7 @@ const FIGURE_LESSON_FLOW_LINES: readonly RegExp[] = [
   /^A complete metric diagram has already been compiled/,
   /^A source-grounded conceptual representation/,
   /^Read the figure to the student before you calculate/,
+  /^Read the figure's setup before using it:/,
   /^WRITE the left work column/,
   /This figure is what it is/,
   /^The left side of the board is the code editor/,
@@ -691,7 +691,11 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
       ? resolveLessonBudget(lessonQuestion, input.familiarity)
       : DOUBT_LESSON_BUDGET,
     systemPrompt: `${basePrompt}\n\n--- current lesson (runtime) ---\n${runtimeAddon}`,
-    continuationPrompt: `${afterStop ? RESUME_AFTER_STOP_CONTINUATION_PROMPT : RESUME_CONTINUATION_PROMPT}\n\n--- this lesson ---\n${runtimeAddon}`,
+    continuationPrompt: [
+      codeBoard ? "" : basePrompt,
+      afterStop ? RESUME_AFTER_STOP_CONTINUATION_PROMPT : RESUME_CONTINUATION_PROMPT,
+      `--- this lesson ---\n${runtimeAddon}`,
+    ].filter(Boolean).join("\n\n"),
   };
 }
 
