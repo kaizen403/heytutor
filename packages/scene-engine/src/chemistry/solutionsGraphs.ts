@@ -25,7 +25,7 @@
  */
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, round, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
-import { CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, matchedChemistryComponentAmount, readChemistryLiteral, readChemistryQuantityDeclaration, chemistryCanonicalValuesAgree, convertChemistryValue, chemistryPlanBindingsValid, type ChemistryUnit, type ChemistrySpan } from "./quantityReader";
+import { CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, matchedChemistryComponentAmount, readChemistryLiteral, readChemistryQuantityDeclaration, chemistryQuantityPayloadPresent, chemistryQuestionSpan, chemistryCanonicalValuesAgree, convertChemistryValue, chemistryPlanBindingsValid, type ChemistryUnit, type ChemistrySpan } from "./quantityReader";
 import { buildSolutionLessonScene, claimsSolutionLesson } from "./solutionProperties";
 
 export const SOLUTIONS_FAMILY = "chem_solutions" as const;
@@ -866,11 +866,25 @@ function statedDeltaT(stem: string, _quantities: readonly ChemPlanQuantity[], wh
   const phrases = which === "b"
     ? [/(?:elevation (?:in|of) (?:the )?boiling point|boiling point elevation|(?:δ|Δ|delta ?)t_?b)(?:\s*of (?:the |a |an |this )?(?:[a-z]+ )?(?:solution|water|solvent|benzene))?(?:\s+(?:is|was|of|=|:))?(?:\s+found to be|\s+observed(?: to be)?)?/]
     : [/(?:depression (?:in|of) (?:the )?freezing point|freezing point depression|(?:δ|Δ|delta ?)t_?f)(?:\s*of (?:the |a |an |this )?(?:[a-z]+ )?(?:solution|water|solvent|benzene))?(?:\s+(?:is|was|of|=|:))?(?:\s+found to be|\s+observed(?: to be)?)?/];
-  const read = readChemistryQuantityDeclaration({question:stem,after:phrases[0]!,dimension:"temperature_delta",targetUnit:"K",owner:which === "b" ? "boiling-point elevation" : "freezing-point depression"});
-  if (read.state === "invalid") return false;
-  if (read.state === "absent") return null;
-  const value = read.reading.value;
-  return value > 0 && value <= 50 ? value : false;
+  const cue = phrases[0]!;
+  const owners = [...stem.slice(0,chemistryQuestionSpan(stem).end).matchAll(new RegExp(cue.source,"gi"))];
+  let value: number | null = null;
+  for (const [index,owner] of owners.entries()) {
+    const end = owners[index+1]?.index ?? chemistryQuestionSpan(stem).end;
+    const payload = stem.slice(owner.index!+owner[0].length,end);
+    const heading = /:\s*$/.test(owner[0])
+      ? /^\s*(?:draw|sketch|plot|show)\b/i.test(payload)
+      : /^\s*:\s*(?:draw|sketch|plot|show)\b/i.test(payload);
+    if (heading && !chemistryQuantityPayloadPresent(payload)) continue;
+    const read = readChemistryQuantityDeclaration({question:stem,after:cue,within:{start:owner.index!,end},
+      dimension:"temperature_delta",targetUnit:"K",owner:which === "b" ? "boiling-point elevation" : "freezing-point depression"});
+    if (read.state === "invalid") return false;
+    if (read.state === "valid") {
+      if (value !== null || !(read.reading.value > 0) || read.reading.value > 50) return false;
+      value = read.reading.value;
+    }
+  }
+  return value;
 }
 
 function colligativeScene(question: string, mode: "boiling" | "freezing", deltaT: number | null): SceneDocument | null {
