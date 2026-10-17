@@ -109,7 +109,7 @@ export interface ChemistryArrheniusEquation {
 export function readChemistryArrheniusEquation(question: string): ChemRead<ChemistryArrheniusEquation> {
   const end = chemistryQuestionSpan(question).end;
   const patterns = [
-    { pattern: new RegExp(String.raw`\b(ln|log)\s*k\s*=\s*(${SCALAR})\s*[-−]\s*(${SCALAR})\s*(?:K\s*)?/\s*[Tt]\b`, "gd"), group: 3 },
+    { pattern: new RegExp(String.raw`\b([lL](?:[nN]|[oO][gG]))\s*k\s*=\s*(${SCALAR})\s*[-−]\s*(${SCALAR})\s*(?:K\s*)?/\s*[Tt]\b`, "gd"), group: 3 },
     { pattern: new RegExp(String.raw`\be\s*\^?\s*\(\s*[-−]\s*(${SCALAR})\s*(?:K\s*)?/\s*[Tt]\s*\)`, "gd"), group: 1 },
     { pattern: new RegExp(String.raw`\be\s*\^?\s*[-−]\s*(${SCALAR})\s*(?:K\s*)?/\s*[Tt]\b`, "gd"), group: 1 },
   ];
@@ -126,9 +126,18 @@ export function readChemistryArrheniusEquation(question: string): ChemRead<Chemi
     const pair = match.indices![group]!; const span = {start:pair[0],end:pair[1]};
     const value = scalarValue(question,span);
     if (!value.ok || !(value.reading > 0)) return fail("malformed",span);
-    readings.push({natural:match[1] !== "log",coefficient:{value:value.reading,span,text:question.slice(span.start,span.end)},source:{span:{start,end:stop},text:match[0]}});
+    readings.push({natural:match[1]?.toLowerCase() !== "log",coefficient:{value:value.reading,span,text:question.slice(span.start,span.end)},source:{span:{start,end:stop},text:match[0]}});
   }
-  if (readings.length !== 1) return fail(readings.length ? "ambiguous" : /\b(?:ln|log)\s*k\s*=|\be\s*\^?\s*\(?\s*[-−]/.test(question.slice(0,end)) ? "malformed" : "missing");
+  // Inventory declarations before accepting one successful expression. An
+  // unread log assignment or exponential sibling cannot disappear behind it.
+  // An uppercase equilibrium K assignment is supplied unsupported material,
+  // never a lowercase rate k or an absent expression permitting a generic plot.
+  const owners = /\b(?:[lL](?:[nN]|[oO][gG])\s*[kK]\s*=|e\s*(?:\^\s*|\(\s*|[-−]))/g;
+  for (const owner of question.slice(0,end).matchAll(owners)) {
+    if (!readings.some(reading => reading.source.span.start === owner.index))
+      return fail("malformed", {start:owner.index!,end:owner.index!+owner[0].length});
+  }
+  if (readings.length !== 1) return fail(readings.length ? "ambiguous" : /\b[lL](?:[nN]|[oO][gG])\s*k\s*=|\be\s*\^?\s*\(?\s*[-−]/.test(question.slice(0,end)) ? "malformed" : "missing");
   return {ok:true,reading:readings[0]!};
 }
 
