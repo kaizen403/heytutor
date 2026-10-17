@@ -71,26 +71,41 @@ function objectDistanceFromStem(stem: string): number | null {
 }
 
 /**
- * A mirror named as an optical element: every use of the word except a
- * "mirror image" (or the typed "mirror imag"), which is a reflection of a
- * point or a figure, not an apparatus. "A concave mirror", "a mirror of
- * focal length 15 cm" and "an object 20 cm in front of a mirror" all name one.
+ * A mirror named as an optical element. A qualified mirror (concave, convex,
+ * spherical, parabolic, curved or plane) always names one, even in "concave
+ * mirror image formation"; a bare "mirror image" (or the typed "mirror imag")
+ * is a reflection of a point or a figure, not an apparatus. "A mirror of
+ * focal length 15 cm" and "an object 20 cm in front of a mirror" name one too.
  */
-const MIRROR_ELEMENT = /\bmirrors?\b(?![\s-]*imag(?:es?)?\b)/i;
+const MIRROR_ELEMENT = /\b(?:(?:concave|convex|spherical|parabolic|curved|plane)[\s-]+mirrors?\b|mirrors?\b(?![\s-]*imag(?:es?)?\b))/i;
+
+/** A lens, or a mirror named as an element. */
+const OPTICAL_ELEMENT = new RegExp(`\\blens(?:es)?\\b|${MIRROR_ELEMENT.source}`, "i");
+
+/**
+ * `pattern`, in a stem that names no optical element anywhere. A stem that
+ * names a lens or a mirror element is optics whatever else it says ("a convex
+ * lens forms the image of a point P in a plane perpendicular to its axis").
+ */
+function withoutOpticalElement(pattern: RegExp): RegExp {
+  return new RegExp(`^(?![\\s\\S]*(?:${OPTICAL_ELEMENT.source}))[\\s\\S]*?(?:${pattern.source})`, "i");
+}
 
 /**
  * A stem whose only mirror is a "mirror image" ("B is the mirror image of A
  * in a plane") is coordinate geometry or symmetry, never a mirror stem.
  */
-const MIRROR_IMAGE_WITHOUT_MIRROR = new RegExp(`^(?![\\s\\S]*${MIRROR_ELEMENT.source})[\\s\\S]*\\bmirror[\\s-]*imag(?:es?)?\\b`, "i");
+const MIRROR_IMAGE_WITHOUT_MIRROR = withoutOpticalElement(/\bmirror[\s-]*imag(?:es?)?\b/i);
 
 /**
- * The image or reflection of a point (named, or given by coordinates) in a
- * plane or a line: the reflection of coordinate geometry, which names no lens
- * or mirror. A point object or source is optics, and so is the image in a
- * plane mirror.
+ * The image or reflection of a point (named, or given by coordinates, which
+ * may be decimals) in a plane or a line, in a stem that names no optical
+ * element: the reflection of coordinate geometry. A point object or source is
+ * optics, and so is the image in a plane mirror.
  */
-const COORDINATE_POINT_REFLECTION = /\b(?:imag(?:es?)?|reflections?)\s+of\s+(?:(?:the|a)\s+)?(?:points?\b(?!\s+(?:object|source|charge)s?\b)|[A-Z]\s*\(\s*[-+]?\d|\(\s*[-+]?\d)[^.?!]*?\b(?:in|about|across|with respect to)\s+(?:(?:the|a|given)\s+)*(?:plane|line)\b(?![\s-]*mirror)/i;
+const COORDINATE_POINT_REFLECTION = withoutOpticalElement(
+  /\b(?:imag(?:es?)?|reflections?)\s+of\s+(?:(?:the|a)\s+)?(?:points?\b(?!\s+(?:object|source|charge)s?\b)|[A-Z]\s*\(\s*[-+]?\d|\(\s*[-+]?\d)(?:[^.?!]|\.(?=\d))*?\b(?:in|about|across|with respect to)\s+(?:(?:the|a|given)\s+)*(?:plane|line)\b(?![\s-]*mirror)/i,
+);
 
 /** Focal length, named or written as `f = 15 cm`. */
 function focalLengthFromStem(stem: string): number | null {

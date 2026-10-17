@@ -20,6 +20,12 @@
  * (fixtures/optics-stem-element.json, lecture-lab runs and repo data sets,
  * none held out) keep main's archetype. Each veto has a case only it catches.
  *
+ * PR #189 review: neither veto applies when the stem names a lens or a mirror
+ * element (a qualified mirror names one even in "concave mirror image
+ * formation", and "a convex lens forms the image of a point P in a plane"
+ * keeps thin_lens), and a decimal coordinate such as (1.5, 2) reaches the
+ * line or plane after it.
+ *
  *   pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-optics-stem-element.ts
  */
 import { readFileSync } from "node:fs";
@@ -133,6 +139,41 @@ check("image of a coordinate point in a line, mirror law hint", leaves("Find the
 check("reflection of a named point in a line, mirror law hint", leaves("Find the reflection of the point A(3, -2) in the line y = x.", ["mirror-image-formula"]));
 check("image of a coordinate point in a line, lens law hint", leaves("Find the image of the point (1, 2) in the line x + y = 5.", ["lens-formula"]));
 check("image of a coordinate point in a line, lens maker law hint", leaves("Find the image of the point (1, 2) in the line x + y = 5.", ["lens-maker-formula"]));
+
+// 5. PR #189 review (Greptile): a named optical element keeps its figure, and a decimal point is not a sentence end.
+// 5a. A qualified mirror names the element even when "image" follows it (main's archetype, pinned).
+const QUALIFIED_MIRROR_IMAGE: Array<[string, string | null]> = [
+  ["Explain concave mirror image formation", "spherical_mirror"],
+  ["Explain convex mirror image formation.", "spherical_mirror"],
+  ["Describe the nature of a convex mirror image.", "spherical_mirror"],
+  ["Spherical mirror image formation for an object beyond C", "spherical_mirror"],
+  ["Draw concave mirror images for an object at F, between F and C, and beyond C.", "spherical_mirror"],
+  ["Explain parabolic mirror image formation", "spherical_mirror"],
+  ["Explain concave-mirror image formation with a ray diagram", "spherical_mirror"],
+  // The plane mirror stays vetoed by its own cue, as on main.
+  ["Explain plane mirror image formation", null],
+];
+for (const [question, expected] of QUALIFIED_MIRROR_IMAGE) check(`qualified mirror image ${question.slice(0, 60)}`, keeps(question, expected));
+// 5b. A lens or a mirror element with an image plane is optics, not a coordinate point reflection (main's archetype, pinned).
+const ELEMENT_WITH_IMAGE_PLANE: Array<[string, string]> = [
+  ["A convex lens forms the image of a point P in a plane perpendicular to its principal axis. Draw the rays.", "thin_lens"],
+  ["A converging lens of focal length 10 cm forms the image of the point P in the plane of the screen 30 cm away.", "thin_lens"],
+  ["A concave lens forms the image of a point P in a plane perpendicular to its principal axis.", "thin_lens"],
+  ["A biconvex lens with radii 20 cm and 30 cm forms the image of a point P in a plane perpendicular to its axis.", "lens_maker"],
+  ["A concave mirror forms the image of a point P in a plane perpendicular to its principal axis. Draw the rays.", "spherical_mirror"],
+  ["A convex mirror forms the image of a point A in a plane perpendicular to its principal axis.", "spherical_mirror"],
+];
+for (const [question, expected] of ELEMENT_WITH_IMAGE_PLANE) check(`element with image plane ${question.slice(0, 60)}`, keeps(question, expected));
+// 5c. Decimal and negative coordinates leave optics like the integer ones (main detects each as a lens or mirror figure).
+const DECIMAL_POINTS: Array<[string, string[]]> = [
+  ["Find the image of the point (1.5, 2) in the line x + y = 5.", ["mirror-image-formula"]],
+  ["Find the image of the point (1.5, 2) in the line x + y = 5.", ["lens-formula"]],
+  ["Find the image of the point (-2.5, 3.25) in the line 2x - y = 1.", ["lens-formula"]],
+  ["Find the reflection of the point P(-1.5, -0.5) in the line y = x.", ["mirror-image-formula"]],
+  ["Find the image of the point (0.5, -1.5, 2) in the plane x + y + z = 3.", ["lens-maker-formula"]],
+  ["Find the image of the point (−1, −2) in the line x − y = 4.", ["mirror-image-formula"]],
+];
+for (const [question, lawIds] of DECIMAL_POINTS) check(`point reflection ${question.slice(0, 50)} with ${lawIds.join(", ")}`, leaves(question, lawIds));
 
 if (failures.length) {
   console.error(`verify-optics-stem-element: ${failures.length} failed, ${passed} passed`);
