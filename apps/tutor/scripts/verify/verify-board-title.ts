@@ -1,3 +1,4 @@
+import { requestBoardTitle } from "../../lib/boards/boardsClient";
 import {
   boardNeedsGeneratedTitle,
   deriveBoardTitleFromQuestion,
@@ -206,4 +207,41 @@ assert(afterNumber === "Sample has pH 5", `a period after a number must end the 
 const decimal = deriveBoardTitleFromQuestion("A ball moves at 2.5 m/s. Find its momentum.");
 assert(decimal === "Ball moves at 2.5 m/s", `a decimal point must not end the sentence: ${decimal}`);
 
-console.log("verify-board-title: all checks passed");
+// A literal expression is not evidence that the question solves an equation.
+async function verifyExpressionTitles(): Promise<void> {
+  const cases = [
+    ["Integrate (2x + 3)/(x^2 + 3x + 2) and explain how to spot the substitution.", "Integrate"],
+    ["Differentiate 2x + 3 with respect to x.", "Differentiate"],
+    ["Simplify (2x + 3)^2.", "Simplify"],
+  ] as const;
+  const failures: string[] = [];
+  const check = (ok: unknown, message: string) => { if (!ok) failures.push(message); };
+  const originalFetch = globalThis.fetch;
+  let requests = 0;
+  try {
+    // The actual dashboard client must use the same honest title if its
+    // admitted board-name route is unavailable; this never dispatches network.
+    globalThis.fetch = async (url, init) => {
+      assert(String(url).endsWith("/api/board-name"), "only the actual board-name consumer may request a title");
+      assert(cases.some(([question]) => JSON.parse(String(init?.body)).question === question), "the naming request keeps the complete original question");
+      requests++;
+      return new Response(null, { status: 503 });
+    };
+    for (const [question, prefix] of cases) {
+      const title = finalizeBoardTitle(question);
+      check(title.startsWith(prefix) && title !== "Linear equation", `finalizer must preserve the actual task: ${question} -> ${title}`);
+      const clientTitle = await requestBoardTitle(question);
+      check(clientTitle.startsWith(prefix) && clientTitle === title, `real naming client fallback must preserve the actual task: ${question} -> ${clientTitle}`);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  assert(requests === cases.length, "each recorded/control question reaches the actual naming client");
+  for (const question of ["Solve the linear equation 2x + 3 = 7.", "Show how to isolate x in 2x + 3 = 7."]) {
+    check(finalizeBoardTitle(question) === "Linear equation", `explicit equation wording keeps its existing title: ${question}`);
+  }
+  check(finalizeBoardTitle("Solve 2x + 3 = 7.") === "2x + 3 = 7", "an ordinary equation keeps its complete source expression instead of requiring a guessed category");
+  assert(failures.length === 0, `${failures.length}/9 expression-title checks failed:\n${failures.join("\n")}`);
+  console.log("verify-board-title: all existing checks and 9 expression-title checks passed; actual finalizer and naming-client fallback");
+}
+void verifyExpressionTitles().catch(error => { console.error(error); process.exitCode = 1; });

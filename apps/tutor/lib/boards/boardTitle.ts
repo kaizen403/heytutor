@@ -75,7 +75,7 @@ const TOPIC_PATTERNS: Array<{
     title: "Fractions",
   },
   {
-    test: /2x\s*\+\s*3|linear equation|isolate/i,
+    test: /linear equation|isolate/i,
     title: "Linear equation",
   },
   {
