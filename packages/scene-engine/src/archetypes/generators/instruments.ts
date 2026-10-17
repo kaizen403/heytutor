@@ -8,7 +8,7 @@
  * and the figure stays qualitative.
  */
 import { SceneBuilder, fmt } from "../document";
-import { grounded, maybeNum, num, text, type GeneratorContext, type GeneratorTable } from "./context";
+import { derivedLabel, grounded, maybeNum, num, text, type GeneratorContext, type GeneratorTable } from "./context";
 
 function ticks(scene: SceneBuilder, prefix: string, x0: number, y: number, count: number, step: number, height: (index: number) => number, role: string, up = true): string[] {
   const ids: string[] = [];
@@ -28,12 +28,15 @@ function vernierCalliper(context: GeneratorContext) {
   const vsd = maybeNum(context, "vernierDivision");
   const exampleMain = zeroError === "none" ? (msr ?? 23) : 0;
   const exampleDivision = zeroError === "none" ? (vsd ?? 4) : zeroError === "positive" ? 3 : 8;
-  const leastCount = 0.1;
+  const leastCount = maybeNum(context, "leastCount") ?? 0.1;
+  if (leastCount <= 0 || leastCount >= 1) return null;
+  const scaleGiven = grounded(context, "leastCount");
+  const readingGiven = scaleGiven && grounded(context, "mainScaleReading") && grounded(context, "vernierDivision") && zeroError === "none";
   const vernierOffset = zeroError === "negative" ? -(10 - exampleDivision) * leastCount : exampleMain + exampleDivision * leastCount;
   const scene = new SceneBuilder(context.question, zeroError === "none"
     ? "vernier calliper: main scale, vernier scale, external and internal jaws and the depth rod"
     : `vernier calliper with jaws closed showing a ${zeroError} zero error`, "vernier_calliper");
-  scene.quantity("lc", "LC", leastCount, "mm");
+  if (scaleGiven) scene.quantity("lc", "LC", leastCount, "mm");
   if (grounded(context, "mainScaleReading") && msr !== null) scene.quantity("msr", "MSR", msr, "mm");
   if (grounded(context, "vernierDivision") && vsd !== null) scene.quantity("vsd", "VSD", vsd, "");
 
@@ -45,16 +48,16 @@ function vernierCalliper(context: GeneratorContext) {
   for (const value of [0, 10, 20, 30, 40, 50, 60]) {
     scene.labelAt(`ms_label_${value}`, { x: value, y: barY + 14.5 }, "main scale number", `${value}`, { pinToAnchor: true });
   }
-  scene.labelAt("ms_caption", { x: 30, y: barY + 20.5 }, "main scale caption", "main scale (mm)");
+  scene.labelAt("ms_caption", { x: 30, y: barY + 20.5 }, "main scale caption", scaleGiven ? "main scale (mm)" : "main scale");
 
   // Vernier plate under the bar: 10 divisions over 9 mm, starting at the reading.
   const v0 = vernierOffset;
   scene.helper("vp_c", { x: v0 + 6, y: barY - 1.6 }, "vernier plate centre");
   scene.rectangle("vernier_plate", "vp_c", 14, 3.2, "vernier scale plate");
-  ticks(scene, "vs", v0, barY, 10, 0.9, (index) => (index % 5 === 0 ? 1.9 : 1.2), "vernier scale", false);
+  ticks(scene, "vs", v0, barY, 10, 1 - leastCount, (index) => (index % 5 === 0 ? 1.9 : 1.2), "vernier scale", false);
   scene.labelAt("vs_zero_label", { x: v0, y: barY - 14.5 }, "vernier zero", "0", { pinToAnchor: true });
-  scene.labelAt("vs_ten_label", { x: v0 + 9, y: barY - 14.5 }, "vernier ten", "10", { pinToAnchor: true });
-  scene.labelAt("vs_caption", { x: v0 + 4.5, y: barY - 20.5 }, "vernier scale caption", "10 div = 9 mm");
+  scene.labelAt("vs_ten_label", { x: v0 + 10 * (1 - leastCount), y: barY - 14.5 }, "vernier ten", "10", { pinToAnchor: true });
+  scene.labelAt("vs_caption", { x: v0 + 4.5, y: barY - 20.5 }, "vernier scale caption", scaleGiven ? `10 div = ${fmt(10 * (1 - leastCount))} mm` : "vernier scale");
 
   // Jaws: fixed lower external jaw at x=0, sliding jaw at the vernier; small internal jaws above.
   scene.helper("fixed_jaw_c", { x: -1.5, y: barY - 6 }, "fixed jaw centre");
@@ -73,13 +76,13 @@ function vernierCalliper(context: GeneratorContext) {
 
   // The coinciding division and the reading.
   const coincide = exampleDivision;
-  scene.labelAt("coincide_mark", { x: v0 + coincide * 0.9, y: barY - 3.2 }, "coinciding vernier division", `${coincide}th`, { requireLeader: true, leaderGeometrySafe: true });
+  scene.labelAt("coincide_mark", { x: v0 + coincide * (1 - leastCount), y: barY - 3.2 }, "coinciding vernier division", readingGiven ? `${coincide}th` : "coincidence", { requireLeader: true, leaderGeometrySafe: true });
   const reading = zeroError === "none"
     ? `= ${fmt(exampleMain + coincide * leastCount)} mm`
     : zeroError === "positive" ? `error +${fmt(coincide * leastCount)} mm` : `error −${fmt((10 - coincide) * leastCount)} mm`;
-  scene.labelAt("reading_note", { x: 30, y: barY - 26.5 }, "reading", reading);
-  scene.labelAt("lc_note", { x: 30, y: barY - 32.5 }, "least count", "LC = 0.1 mm");
-  scene.assert("vernier_ratio", "distance_ratio", ["vs0_a", "vs10_a", "ms0_a", "ms10_a"], 0.9);
+  scene.labelAt("reading_note", { x: 30, y: barY - 26.5 }, "reading", readingGiven ? reading : zeroError === "none" ? "MSR + VSD × LC" : `${zeroError} error`);
+  scene.labelAt("lc_note", { x: 30, y: barY - 32.5 }, "least count", scaleGiven ? `LC = ${fmt(leastCount)} mm` : "LC");
+  scene.assert("vernier_ratio", "distance_ratio", ["vs0_a", "vs10_a", "ms0_a", "ms10_a"], 1 - leastCount);
   if (zeroError === "none" && grounded(context, "mainScaleReading") && grounded(context, "vernierDivision") && v0 > 0) {
     // The vernier zero sits at the reading: (MSR + VSD·LC) main-scale millimetres from the main-scale zero.
     scene.assert("reading_position", "distance_ratio", ["ms0_a", "vs0_a", "ms0_a", "ms10_a"], Number((v0 / 10).toFixed(6)));
@@ -93,14 +96,15 @@ function vernierCalliper(context: GeneratorContext) {
 function screwGauge(context: GeneratorContext) {
   const zeroError = text(context, "zeroError", "none");
   const pitch = maybeNum(context, "pitch") ?? 1;
-  const divisions = Math.max(10, Math.min(100, Math.round(num(context, "divisions", 50))));
+  const divisions = num(context, "divisions", 50);
+  if (!Number.isInteger(divisions) || divisions < 1 || pitch <= 0) return null;
   const leastCount = pitch / divisions;
   const scene = new SceneBuilder(context.question, zeroError === "none"
     ? "screw gauge: U-frame, anvil, spindle, sleeve with the pitch scale and thimble with the circular scale"
     : `screw gauge closed, showing a ${zeroError} zero error on the circular scale`, "screw_gauge");
-  scene.quantity("pitch", "pitch", pitch, "mm");
-  scene.quantity("n", "N", divisions, "");
-  scene.quantity("lc", "LC", leastCount, "mm");
+  if (grounded(context, "pitch")) scene.quantity("pitch", "pitch", pitch, "mm");
+  if (grounded(context, "divisions")) scene.quantity("n", "N", divisions, "");
+  if (grounded(context, "pitch") && grounded(context, "divisions")) scene.quantity("lc", "LC", leastCount, "mm");
 
   // U-frame as a polyline: anvil arm, bottom, sleeve arm.
   const frame = [
@@ -119,7 +123,7 @@ function screwGauge(context: GeneratorContext) {
   scene.helper("ref_b", { x: 40, y: 6 }, "reference line end");
   scene.segment("reference_line", "ref_a", "ref_b", "reference line of the pitch scale");
   ticks(scene, "ps", 27, 6, 12, 1, (index) => (index % 5 === 0 ? 1.6 : 1.0), "pitch scale", true);
-  scene.labelAt("ps_caption", { x: 33, y: 9.6 }, "pitch scale caption", `pitch = ${fmt(pitch)} mm`);
+  scene.labelAt("ps_caption", { x: 33, y: 9.6 }, "pitch scale caption", derivedLabel(context, ["pitch"], `pitch = ${fmt(pitch)} mm`, "pitch"));
   const thimbleX = 40 + (zeroError === "none" ? 6 : 0);
   scene.helper("thimble_c", { x: thimbleX + 5, y: 6 }, "thimble centre");
   scene.rectangle("thimble", "thimble_c", 10, 7, "thimble with the circular scale", "thimble");
@@ -132,10 +136,10 @@ function screwGauge(context: GeneratorContext) {
     scene.segment(`cs${index}`, a, b, index === 0 ? "circular scale" : "circular scale tick");
   }
   scene.labelAt("cs_zero_label", { x: thimbleX + 18, y: 3 + zeroShift }, "circular scale zero", "0", { pinToAnchor: true });
-  scene.labelAt("cs_caption", { x: thimbleX + 5, y: 11 }, "circular scale caption", `${divisions} div`);
+  scene.labelAt("cs_caption", { x: thimbleX + 5, y: 11 }, "circular scale caption", derivedLabel(context, ["divisions"], `${divisions} div`, "N divisions"));
   scene.helper("ratchet_c", { x: thimbleX + 12.5, y: 6 }, "ratchet centre");
   scene.rectangle("ratchet", "ratchet_c", 4, 3, "ratchet", "ratchet");
-  scene.labelAt("lc_note", { x: 20, y: -13 }, "least count", `LC=${fmt(leastCount, 2)} mm`);
+  scene.labelAt("lc_note", { x: 20, y: -13 }, "least count", derivedLabel(context, ["pitch", "divisions"], `LC=${fmt(leastCount, 2)} mm`, "LC=pitch/N"));
   if (zeroError !== "none") {
     scene.labelAt("ze_note", { x: thimbleX + 5, y: -13 }, "zero error", zeroError === "positive" ? "+ve zero error" : "−ve zero error");
   }
@@ -180,8 +184,8 @@ function bindingEnergyCurve(context: GeneratorContext) {
   scene.curve("curve", `(${k})*(${expression})`, 4, 240, "binding energy per nucleon", "B/A (MeV)", 97);
   let best = 4;
   for (let a = 4; a <= 240; a += 1) if (evaluate(a) > evaluate(best)) best = a;
-  scene.point("peak", { x: best, y: evaluate(best) * k }, "most stable nuclei near iron", `Fe ≈ ${fmt(evaluate(best), 2)} MeV`);
-  scene.point("peak_foot", { x: best, y: 0 }, "peak mass number", `A≈${best}`);
+  scene.point("peak", { x: best, y: evaluate(best) * k }, "most stable nuclei near iron", "near iron");
+  scene.point("peak_foot", { x: best, y: 0 }, "peak mass number", "A");
   scene.segment("peak_drop", "peak", "peak_foot", "ordinate at the peak");
   scene.labelAt("fusion_note", { x: 20, y: 9.3 * k }, "fusion region", "fusion →");
   scene.labelAt("fission_note", { x: 200, y: 9.3 * k }, "fission region", "← fission");

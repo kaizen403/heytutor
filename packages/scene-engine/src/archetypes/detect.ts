@@ -22,6 +22,8 @@ import { ARCHETYPES, isArchetypeId, type ArchetypeId, type Slots } from "./catal
 import { formatResistorTree, readResistorTree } from "./resistorTree";
 import {
   UNIT,
+  energyAfterInEv,
+  wavelengthAfterInNm,
   lengthAfterInCm,
   lengthBeforeInCm,
   symbolLengthInCm,
@@ -1030,11 +1032,12 @@ const CUE_SETS: readonly CueSet[] = [
   {
     id: "photoelectric",
     cues: [[/\b(?:photoelectric|photo-electric|photoelectron|work function|stopping potential|threshold (?:frequency|wavelength))\b/i, 5], [/\b(?:einstein|photon)\b/i, 1]],
-    extract: (stem, plan, bag) => {
-      setSlot(bag, "workFunction", planNumber(plan, ["phi", "w", "w0", "workfunction"]), "plan");
-      setSlot(bag, "workFunction", numberAfter(stem, /work function(?: of (?:a |the )?(?:metal|surface))?(?: is| of| =)?/, UNIT.ev), "stem");
-      setSlot(bag, "lambda", numberAfter(stem, /wavelength(?: of| is| =)?/, UNIT.nm), "stem");
-      setSlot(bag, "photonEnergy", planNumber(plan, ["e", "hv", "hf", "photonenergy"]), "plan");
+    extract: (stem, _plan, bag) => {
+      // A planner's derived value is a claim, not a solver result. Bind energy
+      // roles to the question and convert units before publishing numeric ink.
+      setSlot(bag, "workFunction", energyAfterInEv(stem, /work function(?: of (?:a |the )?(?:metal|surface))?(?: is| of| =)?|(?:φ|phi)\s*=/), "stem");
+      setSlot(bag, "lambda", wavelengthAfterInNm(stem, /wavelength(?: of| is| =)?|(?:λ|lambda)\s*=/), "stem");
+      setSlot(bag, "photonEnergy", energyAfterInEv(stem, /photon energy(?: of| is| =)?|energy of (?:the |a )?photon(?: is| of| =)?|(?:hν|hv|hf)\s*=/), "stem");
     },
   },
   {
@@ -1347,7 +1350,10 @@ const CUE_SETS: readonly CueSet[] = [
     extract: (stem, plan, bag) => {
       setSlot(bag, "mainScaleReading", planNumber(plan, ["msr", "mainscalereading"]), "plan");
       setSlot(bag, "vernierDivision", planNumber(plan, ["vsd", "vernierdivision", "vernierscaledivision"]), "plan");
-      setSlot(bag, "mainScaleReading", numberAfter(stem, /main scale reading(?: is| of| =)?/, /mm|cm/), "stem");
+      const mainCm = lengthAfterInCm(stem, /main scale reading(?: is| of| =)?/);
+      setSlot(bag, "mainScaleReading", mainCm === null ? null : 10 * mainCm, "stem");
+      const lcCm = lengthAfterInCm(stem, /least count(?: is| of| =)?|LC\s*=/);
+      setSlot(bag, "leastCount", lcCm === null ? null : 10 * lcCm, "stem");
       const ordinal = /\b(\d{1,2})(?:st|nd|rd|th)\s+(?:vernier|division)/i.exec(stem) ?? /\bvernier (?:scale )?(?:division|reading)\s*(?:is|=|of)?\s*(\d{1,2})\b/i.exec(stem) ?? /\bVSD\s*(?:is|=)?\s*(\d{1,2})\b/.exec(stem);
       setSlot(bag, "vernierDivision", ordinal ? Number(ordinal[1]) : null, "stem");
       setSlot(bag, "zeroError", /\bzero error\b/i.test(stem) ? (/\bnegative\b/i.test(stem) ? "negative" : "positive") : "none", "stem");
@@ -1358,7 +1364,8 @@ const CUE_SETS: readonly CueSet[] = [
     cues: [[/\bscrew gauge\b|\bmicrometer(?: screw gauge)?\b/i, 5], [/\bpitch\b|\bcircular scale\b|\bthimble\b|\bleast count\b/i, 1]],
     extract: (stem, plan, bag) => {
       setSlot(bag, "pitch", planNumber(plan, ["pitch", "p"]), "plan");
-      setSlot(bag, "pitch", numberAfter(stem, /pitch(?: of the screw)?(?: is| of| =)?/, /mm/), "stem");
+      const pitchCm = lengthAfterInCm(stem, /pitch(?: of the screw)?(?: is| of| =)?/);
+      setSlot(bag, "pitch", pitchCm === null ? null : 10 * pitchCm, "stem");
       setSlot(bag, "divisions", planNumber(plan, ["n", "divisions", "circularscaledivisions"]), "plan");
       setSlot(bag, "divisions", numberBefore(stem, /(?:divisions|circular scale divisions)/), "stem");
       setSlot(bag, "zeroError", /\bzero error\b/i.test(stem) ? (/\bnegative\b/i.test(stem) ? "negative" : "positive") : "none", "stem");

@@ -162,7 +162,7 @@ function xtGraph(context: GeneratorContext) {
   const t0 = askedT ? Number(askedT[1]) : tMax / 2;
   const x0 = evaluate(expression, t0);
   if (x0 !== null && t0 >= 0 && t0 <= tMax) {
-    scene.point("P", { x: t0, y: x0 * k }, "marked instant", `t=${fmt(t0)} s, x=${fmt(x0)}`);
+    scene.point("P", { x: t0, y: x0 * k }, "marked instant", askedT ? `t=${fmt(t0)} s, x=${fmt(x0)}` : "P");
     if (Math.abs(x0) > 1e-9) {
       scene.point("P_foot", { x: t0, y: 0 }, "instant on the axis");
       scene.segment("P_drop", "P", "P_foot", "ordinate at the marked instant");
@@ -179,9 +179,9 @@ function xtGraph(context: GeneratorContext) {
 function fxGraphArea(context: GeneratorContext) {
   const expression = text(context, "expression");
   if (!expression) return null;
-  const from = num(context, "from", 0);
-  const to = num(context, "to", from + 4);
-  if (to <= from) return null;
+  const from = maybeNum(context, "from");
+  const to = maybeNum(context, "to");
+  if (from === null || to === null || !grounded(context, "from") || !grounded(context, "to") || to <= from) return null;
   const range = sampleRange([expression], from, to, 17);
   if (!range) return null;
   const k = displayFactor(to - from, range.yMin, range.yMax);
@@ -241,7 +241,8 @@ function waveProfile(context: GeneratorContext) {
 }
 
 function standingWave(context: GeneratorContext) {
-  const harmonic = Math.max(1, Math.min(6, Math.round(num(context, "harmonic", 1))));
+  const harmonic = num(context, "harmonic", 1);
+  if (!Number.isInteger(harmonic) || harmonic < 1 || harmonic > 6) return null;
   const ends = text(context, "ends", "fixed");
   const L = 6;
   const A = 1;
@@ -249,9 +250,9 @@ function standingWave(context: GeneratorContext) {
   const phase = ends === "open" ? "cos" : "sin";
   const expression = `${A}*${phase}(${(factor * Math.PI / L)}*x)`;
   const mirrored = `-${A}*${phase}(${(factor * Math.PI / L)}*x)`;
-  const scene = new SceneBuilder(context.question, `standing wave, harmonic ${harmonic}, with its nodes and antinodes`, "standing_wave");
+  const scene = new SceneBuilder(context.question, "standing wave with its nodes and antinodes", "standing_wave");
   scene.axes("axes", -0.3, L + 0.5, -1.6, 1.6, "displacement axes", "y-x");
-  scene.curve("wave", expression, 0, L, "wave envelope", `n=${harmonic}`, 97);
+  scene.curve("wave", expression, 0, L, "wave envelope", grounded(context, "harmonic") ? `n=${harmonic}` : "envelope", 97);
   scene.curve("wave_mirror", mirrored, 0, L, "wave envelope (half period later)", undefined, 97);
   const nodes: number[] = [];
   const antinodes: number[] = [];

@@ -7,7 +7,7 @@
 import { evaluateOpticsLaw } from "../../physics/opticsLaws";
 import { sagOf } from "../../compile/opticsSurfaces";
 import { DEG, SceneBuilder, fmt, withUnit, type Vec2 } from "../document";
-import { grounded, maybeNum, num, text, type GeneratorContext, type GeneratorTable } from "./context";
+import { angleLabel, valueLabel, derivedLabel, grounded, maybeNum, num, text, type GeneratorContext, type GeneratorTable } from "./context";
 
 const clamp = (value: number, low: number, high: number): number => Math.min(high, Math.max(low, value));
 
@@ -45,10 +45,10 @@ function sphericalMirror(context: GeneratorContext) {
   const R = 2 * fMag;
   const centreX = kind === "concave" ? -R : R;
   const focusX = centreX / 2;
-  const scene = new SceneBuilder(context.question, `${kind} mirror ray diagram from the mirror formula (u=${fmt(uMag)}, f=${fmt(fMag)})`, "spherical_mirror");
-  scene.quantity("u", "u", u, "cm");
-  scene.quantity("f", "f", f, "cm");
-  scene.quantity("v", "v", v, "cm");
+  const scene = new SceneBuilder(context.question, `${kind} mirror ray diagram from the mirror formula`, "spherical_mirror");
+  if (grounded(context, "u")) scene.quantity("u", "u", u, "cm");
+  if (grounded(context, "f")) scene.quantity("f", "f", f, "cm");
+  if (grounded(context, "u") && grounded(context, "f")) scene.quantity("v", "v", v, "cm");
 
   const leftmost = Math.min(u, v, centreX, -fMag) - 0.2 * uMag;
   const rightmost = Math.max(v, centreX, 0) + 0.15 * uMag + 0.5;
@@ -126,10 +126,10 @@ function thinLens(context: GeneratorContext) {
   if (!Number.isFinite(v) || Math.abs(v) > 12 * uMag) return null;
   const m = v / u;
   const h = 0.28 * Math.max(fMag, uMag / 3);
-  const scene = new SceneBuilder(context.question, `${kind} lens ray diagram from the lens formula (u=${fmt(uMag)}, f=${fmt(fMag)})`, "thin_lens");
-  scene.quantity("u", "u", u, "cm");
-  scene.quantity("f", "f", f, "cm");
-  scene.quantity("v", "v", v, "cm");
+  const scene = new SceneBuilder(context.question, `${kind} lens ray diagram from the lens formula`, "thin_lens");
+  if (grounded(context, "u")) scene.quantity("u", "u", u, "cm");
+  if (grounded(context, "f")) scene.quantity("f", "f", f, "cm");
+  if (grounded(context, "u") && grounded(context, "f")) scene.quantity("v", "v", v, "cm");
   const imageHeight = m * h;
   const leftmost = Math.min(u, v, -2 * fMag) - 0.15 * uMag;
   const rightmost = Math.max(v, 2 * fMag) + 0.15 * uMag;
@@ -206,11 +206,11 @@ function planeRefraction(context: GeneratorContext) {
   const sinR = (n1 / n2) * Math.sin(i * DEG);
   if (sinR >= 1) return null;
   const r = Math.asin(sinR) / DEG;
-  const scene = new SceneBuilder(context.question, `refraction at a plane interface: i=${fmt(i)}°, n1=${fmt(n1)}, n2=${fmt(n2)}`, "plane_refraction");
-  scene.quantity("i", "i", i, "degree");
-  scene.quantity("n1", "n1", n1, "");
-  scene.quantity("n2", "n2", n2, "");
-  scene.quantity("r", "r", r, "degree");
+  const scene = new SceneBuilder(context.question, "refraction at a plane interface", "plane_refraction");
+  if (grounded(context, "i")) scene.quantity("i", "i", i, "degree");
+  if (grounded(context, "n1")) scene.quantity("n1", "n1", n1, "");
+  if (grounded(context, "n2")) scene.quantity("n2", "n2", n2, "");
+  if (["i", "n1", "n2"].every((key) => grounded(context, key))) scene.quantity("r", "r", r, "degree");
   scene.point("s_a", { x: -4, y: 0 }, "interface end");
   scene.point("s_b", { x: 4, y: 0 }, "interface end");
   scene.line("interface", "s_a", "s_b", "interface between the media");
@@ -224,10 +224,10 @@ function planeRefraction(context: GeneratorContext) {
     inputs: { point: "P", surface: "interface", incidentAngleDeg: i, n1, n2, span: 3.2 },
     outputs: ["incident", "normal", "refracted"],
   });
-  scene.point("medium1", { x: -3.2, y: 1.6 }, "upper medium label", n1 === 1 ? "air, n1=1" : `n1=${fmt(n1)}`);
-  scene.point("medium2", { x: -3.2, y: -1.6 }, "lower medium label", `n2=${fmt(n2)}`);
-  scene.angleMark("angle_i", "P", "incident", "normal", `i=${fmt(i)}°`, 1.1);
-  scene.angleMark("angle_r", "P", "refracted", "normal", `r=${fmt(r)}°`, 0.8);
+  scene.point("medium1", { x: -3.2, y: 1.6 }, "upper medium label", valueLabel(context, "n1", "n1"));
+  scene.point("medium2", { x: -3.2, y: -1.6 }, "lower medium label", valueLabel(context, "n2", "n2"));
+  scene.angleMark("angle_i", "P", "incident", "normal", angleLabel(context, "i", "i"), 1.1);
+  scene.angleMark("angle_r", "P", "refracted", "normal", derivedLabel(context, ["i", "n1", "n2"], `r=${fmt(r)}°`, "r"), 0.8);
   scene.assert("snell", "snells_law", ["incident", "normal", "refracted"], { n1, n2 });
   scene.assert("normal_perp", "perpendicular", ["normal", "interface"]);
   scene.assert("incidence_angle", "angle_between", ["incident", "normal"], { value: i, unit: "degree" });
@@ -257,15 +257,16 @@ function prism(context: GeneratorContext) {
 
   const base = 6;
   const apex: Vec2 = { x: base / 2, y: (base / 2) / Math.tan((A / 2) * DEG) };
-  const scene = new SceneBuilder(context.question, `ray through a prism of angle ${fmt(A)}°, n=${fmt(n)}, incidence ${fmt(i)}°${minimumDeviation ? " (minimum deviation)" : ""}`, "prism");
-  scene.quantity("A", "A", A, "degree");
-  scene.quantity("n", "n", n, "");
-  scene.quantity("i", "i", i, "degree");
-  if (deviation !== null) scene.quantity("delta", "delta", deviation, "degree");
+  const scene = new SceneBuilder(context.question, `ray through a prism${minimumDeviation ? " at minimum deviation" : ""}`, "prism");
+  if (grounded(context, "A")) scene.quantity("A", "A", A, "degree");
+  if (grounded(context, "n")) scene.quantity("n", "n", n, "");
+  if (grounded(context, "i")) scene.quantity("i", "i", i, "degree");
+  const derivedInputs = minimumDeviation ? ["A", "n"] : ["A", "n", "i"];
+  if (deviation !== null && derivedInputs.every((key) => grounded(context, key))) scene.quantity("delta", "delta", deviation, "degree");
   scene.point("B", { x: 0, y: 0 }, "base vertex", "B");
   scene.point("C", { x: base, y: 0 }, "base vertex", "C");
   scene.point("Apex", apex, "apex", "A");
-  scene.polygon("prism", ["B", "Apex", "C"], "prism section", `A=${fmt(A)}°`);
+  scene.polygon("prism", ["B", "Apex", "C"], "prism section", angleLabel(context, "A", "A"));
   scene.segment("face1", "B", "Apex", "first refracting face");
   scene.segment("face2", "Apex", "C", "second refracting face");
   const p1: Vec2 = { x: apex.x * 0.5, y: apex.y * 0.5 };
@@ -299,7 +300,7 @@ function prism(context: GeneratorContext) {
     scene.assert("snell2", "snells_law", ["internal", "normal2", "emergent"], { n1: n, n2: 1 });
     if (deviation !== null) {
       scene.assert("deviation", "angle_between", ["incident", "emergent"], { value: Number(deviation.toFixed(4)), unit: "degree" });
-      scene.point("delta_note", { x: base + 0.6, y: apex.y * 0.25 }, "deviation note", `δ=${fmt(deviation)}°`);
+      scene.point("delta_note", { x: base + 0.6, y: apex.y * 0.25 }, "deviation note", derivedLabel(context, derivedInputs, `δ=${fmt(deviation)}°`, "δ"));
     }
   } else {
     scene.entities.push({ id: "reflected", kind: "ray", role: "totally internally reflected ray", label: "TIR" });
@@ -310,7 +311,7 @@ function prism(context: GeneratorContext) {
       outputs: ["reflected"],
     });
   }
-  scene.angleMark("angle_i", "P1", "incident", "normal1", `i=${fmt(i)}°`, 0.9);
+  scene.angleMark("angle_i", "P1", "incident", "normal1", derivedLabel(context, minimumDeviation ? ["A", "n"] : ["i"], `i=${fmt(i)}°`, "i"), 0.9);
   scene.assert("snell1", "snells_law", ["incident", "normal1", "refracted"], { n1: 1, n2: n });
   scene.assert("incidence", "angle_between", ["incident", "normal1"], { value: Number(i.toFixed(4)), unit: "degree" });
   scene.assert("p1_on_face", "on", ["P1", "face1"]);
@@ -373,17 +374,19 @@ function photoelectric(context: GeneratorContext) {
   const phi = maybeNum(context, "workFunction");
   const lambda = maybeNum(context, "lambda");
   const photon = maybeNum(context, "photonEnergy") ?? (lambda !== null ? 1240 / lambda : null);
-  const phiValue = phi ?? 2;
-  const photonValue = photon ?? Math.max(phiValue * 1.5, phiValue + 1);
+  const phiGiven = phi !== null && grounded(context, "workFunction");
+  const photonGiven = (maybeNum(context, "photonEnergy") !== null && grounded(context, "photonEnergy")) || (lambda !== null && grounded(context, "lambda"));
+  const phiValue = phiGiven ? phi : 2;
+  const photonValue = photonGiven ? photon! : Math.max(phiValue * 1.5, phiValue + 1);
   if (photonValue <= phiValue) return null;
   const kMax = photonValue - phiValue;
   const scene = new SceneBuilder(context.question, "photoelectric energy balance: photon energy, work function and maximum kinetic energy", "photoelectric");
   if (phi !== null && grounded(context, "workFunction")) scene.quantity("phi", "phi", phi, "eV");
-  if (photon !== null) scene.quantity("E", "E", photonValue, "eV");
+  if (photonGiven) scene.quantity("E", "E", photonValue, "eV");
   scene.axes("axes", -0.5, 4, -0.2 * photonValue, 1.25 * photonValue, "energy axis", "E (eV)");
   scene.point("zero", { x: 0, y: 0 }, "zero of energy");
-  scene.point("phi_top", { x: 0, y: phiValue }, "work function mark", `φ=${fmt(phiValue)} eV`);
-  scene.point("E_top", { x: 0, y: photonValue }, "photon energy mark", `hν=${fmt(photonValue)} eV`);
+  scene.point("phi_top", { x: 0, y: phiValue }, "work function mark", phiGiven ? `φ=${fmt(phiValue)} eV` : "φ");
+  scene.point("E_top", { x: 0, y: photonValue }, "photon energy mark", photonGiven ? `hν=${fmt(photonValue)} eV` : "hν");
   scene.point("phi_bar_end", { x: 3, y: phiValue }, "work function line end");
   scene.segment("phi_level", "phi_top", "phi_bar_end", "work function line");
   scene.point("E_bar_end", { x: 3, y: photonValue }, "photon energy line end");
@@ -393,12 +396,12 @@ function photoelectric(context: GeneratorContext) {
   scene.vector("photon", "photon_base", { end: "photon_tip" }, "photon energy", "hν");
   scene.point("k_base", { x: 2.2, y: phiValue }, "kinetic energy base");
   scene.point("k_tip", { x: 2.2, y: photonValue }, "kinetic energy tip");
-  scene.vector("kinetic", "k_base", { end: "k_tip" }, "maximum kinetic energy", `K=${fmt(kMax)} eV`);
+  scene.vector("kinetic", "k_base", { end: "k_tip" }, "maximum kinetic energy", phiGiven && photonGiven ? `K=${fmt(kMax)} eV` : "K");
   scene.point("w_base", { x: 2.2, y: 0 }, "work function base");
   scene.point("w_tip", { x: 2.2, y: phiValue }, "work function tip");
   scene.vector("work", "w_base", { end: "w_tip" }, "work function", "φ");
   scene.assert("levels_parallel", "parallel", ["phi_level", "E_level"]);
-  if (phi !== null && photon !== null && grounded(context, "workFunction")) {
+  if (phiGiven && photonGiven) {
     scene.assert("energy_ratio", "distance_ratio", ["w_base", "w_tip", "photon_base", "photon_tip"], Number((phiValue / photonValue).toFixed(6)));
   }
   scene.labelled("phi_top", "E_top");
@@ -449,13 +452,13 @@ function lensMaker(context: GeneratorContext) {
   }
   const scene = new SceneBuilder(
     context.question,
-    `${kind} lens from the lens-maker radii R1=${fmt(R1)}, R2=${fmt(R2)}`,
+    `${kind} lens and its radii of curvature`,
     "lens_maker",
   );
   if (grounded(context, "n")) scene.quantity("n", "n", n, "");
   if (grounded(context, "R1")) scene.quantity("R1", "R1", R1, "cm");
   if (grounded(context, "R2")) scene.quantity("R2", "R2", R2, "cm");
-  if (focal !== null && Number.isFinite(focal)) scene.quantity("f", "f", focal, "cm");
+  if (focal !== null && Number.isFinite(focal) && ["n", "n0", "R1", "R2"].every((key) => grounded(context, key))) scene.quantity("f", "f", focal, "cm");
   const left = Math.min(-Math.abs(dR1), -thickness) - 1.2;
   const right = Math.max(Math.abs(dR2) > 200 ? thickness + 1.2 : Math.abs(dR2), thickness) + 1.2;
   scene.point("axis_l", { x: left, y: 0 }, "principal axis end");
