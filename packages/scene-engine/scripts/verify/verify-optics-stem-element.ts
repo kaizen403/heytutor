@@ -225,6 +225,8 @@ const MIRROR_IMAGE_WITH_MIRROR_FACTS = [
   "Describe the mirror image formed when the object is at the focus of a mirror.",
   "Is the mirror image real or virtual when the object is between the focus and the mirror?",
   "Explain the mirror image formed for an object placed beyond C.",
+  // Greptile (6fb788d45): a descriptive parenthesis after the position is not a coordinate.
+  "Describe the mirror image of an object placed at F (principal focus).",
   // One fact each, so removing any single fact from OPTICS_FACT turns this gate red.
   "Where does the mirror image form relative to the pole?",
   "What is the magnification of the mirror image?",
