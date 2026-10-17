@@ -132,6 +132,7 @@ mock.module(modulePath("lib/auth.ts"), {
   namedExports: { getUserId: async () => userId, ensureUser: async () => undefined },
 });
 mock.module(modulePath("lib/db/prisma.ts"), { namedExports: { prisma } });
+mock.module(modulePath("lib/obs/failedTurnSentry.ts"), { namedExports: { queueFailedTurnSentry: async () => null } });
 mock.module(modulePath("lib/object-store/s3.ts"), {
   namedExports: { uploadAudio: async (key: string) => {
     uploads++;

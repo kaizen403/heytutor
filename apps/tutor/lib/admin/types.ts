@@ -267,6 +267,9 @@ export interface AdminTurnRow {
   traceId: string | null;
   /** Langfuse trace URL, present only when Langfuse is configured. */
   traceUrl: string | null;
+  /** Reserved server-side event id; pending events become searchable after delivery. */
+  sentryEventId: string | null;
+  sentryUrl: string | null;
   userId: string;
   userLabel: string;
   boardId: string;

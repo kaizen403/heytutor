@@ -229,6 +229,7 @@ mock.module(file("lib/llm/teachingTransport.ts"), { namedExports: { fetchTeachin
   }));
 } } });
 mock.module(file("lib/object-store/deletionJobs.ts"), { namedExports: { startObjectDeletionWorker: () => () => undefined } });
+mock.module(file("lib/obs/failedTurnSentry.ts"), { namedExports: { startFailedTurnSentryWorker: () => () => undefined } });
 
 const grants = load(file("lib/billing/grant.ts")) as typeof import("../../lib/billing/grant");
 const limits = load(file("lib/tts/wsRelayLimits.ts")) as typeof import("../../lib/tts/wsRelayLimits");

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import vm from "node:vm";
+import { lectureExportFileMs } from "../../lib/lecture-export/lectureExportSpeed";
 
 const app = resolve(import.meta.dirname, "../..");
 const load = createRequire(resolve(app, "package.json"));
@@ -27,7 +28,7 @@ async function run(scenario: Scenario, voice: "silent" | "voiced" | "missing" = 
   let capture = 0;
   let release!: () => void;
   const canCommit = new Promise<void>(done => { release = done; });
-  const finalFrame = Math.ceil((durationMs / 1.25) / (1000 / 24)) - 1;
+  const finalFrame = Math.ceil(lectureExportFileMs(durationMs) / (1000 / 24)) - 1;
   let drawDone = false;
   let cancelled = false;
   let cancelCalls = 0, finalizeCalls = 0;
@@ -180,7 +181,7 @@ async function main() {
     assert.equal(outcome.result!.tailTruncated, false);
   }
   assert.equal(unchanged.result!.totalMs, captured.result!.totalMs, "a terminal sample with no changed ink adds no duration");
-  assert.equal(mainFlush.result!.totalMs, 875, "20 normal frames plus one terminal frame at 24fps last 875ms");
+  assert.equal(mainFlush.result!.totalMs, 25 * (1000 / 24), "24 natural-speed frames plus one terminal frame retain the final ink");
   assert.equal(mainFlush.encoded.at(-1)!.duration, 1 / 24, "the changed terminal picture occupies one bounded frame");
   assert.equal(unchanged.finalEncoded, 0);
   assert.equal(unfinished.result!.tailTruncated, true, "an unfinished drawing remains truthfully truncated");

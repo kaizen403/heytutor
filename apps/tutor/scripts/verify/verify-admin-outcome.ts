@@ -31,10 +31,8 @@ function assert(condition: unknown, message: string): asserts condition {
     "an unknown status collapses to unverified rather than throwing",
   );
   assert(
-    FAILED_VISUAL_STATUSES.includes("text_only") &&
-      FAILED_VISUAL_STATUSES.includes("retry_required") &&
-      FAILED_VISUAL_STATUSES.includes("legacy"),
-    "the failed statuses are exactly text_only, retry_required, and legacy",
+    FAILED_VISUAL_STATUSES.length === 1 && FAILED_VISUAL_STATUSES[0] === "retry_required",
+    "only retry_required confirms failure without independent evidence",
   );
 }
 
@@ -42,7 +40,7 @@ function assert(condition: unknown, message: string): asserts condition {
 {
   assert(outcomeLabel("validated") === "Verified diagram", "validated has a table label");
   assert(
-    outcomeLabel("unverified") === "Unverified (legacy)",
+    outcomeLabel("unverified") === "Unverified outcome",
     "unverified is labeled so legacy rows are not misread as confirmed fails",
   );
 }
