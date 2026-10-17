@@ -16,7 +16,9 @@ import type { VisualNeedDecision } from "@/lib/llm/visualNeedPolicy";
 import { liveSceneSaveFailure } from "@/lib/scene/sceneSaveAdmission";
 import { shouldAttemptExactScene } from "./diagramGeneration";
 import { resolveVisualRequirement } from "./visualRequirement";
-import { selectVerifiedRepresentation, type SelectedRepresentation } from "./representationFallback";
+import {
+  selectVerifiedRepresentationExplained, type ExactCandidateDecline, type SelectedRepresentation,
+} from "./representationFallback";
 
 /** Lab execution identity: old rounds did not use all production admission guards. */
 export const PRODUCTION_SCENE_SELECTION_VERSION = "production-scene-selection/v2";
@@ -230,6 +232,67 @@ export interface ProductionSceneSelection {
   hasReadableInk: boolean;
   sourceAllowed: boolean;
   saveFailure: string | null;
+  /**
+   * Set whenever a candidate that passed validation as a scene is not the
+   * figure drawn. Null when there was no such candidate or it was drawn.
+   */
+  droppedCandidate: DroppedSceneCandidate | null;
+}
+
+export interface DroppedSceneCandidate extends ExactCandidateDecline {
+  /** The figure drawn instead, or null when the turn draws none. */
+  replacedBy: FigureSource | null;
+}
+
+/** Issue code saved with every valid candidate that selection did not draw. */
+export const VALID_CANDIDATE_DROPPED = "valid_candidate_dropped";
+
+/**
+ * The degradation a dropped valid candidate leaves on the turn. A policy that
+ * draws another verified figure instead (a fast or source-computed figure)
+ * records nothing; every other drop is a check the per-candidate validator
+ * does not apply, so it is saved, shown on the admin fails page and reported.
+ */
+export function validCandidateDropDegradation(
+  selection: Pick<ProductionSceneSelection, "droppedCandidate">,
+  candidateCount: number,
+): ValidCandidateDropDegradation | null {
+  const dropped = selection.droppedCandidate;
+  if (!dropped || (dropped.preferred && dropped.replacedBy !== null)) return null;
+  return {
+    attemptedTier: "exact_verified",
+    reason: VALID_CANDIDATE_DROPPED,
+    issueCodes: [VALID_CANDIDATE_DROPPED, dropped.code],
+    candidateCount,
+  };
+}
+
+export interface ValidCandidateDropDegradation {
+  attemptedTier: "exact_verified";
+  reason: typeof VALID_CANDIDATE_DROPPED;
+  issueCodes: string[];
+  candidateCount: number;
+}
+
+/**
+ * The degradation a turn keeps after final selection. The live hook and the
+ * lab both call this, so the two cannot record different outcomes for the
+ * same selection. A degradation recorded before selection (planner
+ * unavailable, invalid candidates, a solver contradiction) stands; otherwise a
+ * dropped valid candidate leaves its own. `reportedDrop` is set only when the
+ * drop's degradation is the one kept, so the caller traces and reports exactly
+ * what is saved.
+ */
+export function settleSelectionDegradation<Earlier extends { reason: string }>(input: {
+  earlier: Earlier | null | undefined;
+  selection: Pick<ProductionSceneSelection, "droppedCandidate">;
+  candidateCount: number;
+}): { degradation: Earlier | ValidCandidateDropDegradation | null; reportedDrop: DroppedSceneCandidate | null } {
+  if (input.earlier) return { degradation: input.earlier, reportedDrop: null };
+  const dropped = validCandidateDropDegradation(input.selection, input.candidateCount);
+  return dropped
+    ? { degradation: dropped, reportedDrop: input.selection.droppedCandidate }
+    : { degradation: null, reportedDrop: null };
 }
 
 /**
@@ -241,24 +304,35 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
   const gate = deriveSceneGate(input);
   const { question } = input;
   const turnPlan = gate.turnPlan;
-  const empty = (reason: string, visualStatus: ProductionSceneSelection["visualStatus"]): ProductionSceneSelection => ({
+  // A drop is only meaningful for a candidate that validated as a scene. A
+  // solver contradiction already records its own degradation.
+  const validScene = (validation: SceneCandidateValidation<ValidatedSceneCandidate> | null | undefined) =>
+    !input.solverAuthorityBlocked && validation?.valid === true && validation.value?.document.visualDecision.mode === "scene";
+  const empty = (
+    reason: string,
+    visualStatus: ProductionSceneSelection["visualStatus"],
+    droppedCandidate: DroppedSceneCandidate | null = null,
+  ): ProductionSceneSelection => ({
     gate, representation: null, attemptedRepresentation: null, candidateValidation: null,
     visualStatus, reason, selectionReason: reason, hasReadableInk: false, sourceAllowed: true, saveFailure: null,
+    droppedCandidate,
   });
+  let candidateValidation: SceneCandidateValidation<ValidatedSceneCandidate> | null = input.candidateValidation ?? null;
   try {
     // Preserve the live no-figure guard, not just the planner's vote.
     if (turnPlan.visualRequirement === "none" && !questionRequiresVisual(question)) {
-      return empty("the question asks for no figure", "text_only");
+      return empty("the question asks for no figure", "text_only", validScene(candidateValidation)
+        ? { code: "no_figure_asked", reason: "the question asks for no figure", preferred: true, replacedBy: null }
+        : null);
     }
-    const candidateValidation = input.candidate
+    candidateValidation = input.candidate
       ? validateProductionSceneCandidate({ candidate: input.candidate, question, turnPlan })
       : input.candidateValidation ?? null;
-    const value = !input.solverAuthorityBlocked && gate.shouldPlanExactScene && candidateValidation?.valid
-      ? candidateValidation.value : undefined;
+    const value = validScene(candidateValidation) && gate.shouldPlanExactScene ? candidateValidation?.value : undefined;
     const fallbackCapabilities = inferSceneCapabilities(question, {
       lawIds: turnPlan.lawIds, problemIR: input.problemIR, turnPlan,
     });
-    const selected = input.fastRepresentation ?? selectVerifiedRepresentation({
+    const explained = input.fastRepresentation ? null : selectVerifiedRepresentationExplained({
       question, turnPlan, problemIR: input.problemIR,
       families: fallbackCapabilities.families.length > 0 ? fallbackCapabilities.families : gate.families,
       preferPlanner: input.policy?.preferPlanner,
@@ -267,6 +341,7 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
       } : null,
       exactFigureSource: input.exactFigureSource ?? "planner",
     });
+    const selected = input.fastRepresentation ?? explained!.selected;
     const selectedHasInk = selected.renderScene.primitives.some((primitive) =>
       (primitive.kind === "label" || primitive.kind === "dimension") &&
       typeof primitive.text === "string" && primitive.text.trim().length > 0);
@@ -280,18 +355,33 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
       visualRequirement: turnPlan.visualRequirement, requiredRetryEnabled: input.requiredRetryEnabled ?? true,
     });
     const selectionReason = selectedSourceAllowed ? selected.reason : `strict strategy suppressed ${selected.figureSource}`;
+    const reason = selectedIsDrawable ? selectionReason : input.solverAuthorityBlocked ? "solver_contradiction"
+      : !selectedSourceAllowed ? selectionReason : saveFailure ?? (
+        selected.sceneDocument.visualDecision.mode === "scene" && !selectedHasInk
+          ? "representation carries no readable label" : selected.reason);
+    const replacedBy = selectedIsDrawable ? selected.figureSource : null;
+    // The exact branch may redeclare the earned tier on a copy, so the drawn
+    // candidate is recognised by its provenance, not by object identity.
+    const candidateDrawn = selectedIsDrawable && value !== undefined && !input.fastRepresentation &&
+      !explained?.exactDecline && selected.figureSource === (input.exactFigureSource ?? "planner");
+    // Every way a valid scene candidate can leave the board names itself.
+    const decline: ExactCandidateDecline | null = !validScene(candidateValidation) || candidateDrawn ? null
+      : !gate.shouldPlanExactScene ? { code: "exact_scene_not_admitted", reason: "the gate does not admit an exact scene for this question", preferred: false }
+        : input.fastRepresentation ? { code: "fast_figure_preferred", reason: "a fast verified figure was selected first", preferred: true }
+          : explained?.exactDecline ?? (saveFailure ? { code: "save_admission_refused", reason: saveFailure, preferred: false }
+            : !selectedSourceAllowed ? { code: "source_policy_suppressed", reason: selectionReason, preferred: false }
+              : { code: "exact_not_drawable", reason, preferred: false });
     return {
       gate, representation: selectedIsDrawable ? selected : null, attemptedRepresentation: selected,
       candidateValidation, visualStatus: selectedIsDrawable ? "validated" : failureStatus === "retry_required" ? "retry_required" : "text_only",
-      reason: selectedIsDrawable ? selectionReason : input.solverAuthorityBlocked ? "solver_contradiction"
-        : !selectedSourceAllowed ? selectionReason : saveFailure ?? (
-          selected.sceneDocument.visualDecision.mode === "scene" && !selectedHasInk
-            ? "representation carries no readable label" : selected.reason),
-      selectionReason, hasReadableInk: selectedHasInk, sourceAllowed: selectedSourceAllowed, saveFailure,
+      reason, selectionReason, hasReadableInk: selectedHasInk, sourceAllowed: selectedSourceAllowed, saveFailure,
+      droppedCandidate: decline ? { ...decline, replacedBy } : null,
     };
   } catch (error) {
     // The pre-existing exception path records required failures regardless of retry opt-out.
-    return empty(error instanceof Error ? error.message : String(error),
-      turnPlan.visualRequirement === "required" || questionRequiresVisual(question) ? "retry_required" : "text_only");
+    const message = error instanceof Error ? error.message : String(error);
+    return empty(message,
+      turnPlan.visualRequirement === "required" || questionRequiresVisual(question) ? "retry_required" : "text_only",
+      validScene(candidateValidation) ? { code: "selection_error", reason: message, preferred: false, replacedBy: null } : null);
   }
 }

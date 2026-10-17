@@ -123,6 +123,7 @@ import {
 } from "../../lib/scene/representationFallback";
 import {
   deriveSceneGate as deriveProductionSceneGate, selectProductionScene, validateProductionSceneCandidate,
+  settleSelectionDegradation,
   type ProductionSceneGate, type ValidatedSceneCandidate,
 } from "../../lib/scene/productionSceneSelection";
 import { refreshSolverAuthorityForPlan } from "../../lib/turn/refreshSolverAuthority";
@@ -1463,6 +1464,37 @@ export function useQuestionHandler(
             representation_tier: attempted.tier, reason: sceneSelection.saveFailure,
           });
         }
+        // A candidate that passed validation and still left the board names
+        // why: saved as a degradation, shown on the admin fails page, and
+        // reported to Sentry (console.warn is captured as a log).
+        const droppedCandidate = sceneSelection.droppedCandidate;
+        if (droppedCandidate) {
+          tutorDebug("planner", "valid scene candidate not drawn", {
+            code: droppedCandidate.code, reason: droppedCandidate.reason, replaced_by: droppedCandidate.replacedBy,
+          });
+        }
+        // The lab runs the same step (settleSelectionDegradation), and
+        // verify-valid-candidate-parity executes the lines between these markers.
+        // settle-selection-degradation:begin
+        const settledDegradation = settleSelectionDegradation({
+          earlier: exactDegradation, selection: sceneSelection, candidateCount: result?.candidates.length ?? 0,
+        });
+        exactDegradation = settledDegradation.degradation ?? undefined;
+        const reportedDrop = settledDegradation.reportedDrop;
+        if (reportedDrop) {
+          tel.mark("verified-scene-candidate-dropped", {
+            code: reportedDrop.code,
+            replaced_by: reportedDrop.replacedBy,
+            diagram_strategy: diagramStrategyDecision.strategy,
+            candidate_count: result?.candidates.length ?? 0,
+          });
+          console.warn("[diagram] a valid figure candidate was dropped at selection", {
+            code: reportedDrop.code,
+            replacedBy: reportedDrop.replacedBy,
+            strategy: diagramStrategyDecision.strategy,
+          });
+        }
+        // settle-selection-degradation:end
         sceneV2Document = selected?.sceneDocument ?? null;
         sceneV2RenderScene = selected?.renderScene ?? null;
         sceneV2Report = attempted?.validationReport ?? sceneV2Report;
