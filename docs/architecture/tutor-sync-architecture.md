@@ -141,6 +141,22 @@ Key functions/sections:
 - `replayLecture()` in `useReplay.ts` uses persisted audio/timings and gates against `audio.currentTime`. It is now only the fallback for a lecture with a segment missing its recording, and the engine behind live rewind.
 - Persistence keeps every row where it was spoken. The server replaces figure-intro ink with its own compile but leaves the row, its audio part, alignment and duration in place (`mergeServerDiagramIntro` in `lib/scene/turnScenePersistence.ts`); the upload route reads each row's audio by `sourceOrderIndex`. Moving the intro ahead of the opening once paired every early row with its neighbour's recording.
 
+### Pointing during explanations
+
+`pointThroughExplanation` fills spoken gaps of at least 2.4 wall seconds with
+transient pen motion over the latest already-written work row. Live, fallback
+replay and finished playback/export use it. A leading WRITE gap runs only after
+normal layout and page clearing; pending rows cannot become targets. It yields
+before the original character cue and passes every existing schedule offset
+unchanged, including estimated schedules. Spoken waits and explanation tails
+use the owning audio clock, respect pause and Stop, and skip instant seek/restore.
+Finished playback/export animate on their existing media-backed virtual board
+clock, so pausing audio freezes the pen too. With no visible work row there is
+no inferred target or motion: committed but unrevealed diagram anchors are never
+fallback targets. Existing authored POINT/FOCUS and code beats retain their own
+targets. These transient POINTs are not saved as lesson commands and add no ink,
+labels or geometry. Cached video files use a new revision for the motion.
+
 ### Finished-lecture playback bar
 
 `hooks/useLecturePlayer.ts` + `components/LecturePlayerBar.tsx`, pure rules in `apps/tutor/lib/replay/lecturePlayer.ts`.

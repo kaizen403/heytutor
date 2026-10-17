@@ -224,7 +224,7 @@ export function useReplay({
           cancelled: cancelRef.current,
         });
 
-      if (segmentCommands.length === 0 || !isCurrentReplay()) {
+      if (!isCurrentReplay()) {
         return;
       }
 

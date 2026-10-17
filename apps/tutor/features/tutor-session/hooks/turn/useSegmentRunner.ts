@@ -964,18 +964,13 @@ export function useSegmentRunner({
       try {
         if (!(await waitWhilePaused())) return;
 
-        if (hasNarration && !hasCommand) {
-          tutorDebug("segment", "narration-only", { index });
-          await speakSegmentWithTimeout(narration, speakOptions);
-          if (isCancelled()) return;
-          tutorDebug("segment", "narration-only complete", { index });
-        } else if (!hasNarration && hasCommand) {
+        if (!hasNarration && hasCommand) {
           tutorDebug("segment", "draw-only", { index });
           applyTurnPhase("drawing");
           await runDraw(naturalDrawMs);
           if (isCancelled()) return;
           tutorDebug("segment", "draw-only complete", { index });
-        } else if (hasNarration && hasCommand) {
+        } else if (hasNarration) {
           tutorDebug("segment", "paired narration+draw", { index });
 
           // Finish prior ink first, then speak + draw this segment together so the
