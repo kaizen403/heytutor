@@ -6,7 +6,7 @@ import {
   ARCHETYPES, compileSceneDocument, detectArchetype, isChemistryQuestion, isChemistrySceneFamily,
   normalizeClaimedClosedRouteGeometry, normalizeClaimedParaxialReflectionGeometry,
   pruneDeadSceneEntities, pruneUnverifiedSceneAnnotations, displayedSceneQuantityTexts,
-  validateMatrixSourceBinding, validateSceneQuantityAgreement, validateSceneDocument,
+  validateComplexDistanceSourceInputs, validateMatrixSourceBinding, validateSceneQuantityAgreement, validateSceneDocument,
   validateSphericalRefractionImagePlacements, validateTurnPlanSceneProofs, resolveDiagramFailureStatus,
   type FigureSource, type ProblemStructureView, type RenderScene, type SceneDocument,
   type TurnPlanV3, type ValidationReport,
@@ -21,7 +21,7 @@ import {
 } from "./representationFallback";
 
 /** Lab execution identity: old rounds did not use all production admission guards. */
-export const PRODUCTION_SCENE_SELECTION_VERSION = "production-scene-selection/v2";
+export const PRODUCTION_SCENE_SELECTION_VERSION = "production-scene-selection/v5";
 
 export interface ProductionSceneInput {
   question: string;
@@ -154,7 +154,10 @@ export function validateProductionSceneCandidate(input: {
     path: issue.path,
     severity: "fatal" as const,
   }));
-  const sourceIssues = validateMatrixSourceBinding(validated.document, question, authoritativePlan);
+  const sourceIssues = [
+    ...validateComplexDistanceSourceInputs(validated.document, question),
+    ...validateMatrixSourceBinding(validated.document, question, authoritativePlan),
+  ];
   const proofIssues = validateTurnPlanSceneProofs(validated.document, authoritativePlan);
   // A literal image point at a plan-derived distance from a refracting
   // surface's vertex must be where the spherical refraction law puts it.
