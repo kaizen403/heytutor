@@ -957,6 +957,474 @@ for (const row of molarMassSubjectReferences) {
   });
 }
 
+// Coordinated unquantified noun references do not supply another count.
+const repeatedMolarMassReferences: ReadonlyArray<{ id: string; question: string; expectedDraw: boolean; expectedApparent: number | null }> = [
+  {
+    "id": "D-exact-repeated-reference",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and the particles remain at 300 K, alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "D-demonstrative-reference",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and these particles remain at 300 K, alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "D-possessive-reference",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and its particles remain at 300 K, alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "D-while-reference",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles while the particles remain at 300 K, alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "D-semicolon-reference",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles; the particles remain at 300 K, alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "D-agreement-count",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and 2 particles, alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "D-conflicting-count",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and 3 particles, alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "D-unknown-count",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and unknown particles, alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "D-damaged-count",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and 2e- particles, alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "D-unit-count",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and 2 kg particles, alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "D-reference-no-foreign-value",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and the particles remain stable, alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "D-reference-only-query",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles. Consider the particles, alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "A-exact-repeated-reference",
+    "question": "The true molar mass is 180 g/mol. The solute associates from 2 monomers and the monomers remain at 300 K, alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  },
+  {
+    "id": "A-demonstrative-reference",
+    "question": "The true molar mass is 180 g/mol. The solute associates from 2 monomers and these monomers remain at 300 K, alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  },
+  {
+    "id": "A-possessive-reference",
+    "question": "The true molar mass is 180 g/mol. The solute associates from 2 monomers and its monomers remain at 300 K, alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  },
+  {
+    "id": "A-while-reference",
+    "question": "The true molar mass is 180 g/mol. The solute associates from 2 monomers while the monomers remain at 300 K, alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  },
+  {
+    "id": "A-semicolon-reference",
+    "question": "The true molar mass is 180 g/mol. The solute associates from 2 monomers; the monomers remain at 300 K, alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  },
+  {
+    "id": "A-agreement-count",
+    "question": "The true molar mass is 180 g/mol. The solute associates from 2 monomers and 2 monomers, alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  },
+  {
+    "id": "A-conflicting-count",
+    "question": "The true molar mass is 180 g/mol. The solute associates from 2 monomers and 3 monomers, alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "A-unknown-count",
+    "question": "The true molar mass is 180 g/mol. The solute associates from 2 monomers and unknown monomers, alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "A-damaged-count",
+    "question": "The true molar mass is 180 g/mol. The solute associates from 2 monomers and 2e- monomers, alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "A-unit-count",
+    "question": "The true molar mass is 180 g/mol. The solute associates from 2 monomers and 2 kg monomers, alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "A-reference-no-foreign-value",
+    "question": "The true molar mass is 180 g/mol. The solute associates from 2 monomers and the monomers remain stable, alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  },
+  {
+    "id": "A-reference-only-query",
+    "question": "The true molar mass is 180 g/mol. The solute associates from 2 monomers. Consider the monomers, alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  },
+  {
+    "id": "root-reference-1",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and the particles remain at 300 K, with alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "root-reference-2",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and particles remain at 300 K, with alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "root-reference-3",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles , and the particles remain at 300 K, with alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "root-reference-4",
+    "question": "The true molar mass is 180 g/mol. The solute associates as 2 monomers and the monomers remain at 300 K, with alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  },
+  {
+    "id": "root-reference-5",
+    "question": "The true molar mass is 180 g/mol. The solute associates as 2 monomers and monomers remain at 300 K, with alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  },
+  {
+    "id": "root-reference-6",
+    "question": "The true molar mass is 180 g/mol. The solute associates as 2 monomers , and these monomers remain at 300 K, with alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  }
+];
+for (const row of repeatedMolarMassReferences) {
+  for (const mode of ["strict", "schematic", "ordinary"] as const) test(`molar-mass-repeated-reference/${row.id}/${mode}`, () => {
+    const raw = mode === "ordinary" ? synthesizeFamilyScene({ question: row.question })?.document ?? null
+      : buildSolutionLessonScene(row.question, [], mode === "schematic");
+    if (!row.expectedDraw) { assert(!drawable(raw), "all supplied process-count arguments still require a valid agreeing value"); return; }
+    compiled(raw);
+    const result = compileSceneDocument(raw!);
+    assert(result.ok && result.renderScene);
+    assert(result.renderScene.primitives.some(primitive => primitive.kind === "label" && primitive.text === `M'=${row.expectedApparent} g/mol`));
+  });
+}
+
+// Every unavailable declaration remains owned, even beside a readable sibling.
+const thermalDeclarations: readonly {id:string;question:string;expectedDraw:boolean}[] = [
+  {
+    "id": "heat-exact",
+    "question": "The heat capacity is unknown; the heat capacity is 20 J/K. ΔT = 10 K with no phase change. Find q.",
+    "expectedDraw": false
+  },
+  {
+    "id": "heat-unreadable",
+    "question": "The heat capacity is unreadable. The heat capacity is 20 J/K. ΔT = 10 K with no phase change. Find q.",
+    "expectedDraw": false
+  },
+  {
+    "id": "heat-reversed",
+    "question": "The heat capacity is 20 J/K. The heat capacity is unknown. ΔT = 10 K with no phase change. Find q.",
+    "expectedDraw": false
+  },
+  {
+    "id": "heat-sample",
+    "question": "The sample heat capacity is unknown. Its heat capacity is 20 J/K. ΔT = 10 K with no phase change. Find q.",
+    "expectedDraw": false
+  },
+  {
+    "id": "heat-equals",
+    "question": "The heat capacity equals unknown; the heat capacity is 20 J/K. ΔT = 10 K with no phase change. Find q.",
+    "expectedDraw": false
+  },
+  {
+    "id": "heat-cannot-read",
+    "question": "The heat capacity cannot be read. The heat capacity is 20 J/K. ΔT = 10 K with no phase change. Find q.",
+    "expectedDraw": false
+  },
+  {
+    "id": "temp-exact",
+    "question": "At an unreadable temperature. At 310 K, equilibrium constant is 2. Draw the standard Gibbs energy relation.",
+    "expectedDraw": false
+  },
+  {
+    "id": "temp-unknown",
+    "question": "The temperature is unknown. At 310 K, equilibrium constant is 2. Draw the standard Gibbs energy relation.",
+    "expectedDraw": false
+  },
+  {
+    "id": "temp-at-unknown",
+    "question": "At an unknown temperature; at 310 K, equilibrium constant is 2. Draw the standard Gibbs energy relation.",
+    "expectedDraw": false
+  },
+  {
+    "id": "temp-reversed",
+    "question": "At 310 K, equilibrium constant is 2. The temperature is unreadable. Draw the standard Gibbs energy relation.",
+    "expectedDraw": false
+  },
+  {
+    "id": "temp-unreadable-reported",
+    "question": "An unreadable temperature is reported. At 310 K, equilibrium constant is 2. Draw the standard Gibbs energy relation.",
+    "expectedDraw": false
+  },
+  {
+    "id": "temp-cannot-read",
+    "question": "The reported temperature cannot be read. At 310 K, equilibrium constant is 2. Draw the standard Gibbs energy relation.",
+    "expectedDraw": false
+  },
+  {
+    "id": "entropy-unreadable",
+    "question": "At an unreadable temperature. At 310 K, a reversible isothermal change absorbs q_rev = 1000 J. Draw the entropy change.",
+    "expectedDraw": false
+  },
+  {
+    "id": "entropy-unknown-reversed",
+    "question": "At 310 K, a reversible isothermal change absorbs q_rev = 1000 J. The temperature is unknown. Draw the entropy change.",
+    "expectedDraw": false
+  },
+  {
+    "id": "heat-valid-single",
+    "question": "The heat capacity is 20 J/K. ΔT = 10 K with no phase change. Find q.",
+    "expectedDraw": true
+  },
+  {
+    "id": "heat-valid-molar",
+    "question": "The molar heat capacity is 20 J/(mol K). n = 1 mol. ΔT = 10 K with no phase change. Find q.",
+    "expectedDraw": true
+  },
+  {
+    "id": "heat-absence-ideal-gas",
+    "question": "For an ideal gas, Cp = 29.1 J/(mol K). Show Cp - Cv = R and explain molar heat capacity.",
+    "expectedDraw": true
+  },
+  {
+    "id": "gibbs-valid-single",
+    "question": "At 310 K, equilibrium constant is 2. Draw the standard Gibbs energy relation.",
+    "expectedDraw": true
+  },
+  {
+    "id": "entropy-valid-single",
+    "question": "At 310 K, a reversible isothermal change absorbs q_rev = 1000 J. Draw the entropy change.",
+    "expectedDraw": true
+  },
+  {
+    "id": "heat-unknown-only",
+    "question": "The heat capacity is unknown. ΔT = 10 K with no phase change. Find q.",
+    "expectedDraw": false
+  },
+  {
+    "id": "gibbs-unknown-only",
+    "question": "At an unreadable temperature, equilibrium constant is 2. Draw the standard Gibbs energy relation.",
+    "expectedDraw": false
+  },
+  {
+    "id": "heat-duplicate-agree",
+    "question": "The heat capacity is 20 J/K; the heat capacity is 20 J/K. ΔT = 10 K with no phase change. Find q.",
+    "expectedDraw": true
+  },
+  {
+    "id": "heat-duplicate-conflict",
+    "question": "The heat capacity is 20 J/K; the heat capacity is 30 J/K. ΔT = 10 K with no phase change. Find q.",
+    "expectedDraw": false
+  },
+  {
+    "id": "temperature-duplicate-agree",
+    "question": "The temperature is 310 K. At 310 K, equilibrium constant is 2. Draw the standard Gibbs energy relation.",
+    "expectedDraw": true
+  },
+  {
+    "id": "temperature-duplicate-conflict",
+    "question": "The temperature is 300 K. At 310 K, equilibrium constant is 2. Draw the standard Gibbs energy relation.",
+    "expectedDraw": false
+  },
+  {
+    "id": "cp-unknown",
+    "question": "For an ideal gas, Cp is unknown; Cp = 29.1 J/(mol K). Show Cp - Cv = R and explain molar heat capacity.",
+    "expectedDraw": false
+  },
+  {
+    "id": "cp-reversed-unknown",
+    "question": "For an ideal gas, Cp = 29.1 J/(mol K). Cp is unreadable. Show Cp - Cv = R and explain molar heat capacity.",
+    "expectedDraw": false
+  },
+  {
+    "id": "cp-cannot-read",
+    "question": "For an ideal gas, Cp cannot be read; Cp = 29.1 J/(mol K). Show Cp - Cv = R and explain molar heat capacity.",
+    "expectedDraw": false
+  },
+  {
+    "id": "entropy-temperature-absent",
+    "question": "The entropy of the system is 10 J/K and entropy of the surroundings is 5 J/K. Draw the entropy of the universe.",
+    "expectedDraw": true
+  },
+  {
+    "id": "heat-named-symbol-control",
+    "question": "The heat capacity C = 20 J/K. ΔT = 10 K with no phase change. Find q.",
+    "expectedDraw": true
+  },
+  {
+    "id": "heat-supplied-role-after-request",
+    "question": "Find q. The supplied heat capacity is unreadable; the heat capacity is 20 J/K. ΔT = 10 K with no phase change.",
+    "expectedDraw": false
+  },
+  {
+    "id": "temp-unspecified-prefix",
+    "question": "At an unspecified temperature. At 310 K, equilibrium constant is 2. Draw the standard Gibbs energy relation.",
+    "expectedDraw": false
+  },
+  {
+    "id": "T-symbol-is-unknown",
+    "question": "T is unknown. At 310 K, equilibrium constant is 2. Draw the standard Gibbs energy relation.",
+    "expectedDraw": false
+  },
+  {
+    "id": "T-symbol-cannot-read",
+    "question": "T cannot be read. At 310 K, equilibrium constant is 2. Draw the standard Gibbs energy relation.",
+    "expectedDraw": false
+  },
+  {
+    "id": "T-symbol-reverse-unknown",
+    "question": "At 310 K, equilibrium constant is 2. T is unknown. Draw the standard Gibbs energy relation.",
+    "expectedDraw": false
+  },
+  {
+    "id": "T-symbol-readable",
+    "question": "T is 310 K, equilibrium constant is 2. Draw the standard Gibbs energy relation.",
+    "expectedDraw": true
+  },
+  {
+    "id": "T-named-alias-readable",
+    "question": "The temperature T = 310 K, equilibrium constant is 2. Draw the standard Gibbs energy relation.",
+    "expectedDraw": true
+  },
+  {
+    "id": "Cp-named-unknown",
+    "question": "For an ideal gas, the molar heat capacity at constant pressure is unknown; Cp = 20 J/(mol K). Draw the Cp and Cv relation.",
+    "expectedDraw": false
+  },
+  {
+    "id": "Cp-named-cannot-read",
+    "question": "For an ideal gas, the molar heat capacity at constant pressure cannot be read; Cp = 20 J/(mol K). Draw the Cp and Cv relation.",
+    "expectedDraw": false
+  },
+  {
+    "id": "Cp-named-reverse-unknown",
+    "question": "For an ideal gas, Cp = 20 J/(mol K). The molar heat capacity at constant pressure is unknown. Draw the Cp and Cv relation.",
+    "expectedDraw": false
+  },
+  {
+    "id": "Cp-named-readable-agrees",
+    "question": "For an ideal gas, the molar heat capacity at constant pressure is 20 J/(mol K); Cp = 20 J/(mol K). Draw the Cp and Cv relation.",
+    "expectedDraw": true
+  },
+  {
+    "id": "Cp-named-readable-conflict",
+    "question": "For an ideal gas, the molar heat capacity at constant pressure is 25 J/(mol K); Cp = 20 J/(mol K). Draw the Cp and Cv relation.",
+    "expectedDraw": false
+  },
+  {
+    "id": "cv-conflict",
+    "question": "For an ideal gas, Cp = 20 J/(mol K). Cv = 12 J/(mol K). Draw the Cp and Cv relation.",
+    "expectedDraw": false
+  },
+  {
+    "id": "cv-unknown",
+    "question": "For an ideal gas, Cp = 20 J/(mol K). Cv is unknown. Draw the Cp and Cv relation.",
+    "expectedDraw": false
+  },
+  {
+    "id": "cv-agree",
+    "question": "For an ideal gas, Cp = 20 J/(mol K). Cv = 11.686 J/(mol K). Draw the Cp and Cv relation.",
+    "expectedDraw": true
+  },
+  {
+    "id": "R-explicit-correct",
+    "question": "For an ideal gas, Cp = 20 J/(mol K). R = 8.314 J/(mol K). Draw the Cp and Cv relation.",
+    "expectedDraw": true
+  },
+  {
+    "id": "R-explicit-conflict",
+    "question": "For an ideal gas, Cp = 20 J/(mol K). R = 9 J/(mol K). Draw the Cp and Cv relation.",
+    "expectedDraw": false
+  },
+  {
+    "id": "R-unknown-sibling",
+    "question": "For an ideal gas, Cp = 20 J/(mol K). R is unknown; R = 8.314 J/(mol K). Draw the Cp and Cv relation.",
+    "expectedDraw": false
+  },
+  {
+    "id": "cv-named-unknown",
+    "question": "For an ideal gas, Cp = 20 J/(mol K). The molar heat capacity at constant volume is unknown. Draw the Cp and Cv relation.",
+    "expectedDraw": false
+  },
+  {
+    "id": "cv-named-agree",
+    "question": "For an ideal gas, Cp = 20 J/(mol K). The molar heat capacity at constant volume is 11.686 J/(mol K). Draw the Cp and Cv relation.",
+    "expectedDraw": true
+  }
+];
+for (const row of thermalDeclarations) for (const mode of ["strict", "schematic", "ordinary"] as const) test(`thermal-all-declarations/${row.id}/${mode}`, () => {
+  const raw = mode === "ordinary" ? synthesizeFamilyScene({question:row.question})?.document ?? null
+    : buildChemicalThermodynamicsScene(row.question, [], mode === "schematic");
+  if (!row.expectedDraw) { assert(!drawable(raw), "unreadable or contradictory same-owner input cannot be replaced by a readable sibling"); return; }
+  compiled(raw);
+});
+const unavailableDeclarationControls: readonly {id:string;question:string;after:RegExp;dimension:ChemistryDimension;expected:"invalid"|"absent"}[] = [
+  {id:"temperature-prefix",question:"At an unreadable temperature.",after:/\btemperature\b/,dimension:"temperature",expected:"invalid"},
+  {id:"pressure-prefix",question:"The unspecified pressure is reported.",after:/\bpressure\b/,dimension:"pressure",expected:"invalid"},
+  {id:"capacity-cannot-read",question:"The heat capacity cannot be read.",after:/\bheat capacity\b/,dimension:"heat_capacity",expected:"invalid"},
+  {id:"momentum-cannot-read",question:"Its momentum cannot be read.",after:/\bmomentum\b/,dimension:"momentum",expected:"invalid"},
+  {id:"requested-unknown-temperature",question:"Find the unknown temperature using the speed of the particle.",after:/\btemperature\b/,dimension:"temperature",expected:"absent"},
+  {id:"requested-unspecified-pressure",question:"Calculate the unspecified pressure using the stated volume.",after:/\bpressure\b/,dimension:"pressure",expected:"absent"},
+  {id:"requested-ordinary-temperature",question:"What is the temperature?",after:/\btemperature\b/,dimension:"temperature",expected:"absent"},
+  {id:"supplied-role-after-request",question:"Find q. The supplied heat capacity is unreadable.",after:/\bheat capacity\b/,dimension:"heat_capacity",expected:"invalid"},
+];
+for (const row of unavailableDeclarationControls) test(`unavailable-owner/${row.id}`, () => {
+  assert.equal(readChemistryQuantityDeclaration({...row,owner:`unavailable:${row.dimension}`}).state,row.expected);
+});
+
 const sourceFiles = ["quantityReader", "sceneKit", "atomicRadiation", "chemicalThermodynamics", "electrochemistry", "kinetics", "solutionProperties", "solutionsGraphs", "thermoGraphs", "unitCell"];
 const sourceHashes = Object.fromEntries(sourceFiles.map(name => [name + ".ts", createHash("sha256").update(readFileSync(new URL(`../../src/chemistry/${name}.ts`, import.meta.url))).digest("hex")]));
 const output = { passed, failures, sourceHashes, dimensions: Object.keys(dimensions).length, families: Object.keys(builders).length, numericOwnerCases: cases.length, evidence, scope: "Source-only independent owner-declaration/family admission matrix with valid positive and absent controls. Declaration fixtures are byte-identical to red-gate-v1.ts; assertions use the new owner seam while strict literal valid/missing behavior remains unchanged. No built package, provider, DB, server, browser, production or coverage claim." };
