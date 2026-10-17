@@ -185,6 +185,8 @@
  * hatch, loop, brace, badge, endpoint, equal_tick, parallel_mark). A hand incident ray (D5), a trace,
  * a polarity mark, the magnifier alone (D7) and the traced mirror with its compiler label leader
  * still prove and draw.
+ * G32's S3 and S4 plans write the stated size of a real image between bars (|m| = 3, |h_i| = 6 cm),
+ * since an unsigned m = 3 or h_i = 6 cm is upright in sign (G35).
  * G34: u and f are each a quantity the plan names in that role (P13), and production holds the inline
  * literals the same way, with no other plan length standing in. Under the review's plans, E1a (u 36,
  * the recorded plan's x_i) and E1b (u 6, its |h_i|) on the recorded stem of f777a2907df5, E2a to E2c
@@ -194,6 +196,16 @@
  * inches, and an id u whose symbol is x_o name no object distance. Under plans that name u and f the
  * right figure of each stem draws and the wrong ones are refused, and a derived u of 13.3 cm holds
  * the engine's 40/3 but not 13.6.
+ * G35: the engine image agrees with every image fact the plan states (P14). Under plans that name the
+ * figure's u and f, a v, q or d_i of 20 cm where the image is 15 cm on, x_i 30 cm (or 36 cm with the
+ * lens at x_l 6 cm) where it is 36 cm on, an x_i with no lens position, m = -1 or an upright m = 0.5
+ * for an inverted image of m = -0.5, h_i = -2 cm or an upright 1 cm, an image height with no object
+ * height, and a virtual image where the stem or the plan names a screen are unproven and never draw.
+ * So are the review's unsigned m = 3 (E4) and h_i = 6 cm (E2) for a real image, and E1's u 36 when
+ * the plan also names a second lens's u_2 = 36 cm (P13 passes it; x_i and h_i refuse it). The same
+ * figures under agreeing facts, the bars read as sizes (|m| = 0.5, |h_i| = 1 cm), E1 under its
+ * recorded x_i, x_l and h_i with u named, E3's real image on the screen and a plan rounded to
+ * v = 16.7 cm, m = -0.67 and h_i = -1.33 cm draw; an integer v = 17 cm for 16.67 does not.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -706,7 +718,11 @@ for (const exemplar of [...gaussianSources, ...gaussianLibrary]) {
   check("G5a", problems.length === 0, `${exemplar.name}: ${problems.join("; ")}`);
 }
 
-/** Each stem's plan as the planner states it: unsigned givens, unsigned derived values. */
+/**
+ * Each stem's plan as the planner states it: unsigned givens, unsigned derived values. An image height
+ * is a size written between bars (|h_i|), as the recorded plan of cf495e02e4dd writes it: P14 reads an
+ * unsigned h_i = 12 cm as upright, and the exemplars label the size (h_i=12 cm).
+ */
 type PlanRow = [id: string, value: number, sourceText?: string];
 const EXEMPLAR_PLANS: Record<string, { givens: PlanRow[]; derived: PlanRow[]; law: string }> = {
   "physics/reflection-and-spherical-mirrors--1": {
@@ -732,7 +748,7 @@ for (const exemplar of gaussianSources) {
   if (!rows) continue;
   const turnPlan = plan(exemplar.question,
     rows.givens.map(([id, value, sourceText]) => ({ id, symbol: id, value, unit: "cm", provenance: "given" as const, sourceText: sourceText ?? id })),
-    rows.derived.map(([id, value]) => ({ id, symbol: id, value, unit: "cm", provenance: "derived" as const })),
+    rows.derived.map(([id, value]) => ({ id, symbol: id === "h_i" ? "|h_i|" : id, value, unit: "cm", provenance: "derived" as const })),
     [rows.law]);
   const planIds = new Set([...rows.givens, ...rows.derived].map(([id]) => id));
   const unplanned = exemplar.document.quantities.filter((quantity) => !planIds.has(quantity.id)).map((quantity) => quantity.id);
@@ -2192,11 +2208,11 @@ function named(name: string, run: () => void): void {
     { name: "S2b", element: "lens", kind: "convex", question: "An object is placed 15 cm from a convex lens. The image distance is 30 cm. Draw the ray diagram.",
       givens: [given("u", 15), given("v", 30)], derived: [derived("f", 10)], law: "lens_formula", wrong: [15, 5], right: [15, 10] },
     { name: "S3", element: "lens", kind: "convex", question: "A convex lens of focal length 10 cm forms a real image three times the size of the object. Draw the ray diagram.",
-      givens: [given("f", 10), given("m", 3, "", "m")], derived: [derived("u", 40 / 3), derived("v", 40)], law: "lens_formula", wrong: [30, 10], right: [40 / 3, 10] },
+      givens: [given("f", 10), given("m", 3, "", "|m|")], derived: [derived("u", 40 / 3), derived("v", 40)], law: "lens_formula", wrong: [30, 10], right: [40 / 3, 10] },
     { name: "S3b", element: "lens", kind: "convex", question: "A convex lens of focal length 10 cm produces a magnification of -3. Draw the ray diagram.",
       givens: [given("f", 10), given("m", -3, "", "m")], derived: [derived("u", 40 / 3), derived("v", 40)], law: "lens_formula", wrong: [30, 10], right: [40 / 3, 10] },
     { name: "S4", element: "mirror", kind: "concave", question: "An object 2 cm tall forms a real image 6 cm tall in a concave mirror of focal length 10 cm. Draw the ray diagram.",
-      givens: [given("h", 2, "cm", "h_o"), given("hi", 6, "cm", "h_i"), given("f", 10)], derived: [derived("u", 40 / 3), derived("v", 40)], law: "mirror_formula", wrong: [30, 10], right: [40 / 3, 10] },
+      givens: [given("h", 2, "cm", "h_o"), given("hi", 6, "cm", "|h_i|"), given("f", 10)], derived: [derived("u", 40 / 3), derived("v", 40)], law: "mirror_formula", wrong: [30, 10], right: [40 / 3, 10] },
     { name: "S5", element: "lens", kind: "convex", question: "An object 10 cm from a convex lens forms a sharp image on a screen 40 cm from the lens. Draw the ray diagram.",
       givens: [given("u", 10), given("v", 40)], derived: [derived("f", 8)], law: "lens_formula", wrong: [10, 20], right: [10, 8] },
     { name: "S8", element: "mirror", kind: "concave", question: "An object is placed at the centre of curvature of a concave mirror of focal length 10 cm. Draw the ray diagram.",
@@ -2447,7 +2463,7 @@ const uDeclared = (u: number) => [{ id: "u", symbol: "u", value: u }];
   const notU = /^u = [\d.]+ cm is not the plan's object distance \(u = [\d.]+ cm\)$/;
   const notF = /^f = [\d.]+ cm is not the plan's focal length \(f = [\d.]+ cm\)$/;
   const e1Named = plan(qE1, [...e1Givens, givenRow("u", 18)], e1Derived, ["thin-lens-equation"]);
-  const e2Named = plan(qE2, e2Plan.givens, [derivedRow("u", 40 / 3), derivedRow("v", 40), derivedRow("hi", -6, "cm", "h_i")], ["mirror_formula"]);
+  const e2Named = plan(qE2, [givenRow("h", 2, "cm", "h_o"), givenRow("f", 10)], [derivedRow("u", 40 / 3), derivedRow("v", 40), derivedRow("hi", -6, "cm", "h_i")], ["mirror_formula"]);
   const e3Named = plan(qE3, e3Plan.givens, [derivedRow("f", 8)], ["lens_formula"]);
   const e4Named = plan(qE4, [givenRow("f", 10), givenRow("m", -3, "", "m")], [derivedRow("u", 40 / 3), derivedRow("v", 40)], ["lens_formula"]);
   const e5Named = plan(qE5, e5Plan.givens, [derivedRow("u", 20), derivedRow("v", 20)], ["mirror_formula"]);
@@ -2476,7 +2492,86 @@ const uDeclared = (u: number) => [{ id: "u", symbol: "u", value: u }];
   check("G34", offProof.proof === "unproven" && notU.test(offProof.reason), `u 13.6 under a plan's u = 13.3 cm must be unproven; got ${offProof.proof}: ${offProof.reason}`);
 }
 
-for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21", "G22", "G23", "G24", "G25", "G26", "G27", "G28", "G29", "G30", "G31", "G32", "G33", "G34"]) {
+// ---- G35: the engine image agrees with every image fact the plan states ----
+{
+  const notAt = /^the engine image \((?:real|virtual), \|v\| = [\d.]+ cm, m = -?[\d.]+\) is not at the plan's /;
+  const notM = /^the engine image \((?:real|virtual), \|v\| = [\d.]+ cm, m = -?[\d.]+\) does not have the plan's magnification /;
+  const notH = /^the engine image \((?:real|virtual), \|v\| = [\d.]+ cm, m = -?[\d.]+\) does not have the plan's image height /;
+  const screen = /^the engine image \(virtual, \|v\| = [\d.]+ cm, m = -?[\d.]+\) is virtual, but the (?:stem|plan) names a screen$/;
+  const tallFigure = tracedFigure("lens", qTall, "convex", 30, 10);
+  const tallWith = (derived: PlanQuantity[], givens: PlanQuantity[] = []) =>
+    plan(qTall, [givenRow("h", 2, "cm", "h_o"), givenRow("u", 30), givenRow("f", 10), ...givens], derived, ["lens_formula"]);
+  // E1 with u named twice: the second lens's u_2 = 36 cm lets u 36 pass P13, and the image facts refuse it.
+  const e1Twice = plan(qE1, [...e1Givens, givenRow("u", 18), givenRow("u2", 36, "cm", "u_2")], e1Derived, ["thin-lens-equation"]);
+  // The screen stems: a convex lens inside f forms no image on a screen.
+  const qScreenInside = "An object placed 10 cm from a convex lens of focal length 20 cm forms an image on a screen. Draw the ray diagram.";
+  const screenInsidePlan = plan(qScreenInside, [givenRow("u", 10), givenRow("f", 20)], [derivedRow("v", -20)], ["lens_formula"]);
+  const magnifierScreenPlan = plan(qLens, [...lensPlan.givens, givenRow("screen", 40, "cm", "d_s")], lensPlan.derived, ["lens_formula"]);
+  for (const [name, question, turnPlan, document, reason] of [
+    // |v| against an image distance, and against x_i less x_l.
+    ["the real image 15 cm on under a plan's v = 20 cm", qTall, tallWith([derivedRow("v", 20)]), tallFigure, notAt],
+    ["the real image under a plan's q = 20 cm (Gaussian notation)", qTall, tallWith([derivedRow("q", 20)]), tallFigure, notAt],
+    ["the real image under a plan's d_i = 20 cm", qTall, tallWith([derivedRow("di", 20, "cm", "d_i")]), tallFigure, notAt],
+    ["E1, u 36 passing P13 as the plan's u_2, against x_i 36 less x_l 0", qE1, e1Twice, tracedFigure("lens", qE1, "convex", 36, 12, 3), notAt],
+    ["E1 with u 18 named, the plan's x_i = 30 cm", qE1, plan(qE1, [...e1Givens, givenRow("u", 18)], [derivedRow("xi", 30, "cm", "x_i")], []),
+      tracedFigure("lens", qE1, "convex", 18, 12, 3), notAt],
+    ["E1 with u 18 named, x_i = 36 cm but the lens at x_l = 6 cm", qE1,
+      plan(qE1, [givenRow("f", 12), givenRow("u", 18), givenRow("xl", 6, "cm", "x_l")], [derivedRow("xi", 36, "cm", "x_i")], []),
+      tracedFigure("lens", qE1, "convex", 18, 12, 3), notAt],
+    ["E1 with u 18 named, x_i = 36 cm and no lens position", qE1,
+      plan(qE1, [givenRow("f", 12), givenRow("u", 18)], [derivedRow("xi", 36, "cm", "x_i")], []),
+      tracedFigure("lens", qE1, "convex", 18, 12, 3), /^the plan places the image at x_i = 36 cm but gives no single lens position$/],
+    // m in sign and size, against m or h_i/h_o.
+    ["the real image under a plan's m = -1 (size)", qTall, tallWith([derivedRow("m", -1, "", "m")]), tallFigure, notM],
+    ["the real image under a plan's m = 0.5 (upright, sign)", qTall, tallWith([derivedRow("m", 0.5, "", "m")]), tallFigure, notM],
+    ["E4 with u 40/3 named and the review's m = 3 for a real image (upright, sign)", qE4,
+      plan(qE4, [givenRow("f", 10), givenRow("m", 3, "", "m")], [derivedRow("u", 40 / 3)], ["lens_formula"]), tracedFigure("lens", qE4, "convex", 40 / 3, 10), notM],
+    ["the real image under a plan's h_i = -2 cm (size)", qTall, tallWith([derivedRow("hi", -2, "cm", "h_i")]), tallFigure, notH],
+    ["the real image under a plan's h_i = 1 cm (upright, sign)", qTall, tallWith([derivedRow("hi", 1, "cm", "h_i")]), tallFigure, notH],
+    ["E2 with u 40/3 named and the review's h_i = 6 cm for a real image (upright, sign)", qE2,
+      plan(qE2, e2Plan.givens, [derivedRow("u", 40 / 3)], ["mirror_formula"]), tracedFigure("mirror", qE2, "concave", 40 / 3, 10), notH],
+    ["the real image under a plan's h_i = -1 cm and no object height", qTall,
+      plan(qTall, [givenRow("u", 30), givenRow("f", 10)], [derivedRow("hi", -1, "cm", "h_i")], ["lens_formula"]), tallFigure,
+      /^the plan gives the image height h_i = -1 cm but no single object height$/],
+    // A real image when the stem or the plan names a screen.
+    ["a virtual image on a screen stem", qScreenInside, screenInsidePlan, tracedFigure("lens", qScreenInside, "convex", 10, 20), screen],
+    ["the magnifier under a plan that names a screen", qLens, magnifierScreenPlan, traced(goodLens, ["parallel", "central"]), screen],
+  ] as const) {
+    expectRefusedByPlan("G35", name, question, turnPlan, document, reason);
+  }
+  // Controls: the same figures under plans whose image facts agree prove and draw; a value the plan writes
+  // between bars is held by size only; and the plan's rounding holds (v = 13.3 cm for 40/3).
+  for (const [name, question, turnPlan, document] of [
+    ["the real image under v = 15, m = -0.5, h_i = -1 cm", qTall,
+      tallWith([derivedRow("v", 15), derivedRow("m", -0.5, "", "m"), derivedRow("hi", -1, "cm", "h_i")]), tallFigure],
+    ["the real image under |m| = 0.5 and |h_i| = 1 cm", qTall,
+      tallWith([derivedRow("m", 0.5, "", "|m|"), derivedRow("hi", 1, "cm", "|h_i|")]), tallFigure],
+    ["E1 with u 18 named under its recorded x_i, x_l and h_i", qE1, plan(qE1, [...e1Givens, givenRow("u", 18)], e1Derived, ["thin-lens-equation"]),
+      tracedFigure("lens", qE1, "convex", 18, 12, 3)],
+    ["E2 with u 40/3 named and |h_i| = 6 cm", qE2,
+      plan(qE2, [givenRow("h", 2, "cm", "h_o"), givenRow("hi", 6, "cm", "|h_i|"), givenRow("f", 10)], [derivedRow("u", 40 / 3)], ["mirror_formula"]),
+      tracedFigure("mirror", qE2, "concave", 40 / 3, 10)],
+    ["E3 with f 8 named on the screen stem", qE3, plan(qE3, e3Plan.givens, [derivedRow("f", 8)], ["lens_formula"]),
+      tracedFigure("lens", qE3, "convex", 10, 8, 2, uDeclared(10))],
+    ["the magnifier under its plan", qLens, lensPlan, traced(goodLens, ["parallel", "central"])],
+  ] as const) {
+    const proof = explainPlannerOpticsProof(question, document, turnPlan);
+    check("G35", proof.proof === "proven", `${name} must be proven; got ${proof.proof}: ${proof.reason}`);
+    expectDrawnAsPlanner("G35", name, question, turnPlan, document);
+  }
+  // The plan's rounding: u 25 with f 10 puts the image 16.67 cm on (m = -2/3), which a plan's v = 16.7 cm,
+  // m = -0.67 and h_i = -1.33 cm hold; an integer v = 17 cm (held to 1 percent) does not.
+  const q25 = "An object 2 cm tall is placed at 25 cm from a convex lens of focal length 10 cm. Draw the ray diagram.";
+  const plan25 = (derived: PlanQuantity[]) => plan(q25, [givenRow("h", 2, "cm", "h_o"), givenRow("u", 25), givenRow("f", 10)], derived, ["lens_formula"]);
+  const lens25 = tracedFigure("lens", q25, "convex", 25, 10);
+  const rounded = plan25([derivedRow("v", 16.7), derivedRow("m", -0.67, "", "m"), derivedRow("hi", -1.33, "cm", "h_i")]);
+  const roundedProof = explainPlannerOpticsProof(q25, lens25, rounded);
+  check("G35", roundedProof.proof === "proven", `u 25 f 10 under v = 16.7 cm, m = -0.67, h_i = -1.33 cm must be proven; got ${roundedProof.proof}: ${roundedProof.reason}`);
+  expectDrawnAsPlanner("G35", "u 25 f 10 under the plan's rounded image", q25, rounded, lens25);
+  expectRefusedByPlan("G35", "u 25 f 10 under an integer v = 17 cm", q25, plan25([derivedRow("v", 17)]), lens25, notAt);
+}
+
+for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21", "G22", "G23", "G24", "G25", "G26", "G27", "G28", "G29", "G30", "G31", "G32", "G33", "G34", "G35"]) {
   console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 }
 for (const [name, failed] of namedCases) console.log(`  ${name}: ${failed ? `FAIL (${failed} checks)` : "pass"}`);

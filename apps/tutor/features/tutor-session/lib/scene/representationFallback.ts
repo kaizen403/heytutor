@@ -715,7 +715,8 @@ export type PlannerOpticsProof = "not_optics" | "proven" | "unproven";
  * nor implies by a power, focal sign or the image it states declines), u and f
  * are each a quantity the turn plan names in that role (P13: no plan, or one
  * that names no u or no f, leaves the figure unproven), the engine image has the
- * distance, side and nature (real or virtual, enlarged or diminished) the stem states, the element is drawn on that
+ * distance, side and nature (real or virtual, enlarged or diminished) the stem states and agrees with
+ * every image fact the plan states (P14: |v|, m in sign and size, real on a screen), the element is drawn on that
  * centre and axis with the stem's sense, every ray ends on an engine-derived
  * point, and every line affirmatively converging on the image tip leaves the
  * element (a point on its plane within the element as drawn) after a drawn
@@ -891,6 +892,9 @@ function opticsProofFailure(question: string, match: OpticsStemMatch, document: 
     : /enlarged|magnified/.test(word) ? magnification > 1 : magnification < 1;
   const ruledOut = stemImage.denied.find((words) => words.length > 0 && words.every(holds));
   if (ruledOut) return `${engineImage} is the ${ruledOut.join(", ")} image the stem denies`;
+  // P14: every image fact the plan states is the engine image's (signed m: inverted is negative).
+  const planImageFailure = opticsPlanImageFailure(question, turnPlan, planned, element, v * scale, element === "lens" ? v / u : -v / u, virtualImage);
+  if (planImageFailure) return planImageFailure;
   // P4: every focus is the engine focus of this element, in the image's unit.
   const foci = document.constructions.filter((construction) => construction.operator === "optical_focus");
   if (foci.length === 0) return "no optical_focus";
@@ -1745,12 +1749,20 @@ function opticsStatedPowerFocal(question: string): { cm: number; text: string } 
  * u_M, d_o, s_o, s, p (Gaussian 1/p + 1/q = 1/f) or "object distance"; a focal length f, f₁, f_L,
  * f_o, |f| or "focal length"; an
  * object height h, h_o, h₀, ho, h0 or hobj. Production holds inline optics literals with the same
- * reader, so a quantity is in one role for both.
+ * reader, so a quantity is in one role for both. The image facts P14 reads: an image distance v,
+ * v₁, q, d_i, s_i, s' or "image distance"; an image position x_i and the element's position x_l
+ * (x_lens, x_m, x_mirror); an image height h_i, h' or "image height"; a magnification m, m₁ or
+ * "magnification".
  */
 export const OPTICS_PLAN_ROLE = {
   objectDistance: /^(?:u[0-9a-z]?|p|do|dobj(?:ect)?|so?|objectdistance)$/,
   focalLength: /^(?:f[0-9a-z]?|focallength)$/,
   objectHeight: /^h(?:o|0|obj(?:ect)?)?$/,
+  imageDistance: /^(?:v[0-9a-z]?|q|di|dimage|si|s'|imagedistance)$/,
+  imagePosition: /^xi(?:mage)?$/,
+  elementPosition: /^x(?:l|lens|m|mirror)$/,
+  imageHeight: /^(?:hi|h'|himage|imageheight)$/,
+  magnification: /^(?:m[0-9]?|mag|magnification)$/,
 } as const;
 
 /**
@@ -1768,8 +1780,13 @@ interface OpticsPlanQuantity {
   value: number;
   /** cm per unit of a length in cm, m or mm; null for any other unit. */
   cmPerUnit: number | null;
+  /** No unit, or a unit that is none (1, x, times): a ratio such as a magnification. */
+  dimensionless: boolean;
+  /** Written between bars (|m|, |h_i|): the plan states a size, not a sign. */
+  magnitude: boolean;
   text: string;
 }
+const OPTICS_DIMENSIONLESS = new Set(["", "1", "x", "×", "times", "unitless", "dimensionless", "none"]);
 
 /** The plan's givens and derived values with a finite value, or null when there is no readable plan. */
 function opticsPlanQuantities(turnPlan: unknown): OpticsPlanQuantity[] | null {
@@ -1778,8 +1795,79 @@ function opticsPlanQuantities(turnPlan: unknown): OpticsPlanQuantity[] | null {
     if (typeof quantity.value !== "number" || !Number.isFinite(quantity.value)) return [];
     const unit = typeof quantity.unit === "string" ? quantity.unit.trim() : "";
     const name = typeof quantity.symbol === "string" && quantity.symbol.trim() ? quantity.symbol : String(quantity.id);
-    return [{ key: opticsPlanKey(quantity), value: quantity.value, cmPerUnit: opticsCmPerUnit(unit), text: `${name} = ${opticsCompact(quantity.value)}${unit ? ` ${unit}` : ""}` }];
+    return [{
+      key: opticsPlanKey(quantity), value: quantity.value, cmPerUnit: opticsCmPerUnit(unit),
+      dimensionless: OPTICS_DIMENSIONLESS.has(unit.toLowerCase()), magnitude: /^\s*\|.*\|\s*$/.test(name),
+      text: `${name} = ${opticsCompact(quantity.value)}${unit ? ` ${unit}` : ""}`,
+    }];
   });
+}
+
+/**
+ * P14. Every image fact the plan states is the engine image's, within the plan's rounding
+ * (`opticsPlanAgrees`), in signed and magnitude mode alike:
+ * - |v| against each image distance, and against each image position x_i less the element position
+ *   x_l (an image position with no single element position cannot be read, so it is unproven);
+ * - m in sign and size against each magnification, and against each image height over the object
+ *   height (an image height with no single object height is unproven). Inverted is negative in every
+ *   sign convention; a value the plan writes between bars (|m|, |h_i|) is held by size only;
+ * - a real image when the stem or the plan names a screen.
+ */
+function opticsPlanImageFailure(
+  question: string,
+  turnPlan: unknown,
+  planned: readonly OpticsPlanQuantity[],
+  element: "lens" | "mirror",
+  imageCm: number,
+  magnification: number,
+  virtualImage: boolean,
+): string | null {
+  const engine = `the engine image (${virtualImage ? "virtual" : "real"}, |v| = ${opticsCompact(Math.abs(imageCm))} cm, m = ${opticsCompact(magnification)})`;
+  const lengths = (role: keyof typeof OPTICS_PLAN_ROLE) =>
+    planned.filter((quantity) => quantity.cmPerUnit !== null && OPTICS_PLAN_ROLE[role].test(quantity.key));
+  const single = (role: keyof typeof OPTICS_PLAN_ROLE): OpticsPlanQuantity | null => {
+    const found = lengths(role);
+    return new Set(found.map((quantity) => quantity.value * quantity.cmPerUnit!)).size === 1 ? found[0]! : null;
+  };
+  // The stated sign must be the engine's unless the plan writes a size; the size is the plan's as it rounds it.
+  const holds = (stated: OpticsPlanQuantity, actual: number) =>
+    (stated.magnitude || Math.sign(actual) === Math.sign(stated.value)) && opticsPlanAgrees(Math.abs(actual), Math.abs(stated.value));
+  for (const distance of lengths("imageDistance")) {
+    if (!opticsPlanAgrees(Math.abs(imageCm) / distance.cmPerUnit!, Math.abs(distance.value))) {
+      return `${engine} is not at the plan's image distance ${distance.text}`;
+    }
+  }
+  for (const position of lengths("imagePosition")) {
+    const at = single("elementPosition");
+    if (!at) return `the plan places the image at ${position.text} but gives no single ${element} position`;
+    const stated = Math.abs(position.value - at.value * at.cmPerUnit! / position.cmPerUnit!);
+    if (!opticsPlanAgrees(Math.abs(imageCm) / position.cmPerUnit!, stated)) {
+      return `${engine} is not at the plan's image position ${position.text} from the ${element} at ${at.text}`;
+    }
+  }
+  for (const ratio of planned.filter((quantity) => quantity.dimensionless && OPTICS_PLAN_ROLE.magnification.test(quantity.key))) {
+    if (!holds(ratio, magnification)) return `${engine} does not have the plan's magnification ${ratio.text}`;
+  }
+  for (const height of lengths("imageHeight")) {
+    const object = single("objectHeight");
+    if (!object) return `the plan gives the image height ${height.text} but no single object height`;
+    if (!holds(height, magnification * object.value * object.cmPerUnit! / height.cmPerUnit!)) {
+      return `${engine} does not have the plan's image height ${height.text} for an object of ${object.text}`;
+    }
+  }
+  if (virtualImage) {
+    if (/\bscreens?\b/i.test(question)) return `${engine} is virtual, but the stem names a screen`;
+    if (opticsPlanNamesScreen(turnPlan)) return `${engine} is virtual, but the plan names a screen`;
+  }
+  return null;
+}
+
+/** Whether a plan quantity (its id, symbol or source text) or a qualitative claim names a screen. */
+function opticsPlanNamesScreen(turnPlan: unknown): boolean {
+  if (!isRecord(turnPlan)) return false;
+  return [turnPlan.givens, turnPlan.derived, turnPlan.qualitativeClaims]
+    .flatMap((list) => Array.isArray(list) ? list.filter(isRecord) : [])
+    .some((row) => [row.id, row.symbol, row.sourceText, row.claim].some((text) => typeof text === "string" && /screen/i.test(text)));
 }
 
 /**
