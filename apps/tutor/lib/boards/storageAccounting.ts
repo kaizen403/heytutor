@@ -70,7 +70,12 @@ export async function readStorageAccountingSnapshot(tx: Prisma.TransactionClient
 }
 
 export function storageAccountingFingerprint(snapshot: StorageAccountingSnapshot): string {
-  return createHash("sha256").update(JSON.stringify(snapshot, (_key, value: unknown) =>
+  // Outbox leases and delivery receipts are infrastructure state. They neither
+  // change retained lesson bytes nor acquire the user storage lock.
+  const retained = { ...snapshot, turns: snapshot.turns.map(turn => ({ ...turn,
+    sentryEventId: undefined, sentryFailureEvent: undefined, sentryReportedAt: undefined, sentryNextAttemptAt: undefined,
+  })) };
+  return createHash("sha256").update(JSON.stringify(retained, (_key, value: unknown) =>
     typeof value === "bigint" ? value.toString() : value)).digest("hex");
 }
 

@@ -139,6 +139,7 @@ function harness(nodeEnv: string, configured: boolean, uploadSucceeds: boolean) 
       withUserStorageLock: (_owner: string, run: (tx: Row) => Promise<unknown>) => prisma.$transaction(run),
     },
     "@/lib/obs/traceOwnership": { assertOwnedTrace: async () => true },
+    "@/lib/obs/failedTurnSentry": { queueFailedTurnSentry: async () => null },
     "@/lib/scene/turnPersistencePolicy": { isTurnMetadataPersistable: () => true },
     "@/lib/scene/turnScenePersistence": { canonicalizeTurnSceneMetadata: (metadata: Row) =>
       canonicalizeTurnSceneMetadata(JSON.parse(JSON.stringify(metadata))) },
