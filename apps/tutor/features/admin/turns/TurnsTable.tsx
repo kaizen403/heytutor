@@ -85,20 +85,37 @@ export function TurnsTable({ turns }: { turns: AdminTurnRow[] }) {
                 </div>
               </td>
               <td className={cn(CELL, "text-right")}>
-                {turn.traceUrl ? (
-                  <a
-                    href={turn.traceUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 type-accent-xs text-sky-300 transition-colors hover:text-sky-200"
-                    title="Open the Langfuse trace"
-                  >
-                    Langfuse
-                    <ExternalLink className="h-3 w-3" aria-hidden />
-                  </a>
-                ) : (
-                  <span className="type-accent-xs text-faint">—</span>
-                )}
+                <div className="flex flex-col items-end gap-1">
+                  {turn.sentryUrl ? (
+                    <a
+                      href={turn.sentryUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex flex-col items-end type-accent-xs text-sky-300 transition-colors hover:text-sky-200"
+                      title={`Sentry event ${turn.sentryEventId}`}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        View in Sentry
+                        <ExternalLink className="h-3 w-3" aria-hidden />
+                      </span>
+                      <span className="font-mono text-faint">{turn.sentryEventId}</span>
+                    </a>
+                  ) : null}
+                  {turn.traceUrl ? (
+                    <a
+                      href={turn.traceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 type-accent-xs text-sky-300 transition-colors hover:text-sky-200"
+                      title="Open the Langfuse trace"
+                    >
+                      Langfuse
+                      <ExternalLink className="h-3 w-3" aria-hidden />
+                    </a>
+                  ) : !turn.sentryUrl ? (
+                    <span className="type-accent-xs text-faint">—</span>
+                  ) : null}
+                </div>
               </td>
             </tr>
           ))}

@@ -47,7 +47,7 @@ export function DegradationPanel({ turns }: { turns: AdminTurnRow[] }) {
   return (
     <div className="grid gap-3 md:grid-cols-2">
       <BarList
-        title="Why the diagram was skipped"
+        title="Failure causes"
         entries={reasonEntries}
         emptyLabel="No failed turns on this page"
         note={`this page's ${turns.length} failed turns`}

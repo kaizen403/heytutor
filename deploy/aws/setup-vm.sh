@@ -70,6 +70,12 @@ sudo -H -u ubuntu env GIT_TERMINAL_PROMPT=0 git -C "$APP_DIR" pull --ff-only
 
 require_database_url
 
+# First setup builds and starts the same production worker as later deploys.
+# Resolve the release as the checkout owner; setup itself runs as root.
+SENTRY_RELEASE="$(sudo -H -u ubuntu env GIT_TERMINAL_PROMPT=0 git -C "$APP_DIR" rev-parse HEAD)"
+export SENTRY_RELEASE
+export SENTRY_ENVIRONMENT=production
+
 if ! id heytutor >/dev/null 2>&1; then
   useradd --system --home-dir /var/lib/heytutor --create-home --shell /usr/sbin/nologin heytutor
 fi
@@ -158,6 +164,7 @@ chmod -R g+rwX "${APP_DIR}/apps/tutor/.next"
 
 systemctl daemon-reload
 systemctl enable heytutor
+node "$APP_DIR/deploy/aws/set-sentry-release.mjs" "$ENV_FILE" "$SENTRY_RELEASE"
 systemctl restart heytutor
 
 echo "Tutor URL: https://${HOSTNAME_FQDN}"
