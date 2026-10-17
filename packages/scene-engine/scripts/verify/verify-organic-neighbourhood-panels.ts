@@ -460,6 +460,27 @@ for (const hybridisation of ["sp", "sp2"]) check(`wrong-alcohol-hybridisation-${
   assert.equal(buildOrganicScene(`Draw propan-2-ol with its OH-bearing carbon labelled ${hybridisation}.`, [], false), null);
 });
 
+/** Ordinal references bind properties to source-ordered members, not the whole panel. */
+import "../../src/chemistry/families";
+import { synthesizeFamilyScene, synthesizeLastResortScene } from "../../src/synthesize/familyScene";
+import ordinalCases from "./fixtures/organic-ordinal-owners.json";
+for (const row of ordinalCases) for (const route of ["direct", "schematic", "ordinary", "lastResort"] as const) check(`ordinal-owner-${row.id}-${route}`, () => {
+  const candidate = route === "direct" || route === "schematic" ? buildOrganicScene(row.question, [], route === "schematic")
+    : route === "ordinary" ? synthesizeFamilyScene({ question: row.question }) : synthesizeLastResortScene({ question: row.question });
+  assert.equal(!!candidate, row.draw, "whole-request ownership oracle");
+  if (!candidate) return;
+  const document = "document" in candidate ? candidate.document : candidate;
+  const result = compileForLab(document);
+  assert(result.ok && result.renderScene, "entire admitted figure must compile normally");
+  const source = document.source.organicComparison as { models: Array<{ name: string; site: { classification: string } }> };
+  assert.deepEqual(source.models.map(model => [model.name, model.site.classification]), row.panels, "original ordered graph/class gold");
+  for (const [index, [member, classification]] of row.panels.entries()) {
+    const labels = result.renderScene.primitives.filter(primitive => primitive.kind === "label" && primitive.groupId === `m${index}_group`).map(primitive => primitive.text ?? "");
+    assert(normalized(labels.join(" ")).includes(normalized(member!)), `full source name missing in panel ${index}`);
+    assert(normalized(labels.join(" ")).includes(normalized(classification!)), `computed class missing in panel ${index}`);
+  }
+});
+
 if (output) writeFileSync(resolve(output, "summary.json"), JSON.stringify({ passed, failures, cases: cases.length, evidence }, null, 2) + "\n");
 console.log(`verify-organic-neighbourhood-panels: ${passed} passed, ${failures.length} failed`);
 if (failures.length) process.exitCode = 1;

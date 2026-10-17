@@ -126,6 +126,8 @@ interface StructuralPhrase {
   argument?: "extra-structure" | "structure-object" | "phenyl-ring" | "reference" | "singular-reference" | "member-description" | "ordinal-reference" | "last-two-reference" | "halogen-value" | "hybrid-value" | "class-value" | "class-options" | "alternative";
   count?: number;
   definite?: boolean;
+  indices?: number[];
+  pairReference?: boolean;
   values?: string[];
 }
 
@@ -175,8 +177,12 @@ function structuralPhraseAt(text: string, kind: CarbonSiteKind): StructuralPhras
   if (description) candidates.push({ length: description[0].length, argument: "member-description", count: description[1] && /^(?:first|second|third|another|other)$/i.test(description[1]) ? 1 : count(description[1]) });
   const extra = /^(?:(?:a|an|the)\s+)?(?:another|other|additional)\s+(?:(?:structural|skeletal)\s+)?(?:diagrams?|structures?)\b/i.exec(text);
   if (extra) candidates.push({ length: extra[0].length, argument: "extra-structure" });
-  const ordinal = /^(?:the\s+)?(first|second|third)\s+(?:(?:structural|skeletal)\s+)?(?:diagram|structure)\b/i.exec(text);
-  if (ordinal) candidates.push({ length: ordinal[0].length, argument: "ordinal-reference", count: count(ordinal[1]) });
+  const ordinal = /^(?:the\s+)?((?:first|second|third)(?:\s*(?:,\s*|\s+and\s+)(?:the\s+)?(?:first|second|third))*)\s+(?:(?:structural|skeletal)\s+)?(?:diagrams?|structures?|molecules?)\b/i.exec(text);
+  if (ordinal) candidates.push({ length: ordinal[0].length, argument: "ordinal-reference",
+    indices: ordinal[1]!.match(/\b(?:first|second|third)\b/gi)!.map(word => count(word)!) });
+  const pair = /^(?:the\s+)?(former|latter)\s+(?:(?:structural|skeletal)\s+)?(?:diagram|structure|molecule)\b/i.exec(text);
+  if (pair) candidates.push({ length: pair[0].length, argument: "ordinal-reference", pairReference: true,
+    indices: [pair[1]!.toLowerCase() === "former" ? 1 : 2] });
   const object = /^(the\s+)?(?:(?:structural|skeletal)\s+)?(?:diagrams?|structures?)\b/i.exec(text);
   if (object) candidates.push({ length: object[0].length, argument: "structure-object", definite: !!object[1] });
   const reference = /^(its|their|it|them|each|every|both|all)\b/i.exec(text);
@@ -210,7 +216,11 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
     objects: Array<{ at: number; reference: boolean; definite: boolean }>;
     reference: boolean;
     singularReference: boolean;
-    ordinal: number;
+    selection: MolecularNeighbourhood[] | null;
+    selectionBound: boolean;
+    selectionVersion: number;
+    membersBound: number;
+    classSelectionVersion: number;
     phenyl: boolean;
     lastTwo: boolean;
     described: number;
@@ -239,6 +249,12 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
         if (models.length === 3) return null;
         models.push(model);
       }
+      if (request?.selection) {
+        // An unconsumed ordinal and a named member describe the same owner.
+        // A later named property starts a new owner only after that assertion.
+        if (!request.selectionBound && !request.selection.includes(model)) return null;
+        if (request.selectionBound) { request.selection = null; request.selectionVersion++; }
+      }
       request?.members.push({ model, at });
       at += named.length;
       continue;
@@ -247,7 +263,9 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
     if (!phrase.length) return null;
     if (phrase.action) {
       request = { action: phrase.action, context: [...models], members: [], extraStructures: [], objects: [], reference: false,
-        singularReference: false, ordinal: 0, phenyl: false, lastTwo: false, described: 0,
+        singularReference: false, selection: null, selectionBound: false,
+        selectionVersion: 0, membersBound: 0, classSelectionVersion: 0,
+        phenyl: false, lastTwo: false, described: 0,
         targeted: 0, hybridBound: 0, classBound: 0, properties: [], classes: [] };
       requests.push(request);
     }
@@ -258,21 +276,48 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
         reference: /\b(?:its|their|each|every|both|all)\s+$/i.test(text.slice(0, at)), definite: !!phrase.definite });
       if (phrase.argument === "phenyl-ring") request.phenyl = true;
       if (phrase.argument === "reference" || phrase.argument === "singular-reference") request.reference = true;
+      if (phrase.argument === "reference" && request.selection) { request.selection = null; request.selectionVersion++; }
       if (phrase.argument === "singular-reference") request.singularReference = true;
-      if (phrase.argument === "ordinal-reference") { request.reference = true; request.ordinal = Math.max(request.ordinal, phrase.count!); }
+      if (phrase.argument === "ordinal-reference") {
+        // Select against the original drawn order, never a property-local list
+        // or the final/max ordinal mentioned later in the same command.
+        const ordered = request.context.length ? request.context : request.members.map(member => member.model);
+        if (phrase.pairReference && ordered.length !== 2) return null;
+        const selected = phrase.indices!.map(index => ordered[index - 1]);
+        if (selected.some(model => !model)) return null;
+        const current = selected as MolecularNeighbourhood[];
+        // Coordinated objects share the next assertion. Once a property is
+        // consumed, the following reference begins a distinct owner group.
+        const resolved = request.selection && !request.selectionBound
+          ? [...new Set([...request.selection, ...current])] : current;
+        if (request.members.slice(request.membersBound).some(member => !resolved.includes(member.model))) return null;
+        request.reference = true;
+        request.selection = resolved;
+        request.selectionBound = false;
+        request.selectionVersion++;
+      }
       if (phrase.argument === "last-two-reference") request.lastTwo = true;
-      const owners = (cursor: "targeted" | "hybridBound" | "classBound"): MolecularNeighbourhood[] => {
+      const owners = (cursor: "targeted" | "hybridBound" | "classBound", consumed = true): MolecularNeighbourhood[] => {
         const fresh = request!.members.slice(request![cursor]).map(member => member.model);
         request![cursor] = request!.members.length;
-        return fresh.length ? fresh : request!.members.length ? request!.members.map(member => member.model) : request!.context;
+        if (consumed) { request!.membersBound = request!.members.length; request!.selectionBound = true; }
+        return request!.selection ?? (fresh.length ? fresh : request!.members.length ? request!.members.map(member => member.model) : request!.context);
       };
       if (phrase.argument === "halogen-value" || phrase.argument === "hybrid-value") request.properties.push({
         models: owners(phrase.argument === "halogen-value" ? "targeted" : "hybridBound"), kind: phrase.argument, values: phrase.values!,
       });
-      if (phrase.argument === "class-options" && /^(classify|label)$/.test(request.action)) request.classes.push({ models: owners("classBound"), values: [], alternatives: false });
+      if (phrase.argument === "class-options" && /^(classify|label)$/.test(request.action)) {
+        request.classes.push({ models: owners("classBound", false), values: [], alternatives: false });
+        request.classSelectionVersion = request.selectionVersion;
+      }
       if (phrase.argument === "class-value") {
-        if (!request.classes.length || request.members.length > request.classBound) request.classes.push({ models: owners("classBound"), values: [], alternatives: false });
+        if (!request.classes.length || request.members.length > request.classBound || request.classSelectionVersion !== request.selectionVersion) {
+          request.classes.push({ models: owners("classBound"), values: [], alternatives: false });
+          request.classSelectionVersion = request.selectionVersion;
+        }
         request.classes.at(-1)!.values.push(...phrase.values!);
+        request.membersBound = request.members.length;
+        request.selectionBound = true;
       }
       if (phrase.argument === "alternative" && request.classes.length) request.classes.at(-1)!.alternatives = true;
       if (phrase.argument === "member-description") {
@@ -295,7 +340,7 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
       if (member < 0) return null;
       used.add(member);
     }
-    if (part.ordinal > scope.length || (part.lastTwo && scope.length < 2)) return null;
+    if (part.lastTwo && scope.length < 2) return null;
     if (part.phenyl && (!scope.length || scope.some(model => !model.site.phenyl) || (part.singularReference && scope.length !== 1))) return null;
     for (const property of part.properties) {
       if (!property.models.length || property.models.some(model => !property.values.some(value => value.toLowerCase() ===

@@ -1,0 +1,363 @@
+[
+  {
+    "id": "exact-second-secondary",
+    "question": "Draw propan-1-ol and propan-2-ol with their OH-bearing carbon marked. Classify the second structure as secondary alcohol.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "first-primary",
+    "question": "Draw butan-1-ol and butan-2-ol with their OH-bearing carbon marked. Classify the first structure as primary alcohol.",
+    "draw": true,
+    "panels": [
+      [
+        "butan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "butan-2-ol",
+        "secondary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "swapped-second-primary",
+    "question": "Draw propan-2-ol and propan-1-ol with their OH-bearing carbon marked. Label the second structure primary alcohol.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ],
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "two-owner-classes",
+    "question": "Draw propan-1-ol and propan-2-ol with their OH-bearing carbon marked. Classify the first structure as primary alcohol and the second structure as secondary alcohol.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "halide-first-aryl",
+    "question": "Draw chlorobenzene and benzyl chloride with the carbon carrying Cl identified. Classify the first structure as aryl.",
+    "draw": true,
+    "panels": [
+      [
+        "chlorobenzene",
+        "aryl"
+      ],
+      [
+        "benzyl chloride",
+        "primary benzylic"
+      ]
+    ]
+  },
+  {
+    "id": "halide-second-hybrid",
+    "question": "Draw acetyl chloride and chloroethane with the carbon carrying Cl identified. Label the second structure hybridisation as sp3 and classify each C-Cl site.",
+    "draw": true,
+    "panels": [
+      [
+        "acetyl chloride",
+        "acyl halide"
+      ],
+      [
+        "chloroethane",
+        "primary alkyl"
+      ]
+    ]
+  },
+  {
+    "id": "three-owner-tertiary",
+    "question": "Draw butan-1-ol, butan-2-ol and 2-methylpropan-2-ol with their OH-bearing carbon marked. Classify the third structure as tertiary alcohol.",
+    "draw": true,
+    "panels": [
+      [
+        "butan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "butan-2-ol",
+        "secondary alcohol"
+      ],
+      [
+        "2-methylpropan-2-ol",
+        "tertiary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "wrong-first-secondary",
+    "question": "Draw propan-1-ol and propan-2-ol with their OH-bearing carbon marked. Classify the first structure as secondary alcohol.",
+    "draw": false,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "unbound-third",
+    "question": "Draw propan-1-ol and propan-2-ol with their OH-bearing carbon marked. Classify the third structure as tertiary alcohol.",
+    "draw": false,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "wrong-repeated-first",
+    "question": "Draw propan-1-ol and propan-2-ol with their OH-bearing carbon marked. Classify the first structure as primary alcohol and the first structure as secondary alcohol.",
+    "draw": false,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "ambiguous-the-structure",
+    "question": "Draw propan-1-ol and propan-2-ol with their OH-bearing carbon marked. Classify the structure as primary alcohol.",
+    "draw": false,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "former-owner-primary",
+    "question": "Draw propan-1-ol and propan-2-ol with their OH-bearing carbon marked. Classify the former structure as primary alcohol.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "latter-owner-secondary",
+    "question": "Draw propan-1-ol and propan-2-ol with their OH-bearing carbon marked. Label the latter structure as secondary alcohol.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "second-molecule-owner",
+    "question": "Draw propan-1-ol and propan-2-ol with their OH-bearing carbon marked. Classify the second molecule as secondary alcohol.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "plural-selected-options",
+    "question": "Draw propan-1-ol, propan-2-ol and 2-methylpropan-2-ol with their OH-bearing carbon marked. Classify the first and second structures as primary or secondary alcohols.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ],
+      [
+        "2-methylpropan-2-ol",
+        "tertiary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "plural-selected-wrong-class",
+    "question": "Draw propan-1-ol, propan-2-ol and 2-methylpropan-2-ol with their OH-bearing carbon marked. Classify the first and second structures as secondary alcohols.",
+    "draw": false,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ],
+      [
+        "2-methylpropan-2-ol",
+        "tertiary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "ambiguous-former-three",
+    "question": "Draw propan-1-ol, propan-2-ol and 2-methylpropan-2-ol with their OH-bearing carbon marked. Classify the former structure as primary alcohol.",
+    "draw": false,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ],
+      [
+        "2-methylpropan-2-ol",
+        "tertiary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "conflicting-named-ordinal",
+    "question": "Draw propan-1-ol and propan-2-ol with their OH-bearing carbon marked. Classify the first structure of propan-2-ol as secondary alcohol.",
+    "draw": false,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "agreeing-named-ordinal",
+    "question": "Draw propan-1-ol and propan-2-ol with their OH-bearing carbon marked. Classify the second structure of propan-2-ol as secondary alcohol.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "repeated-ordinal-objects-wrong-secondary",
+    "question": "Draw propan-1-ol and propan-2-ol with their OH-bearing carbon marked. Classify the first structure and the second structure as secondary alcohol.",
+    "draw": false,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "repeated-ordinal-objects-correct-options",
+    "question": "Draw propan-1-ol and propan-2-ol with their OH-bearing carbon marked. Classify the first structure and the second structure as primary or secondary alcohol.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "repeated-ordinal-objects-wrong-primary",
+    "question": "Draw propan-1-ol and propan-2-ol with their OH-bearing carbon marked. Classify the first structure and the second structure as primary alcohol.",
+    "draw": false,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "repeated-ordinal-object-hybridisation",
+    "question": "Draw propan-1-ol and propan-2-ol with their OH-bearing carbon marked. Label the first structure and the second structure sp3.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ]
+  }
+]
