@@ -149,13 +149,6 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
       { bindingMeta, declaredValue: value.value },
     );
     const agrees = evidence.value !== null && approximatelyEqual(evidence.value, value.value);
-    if (evidence.admissionOnly) {
-      // Newly readable unit spellings are evidence for admission, never a
-      // license to change the planner's number or its explanation.
-      addNumericBinding(numericBindings, value, bindingMeta,
-        agrees && !evidence.invalid && !evidence.conflicting);
-      return value;
-    }
     if (evidence.mixedUnits && !agrees) {
       // Part of the chain mixes units (6400 km in "g R_e^2" for an SI GM)
       // and only its literal numbers back a reading. Never rewrite through
@@ -208,7 +201,36 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
  * facts before they become authoritative for the scene and narration.
  */
 export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): TurnPlanValidationResult {
+  return validateTurnPlanV3Reading(raw, expectedQuestion, false);
+}
+
+/**
+ * Preserve the established admission path, including its existing corrections.
+ * Only a rejected plan may try the additional unit spellings. That second
+ * path validates the original whole plan and cannot reconcile any quantity.
+ * Keep this selection atomic: retrying a rejected, already-rewritten artifact
+ * would otherwise allow a new reading to authorize a value we just changed.
+ */
+export function admitTurnPlanV3(raw: unknown, expectedQuestion?: string): {
+  arithmetic: TurnPlanArithmeticReconciliationResult;
+  validation: TurnPlanValidationResult;
+} {
+  const arithmetic = reconcileTurnPlanV3ExplicitArithmetic(raw);
+  const validation = validateTurnPlanV3(arithmetic.plan, expectedQuestion);
+  if (validation.valid) return { arithmetic, validation };
+  const admission = validateTurnPlanV3Reading(raw, expectedQuestion, true);
+  return admission.valid
+    ? { arithmetic: { plan: raw, reconciliations: [], declined: [] }, validation: admission }
+    : { arithmetic, validation };
+}
+
+function validateTurnPlanV3Reading(
+  raw: unknown,
+  expectedQuestion: string | undefined,
+  unitPowerReading: boolean,
+): TurnPlanValidationResult {
   const issues: TurnPlanValidationIssue[] = [];
+  let usedUnitPowerReading = false;
   if (!isRecord(raw)) {
     return {
       valid: false,
@@ -312,10 +334,15 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
       !Number.isFinite(value.value) ||
       typeof value.sourceText !== "string"
     ) {
+      if (unitPowerReading) issues.push({
+        code: "source_text_arithmetic_invalid",
+        path: `derived[${index}].sourceText`,
+        message: "new unit admission requires independently checkable derived arithmetic",
+      });
       addNumericBinding(validationBindings, value, validationBindingMeta, false);
       return;
     }
-    const evidence = evaluateExplicitArithmetic(
+    const evidence = (unitPowerReading ? evaluateUnitPowerAdmission : evaluateExplicitArithmetic)(
       value.sourceText,
       value.unit,
       knownUnits,
@@ -324,6 +351,7 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
       [value.id, value.symbol].filter((key): key is string => typeof key === "string"),
       { bindingMeta: validationBindingMeta, declaredValue: value.value },
     );
+    usedUnitPowerReading ||= evidence.unitPowerReading === true;
     if (evidence.invalid) {
       issues.push({
         code: "source_text_arithmetic_invalid",
@@ -340,7 +368,7 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
       evidence.value !== null &&
       !approximatelyEqual(evidence.value, value.value) &&
       Math.abs(evidence.value - value.value) > (evidence.tolerance ?? 0) &&
-      (evidence.admissionOnly ||
+      (unitPowerReading ||
         !sourceContainsMatchingMeasuredValue(value.sourceText, value.value, value.unit))
     ) {
       issues.push({
@@ -601,9 +629,11 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
     }
   });
 
+  // The private fallback is not a second chance for an unrelated old plan.
+  const valid = issues.length === 0 && (!unitPowerReading || usedUnitPowerReading);
   return {
-    valid: issues.length === 0,
-    plan: issues.length === 0
+    valid,
+    plan: valid
       ? { ...raw, question: expectedQuestion ?? raw.question } as unknown as TurnPlanV3
       : null,
     issues,
@@ -668,8 +698,10 @@ interface ExplicitArithmeticEvidence {
   tolerance?: number;
   /** A clause mixed input units and was set aside as no evidence. */
   mixedUnits?: boolean;
-  /** New unit syntax may admit or reject, but must never rewrite a plan. */
-  admissionOnly?: boolean;
+  /** The private admission pass actually consumed a new unit spelling. */
+  unitPowerReading?: boolean;
+  /** An evaluated calculation, not just an assertion of the target value. */
+  computed?: boolean;
 }
 
 interface ExplicitArithmeticOptions {
@@ -732,8 +764,40 @@ function stripPoweredUnitLabels(
   source: string,
   knownUnits: string[],
   numericBindings: Map<string, number>,
-): string {
+): string | null {
   let expression = source;
+  let unprovenScale = false;
+  // Normalize only the power spellings this reader already matches. The
+  // shared unit grammar does not read 1/Ω or parenthesized/superscript -1.
+  const normalizedPower = (label: string) => label
+    .replace(/[⁺⁻]?[⁰¹²³⁴⁵⁶⁷⁸⁹]+/gu, (exponent) => `^${superscriptInteger(exponent)}`)
+    .replace(/\^\s*\(\s*([+−-]?\d+)\s*\)/g, "^$1")
+    .replace(/\^\s*([+−-]?\d+)/g, "^$1")
+    .replace(/\^\s*\+/g, "^")
+    .replace(/^1\s*\//, "/");
+  const measuredUnit = parseMeasuredPart(normalizedPower(source))?.unit;
+  const labelScale = (label: string) => unitScale(normalizedPower(label));
+  // Preserve a whole scaled unit before any component callback can touch it.
+  // This also keeps a compound display on the exact legacy byte path.
+  if (measuredUnit && unitScale(measuredUnit)?.factor !== 1) return source;
+  const stripCoherent = (label: string): string => {
+    // Leave scaled whole measurements on the old typed-reading path; never
+    // erase their units, including opposite a composite target like 2*S.
+    // Inside arithmetic, decline rather than lose a prefix raised to this
+    // power (km² is 10^6 m²). Do not invent a conversion or rewrite a value.
+    if (labelScale(label)?.factor !== 1) {
+      // parseMeasuredPart does not read rational coefficients. Leave that
+      // anchored display form untouched too; a divisor AFTER the unit is
+      // an operand, not this display (the reported 4 km² / 2 failure).
+      const rationalDisplay = new RegExp(
+        String.raw`^${NUMBER_SOURCE}\s*/\s*${NUMBER_SOURCE}\s+${escapeRegExp(label)}$`,
+      ).test(source.trim());
+      if (measuredUnit === normalizedPower(label) || rationalDisplay) return label;
+      unprovenScale = true;
+      return label;
+    }
+    return "";
+  };
   const power = String.raw`(?:[⁻⁺]?[⁰¹²³⁴⁵⁶⁷⁸⁹]+|\^\s*(?:\(\s*[+−-]?\d+\s*\)|[+−-]?\d+))`;
   // Only powered compound labels equivalent to an actual plan unit qualify.
   // This consumes "m s⁻²" together before m/s bindings can multiply it;
@@ -748,11 +812,11 @@ function stripPoweredUnitLabels(
     if (parseMeasuredPart(source)?.unit !== label &&
         [...label.matchAll(/[A-Za-zΩμµ]+/gu)].some(([name]) =>
           numericBindings.has(normalizeNumericBindingKey(name)))) return label;
-    const scale = unitScale(label);
+    const scale = labelScale(label);
     return scale && knownUnits.some((unit) => {
       const known = unitScale(unit);
       return known?.signature === scale.signature && known.factor === scale.factor;
-    }) ? "" : label;
+    }) ? stripCoherent(label) : label;
   });
   for (const knownUnit of knownUnits) {
     const unit = knownUnit.match(new RegExp(String.raw`^([A-Za-zΩμµ]+)(?:${power})?$`))?.[1];
@@ -763,33 +827,68 @@ function stripPoweredUnitLabels(
       String.raw`(?<=[0-9.)\]]\s*)${label}${power}(?=\s|\)|\]|$|[*/+−-])`, flags), (label) =>
       // The old path already consumes an exact ASCII powered label whole.
       // Leave that path (including its existing rounding policy) unchanged.
-      knownUnits.includes(label) && !/[⁻⁺⁰¹²³⁴⁵⁶⁷⁸⁹]/u.test(label) ? label : "");
+      knownUnits.includes(label) && !/[⁻⁺⁰¹²³⁴⁵⁶⁷⁸⁹]/u.test(label) ? label : stripCoherent(label));
     expression = expression.replace(new RegExp(
-      String.raw`(?<=[0-9.)\]]\s+)1\s*/\s*${label}(?=\s|\)|\]|$|[*/+−-])`, flags), "");
+      String.raw`(?<=[0-9.)\]]\s+)1\s*/\s*${label}(?=\s|\)|\]|$|[*/+−-])`, flags), stripCoherent);
   }
-  return expression;
+  return unprovenScale ? null : expression;
 }
 
-function evaluateExplicitArithmetic(
+function evaluateUnitPowerAdmission(
   sourceText: string,
   expectedUnit: unknown,
   knownUnits: string[],
   numericBindings: Map<string, number> = new Map(),
-  reconcile = false,
+  _reconcile = false,
   targetKeys: string[] = [],
   options: ExplicitArithmeticOptions = {},
 ): ExplicitArithmeticEvidence {
-  const admissionOnly = splitArithmeticClauses(sourceText).some((clause) =>
-    splitEqualityParts(clause).some((member) =>
-      stripPoweredUnitLabels(member, knownUnits, numericBindings) !== member ||
-      readGroupedVoltOhmQuotient(member, expectedUnit, numericBindings,
-        options.bindingMeta ?? new Map()) !== null));
-  const evidence = evaluateExplicitArithmeticReading(sourceText, expectedUnit, knownUnits,
-    numericBindings, reconcile && !admissionOnly, targetKeys, options);
-  return admissionOnly ? { ...evidence, admissionOnly: true } : evidence;
+  let unsupported = false;
+  let changed = false;
+  const readable = splitArithmeticClauses(sourceText).map((clause) =>
+    splitEqualityParts(clause).map((member) => {
+      const grouped = readGroupedVoltOhmQuotient(member, expectedUnit, numericBindings,
+        options.bindingMeta ?? new Map());
+      const literal = grouped ?? readLiteralVoltOhmQuotient(member, expectedUnit,
+        numericBindings, options.bindingMeta ?? new Map());
+      const stripped = stripPoweredUnitLabels(literal, knownUnits, numericBindings);
+      if (stripped === null) unsupported = true;
+      if (grouped !== null || stripped !== literal) changed = true;
+      return stripped ?? member;
+    }).join(" = ")).join("; ");
+  if (unsupported) return { value: null, conflicting: false, invalid: true };
+  // A new unit reading cannot inherit the old evaluator's ambiguous unit /
+  // binding collision (12 V could become 12*V). The bounded grouped reader
+  // above removes its proved literal operands; every remaining collision is
+  // doubt, not authority for a newly accepted plan. Genuine products may be
+  // declined here too; the legacy-accepted path is never affected.
+  const collisionUnits = [...knownUnits, ...[...(options.bindingMeta?.values() ?? [])]
+    .flatMap((binding) => typeof binding.unit === "string" ? unitAliases(binding.unit) : [])];
+  // This fallback proves coherent-unit arithmetic only. Even an unpowered
+  // prefixed label can lose scale on the old evaluator (600 kN / 300 m²).
+  // Refuse those literals, including whole measured equality members; an
+  // apparent display could instead be the RHS of a composite target. Existing
+  // typed conversions still run, unchanged, on the accepted legacy path.
+  if (collisionUnits.some((unit) => unitScale(unit)?.factor !== 1 && new RegExp(
+    String.raw`(?<=[0-9.)\]]\s*)${escapeRegExp(unit)}(?=\s|\)|\]|$|[;=*/+−-])`,
+    /^[A-Za-z]+$/.test(unit) && unit.length > 1 ? "i" : "",
+  ).test(readable))) return { value: null, conflicting: false, invalid: true };
+  if (collisionUnits.some((unit) => [...unit.matchAll(/[A-Za-zΩμµ]+/gu)].some(([name]) =>
+    numericBindings.has(normalizeNumericBindingKey(name)) && new RegExp(
+      String.raw`(?<=[0-9.)\]]\s*)${escapeRegExp(name)}(?=\s|\)|\]|$|[;=*/+−^⁻⁺⁰¹²³⁴⁵⁶⁷⁸⁹-])`,
+      /^[A-Za-z]+$/.test(name) && name.length > 1 ? "i" : "",
+    ).test(readable)))) return { value: null, conflicting: false, invalid: true };
+  // No new syntax: retain the old check, rather than creating a general
+  // alternative arithmetic validator for unrelated rejected plans.
+  const evidence = evaluateExplicitArithmetic(changed ? readable : sourceText, expectedUnit,
+    knownUnits, numericBindings, false, targetKeys, options);
+  if (evidence.value === null || evidence.mixedUnits || !evidence.computed) {
+    return { value: null, conflicting: false, invalid: true, unitPowerReading: true };
+  }
+  return { ...evidence, unitPowerReading: changed };
 }
 
-function evaluateExplicitArithmeticReading(
+function evaluateExplicitArithmetic(
   sourceText: string,
   expectedUnit: unknown,
   knownUnits: string[],
@@ -820,7 +919,6 @@ function evaluateExplicitArithmeticReading(
   let mixedUnits = false;
   for (const clause of splitArithmeticClauses(readableSource)) {
     const equalityParts = splitEqualityParts(clause).map((member) =>
-      readGroupedVoltOhmQuotient(member, expectedUnit, numericBindings, bindingMeta) ??
       readLiteralVoltOhmQuotient(member, expectedUnit, numericBindings, bindingMeta));
     if (equalityParts.length < 2) continue;
     const clauseTargetKeys = expandDescriptiveAssignmentTargets(equalityParts, targetKeys);
@@ -1034,6 +1132,7 @@ function evaluateExplicitArithmeticReading(
         value: first.value,
         conflicting: false,
         invalid: false,
+        computed: true,
         tolerance: Math.max(...results.map((result) => result.tolerance)),
         mixedUnits,
       }
@@ -2087,7 +2186,7 @@ function normalizeExplicitNumericExpression(
   allowedIdentifier?: string,
   usedBindingKeys?: Set<string>,
 ): string | null {
-  let expression = normalizeInverseTrigNotation(stripPoweredUnitLabels(source, knownUnits, numericBindings).replace(/[−–]/g, "-"))
+  let expression = normalizeInverseTrigNotation(source.replace(/[−–]/g, "-"))
     .replace(/[×·⋅]/g, "*")
     .replace(/√\s*(?=\()/g, "sqrt")
     .replace(/√\s*(\d+(?:\.\d+)?|[A-Za-zΑ-Ωα-ω_][A-Za-z0-9Α-Ωα-ω_]*)/gu, "sqrt($1)")
