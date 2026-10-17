@@ -201,6 +201,13 @@ const MIRROR_IMAGE_WITH_MIRROR_FACTS = [
   // Only the object distance is given.
   "object at 30 cm from mirror image at 60 cm find f",
   "mirror image ka focal length nikalo, object 20 cm par hai aur image 60 cm par",
+  // Greptile (cf98ca446): a position against F, C or 2F, or an object or source placed in front of a mirror, is a mirror fact.
+  "Describe the mirror image of an object placed beyond C.",
+  "Describe the mirror image of an object placed at F.",
+  "Where is the mirror image of an object placed at the centre of curvature?",
+  "Describe the mirror image of an object placed between F and the pole.",
+  "Find the mirror image of a point source placed in front of a mirror.",
+  "A candle stands in front of a mirror. Describe its mirror image.",
 ];
 for (const question of MIRROR_IMAGE_WITH_MIRROR_FACTS) {
   check(`mirror image with mirror facts ${question.slice(0, 60)}`, keeps(question, "spherical_mirror"));
