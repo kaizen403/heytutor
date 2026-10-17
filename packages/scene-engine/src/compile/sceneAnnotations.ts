@@ -95,7 +95,18 @@ export function appendCompiledAnnotations(
       ? [...new Set(targets.map((target) => target.entityId))].map((id) => targets.filter((target) => target.entityId === id))
       : [targets];
     const extra = targetSets.flatMap((targetSet) => {
-      const marks = geometryFor(annotation, targetSet);
+      let marks: ReturnType<typeof geometryFor>;
+      try {
+        marks = geometryFor(annotation, targetSet);
+      } catch (error) {
+        issues.push({
+          code: "annotation_geometry_unresolved",
+          message: `Annotation ${annotation.id}: ${error instanceof Error ? error.message : "invalid geometry"}`,
+          severity: "fatal",
+          entityIds: [annotation.id, ...targetSet.map((target) => target.entityId)],
+        });
+        return [];
+      }
       // One arc is the existing verified arc, so count=1 needs no extra ink.
       const existingArc = annotation.kind === "equal_arc" && (annotation.style?.count ?? 1) === 1 && targetSet.some((target) => target.kind === "arc");
       if (marks.length === 0 && !existingArc) {
@@ -196,7 +207,7 @@ function geometryFor(annotation: SceneAnnotation, targets: RenderPrimitive[]): O
     case "spin": {
       const path = lineEnds(ink);
       if (!path) return [];
-      const badge = signBadgeGeometry(path, annotation.text ?? "clockwise");
+      const badge = signBadgeGeometry(path, annotation.text ?? "clockwise", 0.72, "down");
       return badge.paths.map((segment) => ({
         kind: "polyline" as const,
         points: segment,

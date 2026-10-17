@@ -83,7 +83,8 @@ export function congruenceTickSegments(
 export function signBadgeGeometry(
   target: { start: MarkPoint; end: MarkPoint },
   sense: string,
-  at = 0.72,
+  at: number,
+  yAxis: "up" | "down",
 ): { paths: MarkPoint[][]; directed: boolean } {
   const span = Math.hypot(target.end.x - target.start.x, target.end.y - target.start.y);
   const length = Math.max(span * 0.18, 0.35);
@@ -102,8 +103,8 @@ export function signBadgeGeometry(
   const nx = -uy;
   const ny = ux;
   if (normalized === "clockwise" || normalized === "counterclockwise") {
-    // Construction coordinates are y-up; the renderer flips y for the canvas.
-    const sign = normalized === "clockwise" ? -1 : 1;
+    // Constructions are y-up; annotations already use y-down canvas points.
+    const sign = (normalized === "clockwise" ? 1 : -1) * (yAxis === "up" ? -1 : 1);
     const radius = Math.max(span * 0.12, 0.28);
     const startAngle = -Math.PI * 0.65;
     const endAngle = Math.PI * 0.55;
@@ -388,7 +389,7 @@ export function senseArrows(start: MarkPoint, end: MarkPoint, count: CongruenceC
       x: start.x + (end.x - start.x) * at,
       y: start.y + (end.y - start.y) * at,
     };
-    return signBadgeGeometry({ start: origin, end: tip }, "positive", 1).paths;
+    return signBadgeGeometry({ start: origin, end: tip }, "positive", 1, "down").paths;
   });
 }
 

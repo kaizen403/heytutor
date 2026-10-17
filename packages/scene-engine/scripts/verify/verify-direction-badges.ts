@@ -81,5 +81,36 @@ for (const sense of [" POSITIVE ", " NEGATIVE ", " CLOCKWISE ", " COUNTERCLOCKWI
 const degenerate = compileSceneDocument(scene("positive", { x: 0, y: 0 }));
 check(!degenerate.ok && degenerate.renderScene === null, "A zero-length reference cannot establish a direction.");
 
+// Spin annotations enter the shared helper after world-to-screen projection.
+for (const end of [{ x: 4, y: 0 }, { x: -3, y: 4 }, { x: 0, y: -4 }]) {
+  for (const sense of ["clockwise", "counterclockwise", "invalid-spin"]) {
+    const candidate = scene("positive", end);
+    candidate.entities = candidate.entities.filter((entity) => entity.id !== "badge");
+    candidate.constructions.pop();
+    candidate.requiredEntityIds = candidate.requiredEntityIds.filter((id) => id !== "badge");
+    candidate.revealGroups[0]!.entityIds = [...candidate.requiredEntityIds];
+    candidate.annotations = [{ id: "spin", kind: "spin", targetIds: ["axis"], text: sense }];
+    try {
+      const result = compileSceneDocument(candidate);
+      if (sense === "invalid-spin") {
+        check(!result.ok && result.renderScene === null && result.report.issues.some((issue) => issue.severity === "fatal"),
+          "Unknown spin must reject the scene atomically.");
+        continue;
+      }
+      assert(result.ok && result.renderScene);
+      const path = result.renderScene.primitives.find((p) => p.entityId === "spin")!.points;
+      const crosses = path.slice(2).map((point, i) => {
+        const a = path[i]!;
+        const b = path[i + 1]!;
+        return (b.x - a.x) * (point.y - b.y) - (b.y - a.y) * (point.x - b.x);
+      });
+      check(crosses.every((cross) => sense === "clockwise" ? cross > 0 : cross < 0),
+        `Spin ${sense} must retain its page direction (${end.x},${end.y}).`);
+    } catch (error) {
+      check(false, `Spin must return a compile result instead of throwing: ${String(error)}`);
+    }
+  }
+}
+
 assert.equal(failures.length, 0, failures.join("\n"));
 console.log(`Direction badge verification passed (${checks} checks).`);
