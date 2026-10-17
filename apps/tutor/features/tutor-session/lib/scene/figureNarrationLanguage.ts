@@ -8,7 +8,18 @@ export function hinglishFigureNarration(source: string): string {
   const text = source.trim().replace(/\s+/g, " ");
   if (!text) return "अब figure का यह हिस्सा देखते हैं.";
   if (/\p{Script=Devanagari}/u.test(text)) return sentence(text);
-  return text.split(/(?<=[.!?])\s+(?=[A-Z])/).map((part) => {
+  const parts: string[] = [];
+  for (const part of text.split(/(?<=[.!?])\s+(?=[A-Z])/)) {
+    const previous = parts.at(-1);
+    // These periods belong to a reagent/modifier/reference, not a sentence.
+    // Joining first also protects several abbreviations in the same clause.
+    if (previous && /\b(?:dil|conc|aq|approx|e\.g|i\.e|vs|fig|etc)\.$/i.test(previous)) {
+      parts[parts.length - 1] = `${previous} ${part}`;
+    } else {
+      parts.push(part);
+    }
+  }
+  return parts.map((part) => {
     const clause = part.replace(/[.!?]+$/, "");
     const localized = localizeClause(clause);
     return localized ? sentence(localized) : `ध्यान दो: ${sentence(part)}`;
@@ -57,6 +68,10 @@ function localizeClause(text: string): string | null {
   const directed = /^(follow|trace)\s+(.+?)\s+from\s+(.+?)\s+to\s+(.+)$/i.exec(text);
   if (directed) return /\b(?:and|or|then)\b/i.test(text) ? null
     : `${phrase(directed[2]!)} को ${phrase(directed[3]!)} से ${phrase(directed[4]!)} तक ${directed[1]!.toLowerCase()} करो`;
+  // Only the complete directed imperative above owns a from/to range. The
+  // phrase grammar cannot scope its endpoints or an infinitive after appears;
+  // keep those claims whole instead of moving the origin onto the destination.
+  if (/\bfrom\b.*\bto\b/i.test(text) || /\bappears\s+to\s+/i.test(text)) return null;
   const imperative = /^(show|draw|reveal|mark|notice|look at)\s+(.+)$/i.exec(text);
   if (imperative) {
     if (/\b(?:and|or|then)\b/i.test(text)) return null;

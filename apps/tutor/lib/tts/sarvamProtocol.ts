@@ -29,7 +29,16 @@ const SILENT_FINAL_BYTES = 4_800;
  */
 export function sarvamSpeechText(text: string): string {
   return text
-    .replace(/(?<![\p{L}_])km\s*\/\s*h(?![\p{L}\p{N}_])/gu, "kilometers per hour")
+    .replace(/(?<![\p{L}_])km(?:\s*\/\s*(?:hour|hr|h)|ph)(?![\p{L}\p{N}_])/gu, (_unit, offset: number, whole: string) => {
+      const before = whole.slice(0, offset);
+      const quantity = /(?<![\p{L}\p{N}_.])([+-]?(?:\d[\d,]*(?:\.\d+)?|\.\d+)|one)\s*$/u.exec(before);
+      // A standalone "one" may already come from mathToSpeech. Do not
+      // singularize the final word of "twenty one" or "point one".
+      const singular = quantity?.[1] === "one"
+        ? !/\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\w+teen|\w+ty|hundred|thousand|million|billion|point|and)[\s-]*$/i.test(before.slice(0, quantity.index))
+        : quantity ? Number(quantity[1]!.replace(/,/g, "")) === 1 : false;
+      return `${singular ? "kilometer" : "kilometers"} per hour`;
+    })
     .replace(ORDINAL, (_match, digits: string) => ordinalWords(digits))
     .replace(CLOCK_TIME, (_match, hours: string, minutes: string) =>
       `${numberToSpokenWords(hours)} ${minutes === "00" ? "o'clock" : minutes.startsWith("0") ? `oh ${numberToSpokenWords(minutes)}` : numberToSpokenWords(minutes)}`)

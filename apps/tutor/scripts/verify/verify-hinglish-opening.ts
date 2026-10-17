@@ -4,6 +4,7 @@ import { buildDsaOpeningSegments, findSpokenToken, mathToSpeech } from "@heytuto
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
 import { buildTurnTeachingPrompt } from "../../features/tutor-session/lib/turn/turnTeachingPrompt";
 import { restoreVerifiedPresentationFromTurn } from "../../features/tutor-session/lib/scene/restoreVerifiedDiagram";
+import englishFigureBaseline from "./fixtures/english-figure-narration.json";
 
 // The captured river lesson opened in Hinglish, then its two verified figure
 // groups spoke English. Keep those groups independent of paid planner output.
@@ -105,6 +106,15 @@ for (const [cue, expected] of [
   ["Unless the switch is open, the current is not zero.", "अगर ऐसा नहीं है कि switch open है, तो current zero नहीं है."],
   ["O is 3.5 m above I. I is not the image.", "O 3.5 m I के ऊपर है. I image नहीं है."],
   ["The current is Not zero.", "current zero नहीं है."],
+  ["The activation energy is the climb from the reactant level to the top of the barrier.", "ध्यान दो: The activation energy is the climb from the reactant level to the top of the barrier."],
+  ["The car is moving from A to B.", "ध्यान दो: The car is moving from A to B."],
+  ["The displacement is the arrow from P to Q.", "ध्यान दो: The displacement is the arrow from P to Q."],
+  ["The rain appears to fall from the front.", "ध्यान दो: The rain appears to fall from the front."],
+  ["Reactant and reagent dil. HNO_3", "ध्यान दो: Reactant and reagent dil. HNO_3."],
+  ["Nitration with conc. H_2SO_4 and conc. HNO_3.", "ध्यान दो: Nitration with conc. H_2SO_4 and conc. HNO_3."],
+  ["Use aq. HCl and approx. Equal volumes.", "ध्यान दो: Use aq. HCl and approx. Equal volumes."],
+  ["Compare e.g. HCl vs. HNO_3, i.e. Acids in Fig. A etc. Before heating.", "ध्यान दो: Compare e.g. HCl vs. HNO_3, i.e. Acids in Fig. A etc. Before heating."],
+  ["Nitration with dil. HNO_3. O is the object.", "ध्यान दो: Nitration with dil. HNO_3. O object है."],
 ] as const) {
   const cueDocument = { ...mirrorDocument, revealGroups: [{ ...mirrorDocument.revealGroups[0]!, narrationCue: cue }] };
   const cueScene = { ...denseMirrorScene, revealGroups: cueDocument.revealGroups };
@@ -172,6 +182,34 @@ const chunkedCodeScene: RenderScene = { ...mirrorScene, primitives: [
 const chunkedCode = buildVerifiedDiagramPresentation(mirrorDocument, chunkedCodeScene, { layout: "code_lesson", narrationLanguage: "hinglish" });
 assert((chunkedCode.diagram.reveals?.length ?? 0) > 1, "the code fixture must actually reach the continuation template");
 assert(chunkedCode.diagram.reveals?.slice(1).every(reveal => reveal.narration === "अब setup का बाकी हिस्सा पूरा करते हैं."), "every code chunk continuation uses Hindi grammar");
+// Fixed narration captured through origin/main's presenter at sourceCommit in
+// the fixture. Comparing default with explicit English alone misses a shared
+// wrong-language branch, including the independent code-caption opening path.
+const unlabelledCodeDocument: SceneDocument = {
+  ...mirrorDocument, entities: mirrorDocument.entities.map(entity => ({ ...entity, label: undefined })),
+  revealGroups: [{ ...mirrorDocument.revealGroups[0]!, narrationCue: explanatoryCue }],
+};
+const unlabelledCodeScene = { ...mirrorScene, revealGroups: unlabelledCodeDocument.revealGroups };
+assert(buildVerifiedDiagramPresentation(unlabelledCodeDocument, unlabelledCodeScene, { layout: "code_lesson" }).diagram.commands.every(command => command.type !== "LABEL"),
+  "the fixed code structure baseline must exercise a figure without label narration");
+for (const [id, baselineDocument, baselineScene, options] of [
+  ["river", document, renderScene, {}],
+  ["mirror", mirrorDocument, mirrorScene, {}],
+  ["dense-mirror", mirrorDocument, denseMirrorScene, {}],
+  ["captioned-code", mirrorDocument, { ...mirrorScene, caption: explanatoryCue }, { layout: "code_lesson" }],
+  ["chunked-code", mirrorDocument, chunkedCodeScene, { layout: "code_lesson" }],
+  ["unlabelled-code", unlabelledCodeDocument, unlabelledCodeScene, { layout: "code_lesson" }],
+] as const) {
+  const expected = englishFigureBaseline.rows.find(row => row.id === id);
+  assert(expected, `fixed English baseline exists for ${id}`);
+  for (const narrationLanguage of [undefined, "english"] as const) {
+    const presentation = buildVerifiedDiagramPresentation(baselineDocument, baselineScene, { ...options, narrationLanguage });
+    assert.deepEqual({
+      intro: presentation.introSegments.map(segment => segment.narration),
+      reveals: (presentation.diagram.reveals ?? []).map(reveal => reveal.narration),
+    }, { intro: expected.intro, reveals: expected.reveals }, `${id}: English intro and reveals match the fixed main baseline`);
+  }
+}
 for (const [labelDocument, labels, expected] of [
   [mirrorDocument, ["O", "I"], "O object है, और I image है."],
   [{ ...mirrorDocument, entities: mirrorDocument.entities.map(entity => ({ ...entity, role: "part" })) }, ["X", "Y"], "X और Y labels से figure के ये parts पहचानते हैं."],
