@@ -1,5 +1,6 @@
 import { resolveElement } from "./elements";
 import { parseFormula } from "./formula";
+import { molecularShapeMethodRequested } from "./foundation/molecularShapeRequest";
 import { namedSpeciesMentions } from "./namedSpecies";
 import { findMentions } from "./organic";
 
@@ -10,11 +11,41 @@ function composition(formula: string): string | null {
   return parsed ? `${parsed.atoms.map(atom => `${atom.symbol}:${atom.count}`).sort().join("|")}/${parsed.charge}` : null;
 }
 
+const argumentArticles = "(?:(?:the|a|an|molecular|molecules?|compounds?|species|ions?|shapes?|structures?|geometr(?:y|ies))\\s+)*";
+
+/** Every nominal request owns its members; only a method head can exempt a modifier. */
+function requestArgumentRole(text: string, start: number, end: number): "modifier" | "member" | null {
+  for (const match of text.matchAll(/\b(?:draw|show|sketch|depict|illustrate|include|including|add)\b([^.;!?]*?)\b(?:of|for)\s+/gi)) {
+    const descriptor = match[1]!;
+    const descriptorStart = match.index + match[0].indexOf(descriptor);
+    const memberStart = match.index + match[0].length;
+    const memberPrefix = text.slice(memberStart, start);
+    if (start >= memberStart && new RegExp(`^${argumentArticles}$`, "i").test(memberPrefix)) return "member";
+    // A coordinated nominal argument remains a member even when it repeats
+    // the figure noun ("and a model of XYZ"). Its noun/adjectives are open;
+    // method-application clauses such as "and use SI notation" do not fit.
+    const coordinated = start >= memberStart ? /(?:,|\b(?:and|or|with|versus|vs)\b)\s+([^,;.!?]*)$/i.exec(memberPrefix)?.[1] : null;
+    if (coordinated && (/^(?:a|an|the|another)\s+(?:[A-Za-z]+(?:-[A-Za-z]+)?\s+)*$/i.test(coordinated)
+      || /^(?:[A-Za-z]+(?:-[A-Za-z]+)?\s+)+of\s+$/i.test(coordinated))) return "member";
+    if (!molecularShapeMethodRequested(descriptor) || start < descriptorStart || end > descriptorStart + descriptor.length) continue;
+    // Parsed identities such as HCN/CO remain chemical, even inside a head.
+    if (parseFormula(text.slice(start, end))) continue;
+    const remainingHead = text.slice(start, descriptorStart + descriptor.length);
+    const method = /\bvsepr\b/i.exec(remainingHead);
+    // Only adjacent acronym modifiers can precede the method. An actual
+    // object in "Draw XYZ using VSEPR ..." remains a chemical argument.
+    if (method && /^(?:[A-Z]+\s+)*$/.test(remainingHead.slice(0, method.index))
+      && end <= start + method.index + method[0].length) return "modifier";
+  }
+  return null;
+}
+
 /** Bare abbreviations become species only in a chemical member argument. */
 function chemicalArgument(text: string, start: number, end: number): boolean {
+  const requestRole = requestArgumentRole(text, start, end);
+  if (requestRole) return requestRole === "member";
   const before = text.slice(0, start).split(/[.;!?]/).at(-1)!;
-  const articles = "(?:(?:the|a|an|molecular|molecules?|compounds?|species|ions?|shapes?|structures?|geometr(?:y|ies))\\s+)*";
-  const direct = new RegExp(`(?:\\b(?:between|compare|draw|show|sketch|depict|illustrate|include|including|add)\\s+|\\b(?:shapes?|geometr(?:y|ies)|structures?|molecules?|species|bond angles?)\\s+(?:of|for|is|are)\\s+)${articles}$`, "i");
+  const direct = new RegExp(`(?:\\b(?:between|compare|draw|show|sketch|depict|illustrate|include|including|add)\\s+|\\b(?:shapes?|geometr(?:y|ies)|structures?|molecules?|species|bond angles?)\\s+(?:of|for|is|are)\\s+)${argumentArticles}$`, "i");
   if (direct.test(before)) return true;
   // A conjunction/comma continues a figure's member list, not a preposed
   // method phrase such as "Using SI notation" or "use VBT to explain".

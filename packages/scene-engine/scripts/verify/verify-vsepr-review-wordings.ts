@@ -56,3 +56,37 @@ for (const row of fixtures.equatorial) test(`equatorial metadata is not universa
 });
 console.log(JSON.stringify({ passed, failed: failures.length, failures }, null, 2));
 if (failures.length) process.exitCode = 1;
+
+interface MethodRoleWord {
+  id: string | number;
+  question: string;
+  expectedFamily: "chem_vsepr" | null;
+  expectedSpecies: number;
+  deferred?: boolean;
+}
+const methodRoleWords = JSON.parse(readFileSync(new URL("./fixtures/vsepr-method-role-wordings.json", import.meta.url), "utf8")) as MethodRoleWord[];
+for (const row of methodRoleWords.filter(row => !row.deferred)) test(`method descriptor or chemical member: ${row.id}`, () => {
+  const figure = buildVseprFigure(row.question, [], false);
+  if (row.expectedFamily === null) {
+    assert.equal(figure, null);
+    assert.equal(synthesizeFamilyScene({ question: row.question }), null);
+    assert.equal(synthesizeLastResortScene({ question: row.question }), null);
+  } else {
+    assert.ok(figure, row.question);
+    assert.equal(figure.structures.length, row.expectedSpecies);
+    assert.ok(verifiedVseprStructure(figure.document, row.question));
+    assert.ok(compileSceneDocument(figure.document).ok);
+  }
+});
+console.log(JSON.stringify({ scope: "Original 88 assertions plus method-role transfer", passed, failed: failures.length, failures, deferredMethodRoleWordings: methodRoleWords.filter(row => row.deferred).map(row => row.id) }, null, 2));
+if (failures.length) process.exitCode = 1;
+
+const memberRoleWords = JSON.parse(readFileSync(new URL("./fixtures/vsepr-method-role-wordings.json", import.meta.url), "utf8")) as Array<MethodRoleWord & { members?: string[] | null }>;
+for (const row of memberRoleWords.filter(row => row.members)) test(`complete explicit member set: ${row.id}`, () => {
+  const figure = buildVseprFigure(row.question, [], false);
+  assert.ok(figure, row.question);
+  const formulas = figure.structures.map(structure => figure.document.entities.find(entity => entity.id === structure.formulaId)?.label?.replace(/[^A-Za-z0-9+-]/g, ""));
+  assert.deepEqual(formulas, row.members);
+});
+console.log(JSON.stringify({ scope: "Method roles and complete explicit member sets", passed, failed: failures.length, failures }, null, 2));
+if (failures.length) process.exitCode = 1;
