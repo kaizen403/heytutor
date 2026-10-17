@@ -1,0 +1,3331 @@
+{
+  "provenance": "Sanitized launch L01/L11 saved-turns.json captured 17 Oct 2026; original verified documents and commands retained; recording IDs/URLs/timings removed; fixed synthetic cue durations.",
+  "captures": [
+    {
+      "id": "L01",
+      "question": "A car starts from rest and accelerates uniformly at 2 m/s^2 for 5 s. Find its final speed and the distance travelled.",
+      "sceneDocument": {
+        "source": {
+          "question": "A car starts from rest and accelerates uniformly at 2 m/s^2 for 5 s. Find its final speed and the distance travelled.",
+          "nonMetric": true,
+          "representationTier": "qualitative_verified"
+        },
+        "entities": [
+          {
+            "id": "axes",
+            "kind": "axes",
+            "role": "v-t axes"
+          },
+          {
+            "id": "origin",
+            "kind": "point",
+            "role": "initial state"
+          },
+          {
+            "id": "timeEnd",
+            "kind": "point",
+            "role": "end of interval"
+          },
+          {
+            "id": "finalState",
+            "kind": "point",
+            "role": "final velocity state"
+          },
+          {
+            "id": "velocityGraph",
+            "kind": "segment",
+            "role": "velocity v(t)"
+          },
+          {
+            "id": "area",
+            "kind": "polygon",
+            "role": "area under the v-t graph"
+          }
+        ],
+        "relations": [],
+        "assertions": [
+          {
+            "id": "initialOnGraph",
+            "entities": [
+              "origin",
+              "velocityGraph"
+            ],
+            "expected": true,
+            "severity": "fatal",
+            "predicate": "on"
+          },
+          {
+            "id": "finalOnGraph",
+            "entities": [
+              "finalState",
+              "velocityGraph"
+            ],
+            "expected": true,
+            "severity": "fatal",
+            "predicate": "on"
+          }
+        ],
+        "quantities": [
+          {
+            "id": "u",
+            "unit": "m/s",
+            "value": 0,
+            "symbol": "u",
+            "provenance": "given"
+          },
+          {
+            "id": "a",
+            "unit": "m/s^2",
+            "value": 2,
+            "symbol": "a",
+            "provenance": "given"
+          },
+          {
+            "id": "t",
+            "unit": "s",
+            "value": 5,
+            "symbol": "t",
+            "provenance": "given"
+          },
+          {
+            "id": "v",
+            "unit": "m/s",
+            "value": 10,
+            "symbol": "v",
+            "provenance": "derived"
+          },
+          {
+            "id": "s",
+            "unit": "m",
+            "value": 25,
+            "symbol": "s",
+            "provenance": "derived"
+          }
+        ],
+        "annotations": [
+          {
+            "id": "timeLabel",
+            "kind": "label",
+            "text": "t = 5 s",
+            "targetIds": [
+              "timeEnd"
+            ]
+          },
+          {
+            "id": "accelerationLabel",
+            "kind": "callout",
+            "text": "a = 2 m/s²",
+            "targetIds": [
+              "velocityGraph"
+            ]
+          },
+          {
+            "id": "restLabel",
+            "kind": "callout",
+            "text": "u = 0 m/s",
+            "targetIds": [
+              "origin"
+            ]
+          },
+          {
+            "id": "speedResult",
+            "kind": "label",
+            "text": "v = 10 m/s",
+            "targetIds": [
+              "finalState"
+            ]
+          },
+          {
+            "id": "distanceResult",
+            "kind": "label",
+            "text": "s = 25 m",
+            "targetIds": [
+              "area"
+            ]
+          }
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "dependsOn": [],
+            "entityIds": [
+              "axes",
+              "origin",
+              "timeEnd",
+              "finalState",
+              "velocityGraph",
+              "area"
+            ],
+            "narrationCue": "reveal scene"
+          }
+        ],
+        "constructions": [
+          {
+            "id": "makeAxes",
+            "inputs": {
+              "xMax": 5.5,
+              "xMin": 0,
+              "yMax": 11,
+              "yMin": 0
+            },
+            "outputs": [
+              "axes"
+            ],
+            "operator": "axes"
+          },
+          {
+            "id": "makeOrigin",
+            "inputs": {
+              "x": 0,
+              "y": 0,
+              "coordinateSpace": "world"
+            },
+            "outputs": [
+              "origin"
+            ],
+            "operator": "point"
+          },
+          {
+            "id": "makeTimeEnd",
+            "inputs": {
+              "x": 5,
+              "y": 0,
+              "coordinateSpace": "world"
+            },
+            "outputs": [
+              "timeEnd"
+            ],
+            "operator": "point"
+          },
+          {
+            "id": "makeFinalState",
+            "inputs": {
+              "x": 5,
+              "y": 10,
+              "coordinateSpace": "world"
+            },
+            "outputs": [
+              "finalState"
+            ],
+            "operator": "point"
+          },
+          {
+            "id": "makeVelocityGraph",
+            "inputs": {
+              "end": "finalState",
+              "start": "origin"
+            },
+            "outputs": [
+              "velocityGraph"
+            ],
+            "operator": "segment"
+          },
+          {
+            "id": "makeArea",
+            "inputs": {
+              "points": [
+                "origin",
+                "timeEnd",
+                "finalState"
+              ]
+            },
+            "outputs": [
+              "area"
+            ],
+            "operator": "polygon"
+          }
+        ],
+        "schemaVersion": "scene-document/v2",
+        "visualDecision": {
+          "mode": "scene",
+          "reason": "planner visual decision"
+        },
+        "teachingTimeline": [],
+        "requiredEntityIds": [
+          "axes",
+          "origin",
+          "timeEnd",
+          "finalState",
+          "velocityGraph",
+          "area"
+        ]
+      },
+      "segments": [
+        {
+          "orderIndex": 0,
+          "narration": "",
+          "command": {
+            "type": "CLEAR",
+            "params": [],
+            "charPosition": 0,
+            "narrationBefore": ""
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 1,
+          "narration": "right... this one asks for its final speed and the distance travelled. let's start from what we know.",
+          "command": null,
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 2,
+          "narration": "Given... a equals 2 meters per second squared. And t equals 5 seconds.",
+          "command": {
+            "text": "Given: a = 2 m/s^2, t = 5 s",
+            "type": "WRITE",
+            "params": [
+              90,
+              142,
+              32
+            ],
+            "charPosition": 0,
+            "narrationBefore": "Given... a equals 2 meters per second squared. And t equals 5 seconds."
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 3,
+          "narration": "Let’s begin with the physical setup: the v-t axes, the velocity v, the area, the initial state, and the final velocity state.",
+          "command": {
+            "commands": [
+              {
+                "type": "DRAW_LINE",
+                "params": [
+                  673.25,
+                  546,
+                  886.75,
+                  546
+                ],
+                "syncable": false,
+                "spokenCue": {
+                  "token": "v-t axes",
+                  "entityId": "axes"
+                },
+                "semanticRef": {
+                  "entityId": "axes",
+                  "primitiveId": "primitive_axes"
+                },
+                "charPosition": 0,
+                "narrationBefore": ""
+              },
+              {
+                "type": "DRAW_LINE",
+                "params": [
+                  673.25,
+                  546,
+                  673.25,
+                  119
+                ],
+                "syncable": false,
+                "spokenCue": {
+                  "token": "v-t axes",
+                  "entityId": "axes"
+                },
+                "semanticRef": {
+                  "entityId": "axes",
+                  "primitiveId": "primitive_axes"
+                },
+                "charPosition": 0,
+                "narrationBefore": ""
+              },
+              {
+                "type": "DRAW_LINE",
+                "params": [
+                  673.25,
+                  546,
+                  867.34,
+                  157.82
+                ],
+                "syncable": false,
+                "spokenCue": {
+                  "token": "velocity v",
+                  "entityId": "velocityGraph"
+                },
+                "semanticRef": {
+                  "entityId": "velocityGraph",
+                  "primitiveId": "primitive_velocityGraph"
+                },
+                "charPosition": 0,
+                "narrationBefore": ""
+              },
+              {
+                "text": "a = 2 m/s²",
+                "type": "LABEL",
+                "params": [
+                  697.9894681298169,
+                  59,
+                  24
+                ],
+                "syncable": true,
+                "spokenCue": {
+                  "token": "velocity v",
+                  "entityId": "velocityGraph"
+                },
+                "syncReason": "verified-scene-label",
+                "semanticRef": {
+                  "entityId": "velocityGraph",
+                  "primitiveId": "accelerationLabel"
+                },
+                "charPosition": 0,
+                "narrationBefore": ""
+              },
+              {
+                "type": "DRAW_LINE",
+                "params": [
+                  673.25,
+                  546,
+                  867.34,
+                  546,
+                  867.34,
+                  157.82,
+                  673.25,
+                  546
+                ],
+                "syncable": false,
+                "spokenCue": {
+                  "token": "area",
+                  "entityId": "area"
+                },
+                "semanticRef": {
+                  "entityId": "area",
+                  "primitiveId": "primitive_area"
+                },
+                "charPosition": 0,
+                "narrationBefore": ""
+              },
+              {
+                "text": "s = 25 m",
+                "type": "LABEL",
+                "params": [
+                  889.34,
+                  339.91,
+                  24
+                ],
+                "syncable": true,
+                "spokenCue": {
+                  "token": "area",
+                  "entityId": "area"
+                },
+                "syncReason": "verified-scene-label",
+                "semanticRef": {
+                  "entityId": "area",
+                  "primitiveId": "distanceResult"
+                },
+                "charPosition": 0,
+                "narrationBefore": ""
+              },
+              {
+                "type": "DRAW_POINT",
+                "params": [
+                  673.25,
+                  546,
+                  2
+                ],
+                "syncable": false,
+                "spokenCue": {
+                  "token": "initial state",
+                  "entityId": "origin"
+                },
+                "semanticRef": {
+                  "entityId": "origin",
+                  "primitiveId": "primitive_origin"
+                },
+                "charPosition": 0,
+                "narrationBefore": ""
+              },
+              {
+                "text": "u = 0 m/s",
+                "type": "LABEL",
+                "params": [
+                  699.6022145298169,
+                  119,
+                  24
+                ],
+                "syncable": true,
+                "spokenCue": {
+                  "token": "initial state",
+                  "entityId": "origin"
+                },
+                "syncReason": "verified-scene-label",
+                "semanticRef": {
+                  "entityId": "origin",
+                  "primitiveId": "restLabel"
+                },
+                "charPosition": 0,
+                "narrationBefore": ""
+              },
+              {
+                "type": "DRAW_POINT",
+                "params": [
+                  867.34,
+                  157.82,
+                  2
+                ],
+                "syncable": false,
+                "spokenCue": {
+                  "token": "final velocity state",
+                  "entityId": "finalState"
+                },
+                "semanticRef": {
+                  "entityId": "finalState",
+                  "primitiveId": "primitive_finalState"
+                },
+                "charPosition": 0,
+                "narrationBefore": ""
+              },
+              {
+                "text": "v = 10 m/s",
+                "type": "LABEL",
+                "params": [
+                  885.34,
+                  145.82,
+                  24
+                ],
+                "syncable": true,
+                "spokenCue": {
+                  "token": "final velocity state",
+                  "entityId": "finalState"
+                },
+                "syncReason": "verified-scene-label",
+                "semanticRef": {
+                  "entityId": "finalState",
+                  "primitiveId": "speedResult"
+                },
+                "charPosition": 0,
+                "narrationBefore": ""
+              }
+            ],
+            "trustedDiagramGeometry": true
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 4,
+          "narration": "u is the starting speed, a is the acceleration, and t is the time. we need the final speed v and the distance s.",
+          "command": {
+            "text": "v = ?; s = ?",
+            "type": "WRITE",
+            "params": [
+              90,
+              208,
+              32
+            ],
+            "charPosition": 120,
+            "narrationBefore": "u is the starting speed, a is the acceleration, and t is the time. we need the final speed v and the distance s."
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 5,
+          "narration": "notice u equals zero meters per second. it represents the car starting from rest.",
+          "command": {
+            "commands": [
+              {
+                "text": "origin",
+                "type": "FOCUS",
+                "params": [],
+                "charPosition": 202,
+                "narrationBefore": "notice u equals zero meters per second"
+              },
+              {
+                "text": "u = 0 m/s",
+                "type": "WRITE",
+                "params": [
+                  90,
+                  274,
+                  32
+                ],
+                "charPosition": 260,
+                "narrationBefore": ". it represents the car starting from rest."
+              }
+            ]
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 6,
+          "narration": "notice a equals two meters per second squared. it represents a steady increase in speed.",
+          "command": {
+            "commands": [
+              {
+                "text": "velocityGraph",
+                "type": "FOCUS",
+                "params": [],
+                "charPosition": 346,
+                "narrationBefore": "notice a equals two meters per second squared"
+              },
+              {
+                "text": "a = 2 m/s^2",
+                "type": "WRITE",
+                "params": [
+                  90,
+                  340,
+                  32
+                ],
+                "charPosition": 411,
+                "narrationBefore": ". it represents a steady increase in speed."
+              }
+            ]
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 7,
+          "narration": "notice t equals five seconds. it marks the end of the time interval.",
+          "command": {
+            "commands": [
+              {
+                "text": "timeEnd",
+                "type": "FOCUS",
+                "params": [],
+                "charPosition": 481,
+                "narrationBefore": "notice t equals five seconds"
+              },
+              {
+                "text": "t = 5 s",
+                "type": "WRITE",
+                "params": [
+                  90,
+                  406,
+                  32
+                ],
+                "charPosition": 537,
+                "narrationBefore": ". it marks the end of the time interval."
+              }
+            ]
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 8,
+          "narration": "for uniform acceleration, final speed equals starting speed plus acceleration times time. v equals u plus a t.",
+          "command": {
+            "commands": [
+              {
+                "text": "v = u + at",
+                "type": "WRITE",
+                "params": [
+                  90,
+                  472,
+                  32
+                ],
+                "charPosition": 686,
+                "narrationBefore": "for uniform acceleration, final speed equals starting speed plus acceleration times time. v equals u plus a t."
+              },
+              {
+                "text": "last",
+                "type": "EMPHASIZE",
+                "params": [],
+                "charPosition": 711,
+                "narrationBefore": ""
+              }
+            ]
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 9,
+          "narration": "the equation already has v on its own. substitute the starting speed, acceleration, and time: v equals zero meters per second plus two meters per second squared times five seconds.",
+          "command": {
+            "text": "v = 0 m/s + (2 m/s^2)(5 s)",
+            "type": "WRITE",
+            "params": [
+              90,
+              538,
+              32
+            ],
+            "charPosition": 924,
+            "narrationBefore": "the equation already has v on its own. substitute the starting speed, acceleration, and time: v equals zero meters per second plus two meters per second squared times five seconds."
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 10,
+          "narration": "two times five equals ten, and seconds cancel one power of seconds squared. v equals zero plus ten meters per second.",
+          "command": {
+            "text": "v = 0 + 10 m/s",
+            "type": "WRITE",
+            "params": [
+              90,
+              142,
+              32
+            ],
+            "charPosition": 1098,
+            "narrationBefore": "two times five equals ten, and seconds cancel one power of seconds squared. v equals zero plus ten meters per second."
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 11,
+          "narration": "adding zero leaves the final speed. v equals ten meters per second. notice v equals ten meters per second at the end of the interval.",
+          "command": {
+            "commands": [
+              {
+                "text": "finalState",
+                "type": "FOCUS",
+                "params": [],
+                "charPosition": 1249,
+                "narrationBefore": "adding zero leaves the final speed. v equals ten meters per second. notice v equals ten meters per second"
+              },
+              {
+                "text": "v = 10 m/s",
+                "type": "WRITE",
+                "params": [
+                  90,
+                  208,
+                  32
+                ],
+                "charPosition": 1296,
+                "narrationBefore": "at the end of the interval."
+              },
+              {
+                "text": "last",
+                "type": "EMPHASIZE",
+                "params": [],
+                "charPosition": 1321,
+                "narrationBefore": ""
+              }
+            ]
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 12,
+          "narration": "now for the distance. with uniform acceleration, displacement equals starting speed times time plus one half times acceleration times time squared. s equals u t plus one half a t squared.",
+          "command": {
+            "commands": [
+              {
+                "text": "s = ut + 1/2at^2",
+                "type": "WRITE",
+                "params": [
+                  90,
+                  274,
+                  32
+                ],
+                "charPosition": 1541,
+                "narrationBefore": "now for the distance. with uniform acceleration, displacement equals starting speed times time plus one half times acceleration times time squared. s equals u t plus one half a t squared."
+              },
+              {
+                "text": "last",
+                "type": "EMPHASIZE",
+                "params": [],
+                "charPosition": 1569,
+                "narrationBefore": ""
+              }
+            ]
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 13,
+          "narration": "s is already on its own. substitute the same values: s equals zero meters per second times five seconds plus one half times two meters per second squared times five seconds squared.",
+          "command": {
+            "text": "s = (0 m/s)(5 s) + 1/2(2 m/s^2)(5 s)^2",
+            "type": "WRITE",
+            "params": [
+              90,
+              340,
+              32
+            ],
+            "charPosition": 1783,
+            "narrationBefore": "s is already on its own. substitute the same values: s equals zero meters per second times five seconds plus one half times two meters per second squared times five seconds squared."
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 14,
+          "narration": "five squared equals twenty-five, and the starting-speed term equals zero. s equals zero meters plus one half times two meters per second squared times twenty-five seconds squared.",
+          "command": {
+            "text": "s = 0 m + 1/2(2 m/s^2)(25 s^2)",
+            "type": "WRITE",
+            "params": [
+              90,
+              406,
+              32
+            ],
+            "charPosition": 2028,
+            "narrationBefore": "five squared equals twenty-five, and the starting-speed term equals zero. s equals zero meters plus one half times two meters per second squared times twenty-five seconds squared."
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 15,
+          "narration": "one half times two equals one, and seconds squared cancel. s equals zero meters plus twenty-five meters.",
+          "command": {
+            "text": "s = 0 m + 25 m",
+            "type": "WRITE",
+            "params": [
+              90,
+              472,
+              32
+            ],
+            "charPosition": 2190,
+            "narrationBefore": "one half times two equals one, and seconds squared cancel. s equals zero meters plus twenty-five meters."
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 16,
+          "narration": "adding zero gives the distance travelled. s equals twenty-five meters. notice s equals twenty-five meters, the area under the speed against time graph.",
+          "command": {
+            "commands": [
+              {
+                "text": "area",
+                "type": "FOCUS",
+                "params": [],
+                "charPosition": 2341,
+                "narrationBefore": "adding zero gives the distance travelled. s equals twenty-five meters. notice s equals twenty-five meters"
+              },
+              {
+                "text": "s = 25 m",
+                "type": "WRITE",
+                "params": [
+                  90,
+                  538,
+                  32
+                ],
+                "charPosition": 2400,
+                "narrationBefore": ", the area under the speed against time graph."
+              },
+              {
+                "text": "last",
+                "type": "EMPHASIZE",
+                "params": [],
+                "charPosition": 2424,
+                "narrationBefore": ""
+              }
+            ]
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 17,
+          "narration": "check using average speed: for uniform acceleration, it equals starting speed plus final speed, divided by two. v average equals zero plus ten, divided by two, which equals five meters per second.",
+          "command": {
+            "text": "v_avg = (0 + 10)/2 = 5 m/s",
+            "type": "WRITE",
+            "params": [
+              90,
+              142,
+              32
+            ],
+            "charPosition": 2653,
+            "narrationBefore": "check using average speed: for uniform acceleration, it equals starting speed plus final speed, divided by two. v average equals zero plus ten, divided by two, which equals five meters per second."
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 18,
+          "narration": "five meters per second times five seconds equals twenty-five meters. that agrees with the distance, while the car ends at ten meters per second.",
+          "command": {
+            "text": "s_check = (5 m/s)(5 s) = 25 m",
+            "type": "WRITE",
+            "params": [
+              90,
+              208,
+              32
+            ],
+            "charPosition": 2856,
+            "narrationBefore": "five meters per second times five seconds equals twenty-five meters. that agrees with the distance, while the car ends at ten meters per second."
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        }
+      ],
+      "sceneArtifacts": {
+        "turnPlan": {
+          "givens": [
+            {
+              "id": "u",
+              "unit": "m/s",
+              "value": 0,
+              "symbol": "u",
+              "provenance": "given",
+              "sourceText": "starts from rest"
+            },
+            {
+              "id": "a",
+              "unit": "m/s^2",
+              "value": 2,
+              "symbol": "a",
+              "provenance": "given",
+              "sourceText": "accelerates uniformly at 2 m/s^2"
+            },
+            {
+              "id": "t",
+              "unit": "s",
+              "value": 5,
+              "symbol": "t",
+              "provenance": "given",
+              "sourceText": "for 5 s"
+            }
+          ],
+          "lawIds": [
+            "uniform-acceleration-velocity",
+            "uniform-acceleration-displacement"
+          ],
+          "derived": [
+            {
+              "id": "v",
+              "unit": "m/s",
+              "value": 10,
+              "symbol": "v",
+              "dependsOn": [
+                "u",
+                "a",
+                "t"
+              ],
+              "provenance": "derived",
+              "sourceText": "v = u + at = 0 + 2 × 5 = 10"
+            },
+            {
+              "id": "s",
+              "unit": "m",
+              "value": 25,
+              "symbol": "s",
+              "dependsOn": [
+                "u",
+                "a",
+                "t"
+              ],
+              "provenance": "derived",
+              "sourceText": "s = ut + ½at² = 0 × 5 + ½ × 2 × 5² = 25"
+            }
+          ],
+          "question": "A car starts from rest and accelerates uniformly at 2 m/s^2 for 5 s. Find its final speed and the distance travelled.",
+          "unknowns": [
+            {
+              "id": "v",
+              "unit": "m/s",
+              "symbol": "v"
+            },
+            {
+              "id": "s",
+              "unit": "m",
+              "symbol": "s"
+            }
+          ],
+          "assumptions": [
+            "A verified illustration is required by the question's spatial or explicit visual request."
+          ],
+          "schemaVersion": "turn-plan/v3",
+          "qualitativeClaims": [],
+          "visualRequirement": "required"
+        },
+        "nonMetric": true,
+        "problemIR": {
+          "id": "problem",
+          "facts": [
+            {
+              "id": "fRest",
+              "kind": "given",
+              "evidence": {
+                "end": 22,
+                "quote": "A car starts from rest",
+                "start": 0,
+                "source": "question"
+              },
+              "statement": "The car starts from rest."
+            },
+            {
+              "id": "fAccel",
+              "kind": "given",
+              "evidence": {
+                "end": 59,
+                "quote": "accelerates uniformly at 2 m/s^2",
+                "start": 27,
+                "source": "question"
+              },
+              "statement": "The car accelerates uniformly at 2 m/s^2."
+            },
+            {
+              "id": "fTime",
+              "kind": "given",
+              "evidence": {
+                "end": 67,
+                "quote": "for 5 s",
+                "start": 60,
+                "source": "question"
+              },
+              "statement": "The acceleration lasts 5 s."
+            },
+            {
+              "id": "fSpeed",
+              "kind": "requested",
+              "evidence": {
+                "end": 89,
+                "quote": "final speed",
+                "start": 78,
+                "source": "question"
+              },
+              "statement": "Find the final speed."
+            },
+            {
+              "id": "fDistance",
+              "kind": "requested",
+              "evidence": {
+                "end": 116,
+                "quote": "distance travelled",
+                "start": 98,
+                "source": "question"
+              },
+              "statement": "Find the distance travelled."
+            }
+          ],
+          "entities": [
+            {
+              "id": "car",
+              "kind": "body",
+              "evidenceFactIds": [
+                "fRest",
+                "fAccel"
+              ]
+            }
+          ],
+          "question": "A car starts from rest and accelerates uniformly at 2 m/s^2 for 5 s. Find its final speed and the distance travelled.",
+          "constraints": [],
+          "expressions": [
+            {
+              "id": "eSpeed",
+              "root": {
+                "kind": "binary",
+                "left": {
+                  "kind": "number",
+                  "value": 0
+                },
+                "right": {
+                  "kind": "binary",
+                  "left": {
+                    "kind": "number",
+                    "value": 2
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 5
+                  },
+                  "operator": "*"
+                },
+                "operator": "+"
+              },
+              "valueType": "scalar",
+              "evidenceFactIds": [
+                "fRest",
+                "fAccel",
+                "fTime"
+              ]
+            },
+            {
+              "id": "eDistance",
+              "root": {
+                "kind": "binary",
+                "left": {
+                  "kind": "binary",
+                  "left": {
+                    "kind": "number",
+                    "value": 0
+                  },
+                  "right": {
+                    "kind": "number",
+                    "value": 5
+                  },
+                  "operator": "*"
+                },
+                "right": {
+                  "kind": "binary",
+                  "left": {
+                    "kind": "binary",
+                    "left": {
+                      "kind": "binary",
+                      "left": {
+                        "kind": "number",
+                        "value": 1
+                      },
+                      "right": {
+                        "kind": "number",
+                        "value": 2
+                      },
+                      "operator": "/"
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    },
+                    "operator": "*"
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "left": {
+                      "kind": "number",
+                      "value": 5
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 2
+                    },
+                    "operator": "^"
+                  },
+                  "operator": "*"
+                },
+                "operator": "+"
+              },
+              "valueType": "scalar",
+              "evidenceFactIds": [
+                "fRest",
+                "fAccel",
+                "fTime"
+              ]
+            }
+          ],
+          "schemaVersion": "problem-ir/v1",
+          "solveRequests": [
+            {
+              "id": "sSpeed",
+              "kind": "evaluate",
+              "expressionId": "eSpeed",
+              "resultBinding": {
+                "unit": "m/s",
+                "symbol": "v",
+                "evidenceFactIds": [
+                  "fSpeed"
+                ],
+                "turnPlanQuantityId": "v"
+              }
+            },
+            {
+              "id": "sDistance",
+              "kind": "evaluate",
+              "expressionId": "eDistance",
+              "resultBinding": {
+                "unit": "m",
+                "symbol": "s",
+                "evidenceFactIds": [
+                  "fDistance"
+                ],
+                "turnPlanQuantityId": "s"
+              }
+            }
+          ],
+          "representationIntents": [
+            {
+              "id": "iMotion",
+              "kind": "conceptual",
+              "entityIds": [
+                "car"
+              ],
+              "evidenceFactIds": [
+                "fRest",
+                "fAccel",
+                "fTime",
+                "fDistance"
+              ]
+            }
+          ]
+        },
+        "candidates": [
+          {
+            "phase": "plan",
+            "score": 0,
+            "accepted": true,
+            "strategy": "server_revalidation",
+            "candidateId": "server-revalidated-scene",
+            "sceneDocument": {
+              "source": {
+                "question": "A car starts from rest and accelerates uniformly at 2 m/s^2 for 5 s. Find its final speed and the distance travelled.",
+                "nonMetric": true,
+                "representationTier": "qualitative_verified"
+              },
+              "entities": [
+                {
+                  "id": "axes",
+                  "kind": "axes",
+                  "role": "v-t axes"
+                },
+                {
+                  "id": "origin",
+                  "kind": "point",
+                  "role": "initial state"
+                },
+                {
+                  "id": "timeEnd",
+                  "kind": "point",
+                  "role": "end of interval"
+                },
+                {
+                  "id": "finalState",
+                  "kind": "point",
+                  "role": "final velocity state"
+                },
+                {
+                  "id": "velocityGraph",
+                  "kind": "segment",
+                  "role": "velocity v(t)"
+                },
+                {
+                  "id": "area",
+                  "kind": "polygon",
+                  "role": "area under the v-t graph"
+                }
+              ],
+              "relations": [],
+              "assertions": [
+                {
+                  "id": "initialOnGraph",
+                  "entities": [
+                    "origin",
+                    "velocityGraph"
+                  ],
+                  "expected": true,
+                  "severity": "fatal",
+                  "predicate": "on"
+                },
+                {
+                  "id": "finalOnGraph",
+                  "entities": [
+                    "finalState",
+                    "velocityGraph"
+                  ],
+                  "expected": true,
+                  "severity": "fatal",
+                  "predicate": "on"
+                }
+              ],
+              "quantities": [
+                {
+                  "id": "u",
+                  "unit": "m/s",
+                  "value": 0,
+                  "symbol": "u",
+                  "provenance": "given"
+                },
+                {
+                  "id": "a",
+                  "unit": "m/s^2",
+                  "value": 2,
+                  "symbol": "a",
+                  "provenance": "given"
+                },
+                {
+                  "id": "t",
+                  "unit": "s",
+                  "value": 5,
+                  "symbol": "t",
+                  "provenance": "given"
+                },
+                {
+                  "id": "v",
+                  "unit": "m/s",
+                  "value": 10,
+                  "symbol": "v",
+                  "provenance": "derived"
+                },
+                {
+                  "id": "s",
+                  "unit": "m",
+                  "value": 25,
+                  "symbol": "s",
+                  "provenance": "derived"
+                }
+              ],
+              "annotations": [
+                {
+                  "id": "timeLabel",
+                  "kind": "label",
+                  "text": "t = 5 s",
+                  "targetIds": [
+                    "timeEnd"
+                  ]
+                },
+                {
+                  "id": "accelerationLabel",
+                  "kind": "callout",
+                  "text": "a = 2 m/s²",
+                  "targetIds": [
+                    "velocityGraph"
+                  ]
+                },
+                {
+                  "id": "restLabel",
+                  "kind": "callout",
+                  "text": "u = 0 m/s",
+                  "targetIds": [
+                    "origin"
+                  ]
+                },
+                {
+                  "id": "speedResult",
+                  "kind": "label",
+                  "text": "v = 10 m/s",
+                  "targetIds": [
+                    "finalState"
+                  ]
+                },
+                {
+                  "id": "distanceResult",
+                  "kind": "label",
+                  "text": "s = 25 m",
+                  "targetIds": [
+                    "area"
+                  ]
+                }
+              ],
+              "revealGroups": [
+                {
+                  "id": "setup",
+                  "dependsOn": [],
+                  "entityIds": [
+                    "axes",
+                    "origin",
+                    "timeEnd",
+                    "finalState",
+                    "velocityGraph",
+                    "area"
+                  ],
+                  "narrationCue": "reveal scene"
+                }
+              ],
+              "constructions": [
+                {
+                  "id": "makeAxes",
+                  "inputs": {
+                    "xMax": 5.5,
+                    "xMin": 0,
+                    "yMax": 11,
+                    "yMin": 0
+                  },
+                  "outputs": [
+                    "axes"
+                  ],
+                  "operator": "axes"
+                },
+                {
+                  "id": "makeOrigin",
+                  "inputs": {
+                    "x": 0,
+                    "y": 0,
+                    "coordinateSpace": "world"
+                  },
+                  "outputs": [
+                    "origin"
+                  ],
+                  "operator": "point"
+                },
+                {
+                  "id": "makeTimeEnd",
+                  "inputs": {
+                    "x": 5,
+                    "y": 0,
+                    "coordinateSpace": "world"
+                  },
+                  "outputs": [
+                    "timeEnd"
+                  ],
+                  "operator": "point"
+                },
+                {
+                  "id": "makeFinalState",
+                  "inputs": {
+                    "x": 5,
+                    "y": 10,
+                    "coordinateSpace": "world"
+                  },
+                  "outputs": [
+                    "finalState"
+                  ],
+                  "operator": "point"
+                },
+                {
+                  "id": "makeVelocityGraph",
+                  "inputs": {
+                    "end": "finalState",
+                    "start": "origin"
+                  },
+                  "outputs": [
+                    "velocityGraph"
+                  ],
+                  "operator": "segment"
+                },
+                {
+                  "id": "makeArea",
+                  "inputs": {
+                    "points": [
+                      "origin",
+                      "timeEnd",
+                      "finalState"
+                    ]
+                  },
+                  "outputs": [
+                    "area"
+                  ],
+                  "operator": "polygon"
+                }
+              ],
+              "schemaVersion": "scene-document/v2",
+              "visualDecision": {
+                "mode": "scene",
+                "reason": "planner visual decision"
+              },
+              "teachingTimeline": [],
+              "requiredEntityIds": [
+                "axes",
+                "origin",
+                "timeEnd",
+                "finalState",
+                "velocityGraph",
+                "area"
+              ]
+            },
+            "rejectionCodes": [],
+            "validationReport": {
+              "stats": {
+                "entityCount": 6,
+                "assertionCount": 2,
+                "primitiveCount": 10,
+                "constructionCount": 6
+              },
+              "valid": true,
+              "issues": [],
+              "engineVersion": "scene-engine/2.0.0"
+            }
+          }
+        ],
+        "figureSource": "planner",
+        "solverResult": {
+          "issues": [],
+          "proofs": [
+            {
+              "id": "proof_sSpeed",
+              "detail": "Evaluated the typed, variable-free expression with the audited local evaluator.",
+              "method": "exact_arithmetic",
+              "residual": 0,
+              "verified": true,
+              "requestId": "sSpeed",
+              "tolerance": 1e-09,
+              "expressionIds": [
+                "eSpeed"
+              ]
+            },
+            {
+              "id": "proof_sDistance",
+              "detail": "Evaluated the typed, variable-free expression with the audited local evaluator.",
+              "method": "exact_arithmetic",
+              "residual": 0,
+              "verified": true,
+              "requestId": "sDistance",
+              "tolerance": 1e-09,
+              "expressionIds": [
+                "eDistance"
+              ]
+            }
+          ],
+          "status": "solved",
+          "values": [
+            {
+              "id": "value_sSpeed",
+              "exact": {
+                "kind": "integer",
+                "value": "10"
+              },
+              "requestId": "sSpeed",
+              "valueType": "scalar",
+              "errorBound": 0,
+              "approximate": 10
+            },
+            {
+              "id": "value_sDistance",
+              "exact": {
+                "kind": "integer",
+                "value": "25"
+              },
+              "requestId": "sDistance",
+              "valueType": "scalar",
+              "errorBound": 0,
+              "approximate": 25
+            }
+          ],
+          "problemId": "problem",
+          "providerId": "local-deterministic/v1",
+          "schemaVersion": "solver-result/v1"
+        },
+        "visualReview": null,
+        "schemaVersion": "scene-artifacts/v3",
+        "diagramStrategy": "current",
+        "selectionReason": "revalidated against the current server engine before persistence",
+        "solverAuthority": {
+          "issues": [],
+          "status": "verified",
+          "bindings": [
+            {
+              "unit": "m/s",
+              "exact": {
+                "kind": "integer",
+                "value": "10"
+              },
+              "symbol": "v",
+              "requestId": "sSpeed",
+              "errorBound": 0,
+              "quantityId": "v",
+              "approximate": 10
+            },
+            {
+              "unit": "m",
+              "exact": {
+                "kind": "integer",
+                "value": "25"
+              },
+              "symbol": "s",
+              "requestId": "sDistance",
+              "errorBound": 0,
+              "quantityId": "s",
+              "approximate": 25
+            }
+          ]
+        },
+        "proofObligations": [
+          {
+            "id": "initialOnGraph",
+            "inputs": [
+              "origin",
+              "velocityGraph"
+            ],
+            "expected": true,
+            "severity": "fatal",
+            "predicate": "on"
+          },
+          {
+            "id": "finalOnGraph",
+            "inputs": [
+              "finalState",
+              "velocityGraph"
+            ],
+            "expected": true,
+            "severity": "fatal",
+            "predicate": "on"
+          }
+        ],
+        "representationTier": "qualitative_verified",
+        "diagramResultStatus": "ready",
+        "selectedCandidateId": "server-revalidated-scene"
+      }
+    },
+    {
+      "id": "L11",
+      "question": "Two resistors, 6 ohms and 3 ohms, are in parallel across a 6 V battery. Find the total current. Keep the explanation brief, please.",
+      "sceneDocument": {
+        "source": {
+          "question": "Two resistors, 6 ohms and 3 ohms, are in parallel across a 6 V battery. Find the total current. Keep the explanation brief, please.",
+          "nonMetric": true,
+          "representationTier": "qualitative_verified"
+        },
+        "entities": [
+          {
+            "id": "tl",
+            "kind": "point",
+            "role": "helper point"
+          },
+          {
+            "id": "bl",
+            "kind": "point",
+            "role": "helper point"
+          },
+          {
+            "id": "tm",
+            "kind": "point",
+            "role": "helper point"
+          },
+          {
+            "id": "bm",
+            "kind": "point",
+            "role": "helper point"
+          },
+          {
+            "id": "tr",
+            "kind": "point",
+            "role": "helper point"
+          },
+          {
+            "id": "br",
+            "kind": "point",
+            "role": "helper point"
+          },
+          {
+            "id": "battery",
+            "kind": "component",
+            "role": "component",
+            "label": "V"
+          },
+          {
+            "id": "resistor1",
+            "kind": "component",
+            "role": "resistor",
+            "label": "R₁"
+          },
+          {
+            "id": "resistor2",
+            "kind": "component",
+            "role": "resistor",
+            "label": "R₂"
+          },
+          {
+            "id": "topLeftWire",
+            "kind": "connector",
+            "role": "connector"
+          },
+          {
+            "id": "topRightWire",
+            "kind": "connector",
+            "role": "connector"
+          },
+          {
+            "id": "bottomLeftWire",
+            "kind": "connector",
+            "role": "connector"
+          },
+          {
+            "id": "bottomRightWire",
+            "kind": "connector",
+            "role": "connector"
+          }
+        ],
+        "relations": [],
+        "assertions": [
+          {
+            "id": "parallelPaths",
+            "entities": [
+              "tl",
+              "bl"
+            ],
+            "expected": 3,
+            "severity": "fatal",
+            "predicate": "pathCount"
+          }
+        ],
+        "quantities": [
+          {
+            "id": "r1",
+            "unit": "Ω",
+            "value": 6,
+            "symbol": "R₁",
+            "provenance": "given",
+            "sourceText": "r1 = 6"
+          },
+          {
+            "id": "r2",
+            "unit": "Ω",
+            "value": 3,
+            "symbol": "R₂",
+            "provenance": "given",
+            "sourceText": "r2 = 3"
+          },
+          {
+            "id": "v",
+            "unit": "V",
+            "value": 6,
+            "symbol": "V",
+            "provenance": "given",
+            "sourceText": "v = 6"
+          },
+          {
+            "id": "i",
+            "unit": "A",
+            "value": 3,
+            "symbol": "I_total",
+            "dependsOn": [
+              "r1",
+              "r2",
+              "v"
+            ],
+            "provenance": "derived",
+            "sourceText": "I_total = V(1/R₁ + 1/R₂) = 6(1/6 + 1/3) = 3 A"
+          },
+          {
+            "id": "circuit_R_eq",
+            "unit": "Ω",
+            "value": 2,
+            "symbol": "R_eq",
+            "provenance": "derived",
+            "sourceText": "Circuit-verified R_eq = 2 Ω"
+          }
+        ],
+        "annotations": [
+          {
+            "id": "a1",
+            "kind": "label",
+            "targetIds": [
+              "resistor1"
+            ],
+            "quantityId": "r1"
+          },
+          {
+            "id": "a2",
+            "kind": "label",
+            "targetIds": [
+              "resistor2"
+            ],
+            "quantityId": "r2"
+          },
+          {
+            "id": "a3",
+            "kind": "label",
+            "targetIds": [
+              "battery"
+            ],
+            "quantityId": "v"
+          },
+          {
+            "id": "a4",
+            "kind": "callout",
+            "text": "I_total = 3 A",
+            "targetIds": [
+              "battery"
+            ],
+            "quantityId": "i"
+          }
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "dependsOn": [],
+            "entityIds": [
+              "tl",
+              "bl",
+              "tm",
+              "bm",
+              "tr",
+              "br",
+              "battery",
+              "resistor1",
+              "resistor2",
+              "topLeftWire",
+              "topRightWire",
+              "bottomLeftWire",
+              "bottomRightWire"
+            ],
+            "narrationCue": "reveal scene"
+          }
+        ],
+        "constructions": [
+          {
+            "id": "p1",
+            "inputs": {
+              "x": 0,
+              "y": 0,
+              "coordinateSpace": "layout"
+            },
+            "outputs": [
+              "tl"
+            ],
+            "operator": "point"
+          },
+          {
+            "id": "p2",
+            "inputs": {
+              "x": 0,
+              "y": 2,
+              "coordinateSpace": "layout"
+            },
+            "outputs": [
+              "bl"
+            ],
+            "operator": "point"
+          },
+          {
+            "id": "p3",
+            "inputs": {
+              "x": 2,
+              "y": 0,
+              "coordinateSpace": "layout"
+            },
+            "outputs": [
+              "tm"
+            ],
+            "operator": "point"
+          },
+          {
+            "id": "p4",
+            "inputs": {
+              "x": 2,
+              "y": 2,
+              "coordinateSpace": "layout"
+            },
+            "outputs": [
+              "bm"
+            ],
+            "operator": "point"
+          },
+          {
+            "id": "p5",
+            "inputs": {
+              "x": 4,
+              "y": 0,
+              "coordinateSpace": "layout"
+            },
+            "outputs": [
+              "tr"
+            ],
+            "operator": "point"
+          },
+          {
+            "id": "p6",
+            "inputs": {
+              "x": 4,
+              "y": 2,
+              "coordinateSpace": "layout"
+            },
+            "outputs": [
+              "br"
+            ],
+            "operator": "point"
+          },
+          {
+            "id": "c1",
+            "inputs": {
+              "end": "bl",
+              "start": "tl",
+              "symbol": "battery"
+            },
+            "outputs": [
+              "battery"
+            ],
+            "operator": "symbol"
+          },
+          {
+            "id": "c2",
+            "inputs": {
+              "end": "bm",
+              "start": "tm",
+              "symbol": "resistor"
+            },
+            "outputs": [
+              "resistor1"
+            ],
+            "operator": "symbol"
+          },
+          {
+            "id": "c3",
+            "inputs": {
+              "end": "br",
+              "start": "tr",
+              "symbol": "resistor"
+            },
+            "outputs": [
+              "resistor2"
+            ],
+            "operator": "symbol"
+          },
+          {
+            "id": "w1",
+            "inputs": {
+              "end": "tm",
+              "start": "tl"
+            },
+            "outputs": [
+              "topLeftWire"
+            ],
+            "operator": "connect"
+          },
+          {
+            "id": "w2",
+            "inputs": {
+              "end": "tr",
+              "start": "tm"
+            },
+            "outputs": [
+              "topRightWire"
+            ],
+            "operator": "connect"
+          },
+          {
+            "id": "w3",
+            "inputs": {
+              "end": "bm",
+              "start": "bl"
+            },
+            "outputs": [
+              "bottomLeftWire"
+            ],
+            "operator": "connect"
+          },
+          {
+            "id": "w4",
+            "inputs": {
+              "end": "br",
+              "start": "bm"
+            },
+            "outputs": [
+              "bottomRightWire"
+            ],
+            "operator": "connect"
+          }
+        ],
+        "schemaVersion": "scene-document/v2",
+        "visualDecision": {
+          "mode": "scene",
+          "reason": "planner visual decision"
+        },
+        "teachingTimeline": [],
+        "requiredEntityIds": [
+          "battery",
+          "resistor1",
+          "resistor2",
+          "tl",
+          "bl",
+          "tm",
+          "bm",
+          "tr",
+          "br",
+          "topLeftWire",
+          "topRightWire",
+          "bottomLeftWire",
+          "bottomRightWire"
+        ]
+      },
+      "segments": [
+        {
+          "orderIndex": 0,
+          "narration": "",
+          "command": {
+            "type": "CLEAR",
+            "params": [],
+            "charPosition": 0,
+            "narrationBefore": ""
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 1,
+          "narration": "alright... this one asks for the total current. let's start from what we know.",
+          "command": null,
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 2,
+          "narration": "Given... R₁ equals 6 ohms. And V equals 6 volts.",
+          "command": {
+            "text": "Given: R₁ = 6 Ω, V = 6 V",
+            "type": "WRITE",
+            "params": [
+              90,
+              142,
+              27
+            ],
+            "charPosition": 0,
+            "narrationBefore": "Given... R₁ equals 6 ohms. And V equals 6 volts."
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 3,
+          "narration": "Here is the setup. First the component V, then the resistor, and finally the connector. That is the setup.",
+          "command": {
+            "commands": [
+              {
+                "type": "DRAW_LINE",
+                "params": [
+                  517.33,
+                  467.9,
+                  517.33,
+                  351.46
+                ],
+                "syncable": false,
+                "spokenCue": {
+                  "token": "V",
+                  "entityId": "battery"
+                },
+                "semanticRef": {
+                  "entityId": "battery",
+                  "primitiveId": "primitive_battery_0"
+                },
+                "charPosition": 0,
+                "narrationBefore": ""
+              },
+              {
+                "type": "DRAW_LINE",
+                "params": [
+                  560.65,
+                  351.46,
+                  474,
+                  351.46
+                ],
+                "syncable": false,
+                "spokenCue": {
+                  "token": "V",
+                  "entityId": "battery"
+                },
+                "semanticRef": {
+                  "entityId": "battery",
+                  "primitiveId": "primitive_battery_1"
+                },
+                "charPosition": 0,
+                "narrationBefore": ""
+              },
+              {
+                "type": "DRAW_LINE",
+                "params": [
+                  541.7,
+                  313.54,
+                  492.96,
+                  313.54
+                ],
+                "syncable": false,
+                "spokenCue": {
+                  "token": "V",
+                  "entityId": "battery"
+                },
+                "semanticRef": {
+                  "entityId": "battery",
+                  "primitiveId": "primitive_battery_2"
+                },
+                "charPosition": 0,
+                "narrationBefore": ""
+              },
+              {
+                "type": "DRAW_LINE",
+                "params": [
+                  517.33,
+                  313.54,
+                  517.33,
+                  197.1
+                ],
+                "syncable": false,
+                "spokenCue": {
+                  "token": "V",
+                  "entityId": "battery"
+                },
+                "semanticRef": {
+                  "entityId": "battery",
+                  "primitiveId": "primitive_battery_3"
+                },
+                "charPosition": 0,
+                "narrationBefore": ""
+              },
+              {
+                "text": "I_total = 3 A",
+                "type": "LABEL",
+                "params": [
+                  477.9999999999999,
+                  89,
+                  24
+                ],
+                "syncable": true,
+                "spokenCue": {
+                  "token": "V",
+                  "entityId": "battery"
+                },
+                "syncReason": "verified-scene-label",
+                "semanticRef": {
+                  "entityId": "battery",
+                  "primitiveId": "a4"
+                },
+                "charPosition": 0,
+                "narrationBefore": ""
+              },
+              {
+                "text": "V 6 V",
+                "type": "LABEL",
+                "params": [
+                  582.65,
+                  320.5,
+                  24
+                ],
+                "syncable": true,
+                "spokenCue": {
+                  "token": "V",
+                  "entityId": "battery"
+                },
+                "syncReason": "verified-scene-label",
+                "semanticRef": {
+                  "entityId": "battery",
+                  "primitiveId": "primitive_battery_label"
+                },
+                "charPosition": 0,
+                "narrationBefore": ""
+              },
+              {
+                "type": "DRAW_LINE",
+                "params": [
+                  788.12,
+                  467.9,
+                  788.12,
+                  419.15,
+                  761.04,
+                  400.2,
+                  815.2,
+                  373.12,
+                  761.04,
+                  346.04,
+                  815.2,
+                  318.96,
+                  761.04,
+                  291.88,
+                  815.2,
+                  264.8,
+                  788.12,
+                  245.85,
+                  788.12,
+                  197.1
+                ],
+                "syncable": false,
+                "spokenCue": {
+                  "token": "resistor",
+                  "entityId": "resistor1"
+                },
+                "semanticRef": {
+                  "entityId": "resistor1",
+                  "primitiveId": "primitive_resistor1_0"
+                },
+                "charPosition": 0,
+                "narrationBefore": ""
+              },
+              {
+                "text": "R₁ 6 Ω",
+                "type": "LABEL",
+                "params": [
+                  837.2,
+                  320.5,
+                  24
+                ],
+                "syncable": true,
+                "spokenCue": {
+                  "token": "resistor",
+                  "entityId": "resistor1"
+                },
+                "syncReason": "verified-scene-label",
+                "semanticRef": {
+                  "entityId": "resistor1",
+                  "primitiveId": "primitive_resistor1_label"
+                },
+                "charPosition": 0,
+                "narrationBefore": ""
+              },
+              {
+                "type": "DRAW_LINE",
+                "params": [
+                  1058.92,
+                  467.9,
+                  1058.92,
+                  419.15,
+                  1031.84,
+                  400.2,
+                  1086,
+                  373.12,
+                  1031.84,
+                  346.04,
+                  1086,
+                  318.96,
+                  1031.84,
+                  291.88,
+                  1086,
+                  264.8,
+                  1058.92,
+                  245.85,
+                  1058.92,
+                  197.1
+                ],
+                "syncable": false,
+                "spokenCue": {
+                  "token": "resistor",
+                  "entityId": "resistor2"
+                },
+                "semanticRef": {
+                  "entityId": "resistor2",
+                  "primitiveId": "primitive_resistor2_0"
+                },
+                "charPosition": 0,
+                "narrationBefore": ""
+              },
+              {
+                "text": "R₂ 3 Ω",
+                "type": "LABEL",
+                "params": [
+                  942.2405871999999,
+                  320.5,
+                  24
+                ],
+                "syncable": true,
+                "spokenCue": {
+                  "token": "resistor",
+                  "entityId": "resistor2"
+                },
+                "syncReason": "verified-scene-label",
+                "semanticRef": {
+                  "entityId": "resistor2",
+                  "primitiveId": "primitive_resistor2_label"
+                },
+                "charPosition": 0,
+                "narrationBefore": ""
+              },
+              {
+                "type": "DRAW_LINE",
+                "params": [
+                  517.33,
+                  467.9,
+                  788.12,
+                  467.9
+                ],
+                "syncable": false,
+                "spokenCue": {
+                  "token": "connector",
+                  "entityId": "topLeftWire"
+                },
+                "semanticRef": {
+                  "entityId": "topLeftWire",
+                  "primitiveId": "primitive_topLeftWire"
+                },
+                "charPosition": 0,
+                "narrationBefore": ""
+              },
+              {
+                "type": "DRAW_LINE",
+                "params": [
+                  788.12,
+                  467.9,
+                  1058.92,
+                  467.9
+                ],
+                "syncable": false,
+                "spokenCue": {
+                  "token": "connector",
+                  "entityId": "topRightWire"
+                },
+                "semanticRef": {
+                  "entityId": "topRightWire",
+                  "primitiveId": "primitive_topRightWire"
+                },
+                "charPosition": 0,
+                "narrationBefore": ""
+              },
+              {
+                "type": "DRAW_LINE",
+                "params": [
+                  517.33,
+                  197.1,
+                  788.12,
+                  197.1
+                ],
+                "syncable": false,
+                "spokenCue": {
+                  "token": "connector",
+                  "entityId": "bottomLeftWire"
+                },
+                "semanticRef": {
+                  "entityId": "bottomLeftWire",
+                  "primitiveId": "primitive_bottomLeftWire"
+                },
+                "charPosition": 0,
+                "narrationBefore": ""
+              },
+              {
+                "type": "DRAW_LINE",
+                "params": [
+                  788.12,
+                  197.1,
+                  1058.92,
+                  197.1
+                ],
+                "syncable": false,
+                "spokenCue": {
+                  "token": "connector",
+                  "entityId": "bottomRightWire"
+                },
+                "semanticRef": {
+                  "entityId": "bottomRightWire",
+                  "primitiveId": "primitive_bottomRightWire"
+                },
+                "charPosition": 0,
+                "narrationBefore": ""
+              }
+            ],
+            "trustedDiagramGeometry": true
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 4,
+          "narration": "R one and R two are the resistances, V is the battery voltage, and I total is the current we need. I total equals question mark.",
+          "command": {
+            "commands": [
+              {
+                "text": "I_total = ?",
+                "type": "WRITE",
+                "params": [
+                  90,
+                  208,
+                  27
+                ],
+                "charPosition": 136,
+                "narrationBefore": "R one and R two are the resistances, V is the battery voltage, and I total is the current we need. I total equals question mark."
+              },
+              {
+                "text": "battery",
+                "type": "FOCUS",
+                "params": [],
+                "charPosition": 0,
+                "narrationBefore": "R one and R two are the resistances, V is the battery voltage, and I total is the current we need. I total equals question mark."
+              }
+            ]
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 5,
+          "narration": "notice R one, six ohms, is one resistor branch. R one equals six ohms.",
+          "command": {
+            "commands": [
+              {
+                "text": "resistor1",
+                "type": "FOCUS",
+                "params": [],
+                "charPosition": 201,
+                "narrationBefore": "notice R one, six ohms"
+              },
+              {
+                "text": "R_1 = 6 Ω",
+                "type": "WRITE",
+                "params": [
+                  90,
+                  274,
+                  27
+                ],
+                "charPosition": 267,
+                "narrationBefore": ", is one resistor branch. R one equals six ohms."
+              }
+            ]
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 6,
+          "narration": "notice R two, three ohms, is the other branch. R two equals three ohms.",
+          "command": {
+            "commands": [
+              {
+                "text": "resistor2",
+                "type": "FOCUS",
+                "params": [],
+                "charPosition": 331,
+                "narrationBefore": "notice R two, three ohms"
+              },
+              {
+                "text": "R_2 = 3 Ω",
+                "type": "WRITE",
+                "params": [
+                  90,
+                  340,
+                  27
+                ],
+                "charPosition": 396,
+                "narrationBefore": ", is the other branch. R two equals three ohms."
+              }
+            ]
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 7,
+          "narration": "look at the battery. It supplies six volts across both parallel branches, so V equals six volts.",
+          "command": {
+            "commands": [
+              {
+                "text": "battery",
+                "type": "FOCUS",
+                "params": [],
+                "charPosition": 455,
+                "narrationBefore": "look at the battery"
+              },
+              {
+                "text": "V = 6 V",
+                "type": "WRITE",
+                "params": [
+                  90,
+                  406,
+                  27
+                ],
+                "charPosition": 548,
+                "narrationBefore": ". It supplies six volts across both parallel branches, so V equals six volts."
+              }
+            ]
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 8,
+          "narration": "for parallel resistors, the reciprocal of the equivalent resistance equals the sum of their reciprocals. One over R e q equals one over R one plus one over R two.",
+          "command": {
+            "commands": [
+              {
+                "text": "1/R_eq = 1/R_1 + 1/R_2",
+                "type": "WRITE",
+                "params": [
+                  90,
+                  472,
+                  27
+                ],
+                "charPosition": 749,
+                "narrationBefore": "for parallel resistors, the reciprocal of the equivalent resistance equals the sum of their reciprocals. One over R e q equals one over R one plus one over R two."
+              },
+              {
+                "text": "last",
+                "type": "EMPHASIZE",
+                "params": [],
+                "charPosition": 784,
+                "narrationBefore": ""
+              }
+            ]
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 9,
+          "narration": "substitute the two resistances. One over R e q equals one over six ohms plus one over three ohms.",
+          "command": {
+            "text": "1/R_eq = 1/(6 Ω) + 1/(3 Ω)",
+            "type": "WRITE",
+            "params": [
+              90,
+              538,
+              27
+            ],
+            "charPosition": 914,
+            "narrationBefore": "substitute the two resistances. One over R e q equals one over six ohms plus one over three ohms."
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 10,
+          "narration": "use sixths to add the fractions. One over R e q equals one over six ohms plus two over six ohms.",
+          "command": {
+            "text": "1/R_eq = 1/(6 Ω) + 2/(6 Ω)",
+            "type": "WRITE",
+            "params": [
+              90,
+              142,
+              27
+            ],
+            "charPosition": 1068,
+            "narrationBefore": "use sixths to add the fractions. One over R e q equals one over six ohms plus two over six ohms."
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 11,
+          "narration": "adding gives one over R e q equals three over six ohms.",
+          "command": {
+            "text": "1/R_eq = 3/(6 Ω)",
+            "type": "WRITE",
+            "params": [
+              90,
+              208,
+              27
+            ],
+            "charPosition": 1181,
+            "narrationBefore": "adding gives one over R e q equals three over six ohms."
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 12,
+          "narration": "reduce the fraction. One over R e q equals one over two ohms.",
+          "command": {
+            "text": "1/R_eq = 1/(2 Ω)",
+            "type": "WRITE",
+            "params": [
+              90,
+              274,
+              27
+            ],
+            "charPosition": 1290,
+            "narrationBefore": "reduce the fraction. One over R e q equals one over two ohms."
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 13,
+          "narration": "taking reciprocals gives R e q equals two ohms.",
+          "command": {
+            "text": "R_eq = 2 Ω",
+            "type": "WRITE",
+            "params": [
+              90,
+              340,
+              27
+            ],
+            "charPosition": 1385,
+            "narrationBefore": "taking reciprocals gives R e q equals two ohms."
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 14,
+          "narration": "Ohm’s law for the whole circuit says I total equals V over R e q.",
+          "command": {
+            "text": "I_total = V/R_eq",
+            "type": "WRITE",
+            "params": [
+              90,
+              406,
+              27
+            ],
+            "charPosition": 1492,
+            "narrationBefore": "Ohm’s law for the whole circuit says I total equals V over R e q."
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 15,
+          "narration": "substitute the voltage and equivalent resistance. I total equals six volts over two ohms.",
+          "command": {
+            "text": "I_total = (6 V)/(2 Ω)",
+            "type": "WRITE",
+            "params": [
+              90,
+              472,
+              27
+            ],
+            "charPosition": 1629,
+            "narrationBefore": "substitute the voltage and equivalent resistance. I total equals six volts over two ohms."
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 16,
+          "narration": "divide six by two. I total equals three amperes.",
+          "command": {
+            "commands": [
+              {
+                "text": "I_total = 3 A",
+                "type": "WRITE",
+                "params": [
+                  90,
+                  538,
+                  27
+                ],
+                "charPosition": 1730,
+                "narrationBefore": "divide six by two. I total equals three amperes."
+              },
+              {
+                "text": "last",
+                "type": "EMPHASIZE",
+                "params": [],
+                "charPosition": 1759,
+                "narrationBefore": ""
+              }
+            ]
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        },
+        {
+          "orderIndex": 17,
+          "narration": "check with the branches: six volts over six ohms plus six volts over three ohms equals one ampere plus two amperes, or three amperes flowing from the battery.",
+          "command": {
+            "commands": [
+              {
+                "text": "check: 6 V/6 Ω + 6 V/3 Ω = 1 A + 2 A = 3",
+                "type": "WRITE",
+                "params": [
+                  90,
+                  142,
+                  27
+                ],
+                "charPosition": 1950,
+                "narrationBefore": "check with the branches: six volts over six ohms plus six volts over three ohms equals one ampere plus two amperes, or three amperes flowing from the battery."
+              },
+              {
+                "text": "A",
+                "type": "WRITE",
+                "params": [
+                  90,
+                  208,
+                  27
+                ],
+                "charPosition": 1950,
+                "narrationBefore": "check with the branches: six volts over six ohms plus six volts over three ohms equals one ampere plus two amperes, or three amperes flowing from the battery."
+              },
+              {
+                "text": "battery",
+                "type": "FOCUS",
+                "params": [],
+                "charPosition": 0,
+                "narrationBefore": "check with the branches: six volts over six ohms plus six volts over three ohms equals one ampere plus two amperes, or three amperes flowing from the battery."
+              }
+            ]
+          },
+          "durationMs": 100,
+          "audioUrl": null,
+          "timings": null
+        }
+      ],
+      "sceneArtifacts": {
+        "turnPlan": {
+          "givens": [
+            {
+              "id": "r1",
+              "unit": "Ω",
+              "value": 6,
+              "symbol": "R₁",
+              "provenance": "given",
+              "sourceText": "r1 = 6"
+            },
+            {
+              "id": "r2",
+              "unit": "Ω",
+              "value": 3,
+              "symbol": "R₂",
+              "provenance": "given",
+              "sourceText": "r2 = 3"
+            },
+            {
+              "id": "v",
+              "unit": "V",
+              "value": 6,
+              "symbol": "V",
+              "provenance": "given",
+              "sourceText": "v = 6"
+            }
+          ],
+          "lawIds": [
+            "Ohm's law",
+            "Parallel-circuit current rule"
+          ],
+          "derived": [
+            {
+              "id": "i",
+              "unit": "A",
+              "value": 3,
+              "symbol": "I_total",
+              "dependsOn": [
+                "r1",
+                "r2",
+                "v"
+              ],
+              "provenance": "derived",
+              "sourceText": "I_total = V(1/R₁ + 1/R₂) = 6(1/6 + 1/3) = 3 A"
+            },
+            {
+              "id": "circuit_R_eq",
+              "unit": "Ω",
+              "value": 2,
+              "symbol": "R_eq",
+              "provenance": "derived",
+              "sourceText": "Circuit-verified R_eq = 2 Ω"
+            }
+          ],
+          "question": "Two resistors, 6 ohms and 3 ohms, are in parallel across a 6 V battery. Find the total current. Keep the explanation brief, please.",
+          "unknowns": [
+            {
+              "id": "i",
+              "unit": "A",
+              "symbol": "I_total"
+            }
+          ],
+          "assumptions": [
+            "A verified illustration is required by the question's spatial or explicit visual request."
+          ],
+          "schemaVersion": "turn-plan/v3",
+          "qualitativeClaims": [],
+          "visualRequirement": "required"
+        },
+        "nonMetric": true,
+        "problemIR": {
+          "id": "problem",
+          "facts": [
+            {
+              "id": "fR1",
+              "kind": "given",
+              "evidence": {
+                "end": 21,
+                "quote": "6 ohms",
+                "start": 15,
+                "source": "question"
+              },
+              "statement": "First resistor is 6 ohms"
+            },
+            {
+              "id": "fR2",
+              "kind": "given",
+              "evidence": {
+                "end": 32,
+                "quote": "3 ohms",
+                "start": 26,
+                "source": "question"
+              },
+              "statement": "Second resistor is 3 ohms"
+            },
+            {
+              "id": "fParallel",
+              "kind": "given",
+              "evidence": {
+                "end": 70,
+                "quote": "are in parallel across a 6 V battery",
+                "start": 34,
+                "source": "question"
+              },
+              "statement": "Resistors are in parallel across the battery"
+            },
+            {
+              "id": "fV",
+              "kind": "given",
+              "evidence": {
+                "end": 70,
+                "quote": "6 V battery",
+                "start": 59,
+                "source": "question"
+              },
+              "statement": "Battery voltage is 6 V"
+            },
+            {
+              "id": "fCurrent",
+              "kind": "requested",
+              "evidence": {
+                "end": 94,
+                "quote": "Find the total current",
+                "start": 72,
+                "source": "question"
+              },
+              "statement": "Find the total current"
+            }
+          ],
+          "entities": [
+            {
+              "id": "resistorOne",
+              "kind": "component",
+              "evidenceFactIds": [
+                "fR1"
+              ]
+            },
+            {
+              "id": "resistorTwo",
+              "kind": "component",
+              "evidenceFactIds": [
+                "fR2"
+              ]
+            },
+            {
+              "id": "battery",
+              "kind": "component",
+              "evidenceFactIds": [
+                "fV"
+              ]
+            }
+          ],
+          "question": "Two resistors, 6 ohms and 3 ohms, are in parallel across a 6 V battery. Find the total current. Keep the explanation brief, please.",
+          "constraints": [],
+          "expressions": [
+            {
+              "id": "eCurrent",
+              "root": {
+                "kind": "binary",
+                "left": {
+                  "kind": "number",
+                  "value": 6
+                },
+                "right": {
+                  "kind": "binary",
+                  "left": {
+                    "kind": "binary",
+                    "left": {
+                      "kind": "number",
+                      "value": 1
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 6
+                    },
+                    "operator": "/"
+                  },
+                  "right": {
+                    "kind": "binary",
+                    "left": {
+                      "kind": "number",
+                      "value": 1
+                    },
+                    "right": {
+                      "kind": "number",
+                      "value": 3
+                    },
+                    "operator": "/"
+                  },
+                  "operator": "+"
+                },
+                "operator": "*"
+              },
+              "valueType": "scalar",
+              "evidenceFactIds": [
+                "fR1",
+                "fR2",
+                "fParallel",
+                "fV"
+              ]
+            }
+          ],
+          "schemaVersion": "problem-ir/v1",
+          "solveRequests": [
+            {
+              "id": "sCurrent",
+              "kind": "evaluate",
+              "expressionId": "eCurrent",
+              "resultBinding": {
+                "unit": "A",
+                "symbol": "I_total",
+                "evidenceFactIds": [
+                  "fCurrent"
+                ],
+                "turnPlanQuantityId": "i"
+              }
+            }
+          ],
+          "representationIntents": [
+            {
+              "id": "iCircuit",
+              "kind": "network",
+              "entityIds": [
+                "resistorOne",
+                "resistorTwo",
+                "battery"
+              ],
+              "evidenceFactIds": [
+                "fR1",
+                "fR2",
+                "fParallel",
+                "fV"
+              ]
+            }
+          ]
+        },
+        "candidates": [
+          {
+            "phase": "plan",
+            "score": 0,
+            "accepted": true,
+            "strategy": "server_revalidation",
+            "candidateId": "server-revalidated-scene",
+            "sceneDocument": {
+              "source": {
+                "question": "Two resistors, 6 ohms and 3 ohms, are in parallel across a 6 V battery. Find the total current. Keep the explanation brief, please.",
+                "nonMetric": true,
+                "representationTier": "qualitative_verified"
+              },
+              "entities": [
+                {
+                  "id": "tl",
+                  "kind": "point",
+                  "role": "helper point"
+                },
+                {
+                  "id": "bl",
+                  "kind": "point",
+                  "role": "helper point"
+                },
+                {
+                  "id": "tm",
+                  "kind": "point",
+                  "role": "helper point"
+                },
+                {
+                  "id": "bm",
+                  "kind": "point",
+                  "role": "helper point"
+                },
+                {
+                  "id": "tr",
+                  "kind": "point",
+                  "role": "helper point"
+                },
+                {
+                  "id": "br",
+                  "kind": "point",
+                  "role": "helper point"
+                },
+                {
+                  "id": "battery",
+                  "kind": "component",
+                  "role": "component",
+                  "label": "V"
+                },
+                {
+                  "id": "resistor1",
+                  "kind": "component",
+                  "role": "resistor",
+                  "label": "R₁"
+                },
+                {
+                  "id": "resistor2",
+                  "kind": "component",
+                  "role": "resistor",
+                  "label": "R₂"
+                },
+                {
+                  "id": "topLeftWire",
+                  "kind": "connector",
+                  "role": "connector"
+                },
+                {
+                  "id": "topRightWire",
+                  "kind": "connector",
+                  "role": "connector"
+                },
+                {
+                  "id": "bottomLeftWire",
+                  "kind": "connector",
+                  "role": "connector"
+                },
+                {
+                  "id": "bottomRightWire",
+                  "kind": "connector",
+                  "role": "connector"
+                }
+              ],
+              "relations": [],
+              "assertions": [
+                {
+                  "id": "parallelPaths",
+                  "entities": [
+                    "tl",
+                    "bl"
+                  ],
+                  "expected": 3,
+                  "severity": "fatal",
+                  "predicate": "pathCount"
+                }
+              ],
+              "quantities": [
+                {
+                  "id": "r1",
+                  "unit": "Ω",
+                  "value": 6,
+                  "symbol": "R₁",
+                  "provenance": "given",
+                  "sourceText": "r1 = 6"
+                },
+                {
+                  "id": "r2",
+                  "unit": "Ω",
+                  "value": 3,
+                  "symbol": "R₂",
+                  "provenance": "given",
+                  "sourceText": "r2 = 3"
+                },
+                {
+                  "id": "v",
+                  "unit": "V",
+                  "value": 6,
+                  "symbol": "V",
+                  "provenance": "given",
+                  "sourceText": "v = 6"
+                },
+                {
+                  "id": "i",
+                  "unit": "A",
+                  "value": 3,
+                  "symbol": "I_total",
+                  "dependsOn": [
+                    "r1",
+                    "r2",
+                    "v"
+                  ],
+                  "provenance": "derived",
+                  "sourceText": "I_total = V(1/R₁ + 1/R₂) = 6(1/6 + 1/3) = 3 A"
+                },
+                {
+                  "id": "circuit_R_eq",
+                  "unit": "Ω",
+                  "value": 2,
+                  "symbol": "R_eq",
+                  "provenance": "derived",
+                  "sourceText": "Circuit-verified R_eq = 2 Ω"
+                }
+              ],
+              "annotations": [
+                {
+                  "id": "a1",
+                  "kind": "label",
+                  "targetIds": [
+                    "resistor1"
+                  ],
+                  "quantityId": "r1"
+                },
+                {
+                  "id": "a2",
+                  "kind": "label",
+                  "targetIds": [
+                    "resistor2"
+                  ],
+                  "quantityId": "r2"
+                },
+                {
+                  "id": "a3",
+                  "kind": "label",
+                  "targetIds": [
+                    "battery"
+                  ],
+                  "quantityId": "v"
+                },
+                {
+                  "id": "a4",
+                  "kind": "callout",
+                  "text": "I_total = 3 A",
+                  "targetIds": [
+                    "battery"
+                  ],
+                  "quantityId": "i"
+                }
+              ],
+              "revealGroups": [
+                {
+                  "id": "setup",
+                  "dependsOn": [],
+                  "entityIds": [
+                    "tl",
+                    "bl",
+                    "tm",
+                    "bm",
+                    "tr",
+                    "br",
+                    "battery",
+                    "resistor1",
+                    "resistor2",
+                    "topLeftWire",
+                    "topRightWire",
+                    "bottomLeftWire",
+                    "bottomRightWire"
+                  ],
+                  "narrationCue": "reveal scene"
+                }
+              ],
+              "constructions": [
+                {
+                  "id": "p1",
+                  "inputs": {
+                    "x": 0,
+                    "y": 0,
+                    "coordinateSpace": "layout"
+                  },
+                  "outputs": [
+                    "tl"
+                  ],
+                  "operator": "point"
+                },
+                {
+                  "id": "p2",
+                  "inputs": {
+                    "x": 0,
+                    "y": 2,
+                    "coordinateSpace": "layout"
+                  },
+                  "outputs": [
+                    "bl"
+                  ],
+                  "operator": "point"
+                },
+                {
+                  "id": "p3",
+                  "inputs": {
+                    "x": 2,
+                    "y": 0,
+                    "coordinateSpace": "layout"
+                  },
+                  "outputs": [
+                    "tm"
+                  ],
+                  "operator": "point"
+                },
+                {
+                  "id": "p4",
+                  "inputs": {
+                    "x": 2,
+                    "y": 2,
+                    "coordinateSpace": "layout"
+                  },
+                  "outputs": [
+                    "bm"
+                  ],
+                  "operator": "point"
+                },
+                {
+                  "id": "p5",
+                  "inputs": {
+                    "x": 4,
+                    "y": 0,
+                    "coordinateSpace": "layout"
+                  },
+                  "outputs": [
+                    "tr"
+                  ],
+                  "operator": "point"
+                },
+                {
+                  "id": "p6",
+                  "inputs": {
+                    "x": 4,
+                    "y": 2,
+                    "coordinateSpace": "layout"
+                  },
+                  "outputs": [
+                    "br"
+                  ],
+                  "operator": "point"
+                },
+                {
+                  "id": "c1",
+                  "inputs": {
+                    "end": "bl",
+                    "start": "tl",
+                    "symbol": "battery"
+                  },
+                  "outputs": [
+                    "battery"
+                  ],
+                  "operator": "symbol"
+                },
+                {
+                  "id": "c2",
+                  "inputs": {
+                    "end": "bm",
+                    "start": "tm",
+                    "symbol": "resistor"
+                  },
+                  "outputs": [
+                    "resistor1"
+                  ],
+                  "operator": "symbol"
+                },
+                {
+                  "id": "c3",
+                  "inputs": {
+                    "end": "br",
+                    "start": "tr",
+                    "symbol": "resistor"
+                  },
+                  "outputs": [
+                    "resistor2"
+                  ],
+                  "operator": "symbol"
+                },
+                {
+                  "id": "w1",
+                  "inputs": {
+                    "end": "tm",
+                    "start": "tl"
+                  },
+                  "outputs": [
+                    "topLeftWire"
+                  ],
+                  "operator": "connect"
+                },
+                {
+                  "id": "w2",
+                  "inputs": {
+                    "end": "tr",
+                    "start": "tm"
+                  },
+                  "outputs": [
+                    "topRightWire"
+                  ],
+                  "operator": "connect"
+                },
+                {
+                  "id": "w3",
+                  "inputs": {
+                    "end": "bm",
+                    "start": "bl"
+                  },
+                  "outputs": [
+                    "bottomLeftWire"
+                  ],
+                  "operator": "connect"
+                },
+                {
+                  "id": "w4",
+                  "inputs": {
+                    "end": "br",
+                    "start": "bm"
+                  },
+                  "outputs": [
+                    "bottomRightWire"
+                  ],
+                  "operator": "connect"
+                }
+              ],
+              "schemaVersion": "scene-document/v2",
+              "visualDecision": {
+                "mode": "scene",
+                "reason": "planner visual decision"
+              },
+              "teachingTimeline": [],
+              "requiredEntityIds": [
+                "battery",
+                "resistor1",
+                "resistor2",
+                "tl",
+                "bl",
+                "tm",
+                "bm",
+                "tr",
+                "br",
+                "topLeftWire",
+                "topRightWire",
+                "bottomLeftWire",
+                "bottomRightWire"
+              ]
+            },
+            "rejectionCodes": [],
+            "validationReport": {
+              "stats": {
+                "entityCount": 13,
+                "assertionCount": 1,
+                "primitiveCount": 14,
+                "constructionCount": 13
+              },
+              "valid": true,
+              "issues": [],
+              "engineVersion": "scene-engine/2.0.0"
+            }
+          }
+        ],
+        "figureSource": "planner",
+        "solverResult": {
+          "issues": [],
+          "proofs": [
+            {
+              "id": "proof_sCurrent",
+              "detail": "Evaluated the typed, variable-free expression with the audited local evaluator.",
+              "method": "exact_arithmetic",
+              "residual": 0,
+              "verified": true,
+              "requestId": "sCurrent",
+              "tolerance": 1e-09,
+              "expressionIds": [
+                "eCurrent"
+              ]
+            }
+          ],
+          "status": "solved",
+          "values": [
+            {
+              "id": "value_sCurrent",
+              "exact": {
+                "kind": "integer",
+                "value": "3"
+              },
+              "requestId": "sCurrent",
+              "valueType": "scalar",
+              "errorBound": 0,
+              "approximate": 3
+            }
+          ],
+          "problemId": "problem",
+          "providerId": "local-deterministic/v1",
+          "schemaVersion": "solver-result/v1"
+        },
+        "visualReview": null,
+        "schemaVersion": "scene-artifacts/v3",
+        "diagramStrategy": "current",
+        "selectionReason": "revalidated against the current server engine before persistence",
+        "solverAuthority": {
+          "issues": [],
+          "status": "verified",
+          "bindings": [
+            {
+              "unit": "A",
+              "exact": {
+                "kind": "integer",
+                "value": "3"
+              },
+              "symbol": "I_total",
+              "requestId": "sCurrent",
+              "errorBound": 0,
+              "quantityId": "i",
+              "approximate": 3
+            }
+          ]
+        },
+        "proofObligations": [
+          {
+            "id": "parallelPaths",
+            "inputs": [
+              "tl",
+              "bl"
+            ],
+            "expected": 3,
+            "severity": "fatal",
+            "predicate": "pathCount"
+          }
+        ],
+        "representationTier": "qualitative_verified",
+        "diagramResultStatus": "ready",
+        "selectedCandidateId": "server-revalidated-scene"
+      }
+    }
+  ]
+}

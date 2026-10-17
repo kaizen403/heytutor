@@ -22,6 +22,8 @@ export interface VerifiedDiagramGroup {
 
 export interface VerifiedDeferredAnnotation {
   entityId: string;
+  /** Solved answer ink cannot be released by a teaching gesture. */
+  revealAfter?: "teaching_complete";
   commands: VerifiedDiagramCommand[];
 }
 

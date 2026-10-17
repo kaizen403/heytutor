@@ -30,6 +30,7 @@ import { DSA_CODE_PANEL_RECT, DSA_DIAGRAM_ZONE } from "../../constants";
 import { buildLabelGlossary } from "./labelGlossary";
 import { hinglishFigureNarration } from "./figureNarrationLanguage";
 import { isDsaConstructionGuide } from "./diagramInk";
+import { answerLabelPrimitiveIds } from "./answerLabelReveal";
 
 /** Named axis marks stay small so they read as dots, not hollow letters. */
 const DIAGRAM_POINT_RADIUS = 2;
@@ -63,6 +64,7 @@ export function buildVerifiedDiagramPresentation(
   const layout = labelLayoutFor(options.layout ?? "standard");
   const source = document.source as Record<string, unknown> | undefined;
   const nonMetric = source?.nonMetric === true;
+  const answerIds = options.layout === "code_lesson" ? new Set<string>() : answerLabelPrimitiveIds(document, renderScene.primitives);
   const representationTier = typeof source?.representationTier === "string"
     ? source.representationTier
     : "exact_verified";
@@ -161,6 +163,7 @@ export function buildVerifiedDiagramPresentation(
         command,
         annotateTargetIds,
         options.layout === "code_lesson",
+        answerIds.has(primitive.id),
       ) ?? (holdLaterDsaFrames && primitive.groupId !== introGroupId ? "frame" : null);
       const index = add(primitive.groupId, commandPhase, styled, { reveal: deferReason === null });
       if (deferReason !== null && index !== null) {
@@ -169,6 +172,7 @@ export function buildVerifiedDiagramPresentation(
           entityId: primitive.entityId,
           groupId: primitive.groupId,
           pullable: deferReason === "named",
+          ...(deferReason === "answer" ? { revealAfter: "teaching_complete" as const } : {}),
         });
       }
     }
@@ -292,6 +296,7 @@ export function buildVerifiedDiagramPresentation(
   const drawnTextByEntity = new Map<string, string>();
   for (const primitive of renderScene.primitives) {
     if (primitive.kind !== "label" && primitive.kind !== "dimension") continue;
+    if (answerIds.has(primitive.id)) continue;
     const text = primitive.text?.trim();
     if (!text) continue;
     // Composite entities carry content glyphs as well as their own name.
@@ -315,15 +320,23 @@ export function buildVerifiedDiagramPresentation(
     return role ? [`[FOCUS:${anchor.id}] means ${role}`] : [];
   }).join("; ");
   const groupTargets = groups.map((group) => group.id).join(", ");
-  const deferredByEntity = new Map<string, VerifiedDiagramCommand[]>();
+  const deferredByEntity = new Map<string, { entityId: string; revealAfter?: "teaching_complete"; commands: VerifiedDiagramCommand[] }>();
   for (const entry of deferred) {
     if (pulled.has(entry.index)) continue;
-    const existing = deferredByEntity.get(entry.entityId) ?? [];
-    existing.push(commands[entry.index]!);
-    deferredByEntity.set(entry.entityId, existing);
+    const key = `${entry.entityId}:${entry.revealAfter ?? "named"}`;
+    const existing = deferredByEntity.get(key) ?? { entityId: entry.entityId, ...(entry.revealAfter ? { revealAfter: entry.revealAfter } : {}), commands: [] };
+    existing.commands.push(commands[entry.index]!);
+    deferredByEntity.set(key, existing);
   }
-  const deferredIds = [...deferredByEntity.keys()].join(", ");
+  const hasCompletionOnlyAnswers = [...deferredByEntity.values()].some((entry) => entry.revealAfter);
+  const deferredIds = [...new Set([...deferredByEntity.values()].filter((entry) => !entry.revealAfter).map((entry) => entry.entityId))].join(", ");
   const hasDrawableInk = verifiedDiagramHasDrawableInk({ commands });
+  const teachingNotes = Array.isArray(source?.teachingNotes)
+    ? source.teachingNotes.filter((note): note is string => typeof note === "string" && Boolean(note.trim())).map((note) => note.trim())
+    : [];
+  const familyTeachingContext = teachingNotes.length > 0
+    ? `\nFamily teaching context for this compiled figure:\n${teachingNotes.map((note) => `- ${note}`).join("\n")}\nExplain the law’s conditions before applying it, and define quantities and units before examples. This teaching context supplies no new numeric givens or diagram authority.\n`
+    : "";
   const diagram: VerifiedDiagram = {
     id: "verified_scene",
     name: nonMetric ? "source-grounded conceptual representation" : "validated semantic scene",
@@ -337,10 +350,7 @@ export function buildVerifiedDiagramPresentation(
     // reading scale, so the student does not need that line on the board.
     caption: hasDrawableInk ? visibleFigureCaption(renderScene.caption) : undefined,
     layout: options.layout === "code_lesson" ? "code_lesson" : undefined,
-    deferredAnnotations: [...deferredByEntity.entries()].map(([entityId, deferredCommands]) => ({
-      entityId,
-      commands: deferredCommands,
-    })),
+    deferredAnnotations: [...deferredByEntity.values()],
     // Symbols on the figure stay short; the expansion and solved value travel
     // alongside so the board can answer "what is R_1?" without re-deriving it.
     labelGlossary: buildLabelGlossary(document),
@@ -354,7 +364,7 @@ Verified meaning of each focus target: ${targetMeanings || "none"}. A target den
 Parts with no label on the board: ${unnamedTargets || "none"}. You may FOCUS these, but do not give them a name aloud and do not claim the figure marks them.
 Reveal groups, which are sets of the parts above and not objects in their own right: ${groupTargets || "none"}. Never describe a group as a component, a block, an instrument, or a piece of apparatus.
 Optional FOCUS forms: [FOCUS:entity_id], [FOCUS:entity_id|spotlight], [FOCUS:entity_id|pulse], or a reveal-group id.
-When you say what a labeled point is, for example the object O or the image I, the tag follows the name inside the sentence. FOCUS also reveals that entity's withheld label.
+When you say what a labeled point is, for example the object O or the image I, the tag follows the name inside the sentence. ${hasCompletionOnlyAnswers ? "FOCUS reveals setup labels, but FOCUS and ANNOTATE cannot reveal computed answers. Derive them in the work column; the runtime adds the verified answer labels after teaching finishes." : "FOCUS also reveals that entity's withheld label."}
 To box the current work-area equation and highlight its result, use [EMPHASIZE:last]. To reveal a withheld measurement, enclose, or other compiled annotation, use [ANNOTATE:entity_id] with one of: ${deferredIds || "none"}.
 Do not describe marker movement or pretend to add, point at, circle, or redraw anything. Say "notice", "follow", "look at", or "this is" the named entity when using FOCUS.
 Refer to diagram entities by their visible labels in narration.
@@ -366,7 +376,7 @@ ${options.layout === "code_lesson"
 This turn overrides the FOCUS instructions above. A [FOCUS] here names a FRAME from the FIGURE BEATS list, not an entity: the runtime advances the worked example to that frame and puts the spotlight on the part of it that changed. No frame is on the board to begin with: the first [FOCUS] draws the first frame. Do not focus entity ids, and do not focus anything on a step that reveals code. If FIGURE BEATS says there are none, the figure does not move and you must not use [FOCUS] at all.
 Always write it as [FOCUS:frame_id|spotlight], at most one per step. Never a bare [FOCUS:id], never |pulse, and never traces, underlines, or circles.`
   : "WRITE the left work column as the student notebook: names, definitions, relations, substitutions, and results (x below 360). Short phrases are allowed. Do not save writing for the last line, and do not speak a step with the marker parked."}
-The scene engine owns all diagram geometry, labels, annotations, directions, connections, and markings.`,
+The scene engine owns all diagram geometry, labels, annotations, directions, connections, and markings.${familyTeachingContext}`,
   };
 
   const spokenIntro = collapseIntroSpeech(introSegments, {
@@ -513,6 +523,7 @@ interface DeferredCommand {
   groupId: string;
   /** A label or dimension waiting for its name, which the intro may speak. */
   pullable: boolean;
+  revealAfter?: "teaching_complete";
 }
 
 /**
@@ -528,7 +539,8 @@ function deferralReason(
   command: VerifiedDiagramCommand,
   annotateTargetIds: Set<string>,
   codeLesson = false,
-): "annotation" | "named" | null {
+  answer = false,
+): "annotation" | "named" | "answer" | null {
   // DSA figures are a worked example, not a physics apparatus. Values and
   // indices belong on the boxes as they appear — holding them for FOCUS
   // made later rows look empty while FOCUS traces struck through the first.
@@ -538,6 +550,7 @@ function deferralReason(
       ? "annotation"
       : null;
   }
+  if (answer) return "answer";
   if (primitive.provenance?.matrixCell) return null;
   const annotationId = typeof primitive.provenance?.annotationId === "string"
     ? primitive.provenance.annotationId

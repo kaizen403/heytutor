@@ -32,6 +32,21 @@ The flag does not enter planner requests or selection inputs. Run
 `pnpm --filter @heytutor/tutor verify:early-opening` for actual-hook OFF/ON figure
 parity, and measure useful teaching separately from acknowledgement readiness.
 
+### Verified answer labels
+
+Setup labels and givens retain their named reveals. A label bound to a derived
+quantity, or an unambiguous assigned derived symbol, waits until teaching
+finishes; bare symbols and declared-unit unknown placeholders stay setup.
+The exact compiled label, its leader, and an answer dimension's bar/witnesses
+share this completion policy without moving geometry. FOCUS and ANNOTATE do
+not release it. Live completion waits for speech and drawing; replay/export
+wait for the turn's last completed cue. Completion peeks one mark and
+acknowledges it only after accepted ink finishes while the owner is current.
+Cancellation or rejection preserves the in-flight mark and undrawn suffix for
+the same board's resumed completion. Historical trusted intro commands receive the same
+projection without changing stored narration, audio, WRITE offsets, or records.
+DSA frame/cell reveal ownership is unchanged.
+
 ## High-Level Flow
 
 The main live path is:

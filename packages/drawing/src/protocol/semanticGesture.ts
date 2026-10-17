@@ -136,6 +136,7 @@ export function takeDeferredAnnotations(
   if (entityIds.size === 0) return [];
   const taken: VerifiedDiagramCommand[] = [];
   diagram.deferredAnnotations = diagram.deferredAnnotations.filter((entry) => {
+    if (entry.revealAfter === "teaching_complete") return true;
     const matchesEntity = entityIds.has(entry.entityId.toLowerCase()) ||
       entry.entityId.split(",").some((id) => entityIds.has(id.trim().toLowerCase()));
     if (!matchesEntity) return true;
@@ -143,6 +144,22 @@ export function takeDeferredAnnotations(
     return false;
   });
   return taken;
+}
+
+/** Hold the current mark until its asynchronous ink has completed successfully. */
+export function peekDeferredAnnotation(diagram: VerifiedDiagram): VerifiedDiagramCommand | undefined {
+  const entries = diagram.deferredAnnotations;
+  while (entries?.length && entries[0]!.commands.length === 0) entries.shift();
+  return entries?.[0]?.commands[0];
+}
+
+/** A stale consumer cannot acknowledge a different command or a newer queue. */
+export function acknowledgeDeferredAnnotation(diagram: VerifiedDiagram, command: VerifiedDiagramCommand): boolean {
+  if (peekDeferredAnnotation(diagram) !== command) return false;
+  const entries = diagram.deferredAnnotations!;
+  entries[0]!.commands.shift();
+  if (entries[0]!.commands.length === 0) entries.shift();
+  return true;
 }
 
 export function remainingDeferredAnnotations(diagram: VerifiedDiagram): VerifiedDiagramCommand[] {
