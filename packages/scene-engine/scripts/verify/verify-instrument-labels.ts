@@ -5,11 +5,13 @@ import { compileSceneDocument } from "../../src/compile/compiler";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../../src/document/validation";
 import { measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
 
-for (const question of [
-  "Draw a labelled diagram for Using vernier callipers to measure internal diameter, external diameter, and depth. Mark the named measured length.",
-  "Draw a labelled diagram for Zero error of a vernier calliper. Mark the named measured length.",
-  "Draw a labelled diagram of a screw gauge with pitch 1 mm and 50 circular scale divisions.",
-]) {
+for (const [question, expectedCaption, expectedCoincidence, division] of [
+  ["Draw a labelled diagram for Using vernier callipers to measure internal diameter, external diameter, and depth. Mark the named measured length.", "vernier scale", "coincidence", 4],
+  ["Draw a labelled diagram for Zero error of a vernier calliper. Mark the named measured length.", "vernier scale", "coincidence", 3],
+  ["Draw a vernier calliper with main scale reading 23 mm, least count 0.1 mm and the 4th vernier division coinciding.", "10 div = 9 mm", "4th", 4],
+  ["Draw a labelled diagram of a screw gauge.", undefined, undefined, undefined],
+  ["Draw a labelled diagram of a screw gauge with pitch 1 mm and 50 circular scale divisions.", undefined, undefined, undefined],
+] as const) {
   const match = detectArchetype(question);
   assert.ok(match, "the supported instrument must be recognized");
   const raw = generatorFor(match.id)!({ question, slots: match.slots, sources: match.sources, quantities: [], schematic: false });
@@ -18,7 +20,8 @@ for (const question of [
   assert.ok(captions.length > 0);
   assert.ok(captions.every((entity) => entity.kind === "label"), "computed instrument text anchors are labels rather than physical point dots");
   if (match.id === "vernier_calliper") {
-    assert.equal(raw.entities.find((entity) => entity.id === "vs_caption")?.label, "10 div = 9 mm", "the compact source caption preserves the full verified vernier ratio");
+    assert.equal(raw.entities.find((entity) => entity.id === "vs_caption")?.label, expectedCaption, "only an explicit scale may print a numeric vernier ratio");
+    assert.equal(raw.entities.find((entity) => entity.id === "coincide_mark")?.label, expectedCoincidence, "only an explicit reading may name its numeric coincidence");
   }
   const validated = validateSceneDocument(pruneDeadSceneEntities(raw as unknown as Record<string, unknown>));
   assert.ok(validated.document, "the instrument remains a valid operator program");
@@ -53,11 +56,11 @@ for (const question of [
     }
   }
   if (match.id === "vernier_calliper") {
-    assert.equal(primitives.find((primitive) => primitive.entityId === "vs_caption" && primitive.kind === "label")?.text, "10 div = 9 mm", "the rendered caption retains the full source value");
+    assert.equal(primitives.find((primitive) => primitive.entityId === "vs_caption" && primitive.kind === "label")?.text, expectedCaption, "rendering retains the symbolic or source-backed caption");
     const label = primitives.find((primitive) => primitive.entityId === "coincide_mark" && primitive.kind === "label")!;
     const leader = primitives.find((primitive) => primitive.entityId === "coincide_mark" && primitive.provenance?.labelLeader === true);
     assert.ok(leader, "moved coincidence text retains an explicit precise connector");
-    const division = Number.parseInt(label.text!, 10);
+    assert.equal(label.text, expectedCoincidence);
     const tick = primitives.find((primitive) => primitive.entityId === `vs${division}`)!;
     const plate = primitives.find((primitive) => primitive.entityId === "vernier_plate")!;
     assert.ok(Math.abs(leader.points[0]!.x - tick.points[0]!.x) <= 0.011, "coincidence connector marks the computed division exactly");

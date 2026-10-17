@@ -4,7 +4,7 @@
  * runtime renders as ⊗ / ⊙ markers.
  */
 import { SceneBuilder, fmt, withUnit, type Vec2 } from "../document";
-import { grounded, maybeNum, num, numbers, text, valueLabel, type GeneratorContext, type GeneratorTable } from "./context";
+import { angleLabel, derivedLabel, grounded, maybeNum, num, numbers, text, valueLabel, type GeneratorContext, type GeneratorTable } from "./context";
 import { parseResistorTree, type ResistorTree } from "../resistorTree";
 import { numbersWithUnit, UNIT } from "../slots";
 
@@ -73,8 +73,8 @@ function dipoleInField(context: GeneratorContext) {
   const theta = num(context, "theta", 30);
   const half = 1.3;
   const axis: Vec2 = { x: Math.cos(theta * Math.PI / 180), y: Math.sin(theta * Math.PI / 180) };
-  const scene = new SceneBuilder(context.question, `electric dipole at ${fmt(theta)}° to a uniform field`, "dipole_in_field");
-  scene.quantity("theta", "theta", theta, "degree");
+  const scene = new SceneBuilder(context.question, "electric dipole in a uniform field", "dipole_in_field");
+  if (grounded(context, "theta")) scene.quantity("theta", "theta", theta, "degree");
   for (let index = 0; index < 4; index += 1) {
     scene.point(`E${index}_a`, { x: -3.2, y: -1.5 + index }, "field line start");
     scene.vector(`E${index}`, `E${index}_a`, { direction: { x: 1, y: 0 }, length: 6.4 }, "uniform electric field", index === 3 ? "E" : undefined);
@@ -86,7 +86,7 @@ function dipoleInField(context: GeneratorContext) {
   scene.vector("p", "O", { direction: axis, length: 2.2 }, "dipole moment", "p");
   scene.point("ref_end", { x: 2.2, y: 0 }, "field direction reference end");
   scene.segment("ref", "O", "ref_end", "field direction reference");
-  scene.angleMark("angle", "O", "p", "ref", `θ=${fmt(theta)}°`);
+  scene.angleMark("angle", "O", "p", "ref", angleLabel(context, "theta"));
   scene.vector("F_pos", "pos", { direction: { x: 1, y: 0 }, length: 1.1 }, "force on +q", "qE");
   scene.vector("F_neg", "neg", { direction: { x: -1, y: 0 }, length: 1.1 }, "force on −q", "qE");
   scene.assert("dipole_angle", "angle_between", ["p", "ref"], { value: theta, unit: "degree" });
@@ -578,10 +578,10 @@ function meterBridge(context: GeneratorContext) {
   const balance = maybeNum(context, "balance");
   const l = balance !== null && balance > 0 && balance < 100 ? balance : 50;
   const known = maybeNum(context, "known");
-  const scene = new SceneBuilder(context.question, `metre bridge balanced at ${fmt(l)} cm along the wire`, "meter_bridge");
+  const scene = new SceneBuilder(context.question, "metre bridge balanced along the wire", "meter_bridge");
   if (balance !== null && grounded(context, "balance")) scene.quantity("l", "l", balance, "cm");
   scene.point("A", { x: 0, y: 0 }, "wire end", "A");
-  scene.point("J", { x: l / 10, y: 0 }, "jockey contact", `J (${fmt(l)} cm)`);
+  scene.point("J", { x: l / 10, y: 0 }, "jockey contact", derivedLabel(context, ["balance"], `J (${fmt(l)} cm)`, "J"));
   scene.point("C", { x: 10, y: 0 }, "wire end", "C");
   scene.symbol("wire_AJ", "resistor", "A", "J", "bridge wire, left of the jockey", "l");
   scene.symbol("wire_JC", "resistor", "J", "C", "bridge wire, right of the jockey", "100−l");
@@ -632,10 +632,10 @@ function potentiometer(context: GeneratorContext) {
   const wireLength = maybeNum(context, "wireLength");
   const total = wireLength !== null && wireLength > 0 ? wireLength * (wireLength < 20 ? 100 : 1) : 100;
   const l = balance !== null && balance > 0 && balance < total ? balance : total * 0.6;
-  const scene = new SceneBuilder(context.question, `potentiometer balanced at ${fmt(l)} cm from the end A`, "potentiometer");
+  const scene = new SceneBuilder(context.question, "potentiometer balanced from the end A", "potentiometer");
   if (balance !== null && grounded(context, "balance")) scene.quantity("l", "l", balance, "cm");
   scene.point("A", { x: 0, y: 0 }, "wire end", "A");
-  scene.point("J", { x: 10 * l / total, y: 0 }, "jockey contact", `J (${fmt(l)} cm)`);
+  scene.point("J", { x: 10 * l / total, y: 0 }, "jockey contact", derivedLabel(context, ["balance"], `J (${fmt(l)} cm)`, "J"));
   scene.point("B", { x: 10, y: 0 }, "wire end", "B");
   scene.symbol("wire_AJ", "resistor", "A", "J", "potentiometer wire, A to the jockey", "l");
   scene.symbol("wire_JB", "resistor", "J", "B", "potentiometer wire, jockey to B", "L−l");
