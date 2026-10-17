@@ -28,6 +28,12 @@ for (const pointStyle of ["filled", "cross"] as const) {
     const leader = scene.primitives.find(p => p.id === "duration_label_leader")!;
     const line = scene.primitives.find(p => p.entityId === "stage" && p.kind === "line")!;
     assert(Math.abs(leader.points[0]!.x - (line.points[0]!.x + line.points[1]!.x) / 2) < 0.03, "interval annotation must attach to its span, not just the first endpoint");
+    d.annotations[0]!.text = "t_stage = 4 s";
+    const named = compile(d);
+    const legacy = compileWithPolicy(d, { yieldPolicy: "off" });
+    assert(legacy.ok && legacy.renderScene);
+    assert.deepEqual(named.primitives, legacy.renderScene.primitives,
+        "a named interval quantity keeps its established label placement");
 }
 {
     const d = structuredClone(base);

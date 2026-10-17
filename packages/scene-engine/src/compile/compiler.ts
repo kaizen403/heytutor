@@ -636,7 +636,9 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     if (!targetId) continue;
     const target = geometry.get(targetId);
     const targetEntity = document.entities.find((entity) => entity.id === targetId);
-    const intervalTargets = verifiedPartsEnabled && annotation.kind === "callout" && annotation.targetIds.length === 2
+    // A bare number can masquerade as the first point's coordinate. Named
+    // quantities already identify the interval and keep their proven placement.
+    const intervalTargets = verifiedPartsEnabled && annotation.kind === "callout" && annotation.targetIds.length === 2 && /^[+−-]?\d/.test((annotation.text ?? "").trim())
       ? annotation.targetIds.map(id => ({ id, value: geometry.get(id) })) : [];
     if (intervalTargets.length === 2 && intervalTargets.every(t => t.value?.kind === "point")) {
       const anchors = intervalTargets.map(t => transformPlan.transformFor(t.id)((t.value as Extract<Geometry, {kind:"point"}>).point));
