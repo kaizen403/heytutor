@@ -201,6 +201,18 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
  * protect the JSON boundary, so reject malformed or internally inconsistent
  * facts before they become authoritative for the scene and narration.
  */
+/** One atomic wrapper around the established public arithmetic contract.
+ * Experimental unit-power admission remains unactivated: every consumer sees
+ * exactly the same validation result and no parser-only second chance.
+ */
+export function admitTurnPlanV3(raw: unknown, expectedQuestion?: string): {
+  arithmetic: TurnPlanArithmeticReconciliationResult;
+  validation: TurnPlanValidationResult;
+} {
+  const arithmetic = reconcileTurnPlanV3ExplicitArithmetic(raw);
+  return { arithmetic, validation: validateTurnPlanV3(arithmetic.plan, expectedQuestion) };
+}
+
 export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): TurnPlanValidationResult {
   const issues: TurnPlanValidationIssue[] = [];
   if (!isRecord(raw)) {

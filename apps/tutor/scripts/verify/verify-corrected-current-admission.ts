@@ -43,6 +43,26 @@ function check(name: string, test: () => void): void {
 
 const corrections: ReadonlyArray<readonly [string, string, number | null, string?]> = [
   ["plain", "4 A", 48],
+  ["curly quoted", "“4 A”", 48],
+  ["quoted", '\"4 A\"', 48],
+  ["bracketed", "[4 A]", 48],
+  ["apostrophe", "4 A’", 48],
+  ["em dash", "4 A—find V", 48],
+  ["ellipsis", "4 A…", 48],
+  ["latex thinspace", String.raw`4\,A`, 48],
+  ["latex unit", String.raw`4 \mathrm{A}`, 48],
+  ["latex exponent", String.raw`4 \times 10^{0} A`, 48],
+  ["number word", "four amperes", 48],
+  ["number word amps", "four amps", 48],
+  ["bare number", "4", 48],
+  ["charge rate", "4 C/s", 48],
+  ["charge rate superscript", "4 C s⁻¹", 48],
+  ["bare power", "10³ A", 12000],
+  ["resistance word", "sixteen ohms", 48, "resistance"],
+  ["volts per ampere", "16 V/A", 48, "resistance"],
+  ["ohm sign", "16 Ω", 48, "resistance"],
+  ["relative doubled", "doubled", 72],
+  ["relative twice", "twice that", 72],
   ["ASCII zero power", "4 × 10^0 A", 48],
   ["ASCII positive power", "0.4 × 10^+1 A", 48],
   ["ASCII negative power", "40 × 10^-1 A", 48],
@@ -77,7 +97,7 @@ for (const [name, correction, expectedVoltage, quantity] of corrections) {
   }
 }
 
-const controls = [
+const previousRestatements = [
   ["matching plain current", candidate(question("3 A")), 36],
   ["matching superscript zero", candidate(question("3 × 10⁰ A")), 36],
   ["matching ASCII zero power", candidate(question("3 × 10^0 A")), 36],
@@ -91,6 +111,19 @@ const controls = [
   ["actual bound 4 A", candidate("Given A = 0.8 mm², I = 4 A, R = 12 Ω. Find V.", 4, 48), 48],
   ["actual bound scientific 4 A", candidate("Given A = 0.8 mm², I = 4 A, R = 12 Ω. Correction: actual current is 4 × 10⁰ A. Find V.", 4, 48), 48],
 ] as const;
+// The narrow recovery proves only three complete source assignments. These
+// restatements were already unsupported on main; do not treat unread prose
+// as evidence that grants the stale operand a different meaning.
+const controls = [
+  ["plain grounded product", candidate("Given A = 0.8 mm², I = 3 A, R = 12 Ω. Find V."), 36],
+  previousRestatements[10],
+] as const;
+const unsupportedRestatements = previousRestatements.filter((_, index) => index !== 10);
+for (const [name, plan] of unsupportedRestatements) {
+  for (const [seam, raw] of [["raw", plan], ["reconciled", reconcileTurnPlanV3ExplicitArithmetic(plan).plan]] as const) {
+    check(`${name} / ${seam} unsupported`, () => assert.equal(validateTurnPlanV3(raw, plan.question).valid, false));
+  }
+}
 for (const [name, supported, expectedVoltage] of controls) {
   check(`${name} / validate`, () => {
     const admitted = validateTurnPlanV3(supported, supported.question);
@@ -117,6 +150,9 @@ async function finish(): Promise<void> {
         assert.ok(admitted === null || admitted.derived.find((quantity) => quantity.symbol === "V")?.value === expectedVoltage,
           "live parser must reject the stale candidate or admit the corrected voltage");
       });
+    }
+    for (const [name, unsupported] of unsupportedRestatements) {
+      check(`${name} / built parser unsupported`, () => assert.equal(parseTurnPlanV3Content(JSON.stringify(unsupported), unsupported.question), null));
     }
     for (const [name, supported, expectedVoltage] of controls) {
       check(`${name} / built live parser`, () => {

@@ -352,7 +352,7 @@ function runActualNoLessonPath(path: NoLessonPath,
   page.failureTelemetry = { subject: "physics" };
   const errors: unknown[] = [];
   const result = vm.runInNewContext(code, {
-    page, resumeInkGate: path === "resume_without_ink" ? { hasInk: () => false } : null,
+    saveExit: {}, page, resumeInkGate: path === "resume_without_ink" ? { hasInk: () => false } : null,
     resume: path === "resume_without_ink" ? { lessonQuestion: "Synthetic private question" } : null,
     resumeInkAttempts: 1, turnCancelled: false, question: "Synthetic private question",
     STREAM_SEGMENTS_LIVE: path !== "empty_response", usableTeachingStepReceived: path === "healthy",

@@ -281,7 +281,7 @@ export function useTurnControl(
           // history or publish an error against the replacement turn.
           if (!counted() || cancelRef.current) return;
           consecutiveSegmentFailuresRef.current += 1;
-          liveTurnSave().markSegmentFailed(cancelRef, turnGeneration);
+          if (segmentPage && segmentPage === boardPageRef.current && segmentPage.boardId === sessionId) liveTurnSave().markSegmentFailed(cancelRef, turnGeneration);
           console.error(`Segment ${index} failed:`, error);
           tutorDebug("segment", "segment failed", {
             index,
@@ -549,7 +549,7 @@ export function useTurnControl(
           // from the turn that has already replaced it.
           if (counted()) {
             if (!cancelRef.current) {
-              liveTurnSave().markSegmentFailed(cancelRef, turnGeneration);
+              if (introPage && introPage === boardPageRef.current && introPage.boardId === sessionId) liveTurnSave().markSegmentFailed(cancelRef, turnGeneration);
               const failure = { message: "The lesson could not finish its opening. Please try again.", question: liveQuestionRef.current };
               setLastError(failure);
               onError?.(failure);
@@ -1562,18 +1562,6 @@ export function useTurnControl(
       }
       return null;
     }
-    const pending = pausedLessonRef.current;
-    const sameParent = pending?.parentTurnId
-      ? pending.parentTurnId === restored.parentTurnId
-      : Boolean(pending?.parentTraceId && pending.parentTraceId === restored.parentTraceId);
-    if (sameParent && pending?.boardId === sessionId && pending.lessonQuestion === restored.lessonQuestion) {
-      // An authenticated same-parent refresh must not replace privately kept
-      // intake/observer context with a legacy normalized header. Diagnostics
-      // never stand for figure authority; the stored scene is still rechecked.
-      restored = { ...restored, originalQuestion: pending.originalQuestion ?? restored.originalQuestion,
-        figureSubject: sanitizeFigureSubject(pending.figureSubject),
-        figureDiagnostics: sanitizeFigureDiagnostics(pending.figureDiagnostics) };
-    }
     if (refreshVisible) {
       if (!refreshBoardFromTurns || boardShowsStoppedReplayRef.current ||
         (boardPageRef.current && boardPageRef.current.boardId !== sessionId)) return null;
@@ -1611,6 +1599,17 @@ export function useTurnControl(
     }
     restored = recovery.request;
     const pending = pausedLessonRef.current;
+    const sameParent = pending?.parentTurnId
+      ? pending.parentTurnId === restored.parentTurnId
+      : Boolean(pending?.parentTraceId && pending.parentTraceId === restored.parentTraceId);
+    if (sameParent && pending?.boardId === sessionId && pending.lessonQuestion === restored.lessonQuestion) {
+      // An authenticated same-parent refresh must not replace privately kept
+      // intake/observer context with a legacy normalized header. Diagnostics
+      // never stand for figure authority; the stored scene is still rechecked.
+      restored = { ...restored, originalQuestion: pending.originalQuestion ?? restored.originalQuestion,
+        figureSubject: sanitizeFigureSubject(pending.figureSubject),
+        figureDiagnostics: sanitizeFigureDiagnostics(pending.figureDiagnostics) };
+    }
     const visiblePage = boardPageRef.current;
     // A saved-row refresh has not redrawn this in-tab page. The canonical
     // saved figure is whole, but its missing visible beats are still owed.

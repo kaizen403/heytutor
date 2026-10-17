@@ -172,11 +172,10 @@ for (const value of [6, 24]) {
     assumptions: [],
   };
   const before = JSON.stringify(plan);
-  assert.equal(validateTurnPlanV3(plan).valid, value === 6);
-  const admitted = parseTurnPlanV3Content(before, question);
-  assert(admitted);
-  assert.equal(admitted.derived[0]?.value, 6);
-  assert.equal(admitted.derived[0]?.unit, "V");
+  // A fourth numeric source clause is outside the three-assignment recovery.
+  // Its unread meaning cannot authorize a scientific atom or a stale product.
+  assert.equal(validateTurnPlanV3(plan).valid, false);
+  assert.equal(parseTurnPlanV3Content(before, question), null);
   assert.equal(JSON.stringify(plan), before);
   checks += 1;
 }

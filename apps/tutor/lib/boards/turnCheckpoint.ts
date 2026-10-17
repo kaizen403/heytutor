@@ -741,7 +741,7 @@ async function applyCheckpoint(
       candidates: [],
       diagramResultStatus: "text_only" as const,
       ...canonical.value.sceneArtifacts,
-      failureTelemetry: { ...canonical.value.sceneArtifacts?.failureTelemetry, subject: canonical.value.sceneArtifacts?.failureTelemetry?.subject ?? "other", failed: true, stage: "teaching", code: "lesson_not_taught" },
+      failureTelemetry: { ...canonical.value.sceneArtifacts?.failureTelemetry, subject: canonical.value.sceneArtifacts?.failureTelemetry?.subject ?? "other", failed: true, stage: "teaching" as const, code: "lesson_not_taught" as const },
     };
     canonical.value.sceneArtifacts = failedDelivery;
   }

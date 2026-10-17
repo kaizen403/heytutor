@@ -30,7 +30,10 @@ import type { SceneDocument, TurnPlanV3 } from "@heytutor/scene-engine";
 import * as selection from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import type { ValidatedSceneCandidate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 
-const { selectProductionScene, validateProductionSceneCandidate } = selection;
+const { selectProductionScene } = selection;
+// The proposal is opt-in. This gate exercises its ON contract explicitly.
+const validateProductionSceneCandidate = (input: Parameters<typeof selection.validateProductionSceneCandidate>[0]) =>
+  selection.validateProductionSceneCandidate({ ...input, experimentalCompleteness: true });
 
 const question = "In triangle ABC, angle B = 50°. Sketch the triangle.";
 const plan: TurnPlanV3 = {
@@ -83,6 +86,11 @@ const sparse = triangle({});
 const complete = triangle({ markAngle: true });
 const invalidComplete = triangle({ markAngle: true, failProof: true });
 const decorated = triangle({ decoration: true });
+const offSparse = selection.validateProductionSceneCandidate({ candidate: sparse, question, turnPlan: plan });
+const offComplete = selection.validateProductionSceneCandidate({ candidate: complete, question, turnPlan: plan });
+assert(offSparse.valid && offComplete.valid);
+assert.equal(offSparse.value?.completeness, undefined, "default path does not run the experimental checklist");
+assert((offSparse.qualityScore ?? Infinity) < (offComplete.qualityScore ?? 0), "default ranking preserves the existing cost order");
 const validate = (document: SceneDocument, turnPlan: TurnPlanV3 = plan) =>
   validateProductionSceneCandidate({ candidate: structuredClone(document) as unknown as Record<string, unknown>, question, turnPlan });
 const baseScore = (validation: SceneCandidateValidation<ValidatedSceneCandidate>) =>
@@ -176,7 +184,7 @@ async function main(): Promise<void> {
   // 6. Live and lab share this validator for the search and the revalidation.
   for (const consumer of ["features/tutor-session/hooks/turn/useQuestionHandler.ts", "scripts/lecture-lab/lecturePipeline.ts"]) {
     const source = readFileSync(resolve(process.cwd(), consumer), "utf8");
-    assert(/validateCandidateAgainstPlan = \([\s\S]{0,400}validateProductionSceneCandidate\(\{ candidate, question, turnPlan: authoritativePlan \}\)/.test(source),
+    assert(/validateCandidateAgainstPlan = \([\s\S]{0,400}validateProductionSceneCandidate\(\{ candidate, question, turnPlan: authoritativePlan,[^}]{0,260}experimentalCompleteness: process\.env\.NEXT_PUBLIC_EXPERIMENTAL_SCENE_COMPLETENESS === "1" \}\)/.test(source),
       `${consumer}: candidates are validated (and ranked) by validateProductionSceneCandidate`);
     assert(/planSceneDocumentWithRepair\([\s\S]{0,300}validateCandidateAgainstPlan\(candidate, planningTurnPlan\)/.test(source),
       `${consumer}: the planner search ranks with the shared validator`);
@@ -319,7 +327,7 @@ async function main(): Promise<void> {
   // Live and lab wire the round the same way, with the shared validator bound to the authoritative plan.
   for (const consumer of ["features/tutor-session/hooks/turn/useQuestionHandler.ts", "scripts/lecture-lab/lecturePipeline.ts"]) {
     const source = readFileSync(resolve(process.cwd(), consumer), "utf8");
-    assert(/complete: \(gate, sceneResult, authoritativeTurnPlan, round\) =>[\s\S]{0,200}completeScenePlanWithRepairResult\(\s*question,\s*sceneResult,\s*\(candidate\) => validateCandidateAgainstPlan\(candidate, authoritativeTurnPlan/.test(source),
+    assert(/complete: process\.env\.NEXT_PUBLIC_EXPERIMENTAL_SCENE_COMPLETENESS === "1" \? \(gate, sceneResult, authoritativeTurnPlan, round\) =>[\s\S]{0,200}completeScenePlanWithRepairResult\(\s*question,\s*sceneResult,\s*\(candidate\) => validateCandidateAgainstPlan\(candidate, authoritativeTurnPlan/.test(source),
       `${consumer}: the completeness round validates with the shared validator on the authoritative plan`);
     assert(/remainingMs: round\.remainingMs,\s*requestBudget: round\.requestBudget,/.test(source),
       `${consumer}: the round gets the overlap's deadline and the turn's request budget`);
