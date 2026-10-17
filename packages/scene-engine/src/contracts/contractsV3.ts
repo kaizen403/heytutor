@@ -117,6 +117,7 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
     return corrected;
   });
   const knownUnits = collectPlanUnits(raw);
+  const sourceQuestion = raw.question;
   const bindingMeta: NumericBindingMetaMap = new Map();
   const numericBindings = collectNumericBindings(
     givens,
@@ -146,7 +147,7 @@ export function reconcileTurnPlanV3ExplicitArithmetic(
       numericBindings,
       true,
       [value.id, value.symbol].filter((key): key is string => typeof key === "string"),
-      { bindingMeta, declaredValue: value.value },
+      { bindingMeta, declaredValue: value.value, suppliedGivens: givens, question: sourceQuestion },
     );
     const agrees = evidence.value !== null && approximatelyEqual(evidence.value, value.value);
     if (evidence.mixedUnits && !agrees) {
@@ -315,7 +316,7 @@ export function validateTurnPlanV3(raw: unknown, expectedQuestion?: string): Tur
       validationBindings,
       false,
       [value.id, value.symbol].filter((key): key is string => typeof key === "string"),
-      { bindingMeta: validationBindingMeta, declaredValue: value.value },
+      { bindingMeta: validationBindingMeta, declaredValue: value.value, suppliedGivens: prescribedGivens, question: raw.question },
     );
     if (evidence.invalid) {
       issues.push({
@@ -664,6 +665,9 @@ interface ExplicitArithmeticEvidence {
 
 interface ExplicitArithmeticOptions {
   bindingMeta?: NumericBindingMetaMap;
+  /** Original inputs only, never derived assertions, for the narrow A collision. */
+  suppliedGivens?: unknown[];
+  question?: unknown;
   /** The plan's own value, used only to choose between unit readings. */
   declaredValue?: number;
 }
@@ -728,7 +732,8 @@ function evaluateExplicitArithmetic(
   let mixedUnits = false;
   for (const clause of splitArithmeticClauses(readableSource)) {
     const equalityParts = splitEqualityParts(clause).map((member) =>
-      readLiteralVoltOhmQuotient(member, expectedUnit, numericBindings, bindingMeta));
+      readSuppliedAmpereAreaProduct(member, expectedUnit, numericBindings, bindingMeta, options))
+      .map((member) => readLiteralVoltOhmQuotient(member, expectedUnit, numericBindings, bindingMeta));
     if (equalityParts.length < 2) continue;
     const clauseTargetKeys = expandDescriptiveAssignmentTargets(equalityParts, targetKeys);
     let stated: { value: number; tolerance: number } | null = null;
@@ -945,6 +950,100 @@ function evaluateExplicitArithmetic(
         mixedUnits,
       }
     : { value: null, conflicting: true, invalid: false, mixedUnits };
+}
+
+/**
+ * A space-delimited ampere operand in a complete supplied I × R product is
+ * not the area named A. No general unit reading, formula ranking or numeric
+ * trust changes: unsupported products retain the existing reader verbatim.
+ */
+function readSuppliedAmpereAreaProduct(
+  member: string,
+  expectedUnit: unknown,
+  bindings: Map<string, number>,
+  meta: NumericBindingMetaMap,
+  options: ExplicitArithmeticOptions,
+): string {
+  const output = unitScale(expectedUnit);
+  if (output?.signature !== "V^1" || output.factor !== 1) return member;
+  const givens = (options.suppliedGivens ?? []).filter(isRecord);
+  const areas = givens.filter((given) => [given.id, given.symbol].includes("A"));
+  const currents = givens.filter((given) => unitScale(given.unit)?.signature === "A^1");
+  const resistances = givens.filter((given) => unitScale(given.unit)?.signature === "Ω^1");
+  if (areas.length !== 1 || currents.length !== 1 || resistances.length !== 1 ||
+    unitScale(meta.get("A")?.unit)?.signature !== "m^2" || !meta.get("A")?.trusted ||
+    meta.get("A")?.quantity !== areas[0] || bindings.get("A") !== areas[0]!.value) return member;
+  const current = currents[0]!;
+  const resistance = resistances[0]!;
+  // Prefix conversions and multiply sourced inputs remain outside this fix.
+  if (current.provenance !== "given" || resistance.provenance !== "given" ||
+    unitScale(current.unit)?.factor !== 1 || unitScale(resistance.unit)?.factor !== 1 ||
+    typeof current.value !== "number" || typeof resistance.value !== "number") return member;
+  if (typeof options.question !== "string") return member;
+  // This is a backoff check, not numeric authority: conflicting/prefixed source
+  // measurements make the small supported reading ambiguous, even in prose.
+  const measurementText = options.question.replace(/\bamperes?\b/gi, "A");
+  if (/\b(?:pico|nano|micro|milli|centi|kilo|mega|giga)(?:amperes?|amps?|ohms?)\b/i.test(measurementText)) return member;
+  // Read the whole scientific measurement, not an exponent suffix or only its
+  // mantissa, before this narrow guard grants the supplied current authority.
+  for (const match of measurementText.matchAll(measuredValuePattern(true))) {
+    const measurement = parseMeasuredPart(match[0]);
+    // Unit capture 4 follows the mantissa and both exponent spellings. Retain
+    // it even when the numeric reader rejects overflow, so backoff fails closed.
+    const scale = unitScale(match[4]);
+    const input = scale?.signature === "A^1" ? current : scale?.signature === "Ω^1" ? resistance : null;
+    if (input && (scale?.factor !== 1 || measurement?.value !== input.value)) return member;
+  }
+  const sourceClauses = options.question.split(/[,;\n]|\.(?=\s|$)/);
+  for (const quantity of [areas[0]!, current, resistance]) {
+    const primaryKeys = [quantity.id, quantity.symbol].filter((key): key is string => typeof key === "string" && key !== "");
+    const alias = sourceAssignmentAlias(quantity.sourceText);
+    const keys = [...new Set([...primaryKeys, ...(alias ? [alias] : [])])];
+    // A derived assertion must not silently shadow any original input alias.
+    if (keys.some((key) => meta.get(normalizeNumericBindingKey(key))?.quantity !== quantity)) return member;
+    const definitions = sourceClauses.flatMap((clause) => keys.flatMap((key) => {
+      const match = new RegExp(`^\\s*(?:[Gg]iven\\s+)?${escapeRegExp(key)}\\s*=\\s*(.+)$`, "u").exec(clause);
+      return match ? [{ key, measured: parseMeasuredPart(match[1]!) }] : [];
+    }));
+    // Only explicit, role-named source assignments are supported. Neither a
+    // different quantity's matching scalar nor an unsupported formula is proof.
+    if (!definitions.some(({ key }) => primaryKeys.includes(key)) || definitions.some(({ measured }) =>
+      measured === null || measured.unit === null ||
+      convertMeasuredValue(measured.value, measured.unit, quantity.unit) !== quantity.value ||
+      (quantity !== areas[0] && unitScale(measured.unit)?.factor !== 1))) return member;
+    if (quantity.sourceText !== undefined) {
+      const restatement = typeof quantity.sourceText === "string"
+        ? parseMeasuredPart(quantity.sourceText.split(/[=≈≃≅]/).at(-1) ?? "") : null;
+      // The public parser's default "id = value" has no unit. Named source
+      // evidence above supplies it; an explicit contradictory label does not.
+      if (!restatement || (restatement.unit === null ? restatement.value :
+        convertMeasuredValue(restatement.value, restatement.unit, quantity.unit)) !== quantity.value) return member;
+    }
+  }
+  const atomic = (part: string): string => part.trim().replace(/^\(\s*([^()]+)\s*\)$/, "$1").trim();
+  const parts = member.replace(/[×·⋅]/g, "*").replace(/\)\s*\(/g, ")*(").split("*");
+  if (parts.length !== 2) return member;
+  for (const index of [0, 1]) {
+    const currentPart = atomic(parts[index]!);
+    const measured = new RegExp(`^(${NUMBER_SOURCE})\\s+A$`).exec(currentPart);
+    if (!measured || Number(measured[1]!.replace(/−/g, "-")) !== current.value) continue;
+    const other = atomic(parts[1 - index]!);
+    const key = normalizeNumericBindingKey(other);
+    const isSuppliedSymbol = [resistance.id, resistance.symbol].includes(other) &&
+      meta.get(key)?.trusted && meta.get(key)?.quantity === resistance && bindings.get(key) === resistance.value;
+    const literal = parseMeasuredPart(other);
+    const isSuppliedLiteral = literal !== null &&
+      literal.value === resistance.value &&
+      // Word aliases can themselves be segmented into bound operands by the
+      // legacy reader (ohms = ohm × s). Leave those second collisions parked.
+      (literal.unit === null || (literal.unit === "Ω" && !bindings.has("Ω")));
+    if (!isSuppliedSymbol && !isSuppliedLiteral) continue;
+    // Both complete operands are pinned to original coherent givens. Canonical
+    // numeric atoms cannot be reinterpreted as an exponent-named binding.
+    // This is internal only; persisted sourceText and unit scales are unchanged.
+    return `(${current.value})*(${resistance.value})`;
+  }
+  return member;
 }
 
 /** Indices of derived quantities, dependencies (dependsOn) first, stable otherwise. */
@@ -2103,6 +2202,8 @@ function substituteNumericBindings(
 
 interface NumericBindingMeta {
   unit: unknown;
+  /** Identity only for the narrow supplied-product guard, not general trust. */
+  quantity: Record<string, unknown>;
   /** No declared sign and a non-negative value: the binding is a size only. */
   magnitudeOnly: boolean;
   /**
@@ -2149,6 +2250,7 @@ function addNumericBinding(
   if (!isRecord(value) || typeof value.value !== "number" || !Number.isFinite(value.value)) return;
   const entry: NumericBindingMeta = {
     unit: value.unit,
+    quantity: value,
     magnitudeOnly: isMagnitudeOnlyQuantity(value),
     trusted,
   };
@@ -4733,12 +4835,13 @@ function isMagnitudeOnlyQuantity(quantity: Record<string, unknown>): boolean {
     typeof quantity.value === "number" && quantity.value >= 0;
 }
 
-function measuredValuePattern(): RegExp {
+function measuredValuePattern(scientific = false): RegExp {
   // Match the whole physical unit, including powers and compound units.
   // Reading only "m" silently missed speed/acceleration labels at the slash.
   const base = String.raw`(?:ohms?|volts?|amps?|deg(?:rees?)?|°|rad(?:ians?)?|[pnumckMGµμ]?(?:mol|Pa|Hz|Wb|eV|[mgsAKNJWCVFHTLΩ]))`;
   const factor = `${base}(?:\\^?-?\\d+|[²³¹⁰⁻]+)?`;
-  return new RegExp(`(${NUMBER_SOURCE})\\s*(${factor}(?:\\s*(?:[/·⋅*]|\\s+)\\s*${factor})*)(?=\\s|$|[,;).!?:])`, "gi");
+  const number = `(${NUMBER_SOURCE})${scientific ? POWER_OF_TEN_SOURCE : ""}`;
+  return new RegExp(`${number}\\s*(${factor}(?:\\s*(?:[/·⋅*]|\\s+)\\s*${factor})*)(?=\\s|$|[,;).!?:])`, "gi");
 }
 
 function sourceContainsMatchingMeasuredValue(
