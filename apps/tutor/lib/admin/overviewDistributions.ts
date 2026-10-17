@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/db/prisma";
 import {
-  classifyOutcome,
   extractArtifactSummary,
   foldOutcomeCounts,
   type DegradationReason,
 } from "./outcome";
+import { classifyTurnFailure } from "../obs/turnFailureClassification";
 import type {
   DegradationReasonCount,
   DiagramStrategyCount,
@@ -50,7 +50,7 @@ export async function fetchOverviewDistributions(windows: {
     }),
     prisma.turn.findMany({
       where: { createdAt: { gte: windows.weekAgo } },
-      select: { visualStatus: true, sceneArtifacts: true },
+      select: { visualStatus: true, status: true, sceneArtifacts: true, _count: { select: { segments: true } } },
       orderBy: { createdAt: "desc" },
       take: ARTIFACT_SCAN_BUDGET + 1,
     }),
@@ -85,11 +85,10 @@ export async function fetchOverviewDistributions(windows: {
     figureSourceCounts.set(figureSource, (figureSourceCounts.get(figureSource) ?? 0) + 1);
     const diagramStrategy = summary?.diagramStrategy ?? "unrecorded";
     diagramStrategyCounts.set(diagramStrategy, (diagramStrategyCounts.get(diagramStrategy) ?? 0) + 1);
-    // Degradation artifacts ride text-only/retry-required turns; legacy and
-    // status-less rows have none, and counting them as a reason would invent
-    // one. They land in "unrecorded" so the failure total still adds up.
-    if (classifyOutcome(row.visualStatus) !== "validated") {
-      const reason = summary?.degradationReason ?? "unrecorded";
+    const failure = classifyTurnFailure({ visualStatus: row.visualStatus, status: row.status,
+      sceneArtifacts: row.sceneArtifacts, segmentCount: row._count.segments });
+    if (failure.classification === "failed") {
+      const reason = failure.code ?? "unrecorded";
       reasonCounts.set(reason, (reasonCounts.get(reason) ?? 0) + 1);
     }
   }

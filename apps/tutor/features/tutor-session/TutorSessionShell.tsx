@@ -1342,7 +1342,7 @@ export function TutorSessionShell({
     enableKeyboard: !isHeadless,
   });
   const lecturePlayerActive = lecturePlayer.active;
-  const dockCaption = dockLecturePlayer || compactBoardChrome;
+  const dockCaption = isMobile || shortScreen || compactBoardChrome;
   const caption = sessionCaption({
     enabled: settings.subtitlesEnabled || codeLessonActive,
     phase,
