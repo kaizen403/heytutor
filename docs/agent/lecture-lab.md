@@ -171,6 +171,16 @@ pnpm exec tsx scripts/lecture-lab/compare.ts .lecture-lab/round-01 .lecture-lab/
 pnpm exec tsx scripts/lecture-lab/compare.ts --gallery .lecture-lab/eval-current .lecture-lab/eval-planner-first
 ```
 
+For a controlled Azure scene-planner experiment only, add
+`--scene-reasoning-effort low|medium|high` to an `--eval` run. The authenticated
+lab header changes only scene planning/repair reasoning, not the turn plan,
+ProblemIR, picker or teaching. All arms retain the production-low completion
+token ceiling (including reasoning) and the chosen scene deadline; high-effort
+truncations/timeouts count as outcomes under those limits. The server preflight,
+execution identity and per-call records capture the selected/actual effort.
+Absent or unauthorized headers leave production unchanged. `--figure-only`
+costs are planning costs per question, not full narrated-lesson/TTS costs.
+
 Output per round: `runs/*.json` (the full record), `transcripts/*.md` (readable
 lesson plus findings), `summary.json` (scores and finding counts), and, for
 diagram evaluations, `gallery.html` plus PNGs under `frames/`. `summarize.ts`

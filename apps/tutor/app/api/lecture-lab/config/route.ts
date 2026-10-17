@@ -4,5 +4,5 @@ import { labProviderConfig } from "@/lib/llm/labProviderConfig";
 
 export async function GET(request: Request) {
   if (!isLectureLabRequest(request)) return new Response(null, { status: 404 });
-  return NextResponse.json(labProviderConfig(), { headers: { "cache-control": "no-store" } });
+  return NextResponse.json(labProviderConfig(request), { headers: { "cache-control": "no-store" } });
 }

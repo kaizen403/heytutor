@@ -67,6 +67,7 @@ export interface PlannerModelCall {
   /** Provider-bound messages after server catalogue/example injection. */
   promptChars?: number | null;
   reasoningEffort?: string | null;
+  finishReason?: string | null;
   serviceTierRequested?: string | null;
   serviceTier?: string | null;
   /** null is not reported; zero is an explicit provider report. */
@@ -506,11 +507,14 @@ export class PlannerUsageTracker {
   ): Promise<void> {
     let usage: ReturnType<typeof parseProviderUsage> | null = null;
     let payloadModel: string | null = null;
+    let finishReason: string | null = null;
     try {
       const payload = (await response.clone().json()) as {
         usage?: unknown;
         model?: unknown;
+        choices?: Array<{ finish_reason?: unknown }>;
       };
+      finishReason = typeof payload.choices?.[0]?.finish_reason === "string" ? payload.choices[0].finish_reason : null;
       usage = parseProviderUsage(payload.usage);
       payloadModel =
         typeof payload.model === "string" && payload.model.trim()
@@ -535,6 +539,7 @@ export class PlannerUsageTracker {
       maxAttempts,
       this.pricingModel(model, fallbackModel),
       { ...profile,
+        finishReason,
         promptChars: response.headers.has("x-heytutor-planner-prompt-chars") ? Number(response.headers.get("x-heytutor-planner-prompt-chars")) : null,
         reasoningEffort: response.headers.get("x-heytutor-reasoning-effort"),
         serviceTierRequested: response.headers.get("x-heytutor-service-tier-requested") ?? profile.serviceTierRequested,

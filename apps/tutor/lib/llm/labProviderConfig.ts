@@ -6,19 +6,21 @@ import { EVALUATION_POLICY_VERSION, JEV_GATEWAY_MODEL } from "./evaluation/types
 import { rubricVersionForJob } from "./evaluation/rubrics";
 import { VISUAL_NEED_CLIENT_TIMEOUT_MS, VISUAL_NEED_EVIDENCE_VERSION } from "../../features/tutor-session/lib/scene/visualNeedClient";
 import { plannerSpeedSettings } from "./planningSpeed";
+import { applyLectureLabSceneEffort, lectureLabSceneEffort } from "./labSceneEffort";
 
 /** Non-secret, authenticated preflight from the actual server configuration. */
-export function labProviderConfig() {
+export function labProviderConfig(request?: Request) {
   const endpoint = resolveLlmEndpoint();
+  const sceneEffort = request ? lectureLabSceneEffort(request) : undefined;
   const plannerBodies = ["primary", "alternate"].flatMap((plannerLane) => [
     { semanticSceneV2: true, turnPlanV3: false },
     { semanticSceneV2: false, turnPlanV3: true },
     { semanticSceneV2: false, turnPlanV3: false, problemIRV1: true },
     { semanticSceneV2: false, turnPlanV3: false, codeLessonV1: true },
-  ].map((options) => providerChatBody({
+  ].map((options) => applyLectureLabSceneEffort(providerChatBody({
     max_tokens: resolvePlannerMaxTokens({ ...options, plannerLane: plannerLane as "primary" | "alternate", plannerPhase: "plan" }),
     thinking: { type: "disabled" },
-  }, endpoint)));
+  }, endpoint), sceneEffort, { provider: endpoint.provider, semanticSceneV2: options.semanticSceneV2 })));
   const caps = [
     ...plannerBodies.map(completionTokenCap),
     completionTokenCap(providerChatBody({ max_tokens: 4000, thinking: { type: "enabled", budget_tokens: 2048 } }, endpoint)),

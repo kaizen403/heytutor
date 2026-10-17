@@ -59,6 +59,7 @@ import { normalizeTutorQuestion } from "@heytutor/tutor-core";
 import { calculateLlmCostDetails, resolveLlmRates } from "../../lib/obs/usageCost";
 import { assertLabSpendMode, assertLabUsageCheckpoint, hasPricedUsage, LabRequestNotDispatchedError, type LabSpendMode, type LabUnresolvedCall, type LabUsageObservation } from "./labSpend";
 import type { SceneDeclinePolicy } from "./sceneDeclineExperiment";
+import { LECTURE_LAB_SCENE_EFFORT_HEADER, type LectureLabSceneEffort } from "../../lib/llm/labSceneEffort";
 
 export interface Options {
   difficulty: string;
@@ -87,6 +88,7 @@ export interface Options {
   model: DiagramEvalModel;
   /** Evaluation-only end-to-end scene planning budget. */
   scenePlannerLimitMs: 60_000 | 120_000;
+  sceneReasoningEffort?: LectureLabSceneEffort;
   figureOnly: boolean;
   yes: boolean;
   maxUsd: number;
@@ -350,6 +352,11 @@ export function parseOptions(argv: string[]): Options {
     throw new Error("--scene-planner-limit-ms must be 60000 or 120000");
   }
   const maxUsdRaw = flags.get("max-usd");
+  const sceneReasoningEffort = flags.get("scene-reasoning-effort");
+  if (sceneReasoningEffort !== undefined && evalFiles.length === 0) throw new Error("--scene-reasoning-effort is evaluation-only");
+  if (sceneReasoningEffort !== undefined && sceneReasoningEffort !== "low" && sceneReasoningEffort !== "medium" && sceneReasoningEffort !== "high") {
+    throw new Error("--scene-reasoning-effort must be low, medium or high");
+  }
   const spendMode = flags.get("spend-mode") ?? "conservative";
   if (spendMode !== "conservative" && spendMode !== "response_usage") throw new Error("--spend-mode must be conservative or response_usage");
   const sceneDeclinePolicy = flags.get("scene-decline-policy") ?? "unchanged";
@@ -407,6 +414,7 @@ export function parseOptions(argv: string[]): Options {
     arm,
     model,
     scenePlannerLimitMs: parsedScenePlannerLimit,
+    ...(sceneReasoningEffort ? { sceneReasoningEffort } : {}),
     figureOnly: flags.has("figure-only") ? flags.get("figure-only") !== "false" : evalFiles.length > 0,
     yes: flags.get("yes") === "true",
     maxUsd,
@@ -773,6 +781,7 @@ async function main(): Promise<void> {
   // Verify the server (not just this CLI's environment) before sending any model call.
   const configHeaders = new Headers();
   applyLectureLabHeaders(configHeaders);
+  if (options.sceneReasoningEffort) configHeaders.set(LECTURE_LAB_SCENE_EFFORT_HEADER, options.sceneReasoningEffort);
   const configResponse = await fetch(`${options.origin}/api/lecture-lab/config`, { headers: configHeaders });
   if (!configResponse.ok) throw new Error("authenticated lab provider preflight failed");
   const serverConfig = await configResponse.json() as { provider: string; deployment: string; configured: boolean; plannerOutputCap: number; teachingOutputCap: number; visualNeed?: Record<string, unknown>; planningSpeed?: { sceneEffort: string; priority: boolean; requestTier: string } };
@@ -783,11 +792,27 @@ async function main(): Promise<void> {
   if (!serverConfig.visualNeed || Object.entries(LAB_VISUAL_NEED_POLICY).some(([key, value]) => serverConfig.visualNeed?.[key] !== value)) {
     throw new Error("server visual-need policy does not match the live-matching lab");
   }
+  if (options.sceneReasoningEffort && (serverConfig.provider !== "azure" || serverConfig.planningSpeed?.sceneEffort !== options.sceneReasoningEffort)) {
+    throw new Error("server did not acknowledge the requested lab scene reasoning effort");
+  }
+  if (options.sceneReasoningEffort) {
+    const baselineHeaders = new Headers(configHeaders);
+    baselineHeaders.delete(LECTURE_LAB_SCENE_EFFORT_HEADER);
+    const baselineResponse = await fetch(`${options.origin}/api/lecture-lab/config`, { headers: baselineHeaders });
+    if (!baselineResponse.ok) throw new Error("production-low preflight failed");
+    const baseline = await baselineResponse.json() as typeof serverConfig;
+    if (baseline.planningSpeed?.sceneEffort !== "low" || baseline.plannerOutputCap !== serverConfig.plannerOutputCap ||
+        baseline.teachingOutputCap !== serverConfig.teachingOutputCap || baseline.deployment !== serverConfig.deployment) {
+      throw new Error("scene effort experiment requires a production-low server and identical token caps");
+    }
+  }
   execFileSync(process.execPath, [resolve(process.cwd(), "scripts/lecture-lab/svg2png.mjs"), "--check-browser"], { stdio: "pipe" });
   const executionConfig = {
     planningSpeed: { sceneEffort: serverConfig.planningSpeed?.sceneEffort ?? "low",
       requestTier: serverConfig.planningSpeed?.requestTier ?? "auto",
       priority: serverConfig.planningSpeed?.priority === true },
+    ...(options.sceneReasoningEffort ? { sceneReasoningEffort: options.sceneReasoningEffort,
+      sceneEffortTokenPolicy: "production-low-completion-cap/v1" } : {}),
     figureSelectionPolicy: PRODUCTION_SCENE_SELECTION_VERSION,
     figureOnly: options.figureOnly, scenePlannerLimitMs: options.scenePlannerLimitMs,
     familiarity: options.familiarity, narrationLanguage: options.narrationLanguage,
@@ -921,6 +946,7 @@ async function main(): Promise<void> {
     spendCap.settleCall(reservedUsd, usd, observation, context); checkpointSpend();
   };
   const usageTracker = new PlannerUsageTracker((usd, reservedUsd, observation, context) => settleSpend(reservedUsd, usd, observation, context), options.spendMode);
+  let configurationError: string | null = null;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const headers = new Headers(input instanceof Request ? input.headers : undefined);
@@ -928,6 +954,7 @@ async function main(): Promise<void> {
     if (url.startsWith(options.origin)) {
       headers.set("cookie", cookie);
       applyLectureLabHeaders(headers);
+      if (options.sceneReasoningEffort) headers.set(LECTURE_LAB_SCENE_EFFORT_HEADER, options.sceneReasoningEffort);
       if (evaluationRows) {
         headers.set(LECTURE_LAB_ZERO_RETENTION_HEADER, "1");
         if (evaluationUsesStandardModelHeader(true, options.model)) {
@@ -950,6 +977,7 @@ async function main(): Promise<void> {
     const operation = (async () => {
       const plannerRequest = chatRequest && headers.get("x-planner") === "1";
       const directProviderRequest = url === endpoint.url;
+      if (configurationError && (chatRequest || directProviderRequest)) throw new LabRequestNotDispatchedError(configurationError);
       const requestModel = directProviderRequest ? directProviderRequestModel(init, endpoint) : plannerRequest
         ? worstCasePlannerModel
         : resolveTeachingFireworksModel({ fastMode: options.model === "fast" });
@@ -1012,7 +1040,13 @@ async function main(): Promise<void> {
         }
         accounted = true;
         if (chatRequest && response.ok && response.headers.get(plannerRequest ? "x-heytutor-planner-model" : "x-heytutor-model") !== providerConfig.deployment) {
-          throw new Error("lab received an unexpected or unrecorded server model; paid usage has been retained");
+          configurationError = "lab received an unexpected or unrecorded server model; paid usage has been retained";
+          throw new Error(configurationError);
+        }
+        if (plannerRequest && response.ok && requestProfile.requestKind === "scene" && options.sceneReasoningEffort &&
+            response.headers.get("x-heytutor-reasoning-effort") !== options.sceneReasoningEffort) {
+          configurationError = "scene response effort differs from the experiment arm; paid usage has been retained";
+          throw new Error(configurationError);
         }
         return response;
       } catch (error) {
@@ -1065,6 +1099,14 @@ async function main(): Promise<void> {
           spendMode: options.spendMode,
         });
         run.planner = await usageTracker.finishAsync(traceId);
+        if (configurationError) {
+          mkdirSync(`${outDir}/interrupted`, { recursive: true });
+          writeFileSync(`${outDir}/interrupted/${labArtifactSlug(probe.id)}-${traceId}.json`, JSON.stringify({
+            ...run, providerConfig, executionConfig, evaluation: evaluationById.get(probe.id) ?? null,
+            status: "untested_configuration", configurationError, traceId,
+          }, null, 1) + "\n");
+          throw new Error(configurationError);
+        }
         if (run.visualNeed?.origin === "live_service") run.visualNeed.accounting = visualNeedAccountingByTrace.get(traceId);
         if (budgetDeniedTraces.has(traceId)) {
           budgetTerminatedRows.push(probe.id);

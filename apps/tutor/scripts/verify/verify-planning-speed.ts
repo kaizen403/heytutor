@@ -85,6 +85,7 @@ async function verifyAccounting(): Promise<void> {
     const standardCost = 0.00962;
     const responseFor = (returnedTier: string | null, reasoning: number | undefined, requestedTier = "priority", attempts = 1) => Response.json({
       model: "gpt-6.1-sol", service_tier: returnedTier,
+      choices: [{ finish_reason: "length" }],
       usage: { ...baseUsage, ...(reasoning === undefined ? {} : { completion_tokens_details: { reasoning_tokens: reasoning } }) },
     }, { headers: { "x-heytutor-planner-model": "gpt-6.1-sol", "x-heytutor-service-tier-requested": requestedTier,
       ...(returnedTier === null ? {} : { "x-heytutor-service-tier": returnedTier }),
@@ -107,6 +108,7 @@ async function verifyAccounting(): Promise<void> {
       assert.equal(result.knownUsageUsd, standardCost * multiplier);
       assert.equal(call.estimatedCostUsd, standardCost * multiplier);
       assert.equal(call.reasoningTokens, reasoning ?? null, "missing reasoning is distinct from reported zero");
+      assert.equal(call.finishReason, "length", "completion-cap truncation is retained independently of scene validation");
       assert.deepEqual([call.requestKind, call.phase, call.lane, call.elapsedMs, call.requestChars, call.promptChars], ["scene", "repair", "alternate", 250, 90, 12000],
         "proxy input size is distinct from provider-bound messages after server injection");
       assert.equal(call.cachedInputTokens, 200);

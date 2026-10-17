@@ -40,6 +40,7 @@ import { reservePaidUsage, maximumLlmCost, actualLlmCost, holdPaidUsage, type Pa
 import { readBoundedText, RequestBodyError } from "@/lib/http/requestBody";
 import { isTeachingHedge, serverChatBody } from "@/lib/llm/chatRequest";
 import { applyPlannerSpeedSettings, plannerTierCostMultiplier } from "@/lib/llm/planningSpeed";
+import { applyLectureLabSceneEffort, lectureLabSceneEffort, type LectureLabSceneEffort } from "@/lib/llm/labSceneEffort";
 import {
   resolveCheapFireworksModel,
   DEFAULT_FIREWORKS_MODEL,
@@ -600,6 +601,7 @@ interface PlannerRequestArgs {
   plannerPhase: "plan" | "repair";
   plannerLane: "primary" | "alternate";
   fastMode: boolean;
+  labSceneEffort?: LectureLabSceneEffort;
   evaluationModelOverride?: string;
   problemIRModelOverride?: string;
   deadlineMs: number;
@@ -626,6 +628,7 @@ async function handlePlannerRequest({
   plannerPhase,
   plannerLane,
   fastMode,
+  labSceneEffort,
   evaluationModelOverride,
   problemIRModelOverride,
   deadlineMs,
@@ -682,7 +685,11 @@ async function handlePlannerRequest({
     }
     parsed.stream = false;
     parsed.response_format = { type: "json_object" };
-    const body = providerChatBody(applyPlannerSpeedSettings(parsed, { provider: llm.provider }), llm);
+    const body = applyLectureLabSceneEffort(
+      providerChatBody(applyPlannerSpeedSettings(parsed, { provider: llm.provider }), llm),
+      labSceneEffort,
+      { provider: llm.provider, semanticSceneV2, diagramExamplePicker },
+    );
     const requestedPriority = body.service_tier === "priority";
 
     const reserved = await reservePaidUsage({ actor, grant, kind: "planner", traceId, usd: maximumLlmCost(body.messages, completionTokenCap(body), plannerModels, plannerModels.length * 2) * (requestedPriority ? 2 : 1) });
@@ -1015,6 +1022,7 @@ export async function POST(request: Request): Promise<Response> {
           : request.headers.get("x-scene-planner-lane")
       ) === "alternate" ? "alternate" : "primary",
       fastMode,
+      labSceneEffort: lectureLabSceneEffort(request),
       evaluationModelOverride,
       problemIRModelOverride: problemIRV1 && shouldUseLectureLabStandardModel(request)
         ? resolveFireworksModel({ fastMode: false })
