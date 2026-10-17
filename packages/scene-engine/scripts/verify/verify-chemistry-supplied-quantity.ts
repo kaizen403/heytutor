@@ -1425,6 +1425,191 @@ for (const row of unavailableDeclarationControls) test(`unavailable-owner/${row.
   assert.equal(readChemistryQuantityDeclaration({...row,owner:`unavailable:${row.dimension}`}).state,row.expected);
 });
 
+// Every supplied owner is checked before calculating; no numeric literal is needed to be invalid.
+const entropyDeltaDeclarations: readonly {id:string;question:string;expectedDraw:boolean}[] = [
+  {
+    "id": "deltaT-exact",
+    "question": "The heat capacity is 20 J/K. ΔT = cannot be read; ΔT = 10 K with no phase change. Find q.",
+    "expectedDraw": false
+  },
+  {
+    "id": "deltaT-unknown",
+    "question": "The sample heat capacity is 20 J/K. ΔT = unknown; ΔT = 10 K with no phase change. Calculate q.",
+    "expectedDraw": false
+  },
+  {
+    "id": "deltaT-reverse",
+    "question": "The heat capacity is 20 J/K. ΔT = 10 K; ΔT = unreadable. There is no phase change. Find the heat.",
+    "expectedDraw": false
+  },
+  {
+    "id": "deltaT-named",
+    "question": "The heat capacity is 20 J/K. delta t = unspecified; ΔT = 10 K with no phase change. Draw the heat account.",
+    "expectedDraw": false
+  },
+  {
+    "id": "deltaT-unicode",
+    "question": "The heat capacity is 20 J/K. ∆ t = cannot be read. ΔT = 10 K with no phase change. Find q.",
+    "expectedDraw": false
+  },
+  {
+    "id": "deltaT-wrong-unit",
+    "question": "The heat capacity is 20 J/K. ΔT = 5 kg; ΔT = 10 K with no phase change. Find q.",
+    "expectedDraw": false
+  },
+  {
+    "id": "qrev-exact",
+    "question": "At 300 K, a reversible isothermal change has q_rev = cannot be read; q_rev = 3000 J. Draw the entropy change.",
+    "expectedDraw": false
+  },
+  {
+    "id": "qrev-unknown",
+    "question": "At 300 K, a reversible isothermal change has qrev = unknown; qrev = 3000 J. Calculate the entropy change.",
+    "expectedDraw": false
+  },
+  {
+    "id": "qrev-reverse",
+    "question": "At 300 K, a reversible isothermal change has q_rev = 3000 J; q_rev = unreadable. Draw the entropy change.",
+    "expectedDraw": false
+  },
+  {
+    "id": "qrev-unspecified",
+    "question": "For a reversible isothermal entropy change at 300 K, q_rev = unspecified; q_rev = 3000 J. Draw the entropy account.",
+    "expectedDraw": false
+  },
+  {
+    "id": "qrev-sentence",
+    "question": "At 300 K, a reversible isothermal change has q_rev = cannot be read. q_rev = 3000 J. Calculate its entropy change.",
+    "expectedDraw": false
+  },
+  {
+    "id": "qrev-wrong-unit",
+    "question": "At 300 K, a reversible isothermal change has q_rev = 20 kg; q_rev = 3000 J. Find the entropy change.",
+    "expectedDraw": false
+  },
+  {
+    "id": "delta-single",
+    "question": "The heat capacity is 20 J/K. ΔT = 10 K with no phase change. Find q.",
+    "expectedDraw": true
+  },
+  {
+    "id": "delta-celsius",
+    "question": "The heat capacity is 20 J/K. ΔT = -10 °C with no phase change. Find q.",
+    "expectedDraw": true
+  },
+  {
+    "id": "delta-agreeing",
+    "question": "The heat capacity is 20 J/K. ΔT = 10 K; ΔT = 10 K with no phase change. Find q.",
+    "expectedDraw": true
+  },
+  {
+    "id": "delta-conflicting",
+    "question": "The heat capacity is 20 J/K. ΔT = 10 K; ΔT = 20 K with no phase change. Find q.",
+    "expectedDraw": false
+  },
+  {
+    "id": "delta-range-unread",
+    "question": "The heat capacity is 20 J/K. The sample is heated from 300 K to 310 K. ΔT = cannot be read; ΔT = 10 K with no phase change. Find q.",
+    "expectedDraw": false
+  },
+  {
+    "id": "qrev-single",
+    "question": "At 300 K, a reversible isothermal change has q_rev = 3000 J. Draw the entropy change.",
+    "expectedDraw": true
+  },
+  {
+    "id": "qrev-agreeing",
+    "question": "At 300 K, a reversible isothermal change has q_rev = 3000 J; q_rev = 3 kJ. Draw the entropy change.",
+    "expectedDraw": true
+  },
+  {
+    "id": "qrev-conflicting",
+    "question": "At 300 K, a reversible isothermal change has q_rev = 3000 J; q_rev = 2000 J. Draw the entropy change.",
+    "expectedDraw": false
+  },
+  {
+    "id": "entropy-system-unread",
+    "question": "The entropy of the system is unknown; entropy of the system is 10 J/K and entropy of the surroundings is 5 J/K. Draw the entropy of the universe.",
+    "expectedDraw": false
+  },
+  {
+    "id": "entropy-surroundings-unread",
+    "question": "The entropy of the system is 10 J/K. The entropy of the surroundings is cannot be read; entropy of the surroundings is 5 J/K. Draw the entropy of the universe.",
+    "expectedDraw": false
+  },
+  {
+    "id": "entropy-account-positive",
+    "question": "The entropy of the system is 10 J/K and entropy of the surroundings is 5 J/K. Draw the entropy of the universe.",
+    "expectedDraw": true
+  },
+  {
+    "id": "delta-is-unknown",
+    "question": "The heat capacity is 20 J/K. ΔT is unknown; ΔT = 10 K with no phase change. Find q.",
+    "expectedDraw": false
+  },
+  {
+    "id": "delta-no-equals",
+    "question": "The heat capacity is 20 J/K. ΔT cannot be read; ΔT = 10 K with no phase change. Find q.",
+    "expectedDraw": false
+  },
+  {
+    "id": "delta-range-no-equals",
+    "question": "The heat capacity is 20 J/K. The sample is heated from 300 K to 310 K. ΔT is unknown. There is no phase change. Find q.",
+    "expectedDraw": false
+  },
+  {
+    "id": "delta-request-range",
+    "question": "The heat capacity is 20 J/K. The sample is heated from 300 K to 310 K with no phase change. Find q and calculate the unknown ΔT.",
+    "expectedDraw": true
+  },
+  {
+    "id": "delta-range-agreement",
+    "question": "The heat capacity is 20 J/K. The sample is heated from 300 K to 310 K. ΔT is 10 K with no phase change. Find q.",
+    "expectedDraw": true
+  },
+  {
+    "id": "qrev-is-unknown",
+    "question": "At 300 K, a reversible isothermal change has q_rev is unknown; q_rev = 3000 J. Draw the entropy change.",
+    "expectedDraw": false
+  },
+  {
+    "id": "qrev-named-unknown",
+    "question": "At 300 K, the reversible heat cannot be read; q_rev = 3000 J. Draw the reversible isothermal entropy change.",
+    "expectedDraw": false
+  },
+  {
+    "id": "qrev-named-positive",
+    "question": "At 300 K, the reversible heat is 3000 J. Draw the reversible isothermal entropy change.",
+    "expectedDraw": true
+  },
+  {
+    "id": "system-unread-no-is",
+    "question": "The entropy of the system cannot be read; entropy of the system is 10 J/K and entropy of the surroundings is 5 J/K. Draw the entropy of the universe.",
+    "expectedDraw": false
+  },
+  {
+    "id": "surroundings-unread-no-is",
+    "question": "The entropy of the system is 10 J/K. The entropy of the surroundings cannot be read; entropy of the surroundings is 5 J/K. Draw the entropy of the universe.",
+    "expectedDraw": false
+  },
+  {
+    "id": "entropy-reference-request",
+    "question": "The entropy of the system is 10 J/K and entropy of the surroundings is 5 J/K. Draw the entropy of the universe and label entropy of the system and entropy of the surroundings.",
+    "expectedDraw": true
+  },
+  {
+    "id": "qrev-reference-formula",
+    "question": "At 300 K, a reversible isothermal change has q_rev = 3000 J. Use q_rev/T and draw the entropy change.",
+    "expectedDraw": true
+  }
+];
+for (const row of entropyDeltaDeclarations) for (const mode of ["strict", "schematic", "ordinary", "lastResort"] as const) test(`thermal-delta-entropy-declarations/${row.id}/${mode}`, () => {
+  const raw = mode === "ordinary" || mode === "lastResort" ? synthesizeFamilyScene({question:row.question,lastResort:mode === "lastResort"})?.document ?? null
+    : buildChemicalThermodynamicsScene(row.question, [], mode === "schematic");
+  if (!row.expectedDraw) { assert(!drawable(raw), "each supplied owner must read before calculation or partial fallback"); return; }
+  compiled(raw);
+});
+
 const sourceFiles = ["quantityReader", "sceneKit", "atomicRadiation", "chemicalThermodynamics", "electrochemistry", "kinetics", "solutionProperties", "solutionsGraphs", "thermoGraphs", "unitCell"];
 const sourceHashes = Object.fromEntries(sourceFiles.map(name => [name + ".ts", createHash("sha256").update(readFileSync(new URL(`../../src/chemistry/${name}.ts`, import.meta.url))).digest("hex")]));
 const output = { passed, failures, sourceHashes, dimensions: Object.keys(dimensions).length, families: Object.keys(builders).length, numericOwnerCases: cases.length, evidence, scope: "Source-only independent owner-declaration/family admission matrix with valid positive and absent controls. Declaration fixtures are byte-identical to red-gate-v1.ts; assertions use the new owner seam while strict literal valid/missing behavior remains unchanged. No built package, provider, DB, server, browser, production or coverage claim." };

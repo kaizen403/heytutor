@@ -266,18 +266,26 @@ function amountMoles(question: string): number | null {
   return r.ok && r.reading.length === 1 ? r.reading[0]!.value : null;
 }
 
-const HEAT_DELTA_CUE = /(?:δ|∆|Δ)\s*t\s*=|delta t\s*=/i;
+const HEAT_DELTA_CUE = /(?:δ|∆|Δ)\s*t\b|\bdelta\s+t\b/i;
 
 /** The delta value and its inventory view cite one complete original literal. */
-function heatDeltaInput(question: string): { value: number; literal: ChemistryReading } | null {
-  const delta = readChemistryQuantity({ question, after: HEAT_DELTA_CUE, dimension: "temperature_delta", targetUnit: "K" });
-  if (!delta.ok) return null;
-  const token = new RegExp(`^(${CHEMISTRY_SCALAR_PATTERN})`).exec(question.slice(delta.reading.source.span.start));
-  if (!token) return null;
-  // Inventory uses the absolute-temperature view; only the independently read
-  // delta value above enters heat arithmetic, so Celsius offsets never enter q.
-  const literal = readChemistryUnitLiteral({ question, scalarSpan: { start: delta.reading.source.span.start, end: delta.reading.source.span.start + token[0].length } });
-  return literal.ok && literal.reading.dimension === "temperature" ? { value: delta.reading.value, literal: literal.reading } : null;
+type HeatDeltaInput = { state: "absent" | "invalid" } | { state: "valid"; value: number; literals: ChemistryReading[] };
+function heatDeltaInput(question: string): HeatDeltaInput {
+  const delta = readChemistryQuantityDeclaration({ question, after: HEAT_DELTA_CUE, dimension: "temperature_delta", targetUnit: "K", owner: "heat temperature change", allowAgreeingRepeats: true });
+  if (delta.state !== "valid") return { state: delta.state };
+  const literals: ChemistryReading[] = [];
+  for (const occurrence of delta.occurrences) {
+    if (!occurrence.read.ok) return { state: "invalid" };
+    const start = occurrence.read.reading.source.span.start;
+    const token = new RegExp(`^(${CHEMISTRY_SCALAR_PATTERN})`).exec(question.slice(start));
+    if (!token) return { state: "invalid" };
+    // Inventory uses the absolute-temperature view; only the independently
+    // checked delta enters arithmetic, so Celsius offsets never enter q.
+    const literal = readChemistryUnitLiteral({ question, scalarSpan: { start, end: start + token[0].length } });
+    if (!literal.ok || literal.reading.dimension !== "temperature") return { state: "invalid" };
+    literals.push(literal.reading);
+  }
+  return { state: "valid", value: delta.reading.value, literals };
 }
 
 /** null means no range; false means a stated range cannot be owned. */
@@ -330,10 +338,11 @@ function heatTemperatureRange(question: string): { first: number; second: number
     ...(first.reading.rawUnit ? [{ reading: first.reading, owner: "heat_temperature_1" }] : []),
     { reading: second.reading, owner: "heat_temperature_2" },
   ];
-  if (HEAT_DELTA_CUE.test(body)) {
-    const delta = heatDeltaInput(question);
-    if (!delta || !chemistryCanonicalValuesAgree(delta.value, second.reading.value - first.reading.value)) return false;
-    consumed.push({ reading: delta.literal, owner: "heat_delta_T" });
+  const delta = heatDeltaInput(question);
+  if (delta.state === "invalid") return false;
+  if (delta.state === "valid") {
+    if (!chemistryCanonicalValuesAgree(delta.value, second.reading.value - first.reading.value)) return false;
+    consumed.push(...delta.literals.map(reading => ({ reading, owner: "heat_delta_T" })));
   }
   // Every original temperature literal must have one owner before deriving ΔT.
   // A bare endpoint with a shared unit is not an inventory literal.
@@ -382,7 +391,7 @@ function buildHeat(question: string, stem: string): SceneDocument | null {
     if (temperatures) delta = temperatures.second - temperatures.first;
     else {
       const statedDelta = heatDeltaInput(question);
-      if (!statedDelta || !chemistryQuantityInventoryOwned(question, "temperature", [{ reading: statedDelta.literal, owner: "heat_delta_T" }])) return null;
+      if (statedDelta.state !== "valid" || !chemistryQuantityInventoryOwned(question, "temperature", statedDelta.literals.map(reading => ({ reading, owner: "heat_delta_T" })))) return null;
       delta = statedDelta.value;
     }
     if (!(capacity >= 0) || !(delta !== 0)) return null;
@@ -449,19 +458,23 @@ function buildHess(question: string, _stem: string): SceneDocument | null {
   });
 }
 
-function entropyValue(stem: string, which: "sys" | "surr"): number | null {
+function entropyValue(question: string, which: "sys" | "surr"): ChemistryQuantityDeclaration {
   const phrase = which === "sys"
-    ? /(?:δ|∆|Δ)?\s*d?s_?sys\s*=|entropy of the system\s*(?:=|is)/
-    : /(?:δ|∆|Δ)?\s*d?s_?surr\s*=|entropy of the surroundings\s*(?:=|is)/;
-  return numberAfter(stem, phrase, "entropy", "J/K");
+    ? /(?:δ|∆|Δ)?\s*d?s_?sys\b|entropy of the system\b/
+    : /(?:δ|∆|Δ)?\s*d?s_?surr\b|entropy of the surroundings\b/;
+  return readChemistryQuantityDeclaration({ question, after: phrase, dimension: "entropy", targetUnit: "J/K", owner: `entropy of ${which}`, allowAgreeingRepeats: true });
 }
 
 function buildEntropy(question: string, stem: string): SceneDocument | null {
-  const sys = entropyValue(question, "sys");
-  const surr = entropyValue(question, "surr");
+  const sysRead = entropyValue(question, "sys");
+  const surrRead = entropyValue(question, "surr");
+  const qrevRead = readChemistryQuantityDeclaration({ question, after: /\bq_?rev\b|\breversible heat\b/, dimension: "energy", targetUnit: "J", owner: "reversible heat", allowAgreeingRepeats: true });
+  if ([sysRead, surrRead, qrevRead].some(read => read.state === "invalid")) return null;
+  const sys = sysRead.state === "valid" ? sysRead.reading.value : null;
+  const surr = surrRead.state === "valid" ? surrRead.reading.value : null;
   const reversible = /\breversible\b/.test(stem);
   const irreversible = /\birreversible\b/.test(stem);
-  const qrev = numberAfter(question, /q_?rev\s*=/, "energy", "J");
+  const qrev = qrevRead.state === "valid" ? qrevRead.reading.value : null;
   const temperature = temperatureKelvin(question);
   const c = new ChemScene(question, "entropy of system, surroundings and universe", FAMILY);
   const ids: string[] = [];
