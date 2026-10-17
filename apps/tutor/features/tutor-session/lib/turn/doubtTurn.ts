@@ -20,7 +20,8 @@ import {
   type DrawCommand,
   type TutorSegment,
 } from "@heytutor/drawing";
-import type { CodeLessonPlan } from "@heytutor/tutor-core";
+import type { CodeLessonPlan, DiagramSubject } from "@heytutor/tutor-core";
+import { sanitizeFigureDiagnostics, sanitizeFigureSubject, type FigureDiagnostics } from "@/lib/obs/figureOutcome";
 import { validateTurnPlanV3, type TurnPlanV3 } from "@heytutor/scene-engine";
 import type {
   RecordedSegmentPayload,
@@ -61,10 +62,12 @@ export interface BoardPageRecord {
   boardId: string;
   /** The question the page belongs to: the lesson, never a doubt about it. */
   lessonQuestion: string;
-  /** Runtime-only: a pre-authority acknowledgement is not taught work. */
+  /** Unchanged external lesson source, privately retained through Stop/Continue. */
+  originalQuestion?: string;
   earlyOpeningStarted?: boolean;
-  /** Content-free diagnostics attached to saves, without affecting page/scene ownership. */
   failureTelemetry?: FailedTurnTelemetry;
+  figureSubject?: DiagramSubject | null;
+  figureDiagnostics?: FigureDiagnostics;
   /** Teaching context a doubt on this page reuses instead of planning again. */
   turnPlan: TurnPlanV3 | null;
   solverProjection: unknown;
@@ -95,10 +98,11 @@ export function textOnlyTurnScene(diagramStrategy?: DiagramStrategy): PersistedT
 }
 
 /** A lesson takes a fresh page. Its scene and plan are filled in once planned. */
-export function lessonPageRecord(boardId: string, question: string): BoardPageRecord {
+export function lessonPageRecord(boardId: string, question: string, originalQuestion?: string): BoardPageRecord {
   return {
     boardId,
     lessonQuestion: question,
+    originalQuestion: originalQuestion ?? question,
     turnPlan: null,
     solverProjection: null,
     figureDrawn: false,
@@ -128,6 +132,9 @@ export function doubtTurnScene(
 export function doubtPageRecord(input: {
   boardId: string;
   lessonQuestion: string;
+  originalQuestion?: string;
+  figureSubject?: DiagramSubject | null;
+  figureDiagnostics?: FigureDiagnostics;
   title: string;
   continuesBoard: boolean;
   figureDrawn: boolean;
@@ -137,6 +144,9 @@ export function doubtPageRecord(input: {
   return {
     boardId: input.boardId,
     lessonQuestion: input.lessonQuestion,
+    originalQuestion: input.originalQuestion ?? input.lessonQuestion,
+    figureSubject: sanitizeFigureSubject(input.figureSubject),
+    figureDiagnostics: sanitizeFigureDiagnostics(input.figureDiagnostics),
     turnPlan: input.turnPlan,
     solverProjection: input.solverProjection,
     figureDrawn: input.figureDrawn,
@@ -173,6 +183,11 @@ export interface PausedLessonRequest {
   /** Exact saved chain identity for a fresh continuation admission. */
   parentTurnId?: string;
   lessonQuestion: string;
+  /** Original lesson source, not the prompt asking to continue or answer a doubt. */
+  originalQuestion?: string;
+  /** Runtime-only observer context; historical restores leave subject unknown. */
+  figureSubject?: DiagramSubject | null;
+  figureDiagnostics?: FigureDiagnostics;
   turnPlan: TurnPlanV3 | null;
   solverProjection: unknown;
   scene: PersistedTurnScene | null;
@@ -217,6 +232,9 @@ export function resumeTurnScene(
 export function resumePageRecord(input: {
   boardId: string;
   lessonQuestion: string;
+  originalQuestion?: string;
+  figureSubject?: DiagramSubject | null;
+  figureDiagnostics?: FigureDiagnostics;
   figureDrawn: boolean;
   turnPlan: TurnPlanV3 | null;
   solverProjection: unknown;
@@ -225,6 +243,9 @@ export function resumePageRecord(input: {
   return {
     boardId: input.boardId,
     lessonQuestion: input.lessonQuestion,
+    originalQuestion: input.originalQuestion ?? input.lessonQuestion,
+    figureSubject: sanitizeFigureSubject(input.figureSubject),
+    figureDiagnostics: sanitizeFigureDiagnostics(input.figureDiagnostics),
     turnPlan: input.turnPlan,
     solverProjection: input.solverProjection,
     figureDrawn: input.figureDrawn,
@@ -255,6 +276,9 @@ export function pausedLessonFromPage(
     boardId: record.boardId,
     reason,
     lessonQuestion,
+    originalQuestion: record.originalQuestion ?? record.lessonQuestion,
+    figureSubject: sanitizeFigureSubject(record.figureSubject),
+    figureDiagnostics: sanitizeFigureDiagnostics(record.figureDiagnostics),
     turnPlan: record.turnPlan,
     solverProjection: record.solverProjection,
     scene: record.turn.kind === "lesson" ? record.turn.scene : null,
@@ -272,6 +296,7 @@ export function pausedLessonFromLive(input: {
   record: BoardPageRecord | null;
   boardId: string;
   lessonQuestion: string;
+  originalQuestion?: string;
   codeLesson: boolean;
   figureDrawn: boolean;
   lessonBoardRows?: readonly DoubtBoardRow[];
@@ -312,6 +337,7 @@ export function pausedLessonFromLive(input: {
     reason,
     parentTraceId: input.parentTraceId ?? null,
     lessonQuestion,
+    originalQuestion: input.originalQuestion ?? input.lessonQuestion,
     turnPlan: null,
     solverProjection: null,
     scene: null,
@@ -377,6 +403,7 @@ export function pausedLessonOnStop(input: {
       record: resumePage,
       boardId: input.boardId,
       lessonQuestion: resume.request.lessonQuestion,
+      originalQuestion: resume.request.originalQuestion ?? resume.request.lessonQuestion,
       codeLesson: input.codeLesson || resume.request.codeLesson,
       figureDrawn: false,
       lessonBoardRows: input.lessonBoardRows,
@@ -392,6 +419,7 @@ export function pausedLessonOnStop(input: {
     record,
     boardId: input.boardId,
     lessonQuestion: input.liveQuestion,
+    originalQuestion: record.originalQuestion ?? record.lessonQuestion,
     codeLesson: input.codeLesson,
     // Only ink counts: a figure planned but never drawn is redrawn on Continue.
     figureDrawn: false,

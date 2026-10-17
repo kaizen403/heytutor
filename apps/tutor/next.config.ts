@@ -38,6 +38,9 @@ const nextConfig: NextConfig = {
       config.cache = {
         ...inheritedCache,
         type: "filesystem",
+        // Match Next's dev policy: persist cold generations without retaining
+        // every compiled route in the custom server's heap.
+        maxMemoryGenerations: 0,
         cacheDirectory: path.join(process.cwd(), ".next/cache/webpack"),
         buildDependencies: {
           ...inheritedCache?.buildDependencies,

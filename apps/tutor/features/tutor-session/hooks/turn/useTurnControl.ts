@@ -1,6 +1,7 @@
 import { lessonAdmission } from "../../lib/turn/lessonOwnership";
 import { fetchBoardDetail } from "@/lib/boards/boardsClient";
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { figureOutcomeTrackerFor, sanitizeFigureDiagnostics, sanitizeFigureSubject } from "@/lib/obs/figureOutcome";
 import { stopReplayAudio } from "@/lib/replay/replayAudio";
 import {
   cancelFrame,
@@ -46,6 +47,7 @@ import {
 } from "../../lib/turn/doubtTurn";
 import { lessonRecoveryFromStoredTurns } from "../../lib/turn/pausedLessonRestore";
 import { classifyEarlyLessonProgress, type EarlyLessonRestartRequest } from "../../lib/turn/earlyLessonOpening";
+import { isBenignTurnAbort } from "../../lib/turn/turnFailurePolicy";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import { liveTurnSave } from "../../lib/turn/liveTurnSave";
 import { useSegmentRunner } from "./useSegmentRunner";
@@ -368,6 +370,9 @@ export function useTurnControl(
     (segments: TutorSegment[], turnGeneration = turnGenerationRef.current, options?: { remainder?: boolean }) => {
       if (segments.length === 0 || turnGeneration !== turnGenerationRef.current) return;
       const normalized = segments.map(normalizeSegmentForAlignment);
+      // Capture the originating turn; a late queue must never report against
+      // whatever turnTelemetryRef happens to hold after a replacement.
+      const figureOutcome = figureOutcomeTrackerFor(turnTelemetryRef.current);
       const remainder = options?.remainder === true;
       const unsafeCommand = normalized.flatMap((segment) => segment.commands ?? []).find((command) =>
         !(
@@ -493,6 +498,7 @@ export function useTurnControl(
           }
           wb.commitDrawTransaction(transactionId);
           committed = true;
+          figureOutcome?.committed();
           if (remainder) {
             recordedSegmentsRef.current = recordedSegmentsRef.current.filter((row) => !introRecordedRows.has(row));
             liveTurnSave().dropIntroRows(cancelRef, turnGeneration);
@@ -515,6 +521,12 @@ export function useTurnControl(
           // rolled that ink back and the doubt answered on blank paper.
           if (introKeptByStopRef.current === transactionId) {
             throw error;
+          }
+          figureOutcome?.empty("intro_failed");
+          // Internal cleanup cancellation is not a student Stop. Preserve the
+          // originating non-abort failure before teardown changes the latch.
+          if (counted() && !cancelRef.current && !isBenignTurnAbort(error)) {
+            figureOutcome?.finish("error");
           }
           wb.abortDrawTransaction(transactionId);
           introLayout.rollback();
@@ -583,6 +595,7 @@ export function useTurnControl(
       ensureTTSClient,
       currentTraceIdRef,
       sessionId,
+      turnTelemetryRef,
     ],
   );
 
@@ -936,7 +949,6 @@ export function useTurnControl(
       pending_segment_count: pendingSegmentCountRef.current,
       total_duration_ms: telemetry.durationMs(),
     });
-    void telemetry?.flush();
 
     clearCancelTimers();
 
@@ -968,6 +980,12 @@ export function useTurnControl(
         // stopped turn's save already holds the whole figure.
         if (progress?.remainder) liveTurnSave().dropIntroRows(cancelRef, stoppedGeneration);
         whiteboardRef.current?.commitDrawTransaction(activeIntroTransaction);
+        // Stop can roll back the entire first beat. A committed empty
+        // transaction is not a figure; retained earlier beats are partial,
+        // never reported as a completed intro.
+        if (progress && progress.completed > 0) {
+          figureOutcomeTrackerFor(telemetry)?.committed({ partial: progress.completed < progress.segments.length });
+        }
         introKeptByStopRef.current = activeIntroTransaction;
         // Before the save closes below, so the held intro rows go with the figure.
         const page = boardPageRef.current;
@@ -1016,6 +1034,8 @@ export function useTurnControl(
     // figure kept for a doubt goes with it. The turn's own `finally` is then a
     // no-op.
     liveTurnSave().closeOwner(cancelRef);
+    figureOutcomeTrackerFor(telemetry)?.finish("cancelled");
+    void telemetry?.flush();
     whiteboardRef.current?.setPaused(false);
     lessonAdmission().cancel(cancelRef);
 
@@ -1175,6 +1195,7 @@ export function useTurnControl(
 
   useEffect(() => {
     if (!boardLoaded) return;
+    const originalQuestion = autoQuestion;
     const q = autoQuestion?.trim();
     if (!q) return;
     // Keyed per board and question: the URL is consumed once, but a later board
@@ -1186,7 +1207,6 @@ export function useTurnControl(
       window.history.replaceState(window.history.state ?? {}, "", window.location.pathname);
     }
     const question = q;
-    pendingQuestionRef.current = question;
     queueMicrotask(() => setInputInteracted(true));
 
     let cancelled = false;
@@ -1197,7 +1217,7 @@ export function useTurnControl(
         window.setTimeout(fire, 16);
         return;
       }
-      void handleQuestionRef.current(question);
+      void handleQuestionRef.current(originalQuestion ?? question, { originalQuestion: originalQuestion ?? question });
     };
     fire();
     return () => {
@@ -1527,6 +1547,18 @@ export function useTurnControl(
       }
       return null;
     }
+    const pending = pausedLessonRef.current;
+    const sameParent = pending?.parentTurnId
+      ? pending.parentTurnId === restored.parentTurnId
+      : Boolean(pending?.parentTraceId && pending.parentTraceId === restored.parentTraceId);
+    if (sameParent && pending?.boardId === sessionId && pending.lessonQuestion === restored.lessonQuestion) {
+      // An authenticated same-parent refresh must not replace privately kept
+      // intake/observer context with a legacy normalized header. Diagnostics
+      // never stand for figure authority; the stored scene is still rechecked.
+      restored = { ...restored, originalQuestion: pending.originalQuestion ?? restored.originalQuestion,
+        figureSubject: sanitizeFigureSubject(pending.figureSubject),
+        figureDiagnostics: sanitizeFigureDiagnostics(pending.figureDiagnostics) };
+    }
     if (refreshVisible) {
       if (!refreshBoardFromTurns || boardShowsStoppedReplayRef.current ||
         (boardPageRef.current && boardPageRef.current.boardId !== sessionId)) return null;
@@ -1547,6 +1579,7 @@ export function useTurnControl(
       try {
         if (!current() || !(await refreshBoardFromTurns(sessionId, currentTurns, current)) || !current()) return null;
         if (restored) boardPageRef.current = resumePageRecord({ boardId: sessionId, lessonQuestion: restored.lessonQuestion,
+          originalQuestion: restored.originalQuestion ?? restored.lessonQuestion, figureSubject: restored.figureSubject, figureDiagnostics: restored.figureDiagnostics,
           turnPlan: restored.turnPlan ?? null, solverProjection: restored.solverProjection ?? null,
           scene: restored.scene ?? null, figureDrawn: restored.figureDrawn });
       } catch {
@@ -1564,9 +1597,6 @@ export function useTurnControl(
     restored = recovery.request;
     const pending = pausedLessonRef.current;
     const visiblePage = boardPageRef.current;
-    const sameParent = pending?.parentTurnId
-      ? pending.parentTurnId === restored.parentTurnId
-      : Boolean(pending?.parentTraceId && pending.parentTraceId === restored.parentTraceId);
     // A saved-row refresh has not redrawn this in-tab page. The canonical
     // saved figure is whole, but its missing visible beats are still owed.
     // Session changes and replay clear the live page record before redraw.

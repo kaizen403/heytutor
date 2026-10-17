@@ -31,6 +31,26 @@ or reload restarts planning rather than continuing past an unfinished plan.
 The flag does not enter planner requests or selection inputs. Run
 `pnpm --filter @heytutor/tutor verify:early-opening` for actual-hook OFF/ON figure
 parity, and measure useful teaching separately from acknowledgement readiness.
+`NEXT_PUBLIC_EARLY_LESSON_OPENING=1` is a build-time, default-off experiment.
+After billing admission, a fresh non-code lesson may speak a fixed, command-free
+acknowledgement while planning runs. It contains no question content, claims,
+quantities or diagram instructions. Semantic teaching and all figure ink retain
+the existing verified-scene ordering. Doubts, resumes and code lessons are
+excluded. Stopping after only this acknowledgement restarts planning instead
+of continuing past unfinished authority checks.
+
+Measure both first audible playback and the longest silence after the opening;
+a quick acknowledgement alone is not evidence of quicker substantive teaching.
+`figure-outcome/v1` distinguishes ready/selected figures from committed ink,
+inherited ink and retained partial intros, using closed student-text-free fields.
+If Continue refuses the scene, `figure_prior_ink_retained` separately reports
+old canvas marks that remain; it never restores refused reveal/point/save authority.
+`speech-playback/v1` measures actual speech intervals independently of paired
+writing; its total/dropped/pending counters must prove complete delivery before
+reporting an exact post-opening gap. Neither event proves the first visible pixel.
+Run `pnpm --filter @heytutor/tutor verify:bridge` for caller lineage, scoped visual
+refusal, opening authority and trace/privacy controls; CI also runs these through
+`verify:publication`.
 
 ## High-Level Flow
 

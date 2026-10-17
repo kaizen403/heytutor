@@ -94,6 +94,12 @@ const failedCompilePlan: TurnPlanV3 = {
   derived: [],
   qualitativeClaims: [],
 };
+const dsaQuestion = "Explain how breadth-first search visits nodes in a graph.";
+const dsaPlan: TurnPlanV3 = {
+  ...symbolicPlan, question: dsaQuestion, unknowns: [], qualitativeClaims: [], lawIds: [],
+  assumptions: [], visualRequirement: "optional",
+};
+assert(classifyDsaQuestion(dsaQuestion).isDsa, "the exclusion fixture must enter the real DSA lane");
 assert(validateTurnPlanV3(symbolicPlan, symbolicPlan.question).plan, "the symbolic fixture must be a real valid TurnPlanV3");
 assert(validateTurnPlanV3(recordedPlan, recordedPlan.question).plan, "the recorded-question fixture must be a real valid TurnPlanV3");
 const numericValidation = validateTurnPlanV3(numericPlan, numericQuestion);
@@ -380,7 +386,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
     },
     abandonSpeaking() { record("provider-stop"); },
     stop() { record("provider-stop"); },
-    pause() {}, resume() {},
+    pause() { record("provider-pause"); }, resume() { record("provider-resume"); },
   };
   const ref = <T,>(current: T) => ({ current });
   const cancelTimers = new Map<number, () => void>();
@@ -417,7 +423,13 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
     setIsPaused() {}, setInputInteracted() {}, setIsReplaying() {}, setReplayProgressMs() {}, setReplayTotalMs() {},
     setStoredTurnsCount() {}, setBoards() {}, setActiveVerifiedDiagram() {},
     beginBoardEpoch: async () => { record("board-epoch"); }, resetBoardLayout() {},
-    executeCommandWithCancel: async (command: DrawCommand) => { record("board-command", command); },
+    executeCommandWithCancel: async (command: DrawCommand) => {
+      if (mode === "intro-draw-failure" && command.type.startsWith("DRAW_")) {
+        record("injected-intro-draw-failure");
+        throw new Error("offline verified intro draw failure");
+      }
+      record("board-command", command);
+    },
     reserveTextCommandPlacements: async (command: DrawCommand) => [command],
     raceWithCancel: <T,>(promise: Promise<T>) => promise,
     cancellableDelay: (delay: number) => new Promise<void>((resolve) => {
@@ -520,12 +532,37 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       typeof import("../../features/tutor-session/hooks/turn/useQuestionHandler").useQuestionHandler;
     const handler = mounted ? mounted.render("handler", () => runHandler(lifecycle, observeControl)) : runHandler(lifecycle, observeControl);
     handleRef.current = handler.handleQuestion;
-    const resume: PausedLessonRequest | undefined = mode === "resume-no-ink" ? {
+    const resume: PausedLessonRequest | undefined = isResume ? {
       boardId, reason: "doubt", lessonQuestion: question, turnPlan: plan, solverProjection: null,
       parentTurnId: parentId, parentTraceId,
       scene: null, figureDrawn: true, codeLesson: false, lessonBoardRows: [], interruptedStep: "The range follows from horizontal motion.",
     } : undefined;
     if (resume) control.offerPausedLessonResume(resume);
+    if (mode === "early-resume" && savedRepresentation) {
+      // A real reopened board has restored its trusted diagram before Continue.
+      // Supply that actual compiled receipt, not a mocked scene/renderer.
+      lifecycle.activeVerifiedDiagramRef.current = buildVerifiedDiagramPresentation(
+        savedRepresentation.sceneDocument, savedRepresentation.renderScene,
+      ).diagram;
+      lifecycle.boardPageRef.current = {
+        ...lessonPageRecord(boardId, question), turnPlan: plan, figureDrawn: true,
+        turn: { kind: "lesson", question, continuesBoard: false, saved: true, scene: {
+          sceneDocument: savedRepresentation.sceneDocument, sceneEngineVersion: null,
+          validationReport: savedRepresentation.validationReport, visualStatus: "validated", sceneArtifacts: { turnPlan: plan },
+        } },
+      };
+    }
+    if (mode === "early-doubt") {
+      lifecycle.boardPageRef.current = {
+        ...lessonPageRecord(boardId, question), turnPlan: plan,
+        turn: { kind: "lesson", question, continuesBoard: false, scene: null, saved: true },
+      };
+    }
+    const questionOptions: HandleQuestionOptions | undefined = resume ? { resume }
+      : mode === "early-doubt" ? { doubt: {
+          prompt: "I have a doubt about the horizontal motion: why is its speed constant?",
+          title: "Doubt: why is horizontal speed constant?", lessonQuestion: question, afterReplay: false,
+        } } : undefined;
     let done = false;
     let dispatchedQuestion = plan === recordedPlan ? projectileQuestion : question;
     if (mode === "startup-timeout") {
@@ -801,7 +838,52 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       assert([...timers.values()].some((timer) => timer.at === 15_000), "control-only steps must keep the startup deadline armed");
     }
 
-    if (mode === "resume-no-ink") {
+    if (mode === "intro-draw-failure") {
+      // Execute the actual handler, intro queue, segment runner and figure
+      // tracker. Only the external whiteboard command port throws; no tracker
+      // state or terminal classification is substituted by the verifier.
+      content(0, "[STEP]The range follows from horizontal motion.[WRITE:R = u t,80,150][/STEP]\n[STEP]The flight time comes from vertical motion.[WRITE:t = 2 u sin(theta) / g,80,205][/STEP]");
+      finishStream(0);
+      await pump(() => done);
+      await turn;
+      assert.equal(events.filter((event) => event.name === "injected-intro-draw-failure").length, 1,
+        "the actual verified intro must reach the failing drawing port exactly once");
+      assert.equal(events.filter((event) => event.name === "intro-commit").length, 0,
+        "a failed intro must never commit its incomplete geometry");
+      const terminal = telemetry.flatMap((payload) => payload.events ?? [])
+        .filter((event) => event.name === "figure-turn-terminal");
+      assert.equal(terminal.length, 1, "an admitted failed intro emits one terminal figure event");
+      assert.equal(terminal[0]!.metadata?.figure_outcome, "empty");
+      assert.equal(terminal[0]!.metadata?.figure_empty_cause, "intro_failed");
+      assert.equal(terminal[0]!.metadata?.turn_terminal_outcome, "error",
+        "an internal verified-intro draw error must not be relabelled as a student cancellation");
+      assert.equal(lifecycle.activeVerifiedDiagramRef.current, null,
+        "the failed intro withdraws its own active figure");
+      assert(!JSON.stringify(terminal).includes(question), "terminal figure diagnostics carry no student text");
+      assert.equal(lifecycle.phaseRef.current, "idle", "the failed turn is already settled before sibling speech cleanup");
+      assert.equal(lifecycle.turnActiveRef.current, false);
+      assert.equal(lifecycle.pendingSegmentCountRef.current, 0);
+      const settledOutputs = outputs().length;
+      const providerPrefetches = events.filter((event) => event.name === "opening-prefetch").length;
+      const upstreamRequests = events.filter((event) => event.name.endsWith("-request")).length;
+      const terminalMetadata = JSON.stringify(terminal[0]!.metadata);
+      // Measured separately from turn settlement: Promise.all rejects on ink
+      // while its already-started speech sibling needs one 25 ms startup poll
+      // to observe the synthetic provider's resolved onStart/onEnd. That poll
+      // clears its two 250 ms watchdogs. This is a precise bounded drain, not
+      // an arbitrary idle wait or relaxed final lifetime assertion.
+      await advance(now + 25);
+      assert.equal(outputs().length, settledOutputs, "cleanup cannot start late playback, enqueue or board ink");
+      assert.equal(events.filter((event) => event.name === "opening-prefetch").length, providerPrefetches,
+        "cleanup cannot dispatch more provider prefetches");
+      assert.equal(events.filter((event) => event.name.endsWith("-request")).length, upstreamRequests,
+        "cleanup cannot make another upstream request");
+      const settledTerminal = telemetry.flatMap((payload) => payload.events ?? [])
+        .filter((event) => event.name === "figure-turn-terminal");
+      assert.equal(settledTerminal.length, 1, "late sibling cleanup cannot emit a second terminal");
+      assert.equal(JSON.stringify(settledTerminal[0]!.metadata), terminalMetadata,
+        "late sibling cleanup cannot mutate the originating error outcome");
+    } else if (mode === "resume-no-ink") {
       content(0, "[STEP]We continue from the horizontal motion without writing anything.[/STEP]");
       finishStream(0);
       await flush();
@@ -1129,12 +1211,12 @@ async function main() {
   const modes: Mode[] = ["ready", "hinglish-opening", "startup-timeout", "recorded-projectile", "numeric", "failed-compile", "retry", "prefix-stall", "partial-stall", "pause-stall", "pause-prelude", "control-eof", "one-step-stall", "one-step-split-stall", "resume-no-ink", "retry-expires", "stop-before-expiry", "stop-during-retry", "stale-content", "marker-only", "hedge-wins", "hedge-primary-wins", "hedge-fails", "early-on", "early-off", "early-stop", "early-doubt", "early-pause", "early-late-ack"];
   // Default modes run with the hedge flag off, as shipped. The hedge modes,
   // and one retry with a silent hedge, run with it forced on.
-  const runs: Array<[Mode, boolean]> = [
-    ...modes.map((mode): [Mode, boolean] => [mode, HEDGE_MODES.includes(mode)]),
-    ["retry", true],
+  const runs: Array<[Mode, boolean, boolean]> = [
+    ...modes.map((mode): [Mode, boolean, boolean] => [mode, HEDGE_MODES.includes(mode), mode.startsWith("early-") && mode !== "early-off"]),
+    ["retry", true, false],
   ];
-  assert(!selected || modes.includes(selected as Mode), `unknown case: ${selected}`);
-  for (const [mode, hedge] of runs) {
+  assert(!selected || modes.includes(selected as Mode) || ["early-reload", "early-opening-doubt"].includes(selected), `unknown case: ${selected}`);
+  for (const [mode, hedge, early] of runs) {
     if (selected && selected !== mode) continue;
     const label = hedge && !HEDGE_MODES.includes(mode) ? `${mode}+hedge` : mode;
     checkedModes += 1;

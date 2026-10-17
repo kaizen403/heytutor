@@ -36,6 +36,7 @@ import { storedCodeLessonPlan } from "@/lib/code-lesson/persistedCodeLesson";
 import type { PausedLessonRequest, PersistedTurnScene } from "./doubtTurn";
 import type { DoubtBoardRow } from "./turnTeachingPrompt";
 import { classifyEarlyLessonProgress, type EarlyLessonRestartRequest } from "./earlyLessonOpening";
+import { sanitizeFigureDiagnostics, sanitizeFigureSubject } from "@/lib/obs/figureOutcome";
 
 /** `resumeState` is opaque to the server; this is the shape this client writes. */
 export const LESSON_RESUME_STATE_VERSION = 1;
@@ -218,6 +219,11 @@ export function lessonRecoveryFromStoredTurns(
     parentTraceId: last.traceId ?? null,
     parentTurnId: last.id,
     lessonQuestion,
+    // Saved external lesson source, before page-title trimming. A resume or
+    // doubt prompt and sceneDocument.source.question cannot grant source authority.
+    originalQuestion: planSource.question,
+    // Stored turns carry no observer subject. Never infer it from student text.
+    figureSubject: null,
     turnPlan,
     solverProjection,
     scene: source ? turnScene(source) : null,
@@ -243,5 +249,9 @@ export function currentPausedLesson(request: PausedLessonRequest, turns: readonl
   if (!fresh) return null;
   if (request.parentTurnId ? request.parentTurnId !== fresh.parentTurnId :
     !request.parentTraceId || request.parentTraceId !== fresh.parentTraceId) return null;
-  return { ...fresh, ...(request.remainingIntro ? { remainingIntro: request.remainingIntro } : {}) };
+  return { ...fresh,
+    originalQuestion: request.originalQuestion ?? fresh.originalQuestion,
+    figureSubject: sanitizeFigureSubject(request.figureSubject),
+    figureDiagnostics: sanitizeFigureDiagnostics(request.figureDiagnostics),
+    ...(request.remainingIntro ? { remainingIntro: request.remainingIntro } : {}) };
 }

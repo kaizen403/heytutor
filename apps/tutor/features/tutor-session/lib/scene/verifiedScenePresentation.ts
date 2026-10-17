@@ -37,6 +37,8 @@ const DIAGRAM_POINT_RADIUS = 2;
 export interface VerifiedScenePresentationOptions {
   /** Narration follows the turn's voice; every figure label stays unchanged. */
   narrationLanguage?: NarrationLanguage;
+  /** Exact external lesson source; source-scoped chemistry consumers require it. */
+  originalQuestion?: string;
   /**
    * "code_lesson" turns show the IDE panel on the left, so diagram labels
    * clamp to the narrower DSA zone and the protected column widens to cover
