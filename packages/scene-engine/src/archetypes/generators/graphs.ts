@@ -241,12 +241,17 @@ function waveProfile(context: GeneratorContext) {
 }
 
 function standingWave(context: GeneratorContext) {
+  if (context.slots.harmonicUnresolved === "unread") return null;
+  // This also protects direct callers that did not run the source reader.
+  if (!grounded(context, "harmonic") && /\b(?:harmonics?|overtones?|modes?|loops?)\b|\bn\s*=/i.test(context.question)) return null;
   const harmonic = num(context, "harmonic", 1);
   if (!Number.isInteger(harmonic) || harmonic < 1 || harmonic > 6) return null;
   const ends = text(context, "ends", "fixed");
+  if (!["fixed", "open", "closed_open"].includes(ends)) return null;
+  if (ends === "closed_open" && harmonic % 2 === 0) return null;
   const L = 6;
   const A = 1;
-  const factor = ends === "closed_open" ? (2 * harmonic - 1) / 2 : harmonic;
+  const factor = ends === "closed_open" ? harmonic / 2 : harmonic;
   const phase = ends === "open" ? "cos" : "sin";
   const expression = `${A}*${phase}(${(factor * Math.PI / L)}*x)`;
   const mirrored = `-${A}*${phase}(${(factor * Math.PI / L)}*x)`;

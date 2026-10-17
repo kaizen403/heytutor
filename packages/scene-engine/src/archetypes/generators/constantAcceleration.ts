@@ -383,7 +383,15 @@ export function extractFreeFallSlots(stem: string, plan: readonly PlanQuantity[]
       h = { value: u.value * u.value / (2 * g.value), source: u.source === "plan" && g.source === "plan" ? "plan" : "stem" };
     }
   } else {
-    h = pick(HEIGHT_ALIASES, "length") ?? (lengths.length === 1 ? { value: lengths[0]!.value, source: "stem" as const } : null);
+    // A sole length is not necessarily a drop height (for example, a planet
+    // radius in a tunnel question). Bind the length to its vertical role.
+    const dropLengths = lengths.filter((token) => {
+      const before = text.slice(0, token.start);
+      const after = text.slice(token.end);
+      return /(?:\bheight(?: of| is| =)?|\b(?:tower|cliff|building)(?: of height| is| of)?|\bdropped from|\breleased from)\s*$/i.test(before)
+        || /^\s*(?:high|above (?:the )?ground)\b/i.test(after);
+    });
+    h = pick(HEIGHT_ALIASES, "length") ?? (dropLengths.length === 1 ? { value: dropLengths[0]!.value, source: "stem" as const } : null);
   }
   const disagrees = (aliases: readonly string[], dimension: Dimension, value: number) => claims.some((claim) => {
     if (!aliasOf(claim, aliases)) return false;

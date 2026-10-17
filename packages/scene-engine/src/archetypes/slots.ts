@@ -171,7 +171,7 @@ export function prepareStem(question: string): string {
  * must end there: "m/s" is not the start of "m/s^2".
  */
 export function numbersWithUnit(stem: string, unit: RegExp): number[] {
-  const pattern = new RegExp(`${NUMBER}\\s*(?:${unit.source})(?![a-z]|\\s*\\^)`, "gi");
+  const pattern = new RegExp(`${NUMBER}\\s*(?:${unit.source})(?![a-z]|\\s*[\\^/])`, "gi");
   const values: number[] = [];
   for (const match of stem.matchAll(pattern)) {
     const value = parseNumber(match[1]!);
@@ -252,9 +252,21 @@ export function symbolLengthInCm(stem: string, symbol: RegExp): number | null {
   return match ? lengthToCm(match[1]!, match[2]!) : null;
 }
 
+/** A named length requires its unit and cannot cross another quantity or clause. */
+export function lengthAfterInMetres(stem: string, phrase: RegExp): number | null {
+  const pattern = new RegExp(`(?:${phrase.source})\\s*(?:(?:is|of|equals?|equal to|[=:])\\s*)?${NUMBER}\\s*(km|cm|mm|metres?|meters?|m)(?![a-z]|\\s*[\\^/])`, "gi");
+  const values = [...stem.matchAll(pattern)].flatMap((match) => {
+    const value = parseNumber(match[1]!);
+    const unit = match[2]!.toLowerCase();
+    return value === null ? [] : [value * (unit === "km" ? 1000 : unit === "cm" ? 0.01 : unit === "mm" ? 0.001 : 1)];
+  });
+  const first = values[0];
+  return first !== undefined && values.every((value) => value === first) ? first : null;
+}
+
 /** A role-bound energy must carry its unit; bare digits are not electron-volts. */
 export function energyAfterInEv(stem: string, phrase: RegExp): number | null {
-  const pattern = new RegExp(`(?:${phrase.source})[^0-9\\-]{0,24}${NUMBER}\\s*(eV|J|joules?|electron[- ]?volts?)\\b`, "i");
+  const pattern = new RegExp(`(?:${phrase.source})\\s*(?:(?:is|of|equals?|equal to|[=:])\\s*)?${NUMBER}\\s*(eV|J|joules?|electron[- ]?volts?)\\b`, "i");
   const match = pattern.exec(stem);
   if (!match) return null;
   const value = parseNumber(match[1]!);

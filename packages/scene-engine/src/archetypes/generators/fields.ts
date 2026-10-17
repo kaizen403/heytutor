@@ -4,7 +4,7 @@
  * runtime renders as ⊗ / ⊙ markers.
  */
 import { SceneBuilder, fmt, withUnit, type Vec2 } from "../document";
-import { angleLabel, derivedLabel, grounded, maybeNum, num, numbers, text, valueLabel, type GeneratorContext, type GeneratorTable } from "./context";
+import { angleLabel, grounded, maybeNum, num, numbers, text, valueLabel, type GeneratorContext, type GeneratorTable } from "./context";
 import { parseResistorTree, type ResistorTree } from "../resistorTree";
 import { numbersWithUnit, UNIT } from "../slots";
 
@@ -218,7 +218,9 @@ function satelliteOrbit(context: GeneratorContext) {
   const radius = maybeNum(context, "radius");
   const height = maybeNum(context, "height");
   const planetRadius = maybeNum(context, "planetRadius") ?? 6.4e6;
-  const orbitRadius = radius ?? (height !== null ? planetRadius + height : null);
+  // A display planet size cannot become a measured orbital radius. Both
+  // operands must come from the question before their sum is numeric ink.
+  const orbitRadius = radius ?? (height !== null && grounded(context, "height") && grounded(context, "planetRadius") ? planetRadius + height : null);
   const orbitDisplay = 3;
   const planetDisplay = orbitRadius !== null && orbitRadius > planetRadius ? Math.max(0.5, orbitDisplay * planetRadius / orbitRadius) : 1.2;
   const scene = new SceneBuilder(context.question, "satellite on a circular orbit around the planet", "satellite_orbit");
@@ -577,11 +579,12 @@ function wheatstoneBridge(context: GeneratorContext) {
 function meterBridge(context: GeneratorContext) {
   const balance = maybeNum(context, "balance");
   const l = balance !== null && balance > 0 && balance < 100 ? balance : 50;
+  const balanceShown = balance === l && grounded(context, "balance");
   const known = maybeNum(context, "known");
   const scene = new SceneBuilder(context.question, "metre bridge balanced along the wire", "meter_bridge");
-  if (balance !== null && grounded(context, "balance")) scene.quantity("l", "l", balance, "cm");
+  if (balanceShown) scene.quantity("l", "l", l, "cm");
   scene.point("A", { x: 0, y: 0 }, "wire end", "A");
-  scene.point("J", { x: l / 10, y: 0 }, "jockey contact", derivedLabel(context, ["balance"], `J (${fmt(l)} cm)`, "J"));
+  scene.point("J", { x: l / 10, y: 0 }, "jockey contact", balanceShown ? `J (${fmt(l)} cm)` : "J");
   scene.point("C", { x: 10, y: 0 }, "wire end", "C");
   scene.symbol("wire_AJ", "resistor", "A", "J", "bridge wire, left of the jockey", "l");
   scene.symbol("wire_JC", "resistor", "J", "C", "bridge wire, right of the jockey", "100−l");
@@ -630,12 +633,13 @@ function capacitorNetwork(context: GeneratorContext) {
 function potentiometer(context: GeneratorContext) {
   const balance = maybeNum(context, "balance");
   const wireLength = maybeNum(context, "wireLength");
-  const total = wireLength !== null && wireLength > 0 ? wireLength * (wireLength < 20 ? 100 : 1) : 100;
+  const total = wireLength !== null && wireLength > 0 ? wireLength : 100;
   const l = balance !== null && balance > 0 && balance < total ? balance : total * 0.6;
+  const balanceShown = balance === l && grounded(context, "balance");
   const scene = new SceneBuilder(context.question, "potentiometer balanced from the end A", "potentiometer");
-  if (balance !== null && grounded(context, "balance")) scene.quantity("l", "l", balance, "cm");
+  if (balanceShown) scene.quantity("l", "l", l, "cm");
   scene.point("A", { x: 0, y: 0 }, "wire end", "A");
-  scene.point("J", { x: 10 * l / total, y: 0 }, "jockey contact", derivedLabel(context, ["balance"], `J (${fmt(l)} cm)`, "J"));
+  scene.point("J", { x: 10 * l / total, y: 0 }, "jockey contact", balanceShown ? `J (${fmt(l)} cm)` : "J");
   scene.point("B", { x: 10, y: 0 }, "wire end", "B");
   scene.symbol("wire_AJ", "resistor", "A", "J", "potentiometer wire, A to the jockey", "l");
   scene.symbol("wire_JB", "resistor", "J", "B", "potentiometer wire, jockey to B", "L−l");

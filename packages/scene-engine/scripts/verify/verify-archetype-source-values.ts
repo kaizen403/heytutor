@@ -1,4 +1,7 @@
 /** Harness 5 owns this source-value boundary gate. No model or network calls. */
+import "./verify-archetype-wave-source";
+import "./verify-archetype-number-roles";
+import "./verify-archetype-bridge-source";
 import assert from "node:assert/strict";
 import { detectArchetype } from "../../src/archetypes/detect";
 import { generatorFor } from "../../src/archetypes/generators";
