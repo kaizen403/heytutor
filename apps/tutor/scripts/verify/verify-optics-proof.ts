@@ -2354,10 +2354,10 @@ function named(name: string, run: () => void): void {
       annotated(lens, [item("Q_leader", "connect", { start: "ot", end: "F2" }, "polyline", "light ray",
         { labelLeader: true, annotation: "callout", dashed: true, strokeRole: "construction" })],
       [{ id: "primitive_Q", kind: "label", targetIds: ["Q_leader"], text: "light ray" }]), /^connect Q_leader inks a polyline the proof does not read/],
-    // Every other annotation kind that draws on a traced ray adds its own geometry.
+    // Every other annotation kind that draws on a traced ray adds its own geometry. A spin needs a sense in its text (#196).
     ...["ghost", "frame", "sense", "spin", "hatch", "loop", "brace", "badge", "endpoint", "equal_tick", "parallel_mark"].map((kind) =>
       [`${kind} on the traced parallel ray on the lens`, qTall, tallPlan,
-        annotated(lens, [], [{ id: "ann1", kind, targetIds: ["tr1"] }]), annotationInk(kind)] as const),
+        annotated(lens, [], [{ id: "ann1", kind, targetIds: ["tr1"], ...(kind === "spin" ? { text: "clockwise" } : {}) }]), annotationInk(kind)] as const),
   ] as const) {
     expectUnproven("G33", name, question, document, reason);
     expectNeverPlanner("G33", name, question, turnPlan, document);
