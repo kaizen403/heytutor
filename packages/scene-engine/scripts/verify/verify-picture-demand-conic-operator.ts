@@ -224,6 +224,17 @@ check(sceneDemand("Two point charges of 2 μC are 3 cm apart. Find the Coulomb f
   "an electrostatic stem with no suspension still forbids suspended_body");
 check(sceneDemand("A current carrying wire hangs from two threads in a magnetic field.").forbids.includes("suspended_body"),
   "threads do not lift the magnetic veto");
+// Only a thread counts as suspension: threading and threaded do not hang anything.
+for (const stem of [
+  "Find the electric flux threading a closed surface that encloses point charges of 2 μC and -3 μC.",
+  "A bead of charge q is threaded on a smooth vertical circular ring, and a point charge Q sits at the bottom of the ring. Find the equilibrium angle.",
+  "An electron is threaded through a uniform electric field between plates. Find the deflection using Coulomb.",
+]) {
+  check(sceneDemand(stem).forbids.includes("suspended_body"), `"${stem}" is not hung on a thread and still forbids suspended_body`);
+}
+check(!sceneDemand("A charged sphere hangs on a thread in a uniform horizontal electric field and the thread makes 37° with the vertical. Find the charge using Coulomb's law.").forbids.includes("suspended_body")
+  && !sceneDemand("Two point charges hang from threads of length 50 cm attached to the same point. Find the angle between the threads using Coulomb's law.").forbids.includes("suspended_body"),
+  "a thread or threads still count as suspension");
 
 const summary = [...counts.entries()].map(([name, count]) => `${name}=${count}`).join(" ");
 console.log(`verify-picture-demand-conic-operator: rows=${fixture.rows.length} (${summary}) conic topics=${conicTopics.size}`);

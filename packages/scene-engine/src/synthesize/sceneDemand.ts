@@ -340,9 +340,11 @@ export function sceneDemand(
   // A field question is not a mass on a string. Nothing in electromagnetism or
   // atomic physics is drawn with a tension and a weight. Charged spheres hung
   // on threads are the exception: their equilibrium is the tension and mg.
+  // Only the noun counts; flux threading a surface or a bead threaded on a
+  // ring hangs nothing.
   if (
     isMagneticSource(stem) ||
-    (ELECTROSTATIC_SUBJECT.test(stem) && !/\bpendulum|\bhanging|suspended|\bthread/i.test(stem)) ||
+    (ELECTROSTATIC_SUBJECT.test(stem) && !/\bpendulum|\bhanging|suspended|\bthreads?\b/i.test(stem)) ||
     NON_LEVEL_ATOMIC.test(stem)
   ) {
     if (!forbids.includes("suspended_body")) forbids.push("suspended_body");
