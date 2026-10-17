@@ -67,7 +67,8 @@ async function main() {
   const stopped = await run(capturedIntro, 1_000);
   assert.ok(stopped.length < commands.length, "cancelling does not release late figure marks");
   assert.ok(stopped.every((entry) => entry.atMs < 1_000));
-  assert.ok(lecturePageCacheKey([]).endsWith("@video9"), "old timing exports are invalidated");
+  const cacheRevision = /@video(\d+)$/.exec(lecturePageCacheKey([]));
+  assert.ok(cacheRevision && Number(cacheRevision[1]) >= 11, "old timing exports through video10 are invalidated");
   console.log(JSON.stringify({ introStartsMs: starts.map((entry) => entry.atMs),
     workOrder: work.map((entry) => entry.command.type), providerRequests: 0 }));
   console.log("verify-youtube-pen-clock: retained figure words, WRITE/FOCUS order, diagram wiring, cancellation and cache revision");
