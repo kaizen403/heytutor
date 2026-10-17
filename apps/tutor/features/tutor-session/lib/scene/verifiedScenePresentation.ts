@@ -28,6 +28,7 @@ import {
 import { CUE_DEFAULT_MS_PER_CHAR, cuedInkFloorMs, findSpokenToken, type NarrationLanguage } from "@heytutor/tutor-core";
 import { DSA_CODE_PANEL_RECT, DSA_DIAGRAM_ZONE } from "../../constants";
 import { buildLabelGlossary } from "./labelGlossary";
+import { hinglishFigureNarration } from "./figureNarrationLanguage";
 import { isDsaConstructionGuide } from "./diagramInk";
 
 /** Named axis marks stay small so they read as dots, not hollow letters. */
@@ -235,6 +236,7 @@ export function buildVerifiedDiagramPresentation(
       );
       const narration = groupRevealNarration({
         cue,
+        language: options.narrationLanguage,
         drawCommands,
         groupIndex,
         chunkIndex,
@@ -419,7 +421,7 @@ function collapseIntroSpeech(
     const caption = options.caption?.trim();
     return [{
       narration: options.narrationLanguage === "hinglish"
-        ? caption ? `इस example में ${caption.replace(/[.!?]+$/, "")} को समझेंगे.` : "अब इस worked example को साथ में समझते हैं."
+        ? caption ? `इस example को समझते हैं. ${hinglishFigureNarration(caption)}` : "अब इस worked example को साथ में समझते हैं."
         : caption
         ? `Here is the example we will work through: ${caption.charAt(0).toLowerCase()}${caption.slice(1)}.`
         : "Here is the example we will work through.",
@@ -929,16 +931,7 @@ function spokenCueSentence(cue: string, groupIndex: number, language?: Narration
     if (subject === "the physical setup") {
       return groupIndex === 0 ? "पहले इस figure का setup देखते हैं." : "अब figure का अगला हिस्सा देखते हैं.";
     }
-    const clause = cue.trim().replace(/[.!?]+$/, "");
-    const directedInstruction = /[.!?]\s/.test(clause) ? null
-      : /^(follow|trace)\s+(?:the\s+)?(.+?)\s+from\s+(?:the\s+)?(.+?)\s+to\s+(?:the\s+)?(.+)$/i.exec(clause);
-    if (directedInstruction) {
-      const [, verb, part, from, to] = directedInstruction;
-      return `${part} को ${from} से ${to} तक ${verb!.toLowerCase()} करो.`;
-    }
-    // Arbitrary source prose can contain a relationship we cannot translate
-    // deterministically. Retain that complete technical clause in the framing.
-    return `ध्यान दो: ${ensureSpokenSentence(cue)}`;
+    return hinglishFigureNarration(cue);
   }
   if (isSpokenProse(cue)) return capitaliseSentence(ensureSpokenSentence(cue));
   const subject = cueSubject(cue);
@@ -1199,6 +1192,7 @@ function cueRevealBeat(input: {
 
 function groupRevealNarration({
   cue,
+  language,
   drawCommands,
   groupIndex,
   chunkIndex,
@@ -1206,6 +1200,7 @@ function groupRevealNarration({
   rolesByEntityId,
 }: {
   cue: string;
+  language?: NarrationLanguage;
   drawCommands: DrawCommand[];
   groupIndex: number;
   chunkIndex: number;
@@ -1213,16 +1208,17 @@ function groupRevealNarration({
   rolesByEntityId: ReadonlyMap<string, string>;
 }): string {
   if (chunkIndex > 0) {
-    return "The rest of this setup completes the figure.";
+    return language === "hinglish" ? "अब setup का बाकी हिस्सा पूरा करते हैं." : "The rest of this setup completes the figure.";
   }
   const hasLabels = drawCommands.some((command) =>
     command.type === "LABEL" || command.type === "DIMENSION",
   );
   if (hasLabels) {
-    return detailNarration(drawCommands, cue, rolesByEntityId);
+    return detailNarration(drawCommands, cue, rolesByEntityId, language);
   }
   return revealNarration({
     cue,
+    language,
     phase: "structure",
     groupIndex,
     phaseIndex: 0,
@@ -1233,18 +1229,30 @@ function groupRevealNarration({
 
 function revealNarration({
   cue,
+  language,
   phase,
   groupIndex,
   phaseIndex,
   chunkIndex,
 }: {
   cue: string;
+  language?: NarrationLanguage;
   phase: RevealPhase;
   groupIndex: number;
   phaseIndex: number;
   chunkIndex: number;
   groupCount: number;
 }): string {
+  if (language === "hinglish") {
+    if (chunkIndex === 0 && phaseIndex === 0 && isSpokenProse(cue)) return hinglishFigureNarration(cue);
+    if (phase === "detail") return chunkIndex > 0 || phaseIndex > 0
+      ? "बाकी labels figure में भीड़ बढ़ाए बिना related quantities की पहचान कराते हैं."
+      : `structure तैयार है; इन labels और measurements से ${cueSubject(cue)} की quantities पहचानते हैं.`;
+    if (phase === "direction") return `अब ${cueSubject(cue)} की ज़रूरी directions और relationships को follow करो.`;
+    return chunkIndex > 0 || phaseIndex > 0
+      ? "अब setup का बाकी हिस्सा और उसके connections पूरे करते हैं."
+      : spokenCueSentence(cue, groupIndex, language);
+  }
   if (chunkIndex > 0) {
     return phase === "detail"
       ? "The remaining labels identify the related quantities without crowding the figure."
@@ -1277,6 +1285,7 @@ function detailNarration(
   commands: DrawCommand[],
   cue: string,
   rolesByEntityId: ReadonlyMap<string, string>,
+  language?: NarrationLanguage,
 ): string {
   const named = [...new Map(commands
     .filter((command) => command.type === "LABEL" || command.type === "DIMENSION")
@@ -1289,6 +1298,7 @@ function detailNarration(
   if (named.length === 0) {
     return revealNarration({
       cue,
+      language,
       phase: "detail",
       groupIndex: 0,
       phaseIndex: 1,
@@ -1298,6 +1308,12 @@ function detailNarration(
   }
 
   const identified = named.filter(([, meaning]) => Boolean(meaning));
+  if (language === "hinglish") {
+    const clauses = identified.length === named.length
+      ? identified.map(([label, meaning]) => `${label} ${meaning} है`)
+      : [`${named.map(([label]) => label).join(" और ")} ${named.length === 1 ? "label से figure का यह part पहचानते हैं" : "labels से figure के ये parts पहचानते हैं"}`];
+    return `${clauses.join(", और ")}.`;
+  }
   if (identified.length === named.length && identified.length > 0) {
     const clauses = identified.map(([label, meaning]) => `${label} is the ${meaning}`);
     return clauses.length === 1
