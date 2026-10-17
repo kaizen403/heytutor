@@ -1597,6 +1597,7 @@ export function useQuestionHandler(
             sceneV2Document as SceneDocument,
             sceneV2RenderScene,
             {
+              originalQuestion: question,
               narrationLanguage: turnNarrationLanguage,
               ...(codeLesson ? { layout: "code_lesson" as const } : {}),
               ...(representationFamily ? { figureFamily: representationFamily } : {}),

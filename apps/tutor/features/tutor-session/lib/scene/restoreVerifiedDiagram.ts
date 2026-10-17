@@ -44,7 +44,7 @@ export function restoreVerifiedPresentationFromTurn(
   const presentation = buildVerifiedDiagramPresentation(
     document,
     compiled.renderScene,
-    { narrationLanguage, ...(dsa ? { layout: "code_lesson" as const } : {}) },
+    { originalQuestion: turn.question, narrationLanguage, ...(dsa ? { layout: "code_lesson" as const } : {}) },
   );
   if (!verifiedDiagramHasDrawableInk(presentation.diagram)) return null;
   return presentation;

@@ -300,7 +300,7 @@ export async function canonicalizeTurnSceneMetadata(
   const expectedPresentation = buildVerifiedDiagramPresentation(
     document,
     renderScene,
-    isDsaSceneDocument(document) ? { layout: "code_lesson" } : {},
+    { originalQuestion: question, ...(isDsaSceneDocument(document) ? { layout: "code_lesson" as const } : {}) },
   );
   // A turn that continues a page (a resume after Stop, or a doubt) teaches
   // under a figure an earlier turn on the page already drew. It keeps its
