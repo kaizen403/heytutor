@@ -957,6 +957,201 @@ for (const row of molarMassSubjectReferences) {
   });
 }
 
+// Coordinated unquantified noun references do not supply another count.
+const repeatedMolarMassReferences: ReadonlyArray<{ id: string; question: string; expectedDraw: boolean; expectedApparent: number | null }> = [
+  {
+    "id": "D-exact-repeated-reference",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and the particles remain at 300 K, alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "D-demonstrative-reference",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and these particles remain at 300 K, alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "D-possessive-reference",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and its particles remain at 300 K, alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "D-while-reference",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles while the particles remain at 300 K, alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "D-semicolon-reference",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles; the particles remain at 300 K, alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "D-agreement-count",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and 2 particles, alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "D-conflicting-count",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and 3 particles, alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "D-unknown-count",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and unknown particles, alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "D-damaged-count",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and 2e- particles, alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "D-unit-count",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and 2 kg particles, alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "D-reference-no-foreign-value",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and the particles remain stable, alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "D-reference-only-query",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles. Consider the particles, alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "A-exact-repeated-reference",
+    "question": "The true molar mass is 180 g/mol. The solute associates from 2 monomers and the monomers remain at 300 K, alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  },
+  {
+    "id": "A-demonstrative-reference",
+    "question": "The true molar mass is 180 g/mol. The solute associates from 2 monomers and these monomers remain at 300 K, alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  },
+  {
+    "id": "A-possessive-reference",
+    "question": "The true molar mass is 180 g/mol. The solute associates from 2 monomers and its monomers remain at 300 K, alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  },
+  {
+    "id": "A-while-reference",
+    "question": "The true molar mass is 180 g/mol. The solute associates from 2 monomers while the monomers remain at 300 K, alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  },
+  {
+    "id": "A-semicolon-reference",
+    "question": "The true molar mass is 180 g/mol. The solute associates from 2 monomers; the monomers remain at 300 K, alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  },
+  {
+    "id": "A-agreement-count",
+    "question": "The true molar mass is 180 g/mol. The solute associates from 2 monomers and 2 monomers, alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  },
+  {
+    "id": "A-conflicting-count",
+    "question": "The true molar mass is 180 g/mol. The solute associates from 2 monomers and 3 monomers, alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "A-unknown-count",
+    "question": "The true molar mass is 180 g/mol. The solute associates from 2 monomers and unknown monomers, alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "A-damaged-count",
+    "question": "The true molar mass is 180 g/mol. The solute associates from 2 monomers and 2e- monomers, alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "A-unit-count",
+    "question": "The true molar mass is 180 g/mol. The solute associates from 2 monomers and 2 kg monomers, alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": false,
+    "expectedApparent": null
+  },
+  {
+    "id": "A-reference-no-foreign-value",
+    "question": "The true molar mass is 180 g/mol. The solute associates from 2 monomers and the monomers remain stable, alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  },
+  {
+    "id": "A-reference-only-query",
+    "question": "The true molar mass is 180 g/mol. The solute associates from 2 monomers. Consider the monomers, alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  },
+  {
+    "id": "root-reference-1",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and the particles remain at 300 K, with alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "root-reference-2",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles and particles remain at 300 K, with alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "root-reference-3",
+    "question": "The true molar mass is 180 g/mol. The solute dissociates into 2 particles , and the particles remain at 300 K, with alpha = 0.5. i = 1.5. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 120
+  },
+  {
+    "id": "root-reference-4",
+    "question": "The true molar mass is 180 g/mol. The solute associates as 2 monomers and the monomers remain at 300 K, with alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  },
+  {
+    "id": "root-reference-5",
+    "question": "The true molar mass is 180 g/mol. The solute associates as 2 monomers and monomers remain at 300 K, with alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  },
+  {
+    "id": "root-reference-6",
+    "question": "The true molar mass is 180 g/mol. The solute associates as 2 monomers , and these monomers remain at 300 K, with alpha = 0.5. i = 0.75. Find the apparent molar mass.",
+    "expectedDraw": true,
+    "expectedApparent": 240
+  }
+];
+for (const row of repeatedMolarMassReferences) {
+  for (const mode of ["strict", "schematic", "ordinary"] as const) test(`molar-mass-repeated-reference/${row.id}/${mode}`, () => {
+    const raw = mode === "ordinary" ? synthesizeFamilyScene({ question: row.question })?.document ?? null
+      : buildSolutionLessonScene(row.question, [], mode === "schematic");
+    if (!row.expectedDraw) { assert(!drawable(raw), "all supplied process-count arguments still require a valid agreeing value"); return; }
+    compiled(raw);
+    const result = compileSceneDocument(raw!);
+    assert(result.ok && result.renderScene);
+    assert(result.renderScene.primitives.some(primitive => primitive.kind === "label" && primitive.text === `M'=${row.expectedApparent} g/mol`));
+  });
+}
+
 const sourceFiles = ["quantityReader", "sceneKit", "atomicRadiation", "chemicalThermodynamics", "electrochemistry", "kinetics", "solutionProperties", "solutionsGraphs", "thermoGraphs", "unitCell"];
 const sourceHashes = Object.fromEntries(sourceFiles.map(name => [name + ".ts", createHash("sha256").update(readFileSync(new URL(`../../src/chemistry/${name}.ts`, import.meta.url))).digest("hex")]));
 const output = { passed, failures, sourceHashes, dimensions: Object.keys(dimensions).length, families: Object.keys(builders).length, numericOwnerCases: cases.length, evidence, scope: "Source-only independent owner-declaration/family admission matrix with valid positive and absent controls. Declaration fixtures are byte-identical to red-gate-v1.ts; assertions use the new owner seam while strict literal valid/missing behavior remains unchanged. No built package, provider, DB, server, browser, production or coverage claim." };

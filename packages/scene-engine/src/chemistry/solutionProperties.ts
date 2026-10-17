@@ -542,7 +542,11 @@ function molarMassMultiplicity(question: string, association: boolean): {value:n
     const localStart = clauseStart ? clauseStart.index! + clauseStart[0].length : 0;
     const local = prefix.slice(localStart);
     const introducer = [...local.matchAll(association ? /\b(?:as|into|from)\s+/ig : /\binto\s+/ig)].at(-1);
-    const continuation = previousEnd > 0 && !clauseStart ? /^\s*(?:and\b|or\b|,)\s*/i.exec(local) : null;
+    const continuationCue = previousEnd > 0 && !clauseStart ? /^\s*(?:,\s*(?:(?:and|or)\b)?|(?:and|or)\b)\s*/i.exec(local) : null;
+    // A coordinated bare noun/determiner refers to the existing particles;
+    // every other sibling argument still needs a strict count read.
+    const nounReference = continuationCue && /^(?:(?:the|these|those|its|their|our)\s*)?$/i.test(local.slice(continuationCue[0].length));
+    const continuation = nounReference ? null : continuationCue;
     const lastToken = /\S+\s*$/.exec(local);
     // A reference such as "the number of particles" supplies no nominal
     // value. An explicit argument/list sibling is still a declaration even
