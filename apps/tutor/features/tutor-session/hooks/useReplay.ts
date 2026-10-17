@@ -23,6 +23,7 @@ import type { StoredSegment, StoredTurn } from "@/lib/boards/boardsClient";
 import type { DrawCommand, VerifiedDiagram } from "@heytutor/drawing";
 import {
   isStoredCommandTrustedGeometry,
+  parseStoredSegmentCommands,
   lessonNarrationText,
   cancelFrame,
   scheduleFrame,
@@ -271,6 +272,9 @@ export function useReplay({
       try {
         await drawSegmentInk({
           plan: inkPlan,
+          // A seek may have completed the gesture but still be inside its
+          // sentence. Its target ownership survives the remaining-command slice.
+          sentenceCommands: parseStoredSegmentCommands(segment.command),
           verifiedDiagramIntro: trustedDiagramGeometry,
           clock: {
             narration,

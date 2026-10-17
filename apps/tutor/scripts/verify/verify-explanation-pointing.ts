@@ -44,7 +44,7 @@ const layoutHook = load<{ useBoardLayout: typeof LayoutHook }>("features/tutor-s
 const runner = load<{ useSegmentRunner: typeof RunnerHook }>("features/tutor-session/hooks/turn/useSegmentRunner.ts").useSegmentRunner;
 const replayHook = load<{ useReplay: typeof ReplayHook }>("features/tutor-session/hooks/useReplay.ts").useReplay;
 type Beat = { narration: string; command: unknown; durationMs: number; timings: AudioTimings | null };
-type Control = "pause" | "paused-stop" | "stop" | "rate" | "no-target" | "small-row" | "pending" | "page-turn" | "seek" | "late-timings" | "draw-failure" | "voice-failure" | "skip-draw" | "cancel-before" | "authored-gesture";
+type Control = "pause" | "paused-stop" | "stop" | "rate" | "no-target" | "small-row" | "pending" | "page-turn" | "seek" | "late-timings" | "draw-failure" | "voice-failure" | "skip-draw" | "cancel-before" | "authored-gesture" | "authored-gesture-resume" | "authored-gesture-resume-write";
 const results: unknown[] = [];
 
 async function run(name: string, source: Beat, mode: "shared" | "export" | "live" | "fallback" = "shared", control?: Control) {
@@ -76,9 +76,10 @@ async function run(name: string, source: Beat, mode: "shared" | "export" | "live
   }
   if (control === "page-turn") layout.boardLayoutRef.current.nextY = 710;
   if (control === "pending") layout.boardLayoutRef.current.rects.push({ x: 90, y: 274, width: 150, height: 32, text: "future answer", workIndex: 8, workId: "w8", pendingInk: true });
-  const diagram: VerifiedDiagram = { id: "verified_scene", layout: control === "authored-gesture" ? "standard" : "code_lesson", name: "owned", promptAddon: "",
+  const diagram: VerifiedDiagram = { id: "verified_scene", layout: control?.startsWith("authored-gesture") ? "standard" : "code_lesson", name: "owned", promptAddon: "",
     anchors: ["cell1", "cell3", "last"].map((id, i) => ({ id, labels: [id], x: 700 + i * 100, y: 340, width: 80, height: 40 })),
     commands: [], reveals: [], groups: [], deferredAnnotations: [{ entityId: "last", commands: [{ type: "LABEL", text: "unrevealed", params: [900, 340, 24] }] }] };
+  if (control?.startsWith("authored-gesture-resume")) await board.flyCursorTo(740, 360, 0);
   const diagramBefore = structuredClone(diagram), activeDiagram = ref<VerifiedDiagram | null>(diagram);
   const clears: number[] = [], erase = board.eraseWorkInk;
   board.eraseWorkInk = async (...args) => { clears.push(mediaMs); await erase(...args); };
@@ -158,7 +159,7 @@ async function run(name: string, source: Beat, mode: "shared" | "export" | "live
       resetBoardLayout: layout.resetBoardLayout, finishLectureUi() {}, pauseTurn() {}, resumeTurn() {},
     });
     if (control === "cancel-before") cancel.current = true;
-    job = consumer.playReplayCue(buildReplayTimeline([turn]).cues[0]!, 0, 1, control === "skip-draw");
+    job = consumer.playReplayCue(buildReplayTimeline([turn]).cues[0]!, control?.startsWith("authored-gesture-resume") ? 2_000 : 0, 1, control === "skip-draw", undefined, control?.startsWith("authored-gesture-resume") ? 1 : 0);
   } else if (mode === "export") {
     const turn = { id: "offline", orderIndex: 0, question: "Retained launch lesson", rawResponse: "", speedMultiplier: 1,
       traceId: null, sceneDocument: null, sceneEngineVersion: null, validationReport: null, visualStatus: "text_only", sceneArtifacts: null,
@@ -211,6 +212,10 @@ async function run(name: string, source: Beat, mode: "shared" | "export" | "live
     if (mode === "shared") assert.equal(originalCount, control === "stop" || control === "paused-stop" ? 1 : commands.length, `${name}: original resume command counts stay intact`);
     if (control === "no-target" || control === "pending" || control === "seek" || control === "skip-draw" || control === "cancel-before" || control === "voice-failure") {
       assert.equal(flights.length, 0, `${name}: suppressed or unheard speech, seek, and unavailable targets produce no transient motion`);
+    } else if (control?.startsWith("authored-gesture-resume")) {
+      assert.equal(fallbackPoints, 0, `${name}: a completed-prefix gesture still owns the resumed sentence`);
+      if (control === "authored-gesture-resume") assert.equal(flights.length, 0, `${name}: an empty remainder retains the already-landed pen`);
+      else assert.equal(writes.length, 1, `${name}: the original remaining WRITE still inks`);
     } else if (control === "authored-gesture") {
       assert(flights.length > 0, `${name}: the original gesture really visits its verified target`);
       assert.equal(fallbackPoints, 0, `${name}: authored gestures must never yield their explanation to unrelated last work`);
@@ -260,7 +265,7 @@ async function run(name: string, source: Beat, mode: "shared" | "export" | "live
     }
     if (!cancel.current) maxStaticVoicedMs = Math.max(maxStaticVoicedMs, beat.durationMs - lastActivityMs);
     if (control === "voice-failure" || control === "cancel-before") maxStaticVoicedMs = 0; // No voice began.
-    if (!["no-target", "pending", "page-turn", "seek", "skip-draw", "cancel-before", "voice-failure", "authored-gesture"].includes(control ?? "")) {
+    if (!["no-target", "pending", "page-turn", "seek", "skip-draw", "cancel-before", "voice-failure", "authored-gesture", "authored-gesture-resume", "authored-gesture-resume-write"].includes(control ?? "")) {
       assert(maxStaticVoicedMs < 2_500, `${name}: whole voiced beat cannot park ink and cursor for ${maxStaticVoicedMs}ms`);
     }
     results.push({ name, mode, control: control ?? "none", flights: flights.length, firstGlyphMs: glyphs[0] ?? null, maxStaticVoicedMs });
@@ -301,6 +306,14 @@ async function main() {
       command: { commands: [{ type, text: "cell1", params: [], charPosition: 0, narrationBefore: "", semanticRef: { entityId: "cell1" } }] },
       durationMs: 12_000, timings: null };
     for (const mode of ["shared", "live", "fallback", "export"] as const) await run(`authored-${type}-${mode}`, authored, mode, "authored-gesture");
+  }
+  for (const type of ["FOCUS", "POINT"] as const) {
+    const gesture: DrawCommand = { type, text: "cell1", params: [], charPosition: 0, narrationBefore: "", semanticRef: { entityId: "cell1" } };
+    const narration = "cell1 is the ray. This explanation stays with the verified ray. Near the end we write y equals two.";
+    for (const write of [false, true]) {
+      const commands = write ? [gesture, { type: "WRITE" as const, text: "y = 2", params: [90, 274, 32], charPosition: 0, narrationBefore: narration }] : [gesture];
+      await run(`resumed-authored-${type}${write ? "-write" : ""}`, { narration, command: { commands }, durationMs: 12_000, timings: null }, "fallback", write ? "authored-gesture-resume-write" : "authored-gesture-resume");
+    }
   }
   assert(lecturePageCacheKey([]).endsWith("@video11"), "prior board/pitch/static explanation files cannot share the new cache identity");
   console.log("verify-explanation-pointing:", JSON.stringify({ scenarios: results.length, providers: 0, results }));

@@ -172,6 +172,8 @@ export async function drawSegmentInk(input: {
   beforeCommand?: () => void;
   /** Written rows before `plan.commands[0]` in this sentence (a replay resumed inside it). */
   initialTextCommandIndex?: number;
+  /** Full authored sentence when the plan resumes after completed commands. */
+  sentenceCommands?: readonly DrawCommand[];
   /**
    * False when `plan.commands` is the tail of a sentence: its first command is
    * not the beat's opening stroke, and it keeps the stored order the resume
@@ -198,7 +200,7 @@ export async function drawSegmentInk(input: {
   } = plan;
   // An authored gesture owns what this sentence explains. A fallback work
   // tour must not pull the pen away from that target, even after its cue ends.
-  const canPointAtWork = !segmentCommands.some(command => command.type === "FOCUS" || command.type === "POINT");
+  const canPointAtWork = !(input.sentenceCommands ?? segmentCommands).some(command => command.type === "FOCUS" || command.type === "POINT");
   const narration = clock.narration;
   const hasNarration = narration.length > 0;
   const speechMsPerChar = clock.msPerChar;
