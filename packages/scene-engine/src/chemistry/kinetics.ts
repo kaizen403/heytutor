@@ -450,10 +450,17 @@ function quantityUseReferenceOnly(body: string, ownerStart: number, payloadStart
   return /\buse\s+(?:(?:the|its|a)\s+)?$/i.test(body.slice(0, ownerStart))
     && delimiter && request !== null && pureKineticsPlotSubject(tail.slice(request[0].length));
 }
-/** A qualitative rate change contains only its complete thermal payload. */
+/** A relative rate change contains only its complete thermal payload. */
 function qualitativeRateChangeOnly(question: string, ownerStart: number, start: number, end: number): boolean {
   const tail = question.slice(start, end);
-  const change = String.raw`(?:(?:is|was|becomes|become)\s+)?(?:doubl\w*|tripl\w*|quadrupl\w*|halved|twice(?:\s+(?:its|the)\s+value)?)`;
+  // The Arrhenius reader below validates the original multiplier scalar and
+  // source span. This audit only keeps that relative input out of the
+  // absolute-k slot; it does not assign a physical rate constant.
+  const multiplier = String.raw`(?:(?:is|was|becomes?|increases?)\s+)?${SCALAR}(?:\s+times|\s*[-–]?\s*fold)(?:\s+(?:its|the)\s+(?:original\s+)?value)?`;
+  const qualitative = String.raw`(?:(?:is|was|becomes|become)\s+)?(?:doubl\w*|tripl\w*|quadrupl\w*|halved|twice(?:\s+(?:its|the)\s+value)?)`;
+  // "By N times" has an ambiguous final magnitude; "decreases N-fold"
+  // would require the reciprocal. Neither supplies this positive ratio.
+  const change = String.raw`(?:${qualitative}|${multiplier})`;
   let payloadStart = start;
   let payload = tail;
   if (!new RegExp(String.raw`^\s*${change}(?:\s+(?:when|as|on|from|for|between|at|with)\b[\s\S]*)?\s*$`, "i").test(tail)) {
@@ -855,6 +862,7 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
   // Inventory the original change owner before any successful scalar match.
   // Unread or damaged times/fold material cannot disappear behind a pair.
   const timesOwners = [...stem.matchAll(/\b(?:rate constant|rate)\b/gi)];
+  let requiresMeasuredRatio = false;
   for (const [index, owner] of timesOwners.entries()) {
     const payloadStart = owner.index! + owner[0].length;
     let ownerEnd = timesOwners[index + 1]?.index ?? stem.length;
@@ -866,14 +874,22 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
     if (!marker) continue;
     if (marker.index > 80) return false;
     const payload = [payloadStart, payloadStart + marker.index] as const;
-    const prefix = /^\s*(?:of\s+(?:(?:the|a|this)\s+)?reaction\s*)?(?:(?:becomes?|increases?|decreases?|changes?)(?:\s+by)?\s+)?/i.exec(stem.slice(payload[0],payload[1]))!;
+    const prefix = /^\s*(?:of\s+(?:(?:the|a|this)\s+)?reaction\s*)?(?:(?:is|was|becomes?|increases?|decreases?|changes?)(?:\s+by)?\s+)?/i.exec(stem.slice(payload[0],payload[1]))!;
+    // Decreases need reciprocal/ascending-line support. Ambiguous change/by
+    // language is usable only when complete measured k,T pairs confirm it.
+    if (/\bdecreases?\b/i.test(prefix[0])) return false;
+    if (/\b(?:changes?|by)\b/i.test(prefix[0])) {
+      if (!/^fold$/i.test(marker[0])) return false;
+      requiresMeasuredRatio = true;
+    }
     const start = payload[0] + prefix[0].length;
     const read = readChemistryQuantity({question:stem,after:/^/,within:{start,end:payload[1]},dimension:"dimensionless"});
-    if (!read.ok || !(read.reading.value > 0)) return false;
+    if (!read.ok || !(read.reading.value > 1)) return false;
     const scalarTail = stem.slice(read.reading.source.span.end,payload[1]);
     // A single original sentence dot may separate scalar2 from "times";
     // the shared strict scalar proof remains unchanged and owns the value.
-    if (scalarTail.trim() !== "" && !/^\.\s*$/.test(scalarTail)) return false;
+    const foldSeparator = /^fold$/i.test(marker[0]) && /^\s*[-–]\s*$/.test(scalarTail);
+    if (scalarTail.trim() !== "" && !/^\.\s*$/.test(scalarTail) && !foldSeparator) return false;
     const suffixStart = payload[1] + marker[0].length;
     const clause = /[;?\n]|\.(?=\s|$)/.exec(stem.slice(suffixStart));
     const suffixEnd = clause ? suffixStart + clause.index : stem.length;
@@ -938,8 +954,23 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
     if (measured !== undefined && !chemistryCanonicalValuesAgree(measured,value)) return false;
   }
   const k1 = indexedRates.get(1) ?? constants[0] ?? null; const k2 = indexedRates.get(2) ?? constants[1] ?? null;
+  // A non-flat positive ratio is meaningful in either temperature direction.
+  // Its derived activation energy below must still be positive and agree
+  // with every independently supplied Arrhenius source.
+  if (ratio !== null && (!(ratio > 0) || ratio === 1)) return false;
   if (k1 !== null && k2 !== null && ratio !== null
     && (!(k1 > 0 && k2 > 0 && ratio > 0) || !chemistryCanonicalValuesAgree(k2 / k1, ratio))) return false;
+  if (requiresMeasuredRatio && (k1 === null || k2 === null || T1 === null || T2 === null || T1 === T2)) return false;
+  // Every independent source must agree before one may drive the figure.
+  const energies: number[] = Ea === null ? [] : [Ea];
+  if (statedSlope) energies.push(statedSlope.b * GAS_CONSTANT * (statedSlope.natural ? 1 : Math.LN10));
+  const observedRatio = ratio ?? (k1 !== null && k2 !== null ? k2 / k1 : null);
+  if (observedRatio !== null && T1 !== null && T2 !== null) {
+    const measuredEnergy = activationEnergyFromRatio(observedRatio,T1,T2);
+    if (measuredEnergy === null || !Number.isFinite(measuredEnergy)) return false;
+    energies.push(measuredEnergy);
+  }
+  if (energies.some(energy => !(energy > 0) || !chemistryCanonicalValuesAgree(energy,energies[0]!))) return false;
   if (Ea === null && ratio === null && k1 === null && statedSlope === null) return null;
   return {T1, T2, k1, k2, ratio, Ea, A, statedSlope};
 }
@@ -1514,7 +1545,7 @@ function buildArrhenius(question: string, spec: KineticsSpec, solution: Kinetics
   c.scene.quantity("T2", "T_2", T2!, "K");
   c.scene.quantity("ratio", "k_2/k_1", ratio!, "");
   const ratioText = arr?.ratio !== null && arr?.ratio !== undefined
-    ? `k rises ${fmt(ratio!, 3)} times from ${Number(T1!.toFixed(2))} K to ${Number(T2!.toFixed(2))} K`
+    ? `k ${ratio! > 1 ? "rises" : "falls to"} ${fmt(ratio!, 3)} times from ${Number(T1!.toFixed(2))} K to ${Number(T2!.toFixed(2))} K`
     : arr?.k1 !== null && arr?.k2 !== null
       ? `k goes from ${fmt(arr!.k1!, 3)} at ${Number(T1!.toFixed(2))} K to ${fmt(arr!.k2!, 3)} at ${Number(T2!.toFixed(2))} K`
       : `between ${Number(T1!.toFixed(2))} K and ${Number(T2!.toFixed(2))} K, k changes by a factor ${fmt(ratio!, 3)}`;
