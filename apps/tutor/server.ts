@@ -9,6 +9,7 @@ import { HTUTOR_UID_COOKIE } from "./lib/cookies";
 import { relayTtsWebSocket } from "./lib/tts/wsRelay";
 import { protectNodeRequest } from "./lib/http/nodeRequest";
 import { startObjectDeletionWorker } from "./lib/object-store/deletionJobs";
+import { startFailedTurnSentryWorker } from "./lib/obs/failedTurnSentry";
 import { prisma } from "./lib/db/prisma";
 import { assertOwnedTrace } from "./lib/obs/traceOwnership";
 import { readTraceIdHeader } from "@heytutor/tutor-core";
@@ -51,6 +52,7 @@ async function warmDevRoutes(baseUrl: string): Promise<void> {
 
 app.prepare().then(() => {
   startObjectDeletionWorker();
+  startFailedTurnSentryWorker();
   const server = createServer({ maxHeaderSize: 16 * 1024 }, (req, res) => {
     if (!protectNodeRequest(req, res)) return;
     const parsedUrl = parseUrl(req.url ?? "", true);

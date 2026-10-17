@@ -61,6 +61,7 @@ export async function userDetail(userId: string): Promise<UserDetailPayload | nu
         id: true,
         question: true,
         visualStatus: true,
+        status: true,
         sceneArtifacts: true,
         createdAt: true,
         boardId: true,
@@ -157,7 +158,8 @@ export async function userDetail(userId: string): Promise<UserDetailPayload | nu
       return {
         turnId: turn.id,
         question: turn.question,
-        outcome: classifyOutcome(turn.visualStatus),
+        outcome: classifyOutcome(turn.visualStatus, { status: turn.status,
+          sceneArtifacts: turn.sceneArtifacts, segmentCount: segments?.count ?? 0 }),
         tier: summary?.representationTier ?? null,
         degradationReason: summary?.degradationReason ?? null,
         issueCodes: summary?.issueCodes ?? [],
