@@ -1738,7 +1738,7 @@ function evaluateConstruction(
       const symbol = first(inputs, ["symbol"]);
       if (typeof symbol !== "string") throw new Error("symbol must be a string");
       const lane = typeof inputs.__parallelLane === "number" ? inputs.__parallelLane : 0;
-      return [{ kind: "compound", paths: routedSymbolPaths(symbol, start, end, lane, isVerifiedPartsEnabled(document)), terminals: [start, end] }];
+      return [{ kind: "compound", paths: routedSymbolPaths(symbol, start, end, lane, isVerifiedPartsEnabled(document), inputs.state), terminals: [start, end] }];
     }
     case "vector_components": {
       const origin = point(["origin", "start"]); const vector = resolveVector(first(inputs, ["vector"]), geometry);
@@ -5748,8 +5748,12 @@ function coincidentAxisRayAliases(
     (second.includes("axis") && first.includes("ray"));
 }
 
-function symbolPaths(symbol: string, start: Point, end: Point, verifiedPartsEnabled: boolean): Point[][] {
+function symbolPaths(symbol: string, start: Point, end: Point, verifiedPartsEnabled: boolean, state?: unknown): Point[][] {
   const normalizedSymbol = symbol.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const normalizedState = typeof state === "string" ? state.trim().toLowerCase() : state;
+  if (state !== undefined && (normalizedSymbol !== "switch" || (normalizedState !== "open" && normalizedState !== "closed"))) {
+    throw new Error("symbol state is only supported for switches and must be open or closed");
+  }
   const direction = normalize({ x: end.x - start.x, y: end.y - start.y });
   const normal = { x: -direction.y, y: direction.x };
   const span = distance(start, end);
@@ -5837,6 +5841,17 @@ function symbolPaths(symbol: string, start: Point, end: Point, verifiedPartsEnab
     ];
   }
   if (normalizedSymbol === "switch") {
+    if (normalizedState === "closed") {
+      // Contact rings keep a closed switch distinguishable from an ordinary
+      // wire. This glyph establishes contact state, not a current value.
+      return [
+        [at(0), at(0.38)],
+        [at(0.38), at(0.7)],
+        [at(0.7), at(1)],
+        circleAt(0.38, 0.025),
+        circleAt(0.7, 0.025),
+      ];
+    }
     return [
       [at(0), at(0.38)],
       [at(0.38), at(0.7, -0.14)],
@@ -5846,8 +5861,8 @@ function symbolPaths(symbol: string, start: Point, end: Point, verifiedPartsEnab
   throw new Error(`unsupported symbol ${normalizedSymbol}`);
 }
 
-function routedSymbolPaths(symbol: string, start: Point, end: Point, lane: number, verifiedPartsEnabled: boolean): Point[][] {
-  if (Math.abs(lane) < EPSILON) return symbolPaths(symbol, start, end, verifiedPartsEnabled);
+function routedSymbolPaths(symbol: string, start: Point, end: Point, lane: number, verifiedPartsEnabled: boolean, state?: unknown): Point[][] {
+  if (Math.abs(lane) < EPSILON) return symbolPaths(symbol, start, end, verifiedPartsEnabled, state);
   const direction = normalize({ x: end.x - start.x, y: end.y - start.y });
   const normal = { x: -direction.y, y: direction.x };
   const offset = distance(start, end) * lane;
@@ -5855,7 +5870,7 @@ function routedSymbolPaths(symbol: string, start: Point, end: Point, lane: numbe
   const shiftedEnd = { x: end.x + normal.x * offset, y: end.y + normal.y * offset };
   return [
     [start, shiftedStart],
-    ...symbolPaths(symbol, shiftedStart, shiftedEnd, verifiedPartsEnabled),
+    ...symbolPaths(symbol, shiftedStart, shiftedEnd, verifiedPartsEnabled, state),
     [shiftedEnd, end],
   ];
 }
