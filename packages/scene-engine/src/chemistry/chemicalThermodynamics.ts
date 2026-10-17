@@ -19,6 +19,14 @@ function fit(text: string): string {
 }
 
 function temperatureKelvin(question: string): number | null {
+  // Literal inventory alone cannot see an unavailable named temperature.
+  // Each named/symbolic declaration must survive before choosing its value.
+  for (const cue of [
+    { after: /\btemperature\b(?:\s+T\b)?/, cueCaseSensitive: false },
+    { after: /(?<![\p{L}\p{N}_])T(?![\p{L}\p{N}_])/u, cueCaseSensitive: true },
+  ]) {
+    if (readChemistryQuantityDeclaration({ question, ...cue, dimension: "temperature", targetUnit: "K", owner: "thermodynamic temperature", allowAgreeingRepeats: true }).state === "invalid") return null;
+  }
   const r = findChemistryQuantities({ question, dimension: "temperature", targetUnit: "K" });
   return r.ok && r.reading.length > 0 && r.reading.every(read => read.value === r.reading[0]!.value) ? r.reading[0]!.value : null;
 }
@@ -345,17 +353,28 @@ function buildHeat(question: string, stem: string): SceneDocument | null {
   const c = new ChemScene(question, "heat capacity", FAMILY);
   const ids: string[] = [];
   if (ideal && asksR) {
-    const cp = numberAfter(question, /c_?p(?:,m)?(?:\s*(?:=|is))?/, "molar_heat_capacity", "J/(mol K)");
-    if (cp === null) return null;
+    const cpRead = readChemistryQuantityDeclaration({ question, after: /(?:molar\s+)?heat\s+capacity\s+at\s+constant\s+pressure(?:\s+C_?p(?:,m)?\b)?|\bC_?p(?:,m)?\b/, dimension: "molar_heat_capacity", targetUnit: "J/(mol K)", owner: "constant-pressure molar heat capacity", allowAgreeingRepeats: true });
+    if (cpRead.state !== "valid") return null;
+    const cp = cpRead.reading.value;
     const cv = cp - R_J;
+    // The complete ideal-gas identity is a reference, not a Cv assignment.
+    // Other Cv/R declarations must agree with the derived/reference values;
+    // all original molar-capacity literals keep a distinct source owner.
+    const cvRead = readChemistryQuantityDeclaration({ question, after: /\bC_?p(?:,m)?\s*[-−]\s*C_?v(?:,m)?\s*=\s*R\b(?!\s*(?:[+\-−*/÷∕^=\d]|\.\d))|(?:molar\s+)?heat\s+capacity\s+at\s+constant\s+volume(?:\s+C_?v(?:,m)?\b)?|\bC_?v(?:,m)?\b/, dimension: "molar_heat_capacity", targetUnit: "J/(mol K)", owner: "constant-volume molar heat capacity", allowAgreeingRepeats: true });
+    const rRead = readChemistryQuantityDeclaration({ question, after: /\b(?:gas\s+constant(?:\s+R\b)?|R)\b/, dimension: "molar_heat_capacity", targetUnit: "J/(mol K)", owner: "ideal gas constant", allowAgreeingRepeats: true });
+    if (cvRead.state === "invalid" || rRead.state === "invalid"
+      || cvRead.state === "valid" && !chemistryCanonicalValuesAgree(cvRead.reading.value, cv)
+      || rRead.state === "valid" && !chemistryCanonicalValuesAgree(rRead.reading.value, R_J)) return null;
+    const consumed = [cpRead, cvRead, rRead].flatMap(read => read.occurrences.flatMap(occurrence => occurrence.read.ok ? [{ reading: occurrence.read.reading, owner: read.owner }] : []));
+    if (!chemistryQuantityInventoryOwned(question, "molar_heat_capacity", consumed)) return null;
     ids.push(c.text("cp_l", { x: 0, y: 1.2 }, fit(`Cp=${cp}`), "molar heat capacity at constant pressure"));
     ids.push(c.text("cv_l", { x: 0, y: 0.2 }, fit(`Cv=${cv.toFixed(2)}`), "molar heat capacity at constant volume"));
     ids.push(c.text("r_l", { x: 0, y: -0.8 }, "ideal gas R", "ideal-gas molar relation"));
   } else {
     const molar = /molar heat capacity|j\/\(mol/.test(stem);
     const capacityDimension = molar ? "molar_heat_capacity" : "heat_capacity";
-    const capacityRead = readChemistryQuantity({ question, after: /(?:molar )?heat capacity(?:\s+of a sample)?(?:\s+is)?|c\s*=/i, dimension: capacityDimension, targetUnit: molar ? "J/(mol K)" : "J/K" });
-    if (!capacityRead.ok || !chemistryQuantityInventoryOwned(question, capacityDimension, [{ reading: capacityRead.reading, owner: "heat_capacity" }])) return null;
+    const capacityRead = readChemistryQuantityDeclaration({ question, after: /(?:molar )?heat capacity(?:\s+of a sample)?(?:\s+C(?=\s*[=:]))?|\bC(?=\s*[=:])/i, dimension: capacityDimension, targetUnit: molar ? "J/(mol K)" : "J/K", owner: "heat_capacity", allowAgreeingRepeats: true });
+    if (capacityRead.state !== "valid" || !chemistryQuantityInventoryOwned(question, capacityDimension, capacityRead.occurrences.flatMap(occurrence => occurrence.read.ok ? [{ reading: occurrence.read.reading, owner: "heat_capacity" }] : []))) return null;
     const capacity = capacityRead.reading.value;
     const temperatures = heatTemperatureRange(question);
     if (temperatures === false) return null;

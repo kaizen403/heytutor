@@ -1,3 +1,9 @@
+## 18 Oct: coordinated particle and monomer references
+
+A repeated `and the particles` noun phrase was incorrectly treated as another process-count declaration. A bare or possessive/demonstrative noun reference now reuses the existing count; a quantified sibling still takes its own strict read, including comma-plus-conjunction lists. Unknown, malformed, conflicting and explicit count-property inputs retain refusal.
+
+Owned supplied-quantity gate: original 594 checks preserved verbatim, 90 added checks from 30 real wordings. Genuine RED 642/684, then source GREEN 684/684. Independent frozen 72 and fresh 72 source-path checks pass; 24 previously accepted complete scene documents match the old source/package. Own package, exact-head full sweep, 604 replay and both 1,667-row maps are required before publication. Evidence: `.context/chem/coverage95/pr137-particle-reference-{root,qa}/`. No topic count or paid coverage change is claimed.
+
 # Chemistry supplied-quantity admission, 17 October 2026
 
 This is a wrong-figure repair, not syllabus acceptance or a coverage claim. No topic ledger, accepted count, production configuration, provider or persistence path is changed.
