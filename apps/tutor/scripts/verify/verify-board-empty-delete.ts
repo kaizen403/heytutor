@@ -1,4 +1,3 @@
-// @ts-expect-error esbuild ships with the tsx test runner, not the app package.
 import { build } from "esbuild";
 import { createRequire, Module } from "node:module";
 import { resolve } from "node:path";
