@@ -1150,16 +1150,18 @@ function mergeAbortSignals(first: AbortSignal, second: AbortSignal): AbortSignal
 export const TURN_PLAN_V3_VISUAL_GROUNDING =
   "Set visualRequirement=required when quantities/entities must be located in space, or an explain names systems or flows.";
 
+const TURN_PLAN_V3_ARGAND_REFERENCE = "Complex moduli: |z-a| measures distance to reference a; |z+w| to -w. Name point/centre components by this reference role; retain literal w separately if needed, never as this reference. Preserve literal sourceText/givens; computed sign changes are derived, never invented quotes.";
+
 /** Prompt length before the visualRequirement grounding line (chars). Growth must stay ≤ 150. */
 export const TURN_PLAN_V3_PROMPT_BASELINE_CHARS = 2648;
 
-export const TURN_PLAN_V3_PROMPT = `Return only one compact turn-plan/v3 JSON object. Do not emit prose, pixels, drawing commands, or scene geometry.
+export const TURN_PLAN_V3_PROMPT = `Return one compact turn-plan/v3 JSON object. No prose, pixels, drawing commands or scene geometry.
 
 Required keys: schemaVersion, question, givens, unknowns, derived, qualitativeClaims, lawIds, assumptions, visualRequirement.
 
 Quantity: {id,symbol,value,unit?,sign?,sourceText?,provenance:"given"|"derived"|"assumed",dependsOn?}.
 Unknown: {id,symbol,unit?}. Claim: {id,claim,expected,relatedQuantityIds?,relatedEntityHints?}.
-lawIds and assumptions are arrays of strings. Do not emit assumption objects. Claim-related quantity IDs may reference givens, derived quantities, or unknowns.
+lawIds and assumptions: string arrays, never objects. Claim quantity IDs may reference givens, derived or unknown IDs.
 
 Set visualRequirement to:
 - "required" for mensuration (area, perimeter, volume, surface area), explicit draw/diagram/sketch/construct/plot/graph/illustrate requests, spatial location, or tasks needing a faithful visual.
@@ -1167,10 +1169,11 @@ Set visualRequirement to:
 - "none" when a visual adds no instructional meaning; never for maths whose standard method uses a graph, unit circle, Argand diagram, probability tree or triangle.
 ${TURN_PLAN_V3_VISUAL_GROUNDING}
 
-Copy numeric givens exactly. Every numerical unknown needs a finite derived answer justified by named lawIds; solve simultaneous equations completely. Never put null, NaN, infinity, or formulas in numeric value fields. Equations belong in sourceText; explicit arithmetic must equal the declared value.
-For symbolic derivations, omit symbolic parameters from numeric quantities. Put formulas in qualitativeClaims.expected as strings, linked to their unknowns by relatedQuantityIds; describe parameters in claims or assumptions. These are teaching relations, not verified numeric results. Mixed formula/numeric requests still need finite numerical answers. Never invent measurements.
+Copy numeric givens exactly. Every numerical unknown needs a finite derived answer justified by named lawIds; solve simultaneous equations completely. Numeric values must be finite scalars, never formulas. Equations go in sourceText; explicit arithmetic must match value.
+${TURN_PLAN_V3_ARGAND_REFERENCE}
+For symbolic derivations, omit symbolic parameters from numeric quantities. Put formulas in qualitativeClaims.expected as strings, linked to their unknowns by relatedQuantityIds; describe parameters in claims or assumptions. These are teaching relations, not verified numeric results. Mixed requests still need finite numeric answers.
 Keep valid JSON compact: givens contains independent stated values only; derived contains all numerical answers and at most four essential intermediate scalars; at most eight claims and six assumptions; sourceText at most 180 characters. Express coordinate labels, endpoints and repeated multiples from original givens instead of extra quantities.
-Independently recompute scalars and verify units. sign must agree with the scalar; spatial directions belong in claims. For directional claims, define coordinates, compute vectors componentwise, and check conservation laws and physical tendency. Claims must not contradict or ask the user for data. Keep IDs compact. Never invent measurements, topology, directions or assumptions. question must copy the user's exact question.`;
+Recompute scalars and check units. sign must agree with the scalar; spatial directions belong in claims. For directional claims, define coordinates, compute vectors componentwise, and check conservation laws and physical tendency. Claims must not contradict or ask the user for data. Keep IDs compact. Never invent measurements, topology, directions or assumptions. question must copy the user's exact question.`;
 
 const TURN_PLAN_V3_RETRY_PROMPT = `${TURN_PLAN_V3_PROMPT}
 
@@ -1187,5 +1190,6 @@ Required checks:
 - check qualitative claims against conservation laws, boundary conditions, limiting cases, and each other;
 - keep only assumptions necessary to make the question well-defined;
 - retain visualRequirement=required whenever the question explicitly requests a visual, the candidate already set required for a spatial setup, quantities/entities must be located or related in space, or an explain question's claims name systems, flows, or apparatus.
+${TURN_PLAN_V3_ARGAND_REFERENCE}
 
 Use the same required keys and shapes as turn-plan/v3. The question field must contain the submitted question. Return the complete corrected plan, even when the candidate was already correct.`;
