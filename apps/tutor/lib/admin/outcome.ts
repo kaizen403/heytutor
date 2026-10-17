@@ -46,6 +46,7 @@ const DEGRADATION_REASONS = [
   "missing_capability",
   "solver_contradiction",
   "required_visual_unavailable",
+  "valid_candidate_dropped",
 ] as const;
 
 export type DegradationReason = (typeof DEGRADATION_REASONS)[number];

@@ -588,6 +588,7 @@ function validatedDegradation(artifacts: unknown): SceneArtifactsV3["degradation
     "missing_capability",
     "solver_contradiction",
     "required_visual_unavailable",
+    "valid_candidate_dropped",
   ]);
   if (
     value.attemptedTier !== "exact_verified" ||
