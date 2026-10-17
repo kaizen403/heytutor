@@ -33,6 +33,16 @@ assert.equal(clarifyGroupedQuantityNarration(capturedSegment.narration, ["v² = 
 assert.equal(clarifyGroupedQuantityNarration(acceleration, ["v² = (20 m)²"]), acceleration, "an unrelated unit cannot license a speed-square rewrite");
 assert.equal(clarifyGroupedQuantityNarration("पहले the quantity twenty meters per second all squared लो.", writes), "पहले the quantity twenty meters per second all squared लो.", "already explicit grouping is stable");
 assert.equal(clarifyGroupedQuantityNarration("पहले twenty meters per second squared, फिर twenty meters per second squared.", ["v² = (20 m/s)²; a = 20 m/s²"]), "पहले twenty meters per second squared, फिर twenty meters per second squared.", "ambiguous repeated units cannot silently change a valid acceleration");
+// A single grouped WRITE cannot attribute two identical spoken values. The
+// other occurrence may be a valid acceleration that is not repeated in ink.
+for (const narration of [
+  "Acceleration is ten meters per second squared; substitute ten meters per second squared for the speed square.",
+  "Substitute ten meters per second squared, while acceleration is ten meters per second squared.",
+  "पहले ten meters per second squared acceleration है, फिर ten meters per second squared रखो.",
+]) {
+  assert.equal(clarifyGroupedQuantityNarration(narration, ["v² = (10 m/s)² + 2at"]), narration,
+    "repeated spoken values stay unchanged when their quantity attribution is ambiguous");
+}
 console.log("youtube speech: the real captured 003 prose is clarified only with its exact paired scalar and unit");
 for (const expression of ["(20 m/s)^20", "(x)^23", "(20 m/s)²³"]) {
   assert(!mathToSpeech(expression).includes("all squared"), `only a complete square exponent can trigger grouping: ${expression}`);

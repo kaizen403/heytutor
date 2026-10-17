@@ -35,6 +35,12 @@ export function clarifyGroupedQuantityNarration(narration: string, writtenRows: 
     if (!reading.includes(" per ")) continue;
     const words = reading.replace(/\d+(?:\.\d+)?/g, numberToSpokenWords);
     const phrase = new RegExp(`(?<![\\p{L}\\p{N}])${escape(words)} squared(?![\\p{L}\\p{N}])`, "giu");
+    // The paired WRITE identifies a scalar/unit, not which repeated spoken
+    // occurrence describes it. Another occurrence may be an acceleration
+    // spoken in this segment but absent from the written row.
+    const occurrences = [...clarified.matchAll(phrase)].filter((match) =>
+      !NUMBER_PREFIX.test(clarified.slice(0, match.index)));
+    if (occurrences.length !== 1) continue;
     clarified = clarified.replace(phrase, (match: string, offset: number) =>
       NUMBER_PREFIX.test(clarified.slice(0, offset)) ? match : `the quantity ${words} all squared`);
   }
