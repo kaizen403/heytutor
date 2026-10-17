@@ -87,6 +87,10 @@ export async function middleware(request: NextRequest) {
   const nonce = btoa(crypto.randomUUID());
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
+  // Server layouts cannot read the URL; onboarding returns the student here.
+  const requestPath = request.nextUrl.clone();
+  requestPath.searchParams.delete("_rsc");
+  requestHeaders.set("x-request-path", `${requestPath.pathname}${requestPath.search}`);
   requestHeaders.set("content-security-policy", contentSecurityPolicy(process.env, nonce));
   const nextResponse = () => NextResponse.next({ request: { headers: requestHeaders } });
   const secure = (response: NextResponse) => withSecurityHeaders(response, nonce);

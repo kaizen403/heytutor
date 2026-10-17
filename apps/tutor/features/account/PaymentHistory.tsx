@@ -12,6 +12,7 @@ interface Purchase {
   planId: string;
   amount: number;
   currency: string;
+  promoCode: string | null;
   status: string;
   refundAmount: number;
   createdAt: string;
@@ -56,7 +57,7 @@ export function PaymentHistory({ revision }: { revision: number }) {
         {purchases.map(purchase => (
           <li key={purchase.id} className="flex flex-wrap items-start justify-between gap-2 text-xs text-white/60">
             <div>
-              <p className="text-sm text-frost">{purchase.planId === "lesson_top_up" ? "Added credits" : purchase.planId === "pro" ? "Pro" : "Plus"} · {formatCheckoutPrice(purchase)}</p>
+              <p className="text-sm text-frost">{purchase.planId === "lesson_top_up" ? "Added credits" : purchase.planId === "pro" ? "Pro" : "Plus"} · {formatCheckoutPrice(purchase)}{purchase.promoCode ? ` · ${purchase.promoCode}` : ""}</p>
               <p className="mt-1">{dateLabel(purchase.createdAt)} · {purchase.status === "paid" ? "Paid" : purchase.status === "refunded" ? "Refunded" : purchase.status === "preparing" ? "Preparing checkout" : purchase.status === "expired" ? "Checkout expired" : "Awaiting payment"}</p>
               {purchase.status === "paid" && purchase.accessStartsAt && purchase.accessEndsAt ? <p>{dateLabel(purchase.accessStartsAt)}–{dateLabel(purchase.accessEndsAt)}</p> : null}
               {purchase.refundAmount > 0 && purchase.status !== "refunded" ? <p>Refunded {formatCheckoutPrice({ amount: purchase.refundAmount, currency: purchase.currency })}</p> : null}

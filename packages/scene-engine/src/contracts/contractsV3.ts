@@ -5078,7 +5078,9 @@ export interface SceneArtifactsV3 {
       | "candidate_invalid"
       | "missing_capability"
       | "solver_contradiction"
-      | "required_visual_unavailable";
+      | "required_visual_unavailable"
+      /** A candidate passed validation as a scene but final selection did not draw it. */
+      | "valid_candidate_dropped";
     issueCodes: string[];
     candidateCount: number;
   };
