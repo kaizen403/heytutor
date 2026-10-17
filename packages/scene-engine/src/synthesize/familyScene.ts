@@ -54,6 +54,7 @@ import {
 } from "./visualObligations";
 import { buildConceptSchematic, CONCEPT_SCHEMATIC_FAMILY } from "./conceptSchematic";
 import { CHEMISTRY_SCENE_FAMILIES, chemistryFamilyBuilder } from "../chemistry";
+import type { ChemPlanQuantity } from "../chemistry/sceneKit";
 import { extractCircleSource, findStatedCurves, type StatedCurve } from "./statedEquations";
 import { readSectionFormulaSource, sectionFormulaScene } from "../ir/sectionFormulaSource";
 import { metricAssertions } from "../archetypes/contract";
@@ -271,9 +272,10 @@ function synthesizeFromFamilies(
   // the legacy partial launch family. The computed projectile owns its angle.
   if (projectileSource) return null;
   for (const family of families) {
-    const builder = FAMILY_BUILDERS[family] ?? chemistryFamilyBuilder(family);
+    const chemistryBuilder = chemistryFamilyBuilder(family);
+    const builder = FAMILY_BUILDERS[family] ?? chemistryBuilder;
     if (!builder) continue;
-    const document = builder(question, quantities, schematic);
+    const document = builder(chemistryBuilder ? input.question : question, chemistryBuilder ? collectChemistryPlanQuantities(input.turnPlan) : quantities, schematic);
     const compiled = document ? tryCompile(document) : null;
     if (!compiled) continue;
     // Compiling proves the geometry is valid, not that it is this question's
@@ -4549,6 +4551,26 @@ function collectPlanQuantities(turnPlan: unknown): PlanQuantity[] {
       unit: typeof row.unit === "string" ? row.unit : undefined,
       sourceText: typeof row.sourceText === "string" ? row.sourceText : undefined,
     }];
+  });
+}
+
+/** Chemistry alone retains given/derived origin; the nonchem collector above is unchanged. */
+export function collectChemistryPlanQuantities(turnPlan: unknown): ChemPlanQuantity[] {
+  if (!isRecord(turnPlan)) return [];
+  return (["given", "derived"] as const).flatMap(origin => {
+    const rows = origin === "given" ? turnPlan.givens : turnPlan.derived;
+    if (!Array.isArray(rows)) return [];
+    return rows.flatMap((row, index) => {
+      if (!isRecord(row) || typeof row.value !== "number") return [];
+      const id = typeof row.id === "string" && row.id.trim() ? row.id : `${origin}${index + 1}`;
+      const symbol = typeof row.symbol === "string" && row.symbol.trim() ? row.symbol : id;
+      const span = isRecord(row.sourceSpan) && typeof row.sourceSpan.start === "number" && typeof row.sourceSpan.end === "number"
+        ? { start: row.sourceSpan.start, end: row.sourceSpan.end } : undefined;
+      return [{ id, symbol, value: row.value, origin,
+        unit: typeof row.unit === "string" ? row.unit : undefined,
+        sourceText: typeof row.sourceText === "string" ? row.sourceText : undefined,
+        sourceSpan: span }];
+    });
   });
 }
 

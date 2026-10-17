@@ -20,6 +20,7 @@ import { carbonSiteRequest } from "./neighbourhood";
 import { buildNeighbourhoodComparison } from "./neighbourhoodPanel";
 import { heavyAtomCount, parseSmiles, type Molecule } from "./smiles";
 
+import { molecularShapeRequested } from "../foundation/molecularShapeRequest";
 import { requiresConformationProjection } from "../foundation/conformationRequest";
 
 export const ORGANIC_FAMILY = "chem_organic" as const;
@@ -331,7 +332,7 @@ function isomerSet(stem: string, formulas: string[]): { formula: string; members
 /* ------------------------------------------------------------------------- */
 
 const ORGANIC_CONTEXT = /\b(?:iupac|structure|structural|isomer|hybridi[sz]|chiral|optically|unsaturation|functional group|major product|reaction sequence|treatment|treated|reagent|reacts?|gives?|grignard|carbocation|nucleophil|electrophil|sn1|sn2|e1|e2|ester|alcohol|aldehyde|ketone|amine|alkene|alkyne|alkane|aromatic|benzene ring|oxidation|reduction|hydrolysis|dehydration|halogenation|nitration|sulphonation|sulfonation|acylation|alkylation|ozonolysis|polymer|monomer)\b/;
-const NOT_ORGANIC = /\b(?:molal|molality|molarity|freezing point|boiling point (?:of|elevation)|osmotic|vapou?r pressure|enthalpy of (?:combustion|formation|neutrali)|heat of|calorimet|rate constant|half.?life|order of (?:the )?reaction|activation energy|equilibrium constant|solubility product|buffer|electrode potential|emf|conductivity|crystal field|coordination number|ligand|unit cell|lattice|radioactive|nearest integer|weight percentage|molar mass of the compound|empirical formula|how many grams|mass of|[xy] g of|quantitatively produced|fuel cell|cell potential|electrochemical cell|galvanic|flame test|group (?:reagent|precipitate)|salt analysis|sodium carbonate extract|moles? of [a-z0-9 ]{1,30} required|required to produce|adsorption|freundlich|langmuir|isotonic|total number of atoms|number of (?:atoms|molecules) present|at stp|charged comb|decay sequence|particles?\/radiation)\b/;
+const NOT_ORGANIC = /\b(?:molal|molality|molarity|freezing point|boiling point (?:of|elevation)|osmotic|vapou?r pressure|enthalpy of (?:combustion|formation|neutrali)|heat of|calorimet|rate constant|half.?life|order of (?:the )?reaction|activation energy|equilibrium constant|solubility product|buffer|titrat(?:ion|ed|ing|e)s?|electrode potential|emf|conductivity|crystal field|coordination number|ligand|unit cell|lattice|radioactive|nearest integer|weight percentage|molar mass of the compound|empirical formula|how many grams|mass of|[xy] g of|quantitatively produced|fuel cell|cell potential|electrochemical cell|galvanic|flame test|group (?:reagent|precipitate)|salt analysis|sodium carbonate extract|moles? of [a-z0-9 ]{1,30} required|required to produce|adsorption|freundlich|langmuir|isotonic|total number of atoms|number of (?:atoms|molecules) present|at stp|charged comb|decay sequence|particles?\/radiation)\b/;
 const FIGURE_ONLY = /\b(?:the following (?:compound|structure|reaction|molecule|reaction sequence)|given (?:compound|structure|reaction)|shown below|structure shown|compound \([a-z]\))\b/;
 
 /** Exam-paper scaffolding an OCR pass leaves in front of the question. */
@@ -430,6 +431,7 @@ export function buildOrganicScene(question: string, _quantities: ChemPlanQuantit
   if (!isOrganicStem(question)) return null;
   const requestedSite = carbonSiteRequest(question);
   if (requestedSite) return buildNeighbourhoodComparison(question, requestedSite);
+  if (molecularShapeRequested(question)) return null;
   // One text for every index: mentions, cues and roles are all read from the
   // same normalised string. Mixing raw-question indices with a whitespace-
   // collapsed copy shifted every cue on an OCR stem.

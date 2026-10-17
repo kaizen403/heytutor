@@ -30,7 +30,7 @@ import {
 import { formulaTokens, normalizeChemistryText, parseFormula, type ParsedFormula } from "./formula";
 import { isMonovalent, resolveElement, valenceElectrons, type ElementRecord } from "./elements";
 import { isDiscreteVseprCandidate } from "./foundation/formulaState";
-import { vseprSourceArgumentsComplete } from "./vseprSource";
+import { vseprFormulaArguments, vseprSourceArgumentsComplete } from "./vseprSource";
 import type { TurnPlanV3 } from "../contracts/contractsV3";
 
 export const VSEPR_FAMILY = "chem_vsepr" as const;
@@ -425,9 +425,9 @@ const SHAPE_WORDS: ReadonlyArray<[RegExp, VseprShape]> = [
   [/\bt[ -]shaped/, "T-shaped"],
   [/square planar/, "square planar"],
   [/trigonal planar/, "trigonal planar"],
-  [/(?<!square |bi)pyramidal/, "trigonal pyramidal"],
+  [/\btrigonal pyramidal\b|(?<!square |bi|trigonal )\bpyramidal\b/, "trigonal pyramidal"],
   [/(?<!distorted )octahedral/, "octahedral"],
-  [/tetrahedral/, "tetrahedral"],
+  [/(?<!distorted )tetrahedral/, "tetrahedral"],
   [/\bbent\b|\bangular\b|\bv[ -]shaped/, "bent"],
   [/\blinear\b/, "linear"],
 ];
@@ -461,7 +461,7 @@ type ShapeClaim = { shape: VseprShape; target: "electron" | "molecular" | null; 
 /** Bind each geometry in its property clause, including compound claims. */
 function shapeClaims(text: string): ShapeClaim[] {
   const claims: ShapeClaim[] = [];
-  for (const clause of text.split(/[.;:]|\b(?:but|while|whereas|although)\b/)) {
+  for (const clause of text.split(/[.;:]|\b(?:but|while|whereas|although|because)\b|,\s*derived\s+from\b/)) {
     const shapes = SHAPE_WORDS.flatMap(([pattern, shape]) => [...clause.matchAll(new RegExp(pattern.source, "g"))]
       .map((match) => ({ shape, start: match.index, end: match.index + match[0].length })))
       .sort((left, right) => left.start - right.start);
@@ -469,6 +469,7 @@ function shapeClaims(text: string): ShapeClaim[] {
     const patterns: [RegExp, "electron" | "molecular"][] = [
       [/\bmolecular\s+(?:shape|geometry|arrangement)\b|\b(?:shape|geometry)\s+of\s+(?:the\s+)?(?:molecule|ion)\b/g, "molecular"],
       [/\belectron(?:\s+(?:domain|pair)s?)?\s+(?:geometry|arrangement)\b|\b(?:geometry|arrangement)\s+(?:of|for)\s+(?:(?:the|its)\s+)?electron(?:s|\s+(?:domains?|pairs?))?\b/g, "electron"],
+      [/\belectron(?:\s+(?:pair|domain))?s?\s+(?:is|are)\b/g, "electron"],
       [/\belectron(?:\s+(?:pair|domain))?s?\b(?:(?!\bmolecular\b)[^.;:]){0,100}\b(?:geometry|arrangement|arranged)\b/g, "electron"],
     ];
     for (const [pattern, target] of patterns) for (const match of clause.matchAll(pattern)) {
@@ -486,7 +487,7 @@ function shapeClaims(text: string): ShapeClaim[] {
         const nearestTargets = new Set(roles.filter((role) => distance(role) === nearest).map((role) => role.target));
         target = nearestTargets.size === 1 ? [...nearestTargets][0]! : null;
       }
-      const explicitNegative = /\b(?:not|no|neither)\s+(?:an?\s+)?$/.test(clause.slice(0, shape.start));
+      const explicitNegative = /\b(?:not|no|neither)\s+(?:(?:have|has)\s+)?(?:an?\s+)?$/.test(clause.slice(0, shape.start));
       // One negative can govern a comma/or/nor list. A new predicate or
       // property clause ends that list; it must keep its own truth value.
       const joinedNegative = previousShape?.negated === true
@@ -562,6 +563,10 @@ function centralLonePairPositions(text: string, result: VseprResult): Array<{ po
     if (centralCountOwner(text, match.index, end, result)) claims.push({ position: match[1]!.toLowerCase(), negated: /\b(?:not|never)\b/i.test(match[0].slice(pair[0].length)) });
   }
   for (const match of text.matchAll(/\b(axial|equatorial)\s+(lone[ -]?pairs?)\b/gi)) {
+    // An indefinite counterfactual ("an axial lone pair would ...") explains
+    // a rejected alternative; it does not locate the actual source pair.
+    if (/\ban?\s+$/i.test(text.slice(0, match.index))
+      && /^\s+(?:would|could)\b/i.test(text.slice(match.index + match[0].length))) continue;
     const start = match.index + match[0].length - match[2]!.length;
     if (centralCountOwner(text, start, start + match[2]!.length, result)) claims.push({ position: match[1]!.toLowerCase(), negated: /\b(?:not|no|neither)\s+(?:an?\s+)?$/i.test(text.slice(0, match.index)) });
   }
@@ -617,10 +622,10 @@ export function vseprSpecies(question: string): VseprResult[] {
   if (HARD_VETO.test(lower) || ORGANIC_VETO.test(lower)) return [];
   // The whole source owns the requested set. Selecting only a cue sentence
   // silently lost later "also draw" requests and unsupported list members.
-  const tokens = formulaTokens(text);
+  const tokens = vseprFormulaArguments(text, formulaTokens(text));
   const species = uniqueSpecies(tokens);
   if (species.length === 0 || species.length > MAX_SPECIES) return [];
-  return vseprSourceArgumentsComplete(sentencesOf(text), tokens, new Set(species.map((item) => item.central.symbol))) ? species : [];
+  return vseprSourceArgumentsComplete(sentencesOf(text), tokens) ? species : [];
 }
 
 function dipoleInputs(question: string): DipoleInput[] {

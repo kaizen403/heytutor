@@ -41,6 +41,14 @@ function exact(labels: string[] | null, text: string, message: string): void {
   check(labels !== null && labels.some((label) => label === text), message);
 }
 
+/** Exact physical value and complete unit, whether compact or split. */
+function exactPhysicalValue(labels: string[] | null, value: string, unit: string, message: string): void {
+  check(labels !== null && (
+    labels.includes(`${value} ${unit}`) || labels.includes(`${value}${unit}`)
+    || (labels.includes(value) && labels.includes(unit))
+  ), message);
+}
+
 function declined(question: string, message: string): void {
   const scene = synthesizeFamilyScene({ question });
   check(scene === null || scene.document.source.chemistryFamily !== "chem_thermo", message);
@@ -158,7 +166,7 @@ has(open, "energy", "open systems let energy cross");
 const INTENSIVE = "The temperature 300 K is intensive and the internal energy is 10 kJ is extensive. The sample is doubled. Draw the distinction.";
 const intensive = labelsOf(INTENSIVE);
 has(intensive, "T=300 K", "intensive temperature does not double");
-has(intensive, "U=20 kJ", "extensive internal energy doubles");
+exact(intensive, "U=20000 J", "extensive internal energy doubles in canonical joules");
 has(intensive, "intensive", "intensive is named");
 has(intensive, "extensive", "extensive is named");
 
@@ -220,7 +228,7 @@ const GIBBS = "For a reaction ΔH = -40 kJ/mol and ΔS = -100 J/(mol K). At 298 
 const gibbs = labelsOf(GIBBS);
 const dg298 = -40 - 298 * (-100 / 1000);
 has(gibbs, "T = 400 K", "the crossover is 400 K");
-has(gibbs, `ΔG=${dg298.toFixed(1)} kJ/mol`, "ΔG at 298 K is -10.2 kJ/mol");
+exactPhysicalValue(gibbs, `ΔG=${dg298.toFixed(1)}`, "kJ/mol", "ΔG at 298 K is -10.2 with the complete molar-energy unit");
 has(gibbs, "schematic", "the Gibbs line says it is schematic on the board");
 has(gibbs, "not a kJ scale", "the Gibbs line says the axis is not an energy scale");
 exact(gibbs, "spontaneous", "the reaction is spontaneous on one side of the crossover");
@@ -244,7 +252,7 @@ const G_KJ = -5.708;
 const K_EQ = Math.exp(-G_KJ * 1000 / (R_J * 298));
 const EQUILIBRIUM = "ΔG° = -5.708 kJ/mol at 298 K. Find the thermodynamic equilibrium constant K. This is not a reaction rate.";
 const equilibrium = labelsOf(EQUILIBRIUM);
-has(equilibrium, `dGo=${G_KJ.toFixed(3)} kJ`, "standard Gibbs energy");
+exactPhysicalValue(equilibrium, `dGo=${G_KJ.toFixed(3)}`, "kJ/mol", "standard Gibbs energy is -5.708 with the complete molar-energy unit");
 has(equilibrium, `K=${K_EQ.toFixed(2)}`, "K comes from ΔG° = -RT ln K");
 has(equilibrium, "dGo=-RT lnK", "the standard relation is named");
 has(equilibrium, "T=298 K", "the temperature is absolute");

@@ -13,6 +13,7 @@
 import { SceneBuilder, compact, round, type Vec2 } from "../archetypes/document";
 import type { SceneDocument } from "../types";
 import { normalizeChemistryText } from "./formula";
+import { readChemistryQuantity, resolveChemistryGiven, type ChemistryDimension, type ChemistryUnit, type ChemistrySpan } from "./quantityReader";
 
 export interface ChemPlanQuantity {
   id: string;
@@ -20,6 +21,8 @@ export interface ChemPlanQuantity {
   value: number;
   unit?: string;
   sourceText?: string;
+  sourceSpan?: ChemistrySpan;
+  origin?: "given" | "derived";
 }
 
 export type ChemFamilyBuilder = (
@@ -33,25 +36,19 @@ export function chemStem(question: string): string {
   return normalizeChemistryText(question).toLowerCase();
 }
 
-function normalizeKey(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
-}
-
-export function planQuantity(quantities: readonly ChemPlanQuantity[], aliases: readonly string[]): number | null {
-  const keys = aliases.map(normalizeKey);
-  const match = quantities.find((quantity) =>
-    keys.includes(normalizeKey(quantity.id)) || keys.includes(normalizeKey(quantity.symbol)));
-  return match ? match.value : null;
+/** Compatibility view: a plan value without a source/unit binding has no given authority. */
+export function planQuantity(quantities: readonly ChemPlanQuantity[], aliases: readonly string[], binding?: {
+  question: string; after: RegExp; dimension: ChemistryDimension; targetUnit?: ChemistryUnit;
+}): number | null {
+  if (!binding) return null;
+  const read = resolveChemistryGiven({ ...binding, quantities, aliases });
+  return read.ok ? read.reading.value : null;
 }
 
 /** First number after a phrase in the stem: `numberAfter(stem, /half.?life (?:is|of|=)?/)`. */
-export function numberAfter(stem: string, phrase: RegExp): number | null {
-  const pattern = new RegExp(`${phrase.source}\\s*(?:=|is|of|:)?\\s*(-?\\d+(?:\\.\\d+)?)(?:\\s*[x×]\\s*10\\^?\\(?(-?\\d+)\\)?)?`, "i");
-  const match = pattern.exec(stem);
-  if (!match) return null;
-  const mantissa = Number(match[1]);
-  const exponent = match[2] !== undefined ? Number(match[2]) : 0;
-  return mantissa * Math.pow(10, exponent);
+export function numberAfter(question: string, phrase: RegExp, dimension: ChemistryDimension = "dimensionless", targetUnit?: ChemistryUnit): number | null {
+  const read = readChemistryQuantity({ question, after: new RegExp(phrase.source, "i"), dimension, targetUnit });
+  return read.ok ? read.reading.value : null;
 }
 
 export type BondStyle = "plain" | "wedge" | "dash";
@@ -243,10 +240,11 @@ export class ChemScene {
   }
 
   /** Free text pinned at a position. */
-  text(id: string, at: Vec2, text: string, role = "caption"): string {
+  text(id: string, at: Vec2, text: string, role = "caption", options: { preserveText?: boolean } = {}): string {
     const anchor = this.scene.helper(`${id}_p`, at, `${role} anchor helper`);
-    this.scene.entities.push({ id, kind: "label", role, label: compact(text), provenance: { pinLabel: true } });
-    this.scene.constructions.push({ id: `make_${id}`, operator: "label", inputs: { target: anchor, text: compact(text) }, outputs: [id] });
+    const label = options.preserveText ? text : compact(text);
+    this.scene.entities.push({ id, kind: "label", role, label, provenance: { pinLabel: true } });
+    this.scene.constructions.push({ id: `make_${id}`, operator: "label", inputs: { target: anchor, text: label }, outputs: [id] });
     return id;
   }
 
