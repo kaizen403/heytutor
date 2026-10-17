@@ -66,6 +66,22 @@ no-figure grading remains `empty_bad` regardless of the cause label.
 `pnpm --filter @heytutor/tutor verify:production-selection` checks the shared
 decision and the original six live/save figures plus both edited forgeries.
 
+### Default-off source visual relations
+
+`NEXT_PUBLIC_REQUIRED_FIGURE_POLICY=1` opts both live and lab into
+`source-visual-relations/v1`. It preserves text-only definitions, factual recall,
+pure symbolic work and explicit no-drawing asks; useful explanatory relations
+may promote `none` to `optional`, while spatial requests become `required`.
+Generic operators may be requested without a named family, but every existing
+quantity, source, proof, compile and save-admission check still applies.
+Only required turns let already-running scene peers finish after a validated
+text-only response. No new requests are dispatched after a valid result, and
+neither the request limits nor the total scene deadline is extended. A drawable
+result keeps the 750 ms grace. This may add waiting and tokens, so the flag
+defaults off. Build/restart the client and server to change it. Lab preflight
+checks server/runner agreement and records the flag and version in every row
+and summary; do not resume an old round under a different policy.
+
 ## Live visual-need parity (Part 14c)
 
 Every new non-DSA lab turn calls the live `/api/visual-need` client beside the

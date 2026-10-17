@@ -1013,6 +1013,7 @@ export function useQuestionHandler(
             });
         let problemAuthorityPromise: Promise<ProblemAuthorityV1Response | null> | null = null;
         let visualNeedPromise: ReturnType<typeof fetchVisualNeed> | null = null;
+        let evaluatedVisualNeed: Awaited<ReturnType<typeof fetchVisualNeed>> | undefined;
         let diagramExampleIds: string[] = [];
         let diagramExamplePickerSettled = false;
         let diagramExamplePickerPromise: Promise<void> | null = null;
@@ -1172,7 +1173,7 @@ export function useQuestionHandler(
           } else if (plannedTurn) {
             tel.mark("planner-numeric-authority-not-needed", { reason: "no_unstated_numeric_results" });
           }
-          const evaluatedVisualNeed = await awaitCurrentTurn(visualNeedPromise, isCurrentTurn);
+          evaluatedVisualNeed = await awaitCurrentTurn(visualNeedPromise, isCurrentTurn);
           turnPlan = {
             ...turnPlan,
             visualRequirement: resolveVisualRequirement(
@@ -1182,6 +1183,9 @@ export function useQuestionHandler(
               inferSceneCapabilities(question, { turnPlan }).hasSourceProgram === true,
             ),
           };
+          // Use the same opt-in source-relationship admission as the lab before
+          // the picker. It changes no quantities, claims or scene validation.
+          turnPlan = deriveProductionSceneGate({ question, turnPlan, problemIR: null, visualNeedDecision: evaluatedVisualNeed }).turnPlan;
           tutorDebug("planner", "visual need decision", {
             evaluated: evaluatedVisualNeed,
             effective: turnPlan.visualRequirement,
@@ -1214,6 +1218,7 @@ export function useQuestionHandler(
           const gate = deriveProductionSceneGate({
             question, turnPlan: planningTurnPlan, problemIR: authority?.problemIR ?? null,
             conversationContext: recentConversation,
+            visualNeedDecision: evaluatedVisualNeed,
           });
           const diagramStrategy = liveDiagramStrategyDecision({
             assignedStrategy: billed.diagramStrategy, subject: diagramStrategySubject,
@@ -1373,6 +1378,7 @@ export function useQuestionHandler(
                 holdValidationUntil: run.holdValidationUntil,
                 maxConcurrentRequests: run.maxConcurrentRequests,
                 requestBudget: run.requestBudget,
+                waitForRequiredScenePeers: gate.waitForRequiredScenePeers,
                 fastMode: fastModeRef.current,
                 onRequestOutcome: outcome => {
                   sceneRequestFailure = sceneRequestFailureTelemetry({

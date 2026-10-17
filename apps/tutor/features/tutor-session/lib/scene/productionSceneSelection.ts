@@ -16,6 +16,7 @@ import type { VisualNeedDecision } from "@/lib/llm/visualNeedPolicy";
 import { liveSceneSaveFailure } from "@/lib/scene/sceneSaveAdmission";
 import { shouldAttemptExactScene } from "./diagramGeneration";
 import { resolveVisualRequirement } from "./visualRequirement";
+import { applySourceVisualDemand, isTextOnlyTeachingAsk, requiredFigurePolicyEnabled, sourceVisualDemand } from "./requiredFigurePolicy";
 import {
   selectVerifiedRepresentationExplained, type ExactCandidateDecline, type SelectedRepresentation,
 } from "./representationFallback";
@@ -31,6 +32,8 @@ export interface ProductionSceneInput {
   /** Omit only when the plan already contains the merged live decision. Null is unavailable, not none. */
   visualNeedDecision?: VisualNeedDecision | null;
   conversationContext?: string;
+  /** Default-off live policy; injectable for recorded-plan and parity gates. */
+  requiredFigurePolicyEnabled?: boolean;
 }
 
 export interface ValidatedSceneCandidate {
@@ -47,6 +50,8 @@ export interface ProductionSceneGate {
   shouldAttemptLlmScene: boolean;
   families: readonly string[];
   archetypeId: string | null;
+  /** Timing opt-in only for a required figure, never every optional decline. */
+  waitForRequiredScenePeers: boolean;
   request: {
     conversationContext: string;
     constructionOperators?: string[];
@@ -61,19 +66,26 @@ export function deriveSceneGate(input: ProductionSceneInput): ProductionSceneGat
   const sceneCapabilities = input.sceneCapabilities ?? inferSceneCapabilities(question, {
     lawIds: input.turnPlan.lawIds, problemIR, turnPlan: input.turnPlan,
   });
-  const planningTurnPlan = input.visualNeedDecision === undefined ? input.turnPlan : {
+  const policyEnabled = input.requiredFigurePolicyEnabled ?? requiredFigurePolicyEnabled();
+  const textOnly = policyEnabled && isTextOnlyTeachingAsk(question);
+  const mergedTurnPlan = textOnly ? { ...input.turnPlan, visualRequirement: "none" as const }
+    : input.visualNeedDecision === undefined ? input.turnPlan : {
     ...input.turnPlan,
     visualRequirement: resolveVisualRequirement(input.turnPlan.visualRequirement, input.visualNeedDecision,
       questionRequiresVisual(question), sceneCapabilities.hasSourceProgram === true),
   };
+  const demand = policyEnabled ? sourceVisualDemand(question, mergedTurnPlan) : null;
+  const planningTurnPlan = applySourceVisualDemand(mergedTurnPlan, demand, policyEnabled, input.visualNeedDecision);
   const chemistryLane = sceneCapabilities.families.some(isChemistrySceneFamily) || isChemistryQuestion(question);
   const shouldPlanExactScene = planningTurnPlan.visualRequirement !== "none" && !chemistryLane;
   const earlyArchetype = detectArchetype(question, { turnPlan: planningTurnPlan, problemIR });
+  // A named source relationship can be composed from generic operators even
+  // without a named family. This admits a request, never unchecked geometry.
   const shouldAttemptLlmScene = shouldAttemptExactScene({
     visualRequirement: planningTurnPlan.visualRequirement,
     chemistryLane, familyCount: sceneCapabilities.families.length,
     hasArchetype: earlyArchetype !== null, hasSourceProgram: sceneCapabilities.hasSourceProgram,
-  });
+  }) || (policyEnabled && demand !== null && shouldPlanExactScene);
   const planContext = [
     input.conversationContext,
     `AUTHORITATIVE TURN PLAN V3\n${JSON.stringify(planningTurnPlan)}\nDo not contradict, replace, or independently recalculate these quantities and claims.`,
@@ -89,6 +101,7 @@ export function deriveSceneGate(input: ProductionSceneInput): ProductionSceneGat
   return {
     turnPlan: planningTurnPlan, sceneCapabilities, chemistryLane, shouldPlanExactScene,
     shouldAttemptLlmScene, families: sceneCapabilities.families, archetypeId: earlyArchetype?.id ?? null,
+    waitForRequiredScenePeers: policyEnabled && planningTurnPlan.visualRequirement === "required",
     request: {
       conversationContext: planContext,
       ...(sceneCapabilities.families.length > 0 || sceneCapabilities.hasSourceProgram ? {

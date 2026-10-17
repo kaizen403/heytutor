@@ -59,6 +59,7 @@ import { normalizeTutorQuestion } from "@heytutor/tutor-core";
 import { calculateLlmCostDetails, resolveLlmRates } from "../../lib/obs/usageCost";
 import { assertLabSpendMode, assertLabUsageCheckpoint, hasPricedUsage, LabRequestNotDispatchedError, type LabSpendMode, type LabUnresolvedCall, type LabUsageObservation } from "./labSpend";
 import type { SceneDeclinePolicy } from "./sceneDeclineExperiment";
+import { requiredFigurePolicyEnabled, REQUIRED_FIGURE_POLICY_VERSION } from "../../features/tutor-session/lib/scene/requiredFigurePolicy";
 
 export interface Options {
   difficulty: string;
@@ -775,7 +776,7 @@ async function main(): Promise<void> {
   applyLectureLabHeaders(configHeaders);
   const configResponse = await fetch(`${options.origin}/api/lecture-lab/config`, { headers: configHeaders });
   if (!configResponse.ok) throw new Error("authenticated lab provider preflight failed");
-  const serverConfig = await configResponse.json() as { provider: string; deployment: string; configured: boolean; plannerOutputCap: number; teachingOutputCap: number; visualNeed?: Record<string, unknown>; planningSpeed?: { sceneEffort: string; priority: boolean; requestTier: string } };
+  const serverConfig = await configResponse.json() as { provider: string; deployment: string; configured: boolean; plannerOutputCap: number; teachingOutputCap: number; visualNeed?: Record<string, unknown>; planningSpeed?: { sceneEffort: string; priority: boolean; requestTier: string }; requiredFigurePolicy?: { enabled: boolean; version: string } };
   if (!serverConfig.configured || serverConfig.provider !== providerConfig.provider || serverConfig.deployment !== providerConfig.deployment ||
     !Number.isFinite(serverConfig.plannerOutputCap) || !Number.isFinite(serverConfig.teachingOutputCap)) {
     throw new Error("server provider/deployment does not match the configured Azure lab");
@@ -783,12 +784,17 @@ async function main(): Promise<void> {
   if (!serverConfig.visualNeed || Object.entries(LAB_VISUAL_NEED_POLICY).some(([key, value]) => serverConfig.visualNeed?.[key] !== value)) {
     throw new Error("server visual-need policy does not match the live-matching lab");
   }
+  if ((serverConfig.requiredFigurePolicy?.enabled ?? false) !== requiredFigurePolicyEnabled() ||
+    (serverConfig.requiredFigurePolicy && serverConfig.requiredFigurePolicy.version !== REQUIRED_FIGURE_POLICY_VERSION)) {
+    throw new Error("server required-figure policy does not match the lab");
+  }
   execFileSync(process.execPath, [resolve(process.cwd(), "scripts/lecture-lab/svg2png.mjs"), "--check-browser"], { stdio: "pipe" });
   const executionConfig = {
     planningSpeed: { sceneEffort: serverConfig.planningSpeed?.sceneEffort ?? "low",
       requestTier: serverConfig.planningSpeed?.requestTier ?? "auto",
       priority: serverConfig.planningSpeed?.priority === true },
     figureSelectionPolicy: PRODUCTION_SCENE_SELECTION_VERSION,
+    requiredFigurePolicy: { enabled: requiredFigurePolicyEnabled(), version: REQUIRED_FIGURE_POLICY_VERSION },
     figureOnly: options.figureOnly, scenePlannerLimitMs: options.scenePlannerLimitMs,
     familiarity: options.familiarity, narrationLanguage: options.narrationLanguage,
     exampleLibraryFingerprint: labSampleFingerprint(diagramExamples),

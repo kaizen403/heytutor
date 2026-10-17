@@ -6,6 +6,7 @@ import { EVALUATION_POLICY_VERSION, JEV_GATEWAY_MODEL } from "./evaluation/types
 import { rubricVersionForJob } from "./evaluation/rubrics";
 import { VISUAL_NEED_CLIENT_TIMEOUT_MS, VISUAL_NEED_EVIDENCE_VERSION } from "../../features/tutor-session/lib/scene/visualNeedClient";
 import { plannerSpeedSettings } from "./planningSpeed";
+import { requiredFigurePolicyEnabled, REQUIRED_FIGURE_POLICY_VERSION } from "../../features/tutor-session/lib/scene/requiredFigurePolicy";
 
 /** Non-secret, authenticated preflight from the actual server configuration. */
 export function labProviderConfig() {
@@ -30,6 +31,7 @@ export function labProviderConfig() {
   return {
     provider: endpoint.provider, deployment: endpoint.deployment,
     configured: Boolean(endpoint.apiKey && !endpoint.fallbackReason),
+    requiredFigurePolicy: { enabled: requiredFigurePolicyEnabled(), version: REQUIRED_FIGURE_POLICY_VERSION },
     // The first translated body is the primary scene request, including Azure's floor.
     planningSpeed: { sceneEffort: endpoint.provider === "azure" ? String(plannerBodies[0]?.reasoning_effort ?? "unknown") : "low",
       ...(endpoint.provider === "azure" ? plannerSpeedSettings() : { priority: false }),

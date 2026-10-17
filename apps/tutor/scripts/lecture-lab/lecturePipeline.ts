@@ -556,6 +556,7 @@ export async function runLecture(
     ): BenchSceneGate => {
       const gate = deriveProductionSceneGate({
         question, turnPlan: planningTurnPlan, problemIR: authority?.problemIR ?? null,
+        visualNeedDecision: assessment.decision,
       });
       const diagramStrategy = labStrategyDecision(options.arm ?? "current", {
         subject: parseDiagramSubject(options.subject), chemistryLane: gate.chemistryLane,
@@ -635,6 +636,7 @@ export async function runLecture(
             holdValidationUntil: sceneRun.holdValidationUntil,
             maxConcurrentRequests: sceneRun.maxConcurrentRequests,
             requestBudget: sceneRun.requestBudget,
+            waitForRequiredScenePeers: gate.waitForRequiredScenePeers,
             fastMode,
             traceId,
             onRequestOutcome: (outcome) => run.diagram.plannerCallOutcomes?.push(outcome),
