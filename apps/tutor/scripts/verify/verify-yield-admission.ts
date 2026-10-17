@@ -88,6 +88,14 @@ assert.deepEqual(
   "ledger does not alter compiler report/save parity",
 );
 assert(recovered.value.document.source.yieldDemotions);
+const complete = structuredClone(document);
+complete.entities[1]!.label = "v=5 m/s";
+const completeValidation = validateProductionSceneCandidate({
+  candidate: { ...complete }, question, turnPlan: plan, yieldPolicy: "verified_parts",
+});
+assert(completeValidation.valid, JSON.stringify(completeValidation.errors));
+assert(completeValidation.qualityScore! < recovered.qualityScore!,
+  "omitting a label must not make a partial candidate outrank its complete sibling");
 const selected = selectProductionScene({
   question,
   turnPlan: plan,

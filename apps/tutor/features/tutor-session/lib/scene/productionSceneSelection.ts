@@ -205,6 +205,9 @@ export function validateProductionSceneCandidate(input: {
         ? authoritativePlan.visualRequirement === "required" ? 100_000 : 10_000
         : 0) +
       compiledScene.report.issues.filter((issue) => issue.severity === "warning").length * 1_000 +
+      // Recompilation removes the failed mark, but its omission still reduces
+      // quality. Fewer surviving primitives must not reward incomplete repairs.
+      yieldIssues.filter((issue) => issue.code === "yield_label_omitted").length * 1_000 +
       compiledScene.report.stats.primitiveCount * 2 +
       compiledScene.report.stats.entityCount +
       compiledScene.report.stats.constructionCount,
