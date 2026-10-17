@@ -1,7 +1,14 @@
-Add a new tutor gate as one command on its own line in
-`apps/tutor/scripts/verify/gates.txt`. Use `pre-gates.txt` only for work that must
-run in the existing `preverify` phase. Scene-engine gates belong in
-`packages/scene-engine/scripts/verify/gates.txt`.
+The original tutor gates stay in `apps/tutor/scripts/verify/gates.txt`, in their
+existing order. Add feature gates as one command per line in a new file such as
+`apps/tutor/scripts/verify/gates.d/my-feature.txt`. The runner executes every
+`.txt` file there, in filename order, after the original list. Separate files
+let independent PRs register gates without editing the same line or depending
+on an unmerged feature branch. Keep a direct CI invocation in the feature PR
+when its base predates this runner migration.
+
+Use `pre-gates.txt` (and `pre-gates.d/`) only for work that must run in the
+existing `preverify` phase. Scene-engine gates use the equivalent
+`packages/scene-engine/scripts/verify/gates.txt` and `gates.d/` paths.
 
 Commands run sequentially from the package directory, using the existing pnpm
 script environment. The first failure stops the list and preserves its exit

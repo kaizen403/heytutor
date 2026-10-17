@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { constants } from 'node:os';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -32,6 +32,19 @@ export function runGates(gates, execute = command => spawnSync(command, {
   return 0;
 }
 
+/** Feature PRs own small files, so independent additions never share a line. */
+export function gatesWithExtensions(filename) {
+  const gates = parseGates(readFileSync(filename, 'utf8'));
+  const directory = filename.replace(/\.txt$/, '.d');
+  if (directory === filename) throw new Error('Gate lists must use the .txt extension');
+  if (existsSync(directory)) {
+    const files = readdirSync(directory, { withFileTypes: true })
+      .filter(entry => entry.isFile() && entry.name.endsWith('.txt')).map(entry => entry.name).sort();
+    for (const file of files) gates.push(...parseGates(readFileSync(resolve(directory, file), 'utf8')));
+  }
+  return gates;
+}
+
 export function checkedGates(filename) {
   const baseline = JSON.parse(readFileSync(resolve(root, 'tools/verify/gates-baseline.json'), 'utf8'));
   const name = relative(root, resolve(filename)).split('\\').join('/');
@@ -39,7 +52,7 @@ export function checkedGates(filename) {
   if (!original) throw new Error(`Unregistered gate list: ${name}`);
   const gates = parseGates(readFileSync(filename, 'utf8'));
   requireBaseline(gates, original.command.split(' && '));
-  return gates;
+  return gatesWithExtensions(filename);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
