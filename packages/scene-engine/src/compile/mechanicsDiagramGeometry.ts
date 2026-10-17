@@ -53,16 +53,17 @@ function readFreeBody(inputs: Record<string, unknown>, context: SourceContext, d
   if (!Array.isArray(inputs.forces) || inputs.forces.length < 1 || inputs.forces.length > 8) invalid("forces", "free_body requires 1 to 8 explicit forces");
   const forces = inputs.forces.map((force, index) => {
     if (!isRecord(force)) invalid("forces", "each force needs components");
-    rejectUnknownKeys(force, ["components"], "forces");
+    rejectUnknownKeys(force, ["components", "role"], "forces");
+    if (force.role !== undefined && !["weight", "normal", "tension", "kinetic_friction", "applied"].includes(String(force.role))) invalid("forces", "force role must name a supported physical force");
     requireUnits(force.components, "N", FORCE, document);
     const components = pair(force.components, `forces[${index}].components`, context);
     if (hypot2(components) === 0) invalid("forces", "omit a zero force instead of certifying an empty arrow");
-    return components;
+    return { components, role: typeof force.role === "string" ? force.role : `F${index + 1}` };
   });
   const origin = placement(inputs.origin, "origin", context);
   const displayScale = scalar(inputs.displayScale, "displayScale", context);
   if (!(displayScale > 1e-6)) invalid("displayScale", "displayScale must exceed 1e-6");
-  const total = forces.reduce((sum, force) => add2(sum, force, "net"), { x: 0, y: 0 });
+  const total = forces.reduce((sum, force) => add2(sum, force.components, "net"), { x: 0, y: 0 });
   if (inputs.equilibrium === true) {
     if (inputs.mass !== undefined || inputs.acceleration !== undefined) invalid("equilibrium", "equilibrium cannot be combined with a supplied mass and acceleration");
     if (hypot2(total) !== 0) invalid("equilibrium", "supplied forces do not sum to zero");
@@ -78,10 +79,10 @@ function readFreeBody(inputs: Record<string, unknown>, context: SourceContext, d
     const expected = scale2(acceleration, mass, "ma");
     if (expected.x !== total.x || expected.y !== total.y) invalid("acceleration", "supplied forces do not equal mass times acceleration");
   }
-  const largest = Math.max(...forces.map(hypot2));
+  const largest = Math.max(...forces.map((force) => hypot2(force.components)));
   return [
     { kind: "point", point: origin, mechanics: mark("body", { x: 0, y: 0 }, "1", displayScale) },
-    ...forces.map((components, index) => directed(origin, components, displayScale / largest, mark(`F${index + 1}`, components, "N", displayScale), { x: index * 1e-4, y: 0 })),
+    ...forces.map(({ components, role }, index) => directed(origin, components, displayScale / largest, mark(role, components, "N", displayScale), { x: index * 1e-4, y: 0 })),
   ];
 }
 
@@ -257,7 +258,7 @@ export function evaluateMechanicsDiagramConstruction(operator: string, inputs: R
 const OUTPUT_COUNTS = { free_body: -1, coupled_bodies: 6, vertical_circle: 5, mechanical_energy_pair: 6 } as const;
 
 function allowed(metadata: MechanicsMark): string[] {
-  const symbol = metadata.role === "weight" ? "mg" : metadata.role === "constraint" ? "T" : metadata.role === "speed" ? "v" : metadata.role;
+  const symbol = metadata.role === "weight" ? "mg" : (metadata.role === "constraint" || metadata.role === "tension") ? "T" : metadata.role === "normal" ? "N" : metadata.role === "kinetic_friction" ? "f_k" : metadata.role === "speed" ? "v" : metadata.role;
   return [symbol, `${symbol}=${compactNumber(metadata.magnitude)} ${metadata.unit}`];
 }
 

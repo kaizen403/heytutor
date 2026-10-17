@@ -13,7 +13,8 @@
  * a grouping it cannot read, or a source with internal resistance, gets no
  * figure and no authority at all.
  */
-import { attemptArchetypeScene } from "../archetypes";
+import { attemptArchetypeScene, detectArchetype } from "../archetypes";
+import { parseResistorTree, type ResistorTree } from "../archetypes/resistorTree";
 import { numbersWithUnit, UNIT } from "../archetypes/slots";
 import type { TurnPlanQuantityV3, TurnPlanV3 } from "../contracts/contractsV3";
 
@@ -38,7 +39,11 @@ export interface StatedCircuitSolution {
   /** Archetype figure this solution belongs to. */
   topology: string;
   equivalentResistance: CircuitValue;
+  /** Equivalent resistances of explicitly grouped source sub-networks. */
+  groupedResistances: CircuitValue[];
   sourceVoltage?: CircuitValue;
+  /** True only for a voltage stated on the drawn source, not V=IR inferred from a current. */
+  sourceVoltageGiven?: boolean;
   /** Current leaving the source's positive plate. */
   sourceCurrent?: CircuitValue;
   resistors: StatedCircuitResistor[];
@@ -152,6 +157,10 @@ function solveNetlist(nodes: string[], branches: Branch[]): { potentials: Map<st
  * figure owns the stem). Read from the stem alone.
  */
 export function solveStatedResistorCircuit(question: string): StatedCircuitSolution | null {
+  // The shared source-authority registry visits every topic for each turn.
+  // Refuse non-circuits before compiling their unrelated diagram just to
+  // discover afterward that this solver does not own it.
+  if (detectArchetype(question, { turnPlan: null })?.id !== "resistor_network") return null;
   const attempt = attemptArchetypeScene({ question, turnPlan: null });
   if (attempt.scene?.archetype !== "resistor_network") return null;
   const { document } = attempt.scene;
@@ -230,10 +239,22 @@ export function solveStatedResistorCircuit(question: string): StatedCircuitSolut
   const totalCurrent = known ? sourceCurrent : singleCurrent;
   const ammeter = meter("ammeter");
   const voltmeter = meter("voltmeter");
+  const groupedResistances: CircuitValue[] = [];
+  const tree = typeof slots.tree === "string" ? parseResistorTree(slots.tree) : null;
+  const equivalent = (node: ResistorTree): Rational => {
+    if (node.kind === "leaf") return decimal(values[node.index]!);
+    const parts = node.children.map(equivalent);
+    const value = node.kind === "series" ? parts.reduce(add, ZERO)
+      : div(ONE, parts.map(part => div(ONE, part)).reduce(add, ZERO));
+    groupedResistances.push(out(value));
+    return value;
+  };
+  if (tree) equivalent(tree);
   return {
+    groupedResistances,
     topology: String(slots.topology ?? "series"),
     equivalentResistance: out(equivalentResistance),
-    ...(sourceVoltage ? { sourceVoltage: out(sourceVoltage) } : {}),
+    ...(sourceVoltage ? { sourceVoltage: out(sourceVoltage), sourceVoltageGiven: known } : {}),
     ...(totalCurrent ? { sourceCurrent: out(totalCurrent) } : {}),
     resistors,
     ...(ammeter ? { ammeter: { ...ammeter, value: Math.abs(ammeter.value), exact: ammeter.exact.replace(/^-/, "") } } : {}),
@@ -341,7 +362,7 @@ function recomputedValues(solution: StatedCircuitSolution, dimension: Dimension)
     : dimension === "voltage" ? resistor.voltage : dimension === "resistance" ? resistor.resistance : resistor.power);
   const whole = dimension === "current" ? [solution.sourceCurrent, solution.ammeter]
     : dimension === "voltage" ? [solution.sourceVoltage, solution.voltmeter]
-      : dimension === "resistance" ? [solution.equivalentResistance] : [solution.power];
+      : dimension === "resistance" ? [solution.equivalentResistance, ...solution.groupedResistances] : [solution.power];
   return [...parts, ...whole].filter((value): value is CircuitValue => Boolean(value)).map((value) => value.value);
 }
 
@@ -378,17 +399,38 @@ export function applyStatedCircuitAuthority(question: string, plan: TurnPlanV3):
   const issues: CircuitAuthorityIssue[] = [];
   const stated = new Map<Dimension, number[]>([
     ["resistance", solution.resistors.map((resistor) => resistor.resistance.value)],
-    ["voltage", solution.sourceVoltage && !/\bcurrent of\b/i.test(question) ? [solution.sourceVoltage.value] : []],
+    ["voltage", solution.sourceVoltageGiven && solution.sourceVoltage ? [solution.sourceVoltage.value] : []],
     ["current", numbersWithUnit(question, UNIT.ampere)],
   ]);
   const givens = plan.givens.filter((quantity) => {
     const dimension = dimensionOf(quantity.unit);
     if (!dimension || dimension[0] === "power") return true;
     const allowed = stated.get(dimension[0]) ?? [];
-    if (allowed.some((value) => close(value, quantity.value * dimension[1]))) return true;
+    const bound = boundValue(solution, dimension[0], quantity.symbol);
+    if ((!bound || close(bound.value, quantity.value * dimension[1]))
+      && allowed.some((value) => close(value, quantity.value * dimension[1]))) return true;
     issues.push({ code: "circuit_given_conflict", quantityId: quantity.id, message: `given ${quantity.symbol}=${quantity.value} ${quantity.unit} is not a value the stem states` });
     return false;
   });
+  const priorGivens = [...givens];
+  // Recover the model inputs even when the planner was unavailable. These
+  // values come from the independently drawn-and-solved source network, never
+  // from a submitted scene or from the planner's derived quantity list.
+  const sourceInputs = solution.resistors.map(resistor => ({ symbol: resistor.name, value: resistor.resistance.value, unit: "Ω", dimension: "resistance" as Dimension }));
+  if (solution.sourceVoltageGiven && solution.sourceVoltage) sourceInputs.push({ symbol: "V_source", value: solution.sourceVoltage.value, unit: "V", dimension: "voltage" });
+  const usedIds = new Set([...plan.givens, ...plan.derived, ...plan.unknowns].map(quantity => quantity.id));
+  for (const input of sourceInputs) {
+    if (givens.some(quantity => {
+      const unit = dimensionOf(quantity.unit);
+      const role = unit?.[0] === input.dimension ? boundValue(solution, input.dimension, quantity.symbol) : undefined;
+      return role && close(role.value, input.value) && close(quantity.value * unit![1], input.value)
+        && quantity.symbol.replace(/[{}_\\\s]/g, "").toLowerCase() === input.symbol.replace(/[{}_\\\s]/g, "").toLowerCase();
+    })) continue;
+    let id = `circuit_${input.symbol}`;
+    while (usedIds.has(id)) id = `source_${id}`;
+    usedIds.add(id);
+    givens.push({id, symbol:input.symbol, value:input.value, unit:input.unit, provenance:"given", uncertainty:0, sourceText:`Source circuit input ${input.symbol} = ${input.value} ${input.unit}`});
+  }
   // The plan's requested unknown of an asked class is the answer to that ask:
   // it binds to the asked quantity even under a bare symbol, so a value that
   // equals some other quantity of the class (a branch current for the battery
@@ -432,7 +474,9 @@ export function applyStatedCircuitAuthority(question: string, plan: TurnPlanV3):
     derived.push({ ...quantity, value: Number(fmt(value)), sourceText: `Circuit-verified ${quantity.symbol} = ${fmt(value)} ${quantity.unit}` });
   }
   const present = (dimension: Dimension, value: number): boolean =>
-    [...givens, ...derived].some((quantity) => {
+    // Newly recovered source inputs do not stand in for separately asked
+    // outputs (a source voltage can equal a missing voltmeter reading).
+    [...priorGivens, ...derived].some((quantity) => {
       const unit = dimensionOf(quantity.unit);
       return unit?.[0] === dimension && close(value, quantity.value * unit[1]);
     });

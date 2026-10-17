@@ -4,6 +4,8 @@
  * uses the engine's refract_at / surface_contact / refract_direction chain so
  * Snell's law is asserted, never approximated.
  */
+import { planQuantity } from "../slots";
+import { doubleSlitSource, mirrorSource, unsupportedMirrorSourceContext, unsupportedDoubleSlitSourceContext } from "../../physics/opticsSourceAuthority";
 import { evaluateOpticsLaw } from "../../physics/opticsLaws";
 import { sagOf } from "../../compile/opticsSurfaces";
 import { DEG, SceneBuilder, fmt, withUnit, type Vec2 } from "../document";
@@ -29,7 +31,25 @@ function dimClearance(envelope: number, h: number): number {
   return Math.max(1.4 * h, 0.4 * envelope, 9.5);
 }
 
+/** Geometry uses Cartesian coordinates; an unsigned distance is its magnitude.
+ * Preserve an explicitly signed plan, and never adopt a stale magnitude.
+ */
+function plannedOpticsDistance(context: GeneratorContext, aliases: string[], signed: number): number {
+  const quantity = planQuantity(context.quantities, aliases);
+  if (quantity && (quantity.sign === undefined || quantity.sign === "unsigned") &&
+      quantity.value >= 0 && Math.abs(quantity.value - Math.abs(signed)) <= 1e-6 * Math.max(1, Math.abs(signed))) {
+    return Math.abs(signed);
+  }
+  return signed;
+}
+
+function opticsMagnificationAgrees(context: GeneratorContext, expected: number): boolean {
+  const quantity = planQuantity(context.quantities, ["m", "magnification"]);
+  return !quantity || Math.abs(quantity.value - expected) <= 1e-6 * Math.max(1, Math.abs(expected));
+}
+
 function sphericalMirror(context: GeneratorContext) {
+  if (unsupportedMirrorSourceContext(context.question)) return null;
   const kind = text(context, "kind", "concave");
   const uMag = Math.abs(num(context, "u", 30));
   const fMag = Math.abs(num(context, "f", 10));
@@ -40,15 +60,22 @@ function sphericalMirror(context: GeneratorContext) {
   const v = 1 / (1 / f - 1 / u);
   if (!Number.isFinite(v) || Math.abs(v) > 12 * uMag) return null;
   const m = -v / u;
-  const h = 0.28 * Math.max(fMag, uMag / 3);
+  if (!opticsMagnificationAgrees(context, m)) return null;
+  const source = mirrorSource(context.question);
+  const h = source?.ho !== null && source?.ho !== undefined ? source.ho * 100 : 0.28 * Math.max(fMag, uMag / 3);
   const imageHeight = m * h;
   const R = 2 * fMag;
   const centreX = kind === "concave" ? -R : R;
   const focusX = centreX / 2;
   const scene = new SceneBuilder(context.question, `${kind} mirror ray diagram from the mirror formula (u=${fmt(uMag)}, f=${fmt(fMag)})`, "spherical_mirror");
-  scene.quantity("u", "u", u, "cm");
-  scene.quantity("f", "f", f, "cm");
-  scene.quantity("v", "v", v, "cm");
+  const statedU = plannedOpticsDistance(context, ["u", "objectdistance", "do"], u);
+  const statedF = plannedOpticsDistance(context, ["f", "focallength"], f);
+  const statedV = plannedOpticsDistance(context, ["v", "imagedistance", "di"], v);
+  scene.quantity("u", "u", statedU, "cm");
+  scene.quantity("f", "f", statedF, "cm");
+  scene.quantity("v", "v", statedV, "cm");
+  // Preserve law precision in authority metadata; only the painted label is rounded.
+  scene.quantities.find(quantity => quantity.id === "v")!.value = statedV;
 
   const leftmost = Math.min(u, v, centreX, -fMag) - 0.2 * uMag;
   const rightmost = Math.max(v, centreX, 0) + 0.15 * uMag + 0.5;
@@ -96,10 +123,10 @@ function sphericalMirror(context: GeneratorContext) {
   const rayBottom = Math.min(0, h, imageHeight, ray1Far?.y ?? 0, ray2Far?.y ?? 0);
   scene.helper("dim_u_a", { x: u, y: rayTop + dimClearance(rayTop, h) }, "dimension anchor");
   scene.helper("dim_u_b", { x: 0, y: rayTop + dimClearance(rayTop, h) }, "dimension anchor");
-  scene.dimension("dim_u", "dim_u_a", "dim_u_b", "object distance", grounded(context, "u") ? `u=${withUnit(uMag, "cm")}` : "u");
+  scene.dimension("dim_u", "dim_u_a", "dim_u_b", "object distance", grounded(context, "u") ? `u=${withUnit(statedU, "cm")}` : "u");
   scene.helper("dim_f_a", { x: focusX, y: rayBottom - dimClearance(Math.abs(rayBottom), h) }, "dimension anchor");
   scene.helper("dim_f_b", { x: 0, y: rayBottom - dimClearance(Math.abs(rayBottom), h) }, "dimension anchor");
-  scene.dimension("dim_f", "dim_f_a", "dim_f_b", "focal length", grounded(context, "f") ? `f=${withUnit(fMag, "cm")}` : "f");
+  scene.dimension("dim_f", "dim_f_a", "dim_f_b", "focal length", grounded(context, "f") ? `f=${withUnit(statedF, "cm")}` : "f");
   scene.assert("object_on_axis", "on", ["O_base", "axis"]);
   scene.assert("image_on_axis", "on", ["I_base", "axis"]);
   scene.assert("ray1_in_parallel", "parallel", ["ray1_in", "axis"]);
@@ -320,9 +347,23 @@ function prism(context: GeneratorContext) {
 }
 
 function doubleSlit(context: GeneratorContext) {
-  const d = maybeNum(context, "d");
-  const D = maybeNum(context, "D");
-  const lambda = maybeNum(context, "lambda");
+  if (unsupportedDoubleSlitSourceContext(context.question)) return null;
+  const source = doubleSlitSource(context.question);
+  // A covered slit changes the phase origin; never silently show the uncovered apparatus.
+  if (/\bfilm|\bplate/i.test(context.question) && !source?.film) return null;
+  const planD = planQuantity(context.quantities, ["d", "slitseparation"]);
+  const d = source ? source.d * 1000 : planD?.unit === "m" ? planD.value * 1000 : maybeNum(context, "d");
+  const D = source?.D ?? maybeNum(context, "D");
+  const lambda = source ? source.wavelength * 1e9 : maybeNum(context, "lambda");
+  const film = source?.film;
+  const shiftOrders = film && source ? film.shift / source.beta : 0;
+  // The bounded screen operator can show at most 21 resolved fringes.
+  if (Math.abs(shiftOrders) > 9) return null;
+  const fringeCount = 2 * Math.max(3, Math.ceil(Math.abs(shiftOrders)) + 1) + 1;
+  // Display scale affects distances on the page, never their physical labels.
+  const fringeSpacing = Math.min(0.7, 2.1 / Math.max(1, Math.abs(shiftOrders)));
+  const trackedY = shiftOrders * fringeSpacing;
+  const patternOffset = (shiftOrders - Math.round(shiftOrders)) * fringeSpacing;
   const scene = new SceneBuilder(context.question, "Young's double slit: two slits, the screen and the fringe pattern", "double_slit");
   if (d !== null && grounded(context, "d")) scene.quantity("d", "d", d, "mm");
   if (D !== null && grounded(context, "D")) scene.quantity("D", "D", D, "m");
@@ -336,23 +377,41 @@ function doubleSlit(context: GeneratorContext) {
     inputs: { center: "slit_centre", orientation: "vertical", length: 5, slitCount: 2, slitWidth: 0.25, slitSeparation: 1.2 },
     outputs: ["slits"],
   });
-  scene.point("S1", { x: 0, y: 0.6 }, "slit", "S1");
-  scene.point("S2", { x: 0, y: -0.6 }, "slit", "S2");
+  scene.point("S1", { x: 0, y: 0.6 }, "upper slit", "upper slit");
+  scene.point("S2", { x: 0, y: -0.6 }, "lower slit", "lower slit");
+  if (film) {
+    const filmY = film.side === "upper" ? 0.6 : -0.6;
+    scene.helper("film_center", { x: 0.275, y: filmY }, "film centre");
+    scene.rectangle("film", "film_center", 0.55, 0.65, `transparent film covering the ${film.side} slit`, "transparent film");
+    scene.assert("film_covers_slit", "on", [film.side === "upper" ? "S1" : "S2", "film"]);
+    scene.labelAt("film_index", { x: 1.3, y: filmY + 0.5 }, "film index", `n=${fmt(film.index)}`);
+    scene.labelAt("film_thickness", { x: 1.3, y: filmY - 0.5 }, "film thickness", `t=${fmt(film.thickness * 1e6)} μm`);
+    scene.quantity("n", "n", film.index);
+    scene.quantity("t", "t", film.thickness * 1e6, "μm");
+  }
   scene.point("screen_top", { x: 7, y: 3 }, "screen end");
   scene.point("screen_bottom", { x: 7, y: -3 }, "screen end");
-  scene.segment("screen", "screen_top", "screen_bottom", "screen");
+  scene.segment("screen", "screen_top", "screen_bottom", "observation screen", "screen");
+  scene.helper("pattern_top", { x: 7, y: 3 + patternOffset }, "pattern extent");
+  scene.helper("pattern_bottom", { x: 7, y: -3 + patternOffset }, "pattern extent");
   scene.entities.push({ id: "fringes", kind: "screen_pattern", role: "fringe pattern on the screen" });
   scene.constructions.push({
     id: "make_fringes",
     operator: "screen_pattern",
-    inputs: { start: "screen_top", end: "screen_bottom", pattern: "interference", count: 7, spacing: 0.7, centralWidth: 0.5 },
+    inputs: { start: "pattern_top", end: "pattern_bottom", pattern: "interference", count: fringeCount, spacing: fringeSpacing, centralWidth: 0.5 },
     outputs: ["fringes"],
   });
-  scene.point("O", { x: 7, y: 0 }, "central bright fringe", "O");
-  scene.point("Pf", { x: 7, y: 0.7 }, "first bright fringe", "P");
+  scene.point("O", { x: 7, y: 0 }, "original screen centre", "O");
+  scene.point("Pf", { x: 7, y: film ? trackedY : fringeSpacing }, film ? "tracked zero-order bright fringe" : "first bright fringe", film ? "m=0" : "P");
+  if (film && Math.abs(trackedY) > 1e-9) {
+    scene.helper("shift_start", { x: 8.5, y: 0 }, "shift anchor");
+    scene.helper("shift_end", { x: 8.5, y: trackedY }, "shift anchor");
+    scene.dimension("dim_shift", "shift_start", "shift_end", "tracked zero-order displacement", `y₀=${fmt(film.shift * 1000)} mm`);
+    scene.quantity("y0", "y0", film.shift * 1000, "mm");
+  }
   scene.segment("ray1", "S1", "Pf", "ray from S1");
   scene.segment("ray2", "S2", "Pf", "ray from S2");
-  scene.segment("axis", "slit_centre", "O", "central line");
+  scene.segment("axis", "slit_centre", "O", "central axis", "central axis");
   scene.point("dim_d_a", { x: -0.6, y: 0.6 }, "slit separation start");
   scene.point("dim_d_b", { x: -0.6, y: -0.6 }, "slit separation end");
   scene.dimension("dim_d", "dim_d_a", "dim_d_b", "slit separation", d !== null && grounded(context, "d") ? `d=${withUnit(d, "mm")}` : "d");
@@ -360,8 +419,16 @@ function doubleSlit(context: GeneratorContext) {
   scene.point("dim_D_b", { x: 7, y: -3.4 }, "screen distance end");
   scene.dimension("dim_D", "dim_D_a", "dim_D_b", "screen distance", D !== null && grounded(context, "D") ? `D=${withUnit(D, "m")}` : "D");
   scene.point("dim_beta_a", { x: 7.5, y: 0 }, "fringe width start");
-  scene.point("dim_beta_b", { x: 7.5, y: 0.7 }, "fringe width end");
-  scene.dimension("dim_beta", "dim_beta_a", "dim_beta_b", "fringe width", "β");
+  scene.point("dim_beta_b", { x: 7.5, y: fringeSpacing }, "fringe width end");
+  scene.dimension("dim_beta", "dim_beta_a", "dim_beta_b", "fringe width", source ? `β=${fmt(source.beta * 1000)} mm` : "β");
+  if (source) scene.quantity("beta", "beta", source.beta * 1000, "mm");
+  // Keep physical authority at full precision; display labels alone are rounded.
+  if (source) {
+    const authority: Record<string, number> = { d: source.d * 1000, D: source.D,
+      lambda: source.wavelength * 1e9, beta: source.beta * 1000,
+      ...(film ? { n: film.index, t: film.thickness * 1e6, y0: film.shift * 1000 } : {}) };
+    for (const quantity of scene.quantities) if (authority[quantity.id] !== undefined) quantity.value = authority[quantity.id]!;
+  }
   scene.assert("screen_parallel", "parallel", ["screen", "slits"]);
   scene.assert("axis_perp", "perpendicular", ["axis", "screen"]);
   scene.assert("o_on_screen", "on", ["O", "screen"]);

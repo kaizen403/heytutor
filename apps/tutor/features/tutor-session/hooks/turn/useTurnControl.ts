@@ -281,6 +281,7 @@ export function useTurnControl(
           // history or publish an error against the replacement turn.
           if (!counted() || cancelRef.current) return;
           consecutiveSegmentFailuresRef.current += 1;
+          liveTurnSave().markSegmentFailed(cancelRef, turnGeneration);
           console.error(`Segment ${index} failed:`, error);
           tutorDebug("segment", "segment failed", {
             index,
@@ -321,22 +322,26 @@ export function useTurnControl(
             onError?.(failure);
             return;
           }
-          // Two in a row means the drawing pipeline is gone, not that one
-          // command was unlucky. Stop the turn rather than narrate the rest of
-          // the lesson to a board that has stopped moving.
-          // A stopped turn's straggler failing must not cancel the turn that
-          // replaced it.
+          // Recovery belongs to the SAME beat inside runSegment. Once it
+          // throws, advancing would omit teaching; keep the delivered prefix
+          // and offer the ordinary resumable Stop path instead.
           if (counted() && shouldAbandonTurn(consecutiveSegmentFailuresRef.current)) {
-            tutorDebug("segment", "abandoning turn after repeated draw failures", {
+            tutorDebug("segment", "stopping turn after terminal beat failure", {
               index,
               consecutive_failures: consecutiveSegmentFailuresRef.current,
             });
             markTeachingSegmentFailure();
-            cancelRef.current = true;
             const failure = {
-              message: "The lesson could not continue playing. Please try again.",
+              message: "The lesson stopped before this step finished. Continue the lesson to try again.",
               question: liveQuestionRef.current,
             };
+            // runSegment clears its speaking cursor while unwinding. Preserve
+            // the owed sentence in Stop's resume snapshot, not the prior beat.
+            speakingNarrationRef.current = segmentToRun.narration;
+            stopTurnRef.current?.();
+            speakingNarrationRef.current = "";
+            cancelRef.current = true;
+            liveTurnSave().closeOwner(cancelRef);
             setLastError(failure);
             onError?.(failure);
           }
@@ -349,6 +354,7 @@ export function useTurnControl(
     },
     [
       runSegment,
+      speakingNarrationRef,
       collectedSegmentsRef,
       segmentChainRef,
       cancelRef,
@@ -542,6 +548,12 @@ export function useTurnControl(
           // intro unwinding late must not cancel, abort, or strip the figure
           // from the turn that has already replaced it.
           if (counted()) {
+            if (!cancelRef.current) {
+              liveTurnSave().markSegmentFailed(cancelRef, turnGeneration);
+              const failure = { message: "The lesson could not finish its opening. Please try again.", question: liveQuestionRef.current };
+              setLastError(failure);
+              onError?.(failure);
+            }
             // Intro rows become successful together with the whole figure.
             if (!remainder) {
               activeVerifiedDiagramRef.current = null;
@@ -578,6 +590,9 @@ export function useTurnControl(
     [
       activeVerifiedDiagramRef,
       setActiveVerifiedDiagram,
+      liveQuestionRef,
+      setLastError,
+      onError,
       boardLayoutRef,
       boardPageRef,
       cancelRef,

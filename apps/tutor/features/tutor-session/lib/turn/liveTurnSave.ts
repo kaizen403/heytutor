@@ -217,6 +217,8 @@ interface LiveTurn {
   seq: number;
   status: TurnStatus;
   rawResponse: string;
+  /** Terminal delivery failure; later generated content cannot repair an omitted beat. */
+  segmentFailed: boolean;
   textOnly: boolean;
   resumeState: Record<string, unknown> | null | undefined;
   resumeDirty: boolean;
@@ -408,6 +410,7 @@ export class LiveTurnSaveRegistry {
       seq: 0,
       status: "live",
       rawResponse: "",
+      segmentFailed: false,
       textOnly: false,
       resumeState: undefined,
       resumeDirty: false,
@@ -511,6 +514,13 @@ export class LiveTurnSaveRegistry {
     });
     const command = commands.some((entry) => entry.type === "TYPE") ? serializeSegmentCommands(commands) : pending.row.command;
     return { ...pending.row, command, audioBytes: null, durationMs: null, timings: null };
+  }
+
+  /** Only the live queue reports terminal failure, after all same-beat recovery ends. */
+  markSegmentFailed(owner: object, generation: number): void {
+    const turn = this.find(owner, generation);
+    if (!turn || turn.status !== "live" || turn.final) return;
+    turn.segmentFailed = true;
   }
 
   /** A finished segment of the owner's turn `generation`. */
@@ -889,7 +899,7 @@ export class LiveTurnSaveRegistry {
   }
 
   private sceneFor(turn: LiveTurn): PersistedTurnScene {
-    return liveTurnScene({
+    const scene = liveTurnScene({
       page: turn.page,
       kind: turn.kind,
       preview: turn.preview,
@@ -897,6 +907,16 @@ export class LiveTurnSaveRegistry {
       status: turn.status,
       textOnly: turn.textOnly,
     });
+    const artifacts: Record<string, unknown> = scene.sceneArtifacts && typeof scene.sceneArtifacts === "object" && !Array.isArray(scene.sceneArtifacts)
+      ? { ...scene.sceneArtifacts } : {};
+    // liveTurnScene already attaches this turn's content-free page marker.
+    // A parent marker is not current delivery evidence; retain the current
+    // subject, request count and diagnostics when marking its failed beat.
+    const current = readFailedTurnTelemetry(turn.page?.failureTelemetry);
+    if (turn.segmentFailed) {
+      artifacts.failureTelemetry = { ...(current ?? { subject: "other" }), failed: true, stage: "teaching", code: "teaching_segment_failed" };
+    }
+    return { ...scene, sceneArtifacts: Object.keys(artifacts).length ? artifacts : null };
   }
 
   private sceneKey(turn: LiveTurn): string {
@@ -1046,6 +1066,13 @@ export class LiveTurnSaveRegistry {
     if (turn.status === "complete") {
       if (turn.completeResult) return Promise.resolve(turn.completeResult);
       return new Promise((resolve) => turn.completeWaiters.push(resolve));
+    }
+    // Generated text is not a delivery receipt. A stopped owner cannot be
+    // completed by a late handler, and an epoch alone is never a taught beat.
+    if (turn.status !== "live" || turn.segmentFailed || turn.pendingSegment !== null ||
+      !this.previewRows(turn, { includeCut: false }).some((row) => !isEpochRow(row))) {
+      this.closeTurn(turn, { stopped: false });
+      return Promise.resolve({ ok: false, status: 0, error: "lesson delivery incomplete", reason: "refused", retryable: false });
     }
     this.stopHeartbeat(turn);
     turn.status = "complete";

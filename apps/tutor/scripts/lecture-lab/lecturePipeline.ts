@@ -923,6 +923,7 @@ export async function runLecture(
       solverAuthorityBlocked, requiredRetryEnabled: REQUIRED_DIAGRAM_RETRY_ENABLED,
       policy: {
         preferPlanner: planning.gate.diagramStrategy.strategy === "strict",
+        allowVerifiedSourceRecovery: true,
         allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(planning.gate.diagramStrategy, source)),
       },
     };

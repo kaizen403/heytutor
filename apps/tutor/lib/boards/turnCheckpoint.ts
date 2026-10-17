@@ -664,7 +664,7 @@ async function applyCheckpoint(
   const question = ownsMetadata ? input.question ?? before?.question ?? "" : before!.question;
   if (!question.trim()) return reject("turn_fields_invalid", "question is required", 400);
   const rawResponse = ownsMetadata ? input.rawResponse ?? before?.rawResponse ?? "" : before!.rawResponse;
-  const status = before ? nextTurnStatus(beforeStatus!, input.status) : input.status;
+  let status = before ? nextTurnStatus(beforeStatus!, input.status) : input.status;
   let ownsScene = !input.tolerateOverlap && input.scene !== "stored" && (!before || input.seq > heldSceneSeq(before));
   const scene = before && !ownsScene ? sceneOf(before) : input.scene === "stored" ? sceneOf(before!) : input.scene;
   if (status === "complete" && !rawResponse.trim() &&
@@ -726,6 +726,25 @@ async function applyCheckpoint(
   }
   const sceneSeq = ownsScene ? input.seq : heldSceneSeq(before);
   const canonicalRows = canonical.value.segments.map((row, orderIndex) => ({ ...row, orderIndex }));
+  // Generated response text and a committed figure are not delivered teaching.
+  // Older clients can close a failed first beat as complete; retain that attempt
+  // as resumable stopped work rather than certify an empty lesson or reject its
+  // save. Narration without audio bytes remains valid (browser speech).
+  if (status === "complete" && !canonicalRows.some(row =>
+    row.narration.trim() || row.spokenText?.trim() ||
+    parseStoredSegmentCommands(row.command).some(command => command.type === "WRITE" || command.type === "TYPE"))) {
+    status = "stopped";
+    // Compatible with the separately reviewed failed-turn reporter. Preserve
+    // the exact diagram artifacts; this marker describes delivery only.
+    const failedDelivery = {
+      schemaVersion: "scene-artifacts/v3" as const,
+      candidates: [],
+      diagramResultStatus: "text_only" as const,
+      ...canonical.value.sceneArtifacts,
+      failureTelemetry: { ...canonical.value.sceneArtifacts?.failureTelemetry, subject: canonical.value.sceneArtifacts?.failureTelemetry?.subject ?? "other", failed: true, stage: "teaching", code: "lesson_not_taught" },
+    };
+    canonical.value.sceneArtifacts = failedDelivery;
+  }
   const attemptDir = attemptDirName();
   const prefix = checkpointAttemptPrefix(boardId, turnId, attemptDir);
   const expectedHeld = merged.map((row, index) => uploads.has(index) ? {

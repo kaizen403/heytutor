@@ -1,0 +1,335 @@
+{
+  "description": "Synthetic agent-authored question and captured planner output; no student data.",
+  "question": "An ideal 18 V source is connected to a 2 ohm resistor in series with two parallel branches. One branch contains 6 ohm and 3 ohm resistors in series; the other contains an 18 ohm resistor. Draw the circuit, find the equivalent resistance, total current and current through each resistor, and explain the voltage drops.",
+  "turnPlan": {
+    "givens": [
+      {
+        "id": "Vs",
+        "unit": "V",
+        "value": 18,
+        "symbol": "V_s",
+        "provenance": "given",
+        "sourceText": "ideal 18 V source"
+      },
+      {
+        "id": "R1",
+        "unit": "ohm",
+        "value": 2,
+        "symbol": "R_1",
+        "provenance": "given",
+        "sourceText": "2 ohm resistor in series"
+      },
+      {
+        "id": "R2",
+        "unit": "ohm",
+        "value": 6,
+        "symbol": "R_2",
+        "provenance": "given",
+        "sourceText": "6 ohm in series branch"
+      },
+      {
+        "id": "R3",
+        "unit": "ohm",
+        "value": 3,
+        "symbol": "R_3",
+        "provenance": "given",
+        "sourceText": "3 ohm in series branch"
+      },
+      {
+        "id": "R4",
+        "unit": "ohm",
+        "value": 18,
+        "symbol": "R_4",
+        "provenance": "given",
+        "sourceText": "18 ohm parallel branch"
+      }
+    ],
+    "lawIds": [
+      "Ohm's law",
+      "series resistance rule",
+      "parallel resistance rule",
+      "Kirchhoff's current law",
+      "Kirchhoff's voltage law"
+    ],
+    "derived": [
+      {
+        "id": "Req",
+        "unit": "ohm",
+        "value": 8,
+        "symbol": "R_eq",
+        "dependsOn": [
+          "R1",
+          "Rp"
+        ],
+        "provenance": "derived",
+        "sourceText": "2+6=8"
+      },
+      {
+        "id": "It",
+        "unit": "A",
+        "value": 2.25,
+        "symbol": "I_total",
+        "dependsOn": [
+          "Vs",
+          "Req"
+        ],
+        "provenance": "derived",
+        "sourceText": "18/8=2.25"
+      },
+      {
+        "id": "I1",
+        "unit": "A",
+        "value": 2.25,
+        "symbol": "I_R1",
+        "dependsOn": [
+          "It"
+        ],
+        "provenance": "derived",
+        "sourceText": "series current"
+      },
+      {
+        "id": "V1",
+        "unit": "V",
+        "value": 4.5,
+        "symbol": "V_R1",
+        "dependsOn": [
+          "I1",
+          "R1"
+        ],
+        "provenance": "derived",
+        "sourceText": "2.25*2=4.5"
+      },
+      {
+        "id": "I2",
+        "unit": "A",
+        "value": 1.5,
+        "symbol": "I_R2",
+        "dependsOn": [
+          "Rb1"
+        ],
+        "provenance": "derived",
+        "sourceText": "13.5/9=1.5"
+      },
+      {
+        "id": "I3",
+        "unit": "A",
+        "value": 1.5,
+        "symbol": "I_R3",
+        "dependsOn": [
+          "I2"
+        ],
+        "provenance": "derived",
+        "sourceText": "same series branch"
+      },
+      {
+        "id": "I4",
+        "unit": "A",
+        "value": 0.75,
+        "symbol": "I_R4",
+        "dependsOn": [
+          "R4"
+        ],
+        "provenance": "derived",
+        "sourceText": "13.5/18=0.75"
+      },
+      {
+        "id": "V2",
+        "unit": "V",
+        "value": 9,
+        "symbol": "V_R2",
+        "dependsOn": [
+          "I2",
+          "R2"
+        ],
+        "provenance": "derived",
+        "sourceText": "1.5*6=9"
+      },
+      {
+        "id": "V3",
+        "unit": "V",
+        "value": 4.5,
+        "symbol": "V_R3",
+        "dependsOn": [
+          "I3",
+          "R3"
+        ],
+        "provenance": "derived",
+        "sourceText": "1.5*3=4.5"
+      },
+      {
+        "id": "V4",
+        "unit": "V",
+        "value": 13.5,
+        "symbol": "V_R4",
+        "dependsOn": [
+          "I4",
+          "R4"
+        ],
+        "provenance": "derived",
+        "sourceText": "0.75*18=13.5"
+      },
+      {
+        "id": "Rb1",
+        "unit": "ohm",
+        "value": 9,
+        "symbol": "R_branch1",
+        "dependsOn": [
+          "R2",
+          "R3"
+        ],
+        "provenance": "derived",
+        "sourceText": "6+3=9"
+      },
+      {
+        "id": "Rp",
+        "unit": "ohm",
+        "value": 6,
+        "symbol": "R_parallel",
+        "dependsOn": [
+          "Rb1",
+          "R4"
+        ],
+        "provenance": "derived",
+        "sourceText": "(9*18)/(9+18)=6"
+      }
+    ],
+    "question": "An ideal 18 V source is connected to a 2 ohm resistor in series with two parallel branches. One branch contains 6 ohm and 3 ohm resistors in series; the other contains an 18 ohm resistor. Draw the circuit, find the equivalent resistance, total current and current through each resistor, and explain the voltage drops.",
+    "unknowns": [
+      {
+        "id": "Req",
+        "unit": "ohm",
+        "symbol": "R_eq"
+      },
+      {
+        "id": "It",
+        "unit": "A",
+        "symbol": "I_total"
+      },
+      {
+        "id": "I1",
+        "unit": "A",
+        "symbol": "I_R1"
+      },
+      {
+        "id": "I2",
+        "unit": "A",
+        "symbol": "I_R2"
+      },
+      {
+        "id": "I3",
+        "unit": "A",
+        "symbol": "I_R3"
+      },
+      {
+        "id": "I4",
+        "unit": "A",
+        "symbol": "I_R4"
+      },
+      {
+        "id": "V1",
+        "unit": "V",
+        "symbol": "V_R1"
+      },
+      {
+        "id": "V2",
+        "unit": "V",
+        "symbol": "V_R2"
+      },
+      {
+        "id": "V3",
+        "unit": "V",
+        "symbol": "V_R3"
+      },
+      {
+        "id": "V4",
+        "unit": "V",
+        "symbol": "V_R4"
+      }
+    ],
+    "assumptions": [
+      "Ideal voltage source with zero internal resistance",
+      "Resistors are ohmic and temperature-independent",
+      "Connecting wires have negligible resistance",
+      "Circuit is in DC steady state",
+      "Removed 2 invalid planner dependency references."
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [
+      {
+        "id": "c1",
+        "claim": "The 6 ohm and 3 ohm resistors are in series, so their branch resistance is 9 ohm.",
+        "expected": "R_branch1 = 6 + 3 = 9 ohm",
+        "relatedQuantityIds": [
+          "Rb1",
+          "R2",
+          "R3"
+        ]
+      },
+      {
+        "id": "c2",
+        "claim": "The 9 ohm branch is in parallel with the 18 ohm resistor, giving 6 ohm.",
+        "expected": "R_parallel = (9*18)/(9+18) = 6 ohm",
+        "relatedQuantityIds": [
+          "Rp",
+          "Rb1",
+          "R4"
+        ]
+      },
+      {
+        "id": "c3",
+        "claim": "The 2 ohm resistor is in series with the parallel combination, so total resistance is 8 ohm.",
+        "expected": "R_eq = 2 + 6 = 8 ohm",
+        "relatedQuantityIds": [
+          "Req",
+          "R1",
+          "Rp"
+        ]
+      },
+      {
+        "id": "c4",
+        "claim": "Total current from the ideal source is 2.25 A, and all of it passes through the 2 ohm resistor.",
+        "expected": "I_total = 18/8 = 2.25 A",
+        "relatedQuantityIds": [
+          "It",
+          "I1",
+          "Vs",
+          "Req"
+        ]
+      },
+      {
+        "id": "c5",
+        "claim": "The parallel section voltage is 13.5 V, so branch currents are 1.5 A and 0.75 A.",
+        "expected": "I_branch1 = 13.5/9 = 1.5 A; I_R4 = 13.5/18 = 0.75 A",
+        "relatedQuantityIds": [
+          "I2",
+          "I3",
+          "I4"
+        ]
+      },
+      {
+        "id": "c6",
+        "claim": "Voltage drops are 4.5 V across 2 ohm, 9 V across 6 ohm, 4.5 V across 3 ohm, and 13.5 V across 18 ohm.",
+        "expected": "V_R1=4.5 V, V_R2=9 V, V_R3=4.5 V, V_R4=13.5 V",
+        "relatedQuantityIds": [
+          "V1",
+          "V2",
+          "V3",
+          "V4"
+        ]
+      },
+      {
+        "id": "c7",
+        "claim": "KVL check: the 2 ohm drop plus either parallel branch path sums to the source voltage.",
+        "expected": "4.5 + 9 + 4.5 = 18 V and 4.5 + 13.5 = 18 V",
+        "relatedQuantityIds": [
+          "Vs",
+          "V1",
+          "V2",
+          "V3",
+          "V4"
+        ]
+      }
+    ],
+    "visualRequirement": "required"
+  }
+}

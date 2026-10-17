@@ -22,6 +22,7 @@ export * from "./ir/solver";
 export * from "./ir/remoteSolver";
 export * from "./ir/solverAuthority";
 export * from "./ir/statedCircuitAuthority";
+export * from "./ir/statedCircuitProblem";
 export * from "./ir/sourceQuantityAuthority";
 export * from "./physics/opticsLaws";
 export * from "./physics/sphericalRefractionImage";
@@ -61,3 +62,8 @@ export { normalizeVerifiedPartsInputs } from "./document/verifiedPartsInputs";
 export { validateRepairSurvivorship, validateRepairCandidateSetSurvivorship } from "./compile/repairSurvivorship";
 export { deferVerifiedAnswerLabels } from "./compile/answerLabels";
 export { prepareVerifiedCircularParts } from "./physics/verifiedCircularParts";
+export * from "./physics/coupledInclineSource";
+
+export * from "./synthesize/coupledInclineScene";
+export * from "./physics/opticsSourceAuthority";
+export * from "./physics/projectileLaunchSource";

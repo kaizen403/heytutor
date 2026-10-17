@@ -345,14 +345,13 @@ async function closeIsIdempotentAndKeepsEmptyTurns() {
   assert.equal(h.calls.length, 1, "closing a saved stopped turn again sends nothing");
   const done = handle.complete({ rawResponse: "late" });
   await h.settle();
-  assert.equal(h.calls.length, 2, "a stopped turn may still complete");
-  await h.ack(h.calls[1]!);
+  assert.equal(h.calls.length, 1, "a late completion cannot overwrite a deliberately stopped turn");
   const result = await done;
-  assert(result.ok, "complete resolves with the server turn");
+  assert(!result.ok, "incomplete delivery refuses completion");
   handle.close();
   h.registry.recordRow(owner, 1, row(), { intro: false });
   await h.settle();
-  assert.equal(h.calls.length, 2, "a complete turn is final");
+  assert.equal(h.calls.length, 1, "a stopped handle cannot receive late completed rows");
 }
 
 async function emptyDoubtIsNotSaved() {
@@ -1074,7 +1073,21 @@ async function canonicalFinalReceiptMustMirror() {
   }
 }
 
+async function resumedDeliveryDoesNotInheritFailure() {
+  for (const code of ["teaching_segment_failed", "lesson_not_taught", "required_visual_unavailable"]) {
+    const h = harness(); const { handle, page } = begin(h, { generation: 1 });
+    page.turn.scene = { ...textOnlyTurnScene(), sceneArtifacts: { failureTelemetry: { failed: true, stage: "teaching", code } } };
+    h.registry.recordRow(owner, 1, row("A fully delivered resumed explanation.", false), { intro: false });
+    void handle.complete({ rawResponse: "A fully delivered resumed explanation." });
+    const current = h.registry.resumeTurns("board-1", [])[0]!;
+    const evidence = current.sceneArtifacts as { failureTelemetry?: { code: string } } | null;
+    assert.equal(evidence?.failureTelemetry?.code, code === "required_visual_unavailable" ? code : undefined,
+      "new delivery drops only inherited delivery failure, preserving scene evidence");
+  }
+}
+
 async function main() {
+  await resumedDeliveryDoesNotInheritFailure();
   await canonicalFinalReceiptMustMirror();
   await lostCompletionReceivesCanonicalFinalOnRetry();
   await canonicalFinalSurvivesDelayedReceipts();

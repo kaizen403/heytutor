@@ -258,3 +258,11 @@ HTTPS token if the repo is private). `.env.production` stays on disk; do not
 put it in GitHub secrets. Emergency fallback: use a Systems Manager session
 or operator-only SSH and run
 `./deploy/aws/deploy.sh`.
+
+## Unactivated release-isolation proposal
+
+The prospective `build-release.sh` and `verify-release.mjs` helpers are retained
+from #188 for further work. The active workflow, SSM launcher, deploy driver
+and VM setup retain the existing checkout-based deployment. Do not activate
+the release-directory proposal until launcher bootstrap, bounded release
+retention and a real build under the 4 GB Linux memory limit are verified.

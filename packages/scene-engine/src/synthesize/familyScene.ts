@@ -3,6 +3,7 @@
  * family. Geometry comes from operators and plan quantities — never from
  * planner-authored pixels.
  */
+import { synthesizeCoupledInclineScene } from "./coupledInclineScene";
 import { stemKnowns } from "../archetypes/generators/constantAcceleration";
 import { compileSceneDocument } from "../compile/compiler";
 import { groundedOhmScene } from "../compile/ohmTopicGeometry";
@@ -196,6 +197,16 @@ function synthesizeFromFamilies(
   const obligations: VisualObligationSet | null = isFullProblemIRStructure(input.problemIR)
     ? deriveVisualObligations(input.problemIR)
     : null;
+  const coupledIncline = synthesizeCoupledInclineScene(question);
+  if (coupledIncline) {
+    const compiled = tryCompile(coupledIncline);
+    if (!compiled || demandRejection(compiled.document, demand)
+      || (obligations && visualObligationRejection(obligations, compiled.document))) return null;
+    return {
+      ...compiled, tier: "question_representation", nonMetric: true, family: "contact_body",
+      reason: "Source-computed free-body forces with illustrative arrow scales, including kinetic friction opposite the stated sliding velocity.",
+    };
+  }
   const groundedCircuit = groundedOhmScene(question, input.problemIR);
   if (groundedCircuit.handled) {
     const compiled = groundedCircuit.document ? tryCompile(groundedCircuit.document) : null;

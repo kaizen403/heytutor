@@ -18,14 +18,9 @@ import type { CodeLessonPlan } from "@heytutor/tutor-core";
  * dead board is not.
  */
 
-/**
- * Consecutive segment failures tolerated before the turn gives up.
- *
- * One is worth riding out: a single command can throw for a transient reason
- * and the next segment recovers. Two in a row means the drawing pipeline
- * itself is gone, and every further segment would speak into nothing.
- */
-export const MAX_CONSECUTIVE_SEGMENT_FAILURES = 2;
+/** Recovery retries the same beat inside the runner; a terminal failure must
+ * stop before later beats can skip the unfinished teaching. */
+export const MAX_CONSECUTIVE_SEGMENT_FAILURES = 1;
 
 export function shouldAbandonTurn(consecutiveFailures: number): boolean {
   return consecutiveFailures >= MAX_CONSECUTIVE_SEGMENT_FAILURES;

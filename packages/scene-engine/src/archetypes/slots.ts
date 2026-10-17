@@ -19,6 +19,7 @@ export interface PlanQuantity {
   sourceText?: string;
   /** Which turn-plan list the row came from: a derived value is a claim, never a source. */
   origin?: "given" | "derived";
+  sign?: "positive" | "negative" | "zero" | "unsigned";
 }
 
 export interface SlotBag {
@@ -67,6 +68,8 @@ export function collectPlanQuantities(turnPlan: unknown): PlanQuantity[] {
       unit: typeof row.unit === "string" ? row.unit : undefined,
       sourceText: typeof row.sourceText === "string" ? row.sourceText : undefined,
       origin,
+      ...(["positive", "negative", "zero", "unsigned"].includes(String(row.sign))
+        ? { sign: row.sign as PlanQuantity["sign"] } : {}),
     }];
   });
 }
@@ -80,7 +83,7 @@ function normalizeKey(value: string): string {
 }
 
 /** First plan quantity whose id or symbol normalizes to one of the aliases. */
-function planQuantity(quantities: readonly PlanQuantity[], aliases: readonly string[]): PlanQuantity | null {
+export function planQuantity(quantities: readonly PlanQuantity[], aliases: readonly string[]): PlanQuantity | null {
   const wanted = aliases.map(normalizeKey);
   return quantities.find((quantity) =>
     wanted.includes(normalizeKey(quantity.id)) || wanted.includes(normalizeKey(quantity.symbol))) ?? null;

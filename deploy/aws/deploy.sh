@@ -25,6 +25,8 @@ SENTRY_RELEASE="$(sudo -H -u ubuntu env GIT_TERMINAL_PROMPT=0 git -C "$ROOT" rev
 export SENTRY_RELEASE
 # Explicit production-only opt-in. Local and lab servers leave this unset.
 export SENTRY_ENVIRONMENT=production
+export NEXT_PUBLIC_SENTRY_ENVIRONMENT=production
+export NEXT_PUBLIC_SENTRY_RELEASE="$SENTRY_RELEASE"
 
 if [ -z "${DATABASE_URL:-}" ]; then
   echo "DATABASE_URL is required in $ENV_FILE." >&2

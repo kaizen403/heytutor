@@ -4,7 +4,13 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
+      "env": [
+        "SENTRY_ENVIRONMENT",
+        "SENTRY_RELEASE",
+        "NEXT_PUBLIC_SENTRY_ENVIRONMENT",
+        "NEXT_PUBLIC_SENTRY_RELEASE"
+      ]
     },
     "typecheck": {
       "dependsOn": ["^build"]

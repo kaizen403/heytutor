@@ -25,6 +25,9 @@
  * telemetry. To register a topic, add one entry to SOURCE_QUANTITY_AUTHORITIES.
  */
 import type { TurnPlanV3 } from "../contracts/contractsV3";
+import { applyProjectileSourceAuthority } from "../physics/projectileLaunchSource";
+import { applyOpticsSourceAuthority } from "../physics/opticsSourceAuthority";
+import { applyCoupledInclineAuthority } from "../physics/coupledInclineSource";
 import { applyStatedCircuitAuthority } from "./statedCircuitAuthority";
 import { applyUniformCircularAuthority } from "../physics/uniformCircularSource";
 import { applyRelativeMotionAuthority, type MotionQuantityAuthority } from "../physics/motionPlanAgreement";
@@ -123,6 +126,42 @@ const riverCrossingAuthority: SourceQuantityAuthority = {
 };
 
 export const SOURCE_QUANTITY_AUTHORITIES: readonly SourceQuantityAuthority[] = [
+  {
+    topic: "physics|mechanics|coupled-incline",
+    apply({question, plan}) {
+      const corrected = applyCoupledInclineAuthority(question, plan);
+      if (!corrected) return null;
+      const corrections = corrected.derived.flatMap(quantity => {
+        const old = plan.derived.find(row => row.id === quantity.id);
+        return old && old.value !== quantity.value ? [{quantityId:quantity.id,symbol:quantity.symbol,previous:old.value,corrected:quantity.value,unit:quantity.unit}] : [];
+      });
+      return {topic:this.topic,plan:corrected,corrections,declineFigure:false,issueCodes:corrections.map(() => "force_balance_corrected")};
+    },
+  },
+  {
+    topic: "physics|optics|source",
+    apply({question, plan}) {
+      const result = applyOpticsSourceAuthority(question, plan);
+      if (!result) return null;
+      const corrections = result.plan.derived.flatMap(quantity => {
+        const old = plan.derived.find(row => row.id === quantity.id);
+        return old && old.value !== quantity.value ? [{quantityId:quantity.id,symbol:quantity.symbol,previous:old.value,corrected:quantity.value,unit:quantity.unit}] : [];
+      });
+      return {topic:this.topic,plan:result.plan,corrections,declineFigure:false,issueCodes:corrections.map(() => "optics_source_corrected")};
+    },
+  },
+  {
+    topic: "physics|mechanics|projectile",
+    apply({question, plan}) {
+      const corrected=applyProjectileSourceAuthority(question,plan);
+      if(!corrected) return null;
+      const corrections=[...corrected.givens,...corrected.derived].flatMap(quantity=>{
+        const old=[...plan.givens,...plan.derived].find(row=>row.id===quantity.id);
+        return old && old.value!==quantity.value ? [{quantityId:quantity.id,symbol:quantity.symbol,previous:old.value,corrected:quantity.value,unit:quantity.unit}] : [];
+      });
+      return {topic:this.topic,plan:corrected,corrections,declineFigure:false,issueCodes:corrections.map(()=>"projectile_source_corrected")};
+    },
+  },
   circuitAuthority,
   uniformCircularAuthority,
   relativeMotionAuthority,

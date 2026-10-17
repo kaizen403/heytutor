@@ -18,6 +18,7 @@ export async function GET() {
     {
       ok,
       db,
+      release: process.env.HEYTUTOR_RELEASE ?? null,
       objectStore: isObjectStoreConfigured(),
     },
     { status: ok ? 200 : 503 },

@@ -10,7 +10,9 @@
  *
  * The grammar is small and closed. Every word between the first and last
  * resistance must belong to it; every stated resistance must be a leaf
- * exactly once; nesting is at most two levels and at most four resistors.
+ * exactly once; nesting is at most three levels and at most four resistors.
+ * Explicit branch declarations may span sentences: each named branch is a
+ * complete expression, bound once into the declared parallel group.
  * A phrase with two readings is not resolved by preference: it yields null.
  * That covers a list on either side of "with" ("X in parallel with Y and Z in
  * series", "X and Y in parallel with Z"), a second "in ... with" chained on
@@ -88,86 +90,138 @@ function node(kind: "series" | "parallel", children: ResistorTree[]): ResistorTr
 }
 
 function parse(tokens: string[]): ResistorTree {
-  let at = 0;
-  const peek = (offset = 0): string | undefined => tokens[at + offset];
-  const take = (expected?: string): string => {
-    const token = tokens[at];
-    if (token === undefined || (expected !== undefined && token !== expected)) fail();
-    at += 1;
-    return token;
-  };
-  const atom = (): ResistorTree => {
-    const token = take();
-    if (!token.startsWith("#")) fail();
-    return { kind: "leaf", index: Number(token.slice(1)) };
-  };
-  // item ((, | and | , and) item)*: plain resistances only, so a list never
-  // hides a nested grouping.
-  const list = (): ResistorTree[] => {
-    const items = [atom()];
-    while (true) {
-      if (peek() === "," && peek(1)?.startsWith("#")) { take(","); items.push(atom()); continue; }
-      if (peek() === "," && peek(1) === "and" && peek(2)?.startsWith("#")) { take(","); take("and"); items.push(atom()); continue; }
-      if (peek() === "and" && peek(1)?.startsWith("#")) { take("and"); items.push(atom()); continue; }
-      return items;
-    }
-  };
-  const combination = (): ResistorTree | null => {
-    if (KINDS.has(peek() ?? "") && peek(1) === "combination") {
-      const kind = take() as "series" | "parallel";
-      take("combination");
-      const items = list();
-      if (items.length < 2) fail();
-      return node(kind, items);
-    }
+  type Parsed = { tree: ResistorTree; at: number };
+  const isLeaf = (at: number) => /^#\d$/.test(tokens[at] ?? "");
+  const separator = (at: number): number | null => {
+    if (tokens[at] === "and") return at + 1;
+    if (tokens[at] === ",") return tokens[at + 1] === "and" ? at + 2 : at + 1;
     return null;
   };
-  // A term is a named combination, a single resistance, or a list closed by
-  // its own arrangement ("#0 and #1 in series"). A bare list is unarranged.
-  const term = (): { tree: ResistorTree; bare: boolean } => {
-    const named = combination();
-    if (named) return { tree: named, bare: false };
-    const items = list();
-    if (peek() === "in" && KINDS.has(peek(1) ?? "") && peek(2) !== "with") {
-      take("in");
-      const kind = take() as "series" | "parallel";
-      if (items.length < 2) fail();
-      return { tree: node(kind, items), bare: false };
+  const atom = (at: number): Parsed[] => isLeaf(at)
+    ? [{ tree: { kind: "leaf", index: Number(tokens[at]!.slice(1)) }, at: at + 1 }] : [];
+  // Enumerate all possible ends of an explicitly named group. A nested
+  // conjunction can close either group; only a unique complete parse wins.
+  // Four source resistors bound the search, and every group needs >=2 items.
+  const combination = (at: number, nesting = 0): Parsed[] => {
+    if (nesting >= 3) return [];
+    if (!KINDS.has(tokens[at] ?? "") || tokens[at + 1] !== "combination") return [];
+    const kind = tokens[at] as "series" | "parallel";
+    const results: Parsed[] = [];
+    const item = (start: number): Parsed[] => [...atom(start), ...combination(start, nesting + 1)];
+    const extend = (children: ResistorTree[], end: number): void => {
+      if (children.length >= 2) results.push({ tree: node(kind, children), at: end });
+      const next = separator(end);
+      if (next !== null) for (const parsed of item(next)) extend([...children, parsed.tree], parsed.at);
+    };
+    for (const parsed of item(at + 2)) extend([parsed.tree], parsed.at);
+    return results;
+  };
+  // An unnamed list still needs its own closing arrangement. Unlike named
+  // groups, its end is never inferred by an outer conjunction.
+  const plainList = (start: number): { children: ResistorTree[]; at: number } | null => {
+    const first = atom(start)[0];
+    if (!first) return null;
+    const children = [first.tree];
+    let at = first.at;
+    while (true) {
+      const next = separator(at);
+      const parsed = next === null ? undefined : atom(next)[0];
+      if (!parsed) return { children, at };
+      children.push(parsed.tree);
+      at = parsed.at;
     }
-    return items.length === 1 ? { tree: items[0]!, bare: false } : { tree: { kind: "series", children: items }, bare: true };
   };
-  // The operand after "with" is one resistance or a named combination. "with
-  // #1 and #2 in series" has two readings and is refused.
-  const operand = (): ResistorTree => {
-    const named = combination();
-    if (named) return named;
-    const single = atom();
-    if (peek() === "and" || (peek() === "," && peek(1)?.startsWith("#"))) fail();
-    return single;
-  };
-  const first = term();
-  const bare = first.bare;
-  let tree = first.tree;
-  let attachments = 0;
-  while (at < tokens.length) {
-    if (peek() === ",") take(",");
-    if (peek() === "and" && peek(1) === "in") take("and");
-    const scoped = peek() === "SCOPE";
-    if (scoped) take("SCOPE");
-    if (peek() !== "in" || !KINDS.has(peek(1) ?? "") || peek(2) !== "with") fail();
-    // "#0 and #1 in parallel with #2" could group #0 with #1 first or not.
-    if (bare) fail();
-    // "#0 in series with #1 in parallel with #2" could attach the second
-    // clause to #1 or to the chain; only "this combination" scopes it.
-    if (attachments > 0 && !scoped) fail();
-    attachments += 1;
-    take("in");
-    const kind = take() as "series" | "parallel";
-    take("with");
-    tree = node(kind, [tree, operand()]);
+  const terms: Parsed[] = combination(0);
+  const plain = plainList(0);
+  if (plain) {
+    const { children, at } = plain;
+    if (tokens[at] === "in" && KINDS.has(tokens[at + 1] ?? "") && tokens[at + 2] !== "with") {
+      if (children.length >= 2) terms.push({ tree: node(tokens[at + 1] as "series" | "parallel", children), at: at + 2 });
+    } else if (children.length === 1) terms.push({ tree: children[0]!, at });
   }
-  if (bare) fail();
-  return tree;
+  const complete = new Map<string, ResistorTree>();
+  const attach = ({ tree, at: start }: Parsed, attachments: number): void => {
+    if (start === tokens.length) { complete.set(formatResistorTree(tree), tree); return; }
+    let at = start;
+    if (tokens[at] === ",") at += 1;
+    if (tokens[at] === "and" && tokens[at + 1] === "in") at += 1;
+    const scoped = tokens[at] === "SCOPE";
+    if (scoped) at += 1;
+    if (tokens[at] !== "in" || !KINDS.has(tokens[at + 1] ?? "") || tokens[at + 2] !== "with") return;
+    if (attachments > 0 && !scoped) return;
+    const kind = tokens[at + 1] as "series" | "parallel";
+    const operands = combination(at + 3);
+    const single = atom(at + 3)[0];
+    // A bare list after 'with' has two readings, even with a trailing kind.
+    if (single && tokens[single.at] !== "and" && !(tokens[single.at] === "," && isLeaf(single.at + 1))) operands.push(single);
+    for (const operand of operands) attach({ tree: node(kind, [tree, operand.tree]), at: operand.at }, attachments + 1);
+  };
+  for (const term of terms) attach(term, 0);
+  if (complete.size !== 1) fail();
+  return complete.values().next().value!;
+}
+
+/**
+ * Resolve explicitly enumerated branch declarations before the expression
+ * reader. Sentence boundaries are meaningful here: each declaration supplies
+ * one complete operand of the named parallel group. No nearest-reference or
+ * conjunction guessing is used, and every resistance must occur once.
+ */
+function readBranchDeclarations(stem: string): ResistorTree | null {
+  let count = 0;
+  const marked = stem.replace(OHM, () => ` #${count++} `).toLowerCase();
+  if (count < 2 || count > 4 || /[-+]\s*#/.test(marked)) return null;
+  const clauses = marked.split(/[.;]\s+/).map((part) => part.trim());
+  const header = clauses.shift() ?? "";
+  const group = /\b(two|three|2|3) parallel branches\s*[.]?$/.exec(header);
+  if (!group) return null;
+  const expected = group[1] === "two" || group[1] === "2" ? 2 : 3;
+  const branches: ResistorTree[] = [];
+  const names = new Set<string>();
+  // Ordered names bind to a branch exactly once; "the other" is only
+  // meaningful for a pair. Unparsed trailing declarations never disappear.
+  const ordinals: Record<string, number> = { one: 0, first: 0, second: 1, third: 2, other: 1 };
+  for (const clause of clauses) {
+    if (/^(?:draw|find|calculate|determine|explain|what)\b/.test(clause)) {
+      if (branches.length !== expected || /#\d|\b(?:connect(?:ed|ing)?|disconnect(?:ed|ing)?|short(?:ed|ing)?|open(?:ed|ing)?|switch(?:ed|ing)?|replac(?:e|ed|ing))\b/.test(clause)) return null;
+      continue;
+    }
+    const declaration = /^(?:the )?(one|first|second|third|other)(?: branch)? (?:contains|has|consists of) (.+?)[.]?$/.exec(clause);
+    if (!declaration) return null;
+    const name = declaration[1]!;
+    const index = ordinals[name]!;
+    if (index !== branches.length || names.has(name) || (name === "other" && expected !== 2)) return null;
+    names.add(name);
+    const words = declaration[2]!.match(/#\d|[a-z]+|[,.;?]/g) ?? [];
+    const tokens: string[] = [];
+    for (const word of words) {
+      if (word.startsWith("#") || KEPT.has(word)) tokens.push(word);
+      else if (!DROPPED.has(word)) return null;
+    }
+    branches.push(parse(tokens));
+  }
+  if (branches.length !== expected) return null;
+  const parallel = node("parallel", branches);
+  const prefix = header.slice(0, group.index).trim();
+  if (!/#\d/.test(prefix)) {
+    // A source can be connected directly across the declared branch group.
+    if (!/\b(?:across|to)\s*$/.test(prefix)) return null;
+    return parallel;
+  }
+  // A placeholder denotes the already-bound group, never an invented
+  // resistor. The ordinary expression grammar still proves its attachment.
+  const placeholder = count;
+  const first = prefix.indexOf("#");
+  const words = `${prefix.slice(first)} #${placeholder}`.match(/#\d|[a-z]+|[,.;?]/g) ?? [];
+  const tokens: string[] = [];
+  for (const word of words) {
+    if (word.startsWith("#") || KEPT.has(word)) tokens.push(word);
+    else if (!DROPPED.has(word)) return null;
+  }
+  const substitute = (tree: ResistorTree): ResistorTree => tree.kind === "leaf"
+    ? tree.index === placeholder ? parallel : tree
+    : node(tree.kind, tree.children.map(substitute));
+  return substitute(parse(tokens));
 }
 
 function depth(tree: ResistorTree): number {
@@ -181,15 +235,17 @@ function leaves(tree: ResistorTree): number[] {
 /**
  * The bound series/parallel tree of a mixed resistor stem, or null when the
  * stem's clause does not fix one (unknown words, a resistance used twice or
- * not at all, a phrase with two readings, deeper than two levels).
+ * not at all, a phrase with two readings, deeper than three levels).
  */
 export function readResistorTree(stem: string): ResistorTree | null {
-  const clause = clauseTokens(stem);
-  if (!clause) return null;
   try {
-    const tree = parse(clause.tokens);
+    const declared = readBranchDeclarations(stem);
+    const clause = declared ? null : clauseTokens(stem);
+    if (!declared && !clause) return null;
+    const tree = declared ?? parse(clause!.tokens);
+    const count = [...stem.matchAll(OHM)].length;
     const used = leaves(tree).sort((a, b) => a - b);
-    if (tree.kind === "leaf" || depth(tree) > 2 || used.length !== clause.count || used.some((index, position) => index !== position)) return null;
+    if (tree.kind === "leaf" || depth(tree) > 3 || used.length !== count || used.some((index, position) => index !== position)) return null;
     return tree;
   } catch (error) {
     if (error instanceof Unreadable) return null;

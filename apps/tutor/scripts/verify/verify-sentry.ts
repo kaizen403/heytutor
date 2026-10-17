@@ -10,6 +10,8 @@ import { isAuthPublicPath } from "../../lib/auth/publicPaths";
 import { rateLimitBucketForPath } from "../../lib/http/ipRateLimit";
 import {
   isSentryDisabled,
+  isSentryProduction,
+  sentryRelease,
   redactUrl,
   scrubSecrets,
   scrubSentryBreadcrumb,
@@ -45,7 +47,7 @@ function assert(condition: unknown, message: string): asserts condition {
 }
 
 function env(values: Record<string, string | undefined>): NodeJS.ProcessEnv {
-  return values as NodeJS.ProcessEnv;
+  return { NODE_ENV: "production", SENTRY_ENVIRONMENT: "production", ...values } as NodeJS.ProcessEnv;
 }
 
 assert(SENTRY_TUNNEL_PATH === "/monitoring", "the tunnel path is the fixed /monitoring route");
@@ -82,6 +84,21 @@ assert(
     "https://public@example.ingest.sentry.io/1",
   "the browser DSN is trimmed",
 );
+
+
+for (const settings of [
+  { NODE_ENV: "production" },
+  { NODE_ENV: "development", SENTRY_ENVIRONMENT: "production" },
+  { NODE_ENV: "production", SENTRY_ENVIRONMENT: "lab" },
+  { NODE_ENV: "production", SENTRY_ENVIRONMENT: "development" },
+]) {
+  const local = { ...settings, SENTRY_DSN: "https://public@example.ingest.sentry.io/1" } as NodeJS.ProcessEnv;
+  assert(!isSentryProduction(local), "a local/lab build must not claim production");
+  assert(sentryServerDsn(local) === undefined, "local/lab server event transport stays disabled");
+  assert(sentryTracesSampler({ name: "POST /api/chat" }, local) === 0, "local/lab traces stay disabled");
+}
+assert(sentryRelease(env({ SENTRY_RELEASE: "a".repeat(40) })) === "a".repeat(40), "release identity is a full commit SHA");
+assert(sentryRelease(env({ SENTRY_RELEASE: "untrusted arbitrary data" })) === undefined, "release does not carry arbitrary strings");
 
 const collection = sentryDataCollection();
 assert(collection.userInfo === false, "Sentry must not collect user identity");
