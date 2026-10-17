@@ -96,6 +96,19 @@ refused(optimalQuestion, [["x", 999]], "Optimal coordinate id cannot hide behind
 refused(optimalQuestion, [["x", 3]], "Swapping optimal x/y roles cannot reuse the same unknown id", candidate => { candidate.derived[0]!.symbol = "y"; });
 accepted(question, [["Z", 21], ["x", 5]], "Unrequested bare x has no native optimum role to veto");
 refused(optimalQuestion.replace("Z=3x+2y", "Z=x+y"), [["Z", 8], ["x", 5]], "An optimal edge has no globally unique x/y scalar");
+// Use the deterministic solver's own witness, not a different point that an
+// accidental equality check could refuse without proving uniqueness.
+for (const source of [
+  "Maximize Z=x+y subject to x>=0,y>=0,x+y<=8,x<=5. Show the feasible region. Find the optimal point.",
+  "Maximize Z=y subject to x>=0,x<=5,y>=3,y<=3. Show the feasible region. Find the optimal point.",
+]) {
+  const built = buildLinearSourceDocument(source)!;
+  const row = built.constructions[0]!.inputs;
+  const solved = solveLinearFigure({ kind: "linear_feasible_region", constraints: row.constraints as string[], objective: row.objective as { expression: string; sense: "max" } });
+  assert(solved.kind === "linear_feasible_region" && solved.objective?.extremum.status === "attained");
+  const optimum = solved.objective.extremum;
+  refused(source, [["Z", exactRationalToNumber(optimum.value)], ["x", exactRationalToNumber(optimum.point.x)], ["y", exactRationalToNumber(optimum.point.y)]], "An arbitrary solver witness cannot certify a unique optimum on an optimal edge");
+}
 refused(optimalQuestion.replace("x+y<=8", "x+y<8").replace("x<=5", "x<5"), [["Z", 21], ["x", 5]], "An unattained finite limit does not authorize an optimal point");
 const sys07 = "The lines 2x - y = 5 and -3x + 2y = -4 meet at P. Graph both lines, label P, and find its x-coordinate.";
 const sys06 = "Solve the pair x + y = 6 and x - y = 2 by the graphical method. Label their point of intersection.";

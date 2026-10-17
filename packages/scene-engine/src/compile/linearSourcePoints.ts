@@ -35,7 +35,7 @@ export function readLinearSourceReferencePoints(
   question: string,
   variables: readonly string[],
 ): { points: LinearSourceReferencePoint[]; maskedQuestion: string } {
-  if (typeof question !== "string" || question.length > 8192)
+  if (typeof question !== "string" || question.length > 2000)
     throw new Error("Source reference points require bounded original question text");
   const points: LinearSourceReferencePoint[] = [];
   const spans: Array<{ start: number; end: number }> = [];
