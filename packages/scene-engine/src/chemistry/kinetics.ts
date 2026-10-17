@@ -884,7 +884,11 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
     }
     const start = payload[0] + prefix[0].length;
     const read = readChemistryQuantity({question:stem,after:/^/,within:{start,end:payload[1]},dimension:"dimensionless"});
-    if (!read.ok || !(read.reading.value > 1)) return false;
+    if (!read.ok || !(read.reading.value > 0)) return false;
+    // Neutral final-value wording also describes cooling. An explicit
+    // increase still requires a multiplier above one; measured pairs and
+    // positive activation energy below independently bind the direction.
+    if (/\bincreases?\b/i.test(prefix[0]) && !(read.reading.value > 1)) return false;
     const scalarTail = stem.slice(read.reading.source.span.end,payload[1]);
     // A single original sentence dot may separate scalar2 from "times";
     // the shared strict scalar proof remains unchanged and owns the value.
@@ -902,7 +906,7 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
       }
     }
     suffix = suffix.replace(/\b[Tt]_?[12]\s*=\s*(?=\s|$)/g," ");
-    if (!/^\s*(?:(?:its|the|original|value|when|as|on|from|for|between|in|of|an?|temperature|temperatures|is|was|are|raised|rises|rise|increased|increases|increase|change|by|to|at|and|starting|starts|start|goes|go|went|up)\b\s*)*$/i.test(suffix)) return false;
+    if (!/^\s*(?:(?:its|the|original|value|when|as|on|from|for|between|in|of|an?|temperature|temperatures|is|was|are|raised|rises|rise|increased|increases|increase|changes?|by|to|at|and|starting|starts|start|goes|go|went|up)\b\s*)*$/i.test(suffix)) return false;
     const change = read.reading.value;
     if (ratio !== null && !chemistryCanonicalValuesAgree(ratio,change)) return false;
     ratio = change;

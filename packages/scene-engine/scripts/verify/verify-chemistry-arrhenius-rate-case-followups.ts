@@ -289,6 +289,239 @@ check("complete-measured-cooling-pair-keeps-directional-caption", () => {
   const caption = document.annotations.map((annotation) => annotation.text).join(" ");
   assert(caption.includes("k goes from")); assert(!caption.includes("k rises"));
 });
+// A final positive multiplier is valid in either thermal direction. The
+// independent Arrhenius relation, measured pairs and direction claims agree.
+const numericCooling: readonly {id:string;question:string;first:number;last:number;ratio:number|null;expectedDraw:boolean}[] = [
+  {
+    "id": "review-exact",
+    "question": "The rate constant of a reaction at 310 K is 0.08 s^-1 and at 300 K is 0.04 s^-1. The rate becomes 0.5 times its original value. Calculate the activation energy.",
+    "first": 310,
+    "last": 300,
+    "ratio": 0.5,
+    "expectedDraw": true
+  },
+  {
+    "id": "fresh-quarter-is",
+    "question": "The rate constant of a reaction at 330 K is 0.12 s^-1 and at 300 K is 0.03 s^-1. The rate is 0.25 times its original value. Calculate the activation energy.",
+    "first": 330,
+    "last": 300,
+    "ratio": 0.25,
+    "expectedDraw": true
+  },
+  {
+    "id": "fresh-scientific-becomes",
+    "question": "The rate constant of a reaction at 310 K is 0.08 s^-1 and at 300 K is 0.04 s^-1. The rate constant becomes 5e-1 times its original value. Calculate the activation energy.",
+    "first": 310,
+    "last": 300,
+    "ratio": 0.5,
+    "expectedDraw": true
+  },
+  {
+    "id": "fresh-fraction-is",
+    "question": "The rate constant of a reaction at 320 K is 0.06 s^-1 and at 300 K is 0.03 s^-1. The rate constant is 1/2 times its original value. Calculate the activation energy.",
+    "first": 320,
+    "last": 300,
+    "ratio": 0.5,
+    "expectedDraw": true
+  },
+  {
+    "id": "fresh-leading-decimal",
+    "question": "The rate constant of a reaction at 320 K is 0.15 s^-1 and at 300 K is 0.03 s^-1. The rate becomes .2 times its original value. Calculate the activation energy.",
+    "first": 320,
+    "last": 300,
+    "ratio": 0.2,
+    "expectedDraw": true
+  },
+  {
+    "id": "fresh-fractional-fold",
+    "question": "The rate constant of a reaction at 330 K is 0.08 s^-1 and at 300 K is 0.06 s^-1. The rate constant becomes 0.75-fold its original value. Calculate the activation energy.",
+    "first": 330,
+    "last": 300,
+    "ratio": 0.75,
+    "expectedDraw": true
+  },
+  {
+    "id": "control-increase-fraction",
+    "question": "The rate constant of a reaction at 310 K is 0.08 s^-1 and at 300 K is 0.04 s^-1. The rate increases 0.5 times its original value. Calculate the activation energy.",
+    "first": 310,
+    "last": 300,
+    "ratio": null,
+    "expectedDraw": false
+  },
+  {
+    "id": "control-increase-fraction-fold",
+    "question": "The rate constant of a reaction at 330 K is 0.12 s^-1 and at 300 K is 0.03 s^-1. The rate constant increases 0.25-fold. Calculate the activation energy.",
+    "first": 330,
+    "last": 300,
+    "ratio": null,
+    "expectedDraw": false
+  },
+  {
+    "id": "control-negative-Ea",
+    "question": "The rate constant of a reaction at 300 K is 0.08 s^-1 and at 310 K is 0.04 s^-1. The rate becomes 0.5 times its original value. Calculate the activation energy.",
+    "first": 300,
+    "last": 310,
+    "ratio": null,
+    "expectedDraw": false
+  },
+  {
+    "id": "control-measured-conflict",
+    "question": "The rate constant of a reaction at 310 K is 0.08 s^-1 and at 300 K is 0.06 s^-1. The rate becomes 0.5 times its original value. Calculate the activation energy.",
+    "first": 310,
+    "last": 300,
+    "ratio": null,
+    "expectedDraw": false
+  },
+  {
+    "id": "control-zero",
+    "question": "The rate constant of a reaction at 310 K is 0.08 s^-1 and at 300 K is 0.04 s^-1. The rate becomes 0 times its original value. Calculate the activation energy.",
+    "first": 310,
+    "last": 300,
+    "ratio": null,
+    "expectedDraw": false
+  },
+  {
+    "id": "control-negative",
+    "question": "The rate constant of a reaction at 310 K is 0.08 s^-1 and at 300 K is 0.04 s^-1. The rate becomes -0.5 times its original value. Calculate the activation energy.",
+    "first": 310,
+    "last": 300,
+    "ratio": null,
+    "expectedDraw": false
+  },
+  {
+    "id": "control-one",
+    "question": "The rate constant of a reaction at 310 K is 0.08 s^-1 and at 300 K is 0.04 s^-1. The rate becomes 1 times its original value. Calculate the activation energy.",
+    "first": 310,
+    "last": 300,
+    "ratio": null,
+    "expectedDraw": false
+  },
+  {
+    "id": "control-damaged-exponent",
+    "question": "The rate constant of a reaction at 310 K is 0.08 s^-1 and at 300 K is 0.04 s^-1. The rate becomes 0.5e- times its original value. Calculate the activation energy.",
+    "first": 310,
+    "last": 300,
+    "ratio": null,
+    "expectedDraw": false
+  },
+  {
+    "id": "control-zero-denominator",
+    "question": "The rate constant of a reaction at 310 K is 0.08 s^-1 and at 300 K is 0.04 s^-1. The rate becomes 1/0 times its original value. Calculate the activation energy.",
+    "first": 310,
+    "last": 300,
+    "ratio": null,
+    "expectedDraw": false
+  },
+  {
+    "id": "control-foreign-unit",
+    "question": "The rate constant of a reaction at 310 K is 0.08 s^-1 and at 300 K is 0.04 s^-1. The rate becomes 0.5 kg times its original value. Calculate the activation energy.",
+    "first": 310,
+    "last": 300,
+    "ratio": null,
+    "expectedDraw": false
+  },
+  {
+    "id": "control-warming-neutral",
+    "question": "The rate constant of a reaction at 300 K is 0.04 s^-1 and at 310 K is 0.08 s^-1. The rate becomes 2 times its original value. Calculate the activation energy.",
+    "first": 300,
+    "last": 310,
+    "ratio": 2,
+    "expectedDraw": true
+  },
+  {
+    "id": "control-warming-increase",
+    "question": "The rate constant of a reaction at 300 K is 0.04 s^-1 and at 310 K is 0.08 s^-1. The rate increases 2 times its original value. Calculate the activation energy.",
+    "first": 300,
+    "last": 310,
+    "ratio": 2,
+    "expectedDraw": true
+  },
+  {
+    "id": "control-cooling-no-multiplier",
+    "question": "The rate constant of a reaction at 310 K is 0.08 s^-1 and at 300 K is 0.04 s^-1.  Calculate the activation energy.",
+    "first": 310,
+    "last": 300,
+    "ratio": 0.5,
+    "expectedDraw": true
+  },
+  {
+    "id": "transfer-ratio-only-half",
+    "question": "The rate constant becomes .5 times its original value when the temperature changes from 310 K to 300 K. Calculate the activation energy.",
+    "first": 310,
+    "last": 300,
+    "ratio": 0.5,
+    "expectedDraw": true
+  },
+  {
+    "id": "transfer-ratio-only-quarter",
+    "question": "The rate constant becomes 0.25 times its original value when the temperature changes from 310 K to 300 K. Calculate the activation energy.",
+    "first": 310,
+    "last": 300,
+    "ratio": 0.25,
+    "expectedDraw": true
+  },
+  {
+    "id": "transfer-ratio-only-fraction",
+    "question": "The rate constant becomes 1/2 times its original value when the temperature changes from 310 K to 300 K. Calculate the activation energy.",
+    "first": 310,
+    "last": 300,
+    "ratio": 0.5,
+    "expectedDraw": true
+  },
+  {
+    "id": "transfer-indexed",
+    "question": "T1 = 310 K, T2 = 300 K, k1 = 0.08 s^-1, k2 = 0.04 s^-1. The rate constant becomes 0.5 times its original value. Calculate the activation energy.",
+    "first": 310,
+    "last": 300,
+    "ratio": 0.5,
+    "expectedDraw": true
+  },
+  {
+    "id": "inherited-warm-changes-contrast",
+    "question": "The rate constant becomes 2 times its original value when the temperature changes from 300 K to 310 K. Calculate the activation energy.",
+    "first": 300,
+    "last": 310,
+    "ratio": 2,
+    "expectedDraw": true
+  },
+  {
+    "id": "transfer-warm-goes-control",
+    "question": "The rate constant becomes 2 times its original value when the temperature goes from 300 K to 310 K. Calculate the activation energy.",
+    "first": 300,
+    "last": 310,
+    "ratio": 2,
+    "expectedDraw": true
+  },
+  {
+    "id": "transfer-cooling-goes-control",
+    "question": "The rate constant becomes 0.5 times its original value when the temperature goes from 310 K to 300 K. Calculate the activation energy.",
+    "first": 310,
+    "last": 300,
+    "ratio": 0.5,
+    "expectedDraw": true
+  }
+];
+for (const row of numericCooling) for (const mode of ["strict", "schematic", "ordinary"] as const) check(`numeric-cooling/${row.id}/${mode}`, () => {
+  const spec = kineticsFromStem(row.question);
+  const document = mode === "ordinary" ? synthesizeFamilyScene({question:row.question})?.document ?? null
+    : buildKineticsScene(row.question, [], mode === "schematic");
+  if (!row.expectedDraw) {
+    assert.equal(spec, null, "a damaged, inconsistent or contradictory rate change cannot become a positive-energy figure");
+    assert(!document || document.visualDecision.mode === "text_only", "ordinary fallback must preserve the refusal");
+    return;
+  }
+  assert(spec?.arrhenius && row.ratio !== null);
+  const expectedEnergy = 8.314 * Math.log(row.ratio) / (1 / row.first - 1 / row.last);
+  assert(expectedEnergy > 0, "fixture has independently positive Arrhenius activation energy");
+  const solution = solveKinetics(spec);
+  near(solution.Ea, expectedEnergy); near(solution.ratio, row.ratio);
+  near(spec.arrhenius.T1, row.first); near(solution.T2, row.last);
+  assert(document && compileForLab(document).ok);
+  near(document.quantities.find(quantity => quantity.id === "Ea")?.value, expectedEnergy);
+  near(document.quantities.find(quantity => quantity.id === "ratio")?.value, row.ratio);
+  if (row.ratio < 1) assert(!document.annotations.some(annotation => annotation.text?.includes("k rises")), "cooling is not captioned as increasing k");
+});
+
 const output = process.argv.indexOf("--out");
 if (output >= 0) writeFileSync(process.argv[output + 1]!, JSON.stringify({ passed, failures, evidence }, null, 2) + "\n");
 console.log(`verify-chemistry-arrhenius-rate-case-followups: ${passed} passed, ${failures.length} failed`);
