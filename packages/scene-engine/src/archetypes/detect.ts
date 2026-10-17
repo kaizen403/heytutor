@@ -1090,10 +1090,12 @@ const CUE_SETS: readonly CueSet[] = [
     cues: [[/\b(?:standing|stationary) waves?\b/i, 5], [/\b(?:node|antinode|harmonic|overtone|organ pipes?|fundamental|resonance tube|closed pipe|open pipe)\b/i, 2], [/\b(?:string|pipe|tube)\b[^.]{0,30}\b(?:fixed|closed|open)\b/i, 2]],
     vetoes: [/\bsimple harmonic\b|\bSHM\b/i],
     extract: (stem, _plan, bag) => {
-      const ordinal = /\b(first|second|third|fourth|fifth|sixth|\d+(?:st|nd|rd|th))\s+harmonic\b/i.exec(stem)?.[1]?.toLowerCase();
+      const ordinal = /\b(first|second|third|fourth|fifth|sixth|\d+(?:st|nd|rd|th))[\s\u2010-\u2015-]+harmonic\b/i.exec(stem)?.[1]?.toLowerCase();
       const namedHarmonics: Record<string, number> = { first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6 };
+      const mode = /\bn\s*=\s*(\d+)\b(?!\.\d)/i.exec(stem)?.[1];
       // Giving the fundamental frequency does not select the displayed mode.
       const harmonic = ordinal ? namedHarmonics[ordinal] ?? Number.parseInt(ordinal, 10)
+        : mode !== undefined ? Number(mode)
         : /\bfundamental\b(?!\s+frequency\b)/i.test(stem) ? 1 : null;
       setSlot(bag, "harmonic", harmonic, "stem");
       setSlot(bag, "length", firstNumberWithUnit(stem, UNIT.metre), "stem");

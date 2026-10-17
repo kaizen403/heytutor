@@ -121,14 +121,30 @@ for (const [question, harmonic] of [
   ["Draw a standing wave on a string with fundamental frequency 100 Hz", undefined],
   ["Draw the third harmonic standing wave on a string with fundamental frequency 100 Hz", 3],
   ["Draw the third harmonic standing wave on a string", 3],
+  ["Draw a third-harmonic standing wave on a string", 3],
+  ["Draw a 3rd harmonic standing wave on a string", 3],
+  ["Draw a 3rd-harmonic standing wave on a string", 3],
+  ["Draw a second-harmonic standing wave on a string", 2],
+  ["Draw a second–harmonic standing wave on a string", 2],
+  ["Draw a third‑harmonic standing wave on a string", 3],
+  ["Draw a standing wave on a string, n = 3", 3],
+  ["Draw a standing wave on a string (n=2)", 2],
+  ["Draw a standing wave on a string, n = 16", 16],
   ["Draw the 6th harmonic standing wave on a string", 6],
   ["Draw the 16th harmonic standing wave on a string", 16],
 ] as const) {
   const match = detectArchetype(question, { plannerArchetype: "standing_wave" })!;
-  assert.equal(match.slots.harmonic, harmonic, "only an explicitly named harmonic is source-grounded");
+  assert.equal(match.slots.harmonic, harmonic, `only an explicitly named harmonic is source-grounded: ${question}`);
+  assert.equal(match.sources.harmonic, harmonic === undefined ? undefined : "stem", `harmonic provenance: ${question}`);
   const scene = generated("standing_wave", match.slots, match.sources, question);
   if (harmonic === 16) assert.equal(scene, null, "unsupported source harmonic is never truncated or clamped");
-  else assert.equal(scene?.entities.find((entity) => entity.id === "wave")?.label, harmonic === undefined ? "envelope" : `n=${harmonic}`);
+  else {
+    assert.equal(scene?.entities.find((entity) => entity.id === "wave")?.label, harmonic === undefined ? "envelope" : `n=${harmonic}`);
+    if (harmonic !== undefined) {
+      assert.equal(scene?.entities.filter((entity) => /^node\d+$/.test(entity.id)).length, harmonic + 1, `draw the stated mode's nodes: ${question}`);
+      assert.equal(scene?.entities.filter((entity) => /^antinode\d+$/.test(entity.id)).length, harmonic, `draw the stated mode's antinodes: ${question}`);
+    }
+  }
 }
 for (const [leastCount, division] of [[0.05, 15], [0.05, 4], [0.1, 15], [0.1, -1], [0.1, 4.5]]) {
   const question = `Draw vernier callipers with main scale reading 23 mm, least count ${leastCount} mm and vernier division ${division}.`;
