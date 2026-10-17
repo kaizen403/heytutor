@@ -75,6 +75,45 @@ const claimRows: ClaimRow[] = [
   { id: "correct-no2-agreeing-lone-pair-count", question: no2, expected: "Nitrogen in NO2 has no lone pairs and one unpaired electron; its central atom has zero lone pairs.", draw: true, family: "control" },
   { id: "wrong-sf4-lone-pair-count", question: sf4, expected: "Sulfur in SF4 has two lone pairs.", draw: false, family: "control" },
   { id: "wrong-sf4-hybridisation", question: sf4, expected: "Sulfur in SF4 is sp3 hybridised.", draw: false, family: "control" },
+  ...[
+    "SF4 is seesaw, not square planar or tetrahedral.",
+    "SF4 is neither square planar nor tetrahedral; its molecular shape is seesaw.",
+    "SF4 is not square planar, tetrahedral, or octahedral.",
+    "The molecular shape is seesaw, not a square planar or a tetrahedral shape.",
+    "SF4 is not tetrahedral or square planar, but it is seesaw.",
+    "SF4 has seesaw molecular geometry, not tetrahedral nor octahedral.",
+  ].map((expected, index): ClaimRow => ({ id: `joined-negative-valid-${index + 1}`, question: sf4, expected, draw: true, family: "control" })),
+  ...[
+    "SF4 is not square planar or seesaw.",
+    "SF4 is neither tetrahedral nor seesaw.",
+    "SF4 is seesaw, not square planar, but its molecular shape is tetrahedral.",
+    "SF4 is not square planar or tetrahedral; its molecular shape is octahedral.",
+  ].map((expected, index): ClaimRow => ({ id: `joined-negative-invalid-${index + 1}`, question: sf4, expected, draw: false, family: "control" })),
+  ...[
+    "Sulfur has one lone pair; the fluorine atoms each have three lone pairs.",
+    "The F atoms each have three lone pairs and sulfur has one lone pair.",
+    "The fluorine atoms all have three lone pairs; S has one lone pair.",
+    "Sulfur has one lone pair while the F atoms individually carry three lone pairs.",
+    "Each of the fluorine atoms has three lone pairs; the central atom has one lone pair.",
+    "The central sulfur atom has one lone pair, but the fluorine atoms each contain three lone pairs.",
+  ].map((expected, index): ClaimRow => ({ id: `distributive-terminal-valid-${index + 1}`, question: sf4, expected, draw: true, family: "control" })),
+  ...[
+    "Sulfur has two lone pairs; the fluorine atoms each have three lone pairs.",
+    "The fluorine atoms all have three lone pairs; S has two lone pairs.",
+    "Fluorine atoms each have three lone pairs and sulfur has two lone pairs.",
+    "The central atom has two lone pairs while F atoms individually carry three lone pairs.",
+  ].map((expected, index): ClaimRow => ({ id: `distributive-terminal-invalid-${index + 1}`, question: sf4, expected, draw: false, family: "control" })),
+  ...[
+    "The two axial F atoms both have three lone pairs; sulfur has one lone pair.",
+    "Sulfur has one lone pair and the axial F atoms each have three lone pairs.",
+    "The axial F atoms each have three lone pairs; the central lone pair occupies an equatorial site.",
+    "The sulfur lone pair is not axial; the axial fluorine atoms each have three lone pairs.",
+  ].map((expected, index): ClaimRow => ({ id: `terminal-position-valid-${index + 1}`, question: sf4, expected, draw: true, family: "control" })),
+  ...[
+    "The lone pair is axial.",
+    "The lone pair on sulfur is in an axial site.",
+    "SF4 has an axial lone pair.",
+  ].map((expected, index): ClaimRow => ({ id: `central-position-invalid-${index + 1}`, question: sf4, expected, draw: false, family: "control" })),
 ];
 const unresolvedRows = [
   "Show the shape of SF4. Include water.",

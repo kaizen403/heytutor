@@ -474,6 +474,7 @@ function shapeClaims(text: string): ShapeClaim[] {
     for (const [pattern, target] of patterns) for (const match of clause.matchAll(pattern)) {
       roles.push({ start: match.index, end: match.index + match[0].length, target });
     }
+    let previousShape: { end: number; negated: boolean } | undefined;
     for (const shape of shapes) {
       const targets = new Set(roles.map((role) => role.target));
       let target: ShapeClaim["target"] = "molecular";
@@ -485,8 +486,14 @@ function shapeClaims(text: string): ShapeClaim[] {
         const nearestTargets = new Set(roles.filter((role) => distance(role) === nearest).map((role) => role.target));
         target = nearestTargets.size === 1 ? [...nearestTargets][0]! : null;
       }
-      const negated = /\b(?:not|no)\s+(?:an?\s+)?$/.test(clause.slice(0, shape.start));
+      const explicitNegative = /\b(?:not|no|neither)\s+(?:an?\s+)?$/.test(clause.slice(0, shape.start));
+      // One negative can govern a comma/or/nor list. A new predicate or
+      // property clause ends that list; it must keep its own truth value.
+      const joinedNegative = previousShape?.negated === true
+        && /^(?:\s*,\s*|\s+(?:or|nor)\s+|\s*,\s*(?:or|nor)\s+)(?:an?\s+)?$/.test(clause.slice(previousShape.end, shape.start));
+      const negated = explicitNegative || joinedNegative;
       claims.push({ shape: shape.shape, target, negated });
+      previousShape = { end: shape.end, negated };
     }
   }
   return claims;
@@ -508,7 +515,7 @@ function centralCountOwner(text: string, start: number, end: number, result: Vse
   const possessive = /\b([A-Za-z]+)['\u2019]s\s*$/.exec(before);
   const possessiveOwner = possessive ? owner(possessive[1]!) : null;
   if (possessiveOwner !== null) return possessiveOwner;
-  const subjects = [...before.matchAll(/\b(central\s+atom|[A-Za-z]+)(?:\s+atoms?)?(?:\s+in\s+[A-Za-z0-9_()^+-]+)?\s+(?:has|have|carries|carry|contains|contain)\b/gi)];
+  const subjects = [...before.matchAll(/\b(central\s+atom|[A-Za-z]+)(?:\s+atoms?)?(?:\s+in\s+[A-Za-z0-9_()^+-]+)?(?:\s+(?:each|all|both|individually))?\s+(?:has|have|carries|carry|contains|contain)\b/gi)];
   for (const subject of subjects.reverse()) {
     const subjectOwner = owner(subject[1]!);
     if (subjectOwner !== null) return subjectOwner;
@@ -525,6 +532,23 @@ function electronCountClaims(text: string, result: VseprResult): ElectronCountCl
     negated: /\b(?:not|never)(?:\s+(?:have|has|contain|contains|carry|carries|exactly|even|just|a))*\s+$/i.test(text.slice(0, match.index)),
     central: centralCountOwner(text, match.index, match.index + match[0].length, result),
   }));
+}
+
+/** Position belongs to a lone-pair predicate, not an axial ligand nearby. */
+function centralLonePairIsAxial(text: string, result: VseprResult): boolean {
+  const afterPair = /\blone[ -]?pairs?\b(?:(?:\s+(?:on|around|in))\s+(?:(?:the|central)\s+)*[A-Za-z0-9_^()+-]+(?:\s+atom)?)?\s+(?:(?:is|are|occupies|occupy|sits|sit|lies|lie|prefers|prefer)\s+)?(?:(?:placed|located|positioned)\s+)?(?:(?:not|never)\s+)?(?:(?:in|at|on)\s+)?(?:(?:an?|the)\s+)?axial\b/gi;
+  for (const match of text.matchAll(afterPair)) {
+    const pair = /^lone[ -]?pairs?/i.exec(match[0])!;
+    const end = match.index + pair[0].length;
+    if (centralCountOwner(text, match.index, end, result)
+      && !/\b(?:not|never)\b/i.test(match[0].slice(pair[0].length))) return true;
+  }
+  for (const match of text.matchAll(/\baxial\s+(lone[ -]?pairs?)\b/gi)) {
+    const start = match.index + match[0].length - match[1]!.length;
+    if (!/\b(?:not|no|neither)\s+(?:an?\s+)?$/i.test(text.slice(0, match.index))
+      && centralCountOwner(text, start, start + match[1]!.length, result)) return true;
+  }
+  return false;
 }
 
 /** A correct source molecule must not accompany a contradictory lesson plan. */
@@ -554,8 +578,7 @@ export function vseprPlanConflict(question: string, plan: TurnPlanV3): string | 
         return `VSEPR plan claim ${claim.id} contradicts the source-derived ${described.kind === "lone-pair" ? "lone-pair" : "unpaired-electron"} count`;
       }
     }
-    const negatedAxial = /\b(?:not|no)\s+(?:an?\s+)?axial\b/.test(text);
-    if (result.stericNumber === 5 && result.lonePairs > 0 && /lone[ -]?pair/.test(text) && /\baxial\b/.test(text) && !negatedAxial && !/\bequatorial\b/.test(text)) {
+    if (result.stericNumber === 5 && result.lonePairs > 0 && centralLonePairIsAxial(rawText, result)) {
       return `VSEPR plan claim ${claim.id} contradicts the equatorial lone-pair position`;
     }
   }
