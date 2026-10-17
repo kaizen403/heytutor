@@ -110,6 +110,8 @@ export interface FrozenStartupFixture {
   plan: TurnPlanV3;
   /** Replay recorded teaching through the real DSA planner/handler/queue. */
   recordedCodeLesson?: { plan: CodeLessonPlan; response: string };
+  /** Captured provider output appended after the stock teaching steps. */
+  teachingTail?: string;
   /** A language selected since the previous turn, applied by the real handler. */
   voiceKey?: TutorVoiceKey;
   /** Require the real Given-row request and committed WRITE path, not a no-givens prompt. */
@@ -951,6 +953,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
         }
         record("usable-step-delivered");
         content(active, "The range follows from horizontal motion.[WRITE:R = u t,80,150][/STEP]\n[STEP]The flight time comes from vertical motion.[WRITE:t = 2 u sin(theta) / g,80,205][/STEP]");
+        if (fixture?.teachingTail) content(active, fixture.teachingTail);
         finishStream(active);
       }
       await pump(() => done);
@@ -1075,6 +1078,10 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       ...(mode === "hinglish-opening" ? {
         playbacks: events.filter((event) => event.name === "playback").map((event) => event.data),
         prefetched: events.filter((event) => event.name === "opening-prefetch").map((event) => event.data),
+      } : {}),
+      ...(fixture?.teachingTail ? {
+        collected: lifecycle.collectedSegmentsRef.current,
+        recorded: lifecycle.recordedSegmentsRef.current,
       } : {}) };
   } finally {
     detachOpeningMirror();
