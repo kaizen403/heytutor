@@ -39,7 +39,7 @@ function labelLines(text: string): string[] {
 
 function descriptions(model: MolecularNeighbourhood, kind: CarbonSiteKind): string[] {
   const { molecule, site } = model;
-  if (kind === "alcohol") return ["OH-bearing C", `C neighbours: ${site.carbonNeighbours.length}`, site.classification];
+  if (kind === "alcohol") return [`${site.hybridisation} OH-bearing C`, `C neighbours: ${site.carbonNeighbours.length}`, site.classification];
   if (kind === "carbonyl") return [site.classification, site.hydrogens === 1 ? "carbonyl H" : "two C substituents", "sp2 carbonyl C", "trigonal planar", "~120 deg"];
   const symbol = molecule.atoms[site.boundAtom]!.element;
   return [site.classification === "aryl" || site.classification === "vinylic" ? `${site.classification} C-${symbol}` : site.classification,

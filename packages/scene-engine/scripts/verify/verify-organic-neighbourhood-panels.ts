@@ -436,6 +436,30 @@ for (const verb of ["Classify", "Label"]) for (const secondClass of ["primary", 
   assert.deepEqual(source.models.map(model => [model.name, model.site.classification]), [["propan-1-ol", "primary alcohol"], ["propan-2-ol", "secondary alcohol"]]);
 });
 
+/** Accepted property obligations must appear on the compiled owning panel. */
+for (const [name, question, expected] of [
+  ["review-alcohol-sp3", "Draw propan-2-ol with its OH-bearing carbon labelled sp3.", ["propan-2-ol"]],
+  ["primary-alcohol-sp3", "Draw propan-1-ol with its OH-bearing carbon labelled sp3.", ["propan-1-ol"]],
+  ["tertiary-alcohol-sp3", "Draw 2-methylpropan-2-ol with its OH-bearing carbon labelled sp3.", ["2-methylpropan-2-ol"]],
+  ["alcohol-hybridisation-caption", "Draw butan-2-ol with its OH-bearing carbon labelled. Label its hybridisation sp3.", ["butan-2-ol"]],
+  ["two-alcohol-hybridisation-captions", "Draw propan-1-ol and propan-2-ol with their OH-bearing carbon labelled sp3.", ["propan-1-ol", "propan-2-ol"]],
+  ["three-alcohol-hybridisation-captions", "Draw butan-1-ol, butan-2-ol and 2-methylpropan-2-ol with their OH-bearing carbon labelled sp3.", ["butan-1-ol", "butan-2-ol", "2-methylpropan-2-ol"]],
+] as const) check(`rendered-${name}`, () => {
+  const raw = buildOrganicScene(question, [], false);
+  const result = compileForLab(raw);
+  assert(raw && result.ok && result.renderScene, "complete supported alcohol request must draw");
+  for (const [index, member] of expected.entries()) {
+    const labels = result.renderScene.primitives.filter(primitive => primitive.kind === "label" && primitive.groupId === `m${index}_group`).map(primitive => primitive.text ?? "");
+    const text = normalized(labels.join(" "));
+    assert(text.includes(normalized(member)), `complete source name missing from panel ${index}`);
+    assert(text.includes("sp3"), `requested sp3 missing from owning alcohol panel ${index}`);
+    assert(text.includes("ohbearingc"), `OH-bearing carbon identification missing from panel ${index}`);
+  }
+});
+for (const hybridisation of ["sp", "sp2"]) check(`wrong-alcohol-hybridisation-${hybridisation}`, () => {
+  assert.equal(buildOrganicScene(`Draw propan-2-ol with its OH-bearing carbon labelled ${hybridisation}.`, [], false), null);
+});
+
 if (output) writeFileSync(resolve(output, "summary.json"), JSON.stringify({ passed, failures, cases: cases.length, evidence }, null, 2) + "\n");
 console.log(`verify-organic-neighbourhood-panels: ${passed} passed, ${failures.length} failed`);
 if (failures.length) process.exitCode = 1;

@@ -143,6 +143,7 @@ function structuralPhraseAt(text: string, kind: CarbonSiteKind): StructuralPhras
   ];
   const alcohol = [
     /^OH[- ]bearing\s+carbon\b/i,
+    /^hybridi[sz]ation\b/i,
     /^alcohols?\b/i,
     /^(?:primary|secondary|tertiary)\b/i,
   ];
