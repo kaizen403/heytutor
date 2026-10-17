@@ -4,6 +4,7 @@
  * uses the engine's refract_at / surface_contact / refract_direction chain so
  * Snell's law is asserted, never approximated.
  */
+import { multiplePhotoelectricSurfaces } from "../../physics/photoelectricSurfaces";
 import { evaluateOpticsLaw } from "../../physics/opticsLaws";
 import { sagOf } from "../../compile/opticsSurfaces";
 import { DEG, SceneBuilder, fmt, withUnit, type Vec2 } from "../document";
@@ -370,6 +371,7 @@ function doubleSlit(context: GeneratorContext) {
 }
 
 function photoelectric(context: GeneratorContext) {
+  if (multiplePhotoelectricSurfaces(context.question)) return null;
   const phi = maybeNum(context, "workFunction");
   const lambda = maybeNum(context, "lambda");
   const photon = maybeNum(context, "photonEnergy") ?? (lambda !== null ? 1240 / lambda : null);

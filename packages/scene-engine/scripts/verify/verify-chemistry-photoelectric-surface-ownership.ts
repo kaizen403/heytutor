@@ -8,7 +8,10 @@ import { compileSceneDocument } from "../../src/compile/compiler";
 import { synthesizeFamilyScene, synthesizeLastResortScene } from "../../src/synthesize/familyScene";
 import type { SceneDocument, RenderScene } from "../../src/types";
 import rows from "./fixtures/chemistry-photoelectric-surface-ownership.json";
+import materialReview from "./fixtures/chemistry-photoelectric-material-review.json";
 import nonclaimMain from "./fixtures/chemistry-photoelectric-nonclaim-main.json";
+
+const allRows = [...rows, ...materialReview];
 
 function argument(flag: string): string | undefined {
   const index = process.argv.indexOf(flag);
@@ -46,30 +49,30 @@ function persisted(value: ReturnType<typeof outcome>): ReturnType<typeof outcome
 }
 // Capture complete documents/rendered outcomes once. ROOT uses --snapshot on
 // gate-only main, then --baseline for positive/nonclaim whole-outcome parity.
-const observed = rows.map((row) => ({ id: row.id, question: row.question, outcome: outcome(row.question) }));
+const observed = allRows.map((row) => ({ id: row.id, question: row.question, outcome: outcome(row.question) }));
 const snapshot = argument("--snapshot");
 if (snapshot) writeFileSync(snapshot, JSON.stringify(observed, null, 2) + "\n", { flag: "wx" });
 const baselinePath = argument("--baseline");
 const baseline: typeof observed | null = baselinePath ? JSON.parse(readFileSync(baselinePath, "utf8")) : null;
 if (baseline) {
-  assert.equal(baseline.length, rows.length, "baseline contains all frozen rows");
+  assert.equal(baseline.length, allRows.length, "baseline contains all frozen rows");
   assert.deepEqual(baseline.map(({ id, question }) => ({ id, question })), observed.map(({ id, question }) => ({ id, question })), "ordered baseline question identities");
 }
 let passed = 0;
 let failed = 0;
-for (const [index, row] of rows.entries()) {
+for (const [index, row] of allRows.entries()) {
   try {
     const actual = observed[index]!.outcome;
     assert.equal(actual.atomic, row.expected.isAtomicRadiationStem, `${row.id} recognition`);
     if (row.kind.includes("nonclaim")) {
       // Pin observed legacy main behavior; these are not physical numeric oracles.
-      const fixed = nonclaimMain.find((entry) => entry.id === row.id);
+      const fixed = nonclaimMain.find((entry) => entry.id === row.id || entry.question === row.question);
       assert.ok(fixed, `${row.id} fixed main scene outcome`);
       assert.equal(fixed.question, row.question);
       assert.deepEqual(persisted(actual), fixed.outcome, `${row.id} default entire main outcome`);
       if (baseline) assert.deepEqual(persisted(actual), persisted(baseline[index]!.outcome), `${row.id} entire main outcome`);
     } else {
-      assert.ok(actual.families.includes("chem_orbital"), `${row.id} ordinary chemistry ownership`);
+      if (row.kind !== "physics-negative") assert.ok(actual.families.includes("chem_orbital"), `${row.id} ordinary chemistry ownership`);
       if (row.kind.includes("negative")) {
         for (const path of ["direct", "schematic", "ordinary", "lastResort"] as const) {
           assert.equal(actual[path], null, `${row.id} ${path} must decline unsupported multiple surfaces`);

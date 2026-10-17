@@ -1,0 +1,1443 @@
+[
+  {
+    "id": "review-M09",
+    "kind": "material-review-negative",
+    "question": "Work functions: Na 2.3 eV, Cu 4.7 eV. Photons of energy 3 eV strike Cu. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "review-M22",
+    "kind": "material-review-negative",
+    "question": "Sodium has work function 2.3 eV. Light of photon energy 3 eV is shone on copper. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "review-M23",
+    "kind": "material-review-negative",
+    "question": "Sodium has work function 2.3 eV. Copper is irradiated with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "review-M25",
+    "kind": "material-review-negative",
+    "question": "The work function of sodium is 2.3 eV. What happens when photons of energy 3 eV hit a copper plate? Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "review-M14",
+    "kind": "material-review-negative",
+    "question": "The work function of sodium is 2.3 eV whereas copper needs 4.7 eV. Photons of energy 3 eV are directed at copper. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "review-X01",
+    "kind": "material-review-negative",
+    "question": "Sodium has work function 2.3 eV. Light of photon energy 3 eV falls on a copper plate. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "review-X03",
+    "kind": "material-review-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on a copper target. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "review-M10",
+    "kind": "material-review-negative",
+    "question": "Sodium, with a work function of 2.3 eV, emits easily. Copper has a work function of 4.7 eV. Photons of energy 3 eV fall on copper. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "review-M13",
+    "kind": "material-review-negative",
+    "question": "Sodium (work function 2.3 eV) and copper (work function 4.7 eV) are placed side by side. Photons of energy 3 eV strike copper. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "review-M18",
+    "kind": "material-review-negative",
+    "question": "A photocell has a sodium cathode of work function 2.3 eV. It is replaced by a copper cathode. Photons of energy 3 eV fall on the new cathode. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "review-M07",
+    "kind": "material-review-negative",
+    "question": "Metal 1 has work function 2 eV and metal 2 has work function 5 eV. Photons of energy 3 eV fall on metal 2. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "review-M08",
+    "kind": "material-review-negative",
+    "question": "Metal I has work function 2 eV and metal II has work function 5 eV. Photons of energy 3 eV fall on metal II. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "review-M12",
+    "kind": "material-review-negative",
+    "question": "Cathode A has work function 2 eV and cathode B has work function 5 eV. Photons of energy 3 eV fall on cathode B. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "review-M15",
+    "kind": "material-review-negative",
+    "question": "Two plates P and Q have work functions 2 eV and 5 eV. Photons of energy 3 eV fall on plate Q. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "review-M11",
+    "kind": "material-review-negative",
+    "question": "The work function of silicon is 4.8 eV and that of sodium is 2.3 eV. Photons of energy 3 eV fall on sodium. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "review-M06",
+    "kind": "material-review-negative",
+    "question": "Sodium ka work function 2.3 eV hai aur copper ka 4.7 eV hai. Copper par photon energy 3 eV wali light girti hai. Photoelectric diagram banao.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "review-X09",
+    "kind": "material-review-negative",
+    "question": "Sodium ki work function 2.3 eV hai. Copper ki work function 4.7 eV hai. 3 eV energy ke photons copper par girte hain, photon energy 3 eV. Diagram banao.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "review-X10",
+    "kind": "material-review-negative",
+    "question": "Sodium aur copper ke work function 2.3 eV aur 4.7 eV hain. Copper par photon energy 3 eV ki light padti hai. Diagram banao.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "review-S01",
+    "kind": "material-review-positive",
+    "question": "The work function of sodium is 2.3 eV. Light of wavelength 400 nm falls on it. Draw the photoelectric energy diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.10 eV",
+        "K=0.80 eV"
+      ],
+      "mustNotHaveKLabel": false
+    }
+  },
+  {
+    "id": "review-S02",
+    "kind": "material-review-positive",
+    "question": "The work function of potassium is 2.25 eV. Light of frequency 1e15 Hz is incident on potassium. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.25 eV",
+        "E=4.14 eV",
+        "K=1.89 eV"
+      ],
+      "mustNotHaveKLabel": false
+    }
+  },
+  {
+    "id": "review-S03",
+    "kind": "material-review-positive",
+    "question": "A copper surface has work function 4.7 eV. Photons of energy 6 eV fall on it. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=4.70 eV",
+        "E=6.00 eV",
+        "K=1.30 eV"
+      ],
+      "mustNotHaveKLabel": false
+    }
+  },
+  {
+    "id": "review-S04",
+    "kind": "material-review-positive",
+    "question": "Caesium has a work function of 2.1 eV. Light of wavelength 500 nm falls on the caesium surface. Find the maximum kinetic energy.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.10 eV",
+        "E=2.48 eV",
+        "K=0.38 eV"
+      ],
+      "mustNotHaveKLabel": false
+    }
+  },
+  {
+    "id": "review-S05",
+    "kind": "material-review-positive",
+    "question": "The work function of zinc is 4.3 eV. Photons of energy 3 eV fall on zinc. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=4.30 eV",
+        "E=3.00 eV",
+        "no emission"
+      ],
+      "mustNotHaveKLabel": true
+    }
+  },
+  {
+    "id": "review-S06",
+    "kind": "material-review-negative",
+    "question": "The work function of a metal is 3.2e-19 J. Light of frequency 1e15 Hz falls on it. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "review-S07",
+    "kind": "material-review-positive",
+    "question": "The work function of tungsten is 4.5 eV. Light of frequency 1.5e15 Hz falls on tungsten. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=4.50 eV",
+        "E=6.20 eV",
+        "K=1.70 eV"
+      ],
+      "mustNotHaveKLabel": false
+    }
+  },
+  {
+    "id": "review-S08",
+    "kind": "material-review-positive",
+    "question": "Light of wavelength 300 nm falls on a sodium surface of work function 2.3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=4.13 eV",
+        "K=1.83 eV"
+      ],
+      "mustNotHaveKLabel": false
+    }
+  },
+  {
+    "id": "review-S09",
+    "kind": "material-review-positive",
+    "question": "Photons of energy 5 eV fall on a platinum surface whose work function is 5.6 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=5.60 eV",
+        "E=5.00 eV",
+        "no emission"
+      ],
+      "mustNotHaveKLabel": true
+    }
+  },
+  {
+    "id": "review-S10",
+    "kind": "material-review-positive",
+    "question": "Light from a mercury lamp of wavelength 254 nm falls on a sodium surface of work function 2.3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=4.88 eV",
+        "K=2.58 eV"
+      ],
+      "mustNotHaveKLabel": false
+    }
+  },
+  {
+    "id": "review-S11",
+    "kind": "material-review-positive",
+    "question": "Sodium light of wavelength 589 nm falls on a potassium surface. The work function of potassium is 2.0 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.00 eV",
+        "E=2.10 eV",
+        "K=0.10 eV"
+      ],
+      "mustNotHaveKLabel": false
+    }
+  },
+  {
+    "id": "review-S12",
+    "kind": "material-review-positive",
+    "question": "Lithium has a work function of 2.9 eV. Photons of energy 4 eV fall on lithium. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.90 eV",
+        "E=4.00 eV",
+        "K=1.10 eV"
+      ],
+      "mustNotHaveKLabel": false
+    }
+  },
+  {
+    "id": "review-S13",
+    "kind": "material-review-positive",
+    "question": "The work function of silver is 4.7 eV. Ultraviolet light of wavelength 200 nm illuminates silver. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=4.70 eV",
+        "E=6.20 eV",
+        "K=1.50 eV"
+      ],
+      "mustNotHaveKLabel": false
+    }
+  },
+  {
+    "id": "review-S14",
+    "kind": "material-review-positive",
+    "question": "Na has work function 2.3 eV. Light of frequency 8e14 Hz falls on Na. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.31 eV",
+        "K=1.01 eV"
+      ],
+      "mustNotHaveKLabel": false
+    }
+  },
+  {
+    "id": "review-S15",
+    "kind": "material-review-positive",
+    "question": "Gold is illuminated by photons of energy 6 eV. The work function of gold is 5.1 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=5.10 eV",
+        "E=6.00 eV",
+        "K=0.90 eV"
+      ],
+      "mustNotHaveKLabel": false
+    }
+  },
+  {
+    "id": "review-S16",
+    "kind": "material-review-positive",
+    "question": "Sodium ka work function 2.3 eV hai. Uspar photon energy 3 eV wali light girti hai. Photoelectric diagram banao.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ],
+      "mustNotHaveKLabel": false
+    }
+  },
+  {
+    "id": "review-S17",
+    "kind": "material-review-positive",
+    "question": "A metal of work function 2 eV is illuminated by light of wavelength 4000 angstrom. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.00 eV",
+        "E=3.10 eV",
+        "K=1.10 eV"
+      ],
+      "mustNotHaveKLabel": false
+    }
+  },
+  {
+    "id": "review-S18",
+    "kind": "material-review-positive",
+    "question": "The work function of nickel is 5.0 eV. Photon energy 6.2 eV. Draw the photoelectric energy diagram for nickel.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=5.00 eV",
+        "E=6.20 eV",
+        "K=1.20 eV"
+      ],
+      "mustNotHaveKLabel": false
+    }
+  },
+  {
+    "id": "review-S19",
+    "kind": "material-review-positive",
+    "question": "Metal A has work function 2 eV. Light of frequency 1e15 Hz falls on metal A. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.00 eV",
+        "E=4.14 eV",
+        "K=2.14 eV"
+      ],
+      "mustNotHaveKLabel": false
+    }
+  },
+  {
+    "id": "review-S20",
+    "kind": "material-review-positive",
+    "question": "The work function of calcium is 2.9 eV. Light of wavelength 300 nm is incident on calcium. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.90 eV",
+        "E=4.13 eV",
+        "K=1.23 eV"
+      ],
+      "mustNotHaveKLabel": false
+    }
+  },
+  {
+    "id": "review-S21",
+    "kind": "material-review-positive",
+    "question": "The work function of magnesium is 3.7 eV. Photons of energy 3 eV fall on magnesium. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=3.70 eV",
+        "E=3.00 eV",
+        "no emission"
+      ],
+      "mustNotHaveKLabel": true
+    }
+  },
+  {
+    "id": "review-S22",
+    "kind": "material-review-positive",
+    "question": "An iron plate of work function 4.5 eV is exposed to light of frequency 1.5e15 Hz. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=4.50 eV",
+        "E=6.20 eV",
+        "K=1.70 eV"
+      ],
+      "mustNotHaveKLabel": false
+    }
+  },
+  {
+    "id": "review-X06",
+    "kind": "material-review-positive",
+    "question": "In this experiment the work function of sodium is 2.3 eV. Photons of energy 3 eV fall on sodium. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ],
+      "mustNotHaveKLabel": false
+    }
+  },
+  {
+    "id": "review-X07",
+    "kind": "material-review-positive",
+    "question": "Photons of energy 3 eV fall on Na (work function 2.3 eV). Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ],
+      "mustNotHaveKLabel": false
+    }
+  },
+  {
+    "id": "review-S23",
+    "kind": "material-review-positive",
+    "question": "The work function of sodium is 2.3 eV, lower than that of copper. Photons of energy 3 eV fall on sodium. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ],
+      "mustNotHaveKLabel": false
+    }
+  },
+  {
+    "id": "review-X05",
+    "kind": "material-review-positive",
+    "question": "Is this metal a good emitter? The work function of potassium is 2.2 eV. Photons of energy 3 eV fall on potassium. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.20 eV",
+        "E=3.00 eV",
+        "K=0.80 eV"
+      ],
+      "mustNotHaveKLabel": false
+    }
+  },
+  {
+    "id": "review-G2",
+    "kind": "material-review-negative",
+    "question": "A sodium surface has work function 2.3 eV. Photons of energy 3 eV fall on a copper surface. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "review-G3",
+    "kind": "material-review-positive",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on sodium. Which metal is it? Options: (a) sodium metal (b) copper metal",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ],
+      "mustNotHaveKLabel": false
+    }
+  },
+  {
+    "id": "review-A47",
+    "kind": "physics-negative",
+    "question": "Metal A\u2019s work function is unknown. Metal B\u2019s is 2 eV. Light falls on metal A.",
+    "expected": {
+      "isAtomicRadiationStem": false
+    }
+  },
+  {
+    "id": "qa-lead-target-before-purpose-to",
+    "kind": "fresh-material-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on lead to eject electrons. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "qa-lead-transitive-verb",
+    "kind": "fresh-material-positive",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on sodium. Explain how increasing intensity may lead electrons to a larger photocurrent. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "qa-comparative-then-latter-target",
+    "kind": "fresh-material-negative",
+    "question": "The work function of sodium is 2.3 eV, lower than that of copper. Photons of energy 3 eV fall on the latter. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "qa-comparative-explicit-first-target",
+    "kind": "fresh-material-positive",
+    "question": "The work function of sodium is 2.3 eV, lower than that of copper. Photons of energy 3 eV fall on sodium. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "transfer-lead-target-article-purpose",
+    "kind": "fresh-transfer-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on a lead plate to eject electrons. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "transfer-lead-target-directed-purpose",
+    "kind": "fresh-transfer-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV are directed at lead to release photoelectrons. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "transfer-lead-infinitive",
+    "kind": "fresh-transfer-positive",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on sodium. Explain why increased intensity tends to lead electrons to a larger photocurrent. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "transfer-lead-modal-to",
+    "kind": "fresh-transfer-positive",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on sodium. Greater intensity can lead to more emitted electrons. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "transfer-two-plate-members",
+    "kind": "fresh-transfer-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on two plates, sodium and copper. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "transfer-different-metal-target",
+    "kind": "fresh-transfer-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on a different metal. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "transfer-different-surface-target",
+    "kind": "fresh-transfer-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV are directed at a different surface. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "transfer-unspecified-other-target",
+    "kind": "fresh-transfer-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV strike another plate. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "transfer-comparative-explicit-copper-target",
+    "kind": "fresh-transfer-negative",
+    "question": "The work function of sodium is 2.3 eV, lower than that of copper. Photons of energy 3 eV strike copper. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "transfer-comparative-target-former",
+    "kind": "fresh-transfer-negative",
+    "question": "The work function of sodium is 2.3 eV, lower than that of copper. Photons of energy 3 eV fall on the former. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "transfer-comparative-target-it",
+    "kind": "fresh-transfer-negative",
+    "question": "The work function of sodium is 2.3 eV, lower than that of copper. Photons of energy 3 eV fall on it. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "transfer-comparative-target-last-named",
+    "kind": "fresh-transfer-negative",
+    "question": "The work function of sodium is 2.3 eV, lower than that of copper. Photons of energy 3 eV fall on the last-named metal. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "transfer-comparative-explicit-shone",
+    "kind": "fresh-transfer-positive",
+    "question": "The work function of sodium is 2.3 eV, lower than that of copper. Light of photon energy 3 eV is shone on sodium. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "transfer-comparative-explicit-passive",
+    "kind": "fresh-transfer-positive",
+    "question": "The work function of sodium is 2.3 eV, lower than that of copper. Sodium is illuminated with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "transfer-lamp-not-target-mercury",
+    "kind": "fresh-transfer-positive",
+    "question": "The work function of sodium is 2.3 eV. A mercury lamp provides photons of energy 3 eV incident on sodium. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "transfer-lamp-not-target-sodium",
+    "kind": "fresh-transfer-positive",
+    "question": "The work function of potassium is 2.2 eV. Sodium light with photon energy 3 eV is incident on potassium. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.20 eV",
+        "E=3.00 eV",
+        "K=0.80 eV"
+      ]
+    }
+  },
+  {
+    "id": "transfer-same-element-symbol-alias",
+    "kind": "fresh-transfer-positive",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on Na. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "transfer-target-symbol-conflict",
+    "kind": "fresh-transfer-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on Cu. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "transfer-single-with-options",
+    "kind": "fresh-transfer-positive",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on sodium. Draw the photoelectric diagram. Options: copper, lead, zinc, silver.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "transfer-generic-material-transfer",
+    "kind": "fresh-transfer-negative",
+    "question": "The work function of metal A is 2.3 eV. The 3 eV photons are transferred to plate B. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "modifier-two-sodium-surfaces-distinct-values",
+    "kind": "modifier-negative",
+    "question": "Two sodium surfaces have different work functions. The first has a work function of 2.3 eV. Photons of energy 3 eV hit the second. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "modifier-another-polished-target",
+    "kind": "modifier-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV strike another polished surface. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "modifier-second-clean-sodium-target",
+    "kind": "modifier-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on the second clean sodium surface. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "modifier-different-clean-target",
+    "kind": "modifier-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV are directed at a different clean plate. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "modifier-distinct-polished-target",
+    "kind": "modifier-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV hit a distinct polished sample. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "modifier-separate-sodium-target",
+    "kind": "modifier-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on a separate sodium sample. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "modifier-one-polished-sodium-target",
+    "kind": "modifier-positive",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on the polished sodium surface. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "modifier-one-clean-plate-target",
+    "kind": "modifier-positive",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV strike the clean sodium plate. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "lamp-transfer-two-light-sources-one-target",
+    "kind": "review-transfer-positive",
+    "question": "The work function of sodium is 2.3 eV. Two light sources each provide photons of energy 3 eV incident on sodium. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "lamp-transfer-second-measurement-one-target",
+    "kind": "review-transfer-positive",
+    "question": "The work function of sodium is 2.3 eV. A second measurement on the same sodium surface uses photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "lamp-transfer-another-photon-source-one-target",
+    "kind": "review-transfer-positive",
+    "question": "The work function of sodium is 2.3 eV. Another photon source provides photons of energy 3 eV incident on sodium. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "lamp-transfer-different-reading-one-target",
+    "kind": "review-transfer-positive",
+    "question": "The work function of sodium is 2.3 eV. A different reading is taken from this sodium surface using photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "lamp-transfer-mercury-discharge-lamp",
+    "kind": "review-transfer-positive",
+    "question": "The work function of sodium is 2.3 eV. A mercury discharge lamp supplies photons of energy 3 eV incident on sodium. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "lamp-transfer-neon-gas-discharge-lamp",
+    "kind": "review-transfer-positive",
+    "question": "The work function of sodium is 2.3 eV. A neon gas discharge lamp provides photons of energy 3 eV incident on sodium. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "lamp-transfer-mercury-vapour-lamp-control",
+    "kind": "review-transfer-positive",
+    "question": "The work function of sodium is 2.3 eV. A mercury vapour lamp provides photons of energy 3 eV incident on sodium. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "lamp-transfer-different-polished-emitter",
+    "kind": "review-transfer-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV strike a different polished emitter. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "lamp-transfer-another-clean-sodium-plate",
+    "kind": "review-transfer-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV hit another clean sodium plate. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "lamp-transfer-qualitative-legacy-original-control",
+    "kind": "fresh-transfer-nonclaim",
+    "question": "Explain why the work function is different for different metals.",
+    "expected": {
+      "isAtomicRadiationStem": false
+    }
+  },
+  {
+    "id": "lamp-transfer-one-source-qualified-sodium",
+    "kind": "review-transfer-positive",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV are directed at the clean polished sodium surface. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "lamp-transfer-two-source-not-two-plate",
+    "kind": "review-transfer-positive",
+    "question": "The work function of sodium is 2.3 eV. Two readings are made on the sodium plate with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "qualifier-transfer-modifier-cap-unknown-second-surface",
+    "kind": "review-transfer-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on another clean smooth polished sodium surface. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "qualifier-transfer-modifier-cap-single-known-surface",
+    "kind": "review-transfer-positive",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on the clean smooth polished sodium surface. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "root-source-role-1",
+    "kind": "source-role-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on a mercury discharge lamp. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "root-source-role-2",
+    "kind": "source-role-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on a mercury surface illuminated by a neon gas discharge lamp. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "root-source-role-3",
+    "kind": "source-role-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on another clean smooth polished bright sodium surface. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "nominal-role-two-lamps-single-sodium",
+    "kind": "nominal-role-positive",
+    "question": "The work function of sodium is 2.3 eV. Two lamps illuminate the sodium surface with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "nominal-role-another-lamp-single-sodium",
+    "kind": "nominal-role-positive",
+    "question": "The work function of sodium is 2.3 eV. Another lamp illuminates the same sodium plate with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "nominal-role-qualified-target-mercury-lamp",
+    "kind": "nominal-role-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on the bright mercury discharge lamp. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "nominal-role-qualified-target-neon-lamp",
+    "kind": "nominal-role-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV are directed at a clean neon gas discharge lamp. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "nominal-role-qualified-target-mercury-surface",
+    "kind": "nominal-role-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV strike the polished mercury surface illuminated by a neon gas discharge lamp. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "nominal-role-source-not-target-qualified",
+    "kind": "nominal-role-positive",
+    "question": "The work function of sodium is 2.3 eV. A bright mercury discharge lamp illuminates sodium with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "nominal-role-long-distinct-target",
+    "kind": "nominal-role-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on another clean smooth freshly polished bright sodium plate. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "nominal-role-long-single-target",
+    "kind": "nominal-role-positive",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on the clean smooth freshly polished bright sodium plate. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "root-photoelectron-source-owner-negative",
+    "kind": "source-owner-negative",
+    "question": "The work function of a sodium source is 2.3 eV. Photons of energy 3 eV fall on a copper surface. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "root-compound-role-1",
+    "kind": "compound-role-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV fall on the bright mercury-vapour lamp. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "root-compound-role-2",
+    "kind": "compound-role-negative",
+    "question": "The work function of sodium is 2.3 eV. Photons of energy 3 eV are directed at a clean neon gas-discharge lamp. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "root-compound-role-3",
+    "kind": "compound-role-positive",
+    "question": "The work function of sodium is 2.3 eV. A mercury-vapour lamp provides photons of energy 3 eV incident on sodium. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "root-compound-role-4",
+    "kind": "compound-role-positive",
+    "question": "The work function of sodium is 2.3 eV. A bright neon gas-discharge lamp provides photons of energy 3 eV incident on sodium. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "root-short-source-owner-negative",
+    "kind": "source-owner-negative",
+    "question": "A sodium source has work function 2.3 eV. Photons of energy 3 eV fall on a copper surface. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "root-short-source-owner-positive",
+    "kind": "source-owner-positive",
+    "question": "A sodium source has work function 2.3 eV. Photons of energy 3 eV fall on the sodium source. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "qa-passive-mercury-lamp-target",
+    "kind": "passive-role-negative",
+    "question": "The work function of sodium is 2.3 eV. The bright mercury-vapour lamp is irradiated with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "qa-passive-neon-lamp-target",
+    "kind": "passive-role-negative",
+    "question": "The work function of sodium is 2.3 eV. The clean neon gas-discharge lamp is illuminated with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "qa-passive-sodium-target-source-mercury",
+    "kind": "passive-role-positive",
+    "question": "The work function of sodium is 2.3 eV. The sodium surface is illuminated by a bright mercury-vapour lamp with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "qa-active-neon-source-single-target",
+    "kind": "passive-role-positive",
+    "question": "The work function of sodium is 2.3 eV. The clean neon gas-discharge lamp illuminates the sodium surface with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "qa-alphanumeric-metal-M1",
+    "kind": "role-boundary-positive",
+    "question": "The metal M1 has work function 2.3 eV. Photons of energy 3 eV fall on metal M1. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "qa-alphanumeric-metal-M2",
+    "kind": "role-boundary-negative",
+    "question": "The metal M1 has work function 2.3 eV. Photons of energy 3 eV fall on metal M2. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "qa-alphanumeric-plate-M1",
+    "kind": "role-boundary-positive",
+    "question": "The plate M1 has work function 2.3 eV. Photons of energy 3 eV fall on plate M1. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "qa-alphanumeric-plate-M2",
+    "kind": "role-boundary-negative",
+    "question": "The plate M1 has work function 2.3 eV. Photons of energy 3 eV fall on plate M2. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "qa-mercury-has-been-target",
+    "kind": "role-boundary-negative",
+    "question": "The work function of sodium is 2.3 eV. The bright mercury-vapour lamp has been irradiated with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "qa-neon-is-being-target",
+    "kind": "role-boundary-negative",
+    "question": "The work function of sodium is 2.3 eV. The clean neon gas-discharge lamp is being illuminated with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "qa-sodium-has-been-target-mercury-source",
+    "kind": "role-boundary-positive",
+    "question": "The work function of sodium is 2.3 eV. The sodium surface has been illuminated by a bright mercury-vapour lamp with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "qa-symbol-mercury-source-single-na-target",
+    "kind": "role-boundary-positive",
+    "question": "The work function of sodium is 2.3 eV. A bright Hg-vapour lamp illuminates Na with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "root-passive-modal-0-target",
+    "kind": "passive-modal-negative",
+    "question": "The work function of sodium is 2.3 eV. The bright mercury-vapour lamp will be irradiated with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "root-passive-modal-0-source",
+    "kind": "passive-modal-positive",
+    "question": "The work function of sodium is 2.3 eV. The sodium surface will be irradiated by a bright mercury-vapour lamp with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "root-passive-modal-1-target",
+    "kind": "passive-modal-negative",
+    "question": "The work function of sodium is 2.3 eV. The bright mercury-vapour lamp may be illuminated with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "root-passive-modal-1-source",
+    "kind": "passive-modal-positive",
+    "question": "The work function of sodium is 2.3 eV. The sodium surface may be illuminated by a bright mercury-vapour lamp with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "root-passive-modal-2-target",
+    "kind": "passive-modal-negative",
+    "question": "The work function of sodium is 2.3 eV. The bright mercury-vapour lamp has been being irradiated with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "root-passive-modal-2-source",
+    "kind": "passive-modal-positive",
+    "question": "The work function of sodium is 2.3 eV. The sodium surface has been being irradiated by a bright mercury-vapour lamp with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "root-passive-modal-3-target",
+    "kind": "passive-modal-negative",
+    "question": "The work function of sodium is 2.3 eV. The bright mercury-vapour lamp could have been illuminated with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "root-passive-modal-3-source",
+    "kind": "passive-modal-positive",
+    "question": "The work function of sodium is 2.3 eV. The sodium surface could have been illuminated by a bright mercury-vapour lamp with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "root-passive-modal-4-target",
+    "kind": "passive-modal-negative",
+    "question": "The work function of sodium is 2.3 eV. The bright mercury-vapour lamp was being irradiated with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "root-passive-modal-4-source",
+    "kind": "passive-modal-positive",
+    "question": "The work function of sodium is 2.3 eV. The sodium surface was being irradiated by a bright mercury-vapour lamp with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  },
+  {
+    "id": "root-passive-modal-5-target",
+    "kind": "passive-modal-negative",
+    "question": "The work function of sodium is 2.3 eV. The bright mercury-vapour lamp were illuminated with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true
+    }
+  },
+  {
+    "id": "root-passive-modal-5-source",
+    "kind": "passive-modal-positive",
+    "question": "The work function of sodium is 2.3 eV. The sodium surface were illuminated by a bright mercury-vapour lamp with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "expected": {
+      "isAtomicRadiationStem": true,
+      "labels": [
+        "phi=2.30 eV",
+        "E=3.00 eV",
+        "K=0.70 eV"
+      ]
+    }
+  }
+]
