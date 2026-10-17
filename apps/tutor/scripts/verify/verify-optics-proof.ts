@@ -14,8 +14,9 @@
  * no longer compiles: the engine refuses it with
  * optical_element_focal_length_disagrees, and it is never a planner figure.
  *
- * G1a/G1b: the metric unit rule applies only when a stated slot is compared:
- * a stem with no numbers proves a unitless figure, a stem with numbers does not.
+ * G1a/G1b: a stem with no numbers no longer proves a figure of representative,
+ * unitless values (G34: its plan names no u or f), and a stem with numbers
+ * still needs a metric unit.
  * G2c/G2d: magnitude inputs (`form`, plan ids) draw; a form that contradicts the
  * stem, or an unsigned literal the plan does not support, never does. Both
  * leave the drawn mirror (R = -30) at another focal length, so the engine
@@ -66,10 +67,9 @@
  * half-turn rotate proves; the same operators off the mirror do not. G17: a
  * concave mirror on an endpoint axis toward -x with signedRadius 30 (drawn with
  * the centre on the object side) draws; with -30 the engine refuses it.
- * G18: an input written as a plan quantity id binds to that quantity whatever
- * its name: a plan that calls the object distance p draws with objectDistance
- * "p", and with an inline 10 (no plan name is an object distance, so a literal
- * must equal some plan length). A wrong object distance (12 inline, or p
+ * G18: Gaussian notation (1/p + 1/q = 1/f) names the object distance p: a plan
+ * that calls it p draws with objectDistance "p", and with an inline 10 (the
+ * plan's p). A wrong object distance (12 inline, or p
  * declared as 12) and the object distance offered as f (by id p or inline)
  * still fail scene_quantity_unverified and never draw, on the lens and on the
  * "-6.25 D" spectacle lens whose plan calls u p.
@@ -170,11 +170,12 @@
  * with no side word, a magnification, an image height, "at the centre of curvature" or "the same
  * size", the wrong figure (signed literals inline, the stem's u declared or nothing declared) fails
  * production validation on its inline objectDistance or focalLength and never draws in either arm;
- * the right figure, signed and inline, draws. An input the plan names no quantity for is representative
- * unless the plan has a length named as no input: on Greptile's "Draw a convex lens of focal length 10 cm
- * with an object beyond 2F." with a plan of f = 10 cm only, u 30 with f 10 draws, signed and in
- * magnitude mode, with nothing or f declared, while f 12 fails; under a plan that writes the object
- * distance as x = 30 cm, u 20 fails on its inline objectDistance and u 30 draws.
+ * the right figure, signed and inline, draws. An input the plan names no quantity for is never
+ * representative and never held to another plan length (G34 reverses 561f40cab): on Greptile's "Draw a
+ * convex lens of focal length 10 cm with an object beyond 2F." with a plan of f = 10 cm only, u 30 with
+ * f 10 fails on its inline objectDistance and never draws, signed and in magnitude mode, with nothing or
+ * f declared, and f 12 fails on focalLength; under a plan that writes the object distance as x = 30 cm,
+ * u 20 and u 30 both fail on objectDistance.
  * G33: annotation ink and label leaders are read, not skipped (P12). On the review's figures, extend
  * on a hand incident ray (D1, the lens; D4, the mirror), on the traced parallel ray (D2) and on both
  * traced rays of the magnifier (D6, the planner's recorded use), ghost there (D8), and a connect or
@@ -184,6 +185,15 @@
  * hatch, loop, brace, badge, endpoint, equal_tick, parallel_mark). A hand incident ray (D5), a trace,
  * a polarity mark, the magnifier alone (D7) and the traced mirror with its compiler label leader
  * still prove and draw.
+ * G34: u and f are each a quantity the plan names in that role (P13), and production holds the inline
+ * literals the same way, with no other plan length standing in. Under the review's plans, E1a (u 36,
+ * the recorded plan's x_i) and E1b (u 6, its |h_i|) on the recorded stem of f777a2907df5, E2a to E2c
+ * (u held to h_i), E3a to E3c (f held to v), E4a, E4b and E5a, E5b (a representative u) are all
+ * unproven, fail production on their inline input and never draw, the right values included: a plan
+ * that names no object distance or no focal length leaves the figure unproven. No plan, a u in
+ * inches, and an id u whose symbol is x_o name no object distance. Under plans that name u and f the
+ * right figure of each stem draws and the wrong ones are refused, and a derived u of 13.3 cm holds
+ * the engine's 40/3 but not 13.6.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -195,7 +205,7 @@ import {
 } from "@heytutor/scene-engine";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
 import {
-  explainPlannerOpticsProof,
+  explainPlannerOpticsProof as explainUnderPlan,
   selectVerifiedRepresentation,
 } from "../../features/tutor-session/lib/scene/representationFallback";
 import {
@@ -214,6 +224,37 @@ function check(gate: string, condition: unknown, message: string): void {
 }
 
 const STRICT = { preferPlanner: true, allowedFigureSources: ["planner", "verified_recovery", "text_only"] as const };
+
+/**
+ * The plan of a figure's own |u| and |f|, in the unit it writes them in. The stem and figure rules (G1
+ * to G33) are read under it, so only the stem and the figure decide them; a check that passes a plan,
+ * and every production arm (selection is given the turn's plan), reads the real one. G34 holds u and f
+ * to the plan, and G35 the image.
+ */
+function figurePlan(question: string, document: Doc): TurnPlanV3 {
+  const image = document.constructions.find((construction) => construction.operator === "gaussian_image");
+  const lengthUnit = typeof image?.inputs.lengthUnit === "string" ? image.inputs.lengthUnit : undefined;
+  const read = (value: unknown, unit = lengthUnit): { value: number; unit?: string } | null => {
+    if (typeof value === "number") return { value, unit };
+    if (typeof value === "string") {
+      const quantity = document.quantities.find((item) => item.id === value);
+      return quantity ? read(quantity.value, typeof quantity.unit === "string" ? quantity.unit : unit) : null;
+    }
+    if (value !== null && typeof value === "object" && "value" in value) {
+      const wrapper = value as { value: unknown; unit?: unknown };
+      return read(wrapper.value, typeof wrapper.unit === "string" ? wrapper.unit : unit);
+    }
+    return null;
+  };
+  const givens = (["objectDistance", "focalLength"] as const).flatMap((key) => {
+    const found = read(image?.inputs[key]);
+    const symbol = key === "objectDistance" ? "u" : "f";
+    return found ? [{ id: symbol, symbol, value: Math.abs(found.value), ...(found.unit ? { unit: found.unit } : {}), provenance: "given" as const }] : [];
+  });
+  return plan(question, givens as TurnPlanV3["givens"], [], []);
+}
+const explainPlannerOpticsProof = (question: string, document: Doc, turnPlan: unknown = figurePlan(question, document)) =>
+  explainUnderPlan(question, document, turnPlan);
 
 const ent = (id: string, kind: string, role: string, label?: string) => ({ id, kind, role, ...(label ? { label } : {}) });
 /** A virtual image's back-extension as the engine draws one: dashed construction ink (G26). */
@@ -524,7 +565,7 @@ for (const [name, question, turnPlan, document, archetype] of wrongFigures) {
 expectEngineRefuses("G3", "a mirror drawn convex on a concave mirror stem", qMirror, mirrorPlan, wrongSenseMirror);
 expectEngineRefuses("G3", "a mirror drawn convex on a concave mirror stem, with a forged archetype stamp", qMirror, mirrorPlan, stamped(wrongSenseMirror, "spherical_mirror"));
 
-// ---- G1a: a stem with no numbers proves a unitless figure ----
+// ---- G1a: a stem with no numbers proves no unitless figure of representative values ----
 const unitless = (document: Doc): Doc => {
   const copy = structuredClone(document);
   for (const construction of copy.constructions) {
@@ -548,8 +589,11 @@ for (const [name, document] of [
 ] as const) {
   const { fatalIssues, result } = compiled(document);
   check("G1a", result.ok && fatalIssues.length === 0, `${name} must compile clean (${fatalIssues.slice(0, 3).join("; ")})`);
-  const proof = explainPlannerOpticsProof(qHowLens, document);
-  check("G1a", proof.proof === "proven", `${name} on "${qHowLens}" must be proven; got ${proof.proof}: ${proof.reason}`);
+  // Its own plan names no length, so u and f are the figure's own (G34); nor can a plan name them without a unit.
+  const proof = explainPlannerOpticsProof(qHowLens, document, plan(qHowLens, [], [], ["lens_formula"]));
+  check("G1a", proof.proof === "unproven" && /^gaussian_image lengthUnit must be cm, m or mm$/.test(proof.reason),
+    `${name} on "${qHowLens}" must be unproven; got ${proof.proof}: ${proof.reason}`);
+  expectNeverPlanner("G1a", `${name} on "${qHowLens}"`, qHowLens, plan(qHowLens, [], [], ["lens_formula"]), document);
 }
 
 // ---- G1b: a stem with numbers still needs a metric unit ----
@@ -1281,10 +1325,10 @@ const expectUnproven = (gate: string, name: string, question: string, document: 
     document.quantities = quantities as Doc["quantities"];
     return document;
   };
-  // The review's case and its inline twin: both draw.
+  // The review's case and its inline twin: both draw, as p names the object distance.
   for (const [name, document] of [
     ["objectDistance by the plan id p", gaussLens({})],
-    ["objectDistance 10 inline (no plan quantity is named as an object distance; 10 cm is the plan's p)", gaussLens({ objectDistance: 10 })],
+    ["objectDistance 10 inline (10 cm is the plan's p)", gaussLens({ objectDistance: 10 })],
   ] as const) {
     check("G18", quantityIssues(qLens, gaussPlan, document).length === 0,
       `the p plan lens with ${name} must pass agreement; got ${quantityIssues(qLens, gaussPlan, document).join(", ")}`);
@@ -2189,8 +2233,8 @@ function named(name: string, run: () => void): void {
     expectDrawnAsPlanner("G32", `${row.name} signed u ${+u.toFixed(2)} f ${f}`, row.question, turnPlan,
       signed(row.element, row.question, row.kind, u, f, statesU));
   }
-  // An input whose role the plan does not name is held only to plan lengths named as no other input; with
-  // none left it is representative. Greptile's stem gives only f, so u is the figure's own choice.
+  // An input whose role the plan does not name fails: no other plan length stands in, and a figure's own
+  // u cannot be held to "beyond 2F". Greptile's stem gives only f, so u 30 fails as u 20 would.
   const magnitudeMode = (document: Doc): Doc => {
     const copy = structuredClone(document);
     for (const construction of copy.constructions) {
@@ -2220,18 +2264,18 @@ function named(name: string, run: () => void): void {
   };
   const qBeyond = "Draw a convex lens of focal length 10 cm with an object beyond 2F.";
   const fOnlyPlan = plan(qBeyond, [given("f", 10)], [], ["lens_formula"]);
-  // The plan writes the object distance under a symbol no input reads (x), so it still holds u.
+  // The plan writes the object distance under a symbol no role reads (x), so it names no object distance.
   const qX = "An object is placed at a distance x = 30 cm from a convex lens of focal length 10 cm. Draw the ray diagram.";
   const xPlan = plan(qX, [given("f", 10), given("x", 30)], [derived("v", 15)], ["lens_formula"]);
   for (const [mode, written] of [["signed", (document: Doc) => document], ["magnitude", magnitudeMode]] as const) {
     for (const declareF of [false, true]) {
       const where = declareF ? "with f declared" : "with no quantities";
-      expectDrawnAsPlanner("G32", `Greptile's ${mode} u 30 f 10 under a plan of f = 10 cm only, ${where}`, qBeyond, fOnlyPlan,
-        written(convexLens(qBeyond, 30, 10, declareF)));
+      expectInlineRefused(`Greptile's ${mode} u 30 f 10 under a plan of f = 10 cm only, ${where}`, qBeyond, fOnlyPlan,
+        written(convexLens(qBeyond, 30, 10, declareF)), "objectDistance");
     }
     expectInlineRefused(`${mode} u 30 f 12 under a plan of f = 10 cm only`, qBeyond, fOnlyPlan, written(convexLens(qBeyond, 30, 12, false)), "focalLength");
     expectInlineRefused(`${mode} u 20 f 10 under a plan of x = 30 cm`, qX, xPlan, written(convexLens(qX, 20, 10, false)), "objectDistance");
-    expectDrawnAsPlanner("G32", `${mode} u 30 f 10 under a plan of x = 30 cm`, qX, xPlan, written(convexLens(qX, 30, 10, false)));
+    expectInlineRefused(`${mode} u 30 f 10 under a plan of x = 30 cm`, qX, xPlan, written(convexLens(qX, 30, 10, false)), "objectDistance");
   }
 }
 
@@ -2328,7 +2372,111 @@ function named(name: string, run: () => void): void {
   }
 }
 
-for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21", "G22", "G23", "G24", "G25", "G26", "G27", "G28", "G29", "G30", "G31", "G32", "G33"]) {
+// ---- G34: u and f are each a quantity the plan names in that role, and nothing else ----
+type PlanQuantity = TurnPlanV3["givens"][number];
+const givenRow = (id: string, value: number, unit = "cm", symbol = id): PlanQuantity => ({ id, symbol, value, unit, provenance: "given", sourceText: `${symbol} ${value}` });
+const derivedRow = (id: string, value: number, unit = "cm", symbol = id): PlanQuantity => ({ id, symbol, value, unit, provenance: "derived" });
+/** The gate's builders traced by the engine (parallel and central rays), signed literals inline, no `form`. */
+const tracedFigure = (element: "lens" | "mirror", question: string, kind: "concave" | "convex", u: number, f: number,
+  h = 2, quantities: Array<{ id: string; symbol: string; value: number }> = []): Doc => {
+  if (element === "mirror") return traced(mirrorDoc(question, { u, f, h, kind, quantities }), ["parallel", "central"]);
+  const document = traced(lensDoc(question, { u, f: kind === "convex" ? f : -f, h }), ["parallel", "central"]);
+  document.quantities = quantities.map((quantity) => ({ ...quantity, unit: "cm" })) as Doc["quantities"];
+  return document;
+};
+/** Unproven under the turn's plan, and never drawn in either arm. */
+const expectRefusedByPlan = (gate: string, name: string, question: string, turnPlan: TurnPlanV3, document: Doc, reason: RegExp): void => {
+  const proof = explainPlannerOpticsProof(question, document, turnPlan);
+  check(gate, proof.proof === "unproven" && reason.test(proof.reason), `${name} must stay unproven by ${reason}; got ${proof.proof}: ${proof.reason}`);
+  expectNeverPlanner(gate, name, question, turnPlan, document);
+};
+// The review's stems (E1 to E5) under the review's plans; E1's is the recorded plan of f777a2907df5.
+const qE1 = "A thin converging lens at x=0 has focal length 12 cm. An upright object of height 3 cm stands at x=-18 cm on the principal axis, and light travels left to right. Draw a principal-ray diagram, label both focal points, and locate the image with its height and orientation.";
+const e1Givens = [givenRow("f", 12), givenRow("ho", 3, "cm", "h_o"), givenRow("xo", -18, "cm", "x_o"), givenRow("xl", 0, "cm", "x_l")];
+const e1Derived = [derivedRow("xi", 36, "cm", "x_i"), derivedRow("hi", -6, "cm", "h_i"), derivedRow("fl", -12, "cm", "x_{F_L}"), derivedRow("fr", 12, "cm", "x_{F_R}")];
+const e1Plan = plan(qE1, e1Givens, e1Derived, ["thin-lens-equation", "transverse-magnification"]);
+const qE2 = "An object 2 cm tall forms an image 6 cm tall in a concave mirror of focal length 10 cm. Draw the ray diagram.";
+const e2Plan = plan(qE2, [givenRow("h", 2, "cm", "h_o"), givenRow("hi", 6, "cm", "h_i"), givenRow("f", 10)], [], ["mirror_formula"]);
+const qE3 = "An object 10 cm from a convex lens forms a sharp image on a screen 40 cm from the lens. Draw the ray diagram.";
+const e3Plan = plan(qE3, [givenRow("u", 10), givenRow("v", 40)], [], ["lens_formula"]);
+const qE4 = "A convex lens of focal length 10 cm forms a real image three times the size of the object. Draw the ray diagram.";
+const e4Plan = plan(qE4, [givenRow("f", 10), givenRow("m", 3, "", "m")], [], ["lens_formula", "magnification"]);
+const qE5 = "An object is placed at the centre of curvature of a concave mirror of focal length 10 cm. Draw the ray diagram.";
+const e5Plan = plan(qE5, [givenRow("f", 10)], [], ["mirror_formula"]);
+const uDeclared = (u: number) => [{ id: "u", symbol: "u", value: u }];
+{
+  const noU = /^the plan names no object distance, so the figure's u = [\d.]+ cm is its own$/;
+  const noF = /^the plan names no focal length, so the figure's f = [\d.]+ cm is its own$/;
+  for (const [name, question, turnPlan, document, reason] of [
+    ["E1a: u 36 (the plan's x_i) on the recorded stem and plan", qE1, e1Plan, tracedFigure("lens", qE1, "convex", 36, 12, 3), noU],
+    ["E1b: u 6 (the plan's |h_i|) on the recorded stem and plan", qE1, e1Plan, tracedFigure("lens", qE1, "convex", 6, 12, 3), noU],
+    ["E1c: u 18 on the recorded stem and plan, which writes the object only as a position", qE1, e1Plan, tracedFigure("lens", qE1, "convex", 18, 12, 3), noU],
+    ["E2a: u 6 (the plan's h_i) on the image height stem", qE2, e2Plan, tracedFigure("mirror", qE2, "concave", 6, 10), noU],
+    ["E2b: u 30 on the image height stem", qE2, e2Plan, tracedFigure("mirror", qE2, "concave", 30, 10), noU],
+    ["E2c: u 13.33 on the image height stem", qE2, e2Plan, tracedFigure("mirror", qE2, "concave", 40 / 3, 10), noU],
+    ["E3a: f 40 (the plan's v) on the screen stem", qE3, e3Plan, tracedFigure("lens", qE3, "convex", 10, 40, 2, uDeclared(10)), noF],
+    ["E3b: f 20 on the screen stem", qE3, e3Plan, tracedFigure("lens", qE3, "convex", 10, 20, 2, uDeclared(10)), noF],
+    ["E3c: f 8 on the screen stem", qE3, e3Plan, tracedFigure("lens", qE3, "convex", 10, 8, 2, uDeclared(10)), noF],
+    ["E4a: u 30 (representative) on the magnification stem", qE4, e4Plan, tracedFigure("lens", qE4, "convex", 30, 10), noU],
+    ["E4b: u 13.33 on the magnification stem", qE4, e4Plan, tracedFigure("lens", qE4, "convex", 40 / 3, 10), noU],
+    ["E5a: u 30 (representative) on the at C stem", qE5, e5Plan, tracedFigure("mirror", qE5, "concave", 30, 10), noU],
+    ["E5b: u 20 on the at C stem", qE5, e5Plan, tracedFigure("mirror", qE5, "concave", 20, 10), noU],
+  ] as const) {
+    expectRefusedByPlan("G34", name, question, turnPlan, document, reason);
+    // Production refuses it too: no plan length stands in for the role the plan does not name.
+    const { candidateValidation } = production(question, turnPlan, document);
+    const codes = candidateValidation.valid ? [] : candidateValidation.errors.map((issue) => `${issue.code}@${issue.path}`);
+    check("G34", codes.some((code) => /^scene_quantity_unverified@constructions\[\d+\]\.inputs\.(?:objectDistance|focalLength)$/.test(code)),
+      `${name} must fail production on its inline objectDistance or focalLength; got ${codes.join(", ") || "valid"}`);
+  }
+  // With no readable plan the proof has nothing to hold u and f to.
+  for (const [name, turnPlan] of [["no plan", null], ["a plan with no givens array", { derived: [] }]] as const) {
+    const proof = explainPlannerOpticsProof(qTall, tallLens(["parallel", "central"]), turnPlan);
+    check("G34", proof.proof === "unproven" && proof.reason === "no turn plan states u and f", `the traced lens under ${name} must be unproven; got ${proof.proof}: ${proof.reason}`);
+  }
+  // A plan length in a unit the proof cannot place, and an id that names a role its symbol does not, name no role.
+  const inches = plan(qTall, [givenRow("h", 2, "cm", "h_o"), givenRow("u", 30, "in"), givenRow("f", 10)], [], ["lens_formula"]);
+  const inchesProof = explainPlannerOpticsProof(qTall, tallLens(["parallel", "central"]), inches);
+  check("G34", inchesProof.proof === "unproven" && /^the plan names no object distance/.test(inchesProof.reason),
+    `the traced lens under a plan with u in inches must be unproven; got ${inchesProof.proof}: ${inchesProof.reason}`);
+  const byIdOnly = plan(qTall, [givenRow("h", 2, "cm", "h_o"), givenRow("u", 30, "cm", "x_o"), givenRow("f", 10)], [], ["lens_formula"]);
+  const byIdProof = explainPlannerOpticsProof(qTall, tallLens(["parallel", "central"]), byIdOnly);
+  check("G34", byIdProof.proof === "unproven" && /^the plan names no object distance/.test(byIdProof.reason),
+    `a quantity with the id u and the symbol x_o is not an object distance; got ${byIdProof.proof}: ${byIdProof.reason}`);
+  // Controls: the same stems under plans that name u and f draw the right figure and refuse the wrong one.
+  const notU = /^u = [\d.]+ cm is not the plan's object distance \(u = [\d.]+ cm\)$/;
+  const notF = /^f = [\d.]+ cm is not the plan's focal length \(f = [\d.]+ cm\)$/;
+  const e1Named = plan(qE1, [...e1Givens, givenRow("u", 18)], e1Derived, ["thin-lens-equation"]);
+  const e2Named = plan(qE2, e2Plan.givens, [derivedRow("u", 40 / 3), derivedRow("v", 40), derivedRow("hi", -6, "cm", "h_i")], ["mirror_formula"]);
+  const e3Named = plan(qE3, e3Plan.givens, [derivedRow("f", 8)], ["lens_formula"]);
+  const e4Named = plan(qE4, [givenRow("f", 10), givenRow("m", -3, "", "m")], [derivedRow("u", 40 / 3), derivedRow("v", 40)], ["lens_formula"]);
+  const e5Named = plan(qE5, e5Plan.givens, [derivedRow("u", 20), derivedRow("v", 20)], ["mirror_formula"]);
+  for (const [name, question, turnPlan, right, wrongs] of [
+    ["E1 with u 18 named", qE1, e1Named, tracedFigure("lens", qE1, "convex", 18, 12, 3),
+      [tracedFigure("lens", qE1, "convex", 36, 12, 3), tracedFigure("lens", qE1, "convex", 6, 12, 3)]],
+    ["E2 with u 40/3 named", qE2, e2Named, tracedFigure("mirror", qE2, "concave", 40 / 3, 10), [tracedFigure("mirror", qE2, "concave", 6, 10)]],
+    ["E3 with f 8 named", qE3, e3Named, tracedFigure("lens", qE3, "convex", 10, 8, 2, uDeclared(10)),
+      [tracedFigure("lens", qE3, "convex", 10, 40, 2, uDeclared(10))]],
+    ["E4 with u 40/3 named", qE4, e4Named, tracedFigure("lens", qE4, "convex", 40 / 3, 10), [tracedFigure("lens", qE4, "convex", 30, 10)]],
+    ["E5 with u 20 named", qE5, e5Named, tracedFigure("mirror", qE5, "concave", 20, 10), [tracedFigure("mirror", qE5, "concave", 30, 10)]],
+  ] as const) {
+    const proof = explainPlannerOpticsProof(question, right, turnPlan);
+    check("G34", proof.proof === "proven", `${name}: the right figure must be proven; got ${proof.proof}: ${proof.reason}`);
+    expectDrawnAsPlanner("G34", `${name}: the right figure`, question, turnPlan, right);
+    for (const wrong of wrongs) {
+      const u = -Number(wrong.constructions.find((construction) => construction.operator === "gaussian_image")!.inputs.objectDistance);
+      expectRefusedByPlan("G34", `${name}: u ${+u.toFixed(2)}`, question, turnPlan, wrong, name.startsWith("E3") ? notF : notU);
+    }
+  }
+  // The plan's own rounding: a derived u of 13.3 cm holds the engine's 40/3, not 13.6.
+  const rounded = plan(qE4, [givenRow("f", 10), givenRow("m", -3, "", "m")], [derivedRow("u", 13.3), derivedRow("v", 40)], ["lens_formula"]);
+  const roundedProof = explainPlannerOpticsProof(qE4, tracedFigure("lens", qE4, "convex", 40 / 3, 10), rounded);
+  check("G34", roundedProof.proof === "proven", `u 40/3 under a plan's u = 13.3 cm must be proven; got ${roundedProof.proof}: ${roundedProof.reason}`);
+  const offProof = explainPlannerOpticsProof(qE4, tracedFigure("lens", qE4, "convex", 13.6, 10), rounded);
+  check("G34", offProof.proof === "unproven" && notU.test(offProof.reason), `u 13.6 under a plan's u = 13.3 cm must be unproven; got ${offProof.proof}: ${offProof.reason}`);
+}
+
+for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21", "G22", "G23", "G24", "G25", "G26", "G27", "G28", "G29", "G30", "G31", "G32", "G33", "G34"]) {
   console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 }
 for (const [name, failed] of namedCases) console.log(`  ${name}: ${failed ? `FAIL (${failed} checks)` : "pass"}`);

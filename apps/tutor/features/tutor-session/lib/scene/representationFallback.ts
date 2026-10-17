@@ -215,7 +215,7 @@ export function selectVerifiedRepresentationExplained(
     };
   }
   const exactCheck = input.exact
-    ? checkUsableExactRepresentation(input.exact, input.question, input.problemIR)
+    ? checkUsableExactRepresentation(input.exact, input.question, input.turnPlan ?? null, input.problemIR)
     : null;
   const currentCompile = exactCheck?.compiled ?? null;
   let exactDecline: ExactCandidateDecline | null = exactCheck?.rejection
@@ -243,7 +243,7 @@ export function selectVerifiedRepresentationExplained(
   // covers gaussian_image) yet must not lose to the archetype.
   const unprovenPlannerScene = input.exact && currentCompile?.renderScene &&
     tierForForeignDocument(input.exact.sceneDocument).tier !== "exact_verified" &&
-    plannerOpticsProof(input.question, input.exact.sceneDocument) !== "proven";
+    plannerOpticsProof(input.question, input.exact.sceneDocument, input.turnPlan ?? null) !== "proven";
   // When the plan names circular motion, the source owns the figure: the
   // engine recomputes the state from the stated radius and rate, so a planner
   // scene cannot imply a direction or value the source did not give. A source
@@ -467,6 +467,7 @@ type ExactCandidateRejection = Omit<ExactCandidateDecline, "preferred">;
 function checkUsableExactRepresentation(
   candidate: ExactVerifiedRepresentation,
   expectedQuestion: string,
+  turnPlan: unknown,
   problemIR?: ProblemStructureView | null,
 ): { compiled: ReturnType<typeof compileSceneDocument> | null; rejection: ExactCandidateRejection | null } {
   const reject = (code: string, reason: string) => ({ compiled: null, rejection: { code, reason } });
@@ -508,7 +509,7 @@ function checkUsableExactRepresentation(
   if (usesGenericVectorDiagramOnRiverBoat(expectedQuestion, candidate.sceneDocument)) {
     return reject("generic_vectors_on_river_boat", "a generic vector diagram was drawn for a river crossing");
   }
-  if (plannerOpticsProof(expectedQuestion, candidate.sceneDocument) === "unproven") {
+  if (plannerOpticsProof(expectedQuestion, candidate.sceneDocument, turnPlan) === "unproven") {
     return reject("planner_optics_unproven", "the optics proof does not accept this lens or mirror scene");
   }
   const normalized = validateSceneDocument(candidate.sceneDocument);
@@ -711,7 +712,9 @@ export type PlannerOpticsProof = "not_optics" | "proven" | "unproven";
  * not the model, placed what the student reads: the object, image and foci are
  * `gaussian_image` / `optical_focus` outputs whose u, f and element kind match
  * the stem (a stated lens power fixes |f| = 1/|P|; a kind the stem neither names
- * nor implies by a power, focal sign or the image it states declines), the engine image has the
+ * nor implies by a power, focal sign or the image it states declines), u and f
+ * are each a quantity the turn plan names in that role (P13: no plan, or one
+ * that names no u or no f, leaves the figure unproven), the engine image has the
  * distance, side and nature (real or virtual, enlarged or diminished) the stem states, the element is drawn on that
  * centre and axis with the stem's sense, every ray ends on an engine-derived
  * point, and every line affirmatively converging on the image tip leaves the
@@ -730,21 +733,22 @@ export type PlannerOpticsProof = "not_optics" | "proven" | "unproven";
  * The stem is matched unhinted (no plan), as before; a misspelled stem the
  * detector misses stays "not_optics".
  */
-export function plannerOpticsProof(question: string, document: SceneDocument): PlannerOpticsProof {
-  return explainPlannerOpticsProof(question, document).proof;
+export function plannerOpticsProof(question: string, document: SceneDocument, turnPlan: unknown): PlannerOpticsProof {
+  return explainPlannerOpticsProof(question, document, turnPlan).proof;
 }
 
 export function explainPlannerOpticsProof(
   question: string,
   document: SceneDocument,
+  turnPlan: unknown,
 ): { proof: PlannerOpticsProof; reason: string } {
   const match = detectArchetype(question);
   if (match?.id !== "spherical_mirror" && match?.id !== "thin_lens") {
     return { proof: "not_optics", reason: "not a lens or mirror stem" };
   }
-  const failure = opticsProofFailure(question, match, document);
+  const failure = opticsProofFailure(question, match, document, turnPlan);
   return failure === null
-    ? { proof: "proven", reason: "object, image, foci and rays are engine-derived from the stem's u and f" }
+    ? { proof: "proven", reason: "object, image, foci and rays are engine-derived from the stem's and the plan's u and f" }
     : { proof: "unproven", reason: failure };
 }
 
@@ -787,7 +791,7 @@ const OPTICS_LINE_OPERATORS = new Set(["line", "parallel_through", "perpendicula
 /** lens_section and spherical_surface draw a flat element beyond this radius. */
 const OPTICS_PLANO_RATIO = 40;
 
-function opticsProofFailure(question: string, match: OpticsStemMatch, document: SceneDocument): string | null {
+function opticsProofFailure(question: string, match: OpticsStemMatch, document: SceneDocument, turnPlan: unknown): string | null {
   const element = match.id === "thin_lens" ? "lens" : "mirror";
   // P1: one engine image, of the stem's element.
   const images = document.constructions.filter((construction) => construction.operator === "gaussian_image");
@@ -838,6 +842,23 @@ function opticsProofFailure(question: string, match: OpticsStemMatch, document: 
     const value = Math.abs(f) * scale;
     if (!(Math.abs(value - power.cm) <= OPTICS_POWER_TOLERANCE * power.cm)) {
       return `f = ${opticsCompact(value)} cm contradicts the stem's power ${power.text} D (|f| = ${opticsCompact(power.cm)} cm)`;
+    }
+  }
+  // P13: |u| and |f| are each a quantity the plan names in that role (`OPTICS_PLAN_ROLE`), within the
+  // plan's rounding (`opticsPlanAgrees`), in signed and magnitude mode alike. No other plan length
+  // stands in for one, so u never passes as an image distance, an image position or an image height,
+  // and a plan that names no object distance or no focal length leaves the figure unproven: a figure's
+  // own u cannot be held to "beyond 2F" or "at C". The plan is the one selection was given.
+  const planned = opticsPlanQuantities(turnPlan);
+  if (planned === null) return "no turn plan states u and f";
+  if (scale === null) return "gaussian_image lengthUnit must be cm, m or mm";
+  for (const [role, cm, symbol, name] of [
+    ["objectDistance", -u * scale, "u", "object distance"], ["focalLength", Math.abs(f) * scale, "f", "focal length"],
+  ] as const) {
+    const named = planned.filter((quantity) => quantity.cmPerUnit !== null && OPTICS_PLAN_ROLE[role].test(quantity.key));
+    if (named.length === 0) return `the plan names no ${name}, so the figure's ${symbol} = ${opticsCompact(cm)} cm is its own`;
+    if (!named.some((quantity) => opticsPlanAgrees(cm / quantity.cmPerUnit!, Math.abs(quantity.value)))) {
+      return `${symbol} = ${opticsCompact(cm)} cm is not the plan's ${name} (${named.map((quantity) => quantity.text).join(", ")})`;
     }
   }
   // An image distance the stem states is the engine's, within 1 percent, on the side it states
@@ -1717,6 +1738,61 @@ function opticsStatedPowerFocal(question: string): { cm: number; text: string } 
   const power = powers[0];
   if (power === undefined || power === 0 || powers.some((other) => other !== power)) return null;
   return { cm: 100 / Math.abs(power), text: `${power > 0 ? "+" : ""}${opticsCompact(power)}` };
+}
+
+/**
+ * The plan quantity each optics role reads, by its key (`opticsPlanKey`): an object distance u, u₁,
+ * u_M, d_o, s_o, s, p (Gaussian 1/p + 1/q = 1/f) or "object distance"; a focal length f, f₁, f_L,
+ * f_o, |f| or "focal length"; an
+ * object height h, h_o, h₀, ho, h0 or hobj. Production holds inline optics literals with the same
+ * reader, so a quantity is in one role for both.
+ */
+export const OPTICS_PLAN_ROLE = {
+  objectDistance: /^(?:u[0-9a-z]?|p|do|dobj(?:ect)?|so?|objectdistance)$/,
+  focalLength: /^(?:f[0-9a-z]?|focallength)$/,
+  objectHeight: /^h(?:o|0|obj(?:ect)?)?$/,
+} as const;
+
+/**
+ * A plan quantity's role key: its symbol, or its id when it writes no symbol, with subscripts folded
+ * and case, spaces, underscores, braces and bars ignored. The symbol is what the plan says the
+ * quantity is; an id ("fl" for x_{F_L}) is only a name.
+ */
+export function opticsPlanKey(quantity: { symbol?: unknown; id?: unknown }): string {
+  const written = typeof quantity.symbol === "string" && quantity.symbol.trim() ? quantity.symbol : quantity.id;
+  return typeof written === "string" ? written.normalize("NFKC").replace(/[\s_{}|]/g, "").toLowerCase() : "";
+}
+
+interface OpticsPlanQuantity {
+  key: string;
+  value: number;
+  /** cm per unit of a length in cm, m or mm; null for any other unit. */
+  cmPerUnit: number | null;
+  text: string;
+}
+
+/** The plan's givens and derived values with a finite value, or null when there is no readable plan. */
+function opticsPlanQuantities(turnPlan: unknown): OpticsPlanQuantity[] | null {
+  if (!isRecord(turnPlan) || !Array.isArray(turnPlan.givens) || !Array.isArray(turnPlan.derived)) return null;
+  return [...turnPlan.givens, ...turnPlan.derived].filter(isRecord).flatMap((quantity) => {
+    if (typeof quantity.value !== "number" || !Number.isFinite(quantity.value)) return [];
+    const unit = typeof quantity.unit === "string" ? quantity.unit.trim() : "";
+    const name = typeof quantity.symbol === "string" && quantity.symbol.trim() ? quantity.symbol : String(quantity.id);
+    return [{ key: opticsPlanKey(quantity), value: quantity.value, cmPerUnit: opticsCmPerUnit(unit), text: `${name} = ${opticsCompact(quantity.value)}${unit ? ` ${unit}` : ""}` }];
+  });
+}
+
+/**
+ * Whether an engine value, in the plan quantity's unit, is that plan value as the plan rounds it:
+ * within half a unit in the plan value's last written decimal place (13.3 holds 13.25 to 13.35,
+ * 0.48 holds 0.475 to 0.485), or within 1 percent, whichever is wider. An integer is held to
+ * 1 percent, so a stated 2 cm is not 2.4 cm.
+ */
+function opticsPlanAgrees(actual: number, stated: number): boolean {
+  const written = String(Math.abs(stated));
+  const places = /e/i.test(written) ? 0 : written.split(".")[1]?.length ?? 0;
+  const tolerance = Math.max(places > 0 ? 0.5 * 10 ** -places : 0, 0.01 * Math.abs(stated));
+  return Number.isFinite(actual) && Math.abs(actual - stated) <= tolerance * (1 + 1e-9);
 }
 
 function opticsCompact(value: number): string {
