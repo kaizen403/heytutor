@@ -995,6 +995,7 @@ function readSuppliedAmpereAreaProduct(
     if (input && (scale?.factor !== 1 || measurement?.value !== input.value)) return member;
   }
   const sourceClauses = options.question.split(/[,;\n]|\.(?=\s|$)/);
+  const groundedClauses = new Set<string>();
   for (const quantity of [areas[0]!, current, resistance]) {
     const primaryKeys = [quantity.id, quantity.symbol].filter((key): key is string => typeof key === "string" && key !== "");
     const alias = sourceAssignmentAlias(quantity.sourceText);
@@ -1011,6 +1012,11 @@ function readSuppliedAmpereAreaProduct(
       measured === null || measured.unit === null ||
       convertMeasuredValue(measured.value, measured.unit, quantity.unit) !== quantity.value ||
       (quantity !== areas[0] && unitScale(measured.unit)?.factor !== 1))) return member;
+    for (const clause of sourceClauses) {
+      if (keys.some((key) => new RegExp(`^\\s*(?:[Gg]iven\\s+)?${escapeRegExp(key)}\\s*=\\s*(.+)$`, "u").test(clause))) {
+        groundedClauses.add(clause);
+      }
+    }
     if (quantity.sourceText !== undefined) {
       const restatement = typeof quantity.sourceText === "string"
         ? parseMeasuredPart(quantity.sourceText.split(/[=≈≃≅]/).at(-1) ?? "") : null;
@@ -1020,6 +1026,11 @@ function readSuppliedAmpereAreaProduct(
         convertMeasuredValue(restatement.value, restatement.unit, quantity.unit)) !== quantity.value) return member;
     }
   }
+  // Grant this narrow reading only for the three fully grounded assignments.
+  // An unparsed correction is unknown evidence, never permission to use a
+  // stale current. Keep unsupported restatements on the existing reader.
+  const remainder = sourceClauses.filter((clause) => !groundedClauses.has(clause)).join(" ");
+  if (/[\p{N}ΩΩ]|\b(?:current|resistance|amps?|amperes?|ohms?|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|sixteen|doubled?|twice|half|tripled?|increase[ds]?|decrease[ds]?|reduced|actual(?:ly)?|correction|corrected|instead)\b/iu.test(remainder)) return member;
   const atomic = (part: string): string => part.trim().replace(/^\(\s*([^()]+)\s*\)$/, "$1").trim();
   const parts = member.replace(/[×·⋅]/g, "*").replace(/\)\s*\(/g, ")*(").split("*");
   if (parts.length !== 2) return member;
