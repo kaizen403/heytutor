@@ -314,6 +314,7 @@ try {
         ? { atMs: 1_000, doc: decline() }
         : { atMs: 5_000, doc: scene("drawable") });
       const { waitForRequiredScenePeers: _enabled, ...legacyOptions } = options();
+      assert.equal(_enabled, true, "remove the helper's opt-in before testing legacy defaults");
       const { value: result, atMs } = await settle(planSceneDocumentWithRepair("q", validate, {
         ...legacyOptions,
         ...(enabled === undefined ? {} : { waitForRequiredScenePeers: enabled }),
