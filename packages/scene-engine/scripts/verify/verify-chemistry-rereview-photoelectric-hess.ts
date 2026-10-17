@@ -6,7 +6,7 @@ import { buildAtomicRadiationScene, isAtomicRadiationStem } from "../../src/chem
 import { buildChemicalThermodynamicsScene } from "../../src/chemistry/chemicalThermodynamics";
 import { buildThermoGraphScene } from "../../src/chemistry/thermoGraphs";
 import { compileSceneDocument } from "../../src/compile/compiler";
-import { inferChemistryFamilies } from "../../src/chemistry/router";
+import { inferChemistryFamilies, isChemistryQuestion } from "../../src/chemistry/router";
 import { synthesizeFamilyScene } from "../../src/synthesize/familyScene";
 import type { SceneDocument } from "../../src/types";
 
@@ -499,6 +499,44 @@ for (const row of askedWorkFunctionPhysicsRows) check("public physics asked work
   assert.ok(!inferChemistryFamilies(row.question).includes("chem_orbital"), "an asked work function cannot select the chemistry orbital family");
 });
 // END PR137 public physics asked work-function ownership controls.
+
+// BEGIN PR137 cb226db9 regression rows (coordinator review pr-137-delta4.md, set A). Head, main and
+// fadbe137 pass all 35; the cb226db9 work function reader fails all 35. #166 must keep these outcomes.
+const PLANCK_J_S = 6.62607015e-34, ELEMENTARY_CHARGE_C = 1.602176634e-19, LIGHT_SPEED_M_S = 299792458;
+const photonEv = (kind: "f" | "nm", value: number): number => kind === "f" ? PLANCK_J_S * value / ELEMENTARY_CHARGE_C : PLANCK_J_S * LIGHT_SPEED_M_S / (value * 1e-9) / ELEMENTARY_CHARGE_C;
+const pr137DeclineRows = ["Metal A has work function 2 eV. Metal B has unknown work function. Light falls on metal B. Draw the photoelectric diagram.", "Metal A has work function 2 eV while metal B has an unknown work function. Light falls on metal B.", "Work function 2 eV for metal A; work function unknown for metal B. Light falls on metal B.", "Metal A has work function 2 eV. Metal B has a larger work function. Light falls on metal B. Draw the photoelectric diagram.", "A metal has work function 2 eV. Draw the photoelectric energy diagram and mark the work function.", "A metal has work function 2 eV. Explain why light below the threshold cannot eject electrons even though it is intense, by comparing photon energy with the work function.", "Sodium has work function 2.3 eV. Draw an energy diagram showing the work function and explain the threshold.", "A surface with work function 4.2 eV is illuminated. Draw the photoelectric energy diagram and label the work function.", "Caesium has a work function of about 2.1 eV. Explain why caesium is used in photocells, comparing its work function with other metals.", "A metal of work function 2.0 eV is used. Find the threshold wavelength and explain the meaning of the work function.", "A metal with work function 2.0 eV is used in a photocell. Find the threshold frequency. Why does the work function differ between metals?", "Photoelectric effect: work function 2 eV. Explain the role of the work function.", "A metal of work function 2 eV and another metal of unknown work function are illuminated. Draw the photoelectric diagram for the second metal."] as const;
+for (const [index, question] of pr137DeclineRows.entries()) check(`cb226db9 regression A${index}: unread or unbound work function declines in chemistry`, () => {
+  assert.equal(isAtomicRadiationStem(question), true);
+  assert.equal(isChemistryQuestion(question), true);
+  assert.equal(synthesizeFamilyScene({ question }), null, "no fabricated photoelectric figure");
+});
+const pr137PhysicsRouteRows = ["If the work function of the metal is doubled, what happens to the stopping potential? Draw the stopping potential versus frequency graph.", "What happens to the stopping potential if the work function is increased? Draw the graph.", "Explain why the work function is different for different metals.", "The work function is the minimum energy needed to remove an electron from a metal surface. Explain the photoelectric effect with a diagram.", "Work function: define it and draw the photoelectric energy diagram.", "The work function is directly proportional to the threshold frequency. Draw the graph of stopping potential against frequency.", "The work function equals the photon energy at threshold. Draw the photoelectric energy diagram.", "Explain how stopping potential depends on frequency when the work function is fixed. Draw the graph.", "The work function was measured for sodium using a photocell. Draw the graph of stopping potential against frequency.", "The work function of caesium is low, so it is used in photocells. Explain with a diagram.", "Work function: the minimum energy needed to free an electron from a metal. Draw the photoelectric energy diagram.", "State Einstein's photoelectric equation. The work function is the intercept of which graph?"] as const;
+for (const [index, question] of pr137PhysicsRouteRows.entries()) check(`cb226db9 regression A${index + 13}: conceptual work function stem keeps physics ownership`, () => {
+  assert.equal(isAtomicRadiationStem(question), false);
+  assert.equal(isChemistryQuestion(question), false);
+  assert.ok(!inferChemistryFamilies(question).includes("chem_orbital"));
+});
+const pr137DrawRows: ReadonlyArray<readonly [string, number, "f" | "nm", number]> = [
+  ["The work function of a metal is 2 eV. Light of frequency 1e15 Hz falls on it. Find the kinetic energy and compare it with the work function.", 2, "f", 1e15],
+  ["The work function of a metal is 2 eV. Light of frequency 1e15 Hz falls on it. Explain what happens if the work function were larger.", 2, "f", 1e15],
+  ["The work function of a metal is 2 eV. Light of frequency 1e15 Hz falls on it. Label the work function on the diagram.", 2, "f", 1e15],
+  ["The work function of a metal is 2 eV. Light of frequency 1e15 Hz falls on it. Draw a diagram and show the work function.", 2, "f", 1e15],
+  ["The work function of a metal is 2 eV. Light of frequency 1e15 Hz falls on it. Show the work function on an energy diagram.", 2, "f", 1e15],
+  ["The work function of a metal is 2 eV. Light of frequency 1e15 Hz falls on it. Draw a diagram showing the work function of the metal.", 2, "f", 1e15],
+  ["The work function of a metal is 2 eV. Light of frequency 1e15 Hz falls on it. Draw a diagram showing the work function (φ).", 2, "f", 1e15],
+  ["The work function of a metal is 2 eV. Light of frequency 1e15 Hz falls on it. Draw a diagram showing the work function, φ.", 2, "f", 1e15],
+  ["The work function of caesium is 2.14 eV. Light of frequency 6e14 Hz is incident on the metal surface. Find the maximum kinetic energy and the stopping potential. How would the answer change if the work function were higher?", 2.14, "f", 6e14],
+  ["A metal with work function 2 eV is illuminated by light of wavelength 300 nm. Find the kinetic energy of the photoelectrons. Explain why no electrons are emitted if the photon energy is less than the work function.", 2, "nm", 300],
+];
+for (const [index, [question, phi, kind, value]] of pr137DrawRows.entries()) check(`cb226db9 regression A${index + 32}: supplied work function draws its own values`, () => {
+  const synthesis = synthesizeFamilyScene({ question });
+  assert.ok(synthesis, "the supplied declaration must draw");
+  assert.equal(synthesis.document.source.chemistryFamily, "chem_orbital");
+  const energy = photonEv(kind, value);
+  const text = labels(synthesis.document);
+  for (const expected of [`phi=${phi.toFixed(2)} eV`, `E=${energy.toFixed(2)} eV`, `K=${(energy - phi).toFixed(2)} eV`]) assert.ok(text.includes(expected), `${expected} in ${text.join(" | ")}`);
+});
+// END PR137 cb226db9 regression rows.
 
 // Main-compatible original photo controls remain; all deferred desired assertions and exact source
 // are preserved by cb226db9 and the #166 transfer ledger. Genuine reviewer128 parity is a separate proof.
