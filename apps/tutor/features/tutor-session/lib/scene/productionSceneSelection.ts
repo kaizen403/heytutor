@@ -155,8 +155,10 @@ function magnitudePlan(plan: TurnPlanV3, givens = plan.givens, derived = plan.de
  *   - a literal, or a document quantity the plan does not declare, must equal
  *     the plan's object distance or focal length (PLAN_OPTICS_ROLE), not any
  *     plan length, so |f| = 112 cm fails where the plan's 112 cm is the object
- *     distance. When the plan names no such quantity, it must equal some plan
- *     length.
+ *     distance. When the plan names no such quantity, it must equal a plan
+ *     length named as no optics input (an object distance written x = 30 cm);
+ *     with none, as when the plan gives only f, the input is representative
+ *     and is not compared.
  * - objectHeight, in signed and magnitude mode, only when the plan gives an
  *   object height: it must equal that height. A stem with no stated height
  *   still draws a representative one.
@@ -180,8 +182,11 @@ function opticsMagnitudeLiteralIssues(
     ({ ...magnitudePlan(plan, plan.givens.filter(keep), plan.derived.filter(keep)), qualitativeClaims: [] });
   const rolePlan = (key: string): TurnPlanV3 => subPlan((quantity) => namedAs(quantity, key));
   const roleName = (key: string) => key === "focalLength" ? "focal length" : key === "objectDistance" ? "object distance" : "object height";
-  /** What one input is held to: its referenced plan quantity, the plan's quantities of its role, or any plan length. */
-  const binding = (key: string, written: unknown): { against: TurnPlanV3; scope: string } => {
+  /**
+   * What one input is held to: its referenced plan quantity, the plan's quantities of its role, or the plan
+   * lengths named as no optics input. Null when none of these exist: the input is representative.
+   */
+  const binding = (key: string, written: unknown): { against: TurnPlanV3; scope: string } | null => {
     const role = rolePlan(key);
     const roleNamed = role.givens.length + role.derived.length > 0;
     const referenced = typeof written === "string" ? planQuantities.get(written) : undefined;
@@ -190,7 +195,10 @@ function opticsMagnitudeLiteralIssues(
       return { against: subPlan((quantity) => quantity === referenced), scope: `the plan's quantity ${referenced.id} only` };
     }
     if (referenced || roleNamed) return { against: role, scope: `the plan's ${roleName(key)} only` };
-    return { against: subPlan(isLength), scope: `any plan length, as the plan names no ${roleName(key)}` };
+    // A plan length named as another input (the plan's f, when u is unstated) is never this one.
+    const unnamed = subPlan((quantity) => isLength(quantity) && !Object.keys(PLAN_OPTICS_ROLE).some((other) => namedAs(quantity, other)));
+    if (unnamed.givens.length + unnamed.derived.length === 0) return null;
+    return { against: unnamed, scope: `a plan length named as no optics input, as the plan names no ${roleName(key)}` };
   };
   const heightPlan = plan.givens.some((given) => isLength(given) &&
     (PLAN_OBJECT_HEIGHT.test(planSymbolKey(given.symbol)) || PLAN_OBJECT_HEIGHT.test(planSymbolKey(given.id))))
@@ -214,7 +222,9 @@ function opticsMagnitudeLiteralIssues(
         : typeof wrapper?.unit === "string" ? wrapper.unit : inputs.lengthUnit;
       const id = `${String(construction.id ?? construction.operator)}.${key}`;
       const source = quantity ? `quantity ${String(written)}` : inputs.form !== undefined ? "magnitude literal" : "signed literal, by magnitude";
-      const { against, scope } = key === "objectHeight" ? { against: heightPlan!, scope: "the plan's object height only" } : binding(key, written);
+      const held = key === "objectHeight" ? { against: heightPlan!, scope: "the plan's object height only" } : binding(key, written);
+      if (!held) continue;
+      const { against, scope } = held;
       for (const issue of validateSceneQuantityAgreement([{ id, value: Math.abs(value), ...(unit === undefined ? {} : { unit }) }], against)) {
         issues.push({ code: issue.code, message: `${issue.message} (a ${construction.operator} ${key} ${source}, held to ${scope})`, path: `constructions[${index}].inputs.${key}`, severity: "fatal" });
       }

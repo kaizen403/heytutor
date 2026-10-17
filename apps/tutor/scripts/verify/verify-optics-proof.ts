@@ -170,7 +170,11 @@
  * with no side word, a magnification, an image height, "at the centre of curvature" or "the same
  * size", the wrong figure (signed literals inline, the stem's u declared or nothing declared) fails
  * production validation on its inline objectDistance or focalLength and never draws in either arm;
- * the right figure, signed and inline, draws.
+ * the right figure, signed and inline, draws. An input the plan names no quantity for is representative
+ * unless the plan has a length named as no input: on Greptile's "Draw a convex lens of focal length 10 cm
+ * with an object beyond 2F." with a plan of f = 10 cm only, u 30 with f 10 draws, signed and in
+ * magnitude mode, with nothing or f declared, while f 12 fails; under a plan that writes the object
+ * distance as x = 30 cm, u 20 fails on its inline objectDistance and u 30 draws.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -2175,6 +2179,50 @@ function named(name: string, run: () => void): void {
     const [u, f] = row.right;
     expectDrawnAsPlanner("G32", `${row.name} signed u ${+u.toFixed(2)} f ${f}`, row.question, turnPlan,
       signed(row.element, row.question, row.kind, u, f, statesU));
+  }
+  // An input whose role the plan does not name is held only to plan lengths named as no other input; with
+  // none left it is representative. Greptile's stem gives only f, so u is the figure's own choice.
+  const magnitudeMode = (document: Doc): Doc => {
+    const copy = structuredClone(document);
+    for (const construction of copy.constructions) {
+      const focal = Math.abs(Number(construction.inputs.focalLength));
+      if (construction.operator === "gaussian_image") {
+        Object.assign(construction.inputs, { objectDistance: Math.abs(Number(construction.inputs.objectDistance)), focalLength: focal, form: "converging", objectSide: "real" });
+      }
+      if (construction.operator === "optical_focus") Object.assign(construction.inputs, { focalLength: focal, form: "converging" });
+    }
+    return copy;
+  };
+  const convexLens = (question: string, u: number, f: number, declareF: boolean): Doc => {
+    const document = signed("lens", question, "convex", u, f, false);
+    if (declareF) document.quantities = [{ id: "f", symbol: "f", value: 10, unit: "cm" }] as Doc["quantities"];
+    return document;
+  };
+  const expectInlineRefused = (name: string, question: string, turnPlan: TurnPlanV3, document: Doc, input: string): void => {
+    const { candidateValidation, strict, current } = production(question, turnPlan, document);
+    const codes = candidateValidation.valid ? [] : candidateValidation.errors.filter((issue) => issue.severity === "fatal")
+      .map((issue) => `${issue.code}@${issue.path}`);
+    check("G32", codes.some((code) => new RegExp(`^scene_quantity_unverified@constructions\\[\\d+\\]\\.inputs\\.${input}$`).test(code)),
+      `${name} must fail the plan on its inline ${input}; got ${codes.join(", ") || "valid"}`);
+    for (const [arm, selection] of [["strict", strict], ["current", current]] as const) {
+      check("G32", selection.representation?.figureSource !== "planner" && selection.attemptedRepresentation?.figureSource !== "planner",
+        `${name} must never be drawn as a planner figure in the ${arm} arm; got ${selection.representation?.figureSource}`);
+    }
+  };
+  const qBeyond = "Draw a convex lens of focal length 10 cm with an object beyond 2F.";
+  const fOnlyPlan = plan(qBeyond, [given("f", 10)], [], ["lens_formula"]);
+  // The plan writes the object distance under a symbol no input reads (x), so it still holds u.
+  const qX = "An object is placed at a distance x = 30 cm from a convex lens of focal length 10 cm. Draw the ray diagram.";
+  const xPlan = plan(qX, [given("f", 10), given("x", 30)], [derived("v", 15)], ["lens_formula"]);
+  for (const [mode, written] of [["signed", (document: Doc) => document], ["magnitude", magnitudeMode]] as const) {
+    for (const declareF of [false, true]) {
+      const where = declareF ? "with f declared" : "with no quantities";
+      expectDrawnAsPlanner("G32", `Greptile's ${mode} u 30 f 10 under a plan of f = 10 cm only, ${where}`, qBeyond, fOnlyPlan,
+        written(convexLens(qBeyond, 30, 10, declareF)));
+    }
+    expectInlineRefused(`${mode} u 30 f 12 under a plan of f = 10 cm only`, qBeyond, fOnlyPlan, written(convexLens(qBeyond, 30, 12, false)), "focalLength");
+    expectInlineRefused(`${mode} u 20 f 10 under a plan of x = 30 cm`, qX, xPlan, written(convexLens(qX, 20, 10, false)), "objectDistance");
+    expectDrawnAsPlanner("G32", `${mode} u 30 f 10 under a plan of x = 30 cm`, qX, xPlan, written(convexLens(qX, 30, 10, false)));
   }
 }
 
