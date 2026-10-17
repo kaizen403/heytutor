@@ -21,6 +21,7 @@ import type {
 import {
   compileSceneDocument,
   verifiedVseprStructure,
+  verifiedOrganicNeighbourhoodStructure,
   describeSceneFamily,
   directedCurveInk,
   obstaclesFromPrimitives,
@@ -68,6 +69,14 @@ export function buildVerifiedDiagramPresentation(
   const structuralSymbolIds = freshMolecule?.ok && freshMolecule.renderScene &&
     JSON.stringify(freshMolecule.renderScene) === JSON.stringify(renderScene)
     ? new Set(molecule!.structures.flatMap((structure) => structure.atomIds)) : new Set<string>();
+  const organic = verifiedOrganicNeighbourhoodStructure(document, options.originalQuestion);
+  const freshOrganic = organic ? compileSceneDocument(organic.document) : null;
+  if (freshOrganic?.ok && freshOrganic.renderScene &&
+    JSON.stringify(freshOrganic.renderScene) === JSON.stringify(renderScene)) {
+    for (const structure of organic!.structures) {
+      for (const id of [...structure.atomIds, ...structure.nameLabelIds]) structuralSymbolIds.add(id);
+    }
+  }
   const layout = labelLayoutFor(options.layout ?? "standard");
   const source = document.source as Record<string, unknown> | undefined;
   const nonMetric = source?.nonMetric === true;

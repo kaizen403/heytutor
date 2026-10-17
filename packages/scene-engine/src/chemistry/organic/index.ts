@@ -16,6 +16,8 @@ import { moleculeFromName, normalizeName } from "./names";
 import { layoutBounds, layoutMolecule, type LaidOutMolecule, type Vec2 } from "./layout";
 import { estimatePxPerUnit, renderMolecule, structureCaption } from "./render";
 import { organicFacts } from "./facts";
+import { carbonSiteRequest } from "./neighbourhood";
+import { buildNeighbourhoodComparison } from "./neighbourhoodPanel";
 import { heavyAtomCount, parseSmiles, type Molecule } from "./smiles";
 
 import { requiresConformationProjection } from "../foundation/conformationRequest";
@@ -426,6 +428,8 @@ function factsLine(stem: string, molecule: Molecule): string {
  */
 export function buildOrganicScene(question: string, _quantities: ChemPlanQuantity[], _schematic: boolean): SceneDocument | null {
   if (!isOrganicStem(question)) return null;
+  const requestedSite = carbonSiteRequest(question);
+  if (requestedSite) return buildNeighbourhoodComparison(question, requestedSite);
   // One text for every index: mentions, cues and roles are all read from the
   // same normalised string. Mixing raw-question indices with a whitespace-
   // collapsed copy shifted every cue on an OCR stem.
