@@ -104,7 +104,7 @@ async function run(name: string, source: Beat, mode: "shared" | "export" | "live
         options = { ...options, writeSchedule: { ...options.writeSchedule, onCharacterStart: info => { glyphs.push(info.audioPositionMs); charStart?.(info); } } };
       }
     }
-    await hook.executeCommandWithCancel(command, control === "seek" ? { ...options, durationScale: 0 } : options);
+    await hook.executeCommandWithCancel(command, options);
   };
   const getTimings = () => aligned ? beat.timings : null;
   const speechClock = { narration: beat.narration, getTimings, totalSpeechMs: beat.durationMs, estimatedSpeechMs: beat.durationMs,
@@ -168,7 +168,8 @@ async function run(name: string, source: Beat, mode: "shared" | "export" | "live
     job = drawSegmentInk({ plan: planSegmentInk({ commands, hasNarration: true, verifiedDiagramIntro: false }),
       verifiedDiagramIntro: false, clock: speechClock, getDiagram: () => diagram, isCancelled: () => cancel.current,
       waitWhilePaused: async () => { while (paused.current && !cancel.current) await delay(16); return !cancel.current; },
-      execute, commandOptions: () => ({ applyLayout: false, isCancelled: () => cancel.current }), beforeCommand: () => originalCount++ });
+      execute, commandOptions: () => ({ applyLayout: false, isCancelled: () => cancel.current,
+        ...(control === "seek" ? { durationScale: 0 } : {}) }), beforeCommand: () => originalCount++ });
   }
   void job.then(() => { settled = true; }, error => { failure = error; settled = true; });
   const flush = async () => { for (let i = 0; i < 50; i++) await Promise.resolve(); };
