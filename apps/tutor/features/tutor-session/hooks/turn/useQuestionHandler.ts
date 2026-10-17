@@ -20,6 +20,7 @@ import {
   planSceneDocumentWithRepair,
   revalidateScenePlanWithRepairResult,
   planTurnV3,
+  subjectFromRejectedTurnPlanOutcomes,
   planAndSolveProblemV1,
   createFallbackTurnPlanV3,
   inferSceneCapabilities,
@@ -36,6 +37,7 @@ import {
   type ProblemAuthorityV1Response,
   type SceneCandidateValidation,
   type ScenePlanWithRepairResult,
+  type TurnPlanRequestOutcome,
   narrationLanguageForVoice,
 } from "@heytutor/tutor-core";
 import {
@@ -122,6 +124,7 @@ import {
 } from "../../lib/scene/representationFallback";
 import {
   deriveSceneGate as deriveProductionSceneGate, selectProductionScene, validateProductionSceneCandidate,
+  settleSelectionDegradation,
   type ProductionSceneGate, type ValidatedSceneCandidate,
 } from "../../lib/scene/productionSceneSelection";
 import { refreshSolverAuthorityForPlan } from "../../lib/turn/refreshSolverAuthority";
@@ -795,9 +798,10 @@ export function useQuestionHandler(
         }, () => {});
       }
       let diagramSubject: import("@heytutor/tutor-core").DiagramSubject = "other";
+      let diagramStrategySubject: import("@heytutor/tutor-core").DiagramSubject = "other";
       let diagramStrategyDecision = liveDiagramStrategyDecision({
         assignedStrategy: billed.diagramStrategy,
-        subject: diagramSubject,
+        subject: diagramStrategySubject,
         strictSubjects: billed.diagramStrictSubjects,
         chemistryLane: false,
         codeLesson: dsaClassification.isDsa,
@@ -1019,7 +1023,7 @@ export function useQuestionHandler(
             isChemistryQuestion(question);
           const decision = liveDiagramStrategyDecision({
             assignedStrategy: billed.diagramStrategy,
-            subject: diagramSubject,
+            subject: diagramStrategySubject,
             strictSubjects: billed.diagramStrictSubjects,
             chemistryLane,
             codeLesson: false,
@@ -1094,6 +1098,7 @@ export function useQuestionHandler(
           });
           const turnPlanStartedAt = Date.now();
           const turnPlanSpan = tel.span("turn-plan", "planner");
+          const turnPlanOutcomes: TurnPlanRequestOutcome[] = [];
           // A cancelled or failed turn plan still closes its span.
           const closeTurnPlanSpanOnFailure = (error: unknown): never => {
             turnPlanSpan.end({ aborted: true });
@@ -1108,7 +1113,8 @@ export function useQuestionHandler(
             conversationContext: recentConversation,
             fastMode: fastModeRef.current,
             classifySubject: (billed.diagramStrictSubjects?.length ?? 0) > 0,
-            onRequestOutcome: outcome => {
+            onRequestOutcome: (outcome) => {
+              if (turnPlanOutcomes.length < 3) turnPlanOutcomes.push(outcome);
               const previous = page.failureTelemetry ?? { subject: "other" };
               page.failureTelemetry = readFailedTurnTelemetry({
                 ...previous,
@@ -1135,7 +1141,9 @@ export function useQuestionHandler(
           // `auditTurnPlanV3` itself is untouched in tutor-core and keeps its
           // gate, so restoring it here is a one-line change.
           turnPlanMs = Date.now() - turnPlanStartedAt;
-          diagramSubject = plannedTurn?.subject ?? "other";
+          diagramSubject = plannedTurn?.subject ?? subjectFromRejectedTurnPlanOutcomes(turnPlanOutcomes);
+          // Rejected-plan consensus is metadata; strict was measured on accepted plans.
+          diagramStrategySubject = plannedTurn ? diagramSubject : "other";
           page.failureTelemetry = {
             subject: diagramSubject,
             requestCount: page.failureTelemetry?.requestCount,
@@ -1208,7 +1216,7 @@ export function useQuestionHandler(
             conversationContext: recentConversation,
           });
           const diagramStrategy = liveDiagramStrategyDecision({
-            assignedStrategy: billed.diagramStrategy, subject: diagramSubject,
+            assignedStrategy: billed.diagramStrategy, subject: diagramStrategySubject,
             strictSubjects: billed.diagramStrictSubjects, chemistryLane: gate.chemistryLane,
             codeLesson: Boolean(codeLesson), dsa: dsaClassification.isDsa, doubt: false,
           });
@@ -1469,7 +1477,7 @@ export function useQuestionHandler(
         const attempted = sceneSelection.attemptedRepresentation;
         if (!selected && !page.failureTelemetry?.code) {
           const failure = solverAuthorityBlocked ? { stage: "solver", code: "solver_contradiction" } as const
-            : sceneSelection.exactRejectionCode ? { stage: "validation", code: sceneSelection.exactRejectionCode } as const
+            : sceneSelection.droppedCandidate?.code === "picture_demand_unmet" ? { stage: "validation", code: "scene_relevance_rejected" } as const
             : attempted && !sceneSelection.sourceAllowed ? { stage: "scene_planner", code: "fallback_suppressed" } as const
               : value?.document.visualDecision.mode === "text_only" ? { stage: "scene_planner", code: "planner_declined" } as const
                 : result && !result.validation.valid ? { stage: "validation", code: "candidate_invalid" } as const
@@ -1495,6 +1503,37 @@ export function useQuestionHandler(
             representation_tier: attempted.tier, reason: sceneSelection.saveFailure,
           });
         }
+        // A candidate that passed validation and still left the board names
+        // why: saved as a degradation, shown on the admin fails page, and
+        // reported to Sentry (console.warn is captured as a log).
+        const droppedCandidate = sceneSelection.droppedCandidate;
+        if (droppedCandidate) {
+          tutorDebug("planner", "valid scene candidate not drawn", {
+            code: droppedCandidate.code, reason: droppedCandidate.reason, replaced_by: droppedCandidate.replacedBy,
+          });
+        }
+        // The lab runs the same step (settleSelectionDegradation), and
+        // verify-valid-candidate-parity executes the lines between these markers.
+        // settle-selection-degradation:begin
+        const settledDegradation = settleSelectionDegradation({
+          earlier: exactDegradation, selection: sceneSelection, candidateCount: result?.candidates.length ?? 0,
+        });
+        exactDegradation = settledDegradation.degradation ?? undefined;
+        const reportedDrop = settledDegradation.reportedDrop;
+        if (reportedDrop) {
+          tel.mark("verified-scene-candidate-dropped", {
+            code: reportedDrop.code,
+            replaced_by: reportedDrop.replacedBy,
+            diagram_strategy: diagramStrategyDecision.strategy,
+            candidate_count: result?.candidates.length ?? 0,
+          });
+          console.warn("[diagram] a valid figure candidate was dropped at selection", {
+            code: reportedDrop.code,
+            replacedBy: reportedDrop.replacedBy,
+            strategy: diagramStrategyDecision.strategy,
+          });
+        }
+        // settle-selection-degradation:end
         sceneV2Document = selected?.sceneDocument ?? null;
         sceneV2RenderScene = selected?.renderScene ?? null;
         sceneV2Report = attempted?.validationReport ?? sceneV2Report;
@@ -1597,6 +1636,7 @@ export function useQuestionHandler(
             sceneV2Document as SceneDocument,
             sceneV2RenderScene,
             {
+              narrationLanguage: turnNarrationLanguage,
               ...(codeLesson ? { layout: "code_lesson" as const } : {}),
               ...(representationFamily ? { figureFamily: representationFamily } : {}),
             },
@@ -1641,7 +1681,7 @@ export function useQuestionHandler(
         if (!rebuildingCodeIntro && !activeDiagram && resume.scene?.sceneDocument) {
           const restored = restoreVerifiedPresentationFromTurn({
             sceneDocument: resume.scene.sceneDocument,
-          });
+          }, turnNarrationLanguage);
           if (restored) {
             activeDiagram = restored.diagram;
             sceneV2IntroSegments = restored.introSegments;

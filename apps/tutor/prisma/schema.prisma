@@ -53,6 +53,8 @@ model BillingPurchase {
   currency        String
   usageMillicents Int       @map("usage_millicents")
   spentMillicents Int       @default(0) @map("spent_millicents")
+  /// The code that discounted `amount`, e.g. PH50; null at full price.
+  promoCode       String?   @map("promo_code")
   keyId           String    @map("key_id")
   testMode        Boolean   @map("test_mode")
   orderId         String?   @unique @map("order_id")

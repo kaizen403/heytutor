@@ -42,7 +42,16 @@ const REPRESENTATION_TIERS = [
 export type RepresentationTier = (typeof REPRESENTATION_TIERS)[number];
 
 /** Why an exact scene was attempted but not committed (scene-engine contract). */
-const DEGRADATION_REASONS = [...CONFIRMED_TURN_FAILURE_CODES, "unknown"] as const;
+const DEGRADATION_REASONS = [
+  ...CONFIRMED_TURN_FAILURE_CODES,
+  "planner_unavailable",
+  "candidate_invalid",
+  "missing_capability",
+  "solver_contradiction",
+  "required_visual_unavailable",
+  "valid_candidate_dropped",
+  "unknown",
+] as const;
 
 export type DegradationReason = (typeof DEGRADATION_REASONS)[number];
 
