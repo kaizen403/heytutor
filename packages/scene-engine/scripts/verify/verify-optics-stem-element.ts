@@ -26,6 +26,14 @@
  * keeps thin_lens), and a decimal coordinate such as (1.5, 2) reaches the
  * line or plane after it.
  *
+ * PR #189 coordinator review: a spherical mirror stem that says "mirror image"
+ * and gives mirror facts (a focal length, the pole, a magnification, a ray
+ * diagram, F and C, an object distance, u, v or f set to a number) keeps
+ * spherical_mirror; "real" is not such a fact. A bare mirror names the element
+ * only with such a fact, and a line mirror, a mirror line or a line that acts
+ * as a mirror is never one: a stem giving that line with its equation leaves
+ * optics.
+ *
  *   pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-optics-stem-element.ts
  */
 import { readFileSync } from "node:fs";
@@ -174,6 +182,67 @@ const DECIMAL_POINTS: Array<[string, string[]]> = [
   ["Find the image of the point (−1, −2) in the line x − y = 4.", ["mirror-image-formula"]],
 ];
 for (const [question, lawIds] of DECIMAL_POINTS) check(`point reflection ${question.slice(0, 50)} with ${lawIds.join(", ")}`, leaves(question, lawIds));
+
+// 6. PR #189 coordinator review. 6a and 6b run plain and with a mirror law hint; main detects each of them as spherical_mirror.
+const MIRROR_LAW_HINT = ["mirror formula 1/v + 1/u = 1/f", "magnification m = -v/u"];
+// 6a. A spherical mirror stem that says "mirror image" and gives mirror facts (a focal length, the pole, a
+// magnification, a ray diagram, F and C, an object distance, u, v or f set to a number) is still a mirror stem.
+const MIRROR_IMAGE_WITH_MIRROR_FACTS = [
+  "Draw a ray diagram for the mirror image of an object placed between F and C.",
+  "If the mirror image is formed at 20 cm when the object is at 30 cm, find the focal length.",
+  "The mirror image of an object placed 30 cm away is formed at 60 cm on the same side. Find the focal length.",
+  "The mirror image is magnified 3 times. If the object is 10 cm away, find the focal length.",
+  "A real mirror image, 3 times the size of the object, is formed 45 cm from the pole. Find the focal length.",
+  "mirror image formed is virtual and erect, magnification +2, object distance 10 cm, find focal length",
+  "Find the position of the mirror image of an object kept 15 cm in front of the pole when f = 10 cm.",
+  "u = -30 cm, f = -20 cm, find v for the mirror image",
+  "Object distance 25 cm, mirror image distance 50 cm, find the radius of curvature.",
+  "object placed 20 cm in front of mirror image formed at 60 cm find focal length",
+  // Only the object distance is given.
+  "object at 30 cm from mirror image at 60 cm find f",
+  "mirror image ka focal length nikalo, object 20 cm par hai aur image 60 cm par",
+];
+for (const question of MIRROR_IMAGE_WITH_MIRROR_FACTS) {
+  check(`mirror image with mirror facts ${question.slice(0, 60)}`, keeps(question, "spherical_mirror"));
+  check(`mirror image with mirror facts ${question.slice(0, 60)} with a mirror law hint`, keeps(question, "spherical_mirror", MIRROR_LAW_HINT));
+}
+// 6b. A line given as the mirror is the reflection line of coordinate geometry, and a bare mirror is an element only
+// in a stem that gives mirror facts. "real" is not a mirror fact.
+const NOT_A_MIRROR_ELEMENT = [
+  "Find the image of the point (-8, 12) with respect to the line mirror 4x + 7y + 13 = 0.",
+  "If the line y = x acts as a mirror, find the image of the point (2, 5).",
+  "line mirror x+y=1 me point (2,3) ki image nikalo",
+  "The image of the point (1, 2) in the line mirror y = x is",
+  "Find image of point (3,-1) wrt line mirror x - y = 2",
+  // "line mirror" with no equation is still the line of a point reflection.
+  "Find the image of the point P(2, 3) in the line mirror AB.",
+  // A bare mirror in a stem with no mirror facts.
+  "Find the image of the point (2, 3) in the line x + y = 1, treating the line as a mirror.",
+  // A line given as the mirror is no element even where the stem carries a mirror fact word.
+  "Find the image of the curve y = x^2 in the line mirror y = x and the radius of curvature of the image at the origin.",
+  "Reflect the point (u, v) in the mirror line y = x, where u = 2 and v = 5.",
+  "If the line y = x acts as a mirror, find the image of the point (u, 1) when u = 3.",
+  // A recorded JEE stem, and one only the mirror image rule catches: "real numbers" is not a real image.
+  "Let 𝛼, 𝛽, 𝛾, 𝛿 be real numbers such that 𝛼 2 + 𝛽 2 + 𝛾 2 ≠ 0 and 𝛼 + 𝛾 = 1. Suppose the point\n          (3, 2, −1) is the mirror image of the point (1, 0, −1) with respect to the plane 𝛼𝑥 + 𝛽𝑦 + 𝛾𝑧 = 𝛿.\n          Then which of the following statements is/are TRUE?\n\n          (A) 𝛼 + 𝛽 = 2                                      (B) 𝛿 − 𝛾 = 3\n\n          (C) 𝛿 + 𝛽 = 4                                      (D) 𝛼 + 𝛽 + 𝛾 = 𝛿",
+  "If a and b are real numbers and the curve y = ax^2 + b is the mirror image of y = x^2 in the line y = 1, find a and b.",
+];
+for (const question of NOT_A_MIRROR_ELEMENT) {
+  check(`not a mirror element ${question.slice(0, 60)}`, leaves(question));
+  check(`not a mirror element ${question.slice(0, 60)} with a mirror law hint`, leaves(question, MIRROR_LAW_HINT));
+}
+// 6c. A bare mirror in a stem with mirror facts names the element, so a point reflection there stays optics.
+check("bare mirror with a focal length keeps the image of a point", keeps("A mirror of focal length 10 cm forms the image of the point P(0, 2) in the plane of the screen.", "spherical_mirror"));
+check("bare mirror with a focal length keeps the image of a point, mirror law hint",
+  keeps("A mirror of focal length 10 cm forms the image of the point P(0, 2) in the plane of the screen.", "spherical_mirror", MIRROR_LAW_HINT));
+// 6d. "with respect to" names the line of a point reflection (the stem says no "mirror image").
+check("image of a point with respect to a line, mirror law hint", leaves("Find the image of the point (1, 2) with respect to the line x + y = 5.", MIRROR_LAW_HINT));
+// 6e. A point object or source is optics; a point charge is electrostatics (main and 24255cb09 kept the mirror archetype on it).
+check("image of the point source in the plane of the screen, lens law hint",
+  keeps("Find the image of the point source formed in the plane of the screen.", "thin_lens", ["thin lens formula 1/v - 1/u = 1/f"]));
+check("image of the point object in the plane of the screen, mirror law hint",
+  keeps("Find the image of the point object formed in the plane of the screen.", "spherical_mirror", MIRROR_LAW_HINT));
+check("image of the point charge in a plane conductor, mirror law hint",
+  leaves("Find the image of the point charge q in the plane conductor.", MIRROR_LAW_HINT));
 
 if (failures.length) {
   console.error(`verify-optics-stem-element: ${failures.length} failed, ${passed} passed`);

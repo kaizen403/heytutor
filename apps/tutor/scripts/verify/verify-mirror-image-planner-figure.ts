@@ -13,7 +13,8 @@
  * every p5 figure is drawn from the planner with no dropped candidate and no
  * mirror archetype on the gate. Two recorded physics rows that name a concave
  * mirror and a lens keep their drop, so the optics rule still holds where the
- * stem names the element.
+ * stem names the element. The concave mirror row asked in "mirror image"
+ * words, with its mirror facts and no mirror named, keeps its drop too.
  *
  *   pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-mirror-image-planner-figure.ts
  */
@@ -92,6 +93,25 @@ for (const row of opticsRows) {
     return null;
   });
 }
+
+// PR #189 review: the concave mirror row asked in "mirror image" words, with its mirror facts (the radius of
+// curvature, the magnification) and no mirror named, is still a mirror stem and keeps its drop. The recorded
+// candidate's quantities match this wording; the candidate and the plan carry it as their question.
+const MIRROR_IMAGE_WORDING = "Radius of curvature 44 cm, face held 11 cm away. Find where the mirror image forms, the magnification, and whether the mirror image is real or virtual.";
+const concaveRow = opticsRows.find((row) => row.run.endsWith("|reflection-and-spherical-mirrors|h7b"));
+check("h7b asked as a mirror image keeps the optics drop", () => {
+  if (!concaveRow) return "the h7b concave mirror row is missing from the fixture";
+  const candidate = structuredClone(concaveRow.candidate);
+  candidate.source = { ...(candidate.source as Record<string, unknown>), question: MIRROR_IMAGE_WORDING };
+  const { validation, selection } = select({ ...concaveRow, question: MIRROR_IMAGE_WORDING, candidate,
+    plan: { ...concaveRow.plan, question: MIRROR_IMAGE_WORDING } });
+  if (!validation.valid || validation.value?.document.visualDecision.mode !== "scene") return "the recorded candidate no longer validates as a scene";
+  if (selection.gate.archetypeId !== "spherical_mirror") return `the gate names ${selection.gate.archetypeId ?? "no"} archetype`;
+  if (selection.droppedCandidate?.code !== "planner_optics_on_archetype_stem") {
+    return `dropped with ${selection.droppedCandidate?.code ?? "nothing"}, status ${selection.visualStatus}`;
+  }
+  return null;
+});
 
 if (failures.length) {
   console.error(`verify-mirror-image-planner-figure: ${failures.length} failed, ${passed} passed`);
