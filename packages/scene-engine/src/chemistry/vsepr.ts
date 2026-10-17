@@ -28,7 +28,7 @@ import {
   type DipoleInput,
 } from "./bondingFigures";
 import { formulaTokens, normalizeChemistryText, parseFormula, type ParsedFormula } from "./formula";
-import { isMonovalent, valenceElectrons, type ElementRecord } from "./elements";
+import { isMonovalent, resolveElement, valenceElectrons, type ElementRecord } from "./elements";
 import { isDiscreteVseprCandidate } from "./foundation/formulaState";
 import { vseprSourceArgumentsComplete } from "./vseprSource";
 import type { TurnPlanV3 } from "../contracts/contractsV3";
@@ -87,7 +87,7 @@ export interface VseprResult {
   /** Valence electrons of the central atom (V). */
   readonly valence: number;
   readonly bondPairs: number;
-  /** Lone pairs on the central atom (E); a radical's odd electron counts as one domain. */
+  /** Nonbonding domains (E); includes a radical's single-electron domain. */
   readonly lonePairs: number;
   readonly unpairedElectron: boolean;
   readonly stericNumber: number;
@@ -451,6 +451,82 @@ function stemProperty(stem: string): StemProperty {
   return { hybridisation: readHybridisation(stem), shape: readShape(stem), lonePairs: readLonePairs(stem) };
 }
 
+/** A radical's single-electron domain is not an electron pair. */
+function actualLonePairs(result: VseprResult): number {
+  return result.lonePairs - (result.unpairedElectron ? 1 : 0);
+}
+
+type ShapeClaim = { shape: VseprShape; target: "electron" | "molecular" | null; negated: boolean };
+
+/** Bind each geometry in its property clause, including compound claims. */
+function shapeClaims(text: string): ShapeClaim[] {
+  const claims: ShapeClaim[] = [];
+  for (const clause of text.split(/[.;:]|\b(?:but|while|whereas|although)\b/)) {
+    const shapes = SHAPE_WORDS.flatMap(([pattern, shape]) => [...clause.matchAll(new RegExp(pattern.source, "g"))]
+      .map((match) => ({ shape, start: match.index, end: match.index + match[0].length })))
+      .sort((left, right) => left.start - right.start);
+    const roles: { start: number; end: number; target: "electron" | "molecular" }[] = [];
+    const patterns: [RegExp, "electron" | "molecular"][] = [
+      [/\bmolecular\s+(?:shape|geometry|arrangement)\b|\b(?:shape|geometry)\s+of\s+(?:the\s+)?(?:molecule|ion)\b/g, "molecular"],
+      [/\belectron(?:\s+(?:domain|pair)s?)?\s+(?:geometry|arrangement)\b|\b(?:geometry|arrangement)\s+(?:of|for)\s+(?:(?:the|its)\s+)?electron(?:s|\s+(?:domains?|pairs?))?\b/g, "electron"],
+      [/\belectron(?:\s+(?:pair|domain))?s?\b(?:(?!\bmolecular\b)[^.;:]){0,100}\b(?:geometry|arrangement|arranged)\b/g, "electron"],
+    ];
+    for (const [pattern, target] of patterns) for (const match of clause.matchAll(pattern)) {
+      roles.push({ start: match.index, end: match.index + match[0].length, target });
+    }
+    for (const shape of shapes) {
+      const targets = new Set(roles.map((role) => role.target));
+      let target: ShapeClaim["target"] = "molecular";
+      if (targets.size === 1) target = [...targets][0]!;
+      else if (targets.size > 1 && shapes.length === 1) target = null;
+      else if (targets.size > 1) {
+        const distance = (role: typeof roles[number]) => Math.max(0, role.start - shape.end, shape.start - role.end);
+        const nearest = Math.min(...roles.map(distance));
+        const nearestTargets = new Set(roles.filter((role) => distance(role) === nearest).map((role) => role.target));
+        target = nearestTargets.size === 1 ? [...nearestTargets][0]! : null;
+      }
+      const negated = /\b(?:not|no)\s+(?:an?\s+)?$/.test(clause.slice(0, shape.start));
+      claims.push({ shape: shape.shape, target, negated });
+    }
+  }
+  return claims;
+}
+
+type ElectronCountClaim = { count: number; kind: "lone-pair" | "unpaired"; negated: boolean; central: boolean };
+
+/** Explicit counts on another atom do not describe the central atom. */
+function centralCountOwner(text: string, start: number, end: number, result: VseprResult): boolean {
+  const owner = (token: string): boolean | null => {
+    if (/^central\s+atom$/i.test(token)) return true;
+    const element = resolveElement(token);
+    return element ? element.symbol === result.central.symbol : null;
+  };
+  const after = /^\s+(?:on|around)\s+(?:(?:the|each)\s+)?(?:central\s+)?(central\s+atom|[A-Za-z]+)(?:\s+atoms?)?\b/i.exec(text.slice(end));
+  const afterOwner = after ? owner(after[1]!) : null;
+  if (afterOwner !== null) return afterOwner;
+  const before = text.slice(0, start).split(/[.;:]/).at(-1)!;
+  const possessive = /\b([A-Za-z]+)['\u2019]s\s*$/.exec(before);
+  const possessiveOwner = possessive ? owner(possessive[1]!) : null;
+  if (possessiveOwner !== null) return possessiveOwner;
+  const subjects = [...before.matchAll(/\b(central\s+atom|[A-Za-z]+)(?:\s+atoms?)?(?:\s+in\s+[A-Za-z0-9_()^+-]+)?\s+(?:has|have|carries|carry|contains|contain)\b/gi)];
+  for (const subject of subjects.reverse()) {
+    const subjectOwner = owner(subject[1]!);
+    if (subjectOwner !== null) return subjectOwner;
+  }
+  // The existing unqualified molecular shorthand describes its center.
+  return true;
+}
+
+function electronCountClaims(text: string, result: VseprResult): ElectronCountClaim[] {
+  const words: Record<string, number> = { zero: 0, no: 0, one: 1, single: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+  return [...text.matchAll(/(?<![\w.])(-?\d+(?:\.\d+)?|zero|no|one|single|two|three|four|five|six|seven|eight|nine|ten)\s+(lone[ -]?pairs?|unpaired\s+electrons?)\b/gi)].map((match): ElectronCountClaim => ({
+    count: words[match[1]!.toLowerCase()] ?? Number(match[1]),
+    kind: /^lone/i.test(match[2]!) ? "lone-pair" : "unpaired",
+    negated: /\b(?:not|never)(?:\s+(?:have|has|contain|contains|carry|carries|exactly|even|just|a))*\s+$/i.test(text.slice(0, match.index)),
+    central: centralCountOwner(text, match.index, match.index + match[0].length, result),
+  }));
+}
+
 /** A correct source molecule must not accompany a contradictory lesson plan. */
 export function vseprPlanConflict(question: string, plan: TurnPlanV3): string | null {
   if (!isVseprStem(question)) return null;
@@ -460,19 +536,24 @@ export function vseprPlanConflict(question: string, plan: TurnPlanV3): string | 
   if (species.length !== 1) return null;
   const result = species[0]!;
   for (const claim of plan.qualitativeClaims) {
-    const text = `${claim.claim} ${claim.expected}`.toLowerCase().replace(/trigonal-bipyramidal/g, "trigonal bipyramidal");
+    const rawText = `${claim.claim} ${claim.expected}`.replace(/([a-z])[-\u2010-\u2015](?=[a-z])/gi, "$1 ");
+    const text = rawText.toLowerCase();
     const property = stemProperty(text);
-    const electronGeometry = /electron(?:[- ]domain|[- ]pair)?\s+(?:geometry|arrangement)/.test(text);
-    const negatedShape = property.shape && SHAPE_WORDS.some(([pattern, shape]) => {
-      const match = shape === property.shape ? pattern.exec(text) : null;
-      return match !== null && /\b(?:not|no)\s+(?:an?\s+)?$/.test(text.slice(0, match.index));
-    });
-    const sourceShape = electronGeometry ? result.electronGeometry : result.shape;
-    if (property.shape && (negatedShape ? property.shape === sourceShape : property.shape !== sourceShape)) {
-      return `VSEPR plan claim ${claim.id} contradicts the source-derived ${electronGeometry ? "electron geometry" : "molecular shape"}`;
+    for (const described of shapeClaims(text)) {
+      const sourceShapes = described.target === null ? [result.shape, result.electronGeometry]
+        : [described.target === "electron" ? result.electronGeometry : result.shape];
+      if (sourceShapes.every((shape) => described.negated ? described.shape === shape : described.shape !== shape)) {
+        return `VSEPR plan claim ${claim.id} contradicts the source-derived ${described.target === "electron" ? "electron geometry" : described.target === "molecular" ? "molecular shape" : "geometry"}`;
+      }
     }
     if (property.hybridisation && property.hybridisation !== result.hybridisation) return `VSEPR plan claim ${claim.id} contradicts the source-derived hybridisation`;
-    if (property.lonePairs !== null && property.lonePairs !== result.lonePairs) return `VSEPR plan claim ${claim.id} contradicts the source-derived lone-pair count`;
+    for (const described of electronCountClaims(rawText, result)) {
+      if (!described.central) continue;
+      const sourceCount = described.kind === "lone-pair" ? actualLonePairs(result) : Number(result.unpairedElectron);
+      if (described.negated ? described.count === sourceCount : described.count !== sourceCount) {
+        return `VSEPR plan claim ${claim.id} contradicts the source-derived ${described.kind === "lone-pair" ? "lone-pair" : "unpaired-electron"} count`;
+      }
+    }
     const negatedAxial = /\b(?:not|no)\s+(?:an?\s+)?axial\b/.test(text);
     if (result.stericNumber === 5 && result.lonePairs > 0 && /lone[ -]?pair/.test(text) && /\baxial\b/.test(text) && !negatedAxial && !/\bequatorial\b/.test(text)) {
       return `VSEPR plan claim ${claim.id} contradicts the equatorial lone-pair position`;
@@ -857,9 +938,10 @@ function drawSpecies(c: ChemScene, result: VseprResult, origin: Vec2, tag: strin
 }
 
 function speciesCue(result: VseprResult): string {
+  const lonePairs = actualLonePairs(result);
   const pairs = result.unpairedElectron
-    ? `${result.lonePairs - 1} lone pair${result.lonePairs - 1 === 1 ? "" : "s"} and one unpaired electron`
-    : `${result.lonePairs} lone pair${result.lonePairs === 1 ? "" : "s"}`;
+    ? `${lonePairs} lone pair${lonePairs === 1 ? "" : "s"} and one unpaired electron`
+    : `${lonePairs} lone pair${lonePairs === 1 ? "" : "s"}`;
   return `${result.formula}: ${result.central.symbol} with ${result.bondPairs} bond pairs and ${pairs}, steric number ${result.stericNumber}, ${result.electronGeometry} electron geometry, ${result.shape} molecular shape, ${result.hybridisation}`;
 }
 
@@ -943,7 +1025,7 @@ export function buildVseprFigure(question: string, quantities: ChemPlanQuantity[
     });
   }
   const caption = single
-    ? `${drawn[0]!.result.formula}: ${drawn[0]!.result.hybridisation}, ${drawn[0]!.result.shape}, ${drawn[0]!.result.lonePairs} lone pair${drawn[0]!.result.lonePairs === 1 ? "" : "s"}`
+    ? `${drawn[0]!.result.formula}: ${drawn[0]!.result.hybridisation}, ${drawn[0]!.result.shape}, ${actualLonePairs(drawn[0]!.result)} lone pair${actualLonePairs(drawn[0]!.result) === 1 ? "" : "s"}${drawn[0]!.result.unpairedElectron ? ", 1 unpaired electron" : ""}`
     : `Shapes of ${drawn.map((item) => item.result.formula).join(", ")}`;
   return {
     document: c.build({ caption: caption.slice(0, 60) }),

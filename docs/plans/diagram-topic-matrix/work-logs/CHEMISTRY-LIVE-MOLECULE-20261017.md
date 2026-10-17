@@ -23,3 +23,11 @@ Clear single-species plan claims that contradict the recomputed shape, hybridisa
 - Local receipts and screenshots: `.context/chem/live-lesson-93aa/` and `.context/chem/launch-20261017-v1/live-molecule-qa/`. Frozen head receipts include both 1,667-row route maps, 604 recorded family replays and the verify sweep.
 
 No accepted topic count changes, model spend, changes to the original lesson database, merges to main or production changes. The historical blank lesson is preserved as evidence. This fixes the bounded molecular-geometry path; broader organic, orbital and numeric-angle authority remains separate work.
+
+## Review follow-up: property and source completeness
+
+The review found three real coverage failures: an electron-domain arrangement was compared with molecular shape; a radical domain was compared with an electron-pair count; and a second sentence asking to include a named molecule could disappear. The independent failing gate captured all three before the repair.
+
+Property checks now bind each recognized shape to its local electron or molecular role, compare actual paired versus unpaired electrons, and check repeated central counts with their own negation. Explicit terminal-atom counts are not compared with the central atom; a wrong central sibling still refuses. This remains a bounded contradiction check, not a general natural-language proof. NO2's visible caption now reports zero lone pairs and one unpaired electron; its single odd-electron mark remains distinct from a pair. Supported inclusion verbs participate in the complete-source argument check, so an unresolved additional molecule declines the whole figure.
+
+The independent gate covers the original review wordings, neighboring correct and contradictory clauses, repeated counts, terminal atom owners, radical marks and caption, and complete source sets. It is included in the app aggregate without removing existing commands. This repair changes no physical numeric admission or caller authority.
