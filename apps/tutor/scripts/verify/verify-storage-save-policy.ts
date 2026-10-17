@@ -190,6 +190,23 @@ function harness(nodeEnv: string, configured: boolean, uploadSucceeds: boolean) 
 }
 
 async function main(testCase = process.env.STORAGE_SAVE_POLICY_CASE) {
+  if (testCase === "completion") {
+    const empty = harness("production", true, true);
+    empty.lesson.segments.splice(0);
+    const receipt = await empty.save("checkpoint", 1, { audio: false, status: "complete" });
+    assert.equal(receipt.status, 200, "retain the attempted lesson instead of losing its save");
+    assert.equal(receipt.body.turn.status, "stopped", "generated text without delivered rows cannot certify completion");
+    assert.equal(empty.turns[0].status, "stopped");
+    assert.equal(empty.segments.length, 0);
+    assert.deepEqual(JSON.parse(JSON.stringify(empty.turns[0].sceneArtifacts.failureTelemetry)),
+      { failed: true, stage: "teaching", code: "lesson_not_taught" }, "empty completion carries a bounded delivery failure");
+    assert.notEqual(empty.turns[0].submittedSegments, null, "retain resumable checkpoint state");
+    const spoken = harness("production", true, true);
+    const spokenReceipt = await spoken.save("checkpoint", 1, { audio: false, status: "complete" });
+    assert.equal(spokenReceipt.body.turn.status, "complete", "browser speech does not require uploaded audio");
+    console.log("PASS completion admission: empty delivered work stays stopped; actual teaching completes without audio bytes");
+    return;
+  }
   if (testCase === "close-race") {
     const fixture = harness("production", true, true);
     assert.equal((await fixture.save("checkpoint", 1, { audio: false })).status, 200);

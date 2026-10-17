@@ -4,6 +4,7 @@
  * uses the engine's refract_at / surface_contact / refract_direction chain so
  * Snell's law is asserted, never approximated.
  */
+import { planQuantity } from "../slots";
 import { evaluateOpticsLaw } from "../../physics/opticsLaws";
 import { sagOf } from "../../compile/opticsSurfaces";
 import { DEG, SceneBuilder, fmt, withUnit, type Vec2 } from "../document";
@@ -29,6 +30,23 @@ function dimClearance(envelope: number, h: number): number {
   return Math.max(1.4 * h, 0.4 * envelope, 9.5);
 }
 
+/** Geometry uses Cartesian coordinates; an unsigned distance is its magnitude.
+ * Preserve an explicitly signed plan, and never adopt a stale magnitude.
+ */
+function plannedOpticsDistance(context: GeneratorContext, aliases: string[], signed: number): number {
+  const quantity = planQuantity(context.quantities, aliases);
+  if (quantity && (quantity.sign === undefined || quantity.sign === "unsigned") &&
+      quantity.value >= 0 && Math.abs(quantity.value - Math.abs(signed)) <= 1e-6 * Math.max(1, Math.abs(signed))) {
+    return Math.abs(signed);
+  }
+  return signed;
+}
+
+function opticsMagnificationAgrees(context: GeneratorContext, expected: number): boolean {
+  const quantity = planQuantity(context.quantities, ["m", "magnification"]);
+  return !quantity || Math.abs(quantity.value - expected) <= 1e-6 * Math.max(1, Math.abs(expected));
+}
+
 function sphericalMirror(context: GeneratorContext) {
   const kind = text(context, "kind", "concave");
   const uMag = Math.abs(num(context, "u", 30));
@@ -40,15 +58,19 @@ function sphericalMirror(context: GeneratorContext) {
   const v = 1 / (1 / f - 1 / u);
   if (!Number.isFinite(v) || Math.abs(v) > 12 * uMag) return null;
   const m = -v / u;
+  if (!opticsMagnificationAgrees(context, m)) return null;
   const h = 0.28 * Math.max(fMag, uMag / 3);
   const imageHeight = m * h;
   const R = 2 * fMag;
   const centreX = kind === "concave" ? -R : R;
   const focusX = centreX / 2;
   const scene = new SceneBuilder(context.question, `${kind} mirror ray diagram from the mirror formula (u=${fmt(uMag)}, f=${fmt(fMag)})`, "spherical_mirror");
-  scene.quantity("u", "u", u, "cm");
-  scene.quantity("f", "f", f, "cm");
-  scene.quantity("v", "v", v, "cm");
+  const statedU = plannedOpticsDistance(context, ["u", "objectdistance", "do"], u);
+  const statedF = plannedOpticsDistance(context, ["f", "focallength"], f);
+  const statedV = plannedOpticsDistance(context, ["v", "imagedistance", "di"], v);
+  scene.quantity("u", "u", statedU, "cm");
+  scene.quantity("f", "f", statedF, "cm");
+  scene.quantity("v", "v", statedV, "cm");
 
   const leftmost = Math.min(u, v, centreX, -fMag) - 0.2 * uMag;
   const rightmost = Math.max(v, centreX, 0) + 0.15 * uMag + 0.5;
@@ -96,10 +118,10 @@ function sphericalMirror(context: GeneratorContext) {
   const rayBottom = Math.min(0, h, imageHeight, ray1Far?.y ?? 0, ray2Far?.y ?? 0);
   scene.helper("dim_u_a", { x: u, y: rayTop + dimClearance(rayTop, h) }, "dimension anchor");
   scene.helper("dim_u_b", { x: 0, y: rayTop + dimClearance(rayTop, h) }, "dimension anchor");
-  scene.dimension("dim_u", "dim_u_a", "dim_u_b", "object distance", grounded(context, "u") ? `u=${withUnit(uMag, "cm")}` : "u");
+  scene.dimension("dim_u", "dim_u_a", "dim_u_b", "object distance", grounded(context, "u") ? `u=${withUnit(statedU, "cm")}` : "u");
   scene.helper("dim_f_a", { x: focusX, y: rayBottom - dimClearance(Math.abs(rayBottom), h) }, "dimension anchor");
   scene.helper("dim_f_b", { x: 0, y: rayBottom - dimClearance(Math.abs(rayBottom), h) }, "dimension anchor");
-  scene.dimension("dim_f", "dim_f_a", "dim_f_b", "focal length", grounded(context, "f") ? `f=${withUnit(fMag, "cm")}` : "f");
+  scene.dimension("dim_f", "dim_f_a", "dim_f_b", "focal length", grounded(context, "f") ? `f=${withUnit(statedF, "cm")}` : "f");
   scene.assert("object_on_axis", "on", ["O_base", "axis"]);
   scene.assert("image_on_axis", "on", ["I_base", "axis"]);
   scene.assert("ray1_in_parallel", "parallel", ["ray1_in", "axis"]);

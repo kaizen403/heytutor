@@ -38,7 +38,7 @@ function projectile(context: GeneratorContext) {
   const g = num(context, "g", G);
   const vx = u * Math.cos(theta * DEG);
   const vy = u * Math.sin(theta * DEG);
-  if (vx <= 0 || u <= 0) return null;
+  if (vx <= 0 || u <= 0 || g <= 0) return null;
   const height0 = theta === 0 && h0 === 0 ? 20 : h0;
   const flight = (vy + Math.sqrt(vy * vy + 2 * g * height0)) / g;
   const range = vx * flight;

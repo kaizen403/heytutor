@@ -3,7 +3,7 @@
  * and presentation stay in the callers; admission and its order live here.
  */
 import {
-  ARCHETYPES, compileSceneDocument, detectArchetype, isChemistryQuestion, isChemistrySceneFamily,
+  ARCHETYPES, compileSceneDocument, detectArchetype, demandRejection, sceneDemand, isChemistryQuestion, isChemistrySceneFamily,
   normalizeClaimedClosedRouteGeometry, normalizeClaimedParaxialReflectionGeometry,
   pruneDeadSceneEntities, pruneUnverifiedSceneAnnotations, displayedSceneQuantityTexts,
   validateMatrixSourceBinding, validateSceneQuantityAgreement, validateSceneDocument,
@@ -216,7 +216,11 @@ export interface ProductionSceneSelectionInput extends ProductionSceneInput {
   solverAuthorityBlocked?: boolean;
   /** Explicit policy inputs: this pure module never reads rollout/retry settings. */
   requiredRetryEnabled?: boolean;
-  policy?: { preferPlanner?: boolean; allowedFigureSources?: readonly FigureSource[] };
+  policy?: {
+    preferPlanner?: boolean; allowedFigureSources?: readonly FigureSource[];
+    /** After planner admission fails, allow independently compiled source geometry. */
+    allowVerifiedSourceRecovery?: boolean;
+  };
 }
 
 export interface ProductionSceneSelection {
@@ -345,8 +349,18 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
     const selectedHasInk = selected.renderScene.primitives.some((primitive) =>
       (primitive.kind === "label" || primitive.kind === "dimension") &&
       typeof primitive.text === "string" && primitive.text.trim().length > 0);
+    // Recovery is generated here from this question, never borrowed from a
+    // fast/cached candidate or re-labelled as planner provenance. Its geometry,
+    // demand and numeric/save authority must all pass before it reaches ink.
+    const verifiedSourceRecovery = input.policy?.allowVerifiedSourceRecovery === true &&
+      !input.fastRepresentation && explained !== null &&
+      (selected.figureSource === "family" || selected.figureSource === "archetype") &&
+      typeof selected.sceneDocument.source.question === "string" &&
+      selected.sceneDocument.source.question.trim().replace(/\s+/g, " ") === question.trim().replace(/\s+/g, " ") &&
+      !demandRejection(selected.sceneDocument, sceneDemand(question, input.problemIR)) &&
+      compileSceneDocument(selected.sceneDocument).ok;
     const selectedSourceAllowed = input.policy?.allowedFigureSources === undefined ||
-      input.policy.allowedFigureSources.includes(selected.figureSource);
+      input.policy.allowedFigureSources.includes(selected.figureSource) || verifiedSourceRecovery;
     const saveFailure = selectedHasInk && selectedSourceAllowed && selected.sceneDocument.visualDecision.mode === "scene"
       ? liveSceneSaveFailure({ document: selected.sceneDocument, question, turnPlan, tier: selected.tier }) : null;
     const selectedIsDrawable = !input.solverAuthorityBlocked && selectedHasInk && selectedSourceAllowed && !saveFailure &&

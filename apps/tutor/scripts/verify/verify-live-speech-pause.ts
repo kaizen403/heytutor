@@ -141,9 +141,9 @@ function verifyTerminalSpeechFailureReachesQueue(runner: string) {
     for (const browser of [false, true]) {
       for (const ownsFallback of [true, false]) {
         let cancelled: unknown;
-        assert.doesNotThrow(() => { cancelled = fail(error, { cancelled: true, started, browser, recovery: false, ownsFallback }); },
+        assert.doesNotThrow(() => { fail(error, { cancelled: true, started, browser, recovery: false, ownsFallback }, value => { cancelled = value; }); },
           "cancelled/superseded speech failures do not reach the queue");
-        assert.deepEqual(cancelled, { speechAborted: true, terminalSpeechFailure: false, stopped: ownsFallback ? 1 : 0, abandoned: 1 },
+        assert.deepEqual(cancelled, { speechAborted: true, terminalSpeechFailure: false, stopped: 0, abandoned: 0 },
           "a cancelled/superseded turn stays quiet and never stops a replacement browser voice");
       }
     }
@@ -156,9 +156,9 @@ function verifyTerminalSpeechFailureReachesQueue(runner: string) {
     assert.deepEqual(observed, { speechAborted: true, terminalSpeechFailure: true, stopped: ownsFallback ? 1 : 0, abandoned: 1 },
       "failed recovery retains terminal state and cleans only its owned fallback");
     let cancelledRecovery: unknown;
-    assert.doesNotThrow(() => { cancelledRecovery = fail(error, { cancelled: true, started: true, browser: false, recovery: true, ownsFallback }); },
+    assert.doesNotThrow(() => { fail(error, { cancelled: true, started: true, browser: false, recovery: true, ownsFallback }, value => { cancelledRecovery = value; }); },
       "cancelled recovery does not report a new terminal error");
-    assert.deepEqual(cancelledRecovery, { speechAborted: true, terminalSpeechFailure: false, stopped: ownsFallback ? 1 : 0, abandoned: 1 },
+    assert.deepEqual(cancelledRecovery, { speechAborted: true, terminalSpeechFailure: false, stopped: 0, abandoned: 0 },
       "cancelled recovery neither throws a terminal failure nor stops successor speech");
   }
 }

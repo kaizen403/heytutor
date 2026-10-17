@@ -32,9 +32,18 @@ export function isSentryDisabled(env: NodeJS.ProcessEnv = process.env): boolean 
   return flag === "0" || flag === "false";
 }
 
+/** NODE_ENV describes a build mode, not where the server is deployed. */
+export function isSentryProduction(env: NodeJS.ProcessEnv = process.env): boolean {
+  return !isSentryDisabled(env) && env.NODE_ENV === "production" && env.SENTRY_ENVIRONMENT === "production";
+}
+
+export function sentryRelease(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return /^[0-9a-f]{40}$/.test(env.SENTRY_RELEASE ?? "") ? env.SENTRY_RELEASE : undefined;
+}
+
 /** Server and the custom speech process. Falls back to the public DSN. */
 export function sentryServerDsn(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  if (isSentryDisabled(env)) return undefined;
+  if (!isSentryProduction(env)) return undefined;
   const value = (env.SENTRY_DSN || env.NEXT_PUBLIC_SENTRY_DSN || "").trim();
   return value || undefined;
 }
@@ -79,7 +88,7 @@ export function sentryTracesSampler(
 ): number {
   const name = context.name ?? "";
   if (name.includes("/api/health") || name.includes(SENTRY_TUNNEL_PATH)) return 0;
-  if (env.NODE_ENV !== "production") return 0;
+  if (!isSentryProduction(env)) return 0;
   return 0.1;
 }
 

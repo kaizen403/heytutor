@@ -67,12 +67,12 @@ async function main(): Promise<void> {
     assert(caught === boom, "a failure inside the handler must not replace the draw error");
   }
 
-  // --- One failure is survivable; two in a row ends the turn. ---
+  // --- Recovery must finish the same beat; terminal failure stops immediately. ---
   {
     assert(!shouldAbandonTurn(0), "a healthy turn must keep going");
     assert(
-      !shouldAbandonTurn(1),
-      "a single failure may be transient — the next segment should get a chance",
+      shouldAbandonTurn(1),
+      "a terminal failure cannot be skipped by starting a later segment",
     );
     assert(
       shouldAbandonTurn(MAX_CONSECUTIVE_SEGMENT_FAILURES),
@@ -83,8 +83,8 @@ async function main(): Promise<void> {
       "the threshold must hold above the limit too",
     );
     assert(
-      MAX_CONSECUTIVE_SEGMENT_FAILURES >= 2,
-      "aborting on the very first failure would end turns on a single transient command",
+      MAX_CONSECUTIVE_SEGMENT_FAILURES === 1,
+      "recovery belongs inside the failed beat before its terminal rejection",
     );
   }
 

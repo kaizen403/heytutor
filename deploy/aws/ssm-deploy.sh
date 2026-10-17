@@ -32,16 +32,9 @@ if [ "$SSM_Commit" != "$(deployment_git rev-parse refs/remotes/origin/main)" ] &
   exit 1
 fi
 
-deployment_git reset --hard "$SSM_Commit" >/dev/null
-./deploy/aws/deploy.sh
-
-for attempt in $(seq 1 24); do
-  if curl --connect-timeout 2 --max-time 5 -fsS \
-    http://127.0.0.1:3000/api/health 2>/dev/null | grep -q '"ok":true'; then
-    echo "Tutor deploy and local health check succeeded."
-    exit 0
-  fi
-  sleep 5
-done
-echo "Tutor health check failed after deployment; inspect protected service logs." >&2
-exit 1
+# Run the requested commit's deploy driver without updating the live checkout.
+# The fixed launcher itself is installed once by the owner; see ci-cd.md.
+driver="$(mktemp /tmp/heytutor-deploy.XXXXXXXX)"
+trap 'rm -f "$driver"' EXIT
+deployment_git show "$SSM_Commit:deploy/aws/deploy.sh" > "$driver"
+/usr/bin/bash "$driver" "$SSM_Commit"

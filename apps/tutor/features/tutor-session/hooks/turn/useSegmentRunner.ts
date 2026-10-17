@@ -77,6 +77,7 @@ export function useSegmentRunner({
   const timingWaitClockRef = useRef<PauseAwareSpeechClock | null>(null);
   const introDrawOwnerRef = useRef<{ owner: symbol; freeze: () => void } | null>(null);
   const startupStatusOwnerRef = useRef<symbol | null>(null);
+  const permissionWaitOwnerRef = useRef<symbol | null>(null);
 
   // Turn controls own both transports. Browser pause() cancels its current
   // utterance; the fallback loop retries that sentence after resume.
@@ -90,12 +91,13 @@ export function useSegmentRunner({
     // Resume will repeat the browser sentence, not continue its old media cursor.
     // Invalidate the pen synchronously before the board's paused flag is lifted.
     if (introDrawOwnerRef.current?.owner === browserFallbackOwnerRef.current) introDrawOwnerRef.current?.freeze();
-    speechClockRef.current?.resume();
+    if (!permissionWaitOwnerRef.current) speechClockRef.current?.resume();
     timingWaitClockRef.current?.resume();
     if (browserFallbackOwnerRef.current) browserSpeechRef.current?.resume();
   };
   const stopFallbackSpeech = () => {
     // A cancelled turn must not leave its startup poll suspended forever.
+    permissionWaitOwnerRef.current = null;
     speechClockRef.current?.resume();
     timingWaitClockRef.current?.resume();
     fallbackPauseGenerationRef.current++;
@@ -689,6 +691,10 @@ export function useSegmentRunner({
         const clearStartupStatus = () => {
           if (startupStatusOwnerRef.current !== startupOwner) return;
           startupStatusOwnerRef.current = null;
+          if (permissionWaitOwnerRef.current === startupOwner) {
+            permissionWaitOwnerRef.current = null;
+            if (!isPausedRef.current) clock.resume();
+          }
           onSpeechStartupStatus?.(null);
         };
         const speakPrimary = (onStart: () => boolean, onAudioReady: () => void) => {
@@ -715,6 +721,13 @@ export function useSegmentRunner({
                 reason: blocked.reason,
                 audio_context_state: blocked.audioContextState,
               });
+              // Permission is a user action, not provider latency. Retain the
+              // current clip/beat and suspend both startup and playback budgets
+              // instead of replacing it with another gesture-blocked transport.
+              if (onSpeechStartupStatus) {
+                permissionWaitOwnerRef.current = startupOwner;
+                clock.pause();
+              }
               startupStatusOwnerRef.current = startupOwner;
               onSpeechStartupStatus?.({
                 turnGeneration,
@@ -728,6 +741,8 @@ export function useSegmentRunner({
                     turn_generation: turnGeneration,
                     audio_context_state: tts.getAudioContextState?.() ?? null,
                   });
+                  permissionWaitOwnerRef.current = null;
+                  clock.resume();
                   tts.unlockAudio?.();
                   tts.resume();
                 },
@@ -738,6 +753,10 @@ export function useSegmentRunner({
               onAudioReady();
             },
             onStart: () => {
+              if (canAcceptPrimary() && permissionWaitOwnerRef.current === startupOwner && !isPausedRef.current) {
+                permissionWaitOwnerRef.current = null;
+                clock.resume();
+              }
               const accepted = canAcceptPrimary() && !isPausedRef.current && onStart();
               if (!isStale()) tel?.mark("tts-startup-accepted", {
                 segment_index: index,
@@ -918,6 +937,12 @@ export function useSegmentRunner({
           ]));
         } catch (error) {
           speechAborted = true;
+          // Cancellation already stopped its owned output. An obsolete timer
+          // must never silence the successor using the same TTS client.
+          if (isCancelled()) {
+            tel?.mark("tts-segment-cancelled", { segment_index: index });
+            return;
+          }
           terminalSpeechFailure = !isCancelled();
           if (browserFallbackOwnerRef.current === segmentFallbackOwner) stopFallbackSpeech();
           tutorDebug("tts", "segment speech failed", {
@@ -990,6 +1015,7 @@ export function useSegmentRunner({
           startOwnedDraw = () => {
             ownedDraw = guardDrawWithSpeech(runDraw(estimateSpeechMs, null, drawGeneration), (error) => {
               speechAborted = true;
+              if (isCancelled()) return;
               if (browserFallbackOwnerRef.current === segmentFallbackOwner) stopFallbackSpeech();
               tutorDebug("segment", "draw failed; silencing narration", {
                 index,
@@ -1060,7 +1086,7 @@ export function useSegmentRunner({
         }
         segmentCompleted = true;
       } finally {
-        if (speakingNarrationRef.current === narration) {
+        if (!isStale() && speakingNarrationRef.current === narration) {
           speakingNarrationRef.current = "";
         }
         if (segmentCompleted && !isCancelled()) {

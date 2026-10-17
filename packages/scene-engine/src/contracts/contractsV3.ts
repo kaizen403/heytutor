@@ -2031,9 +2031,10 @@ function normalizeExplicitNumericExpression(
     const flags = /^[A-Za-z]+$/.test(unit) && unit.length > 1 ? "gi" : "g";
     // A unit label follows a number ("(0.18 N)(4 m/s)"). The same letters
     // after an operator are a variable ("μk N" is the normal force), and
-    // deleting them silently changes the arithmetic.
+    // deleting them silently changes the arithmetic. Strip an attached unit
+    // exponent too: leaving ^(-1) after Ω turns 11/18 Ω⁻¹ into 11/18^(-1).
     expression = expression.replace(
-      new RegExp(`(?<=[0-9.)\\]]\\s*)${escapeRegExp(unit)}(?=\\s|\\)|\\]|$|[*/+\\-^])`, flags),
+      new RegExp(`(?<=[0-9.)\\]]\\s*)${escapeRegExp(unit)}(?:\\^(?:[+-]?\\d+|\\([+-]?\\d+\\)))?(?=\\s|\\)|\\]|$|[*/+\\-^])`, flags),
       "",
     );
   }

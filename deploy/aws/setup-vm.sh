@@ -66,7 +66,8 @@ if [ ! -d "$APP_DIR/.git" ]; then
 fi
 
 cd "$APP_DIR"
-sudo -H -u ubuntu env GIT_TERMINAL_PROMPT=0 git -C "$APP_DIR" pull --ff-only
+sudo -H -u ubuntu env GIT_TERMINAL_PROMPT=0 git -C "$APP_DIR" fetch origin main
+COMMIT="$(sudo -H -u ubuntu git -C "$APP_DIR" rev-parse origin/main)"
 
 require_database_url
 
@@ -117,28 +118,6 @@ caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 systemctl enable caddy
 systemctl reload caddy || systemctl restart caddy
 
-cat > /etc/systemd/system/heytutor.service <<EOF
-[Unit]
-Description=HeyTutor API server
-After=network.target
-
-[Service]
-Type=simple
-User=heytutor
-Group=heytutor
-NoNewPrivileges=true
-WorkingDirectory=${APP_DIR}
-Environment=HOME=/var/lib/heytutor
-Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-EnvironmentFile=${APP_DIR}/apps/tutor/.env.production
-ExecStart=/usr/bin/bash -lc 'cd apps/tutor && NODE_ENV=production HOSTNAME=${HOSTNAME_FQDN} LISTEN_HOST=127.0.0.1 PORT=3000 pnpm exec tsx server.ts'
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
 cat > /etc/cron.d/heytutor-backup <<EOF
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 0 3 * * * heytutor ${APP_DIR}/deploy/aws/backup-postgres.sh >> /var/log/heytutor-backup.log 2>&1
@@ -147,18 +126,12 @@ chmod 644 /etc/cron.d/heytutor-backup
 touch /var/log/heytutor-backup.log
 chown heytutor:heytutor /var/log/heytutor-backup.log
 
-pnpm install --frozen-lockfile --ignore-scripts
-pnpm rebuild @prisma/client @prisma/engines esbuild prisma
-pnpm --filter @heytutor/tutor exec prisma generate
-pnpm turbo run build --filter=@heytutor/tutor...
-pnpm --filter @heytutor/tutor exec tsx scripts/live/deploy-migrations.ts
-mkdir -p "${APP_DIR}/apps/tutor/.next/cache"
-chgrp -R heytutor "${APP_DIR}/apps/tutor/.next"
-chmod -R g+rwX "${APP_DIR}/apps/tutor/.next"
-
-systemctl daemon-reload
-systemctl enable heytutor
-systemctl restart heytutor
+# Bootstrap only the trusted launcher, not the live application checkout.
+launcher="$(mktemp)"
+sudo -H -u ubuntu git -C "$APP_DIR" show "$COMMIT:deploy/aws/ssm-deploy.sh" > "$launcher"
+install -m 755 "$launcher" "$APP_DIR/deploy/aws/ssm-deploy.sh"
+rm -f "$launcher"
+SSM_Commit="$COMMIT" "$APP_DIR/deploy/aws/ssm-deploy.sh"
 
 echo "Tutor URL: https://${HOSTNAME_FQDN}"
 echo "Health:    https://${HOSTNAME_FQDN}/api/health"

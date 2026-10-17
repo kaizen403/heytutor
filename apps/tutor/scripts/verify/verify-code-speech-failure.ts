@@ -457,7 +457,7 @@ async function run(mode:Mode){
   }else if(mode==="user-stop"||mode==="stale"){
    assert.equal(h.errors.length,0,"Intentional Stop/stale owner remains quiet");assert.equal(h.jobs.length,4);assert.equal(h.controller.getState().revealedChars.s1b4,7);assert.equal(h.controller.frames.currentIndex(),0);
   }else{
-   assert.equal(h.params.cancelRef.current,false,"Fully typed/intentional partial/noTYPE/unknown/mismatched/hidden/replaced-owner failures keep the existing policy");assert.equal(h.errors.length,0);assert(h.jobs.length>4,"One ordinary failure permits later owned segments");
+   assert.equal(h.params.cancelRef.current,true,"A fully typed block still owes its failed narration; no later beat may skip it");assert.equal(h.errors.length,1);assert.match(h.errors[0]!.message,/Continue the lesson/);assert.equal(h.jobs.length,4,"Terminal speech failure stops before later owned segments");
    if(mode==="partial-complete")assert.equal(h.controller.getState().revealedChars.s1b4,7,"Completed intentional partial target stays partial");
   }
   console.log(`code speech failure ${mode}: actual consumer PASS`);

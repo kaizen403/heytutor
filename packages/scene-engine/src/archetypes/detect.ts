@@ -263,6 +263,8 @@ const CUE_SETS: readonly CueSet[] = [
       setSlot(bag, "u", speedsOf(stem)[0] ?? null, "stem");
       setSlot(bag, "theta", planNumber(plan, ["theta", "angle", "alpha", "angleofprojection"]), "plan");
       setSlot(bag, "theta", /horizontally/i.test(stem) ? 0 : firstAngle(stem), "stem");
+      setSlot(bag, "g", planNumber(plan, ["g", "gravity", "gravitationalacceleration"]), "plan");
+      setSlot(bag, "g", numberAfter(stem, /\bg\s*=|acceleration due to gravity(?: is| of| =)?/), "stem");
       setSlot(bag, "h0", planNumber(plan, ["h", "h0", "height", "towerheight"]), "plan");
       setSlot(bag, "h0", numberAfter(stem, /(?:tower|cliff|building|hill)(?: of height| which is| that is| of)?|from a height of|at a height of|height of (?:a |the )?(?:tower|cliff|building)/, UNIT.metre), "stem");
     },
