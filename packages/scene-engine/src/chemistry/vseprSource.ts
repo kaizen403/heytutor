@@ -31,7 +31,7 @@ export function vseprSourceArgumentsComplete(
     // renderer can fulfill, not alternative spellings of chemical members.
     rest = rest.replace(/\b(?:what|which|where|why|how|is|are|does|do|has|have|can|you|the|a|an|of|in|for|and|or|with|its|their|it|this|that|these|those|at|to|on|as|from|between|also|both|all|each|together|versus|vs|please)\b/gi, " ");
     rest = rest.replace(/\b(?:draw|show|sketch|compare|depict|illustrate|explain|describe|mark|include|including|indicate|label|keep|state|predict|determine|find|briefly|brief|explanation)\b/gi, " ");
-    rest = rest.replace(/\b(?:molecular|molecules?|ions?|species|electrons?|domains?|pairs?|shapes?|geometr(?:y|ies)|structures?|arrangements?|hybridi[sz](?:ation|ed)|bonds?|angles?|atoms?|lone|number|count|positions?|locations?|central|cent(?:er|re)|sits?|go(?:es)?|occup(?:y|ies)|located|placed|points?|dots?|degrees?|deg|stated|given|one|two|three|four|five|six|seven|no|zero)\b/gi, " ");
+    rest = rest.replace(/\b(?:molecular|molecules?|ions?|species|electrons?|domains?|pairs?|shapes?|geometr(?:y|ies)|structures?|arrangements?|hybridi[sz](?:ation|ed)|bonds?|angles?|atoms?|lone|number|count|sum|following|positions?|locations?|central|cent(?:er|re)|sits?|go(?:es)?|occup(?:y|ies)|located|placed|points?|dots?|degrees?|deg|stated|given|one|two|three|four|five|six|seven|no|zero)\b/gi, " ");
     rest = rest.replace(/\b(?:square|trigonal|pentagonal|bipyramidal|pyramidal|tetrahedral|octahedral|planar|linear|bent|angular|see[ -]?saw|t[ -]shaped|distorted|equatorial|axial|dipole|moments?|polarity|polar|nonpolar)\b/gi, " ");
     // Numeric counts/angles still face the normal authoritative plan and IR
     // checks. Their presence here never certifies a displayed quantity.

@@ -63,6 +63,16 @@ test("two supported requested species retain both complete molecules", () => {
   assert.ok(compileSceneDocument(result.document).ok);
 });
 
+test("recorded four-species lone-pair sum keeps the complete source set", () => {
+  const source = "What is the sum of the number of lone pairs of electrons on each central atom in the following species: [TeBr6]^2-, [BrF2]+, SNF3 and [XeF3]-? (Atomic numbers: N = 7, F = 9, S = 16, Br = 35, Te = 52, Xe = 54)";
+  const result = buildVseprFigure(source, [], false);
+  assert.ok(result);
+  assert.equal(result.structures.length, 4);
+  assert.equal(result.structures.reduce((sum, structure) => sum + structure.lonePairs.length, 0), 6);
+  assert.ok(verifiedVseprStructure(result.document, source));
+  assert.ok(compileSceneDocument(result.document).ok);
+});
+
 for (const source of [
   "Show the molecular shapes of SF4 and SiO2.",
   "Show the shapes of SF4 and KrF6.",
