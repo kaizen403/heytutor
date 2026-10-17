@@ -474,10 +474,13 @@ export function useSegmentRunner({
               );
               // Voice never came: uncover the board so the lecture is not stuck
               // behind "preparing" for the rest of the turn.
-              applyTurnPhase("speaking");
+              if (hasCommand) applyTurnPhase("speaking");
               return;
             }
-            applyTurnPhase("drawing");
+            // Narration-only motion follows the voice's speaking phase. Its
+            // timing wait may settle after an opening's owner restored the
+            // planning/thinking wait, so it must not overwrite that phase.
+            if (hasCommand) applyTurnPhase("drawing");
             tutorDebug("draw", "initial timing wait", {
               index,
               release: initialTimingWait?.release ?? null,
