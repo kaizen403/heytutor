@@ -857,16 +857,24 @@ function buildTextOnlyRepresentation(
 
 function extractExplicitFunctionFacts(question: string): SourceFunctionFact[] {
   const normalized = normalizeMathText(question);
+  const unquotedPositions = unquotedFunctionSourcePositions(normalized);
   const facts: SourceFunctionFact[] = [];
+  let previousEquationEnd = -1;
   const matches = normalized.matchAll(/\by\s*=\s*/gi);
   for (const match of matches) {
+    if (!unquotedPositions[match.index ?? 0]) continue;
+    if (!hasStandaloneFunctionLhs(normalized, match.index ?? 0, previousEquationEnd)) continue;
     const start = (match.index ?? 0) + match[0].length;
-    const rawExpression = readSupportedExpressionPrefix(normalized.slice(start, start + 160));
+    const rawExpression = readCompleteSupportedExpression(normalized.slice(start));
+    if (rawExpression === null) continue;
     const expression = normalizeExpression(rawExpression);
-    if (!expression || facts.some((fact) => fact.expression === expression)) continue;
+    if (!expression) continue;
     try {
       parseMathExpression(expression);
-      facts.push({ expression, sourceText: `y=${rawExpression.trim()}` });
+      previousEquationEnd = start + rawExpression.length;
+      if (!facts.some((fact) => fact.expression === expression)) {
+        facts.push({ expression, sourceText: `y=${rawExpression.trim()}` });
+      }
     } catch {
       // Unsupported expressions stay available as literal source facts instead
       // of being approximated or repaired into a different equation.
@@ -875,26 +883,146 @@ function extractExplicitFunctionFacts(question: string): SourceFunctionFact[] {
   return facts.slice(0, 4);
 }
 
-function readSupportedExpressionPrefix(source: string): string {
-  const allowedIdentifiers = new Set([
-    "x", "pi", "e", "sin", "cos", "tan", "asin", "acos", "atan",
-    "sqrt", "abs", "exp", "log", "ln",
-  ]);
-  let index = 0;
-  while (index < source.length) {
+const FUNCTION_EXPRESSION_IDENTIFIERS = new Set([
+  "x", "pi", "e", "sin", "cos", "tan", "asin", "acos", "atan",
+  "sqrt", "abs", "exp", "log", "ln",
+]);
+const FUNCTION_EQUATION_INTRODUCTIONS = new Set([
+  "graph", "plot", "sketch", "draw", "curve", "curves", "line", "lines", "function", "functions", "equation", "equations",
+]);
+const FUNCTION_EQUATION_ENDPOINTS = new Set(["and", "for", "where", "enclose", "encloses"]);
+const FUNCTION_PRIME_SYMBOL = /^(?:[A-Za-z\u0370-\u03ff](?:[0-9\u2080-\u2089]+|_[A-Za-z0-9\u0370-\u03ff]+)?|alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|omicron|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega)$/i;
+const FUNCTION_PRIME_SCALAR = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
+const FUNCTION_QUOTED_SCALAR = /^\s*(?:[A-Za-z\u0370-\u03ff][A-Za-z0-9_\u0370-\u03ff\u2080-\u2089]*\s*=\s*)?[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?\s*$/i;
+
+function unquotedFunctionSourcePositions(source: string): Uint8Array {
+  // State bits: outside=1, single-quoted=2, double-quoted=4. Each row maps
+  // those three input states to possible output states for the same token.
+  const transitions = [
+    [1, 2, 4], // ordinary text, contraction, or the start of a prime run
+    [2, 1, 4], // nonattached single quotation boundary
+    [4, 2, 1], // double quotation boundary
+    [1, 3, 4], // attached run: all primes, or its last mark closes a quote
+    [0, 3, 4], // ordinary closer: ambiguous inside, never a prime outside
+  ] as const;
+  const tokens = new Uint8Array(source.length);
+  let rawSingleQuote = -1;
+  let rawSingleQuoteCanOpen = false;
+  for (let index = 0; index < source.length; index += 1) {
     const character = source[index]!;
+    if (/['’]/.test(character) && /[A-Za-z\u0370-\u03ff]/.test(source[index - 1] ?? "") &&
+        /[A-Za-z\u0370-\u03ff]/.test(source[index + 1] ?? "")) continue;
+    if (/['’]/.test(character) && /[A-Za-z0-9_\u0370-\u03ff\u2080-\u2089)]/.test(source[index - 1] ?? "")) {
+      let start = index;
+      while (start > 0 && /[A-Za-z0-9_\u0370-\u03ff\u2080-\u2089]/.test(source[start - 1]!)) start -= 1;
+      const token = source.slice(start, index);
+      const firstMark = index;
+      let scalarStart = start;
+      while (scalarStart > 0 && /[0-9.eE+\-]/.test(source[scalarStart - 1]!)) scalarStart -= 1;
+      const numeric = FUNCTION_PRIME_SCALAR.test(source.slice(scalarStart, index)) &&
+        !/[A-Za-z0-9_\u0370-\u03ff\u2080-\u2089]/.test(source[scalarStart - 1] ?? "");
+      // Consecutive raw quote spans are disjoint. A quoted scalar/equality
+      // can close a quote without making a bare measurement mark invalid.
+      const literalScalar = numeric && rawSingleQuoteCanOpen &&
+        FUNCTION_QUOTED_SCALAR.test(source.slice(rawSingleQuote + 1, firstMark));
+      while (/['’]/.test(source[index + 1] ?? "")) index += 1;
+      let following = index + 1;
+      while (/\s/.test(source[following] ?? "") && following < source.length) following += 1;
+      const literalWord = /^[A-Za-z]{2,}$/.test(token) && /['‘’]/.test(source[start - 1] ?? "");
+      const symbol = FUNCTION_PRIME_SYMBOL.test(token) || FUNCTION_EXPRESSION_IDENTIFIERS.has(token.toLowerCase());
+      const application = /^[A-Za-z_\u0370-\u03ff]/.test(token) && source[following] === "(" &&
+        (following === index + 1 || !literalWord);
+      // A possible plural possessive retains its open-quote path, even
+      // before punctuation. A directly quoted ordinary word need not be a
+      // valid outside possessive/prime to preserve that same inside path.
+      const possessive = /s$/i.test(token) && !literalWord;
+      tokens[index] = source[start - 1] === ")" || symbol || application || possessive || (numeric && !literalScalar) ? 3 : 4;
+      rawSingleQuote = index;
+      rawSingleQuoteCanOpen = false;
+      continue;
+    }
+    if (/['‘’]/.test(character)) {
+      tokens[index] = 1;
+      rawSingleQuote = index;
+      rawSingleQuoteCanOpen = true;
+    }
+    else if (/["“”]/.test(character)) tokens[index] = 2;
+  }
+  const forward = new Uint8Array(source.length + 1);
+  const backward = new Uint8Array(source.length + 1);
+  forward[0] = 1;
+  backward[source.length] = 1;
+  for (let index = 0; index < source.length; index += 1) {
+    const transition = transitions[tokens[index]!]!;
+    for (let state = 0; state < 3; state += 1) {
+      if (forward[index]! & (1 << state)) forward[index + 1]! |= transition[state]!;
+    }
+  }
+  for (let index = source.length - 1; index >= 0; index -= 1) {
+    const transition = transitions[tokens[index]!]!;
+    for (let state = 0; state < 3; state += 1) {
+      if (transition[state]! & backward[index + 1]!) backward[index]! |= 1 << state;
+    }
+  }
+  const unquoted = new Uint8Array(source.length + 1);
+  for (let index = 0; index <= source.length; index += 1) {
+    // No balanced interpretation, or any viable quoted interpretation,
+    // withholds source ownership at this position.
+    unquoted[index] = (forward[index]! & backward[index]!) === 1 ? 1 : 0;
+  }
+  return unquoted;
+}
+
+function hasStandaloneFunctionLhs(source: string, index: number, previousEquationEnd: number): boolean {
+  const rawPrefix = source.slice(0, index);
+  const prefix = rawPrefix.trimEnd();
+  if (previousEquationEnd >= 0 && /^\s*(?:,|and)?\s*$/i.test(rawPrefix.slice(previousEquationEnd))) return true;
+  const introduction = prefix.replace(/:$/, "").trimEnd();
+  const token = introduction.match(/\b(?:solve|represent)\s+graphically$|[A-Za-z_][A-Za-z0-9_]*$|[^\s]$/i)?.[0];
+  if (!token) return true;
+  if (/^[A-Za-z_]/.test(token)) {
+    // Prose can introduce y, but no mathematical LHS term may be dropped.
+    if (!FUNCTION_EQUATION_INTRODUCTIONS.has(token.toLowerCase()) &&
+        !/^(?:solve|represent)\s+graphically$/i.test(token)) return false;
+    const beforeToken = introduction.slice(0, -token.length).trimEnd();
+    return !/[+\-*/^=(]$/.test(beforeToken);
+  }
+  return /[;.?]$/.test(token);
+}
+
+function readCompleteSupportedExpression(source: string): string | null {
+  let index = 0;
+  while (index < source.length && index < 160) {
+    const character = source[index]!;
+    if (/[;?]/.test(character)) break;
+    if (character === ",") {
+      if (/^\s*[+-]?(?:[0-9]|\.[0-9])/.test(source.slice(index + 1))) return null;
+      break;
+    }
+    if (/[\r\n]/.test(character) && /^\s*y\s*=/i.test(source.slice(index + 1))) break;
+    if (character === "." && !/[0-9]/.test(source[index + 1] ?? "")) {
+      if (index === 0 || !/^(?:\s|$)/.test(source.slice(index + 1))) return null;
+      break;
+    }
     if (/\s/.test(character) || /[0-9.+\-*/^()]/.test(character)) {
       index += 1;
       continue;
     }
     if (/[A-Za-z_]/.test(character)) {
       const identifier = source.slice(index).match(/^[A-Za-z_][A-Za-z0-9_]*/)?.[0] ?? "";
-      if (!allowedIdentifiers.has(identifier.toLowerCase())) break;
+      if (!FUNCTION_EXPRESSION_IDENTIFIERS.has(identifier.toLowerCase())) {
+        // An adjacent/unknown math token is not a prose endpoint: y=4z is
+        // unsupported in full, rather than a source assertion that y=4.
+        if (!FUNCTION_EQUATION_ENDPOINTS.has(identifier.toLowerCase()) ||
+            index === 0 || !/\s/.test(source[index - 1]!)) return null;
+        break;
+      }
       index += identifier.length;
       continue;
     }
-    break;
+    return null;
   }
+  if (index >= 160 && index < source.length) return null;
   return source.slice(0, index).trim();
 }
 
