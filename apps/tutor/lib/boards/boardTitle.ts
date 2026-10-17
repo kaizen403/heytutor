@@ -37,57 +37,6 @@ const META_PREFIXES = [
   "please",
 ];
 
-const TOPIC_PATTERNS: Array<{
-  test: RegExp;
-  title: string | ((question: string) => string);
-}> = [
-  {
-    test: /free[- ]body|fbd/i,
-    title: (question) => {
-      const kg = question.match(/(\d+(?:\.\d+)?)\s*kg/i);
-      if (kg && /friction|μ|mu|push|newton/i.test(question)) {
-        return `${kg[1]} kg box free-body diagram`;
-      }
-      if (kg) {
-        return `${kg[1]} kg free-body diagram`;
-      }
-      return "Free-body diagram problem";
-    },
-  },
-  {
-    test: /\bnewton(?:['’]s)?\s+(?:second|2nd)\s+law\b|\bf\s*=\s*ma\b/i,
-    title: "Newton's second law",
-  },
-  {
-    test: /quadratic/i,
-    title: "Quadratic equations",
-  },
-  {
-    test: /pythagor/i,
-    title: "Pythagorean theorem",
-  },
-  {
-    test: /^(?!.*\b(?:ionic|atomic|covalent|metallic)\s+radi).*(?:\bcircle\b|circumference|\bradius\b)/is,
-    title: "Circle geometry",
-  },
-  {
-    test: /\bfractions?\b/i,
-    title: "Fractions",
-  },
-  {
-    test: /linear equation|isolate/i,
-    title: "Linear equation",
-  },
-  {
-    test: /photosynthesis|\bplants?\b|glucose/i,
-    title: "Photosynthesis",
-  },
-  {
-    test: /affect|effect|grammar|vocabulary/i,
-    title: "Affect vs effect",
-  },
-];
-
 /** Element symbols, so "Na+" and "Ca" keep their case in a title. */
 const ELEMENT_SYMBOLS = new Set(
   ("H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr " +
@@ -206,14 +155,8 @@ export function deriveBoardTitleFromQuestion(question: string): string {
     return "New board";
   }
 
-  for (const pattern of TOPIC_PATTERNS) {
-    if (pattern.test.test(trimmed)) {
-      const title =
-        typeof pattern.title === "function" ? pattern.title(trimmed) : pattern.title;
-      return formatBoardTitle(title);
-    }
-  }
-
+  // Keep the student's own words. A topic keyword can appear in another
+  // subject (a mirror has a radius; the photoelectric effect is not grammar).
   const stripped = trimmed
     .replace(/^(please\s+)?(solve|find|calculate|compute|determine|explain|show|help me with)[:\s,-]+/i, "")
     .replace(/^(what is|what are|how do i|how to)\s+/i, "")

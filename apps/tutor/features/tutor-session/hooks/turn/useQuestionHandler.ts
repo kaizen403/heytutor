@@ -3,7 +3,6 @@ import {
   lessonNarrationText,
   IncrementalTagParser,
   anchorToTextRect,
-  getSegmentCommands,
   prepareVerifiedLessonSegments,
   type TutorSegment,
   cancelFrame,
