@@ -9,7 +9,6 @@ import { parseStoredSegmentCommands, type DrawCommand, type VerifiedDiagram } fr
 import { getBestWriteCharScheduleMs, type AudioTimings, type TTSClient } from "@heytutor/tutor-core";
 import { mountTestWhiteboard, unmountTestWhiteboard } from "../../../../packages/whiteboard/scripts/whiteboardTestHarness";
 import { createVirtualWhiteboardClock } from "../../../../packages/whiteboard/src/whiteboardClock";
-import { runWhiteboardVerifier } from "../../../../packages/whiteboard/scripts/runWhiteboardVerifier";
 import { drawSegmentInk, planSegmentInk } from "../../features/tutor-session/lib/turn/segmentInk";
 import { drawLectureTimeline } from "../../lib/lecture-export/drawLectureTimeline";
 import { buildReplayTimeline } from "../../lib/replay/replayTimeline";
@@ -17,6 +16,7 @@ import { lecturePageCacheKey } from "../../lib/lecture-export/canExportLectureMp
 import type { useCommandExecution as CommandHook } from "../../features/tutor-session/hooks/useCommandExecution";
 import type { useBoardLayout as LayoutHook } from "../../features/tutor-session/hooks/useBoardLayout";
 import type { useSegmentRunner as RunnerHook } from "../../features/tutor-session/hooks/turn/useSegmentRunner";
+import type { useReplay as ReplayHook } from "../../features/tutor-session/hooks/useReplay";
 import type { ExecuteCommandOptions, UseSegmentRunnerParams } from "../../features/tutor-session/hooks/turn/types";
 import type { StoredTurn } from "../../lib/boards/boardsClient";
 import retained from "./fixtures/explanation-pointing/launch-beats.json";
@@ -42,11 +42,12 @@ function load<T>(relative: string): T {
 const executor = load<{ useCommandExecution: typeof CommandHook }>("features/tutor-session/hooks/useCommandExecution.ts").useCommandExecution;
 const layoutHook = load<{ useBoardLayout: typeof LayoutHook }>("features/tutor-session/hooks/useBoardLayout.ts").useBoardLayout;
 const runner = load<{ useSegmentRunner: typeof RunnerHook }>("features/tutor-session/hooks/turn/useSegmentRunner.ts").useSegmentRunner;
+const replayHook = load<{ useReplay: typeof ReplayHook }>("features/tutor-session/hooks/useReplay.ts").useReplay;
 type Beat = { narration: string; command: unknown; durationMs: number; timings: AudioTimings | null };
-type Control = "pause" | "paused-stop" | "stop" | "rate" | "no-target" | "small-row" | "pending" | "page-turn" | "seek" | "late-timings";
+type Control = "pause" | "paused-stop" | "stop" | "rate" | "no-target" | "small-row" | "pending" | "page-turn" | "seek" | "late-timings" | "draw-failure" | "voice-failure" | "skip-draw" | "cancel-before";
 const results: unknown[] = [];
 
-async function run(name: string, source: Beat, mode: "shared" | "export" | "live" = "shared", control?: Control) {
+async function run(name: string, source: Beat, mode: "shared" | "export" | "live" | "fallback" = "shared", control?: Control) {
   const beat = structuredClone(source), commands = parseStoredSegmentCommands(beat.command);
   const clock = createVirtualWhiteboardClock(), exportClock = createVirtualWhiteboardClock(), board = mountTestWhiteboard();
   const penClock = mode === "export" ? exportClock : clock;
@@ -83,7 +84,7 @@ async function run(name: string, source: Beat, mode: "shared" | "export" | "live
   board.eraseWorkInk = async (...args) => { clears.push(mediaMs); await erase(...args); };
   const flights: { at: number; x: number; y: number }[] = [], glyphs: number[] = [], writes: ExecuteCommandOptions[] = [];
   const poses: { at: number; x: number; y: number }[] = [];
-  let originalCount = 0;
+  let originalCount = 0, failedDrawOnce = false;
   const fly = board.flyCursorTo;
   board.flyCursorTo = async (...args) => { flights.push({ at: mediaMs, x: args[0], y: args[1] }); await fly(...args); };
   const hook = executor({ whiteboardRef: whiteboard, cancelRef: cancel, activeVerifiedDiagramRef: activeDiagram,
@@ -93,6 +94,9 @@ async function run(name: string, source: Beat, mode: "shared" | "export" | "live
     raceWithCancel: async p => p, resolveTextPlacement: layout.resolveTextPlacement, cancellableDelay: delay,
     forgetErasedTextRects: layout.forgetErasedTextRects, resetBoardLayout: layout.resetBoardLayout, nowMs: penClock.now });
   const execute = async (command: DrawCommand, options: ExecuteCommandOptions = {}) => {
+    if (control === "draw-failure" && options.explanationPointing && !failedDrawOnce) {
+      failedDrawOnce = true; throw Error("retained replay draw recovery fixture");
+    }
     if (command.type === "WRITE") {
       writes.push(options);
       if (options.writeSchedule) {
@@ -108,8 +112,7 @@ async function run(name: string, source: Beat, mode: "shared" | "export" | "live
     nowMs: clock.now, isSpeechComplete: () => mediaMs >= beat.durationMs };
   let savedRows: UseSegmentRunnerParams["recordedSegmentsRef"]["current"] = [];
   let job: Promise<void>;
-  if (mode === "live") {
-    const provider: TTSClient = {
+  const provider: TTSClient = {
       async speak() { throw Error("unused speech transport"); },
       async playAudio() { throw Error("unused audio transport"); },
       async prewarm() {}, pause() {}, resume() {}, stop() {},
@@ -118,11 +121,13 @@ async function run(name: string, source: Beat, mode: "shared" | "export" | "live
       getPlaybackPositionMs: () => mediaMs, getPlaybackRate: () => rate.current,
       prefetchSegment() {}, peekSegmentTimings: getTimings, abandonSpeaking() {},
       async speakSegment(_text, options = {}) {
+        if (control === "voice-failure") throw Error("retained replay TTS failure before audio");
         options.onTimings?.(beat.timings!); options.onStart?.();
         while (!cancel.current && mediaMs < beat.durationMs) await clock.waitForAdvance();
         options.onEnd?.();
       },
-    };
+  };
+  if (mode === "live") {
     const saved = ref(savedRows);
     const controlHook = runner({ sessionId: "offline", activeVerifiedDiagramRef: activeDiagram,
       cancellableDelay: delay, ensureTTSClient: () => provider, executeCommandWithCancel: execute,
@@ -133,6 +138,25 @@ async function run(name: string, source: Beat, mode: "shared" | "export" | "live
       narrationDensityRef: ref(0), drawChainRef: ref(Promise.resolve()), reserveTextCommandPlacements: layout.reserveTextCommandPlacements });
     const segment = { narration: beat.narration, commands, command: null };
     job = controlHook.runSegment(segment, 0, [segment], 1).then(() => { savedRows = saved.current; });
+  } else if (mode === "fallback") {
+    const turn = { id: "fallback", orderIndex: 0, question: "Retained explanation", rawResponse: "", speedMultiplier: 1,
+      traceId: null, sceneDocument: null, sceneEngineVersion: null, validationReport: null, visualStatus: "text_only", sceneArtifacts: null,
+      segments: [{ id: "beat", orderIndex: 0, narration: beat.narration, spokenText: beat.narration,
+        command: beat.command, timings: beat.timings, durationMs: beat.durationMs, audioUrl: null }] } as StoredTurn;
+    const replayGenerationRef = ref(1), replayClock = ref<{ setPaused: (paused: boolean) => void } | null>(null);
+    const consumer = replayHook({ whiteboardRef: whiteboard, cancelRef: cancel, speedRef: rate, isPausedRef: paused,
+      replayAudioRef: ref(null), replayDrawClockRef: replayClock, replayAudioPreloadRef: ref(new Map()),
+      storedTurnsRef: ref([turn]), activeVerifiedDiagramRef: activeDiagram, fbdPhaseStartedRef: fbd,
+      replayGenerationRef, replayCueRef: ref(null), ttsClientRef: ref(provider), notesEpochsRef: layout.notesEpochsRef,
+      narrationSinceEpochRef: layout.narrationSinceEpochRef, liveQuestionRef: ref("Retained explanation"), phaseRef: ref("idle"),
+      isReplaying: true, isPaused: false, isDownloading: false, replayProgressMs: 0, boards: [], sessionId: "offline",
+      setPhase() {}, setCurrentSegmentText() {}, setNarrationText() {}, setIsPaused() {}, setIsReplaying() {},
+      setReplayProgressMs() {}, setReplayTotalMs() {}, setSettings() {}, setIsDownloading() {},
+      cancellableDelay: delay, raceWithCancel: async p => p, executeCommandWithCancel: execute, executeCommand: execute,
+      resetBoardLayout: layout.resetBoardLayout, finishLectureUi() {}, pauseTurn() {}, resumeTurn() {},
+    });
+    if (control === "cancel-before") cancel.current = true;
+    job = consumer.playReplayCue(buildReplayTimeline([turn]).cues[0]!, 0, 1, control === "skip-draw");
   } else if (mode === "export") {
     const turn = { id: "offline", orderIndex: 0, question: "Retained launch lesson", rawResponse: "", speedMultiplier: 1,
       traceId: null, sceneDocument: null, sceneEngineVersion: null, validationReport: null, visualStatus: "text_only", sceneArtifacts: null,
@@ -179,10 +203,11 @@ async function run(name: string, source: Beat, mode: "shared" | "export" | "live
       await tick();
     }
     assert(settled, `${name}: bounded owned-clock completion`); if (failure) throw failure; await job;
+    if (control === "draw-failure") assert(failedDrawOnce, "the actual replay consumer entered drawing failure recovery");
     assert.deepEqual(diagram, diagramBefore, `${name}: explanation cannot reveal labels or change verified geometry`);
     if (mode === "shared") assert.equal(originalCount, control === "stop" || control === "paused-stop" ? 1 : commands.length, `${name}: original resume command counts stay intact`);
-    if (control === "no-target" || control === "pending" || control === "seek") {
-      assert.equal(flights.length, 0, `${name}: no visible row/seek produces no synthetic motion even with unrevealed diagram targets`);
+    if (control === "no-target" || control === "pending" || control === "seek" || control === "skip-draw" || control === "cancel-before" || control === "voice-failure") {
+      assert.equal(flights.length, 0, `${name}: suppressed or unheard speech, seek, and unavailable targets produce no transient motion`);
     } else if (control === "page-turn") {
       assert(clears.length === 1 && clears[0]! < 1_000, "real replay layout clears the prior page before waiting for its next WRITE cue");
       assert.equal(flights.filter(f => f.at < 10_000 && f.y === priorY).length, 0, "a cleared page cannot be pointed at before the new row inks");
@@ -227,7 +252,8 @@ async function run(name: string, source: Beat, mode: "shared" | "export" | "live
       maxStaticVoicedMs = Math.max(maxStaticVoicedMs, pose.at - lastActivityMs); previous = pose;
     }
     if (!cancel.current) maxStaticVoicedMs = Math.max(maxStaticVoicedMs, beat.durationMs - lastActivityMs);
-    if (!["no-target", "pending", "page-turn", "seek"].includes(control ?? "")) {
+    if (control === "voice-failure" || control === "cancel-before") maxStaticVoicedMs = 0; // No voice began.
+    if (!["no-target", "pending", "page-turn", "seek", "skip-draw", "cancel-before", "voice-failure"].includes(control ?? "")) {
       assert(maxStaticVoicedMs < 2_500, `${name}: whole voiced beat cannot park ink and cursor for ${maxStaticVoicedMs}ms`);
     }
     results.push({ name, mode, control: control ?? "none", flights: flights.length, firstGlyphMs: glyphs[0] ?? null, maxStaticVoicedMs });
@@ -250,6 +276,13 @@ async function main() {
   for (const control of ["pause", "stop", "paused-stop", "rate", "late-timings", "page-turn"] as const) await run(`L01-${control}`, formula, "shared", control);
   const spoken = { ...emphasis, command: null };
   await run("narration-only-live", spoken, "live");
+  await run("narration-only-missing-recording-consumer", spoken, "fallback");
+  await run("narration-only-draw-recovery-consumer", spoken, "fallback", "draw-failure");
+  await run("missing-recording-voice-failure", spoken, "fallback", "voice-failure");
+  await run("missing-recording-skip-draw", spoken, "fallback", "skip-draw");
+  await run("missing-recording-cancel-before", spoken, "fallback", "cancel-before");
+  await run("missing-recording-pause", spoken, "fallback", "pause");
+  await run("missing-recording-stop", spoken, "fallback", "stop");
   await run("narration-only-replay", spoken);
   await run("small-visible-work-row", spoken, "shared", "small-row");
   await run("narration-only-export", spoken, "export");
@@ -259,4 +292,12 @@ async function main() {
   assert(lecturePageCacheKey([]).endsWith("@video11"), "prior board/pitch/static explanation files cannot share the new cache identity");
   console.log("verify-explanation-pointing:", JSON.stringify({ scenarios: results.length, providers: 0, results }));
 }
-runWhiteboardVerifier(main);
+// The actual replay consumer adds seven clock-driven scenarios; keep assertions
+// bounded without making this source/Whiteboard gate flaky on a busy CI host.
+const watchdog = setTimeout(() => {
+  console.error("explanation pointing gate exceeded its30s real-wall bound");
+  process.exit(1);
+}, 30_000);
+void main().then(() => clearTimeout(watchdog), error => {
+  clearTimeout(watchdog); console.error(error); process.exitCode = 1;
+});
