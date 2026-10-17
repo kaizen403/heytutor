@@ -373,20 +373,9 @@ export function parseOptions(argv: string[]): Options {
   const resumeExtraUsd = Number(flags.get("resume-extra-usd") ?? 0);
   if (!Number.isFinite(resumeExtraUsd) || resumeExtraUsd < 0) throw new Error("--resume-extra-usd must be nonnegative");
   if (flags.has("resume-extra-usd") && !resume) throw new Error("--resume-extra-usd requires --resume");
-<<<<<<< HEAD
   const productionStrictSubjects = parseProductionStrictSubjects(flags);
   if (productionStrictSubjects && (evalFiles.length === 0 || arm !== "planner_examples_strict")) {
     throw new Error("--production-strict-subjects requires a strict maths evaluation: --eval with --arm planner_examples_strict");
-=======
-  let productionStrictSubjects: readonly DiagramSubject[] | null = null;
-  if (flags.has("production-strict-subjects")) {
-    const entries = flags.get("production-strict-subjects")!.split(",").map(entry => entry.trim());
-    if (evalFiles.length === 0 || (arm !== "current" && arm !== "planner_examples_strict") ||
-      entries.some(entry => !["maths", "physics", "chemistry"].includes(entry)) ||
-      new Set(entries).size !== entries.length) {
-      throw new Error("--production-strict-subjects requires a nonempty maths/physics/chemistry list and a current or planner_examples_strict evaluation");
-    }
-    productionStrictSubjects = entries.map(parseDiagramSubject);
   }
   let productionPhysicsMode: "hybrid" | null = null;
   if (flags.has("production-physics-mode")) {
@@ -395,7 +384,6 @@ export function parseOptions(argv: string[]): Options {
       throw new Error("--production-physics-mode hybrid requires a production profile and planner_examples_strict evaluation");
     }
     productionPhysicsMode = "hybrid";
->>>>>>> 212be5d1264071d1a649d5b0119f2b1e7379d46a
   }
   let parsedOrigin: URL;
   try {
@@ -438,10 +426,7 @@ export function parseOptions(argv: string[]): Options {
     visualNeedReplay: flags.get("visual-need-replay") ?? null,
     exampleExclusions: flags.get("example-exclusions") ?? null,
     productionStrictSubjects,
-<<<<<<< HEAD
-=======
     productionPhysicsMode,
->>>>>>> 212be5d1264071d1a649d5b0119f2b1e7379d46a
   };
 }
 
@@ -821,12 +806,7 @@ async function main(): Promise<void> {
     sceneDeclinePolicy: options.sceneDeclinePolicy, exampleExclusionFingerprint,
     visualNeedPolicy: LAB_VISUAL_NEED_POLICY,
     visualNeedReplayFingerprint: replayText === null ? null : labSampleFingerprint([replayText]),
-<<<<<<< HEAD
-    ...(options.productionStrictSubjects ? { productionStrictSubjects: options.productionStrictSubjects,
-      examplePickerProfile: "live-client-4000ms-subject-shelf/v2", subjectClassification: "existing-turn-plan" } : {}),
-=======
     ...productionLabExecutionIdentity(options.productionStrictSubjects, options.productionPhysicsMode),
->>>>>>> 212be5d1264071d1a649d5b0119f2b1e7379d46a
     ...(options.spendMode === "response_usage" ? { spendMode: options.spendMode,
       ...labResponseUsagePricing(providerConfig.deployment),
       plannerOutputCap: serverConfig.plannerOutputCap, teachingOutputCap: serverConfig.teachingOutputCap,
