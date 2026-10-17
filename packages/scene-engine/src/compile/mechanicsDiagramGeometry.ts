@@ -202,7 +202,9 @@ function readEnergy(inputs: Record<string, unknown>, context: SourceContext, doc
     rejectUnknownKeys(state, ["height", "speed"], "states");
     requireUnits(state.height, "m", LENGTH, document);
     if (state.speed !== undefined) requireUnits(state.speed, "m/s", SPEED, document);
-    return { height: scalar(state.height, "height", context), speed: state.speed === undefined ? undefined : scalar(state.speed, "speed", context) };
+    const speed = state.speed === undefined ? undefined : scalar(state.speed, "speed", context);
+    if (speed !== undefined && speed < 0) invalid("speed", "speed cannot be negative");
+    return { height: scalar(state.height, "height", context), speed };
   });
   const known = states.filter((state) => state.speed !== undefined).length;
   if (known === 0) invalid("speed", "at least one state speed is required");
@@ -216,7 +218,17 @@ function readEnergy(inputs: Record<string, unknown>, context: SourceContext, doc
     const knownState = states[knownIndex]!;
     const missingState = states[missing]!;
     const signed = knownIndex === 0 ? 1 : -1;
-    const squared = knownState.speed! * knownState.speed! + signed * 2 * gravity * (knownState.height - missingState.height) + signed * 2 * work / mass;
+    // Height difference always runs from the known state to the missing state;
+    // only supplied work reverses when solving backward from the final state.
+    const kinetic = knownState.speed! * knownState.speed!;
+    const gravitational = 2 * gravity * (knownState.height - missingState.height);
+    const external = signed * 2 * work / mass;
+    const rawSquared = kinetic + gravitational + external;
+    if (!Number.isFinite(rawSquared)) invalid("speed", "energy conservation requires a finite squared speed");
+    // Squaring a supplied sqrt(2gh) can leave either sign of rounding residue
+    // at a turning point. Only cancel roundoff relative to these energy terms.
+    const cancellation = 4 * Number.EPSILON * (Math.abs(kinetic) + Math.abs(gravitational) + Math.abs(external));
+    const squared = Math.abs(rawSquared) <= cancellation ? 0 : rawSquared;
     if (squared < 0) invalid("speed", "energy conservation does not yield a real speed");
     missingState.speed = Math.sqrt(squared);
   }
