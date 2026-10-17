@@ -17,7 +17,7 @@ async function main(): Promise<void> {
       await board.writeText(text, 90, 80 + index * 90, 0, undefined, fontSize);
       for (const scale of phoneViewportScales) assert.ok(fontSize * scale >= 16 - 1e-8, "every role meets16CSSpx in the actual viewport");
       const actual = board.getDrawLayer()!.getChildren().slice(beforeCount)
-        .filter(node => node.getClassName() === "Path").map(node => node.getAttr("data"));
+        .filter(node => node.getClassName() === "Path").map(node => node.getAttrs().data);
       assert.deepEqual(actual, expected, "actual Whiteboard preserves canonical native stroke paths and font size");
     }
     assert.ok(board.getDrawLayer()!.getChildren().length > 0, "actual Whiteboard commits native ink");
