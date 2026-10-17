@@ -152,6 +152,10 @@ maps upload when `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, and `SENTRY_PROJECT` are
 set. A missing token does not fail the build. `SENTRY_ENABLED=0` stops the
 server SDK on the next process start.
 
+Persisted turn failures use a bounded durable Sentry queue. See
+[failed-turn events and owner alert setup](failed-turn-sentry.md) for the release
+setting, historical backfill and the two alert rules.
+
 Because `setup-vm.sh` and `deploy.sh` `source` `.env.production`, keep it
 shell-compatible: quote values that contain `#`, spaces, or other
 shell-significant characters.

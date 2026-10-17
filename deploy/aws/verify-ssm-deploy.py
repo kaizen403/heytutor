@@ -1,11 +1,15 @@
-"""Exercise the deployment boundary using fake Git, sudo, health and deploy.
+"""Exercise the deployment boundary without cloud or service access.
 
-No cloud credentials, network requests, service changes or real checkout are
-used. Only the fixed cd is redirected to a disposable fixture directory.
+The SSM contract uses fake commands in a disposable directory. To additionally
+exercise Git's real ownership check in an isolated, offline container, pass
+--ownership-container-image IMAGE (a local image with bash, git, sudo, useradd).
+The container is never pulled, has no network and mounts no host directories.
 """
 import json
 import os
 from pathlib import Path
+import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -103,5 +107,58 @@ else: raise AssertionError(args)
         self.assertTrue(all("http://127.0.0.1:3000/api/health" in event for event in health))
 
 
+class GitCheckoutOwnership(unittest.TestCase):
+    def test_release_reads_use_the_checkout_owner(self):
+        for name, variable in [("deploy.sh", "ROOT"), ("setup-vm.sh", "APP_DIR")]:
+            with self.subTest(script=name):
+                source = Path(__file__).with_name(name).read_text()
+                release = re.findall(r"^SENTRY_RELEASE=.*$", source, flags=re.MULTILINE)
+                self.assertEqual(len(release), 1)
+                self.assertIn('sudo -H -u ubuntu env GIT_TERMINAL_PROMPT=0 git -C', release[0])
+                self.assertIn(f'"${variable}" rev-parse HEAD', release[0])
+
+    def test_root_can_stamp_an_ubuntu_checkout_without_safe_directory(self):
+        image = os.environ.get("SENTRY_GIT_OWNERSHIP_IMAGE")
+        if not image:
+            self.skipTest("use --ownership-container-image for the real root/ubuntu Git gate")
+        subprocess.run(["docker", "image", "inspect", image], check=True, capture_output=True, timeout=10)
+        assignments = []
+        for name in ["deploy.sh", "setup-vm.sh"]:
+            source_path = os.environ.get("SENTRY_DEPLOY_SOURCE") if name == "deploy.sh" else None
+            source = (Path(source_path) if source_path else Path(__file__).with_name(name)).read_text()
+            release = re.findall(r"^SENTRY_RELEASE=.*$", source, flags=re.MULTILINE)
+            self.assertEqual(len(release), 1)
+            check = release[0] + '; test "$SENTRY_RELEASE" = "$EXPECTED_RELEASE"'
+            assignments.append(f"bash -c {shlex.quote(check)}")
+        proof = """set -euo pipefail
+useradd --create-home --uid 1000 --shell /bin/bash ubuntu
+mkdir -p /opt/heytutor
+chown ubuntu:ubuntu /opt/heytutor
+sudo -H -u ubuntu git -C /opt/heytutor init --quiet
+sudo -H -u ubuntu git -C /opt/heytutor -c user.name=Fixture -c user.email=fixture@example.invalid commit --quiet --allow-empty -m fixture
+export EXPECTED_RELEASE="$(sudo -H -u ubuntu git -C /opt/heytutor rev-parse HEAD)"
+if git -C /opt/heytutor rev-parse HEAD >/tmp/root-output 2>/tmp/root-error; then
+  echo 'Fixture did not reproduce the unsafe root read' >&2
+  exit 1
+fi
+grep -q 'dubious ownership' /tmp/root-error
+export ROOT=/opt/heytutor APP_DIR=/opt/heytutor
+cd /opt/heytutor
+""" + "\n".join(assignments) + "\necho 'Real Git root/ubuntu release ownership passed'\n"
+        result = subprocess.run(
+            ["docker", "run", "--rm", "--pull=never", "--network=none", "--user=0",
+             "--entrypoint=/bin/bash", "-i", image],
+            input=proof, capture_output=True, text=True, timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("Real Git root/ubuntu release ownership passed", result.stdout)
+
+
 if __name__ == "__main__":
+    if "--ownership-container-image" in sys.argv:
+        position = sys.argv.index("--ownership-container-image")
+        if position + 1 >= len(sys.argv):
+            raise SystemExit("--ownership-container-image requires a cached image name")
+        os.environ["SENTRY_GIT_OWNERSHIP_IMAGE"] = sys.argv[position + 1]
+        del sys.argv[position:position + 2]
     unittest.main()
