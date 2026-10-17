@@ -42,7 +42,7 @@ async function main() {
   let orderPosts = 0;
   let loseOrderResponse = false;
   let rejectOrderCreation = false;
-  const providerOrders = new Map<string, { id: string; amount: number; currency: string; receipt: string }>();
+  const providerOrders = new Map<string, { id: string; amount: number; currency: string; receipt: string; notes?: Record<string, string> }>();
   const payment = () => ({ id: "pay_routetest", order_id: providerOrderId, amount: expectedAmount, currency: expectedCurrency, captured, status: captured ? "captured" : "authorized", amount_refunded: 0 });
   globalThis.fetch = async (input, init) => {
     if (String(input) === "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml") {
@@ -60,7 +60,7 @@ async function main() {
     if (String(input).endsWith("/orders")) {
       orderPosts++;
       if (rejectOrderCreation) throw new Error("order creation failed");
-      const body = JSON.parse(String(init?.body)) as { amount: number; currency: string; receipt: string };
+      const body = JSON.parse(String(init?.body)) as { amount: number; currency: string; receipt: string; notes?: Record<string, string> };
       assert.equal(body.amount, expectedAmount, "the provider receives exactly the displayed, signed price");
       assert.equal(body.currency, expectedCurrency);
       providerOrderId = `order_${body.receipt.replaceAll("-", "")}`;
@@ -175,6 +175,47 @@ async function main() {
     } finally {
       actorId = userId;
       await prisma.user.delete({ where: { id: historyUser } });
+    }
+    const promoUser = randomUUID();
+    await prisma.user.create({ data: { id: promoUser } });
+    actorId = promoUser;
+    try {
+      const promoCatalog = await (await catalog.GET(new Request("https://example.test/api/billing/catalog?currency=USD&promo=%20ph50%20"))).json();
+      assert.deepEqual(promoCatalog.promo, { code: "PH50", percentOff: 50 }, "a typed code matches without case or spaces");
+      assert.equal(promoCatalog.plans.plus.amount, 1450, "PH50 halves Plus");
+      assert.equal(promoCatalog.plans.plus.fullAmount, 2900, "the page can strike through the full price");
+      assert.equal(promoCatalog.plans.lesson_top_up.amount, 1000, "credits sell at the usage they buy, so PH50 leaves them alone");
+      assert.equal(promoCatalog.plans.lesson_top_up.fullAmount, undefined);
+      const unknown = await (await catalog.GET(new Request("https://example.test/api/billing/catalog?currency=USD&promo=PH10OFF"))).json();
+      assert.deepEqual(unknown.promo, { code: "PH10OFF", percentOff: null }, "an unknown code is answered, not silently ignored");
+      assert.equal(unknown.plans.plus.amount, 2900, "an unknown code charges full price");
+      const promoIndia = await (await catalog.GET(new Request("https://example.test/api/billing/catalog?currency=INR&promo=PH50"))).json();
+      assert.equal(promoIndia.plans.plus.amount, 137750, "PH50 halves the INR checkout total");
+      assert.equal(promoIndia.plans.plus.fullAmount, 275500);
+      expectedAmount = 1450;
+      const promoResponse = await checkout.POST(request("/checkout", { planId: "plus", idempotencyKey: randomUUID(), quote: promoCatalog.plans.plus.quote, amount: 1 }));
+      assert.equal(promoResponse.status, 200);
+      const promoCheckout = (await promoResponse.json()).checkout as { purchaseId: string; amount: number };
+      assert.equal(promoCheckout.amount, 1450, "the buyer is charged the discounted, signed amount");
+      const promoRow = await prisma.billingPurchase.findUniqueOrThrow({ where: { id: promoCheckout.purchaseId } });
+      assert.equal(promoRow.promoCode, "PH50", "the purchase records which code discounted it");
+      assert.equal(promoRow.usageMillicents, 12000, "a discount never shrinks the usage a month grants");
+      assert.equal(providerOrders.get(promoRow.id)?.notes?.promo_code, "PH50", "the Razorpay order names the code");
+      assert.equal((await topUp.POST(request("/top-up", { idempotencyKey: randomUUID(), quote: promoCatalog.plans.plus.quote }))).status, 409, "a discounted Plus quote cannot buy credits");
+      captured = true;
+      const promoSignature = createHmac("sha256", "test-secret").update(`${providerOrderId}|pay_routetest`).digest("hex");
+      const promoVerify = await verify.POST(request("/verify", { purchaseId: promoCheckout.purchaseId, razorpay_order_id: providerOrderId, razorpay_payment_id: "pay_routetest", razorpay_signature: promoSignature }));
+      assert.equal(promoVerify.status, 200, "a captured discounted payment matches its stored amount");
+      const promoAccess = await loadRazorpayAccess(promoUser);
+      assert.equal(promoAccess.planId, "plus");
+      assert.equal(promoAccess.includedMillicents, 12000, "a half price month grants the full Plus allowance");
+      const promoHistory = await (await history.GET(new Request("https://example.test/history"))).json() as { purchases: Array<{ id: string; promoCode: string | null }> };
+      assert.equal(promoHistory.purchases.find(row => row.id === promoCheckout.purchaseId)?.promoCode, "PH50", "history shows the code");
+      console.log("PASS PH50 halves Plus end to end, leaves credits at full price, and is recorded on the purchase");
+    } finally {
+      actorId = userId; expectedAmount = 2900; captured = false;
+      await prisma.user.delete({ where: { id: promoUser } });
+      apiCalls = 0;
     }
     const idempotencyKey = randomUUID();
     const response = await checkout.POST(request("/api/billing/checkout", { planId: "plus", idempotencyKey, quote, amount: 1, currency: "INR" }));
