@@ -91,7 +91,7 @@ export function isThermoGraphStem(question: string): boolean {
 
 /* --------------------------------------------------------- number reading */
 
-import { readChemistryQuantity, readChemistryQuantityDeclaration, findChemistryQuantities, chemistryPlanBindingsValid, chemistryQuantityCuesValid, chemistryCanonicalValuesAgree, chemistryQuestionSpan, type ChemistryDimension } from "./quantityReader";
+import { readChemistryQuantity, readChemistryQuantityDeclaration, chemistryQuantityPayloadPresent, findChemistryQuantities, chemistryPlanBindingsValid, chemistryQuantityCuesValid, chemistryCanonicalValuesAgree, chemistryQuestionSpan, type ChemistryDimension } from "./quantityReader";
 
 interface Energy {
   value: number;
@@ -273,6 +273,33 @@ function readMechanismSteps(stem: string): ProfileStep[] | null {
   const minusMagnitude = net > 0 ? 0.7 : 1.0;
   if (Math.sign(plus * plusMagnitude - minus * minusMagnitude) !== net) return null;
   return signs.map((step) => ({ ea: step.slow ? 2.6 : 1.1, dH: step.sign > 0 ? plusMagnitude : -minusMagnitude, slow: step.slow }));
+}
+
+/** Only complete source-bound step signs are qualitative, never physical givens. */
+function mechanismEnthalpyInputsValid(question: string, steps: readonly ProfileStep[]): boolean {
+  const body = question.slice(0,chemistryQuestionSpan(question).end);
+  const pattern = /(?<![\p{L}\p{N}_])(?:and\s+)?[a-z(][a-z0-9()+]*\s*(?:->|→|⟶|−>|-->|⇒)\s*[a-z(][a-z0-9()+]*(?:\s+is|\s*[;,(:])?\s*(?:a\s+|the\s+)?(?<speed>slow|fast)\b[^;.]{0,40}?(?<cue>δh|∆h|\bah\b|\bdh\b|enthalpy)(?<payload>\s*[=:]?\s*(?<sign>[+−–—-])\s*ve\b)/gidu;
+  const matches = [...body.matchAll(pattern)];
+  if (matches.length !== steps.length) return false;
+  const claims = matches.map(match => ({cue:match.indices!.groups!.cue!,payload:match.indices!.groups!.payload!,
+    sign:match.groups!.sign === "+" ? 1 : -1,slow:match.groups!.speed!.toLowerCase() === "slow"}));
+  for (const [index,claim] of claims.entries()) {
+    if (claim.sign !== Math.sign(steps[index]!.dH) || claim.slow !== !!steps[index]!.slow) return false;
+    const nextStep = matches[index+1]?.index ?? body.length;
+    const tail = body.slice(claim.payload[1],nextStep).split(/[;!?\n]|\.(?=\s|$)/)[0]!;
+    // A physical or expression continuation cannot hide after a sign token.
+    if (chemistryQuantityPayloadPresent(tail)
+      || /^[\s,]*(?:and\s+)?(?:[=:+*/^×·−-]|(?:is|was|are|equals|equal\s+to)\b)/i.test(tail)) return false;
+  }
+  const owners = [...body.matchAll(new RegExp(DELTA_H_SYMBOL.source,"gi"))];
+  return owners.every((owner,index) => {
+    if (claims.some(claim => claim.cue[0] === owner.index && claim.cue[1] === owner.index!+owner[0].length)) return true;
+    const reads = (["energy","molar_energy"] as const).map(dimension => readChemistryQuantityDeclaration({question,
+      after:DELTA_H_SYMBOL,within:{start:owner.index!,end:owners[index+1]?.index ?? body.length},dimension,owner:"mechanism enthalpy declaration"}));
+    // This operator consumes qualitative step signs, not an additional
+    // measured enthalpy that could contradict the stated net direction.
+    return reads.every(read => read.state === "absent");
+  });
 }
 
 const PROFILE_THRESHOLD_CUE = /threshold\s+energy/;
@@ -1064,11 +1091,14 @@ export function buildThermoGraphScene(question: string, quantities: ChemPlanQuan
   // operands as extra givens; retain that guard for all other operators.
   // Single profiles consume the checked per-original role map below. Keep
   // aggregate checks for every other operator and qualitative mechanism.
-  const singleProfile = kind === "profile" && readMechanismSteps(stem) === null;
+  const mechanism = kind === "profile" ? readMechanismSteps(stem) : null;
+  const singleProfile = kind === "profile" && mechanism === null;
+  if (mechanism && !mechanismEnthalpyInputsValid(question,mechanism)) return null;
   if (!singleProfile && kind !== "gibbs" && (!chemistryQuantityCuesValid(question, [
     ...[FORWARD_ACTIVATION,BACKWARD_ACTIVATION,GENERIC_ACTIVATION].map(phrase=>({after:energyCueAfter(phrase),dimensions:["energy","molar_energy"] as ChemistryDimension[]})),
   ]) || !chemistryQuantityCuesValid(question, [
-    {after: DELTA_H_SYMBOL, dimensions: ["energy", "molar_energy"]}, {after: DELTA_S_SYMBOL, dimensions: ["entropy", "molar_entropy"]},
+    ...(mechanism ? [] : [{after: DELTA_H_SYMBOL, dimensions: ["energy", "molar_energy"] as const}]),
+    {after: DELTA_S_SYMBOL, dimensions: ["entropy", "molar_entropy"]},
   ]))) return null;
   switch (kind) {
     case "profile": {

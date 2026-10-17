@@ -446,6 +446,89 @@ for (const question of [
   compiled(buildKineticsScene(question, [], false));
 });
 
+// Existing qualitative/reference owners must survive stricter supplied-value admission.
+// The unchanged aggregate family gate independently checks the mechanism labels.
+const referenceOwnerRegressions: ReadonlyArray<{ id: string; family: keyof typeof builders; question: string; expectedDraw: boolean }> = [
+  {
+    "id": "oldgate-mechanism-two-step",
+    "family": "thermoGraphs",
+    "question": "An exothermic reaction proceeds in two steps: A → I is slow with ΔH = +ve and I → P is fast with ΔH = −ve. Draw the reaction coordinate diagram showing the intermediate and the rate determining step.",
+    "expectedDraw": true
+  },
+  {
+    "id": "oldgate-mechanism-three-step",
+    "family": "thermoGraphs",
+    "question": "Reactant A converts to product D through the given mechanism with net evolution of heat: A → B slow, ΔH = +ve; B → C fast, ΔH = −ve; C → D fast, ΔH = −ve. Which energy profile represents this mechanism?",
+    "expectedDraw": true
+  },
+  {
+    "id": "oldgate-freezing-heading",
+    "family": "solutionGraphs",
+    "question": "Depression of freezing point: draw the vapour pressure curve of the solvent and the solution showing ΔT_f.",
+    "expectedDraw": true
+  },
+  {
+    "id": "ordinary-boiling-absence-control",
+    "family": "solutionGraphs",
+    "question": "Draw vapour pressure curves for boiling point elevation.",
+    "expectedDraw": true
+  },
+  {
+    "id": "mechanism-extra-unread-activation-owner",
+    "family": "thermoGraphs",
+    "question": "An exothermic reaction proceeds in two steps: A → I is slow with ΔH = +ve and I → P is fast with ΔH = −ve. Draw the reaction coordinate diagram showing the intermediate and the rate determining step. The activation energy is 20 kg.",
+    "expectedDraw": false
+  },
+  {
+    "id": "mechanism-damaged-step-enthalpy",
+    "family": "thermoGraphs",
+    "question": "Reactant A converts to product D through the given mechanism with net evolution of heat: A → B slow, ΔH = 20 kg; B → C fast, ΔH = −ve; C → D fast, ΔH = −ve. Which energy profile represents this mechanism?",
+    "expectedDraw": false
+  },
+  {
+    "id": "freezing-colon-stated-invalid",
+    "family": "solutionGraphs",
+    "question": "Depression of freezing point: 2 kg. Draw the vapour pressure curve of the solvent and the solution showing ΔT_f.",
+    "expectedDraw": false
+  },
+  {
+    "id": "freezing-heading-plus-unread-independent-delta",
+    "family": "solutionGraphs",
+    "question": "Depression of freezing point: draw the vapour pressure curve of the solvent and the solution showing ΔT_f. The freezing point depression is 2 kg.",
+    "expectedDraw": false
+  },
+  {
+    "id": "freezing-heading-plus-valid-independent-delta",
+    "family": "solutionGraphs",
+    "question": "Depression of freezing point: draw the vapour pressure curve of the solvent and the solution showing ΔT_f. The freezing point depression is 2 K.",
+    "expectedDraw": true
+  }
+];
+for (const row of referenceOwnerRegressions) {
+  for (const schematic of [false, true]) test(`reference-owner/${row.id}/${schematic ? "schematic" : "strict"}`, () => {
+    const document = builders[row.family](row.question, [], schematic);
+    if (row.expectedDraw) compiled(document);
+    else assert(!drawable(document), "a qualitative reference cannot erase a supplied-invalid owner");
+  });
+  test(`reference-owner/${row.id}/ordinary-family`, () => {
+    const document = synthesizeFamilyScene({ question: row.question })?.document ?? null;
+    if (row.expectedDraw) compiled(document);
+    else assert(!drawable(document), "ordinary fallback cannot erase a supplied-invalid owner");
+  });
+}
+
+// A qualitative sign witness owns no independent numeric enthalpy.
+const nonWitnessedEnthalpy = "An exothermic reaction proceeds in two steps: A → I is slow with ΔH = +ve and I → P is fast with ΔH = −ve. Draw the reaction coordinate diagram showing the intermediate and the rate determining step. The overall enthalpy change is +40 kJ/mol.";
+for (const schematic of [false, true]) test(`reference-owner/nonwitnessed-physical-enthalpy/${schematic ? "schematic" : "strict"}`, () => {
+  assert(!drawable(buildThermoGraphScene(nonWitnessedEnthalpy, [], schematic)), "an extra physical enthalpy cannot vanish behind qualitative signs");
+});
+test("reference-owner/nonwitnessed-physical-enthalpy/ordinary", () => {
+  assert(!drawable(synthesizeFamilyScene({ question: nonWitnessedEnthalpy })?.document ?? null));
+});
+const hyphenatedMechanismRequest = "An exothermic reaction proceeds in two steps: A → I is slow with ΔH = +ve and I → P is fast with ΔH = −ve, identify the rate-determining step in the reaction coordinate diagram.";
+for (const schematic of [false, true]) test(`reference-owner/hyphenated-request/${schematic ? "schematic" : "strict"}`, () => compiled(buildThermoGraphScene(hyphenatedMechanismRequest, [], schematic)));
+test("reference-owner/hyphenated-request/ordinary", () => compiled(synthesizeFamilyScene({ question: hyphenatedMechanismRequest })?.document ?? null));
+
 const sourceFiles = ["quantityReader", "sceneKit", "atomicRadiation", "chemicalThermodynamics", "electrochemistry", "kinetics", "solutionProperties", "solutionsGraphs", "thermoGraphs", "unitCell"];
 const sourceHashes = Object.fromEntries(sourceFiles.map(name => [name + ".ts", createHash("sha256").update(readFileSync(new URL(`../../src/chemistry/${name}.ts`, import.meta.url))).digest("hex")]));
 const output = { passed, failures, sourceHashes, dimensions: Object.keys(dimensions).length, families: Object.keys(builders).length, numericOwnerCases: cases.length, evidence, scope: "Source-only independent owner-declaration/family admission matrix with valid positive and absent controls. Declaration fixtures are byte-identical to red-gate-v1.ts; assertions use the new owner seam while strict literal valid/missing behavior remains unchanged. No built package, provider, DB, server, browser, production or coverage claim." };
