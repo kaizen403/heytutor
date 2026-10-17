@@ -31,8 +31,8 @@ export const PROJECTILE_UNITS_CODE = "invalid_projectile_trajectory_units";
 /** Launch speed role keys (motionSymbolKey: NFKC, lower case, letters and digits only). */
 export const PROJECTILE_SPEED_ROLE = /^(?:u|u0|ui|v0|vo|vi|speed|launchspeed|initialspeed|projectionspeed|launchvelocity|initialvelocity|projectionvelocity|vlaunch)$/;
 
-/** A unit that measures per time: a slash, "per", a -1 power, or a named rate. Lengths, volts and degrees are not. */
-const SPEED_RATE_UNIT = /\/|\bper\b|(?:\^?[-−–]1|⁻¹)\s*$|^(?:mph|kph|kmph|kmh|knots?)$/i;
+/** A unit that measures per time: a slash, "per", "an hour", a -1 power, or a named rate. Lengths, volts and degrees are not. */
+const SPEED_RATE_UNIT = /\/|\bper\b|\ban\s+hour\b|(?:\^?[-−–]1|⁻¹)\s*$|^(?:mph|kph|kmph|kmh|knots?)$/i;
 
 // Per second, never per second squared (g = 980 cm/s^2 is not a speed).
 const PER_SECOND = "(?:\\s*\\/\\s*s(?:ec(?:ond)?)?(?![A-Za-z0-9^²³]|\\s*\\/)|[\\s·⋅*]*s(?:\\^?[-−–]1|⁻¹)(?!\\d)|\\s+per\\s+second\\b(?!\\s+(?:squared|per)))";
@@ -66,11 +66,20 @@ function bareNumber(value: unknown, quantities: ReadonlyMap<string, Record<strin
   return Number.isFinite(number) ? number : null;
 }
 
-/** The shared reader takes "m s^-1" but reads "ms^-1" as per millisecond; spell the two speed forms out. */
+/**
+ * The shared plan agreement converts km/h, cm/s and km/s, but not the other ways a stem spells them: it reads
+ * "ms^-1" as per millisecond and does not know "kmph" or "metres per second". Spell the speed forms it can
+ * convert out; any other unit (mph, ft/s, knots) is left as written, so it still fails closed.
+ */
 function speedUnitSpelling(unit: string): string {
   const compact = unit.trim().replace(/\s+/g, "");
   if (/^ms(?:\^?[-−–]1|⁻¹)$/.test(compact)) return "m/s";
   if (/^kmh(?:\^?[-−–]1|⁻¹)$/i.test(compact)) return "km/h";
+  const words = unit.trim().toLowerCase().replace(/\s+/g, " ");
+  if (/^(?:kmph|kmh|kph|km (?:per|an) h(?:r|our)?|kilomet(?:re|er)s? (?:per|an) hour)$/.test(words)) return "km/h";
+  if (/^(?:met(?:re|er)s? per second|m per s(?:ec(?:ond)?)?)$/.test(words)) return "m/s";
+  if (/^(?:centimet(?:re|er)s? per second|cm per s(?:ec(?:ond)?)?)$/.test(words)) return "cm/s";
+  if (/^(?:kilomet(?:re|er)s? per second|km per s(?:ec(?:ond)?)?)$/.test(words)) return "km/s";
   return unit;
 }
 

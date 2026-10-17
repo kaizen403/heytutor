@@ -91,6 +91,16 @@ const unitless = run(KMH, kmhPlan, "u", [{ id: "u", symbol: "u", value: 72 }]);
 check(!unitless.validation.valid && unitless.units.length === 1, "km/h stem, unitless quantity 72: refused with the units code too");
 kept("km/h stem, bare 20.000000000000004 (72 * 1000 / 3600 in floating point)", run(KMH, kmhPlan, 72 * 1000 / 3600));
 refused("km/h stem, bare 20.5", run(KMH, kmhPlan, 20.5));
+// Greptile (7c9f91758): other spellings of the plan's speed unit convert too, so a correct bare 20 is kept.
+for (const unit of ["kmph", "kmh", "kph", "km per hour", "kilometres per hour", "kilometers per hour", "km an hour"]) {
+  const spelled = plan(KMH, [given("u", 72, unit)]);
+  kept(`km/h stem, plan u = 72 ${unit}, bare 20`, run(KMH, spelled, 20));
+  refused(`km/h stem, plan u = 72 ${unit}, bare 72`, run(KMH, spelled, 72));
+}
+for (const unit of ["metres per second", "meters per second", "m per s"]) {
+  kept(`plan u = 20 ${unit}, bare 20`, run(KMH, plan(KMH, [given("u", 20, unit)]), 20));
+}
+kept("plan u = 2000 centimetres per second, bare 20", run(KMH, plan(KMH, [given("u", 2000, "centimetres per second")]), 20));
 // A stated unit is the scene engine's job: it converts, and this check never reads it.
 for (const [label, speed, quantities] of [
   ["wrapper 72 km/h", { value: 72, unit: "km/h" }, []],
