@@ -44,6 +44,7 @@ import {
   reconcileTurnPlanWithSolver,
   verifyTurnPlanAgainstSolver,
   type FigureSource,
+  type SceneCompletionDiagnosticsV3,
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
 import {
@@ -219,6 +220,8 @@ export interface LectureRun {
     suppressedFallback?: { figureSource: FigureSource; family: string | null } | null;
     /** A candidate that passed validation as a scene but was not the figure drawn. */
     droppedCandidate?: DroppedSceneCandidate | null;
+    /** Full proposal outcome; absent when additive completion did not run. */
+    completion?: SceneCompletionDiagnosticsV3;
     /** The committed board figure as SVG, so a reviewer sees what the student saw. */
     svg: string | null;
     png?: string | null;
@@ -734,6 +737,9 @@ export async function runLecture(
       },
     });
     const selected = sceneSelection.representation;
+    // completion-diagnostics:begin
+    run.diagram.completion = sceneSelection.completion;
+    // completion-diagnostics:end
     const attempted = sceneSelection.attemptedRepresentation;
     const sceneDocument = selected?.sceneDocument ?? null;
     const renderScene = selected?.renderScene ?? null;

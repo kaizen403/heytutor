@@ -51,7 +51,7 @@
     "verify:lesson-qa-3": "tsx scripts/verify/verify-lesson-admission-history.ts && tsx scripts/verify/verify-lesson-lock-release.ts && pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-code-lesson-teaching.ts && pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-tts-voice-switch.ts && tsx scripts/verify/verify-code-lesson-stop-continue.ts && tsx scripts/verify/verify-code-speech-failure.ts && tsx scripts/verify/verify-turn-checkpoint-route.ts && tsx scripts/verify/verify-code-lesson-type-window.ts && tsx scripts/verify/verify-point-speech-deadline.ts && tsx scripts/verify/verify-code-lesson-pace.ts && tsx scripts/verify/verify-marker-tour.ts && tsx scripts/verify/verify-mobile-caption-dock.ts",
     "verify:fresh-migrations": "tsx scripts/verify/verify-fresh-migrations.ts",
     "db:migrate:deploy": "tsx scripts/live/deploy-migrations.ts",
-    "verify:completion": "node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-admission.ts && node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-boundary-admission.ts"
+    "verify:completion": "node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-admission.ts && node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-boundary-admission.ts && tsx scripts/verify/verify-structured-completion-diagnostics.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1131.0",

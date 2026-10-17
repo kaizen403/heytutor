@@ -160,13 +160,24 @@ class CompletionContext {
     }
   }
   existingQuantityStatement(quantityIds: string[], target: string): string | null {
-    const symbols = new Set(quantityIds.map(id => this.quantities.get(id)?.symbol).filter(symbol => symbol !== undefined));
+    const symbols = new Set(quantityIds.map(id => this.quantities.get(id)?.symbol).filter((symbol): symbol is string => typeof symbol === "string"));
+    const nativeOwners = new Set([target, ...this.document.constructions.filter(construction =>
+      nativeLabelTarget(construction) === target).flatMap(construction => construction.outputs)]);
+    // An existing native statement belongs to this exact drawn owner. Its
+    // complete source symbol and assignment are enough to abstain; its numeric
+    // spelling never supplies authority or needs to be rewritten (7.50 / 7.5).
+    if (this.input.baseRenderScene.primitives.some(primitive => primitive.kind === "label" && nativeOwners.has(primitive.entityId) &&
+        typeof primitive.text === "string" && [...symbols].some(symbol => {
+          const prefix = `${compactText(symbol)}=`;
+          const text = compactText(primitive.text!);
+          return text.startsWith(prefix) && text.length > prefix.length;
+        }))) return "existing_quantity_native_statement";
     for (const annotation of this.document.annotations) {
       if (!annotation.quantityId || !["label", "callout"].includes(annotation.kind) ||
           annotation.targetIds.length !== 1 || annotation.targetIds[0] !== target) continue;
       const sameId = quantityIds.includes(annotation.quantityId);
       const symbol = this.quantities.get(annotation.quantityId)?.symbol;
-      if (!sameId && (symbol === undefined || !symbols.has(symbol))) continue;
+      if (!sameId && (typeof symbol !== "string" || !symbols.has(symbol))) continue;
       // Existing native annotation ink is preserved, not parsed or repaired.
       // A same-symbol alias is only a reason to abstain, never an owner join.
       if (this.input.baseRenderScene.primitives.some(primitive => primitive.kind === "label" && primitive.id === annotation.id &&
@@ -248,8 +259,15 @@ class CompletionContext {
     // These are the unchanged native world proofs, including the mark's
     // normalised dot product. No rendered point is used as metric authority.
     const proof = { ...this.document, entities: [...this.document.entities, entity], constructions: [...this.document.constructions, construction],
-      assertions: [...this.document.assertions, ...assertions], requiredEntityIds: [...this.document.requiredEntityIds, id] };
-    if (!compileSceneDocument(proof).ok) { this.skip("right_angle_native_proof_failed", undefined, owners); return; }
+      assertions: [...this.document.assertions, ...assertions], requiredEntityIds: [...this.document.requiredEntityIds, id],
+      revealGroups: this.document.revealGroups.map((reveal, index) => index === group
+        ? { ...reveal, entityIds: [...reveal.entityIds, id] } : reveal) };
+    const compiledProof = compileSceneDocument(proof);
+    if (!compiledProof.ok || !compiledProof.renderScene) { this.skip("right_angle_native_proof_failed", undefined, owners); return; }
+    if (this.input.baseRenderScene.primitives.some(prior => prior.kind !== "label" && prior.provenance?.labelLeader !== true &&
+        !compiledProof.renderScene!.primitives.some(next => next.id === prior.id && JSON.stringify(next) === JSON.stringify(prior)))) {
+      this.skip("right_angle_changes_existing_geometry", undefined, owners); return;
+    }
     const next = this.next ??= structuredClone(this.document);
     next.entities.push(entity); next.constructions.push(construction); next.assertions.push(...assertions);
     next.requiredEntityIds.push(id); next.revealGroups[group]!.entityIds.push(id);

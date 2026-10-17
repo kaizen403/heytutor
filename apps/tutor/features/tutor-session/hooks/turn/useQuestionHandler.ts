@@ -1553,6 +1553,9 @@ export function useQuestionHandler(
             };
           }) ?? [],
           selectedCandidateId: selectedModelCandidate?.candidateId ?? null,
+          // completion-diagnostics:begin
+          completion: sceneSelection.completion,
+          // completion-diagnostics:end
           selectionReason: representationReason ?? (sceneVisualStatus === "validated"
             ? usedVerifiedRecovery ? "verified_scene_recovery" : "validated_scene"
             : sceneVisualStatus === "retry_required"

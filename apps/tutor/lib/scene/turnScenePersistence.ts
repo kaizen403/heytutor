@@ -148,19 +148,21 @@ export async function canonicalizeTurnSceneMetadata(
     const degradation = validatedDegradation(metadata.sceneArtifacts);
     const figureSource = validatedFigureSource(metadata.sceneArtifacts);
     const diagramStrategy = validatedDiagramStrategy(metadata.sceneArtifacts);
+    const completion = validatedCompletion(metadata.sceneArtifacts);
     // A doubt is saved text-only, and without this its marker went with the
     // rest of the artifacts: replay and restore then treated it as a page of
     // its own and dropped the lesson's figure under it.
     const continuation = boardContinuationOf(metadata.sceneArtifacts);
     // A validated plan is kept on its own too: a text-only lesson stopped and
     // reopened needs it for Continue and for a doubt on that page.
-    const baseArtifacts = retryRequired || degradation || figureSource || codeLesson || continuation || diagramStrategy || plan
+    const baseArtifacts = retryRequired || degradation || figureSource || codeLesson || continuation || diagramStrategy || plan || completion
       ? minimalFailureArtifacts(
           plan,
           retryRequired ? "retry_required" : "text_only",
           degradation,
           figureSource,
           diagramStrategy,
+          completion,
         )
       : null;
     return {
@@ -387,6 +389,7 @@ export async function canonicalizeTurnSceneMetadata(
     selectedCandidateId: candidateId,
     selectionReason: "revalidated against the current server engine before persistence",
     degradation: validatedDegradation(metadata.sceneArtifacts),
+    completion: validatedCompletion(metadata.sceneArtifacts),
     proofObligations: document.assertions.map((assertion) => ({
       id: assertion.id,
       predicate: assertion.predicate,
@@ -545,6 +548,7 @@ function minimalFailureArtifacts(
   degradation?: SceneArtifactsV3["degradation"],
   figureSource?: FigureSource,
   diagramStrategy?: DiagramStrategy,
+  completion?: SceneArtifactsV3["completion"],
 ): PersistedSceneArtifacts {
   return {
     schemaVersion: SCENE_ARTIFACTS_V3_VERSION,
@@ -558,10 +562,41 @@ function minimalFailureArtifacts(
     selectedCandidateId: null,
     selectionReason: "partial and unverified scene data was removed before persistence",
     degradation,
+    completion,
     proofObligations: [],
     visualReview: null,
     diagramResultStatus: status,
   };
+}
+
+function validatedCompletion(artifacts: unknown): SceneArtifactsV3["completion"] | undefined {
+  if (!isRecord(artifacts) || !isRecord(artifacts.completion)) return undefined;
+  const value = artifacts.completion;
+  if (typeof value.adopted !== "boolean" || !Array.isArray(value.additions) || value.additions.length > 32 ||
+      !Array.isArray(value.skipped) || value.skipped.length > 256 ||
+      (value.rejection !== undefined && typeof value.rejection !== "string")) return undefined;
+  const strings = (candidate: unknown): candidate is string[] =>
+    Array.isArray(candidate) && candidate.length <= 256 && candidate.every(item => typeof item === "string");
+  const additions: NonNullable<SceneArtifactsV3["completion"]>["additions"] = [];
+  for (const addition of value.additions) {
+    if (!isRecord(addition) || typeof addition.id !== "string" ||
+        (addition.kind !== "given_label" && addition.kind !== "given_angle" && addition.kind !== "unknown_label" && addition.kind !== "right_angle") ||
+        !strings(addition.quantityIds) || !strings(addition.targetIds) ||
+        (addition.text !== undefined && typeof addition.text !== "string")) return undefined;
+    additions.push({ id: addition.id, kind: addition.kind, quantityIds: [...addition.quantityIds], targetIds: [...addition.targetIds],
+      ...(addition.text !== undefined ? { text: addition.text } : {}) });
+  }
+  const skipped: NonNullable<SceneArtifactsV3["completion"]>["skipped"] = [];
+  for (const skip of value.skipped) {
+    if (!isRecord(skip) || typeof skip.code !== "string" ||
+        (skip.quantityId !== undefined && typeof skip.quantityId !== "string") ||
+        (skip.entityIds !== undefined && !strings(skip.entityIds))) return undefined;
+    skipped.push({ code: skip.code, ...(skip.quantityId !== undefined ? { quantityId: skip.quantityId } : {}),
+      ...(skip.entityIds !== undefined ? { entityIds: [...skip.entityIds] } : {}) });
+  }
+  // Retain the record, but never use its claimed adoption or proposed marks to
+  // establish trust. Geometry trust is re-established separately by this boundary.
+  return { adopted: value.adopted, additions, skipped, ...(value.rejection !== undefined ? { rejection: value.rejection } : {}) };
 }
 
 function validatedDiagramStrategy(artifacts: unknown): DiagramStrategy | undefined {
