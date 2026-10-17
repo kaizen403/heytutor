@@ -359,5 +359,193 @@
         "secondary alcohol"
       ]
     ]
+  },
+  {
+    "id": "inline-roster-exact",
+    "question": "Draw the first structure of propan-1-ol and the second structure of propan-2-ol with their OH-bearing carbon marked.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "inline-roster-diagrams",
+    "question": "Draw the first diagram of propan-1-ol and the second diagram of propan-2-ol with their OH-bearing carbon marked.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "inline-roster-skeletal",
+    "question": "Draw the first skeletal structure of propan-1-ol and the second skeletal structure of propan-2-ol with their OH-bearing carbon marked.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "inline-roster-sketch",
+    "question": "Sketch the first structure of propan-1-ol and the second structure of propan-2-ol with their OH-bearing carbon marked.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "inline-roster-compare",
+    "question": "Compare the first structure of propan-1-ol and the second structure of propan-2-ol with their OH-bearing carbon marked.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "inline-roster-mixed-name",
+    "question": "Draw propan-1-ol and the second structure of propan-2-ol with their OH-bearing carbon marked.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "inline-roster-three",
+    "question": "Draw the first structure of propan-1-ol, the second structure of propan-2-ol and the third structure of 2-methylpropan-2-ol with their OH-bearing carbon marked.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ],
+      [
+        "2-methylpropan-2-ol",
+        "tertiary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "inline-roster-property-snapshot",
+    "question": "Draw the first structure of propan-1-ol labelled sp3 and the second structure of propan-2-ol with their OH-bearing carbon marked.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "inline-roster-then-owned-classes",
+    "question": "Draw the first structure of propan-1-ol and the second structure of propan-2-ol with their OH-bearing carbon marked. Classify the first structure as primary alcohol and the second structure as secondary alcohol.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "inline-roster-existing-context",
+    "question": "Draw propan-1-ol and propan-2-ol with their OH-bearing carbon marked. Draw the first structure of 2-methylpropan-2-ol with its OH-bearing carbon marked.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ],
+      [
+        "2-methylpropan-2-ol",
+        "tertiary alcohol"
+      ]
+    ]
+  },
+  {
+    "id": "inline-roster-unknown-member",
+    "question": "Draw the first structure of propan-1-ol and the second structure of XYZ with their OH-bearing carbon marked.",
+    "draw": false
+  },
+  {
+    "id": "inline-roster-missing-second",
+    "question": "Draw the first structure of propan-1-ol and the third structure of propan-2-ol with their OH-bearing carbon marked.",
+    "draw": false
+  },
+  {
+    "id": "inline-roster-conflicting-index",
+    "question": "Draw the first structure of propan-1-ol and the first structure of propan-2-ol with their OH-bearing carbon marked.",
+    "draw": false
+  },
+  {
+    "id": "inline-roster-named-reference-conflict",
+    "question": "Draw the first structure of propan-1-ol and the second structure of propan-2-ol with their OH-bearing carbon marked. Classify the first structure, propan-2-ol, as primary alcohol.",
+    "draw": false
+  },
+  {
+    "id": "inline-roster-unbound-property",
+    "question": "Draw the first structure of propan-1-ol and the second structure of propan-2-ol with their OH-bearing carbon marked. Classify the third structure as tertiary alcohol.",
+    "draw": false
+  },
+  {
+    "id": "inline-roster-coordinated-wrong-class",
+    "question": "Draw the first structure of propan-1-ol and the second structure of propan-2-ol with their OH-bearing carbon marked. Classify the first structure and the second structure as secondary alcohol.",
+    "draw": false
   }
 ]

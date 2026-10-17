@@ -221,6 +221,7 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
     selectionVersion: number;
     membersBound: number;
     classSelectionVersion: number;
+    introductions: Array<{ at: number; ordinal: number }>;
     phenyl: boolean;
     lastTwo: boolean;
     described: number;
@@ -249,7 +250,13 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
         if (models.length === 3) return null;
         models.push(model);
       }
-      if (request?.selection) {
+      if (request?.selection && request.introductions.some(member => member.at === at)) {
+        // A genitive draw declaration introduces this named member rather than
+        // asserting that it is an alias of the preceding referenced member.
+        request.selection = request.selectionBound ? [model] : [...new Set([...request.selection, model])];
+        request.selectionBound = false;
+        request.selectionVersion++;
+      } else if (request?.selection) {
         // An unconsumed ordinal and a named member describe the same owner.
         // A later named property starts a new owner only after that assertion.
         if (!request.selectionBound && !request.selection.includes(model)) return null;
@@ -264,7 +271,7 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
     if (phrase.action) {
       request = { action: phrase.action, context: [...models], members: [], extraStructures: [], objects: [], reference: false,
         singularReference: false, selection: null, selectionBound: false,
-        selectionVersion: 0, membersBound: 0, classSelectionVersion: 0,
+        selectionVersion: 0, membersBound: 0, classSelectionVersion: 0, introductions: [],
         phenyl: false, lastTwo: false, described: 0,
         targeted: 0, hybridBound: 0, classBound: 0, properties: [], classes: [] };
       requests.push(request);
@@ -279,6 +286,16 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
       if (phrase.argument === "reference" && request.selection) { request.selection = null; request.selectionVersion++; }
       if (phrase.argument === "singular-reference") request.singularReference = true;
       if (phrase.argument === "ordinal-reference") {
+        const genitive = /^\s+of\s+/i.exec(text.slice(at + phrase.length));
+        const memberAt = at + phrase.length + (genitive?.[0].length ?? 0);
+        if (/^(draw|sketch|compare)$/.test(request.action) && !phrase.pairReference && phrase.indices!.length === 1
+          && genitive && namedGraphAt(text.slice(memberAt))) {
+          // Forward declarations bind to the completed local draw roster.
+          // Ordinary references still resolve immediately against prior ink.
+          request.introductions.push({ at: memberAt, ordinal: phrase.indices![0]! });
+          at += phrase.length;
+          continue;
+        }
         // Select against the original drawn order, never a property-local list
         // or the final/max ordinal mentioned later in the same command.
         const ordered = request.context.length ? request.context : request.members.map(member => member.model);
@@ -330,6 +347,7 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
   }
   for (const part of requests) {
     const scope = part.members.length ? part.members.map(member => member.model) : part.context;
+    if (part.introductions.some(member => part.members.findIndex(candidate => candidate.at === member.at) !== member.ordinal - 1)) return null;
     if (/^(draw|sketch|compare)$/.test(part.action) && !part.members.length && !part.reference) return null;
     if (part.action === "compare" && scope.length < 2) return null;
     const argumentsAt = [...part.extraStructures, ...part.objects.filter(object =>
