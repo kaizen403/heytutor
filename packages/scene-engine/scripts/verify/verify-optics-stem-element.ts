@@ -151,6 +151,7 @@ for (const question of [
   "Draw the mirror image of the letter L in the x-axis.",
   "Explain how a vector changes under a mirror image.",
   "Find the mirror image of P across y = 2x + 1.",
+  "Draw the mirror image of triangle ABC about the origin.",
   "What is the mirror image of the origin about x + y = 4?",
 ]) check(`one kind of reflection geometry ${question.slice(0, 50)}`, leaves(question));
 // Greptile (c3ab6741e): a named geometry point such as C(1, 2) or F (3, 4) is not a focus position. PR #189 delta
@@ -246,6 +247,9 @@ const MIRROR_IMAGE_WITH_MIRROR_FACTS = [
   "Find the mirror image of a point source behind a mirror.",
   // Greptile (0ad93c47d): spelled out units. With the geometry evidence veto no unit reading is needed.
   "For a mirror, u = -0.30metres and v = -0.60metres. Describe the mirror image.",
+  // Greptile (720f74db5): optics facts keep a mirror stem even beside an axis or a coordinate.
+  "An object lies on the x-axis at u = -30 cm, f = -20 cm. Find v for the mirror image.",
+  "The principal axis is the x-axis and the object is 20 cm from the pole. Describe the mirror image.",
   // One fact each, so removing any single fact from OPTICS_FACT turns this gate red.
   "Where does the mirror image form relative to the pole?",
   "What is the magnification of the mirror image?",

@@ -109,6 +109,9 @@ const BARE_MIRROR = new RegExp(String.raw`\bmirrors?\b(?<!(?:\bline[\s-]+|${LINE
  */
 const NAMES_OPTICAL_ELEMENT = String.raw`[\s\S]*(?:\blens(?:es)?\b|${QUALIFIED_MIRROR.source})|(?=[\s\S]*(?:${BARE_MIRROR.source}))[\s\S]*(?:${OPTICS_FACT.source})`;
 
+/** A stem that gives an optics fact. A lookahead body, read from the start of the stem. */
+const GIVES_OPTICS_FACT = String.raw`[\s\S]*(?:${OPTICS_FACT.source})`;
+
 /**
  * `pattern`, in a stem where no `absent` lookahead body holds. A stem that
  * names a lens or a mirror element is optics whatever else it says ("a convex
@@ -123,15 +126,16 @@ function inStemWithout(pattern: RegExp, ...absent: readonly string[]): RegExp {
  * the reflection is taken in ("in the plane", "in a line", "with respect to the plane"), the x, y or z axis,
  * a vector, or a line equation.
  */
-const REFLECTION_GEOMETRY = new RegExp(String.raw`\(\s*[-+−]?\d+(?:\.\d+)?\s*,|\b(?:in|about|across|with\s+respect\s+to|w\.?r\.?t\.?)\s+(?:(?:the|a|given)\s+)*(?:plane|line)s?\b|\b[xyz][\s-]*axis\b|\bvectors?\b|${LINE_EQUATION}`, "i");
+const REFLECTION_GEOMETRY = new RegExp(String.raw`\(\s*[-+−]?\d+(?:\.\d+)?\s*,|\b(?:in|about|across|with\s+respect\s+to|w\.?r\.?t\.?)\s+(?:(?:the|a|given)\s+)*(?:plane|line)s?\b|\b[xyz][\s-]*axis\b|\b(?:about|through|in|across)\s+the\s+origin\b|\bvectors?\b|${LINE_EQUATION}`, "i");
 
 /**
  * A "mirror image" is coordinate geometry or symmetry ("B is the mirror image of A in a plane") only when the
- * stem shows reflection geometry and names no optical element. Without that evidence the stem is read exactly
- * as before: "the mirror image of an object placed beyond C" stays a mirror stem, and so does any other wording.
+ * stem shows reflection geometry, names no optical element and gives no optics fact. Otherwise the stem is read
+ * exactly as before: "the mirror image of an object placed beyond C" stays a mirror stem, and so does "an object
+ * on the x-axis at u = -30 cm, f = -20 cm", and so does any other wording.
  */
 const MIRROR_IMAGE_IN_GEOMETRY = new RegExp(
-  `^(?=[\\s\\S]*(?:${REFLECTION_GEOMETRY.source}))${inStemWithout(/\bmirror[\s-]*imag(?:es?)?\b/i, NAMES_OPTICAL_ELEMENT).source.slice(1)}`, "i");
+  `^(?=[\\s\\S]*(?:${REFLECTION_GEOMETRY.source}))${inStemWithout(/\bmirror[\s-]*imag(?:es?)?\b/i, NAMES_OPTICAL_ELEMENT, GIVES_OPTICS_FACT).source.slice(1)}`, "i");
 
 /**
  * The image or reflection of a point (named, or given by coordinates, which
