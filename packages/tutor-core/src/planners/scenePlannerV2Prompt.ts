@@ -85,7 +85,9 @@ export function buildSceneDocumentPlannerPrompt(
   question: string,
   context: ScenePlannerPromptContext = {},
   detailedOperators?: readonly string[],
+  options: { completeFigure?: boolean } = {},
 ): string {
+  const completeFigure = (options.completeFigure === true || (options.completeFigure !== false && process.env.NEXT_PUBLIC_EXPERIMENTAL_SCENE_COMPLETENESS === "1")) ? `\n\n${SCENE_COMPLETE_FIGURE_RULES}` : "";
   const operators = context.constructionOperators === undefined
     ? DEFAULT_SCENE_CONSTRUCTION_OPERATORS
     : [...new Set(context.constructionOperators.filter(isPlannerVisibleSceneConstructionOperator))];
@@ -119,7 +121,7 @@ export function buildSceneDocumentPlannerPrompt(
     const named = contractLineOperators(contracts);
     return `Each contract line below names one. Also:${operators.filter((operator) => !named.has(operator)).join(",")}`;
   };
-  const assemble = (contracts: string): string => `${SCENE_DOCUMENT_PLANNER_PROMPT}
+  const assemble = (contracts: string): string => `${SCENE_DOCUMENT_PLANNER_PROMPT}${completeFigure}
 
 AVAILABLE CONSTRUCTION OPERATORS
 ${listOperators(contracts)}
@@ -143,6 +145,20 @@ Return the complete ${SCENE_DOCUMENT_VERSION} JSON object now.`;
     ? assemble(selectConstructionInputContracts(operators, []))
     : prompt;
 }
+
+/**
+ * Sent with every initial plan and completeness request, after the base
+ * prompt. A repair of an invalid candidate gets the short keep rule in its
+ * REPAIR REQUEST instead: the worst-case repair (every rebuild block) has no
+ * room for it under its 27,000-character budget.
+ */
+export const SCENE_COMPLETE_FIGURE_RULES = `COMPLETE FIGURE
+- Show every object,case,state and point the question names. Label each with its name, or its given value and unit; else its symbol.
+- Mark every given or asked angle: angle_mark with value or symbol; right_angle_mark wherever the method uses a perpendicular.
+- Draw the helpers the method relies on even if unasked: perpendiculars,normals,radii,components,intersection/contact points,dimensions.
+- Each directed quantity the question names or gives is a labelled vector at its point of action; unknown sizes stay symbolic.
+- Name both axes. Label each given line or curve with its equation, compact to 16 characters.
+- Before returning, map every noun,value and angle in the question to an entity or label.`;
 
 export const SCENE_DOCUMENT_PLANNER_PROMPT = `Return complete scene-document/v2 JSON only: no pixels,tags,prose,raw paths or topic templates.
 Keys:schemaVersion,visualDecision,source,quantities,entities,constructions,relations:[],assertions,annotations,requiredEntityIds,revealGroups,teachingTimeline.
@@ -195,7 +211,7 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity refe
 - surface_contact: same inputs as surface_intersection and exactly two fresh outputs [hit_point_id, incident_vector_id]. origin must be a distinct off-surface point; through must differ from origin. Use this instead of surface_intersection for visible reflection/refraction paths, and never reuse an ID already produced by another construction.
 - A surface_contact hit point and a normal_at output may be implicit construction helpers when they are consumed by later operators and do not need a visible mark. Visible outputs such as the incident vector still require a declared entity.
 - normal_at: {point: point_id, surface: line_or_circle_or_arc_id}.
-- normal_at outputs solver-only geometry. It is used by reflection/refraction but is not drawn; construct a separate visible normal only when the question explicitly asks for one.
+- normal_at outputs solver-only geometry. It is used by reflection/refraction but is not drawn; construct a separate visible normal whenever an angle is measured from it.
 - normal_at still has exactly one stable output helper ID even when that helper is not declared as a visible entity or added to a reveal group. Never emit outputs:[] for normal_at.
 - project: {point: point_id, line: line_or_segment_id}.
 - translate: {point: point_id, vector: vector_id|[dx,dy]}.

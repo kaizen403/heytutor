@@ -1,122 +1,477 @@
 {
   "topic_id": "maths|10|triangle-centres-centroid-and-orthocentre",
-  "question": "A triangle has sides 7 cm, 8 cm and 9 cm. Find its centroid.",
+  "question": "Find the orthocentre of the triangle A(0, 0), B(9, 0), C(2, 7).",
   "figure_kind": "geometry",
   "sceneDocument": {
     "schemaVersion": "scene-document/v2",
     "visualDecision": {
       "mode": "scene",
-      "reason": "source-grounded triangle construction"
+      "reason": "triangle with its three altitudes meeting at H"
     },
     "source": {
-      "question": "A triangle has sides 7 cm, 8 cm and 9 cm. Find its centroid."
+      "question": "Find the orthocentre of the triangle A(0, 0), B(9, 0), C(2, 7)."
     },
     "quantities": [],
     "entities": [
       {
         "id": "A",
         "kind": "point",
-        "role": "triangle vertex"
+        "role": "vertex",
+        "label": "A(0, 0)"
       },
       {
         "id": "B",
         "kind": "point",
-        "role": "triangle vertex"
+        "role": "vertex",
+        "label": "B(9, 0)"
       },
       {
         "id": "C",
         "kind": "point",
-        "role": "triangle vertex"
+        "role": "vertex",
+        "label": "C(2, 7)"
       },
       {
-        "id": "outline",
+        "id": "tri",
         "kind": "polygon",
-        "role": "triangle outline"
+        "role": "triangle ABC"
       },
       {
-        "id": "center",
+        "id": "ax",
+        "kind": "axes",
+        "role": "coordinate axes"
+      },
+      {
+        "id": "xEnd",
         "kind": "point",
-        "role": "centroid of triangle"
+        "role": "x axis end"
       },
       {
-        "id": "center_label",
+        "id": "xName",
         "kind": "label",
-        "role": "point label",
-        "label": "G"
+        "role": "x axis name",
+        "label": "x"
+      },
+      {
+        "id": "yEnd",
+        "kind": "point",
+        "role": "y axis end"
+      },
+      {
+        "id": "yName",
+        "kind": "label",
+        "role": "y axis name",
+        "label": "y"
+      },
+      {
+        "id": "AB",
+        "kind": "line",
+        "role": "line AB"
+      },
+      {
+        "id": "BC",
+        "kind": "line",
+        "role": "line BC"
+      },
+      {
+        "id": "CA",
+        "kind": "line",
+        "role": "line CA"
+      },
+      {
+        "id": "D",
+        "kind": "point",
+        "role": "foot from C",
+        "label": "D"
+      },
+      {
+        "id": "E",
+        "kind": "point",
+        "role": "foot from A",
+        "label": "E"
+      },
+      {
+        "id": "F",
+        "kind": "point",
+        "role": "foot from B",
+        "label": "F"
+      },
+      {
+        "id": "CD",
+        "kind": "segment",
+        "role": "altitude from C"
+      },
+      {
+        "id": "AE",
+        "kind": "segment",
+        "role": "altitude from A"
+      },
+      {
+        "id": "BF",
+        "kind": "segment",
+        "role": "altitude from B"
+      },
+      {
+        "id": "rD",
+        "kind": "right_angle_mark",
+        "role": "right angle"
+      },
+      {
+        "id": "rE",
+        "kind": "right_angle_mark",
+        "role": "right angle"
+      },
+      {
+        "id": "rF",
+        "kind": "right_angle_mark",
+        "role": "right angle"
+      },
+      {
+        "id": "H",
+        "kind": "point",
+        "role": "orthocentre",
+        "label": "H"
       }
     ],
     "constructions": [
       {
-        "id": "construct_triangle",
-        "operator": "triangle_from_sides",
+        "id": "kA",
+        "operator": "point",
         "inputs": {
-          "sideAB": 7,
-          "sideBC": 8,
-          "sideCA": 9
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
         },
         "outputs": [
-          "A",
-          "B",
-          "C",
-          "outline"
+          "A"
         ]
       },
       {
-        "id": "construct_center",
+        "id": "kB",
+        "operator": "point",
+        "inputs": {
+          "x": 9.0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "kC",
+        "operator": "point",
+        "inputs": {
+          "x": 2.0,
+          "y": 7.0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "C"
+        ]
+      },
+      {
+        "id": "ktri",
+        "operator": "polygon",
+        "inputs": {
+          "points": [
+            "A",
+            "B",
+            "C"
+          ]
+        },
+        "outputs": [
+          "tri"
+        ]
+      },
+      {
+        "id": "kax",
+        "operator": "axes",
+        "inputs": {
+          "xMin": -1.2,
+          "xMax": 10.4,
+          "yMin": -1.2,
+          "yMax": 8.2
+        },
+        "outputs": [
+          "ax"
+        ]
+      },
+      {
+        "id": "kxEnd",
+        "operator": "point",
+        "inputs": {
+          "x": 10.4,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "xEnd"
+        ]
+      },
+      {
+        "id": "kxName",
+        "operator": "label",
+        "inputs": {
+          "target": "xEnd",
+          "text": "x"
+        },
+        "outputs": [
+          "xName"
+        ]
+      },
+      {
+        "id": "kyEnd",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 8.2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "yEnd"
+        ]
+      },
+      {
+        "id": "kyName",
+        "operator": "label",
+        "inputs": {
+          "target": "yEnd",
+          "text": "y"
+        },
+        "outputs": [
+          "yName"
+        ]
+      },
+      {
+        "id": "kAB",
+        "operator": "line",
+        "inputs": {
+          "start": "A",
+          "end": "B"
+        },
+        "outputs": [
+          "AB"
+        ]
+      },
+      {
+        "id": "kBC",
+        "operator": "line",
+        "inputs": {
+          "start": "B",
+          "end": "C"
+        },
+        "outputs": [
+          "BC"
+        ]
+      },
+      {
+        "id": "kCA",
+        "operator": "line",
+        "inputs": {
+          "start": "C",
+          "end": "A"
+        },
+        "outputs": [
+          "CA"
+        ]
+      },
+      {
+        "id": "kD",
+        "operator": "project",
+        "inputs": {
+          "point": "C",
+          "line": "AB"
+        },
+        "outputs": [
+          "D"
+        ]
+      },
+      {
+        "id": "kE",
+        "operator": "project",
+        "inputs": {
+          "point": "A",
+          "line": "BC"
+        },
+        "outputs": [
+          "E"
+        ]
+      },
+      {
+        "id": "kF",
+        "operator": "project",
+        "inputs": {
+          "point": "B",
+          "line": "CA"
+        },
+        "outputs": [
+          "F"
+        ]
+      },
+      {
+        "id": "kCD",
+        "operator": "segment",
+        "inputs": {
+          "start": "C",
+          "end": "D"
+        },
+        "outputs": [
+          "CD"
+        ]
+      },
+      {
+        "id": "kAE",
+        "operator": "segment",
+        "inputs": {
+          "start": "A",
+          "end": "E"
+        },
+        "outputs": [
+          "AE"
+        ]
+      },
+      {
+        "id": "kBF",
+        "operator": "segment",
+        "inputs": {
+          "start": "B",
+          "end": "F"
+        },
+        "outputs": [
+          "BF"
+        ]
+      },
+      {
+        "id": "krD",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "D",
+          "a": "C",
+          "b": "B",
+          "size": 0.4
+        },
+        "outputs": [
+          "rD"
+        ]
+      },
+      {
+        "id": "krE",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "E",
+          "a": "A",
+          "b": "C",
+          "size": 0.4
+        },
+        "outputs": [
+          "rE"
+        ]
+      },
+      {
+        "id": "krF",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "F",
+          "a": "B",
+          "b": "A",
+          "size": 0.4
+        },
+        "outputs": [
+          "rF"
+        ]
+      },
+      {
+        "id": "kH",
         "operator": "triangle_center",
         "inputs": {
           "a": "A",
           "b": "B",
           "c": "C",
-          "kind": "centroid"
+          "kind": "orthocenter"
         },
         "outputs": [
-          "center"
-        ]
-      },
-      {
-        "id": "label_center",
-        "operator": "label",
-        "inputs": {
-          "target": "center",
-          "text": "G"
-        },
-        "outputs": [
-          "center_label"
+          "H"
         ]
       }
     ],
     "relations": [],
-    "assertions": [],
-    "annotations": [
+    "assertions": [
       {
-        "id": "figure_caption",
-        "kind": "callout",
-        "targetIds": [],
-        "text": "triangle centroid G"
+        "id": "onCD",
+        "predicate": "on",
+        "entities": [
+          "H",
+          "CD"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "onAE",
+        "predicate": "on",
+        "entities": [
+          "H",
+          "AE"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "onBF",
+        "predicate": "on",
+        "entities": [
+          "H",
+          "BF"
+        ],
+        "expected": true,
+        "severity": "fatal"
       }
     ],
+    "annotations": [],
     "requiredEntityIds": [
+      "ax",
+      "xName",
+      "yName",
       "A",
       "B",
       "C",
-      "outline",
-      "center",
-      "center_label"
+      "tri",
+      "D",
+      "E",
+      "F",
+      "CD",
+      "AE",
+      "BF",
+      "rD",
+      "rE",
+      "rF",
+      "H"
     ],
     "revealGroups": [
       {
         "id": "setup",
         "entityIds": [
+          "ax",
+          "xName",
+          "yName",
           "A",
           "B",
           "C",
-          "outline",
-          "center",
-          "center_label"
+          "tri",
+          "D",
+          "E",
+          "F",
+          "CD",
+          "AE",
+          "BF",
+          "rD",
+          "rE",
+          "rF",
+          "H"
         ],
         "dependsOn": [],
-        "narrationCue": "show triangle"
+        "narrationCue": "triangle, three altitudes with their feet, meeting at H"
       }
     ],
     "teachingTimeline": [
@@ -125,10 +480,10 @@
         "action": "reveal",
         "targetId": "setup",
         "dependsOn": [],
-        "narrationIntent": "show the constructed triangle"
+        "narrationIntent": "each altitude is perpendicular to its side; they meet at H"
       }
     ]
   },
-  "engineCommit": "ab46da7ae7e040d35cae9169afa98c91ca870302",
-  "validatedOn": "2026-10-09"
+  "engineCommit": "4ab84cd23c8719babb316bf03f075b57f4947c43",
+  "validatedOn": "2026-10-13"
 }

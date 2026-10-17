@@ -18,6 +18,7 @@ import {
   resolveApiUrl,
   planSceneDocumentWithRepair,
   revalidateScenePlanWithRepairResult,
+  completeScenePlanWithRepairResult,
   planTurnV3,
   subjectFromRejectedTurnPlanOutcomes,
   planAndSolveProblemV1,
@@ -1254,10 +1255,10 @@ export function useQuestionHandler(
         let validationCallIndex = 0;
         const validateCandidateAgainstPlan = (
           candidate: Record<string, unknown>, authoritativePlan: TurnPlanV3,
-          context: "search" | "revalidate" | "recovery" = "search",
+          context: "search" | "revalidate" | "recovery" | "complete" = "search",
         ): SceneCandidateValidation<ValidatedSceneCandidate> =>
           measureSceneCandidateValidation(tel, { validationCallIndex: ++validationCallIndex, context }, () =>
-            validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan }));
+            validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, experimentalCompleteness: process.env.NEXT_PUBLIC_EXPERIMENTAL_SCENE_COMPLETENESS === "1" }));
         const deriveSceneGate = (
           planningTurnPlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null,
         ): SceneGate => {
@@ -1441,7 +1442,33 @@ export function useQuestionHandler(
             sceneResult,
             (candidate) => validateCandidateAgainstPlan(candidate, authoritativeTurnPlan, "revalidate"),
           ),
+          complete: process.env.NEXT_PUBLIC_EXPERIMENTAL_SCENE_COMPLETENESS === "1" ? (gate, sceneResult, authoritativeTurnPlan, round) => {
+            const { diagramExampleIds: pickedIds = [], ...plannerRequest } = gate.request;
+            return completeScenePlanWithRepairResult(
+              question,
+              sceneResult,
+              (candidate) => validateCandidateAgainstPlan(candidate, authoritativeTurnPlan, "complete"),
+              {
+                proxyUrl: scenePlannerUrlWithExampleIds(plannerUrl, pickedIds, diagramSubject),
+                sessionId: sessionId ?? undefined,
+                traceId: turnTraceId ?? undefined,
+                signal: round.signal,
+                remainingMs: round.remainingMs,
+                requestBudget: round.requestBudget,
+                fastMode: fastModeRef.current,
+                ...plannerRequest,
+              },
+            );
+          } : undefined,
         });
+        if (planning.completeness) {
+          tel.meta({
+            scene_completeness_outcome: planning.completeness.outcome,
+            scene_completeness_requested: planning.completeness.itemsRequested.length,
+            scene_completeness_still_missing: planning.completeness.itemsStillMissing.length,
+            scene_completeness_ms: planning.timings.completenessMs,
+          });
+        }
         turnPlan = planning.turnPlan;
         problemAuthority = planning.authority;
         const { sceneCapabilities, shouldPlanExactScene, shouldAttemptLlmScene } = planning.gate;
@@ -1650,7 +1677,9 @@ export function useQuestionHandler(
             return {
               candidateId: candidate.candidateId,
               strategy: candidate.response.strategy,
-              phase: candidate.response.phase,
+              // The artifact contract knows plan and repair; a completeness
+              // reply is a repair of a valid figure, named by its strategy.
+              phase: candidate.response.phase === "complete" ? "repair" : candidate.response.phase,
               accepted: candidate === selectedModelCandidate,
               sceneDocument: candidate.response.document as unknown as SceneDocument,
               validationReport: report,

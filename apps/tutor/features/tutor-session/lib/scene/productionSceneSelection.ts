@@ -11,7 +11,10 @@ import {
   type FigureSource, type ProblemStructureView, type RenderScene, type SceneDocument,
   type TurnPlanV3, type ValidationReport,
 } from "@heytutor/scene-engine";
-import { inferSceneCapabilities, questionRequiresVisual, type SceneCandidateValidation } from "@heytutor/tutor-core";
+import {
+  buildCompletenessChecklist, checkSceneCompleteness, inferSceneCapabilities, questionRequiresVisual,
+  type CompletenessChecklist, type SceneCandidateValidation, type SceneCompletenessResult,
+} from "@heytutor/tutor-core";
 import type { VisualNeedDecision } from "@/lib/llm/visualNeedPolicy";
 import { liveSceneSaveFailure } from "@/lib/scene/sceneSaveAdmission";
 import { shouldAttemptExactScene } from "./diagramGeneration";
@@ -22,6 +25,16 @@ import {
 
 /** Lab execution identity: old rounds did not use all production admission guards. */
 export const PRODUCTION_SCENE_SELECTION_VERSION = "production-scene-selection/v5";
+
+/**
+ * One missing checklist item outranks the whole existing cost of a valid
+ * candidate (warnings x1000, primitives x2, entities, constructions), so among
+ * valid candidates the more complete figure wins first and the existing order
+ * breaks ties. Invalid candidates carry no qualityScore and still rank last.
+ */
+export const COMPLETENESS_RANK_WEIGHT = 10_000_000;
+/** Keeps every valid score below the planner's invalid floor (1e9). */
+const MAX_RANKED_MISSING_ITEMS = 90;
 
 export interface ProductionSceneInput {
   question: string;
@@ -37,6 +50,41 @@ export interface ValidatedSceneCandidate {
   document: SceneDocument;
   renderScene: RenderScene;
   report: ValidationReport;
+  /** Checklist items this figure does not show; null when the turn asks for no figure. */
+  completeness?: SceneCompletenessResult | null;
+}
+
+const checklistCache = new WeakMap<TurnPlanV3, Map<string, CompletenessChecklist>>();
+
+/** One checklist per (authoritative plan, question): every sibling candidate is ranked against the same items. */
+export function completenessChecklistFor(question: string, turnPlan: TurnPlanV3): CompletenessChecklist {
+  let byQuestion = checklistCache.get(turnPlan);
+  if (!byQuestion) {
+    byQuestion = new Map();
+    checklistCache.set(turnPlan, byQuestion);
+  }
+  let checklist = byQuestion.get(question);
+  if (!checklist) {
+    checklist = buildCompletenessChecklist(turnPlan, null, question);
+    byQuestion.set(question, checklist);
+  }
+  return checklist;
+}
+
+/**
+ * Completeness of a candidate that already passed validation. A text-only
+ * decline shows none of the items, so it never outranks a scene that shows
+ * some; a turn that asks for no figure demands none.
+ */
+function candidateCompleteness(
+  question: string, turnPlan: TurnPlanV3, document: SceneDocument, renderScene: RenderScene,
+): SceneCompletenessResult | null {
+  if (turnPlan.visualRequirement === "none") return null;
+  const checklist = completenessChecklistFor(question, turnPlan);
+  if (document.visualDecision.mode !== "scene") {
+    return checkSceneCompleteness(checklist, { entities: [], constructions: [], annotations: [], assertions: [] });
+  }
+  return checkSceneCompleteness(checklist, document, renderScene);
 }
 
 export interface ProductionSceneGate {
@@ -102,7 +150,9 @@ export function deriveSceneGate(input: ProductionSceneInput): ProductionSceneGat
 
 /** Candidate validation order is unchanged: normalize/prune, quantities, source, obligations, compile. */
 export function validateProductionSceneCandidate(input: {
-  candidate: Record<string, unknown>; question: string; turnPlan: TurnPlanV3;
+  candidate: Record<string, unknown>;
+  /** Lab experiment only; omitted preserves the production ranking. */
+  experimentalCompleteness?: boolean; question: string; turnPlan: TurnPlanV3;
 }): SceneCandidateValidation<ValidatedSceneCandidate> {
   const { candidate, question, turnPlan: authoritativePlan } = input;
   let validated = validateSceneDocument(pruneDeadSceneEntities(candidate));
@@ -189,10 +239,13 @@ export function validateProductionSceneCandidate(input: {
       errors: fatalIssues.length > 0 ? fatalIssues : compiledScene.report.issues,
     };
   }
+  const completeness = input.experimentalCompleteness === true
+    ? candidateCompleteness(question, authoritativePlan, validated.document, compiledScene.renderScene) : null;
   return {
     valid: true,
     errors: [...proofIssues, ...compiledScene.report.issues],
     qualityScore:
+      Math.min(completeness?.missing.length ?? 0, MAX_RANKED_MISSING_ITEMS) * COMPLETENESS_RANK_WEIGHT +
       (validated.document.visualDecision.mode === "text_only" &&
       authoritativePlan.visualRequirement !== "none"
         ? authoritativePlan.visualRequirement === "required" ? 100_000 : 10_000
@@ -205,6 +258,7 @@ export function validateProductionSceneCandidate(input: {
       document: validated.document,
       renderScene: compiledScene.renderScene,
       report: compiledScene.report,
+      ...(input.experimentalCompleteness === true ? { completeness } : {}),
     },
   };
 

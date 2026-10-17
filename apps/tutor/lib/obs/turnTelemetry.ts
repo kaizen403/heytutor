@@ -62,6 +62,8 @@ export const STARTUP_PRIORITY_EVENTS = [
   "scene-fast-selection",
   "scene-final-selection",
   "revalidate",
+  // The completeness round adds to Ask to first ink; its span must survive a write-heavy turn.
+  "scene-complete",
   "teaching-request",
   "teaching-first-token",
   "teaching-first-step",
@@ -524,7 +526,7 @@ function diagnosticMilliseconds(read: () => number | undefined): number | null {
 /** Combined proof/validation/compile interval; diagnostics never change admission. */
 export function measureSceneCandidateValidation<T extends { valid: boolean }>(
   tel: TurnTelemetry | null,
-  input: { validationCallIndex: number; context: "search" | "revalidate" | "recovery" },
+  input: { validationCallIndex: number; context: "search" | "revalidate" | "recovery" | "complete" },
   validate: () => T,
   now: () => number = () => performance.now(),
 ): T {
