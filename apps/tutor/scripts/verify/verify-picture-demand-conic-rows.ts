@@ -6,14 +6,13 @@
  * each one is revalidated as a production candidate and handed to
  * selectProductionScene under the live strict decision for its subject:
  *
- * - a conic drawn with the engine's conic operator is drawn as the planner's
- *   figure with no recorded drop. A
+ * - a conic drawn with the engine's conic operator, and charged spheres hung
+ *   on threads, are drawn as the planner's figure with no recorded drop. A
  *   row whose own report carries a failed assertion now meets the demand and
  *   is still declined by that later check, so the demand is no bypass;
  * - a point placed by its parameter angle, a parametric or polar curve, a
- *   conic written x*x, a rail circuit, a photoelectric energy ladder and
- *   charged spheres on threads still draw nothing and record
- *   picture_demand_unmet.
+ *   conic written x*x, a rail circuit and a photoelectric energy ladder still
+ *   draw nothing and record picture_demand_unmet.
  *
  *   pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-picture-demand-conic-rows.ts
  */
@@ -55,7 +54,7 @@ const withoutTier = (document: SceneDocument | undefined) => {
   return { ...document, source };
 };
 
-const DRAWN = new Set(["conic_operator"]);
+const DRAWN = new Set(["conic_operator", "thread_spheres"]);
 const counts = { drawn: 0, laterDecline: 0, protected: 0 };
 
 for (const row of rows) {

@@ -1,6 +1,6 @@
 /**
  * Picture demand gate: a conic drawn with the engine's own conic operator is a
- * conic, and every other demand the recorded drops faced still holds.
+ * conic, and charged spheres hung on threads may show their tension and weight.
  *
  * The fixture holds recorded planner candidates that main (aeb3eb11e) rejected
  * with picture_demand_unmet in a replay of 8,601 lab runs. Each document is
@@ -15,8 +15,7 @@
  *   general parametric curve, or as a function written x*x. Still fails.
  * - rail_circuit: a magnetic stem forbids the resistor chain. Still fails.
  * - photoelectric_levels: a photoelectric stem forbids bohr_levels. Still fails.
- * - thread_spheres: an electrostatic stem whose spheres hang on threads. The
- *   veto on suspended_body still fails it.
+ * - thread_spheres: an electrostatic stem whose spheres hang on threads. Now passes.
  *
  *   pnpm --filter @heytutor/scene-engine exec tsx scripts/verify/verify-picture-demand-conic-operator.ts
  */
@@ -60,7 +59,7 @@ const EXPECTED: Record<Case, string | null> = {
   function_curve_x_times_x: "missing conic",
   rail_circuit: "contradicted by resistor_chain",
   photoelectric_levels: "contradicted by bohr_levels",
-  thread_spheres: "contradicted by suspended_body",
+  thread_spheres: null,
 };
 const MINIMUM: Record<Case, number> = {
   conic_operator: 20,
@@ -107,7 +106,7 @@ for (const row of fixture.rows) {
   }
   if (row.case === "thread_spheres") {
     check(features.has("suspended_body"), `${label}: the figure shows the tension or the weight`);
-    check(sceneDemand(row.question).forbids.includes("suspended_body"), `${label}: the electrostatic veto forbids suspended_body`);
+    check(!sceneDemand(row.question).forbids.includes("suspended_body"), `${label}: threads count as suspension`);
   }
 }
 for (const [name, minimum] of Object.entries(MINIMUM) as [Case, number][]) {
@@ -128,8 +127,12 @@ check(sceneDemand("Show that sin(θ) and cos(θ) satisfy the ellipse x^2 + y^2/4
   "sin(θ) is not a named parameter point");
 check(sceneDemand("For the ellipse x^2/25 + y^2/16 = 1, find the eccentricity, the foci and the directrices.").requires.includes("conic"),
   "eccentricity is not an eccentric angle");
+check(sceneDemand("Two point charges hang on a string near a long straight wire carrying current.").forbids.includes("suspended_body"),
+  "the magnetic veto on suspended_body is unchanged by the thread exemption");
 check(sceneDemand("Two point charges of 2 μC are 3 cm apart. Find the Coulomb force.").forbids.includes("suspended_body"),
   "an electrostatic stem with no suspension still forbids suspended_body");
+check(sceneDemand("A current carrying wire hangs from two threads in a magnetic field.").forbids.includes("suspended_body"),
+  "threads do not lift the magnetic veto");
 
 const summary = [...counts.entries()].map(([name, count]) => `${name}=${count}`).join(" ");
 console.log(`verify-picture-demand-conic-operator: rows=${fixture.rows.length} (${summary}) conic topics=${conicTopics.size}`);
