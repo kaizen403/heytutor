@@ -85,6 +85,22 @@ for (const question of [
   assert.equal(deriveSceneGate({ question, turnPlan, problemIR: null }).chemistryLane, false, question);
 });
 
+// Coordinator review pr-191.md: the two limits the classifier keeps must be gated. A single hydrogen
+// transition is not a comparison, and a scattering ask without foil or detector apparatus stays physics.
+for (const question of [
+  "A hydrogen atom makes a transition from n = 4 to n = 2. Draw the energy level diagram and find the wavelength of the emitted photon.",
+  "Calculate the wavelength of the photon emitted when the electron in a hydrogen atom moves from n = 3 to n = 2. Draw the energy level diagram.",
+  "A hydrogen atom makes a transition n = 3 → 2. Draw the energy level diagram.",
+  "Draw a schematic diagram of the Geiger-Marsden alpha particle scattering experiment.",
+  "Explain Rutherford's model of the atom with a diagram.",
+]) check(`physics-limit-${question.slice(0, 35)}`, () => {
+  const turnPlan = { ...createFallbackTurnPlanV3(question), visualRequirement: "required" as const };
+  const gate = deriveSceneGate({ question, turnPlan, problemIR: null });
+  assert.equal(gate.chemistryLane, false, question);
+  // Single transitions keep physics planner eligibility; scattering asks only need to stay out of chemistry.
+  if (/\bn\s*=\s*\d/.test(question)) assert.equal(gate.shouldAttemptLlmScene, true, question);
+});
+
 for (const series of ["Lyman", "Balmer", "Paschen", "Brackett", "Pfund", "Humphreys"]) check(`shared-hydrogen-series-${series}`, () => {
   const question = `Draw the energy level diagram for the ${series} series of the hydrogen atom.`;
   const turnPlan = { ...createFallbackTurnPlanV3(question), visualRequirement: "required" as const };
