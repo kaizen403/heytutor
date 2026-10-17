@@ -52,6 +52,8 @@ export interface ProductionSceneGate {
   archetypeId: string | null;
   /** Timing opt-in only for a required figure, never every optional decline. */
   waitForRequiredScenePeers: boolean;
+  /** Must survive final fallback selection, not just planner admission. */
+  textOnlyBySourcePolicy: boolean;
   request: {
     conversationContext: string;
     constructionOperators?: string[];
@@ -102,6 +104,7 @@ export function deriveSceneGate(input: ProductionSceneInput): ProductionSceneGat
     turnPlan: planningTurnPlan, sceneCapabilities, chemistryLane, shouldPlanExactScene,
     shouldAttemptLlmScene, families: sceneCapabilities.families, archetypeId: earlyArchetype?.id ?? null,
     waitForRequiredScenePeers: policyEnabled && planningTurnPlan.visualRequirement === "required",
+    textOnlyBySourcePolicy: textOnly,
     request: {
       conversationContext: planContext,
       ...(sceneCapabilities.families.length > 0 || sceneCapabilities.hasSourceProgram ? {
@@ -333,7 +336,7 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
   let candidateValidation: SceneCandidateValidation<ValidatedSceneCandidate> | null = input.candidateValidation ?? null;
   try {
     // Preserve the live no-figure guard, not just the planner's vote.
-    if (turnPlan.visualRequirement === "none" && !questionRequiresVisual(question)) {
+    if (gate.textOnlyBySourcePolicy || (turnPlan.visualRequirement === "none" && !questionRequiresVisual(question))) {
       return empty("the question asks for no figure", "text_only", validScene(candidateValidation)
         ? { code: "no_figure_asked", reason: "the question asks for no figure", preferred: true, replacedBy: null }
         : null);

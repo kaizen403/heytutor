@@ -12,7 +12,7 @@ export interface SourceVisualDemand {
 }
 
 function explicitlyRequestsVisual(stem: string): boolean {
-  return /(?:^|[.!?;]|\band\b)\s*(?:please\s+)?(?:draw|sketch|plot|illustrate)\b|\b(?:can|could|would)\s+you\s+(?:draw|sketch|plot|illustrate)\b|\b(?:with|using)\s+(?:(?:a|an|the)\s+)?(?:diagram|figure|graph|sketch)\b/i.test(stem);
+  return /(?:^|[.!?;,]|\b(?:and|then|next|afterwards|also)\b)\s*(?:(?:please|then|next|afterwards|also)\s+)*(?:draw|sketch|plot|illustrate)\b|\b(?:can|could|would)\s+you\s+(?:please\s+)?(?:draw|sketch|plot|illustrate)\b|\b(?:with|using)\s+(?:(?:a|an|the)\s+)?(?:diagram|figure|graph|sketch)\b/i.test(stem);
 }
 
 export function isTextOnlyTeachingAsk(question: string): boolean {

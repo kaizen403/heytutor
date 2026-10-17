@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
-import { deriveSceneGate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
+import { deriveSceneGate, selectProductionScene } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import { applySourceVisualDemand, requiredFigurePolicyEnabled, sourceVisualDemand } from "../../features/tutor-session/lib/scene/requiredFigurePolicy";
 import { readFileSync } from "node:fs";
 
@@ -17,6 +17,18 @@ assert.equal(rescued.shouldPlanExactScene, true);
 assert.equal(rescued.shouldAttemptLlmScene, true, "generic checked operators can serve an explanatory relation without a named family");
 assert.equal(rescued.waitForRequiredScenePeers, false, "a helpful optional relation must not extend a decline wait");
 assert.equal(plan.visualRequirement, "none", "source plan must remain immutable");
+const noGraphQuestion = "Find the roots of y = x^2 - 1 without a graph.";
+const noGraphPlan = { ...plan, question: noGraphQuestion };
+const noGraph = selectProductionScene({ question: noGraphQuestion, turnPlan: noGraphPlan, problemIR: null,
+  visualNeedDecision: null, requiredFigurePolicyEnabled: true });
+assert(noGraph.representation === null, "a no-graph request must survive final fallback selection");
+assert.equal(noGraph.visualStatus, "text_only");
+const legacyGraph = selectProductionScene({ question: noGraphQuestion, turnPlan: noGraphPlan, problemIR: null,
+  visualNeedDecision: null, requiredFigurePolicyEnabled: false });
+assert(legacyGraph.representation !== null, "the control exercises a real fallback graph");
+const noFastGraph = selectProductionScene({ question: noGraphQuestion, turnPlan: noGraphPlan, problemIR: null,
+  fastRepresentation: legacyGraph.representation, visualNeedDecision: null, requiredFigurePolicyEnabled: true });
+assert(noFastGraph.representation === null, "precomputed fast geometry cannot bypass a text-only source decision");
 const off = deriveSceneGate({ question, turnPlan: plan, problemIR: null,
   visualNeedDecision: null, requiredFigurePolicyEnabled: false });
 assert.equal(off.turnPlan.visualRequirement, "none");
@@ -59,6 +71,8 @@ for (const spatial of [
   "Trace the rays through a glass prism.",
   "Sketch the graph of y = x^2.",
   "Define a normal force and draw the forces on a block.",
+  "Define normal force, then draw a free-body diagram.",
+  "Define normal force; afterwards sketch the block and its forces.",
   "Could you plot y = x^2?",
   "What is the mean distance between two planes?",
   "Find the angle between two planes using the definition of a normal.",
