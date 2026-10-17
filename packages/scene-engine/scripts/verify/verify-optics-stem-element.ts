@@ -148,6 +148,8 @@ check("mirror image of a figure with a mirror law hint", leaves("Draw the mirror
 for (const question of [
   "If f = 2x + 3, find the mirror image of the graph of f in the y-axis.",
   "If f = 25x + 3, find the mirror image of the graph of f in the y-axis.",
+  "If f = 2sin(x) + 3, find the mirror image of the graph of f in the y-axis.",
+  "If f = 3cos x, find the mirror image of its graph in the line y = x.",
   "Find the mirror image of the vector v = 2i + 3j in the line y = x.",
   "The mirror image of the end of the focal chord of y^2 = 4x in the line y = x is (a, b). Find a + b.",
   "A triangle has a vertex at C(1, 2). Draw its mirror image in the y-axis.",
