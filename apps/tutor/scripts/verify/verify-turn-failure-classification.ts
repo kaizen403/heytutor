@@ -29,6 +29,7 @@ const fixtures: Fixture[] = [
   { name: "completed whitespace is uncertain without telemetry", expected: "unverified", visualStatus: "text_only", status: "complete", segments: [{ narration: " \n\t " }] },
   { name: "muted command-only lesson", expected: "healthy", visualStatus: "text_only", status: "complete", sceneArtifacts: none, segments: [{ command: { commands: [{ type: "WRITE", text: "x = 7" }] } }] },
   { name: "legacy unknown code", expected: "unverified", visualStatus: "text_only", status: "complete", sceneArtifacts: { failureTelemetry: { code: "unknown" } }, segments: narrative },
+  { name: "a dropped valid figure (#172) is a confirmed failure", expected: "failed", visualStatus: "text_only", status: "complete", sceneArtifacts: { degradation: { reason: "valid_candidate_dropped", issueCodes: ["valid_candidate_dropped", "source_question_mismatch"] } }, segments: narrative },
   { name: "legacy unrecorded code", expected: "unverified", visualStatus: "text_only", status: "complete", sceneArtifacts: { degradation: { reason: "unrecorded" } }, segments: narrative },
   { name: "content-free fail flag with unknown cause", expected: "failed", visualStatus: "text_only", status: "stopped", sceneArtifacts: { failureTelemetry: { failed: true, code: "unknown" } }, segments: narrative },
 ];

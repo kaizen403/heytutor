@@ -6,7 +6,7 @@ export const CONFIRMED_TURN_FAILURE_CODES = [
   "required_visual_unavailable", "turn_plan_rejected", "problem_ir_invalid", "scene_planner_invalid",
   "planner_deadline", "planner_declined", "fallback_suppressed", "transport_error", "provider_error",
   "budget_limit", "rate_limit", "save_failure", "scene_relevance_rejected",
-  "lesson_not_taught", "teaching_segment_failed", "dsa_hint_unsupported",
+  "lesson_not_taught", "teaching_segment_failed", "dsa_hint_unsupported", "valid_candidate_dropped",
 ] as const;
 export type ConfirmedTurnFailureCode = typeof CONFIRMED_TURN_FAILURE_CODES[number];
 export const UNCOMMITTED_VISUAL_STATUSES = ["text_only", "retry_required", "legacy"] as const;
