@@ -202,6 +202,17 @@ export async function drawSegmentInk(input: {
   const totalSpeechMs = clock.totalSpeechMs;
   const opensSentence = input.opensSentence !== false;
   const index = input.segmentIndex;
+  // Runtime pointing carries the same seek/ownership options as the authored
+  // commands. In particular, instant reconstruction must never start a tour.
+  const executeExplanationPoint: typeof input.execute = async (command, options) => {
+    const ownerOptions = input.commandOptions(command);
+    await input.execute(command, {
+      ...ownerOptions,
+      ...options,
+      isPaused: options.isPaused ?? ownerOptions.isPaused,
+      isCancelled: () => isCancelled() || ownerOptions.isCancelled?.() === true || options.isCancelled?.() === true,
+    });
+  };
 
   let textCommandIndex = input.initialTextCommandIndex ?? 0;
   // Where the last cue word was found: matching walks forward through
@@ -559,7 +570,7 @@ export async function drawSegmentInk(input: {
 
     if (startDelayMs > 0 && (cueStartMs !== null || speechWindow)) {
       if (!input.verifiedDiagramIntro) {
-        await pointThroughExplanation({ clock, execute: input.execute, isCancelled, beforeWriteMs: cueStartMs ?? commandStartMs });
+        await pointThroughExplanation({ clock, execute: executeExplanationPoint, isCancelled, beforeWriteMs: cueStartMs ?? commandStartMs });
         if (isCancelled()) return;
       }
       await waitUntilDrawClock(clock.getAudioPositionMs, cueStartMs ?? commandStartMs, {
@@ -690,6 +701,6 @@ export async function drawSegmentInk(input: {
     }
   }
   if (!input.verifiedDiagramIntro) {
-    await pointThroughExplanation({ clock, execute: input.execute, isCancelled });
+    await pointThroughExplanation({ clock, execute: executeExplanationPoint, isCancelled });
   }
 }
