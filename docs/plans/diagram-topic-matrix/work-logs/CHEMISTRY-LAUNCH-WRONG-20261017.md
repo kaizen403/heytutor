@@ -32,3 +32,9 @@ An older Lewis cue independently reads `head-on` as orbital overlap. The exact c
 - Local `pnpm exec prisma generate` completed after the offline `--ignore-scripts` install. Both candidate and clean-main consumer checks use their own generated client; no database or provider access was needed.
 - Local red/green JSON and logs, original wrong-output provenance, and both route-map results are preserved in `.context/chem/launch-20261017-v1/wrong-builder/`. The immutable paid baseline remains in `.context/chem/measurement-main-20261017-v1/`.
 - No new model calls or spend; no production changes or merges. The graded rerun and broader coverage remain separate work.
+
+## Shared hydrogen-series review repair
+
+Greptile found that the new singular hydrogen-atom cue also captured the supported Humphreys-series request. Restore the original plural strong cue; singular hydrogen adds subject evidence only when the source explicitly contains at least two transitions. The same comparison predicate owns the wavelength tie and debug evidence. No series-name registry was added.
+
+Six new real-wording controls (Lyman, Balmer, Paschen, Brackett, Pfund, Humphreys) fail on the prior head and pass after rebuilding. Each keeps the shared physics lane and actually selects the energy-level family. All30 focused controls pass, retaining the four original wrong-execution declines. Independent QA compares each complete native selection to clean c9fa main and finds byte-equivalent JSON, including geometry/labels/gates; five additional fresh classifier neighbours pass. Own engine build, engine typecheck, scoped ESLint and diff check pass. Evidence: `.context/chem/launch-20261017-v1/wrong-series-*` and `empty-ranker/wrong-series-review.{md,json}`. Final clean-head route/replay receipts are recorded separately; the earlier full99/3 inherited sweep belongs to the earlier validated runtime head. No new model calls.

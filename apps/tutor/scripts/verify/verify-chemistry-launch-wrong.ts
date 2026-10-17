@@ -85,6 +85,16 @@ for (const question of [
   assert.equal(deriveSceneGate({ question, turnPlan, problemIR: null }).chemistryLane, false, question);
 });
 
+for (const series of ["Lyman", "Balmer", "Paschen", "Brackett", "Pfund", "Humphreys"]) check(`shared-hydrogen-series-${series}`, () => {
+  const question = `Draw the energy level diagram for the ${series} series of the hydrogen atom.`;
+  const turnPlan = { ...createFallbackTurnPlanV3(question), visualRequirement: "required" as const };
+  assert.equal(isChemistryStem(question), false, "a singular hydrogen atom alone must not add chemistry ownership");
+  assert.equal(deriveSceneGate({ question, turnPlan, problemIR: null }).chemistryLane, false, question);
+  const selected = selectProductionScene({ question, turnPlan, problemIR: null });
+  assert.equal(selected.representation?.family, "energy_level", "retain the shared physics figure that clean main draws");
+  assert.equal(selected.representation?.figureSource, "family");
+});
+
 check("closest-approach-is-not-new-chemistry-evidence", () => {
   const question = "An alpha particle with kinetic energy 5 MeV approaches a gold nucleus head-on. Find the distance of closest approach.";
   // The existing Lewis cue independently matches "head-on" as overlap. This
