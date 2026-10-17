@@ -40,6 +40,18 @@ for (const shape of Object.keys(requests) as DomainPropertyShape[]) for (const t
 }
 
 export const coefficientPropertyCases: DomainPropertyCase[] = [];
+const pluralPropertyCases: DomainPropertyCase[] = [];
+for (const shape of ["number_line_set", "linear_half_plane"] as const) for (const type of ["rationals", "irrationals"]) {
+  const subjects = shape === "number_line_set" ? "x" : "x and y";
+  for (const suffix of [`Take ${subjects} to be one of the ${type}.`, `Restrict ${subjects} to ${type}.`,
+    `Use only ${type} for ${subjects}.`, `The permitted values of ${subjects} are ${type}.`]) unsupportedRationalCases.push({
+    id: `plural-domain-${shape}-${suffix}`, shape, question: `${requests[shape]}. ${suffix}`,
+  });
+  for (const suffix of [`The coefficients of x are ${type}.`, `Use ${type} as coefficients of x.`]) pluralPropertyCases.push({
+    id: `plural-property-${shape}-${suffix}`, shape, question: `${requests[shape]}. ${suffix}`,
+  });
+}
+coefficientPropertyCases.push(...pluralPropertyCases);
 coefficientPropertyCases.push({ id: "coefficient-after-symbolic-affine-operand", shape: "linear_half_plane",
   question: "Shade y<2x and the coefficients of x may be rational.", inputs: { variables: ["x", "y"], inequality: "y<2x" } });
 for (const suffix of [
@@ -119,6 +131,9 @@ for (const row of coefficientPropertyCases) for (const type of ["rational", "irr
   unsupportedRationalCases.push({ ...row, id: `property-then-domain-${row.id}-${type}`,
     question: `${row.question} Now use ${type} x.` });
 }
+for (const row of pluralPropertyCases) for (const type of ["rationals", "irrationals"]) unsupportedRationalCases.push({
+  ...row, id: `plural-property-then-domain-${row.id}-${type}`, question: `${row.question} Now use only ${type} for x.`,
+});
 for (const row of geometricFieldCases) for (const subject of ["x must be a", "The result is a"]) unsupportedRationalCases.push({
   ...row, id: `geometric-field-identity-${row.id}-${subject}`,
   question: `${row.question} ${subject} rational ${row.shape === "number_line_set" ? "endpoint" : "optimal corner"}.`,

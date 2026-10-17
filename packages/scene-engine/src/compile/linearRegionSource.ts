@@ -261,7 +261,7 @@ function linearCoefficientTermEnd(source: string, start: number, plural: boolean
  * its exact occurrence in an owned coefficient/property noun or predicate;
  * no request-parser failure or verb wording can erase a remaining type. */
 function linearRationalPropertySource(source: string, names: readonly string[]): string {
-  const words = [...source.matchAll(/\b(?:ir)?rational\b/gi)];
+  const words = [...source.matchAll(/\b(?:ir)?rationals?\b/gi)];
   if (!words.length && !/\bcoefficients?\s+in\b/i.test(source) || words.length > 16) return source;
   const proved = new Set<number>();
   const nounSpans: Array<{ start: number; end: number }> = [];
@@ -328,7 +328,7 @@ function linearRationalPropertySource(source: string, names: readonly string[]):
   const coefficientNouns = [...source.matchAll(/\bcoefficients?\b/gi)].slice(0, 16).map(head => {
     const beforeHeadStart = Math.max(0, head.index! - 128);
     const beforeHead = source.slice(beforeHeadStart, head.index!);
-    const modifiers = /\b(?:(?:the|a|an|some|all|any|its|each|every|polynomial|rational|irrational|positive|negative|nonnegative|nonpositive|and|or)\s+)+$/i.exec(beforeHead);
+    const modifiers = /\b(?:(?:the|a|an|some|all|any|its|each|every|polynomial|rationals?|irrationals?|positive|negative|nonnegative|nonpositive|and|or)\s+)+$/i.exec(beforeHead);
     const start = modifiers ? beforeHeadStart + modifiers.index : head.index!;
     const headEnd = head.index! + head[0].length;
     const end = linearCoefficientTermEnd(source, headEnd, /coefficients$/i.test(head[0]));
@@ -350,14 +350,14 @@ function linearRationalPropertySource(source: string, names: readonly string[]):
         const predicate = source.slice(end, type.index!);
         if ([...predicate.matchAll(/[A-Za-z][A-Za-z0-9_]*/g)].some(token => isLinearSourceIdentifier(token[0]))) continue;
         const conjunction = [...predicate.matchAll(/\b(?:and|or)\b/gi)].at(-1);
-        if (conjunction && !/^(?:(?:rational|irrational|positive|negative|nonnegative|nonpositive|strictly|only)\s+)*$/i.test(predicate.slice(conjunction.index! + conjunction[0].length).trimStart())) continue;
+        if (conjunction && !/^(?:(?:rationals?|irrationals?|positive|negative|nonnegative|nonpositive|strictly|only)\s+)*$/i.test(predicate.slice(conjunction.index! + conjunction[0].length).trimStart())) continue;
       }
       proved.add(type.index!);
       nounSpans.push({ start, end });
     }
   }
-  const property = `(?:${SIGN_DOMAIN_PROPERTY}|(?:ir)?rational(?:\\s+numbers?)?)`;
-  const predicates = new RegExp(`\\b(?:is|are)\\s+(?:an?\\s+)?${property}(?:\\s+(?:and|or)\\s+${property})*\\b|\\btakes?\\s+(?:only\\s+)?(?:ir)?rational\\s+values?\\b`, "gi");
+  const property = `(?:${SIGN_DOMAIN_PROPERTY}|(?:ir)?rationals?(?:\\s+numbers?)?)`;
+  const predicates = new RegExp(`\\b(?:is|are)\\s+(?:an?\\s+)?${property}(?:\\s+(?:and|or)\\s+${property})*\\b|\\btakes?\\s+(?:only\\s+)?(?:ir)?rationals?\\s+values?\\b`, "gi");
   for (const predicate of source.matchAll(predicates)) {
     const subjectStart = pureLinearCoefficientSubjectStart(source, predicate.index!);
     const coefficient = subjectStart !== null && nativePositions.every(native => native < subjectStart || native >= predicate.index! || coefficientTermOwned.has(native));
@@ -367,14 +367,14 @@ function linearRationalPropertySource(source: string, names: readonly string[]):
     if (continuation && names.includes(continuation[1]!)) continue;
     if (!coefficient && (!(endpoint || corner) || !ownsContext(predicate.index!, predicate.index!, predicate.index! + predicate[0].length))) continue;
     if (coefficient) nounSpans.push({ start: subjectStart!, end: predicate.index! });
-    for (const word of predicate[0].matchAll(/\b(?:ir)?rational\b/gi)) proved.add(predicate.index! + word.index!);
+    for (const word of predicate[0].matchAll(/\b(?:ir)?rationals?\b/gi)) proved.add(predicate.index! + word.index!);
   }
   const modifier = new RegExp(`(?:strictly|only|real|non[- ]?zero|${SIGN_DOMAIN_PROPERTY})\\b\\s+`, "iy");
   const propertyNoun = /(?:intercepts?|coefficients?|ax(?:is|es)|directions?)\b/iy;
   const geometricField = /(?:optimal\s+)?(endpoints?|corners?)\b/iy;
   const identifier = /[A-Za-z][A-Za-z0-9_]*/y;
   const nextSubject = /\s*(?:,\s*(?:and\s*)?|and\s+)([A-Za-z][A-Za-z0-9_]*)/iy;
-  for (const type of source.matchAll(/\b(?:ir)?rational(?:[- ]valued)?\s+/gi)) {
+  for (const type of source.matchAll(/\b(?:ir)?rationals?(?:[- ]valued)?\s+/gi)) {
     let cursor = type.index! + type[0].length;
     modifier.lastIndex = cursor;
     while (modifier.exec(source)) { cursor = modifier.lastIndex; modifier.lastIndex = cursor; }
@@ -1931,7 +1931,7 @@ function hasUnsupportedDiscreteDomain(question: string, planar = false, sourcePr
     .replace(/\bcoefficients?\s+(?:is|are)\s+(?:an?\s+)?integers?\b/gi, " ");
   if (hasUnprovedSetSymbol(remaining, names, planar)) return true;
   remaining = linearRationalPropertySource(remaining, names);
-  if (/\b(?:ir)?rational\b/i.test(remaining)) return true;
+  if (/\b(?:ir)?rationals?\b/i.test(remaining)) return true;
   if (/\b(?:integers?|intergers?|ints?|integral|whole|naturals?|counting|primes?|odd|even|lattices?|digits?)\b/i.test(remaining)) return true;
   if (/\\not\s*∈|\bnot\s+∈/iu.test(remaining)) return true;
   if (hasUnsupportedHindiDomain(remaining, names)) return true;
