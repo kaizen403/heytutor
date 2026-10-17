@@ -1,4 +1,4 @@
-import type { DrawCommand } from "@heytutor/drawing";
+import type { DrawCommand, VerifiedDiagram } from "@heytutor/drawing";
 import {
   capSceneBatchDurations,
   isCuedSceneBatch,
@@ -11,23 +11,16 @@ import {
   leadWriteScheduleToSpeech,
   mathToSpeech,
   selectInkPace,
-  type InkPace,
 } from "@heytutor/tutor-core";
 import { isStoredCommandTrustedGeometry } from "@heytutor/drawing";
-import type { WriteSchedule } from "@heytutor/whiteboard";
 import type { ReplayCue } from "@/lib/replay/replayTimeline";
+import type { ExecuteCommandOptions } from "@/features/tutor-session/hooks/turn/types";
+import type { SegmentInkClock } from "@/features/tutor-session/lib/turn/segmentInk";
+import { advanceExplanationTarget, pointThroughExplanation, type CompletedExplanationTarget } from "@/features/tutor-session/lib/turn/explanationPointing";
 
 export type ExportExecuteCommand = (
   command: DrawCommand,
-  options?: {
-    durationScale?: number;
-    speechDurationMs?: number;
-    writeSchedule?: WriteSchedule;
-    applyLayout?: boolean;
-    trustedDiagramGeometry?: boolean;
-    isCancelled?: () => boolean;
-    inkPace?: InkPace;
-  },
+  options?: ExecuteCommandOptions,
 ) => Promise<void>;
 
 export async function waitUntilExportClock(
@@ -48,6 +41,7 @@ export async function drawLectureTimeline(options: {
   waitForAdvance: () => Promise<void>;
   shouldCancel: () => boolean;
   setAnimationSpeed?: (rate: number) => void;
+  getDiagram?: () => VerifiedDiagram | null;
   /** Cues before this one are already on the board. */
   startCueIndex?: number;
   /** Runs as each cue begins, before it draws. */
@@ -69,15 +63,7 @@ export async function drawLectureTimeline(options: {
     options.onCueStart?.(cue, index);
     options.setAnimationSpeed?.(1);
 
-    if (cue.commands.length > 0) {
-      await drawExportCue({
-        cue,
-        executeCommand,
-        getClockMs,
-        waitForAdvance,
-        shouldCancel,
-      });
-    }
+    await drawExportCue({ cue, executeCommand, getClockMs, waitForAdvance, shouldCancel, getDiagram: options.getDiagram });
 
     await waitUntilExportClock(getClockMs, cue.endMs, waitForAdvance, shouldCancel);
   }
@@ -89,9 +75,18 @@ async function drawExportCue(options: {
   getClockMs: () => number;
   waitForAdvance: () => Promise<void>;
   shouldCancel: () => boolean;
+  getDiagram?: () => VerifiedDiagram | null;
 }): Promise<void> {
   const { cue, executeCommand, getClockMs, waitForAdvance, shouldCancel } = options;
   const segmentCommands = cue.commands;
+  // Keep the authored gesture's target for its whole spoken sentence.
+  const canPointAtWork = !segmentCommands.some(command => command.type === "FOCUS" || command.type === "POINT");
+  let completedTarget: CompletedExplanationTarget | null = null;
+  const executeAuthored: ExportExecuteCommand = async (command, commandOptions) => {
+    const diagram = options.getDiagram?.() ?? null;
+    await executeCommand(command, commandOptions);
+    completedTarget = advanceExplanationTarget(completedTarget, command, diagram === options.getDiagram?.() ? diagram : null);
+  };
   const narration = cue.narration;
   const paceContext = inkPaceContextForSegment({
     verifiedDiagramIntro: cue.trustedDiagramGeometry,
@@ -121,6 +116,16 @@ async function drawExportCue(options: {
     nowMs: getClockMs,
   });
 
+  const speechClock: SegmentInkClock = {
+    narration, getTimings: () => cue.segment.timings,
+    totalSpeechMs: durationMs, estimatedSpeechMs: durationMs,
+    msPerChar: estimatedSpeechMsPerChar,
+    getAudioPositionMs: getDrawClockMs,
+    // The virtual board already advances in media time, including pause/rate.
+    getPlaybackRate: () => 1,
+    nowMs: getClockMs,
+    isSpeechComplete: () => getDrawClockMs() >= durationMs,
+  };
   let textCommandIndex = 0;
   for (let commandIndex = 0; commandIndex < segmentCommands.length; commandIndex++) {
     if (shouldCancel()) {
@@ -152,11 +157,12 @@ async function drawExportCue(options: {
         leadWriteScheduleToSpeech(writePlan.offsetsMs, audioPosAtScheduleMs, writePlan.maxInitialWaitMs),
         audioPosAtScheduleMs,
       );
-      await executeCommand(command, {
+      await executeAuthored(command, {
         applyLayout: false,
         isCancelled: shouldCancel,
         trustedDiagramGeometry,
         inkPace: pace,
+        ...(command.type === "WRITE" && !trustedDiagramGeometry && canPointAtWork ? { explanationClock: speechClock } : {}),
         writeSchedule: {
           charStartOffsetsMs: effectiveOffsets,
           charDurationsMs: writePlan.charDurationsMs,
@@ -179,6 +185,10 @@ async function drawExportCue(options: {
           };
 
     if (speechWindow.startMs > 0) {
+      if (!trustedDiagramGeometry && canPointAtWork) {
+        await pointThroughExplanation({ clock: speechClock, execute: executeCommand, isCancelled: shouldCancel, beforeWriteMs: speechWindow.startMs });
+        if (shouldCancel()) return;
+      }
       await waitUntilExportClock(
         getDrawClockMs,
         speechWindow.startMs,
@@ -197,15 +207,31 @@ async function drawExportCue(options: {
         ? Math.max(Math.round(durationMs * (commandWeight / totalDrawWeight)), 50)
         : Math.max(Math.round(speechWindow.durationMs), 50);
 
-    await executeCommand(command, {
+    await executeAuthored(command, {
       applyLayout: false,
       isCancelled: shouldCancel,
       speechDurationMs: commandBudgetMs,
       trustedDiagramGeometry,
       inkPace: pace,
+      // A standalone authored POINT already identifies its verified target.
+      // Keep it there through its recording instead of falling back to work.
+      ...(command.type === "POINT" && commandIndex === segmentCommands.length - 1 ? {
+        segmentNarration: narration,
+        spokenClock: {
+          narration, getTimings: speechClock.getTimings,
+          estimatedTotalMs: durationMs, getAudioPositionMs: getDrawClockMs,
+          getPlaybackRate: speechClock.getPlaybackRate,
+          isSpeechComplete: speechClock.isSpeechComplete,
+          msPerChar: estimatedSpeechMsPerChar,
+        },
+      } : {}),
     });
     if (isTextCommand) {
       textCommandIndex += 1;
     }
+  }
+  if (!trustedDiagramGeometry && (canPointAtWork || completedTarget)) {
+    await pointThroughExplanation({ clock: speechClock, execute: executeCommand, isCancelled: shouldCancel,
+      ...(completedTarget ? { completedTarget, getDiagram: options.getDiagram } : {}) });
   }
 }

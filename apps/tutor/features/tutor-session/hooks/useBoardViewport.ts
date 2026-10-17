@@ -1,4 +1,5 @@
 import type { RefObject } from "react";
+import { MIN_BOARD_FONT_SIZE } from "@heytutor/drawing";
 import { useEffect, useState } from "react";
 import {
   BOARD_FRAME_MOBILE_MQ,
@@ -149,12 +150,13 @@ export function useBoardViewport(
       const widthScale = availWidth / BOARD_WIDTH;
       const heightScale = availHeight / BOARD_HEIGHT;
 
-      // Ordinary boards fit without cropping. The explicitly scrollable short
-      // viewport keeps 32px work text at least 16px; its region owns the pan,
-      // while transport stays outside that region at natural size.
+      // Phones pan the canonical sheet instead of shrinking its handwriting.
+      // The intended floor is 16 CSS px even for the smallest 19px role or token
+      // fallback. Every role and every verified mark keeps its original size
+      // and position; transport stays outside the pan at natural size.
       const nextScale =
         mode === "readable-scroll"
-          ? Math.max(widthScale, 0.5)
+          ? Math.max(widthScale, 16 / MIN_BOARD_FONT_SIZE)
           : Math.min(widthScale, heightScale, windowFallback ? 1 : Number.POSITIVE_INFINITY);
       // Avoid sub-pixel thrash from ResizeObserver feedback.
       if (measured && Math.abs(lastScale - nextScale) < 0.001) {

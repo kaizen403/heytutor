@@ -77,6 +77,8 @@ import {
   type ScheduledFocusTarget,
 } from "../lib/board/scheduledFocus";
 import { markerTourStops, narrationTourMs, tourMarker } from "../lib/board/markerTour";
+import { pointThroughExplanation, resolveCompletedExplanationTargets } from "../lib/turn/explanationPointing";
+import type { SegmentInkClock } from "../lib/turn/segmentInk";
 import { resultSpanOfRow } from "../lib/board/formulaEmphasis";
 import { focusTraceCommands, isDsaConstructionGuide } from "../lib/scene/diagramInk";
 
@@ -246,6 +248,10 @@ export function useCommandExecution({
         getPlaybackRate?: () => number;
         /** A following work cue bounds transient POINT motion. */
         getPointDeadlineMs?: () => number | null;
+        /** Runtime-only motion over visible work; cannot reveal or target a figure. */
+        explanationPointing?: boolean;
+        verifiedPointingOnly?: boolean;
+        explanationClock?: SegmentInkClock;
         /**
          * The sentence this command sits under, with its alignment and audio
          * clock. The code-lesson branches (TYPE, FRAME, FOCUS) follow its
@@ -383,6 +389,7 @@ export function useCommandExecution({
       if (
         activeDiagram &&
         !trustedDiagramGeometry &&
+        !(command.type === "POINT" && options.explanationPointing === true) &&
         isBlockedVerifiedDiagramCommand(command, activeDiagram)
       ) {
           const blockMeta = {
@@ -742,6 +749,16 @@ export function useCommandExecution({
             // character does not wait on handwriting setup.
             prefetchStrokePaths(command.text, placement.x, placement.y, fontSize);
             if (writeSchedule && writeSchedule.charStartOffsetsMs.length > 0) {
+              // Resolve the row and any page clear first, exactly as before.
+              // The new row is still pending ink and cannot point at itself.
+              if (command.type === "WRITE" && options.explanationClock && durationScale > 0.05) {
+                await pointThroughExplanation({
+                  clock: options.explanationClock, execute: executeCommand,
+                  isCancelled: commandCancelled,
+                  beforeWriteMs: writeSchedule.charStartOffsetsMs[0],
+                });
+                if (commandCancelled()) return;
+              }
               // Scheduled writing: each character is held against the true audio clock so
               // the pen tracks the narration token by token. writeText flies to the first
               // glyph while waiting for that cue — a serial 60 ms hop here used to start
@@ -871,11 +888,13 @@ export function useCommandExecution({
           // what the pen does while the tutor is talking rather than writing:
           // before, a spoken step with no tag left it wherever it happened to
           // be, for as long as the step ran.
-          const diagramTargets = resolveVerifiedDiagramFocusTargets(
+          const diagramTargets = options.explanationPointing ? [] : options.verifiedPointingOnly
+            ? resolveCompletedExplanationTargets(command, activeVerifiedDiagramRef.current, true)
+            : resolveVerifiedDiagramFocusTargets(
             { ...command, type: "FOCUS" },
             activeVerifiedDiagramRef.current,
           );
-          const targets = diagramTargets.length > 0
+          const targets = diagramTargets.length > 0 || options.verifiedPointingOnly
             ? diagramTargets
             : pointWorkRowTargets(command, boardLayoutRef.current.rects);
           if (targets.length === 0) break;
@@ -885,8 +904,11 @@ export function useCommandExecution({
           if (isSeekCatchUp || durationScale <= 0.05) break;
           const spokenClock = options.spokenClock;
           const cancelledTour = await tourMarker(
-            wb,
-            markerTourStops(targets, pointBeatsRef.current),
+            {
+              flyCursorTo: (x, y, ms) => wb.flyCursorTo(x, y, ms, undefined, commandCancelled),
+              setCursorState: wb.setCursorState,
+            },
+            markerTourStops(targets, pointBeatsRef.current, options.explanationPointing === true || options.verifiedPointingOnly === true),
             {
               totalMs: narrationTourMs(
                 options.segmentNarration,
@@ -1705,6 +1727,9 @@ export function useCommandExecution({
         isCancelled?: () => boolean;
         textPlacementReserved?: boolean;
         inkPace?: InkPace;
+        explanationPointing?: boolean;
+        verifiedPointingOnly?: boolean;
+        explanationClock?: SegmentInkClock;
       } = {},
     ): Promise<void> => {
       const execution = executeCommand(command, options);

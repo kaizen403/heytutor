@@ -747,9 +747,11 @@ const failure = shellMarkup({
 });
 assert.match(
   failure,
-  /data-save-failure="Try again"[^>]*data-banner-retry="true"/,
-  "short chrome keeps the actual save recovery boundary",
+  /role="alert"/,
+  "phone pan keeps the actual save recovery boundary outside the paper",
 );
+assert.match(failure, /<button[^>]*type="button"[^>]*>Try again<\/button>/);
+assert.ok(!failure.includes('data-save-failure="Try again"'), "the scaled canvas does not own the retry banner");
 assert.match(failure, /<textarea>Retained composer<\/textarea>/);
 const fullscreen = shellMarkup({
   mobile: true,
@@ -968,7 +970,7 @@ try {
   viewport({ current: container }, "readable-scroll");
   const fitted = viewport({ current: container }, "readable-scroll");
   assert.ok(
-    Math.abs(fitted.scale - 0.5) < 1e-6,
+    Math.abs(fitted.scale - 16 / 19) < 1e-6,
     "actual very-short scroll view preserves portrait-readable paper width",
   );
   assert.ok(
@@ -1550,10 +1552,10 @@ navigationCheck("compact-composer-keyboard", () => {
 navigationCheck("short-media-query-width-boundaries", () => {
   for (const [width, height, compact, scroll] of [
     [390, 220, true, true], [631, 300, true, true],
-    [667, 375, true, false], [844, 390, true, false],
+    [667, 375, true, true], [844, 390, true, true],
     [1023, 300, true, true], [1024, 220, false, false],
     [1440, 220, false, false], [1440, 390, false, false],
-    [390, 844, false, false],
+    [390, 844, false, true],
   ] as const) {
     const mediaResults: Array<{ query: string; matches: boolean }> = [];
     const markup = shellMarkup({mobile: width < 768, width, height, coarse: true, mediaResults});
