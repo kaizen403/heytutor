@@ -159,6 +159,24 @@ class CompletionContext {
       owners.add(target); this.typedOwners.set(given.id, owners);
     }
   }
+  existingQuantityStatement(quantityIds: string[], target: string): string | null {
+    const symbols = new Set(quantityIds.map(id => this.quantities.get(id)?.symbol).filter(symbol => symbol !== undefined));
+    for (const annotation of this.document.annotations) {
+      if (!annotation.quantityId || !["label", "callout"].includes(annotation.kind) ||
+          annotation.targetIds.length !== 1 || annotation.targetIds[0] !== target) continue;
+      const sameId = quantityIds.includes(annotation.quantityId);
+      const symbol = this.quantities.get(annotation.quantityId)?.symbol;
+      if (!sameId && (symbol === undefined || !symbols.has(symbol))) continue;
+      // Existing native annotation ink is preserved, not parsed or repaired.
+      // A same-symbol alias is only a reason to abstain, never an owner join.
+      if (this.input.baseRenderScene.primitives.some(primitive => primitive.kind === "label" && primitive.id === annotation.id &&
+          primitive.entityId === target && typeof primitive.text === "string" && primitive.text.trim() &&
+          !isPointIdentifierText(primitive.text))) {
+        return sameId ? "existing_quantity_annotation_statement" : "ambiguous_same_symbol_annotation_statement";
+      }
+    }
+    return null;
+  }
   label(proposal: Proposal): void {
     const target = proposal.targetIds[0];
     if (!target || proposal.targetIds.length !== 1 || !proposal.text || !this.rendered(target)) {
@@ -166,6 +184,8 @@ class CompletionContext {
     }
     const group = this.ownerGroup(target);
     if (group === null) { this.skip("ambiguous_reveal_scope", proposal.quantityIds[0], [target]); return; }
+    const existingStatement = this.existingQuantityStatement(proposal.quantityIds, target);
+    if (existingStatement) { this.skip(existingStatement, proposal.quantityIds[0], [target]); return; }
     const id = stableId(proposal.kind, [target, ...proposal.quantityIds, proposal.text]);
     const existingOwners = new Set([target, ...this.document.constructions.filter(construction =>
       nativeLabelTarget(construction) === target).flatMap(construction => construction.outputs)]);
@@ -362,6 +382,13 @@ function annotationLabels(context: CompletionContext): void {
     if (given) {
       const angle = ["angle_mark", "space_angle_mark", "right_angle_mark", "space_right_angle_mark"].includes(context.producers.get(target)?.operator ?? "");
       if (angle && !provenAngle(context, target, given)) { context.skip("angle_attachment_not_proved", quantityId, [target]); continue; }
+      // A scalar attached only to an unbounded carrier has no region/side
+      // owner contract. Finite segments may also render as lines; keep them.
+      if (!angle && ["line", "ray"].includes(context.entities.get(target)?.kind ?? "") &&
+          context.input.baseRenderScene.primitives.some(primitive => primitive.entityId === target &&
+            ["line", "ray"].includes(primitive.kind) && primitive.provenance?.labelLeader !== true)) {
+        context.skip("annotation_scalar_carrier_has_no_region_owner", quantityId, [target]); continue;
+      }
       context.label({ kind: angle ? "given_angle" : "given_label", quantityIds: [quantityId], targetIds: [target], text: statement(given) });
       continue;
     }

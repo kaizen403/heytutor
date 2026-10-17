@@ -288,6 +288,54 @@ function completionRetainsInk(base: RenderScene, next: RenderScene): boolean {
   });
 }
 
+/** A native label box has a side only when all four corners strictly agree. */
+function completionLabelSide(
+  label: RenderScene["primitives"][number],
+  boundary: RenderScene["primitives"][number],
+): number | null {
+  const bounds = label.provenance?.labelBounds;
+  if (!bounds || typeof bounds !== "object" || !("x" in bounds) || !("y" in bounds) ||
+      !("width" in bounds) || !("height" in bounds) || typeof bounds.x !== "number" ||
+      typeof bounds.y !== "number" || typeof bounds.width !== "number" || typeof bounds.height !== "number" ||
+      ![bounds.x, bounds.y, bounds.width, bounds.height].every(Number.isFinite) ||
+      bounds.width <= 0 || bounds.height <= 0) return null;
+  const first = boundary.points[0], second = boundary.points[1];
+  if (!first || !second) return null;
+  const dx = second.x - first.x, dy = second.y - first.y, length = Math.hypot(dx, dy);
+  if (!Number.isFinite(length) || length <= 1e-6) return null;
+  const corners = [
+    { x: bounds.x, y: bounds.y }, { x: bounds.x + bounds.width, y: bounds.y },
+    { x: bounds.x, y: bounds.y + bounds.height }, { x: bounds.x + bounds.width, y: bounds.y + bounds.height },
+  ];
+  const distances = corners.map(point => (dx * (point.y - first.y) - dy * (point.x - first.x)) / length);
+  if (!distances.every(Number.isFinite)) return null;
+  return distances.every(distance => distance > 0.5) ? 1 : distances.every(distance => distance < -0.5) ? -1 : 0;
+}
+
+/** Relayout may move an old annotation within its side, never across its physical owner. */
+function completionAnnotationSideFailure(document: SceneDocument, base: RenderScene, next: RenderScene): string | null {
+  for (const annotation of document.annotations) {
+    if (annotation.targetIds.length !== 1) continue;
+    const target = annotation.targetIds[0]!;
+    const old = base.primitives.find(primitive => primitive.id === annotation.id &&
+      primitive.kind === "label" && primitive.entityId === target);
+    if (!old) continue;
+    const boundaries = base.primitives.filter(primitive => primitive.entityId === target &&
+      (primitive.kind === "line" || primitive.kind === "ray") && primitive.points.length === 2 &&
+      primitive.provenance?.labelLeader !== true);
+    for (const boundary of boundaries) {
+      const originalSide = completionLabelSide(old, boundary);
+      if (!originalSide) continue;
+      const current = next.primitives.find(primitive => primitive.id === old.id && primitive.kind === "label" &&
+        primitive.entityId === old.entityId && primitive.text === old.text && primitive.groupId === old.groupId);
+      if (!current || completionLabelSide(current, boundary) !== originalSide) {
+        return `completion moved existing annotation label ${annotation.id} across native owner boundary ${target}`;
+      }
+    }
+  }
+  return null;
+}
+
 function completionLabelGroup(document: SceneDocument, render: RenderScene, targetId: string): string | null {
   const memberships = document.revealGroups.flatMap(group =>
     group.entityIds.filter(id => id === targetId).map(() => group.id));
@@ -343,6 +391,8 @@ function completeSelectedScene(
     const value = admitted.value;
     if (!completionRetainsDocument(selected.sceneDocument, value.document) ||
         !completionRetainsInk(selected.renderScene, value.renderScene)) return rejected("completion admission changed existing geometry or label information");
+    const annotationSideFailure = completionAnnotationSideFailure(selected.sceneDocument, selected.renderScene, value.renderScene);
+    if (annotationSideFailure) return rejected(annotationSideFailure);
     const missingIds = [
       ...proposal.addedEntityIds.filter(id => !value.document.entities.some(entity => entity.id === id)),
       ...proposal.addedAnnotationIds.filter(id => !value.document.annotations.some(annotation => annotation.id === id)),
