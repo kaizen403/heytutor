@@ -320,3 +320,31 @@ assert.deepEqual(withoutSense.document.teachingTimeline, []);
 assert.equal(unresolvedSense.annotations.length, 1, "optional sense input remains immutable");
 assert.equal(withoutSense.issues.length, 1);
 assert.equal(withoutSense.issues[0]?.expected, "annotation_geometry_unresolved");
+
+// Omitting optional annotation ink must not leave action dependencies dangling.
+for (const chained of [false, true]) {
+  const optional = scene("v=5 m/s");
+  optional.annotations = [{ id: "unproved", kind: "label", targetIds: ["v"], text: "unknown=5 m/s" }];
+  optional.teachingTimeline = chained ? [
+    { id: "prior", action: "focus", targetId: "path", dependsOn: [] },
+    { id: "other", action: "focus", targetId: "v", dependsOn: [] },
+    { id: "removed_a", action: "focus", targetId: "unproved", dependsOn: ["prior"] },
+    { id: "removed_b", action: "focus", targetId: "unproved", dependsOn: ["removed_a", "other"] },
+    { id: "survivor", action: "focus", targetId: "v", dependsOn: ["removed_b", "prior"] },
+  ] : [
+    { id: "removed_a", action: "focus", targetId: "unproved", dependsOn: [] },
+    { id: "survivor", action: "focus", targetId: "v", dependsOn: ["removed_a"] },
+  ];
+  const original = structuredClone(optional);
+  const reduced = prepareVerifiedParts(optional, { enabled: true });
+  assert.equal(compileSceneDocument(reduced.document).ok, true,
+    "removing an optional annotation action must preserve a recoverable required scene");
+  assert.deepEqual(reduced.document.teachingTimeline.at(-1)?.dependsOn, chained ? ["prior", "other"] : [],
+    "dependencies traverse omitted actions to every surviving predecessor, once each");
+  assert.deepEqual(reduced.document.teachingTimeline.map(a => a.id), chained ? ["prior", "other", "survivor"] : ["survivor"]);
+  assert.deepEqual(reduced.document.entities, optional.entities);
+  assert.deepEqual(reduced.document.constructions, optional.constructions);
+  assert.deepEqual(reduced.document.requiredEntityIds, optional.requiredEntityIds);
+  assert.deepEqual(optional, original, "timeline rewiring never mutates its input");
+}
+console.log("verified-parts: omitted annotation actions preserve transitive surviving timeline dependencies");

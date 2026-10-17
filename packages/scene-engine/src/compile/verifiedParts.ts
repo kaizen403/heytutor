@@ -133,9 +133,23 @@ export function prepareVerifiedParts(
     next.annotations = next.annotations.filter(
       (_, index) => !annotations.has(index),
     );
-    next.teachingTimeline = next.teachingTimeline.filter(
-      (action) => !removedIds.has(action.targetId),
-    );
+    const removedActions = new Map(next.teachingTimeline
+      .filter(action => removedIds.has(action.targetId))
+      .map(action => [action.id, action]));
+    // Preserve the partial order through omitted annotation actions. Merely
+    // deleting their edges loses prerequisites; retaining them leaves dangling IDs.
+    const survivingDependencies = (id: string, visiting = new Set<string>()): string[] => {
+      const removed = removedActions.get(id);
+      if (!removed || visiting.has(id)) return [id];
+      const ancestors = new Set(visiting).add(id);
+      return removed.dependsOn.flatMap(dependency => survivingDependencies(dependency, ancestors));
+    };
+    next.teachingTimeline = next.teachingTimeline
+      .filter(action => !removedActions.has(action.id))
+      .map(action => action.dependsOn.some(id => removedActions.has(id)) ? {
+        ...action,
+        dependsOn: [...new Set(action.dependsOn.flatMap(id => survivingDependencies(id)))],
+      } : action);
     document = next;
   }
   return { document, issues };
