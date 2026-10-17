@@ -720,7 +720,9 @@ export type PlannerOpticsProof = "not_optics" | "proven" | "unproven";
  * centre. Rays the engine traced with `principal_rays` from the image tip need
  * no hand `converges`; two of them prove the rays, and each must meet the
  * element within its drawn half height (P10). Every other drawn light path, a
- * third hand ray or a polyline included, must be a ray the element forms (P11). Free-point figures, whose
+ * third hand ray, a polyline or polygon and a parallel or perpendicular line
+ * included, must be a ray the element forms (P11), and every other mark the
+ * compiler inks must be one the proof read (P12). Free-point figures, whose
  * ratio assertions are self-declared, fail. A model-writable
  * `source.archetype` label is never read.
  *
@@ -771,8 +773,16 @@ const OPTICS_DERIVED_INPUTS: Readonly<Record<string, readonly (readonly string[]
   vector: [OPTICS_LINE_START_KEYS, OPTICS_END_KEYS],
 };
 const OPTICS_PATH_OPERATORS = new Set(["segment", "ray", "vector", "line"]);
-/** Open paths the compiler draws between given points: always read as light paths (P7, P11). */
-const OPTICS_OPEN_PATH_OPERATORS = new Set(["segment", "ray", "vector", "polyline"]);
+/**
+ * Paths the compiler draws through given points (compiler.ts: segment, ray, vector, and polyline and
+ * polygon as one path, a polygon closed back to its first point): always read as light paths (P7, P11).
+ */
+const OPTICS_DRAWN_PATH_OPERATORS = new Set(["segment", "ray", "vector", "polyline", "polygon"]);
+/**
+ * Unbounded lines the compiler draws: a line through two points, and a parallel or perpendicular
+ * through a point. Each is read as a light path unless it runs along or square to the axis (`opticsLineShowsLight`).
+ */
+const OPTICS_LINE_OPERATORS = new Set(["line", "parallel_through", "perpendicular_through"]);
 /** lens_section and spherical_surface draw a flat element beyond this radius. */
 const OPTICS_PLANO_RATIO = 40;
 
@@ -902,9 +912,9 @@ function opticsProofFailure(question: string, match: OpticsStemMatch, document: 
   if (convergence.length === 0 && tracedOutputs.size < 2) {
     return "no fatal converges assertion ending on the gaussian image tip, and fewer than two principal_rays traced from it";
   }
-  // P7: every ray, extension and converging line ends on an engine-derived point. Each open path
-  // other than the two arrows counts, whatever its role: a polyline draws ink as a segment does. So
-  // does every line that can show light (`opticsLineShowsLight`).
+  // P7: every ray, extension and converging line ends on an engine-derived point. Each path drawn
+  // through given points other than the two arrows counts, whatever its role: a polyline or polygon
+  // draws ink as a segment does. So does every unbounded line that can show light (`opticsLineShowsLight`).
   const producer = new Map<string, OpticsConstruction>();
   for (const construction of document.constructions) {
     for (const output of construction.outputs) producer.set(output, construction);
@@ -914,8 +924,8 @@ function opticsProofFailure(question: string, match: OpticsStemMatch, document: 
   const rays = new Set<OpticsConstruction>();
   for (const construction of document.constructions) {
     if (arrows.includes(construction)) continue;
-    if (OPTICS_OPEN_PATH_OPERATORS.has(construction.operator) ||
-      (construction.operator === "line" && opticsLineShowsLight(construction, inputs.axis, entities, frame, document))) {
+    if (OPTICS_DRAWN_PATH_OPERATORS.has(construction.operator) ||
+      (OPTICS_LINE_OPERATORS.has(construction.operator) && opticsLineShowsLight(construction, inputs.axis, entities, frame, document))) {
       rays.add(construction);
     }
   }
@@ -975,15 +985,65 @@ function opticsProofFailure(question: string, match: OpticsStemMatch, document: 
   if (tracedFailure) return tracedFailure;
   // P11: every other drawn light path, converging or not, is a ray the element forms.
   const converging = new Set(convergence.flatMap((assertion) => assertion.entities.slice(0, -1)));
-  return opticsLightPathFailure(rays, converging, element, image, document, frame, onElement);
+  const lightFailure = opticsLightPathFailure(rays, converging, element, image, document, frame, onElement);
+  if (lightFailure) return lightFailure;
+  // P12: every other mark the compiler inks is one the proof read.
+  const read = new Set<OpticsConstruction>([...rays, ...arrows.map((arrow) => arrow!), ...surfaces, ...traced]);
+  return opticsUnreadInkFailure(document, read, producer, inputs.axis, entities, frame);
+}
+
+/**
+ * P12. The proof reads constructions; the student sees what the compiler inks. So the compiled scene
+ * is read back by entity, and every primitive other than a point or a label (a label's leader
+ * included) must come from a mark the proof read: the element, the object and image arrows, a traced
+ * ray, a light path P7 and P11 hold, or an unbounded line along or square to the axis (the axis, the
+ * element plane, a screen). Any other ink (a routed `connect`, a rectangle, a circle, a curve, a
+ * symbol, a surface contact, a dimension) is a mark no rule reads, so the figure is unproven.
+ * Annotation marks (ids no construction outputs) sit on geometry already read. A figure that does
+ * not compile shows nothing to read and is unproven.
+ */
+function opticsUnreadInkFailure(
+  document: SceneDocument,
+  read: ReadonlySet<OpticsConstruction>,
+  producer: ReadonlyMap<string, OpticsConstruction>,
+  axis: unknown,
+  entities: ReadonlyMap<string, SceneDocument["entities"][number]>,
+  frame: OpticsFrame,
+): string | null {
+  // The compiler draws the normalized document, as production does; its ids are the document's.
+  let normalized: SceneDocument | null = null;
+  let compiled: ReturnType<typeof compileSceneDocument> | null = null;
+  try {
+    normalized = validateSceneDocument(document).document;
+    compiled = normalized ? compileSceneDocument(normalized) : null;
+  } catch {
+    compiled = null;
+  }
+  if (!normalized || !compiled?.ok || !compiled.renderScene) return "the figure does not compile, so its ink cannot be read";
+  const constructed = new Set(normalized.constructions.flatMap((construction) => construction.outputs));
+  for (const primitive of compiled.renderScene.primitives) {
+    // A label's leader is placed by the label engine, from its anchor to its text: label ink.
+    if (primitive.kind === "point" || primitive.kind === "label" || primitive.provenance?.labelLeader === true) continue;
+    const construction = producer.get(primitive.entityId);
+    // Normalization may add a construction; ink the proof never saw is not read.
+    if (!construction && constructed.has(primitive.entityId)) {
+      return `${primitive.entityId} inks a ${primitive.kind} no construction of the document draws`;
+    }
+    if (!construction || read.has(construction)) continue;
+    if (OPTICS_LINE_OPERATORS.has(construction.operator) && !opticsLineShowsLight(construction, axis, entities, frame, document)) continue;
+    return `${construction.operator} ${primitive.entityId} inks a ${primitive.kind} the proof does not read as the element, an arrow, a traced ray or a light path`;
+  }
+  return null;
 }
 
 /**
  * P11. Two traced or converging rays prove the image; every other path P7 classes as light (each
- * segment, ray, vector and polyline other than the two arrows, a line that can show light, a
- * converging line) must be one too, or the figure draws a ray no element forms. A polyline is
- * read as the segments between its points, each held to these rules, and a vector carrying a
- * `direction` is refused, since the compiler draws that instead of its end. A path is light when it is
+ * segment, ray, vector, polyline and polygon other than the two arrows, an unbounded line that can
+ * show light, a converging line) must be one too, or the figure draws a ray no element forms. A
+ * polyline is read as the segments between its points and a polygon as the same closed back to its
+ * first point, each held to these rules; a parallel or perpendicular is read as the line it draws;
+ * and a vector carrying a `direction` is refused, since the compiler draws that instead of its end. A
+ * path is light when it is
  * - on the principal axis (the axial ray; also the axis and distances drawn along it);
  * - on a lens, on the chief line from the object tip through the optical centre, from the object
  *   tip onward (back to a virtual image when there is one, dashed and arrowless behind the object
@@ -1005,7 +1065,7 @@ function opticsLightPathFailure(
   element: "lens" | "mirror",
   image: OpticsConstruction,
   document: SceneDocument,
-  frame: { point(id: unknown): OpticsFramePoint | null; tolerance: number },
+  frame: OpticsFrame,
   onElement: (point: unknown) => boolean,
 ): string | null {
   const [objectBase, objectTip, , imageTip] = image.outputs;
@@ -1022,28 +1082,35 @@ function opticsLightPathFailure(
   const startOf = (construction: OpticsConstruction) => opticsFirst(construction.inputs,
     construction.operator === "segment" ? OPTICS_START_KEYS : OPTICS_LINE_START_KEYS);
   const endOf = (construction: OpticsConstruction) => opticsFirst(construction.inputs, OPTICS_END_KEYS);
-  // The straight pieces a path draws: a polyline's segments between its points, else the path itself.
+  // The straight pieces a path draws: a polyline's segments between its points, a polygon's closed
+  // back to its first, a parallel or perpendicular as a line through its point, else the path itself.
   const pieces = new Map<OpticsConstruction, OpticsPathPiece[]>();
   const piecesOf = (construction: OpticsConstruction): OpticsPathPiece[] => {
     let known = pieces.get(construction);
     if (!known) {
-      const points = construction.operator === "polyline" ? opticsPathVertices(construction, document) ?? [] : [];
-      known = construction.operator === "polyline"
-        ? points.slice(1).map((end, index) => ({ operator: "segment", start: points[index], end }))
-        : [{ operator: construction.operator, start: startOf(construction), end: endOf(construction) }];
+      if (construction.operator === "polyline" || construction.operator === "polygon") {
+        const points = opticsPathVertices(construction, document) ?? [];
+        const ends = construction.operator === "polygon" && points.length > 2 ? [...points.slice(1), points[0]] : points.slice(1);
+        known = ends.map((end, index) => ({ operator: "segment", start: points[index], end }));
+      } else if (construction.operator === "parallel_through" || construction.operator === "perpendicular_through") {
+        const at = opticsLineEnds(construction, frame);
+        known = [{ operator: "line", start: opticsFirst(construction.inputs, ["through", "point"]), end: undefined, ...(at ? { at } : {}) }];
+      } else {
+        known = [{ operator: construction.operator, start: startOf(construction), end: endOf(construction) }];
+      }
       pieces.set(construction, known);
     }
     return known;
   };
-  // Incident rays: a segment, vector or polyline piece from the object tip to the hit.
+  // Incident rays: a segment, vector, polyline or polygon piece from the object tip to the hit.
   const drawn = document.constructions.flatMap((construction) =>
-    construction.operator === "segment" || construction.operator === "vector" || construction.operator === "polyline" ? piecesOf(construction) : []);
+    ["segment", "vector", "polyline", "polygon"].includes(construction.operator) ? piecesOf(construction) : []);
   const incident = (piece: OpticsPathPiece, hit: unknown) => drawn.some((other) => other !== piece &&
     ((other.start === objectTip && other.end === hit) || (other.operator === "segment" && other.start === hit && other.end === objectTip)));
   const pieceFailure = (piece: OpticsPathPiece, name: string, id: string, ink: OpticsPathInk): string | null => {
     const { operator, start: startId, end: endId } = piece;
-    const start = frame.point(startId);
-    const end = frame.point(endId);
+    const start = piece.at?.[0] ?? frame.point(startId);
+    const end = piece.at?.[1] ?? frame.point(endId);
     if (!start || !end) return `${name} has an endpoint the proof cannot place on the element`;
     // The axial extent the drawn path covers: a segment or vector between its ends, a ray from its
     // start through its end and on, a line both ways.
@@ -1121,7 +1188,7 @@ function opticsLineShowsLight(
   line: OpticsConstruction,
   axis: unknown,
   entities: ReadonlyMap<string, SceneDocument["entities"][number]>,
-  frame: { point(id: unknown): OpticsFramePoint | null; tolerance: number },
+  frame: OpticsFrame,
   document: SceneDocument,
 ): boolean {
   if (typeof axis === "string" && line.outputs.includes(axis)) return false;
@@ -1131,9 +1198,9 @@ function opticsLineShowsLight(
       /ray|extension|light|path|beam/i.test(`${output} ${entity?.role ?? ""} ${entity?.label ?? ""}`);
   });
   if (marked) return true;
-  const start = frame.point(opticsFirst(line.inputs, OPTICS_LINE_START_KEYS));
-  const end = frame.point(opticsFirst(line.inputs, OPTICS_END_KEYS));
-  if (start && end) {
+  const ends = opticsLineEnds(line, frame);
+  if (ends) {
+    const [start, end] = ends;
     const along = Math.abs(start.y) <= frame.tolerance && Math.abs(end.y) <= frame.tolerance;
     return !along && !(Math.abs(start.a - end.a) <= frame.tolerance);
   }
@@ -1141,6 +1208,25 @@ function opticsLineShowsLight(
   const axisDirection = opticsAxisDirection(axis, document);
   return !(Math.abs(direction.x * axisDirection.x + direction.y * axisDirection.y) <=
     1e-9 * Math.hypot(direction.x, direction.y) * Math.hypot(axisDirection.x, axisDirection.y));
+}
+
+/**
+ * Two points of an unbounded line in the element frame, or null when the frame cannot place it: a
+ * line's own two ends; for a parallel or perpendicular, the point it passes through and one more a
+ * frame scale along it (the direction the compiler takes from its reference line, turned a quarter
+ * turn for a perpendicular).
+ */
+function opticsLineEnds(line: OpticsConstruction, frame: OpticsFrame): [OpticsFramePoint, OpticsFramePoint] | null {
+  if (line.operator === "line") {
+    const start = frame.point(opticsFirst(line.inputs, OPTICS_LINE_START_KEYS));
+    const end = frame.point(opticsFirst(line.inputs, OPTICS_END_KEYS));
+    return start && end ? [start, end] : null;
+  }
+  const placed = line.outputs.length === 1 ? frame.line(line.outputs[0]) : null;
+  const length = placed ? Math.hypot(placed.along.a, placed.along.y) : 0;
+  if (!placed || !(length > 0)) return null;
+  const reach = frame.scale / length;
+  return [placed.at, { a: placed.at.a + placed.along.a * reach, y: placed.at.y + placed.along.y * reach }];
 }
 
 /**
@@ -1152,8 +1238,12 @@ function opticsRedirected(path: OpticsConstruction): boolean {
   return path.operator === "vector" && path.inputs.direction !== undefined;
 }
 
-/** One straight piece of a drawn path, with the operator whose extent and direction it has. */
-interface OpticsPathPiece { operator: string; start: unknown; end: unknown }
+/**
+ * One straight piece of a drawn path, with the operator whose extent and direction it has. A line
+ * through a point (`parallel_through`, `perpendicular_through`) has no end id; `at` places its two
+ * frame points (`opticsLineEnds`).
+ */
+interface OpticsPathPiece { operator: string; start: unknown; end: unknown; at?: [OpticsFramePoint, OpticsFramePoint] }
 
 /**
  * How the compiler inks a path: with an arrowhead for a vector or ray operator, or any path whose
@@ -1162,15 +1252,25 @@ interface OpticsPathPiece { operator: string; start: unknown; end: unknown }
  */
 interface OpticsPathInk { arrow: boolean; dashed: boolean }
 
-/** The points a drawn path runs through, as the compiler reads them: a polyline's points, else its two ends. */
+/**
+ * The points a drawn path runs through, as the compiler reads them: a polyline's or polygon's points,
+ * else its two ends (for a parallel or perpendicular, its point and its reference line).
+ */
 function opticsPathVertices(path: OpticsConstruction, document: SceneDocument): unknown[] | null {
-  if (path.operator !== "polyline") return opticsDerivedReferences(path, document);
+  if (path.operator !== "polyline" && path.operator !== "polygon") return opticsDerivedReferences(path, document);
   const points = opticsFirst(path.inputs, ["points", "vertices"]);
   return Array.isArray(points) && points.length >= 2 ? points : null;
 }
 
 interface OpticsFramePoint { a: number; y: number }
 interface OpticsFrameLine { at: OpticsFramePoint; along: OpticsFramePoint }
+/** The element frame (`opticsFrame`): points and lines placed in it, and its length scale and tolerance. */
+interface OpticsFrame {
+  point(id: unknown): OpticsFramePoint | null;
+  line(id: unknown): OpticsFrameLine | null;
+  tolerance: number;
+  scale: number;
+}
 
 /**
  * Points in the element's own frame, in world units: `a` along the gaussian_image axis from its
@@ -1188,7 +1288,7 @@ function opticsFrame(
   displayScale: number,
   document: SceneDocument,
   producer: ReadonlyMap<string, OpticsConstruction>,
-): { point(id: unknown): OpticsFramePoint | null; tolerance: number } {
+): OpticsFrame {
   const s = displayScale;
   const u = resolved.objectDistance ?? Number.NaN;
   const f = resolved.focalLength;
@@ -1278,7 +1378,7 @@ function opticsFrame(
     lines.set(id, result);
     return result;
   };
-  return { point: (id) => point(id), tolerance };
+  return { point: (id) => point(id), line: (id) => line(id), tolerance, scale };
 }
 
 /**

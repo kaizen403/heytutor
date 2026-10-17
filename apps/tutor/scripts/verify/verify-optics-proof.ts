@@ -157,6 +157,14 @@
  * draws; so on the other two choices, on an image 60 cm on the object's side (f 10 cm refused, f 20
  * cm drawn) and on a concave mirror's image 30 cm in front (f 5 cm refused, f 10 cm drawn). With no
  * distance or side, a real and a virtual image both prove on each choice, and an unnamed lens declines.
+ * G31: what the compiler inks is read, not an operator list (P7, P11, P12). Beside traced rays on the
+ * lens of G19 and the concave mirror of G1, the review's polygons ([ot, S, F1] and [ot, F2, ob] on the
+ * lens, [ot, S, F] on the mirror; each edge read, the closing one included), parallel_through(ot,
+ * axis) named an incident ray or a guide (the parallel ray straight through the lens and through the
+ * mirror), perpendicular_through(ot, tr3) and perpendicular_through(ot, object) (the same straight
+ * line), a routed connect from the object tip to the focus and a rectangle band at the object tip's
+ * height across the element all stay unproven and never draw. Traced rays alone, the mirror plane and a
+ * screen at the image drawn as perpendicular_through still prove and draw.
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
@@ -2002,7 +2010,102 @@ function named(name: string, run: () => void): void {
   }
 }
 
-for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21", "G22", "G23", "G24", "G25", "G26", "G27", "G28", "G29", "G30"]) {
+// ---- G31: every mark the compiler inks is read, whatever operator draws it ----
+{
+  // Beside the traced rays that prove the image (the convex lens of G19, real image 15 cm on, and the
+  // concave mirror of G1), one more mark, drawn in the rays group. S is where a ray parallel to the axis
+  // from the object tip meets the element plane.
+  interface Mark { c: Construction; kind: string; role: string; helper?: boolean }
+  const withMarks = (base: Doc, plane: string, marks: Mark[]): Doc => {
+    const document = structuredClone(base);
+    const reads = (id: string) => marks.some((mark) => JSON.stringify(mark.c.inputs).includes(`"${id}"`));
+    const helpers: Mark[] = [
+      { c: { id: "c_lp2", operator: "perpendicular_through", inputs: { through: plane, line: "axis" }, outputs: ["lp2"] } as Construction, kind: "line", role: "construction helper", helper: true },
+      ...(reads("S") ? [{ c: { id: "c_S", operator: "project", inputs: { point: "ot", line: "lp2" }, outputs: ["S"] } as Construction, kind: "point", role: "construction helper", helper: true }] : []),
+    ];
+    for (const { c, kind, role, helper } of [...(reads("S") || reads("lp2") ? helpers : []), ...marks]) {
+      document.constructions.push(c);
+      document.entities.push(ent(c.outputs[0]!, kind, role) as Doc["entities"][number]);
+      if (helper) continue;
+      document.requiredEntityIds.push(c.outputs[0]!);
+      document.revealGroups = document.revealGroups.map((group) =>
+        group.id === "rays" ? { ...group, entityIds: [...group.entityIds, c.outputs[0]!] } : group);
+    }
+    return document;
+  };
+  const mark = (operator: string, inputs: Record<string, unknown>, kind: string, role: string): Mark =>
+    ({ c: { id: "c_x", operator, inputs, outputs: ["x"] } as Construction, kind, role });
+  const lens = tallLens(["parallel", "focal", "central"]);
+  const mirror = traced(goodMirror, ["parallel", "central"]);
+  const onLens = (marks: Mark[]) => withMarks(lens, "O", marks);
+  const onMirror = (marks: Mark[]) => withMarks(mirror, "P", marks);
+  // A thin band at the object tip's height, centred where it meets the element: the parallel ray drawn
+  // straight on through it, as a rectangle.
+  const band = (base: Doc, plane: string): Doc =>
+    withMarks(base, plane, [mark("rectangle", { center: "S", width: 50, height: 4 }, "rectangle", "incident ray parallel to the axis")]);
+  const offLine = /^ray x neither runs from the object tip to the (?:lens|mirror) nor leaves it$/;
+  for (const [name, question, turnPlan, document, reason] of [
+    // The review's polygons: each edge is read, the closing one included.
+    ["a polygon [ot, S, F1] named a light ray on the lens", qTall, tallPlan,
+      onLens([mark("polygon", { points: ["ot", "S", "F1"] }, "polygon", "light ray")]),
+      /^ray x leaves the lens at S off the line to the image tip/],
+    ["a polygon [ot, F2, ob] named a ray on the lens", qTall, tallPlan,
+      onLens([mark("polygon", { points: ["ot", "F2", "ob"] }, "polygon", "ray")]), offLine],
+    ["a polygon [ot, S, F] named a reflected ray on the mirror", qMirror, mirrorPlan,
+      onMirror([mark("polygon", { points: ["ot", "S", "F"] }, "polygon", "reflected ray")]), offLine],
+    // The review's parallel_through: the parallel ray drawn straight on through the element.
+    ["parallel_through(ot, axis) named the incident ray parallel to the axis on the lens", qTall, tallPlan,
+      onLens([mark("parallel_through", { through: "ot", line: "axis" }, "line", "incident ray parallel to the axis")]), offLine],
+    ["parallel_through(ot, axis) named a guide on the lens", qTall, tallPlan,
+      onLens([mark("parallel_through", { through: "ot", line: "axis" }, "line", "guide")]), offLine],
+    ["parallel_through(ot, axis) named an incident ray on the mirror", qMirror, mirrorPlan,
+      onMirror([mark("parallel_through", { through: "ot", line: "axis" }, "line", "incident ray")]), offLine],
+    ["parallel_through(ot, axis) named a guide on the mirror", qMirror, mirrorPlan,
+      onMirror([mark("parallel_through", { through: "ot", line: "axis" }, "line", "guide")]), offLine],
+    // perpendicular_through: square to a traced ray (the review's), and square to the object arrow, which
+    // is the same parallel ray straight through.
+    ["perpendicular_through(ot, tr3) named a ray on the lens", qTall, tallPlan,
+      onLens([mark("perpendicular_through", { through: "ot", line: "tr3" }, "line", "ray")]), /^ray x has an endpoint the engine did not derive$/],
+    ["perpendicular_through(ot, object) named a guide on the lens", qTall, tallPlan,
+      onLens([mark("perpendicular_through", { through: "ot", line: "object" }, "line", "guide")]), offLine],
+    ["perpendicular_through(ot, object) named a guide on the mirror", qMirror, mirrorPlan,
+      onMirror([mark("perpendicular_through", { through: "ot", line: "object" }, "line", "guide")]), offLine],
+    // Ink no rule reads: a routed connector and a rectangle.
+    ["connect ot to F2 named a light ray on the lens", qTall, tallPlan,
+      onLens([mark("connect", { start: "ot", end: "F2" }, "polyline", "light ray")]),
+      /^connect x inks a polyline the proof does not read as the element, an arrow, a traced ray or a light path$/],
+    ["connect ot to F named a light ray on the mirror", qMirror, mirrorPlan,
+      onMirror([mark("connect", { start: "ot", end: "F" }, "polyline", "light ray")]),
+      /^connect x inks a (?:polyline|line) the proof does not read/],
+    ["a rectangle band at the object tip's height across the lens", qTall, tallPlan, band(lens, "O"),
+      /^rectangle x inks a rectangle the proof does not read/],
+    ["a rectangle band at the object tip's height across the mirror", qMirror, mirrorPlan, band(mirror, "P"),
+      /^rectangle x inks a rectangle the proof does not read/],
+  ] as const) {
+    expectUnproven("G31", name, question, document, reason);
+    expectNeverPlanner("G31", name, question, turnPlan, document);
+  }
+  // The review's parallel line is drawn across the whole figure, through the lens.
+  const through = onLens([mark("parallel_through", { through: "ot", line: "axis" }, "line", "guide")]);
+  const { result } = compiled(through);
+  const ink = result.ok && result.renderScene ? result.renderScene.primitives.filter((primitive) => primitive.entityId === "x") : [];
+  check("G31", ink.length === 1 && ink[0]!.kind === "line", `the review's parallel_through must ink one line; got ${ink.map((primitive) => primitive.kind).join(", ") || "no ink"}`);
+  // Controls: traced rays alone, the element plane and a screen across the axis still prove and draw.
+  for (const [name, question, turnPlan, document] of [
+    ["the traced lens alone", qTall, tallPlan, lens],
+    ["the traced concave mirror alone", qMirror, mirrorPlan, mirror],
+    ["the mirror plane drawn as perpendicular_through(P, axis)", qMirror, mirrorPlan,
+      onMirror([mark("perpendicular_through", { through: "P", line: "axis" }, "line", "mirror plane")])],
+    ["a screen at the image drawn as perpendicular_through(ib, axis) on the lens", qTall, tallPlan,
+      onLens([mark("perpendicular_through", { through: "ib", line: "axis" }, "line", "screen")])],
+  ] as const) {
+    const proof = explainPlannerOpticsProof(question, document);
+    check("G31", proof.proof === "proven", `${name} must be proven; got ${proof.proof}: ${proof.reason}`);
+    expectDrawnAsPlanner("G31", name, question, turnPlan, document);
+  }
+}
+
+for (const gate of ["G1", "G2", "G3", "G1a", "G1b", "G2c", "G2d", "G6a", "G5a", "G5b", "G7", "G8", "G9", "G10", "G11", "G12a", "G12b", "G12c", "G12d", "G13", "G14", "G15", "G16", "G17", "G18", "G19", "G20", "G21", "G22", "G23", "G24", "G25", "G26", "G27", "G28", "G29", "G30", "G31"]) {
   console.log(`${gate}: ${gates.get(gate) ? `FAIL (${gates.get(gate)} checks)` : "pass"}`);
 }
 for (const [name, failed] of namedCases) console.log(`  ${name}: ${failed ? `FAIL (${failed} checks)` : "pass"}`);
