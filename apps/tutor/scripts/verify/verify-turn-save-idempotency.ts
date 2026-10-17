@@ -95,6 +95,7 @@ const { POST } = load("app/api/boards/[boardId]/turns/route.ts", {
   "@/lib/db/prisma": { prisma },
   "@/lib/http/requestBody": { readBoundedFormData, RequestBodyError },
   "@/lib/obs/traceOwnership": { assertOwnedTrace: async () => true },
+  "@/lib/obs/failedTurnSentry": { queueFailedTurnSentry: async () => null },
   // Storage admission has its own real-helper race tests in
   // verify-resource-abuse. This fixture stays focused on logical-save identity.
   "@/lib/boards/storageQuota": {

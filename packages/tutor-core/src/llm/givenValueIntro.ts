@@ -7,6 +7,7 @@
  */
 import { WORK_ZONE, measureTextWidth, workRowFontSize, type TutorSegment } from "@heytutor/drawing";
 import { isConceptLessonQuestion } from "./reasoningEffort";
+import type { NarrationLanguage } from "./hinglishNarration";
 
 export interface QuestionGiven {
   symbol: string;
@@ -110,6 +111,7 @@ const GIVEN_LEAD = "Given: ";
 function wrapGivenRows(
   givens: QuestionGiven[],
   maxWidth: number,
+  language?: NarrationLanguage,
 ): { board: string; spoken: string }[] {
   const rows: QuestionGiven[][] = [];
   let current: QuestionGiven[] = [];
@@ -138,11 +140,13 @@ function wrapGivenRows(
 
   return rows.map((items, index) => ({
     board: rowText(items, index === 0),
-    spoken: spokenGivenList(items, index === 0),
+    spoken: spokenGivenList(items, index === 0, language),
   }));
 }
 
 export interface GivenValueSegmentOptions {
+  /** Spoken scaffolding follows the voice; board rows remain English. */
+  language?: NarrationLanguage;
   /**
    * Widest a row may be drawn. A turn whose figure holds the right of the board
    * gets the narrow column; a text-only turn gets the whole width, so a short
@@ -159,7 +163,7 @@ export function buildGivenValueSegments(
   const givens = collectQuestionGivens(question, turnPlan);
   if (givens.length === 0) return [];
   const maxWidth = options.maxWidth ?? WORK_ZONE.maxTextWidth;
-  return wrapGivenRows(givens, maxWidth).map((row, index) => ({
+  return wrapGivenRows(givens, maxWidth, options.language).map((row, index) => ({
     narration: row.spoken,
     command: {
       type: "WRITE",
@@ -259,8 +263,11 @@ function equationFromQuestion(statement: string): QuestionGiven | null {
   };
 }
 
-function spokenGivenList(givens: QuestionGiven[], lead = true): string {
+function spokenGivenList(givens: QuestionGiven[], lead = true, language?: NarrationLanguage): string {
   const parts = givens.map((given) => given.spoken);
+  if (language === "hinglish") {
+    return parts.map((part, index) => `${index === 0 && lead ? "दिया है" : "और"} ${part}.`).join(" ");
+  }
   // Ellipsis is a short breath in ElevenLabs — "Given", then the values. Only
   // the first row says it; a continuation row just carries on listing.
   const opener = lead ? "Given... " : "";
