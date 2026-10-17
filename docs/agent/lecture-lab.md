@@ -171,6 +171,12 @@ pnpm exec tsx scripts/lecture-lab/compare.ts .lecture-lab/round-01 .lecture-lab/
 pnpm exec tsx scripts/lecture-lab/compare.ts --gallery .lecture-lab/eval-current .lecture-lab/eval-planner-first
 ```
 
+For long local batches, explicitly set `NODE_ENV=development
+LECTURE_LAB_KEEP_ROUTES_HOT=1` when starting the dev server. This keeps routes
+resident for one hour instead of expiring during slow planner calls; unset and
+production defaults are unchanged. Warm the app, chat and authenticated lab
+config routes before paid calls. Never rebuild packages during a paid round.
+
 Output per round: `runs/*.json` (the full record), `transcripts/*.md` (readable
 lesson plus findings), `summary.json` (scores and finding counts), and, for
 diagram evaluations, `gallery.html` plus PNGs under `frames/`. `summarize.ts`
