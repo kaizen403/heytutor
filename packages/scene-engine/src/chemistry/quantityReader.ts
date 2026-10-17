@@ -376,7 +376,7 @@ export function readChemistryQuantity(input: ChemistryQuantityInput): ChemRead<C
 export function chemistryQuantityPayloadPresent(text: string): boolean {
   return new RegExp(`(?<![A-Za-z0-9_.])${SCALAR}`).test(text)
     || [...text.matchAll(/(?<![\p{L}\p{N}_])(?=[A-Za-z\u00b0\u00b5\u00c5])/gu)].some(match => unitAt(text.slice(match.index)) !== null)
-    || /\b(?:unknown|unreadable|unspecified|undefined|NaN)\b/i.test(text);
+    || /\b(?:unknown|unreadable|unspecified|undefined|NaN|cannot\s+be\s+read)\b/i.test(text);
 }
 
 /** A mention/request is not a declaration; an assignment or supplied payload is. */
@@ -393,8 +393,11 @@ function isQuantityDeclaration(question: string, cue: ChemistrySpan, end: number
   if (/[=:]\s*$|\b(?:is|was|are|equals|equal\s+to)\s*$/i.test(cueText)) return true;
   const supplied = /^\s*(?:(?:of|about|nearly|approximately)\s+)?(?:[=:]|\d|[+\-−](?=\s*(?:\d|\.\d))|\.(?=\d)|\\(?:frac|dfrac|tfrac)\b|\b(?:is|was|are|equals|equal\s+to|unknown|unreadable|unspecified|undefined|not|NaN)\b)/i.test(tail);
   if (supplied) return true;
-  const requested = /\b(?:find|calculate|determine|evaluate|compute|what\s+(?:is|are))\s+(?:(?:the|a|an|its|their)\s+)*$/i.test(prefix);
+  const requested = /\b(?:find|calculate|determine|evaluate|compute|what\s+(?:is|are))\s+(?:(?:the|a|an|its|their|unknown|unreadable|unspecified|undefined)\s+)*$/i.test(prefix);
   if (requested) return false;
+  // An unavailable adjective belongs to this owner, rather than to a later
+  // readable sibling. A requested unknown quantity still supplies no input.
+  if (/\b(?:unknown|unreadable|unspecified|undefined|NaN)\s+$/i.test(prefix)) return true;
   // A scalar in this owner's argument cannot disappear merely because the
   // strict reader does not support its intervening verb phrase. Stop at an
   // argument boundary, before a speed or other owner can lend its value.
