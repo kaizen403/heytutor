@@ -93,7 +93,50 @@ const explainedMirrorDocument: SceneDocument = {
   ...mirrorDocument, revealGroups: [{ ...mirrorDocument.revealGroups[0]!, narrationCue: explanatoryCue }],
 };
 const explainedMirror = buildVerifiedDiagramPresentation(explainedMirrorDocument, { ...denseMirrorScene, revealGroups: explainedMirrorDocument.revealGroups }, { narrationLanguage: "hinglish" });
-assert(explainedMirror.introSegments.some(segment => segment.narration.includes(explanatoryCue)), "arbitrary explanatory prose keeps the complete object/mirror/image relationship inside the Hinglish framing");
+assert(explainedMirror.introSegments.some(segment => segment.narration.includes("O mirror के सामने object है, और I image है.")), "the complete object/mirror/image relationship uses Hindi grammar, not a Hindi prefix on an English sentence");
+for (const [cue, expected] of [
+  ["At 5 km/h east, the girl observes vertical rain.", "5 km/h east पर girl के observation में vertical rain है."],
+  ["At 20 km/h east, rain from the front appears 60° from vertical.", "20 km/h east पर front से rain का apparent view vertical से 60° पर है."],
+  ["The unchanged true rain velocity is 10 km/h, downward and eastward at 30° to the vertical.", "unchanged true rain velocity 10 km/h, downward और eastward vertical से 30° पर है."],
+  ["The ball leaves O horizontally above the descending slope.", "ball O से horizontally descending slope के ऊपर निकलता है."],
+  ["Show the ball's path toward the slope.", "slope की ओर ball's path देखो."],
+  ["The ball strikes after 3 s, 75 m down the slope from O.", "ball का impact 3 s के बाद, O से slope के along 75 m नीचे होता है."],
+  ["If the switch is open, the current is not zero.", "अगर switch open है, तो current zero नहीं है."],
+  ["Unless the switch is open, the current is not zero.", "अगर ऐसा नहीं है कि switch open है, तो current zero नहीं है."],
+  ["O is 3.5 m above I. I is not the image.", "O 3.5 m I के ऊपर है. I image नहीं है."],
+  ["The current is Not zero.", "current zero नहीं है."],
+] as const) {
+  const cueDocument = { ...mirrorDocument, revealGroups: [{ ...mirrorDocument.revealGroups[0]!, narrationCue: cue }] };
+  const cueScene = { ...denseMirrorScene, revealGroups: cueDocument.revealGroups };
+  const translated = buildVerifiedDiagramPresentation(cueDocument, cueScene, { narrationLanguage: "hinglish" });
+  assert(translated.introSegments.some(segment => segment.narration.includes(expected)), `${cue}: preserve the complete explanation in Hinglish grammar`);
+  assert.deepEqual(buildVerifiedDiagramPresentation(cueDocument, cueScene, { narrationLanguage: "english" }), buildVerifiedDiagramPresentation(cueDocument, cueScene), "English output remains byte-identical");
+  assert.deepEqual(translated.diagram.commands, buildVerifiedDiagramPresentation(cueDocument, cueScene).diagram.commands, "localizing prose preserves verified ink");
+  for (const segment of translated.introSegments) for (const command of segment.commands ?? [])
+    assert(command.spokenCue?.token && findSpokenToken(mathToSpeech(segment.narration), mathToSpeech(command.spokenCue.token)) >= 0, "translated clauses retain schedulable ink cues");
+}
+const lostUnknownCues: string[] = [];
+for (const unknownCue of [
+  "If impedance varies nonlinearly, X tracks the spectral envelope without losing phase.",
+  "Unless impedance varies nonlinearly, X is not zero.",
+  "The reflected beam does not change phase unless impedance varies nonlinearly.",
+  "The ball leaves the point O horizontally above the slope.",
+  "The force is not only vertical but also upward.",
+  "The image is above O and below I.",
+  "The image is above O when the object is below the axis.",
+  "The image is above O, which is below the mirror.",
+  "The force is not zero but positive.",
+  "The force is not necessarily vertical.",
+  "The force is not always vertical.",
+  "Follow the ray from O to I when the switch is open.",
+  "Show the object above O, which is below the mirror.",
+  "Trace the ray from O to I and then extend it backward.",
+]) {
+  const unknownDocument = { ...mirrorDocument, revealGroups: [{ ...mirrorDocument.revealGroups[0]!, narrationCue: unknownCue }] };
+  const unknownPresentation = buildVerifiedDiagramPresentation(unknownDocument, { ...mirrorScene, revealGroups: unknownDocument.revealGroups }, { narrationLanguage: "hinglish" });
+  if (!unknownPresentation.introSegments.some(segment => segment.narration.includes(unknownCue))) lostUnknownCues.push(unknownCue);
+}
+assert.deepEqual(lostUnknownCues, [], "unsupported technical grammar preserves its entire condition, relationship and negation; it is not replaced by an entity list");
 
 const restoredDocument: SceneDocument = {
   schemaVersion: "scene-document/v2", source: { question: "In Cartesian coordinates, A=(0,0), B=(3,4). Show the distance AB." },
@@ -113,6 +156,31 @@ for (const segment of restoredHinglish.introSegments) {
 const codeFigure = buildVerifiedDiagramPresentation(document, renderScene, { layout: "code_lesson", narrationLanguage: "hinglish" });
 for (const segment of codeFigure.introSegments) {
   assert.match(segment.narration, /\p{Script=Devanagari}/u, "code figure openings follow the same lesson language");
+}
+for (const reveal of codeFigure.diagram.reveals ?? []) {
+  assert.doesNotMatch(reveal.narration, /The rest of this setup|Let’s begin|Next comes|The labels|The label /, "code reveal templates also follow the lesson language");
+}
+const captionedCode = buildVerifiedDiagramPresentation(mirrorDocument, { ...mirrorScene, caption: explanatoryCue }, { layout: "code_lesson", narrationLanguage: "hinglish" });
+assert(captionedCode.introSegments.some(segment => segment.narration.includes("O mirror के सामने object है, और I image है.")), "code caption prose is localized completely too");
+const chunkedCodeScene: RenderScene = { ...mirrorScene, primitives: [
+  ...mirrorScene.primitives,
+  ...Array.from({ length: 20 }, (_, index) => ({ id: `code_line_${index}`, entityId: "rays", groupId: "rays", kind: "line" as const, points: [{ x: 500, y: 220 + index }, { x: 800, y: 220 + index }] })),
+] };
+const chunkedCode = buildVerifiedDiagramPresentation(mirrorDocument, chunkedCodeScene, { layout: "code_lesson", narrationLanguage: "hinglish" });
+assert((chunkedCode.diagram.reveals?.length ?? 0) > 1, "the code fixture must actually reach the continuation template");
+assert(chunkedCode.diagram.reveals?.slice(1).every(reveal => reveal.narration === "अब setup का बाकी हिस्सा पूरा करते हैं."), "every code chunk continuation uses Hindi grammar");
+for (const [labelDocument, labels, expected] of [
+  [mirrorDocument, ["O", "I"], "O object है, और I image है."],
+  [{ ...mirrorDocument, entities: mirrorDocument.entities.map(entity => ({ ...entity, role: "part" })) }, ["X", "Y"], "X और Y labels से figure के ये parts पहचानते हैं."],
+] as const) {
+  const labelScene: RenderScene = { ...mirrorScene, primitives: [
+    ...mirrorScene.primitives,
+    { id: "object_label", entityId: "object", groupId: "rays", kind: "label", text: labels[0], points: [{ x: 500, y: 230 }], labelPlacement: "absolute" },
+    { id: "image_label", entityId: "image", groupId: "rays", kind: "label", text: labels[1], points: [{ x: 950, y: 470 }], labelPlacement: "absolute" },
+  ] };
+  const labeled = buildVerifiedDiagramPresentation(labelDocument, labelScene, { layout: "code_lesson", narrationLanguage: "hinglish" });
+  assert(labeled.diagram.reveals?.some(reveal => reveal.narration === expected), "both identified-point and generic-label code templates are localized");
+  assert.deepEqual(buildVerifiedDiagramPresentation(labelDocument, labelScene, { layout: "code_lesson", narrationLanguage: "english" }), buildVerifiedDiagramPresentation(labelDocument, labelScene, { layout: "code_lesson" }), "default/explicit English code reveals are byte-identical");
 }
 const lesson = {
   question: "A ball has speed u = 20 m/s. Find the distance after 4 s.",

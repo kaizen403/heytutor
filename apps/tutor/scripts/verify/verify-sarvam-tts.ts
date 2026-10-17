@@ -216,6 +216,18 @@ assert.equal(sarvamSpeechText("class 10:30 पर, या 9:05, या 4:00"), "
 assert.equal(sarvamSpeechText(".5 metres"), "point five metres");
 assert.equal(sarvamSpeechText("100% efficiency"), "one hundred percent efficiency");
 assert.equal(sarvamSpeechText("q1 and v0x"), "q one and v zero x");
+for (const [input, expected] of [
+  ["speed 10 km/h है", "speed ten kilometers per hour है"],
+  ["speed ten km/h है", "speed ten kilometers per hour है"],
+  ["10km/h और 20 km / h", "ten kilometers per hour और twenty kilometers per hour"],
+  ["km/H, H, h, xkm/h, km/h_value", "km/H, H, h, xkm/h, km/h_value"],
+] as const) {
+  assert.equal(sarvamSpeechText(input), expected, "literal hourly velocity units survive the actual producer normalization");
+  assert.equal(sarvamSpeechText(expected), expected, "normalization is idempotent");
+  const producer = createTtsRelay(hindi);
+  const messages = producer.segment("hour-unit", input, settings);
+  assert.equal(messages.filter(message => message.type === "text").map(message => (message.data as { text: string }).text).join(""), expected, "the WS queue sends the normalized hourly unit, including number-word input");
+}
 
 // Long text splits at whitespace under Sarvam's per-message cap.
 const long = Array.from(
@@ -293,7 +305,13 @@ async function verifyHttp(): Promise<void> {
       "RIFF",
     );
 
-    for (const call of calls) {
+    const hourlyNdjson = await requestTts(hindi, { text: "speed 10 km/h है" }, true);
+    assert.equal(JSON.parse((await hourlyNdjson.text()).trim()).isFinal, true);
+    const hourlyWav = await requestTts(hindi, { text: "speed ten km/h है" }, false);
+    assert.equal(Buffer.from(await hourlyWav.arrayBuffer()).subarray(0, 4).toString(), "RIFF");
+    const expectedTexts = ["x equals nine", "x equals nine", "speed ten kilometers per hour है", "speed ten kilometers per hour है"];
+    assert.equal(calls.length, expectedTexts.length);
+    for (const [index, call] of calls.entries()) {
       assert.equal(call.url, "https://api.sarvam.ai/text-to-speech");
       assert.equal(call.headers["api-subscription-key"], KEY);
       assert.equal(
@@ -302,7 +320,7 @@ async function verifyHttp(): Promise<void> {
         "the Sarvam key never goes to ElevenLabs",
       );
       assert.equal(call.headers.Authorization, undefined);
-      assert.equal(call.body.text, "x equals nine");
+      assert.equal(call.body.text, expectedTexts[index]);
       assert.equal(call.body.language_code, "hi-IN");
       assert.equal(call.body.speaker, "ritu");
       assert.equal(call.body.output_audio_codec, "linear16");

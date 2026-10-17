@@ -29,6 +29,7 @@ const SILENT_FINAL_BYTES = 4_800;
  */
 export function sarvamSpeechText(text: string): string {
   return text
+    .replace(/(?<![\p{L}_])km\s*\/\s*h(?![\p{L}\p{N}_])/gu, "kilometers per hour")
     .replace(ORDINAL, (_match, digits: string) => ordinalWords(digits))
     .replace(CLOCK_TIME, (_match, hours: string, minutes: string) =>
       `${numberToSpokenWords(hours)} ${minutes === "00" ? "o'clock" : minutes.startsWith("0") ? `oh ${numberToSpokenWords(minutes)}` : numberToSpokenWords(minutes)}`)
