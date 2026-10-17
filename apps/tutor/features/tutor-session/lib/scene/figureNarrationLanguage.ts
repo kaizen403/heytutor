@@ -42,7 +42,11 @@ function localizeClause(text: string): string | null {
   // negation; otherwise two independent relations become a nested relation.
   if (/\b(?:if|unless|when|while|which|who|whose|that|where|because|although|though|but|except|until|provided|assuming)\b/i.test(text)) return null;
   if ((text.match(/\b(?:is|are|observes|appears|leaves|strikes)\b/gi)?.length ?? 0) > 1) return null;
-  const spatialBoundary = "(?:above|below|towards?|along|from|at|in|on|behind|between|after|before|under|over)";
+  const spatialBoundary = "(?:above|below|towards?|along|from|to|at|in|on|behind|between|after|before|under|over)";
+  // A coordinated target may begin with a modifier before its preposition.
+  // This grammar cannot scope that continuation, even when it could also be
+  // a shared noun list. Keep the whole clause instead of nesting relations.
+  if (new RegExp(`\\b${spatialBoundary}\\b.*\\b(?:and|or)\\b`, "i").test(text)) return null;
   if (new RegExp(`(?:\\b(?:and|or)\\s+|,\\s*)${spatialBoundary}\\b`, "i").test(text)) return null;
   const at = /^at\s+(.+?),\s+(.+)$/i.exec(text);
   if (at) {
