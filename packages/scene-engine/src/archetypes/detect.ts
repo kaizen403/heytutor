@@ -70,6 +70,28 @@ function objectDistanceFromStem(stem: string): number | null {
     ?? numberAfter(stem, OBJECT_PLACEMENT, UNIT.centimetre);
 }
 
+/**
+ * A mirror named as an optical element: every use of the word except a
+ * "mirror image" (or the typed "mirror imag"), which is a reflection of a
+ * point or a figure, not an apparatus. "A concave mirror", "a mirror of
+ * focal length 15 cm" and "an object 20 cm in front of a mirror" all name one.
+ */
+const MIRROR_ELEMENT = /\bmirrors?\b(?![\s-]*imag(?:es?)?\b)/i;
+
+/**
+ * A stem whose only mirror is a "mirror image" ("B is the mirror image of A
+ * in a plane") is coordinate geometry or symmetry, never a mirror stem.
+ */
+const MIRROR_IMAGE_WITHOUT_MIRROR = new RegExp(`^(?![\\s\\S]*${MIRROR_ELEMENT.source})[\\s\\S]*\\bmirror[\\s-]*imag(?:es?)?\\b`, "i");
+
+/**
+ * The image or reflection of a point (named, or given by coordinates) in a
+ * plane or a line: the reflection of coordinate geometry, which names no lens
+ * or mirror. A point object or source is optics, and so is the image in a
+ * plane mirror.
+ */
+const COORDINATE_POINT_REFLECTION = /\b(?:imag(?:es?)?|reflections?)\s+of\s+(?:(?:the|a)\s+)?(?:points?\b(?!\s+(?:object|source|charge)s?\b)|[A-Z]\s*\(\s*[-+]?\d|\(\s*[-+]?\d)[^.?!]*?\b(?:in|about|across|with respect to)\s+(?:(?:the|a|given)\s+)*(?:plane|line)\b(?![\s-]*mirror)/i;
+
 /** Focal length, named or written as `f = 15 cm`. */
 function focalLengthFromStem(stem: string): number | null {
   return lengthAfterInCm(stem, FOCAL_LENGTH)
@@ -852,7 +874,9 @@ const CUE_SETS: readonly CueSet[] = [
   {
     id: "spherical_mirror",
     cues: [[/\b(?:concave|convex) mirror\b/i, 5], [/\bmirror\b/i, 3], [/\b(?:focal length|radius of curvature|image|object)\b/i, 1]],
-    vetoes: [/\bplane mirror\b/i, /\blens\b/i],
+    // A lens or mirror stem names the element; a mirror image or the
+    // reflection of a coordinate point is not one.
+    vetoes: [/\bplane mirror\b/i, /\blens\b/i, MIRROR_IMAGE_WITHOUT_MIRROR, COORDINATE_POINT_REFLECTION],
     extract: (stem, plan, bag) => {
       setSlot(bag, "kind", /\bconvex\b/i.test(stem) ? "convex" : "concave", "stem");
       setSlot(bag, "u", planNumber(plan, ["u", "objectdistance", "do"]), "plan");
@@ -867,7 +891,7 @@ const CUE_SETS: readonly CueSet[] = [
   {
     id: "thin_lens",
     cues: [[/\b(?:convex|concave|converging|diverging|biconvex|thin) lens\b/i, 5], [/\blens\b/i, 3], [/\b(?:focal length|power|image|object|magnification)\b/i, 1]],
-    vetoes: [/\bmirror\b/i, /\b(?:microscope|telescope|eyepiece|objective)\b/i, /\blens maker/i, /\bradii\b/i],
+    vetoes: [/\bmirror\b/i, /\b(?:microscope|telescope|eyepiece|objective)\b/i, /\blens maker/i, /\bradii\b/i, COORDINATE_POINT_REFLECTION],
     extract: (stem, plan, bag) => {
       setSlot(bag, "kind", /\b(?:concave|diverging)\b/i.test(stem) ? "concave" : "convex", "stem");
       setSlot(bag, "u", planNumber(plan, ["u", "objectdistance", "do"]), "plan");
@@ -885,7 +909,7 @@ const CUE_SETS: readonly CueSet[] = [
       [/\bradii\b/i, 3],
       [/\b(?:R\s*1|R1|radius of curvature)\b/i, 2],
     ],
-    vetoes: [/\b(?:microscope|telescope|eyepiece|objective)\b/i, /\bmirror\b/i],
+    vetoes: [/\b(?:microscope|telescope|eyepiece|objective)\b/i, /\bmirror\b/i, COORDINATE_POINT_REFLECTION],
     extract: (stem, plan, bag) => {
       const kind = /\bbiconcave\b/i.test(stem) || /\bplano[- ]concave\b/i.test(stem)
         ? (/\bplano\b/i.test(stem) ? "plano-concave" : "biconcave")
