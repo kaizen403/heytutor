@@ -1,5 +1,6 @@
 import { WORK_ZONE, fitBoardText, type TutorSegment } from "@heytutor/drawing";
 import type { SubjectFamiliarity } from "../llm/systemPrompt";
+import type { NarrationLanguage } from "../llm/hinglishNarration";
 import {
   CODE_LESSON_STEP_WORDS,
   codeLessonBeatPlan,
@@ -232,6 +233,7 @@ export interface DsaOpeningInput {
   question: string;
   /** Concrete example the figure will walk, when known. */
   example?: Record<string, unknown> | null;
+  language?: NarrationLanguage;
 }
 
 const MAX_OPENING_ROWS = 6;
@@ -285,11 +287,12 @@ function dsaOpeningRows(input: DsaOpeningInput): Array<{ board: string; spoken: 
     maxWidth: WORK_ZONE.maxTextWidth,
   });
   for (const [index, line] of titleBlock.lines.entries()) {
+    const spoken = index === 0 ? (ask || `the question is ${title}`) : line;
     rows.push({
       board: line,
-      spoken: index === 0
-        ? (ask || `the question is ${title}`)
-        : line,
+      spoken: input.language === "hinglish"
+        ? `सवाल ये है: ${spoken}`
+        : spoken,
     });
   }
   for (const [key, value] of exampleEntries(input.example)) {
@@ -301,7 +304,9 @@ function dsaOpeningRows(input: DsaOpeningInput): Array<{ board: string; spoken: 
     for (const [index, line] of block.lines.entries()) {
       rows.push({
         board: line,
-        spoken: index === 0 ? `${speakKey(key)} is ${speakValue(value)}` : line,
+        spoken: input.language === "hinglish"
+          ? `यहाँ ${index === 0 ? `${speakKey(key)} equals ${speakValue(value)}` : line}.`
+          : index === 0 ? `${speakKey(key)} is ${speakValue(value)}` : line,
       });
     }
   }

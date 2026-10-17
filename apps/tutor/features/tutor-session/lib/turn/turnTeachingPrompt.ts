@@ -720,9 +720,11 @@ export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTea
         title: codeLesson.title,
         question,
         example: input.codeLessonFacts?.example ?? null,
+        language: input.narrationLanguage,
       })
     : buildGivenValueSegments(question, turnPlan, {
         maxWidth: input.diagramPromptAddon ? WORK_ZONE.maxTextWidth : WORK_ZONE.fullWidthTextWidth,
+        language: input.narrationLanguage,
       });
 
   // The lesson's first spoken beat. It leads the given rows on a problem, the
