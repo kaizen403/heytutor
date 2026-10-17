@@ -231,7 +231,7 @@ async function cacheUpgradePrunesPreviousRevisions(): Promise<void> {
   const value = { blob: new Blob(["retained current export"]), mimeType: "video/mp4", extension: "mp4", noVoice: true, missingAudioCues: 0 };
   const currentVersion = Number(LECTURE_PAGE_CACHE_REVISION.slice("video".length));
   const currentKey = `page@1@${LECTURE_PAGE_CACHE_REVISION}`;
-  const keys = ["page@1.25@video6", "page@1.25@video7", "page@1.25@video7.webm", "page@1.25@video8", "page@1.25@video8.webm", "page@1.25@video9", "page@1.25@video9.webm", "page@1@video10", "page@1@video10.webm", currentKey, `${currentKey}.webm`, `page@1@video${currentVersion + 1}`, "unrelated"];
+  const keys = ["page@1.25@video6", "page@1.25@video7", "page@1.25@video7.webm", "page@1.25@video8", "page@1.25@video8.webm", "page@1.25@video9", "page@1.25@video9.webm", "page@1@video10", "page@1@video10.webm", "page@1@video11", "page@1@video11.webm", currentKey, `${currentKey}.webm`, `page@1@video${currentVersion + 1}`, "unrelated"];
   const rows = new Map(keys.map(key => [key, value]));
   let openedVersion: number | undefined;
   let finishUpgrade: (() => void) | undefined;
@@ -274,7 +274,7 @@ async function cacheUpgradePrunesPreviousRevisions(): Promise<void> {
   const current = await cacheModule.exports.getCachedLectureExport(currentKey);
   assert.equal(openedVersion, currentVersion, "the actual IndexedDB cache upgrades past truncated and pitched files");
   assert.equal(current?.blob, value.blob, "the current valid cached file remains usable");
-  assert.deepEqual([...rows.keys()], keys.slice(9), "the actual cache cursor deletes older video6/video7, pitched video8/video9, and pre-pointing video10 blobs, retaining current, future and unrelated keys");
+  assert.deepEqual([...rows.keys()], keys.slice(11), "the actual cache cursor deletes older video6/video7, pitched video8/video9, and pre-pointing video10/video11 blobs, retaining current, future and unrelated keys");
 }
 
 async function main() {
