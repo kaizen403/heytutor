@@ -1,11 +1,11 @@
 /** Labels are atomic display text; numeric authority retains main's verdicts. */
 import assert from "node:assert/strict";
-import { compileSceneDocument, pruneUnverifiedSceneAnnotations, validateSceneQuantityAgreement,
+import { compileSceneDocument, pruneDeadSceneEntities, pruneUnverifiedSceneAnnotations, validateSceneDocument, validateSceneQuantityAgreement, validateTurnPlanV3,
   type SceneDocument, type TurnPlanV3 } from "../../../../packages/scene-engine/src/index";
 import { textToStrokePaths } from "@heytutor/drawing";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
 import { inferSceneCapabilities } from "@heytutor/tutor-core";
-import { selectProductionScene } from "../../features/tutor-session/lib/scene/productionSceneSelection";
+import { selectProductionScene, validateProductionSceneCandidate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
 import { mountTestWhiteboard, unmountTestWhiteboard } from "../../../../packages/whiteboard/scripts/whiteboardTestHarness";
 import { createVirtualWhiteboardClock } from "../../../../packages/whiteboard/src/whiteboardClock";
@@ -239,6 +239,54 @@ function retainedLabel(document: SceneDocument): string | undefined {
   return document.entities.find(entity => entity.id === "length")?.label;
 }
 
+function verifyRemovedPointLabel(): void {
+  // Minimized from the recorded plane's B = 3i + 3j label: main's reader
+  // treats 3j as joules. No plan quantities or other plane proofs are needed.
+  const fixture = {
+    question: PLANS[0]!.question,
+    turnPlan: PLANS[0]!,
+    candidate: { ...scene("d", PLANS[0]!, false), entities: [
+      { id: "a", kind: "point", role: "start", label: "A" },
+      { id: "b", kind: "point", role: "end", label: "3i + 3j" },
+      { id: "length", kind: "dimension", role: "length", label: "d" },
+    ] },
+  };
+  const plan = validateTurnPlanV3(fixture.turnPlan, fixture.question);
+  assert(plan.plan, `recorded plan projection must validate: ${JSON.stringify(plan.issues)}`);
+  const normalized = validateSceneDocument(pruneDeadSceneEntities(fixture.candidate));
+  assert(normalized.document, `the point-labelled figure must validate before label publication: ${JSON.stringify(normalized.report.issues)}`);
+  const before = normalized.document;
+  const point = before.entities.find(entity => entity.id === "b");
+  assert.equal(point?.label, "3i + 3j");
+  assert(before.assertions.some(assertion => assertion.predicate === "label_attached" && assertion.entities.includes("b")),
+    "real named-point normalization must create the assertion that became stale");
+  const pruned = pruneUnverifiedSceneAnnotations(before, fixture.turnPlan);
+  assert.equal(pruned.entities.find(entity => entity.id === "b")?.label, undefined, "the unsupported point label is removed whole");
+  assert(!pruned.assertions.some(assertion => assertion.predicate === "label_attached" && assertion.entities.includes("b")),
+    "a removed label cannot leave a fatal label-attached obligation");
+  assert.deepEqual(pruned.assertions, before.assertions.filter(assertion =>
+    !(assertion.predicate === "label_attached" && assertion.entities.includes("b"))),
+  "all other proofs, including labels that remain, are preserved");
+  assert.deepEqual(pruned.constructions, before.constructions, "label cleanup preserves the complete construction");
+  const admitted = validateProductionSceneCandidate(fixture);
+  assert(admitted.valid && admitted.value, `the labelled-point figure must still draw without a fragment: ${JSON.stringify(admitted.errors)}`);
+  const published = buildVerifiedDiagramPresentation(admitted.value.document, admitted.value.renderScene);
+  assert(!published.diagram.commands.some(command => command.type === "LABEL" && /3i\s*\+/.test(command.text ?? "")),
+    "the real publication boundary cannot recreate the unsupported label or main's fragment");
+  const again = pruneUnverifiedSceneAnnotations(pruned, fixture.turnPlan);
+  assert.equal(again, pruned, "a second publication pass keeps the same already-clean document");
+
+  const symbolCase = validateSceneDocument(pruneDeadSceneEntities({ ...fixture.candidate, entities: fixture.candidate.entities.map(entity =>
+    entity.id === "b" ? { ...entity, label: "v = 99 m/s" } : entity) }));
+  assert(symbolCase.document);
+  assert(symbolCase.document.assertions.some(assertion => assertion.predicate === "label_attached" && assertion.entities.includes("b")),
+    `symbol control must start with its point obligation: ${JSON.stringify(symbolCase.document.assertions)}`);
+  const symbolPruned = pruneUnverifiedSceneAnnotations(symbolCase.document, fixture.turnPlan);
+  assert.equal(symbolPruned.entities.find(entity => entity.id === "b")?.label, "v");
+  assert(symbolPruned.assertions.some(assertion => assertion.predicate === "label_attached" && assertion.entities.includes("b")),
+    "a retained symbol still requires its point label to stay attached");
+}
+
 async function verifyKohlrausch(): Promise<void> {
   const question = "Draw the variation of molar conductivity with √c for a strong electrolyte and a weak electrolyte and explain Kohlrausch law.";
   const plan: TurnPlanV3 = { ...PLANS[0]!, question, visualRequirement: "required" };
@@ -336,7 +384,7 @@ async function main(): Promise<void> {
       if (retained !== label) failures.push(`${label}: accepted label was changed to ${JSON.stringify(retained)}`);
       if (note !== label) failures.push(`${label}: accepted annotation was changed`);
     } else {
-      if (retained !== undefined && (symbol === null || retained !== symbol))
+      if (retained !== (symbol ?? undefined))
         failures.push(`${label}: unsupported label became fragment ${JSON.stringify(retained)} instead of ${symbol ?? "no label"}`);
       if (note !== undefined) failures.push(`${label}: unsupported annotation was retained`);
     }
@@ -344,9 +392,10 @@ async function main(): Promise<void> {
     assert.deepEqual(pruned.quantities, original.quantities, `${label}: display policy cannot edit quantities`);
   }
   assert.deepEqual(failures, [], "accepted labels stay byte-whole; unsupported labels become a complete symbol or disappear");
+  verifyRemovedPointLabel();
   await verifyKohlrausch();
   await verifyRendering();
-  console.log(`atomic scene labels: ${FIXTURES.length} fixed main authority verdicts; entity/annotation atomicity, actual Kohlrausch live/save, compiler/presentation and immediate/animated Whiteboard controls`);
+  console.log(`atomic scene labels: ${FIXTURES.length} fixed main authority verdicts; mandatory symbol fallback, removed-point proof cleanup, actual Kohlrausch live/save, compiler/presentation and immediate/animated Whiteboard controls`);
 }
 
 runWhiteboardVerifier(main);

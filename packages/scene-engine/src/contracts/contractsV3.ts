@@ -2603,6 +2603,7 @@ export function pruneUnverifiedSceneAnnotations(
 ): SceneDocument {
   let changed = false;
   const removedIds = new Set<string>();
+  const removedLabelIds = new Set<string>();
   const annotations = document.annotations.filter((annotation) => {
     if (!annotation.text) return true;
     const unsupported = validateSceneQuantityAgreement([], plan, [annotation.text])
@@ -2619,6 +2620,7 @@ export function pruneUnverifiedSceneAnnotations(
     if (label === entity.label) return entity;
     changed = true;
     if (label) return { ...entity, label };
+    removedLabelIds.add(entity.id);
     const withoutLabel = { ...entity };
     delete withoutLabel.label;
     return withoutLabel;
@@ -2628,6 +2630,11 @@ export function pruneUnverifiedSceneAnnotations(
     ...document,
     entities,
     annotations,
+    // Named-point normalization added this obligation while the label was
+    // still present. Removing optional display text removes that proof only.
+    assertions: document.assertions.filter((assertion) =>
+      assertion.predicate !== "label_attached" ||
+      !assertion.entities.some((id) => removedLabelIds.has(id))),
     teachingTimeline: document.teachingTimeline.filter((action) => !removedIds.has(action.targetId)),
   };
 }
