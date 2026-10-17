@@ -1,0 +1,1800 @@
+[
+  {
+    "id": "CHEM_H80_XI_001",
+    "round": 1,
+    "question": "Two excited hydrogen atoms emit photons by the transitions n = 4 \u2192 2 and n = 3 \u2192 2. Draw a common energy-level diagram for n = 1, 2, 3, 4 and the ionisation limit, place both transition arrows, and label the photon energy and wavelength for each. Use E_n = -13.60/n^2 eV and hc = 1240 eV nm; neglect fine structure.",
+    "plan": {
+      "visualRequirement": "required",
+      "requiresVisualByStem": true,
+      "givens": [],
+      "unknowns": [],
+      "derived": [],
+      "qualitativeClaims": [],
+      "lawIds": [],
+      "assumptions": [
+        "Turn-plan model was unavailable; visual requirement was classified conservatively."
+      ]
+    },
+    "candidate": null
+  },
+  {
+    "id": "CHEM_H80_XI_003",
+    "round": 1,
+    "question": "A collimated beam of positively charged \u03b1 particles strikes a very thin gold foil. Draw the experiment and an enlarged schematic of trajectories near one gold nucleus. Show why most \u03b1 particles pass almost straight through, some are deflected, and a very small number return toward the source. Mark the relative source, foil, and detector positions; the enlargement need not be to scale.",
+    "plan": {
+      "visualRequirement": "required",
+      "requiresVisualByStem": true,
+      "givens": [],
+      "unknowns": [],
+      "derived": [],
+      "qualitativeClaims": [
+        {
+          "id": "layout",
+          "expected": "Place the \u03b1 source before the thin gold foil, with its collimated beam directed toward the foil. Show a detector at positions around the foil to register transmitted, deflected, and source-side returning particles."
+        },
+        {
+          "id": "straight",
+          "expected": "In the enlargement, show most trajectories crossing the foil far from a nucleus with little change in direction: atoms are mostly empty space, and strong encounters with their tiny nuclei are uncommon."
+        },
+        {
+          "id": "deflected",
+          "expected": "Show trajectories passing near a positively charged nucleus bending away from it because the positively charged \u03b1 particle experiences electrostatic repulsion."
+        },
+        {
+          "id": "return",
+          "expected": "Show a rare, nearly head-on approach to a nucleus turning back under strong electrostatic repulsion; such close approaches are rare because the nucleus is tiny."
+        }
+      ],
+      "lawIds": [
+        "Coulomb's law",
+        "Rutherford nuclear model"
+      ],
+      "assumptions": []
+    },
+    "candidate": null
+  },
+  {
+    "id": "CHEM_H80_XII_010",
+    "round": 1,
+    "question": "Sketch corrosion of iron under an aerated, approximately neutral water droplet. Use an oxygen-poor central anodic region and an oxygen-rich peripheral cathodic region; show electron flow through iron, Fe^2\u207a formation, oxygen reduction and a region where corrosion products form.",
+    "plan": {
+      "visualRequirement": "required",
+      "requiresVisualByStem": true,
+      "givens": [],
+      "unknowns": [],
+      "derived": [],
+      "qualitativeClaims": [
+        {
+          "id": "c1",
+          "expected": "Locate the anode at the centre and the cathode at the periphery of the iron\u2013droplet contact."
+        },
+        {
+          "id": "c2",
+          "expected": "Fe \u2192 Fe\u00b2\u207a + 2e\u207b; show electron flow from centre to periphery through iron."
+        },
+        {
+          "id": "c3",
+          "expected": "O\u2082 + 2H\u2082O + 4e\u207b \u2192 4OH\u207b."
+        },
+        {
+          "id": "c4",
+          "expected": "Fe\u00b2\u207a + 2OH\u207b \u2192 Fe(OH)\u2082; this can oxidize further to iron(III) corrosion products."
+        }
+      ],
+      "lawIds": [
+        "differential aeration corrosion",
+        "iron anodic oxidation",
+        "oxygen cathodic reduction in neutral water",
+        "iron(II) hydroxide precipitation"
+      ],
+      "assumptions": []
+    },
+    "candidate": {
+      "schemaVersion": "scene-document/v2",
+      "visualDecision": "scene",
+      "source": {
+        "question": "Sketch corrosion of iron under an aerated, approximately neutral water droplet. Use an oxygen-poor central anodic region and an oxygen-rich peripheral cathodic region; show electron flow through iron, Fe^2\u207a formation, oxygen reduction and a region where corrosion products form.",
+        "representationTier": "qualitative_verified",
+        "nonMetric": true
+      },
+      "quantities": [],
+      "entities": [
+        {
+          "id": "base",
+          "kind": "point"
+        },
+        {
+          "id": "iron",
+          "kind": "rectangle",
+          "label": "Iron"
+        },
+        {
+          "id": "dropCenter",
+          "kind": "point"
+        },
+        {
+          "id": "droplet",
+          "kind": "circle",
+          "label": "Water droplet"
+        },
+        {
+          "id": "anode",
+          "kind": "point",
+          "label": "Anode"
+        },
+        {
+          "id": "cathode",
+          "kind": "point",
+          "label": "Cathode"
+        },
+        {
+          "id": "electronStart",
+          "kind": "point"
+        },
+        {
+          "id": "electronEnd",
+          "kind": "point"
+        },
+        {
+          "id": "electronFlow",
+          "kind": "vector",
+          "label": "e\u207b"
+        },
+        {
+          "id": "ironIons",
+          "kind": "point",
+          "label": "Fe\u00b2\u207a"
+        },
+        {
+          "id": "oxygen",
+          "kind": "point",
+          "label": "O\u2082"
+        },
+        {
+          "id": "hydroxide",
+          "kind": "point",
+          "label": "OH\u207b"
+        },
+        {
+          "id": "products",
+          "kind": "point",
+          "label": "Fe(OH)\u2082"
+        }
+      ],
+      "constructions": [
+        {
+          "id": "cBase",
+          "operator": "point",
+          "inputs": {
+            "x": 0,
+            "y": -0.3,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "base"
+          ]
+        },
+        {
+          "id": "cIron",
+          "operator": "rectangle",
+          "inputs": {
+            "center": "base",
+            "width": 5,
+            "height": 0.6
+          },
+          "outputs": [
+            "iron"
+          ]
+        },
+        {
+          "id": "cDropCenter",
+          "operator": "point",
+          "inputs": {
+            "x": 0,
+            "y": 1,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "dropCenter"
+          ]
+        },
+        {
+          "id": "cDroplet",
+          "operator": "circle",
+          "inputs": {
+            "center": "dropCenter",
+            "radius": 1
+          },
+          "outputs": [
+            "droplet"
+          ]
+        },
+        {
+          "id": "cAnode",
+          "operator": "point",
+          "inputs": {
+            "x": 0,
+            "y": 0,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "anode"
+          ]
+        },
+        {
+          "id": "cCathode",
+          "operator": "point",
+          "inputs": {
+            "x": 0.8,
+            "y": 0,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "cathode"
+          ]
+        },
+        {
+          "id": "cElectronStart",
+          "operator": "point",
+          "inputs": {
+            "x": 0,
+            "y": -0.15,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "electronStart"
+          ]
+        },
+        {
+          "id": "cElectronEnd",
+          "operator": "point",
+          "inputs": {
+            "x": 0.8,
+            "y": -0.15,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "electronEnd"
+          ]
+        },
+        {
+          "id": "cElectronFlow",
+          "operator": "vector",
+          "inputs": {
+            "start": "electronStart",
+            "end": "electronEnd"
+          },
+          "outputs": [
+            "electronFlow"
+          ]
+        },
+        {
+          "id": "cIronIons",
+          "operator": "point",
+          "inputs": {
+            "x": 0,
+            "y": 0.43,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "ironIons"
+          ]
+        },
+        {
+          "id": "cOxygen",
+          "operator": "point",
+          "inputs": {
+            "x": 0.85,
+            "y": 0.85,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "oxygen"
+          ]
+        },
+        {
+          "id": "cHydroxide",
+          "operator": "point",
+          "inputs": {
+            "x": 0.72,
+            "y": 0.38,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "hydroxide"
+          ]
+        },
+        {
+          "id": "cProducts",
+          "operator": "point",
+          "inputs": {
+            "x": 0.39,
+            "y": 0.62,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "products"
+          ]
+        }
+      ],
+      "relations": [],
+      "assertions": [],
+      "annotations": [
+        {
+          "id": "oxygenPoor",
+          "kind": "callout",
+          "targetIds": [
+            "anode"
+          ],
+          "text": "Oxygen-poor centre"
+        },
+        {
+          "id": "oxygenRich",
+          "kind": "callout",
+          "targetIds": [
+            "cathode"
+          ],
+          "text": "Oxygen-rich periphery"
+        },
+        {
+          "id": "oxidation",
+          "kind": "narration",
+          "targetIds": [
+            "anode",
+            "ironIons",
+            "electronFlow"
+          ],
+          "text": "Fe \u2192 Fe\u00b2\u207a + 2e\u207b. Electrons flow through iron toward the cathode."
+        },
+        {
+          "id": "reduction",
+          "kind": "narration",
+          "targetIds": [
+            "oxygen",
+            "cathode",
+            "hydroxide"
+          ],
+          "text": "O\u2082 + 2H\u2082O + 4e\u207b \u2192 4OH\u207b."
+        },
+        {
+          "id": "precipitation",
+          "kind": "narration",
+          "targetIds": [
+            "ironIons",
+            "hydroxide",
+            "products"
+          ],
+          "text": "Where Fe\u00b2\u207a and OH\u207b meet: Fe\u00b2\u207a + 2OH\u207b \u2192 Fe(OH)\u2082; further oxidation can form iron(III) corrosion products."
+        }
+      ],
+      "requiredEntityIds": [
+        "iron",
+        "droplet",
+        "anode",
+        "cathode",
+        "electronFlow",
+        "ironIons",
+        "oxygen",
+        "hydroxide",
+        "products"
+      ],
+      "revealGroups": [
+        {
+          "id": "setup",
+          "entityIds": [
+            "base",
+            "iron",
+            "dropCenter",
+            "droplet",
+            "anode",
+            "cathode",
+            "electronStart",
+            "electronEnd",
+            "electronFlow",
+            "ironIons",
+            "oxygen",
+            "hydroxide",
+            "products"
+          ]
+        }
+      ],
+      "teachingTimeline": []
+    }
+  },
+  {
+    "id": "CHEM_H80_XI_001",
+    "round": 2,
+    "question": "Two excited hydrogen atoms emit photons by the transitions n = 4 \u2192 2 and n = 3 \u2192 2. Draw a common energy-level diagram for n = 1, 2, 3, 4 and the ionisation limit, place both transition arrows, and label the photon energy and wavelength for each. Use E_n = -13.60/n^2 eV and hc = 1240 eV nm; neglect fine structure.",
+    "plan": {
+      "visualRequirement": "required",
+      "requiresVisualByStem": true,
+      "givens": [
+        {
+          "id": "R",
+          "symbol": "13.60",
+          "value": 13.6,
+          "unit": "eV",
+          "provenance": "given",
+          "sourceText": "E_n = -13.60/n^2 eV"
+        },
+        {
+          "id": "hc",
+          "symbol": "hc",
+          "value": 1240,
+          "unit": "eV nm",
+          "provenance": "given",
+          "sourceText": "hc = 1240 eV nm"
+        },
+        {
+          "id": "n1",
+          "symbol": "n\u2081",
+          "value": 1,
+          "provenance": "given",
+          "sourceText": "n1 = 1"
+        },
+        {
+          "id": "n2",
+          "symbol": "n\u2082",
+          "value": 2,
+          "provenance": "given",
+          "sourceText": "n2 = 2"
+        },
+        {
+          "id": "n3",
+          "symbol": "n\u2083",
+          "value": 3,
+          "provenance": "given",
+          "sourceText": "n3 = 3"
+        },
+        {
+          "id": "n4",
+          "symbol": "n\u2084",
+          "value": 4,
+          "provenance": "given",
+          "sourceText": "n4 = 4"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "E1",
+          "symbol": "E\u2081",
+          "unit": "eV"
+        },
+        {
+          "id": "E2",
+          "symbol": "E\u2082",
+          "unit": "eV"
+        },
+        {
+          "id": "E3",
+          "symbol": "E\u2083",
+          "unit": "eV"
+        },
+        {
+          "id": "E4",
+          "symbol": "E\u2084",
+          "unit": "eV"
+        },
+        {
+          "id": "Einf",
+          "symbol": "E\u221e",
+          "unit": "eV"
+        },
+        {
+          "id": "P42",
+          "symbol": "E\u03b3,4\u21922",
+          "unit": "eV"
+        },
+        {
+          "id": "L42",
+          "symbol": "\u03bb\u2084\u2192\u2082",
+          "unit": "nm"
+        },
+        {
+          "id": "P32",
+          "symbol": "E\u03b3,3\u21922",
+          "unit": "eV"
+        },
+        {
+          "id": "L32",
+          "symbol": "\u03bb\u2083\u2192\u2082",
+          "unit": "nm"
+        }
+      ],
+      "derived": [
+        {
+          "id": "E1",
+          "symbol": "E\u2081",
+          "value": -13.6,
+          "unit": "eV"
+        },
+        {
+          "id": "E2",
+          "symbol": "E\u2082",
+          "value": -3.4,
+          "unit": "eV"
+        },
+        {
+          "id": "E3",
+          "symbol": "E\u2083",
+          "value": -1.511111111111111,
+          "unit": "eV"
+        },
+        {
+          "id": "E4",
+          "symbol": "E\u2084",
+          "value": -0.85,
+          "unit": "eV"
+        },
+        {
+          "id": "Einf",
+          "symbol": "E\u221e",
+          "value": 0,
+          "unit": "eV"
+        },
+        {
+          "id": "P42",
+          "symbol": "E\u03b3,4\u21922",
+          "value": 2.55,
+          "unit": "eV"
+        },
+        {
+          "id": "L42",
+          "symbol": "\u03bb\u2084\u2192\u2082",
+          "value": 486.27450980392155,
+          "unit": "nm"
+        },
+        {
+          "id": "P32",
+          "symbol": "E\u03b3,3\u21922",
+          "value": 1.888888888888889,
+          "unit": "eV"
+        },
+        {
+          "id": "L32",
+          "symbol": "\u03bb\u2083\u2192\u2082",
+          "value": 656.4705882352941,
+          "unit": "nm"
+        }
+      ],
+      "qualitativeClaims": [
+        {
+          "id": "levels",
+          "expected": "The limit is 0 eV; bound levels approach it from below."
+        },
+        {
+          "id": "arrow42",
+          "expected": "2.55 eV; approximately 486.27 nm."
+        },
+        {
+          "id": "arrow32",
+          "expected": "Approximately 1.88889 eV; 656.47 nm."
+        }
+      ],
+      "lawIds": [
+        "hydrogen-energy-level:E_n=-13.60/n\u00b2 eV",
+        "emission-photon-energy:E\u03b3=E_initial\u2212E_final",
+        "photon-energy-wavelength:E\u03b3=hc/\u03bb",
+        "ionisation-limit:lim(n\u2192\u221e)E_n=0"
+      ],
+      "assumptions": [
+        "Neglect fine structure as instructed."
+      ]
+    },
+    "candidate": {
+      "schemaVersion": "scene-document/v2",
+      "visualDecision": "scene",
+      "source": {
+        "question": "Two excited hydrogen atoms emit photons by the transitions n = 4 \u2192 2 and n = 3 \u2192 2. Draw a common energy-level diagram for n = 1, 2, 3, 4 and the ionisation limit, place both transition arrows, and label the photon energy and wavelength for each. Use E_n = -13.60/n^2 eV and hc = 1240 eV nm; neglect fine structure.",
+        "representationTier": "qualitative_verified",
+        "nonMetric": true,
+        "reason": "Normalized level spacing shows the stated energy ordering; displayed distances do not encode energy values."
+      },
+      "quantities": [
+        {
+          "id": "R",
+          "symbol": "13.60",
+          "value": 13.6,
+          "unit": "eV",
+          "provenance": "given"
+        },
+        {
+          "id": "hc",
+          "symbol": "hc",
+          "value": 1240,
+          "unit": "eV nm",
+          "provenance": "given"
+        },
+        {
+          "id": "n1",
+          "symbol": "n\u2081",
+          "value": 1,
+          "provenance": "given"
+        },
+        {
+          "id": "n2",
+          "symbol": "n\u2082",
+          "value": 2,
+          "provenance": "given"
+        },
+        {
+          "id": "n3",
+          "symbol": "n\u2083",
+          "value": 3,
+          "provenance": "given"
+        },
+        {
+          "id": "n4",
+          "symbol": "n\u2084",
+          "value": 4,
+          "provenance": "given"
+        },
+        {
+          "id": "E1",
+          "symbol": "E\u2081",
+          "value": -13.6,
+          "unit": "eV",
+          "provenance": "derived"
+        },
+        {
+          "id": "E2",
+          "symbol": "E\u2082",
+          "value": -3.4,
+          "unit": "eV",
+          "provenance": "derived"
+        },
+        {
+          "id": "E3",
+          "symbol": "E\u2083",
+          "value": -1.511111111111111,
+          "unit": "eV",
+          "provenance": "derived"
+        },
+        {
+          "id": "E4",
+          "symbol": "E\u2084",
+          "value": -0.85,
+          "unit": "eV",
+          "provenance": "derived"
+        },
+        {
+          "id": "Einf",
+          "symbol": "E\u221e",
+          "value": 0,
+          "unit": "eV",
+          "provenance": "derived"
+        },
+        {
+          "id": "P42",
+          "symbol": "E\u03b3,4\u21922",
+          "value": 2.55,
+          "unit": "eV",
+          "provenance": "derived"
+        },
+        {
+          "id": "L42",
+          "symbol": "\u03bb\u2084\u2192\u2082",
+          "value": 486.27450980392155,
+          "unit": "nm",
+          "provenance": "derived"
+        },
+        {
+          "id": "P32",
+          "symbol": "E\u03b3,3\u21922",
+          "value": 1.888888888888889,
+          "unit": "eV",
+          "provenance": "derived"
+        },
+        {
+          "id": "L32",
+          "symbol": "\u03bb\u2083\u2192\u2082",
+          "value": 656.4705882352941,
+          "unit": "nm",
+          "provenance": "derived"
+        }
+      ],
+      "entities": [
+        {
+          "id": "a0",
+          "kind": "point"
+        },
+        {
+          "id": "a1",
+          "kind": "point"
+        },
+        {
+          "id": "a2",
+          "kind": "point"
+        },
+        {
+          "id": "a3",
+          "kind": "point"
+        },
+        {
+          "id": "a4",
+          "kind": "point"
+        },
+        {
+          "id": "a5",
+          "kind": "point"
+        },
+        {
+          "id": "a6",
+          "kind": "point"
+        },
+        {
+          "id": "a7",
+          "kind": "point"
+        },
+        {
+          "id": "a8",
+          "kind": "point"
+        },
+        {
+          "id": "a9",
+          "kind": "point"
+        },
+        {
+          "id": "t42",
+          "kind": "point"
+        },
+        {
+          "id": "b42",
+          "kind": "point"
+        },
+        {
+          "id": "t32",
+          "kind": "point"
+        },
+        {
+          "id": "b32",
+          "kind": "point"
+        },
+        {
+          "id": "axisBottom",
+          "kind": "point"
+        },
+        {
+          "id": "axisTop",
+          "kind": "point"
+        },
+        {
+          "id": "energyAxis",
+          "kind": "segment",
+          "role": "energy axis",
+          "label": "E"
+        },
+        {
+          "id": "level1",
+          "kind": "segment",
+          "role": "energy level",
+          "label": "n=1"
+        },
+        {
+          "id": "level2",
+          "kind": "segment",
+          "role": "energy level",
+          "label": "n=2"
+        },
+        {
+          "id": "level3",
+          "kind": "segment",
+          "role": "energy level",
+          "label": "n=3"
+        },
+        {
+          "id": "level4",
+          "kind": "segment",
+          "role": "energy level",
+          "label": "n=4"
+        },
+        {
+          "id": "limit",
+          "kind": "segment",
+          "role": "energy level",
+          "label": "n=\u221e"
+        },
+        {
+          "id": "emission42",
+          "kind": "vector",
+          "role": "transition",
+          "label": "4\u21922"
+        },
+        {
+          "id": "emission32",
+          "kind": "vector",
+          "role": "transition",
+          "label": "3\u21922"
+        }
+      ],
+      "constructions": [
+        {
+          "id": "p0",
+          "operator": "point",
+          "inputs": {
+            "x": 0,
+            "y": 0,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "a0"
+          ]
+        },
+        {
+          "id": "p1",
+          "operator": "point",
+          "inputs": {
+            "x": 8,
+            "y": 0,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "a1"
+          ]
+        },
+        {
+          "id": "p2",
+          "operator": "point",
+          "inputs": {
+            "x": 0,
+            "y": 3,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "a2"
+          ]
+        },
+        {
+          "id": "p3",
+          "operator": "point",
+          "inputs": {
+            "x": 8,
+            "y": 3,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "a3"
+          ]
+        },
+        {
+          "id": "p4",
+          "operator": "point",
+          "inputs": {
+            "x": 0,
+            "y": 5,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "a4"
+          ]
+        },
+        {
+          "id": "p5",
+          "operator": "point",
+          "inputs": {
+            "x": 8,
+            "y": 5,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "a5"
+          ]
+        },
+        {
+          "id": "p6",
+          "operator": "point",
+          "inputs": {
+            "x": 0,
+            "y": 6,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "a6"
+          ]
+        },
+        {
+          "id": "p7",
+          "operator": "point",
+          "inputs": {
+            "x": 8,
+            "y": 6,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "a7"
+          ]
+        },
+        {
+          "id": "p8",
+          "operator": "point",
+          "inputs": {
+            "x": 0,
+            "y": 7,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "a8"
+          ]
+        },
+        {
+          "id": "p9",
+          "operator": "point",
+          "inputs": {
+            "x": 8,
+            "y": 7,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "a9"
+          ]
+        },
+        {
+          "id": "p10",
+          "operator": "point",
+          "inputs": {
+            "x": 3,
+            "y": 6,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "t42"
+          ]
+        },
+        {
+          "id": "p11",
+          "operator": "point",
+          "inputs": {
+            "x": 3,
+            "y": 3,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "b42"
+          ]
+        },
+        {
+          "id": "p12",
+          "operator": "point",
+          "inputs": {
+            "x": 6,
+            "y": 5,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "t32"
+          ]
+        },
+        {
+          "id": "p13",
+          "operator": "point",
+          "inputs": {
+            "x": 6,
+            "y": 3,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "b32"
+          ]
+        },
+        {
+          "id": "p14",
+          "operator": "point",
+          "inputs": {
+            "x": -1,
+            "y": 0,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "axisBottom"
+          ]
+        },
+        {
+          "id": "p15",
+          "operator": "point",
+          "inputs": {
+            "x": -1,
+            "y": 7,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "axisTop"
+          ]
+        },
+        {
+          "id": "axis",
+          "operator": "segment",
+          "inputs": {
+            "start": "axisBottom",
+            "end": "axisTop"
+          },
+          "outputs": [
+            "energyAxis"
+          ]
+        },
+        {
+          "id": "l1",
+          "operator": "segment",
+          "inputs": {
+            "start": "a0",
+            "end": "a1"
+          },
+          "outputs": [
+            "level1"
+          ]
+        },
+        {
+          "id": "l2",
+          "operator": "segment",
+          "inputs": {
+            "start": "a2",
+            "end": "a3"
+          },
+          "outputs": [
+            "level2"
+          ]
+        },
+        {
+          "id": "l3",
+          "operator": "segment",
+          "inputs": {
+            "start": "a4",
+            "end": "a5"
+          },
+          "outputs": [
+            "level3"
+          ]
+        },
+        {
+          "id": "l4",
+          "operator": "segment",
+          "inputs": {
+            "start": "a6",
+            "end": "a7"
+          },
+          "outputs": [
+            "level4"
+          ]
+        },
+        {
+          "id": "li",
+          "operator": "segment",
+          "inputs": {
+            "start": "a8",
+            "end": "a9"
+          },
+          "outputs": [
+            "limit"
+          ]
+        },
+        {
+          "id": "v42",
+          "operator": "vector",
+          "inputs": {
+            "start": "t42",
+            "end": "b42"
+          },
+          "outputs": [
+            "emission42"
+          ]
+        },
+        {
+          "id": "v32",
+          "operator": "vector",
+          "inputs": {
+            "start": "t32",
+            "end": "b32"
+          },
+          "outputs": [
+            "emission32"
+          ]
+        }
+      ],
+      "relations": [],
+      "assertions": [
+        {
+          "id": "on42start",
+          "predicate": "on",
+          "entities": [
+            "t42",
+            "level4"
+          ],
+          "expected": true,
+          "severity": "error"
+        },
+        {
+          "id": "on42end",
+          "predicate": "on",
+          "entities": [
+            "b42",
+            "level2"
+          ],
+          "expected": true,
+          "severity": "error"
+        },
+        {
+          "id": "on32start",
+          "predicate": "on",
+          "entities": [
+            "t32",
+            "level3"
+          ],
+          "expected": true,
+          "severity": "error"
+        },
+        {
+          "id": "on32end",
+          "predicate": "on",
+          "entities": [
+            "b32",
+            "level2"
+          ],
+          "expected": true,
+          "severity": "error"
+        }
+      ],
+      "annotations": [
+        {
+          "id": "e1value",
+          "kind": "label",
+          "targetIds": [
+            "level1"
+          ],
+          "text": "\u221213.6 eV",
+          "quantityId": "E1"
+        },
+        {
+          "id": "e2value",
+          "kind": "label",
+          "targetIds": [
+            "level2"
+          ],
+          "text": "\u22123.4 eV",
+          "quantityId": "E2"
+        },
+        {
+          "id": "e3value",
+          "kind": "label",
+          "targetIds": [
+            "level3"
+          ],
+          "text": "\u22121.511 eV",
+          "quantityId": "E3"
+        },
+        {
+          "id": "e4value",
+          "kind": "label",
+          "targetIds": [
+            "level4"
+          ],
+          "text": "\u22120.85 eV",
+          "quantityId": "E4"
+        },
+        {
+          "id": "limitValue",
+          "kind": "label",
+          "targetIds": [
+            "limit"
+          ],
+          "text": "0 eV",
+          "quantityId": "Einf"
+        },
+        {
+          "id": "photon42",
+          "kind": "label",
+          "targetIds": [
+            "emission42"
+          ],
+          "text": "2.55 eV",
+          "quantityId": "P42"
+        },
+        {
+          "id": "wavelength42",
+          "kind": "label",
+          "targetIds": [
+            "emission42"
+          ],
+          "text": "486.27 nm",
+          "quantityId": "L42"
+        },
+        {
+          "id": "photon32",
+          "kind": "label",
+          "targetIds": [
+            "emission32"
+          ],
+          "text": "1.889 eV",
+          "quantityId": "P32"
+        },
+        {
+          "id": "wavelength32",
+          "kind": "label",
+          "targetIds": [
+            "emission32"
+          ],
+          "text": "656.47 nm",
+          "quantityId": "L32"
+        }
+      ],
+      "requiredEntityIds": [
+        "energyAxis",
+        "level1",
+        "level2",
+        "level3",
+        "level4",
+        "limit",
+        "emission42",
+        "emission32"
+      ],
+      "revealGroups": [
+        {
+          "id": "setup",
+          "entityIds": [
+            "a0",
+            "a1",
+            "a2",
+            "a3",
+            "a4",
+            "a5",
+            "a6",
+            "a7",
+            "a8",
+            "a9",
+            "t42",
+            "b42",
+            "t32",
+            "b32",
+            "axisBottom",
+            "axisTop",
+            "energyAxis",
+            "level1",
+            "level2",
+            "level3",
+            "level4",
+            "limit",
+            "emission42",
+            "emission32"
+          ],
+          "annotationIds": []
+        },
+        {
+          "id": "calculatedValues",
+          "entityIds": [],
+          "annotationIds": [
+            "e1value",
+            "e2value",
+            "e3value",
+            "e4value",
+            "limitValue",
+            "photon42",
+            "wavelength42",
+            "photon32",
+            "wavelength32"
+          ]
+        }
+      ],
+      "teachingTimeline": [
+        {
+          "id": "showSetup",
+          "action": "reveal",
+          "targetIds": [
+            "setup"
+          ]
+        },
+        {
+          "id": "showCalculatedValues",
+          "action": "reveal",
+          "targetIds": [
+            "calculatedValues"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "CHEM_H80_XI_003",
+    "round": 2,
+    "question": "A collimated beam of positively charged \u03b1 particles strikes a very thin gold foil. Draw the experiment and an enlarged schematic of trajectories near one gold nucleus. Show why most \u03b1 particles pass almost straight through, some are deflected, and a very small number return toward the source. Mark the relative source, foil, and detector positions; the enlargement need not be to scale.",
+    "plan": {
+      "visualRequirement": "required",
+      "requiresVisualByStem": true,
+      "givens": [],
+      "unknowns": [],
+      "derived": [],
+      "qualitativeClaims": [
+        {
+          "id": "c1",
+          "expected": "The collimated \u03b1 source faces the thin gold foil. A detector can register particles beyond the foil at different angles and on the source side for particles that return."
+        },
+        {
+          "id": "c2",
+          "expected": "The positive nucleus occupies a tiny region of each atom, so most \u03b1 particles pass far from nuclei and experience little deflection."
+        },
+        {
+          "id": "c3",
+          "expected": "A positively charged \u03b1 particle passing near a positively charged nucleus is repelled; its trajectory bends away from the nucleus."
+        },
+        {
+          "id": "c4",
+          "expected": "An \u03b1 particle approaching a nucleus nearly head-on can be strongly repelled and reverse direction. Such close approaches are rare because the nucleus is very small."
+        },
+        {
+          "id": "c5",
+          "expected": "Show a central positive gold nucleus with a distant, nearly straight path, a closer path bending away, and a nearly head-on path turning back toward the incident side. The enlargement need not be to scale."
+        }
+      ],
+      "lawIds": [
+        "Coulomb repulsion of like charges",
+        "Rutherford nuclear model"
+      ],
+      "assumptions": []
+    },
+    "candidate": null
+  },
+  {
+    "id": "CHEM_H80_XII_010",
+    "round": 2,
+    "question": "Sketch corrosion of iron under an aerated, approximately neutral water droplet. Use an oxygen-poor central anodic region and an oxygen-rich peripheral cathodic region; show electron flow through iron, Fe^2\u207a formation, oxygen reduction and a region where corrosion products form.",
+    "plan": {
+      "visualRequirement": "required",
+      "requiresVisualByStem": true,
+      "givens": [],
+      "unknowns": [],
+      "derived": [],
+      "qualitativeClaims": [
+        {
+          "id": "c1",
+          "expected": "Place the anode beneath the droplet center and the cathode beneath its edge."
+        },
+        {
+          "id": "c2",
+          "expected": "Fe \u2192 Fe\u00b2\u207a + 2e\u207b; Fe\u00b2\u207a enters the water."
+        },
+        {
+          "id": "c3",
+          "expected": "Show electron-flow arrows pointing radially outward within the iron."
+        },
+        {
+          "id": "c4",
+          "expected": "O\u2082 + 2H\u2082O + 4e\u207b \u2192 4OH\u207b."
+        },
+        {
+          "id": "c5",
+          "expected": "Mark a region within the droplet between the central Fe\u00b2\u207a source and peripheral OH\u207b source; Fe\u00b2\u207a + 2OH\u207b \u2192 Fe(OH)\u2082, which can oxidize further to rust."
+        }
+      ],
+      "lawIds": [
+        "differential-aeration corrosion",
+        "electrochemical oxidation and reduction",
+        "electron conservation",
+        "iron-hydroxide precipitation"
+      ],
+      "assumptions": []
+    },
+    "candidate": {
+      "schemaVersion": "scene-document/v2",
+      "visualDecision": "scene",
+      "source": {
+        "question": "Sketch corrosion of iron under an aerated, approximately neutral water droplet. Use an oxygen-poor central anodic region and an oxygen-rich peripheral cathodic region; show electron flow through iron, Fe^2\u207a formation, oxygen reduction and a region where corrosion products form.",
+        "representationTier": "qualitative_verified",
+        "nonMetric": true
+      },
+      "quantities": [],
+      "entities": [
+        {
+          "id": "dropCenter",
+          "kind": "point"
+        },
+        {
+          "id": "ironCenter",
+          "kind": "point"
+        },
+        {
+          "id": "iron",
+          "kind": "rectangle",
+          "label": "iron"
+        },
+        {
+          "id": "droplet",
+          "kind": "arc",
+          "label": "water droplet"
+        },
+        {
+          "id": "anode",
+          "kind": "point",
+          "label": "anode"
+        },
+        {
+          "id": "cathode",
+          "kind": "point",
+          "label": "cathode"
+        },
+        {
+          "id": "electronStart",
+          "kind": "point"
+        },
+        {
+          "id": "electronEnd",
+          "kind": "point"
+        },
+        {
+          "id": "electronFlow",
+          "kind": "vector",
+          "label": "e\u207b flow"
+        },
+        {
+          "id": "ironIonStart",
+          "kind": "point"
+        },
+        {
+          "id": "ironIonEnd",
+          "kind": "point",
+          "label": "Fe\u00b2\u207a"
+        },
+        {
+          "id": "ironIonFlow",
+          "kind": "vector"
+        },
+        {
+          "id": "oxygenStart",
+          "kind": "point",
+          "label": "O\u2082"
+        },
+        {
+          "id": "oxygenEnd",
+          "kind": "point"
+        },
+        {
+          "id": "oxygenFlow",
+          "kind": "vector"
+        },
+        {
+          "id": "hydroxideStart",
+          "kind": "point",
+          "label": "OH\u207b"
+        },
+        {
+          "id": "hydroxideEnd",
+          "kind": "point"
+        },
+        {
+          "id": "hydroxideFlow",
+          "kind": "vector"
+        },
+        {
+          "id": "productCenter",
+          "kind": "point"
+        },
+        {
+          "id": "productRegion",
+          "kind": "circle",
+          "label": "Fe(OH)\u2082"
+        }
+      ],
+      "constructions": [
+        {
+          "id": "makeDropCenter",
+          "operator": "point",
+          "inputs": {
+            "x": 0,
+            "y": 0,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "dropCenter"
+          ]
+        },
+        {
+          "id": "makeIronCenter",
+          "operator": "point",
+          "inputs": {
+            "x": 0,
+            "y": -0.45,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "ironCenter"
+          ]
+        },
+        {
+          "id": "makeIron",
+          "operator": "rectangle",
+          "inputs": {
+            "center": "ironCenter",
+            "width": 7,
+            "height": 0.9
+          },
+          "outputs": [
+            "iron"
+          ]
+        },
+        {
+          "id": "makeDroplet",
+          "operator": "arc",
+          "inputs": {
+            "center": "dropCenter",
+            "radius": 3,
+            "startAngle": 0,
+            "endAngle": 180,
+            "angleUnit": "degrees"
+          },
+          "outputs": [
+            "droplet"
+          ]
+        },
+        {
+          "id": "makeAnode",
+          "operator": "point",
+          "inputs": {
+            "x": 0,
+            "y": 0,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "anode"
+          ]
+        },
+        {
+          "id": "makeCathode",
+          "operator": "point",
+          "inputs": {
+            "x": 2.5,
+            "y": 0,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "cathode"
+          ]
+        },
+        {
+          "id": "makeElectronStart",
+          "operator": "point",
+          "inputs": {
+            "x": 0,
+            "y": -0.45,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "electronStart"
+          ]
+        },
+        {
+          "id": "makeElectronEnd",
+          "operator": "point",
+          "inputs": {
+            "x": 2.5,
+            "y": -0.45,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "electronEnd"
+          ]
+        },
+        {
+          "id": "makeElectronFlow",
+          "operator": "vector",
+          "inputs": {
+            "start": "electronStart",
+            "end": "electronEnd"
+          },
+          "outputs": [
+            "electronFlow"
+          ]
+        },
+        {
+          "id": "makeIronIonStart",
+          "operator": "point",
+          "inputs": {
+            "x": 0,
+            "y": 0.12,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "ironIonStart"
+          ]
+        },
+        {
+          "id": "makeIronIonEnd",
+          "operator": "point",
+          "inputs": {
+            "x": 0,
+            "y": 1.05,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "ironIonEnd"
+          ]
+        },
+        {
+          "id": "makeIronIonFlow",
+          "operator": "vector",
+          "inputs": {
+            "start": "ironIonStart",
+            "end": "ironIonEnd"
+          },
+          "outputs": [
+            "ironIonFlow"
+          ]
+        },
+        {
+          "id": "makeOxygenStart",
+          "operator": "point",
+          "inputs": {
+            "x": 2.35,
+            "y": 1.5,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "oxygenStart"
+          ]
+        },
+        {
+          "id": "makeOxygenEnd",
+          "operator": "point",
+          "inputs": {
+            "x": 2.35,
+            "y": 0.16,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "oxygenEnd"
+          ]
+        },
+        {
+          "id": "makeOxygenFlow",
+          "operator": "vector",
+          "inputs": {
+            "start": "oxygenStart",
+            "end": "oxygenEnd"
+          },
+          "outputs": [
+            "oxygenFlow"
+          ]
+        },
+        {
+          "id": "makeHydroxideStart",
+          "operator": "point",
+          "inputs": {
+            "x": 2.12,
+            "y": 0.48,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "hydroxideStart"
+          ]
+        },
+        {
+          "id": "makeHydroxideEnd",
+          "operator": "point",
+          "inputs": {
+            "x": 1.28,
+            "y": 0.86,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "hydroxideEnd"
+          ]
+        },
+        {
+          "id": "makeHydroxideFlow",
+          "operator": "vector",
+          "inputs": {
+            "start": "hydroxideStart",
+            "end": "hydroxideEnd"
+          },
+          "outputs": [
+            "hydroxideFlow"
+          ]
+        },
+        {
+          "id": "makeProductCenter",
+          "operator": "point",
+          "inputs": {
+            "x": 0.85,
+            "y": 1.05,
+            "coordinateSpace": "world"
+          },
+          "outputs": [
+            "productCenter"
+          ]
+        },
+        {
+          "id": "makeProductRegion",
+          "operator": "circle",
+          "inputs": {
+            "center": "productCenter",
+            "radius": 0.35
+          },
+          "outputs": [
+            "productRegion"
+          ]
+        }
+      ],
+      "relations": [],
+      "assertions": [],
+      "annotations": [
+        {
+          "id": "poorOxygen",
+          "kind": "callout",
+          "targetIds": [
+            "anode"
+          ],
+          "text": "Oxygen-poor center"
+        },
+        {
+          "id": "ironOxidation",
+          "kind": "callout",
+          "targetIds": [
+            "anode",
+            "ironIonFlow"
+          ],
+          "text": "Fe \u2192 Fe\u00b2\u207a + 2e\u207b"
+        },
+        {
+          "id": "richOxygen",
+          "kind": "callout",
+          "targetIds": [
+            "cathode"
+          ],
+          "text": "Oxygen-rich edge"
+        },
+        {
+          "id": "oxygenReduction",
+          "kind": "callout",
+          "targetIds": [
+            "cathode",
+            "oxygenFlow",
+            "hydroxideFlow"
+          ],
+          "text": "O\u2082 + 2H\u2082O + 4e\u207b \u2192 4OH\u207b"
+        },
+        {
+          "id": "productFormation",
+          "kind": "callout",
+          "targetIds": [
+            "productRegion"
+          ],
+          "text": "Fe\u00b2\u207a + 2OH\u207b \u2192 Fe(OH)\u2082; further oxidation can form rust"
+        }
+      ],
+      "requiredEntityIds": [
+        "iron",
+        "droplet",
+        "anode",
+        "cathode",
+        "electronFlow",
+        "ironIonFlow",
+        "oxygenFlow",
+        "hydroxideFlow",
+        "productRegion"
+      ],
+      "revealGroups": [
+        {
+          "id": "setup",
+          "entityIds": [
+            "dropCenter",
+            "ironCenter",
+            "iron",
+            "droplet",
+            "anode",
+            "cathode",
+            "electronStart",
+            "electronEnd",
+            "electronFlow",
+            "ironIonStart",
+            "ironIonEnd",
+            "ironIonFlow",
+            "oxygenStart",
+            "oxygenEnd",
+            "oxygenFlow",
+            "hydroxideStart",
+            "hydroxideEnd",
+            "hydroxideFlow",
+            "productCenter",
+            "productRegion"
+          ]
+        }
+      ],
+      "teachingTimeline": []
+    }
+  }
+]
