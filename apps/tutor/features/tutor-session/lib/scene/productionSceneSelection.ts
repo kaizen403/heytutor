@@ -156,7 +156,7 @@ export function validateProductionSceneCandidate(input: {
       path: issue.path,
       severity: "fatal" as const,
     })),
-    // A bare projectile speed is read as m/s; hold it to the plan's launch speed (72 km/h is 20, never 72).
+    // A bare projectile speed or height is read as m/s or m; hold it to the plan (72 km/h is 20, never 72; 80 cm is 0.8).
     ...projectileSpeedLiteralIssues(validated.document, authoritativePlan, question),
   ];
   const sourceIssues = validateMatrixSourceBinding(validated.document, question, authoritativePlan);

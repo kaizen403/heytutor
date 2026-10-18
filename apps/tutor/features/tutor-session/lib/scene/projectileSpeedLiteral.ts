@@ -1,25 +1,34 @@
 /**
- * A projectile_trajectory speed written with no unit is read by the operator
- * as m/s. A planner that copies the bare number from a km/h stem ("speed": 72
- * for "72 km/h") would draw 72 m/s, a wrong figure. The scene engine cannot
- * see the plan or the question, so production holds that bare number here,
- * the way it holds optics magnitude literals: against the plan quantity of its
- * own role, through the shared plan agreement (validateSceneQuantityAgreement,
- * which converts km/h, cm/s and km/s to m/s with its usual 1e-9 relative
- * tolerance).
+ * projectile_trajectory reads a speed written with no unit as m/s and a launch
+ * height written with no unit as m. A planner that copies the bare number from
+ * a km/h or cm stem ("speed": 72 for "72 km/h", "initialHeight": 80 for a table
+ * "80 cm high") would draw a wrong figure. The scene engine cannot see the plan
+ * or the question, so production holds those numbers here, the way it holds
+ * optics magnitude literals: against the plan, through the shared plan
+ * agreement (validateSceneQuantityAgreement, which converts km/h, cm/s, km/s,
+ * cm and km to SI with its usual 1e-9 relative tolerance, and never agrees
+ * across a unit it cannot read).
  *
- * - Bare: no unit is stated anywhere along the input (a number, a numeric
- *   string, a `{ value }` wrapper with no unit, or a document quantity with no
- *   unit). A stated unit is the scene engine's job and is not read here.
- * - Speed quantity: a plan given or derived whose symbol or id, read by
- *   `motionSymbolKey`, is a launch speed (PROJECTILE_SPEED_ROLE), or a given
- *   written exactly `v`, whose unit is a rate (SPEED_RATE_UNIT). A derived `v`
- *   is a later speed, and a `u` in cm or V is an optics distance or a voltage,
- *   so neither stands in.
- * - Rule: with a speed quantity, the bare number as m/s must equal one of
- *   them in SI, else refuse. With none, refuse when the question states a
- *   speed in a unit other than m/s (NON_SI_STEM_SPEED); otherwise the number
- *   keeps the operator contract's meaning, m/s.
+ * - Read: a bare number (a number, a numeric string, a `{ value }` wrapper with
+ *   no unit, or a document quantity with no unit) is probed in the working
+ *   unit, m/s or m. An inline `{ value, unit }` wrapper is probed in the unit it
+ *   states, so `{ value: 72, unit: "m/s" }` is held like a bare 72. A document
+ *   quantity that states a unit is already held by the document quantity
+ *   agreement and is not read here.
+ * - Speed, in order:
+ *   1. Launch speeds: plan givens or derived with a speed unit (SPEED_UNIT)
+ *      whose symbol or id, read by `motionSymbolKey`, is a launch speed role
+ *      (PROJECTILE_SPEED_ROLE; "vi" and "speed" only as givens), or a given written
+ *      exactly `v`. The number must agree with every one of them, so two
+ *      launch speeds that disagree (a given "vi" that is a final velocity, a
+ *      wind speed under the id "speed") refuse rather than pick one.
+ *   2. Else every plan given or derived with a speed unit: the number must
+ *      agree with one of them (two bodies each keep their own launch speed).
+ *   3. Else a bare number is refused when the question states a speed in a
+ *      unit other than m/s (NON_SI_STEM_SPEED); otherwise it keeps the
+ *      operator contract's meaning, m/s.
+ * - Launch height: when some plan length is not in metres, the number must
+ *   agree with one plan length. Zero is the same in every unit and is not held.
  *
  * Every refusal is the scene engine's fatal code for the same failure,
  * invalid_projectile_trajectory_units.
@@ -28,73 +37,116 @@ import { motionSymbolKey, validateSceneQuantityAgreement, type TurnPlanV3 } from
 
 export const PROJECTILE_UNITS_CODE = "invalid_projectile_trajectory_units";
 
-/** Launch speed role keys (motionSymbolKey: NFKC, lower case, letters and digits only). */
+/** Launch speed role keys (motionSymbolKey: NFKC, lower case, letters and digits only). "vi" and "speed" count only as givens. */
 export const PROJECTILE_SPEED_ROLE = /^(?:u|u0|ui|v0|vo|vi|speed|launchspeed|initialspeed|projectionspeed|launchvelocity|initialvelocity|projectionvelocity|vlaunch)$/;
+/** Plans also write "vi" loosely for a final velocity, and a derived "speed" is a speed found later, like a derived v. */
+const GIVEN_ONLY_ROLE = /^(?:vi|speed)$/;
 
-/** A unit that measures per time: a slash, "per", "an hour", a -1 power, or a named rate. Lengths, volts and degrees are not. */
-const SPEED_RATE_UNIT = /\/|\bper\b|\ban\s+hour\b|(?:\^?[-−–]1|⁻¹)\s*$|^(?:mph|kph|kmph|kmh|knots?)$/i;
+const TIME = "(?:s|secs?|seconds?|h|hrs?|hours?|mins?|minutes?|ghant[ae]|घंटा|घण्टा|घंटे|सेकंड|सेकेंड)";
+/** Per time: over a time ("km/h", "km per hr", "km prati ghanta"), a time to the power -1 ("m s⁻¹"), or a named rate. */
+const PER_TIME_UNIT = new RegExp(`(?:\\/|\\bper\\b|\\ban\\b|\\bprati\\b|प्रति)\\s*${TIME}$|${TIME}\\s*(?:\\^?\\s*[-−–]\\s*1|⁻¹)$|^(?:mph|kph|kmph|kmh|kmhr|kmphr|fps|kn|kts?|knots?)$`, "iu");
+/** Per second squared (g = 980 cm/s^2) and per second per second are accelerations, not speeds. */
+const ACCELERATION_UNIT = /(?:s|secs?|seconds?)\s*(?:\^?\s*2|²)|s\s*(?:\^?\s*[-−–]\s*2|⁻²)|squared|per\s+sec(?:ond)?s?\s+per|\/\s*s(?:ecs?)?\s*\/\s*s/i;
+/** rad/s and rev/min are angular speeds. */
+const ANGULAR_UNIT = /\b(?:rad|radians?|revs?|revolutions?|deg|degrees?|rpm)\b|°/i;
+
+/** Dots that abbreviate ("km./hr.", "k.m./h", "m.p.h."), never a decimal point. */
+const undot = (unit: string) => unit.replace(/(?<!\d)\.|\.(?!\d)/g, "").trim().replace(/\s+/g, " ");
+
+/** A unit that measures a linear speed: per time, and neither an acceleration nor an angular speed. */
+export function isSpeedUnit(unit: unknown): unit is string {
+  if (typeof unit !== "string" || !unit.trim()) return false;
+  const spelled = undot(unit);
+  return PER_TIME_UNIT.test(spelled) && !ACCELERATION_UNIT.test(spelled) && !ANGULAR_UNIT.test(spelled);
+}
 
 // Per second, never per second squared (g = 980 cm/s^2 is not a speed).
 const PER_SECOND = "(?:\\s*\\/\\s*s(?:ec(?:ond)?)?(?![A-Za-z0-9^²³]|\\s*\\/)|[\\s·⋅*]*s(?:\\^?[-−–]1|⁻¹)(?!\\d)|\\s+per\\s+second\\b(?!\\s+(?:squared|per)))";
-const PER_HOUR = "(?:\\s*\\/\\s*h(?:r|our)?\\b|[\\s·⋅*]*h(?:\\^?[-−–]1|⁻¹)(?!\\d)|\\s+per\\s+hour\\b|\\s+an\\s+hour\\b)";
+const PER_HOUR = "(?:\\.?\\s*\\/\\s*h(?:r|our)?\\b\\.?|[\\s·⋅*]*h(?:r|our)?(?:\\^?[-−–]1|⁻¹)(?!\\d)|\\.?\\s+(?:per|prati)\\s+(?:hour|hr|ghant[ae])\\b|\\s+an\\s+hour\\b|\\s*\\/\\s*ghant[ae]\\b)";
 /**
- * A number followed by a speed unit other than m/s: km/h (kmph, kmh, kph,
- * kilometres per hour), mph (mi/h, miles per hour), ft/s, cm/s, mm/s, km/s
- * and knots. m/s itself, and accelerations such as cm/s^2, never match.
+ * A number followed by a speed unit other than m/s: km/h (kmph, kmh, kmhr, kph,
+ * km hr^-1, km./hr., k.m./h, kilometres per hour, km/ghanta, km prati ghanta,
+ * किमी प्रति घंटा), mph (mi/h, m.p.h., miles per hour, nautical miles per hour),
+ * ft/s, fps, cm/s, mm/s, km/s and knots. m/s itself, and accelerations such as
+ * cm/s^2, never match.
  */
-const NON_SI_STEM_SPEED = new RegExp(`(?<![\\d.,])\\d(?:[\\d.,]*\\d)?\\s*(?:(?:km|kilomet(?:re|er)s?)${PER_HOUR}|kmph\\b|kmh\\b|kph\\b|mph\\b|(?:mi|miles?)${PER_HOUR}|(?:ft|feet|foot)${PER_SECOND}|(?:cm|mm|km|(?:centi|milli|kilo)met(?:re|er)s?)${PER_SECOND}|knots?\\b)`, "i");
+const NON_SI_STEM_SPEED = new RegExp(`(?<![\\d.,])\\d(?:[\\d.,]*\\d)?\\s*(?:(?:km|k\\.m|kilomet(?:re|er)s?)${PER_HOUR}|kmph\\b|kmh\\b|kmhr\\b|kmphr\\b|kph\\b|mph\\b|m\\.p\\.h\\b|(?:mi|(?:nautical\\s+)?miles?)${PER_HOUR}|(?:ft|feet|foot)${PER_SECOND}|fps\\b|(?:cm|mm|km|(?:centi|milli|kilo)met(?:re|er)s?)${PER_SECOND}|knots?\\b|किमी\\s*(?:\\/|प्रति)\\s*(?:घंटा|घण्टा))`, "iu");
+/** Knots written "kn"; case sensitive so a force in kN never reads as a speed. */
+const STEM_KNOTS = /(?<![\d.,])\d(?:[\d.,]*\d)?\s*kn\b/;
+
+/** A unit that measures a length, metric or not. */
+const LENGTH_UNIT = /^(?:[kcmµμnd]?m|(?:kilo|centi|milli)?met(?:re|er)s?|ft|feet|foot|in|inch(?:es)?|yds?|yards?|mi|miles?|सेमी|सेंटीमीटर|मिमी|मीटर|मी|किमी)$/iu;
 
 type PlanQuantity = TurnPlanV3["givens"][number];
 type UnitsIssue = { code: string; message: string; path: string; severity: "fatal" };
+type ReadNumber = { value: number; unit?: string };
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** The bare number an input names, or null when a unit is stated on the way or no finite number is found. */
-function bareNumber(value: unknown, quantities: ReadonlyMap<string, Record<string, unknown>>, depth = 0): number | null {
+/**
+ * The number an input names and the unit an inline wrapper states, or null when a document quantity states a unit
+ * on the way (the document quantity agreement holds that one) or no finite number is found.
+ */
+function readNumber(value: unknown, quantities: ReadonlyMap<string, Record<string, unknown>>, unit?: string, depth = 0): ReadNumber | null {
   if (depth > 32) return null;
-  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "number") return Number.isFinite(value) ? { value, unit } : null;
   if (isPlainRecord(value)) {
-    if (value.unit !== undefined) return null;
-    return bareNumber(value.value, quantities, depth + 1);
+    if (value.unit !== undefined && typeof value.unit !== "string") return null;
+    return readNumber(value.value, quantities, unit ?? (typeof value.unit === "string" && value.unit.trim() ? value.unit : undefined), depth + 1);
   }
   if (typeof value !== "string" || !value.trim()) return null;
   const quantity = quantities.get(value);
-  if (quantity) return quantity.unit !== undefined ? null : bareNumber(quantity.value, quantities, depth + 1);
+  if (quantity) return quantity.unit !== undefined ? null : readNumber(quantity.value, quantities, unit, depth + 1);
   const number = Number(value.trim());
-  return Number.isFinite(number) ? number : null;
+  return Number.isFinite(number) ? { value: number, unit } : null;
 }
 
 /**
  * The shared plan agreement converts km/h, cm/s and km/s, but not the other ways a stem spells them: it reads
  * "ms^-1" as per millisecond and does not know "kmph" or "metres per second". Spell the speed forms it can
- * convert out; any other unit (mph, ft/s, knots) is left as written, so it still fails closed.
+ * convert out, and drop abbreviating dots ("km./hr."); any other unit (mph, ft/s, knots) stays unreadable, so it
+ * still fails closed.
  */
 function speedUnitSpelling(unit: string): string {
-  const compact = unit.trim().replace(/\s+/g, "");
+  const undotted = undot(unit);
+  const compact = undotted.replace(/\s+/g, "");
   if (/^ms(?:\^?[-−–]1|⁻¹)$/.test(compact)) return "m/s";
-  if (/^kmh(?:\^?[-−–]1|⁻¹)$/i.test(compact)) return "km/h";
-  const words = unit.trim().toLowerCase().replace(/\s+/g, " ");
-  if (/^(?:kmph|kmh|kph|km (?:per|an) h(?:r|our)?|kilomet(?:re|er)s? (?:per|an) hour)$/.test(words)) return "km/h";
+  if (/^kmh(?:r|our)?(?:\^?[-−–]1|⁻¹)$/i.test(compact)) return "km/h";
+  const words = undotted.toLowerCase();
+  if (/^(?:kmph|kmh|kmhr|kmphr|kph|km ?\/ ?ghant[ae]|km (?:per|an|prati) (?:h(?:r|our)?|ghant[ae])|kilomet(?:re|er)s? (?:per|an) hour|किमी ?(?:\/|प्रति) ?(?:घंटा|घण्टा))$/u.test(words)) return "km/h";
   if (/^(?:met(?:re|er)s? per second|m per s(?:ec(?:ond)?)?)$/.test(words)) return "m/s";
   if (/^(?:centimet(?:re|er)s? per second|cm per s(?:ec(?:ond)?)?)$/.test(words)) return "cm/s";
   if (/^(?:kilomet(?:re|er)s? per second|km per s(?:ec(?:ond)?)?)$/.test(words)) return "km/s";
-  return unit;
+  return undotted;
 }
 
-function isSpeedQuantity(quantity: PlanQuantity, given: boolean): boolean {
-  if (typeof quantity.unit !== "string" || !SPEED_RATE_UNIT.test(quantity.unit.trim())) return false;
-  if (typeof quantity.value !== "number" || !Number.isFinite(quantity.value)) return false;
-  const written = [quantity.symbol, quantity.id].filter((text): text is string => typeof text === "string" && text.trim() !== "");
-  if (written.some((text) => PROJECTILE_SPEED_ROLE.test(motionSymbolKey(text)))) return true;
+/** The metric lengths the shared plan agreement converts, in the spelling it reads; any other length is left as written. */
+function lengthUnitSpelling(unit: string): string {
+  const word = undot(unit).toLowerCase();
+  if (/^(?:m|met(?:re|er)s?|मीटर|मी)$/u.test(word)) return "m";
+  if (/^(?:cm|centimet(?:re|er)s?|सेमी|सेंटीमीटर)$/u.test(word)) return "cm";
+  if (/^(?:mm|millimet(?:re|er)s?|मिमी)$/u.test(word)) return "mm";
+  if (/^(?:km|kilomet(?:re|er)s?|किमी)$/u.test(word)) return "km";
+  return undot(unit);
+}
+
+const isFiniteQuantity = (quantity: PlanQuantity) => typeof quantity.value === "number" && Number.isFinite(quantity.value);
+const writtenNames = (quantity: PlanQuantity) =>
+  [quantity.symbol, quantity.id].filter((text): text is string => typeof text === "string" && text.trim() !== "");
+
+function isLaunchSpeed(quantity: PlanQuantity, given: boolean): boolean {
+  const keys = writtenNames(quantity).map(motionSymbolKey);
+  if (keys.some((key) => PROJECTILE_SPEED_ROLE.test(key) && (given || !GIVEN_ONLY_ROLE.test(key)))) return true;
   // Plain v is the launch speed only when the stem states it; a derived v is a later speed.
-  return given && written.some((text) => /^v$/i.test(text.normalize("NFKC").trim()));
+  return given && writtenNames(quantity).some((text) => /^v$/i.test(text.normalize("NFKC").trim()));
 }
 
 const describe = (quantity: PlanQuantity) => `${quantity.symbol ?? quantity.id} = ${Math.abs(quantity.value)} ${quantity.unit}`;
+const stated = (read: ReadNumber, working: string) => read.unit === undefined ? `the bare number ${read.value}, which projectile_trajectory reads as ${read.value} ${working}` : `${read.value} ${read.unit}`;
 
-/** Fatal issues for projectile_trajectory speeds written as bare numbers that the plan or question contradicts. */
+/** Fatal issues for projectile_trajectory speeds and launch heights whose number the plan or question contradicts. */
 export function projectileSpeedLiteralIssues(
   document: { quantities?: unknown; constructions?: unknown },
   plan: TurnPlanV3,
@@ -105,37 +157,60 @@ export function projectileSpeedLiteralIssues(
   const quantities = new Map((Array.isArray(document.quantities) ? document.quantities : [])
     .filter(isPlainRecord).filter((quantity) => typeof quantity.id === "string")
     .map((quantity) => [quantity.id as string, quantity]));
-  // Speed is a magnitude: a plan that signs its launch velocity still names the same speed.
-  const magnitude = (quantity: PlanQuantity): PlanQuantity =>
-    ({ ...quantity, value: Math.abs(quantity.value), unit: speedUnitSpelling(quantity.unit!) });
-  const givens = plan.givens.filter((quantity) => isSpeedQuantity(quantity, true)).map(magnitude);
-  const derived = plan.derived.filter((quantity) => isSpeedQuantity(quantity, false)).map(magnitude);
-  const speeds = [...givens, ...derived];
-  // Qualitative claims never support a literal.
-  const speedPlan: TurnPlanV3 = { ...plan, givens, derived, qualitativeClaims: [] };
-  const stemSpeed = NON_SI_STEM_SPEED.exec(question)?.[0];
+  // Speed and height are magnitudes: a plan that signs its launch velocity or its drop still names the same one.
+  const magnitude = (quantity: PlanQuantity, spelling: (unit: string) => string): PlanQuantity =>
+    ({ ...quantity, value: Math.abs(quantity.value), unit: spelling(quantity.unit!) });
+  const speedsOf = (list: PlanQuantity[], given: boolean) => list.filter((quantity) => isFiniteQuantity(quantity) && isSpeedUnit(quantity.unit))
+    .map((quantity) => ({ quantity: magnitude(quantity, speedUnitSpelling), launch: isLaunchSpeed(quantity, given) }));
+  const speeds = [...speedsOf(plan.givens, true), ...speedsOf(plan.derived, false)];
+  const launchSpeeds = speeds.filter((speed) => speed.launch).map((speed) => speed.quantity);
+  const rateSpeeds = speeds.map((speed) => speed.quantity);
+  const lengths = [...plan.givens, ...plan.derived]
+    .filter((quantity) => isFiniteQuantity(quantity) && typeof quantity.unit === "string" && LENGTH_UNIT.test(undot(quantity.unit)))
+    .map((quantity) => magnitude(quantity, lengthUnitSpelling));
+  const lengthsHeld = lengths.some((quantity) => quantity.unit !== "m");
+  // Qualitative claims never support a literal. A probe id no plan writes, so agreement matches by value and unit.
+  const agrees = (id: string, read: ReadNumber, working: string, against: PlanQuantity[]) =>
+    validateSceneQuantityAgreement([{ id, value: read.value, unit: read.unit ?? working }],
+      { ...plan, givens: against, derived: [], qualitativeClaims: [] }).length === 0;
+  const stemSpeed = (NON_SI_STEM_SPEED.exec(question) ?? STEM_KNOTS.exec(question))?.[0];
   const issues: UnitsIssue[] = [];
   constructions.forEach((construction, index) => {
     if (!isPlainRecord(construction) || construction.operator !== "projectile_trajectory" || !isPlainRecord(construction.inputs)) return;
-    const literal = bareNumber(construction.inputs.speed, quantities);
-    if (literal === null) return;
-    const path = `constructions[${index}].inputs.speed`;
     const name = String(construction.id ?? "projectile_trajectory");
-    if (speeds.length > 0) {
-      // A probe id no plan writes, so agreement matches by value and unit against the speeds only.
-      const disagreement = validateSceneQuantityAgreement([{ id: `projectile_trajectory:${name}:bare_speed`, value: literal, unit: "m/s" }], speedPlan);
-      if (disagreement.length === 0) return;
-      issues.push({
-        code: PROJECTILE_UNITS_CODE, path, severity: "fatal",
-        message: `${name} speed is the bare number ${literal}, which projectile_trajectory reads as ${literal} m/s, but the plan's launch speed is ${speeds.map(describe).join(" or ")}; write the speed as that plan quantity or as { value, unit }`,
-      });
-      return;
+    const refuse = (input: string, message: string) =>
+      issues.push({ code: PROJECTILE_UNITS_CODE, path: `constructions[${index}].inputs.${input}`, severity: "fatal", message });
+
+    const speed = readNumber(construction.inputs.speed, quantities);
+    if (speed) {
+      const read = speed.unit === undefined ? speed : { ...speed, unit: speedUnitSpelling(speed.unit) };
+      const probe = `projectile_trajectory:${name}:speed`;
+      const fix = "write the speed as that plan quantity or as { value, unit } in the unit the question states";
+      if (launchSpeeds.length > 0) {
+        // Bound to the launch role: the number must be every launch speed the plan names, never one of several.
+        if (!launchSpeeds.every((quantity) => agrees(probe, read, "m/s", [quantity]))) {
+          const several = launchSpeeds.length > 1 && !launchSpeeds.every((quantity) => agrees(probe, { value: quantity.value, unit: quantity.unit }, "m/s", [launchSpeeds[0]!]));
+          refuse("speed", several
+            ? `${name} speed is ${stated(speed, "m/s")}, but the plan names launch speeds that disagree (${launchSpeeds.map(describe).join(" and ")}), so none can be picked as the launch speed; ${fix}`
+            : `${name} speed is ${stated(speed, "m/s")}, but the plan's launch speed is ${launchSpeeds.map(describe).join(" and ")}; ${fix}`);
+        }
+      } else if (rateSpeeds.length > 0) {
+        // No launch role: the number must be one of the plan's speeds, in the unit the planner wrote for it.
+        if (!agrees(probe, read, "m/s", rateSpeeds)) {
+          refuse("speed", `${name} speed is ${stated(speed, "m/s")}, which is none of the plan's speeds (${rateSpeeds.map(describe).join(", ")}); ${fix}`);
+        }
+      } else if (speed.unit === undefined && stemSpeed) {
+        refuse("speed", `${name} speed is ${stated(speed, "m/s")}, but the question states a speed as "${stemSpeed.trim()}" and the plan names no speed to hold it to; write the speed as { value, unit }`);
+      }
     }
-    if (!stemSpeed) return;
-    issues.push({
-      code: PROJECTILE_UNITS_CODE, path, severity: "fatal",
-      message: `${name} speed is the bare number ${literal}, which projectile_trajectory reads as ${literal} m/s, but the question states a speed as "${stemSpeed.trim()}" and the plan names no launch speed to hold it to; write the speed as { value, unit }`,
-    });
+
+    const height = construction.inputs.initialHeight === undefined ? null : readNumber(construction.inputs.initialHeight, quantities);
+    if (height && height.value !== 0 && lengthsHeld) {
+      const read = height.unit === undefined ? height : { ...height, unit: lengthUnitSpelling(height.unit) };
+      if (!agrees(`projectile_trajectory:${name}:initialHeight`, read, "m", lengths)) {
+        refuse("initialHeight", `${name} initialHeight is ${stated(height, "m")}, but the plan states lengths in other units (${lengths.map(describe).join(", ")}) and none of them is that height; write the height as that plan quantity or as { value, unit }`);
+      }
+    }
   });
   return issues;
 }
