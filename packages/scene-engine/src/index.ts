@@ -56,3 +56,4 @@ export * from "./dsa/detectAlgorithm";
 export * from "./dsa/exampleSlots";
 export * from "./dsa/traceToScene";
 export * from "./dsa/familyTeaching";
+export * from "./completion/completeSceneDocument";

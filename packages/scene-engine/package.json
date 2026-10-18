@@ -32,7 +32,8 @@
     "verify:linear-symbols:preflight": "tsx scripts/verify/verify-linear-unproved-set-symbols.ts --preflight-resource",
     "verify:linear-symbols:full-compile-budget": "tsx scripts/verify/verify-linear-unproved-set-symbols.ts --full-render-resource",
     "verify:linear-domain-properties": "tsx scripts/verify/verify-linear-domain-property-roles.ts",
-    "verify:linear-incomplete-source:preflight": "tsx scripts/verify/verify-linear-incomplete-source-constraints.ts --preflight-resource"
+    "verify:linear-incomplete-source:preflight": "tsx scripts/verify/verify-linear-incomplete-source-constraints.ts --preflight-resource",
+    "verify:completion": "tsx scripts/verify/verify-structured-scene-completion.ts && tsx scripts/verify/verify-structured-completion-annotation-context.ts && tsx scripts/verify/verify-completion-native-statements.ts && tsx scripts/verify/verify-completion-right-angles.ts && tsx scripts/verify/verify-structured-completion-proof-ownership.ts"
   },
   "dependencies": {
     "@heytutor/drawing": "workspace:*"

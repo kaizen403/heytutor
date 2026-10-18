@@ -44,6 +44,7 @@ import {
   reconcileTurnPlanWithSolver,
   verifyTurnPlanAgainstSolver,
   type FigureSource,
+  type SceneCompletionDiagnosticsV3,
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
 import {
@@ -230,6 +231,8 @@ export interface LectureRun {
     suppressedFallback?: { figureSource: FigureSource; family: string | null } | null;
     /** A candidate that passed validation as a scene but was not the figure drawn. */
     droppedCandidate?: DroppedSceneCandidate | null;
+    /** Full proposal outcome; absent when additive completion did not run. */
+    completion?: SceneCompletionDiagnosticsV3;
     /** The committed board figure as SVG, so a reviewer sees what the student saw. */
     svg: string | null;
     png?: string | null;
@@ -738,6 +741,8 @@ export async function runLecture(
       candidateValidation: result?.validation, fastRepresentation,
       exactFigureSource: planning.figureSource === "verified_recovery" ? "verified_recovery" : "planner",
       solverAuthorityBlocked, requiredRetryEnabled: REQUIRED_DIAGRAM_RETRY_ENABLED,
+      completionEnabled: process.env.NEXT_PUBLIC_SCENE_COMPLETION_BY_CONSTRUCTION === "1",
+      solverAuthority: problemAuthority ? { problemIR: problemAuthority.problemIR, solverResult: problemAuthority.solverResult } : null,
       policy: {
         preferPlanner: planning.gate.diagramStrategy.strategy === "strict",
         allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(planning.gate.diagramStrategy, source)),
@@ -755,6 +760,9 @@ export async function runLecture(
     });
     const sceneSelection = selectProductionScene(sceneSelectionInput);
     const selected = sceneSelection.representation;
+    // completion-diagnostics:begin
+    run.diagram.completion = sceneSelection.completion;
+    // completion-diagnostics:end
     const attempted = sceneSelection.attemptedRepresentation;
     const sceneDocument = selected?.sceneDocument ?? null;
     const renderScene = selected?.renderScene ?? null;
