@@ -886,13 +886,91 @@ function extractExplicitFunctionFacts(question: string, nativeInventory = false)
   }
   // Every unquoted equality is accounted for. A rejected/later/implicit
   // Cartesian equation cannot leave the other curves as a partial figure.
+  const nativeParameters = nativeInventory
+    ? nativeFunctionParameterEqualities(normalized, unquotedPositions, ownedExpressionEnds)
+    : null;
   for (const match of normalized.matchAll(/=/g)) {
     const index = match.index!;
     if (!unquotedPositions[index] || ownedEqualities.has(index) || /[<>!]/.test(normalized[index - 1] ?? "")) continue;
+    // A bare x equality belongs to an exact native parameter occurrence,
+    // never to a scalar-query exemption merely because its value is numeric.
+    if (nativeParameters && /(?<![\p{L}\p{N}_])x\s*$/iu.test(normalized.slice(0, index))) {
+      if (!nativeParameters.has(index)) return [];
+      continue;
+    }
     if (!isAuxiliaryFunctionEquation(normalized, index, facts, ownedExpressionEnds) &&
         !(nativeInventory && isNativeScalarFunctionEquation(normalized, index, declaredNames))) return [];
   }
   return facts;
+}
+
+/** Prove each parameter clause against the engine's existing stem-owned
+ * interval/point slots. The public detector is read-only here: neither its
+ * figure nor a proposed candidate supplies the parameter or its ownership. */
+function nativeFunctionParameterEqualities(source: string, unquoted: Uint8Array, expressionEnds: ReadonlySet<number>): ReadonlySet<number> {
+  const owned = new Set<number>();
+  const literal = "-?\\d+(?:\\.\\d+)?";
+  const interval = new RegExp(`(?<![\\p{L}\\p{N}_])(?:(from|between)\\s+)?x\\s*=\\s*(${literal})\\s*(to|and|,)\\s*x\\s*=\\s*(${literal})`, "giu");
+  const point = new RegExp(`(?<![\\p{L}\\p{N}_])(?:at|where|when)\\s+(?:the\\s+point\\s+(?:where\\s+)?)?x\\s*=\\s*(${literal})`, "giu");
+  const previousExpressionEnd = (start: number): number => {
+    let previous = -1;
+    for (const end of expressionEnds) if (end <= start && end > previous) previous = end;
+    return previous;
+  };
+  const boundary = (start: number): readonly string[] | null => {
+    return hasStandaloneFunctionLhs(source, start, previousExpressionEnd(start));
+  };
+  const completeLiteral = (start: number, value: string, closers: readonly string[]): boolean => {
+    const read = readCompleteSupportedExpression(source.slice(start), closers);
+    return read !== null && normalizeExpression(read.expression) === value;
+  };
+  const unquotedClause = (start: number, end: number): boolean => {
+    for (let index = start; index < end; index++) if (!unquoted[index]) return false;
+    return true;
+  };
+  let nativeSlots: ReturnType<typeof detectArchetype> | undefined;
+  const sourceSlots = (): ReturnType<typeof detectArchetype> => {
+    if (nativeSlots === undefined) nativeSlots = detectArchetype(source, { turnPlan: null, problemIR: null });
+    return nativeSlots;
+  };
+  for (const match of source.matchAll(interval)) {
+    const head = match[1]?.toLowerCase(), join = match[3]!.toLowerCase();
+    if (head === "from" ? join !== "to" : head === "between" ? join !== "and" : join !== "to") continue;
+    const start = match.index!, end = start + match[0].length;
+    const previous = previousExpressionEnd(start);
+    // This is a range attached to the complete curve, not an arbitrary
+    // occurrence of two x equalities somewhere in its surrounding prose.
+    if (previous < 0 || !/^\s*,?\s*$/.test(source.slice(previous, start))) continue;
+    const closers = boundary(start);
+    if (!closers || !unquotedClause(start, end) || !completeLiteral(end - match[4]!.length, match[4]!, closers)) continue;
+    const intervalSlots = sourceSlots();
+    const lo = Number(match[2]), hi = Number(match[4]);
+    if (!Number.isFinite(lo) || !Number.isFinite(hi) || lo === hi ||
+        intervalSlots?.sources.xMin !== "stem" || intervalSlots.sources.xMax !== "stem" ||
+        intervalSlots.slots.xMin !== Math.min(lo, hi) || intervalSlots.slots.xMax !== Math.max(lo, hi)) continue;
+    for (const equality of match[0].matchAll(/=/g)) owned.add(start + equality.index!);
+  }
+  let previousPointEnd = -1;
+  for (const match of source.matchAll(point)) {
+    const start = match.index!, end = start + match[0].length;
+    const closers = boundary(start);
+    if (!closers || !unquotedClause(start, end) || !completeLiteral(end - match[1]!.length, match[1]!, closers)) continue;
+    const previous = Math.max(previousExpressionEnd(start), previousPointEnd);
+    const attachment = source.slice(Math.max(0, previous), start);
+    // Native tangent/point roles and the existing differentiability query
+    // are complete grammatical attachments. Unknown or excluded point
+    // contexts cannot acquire ownership merely by sharing the x0 number.
+    const pointAttachment = /^\s*(?:,?\s*and\s+|,\s*)?(?:(?:its|the|a)\s+)?(?:tangents?|normal(?:\s+to\s+the\s+curve)?|slope\s+of\s+the\s+(?:tangent|curve))?\s*$/i.test(attachment);
+    const scalarQuery = /^at\b/i.test(match[0]) && previousExpressionEnd(start) >= 0 &&
+      /^\s*(?:is\s+)?(?:not\s+)?differentiable\s*$/i.test(attachment);
+    if (!pointAttachment && !scalarQuery) continue;
+    const pointSlots = scalarQuery ? null : sourceSlots();
+    const value = Number(match[1]);
+    if (!Number.isFinite(value) || (!scalarQuery && (pointSlots?.id !== "tangent_to_curve" || pointSlots.sources.x0 !== "stem" || pointSlots.slots.x0 !== value))) continue;
+    owned.add(start + match[0].indexOf("="));
+    previousPointEnd = end;
+  }
+  return owned;
 }
 
 /** Source-inventory admission for independently validated native syntheses.

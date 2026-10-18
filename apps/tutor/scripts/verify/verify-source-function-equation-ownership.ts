@@ -1606,5 +1606,82 @@ for (const fixture of namedInventoryFixtures) for (const route of ["normal", "in
     assert(labels.length > 0 && labels.every(p => typeof p.text === "string" && /^y=/.test(canonical(p.text)) && fixture.bodies.map(canonical).includes(canonical(p.text).slice(2))), "every named source body keeps a complete unscaled owned label");
   }
 });
-console.log(`source-function equation ownership: ${checks - failed}/${checks} checks passed (${selectedFixtures.length} wordings)`);
+// Source bounds and point/evaluation clauses are native parameter roles,
+// not additional curve equations. These extend, never replace, the original
+// source inventory and whole-program identity oracles above.
+const nativeParameterFixtures: readonly { id: string; question: string; retain: boolean }[] = [
+  { id: "reported-from-to", question: "Sketch y=x^2 from x=0 to x=2.", retain: true },
+  { id: "spaced-signed-bounds", question: "Plot y = x^3 from x = -1.5 to x = 2.5.", retain: true },
+  { id: "between-bounds", question: "Draw y=x^2 between x=1 and x=3.", retain: true },
+  { id: "reversed-bound-values", question: "Sketch y=x^2 from x=2 to x=0.", retain: true },
+  { id: "bare-to-interval", question: "Sketch y=x^2, x=0 to x=2.", retain: true },
+  { id: "named-function-bounds", question: "Plot f(x)=x^3 from x=0 to x=2.", retain: true },
+  { id: "two-curves-common-bounds", question: "Plot y=x^2 and y=2*x from x=0 to x=2.", retain: true },
+  { id: "bounds-declared-query", question: "Sketch f(x)=x^3 from x=0 to x=2. Find where f'(x)=0.", retain: true },
+  { id: "reported-point-where", question: "Sketch y=x^2 and its tangent at the point where x = 1.", retain: true },
+  { id: "at-point", question: "Sketch y=x^2 and its tangent at the point x=1.", retain: true },
+  { id: "at-coordinate", question: "Sketch y=x^2 and its tangent at x=1.", retain: true },
+  { id: "where-coordinate", question: "Sketch y=x^2 and its tangent where x=1.", retain: true },
+  { id: "when-coordinate", question: "Sketch y=x^2 and its tangent when x=1.", retain: true },
+  { id: "signed-point", question: "Sketch y=x^2 and its tangent at the point where x=-0.5.", retain: true },
+  { id: "repeated-same-point", question: "Sketch y=x^2 and its tangent at x=1, at x=1.", retain: true },
+  { id: "named-point-query", question: "Sketch f(x)=x^3 and its tangent at the point where x=1. Evaluate f(1)=1.", retain: true },
+  { id: "bound-additive-tail", question: "Sketch y=x^2 from x=0 to x=2+1.", retain: false },
+  { id: "bound-identifier-tail", question: "Sketch y=x^2 from x=0 to x=2z.", retain: false },
+  { id: "bound-fraction-tail", question: "Sketch y=x^2 from x=0 to x=2/3.", retain: false },
+  { id: "reversed-bound-heads", question: "Sketch y=x^2 to x=0 from x=2.", retain: false },
+  { id: "malformed-between", question: "Sketch y=x^2 between x=0 or x=2.", retain: false },
+  { id: "malformed-from", question: "Sketch y=x^2 from x=0 and x=2.", retain: false },
+  { id: "extra-matching-bound-line", question: "Sketch y=x^2 from x=0 to x=2 and x=0 on the same axes.", retain: false },
+  { id: "extra-point-line", question: "Sketch y=x^2 and its tangent at the point where x=1, and graph x=1.", retain: false },
+  { id: "later-curve-different-bounds", question: "Plot y=x^2 from x=0 to x=2 and y=x^3 from x=1 to x=3.", retain: false },
+  { id: "bare-second-point", question: "Sketch y=x^2 and its tangent at x=1 and x=2.", retain: false },
+  { id: "two-at-points", question: "Sketch y=x^2 and its tangents at x=1 and at x=2.", retain: false },
+  { id: "sequential-points", question: "Sketch y=x^2 and its tangent at x=1 then at x=2.", retain: false },
+  { id: "separate-point-request", question: "Sketch y=x^2 and its tangent at x=1. Then sketch its tangent at x=2.", retain: false },
+  { id: "point-additive-tail", question: "Sketch y=x^2 and its tangent at the point where x=1+1.", retain: false },
+  { id: "point-unknown-value", question: "Sketch y=x^2 and its tangent at the point where x=z.", retain: false },
+  { id: "point-extra-equation", question: "Sketch y=x^2 and its tangent at the point where x=1 and x+y=4.", retain: false },
+  { id: "negated-point-clause", question: "Sketch y=x^2 and its tangent, but not at x=1.", retain: false },
+  { id: "excluded-point-clause", question: "Plot y=x^2 except at x=1.", retain: false },
+  { id: "interval-with-excluded-point", question: "Sketch y=x^2 from x=0 to x=2, excluding x=1.", retain: false },
+  { id: "negated-range-attachment", question: "Sketch y=x^2, but not from x=0 to x=2.", retain: false },
+  { id: "untyped-where-point", question: "Plot y=x^2 where x=1.", retain: false },
+  { id: "untyped-at-point", question: "Plot y=x^2 at x=1.", retain: false },
+  { id: "unconsumed-tangent-bounds", question: "Sketch y=x^2 and its tangent from x=0 to x=2 at x=1.", retain: false },
+  { id: "typed-distinct-second-point", question: "Sketch y=x^2 and its tangent at x=1 and at x=2.", retain: false },
+];
+for (const fixture of nativeParameterFixtures) for (const route of ["normal", "inferred", "fast"] as const) check(`native parameter ownership ${fixture.id} ${route}`, () => {
+  const question = fixture.question;
+  const turnPlan: TurnPlanV3 = { schemaVersion: "turn-plan/v3", question, givens: [], unknowns: [], derived: [], qualitativeClaims: [], lawIds: [], assumptions: [], visualRequirement: "required" };
+  const native = synthesizeFamilyScene({ question, turnPlan: null, problemIR: null });
+  const input = { question, turnPlan, families: route === "normal" ? undefined : inferSceneCapabilities(question).families };
+  const selected = route === "fast" ? selectFastVerifiedRepresentation(input) : selectVerifiedRepresentation(input);
+  if (!fixture.retain) {
+    if (native) assert.equal(prepareFallbackFunctionInventory(question, native), null, "an unproved parameter or extra equality must decline the whole native program");
+    assert(!selected || !selected.sceneDocument.constructions.some(c => ["function_curve", "implicit_curve"].includes(c.operator)), "a malformed or incomplete source cannot retain a curve subset");
+    return;
+  }
+  assert(native?.validationReport.valid, "a positive parameter fixture requires a real valid source-only native baseline");
+  const before = structuredClone(native);
+  assert.equal(prepareFallbackFunctionInventory(question, native), native, "a complete native bound/point program must return the original candidate by identity");
+  assert.deepEqual(native, before, "source parameter ownership cannot rewrite native inputs, proofs, labels, or render");
+  assert(selected && selected.figureSource !== "text_only" && selected.figureSource !== "source_grounded", "the original supported native figure must survive");
+  assert.deepEqual(selected.sceneDocument, native.document, "all source parameters and whole labels remain native-owned");
+  assert.deepEqual(selected.renderScene, native.renderScene, "all native ink remains identical");
+});
+for (const [id, source, changed] of [
+  ["changed-native-bound", "Sketch y=x^2 from x=0 to x=2.", "Sketch y=x^2 from x=0 to x=3."],
+  ["changed-native-point", "Sketch y=x^2 and its tangent at the point where x=1.", "Sketch y=x^2 and its tangent at the point where x=2."],
+] as const) check(`native parameter whole-program identity ${id}`, () => {
+  const native = synthesizeFamilyScene({ question: changed, turnPlan: null, problemIR: null });
+  assert(native?.validationReport.valid);
+  native.document.source.question = source;
+  const before = structuredClone(native);
+  const compiled = compileSceneDocument(native.document);
+  assert(compiled.ok && compiled.renderScene, "the changed native program is mechanically valid before source admission");
+  assert.equal(prepareFallbackFunctionInventory(source, native), null, "parameter recognition cannot rescue different native geometry");
+  assert.deepEqual(native, before);
+});
+console.log(`source-function equation ownership: ${checks - failed}/${checks} checks passed (${selectedFixtures.length} original wordings; ${nativeParameterFixtures.length} native parameter wordings)`);
 if (failed > 0) process.exitCode = 1;
