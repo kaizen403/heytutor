@@ -311,6 +311,18 @@ function spokenPointStops(state: ConductorState): readonly string[] {
 
 const FIGURE_INTRO_TRIGGERS = new Set(["FOCUS", "FRAME", "TYPE"]);
 
+/** A conductor POINT can name frame 1 even when it has no FOCUS targets. */
+export function dsaSegmentNeedsFigure(segment: TutorSegment, intro: TutorSegment[]): boolean {
+  const commands = getSegmentCommands(segment);
+  if (commands.some((command) => FIGURE_INTRO_TRIGGERS.has(command.type))) return true;
+  const ownedIds = new Set(intro.flatMap(getSegmentCommands)
+    .map((command) => command.semanticRef?.entityId).filter(Boolean));
+  // Opening notes have their own work-row POINTs. Only a target owned by
+  // this verified intro may bring the figure ahead of the spoken step.
+  return commands.some((command) => command.type === "POINT" &&
+    ownedIds.has(command.semanticRef?.entityId ?? command.text ?? ""));
+}
+
 /**
  * Place the delayed frame-1 intro just before the first figure or code beat.
  *
@@ -324,9 +336,7 @@ export function placeDsaFigureIntro(
   teaching: TutorSegment[],
 ): TutorSegment[] {
   if (intro.length === 0) return [...given, ...teaching];
-  const index = teaching.findIndex((segment) =>
-    getSegmentCommands(segment).some((command) => FIGURE_INTRO_TRIGGERS.has(command.type)),
-  );
+  const index = teaching.findIndex((segment) => dsaSegmentNeedsFigure(segment, intro));
   if (index < 0) return [...given, ...teaching, ...intro];
   return [...given, ...teaching.slice(0, index), ...intro, ...teaching.slice(index)];
 }

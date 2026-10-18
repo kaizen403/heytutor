@@ -222,6 +222,7 @@ export function useTurnControl(
       if (turnGeneration !== turnGenerationRef.current) {
         return;
       }
+      const segmentPage = boardPageRef.current?.boardId === sessionId ? boardPageRef.current : null;
       const segmentToRun = normalizeSegmentForAlignment(segment);
       collectedSegmentsRef.current.push(segmentToRun);
       const index = collectedSegmentsRef.current.length - 1;
@@ -293,6 +294,13 @@ export function useTurnControl(
             stack: error instanceof Error ? (error.stack ?? "").slice(0, 600) : "",
             consecutive_failures: consecutiveSegmentFailuresRef.current,
           });
+          const markTeachingSegmentFailure = () => {
+            if (!segmentPage || segmentPage !== boardPageRef.current || segmentPage.boardId !== sessionId) return;
+            segmentPage.failureTelemetry = {
+              ...segmentPage.failureTelemetry, subject: segmentPage.failureTelemetry?.subject ?? "other",
+              failed: true, stage: "teaching", code: "teaching_segment_failed",
+            };
+          };
           if (error instanceof IncompleteCodeBeatError) {
             const failure = { message: error.message, question: liveQuestionRef.current };
             turnTelemetryRef.current?.mark("code-beat-incomplete", {
@@ -304,6 +312,7 @@ export function useTurnControl(
             });
             // Stop captures the real prefix and offers Continue with the same
             // plan. Do not admit later blocks or publish a completed lesson.
+            markTeachingSegmentFailure();
             stopTurnRef.current?.();
             cancelRef.current = true;
             setLastError(failure);
@@ -320,6 +329,7 @@ export function useTurnControl(
               index,
               consecutive_failures: consecutiveSegmentFailuresRef.current,
             });
+            markTeachingSegmentFailure();
             cancelRef.current = true;
             const failure = {
               message: "The lesson could not continue playing. Please try again.",
@@ -350,6 +360,7 @@ export function useTurnControl(
       setLastError,
       stopTurnRef,
       onError,
+      boardPageRef,
     ],
   );
 

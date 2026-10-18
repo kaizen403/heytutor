@@ -1,0 +1,3580 @@
+{
+ "note": "Recorded lecture-lab planner candidates (not held out), copied from the run files named in run. The p5 rows are valid planner figures of a point and its mirror image in a plane that main dropped as planner optics; the two physics rows name a mirror or a lens and must stay dropped.",
+ "rows": [
+  {
+   "run": "p5-lab/h4-p5b1-maths/maths|11|image-of-a-point-in-a-plane|h5b",
+   "candidateIndex": 2,
+   "phase": "repair",
+   "lane": "alternate",
+   "strategy": "strict",
+   "subject": "maths",
+   "solverContradiction": false,
+   "expect": "planner_drawn",
+   "question": "The point B(5, 2, 8) is the mirror image of A(-1, 8, 2) in a plane. Find the equation of the plane and the distance of A from it.",
+   "plan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "The point B(5, 2, 8) is the mirror image of A(-1, 8, 2) in a plane. Find the equation of the plane and the distance of A from it.",
+    "givens": [
+     {
+      "id": "ax",
+      "symbol": "x_A",
+      "value": -1,
+      "provenance": "given",
+      "sourceText": "ax = -1"
+     },
+     {
+      "id": "ay",
+      "symbol": "y_A",
+      "value": 8,
+      "provenance": "given",
+      "sourceText": "ay = 8"
+     },
+     {
+      "id": "az",
+      "symbol": "z_A",
+      "value": 2,
+      "provenance": "given",
+      "sourceText": "az = 2"
+     },
+     {
+      "id": "bx",
+      "symbol": "x_B",
+      "value": 5,
+      "provenance": "given",
+      "sourceText": "bx = 5"
+     },
+     {
+      "id": "by",
+      "symbol": "y_B",
+      "value": 2,
+      "provenance": "given",
+      "sourceText": "by = 2"
+     },
+     {
+      "id": "bz",
+      "symbol": "z_B",
+      "value": 8,
+      "provenance": "given",
+      "sourceText": "bz = 8"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "plane",
+      "symbol": "plane equation"
+     },
+     {
+      "id": "distance",
+      "symbol": "d"
+     }
+    ],
+    "derived": [
+     {
+      "id": "distance",
+      "symbol": "d",
+      "value": 5.196152422706632
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "planeResult",
+      "claim": "planeResult",
+      "expected": "Its normal is B\u2212A=(6,\u22126,6), and it passes through midpoint (2,5,5), so x\u2212y+z=2."
+     },
+     {
+      "id": "distanceResult",
+      "claim": "distanceResult",
+      "expected": "d=3\u221a3\u22485.196152422706632."
+     }
+    ],
+    "lawIds": [
+     "reflection-perpendicular-bisector",
+     "three-dimensional-distance-formula"
+    ],
+    "assumptions": [],
+    "visualRequirement": "required"
+   },
+   "candidate": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "The given points determine a mirror plane that perpendicularly bisects their connecting segment."
+    },
+    "source": {
+     "question": "The point B(5, 2, 8) is the mirror image of A(-1, 8, 2) in a plane. Find the equation of the plane and the distance of A from it.",
+     "representationTier": "exact"
+    },
+    "quantities": [
+     {
+      "id": "ax",
+      "symbol": "x_A",
+      "value": -1,
+      "provenance": "given"
+     },
+     {
+      "id": "ay",
+      "symbol": "y_A",
+      "value": 8,
+      "provenance": "given"
+     },
+     {
+      "id": "az",
+      "symbol": "z_A",
+      "value": 2,
+      "provenance": "given"
+     },
+     {
+      "id": "bx",
+      "symbol": "x_B",
+      "value": 5,
+      "provenance": "given"
+     },
+     {
+      "id": "by",
+      "symbol": "y_B",
+      "value": 2,
+      "provenance": "given"
+     },
+     {
+      "id": "bz",
+      "symbol": "z_B",
+      "value": 8,
+      "provenance": "given"
+     },
+     {
+      "id": "distance",
+      "symbol": "d",
+      "value": 5.196152422706632,
+      "provenance": "derived",
+      "dependsOn": [
+       "ax",
+       "ay",
+       "az",
+       "bx",
+       "by",
+       "bz"
+      ]
+     }
+    ],
+    "entities": [
+     {
+      "id": "O",
+      "kind": "point",
+      "role": "frame origin"
+     },
+     {
+      "id": "frame",
+      "kind": "polyline",
+      "role": "3D axes"
+     },
+     {
+      "id": "A",
+      "kind": "point",
+      "role": "original point",
+      "label": "A(-1,8,2)"
+     },
+     {
+      "id": "B",
+      "kind": "point",
+      "role": "mirror image",
+      "label": "B(5,2,8)"
+     },
+     {
+      "id": "AB",
+      "kind": "segment",
+      "role": "segment joining the mirror-image points"
+     },
+     {
+      "id": "mirrorPlane",
+      "kind": "polygon",
+      "role": "perpendicular bisector plane",
+      "label": "x\u2212y+z=2"
+     },
+     {
+      "id": "M",
+      "kind": "point",
+      "role": "midpoint and perpendicular foot",
+      "label": "M"
+     },
+     {
+      "id": "inPlane",
+      "kind": "line",
+      "role": "line through M in the mirror plane"
+     },
+     {
+      "id": "rightM",
+      "kind": "right_angle_mark",
+      "role": "perpendicular bisector angle"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "makeO",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "O"
+      ]
+     },
+     {
+      "id": "makeFrame",
+      "operator": "space_frame",
+      "inputs": {
+       "origin": "O",
+       "axisLength": 3
+      },
+      "outputs": [
+       "frame"
+      ]
+     },
+     {
+      "id": "makeA",
+      "operator": "space_point",
+      "inputs": {
+       "frame": "frame",
+       "x": "ax",
+       "y": "ay",
+       "z": "az"
+      },
+      "outputs": [
+       "A"
+      ]
+     },
+     {
+      "id": "makeB",
+      "operator": "space_point",
+      "inputs": {
+       "frame": "frame",
+       "x": "bx",
+       "y": "by",
+       "z": "bz"
+      },
+      "outputs": [
+       "B"
+      ]
+     },
+     {
+      "id": "makeAB",
+      "operator": "space_segment",
+      "inputs": {
+       "frame": "frame",
+       "a": "A",
+       "b": "B"
+      },
+      "outputs": [
+       "AB"
+      ]
+     },
+     {
+      "id": "makePlane",
+      "operator": "plane",
+      "inputs": {
+       "frame": "frame",
+       "a": 1,
+       "b": -1,
+       "c": 1,
+       "d": 2,
+       "span": 5
+      },
+      "outputs": [
+       "mirrorPlane"
+      ]
+     },
+     {
+      "id": "makeM",
+      "operator": "space_project",
+      "inputs": {
+       "frame": "frame",
+       "point": "A",
+       "onto": "mirrorPlane"
+      },
+      "outputs": [
+       "M"
+      ]
+     },
+     {
+      "id": "makeInPlane",
+      "operator": "space_line",
+      "inputs": {
+       "frame": "frame",
+       "point": "M",
+       "direction": [
+        1,
+        1,
+        0
+       ],
+       "tMin": -2,
+       "tMax": 2
+      },
+      "outputs": [
+       "inPlane"
+      ]
+     },
+     {
+      "id": "makeRightM",
+      "operator": "space_right_angle_mark",
+      "inputs": {
+       "frame": "frame",
+       "vertex": "M",
+       "a": "AB",
+       "b": "inPlane"
+      },
+      "outputs": [
+       "rightM"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "midpointOrder",
+      "predicate": "between",
+      "entities": [
+       "M",
+       "A",
+       "B"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "midpointOnPlane",
+      "predicate": "on",
+      "entities": [
+       "M",
+       "mirrorPlane"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "planeBisectsPerpendicularly",
+      "predicate": "perpendicular",
+      "entities": [
+       "AB",
+       "mirrorPlane"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "lineOnPlane",
+      "predicate": "on",
+      "entities": [
+       "M",
+       "inPlane"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+     "O",
+     "frame",
+     "A",
+     "B",
+     "AB",
+     "mirrorPlane",
+     "M",
+     "inPlane",
+     "rightM"
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "entityIds": [
+       "O",
+       "frame",
+       "A",
+       "B",
+       "AB"
+      ],
+      "dependsOn": []
+     },
+     {
+      "id": "bisector",
+      "entityIds": [
+       "mirrorPlane",
+       "M",
+       "inPlane",
+       "rightM"
+      ],
+      "dependsOn": [
+       "setup"
+      ]
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "id": "showSetup",
+      "revealGroupId": "setup",
+      "narration": "Start with A and its mirror image B."
+     },
+     {
+      "id": "showBisector",
+      "revealGroupId": "bisector",
+      "narration": "The mirror plane meets AB at its midpoint M and is perpendicular to AB. Its equation is x\u2212y+z=2; the distance from A is half of AB, or 3\u221a3."
+     }
+    ]
+   }
+  },
+  {
+   "run": "p5-lab/h4-p5b2-maths/maths|11|image-of-a-point-in-a-plane|h5b",
+   "candidateIndex": 2,
+   "phase": "repair",
+   "lane": "primary",
+   "strategy": "strict",
+   "subject": "maths",
+   "solverContradiction": false,
+   "expect": "planner_drawn",
+   "question": "The point B(5, 2, 8) is the mirror image of A(-1, 8, 2) in a plane. Find the equation of the plane and the distance of A from it.",
+   "plan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "The point B(5, 2, 8) is the mirror image of A(-1, 8, 2) in a plane. Find the equation of the plane and the distance of A from it.",
+    "givens": [
+     {
+      "id": "ax",
+      "symbol": "x_A",
+      "value": -1,
+      "provenance": "given",
+      "sourceText": "ax = -1"
+     },
+     {
+      "id": "ay",
+      "symbol": "y_A",
+      "value": 8,
+      "provenance": "given",
+      "sourceText": "ay = 8"
+     },
+     {
+      "id": "az",
+      "symbol": "z_A",
+      "value": 2,
+      "provenance": "given",
+      "sourceText": "az = 2"
+     },
+     {
+      "id": "bx",
+      "symbol": "x_B",
+      "value": 5,
+      "provenance": "given",
+      "sourceText": "bx = 5"
+     },
+     {
+      "id": "by",
+      "symbol": "y_B",
+      "value": 2,
+      "provenance": "given",
+      "sourceText": "by = 2"
+     },
+     {
+      "id": "bz",
+      "symbol": "z_B",
+      "value": 8,
+      "provenance": "given",
+      "sourceText": "bz = 8"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "plane",
+      "symbol": "P"
+     },
+     {
+      "id": "distance",
+      "symbol": "d",
+      "unit": "coordinate units"
+     }
+    ],
+    "derived": [
+     {
+      "id": "distance",
+      "symbol": "d",
+      "value": 5.196152422706632,
+      "unit": "coordinate units"
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "equation",
+      "claim": "equation",
+      "expected": "P: x\u2212y+z=2; midpoint of AB is (2,5,5), and B\u2212A=(6,\u22126,6) is normal to P."
+     },
+     {
+      "id": "exactDistance",
+      "claim": "exactDistance",
+      "expected": "d=3sqrt(3) coordinate units."
+     }
+    ],
+    "lawIds": [
+     "midpoint formula",
+     "perpendicular-bisector property of a reflection plane",
+     "point-to-plane distance formula"
+    ],
+    "assumptions": [],
+    "visualRequirement": "required"
+   },
+   "candidate": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "The given points and their reflection plane have exact three-dimensional geometry."
+    },
+    "source": {
+     "question": "The point B(5, 2, 8) is the mirror image of A(-1, 8, 2) in a plane. Find the equation of the plane and the distance of A from it."
+    },
+    "quantities": [
+     {
+      "id": "ax",
+      "symbol": "x_A",
+      "value": -1
+     },
+     {
+      "id": "ay",
+      "symbol": "y_A",
+      "value": 8
+     },
+     {
+      "id": "az",
+      "symbol": "z_A",
+      "value": 2
+     },
+     {
+      "id": "bx",
+      "symbol": "x_B",
+      "value": 5
+     },
+     {
+      "id": "by",
+      "symbol": "y_B",
+      "value": 2
+     },
+     {
+      "id": "bz",
+      "symbol": "z_B",
+      "value": 8
+     },
+     {
+      "id": "distance",
+      "symbol": "d",
+      "value": 5.196152422706632,
+      "unit": "coordinate units"
+     }
+    ],
+    "entities": [
+     {
+      "id": "origin",
+      "kind": "point",
+      "role": "frame origin"
+     },
+     {
+      "id": "frame",
+      "kind": "polyline",
+      "role": "three-dimensional axes"
+     },
+     {
+      "id": "A",
+      "kind": "point",
+      "role": "original point",
+      "label": "A(-1,8,2)"
+     },
+     {
+      "id": "B",
+      "kind": "point",
+      "role": "mirror image",
+      "label": "B(5,2,8)"
+     },
+     {
+      "id": "P",
+      "kind": "polygon",
+      "role": "reflection plane",
+      "label": "P"
+     },
+     {
+      "id": "M",
+      "kind": "point",
+      "role": "foot on the reflection plane",
+      "label": "M"
+     },
+     {
+      "id": "AM",
+      "kind": "segment",
+      "role": "perpendicular from A to the plane"
+     },
+     {
+      "id": "BM",
+      "kind": "segment",
+      "role": "perpendicular from B to the plane"
+     },
+     {
+      "id": "inPlane",
+      "kind": "line",
+      "role": "line in the plane through M"
+     },
+     {
+      "id": "rightM",
+      "kind": "right_angle_mark",
+      "role": "perpendicular at M"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "makeOrigin",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "origin"
+      ]
+     },
+     {
+      "id": "makeFrame",
+      "operator": "space_frame",
+      "inputs": {
+       "origin": "origin",
+       "axisLength": 3
+      },
+      "outputs": [
+       "frame"
+      ]
+     },
+     {
+      "id": "makeA",
+      "operator": "space_point",
+      "inputs": {
+       "frame": "frame",
+       "x": "ax",
+       "y": "ay",
+       "z": "az"
+      },
+      "outputs": [
+       "A"
+      ]
+     },
+     {
+      "id": "makeB",
+      "operator": "space_point",
+      "inputs": {
+       "frame": "frame",
+       "x": "bx",
+       "y": "by",
+       "z": "bz"
+      },
+      "outputs": [
+       "B"
+      ]
+     },
+     {
+      "id": "makePlane",
+      "operator": "plane",
+      "inputs": {
+       "frame": "frame",
+       "a": 1,
+       "b": -1,
+       "c": 1,
+       "d": 2,
+       "span": 7
+      },
+      "outputs": [
+       "P"
+      ]
+     },
+     {
+      "id": "makeM",
+      "operator": "space_project",
+      "inputs": {
+       "frame": "frame",
+       "point": "A",
+       "onto": "P"
+      },
+      "outputs": [
+       "M"
+      ]
+     },
+     {
+      "id": "makeAM",
+      "operator": "space_segment",
+      "inputs": {
+       "frame": "frame",
+       "a": "A",
+       "b": "M"
+      },
+      "outputs": [
+       "AM"
+      ]
+     },
+     {
+      "id": "makeBM",
+      "operator": "space_segment",
+      "inputs": {
+       "frame": "frame",
+       "a": "B",
+       "b": "M"
+      },
+      "outputs": [
+       "BM"
+      ]
+     },
+     {
+      "id": "makeInPlane",
+      "operator": "space_line",
+      "inputs": {
+       "frame": "frame",
+       "point": "M",
+       "direction": [
+        1,
+        1,
+        0
+       ],
+       "tMin": -3,
+       "tMax": 3
+      },
+      "outputs": [
+       "inPlane"
+      ]
+     },
+     {
+      "id": "markRight",
+      "operator": "space_right_angle_mark",
+      "inputs": {
+       "frame": "frame",
+       "vertex": "M",
+       "a": "A",
+       "b": "inPlane"
+      },
+      "outputs": [
+       "rightM"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "midpoint",
+      "predicate": "between",
+      "entities": [
+       "M",
+       "A",
+       "B"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "normal",
+      "predicate": "perpendicular",
+      "entities": [
+       "AM",
+       "P"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "onPlane",
+      "predicate": "on",
+      "entities": [
+       "M",
+       "P"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "planeResult",
+      "kind": "callout",
+      "targetIds": [
+       "P"
+      ],
+      "text": "x\u2212y+z=2"
+     },
+     {
+      "id": "distanceResult",
+      "kind": "callout",
+      "targetIds": [
+       "AM"
+      ],
+      "text": "d=3\u221a3",
+      "quantityId": "distance"
+     }
+    ],
+    "requiredEntityIds": [
+     "origin",
+     "frame",
+     "A",
+     "B",
+     "P",
+     "M",
+     "AM",
+     "BM",
+     "inPlane",
+     "rightM"
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "entityIds": [
+       "origin",
+       "frame",
+       "A",
+       "B",
+       "P",
+       "M",
+       "AM",
+       "BM",
+       "inPlane",
+       "rightM"
+      ],
+      "dependsOn": []
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "id": "showSetup",
+      "targetIds": [
+       "setup"
+      ]
+     },
+     {
+      "id": "showPlane",
+      "targetIds": [
+       "planeResult"
+      ]
+     },
+     {
+      "id": "showDistance",
+      "targetIds": [
+       "distanceResult"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "run": "p5-lab/h4-p5m1-maths/maths|11|image-of-a-point-in-a-plane|h5b",
+   "candidateIndex": 2,
+   "phase": "repair",
+   "lane": "alternate",
+   "strategy": "strict",
+   "subject": "maths",
+   "solverContradiction": false,
+   "expect": "planner_drawn",
+   "question": "The point B(5, 2, 8) is the mirror image of A(-1, 8, 2) in a plane. Find the equation of the plane and the distance of A from it.",
+   "plan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "The point B(5, 2, 8) is the mirror image of A(-1, 8, 2) in a plane. Find the equation of the plane and the distance of A from it.",
+    "givens": [
+     {
+      "id": "ax",
+      "symbol": "x_A",
+      "value": -1,
+      "provenance": "given",
+      "sourceText": "ax = -1"
+     },
+     {
+      "id": "ay",
+      "symbol": "y_A",
+      "value": 8,
+      "provenance": "given",
+      "sourceText": "ay = 8"
+     },
+     {
+      "id": "az",
+      "symbol": "z_A",
+      "value": 2,
+      "provenance": "given",
+      "sourceText": "az = 2"
+     },
+     {
+      "id": "bx",
+      "symbol": "x_B",
+      "value": 5,
+      "provenance": "given",
+      "sourceText": "bx = 5"
+     },
+     {
+      "id": "by",
+      "symbol": "y_B",
+      "value": 2,
+      "provenance": "given",
+      "sourceText": "by = 2"
+     },
+     {
+      "id": "bz",
+      "symbol": "z_B",
+      "value": 8,
+      "provenance": "given",
+      "sourceText": "bz = 8"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "plane",
+      "symbol": "\u03a0"
+     },
+     {
+      "id": "distance",
+      "symbol": "d"
+     }
+    ],
+    "derived": [
+     {
+      "id": "distance",
+      "symbol": "d",
+      "value": 5.196152422706632
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "planeEquation",
+      "claim": "planeEquation",
+      "expected": "\u03a0: x\u2212y+z=2; midpoint M=(2,5,5), and AB=(6,\u22126,6) is normal to \u03a0."
+     },
+     {
+      "id": "exactDistance",
+      "claim": "exactDistance",
+      "expected": "d=3\u221a3\u22485.196152422706632"
+     }
+    ],
+    "lawIds": [
+     "reflection-perpendicular-bisector",
+     "point-to-plane-distance"
+    ],
+    "assumptions": [],
+    "visualRequirement": "required"
+   },
+   "candidate": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "The given points and their mirror plane have exact three-dimensional constructions."
+    },
+    "source": {
+     "question": "The point B(5, 2, 8) is the mirror image of A(-1, 8, 2) in a plane. Find the equation of the plane and the distance of A from it.",
+     "representationTier": "exact",
+     "nonMetric": false
+    },
+    "quantities": [
+     {
+      "id": "ax",
+      "symbol": "x_A",
+      "value": -1,
+      "provenance": "given"
+     },
+     {
+      "id": "ay",
+      "symbol": "y_A",
+      "value": 8,
+      "provenance": "given"
+     },
+     {
+      "id": "az",
+      "symbol": "z_A",
+      "value": 2,
+      "provenance": "given"
+     },
+     {
+      "id": "bx",
+      "symbol": "x_B",
+      "value": 5,
+      "provenance": "given"
+     },
+     {
+      "id": "by",
+      "symbol": "y_B",
+      "value": 2,
+      "provenance": "given"
+     },
+     {
+      "id": "bz",
+      "symbol": "z_B",
+      "value": 8,
+      "provenance": "given"
+     },
+     {
+      "id": "distance",
+      "symbol": "d",
+      "value": 5.196152422706632,
+      "provenance": "derived",
+      "dependsOn": [
+       "ax",
+       "ay",
+       "az",
+       "bx",
+       "by",
+       "bz"
+      ]
+     }
+    ],
+    "entities": [
+     {
+      "id": "O",
+      "kind": "point",
+      "role": "frame origin"
+     },
+     {
+      "id": "frame",
+      "kind": "polyline",
+      "role": "three-dimensional axes"
+     },
+     {
+      "id": "A",
+      "kind": "point",
+      "role": "given point",
+      "label": "A(-1,8,2)"
+     },
+     {
+      "id": "B",
+      "kind": "point",
+      "role": "given mirror image",
+      "label": "B(5,2,8)"
+     },
+     {
+      "id": "mirrorPlane",
+      "kind": "polygon",
+      "role": "mirror plane",
+      "label": "\u03a0"
+     },
+     {
+      "id": "M",
+      "kind": "point",
+      "role": "midpoint and foot on the mirror plane",
+      "label": "M"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "makeO",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "O"
+      ]
+     },
+     {
+      "id": "makeFrame",
+      "operator": "space_frame",
+      "inputs": {
+       "origin": "O",
+       "axisLength": 3
+      },
+      "outputs": [
+       "frame"
+      ]
+     },
+     {
+      "id": "makeA",
+      "operator": "space_point",
+      "inputs": {
+       "frame": "frame",
+       "x": "ax",
+       "y": "ay",
+       "z": "az"
+      },
+      "outputs": [
+       "A"
+      ]
+     },
+     {
+      "id": "makeB",
+      "operator": "space_point",
+      "inputs": {
+       "frame": "frame",
+       "x": "bx",
+       "y": "by",
+       "z": "bz"
+      },
+      "outputs": [
+       "B"
+      ]
+     },
+     {
+      "id": "makePlane",
+      "operator": "plane",
+      "inputs": {
+       "frame": "frame",
+       "a": 1,
+       "b": -1,
+       "c": 1,
+       "d": 2,
+       "span": 5
+      },
+      "outputs": [
+       "mirrorPlane"
+      ]
+     },
+     {
+      "id": "makeM",
+      "operator": "space_project",
+      "inputs": {
+       "frame": "frame",
+       "point": "A",
+       "onto": "mirrorPlane"
+      },
+      "outputs": [
+       "M"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "midpointOrder",
+      "predicate": "between",
+      "entities": [
+       "M",
+       "A",
+       "B"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "midpointOnPlane",
+      "predicate": "incident",
+      "entities": [
+       "M",
+       "mirrorPlane"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "planeEquation",
+      "kind": "callout",
+      "targetIds": [
+       "mirrorPlane"
+      ],
+      "text": "x\u2212y+z=2"
+     },
+     {
+      "id": "distanceResult",
+      "kind": "callout",
+      "targetIds": [
+       "A",
+       "mirrorPlane"
+      ],
+      "text": "d=3\u221a3",
+      "quantityId": "distance"
+     }
+    ],
+    "requiredEntityIds": [
+     "O",
+     "frame",
+     "A",
+     "B",
+     "mirrorPlane",
+     "M"
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "entityIds": [
+       "O",
+       "frame",
+       "A",
+       "B"
+      ],
+      "dependsOn": []
+     },
+     {
+      "id": "construction",
+      "entityIds": [
+       "mirrorPlane",
+       "M"
+      ],
+      "dependsOn": [
+       "setup"
+      ]
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "id": "showSetup",
+      "revealGroupId": "setup"
+     },
+     {
+      "id": "showConstruction",
+      "revealGroupId": "construction"
+     },
+     {
+      "id": "showPlaneEquation",
+      "annotationIds": [
+       "planeEquation"
+      ]
+     },
+     {
+      "id": "showDistance",
+      "annotationIds": [
+       "distanceResult"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "run": "p5-lab/h4-p5m2-maths/maths|11|image-of-a-point-in-a-plane|h5b",
+   "candidateIndex": 2,
+   "phase": "repair",
+   "lane": "alternate",
+   "strategy": "strict",
+   "subject": "maths",
+   "solverContradiction": false,
+   "expect": "planner_drawn",
+   "question": "The point B(5, 2, 8) is the mirror image of A(-1, 8, 2) in a plane. Find the equation of the plane and the distance of A from it.",
+   "plan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "The point B(5, 2, 8) is the mirror image of A(-1, 8, 2) in a plane. Find the equation of the plane and the distance of A from it.",
+    "givens": [],
+    "unknowns": [
+     {
+      "id": "plane",
+      "symbol": "\u03a0"
+     },
+     {
+      "id": "distance",
+      "symbol": "d",
+      "unit": "coordinate units"
+     }
+    ],
+    "derived": [
+     {
+      "id": "distance",
+      "symbol": "d",
+      "value": 5.196152422706632,
+      "unit": "coordinate units"
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "planeEq",
+      "claim": "planeEq",
+      "expected": "\u03a0: x \u2212 y + z \u2212 2 = 0"
+     },
+     {
+      "id": "distanceExact",
+      "claim": "distanceExact",
+      "expected": "d = 3\u221a3 coordinate units"
+     }
+    ],
+    "lawIds": [
+     "reflection-perpendicular-bisector",
+     "point-to-plane-distance"
+    ],
+    "assumptions": [
+     "Removed 1 invalid planner dependency reference."
+    ],
+    "visualRequirement": "required"
+   },
+   "candidate": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "A three-dimensional plane and the two stated points show the reflection setup; the midpoint and results are revealed afterward."
+    },
+    "source": {
+     "question": "The point B(5, 2, 8) is the mirror image of A(-1, 8, 2) in a plane. Find the equation of the plane and the distance of A from it."
+    },
+    "quantities": [
+     {
+      "id": "distance",
+      "symbol": "d",
+      "value": 5.196152422706632,
+      "unit": "coordinate units",
+      "provenance": "derived",
+      "dependsOn": [],
+      "sourceText": "distance = 5.196152422706632"
+     }
+    ],
+    "entities": [
+     {
+      "id": "O",
+      "kind": "point",
+      "role": "frame origin"
+     },
+     {
+      "id": "frame",
+      "kind": "polyline",
+      "role": "three-dimensional axes"
+     },
+     {
+      "id": "A",
+      "kind": "point",
+      "role": "original point",
+      "label": "A(-1,8,2)"
+     },
+     {
+      "id": "B",
+      "kind": "point",
+      "role": "mirror image",
+      "label": "B(5,2,8)"
+     },
+     {
+      "id": "plane",
+      "kind": "polygon",
+      "role": "mirror plane",
+      "label": "\u03a0"
+     },
+     {
+      "id": "M",
+      "kind": "point",
+      "role": "midpoint and perpendicular foot",
+      "label": "M"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "makeO",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "O"
+      ]
+     },
+     {
+      "id": "makeFrame",
+      "operator": "space_frame",
+      "inputs": {
+       "origin": "O",
+       "axisLength": 3
+      },
+      "outputs": [
+       "frame"
+      ]
+     },
+     {
+      "id": "makeA",
+      "operator": "space_point",
+      "inputs": {
+       "frame": "frame",
+       "x": -1,
+       "y": 8,
+       "z": 2
+      },
+      "outputs": [
+       "A"
+      ]
+     },
+     {
+      "id": "makeB",
+      "operator": "space_point",
+      "inputs": {
+       "frame": "frame",
+       "x": 5,
+       "y": 2,
+       "z": 8
+      },
+      "outputs": [
+       "B"
+      ]
+     },
+     {
+      "id": "makePlane",
+      "operator": "plane",
+      "inputs": {
+       "frame": "frame",
+       "a": 1,
+       "b": -1,
+       "c": 1,
+       "d": 2,
+       "span": 5
+      },
+      "outputs": [
+       "plane"
+      ]
+     },
+     {
+      "id": "makeM",
+      "operator": "space_project",
+      "inputs": {
+       "frame": "frame",
+       "point": "A",
+       "onto": "plane"
+      },
+      "outputs": [
+       "M"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "midpointBetween",
+      "predicate": "between",
+      "entities": [
+       "M",
+       "A",
+       "B"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "planeResult",
+      "kind": "callout",
+      "targetIds": [
+       "plane"
+      ],
+      "text": "\u03a0: x \u2212 y + z \u2212 2 = 0"
+     },
+     {
+      "id": "distanceResult",
+      "kind": "callout",
+      "targetIds": [
+       "A",
+       "M"
+      ],
+      "text": "d = 3\u221a3 coordinate units",
+      "quantityId": "distance"
+     }
+    ],
+    "requiredEntityIds": [
+     "O",
+     "frame",
+     "A",
+     "B",
+     "plane",
+     "M"
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "entityIds": [
+       "O",
+       "frame",
+       "A",
+       "B"
+      ],
+      "dependsOn": []
+     },
+     {
+      "id": "mirror",
+      "entityIds": [
+       "plane",
+       "M"
+      ],
+      "dependsOn": [
+       "setup"
+      ]
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "id": "showSetup",
+      "revealGroupId": "setup"
+     },
+     {
+      "id": "showMirror",
+      "revealGroupId": "mirror"
+     },
+     {
+      "id": "showPlaneEquation",
+      "annotationIds": [
+       "planeResult"
+      ]
+     },
+     {
+      "id": "showDistance",
+      "annotationIds": [
+       "distanceResult"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "run": "p5-lab/h4-p5b1-maths/maths|11|image-of-a-point-in-a-plane|h5u",
+   "candidateIndex": 0,
+   "phase": "plan",
+   "lane": "primary",
+   "strategy": "strict",
+   "subject": "maths",
+   "solverContradiction": false,
+   "expect": "planner_drawn",
+   "question": "mirror image of a point in a plane explained",
+   "plan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "mirror image of a point in a plane explained",
+    "givens": [],
+    "unknowns": [
+     {
+      "id": "image",
+      "symbol": "P'"
+     }
+    ],
+    "derived": [],
+    "qualitativeClaims": [
+     {
+      "id": "definition",
+      "claim": "definition",
+      "expected": "The plane bisects the segment PP' at right angles."
+     },
+     {
+      "id": "formula",
+      "claim": "formula",
+      "expected": "P' = P \u2212 2[((P\u2212A)\u00b7n)/(n\u00b7n)]n"
+     }
+    ],
+    "lawIds": [
+     "reflection-across-a-plane",
+     "vector-projection"
+    ],
+    "assumptions": [],
+    "visualRequirement": "required"
+   },
+   "candidate": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "A two-dimensional cross-section shows reflection of a point across a plane."
+    },
+    "source": {
+     "question": "mirror image of a point in a plane explained",
+     "representationTier": "qualitative_verified",
+     "nonMetric": true
+    },
+    "quantities": [],
+    "entities": [
+     {
+      "id": "A",
+      "kind": "point",
+      "role": "point on the plane",
+      "label": "A"
+     },
+     {
+      "id": "B",
+      "kind": "point",
+      "role": "cross-section endpoint"
+     },
+     {
+      "id": "plane",
+      "kind": "line",
+      "role": "cross-section of the plane",
+      "label": "plane"
+     },
+     {
+      "id": "P",
+      "kind": "point",
+      "role": "original point",
+      "label": "P"
+     },
+     {
+      "id": "image",
+      "kind": "point",
+      "role": "mirror image",
+      "label": "P'"
+     },
+     {
+      "id": "join",
+      "kind": "segment",
+      "role": "perpendicular joining point and image"
+     },
+     {
+      "id": "N",
+      "kind": "point",
+      "role": "foot on the plane",
+      "label": "N"
+     },
+     {
+      "id": "rightAngle",
+      "kind": "right_angle_mark",
+      "role": "perpendicular at the plane"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "makeA",
+      "operator": "point",
+      "inputs": {
+       "x": -2,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "A"
+      ]
+     },
+     {
+      "id": "makeB",
+      "operator": "point",
+      "inputs": {
+       "x": 2,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "B"
+      ]
+     },
+     {
+      "id": "makePlane",
+      "operator": "line",
+      "inputs": {
+       "start": "A",
+       "end": "B"
+      },
+      "outputs": [
+       "plane"
+      ]
+     },
+     {
+      "id": "makeP",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 1,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "P"
+      ]
+     },
+     {
+      "id": "reflectP",
+      "operator": "reflect_point",
+      "inputs": {
+       "point": "P",
+       "line": "plane"
+      },
+      "outputs": [
+       "image"
+      ]
+     },
+     {
+      "id": "makeJoin",
+      "operator": "segment",
+      "inputs": {
+       "start": "P",
+       "end": "image"
+      },
+      "outputs": [
+       "join"
+      ]
+     },
+     {
+      "id": "findFoot",
+      "operator": "intersection",
+      "inputs": {
+       "first": "join",
+       "second": "plane"
+      },
+      "outputs": [
+       "N"
+      ]
+     },
+     {
+      "id": "markRightAngle",
+      "operator": "right_angle_mark",
+      "inputs": {
+       "vertex": "N",
+       "a": "P",
+       "b": "A"
+      },
+      "outputs": [
+       "rightAngle"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "footBetween",
+      "predicate": "between",
+      "entities": [
+       "N",
+       "P",
+       "image"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "footOnPlane",
+      "predicate": "on",
+      "entities": [
+       "N",
+       "plane"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "pointOffPlane",
+      "predicate": "on",
+      "entities": [
+       "P",
+       "plane"
+      ],
+      "expected": false,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "constructionNote",
+      "kind": "narration",
+      "targetIds": [
+       "P",
+       "N",
+       "image"
+      ],
+      "text": "The plane bisects PP' at right angles: P and P' lie on opposite sides, equally far from it."
+     },
+     {
+      "id": "formulaNote",
+      "kind": "narration",
+      "targetIds": [
+       "A",
+       "P",
+       "image"
+      ],
+      "text": "For a nonzero plane normal n, reverse the normal component of P\u2212A: P' = P \u2212 2[((P\u2212A)\u00b7n)/(n\u00b7n)]n."
+     }
+    ],
+    "requiredEntityIds": [
+     "A",
+     "plane",
+     "P",
+     "image",
+     "join",
+     "N",
+     "rightAngle"
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "entityIds": [
+       "A",
+       "B",
+       "plane",
+       "P"
+      ],
+      "dependsOn": []
+     },
+     {
+      "id": "reflection",
+      "entityIds": [
+       "image",
+       "join",
+       "N",
+       "rightAngle"
+      ],
+      "dependsOn": [
+       "setup"
+      ]
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "id": "showSetup",
+      "revealGroupId": "setup"
+     },
+     {
+      "id": "showReflection",
+      "revealGroupId": "reflection",
+      "annotationIds": [
+       "constructionNote",
+       "formulaNote"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "run": "p5-lab/h4-p5b2-maths/maths|11|image-of-a-point-in-a-plane|h5u",
+   "candidateIndex": 0,
+   "phase": "plan",
+   "lane": "alternate",
+   "strategy": "strict",
+   "subject": "maths",
+   "solverContradiction": false,
+   "expect": "planner_drawn",
+   "question": "mirror image of a point in a plane explained",
+   "plan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "mirror image of a point in a plane explained",
+    "givens": [],
+    "unknowns": [
+     {
+      "id": "foot",
+      "symbol": "H"
+     },
+     {
+      "id": "image",
+      "symbol": "P'"
+     }
+    ],
+    "derived": [],
+    "qualitativeClaims": [
+     {
+      "id": "construction",
+      "claim": "construction",
+      "expected": "P' lies on the perpendicular line on the opposite side of the plane, with HP'=HP."
+     },
+     {
+      "id": "formula",
+      "claim": "formula",
+      "expected": "H=p\u2212[(n\u00b7p\u2212d)/(n\u00b7n)]n; P'=p\u2212[2(n\u00b7p\u2212d)/(n\u00b7n)]n."
+     }
+    ],
+    "lawIds": [
+     "orthogonal projection onto a plane",
+     "reflection across a plane"
+    ],
+    "assumptions": [],
+    "visualRequirement": "required"
+   },
+   "candidate": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "Symbolic edge-on view of a plane and the reflection of a point across it"
+    },
+    "source": {
+     "question": "mirror image of a point in a plane explained",
+     "representationTier": "qualitative_verified",
+     "nonMetric": true
+    },
+    "quantities": [],
+    "entities": [
+     {
+      "id": "A",
+      "kind": "point",
+      "role": "point on plane trace"
+     },
+     {
+      "id": "B",
+      "kind": "point",
+      "role": "point on plane trace"
+     },
+     {
+      "id": "plane",
+      "kind": "line",
+      "role": "plane viewed edge-on",
+      "label": "\u03a0"
+     },
+     {
+      "id": "P",
+      "kind": "point",
+      "role": "original point",
+      "label": "P"
+     },
+     {
+      "id": "image",
+      "kind": "point",
+      "role": "mirror image",
+      "label": "P'"
+     },
+     {
+      "id": "perpendicular",
+      "kind": "segment",
+      "role": "line joining point and image"
+     },
+     {
+      "id": "foot",
+      "kind": "point",
+      "role": "foot on plane",
+      "label": "H"
+     },
+     {
+      "id": "rightAngle",
+      "kind": "right_angle_mark",
+      "role": "perpendicular to plane trace"
+     },
+     {
+      "id": "tickOriginal",
+      "kind": "tick_mark",
+      "role": "equal-distance mark"
+     },
+     {
+      "id": "tickImage",
+      "kind": "tick_mark",
+      "role": "equal-distance mark"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "makeA",
+      "operator": "point",
+      "inputs": {
+       "x": -2,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "A"
+      ]
+     },
+     {
+      "id": "makeB",
+      "operator": "point",
+      "inputs": {
+       "x": 2,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "B"
+      ]
+     },
+     {
+      "id": "makePlane",
+      "operator": "line",
+      "inputs": {
+       "start": "A",
+       "end": "B"
+      },
+      "outputs": [
+       "plane"
+      ]
+     },
+     {
+      "id": "makeP",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 1,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "P"
+      ]
+     },
+     {
+      "id": "makeImage",
+      "operator": "reflect_point",
+      "inputs": {
+       "point": "P",
+       "line": "plane"
+      },
+      "outputs": [
+       "image"
+      ]
+     },
+     {
+      "id": "makePerpendicular",
+      "operator": "segment",
+      "inputs": {
+       "start": "P",
+       "end": "image"
+      },
+      "outputs": [
+       "perpendicular"
+      ]
+     },
+     {
+      "id": "makeFoot",
+      "operator": "intersection",
+      "inputs": {
+       "first": "perpendicular",
+       "second": "plane"
+      },
+      "outputs": [
+       "foot"
+      ]
+     },
+     {
+      "id": "makeRightAngle",
+      "operator": "right_angle_mark",
+      "inputs": {
+       "vertex": "foot",
+       "a": "P",
+       "b": "A"
+      },
+      "outputs": [
+       "rightAngle"
+      ]
+     },
+     {
+      "id": "markOriginal",
+      "operator": "tick_mark",
+      "inputs": {
+       "target": "perpendicular",
+       "at": 0.25,
+       "count": 1,
+       "family": "equalHalves"
+      },
+      "outputs": [
+       "tickOriginal"
+      ]
+     },
+     {
+      "id": "markImage",
+      "operator": "tick_mark",
+      "inputs": {
+       "target": "perpendicular",
+       "at": 0.75,
+       "count": 1,
+       "family": "equalHalves"
+      },
+      "outputs": [
+       "tickImage"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "footOnPlane",
+      "predicate": "on",
+      "entities": [
+       "foot",
+       "plane"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "footBetweenPoints",
+      "predicate": "between",
+      "entities": [
+       "foot",
+       "P",
+       "image"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "equalDistances",
+      "kind": "narration",
+      "targetIds": [
+       "tickOriginal",
+       "tickImage"
+      ],
+      "text": "The foot H is halfway between P and P': HP = HP'."
+     }
+    ],
+    "requiredEntityIds": [
+     "plane",
+     "P",
+     "foot",
+     "image",
+     "perpendicular",
+     "rightAngle",
+     "tickOriginal",
+     "tickImage"
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "entityIds": [
+       "A",
+       "B",
+       "plane",
+       "P",
+       "image",
+       "perpendicular",
+       "foot",
+       "rightAngle",
+       "tickOriginal",
+       "tickImage"
+      ],
+      "dependsOn": []
+     }
+    ],
+    "teachingTimeline": []
+   }
+  },
+  {
+   "run": "p5-lab/h4-p5m1-maths/maths|11|image-of-a-point-in-a-plane|h5u",
+   "candidateIndex": 0,
+   "phase": "plan",
+   "lane": "alternate",
+   "strategy": "strict",
+   "subject": "maths",
+   "solverContradiction": false,
+   "expect": "planner_drawn",
+   "question": "mirror image of a point in a plane explained",
+   "plan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "mirror image of a point in a plane explained",
+    "givens": [],
+    "unknowns": [
+     {
+      "id": "pprime",
+      "symbol": "P'"
+     }
+    ],
+    "derived": [],
+    "qualitativeClaims": [
+     {
+      "id": "formula",
+      "claim": "formula",
+      "expected": "P' = P \u2212 2[(n\u00b7P \u2212 d)/(n\u00b7n)]n"
+     },
+     {
+      "id": "geometry",
+      "claim": "geometry",
+      "expected": "The plane is the perpendicular bisector of PP'."
+     }
+    ],
+    "lawIds": [
+     "reflection-across-plane",
+     "orthogonal-projection"
+    ],
+    "assumptions": [
+     "The plane is represented by n\u00b7x=d, where n is a nonzero normal vector."
+    ],
+    "visualRequirement": "required"
+   },
+   "candidate": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "A perpendicular cross-section shows a point reflected across the plane's trace; the drawing does not assign coordinates to the original three-dimensional plane."
+    },
+    "source": {
+     "question": "mirror image of a point in a plane explained",
+     "representationTier": "qualitative_verified",
+     "nonMetric": true
+    },
+    "quantities": [],
+    "entities": [
+     {
+      "id": "A",
+      "kind": "point",
+      "role": "point on plane trace"
+     },
+     {
+      "id": "B",
+      "kind": "point",
+      "role": "point on plane trace"
+     },
+     {
+      "id": "planeTrace",
+      "kind": "line",
+      "role": "cross-sectional trace of plane",
+      "label": "n\u00b7x=d"
+     },
+     {
+      "id": "P",
+      "kind": "point",
+      "role": "original point",
+      "label": "P"
+     },
+     {
+      "id": "Pprime",
+      "kind": "point",
+      "role": "mirror image",
+      "label": "P'"
+     },
+     {
+      "id": "joining",
+      "kind": "segment",
+      "role": "point-to-image segment"
+     },
+     {
+      "id": "N",
+      "kind": "point",
+      "role": "perpendicular foot and midpoint",
+      "label": "N"
+     },
+     {
+      "id": "perpendicular",
+      "kind": "right_angle_mark",
+      "role": "perpendicular to plane trace"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "makeA",
+      "operator": "point",
+      "inputs": {
+       "x": -2,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "A"
+      ]
+     },
+     {
+      "id": "makeB",
+      "operator": "point",
+      "inputs": {
+       "x": 2,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "B"
+      ]
+     },
+     {
+      "id": "makePlaneTrace",
+      "operator": "line",
+      "inputs": {
+       "start": "A",
+       "end": "B"
+      },
+      "outputs": [
+       "planeTrace"
+      ]
+     },
+     {
+      "id": "makeP",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 1,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "P"
+      ]
+     },
+     {
+      "id": "reflectP",
+      "operator": "reflect_point",
+      "inputs": {
+       "point": "P",
+       "line": "planeTrace"
+      },
+      "outputs": [
+       "Pprime"
+      ]
+     },
+     {
+      "id": "joinPoints",
+      "operator": "segment",
+      "inputs": {
+       "start": "P",
+       "end": "Pprime"
+      },
+      "outputs": [
+       "joining"
+      ]
+     },
+     {
+      "id": "findFoot",
+      "operator": "intersection",
+      "inputs": {
+       "first": "joining",
+       "second": "planeTrace"
+      },
+      "outputs": [
+       "N"
+      ]
+     },
+     {
+      "id": "markPerpendicular",
+      "operator": "right_angle_mark",
+      "inputs": {
+       "vertex": "N",
+       "a": "P",
+       "b": "B"
+      },
+      "outputs": [
+       "perpendicular"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "footOnPlaneTrace",
+      "predicate": "on",
+      "entities": [
+       "N",
+       "planeTrace"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "footBetweenPoints",
+      "predicate": "between",
+      "entities": [
+       "N",
+       "P",
+       "Pprime"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "sectionNote",
+      "kind": "narration",
+      "targetIds": [
+       "planeTrace"
+      ],
+      "text": "Cross-section of the plane; distances in this drawing are not given measurements."
+     },
+     {
+      "id": "methodNote",
+      "kind": "narration",
+      "targetIds": [
+       "P",
+       "N",
+       "Pprime"
+      ],
+      "text": "Reflect P across the plane: the perpendicular through P meets it at N, midway between P and P'."
+     },
+     {
+      "id": "formulaNote",
+      "kind": "narration",
+      "targetIds": [
+       "Pprime"
+      ],
+      "text": "For the plane n\u00b7x=d with nonzero n, P' = P \u2212 2[(n\u00b7P \u2212 d)/(n\u00b7n)]n."
+     }
+    ],
+    "requiredEntityIds": [
+     "planeTrace",
+     "P",
+     "Pprime",
+     "joining",
+     "N",
+     "perpendicular"
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "entityIds": [
+       "A",
+       "B",
+       "planeTrace",
+       "P"
+      ],
+      "dependsOn": []
+     },
+     {
+      "id": "reflection",
+      "entityIds": [
+       "Pprime",
+       "joining",
+       "N",
+       "perpendicular"
+      ],
+      "dependsOn": [
+       "setup"
+      ]
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "id": "showSetup",
+      "revealGroupId": "setup",
+      "annotationIds": [
+       "sectionNote"
+      ]
+     },
+     {
+      "id": "showReflection",
+      "revealGroupId": "reflection",
+      "annotationIds": [
+       "methodNote",
+       "formulaNote"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "run": "p7-lab/h4-p7m2-physics/physics|16|reflection-and-spherical-mirrors|h7b",
+   "candidateIndex": 2,
+   "phase": "repair",
+   "lane": "primary",
+   "strategy": "strict",
+   "subject": "physics",
+   "solverContradiction": false,
+   "expect": "planner_optics_on_archetype_stem",
+   "question": "A make-up mirror is concave with radius of curvature 44 cm. A person holds her face 11 cm from it. Find where the image forms, the magnification, and whether the image is real or virtual.",
+   "plan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "A make-up mirror is concave with radius of curvature 44 cm. A person holds her face 11 cm from it. Find where the image forms, the magnification, and whether the image is real or virtual.",
+    "givens": [
+     {
+      "id": "R",
+      "symbol": "R",
+      "value": 44,
+      "unit": "cm",
+      "provenance": "given",
+      "sourceText": "R = 44"
+     },
+     {
+      "id": "u",
+      "symbol": "u",
+      "value": 11,
+      "unit": "cm",
+      "provenance": "given",
+      "sourceText": "u = 11"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "v",
+      "symbol": "v",
+      "unit": "cm"
+     },
+     {
+      "id": "m",
+      "symbol": "m"
+     }
+    ],
+    "derived": [
+     {
+      "id": "v",
+      "symbol": "v",
+      "value": -22,
+      "unit": "cm"
+     },
+     {
+      "id": "m",
+      "symbol": "m",
+      "value": 2
+     },
+     {
+      "id": "f",
+      "symbol": "f",
+      "value": 22,
+      "unit": "cm"
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "location",
+      "claim": "location",
+      "expected": "behind the mirror"
+     },
+     {
+      "id": "nature",
+      "claim": "nature",
+      "expected": "virtual and upright"
+     }
+    ],
+    "lawIds": [
+     "Spherical-mirror focal length f = R/2",
+     "Mirror equation 1/f = 1/u + 1/v",
+     "Mirror magnification m = \u2212v/u"
+    ],
+    "assumptions": [
+     "Distances in front of the mirror are positive; distances behind it are negative.",
+     "A verified illustration is required by the question's spatial or explicit visual request."
+    ],
+    "visualRequirement": "required"
+   },
+   "candidate": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "The stated mirror radius and object distance determine a plan-backed concave-mirror diagram."
+    },
+    "source": {
+     "question": "A make-up mirror is concave with radius of curvature 44 cm. A person holds her face 11 cm from it. Find where the image forms, the magnification, and whether the image is real or virtual.",
+     "representationTier": "metric_verified",
+     "nonMetric": false
+    },
+    "quantities": [
+     {
+      "id": "R",
+      "symbol": "R",
+      "value": 44,
+      "unit": "cm"
+     },
+     {
+      "id": "u",
+      "symbol": "u",
+      "value": 11,
+      "unit": "cm"
+     },
+     {
+      "id": "v",
+      "symbol": "v",
+      "value": -22,
+      "unit": "cm"
+     },
+     {
+      "id": "m",
+      "symbol": "m",
+      "value": 2
+     },
+     {
+      "id": "f",
+      "symbol": "f",
+      "value": 22,
+      "unit": "cm"
+     }
+    ],
+    "entities": [
+     {
+      "id": "axis_left",
+      "kind": "point",
+      "role": "axis construction helper"
+     },
+     {
+      "id": "axis_right",
+      "kind": "point",
+      "role": "axis construction helper"
+     },
+     {
+      "id": "axis",
+      "kind": "line",
+      "role": "principal axis"
+     },
+     {
+      "id": "P",
+      "kind": "point",
+      "role": "mirror pole",
+      "label": "P"
+     },
+     {
+      "id": "C",
+      "kind": "point",
+      "role": "centre of curvature",
+      "label": "C"
+     },
+     {
+      "id": "F",
+      "kind": "point",
+      "role": "focus",
+      "label": "F"
+     },
+     {
+      "id": "mirror",
+      "kind": "arc",
+      "role": "concave mirror"
+     },
+     {
+      "id": "O_base",
+      "kind": "point",
+      "role": "object foot"
+     },
+     {
+      "id": "O_tip",
+      "kind": "point",
+      "role": "object tip"
+     },
+     {
+      "id": "object",
+      "kind": "vector",
+      "role": "face",
+      "label": "face"
+     },
+     {
+      "id": "dim_R",
+      "kind": "dimension",
+      "role": "radius of curvature",
+      "label": "R=44 cm"
+     },
+     {
+      "id": "dim_u",
+      "kind": "dimension",
+      "role": "object distance",
+      "label": "u=11 cm"
+     },
+     {
+      "id": "I_base",
+      "kind": "point",
+      "role": "image foot"
+     },
+     {
+      "id": "I_tip",
+      "kind": "point",
+      "role": "image tip"
+     },
+     {
+      "id": "image",
+      "kind": "vector",
+      "role": "virtual upright image",
+      "label": "image"
+     },
+     {
+      "id": "dim_v",
+      "kind": "dimension",
+      "role": "image distance"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "make_axis_left",
+      "operator": "point",
+      "inputs": {
+       "x": -50,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "axis_left"
+      ]
+     },
+     {
+      "id": "make_axis_right",
+      "operator": "point",
+      "inputs": {
+       "x": 30,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "axis_right"
+      ]
+     },
+     {
+      "id": "make_axis",
+      "operator": "line",
+      "inputs": {
+       "start": "axis_left",
+       "end": "axis_right"
+      },
+      "outputs": [
+       "axis"
+      ]
+     },
+     {
+      "id": "make_P",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "P"
+      ]
+     },
+     {
+      "id": "make_C",
+      "operator": "point",
+      "inputs": {
+       "x": -44,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "C"
+      ]
+     },
+     {
+      "id": "make_F",
+      "operator": "point",
+      "inputs": {
+       "x": -22,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "F"
+      ]
+     },
+     {
+      "id": "make_mirror",
+      "operator": "arc",
+      "inputs": {
+       "center": "C",
+       "radius": "R",
+       "startAngle": -12,
+       "endAngle": 12,
+       "angleUnit": "degrees"
+      },
+      "outputs": [
+       "mirror"
+      ]
+     },
+     {
+      "id": "make_O_base",
+      "operator": "point",
+      "inputs": {
+       "x": -11,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "O_base"
+      ]
+     },
+     {
+      "id": "make_O_tip",
+      "operator": "point",
+      "inputs": {
+       "x": -11,
+       "y": 3,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "O_tip"
+      ]
+     },
+     {
+      "id": "make_object",
+      "operator": "vector",
+      "inputs": {
+       "start": "O_base",
+       "end": "O_tip"
+      },
+      "outputs": [
+       "object"
+      ]
+     },
+     {
+      "id": "make_dim_R",
+      "operator": "dimension",
+      "inputs": {
+       "start": "C",
+       "end": "P"
+      },
+      "outputs": [
+       "dim_R"
+      ]
+     },
+     {
+      "id": "make_dim_u",
+      "operator": "dimension",
+      "inputs": {
+       "start": "O_base",
+       "end": "P"
+      },
+      "outputs": [
+       "dim_u"
+      ]
+     },
+     {
+      "id": "make_I_base",
+      "operator": "point",
+      "inputs": {
+       "x": 22,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "I_base"
+      ]
+     },
+     {
+      "id": "make_I_tip",
+      "operator": "point",
+      "inputs": {
+       "x": 22,
+       "y": 6,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "I_tip"
+      ]
+     },
+     {
+      "id": "make_image",
+      "operator": "vector",
+      "inputs": {
+       "start": "I_base",
+       "end": "I_tip"
+      },
+      "outputs": [
+       "image"
+      ]
+     },
+     {
+      "id": "make_dim_v",
+      "operator": "dimension",
+      "inputs": {
+       "start": "P",
+       "end": "I_base"
+      },
+      "outputs": [
+       "dim_v"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "object_on_axis",
+      "predicate": "on",
+      "entities": [
+       "O_base",
+       "axis"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "image_on_axis",
+      "predicate": "on",
+      "entities": [
+       "I_base",
+       "axis"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "focus_on_axis",
+      "predicate": "on",
+      "entities": [
+       "F",
+       "axis"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "curvature_centre_on_axis",
+      "predicate": "on",
+      "entities": [
+       "C",
+       "axis"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "focus_at_half_radius",
+      "predicate": "distance_ratio",
+      "entities": [
+       "P",
+       "F",
+       "P",
+       "C"
+      ],
+      "expected": 0.5,
+      "severity": "fatal"
+     },
+     {
+      "id": "image_distance_ratio",
+      "predicate": "distance_ratio",
+      "entities": [
+       "P",
+       "I_base",
+       "P",
+       "O_base"
+      ],
+      "expected": 2,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "image_distance_label",
+      "kind": "label",
+      "targetIds": [
+       "dim_v"
+      ],
+      "text": "v=\u221222 cm"
+     },
+     {
+      "id": "magnification_label",
+      "kind": "label",
+      "targetIds": [
+       "image"
+      ],
+      "text": "m=2"
+     },
+     {
+      "id": "image_nature",
+      "kind": "narration",
+      "targetIds": [
+       "image"
+      ],
+      "text": "The image forms behind the mirror. It is virtual, upright, and twice the size of the face."
+     }
+    ],
+    "requiredEntityIds": [
+     "axis",
+     "P",
+     "C",
+     "F",
+     "mirror",
+     "object",
+     "dim_R",
+     "dim_u",
+     "image",
+     "dim_v"
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "entityIds": [
+       "axis",
+       "P",
+       "C",
+       "F",
+       "mirror",
+       "O_base",
+       "O_tip",
+       "object",
+       "dim_R",
+       "dim_u"
+      ],
+      "dependsOn": [],
+      "narrationCue": "The concave mirror and the face between its pole and focus."
+     },
+     {
+      "id": "result",
+      "entityIds": [
+       "I_base",
+       "I_tip",
+       "image",
+       "dim_v"
+      ],
+      "dependsOn": [
+       "setup"
+      ],
+      "narrationCue": "Calculate the image position and magnification, then reveal the virtual image."
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "id": "show_setup",
+      "revealGroupId": "setup"
+     },
+     {
+      "id": "show_result",
+      "revealGroupId": "result",
+      "annotationIds": [
+       "image_distance_label",
+       "magnification_label",
+       "image_nature"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "run": "p7-lab/h4-p7b2-physics/physics|16|lens-formulas|h7a",
+   "candidateIndex": 1,
+   "phase": "repair",
+   "lane": "primary",
+   "strategy": "strict",
+   "subject": "physics",
+   "solverContradiction": false,
+   "expect": "planner_optics_on_archetype_stem",
+   "question": "A pencil 2.5 cm tall stands upright on the principal axis 21 cm in front of a thin converging lens of focal length 14 cm. Locate the image, find its height and say whether it is real or virtual, upright or inverted.",
+   "plan": {
+    "schemaVersion": "turn-plan/v3",
+    "question": "A pencil 2.5 cm tall stands upright on the principal axis 21 cm in front of a thin converging lens of focal length 14 cm. Locate the image, find its height and say whether it is real or virtual, upright or inverted.",
+    "givens": [
+     {
+      "id": "h",
+      "symbol": "h_o",
+      "value": 2.5,
+      "unit": "cm",
+      "provenance": "given",
+      "sourceText": "h = 2.5"
+     },
+     {
+      "id": "u",
+      "symbol": "u",
+      "value": 21,
+      "unit": "cm",
+      "provenance": "given",
+      "sourceText": "u = 21"
+     },
+     {
+      "id": "f",
+      "symbol": "f",
+      "value": 14,
+      "unit": "cm",
+      "provenance": "given",
+      "sourceText": "f = 14"
+     }
+    ],
+    "unknowns": [
+     {
+      "id": "v",
+      "symbol": "v",
+      "unit": "cm"
+     },
+     {
+      "id": "hi",
+      "symbol": "h_i",
+      "unit": "cm"
+     }
+    ],
+    "derived": [
+     {
+      "id": "v",
+      "symbol": "v",
+      "value": 42,
+      "unit": "cm"
+     },
+     {
+      "id": "hi",
+      "symbol": "h_i",
+      "value": -5,
+      "unit": "cm"
+     }
+    ],
+    "qualitativeClaims": [
+     {
+      "id": "loc",
+      "claim": "loc",
+      "expected": "42 cm from the lens on the side opposite the pencil."
+     },
+     {
+      "id": "nature",
+      "claim": "nature",
+      "expected": "Real and inverted; its height has magnitude 5 cm."
+     }
+    ],
+    "lawIds": [
+     "thin-lens equation",
+     "lateral magnification equation"
+    ],
+    "assumptions": [],
+    "visualRequirement": "required"
+   },
+   "candidate": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "Converging-lens ray diagram with an upright object and a real inverted image."
+    },
+    "source": {
+     "question": "A pencil 2.5 cm tall stands upright on the principal axis 21 cm in front of a thin converging lens of focal length 14 cm. Locate the image, find its height and say whether it is real or virtual, upright or inverted."
+    },
+    "quantities": [
+     {
+      "id": "h",
+      "symbol": "h_o",
+      "value": 2.5,
+      "unit": "cm",
+      "provenance": "given"
+     },
+     {
+      "id": "u",
+      "symbol": "u",
+      "value": 21,
+      "unit": "cm",
+      "provenance": "given"
+     },
+     {
+      "id": "f",
+      "symbol": "f",
+      "value": 14,
+      "unit": "cm",
+      "provenance": "given"
+     },
+     {
+      "id": "v",
+      "symbol": "v",
+      "value": 42,
+      "unit": "cm",
+      "provenance": "derived",
+      "dependsOn": [
+       "u",
+       "f"
+      ]
+     },
+     {
+      "id": "hi",
+      "symbol": "h_i",
+      "value": -5,
+      "unit": "cm",
+      "provenance": "derived",
+      "dependsOn": [
+       "h",
+       "u",
+       "v"
+      ]
+     }
+    ],
+    "entities": [
+     {
+      "id": "O",
+      "kind": "point",
+      "role": "optical centre",
+      "label": "O"
+     },
+     {
+      "id": "A",
+      "kind": "point",
+      "role": "axis construction point"
+     },
+     {
+      "id": "axis",
+      "kind": "line",
+      "role": "principal axis"
+     },
+     {
+      "id": "lens",
+      "kind": "polygon",
+      "role": "converging lens"
+     },
+     {
+      "id": "F1",
+      "kind": "point",
+      "role": "object-side focus",
+      "label": "F\u2081"
+     },
+     {
+      "id": "F2",
+      "kind": "point",
+      "role": "image-side focus",
+      "label": "F\u2082"
+     },
+     {
+      "id": "ob",
+      "kind": "point",
+      "role": "pencil foot"
+     },
+     {
+      "id": "ot",
+      "kind": "point",
+      "role": "pencil tip"
+     },
+     {
+      "id": "obj",
+      "kind": "vector",
+      "role": "upright pencil",
+      "label": "h\u2092"
+     },
+     {
+      "id": "P",
+      "kind": "point",
+      "role": "parallel-ray lens contact"
+     },
+     {
+      "id": "r1i",
+      "kind": "segment",
+      "role": "incident parallel ray"
+     },
+     {
+      "id": "r1o",
+      "kind": "ray",
+      "role": "outgoing ray through image-side focus"
+     },
+     {
+      "id": "r2",
+      "kind": "ray",
+      "role": "ray through optical centre"
+     },
+     {
+      "id": "it",
+      "kind": "point",
+      "role": "image tip"
+     },
+     {
+      "id": "ib",
+      "kind": "point",
+      "role": "image foot"
+     },
+     {
+      "id": "img",
+      "kind": "vector",
+      "role": "real inverted image",
+      "label": "h\u1d62"
+     },
+     {
+      "id": "du",
+      "kind": "dimension",
+      "role": "object distance",
+      "label": "u"
+     },
+     {
+      "id": "dv",
+      "kind": "dimension",
+      "role": "image distance",
+      "label": "v"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "cO",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "O"
+      ]
+     },
+     {
+      "id": "cA",
+      "operator": "point",
+      "inputs": {
+       "x": 1,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "A"
+      ]
+     },
+     {
+      "id": "cAxis",
+      "operator": "line",
+      "inputs": {
+       "start": "O",
+       "end": "A"
+      },
+      "outputs": [
+       "axis"
+      ]
+     },
+     {
+      "id": "cLens",
+      "operator": "lens_section",
+      "inputs": {
+       "center": "O",
+       "axis": "axis",
+       "radius1": 30,
+       "radius2": -30,
+       "halfHeight": 6
+      },
+      "outputs": [
+       "lens"
+      ]
+     },
+     {
+      "id": "cF1",
+      "operator": "point",
+      "inputs": {
+       "x": -14,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "F1"
+      ]
+     },
+     {
+      "id": "cF2",
+      "operator": "point",
+      "inputs": {
+       "x": 14,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "F2"
+      ]
+     },
+     {
+      "id": "cOb",
+      "operator": "point",
+      "inputs": {
+       "x": -21,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "ob"
+      ]
+     },
+     {
+      "id": "cOt",
+      "operator": "point",
+      "inputs": {
+       "x": -21,
+       "y": 2.5,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "ot"
+      ]
+     },
+     {
+      "id": "cObj",
+      "operator": "vector",
+      "inputs": {
+       "start": "ob",
+       "end": "ot"
+      },
+      "outputs": [
+       "obj"
+      ]
+     },
+     {
+      "id": "cP",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 2.5,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "P"
+      ]
+     },
+     {
+      "id": "cR1i",
+      "operator": "segment",
+      "inputs": {
+       "start": "ot",
+       "end": "P"
+      },
+      "outputs": [
+       "r1i"
+      ]
+     },
+     {
+      "id": "cR1o",
+      "operator": "ray",
+      "inputs": {
+       "start": "P",
+       "end": "F2"
+      },
+      "outputs": [
+       "r1o"
+      ]
+     },
+     {
+      "id": "cR2",
+      "operator": "ray",
+      "inputs": {
+       "start": "ot",
+       "end": "O"
+      },
+      "outputs": [
+       "r2"
+      ]
+     },
+     {
+      "id": "cIt",
+      "operator": "intersection",
+      "inputs": {
+       "first": "r1o",
+       "second": "r2"
+      },
+      "outputs": [
+       "it"
+      ]
+     },
+     {
+      "id": "cIb",
+      "operator": "point",
+      "inputs": {
+       "x": 42,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "ib"
+      ]
+     },
+     {
+      "id": "cImg",
+      "operator": "vector",
+      "inputs": {
+       "start": "ib",
+       "end": "it"
+      },
+      "outputs": [
+       "img"
+      ]
+     },
+     {
+      "id": "cDu",
+      "operator": "dimension",
+      "inputs": {
+       "start": "ob",
+       "end": "O"
+      },
+      "outputs": [
+       "du"
+      ]
+     },
+     {
+      "id": "cDv",
+      "operator": "dimension",
+      "inputs": {
+       "start": "O",
+       "end": "ib"
+      },
+      "outputs": [
+       "dv"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "objectOnAxis",
+      "predicate": "on",
+      "entities": [
+       "ob",
+       "axis"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "imageOnAxis",
+      "predicate": "on",
+      "entities": [
+       "ib",
+       "axis"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "parallelRay",
+      "predicate": "parallel",
+      "entities": [
+       "r1i",
+       "axis"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "rayMeeting",
+      "predicate": "converges",
+      "entities": [
+       "r1o",
+       "r2",
+       "it"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "invertedImage",
+      "predicate": "opposite_direction",
+      "entities": [
+       "obj",
+       "img"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "imageBeyondFocus",
+      "predicate": "between",
+      "entities": [
+       "F2",
+       "O",
+       "ib"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "givenHeight",
+      "kind": "label",
+      "targetIds": [
+       "obj"
+      ],
+      "text": "2.5 cm",
+      "quantityId": "h"
+     },
+     {
+      "id": "givenDistance",
+      "kind": "label",
+      "targetIds": [
+       "du"
+      ],
+      "text": "21 cm",
+      "quantityId": "u"
+     },
+     {
+      "id": "givenFocus",
+      "kind": "label",
+      "targetIds": [
+       "F2"
+      ],
+      "text": "14 cm",
+      "quantityId": "f"
+     }
+    ],
+    "requiredEntityIds": [
+     "O",
+     "axis",
+     "lens",
+     "F1",
+     "F2",
+     "ob",
+     "ot",
+     "obj",
+     "r1i",
+     "r1o",
+     "r2",
+     "it",
+     "ib",
+     "img",
+     "du",
+     "dv"
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "entityIds": [
+       "O",
+       "axis",
+       "lens",
+       "F1",
+       "F2",
+       "ob",
+       "ot",
+       "obj",
+       "du"
+      ],
+      "dependsOn": []
+     },
+     {
+      "id": "rays",
+      "entityIds": [
+       "r1i",
+       "r1o",
+       "r2"
+      ],
+      "dependsOn": [
+       "setup"
+      ]
+     },
+     {
+      "id": "result",
+      "entityIds": [
+       "it",
+       "ib",
+       "img",
+       "dv"
+      ],
+      "dependsOn": [
+       "rays"
+      ]
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "id": "showSetup",
+      "revealGroupId": "setup",
+      "narration": "The upright pencil is 21 cm in front of the converging lens; each focus is 14 cm from its centre."
+     },
+     {
+      "id": "showRays",
+      "revealGroupId": "rays",
+      "narration": "Trace a parallel ray through the far focus and a ray through the optical centre."
+     },
+     {
+      "id": "showResult",
+      "revealGroupId": "result",
+      "narration": "The rays meet 42 cm beyond the lens. The image height is \u22125 cm, so the image is real and inverted."
+     }
+    ]
+   }
+  }
+ ]
+}

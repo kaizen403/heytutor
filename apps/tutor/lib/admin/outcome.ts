@@ -4,6 +4,7 @@ import type {
 } from "@heytutor/scene-engine";
 import { FIGURE_SOURCES } from "@heytutor/scene-engine";
 import type { DiagramStrategy } from "@/features/tutor-session/lib/scene/diagramStrategy";
+import { CONFIRMED_TURN_FAILURE_CODES, classifyTurnFailure, type TurnFailureInput } from "../obs/turnFailureClassification";
 
 /**
  * How a persisted turn ended up on the canvas, folded to what an admin needs
@@ -11,7 +12,7 @@ import type { DiagramStrategy } from "@/features/tutor-session/lib/scene/diagram
  * pipeline ("legacy") or never recorded a status — those were taught without
  * an outcome rather than confirmed failed, and must not be misread as fails.
  */
-export type TurnOutcome = "validated" | "text_only" | "retry_required" | "unverified";
+export type TurnOutcome = "validated" | "text_only" | "retry_required" | "failed" | "unverified";
 
 const OUTCOME_BY_VISUAL_STATUS: Record<string, TurnOutcome> = {
   validated: "validated",
@@ -19,17 +20,18 @@ const OUTCOME_BY_VISUAL_STATUS: Record<string, TurnOutcome> = {
   retry_required: "retry_required",
 };
 
-export function classifyOutcome(visualStatus: string | null | undefined): TurnOutcome {
+export function classifyOutcome(visualStatus: string | null | undefined, evidence?: Omit<TurnFailureInput, "visualStatus">): TurnOutcome {
+  if (evidence) {
+    const failure = classifyTurnFailure({ ...evidence, visualStatus });
+    if (failure.classification === "failed") return visualStatus === "retry_required" ? "retry_required" : "failed";
+    if (failure.classification === "unverified" || failure.classification === "pending") return "unverified";
+  }
   if (visualStatus == null) return "unverified";
   return OUTCOME_BY_VISUAL_STATUS[visualStatus] ?? "unverified";
 }
 
-/** Visual statuses that mean the turn taught without a verified diagram. */
-export const FAILED_VISUAL_STATUSES: readonly ["text_only", "retry_required", "legacy"] = [
-  "text_only",
-  "retry_required",
-  "legacy",
-];
+/** The only visual status that is positive failure evidence on its own. */
+export const FAILED_VISUAL_STATUSES: readonly ["retry_required"] = ["retry_required"];
 
 const REPRESENTATION_TIERS = [
   "exact_verified",
@@ -41,11 +43,14 @@ export type RepresentationTier = (typeof REPRESENTATION_TIERS)[number];
 
 /** Why an exact scene was attempted but not committed (scene-engine contract). */
 const DEGRADATION_REASONS = [
+  ...CONFIRMED_TURN_FAILURE_CODES,
   "planner_unavailable",
   "candidate_invalid",
   "missing_capability",
   "solver_contradiction",
   "required_visual_unavailable",
+  "valid_candidate_dropped",
+  "unknown",
 ] as const;
 
 export type DegradationReason = (typeof DEGRADATION_REASONS)[number];
@@ -164,8 +169,10 @@ export function outcomeLabel(outcome: TurnOutcome): string {
       return "Text only";
     case "retry_required":
       return "Retry required";
+    case "failed":
+      return "Failed turn";
     case "unverified":
-      return "Unverified (legacy)";
+      return "Unverified outcome";
   }
 }
 

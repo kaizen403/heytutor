@@ -31,6 +31,25 @@ export function isTurnKind(value: unknown): value is TurnKind {
 }
 
 /**
+ * Failure reporting distinguishes recorded teaching from generated text or a page reset.
+ * Audio is optional: a muted lesson may retain narration or written work.
+ * Pure classification of already-canonical rows; this does not gate completion.
+ */
+export function hasMeaningfulTurnSegments(rows: readonly {
+  narration?: string; spokenText?: string; command?: unknown;
+}[]): boolean {
+  return rows.some(row => {
+    if (row.narration?.trim() || row.spokenText?.trim()) return true;
+    const stored = row.command;
+    if (!stored || typeof stored !== "object") return false;
+    const commands = "commands" in stored && Array.isArray(stored.commands) ? stored.commands : [stored];
+    return commands.some((command: unknown) => command !== null && typeof command === "object" &&
+      "type" in command && (command.type === "WRITE" || command.type === "TYPE") &&
+      "text" in command && typeof command.text === "string" && Boolean(command.text.trim()));
+  });
+}
+
+/**
  * Status only moves forward: live, then stopped, then complete. A late live
  * checkpoint after a close still saves its rows but cannot reopen the turn, and
  * a complete turn is final.
