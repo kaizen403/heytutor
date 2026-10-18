@@ -361,7 +361,9 @@ export function selectProductionScene(input: ProductionSceneSelectionInput): Pro
     });
     const selectionReason = selectedSourceAllowed ? selected.reason : `strict strategy suppressed ${selected.figureSource}`;
     const reason = selectedIsDrawable ? selectionReason : input.solverAuthorityBlocked ? "solver_contradiction"
-      : !selectedSourceAllowed ? selectionReason : saveFailure ?? (!selectedHasInk ? "representation carries no readable label" : selected.reason);
+      : !selectedSourceAllowed ? selectionReason : saveFailure ?? (
+        selected.sceneDocument.visualDecision.mode === "scene" && !selectedHasInk
+          ? "representation carries no readable label" : selected.reason);
     const replacedBy = selectedIsDrawable ? selected.figureSource : null;
     // The exact branch may redeclare the earned tier on a copy, so the drawn
     // candidate is recognised by its provenance, not by object identity.

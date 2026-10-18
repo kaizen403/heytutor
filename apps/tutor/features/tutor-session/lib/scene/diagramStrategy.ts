@@ -65,7 +65,7 @@ export function evaluationDiagramStrategyDecision(
   };
 }
 
-/** Recovery is already server-verified and remains available in strict. */
+/** Independently compiled complete linear source programs and verified recovery remain available in strict. */
 export function diagramStrategyAllowsFigureSource(
   decision: DiagramStrategyDecision,
   source: FigureSource,
@@ -73,5 +73,6 @@ export function diagramStrategyAllowsFigureSource(
   return decision.strategy === "current" ||
     source === "planner" ||
     source === "verified_recovery" ||
+    source === "linear_source" ||
     source === "text_only";
 }

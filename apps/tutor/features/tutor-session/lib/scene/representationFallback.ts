@@ -1,6 +1,7 @@
 import {
   SCENE_ENGINE_VERSION,
   buildMatrixSourceDocument,
+  buildLinearSourceDocument,
   compileSceneDocument,
   detectArchetype,
   isRiverBoatStem,
@@ -15,6 +16,7 @@ import {
   tierForForeignDocument,
   validateSceneDocument,
   validateSceneQuantityAgreement,
+  validateLinearSourcePlan,
   validateTurnPlanSceneProofs,
   validateTurnPlanV3,
   type ProblemStructureView,
@@ -213,6 +215,13 @@ export function selectVerifiedRepresentationExplained(
       exactDecline: input.exact ? { code: "motion_plan_conflict", reason: motionConflict, preferred: false } : null,
     };
   }
+  const linearConflict = linearSourcePlanConflict(input.question, input.turnPlan);
+  if (linearConflict) {
+    return {
+      selected: { ...buildTextOnlySelected(input.question), reason: linearConflict },
+      exactDecline: input.exact ? { code: "linear_source_plan_conflict", reason: linearConflict, preferred: false } : null,
+    };
+  }
   const exactCheck = input.exact
     ? checkUsableExactRepresentation(input.exact, input.question, input.problemIR)
     : null;
@@ -298,6 +307,12 @@ export function selectVerifiedRepresentationExplained(
     }
     exactDecline = { code: "exact_tier_recompile_failed", reason: "the scene did not compile after its earned tier was written in", preferred: false };
   }
+
+  // A source reader is a fallback after an admissible planner scene. It must
+  // certify the complete supported request, independently of any rejected
+  // marks; it cannot replace a richer verified line-geometry answer.
+  const linear = compileLinearSourceRepresentation(input.question);
+  if (linear) return explained(linear);
 
   // A complete matrix source program is drawn by the engine from the question
   // when no planner candidate survived. The builder applies the same source
@@ -397,14 +412,20 @@ function buildTextOnlySelected(question: string): SelectedRepresentation {
 }
 
 /**
- * Produce a conservative scene from source facts only. This function never
- * consumes TurnPlan.derived, never computes requested answers, and never
- * infers topology or bounded regions.
+ * Produce a scene from original source facts only. Complete supported affine
+ * programs are solved and independently proved by the linear operators;
+ * other source representations do not derive requested answers or topology.
+ * Planner values may veto a contradictory narrated answer, but neither path
+ * consumes them or rejected candidate fragments to create geometry.
  */
 export function buildSourceGroundedRepresentation(
   question: string,
   turnPlan?: TurnPlanV3 | unknown | null,
 ): SelectedRepresentation {
+  const linearConflict = linearSourcePlanConflict(question, turnPlan);
+  if (linearConflict) throw new Error(linearConflict);
+  const linear = compileLinearSourceRepresentation(question);
+  if (linear) return linear;
   const normalizedQuestion = question.trim();
   const functionFacts = extractExplicitFunctionFacts(normalizedQuestion);
   const groundedClaims = extractGroundedRelationshipFacts(normalizedQuestion);
@@ -449,6 +470,32 @@ export function buildSourceGroundedRepresentation(
       : tier === "qualitative_verified"
         ? "rendered source-grounded qualitative relationships without metric claims"
         : "rendered only entities and equations explicitly present in the question",
+  };
+}
+
+function linearSourcePlanConflict(question: string, turnPlan: unknown): string | null {
+  const issues = validateLinearSourcePlan(question, turnPlan).filter(issue => issue.severity === "fatal");
+  return issues.length ? issues.map(issue => `${issue.code}: ${issue.message}`).join("; ") : null;
+}
+
+function compileLinearSourceRepresentation(question: string): SelectedRepresentation | null {
+  const document = buildLinearSourceDocument(question);
+  if (!document) return null;
+  // Keep the existing shared tier rule: engine-owned exact solution metadata
+  // cannot masquerade as a planner-authored fatal metric assertion.
+  const decision = tierForForeignDocument(document);
+  document.source = { ...document.source, representationTier: decision.tier, nonMetric: decision.nonMetric };
+  const compiled = compileSceneDocument(document);
+  if (!compiled.ok || !compiled.renderScene || !compiled.report.valid) return null;
+  return {
+    tier: decision.tier,
+    nonMetric: decision.nonMetric,
+    sceneDocument: document,
+    renderScene: compiled.renderScene,
+    validationReport: compiled.report,
+    figureSource: "linear_source",
+    reason: `engine independently compiled the complete original linear source program; ${decision.reason}`,
+    family: document.constructions[0]?.operator,
   };
 }
 

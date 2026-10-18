@@ -4941,6 +4941,7 @@ export const FIGURE_SOURCES = [
   "archetype",
   "chemistry_family",
   "matrix_source",
+  "linear_source",
   "source_grounded",
   "last_resort",
   "text_only",
