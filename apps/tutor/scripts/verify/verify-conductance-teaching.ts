@@ -154,7 +154,7 @@ async function savedFamilyFacts(): Promise<void> {
     assert(!Object.hasOwn(document.source, "teachingNotes"));
     assert(!Object.hasOwn(document.source, "chemistryTeachingFamilyId"), "cell/Nernst builder never stamps the conductance teaching-family id");
     for (const legacy of [false, true]) {
-      const candidate = structuredClone(document);
+      const candidate: import("@heytutor/scene-engine").SceneDocument = structuredClone(document);
       if (legacy) { delete candidate.source.chemistryTeachingFamilyId; candidate.source.teachingNotes = ["UNTRUSTED_CELL_NOTES"]; }
       const before = structuredClone(candidate);
       const compiled = compileSceneDocument(candidate); assert(compiled.ok && compiled.renderScene);
