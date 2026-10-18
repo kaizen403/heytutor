@@ -2252,6 +2252,82 @@
       "science": "An expanded passive predicate still explicitly replaces actual A/B; a source-owned notation exemption cannot inherit their pressure authority.",
       "family": "chem_solutions",
       "oracle": {}
+    },
+    {
+      "id": "SOURCE13-exact-pair-graphs",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Equimolar liquids form an ideal solution. Draw a pair of Raoult graphs for the two liquids A and B.",
+      "family": "chem_solutions",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      },
+      "science": "Equal liquid mole fractions of pressure-bound A/B give150torr. The requested pair owns figure targets; a later liquids/components PP does not supply a new physical pair/count."
+    },
+    {
+      "id": "SOURCE13-pair-pressure-curves",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Equimolar liquids form an ideal solution. Plot a pair of pressure curves for the two components A and B.",
+      "family": "chem_solutions",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      },
+      "science": "Equal liquid mole fractions of pressure-bound A/B give150torr. The requested pair owns figure targets; a later liquids/components PP does not supply a new physical pair/count."
+    },
+    {
+      "id": "SOURCE13-pair-raoult-diagrams",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Equimolar liquids form an ideal solution. Sketch a pair of Raoult diagrams of the two liquids A and B.",
+      "family": "chem_solutions",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      },
+      "science": "Equal liquid mole fractions of pressure-bound A/B give150torr. The requested pair owns figure targets; a later liquids/components PP does not supply a new physical pair/count."
+    },
+    {
+      "id": "SOURCE13-pair-pressure-plots",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Equimolar liquids form an ideal solution. Show a pair of pressure plots for both components A and B.",
+      "family": "chem_solutions",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      },
+      "science": "Equal liquid mole fractions of pressure-bound A/B give150torr. The requested pair owns figure targets; a later liquids/components PP does not supply a new physical pair/count."
+    },
+    {
+      "id": "SOURCE13-pair-total-pressure-diagrams",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Equimolar liquids form an ideal solution. Represent a pair of total-pressure diagrams for the two liquids A and B.",
+      "family": "chem_solutions",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      },
+      "science": "Equal liquid mole fractions of pressure-bound A/B give150torr. The requested pair owns figure targets; a later liquids/components PP does not supply a new physical pair/count.",
+      "diagnostic": {
+        "baselineHead": "089c170032ffcc8f7aaab6feaf0c21e630983680",
+        "reason": "Inherited safe refusal: unchanged RAOULT_CUE does not claim total-pressure diagrams without raoult/graph/plot/curve. True150torr expectedDraw remains unchanged; original089/037/candidate entire4 outcomes wireexact."
+      }
+    },
+    {
+      "id": "SOURCE13-pair-composition-plots",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Equimolar liquids form an ideal solution. Draw a pair of pressure-composition plots for the two pure components A and B.",
+      "family": "chem_solutions",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      },
+      "science": "Equal liquid mole fractions of pressure-bound A/B give150torr. The requested pair owns figure targets; a later liquids/components PP does not supply a new physical pair/count."
+    },
+    {
+      "id": "SOURCE13-QA-REQUEST-partial-curves",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Equimolar liquids form an ideal solution. Show a pair of curves representing the partial vapour pressures of the two liquids.",
+      "expectedDraw": true,
+      "totalPressureTorr": 150,
+      "xA": 0.5,
+      "science": "The pair quantifies a requested drawing object, not an additional physical liquid roster or fractional input. Complete binary ideal solution haspA100+pB50=150torr.",
+      "family": "chem_solutions",
+      "oracle": {
+        "totalPressureTorr": 150
+      }
     }
   ]
 }

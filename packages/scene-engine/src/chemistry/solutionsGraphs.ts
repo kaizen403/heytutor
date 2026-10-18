@@ -1061,7 +1061,10 @@ function readRaoult(stem: string, _quantities: readonly ChemPlanQuantity[]): Rao
     const sentenceStart = boundary ? scope.start+boundary.index!+boundary[0].length : scope.start;
     const right = /[;!?\n]|\.(?=\s|$)/.exec(body.slice(payload));
     const end = right ? payload+right.index : scope.end;
-    const head = /\b(?:liquids|components)\b/iu.exec(body.slice(payload,end));
+    // The physical head must belong to this immediate nominal complement,
+    // not to a later prepositional phrase or relative clause.
+    const postmodifier = /\b(?:of|for|with|from|to|in|on|at|by|about|between|among|against|under|over|through|which|that|whose)\b/iu.exec(body.slice(payload,end));
+    const head = /\b(?:liquids|components)\b/iu.exec(body.slice(payload,postmodifier ? payload+postmodifier.index : end));
     if (!head) continue;
     const prefix = stem.slice(sentenceStart,start);
     const determiner = [...prefix.matchAll(/\b(?:the|this|that|an?|its)\b/giu)].at(-1);
