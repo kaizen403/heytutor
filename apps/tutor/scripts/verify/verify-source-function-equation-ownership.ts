@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { inferSceneCapabilities } from "@heytutor/tutor-core";
+import { selectProductionScene } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import { compileSceneDocument, parseMathExpression, parseMathExpression2D, synthesizeFamilyScene, tierForForeignDocument, validateSceneDocument, type TurnPlanV3 } from "@heytutor/scene-engine";
 import {
   buildSourceGroundedRepresentation,
@@ -1682,6 +1683,81 @@ for (const [id, source, changed] of [
   assert(compiled.ok && compiled.renderScene, "the changed native program is mechanically valid before source admission");
   assert.equal(prepareFallbackFunctionInventory(source, native), null, "parameter recognition cannot rescue different native geometry");
   assert.deepEqual(native, before);
+});
+// Review P1s: native tangent provenance cannot satisfy a normal-line request,
+// and complete attached parenthetical evaluations are existing scalar roles.
+// The original993 checks above and their literal oracles are unchanged.
+const reviewedFunctionRoleFixtures: readonly { id: string; question: string; retain: boolean }[] = [
+  { id: "reported-normal-point", question: "Sketch y=x^2 and its normal to the curve at the point where x=1.", retain: false },
+  { id: "normal-parenthetical", question: "Sketch y=x^2 and its normal to the curve (at x=1).", retain: false },
+  { id: "named-normal-point", question: "Sketch f(x)=x^3 and its normal to the curve at x=1.", retain: false },
+  { id: "normal-signed-point", question: "Plot y=x^2 and the normal to the curve at x=-0.5.", retain: false },
+  { id: "normal-bare-point", question: "Sketch y=x^2 and its normal at x=1.", retain: false },
+  { id: "normal-bare-parenthetical", question: "Sketch y=x^2 and its normal (at x=1).", retain: false },
+  { id: "normal-at-point", question: "Sketch y=x^2 and its normal at the point where x=1.", retain: false },
+  { id: "reported-named-evaluation", question: "Sketch f(x)=x^2 (at x=1).", retain: true },
+  { id: "named-negative-evaluation", question: "Sketch f(x)=x^3 (at x=-1).", retain: true },
+  { id: "named-fraction-evaluation", question: "Plot f(x)=x^2 (at x=1/2).", retain: true },
+  { id: "explicit-evaluation", question: "Sketch y=x^2 (at x=1).", retain: true },
+  { id: "malformed-parenthetical", question: "Sketch f(x)=x^2 (at x=1+1).", retain: false },
+  { id: "extra-equality-parenthetical", question: "Sketch f(x)=x^2 (at x=1 and x=2).", retain: false },
+  { id: "tangent-parenthetical", question: "Sketch y=x^2 and its tangent (at x=1).", retain: true },
+  { id: "normal-distribution-property", question: "Draw the normal distribution y=exp(-x^2).", retain: true },
+  { id: "normal-notation-property", question: "Sketch y=x^2. Use normal notation.", retain: true },
+  { id: "quoted-normal-role", question: "Sketch y=x^2 and its tangent at x=1. Ignore 'normal to the curve'.", retain: true },
+  { id: "prefix-normal-explicit-equation", question: "Draw the normal to y=x^2 at x=1.", retain: false },
+  { id: "prefix-normal-named-equation", question: "Draw a normal to f(x)=x^2 (at x=1).", retain: false },
+  { id: "prefix-normal-curve", question: "Sketch the normal to the curve y=x^2 at the point where x=1.", retain: false },
+  { id: "plural-normal-point", question: "Sketch y=x^2 and its normals at x=1.", retain: false },
+  { id: "plural-normal-parenthetical", question: "Sketch y=x^2 and its normals (at x=1).", retain: false },
+  { id: "normal-distribution-control", question: "Draw the normal distribution y=exp(-x^2).", retain: true },
+  { id: "quoted-normal-equation-role", question: "Sketch y=x^2. Ignore 'normal to y=x^2'.", retain: true },
+  { id: "unowned-parenthetical-role", question: "Sketch f(x)=x^2 except (at x=1).", retain: false },
+  // Added after the preserved attachment-proof mutation survivor: this complete
+  // excluded-point clause is constructible but cannot borrow a curve evaluation.
+  { id: "unowned-excluded-point-parenthetical", question: "Sketch f(x)=x^2 except the point (at x=1).", retain: false },
+  // Independent review exposed the incomplete connector recognizer. These
+  // controls precede the occurrence-level default-refusal repair.
+  { id: "independent-suffix-normal", question: "Sketch y=x^2 (at x=1) and its normal.", retain: false },
+  { id: "independent-prefix-for-normal", question: "Draw a normal for y=x^2 (at x=1).", retain: false },
+  { id: "independent-prefix-of-normal", question: "Draw the normal of y=x^2 (at x=1).", retain: false },
+  { id: "independent-suffix-normal-line", question: "Sketch y=x^2 (at x=1), with its normal line.", retain: false },
+  { id: "normal-property-later-normal", question: "Draw the normal distribution y=exp(-x^2) (at x=1), and its normal.", retain: false },
+  { id: "hyphenated-normal-property", question: "Draw the normal-distribution graph y=exp(-x^2).", retain: true },
+];
+for (const fixture of reviewedFunctionRoleFixtures) for (const route of ["normal", "inferred", "fast"] as const) check(`reviewed function role ${fixture.id} ${route}`, () => {
+  const { question } = fixture;
+  const turnPlan: TurnPlanV3 = { schemaVersion: "turn-plan/v3", question, givens: [], unknowns: [], derived: [], qualitativeClaims: [], lawIds: [], assumptions: [], visualRequirement: "required" };
+  const native = synthesizeFamilyScene({ question, turnPlan: null, problemIR: null });
+  const input = { question, turnPlan, families: route === "normal" ? undefined : inferSceneCapabilities(question).families };
+  const selected = route === "fast" ? selectFastVerifiedRepresentation(input) : selectVerifiedRepresentation(input);
+  if (!fixture.retain) {
+    if (native) assert.equal(prepareFallbackFunctionInventory(question, native), null, "a tangent or curve-only producer cannot own a requested normal line or unread equality");
+    assert(!selected || !selected.sceneDocument.constructions.some(c => ["function_curve", "implicit_curve"].includes(c.operator)), "the source fallback cannot render a subset while dropping a requested normal line or unread equality");
+    return;
+  }
+  assert(native?.validationReport.valid, "positive review controls must be real unhinted native programs");
+  const before = structuredClone(native);
+  assert.equal(prepareFallbackFunctionInventory(question, native), native, "complete evaluations and non-line normal wording retain the original candidate");
+  assert.deepEqual(native, before);
+  assert(selected && selected.figureSource !== "text_only" && selected.figureSource !== "source_grounded", "supported evaluation retains its original native admission");
+  assert.deepEqual(selected.sceneDocument, native.document);
+  assert.deepEqual(selected.renderScene, native.renderScene, "the full native program and every label stay exact");
+});
+for (const fixture of reviewedFunctionRoleFixtures) for (const preferPlanner of [false, true]) check(`production reviewed function role ${fixture.id} planner=${preferPlanner}`, () => {
+  const { question } = fixture;
+  const turnPlan: TurnPlanV3 = { schemaVersion: "turn-plan/v3", question, givens: [], unknowns: [], derived: [], qualitativeClaims: [], lawIds: [], assumptions: [], visualRequirement: "required" };
+  const selected = selectProductionScene({ question, turnPlan, problemIR: null, policy: { preferPlanner } });
+  if (!fixture.retain) {
+    assert(!selected.representation?.sceneDocument.constructions.some(c => ["function_curve", "implicit_curve"].includes(c.operator)), "the actual production selector must not draw a tangent or curve-only substitute for an unproved requested role");
+    return;
+  }
+  const native = synthesizeFamilyScene({ question, turnPlan: null, problemIR: null });
+  assert(native?.validationReport.valid && selected.representation);
+  assert.equal(selected.saveFailure, null);
+  assert.equal(selected.visualStatus, "validated");
+  assert.deepEqual(selected.representation.sceneDocument, native.document);
+  assert.deepEqual(selected.representation.renderScene, native.renderScene, "both planner preferences retain the entire unchanged native program");
 });
 console.log(`source-function equation ownership: ${checks - failed}/${checks} checks passed (${selectedFixtures.length} original wordings; ${nativeParameterFixtures.length} native parameter wordings)`);
 if (failed > 0) process.exitCode = 1;

@@ -860,6 +860,12 @@ function buildTextOnlyRepresentation(
 function extractExplicitFunctionFacts(question: string, nativeInventory = false): SourceFunctionFact[] {
   const normalized = normalizeMathText(question);
   const unquotedPositions = unquotedFunctionSourcePositions(normalized);
+  // The producer owns tangents, not an unproved normal role. Classify every
+  // unquoted normal token independently; unknown connectors cannot waive it.
+  // Only these exact adjective occurrences have a separate proved prose role.
+  const normalRoles = /(?<![\p{L}\p{N}_])(normals?)(?![\p{L}\p{N}_])(?:[\s-]+(distributions?|notation)\b)?/giu;
+  if (Array.from(normalized.matchAll(normalRoles)).some(match => unquotedPositions[match.index!] &&
+      !(match[1]!.toLowerCase() === "normal" && match[2]))) return [];
   const facts: SourceFunctionFact[] = [];
   const ownedEqualities = new Set<number>();
   const ownedExpressionEnds = new Set<number>();
@@ -892,6 +898,10 @@ function extractExplicitFunctionFacts(question: string, nativeInventory = false)
   for (const match of normalized.matchAll(/=/g)) {
     const index = match.index!;
     if (!unquotedPositions[index] || ownedEqualities.has(index) || /[<>!]/.test(normalized[index - 1] ?? "")) continue;
+    // A complete evaluation attached directly to an owned curve expression
+    // already has scalar authority. Preserve it before the bare-x parameter
+    // check; unrelated or typed-point contexts still need their native slot.
+    if (nativeInventory && isAuxiliaryFunctionEquation(normalized, index, facts, ownedExpressionEnds, true)) continue;
     // A bare x equality belongs to an exact native parameter occurrence,
     // never to a scalar-query exemption merely because its value is numeric.
     if (nativeParameters && /(?<![\p{L}\p{N}_])x\s*$/iu.test(normalized.slice(0, index))) {
@@ -956,11 +966,13 @@ function nativeFunctionParameterEqualities(source: string, unquoted: Uint8Array,
     const closers = boundary(start);
     if (!closers || !unquotedClause(start, end) || !completeLiteral(end - match[1]!.length, match[1]!, closers)) continue;
     const previous = Math.max(previousExpressionEnd(start), previousPointEnd);
-    const attachment = source.slice(Math.max(0, previous), start);
+    const wrapper = /\(\s*$/.exec(source.slice(0, start));
+    const wrappedEvaluation = wrapper && readSourceAtEvaluation(source, wrapper.index) !== null;
+    const attachment = source.slice(Math.max(0, previous), wrappedEvaluation ? wrapper.index : start);
     // Native tangent/point roles and the existing differentiability query
     // are complete grammatical attachments. Unknown or excluded point
     // contexts cannot acquire ownership merely by sharing the x0 number.
-    const pointAttachment = /^\s*(?:,?\s*and\s+|,\s*)?(?:(?:its|the|a)\s+)?(?:tangents?|normal(?:\s+to\s+the\s+curve)?|slope\s+of\s+the\s+(?:tangent|curve))?\s*$/i.test(attachment);
+    const pointAttachment = /^\s*(?:,?\s*and\s+|,\s*)?(?:(?:its|the|a)\s+)?(?:tangents?|slope\s+of\s+the\s+(?:tangent|curve))?\s*$/i.test(attachment);
     const scalarQuery = /^at\b/i.test(match[0]) && previousExpressionEnd(start) >= 0 &&
       /^\s*(?:is\s+)?(?:not\s+)?differentiable\s*$/i.test(attachment);
     if (!pointAttachment && !scalarQuery) continue;
@@ -1249,7 +1261,7 @@ function readCompleteSupportedExpression(source: string, closers: readonly strin
 
 /** A function definition is owned only as an alias of a curve already drawn.
  * Complete parenthetical at-x scalars are separate evaluation slots. */
-function isAuxiliaryFunctionEquation(source: string, equals: number, functions: readonly SourceFunctionFact[], ownedExpressionEnds: ReadonlySet<number>): boolean {
+function isAuxiliaryFunctionEquation(source: string, equals: number, functions: readonly SourceFunctionFact[], ownedExpressionEnds: ReadonlySet<number>, attachedEvaluationOnly = false): boolean {
   const prefix = source.slice(0, equals);
   const definition = /([A-Za-z][A-Za-z0-9_]*)\s*\(\s*x\s*\)\s*$/i.exec(prefix);
   if (definition && !FUNCTION_EXPRESSION_IDENTIFIERS.has(definition[1]!.toLowerCase())) {
@@ -1262,6 +1274,7 @@ function isAuxiliaryFunctionEquation(source: string, equals: number, functions: 
   const evaluation = /\(\s*at\s+x\s*$/i.exec(prefix);
   if (!evaluation) return false;
   const attached = Array.from(ownedExpressionEnds).some(end => end <= evaluation.index && /^\s*$/.test(source.slice(end, evaluation.index)));
+  if (attachedEvaluationOnly && !attached) return false;
   if (!attached && !hasStandaloneFunctionLhs(source, evaluation.index, -1) && !/['"‘’“”]$/.test(source.slice(0, evaluation.index).trimEnd())) return false;
   return readSourceAtEvaluation(source, evaluation.index) !== null;
 }
