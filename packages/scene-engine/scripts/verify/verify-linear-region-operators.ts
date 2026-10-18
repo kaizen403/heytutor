@@ -587,12 +587,19 @@ if (selected("source-authority")) {
     const reason = unproved.get(source);
     if (reason) {
       check(buildLinearSourceDocument(source) === null, `Unproved reader must refuse: ${reason}`);
-      // The 18 Oct final owner review supersedes these seven no-veto
-      // expectations: an unproved whole source cannot certify this partial
-      // candidate. Original questions, inputs and reader-null checks remain.
-      check(validateLinearSourceBinding(candidate).some(issue => issue.code === "linear_source_mismatch" && issue.severity === "fatal"),
-        `Unproved source must not admit a partial candidate: ${reason}`);
-      atomicallyRefused(candidate, `Unproved source must not emit partial ink: ${reason}`);
+      if (source === "Graph -7x + 4y <= 9 for real X and Y.") {
+        // X/Y are distinct from native x/y: this declaration adds no omitted
+        // native predicate. Keep the original uncertain-reader no-veto seam.
+        check(validateLinearSourceBinding(candidate).length === 0,
+          `An irrelevant nonnative real declaration cannot veto the complete native comparison: ${reason}`);
+      } else {
+        // The 18 Oct final owner review supersedes these six no-veto
+        // expectations: an unproved source cannot certify a partial candidate.
+        // Original questions, inputs and reader-null checks remain.
+        check(validateLinearSourceBinding(candidate).some(issue => issue.code === "linear_source_mismatch" && issue.severity === "fatal"),
+          `Unproved source must not admit a partial candidate: ${reason}`);
+        atomicallyRefused(candidate, `Unproved source must not emit partial ink: ${reason}`);
+      }
     } else atomicallyRefused(candidate, `Source contradiction cannot silently discard meaning: ${source}`);
   }
   check(solutionFor(compiled("linear_half_plane",{inequality:"-7x + 4y <= 9"},
@@ -604,7 +611,7 @@ if (selected("source-authority")) {
     "explicit variable names and their domain remain case-sensitive");
   const undeclaredAddendQuestion = "Graph x + a + y <= 8 in the coordinate plane.";
   check(buildLinearSourceDocument(undeclaredAddendQuestion) === null, "The reader must refuse an undeclared affine addend");
-  // The same final-review admission rule applies to this eighth stored
+  // The same final-review admission rule applies to this seventh stored
   // partial candidate; no source authority establishes that a can be dropped.
   const undeclaredAddendCandidate = documentFor("linear_half_plane",{inequality:"x + y <= 8"}, undeclaredAddendQuestion);
   check(validateLinearSourceBinding(undeclaredAddendCandidate).some(issue => issue.code === "linear_source_mismatch" && issue.severity === "fatal"),
