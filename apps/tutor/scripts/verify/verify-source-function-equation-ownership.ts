@@ -1035,6 +1035,7 @@ for (const question of [
 ]) lexicalOwnershipFixtures.push({ id: `lexical-quoted-${question}`, question, mustDrawExplicitCurves: true, discreteDomain: false, equations: [question.includes("sqrt") ? rootCurve : logCurve] });
 
 lexicalOwnershipFixtures.push(
+  { id: "reported-normal-scale-two-curves", question: "Sketch y=sqrt(x) and y=log(x) using a normal scale.", mustDrawExplicitCurves: true, discreteDomain: false, equations: [rootCurve, logCurve] },
   { id: "lexical-auxiliary-quoted-evaluation", question: "The note prints 'y=99' (at x=1/2). Draw y=sqrt(x).", mustDrawExplicitCurves: true, discreteDomain: false, equations: [rootCurve] },
   { id: "lexical-auxiliary-parenthetical-evaluation", question: "(at x=0). Draw y=log(x).", mustDrawExplicitCurves: true, discreteDomain: false, equations: [logCurve] },
   { id: "lexical-auxiliary-function-definition", question: "Given f(x)=sqrt(x). Draw y=sqrt(x).", mustDrawExplicitCurves: true, discreteDomain: false, equations: [rootCurve] },
@@ -1724,6 +1725,49 @@ const reviewedFunctionRoleFixtures: readonly { id: string; question: string; ret
   { id: "independent-suffix-normal-line", question: "Sketch y=x^2 (at x=1), with its normal line.", retain: false },
   { id: "normal-property-later-normal", question: "Draw the normal distribution y=exp(-x^2) (at x=1), and its normal.", retain: false },
   { id: "hyphenated-normal-property", question: "Draw the normal-distribution graph y=exp(-x^2).", retain: true },
+  // A scale is a presentation noun, not a requested normal line. Every later
+  // normal occurrence still needs its own source role.
+  { id: "normal-scale-single-curve", question: "Sketch y=x^2 using a normal scale.", retain: true },
+  { id: "normal-scales-presentation", question: "Plot y=x^2 using normal scales on the axes.", retain: true },
+  { id: "hyphenated-normal-scale", question: "Draw y=x^2 on a normal-scale graph.", retain: true },
+  { id: "scale-later-normal", question: "Sketch y=x^2 (at x=1) using a normal scale, and its normal.", retain: false },
+  { id: "scale-later-normal-point", question: "Sketch y=x^2 using a normal scale and its normal at x=1.", retain: false },
+  { id: "scale-prefix-normal-line", question: "Draw the normal to y=x^2 at x=1 using a normal scale.", retain: false },
+  { id: "scale-later-normal-for", question: "Sketch y=x^2 using a normal scale and a normal for the curve at x=1.", retain: false },
+  // Frozen independent scale-role failures/collisions and bounded grammar controls.
+  { id: "scale-independent-linear", question: "Sketch y=x^2 using a normal linear scale.", retain: true },
+  { id: "scale-independent-horizontal", question: "Sketch y=x^2 using the normal horizontal scale.", retain: true },
+  { id: "scale-independent-x-axis", question: "Sketch y=x^2 using a normal x-axis scale.", retain: true },
+  { id: "scale-independent-predicate", question: "Sketch y=x^2. The scale is normal.", retain: true },
+  { id: "scale-independent-reduced-predicate", question: "Sketch y=x^2 with both scales normal.", retain: true },
+  { id: "scale-independent-scaling", question: "Sketch y=x^2 using normal scaling.", retain: true },
+  { id: "scale-independent-coordinate", question: "Sketch y=x^2 in the normal coordinate scale.", retain: true },
+  { id: "scale-independent-parenthesized", question: "Sketch y=x^2 on a normal (linear) scale.", retain: true },
+  { id: "scale-independent-later-normal", question: "Sketch y=x^2 (at x=1) using a normal scale. Draw its normal.", retain: false },
+  { id: "scale-independent-prefix-normal", question: "Draw a normal for f(x)=x^2 (at x=1), using a normal scale.", retain: false },
+  { id: "scale-independent-later-normals", question: "Sketch y=x^2 (at x=1) using normal scales, with its normals.", retain: false },
+  { id: "scale-independent-hyphen-later-normal", question: "Sketch y=x^2 (at x=1) on a normal-scale graph, and its normal.", retain: false },
+  { id: "scale-independent-distribution-later-normal", question: "Sketch the normal distribution y=exp(-x^2) using a normal scale, then its normal at x=1.", retain: false },
+  { id: "scale-certified-vertical", question: "Sketch y=x^2 using a normal vertical scale.", retain: true },
+  { id: "scale-certified-cartesian", question: "Sketch y=x^2 using a normal Cartesian scale.", retain: true },
+  { id: "scale-certified-y-axis", question: "Sketch y=x^2 using a normal y-axis scale.", retain: true },
+  { id: "scale-certified-plural-predicate", question: "Sketch y=x^2. The scales are normal.", retain: true },
+  { id: "scale-certified-qualified-predicate", question: "Sketch y=x^2. The horizontal scale is normal.", retain: true },
+  { id: "scale-predicate-normal-to-curve", question: "Sketch y=x^2. The scale is normal to the curve at x=1.", retain: false },
+  { id: "scale-predicate-normal-vector", question: "Sketch y=x^2. The scale is normal vector notation.", retain: false },
+  { id: "scale-predicate-later-normal", question: "Sketch y=x^2. The scale is normal. Draw its normal at x=1.", retain: false },
+  { id: "scale-reduced-predicate-normal-to", question: "Sketch y=x^2 with both scales normal to the curve at x=1.", retain: false },
+  { id: "scale-normal-to-scale", question: "Sketch y=x^2 and its normal to a scale at x=1.", retain: false },
+  { id: "scale-logarithmic-not-certified", question: "Sketch y=x^2 using a normal logarithmic scale.", retain: false },
+  { id: "scale-log-not-certified", question: "Sketch y=x^2 using a normal log scale.", retain: false },
+  { id: "scale-semilog-not-certified", question: "Sketch y=x^2 using a normal semi-log scale.", retain: false },
+  { id: "scale-arbitrary-modifier", question: "Sketch y=x^2 using a normal vector scale.", retain: false },
+  { id: "scale-plural-normal-not-adjective", question: "Sketch y=x^2 using normals scales.", retain: false },
+  // Exact local-window cuts must not turn scaleX/distributionX into nouns,
+  // or borrow "with" from the tail of an unrelated longer identifier.
+  { id: "cut-scale-head", question: "Sketch y=x^2 using normal" + " ".repeat(123) + "scaleX.", retain: false },
+  { id: "cut-distribution-head", question: "Sketch y=x^2 using normal" + " ".repeat(116) + "distributionX.", retain: false },
+  { id: "cut-predicate-with", question: "Sketch y=x^2. " + "z".repeat(40) + "with" + " ".repeat(112) + "both scales normal.", retain: false },
 ];
 for (const fixture of reviewedFunctionRoleFixtures) for (const route of ["normal", "inferred", "fast"] as const) check(`reviewed function role ${fixture.id} ${route}`, () => {
   const { question } = fixture;
@@ -1742,6 +1786,8 @@ for (const fixture of reviewedFunctionRoleFixtures) for (const route of ["normal
   assert.deepEqual(native, before);
   assert(selected && selected.figureSource !== "text_only" && selected.figureSource !== "source_grounded", "supported evaluation retains its original native admission");
   assert.deepEqual(selected.sceneDocument, native.document);
+  assert.equal(selected.tier, native.tier, "a prose role cannot change native authority");
+  assert.equal(selected.nonMetric, native.nonMetric);
   assert.deepEqual(selected.renderScene, native.renderScene, "the full native program and every label stay exact");
 });
 for (const fixture of reviewedFunctionRoleFixtures) for (const preferPlanner of [false, true]) check(`production reviewed function role ${fixture.id} planner=${preferPlanner}`, () => {
@@ -1757,7 +1803,19 @@ for (const fixture of reviewedFunctionRoleFixtures) for (const preferPlanner of 
   assert.equal(selected.saveFailure, null);
   assert.equal(selected.visualStatus, "validated");
   assert.deepEqual(selected.representation.sceneDocument, native.document);
+  assert.equal(selected.representation.tier, native.tier, "both planner preferences retain native authority");
+  assert.equal(selected.representation.nonMetric, native.nonMetric);
   assert.deepEqual(selected.representation.renderScene, native.renderScene, "both planner preferences retain the entire unchanged native program");
+});
+// The native family does not construct this pair. Its independent source-copy
+// route still has to retain both whole equations through production selection.
+for (const preferPlanner of [false, true]) check(`production normal-scale source pair planner=${preferPlanner}`, () => {
+  const fixture = lexicalOwnershipFixtures.find(({ id }) => id === "reported-normal-scale-two-curves")!;
+  const question = fixture.question;
+  const turnPlan: TurnPlanV3 = { schemaVersion: "turn-plan/v3", question, givens: [], unknowns: [], derived: [], qualitativeClaims: [], lawIds: [], assumptions: [], visualRequirement: "required" };
+  const selection = selectProductionScene({ question, turnPlan, problemIR: null, policy: { preferPlanner } });
+  assert(selection.representation && selection.visualStatus === "validated" && selection.saveFailure === null);
+  verifyOwnership(fixture, selection.representation);
 });
 console.log(`source-function equation ownership: ${checks - failed}/${checks} checks passed (${selectedFixtures.length} original wordings; ${nativeParameterFixtures.length} native parameter wordings)`);
 if (failed > 0) process.exitCode = 1;

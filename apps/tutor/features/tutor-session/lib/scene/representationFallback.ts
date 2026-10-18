@@ -857,15 +857,52 @@ function buildTextOnlyRepresentation(
   };
 }
 
+// A certified scale noun phrase describes presentation, not perpendicular
+// geometry. Keep the modifier grammar closed: logarithmic axes are not proved.
+const NORMAL_SCALE_MODIFIER = String.raw`(?:linear|horizontal|vertical|coordinate|Cartesian|[xy][\s-]+axis|\(\s*linear\s*\))`;
+const NORMAL_SCALE_ADJECTIVE = new RegExp(`^[\\s-]+(?:${NORMAL_SCALE_MODIFIER}[\\s-]+)?(?:scales?|scaling)(?![\\p{L}\\p{N}_])`, "iu");
+const NORMAL_SCALE_PREDICATE = new RegExp(`(?:^|[.!?;,()]|\\bwith)\\s*(?:(?:the\\s+)?(?:${NORMAL_SCALE_MODIFIER}\\s+)?scale\\s+is|(?:the\\s+)?(?:${NORMAL_SCALE_MODIFIER}\\s+)?scales\\s+are|both\\s+(?:${NORMAL_SCALE_MODIFIER}\\s+)?scales)\\s+$`, "iu");
+
+function isProvedNormalScaleRole(source: string, start: number, end: number): boolean {
+  // One lookahead character proves the real word boundary within a bounded
+  // role span. Clipping can refuse a long phrase, never invent a boundary.
+  const after = source.slice(end, end + 129);
+  const adjective = NORMAL_SCALE_ADJECTIVE.exec(after);
+  if (adjective && adjective[0].length <= 128) return true;
+  const completePredicate = /^\s*[.!?,;:)]/u.test(after) ||
+    (end + after.length === source.length && /^\s*$/u.test(after));
+  if (!completePredicate) return false; // "scale is normal to ..." is not prose.
+  const offset = Math.max(0, start - 128);
+  const before = source.slice(offset, start);
+  const predicate = NORMAL_SCALE_PREDICATE.exec(before);
+  return predicate !== null && (offset === 0 || predicate.index > 0);
+}
+
+function isProvedNormalFunctionRole(source: string, start: number, end: number): boolean {
+  const after = source.slice(end, end + 129);
+  const property = /^[\s-]+(?:distributions?|notation)(?![\p{L}\p{N}_])/iu.exec(after);
+  if (property && property[0].length <= 128) return true;
+  return isProvedNormalScaleRole(source, start, end);
+}
+
+function hasUnprovedNormalFunctionRole(source: string, unquotedPositions: Uint8Array): boolean {
+  const normalRoles = /(?<![\p{L}\p{N}_])normals?(?![\p{L}\p{N}_])/giu;
+  for (const match of source.matchAll(normalRoles)) {
+    const start = match.index!;
+    if (!unquotedPositions[start]) continue;
+    if (match[0].toLowerCase() === "normal" &&
+        isProvedNormalFunctionRole(source, start, start + match[0].length)) continue;
+    return true;
+  }
+  return false;
+}
+
 function extractExplicitFunctionFacts(question: string, nativeInventory = false): SourceFunctionFact[] {
   const normalized = normalizeMathText(question);
   const unquotedPositions = unquotedFunctionSourcePositions(normalized);
-  // The producer owns tangents, not an unproved normal role. Classify every
-  // unquoted normal token independently; unknown connectors cannot waive it.
-  // Only these exact adjective occurrences have a separate proved prose role.
-  const normalRoles = /(?<![\p{L}\p{N}_])(normals?)(?![\p{L}\p{N}_])(?:[\s-]+(distributions?|notation)\b)?/giu;
-  if (Array.from(normalized.matchAll(normalRoles)).some(match => unquotedPositions[match.index!] &&
-      !(match[1]!.toLowerCase() === "normal" && match[2]))) return [];
+  // The producer owns tangents, not an unproved normal role. Prove every
+  // unquoted occurrence independently; a presentation role cannot own another.
+  if (hasUnprovedNormalFunctionRole(normalized, unquotedPositions)) return [];
   const facts: SourceFunctionFact[] = [];
   const ownedEqualities = new Set<number>();
   const ownedExpressionEnds = new Set<number>();
