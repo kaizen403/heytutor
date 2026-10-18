@@ -778,8 +778,8 @@ const IRREGULAR_PLURALS: Record<string, string> = {
 const IRREGULAR_SINGULARS: Record<string, string> = Object.fromEntries(
   Object.entries(IRREGULAR_PLURALS).map(([singular, plural]) => [plural, singular]),
 );
-/** A label short enough to say after its role: "its pole P", "the weight mg". */
-const SPEAKABLE_LABEL = /^[A-Za-z]{1,2}[′']?$/;
+/** Setup symbols may have Greek letters/indices, never an equation or value. */
+const SPEAKABLE_LABEL = /^[A-Za-z\p{Script=Greek}]{1,2}(?:_(?:[A-Za-z\p{Script=Greek}\d]+|\{[A-Za-z\p{Script=Greek}\d]+\})|[\d₀-₉ₐ-ₜᵢⱼ]+)?[′']?$/u;
 
 function cleanRole(role: string | undefined): string {
   return (role ?? "")

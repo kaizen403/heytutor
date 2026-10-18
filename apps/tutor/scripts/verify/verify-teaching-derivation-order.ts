@@ -61,6 +61,37 @@ for (const language of ["english", "hinglish"] as const) for (const surface of [
   }
 }
 
+// A bare mathematical symbol names a part even when it has a Greek letter or
+// subscript. Only its computed value waits for the corresponding work step.
+for (const language of ["english", "hinglish"] as const) for (const symbol of ["u", "v_i", "v_f", "θ", "α", "R1", "v₀"]) {
+  const document = structuredClone(scene);
+  document.source.question = `Show the part marked ${symbol}.`;
+  document.entities[0]!.label = symbol;
+  document.revealGroups[0]!.narrationCue = `Show point ${symbol}.`;
+  document.teachingTimeline[0]!.narrationIntent = `Show point ${symbol}.`;
+  const compiled = compileSceneDocument(document);
+  assert.ok(compiled.ok && compiled.renderScene, "authored standard-symbol setup must compile");
+  const resultText = `${symbol} = 5${symbol === "v_f" ? " m/s" : ""}`;
+  const render: RenderScene = { ...compiled.renderScene, primitives: [...compiled.renderScene.primitives,
+    { id: "computed_value", entityId: "a", groupId: "setup", kind: "label", points: [{ x: 600, y: 300 }], text: resultText, labelPlacement: "absolute" },
+  ] };
+  const presentation = buildVerifiedDiagramPresentation(document, render, { narrationLanguage: language });
+  const intro = presentation.introSegments.flatMap(getSegmentCommands);
+  check(intro.some((command) => command.type === "LABEL" && command.text === symbol), `${language}/${symbol}: a named standard symbol is visible in the intro`);
+  check(!intro.some((command) => command.text === resultText), `${language}/${symbol}: computed value stays out of the symbol introduction`);
+  check(presentation.diagram.deferredAnnotations?.flatMap((entry) => entry.commands).some((command) => command.text === resultText), `${language}/${symbol}: computed value remains available after derivation`);
+  check(presentation.diagram.commands.some((command) => command.text === symbol) && presentation.diagram.commands.some((command) => command.text === resultText), `${language}/${symbol}: staging preserves both symbol and result ink`);
+  const segment = presentation.introSegments[0]!;
+  const spoken = mathToSpeech(segment.narration);
+  const symbolAt = findSpokenToken(spoken, mathToSpeech(symbol));
+  check(symbolAt >= 0, `${language}/${symbol}: the setup sentence actually names its standard symbol`);
+  for (const type of ["DRAW_POINT", "LABEL"]) {
+    const command = intro.find((entry) => entry.type === type && (type !== "LABEL" || entry.text === symbol));
+    const at = command?.spokenCue?.token ? findSpokenToken(spoken, mathToSpeech(command.spokenCue.token)) : -1;
+    check(at >= 0 && at === symbolAt, `${language}/${symbol}: the scheduler locates ${type} at that symbol's first spoken token`);
+  }
+}
+
 // A long draw earns a spoken walkthrough. That second narration path must
 // not append the answer-bearing planner cue after its neutral setup sentence.
 const denseDocument: SceneDocument = {
