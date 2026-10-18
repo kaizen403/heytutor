@@ -1587,7 +1587,6 @@ function evaluateConstruction(
     case "relative_velocity":
     case "motion_graph":
     case "uniform_circular_motion":
-    case "projectile_trajectory":
     case "work_interval":
     case "spring_energy":
     case "potential_curve":
@@ -1595,6 +1594,8 @@ function evaluateConstruction(
     case "loop_torque":
     case "galvanometer":
     case "bar_magnet": return evaluateChapterRemainderConstruction(operator, inputs, constructionContext);
+    // The projectile reads its source units from the quantities it names.
+    case "projectile_trajectory": return evaluateChapterRemainderConstruction(operator, inputs, constructionContext, document);
     case "metre_bridge":
     case "potentiometer":
     case "incline_friction":
