@@ -83,6 +83,12 @@ async function verifyUpgrade(fromVersion: number) {
 async function main() {
   await verifyUpgrade(8);
   await verifyUpgrade(9);
-  await verifyUpgrade(10);
+  // Feature-owned gates may exercise additional deployed versions without
+  // changing this gate's ordinary baseline or copying the IndexedDB harness.
+  for (const argument of process.argv.slice(2)) {
+    const version = Number(argument);
+    assert(Number.isSafeInteger(version) && version > 0, "upgrade source must be a positive database version");
+    await verifyUpgrade(version);
+  }
 }
 void main().catch((error) => { console.error(error); process.exitCode = 1; });
