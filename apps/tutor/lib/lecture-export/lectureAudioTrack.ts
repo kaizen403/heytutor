@@ -82,8 +82,9 @@ function resampleTrack(track: PcmTrack, toRate: number): PcmTrack {
 }
 
 /**
- * Time-compress PCM so a 1× recording plays at `playbackRate` in any player.
- * Same pitch shift as HTML `playbackRate` — the file is shorter, not stretched.
+ * Resample PCM to another playback rate. This changes pitch as well as time;
+ * it is not pitch-preserving time stretch. Natural-speed export passes 1 and
+ * retains the original samples instead.
  */
 export function speedPcmTrack(track: PcmTrack, playbackRate: number): PcmTrack {
   const rate =

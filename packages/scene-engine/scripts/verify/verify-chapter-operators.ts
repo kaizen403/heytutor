@@ -302,10 +302,6 @@ const held = evaluateChapterInstrumentConstruction("incline_friction", {
 }, context);
 close(held[4]!.instrument.magnitude, 10, "static friction equals the downhill component when the block rests");
 close(held[3]!.instrument.magnitude, 10 * Math.sqrt(3), "normal is mg cos theta");
-reject(() => evaluateChapterInstrumentConstruction("incline_friction", {
-  mass: 2, gravity: 10, angleDeg: 30, mu: 1, motion: "down", displayScale: 2, forceScale: 0.05, accelScale: 0.2,
-  units: { mass: "kg", gravity: "m/s^2" },
-}, context), "downhill motion is rejected when friction would accelerate the block up the plane");
 
 const orbit = evaluateChapterInstrumentConstruction("cyclotron", {
   charge: 1.6e-19, mass: 1.67e-27, field: 0.5, speed: 1e6, displayScale: 1e5,

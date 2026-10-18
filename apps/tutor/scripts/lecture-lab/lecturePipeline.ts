@@ -139,6 +139,13 @@ export interface LectureRun {
   familiarity: SubjectFamiliarity;
   arm?: DiagramEvalArm;
   figureOnly?: boolean;
+  /** Full accepted inputs for offline selection replay; absent on historical runs. */
+  figureReplayInputs?: {
+    schemaVersion: "lecture-figure-replay-inputs/v1";
+    selection: Parameters<typeof selectProductionScene>[0];
+    authority: Pick<ProblemAuthorityV1Response, "solverResult" | "audit" | "projection"> | null;
+    authorityAttempted: boolean;
+  } | null;
   startedAt: string;
   timings: {
     planMs: number;
@@ -358,6 +365,7 @@ export async function runLecture(
     familiarity,
     arm: options.arm ?? "current",
     figureOnly: options.figureOnly ?? false,
+    figureReplayInputs: null,
     startedAt: new Date(startedAt).toISOString(),
     timings: {
       planMs: 0,
@@ -724,7 +732,7 @@ export async function runLecture(
           : "candidate_invalid";
     }
 
-    const sceneSelection = selectProductionScene({
+    const sceneSelectionInput: Parameters<typeof selectProductionScene>[0] = {
       question, turnPlan, problemIR: problemAuthority?.problemIR ?? null, sceneCapabilities,
       candidateValidation: result?.validation, fastRepresentation,
       exactFigureSource: planning.figureSource === "verified_recovery" ? "verified_recovery" : "planner",
@@ -735,7 +743,18 @@ export async function runLecture(
         preferPlanner: planning.gate.diagramStrategy.strategy === "strict",
         allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(planning.gate.diagramStrategy, source)),
       },
+    };
+    run.figureReplayInputs = structuredClone({
+      schemaVersion: "lecture-figure-replay-inputs/v1",
+      selection: sceneSelectionInput,
+      authority: problemAuthority ? {
+        solverResult: problemAuthority.solverResult,
+        audit: problemAuthority.audit,
+        projection: problemAuthority.projection,
+      } : null,
+      authorityAttempted: problemAuthorityPromise !== null,
     });
+    const sceneSelection = selectProductionScene(sceneSelectionInput);
     const selected = sceneSelection.representation;
     // completion-diagnostics:begin
     run.diagram.completion = sceneSelection.completion;
@@ -799,7 +818,7 @@ export async function runLecture(
       ? buildVerifiedDiagramPresentation(
           sceneDocument,
           renderScene,
-          figureFamily ? { figureFamily } : {},
+          { narrationLanguage: options.narrationLanguage, ...(figureFamily ? { figureFamily } : {}) },
         )
       : null;
     if (presentation && renderScene && sceneDocument && verifiedDiagramHasDrawableInk(presentation.diagram)) {

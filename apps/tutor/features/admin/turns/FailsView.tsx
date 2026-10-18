@@ -57,8 +57,8 @@ export function FailsView() {
         title="Fails"
         description={
           data
-            ? `${data.total} turn${data.total === 1 ? "" : "s"} taught without a verified diagram`
-            : "Turns that taught without a verified diagram, and why."
+            ? `${data.total} confirmed failed turn${data.total === 1 ? "" : "s"}`
+            : "Confirmed diagram or teaching failures, and why."
         }
         icon={<TriangleAlert className="h-4 w-4" strokeWidth={1.75} aria-hidden />}
         actions={
@@ -95,7 +95,7 @@ export function FailsView() {
       ) : data && data.turns.length === 0 ? (
         <EmptyState
           title="No failed turns"
-          description="Nothing in this window taught without a verified diagram."
+          description="No confirmed diagram or teaching failures in this window. Unknown outcomes remain in the turn log."
           action={
             filtersActive ? (
               <button type="button" onClick={clearFilters} className="text-xs text-sky-300">
