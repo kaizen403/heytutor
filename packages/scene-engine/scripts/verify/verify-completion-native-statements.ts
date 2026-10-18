@@ -37,9 +37,9 @@ for (const [text, owner] of [["M = 7.50 kg", "body"], ["m = 7.50 kg", "other"]])
   const baseline = compileSceneDocument(document);
   assert.ok(baseline.ok && baseline.renderScene, JSON.stringify(baseline.report.issues));
   const result = completeSceneDocument(document, { enabled: true, turnPlan, baseRenderScene: baseline.renderScene });
-  assert.equal(result.additions.length, 1, "another symbol or another owner cannot cover this source quantity");
-  assert.deepEqual(result.additions[0]!.targetIds, ["body"]);
-  assert.equal(result.additions[0]!.text, "m = 7.5 kg");
+  // PR187 review: another statement does not prove the missing B→m owner join.
+  assert.deepEqual(result.additions, []);
+  assert.equal(result.document, document, "unproved body attachment must retain exact native ink");
   passed++;
 }
 console.log(`completion-native-statements: ${passed}/8 passed`);

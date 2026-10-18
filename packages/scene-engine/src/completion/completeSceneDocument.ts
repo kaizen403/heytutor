@@ -1,4 +1,4 @@
-import { validateTurnPlanV3, type TurnPlanQuantityV3, type TurnPlanV3 } from "../contracts/contractsV3";
+import { sceneUnitSignature, validateTurnPlanV3, type TurnPlanQuantityV3, type TurnPlanV3 } from "../contracts/contractsV3";
 import { compileSceneDocument } from "../compile/compiler";
 import { isPointIdentifierText } from "../compile/pointLabelText";
 import type { RenderScene, SceneConstruction, SceneDocument } from "../types";
@@ -49,9 +49,27 @@ function sameIds(first: readonly string[], second: readonly string[]): boolean {
   return left.every((id, index) => id === right[index]);
 }
 function statement(quantity: { symbol: string; value?: number; unit?: string }): string {
-  return `${quantity.symbol} = ${quantity.value === undefined ? "?" : String(quantity.value)}${quantity.unit === undefined ? "" : ` ${quantity.unit}`}`;
+  const unit = quantity.unit === undefined ? "" : angleUnit(quantity.unit) === "degree" ? "°" : ` ${boardUnit(quantity.unit)}`;
+  return `${quantity.symbol} = ${quantity.value === undefined ? "?" : boardNumber(quantity.value)}${unit}`;
 }
 function compactText(value: string): string { return value.replace(/\s+/g, ""); }
+function ownerSymbol(value: string): string {
+  return value.normalize("NFKC").replace(/_\{([\p{L}\p{N}]+)\}/gu, "$1").replace(/_([\p{L}\p{N}]+)/gu, "$1").replace(/\s+/g, "");
+}
+function boardNumber(value: number): string {
+  const [mantissa, exponent] = String(value).split("e");
+  return exponent === undefined ? String(value) : `${mantissa} × 10${superscript(String(Number(exponent)))}`;
+}
+function superscript(value: string): string {
+  return [...value].map(character => "⁰¹²³⁴⁵⁶⁷⁸⁹"[Number(character)] ?? (character === "-" ? "⁻" : character)).join("");
+}
+function boardUnit(value: string): string { return value.replace(/\^([+-]?\d+)/g, (_match, exponent: string) => superscript(exponent)); }
+/** Comparison only: native text is never rewritten or used to prove a value. */
+function canonicalStatement(value: string): string {
+  return value.normalize("NFKC").replace(/−/g, "-").replace(/[\s_{}]/g, "")
+    .replace(/degrees?|deg/g, "°")
+    .replace(/[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?/gi, number => String(Number(number)));
+}
 function nativeLabelTarget(construction: SceneConstruction): unknown {
   if (construction.operator !== "label") return undefined;
   for (const key of ["target", "at", "point"]) {
@@ -168,9 +186,10 @@ class CompletionContext {
     // spelling never supplies authority or needs to be rewritten (7.50 / 7.5).
     if (this.input.baseRenderScene.primitives.some(primitive => primitive.kind === "label" && nativeOwners.has(primitive.entityId) &&
         typeof primitive.text === "string" && [...symbols].some(symbol => {
-          const prefix = `${compactText(symbol)}=`;
-          const text = compactText(primitive.text!);
-          return text.startsWith(prefix) && text.length > prefix.length;
+          const prefix = canonicalStatement(symbol), text = canonicalStatement(primitive.text!);
+          const quantity = quantityIds.map(id => this.quantities.get(id)).find(quantity => quantity?.symbol === symbol);
+          return (text.startsWith(`${prefix}=`) && text.length > prefix.length + 1) ||
+            (quantity?.value !== undefined && text === canonicalStatement(`${symbol}${quantity.value}${quantity.unit ?? ""}`));
         }))) return "existing_quantity_native_statement";
     for (const annotation of this.document.annotations) {
       if (!annotation.quantityId || !["label", "callout"].includes(annotation.kind) ||
@@ -201,30 +220,53 @@ class CompletionContext {
     const existingOwners = new Set([target, ...this.document.constructions.filter(construction =>
       nativeLabelTarget(construction) === target).flatMap(construction => construction.outputs)]);
     if (this.input.baseRenderScene.primitives.some(primitive => primitive.kind === "label" && existingOwners.has(primitive.entityId) &&
-        typeof primitive.text === "string" && compactText(primitive.text) === compactText(proposal.text!))) {
+        typeof primitive.text === "string" && canonicalStatement(primitive.text) === canonicalStatement(proposal.text!))) {
       this.skip("already_labelled", proposal.quantityIds[0], [target]); return;
     }
     if (this.additions.some(addition => addition.id === id)) return;
-    if (this.entities.has(id) || this.document.constructions.some(construction => construction.id === `construct_${id}`) ||
+    if (this.entities.has(id) || this.document.annotations.some(annotation => annotation.id === id) || this.document.constructions.some(construction => construction.id === `construct_${id}`) ||
         this.document.assertions.some(assertion => assertion.id === `assert_${id}`)) {
       this.skip("completion_id_collision", proposal.quantityIds[0], [target]); return;
     }
     if (this.additions.length >= MAX_ADDITIONS) { this.skip("addition_budget", proposal.quantityIds[0], [target]); return; }
     const next = this.next ??= structuredClone(this.document);
-    next.entities.push({ id, kind: "label", role: "restated structured source quantity", label: proposal.text });
     const producer = this.producers.get(target);
-    const frame = producer && ["space_point", "space_vector"].includes(producer.operator) && validFrame(this, producer.inputs.frame)
-      ? producer.inputs.frame : undefined;
-    next.constructions.push({ id: `construct_${id}`, operator: "label", inputs: { target, text: proposal.text,
-      ...(frame === undefined ? {} : { frame }) }, outputs: [id] });
-    next.assertions.push({ id: `assert_${id}`, predicate: "exists", entities: [id], expected: true, severity: "fatal" });
-    next.requiredEntityIds.push(id);
-    next.revealGroups[group]!.entityIds.push(id);
+    if (producer && ["angle_mark", "space_point", "space_vector"].includes(producer.operator)) {
+      // The native annotation path owns the arc/world projection. A quantityId
+      // would instead route labelled owners into a view-summary block.
+      next.annotations.push({ id, kind: "label", targetIds: [target], text: proposal.text, labelMode: "append" });
+    } else {
+      next.entities.push({ id, kind: "label", role: "restated structured source quantity", label: proposal.text });
+      next.constructions.push({ id: `construct_${id}`, operator: "label", inputs: { target, text: proposal.text }, outputs: [id] });
+      next.assertions.push({ id: `assert_${id}`, predicate: "exists", entities: [id], expected: true, severity: "fatal" });
+      next.requiredEntityIds.push(id);
+      next.revealGroups[group]!.entityIds.push(id);
+    }
     this.additions.push({ id, ...proposal });
   }
   result(): SceneCompletionResult {
-    return { document: this.next ?? this.document, addedEntityIds: this.additions.map(addition => addition.id),
-      addedAnnotationIds: [], additions: this.additions, skipped: this.skipped };
+    return { document: this.next ?? this.document,
+      addedEntityIds: this.additions.filter(addition => this.next?.entities.some(entity => entity.id === addition.id)).map(addition => addition.id),
+      addedAnnotationIds: this.additions.filter(addition => this.next?.annotations.some(annotation => annotation.id === addition.id)).map(addition => addition.id),
+      additions: this.additions, skipped: this.skipped };
+  }
+  /** An attachment edge cannot create a scalar owner. Only an existing unique
+   * source symbol on the actual drawn entity supplies this conservative join. */
+  scalarOwner(target: string, symbol: string, quantityId: string): boolean {
+    const entity = this.entities.get(target);
+    const producer = this.producers.get(target);
+    const bodyCarrier = (producer?.operator === "rectangle" && entity?.kind === "rectangle") ||
+      (producer?.operator === "circle" && entity?.kind === "circle") || (producer?.operator === "symbol" && entity?.kind === "component");
+    const signature = sceneUnitSignature(this.quantities.get(quantityId)?.unit);
+    // An identity join proves an external body attribute, never its native
+    // radius/extent/area or an arbitrary curve/vector's numeric magnitude.
+    // Volume/dioptre atoms are left unjudged by the existing unit algebra.
+    if (!bodyCarrier || !entity?.label || !signature || /^m\^-?\d+$/.test(signature) ||
+        signature.split("·").some(term => /^(?:L|D)\^/.test(term))) return false;
+    const normalized = ownerSymbol(symbol);
+    const quantities = [...this.quantities.values()].filter(quantity => quantity.symbol && ownerSymbol(quantity.symbol) === normalized);
+    return quantities.length === 1 && quantities[0]!.id === quantityId && ownerSymbol(entity.label) === normalized &&
+      [...this.entities.values()].filter(candidate => candidate.label && ownerSymbol(candidate.label) === normalized).length === 1;
   }
   unknownTextCompatible(target: string, unknown: { symbol: string; unit?: string }): boolean {
     const labels = this.document.constructions.filter(construction => nativeLabelTarget(construction) === target);
@@ -289,6 +331,7 @@ function tupleLabels(context: CompletionContext): void {
     if (!context.rendered(target)) continue;
     const inputs = construction.inputs;
     if (construction.operator === "curve_anchor") {
+      if (!metric) continue;
       const given = context.given(inputs.at);
       const curve = typeof inputs.curve === "string" ? context.producers.get(inputs.curve) : undefined;
       if (!given || curve?.operator !== "function_curve" || !context.rendered(String(inputs.curve))) continue;
@@ -296,7 +339,7 @@ function tupleLabels(context: CompletionContext): void {
       context.label({ kind: "given_label", quantityIds: [given.id], targetIds: [target], text: statement(given) });
       continue;
     }
-    if (!metric || !entity?.label) continue;
+    if (!metric || !entity?.label || !isPointIdentifierText(entity.label)) continue;
     if (construction.operator === "space_vector") {
       if (!validFrame(context, inputs.frame)) continue;
       const start = typeof inputs.start === "string" ? context.producers.get(inputs.start) : undefined;
@@ -308,7 +351,7 @@ function tupleLabels(context: CompletionContext): void {
       const givens = components.filter((component): component is Given => component !== null);
       context.own(givens, target);
       context.label({ kind: "given_label", quantityIds: [...new Set(givens.map(given => given.id))], targetIds: [target],
-        text: `${entity.label} = (${givens.map(given => `${given.value}${given.unit === undefined ? "" : ` ${given.unit}`}`).join(", ")})` });
+        text: `${entity.label} = (${givens.map(given => `${boardNumber(given.value)}${given.unit === undefined ? "" : ` ${boardUnit(given.unit)}`}`).join(", ")})` });
       continue;
     }
     const axes = construction.operator === "point" ? ["x", "y"] : ["x", "y", "z"];
@@ -317,8 +360,8 @@ function tupleLabels(context: CompletionContext): void {
     const givens = components.filter((component): component is Given => component !== null);
     if (!givens.length) continue;
     context.own(givens, target);
-    const tuple = `(${givens.map(given => `${given.value}${given.unit === undefined ? "" : ` ${given.unit}`}`).join(", ")})`;
-    if (givens.length === axes.length && compactText(entity.label).endsWith(compactText(tuple))) {
+    const tuple = `(${givens.map(given => `${boardNumber(given.value)}${given.unit === undefined ? "" : ` ${boardUnit(given.unit)}`}`).join(", ")})`;
+    if (givens.length === axes.length && canonicalStatement(entity.label).endsWith(canonicalStatement(tuple))) {
       context.skip("already_labelled", givens[0]!.id, [target]); continue;
     }
     const text = givens.length === axes.length
@@ -406,7 +449,11 @@ function annotationLabels(context: CompletionContext): void {
     }
     const given = context.given(quantityId);
     if (given) {
-      if (angle && !provenAngle(context, target, given)) { context.skip("angle_attachment_not_proved", quantityId, [target]); continue; }
+      if (angleUnit(given.unit) !== null || angle) {
+        if (!provenAngle(context, target, given)) { context.skip("angle_attachment_not_proved", quantityId, [target]); continue; }
+      } else if (!typedOwners?.has(target) && !context.scalarOwner(target, given.symbol, given.id)) {
+        context.skip("scalar_owner_or_absolute_value_not_proved", quantityId, [target]); continue;
+      }
       context.label({ kind: angle ? "given_angle" : "given_label", quantityIds: [quantityId], targetIds: [target], text: statement(given) });
       continue;
     }
@@ -418,7 +465,7 @@ function annotationLabels(context: CompletionContext): void {
         annotations.some(annotation => annotation.text !== undefined && compactText(annotation.text) !== compactText(statement(unknown)))) {
       context.skip("unavailable_given_or_unresolved_unknown", quantityId, [target]); continue;
     }
-    if (!context.unknownTextCompatible(target, unknown)) {
+    if (!context.scalarOwner(target, unknown.symbol, unknown.id) || !context.unknownTextCompatible(target, unknown)) {
       context.skip("unknown_target_has_existing_statement", quantityId, [target]); continue;
     }
     context.label({ kind: "unknown_label", quantityIds: [quantityId], targetIds: [target], text: statement(unknown) });

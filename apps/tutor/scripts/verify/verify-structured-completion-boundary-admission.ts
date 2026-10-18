@@ -8,7 +8,7 @@ interface Fixture {
   mode: "actual" | "native_proposal";
   document: engine.SceneDocument;
   turnPlan: engine.TurnPlanV3;
-  expected: "reject_crossing" | "adopt_same_side_motion";
+  expected: "reject_crossing" | "adopt_preserving_labels";
   oldLabelId: string;
   targetId: string;
 }
@@ -49,7 +49,9 @@ function reflectionFixture(id: string, incidence: number, boundaryDegrees = 0, m
     revealGroups: [{ id: "setup", entityIds: ["contact", "boundary", "incoming", "perpendicular", "outgoing", "givenAngle"], dependsOn: [], narrationCue: "Show the given reflection setup." }],
     teachingTimeline: [],
   };
-  return { id, mode, document, turnPlan, expected: boundaryDegrees === 0 ? "reject_crossing" : "adopt_same_side_motion", oldLabelId: "firstRegion", targetId: "boundary" };
+  // Historical fixture names preserve the original repros. Native append now
+  // fixes their old placements; the injected old constructor must still fail.
+  return { id, mode, document, turnPlan, expected: mode === "native_proposal" ? "reject_crossing" : "adopt_preserving_labels", oldLabelId: "firstRegion", targetId: "boundary" };
 }
 const fixtures: Fixture[] = [
   reflectionFixture("actual-native-angle-completion-cannot-cross-old-annotation-boundary-36", 36),
@@ -71,7 +73,7 @@ function nativeProposal(document: engine.SceneDocument, turnPlan: engine.TurnPla
 if (process.argv.includes("--print-fixtures")) {
   console.log(JSON.stringify({ schemaVersion: "structured-completion-boundary-admission-fixtures/v1", fixtures,
     nativeProposals: fixtures.filter(fixture => fixture.mode === "native_proposal").map(fixture => ({ id: fixture.id, proposal: nativeProposal(fixture.document, fixture.turnPlan) })),
-    oracle: { epsilonPx: 0.5, box: "all four native provenance.labelBounds corners", boundary: "unchanged exact own native straight target", rejected: "exact selected baseline retained", positive: "old annotation position changes but whole box remains in original strict half-plane; new own native ink survives admission/save/reopen" },
+    oracle: { epsilonPx: 0.5, box: "all four native provenance.labelBounds corners", boundary: "unchanged exact own native straight target", rejected: "exact selected baseline retained", positive: "every old native primitive, label box and leader stays exact; new own native ink survives admission/save/reopen" },
   }, null, 2));
 } else {
   async function main(): Promise<void> {
@@ -130,8 +132,8 @@ if (process.argv.includes("--print-fixtures")) {
         if (fixture.expected === "reject_crossing") assert.notEqual(proposalSide, baseSide, "fixture must independently reproduce a whole-box crossing or straddle");
         else {
           assert.equal(proposalSide, baseSide, "positive proposal must keep its full box in the baseline half-plane");
-          assert.notDeepEqual(label(ordinary.value.renderScene, fixture.oldLabelId, fixture.targetId).points,
-            label(selected.renderScene, fixture.oldLabelId, fixture.targetId).points, "positive control must exercise actual same-side movement");
+          for (const old of selected.renderScene.primitives) assert.deepEqual(ordinary.value.renderScene.primitives.find(primitive => primitive.id === old.id), old,
+            "native append must retain every old primitive, label, box and leader before selection");
         }
         active = fixture; calls = 0;
         const output = selectProductionScene({ question, turnPlan: plan, problemIR: null, fastRepresentation: selected, completionEnabled: true });
@@ -142,10 +144,24 @@ if (process.argv.includes("--print-fixtures")) {
           assert.deepEqual(output.representation, before.selected, "boundary rejection must retain the exact valid selected baseline");
           assert.match(output.completion?.rejection ?? "", /annotation.*boundary|boundary.*annotation/i, "rejection must identify the annotation boundary retention failure");
         } else {
-          assert.equal(output.completion?.adopted, true, "safe same-side label movement should remain adoptable");
+          assert.equal(output.completion?.adopted, true, "native append that preserves all old ink should remain adoptable");
           const adopted = output.representation;
           assert.equal(side(adopted.renderScene, fixture.oldLabelId, fixture.targetId), baseSide);
-          for (const addition of output.completion!.additions) assert.ok(adopted.renderScene.primitives.some(primitive => primitive.kind === "label" && primitive.entityId === addition.id && primitive.text === addition.text), "specific new native statement ink was lost");
+          for (const old of selected.renderScene.primitives) assert.deepEqual(adopted.renderScene.primitives.find(primitive => primitive.id === old.id), old,
+            "adoption cannot move or replace any old native primitive");
+          for (const addition of output.completion!.additions) {
+            const annotation = proposal.addedAnnotationIds.includes(addition.id);
+            const owner = annotation ? addition.targetIds[0] : addition.id;
+            const marks = adopted.renderScene.primitives.filter(primitive => primitive.kind === "label" && primitive.entityId === owner && primitive.text === addition.text);
+            assert.equal(marks.length, 1, "specific new native statement ink was lost or duplicated");
+            assert.equal(marks[0]!.groupId, selected.sceneDocument.revealGroups.find(group => group.entityIds.includes(addition.targetIds[0]!))?.id);
+            if (annotation) {
+              assert.equal(marks[0]!.id, addition.id);
+              const record = adopted.sceneDocument.annotations.find(candidate => candidate.id === addition.id);
+              assert.ok(record); assert.equal(record.labelMode, "append"); assert.equal(record.quantityId, undefined);
+              assert.deepEqual(record.targetIds, addition.targetIds); assert.equal(record.text, addition.text);
+            }
+          }
           const reopened = engine.validateSceneDocument(JSON.parse(JSON.stringify(adopted.sceneDocument)));
           assert.ok(reopened.document);
           const native = engine.compileSceneDocument(reopened.document); assert.ok(native.ok && native.renderScene);

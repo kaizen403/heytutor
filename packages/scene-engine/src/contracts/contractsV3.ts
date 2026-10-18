@@ -2365,6 +2365,13 @@ function unitScale(unit: unknown): UnitScale | null {
   return { factor, signature };
 }
 
+/** Existing recognized-unit algebra for conservative property classification.
+ * This exposes no converted value or geometric/numeric proof authority. */
+export function sceneUnitSignature(unit: unknown): string | null {
+  const resolved = unitScale(unit);
+  return resolved && Number.isFinite(resolved.factor) && resolved.factor > 0 ? resolved.signature : null;
+}
+
 function resolveUnitSymbol(symbol: string): { base: string; factor: number } | null {
   const aliased = UNIT_WORD_ALIASES[symbol] ?? UNIT_WORD_ALIASES[symbol.toLowerCase()] ??
     symbol.replace(/Ω/g, "Ω");

@@ -118,6 +118,15 @@ for (const operator of ["line", "ray", "rectangle", "segment"] as const) {
   fixtures.push(fixture);
 }
 
+// PR187 review: these planner annotation edges do not prove a scalar owner.
+const unprovedOwnerCases = new Set([
+  "owned-rendered-bare-identifier-remains-completable", "other-quantity-id-on-same-owner-does-not-suppress",
+  "other-owner-statement-does-not-suppress", "unrendered-quantity-narration-does-not-suppress",
+  "finite-body-without-rendered-statement-remains-completable", "finite-segment-native-line-ink-remains-completable",
+  "explicit-unknown-rectangle-finite-owner-remains-completable", "explicit-unknown-segment-finite-owner-remains-completable",
+]);
+for (const fixture of fixtures) if (unprovedOwnerCases.has(fixture.id)) fixture.expected = [];
+
 // The complete literal contract is printable before any validation or runtime call.
 if (process.argv.includes("--print-fixtures")) {
   console.log(JSON.stringify({ schemaVersion: "structured-completion-annotation-context-fixtures/v1", fixtures }, null, 2));

@@ -280,19 +280,28 @@ function completionRetainsDocument(base: SceneDocument, next: SceneDocument): bo
     group.entityIds.every(id => newIds.has(id)));
 }
 
-/** Labels may be laid out again; every old geometry primitive and label statement must survive. */
+const COMPLETION_PIXEL_EPSILON = 1e-6;
+
+/** Only pixel coordinates may differ by floating-point noise, never authority or layout metadata. */
+function sameCompletionInk(first: unknown, second: unknown, path = ""): boolean {
+  if (typeof first === "number" && typeof second === "number") {
+    if (!Number.isFinite(first) || !Number.isFinite(second)) return false;
+    const pixel = /^points\.\d+\.[xy]$/.test(path) || path === "radius" ||
+      /^provenance\.label(?:Collision)?Bounds\.(?:x|y|width|height)$/.test(path);
+    return pixel ? Math.abs(first - second) <= COMPLETION_PIXEL_EPSILON : first === second;
+  }
+  if (first === second) return true;
+  if (!first || !second || typeof first !== "object" || typeof second !== "object" || Array.isArray(first) !== Array.isArray(second)) return false;
+  const before = first as Record<string, unknown>, after = second as Record<string, unknown>;
+  const keys = Object.keys(before);
+  return keys.length === Object.keys(after).length && keys.every(key => Object.hasOwn(after, key) &&
+    sameCompletionInk(before[key], after[key], path ? `${path}.${key}` : key));
+}
+
+/** Completion never relocates or replaces an old label, leader, or physical mark. */
 function completionRetainsInk(base: RenderScene, next: RenderScene): boolean {
-  const labels = new Map(base.primitives.filter(primitive => primitive.kind === "label").map(primitive => [primitive.id, primitive]));
   const proposed = new Map(next.primitives.map(primitive => [primitive.id, primitive]));
-  return base.primitives.every(primitive => {
-    if (primitive.kind === "label") return next.primitives.some(candidate =>
-      candidate.kind === "label" && candidate.entityId === primitive.entityId &&
-      candidate.text === primitive.text && candidate.groupId === primitive.groupId);
-    const label = primitive.id.endsWith("_leader") ? labels.get(primitive.id.slice(0, -7)) : undefined;
-    if (primitive.provenance?.labelLeader === true && label &&
-        primitive.entityId === label.entityId && primitive.groupId === label.groupId) return true;
-    return sameValue(primitive, proposed.get(primitive.id));
-  });
+  return proposed.size === next.primitives.length && base.primitives.every(primitive => sameCompletionInk(primitive, proposed.get(primitive.id)));
 }
 
 /** A native label box has a side only when all four corners strictly agree. */
@@ -361,6 +370,64 @@ function hasSingleLabelGroup(document: SceneDocument, entityId: string, expected
   return memberships.length === 1 && memberships[0] === expectedGroup;
 }
 
+/** The proposal inventory cannot hide extra marks or borrow a source quantity by equal value. */
+function completionInventoryFailure(base: SceneDocument, proposal: SceneCompletionResult, plan: TurnPlanV3): string | null {
+  const oldIds = new Set([...base.entities, ...base.annotations, ...base.constructions, ...base.quantities, ...base.assertions, ...base.revealGroups].map(item => item.id));
+  const entityIds = new Set(proposal.addedEntityIds), annotationIds = new Set(proposal.addedAnnotationIds);
+  const additions = new Set(proposal.additions.map(addition => addition.id));
+  if (entityIds.size !== proposal.addedEntityIds.length || annotationIds.size !== proposal.addedAnnotationIds.length ||
+      additions.size !== proposal.additions.length || additions.size !== entityIds.size + annotationIds.size ||
+      [...additions].some(id => oldIds.has(id) || !entityIds.has(id) && !annotationIds.has(id)) ||
+      [...entityIds].some(id => annotationIds.has(id))) return "completion has reused, duplicate, or unreported addition ids";
+  const entities = proposal.document.entities.slice(base.entities.length), annotations = proposal.document.annotations.slice(base.annotations.length);
+  if (entities.length !== entityIds.size || entities.some(entity => !entityIds.has(entity.id)) ||
+      annotations.length !== annotationIds.size || annotations.some(annotation => !annotationIds.has(annotation.id))) return "completion inventory does not match appended marks";
+  for (const addition of proposal.additions) {
+    if (!addition.targetIds.length || new Set(addition.targetIds).size !== addition.targetIds.length ||
+        addition.targetIds.some(id => !base.entities.some(entity => entity.id === id)) ||
+        new Set(addition.quantityIds).size !== addition.quantityIds.length) return `completion has ambiguous source/owner provenance: ${addition.id}`;
+    if (addition.kind === "right_angle") {
+      if (annotationIds.has(addition.id) || addition.text !== undefined || addition.quantityIds.length) return `completion has invalid right-angle provenance: ${addition.id}`;
+      continue;
+    }
+    const quantities = addition.kind === "unknown_label" ? plan.unknowns : plan.givens;
+    if (!addition.quantityIds.length || addition.quantityIds.some(id => {
+      const quantity = quantities.find(quantity => quantity.id === id), scene = base.quantities.find(quantity => quantity.id === id);
+      return !quantity || !scene || quantity.symbol !== scene.symbol || quantity.unit !== scene.unit;
+    })) return `completion has unproved source quantity ids: ${addition.id}`;
+    if (annotationIds.has(addition.id)) {
+      const annotation = annotations.find(annotation => annotation.id === addition.id);
+      if (!annotation || !sameValue(annotation, { id: addition.id, kind: "label", targetIds: addition.targetIds, text: addition.text, labelMode: "append" }) ||
+          addition.targetIds.length !== 1 || typeof addition.text !== "string" || !addition.text.trim()) return `completion append annotation contract failed: ${addition.id}`;
+    }
+  }
+  return null;
+}
+
+/** Check placed angle values against the unchanged native arcs, never use pixels to prove a value. */
+function completionAnglePlacementFailure(document: SceneDocument, render: RenderScene, proposal: SceneCompletionResult): string | null {
+  const distance = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
+  const midpoint = (arc: RenderScene["primitives"][number]): number | null => typeof arc.startAngle === "number" && typeof arc.endAngle === "number"
+    ? arc.startAngle + Math.atan2(Math.sin(arc.endAngle - arc.startAngle), Math.cos(arc.endAngle - arc.startAngle)) / 2 : null;
+  for (const addition of proposal.additions) {
+    if (addition.kind !== "given_angle" || addition.targetIds.length !== 1) continue;
+    const target = addition.targetIds[0]!, owner = proposal.addedAnnotationIds.includes(addition.id) ? target : addition.id;
+    const arc = render.primitives.find(primitive => primitive.entityId === target && primitive.kind === "arc");
+    const label = render.primitives.find(primitive => primitive.entityId === owner && primitive.kind === "label" && primitive.text === addition.text);
+    const center = arc?.points[0], point = label?.points[0], middle = arc ? midpoint(arc) : null;
+    if (!document.entities.some(entity => entity.id === target && entity.kind === "angle_mark") || !arc || !label || !center || !point || middle === null ||
+        Math.hypot(point.x - center.x, point.y - center.y) <= COMPLETION_PIXEL_EPSILON) return `completion angle has no native own-arc placement: ${addition.id}`;
+    const direction = Math.atan2(point.y - center.y, point.x - center.x), ownDistance = distance(direction, middle);
+    if (render.primitives.some(sibling => {
+      if (sibling.kind !== "arc" || sibling.entityId === target || !sibling.points[0]) return false;
+      const siblingMiddle = midpoint(sibling);
+      return siblingMiddle !== null && Math.hypot(sibling.points[0].x - center.x, sibling.points[0].y - center.y) <= COMPLETION_PIXEL_EPSILON &&
+        distance(direction, siblingMiddle) <= ownDistance + 1e-8;
+    })) return `completion angle value is nearer another native arc: ${addition.id}`;
+  }
+  return null;
+}
+
 /** A proposal crosses the same admission/save boundary; failures retain the valid selected scene. */
 function completeSelectedScene(
   selected: SelectedRepresentation, input: ProductionSceneSelectionInput, turnPlan: TurnPlanV3,
@@ -381,44 +448,80 @@ function completeSelectedScene(
         proposal.addedAnnotationIds.length === 0) return { selected, completion: {
       adopted: false, additions: [], skipped: proposal.skipped,
     } };
+    const inventoryFailure = completionInventoryFailure(selected.sceneDocument, proposal, turnPlan);
+    if (inventoryFailure) return rejected(inventoryFailure);
+    const annotationIds = new Set(proposal.addedAnnotationIds);
     const labelGroups = new Map<string, string>();
     for (const addition of proposal.additions) {
       if (addition.text === undefined) continue;
       const group = addition.targetIds.length === 1
         ? completionLabelGroup(selected.sceneDocument, selected.renderScene, addition.targetIds[0]!) : null;
-      if (!group || labelGroups.has(addition.id) || !hasSingleLabelGroup(proposal.document, addition.id, group)) {
+      if (!group || labelGroups.has(addition.id) || (!annotationIds.has(addition.id) && !hasSingleLabelGroup(proposal.document, addition.id, group))) {
         return rejected(`completion label has missing or ambiguous owner/reveal scope: ${addition.id}`);
       }
       labelGroups.set(addition.id, group);
     }
+    const compiledProposal = compileSceneDocument(proposal.document);
+    if (!compiledProposal.ok || !compiledProposal.renderScene) return rejected("completion proposal has no complete native render");
     const admitted = validateProductionSceneCandidate({
       candidate: proposal.document as unknown as Record<string, unknown>, question: input.question, turnPlan,
     });
     if (!admitted.valid || !admitted.value) return rejected(admitted.errors.map(issue => `${issue.code}: ${issue.message}`).join("; "));
     const value = admitted.value;
-    if (!completionRetainsDocument(selected.sceneDocument, value.document) ||
-        !completionRetainsInk(selected.renderScene, value.renderScene)) return rejected("completion admission changed existing geometry or label information");
+    if (!completionRetainsDocument(selected.sceneDocument, value.document)) return rejected("completion admission changed existing document information");
     const annotationSideFailure = completionAnnotationSideFailure(selected.sceneDocument, selected.renderScene, value.renderScene);
     if (annotationSideFailure) return rejected(annotationSideFailure);
+    if (!completionRetainsInk(selected.renderScene, value.renderScene)) return rejected("completion admission moved or changed existing geometry, label, leader, or layout information");
     const missingIds = [
       ...proposal.addedEntityIds.filter(id => !value.document.entities.some(entity => entity.id === id)),
       ...proposal.addedAnnotationIds.filter(id => !value.document.annotations.some(annotation => annotation.id === id)),
     ];
     if (missingIds.length > 0) return rejected(`completion marks removed by admission: ${missingIds.join(", ")}`);
+    const originalInkIds = new Set(selected.renderScene.primitives.map(primitive => primitive.id));
+    // A native right-angle mark can make its existing helper vertex visible.
+    // It is an operator dependency, not an unreported new point construction.
+    const vertexIds = new Set(proposal.additions.flatMap(addition => {
+      if (addition.kind !== "right_angle" || addition.targetIds.length !== 2) return [];
+      const constructors = proposal!.document.constructions.filter(construction => construction.outputs.includes(addition.id));
+      const mark = constructors.length === 1 ? constructors[0] : undefined, vertex = mark?.inputs.vertex;
+      const fatal = (predicate: string, ids: string[]) => proposal!.document.assertions.some(assertion => assertion.severity === "fatal" &&
+        assertion.predicate === predicate && assertion.expected === true && assertion.entities.length === ids.length && ids.every(id => assertion.entities.includes(id)));
+      return mark?.operator === "right_angle_mark" && mark.outputs.length === 1 && typeof vertex === "string" &&
+        selected.sceneDocument.entities.some(entity => entity.id === vertex && entity.kind === "point") &&
+        fatal("perpendicular", addition.targetIds) && addition.targetIds.every(owner => fatal("on", [vertex, owner])) ? [vertex] : [];
+    }));
+    if (value.renderScene.primitives.some(primitive => !originalInkIds.has(primitive.id) && !proposal!.addedEntityIds.includes(primitive.entityId) &&
+        !proposal!.additions.some(addition => annotationIds.has(addition.id) && primitive.entityId === addition.targetIds[0] &&
+          (primitive.id === addition.id || primitive.id === `${addition.id}_leader`)) &&
+        !(primitive.kind === "point" && vertexIds.has(primitive.entityId) && compiledProposal.renderScene!.primitives.some(expected => sameCompletionInk(expected, primitive))))) {
+      return rejected("completion rendered an unreported mark");
+    }
     for (const addition of proposal.additions) {
-      const ink = value.renderScene.primitives.filter(primitive => primitive.entityId === addition.id);
+      const annotation = annotationIds.has(addition.id);
+      const owner = annotation ? addition.targetIds[0]! : addition.id;
+      const ink = value.renderScene.primitives.filter(primitive => primitive.entityId === owner && (!annotation || primitive.id === addition.id || primitive.id === `${addition.id}_leader`));
       if (addition.text !== undefined) {
         const group = labelGroups.get(addition.id)!;
         const labels = ink.filter(primitive => primitive.kind === "label");
         const constructors = value.document.constructions.filter(construction => construction.outputs.includes(addition.id));
-        if (constructors.length !== 1 || constructors[0]!.operator !== "label" || addition.targetIds.length !== 1 ||
-            constructors[0]!.inputs.target !== addition.targetIds[0] || constructors[0]!.inputs.text !== addition.text ||
-            !hasSingleLabelGroup(value.document, addition.id, group) || labels.length === 0 ||
-            labels.some(primitive => primitive.text !== addition.text || primitive.groupId !== group)) {
+        const expectedInk = compiledProposal.renderScene.primitives.filter(primitive => primitive.entityId === owner &&
+          (!annotation || primitive.id === addition.id || primitive.id === `${addition.id}_leader`));
+        const annotationSurvived = annotation && sameValue(value.document.annotations.find(candidate => candidate.id === addition.id),
+          proposal.document.annotations.find(candidate => candidate.id === addition.id)) && constructors.length === 0 &&
+          completionLabelGroup(value.document, value.renderScene, owner) === group;
+        const constructorSurvived = !annotation && constructors.length === 1 && constructors[0]!.operator === "label" &&
+          addition.targetIds.length === 1 &&
+          constructors[0]!.inputs.target === addition.targetIds[0] && constructors[0]!.inputs.text === addition.text &&
+          hasSingleLabelGroup(value.document, addition.id, group);
+        if ((!annotationSurvived && !constructorSurvived) || addition.targetIds.length !== 1 ||
+            labels.length !== 1 || labels.some(primitive => primitive.text !== addition.text || primitive.groupId !== group || annotation && primitive.id !== addition.id) ||
+            expectedInk.length !== ink.length || expectedInk.some(expected => !ink.some(actual => sameCompletionInk(expected, actual)))) {
           return rejected(`completion label/owner did not survive: ${addition.id}`);
         }
       } else if (!ink.some(primitive => primitive.kind !== "label")) return rejected(`completion geometry did not survive: ${addition.id}`);
     }
+    const anglePlacementFailure = completionAnglePlacementFailure(value.document, value.renderScene, proposal);
+    if (anglePlacementFailure) return rejected(anglePlacementFailure);
     const saveFailure = liveSceneSaveFailure({
       document: value.document, question: input.question, turnPlan, tier: selected.tier,
     });

@@ -346,6 +346,19 @@ const nativeLabelFixtures: NativeLabelFixture[] = [
   nativeLabelFixture("native-world-label-cannot-flatten-into-planar-segment", false, "correct", true),
 ];
 
+// PR187 review: annotation edges do not prove these scalar-to-body joins.
+// Original inputs and prior passing oracles are archived in the review evidence.
+const unprovedOwnerCases = new Set([
+  "unique-inherited-given-attachment", "missing-unit-stays-missing",
+  "old-prime-label-text-and-owner-survive", "old-membership-label-text-and-owner-survive",
+  "duplicate-compatible-attachment-is-one-label", "qualitative-unresolved-unknown-body-identifier-positive",
+]);
+for (const fixture of fixtures) if (unprovedOwnerCases.has(fixture.id)) fixture.expected = [];
+for (const fixture of nativeLabelFixtures) if ([
+  "native-world-point-label-explicit-frame-and-distance-proof",
+  "native-world-vector-label-explicit-frame-and-midpoint-proof",
+].includes(fixture.id)) fixture.expectedValid = false;
+
 // Export complete literal inputs/oracles before any compiler/completion calls.
 if (process.argv.includes("--print-unknown-fixtures")) {
   console.log(JSON.stringify({ schemaVersion: "unknown-owned-text-completion-fixtures/v1", fixtures: unknownOwnershipFixtures }, null, 2));
@@ -390,6 +403,20 @@ if (process.argv.includes("--print-unknown-fixtures")) {
       else if (old.provenance?.labelLeader !== true) assert.deepEqual(compiled.renderScene.primitives.find(next => next.id === old.id), old, `old geometry changed: ${old.id}`);
     }
     for (const addition of result.additions) {
+      if (result.addedAnnotationIds.includes(addition.id)) {
+        assert.ok(!result.addedEntityIds.includes(addition.id), "annotation addition also claimed an entity");
+        assert.equal(addition.targetIds.length, 1);
+        assert.deepEqual(normalized.document.annotations.find(annotation => annotation.id === addition.id), {
+          id: addition.id, kind: "label", targetIds: addition.targetIds, text: addition.text, labelMode: "append", style: undefined,
+        });
+        assert.ok(!normalized.document.entities.some(entity => entity.id === addition.id), "append annotation invented an entity");
+        const owner = addition.targetIds[0]!;
+        const groups = normalized.document.revealGroups.filter(group => group.entityIds.includes(owner));
+        assert.equal(groups.length, 1, "native annotation owner has ambiguous reveal scope");
+        assert.ok(compiled.renderScene.primitives.some(primitive => primitive.id === addition.id && primitive.kind === "label" &&
+          primitive.entityId === owner && primitive.text === addition.text && primitive.groupId === groups[0]!.id), "native append text did not survive on its exact owner");
+        continue;
+      }
       assert.ok(result.addedEntityIds.includes(addition.id), "addition missing declared new entity ID");
       const constructors = normalized.document.constructions.filter(item => item.outputs.includes(addition.id));
       assert.equal(constructors.length, 1); assert.equal(constructors[0]!.operator, "label");
@@ -431,7 +458,8 @@ if (process.argv.includes("--print-unknown-fixtures")) {
       for (const number of numbers) if (number === expected.numbers[matched]) matched += 1;
       assert.equal(matched, expected.numbers.length, `source values/signs missing or out of tuple order: ${expected.numbers.join(",")}`);
       if (expected.identifier) assert.ok(text.includes(expected.identifier), `original identifier missing: ${expected.identifier}`);
-      if (expected.unit) assert.ok(text.includes(expected.unit), `source unit missing or case changed: ${expected.unit}`);
+      if (expected.unit === "deg") assert.ok(text.includes("°") && !/\s°/.test(text), "degree notation must keep the same angle unit without a separated degree sign");
+      else if (expected.unit) assert.ok(text.includes(expected.unit), `source unit missing or case changed: ${expected.unit}`);
     }
     assert.equal(result.additions.length, fixture.expected.length, "unrequested/derived/force addition");
     const nextRender = nativeInk(compiled.renderScene, result);
@@ -446,7 +474,12 @@ if (process.argv.includes("--print-unknown-fixtures")) {
     const proposed = compileSceneDocument(fixture.proposal);
     assert.deepEqual(fixture.proposal, before, "native label compilation mutated input document");
     assert.equal(proposed.ok, fixture.expectedValid, JSON.stringify(proposed.report.issues));
-    if (!fixture.expectedValid) { assert.equal(proposed.renderScene, null, "invalid world label leaked partial ink"); return; }
+    if (!fixture.expectedValid) {
+      assert.equal(proposed.renderScene, null, "invalid world label leaked partial ink");
+      if (fixture.id === "native-world-point-label-explicit-frame-and-distance-proof" || fixture.id === "native-world-vector-label-explicit-frame-and-midpoint-proof")
+        assert.ok(proposed.report.issues.some(issue => issue.code === "construction_failed" && /world metadata/.test(issue.message)), "ungated framed world labels must retain MAIN's planar rejection");
+      return;
+    }
     assert.ok(proposed.renderScene);
     assert.ok(proposed.renderScene.primitives.some(primitive => primitive.entityId === "worldLabel" && primitive.kind === "label"), "framed world label did not produce its own native ink");
     assert.ok(!proposed.report.issues.some(issue => issue.severity === "fatal"), "world anchor distance proof failed");

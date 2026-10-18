@@ -17,8 +17,12 @@ interface Fixture {
 const fixtures: Fixture[] = [
   { id: "omitted-flag-skips-completion-and-retains-reference", mode: "throw", expected: "off" },
   { id: "explicit-flag-off-skips-completion-and-retains-reference", mode: "throw", enabled: false, expected: "off" },
-  { id: "actual-engine-legitimate-given-label-crosses-production-save", mode: "actual", enabled: true, expected: "adopt" },
-  { id: "native-anchored-label-positive-control", mode: "native_good", enabled: true, expected: "adopt" },
+  // Historical IDs retained. Review #187 requires a proved native owner and
+  // immutable old ink: this mass-to-point attachment is unproved, and the
+  // mocked constructor moves an old label. Both must retain the exact base.
+  // Original inputs/oracles and the two failures are archived in h3r187-app-repair.
+  { id: "actual-engine-legitimate-given-label-crosses-production-save", mode: "actual", enabled: true, expected: "reject" },
+  { id: "native-anchored-label-positive-control", mode: "native_good", enabled: true, expected: "reject" },
   { id: "proposal-mutation-then-return-cannot-poison-baseline", mode: "mutate_return", enabled: true, expected: "reject" },
   { id: "proposal-mutation-then-throw-cannot-poison-baseline", mode: "mutate_throw", enabled: true, expected: "reject" },
   { id: "old-native-label-cannot-be-reowned-by-later-reveal-membership", mode: "regroup_old_label", enabled: true, expected: "reject" },
@@ -30,7 +34,8 @@ const fixtures: Fixture[] = [
   { id: "solver-rejection-precedes-completion", mode: "throw", enabled: true, blocked: "solver", expected: "blocked" },
   { id: "source-policy-rejection-precedes-completion", mode: "throw", enabled: true, blocked: "source", expected: "blocked" },
 ];
-// Appended reveal ownership countercases; the original14 fixture oracles stay intact.
+// Appended reveal ownership countercases; only the two disclosed historical
+// expectations above are superseded by the review's owner/old-ink contract.
 fixtures.push(
   { id: "new-native-label-without-declared-reveal-membership-is-rejected", mode: "native_good", enabled: true, newMarkReveal: "missing", expected: "reject" },
   { id: "new-native-label-in-other-reveal-group-is-rejected", mode: "native_good", enabled: true, newMarkReveal: "other", expected: "reject" },

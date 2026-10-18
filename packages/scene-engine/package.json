@@ -27,7 +27,7 @@
     "verify:coverage-eval": "tsx scripts/verify/verify-coverage-eval-v1.ts",
     "verify:instrument-authority": "pnpm build && tsx scripts/verify/verify-instrument-source-units.ts --compiled-boundary && tsx scripts/verify/verify-incline-acceleration-basis.ts --compiled-boundary",
     "verify:symbolic-planner": "tsx scripts/verify/verify-symbolic-planner-tier.ts && tsx scripts/verify/verify-measurement-agreement.ts && tsx scripts/verify/verify-symbolic-measurement-tokens.ts",
-    "verify:completion": "tsx scripts/verify/verify-structured-scene-completion.ts && tsx scripts/verify/verify-structured-completion-annotation-context.ts && tsx scripts/verify/verify-completion-native-statements.ts && tsx scripts/verify/verify-completion-right-angles.ts"
+    "verify:completion": "tsx scripts/verify/verify-structured-scene-completion.ts && tsx scripts/verify/verify-structured-completion-annotation-context.ts && tsx scripts/verify/verify-completion-native-statements.ts && tsx scripts/verify/verify-completion-right-angles.ts && tsx scripts/verify/verify-structured-completion-proof-ownership.ts"
   },
   "dependencies": {
     "@heytutor/drawing": "workspace:*"

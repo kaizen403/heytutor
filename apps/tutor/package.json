@@ -60,7 +60,7 @@
     "verify:primitive-tour": "tsx scripts/verify/verify-primitive-tour.ts",
     "verify:dsa-intro-order": "tsx scripts/verify/verify-dsa-intro-order.ts",
     "verify:lecture-replay-inputs": "tsx scripts/verify/verify-lecture-replay-inputs.ts",
-    "verify:completion": "node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-admission.ts && node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-boundary-admission.ts && tsx scripts/verify/verify-structured-completion-diagnostics.ts"
+    "verify:completion": "node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-admission.ts && node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-boundary-admission.ts && tsx scripts/verify/verify-structured-completion-diagnostics.ts && node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-owner-admission.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1131.0",
