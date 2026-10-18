@@ -549,6 +549,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
 
   const labelOwners: LabelOwner[] = [];
   const consumedAnnotationIds = new Set<string>();
+  const consumedLabelAnnotationIds = new Map<string, string>();
   const summaryLabelIds = new Set<string>();
   for (const entity of document.entities) {
     if (!entity.label || !renderableIds.has(entity.id) || constructionOnlyIds.has(entity.id)) continue;
@@ -587,7 +588,10 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       ? `${entity.label} ${supplementalText}`
       : entity.label;
     const useCombinedText = Boolean(supplementalText) && combinedText.length <= 16;
-    if (valueAnnotation && useCombinedText) consumedAnnotationIds.add(valueAnnotation.id);
+    if (valueAnnotation && useCombinedText) {
+      consumedAnnotationIds.add(valueAnnotation.id);
+      consumedLabelAnnotationIds.set(`primitive_${entity.id}_label`, valueAnnotation.id);
+    }
     if (explicitAnnotation && !useCombinedText && !semanticDirectionMarker) continue;
     const transform = transformPlan.transformFor(entity.id);
     const spaceElementPlacement = spaceElementLabelPlacement(entity.id, target, primitives);
@@ -868,6 +872,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       labelPlacement: "absolute",
       provenance: {
         ...annotationLabels.get(placement.labelId)?.provenance,
+        ...(consumedLabelAnnotationIds.has(placement.labelId) ? { annotationId: consumedLabelAnnotationIds.get(placement.labelId)! } : {}),
         labelBounds: placement.bounds,
         ...(placement.collisionBounds ? { labelCollisionBounds: placement.collisionBounds } : {}),
         usesLeader: placement.usesLeader,
@@ -885,7 +890,10 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
           { x: round(placement.leaderFrom.x), y: round(placement.leaderFrom.y) },
           { x: round(placement.leaderTo.x), y: round(placement.leaderTo.y) },
         ]).map((point) => ({ x: round(point.x), y: round(point.y) })),
-        provenance: { annotation: "callout", dashed: true, strokeRole: "construction", labelLeader: true },
+        provenance: {
+          annotation: "callout", dashed: true, strokeRole: "construction", labelLeader: true,
+          ...(consumedLabelAnnotationIds.has(placement.labelId) ? { annotationId: consumedLabelAnnotationIds.get(placement.labelId)! } : {}),
+        },
       });
     }
   }

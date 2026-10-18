@@ -22,6 +22,22 @@ function componentQuantity(document: SceneDocument, entityId: string | undefined
   const key = (value: string) => value.trim().toLowerCase().replace(/[₀-₉]/g, (digit) => String("₀₁₂₃₄₅₆₇₈₉".indexOf(digit)));
   return document.quantities.find((quantity) => key(quantity.id) === key(entity.label!) || key(symbolOf(quantity)) === key(entity.label!));
 }
+/** Reconstruct only the exact component annotation consumed by the compiler.
+ * Historical recordings predate annotationId provenance on combined labels.
+ */
+function componentValueAnnotation(document: SceneDocument, entityId: string | undefined) {
+  const entity = document.entities.find((candidate) => candidate.id === entityId);
+  if (entity?.kind !== "component" || !entity.label || !/^[A-Za-z][A-Za-z0-9_₀-₉]{0,7}$/.test(entity.label.trim())) return undefined;
+  return document.annotations.find((annotation) => annotation.kind === "label" &&
+    annotation.targetIds.includes(entity.id) && Boolean(annotation.text) && annotation.text !== entity.label);
+}
+function consumedComponentAnnotation(document: SceneDocument, primitive: { id?: string; entityId?: string; text?: string }) {
+  if (!primitive.entityId || primitive.id !== `primitive_${primitive.entityId}_label`) return undefined;
+  const entity = document.entities.find((candidate) => candidate.id === primitive.entityId);
+  const annotation = componentValueAnnotation(document, primitive.entityId);
+  const combined = annotation ? `${entity!.label} ${annotation.text}` : "";
+  return combined.length <= 16 && primitive.text === combined ? annotation : undefined;
+}
 function answerMeasurementOwners(document: SceneDocument): Set<string> {
   return new Set(document.entities.filter((entity) => entity.kind === "dimension" &&
     (isAnswerLabel(document, { text: entity.label }) || document.annotations.some((annotation) =>
@@ -41,8 +57,11 @@ export function isAnswerLabel(document: SceneDocument, primitive: {
   annotationId?: string;
   entityId?: string;
 }): boolean {
-  const annotation = document.annotations.find((entry) => entry.id === (primitive.annotationId ?? primitive.id));
-  const text = primitive.text?.trim() || annotation?.text?.trim() || "";
+  const consumed = consumedComponentAnnotation(document, primitive);
+  const annotation = document.annotations.find((entry) => entry.id === (primitive.annotationId ?? primitive.id)) ?? consumed;
+  // A component designator prefixes the consumed text; it does not own the
+  // value's provenance. Classify the exact annotation the compiler selected.
+  const text = (consumed && annotation?.id === consumed.id ? consumed.text?.trim() : primitive.text?.trim()) || annotation?.text?.trim() || "";
   const valueText = /^\s*[^=≈:]+[=≈:]\s*(.+)$/u.exec(text)?.[1] ?? text;
   const placeholder = /^[?？…]+(.*)$/u.exec(valueText.trim());
   const unitKey = (value: string) => value.normalize("NFKC").replace(/[{}_^\s]/g, "");
@@ -54,7 +73,7 @@ export function isAnswerLabel(document: SceneDocument, primitive: {
     if (!quantity || !derived(quantity)) return false;
     return ![quantity.id, symbolOf(quantity)].some((symbol) => symbolKey(symbol) === symbolKey(text));
   }
-  if (primitive.entityId && primitive.id === `primitive_${primitive.entityId}_label`) {
+  if (!consumed && primitive.entityId && primitive.id === `primitive_${primitive.entityId}_label`) {
     const entity = document.entities.find((candidate) => candidate.id === primitive.entityId);
     const quantity = componentQuantity(document, primitive.entityId);
     if (quantity && derived(quantity) && text && text !== entity?.label?.trim()) return true;
@@ -99,6 +118,14 @@ export function withoutEarlyAnswerLabels(document: SceneDocument, commands: read
   const held = new Set(annotations);
   const measurements = answerMeasurementOwners(document);
   for (const entity of document.entities) {
+    const annotation = componentValueAnnotation(document, entity.id);
+    if (annotation) {
+      const combined = `${entity.label} ${annotation.text}`;
+      if (combined.length <= 16 && isAnswerLabel(document, { id: `primitive_${entity.id}_label`, entityId: entity.id, text: combined, annotationId: annotation.id })) held.add(`primitive_${entity.id}_label`);
+      // A selected annotation that is too long is not consumed; the compiler
+      // keeps the bare designator, never falling back to a component quantity.
+      continue;
+    }
     const quantity = componentQuantity(document, entity.id);
     const value = typeof quantity?.label === "string" ? quantity.label.trim() :
       typeof quantity?.value === "number" || typeof quantity?.value === "string" ? `${quantity.value}${typeof quantity.unit === "string" && !/^(?:1|dimensionless)$/i.test(quantity.unit.trim()) ? ` ${quantity.unit.trim()}` : ""}` : "";

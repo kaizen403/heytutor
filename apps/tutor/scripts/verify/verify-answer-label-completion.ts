@@ -74,8 +74,8 @@ function stored(id: string): StoredTurn {
     sceneArtifacts: capture.sceneArtifacts, segments: capture.segments.map((segment, orderIndex) => ({ ...segment, id: `${id}-${orderIndex}`, orderIndex, spokenText: segment.narration })) } as unknown as StoredTurn;
 }
 
-async function gestureProtection(mode: "seek" | "scheduled" | "annotate" | "group") {
-  const { diagram } = captured("L11");
+async function gestureProtection(mode: "seek" | "scheduled" | "annotate" | "group", source = captured("L11"), answerId = "a4") {
+  const { diagram } = source;
   const board = mountTestWhiteboard();
   const clock = createVirtualWhiteboardClock(); board.setTimeSource(clock.source);
   const active = ref<VerifiedDiagram | null>(diagram);
@@ -90,11 +90,11 @@ async function gestureProtection(mode: "seek" | "scheduled" | "annotate" | "grou
   const group = diagram.groups?.find((entry) => entry.entityIds.includes("battery"))?.id ?? "battery";
   const target = mode === "annotate" ? "battery" : mode === "group" ? group : "battery";
   const command: DrawCommand = { type: mode === "annotate" ? "ANNOTATE" : "FOCUS", params: [], text: target, charPosition: 0, narrationBefore: "" };
-  const answer = diagram.deferredAnnotations!.find((entry) => entry.commands.some((candidate) => candidate.semanticRef?.primitiveId === "a4"))!;
+  const answer = diagram.deferredAnnotations!.find((entry) => entry.commands.some((candidate) => candidate.semanticRef?.primitiveId === answerId))!;
   assert.equal(answer.revealAfter, "teaching_complete");
   // Same host, ordinary setup label: its release must stay independent.
-  const given = diagram.commands.find((entry) => entry.semanticRef?.primitiveId === "primitive_battery_label")!;
-  diagram.deferredAnnotations!.push({ entityId: "battery", commands: [given] });
+  const given = answerId === "a4" ? diagram.commands.find((entry) => entry.semanticRef?.primitiveId === "primitive_battery_label") : undefined;
+  if (given) diagram.deferredAnnotations!.push({ entityId: "battery", commands: [given] });
   let done = false;
   const job = executor.executeCommandWithCancel(command, {
     durationScale: mode === "scheduled" ? 1 : 0,
@@ -104,7 +104,7 @@ async function gestureProtection(mode: "seek" | "scheduled" | "annotate" | "grou
     for (let elapsed = 0; !done && elapsed < 60_000; elapsed += 1000) { clock.advance(1000); clock.pump(); await flush(); }
     assert(done, `${mode}: actual executor must finish in a bounded clock`); await job;
     assert(diagram.deferredAnnotations!.includes(answer), `${mode}: actual gesture must not consume solved answer ink`);
-    assert(!diagram.deferredAnnotations!.some((entry) => entry.commands.includes(given)), `${mode}: ordinary given label must still be released`);
+    if (given) assert(!diagram.deferredAnnotations!.some((entry) => entry.commands.includes(given)), `${mode}: ordinary given label must still be released`);
   } finally { board.cancelAnimations(); unmountTestWhiteboard(board); }
 }
 
@@ -239,6 +239,81 @@ function labelAndLeaderOwnership() {
   assert(!isAnswerLabel(symbolic, { text: "ζ₂" }), "a bare unknown symbol is not a solved result");
 }
 
+async function consumedAnnotationControl() {
+  const base = captured("L11");
+  const combinedId = "primitive_battery_label";
+  const compile = (document: SceneDocument) => {
+    const compiled = compileSceneDocument(document);
+    assert(compiled.ok && compiled.renderScene, `consumed annotation variant must compile honestly: ${JSON.stringify(compiled.report.issues)}`);
+    return { document, renderScene: compiled.renderScene, ...buildVerifiedDiagramPresentation(document, compiled.renderScene) };
+  };
+  for (const leader of [false, true]) {
+    const document = structuredClone(base.document);
+    document.annotations.find((annotation) => annotation.id === "a4")!.kind = "label";
+    if (leader) document.entities.find((entity) => entity.id === "battery")!.provenance = { requireLabelLeader: true, leaderGeometrySafe: true };
+    const shown = compile(document);
+    const composite = shown.renderScene.primitives.find((primitive) => primitive.id === combinedId)!;
+    assert.equal(composite.text, "V I_total = 3 A", "actual compiler consumes the current annotation into the voltage designator");
+    assert.equal(composite.provenance?.annotationId, "a4", "the compiled label preserves exactly its consumed annotation owner");
+    const answerIds = leader ? [combinedId, `${combinedId}_leader`] : [combinedId];
+    if (leader) assert.equal(shown.renderScene.primitives.find((primitive) => primitive.id === answerIds[1])?.provenance?.annotationId, "a4", "the actual compiled leader retains the same consumed owner");
+    for (const id of answerIds) {
+      assert(!primitiveIds(shown.introSegments.flatMap(getSegmentCommands)).includes(id), "the consumed derived annotation must override the host's given quantity reveal timing");
+      assert(shown.diagram.deferredAnnotations!.some((batch) => batch.revealAfter === "teaching_complete" && primitiveIds(batch.commands).includes(id)), "the complete combined label and its leader remain held");
+    }
+    assert(!shown.renderScene.primitives.some((primitive) => primitive.id === "a4"), "a consumed annotation must not be duplicated as standalone ink");
+    // Drop only the new metadata to exercise recordings made before this fix.
+    const legacyScene = structuredClone(shown.renderScene);
+    for (const primitive of legacyScene.primitives) if (primitive.id === combinedId || primitive.id === `${combinedId}_leader`) delete primitive.provenance?.annotationId;
+    const legacy = buildVerifiedDiagramPresentation(document, legacyScene);
+    for (const id of answerIds) assert(!primitiveIds(legacy.introSegments.flatMap(getSegmentCommands)).includes(id), "old compiled IDs without provenance obey the same completion policy");
+    const commands = shown.diagram.commands.map((command) => verifiedDiagramCommandToDrawCommand(command));
+    const turn = stored("L11"); turn.sceneDocument = document;
+    turn.segments = [{ ...turn.segments[0]!, durationMs: 100, command: serializeSegmentCommands(commands, { trustedDiagramGeometry: true }) }];
+    const original = structuredClone(turn);
+    const cues = buildReplayTimeline([turn]);
+    assert.deepEqual(cues.cues.flatMap((cue) => cue.commands), commands.filter((command) => !answerIds.includes(command.semanticRef?.primitiveId ?? "")), "historical projection removes only the actual composite and its exact leader, keeping givens and geometry");
+    assert.deepEqual(buildLecturePlayerTimeline([turn]).cues.map((cue) => cue.commands), cues.cues.map((cue) => cue.commands), "finished player uses the identical historical combined-label projection");
+    let clock = 0;
+    const emitted: DrawCommand[] = [];
+    await drawReplayDiagramTimeline({ cues: cues.cues, getTurn: () => turn, getDiagram: () => shown.diagram,
+      executeCommand: async (command) => { if (answerIds.includes(command.semanticRef?.primitiveId ?? "")) assert(clock >= cues.totalMs); emitted.push(command); },
+      getClockMs: () => clock, waitForAdvance: async () => { clock += 50; }, shouldCancel: () => false });
+    for (const id of answerIds) assert.deepEqual(emitted.filter((command) => command.semanticRef?.primitiveId === id), commands.filter((command) => command.semanticRef?.primitiveId === id), "completed replay/export restores exact original label text, points and leader once");
+    assert.deepEqual(turn, original, "historical ownership projection leaves saved commands, timings and audio intact");
+    for (const mode of ["seek", "scheduled", "annotate", "group"] as const) await gestureProtection(mode, { ...base, ...compile(document) }, combinedId);
+  }
+  // Compiler selection wins in both directions and uses only the first label.
+  for (const mode of ["given", "second", "long", "callout", "unbound", "placeholder"] as const) {
+    const document = structuredClone(base.document);
+    const annotation = document.annotations.find((entry) => entry.id === "a4")!;
+    annotation.kind = "label";
+    if (mode === "unbound" || mode === "placeholder") {
+      delete annotation.quantityId;
+      if (mode === "placeholder") annotation.text = "I_total = ? A";
+    } else if (mode === "callout") annotation.kind = "callout";
+    else {
+      document.entities.find((entity) => entity.id === "battery")!.label = "I";
+      document.quantities.find((quantity) => quantity.id === "i")!.symbol = "I";
+      if (mode === "second") document.annotations.unshift({ id: "first-given", kind: "label", targetIds: ["battery"], quantityId: "v", text: "6 V" });
+      else { annotation.quantityId = "v"; annotation.text = mode === "long" ? "V =           6 V" : "6 V"; }
+    }
+    const shown = compile(document);
+    const composite = shown.renderScene.primitives.find((primitive) => primitive.id === combinedId)!;
+    const held = mode === "unbound";
+    assert.equal(primitiveIds(shown.introSegments.flatMap(getSegmentCommands)).includes(combinedId), !held, `${mode}: selected annotation provenance controls setup versus completion`);
+    const expected = mode === "long" ? "I" : mode === "callout" ? "V 6 V" : mode === "unbound" ? "V I_total = 3 A" : mode === "placeholder" ? "V I_total = ? A" : "I 6 V";
+    assert.equal(composite.text, expected, `${mode}: timing never changes the compiler's chosen label text`);
+    assert.equal(composite.provenance?.annotationId, mode === "long" || mode === "callout" ? undefined : mode === "second" ? "first-given" : "a4");
+    const commands = shown.diagram.commands.map((command) => verifiedDiagramCommandToDrawCommand(command));
+    const old = { command: serializeSegmentCommands(commands, { trustedDiagramGeometry: true }), durationMs: 100 };
+    const projected = storedCodeLessonSegmentCommands({ status: "complete", sceneDocument: document }, old);
+    assert.equal(primitiveIds(projected).includes(combinedId), !held, `${mode}: historical projection must not synthesize an unconsumed quantity fallback`);
+    if (mode === "second") assert(!primitiveIds(projected).includes("a4"), "a later derived annotation remains separately held without replacing the first given owner");
+    if (mode === "callout") assert(!primitiveIds(projected).includes("a4"), "callout results remain separate from the component's given value");
+  }
+}
+
 function compiledOwnerControls() {
   const { document } = captured("L11");
   const current = structuredClone(document);
@@ -300,6 +375,7 @@ async function interruptedCompletion() {
 async function main() {
   labelAndLeaderOwnership();
   compiledOwnerControls();
+  await consumedAnnotationControl();
   await interruptedCompletion();
   for (const mode of ["seek", "scheduled", "annotate", "group"] as const) await gestureProtection(mode);
   for (const mode of ["complete", "superseded", "doubt", "during-first", "during-second"] as const) await liveCompletion(mode);
