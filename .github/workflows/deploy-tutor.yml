@@ -97,6 +97,8 @@ jobs:
           node deploy/aws/verify-sentry-release.mjs
       - name: Diagram authority and restoration regressions
         run: pnpm --filter @heytutor/tutor verify:publication
+      - name: Atomic scene label regressions
+        run: pnpm --filter @heytutor/tutor verify:atomic-labels
       - name: Figure tour narration regressions
         run: pnpm --filter @heytutor/tutor verify:primitive-tour
       - name: DSA verified intro ordering regressions
