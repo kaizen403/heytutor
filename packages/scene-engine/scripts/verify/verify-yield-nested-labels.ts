@@ -19,6 +19,8 @@ for (const scale of [0.5, 1, 3]) {
     const label: RenderPrimitive = { id: "name", entityId: "inner", groupId: "first", kind: "label", text: "cavity", points: [{ x: center.x, y: center.y - 52 * scale }] };
     const issues = validateLabelOwnerTruth(document, [inner, outer, label]);
     assert.equal(issues.length, 1, "an inner-region name in a surrounding region needs an explicit attachment");
+    const exterior = { ...label, points: [{ x: center.x, y: center.y - 240 * scale }] };
+    assert.equal(validateLabelOwnerTruth(document, [inner, outer, exterior]).length, 1, "an inner-region name beyond the enclosing boundary still needs attachment");
     assert.equal(issues[0]?.path, "entities[0].label");
     assert.equal(issues[0]?.failureKind, "proof");
     assert.equal(validateLabelOwnerTruth(document, [inner, outer, { ...label, points: [center] }]).length, 0, "an interior label names its own region");

@@ -76,8 +76,7 @@ export function validateLabelOwnerTruth(document: SceneDocument, primitives: Ren
       && distance(label.points[0]!, owner, true) > 1
       && ink.some(other => other.kind === "circle" && !owners.includes(other.entityId)
         && other.points[0] && other.radius !== undefined && other.radius > owner.radius!
-        && Math.hypot(other.points[0].x - owner.points[0]!.x, other.points[0].y - owner.points[0]!.y) + owner.radius! <= other.radius
-        && distance(label.points[0]!, other, true) === 0));
+        && Math.hypot(other.points[0].x - owner.points[0]!.x, other.points[0].y - owner.points[0]!.y) + owner.radius! <= other.radius));
     // A tether does not establish which object it names when it starts inside
     // a different region. A line crossing a body needs a free attachment site,
     // just as an untethered label needs proximity to its own stroke.
@@ -92,7 +91,7 @@ export function validateLabelOwnerTruth(document: SceneDocument, primitives: Ren
     const entityIndex = document.entities.findIndex(e => e.id === label.entityId);
     issues.push({ code: "label_owner_ambiguous", severity: "fatal", failureKind: "proof", entityIds: owners,
       ...(annotation ? { path: `annotations[${annotationIndex}].text` } : entityIndex >= 0 ? { path: `entities[${entityIndex}].label` } : {}),
-      message: ambiguousLeader ? "A label leader starts inside another region instead of an unambiguous part of its own stroke." : nestedRegionAmbiguity ? "An untethered circular-region name lies outside its owner and inside a surrounding region." : "An untethered label is substantially closer to another stroke than its declared owner.", expected: ownDistance, actual: otherDistance });
+      message: ambiguousLeader ? "A label leader starts inside another region instead of an unambiguous part of its own stroke." : nestedRegionAmbiguity ? "An untethered name lies outside its circular owner, which is enclosed by another circle." : "An untethered label is substantially closer to another stroke than its declared owner.", expected: ownDistance, actual: otherDistance });
   }
   return issues;
 }
