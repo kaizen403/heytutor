@@ -410,6 +410,14 @@ function titrationQuantityTokensValid(question: string): boolean {
     const span = argument?.indices?.[1];
     if (!argument || !span || !/[\p{N}]|\b(?:unknown|unreadable|undefined|NaN)\b/iu.test(argument[1]!)) continue;
     const dimension = /^(?:M|molar)$/.test(unit[0]) ? "concentration" : /^(?:N|normal)$/.test(unit[0]) ? "normality" : "volume";
+    // A full original literal may contain spaces in its coefficient/exponent.
+    // Cover the lexical argument too: an ASCII suffix of damaged numeral
+    // notation must never discharge the original complete unit argument.
+    const inventory = findChemistryQuantities({question,dimension});
+    if (!inventory.ok) return false;
+    if (inventory.reading.some(reading => reading.value > 0
+      && reading.source.span.start <= body.start+span[0]
+      && reading.source.span.end === at+unit[0].length)) continue;
     const read = readChemistryQuantityDeclaration({question,after:/^/,
       within:{start:body.start+span[0],end:at+unit[0].length},dimension,owner:`original titration ${dimension} payload`});
     if (read.state !== "valid" || read.reading.value <= 0) return false;

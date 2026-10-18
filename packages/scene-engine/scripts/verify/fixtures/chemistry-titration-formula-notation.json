@@ -391,6 +391,152 @@
       "id": "two-aliquots-ascii",
       "question": "25 mL of 0.2 M H2SO4 is mixed with another 25 mL of 0.2 M H2SO4 and titrated with 0.1 M NaOH. Draw the titration curve.",
       "expectedDraw": false
+    },
+    {
+      "id": "scientific-CONC-X",
+      "question": "25 mL of 2 x 10^-1 M H2SO4 is titrated with 0.1 M NaOH. Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 100
+    },
+    {
+      "id": "scientific-CONC-TIMES",
+      "question": "25 mL of 2 × 10^-1 M H2SO4 is titrated with 0.1 M NaOH. Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 100
+    },
+    {
+      "id": "scientific-CONC-E",
+      "question": "25 mL of 2e-1 M H2SO4 is titrated with 0.1 M NaOH. Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 100
+    },
+    {
+      "id": "scientific-CONC-SPACED-EXPONENT",
+      "question": "25 mL of 2 × 10 ^ -1 M H2SO4 is titrated with 0.1 M NaOH. Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 100
+    },
+    {
+      "id": "scientific-CONC-UNICODE-MINUS",
+      "question": "25 mL of 2 × 10^−1 M H2SO4 is titrated with 0.1 M NaOH. Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 100
+    },
+    {
+      "id": "scientific-CONC-SUPERSCRIPT-EXPONENT",
+      "question": "25 mL of 2 × 10⁻¹ M H2SO4 is titrated with 0.1 M NaOH. Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 100,
+      "diagnostic": true,
+      "diagnosticReason": "Immutable QA old7596 + unchanged strict reader already decline Unicode superscript exponent. True scientific desired positive remains; no scalar grammar expansion."
+    },
+    {
+      "id": "scientific-VOLUME-TIMES",
+      "question": "2.5 × 10^1 mL of 0.2 M H2SO4 is titrated with 0.1 M NaOH. Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 100
+    },
+    {
+      "id": "scientific-VOLUME-X",
+      "question": "2.5 x 10^1 mL of 0.2 M H2SO4 is titrated with 0.1 M NaOH. Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 100
+    },
+    {
+      "id": "scientific-VOLUME-E",
+      "question": "2.5e1 mL of 0.2 M H2SO4 is titrated with 0.1 M NaOH. Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 100
+    },
+    {
+      "id": "scientific-VOLUME-SPACED-EXPONENT",
+      "question": "2.5 × 10 ^ 1 mL of 0.2 M H2SO4 is titrated with 0.1 M NaOH. Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 100
+    },
+    {
+      "id": "scientific-BOTH-SCIENTIFIC",
+      "question": "2.5 × 10^1 mL of 2 × 10^-1 M H2SO4 is titrated with 1 × 10^-1 M NaOH. Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 100
+    },
+    {
+      "id": "scientific-NORMALITY-SCIENTIFIC",
+      "question": "25 mL of 2 x 10^-1 N H2SO4 is titrated with 0.1 M NaOH. Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 50
+    },
+    {
+      "id": "mixed-numeric-glyph-1",
+      "question": "₂5 mL of 0.2 M H₂SO₄ is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "mixed-numeric-glyph-2",
+      "question": "25 mL of ₀.2 M H₂SO₄ is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "mixed-numeric-glyph-3",
+      "question": "2₅ mL of 0.2 M H₂SO₄ is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "mixed-numeric-glyph-4",
+      "question": "25 mL of 2.₀ M H₂SO₄ is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "scientific-guard-MIXED-SUBSCRIPT-VOLUME-PREFIX",
+      "question": "₂5 mL of 0.2 M H2SO4 is titrated with 0.1 M NaOH. Draw the titration curve and mark equivalence volume.",
+      "expectedDraw": false
+    },
+    {
+      "id": "scientific-guard-MIXED-SUBSCRIPT-CONCENTRATION-PREFIX",
+      "question": "25 mL of ₀.2 M H2SO4 is titrated with 0.1 M NaOH. Draw the titration curve and mark equivalence volume.",
+      "expectedDraw": false
+    },
+    {
+      "id": "scientific-guard-MIXED-SUBSCRIPT-VOLUME-TAIL",
+      "question": "25₂ mL of 0.2 M H2SO4 is titrated with 0.1 M NaOH. Draw the titration curve and mark equivalence volume.",
+      "expectedDraw": false
+    },
+    {
+      "id": "scientific-guard-MIXED-SUBSCRIPT-CONCENTRATION-TAIL",
+      "question": "25 mL of 0.2₀ M H2SO4 is titrated with 0.1 M NaOH. Draw the titration curve and mark equivalence volume.",
+      "expectedDraw": false
+    },
+    {
+      "id": "scientific-guard-MIXED-DEVANAGARI-VOLUME-PREFIX",
+      "question": "२5 mL of 0.2 M H2SO4 is titrated with 0.1 M NaOH. Draw the titration curve and mark equivalence volume.",
+      "expectedDraw": false
+    },
+    {
+      "id": "scientific-guard-MIXED-DEVANAGARI-CONCENTRATION-PREFIX",
+      "question": "25 mL of ०.2 M H2SO4 is titrated with 0.1 M NaOH. Draw the titration curve and mark equivalence volume.",
+      "expectedDraw": false
+    },
+    {
+      "id": "scientific-guard-MIXED-SUBSCRIPT-FRACTIONAL-ACID",
+      "question": "25 mL of 0.₂ M H2SO4 is titrated with 0.1 M NaOH. Draw the titration curve and mark equivalence volume.",
+      "expectedDraw": false
+    },
+    {
+      "id": "scientific-guard-MIXED-SUBSCRIPT-FRACTIONAL-BASE",
+      "question": "25 mL of 0.2 M H2SO4 is titrated with 0.₁ M NaOH. Draw the titration curve and mark equivalence volume.",
+      "expectedDraw": false
+    },
+    {
+      "id": "scientific-guard-SPACED-FRACTION-CONCENTRATION",
+      "question": "25 mL of 1 / 5 M H2SO4 is titrated with 0.1 M NaOH. Draw the titration curve and mark equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 100
+    },
+    {
+      "id": "scientific-guard-SPACED-FRACTION-VOLUME",
+      "question": "25 / 1 mL of 0.2 M H2SO4 is titrated with 0.1 M NaOH. Draw the titration curve and mark equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 100
     }
   ]
 }
