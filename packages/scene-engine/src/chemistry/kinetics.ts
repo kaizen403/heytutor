@@ -228,13 +228,13 @@ function convertTime(value: number, from: string, to: string): number {
   const read = convertChemistryValue(value, from as ChemistryUnit, to as ChemistryUnit, "time");
   return read.ok ? read.reading : NaN;
 }
-interface Reading { value: number; unit: string | null; index: number }
+interface Reading { value: number; unit: string | null; index: number; source: ChemistryReading }
 function readAfter(stem: string, phrase: RegExp, _strict = false): Reading | null {
   const read = readChemistryQuantity({question: stem, after: phrase, dimension: "time"});
   if (!read.ok) return null;
   const unit = canonicalTimeUnit(read.reading.rawUnit ?? undefined)!;
   const converted = convertChemistryReading(read.reading, unit as ChemistryUnit);
-  return converted.ok ? {value: converted.reading.value, unit, index: read.reading.source.span.start} : null;
+  return converted.ok ? {value: converted.reading.value, unit, index: read.reading.source.span.start, source: read.reading} : null;
 }
 
 function readOrders(stem: string): ReactionOrder[] {
@@ -282,7 +282,7 @@ function requestedKineticsContinuationValid(question: string, start: number, end
   const timeStart = start + target[0].length;
   const time = readChemistryQuantity({question, after: /^/, within: {start:timeStart, end}, dimension:"time"});
   if (!time.ok || !(time.reading.value > 0) || body.slice(time.reading.source.span.end, end).trim() !== "") return false;
-  const asked = readTimesAsked(tail, null);
+  const asked = readTimesAsked(tail, []);
   return asked.length === 1 && convertTime(asked[0]!.value, asked[0]!.unit, "s") === time.reading.value;
 }
 /** A conditional input belongs to the requested half-life, not a later copula. */
@@ -532,7 +532,7 @@ function symbolicArrheniusRateOwnerOnly(body: string, owner: RegExpMatchArray, s
   return rest.trim() === "" || /^\s*,\s*(?:find|calculate|determine|compute|evaluate)\s+(?:the\s+)?activation energy\s+(?:if|when)\s+(?:(?:the|a)\s+)?$/i.test(rest);
 }
 /** Each supplied rate owns its original literal; absence and unread are distinct. */
-function readRateConstant(stem: string, order: ReactionOrder | null = 1): { value: number; unit: string | null } | null | false {
+function readRateConstant(stem: string, order: ReactionOrder | null = 1): { value: number; unit: string | null; source: ChemistryReading } | null | false {
   const body = questionBody(stem);
   const dimension = order === 0 ? "rate_constant_zero" : order === 2 ? "rate_constant_second" : "rate_constant_first";
   const equation = readChemistryArrheniusEquation(stem);
@@ -581,7 +581,7 @@ function readRateConstant(stem: string, order: ReactionOrder | null = 1): { valu
   if (!reading) return null;
   const raw = reading.rawUnit ?? "";
   const unit = /min/i.test(raw) ? "min" : /h(?:r|our)?/i.test(raw) ? "h" : /day/i.test(raw) ? "days" : /year|yr/i.test(raw) ? "yr" : "s";
-  return {value: reading.value * convertTime(1, unit, "s"), unit};
+  return {value: reading.value * convertTime(1, unit, "s"), unit, source: reading};
 }
 /** A complete requested fraction operand supplies no original molarity. */
 function initialFractionRequestOnly(question: string, ownerStart: number, start: number, end: number): boolean {
@@ -649,26 +649,110 @@ function readInitialConcentration(stem: string): {value: number; unit: string} |
   return reading ? {value: reading.value, unit:"M"} : null;
 }
 
-/** "50 % of A is decomposed in 120 min" and its relatives. */
-function readCompletionGiven(stem: string): { fraction: number; time: number; unit: string | null; span: [number, number] } | null {
+interface CompletionGiven {
+  fraction: number; time: number; unit: string; span: [number, number];
+  percentSpan: ChemistrySpan; timeSpan: ChemistrySpan;
+}
+const COMPLETION_PREDICATE = String.raw`(?:decompos(?:ed|es?)|complete[sd]?|consum(?:ed|es?)|convert(?:ed|s?)|react(?:ed|s?)|over|finish(?:ed|es?)|dissociat(?:ed|es?)|used up)`;
+/** Every supplied percent/time pair is readable, or the whole source refuses. */
+function readCompletionGivens(stem: string): CompletionGiven[] | false {
   const unitTail = String.raw`\s*${NUMBER}\s*${TIME_UNIT}\b`;
+  const participant = String.raw`(?:of\s+(?:the\s+)?(?:(?:reactant|substrate|species)(?:\s+(?:[A-Z]|\[[A-Z]\]))?|[a-z\[\]0-9_]+)\s+)?`;
+  const predicate = String.raw`(?:is|was|gets|has been|had been|has|had|are|were)?\s*${COMPLETION_PREDICATE}`;
   const patterns = [
-    new RegExp(String.raw`(${SCALAR})\s*%\s*(?:of\s+(?:the\s+)?[a-z\[\]0-9_]+\s+)?(?:is|was|gets|has been|had been|are|were)?\s*(?:decomposed|completed?|consumed|converted|reacted|complete|over|finished|dissociated|used up)\s*(?:in|after|within|takes)${unitTail}`, "id"),
-    new RegExp(String.raw`(?:time|t)\s*(?:required|taken|needed)?\s*(?:for|to)\s*(?:reach\s*)?(${SCALAR})\s*%\s*(?:completion|complete|decomposition|conversion|reaction|of the reaction|to complete)?\s*(?:of\s+[a-z\[\]0-9_ ]{1,20}?)?\s*(?:is|was|=|:)${unitTail}`, "id"),
-    new RegExp(String.raw`(?:takes|took|requires|required)${unitTail}\s*(?:for|to)\s*(?:reach|complete|attain|be)?\s*(${SCALAR})\s*%`, "id"),
-    new RegExp(String.raw`(?:in|after|within)${unitTail}\s*,?\s*(?:the\s+)?(?:reaction\s+)?(?:is|was|becomes|gets)?\s*(${SCALAR})\s*%\s*(?:complete|completed|over|decomposed|consumed)`, "id"),
+    new RegExp(String.raw`(${SCALAR})\s*%\s*${participant}${predicate}\s*(?:in|after|within|takes)${unitTail}`, "gid"),
+    new RegExp(String.raw`(?:time|t)\s*(?:required|taken|needed)?\s*(?:for|to)\s*(?:reach\s*)?(${SCALAR})\s*%\s*(?:completion|complete|decomposition|conversion|reaction|of the reaction|to complete)?\s*(?:of\s+[a-z\[\]0-9_ ]{1,20}?)?\s*(?:is|was|=|:)${unitTail}`, "gid"),
+    new RegExp(String.raw`(?:takes|took|requires|required)${unitTail}\s*(?:for|to)\s*(?:reach|complete|attain|be)?\s*(${SCALAR})\s*%`, "gid"),
+    new RegExp(String.raw`(?:in|after|within)${unitTail}\s*,?\s*(?:the\s+)?(?:reaction\s+)?(?:is|was|becomes|gets)?\s*(${SCALAR})\s*%\s*${COMPLETION_PREDICATE}`, "gid"),
   ];
-  for (const [index, pattern] of patterns.entries()) {
-    const match = pattern.exec(stem);
-    if (!match) continue;
+  const givens: CompletionGiven[] = [];
+  for (const [index, pattern] of patterns.entries()) for (const match of stem.matchAll(pattern)) {
     const percentFirst = index === 0 || index === 1;
-    const percent = matchedChemistryScalar(stem, match, percentFirst ? 1 : 5) ?? NaN;
-    const time = percentFirst ? numberFrom(match, 2) : numberFrom(match, 1);
+    const percentIndices = match.indices![percentFirst ? 1 : 5]!;
+    const timeIndices = match.indices![percentFirst ? 2 : 1]!;
+    const percentSpan = {start:percentIndices[0],end:percentIndices[1]};
+    const timeSpan = {start:timeIndices[0],end:timeIndices[1]};
+    const percent = readChemistryLiteral({question:stem,scalarSpan:percentSpan,dimension:"dimensionless"});
+    const time = readChemistryLiteral({question:stem,scalarSpan:timeSpan,dimension:"time"});
     const unit = canonicalTimeUnit(percentFirst ? match[5] : match[4]);
-    if (!(percent > 0 && percent < 100) || !(time > 0)) continue;
-    return { fraction: percent / 100, time, unit, span: [match.index, match.index + match[0].length] };
+    if (!percent.ok || percent.reading.rawUnit !== "%" || !(percent.reading.value > 0 && percent.reading.value < 1)
+      || !time.ok || !(time.reading.value > 0) || !unit) return false;
+    if (/^\s*(?:[+*/^=]|[-−](?=\s*(?:\d|\.\d))|(?:plus|minus|times|divided|multiplied)\b)/i.test(stem.slice(time.reading.source.span.end))) return false;
+    const converted = convertChemistryReading(time.reading,unit as ChemistryUnit);
+    if (!converted.ok) return false;
+    if (givens.some(given => given.percentSpan.start === percentSpan.start && given.timeSpan.start === timeSpan.start)) continue;
+    givens.push({fraction:percent.reading.value,time:converted.reading.value,unit,
+      span:[match.index!,match.index!+match[0].length],percentSpan,timeSpan});
   }
-  return null;
+  // These semantic owners deliberately do not require readable numbers. A
+  // damaged sibling must not vanish behind another given or a symbolic plot.
+  for (const percent of stem.matchAll(/%/g)) {
+    const at = percent.index!;
+    if (givens.some(given => at >= given.span[0] && at < given.span[1])) continue;
+    const prefix = stem.slice(0,at);
+    const boundary = [...prefix.matchAll(/[;?\n]|\.(?=\s|$)/g)].at(-1);
+    const before = prefix.slice(boundary ? boundary.index!+boundary[0].length : 0);
+    const after = stem.slice(at+1);
+    const next = givens.find(given => given.percentSpan.start > at
+      && !/[;?\n]|\.(?=\s|$)/.test(stem.slice(at+1,given.percentSpan.start)));
+    // A shared predicate does not give an unread earlier percentage the later
+    // member's value. Unsupported coordinated owner lists refuse atomically.
+    if (next && new RegExp(String.raw`^\s*${participant}(?:${predicate})?\s*(?:,\s*(?:and|or)?|and|or)\s*$`, "i")
+      .test(stem.slice(at+1,next.percentSpan.start))) return false;
+    const leading = new RegExp(String.raw`^\s*${participant}${predicate}\s*(?:in|after|within|takes)\b`, "i").test(after);
+    const nominal = /^\s*(?:completion|complete|decomposition|conversion|reaction|of the reaction|to complete)?\s*(?:of\s+[a-z[\]0-9_ ]{1,20}?)?\s*(?:is|was|=|:)/i.test(after)
+      && /\b(?:time|t)\s*(?:required|taken|needed)?\s*(?:for|to)\b[^%]*$/i.test(before);
+    const duration = /\b(takes|took|requires|required)\b([^%]*?)\b(?:for|to)\b[^%]*$/i.exec(before);
+    // Bare "time required for ..." is a requested noun phrase, not a duration.
+    const durationFirst = !!duration && (duration[1]!.toLowerCase() !== "required" || duration[2]!.trim() !== "");
+    const elapsedFirst = /\b(?:in|after|within)\b[^%]*$/i.test(before)
+      && new RegExp(String.raw`^\s*${COMPLETION_PREDICATE}\b`, "i").test(after);
+    const expression = /^\s*[+*/^=−-]/.test(after)
+      && new RegExp(String.raw`${predicate}\s*(?:in|after|within|takes)\b`, "i").test(after.split(/[;?\n]|\.(?=\s|$)/)[0]!);
+    if (leading || nominal || durationFirst || elapsedFirst || expression) return false;
+  }
+  return givens.sort((a,b)=>a.span[0]-b.span[0]);
+}
+function readCompletionGiven(stem: string): CompletionGiven | null | false {
+  const givens = readCompletionGivens(stem);
+  return givens === false ? false : givens[0] ?? null;
+}
+/** Rounding checks use only an already validated original scalar, never a new reading. */
+function completionSourceTolerance(question: string, start: number, value: number): number {
+  const token = new RegExp(`^${SCALAR}`).exec(question.slice(start))?.[0].replace(/\s/g, "").replace(/−/g,"-")
+    .replace(/^([+-]?[\d.]+)[x×*]10\^\(?([+-]?\d+)\)?$/i,"$1e$2");
+  const decimal = token && /^[+-]?(?:\d+(?:\.(\d*))?|\.(\d+))(?:e([+-]?\d+))?$/i.exec(token);
+  if (!decimal || !token) return 0; // Rational or bare power notation retains its exact strict value.
+  const places = (decimal[1] ?? decimal[2] ?? "").length;
+  return .5 * 10 ** (Number(decimal[3] ?? 0)-places) * Math.abs(value/Number(token));
+}
+/** The selected first-order rate must satisfy every given at its written precision. */
+function completionRatesAgree(question: string, givens: readonly CompletionGiven[], unit: string,
+  rate: {value:number; source:ChemistryReading} | null, halfLife: {value:number; source:ChemistryReading} | null): boolean {
+  const ranges: Array<[number,number]> = givens.map(given => {
+    const time = convertTime(given.time,given.unit,unit);
+    const dp = completionSourceTolerance(question,given.percentSpan.start,given.fraction);
+    const dt = completionSourceTolerance(question,given.timeSpan.start,time);
+    return [-Math.log(1-Math.max(0,given.fraction-dp))/(time+dt),
+      -Math.log(1-Math.min(1,given.fraction+dp))/(time-dt)];
+  });
+  if (rate) {
+    const delta = completionSourceTolerance(question,rate.source.source.span.start,rate.value);
+    ranges.push([rate.value-delta,rate.value+delta]);
+  }
+  if (halfLife) {
+    const delta = completionSourceTolerance(question,halfLife.source.source.span.start,halfLife.value);
+    ranges.push([Math.LN2/(halfLife.value+delta),Math.LN2/(halfLife.value-delta)]);
+  }
+  // Match the solver's actual authority order, not a hypothetical compatible rate.
+  const first = givens[0]!;
+  const selected = rate?.value ?? -Math.log(1-first.fraction)/convertTime(first.time,first.unit,unit);
+  // The supplied half-life is also drawn as a central reference/tick, even
+  // when the completion supplies k, so that plotted anchor must agree too.
+  const anchors = halfLife ? [selected,Math.LN2/halfLife.value] : [selected];
+  return anchors.every(anchor => Number.isFinite(anchor) && ranges.every(([low,high]) =>
+    (anchor >= low || chemistryCanonicalValuesAgree(anchor,low))
+    && (anchor <= high || chemistryCanonicalValuesAgree(anchor,high))));
 }
 
 const WORD_FRACTIONS: Array<[RegExp, number]> = [
@@ -697,7 +781,7 @@ function fractionOperands(question: string): FractionOperand[] {
 }
 
 /** Completions asked for (as fractions complete) and remaining fractions asked for, excluding the given completion. */
-function readFractionsAsked(stem: string, givenSpan: [number, number] | null): { completion: number[]; remaining: number[] } {
+function readFractionsAsked(stem: string, givenSpans: readonly [number, number][]): { completion: number[]; remaining: number[] } {
   const completion: number[] = [];
   const remaining: number[] = [];
   const push = (list: number[], fraction: number) => {
@@ -705,7 +789,7 @@ function readFractionsAsked(stem: string, givenSpan: [number, number] | null): {
   };
   for (const match of stem.matchAll(new RegExp(`(${SCALAR})\\s*%`, "gd"))) {
     const index = match.index ?? 0;
-    if (givenSpan && index >= givenSpan[0] && index < givenSpan[1]) continue;
+    if (givenSpans.some(span => index >= span[0] && index < span[1])) continue;
     const before = stem.slice(Math.max(0, index - 70), index);
     const after = stem.slice(index, index + 70);
     const percent = matchedChemistryScalar(stem, match) ?? NaN;
@@ -720,6 +804,7 @@ function readFractionsAsked(stem: string, givenSpan: [number, number] | null): {
   }
   for (const operand of fractionOperands(stem)) {
     const {start:index,end,fraction} = operand;
+    if (givenSpans.some(span => index >= span[0] && index < span[1])) continue;
     const before = stem.slice(Math.max(0,index-70),index);
     const after = stem.slice(index,index+60);
     const owner = /^\s+of\s+(?:(?:the|its)\s+)?((?:initial|starting) concentration)\b/i.exec(stem.slice(end));
@@ -740,12 +825,12 @@ function readFractionsAsked(stem: string, givenSpan: [number, number] | null): {
 }
 
 /** Instants asked for ("after 60 min", "at t = 40 s"), in their own units. */
-function readTimesAsked(stem: string, givenSpan: [number, number] | null): Array<{ value: number; unit: string }> {
+function readTimesAsked(stem: string, givenSpans: readonly [number, number][]): Array<{ value: number; unit: string }> {
   const out: Array<{ value: number; unit: string }> = [];
   const pattern = new RegExp(String.raw`(?:after|at\s*t\s*=|at the end of|in the next|elapsed)\s*${NUMBER}\s*${TIME_UNIT}\b`, "gid");
   for (const match of stem.matchAll(pattern)) {
     const index = match.index ?? 0;
-    if (givenSpan && index >= givenSpan[0] && index < givenSpan[1]) continue;
+    if (givenSpans.some(span => index >= span[0] && index < span[1])) continue;
     const unit = canonicalTimeUnit(match[4]);
     if (!unit) continue;
     const value = numberFrom(match as RegExpExecArray, 1);
@@ -1015,15 +1100,17 @@ export function kineticsFromStem(question: string, quantities: readonly ChemPlan
   if (a0Read === false) return null;
   const a0 = a0Read?.value ?? null; const concUnit = a0 !== null ? "M" : null;
 
-  const given = readCompletionGiven(body);
+  const givens = readCompletionGivens(body);
+  if (givens === false) return null;
+  const given = givens[0] ?? null;
   if (!halfRead && !kRead && !given && /half[ -]?life|t½|t_?\(?1\/2\)?/i.test(body)) {
     const statedTimes = findChemistryQuantities({question:body,dimension:"time"});
     // A supplied time that this adapter cannot assign is not an example
     // half-life. Keep unsupported completion/remaining formulations text-only.
     if (!statedTimes.ok || statedTimes.reading.length > 0) return null;
   }
-  const timesAskedRaw = readTimesAsked(body, given?.span ?? null);
-  const asked = readFractionsAsked(body, given?.span ?? null);
+  const timesAskedRaw = readTimesAsked(body, givens.map(entry=>entry.span));
+  const asked = readFractionsAsked(body, givens.map(entry=>entry.span));
   const fractionsAsked = asked.completion;
   const remainingAsked = asked.remaining;
   const concentrationsAsked = readConcentrationsAsked(body);
@@ -1033,7 +1120,10 @@ export function kineticsFromStem(question: string, quantities: readonly ChemPlan
   const unit = timeUnit ?? kUnit ?? given?.unit ?? timesAskedRaw[0]?.unit ?? "min";
   if (k !== null && kUnit && kUnit !== unit) k = k * convertTime(1, unit, kUnit);
   if (tHalf !== null && timeUnit && timeUnit !== unit) tHalf = convertTime(tHalf, timeUnit, unit);
-  const completion = given ? { fraction: given.fraction, time: convertTime(given.time, given.unit ?? unit, unit) } : null;
+  const completion = given ? { fraction: given.fraction, time: convertTime(given.time, given.unit, unit) } : null;
+  if (order === 1 && givens.length && !completionRatesAgree(body,givens,unit,
+    kRead && k !== null ? {value:k,source:kRead.source} : null,
+    halfRead && tHalf !== null ? {value:tHalf,source:halfRead.source} : null)) return null;
   const timesAsked = timesAskedRaw.map((entry) => convertTime(entry.value, entry.unit, unit));
 
   const arrhenius = readArrhenius(body, quantities);
