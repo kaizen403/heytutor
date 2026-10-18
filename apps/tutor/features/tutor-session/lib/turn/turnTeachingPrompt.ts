@@ -465,7 +465,11 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
     givenSegments: [],
     lessonBudget: DOUBT_LESSON_BUDGET,
     systemPrompt: `${TUTOR_SYSTEM_PROMPT}\n\n--- current lesson (runtime) ---\n${runtimeAddon}`,
-    continuationPrompt: `${DOUBT_CONTINUATION_PROMPT}\n\n--- this lesson ---\n${runtimeAddon}`,
+    continuationPrompt: [
+      codeBoard ? "" : TUTOR_CONTINUATION_PROMPT,
+      DOUBT_CONTINUATION_PROMPT,
+      `--- this lesson ---\n${runtimeAddon}`,
+    ].filter(Boolean).join("\n\n"),
   };
 }
 
@@ -724,9 +728,11 @@ export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTea
         title: codeLesson.title,
         question,
         example: input.codeLessonFacts?.example ?? null,
+        language: input.narrationLanguage,
       })
     : buildGivenValueSegments(question, turnPlan, {
         maxWidth: input.diagramPromptAddon ? WORK_ZONE.maxTextWidth : WORK_ZONE.fullWidthTextWidth,
+        language: input.narrationLanguage,
       });
 
   // The lesson's first spoken beat. It leads the given rows on a problem, the

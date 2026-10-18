@@ -17,6 +17,7 @@ import type {
   RenderPrimitive,
   RenderScene,
   SceneDocument,
+  TurnPlanV3,
 } from "@heytutor/scene-engine";
 import {
   describeSceneFamily,
@@ -25,15 +26,20 @@ import {
   placeLabels,
   workColumnObstacle,
 } from "@heytutor/scene-engine";
-import { CUE_DEFAULT_MS_PER_CHAR, cuedInkFloorMs, findSpokenToken } from "@heytutor/tutor-core";
+import { CUE_DEFAULT_MS_PER_CHAR, cuedInkFloorMs, findSpokenToken, type NarrationLanguage } from "@heytutor/tutor-core";
 import { DSA_CODE_PANEL_RECT, DSA_DIAGRAM_ZONE } from "../../constants";
 import { buildLabelGlossary } from "./labelGlossary";
+import { hinglishFigureNarration } from "./figureNarrationLanguage";
 import { isDsaConstructionGuide } from "./diagramInk";
 
 /** Named axis marks stay small so they read as dots, not hollow letters. */
 const DIAGRAM_POINT_RADIUS = 2;
 
 export interface VerifiedScenePresentationOptions {
+  /** Accepted numeric authority: source givens may appear before derivation. */
+  turnPlan?: Pick<TurnPlanV3, "givens" | "derived">;
+  /** Narration follows the turn's voice; every figure label stays unchanged. */
+  narrationLanguage?: NarrationLanguage;
   /**
    * "code_lesson" turns show the IDE panel on the left, so diagram labels
    * clamp to the narrower DSA zone and the protected column widens to cover
@@ -158,6 +164,7 @@ export function buildVerifiedDiagramPresentation(
         command,
         annotateTargetIds,
         options.layout === "code_lesson",
+        isSourceGivenMeasurement(primitive, styled, document, options.turnPlan),
       ) ?? (holdLaterDsaFrames && primitive.groupId !== introGroupId ? "frame" : null);
       const index = add(primitive.groupId, commandPhase, styled, { reveal: deferReason === null });
       if (deferReason !== null && index !== null) {
@@ -202,6 +209,7 @@ export function buildVerifiedDiagramPresentation(
       // parts it names, so a cued beat is never split.
       const beat = cueRevealBeat({
         cue,
+        language: options.narrationLanguage,
         groupIndex,
         commandIndices,
         commands,
@@ -232,6 +240,7 @@ export function buildVerifiedDiagramPresentation(
       );
       const narration = groupRevealNarration({
         cue,
+        language: options.narrationLanguage,
         drawCommands,
         groupIndex,
         chunkIndex,
@@ -366,6 +375,7 @@ The scene engine owns all diagram geometry, labels, annotations, directions, con
 
   const spokenIntro = collapseIntroSpeech(introSegments, {
     codeLesson: options.layout === "code_lesson",
+    narrationLanguage: options.narrationLanguage,
     caption: visibleFigureCaption(renderScene.caption ?? captionAnnotationOf(document)),
   }).map((segment) => (options.layout === "code_lesson"
     ? { ...segment, sceneText: true }
@@ -397,7 +407,7 @@ function captionAnnotationOf(document: SceneDocument): string | undefined {
 
 function collapseIntroSpeech(
   segments: TutorSegment[],
-  options: { codeLesson?: boolean; caption?: string } = {},
+  options: { codeLesson?: boolean; caption?: string; narrationLanguage?: NarrationLanguage } = {},
 ): TutorSegment[] {
   const commands = segments.flatMap((segment) =>
     segment.commands ?? (segment.command ? [segment.command] : []),
@@ -414,7 +424,9 @@ function collapseIntroSpeech(
   if (options.codeLesson && commands.length > 0) {
     const caption = options.caption?.trim();
     return [{
-      narration: caption
+      narration: options.narrationLanguage === "hinglish"
+        ? caption ? `इस example को समझते हैं. ${hinglishFigureNarration(caption)}` : "अब इस worked example को साथ में समझते हैं."
+        : caption
         ? `Here is the example we will work through: ${caption.charAt(0).toLowerCase()}${caption.slice(1)}.`
         : "Here is the example we will work through.",
       command: commands[0] ?? null,
@@ -520,6 +532,7 @@ function deferralReason(
   command: VerifiedDiagramCommand,
   annotateTargetIds: Set<string>,
   codeLesson = false,
+  sourceGiven = false,
 ): "annotation" | "named" | null {
   // DSA figures are a worked example, not a physics apparatus. Values and
   // indices belong on the boxes as they appear — holding them for FOCUS
@@ -541,8 +554,43 @@ function deferralReason(
   if (command.type === "CIRCLE_AROUND" || command.type === "HIGHLIGHT") return "annotation";
   if (command.visualStyle?.strokeRole === "trace") return "annotation";
 
+  if (sourceGiven) return null;
+
   if (command.type === "LABEL" || command.type === "DIMENSION" || primitive.provenance?.measurementRole === "witness" || primitive.provenance?.labelLeader === true) return "named";
   return null;
+}
+
+/** Presentation order only; never invent authority from a matching number. */
+function isSourceGivenMeasurement(
+  primitive: RenderPrimitive,
+  command: VerifiedDiagramCommand,
+  document: SceneDocument,
+  turnPlan: VerifiedScenePresentationOptions["turnPlan"],
+): boolean {
+  if (!turnPlan || (command.type !== "LABEL" && command.type !== "DIMENSION") || !command.text) return false;
+  // Compatibility folding would turn 10³ into 103 and change value identity.
+  const compact = (text: string): string => text.normalize("NFC")
+    .replace(/\\(?:mathrm|text)\{([^}]*)\}/g, "$1")
+    .replace(/\\(?:theta|alpha|beta|gamma|Omega)\b/g, (token) =>
+      ({ "\\theta": "θ", "\\alpha": "α", "\\beta": "β", "\\gamma": "γ", "\\Omega": "Ω" })[token] ?? token)
+    .replace(/\b(?:degrees?|deg)\b/g, "°")
+    .replace(/\b(?:ohms?)\b/g, "Ω")
+    .replace(/\\[,;!]|[\s{}$]/g, "");
+  const annotationId = primitive.provenance?.annotationId;
+  const annotation = document.annotations.find((entry) => entry.id === annotationId || entry.id === primitive.id);
+  const binding = annotation?.quantityId ?? primitive.entityId;
+  // Even an answer with the same value/unit, or a misleading given-like text,
+  // stays deferred when its explicit identity is a derived result.
+  if (turnPlan.derived.some((quantity) => quantity.id === binding || quantity.symbol === binding)) return false;
+  const text = compact(command.text);
+  return turnPlan.givens.some((given) => {
+    if (given.provenance !== "given" || !Number.isFinite(given.value)) return false;
+    const value = compact(`${given.value}${given.unit ?? ""}`);
+    const named = compact(`${given.symbol}=${given.value}${given.unit ?? ""}`);
+    if (text === named) return true;
+    const bound = given.id === binding || given.symbol === binding;
+    return bound && text === value;
+  });
 }
 
 function annotationVisualStyle(
@@ -926,6 +974,26 @@ function unambiguousCueMatch(sentence: string, match: CuedMatch, matches: CuedMa
   return { ...match, token: sentence.slice(start, end), index: start };
 }
 
+function capitaliseSentence(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** The group's cue as the sentence a teacher says while drawing the group. */
+function spokenCueSentence(cue: string, groupIndex: number, language?: NarrationLanguage): string {
+  // Keep the cue's explanation, not only its entity names. The grammar
+  // below is independent of the figure's topic; technical terms stay English.
+  if (language === "hinglish") {
+    const subject = cueSubject(cue);
+    if (subject === "the physical setup") {
+      return groupIndex === 0 ? "पहले इस figure का setup देखते हैं." : "अब figure का अगला हिस्सा देखते हैं.";
+    }
+    return hinglishFigureNarration(cue);
+  }
+  if (isSpokenProse(cue)) return capitaliseSentence(ensureSpokenSentence(cue));
+  const subject = cueSubject(cue);
+  return groupIndex === 0 ? `Let’s begin with ${subject}.` : `Next comes ${subject}.`;
+}
+
 /**
  * "the weight mg", "the normal reaction N", "the weight component".
  *
@@ -934,10 +1002,15 @@ function unambiguousCueMatch(sentence: string, match: CuedMatch, matches: CuedMa
  * beat twelve seconds long with the pen idle for two thirds of it. Two parts
  * with the same head phrase share the words, and the window.
  */
-function entityPhrase(entity: SceneEntity, namedInCue = false): string | null {
+function entityPhrase(entity: SceneEntity, namedInCue = false, language?: NarrationLanguage): string | null {
   const role = cleanRole(entity.role).replace(/\s+label$/i, "");
   const label = entity.label?.trim();
   const symbol = label && SPEAKABLE_LABEL.test(label) ? label : null;
+  // Primitive implementation roles do not establish a physical meaning.
+  // Identify an already-labelled part without guessing from its id or topic.
+  if (label && SPEAKABLE_LABEL.test(label) && /^(?:polyline|helper point)$/i.test(role)) {
+    return language === "hinglish" ? `${label} वाला part` : `the part marked ${label}`;
+  }
   if (!role) {
     return symbol;
   }
@@ -945,7 +1018,7 @@ function entityPhrase(entity: SceneEntity, namedInCue = false): string | null {
   // Roles are planner prose, not a second narration channel. A value or a
   // statement belongs to teaching after derivation, even when spelled out.
   if (/[\p{N}=<>+×÷^]/u.test(role) || /\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|half|quarter|is|are|equals?|occurs?|when|because|solved|computed|answer)\b/i.test(role)) {
-    return symbol ? `the part ${symbol}` : "the part";
+    return language === "hinglish" ? (symbol ? `part ${symbol}` : "यह part") : (symbol ? `the part ${symbol}` : "the part");
   }
   const words = roleWords(role);
   const cut = words.findIndex((word) => ROLE_PREPOSITIONS.has(word));
@@ -953,6 +1026,7 @@ function entityPhrase(entity: SceneEntity, namedInCue = false): string | null {
   const spokenLabel = label && SPEAKABLE_LABEL.test(label) && !words.includes(label.toLowerCase())
     ? ` ${label}`
     : "";
+  if (language === "hinglish") return `${headPhrase.replace(/^(?:the|a|an|its)\s/i, "")}${spokenLabel}`;
   const article = /^(?:the|a|an|its)\s/i.test(headPhrase) ? "" : "the ";
   return `${article}${headPhrase}${spokenLabel}`;
 }
@@ -965,7 +1039,11 @@ function entityPhrase(entity: SceneEntity, namedInCue = false): string | null {
 /** Ink may trail the last word of an intro beat by this much before the beat says more. */
 const CUE_OVERRUN_TOLERANCE_MS = 400;
 
-function walkedSetupSentence(phrases: string[], groupIndex: number): string {
+function walkedSetupSentence(phrases: string[], groupIndex: number, language?: NarrationLanguage): string {
+  if (language === "hinglish") {
+    const parts = phrases.map((phrase, index) => `${index === 0 ? "पहले" : index === phrases.length - 1 ? "और आखिर में" : "फिर"} ${phrase}`);
+    return `${groupIndex === 0 ? "ये setup है" : "अब अगला हिस्सा देखते हैं"}. ${parts.join(", ")}. इतना setup तैयार है.`;
+  }
   const opening = groupIndex === 0 ? "Here is the setup. " : "Next, ";
   const parts = phrases.map((phrase, index) => {
     if (index === 0) return `first ${phrase}`;
@@ -992,7 +1070,11 @@ function joinSpokenList(items: string[]): string {
  * rest from their roles and labels, so each arrow has a word to be drawn
  * under and each label a moment to be lettered in.
  */
-function extendCueSentence(base: string, phrases: string[], nothingNamed: boolean): string {
+function extendCueSentence(base: string, phrases: string[], nothingNamed: boolean, language?: NarrationLanguage): string {
+  if (language === "hinglish") {
+    const list = phrases.length < 2 ? phrases[0] ?? "" : `${phrases.slice(0, -1).join(", ")} और ${phrases.at(-1)}`;
+    return `${base.trim()} यहाँ ${list} हैं.`;
+  }
   const trimmed = base.trim().replace(/[.!?]+$/, "");
   const list = joinSpokenList(phrases);
   return nothingNamed ? `${trimmed}: ${list}.` : `${trimmed}, with ${list}.`;
@@ -1000,6 +1082,7 @@ function extendCueSentence(base: string, phrases: string[], nothingNamed: boolea
 
 function cueRevealBeat(input: {
   cue: string;
+  language?: NarrationLanguage;
   groupIndex: number;
   commandIndices: number[];
   commands: VerifiedDiagramCommand[];
@@ -1060,7 +1143,9 @@ function cueRevealBeat(input: {
   // Planner prose may contain solved answers even when the ink is verified.
   // The intro names setup parts only; the teaching stream derives results.
   // DSA's worked-example narration uses its separate path unchanged.
-  let narration = input.groupIndex === 0 ? "Here is the setup." : "Next, the setup continues.";
+  let narration = input.language === "hinglish"
+    ? input.groupIndex === 0 ? "पहले इस figure का setup देखते हैं." : "अब figure का अगला हिस्सा देखते हैं."
+    : input.groupIndex === 0 ? "Here is the setup." : "Next, the setup continues.";
   let matches = matchAll(narration);
   const nameable = entityIds.filter((entityId) => {
     const entity = entitiesById.get(entityId);
@@ -1090,11 +1175,11 @@ function cueRevealBeat(input: {
     const phrases: string[] = [];
     for (const entityId of nameable) {
       if (matches.has(entityId)) continue;
-      const phrase = entityPhrase(entitiesById.get(entityId)!, cueMatches.get(entityId)?.strong);
+      const phrase = entityPhrase(entitiesById.get(entityId)!, cueMatches.get(entityId)?.strong, input.language);
       if (phrase && !phrases.includes(phrase)) phrases.push(phrase);
     }
     if (phrases.length > 0) {
-      narration = extendCueSentence(narration, phrases, named.length === 0);
+      narration = extendCueSentence(narration, phrases, named.length === 0, input.language);
       matches = matchAll(narration);
     }
   }
@@ -1160,11 +1245,11 @@ function cueRevealBeat(input: {
   if (overrunMs(narration, placed.ordered) > CUE_OVERRUN_TOLERANCE_MS) {
     const phrases: string[] = [];
     for (const entityId of nameable) {
-      const phrase = entityPhrase(entitiesById.get(entityId)!, cueMatches.get(entityId)?.strong);
+      const phrase = entityPhrase(entitiesById.get(entityId)!, cueMatches.get(entityId)?.strong, input.language);
       if (phrase && !phrases.includes(phrase)) phrases.push(phrase);
     }
     if (phrases.length >= 2) {
-      const walked = walkedSetupSentence(phrases, input.groupIndex);
+      const walked = walkedSetupSentence(phrases, input.groupIndex, input.language);
       const walkedMatches = matchAll(walked);
       const walkedPlaced = layout(walked, walkedMatches);
       if (
@@ -1193,6 +1278,7 @@ function cueRevealBeat(input: {
 
 function groupRevealNarration({
   cue,
+  language,
   drawCommands,
   groupIndex,
   chunkIndex,
@@ -1200,6 +1286,7 @@ function groupRevealNarration({
   rolesByEntityId,
 }: {
   cue: string;
+  language?: NarrationLanguage;
   drawCommands: DrawCommand[];
   groupIndex: number;
   chunkIndex: number;
@@ -1207,16 +1294,17 @@ function groupRevealNarration({
   rolesByEntityId: ReadonlyMap<string, string>;
 }): string {
   if (chunkIndex > 0) {
-    return "The rest of this setup completes the figure.";
+    return language === "hinglish" ? "अब setup का बाकी हिस्सा पूरा करते हैं." : "The rest of this setup completes the figure.";
   }
   const hasLabels = drawCommands.some((command) =>
     command.type === "LABEL" || command.type === "DIMENSION",
   );
   if (hasLabels) {
-    return detailNarration(drawCommands, cue, rolesByEntityId);
+    return detailNarration(drawCommands, cue, rolesByEntityId, language);
   }
   return revealNarration({
     cue,
+    language,
     phase: "structure",
     groupIndex,
     phaseIndex: 0,
@@ -1227,18 +1315,30 @@ function groupRevealNarration({
 
 function revealNarration({
   cue,
+  language,
   phase,
   groupIndex,
   phaseIndex,
   chunkIndex,
 }: {
   cue: string;
+  language?: NarrationLanguage;
   phase: RevealPhase;
   groupIndex: number;
   phaseIndex: number;
   chunkIndex: number;
   groupCount: number;
 }): string {
+  if (language === "hinglish") {
+    if (chunkIndex === 0 && phaseIndex === 0 && isSpokenProse(cue)) return hinglishFigureNarration(cue);
+    if (phase === "detail") return chunkIndex > 0 || phaseIndex > 0
+      ? "बाकी labels figure में भीड़ बढ़ाए बिना related quantities की पहचान कराते हैं."
+      : `structure तैयार है; इन labels और measurements से ${cueSubject(cue)} की quantities पहचानते हैं.`;
+    if (phase === "direction") return `अब ${cueSubject(cue)} की ज़रूरी directions और relationships को follow करो.`;
+    return chunkIndex > 0 || phaseIndex > 0
+      ? "अब setup का बाकी हिस्सा और उसके connections पूरे करते हैं."
+      : spokenCueSentence(cue, groupIndex, language);
+  }
   if (chunkIndex > 0) {
     return phase === "detail"
       ? "The remaining labels identify the related quantities without crowding the figure."
@@ -1271,6 +1371,7 @@ function detailNarration(
   commands: DrawCommand[],
   cue: string,
   rolesByEntityId: ReadonlyMap<string, string>,
+  language?: NarrationLanguage,
 ): string {
   const named = [...new Map(commands
     .filter((command) => command.type === "LABEL" || command.type === "DIMENSION")
@@ -1283,6 +1384,7 @@ function detailNarration(
   if (named.length === 0) {
     return revealNarration({
       cue,
+      language,
       phase: "detail",
       groupIndex: 0,
       phaseIndex: 1,
@@ -1292,6 +1394,12 @@ function detailNarration(
   }
 
   const identified = named.filter(([, meaning]) => Boolean(meaning));
+  if (language === "hinglish") {
+    const clauses = identified.length === named.length
+      ? identified.map(([label, meaning]) => `${label} ${meaning} है`)
+      : [`${named.map(([label]) => label).join(" और ")} ${named.length === 1 ? "label से figure का यह part पहचानते हैं" : "labels से figure के ये parts पहचानते हैं"}`];
+    return `${clauses.join(", और ")}.`;
+  }
   if (identified.length === named.length && identified.length > 0) {
     const clauses = identified.map(([label, meaning]) => `${label} is the ${meaning}`);
     return clauses.length === 1

@@ -2,8 +2,9 @@
 import assert from "node:assert/strict";
 import { compileSceneDocument, type RenderScene, type SceneDocument, type TurnPlanV3 } from "@heytutor/scene-engine";
 import { getSegmentCommands } from "@heytutor/drawing";
+import { findSpokenToken, mathToSpeech } from "@heytutor/tutor-core";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
-import { buildResumeTeachingPrompt, buildTurnTeachingPrompt, figureAddonForDoubt } from "../../features/tutor-session/lib/turn/turnTeachingPrompt";
+import { buildDoubtTeachingPrompt, buildResumeTeachingPrompt, buildTurnTeachingPrompt, figureAddonForDoubt } from "../../features/tutor-session/lib/turn/turnTeachingPrompt";
 import { buildEarlyLessonOpeningSegment } from "../../features/tutor-session/lib/turn/earlyLessonOpening";
 
 const failures: string[] = [];
@@ -27,9 +28,10 @@ const cues = [
   "The solved length is five metres, so we have finished the calculation.",
   "The launch angle is forty-five degrees and the speed is thirty-seven metres per second.",
   "The minimum occurs when both directions are perpendicular.",
+  "The ball strikes after 3 s, 75 m down the slope from O.",
 ];
 let canonicalCommands: string | undefined;
-for (const surface of ["group", "timeline", "member"] as const) {
+for (const language of ["english", "hinglish"] as const) for (const surface of ["group", "timeline", "member"] as const) {
   for (const cue of cues) {
     const document = structuredClone(scene);
     if (surface === "group") document.revealGroups[0]!.narrationCue = cue;
@@ -40,10 +42,11 @@ for (const surface of ["group", "timeline", "member"] as const) {
     const compiled = compileSceneDocument(document);
     assert.ok(compiled.ok && compiled.renderScene, "authored setup must compile before presentation");
     const frozen = JSON.stringify({ document, render: compiled.renderScene });
-    const presentation = buildVerifiedDiagramPresentation(document, compiled.renderScene);
+    const presentation = buildVerifiedDiagramPresentation(document, compiled.renderScene, { narrationLanguage: language });
     const narration = presentation.introSegments.map((segment) => segment.narration).join(" ");
     check(!narration.includes(cue.replace(/[.!?]$/, "")), `${surface}: result prose must wait for derivation`);
-    check(!/\b(?:5|five|forty-five|thirty-seven|perpendicular|solved|answer)\b/i.test(narration), `${surface}: no numeric or qualitative answer in runtime tour`);
+    check(!/\b(?:3|5|75|five|forty-five|thirty-seven|perpendicular|solved|answer)\b/i.test(narration), `${language}/${surface}: no numeric or qualitative answer in runtime tour`);
+    if (language === "hinglish") check(/\p{Script=Devanagari}/u.test(narration), `${surface}: Hinglish tour retains Hindi narration`);
     check(JSON.stringify({ document, render: compiled.renderScene }) === frozen, `${surface}: presentation preserves verified input`);
     const ink = JSON.stringify(presentation.diagram.commands);
     canonicalCommands ??= ink;
@@ -55,6 +58,79 @@ for (const surface of ["group", "timeline", "member"] as const) {
       }
     }
     check(presentation.diagram.promptAddon?.includes("derived labels wait until the corresponding result has been derived"), `${surface}: figure addon must not demand an answer-label tour before calculation`);
+  }
+}
+
+// A long draw earns a spoken walkthrough. That second narration path must
+// not append the answer-bearing planner cue after its neutral setup sentence.
+const denseDocument: SceneDocument = {
+  ...scene, source: { question: "A ball leaves O horizontally above a descending slope. Find its impact." },
+  entities: [
+    { id: "object", kind: "vector", role: "object", label: "O" },
+    { id: "image", kind: "vector", role: "image", label: "I" },
+    { id: "path", kind: "segment", role: "path" },
+  ],
+  constructions: [], assertions: [], requiredEntityIds: ["object", "image", "path"],
+  revealGroups: [{ id: "setup", entityIds: ["object", "image", "path"], dependsOn: [], narrationCue: cues[4]! }],
+  teachingTimeline: [],
+};
+const denseRender: RenderScene = {
+  engineVersion: "scene-engine/2.0.0", revealGroups: denseDocument.revealGroups, timeline: [], entityBounds: {},
+  primitives: [
+    { id: "object_arrow", entityId: "object", groupId: "setup", kind: "vector", points: [{ x: 500, y: 400 }, { x: 500, y: 250 }] },
+    { id: "image_arrow", entityId: "image", groupId: "setup", kind: "vector", points: [{ x: 950, y: 400 }, { x: 950, y: 450 }] },
+    ...Array.from({ length: 12 }, (_, index) => ({
+      id: `path_${index}`, entityId: "path", groupId: "setup", kind: "line" as const,
+      points: [{ x: 500, y: 200 + index * 10 }, { x: 800, y: 200 + index * 10 }, { x: 950, y: 450 - index * 5 }],
+    })),
+  ],
+};
+const denseHinglish = buildVerifiedDiagramPresentation(denseDocument, denseRender, { narrationLanguage: "hinglish" });
+check(denseHinglish.introSegments.some((segment) => segment.narration.includes("इतना setup तैयार है.")), "dense answer-cue fixture reaches the Hinglish spoken walkthrough");
+for (const segment of denseHinglish.introSegments) {
+  check(!/\b(?:3|75|impact|strikes)\b|नीचे होता है/.test(segment.narration), "dense Hinglish walkthrough cannot append the solved impact cue");
+  for (const command of getSegmentCommands(segment)) {
+    check(Boolean(command.spokenCue?.token && findSpokenToken(mathToSpeech(segment.narration), mathToSpeech(command.spokenCue.token)) >= 0), "dense Hinglish walkthrough retains schedulable cue tokens");
+  }
+}
+check(JSON.stringify(denseHinglish.diagram.commands) === JSON.stringify(buildVerifiedDiagramPresentation(denseDocument, denseRender).diagram.commands), "Hinglish answer exclusion preserves all dense verified ink");
+
+// The speech scheduler takes the first occurrence of each cue token. A later
+// angle mark must therefore get a token outside the earlier right angle mark.
+const marksDocument: SceneDocument = {
+  ...scene,
+  entities: [
+    { id: "right", kind: "segment", role: "right angle mark" },
+    { id: "angle", kind: "segment", role: "angle mark" },
+  ],
+  constructions: [], assertions: [], requiredEntityIds: ["right", "angle"],
+  revealGroups: [{ id: "setup", entityIds: ["right", "angle"], dependsOn: [], narrationCue: "Show the right angle mark and the angle mark." }],
+  teachingTimeline: [],
+};
+const marksRender: RenderScene = {
+  engineVersion: "scene-engine/2.0.0", revealGroups: marksDocument.revealGroups, timeline: [], entityBounds: {},
+  primitives: [
+    { id: "right_ink", entityId: "right", groupId: "setup", kind: "line", points: [{ x: 500, y: 310 }, { x: 510, y: 310 }, { x: 510, y: 320 }] },
+    { id: "angle_ink", entityId: "angle", groupId: "setup", kind: "line", points: [{ x: 600, y: 310 }, { x: 610, y: 305 }, { x: 615, y: 300 }] },
+  ],
+};
+const marks = buildVerifiedDiagramPresentation(marksDocument, marksRender);
+const markSegment = marks.introSegments[0]!;
+const markSpeech = mathToSpeech(markSegment.narration);
+const rightName = findSpokenToken(markSpeech, "right angle mark");
+const angleName = findSpokenToken(markSpeech, "angle mark", rightName + "right angle mark".length);
+check(rightName >= 0 && angleName > rightName, "overlapping-name fixture speaks both marks in order");
+for (const entityId of ["right", "angle"]) {
+  const commands = getSegmentCommands(markSegment).filter((command) => command.spokenCue?.entityId === entityId);
+  check(commands.length > 0, `${entityId}: overlapping-name fixture retains its own verified mark`);
+  for (const command of commands) {
+    const token = mathToSpeech(command.spokenCue!.token);
+    const at = findSpokenToken(markSpeech, token);
+    const intendedName = entityId === "right" ? rightName : angleName;
+    const intendedEnd = intendedName + (entityId === "right" ? "right angle mark" : "angle mark").length;
+    check(at >= 0 && at <= intendedName && at + token.length === intendedEnd,
+      `${entityId}: scheduler locates cue at that mark's own spoken name (${command.spokenCue!.token})`);
+    if (entityId === "angle") check(at >= rightName + "right angle mark".length, "later angle cue must not schedule inside the earlier right angle mark");
   }
 }
 
@@ -74,6 +150,7 @@ for (const role of ["speed 37 metres per second", "speed thirty-seven metres per
 // Transport seam: compiled point geometry plus authored verified value labels,
 // like the dimension/reveal gate. This does not test numeric label admission.
 const stagedDocument = structuredClone(scene);
+stagedDocument.source.question = "The starting position is x = 5 m. Find v.";
 stagedDocument.entities.push({ id: "v", kind: "point", role: "launch velocity", label: "v" });
 stagedDocument.constructions.push({ id: "make_v", operator: "point", inputs: { x: 3, y: 4, coordinateSpace: "world" }, outputs: ["v"] });
 stagedDocument.revealGroups[0]!.entityIds.push("v");
@@ -85,17 +162,67 @@ const stagedRender: RenderScene = { ...stagedCompile.renderScene, primitives: [.
   { id: "given_value", entityId: "a", groupId: "setup", kind: "label", points: [{ x: 500, y: 230 }], text: "x = 5 m", labelPlacement: "absolute" },
   { id: "answer_value", entityId: "v", groupId: "setup", kind: "label", points: [{ x: 700, y: 330 }], text: "v = 5 m/s", labelPlacement: "absolute" },
 ] };
+const stagedPlan: Pick<TurnPlanV3, "givens" | "derived"> = {
+  givens: [{ id: "x", symbol: "x", value: 5, unit: "m", provenance: "given", sourceText: "x = 5 m" }],
+  derived: [{ id: "v", symbol: "v", value: 5, unit: "m/s", provenance: "derived", sourceText: "v = 5 m/s", dependsOn: ["x"] }],
+};
 for (const unit of ["m", "m/s"]) for (const marked of [false, true]) {
   const document = structuredClone(stagedDocument);
   const render = structuredClone(stagedRender);
   render.primitives.find((entry) => entry.id === "answer_value")!.text = `v = 5 ${unit}`;
   if (marked) document.source = { ...document.source, answerLabelEntityIds: ["v"] };
-  const presentation = buildVerifiedDiagramPresentation(document, render);
+  const authority = { ...stagedPlan, derived: [{ ...stagedPlan.derived[0]!, unit }] };
+  const presentation = buildVerifiedDiagramPresentation(document, render, { turnPlan: authority });
   const intro = presentation.introSegments.flatMap(getSegmentCommands);
-  check(!intro.some((command) => /(?:x|v) = 5/.test(command.text ?? "")), "names-only tour cannot pull measured values into the intro");
+  check(intro.some((command) => command.text === "x = 5 m"), "source-stated given value is visible in the introductory setup");
+  check(!intro.some((command) => command.text === `v = 5 ${unit}`), "derived value waits for its derivation even when it equals a given");
   check(presentation.diagram.commands.some((command) => command.text === "x = 5 m") &&
     presentation.diagram.commands.some((command) => command.text === `v = 5 ${unit}`), "same-valued given and answer both survive as verified annotations");
   check(presentation.diagram.deferredAnnotations?.flatMap((entry) => entry.commands).some((command) => command.text === `v = 5 ${unit}`), "answer stays available for the teaching-stage reveal");
+  check(!presentation.diagram.deferredAnnotations?.flatMap((entry) => entry.commands).some((command) => command.text === "x = 5 m"), "an introductory given cannot remain scheduled as a deferred answer");
+}
+// A number alone cannot establish which quantity it describes. A verified
+// annotation binding can establish that identity, and a derived binding wins
+// even when its printed text happens to equal a stated given.
+for (const binding of ["unbound", "given", "derived"] as const) {
+  const document = structuredClone(stagedDocument);
+  const render = structuredClone(stagedRender);
+  const primitive = render.primitives.find((entry) => entry.id === "given_value")!;
+  primitive.text = "5 m";
+  if (binding !== "unbound") {
+    document.annotations.push({ id: "source_binding", kind: "label", targetIds: ["a"], text: "5 m", quantityId: binding === "given" ? "x" : "v" });
+    primitive.provenance = { annotationId: "source_binding" };
+  }
+  const presentation = buildVerifiedDiagramPresentation(document, render, { turnPlan: {
+    ...stagedPlan, derived: [{ ...stagedPlan.derived[0]!, unit: "m" }],
+  } });
+  check(presentation.introSegments.flatMap(getSegmentCommands).some((command) => command.text === "5 m") === (binding === "given"),
+    `${binding}: only a source-given identity can expose an anonymous same-valued label`);
+  check(presentation.diagram.commands.some((command) => command.text === "5 m"), `${binding}: staging retains the verified value mark`);
+}
+{
+  const document = structuredClone(stagedDocument);
+  document.annotations.push({ id: "given_value", kind: "label", targetIds: ["a"], text: "x = 5 m", quantityId: "v" });
+  const presentation = buildVerifiedDiagramPresentation(document, stagedRender, { turnPlan: {
+    ...stagedPlan, derived: [{ ...stagedPlan.derived[0]!, unit: "m" }],
+  } });
+  check(!presentation.introSegments.flatMap(getSegmentCommands).some((command) => command.text === "x = 5 m"), "explicit derived binding takes precedence over printed text matching a given");
+}
+{
+  const document = structuredClone(stagedDocument);
+  document.source.question = "The starting position is x = 103 m. Find v.";
+  const authority: Pick<TurnPlanV3, "givens" | "derived"> = {
+    ...stagedPlan,
+    givens: [{ ...stagedPlan.givens[0]!, value: 103, sourceText: "x = 103 m" }],
+  };
+  for (const text of ["x = 103 m", "x = 10³ m"]) {
+    const render = structuredClone(stagedRender);
+    render.primitives.find((entry) => entry.id === "given_value")!.text = text;
+    const presentation = buildVerifiedDiagramPresentation(document, render, { turnPlan: authority });
+    check(presentation.introSegments.flatMap(getSegmentCommands).some((command) => command.text === text) === (text === "x = 103 m"),
+      "given label identity preserves a value exponent instead of flattening 10³ into 103");
+    check(presentation.diagram.commands.some((command) => command.text === text), "exponent identity staging preserves the verified label mark");
+  }
 }
 // Later groups keep their verified ink and draw order, without result prose.
 const groupedDocument = structuredClone(stagedDocument);
@@ -108,10 +235,11 @@ const groupedRender = structuredClone(stagedRender);
 groupedRender.revealGroups = groupedDocument.revealGroups;
 groupedRender.timeline = [];
 for (const primitive of groupedRender.primitives) primitive.groupId = primitive.entityId === "v" ? "later" : "setup";
-const grouped = buildVerifiedDiagramPresentation(groupedDocument, groupedRender);
+const grouped = buildVerifiedDiagramPresentation(groupedDocument, groupedRender, { turnPlan: stagedPlan });
 check(grouped.introSegments.length === 2 && grouped.diagram.reveals.map((entry) => entry.targetId).join(",") === "setup,later", `mixed groups retain verified reveal order (${grouped.introSegments.length}; ${grouped.diagram.reveals.map((entry) => entry.targetId).join(",")})`);
 check(!grouped.introSegments.some((entry) => /five|solved|answer/.test(entry.narration)), "later group cannot announce a result either");
-check(!grouped.introSegments.flatMap(getSegmentCommands).some((entry) => /= 5/.test(entry.text ?? "")), "value labels stay deferred across groups");
+check(grouped.introSegments.flatMap(getSegmentCommands).some((entry) => entry.text === "x = 5 m"), "given value remains visible when the result belongs to a later reveal group");
+check(!grouped.introSegments.flatMap(getSegmentCommands).some((entry) => entry.text === "v = 5 m/s"), "derived value stays deferred across groups");
 check(grouped.diagram.commands.length === buildVerifiedDiagramPresentation(stagedDocument, stagedRender).diagram.commands.length, "group changes cannot lose verified marks");
 
 // Code lessons are worked-example frames: their values remain on the boxes.
@@ -159,6 +287,20 @@ for (const reason of ["stop", "doubt"] as const) {
   }
   check(resume.openingSegment === null && resume.givenSegments.length === 0, "resume cannot reopen or restate the givens");
 }
+for (const solver of [false, true]) for (const language of ["english", "hinglish"] as const) {
+  const doubt = buildDoubtTeachingPrompt({ lessonQuestion: question,
+    boardRows: [{ workId: "w1", text: "c^2 = a^2 + b^2" }], rowsLeftOnPage: 5, nextRowY: 200,
+    diagramPromptAddon: addon, codePanelShowing: false, turnPlan: plan,
+    solverProjection: solver ? { c: 5 } : null, familiarity: "normal", fastMode: false,
+    narrationLanguage: language });
+  for (const text of [doubt.systemPrompt, doubt.continuationPrompt]) {
+    check(text.includes("derive each requested result before announcing its value"), "doubt and its continuation contain the actual derivation-order policy");
+    check(text.includes("state each unstated modelling condition once"), "doubt and its continuation preserve the existing condition scope");
+    check(text.includes("Results already established in the student's work may be referenced"), "doubt can reference completed working without restarting its derivation");
+    check(text.includes("saved notes"), "doubt continuation retains conditional scope in the saved notes");
+  }
+  check(doubt.openingSegment === null && doubt.givenSegments.length === 0, "doubt cannot reopen the lesson or restate its givens");
+}
 const equalQuestion = "One length x is 5 m. Find the equal length c.";
 const equalPlan: TurnPlanV3 = { ...plan, question: equalQuestion,
   givens: [{ id: "x", symbol: "x", value: 5, unit: "m", provenance: "given", sourceText: "x is 5 m" }],
@@ -173,4 +315,4 @@ if (failures.length) {
   console.error(`teaching derivation order RED: ${failures.length}/${checks} failed`);
   for (const failure of [...new Set(failures)]) console.error(failure);
   process.exitCode = 1;
-} else console.log(`teaching derivation order GREEN: ${checks} checks; compiled tours, role/value/group/DSA controls and initial/continued/resumed prompts, no model or audio calls`);
+} else console.log(`teaching derivation order GREEN: ${checks} checks; compiled tours, source givens, Hinglish, overlapping cues, role/value/group/DSA controls and initial/continued/doubt/resumed prompts, no model or audio calls`);

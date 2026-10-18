@@ -35,6 +35,7 @@ import {
 import type { DoubtBoardRow } from "./turnTeachingPrompt";
 import type { DiagramStrategy } from "../scene/diagramStrategy";
 import { classifyEarlyLessonProgress, type EarlyLessonSpokenSegment } from "./earlyLessonOpening";
+import type { FailedTurnTelemetry } from "@/lib/obs/failedTurnTelemetry";
 
 /** A lesson opens a page; a doubt answers on it; a resume continues after that. */
 export type PageTurnKind = "lesson" | "doubt" | "resume";
@@ -62,6 +63,8 @@ export interface BoardPageRecord {
   lessonQuestion: string;
   /** Runtime-only: a pre-authority acknowledgement is not taught work. */
   earlyOpeningStarted?: boolean;
+  /** Content-free diagnostics attached to saves, without affecting page/scene ownership. */
+  failureTelemetry?: FailedTurnTelemetry;
   /** Teaching context a doubt on this page reuses instead of planning again. */
   turnPlan: TurnPlanV3 | null;
   solverProjection: unknown;

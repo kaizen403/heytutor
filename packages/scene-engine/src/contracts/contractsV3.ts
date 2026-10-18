@@ -2603,6 +2603,7 @@ export function pruneUnverifiedSceneAnnotations(
 ): SceneDocument {
   let changed = false;
   const removedIds = new Set<string>();
+  const removedLabelIds = new Set<string>();
   const annotations = document.annotations.filter((annotation) => {
     if (!annotation.text) return true;
     const unsupported = validateSceneQuantityAgreement([], plan, [annotation.text])
@@ -2615,10 +2616,11 @@ export function pruneUnverifiedSceneAnnotations(
   });
   const entities = document.entities.map((entity) => {
     if (!entity.label || isMatrixExpressionLabel(document, entity)) return entity;
-    const label = pruneUnsupportedMeasuredFragments(entity.label, plan);
+    const label = pruneUnsupportedMeasuredLabel(entity.label, plan);
     if (label === entity.label) return entity;
     changed = true;
     if (label) return { ...entity, label };
+    removedLabelIds.add(entity.id);
     const withoutLabel = { ...entity };
     delete withoutLabel.label;
     return withoutLabel;
@@ -2628,6 +2630,11 @@ export function pruneUnverifiedSceneAnnotations(
     ...document,
     entities,
     annotations,
+    // Named-point normalization added this obligation while the label was
+    // still present. Removing optional display text removes that proof only.
+    assertions: document.assertions.filter((assertion) =>
+      assertion.predicate !== "label_attached" ||
+      !assertion.entities.some((id) => removedLabelIds.has(id))),
     teachingTimeline: document.teachingTimeline.filter((action) => !removedIds.has(action.targetId)),
   };
 }
@@ -4051,21 +4058,14 @@ function pointForEntity(
     : { x: construction.inputs.x, y: construction.inputs.y };
 }
 
-function pruneUnsupportedMeasuredFragments(text: string, plan: TurnPlanV3): string {
-  const supported = supportedSceneDisplayMeasurements(plan);
-  const pruned = text.replace(measuredValuePattern(), (measurement, _number: string, unit: string, index: number) => {
-    if (sceneMeasurementIsOwnedFormulaOperand(text, { index, length: measurement.length, unit }, plan)) return measurement;
-    const value = Number(_number.replace(/−/g, "-"));
-    const tolerance = displayedNumberTolerance(_number.replace(/−/g, "-"));
-    return supported.some((quantity) => equivalentDisplayedMeasuredQuantity(
-      quantity.value, quantity.unit, value, unit, tolerance,
-    )) ? measurement : "";
-  });
-  return pruned
-    .replace(/\s*=\s*$/g, "")
-    .replace(/\(\s*\)/g, "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
+/** Publish label text atomically; never leave a piece of a rejected formula. */
+function pruneUnsupportedMeasuredLabel(text: string, plan: TurnPlanV3): string {
+  const unsupported = validateSceneQuantityAgreement([], plan, [text])
+    .some((issue) => issue.code === "displayed_quantity_unverified");
+  if (!unsupported) return text;
+  // A complete assigned identifier is still useful without its unverified
+  // value. Bare values and compound left-hand expressions have no safe label.
+  return /^\s*([\p{L}_][\p{L}\p{N}\p{M}_]*)\s*(?:=|≈|≃|≅)/u.exec(text)?.[1] ?? "";
 }
 
 function supportedSceneDisplayMeasurements(plan: TurnPlanV3): Array<{ value: number; unit: string }> {
@@ -4975,7 +4975,9 @@ export interface SceneArtifactsV3 {
       | "candidate_invalid"
       | "missing_capability"
       | "solver_contradiction"
-      | "required_visual_unavailable";
+      | "required_visual_unavailable"
+      /** A candidate passed validation as a scene but final selection did not draw it. */
+      | "valid_candidate_dropped";
     issueCodes: string[];
     candidateCount: number;
   };
