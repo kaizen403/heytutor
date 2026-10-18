@@ -86,6 +86,8 @@ function kept(label: string, result: ReturnType<typeof run>) {
 // 1. The km/h stem with the plan's launch speed u = 72 km/h.
 const kmhPlan = plan(KMH, [given("u", 72, "km/h")]);
 const twenty = run(MS, plan(MS, [given("u", 20, "m/s")]), 20);
+const MINUTE_ACCELERATION = "A ball is thrown at 20 m/s at 30° above horizontal. Gravity is 36000 metres per minute². Find its range.";
+kept("written per-minute acceleration is not a speed", run(MINUTE_ACCELERATION, plan(MINUTE_ACCELERATION, []), 20));
 const PER_MINUTE_STEM = "A ball is thrown at 120 m/min at 30° above horizontal. Take g = 10 m/s^2. Find its range.";
 refused("no plan speed, per-minute bare number cannot be read as m/s", run(PER_MINUTE_STEM, plan(PER_MINUTE_STEM, []), 120), "120 m/min");
 // NFKC turns the Unicode y subscript into Greek gamma; dropping it would make v₀ᵧ look like v₀.
@@ -148,7 +150,7 @@ for (const unit of ["m/min", "m/minute", "m min^-1", "m min⁻¹", "metres per m
   refused(`no plan speed, ${unit}: copied 120 is refused`, run(question, plan(question, []), 120));
   refused(`no plan speed, ${unit}: converted 2 still needs plan authority`, run(question, plan(question, []), 2));
 }
-for (const unit of ["m/min^2", "m/min²", "metres per minute squared", "m/min/s"]) {
+for (const unit of ["m/min^2", "m/min²", "metres per minute squared", "m/min/s", "metres per minute²", "metres per minute^2", "metres per minute ^2", "meters per min²", "m/min ^2", "m/min squared", "m/minute ^2"]) {
   const question = `A ball is thrown at 20 m/s with acceleration 120 ${unit}. Find its range.`;
   kept(`${unit} is acceleration, not a non-SI speed in the stem`, run(question, plan(question, []), 20));
 }

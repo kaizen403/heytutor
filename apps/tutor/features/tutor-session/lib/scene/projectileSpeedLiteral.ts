@@ -70,7 +70,7 @@ const LENGTH_UNIT = new RegExp(`^${LENGTH_UNIT_SOURCE}$`, "iu");
 // Per second, never per second squared (g = 980 cm/s^2 is not a speed).
 const PER_SECOND = "(?:\\s*\\/\\s*s(?:ec(?:ond)?)?(?![A-Za-z0-9^²³]|\\s*\\/)|[\\s·⋅*]*s(?:\\^?[-−–]1|⁻¹)(?!\\d)|\\s+per\\s+second\\b(?!\\s+(?:squared|per)))";
 const PER_HOUR = "(?:\\.?\\s*\\/\\s*h(?:r|our)?\\b\\.?|[\\s·⋅*]*h(?:r|our)?(?:\\^?[-−–]1|⁻¹)(?!\\d)|\\.?\\s+(?:per|prati)\\s+(?:hour|hr|ghant[ae])\\b|\\s+an\\s+hour\\b|\\s*\\/\\s*ghant[ae]\\b)";
-const PER_MINUTE = "(?:\\s*\\/\\s*min(?:ute)?s?(?![A-Za-z0-9^²³]|\\s*\\/)|[\\s·⋅*]*min(?:ute)?s?(?:\\^?[-−–]1|⁻¹)(?!\\d)|\\s+(?:per|a)\\s+min(?:ute)?s?\\b(?!\\s+(?:squared|per)))";
+const PER_MINUTE = "(?:\\s*\\/\\s*min(?:ute)?s?(?![A-Za-z0-9]|\\s*(?:[²³^/]|squared\\b|per\\b))|[\\s·⋅*]*min(?:ute)?s?(?:\\^?[-−–]1|⁻¹)(?!\\d)|\\s+(?:per|a)\\s+min(?:ute)?s?\\b(?!\\s*(?:[²³^]|squared\\b|per\\b)))";
 /**
  * A number followed by a speed unit other than m/s: km/h (kmph, kmh, kmhr, kph,
  * km hr^-1, km./hr., k.m./h, kilometres per hour, km/ghanta, km prati ghanta,
