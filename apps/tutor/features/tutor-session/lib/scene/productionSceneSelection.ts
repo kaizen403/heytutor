@@ -15,6 +15,7 @@ import { inferSceneCapabilities, questionRequiresVisual, type SceneCandidateVali
 import type { VisualNeedDecision } from "@/lib/llm/visualNeedPolicy";
 import { liveSceneSaveFailure } from "@/lib/scene/sceneSaveAdmission";
 import { shouldAttemptExactScene } from "./diagramGeneration";
+import { projectileSpeedLiteralIssues } from "./projectileSpeedLiteral";
 import { resolveVisualRequirement } from "./visualRequirement";
 import {
   selectVerifiedRepresentationExplained, type ExactCandidateDecline, type SelectedRepresentation,
@@ -148,12 +149,16 @@ export function validateProductionSceneCandidate(input: {
     authoritativePlan,
     displayedSceneQuantityTexts(validated.document),
   );
-  const authorityIssues = agreementIssues.map((issue) => ({
-    code: issue.code,
-    message: issue.message,
-    path: issue.path,
-    severity: "fatal" as const,
-  }));
+  const authorityIssues = [
+    ...agreementIssues.map((issue) => ({
+      code: issue.code,
+      message: issue.message,
+      path: issue.path,
+      severity: "fatal" as const,
+    })),
+    // A bare projectile speed or height is read as m/s or m; hold it to the plan (72 km/h is 20, never 72; 80 cm is 0.8).
+    ...projectileSpeedLiteralIssues(validated.document, authoritativePlan, question),
+  ];
   const sourceIssues = validateMatrixSourceBinding(validated.document, question, authoritativePlan);
   const proofIssues = validateTurnPlanSceneProofs(validated.document, authoritativePlan);
   // A literal image point at a plan-derived distance from a refracting
