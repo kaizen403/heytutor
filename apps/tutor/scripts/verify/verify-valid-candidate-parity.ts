@@ -378,7 +378,7 @@ function hookRun(selection: ProductionSceneSelection, prior: Degradation | undef
 }
 
 const labFile = "scripts/lecture-lab/lecturePipeline.ts";
-const labLines = markedLines(labFile, "const sceneSelection = selectProductionScene({", null);
+const labLines = markedLines(labFile, "const sceneSelection = selectProductionScene(", null);
 {
   const source = readFileSync(resolve(process.cwd(), labFile), "utf8");
   const tail = source.slice(source.indexOf("// settle-selection-degradation:end"));
