@@ -20,6 +20,8 @@ for (const [id, question] of [
   assert.ok(!document.quantities.some(q => q.id === "l"));
 }
 for (const [question, expectedLength, expectedTotal] of [
+  ["Draw a potentiometer: the wire is 10 m long and the balance point is at 40 cm", 40, 1000],
+  ["Draw a potentiometer: the wire is 4000 mm long and the balance point is at 40 cm", 40, 400],
   ["In a potentiometer the balance point is at 240 cm on a 400 cm wire. Draw the circuit.", 240, 400],
   ["In a potentiometer with a wire of length 10 m the balancing length is 2.4 m. Draw the circuit.", 240, 1000],
   ["In a potentiometer the balancing length is 240 cm on a 40 m wire. Draw the circuit.", 240, 4000],

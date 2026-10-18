@@ -70,6 +70,9 @@ for (const [question, n, closed] of [
   }
 }
 for (const question of [
+  "Draw the third harmonic in a closed pipe with both ends closed",
+  "Draw the second harmonic in a pipe closed at both ends",
+  "Draw the fundamental in a pipe whose two ends are closed",
   "Draw the second harmonic in a pipe closed at one end",
   "Draw the fourth harmonic in a closed organ pipe",
   "Draw the third overtone in a closed pipe", // n=7 is outside this generator's supported range.

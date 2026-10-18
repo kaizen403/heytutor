@@ -65,7 +65,7 @@ function bridgeLengthInCm(stem: string, role: RegExp): number | null {
   return values.length && values.every(value => Math.abs(value - values[0]!) < 1e-8) ? values[0]! : null;
 }
 function bridgeWireLengthInCm(stem: string): number | null {
-  const after = bridgeLengthInCm(stem, /\bwire\s+(?:of\s+)?length|\blength\s+of\s+(?:the\s+)?wire/);
+  const after = bridgeLengthInCm(stem, /\bwire\s+(?:of\s+)?length|\blength\s+of\s+(?:the\s+)?wire|\bwire(?=\s+is\b)/);
   const pattern = new RegExp(`${STEM_NUMBER}\\s*(cm|mm|metres?|meters?|m)\\s+wire\\b`, "gi");
   const before = [...stem.matchAll(pattern)].map(bridgeLengthValueInCm).filter((value): value is number => value !== null);
   const values = [...(after === null ? [] : [after]), ...before];
@@ -1200,7 +1200,8 @@ const CUE_SETS: readonly CueSet[] = [
       const closed = /\b(?:closed (?:organ )?pipes?|closed at one end|one end (?:is )?closed|closed end)\b/i.test(stem);
       const open = /\b(?:open (?:organ )?pipes?|open at both ends|both ends (?:are )?open)\b/i.test(stem);
       const pipe = /\b(?:pipes?|tubes?)\b/i.test(stem);
-      const ends = closed && open ? "unknown" : closed ? "closed_open" : open ? "open" : pipe ? "unknown" : "fixed";
+      const bothClosed = /\b(?:(?:both|two) ends (?:are )?closed|closed at (?:both|two) ends)\b/i.test(stem);
+      const ends = bothClosed || (closed && open) ? "unknown" : closed ? "closed_open" : open ? "open" : pipe ? "unknown" : "fixed";
       const namedNumbers: Record<string, number> = {
         first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10,
         one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
