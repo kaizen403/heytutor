@@ -224,6 +224,49 @@ for (const binding of ["unbound", "given", "derived"] as const) {
     check(presentation.diagram.commands.some((command) => command.text === text), "exponent identity staging preserves the verified label mark");
   }
 }
+// A measured span is one visible annotation: its label cannot precede its
+// bar, witnesses, or callout leader merely because those marks have no text.
+const measuredPlan: Pick<TurnPlanV3, "givens" | "derived"> = {
+  givens: [{ id: "L", symbol: "L", value: 5, unit: "m", provenance: "given", sourceText: "L = 5 m" }],
+  derived: [{ id: "R", symbol: "R", value: 5, unit: "m", provenance: "derived", sourceText: "R = L = 5 m", dependsOn: ["L"] }],
+};
+for (const identity of ["given", "derived", "derived_binding"] as const) for (const leader of [false, true]) {
+  const document: SceneDocument = {
+    ...scene, source: { question: "A rod has length L = 5 m. Find the equal length R." },
+    entities: [{ id: "rod", kind: "segment", role: "rod" }, { id: "measure", kind: "dimension", role: "length", label: identity === "derived" ? "R" : "L" }],
+    constructions: [], assertions: [], requiredEntityIds: ["rod", "measure"],
+    annotations: identity === "derived_binding"
+      ? [{ id: "result_binding", kind: "label", targetIds: ["measure"], text: "L = 5 m", quantityId: "R" }] : [],
+    revealGroups: [{ id: "setup", entityIds: ["rod", "measure"], dependsOn: [], narrationCue: "Here is the rod and its length." }],
+    teachingTimeline: [],
+  };
+  const render: RenderScene = {
+    engineVersion: "scene-engine/2.0.0", revealGroups: document.revealGroups, timeline: [], entityBounds: {},
+    primitives: [
+      { id: "rod_ink", entityId: "rod", groupId: "setup", kind: "line", points: [{ x: 750, y: 180 }, { x: 750, y: 420 }] },
+      { id: "measure_bar", entityId: "measure", groupId: "setup", kind: "dimension", points: [{ x: 800, y: 180 }, { x: 800, y: 420 }], provenance: { measurementRole: "bar" } },
+      { id: "measure_witness_a", entityId: "measure", groupId: "setup", kind: "line", points: [{ x: 750, y: 180 }, { x: 805, y: 180 }], provenance: { measurementRole: "witness", dashed: true, strokeRole: "construction" } },
+      { id: "measure_witness_b", entityId: "measure", groupId: "setup", kind: "line", points: [{ x: 750, y: 420 }, { x: 805, y: 420 }], provenance: { measurementRole: "witness", dashed: true, strokeRole: "construction" } },
+      { id: "measure_label", entityId: "measure", groupId: "setup", kind: "label", points: [{ x: 835, y: 300 }],
+        text: identity === "derived" ? "R = 5 m" : "L = 5 m", labelPlacement: "absolute",
+        ...(identity === "derived_binding" ? { provenance: { annotationId: "result_binding" } } : {}) },
+      ...(leader ? [{ id: "measure_leader", entityId: "measure", groupId: "setup", kind: "line" as const,
+        points: [{ x: 800, y: 300 }, { x: 830, y: 300 }], provenance: { labelLeader: true, strokeRole: "construction" } }] : []),
+    ],
+  };
+  const presentation = buildVerifiedDiagramPresentation(document, render, { turnPlan: measuredPlan });
+  const expectedIds = ["measure_bar", "measure_witness_a", "measure_witness_b", "measure_label", ...(leader ? ["measure_leader"] : [])].sort().join(",");
+  const intro = presentation.introSegments.flatMap(getSegmentCommands).filter((command) => command.semanticRef?.entityId === "measure");
+  const deferred = presentation.diagram.deferredAnnotations?.flatMap((entry) => entry.commands).filter((command) => command.semanticRef?.entityId === "measure") ?? [];
+  check(intro.map((command) => command.semanticRef?.primitiveId).sort().join(",") === (identity === "given" ? expectedIds : ""),
+    `${identity}/${leader}: introductory dimension reveals its label, textless bar, witnesses and leader as one atom`);
+  check(deferred.map((command) => command.semanticRef?.primitiveId).sort().join(",") === (identity === "given" ? "" : expectedIds),
+    `${identity}/${leader}: derived dimension keeps its entire atom deferred, including when its label matches a given`);
+  check(presentation.diagram.commands.filter((command) => command.semanticRef?.entityId === "measure").map((command) => command.semanticRef?.primitiveId).sort().join(",") === expectedIds,
+    `${identity}/${leader}: staging preserves every verified measurement mark`);
+  check(presentation.diagram.commands.find((command) => command.semanticRef?.primitiveId === "measure_witness_a")?.params.join(",") === "750,180,805,180",
+    `${identity}/${leader}: presentation preserves the verified witness endpoints`);
+}
 // Later groups keep their verified ink and draw order, without result prose.
 const groupedDocument = structuredClone(stagedDocument);
 groupedDocument.revealGroups = [

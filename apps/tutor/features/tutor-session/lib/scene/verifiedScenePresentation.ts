@@ -94,6 +94,12 @@ export function buildVerifiedDiagramPresentation(
   );
   const holdLaterDsaFrames = options.layout === "code_lesson" && dsaExampleFrames.length > 1;
   const introGroupId = holdLaterDsaFrames ? orderedGroupIds[0]! : null;
+  // A measurement is one atom: its source-given label, bar and witnesses.
+  // Textless companions cannot establish identity from a number of their own.
+  const sourceGivenMeasurementIds = new Set(renderScene.primitives
+    .filter((primitive) => (primitive.kind === "label" || primitive.kind === "dimension")
+      && isSourceGivenMeasurement(primitive, primitive.text, document, options.turnPlan))
+    .map((primitive) => primitive.entityId));
 
   const add = (
     groupId: string,
@@ -164,7 +170,11 @@ export function buildVerifiedDiagramPresentation(
         command,
         annotateTargetIds,
         options.layout === "code_lesson",
-        isSourceGivenMeasurement(primitive, styled, document, options.turnPlan),
+        ((command.type === "LABEL" || command.type === "DIMENSION")
+          && isSourceGivenMeasurement(primitive, command.text, document, options.turnPlan))
+          || (!command.text && sourceGivenMeasurementIds.has(primitive.entityId)
+            && (command.type === "DIMENSION" || primitive.provenance?.measurementRole === "witness"
+              || primitive.provenance?.labelLeader === true)),
       ) ?? (holdLaterDsaFrames && primitive.groupId !== introGroupId ? "frame" : null);
       const index = add(primitive.groupId, commandPhase, styled, { reveal: deferReason === null });
       if (deferReason !== null && index !== null) {
@@ -563,11 +573,11 @@ function deferralReason(
 /** Presentation order only; never invent authority from a matching number. */
 function isSourceGivenMeasurement(
   primitive: RenderPrimitive,
-  command: VerifiedDiagramCommand,
+  labelText: string | undefined,
   document: SceneDocument,
   turnPlan: VerifiedScenePresentationOptions["turnPlan"],
 ): boolean {
-  if (!turnPlan || (command.type !== "LABEL" && command.type !== "DIMENSION") || !command.text) return false;
+  if (!turnPlan || !labelText) return false;
   // Compatibility folding would turn 10³ into 103 and change value identity.
   const compact = (text: string): string => text.normalize("NFC")
     .replace(/\\(?:mathrm|text)\{([^}]*)\}/g, "$1")
@@ -582,7 +592,7 @@ function isSourceGivenMeasurement(
   // Even an answer with the same value/unit, or a misleading given-like text,
   // stays deferred when its explicit identity is a derived result.
   if (turnPlan.derived.some((quantity) => quantity.id === binding || quantity.symbol === binding)) return false;
-  const text = compact(command.text);
+  const text = compact(labelText);
   return turnPlan.givens.some((given) => {
     if (given.provenance !== "given" || !Number.isFinite(given.value)) return false;
     const value = compact(`${given.value}${given.unit ?? ""}`);
