@@ -264,7 +264,7 @@ class CompletionContext {
     if (!bodyCarrier || !entity || typeof entity.label !== "string" || !entity.label || !signature || /^m\^-?\d+$/.test(signature) ||
         signature.split("·").some(term => /^(?:L|D)\^/.test(term))) return false;
     const normalized = ownerSymbol(symbol);
-    const quantities = [...this.quantities.values()].filter(quantity => quantity.symbol && ownerSymbol(quantity.symbol) === normalized);
+    const quantities = [...this.quantities.values()].filter(quantity => typeof quantity.symbol === "string" && ownerSymbol(quantity.symbol) === normalized);
     return quantities.length === 1 && quantities[0]!.id === quantityId && ownerSymbol(entity.label) === normalized &&
       [...this.entities.values()].filter(candidate => typeof candidate.label === "string" && ownerSymbol(candidate.label) === normalized).length === 1;
   }
