@@ -70,6 +70,87 @@ function objectDistanceFromStem(stem: string): number | null {
     ?? numberAfter(stem, OBJECT_PLACEMENT, UNIT.centimetre);
 }
 
+/**
+ * Facts only a lens or mirror stem gives: a focal length, the radius or centre
+ * of curvature, the pole, the principal axis, a magnification, a ray diagram,
+ * an object between F and C, an object distance ("the object is at 30 cm") or
+ * u, v or f set to a number. "Real" is not one ("let a, b be real numbers").
+ */
+const OPTICS_FACT = /\b(?:focal(?![\s-]*chords?\b)|radius of curvature|pole|principal axis|magnif\w*|cent(?:re|er) of curvature|ray diagram|between F and C|(?:in front of|before|behind) (?:an?|the) mirror)\b|\b[uvf]\s*=\s*[-+−]?\s*\d+(?:\.\d+)?(?:\s*(?:cm|mm|m)\b|(?![\d.]*(?:[a-z]|\s*(?:[a-z](?![a-z])|[(^]))))|\b(?:objects?|sources?)\b[^.?!\d]{0,40}?\d+(?:\.\d+)?\s*(?:cm|mm|m)\b|\b(?:objects?|sources?)\b[^.?!]{0,40}?\b(?:at|beyond|between|near|inside|within)\s+(?:the\s+)?(?:2F|F|C|P|focus|pole|infinity)\b|\bobjects?\s+(?:2F|F|C)\s+(?:par|pe)\b/i;
+
+/** A line equation: `4x + 7y + 13 = 0`, `x+y=1`, `y = x`. */
+const LINE_EQUATION = String.raw`[-+−(\d\s.]*[xy]\b[\s\dxy+\-−*/().]*=\s*[-+−]?\s*[\dxy(]`;
+
+/** "the line y = x acts as a", before "mirror". */
+const LINE_ACTS_AS = String.raw`\bline\s*:?\s*(?:${LINE_EQUATION})[^.?!]{0,30}?\bacts?\s+as\s+(?:an?\s+)?`;
+
+/**
+ * A line given as the mirror ("the line mirror 4x + 7y + 13 = 0", "the mirror
+ * line y = x", "the line y = x acts as a mirror"): the reflection line of
+ * coordinate geometry, never an optical element.
+ */
+const LINE_AS_MIRROR = new RegExp(String.raw`\b(?:line[\s-]+mirror|mirror[\s-]+line)s?\b\s*:?\s*(?:${LINE_EQUATION})|${LINE_ACTS_AS}mirror\b`, "i");
+
+/** A concave, convex, spherical, parabolic, curved or plane mirror. */
+const QUALIFIED_MIRROR = /\b(?:concave|convex|spherical|parabolic|curved|plane)[\s-]+mirrors?\b/i;
+
+/**
+ * A bare mirror that may be an element: not a "mirror image" (or the typed
+ * "mirror imag"), not a "line mirror" or a "mirror line", and not a line that
+ * acts as a mirror.
+ */
+const BARE_MIRROR = new RegExp(String.raw`\bmirrors?\b(?<!(?:\bline[\s-]+|${LINE_ACTS_AS})mirrors?)(?![\s-]*(?:imag(?:es?)?|lines?)\b)`, "i");
+
+/**
+ * A stem names an optical element when it names a lens or a qualified mirror
+ * (even in "concave mirror image formation"), or a bare mirror and an optics
+ * fact ("a mirror of focal length 15 cm", "an object 20 cm in front of a
+ * mirror"). A lookahead body, read from the start of the stem.
+ */
+const NAMES_OPTICAL_ELEMENT = String.raw`[\s\S]*(?:\blens(?:es)?\b|${QUALIFIED_MIRROR.source})|(?=[\s\S]*(?:${BARE_MIRROR.source}))[\s\S]*(?:${OPTICS_FACT.source})`;
+
+/** A stem that gives an optics fact. A lookahead body, read from the start of the stem. */
+const GIVES_OPTICS_FACT = String.raw`[\s\S]*(?:${OPTICS_FACT.source})`;
+
+/**
+ * `pattern`, in a stem where no `absent` lookahead body holds. A stem that
+ * names a lens or a mirror element is optics whatever else it says ("a convex
+ * lens forms the image of a point P in a plane perpendicular to its axis").
+ */
+function inStemWithout(pattern: RegExp, ...absent: readonly string[]): RegExp {
+  return new RegExp(`^${absent.map((body) => `(?!${body})`).join("")}[\\s\\S]*?(?:${pattern.source})`, "i");
+}
+
+/**
+ * Positive evidence of reflection geometry: a coordinate point ("(2, 3)", "A(-1, 8, 2)"), the plane or line
+ * the reflection is taken in ("in the plane", "in a line", "with respect to the plane"), the x, y or z axis,
+ * a vector, or a line equation.
+ */
+const REFLECTION_GEOMETRY = new RegExp(String.raw`\(\s*[-+−]?\d+(?:\.\d+)?\s*,|\b(?:in|about|across|with\s+respect\s+to|w\.?r\.?t\.?)\s+(?:(?:the|a|given)\s+)*(?:plane|line)s?\b|\b[xyz][\s-]*axis\b|\b(?:about|through|in|across)\s+the\s+origin\b|\bvectors?\b|${LINE_EQUATION}`, "i");
+
+/**
+ * A "mirror image" is coordinate geometry or symmetry ("B is the mirror image of A in a plane") only when the
+ * stem shows reflection geometry, names no optical element and gives no optics fact. Otherwise the stem is read
+ * exactly as before: "the mirror image of an object placed beyond C" stays a mirror stem, and so does "an object
+ * on the x-axis at u = -30 cm, f = -20 cm", and so does any other wording.
+ */
+const MIRROR_IMAGE_IN_GEOMETRY = new RegExp(
+  `^(?=[\\s\\S]*(?:${REFLECTION_GEOMETRY.source}))${inStemWithout(/\bmirror[\s-]*imag(?:es?)?\b/i, NAMES_OPTICAL_ELEMENT, GIVES_OPTICS_FACT).source.slice(1)}`, "i");
+
+/**
+ * The image or reflection of a point (named, or given by coordinates, which
+ * may be decimals) in a plane or a line, the line mirror included, in a stem
+ * that names no optical element: the reflection of coordinate geometry. A
+ * point object or source is optics, and so is the image in a plane mirror.
+ */
+const COORDINATE_POINT_REFLECTION = inStemWithout(
+  /\b(?:imag(?:es?)?|reflections?)\s+of\s+(?:(?:the|a)\s+)?(?:points?\b(?!\s+(?:object|source)s?\b)|[A-Z]\s*\(\s*[-+]?\d|\(\s*[-+]?\d)(?:[^.?!]|\.(?=\d))*?\b(?:in|about|across|with respect to)\s+(?:(?:the|a|given)\s+)*(?:plane|line)\b/i,
+  NAMES_OPTICAL_ELEMENT,
+);
+
+/** A line given as the mirror, in a stem that names no optical element. */
+const LINE_GIVEN_AS_MIRROR = inStemWithout(LINE_AS_MIRROR, NAMES_OPTICAL_ELEMENT);
+
 /** Focal length, named or written as `f = 15 cm`. */
 function focalLengthFromStem(stem: string): number | null {
   return lengthAfterInCm(stem, FOCAL_LENGTH)
@@ -852,7 +933,9 @@ const CUE_SETS: readonly CueSet[] = [
   {
     id: "spherical_mirror",
     cues: [[/\b(?:concave|convex) mirror\b/i, 5], [/\bmirror\b/i, 3], [/\b(?:focal length|radius of curvature|image|object)\b/i, 1]],
-    vetoes: [/\bplane mirror\b/i, /\blens\b/i],
+    // A lens or mirror stem names the element; a mirror image, the
+    // reflection of a coordinate point and a line given as the mirror are not one.
+    vetoes: [/\bplane mirror\b/i, /\blens\b/i, MIRROR_IMAGE_IN_GEOMETRY, COORDINATE_POINT_REFLECTION, LINE_GIVEN_AS_MIRROR],
     extract: (stem, plan, bag) => {
       setSlot(bag, "kind", /\bconvex\b/i.test(stem) ? "convex" : "concave", "stem");
       setSlot(bag, "u", planNumber(plan, ["u", "objectdistance", "do"]), "plan");
@@ -867,7 +950,7 @@ const CUE_SETS: readonly CueSet[] = [
   {
     id: "thin_lens",
     cues: [[/\b(?:convex|concave|converging|diverging|biconvex|thin) lens\b/i, 5], [/\blens\b/i, 3], [/\b(?:focal length|power|image|object|magnification)\b/i, 1]],
-    vetoes: [/\bmirror\b/i, /\b(?:microscope|telescope|eyepiece|objective)\b/i, /\blens maker/i, /\bradii\b/i],
+    vetoes: [/\bmirror\b/i, /\b(?:microscope|telescope|eyepiece|objective)\b/i, /\blens maker/i, /\bradii\b/i, COORDINATE_POINT_REFLECTION],
     extract: (stem, plan, bag) => {
       setSlot(bag, "kind", /\b(?:concave|diverging)\b/i.test(stem) ? "concave" : "convex", "stem");
       setSlot(bag, "u", planNumber(plan, ["u", "objectdistance", "do"]), "plan");
@@ -885,7 +968,7 @@ const CUE_SETS: readonly CueSet[] = [
       [/\bradii\b/i, 3],
       [/\b(?:R\s*1|R1|radius of curvature)\b/i, 2],
     ],
-    vetoes: [/\b(?:microscope|telescope|eyepiece|objective)\b/i, /\bmirror\b/i],
+    vetoes: [/\b(?:microscope|telescope|eyepiece|objective)\b/i, /\bmirror\b/i, COORDINATE_POINT_REFLECTION],
     extract: (stem, plan, bag) => {
       const kind = /\bbiconcave\b/i.test(stem) || /\bplano[- ]concave\b/i.test(stem)
         ? (/\bplano\b/i.test(stem) ? "plano-concave" : "biconcave")

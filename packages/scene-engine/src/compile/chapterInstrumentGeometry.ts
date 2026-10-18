@@ -186,10 +186,13 @@ function readIncline(inputs: Record<string, unknown>, context: SourceContext, do
     frictionMagnitude = parallel;
     acceleration = 0;
   } else if (inputs.motion === "down") {
-    const downhillAcceleration = gravity * (Math.sin(angle) - mu * Math.cos(angle));
-    if (downhillAcceleration < -1e-9) invalid("motion", "kinetic friction would not let the block slide down");
-    // Force components use the uphill basis, so downhill acceleration is negative.
-    acceleration = -Math.max(0, downhillAcceleration);
+    const downhillGravity = Math.sin(angle);
+    const uphillFriction = mu * Math.cos(angle);
+    const difference = downhillGravity - uphillFriction;
+    // An already sliding body can decelerate uphill; motion describes its
+    // instantaneous velocity. Cancel only floating-point roundoff at balance.
+    const cancellation = 4 * Number.EPSILON * (Math.abs(downhillGravity) + Math.abs(uphillFriction));
+    acceleration = Math.abs(difference) <= cancellation ? 0 : -gravity * difference;
   } else {
     frictionUp = false;
     acceleration = -gravity * (Math.sin(angle) + mu * Math.cos(angle));
