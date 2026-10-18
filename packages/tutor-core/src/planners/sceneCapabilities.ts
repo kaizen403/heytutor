@@ -368,7 +368,7 @@ export function inferSceneCapabilities(
   const circuitTopology = circuitTopologyFromProblemStructure(hints.problemIR);
   if (circuitTopology?.twoLoop) {
     planningGuidance.add(
-      `ProblemIR structure shows a multi-loop network (${circuitTopology.sources} source(s), ${circuitTopology.branches} branch component(s)): draw the two-loop network with both sources and the shared branch, never a single series resistor chain.`,
+      `The explicit ProblemIR branch graph contains multiple independent cycles (${circuitTopology.sources} declared source(s), ${circuitTopology.branches} declared branches). Preserve its nodes, branch endpoints and component states; do not collapse it to a single series chain or invent additional sources or a shared branch.`,
     );
   }
   const riverVariant = riverBoatVariantFromProblemStructure(hints.problemIR);

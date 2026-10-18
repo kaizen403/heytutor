@@ -26,7 +26,7 @@ import { bindOpticsLabelSides, solveWithSideBoundLabels } from "../labels/optics
 // The engine reserves the room the board will letter into, so it measures with
 // the board's own glyph metrics rather than an average character box.
 import { measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
-import { evaluateTopologyAssertion, validateTopologyInvariants } from "../topology/topology";
+import { buildTopologyGraph, evaluateTopologyAssertion, validateTopologyInvariants } from "../topology/topology";
 import { implicitSolverEntityIds, validateSceneDocument } from "../document/validation";
 import { validateMatrixSourceBinding } from "./matrixSourceBinding";
 import { compactCalloutLabel, isPointIdentifierText, isViewSummaryText, pointLabelTether } from "./pointLabelText";
@@ -80,6 +80,7 @@ import { evaluateComplexConstruction, type ComplexNumberDefinition } from "./com
 import { evaluateMagneticConstruction, type MagneticForceDefinition } from "./magneticGeometry";
 import { evaluateRelativeMotionConstruction, type RelativeMotionMark } from "./relativeMotionGeometry";
 import { evaluateNetworkConstruction, type NetworkBranchDefinition } from "./networkGeometry";
+import { routeConnector, type ConnectorObstacle } from "./connectorRouting";
 import { evaluateMechanicsDiagramConstruction, type MechanicsMark } from "./mechanicsDiagramGeometry";
 import { evaluateCurrentFieldConstruction, type CurrentFieldMark } from "./currentFieldGeometry";
 import { evaluateChapterRemainderConstruction, type RemainderMark } from "./chapterRemainderGeometry";
@@ -240,6 +241,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   const quantities = new Map(document.quantities.map((quantity) => [quantity.id, quantity]));
   const layoutOverrides = computeLogicalLayout(document);
   const parallelLaneOffsets = computeParallelLaneOffsets(document);
+  const portConnectorIds = portGraphConnectorIds(document);
 
   validateTopologyInvariants(document, issues);
   if (issues.some((issue) => issue.severity === "fatal")) {
@@ -252,7 +254,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
         ? parallelLaneOffsets.get(construction.outputs[0])
         : undefined;
       const spaceViewInput = spaceView ? spaceViewInputFor(construction, spaceView) : undefined;
-      const inputs = withEngineInputs(construction.inputs, laneOffset, spaceViewInput);
+      const inputs = withEngineInputs(construction.inputs, laneOffset, spaceViewInput, portConnectorIds.has(construction.outputs[0] ?? ""));
       const operator = construction.operator;
       if (!isExecutableSceneConstructionOperator(operator)) {
         throw new Error(`unsupported operator ${operator}`);
@@ -281,14 +283,28 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       issues.push({ code: "construction_failed", message: `${construction.id}: ${errorMessage(error)}`, severity: "fatal", path: `constructions[${originalIndex}]`, entityIds: construction.outputs });
     }
   }
-  for (const construction of document.constructions) {
-    if (construction.operator !== "connect" || !construction.outputs[0]) continue;
+  // Route local leads before longer connections after all component ink exists.
+  // Provisional direct connectors must not become obstacles for each other: an
+  // earlier, unsafe diagonal could otherwise trap a later short meter lead.
+  const connectors = document.constructions.filter(construction => construction.operator === "connect" && construction.outputs[0]);
+  const connectorSpan = (construction: SceneConstruction): number => {
+    try {
+      return distance(resolvePoint(first(construction.inputs, ["start", "from", "a"]), geometry),
+        resolvePoint(first(construction.inputs, ["end", "to", "b"]), geometry));
+    } catch { return Infinity; }
+  };
+  const portConnectors = connectors.filter(construction => portConnectorIds.has(construction.outputs[0]!));
+  portConnectors.sort((a, b) => connectorSpan(a) - connectorSpan(b) || a.outputs[0]!.localeCompare(b.outputs[0]!));
+  for (const construction of portConnectors) geometry.delete(construction.outputs[0]!);
+  for (const construction of [...connectors.filter(construction => !portConnectorIds.has(construction.outputs[0]!)), ...portConnectors]) {
     try {
       const start = resolvePoint(first(construction.inputs, ["start", "from", "a"]), geometry);
       const end = resolvePoint(first(construction.inputs, ["end", "to", "b"]), geometry);
       geometry.set(construction.outputs[0], {
         kind: "path",
-        points: routedConnectorPoints(start, end, geometry, construction.outputs[0]),
+        points: portConnectorIds.has(construction.outputs[0]!)
+          ? routedConnectorPoints(start, end, geometry, construction, document)
+          : legacyConnectorPoints(start, end, geometry, construction.outputs[0]),
       });
     } catch (error) {
       issues.push({
@@ -1558,11 +1574,11 @@ function evaluateConstruction(
     }];
     case "connect": return [{
       kind: "path",
-      points: routedConnectorPoints(
+      points: inputs.__portRouting === true ? distinctPathPoints(
         point(["start", "from", "a"]),
         point(["end", "to", "b"]),
-        geometry,
-      ),
+        "connect",
+      ) : legacyConnectorPoints(point(["start", "from", "a"]), point(["end", "to", "b"]), geometry),
     }];
     case "line": return [{ kind: "path", points: linePoints(inputs, geometry), infinite: true }];
     case "ray": return [{ kind: "path", points: linePoints(inputs, geometry), directed: true, infinite: true }];
@@ -3619,13 +3635,15 @@ function withEngineInputs(
   inputs: Record<string, unknown>,
   laneOffset: number | undefined,
   spaceViewInput: unknown,
+  portRouting = false,
 ): Record<string, unknown> {
   const documentHasEngineKeys = Object.keys(inputs).some((key) => key.startsWith("__"));
-  if (!documentHasEngineKeys && laneOffset === undefined && spaceViewInput === undefined) return inputs;
+  if (!documentHasEngineKeys && laneOffset === undefined && spaceViewInput === undefined && !portRouting) return inputs;
   return {
     ...Object.fromEntries(Object.entries(inputs).filter(([key]) => !key.startsWith("__"))),
     ...(laneOffset === undefined ? {} : { __parallelLane: laneOffset }),
     ...(spaceViewInput === undefined ? {} : { __spaceView: spaceViewInput }),
+    ...(portRouting ? { __portRouting: true } : {}),
   };
 }
 
@@ -4947,7 +4965,33 @@ function projectPoint(p: Point, a: Point, b: Point): Point { const dx=b.x-a.x,dy
 function reflectPoint(p: Point,a:Point,b:Point):Point { const q=projectPoint(p,a,b); return{x:2*q.x-p.x,y:2*q.y-p.y}; }
 function refract(i:Point,n:Point,eta:number):Point { let normal=n; let cosi=Math.max(-1,Math.min(1,i.x*n.x+i.y*n.y)); let ratio=eta; if(cosi>0){normal={x:-n.x,y:-n.y};ratio=1/eta;}else cosi=-cosi; const k=1-ratio*ratio*(1-cosi*cosi); if(k<0) throw new Error("total internal reflection"); return normalize({x:ratio*i.x+(ratio*cosi-Math.sqrt(k))*normal.x,y:ratio*i.y+(ratio*cosi-Math.sqrt(k))*normal.y}); }
 function pointsOf(value:Geometry):Point[]{ if(value.kind==="point")return[value.point]; if(value.kind==="path")return value.points; if(value.kind==="multi_path")return value.paths.flat(); if(value.kind==="circle"||value.kind==="arc")return[{x:value.center.x-value.radius,y:value.center.y-value.radius},{x:value.center.x+value.radius,y:value.center.y+value.radius}]; if(value.kind==="axes")return[{x:value.xMin,y:value.yMin},{x:value.xMax,y:value.yMax}]; if(value.kind==="compound")return value.paths.flat(); if(value.kind==="matrix_array")return matrixArrayPrimitives(value,"layout","layout").flatMap((primitive)=>primitive.points); return[value.a,value.b]; }
-function routedConnectorPoints(
+/** A symbol declares a port graph. Route only its connected wiring with
+ * electrical nonintersection semantics; e.g. a hydraulic fluid connector may
+ * intentionally pass through a piston outline and retains geometric routing. */
+function portGraphConnectorIds(document: SceneDocument): Set<string> {
+  const graph = buildTopologyGraph(document);
+  const result = new Set<string>();
+  const visited = new Set<string>();
+  for (const node of graph.nodes) {
+    if (visited.has(node)) continue;
+    const pending = [node], edgeIds = new Set<string>();
+    while (pending.length) {
+      const next = pending.pop()!;
+      if (visited.has(next)) continue;
+      visited.add(next);
+      for (const id of graph.adjacency.get(next) ?? []) {
+        edgeIds.add(id);
+        const edge = graph.edgeById.get(id)!;
+        pending.push(edge.a, edge.b);
+      }
+    }
+    if ([...edgeIds].some(id => graph.edgeById.get(id)!.kind === "symbol")) {
+      for (const id of edgeIds) if (graph.edgeById.get(id)!.kind === "connect") result.add(id);
+    }
+  }
+  return result;
+}
+function legacyConnectorPoints(
   start: Point,
   end: Point,
   geometry: Map<string, Geometry>,
@@ -4985,6 +5029,38 @@ function routedConnectorPoints(
     { x: end.x + shift.x, y: end.y + shift.y },
     end,
   ];
+}
+function routedConnectorPoints(
+  start: Point,
+  end: Point,
+  geometry: Map<string, Geometry>,
+  construction: SceneConstruction,
+  document: SceneDocument,
+): Point[] {
+  distinctPathPoints(start, end, "connect");
+  const endpoints = [first(construction.inputs, ["start", "from", "a"]), first(construction.inputs, ["end", "to", "b"])];
+  const obstacles = [...geometry.entries()].flatMap(([entityId, value]): ConnectorObstacle[] => {
+    if (entityId === construction.outputs[0]) return [];
+    if (value.kind === "point") return [];
+    const owner = document.constructions.find(candidate => candidate.outputs.includes(entityId));
+    const ports = owner && (owner.operator === "symbol" || owner.operator === "connect")
+      ? [first(owner.inputs, ["start", "from", "a"]), first(owner.inputs, ["end", "to", "b"])] : null;
+    // Circuit contacts require the same logical port, not coincident coordinates.
+    // Other geometric constructions may meet at explicitly supplied endpoints.
+    const contacts = [start, end].filter((_, index) => ports === null || (typeof endpoints[index] === "string" && ports.includes(endpoints[index])));
+    const obstacle = (points: Point[]): ConnectorObstacle => ({ points, contacts });
+    if (value.kind === "compound" || value.kind === "multi_path") return value.paths.map(obstacle);
+    if (value.kind === "circle" || value.kind === "arc") {
+      const a = value.kind === "arc" ? value.startAngle : 0;
+      const b = value.kind === "arc" ? value.endAngle : 2 * Math.PI;
+      return [obstacle(Array.from({ length: 49 }, (_, i) => ({
+        x: value.center.x + value.radius * Math.cos(a + (b-a) * i / 48),
+        y: value.center.y + value.radius * Math.sin(a + (b-a) * i / 48),
+      })))];
+    }
+    return [obstacle(pointsOf(value))];
+  });
+  return routeConnector(start, end, obstacles);
 }
 function dimensionLabelPlacement(entityId: string, value: Geometry, primitives: RenderPrimitive[], viewport: Viewport): Partial<LabelOwner> {
   if (value.kind !== "dimension") return {};
