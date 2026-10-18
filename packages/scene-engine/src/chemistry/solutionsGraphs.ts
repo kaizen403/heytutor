@@ -998,20 +998,35 @@ function readRaoult(stem: string, _quantities: readonly ChemPlanQuantity[]): Rao
       scalars:[capturedSpan(owner.match,1),capturedSpan(owner.match,3)]})));
   // Discover count owners before reading a numeral: an unknown or damaged
   // count cannot disappear just because its numeric pattern did not match.
-  for (const cue of sourceMatches(/\b(?:the\s+)?(?:mixture|solution)\s+(?:contains|has|consists\s+of)\s*/gid)) {
+  const cardinals = ["zero","one","two","three","four","five","six","seven","eight","nine","ten",
+    "eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen"];
+  const countOwners = [
+    ...sourceMatches(/\b(?:the\s+)?(?:mixture|solution)\s+(?:contains|has|consists\s+of)\s*/gid)
+      .map(cue=>({cue,noun:/\b(?:liquid\s+)?components?\b/i})),
+    ...sourceMatches(/\b(?:the\s+)?(?:mixture|solution)\s+of\s*/gid)
+      .map(cue=>({cue,noun:/\bliquids?\b/i})),
+  ].sort((first,second)=>first.cue.index!-second.cue.index!);
+  for (const {cue,noun} of countOwners) {
     const payload = cue.index!+cue[0].length;
     const next = [...compositionOwners.map(owner=>owner.index!),...roles.map(owner=>owner.span.start)]
       .filter(start=>start >= payload).sort((a,b)=>a-b)[0] ?? scope.end;
     const sentence = /[;!?\n]|\.(?=\s|$)/.exec(body.slice(payload,next));
     const end = sentence ? payload+sentence.index : next;
-    const head = /\b(?:liquid\s+)?components?\b/i.exec(body.slice(payload,end));
+    const head = noun.exec(body.slice(payload,end));
     if (!head) continue;
     const countEnd = payload+head.index;
     if (!stem.slice(payload,countEnd).trim()) continue;
+    const text = stem.slice(payload,countEnd);
+    // Cardinal words describe the resolved component set only. Keep the
+    // original source span; this grants no fractional/scalar authority.
+    const cardinal = cardinals.indexOf(text.trim().toLowerCase());
     const read = readChemistryQuantityDeclaration({question:stem,after:/^/,
       within:{start:payload,end:countEnd},dimension:"dimensionless",targetUnit:"1",owner:"solution component count"});
-    if (read.state !== "valid" || !Number.isInteger(read.reading.value) || read.reading.value !== bindings.length) return null;
-    roles.push({kind:"quantity",span:{start:cue.index!,end:countEnd+head[0].length},scalars:[read.reading.source.span]});
+    const count = cardinal >= 0 ? cardinal : read.state === "valid" ? read.reading.value : NaN;
+    const span = cardinal >= 0 ? {start:payload+text.length-text.trimStart().length,end:countEnd-(text.length-text.trimEnd().length)}
+      : read.state === "valid" ? read.reading.source.span : {start:payload,end:countEnd};
+    if (!Number.isInteger(count) || count !== bindings.length || stem.slice(span.end,countEnd).trim()) return null;
+    roles.push({kind:"quantity",span:{start:cue.index!,end:countEnd+head[0].length},scalars:[span]});
   }
   // Complete parenthetical document references own only their integral ID.
   // Other numbers or property declarations in/after an aside remain checked.
@@ -1026,16 +1041,32 @@ function readRaoult(stem: string, _quantities: readonly ChemPlanQuantity[]): Rao
   const notationScalar = (scalar:ChemistrySpan): boolean => roles.some(role=>role.kind === "notation" && ownsScalar(role,scalar));
   const independentOwners = [...compositionOwners.map(owner=>owner.index!),...roles.filter(role=>role.kind === "quantity").map(role=>role.span.start)];
   const coordinated = /^\s*(?:,\s*(?:(?:and|or)\b\s*)?|(?:and|or)\b\s*)[a-z\s]*$/i;
+  // Worded/unread antecedents are supplied presence, not fractional numeric
+  // authority. A proved component-count role owns its cardinal token.
+  const lexicalPayloads = sourceMatches(new RegExp(`\\b(?:${cardinals.join("|")}|unknown|unreadable|unspecified|undefined|NaN|cannot\\s+be\\s+read)\\b`,"gi"))
+    .map(match=>({start:match.index!,end:match.index!+match[0].length}));
   for (const composition of compositions) {
     if (composition.valueFirst) {
       let start = composition.scalarSpan.start;
+      const boundary = [...body.slice(scope.start,start).matchAll(/[;!?\n]|\.(?=\s|$)/g)].at(-1);
+      const sentenceStart = boundary ? scope.start+boundary.index!+boundary[0].length : scope.start;
       while (true) {
-        const prefix = stem.slice(scope.start,start);
-        if (!/(\S+)\s*(?:,\s*(?:(?:and|or)\b\s*)?|\b(?:and|or)\s*)[a-z\s]*$/i.test(prefix)) break;
-        const previous = scalarTokens.filter(token=>token.end <= start).at(-1);
+        const prefix = stem.slice(sentenceStart,start);
+        const link = /(\S+)\s*(?:,\s*(?:(?:and|or)\b\s*)?|\b(?:and|or)\s*)[a-z\s]*$/i.exec(prefix);
+        if (!link) break;
+        if (lexicalPayloads.some(token=>token.start >= sentenceStart && token.end <= start
+          && !roles.some(owner=>owner.span.start <= token.start && owner.span.end >= token.end))) return null;
+        const previous = scalarTokens.filter(token=>token.start >= sentenceStart && token.end <= start).at(-1);
+        if (!previous) {
+          // A local prose conjunction supplies no earlier fraction. Unread
+          // alternatives remain fatal; unowned bare units in prose alone
+          // do not establish a scalar quantity argument.
+          if (/\bor\b/i.test(link[0])) return null;
+          break;
+        }
         // One source-role ledger governs both directions. Document IDs
         // are transparent notation; they never hide an earlier alternative.
-        const role = previous && roles.find(owner=>ownsScalar(owner,previous) && owner.span.end <= start
+        const role = roles.find(owner=>ownsScalar(owner,previous) && owner.span.end <= start
           && coordinated.test(stem.slice(owner.span.end,start)));
         if (role) {
           if (chemistryQuantityPayloadPresent(stem.slice(role.span.end,start))) return null;
@@ -1043,7 +1074,7 @@ function readRaoult(stem: string, _quantities: readonly ChemPlanQuantity[]): Rao
           start = role.span.start;
           continue;
         }
-        if (!previous || !coordinated.test(stem.slice(previous.end,start))
+        if (!coordinated.test(stem.slice(previous.end,start))
           || chemistryQuantityPayloadPresent(stem.slice(previous.end,start))) return null;
         start = previous.start;
       }
