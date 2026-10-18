@@ -260,8 +260,9 @@ function linearCoefficientTermEnd(source: string, start: number, plural: boolean
 /** Every unproved rational type word is a domain restriction. Exempt only
  * its exact occurrence in an owned coefficient/property noun or predicate;
  * no request-parser failure or verb wording can erase a remaining type. */
-function linearRationalPropertySource(source: string, names: readonly string[]): string {
-  const words = [...source.matchAll(/\b(?:ir)?rationals?\b/gi)];
+function linearRationalPropertySource(source: string, names: readonly string[], includeSigns = false): string {
+  const typePattern = includeSigns ? `(?:${SIGN_DOMAIN_PROPERTY}|(?:ir)?rationals?)` : "(?:ir)?rationals?";
+  const words = [...source.matchAll(new RegExp(`\\b${typePattern}\\b`, "gi"))];
   if (!words.length && !/\bcoefficients?\s+in\b/i.test(source) || words.length > 16) return source;
   const proved = new Set<number>();
   const nounSpans: Array<{ start: number; end: number }> = [];
@@ -367,14 +368,14 @@ function linearRationalPropertySource(source: string, names: readonly string[]):
     if (continuation && names.includes(continuation[1]!)) continue;
     if (!coefficient && (!(endpoint || corner) || !ownsContext(predicate.index!, predicate.index!, predicate.index! + predicate[0].length))) continue;
     if (coefficient) nounSpans.push({ start: subjectStart!, end: predicate.index! });
-    for (const word of predicate[0].matchAll(/\b(?:ir)?rationals?\b/gi)) proved.add(predicate.index! + word.index!);
+    for (const word of predicate[0].matchAll(new RegExp(`\\b${typePattern}\\b`, "gi"))) proved.add(predicate.index! + word.index!);
   }
   const modifier = new RegExp(`(?:strictly|only|real|non[- ]?zero|${SIGN_DOMAIN_PROPERTY})\\b\\s+`, "iy");
   const propertyNoun = /(?:intercepts?|coefficients?|ax(?:is|es)|directions?)\b/iy;
   const geometricField = /(?:optimal\s+)?(endpoints?|corners?)\b/iy;
   const identifier = /[A-Za-z][A-Za-z0-9_]*/y;
   const nextSubject = /\s*(?:,\s*(?:and\s*)?|and\s+)([A-Za-z][A-Za-z0-9_]*)/iy;
-  for (const type of source.matchAll(/\b(?:ir)?rationals?(?:[- ]valued)?\s+/gi)) {
+  for (const type of source.matchAll(new RegExp(`\\b${typePattern}(?:[- ]valued)?\\s+`, "gi"))) {
     let cursor = type.index! + type[0].length;
     modifier.lastIndex = cursor;
     while (modifier.exec(source)) { cursor = modifier.lastIndex; modifier.lastIndex = cursor; }
@@ -395,7 +396,7 @@ function linearRationalPropertySource(source: string, names: readonly string[]):
         if (unprovedScalarComplement(type.index!)) continue;
         end = linearCoefficientTermEnd(source, end, /^coefficients$/i.test(source.slice(cursor, end)));
       }
-      if (ownsNounContext(type.index!, cursor, end)) proved.add(type.index!);
+      if (ownsNounContext(type.index!, cursor, end)) { proved.add(type.index!); if (includeSigns) nounSpans.push({ start: cursor, end }); }
       continue;
     }
     identifier.lastIndex = cursor;
@@ -409,7 +410,9 @@ function linearRationalPropertySource(source: string, names: readonly string[]):
     // x is a modifier inside these property nouns, not the declared subject.
     const field = /^(?:\s+|\s*-\s*)(?:intercepts?|coefficients?|ax(?:is|es)|directions?)\b/i.exec(source.slice(cursor));
     if (field && (!/coefficients?/i.test(field[0]) || !unprovedScalarComplement(type.index!))
-      && ownsNounContext(type.index!, identifier.lastIndex - first[0].length, cursor + field[0].length)) proved.add(type.index!);
+      && ownsNounContext(type.index!, identifier.lastIndex - first[0].length, cursor + field[0].length)) {
+      proved.add(type.index!); if (includeSigns) nounSpans.push({ start: identifier.lastIndex - first[0].length, end: cursor + field[0].length });
+    }
   }
   for (const type of words) if (/\buse\s+$/i.test(source.slice(0, type.index!)) && /^\s+arithmetic\b/i.test(source.slice(type.index! + type[0].length))
     && comparisons.length > 0 && ownsContext(type.index!, type.index!, type.index!)) proved.add(type.index!);
@@ -422,6 +425,17 @@ function linearRationalPropertySource(source: string, names: readonly string[]):
   }
   const masked = source.split("");
   for (const word of words) if (proved.has(word.index!)) for (let index = word.index!; index < word.index! + word[0].length; index++) masked[index] = " ";
+  if (includeSigns) for (let index = 1; index < words.length; index++) {
+    const previous = words[index - 1]!, next = words[index]!;
+    const start = previous.index! + previous[0].length, end = next.index!;
+    if (proved.has(previous.index!) && proved.has(next.index!) && /^\s+(?:and|or)\s+$/i.test(source.slice(start, end)))
+      for (let position = start; position < end; position++) masked[position] = " ";
+  }
+  if (includeSigns) for (const span of nounSpans) for (const position of nativePositions)
+    if (position >= span.start && position < span.end) {
+      const token = /^[A-Za-z][A-Za-z0-9_]*/.exec(source.slice(position))![0];
+      for (let index = position; index < position + token.length; index++) masked[index] = " ";
+    }
   // Only this owned preposition is membership-like. Keep every other token:
   // a property proof cannot remove an integer/set cue or a later predicate.
   for (const span of nounSpans) for (const head of source.slice(span.start, span.end).matchAll(/\bin\b/gi))
@@ -542,7 +556,7 @@ function explicitDomains(text: string, names: readonly string[]): string {
   return result;
 }
 /** A lexical math-span reader, independent of chapters, cue words and planner claims. */
-function clauses(text: string, variables: readonly string[], sourcePointLabels: readonly string[] = []): SourceClause[] {
+function clauses(text: string, variables: readonly string[], sourcePointLabels: readonly string[] = [], comparisonsOnly = false): SourceClause[] {
   const lineNames = [...text.matchAll(/\b[A-Za-z][A-Za-z0-9_]*\s*:/g)]
     .flatMap(match => readLinearSourceLineName(text.slice(0, match.index! + match[0].length)) ?? []);
   const sourceNames = [...sourcePointLabels, ...lineNames];
@@ -617,7 +631,9 @@ function clauses(text: string, variables: readonly string[], sourcePointLabels: 
           equality: relation === "=",
         });
       });
-    } else if (chunk.some((token) => !/^[()]$/.test(token[0])) && !requestedAtom())
+    } else if (comparisonsOnly && chunk.some(token => variables.includes(token[0])) && !requestedAtom())
+      throw new Error("An unproved native-variable occurrence cannot be omitted from the source constraint inventory");
+    else if (!comparisonsOnly && chunk.some((token) => !/^[()]$/.test(token[0])) && !requestedAtom())
       throw new Error("An additional source mathematical expression cannot be omitted from the complete linear program");
     chunk = [];
   };
@@ -694,12 +710,12 @@ function clauses(text: string, variables: readonly string[], sourcePointLabels: 
           (value.length === 1 && !prose.has(value.toLowerCase()) && !sourceNames.includes(value)
             && /\b(?:graph|plot|draw|show|represent)\s+(?:(?:the|function|expression|graph|of)\s+)*$/i.test(text.slice(0, token.index))) ||
           (!prose.has(value.toLowerCase()) &&
-            ((last && (/^(?:\d|\.\d)/.test(last[0]) || value.length === 1)) ||
+            ((last && ((!comparisonsOnly || !/^[A-Za-z]{2,}$/.test(value)) && /^(?:\d|\.\d)/.test(last[0]) || value.length === 1)) ||
               /^[+*/(]$/.test(tokens[i + 1]?.[0] ?? "") ||
-              variables.includes(tokens[i + 1]?.[0] ?? ""))))
+              (!comparisonsOnly && variables.includes(tokens[i + 1]?.[0] ?? "")))))
       ) {
         if (!mathematicalJoin && !last && value.length > 1
-          && variables.includes(nextValue) && token.index! + value.length < tokens[i + 1]!.index!)
+          && variables.includes(nextValue) && token.index! + value.length < tokens[i + 1]!.index! && !comparisonsOnly)
           throw new UnprovedLinearRequest(`Unconsumed request word '${value}' before an affine operand`);
         throw new Error(
           `Unknown variable or function in original source expression: '${value}' at character ${token.index}`,
@@ -1826,13 +1842,15 @@ function hasUnsupportedHindiDomain(source: string, names: readonly string[]): bo
 /** An objective's NAME can be certain while its requested answer is not.
  * Prove and mask each declaration/reference occurrence independently; a later
  * membership or bare domain occurrence of the same identifier stays visible. */
-function maskLinearSourceScalarNameRoles(source: string, names: readonly string[], isSetSymbol: (label: string) => boolean): string {
+function maskLinearSourceScalarNameRoles(source: string, names: readonly string[], isSetSymbol: (label: string) => boolean, definitionSpans?: Array<{ start: number; end: number }>): string {
   const scalarNames = new Set<string>();
   let residual = source.replace(/\b([A-Za-z][A-Za-z0-9_]*)\s*=\s*/g,
     (whole, label: string, offset: number, original: string) => {
       if (!isSetSymbol(label) || names.includes(label)) return whole;
       try {
-        if (!readLinearSourceAffineExpression(original, names, offset + whole.length)) return whole;
+        const expression = readLinearSourceAffineExpression(original, names, offset + whole.length);
+        if (!expression) return whole;
+        definitionSpans?.push({ start: offset, end: expression.end });
         scalarNames.add(label);
         return " ".repeat(whole.length);
       } catch { return whole; }
@@ -1939,6 +1957,52 @@ function hasUnsupportedDiscreteDomain(question: string, planar = false, sourcePr
   return hasUnsupportedMembership(remaining, planar, sourceProved, aliases) || hasScalarRoster(remaining);
 }
 
+/** A failed request proof cannot erase independently readable source operands.
+ * This is predicate inventory only: it neither invents a result nor proves the
+ * prose/Boolean request. Other native components may collectively own predicates.
+ */
+function requireIncompleteSourceConstraintCoverage(question: string, names: readonly string[], document: SceneDocument): void {
+  const normalized = normalize(question);
+  let body = sourceNotation(canonicalRealDomainSource(normalized, names), names);
+  const points = readLinearSourceReferencePoints(body, names);
+  const scalarSpans: Array<{ start: number; end: number }> = [];
+  body = maskLinearSourceScalarNameRoles(points.maskedQuestion, names, label => !names.includes(label), scalarSpans);
+  const scalarMasked = body.split("");
+  for (const span of scalarSpans) for (let index = span.start; index < span.end; index++) scalarMasked[index] = " ";
+  body = scalarMasked.join("");
+  // Under an unproved request even a recognized sign may be negated or
+  // qualified. Exempt only exact property occurrences; never expand a
+  // remaining sign into an assumed positive constraint.
+  body = linearRationalPropertySource(body, names, true);
+  if (new RegExp(`\\b(?:${SIGN_DOMAIN_PROPERTY})\\b`, "i").test(body))
+    throw new Error("An unproved variable sign/domain occurrence cannot be omitted from a linear figure");
+  const hasNative = [...body.matchAll(/(?:\d+(?:\.\d+|\.(?=[eE][+-]?\d))?|\.\d+)(?:[eE][+-]?\d+)?|[A-Za-z][A-Za-z0-9_]*/g)].some(token => names.includes(token[0]));
+  const domains = firstQuadrantDomains(normalized, names);
+  const source = hasNative && (/[<>=]/.test(body) || domains.length > 0) ? clauses(body, names, points.points.map(point => point.label), true) : [];
+  source.push(...domains);
+  if (!source.length) return;
+  for (const operator of body.matchAll(/\b(?:or|not|complement|union|if|then)\b/gi)) {
+    const following = source.find(clause => clause.start >= operator.index! + operator[0].length);
+    const previous = source.findLast(clause => clause.end <= operator.index!);
+    if (following && !/[.;?!\r\n]/.test(body.slice(operator.index! + operator[0].length, following.start))
+      || previous && /^[()\s]*$/.test(body.slice(previous.end, operator.index!)))
+      throw new Error("An unproved source Boolean operand scope cannot be replaced by a planner conjunction");
+  }
+  const proposed: string[] = [];
+  for (const construction of document.constructions) {
+    if (!(LINEAR_REGION_OPERATORS as readonly string[]).includes(construction.operator)) continue;
+    const input = evaluateLinearRegionConstruction(construction.operator, construction.inputs)[0]!.input;
+    const candidateNames = input.kind === "number_line_set" ? [input.variable ?? "x"] : input.variables ?? ["x", "y"];
+    if (!same(candidateNames, names)) continue;
+    if (input.kind === "number_line_set" && !isIntersectionProgram(input.expression))
+      throw new Error("A nonconjunctive planner cannot supply unproved source Boolean scope");
+    proposed.push(...(input.kind === "number_line_set" ? inequalityLeaves(input.expression) : input.kind === "linear_half_plane" ? [input.inequality] : input.kind === "linear_system" ? input.equations : input.constraints));
+  }
+  const owned = new Set(signatures(proposed, names));
+  if (signatures(source.map(clause => clause.text), names).some(signature => !owned.has(signature)))
+    throw new Error("Candidate omits a stated source comparison or variable-domain predicate while the complete request is unproved");
+}
+
 export function validateLinearSourceBinding(document: SceneDocument): SceneIssue[] {
   const issues: SceneIssue[] = [];
   for (const [constructionIndex, construction] of document.constructions.entries()) {
@@ -1975,7 +2039,10 @@ export function validateLinearSourceBinding(document: SceneDocument): SceneIssue
       const authority = readLinearBindingSource(question, names, input.kind === "number_line_set");
       if (hasUnsupportedDiscreteDomain(question, input.kind !== "number_line_set", authority !== null, authority?.aliases, names))
         throw new Error("Continuous linear figures cannot represent a source with an unsupported discrete domain cue");
-      if (!authority) continue;
+      if (!authority) {
+        requireIncompleteSourceConstraintCoverage(question, names, document);
+        continue;
+      }
       const ownedOutputs = new Set(document.constructions
         .filter(item => (LINEAR_REGION_OPERATORS as readonly string[]).includes(item.operator))
         .flatMap(item => item.outputs));

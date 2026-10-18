@@ -65,7 +65,8 @@ const uncertain = [
   "Represent complement x<0 on a number line.",
 ];
 // The exact historical outside-B wording now has a complete interval proof.
-// Every other uncertain source retains the original refusal/no-veto boundary.
+// Other uncertain sources supply no reader figure. Independently stated
+// source predicates still participate in the fail-closed inventory below.
 const provedIntervalDifference = "Let A=[0,4] and B=[1,2]. Plot the elements in A but outside B on a number line.";
 for (const [i, question] of uncertain.entries()) check(`uncertain-reader-${i + 1}`, () => {
   const reader = buildLinearSourceDocument(question);
@@ -81,9 +82,12 @@ for (const [i, question] of [uncertain[0]!, uncertain[1]!, uncertain[11]!, uncer
   const result = compileSceneDocument(documentFor(question, "number_line_set", { variable: "x", expression: difference }));
   assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
 });
+// Final-review18Oct13:40 supersedes these historical no-veto positives:
+// an unproved opposite/false request cannot erase the literal signed source
+// comparison. Its own exact/complement proof must complete before admission.
 for (const [i, question] of [uncertain[7]!, uncertain[8]!, uncertain[14]!].entries()) check(`uncertain-valid-planner-side-${i + 1}`, () => {
   const result = compileSceneDocument(documentFor(question, "linear_half_plane", { variables: ["x", "y"], inequality: "x+y>4" }));
-  assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  assert.ok(!result.ok && result.report.issues.some(issue => issue.code === "linear_source_mismatch"));
 });
 check("uncertain-valid-planner-symmetric-difference", () => {
   const a = { intersection: [{ inequality: "x>=1" }, { inequality: "x<=5" }] };
@@ -94,32 +98,34 @@ check("uncertain-valid-planner-symmetric-difference", () => {
 });
 check("uncertain-valid-planner-middle-dot", () => {
   const result = compileSceneDocument(documentFor(uncertain[10]!, "number_line_set", { variable: "x", expression: { inequality: "x>5/2" } }));
-  assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  assert.ok(!result.ok && result.report.issues.some(issue => issue.code === "linear_source_mismatch"), "an ambiguous native source comparison cannot be assumed equal to the planner decimal");
 });
 check("uncertain-valid-planner-wrong-side-request", () => {
   const result = compileSceneDocument(documentFor(uncertain[9]!, "linear_half_plane", { variables: ["x", "y"], inequality: "2x+y<4" }));
-  assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  assert.ok(!result.ok && result.report.issues.some(issue => issue.code === "linear_source_mismatch"), "unknown polarity prose cannot waive exact source predicate coverage");
 });
 for (const [i, question] of uncertain.slice(3, 7).entries()) check(`uncertain-multiple-planner-operands-${i + 1}`, () => {
-  // A planner can own separate components. The whole-question reader must
-  // not bind either component to its guessed single conjunction.
+  // Source ownership is collective across the actual document. This partial
+  // candidate has only one component, so another stated predicate is missing.
   const candidate = documentFor(question, i === 3 ? "linear_half_plane" : "number_line_set", i === 3
     ? { variables: ["x", "y"], inequality: "x+y<=4" }
     : { variable: "x", expression: { inequality: "x>2" } });
-  assert.deepEqual(validateLinearSourceBinding(candidate), []);
+  assert.ok(validateLinearSourceBinding(candidate).some(issue => issue.code === "linear_source_mismatch"));
 });
 for (const [i, question] of uncertain.slice(17, 22).entries()) check(`unconsumed-operator-has-no-binding-authority-${i + 1}`, () => {
-  // These requests contain additional or ambiguous mathematical scope. This
-  // component only probes absence of reader authority, not scene completeness.
-  assert.deepEqual(validateLinearSourceBinding(documentFor(question, "number_line_set", { variable: "x", expression: { inequality: "x<0" } })), []);
+  // No reader figure is invented. Literal native predicates may still not
+  // vanish; the interval-only third request has no such comparison to bind.
+  const issues = validateLinearSourceBinding(documentFor(question, "number_line_set", { variable: "x", expression: { inequality: "x<0" } }));
+  if (i === 2) assert.deepEqual(issues, []);
+  else assert.ok(issues.some(issue => issue.code === "linear_source_mismatch"));
 });
 for (const [i, question] of uncertain.slice(22, 24).entries()) check(`unproved-conditional-correct-planner-${i + 1}`, () => {
   const result = compileSceneDocument(documentFor(question, "linear_feasible_region", { variables: ["x", "y"], constraints: ["x+y<=8", "x>1"] }));
-  assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  assert.ok(!result.ok && result.report.issues.some(issue => issue.code === "linear_source_mismatch"), "null request authority cannot certify conditional source scope");
 });
 check("unproved-prefix-complement-correct-planner", () => {
   const result = compileSceneDocument(documentFor(uncertain[24]!, "number_line_set", { variable: "x", expression: { complement: { inequality: "x<0" } } }));
-  assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  assert.ok(!result.ok && result.report.issues.some(issue => issue.code === "linear_source_mismatch"), "an uncertain prefix complement needs a completed Boolean request proof");
 });
 check("closed-if-possible-request", () => {
   const question = "Graph x+y<=8 if possible.";
@@ -450,8 +456,12 @@ for (const [id, question, operator, inputs] of [
 ] as Array<[string, string, string, Record<string, unknown>]>) check(`unproved-source-defers-${id}`, () => {
   assert.equal(buildLinearSourceDocument(question), null);
   const result = compileSceneDocument(documentFor(question, operator, inputs));
-  assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
-  assert.ok(!result.renderScene.primitives.some(primitive => primitive.provenance?.linearSourceNames), "Unproved requests supply no inferred source names");
+  if (id === "double-complement") {
+    assert.ok(!result.ok && result.report.issues.some(issue => issue.code === "linear_source_mismatch"), "the null-reader Boolean case now fails closed");
+  } else {
+    assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+    assert.ok(!result.renderScene.primitives.some(primitive => primitive.provenance?.linearSourceNames), "Unproved requests supply no inferred source names");
+  }
 });
 
 const proseSystems = [
