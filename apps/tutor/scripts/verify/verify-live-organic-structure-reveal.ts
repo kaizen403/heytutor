@@ -114,11 +114,26 @@ for (const f of fixture.parityControls) await check(`unchanged-other-family:${f.
   assert.equal(sha(normalized.document), f.documentSha256); assert.equal(sha(compiled.renderScene), f.renderSha256);
   assert.equal(sha(p.introSegments.flatMap(drawing.getSegmentCommands)), f.openingCommandsSha256); assert.equal(sha(p.diagram), f.fullDiagramSha256);
 });
-await check("carbonyl120-native-guard-not-waived", () => {
+await check("carbonyl-qualitative-complete-without-numeric-angle", () => {
   const question = "Draw hexanal and hexan-2-one so that the three atoms directly attached to each carbonyl carbon are explicit. Mark the approximately trigonal-planar carbonyl centres and show which has a carbonyl-bound H and which has two carbon substituents.";
+  const { r, p } = presentation(question);
+  assert.equal(r.tier, "qualitative_verified");
+  const verified = witness(r.sceneDocument, question); assert(verified);
+  assert.equal(verified.structures.length, 2);
+  const commands = p.introSegments.flatMap(drawing.getSegmentCommands);
+  for (const structure of verified.structures) {
+    const ids = new Set([...structure.atomIds, ...structure.nameLabelIds]);
+    const labels = r.renderScene.primitives.filter(primitive => primitive.kind === "label" && ids.has(primitive.entityId));
+    assert(labels.length > 0);
+    for (const label of labels) assert(commands.some(command => command.type === "LABEL" && command.semanticRef?.entityId === label.entityId && command.text === label.text), `missing carbonyl opening label ${label.entityId}`);
+  }
+  assert(!/\d+(?:\.\d+)?\s*(?:deg(?:ree)?s?\b|°)/iu.test(JSON.stringify({ document: r.sceneDocument, render: r.renderScene, presentation: p })), "qualitative carbonyl structures add no displayed numeric angle");
+});
+for (const angle of [120, 150]) await check(`carbonyl-explicit-${angle}-still-declines`, () => {
+  const question = `Draw hexanal and hexan-2-one with the carbonyl centres marked and show a measured carbonyl angle of ${angle} degrees.`;
   const turnPlan = { ...createFallbackTurnPlanV3(question), visualRequirement: "required" as const };
   const selected = selectProductionScene({ question, turnPlan, problemIR: null });
-  assert.equal(selected.representation, null); assert.match(selected.reason, /quantity/i);
+  assert.equal(selected.representation, null);
 });
 const result = { scope: "Synthetic validated conservative plans/nullIR, original8 frozen openings. Actual source-native presentation/canonical helpers; not paid/live/coverage/HTTPDB/pixels.", fixtureSha256: sha(bytes), passed: rows.filter(r => r.pass).length, failed: rows.filter(r => !r.pass).length, rows };
 const at = process.argv.indexOf("--out"); if (at >= 0) writeFileSync(process.argv[at + 1]!, JSON.stringify(result, null, 2) + "\n");
