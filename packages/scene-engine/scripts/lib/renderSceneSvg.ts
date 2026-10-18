@@ -45,7 +45,7 @@ export function primitiveToSvg(primitive: RenderPrimitive, marker: string, ink: 
   // Honour the marks the DSA builder sets, or a rejected edge and a live
   // window review as ordinary ink and the gate images say less than the board.
   const provenance = primitive.provenance as
-    | { dashed?: unknown; fillRole?: unknown; strokeWidth?: unknown }
+    | { dashed?: unknown; fillRole?: unknown; strokeWidth?: unknown; fillOnly?: unknown; pointStyle?: unknown; fontPx?: unknown; linearSolution?: unknown; labelBounds?: { x: number; y: number; width: number; height: number } }
     | undefined;
   const dashes = provenance?.dashed === true ? ` stroke-dasharray="6 4"` : "";
   const fill = provenance?.fillRole === "region" ? `rgba(165,214,236,0.28)` : "none";
@@ -58,13 +58,15 @@ export function primitiveToSvg(primitive: RenderPrimitive, marker: string, ink: 
     : "";
   switch (primitive.kind) {
     case "point":
-      return anchor ? `<circle cx="${anchor.x}" cy="${anchor.y}" r="2" fill="${ink}"/>${inlineLabel}` : "";
+      return anchor ? provenance?.pointStyle === "open"
+        ? `<circle cx="${anchor.x}" cy="${anchor.y}" r="4" fill="#FDFDFB" stroke="${ink}" stroke-width="1.5"/>${inlineLabel}`
+        : `<circle cx="${anchor.x}" cy="${anchor.y}" r="${provenance?.linearSolution ? 4 : 2}" fill="${ink}"/>${inlineLabel}` : "";
     case "line":
     case "polyline":
       return points.length >= 2 ? `<polyline points="${poly(points)}" ${stroke}/>${inlineLabel}` : "";
     case "polygon":
       return points.length >= 3
-        ? `<polygon points="${poly(points)}" fill="rgba(31,111,139,.12)" stroke="${ink}" stroke-width="1.15" stroke-linejoin="round"/>${inlineLabel}`
+        ? `<polygon points="${poly(points)}" fill="rgba(31,111,139,.12)" stroke="${provenance?.fillOnly === true ? "none" : ink}" stroke-width="1.15" stroke-linejoin="round"/>${inlineLabel}`
         : "";
     case "rectangle": {
       if (points.length < 2) return "";
@@ -106,8 +108,12 @@ export function primitiveToSvg(primitive: RenderPrimitive, marker: string, ink: 
       return `<line x1="${start.x}" y1="${start.y}" x2="${end.x}" y2="${end.y}" fill="none" stroke="${ink}" stroke-width="1.2" marker-start="url(#${marker})" marker-end="url(#${marker})"/>${text}`;
     }
     case "label":
+      if(provenance?.linearSolution && provenance.labelBounds) {
+        const bounds=provenance.labelBounds;
+        return `<text x="${bounds.x+2}" y="${bounds.y+2}" font-size="${provenance.fontPx}" dominant-baseline="hanging" textLength="${Math.max(1,bounds.width-4)}" lengthAdjust="spacingAndGlyphs" fill="${labelColor}">${escapeXml(primitive.text??"")}</text>`;
+      }
       return anchor
-        ? `<text x="${anchor.x}" y="${anchor.y}" font-size="13" text-anchor="middle" fill="${labelColor}">${escapeXml(primitive.text ?? "")}</text>`
+        ? `<text x="${anchor.x}" y="${anchor.y}" font-size="${typeof provenance?.fontPx === "number" ? provenance.fontPx : 13}" text-anchor="middle" fill="${labelColor}">${escapeXml(primitive.text ?? "")}</text>`
         : "";
     default:
       return "";
