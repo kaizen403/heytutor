@@ -25,7 +25,7 @@
  */
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, round, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
-import { CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, matchedChemistryComponentAmount, readChemistryLiteral, readChemistryQuantityDeclaration, chemistryQuantityPayloadPresent, chemistryQuestionSpan, findChemistryQuantities, chemistryCanonicalValuesAgree, convertChemistryValue, chemistryPlanBindingsValid, type ChemistryUnit, type ChemistrySpan } from "./quantityReader";
+import { CHEMISTRY_SCALAR_PATTERN, parseChemistryScalar, matchedChemistryScalar, matchedChemistryQuantity, matchedChemistryComponentAmount, readChemistryLiteral, readChemistryQuantityDeclaration, chemistryQuantityPayloadPresent, chemistryQuestionSpan, findChemistryQuantities, chemistryCanonicalValuesAgree, convertChemistryValue, chemistryPlanBindingsValid, type ChemistryUnit, type ChemistrySpan } from "./quantityReader";
 import { buildSolutionLessonScene, claimsSolutionLesson } from "./solutionProperties";
 
 export const SOLUTIONS_FAMILY = "chem_solutions" as const;
@@ -1000,6 +1000,19 @@ function readRaoult(stem: string, _quantities: readonly ChemPlanQuantity[]): Rao
   // count cannot disappear just because its numeric pattern did not match.
   const cardinals = ["zero","one","two","three","four","five","six","seven","eight","nine","ten",
     "eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen"];
+  // Numeric-word presence is broader than the component-count value
+  // grammar. These original spans grant no fractional/numeric authority.
+  const countNouns = ["dozen","score","gross","pair","couple","trio","quartet","quintet","sextet","septet","octet","nonet","decet"];
+  const numberWords = [...cardinals,...countNouns.flatMap(word=>[word,word === "gross" ? "grosses" : `${word}s`]),
+    "twenty","thirty","forty","fifty","sixty","seventy","eighty","ninety",
+    "hundred","thousand","million","billion","trillion","half","halves","quarter","quarters",
+    ...["third","fourth","fifth","sixth","seventh","eighth","ninth","tenth","eleventh","twelfth",
+      "thirteenth","fourteenth","fifteenth","sixteenth","seventeenth","eighteenth","nineteenth",
+      "twentieth","thirtieth","fortieth","fiftieth","sixtieth","seventieth","eightieth","ninetieth",
+      "hundredth","thousandth","millionth","billionth","trillionth"].flatMap(word=>[word,`${word}s`])];
+  const numberWord = `(?:${numberWords.join("|")})`;
+  const wordPayloads = sourceMatches(new RegExp(String.raw`(?<![\p{L}\p{N}\p{M}_])${numberWord}(?:[\s-]+(?:and[\s-]+)?${numberWord})*(?![\p{L}\p{N}\p{M}_])`,"giu"))
+    .map(match=>({start:match.index!,end:match.index!+match[0].length}));
   const countOwners = [
     ...sourceMatches(/\b(?:the\s+)?(?:mixture|solution)\s+(?:contains|has|consists\s+of)\s*/gid)
       .map(cue=>({cue,noun:/\b(?:liquid\s+)?components?\b/i})),
@@ -1019,13 +1032,25 @@ function readRaoult(stem: string, _quantities: readonly ChemPlanQuantity[]): Rao
     const text = stem.slice(payload,countEnd);
     // Cardinal words describe the resolved component set only. Keep the
     // original source span; this grants no fractional/scalar authority.
-    const cardinal = cardinals.indexOf(text.trim().toLowerCase());
-    const read = readChemistryQuantityDeclaration({question:stem,after:/^/,
+    const word = new RegExp(String.raw`^\s*(${cardinals.join("|")})(?![\p{L}\p{N}\p{M}_])`,"iu").exec(text);
+    const start = payload+text.length-text.trimStart().length;
+    const scalar = scalarTokens.find(token=>token.start === start && token.end <= countEnd);
+    // Preserve successful original declaration syntax (including numeric
+    // connectors); only unresolved modifier phrases use the leading token.
+    const declared = readChemistryQuantityDeclaration({question:stem,after:/^/,
       within:{start:payload,end:countEnd},dimension:"dimensionless",targetUnit:"1",owner:"solution component count"});
-    const count = cardinal >= 0 ? cardinal : read.state === "valid" ? read.reading.value : NaN;
-    const span = cardinal >= 0 ? {start:payload+text.length-text.trimStart().length,end:countEnd-(text.length-text.trimEnd().length)}
-      : read.state === "valid" ? read.reading.source.span : {start:payload,end:countEnd};
-    if (!Number.isInteger(count) || count !== bindings.length || stem.slice(span.end,countEnd).trim()) return null;
+    const read = scalar ? parseChemistryScalar(stem,scalar) : null;
+    const count = declared.state === "valid" ? declared.reading.value
+      : word ? cardinals.indexOf(word[1]!.toLowerCase()) : read?.ok ? read.reading : NaN;
+    const span = declared.state === "valid" ? declared.reading.source.span
+      : word ? {start,end:payload+word[0].length} : scalar ?? {start:payload,end:countEnd};
+    const modifiers = stem.slice(span.end,countEnd);
+    // Complete lexical noun modifiers may follow the count. They cannot
+    // hide an attached unit, unread value, or another supplied numeral.
+    if (!Number.isInteger(count) || count !== bindings.length
+      || (modifiers.trim() && (!/^\s+[\p{L}\p{M}]+(?:[\s-]+[\p{L}\p{M}]+)*\s*$/u.test(modifiers)
+        || /\b(?:and|or)\b/i.test(modifiers) || chemistryQuantityPayloadPresent(modifiers)
+        || wordPayloads.some(token=>token.end > span.end && token.start < countEnd)))) return null;
     roles.push({kind:"quantity",span:{start:cue.index!,end:countEnd+head[0].length},scalars:[span]});
   }
   // Complete parenthetical document references own only their integral ID.
@@ -1043,8 +1068,9 @@ function readRaoult(stem: string, _quantities: readonly ChemPlanQuantity[]): Rao
   const coordinated = /^\s*(?:,\s*(?:(?:and|or)\b\s*)?|(?:and|or)\b\s*)[a-z\s]*$/i;
   // Worded/unread antecedents are supplied presence, not fractional numeric
   // authority. A proved component-count role owns its cardinal token.
-  const lexicalPayloads = sourceMatches(new RegExp(`\\b(?:${cardinals.join("|")}|unknown|unreadable|unspecified|undefined|NaN|cannot\\s+be\\s+read)\\b`,"gi"))
-    .map(match=>({start:match.index!,end:match.index!+match[0].length}));
+  const lexicalPayloads = [...wordPayloads,
+    ...sourceMatches(/\b(?:unknown|unreadable|unspecified|undefined|NaN|cannot\s+be\s+read)\b/gi)
+      .map(match=>({start:match.index!,end:match.index!+match[0].length}))];
   for (const composition of compositions) {
     if (composition.valueFirst) {
       let start = composition.scalarSpan.start;
