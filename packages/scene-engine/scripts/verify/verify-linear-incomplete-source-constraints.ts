@@ -67,7 +67,7 @@ for (const row of incompleteConstraintCases) {
   });
   check(`${row.id}/complete`, () => {
     const candidate = incompleteConstraintCandidate(row, true);
-    if (/\b(?:positive|negative|non[- ]?positive|non[- ]?negative)\b/i.test(row.question)) {
+    if (/\b(?:positive|negative|non[- ]?positive|non[- ]?negative)\b/i.test(row.question) && !row.completeHasIsolatedPostfix) {
       assert(validateLinearSourceBinding(candidate).some(issue => issue.code === "linear_source_mismatch"), "unknown sign scope must decline conservatively even when proposed constraints could be right");
     } else {
       assert.deepEqual(validateLinearSourceBinding(candidate), [], "all exact source comparisons are owned without granting full request authority");

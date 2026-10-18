@@ -6,6 +6,7 @@ export interface IncompleteConstraintCase {
   planar: boolean;
   source: string[];
   forceFullCandidate?: boolean;
+  completeHasIsolatedPostfix?: boolean;
   expression?: Record<string, unknown>;
 }
 const review: Array<[string, boolean, string[]]> = [
@@ -20,7 +21,7 @@ const review: Array<[string, boolean, string[]]> = [
   ["Shade x + y < 4 where the coefficients of x and y are positive and x and y are nonnegative.", true, ["x+y<4", "x>=0", "y>=0"]],
   ["Shade x + y < 4, given that the coefficients of x and y are positive, x and y are positive.", true, ["x+y<4", "x>0", "y>0"]],
 ];
-export const incompleteConstraintCases: IncompleteConstraintCase[] = review.map(([question, planar, source], i) => ({ id: `review-${i+1}`, question, planar, source }));
+export const incompleteConstraintCases: IncompleteConstraintCase[] = review.map(([question, planar, source], i) => ({ id: `review-${i+1}`, question, planar, source, completeHasIsolatedPostfix: i === 8 }));
 incompleteConstraintCases.push({ id: "first-quadrant-only", question: "Shade the region in the first quadrant. Explain patiently.", planar: true, source: ["x>=0", "y>=0"] });
 for (const [word, relation] of [["positive", ">"], ["negative", "<"], ["nonnegative", ">="], ["non-negative", ">="], ["nonpositive", "<="], ["non-positive", "<="]] as const) {
   incompleteConstraintCases.push({ id: `sign-prefix-${word}`, question: `Graph 2x-3<5 for ${word} x on a number line. Explain patiently.`, planar: false, source: ["2x-3<5", `x${relation}0`] });
@@ -46,6 +47,10 @@ export const unprovedScopeCases: IncompleteConstraintCase[] = [
   { id: "source-planar-negation", question: "Shade the points not satisfying x+y<4. Explain each choice patiently.", planar: true, source: ["x+y<4"] },
   ...["x is at least zero", "x is no greater than zero", "x must exceed zero", "x is below zero"].map((claim, i) => ({ id: `unowned-native-domain-${i}`, question: `Graph 2x-3<5 on a number line, where ${claim}. Explain gently.`, planar: false, source: ["2x-3<5"] })),
 ];
+unprovedScopeCases.push(
+  ...["unless", "except", "xor", "setminus", "minus"].map(operator => ({ id: `unsupported-operator-${operator}`, question: `Graph x<4 ${operator} x>1 on a number line. Explain patiently.`, planar: false, source: ["x<4", "x>1"], forceFullCandidate: true })),
+  { id: "unsupported-operator-neither-nor", question: "Graph neither x<4 nor x>1 on a number line. Explain patiently.", planar: false, source: ["x<4", "x>1"], forceFullCandidate: true },
+);
 export function incompleteConstraintCandidate(row: IncompleteConstraintCase, complete = false): SceneDocument {
   const constraints = complete || row.forceFullCandidate ? row.source : row.source.slice(0, 1);
   return { schemaVersion: "scene-document/v2", source: { question: row.question }, visualDecision: { mode: "scene", reason: "Show the supplied solution." }, quantities: [],

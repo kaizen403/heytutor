@@ -180,6 +180,9 @@ function sourceNotation(text: string, names: readonly string[]): string {
   return result;
 }
 const SIGN_DOMAIN_PROPERTY = "non[- ]?negative|non[- ]?positive|positive|negative";
+// Existing unsupported set operators are also unsafe in an incomplete request.
+const UNSUPPORTED_LINEAR_BOOLEAN_WORDS = "unless|except|xor|neither|nor";
+const UNSUPPORTED_LINEAR_INTERVAL_BOOLEAN_WORDS = `${UNSUPPORTED_LINEAR_BOOLEAN_WORDS}|setminus|minus`;
 
 /** Do not reinterpret a coordinate inside a different complete noun subject.
  * This proves only the subject's role; it does not consume the property or
@@ -411,7 +414,12 @@ function linearRationalPropertySource(source: string, names: readonly string[], 
     const field = /^(?:\s+|\s*-\s*)(?:intercepts?|coefficients?|ax(?:is|es)|directions?)\b/i.exec(source.slice(cursor));
     if (field && (!/coefficients?/i.test(field[0]) || !unprovedScalarComplement(type.index!))
       && ownsNounContext(type.index!, identifier.lastIndex - first[0].length, cursor + field[0].length)) {
-      proved.add(type.index!); if (includeSigns) nounSpans.push({ start: identifier.lastIndex - first[0].length, end: cursor + field[0].length });
+      proved.add(type.index!);
+      if (includeSigns) {
+        const fieldEnd = cursor + field[0].length;
+        const end = /coefficients?/i.test(field[0]) ? linearCoefficientTermEnd(source, fieldEnd, /coefficients/i.test(field[0])) : fieldEnd;
+        nounSpans.push({ start: identifier.lastIndex - first[0].length, end });
+      }
     }
   }
   for (const type of words) if (/\buse\s+$/i.test(source.slice(0, type.index!)) && /^\s+arithmetic\b/i.test(source.slice(type.index! + type[0].length))
@@ -431,11 +439,8 @@ function linearRationalPropertySource(source: string, names: readonly string[], 
     if (proved.has(previous.index!) && proved.has(next.index!) && /^\s+(?:and|or)\s+$/i.test(source.slice(start, end)))
       for (let position = start; position < end; position++) masked[position] = " ";
   }
-  if (includeSigns) for (const span of nounSpans) for (const position of nativePositions)
-    if (position >= span.start && position < span.end) {
-      const token = /^[A-Za-z][A-Za-z0-9_]*/.exec(source.slice(position))![0];
-      for (let index = position; index < position + token.length; index++) masked[index] = " ";
-    }
+  if (includeSigns) for (const span of nounSpans)
+    for (let position = span.start; position < span.end; position++) masked[position] = " ";
   // Only this owned preposition is membership-like. Keep every other token:
   // a property proof cannot remove an integer/set cue or a later predicate.
   for (const span of nounSpans) for (const head of source.slice(span.start, span.end).matchAll(/\bin\b/gi))
@@ -876,7 +881,7 @@ function booleanProgram(
       || hasGraphicalRequest && graphicalAction.test(gap))
       throw new Error("Additional graphical source requests cannot become a Boolean intersection");
     hasGraphicalRequest ||= graphicalAction.test(gap);
-    if (/\b(?:unless|except|xor|neither|nor)\b|!=|≠/.test(words))
+    if (new RegExp(`\\b(?:${UNSUPPORTED_LINEAR_BOOLEAN_WORDS})\\b|!=|≠`).test(words))
       throw new Error("Unsupported source Boolean connective");
     for (const ch of gap.match(/^\s*\)+/)?.[0] ?? "")
       if (ch === ")") {
@@ -1211,7 +1216,7 @@ function intervalSourceProgram(body: string, variable: string, setAliases?: Set<
   for (const operand of connectiveNeighbors)
     if (!bindings.has(operand[1]!) && !proseActions.has(operand[1]!.toLowerCase()))
       throw new Error(`Unknown named set in source program: ${operand[1]}`);
-  if (/\b(?:unless|except|xor|neither|nor|setminus|minus)\b|[∖\\]/i.test(residual))
+  if (new RegExp(`\\b(?:${UNSUPPORTED_LINEAR_INTERVAL_BOOLEAN_WORDS})\\b`, "i").test(residual) || /[∖\\]/i.test(residual))
     throw new Error("Unsupported named-interval source connective");
   const references: SourceClause[] = [...residual.matchAll(/\b[A-Za-z][A-Za-z0-9_]*\b/g)]
     .filter((match) => bindings.has(match[0]))
@@ -1964,6 +1969,18 @@ function hasUnsupportedDiscreteDomain(question: string, planar = false, sourcePr
 function requireIncompleteSourceConstraintCoverage(question: string, names: readonly string[], document: SceneDocument): void {
   const normalized = normalize(question);
   let body = sourceNotation(canonicalRealDomainSource(normalized, names), names);
+  // Only an isolated affirmative postfix declaration has independent scope.
+  // Unknown prefix adjectives, negations, modalities or trailing qualifiers
+  // remain untouched and are refused by the unproved-sign check below.
+  const native = `(?:${names.join("|")})`;
+  const subjects = `${native}(?:\\s*(?:,\\s*(?:and\\s*)?|and\\s+)${native}){0,8}`;
+  body = body.replace(new RegExp(`(^|[.;?!\\r\\n]|\\band\\b)(\\s*)(${subjects})\\s+(?:is|are)\\s+(${SIGN_DOMAIN_PROPERTY})\\b(?=\\s*(?:[;?!\\r\\n]|\\.(?!\\d)|$))`, "gi"),
+    (whole: string, boundary: string, space: string, variables: string, _sign: string, offset: number, original: string) => {
+      const subjectEnd = offset + boundary.length + space.length + variables.length;
+      if (hasLinearCoefficientSubject(original, subjectEnd)
+        || boundary.toLowerCase() === "and" && new RegExp(`\\b${native}\\s*$`).test(original.slice(0, offset))) return whole;
+      return `${boundary}${space}${explicitDomains(whole.slice(boundary.length + space.length), names)} `;
+    });
   const points = readLinearSourceReferencePoints(body, names);
   const scalarSpans: Array<{ start: number; end: number }> = [];
   body = maskLinearSourceScalarNameRoles(points.maskedQuestion, names, label => !names.includes(label), scalarSpans);
@@ -1981,7 +1998,7 @@ function requireIncompleteSourceConstraintCoverage(question: string, names: read
   const source = hasNative && (/[<>=]/.test(body) || domains.length > 0) ? clauses(body, names, points.points.map(point => point.label), true) : [];
   source.push(...domains);
   if (!source.length) return;
-  for (const operator of body.matchAll(/\b(?:or|not|complement|union|if|then)\b/gi)) {
+  for (const operator of body.matchAll(new RegExp(`\\b(?:or|not|complement|union|if|then|${UNSUPPORTED_LINEAR_INTERVAL_BOOLEAN_WORDS})\\b`, "gi"))) {
     const following = source.find(clause => clause.start >= operator.index! + operator[0].length);
     const previous = source.slice().reverse().find(clause => clause.end <= operator.index!);
     if (following && !/[.;?!\r\n]/.test(body.slice(operator.index! + operator[0].length, following.start))
