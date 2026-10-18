@@ -351,6 +351,7 @@ interface ParentheticalConstantDeclaration {
   payloadEnd: number;
   owner: {species: SpeciesEntry; sourceSpan: ChemistrySpan} | null;
   roleOwner: {kind:"acid"|"base";sourceSpan:ChemistrySpan} | null;
+  unresolvedOwner: boolean;
 }
 
 /** Presence is lexical, before element/catalog resolution: unknown XYZ must
@@ -404,7 +405,6 @@ function parentheticalConstantDeclarations(question: string): Map<number,Parenth
     // Whitespace cannot erase a supplied chemical owner. Ordinary prose that
     // supplies no chemical identifier retains the unqualified constant path.
     const presence = !entry ? constantOwnerPresence(before) : null;
-    if (presence && !presence.role) return null;
     const owner = entry && speciesSpan ? {species:entry,sourceSpan:{start:speciesSpan[0],end:speciesSpan[1]}} : null;
     const roleOwner = presence?.role ? {kind:presence.role,sourceSpan:presence.sourceSpan} : null;
     const contents = question.slice(start+1,end);
@@ -416,7 +416,7 @@ function parentheticalConstantDeclarations(question: string): Map<number,Parenth
       const property = new RegExp(`^\\s*(${ACID_BASE_CONSTANT_SYMBOL})(?:\\s*value)?`,"idu").exec(text);
       const symbolSpan = property?.indices?.[1];
       if (!symbolSpan) return null;
-      declarations.set(cursor+symbolSpan[0],{payloadEnd:part.end,owner,roleOwner});
+      declarations.set(cursor+symbolSpan[0],{payloadEnd:part.end,owner,roleOwner,unresolvedOwner:Boolean(presence && !presence.role)});
       cursor = part.next;
     }
   }
@@ -446,21 +446,28 @@ function suppliedAcidBaseConstants(question: string): SuppliedAcidBaseConstants 
       // a readable later value cannot mask an earlier explicit unknown owner.
       if (declarations.length !== 1) return null;
       result.supplied = true;
-      const cue = new RegExp(String.raw`(?:${symbol}${word})(?:\s*\(([^)]*)\)|\s+(?:of|for)\s+(${names}))?\s*(?:value)?`,"igdu");
+      const cue = new RegExp(String.raw`(?:${symbol}${word})(?:\s*\(([^)]*)\)|\s+(?:of|for)\s+(${names})|(\s*(?:\(|(?:of|for)\b)))?\s*(?:value)?`,"igdu");
       const owners = [...question.matchAll(cue)];
       if (owners.length !== 1) return null;
       const owner = owners[0]!;
+      // An explicit but unresolved ownership clause cannot become implicit.
+      if (owner[3] !== undefined) return null;
+      const namedGroup = owner[1] !== undefined ? 1 : owner[2] !== undefined ? 2 : null;
       const attached = parenthetical.get(owner.index!);
       if (attached) {
         consumedParenthetical.add(owner.index!);
-        if (attached.roleOwner) result.roleOwners.push(attached.roleOwner);
-        if (attached.owner) {
-          // A finite weak-species constant cannot be ignored by a strong model.
-          if (attached.owner.species.strength !== "weak") return null;
-          result.namedOwners.push(attached.owner);
+        // Each property's explicit owner binds first. Adjacency supplies an
+        // implicit owner only when this declaration does not name one.
+        if (namedGroup === null) {
+          if (attached.unresolvedOwner) return null;
+          if (attached.roleOwner) result.roleOwners.push(attached.roleOwner);
+          if (attached.owner) {
+            // A finite weak-species constant cannot be ignored by a strong model.
+            if (attached.owner.species.strength !== "weak") return null;
+            result.namedOwners.push(attached.owner);
+          }
         }
       }
-      const namedGroup = owner[1] !== undefined ? 1 : owner[2] !== undefined ? 2 : null;
       if (namedGroup !== null) {
         const named = owner[namedGroup]!.trim();
         const species = speciesEntry(named);
@@ -580,6 +587,8 @@ function readTitration(stem: string, quantities: readonly ChemPlanQuantity[]): T
   void quantities;
   const supplied = suppliedAcidBaseConstants(stem);
   if (!supplied) return null;
+  // Strong-species models do not consume a finite dissociation constant.
+  if (supplied.supplied && analyte.entry.strength !== "weak") return null;
   const which = analyte.entry.kind === "acid" ? "a" : "b";
   // A supplied constant for another conjugate role is not an analyte constant.
   if (supplied.supplied && (supplied[which] === null || supplied[which === "a" ? "b" : "a"] !== null)) return null;

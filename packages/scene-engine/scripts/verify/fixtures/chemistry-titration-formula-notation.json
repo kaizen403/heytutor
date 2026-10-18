@@ -1173,6 +1173,408 @@
       "expectedDraw": true,
       "equivalenceMl": 25,
       "pK": 5
+    },
+    {
+      "id": "explicit-owner-aggregate-existing-exact",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH (pKa of CH3COOH = 4.76). Sketch the pH curve and mark the equivalence point.",
+      "expectedDraw": true,
+      "equivalenceMl": 25,
+      "pK": 4.76
+    },
+    {
+      "id": "explicit-owner-Ka-transfer-1",
+      "question": "20 mL of 0.1 M CH3COOH is titrated with 0.2 M KOH (Ka of CH3COOH = 1e-5). Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 10,
+      "pK": 5
+    },
+    {
+      "id": "explicit-owner-Ka-transfer-2",
+      "question": "40 mL of 0.05 M ethanoic acid is titrated with 0.1 M NaOH (Ka for acetic acid = 1e-5). Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 20,
+      "pK": 5
+    },
+    {
+      "id": "explicit-owner-Ka-transfer-3",
+      "question": "30 mL of 0.1 M HCOOH is titrated with 0.1 M NaOH (Ka of methanoic acid = 1e-4). Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 30,
+      "pK": 4
+    },
+    {
+      "id": "explicit-owner-Ka-transfer-4",
+      "question": "25 mL of 0.1 M HF is titrated with 0.2 M KOH (Ka for HF = 1e-3). Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 12.5,
+      "pK": 3
+    },
+    {
+      "id": "explicit-owner-Ka-transfer-5",
+      "question": "25 mL of 0.2 M CH₃COOH is titrated with 0.1 M NaOH (Ka of CH₃COOH = 1e-5). Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 50,
+      "pK": 5
+    },
+    {
+      "id": "explicit-owner-pKa-transfer-1",
+      "question": "20 mL of 0.1 M CH3COOH is titrated with 0.2 M KOH (pKa of CH3COOH = 5). Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 10,
+      "pK": 5
+    },
+    {
+      "id": "explicit-owner-pKa-transfer-2",
+      "question": "40 mL of 0.05 M ethanoic acid is titrated with 0.1 M NaOH (pKa for acetic acid = 5). Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 20,
+      "pK": 5
+    },
+    {
+      "id": "explicit-owner-pKa-transfer-3",
+      "question": "30 mL of 0.1 M HCOOH is titrated with 0.1 M NaOH (pKa of methanoic acid = 4). Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 30,
+      "pK": 4
+    },
+    {
+      "id": "explicit-owner-pKa-transfer-4",
+      "question": "25 mL of 0.1 M HF is titrated with 0.2 M KOH (pKa for HF = 3). Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 12.5,
+      "pK": 3
+    },
+    {
+      "id": "explicit-owner-pKa-transfer-5",
+      "question": "25 mL of 0.2 M CH₃COOH is titrated with 0.1 M NaOH (pKa of CH₃COOH = 5). Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 50,
+      "pK": 5
+    },
+    {
+      "id": "explicit-owner-Kb-transfer-1",
+      "question": "20 mL of 0.1 M NH3 is titrated with 0.2 M HCl (Kb of NH3 = 1e-5). Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 10,
+      "pK": 5
+    },
+    {
+      "id": "explicit-owner-Kb-transfer-2",
+      "question": "40 mL of 0.05 M ammonia is titrated with 0.1 M HNO3 (Kb for ammonia = 1e-5). Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 20,
+      "pK": 5
+    },
+    {
+      "id": "explicit-owner-Kb-transfer-3",
+      "question": "30 mL of 0.1 M NH4OH is titrated with 0.1 M HCl (Kb of ammonium hydroxide = 1e-5). Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 30,
+      "pK": 5
+    },
+    {
+      "id": "explicit-owner-Kb-transfer-4",
+      "question": "25 mL of 0.1 M NH3 is titrated with 0.2 M HBr (Kb for NH3 = 1e-4). Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 12.5,
+      "pK": 4
+    },
+    {
+      "id": "explicit-owner-Kb-transfer-5",
+      "question": "25 mL of 0.2 M NH₃ is titrated with 0.1 M HCl (Kb of NH₃ = 1e-5). Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 50,
+      "pK": 5
+    },
+    {
+      "id": "explicit-owner-pKb-transfer-1",
+      "question": "20 mL of 0.1 M NH3 is titrated with 0.2 M HCl (pKb of NH3 = 5). Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 10,
+      "pK": 5
+    },
+    {
+      "id": "explicit-owner-pKb-transfer-2",
+      "question": "40 mL of 0.05 M ammonia is titrated with 0.1 M HNO3 (pKb for ammonia = 5). Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 20,
+      "pK": 5
+    },
+    {
+      "id": "explicit-owner-pKb-transfer-3",
+      "question": "30 mL of 0.1 M NH4OH is titrated with 0.1 M HCl (pKb of ammonium hydroxide = 5). Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 30,
+      "pK": 5
+    },
+    {
+      "id": "explicit-owner-pKb-transfer-4",
+      "question": "25 mL of 0.1 M NH3 is titrated with 0.2 M HBr (pKb for NH3 = 4). Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 12.5,
+      "pK": 4
+    },
+    {
+      "id": "explicit-owner-pKb-transfer-5",
+      "question": "25 mL of 0.2 M NH₃ is titrated with 0.1 M HCl (pKb of NH₃ = 5). Draw the titration curve and mark the equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 50,
+      "pK": 5
+    },
+    {
+      "id": "explicit-owner-other-acid",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH (Ka of HCOOH=1e-5). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-owner-other-base",
+      "question": "25 mL of 0.1 M NH3 is titrated with 0.1 M HCl (Kb of HCl=1e-5). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-owner-unknown-formula",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH (pKa of XYZ=5). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-owner-unknown-name",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH (pKa of benzoic acid=5). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-owner-malformed-species",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH (Ka of CH3COOH2=1e-5). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-owner-malformed-owner-phase",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH (pKa of CH3COOH(aqq)=5). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-owner-unknown-parenthetical",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH (Ka(XYZ)=1e-5). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-owner-malformed-parenthetical",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH (pKa(CH3COOH2)=5). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-owner-incomplete-owner",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH (pKa of =5). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-owner-incomplete-owner-group",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH (pKa(CH3COOH=5). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-owner-wrong-conjugate-role",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH (Kb of CH3COOH=1e-5). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-owner-wrong-acid-role",
+      "question": "25 mL of 0.1 M NH3 is titrated with 0.1 M HCl (Ka of NH3=1e-5). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-owner-unread-value",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH (pKa of CH3COOH=unknown). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-owner-damaged-value",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH (Ka of CH3COOH=1e-). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-owner-wrong-unit",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH (Ka of CH3COOH=5 kg). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-owner-zero-value",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH (Ka of CH3COOH=0). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-owner-unknown-tail",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH (pKa of CH3COOH=5; junk). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-owner-conflicting-list",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH (Ka of CH3COOH=1e-5; pKa of CH3COOH=4). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-owner-implicit-strong-list-member",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH (Ka of CH3COOH=1e-5; pKa=5). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-owner-implicit-strong-base-list-member",
+      "question": "25 mL of 0.1 M NH3 is titrated with 0.1 M HCl (Kb of NH3=1e-5; pKb=5). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-owner-unknown-explicit-after-valid",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH (Ka of CH3COOH=1e-5; pKa for XYZ=5). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-owner-acid-parenthetical-owner",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH (Ka(CH3COOH)=1e-5). Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 25,
+      "pK": 5
+    },
+    {
+      "id": "explicit-owner-base-parenthetical-owner",
+      "question": "25 mL of 0.1 M NH3 is titrated with 0.1 M HCl (Kb(NH3)=1e-5). Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 25,
+      "pK": 5
+    },
+    {
+      "id": "explicit-owner-acid-log-parenthetical-owner",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH (pKa(CH3COOH)=5). Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 25,
+      "pK": 5
+    },
+    {
+      "id": "explicit-owner-base-log-parenthetical-owner",
+      "question": "25 mL of 0.1 M NH3 is titrated with 0.1 M HCl (pKb(NH3)=5). Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 25,
+      "pK": 5
+    },
+    {
+      "id": "explicit-owner-acid-agreeing-list",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH (Ka of CH3COOH=1e-5; pKa for CH3COOH=5). Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 25,
+      "pK": 5
+    },
+    {
+      "id": "explicit-owner-base-agreeing-list",
+      "question": "25 mL of 0.1 M NH3 is titrated with 0.1 M HCl (Kb of NH3=1e-5; pKb for NH3=5). Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 25,
+      "pK": 5
+    },
+    {
+      "id": "explicit-owner-implicit-selected-acid",
+      "question": "25 mL of 0.1 M CH3COOH(Ka=1e-5) is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 25,
+      "pK": 5
+    },
+    {
+      "id": "explicit-owner-implicit-selected-base",
+      "question": "25 mL of 0.1 M NH3(Kb=1e-5) is titrated with 0.1 M HCl. Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 25,
+      "pK": 5
+    },
+    {
+      "id": "explicit-owner-implicit-strong-acid",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH (Ka=1e-5). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-owner-implicit-strong-base",
+      "question": "25 mL of 0.1 M NH3 is titrated with 0.1 M HCl (Kb=1e-5). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-strong-acid-parenthesis",
+      "question": "25 mL of 0.1 M HCl is titrated with 0.1 M NaOH (Ka(HCl)=1e-5). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-strong-base-parenthesis",
+      "question": "25 mL of 0.1 M NaOH is titrated with 0.1 M HCl (Kb(NaOH)=1e-5). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "explicit-weak-acid-parenthesis-control",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH (Ka(CH3COOH)=1e-5). Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 25,
+      "pK": 5
+    },
+    {
+      "id": "explicit-weak-base-parenthesis-control",
+      "question": "25 mL of 0.1 M NH3 is titrated with 0.1 M HCl (Kb(NH3)=1e-5). Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 25,
+      "pK": 5
+    },
+    {
+      "id": "strong-generic-acid-role",
+      "question": "25 mL of 0.1 M HCl is titrated with 0.1 M NaOH. Given the acid (Ka=1e-5). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "strong-generic-base-role",
+      "question": "25 mL of 0.1 M NaOH is titrated with 0.1 M HCl. Given the base (Kb=1e-5). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "strong-unqualified-acid",
+      "question": "25 mL of 0.1 M HCl is titrated with 0.1 M NaOH. Given (Ka=1e-5). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "strong-unqualified-base",
+      "question": "25 mL of 0.1 M NaOH is titrated with 0.1 M HCl. Given (Kb=1e-5). Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "strong-no-constant-acid",
+      "question": "25 mL of 0.1 M HCl is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 25
+    },
+    {
+      "id": "strong-no-constant-base",
+      "question": "25 mL of 0.1 M NaOH is titrated with 0.1 M HCl. Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 25
+    },
+    {
+      "id": "weak-generic-acid-role",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH. Given the acid (Ka=1e-5). Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 25,
+      "pK": 5
+    },
+    {
+      "id": "weak-generic-base-role",
+      "question": "25 mL of 0.1 M NH3 is titrated with 0.1 M HCl. Given the base (Kb=1e-5). Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 25,
+      "pK": 5
+    },
+    {
+      "id": "weak-unqualified-acid",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH. Given (Ka=1e-5). Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 25,
+      "pK": 5
+    },
+    {
+      "id": "weak-unqualified-base",
+      "question": "25 mL of 0.1 M NH3 is titrated with 0.1 M HCl. Given (Kb=1e-5). Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 25,
+      "pK": 5
     }
   ]
 }
