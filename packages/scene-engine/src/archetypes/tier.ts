@@ -35,11 +35,6 @@ export function resolveTier(options: {
   if (schematic) {
     return { tier: "question_representation", nonMetric: true, reason: `${archetype} schematic requested after the exact program was unavailable` };
   }
-  // A proof in declared display coordinates certifies that display geometry,
-  // not physical values. The same monotonic lowering applies to every path.
-  if (document.source.nonMetric === true || document.source.representationTier === "qualitative_verified") {
-    return tierForForeignDocument(document);
-  }
   const metricSlots = Object.entries(spec.slots).filter(([, slot]) => slot.metric).map(([key]) => key);
   const ungrounded = metricSlots.filter((key) => sources[key] !== "plan" && sources[key] !== "stem");
   const proofs = metricAssertions(document, archetype);

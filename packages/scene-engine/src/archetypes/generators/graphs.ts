@@ -396,7 +396,6 @@ function functionGraph(context: GeneratorContext) {
   const range = sampleRange(expressions, xMin, xMax, 25);
   if (!range) return null;
   const k = displayFactor(xMax - xMin, range.yMin, range.yMax);
-  if (!Number.isFinite(k) || k <= 0) return null;
   const span = Math.max(range.yMax - range.yMin, 1e-6) * k;
   const scene = new SceneBuilder(context.question, "graph of the stated function", "function_graph");
   scene.axes("axes", xMin - 0.1 * (xMax - xMin), xMax + 0.1 * (xMax - xMin), range.yMin * k - 0.1 * span, range.yMax * k + 0.15 * span, "coordinate axes");
@@ -407,19 +406,7 @@ function functionGraph(context: GeneratorContext) {
     if (y !== null) scene.assert(`curve${index + 1}_value`, "function_value", [`curve${index + 1}`], { x: Number(x.toFixed(6)), y: Number((y * k).toFixed(6)) });
   });
   scene.labelled("curve1");
-  const document = scene.build();
-  if (k !== 1) {
-    // The curve inputs live in display coordinates. This common positive
-    // y-axis map preserves the source functions but cannot prove physical
-    // values. Consumers must still prove every whole body and label; the
-    // declaration alone supplies no source or numeric authority.
-    Object.assign(document.source, {
-      functionDisplayTransform: { schemaVersion: "function-display/v1", xScale: 1, yScale: k },
-      nonMetric: true,
-      representationTier: "qualitative_verified",
-    });
-  }
-  return document;
+  return scene.build();
 }
 
 function tangentToCurve(context: GeneratorContext) {
