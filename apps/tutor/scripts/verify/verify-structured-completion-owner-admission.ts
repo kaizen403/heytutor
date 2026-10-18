@@ -6,14 +6,14 @@ import type { SelectedRepresentation } from "../../features/tutor-session/lib/sc
 type Fault = "none" | "replace" | "quantity-routing" | "wrong-target" | "wrong-text" | "missing-record" |
   "undeclared-annotation" | "undeclared-entity" | "duplicate-addition" | "overlapping-ids" | "old-id" |
   "unknown-quantity" | "duplicate-quantity" | "wrong-group" | "ambiguous-owner" | "wrong-native-anchor";
-interface Fixture { id: string; space?: boolean; constructor?: boolean; oldPointName?: boolean; kind?: "motion" | "arcs"; fault?: Fault; expected: "adopt" | "reject" }
+interface Fixture { id: string; space?: boolean; nativeConstructor?: boolean; oldPointName?: boolean; kind?: "motion" | "arcs"; fault?: Fault; expected: "adopt" | "reject" }
 const fixtures: Fixture[] = [
   { id: "native-append-coordinate-annotation", expected: "adopt" },
   { id: "native-append-world-coordinate-annotation", space: true, expected: "adopt" },
-  { id: "existing-native-label-constructor-path", constructor: true, expected: "adopt" },
-  { id: "old-point-name-motion-without-extra-leader-rejects", constructor: true, oldPointName: true, expected: "reject" },
-  { id: "old-label-motion-rejects-whole-source-owned-transaction", kind: "motion", constructor: true, expected: "reject" },
-  { id: "generic-vertex-labels-cannot-swap-own-arc-values", kind: "arcs", constructor: true, expected: "reject" },
+  { id: "existing-native-label-constructor-path", nativeConstructor: true, expected: "adopt" },
+  { id: "old-point-name-motion-without-extra-leader-rejects", nativeConstructor: true, oldPointName: true, expected: "reject" },
+  { id: "old-label-motion-rejects-whole-source-owned-transaction", kind: "motion", nativeConstructor: true, expected: "reject" },
+  { id: "generic-vertex-labels-cannot-swap-own-arc-values", kind: "arcs", nativeConstructor: true, expected: "reject" },
   { id: "native-append-angle-labels-retain-own-arcs", kind: "arcs", expected: "adopt" },
   ...(["replace", "quantity-routing", "wrong-target", "wrong-text", "missing-record", "undeclared-annotation", "undeclared-entity",
     "duplicate-addition", "overlapping-ids", "old-id", "unknown-quantity", "duplicate-quantity", "wrong-group", "ambiguous-owner", "wrong-native-anchor"] as const)
@@ -55,7 +55,7 @@ function proposal(base: engine.SceneDocument, fixture: Fixture): engine.SceneCom
   const addition: engine.SceneCompletionResult["additions"][number] = { id, kind: "given_label", targetIds: ["P"],
     quantityIds: fixture.space ? ["px", "py", "pz"] : ["px", "py"], text };
   const result: engine.SceneCompletionResult = { document, additions: [addition], addedEntityIds: [], addedAnnotationIds: [id], skipped: [] };
-  if (fixture.constructor === true) {
+  if (fixture.nativeConstructor === true) {
     document.entities.push({ id, kind: "label", role: "proved source coordinate statement", label: text });
     document.constructions.push({ id: "makeCompletion", operator: "label", inputs: { target: "P", text }, outputs: [id] });
     document.requiredEntityIds.push(id); document.revealGroups[0]!.entityIds.push(id);
@@ -130,7 +130,7 @@ function angleProposal(base: engine.SceneDocument, fixture: Fixture): engine.Sce
   for (const [target, quantity, text] of bindings) {
     const id = `completion_${target}`;
     result.additions.push({ id, kind: "given_angle", quantityIds: [quantity!], targetIds: [target!], text });
-    if (fixture.constructor === true) {
+    if (fixture.nativeConstructor === true) {
       document.entities.push({ id, kind: "label", role: "source-given angle value", label: text });
       document.constructions.push({ id: `make_${id}`, operator: "label", inputs: { target, text }, outputs: [id] });
       document.requiredEntityIds.push(id); document.revealGroups[0]!.entityIds.push(id); result.addedEntityIds.push(id);
@@ -141,9 +141,9 @@ function angleProposal(base: engine.SceneDocument, fixture: Fixture): engine.Sce
   }
   return result;
 }
-function nearerSibling(render: engine.RenderScene, addition: engine.SceneCompletionResult["additions"][number], constructor: boolean): boolean {
+function nearerSibling(render: engine.RenderScene, addition: engine.SceneCompletionResult["additions"][number], nativeConstructor: boolean): boolean {
   const own = render.primitives.find(p => p.entityId === addition.targetIds[0] && p.kind === "arc");
-  const label = render.primitives.find(p => p.kind === "label" && p.entityId === (constructor ? addition.id : addition.targetIds[0]) && p.text === addition.text);
+  const label = render.primitives.find(p => p.kind === "label" && p.entityId === (nativeConstructor ? addition.id : addition.targetIds[0]) && p.text === addition.text);
   assert(own && label && own.points[0] && label.points[0]);
   const center = own.points[0], position = label.points[0];
   const direction = Math.atan2(position.y - center.y, position.x - center.x);
@@ -200,7 +200,7 @@ if (process.argv.includes("--print-fixtures")) {
           if (fixture.kind === "motion") assert(selected.renderScene.primitives.some(old => old.kind === "label" &&
             JSON.stringify(native.value!.renderScene.primitives.find(p => p.id === old.id)?.points) !== JSON.stringify(old.points)),
           "motion countercase must independently move an old native label before the new guard");
-          if (fixture.kind === "arcs") assert.equal(proposed.additions.some(a => nearerSibling(native.value!.renderScene, a, fixture.constructor === true)),
+          if (fixture.kind === "arcs") assert.equal(proposed.additions.some(a => nearerSibling(native.value!.renderScene, a, fixture.nativeConstructor === true)),
             fixture.expected === "reject", "independent own-arc effect must match the sealed source geometry oracle");
           if (fixture.oldPointName) {
             const old = selected.renderScene.primitives.find(p => p.id === "primitive_P_label"), changed = native.value.renderScene.primitives.find(p => p.id === "primitive_P_label");
@@ -224,8 +224,8 @@ if (process.argv.includes("--print-fixtures")) {
           const adopted = output.representation;
           for (const expected of proposed.additions) {
             const labels = adopted.renderScene.primitives.filter(p => p.kind === "label" && p.text === expected.text &&
-              p.entityId === (fixture.constructor === true ? expected.id : expected.targetIds[0]));
-            assert.equal(labels.length, 1); if (fixture.constructor !== true) assert.equal(labels[0]!.id, expected.id);
+              p.entityId === (fixture.nativeConstructor === true ? expected.id : expected.targetIds[0]));
+            assert.equal(labels.length, 1); if (fixture.nativeConstructor !== true) assert.equal(labels[0]!.id, expected.id);
             assert.equal(labels[0]!.groupId, "setup");
           }
           for (const old of before.selected.renderScene.primitives) assert.deepEqual(adopted.renderScene.primitives.find(p => p.id === old.id), old,
