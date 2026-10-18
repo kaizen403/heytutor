@@ -1,3 +1,4 @@
 tsx scripts/verify/verify-phone-board-readability.ts
 tsx scripts/verify/verify-explanation-pointing.ts
 tsx scripts/verify/verify-export-cache-order.ts
+tsx scripts/verify/verify-export-cache-workflow.ts

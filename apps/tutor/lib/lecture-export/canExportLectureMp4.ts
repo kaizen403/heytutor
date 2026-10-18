@@ -68,8 +68,9 @@ export function pageHasExportableAudio(turns: readonly StoredTurn[]): boolean {
  * `video8` drops truncated DSA files whose short opening exhausted the drawing tail.
  * `video9` is reserved by the YouTube board-timing fixes.
  * `video10` frees pitched 1.25x downloads from either prior release.
- * `video11` is reserved by the updated YouTube board-timing fixes.
+ * #211 takes the next free revision first; this PR follows it at merge.
  * `video12` keeps transient explanation pointing on the recorded speech clock.
+ * Renumber above actual main at merge if another export change lands first.
  */
 export const LECTURE_PAGE_CACHE_REVISION = "video12";
 
