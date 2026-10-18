@@ -840,20 +840,29 @@ function readRaoult(stem: string, _quantities: readonly ChemPlanQuantity[]): Rao
   const single = new RegExp(`(?:vapou?r pressure|that) of ${COMPONENT_FILLER}${name}(?:\\s+at\\s+[^,.]{0,24}?)?\\s*(?:is|=|:|are)\\s*${number}\\s*${PRESSURE_UNIT}?`, "gid");
   const symbolic = new RegExp(`\\bp\\s*(?:°|\\^0|\\^\\(0\\)|0)?\\s*_?\\s*([a-z])\\s*(?:°|\\^0|\\^\\(0\\)|0)?\\s*(?:=|is|:)\\s*${number}\\s*${PRESSURE_UNIT}?`, "gid");
   const declarations = [pair,single,symbolic].flatMap(pattern => [...stem.matchAll(pattern)]);
-  const pressureAt = (match: RegExpMatchArray, group: number, unitGroup: number, sharedUnitGroup?: number): number => {
+  const closesPressureArgument = (end:number): boolean => declarations.some(next => next.index! >= end
+    && /^(?:\s*,?\s*and\s+|\s*,\s*)$/i.test(stem.slice(end,next.index!)))
+    || /^(?:\s*$|\s*[.;!?)])/.test(stem.slice(end,chemistryQuestionSpan(stem).end));
+  const pressureAt = (match: RegExpMatchArray, group: number, unitGroup: number, sharedUnitGroup?: number, peerScalarGroup?: number): number => {
     const token = match[group]!; const start = match.indices?.[group]?.[0];
     if (start === undefined) return NaN;
+    if (match[unitGroup] === undefined && sharedUnitGroup !== undefined) {
+      // Missing a regex unit is not proof that this source argument has none.
+      // A peer convention is legal only across the pair's owned separator or
+      // after this complete final argument; kg/qux/damaged units remain present.
+      const end = start+token.length;
+      const peer = peerScalarGroup === undefined ? undefined : match.indices?.[peerScalarGroup];
+      const nextOwnedValue = peer && peer[0] > end && /^\s*(?:and|,)\s*$/i.test(stem.slice(end,peer[0]));
+      if (!nextOwnedValue && !closesPressureArgument(end)) return NaN;
+    }
     const selectedUnitGroup = match[unitGroup] !== undefined ? unitGroup : sharedUnitGroup;
     const rawUnit = selectedUnitGroup === undefined ? undefined : match[selectedUnitGroup];
     const unitSpan = selectedUnitGroup === undefined ? undefined : match.indices?.[selectedUnitGroup];
     if (rawUnit === "mm" && unitSpan) {
       // This pressure/component declaration owns the historical mm-Hg
       // shorthand. A material, power or attached factor is not bare mm.
-      const after = stem.slice(unitSpan[1],chemistryQuestionSpan(stem).end);
       const insideJointDeclaration = unitSpan[1] < match.index! + match[0].length;
-      const nextOwnedDeclaration = declarations.some(next => next.index! >= unitSpan[1]
-        && /^(?:\s*,?\s*and\s+|\s*,\s*)$/i.test(stem.slice(unitSpan[1],next.index!)));
-      if (!insideJointDeclaration && !nextOwnedDeclaration && !/^(?:\s*$|\s*[.;!?)])/.test(after)) return NaN;
+      if (!insideJointDeclaration && !closesPressureArgument(unitSpan[1])) return NaN;
       const value = matchedChemistryScalar(stem,match,group);
       if (value === null) return NaN;
       const converted = convertChemistryValue(value,"torr","torr","pressure");
@@ -863,8 +872,8 @@ function readRaoult(stem: string, _quantities: readonly ChemPlanQuantity[]): Rao
     return read.ok ? read.reading.value : NaN;
   };
   for (const match of stem.matchAll(pair)) {
-    bindings.push({ name: match[1]!.toLowerCase(), sourceSpan:componentSpan(match,1), value: pressureAt(match, 3, 4, 6), unit: normaliseUnit(match[4] ?? match[6]) || "torr" });
-    bindings.push({ name: match[2]!.toLowerCase(), sourceSpan:componentSpan(match,2), value: pressureAt(match, 5, 6, 4), unit: normaliseUnit(match[6] ?? match[4]) || "torr" });
+    bindings.push({ name: match[1]!.toLowerCase(), sourceSpan:componentSpan(match,1), value: pressureAt(match, 3, 4, 6, 5), unit: normaliseUnit(match[4] ?? match[6]) || "torr" });
+    bindings.push({ name: match[2]!.toLowerCase(), sourceSpan:componentSpan(match,2), value: pressureAt(match, 5, 6, 4, 3), unit: normaliseUnit(match[6] ?? match[4]) || "torr" });
   }
   // "vapour pressure of pure A is 200 torr", "that of pure B is 100 torr"
   for (const match of stem.matchAll(single)) {

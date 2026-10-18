@@ -564,6 +564,173 @@
       "question": "During a constant volume process q = 500 J and w is 200 J. Draw the first law energy account.",
       "expectedDraw": false,
       "oracle": {}
+    },
+    {
+      "id": "S7-PRESSURE-exact",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 mm and 100 kg. Equimolar liquids form an ideal solution. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S7-PRESSURE-length",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure X and Y are 300 mm and 50 cm. They form an equimolar ideal solution. Plot the Raoult graph and find the total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S7-PRESSURE-unknown",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure B and A are 100 mm and 200 qux. Equimolar liquids form an ideal solution. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S7-PRESSURE-volume",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of liquids P and Q are 250 mm and 50 mL. An equimolar mixture forms an ideal solution. Sketch the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S7-PRESSURE-damaged-word",
+      "family": "chem_solutions",
+      "question": "At 300 K, vapour pressures of pure A and B are 200 mm and 100 mmfoo. Equimolar liquids form an ideal solution. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S7-PRESSURE-damaged-power",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of solvents A and B are 200 mm and 100 mm\u00b2. Equimolar liquids form an ideal solution. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S7-PRESSURE-shared-first-unit",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 mm and 100. Equimolar liquids form an ideal solution. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "S7-PRESSURE-shared-last-unit",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 and 100 mm. Equimolar liquids form an ideal solution. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "S7-PRESSURE-two-pressure-units",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 mm. Equimolar liquids form an ideal solution. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "S7-CONSTANT-exact",
+      "family": "chem_thermo",
+      "question": "A closed system undergoes an isochoric process. Its volume is constant. Draw the system boundary.",
+      "expectedDraw": true,
+      "oracle": {
+        "noVolumeLabels": true
+      }
+    },
+    {
+      "id": "S7-CONSTANT-variable",
+      "family": "chem_thermo",
+      "question": "A closed system follows an isochoric process. Its volume V is constant. Draw its boundary.",
+      "expectedDraw": true,
+      "oracle": {
+        "noVolumeLabels": true
+      }
+    },
+    {
+      "id": "S7-CONSTANT-equality",
+      "family": "chem_thermo",
+      "question": "A closed system undergoes an isochoric process. The volume = constant. Sketch the system boundary.",
+      "expectedDraw": true,
+      "oracle": {
+        "noVolumeLabels": true
+      }
+    },
+    {
+      "id": "S7-CONSTANT-reordered",
+      "family": "chem_thermo",
+      "question": "For a closed system, the volume is constant. Draw its boundary for an isochoric process.",
+      "expectedDraw": true,
+      "oracle": {
+        "noVolumeLabels": true
+      }
+    },
+    {
+      "id": "S7-CONSTANT-remains",
+      "family": "chem_thermo",
+      "question": "A closed system follows a constant volume process. Its volume remains constant. Show the system boundary.",
+      "expectedDraw": true,
+      "oracle": {
+        "noVolumeLabels": true
+      }
+    },
+    {
+      "id": "S7-CONSTANT-no-change",
+      "family": "chem_thermo",
+      "question": "A gas in a closed system follows an isochoric path. Its volume does not change. Sketch the boundary.",
+      "expectedDraw": true,
+      "oracle": {
+        "noVolumeLabels": true
+      }
+    },
+    {
+      "id": "S7-CONSTANT-extra-number",
+      "family": "chem_thermo",
+      "question": "A closed system undergoes an isochoric process. Its volume is constant 2 L. Draw the system boundary.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S7-CONSTANT-unread-tail",
+      "family": "chem_thermo",
+      "question": "A closed system undergoes an isochoric process. Its volume is constant at unknown L. Draw the system boundary.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S7-CONSTANT-earlier-unread",
+      "family": "chem_thermo",
+      "question": "A closed system undergoes an isochoric process. Its volume is unknown L; V is constant. Draw the system boundary.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S7-CONSTANT-later-unread",
+      "family": "chem_thermo",
+      "question": "A closed system undergoes an isochoric process. Its volume is constant; V is unknown L. Draw the system boundary.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S7-CONSTANT-independent-heat",
+      "family": "chem_thermo",
+      "question": "A gas undergoes an isochoric process. Its volume is constant and q=500 J; w=0 J. Draw the first law energy account.",
+      "expectedDraw": true,
+      "oracle": {
+        "deltaUj": 500
+      }
+    },
+    {
+      "id": "S7-CONSTANT-unread-before-heat",
+      "family": "chem_thermo",
+      "question": "A gas undergoes an isochoric process. Its volume is unknown L and q=500 J; w=0 J. Draw the first law energy account.",
+      "expectedDraw": false,
+      "oracle": {}
     }
   ]
 }

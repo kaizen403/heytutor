@@ -138,6 +138,11 @@ function processVolumes(question: string): ProcessVolumes | null {
       // identifier assignments such as "volume of gas is unknown".
       const otherOwner = /\b(?:q|w|du|p_?ext|temperature|external pressure|internal energy)\b|(?:δ|∆|Δ)\s*(?:u\b|\(pv\))/i.exec(question.slice(payloadStart,nextProperty));
       const end = otherOwner ? payloadStart+otherOwner.index : nextProperty;
+      const payload = question.slice(payloadStart,end);
+      // A complete qualitative equality is a process description. A supplied
+      // number/unread value or expression continuation cannot hide after it.
+      if (/^\s*(?:is|=)\s*constant\s*(?:,\s*)?(?:and\s*)?$/i.test(payload)
+        && (!/\band\s*$/i.test(payload) || otherOwner)) continue;
       const read = readChemistryQuantityDeclaration({question,after:new RegExp(property[0]),cueCaseSensitive:true,
         within:{start,end},dimension:"volume",targetUnit:"L",owner:"stated system volume"});
       if (read.state === "invalid" || read.state === "valid" && read.reading.value <= 0) return null;
