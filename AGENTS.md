@@ -33,7 +33,8 @@ question
 ```
 
 Required visuals that fail both exact and source-grounded representation skip
-the canvas and still teach. Invalid or partial candidates never render.
+the canvas and still teach. Every rendered part passes the authority boundary
+described in rule 5.
 
 ## Where to Start
 
@@ -99,8 +100,13 @@ Never add Cursor / `cursoragent` as a commit co-author. Never commit `.cursor/` 
 4. **Numeric authority is deterministic** — `TurnPlanV3` is scene-facing;
    `ProblemIR` + solver recompute supported values. Stale planner scalars cannot
    pair with a correct diagram.
-5. **Invalid or partial candidates never render** — fallbacks are independently
-   compiled honest representations, not repaired fragments.
+5. **Never render anything false; render every verified part.** With
+   `DIAGRAM_YIELD_POLICY=verified_parts` (off by default), omit localized
+   unprovable labels, record each demotion, and recompile the remaining figure
+   through all source, numeric and geometry guards. Core truth failures still
+   block the figure; repairs preserve required geometry. Verified answer labels
+   wait until teaching finishes. Independently compiled fallbacks retain their
+   existing authority boundary.
 6. **Coverage grows via reusable operators/assertions**, never per-question
    templates or validator bypasses. Corpus fixtures are oracles only.
 7. **Live writing uses estimated schedules first** — never block on late TTS
