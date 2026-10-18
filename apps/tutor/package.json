@@ -55,7 +55,10 @@
     "db:migrate:deploy": "tsx scripts/live/deploy-migrations.ts",
     "verify:sentry": "tsx scripts/verify/verify-teaching-segment-failure.ts && tsx scripts/verify/verify-sentry-admin-receipt.ts && tsx scripts/verify/verify-storage-sentry-receipts.ts && tsx scripts/verify/verify-turn-failure-classification.ts && tsx scripts/verify/verify-sentry-backfill.ts && tsx scripts/verify/verify-sentry.ts",
     "verify:sentry-db": "tsx scripts/verify/verify-sentry-db.ts",
-    "verify:scene-request-deadlines": "node --experimental-test-module-mocks --import tsx scripts/verify/verify-scene-request-deadlines.ts"
+    "verify:scene-request-deadlines": "node --experimental-test-module-mocks --import tsx scripts/verify/verify-scene-request-deadlines.ts",
+    "verify:atomic-labels": "tsx scripts/verify/verify-atomic-scene-labels.ts",
+    "verify:primitive-tour": "tsx scripts/verify/verify-primitive-tour.ts",
+    "verify:dsa-intro-order": "tsx scripts/verify/verify-dsa-intro-order.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1131.0",

@@ -126,3 +126,8 @@ pnpm verify:lesson-qa-3
 pnpm verify:sentry
 tsx scripts/verify/verify-picture-demand-conic-rows.ts
 pnpm verify:chemistry-launch-wrong
+
+# Current main gates added before this manifest migration.
+pnpm verify:atomic-labels
+pnpm verify:primitive-tour
+pnpm verify:dsa-intro-order
