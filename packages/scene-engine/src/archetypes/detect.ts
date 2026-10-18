@@ -1217,7 +1217,10 @@ const CUE_SETS: readonly CueSet[] = [
       const harmonics: number[] = [];
       // Consume every understood specification; an unread or conflicting one is
       // a requested physical state, never permission to use a display default.
-      let remaining = stem.replace(new RegExp(`${modeTokenStart}(${ordinals})${separator}(harmonic|mode|overtone)\\b`, "gi"), (_match, ordinal: string, kind: string) => {
+      // Unwrap only a complete named-mode explanation. Its value still joins
+      // the conflict check; numeric/algebraic parentheses remain expressions.
+      let remaining = stem.replace(new RegExp(`\\(\\s*(?:the\\s+)?((?:${ordinals})${separator}(?:harmonic|mode|overtone))\\s*\\)`, "gi"), " $1 ");
+      remaining = remaining.replace(new RegExp(`${modeTokenStart}(${ordinals})${separator}(harmonic|mode|overtone)\\b`, "gi"), (_match, ordinal: string, kind: string) => {
         const value = namedNumbers[ordinal.toLowerCase()] ?? Number.parseInt(ordinal, 10);
         const role = kind.toLowerCase();
         harmonics.push(role === "overtone" ? (closed ? 2 * value + 1 : value + 1)

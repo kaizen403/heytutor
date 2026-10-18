@@ -244,3 +244,28 @@ for (const expression of [
   assert.equal(generated("standing_wave", match.slots, match.sources, question), null, question);
 }
 console.log("partial photoelectric authority and whole harmonic-expression gates passed");
+
+// Parenthetical mode descriptions are explanations, not implicit multiplication.
+for (const description of ["third harmonic", "3rd harmonic", "third mode", "second overtone", "the third harmonic"]) {
+  const question = `Draw a standing wave on a string with n = 3 (${description}).`;
+  const match = detectArchetype(question, { plannerArchetype: "standing_wave" })!;
+  assert.equal(match.slots.harmonic, 3, `accept compatible explanation: ${description}`);
+  assert.equal(match.sources.harmonic, "stem");
+  const scene = generated("standing_wave", match.slots, match.sources, question);
+  assert.ok(scene, question);
+  assert.equal(scene.entities.find(entity => entity.id === "wave")?.label, "n=3");
+  assert.equal(scene.entities.filter(entity => /^node\d+$/.test(entity.id)).length, 4);
+  assert.equal(scene.entities.filter(entity => /^antinode\d+$/.test(entity.id)).length, 3);
+}
+for (const specification of [
+  "3 (second harmonic)", "3 (second mode)", "3 (third overtone)",
+  "2(3)", "2 (3)", "2 (3 + 1)", "2 (x)", "2 (third harmonic + 1)",
+  "3 (third harmonic) (2)", "3 (third harmonic) × 2",
+]) {
+  const question = `Draw a standing wave on a string with n = ${specification}.`;
+  const match = detectArchetype(question, { plannerArchetype: "standing_wave" })!;
+  assert.equal(match.slots.harmonic, undefined, `refuse conflict or multiplication: ${specification}`);
+  assert.equal(match.slots.harmonicUnresolved, "unread");
+  assert.equal(generated("standing_wave", match.slots, match.sources, question), null);
+}
+console.log("parenthetical mode explanation gates passed");
