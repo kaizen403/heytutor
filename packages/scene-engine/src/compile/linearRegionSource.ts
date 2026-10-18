@@ -1983,7 +1983,7 @@ function requireIncompleteSourceConstraintCoverage(question: string, names: read
   if (!source.length) return;
   for (const operator of body.matchAll(/\b(?:or|not|complement|union|if|then)\b/gi)) {
     const following = source.find(clause => clause.start >= operator.index! + operator[0].length);
-    const previous = source.findLast(clause => clause.end <= operator.index!);
+    const previous = source.slice().reverse().find(clause => clause.end <= operator.index!);
     if (following && !/[.;?!\r\n]/.test(body.slice(operator.index! + operator[0].length, following.start))
       || previous && /^[()\s]*$/.test(body.slice(previous.end, operator.index!)))
       throw new Error("An unproved source Boolean operand scope cannot be replaced by a planner conjunction");
