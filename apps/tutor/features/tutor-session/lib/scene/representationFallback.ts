@@ -159,12 +159,14 @@ export function selectFastVerifiedRepresentation(
         ? [primitive.text] : []));
   if (agreement.length > 0 || (result.tier === "exact_verified" &&
       validateTurnPlanSceneProofs(result.document, plan).some((issue) => issue.severity === "fatal"))) return null;
+  const complete = prepareFallbackFunctionInventory(input.question, result);
+  if (!complete) return null;
   return {
-    tier: result.tier,
-    nonMetric: result.nonMetric,
-    sceneDocument: result.document,
-    renderScene: result.renderScene,
-    validationReport: result.validationReport,
+    tier: complete.tier,
+    nonMetric: complete.nonMetric,
+    sceneDocument: complete.document,
+    renderScene: complete.renderScene,
+    validationReport: complete.validationReport,
     figureSource: "fast_family",
     reason: result.reason,
     family: result.family,
@@ -256,8 +258,8 @@ export function selectVerifiedRepresentationExplained(
   // figure (bodies, frame, signed velocities, encounter); a planner scene
   // cannot replace it with differently signed or stale motion.
   const relativeMotion = input.exact && relativeMotionSource(input.question)?.status === "admitted";
-  const sourceFigure = circular?.status === "drawn" ? circular.scene
-    : unprovenMensuration || unprovenPlannerScene || relativeMotion ? synthesize() : null;
+  const sourceFigure = prepareFallbackFunctionInventory(input.question, circular?.status === "drawn" ? circular.scene
+    : unprovenMensuration || unprovenPlannerScene || relativeMotion ? synthesize() : null);
   const preferSourceFigure = circular?.status === "drawn"
     || sourceFigure?.family === "solid_figure" || sourceFigure?.family === "bounded_region"
     || sourceFigure?.document.source.sourceModel === RELATIVE_MOTION_SOURCE_MODEL
@@ -324,7 +326,7 @@ export function selectVerifiedRepresentationExplained(
     }
   }
 
-  const synthesized = sourceFigure ?? synthesize();
+  const synthesized = sourceFigure ?? prepareFallbackFunctionInventory(input.question, synthesize());
   if (synthesized) {
     return explained({
       tier: synthesized.tier,
@@ -341,12 +343,12 @@ export function selectVerifiedRepresentationExplained(
   try {
     return explained(buildSourceGroundedRepresentation(input.question, input.turnPlan));
   } catch {
-    const lastResort = synthesizeLastResortScene({
+    const lastResort = prepareFallbackFunctionInventory(input.question, synthesizeLastResortScene({
       question: input.question,
       turnPlan: input.turnPlan,
       families,
       problemIR: input.problemIR ?? null,
-    });
+    }), true);
     if (lastResort) {
       return explained({
         tier: lastResort.tier,
@@ -859,38 +861,143 @@ function extractExplicitFunctionFacts(question: string): SourceFunctionFact[] {
   const normalized = normalizeMathText(question);
   const unquotedPositions = unquotedFunctionSourcePositions(normalized);
   const facts: SourceFunctionFact[] = [];
+  const ownedEqualities = new Set<number>();
+  const ownedExpressionEnds = new Set<number>();
   let previousEquationEnd = -1;
-  const matches = normalized.matchAll(/\by\s*=\s*/gi);
-  for (const match of matches) {
-    if (!unquotedPositions[match.index ?? 0]) continue;
-    if (!hasStandaloneFunctionLhs(normalized, match.index ?? 0, previousEquationEnd)) continue;
-    const start = (match.index ?? 0) + match[0].length;
-    const rawExpression = readCompleteSupportedExpression(normalized.slice(start));
-    if (rawExpression === null) continue;
-    const expression = normalizeExpression(rawExpression);
-    if (!expression) continue;
-    try {
-      parseMathExpression(expression);
-      previousEquationEnd = start + rawExpression.length;
-      if (!facts.some((fact) => fact.expression === expression)) {
-        facts.push({ expression, sourceText: `y=${rawExpression.trim()}` });
+  for (const match of normalized.matchAll(/\by\s*=\s*/gi)) {
+    const lhs = match.index!;
+    if (!unquotedPositions[lhs]) continue;
+    const boundary = hasStandaloneFunctionLhs(normalized, lhs, previousEquationEnd);
+    if (!boundary) return [];
+    const start = lhs + match[0].length;
+    const read = readCompleteSupportedExpression(normalized.slice(start), boundary);
+    if (!read) return [];
+    const expression = normalizeExpression(read.expression);
+    if (!expression) return [];
+    ownedEqualities.add(lhs + match[0].indexOf("="));
+    previousEquationEnd = start + read.end;
+    ownedExpressionEnds.add(previousEquationEnd);
+    if (!facts.some(fact => fact.expression === expression)) facts.push({ expression, sourceText: `y=${read.expression}` });
+    if (facts.length > 4) return [];
+  }
+  // Every unquoted equality is accounted for. A rejected/later/implicit
+  // Cartesian equation cannot leave the other curves as a partial figure.
+  for (const match of normalized.matchAll(/=/g)) {
+    const index = match.index!;
+    if (!unquotedPositions[index] || ownedEqualities.has(index) || /[<>!]/.test(normalized[index - 1] ?? "")) continue;
+    if (!isAuxiliaryFunctionEquation(normalized, index, facts, ownedExpressionEnds)) return [];
+  }
+  return facts;
+}
+
+/** Fallback curve builders may not omit, rescale, or relabel an explicit
+ * function program. This applies only to constructed Cartesian curves;
+ * planner priority and other geometric source programs keep their contracts. */
+function prepareFallbackFunctionInventory<T extends { document: SceneDocument; renderScene: RenderScene; validationReport: ValidationReport; tier?: string; nonMetric?: boolean }>(question: string, candidate: T | null, lastResort = false): T | null {
+  if (!candidate) return null;
+  const curves = candidate.document.constructions.filter(({ operator }) => operator === "function_curve" || operator === "implicit_curve");
+  const bareAxes = curves.length === 0 && candidate.document.constructions.length > 0 && candidate.document.constructions.every(({ operator }) => operator === "axes");
+  if (curves.length === 0 && !bareAxes) return candidate;
+  const normalized = normalizeMathText(question);
+  const unquoted = unquotedFunctionSourcePositions(normalized);
+  const explicit = Array.from(normalized.matchAll(/\by\s*=/gi));
+  const named = Array.from(normalized.matchAll(/\b[A-Za-z][A-Za-z0-9_]*\s*\(\s*x\s*\)\s*=/gi));
+  const explicitProgram = explicit.some(match => unquoted[match.index!]);
+  const namedProgram = named.some(match => unquoted[match.index!]);
+  if (bareAxes && (explicitProgram || namedProgram)) return null;
+  if (!explicitProgram) {
+    if ([...explicit, ...named].some(match => !unquoted[match.index!])) {
+      // A native conic or named function keeps its existing source binding
+      // only if its entire program is independently derived without quotes.
+      // No plan, IR, family hints or candidate slots enter this source proof.
+      const stem = normalized.split("").map((character, index) => unquoted[index] ? character : " ").join("");
+      const independent = (lastResort ? synthesizeLastResortScene : synthesizeFamilyScene)({ question: stem, turnPlan: null, problemIR: null });
+      if (!independent || nativeProgramFingerprint(candidate) !== nativeProgramFingerprint(independent)) return null;
+    }
+    // Named-only and implicit source programs keep their producer contract;
+    // mixed named+y Cartesian programs must still be owned whole below.
+    return candidate;
+  }
+  const facts = extractExplicitFunctionFacts(question);
+  if (facts.length === 0 || curves.length !== facts.length) return null;
+  let document = candidate.document;
+  const owners = new Set<number>();
+  const outputOwners = new Map<string, string>();
+  for (const curve of curves) {
+    if (typeof curve.inputs.expression !== "string") return null;
+    const expression = curve.operator === "implicit_curve" ? sourceFunctionFromImplicitResidual(curve.inputs.expression)
+      : stripCompleteExpressionGroups(normalizeExpression(normalizeMathText(curve.inputs.expression)));
+    const owner = facts.findIndex(fact => stripCompleteExpressionGroups(fact.expression) === expression);
+    if (expression === null || owner < 0 || owners.has(owner)) return null;
+    owners.add(owner);
+    if (curve.outputs.length === 0) return null;
+    for (const id of curve.outputs) {
+      const entity = document.entities.find(entity => entity.id === id);
+      if (!entity || typeof entity.label !== "string") return null;
+      if (!ownsCompleteFunctionLabel(entity.label, expression)) {
+        if (curve.operator !== "implicit_curve") return null;
+        if (document === candidate.document) document = structuredClone(document);
+        document.entities.find(entity => entity.id === id)!.label = `y=${facts[owner]!.expression}`;
       }
-    } catch {
-      // Unsupported expressions stay available as literal source facts instead
-      // of being approximated or repaired into a different equation.
+      outputOwners.set(id, expression);
     }
   }
-  return facts.slice(0, 4);
+  const compiled = document === candidate.document ? null : compileSceneDocument(document);
+  if (compiled && (!compiled.ok || !compiled.renderScene)) return null;
+  const renderScene = compiled?.renderScene ?? candidate.renderScene;
+  for (const [id, expression] of outputOwners) {
+    const labels = renderScene.primitives.filter(primitive => primitive.entityId === id && primitive.kind === "label");
+    if (labels.length === 0 || labels.some(label => !ownsCompleteFunctionLabel(label.text, expression))) return null;
+  }
+  return { ...candidate, document, renderScene, validationReport: compiled?.report ?? candidate.validationReport };
+}
+
+function nativeProgramFingerprint(candidate: { document: SceneDocument; tier?: string; nonMetric?: boolean }): string {
+  return JSON.stringify({ document: { ...candidate.document, source: { ...candidate.document.source, question: "" } }, tier: candidate.tier, nonMetric: candidate.nonMetric });
+}
+
+function ownsCompleteFunctionLabel(label: unknown, expression: string): boolean {
+  if (typeof label !== "string") return false;
+  const equation = /^\s*y\s*=\s*(.+?)\s*$/i.exec(normalizeMathText(label));
+  return equation !== null && stripCompleteExpressionGroups(normalizeExpression(equation[1]!)) === expression;
+}
+
+function stripCompleteExpressionGroups(value: string): string {
+  while (value.startsWith("(") && value.endsWith(")")) {
+    let depth = 0, end = 0;
+    for (; end < value.length; end++) {
+      if (value[end] === "(") depth++;
+      if (value[end] === ")" && --depth === 0) break;
+    }
+    if (end !== value.length - 1) break;
+    value = value.slice(1, -1);
+  }
+  return value;
+}
+
+/** Exact syntactic residual identity, never a finite-sample equivalence. */
+function sourceFunctionFromImplicitResidual(source: string): string | null {
+  const value = stripCompleteExpressionGroups(normalizeExpression(normalizeMathText(source)));
+  let depth = 0, minus = -1;
+  for (let index = 0; index < value.length; index++) {
+    if (value[index] === "(") depth++;
+    else if (value[index] === ")") depth--;
+    else if (value[index] === "+" && depth === 0) return null;
+    else if (value[index] === "-" && depth === 0) {
+      if (minus >= 0) return null;
+      minus = index;
+    }
+  }
+  if (minus < 1) return null;
+  const left = stripCompleteExpressionGroups(value.slice(0, minus));
+  const right = stripCompleteExpressionGroups(value.slice(minus + 1));
+  return left === "y" ? right : right === "y" ? left : null;
 }
 
 const FUNCTION_EXPRESSION_IDENTIFIERS = new Set([
   "x", "pi", "e", "sin", "cos", "tan", "asin", "acos", "atan",
   "sqrt", "abs", "exp", "log", "ln",
 ]);
-const FUNCTION_EQUATION_INTRODUCTIONS = new Set([
-  "graph", "plot", "sketch", "draw", "curve", "curves", "line", "lines", "function", "functions", "equation", "equations",
-]);
-const FUNCTION_EQUATION_ENDPOINTS = new Set(["and", "for", "where", "enclose", "encloses"]);
 const FUNCTION_PRIME_SYMBOL = /^(?:[A-Za-z\u0370-\u03ff](?:[0-9\u2080-\u2089]+|_[A-Za-z0-9\u0370-\u03ff]+)?|alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|omicron|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega)$/i;
 const FUNCTION_PRIME_SCALAR = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
 const FUNCTION_QUOTED_SCALAR = /^\s*(?:[A-Za-z\u0370-\u03ff][A-Za-z0-9_\u0370-\u03ff\u2080-\u2089]*\s*=\s*)?[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?\s*$/i;
@@ -973,57 +1080,127 @@ function unquotedFunctionSourcePositions(source: string): Uint8Array {
   return unquoted;
 }
 
-function hasStandaloneFunctionLhs(source: string, index: number, previousEquationEnd: number): boolean {
-  const rawPrefix = source.slice(0, index);
-  const prefix = rawPrefix.trimEnd();
-  if (previousEquationEnd >= 0 && /^\s*(?:,|and)?\s*$/i.test(rawPrefix.slice(previousEquationEnd))) return true;
-  const introduction = prefix.replace(/:$/, "").trimEnd();
-  const token = introduction.match(/\b(?:solve|represent)\s+graphically$|[A-Za-z_][A-Za-z0-9_]*$|[^\s]$/i)?.[0];
-  if (!token) return true;
-  if (/^[A-Za-z_]/.test(token)) {
-    // Prose can introduce y, but no mathematical LHS term may be dropped.
-    if (!FUNCTION_EQUATION_INTRODUCTIONS.has(token.toLowerCase()) &&
-        !/^(?:solve|represent)\s+graphically$/i.test(token)) return false;
-    const beforeToken = introduction.slice(0, -token.length).trimEnd();
-    return !/[+\-*/^=(]$/.test(beforeToken);
+function isSourceFunctionProseEndpoint(source: string, index: number): boolean {
+  const identifier = /^[\p{L}\p{N}_]+/u.exec(source.slice(index))?.[0];
+  const suffix = identifier === undefined ? "" : source.slice(index + identifier.length);
+  let afterIdentifier = suffix.trimStart();
+  const separatedWrapper = afterIdentifier.length < suffix.length;
+  while (afterIdentifier.startsWith("(") || afterIdentifier.startsWith("\\(") || afterIdentifier.startsWith("$")) {
+    afterIdentifier = afterIdentifier.slice(afterIdentifier.startsWith("\\(") ? 2 : 1).trimStart();
   }
-  return /[;.?]$/.test(token);
+  const nextEquationWrapper = separatedWrapper && /^y\s*=/i.test(afterIdentifier);
+  return identifier !== undefined && index > 0 && /\s/.test(source[index - 1]!) && /^[\p{L}]{2,}$/u.test(identifier) &&
+    !/\p{Script=Greek}/u.test(identifier) && !FUNCTION_PRIME_SYMBOL.test(identifier) &&
+    !FUNCTION_EXPRESSION_IDENTIFIERS.has(identifier.toLowerCase()) && (!suffix.trimStart().startsWith("(") || nextEquationWrapper);
 }
 
-function readCompleteSupportedExpression(source: string): string | null {
-  let index = 0;
+/** Prove only lexical separation from the complete mathematical LHS. */
+function hasStandaloneFunctionLhs(source: string, index: number, previousEquationEnd: number): string[] | null {
+  const rawPrefix = source.slice(0, index);
+  if (previousEquationEnd >= 0 && /^\s*(?:,|and)?\s*$/i.test(rawPrefix.slice(previousEquationEnd))) return [];
+  let prefix = rawPrefix.trimEnd();
+  const closers: string[] = [];
+  while (true) {
+    if (prefix.endsWith("\\(") || prefix.endsWith("(")) {
+      const latex = prefix.endsWith("\\("), before = prefix.slice(0, latex ? -2 : -1);
+      if (/[\p{L}\p{N}_\])}]$/u.test(before)) return null;
+      closers.push(latex ? "\\)" : ")"); prefix = before.trimEnd();
+    }
+    else if (prefix.endsWith("$")) { closers.push("$"); prefix = prefix.slice(0, -1).trimEnd(); }
+    else break;
+  }
+  prefix = prefix.replace(/:$/, "").trimEnd();
+  if (!prefix || /[.,;?]$/.test(prefix)) return closers;
+  const token = /[\p{L}\p{N}_]+$/u.exec(prefix);
+  if (!token || !/^[\p{L}]{2,}$/u.test(token[0]) || /\p{Script=Greek}/u.test(token[0]) ||
+      FUNCTION_PRIME_SYMBOL.test(token[0]) || FUNCTION_EXPRESSION_IDENTIFIERS.has(token[0].toLowerCase())) return null;
+  if (/[+\-*/^=([\\]$/.test(prefix.slice(0, token.index).trimEnd())) return null;
+  return closers;
+}
+
+interface CompleteSourceExpression { expression: string; end: number }
+function readCompleteSupportedExpression(source: string, closers: readonly string[] = []): CompleteSourceExpression | null {
+  let index = 0, depth = 0;
+  const complete = (end: number): CompleteSourceExpression | null => {
+    const expression = source.slice(0, index).trim();
+    if (!expression || depth !== 0) return null;
+    try { parseMathExpression(normalizeExpression(expression)); return { expression, end }; }
+    catch { return null; }
+  };
   while (index < source.length && index < 160) {
     const character = source[index]!;
-    if (/[;?]/.test(character)) break;
+    if (depth === 0 && (character === ")" || character === "$" || source.startsWith("\\)", index))) {
+      if (!closers.length) return null;
+      let end = index;
+      for (const closer of closers) {
+        while (/\s/.test(source[end] ?? "") && end < source.length) end++;
+        if (!source.startsWith(closer, end)) return null;
+        end += closer.length;
+      }
+      let next = end;
+      while (/\s/.test(source[next] ?? "") && next < source.length) next++;
+      const nextEquation = /[\r\n]/.test(source.slice(end, next)) && /^y\s*=/i.test(source.slice(next));
+      const evaluation = next > end && readSourceAtEvaluation(source, next) !== null;
+      if (next < source.length && !/[;,.?]/.test(source[next]!) && !nextEquation && !evaluation && !isSourceFunctionProseEndpoint(source, next)) return null;
+      return complete(end);
+    }
+    if (/[;?]/.test(character)) return closers.length ? null : complete(index);
     if (character === ",") {
       if (/^\s*[+-]?(?:[0-9]|\.[0-9])/.test(source.slice(index + 1))) return null;
-      break;
+      return closers.length ? null : complete(index);
     }
-    if (/[\r\n]/.test(character) && /^\s*y\s*=/i.test(source.slice(index + 1))) break;
+    if (/[\r\n]/.test(character) && /^\s*y\s*=/i.test(source.slice(index + 1))) return closers.length ? null : complete(index);
     if (character === "." && !/[0-9]/.test(source[index + 1] ?? "")) {
       if (index === 0 || !/^(?:\s|$)/.test(source.slice(index + 1))) return null;
-      break;
+      return closers.length ? null : complete(index);
     }
-    if (/\s/.test(character) || /[0-9.+\-*/^()]/.test(character)) {
-      index += 1;
-      continue;
+    if (character === "(") {
+      if (depth === 0 && !closers.length && index > 0 && /\s/.test(source[index - 1]!) && readSourceAtEvaluation(source, index)) return complete(index);
+      depth++; index++; continue;
     }
-    if (/[A-Za-z_]/.test(character)) {
-      const identifier = source.slice(index).match(/^[A-Za-z_][A-Za-z0-9_]*/)?.[0] ?? "";
+    if (character === ")") { if (depth === 0) return null; depth--; index++; continue; }
+    if (/\s/.test(character) || /[0-9.+\-*/^]/.test(character)) { index++; continue; }
+    if (/[\p{L}_]/u.test(character)) {
+      const identifier = /^[\p{L}\p{N}_]+/u.exec(source.slice(index))![0];
       if (!FUNCTION_EXPRESSION_IDENTIFIERS.has(identifier.toLowerCase())) {
-        // An adjacent/unknown math token is not a prose endpoint: y=4z is
-        // unsupported in full, rather than a source assertion that y=4.
-        if (!FUNCTION_EQUATION_ENDPOINTS.has(identifier.toLowerCase()) ||
-            index === 0 || !/\s/.test(source[index - 1]!)) return null;
-        break;
+        return isSourceFunctionProseEndpoint(source, index) && !closers.length ? complete(index) : null;
       }
       index += identifier.length;
       continue;
     }
     return null;
   }
-  if (index >= 160 && index < source.length) return null;
-  return source.slice(0, index).trim();
+  return index >= 160 && index < source.length || closers.length ? null : complete(index);
+}
+
+/** A function definition is owned only as an alias of a curve already drawn.
+ * Complete parenthetical at-x scalars are separate evaluation slots. */
+function isAuxiliaryFunctionEquation(source: string, equals: number, functions: readonly SourceFunctionFact[], ownedExpressionEnds: ReadonlySet<number>): boolean {
+  const prefix = source.slice(0, equals);
+  const definition = /([A-Za-z][A-Za-z0-9_]*)\s*\(\s*x\s*\)\s*$/i.exec(prefix);
+  if (definition && !FUNCTION_EXPRESSION_IDENTIFIERS.has(definition[1]!.toLowerCase())) {
+    const boundary = hasStandaloneFunctionLhs(source, definition.index, -1);
+    if (boundary) {
+      const read = readCompleteSupportedExpression(source.slice(equals + 1), boundary);
+      return read !== null && functions.some(fact => fact.expression === normalizeExpression(read.expression));
+    }
+  }
+  const evaluation = /\(\s*at\s+x\s*$/i.exec(prefix);
+  if (!evaluation) return false;
+  const attached = Array.from(ownedExpressionEnds).some(end => end <= evaluation.index && /^\s*$/.test(source.slice(end, evaluation.index)));
+  if (!attached && !hasStandaloneFunctionLhs(source, evaluation.index, -1) && !/['"‘’“”]$/.test(source.slice(0, evaluation.index).trimEnd())) return false;
+  return readSourceAtEvaluation(source, evaluation.index) !== null;
+}
+
+function readSourceAtEvaluation(source: string, index: number): number | null {
+  const slot = /^\(\s*at\s+x\s*=\s*([+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:\s*\/\s*[+-]?(?:\d+(?:\.\d+)?|\.\d+))?)\s*\)/i.exec(source.slice(index));
+  if (!slot) return null;
+  const end = index + slot[0].length;
+  let next = end;
+  while (next < source.length && /\s/.test(source[next]!)) next++;
+  if (next < source.length && !/[;,.?]/.test(source[next]!) && !isSourceFunctionProseEndpoint(source, next)) return null;
+  try { return Number.isFinite(parseMathExpression(normalizeExpression(slot[1]!)).evaluate(0)) ? end : null; }
+  catch { return null; }
 }
 
 function normalizeMathText(value: string): string {

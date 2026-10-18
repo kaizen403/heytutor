@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
-import { compileSceneDocument, parseMathExpression, type TurnPlanV3 } from "@heytutor/scene-engine";
+import { inferSceneCapabilities } from "@heytutor/tutor-core";
+import { compileSceneDocument, parseMathExpression, parseMathExpression2D, validateSceneDocument, type TurnPlanV3 } from "@heytutor/scene-engine";
 import {
   buildSourceGroundedRepresentation,
+  selectFastVerifiedRepresentation,
   selectVerifiedRepresentation,
+  selectVerifiedRepresentationExplained,
   type SelectedRepresentation,
 } from "../../features/tutor-session/lib/scene/representationFallback";
 
@@ -15,6 +18,8 @@ interface Fixture {
   question: string;
   mustDrawExplicitCurves: boolean;
   discreteDomain: boolean;
+  mustDeclineSourceCurves?: boolean;
+  mustRetainNative?: boolean;
   equations: readonly SourceEquation[];
 }
 
@@ -992,7 +997,76 @@ const numericMeasurementMarkFixtures: readonly Fixture[] = [
     ],
   },
 ];
-const gateFixtures: readonly Fixture[] = [...fixtures, ...sourceCompletenessFixtures, ...retentionFixtures, ...primeAndPluralRetentionFixtures, ...quotedPrimeOwnershipFixtures, ...quotedCloseProseFixtures, ...quotedCloseSingleProseFixtures, ...quoteArgumentClassFixtures, ...ordinaryQuoteContextFixtures, ...ordinaryQuoteCombinedFixtures, ...numericMeasurementMarkFixtures];
+// Structural lexical ownership regressions, frozen and run RED before the
+// reader repair. Original98 fixture oracles remain unchanged.
+const lexicalOwnershipFixtures: Fixture[] = [];
+const rootCurve = sourceEquation("y=sqrt(x)", [[0, 0], [1, 1], [4, 2]]);
+const logCurve = sourceEquation("y=log(x)", [[1, 0], [2, Math.log(2)], [4, Math.log(4)]]);
+const squareCurve = sourceEquation("y=x^2", [[0, 0], [1, 1], [2, 4]]);
+const fallingCurve = sourceEquation("y=1-x", [[0, 1], [1, 0], [2, -1]]);
+for (const [first, second] of [[rootCurve, squareCurve], [logCurve, fallingCurve]]) {
+  for (const tail of ["on the same axes", "in one graph", "to compare the curves", "then discuss the result", "using one set of axes", "with both curves labelled", "near the origin", "between the stated bounds", "ka graph banao", "regarding their shapes"]) lexicalOwnershipFixtures.push({
+    id: `lexical-pair-${first!.sourceText}-${tail}`, question: `Draw ${first!.sourceText} and ${second!.sourceText} ${tail}.`,
+    mustDrawExplicitCurves: true, discreteDomain: false, equations: [first!, second!],
+  });
+}
+for (const curve of [rootCurve, logCurve]) for (const question of [
+  `Draw the graph of ${curve.sourceText}.`, `Given ${curve.sourceText}, sketch its graph.`,
+  `If ${curve.sourceText}, draw the graph.`, `Plot $ ${curve.sourceText} $.`,
+  String.raw`Plot \( ${curve.sourceText} \).`, `${curve.sourceText} ka graph banao.`,
+  `Considering ${curve.sourceText}, draw its graph.`, `Draw (${curve.sourceText}).`,
+]) lexicalOwnershipFixtures.push({ id: `lexical-single-${question}`, question, mustDrawExplicitCurves: true, discreteDomain: false, equations: [curve] });
+for (const question of [
+  "Draw y=sqrt(x) and x+y=4.", "Draw y=log(x) and x=2.", "Draw y=sqrt(x) and 2y=x.",
+  "Draw y=sqrt(x) and y=4z.", "Draw y=sqrt(x) and y=3 z.", "Draw y=sqrt(x) and y=3 θ.",
+  "Draw y=sqrt(x) and y=x alpha.", "Draw y=log(x) and y=sqrt(.", "Draw y=sqrt(x) and y=unknown(x).",
+  "Draw y=sqrt(x), y=x, y=2*x, y=3*x and y=4*x.",
+  "Draw x+(y=4) and y=sqrt(x).", "Draw x y=4 and y=sqrt(x).", "Draw φ y=4 and y=sqrt(x).",
+  "Draw theta y=4 and y=sqrt(x).", "Draw (x)y=4 and y=sqrt(x).", "Draw *y=4 and y=sqrt(x).",
+  "Draw 2y=4 and y=sqrt(x).", "Draw y=sqrt(x) and 4=x+y.", "Draw x=0 and y=sqrt(x).",
+  "Draw y=sqrt(x) and y=x unknown(x).",
+]) lexicalOwnershipFixtures.push({ id: `lexical-atomic-${question}`, question, mustDrawExplicitCurves: false, mustDeclineSourceCurves: true, discreteDomain: false, equations: [] });
+for (const question of [
+  "The note prints 'x+y=4'. Draw y=sqrt(x).", "The note prints \"x=0\". Draw y=log(x).",
+]) lexicalOwnershipFixtures.push({ id: `lexical-quoted-${question}`, question, mustDrawExplicitCurves: true, discreteDomain: false, equations: [question.includes("sqrt") ? rootCurve : logCurve] });
+
+lexicalOwnershipFixtures.push(
+  { id: "lexical-auxiliary-quoted-evaluation", question: "The note prints 'y=99' (at x=1/2). Draw y=sqrt(x).", mustDrawExplicitCurves: true, discreteDomain: false, equations: [rootCurve] },
+  { id: "lexical-auxiliary-parenthetical-evaluation", question: "(at x=0). Draw y=log(x).", mustDrawExplicitCurves: true, discreteDomain: false, equations: [logCurve] },
+  { id: "lexical-auxiliary-function-definition", question: "Given f(x)=sqrt(x). Draw y=sqrt(x).", mustDrawExplicitCurves: true, discreteDomain: false, equations: [rootCurve] },
+  { id: "lexical-auxiliary-wrapped-function-definition", question: "Given $f(x)=sqrt(x)$. Draw y=sqrt(x).", mustDrawExplicitCurves: true, discreteDomain: false, equations: [rootCurve] },
+  { id: "lexical-known-constants", question: "Draw y=sin(x)+pi and y=e*x on the same axes.", mustDrawExplicitCurves: true, discreteDomain: false, equations: [
+    sourceEquation("y=sin(x)+pi", [[0, Math.PI], [1, Math.sin(1) + Math.PI], [2, Math.sin(2) + Math.PI]]),
+    sourceEquation("y=e*x", [[-1, -Math.E], [0, 0], [1, Math.E]]),
+  ] },
+);
+for (const question of ["Draw x+(at x=0) and y=sqrt(x).", "(at x=4z). Draw y=sqrt(x).", "(x=0). Draw y=sqrt(x).",
+  "The note prints 'y=99'. Draw x=0 and y=sqrt(x).", "Draw (y=sqrt(x)."])
+  lexicalOwnershipFixtures.push({ id: `lexical-auxiliary-refusal-${question}`, question, mustDrawExplicitCurves: false, mustDeclineSourceCurves: true, discreteDomain: false, equations: [] });
+
+for (const question of ["Draw foo(y=4) and y=sqrt(x).", "Draw (y=sqrt(x)) unknown(x).", "Draw (y=sqrt(x)) unknown (x).", "Draw y=sqrt(x) unknown (x).", "Plot $y=log(x)$unknown(x).", "Plot $y=log(x)$onpaper."])
+  lexicalOwnershipFixtures.push({ id: `lexical-wrapper-refusal-${question}`, question, mustDrawExplicitCurves: false, mustDeclineSourceCurves: true, discreteDomain: false, equations: [] });
+for (const [question, curve] of [["Draw ((y=sqrt(x))) on graph paper.", rootCurve], ["Plot $y=log(x)$ on graph paper.", logCurve]] as const)
+  lexicalOwnershipFixtures.push({ id: `lexical-wrapper-retention-${question}`, question, mustDrawExplicitCurves: true, discreteDomain: false, equations: [curve] });
+
+lexicalOwnershipFixtures.push(
+  { id: "lexical-named-function-unmatched-f", question: "Draw f(x)=sqrt(x) and y=x^2 on the same axes.", mustDrawExplicitCurves: false, mustDeclineSourceCurves: true, discreteDomain: false, equations: [] },
+  { id: "lexical-named-function-unmatched-y", question: "Draw y(x)=x^2 and y=2*x on the same axes.", mustDrawExplicitCurves: false, mustDeclineSourceCurves: true, discreteDomain: false, equations: [] },
+  { id: "lexical-named-function-owned-alias", question: "Draw f(x)=sqrt(x) and y=sqrt(x) on the same axes.", mustDrawExplicitCurves: true, discreteDomain: false, equations: [rootCurve] },
+  { id: "lexical-named-function-owned-y-alias", question: "Draw y(x)=x^2, y=x^2 and y=2*x on the same axes.", mustDrawExplicitCurves: true, discreteDomain: false, equations: [squareCurve, sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2]])] },
+  { id: "lexical-named-function-normalized-alias", question: "Draw f(x)=2x and y=2*x on the same axes.", mustDrawExplicitCurves: true, discreteDomain: false, equations: [sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2]])] },
+  { id: "lexical-family-inventory-overflow", question: "Plot y=x, y=x^2, y=x^3, y=sqrt(x), and y=log(x) on one set of axes.", mustDrawExplicitCurves: false, mustDeclineSourceCurves: true, discreteDomain: false, equations: [] },
+  { id: "lexical-family-wrapped-inventory", question: "Plot (y = log(x)) together with (y = x^2) on the same axes.", mustDrawExplicitCurves: true, discreteDomain: false, equations: [logCurve, squareCurve] },
+  { id: "lexical-native-implicit-single", question: "Plot (y = x^2) on the same axes.", mustDrawExplicitCurves: true, mustRetainNative: true, discreteDomain: false, equations: [squareCurve] },
+  { id: "lexical-separated-equation-wrapper", question: "For comparison display (y = log(x)) beside (y = sin(x)) on shared axes.", mustDrawExplicitCurves: true, discreteDomain: false, equations: [logCurve, sourceEquation("y=sin(x)", [[0, 0], [1, Math.sin(1)], [2, Math.sin(2)]])] },
+  { id: "lexical-attached-evaluation", question: "Compare y=sqrt(x) (at x=2) with y=log(x) using a common frame.", mustDrawExplicitCurves: true, discreteDomain: false, equations: [rootCurve, logCurve] },
+  { id: "lexical-wrapped-attached-evaluation", question: "Compare (y=sqrt(x)) (at x=2) with (y=log(x)) using a common frame.", mustDrawExplicitCurves: true, discreteDomain: false, equations: [rootCurve, logCurve] },
+  { id: "lexical-zero-curve-native", question: "In a joint graph show y(x)=x^2 together with y=sin(x).", mustDrawExplicitCurves: false, mustDeclineSourceCurves: true, discreteDomain: false, equations: [] },
+);
+for (const slot of ["(at x=2z)", "(at x=1/0)", "(x=2)", "+(at x=2)"])
+  lexicalOwnershipFixtures.push({ id: `lexical-attached-evaluation-refusal-${slot}`, question: `Compare y=sqrt(x) ${slot} with y=log(x) using a common frame.`, mustDrawExplicitCurves: false, mustDeclineSourceCurves: true, discreteDomain: false, equations: [] });
+
+const gateFixtures: readonly Fixture[] = [...fixtures, ...sourceCompletenessFixtures, ...retentionFixtures, ...primeAndPluralRetentionFixtures, ...quotedPrimeOwnershipFixtures, ...quotedCloseProseFixtures, ...quotedCloseSingleProseFixtures, ...quoteArgumentClassFixtures, ...ordinaryQuoteContextFixtures, ...ordinaryQuoteCombinedFixtures, ...numericMeasurementMarkFixtures, ...lexicalOwnershipFixtures];
 
 function normalizeEquation(value: string): string {
   return value.replace(/[−–—]/g, "-").replace(/×/g, "*").replace(/÷/g, "/")
@@ -1017,6 +1091,37 @@ function labelOwnsEquation(label: string, equation: SourceEquation): boolean {
   return normalized.startsWith("y=") && agreesWithSamples(normalized.slice(2), equation);
 }
 
+function wholeEquationAgrees(equation: string, oracle: SourceEquation): boolean {
+  const sides = normalizeEquation(equation).split("=");
+  if (sides.length !== 2 || sides.some(side => !side)) return false;
+  return oracle.samples.every(({ x, y }) => {
+    try {
+      const evaluate = (side: string) => parseMathExpression(side.replace(/(?<![A-Za-z_])y(?![A-Za-z0-9_])/g, `(${y})`)
+        .replace(/(\d|\))(?=\()/g, "$1*").replace(/x(?=\()/g, "x*").replace(/\)(?=[\dx])/g, ")*")).evaluate(x);
+      const left = evaluate(sides[0]!), right = evaluate(sides[1]!);
+      return Number.isFinite(left) && Number.isFinite(right) && Math.abs(left - right) <= 1e-9 * Math.max(1, Math.abs(left), Math.abs(right));
+    } catch { return false; }
+  });
+}
+
+function verifyNativeEquationOwnership(fixture: Fixture, representation: SelectedRepresentation): void {
+  const compiled = compileSceneDocument(representation.sceneDocument);
+  assert(compiled.ok && compiled.renderScene, "native source alternative must compile");
+  const systems = representation.sceneDocument.constructions.filter(({ operator }) => ["linear_system"].includes(operator));
+  assert.equal(systems.length, 1, "native alternative must own the full simultaneous system");
+  const equations = systems[0]!.inputs.equations;
+  assert(Array.isArray(equations) && equations.length === fixture.equations.length);
+  const owners = new Set<number>();
+  for (const equation of equations) {
+    assert(typeof equation === "string");
+    const owner = fixture.equations.findIndex(oracle => wholeEquationAgrees(equation, oracle));
+    assert(owner >= 0 && !owners.has(owner), "native inputs retain every whole source equation exactly once");
+    owners.add(owner);
+  }
+  const labelEquations = compiled.renderScene.primitives.flatMap(primitive => primitive.kind === "label" && typeof primitive.text === "string" ? primitive.text.split(/[;\n]/) : []);
+  for (const equation of fixture.equations) assert(labelEquations.some(label => wholeEquationAgrees(label, equation)), "native rendered labels retain every complete source equation");
+}
+
 function verifyOwnership(fixture: Fixture, representation: SelectedRepresentation): void {
   assert.equal(representation.sceneDocument.source.question, fixture.question, "preserve the original question");
   if (fixture.discreteDomain) {
@@ -1025,20 +1130,33 @@ function verifyOwnership(fixture: Fixture, representation: SelectedRepresentatio
       ["linear_system", "linear_feasible_region", "linear_half_plane"].includes(operator)),
     "source copying cannot upgrade a discrete-domain request to a continuous solution system");
   }
-  if (representation.figureSource !== "source_grounded") return;
-  assert.equal(representation.nonMetric, true);
-  assert.equal(representation.tier, "question_representation");
+  const curves = representation.sceneDocument.constructions.filter(({ operator }) => ["function_curve", "implicit_curve"].includes(operator));
+  const bareAxes = representation.sceneDocument.constructions.length > 0 && representation.sceneDocument.constructions.every(({ operator }) => operator === "axes");
+  if (fixture.mustDeclineSourceCurves) assert(!bareAxes, "bare Cartesian axes cannot stand in for an unowned source program");
+  if (fixture.mustDrawExplicitCurves && lexicalOwnershipFixtures.includes(fixture)) assert(curves.length > 0 || String(representation.figureSource) === "linear_source", "genuine explicit equations must retain a complete source figure");
+  if (String(representation.figureSource) === "linear_source") {
+    verifyNativeEquationOwnership(fixture, representation);
+    return;
+  }
+  if (representation.figureSource !== "source_grounded" && curves.length === 0) return;
+  assert(!fixture.mustDeclineSourceCurves, "an unowned equation must decline the entire source-function fallback");
+  if (representation.figureSource === "source_grounded") {
+    assert.equal(representation.nonMetric, true);
+    assert.equal(representation.tier, "question_representation");
+  }
   assert.equal(representation.validationReport.valid, true);
   const compiled = compileSceneDocument(representation.sceneDocument);
   assert(compiled.ok && compiled.renderScene, "a returned source figure must pass the real compiler");
-  const curves = representation.sceneDocument.constructions.filter(({ operator }) => operator === "function_curve");
   if (fixture.mustDrawExplicitCurves) assert.equal(curves.length, fixture.equations.length, "retain genuine explicit source functions");
   const owners = new Set<number>();
   for (const curve of curves) {
     const expression = curve.inputs.expression;
     assert.equal(typeof expression, "string", "every plotted function has an expression");
     assert(typeof expression === "string");
-    const equationIndex = fixture.equations.findIndex((equation) => agreesWithSamples(expression, equation));
+    const equationIndex = fixture.equations.findIndex((equation) => curve.operator === "function_curve" ? agreesWithSamples(expression, equation) : equation.samples.every(({ x, y }) => {
+      try { return Math.abs(parseMathExpression2D(expression).evaluate(x, y)) < 1e-9; }
+      catch { return false; }
+    }));
     assert(equationIndex >= 0,
       `${fixture.id}: plotted ${expression} is not any whole source equation (${fixture.equations.map(({ sourceText }) => sourceText).join("; ")})`);
     assert(!owners.has(equationIndex), "distinct source equations must not collapse into duplicated curve ownership");
@@ -1054,7 +1172,7 @@ function verifyOwnership(fixture: Fixture, representation: SelectedRepresentatio
     }
   }
   if (fixture.mustDrawExplicitCurves) assert.equal(owners.size, fixture.equations.length);
-  assert(!representation.sceneDocument.constructions.some(({ operator }) =>
+  if (representation.figureSource === "source_grounded") assert(!representation.sceneDocument.constructions.some(({ operator }) =>
     operator === "function_region" || operator === "intersection"),
   "a source-only sketch must not acquire a solved region or intersection");
 }
@@ -1089,14 +1207,101 @@ for (const fixture of selectedFixtures) {
         "unsupported equations may explicitly decline, not fail for an unrelated reason");
       return;
     }
-    if (fixture.mustDrawExplicitCurves) assert.equal(representation.figureSource, "source_grounded");
+    if (fixture.mustDrawExplicitCurves) assert(["source_grounded", "linear_source"].includes(representation.figureSource));
     verifyOwnership(fixture, representation);
   });
   check(`${fixture.id}: verified selection`, () => {
     const representation = selectVerifiedRepresentation({ question: fixture.question, turnPlan: plan });
     verifyOwnership(fixture, representation);
+    if (fixture.mustRetainNative) assert.notEqual(representation.figureSource, "source_grounded", "a wholly proved native curve must retain strict-mode availability");
     assert.deepEqual(plan, originalPlan, "fallback selection must not rewrite its input plan");
   });
+  if (lexicalOwnershipFixtures.includes(fixture)) check(`${fixture.id}: inferred-family selection`, () => {
+    const representation = selectVerifiedRepresentation({ question: fixture.question, turnPlan: plan, families: inferSceneCapabilities(fixture.question).families });
+    verifyOwnership(fixture, representation);
+    if (fixture.mustRetainNative) assert.notEqual(representation.figureSource, "source_grounded");
+    assert.deepEqual(plan, originalPlan);
+  });
+  if (lexicalOwnershipFixtures.includes(fixture)) check(`${fixture.id}: fast-family selection`, () => {
+    const representation = selectFastVerifiedRepresentation({ question: fixture.question, turnPlan: plan, families: inferSceneCapabilities(fixture.question).families });
+    if (representation) verifyOwnership(fixture, representation);
+    assert.deepEqual(plan, originalPlan);
+  });
 }
+
+// An uncertain fallback reader cannot displace a valid planner candidate.
+// The planner is allowed five curves; the source-copy reader's four-curve
+// bound must affect only fallback admission, including the early preference.
+for (const preferPlanner of [false, true]) check(`planner priority with incomplete fallback (${preferPlanner})`, () => {
+  const question = "Plot y=x, y=x^2, y=x^3, y=sqrt(x), and y=log(x) on one set of axes.";
+  const scene = structuredClone(buildSourceGroundedRepresentation("Plot y=x, y=x^2, y=sqrt(x), and y=log(x) on one set of axes.").sceneDocument);
+  scene.source.question = question;
+  const entity = structuredClone(scene.entities.find(({ id }) => id === "source_function_1")!);
+  entity.id = "planner_cube"; entity.label = "y=x^3"; entity.semantic = { expression: "x^3", sourceText: "y=x^3" };
+  scene.entities.push(entity);
+  const construction = structuredClone(scene.constructions.find(({ operator }) => operator === "function_curve")!);
+  construction.id = "construct_planner_cube"; construction.inputs.expression = "x^3"; construction.outputs = [entity.id];
+  scene.constructions.push(construction);
+  Object.assign(scene.constructions.find(({ operator }) => operator === "axes")!.inputs, { xMin: 0.25, xMax: 1.5, yMin: -1.5, yMax: 4.5 });
+  for (const curve of scene.constructions.filter(({ operator }) => operator === "function_curve")) Object.assign(curve.inputs, { xMin: 0.25, xMax: 1.5 });
+  scene.requiredEntityIds.push(entity.id);
+  scene.assertions.push({ id: "assert_planner_cube", predicate: "exists", entities: [entity.id], expected: true, severity: "fatal" });
+  scene.revealGroups[0]!.entityIds.push(entity.id);
+  const normalized = validateSceneDocument(scene).document;
+  assert(normalized, "independent planner fixture must normalize through the native validator");
+  const compiled = compileSceneDocument(normalized);
+  assert(compiled.ok && compiled.renderScene, `independent complete five-curve planner fixture must compile: ${JSON.stringify(compiled.report.issues)}`);
+  const exact = { sceneDocument: normalized, renderScene: compiled.renderScene, validationReport: compiled.report };
+  const before = structuredClone(exact);
+  const decision = selectVerifiedRepresentationExplained({ question, exact, preferPlanner });
+  assert.equal(decision.selected.figureSource, "planner", `an incomplete family must never suppress an admitted planner candidate: ${JSON.stringify(decision.exactDecline)}`);
+  assert.deepEqual(exact, before, "native fallback preparation must not mutate the planner input");
+});
+
+// These six whole-body examples retain MAIN's existing native producer
+// contract; their legacy display inputs are frozen numeric oracles, rather
+// than new evidence for derivative/answer authority or display scaling.
+const namedNativeRetention = [
+  { question: "Find the local maximum and local minimum values of f(x) = x^3 - 3x.", body: "x^3-3*x", native: "(0.11666666666666664)*(x^3-3*x)" },
+  { question: "Show that f(x) = x^3 is increasing on the whole real line, even though f'(0) = 0.", body: "x^3", native: "(0.07777777777777777)*(x^3)" },
+  { question: "Let f from the real numbers to the real numbers be f(x) = x^2. Is f one-one? Is f onto? Which numbers, if any, map to 4?", body: "x^2", native: "x^2." },
+  { question: "Determine whether f(x) = x^3 - 3x is increasing or decreasing on the open interval (1, 2).", body: "x^3-3*x", native: "(0.11666666666666664)*(x^3-3*x)" },
+  { question: "Show that f(x) = |x| is not differentiable at x = 0, and give the left-hand and right-hand derivatives there.", body: "abs(x)", native: "abs(x)" },
+  { question: "Find the largest closed interval containing 0 on which f(x) = x^3 - 3x is decreasing.", body: "x^3-3*x", native: "(0.11666666666666664)*(x^3-3*x)" },
+];
+for (const fixture of namedNativeRetention) check(`named-only native retention: ${fixture.question}`, () => {
+  const selected = selectVerifiedRepresentation({ question: fixture.question, families: ["analytic_curve"] });
+  assert.notEqual(selected.figureSource, "source_grounded");
+  const curves = selected.sceneDocument.constructions.filter(({ operator }) => operator === "function_curve");
+  assert.equal(curves.length, 1, "retain the complete native function body");
+  assert(typeof curves[0]!.inputs.expression === "string");
+  assert.equal(normalizeEquation(curves[0]!.inputs.expression), normalizeEquation(fixture.native), "existing native display input must retain its entire literal body");
+  const literalBody = (text: string) => normalizeEquation(text).replace(/^y=/, "").replace(/(\d)(?=x\b)/g, "$1*").replace(/(\d)\.$/, "$1");
+  for (const id of curves[0]!.outputs) {
+    const labels = selected.renderScene.primitives.filter(p => p.entityId === id && p.kind === "label");
+    assert(labels.length > 0 && labels.every(p => typeof p.text === "string" && /^\s*y\s*=/.test(p.text) && literalBody(p.text) === literalBody(fixture.body)), "native labels retain the complete literal function body");
+  }
+});
+for (const note of ["", ' The note "y=7" is quoted.', ' The note "f(x)=7" is quoted.']) check(`independently bound conic with quoted note: ${note}`, () => {
+  const question = `Sketch the parabola x^2=4*y on Cartesian axes.${note}`;
+  const selected = selectVerifiedRepresentation({ question, families: ["analytic_curve"] });
+  if (note.includes('"y=7"') && selected.figureSource === "text_only") {
+    assert.equal(selected.sceneDocument.constructions.length, 0, "a contaminated native program must decline whole");
+    return;
+  }
+  const curves = selected.sceneDocument.constructions.filter(({ operator }) => operator === "implicit_curve");
+  assert.equal(curves.length, 1);
+  assert.equal(selected.sceneDocument.constructions.length, 2, "only the real conic and its axes may remain; a quoted segment is unowned");
+  assert(!selected.sceneDocument.constructions.some(({ operator }) => ["segment", "line", "ray"].includes(operator)), "a quoted line may not hide behind a generic label");
+  assert(typeof curves[0]!.inputs.expression === "string");
+  for (const x of [-2, 0, 2]) assert(Math.abs(parseMathExpression2D(curves[0]!.inputs.expression).evaluate(x, x * x / 4)) < 1e-9);
+  assert(!selected.renderScene.primitives.some(p => p.kind === "label" && typeof p.text === "string" && /(?:y|f\(x\))\s*=\s*7/.test(p.text)), "a quoted function is not an extra curve or label");
+});
+check("quoted function cannot borrow plan or IR authority", () => {
+  const question = 'The note says "graph y=x^2 on coordinate axes". Explain the note.';
+  const plan: TurnPlanV3 = { schemaVersion: "turn-plan/v3", question, givens: [{ id: "quote_coefficient", symbol: "a", value: 2, sourceText: "y=x^2", provenance: "given" }], unknowns: [], derived: [], qualitativeClaims: [], lawIds: [], assumptions: [], visualRequirement: "required" };
+  const selected = selectVerifiedRepresentation({ question, turnPlan: plan, families: ["analytic_curve"], problemIR: { entities: [{ kind: "function", label: "y=x^2" }], representationIntents: [{ kind: "analytic_curve" }], facts: [{ kind: "equation", statement: "y=x^2" }] } });
+  assert.equal(selected.sceneDocument.constructions.length, 0, "masked-stem proof must not inherit function hints from the original plan/IR/families");
+});
 console.log(`source-function equation ownership: ${checks - failed}/${checks} checks passed (${selectedFixtures.length} wordings)`);
 if (failed > 0) process.exitCode = 1;
