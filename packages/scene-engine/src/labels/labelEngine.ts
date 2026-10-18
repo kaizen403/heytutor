@@ -6,6 +6,7 @@
  */
 
 import type { RenderPoint, RenderPrimitive } from "../types";
+import { createLeaderGeometryQuery } from "./leaderGeometryQuery";
 
 export interface LabelBounds {
   x: number;
@@ -509,6 +510,10 @@ function placeLabelsInternal(
     }] : [];
   });
   const solverObstacles = pinnedObstacles.length > 0 ? [...obstacles, ...pinnedObstacles] : obstacles;
+  const fixedLabelObstacles = solverObstacles.filter(obstacle => obstacle.kind === "label");
+  const fixedLabelBounds = fixedLabelObstacles.map(obstacle => obstacle.bounds);
+  const leaderGeometry = obstacles.filter(obstacle => obstacle.kind !== "label");
+  const geometryQuery = owners.some(owner => owner.leaderGeometrySafe) ? createLeaderGeometryQuery(leaderGeometry) : undefined;
 
   const prepared = owners.map((owner, originalIndex): PreparedLabelOwner => {
     const prepareOwner = (exhaustive = false): PreparedLabelOwner => {
@@ -670,9 +675,9 @@ function placeLabelsInternal(
             // Routing cannot repair a glyph box that is already illegal. Keep
             // those candidates for diagnostics without exploring their elbows.
             if (overlaps.length > 0) return candidate;
-            const fixedLabels = solverObstacles.filter((obstacle) => obstacle.kind === "label");
-            const routed = routeLeader(candidate, fixedLabels.map((obstacle) => obstacle.bounds), owner.viewBounds, minGapPx,
-              owner.leaderGeometrySafe ? obstacles.filter((obstacle) => obstacle.kind !== "label") : []);
+            const fixedLabels = fixedLabelObstacles;
+            const routed = routeLeader(candidate, fixedLabelBounds, owner.viewBounds, minGapPx,
+              owner.leaderGeometrySafe ? leaderGeometry : [], [], owner.leaderGeometrySafe ? geometryQuery : undefined);
             if (routed) return routed;
             for (const obstacle of fixedLabels) {
               if (leaderCrosses(candidate, obstacle.bounds, minGapPx) && !overlaps.includes(obstacle.id)) overlaps.push(obstacle.id);
@@ -775,8 +780,8 @@ function placeLabelsInternal(
   // Both solves draw on one work budget: once it is spent neither goes on.
   const work: LabelSearchWork = { spent: 0, budget: options.searchWorkBudget ?? LABEL_SEARCH_WORK_BUDGET };
   const searches = issues.length === 0 && candidatesToSolve.length > 0;
-  const straight = searches ? solveLabelPlacements(candidatesToSolve, minGapPx, "straight", solverObstacles, work) : null;
-  const routed = searches && !straight ? solveLabelPlacements(candidatesToSolve, minGapPx, "routed", solverObstacles, work) : null;
+  const straight = searches ? solveLabelPlacements(candidatesToSolve, minGapPx, "straight", solverObstacles, work, geometryQuery) : null;
+  const routed = searches && !straight ? solveLabelPlacements(candidatesToSolve, minGapPx, "routed", solverObstacles, work, geometryQuery) : null;
   const selected = searches ? straight ?? routed : new Map<number, LabelPlacementCandidate>();
   const solvedBy: LabelEngineResult["solvedBy"] = straight ? "straight" : routed ? "routed" : null;
   if (!selected && candidatesToSolve.length > 0) {
@@ -961,6 +966,7 @@ function solveLabelPlacements(
   routing: "straight" | "routed",
   obstacles: LabelObstacle[],
   work: LabelSearchWork,
+  geometryQuery?: (path: RenderPoint[]) => boolean,
 ): Map<number, LabelPlacementCandidate> | null {
   const selected = new Map<number, LabelPlacementCandidate>();
   const remaining = new Set(owners.map((owner) => owner.originalIndex));
@@ -984,7 +990,7 @@ function solveLabelPlacements(
       const geometry = owner?.leaderGeometrySafe ? obstacles.filter((obstacle) => obstacle.kind !== "label") : [];
       const otherLeaders = [...routed.values()].flatMap(leaderPoints);
       work.spent += routeLeaderWork(candidate, boxes, geometry, otherLeaders);
-      const route = routeLeader(candidate, boxes, owner?.viewBounds, minGapPx, geometry, otherLeaders);
+      const route = routeLeader(candidate, boxes, owner?.viewBounds, minGapPx, geometry, otherLeaders, owner?.leaderGeometrySafe ? geometryQuery : undefined);
       if (!route) return null;
       routed.set(index, route);
     }
@@ -1215,6 +1221,7 @@ function routeLeader(
   gap: number,
   geometry: LabelObstacle[] = [],
   otherLeaders: RenderPoint[][] = [],
+  geometryQuery?: (path: RenderPoint[]) => boolean,
 ): LabelPlacementCandidate | null {
   const from = candidate.leaderFrom;
   const to = candidate.leaderTo;
@@ -1228,7 +1235,7 @@ function routeLeader(
       point.y >= viewBounds.y && point.y <= viewBounds.y + viewBounds.height)) &&
       !leaderCrosses(straight, candidateCollisionBounds(candidate), 0) &&
       obstacles.every(box => !leaderCrosses(straight, box, gap)) &&
-      !leaderCrossesGeometry(directPath, geometry) &&
+      !(geometryQuery ? geometryQuery(directPath) : leaderCrossesGeometry(directPath, geometry)) &&
       otherLeaders.every(other => !leaderPathsConflict(directPath, other))) return straight;
   const routes: RenderPoint[][] = [
     [from, to],
@@ -1258,7 +1265,7 @@ function routeLeader(
     ))
     .filter((path) => !leaderCrosses({ ...candidate, leaderPath: path }, candidateCollisionBounds(candidate), 0))
     .filter((path) => obstacles.every((box) => !leaderCrosses({ ...candidate, leaderPath: path }, box, gap)))
-    .filter((path) => !leaderCrossesGeometry(path, geometry))
+    .filter((path) => !(geometryQuery ? geometryQuery(path) : leaderCrossesGeometry(path, geometry)))
     .filter((path) => otherLeaders.every((other) => !leaderPathsConflict(path, other)))
     .sort((a, b) => routeLength(a) - routeLength(b) || a.length - b.length);
   const path = legal[0];
