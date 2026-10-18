@@ -1,0 +1,2 @@
+pnpm verify:yield
+pnpm verify:launch-truth
