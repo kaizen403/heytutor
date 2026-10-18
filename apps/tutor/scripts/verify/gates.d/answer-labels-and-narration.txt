@@ -2,3 +2,4 @@ tsx scripts/verify/verify-answer-label-completion.ts
 tsx scripts/verify/verify-conductance-teaching.ts
 tsx scripts/verify/verify-figure-sentence-boundary.ts
 tsx scripts/verify/verify-answer-export-cache.ts
+tsx scripts/verify/verify-export-cache-order.ts
