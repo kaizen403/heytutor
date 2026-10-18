@@ -3,7 +3,7 @@ import {writeFileSync} from "node:fs";
 import * as E from "../../src/index";
 import type { SceneDocument } from "../../src/types";
 import fixtures from "./fixtures/chemistry-owner-scope-regressions.json";
-type Oracle = {equivalenceMl?:number;pK?:number;noVolumeLabels?:boolean;volumeLabelsLitres?:number[];deltaUj?:number;totalPressureTorr?:number;qualitativeOnly?:boolean;noMeasuredPressureValues?:boolean};
+type Oracle = {equivalenceMl?:number;pK?:number;noVolumeLabels?:boolean;volumeLabelsLitres?:number[];deltaUj?:number;workJ?:number;totalPressureTorr?:number;qualitativeOnly?:boolean;noMeasuredPressureValues?:boolean};
 type Case = {id:string;family:"chem_thermo"|"chem_solutions";question:string;expectedDraw:boolean;oracle:Oracle;diagnostic?:{reason:string;baselineHead:string}};
 type Outcome = {id:string;question:string;route:string;expectedDraw:boolean;oracle:Oracle;document:SceneDocument|null;renderScene:unknown;labels:string[];passed:boolean;diagnostic?:Case["diagnostic"];validation?:ReturnType<typeof E.validateSceneDocument>;compiled?:ReturnType<typeof E.compileSceneDocument>;error?:string};
 const results: Outcome[]=[];
@@ -32,6 +32,12 @@ for(const row of fixtures.rows as Case[]) for(const route of ["direct","schemati
       if(oracle.noVolumeLabels) assert(!labels.some(label=>/^V\s*=/.test(label)),"heat-source/recipient prepositions supply no process endpoints");
       if(oracle.volumeLabelsLitres) for(const value of oracle.volumeLabelsLitres) assert(labels.includes(`V=${value} L`),"actual endpoint must reach ink");
       if(oracle.deltaUj!==undefined) assert(labels.includes(`dU=+${oracle.deltaUj} J`),"actual first-law result must reach ink");
+      if(oracle.workJ!==undefined) {
+        const work=`w=${oracle.workJ > 0 ? "+" : ""}${oracle.workJ} J`;
+        assert(labels.includes(work),"actual pressure-volume work must reach ink");
+        assert(document.constructions.some(c=>c.outputs.includes("w_l")&&c.inputs.text===work),"source document must commit the checked work");
+        if(oracle.deltaUj!==undefined) assert(document.constructions.some(c=>c.outputs.includes("du_l")&&c.inputs.text===`dU=+${oracle.deltaUj} J`),"source document must commit the first-law result");
+      }
       if(oracle.totalPressureTorr!==undefined) {
         assert(labels.includes(`p_total = ${oracle.totalPressureTorr}`),"actual numeric mixture ink");assert(labels.includes("p (torr)"),"canonical pressure axis");
         assert((document.annotations.find(a=>a.id==="figure_caption")?.text??"").includes(`p_total = ${oracle.totalPressureTorr} torr`));

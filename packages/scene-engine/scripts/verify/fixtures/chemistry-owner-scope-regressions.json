@@ -731,6 +731,359 @@
       "question": "A gas undergoes an isochoric process. Its volume is unknown L and q=500 J; w=0 J. Draw the first law energy account.",
       "expectedDraw": false,
       "oracle": {}
+    },
+    {
+      "id": "S8-P-exact-composition-comma",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, mole fraction of A is 0.5. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "S8-P-symbolic-composition",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, x_A = 0.5. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "S8-P-mm-complement-owner",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 mm and 100, mole fraction of B is 0.5. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "S8-P-first-shared-unit",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 and 100 torr, mole fraction of A is 0.25. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 125
+      }
+    },
+    {
+      "id": "S8-P-reversed-component-order",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure B and A are 100 torr and 200, mole fraction of A is 0.5. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "S8-P-prefix-composition-value",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, 0.5 mole fraction of A. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "S8-P-explicit-wrong-unit",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 kg, mole fraction of A is 0.5. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S8-P-unowned-alternative",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 or 400, mole fraction of A is 0.5. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S8-P-unread-composition",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, mole fraction of A is unreadable. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S8-P-wrong-composition-owner",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, mole fraction of C is 0.5. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S8-P-damaged-pressure-unit",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 mm^2, mole fraction of A is 0.5. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S8-V-exact-constant-conflict",
+      "family": "chem_thermo",
+      "question": "The gas expands by 1 L against external pressure 100 kPa. Its volume is constant. q=500 J. Draw the first law energy account.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S8-V-compression-conflict",
+      "family": "chem_thermo",
+      "question": "The gas compresses by 2 L against external pressure 100 kPa. Its volume is constant. q=500 J. Draw the first law energy account.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S8-V-unequal-endpoints",
+      "family": "chem_thermo",
+      "question": "The gas expands from 2 L to 4 L against external pressure 100 kPa. Its volume is constant. q=500 J and w=0 J. Draw the first law energy account.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S8-V-constant-first",
+      "family": "chem_thermo",
+      "question": "The volume V is constant. The gas expands by 1 L against external pressure 100 kPa. q=500 J. Draw the first law energy account.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S8-V-qualitative-work-consumed",
+      "family": "chem_thermo",
+      "question": "Its volume is constant. q=500 J. Draw the first law energy account.",
+      "expectedDraw": true,
+      "oracle": {
+        "deltaUj": 500,
+        "workJ": 0
+      }
+    },
+    {
+      "id": "S8-V-assignment-and-owner",
+      "family": "chem_thermo",
+      "question": "Volume V = constant and q=500 J. Draw the first law energy account.",
+      "expectedDraw": true,
+      "oracle": {
+        "deltaUj": 500,
+        "workJ": 0
+      }
+    },
+    {
+      "id": "S8-V-equal-endpoints",
+      "family": "chem_thermo",
+      "question": "The gas changes from 2 L to 2 L. Its volume is constant. q=500 J. Draw the first law energy account.",
+      "expectedDraw": true,
+      "oracle": {
+        "deltaUj": 500,
+        "workJ": 0
+      }
+    },
+    {
+      "id": "S8-V-stated-work-conflict",
+      "family": "chem_thermo",
+      "question": "Its volume is constant. q=500 J and w=-100 J. Draw the first law energy account.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S8-V-unknown-before-q",
+      "family": "chem_thermo",
+      "question": "Its volume is unknown L and q=500 J. w=0 J. Draw the first law energy account.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S8-V-constant-extra-expression",
+      "family": "chem_thermo",
+      "question": "Its volume is constant + 1 L. q=500 J and w=0 J. Draw the first law energy account.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S8-V-constant-systems-conflict",
+      "family": "chem_thermo",
+      "question": "A closed system expands from 2 L to 4 L. Its volume is constant. Draw the system boundary.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S8-V-constant-system-only",
+      "family": "chem_thermo",
+      "question": "A closed system undergoes an isochoric process. Its volume is constant. Draw the system boundary.",
+      "expectedDraw": true,
+      "oracle": {
+        "noVolumeLabels": true
+      }
+    },
+    {
+      "id": "S8-P-bad-composition-unit",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, mole fraction of A is 0.5 kg. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S8-P-agreeing-compositions",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, mole fraction of A is 0.5 and x_B = 0.5. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "S8-P-conflicting-compositions",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, mole fraction of A is 0.5 and x_B = 0.7. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S8-P-unknown-composition-owner",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, mole fraction of XYZ is 0.5. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S8-V-explicit-non-PV-model-gap",
+      "family": "chem_thermo",
+      "question": "Its volume is constant. Electrical work is done on the system, w=100 J, and q=500 J. Draw the first law energy account.",
+      "expectedDraw": true,
+      "oracle": {
+        "deltaUj": 600
+      },
+      "diagnostic": {
+        "reason": "Scientifically valid total-work first law, but this bounded operator certifies only pressure-volume work for its constant-volume/isochoric model; no electrical-work operator is added. Safe refusal is retained as a true desired-positive capability gap.",
+        "baselineHead": "2eef2873a42d29f653dc5628f8cb6308d6ee341a"
+      }
+    },
+    {
+      "id": "S8-F2-UNREAD-symbol-sibling",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, x_A = 0.5 and x_B = unknown. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S8-F2-UNREAD-nominal-sibling",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, mole fraction of A is 0.5 and mole fraction of B is unknown. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S8-F2-UNREAD-equimolar",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Equimolar liquids form an ideal solution. The mole fraction of A is unreadable. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S8-F2-OPTIONS-physical-composition-preserved",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Mole fraction of A is 0.5. Draw the Raoult graph for an ideal solution and find total pressure. Options: (A) x_A = 0.7 (B) x_B = 0.3.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "S8-F2-requested-noun-only",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Draw the Raoult graph for an ideal solution and find the mole fraction of A.",
+      "expectedDraw": true,
+      "oracle": {}
+    },
+    {
+      "id": "S8-F2-CONSISTENCY-equimolar-conflict",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, x_A = 0.7. Equimolar liquids form an ideal solution. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S8-F2-CONSISTENCY-equimolar-agree",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, x_A = 0.5. Equimolar liquids form an ideal solution. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "S8-F2-CONSISTENCY-moles-conflict",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, x_A = 0.25. The ideal liquid mixture contains 3 mol of A and 1 mol of B. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S8-F2-CONSISTENCY-moles-agree",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, x_A = 0.25. The ideal liquid mixture contains 1 mol of A and 3 mol of B. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 125
+      }
+    },
+    {
+      "id": "S8-F3-NOMINAL-xylene-not-symbolic-owner",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure xylene and benzene are 200 torr and 100 torr. Mole fraction of xylene is 0.5. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "S8-F3-AMOUNT-unknown-supplied",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, x_A = 0.25. The mixture has unknown mol of A and 3 mol of B. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S8-F3-AMOUNT-NaN-supplied",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, x_A = 0.25. The mixture has NaN mol of A and 3 mol of B. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S8-F3-original-input-moles-options",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The mixture contains 1 mol of A and 1 mol of B. Draw the Raoult graph for an ideal solution and find total pressure. Options: (A) 3 mol of A and 1 mol of B (B) 1 mol of A and 3 mol of B.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "S8-F3-DISEQUALITY-equimolar-conflict",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, x_A = 0.5. The liquids are not equimolar. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "S8-F3-DISEQUALITY-equimolar-agree",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, x_A = 0.25. The liquids are not equimolar. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 125
+      }
+    },
+    {
+      "id": "S8-F3-requested-unknown-amount",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Mole fraction of A is 0.5. Draw the Raoult graph for an ideal solution and find the unknown mol of A.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
     }
   ]
 }

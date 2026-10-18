@@ -7,7 +7,7 @@
  * Maxwell distributions stay in thermoGraphs.ts. A missing number is
  * not replaced with a textbook value.
  */
-import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityPayloadPresent, findChemistryQuantities, readChemistryQuantity, readChemistryQuantityDeclaration, readChemistryLiteral, CHEMISTRY_SCALAR_PATTERN, chemistryUnitSymbol, chemistryQuantityCuesValid, chemistryQuestionSpan, chemistryCanonicalValuesAgree, chemistryQuantityInventoryOwned, readChemistryUnitLiteral, type ChemistryReading, type ChemistryQuantityDeclaration, type ChemistryDeclarationOccurrence } from "./quantityReader";
+import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityPayloadPresent, findChemistryQuantities, readChemistryQuantity, readChemistryQuantityDeclaration, readChemistryLiteral, CHEMISTRY_SCALAR_PATTERN, chemistryUnitSymbol, chemistryQuantityCuesValid, chemistryQuestionSpan, chemistryCanonicalValuesAgree, chemistryQuantityInventoryOwned, readChemistryUnitLiteral, type ChemistryReading, type ChemistryQuantityDeclaration, type ChemistryDeclarationOccurrence, type ChemistrySpan } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
 
@@ -90,13 +90,15 @@ interface ProcessVolumes {
   initial: ChemistryReading | null;
   final: ChemistryReading | null;
   change: ChemistryReading | null;
+  constant: ChemistrySpan[];
 }
 
 /** Prepositions own quantities only inside a local process/property argument.
  * Heat-transfer source/recipient phrases are different semantic arguments. */
 function processVolumes(question: string): ProcessVolumes | null {
   const body = question.slice(0,chemistryQuestionSpan(question).end);
-  const result: ProcessVolumes = {initial:null,final:null,change:null};
+  const result: ProcessVolumes = {initial:null,final:null,change:null,
+    constant:[...body.matchAll(/\b(?:isochoric|constant volume)\b/gi)].map(cue=>({start:cue.index!,end:cue.index!+cue[0].length}))};
   const boundaries = [...body.matchAll(/[;!?\n]|\.(?=\s|$)/g)];
   const clauses = [...boundaries.map(boundary=>boundary.index!),body.length];
   let clauseStart = 0;
@@ -141,8 +143,11 @@ function processVolumes(question: string): ProcessVolumes | null {
       const payload = question.slice(payloadStart,end);
       // A complete qualitative equality is a process description. A supplied
       // number/unread value or expression continuation cannot hide after it.
-      if (/^\s*(?:is|=)\s*constant\s*(?:,\s*)?(?:and\s*)?$/i.test(payload)
-        && (!/\band\s*$/i.test(payload) || otherOwner)) continue;
+      if (/^\s*(?:is|=|remains)\s*constant\s*(?:,\s*)?(?:and\s*)?$/i.test(payload)
+        && (!/\band\s*$/i.test(payload) || otherOwner)) {
+        result.constant.push({start,end});
+        continue;
+      }
       const read = readChemistryQuantityDeclaration({question,after:new RegExp(property[0]),cueCaseSensitive:true,
         within:{start,end},dimension:"volume",targetUnit:"L",owner:"stated system volume"});
       if (read.state === "invalid" || read.state === "valid" && read.reading.value <= 0) return null;
@@ -178,6 +183,10 @@ function processVolumes(question: string): ProcessVolumes | null {
     }
     clauseStart = clauseEnd+1;
   }
+  // A validated relation remains a constraint on the selected process, not
+  // just a lexical exception. Check it before either model consumes volumes.
+  if (result.constant.length && (result.change && result.change.value !== 0
+    || result.initial && result.final && !chemistryCanonicalValuesAgree(result.initial.value,result.final.value))) return null;
   return result;
 }
 
@@ -317,7 +326,7 @@ function buildFirstLaw(question: string, stem: string): SceneDocument | null {
   const q = heatRead.state === "valid" ? heatRead.reading.value : null;
   const statedW = workRead.state === "valid" ? workRead.reading.value : null;
   const pv = pressureVolumeWorkJ(question,volumes.change);
-  const isochoric = /isochoric|constant volume/.test(stem);
+  const isochoric = volumes.constant.length > 0;
   const adiabatic = /adiabatic/.test(stem);
   if (isochoric && pv !== null) return null;
   if (isochoric && statedW !== null && statedW !== 0) return null;

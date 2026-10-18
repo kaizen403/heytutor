@@ -831,6 +831,12 @@ function normaliseUnit(raw: string | undefined): string {
 }
 
 function readRaoult(stem: string, _quantities: readonly ChemPlanQuantity[]): RaoultReading | null {
+  const scope = chemistryQuestionSpan(stem);
+  const body = stem.slice(0,scope.end);
+  // Keep match.input and every capture index bound to the original question,
+  // while excluding choices from the physical source inventory.
+  const sourceMatches = (pattern:RegExp): RegExpMatchArray[] => [...stem.matchAll(pattern)]
+    .filter(match=>match.index! >= scope.start && match.index!+match[0].length <= scope.end);
   const bindings: Array<{ name: string; sourceSpan: ChemistrySpan; value: number; unit: string }> = [];
   const componentSpan = (match: RegExpMatchArray, group: number): ChemistrySpan => ({start:match.indices![group]![0],end:match.indices![group]![1]});
   const number = `(${CHEMISTRY_SCALAR_PATTERN})`;
@@ -839,9 +845,50 @@ function readRaoult(stem: string, _quantities: readonly ChemPlanQuantity[]): Rao
   const pair = new RegExp(`vapou?r pressures? of ${COMPONENT_FILLER}${name}\\s+and\\s+${COMPONENT_FILLER}${name}(?:\\s+at\\s+[^,.]{0,24}?)?\\s*(?:are|is|=|:|,)?\\s*${number}\\s*${PRESSURE_UNIT}?\\s*(?:and|,)\\s*${number}\\s*${PRESSURE_UNIT}?`, "gid");
   const single = new RegExp(`(?:vapou?r pressure|that) of ${COMPONENT_FILLER}${name}(?:\\s+at\\s+[^,.]{0,24}?)?\\s*(?:is|=|:|are)\\s*${number}\\s*${PRESSURE_UNIT}?`, "gid");
   const symbolic = new RegExp(`\\bp\\s*(?:°|\\^0|\\^\\(0\\)|0)?\\s*_?\\s*([a-z])\\s*(?:°|\\^0|\\^\\(0\\)|0)?\\s*(?:=|is|:)\\s*${number}\\s*${PRESSURE_UNIT}?`, "gid");
-  const declarations = [pair,single,symbolic].flatMap(pattern => [...stem.matchAll(pattern)]);
+  const pairDeclarations = sourceMatches(pair);
+  const singleDeclarations = sourceMatches(single);
+  const symbolicDeclarations = sourceMatches(symbolic);
+  const declarations = [...pairDeclarations,...singleDeclarations,...symbolicDeclarations];
+  const componentNames = new Set([...pairDeclarations.flatMap(match=>[match[1]!,match[2]!]),
+    ...singleDeclarations.map(match=>match[1]!),...symbolicDeclarations.map(match=>match[1]!)].map(who=>who.toLowerCase()));
+  const fraction = `(${CHEMISTRY_SCALAR_PATTERN})`;
+  const compositionPatterns: Array<{ pattern: RegExp; nameGroup:number; valueGroup:number; valueFirst?:boolean }> = [
+    { pattern: new RegExp(`mole fraction of ${COMPONENT_FILLER}${name}(?: in (?:the )?(?:liquid|solution)(?: phase)?)?\\s*(?:is|=|:|of)?\\s*${fraction}`, "gid"), nameGroup:1, valueGroup:2 },
+    { pattern: new RegExp(`${fraction}\\s*mole fraction of ${COMPONENT_FILLER}${name}`, "gid"), nameGroup:2, valueGroup:1, valueFirst:true },
+    { pattern: new RegExp(`\\bx_?\\(?([a-z])\\)?\\s*(?:=|is)\\s*${fraction}`, "gid"), nameGroup:1, valueGroup:2 },
+  ];
+  const compositions = compositionPatterns.flatMap(candidate=>sourceMatches(candidate.pattern).map(match=>{
+    const span = match.indices![candidate.valueGroup]!;
+    const value = matchedChemistryScalar(stem,match,candidate.valueGroup);
+    // The value-first form owns the following "mole fraction" noun phrase.
+    // Other forms must not hide a supplied foreign unit after their scalar.
+    const literal = candidate.valueFirst ? null : readChemistryLiteral({question:stem,scalarSpan:{start:span[0],end:span[1]},dimension:"dimensionless",targetUnit:"1"});
+    return {start:match.index!,name:match[candidate.nameGroup]!.toLowerCase(),nameSpan:match.indices![candidate.nameGroup]!,
+      value:value !== null && (candidate.valueFirst || literal?.ok && chemistryCanonicalValuesAgree(literal.reading.value,value)) ? value : NaN};
+  }));
+  // Inventory owners independently of successful numeric matches. An unread
+  // sibling is supplied-invalid, while an asked-for noun remains absent.
+  const compositionOwners = [
+    new RegExp(`mole fraction of ${COMPONENT_FILLER}${name}(?: in (?:the )?(?:liquid|solution)(?: phase)?)?`,"gid"),
+    /\b(?:x_|x_?\()([a-z][a-z0-9]*)\)?/gid,
+    /\bx([a-z])(?=\s*(?:=|:|\bis\b))/gid,
+  ].flatMap(sourceMatches).sort((a,b)=>a.index!-b.index!);
+  for (const [index,cue] of compositionOwners.entries()) {
+    const next = compositionOwners[index+1]?.index ?? body.length;
+    const sentence = /[;!?\n]|\.(?=\s|$)/.exec(body.slice(cue.index!+cue[0].length,next));
+    const end = sentence ? cue.index!+cue[0].length+sentence.index : next;
+    const after = new RegExp(cue[0].replace(/[.*+?^${}()|[\]\\]/g,"\\$&"));
+    const read = readChemistryQuantityDeclaration({question:stem,after,cueCaseSensitive:true,
+      within:{start:cue.index!,end},dimension:"dimensionless",targetUnit:"1",owner:`liquid mole fraction of ${cue[1]}`});
+    if (read.state === "invalid") return null;
+    if (read.state === "valid" && (!componentNames.has(cue[1]!.toLowerCase())
+      || !compositions.some(value=>value.nameSpan[0]===cue.indices![1]![0] && value.nameSpan[1]===cue.indices![1]![1]
+        && chemistryCanonicalValuesAgree(value.value,read.reading.value)))) return null;
+  }
   const closesPressureArgument = (end:number): boolean => declarations.some(next => next.index! >= end
     && /^(?:\s*,?\s*and\s+|\s*,\s*)$/i.test(stem.slice(end,next.index!)))
+    || compositions.some(next=>next.start >= end && componentNames.has(next.name) && next.value >= 0 && next.value <= 1
+      && /^\s*(?:,\s*|(?:and|with)\s+)$/i.test(stem.slice(end,next.start)))
     || /^(?:\s*$|\s*[.;!?)])/.test(stem.slice(end,chemistryQuestionSpan(stem).end));
   const pressureAt = (match: RegExpMatchArray, group: number, unitGroup: number, sharedUnitGroup?: number, peerScalarGroup?: number): number => {
     const token = match[group]!; const start = match.indices?.[group]?.[0];
@@ -871,17 +918,17 @@ function readRaoult(stem: string, _quantities: readonly ChemPlanQuantity[]): Rao
     const read = readChemistryLiteral({question: stem, scalarSpan: {start, end: start + token.length}, dimension: "pressure", targetUnit: "torr", ...(unitSpan && rawUnit ? {unitConvention: {unit: normaliseUnit(rawUnit) as ChemistryUnit, sourceSpan: {start: unitSpan[0], end: unitSpan[1]}}} : {})});
     return read.ok ? read.reading.value : NaN;
   };
-  for (const match of stem.matchAll(pair)) {
+  for (const match of pairDeclarations) {
     bindings.push({ name: match[1]!.toLowerCase(), sourceSpan:componentSpan(match,1), value: pressureAt(match, 3, 4, 6, 5), unit: normaliseUnit(match[4] ?? match[6]) || "torr" });
     bindings.push({ name: match[2]!.toLowerCase(), sourceSpan:componentSpan(match,2), value: pressureAt(match, 5, 6, 4, 3), unit: normaliseUnit(match[6] ?? match[4]) || "torr" });
   }
   // "vapour pressure of pure A is 200 torr", "that of pure B is 100 torr"
-  for (const match of stem.matchAll(single)) {
+  for (const match of singleDeclarations) {
     if (/^(?:the|pure|liquid|solution|solvent|mixture|water)$/.test(match[1]!) && !/^water$/.test(match[1]!)) continue;
     bindings.push({ name: match[1]!.toLowerCase(), sourceSpan:componentSpan(match,1), value: pressureAt(match, 2, 3), unit: normaliseUnit(match[3]) || "torr" });
   }
   // "p°A = 200 torr", "p_A^0 = 200"
-  for (const match of stem.matchAll(symbolic)) {
+  for (const match of symbolicDeclarations) {
     bindings.push({ name: match[1]!.toLowerCase(), sourceSpan:componentSpan(match,1), value: pressureAt(match, 2, 3), unit: normaliseUnit(match[3]) || "torr" });
   }
   if (new Set(bindings.map(binding => binding.name)).size !== bindings.length) return null;
@@ -898,43 +945,58 @@ function readRaoult(stem: string, _quantities: readonly ChemPlanQuantity[]): Rao
   first.value = a.reading; second.value = b.reading;
   const names: [string, string] = [first.name, second.name];
   let xA: number | null = null;
-  const fraction = `(${CHEMISTRY_SCALAR_PATTERN})`;
-  const compositionPatterns: Array<{ pattern: RegExp; name: (m: RegExpExecArray) => string; value: (m: RegExpExecArray) => number }> = [
-    { pattern: new RegExp(`mole fraction of ${COMPONENT_FILLER}${name}(?: in (?:the )?(?:liquid|solution)(?: phase)?)?\\s*(?:is|=|:|of)?\\s*${fraction}`, "id"), name: (m) => m[1]!, value: (m) => matchedChemistryScalar(stem, m, 2) ?? NaN },
-    { pattern: new RegExp(`${fraction}\\s*mole fraction of ${COMPONENT_FILLER}${name}`, "id"), name: (m) => m[2]!, value: (m) => matchedChemistryScalar(stem, m, 1) ?? NaN },
-    { pattern: new RegExp(`\\bx_?\\(?([a-z])\\)?\\s*(?:=|is)\\s*${fraction}`, "id"), name: (m) => m[1]!, value: (m) => matchedChemistryScalar(stem, m, 2) ?? NaN },
-  ];
-  for (const candidate of compositionPatterns) {
-    const match = candidate.pattern.exec(stem);
-    if (!match) continue;
-    const who = candidate.name(match).toLowerCase();
-    const value = candidate.value(match);
+  const consumeComposition = (value:number): boolean => {
+    if (!(value >= 0 && value <= 1) || xA !== null && !chemistryCanonicalValuesAgree(xA,value)) return false;
+    xA = value;
+    return true;
+  };
+  for (const {name:who,value} of compositions) {
     if (!(value >= 0 && value <= 1)) return null;
-    if (who === names[0]) { xA = value; break; }
-    if (who === names[1]) { xA = 1 - value; break; }
+    const selected = who === names[0] ? value : who === names[1] ? 1-value : null;
+    if (selected === null || !consumeComposition(selected)) return null;
   }
-  if (xA === null) {
-    const equimolarCues = [...stem.matchAll(/\bequimolar\b/gi)];
-    // An affirmative word owns the 1:1 composition. Case is semantic; all
-    // pressure/scalar spans remain original. A local negation owns no .5.
-    const negated = equimolarCues.some(cue => /\b(?:not(?:\s+(?:an?|the))?(?:\s+(?:[a-z]+ly|quite|at\s+all))?|non|unequal)[\s\-‐‑−–—]*$/i.test(stem.slice(0, cue.index)));
-    if (equimolarCues.length > 0 && !negated) xA = 0.5;
+  // Each supported source form supplies the same composition constraint;
+  // none is a fallback that may disappear behind an earlier readable form.
+  let nonEquimolar = false;
+  for (const cue of sourceMatches(/\bequimolar\b/gi)) {
+    const negated = /\b(?:not(?:\s+(?:an?|the))?(?:\s+(?:[a-z]+ly|quite|at\s+all))?|non|unequal)[\s\-‐‑−–—]*$/i.test(body.slice(0,cue.index));
+    if (negated) nonEquimolar = true;
+    else if (!consumeComposition(0.5)) return null;
   }
-  if (xA === null) {
-    const moles = new RegExp(`${number}\\s*mol(?:e|es)?\\s+(?:of\\s+)?${COMPONENT_FILLER}${name}[^.]{0,60}?${number}\\s*mol(?:e|es)?\\s+(?:of\\s+)?${COMPONENT_FILLER}${name}`, "id").exec(stem);
-    if (moles) {
-      const firstName = moles[2]!.toLowerCase(); const secondName = moles[4]!.toLowerCase();
-      const firstComponent = bindings.find(binding=>binding.name===firstName);
-      const secondComponent = bindings.find(binding=>binding.name===secondName);
-      if (!firstComponent || !secondComponent || firstComponent === secondComponent) return null;
-      const firstMoles = matchedChemistryComponentAmount(stem,moles,1,2,firstComponent);
-      const secondMoles = matchedChemistryComponentAmount(stem,moles,3,4,secondComponent);
-      if (firstMoles === null || secondMoles === null || firstMoles < 0 || secondMoles < 0 || firstMoles + secondMoles <= 0) return null;
-      if (firstName === names[0] && secondName === names[1]) xA = firstMoles/(firstMoles+secondMoles);
-      else if (firstName === names[1] && secondName === names[0]) xA = secondMoles/(firstMoles+secondMoles);
-      else return null;
-    }
+  const molePairs = new RegExp(`${number}\\s*mol(?:e|es)?\\s+(?:of\\s+)?${COMPONENT_FILLER}${name}[^.]{0,60}?${number}\\s*mol(?:e|es)?\\s+(?:of\\s+)?${COMPONENT_FILLER}${name}`, "gid");
+  const consumedAmounts: ChemistrySpan[] = [];
+  for (const moles of sourceMatches(molePairs)) {
+    const firstName = moles[2]!.toLowerCase(); const secondName = moles[4]!.toLowerCase();
+    const firstComponent = bindings.find(binding=>binding.name===firstName);
+    const secondComponent = bindings.find(binding=>binding.name===secondName);
+    if (!firstComponent || !secondComponent || firstComponent === secondComponent) return null;
+    const firstMoles = matchedChemistryComponentAmount(stem,moles,1,2,firstComponent);
+    const secondMoles = matchedChemistryComponentAmount(stem,moles,3,4,secondComponent);
+    if (firstMoles === null || secondMoles === null || firstMoles < 0 || secondMoles < 0 || firstMoles + secondMoles <= 0) return null;
+    const value = firstName === names[0] && secondName === names[1] ? firstMoles/(firstMoles+secondMoles)
+      : firstName === names[1] && secondName === names[0] ? secondMoles/(firstMoles+secondMoles) : null;
+    if (value === null || !consumeComposition(value)) return null;
+    consumedAmounts.push({start:moles.indices![1]![0],end:moles.indices![2]![1]},
+      {start:moles.indices![3]![0],end:moles.indices![4]![1]});
   }
+  // Successful pairs cannot erase a supplied unread amount. The postfix
+  // unit/component cue also retains the existing declaration-state semantics
+  // for unknown/NaN owners and genuine requested amount nouns.
+  const amountOwners = sourceMatches(new RegExp(`(?<![a-z_])mol(?:e|es)?\\s+(?:of\\s+)?${COMPONENT_FILLER}${name}`,"gid"))
+    .filter(cue=>!compositionOwners.some(owner=>owner.index! <= cue.index!
+      && owner.index!+owner[0].length >= cue.index!+cue[0].length));
+  for (const [index,cue] of amountOwners.entries()) {
+    if (consumedAmounts.some(span=>span.start <= cue.index! && span.end >= cue.index!+cue[0].length)) continue;
+    const next = amountOwners[index+1]?.index ?? scope.end;
+    const sentence = /[;!?\n]|\.(?=\s|$)/.exec(body.slice(cue.index!+cue[0].length,next));
+    const end = sentence ? cue.index!+cue[0].length+sentence.index : next;
+    const after = new RegExp(cue[0].replace(/[.*+?^${}()|[\]\\]/g,"\\$&"));
+    const read = readChemistryQuantityDeclaration({question:stem,after,cueCaseSensitive:true,
+      within:{start:cue.index!,end},dimension:"amount",targetUnit:"mol",owner:`component amount of ${cue[1]}`});
+    const prefixToken = /[^\s,;!?]+$/.exec(body.slice(0,cue.index!).trimEnd())?.[0] ?? "";
+    if (read.state !== "absent" || new RegExp(CHEMISTRY_SCALAR_PATTERN).test(prefixToken)) return null;
+  }
+  if (nonEquimolar && xA !== null && chemistryCanonicalValuesAgree(xA,0.5)) return null;
   return { names, pA0: first.value, pB0: second.value, unit, xA };
 }
 
