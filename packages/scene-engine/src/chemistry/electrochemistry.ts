@@ -1581,7 +1581,7 @@ function buildConductancePlot(question: string): SceneDocument | null {
   // Electrochemistry §2.4.2 and the Mainz physical chemistry lab's conductivity
   // chapter (links in verify-conductance-teaching.ts).
   return c.build({
-    caption: "Λm vs √c: for a dilute strong electrolyte at fixed solvent and temperature, Λm ≈ Λ°m − A√c is a straight-line approximation; a weak electrolyte rises steeply as c → 0, so its Λ°m cannot be obtained by this straight-line extrapolation",
+    caption: "Λm vs √c: for a dilute strong electrolyte at fixed solvent and temperature, Λm = Λ°m − A√c is a straight-line approximation; a weak electrolyte rises steeply as c → 0, so its Λ°m cannot be obtained by this straight-line extrapolation",
     teachingNotes: [
       "Λ_m is molar conductivity, κ is conductivity, and c is molar concentration. In consistent SI units Λ_m = κ/c: κ is in S m^-1, c in mol m^-3, and Λ_m in S m^2 mol^-1. With κ in S cm^-1 and c in mol L^-1, Λ_m = 1000κ/c in S cm^2 mol^-1.",
       "On dilution, conductivity κ decreases because there are fewer ions per unit volume, while molar conductivity Λ_m increases. These are different quantities; the Λ_m curve is not a plot of κ.",
