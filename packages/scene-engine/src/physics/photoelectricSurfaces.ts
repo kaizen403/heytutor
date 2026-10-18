@@ -1,6 +1,7 @@
 /** A single-threshold figure must not borrow another illuminated material's value. */
 import { elementByName, resolveElement } from "../chemistry/elements";
 import { chemistryCanonicalValuesAgree, readChemistryQuantityDeclaration } from "../chemistry/quantityReader";
+import { photonEnergyEvFromFrequencyHz, photonEnergyEvFromWavelengthMetres } from "./photonEnergy";
 
 const SURFACE_NOUN = "metal|surface|plate|cathode|anode|emitter|electrode|target|sample|collector";
 const LABEL = /^(?:[A-Z][A-Z0-9]*|\d+)$/;
@@ -310,11 +311,10 @@ export function restoredPhotoelectricInputsValid(question: string, actualPhi: nu
   const wavelength = readChemistryQuantityDeclaration({question,after:/\bwavelength\b/i,
     owner:"incident photon wavelength",dimension:"length",targetUnit:"m",allowAgreeingRepeats:true});
   if ([energy,frequency,wavelength].some(read => read.state === "invalid")) return false;
-  const hEvS = 6.62607015e-34/1.602176634e-19;
   const candidates = [
     energy.state === "valid" ? energy.reading.value : null,
-    frequency.state === "valid" ? hEvS*frequency.reading.value : null,
-    wavelength.state === "valid" ? hEvS*299792458/wavelength.reading.value : null,
+    frequency.state === "valid" ? photonEnergyEvFromFrequencyHz(frequency.reading.value) : null,
+    wavelength.state === "valid" ? photonEnergyEvFromWavelengthMetres(wavelength.reading.value) : null,
   ].filter((value): value is number => value !== null);
   return actualPhoton !== null && candidates.length > 0 && candidates.every(value => value > 0
     && chemistryCanonicalValuesAgree(value,actualPhoton));

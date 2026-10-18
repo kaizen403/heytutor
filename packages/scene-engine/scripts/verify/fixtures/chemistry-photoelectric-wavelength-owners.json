@@ -1,0 +1,346 @@
+{
+  "scope": "Frozen desired source/actual physics generator behavior before tracked edits; synthetic slots explicitly marked, no native/live/coverage claim.",
+  "photoelectric": [
+    {
+      "id": "exact-thread-400nm",
+      "question": "The work function of sodium is 2.3 eV. Light of wavelength 400 nm falls on sodium plate A. Draw the photoelectric diagram.",
+      "phiEv": 2.3,
+      "lambdaNm": 400,
+      "draw": true,
+      "physicsDraw": true,
+      "expectedPhotonEv": 3.0996049608300065,
+      "expectedKineticEv": 0.7996049608300067
+    },
+    {
+      "id": "named-potassium-300nm",
+      "question": "The work function of potassium is 2.0 eV. Light of wavelength 300 nm falls on potassium sample P. Show the photoelectric energy diagram.",
+      "phiEv": 2,
+      "lambdaNm": 300,
+      "draw": true,
+      "physicsDraw": true,
+      "expectedPhotonEv": 4.132806614440009,
+      "expectedKineticEv": 2.1328066144400086
+    },
+    {
+      "id": "zinc-plate-250nm",
+      "question": "The work function of zinc is 4 eV. Light of wavelength 250 nm falls on zinc plate Z. Draw the photoelectric diagram.",
+      "phiEv": 4,
+      "lambdaNm": 250,
+      "draw": true,
+      "physicsDraw": true,
+      "expectedPhotonEv": 4.95936793732801,
+      "expectedKineticEv": 0.9593679373280102
+    },
+    {
+      "id": "caesium-450nm",
+      "question": "The work function of caesium is 2.1 eV. Light of wavelength 450 nm falls on caesium plate C. Sketch the photoelectric energy diagram.",
+      "phiEv": 2.1,
+      "lambdaNm": 450,
+      "draw": true,
+      "physicsDraw": true,
+      "expectedPhotonEv": 2.755204409626672,
+      "expectedKineticEv": 0.655204409626672
+    },
+    {
+      "id": "sodium-500nm",
+      "question": "The work function of sodium is 2 eV. Light of wavelength 500 nm falls on sodium sample N. Show the photoelectric diagram.",
+      "phiEv": 2,
+      "lambdaNm": 500,
+      "draw": true,
+      "physicsDraw": true,
+      "expectedPhotonEv": 2.479683968664005,
+      "expectedKineticEv": 0.4796839686640051
+    },
+    {
+      "id": "emitter-passive-electron-receiver",
+      "question": "The work function of sodium is 2.3 eV. Light of wavelength 400 nm falls on sodium emitter A. A collector receives electrons. Draw the photoelectric diagram.",
+      "phiEv": 2.3,
+      "lambdaNm": 400,
+      "draw": true,
+      "physicsDraw": true,
+      "expectedPhotonEv": 3.0996049608300065,
+      "expectedKineticEv": 0.7996049608300067
+    },
+    {
+      "id": "equivalent-angstrom",
+      "question": "The work function of sodium is 2.3 eV. Light of wavelength 4000 angstrom falls on sodium plate A. Draw the photoelectric diagram.",
+      "phiEv": 2.3,
+      "lambdaNm": 400,
+      "draw": true,
+      "physicsDraw": true,
+      "expectedPhotonEv": 3.0996049608300065,
+      "expectedKineticEv": 0.7996049608300067
+    },
+    {
+      "id": "equivalent-pm",
+      "question": "The work function of sodium is 2.3 eV. Light of wavelength 400000 pm falls on sodium plate A. Draw the photoelectric diagram.",
+      "phiEv": 2.3,
+      "lambdaNm": 400,
+      "draw": true,
+      "physicsDraw": true,
+      "expectedPhotonEv": 3.0996049608300065,
+      "expectedKineticEv": 0.7996049608300067
+    },
+    {
+      "id": "canonical-old-material-control",
+      "question": "The work function of sodium is 2.3 eV. Light of wavelength 400 nm falls on sodium metal Na. Draw the photoelectric diagram.",
+      "phiEv": 2.3,
+      "lambdaNm": 400,
+      "draw": true,
+      "physicsDraw": true,
+      "expectedPhotonEv": 3.0996049608300065,
+      "expectedKineticEv": 0.7996049608300067
+    },
+    {
+      "id": "stale-wavelength-question-350-slot400",
+      "question": "The work function of sodium is 2.3 eV. Light of wavelength 350 nm falls on sodium plate A. Draw the photoelectric diagram.",
+      "phiEv": 2.3,
+      "lambdaNm": 400,
+      "draw": true,
+      "physicsDraw": false,
+      "expectedPhotonEv": 3.5424056695200075,
+      "expectedPhiEv": 2.3,
+      "expectedKineticEv": 1.2424056695200076
+    },
+    {
+      "id": "stale-phi-question-2.3-slot2.0",
+      "question": "The work function of sodium is 2.3 eV. Light of wavelength 400 nm falls on sodium plate A. Draw the photoelectric diagram.",
+      "phiEv": 2.0,
+      "lambdaNm": 400,
+      "draw": true,
+      "physicsDraw": false,
+      "expectedPhotonEv": 3.0996049608300065,
+      "expectedPhiEv": 2.3,
+      "expectedKineticEv": 0.7996049608300067
+    },
+    {
+      "id": "unread-wavelength",
+      "question": "The work function of sodium is 2.3 eV. Light of wavelength unreadable nm falls on sodium plate A. Draw the photoelectric diagram.",
+      "phiEv": 2.3,
+      "lambdaNm": 400,
+      "draw": false,
+      "physicsDraw": false
+    },
+    {
+      "id": "bad-wavelength-unit",
+      "question": "The work function of sodium is 2.3 eV. Light of wavelength 400 kg falls on sodium plate A. Draw the photoelectric diagram.",
+      "phiEv": 2.3,
+      "lambdaNm": 400,
+      "draw": false,
+      "physicsDraw": false
+    },
+    {
+      "id": "zero-wavelength",
+      "question": "The work function of sodium is 2.3 eV. Light of wavelength 0 nm falls on sodium plate A. Draw the photoelectric diagram.",
+      "phiEv": 2.3,
+      "lambdaNm": 400,
+      "draw": false,
+      "physicsDraw": false
+    },
+    {
+      "id": "negative-wavelength",
+      "question": "The work function of sodium is 2.3 eV. Light of wavelength -400 nm falls on sodium plate A. Draw the photoelectric diagram.",
+      "phiEv": 2.3,
+      "lambdaNm": 400,
+      "draw": false,
+      "physicsDraw": false
+    },
+    {
+      "id": "conflicting-repeat-wavelength",
+      "question": "The work function of sodium is 2.3 eV. Light of wavelength 400 nm falls on sodium plate A. The wavelength is 350 nm. Draw the photoelectric diagram.",
+      "phiEv": 2.3,
+      "lambdaNm": 400,
+      "draw": false,
+      "physicsDraw": false
+    },
+    {
+      "id": "unread-repeat-wavelength",
+      "question": "The work function of sodium is 2.3 eV. Light of wavelength 400 nm falls on sodium plate A. The wavelength cannot be read. Draw the photoelectric diagram.",
+      "phiEv": 2.3,
+      "lambdaNm": 400,
+      "draw": false,
+      "physicsDraw": false
+    },
+    {
+      "id": "photon-channel-conflict",
+      "question": "The work function of sodium is 2.3 eV. Light of wavelength 400 nm falls on sodium plate A. The photon energy is 4 eV. Draw the photoelectric diagram.",
+      "phiEv": 2.3,
+      "lambdaNm": 400,
+      "draw": false,
+      "physicsDraw": false
+    },
+    {
+      "id": "unread-photon-no-wavelength-fallback",
+      "question": "The work function of sodium is 2.3 eV. Light of wavelength 400 nm falls on sodium plate A. The photon energy is unreadable eV. Draw the photoelectric diagram.",
+      "phiEv": 2.3,
+      "lambdaNm": 400,
+      "draw": false,
+      "physicsDraw": false
+    },
+    {
+      "id": "collector-photon-owner-conflict",
+      "question": "The work function of sodium is 2.3 eV. Light of wavelength 400 nm falls on sodium plate A. A collector receives photons. Draw the photoelectric diagram.",
+      "phiEv": 2.3,
+      "lambdaNm": 400,
+      "draw": false,
+      "physicsDraw": false
+    },
+    {
+      "id": "agreeing-repeat-wavelength",
+      "question": "The work function of sodium is 2.3 eV. Light of wavelength 400 nm falls on sodium plate A. The wavelength is 400 nm. Draw the photoelectric diagram.",
+      "phiEv": 2.3,
+      "lambdaNm": 400,
+      "draw": true,
+      "physicsDraw": true,
+      "expectedPhotonEv": 3.0996049608300065,
+      "expectedKineticEv": 0.7996049608300067,
+      "diagnosticRoutes": [
+        "direct",
+        "schematic",
+        "ordinary",
+        "lastResort"
+      ],
+      "deferredReason": "Genuine CF4 source guard declines agreeing repeated wavelengths before conversion. Scientific draw oracle remains true; shared quantity policy is outside this conversion patch."
+    }
+  ],
+  "thresholdOwners": [
+    {
+      "id": "exact-thread-graph",
+      "question": "Plot the threshold energy graph of the reaction.",
+      "draw": true
+    },
+    {
+      "id": "diagram-reaction",
+      "question": "Draw the threshold energy diagram of the reaction.",
+      "draw": true
+    },
+    {
+      "id": "curve-reaction",
+      "question": "Sketch the threshold energy curve of the reaction.",
+      "draw": true
+    },
+    {
+      "id": "graph-for-reaction",
+      "question": "Show the threshold energy graph for a reaction.",
+      "draw": true
+    },
+    {
+      "id": "backward-reaction-graph",
+      "question": "Plot the threshold energy graph of the backward reaction.",
+      "draw": true,
+      "diagnosticRoutes": [
+        "direct",
+        "schematic",
+        "ordinary",
+        "lastResort"
+      ],
+      "deferredReason": "CF4 energy-role reader interprets an unvalued role/request as supplied input and declines. Desired positive oracle preserved; no profile reader expansion in this bounded bridge patch."
+    },
+    {
+      "id": "profile-old-control",
+      "question": "Plot the threshold energy profile of the reaction.",
+      "draw": true
+    },
+    {
+      "id": "reaction-has-threshold",
+      "question": "A reaction has threshold energy. Draw its graph.",
+      "draw": true,
+      "diagnosticRoutes": [
+        "direct",
+        "schematic",
+        "ordinary",
+        "lastResort"
+      ],
+      "deferredReason": "CF4 energy-role reader interprets an unvalued role/request as supplied input and declines. Desired positive oracle preserved; no profile reader expansion in this bounded bridge patch."
+    },
+    {
+      "id": "reaction-prefix",
+      "question": "For a reaction, the threshold energy diagram is required. Draw it.",
+      "draw": true,
+      "diagnosticRoutes": [
+        "direct",
+        "schematic",
+        "ordinary",
+        "lastResort"
+      ],
+      "deferredReason": "CF4 energy-role reader interprets an unvalued role/request as supplied input and declines. Desired positive oracle preserved; no profile reader expansion in this bounded bridge patch."
+    },
+    {
+      "id": "collector-threshold-graph",
+      "question": "The collector has a threshold energy of 2 eV. Draw its threshold energy graph.",
+      "draw": false
+    },
+    {
+      "id": "collector-threshold-diagram",
+      "question": "Draw the threshold energy diagram of the collector.",
+      "draw": false
+    },
+    {
+      "id": "metal-threshold-curve",
+      "question": "Plot the threshold energy curve of a metal surface.",
+      "draw": false,
+      "diagnosticRoutes": [
+        "lastResort"
+      ],
+      "deferredReason": "CF4 last-resort analytic-axes fallback already admits this non-reaction request; false draw oracle retained. The reaction family itself must keep refusing."
+    },
+    {
+      "id": "ownerless-threshold-graph",
+      "question": "Plot the threshold energy graph.",
+      "draw": false,
+      "diagnosticRoutes": [
+        "lastResort"
+      ],
+      "deferredReason": "CF4 last-resort analytic-axes fallback already admits this non-reaction request; false draw oracle retained. The reaction family itself must keep refusing."
+    },
+    {
+      "id": "photoelectric-threshold-no-reaction",
+      "question": "The work function of sodium is 2.3 eV. A collector has a threshold energy of 2 eV. Draw the photoelectric diagram.",
+      "draw": false
+    },
+    {
+      "id": "forward-reaction-graph",
+      "question": "Show the threshold energy graph of the forward reaction.",
+      "draw": true,
+      "diagnosticRoutes": [
+        "direct",
+        "schematic",
+        "ordinary",
+        "lastResort"
+      ],
+      "deferredReason": "CF4 energy-role reader interprets an unvalued role/request as supplied input and declines. Desired positive oracle preserved; no profile reader expansion in this bounded bridge patch."
+    },
+    {
+      "id": "reverse-reaction-curve",
+      "question": "Illustrate the threshold energy curve for a reverse reaction.",
+      "draw": true,
+      "diagnosticRoutes": [
+        "direct",
+        "schematic",
+        "ordinary",
+        "lastResort"
+      ],
+      "deferredReason": "CF4 energy-role reader interprets an unvalued role/request as supplied input and declines. Desired positive oracle preserved; no profile reader expansion in this bounded bridge patch."
+    },
+    {
+      "id": "unqualified-graph-with-article",
+      "question": "Represent a threshold energy graph for the reaction.",
+      "draw": true
+    },
+    {
+      "id": "unqualified-curve-for-reaction",
+      "question": "Show the threshold energy curve for a reaction.",
+      "draw": true
+    },
+    {
+      "id": "represent-unread-threshold",
+      "question": "Represent a threshold energy graph for the reaction. The threshold energy is unreadable kJ.",
+      "draw": false
+    },
+    {
+      "id": "represent-damaged-unit",
+      "question": "Represent a threshold energy graph for the reaction. The threshold energy is 20 kg.",
+      "draw": false
+    }
+  ]
+}

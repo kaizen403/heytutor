@@ -40,7 +40,7 @@ const DRAW_CUE = /\b(?:draw|sketch|plot|show|represent|illustrate|depict)\b|\bdi
 /** An unqualified threshold is not itself a reaction-coordinate model. */
 function thresholdHasReactionOwner(stem: string): boolean {
   return PROFILE_REACTANT_CUE.test(stem) || PROFILE_PRODUCT_CUE.test(stem)
-    || /\bthreshold\s+energy\s+(?:of|for)\s+(?:(?:the|a|an|forward|reverse|backward)\s+)*reaction\b/.test(stem)
+    || /\bthreshold\s+energy\s+(?:(?:graph|diagram|curve|profile)\s+)?(?:of|for)\s+(?:(?:the|a|an|forward|reverse|backward)\s+)*reaction\b/.test(stem)
     || /\b(?:for|in)\s+(?:(?:the|a|an|forward|reverse|backward)\s+)*reaction\s*[,;:]?\s*(?:the\s+)?threshold\s+energy\b/.test(stem)
     || /\breaction\s+(?:has|with)\s+(?:(?:a|the)\s+)?threshold\s+energy\b/.test(stem);
 }
@@ -323,7 +323,7 @@ function profileEnergyReferenceOnly(body: string, start: number, end: number, ow
   const before = body.slice(0,start);
   const payload = body.slice(end,ownerEnd);
   const requestPrefix = before.split(/[;!?\n]|\.(?=\s|$)/).at(-1)!;
-  if (/^\s*(?:(?:draw|sketch|plot|show|illustrate|depict|display)\s+)?(?:(?:the|an?|its)\s+)?$/i.test(requestPrefix)
+  if (/^\s*(?:(?:draw|sketch|plot|show|represent|illustrate|depict|display)\s+)?(?:(?:the|an?|its)\s+)?$/i.test(requestPrefix)
     && /^\s+(?:diagram|profile|graph|curve)(?:\s+(?:of|for)\s+(?:(?:the|an?)\s+)?(?:(?:exothermic|endothermic)\s+)?reaction)?\s*$/i.test(payload)) return true;
   if (payload.trim() === "" && /\b(?:find|calculate|compute|determine|mark|show)\s+(?:(?:the|an?|its)\s+)*$/i.test(before)) return true;
   if (payload.trim() === "" && /\bwithout\s+changing\s*$/i.test(before)) return true;
