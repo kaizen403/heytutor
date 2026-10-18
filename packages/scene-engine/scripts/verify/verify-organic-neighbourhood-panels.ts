@@ -45,8 +45,8 @@ const cases: Case[] = [
     name: "real-carbonyl-neighbours-and-planarity",
     question: "Draw hexanal and hexan-2-one so that the three atoms directly attached to each carbonyl carbon are explicit. Mark the approximately trigonal-planar carbonyl centres and show which has a carbonyl-bound H and which has two carbon substituents.",
     panels: [
-      { name: "hexanal", smiles: "CCCCCC=O", labels: ["aldehyde", "carbonyl H", "sp2", "trigonal planar", "120"], carbons: 1, hydrogens: 1, hybridisation: "sp2" },
-      { name: "hexan-2-one", smiles: "CC(=O)CCCC", labels: ["ketone", "two C substituents", "sp2", "trigonal planar", "120"], carbons: 2, hydrogens: 0, hybridisation: "sp2" },
+      { name: "hexanal", smiles: "CCCCCC=O", labels: ["aldehyde", "carbonyl H", "sp2", "trigonal planar"], carbons: 1, hydrogens: 1, hybridisation: "sp2" },
+      { name: "hexan-2-one", smiles: "CC(=O)CCCC", labels: ["ketone", "two C substituents", "sp2", "trigonal planar"], carbons: 2, hydrogens: 0, hybridisation: "sp2" },
     ],
   },
   {
@@ -70,8 +70,8 @@ const cases: Case[] = [
     name: "fresh-carbonyl-chain-length-and-position",
     question: "Draw butanal and pentan-3-one so that the atoms attached to each carbonyl carbon are explicit. Show the trigonal-planar centres and distinguish the carbonyl-bound H from the two carbon substituents.",
     panels: [
-      { name: "butanal", smiles: "CCCC=O", labels: ["aldehyde", "carbonyl H", "sp2", "120"], carbons: 1, hydrogens: 1, hybridisation: "sp2" },
-      { name: "pentan-3-one", smiles: "CCC(=O)CC", labels: ["ketone", "two C substituents", "sp2", "120"], carbons: 2, hydrogens: 0, hybridisation: "sp2" },
+      { name: "butanal", smiles: "CCCC=O", labels: ["aldehyde", "carbonyl H", "sp2", "trigonal planar"], carbons: 1, hydrogens: 1, hybridisation: "sp2" },
+      { name: "pentan-3-one", smiles: "CCC(=O)CC", labels: ["ketone", "two C substituents", "sp2", "trigonal planar"], carbons: 2, hydrogens: 0, hybridisation: "sp2" },
     ],
   },
 ];
@@ -140,6 +140,9 @@ for (const row of cases) check(row.name, () => {
     };
     for (const atom of [model.site.atom, model.site.boundAtom, ...model.site.carbonNeighbours]) visibleLabel(`m${index}_a${atom}`);
     if (source.kind === "carbonyl") {
+      const panelText = result.renderScene.primitives.filter((primitive) => primitive.groupId === `m${index}_group` && primitive.kind === "label").map((primitive) => primitive.text ?? "").join(" ");
+      assert(normalized(panelText).includes(normalized("trigonal planar")), "qualitative carbonyl geometry remains visible");
+      assert(!/\d+(?:\.\d+)?\s*(?:deg\b|°)/iu.test(panelText), "qualitative requests must not add an unsolicited numeric angle card");
       const point = (id: string): { x: number; y: number } => {
         const found = raw.constructions.find((construction) => construction.outputs.includes(`${id}_p`));
         assert(found && typeof found.inputs.x === "number" && typeof found.inputs.y === "number", `missing rendered anchor ${id}`);
