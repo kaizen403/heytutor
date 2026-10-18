@@ -27,8 +27,8 @@ if (process.argv.includes("--preflight-resource")) {
   for (const length of [1999, 2000, 2001, 8000]) {
     const prefix = "Graph x<4 on a number line. Explain patiently; ";
     const pumps = {
-      nativeComparisons: (prefix + "x<4; ".repeat(length)).slice(0, length),
-      nativeComparisonNewlines: (prefix + "x<4;\n".repeat(length)).slice(0, length),
+      nativeComparisons: (prefix + "x<4; ".repeat(Math.floor((length - prefix.length) / "x<4; ".length))).padEnd(length, " "),
+      nativeComparisonNewlines: (prefix + "x<4;\n".repeat(Math.floor((length - prefix.length) / "x<4;\n".length))).padEnd(length, " "),
       nativeBareReferences: (prefix + "x and ".repeat(length)).slice(0, length),
       coefficientProperties: (prefix + "The coefficients of x are positive; ".repeat(length)).slice(0, length),
       longUnknownProse: (prefix + "A".repeat(length)).slice(0, length),
