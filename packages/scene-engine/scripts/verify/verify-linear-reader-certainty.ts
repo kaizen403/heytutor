@@ -82,12 +82,13 @@ for (const [i, question] of [uncertain[0]!, uncertain[1]!, uncertain[11]!, uncer
   const result = compileSceneDocument(documentFor(question, "number_line_set", { variable: "x", expression: difference }));
   assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
 });
-// Final-review18Oct13:40 supersedes these historical no-veto positives:
-// an unproved opposite/false request cannot erase the literal signed source
-// comparison. Its own exact/complement proof must complete before admission.
+// Unknown polarity prose cannot erase the literal signed source comparison.
+// The independently proved opposite-to unary program retains its original
+// complete positive; the other two forms still lack a complete scope proof.
 for (const [i, question] of [uncertain[7]!, uncertain[8]!, uncertain[14]!].entries()) check(`uncertain-valid-planner-side-${i + 1}`, () => {
   const result = compileSceneDocument(documentFor(question, "linear_half_plane", { variables: ["x", "y"], inequality: "x+y>4" }));
-  assert.ok(!result.ok && result.report.issues.some(issue => issue.code === "linear_source_mismatch"));
+  if (i === 0) assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  else assert.ok(!result.ok && result.report.issues.some(issue => issue.code === "linear_source_mismatch"));
 });
 check("uncertain-valid-planner-symmetric-difference", () => {
   const a = { intersection: [{ inequality: "x>=1" }, { inequality: "x<=5" }] };
@@ -456,12 +457,10 @@ for (const [id, question, operator, inputs] of [
 ] as Array<[string, string, string, Record<string, unknown>]>) check(`unproved-source-defers-${id}`, () => {
   assert.equal(buildLinearSourceDocument(question), null);
   const result = compileSceneDocument(documentFor(question, operator, inputs));
-  if (id === "double-complement") {
-    assert.ok(!result.ok && result.report.issues.some(issue => issue.code === "linear_source_mismatch"), "the null-reader Boolean case now fails closed");
-  } else {
-    assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
-    assert.ok(!result.renderScene.primitives.some(primitive => primitive.provenance?.linearSourceNames), "Unproved requests supply no inferred source names");
-  }
+  // Complete unary polarity is independently corroborated without granting
+  // the uncertain reader permission to invent a figure or source names.
+  assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
+  assert.ok(!result.renderScene.primitives.some(primitive => primitive.provenance?.linearSourceNames), "Unproved requests supply no inferred source names");
 });
 
 const proseSystems = [
