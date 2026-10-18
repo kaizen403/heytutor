@@ -851,6 +851,14 @@ function readRaoult(stem: string, _quantities: readonly ChemPlanQuantity[]): Rao
   const declarations = [...pairDeclarations,...singleDeclarations,...symbolicDeclarations];
   const componentNames = new Set([...pairDeclarations.flatMap(match=>[match[1]!,match[2]!]),
     ...singleDeclarations.map(match=>match[1]!),...symbolicDeclarations.map(match=>match[1]!)].map(who=>who.toLowerCase()));
+  // A following phase noun phrase owns the liquid composition, rather than
+  // being a physical unit. Retain its original span; other phases do not
+  // authorize this liquid-x operator.
+  const compositionPhase = (scalarEnd:number) => {
+    const phase = /^\s+(?:in|for)\s+(?:(?:the|an?)\s+)?(?:([a-z]+)\s+)?(phase|solution|mixture|liquid|vapou?r)\b/i.exec(body.slice(scalarEnd));
+    return phase ? {start:scalarEnd,end:scalarEnd+phase[0].length,
+      liquid:phase[1] ? /^liquid$/i.test(phase[1]) && /^(?:phase|solution|mixture)$/i.test(phase[2]!) : /^(?:solution|mixture|liquid)$/i.test(phase[2]!)} : null;
+  };
   const fraction = `(${CHEMISTRY_SCALAR_PATTERN})`;
   const compositionPatterns: Array<{ pattern: RegExp; nameGroup:number; valueGroup:number; valueFirst?:boolean }> = [
     { pattern: new RegExp(`mole fraction of ${COMPONENT_FILLER}${name}(?: in (?:the )?(?:liquid|solution)(?: phase)?)?\\s*(?:is|=|:|of)?\\s*${fraction}`, "gid"), nameGroup:1, valueGroup:2 },
@@ -862,9 +870,12 @@ function readRaoult(stem: string, _quantities: readonly ChemPlanQuantity[]): Rao
     const value = matchedChemistryScalar(stem,match,candidate.valueGroup);
     // The value-first form owns the following "mole fraction" noun phrase.
     // Other forms must not hide a supplied foreign unit after their scalar.
-    const literal = candidate.valueFirst ? null : readChemistryLiteral({question:stem,scalarSpan:{start:span[0],end:span[1]},dimension:"dimensionless",targetUnit:"1"});
+    const phase = compositionPhase(span[1]);
+    const literal = candidate.valueFirst ? null : readChemistryLiteral({question:stem,scalarSpan:{start:span[0],end:span[1]},
+      ...(phase ? {within:{start:span[0],end:phase.start}} : {}),dimension:"dimensionless",targetUnit:"1"});
     return {start:match.index!,name:match[candidate.nameGroup]!.toLowerCase(),nameSpan:match.indices![candidate.nameGroup]!,
-      value:value !== null && (candidate.valueFirst || literal?.ok && chemistryCanonicalValuesAgree(literal.reading.value,value)) ? value : NaN};
+      scalarSpan:{start:span[0],end:span[1]},valueFirst:!!candidate.valueFirst,phase,
+      value:value !== null && (!phase || phase.liquid) && (candidate.valueFirst || literal?.ok && chemistryCanonicalValuesAgree(literal.reading.value,value)) ? value : NaN};
   }));
   // Inventory owners independently of successful numeric matches. An unread
   // sibling is supplied-invalid, while an asked-for noun remains absent.
@@ -878,8 +889,9 @@ function readRaoult(stem: string, _quantities: readonly ChemPlanQuantity[]): Rao
     const sentence = /[;!?\n]|\.(?=\s|$)/.exec(body.slice(cue.index!+cue[0].length,next));
     const end = sentence ? cue.index!+cue[0].length+sentence.index : next;
     const after = new RegExp(cue[0].replace(/[.*+?^${}()|[\]\\]/g,"\\$&"));
+    const composition = compositions.find(value=>value.nameSpan[0]===cue.indices![1]![0] && value.nameSpan[1]===cue.indices![1]![1]);
     const read = readChemistryQuantityDeclaration({question:stem,after,cueCaseSensitive:true,
-      within:{start:cue.index!,end},dimension:"dimensionless",targetUnit:"1",owner:`liquid mole fraction of ${cue[1]}`});
+      within:{start:cue.index!,end:composition?.phase ? Math.min(end,composition.phase.start) : end},dimension:"dimensionless",targetUnit:"1",owner:`liquid mole fraction of ${cue[1]}`});
     if (read.state === "invalid") return null;
     if (read.state === "valid" && (!componentNames.has(cue[1]!.toLowerCase())
       || !compositions.some(value=>value.nameSpan[0]===cue.indices![1]![0] && value.nameSpan[1]===cue.indices![1]![1]
@@ -944,6 +956,128 @@ function readRaoult(stem: string, _quantities: readonly ChemPlanQuantity[]): Rao
   if (!a.ok || !b.ok) return null;
   first.value = a.reading; second.value = b.reading;
   const names: [string, string] = [first.name, second.name];
+  const molePairs = new RegExp(`${number}\\s*mol(?:e|es)?\\s+(?:of\\s+)?${COMPONENT_FILLER}${name}[^.]{0,60}?${number}\\s*mol(?:e|es)?\\s+(?:of\\s+)?${COMPONENT_FILLER}${name}`, "gid");
+  const moleReadings: Array<{match:RegExpMatchArray;value:number}> = [];
+  for (const moles of sourceMatches(molePairs)) {
+    const firstName = moles[2]!.toLowerCase(); const secondName = moles[4]!.toLowerCase();
+    const firstComponent = bindings.find(binding=>binding.name===firstName);
+    const secondComponent = bindings.find(binding=>binding.name===secondName);
+    if (!firstComponent || !secondComponent || firstComponent === secondComponent) return null;
+    const firstMoles = matchedChemistryComponentAmount(stem,moles,1,2,firstComponent);
+    const secondMoles = matchedChemistryComponentAmount(stem,moles,3,4,secondComponent);
+    if (firstMoles === null || secondMoles === null || firstMoles < 0 || secondMoles < 0 || firstMoles + secondMoles <= 0) return null;
+    const value = firstName === names[0] && secondName === names[1] ? firstMoles/(firstMoles+secondMoles)
+      : firstName === names[1] && secondName === names[0] ? secondMoles/(firstMoles+secondMoles) : null;
+    if (value === null) return null;
+    moleReadings.push({match:moles,value});
+  }
+  // A composition authorizes one state only after every original scalar in
+  // its local argument is consumed. Independent typed owners end that
+  // argument; an unread or merely unparsed tail does not establish one.
+  const scalarTokens = sourceMatches(new RegExp(`(${CHEMISTRY_SCALAR_PATTERN})`,"gd")).map(token=>({
+    start:token.indices![1]![0]+token[1]!.length-token[1]!.trimStart().length,
+    end:token.indices![1]![1]-(token[1]!.length-token[1]!.trimEnd().length),
+  })).filter(span=>!/[A-Za-z0-9_.]/.test(stem[span.start-1] ?? ""));
+  type CompositionRole = {kind:"quantity"|"notation";span:ChemistrySpan;scalars:ChemistrySpan[]};
+  const capturedSpan = (match:RegExpMatchArray,group:number): ChemistrySpan => {
+    const span = match.indices![group]!; const token = stem.slice(span[0],span[1]);
+    return {start:span[0]+token.length-token.trimStart().length,end:span[1]-(token.length-token.trimEnd().length)};
+  };
+  const roles: CompositionRole[] = declarations.map(match=>({kind:"quantity",span:{start:match.index!,end:match.index!+match[0].length},
+    scalars:(pairDeclarations.includes(match) ? [3,5] : [2]).map(group=>capturedSpan(match,group))}));
+  const temperatures = sourceMatches(/\b(?:at(?:\s+(?:the\s+)?temperature)?|temperature|T)\b/gid).flatMap(cue=>{
+    const sentence = /[;!?\n]|\.(?=\s|$)/.exec(body.slice(cue.index!+cue[0].length));
+    const end = sentence ? cue.index!+cue[0].length+sentence.index : scope.end;
+    const after = new RegExp(cue[0].replace(/[.*+?^${}()|[\]\\]/g,"\\$&"));
+    const read = readChemistryQuantityDeclaration({question:stem,after,cueCaseSensitive:true,
+      within:{start:cue.index!,end},dimension:"temperature",targetUnit:"K",owner:"solution temperature"});
+    return read.state === "valid" ? [{start:cue.index!,span:read.reading.source.span}] : [];
+  });
+  roles.push(...temperatures.map(owner=>({kind:"quantity" as const,span:{start:owner.start,end:owner.span.end},scalars:[owner.span]})),
+    ...moleReadings.map(owner=>({kind:"quantity" as const,span:{start:owner.match.index!,end:owner.match.index!+owner.match[0].length},
+      scalars:[capturedSpan(owner.match,1),capturedSpan(owner.match,3)]})));
+  // Discover count owners before reading a numeral: an unknown or damaged
+  // count cannot disappear just because its numeric pattern did not match.
+  for (const cue of sourceMatches(/\b(?:the\s+)?(?:mixture|solution)\s+(?:contains|has|consists\s+of)\s*/gid)) {
+    const payload = cue.index!+cue[0].length;
+    const next = [...compositionOwners.map(owner=>owner.index!),...roles.map(owner=>owner.span.start)]
+      .filter(start=>start >= payload).sort((a,b)=>a-b)[0] ?? scope.end;
+    const sentence = /[;!?\n]|\.(?=\s|$)/.exec(body.slice(payload,next));
+    const end = sentence ? payload+sentence.index : next;
+    const head = /\b(?:liquid\s+)?components?\b/i.exec(body.slice(payload,end));
+    if (!head) continue;
+    const countEnd = payload+head.index;
+    if (!stem.slice(payload,countEnd).trim()) continue;
+    const read = readChemistryQuantityDeclaration({question:stem,after:/^/,
+      within:{start:payload,end:countEnd},dimension:"dimensionless",targetUnit:"1",owner:"solution component count"});
+    if (read.state !== "valid" || !Number.isInteger(read.reading.value) || read.reading.value !== bindings.length) return null;
+    roles.push({kind:"quantity",span:{start:cue.index!,end:countEnd+head[0].length},scalars:[read.reading.source.span]});
+  }
+  // Complete parenthetical document references own only their integral ID.
+  // Other numbers or property declarations in/after an aside remain checked.
+  const documentReferences = sourceMatches(new RegExp(`\\(\\s*(?:[a-z]+\\s+)*(?:question|problem)\\s+${number}\\s*\\)`,"gid"));
+  for (const reference of documentReferences) {
+    const value = matchedChemistryScalar(stem,reference,1);
+    if (value === null || !Number.isInteger(value) || value <= 0) return null;
+  }
+  roles.push(...documentReferences.map(reference=>({kind:"notation" as const,
+    span:{start:reference.index!,end:reference.index!+reference[0].length},scalars:[capturedSpan(reference,1)]})));
+  const ownsScalar = (role:CompositionRole,scalar:ChemistrySpan): boolean => role.scalars.some(span=>span.start <= scalar.start && span.end >= scalar.end);
+  const notationScalar = (scalar:ChemistrySpan): boolean => roles.some(role=>role.kind === "notation" && ownsScalar(role,scalar));
+  const independentOwners = [...compositionOwners.map(owner=>owner.index!),...roles.filter(role=>role.kind === "quantity").map(role=>role.span.start)];
+  const coordinated = /^\s*(?:,\s*(?:(?:and|or)\b\s*)?|(?:and|or)\b\s*)[a-z\s]*$/i;
+  for (const composition of compositions) {
+    if (composition.valueFirst) {
+      let start = composition.scalarSpan.start;
+      while (true) {
+        const prefix = stem.slice(scope.start,start);
+        if (!/(\S+)\s*(?:,\s*(?:(?:and|or)\b\s*)?|\b(?:and|or)\s*)[a-z\s]*$/i.test(prefix)) break;
+        const previous = scalarTokens.filter(token=>token.end <= start).at(-1);
+        // One source-role ledger governs both directions. Document IDs
+        // are transparent notation; they never hide an earlier alternative.
+        const role = previous && roles.find(owner=>ownsScalar(owner,previous) && owner.span.end <= start
+          && coordinated.test(stem.slice(owner.span.end,start)));
+        if (role) {
+          if (chemistryQuantityPayloadPresent(stem.slice(role.span.end,start))) return null;
+          if (role.kind === "quantity") break;
+          start = role.span.start;
+          continue;
+        }
+        if (!previous || !coordinated.test(stem.slice(previous.end,start))
+          || chemistryQuantityPayloadPresent(stem.slice(previous.end,start))) return null;
+        start = previous.start;
+      }
+      // The final adjacent scalar already has the strict matched-scalar
+      // proof and the following dimensionless property noun. Earlier list
+      // members must each pass the original literal reader themselves.
+      for (const scalar of scalarTokens.filter(token=>token.start >= start && token.end <= composition.scalarSpan.start)) {
+        if (notationScalar(scalar)) continue;
+        const read = readChemistryLiteral({question:stem,scalarSpan:scalar,dimension:"dimensionless",targetUnit:"1"});
+        if (!read.ok || !chemistryCanonicalValuesAgree(read.reading.value,composition.value)) return null;
+      }
+    } else {
+      const next = independentOwners.filter(start=>start > composition.scalarSpan.end).sort((a,b)=>a-b)[0] ?? scope.end;
+      const sentence = /[;!?\n]|\.(?=\s|$)/.exec(body.slice(composition.scalarSpan.end,next));
+      const end = sentence ? composition.scalarSpan.end+sentence.index : next;
+      const start = composition.phase?.end ?? composition.scalarSpan.end;
+      for (const scalar of scalarTokens.filter(token=>token.start >= start && token.end <= end)) {
+        if (notationScalar(scalar)) continue;
+        const read = readChemistryLiteral({question:stem,scalarSpan:scalar,within:{start,end},dimension:"dimensionless",targetUnit:"1"});
+        if (!read.ok || !chemistryCanonicalValuesAgree(read.reading.value,composition.value)) return null;
+      }
+      // Inventory supplied unread alternatives as well as successful scalar
+      // matches. A connector before a proved foreign owner has no payload.
+      for (const link of stem.slice(start,end).matchAll(/\b(?:and|or)\b|,/gi)) {
+        const argument = start+link.index!+link[0].length;
+        if (!stem.slice(argument,end).trim()) continue;
+        if (documentReferences.some(reference=>reference.index! >= argument && reference.index!+reference[0].length <= end
+          && !stem.slice(argument,reference.index!).trim() && !stem.slice(reference.index!+reference[0].length,end).trim())) continue;
+        const read = readChemistryQuantityDeclaration({question:stem,after:/^/,
+          within:{start:argument,end},dimension:"dimensionless",targetUnit:"1",owner:`liquid mole fraction of ${composition.name}`});
+        if (read.state !== "valid" && (chemistryQuantityPayloadPresent(stem.slice(argument,end)) || /^or$/i.test(link[0]))) return null;
+      }
+    }
+  }
   let xA: number | null = null;
   const consumeComposition = (value:number): boolean => {
     if (!(value >= 0 && value <= 1) || xA !== null && !chemistryCanonicalValuesAgree(xA,value)) return false;
@@ -963,19 +1097,9 @@ function readRaoult(stem: string, _quantities: readonly ChemPlanQuantity[]): Rao
     if (negated) nonEquimolar = true;
     else if (!consumeComposition(0.5)) return null;
   }
-  const molePairs = new RegExp(`${number}\\s*mol(?:e|es)?\\s+(?:of\\s+)?${COMPONENT_FILLER}${name}[^.]{0,60}?${number}\\s*mol(?:e|es)?\\s+(?:of\\s+)?${COMPONENT_FILLER}${name}`, "gid");
   const consumedAmounts: ChemistrySpan[] = [];
-  for (const moles of sourceMatches(molePairs)) {
-    const firstName = moles[2]!.toLowerCase(); const secondName = moles[4]!.toLowerCase();
-    const firstComponent = bindings.find(binding=>binding.name===firstName);
-    const secondComponent = bindings.find(binding=>binding.name===secondName);
-    if (!firstComponent || !secondComponent || firstComponent === secondComponent) return null;
-    const firstMoles = matchedChemistryComponentAmount(stem,moles,1,2,firstComponent);
-    const secondMoles = matchedChemistryComponentAmount(stem,moles,3,4,secondComponent);
-    if (firstMoles === null || secondMoles === null || firstMoles < 0 || secondMoles < 0 || firstMoles + secondMoles <= 0) return null;
-    const value = firstName === names[0] && secondName === names[1] ? firstMoles/(firstMoles+secondMoles)
-      : firstName === names[1] && secondName === names[0] ? secondMoles/(firstMoles+secondMoles) : null;
-    if (value === null || !consumeComposition(value)) return null;
+  for (const {match:moles,value} of moleReadings) {
+    if (!consumeComposition(value)) return null;
     consumedAmounts.push({start:moles.indices![1]![0],end:moles.indices![2]![1]},
       {start:moles.indices![3]![0],end:moles.indices![4]![1]});
   }

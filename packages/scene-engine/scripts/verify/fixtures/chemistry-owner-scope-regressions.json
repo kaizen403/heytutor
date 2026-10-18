@@ -290,9 +290,9 @@
       "oracle": {}
     },
     {
-      "id": "PRESSURE-invalid-mm\u00b2",
+      "id": "PRESSURE-invalid-mm²",
       "family": "chem_solutions",
-      "question": "Vapour pressures of pure A and B are 200 mm\u00b2 and 100 mm\u00b2. Equimolar liquids form an ideal solution. Draw the Raoult graph and find total pressure.",
+      "question": "Vapour pressures of pure A and B are 200 mm² and 100 mm². Equimolar liquids form an ideal solution. Draw the Raoult graph and find total pressure.",
       "expectedDraw": false,
       "oracle": {}
     },
@@ -603,7 +603,7 @@
     {
       "id": "S7-PRESSURE-damaged-power",
       "family": "chem_solutions",
-      "question": "Vapour pressures of solvents A and B are 200 mm and 100 mm\u00b2. Equimolar liquids form an ideal solution. Draw the Raoult graph and find total pressure.",
+      "question": "Vapour pressures of solvents A and B are 200 mm and 100 mm². Equimolar liquids form an ideal solution. Draw the Raoult graph and find total pressure.",
       "expectedDraw": false,
       "oracle": {}
     },
@@ -1084,6 +1084,466 @@
       "oracle": {
         "totalPressureTorr": 150
       }
+    },
+    {
+      "id": "SOURCE9-FINAL-composition-alternatives",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, mole fraction of A is 0.5 or 0.7. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE9-FINAL-unrelated-temperature",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, mole fraction of A is 0.5 at temperature 300 K. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE9-TAIL-and-sibling",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, mole fraction of A is 0.5 and 0.7. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE9-TAIL-symbolic-alternative",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, x_A = 0.5 or 0.7. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE9-TAIL-punctuated-alternative",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, mole fraction of A is 0.5, or 0.7. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE9-TAIL-component-B",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, mole fraction of B is 0.5 or 0.3. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE9-TAIL-value-first",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The liquid has 0.5 or 0.7 mole fraction of A. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE9-KEEP-independent-temperature",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, mole fraction of A is 0.5 and temperature is 300 K. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE9-KEEP-independent-component",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, mole fraction of A is 0.5 and mole fraction of B is 0.5. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE9-KEEP-composition-before-pressure",
+      "family": "chem_solutions",
+      "question": "The mole fraction of A is 0.5. Vapour pressures of pure A and B are 200 torr and 100 torr. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE9-KEEP-value-first-order",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The liquid has 0.5 mole fraction of A. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE9-KEEP-question-number-and-component-count",
+      "family": "chem_solutions",
+      "question": "Question 17. Vapour pressures of pure A and B are 200 torr and 100 torr. The solution has 2 liquid components. The mole fraction of A is 0.5. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE9-unread-alternative",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The mole fraction of A is 0.5 or unknown. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE9-unit-alternative",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The mole fraction of A is 0.5 or 0.7 kg. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE9-target-after-composition",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The mole fraction of A is 0.5. Draw the Raoult graph for an ideal solution and find the mole fraction of B.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE9-value-first-temperature",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. At 300 K the liquid has 0.5 mole fraction of A. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE9-PHASE-exact",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Mole fraction of A is 0.5 in the liquid phase. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "family": "chem_solutions",
+      "kind": "raoult",
+      "expectedTotalMmHg": 150,
+      "science": "Typed liquid-phase modifier qualifies this liquid composition.",
+      "scope": "Source-owner phase transfer; vapour/unknown safe-refusal required by bounded liquid-composition path.",
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE9-PHASE-no-article",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Mole fraction of A is .5 in liquid phase. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "family": "chem_solutions",
+      "kind": "raoult",
+      "expectedTotalMmHg": 150,
+      "science": "Same liquid-phase role without a determiner.",
+      "scope": "Source-owner phase transfer; vapour/unknown safe-refusal required by bounded liquid-composition path.",
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE9-PHASE-liquid-solution",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Mole fraction of A is .5 in the liquid solution. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "family": "chem_solutions",
+      "kind": "raoult",
+      "expectedTotalMmHg": 150,
+      "science": "The solution is the liquid mixture governed by the stated pure vapour pressures.",
+      "scope": "Source-owner phase transfer; vapour/unknown safe-refusal required by bounded liquid-composition path.",
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE9-PHASE-liquid-mixture",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Mole fraction of A is .5 in the liquid mixture. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "family": "chem_solutions",
+      "kind": "raoult",
+      "expectedTotalMmHg": 150,
+      "science": "Liquid-mixture modifier preserves xA=.5.",
+      "scope": "Source-owner phase transfer; vapour/unknown safe-refusal required by bounded liquid-composition path.",
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE9-PHASE-for-liquid",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Mole fraction of A is .5 for the liquid phase. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "family": "chem_solutions",
+      "kind": "raoult",
+      "expectedTotalMmHg": 150,
+      "science": "The source explicitly assigns the fraction to the liquid phase.",
+      "scope": "Source-owner phase transfer; vapour/unknown safe-refusal required by bounded liquid-composition path.",
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE9-PHASE-wrong-unit",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Mole fraction of A is .5 kg in the liquid phase. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "family": "chem_solutions",
+      "kind": "raoult",
+      "expectedTotalMmHg": null,
+      "science": "A mass is not a mole fraction; phase words cannot waive strict units.",
+      "scope": "Source-owner phase transfer; vapour/unknown safe-refusal required by bounded liquid-composition path.",
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE9-PHASE-unknown",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Mole fraction of A is .5 in an unknown phase. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "family": "chem_solutions",
+      "kind": "raoult",
+      "expectedTotalMmHg": null,
+      "science": "The liquid/vapour owner is unresolved; do not assume a liquid composition.",
+      "scope": "Source-owner phase transfer; vapour/unknown safe-refusal required by bounded liquid-composition path.",
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE9-PHASE-vapour",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Mole fraction of A is .5 in the vapour phase. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "family": "chem_solutions",
+      "kind": "raoult",
+      "expectedTotalMmHg": null,
+      "science": "Vapour composition yA=.5 is not liquidxA=.5 and cannot be relabelled/borrowed by the existing liquid-fraction projection.",
+      "scope": "Source-owner phase transfer; vapour/unknown safe-refusal required by bounded liquid-composition path.",
+      "scientificDesiredDraw": true,
+      "scientificExpectedLiquidComposition": 0.3333333333333333,
+      "scientificExpectedTotalMmHg": 133.33333333333334,
+      "boundedSafetyPolicy": "Current liquid-x parser must decline this supported-domain question unless it separately derives liquidx from statedvapoury. Do not lower scientific capability gold to a universal-refusal claim.",
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE9-CONNECTOR-named-approximately",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, mole fraction of A is 0.5 and approximately 0.7. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "family": "chem_solutions",
+      "kind": "raoult",
+      "expectedTotalMmHg": null,
+      "science": "Approximately.7 is still another same-owner supplied value, incompatible with a chosen.5 state.",
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE9-CONNECTOR-value-first-approximately",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The liquid has 0.5 and approximately 0.7 mole fraction of A. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "family": "chem_solutions",
+      "kind": "raoult",
+      "expectedTotalMmHg": null,
+      "science": "Value-first argument has two same-owner values; qualification does not erase the first.",
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE9-CONNECTOR-symbolic-independent-temperature",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, x_A = 0.5 and temperature is 300 K. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "family": "chem_solutions",
+      "kind": "raoult",
+      "expectedTotalMmHg": 150,
+      "science": "Temperature has an independent typed owner; xA=.5 andtotal150 remain supplied.",
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE9-phase-tail-alternative",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Mole fraction of A is 0.5 in the liquid phase or 0.7. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE9-phase-for-vapour",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Mole fraction of A is 0.5 for the vapour phase. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE9-TAIL-later-changing-state",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, mole fraction of A is 0.5 and later 0.7. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "family": "chem_solutions",
+      "kind": "raoult",
+      "expectedTotalMmHg": null,
+      "science": "The source supplies two successive composition states. A one-state projection cannot silently showonly.5; independently representbothorwhole-refuse.",
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE9-KEEP-independent-temperature",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100, mole fraction of A is 0.5 and temperature is 300 K. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "family": "chem_solutions",
+      "kind": "raoult",
+      "expectedTotalMmHg": 150,
+      "science": "Temperature has its own dimension/owner; molefraction remains.5.",
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE9-KEEP-value-first-temperature-prefix",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The liquid is at temperature 300 K and has 0.5 mole fraction of A. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "family": "chem_solutions",
+      "kind": "raoult",
+      "expectedTotalMmHg": 150,
+      "science": "300K is explicitly temperature, and the value-first mole fraction.5 is independent; totalpressure150torr.",
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE9-later-unit",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Mole fraction of A is 0.5 and later 0.7 kg. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "family": "chem_solutions",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE9-later-unread",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Mole fraction of A is 0.5 and later unknown. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "family": "chem_solutions",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE9-same-owner-agree",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Mole fraction of A is 0.5 and 0.5. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "family": "chem_solutions",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE9-supported-mole-owner-same-clause",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Mole fraction of A is 0.25 and the mixture contains 1 mol of A and 3 mol of B. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 125
+      }
+    },
+    {
+      "id": "SOURCE9-SIDE-mixture-component-count",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. x_A = 0.5 and the mixture contains 2 components. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "family": "chem_solutions",
+      "kind": "raoult",
+      "expectedTotalMmHg": 150,
+      "science": "2 is the count of mixture components, consistent with binaryA/B, rather than another mole fraction. xA=.5 yields150torr.",
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE9-SIDE-question-reference-after-fraction",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. x_A = 0.5 (as stated in question 17). Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "family": "chem_solutions",
+      "kind": "raoult",
+      "expectedTotalMmHg": 150,
+      "science": "17 identifies a referenced question and grants no physical scalar authority. The independently supplied mole fraction.5 yields150torr.",
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE9-count-three",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Mole fraction of A is .5 and the mixture contains 3 components. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "family": "chem_solutions",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE9-count-unit",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Mole fraction of A is .5 and the mixture contains 2 kg components. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "family": "chem_solutions",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE9-reference-other-id",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Mole fraction of A is .5 (as stated in problem 23). Draw the Raoult graph for an ideal solution and find total pressure.",
+      "family": "chem_solutions",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE9-reference-then-conflict",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Mole fraction of A is .5 (as stated in question 17) and x_A=.7. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "family": "chem_solutions",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE9-reference-then-alternative",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Mole fraction of A is .5 (as stated in question 17) or .7. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "family": "chem_solutions",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE9-GAP-value-first-unread-equal",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The liquid has 0.5 or unknown 0.5 mole fraction of A. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "family": "chem_solutions",
+      "kind": "raoult",
+      "expectedTotalMmHg": null,
+      "science": "An unread same-owner alternative argument is not resolved by the two equal numeric tokens; complete supplied payload must be consumed or refused. This is invalid-source policy, not a claim that0.5cannotnumericallyequal0.5.",
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE9-GAP-value-first-agreeing",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The liquid has 0.5 or 0.5 mole fraction of A. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "family": "chem_solutions",
+      "kind": "raoult",
+      "expectedTotalMmHg": 150,
+      "science": "Both complete source alternatives specify the same mole fraction0.5 and identical pressure150torr; same-owner agreement can collapse to one state.",
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE9-SYMMETRY-mole-pair-before-fraction",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The mixture contains 1 mol of A and 3 mol of B and has 0.25 mole fraction of A. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "family": "chem_solutions",
+      "kind": "raoult",
+      "expectedTotalMmHg": 125,
+      "expectedCompositionX": 0.25,
+      "science": "Complete1:3componentamounts and statedliquidxA=.25agree, yielding125torr. The prior component amount is not an unread dimensionless list member.",
+      "oracle": {
+        "totalPressureTorr": 125
+      }
+    },
+    {
+      "id": "SOURCE9-SYMMETRY-document-reference-before-fraction",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Use the composition reference (question 17) and take 0.5 mole fraction of A. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": true,
+      "family": "chem_solutions",
+      "kind": "raoult",
+      "expectedTotalMmHg": 150,
+      "science": "17 is a complete parenthetical source-reference identifier, while the independently supplied value-first fraction.5 gives150torr.",
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE9-ORDER-count-wrong-unit-before-fraction",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The ideal mixture contains 2 kg components. x_A = 0.5. Draw the Raoult graph for an ideal solution and find total pressure.",
+      "expectedDraw": false,
+      "family": "chem_solutions",
+      "kind": "raoult",
+      "expectedTotalMmHg": null,
+      "science": "The component-count argument supplies a mass unit, not a valid integral component count. Under the supplied-invalid owner contract it cannot become absence merely because it precedes the readable fraction. This is invalid-source admission policy, not a claim that150is numericallyinconsistentwithxA=.5alone.",
+      "oracle": {}
     }
   ]
 }
