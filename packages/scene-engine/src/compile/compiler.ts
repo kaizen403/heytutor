@@ -2884,7 +2884,18 @@ function emptyRenderScene(document: SceneDocument) {
     caption: compileSceneCaption(document),
   };
 }
-function report(document: SceneDocument, issues: SceneIssue[], primitiveCount: number): ValidationReport { return { engineVersion: SCENE_ENGINE_VERSION, valid: !issues.some((issue) => issue.severity === "fatal"), issues, stats: { entityCount: document.entities.length, constructionCount: document.constructions.length, primitiveCount, assertionCount: document.assertions.length } }; }
+function report(document: SceneDocument, issues: SceneIssue[], primitiveCount: number): ValidationReport {
+  // Repair prompts serialize these issues verbatim. Keep the pre-rollout model
+  // input shape when off; proof classifications belong to the opt-in policy.
+  const reportedIssues = isVerifiedPartsEnabled(document) ? issues : issues.map(issue => {
+    if (issue.failureKind === undefined && issue.proofKind === undefined) return issue;
+    const legacyIssue = { ...issue };
+    delete legacyIssue.failureKind;
+    delete legacyIssue.proofKind;
+    return legacyIssue;
+  });
+  return { engineVersion: SCENE_ENGINE_VERSION, valid: !issues.some((issue) => issue.severity === "fatal"), issues: reportedIssues, stats: { entityCount: document.entities.length, constructionCount: document.constructions.length, primitiveCount, assertionCount: document.assertions.length } };
+}
 function first(inputs: Record<string, unknown>, names: string[]): unknown { for (const name of names) if (inputs[name] !== undefined) return inputs[name]; throw new Error(`missing input ${names.join("|")}`); }
 function resolveNumber(value: unknown, quantities: Map<string, Record<string, unknown>>, seen = new Set<unknown>(), depth = 0): number {
   if (depth > 32 || seen.has(value)) throw new Error("numeric reference is cyclic or exceeds depth 32");
@@ -4837,6 +4848,10 @@ function validateDisplayDescendantClaims(document: SceneDocument, geometry: Map<
         document.annotations.some((annotation) => annotation.targetIds.includes(id) && (numericClaim(annotation.text) || annotation.quantityId !== undefined)) ||
         (construction.operator === "label" && numericClaim(construction.inputs.text));
       if (claim && hasDisplayAncestor([id], geometry, document, hasIndependentDisplayMetric)) {
+        if (!isVerifiedPartsEnabled(document)) {
+          issues.push({ code: "invalid_display_derived_claim", message: "A generic descendant of scaled source geometry cannot certify numeric physical values; label its typed source owner", severity: "fatal", entityIds: [id] });
+          continue;
+        }
         const add = (path: string) => issues.push({ code: "invalid_display_derived_claim", message: "A generic descendant of scaled source geometry cannot certify numeric physical values; label its typed source owner", severity: "fatal" as const, failureKind: "proof" as const, entityIds: [id], path });
         document.entities.forEach((entity, index) => { if (entity.id === id && numericClaim(entity.label)) add(`entities[${index}].label`); });
         document.annotations.forEach((annotation, index) => {

@@ -50,6 +50,30 @@ function scene(label: string): SceneDocument {
   };
 }
 const proof = scene("unknown=5 m/s");
+// Pin the pre-yield repair error JSON, including order and one generic issue per
+// output. The richer flag-on diagnostics must not change model inputs off.
+const diagnosticScene = scene("unknown=5 m/s");
+diagnosticScene.annotations = [
+  { id: "first", kind: "label", targetIds: ["v"], text: "unknown=5 m/s" },
+  { id: "second", kind: "label", targetIds: ["v"], text: "other=5 m/s" },
+];
+const diagnosticPaths = ["entities[1].label", "annotations[0].text", "annotations[1].text"];
+const numericProofMessage = "Derived scalar label needs an explicit supported component, magnitude, coordinate, or slope meaning";
+const genericProofMessage = "A generic descendant of scaled source geometry cannot certify numeric physical values; label its typed source owner";
+const legacyDiagnostics = [
+  ...diagnosticPaths.map(path => ({ code: "invalid_derived_value_label", message: numericProofMessage, severity: "fatal", path, entityIds: ["v"] })),
+  { code: "invalid_display_derived_claim", message: genericProofMessage, severity: "fatal", entityIds: ["v"] },
+];
+assert.equal(JSON.stringify(compileSceneDocument(diagnosticScene).report.issues), JSON.stringify(legacyDiagnostics), "default-off repair errors retain main's exact JSON");
+const enrichedDiagnostics = compileSceneDocument(diagnosticScene, { yieldPolicy: "verified_parts" }).report.issues;
+assert.equal(JSON.stringify(enrichedDiagnostics), JSON.stringify([
+  ...diagnosticPaths.map(path => ({ code: "invalid_derived_value_label", message: numericProofMessage, severity: "fatal", failureKind: "proof", path, entityIds: ["v"] })),
+  ...diagnosticPaths.map(path => ({ code: "invalid_display_derived_claim", message: genericProofMessage, severity: "fatal", failureKind: "proof", entityIds: ["v"], path })),
+]), "flag-on repair errors retain each localized proof diagnostic");
+const numericTruth = scene("v=6 m/s");
+assert.equal(compileSceneDocument(numericTruth).report.issues[0]?.failureKind, undefined, "default-off numeric truth retains the old error shape");
+assert.equal(compileSceneDocument(numericTruth, { yieldPolicy: "verified_parts" }).report.issues[0]?.failureKind, "truth", "flag-on numeric truth retains its classification");
+assert.equal(compileSceneDocument(diagnosticScene, { yieldPolicy: "off" }).report.issues.length, 4, "repeat compiles cannot mutate diagnostic inputs");
 assert.equal(compileSceneDocument(proof).ok, false);
 assert.equal(prepareVerifiedParts(proof).document, proof, "off is identity");
 const recovered = prepareVerifiedParts(proof, { enabled: true });
@@ -240,6 +264,8 @@ timedPoint.constructions[0]!.inputs.units = undefined;
 timedPoint.entities[1]!.kind = "point";
 timedPoint.constructions[1]!.inputs.kind = "position";
 delete timedPoint.constructions[1]!.inputs.timeScale;
+assert(compileSceneDocument(timedPoint, { yieldPolicy: "verified_parts" }).report.issues.some(issue => issue.proofKind === "unit_declaration"));
+assert(compileSceneDocument(timedPoint).report.issues.every(issue => issue.failureKind === undefined && issue.proofKind === undefined), "default-off missing-unit errors keep main's shape");
 assert.equal(
   compileSceneDocument(
     prepareVerifiedParts(timedPoint, { enabled: true }).document,
