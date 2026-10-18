@@ -10,6 +10,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { mathToSpeech } from "@heytutor/tutor-core";
 import {
   availableVoiceKeys,
   DEFAULT_SARVAM_SPEAKER,
@@ -216,6 +217,32 @@ assert.equal(sarvamSpeechText("class 10:30 पर, या 9:05, या 4:00"), "
 assert.equal(sarvamSpeechText(".5 metres"), "point five metres");
 assert.equal(sarvamSpeechText("100% efficiency"), "one hundred percent efficiency");
 assert.equal(sarvamSpeechText("q1 and v0x"), "q one and v zero x");
+for (const [input, expected] of [
+  ["speed 10 km/h है", "speed ten kilometers per hour है"],
+  ["speed ten km/h है", "speed ten kilometers per hour है"],
+  ["10km/h और 20 km / h", "ten kilometers per hour और twenty kilometers per hour"],
+  ["60 km/hr, 60 kmph और 60 km/hour", "sixty kilometers per hour, sixty kilometers per hour और sixty kilometers per hour"],
+  ["1 km/h, 1km/hr, one kmph और 1 km/hour", "one kilometer per hour, one kilometer per hour, one kilometer per hour और one kilometer per hour"],
+  ["21 km/h, 0.1 km/hr और twenty one kmph", "twenty one kilometers per hour, zero point one kilometers per hour और twenty one kilometers per hour"],
+  ["velocity one km/h, one hundred and one kmph और one lakh one km/hr", "velocity one kilometer per hour, one hundred and one kilometers per hour और one lakh one kilometers per hour"],
+  ["km/hourglass, xkmph, km/hr_value, km/h²", "km/hourglass, xkmph, km/hr_value, km/h²"],
+  ["km/H, H, h, xkm/h, km/h_value", "km/H, H, h, xkm/h, km/h_value"],
+] as const) {
+  assert.equal(sarvamSpeechText(input), expected, "literal hourly velocity units survive the actual producer normalization");
+  assert.equal(sarvamSpeechText(expected), expected, "normalization is idempotent");
+  const producer = createTtsRelay(hindi);
+  const messages = producer.segment("hour-unit", input, settings);
+  assert.equal(messages.filter(message => message.type === "text").map(message => (message.data as { text: string }).text).join(""), expected, "the WS queue sends the normalized hourly unit, including number-word input");
+}
+for (const [input, expected] of [
+  ["20 m/s", "twenty meters per second"],
+  ["9.8 m/s²", "nine point eight meters per second squared"],
+  ["9.8 m/s^2", "nine point eight meters per second squared"],
+  ["200 N/m", "two hundred newtons per meter"],
+  ["60 km/h²", "sixty kilometers per hour squared"],
+] as const) {
+  assert.equal(sarvamSpeechText(mathToSpeech(input)), expected, "the existing speech pipeline retains compound units and English numbers");
+}
 
 // Long text splits at whitespace under Sarvam's per-message cap.
 const long = Array.from(
@@ -293,7 +320,13 @@ async function verifyHttp(): Promise<void> {
       "RIFF",
     );
 
-    for (const call of calls) {
+    const hourlyNdjson = await requestTts(hindi, { text: "speed 10 km/h है" }, true);
+    assert.equal(JSON.parse((await hourlyNdjson.text()).trim()).isFinal, true);
+    const hourlyWav = await requestTts(hindi, { text: "speed ten km/h है" }, false);
+    assert.equal(Buffer.from(await hourlyWav.arrayBuffer()).subarray(0, 4).toString(), "RIFF");
+    const expectedTexts = ["x equals nine", "x equals nine", "speed ten kilometers per hour है", "speed ten kilometers per hour है"];
+    assert.equal(calls.length, expectedTexts.length);
+    for (const [index, call] of calls.entries()) {
       assert.equal(call.url, "https://api.sarvam.ai/text-to-speech");
       assert.equal(call.headers["api-subscription-key"], KEY);
       assert.equal(
@@ -302,7 +335,7 @@ async function verifyHttp(): Promise<void> {
         "the Sarvam key never goes to ElevenLabs",
       );
       assert.equal(call.headers.Authorization, undefined);
-      assert.equal(call.body.text, "x equals nine");
+      assert.equal(call.body.text, expectedTexts[index]);
       assert.equal(call.body.language_code, "hi-IN");
       assert.equal(call.body.speaker, "ritu");
       assert.equal(call.body.output_audio_codec, "linear16");

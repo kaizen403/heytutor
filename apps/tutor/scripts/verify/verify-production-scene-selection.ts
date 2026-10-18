@@ -154,7 +154,7 @@ for (const apparatus of [
 
 for (const consumer of ["features/tutor-session/hooks/turn/useQuestionHandler.ts", "scripts/lecture-lab/lecturePipeline.ts"]) {
   const source = readFileSync(resolve(process.cwd(), consumer), "utf8");
-  assert(source.includes("selectProductionScene({"), `${consumer}: must call the same final decision`);
+  assert(source.includes("selectProductionScene("), `${consumer}: must call the same final decision`);
   assert(source.includes("deriveProductionSceneGate({"), `${consumer}: must call the same admission gate`);
   assert(source.includes("validateProductionSceneCandidate({"), `${consumer}: must share candidate validation`);
   assert(!source.includes("const selectedHasInk ="), `${consumer}: must not retain a divergent ink/save selection copy`);
