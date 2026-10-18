@@ -68,10 +68,10 @@ export function pageHasExportableAudio(turns: readonly StoredTurn[]): boolean {
  * `video8` drops truncated DSA files whose short opening exhausted the drawing tail.
  * `video9` is reserved by the YouTube board-timing fixes.
  * `video10` frees pitched 1.25x downloads from either prior release.
- * `video11` is reserved by #178's shared ink clock; `video12` by #202's cadence.
- * `video13` discards exports that reveal verified answer labels too early.
+ * `video11` discards exports that reveal verified answer labels too early (#211 first).
+ * Later export changes take the next free revision above main at merge.
  */
-export const LECTURE_PAGE_CACHE_REVISION = "video13";
+export const LECTURE_PAGE_CACHE_REVISION = "video11";
 
 /**
  * Cache identity of a page export. It changes whenever a doubt adds a turn to
