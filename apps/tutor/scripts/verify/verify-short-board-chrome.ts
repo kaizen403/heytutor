@@ -245,6 +245,9 @@ function renderShell(
         narrationSinceEpochRef: { current: [] },
       }),
     },
+    // Native canvas reading/follow is owned by the phone consumer gate; this
+    // custom Shell host supplies neither its canvas nor a React dispatcher.
+    "./hooks/useBoardReading": { useBoardReading: noop },
     "./hooks/useAdaptiveDrawSpeed": { useAdaptiveDrawSpeed: noop },
     "./hooks/useCommandExecution": { useCommandExecution: () => ({}) },
     "./hooks/useBoardSession": {
@@ -864,7 +867,9 @@ const scrollPane = find(
 assert.ok(scrollPane);
 const moves: Array<{ left?: number; top?: number }> = [];
 const pane = {
+  clientWidth: 378,
   clientHeight: 152,
+  scrollWidth: 1042,
   scrollHeight: 350,
   scrollBy: (move: { left?: number; top?: number }) => moves.push(move),
   scrollTo: (move: { left?: number; top?: number }) => moves.push(move),
@@ -886,8 +891,8 @@ keyHandler(keyboardEvent("End"));
 keyHandler(keyboardEvent("ArrowDown", {}));
 assert.deepEqual(
   moves,
-  [{ left: 0, top: 40 }, { top: 350 }],
-  "mounted actual paper handles keyboard pan and End without hijacking descendant inputs",
+  [{ left: 0, top: 40 }, { left: 1042, top: 350 }],
+  "mounted actual paper handles keyboard pan and two-axis End without hijacking descendant inputs",
 );
 assert.equal(prevented, 2);
 assert.equal(stopped, 2);
@@ -900,6 +905,7 @@ console.log(
 const globals = new Map<string, PropertyDescriptor | undefined>();
 let value = { scale: 0.1, offsetX: 0, offsetY: 0, measured: false };
 let effectMounted = false;
+const viewportRefs = new ShellMount();
 let cleanup: (() => void) | undefined;
 const deck = {
   getBoundingClientRect: () => ({ height: 44 }),
@@ -950,6 +956,7 @@ try {
     viewportFile,
     process.env.SHORT_VIEWPORT_SOURCE ?? viewportFile,
     {
+      useRef: viewportRefs.react.useRef,
       useState: () => [
         value,
         (next: typeof value) => {
@@ -967,7 +974,9 @@ try {
     ref: { current: unknown },
     mode: "readable-scroll",
   ) => typeof value;
+  viewportRefs.cursor = 0;
   viewport({ current: container }, "readable-scroll");
+  viewportRefs.cursor = 0;
   const fitted = viewport({ current: container }, "readable-scroll");
   assert.ok(
     Math.abs(fitted.scale - 16 / 19) < 1e-6,

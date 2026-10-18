@@ -26,7 +26,10 @@ assert.equal(Number(/@video(\d+)$/.exec(lecturePageCacheKey([]))?.[1]), current,
 const productPaths = [
   "apps/tutor/lib/lecture-export", "apps/tutor/lib/code-lesson/persistedCodeLesson.ts",
   "apps/tutor/features/tutor-session/lib/replay", "apps/tutor/features/tutor-session/lib/scene/answerLabelReveal.ts",
-  "packages/whiteboard/src",
+  "apps/tutor/features/tutor-session/lib/turn/segmentInk.ts",
+  "apps/tutor/features/tutor-session/hooks/useCommandExecution.ts",
+  "apps/tutor/features/tutor-session/lib/scene/verifiedScenePresentation.ts",
+  "packages/whiteboard/src", "packages/drawing/src",
 ];
 const changed = [git("diff", "--name-only", base, "--", ...productPaths),
   git("ls-files", "--others", "--exclude-standard", "--", ...productPaths)]
