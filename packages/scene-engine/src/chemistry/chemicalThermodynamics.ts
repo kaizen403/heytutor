@@ -86,14 +86,102 @@ function box(c: ChemScene, ids: string[]): void {
   ids.push(c.link("bound_r", { x: 3.2, y: 0 }, { x: 3.2, y: 2 }, "system boundary", false));
 }
 
+interface ProcessVolumes {
+  initial: ChemistryReading | null;
+  final: ChemistryReading | null;
+  change: ChemistryReading | null;
+}
+
+/** Prepositions own quantities only inside a local process/property argument.
+ * Heat-transfer source/recipient phrases are different semantic arguments. */
+function processVolumes(question: string): ProcessVolumes | null {
+  const body = question.slice(0,chemistryQuestionSpan(question).end);
+  const result: ProcessVolumes = {initial:null,final:null,change:null};
+  const boundaries = [...body.matchAll(/[;!?\n]|\.(?=\s|$)/g)];
+  const clauses = [...boundaries.map(boundary=>boundary.index!),body.length];
+  let clauseStart = 0;
+  const argument = (start:number,end:number,owner:string) => {
+    while (start < end && /\s/.test(question[start]!)) start++;
+    while (end > start && /\s/.test(question[end-1]!)) end--;
+    const after = /^(?:(?:an?|the|initial|final)\s+)*volume\b(?:\s+of\b)?/i.test(question.slice(start,end))
+      ? /^(?:(?:an?|the|initial|final)\s+)*volume\b(?:\s+of\b)?/i : /^/;
+    const read = readChemistryQuantityDeclaration({question,after,within:{start,end},dimension:"volume",targetUnit:"L",owner});
+    const hasPayload = chemistryQuantityPayloadPresent(question.slice(start,end));
+    const readState: ChemistryQuantityDeclaration = hasPayload ? read : {state:"absent",owner,occurrences:[]};
+    const closedLiteral = (reading: ChemistryReading) => !chemistryQuantityPayloadPresent(question.slice(reading.source.span.end,end))
+      && !/^\s*[=:+*/^×·−-]/.test(question.slice(reading.source.span.end,end));
+    const complete = readState.state === "valid" && closedLiteral(readState.reading);
+    const scalar = new RegExp(`^(${CHEMISTRY_SCALAR_PATTERN})`).exec(question.slice(start,end));
+    const literal = scalar ? readChemistryUnitLiteral({question,scalarSpan:{start,end:start+scalar[0].length}}) : null;
+    return {read:readState,complete,literal:literal?.ok && closedLiteral(literal.reading) ? literal.reading : null};
+  };
+  const context = (prefix:string) => {
+    const local = prefix.split(/\b(?:while|whereas|but)\b|\band(?=\s+(?:(?:the|a|an)\s+)*(?:heat|energy|work|matter)\b)/i).at(-1)!;
+    const volume = /\bvolume\b/i.test(local) || /(?<![\p{L}\p{N}_])V(?![\p{L}\p{N}_])/u.test(local);
+    const process = /\b(?:expan\w*|compress\w*|contract\w*)\b/i.test(local);
+    return {volume,process,foreign:!volume && !process && /\b(?:heat|energy|work|matter)\b/i.test(local)};
+  };
+  const endOfArgument = (start:number,end:number): number => {
+    const closing = /,|\b(?:by|from|to|against|at|in|under|with|during|while|whereas|but)\b|\band\s+(?=(?:the|a|an|it|this|that|heat|energy|work|matter)\b)/i.exec(question.slice(start,end));
+    return closing ? start+closing.index : end;
+  };
+  for (const clauseEnd of clauses) {
+    const clause = body.slice(clauseStart,clauseEnd);
+    // A directly stated property remains supplied even without a range/by
+    // complement. Bound each alias to its own original clause occurrence.
+    const properties = [...clause.matchAll(/\b[Vv]olume\b(?:\s+V\b)?|(?<![\p{L}\p{N}_])V(?![\p{L}\p{N}_])/gu)];
+    for (const [index,property] of properties.entries()) {
+      const start = clauseStart+property.index!;
+      const nextProperty = properties[index+1] ? clauseStart+properties[index+1]!.index! : clauseEnd;
+      const payloadStart = start+property[0].length;
+      // These are independently checked quantity owners, not arbitrary
+      // identifier assignments such as "volume of gas is unknown".
+      const otherOwner = /\b(?:q|w|du|p_?ext|temperature|external pressure|internal energy)\b|(?:δ|∆|Δ)\s*(?:u\b|\(pv\))/i.exec(question.slice(payloadStart,nextProperty));
+      const end = otherOwner ? payloadStart+otherOwner.index : nextProperty;
+      const read = readChemistryQuantityDeclaration({question,after:new RegExp(property[0]),cueCaseSensitive:true,
+        within:{start,end},dimension:"volume",targetUnit:"L",owner:"stated system volume"});
+      if (read.state === "invalid" || read.state === "valid" && read.reading.value <= 0) return null;
+    }
+    for (const range of clause.matchAll(/\bfrom\s+([\s\S]*?)\s+to\s+/gi)) {
+      const start = clauseStart+range.index!;
+      const fromStart = start+range[0].search(/\s/)+1;
+      const toStart = start+range[0].length;
+      const fromEnd = toStart-range[0].match(/\s+to\s+$/i)![0].length;
+      const first = argument(fromStart,fromEnd,"initial process volume");
+      const second = argument(toStart,endOfArgument(toStart,clauseEnd),"final process volume");
+      const role = context(clause.slice(0,range.index));
+      if (role.foreign) continue;
+      // A temperature range during expansion is not a volume range. An
+      // explicit volume property cannot acquire a different unit this way.
+      if (!role.volume && first.literal && second.literal && first.literal.dimension !== "volume" && second.literal.dimension !== "volume") continue;
+      const directVolume = first.complete || second.complete;
+      if (!role.volume && !directVolume && !(role.process && (first.read.state !== "absent" || second.read.state !== "absent"))) continue;
+      if (!first.complete || !second.complete || first.read.state !== "valid" || second.read.state !== "valid"
+        || first.read.reading.value <= 0 || second.read.reading.value <= 0 || result.initial || result.final) return null;
+      result.initial = first.read.reading;
+      result.final = second.read.reading;
+    }
+    for (const by of clause.matchAll(/\bby\s+/gi)) {
+      const start = clauseStart+by.index!+by[0].length;
+      const value = argument(start,endOfArgument(start,clauseEnd),"process volume change");
+      const role = context(clause.slice(0,by.index));
+      if (role.foreign || !role.volume && !role.process && !value.complete) continue;
+      // Method complements such as "by moving a piston" supply no quantity.
+      if (value.read.state === "absent") continue;
+      if (!value.complete || value.read.state !== "valid" || value.read.reading.value <= 0 || result.change) return null;
+      result.change = value.read.reading;
+    }
+    clauseStart = clauseEnd+1;
+  }
+  return result;
+}
+
 function buildSystems(question: string, stem: string): SceneDocument | null {
+  const volumes = processVolumes(question);
+  if (!volumes) return null;
   if (!chemistryQuantityCuesValid(question,[
     {after:/\btemperature\b/,dimensions:["temperature"],owner:"system temperature"},
     {after:/\binternal energy\b/,dimensions:["energy"],owner:"system internal energy"},
-    ...(/isothermal|isobaric|adiabatic|isochoric/.test(stem) ? [
-      {after:/\bfrom\b/,dimensions:["volume"] as const,owner:"initial process volume"},
-      {after:/\bto\b/,dimensions:["volume"] as const,owner:"final process volume"},
-    ] : []),
   ])) return null;
   const isolated = /\bisolated\b/.test(stem);
   const closed = /\bclosed\b/.test(stem);
@@ -144,8 +232,8 @@ function buildSystems(question: string, stem: string): SceneDocument | null {
     ids.push(c.text("w_path", { x: 0, y: -0.6 }, "w path", "path function"));
   }
   const model = /isothermal/.test(stem) ? "isothermal" : /isobaric/.test(stem) ? "isobaric" : /adiabatic/.test(stem) ? "adiabatic" : /isochoric/.test(stem) ? "isochoric" : null;
-  const startVolume = numberAfter(question, /from\s+/, "volume", "L");
-  const endVolume = numberAfter(question, /to\s+/, "volume", "L");
+  const startVolume = volumes.initial?.value ?? null;
+  const endVolume = volumes.final?.value ?? null;
   if (model && startVolume !== null && endVolume !== null && startVolume !== endVolume) {
     ids.push(c.text("v1_l", { x: 0, y: -1.4 }, fit(`V=${startVolume} L`), "initial volume"));
     ids.push(c.text("v2_l", { x: 2.4, y: -1.4 }, fit(`V=${endVolume} L`), "final volume"));
@@ -159,14 +247,14 @@ function buildSystems(question: string, stem: string): SceneDocument | null {
 }
 
 /** Constant-pressure chemistry work, w = −Pext ΔV. Expansion makes ΔV positive. */
-function pressureVolumeWorkJ(stem: string): number | null {
+function pressureVolumeWorkJ(stem: string, change: ChemistryReading | null): number | null {
   const compressed = /compress/i.test(stem);
   const expanded = /\bexpan/i.test(stem);
   if (compressed === expanded) return null;
-  const litres = numberAfter(stem, /by\s+/, "volume", "L");
+  const litres = change?.value ?? null;
   const pressure = numberAfter(stem, /(?:external pressure(?:\s+of)?|pext(?:\s*=)?)/, "pressure", "kPa");
   if (litres === null || pressure === null || !(litres > 0) || !(pressure > 0)) return null;
-  const litreWindow = stem.slice(Math.max(0, stem.search(/by\s+/) ), stem.search(/by\s+/) + 24);
+  const litreWindow = change?.source.text;
   const pressureWindow = stem.slice(stem.search(/external pressure|pext/), stem.search(/external pressure|pext/) + 32);
   if (!litreWindow || !pressureWindow) return null;
   const magnitude = pressure * litres;
@@ -207,6 +295,8 @@ function firstLawDeclaration(question: string, after: RegExp, owner: string, ref
 }
 
 function buildFirstLaw(question: string, stem: string): SceneDocument | null {
+  const volumes = processVolumes(question);
+  if (!volumes) return null;
   const deltaURead = firstLawDeclaration(question,/(?:δ|∆|Δ)\s*u\b|\bdu\b|internal energy(?:\s+change)?/,"first-law internal-energy change",
     /^\s*=\s*q\s*\+\s*w\b/i);
   if (deltaURead.state === "invalid") return null;
@@ -214,11 +304,6 @@ function buildFirstLaw(question: string, stem: string): SceneDocument | null {
   const dpvRead = readChemistryQuantityDeclaration({question,after:/(?:δ|∆|Δ)\s*\(pv\)|delta\(pv\)/,dimension:"energy",targetUnit:"J",owner:"first-law pressure-volume change",allowAgreeingRepeats:true});
   if (dpvRead.state === "invalid" || !chemistryQuantityCuesValid(question,[
     {after:/external pressure|\bp_?ext\b/,dimensions:["pressure"],owner:"external pressure"},
-    ...(/\bexpan|compress/.test(stem) ? [
-      {after:/\bby\b/,dimensions:["volume"] as const,owner:"process volume change"},
-      {after:/\bfrom\b/,dimensions:["volume"] as const,owner:"initial process volume"},
-      {after:/\bto\b/,dimensions:["volume"] as const,owner:"final process volume"},
-    ] : []),
   ])) return null;
   const heatRead = firstLawDeclaration(question,/\bq\b/,"first-law heat");
   const workRead = firstLawDeclaration(question,/\bw\b/,"first-law work",
@@ -226,7 +311,7 @@ function buildFirstLaw(question: string, stem: string): SceneDocument | null {
   if (heatRead.state === "invalid" || workRead.state === "invalid") return null;
   const q = heatRead.state === "valid" ? heatRead.reading.value : null;
   const statedW = workRead.state === "valid" ? workRead.reading.value : null;
-  const pv = pressureVolumeWorkJ(question);
+  const pv = pressureVolumeWorkJ(question,volumes.change);
   const isochoric = /isochoric|constant volume/.test(stem);
   const adiabatic = /adiabatic/.test(stem);
   if (isochoric && pv !== null) return null;

@@ -386,18 +386,19 @@ function constantOwnerPresence(before: string): {text:string;sourceSpan:Chemistr
  * be borrowed by an earlier analyte as an unqualified constant. */
 function parentheticalConstantDeclarations(question: string): Map<number,ParentheticalConstantDeclaration> | null {
   const declarations = new Map<number,ParentheticalConstantDeclaration>();
+  const body = question.slice(0,chemistryQuestionSpan(question).end);
   const openings = new RegExp(ATTACHED_CONSTANT_START,"giu");
-  for (const opening of question.matchAll(openings)) {
+  for (const opening of body.matchAll(openings)) {
     const start = opening.index!;
     let depth = 1;
     let end = start+1;
-    for (; end < question.length; end++) {
+    for (; end < body.length; end++) {
       if (question[end] === "(") depth++;
       else if (question[end] === ")" && --depth === 0) break;
     }
     // Supported exponent parentheses remain part of the original payload.
     // The strict scalar reader below, not this boundary scan, validates them.
-    if (depth !== 0 || !new RegExp(`^${SPECIES_RIGHT}`,"u").test(question.slice(end+1))) return null;
+    if (depth !== 0 || !new RegExp(`^${SPECIES_RIGHT}`,"u").test(body.slice(end+1))) return null;
     const before = question.slice(0,start);
     const species = new RegExp(`(${SPECIES_ALTERNATION})\\s*$`,"idu").exec(before);
     const speciesSpan = species?.indices?.[1];
@@ -427,27 +428,28 @@ function parentheticalConstantDeclarations(question: string): Map<number,Parenth
  * titration. Missing is the only state that permits the species table. */
 function suppliedAcidBaseConstants(question: string): SuppliedAcidBaseConstants | null {
   const result: SuppliedAcidBaseConstants = {a:null,b:null,supplied:false,namedOwners:[],roleOwners:[]};
+  const body = question.slice(0,chemistryQuestionSpan(question).end);
   const parenthetical = parentheticalConstantDeclarations(question);
   if (!parenthetical) return null;
   const consumedParenthetical = new Set<number>();
   const names = completeSpeciesPattern(String.raw`(?:CH3COOH|HCOOH|NH4OH|NH3|HCN|HF|acetic acid|ethanoic acid|formic acid|methanoic acid|ammonia|ammonium hydroxide|the acid|the base)`);
   // Unqualified named constants do not identify which conjugate species owns
   // the value. Refuse instead of borrowing a table value for the analyte.
-  if (/(?<!acid )(?<!base )\b(?:dissociation|ioni[sz]ation) constant\b/i.test(question)) return null;
+  if (/(?<!acid )(?<!base )\b(?:dissociation|ioni[sz]ation) constant\b/i.test(body)) return null;
   for (const which of ["a","b"] as const) {
     let pK: number | null = null; let k: number | null = null;
     for (const logarithmic of [true,false]) {
       const symbol = String.raw`(?<![a-z])${logarithmic?"p\\s*":"(?<!p)"}k\s*_?\s*(?:\{\s*${which}\s*\}|${which})(?![a-z])`;
       const word = !logarithmic ? String.raw`|\b${which==="a"?"acid":"base"}\s+(?:dissociation|ioni[sz]ation) constant\b` : "";
       const mention = new RegExp(`(?:${symbol}${word})`,"ig");
-      const declarations = [...question.matchAll(mention)];
+      const declarations = [...body.matchAll(mention)];
       if (declarations.length === 0) continue;
       // Repeated declarations remain a conservative refusal. In particular,
       // a readable later value cannot mask an earlier explicit unknown owner.
       if (declarations.length !== 1) return null;
       result.supplied = true;
       const cue = new RegExp(String.raw`(?:${symbol}${word})(?:\s*\(([^)]*)\)|\s+(?:of|for)\s+(${names})|(\s*(?:\(|(?:of|for)\b)))?\s*(?:value)?`,"igdu");
-      const owners = [...question.matchAll(cue)];
+      const owners = [...body.matchAll(cue)];
       if (owners.length !== 1) return null;
       const owner = owners[0]!;
       // An explicit but unresolved ownership clause cannot become implicit.
@@ -477,7 +479,7 @@ function suppliedAcidBaseConstants(question: string): SuppliedAcidBaseConstants 
       }
       // Anchor the read after this one source declaration. Missing is fatal
       // here, rather than silently skipped by a whole-question cue scan.
-      const within = {start:owner.index!+owner[0].length,end:attached?.payloadEnd ?? question.length};
+      const within = {start:owner.index!+owner[0].length,end:attached?.payloadEnd ?? body.length};
       const read = readChemistryQuantityDeclaration({question,after:/^/,within,dimension:"dimensionless",owner:`${logarithmic?"pK":"K"}${which}`});
       const limit = logarithmic ? 14 : 1;
       if (read.state !== "valid" || !(read.reading.value > 0 && read.reading.value < limit)) return null;
@@ -831,31 +833,47 @@ function normaliseUnit(raw: string | undefined): string {
 function readRaoult(stem: string, _quantities: readonly ChemPlanQuantity[]): RaoultReading | null {
   const bindings: Array<{ name: string; sourceSpan: ChemistrySpan; value: number; unit: string }> = [];
   const componentSpan = (match: RegExpMatchArray, group: number): ChemistrySpan => ({start:match.indices![group]![0],end:match.indices![group]![1]});
-  const pressureAt = (match: RegExpMatchArray, group: number, commonUnit?: string): number => {
-    const token = match[group]!; const start = match.indices?.[group]?.[0];
-    if (start === undefined) return NaN;
-    const commonAt = commonUnit ? match.index! + match[0].lastIndexOf(commonUnit) : -1;
-    const read = readChemistryLiteral({question: stem, scalarSpan: {start, end: start + token.length}, dimension: "pressure", targetUnit: "torr", ...(commonAt >= 0 ? {unitConvention: {unit: normaliseUnit(commonUnit) as ChemistryUnit, sourceSpan: {start: commonAt, end: commonAt + commonUnit!.length}}} : {})});
-    return read.ok ? read.reading.value : NaN;
-  };
   const number = `(${CHEMISTRY_SCALAR_PATTERN})`;
   const name = "([a-z][a-z0-9]*)";
   // "vapour pressures of pure A and B are 200 torr and 100 torr"
   const pair = new RegExp(`vapou?r pressures? of ${COMPONENT_FILLER}${name}\\s+and\\s+${COMPONENT_FILLER}${name}(?:\\s+at\\s+[^,.]{0,24}?)?\\s*(?:are|is|=|:|,)?\\s*${number}\\s*${PRESSURE_UNIT}?\\s*(?:and|,)\\s*${number}\\s*${PRESSURE_UNIT}?`, "gid");
+  const single = new RegExp(`(?:vapou?r pressure|that) of ${COMPONENT_FILLER}${name}(?:\\s+at\\s+[^,.]{0,24}?)?\\s*(?:is|=|:|are)\\s*${number}\\s*${PRESSURE_UNIT}?`, "gid");
+  const symbolic = new RegExp(`\\bp\\s*(?:°|\\^0|\\^\\(0\\)|0)?\\s*_?\\s*([a-z])\\s*(?:°|\\^0|\\^\\(0\\)|0)?\\s*(?:=|is|:)\\s*${number}\\s*${PRESSURE_UNIT}?`, "gid");
+  const declarations = [pair,single,symbolic].flatMap(pattern => [...stem.matchAll(pattern)]);
+  const pressureAt = (match: RegExpMatchArray, group: number, unitGroup: number, sharedUnitGroup?: number): number => {
+    const token = match[group]!; const start = match.indices?.[group]?.[0];
+    if (start === undefined) return NaN;
+    const selectedUnitGroup = match[unitGroup] !== undefined ? unitGroup : sharedUnitGroup;
+    const rawUnit = selectedUnitGroup === undefined ? undefined : match[selectedUnitGroup];
+    const unitSpan = selectedUnitGroup === undefined ? undefined : match.indices?.[selectedUnitGroup];
+    if (rawUnit === "mm" && unitSpan) {
+      // This pressure/component declaration owns the historical mm-Hg
+      // shorthand. A material, power or attached factor is not bare mm.
+      const after = stem.slice(unitSpan[1],chemistryQuestionSpan(stem).end);
+      const insideJointDeclaration = unitSpan[1] < match.index! + match[0].length;
+      const nextOwnedDeclaration = declarations.some(next => next.index! >= unitSpan[1]
+        && /^(?:\s*,?\s*and\s+|\s*,\s*)$/i.test(stem.slice(unitSpan[1],next.index!)));
+      if (!insideJointDeclaration && !nextOwnedDeclaration && !/^(?:\s*$|\s*[.;!?)])/.test(after)) return NaN;
+      const value = matchedChemistryScalar(stem,match,group);
+      if (value === null) return NaN;
+      const converted = convertChemistryValue(value,"torr","torr","pressure");
+      return converted.ok ? converted.reading : NaN;
+    }
+    const read = readChemistryLiteral({question: stem, scalarSpan: {start, end: start + token.length}, dimension: "pressure", targetUnit: "torr", ...(unitSpan && rawUnit ? {unitConvention: {unit: normaliseUnit(rawUnit) as ChemistryUnit, sourceSpan: {start: unitSpan[0], end: unitSpan[1]}}} : {})});
+    return read.ok ? read.reading.value : NaN;
+  };
   for (const match of stem.matchAll(pair)) {
-    bindings.push({ name: match[1]!.toLowerCase(), sourceSpan:componentSpan(match,1), value: pressureAt(match, 3, match[4] ?? match[6]), unit: normaliseUnit(match[4] ?? match[6]) || "torr" });
-    bindings.push({ name: match[2]!.toLowerCase(), sourceSpan:componentSpan(match,2), value: pressureAt(match, 5, match[6] ?? match[4]), unit: normaliseUnit(match[6] ?? match[4]) || "torr" });
+    bindings.push({ name: match[1]!.toLowerCase(), sourceSpan:componentSpan(match,1), value: pressureAt(match, 3, 4, 6), unit: normaliseUnit(match[4] ?? match[6]) || "torr" });
+    bindings.push({ name: match[2]!.toLowerCase(), sourceSpan:componentSpan(match,2), value: pressureAt(match, 5, 6, 4), unit: normaliseUnit(match[6] ?? match[4]) || "torr" });
   }
   // "vapour pressure of pure A is 200 torr", "that of pure B is 100 torr"
-  const single = new RegExp(`(?:vapou?r pressure|that) of ${COMPONENT_FILLER}${name}(?:\\s+at\\s+[^,.]{0,24}?)?\\s*(?:is|=|:|are)\\s*${number}\\s*${PRESSURE_UNIT}?`, "gid");
   for (const match of stem.matchAll(single)) {
     if (/^(?:the|pure|liquid|solution|solvent|mixture|water)$/.test(match[1]!) && !/^water$/.test(match[1]!)) continue;
-    bindings.push({ name: match[1]!.toLowerCase(), sourceSpan:componentSpan(match,1), value: pressureAt(match, 2, match[3]), unit: normaliseUnit(match[3]) || "torr" });
+    bindings.push({ name: match[1]!.toLowerCase(), sourceSpan:componentSpan(match,1), value: pressureAt(match, 2, 3), unit: normaliseUnit(match[3]) || "torr" });
   }
   // "p°A = 200 torr", "p_A^0 = 200"
-  const symbolic = new RegExp(`\\bp\\s*(?:°|\\^0|\\^\\(0\\)|0)?\\s*_?\\s*([a-z])\\s*(?:°|\\^0|\\^\\(0\\)|0)?\\s*(?:=|is|:)\\s*${number}\\s*${PRESSURE_UNIT}?`, "gid");
   for (const match of stem.matchAll(symbolic)) {
-    bindings.push({ name: match[1]!.toLowerCase(), sourceSpan:componentSpan(match,1), value: pressureAt(match, 2, match[3]), unit: normaliseUnit(match[3]) || "torr" });
+    bindings.push({ name: match[1]!.toLowerCase(), sourceSpan:componentSpan(match,1), value: pressureAt(match, 2, 3), unit: normaliseUnit(match[3]) || "torr" });
   }
   if (new Set(bindings.map(binding => binding.name)).size !== bindings.length) return null;
   const distinct = bindings;

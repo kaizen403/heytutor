@@ -21,3 +21,4 @@ tsx scripts/verify/verify-chemistry-parenthesized-species.ts
 tsx scripts/verify/verify-chemistry-kinetics-fraction-targets.ts
 tsx scripts/verify/verify-chemistry-phase-temperature-roles.ts
 tsx scripts/verify/verify-chemistry-titration-formula-notation.ts
+tsx scripts/verify/verify-chemistry-owner-scope-regressions.ts

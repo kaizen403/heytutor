@@ -1,0 +1,569 @@
+{
+  "scope": "Frozen scientific questions/golds before any new runtime outputs or implementation. Three current P1 exact stems plus five independent transfers per role; all quantities remain original-source declarations. Desired-positive baseline gaps remain true rather than flipped.",
+  "head": "2b13acd53c7a036690c9a03322e587262582ac4c",
+  "rows": [
+    {
+      "id": "OPTIONS-exact",
+      "family": "chem_solutions",
+      "question": "25 mL of 0.1 M HCl is titrated with 0.1 M NaOH. Draw the titration curve. Options: (a) Ka=1e-5 (b) Ka=1e-4",
+      "expectedDraw": true,
+      "oracle": {
+        "equivalenceMl": 25
+      }
+    },
+    {
+      "id": "OPTIONS-weak-acid",
+      "family": "chem_solutions",
+      "question": "25 mL of 0.1 M CH3COOH(Ka=1e-5) is titrated with 0.1 M NaOH. Draw the titration curve. Options: (a) Ka=1e-4 (b) Ka=1e-6",
+      "expectedDraw": true,
+      "oracle": {
+        "equivalenceMl": 25,
+        "pK": 5
+      }
+    },
+    {
+      "id": "OPTIONS-weak-base",
+      "family": "chem_solutions",
+      "question": "20 mL of 0.1 M NH3(Kb=1e-5) is titrated with 0.2 M HCl. Draw the titration curve. Options: (a) Kb=1e-4 (b) Kb=1e-6",
+      "expectedDraw": true,
+      "oracle": {
+        "equivalenceMl": 10,
+        "pK": 5
+      }
+    },
+    {
+      "id": "OPTIONS-malformed-option-annotation",
+      "family": "chem_solutions",
+      "question": "25 mL of 0.1 M HCl is titrated with 0.1 M NaOH. Draw the titration curve. Options: (a) NaOH(Ka=unknown) (b) HCOOH(Ka=1e-4;junk)",
+      "expectedDraw": true,
+      "oracle": {
+        "equivalenceMl": 25
+      }
+    },
+    {
+      "id": "OPTIONS-singular-option",
+      "family": "chem_solutions",
+      "question": "25 mL of 0.1 M HCl is titrated with 0.1 M NaOH. Draw the titration curve. Option: (a) pKa=4 (b) pKa=5",
+      "expectedDraw": true,
+      "oracle": {
+        "equivalenceMl": 25
+      }
+    },
+    {
+      "id": "OPTIONS-marker-only",
+      "family": "chem_solutions",
+      "question": "25 mL of 0.1 M HCl is titrated with 0.1 M NaOH. Draw the titration curve. (a) Ka=1e-5 (b) Ka=1e-4",
+      "expectedDraw": true,
+      "oracle": {
+        "equivalenceMl": 25
+      }
+    },
+    {
+      "id": "OPTIONS-unknown-stem",
+      "family": "chem_solutions",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH. Ka=unknown. Draw the titration curve. Options: (a) Ka=1e-5 (b) Ka=1e-4",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "OPTIONS-conflicting-stem",
+      "family": "chem_solutions",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH. Ka=1e-5; Ka=1e-4. Draw the titration curve. Options: (a) pKa=5 (b) pKa=4",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "OPTIONS-incomplete-stem-group",
+      "family": "chem_solutions",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH. Given CH3COOH(Ka=1e-5 Options: (a) ) (b) pKa=5",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "OPTIONS-invalid-strong-given",
+      "family": "chem_solutions",
+      "question": "25 mL of 0.1 M HCl is titrated with 0.1 M NaOH. Draw the titration curve. Given Ka=unknown. Options: (a) Ka=1e-5 (b) Ka=1e-4",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "VOLUME-heat-flow-exact",
+      "family": "chem_thermo",
+      "question": "A closed system undergoes an isothermal process. Heat flows from a reservoir at 300 K to the gas. Draw the system boundary.",
+      "expectedDraw": true,
+      "oracle": {
+        "noVolumeLabels": true
+      }
+    },
+    {
+      "id": "VOLUME-heat-flow-1",
+      "family": "chem_thermo",
+      "question": "A closed system follows an isobaric process. Heat passes from a bath at 350 K to the gas. Draw the system boundary.",
+      "expectedDraw": true,
+      "oracle": {
+        "noVolumeLabels": true
+      }
+    },
+    {
+      "id": "VOLUME-heat-flow-2",
+      "family": "chem_thermo",
+      "question": "A closed gas undergoes an adiabatic process. Work is transferred from the surroundings to the system. Draw its boundary.",
+      "expectedDraw": true,
+      "oracle": {
+        "noVolumeLabels": true
+      },
+      "diagnostic": {
+        "reason": "Main614 and parent2b retain unclaimed closed-gas wording: direct/schematic/ordinary refuse; last-resort draws a wrong P-V figure. True desired-positive oracle retained; family-routing repair is outside this owner-reader packet.",
+        "baselineHead": "2b13acd53c7a036690c9a03322e587262582ac4c"
+      }
+    },
+    {
+      "id": "VOLUME-heat-flow-3",
+      "family": "chem_thermo",
+      "question": "An open system undergoes an isothermal process. Energy flows from a hot bath to the gas. Draw the system boundary.",
+      "expectedDraw": true,
+      "oracle": {
+        "noVolumeLabels": true
+      }
+    },
+    {
+      "id": "VOLUME-heat-flow-4",
+      "family": "chem_thermo",
+      "question": "A closed system follows an isochoric process. Heat moves from a heater at 400 K to the contents. Draw the system boundary.",
+      "expectedDraw": true,
+      "oracle": {
+        "noVolumeLabels": true
+      }
+    },
+    {
+      "id": "VOLUME-heat-flow-5",
+      "family": "chem_thermo",
+      "question": "Draw the boundary of a closed system undergoing an isothermal process. Energy flows from the hot bath to the gas.",
+      "expectedDraw": true,
+      "oracle": {
+        "noVolumeLabels": true
+      }
+    },
+    {
+      "id": "VOLUME-expansion",
+      "family": "chem_thermo",
+      "question": "A closed system expands isothermally from 1 L to 2 L. Draw the system boundary.",
+      "expectedDraw": true,
+      "oracle": {
+        "volumeLabelsLitres": [
+          1,
+          2
+        ]
+      }
+    },
+    {
+      "id": "VOLUME-named-volume",
+      "family": "chem_thermo",
+      "question": "A closed system undergoes an isothermal process. Its volume changes from 1 L to 2 L. Draw its boundary.",
+      "expectedDraw": true,
+      "oracle": {
+        "volumeLabelsLitres": [
+          1,
+          2
+        ]
+      }
+    },
+    {
+      "id": "VOLUME-flow-and-expansion",
+      "family": "chem_thermo",
+      "question": "A closed system expands isothermally from 1 L to 2 L. Heat flows from a reservoir at 300 K to the gas. Draw its boundary.",
+      "expectedDraw": true,
+      "oracle": {
+        "volumeLabelsLitres": [
+          1,
+          2
+        ]
+      }
+    },
+    {
+      "id": "VOLUME-unknown-start",
+      "family": "chem_thermo",
+      "question": "A closed system expands isothermally from unknown L to 2 L. Draw its boundary.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "VOLUME-wrong-start-dimension",
+      "family": "chem_thermo",
+      "question": "A closed system expands isothermally from 1 kg to 2 L. Draw its boundary.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "VOLUME-wrong-volume-dimension",
+      "family": "chem_thermo",
+      "question": "A closed system undergoes an isothermal process. Its volume changes from 1 kg to 2 kg. Draw its boundary.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "VOLUME-unread-end",
+      "family": "chem_thermo",
+      "question": "A closed system undergoes an isothermal process. Its volume changes from 1 L to unreadable L. Draw its boundary.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "VOLUME-first-law-heat-and-by",
+      "family": "chem_thermo",
+      "question": "For a closed system, q=500 J and w=-200 J. Heat flows from a reservoir at 300 K to the gas while it expands by 1 L. Show the first law energy account.",
+      "expectedDraw": true,
+      "oracle": {
+        "deltaUj": 300
+      },
+      "diagnostic": {
+        "reason": "Main614 and parent2b choose the closed-system boundary before the first-law account, omitting the requested dU=300 J. True complete-figure oracle retained; family branch priority is outside this packet.",
+        "baselineHead": "2b13acd53c7a036690c9a03322e587262582ac4c"
+      }
+    },
+    {
+      "id": "VOLUME-first-law-unread-by",
+      "family": "chem_thermo",
+      "question": "For a closed system, q=500 J and w=-200 J. The gas expands by unknown L. Show the first law energy account.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "PRESSURE-exact",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 mm and 100 mm. Equimolar liquids form an ideal solution. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "PRESSURE-single",
+      "family": "chem_solutions",
+      "question": "The vapour pressure of pure A is 300 mm and that of pure B is 100 mm. They form an ideal solution at x_A=0.5. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 200
+      }
+    },
+    {
+      "id": "PRESSURE-shared-unit",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 and 100 mm. They form an ideal solution with x_A=0.25. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 125
+      }
+    },
+    {
+      "id": "PRESSURE-symbolic",
+      "family": "chem_solutions",
+      "question": "For an ideal solution, p_A^0=200 mm and p_B^0=100 mm. Draw the Raoult graph for an equimolar mixture and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "PRESSURE-scientific",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 2 x 10^2 mm and 1 x 10^2 mm. Equimolar liquids form an ideal solution. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "PRESSURE-reversed",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure B and A are 100 mm and 200 mm. Equimolar liquids form an ideal solution. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "PRESSURE-invalid-mm^2",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 mm^2 and 100 mm^2. Equimolar liquids form an ideal solution. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "PRESSURE-invalid-mm\u00b2",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 mm\u00b2 and 100 mm\u00b2. Equimolar liquids form an ideal solution. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "PRESSURE-invalid-mmfoo",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 mmfoo and 100 mmfoo. Equimolar liquids form an ideal solution. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "PRESSURE-invalid-mm/s",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 mm/s and 100 mm/s. Equimolar liquids form an ideal solution. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "PRESSURE-invalid-kg",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 kg and 100 kg. Equimolar liquids form an ideal solution. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "PRESSURE-canonical-mm-Hg",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 mm Hg and 100 mm Hg. Equimolar liquids form an ideal solution. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "PRESSURE-canonical-torr",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Equimolar liquids form an ideal solution. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "PRESSURE-unrelated-length",
+      "family": "chem_solutions",
+      "question": "The films of liquids A and B are 200 mm and 100 mm thick. They form an ideal solution. Draw a qualitative Raoult graph.",
+      "expectedDraw": true,
+      "oracle": {
+        "qualitativeOnly": true,
+        "noMeasuredPressureValues": true
+      }
+    },
+    {
+      "id": "VOLUME-nested-reservoir-volume",
+      "family": "chem_thermo",
+      "question": "A closed system undergoes an isothermal process. Heat flows from a 2 L reservoir at 300 K to the gas. Draw the system boundary.",
+      "expectedDraw": true,
+      "oracle": {
+        "noVolumeLabels": true
+      }
+    },
+    {
+      "id": "VOLUME-nested-recipient-volume",
+      "family": "chem_thermo",
+      "question": "A closed system undergoes an isothermal process. Heat flows from a hot reservoir to the gas in a 5 L vessel. Draw the system boundary.",
+      "expectedDraw": true,
+      "oracle": {
+        "noVolumeLabels": true
+      }
+    },
+    {
+      "id": "VOLUME-first-law-owned-flow",
+      "family": "chem_thermo",
+      "question": "For a process, q=500 J and w=-200 J. Heat flows from a reservoir at 300 K to the gas while it expands by 1 L. Show the first law energy account.",
+      "expectedDraw": true,
+      "oracle": {
+        "deltaUj": 300
+      }
+    },
+    {
+      "id": "VOLUME-first-law-owned-unread",
+      "family": "chem_thermo",
+      "question": "For a process, q=500 J and w=-200 J. The gas expands by unknown L. Show the first law energy account.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "VOLUME-first-law-method-by",
+      "family": "chem_thermo",
+      "question": "A gas has q=500 J and w=-200 J during isothermal expansion by moving a piston. Show the first law energy account.",
+      "expectedDraw": true,
+      "oracle": {
+        "deltaUj": 300
+      }
+    },
+    {
+      "id": "VOLUME-first-law-method-gerund",
+      "family": "chem_thermo",
+      "question": "A gas expands isothermally by pushing a piston. The heat is q=500 J and work is w=-200 J. Show the first law energy account.",
+      "expectedDraw": true,
+      "oracle": {
+        "deltaUj": 300
+      }
+    },
+    {
+      "id": "VOLUME-first-law-unknown-degree",
+      "family": "chem_thermo",
+      "question": "A gas expands isothermally by an unknown amount. The heat is q=500 J and work is w=-200 J. Show the first law energy account.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "VOLUME-first-law-range-and-method",
+      "family": "chem_thermo",
+      "question": "A gas expands isothermally from 1 L to 2 L by moving a piston. The heat is q=500 J and work is w=-200 J. Show the first law energy account.",
+      "expectedDraw": true,
+      "oracle": {
+        "deltaUj": 300
+      }
+    },
+    {
+      "id": "PRESSURE-column-mm-of-water",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 mm of water and 100 mm of water. Equimolar liquids form an ideal solution. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "PRESSURE-column-mm-H2O",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 mm H2O and 100 mm H2O. Equimolar liquids form an ideal solution. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "PRESSURE-column-mm-of-Hg",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 mm of Hg and 100 mm of Hg. Equimolar liquids form an ideal solution. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "PRESSURE-ambiguous-or",
+      "family": "chem_solutions",
+      "question": "The vapour pressure of pure A is 200 mm or 400 mm and that of pure B is 100 mm. They form an ideal solution. Draw the Raoult graph and find total pressure for an equimolar mixture.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "PRESSURE-ambiguous-and",
+      "family": "chem_solutions",
+      "question": "The vapour pressure of pure A is 200 mm and 400 mm and that of pure B is 100 mm. They form an ideal solution. Draw the Raoult graph and find total pressure for an equimolar mixture.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "VOLUME-variable-unread",
+      "family": "chem_thermo",
+      "question": "A closed system undergoes an isothermal process. V changes from unknown L to unreadable L. Draw the system boundary.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "VOLUME-expansion-doing-work",
+      "family": "chem_thermo",
+      "question": "A closed system undergoes isothermal expansion doing work from 2 L to 4 L. Draw the system boundary.",
+      "expectedDraw": true,
+      "oracle": {
+        "volumeLabelsLitres": [
+          2,
+          4
+        ]
+      }
+    },
+    {
+      "id": "VOLUME-first-law-trailing-prose",
+      "family": "chem_thermo",
+      "question": "A gas expands by 2 L irreversibly against external pressure 100 kPa; q=500 J. Draw the first-law energy balance.",
+      "expectedDraw": true,
+      "oracle": {
+        "deltaUj": 300
+      },
+      "diagnostic": {
+        "reason": "Parent2b actual866 and current source both refuse the hyphenated first-law request; the separately frozen spaced first law counterpart draws dU=300 J. True positive oracle retained; no routing-grammar extension.",
+        "baselineHead": "2b13acd53c7a036690c9a03322e587262582ac4c"
+      }
+    },
+    {
+      "id": "VOLUME-first-law-trailing-prose-spaced",
+      "family": "chem_thermo",
+      "question": "A gas expands by 2 L irreversibly against external pressure 100 kPa; q=500 J. Draw the first law energy balance.",
+      "expectedDraw": true,
+      "oracle": {
+        "deltaUj": 300
+      }
+    },
+    {
+      "id": "PROCESS-and-heat-role-reset",
+      "family": "chem_thermo",
+      "question": "A closed system undergoes an isothermal process. It expands by 1 L and heat flows from a reservoir at 300 K to the gas. Draw the system boundary.",
+      "expectedDraw": true,
+      "oracle": {
+        "noVolumeLabels": true
+      }
+    },
+    {
+      "id": "PROCESS-standalone-V-unread",
+      "family": "chem_thermo",
+      "question": "A closed system undergoes an isothermal process. Its volume V is unknown L. Draw the system boundary.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "VOLUME-explicit-V-readable",
+      "family": "chem_thermo",
+      "question": "A closed system undergoes an isothermal process. Its volume V is 2 L. Draw the system boundary.",
+      "expectedDraw": true,
+      "oracle": {}
+    },
+    {
+      "id": "VOLUME-explicit-V-later-unread",
+      "family": "chem_thermo",
+      "question": "A closed system undergoes an isothermal process. Its volume V is 2 L; V is unknown L. Draw the system boundary.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "VOLUME-explicit-V-earlier-unread",
+      "family": "chem_thermo",
+      "question": "A closed system undergoes an isothermal process. V is unknown L; its volume is 2 L. Draw the system boundary.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "VOLUME-explicit-word-unread",
+      "family": "chem_thermo",
+      "question": "A closed system undergoes an isothermal process. Volume is unreadable L. Draw the system boundary.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "VOLUME-constant-volume-reference",
+      "family": "chem_thermo",
+      "question": "During a constant volume process q = 500 J and w is 0 J. Draw the first law energy account.",
+      "expectedDraw": true,
+      "oracle": {
+        "deltaUj": 500
+      }
+    },
+    {
+      "id": "VOLUME-unread-before-heat",
+      "family": "chem_thermo",
+      "question": "For a process, its volume V is unknown L; q=500 J and w=-200 J. Draw the first law energy account.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "VOLUME-nominal-unread-before-heat",
+      "family": "chem_thermo",
+      "question": "For a process, the volume of gas is unknown L; q=500 J and w=-200 J. Draw the first law energy account.",
+      "expectedDraw": false,
+      "oracle": {}
+    },
+    {
+      "id": "VOLUME-constant-volume-contradiction",
+      "family": "chem_thermo",
+      "question": "During a constant volume process q = 500 J and w is 200 J. Draw the first law energy account.",
+      "expectedDraw": false,
+      "oracle": {}
+    }
+  ]
+}
