@@ -91,7 +91,7 @@ async function followConsumers() {
   const layout = load<{ useBoardLayout: typeof LayoutHook }>("features/tutor-session/hooks/useBoardLayout.ts").useBoardLayout({
     whiteboardRef: whiteboard, cancelRef: cancel, fbdPhaseStartedRef: fbd, liveQuestionRef: ref("offline phone control"),
   });
-  const diagram: VerifiedDiagram = { id: "visible", name: "visible figure", promptAddon: "", commands: [], reveals: [],
+  const diagram: VerifiedDiagram = { id: "verified_scene", name: "visible figure", promptAddon: "", commands: [], reveals: [],
     anchors: [{ id: "far", labels: ["far"], x: 1060, y: 610, width: 60, height: 40 }] };
   const executor = load<{ useCommandExecution: typeof CommandHook }>("features/tutor-session/hooks/useCommandExecution.ts").useCommandExecution({
     whiteboardRef: whiteboard, cancelRef: cancel, activeVerifiedDiagramRef: ref(diagram), fbdPhaseStartedRef: fbd,
@@ -114,11 +114,11 @@ async function followConsumers() {
   try {
     await pump(board.writeText("setup", 90, 80, 0, undefined, 27)); fixture.frame();
     assert.equal(fixture.fonts.at(-1), 27, "actual native paths supply the visible size");
-    await pump(executor.executeCommandWithCancel({ type: "WRITE", text: "v = 10 m/s", params: [90, 610, 27] }, { textPlacementReserved: true }));
+    await pump(executor.executeCommandWithCancel({ type: "WRITE", text: "v = 10 m/s", params: [90, 610, 27], charPosition: 0, narrationBefore: "" }, { textPlacementReserved: true }));
     assert.ok(fixture.pane.scrollTop > 250, `actual WRITE nib is followed to bottom work: ${JSON.stringify({pane:[fixture.pane.scrollLeft,fixture.pane.scrollTop],moves:fixture.moves,nib:board.getCursorLayer()?.getChildren().map(n=>({type:n.getClassName(),xy:n.position(),visible:n.isVisible(),opacity:n.getAbsoluteOpacity()}))})}`);
     console.log(JSON.stringify({ consumer: "WRITE", scrollLeft: fixture.pane.scrollLeft, scrollTop: fixture.pane.scrollTop }));
     const beforePoint = board.getDrawLayer()!.getChildren().map(node => node.toObject());
-    await pump(executor.executeCommandWithCancel({ type: "POINT", text: "far", params: [] }, { segmentNarration: "The far verified target.", speechDurationMs: 1000, speechShareMs: 1000 }));
+    await pump(executor.executeCommandWithCancel({ type: "POINT", text: "far", params: [], charPosition: 0, narrationBefore: "" }, { segmentNarration: "The far verified target.", speechDurationMs: 1000, speechShareMs: 1000 }));
     assert.ok(fixture.pane.scrollLeft > 500, "actual POINT nib is followed into the far figure");
     console.log(JSON.stringify({ consumer: "POINT", scrollLeft: fixture.pane.scrollLeft, scrollTop: fixture.pane.scrollTop }));
     assert.deepEqual(board.getDrawLayer()!.getChildren().map(node => node.toObject()), beforePoint, "following a POINT adds or changes no ink");
@@ -126,7 +126,7 @@ async function followConsumers() {
     const nib = board.getCursorLayer()!.getChildren().find(node => node.getClassName() === "Group")!;
     board.setCursorPos(1090, 610); fixture.frame(); fixture.pane.scrollLeft = 0; fixture.pane.scrollTop = 0;
     const beforeImmediate = nib.position();
-    const immediate = executor.executeCommandWithCancel({ type: "POINT", text: "far", params: [] }, { segmentNarration: "far", speechDurationMs: 700, speechShareMs: 700 });
+    const immediate = executor.executeCommandWithCancel({ type: "POINT", text: "far", params: [], charPosition: 0, narrationBefore: "" }, { segmentNarration: "far", speechDurationMs: 700, speechShareMs: 700 });
     for (let micro = 0; micro < 40; micro++) await Promise.resolve();
     fixture.frame(); assert.deepEqual(nib.position(), beforeImmediate, "POINT begins at its stationary target before any board-clock advance");
     assert.ok(fixture.pane.scrollLeft > 500, "a new same-position POINT is followed before any movement sample");
@@ -158,7 +158,7 @@ async function followConsumers() {
     assert.equal(fixture.pane.scrollLeft, 0, "page replacement with no accepted activity remains fenced on later stationary samples");
     other.getDrawLayer()!.destroyChildren(); other.getDrawLayer()!.add(new Konva.Text({ text: "next page", x: 90, y: 80, fontSize: 32 }));
     whiteboard.current = other;
-    const pagePoint = executor.executeCommandWithCancel({ type: "POINT", text: "far", params: [] }, { segmentNarration: "far", speechDurationMs: 700, speechShareMs: 700 });
+    const pagePoint = executor.executeCommandWithCancel({ type: "POINT", text: "far", params: [], charPosition: 0, narrationBefore: "" }, { segmentNarration: "far", speechDurationMs: 700, speechShareMs: 700 });
     for (let micro = 0; micro < 40; micro++) await Promise.resolve();
     fixture.frame(); fixture.frame();
     assert.ok(fixture.pane.scrollLeft > 500, "accepted zero-distance POINT after same-interval page replacement is followed within two reading frames");
@@ -233,7 +233,7 @@ async function main(): Promise<void> {
     const token = fitBoardText("CH3CH2CH2CH2CH2CH2CH2CH2CH2CH2CH2CH2CH2CH2CH2CH2OH", { role: "work", maxWidth: 282 });
     assert.equal(token.fontSize, 19, "unbreakable-token fallback is covered by the phone floor");
   } finally { unmountTestWhiteboard(board); }
-  const policies: Array<Parameters<typeof shell.shellMarkup>[0] & { follow: boolean }> = [
+  const policies: Array<Partial<Parameters<typeof shell.shellMarkup>[0]> & { follow: boolean }> = [
     { phase: "drawing", follow: true }, { phase: "speaking", follow: true },
     { phase: "speaking", paused: true, follow: false }, { phase: "idle", follow: false },
     { playerActive: true, playerPlaying: true, follow: true }, { playerActive: true, playerPlaying: false, follow: false },

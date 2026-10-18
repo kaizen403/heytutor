@@ -49,7 +49,7 @@ export function useBoardReading({
     if (!enabled) return;
     let frame = 0;
     let board = boardRef.current;
-    const nibOf = (owner: WhiteboardHandle | null) => owner?.getCursorLayer()?.getChildren().find(node => node.getClassName() === "Group");
+    const nibOf = (owner: WhiteboardHandle | null): Konva.Node | undefined => owner?.getCursorLayer()?.getChildren().find(node => node.getClassName() === "Group");
     let cursor = nibOf(board);
     let previous = cursor?.position() ?? null;
     let activity: unknown = cursor?.getAttr("htCursorActivity");
