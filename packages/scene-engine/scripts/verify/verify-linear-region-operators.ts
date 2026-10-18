@@ -587,8 +587,12 @@ if (selected("source-authority")) {
     const reason = unproved.get(source);
     if (reason) {
       check(buildLinearSourceDocument(source) === null, `Unproved reader must refuse: ${reason}`);
-      check(validateLinearSourceBinding(candidate).length === 0, `Unproved reader supplies no candidate veto: ${reason}`);
-      // This partial candidate is never asserted to be a correct figure.
+      // The 18 Oct final owner review supersedes these seven no-veto
+      // expectations: an unproved whole source cannot certify this partial
+      // candidate. Original questions, inputs and reader-null checks remain.
+      check(validateLinearSourceBinding(candidate).some(issue => issue.code === "linear_source_mismatch" && issue.severity === "fatal"),
+        `Unproved source must not admit a partial candidate: ${reason}`);
+      atomicallyRefused(candidate, `Unproved source must not emit partial ink: ${reason}`);
     } else atomicallyRefused(candidate, `Source contradiction cannot silently discard meaning: ${source}`);
   }
   check(solutionFor(compiled("linear_half_plane",{inequality:"-7x + 4y <= 9"},
@@ -600,8 +604,12 @@ if (selected("source-authority")) {
     "explicit variable names and their domain remain case-sensitive");
   const undeclaredAddendQuestion = "Graph x + a + y <= 8 in the coordinate plane.";
   check(buildLinearSourceDocument(undeclaredAddendQuestion) === null, "The reader must refuse an undeclared affine addend");
-  check(validateLinearSourceBinding(documentFor("linear_half_plane",{inequality:"x + y <= 8"}, undeclaredAddendQuestion)).length === 0,
-    "An unproved affine reader cannot veto the planner; this partial candidate is not certified as correct");
+  // The same final-review admission rule applies to this eighth stored
+  // partial candidate; no source authority establishes that a can be dropped.
+  const undeclaredAddendCandidate = documentFor("linear_half_plane",{inequality:"x + y <= 8"}, undeclaredAddendQuestion);
+  check(validateLinearSourceBinding(undeclaredAddendCandidate).some(issue => issue.code === "linear_source_mismatch" && issue.severity === "fatal"),
+    "An unproved affine source must not admit a candidate that omits its addend");
+  atomicallyRefused(undeclaredAddendCandidate, "An undeclared source addend cannot disappear from the figure");
   const tupleQuestion="Graph the common region x, y >= 2 + 1 in the coordinate plane.";
   const tupleRegion=compiled("linear_feasible_region",{constraints:["x >= 3","y >= 3"]},tupleQuestion);
   cornersOracle(solutionFor(tupleRegion),[[3n,1n,3n,1n]]);

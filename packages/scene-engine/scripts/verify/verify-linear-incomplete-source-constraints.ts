@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { buildLinearSourceDocument, compileSceneDocument } from "../../src/index";
 import { validateLinearSourceBinding } from "../../src/compile/linearRegionSource";
-import { incompleteConstraintCases, incompleteConstraintCandidate, uncertaintyControls, unprovedSignCases, unprovedMathTailCases, unprovedScopeCases } from "./fixtures/linear-incomplete-source-constraints";
+import { incompleteConstraintCases, incompleteConstraintCandidate, uncertaintyControls, unprovedSignCases, unprovedMathTailCases, unprovedScopeCases, incompleteSourcePreservationCases } from "./fixtures/linear-incomplete-source-constraints";
 if (process.argv.includes("--preflight-resource")) {
   const child = spawnSync(process.execPath, [...process.execArgv, import.meta.filename, "--preflight-resource-child"], { timeout: 20000, encoding: "utf8", maxBuffer: 1024 * 1024 });
   assert.equal(child.error, undefined);
@@ -104,6 +104,21 @@ for (const row of uncertaintyControls) check(row.id, () => {
   assert.equal(buildLinearSourceDocument(row.question), null);
   assert.deepEqual(validateLinearSourceBinding(incompleteConstraintCandidate(row)), []);
   assert(compileSceneDocument(incompleteConstraintCandidate(row)).ok, "unknown prose alone still cannot veto a complete planner");
+});
+for (const row of incompleteSourcePreservationCases) check(row.id, () => {
+  const candidate = incompleteConstraintCandidate(row, true), before = structuredClone(candidate);
+  if (row.objective) candidate.constructions[0]!.inputs.objective = row.objective;
+  const input = structuredClone(candidate);
+  const issues = validateLinearSourceBinding(candidate), compiled = compileSceneDocument(candidate);
+  if (row.refuse) {
+    assert(issues.some(issue => issue.code === "linear_source_mismatch"), "unproved or incomplete mathematical roles remain restrictive");
+    assert(!compiled.ok && compiled.renderScene === null, "a role proof cannot authorize an incomplete program");
+  } else {
+    assert.deepEqual(issues, [], `the complete supplied program owns every proved source role: ${row.question}`);
+    assert(compiled.ok && compiled.renderScene, JSON.stringify(compiled.report.issues));
+  }
+  assert.deepEqual(candidate, input, "source binding cannot change the candidate");
+  assert.deepEqual(candidate.source, before.source, "source provenance remains the actual original question");
 });
 console.log(`Incomplete source constraint binding: ${checks - failures.length}/${checks}`);
 assert.equal(failures.length, 0, failures.join("\n"));

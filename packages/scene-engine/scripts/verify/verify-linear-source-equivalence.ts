@@ -170,6 +170,18 @@ const unprovedSources = new Map<string, string>([
     .map(id => [id, "The scalar punctuation has unresolved numeric meaning"] as const),
 ]);
 for (const id of unprovedSources.keys()) assert.ok(cases.some(entry => entry.id === id), `Unproved-source case ${id} must still exist`);
+// The 18 Oct final owner review supersedes only these 24 historical no-veto
+// expectations. Each stored candidate drops or changes unproved source math.
+// Preserve the original source, candidate, and reader-null expectation; other
+// uncertain-source seams and every complete correctness control are unchanged.
+const failClosedUnprovedSources = new Set([
+  "unknown-addend", "unknown-function", "unknown-coefficient-word", "nonlinear-source", "unknown-hyphen-math", "hyphen-rhs-math",
+  "interval-omitted-declared-domain", "interval-variable-endpoint",
+  "source-superscript-left", "source-superscript-right", "source-subscript-left", "source-square-root", "source-unicode-product",
+  "source-plus-minus", "source-em-dash-arithmetic", "source-fraction-slash", "source-adjoining-nonlinear",
+  "interval-mixed-or-program", "half-plane-dangling-boolean", "number-line-dangling-boolean",
+  "source-colon-scalar-adjacency", "source-question-scalar-adjacency", "source-decimal-comma-adjacency", "source-given-point-bare-boolean",
+]);
 const replayArgument = process.argv.find((arg) => arg.startsWith("--replay-stored="));
 const replayCases: Case[] = [];
 if (replayArgument) {
@@ -194,8 +206,11 @@ const outcomes = [...cases, ...replayCases].map((entry) => {
   const unprovedReason = unprovedSources.get(entry.id);
   const readerRefused = unprovedReason ? buildLinearSourceDocument(entry.question) === null : undefined;
   const bindingIssues = unprovedReason ? validateLinearSourceBinding(candidate) : undefined;
-  return { ...entry, actualAccepted: result.ok && result.renderScene !== null, unprovedReason, readerRefused, bindingIssues,
-    issues: result.report.issues, passed: unprovedReason ? readerRefused && bindingIssues?.length === 0
+  const failClosedUnproved = failClosedUnprovedSources.has(entry.id);
+  return { ...entry, actualAccepted: result.ok && result.renderScene !== null, unprovedReason, readerRefused, bindingIssues, failClosedUnproved,
+    issues: result.report.issues, passed: unprovedReason ? readerRefused && (failClosedUnproved
+      ? bindingIssues?.some(issue => issue.code === "linear_source_mismatch" && issue.severity === "fatal") && !result.ok && result.renderScene === null
+      : bindingIssues?.length === 0)
       : entry.accept === undefined ? undefined : entry.accept ? result.ok && result.renderScene !== null : !result.ok && result.renderScene === null };
 });
 const evidenceArgument = process.argv.find((arg) => arg.startsWith("--evidence="));
@@ -204,6 +219,6 @@ if (evidenceArgument) {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, JSON.stringify({ schema: "linear-source-equivalence/v1", outcomes }, null, 2) + "\n");
 }
-for (const entry of outcomes) console.log(`${entry.passed === undefined ? entry.actualAccepted ? "REPLAY ADMITTED" : "REPLAY REFUSED" : entry.passed ? "PASS" : "FAIL"} ${entry.id}: ${entry.unprovedReason ? `reader refusal/no-veto (${entry.unprovedReason}); candidate compilation is observational; ` : ""}${JSON.stringify(entry.issues)}`);
+for (const entry of outcomes) console.log(`${entry.passed === undefined ? entry.actualAccepted ? "REPLAY ADMITTED" : "REPLAY REFUSED" : entry.passed ? "PASS" : "FAIL"} ${entry.id}: ${entry.unprovedReason ? entry.failClosedUnproved ? `reader refusal/partial-candidate refusal (${entry.unprovedReason}); ` : `reader refusal/no-veto (${entry.unprovedReason}); candidate compilation is observational; ` : ""}${JSON.stringify(entry.issues)}`);
 assert.equal(outcomes.slice(0, cases.length).filter((entry) => !entry.passed).length, 0, "every source-equivalence regression must match its expected acceptance");
 console.log(`linear source equivalence: ${cases.length} contract cases passed; stored minimal replays ${replayCases.length ? `${outcomes.slice(cases.length).filter((entry) => entry.actualAccepted).length} admitted, ${outcomes.slice(cases.length).filter((entry) => !entry.actualAccepted).length} refused (observations, no expected-acceptance assertion)` : "not requested"}`);

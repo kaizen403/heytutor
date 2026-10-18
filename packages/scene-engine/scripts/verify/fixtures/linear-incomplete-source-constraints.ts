@@ -71,3 +71,39 @@ export const uncertaintyControls: IncompleteConstraintCase[] = [
   { id: "no-comparisons-unknown-prose", question: "Explain this patiently @.", planar: false, source: ["2x-3<5"] },
   { id: "equivalent-scaled", question: "Graph 4x-6<10 on a number line. Explain patiently.", planar: false, source: ["2x-3<5"] },
 ];
+
+/** Independently complete planner controls for the refusal-only seam. These
+ * do not give the source reader a new figure-producing grammar. */
+export interface IncompleteSourcePreservationCase extends IncompleteConstraintCase {
+  refuse?: boolean;
+  objective?: { expression: string; sense: "max" | "min" };
+}
+export const incompleteSourcePreservationCases: IncompleteSourcePreservationCase[] = [
+  ...[
+    "x is an element of R", "x is a member of the real numbers", "x can be a fraction",
+    "x ek vastavik sankhya hai", "x एक वास्तविक संख्या है", "x R mein hai", "दिखाओ. x is real",
+    "x chosen from R", "x restricted to the real numbers", "x taken from ℝ", "x from the set R",
+  ].map((role, index) => ({ id: `proved-real-role-${index}`, question: `Graph x<4 on a number line. ${role}.`, planar: false, source: ["x<4"] })),
+  { id: "proved-real-prefix", question: "The coefficients are integers. Graph x<4 on a number line for real x.", planar: false, source: ["x<4"] },
+  { id: "proved-repeated-real-request", question: "Discuss a hypothetical graph of x<4 for real x, and then graph x<4 on a number line for real x.", planar: false, source: ["x<4"] },
+  { id: "proved-typed-real-amounts", question: "A workshop chooses real nonnegative production amounts x and y. Its limits are x+y<=8 and x+2y<=11. Revenue is Z=2x+3y. Find the maximum revenue.", planar: true, source: ["x>=0", "y>=0", "x+y<=8", "x+2y<=11"], objective: { expression: "2x+3y", sense: "max" } },
+  { id: "proved-double-complement", question: "Represent the complement of the complement of x<0 on a number line.", planar: false, source: ["x<0"] },
+  { id: "proved-not-satisfying", question: "Represent the set not satisfying x<0 on a number line.", planar: false, source: ["x<0"], expression: { complement: { inequality: "x<0" } } },
+  { id: "proved-opposite-region", question: "Shade the region opposite to x+y<=4.", planar: true, source: ["x+y>4"] },
+  { id: "proved-whole-mixed-number", question: "Represent x>2 1/2 on a number line.", planar: false, source: ["x>5/2"] },
+  ...[
+    "x can only be a fraction", "x cannot be a fraction", "x must be a fraction", "x can be a fraction excluding zero",
+    "x chosen from R excluding zero", "x is a member of the real numbers except zero",
+  ].map((role, index) => ({ id: `unproved-real-qualification-${index}`, question: `Graph x<4 on a number line. ${role}.`, planar: false, source: ["x<4"], refuse: true })),
+  ...["possibly", "not", "only possibly"].map((modifier, index) => ({ id: `unproved-typed-domain-qualification-${index}`, question: `Graph x+y<4. ${modifier} real positive variables x and y. Explain patiently.`, planar: true, source: ["x+y<4", "x>0", "y>0"], refuse: true })),
+  ...["or negative", "possibly negative", "negative", "possibly production"].map((modifier, index) => ({ id: `unproved-typed-domain-internal-qualification-${index}`, question: `Graph x+y<4. Let real positive ${modifier} variables x and y. Explain patiently.`, planar: true, source: ["x+y<4", "x>0", "y>0"], refuse: true })),
+  { id: "real-role-cannot-hide-later-domain", question: "Graph x<4 on a number line. x is a member of the real numbers. x>0. Explain patiently.", planar: false, source: ["x<4"], refuse: true },
+  { id: "real-role-cannot-hide-verbal-domain", question: "Graph x<4 on a number line. x can be a fraction. x must exceed zero. Explain patiently.", planar: false, source: ["x<4"], refuse: true },
+  { id: "real-request-cannot-hide-then-operand", question: "Discuss x<4 for real x and then graph x>0 on a number line for real x.", planar: false, source: ["x<4", "x>0"], refuse: true },
+  { id: "unary-wrong-polarity", question: "Represent the complement of the complement of x<0 on a number line.", planar: false, source: ["x<0"], expression: { complement: { inequality: "x<0" } }, refuse: true },
+  { id: "unary-wrong-region-side", question: "Shade the region opposite to x+y<=4.", planar: true, source: ["x+y<=4"], refuse: true },
+  { id: "unary-cannot-drop-domain", question: "Represent the complement of the complement of x<0 and x>-3 on a number line.", planar: false, source: ["x<0"], refuse: true },
+  { id: "unary-cannot-drop-operand", question: "Represent the complement of the complement of x<0 or z on a number line.", planar: false, source: ["x<0"], refuse: true },
+  { id: "mixed-number-wrong-product", question: "Represent x>2 1/2 on a number line.", planar: false, source: ["x>1"], refuse: true },
+  { id: "mixed-number-wrong-boundary", question: "Represent x>2 1/2 on a number line.", planar: false, source: ["x>=5/2"], refuse: true },
+];

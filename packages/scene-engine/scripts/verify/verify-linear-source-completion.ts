@@ -23,14 +23,19 @@ assert.deepEqual(validateLinearSourceBinding(halfPlaneCandidate(excludedPoint)),
 const additionalGraph = "Graph x+y<=8 and plot x+2.";
 assert.equal(buildLinearSourceDocument(additionalGraph), null, "A requested graph expression cannot disappear behind a complete inequality");
 const partialGraph = compileSceneDocument(halfPlaneCandidate(additionalGraph));
-assert.deepEqual(validateLinearSourceBinding(halfPlaneCandidate(additionalGraph)), [], "Unsupported additional graph scope supplies no reader binding authority");
-// These intentionally partial candidates are observations, not assertions of
-// a correct planner document; only the reader refusal/no-veto seam is certified.
+// The 18 Oct final owner review supersedes the no-veto expectation for this
+// stored partial candidate and the six additional-graph variants below.
+// Reader uncertainty cannot certify an omitted separately requested graph.
+assert.ok(validateLinearSourceBinding(halfPlaneCandidate(additionalGraph)).some(issue => issue.code === "linear_source_mismatch" && issue.severity === "fatal"),
+  "Unsupported additional graph scope must not admit a partial candidate");
+assert.ok(!partialGraph.ok && partialGraph.renderScene === null, "Omitted requested graph ink must fail atomically");
+// The excluded-point candidate remains an observation, not a correct-figure
+// assertion. The additional-graph candidate now has an explicit refusal gate.
 console.log(JSON.stringify({ excludedCandidateAccepted: rejected.ok, partialCandidateAccepted: partialGraph.ok }));
-console.log("verify-linear-source-completion: 4 exclusion/additional-graph checks passed");
+console.log("verify-linear-source-completion: 5 exclusion/additional-graph checks passed");
 
-let checks = 4;
-for (const question of [
+let checks = 5;
+for (const [index, question] of [
   "Graph x+y<=8, exclude P=(1,1).",
   "Graph x+y<=8 with the exclusion of P=(1,1).",
   "Graph x+y<=8 without P=(1,1).",
@@ -40,10 +45,19 @@ for (const question of [
   "Graph x+y<=8 and plot 2x.",
   "Plot x+2. Graph x+y<=8.",
   "Graph x+y<=8 and plot z.",
-]) {
+].entries()) {
   assert.equal(buildLinearSourceDocument(question), null, question);
-  assert.deepEqual(validateLinearSourceBinding(halfPlaneCandidate(question)), [], question);
-  checks += 2;
+  // The first three exclusion observations keep their original seam. Only
+  // the final six additional-graph candidates receive the approved refusal.
+  if (index < 3) {
+    assert.deepEqual(validateLinearSourceBinding(halfPlaneCandidate(question)), [], question);
+    checks += 2;
+  } else {
+    assert.ok(validateLinearSourceBinding(halfPlaneCandidate(question)).some(issue => issue.code === "linear_source_mismatch" && issue.severity === "fatal"), question);
+    const result = compileSceneDocument(halfPlaneCandidate(question));
+    assert.ok(!result.ok && result.renderScene === null, question);
+    checks += 3;
+  }
 }
 for (const question of [
   "Graph x+y<=8. Mark P=(1,1).",

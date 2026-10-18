@@ -166,6 +166,23 @@ const unprovedGroups = new Map([
   ["unsupported-negation-scope", "The complete source negation scope is unsupported"],
   ["union-restriction-grammar", "The extra restriction has unresolved whole-union scope"],
 ]);
+// The 18 Oct final owner review supersedes exactly these eleven historical
+// partial-candidate no-veto expectations. The complete set-not-satisfying
+// candidate and all four correct complete controls below remain positive.
+const failClosedUnprovedSources = new Set([
+  "Represent the complement of the complement of x<0 on a number line.",
+  "Represent on a number line: x<1 or x>3 where x>=0.",
+  "Represent on a number line: x<1 or x>3, x>=0.",
+  "Represent x>2 on a number line. Then x<1.",
+  "Represent the complement of the set not satisfying x<0 on a number line.",
+  "Represent the complement of the set of all x not satisfying x>=1 on a number line.",
+  "Represent x<0 or the set not satisfying x>=1 on a number line.",
+  "Represent x<1 or x>3 given x>=0 on a number line.",
+  "Represent x<1 or x>3 assuming x>=0 on a number line.",
+  "Represent x<1 or x>3 on the condition that x>=0 on a number line.",
+  // This stored x>1 candidate is not the correct mixed-number x>5/2 control.
+  "Represent x>2 1/2 on a number line.",
+]);
 let checks = 0;
 const failures: string[] = [];
 for (const test of refusals.filter(test => !selected || test.group === selected)) {
@@ -177,6 +194,13 @@ for (const test of refusals.filter(test => !selected || test.group === selected)
     if (test.builderOnly) { checks++; continue; }
     const unprovedReason = test.provedSource ? undefined : unprovedGroups.get(test.group);
     if (unprovedReason) {
+      if (failClosedUnprovedSources.has(test.question)) {
+        assert.ok(validateLinearSourceBinding(candidate(test)).some(issue => issue.code === "linear_source_mismatch" && issue.severity === "fatal"),
+          `An unproved source must refuse this partial candidate: ${unprovedReason}: ${test.question}`);
+        const compiled = compileSceneDocument(candidate(test));
+        assert.ok(!compiled.ok && compiled.renderScene === null, `Partial source refusal must be atomic: ${test.question}`);
+        checks += 3; continue;
+      }
       assert.deepEqual(validateLinearSourceBinding(candidate(test)), [], `An unproved reader must not veto: ${unprovedReason}: ${test.question}`);
       // Do not assert that this intentionally partial stored candidate is a
       // correct planner figure. Correct complete controls are separate below.

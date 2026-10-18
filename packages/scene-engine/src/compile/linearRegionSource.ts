@@ -1726,7 +1726,7 @@ function hasScalarRoster(remaining: string): boolean {
 
 /** Reject-only domain proof over normalized tokens; ordinary membership,
  * discrete and roster contradictions remain independent. */
-function hasUnsupportedHindiDomain(source: string, names: readonly string[]): boolean {
+function hasUnsupportedHindiDomain(source: string, names: readonly string[], provedSpans?: Array<{ start: number; end: number }>): boolean {
   if (source.length > 2000) return true;
   const tokens = [...source.matchAll(/[\p{L}\p{M}\p{N}_]+|[^\s]/gu)]
     .map(match => ({ raw: match[0], word: match[0].toLowerCase(), start: match.index!, end: match.index! + match[0].length }));
@@ -1749,9 +1749,12 @@ function hasUnsupportedHindiDomain(source: string, names: readonly string[]): bo
     (copula.has(word(index + 1)) || native.has(tokens[index - 2]?.raw ?? "") ||
       word(index - 2) === "," && native.has(tokens[index - 3]?.raw ?? "")) ||
     possessive.has(word(index)) && /^(?:sadasy|सदस्य)/u.test(word(index + 1));
-  if (!tokens.some((token, index) => deva(token.raw) || numberCue(token.word) || copula.has(token.word) || postfix(index))) return false;
+  if (!provedSpans && !tokens.some((token, index) => deva(token.raw) || numberCue(token.word) || copula.has(token.word) || postfix(index))) return false;
 
-  const mark = (first: number, end: number) => { for (let index = first; index < end; index += 1) masked.add(index); };
+  const mark = (first: number, end: number) => {
+    for (let index = first; index < end; index += 1) masked.add(index);
+    if (first < end) provedSpans?.push({ start: tokens[first]!.start, end: tokens[end - 1]!.end });
+  };
   const matchWords = (index: number, pattern: readonly string[]) => pattern.every((part, offset) => word(index + offset) === part);
   // Capital R is a set; lowercase r, a coefficient, and point labels are not.
   const real = (index: number): number | null => {
@@ -1787,13 +1790,16 @@ function hasUnsupportedHindiDomain(source: string, names: readonly string[]): bo
     ["restricted", "to"], ["chosen", "from"], ["taken", "from"], ["from", "the", "set"], ["ranges", "over"]];
   let explicitReal = false;
   for (let index = 0; index < tokens.length; index += 1) {
-    if (!start(index)) continue;
+    if (!start(index) && !(provedSpans && word(index - 1) === "for")) continue;
     let end: number | null = null;
     const afterSubject = subjects(index);
     if (afterSubject !== null) {
       let at = afterSubject;
       const englishCopula = ["is", "are"].includes(word(at));
       if (englishCopula) at += 1;
+      // Articles belong to an exact membership noun phrase, not to its
+      // replacement-set target. This optional proof is refusal-only.
+      if (provedSpans && englishCopula && ["a", "an"].includes(word(at))) at += 1;
       for (const head of membershipHeads) if (matchWords(at, head)) {
         end = realTarget(at + head.length); if (end !== null) break;
       }
@@ -1809,6 +1815,10 @@ function hasUnsupportedHindiDomain(source: string, names: readonly string[]): bo
           if (possessive.has(word(target)) && /^(?:sadasy|सदस्य)/u.test(word(target + 1)) && copula.has(word(target + 2))) end = target + 3;
         }
       }
+      // Permission to take a fractional scalar is not a requirement to take
+      // only rational values. Require the entire unqualified declaration.
+      if (provedSpans && end === null && matchWords(afterSubject, ["can", "be", "a", "fraction"]))
+        end = afterSubject + 4;
     } else {
       // Only a whole universal-domain head supplies subject-independent proof.
       let at = index;
@@ -1818,6 +1828,10 @@ function hasUnsupportedHindiDomain(source: string, names: readonly string[]): bo
         at += matchWords(at, ["replacement", "set"]) ? 2 : 1;
         if (["is", "as", ":", "="].includes(word(at))) at += 1;
         end = realTarget(at);
+      }
+      if (provedSpans && end === null) {
+        const target = real(index);
+        if (target !== null) end = subjects(target);
       }
     }
     if (end !== null && copula.has(word(end))) end += 1;
@@ -1962,6 +1976,52 @@ function hasUnsupportedDiscreteDomain(question: string, planar = false, sourcePr
   return hasUnsupportedMembership(remaining, planar, sourceProved, aliases) || hasScalarRoster(remaining);
 }
 
+/** Binding-only scalar syntax. A complete mixed number is a sum, never an
+ * implicit product. The source builder deliberately retains its old grammar. */
+function incompleteSourceMixedScalars(source: string): string {
+  return source.replace(/(?<![\p{L}\p{N}_./])([+-]?)(\d+)\s+(\d+)\s*\/\s*(\d+)(?![\p{L}\p{N}_./])/gu,
+    (_whole, sign: string, integer: string, numerator: string, denominator: string) => {
+      if (BigInt(denominator) === 0n || BigInt(numerator) >= BigInt(denominator))
+        throw new Error("An unproved mixed scalar requires a complete proper fractional part");
+      return `${sign}(${integer}+${numerator}/${denominator})`;
+    });
+}
+
+/** A unary source wrapper can be proved independently of request certainty.
+ * Remove only its exact prefix tokens, then let the existing Boolean parser
+ * own every remaining operand and gap. This corroborates a candidate only;
+ * it never supplies a source figure or a requested-answer claim. */
+function incompleteUnarySourceProgram(body: string, source: SourceClause[], labels: readonly string[], names: readonly string[]): IntervalExpression | null {
+  if (!source.length || source.length > 16 || new RegExp(`\\b(?:if|then|${UNSUPPORTED_LINEAR_INTERVAL_BOOLEAN_WORDS})\\b`, "i").test(body)) return null;
+  const prefix = body.slice(0, source[0]!.start);
+  const tokens = [...prefix.matchAll(/[A-Za-z][A-Za-z0-9_]*|[^\s]/g)];
+  let cursor = tokens.length, wrappers = 0;
+  const word = (index: number) => tokens[index]?.[0].toLowerCase();
+  while (wrappers < 16) {
+    if (word(cursor - 2) === "complement" && word(cursor - 1) === "of") {
+      cursor -= 2;
+      if (word(cursor - 1) === "the") cursor--;
+    } else if (word(cursor - 2) === "not" && word(cursor - 1) === "satisfying") {
+      cursor -= 2;
+      if (word(cursor - 1) === "set") {
+        cursor--;
+        if (word(cursor - 1) === "the") cursor--;
+      }
+    } else if (word(cursor - 2) === "opposite" && word(cursor - 1) === "to") cursor -= 2;
+    else break;
+    wrappers++;
+  }
+  if (!wrappers) return null;
+  const start = tokens[cursor]!.index!;
+  const plain = body.slice(0, start) + body.slice(source[0]!.start);
+  const operands = clauses(plain, names, labels, true);
+  if (!same(signatures(operands.map(clause => clause.text), names), signatures(source.map(clause => clause.text), names)))
+    throw new Error("Unary source proof must retain every complete original operand");
+  let program = booleanProgram(plain, operands, labels);
+  for (let index = 0; index < wrappers; index++) program = { complement: program };
+  return program;
+}
+
 /** A failed request proof cannot erase independently readable source operands.
  * This is predicate inventory only: it neither invents a result nor proves the
  * prose/Boolean request. Other native components may collectively own predicates.
@@ -1974,6 +2034,11 @@ function requireIncompleteSourceConstraintCoverage(question: string, names: read
   // remain untouched and are refused by the unproved-sign check below.
   const native = `(?:${names.join("|")})`;
   const subjects = `${native}(?:\\s*(?:,\\s*(?:and\\s*)?|and\\s+)${native}){0,8}`;
+  // A real, explicitly typed native-subject noun phrase has the existing
+  // variable-domain role even if the surrounding objective prose is unknown.
+  const typedSubjects = `real\\s+(?:${SIGN_DOMAIN_PROPERTY})\\s+(?:variables?|(?:production\\s+)?amounts?|quantities|values)\\s+${subjects}`;
+  body = body.replace(new RegExp(`(^|[.;?!\\r\\n])(\\s*(?:(?:let|for|given)\\s+|(?:a|an|the)\\s+[A-Za-z]{2,}\\s+chooses\\s+)?)(${typedSubjects})(?=\\s*(?:[;?!\\r\\n]|\\.(?!\\d)|$))`, "gi"),
+    (_whole, boundary: string, prefix: string, declaration: string) => `${boundary}${prefix}${explicitDomains(declaration, names)}`);
   body = body.replace(new RegExp(`(^|[.;?!\\r\\n]|\\band\\b)(\\s*)(${subjects})\\s+(?:is|are)\\s+(${SIGN_DOMAIN_PROPERTY})\\b(?=\\s*(?:[;?!\\r\\n]|\\.(?!\\d)|$))`, "gi"),
     (whole: string, boundary: string, space: string, variables: string, _sign: string, offset: number, original: string) => {
       const subjectEnd = offset + boundary.length + space.length + variables.length;
@@ -1981,6 +2046,11 @@ function requireIncompleteSourceConstraintCoverage(question: string, names: read
         || boundary.toLowerCase() === "and" && new RegExp(`\\b${native}\\s*$`).test(original.slice(0, offset))) return whole;
       return `${boundary}${space}${explicitDomains(whole.slice(boundary.length + space.length), names)} `;
     });
+  const realSpans: Array<{ start: number; end: number }> = [];
+  hasUnsupportedHindiDomain(body, names, realSpans);
+  const realMasked = body.split("");
+  for (const span of realSpans) for (let index = span.start; index < span.end; index++) realMasked[index] = " ";
+  body = realMasked.join("");
   const points = readLinearSourceReferencePoints(body, names);
   const scalarSpans: Array<{ start: number; end: number }> = [];
   body = maskLinearSourceScalarNameRoles(points.maskedQuestion, names, label => !names.includes(label), scalarSpans);
@@ -1993,28 +2063,53 @@ function requireIncompleteSourceConstraintCoverage(question: string, names: read
   body = linearRationalPropertySource(body, names, true);
   if (new RegExp(`\\b(?:${SIGN_DOMAIN_PROPERTY})\\b`, "i").test(body))
     throw new Error("An unproved variable sign/domain occurrence cannot be omitted from a linear figure");
+  body = incompleteSourceMixedScalars(body);
   const hasNative = [...body.matchAll(/(?:\d+(?:\.\d+|\.(?=[eE][+-]?\d))?|\.\d+)(?:[eE][+-]?\d+)?|[A-Za-z][A-Za-z0-9_]*/g)].some(token => names.includes(token[0]));
   const domains = firstQuadrantDomains(normalized, names);
   const source = hasNative && (/[<>=]/.test(body) || domains.length > 0) ? clauses(body, names, points.points.map(point => point.label), true) : [];
+  const unary = incompleteUnarySourceProgram(body, source, points.points.map(point => point.label), names);
   source.push(...domains);
   if (!source.length) return;
-  for (const operator of body.matchAll(new RegExp(`\\b(?:or|not|complement|union|if|then|${UNSUPPORTED_LINEAR_INTERVAL_BOOLEAN_WORDS})\\b`, "gi"))) {
-    const following = source.find(clause => clause.start >= operator.index! + operator[0].length);
-    const previous = source.slice().reverse().find(clause => clause.end <= operator.index!);
-    if (following && !/[.;?!\r\n]/.test(body.slice(operator.index! + operator[0].length, following.start))
-      || previous && /^[()\s]*$/.test(body.slice(previous.end, operator.index!)))
-      throw new Error("An unproved source Boolean operand scope cannot be replaced by a planner conjunction");
-  }
   const proposed: string[] = [];
+  const numberPrograms: IntervalExpression[] = [];
   for (const construction of document.constructions) {
     if (!(LINEAR_REGION_OPERATORS as readonly string[]).includes(construction.operator)) continue;
     const input = evaluateLinearRegionConstruction(construction.operator, construction.inputs)[0]!.input;
     const candidateNames = input.kind === "number_line_set" ? [input.variable ?? "x"] : input.variables ?? ["x", "y"];
     if (!same(candidateNames, names)) continue;
-    if (input.kind === "number_line_set" && !isIntersectionProgram(input.expression))
-      throw new Error("A nonconjunctive planner cannot supply unproved source Boolean scope");
+    if (input.kind === "number_line_set") numberPrograms.push(input.expression);
     proposed.push(...(input.kind === "number_line_set" ? inequalityLeaves(input.expression) : input.kind === "linear_half_plane" ? [input.inequality] : input.kind === "linear_system" ? input.equations : input.constraints));
   }
+  if (unary) {
+    const program: IntervalExpression = domains.length ? { intersection: [unary, ...domains.map(clause => ({ inequality: clause.text }))] } : unary;
+    if (names.length === 1 && numberPrograms.length === 1) {
+      const expected = solveLinearFigure({ kind: "number_line_set", variable: names[0], expression: program });
+      const actual = solveLinearFigure({ kind: "number_line_set", variable: names[0], expression: numberPrograms[0]! });
+      const sourcePredicates = planarPredicates(program), candidatePredicates = planarPredicates(numberPrograms[0]!);
+      if (expected.kind === "number_line_set" && actual.kind === "number_line_set" && sourcePredicates && candidatePredicates
+        && same(signatures(sourcePredicates, names), signatures(candidatePredicates, names)) && same(expected.intervals, actual.intervals)) return;
+    } else if (names.length === 2) {
+      const predicates = planarPredicates(program);
+      if (predicates && same(signatures(predicates, names), signatures(proposed, names)) && planarBooleanAgreement(program, proposed, names) === true) return;
+    }
+    throw new Error("Candidate does not own the complete independently proved unary source program");
+  }
+  for (const operator of body.matchAll(new RegExp(`\\b(?:or|not|complement|union|if|then|${UNSUPPORTED_LINEAR_INTERVAL_BOOLEAN_WORDS})\\b`, "gi"))) {
+    const following = source.find(clause => clause.start >= operator.index! + operator[0].length);
+    const previous = source.slice().reverse().find(clause => clause.end <= operator.index!);
+    // A sequential display modifier between two identical operands introduces
+    // no new predicate or polarity. This does not cover mathematical "then",
+    // a conditional antecedent, or different requested source constraints.
+    if (operator[0].toLowerCase() === "then" && previous && following
+      && /^\s*(?:graph|shade|show|plot|represent|draw|illustrate)\b/i.test(body.slice(operator.index! + operator[0].length))
+      && !domains.length && same(signatures(source.map(clause => clause.text), names), signatures([previous.text], names))
+      && same(signatures(proposed, names), signatures([previous.text], names))) continue;
+    if (following && !/[.;?!\r\n]/.test(body.slice(operator.index! + operator[0].length, following.start))
+      || previous && /^[()\s]*$/.test(body.slice(previous.end, operator.index!)))
+      throw new Error("An unproved source Boolean operand scope cannot be replaced by a planner conjunction");
+  }
+  if (numberPrograms.some(program => !isIntersectionProgram(program)))
+    throw new Error("A nonconjunctive planner cannot supply unproved source Boolean scope");
   const owned = new Set(signatures(proposed, names));
   if (signatures(source.map(clause => clause.text), names).some(signature => !owned.has(signature)))
     throw new Error("Candidate omits a stated source comparison or variable-domain predicate while the complete request is unproved");
@@ -2022,6 +2117,7 @@ function requireIncompleteSourceConstraintCoverage(question: string, names: read
 
 export function validateLinearSourceBinding(document: SceneDocument): SceneIssue[] {
   const issues: SceneIssue[] = [];
+  const incompleteCoverage = new Map<string, Error | null>();
   for (const [constructionIndex, construction] of document.constructions.entries()) {
     if (!(LINEAR_REGION_OPERATORS as readonly string[]).includes(construction.operator)) continue;
     try {
@@ -2057,7 +2153,13 @@ export function validateLinearSourceBinding(document: SceneDocument): SceneIssue
       if (hasUnsupportedDiscreteDomain(question, input.kind !== "number_line_set", authority !== null, authority?.aliases, names))
         throw new Error("Continuous linear figures cannot represent a source with an unsupported discrete domain cue");
       if (!authority) {
-        requireIncompleteSourceConstraintCoverage(question, names, document);
+        const context = JSON.stringify(names);
+        if (!incompleteCoverage.has(context)) {
+          try { requireIncompleteSourceConstraintCoverage(question, names, document); incompleteCoverage.set(context, null); }
+          catch (error) { incompleteCoverage.set(context, error instanceof Error ? error : new Error(String(error))); }
+        }
+        const failure = incompleteCoverage.get(context);
+        if (failure) throw failure;
         continue;
       }
       const ownedOutputs = new Set(document.constructions

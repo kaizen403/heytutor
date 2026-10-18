@@ -74,7 +74,11 @@ for (const [id, question] of [
   ["unread-operand", "Shade x>=0 or z and y>=0."],
 ]) check(`uncertain-grammar-still-defers-${id}`, () => {
   assert.equal(buildLinearSourceDocument(question!), null);
-  assert.deepEqual(validateLinearSourceBinding(candidate(question!, ["x>=0", "y>=0"])), []);
+  // The 18 Oct final owner review supersedes only empty mathematical groups
+  // and the omitted z operand. Keep original questions, candidates, reader-null
+  // expectations and the already passing unmatched-closing observation.
+  if (id === "empty-parentheses" || id === "unread-operand") refuses(question!, ["x>=0", "y>=0"]);
+  else assert.deepEqual(validateLinearSourceBinding(candidate(question!, ["x>=0", "y>=0"])), []);
 });
 console.log(`Linear Boolean proof budget: ${checks - failures.length}/${checks} passed`);
 assert.deepEqual(failures, []);
