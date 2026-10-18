@@ -45,7 +45,13 @@ findLiveBlock(liveSource);
 assert.equal(liveBlocks.length, 1, "use the actual live planner-to-selection block");
 const liveBlock = liveBlocks[0]!;
 const liveBegin = liveBlock.statements.findIndex((node) => declares(node, "turnPlanStartedAt"));
-const liveEnd = liveBlock.statements.findIndex((node) => declares(node, "evaluatedVisualNeed"));
+// The visual decision is retained outside this block for final selection.
+// Stop at its assignment, after exercising the actual planner/subject path.
+const liveEnd = liveBlock.statements.findIndex((node) => ts.isExpressionStatement(node)
+  && ts.isBinaryExpression(node.expression)
+  && node.expression.operatorToken.kind === ts.SyntaxKind.EqualsToken
+  && ts.isIdentifier(node.expression.left)
+  && node.expression.left.text === "evaluatedVisualNeed");
 assert.ok(liveBegin >= 0 && liveEnd > liveBegin);
 const currentTurnGuard = liveSource.statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === "awaitCurrentTurn");
 assert.ok(currentTurnGuard);
