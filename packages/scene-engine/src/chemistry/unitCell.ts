@@ -382,13 +382,19 @@ function speciesIn(
     if (alias && alias.symbol !== match[1]) return null;
     const enclosed = fragment[index - 1] === "(" && token.endsWith(")")
       && (index === 1 || /[\s,.;:!?]/.test(fragment[index - 2] ?? "") || alias !== null);
-    const rawCharge = token.slice(match[1]!.length, enclosed ? -1 : undefined);
+    const suffix = token.slice(match[1]!.length, enclosed ? -1 : undefined);
+    const phase = /\((s|l|g|aq)\)$/.exec(suffix);
+    const rawCharge = phase ? suffix.slice(0, -phase[0].length) : suffix;
     if (!elementBySymbol(match[1]!)) return null;
     if (!enclosed && /[0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉^()[\]{}_+⁺⁻−–—-]/.test(fragment[(match.index ?? 0) - 1] ?? "")) return null;
     const parsedCharge = /^(?:\^?\(([1-9]\d*)?([+-])\)|\^?([1-9]\d*)?([+-]))$/.exec(normalizeChemistryText(rawCharge));
     // A complete outer wrapper may contain a neutral element. Any nonempty
     // suffix still needs the complete charge grammar; it cannot become neutral.
-    if (!parsedCharge && !(enclosed && rawCharge === "")) return null;
+    if (!parsedCharge && !((enclosed || phase) && rawCharge === "")) return null;
+    // A phase is not charge notation. This operator can bind neutral solid
+    // lattice sites; phase transitions and charged-phase site ownership need
+    // a separate proof rather than silently turning an ion/liquid into metal.
+    if (phase && (phase[1] !== "s" || parsedCharge)) return null;
     const end = index + token.length;
     if (!/^\s*(?:atoms?|ions?|is|are|occup|at\b|form|present|,|and\b)/.test(fragment.slice(end))) continue;
     const magnitude = parsedCharge?.[1] ?? parsedCharge?.[3] ?? "";
