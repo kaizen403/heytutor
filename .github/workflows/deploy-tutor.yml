@@ -53,6 +53,8 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 2
+      - name: Fetch main for cache-order comparison
+        run: git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main
       - name: Setup pnpm
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
         with:
