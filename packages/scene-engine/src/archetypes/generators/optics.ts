@@ -380,9 +380,11 @@ function photoelectric(context: GeneratorContext) {
     && grounded(context, "photonEnergy") && grounded(context, "lambda")
     && Math.abs(directPhoton - 1240 / lambda) > 1e-6 * Math.max(1, Math.abs(directPhoton), Math.abs(1240 / lambda));
   const photonGiven = !conflictingPhoton && ((directPhoton !== null && grounded(context, "photonEnergy")) || (lambda !== null && grounded(context, "lambda")));
-  const phiValue = phiGiven ? phi : 2;
+  // Unknown work function is a schematic level below the incident energy,
+  // never an assumed physical threshold that can veto a sourced photon.
+  const phiValue = phiGiven ? phi : photonGiven ? photon! * 2 / 3 : 2;
   const photonValue = photonGiven ? photon! : Math.max(phiValue * 1.5, phiValue + 1);
-  if (photonValue <= phiValue) return null;
+  if (phiGiven && photonGiven && photonValue <= phiValue) return null;
   const kMax = photonValue - phiValue;
   const scene = new SceneBuilder(context.question, "photoelectric energy balance: photon energy, work function and maximum kinetic energy", "photoelectric");
   if (phi !== null && grounded(context, "workFunction")) scene.quantity("phi", "phi", phi, "eV");

@@ -1224,7 +1224,9 @@ const CUE_SETS: readonly CueSet[] = [
           : role === "mode" && closed ? 2 * value - 1 : value);
         return "";
       });
-      remaining = remaining.replace(/\bn\s*=\s*(\d+)\b(?!\.\d|\s*[+/*^⁄−-])/gi, (_match, value: string) => {
+      // Consume a complete integer only; Unicode operators and superscripts
+      // must leave the requested expression unresolved, not select its prefix.
+      remaining = remaining.replace(/\bn\s*=\s*(\d+)\b(?!\.\d|\s*(?:[\p{Sm}\p{N}/*^⁄·(-]|\bx\b))/giu, (_match, value: string) => {
         harmonics.push(Number(value));
         return "";
       });

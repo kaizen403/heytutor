@@ -208,3 +208,39 @@ for (const clauses of [
   assert.equal(scene.entities.find(e => e.id === "kinetic")?.label, "K=1 eV");
 }
 console.log("repeated energy role gates passed");
+
+// A display-only work function cannot rule out a sourced incident photon.
+for (const [source, energy] of [
+  ["photon energy is 1.5 eV", 1.5],
+  ["photon energy is 2 eV", 2],
+  ["photon energy is 0.5 eV", 0.5],
+  ["incident wavelength is 1240 nm", 1],
+] as const) {
+  const question = `Photoelectric emission: ${source}.`;
+  const match = detectArchetype(question, { plannerArchetype: "photoelectric" })!;
+  const scene = generated("photoelectric", match.slots, match.sources, question);
+  assert.ok(scene, `unknown work function cannot veto ${source}`);
+  assert.equal(scene.entities.find(entity => entity.id === "E_top")?.label, `hν=${energy} eV`);
+  assert.equal(scene.entities.find(entity => entity.id === "phi_top")?.label, "φ");
+  assert.equal(scene.entities.find(entity => entity.id === "kinetic")?.label, "K");
+  assert.deepEqual(scene.quantities.map(({ id, value }) => ({ id, value })), [{ id: "E", value: energy }]);
+  const height = (id: string) => Number(scene.constructions.find(item => item.id === `make_${id}`)?.inputs.y);
+  assert.equal(height("E_top"), energy, "incident geometry preserves the given energy");
+  assert.ok(height("phi_top") > 0 && height("phi_top") < energy, "symbolic work function leaves a positive qualitative kinetic-energy arrow");
+  assert.ok(height("k_tip") > height("k_base"), "kinetic-energy arrow points upward");
+}
+for (const energy of [1.5, 2]) {
+  assert.equal(generated("photoelectric", { workFunction: 2, photonEnergy: energy }, { workFunction: "stem", photonEnergy: "stem" }), null,
+    "two grounded values still reject non-emitting energy balances");
+}
+for (const expression of [
+  "2 × 3", "2×3", "2 ÷ 3", "2÷3", "2 x 3", "2 X 3", "2 ⋅ 3", "2 · 3", "2 ∙ 3", "2 ∗ 3",
+  "2 + 3", "2 − 3", "2 / 3", "2 ⁄ 3", "2 ∕ 3", "2 ^ 3", "2²", "2(3)",
+]) {
+  const question = `Draw a standing wave on a string with n = ${expression}.`;
+  const match = detectArchetype(question, { plannerArchetype: "standing_wave" })!;
+  assert.equal(match.slots.harmonic, undefined, `do not partially read n = ${expression}`);
+  assert.equal(match.slots.harmonicUnresolved, "unread", question);
+  assert.equal(generated("standing_wave", match.slots, match.sources, question), null, question);
+}
+console.log("partial photoelectric authority and whole harmonic-expression gates passed");
