@@ -21,6 +21,7 @@ import {
 } from "../types";
 import {
   createTextInkBoundsCache,
+  canPlaceSingleLabel,
   obstaclesFromPrimitives,
   placeLabels,
   stackLabelRows,
@@ -2763,8 +2764,8 @@ function relocateObstructedDimensions(
       };
       // Other endpoint witnesses are real ink too. A free bar alone is not
       // enough if its label would straddle another measurement's connection.
-      return placeLabels([owner], [...obstaclesFromPrimitives([...other, ...candidate]), ...pinned, workColumnObstacle()],
-        { fontHeightPx, paddingPx, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk }).ok;
+      return canPlaceSingleLabel(owner, [...obstaclesFromPrimitives([...other, ...candidate]), ...pinned, workColumnObstacle()],
+        { fontHeightPx, paddingPx, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk });
     };
     if (!dimensionBarObstructed(bar, ink) && labelClears(primitives.filter((primitive) => primitive.entityId === bar.entityId))) continue;
     const maxOffset = Math.hypot(viewport.width, viewport.height);

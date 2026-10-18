@@ -54,8 +54,10 @@ export function validateLabelOwnerTruth(document: SceneDocument, primitives: Ren
   const ink = primitives.filter(p => p.kind !== "label" && !p.provenance?.labelLeader);
   const issues: SceneIssue[] = [];
   for (const label of primitives) {
-    if (label.kind !== "label" || !label.points[0] || label.provenance?.summary) continue;
-    const annotationId = label.provenance?.annotationId;
+    if (label.kind !== "label" || !label.points[0]) continue;
+    // Named summaries are self-identifying. A bare value still needs its owner.
+    if (label.provenance?.summary && /^[\p{L}][\p{L}\p{M}\p{Nd}_₀-₉]*\s*=/u.test(label.text ?? "")) continue;
+    const annotationId = label.provenance?.annotationId ?? (document.annotations.some(a => a.id === label.id) ? label.id : undefined);
     // Medium names identify a proved halfspace, not its boundary stroke.
     // Their actual rendered side is checked independently by the compiler.
     if (typeof annotationId === "string" && separatelyProvedAnnotations.has(annotationId)) continue;
@@ -70,12 +72,12 @@ export function validateLabelOwnerTruth(document: SceneDocument, primitives: Ren
     // a different region. A line crossing a body needs a free attachment site,
     // just as an untethered label needs proximity to its own stroke.
     const ambiguousLeader = !!leader?.points[0] && own.some(p => ["line", "ray", "vector"].includes(p.kind))
-      && ink.some(p => !owners.includes(p.entityId) && p.groupId === label.groupId
+      && ink.some(p => !owners.includes(p.entityId)
         && ["polygon", "rectangle", "circle"].includes(p.kind)
         && distance(leader.points[0]!, p, true) === 0 && distance(label.points[0]!, p, true) > 0);
     if (label.provenance?.usesLeader && !ambiguousLeader) continue;
     if (ownDistance <= 40 && !ambiguousLeader) continue;
-    const otherDistance = Math.min(...ink.filter(p => !owners.includes(p.entityId) && p.groupId === label.groupId).map(p => distance(label.points[0]!,p)));
+    const otherDistance = Math.min(...ink.filter(p => !owners.includes(p.entityId)).map(p => distance(label.points[0]!,p)));
     if (otherDistance >= ownDistance * 0.5 && !ambiguousLeader) continue;
     const entityIndex = document.entities.findIndex(e => e.id === label.entityId);
     issues.push({ code: "label_owner_ambiguous", severity: "fatal", failureKind: "proof", entityIds: owners,

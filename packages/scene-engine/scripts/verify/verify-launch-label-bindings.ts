@@ -88,3 +88,12 @@ const tether = { id:"text_leader", entityId:"own", groupId:"g", kind:"line" as c
 assert.equal(validateLabelOwnerTruth(ownerDoc,[ownInk[0]!,body,tethered,tether]).length,1,"a line tether buried in another body is ambiguous");
 assert.equal(validateLabelOwnerTruth(ownerDoc,[ownInk[0]!,{...body,points:[{x:150,y:0}]},tethered,tether]).length,0,"an unobstructed line attachment retains its leader");
 assert.equal(validateLabelOwnerTruth(ownerDoc,[{...body,id:"own",entityId:"own"},tethered,tether]).length,0,"a region's own interior is a valid leader attachment");
+
+// Reveal order does not separate strokes sharing the same canvas.
+assert.equal(validateLabelOwnerTruth(ownerDoc, ownInk.map(p => p.id === "other" ? {...p, groupId:"later"} : p)).length, 1, "other reveal groups still compete for a displaced label");
+const summaryDoc = {...ownerDoc, annotations:[{id:"given",kind:"label",targetIds:["own"],text:"200 km/h"}]} as SceneDocument;
+const bareSummary = ownInk.map(p => p.kind === "label" ? {...p,id:"given",text:"200 km/h",provenance:{summary:true}} : p);
+const summaryIssues = validateLabelOwnerTruth(summaryDoc,bareSummary);
+assert.equal(summaryIssues.length,1,"a bare numeric summary must still identify its physical owner");
+assert.equal(summaryIssues[0]!.path,"annotations[0].text","summary demotion removes its annotation, not a different entity label");
+assert.equal(validateLabelOwnerTruth(summaryDoc,bareSummary.map(p => p.kind === "label" ? {...p,text:"v=200 km/h"} : p)).length,0,"a self-identifying named summary retains its independent placement");

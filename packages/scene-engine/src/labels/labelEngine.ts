@@ -427,10 +427,25 @@ export function boundsInside(inner: LabelBounds, outer: LabelBounds): boolean {
  * Place labels greedily in preference order. Unresolved overlaps are fatal
  * issues — callers must reject the scene rather than paint over ink.
  */
+/** Query the same constraints for one label without selecting a final slot. */
+export function canPlaceSingleLabel(owner: LabelOwner, obstacles: LabelObstacle[], options: LabelEngineOptions = {}): boolean {
+  const result = placeLabelsInternal([owner], obstacles, options, true).ok;
+  return result;
+}
+
 export function placeLabels(
   owners: LabelOwner[],
   obstacles: LabelObstacle[],
   options: LabelEngineOptions = {},
+): LabelEngineResult {
+  return placeLabelsInternal(owners, obstacles, options);
+}
+
+function placeLabelsInternal(
+  owners: LabelOwner[],
+  obstacles: LabelObstacle[],
+  options: LabelEngineOptions = {},
+  feasibilityOnly = false,
 ): LabelEngineResult {
   // Every candidate for one label uses the same text and font height.
   // Width is independent of its position; measure it once per call, while
@@ -576,6 +591,17 @@ export function placeLabels(
         };
       }));
 
+      // Only feasibility consumes this branch: the caller receives no chosen
+      // placement. Honor first-position deduplication before accepting a slot.
+      const feasible = (candidate: LabelPlacementCandidate): PreparedLabelOwner => ({
+        owner, originalIndex, candidates: [candidate], validCandidates: [candidate],
+        area: candidate.bounds.width * candidate.bounds.height,
+      });
+      if (feasibilityOnly) {
+        const legal = deduplicateCandidates(candidates).find(candidate => candidate.overlaps.length === 0);
+        if (legal) return feasible(legal);
+      }
+
       const leaderDirections = [
         ...SLOT_OFFSETS.map((direction) => ({
           dx: direction.dx === 0 ? 0 : direction.dx / Math.hypot(direction.dx, direction.dy),
@@ -656,6 +682,7 @@ export function placeLabels(
           });
         leaderCandidates.push(...atDistance);
         atDistance.forEach(rememberCandidate);
+        if (feasibilityOnly && legalLeaderDomain.length) return feasible(legalLeaderDomain[0]!);
       }
       const nearbyCandidates: LabelPlacementCandidate[] = owner.tetherPx !== undefined
         ? nearbyTetheredCenters(owner, solverObstacles, options, minGapPx).map((center) => {
@@ -675,7 +702,7 @@ export function placeLabels(
         .slice(0, 160);
       // Failure diagnostics depend on the best invalid slot and all of its
       // overlaps. Preserve their exact original values when no slot survives.
-      if (deferredInk && validCandidates.length === 0) return prepareOwner(true);
+      if (!feasibilityOnly && deferredInk && validCandidates.length === 0) return prepareOwner(true);
       const estimated = centeredTextBounds(owner.text, owner.anchor, options);
       return {
         owner,

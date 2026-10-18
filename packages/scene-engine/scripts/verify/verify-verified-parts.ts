@@ -377,7 +377,7 @@ console.log(`verified-parts: 36-level shared dependency DAG ${branchingElapsed.t
 
 // Candidate placement must not repeat a position-independent width measure
 // thousands of times. Distinct text stays distinct and each call owns its memo.
-const { placeLabels } = await import("../../src/labels/labelEngine");
+const { placeLabels, canPlaceSingleLabel } = await import("../../src/labels/labelEngine");
 const widthOwners = [
   { entityId: "a", anchor: { x: 600, y: 250 }, text: "alpha", viewBounds: { x: 410, y: 55, width: 740, height: 555 } },
   { entityId: "b", anchor: { x: 800, y: 450 }, text: "beta", viewBounds: { x: 410, y: 55, width: 740, height: 555 } },
@@ -449,3 +449,31 @@ console.log(`verified-parts: exact per-run handwriting noise reuse (${handwritin
 
 assert(handwritingFloorCalls < 2000, `round stroke extrema once rather than every transformed point, measured ${handwritingFloorCalls} floor calls`);
 console.log(`verified-parts: monotone stroke extrema rounding (${handwritingFloorCalls} floor calls)`);
+
+
+// Dimension lane search asks only whether a single label can stand there.
+// Feasibility must retain every geometry, ink, tether, side and budget guard.
+const singleOwner = { entityId: "dimension", text: "d", anchor: { x: 700, y: 350 },
+  viewBounds: { x: 410, y: 55, width: 740, height: 555 }, tetherPx: 120, allowLeader: false };
+type SingleCase = { owner: Parameters<typeof canPlaceSingleLabel>[0]; obstacles: Parameters<typeof canPlaceSingleLabel>[1]; options?: Parameters<typeof canPlaceSingleLabel>[2] };
+const singleCases: SingleCase[] = [
+  { owner: singleOwner, obstacles: [] },
+  { owner: singleOwner, obstacles: [{ id: "blocked", kind: "geometry", bounds: singleOwner.viewBounds }] },
+  { owner: { ...singleOwner, anchor: { x: 200, y: 350 }, tetherPx: 10 }, obstacles: [] },
+  { owner: { ...singleOwner, requireLeader: true }, obstacles: [] },
+  { owner: { ...singleOwner, text: "more than sixteen characters" }, obstacles: [] },
+  { owner: singleOwner, obstacles: [], options: { searchWorkBudget: 0 } },
+  { owner: { ...singleOwner, pinToAnchor: true }, obstacles: [{ id: "protected", kind: "protected", bounds: { x: 680, y: 330, width: 40, height: 40 } }] },
+  { owner: { ...singleOwner, sideRegions: [{ kind: "circle", center: singleOwner.anchor, radius: 1, inside: true }] }, obstacles: [] },
+  { owner: singleOwner, obstacles: [], options: { measureTextInkBounds: () => ({ x: 0, y: 0, width: 2000, height: 2000 }) } },
+];
+for (const [index, test] of singleCases.entries()) {
+  assert.equal(canPlaceSingleLabel(test.owner, test.obstacles, test.options), placeLabels([test.owner], test.obstacles, test.options).ok, `single-label feasibility case ${index}`);
+}
+let fullSingleInkCalls = 0;
+let feasibilityInkCalls = 0;
+const fullSingle = placeLabels([singleOwner], [], { measureTextInkBounds: () => { fullSingleInkCalls++; return null; } });
+const feasibleSingle = canPlaceSingleLabel(singleOwner, [], { measureTextInkBounds: () => { feasibilityInkCalls++; return null; } });
+assert.equal(feasibleSingle, fullSingle.ok);
+assert(feasibilityInkCalls < fullSingleInkCalls / 4, `single-label feasibility must avoid unused slots (${feasibilityInkCalls}/${fullSingleInkCalls})`);
+console.log(`verified-parts: single-label feasibility parity; ${fullSingleInkCalls}→${feasibilityInkCalls} ink callbacks`);
