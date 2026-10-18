@@ -20,6 +20,8 @@ import type {
 } from "@heytutor/scene-engine";
 import {
   describeSceneFamily,
+  chemistryFamilyTeachingNotes,
+  chemistryTeachingFamilyId,
   directedCurveInk,
   obstaclesFromPrimitives,
   placeLabels,
@@ -331,9 +333,7 @@ export function buildVerifiedDiagramPresentation(
   const hasCompletionOnlyAnswers = [...deferredByEntity.values()].some((entry) => entry.revealAfter);
   const deferredIds = [...new Set([...deferredByEntity.values()].filter((entry) => !entry.revealAfter).map((entry) => entry.entityId))].join(", ");
   const hasDrawableInk = verifiedDiagramHasDrawableInk({ commands });
-  const teachingNotes = Array.isArray(source?.teachingNotes)
-    ? source.teachingNotes.filter((note): note is string => typeof note === "string" && Boolean(note.trim())).map((note) => note.trim())
-    : [];
+  const teachingNotes = chemistryFamilyTeachingNotes(chemistryTeachingFamilyId(document));
   const familyTeachingContext = teachingNotes.length > 0
     ? `\nFamily teaching context for this compiled figure:\n${teachingNotes.map((note) => `- ${note}`).join("\n")}\nExplain the law’s conditions before applying it, and define quantities and units before examples. This teaching context supplies no new numeric givens or diagram authority.\n`
     : "";

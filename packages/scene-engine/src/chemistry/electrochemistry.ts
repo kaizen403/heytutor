@@ -17,6 +17,7 @@ import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, planQuantity, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { normalizeChemistryText, parseFormula } from "./formula";
 import { elementBySymbol } from "./elements";
+import { CONDUCTANCE_TEACHING_FAMILY } from "./familyTeaching";
 
 export const ELECTROCHEM_FAMILY = "chem_electrochem" as const;
 
@@ -1580,16 +1581,11 @@ function buildConductancePlot(question: string): SceneDocument | null {
   // remembering the limitations of the schematic curve. References: NCERT
   // Electrochemistry §2.4.2 and the Mainz physical chemistry lab's conductivity
   // chapter (links in verify-conductance-teaching.ts).
-  return c.build({
+  const document = c.build({
     caption: "Λm vs √c: for a dilute strong electrolyte at fixed solvent and temperature, Λm = Λ°m − A√c is a straight-line approximation; a weak electrolyte rises steeply as c → 0, so its Λ°m cannot be obtained by this straight-line extrapolation",
-    teachingNotes: [
-      "Λ_m is molar conductivity, κ is conductivity, and c is molar concentration. In consistent SI units Λ_m = κ/c: κ is in S m^-1, c in mol m^-3, and Λ_m in S m^2 mol^-1. With κ in S cm^-1 and c in mol L^-1, Λ_m = 1000κ/c in S cm^2 mol^-1.",
-      "On dilution, conductivity κ decreases because there are fewer ions per unit volume, while molar conductivity Λ_m increases. These are different quantities; the Λ_m curve is not a plot of κ.",
-      "The strong-electrolyte square-root relation Λ_m ≈ Λ_m° − A√c applies in the dilute, low-concentration limit at fixed solvent and temperature. It is not an exact law for arbitrary or concentrated solutions. A depends on the solvent, temperature and electrolyte type.",
-      "Λ_m° is the limiting molar conductivity as c tends to zero. Kohlrausch's law of independent migration concerns this limit: Λ_m° = ν_+λ_+° + ν_-λ_-°. The weak-electrolyte curve is not linear in √c, so use ionic limiting contributions rather than the strong-electrolyte straight-line extrapolation to determine its limit.",
-      "The plotted curves use schematic normalized coordinates, not a calibrated concentration scale. Do not read a physical concentration or a measured Λ_m value from their coordinates. For an example, keep it symbolic unless concentration units, coefficients and dilute validity are supplied; an arbitrary √c = 1 does not establish dilute validity.",
-    ],
   });
+  document.source.chemistryTeachingFamilyId = CONDUCTANCE_TEACHING_FAMILY;
+  return document;
 }
 
 /* ------------------------------------------------------------------------- */

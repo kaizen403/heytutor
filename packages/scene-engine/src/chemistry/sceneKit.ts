@@ -262,13 +262,12 @@ export class ChemScene {
     return this.scene.helper(this.nextId("h"), at, role);
   }
 
-  build(extra?: { caption?: string; teachingNotes?: readonly string[] }): SceneDocument {
+  build(extra?: { caption?: string }): SceneDocument {
     const document = this.scene.build();
     if (extra?.caption) {
       document.annotations.push({ id: "figure_caption", kind: "callout", targetIds: [], text: extra.caption });
     }
     document.source = { ...document.source, chemistryFamily: this.family };
-    if (extra?.teachingNotes?.length) document.source.teachingNotes = [...extra.teachingNotes];
     return document;
   }
 }
