@@ -21,12 +21,12 @@ export interface MolecularNeighbourhood {
 }
 
 /** Only a structural-neighbourhood ask; names do not determine a class. */
-export function carbonSiteRequest(question: string): CarbonSiteKind | null {
+export function carbonSiteRequest(question: string): CarbonSiteKind | "unsupported" | null {
   const text = normalizeChemistryText(question).toLowerCase();
   if (/carbonyl/.test(text) && /attached|substituent|bound h|trigonal[- ]planar|centres?|centers?/.test(text)) return "carbonyl";
   if (/oh[- ]bearing/.test(text) || (/alcohol/.test(text) && /classif|primary|secondary|tertiary|neighbou?r/.test(text))) return "alcohol";
   if (/carbon (?:carrying|bonded to) (?:cl|br|f|i)\b|c\s*[-–]\s*(?:cl|br|f|i)\b|halogen[- ]bearing/.test(text) && /classif|hybridi[sz]|benzylic|aryl/.test(text)) return "halide";
-  return null;
+  return structuralPropertySiteKind(question);
 }
 
 /** A complete neutral C/O/halogen graph, not a fragment or a radical. */
@@ -123,7 +123,7 @@ function namedGraphAt(text: string): { name: string; molecule: Molecule; length:
 interface StructuralPhrase {
   length: number;
   action?: string;
-  argument?: "extra-structure" | "structure-object" | "phenyl-ring" | "reference" | "singular-reference" | "member-description" | "ordinal-reference" | "last-two-reference" | "halogen-value" | "hybrid-value" | "class-value" | "class-options" | "alternative";
+  argument?: "extra-structure" | "structure-object" | "phenyl-ring" | "reference" | "singular-reference" | "member-description" | "ordinal-reference" | "last-two-reference" | "halogen-value" | "hybrid-value" | "class-value" | "class-options" | "alternative" | "owner-scope" | "property-predicate";
   count?: number;
   definite?: boolean;
   indices?: number[];
@@ -131,10 +131,15 @@ interface StructuralPhrase {
   values?: string[];
 }
 
+/** Grammar consumption and owner semantics use the same normalized action. */
+function structuralActionAt(text: string): StructuralPhrase | null {
+  const match = /^(?:(label)(?:l?ing)?|(draw|sketch|compare|show|mark|identify|classify|explain|distinguish)(?:ing)?)\b/i.exec(text);
+  return match ? { length: match[0].length, action: (match[1] ?? match[2])!.toLowerCase() } : null;
+}
+
 function structuralPhraseAt(text: string, kind: CarbonSiteKind): StructuralPhrase {
   const common = [
     /^(?:please|also|then|and|or|versus|vs|with|as|so that|to|for|from|by|of|on|in|its|their|the|a|an|each|every|both|all|which|has|have|is|are|it|them|separate|clearly|enough|approximately|explicit|identified|labelled|labeled|marked)\b/i,
-    /^(?:draw|sketch|compare|show|mark|identify|label|classify|explain|distinguish)(?:ing)?\b/i,
     /^(?:(?:structural|skeletal)\s+)?(?:diagrams?|structures?)\b/i,
     /^(?:molecular\s+)?names?\b/i,
     /^(?:classifications?|(?:drawn\s+)?neighbou?rhoods?|carbon\s+neighbou?rs?|carbon\s+connectivity)\b/i,
@@ -169,8 +174,8 @@ function structuralPhraseAt(text: string, kind: CarbonSiteKind): StructuralPhras
   // consuming the start of an owned structural noun phrase.
   const candidates: StructuralPhrase[] = [...common, ...(kind === "alcohol" ? alcohol : kind === "halide" ? halide : carbonyl)]
     .map((phrase) => ({ length: phrase.exec(text)?.[0].length ?? 0 }));
-  const action = /^(draw|sketch|compare|show|mark|identify|label|classify|explain|distinguish)\b/i.exec(text);
-  if (action) candidates.push({ length: action[0].length, action: action[1]!.toLowerCase() });
+  const action = structuralActionAt(text);
+  if (action) candidates.push(action);
   const counts: Record<string, number> = { one: 1, two: 2, three: 3, first: 1, second: 2, third: 3 };
   const count = (word: string | undefined): number | undefined => word ? (counts[word.toLowerCase()] ?? (/^[1-3]$/.test(word) ? Number(word) : undefined)) : undefined;
   const description = /^as\s+(?:(?:a|an|the)\s+)?(?:(one|two|three|[1-3]|first|second|third|another|other)\s+)?(?:separate\s+)?(?:(?:structural|skeletal)\s+)?(?:diagrams?|structures?)\b/i.exec(text);
@@ -199,8 +204,90 @@ function structuralPhraseAt(text: string, kind: CarbonSiteKind): StructuralPhras
   if (classification) candidates.push({ length: classification[0].length, argument: "class-value", values: [classification[0].toLowerCase().replace(/\s+/g, " ").replace(/\b(alcohol|halide)s\b/g, "$1")] });
   if (/^as\b/i.test(text)) candidates.push({ length: 2, argument: "class-options" });
   if (/^or\b/i.test(text)) candidates.push({ length: 2, argument: "alternative" });
+  if (/^with\b/i.test(text)) candidates.push({ length: 4, argument: "owner-scope" });
+  const property = /^(?:labelled|labeled|marked)\b/i.exec(text);
+  if (property) candidates.push({ length: property[0].length, argument: "property-predicate" });
   // An equal-length owned argument wins over a grammar-only token.
   return candidates.reduce((best, candidate) => candidate.length >= best.length ? candidate : best, { length: 0 });
+}
+
+/** A with-clause qualifies properties only when its closed typed arguments carry one. */
+function propertyBearingTail(text: string, kind: CarbonSiteKind): boolean {
+  let at = 0;
+  while (at < text.length) {
+    const separator = /^[\s,.;?!]+/.exec(text.slice(at));
+    if (separator) { at += separator[0].length; continue; }
+    const named = namedGraphAt(text.slice(at));
+    if (named) { at += named.length; continue; }
+    const phrase = structuralPhraseAt(text.slice(at), kind);
+    if (!phrase.length || phrase.action) return false;
+    if (phrase.argument === "hybrid-value" || phrase.argument === "class-value" || phrase.argument === "property-predicate") return true;
+    at += phrase.length;
+  }
+  return false;
+}
+
+/** A local structural property reference needs a common, unambiguous graph site.
+ * Every token is inventoried before a kind is chosen; unknown members can only
+ * produce an unsupported claim, never a supported subset or generic fallback. */
+function structuralPropertySiteKind(question: string): CarbonSiteKind | "unsupported" | null {
+  const text = normalizeChemistryText(question);
+  const kinds: CarbonSiteKind[] = ["alcohol", "halide", "carbonyl"];
+  const molecules: Molecule[] = [];
+  let at = 0;
+  let complete = text.length <= 3000;
+  let requested = false;
+  let owner: "molecular" | "unresolved" | "annotation" | null = null;
+  let propertyAction = false;
+  let withScope = false;
+  const finishAction = (): void => {
+    if (propertyAction && owner !== "annotation") requested = true;
+  };
+  while (at < text.length) {
+    const separator = /^[\s,.;?!]+/.exec(text.slice(at));
+    if (separator) {
+      if (/[.;?!]/.test(separator[0])) { finishAction(); owner = null; propertyAction = false; withScope = false; }
+      at += separator[0].length; continue;
+    }
+    // Atom/group/name/formula annotations are graph objects, not assertions
+    // about the uniquely substituted carbon of the whole named molecule.
+    const annotationHead = (propertyAction || withScope) && /^(?:(?:molecular|atomic)\s+)?(?:atoms?|groups?|names?|formulas?|formulae)\b/i.test(text.slice(at));
+    if (annotationHead) owner = "annotation";
+    const named = namedGraphAt(text.slice(at));
+    if (named) { molecules.push(named.molecule); owner = "molecular"; at += named.length; continue; }
+    const phrase = kinds.map(kind => structuralPhraseAt(text.slice(at), kind))
+      .reduce((best, value) => value.length > best.length ? value : best);
+    if (!phrase.length) {
+      complete = false;
+      // A completed ordinary annotation target cannot absorb extra unread
+      // property material. Its own head may be outside the site vocabulary.
+      if (owner === "annotation" && !annotationHead) requested = true;
+      // Unowned prose (including a count request) cannot lend an earlier
+      // drawing-roster name to a later isolated hybridisation/class value.
+      if (!propertyAction && !withScope) owner = null;
+      at += /^\S+/.exec(text.slice(at))?.[0].length ?? 1;
+      continue;
+    }
+    if (phrase.action) {
+      finishAction();
+      propertyAction = /^(label|classify|mark)$/.test(phrase.action);
+      owner = propertyAction ? "unresolved" : null;
+      withScope = false;
+    }
+    if (phrase.argument === "owner-scope") { owner = "unresolved"; withScope = true; }
+    if (phrase.argument === "ordinal-reference" || phrase.argument === "last-two-reference" || phrase.argument === "structure-object") owner = "molecular";
+    // Unknown owners/values remain supplied demands inside their property
+    // clause. Ordinary graph annotations and unowned count values do not.
+    if ((owner === "molecular" || (owner === "unresolved" && (propertyAction || withScope))
+      || (owner === "annotation" && propertyAction))
+      && (phrase.argument === "hybrid-value" || phrase.argument === "class-value" || phrase.argument === "property-predicate")) requested = true;
+    at += phrase.length;
+  }
+  finishAction();
+  if (!requested) return null;
+  if (!complete || !molecules.length) return "unsupported";
+  const supported = kinds.filter(kind => molecules.every(molecule => carbonSiteFacts(molecule, kind) !== null));
+  return supported.length === 1 ? supported[0]! : "unsupported";
 }
 
 /** All source arguments must be consumed; no suffix or later sentence is dropped. */
@@ -211,7 +298,8 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
   interface Request {
     action: string;
     context: MolecularNeighbourhood[];
-    members: Array<{ model: MolecularNeighbourhood; at: number }>;
+    members: Array<{ model: MolecularNeighbourhood; at: number; ownerReference: boolean }>;
+    ownerScope: boolean;
     extraStructures: number[];
     objects: Array<{ at: number; reference: boolean; definite: boolean }>;
     reference: boolean;
@@ -243,7 +331,9 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
       const site = carbonSiteFacts(named.molecule, kind);
       if (!site) return null;
       const existing = models.filter(model => model.molecule.smiles === named.molecule.smiles);
-      const propertyReference = request && !/^(draw|sketch|compare)$/.test(request.action);
+      const introduction = request?.introductions.some(member => member.at === at) ?? false;
+      const propertyReference = request && (!/^(draw|sketch|compare)$/.test(request.action)
+        || (request.ownerScope && !introduction && existing.length > 0));
       if (propertyReference && existing.length !== 1 && request?.action !== "show") return null;
       const model = propertyReference && existing.length === 1 ? existing[0]! : { name: named.name, molecule: named.molecule, site };
       if (!models.includes(model)) {
@@ -262,14 +352,14 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
         if (!request.selectionBound && !request.selection.includes(model)) return null;
         if (request.selectionBound) { request.selection = null; request.selectionVersion++; }
       }
-      request?.members.push({ model, at });
+      request?.members.push({ model, at, ownerReference: !!propertyReference });
       at += named.length;
       continue;
     }
     const phrase = structuralPhraseAt(tail, kind);
     if (!phrase.length) return null;
     if (phrase.action) {
-      request = { action: phrase.action, context: [...models], members: [], extraStructures: [], objects: [], reference: false,
+      request = { action: phrase.action, context: [...models], members: [], ownerScope: false, extraStructures: [], objects: [], reference: false,
         singularReference: false, selection: null, selectionBound: false,
         selectionVersion: 0, membersBound: 0, classSelectionVersion: 0, introductions: [],
         phenyl: false, lastTwo: false, described: 0,
@@ -278,6 +368,8 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
     }
     if (phrase.argument) {
       if (!request) return null;
+      if (phrase.argument === "owner-scope" && /^(draw|sketch|compare)$/.test(request.action)
+        && propertyBearingTail(text.slice(at + phrase.length), kind)) request.ownerScope = true;
       if (phrase.argument === "extra-structure") request.extraStructures.push(at + phrase.length);
       if (phrase.argument === "structure-object") request.objects.push({ at: at + phrase.length,
         reference: /\b(?:its|their|each|every|both|all)\s+$/i.test(text.slice(0, at)), definite: !!phrase.definite });
@@ -298,7 +390,7 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
         }
         // Select against the original drawn order, never a property-local list
         // or the final/max ordinal mentioned later in the same command.
-        const ordered = request.context.length ? request.context : request.members.map(member => member.model);
+        const ordered = request.context.length ? request.context : request.members.filter(member => !member.ownerReference).map(member => member.model);
         if (phrase.pairReference && ordered.length !== 2) return null;
         const selected = phrase.indices!.map(index => ordered[index - 1]);
         if (selected.some(model => !model)) return null;
@@ -307,7 +399,7 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
         // consumed, the following reference begins a distinct owner group.
         const resolved = request.selection && !request.selectionBound
           ? [...new Set([...request.selection, ...current])] : current;
-        if (request.members.slice(request.membersBound).some(member => !resolved.includes(member.model))) return null;
+        if (request.members.slice(request.membersBound).some(member => member.ownerReference && !resolved.includes(member.model))) return null;
         request.reference = true;
         request.selection = resolved;
         request.selectionBound = false;
@@ -315,7 +407,9 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
       }
       if (phrase.argument === "last-two-reference") request.lastTwo = true;
       const owners = (cursor: "targeted" | "hybridBound" | "classBound", consumed = true): MolecularNeighbourhood[] => {
-        const fresh = request!.members.slice(request![cursor]).map(member => member.model);
+        const pending = request!.members.slice(request![cursor]);
+        const references = pending.filter(member => member.ownerReference);
+        const fresh = (references.length ? references : pending).map(member => member.model);
         request![cursor] = request!.members.length;
         if (consumed) { request!.membersBound = request!.members.length; request!.selectionBound = true; }
         return request!.selection ?? (fresh.length ? fresh : request!.members.length ? request!.members.map(member => member.model) : request!.context);
@@ -338,23 +432,26 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
       }
       if (phrase.argument === "alternative" && request.classes.length) request.classes.at(-1)!.alternatives = true;
       if (phrase.argument === "member-description") {
-        const described = request.members.length - request.described;
+        const memberCount = request.members.filter(member => !member.ownerReference).length;
+        const described = memberCount - request.described;
         if (described === 0 || (phrase.count !== undefined && described !== phrase.count)) return null;
-        request.described = request.members.length;
+        request.described = memberCount;
       }
     }
     at += phrase.length;
   }
   for (const part of requests) {
-    const scope = part.members.length ? part.members.map(member => member.model) : part.context;
-    if (part.introductions.some(member => part.members.findIndex(candidate => candidate.at === member.at) !== member.ordinal - 1)) return null;
+    const introductions = part.members.filter(member => !member.ownerReference);
+    const scope = introductions.length ? introductions.map(member => member.model)
+      : part.members.length ? part.members.map(member => member.model) : part.context;
+    if (part.introductions.some(member => introductions.findIndex(candidate => candidate.at === member.at) !== member.ordinal - 1)) return null;
     if (/^(draw|sketch|compare)$/.test(part.action) && !part.members.length && !part.reference) return null;
     if (part.action === "compare" && scope.length < 2) return null;
     const argumentsAt = [...part.extraStructures, ...part.objects.filter(object =>
       !(object.reference && scope.length) && !(object.definite && part.context.length === 1)).map(object => object.at)].sort((a, b) => a - b);
     const used = new Set<number>();
     for (const position of argumentsAt) {
-      const member = part.members.findIndex((candidate, index) => candidate.at >= position && !used.has(index));
+      const member = introductions.findIndex((candidate, index) => candidate.at >= position && !used.has(index));
       if (member < 0) return null;
       used.add(member);
     }

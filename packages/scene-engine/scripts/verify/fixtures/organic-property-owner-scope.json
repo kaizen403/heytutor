@@ -1,0 +1,831 @@
+[
+  {
+    "id": "exact-thread-second-sp3",
+    "question": "Draw propan-1-ol and propan-2-ol with the second structure labelled sp3.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ],
+    "visibleProperties": [
+      {
+        "panel": 1,
+        "text": "sp3"
+      }
+    ]
+  },
+  {
+    "id": "first-sp3",
+    "question": "Sketch propan-1-ol and propan-2-ol with the first structure labelled sp3.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ],
+    "visibleProperties": [
+      {
+        "panel": 0,
+        "text": "sp3"
+      }
+    ]
+  },
+  {
+    "id": "latter-sp3",
+    "question": "Compare propan-1-ol and propan-2-ol with the latter structure labelled sp3.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ],
+    "visibleProperties": [
+      {
+        "panel": 1,
+        "text": "sp3"
+      }
+    ]
+  },
+  {
+    "id": "second-secondary",
+    "question": "Draw propan-1-ol and propan-2-ol with the second structure labelled secondary alcohol.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ],
+    "visibleProperties": []
+  },
+  {
+    "id": "first-primary",
+    "question": "Draw propan-1-ol and propan-2-ol with the first structure labelled primary alcohol.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ],
+    "visibleProperties": []
+  },
+  {
+    "id": "swapped-first-secondary",
+    "question": "Draw propan-2-ol and propan-1-ol with the first structure labelled secondary alcohol.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ],
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ]
+    ],
+    "visibleProperties": []
+  },
+  {
+    "id": "third-tertiary",
+    "question": "Draw propan-1-ol, propan-2-ol and 2-methylpropan-2-ol with the third structure labelled tertiary alcohol.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ],
+      [
+        "2-methylpropan-2-ol",
+        "tertiary alcohol"
+      ]
+    ],
+    "visibleProperties": []
+  },
+  {
+    "id": "named-second-agreement",
+    "question": "Draw propan-1-ol and propan-2-ol with propan-2-ol and the second structure labelled sp3.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ],
+    "visibleProperties": [
+      {
+        "panel": 1,
+        "text": "sp3"
+      }
+    ]
+  },
+  {
+    "id": "fresh-member-after-with",
+    "question": "Draw propan-1-ol and propan-2-ol with 2-methylpropan-2-ol and the second structure labelled sp3.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ],
+      [
+        "2-methylpropan-2-ol",
+        "tertiary alcohol"
+      ]
+    ],
+    "visibleProperties": [
+      {
+        "panel": 1,
+        "text": "sp3"
+      }
+    ]
+  },
+  {
+    "id": "second-molecule",
+    "question": "Draw propan-1-ol and propan-2-ol with the second molecule labelled sp3.",
+    "draw": true,
+    "panels": [
+      [
+        "propan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "propan-2-ol",
+        "secondary alcohol"
+      ]
+    ],
+    "visibleProperties": [
+      {
+        "panel": 1,
+        "text": "sp3"
+      }
+    ]
+  },
+  {
+    "id": "wrong-second-sp2",
+    "question": "Draw propan-1-ol and propan-2-ol with the second structure labelled sp2.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "wrong-second-primary",
+    "question": "Draw propan-1-ol and propan-2-ol with the second structure labelled primary alcohol.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "unbound-third",
+    "question": "Draw propan-1-ol and propan-2-ol with the third structure labelled sp3.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "named-first-second-secondary",
+    "question": "Draw propan-1-ol and propan-2-ol with propan-1-ol and the second structure labelled secondary alcohol.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "named-first-second-primary",
+    "question": "Draw propan-1-ol and propan-2-ol with propan-1-ol and the second structure labelled primary alcohol.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "named-second-first-secondary",
+    "question": "Draw propan-1-ol and propan-2-ol with propan-2-ol and the first structure labelled secondary alcohol.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "named-first-wrong-class",
+    "question": "Draw propan-1-ol and propan-2-ol with propan-1-ol and the first structure labelled secondary alcohol.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "unknown-member-after-with",
+    "question": "Draw propan-1-ol and propan-2-ol with XYZ and the second structure labelled sp3.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "halide-second-sp2",
+    "question": "Draw chloroethane and chlorobenzene with the second structure labelled sp2.",
+    "draw": true,
+    "panels": [
+      [
+        "chloroethane",
+        "primary alkyl"
+      ],
+      [
+        "chlorobenzene",
+        "aryl"
+      ]
+    ],
+    "requiredLabels": [
+      "aryl C-Cl"
+    ],
+    "visibleProperties": [
+      {
+        "panel": 1,
+        "text": "sp2"
+      },
+      {
+        "panel": 1,
+        "text": "aryl C-Cl"
+      }
+    ]
+  },
+  {
+    "id": "halide-second-wrong-sp3",
+    "question": "Draw chloroethane and chlorobenzene with the second structure labelled sp3.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "mixed-site-kinds",
+    "question": "Draw propan-1-ol and chloroethane with the second structure labelled sp3.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "two-OH-sites-ambiguous",
+    "question": "Draw ethylene glycol with the first structure labelled sp3.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "two-possible-kinds-ambiguous",
+    "question": "Draw acetoin with the first structure labelled sp3.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "no-common-site-kind",
+    "question": "Draw ethanol and benzene with the second structure labelled sp3.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "unknown-first-member",
+    "question": "Draw XYZ and propan-2-ol with the second structure labelled sp3.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "qualifier-cannot-create-third",
+    "question": "Draw propan-1-ol and propan-2-ol with propan-2-ol and the third structure labelled sp3.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "unknown-labelled-value",
+    "question": "Draw propan-1-ol and propan-2-ol with the second structure labelled unknown.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "unsupported-labelled-hybrid",
+    "question": "Draw propan-1-ol and propan-2-ol with the second structure labelled sp4.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "named-butanol-sp3",
+    "question": "Draw butan-1-ol and butan-2-ol with butan-2-ol labelled sp3.",
+    "draw": true,
+    "panels": [
+      [
+        "butan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "butan-2-ol",
+        "secondary alcohol"
+      ]
+    ],
+    "visibleProperties": [
+      {
+        "panel": 1,
+        "text": "sp3"
+      }
+    ]
+  },
+  {
+    "id": "named-butanol-wrong-sp2",
+    "question": "Draw butan-1-ol and butan-2-ol with butan-2-ol labelled sp2.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "named-carbonyl-sp2",
+    "question": "Draw propanone and ethanal with ethanal labelled sp2.",
+    "draw": true,
+    "panels": [
+      [
+        "propanone",
+        "ketone"
+      ],
+      [
+        "ethanal",
+        "aldehyde"
+      ]
+    ],
+    "visibleProperties": [
+      {
+        "panel": 1,
+        "text": "sp2"
+      }
+    ]
+  },
+  {
+    "id": "named-carbonyl-wrong-sp3",
+    "question": "Draw propanone and ethanal with ethanal labelled sp3.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "named-aryl-sp2",
+    "question": "Draw benzyl chloride and chlorobenzene with chlorobenzene labelled sp2.",
+    "draw": true,
+    "panels": [
+      [
+        "benzyl chloride",
+        "primary benzylic"
+      ],
+      [
+        "chlorobenzene",
+        "aryl"
+      ]
+    ],
+    "visibleProperties": [
+      {
+        "panel": 1,
+        "text": "sp2"
+      },
+      {
+        "panel": 1,
+        "text": "aryl C-Cl"
+      }
+    ]
+  },
+  {
+    "id": "named-aryl-wrong-sp3",
+    "question": "Draw benzyl chloride and chlorobenzene with chlorobenzene labelled sp3.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "named-unsupported-sp4",
+    "question": "Draw butan-1-ol and butan-2-ol with butan-2-ol labelled sp4.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "named-unknown-owner",
+    "question": "Draw butan-1-ol and butan-2-ol with molecule XYZ labelled sp3.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "named-first-swapped-marked",
+    "question": "Sketch butan-2-ol and butan-1-ol with butan-1-ol marked sp3.",
+    "draw": true,
+    "panels": [
+      [
+        "butan-2-ol",
+        "secondary alcohol"
+      ],
+      [
+        "butan-1-ol",
+        "primary alcohol"
+      ]
+    ],
+    "visibleProperties": [
+      {
+        "panel": 1,
+        "text": "sp3"
+      }
+    ]
+  },
+  {
+    "id": "named-first-swapped-wrong",
+    "question": "Sketch butan-2-ol and butan-1-ol with butan-1-ol marked sp2.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "named-standalone-label-command",
+    "question": "Draw butan-1-ol and butan-2-ol. Label butan-2-ol sp3.",
+    "draw": true,
+    "panels": [
+      [
+        "butan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "butan-2-ol",
+        "secondary alcohol"
+      ]
+    ],
+    "visibleProperties": [
+      {
+        "panel": 1,
+        "text": "sp3"
+      }
+    ]
+  },
+  {
+    "id": "named-standalone-wrong-label",
+    "question": "Draw butan-1-ol and butan-2-ol. Label butan-2-ol sp2.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "named-unread-label",
+    "question": "Draw butan-1-ol and butan-2-ol with butan-2-ol labelled unknown.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "named-mixed-site-kinds",
+    "question": "Draw butan-2-ol and chlorobenzene with chlorobenzene labelled sp2.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "named-ambiguous-graph-kind",
+    "question": "Draw acetoin with acetoin labelled sp3.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "named-subject-hybrid-value",
+    "question": "Draw butan-1-ol and butan-2-ol with butan-2-ol as sp3.",
+    "draw": true,
+    "panels": [
+      [
+        "butan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "butan-2-ol",
+        "secondary alcohol"
+      ]
+    ],
+    "visibleProperties": [
+      {
+        "panel": 1,
+        "text": "sp3"
+      }
+    ]
+  },
+  {
+    "id": "named-label-command-unsupported-value",
+    "question": "Draw butan-1-ol and butan-2-ol. Label butan-2-ol sp4.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "named-classify-command-unread-value",
+    "question": "Draw butan-1-ol and butan-2-ol. Classify butan-2-ol as unknown.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "named-mark-command-unread-value",
+    "question": "Draw butan-1-ol and butan-2-ol. Mark butan-2-ol unknown.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "preserve-atom-01",
+    "question": "Draw methane and label all atoms.",
+    "draw": true,
+    "panels": [],
+    "visibleProperties": [],
+    "preserveGeneric": true,
+    "genericLabels": [],
+    "scopeNote": "Historical generic admission preserved. Only ATOM-05 has independently inspected complete requested OH-group output; other atom annotation requests remain true desired positives with inherited incomplete ink, not newly certified."
+  },
+  {
+    "id": "preserve-atom-02",
+    "question": "Draw ethene with all atoms labelled.",
+    "draw": true,
+    "panels": [],
+    "visibleProperties": [],
+    "preserveGeneric": true,
+    "genericLabels": [],
+    "scopeNote": "Historical generic admission preserved. Only ATOM-05 has independently inspected complete requested OH-group output; other atom annotation requests remain true desired positives with inherited incomplete ink, not newly certified."
+  },
+  {
+    "id": "preserve-atom-03",
+    "question": "Draw benzene and label the carbon atoms.",
+    "draw": true,
+    "panels": [],
+    "visibleProperties": [],
+    "preserveGeneric": true,
+    "genericLabels": [],
+    "scopeNote": "Historical generic admission preserved. Only ATOM-05 has independently inspected complete requested OH-group output; other atom annotation requests remain true desired positives with inherited incomplete ink, not newly certified."
+  },
+  {
+    "id": "preserve-atom-04",
+    "question": "Draw ethane and mark the carbon atoms.",
+    "draw": true,
+    "panels": [],
+    "visibleProperties": [],
+    "preserveGeneric": true,
+    "genericLabels": [],
+    "scopeNote": "Historical generic admission preserved. Only ATOM-05 has independently inspected complete requested OH-group output; other atom annotation requests remain true desired positives with inherited incomplete ink, not newly certified."
+  },
+  {
+    "id": "preserve-atom-05",
+    "question": "Draw ethanol and label the OH group.",
+    "draw": true,
+    "panels": [],
+    "visibleProperties": [],
+    "preserveGeneric": true,
+    "genericLabels": [
+      "OH",
+      "ethanol"
+    ],
+    "scopeNote": "Historical generic admission preserved. Only ATOM-05 has independently inspected complete requested OH-group output; other atom annotation requests remain true desired positives with inherited incomplete ink, not newly certified."
+  },
+  {
+    "id": "preserve-count-01",
+    "question": "The number of sp2 hybridised carbon atoms in benzaldehyde is",
+    "draw": true,
+    "panels": [],
+    "visibleProperties": [],
+    "preserveGeneric": true,
+    "genericLabels": [],
+    "scopeNote": "Historical generic admission only. Parent benzaldehyde renders lack visible sp2=7; preserved as inherited partial, not new count coverage."
+  },
+  {
+    "id": "preserve-count-02",
+    "question": "Draw benzaldehyde and count its sp2 hybridised carbon atoms.",
+    "draw": true,
+    "panels": [],
+    "visibleProperties": [],
+    "preserveGeneric": true,
+    "genericLabels": [],
+    "scopeNote": "Historical generic admission only. Parent benzaldehyde renders lack visible sp2=7; preserved as inherited partial, not new count coverage."
+  },
+  {
+    "id": "preserve-count-03",
+    "question": "The number of chiral centres in 2-chlorobutane is",
+    "draw": true,
+    "panels": [],
+    "visibleProperties": [],
+    "preserveGeneric": true,
+    "genericLabels": [],
+    "scopeNote": "Historical generic admission only. Parent benzaldehyde renders lack visible sp2=7; preserved as inherited partial, not new count coverage."
+  },
+  {
+    "id": "preserve-final-01",
+    "question": "Draw butan-1-ol and butan-2-ol, labeling the second structure sp3.",
+    "draw": true,
+    "panels": [
+      [
+        "butan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "butan-2-ol",
+        "secondary alcohol"
+      ]
+    ],
+    "visibleProperties": [
+      {
+        "panel": 1,
+        "text": "sp3"
+      }
+    ]
+  },
+  {
+    "id": "preserve-final-02",
+    "question": "Draw benzyl chloride and chlorobenzene, classifying the latter structure as benzylic.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "preserve-final-03",
+    "question": "Draw propanone and ethanal, marking the second structure sp3.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "preserve-final-04",
+    "question": "Draw butan-1-ol and butan-2-ol, labeling molecule XYZ sp3.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "preserve-final-05",
+    "question": "Draw methanol with the OH group labelled.",
+    "draw": true,
+    "panels": [],
+    "visibleProperties": [],
+    "preserveGeneric": true,
+    "genericLabels": [
+      "OH"
+    ],
+    "scopeNote": "Historical generic output preserved; atom/group ink inspected independently. Count asks retain partial parent admission, not new count coverage."
+  },
+  {
+    "id": "preserve-final-06",
+    "question": "Draw propan-1-ol and label the OH group.",
+    "draw": true,
+    "panels": [],
+    "visibleProperties": [],
+    "preserveGeneric": true,
+    "genericLabels": [
+      "OH"
+    ],
+    "scopeNote": "Historical generic output preserved; atom/group ink inspected independently. Count asks retain partial parent admission, not new count coverage."
+  },
+  {
+    "id": "preserve-final-07",
+    "question": "Draw chloromethane and label the chlorine atom.",
+    "draw": true,
+    "panels": [],
+    "visibleProperties": [],
+    "preserveGeneric": true,
+    "genericLabels": [
+      "Cl"
+    ],
+    "scopeNote": "Historical generic output preserved; atom/group ink inspected independently. Count asks retain partial parent admission, not new count coverage."
+  },
+  {
+    "id": "preserve-final-08",
+    "question": "Draw dimethyl ether with its oxygen atom labelled.",
+    "draw": true,
+    "panels": [],
+    "visibleProperties": [],
+    "preserveGeneric": true,
+    "genericLabels": [
+      "O"
+    ],
+    "scopeNote": "Historical generic output preserved; atom/group ink inspected independently. Count asks retain partial parent admission, not new count coverage."
+  },
+  {
+    "id": "preserve-final-09",
+    "question": "Draw benzaldehyde and show the number of sp2 hybridised carbon atoms.",
+    "draw": true,
+    "panels": [],
+    "visibleProperties": [],
+    "preserveGeneric": true,
+    "genericLabels": [],
+    "scopeNote": "Historical generic output preserved; atom/group ink inspected independently. Count asks retain partial parent admission, not new count coverage."
+  },
+  {
+    "id": "preserve-final-10",
+    "question": "Draw ethene and count its sp2 carbon atoms.",
+    "draw": true,
+    "panels": [],
+    "visibleProperties": [],
+    "preserveGeneric": true,
+    "genericLabels": [],
+    "scopeNote": "Historical generic output preserved; atom/group ink inspected independently. Count asks retain partial parent admission, not new count coverage."
+  },
+  {
+    "id": "preserve-final-11",
+    "question": "Draw benzaldehyde and mark its carbonyl carbon sp3.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "preserve-final-12",
+    "question": "Draw benzaldehyde and count its sp2 carbon atoms, with molecule XYZ labelled sp3.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "root-annotation-01",
+    "question": "Draw ethanol and label the OH group sp2.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "root-annotation-02",
+    "question": "Draw propan-1-ol and propan-2-ol. Label their OH groups sp4.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "uk-known-sp3",
+    "question": "Draw butan-1-ol and butan-2-ol, labelling butan-2-ol sp3.",
+    "draw": true,
+    "panels": [
+      [
+        "butan-1-ol",
+        "primary alcohol"
+      ],
+      [
+        "butan-2-ol",
+        "secondary alcohol"
+      ]
+    ],
+    "visibleProperties": [
+      {
+        "panel": 1,
+        "text": "sp3"
+      }
+    ]
+  },
+  {
+    "id": "uk-known-wrong-sp2",
+    "question": "Draw butan-1-ol and butan-2-ol, labelling butan-2-ol sp2.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "uk-unread-sp4",
+    "question": "Draw butan-1-ol and butan-2-ol, labelling butan-2-ol sp4.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "uk-unknown-owner",
+    "question": "Draw butan-1-ol and butan-2-ol, labelling molecule XYZ sp3.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  }
+]

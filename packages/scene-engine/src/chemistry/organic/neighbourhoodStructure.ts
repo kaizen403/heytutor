@@ -11,7 +11,7 @@ import { buildNeighbourhoodFigure, type OrganicNeighbourhoodFigure } from "./nei
 export function verifiedOrganicNeighbourhoodStructure(document: SceneDocument, originalQuestion?: string): OrganicNeighbourhoodFigure | null {
   if (!originalQuestion?.trim() || document.source.question !== originalQuestion.trim()) return null;
   const kind = carbonSiteRequest(originalQuestion);
-  if (!kind) return null;
+  if (!kind || kind === "unsupported") return null;
   const fresh = buildNeighbourhoodFigure(originalQuestion, kind);
   if (!fresh?.structures.length) return null;
   const labels = new Map(fresh.document.entities.map(entity => [entity.id, entity.label]));
