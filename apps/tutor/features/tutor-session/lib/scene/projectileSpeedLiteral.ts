@@ -63,22 +63,25 @@ export function isSpeedUnit(unit: unknown): unit is string {
   return PER_TIME_UNIT.test(spelled) && !ACCELERATION_UNIT.test(spelled) && !ANGULAR_UNIT.test(spelled);
 }
 
+/** Shared length vocabulary for plan quantities and speeds stated per minute. */
+const LENGTH_UNIT_SOURCE = "(?:[kcmµμnd]?m|(?:kilo|centi|milli)?met(?:re|er)s?|ft|feet|foot|in|inch(?:es)?|yds?|yards?|mi|miles?|सेमी|सेंटीमीटर|मिमी|मीटर|मी|किमी)";
+const LENGTH_UNIT = new RegExp(`^${LENGTH_UNIT_SOURCE}$`, "iu");
+
 // Per second, never per second squared (g = 980 cm/s^2 is not a speed).
 const PER_SECOND = "(?:\\s*\\/\\s*s(?:ec(?:ond)?)?(?![A-Za-z0-9^²³]|\\s*\\/)|[\\s·⋅*]*s(?:\\^?[-−–]1|⁻¹)(?!\\d)|\\s+per\\s+second\\b(?!\\s+(?:squared|per)))";
 const PER_HOUR = "(?:\\.?\\s*\\/\\s*h(?:r|our)?\\b\\.?|[\\s·⋅*]*h(?:r|our)?(?:\\^?[-−–]1|⁻¹)(?!\\d)|\\.?\\s+(?:per|prati)\\s+(?:hour|hr|ghant[ae])\\b|\\s+an\\s+hour\\b|\\s*\\/\\s*ghant[ae]\\b)";
+const PER_MINUTE = "(?:\\s*\\/\\s*min(?:ute)?s?(?![A-Za-z0-9^²³]|\\s*\\/)|[\\s·⋅*]*min(?:ute)?s?(?:\\^?[-−–]1|⁻¹)(?!\\d)|\\s+(?:per|a)\\s+min(?:ute)?s?\\b(?!\\s+(?:squared|per)))";
 /**
  * A number followed by a speed unit other than m/s: km/h (kmph, kmh, kmhr, kph,
  * km hr^-1, km./hr., k.m./h, kilometres per hour, km/ghanta, km prati ghanta,
  * किमी प्रति घंटा), mph (mi/h, m.p.h., miles per hour, nautical miles per hour),
- * ft/s, fps, cm/s, mm/s, km/s and knots. m/s itself, and accelerations such as
+ * ft/s, fps, cm/s, mm/s, km/s, lengths per minute and knots. m/s itself, and accelerations such as
  * cm/s^2, never match.
  */
-const NON_SI_STEM_SPEED = new RegExp(`(?<![\\d.,])\\d(?:[\\d.,]*\\d)?\\s*(?:(?:km|k\\.m|kilomet(?:re|er)s?)${PER_HOUR}|kmph\\b|kmh\\b|kmhr\\b|kmphr\\b|kph\\b|mph\\b|m\\.p\\.h\\b|(?:mi|(?:nautical\\s+)?miles?)${PER_HOUR}|(?:ft|feet|foot)${PER_SECOND}|fps\\b|(?:cm|mm|km|(?:centi|milli|kilo)met(?:re|er)s?)${PER_SECOND}|knots?\\b|किमी\\s*(?:\\/|प्रति)\\s*(?:घंटा|घण्टा))`, "iu");
+const NON_SI_STEM_SPEED = new RegExp(`(?<![\\d.,])\\d(?:[\\d.,]*\\d)?\\s*(?:(?:km|k\\.m|kilomet(?:re|er)s?)${PER_HOUR}|kmph\\b|kmh\\b|kmhr\\b|kmphr\\b|kph\\b|mph\\b|m\\.p\\.h\\b|(?:mi|(?:nautical\\s+)?miles?)${PER_HOUR}|(?:ft|feet|foot)${PER_SECOND}|fps\\b|(?:cm|mm|km|(?:centi|milli|kilo)met(?:re|er)s?)${PER_SECOND}|${LENGTH_UNIT_SOURCE}${PER_MINUTE}|knots?\\b|किमी\\s*(?:\\/|प्रति)\\s*(?:घंटा|घण्टा))`, "iu");
 /** Knots written "kn"; case sensitive so a force in kN never reads as a speed. */
 const STEM_KNOTS = /(?<![\d.,])\d(?:[\d.,]*\d)?\s*kn\b/;
 
-/** A unit that measures a length, metric or not. */
-const LENGTH_UNIT = /^(?:[kcmµμnd]?m|(?:kilo|centi|milli)?met(?:re|er)s?|ft|feet|foot|in|inch(?:es)?|yds?|yards?|mi|miles?|सेमी|सेंटीमीटर|मिमी|मीटर|मी|किमी)$/iu;
 
 type PlanQuantity = TurnPlanV3["givens"][number];
 type UnitsIssue = { code: string; message: string; path: string; severity: "fatal" };

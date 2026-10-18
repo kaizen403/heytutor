@@ -86,6 +86,8 @@ function kept(label: string, result: ReturnType<typeof run>) {
 // 1. The km/h stem with the plan's launch speed u = 72 km/h.
 const kmhPlan = plan(KMH, [given("u", 72, "km/h")]);
 const twenty = run(MS, plan(MS, [given("u", 20, "m/s")]), 20);
+const PER_MINUTE_STEM = "A ball is thrown at 120 m/min at 30° above horizontal. Take g = 10 m/s^2. Find its range.";
+refused("no plan speed, per-minute bare number cannot be read as m/s", run(PER_MINUTE_STEM, plan(PER_MINUTE_STEM, []), 120), "120 m/min");
 // NFKC turns the Unicode y subscript into Greek gamma; dropping it would make v₀ᵧ look like v₀.
 const componentPlan = plan(MS, [given("v0", 40, "m/s", "v₀")], [derived("vy0", 32, "m/s", "v₀ᵧ")]);
 kept("a Unicode vertical component cannot become a second launch speed", run(MS, componentPlan, 40));
@@ -138,6 +140,17 @@ for (const stem of ["at 20 m/s", "at 20 m s^-1", "at 20 ms⁻¹", "at 20 metres 
   "at 20 m/s with g = 980 cm s^-2", "at 20 m/s, 3 km away", "for 2 h at 20 m/s"]) {
   const question = `A ball is thrown from level ground ${stem} at 30° above the horizontal. Find its range.`;
   kept(`no plan speed, stem "${stem}"`, run(question, plan(question, []), 20));
+}
+
+// Per-minute speeds are non-SI too, including inverse notation and written-out units.
+for (const unit of ["m/min", "m/minute", "m min^-1", "m min⁻¹", "metres per minute", "meters per min", "cm/min", "km/min", "metres a minute", "ft/min", "feet per minute", "in/min", "yards/min", "miles per minute", "mm/min", "µm/min"]) {
+  const question = `A ball is thrown at 120 ${unit} at 30° above horizontal. Take g = 10 m/s^2. Find its range.`;
+  refused(`no plan speed, ${unit}: copied 120 is refused`, run(question, plan(question, []), 120));
+  refused(`no plan speed, ${unit}: converted 2 still needs plan authority`, run(question, plan(question, []), 2));
+}
+for (const unit of ["m/min^2", "m/min²", "metres per minute squared", "m/min/s"]) {
+  const question = `A ball is thrown at 20 m/s with acceleration 120 ${unit}. Find its range.`;
+  kept(`${unit} is acceleration, not a non-SI speed in the stem`, run(question, plan(question, []), 20));
 }
 
 // 4. Which plan quantity is a launch speed: by role, then by a rate unit.
