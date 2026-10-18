@@ -19,6 +19,9 @@ const stringCases = [
   ["Draw the standing wave for n = 3 on a string fixed at both ends", 3],
   ["Draw the standing wave with three loops on a stretched string", 3],
   ["Draw a standing wave with 4 loops on a string", 4],
+  ["Draw a standing wave on a string with n = 3.", 3],
+  ["Draw a standing wave on a string: n=2. Mark the nodes.", 2],
+  ["Draw a standing wave on a string (n=4).", 4],
   ["Draw a third‑harmonic standing wave on a string", 3],
   ["Draw a second–harmonic standing wave on a string", 2],
   ["Draw a standing wave in the fundamental mode on a string", 1],
@@ -82,6 +85,8 @@ for (const question of [
   "Draw a standing wave on a string at harmonic k",
   "Draw the standing wave for n = k on a string",
   "Draw the standing wave for n = 3.5 on a string",
+  "Draw a standing wave on a string with n = 3.5.",
+  "Draw a standing wave on a string with n = 2.25.",
   "Draw the standing wave for n = -3 on a string",
   "Draw the standing wave for n = 3/2 on a string",
   "Draw the standing wave for n = 3 / 2 on a string",
@@ -112,4 +117,4 @@ for (const question of ["Draw a standing wave on a string", "Draw a standing wav
   assert.equal(match.slots.harmonic, undefined, question);
   assert.equal(scene?.entities.find((entity) => entity.id === "wave")?.label, "envelope", question);
 }
-console.log(`archetype wave source gate: ${stringCases.length} string modes, 8 pipe modes, 31 declined requests and direct/conceptual boundaries pass`);
+console.log(`archetype wave source gate: ${stringCases.length} string modes, 8 pipe modes, declined requests and direct/conceptual boundaries pass`);

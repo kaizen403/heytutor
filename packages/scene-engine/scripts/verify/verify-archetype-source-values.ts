@@ -169,3 +169,42 @@ for (const energy of [5, 3.1]) {
   assert.equal(scene.entities.find(e => e.id === "phi_top")?.label, "φ=2 eV", "independent work-function value stays grounded");
   assert.equal(scene.quantities.some(q => q.id === "E"), energy !== 5);
 }
+
+// Repeated energy roles must agree after unit conversion; no first-match authority.
+for (const clauses of [
+  "work function is 2 eV; work function is 4 eV",
+  "work function is 4 eV; work function is 2 eV",
+  "φ = 2 eV; work function of the metal is 6.408706536e-19 J",
+]) {
+  const match = detectArchetype(`Photoelectric emission: ${clauses}; incident wavelength is 400 nm`, { plannerArchetype: "photoelectric" })!;
+  const scene = generated("photoelectric", match.slots, match.sources)!;
+  assert.equal(match.slots.workFunction, undefined, "conflicting work functions are not source authority");
+  assert.equal(scene.entities.find(e => e.id === "phi_top")?.label, "φ");
+  assert.equal(scene.entities.find(e => e.id === "kinetic")?.label, "K");
+  assert.equal(scene.entities.find(e => e.id === "E_top")?.label, "hν=3.1 eV", "independent incident energy remains grounded");
+  assert.equal(scene.quantities.some(q => q.id === "phi"), false);
+}
+for (const clauses of [
+  "photon energy is 3.1 eV; photon energy is 5 eV",
+  "photon energy is 5 eV; photon energy is 3.1 eV",
+  "hv = 3.1 eV; energy of the photon is 8.01088317e-19 J",
+]) {
+  const match = detectArchetype(`Photoelectric emission: ${clauses}; work function is 2 eV; incident wavelength is 400 nm`, { plannerArchetype: "photoelectric" })!;
+  const scene = generated("photoelectric", match.slots, match.sources)!;
+  assert.equal(match.slots.photonEnergy, undefined, "conflicting photon energies are not source authority");
+  assert.equal(scene.entities.find(e => e.id === "E_top")?.label, "hν", "a wavelength cannot erase conflicting explicit photon energies");
+  assert.equal(scene.entities.find(e => e.id === "kinetic")?.label, "K");
+  assert.equal(scene.entities.find(e => e.id === "phi_top")?.label, "φ=2 eV");
+  assert.equal(scene.quantities.some(q => q.id === "E"), false);
+}
+for (const clauses of [
+  "work function is 2 eV; φ = 3.204353268e-19 J; photon energy is 3 eV; hf = 4.806529902e-19 joules",
+  "φ = 3.204353268e-19 J; work function is 2 electron-volts; hf = 4.806529902e-19 J; photon energy is 3 eV",
+]) {
+  const match = detectArchetype(`Photoelectric emission: ${clauses}`, { plannerArchetype: "photoelectric" })!;
+  const scene = generated("photoelectric", match.slots, match.sources)!;
+  assert.equal(scene.entities.find(e => e.id === "phi_top")?.label, "φ=2 eV", "equivalent values in different units agree");
+  assert.equal(scene.entities.find(e => e.id === "E_top")?.label, "hν=3 eV");
+  assert.equal(scene.entities.find(e => e.id === "kinetic")?.label, "K=1 eV");
+}
+console.log("repeated energy role gates passed");

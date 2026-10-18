@@ -376,7 +376,7 @@ function photoelectric(context: GeneratorContext) {
   const photon = maybeNum(context, "photonEnergy") ?? (lambda !== null ? 1240 / lambda : null);
   const phiGiven = phi !== null && grounded(context, "workFunction");
   const directPhoton = maybeNum(context, "photonEnergy");
-  const conflictingPhoton = directPhoton !== null && lambda !== null
+  const conflictingPhoton = context.slots.photonEnergyUnresolved === "conflicting" || directPhoton !== null && lambda !== null
     && grounded(context, "photonEnergy") && grounded(context, "lambda")
     && Math.abs(directPhoton - 1240 / lambda) > 1e-6 * Math.max(1, Math.abs(directPhoton), Math.abs(1240 / lambda));
   const photonGiven = !conflictingPhoton && ((directPhoton !== null && grounded(context, "photonEnergy")) || (lambda !== null && grounded(context, "lambda")));

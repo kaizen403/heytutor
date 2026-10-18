@@ -264,14 +264,16 @@ export function lengthAfterInMetres(stem: string, phrase: RegExp): number | null
   return first !== undefined && values.every((value) => value === first) ? first : null;
 }
 
-/** A role-bound energy must carry its unit; bare digits are not electron-volts. */
-export function energyAfterInEv(stem: string, phrase: RegExp): number | null {
-  const pattern = new RegExp(`(?:${phrase.source})\\s*(?:(?:is|of|equals?|equal to|[=:])\\s*)?${NUMBER}\\s*(eV|J|joules?|electron[- ]?volts?)\\b`, "i");
-  const match = pattern.exec(stem);
-  if (!match) return null;
-  const value = parseNumber(match[1]!);
-  if (value === null) return null;
-  return /^(?:J|joules?)$/i.test(match[2]!) ? value / 1.602176634e-19 : value;
+/** A role-bound energy must carry its unit and agree across all mentions. */
+export function readEnergyAfterInEv(stem: string, phrase: RegExp): { value: number | null; conflicting: boolean } {
+  const pattern = new RegExp(`(?:${phrase.source})\\s*(?:(?:is|of|equals?|equal to|[=:])\\s*)?${NUMBER}\\s*(eV|J|joules?|electron[- ]?volts?)\\b`, "gi");
+  const values = [...stem.matchAll(pattern)].flatMap((match) => {
+    const value = parseNumber(match[1]!);
+    return value === null ? [] : [/^(?:J|joules?)$/i.test(match[2]!) ? value / 1.602176634e-19 : value];
+  });
+  const first = values[0];
+  const conflicting = first !== undefined && values.some((value) => Math.abs(value - first) > 1e-9 * Math.max(1, Math.abs(first), Math.abs(value)));
+  return { value: conflicting ? null : first ?? null, conflicting };
 }
 
 /** Wavelength extraction carries its unit and declines conflicting source values. */

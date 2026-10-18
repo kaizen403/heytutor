@@ -25,7 +25,7 @@ import {
   STEM_NUMBER,
   parseStemNumber,
   lengthAfterInMetres,
-  energyAfterInEv,
+  readEnergyAfterInEv,
   wavelengthAfterInNm,
   lengthAfterInCm,
   lengthBeforeInCm,
@@ -1140,13 +1140,17 @@ const CUE_SETS: readonly CueSet[] = [
     extract: (stem, _plan, bag) => {
       // A planner's derived value is a claim, not a solver result. Bind energy
       // roles to the question and convert units before publishing numeric ink.
-      setSlot(bag, "workFunction", energyAfterInEv(stem, /work function(?: of (?:a |the )?(?:metal|surface))?(?: is| of| =)?|(?:φ|phi)\s*=/), "stem");
+      setSlot(bag, "workFunction", readEnergyAfterInEv(stem, /work function(?: of (?:a |the )?(?:metal|surface))?(?: is| of| =)?|(?:φ|phi)\s*=/).value, "stem");
       // The cutoff (including bounded modifiers such as "maximum allowed")
       // describes the surface, not the incident photon. A clause boundary
       // stops the prefix; a later incident wavelength remains eligible. Conflicting
       // remaining wavelengths are ambiguous and the reader returns no value.
       setSlot(bag, "lambda", wavelengthAfterInNm(stem, /(?<!\b(?:threshold|cut[- ]?off|maximum|longest)(?:\s+(?!(?:and|or|but|while|whereas)\b)[a-z-]+){0,4}\s+)(?:\bwavelength(?!\s+(?:threshold|cut[- ]?off|maximum|longest))(?: of| is| =)?|(?:λ|lambda)\s*=)/), "stem");
-      setSlot(bag, "photonEnergy", energyAfterInEv(stem, /photon energy(?: of| is| =)?|energy of (?:the |a )?photon(?: is| of| =)?|(?:hν|hv|hf)\s*=/), "stem");
+      const photon = readEnergyAfterInEv(stem, /photon energy(?: of| is| =)?|energy of (?:the |a )?photon(?: is| of| =)?|(?:hν|hv|hf)\s*=/);
+      setSlot(bag, "photonEnergy", photon.value, "stem");
+      // Distinguish contradictory source values from an absent photon energy:
+      // an independent wavelength cannot silently settle the contradiction.
+      setSlot(bag, "photonEnergyUnresolved", photon.conflicting ? "conflicting" : null, "stem");
     },
   },
   {
@@ -1220,7 +1224,7 @@ const CUE_SETS: readonly CueSet[] = [
           : role === "mode" && closed ? 2 * value - 1 : value);
         return "";
       });
-      remaining = remaining.replace(/\bn\s*=\s*(\d+)\b(?![.]|\s*[+/*^⁄−-])/gi, (_match, value: string) => {
+      remaining = remaining.replace(/\bn\s*=\s*(\d+)\b(?!\.\d|\s*[+/*^⁄−-])/gi, (_match, value: string) => {
         harmonics.push(Number(value));
         return "";
       });
