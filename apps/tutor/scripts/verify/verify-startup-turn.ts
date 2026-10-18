@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { getSegmentCommands, serializeSegmentCommands, verifiedDiagramCommandToDrawCommand, type DrawCommand, type TutorSegment } from "@heytutor/drawing";
-import { mathToSpeech, voiceSettingsForDelivery, normalizeTutorQuestion, TUTOR_SYSTEM_PROMPT, type SpeakSegmentOptions, type TTSClient, type TutorVoiceKey, type TutorVoicePreferences } from "@heytutor/tutor-core";
+import { mathToSpeech, voiceSettingsForDelivery, normalizeTutorQuestion, TUTOR_SYSTEM_PROMPT, type SpeakSegmentOptions, type TTSClient, type TutorVoiceKey, type TutorVoicePreferences, type CodeLessonPlan } from "@heytutor/tutor-core";
 import { validateTurnPlanV3, synthesizeFamilyScene, type TurnPlanV3, type ProblemIR } from "@heytutor/scene-engine";
 import { selectFastVerifiedRepresentation } from "../../features/tutor-session/lib/scene/representationFallback";
 import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
@@ -17,6 +17,7 @@ import type { HandleQuestionOptions, UseTurnLifecycleParams, TurnControlApi } fr
 import type { PausedLessonRequest } from "../../features/tutor-session/lib/turn/doubtTurn";
 import { buildEarlyLessonOpeningSegment } from "../../features/tutor-session/lib/turn/earlyLessonOpening";
 import { isBenignTurnAbort } from "../../features/tutor-session/lib/turn/turnFailurePolicy";
+import { CodeLessonController } from "../../features/tutor-session/lib/code-lesson/codeLessonController";
 import type { StoredTurn } from "../../lib/boards/boardsClient";
 import { lessonRecoveryFromStoredTurns } from "../../features/tutor-session/lib/turn/pausedLessonRestore";
 import { taughtSegmentCount, unsavedLessonBoard, unsavedNoticeAction } from "../../features/tutor-session/lib/board/unsavedBoard";
@@ -109,6 +110,8 @@ export interface FrozenStartupFixture {
   plan: TurnPlanV3;
   /** Captured provider output appended after the stock teaching steps. */
   teachingTail?: string;
+  /** Replay recorded teaching through the real DSA planner/handler/queue. */
+  recordedCodeLesson?: { plan: CodeLessonPlan; response: string };
   /** A language selected since the previous turn, applied by the real handler. */
   voiceKey?: TutorVoiceKey;
   /** Require the real Given-row request and committed WRITE path, not a no-givens prompt. */
@@ -254,6 +257,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       record("visual-need-request");
       return Response.json({ decision: fixture ? plan.visualRequirement === "none" ? "none" : null : "required" });
     }
+    if (fixture?.recordedCodeLesson && url.endsWith("/api/dsa-teaching-policy")) return new Response(null, { status: 503 });
     if (url.endsWith("/api/trace/event")) {
       telemetry.push(JSON.parse(String(init?.body)));
       return Response.json({});
@@ -277,6 +281,9 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       });
     }
     assert(url.endsWith("/api/chat"), `${mode}: no real network call is permitted: ${url}`);
+    if (fixture?.recordedCodeLesson && headers.get("x-code-lesson-version") === "1") {
+      return completion(fixture.recordedCodeLesson.plan);
+    }
     if (headers.get("x-turn-planner-version") === "3") {
       record("turn-plan-request");
       if (earlyMode) await new Promise<void>((resolve) => { setTimer(resolve, plannerHoldMs); });
@@ -394,6 +401,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
     stopTurnRef: ref(null), rewoundRef: ref(false), replayAudioRef: ref(null), replayDrawClockRef: ref(null),
     replayAudioPreloadRef: ref(new Map()), replayGenerationRef: ref(0), replayCueRef: ref(null),
     ttsClientRef: ref(provider), ensureTTSClient: () => provider as unknown as TTSClient,
+    ...(fixture?.recordedCodeLesson ? { codeLessonControllerRef: ref(new CodeLessonController()) } : {}),
     voicePreferencesRef: ref<TutorVoicePreferences>({ voiceKey: "en-IN", lowLatency: false }),
     pendingVoicePreferencesRef: ref<TutorVoicePreferences | null>(fixture?.voiceKey || mode === "hinglish-opening"
       ? { voiceKey: fixture?.voiceKey ?? "hi-IN", lowLatency: false } : null),
@@ -543,6 +551,19 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
     assert(historyAt < billingAt, "successful owned history precedes billing");
     assert(heldLocks.has(`heytutor-lesson:${boardId}`), "the native claim remains held throughout the live teaching turn");
     const outputs = () => events.filter((event) => ["enqueue", "enqueue-intro", "playback", "board-command"].includes(event.name));
+    if (fixture?.recordedCodeLesson) {
+      await pump(() => streams.length === 1);
+      content(0, fixture.recordedCodeLesson.response);
+      finishStream(0);
+      await pump(() => done);
+      await turn;
+      await pump(() => lifecycle.pendingSegmentCountRef.current === 0);
+      assert(!events.some(event => event.name === "turn-error"), "recorded DSA must complete through the actual handler");
+      assert.equal(lifecycle.turnActiveRef.current, false);
+      assert.equal(lifecycle.phaseRef.current, "idle");
+      assert.equal(timers.size, 0);
+      return { mode, recordedCodeEvents: events };
+    }
     if (earlyMode) {
       const opening = buildEarlyLessonOpeningSegment();
       const playbacks = () => events.filter((event) => event.name === "playback");

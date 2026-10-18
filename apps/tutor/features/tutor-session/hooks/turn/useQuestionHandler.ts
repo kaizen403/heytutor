@@ -3,7 +3,6 @@ import {
   lessonNarrationText,
   IncrementalTagParser,
   anchorToTextRect,
-  getSegmentCommands,
   prepareVerifiedLessonSegments,
   type TutorSegment,
   cancelFrame,
@@ -85,6 +84,7 @@ import {
 import {
   codeLessonResumeNote,
   createCodeLessonConductor,
+  dsaSegmentNeedsFigure,
   fullyRevealedBlockIds,
 } from "../../lib/code-lesson/codeLessonSegments";
 import {
@@ -2085,12 +2085,7 @@ export function useQuestionHandler(
           }
         };
         const segmentNeedsFigure = (segment: TutorSegment): boolean =>
-          getSegmentCommands(segment).some(
-            (command) =>
-              command.type === "FOCUS" ||
-              command.type === "FRAME" ||
-              command.type === "TYPE",
-          );
+          dsaSegmentNeedsFigure(segment, introSegments);
 
         // A resumed non-code lecture cannot become a speech-only turn: hold
         // its first words until a filtered, aligned WRITE really reaches the
