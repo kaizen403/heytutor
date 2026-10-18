@@ -2053,7 +2053,7 @@ function requireIncompleteSourceConstraintCoverage(question: string, names: read
   body = realMasked.join("");
   const points = readLinearSourceReferencePoints(body, names);
   let objective: SourceObjective | undefined;
-  try { objective = sourceObjective(points.maskedQuestion, names); }
+  try { objective = sourceObjective(incompleteSourceMixedScalars(points.maskedQuestion), names); }
   catch { /* No objective value or direction is inferred from an unproved request. */ }
   const scalarSpans: Array<{ start: number; end: number }> = [];
   body = maskLinearSourceScalarNameRoles(points.maskedQuestion, names, label => !names.includes(label), scalarSpans);

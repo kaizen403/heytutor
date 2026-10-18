@@ -138,6 +138,28 @@ incompleteSourcePreservationCases.push(
   ...["Maximize W", "Maximize Z=x*y", "Maximize Z=x+q", "Maximize Z="].map((request, index) => ({ id: `unproved-objective-${index}`, question: `${request} subject to x>=0,y>=0,x+y<=4. Explain patiently.`, planar: true, source: objectivePredicates, objective: { expression: "x+y", sense: "max" as const }, refuse: true })),
 );
 
+for (const [index, [sourceExpression, canonicalExpression, productMisread]] of [
+  ["x+y+2 1/2", "x+y+5/2", "x+y+1"],
+  ["x+y-2 1/2", "x+y-5/2", "x+y-1"],
+  ["x+y+(-2 1/3)", "x+y-7/3", "x+y-2/3"],
+  ["2 1/2*x+y", "(5/2)*x+y", "x+y"],
+  ["x+y+0 1/2", "x+y+1/2", "x+y"],
+].entries()) {
+  const sense = index % 2 === 0 ? "max" as const : "min" as const;
+  const question = `${sense === "max" ? "Maximize" : "Minimize"} Z=${sourceExpression} subject to x>=0,y>=0,x+y<=4. Explain patiently.`;
+  incompleteSourcePreservationCases.push(
+    { id: `mixed-objective-${index}-canonical`, question, planar: true, source: objectivePredicates, objective: { expression: canonicalExpression!, sense } },
+    { id: `mixed-objective-${index}-identity`, question, planar: true, source: objectivePredicates, objective: { expression: `(${canonicalExpression})+0`, sense } },
+    { id: `mixed-objective-${index}-wrong-product`, question, planar: true, source: objectivePredicates, objective: { expression: productMisread!, sense }, refuse: true },
+    { id: `mixed-objective-${index}-wrong-sign`, question, planar: true, source: objectivePredicates, objective: { expression: `-(${canonicalExpression})`, sense }, refuse: true },
+    { id: `mixed-objective-${index}-wrong-scale`, question, planar: true, source: objectivePredicates, objective: { expression: `2*(${canonicalExpression})`, sense }, refuse: true },
+    { id: `mixed-objective-${index}-wrong-direction`, question, planar: true, source: objectivePredicates, objective: { expression: canonicalExpression!, sense: sense === "max" ? "min" : "max" }, refuse: true },
+    { id: `mixed-objective-${index}-omitted`, question, planar: true, source: objectivePredicates, refuse: true },
+  );
+}
+for (const [index, sourceExpression] of ["x+y+2 3/2", "x+y-2 3/2", "x+y+2 1/0"].entries())
+  incompleteSourcePreservationCases.push({ id: `mixed-objective-unproved-${index}`, question: `Maximize Z=${sourceExpression} subject to x>=0,y>=0,x+y<=4. Explain patiently.`, planar: true, source: objectivePredicates, objective: { expression: index === 1 ? "x+y-3" : "x+y+3", sense: "max" }, refuse: true });
+
 export function incompleteSourcePreservationCandidate(row: IncompleteSourcePreservationCase): SceneDocument {
   const candidate = incompleteConstraintCandidate(row, true);
   if (row.objective) candidate.constructions[0]!.inputs.objective = row.objective;
