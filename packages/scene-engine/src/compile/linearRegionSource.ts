@@ -2052,6 +2052,9 @@ function requireIncompleteSourceConstraintCoverage(question: string, names: read
   for (const span of realSpans) for (let index = span.start; index < span.end; index++) realMasked[index] = " ";
   body = realMasked.join("");
   const points = readLinearSourceReferencePoints(body, names);
+  let objective: SourceObjective | undefined;
+  try { objective = sourceObjective(points.maskedQuestion, names); }
+  catch { /* No objective value or direction is inferred from an unproved request. */ }
   const scalarSpans: Array<{ start: number; end: number }> = [];
   body = maskLinearSourceScalarNameRoles(points.maskedQuestion, names, label => !names.includes(label), scalarSpans);
   const scalarMasked = body.split("");
@@ -2069,7 +2072,6 @@ function requireIncompleteSourceConstraintCoverage(question: string, names: read
   const source = hasNative && (/[<>=]/.test(body) || domains.length > 0) ? clauses(body, names, points.points.map(point => point.label), true) : [];
   const unary = incompleteUnarySourceProgram(body, source, points.points.map(point => point.label), names);
   source.push(...domains);
-  if (!source.length) return;
   const proposed: string[] = [];
   const numberPrograms: IntervalExpression[] = [];
   for (const construction of document.constructions) {
@@ -2077,9 +2079,18 @@ function requireIncompleteSourceConstraintCoverage(question: string, names: read
     const input = evaluateLinearRegionConstruction(construction.operator, construction.inputs)[0]!.input;
     const candidateNames = input.kind === "number_line_set" ? [input.variable ?? "x"] : input.variables ?? ["x", "y"];
     if (!same(candidateNames, names)) continue;
+    const suppliedObjective = input.kind === "linear_feasible_region" ? input.objective : undefined;
+    if (objective) {
+      if (input.kind !== "linear_feasible_region" || !suppliedObjective || objective.sense !== suppliedObjective.sense
+        || !same(parseLinearAffine(objective.expression, names), parseLinearAffine(suppliedObjective.expression, names)))
+        throw new Error("Candidate omits or changes the independently proved source objective expression or direction");
+      if (!same(signatures(input.constraints, names), signatures(source.map(clause => clause.text), names)))
+        throw new Error("An objective carrier must own the complete source constraint program without borrowing another component");
+    } else if (suppliedObjective) throw new Error("Candidate objective has no complete independently proved source expression and direction");
     if (input.kind === "number_line_set") numberPrograms.push(input.expression);
     proposed.push(...(input.kind === "number_line_set" ? inequalityLeaves(input.expression) : input.kind === "linear_half_plane" ? [input.inequality] : input.kind === "linear_system" ? input.equations : input.constraints));
   }
+  if (!source.length) return;
   if (unary) {
     const program: IntervalExpression = domains.length ? { intersection: [unary, ...domains.map(clause => ({ inequality: clause.text }))] } : unary;
     if (names.length === 1 && numberPrograms.length === 1) {

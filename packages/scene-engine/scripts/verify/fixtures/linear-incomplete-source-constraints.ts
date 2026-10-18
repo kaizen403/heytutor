@@ -77,6 +77,7 @@ export const uncertaintyControls: IncompleteConstraintCase[] = [
 export interface IncompleteSourcePreservationCase extends IncompleteConstraintCase {
   refuse?: boolean;
   objective?: { expression: string; sense: "max" | "min" };
+  extraNativePrograms?: Array<{ operator: string; inputs: Record<string, unknown> }>;
 }
 export const incompleteSourcePreservationCases: IncompleteSourcePreservationCase[] = [
   ...[
@@ -107,3 +108,45 @@ export const incompleteSourcePreservationCases: IncompleteSourcePreservationCase
   { id: "mixed-number-wrong-product", question: "Represent x>2 1/2 on a number line.", planar: false, source: ["x>1"], refuse: true },
   { id: "mixed-number-wrong-boundary", question: "Represent x>2 1/2 on a number line.", planar: false, source: ["x>=5/2"], refuse: true },
 ];
+
+const objectivePredicates = ["x>=0", "y>=0", "x+y<=4"];
+for (const [name, direction, sourceExpression, equivalentExpression] of [
+  ["integer", "max", "x+y", "(2*x+2*y)/2"],
+  ["rational", "min", "(3/2)x-(2/3)y-5/7", "x+x/2-2*y/3-5/7"],
+] as const) {
+  const question = `${direction === "max" ? "Maximize" : "Minimize"} Z=${sourceExpression} subject to x>=0,y>=0,x+y<=4. Explain patiently.`;
+  incompleteSourcePreservationCases.push(
+    { id: `objective-${name}-complete`, question, planar: true, source: objectivePredicates, objective: { expression: sourceExpression, sense: direction } },
+    { id: `objective-${name}-algebraic-identity`, question, planar: true, source: objectivePredicates, objective: { expression: equivalentExpression, sense: direction } },
+    { id: `objective-${name}-wrong-coefficient`, question, planar: true, source: objectivePredicates, objective: { expression: `${sourceExpression}+y`, sense: direction }, refuse: true },
+    { id: `objective-${name}-wrong-constant`, question, planar: true, source: objectivePredicates, objective: { expression: `${sourceExpression}+1/3`, sense: direction }, refuse: true },
+    { id: `objective-${name}-wrong-scale`, question, planar: true, source: objectivePredicates, objective: { expression: `2*(${sourceExpression})`, sense: direction }, refuse: true },
+    { id: `objective-${name}-wrong-direction`, question, planar: true, source: objectivePredicates, objective: { expression: sourceExpression, sense: direction === "max" ? "min" : "max" }, refuse: true },
+    { id: `objective-${name}-omitted`, question, planar: true, source: objectivePredicates, refuse: true },
+    { id: `objective-${name}-carrier-omits-bound`, question, planar: true, source: ["x>=0", "y>=0"], objective: { expression: sourceExpression, sense: direction },
+      extraNativePrograms: [{ operator: "linear_half_plane", inputs: { variables: ["x", "y"], inequality: "x+y<=4" } }], refuse: true },
+    { id: `objective-${name}-noncarrier-cannot-borrow`, question, planar: true, source: objectivePredicates,
+      extraNativePrograms: [{ operator: "linear_feasible_region", inputs: { variables: ["x", "y"], constraints: objectivePredicates, objective: { expression: sourceExpression, sense: direction } } }], refuse: true },
+  );
+  for (const suffix of ["The coefficients of x and y are rational.", "Please use a calm explanation.", "The endpoint labels should be readable."])
+    incompleteSourcePreservationCases.push({ id: `objective-${name}-neutral-${incompleteSourcePreservationCases.length}`, question: `${question} ${suffix}`, planar: true, source: objectivePredicates, objective: { expression: sourceExpression, sense: direction } });
+}
+incompleteSourcePreservationCases.push(
+  { id: "extra-objective-has-no-source", question: "Graph x>=0,y>=0,x+y<=4. Explain patiently.", planar: true, source: objectivePredicates, objective: { expression: "x+y", sense: "max" }, refuse: true },
+  { id: "no-objective-neutral-prose", question: "Graph x>=0,y>=0,x+y<=4. Explain patiently.", planar: true, source: objectivePredicates },
+  { id: "no-objective-unrelated-maximum-prose", question: "Graph x>=0,y>=0,x+y<=4. Explain the graph with maximum patience.", planar: true, source: objectivePredicates },
+  ...["Maximize W", "Maximize Z=x*y", "Maximize Z=x+q", "Maximize Z="].map((request, index) => ({ id: `unproved-objective-${index}`, question: `${request} subject to x>=0,y>=0,x+y<=4. Explain patiently.`, planar: true, source: objectivePredicates, objective: { expression: "x+y", sense: "max" as const }, refuse: true })),
+);
+
+export function incompleteSourcePreservationCandidate(row: IncompleteSourcePreservationCase): SceneDocument {
+  const candidate = incompleteConstraintCandidate(row, true);
+  if (row.objective) candidate.constructions[0]!.inputs.objective = row.objective;
+  for (const [index, program] of (row.extraNativePrograms ?? []).entries()) {
+    const id = `additional_region_${index}`;
+    candidate.entities.push({ id, kind: "linear_region", role: "additional supplied native program" });
+    candidate.constructions.push({ id: `construct_${id}`, operator: program.operator, inputs: structuredClone(program.inputs), outputs: [id] });
+    candidate.requiredEntityIds.push(id);
+    candidate.revealGroups[0]!.entityIds.push(id);
+  }
+  return candidate;
+}

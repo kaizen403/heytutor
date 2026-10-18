@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createFallbackTurnPlanV3 } from "@heytutor/tutor-core";
-import { incompleteConstraintCases, incompleteConstraintCandidate, uncertaintyControls, unprovedSignCases, unprovedMathTailCases, unprovedScopeCases, incompleteSourcePreservationCases } from "../../../../packages/scene-engine/scripts/verify/fixtures/linear-incomplete-source-constraints";
+import { incompleteConstraintCases, incompleteConstraintCandidate, uncertaintyControls, unprovedSignCases, unprovedMathTailCases, unprovedScopeCases, incompleteSourcePreservationCases, incompleteSourcePreservationCandidate } from "../../../../packages/scene-engine/scripts/verify/fixtures/linear-incomplete-source-constraints";
 import { selectProductionScene } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 let checks = 0;
 const failures: string[] = [];
@@ -24,8 +24,7 @@ for (const row of incompleteSourcePreservationCases) for (const preferPlanner of
   checks++;
   try {
     const turnPlan = { ...createFallbackTurnPlanV3(row.question), visualRequirement: "required" as const };
-    const candidate = incompleteConstraintCandidate(row, true);
-    if (row.objective) candidate.constructions[0]!.inputs.objective = row.objective;
+    const candidate = incompleteSourcePreservationCandidate(row);
     const before = structuredClone(candidate);
     const selected = selectProductionScene({ question: row.question, turnPlan, problemIR: null, candidate: { ...candidate }, policy: { preferPlanner } });
     if (row.refuse) {

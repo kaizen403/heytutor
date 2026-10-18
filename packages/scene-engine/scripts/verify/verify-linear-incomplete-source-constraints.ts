@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { buildLinearSourceDocument, compileSceneDocument } from "../../src/index";
 import { validateLinearSourceBinding } from "../../src/compile/linearRegionSource";
-import { incompleteConstraintCases, incompleteConstraintCandidate, uncertaintyControls, unprovedSignCases, unprovedMathTailCases, unprovedScopeCases, incompleteSourcePreservationCases } from "./fixtures/linear-incomplete-source-constraints";
+import { incompleteConstraintCases, incompleteConstraintCandidate, uncertaintyControls, unprovedSignCases, unprovedMathTailCases, unprovedScopeCases, incompleteSourcePreservationCases, incompleteSourcePreservationCandidate } from "./fixtures/linear-incomplete-source-constraints";
 if (process.argv.includes("--preflight-resource")) {
   const child = spawnSync(process.execPath, [...process.execArgv, import.meta.filename, "--preflight-resource-child"], { timeout: 20000, encoding: "utf8", maxBuffer: 1024 * 1024 });
   assert.equal(child.error, undefined);
@@ -106,8 +106,7 @@ for (const row of uncertaintyControls) check(row.id, () => {
   assert(compileSceneDocument(incompleteConstraintCandidate(row)).ok, "unknown prose alone still cannot veto a complete planner");
 });
 for (const row of incompleteSourcePreservationCases) check(row.id, () => {
-  const candidate = incompleteConstraintCandidate(row, true), before = structuredClone(candidate);
-  if (row.objective) candidate.constructions[0]!.inputs.objective = row.objective;
+  const candidate = incompleteSourcePreservationCandidate(row), before = structuredClone(candidate);
   const input = structuredClone(candidate);
   const issues = validateLinearSourceBinding(candidate), compiled = compileSceneDocument(candidate);
   if (row.refuse) {

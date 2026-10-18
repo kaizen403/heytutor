@@ -170,10 +170,11 @@ const unprovedSources = new Map<string, string>([
     .map(id => [id, "The scalar punctuation has unresolved numeric meaning"] as const),
 ]);
 for (const id of unprovedSources.keys()) assert.ok(cases.some(entry => entry.id === id), `Unproved-source case ${id} must still exist`);
-// The 18 Oct final owner review supersedes only these 24 historical no-veto
-// expectations. Each stored candidate drops or changes unproved source math.
-// Preserve the original source, candidate, and reader-null expectation; other
-// uncertain-source seams and every complete correctness control are unchanged.
+// The 18 Oct final owner review supersedes 24 historical no-veto expectations
+// for dropped/changed source math. Its objective follow-up also refuses the
+// seven stored optimization claims whose requested target/sense is unproved;
+// a multi-request question is not thereby declared intrinsically wrong.
+// Original sources, candidates, reader-null checks and complete controls stay.
 const failClosedUnprovedSources = new Set([
   "unknown-addend", "unknown-function", "unknown-coefficient-word", "nonlinear-source", "unknown-hyphen-math", "hyphen-rhs-math",
   "interval-omitted-declared-domain", "interval-variable-endpoint",
@@ -181,6 +182,8 @@ const failClosedUnprovedSources = new Set([
   "source-plus-minus", "source-em-dash-arithmetic", "source-fraction-slash", "source-adjoining-nonlinear",
   "interval-mixed-or-program", "half-plane-dangling-boolean", "number-line-dangling-boolean",
   "source-colon-scalar-adjacency", "source-question-scalar-adjacency", "source-decimal-comma-adjacency", "source-given-point-bare-boolean",
+  "objective-contradictory-reference", "objective-contradictory-unknown-reference", "objective-undefined-target", "objective-unrelated-maximum",
+  "objective-derived-contradictory-point", "objective-derived-unknown-point-reference", "objective-derived-contradictory-result",
 ]);
 const replayArgument = process.argv.find((arg) => arg.startsWith("--replay-stored="));
 const replayCases: Case[] = [];
