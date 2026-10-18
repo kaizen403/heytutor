@@ -261,12 +261,12 @@ class CompletionContext {
     // An identity join proves an external body attribute, never its native
     // radius/extent/area or an arbitrary curve/vector's numeric magnitude.
     // Volume/dioptre atoms are left unjudged by the existing unit algebra.
-    if (!bodyCarrier || !entity?.label || !signature || /^m\^-?\d+$/.test(signature) ||
+    if (!bodyCarrier || !entity || typeof entity.label !== "string" || !entity.label || !signature || /^m\^-?\d+$/.test(signature) ||
         signature.split("·").some(term => /^(?:L|D)\^/.test(term))) return false;
     const normalized = ownerSymbol(symbol);
     const quantities = [...this.quantities.values()].filter(quantity => quantity.symbol && ownerSymbol(quantity.symbol) === normalized);
     return quantities.length === 1 && quantities[0]!.id === quantityId && ownerSymbol(entity.label) === normalized &&
-      [...this.entities.values()].filter(candidate => candidate.label && ownerSymbol(candidate.label) === normalized).length === 1;
+      [...this.entities.values()].filter(candidate => typeof candidate.label === "string" && ownerSymbol(candidate.label) === normalized).length === 1;
   }
   unknownTextCompatible(target: string, unknown: { symbol: string; unit?: string }): boolean {
     const labels = this.document.constructions.filter(construction => nativeLabelTarget(construction) === target);
