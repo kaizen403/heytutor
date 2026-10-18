@@ -1,0 +1,4 @@
+# Organic source-grounded live structure availability and reveal.
+tsx scripts/verify/verify-live-molecule-availability.ts
+tsx scripts/verify/verify-live-molecule-review-claims.ts
+tsx scripts/verify/verify-live-organic-structure-reveal.ts

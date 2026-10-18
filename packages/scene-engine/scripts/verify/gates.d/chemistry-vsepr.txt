@@ -1,0 +1,3 @@
+# Source-bound VSEPR shapes and natural wording regressions.
+tsx scripts/verify/verify-vsepr-source-structure.ts
+tsx scripts/verify/verify-vsepr-review-wordings.ts
