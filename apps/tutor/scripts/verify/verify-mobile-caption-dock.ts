@@ -43,6 +43,12 @@ class HookMount {
   dirty = true;
   effects: Array<() => void> = [];
   react = {
+    useRef: <T,>(initial: T) => {
+      const slot = this.slots[this.cursor] ?? (this.slots[this.cursor] = {});
+      this.cursor++;
+      if (!("value" in slot)) slot.value = { current: initial };
+      return slot.value as { current: T };
+    },
     useState: <T,>(initial: T) => {
       const slot = this.slots[this.cursor] ?? (this.slots[this.cursor] = {});
       this.cursor++;
@@ -73,7 +79,7 @@ class HookMount {
   unmount() { for (const slot of this.slots) slot.cleanup?.(); }
 }
 
-function viewportFixture(width: number, height: number, deckHeight: number, mode: "fit" | "fixed" | "readable-scroll" = "fit", panelHeight = 0) {
+export function viewportFixture(width: number, height: number, deckHeight: number, mode: "fit" | "fixed" | "readable-scroll" = "fit", panelHeight = 0, minimumVisibleFontSize?: number | null) {
   const mount = new HookMount();
   const box = { width, height, deckHeight, keyboardInset: 0, panelShown: panelHeight > 0 };
   const panelStyle = new Map<string, string>();
@@ -139,9 +145,9 @@ function viewportFixture(width: number, height: number, deckHeight: number, mode
     Object.defineProperty(globalThis, key, { value, configurable: true });
   }
   const hook = load(viewportFile, process.env.CAPTION_VIEWPORT_SOURCE ?? viewportFile, mount.react).useBoardViewport as
-    (ref: { current: unknown }, mode: "fit" | "fixed" | "readable-scroll") => BoardViewport;
+    (ref: { current: unknown }, mode: "fit" | "fixed" | "readable-scroll", minimumVisibleFontSize?: number | null) => BoardViewport;
   const ref = { current: container };
-  const read = () => mount.render(() => hook(ref, mode));
+  const read = () => mount.render(() => hook(ref, mode, minimumVisibleFontSize));
   const resize = (patch: Partial<typeof box>, target: "container" | "deck" = "container") => {
     Object.assign(box, patch);
     if (observed.has(target === "deck" ? deck : container)) observerCallback();
@@ -158,6 +164,7 @@ function viewportFixture(width: number, height: number, deckHeight: number, mode
   };
   return {
     box, deck, panel, panelStyle, container, observed, read, resize, visualResize,
+    fontSize(size: number | null) { minimumVisibleFontSize = size; return read(); },
     get disconnected() { return disconnected; },
     get mediaListenerCount() { return mediaListeners.size; },
     get visualResizeListenerCount() { return visualListeners.get("resize")?.size ?? 0; },
@@ -193,6 +200,9 @@ const recordedCaption = "Recorded: compare the middle value with the target, the
 let lastShellTree: React.ReactElement | null = null;
 let lastShellViewportMode: string | undefined;
 export const phoneViewportScales: number[] = [];
+export let phoneShellReading: import("../../features/tutor-session/hooks/useBoardReading").BoardReadingInput | undefined;
+export let phoneShellMinimum: number | null | undefined;
+export function phoneShellTree() { return lastShellTree; }
 class ShellMount {
   slots: unknown[] = []; cursor = 0;
   constructor(private subtitles: boolean) {}
@@ -251,10 +261,11 @@ function captionLocation(html: string, text: string) {
   }
   return null;
 }
-function shellMarkup(options: {
+export function shellMarkup(options: {
   mobile: boolean; coarse?: boolean; width?: number; height?: number; phase?: "idle" | "planning" | "thinking" | "speaking" | "drawing"; paused?: boolean; subtitles?: boolean; recorded?: boolean; playerActive?: boolean; playerPlaying?: boolean; playerRevealed?: boolean;
   fullscreen?: boolean; saveFailed?: boolean; codeOnly?: boolean; variant?: TutorSessionShellProps["variant"]; viewportScale?: number;
   pausedOffer?: boolean; downloadError?: boolean; rewind?: boolean; text?: string; playerText?: string;
+  scrollable?: boolean; minimumVisibleFontSize?: number | null; rewindPlaying?: boolean;
 }) {
   const mount = new ShellMount(options.subtitles ?? true);
   const setters: { text?: (value: string) => void; phase?: (value: string) => void; paused?: (value: boolean) => void } = {};
@@ -280,16 +291,17 @@ function shellMarkup(options: {
     "@/features/tutor-session/components/SettingsDrawer": { ...requireApp(path.join(appRoot, "features/tutor-session/components/SettingsDrawer.tsx")), SettingsDrawer: leaf },
     "./lib/code-lesson/codeLessonController": { CodeLessonController: class { getActivePlan() { return options.codeOnly ? {} : null; } } },
     "./hooks/useCancelControl": { useCancelControl: () => ({}) },
-    "./hooks/useBoardLayout": { useBoardLayout: (input: { viewportMode?: string }) => { lastShellViewportMode = input.viewportMode; return ({ boardContainerRef: { current: null }, boardViewport: { scale: options.viewportScale ?? 0.2, offsetX: 0, offsetY: 0, measured: true }, boardLayoutRef: { current: {} }, notesEpochsRef: { current: [] }, narrationSinceEpochRef: { current: [] } }); } },
+    "./hooks/useBoardLayout": { useBoardLayout: (input: { viewportMode?: string; minimumVisibleFontSize?: number | null }) => { lastShellViewportMode = input.viewportMode; phoneShellMinimum = input.minimumVisibleFontSize; return ({ boardContainerRef: { current: null }, boardViewport: { scale: options.viewportScale ?? 0.2, offsetX: 0, offsetY: 0, measured: true, scrollable: options.scrollable }, boardLayoutRef: { current: {} }, notesEpochsRef: { current: [] }, narrationSinceEpochRef: { current: [] } }); } },
+    "./hooks/useBoardReading": { useBoardReading: (input: import("../../features/tutor-session/hooks/useBoardReading").BoardReadingInput) => { phoneShellReading = input; if (Object.hasOwn(options, "minimumVisibleFontSize")) input.onMinimumFontSize(options.minimumVisibleFontSize ?? null); } },
     "./hooks/useAdaptiveDrawSpeed": { useAdaptiveDrawSpeed: noop },
     "./hooks/useCommandExecution": { useCommandExecution: () => ({}) },
     "./hooks/useBoardSession": { useBoardSession: (input: { setCurrentSegmentText: (value: string) => void }) => { setters.text = input.setCurrentSegmentText; return ({ boards: [{ id: "recorded-board", title: "Saved lesson", preview: "" }], boardLoaded: true, storedTurnsRef: { current: turns }, storedTurnsCount: turns.length, inputInteracted: true, saveStatus: options.saveFailed ? { kind: "failed", message: "Try again" } : { kind: "saved" }, retrySave: noop, hasLiveTurn: false }); } },
     "./hooks/useTurnLifecycle": { useTurnLifecycle: (input: { setPhase: (value: string) => void; setIsPaused: (value: boolean) => void }) => { setters.phase = input.setPhase; setters.paused = input.setIsPaused; return { pausedLessonOffer: options.pausedOffer === true }; } },
     "./hooks/useNotesChat": { useNotesChat: () => ({ messages: [] }) },
     "./hooks/useReplay": { useReplay: () => ({ replayLecture: () => false, handleReplaySpeedChange: noop }) },
-    "./hooks/useLectureRewind": { useLectureRewind: () => ({ rewindActive: options.rewind === true, rewindSegmentText: rewindCaption, rewindBoardRef: { current: null }, rewindCursorState: "hidden" }) },
+    "./hooks/useLectureRewind": { useLectureRewind: () => ({ rewindActive: options.rewind === true, rewindPlaying: options.rewindPlaying === true, rewindSegmentText: rewindCaption, rewindBoardRef: { current: null }, rewindCursorState: "hidden" }) },
     "./hooks/useLectureExport": { useLectureExport: () => ({ downloadState: options.downloadError ? { kind: "error", file: "video", message: "Try the download again" } : { kind: "idle" }, lectureFileType: "mp4" }) },
-    "./hooks/useLecturePlayer": { useLecturePlayer: () => ({ store, active: options.playerActive === true, controls: { play: noop, pause: noop, toggle: noop, seek: noop, skip: noop, setRate: noop }, view: { active: options.playerActive === true, revealed: options.playerRevealed !== false, cursorState: "hidden", segmentText: options.playerText ?? recordedCaption }, playing: options.playerPlaying === true, close: noop, halt: noop }) },
+    "./hooks/useLecturePlayer": { useLecturePlayer: () => ({ store, active: options.playerActive === true, revealed: options.playerRevealed !== false, playerBoardRef: { current: null }, controls: { play: noop, pause: noop, toggle: noop, seek: noop, skip: noop, setRate: noop }, view: { active: options.playerActive === true, revealed: options.playerRevealed !== false, cursorState: "hidden", segmentText: options.playerText ?? recordedCaption }, playing: options.playerPlaying === true, close: noop, halt: noop }) },
     "./hooks/useBoardMarking": { useBoardMarking: () => ({ armed: false, marks: [] }) },
     "./hooks/useLecturePageHalt": { useLecturePageHalt: noop },
     "./hooks/useBoardFullscreen": { useBoardFullscreen: () => ({ active: options.fullscreen === true, toggle: noop }), useSessionChromeHidden: () => false },

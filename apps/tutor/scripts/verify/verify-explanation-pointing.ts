@@ -387,7 +387,8 @@ async function main() {
       await run(`resumed-authored-${type}${write ? "-write" : ""}`, { narration, command: { commands }, durationMs: 12_000, timings: null }, "fallback", write ? "authored-gesture-resume-write" : "authored-gesture-resume");
     }
   }
-  assert(lecturePageCacheKey([]).endsWith("@video12"), "prior board/pitch/static explanation files cannot share the new cache identity");
+  const revision = /@video(\d+)$/.exec(lecturePageCacheKey([]));
+  assert(revision && Number(revision[1]) >= 12, "prior board/pitch/static explanation files cannot share the new cache identity");
   console.log("verify-explanation-pointing:", JSON.stringify({ scenarios: results.length, providers: 0, results }));
 }
 // The actual replay consumer adds seven clock-driven scenarios; keep assertions

@@ -51,6 +51,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 2
       - name: Setup pnpm
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
         with:
@@ -121,6 +123,7 @@ jobs:
         run: |
           pnpm --filter @heytutor/tutor verify:phone-board-readability
           pnpm --filter @heytutor/tutor verify:explanation-pointing
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-export-cache-order.ts
       - name: Live diagram picker regressions (no model calls)
         run: |
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-live-diagram-picker.ts
