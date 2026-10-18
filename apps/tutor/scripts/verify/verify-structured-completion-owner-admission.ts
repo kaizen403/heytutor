@@ -29,7 +29,7 @@ function input(fixture: Fixture): { document: engine.SceneDocument; turnPlan: en
   const turnPlan: engine.TurnPlanV3 = { schemaVersion: "turn-plan/v3", question, givens, unknowns: [], derived: [], qualitativeClaims: [],
     lawIds: [], assumptions: [], visualRequirement: "required" };
   const document: engine.SceneDocument = { schemaVersion: "scene-document/v2", source: { question },
-    visualDecision: { mode: "scene", reason: "source-given coordinate point and readable reference" }, quantities: clone(givens),
+    visualDecision: { mode: "scene", reason: "source-given coordinate point and readable reference" }, quantities: givens.map(quantity => ({ ...quantity })),
     entities: [{ id: "L", kind: "point", role: "fixed viewport reference" }, { id: "Q", kind: "point", role: "readable reference", label: "Q" },
       { id: "P", kind: "point", role: "source-given coordinate owner" }],
     constructions: [{ id: "makeL", operator: "point", inputs: { x: -6, y: -4, coordinateSpace: "world" }, outputs: ["L"] },
