@@ -6,13 +6,14 @@ import type { SelectedRepresentation } from "../../features/tutor-session/lib/sc
 type Fault = "none" | "replace" | "quantity-routing" | "wrong-target" | "wrong-text" | "missing-record" |
   "undeclared-annotation" | "undeclared-entity" | "duplicate-addition" | "overlapping-ids" | "old-id" |
   "unknown-quantity" | "duplicate-quantity" | "wrong-group" | "ambiguous-owner" | "wrong-native-anchor";
-interface Fixture { id: string; space?: boolean; nativeConstructor?: boolean; oldPointName?: boolean; kind?: "motion" | "arcs"; fault?: Fault; expected: "adopt" | "reject" }
+interface Fixture { id: string; space?: boolean; nativeConstructor?: boolean; oldPointName?: boolean; kind?: "motion" | "arcs"; boundaryDeg?: number; mustMoveOldLabel?: boolean; fault?: Fault; expected: "adopt" | "reject" | "preserve-old-ink" }
 const fixtures: Fixture[] = [
   { id: "native-append-coordinate-annotation", expected: "adopt" },
   { id: "native-append-world-coordinate-annotation", space: true, expected: "adopt" },
   { id: "existing-native-label-constructor-path", nativeConstructor: true, expected: "adopt" },
   { id: "old-point-name-motion-without-extra-leader-rejects", nativeConstructor: true, oldPointName: true, expected: "reject" },
-  { id: "old-label-motion-rejects-whole-source-owned-transaction", kind: "motion", nativeConstructor: true, expected: "reject" },
+  { id: "old-label-motion-rejects-whole-source-owned-transaction", kind: "motion", nativeConstructor: true, expected: "preserve-old-ink" },
+  { id: "old-label-motion-at-zero-boundary-rejects-whole-source-owned-transaction", kind: "motion", nativeConstructor: true, boundaryDeg: 0, mustMoveOldLabel: true, expected: "reject" },
   { id: "generic-vertex-labels-cannot-swap-own-arc-values", kind: "arcs", nativeConstructor: true, expected: "reject" },
   { id: "native-append-angle-labels-retain-own-arcs", kind: "arcs", expected: "adopt" },
   ...(["replace", "quantity-routing", "wrong-target", "wrong-text", "missing-record", "undeclared-annotation", "undeclared-entity",
@@ -22,7 +23,7 @@ const fixtures: Fixture[] = [
 const clone = <T>(value: T): T => structuredClone(value);
 const q = (id: string, symbol: string, value: number): engine.TurnPlanV3["givens"][number] => ({ id, symbol, value, provenance: "given" });
 function input(fixture: Fixture): { document: engine.SceneDocument; turnPlan: engine.TurnPlanV3 } {
-  if (fixture.kind) return angleInput(fixture.kind);
+  if (fixture.kind) return angleInput(fixture.kind, fixture.boundaryDeg);
   const question = fixture.space ? "Show the given point P(2, -1, 3) in its world frame, and the reference Q."
     : "Show the given point P(2, -1) and the reference Q.";
   const givens = [q("px", "P_x", 2), q("py", "P_y", -1), ...(fixture.space ? [q("pz", "P_z", 3)] : [])];
@@ -82,7 +83,7 @@ function proposal(base: engine.SceneDocument, fixture: Fixture): engine.SceneCom
   if (fault === "wrong-group") document.revealGroups.push({ id: "unpermitted", entityIds: ["P"], dependsOn: ["setup"], narrationCue: "New scope cannot re-own P." });
   return result;
 }
-function angleInput(kind: "motion" | "arcs"): { document: engine.SceneDocument; turnPlan: engine.TurnPlanV3 } {
+function angleInput(kind: "motion" | "arcs", boundaryDeg = 15): { document: engine.SceneDocument; turnPlan: engine.TurnPlanV3 } {
   const question = kind === "motion" ? "Draw reflection with the given incidence i = 36 degrees. Label the two regions air and diamond."
     : "Show two given cord angles: theta_A = 36 degrees above the left horizontal and theta_B = 62 degrees above the right horizontal.";
   const givens = kind === "motion" ? [{ ...q("incidence", "i", 36), unit: "°" }]
@@ -97,7 +98,7 @@ function angleInput(kind: "motion" | "arcs"): { document: engine.SceneDocument; 
   };
   point("O", 0, 0);
   if (kind === "motion") {
-    const a = 15 * Math.PI / 180;
+    const a = boundaryDeg * Math.PI / 180;
     document.entities.push({ id: "boundary", kind: "line", role: "interface" }, { id: "incoming", kind: "ray", role: "incident" },
       { id: "normal", kind: "line", role: "normal" }, { id: "outgoing", kind: "ray", role: "reflected" }, { id: "arc", kind: "angle_mark", role: "incidence", label: "i" });
     document.constructions.push({ id: "makeBoundary", operator: "line", inputs: { start: "O", direction: [Math.cos(a), Math.sin(a)] }, outputs: ["boundary"] },
@@ -197,7 +198,7 @@ if (process.argv.includes("--print-fixtures")) {
           const native = validateProductionSceneCandidate({ candidate: proposed.document as unknown as Record<string, unknown>, question, turnPlan });
           assert(native.valid && native.value, `effect control must pass ordinary native admission: ${JSON.stringify(native.errors)}`);
           assert.equal(liveSceneSaveFailure({ document: native.value.document, question, turnPlan, tier: selected.tier }), null);
-          if (fixture.kind === "motion") assert(selected.renderScene.primitives.some(old => old.kind === "label" &&
+          if (fixture.mustMoveOldLabel) assert(selected.renderScene.primitives.some(old => old.kind === "label" &&
             JSON.stringify(native.value!.renderScene.primitives.find(p => p.id === old.id)?.points) !== JSON.stringify(old.points)),
           "motion countercase must independently move an old native label before the new guard");
           if (fixture.kind === "arcs") assert.equal(proposed.additions.some(a => nearerSibling(native.value!.renderScene, a, fixture.nativeConstructor === true)),
@@ -216,7 +217,9 @@ if (process.argv.includes("--print-fixtures")) {
         if (fixture.fault === "wrong-native-anchor") assert.equal(anchorFaults, 1, "the native-render fault must actually reach admission after a valid source proposal");
         assert.equal(calls, 1); assert.deepEqual({ selected, turnPlan }, before, "completion cannot mutate caller data");
         assert(output.representation); assert.equal(output.visualStatus, "validated"); assert.equal(output.saveFailure, null);
-        if (fixture.expected === "reject") {
+        // A native layout improvement may make the original 15-degree proposal stable.
+        // Adoption still crosses every old-primitive and stock save/reopen check below.
+        if (fixture.expected === "reject" || fixture.expected === "preserve-old-ink" && output.completion?.adopted === false) {
           assert.equal(output.completion?.adopted, false, "unproved completion metadata or owner was adopted");
           assert.equal(output.representation, selected, "a rejected transaction retains the whole original object");
         } else {
