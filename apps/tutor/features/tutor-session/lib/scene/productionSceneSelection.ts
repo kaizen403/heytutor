@@ -149,7 +149,8 @@ export function validateProductionSceneCandidate(input: {
     }
   }
   const prepared = prepareVerifiedParts(validated.document, { enabled });
-  validated.document = enabled ? deferVerifiedAnswerLabels(prepared.document, authoritativePlan) : prepared.document;
+  const compiledScene = prepared.compiledScene ?? compileSceneDocument(prepared.document);
+  validated.document = enabled ? deferVerifiedAnswerLabels(prepared.document, authoritativePlan, compiledScene.renderScene ?? undefined) : prepared.document;
   const yieldIssues = [...circular.issues, ...normalized.issues, ...prepared.issues];
   if (yieldIssues.length) validated.document = { ...validated.document, source: { ...validated.document.source, yieldDemotions: yieldIssues } };
   const agreementIssues = validateSceneQuantityAgreement(
@@ -168,7 +169,6 @@ export function validateProductionSceneCandidate(input: {
   // A literal image point at a plan-derived distance from a refracting
   // surface's vertex must be where the spherical refraction law puts it.
   const refractionImageIssues = validateSphericalRefractionImagePlacements(validated.document, authoritativePlan);
-  const compiledScene = compileSceneDocument(validated.document);
 
   // Final admission already requires readable ink. Reject the same candidates
   // here so a cheaper unlabelled scene cannot displace a drawable sibling.

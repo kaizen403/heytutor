@@ -156,3 +156,27 @@ assert(
 console.log(
   "yield-answer-reveal: geometry now, answers after teaching, no focus/tour leak, off unchanged",
 );
+
+// Compiler-generated values must pass the same end-to-end staging boundary.
+import { validateProductionSceneCandidate } from "@/features/tutor-session/lib/scene/productionSceneSelection";
+import { createFallbackTurnPlanV3 } from "@heytutor/tutor-core";
+const question = "In Cartesian coordinates, A=(0,0), B=(3,4). Show the distance AB.";
+const distancePlan = createFallbackTurnPlanV3(question);
+distancePlan.unknowns = [{ id: "distance", symbol: "d", unit: "" }];
+distancePlan.visualRequirement = "required";
+for (const label of [undefined, "d"]) {
+  const candidate: SceneDocument = {
+    schemaVersion: "scene-document/v2", source: { question }, visualDecision: { mode: "scene", reason: "Distance" },
+    quantities: [], entities: [{ id: "A", kind: "point", role: "endpoint A" }, { id: "B", kind: "point", role: "endpoint B" }, { id: "distance", kind: "segment", role: "distance AB", ...(label ? { label } : {}) }],
+    constructions: [{ id: "aPoint", operator: "point", inputs: { x: 0, y: 0 }, outputs: ["A"] }, { id: "bPoint", operator: "point", inputs: { x: 3, y: 4 }, outputs: ["B"] }, { id: "makeDistance", operator: "coordinate_distance", inputs: { a: "A", b: "B" }, outputs: ["distance"] }],
+    relations: [], assertions: [], annotations: [], requiredEntityIds: ["distance"],
+    revealGroups: [{ id: "distanceGroup", entityIds: ["distance"], dependsOn: [], narrationCue: "Distance." }], teachingTimeline: [],
+  };
+  const accepted = validateProductionSceneCandidate({ candidate: candidate as unknown as Record<string, unknown>, question, turnPlan: distancePlan, yieldPolicy: "verified_parts" });
+  assert(accepted.valid && accepted.value, JSON.stringify(accepted.errors));
+  const stagedDistance = buildVerifiedDiagramPresentation(accepted.value.document, accepted.value.renderScene);
+  assert(!stagedDistance.diagram.promptAddon.includes("d=5"), "computed answer must not enter the readable prompt");
+  assert(!stagedDistance.introSegments.flatMap(s => s.commands ?? []).some(c => c.text?.includes("d=5")), "computed answer must not enter the intro");
+  assert.equal(takeDeferredAnnotations(stagedDistance.diagram, { entityIds: ["distance"] }).length, 0);
+  assert(remainingDeferredAnnotations(stagedDistance.diagram).some(c => c.text?.includes("d=5")), "computed answer remains available after teaching");
+}

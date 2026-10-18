@@ -89,6 +89,48 @@ function validateTrainBindings(document: SceneDocument, geometry: ReadonlyMap<st
         fail('A source-declared final image at infinity cannot be replaced by a finite image point', train.outputs.slice(4, 6), 'parallel outgoing rays / image at infinity', inputs.finalImage ?? inputs.virtualImage);
     }
 }
+/** A train may bend rays at a schematic plane, but a drawn lens on that
+ * plane limits its aperture. Missing bodies establish no aperture claim. */
+function validateTrainApertures(document: SceneDocument, geometry: ReadonlyMap<string, GeometryLike>, issues: SceneIssue[]): void {
+    const drawn = new Set(document.requiredEntityIds);
+    for (const train of document.constructions.filter(c => c.operator === 'optical_train')) {
+        const axis = path(geometry.get(String(train.inputs.axis)));
+        if (!axis) continue;
+        const direction = subtract(axis.points[1]!, axis.points[0]!);
+        const scale = norm(direction);
+        if (!(scale > 0)) continue;
+        const across = { x: -direction.y / scale, y: direction.x / scale };
+        const tolerance = 1e-5 * Math.max(1, scale);
+        for (const [role, outputIndices] of [['objective', [2, 3]], ['eyepiece', [4, 5]]] as const) {
+            const plane = path(geometry.get(String(train.inputs[role])));
+            if (!plane) continue;
+            const bodies = document.constructions.filter(c => c.operator === 'lens_section' && c.inputs.axis === train.inputs.axis).flatMap(c => {
+                const id = c.outputs[0];
+                const centre = point(geometry.get(String(c.inputs.center)));
+                const body = id && drawn.has(id) ? path(geometry.get(id)) : undefined;
+                const planeDirection = subtract(plane.points[1]!, plane.points[0]!);
+                return id && centre && body?.closed && Math.abs(cross(subtract(centre, plane.points[0]!), planeDirection)) <= tolerance * norm(planeDirection)
+                    ? [{ id, body, centre }] : [];
+            });
+            if (bodies.length !== 1) continue; // No unique aperture binding.
+            const { id, body, centre } = bodies[0]!;
+            const transverse = body.points.map(p => dot(subtract(p, centre), across));
+            const low = Math.min(...transverse), high = Math.max(...transverse);
+            for (const outputIndex of outputIndices) {
+                const rayId = train.outputs[outputIndex];
+                const ray = rayId ? path(geometry.get(rayId)) : undefined;
+                if (!ray) continue;
+                const contact = dot(subtract(ray.points[0]!, centre), across);
+                if (contact < low - tolerance || contact > high + tolerance) issues.push({
+                    code: 'invalid_optical_aperture_binding', severity: 'fatal', failureKind: 'truth',
+                    path: `constructions.${train.id}`, entityIds: [id, rayId!],
+                    message: 'A ray bends outside the aperture of the lens drawn on its optical plane.',
+                    expected: { min: low, max: high }, actual: contact,
+                });
+            }
+        }
+    }
+}
 function nearSegment(p: Point, a: Point, b: Point, tolerance: number): boolean {
     const ab = subtract(b, a), ap = subtract(p, a), length = norm(ab);
     return length > 0 && Math.abs(cross(ap, ab)) / length <= tolerance && dot(ap, ab) >= -tolerance * length && dot(subtract(p, b), ab) <= tolerance * length;
@@ -219,6 +261,7 @@ function validateRefractingAngleBindings(document: SceneDocument, geometry: Read
 }
 export function validateOpticalPathTruth(document: SceneDocument, geometry: ReadonlyMap<string, GeometryLike>, issues: SceneIssue[]): void {
     validateTrainBindings(document, geometry, issues);
+    validateTrainApertures(document, geometry, issues);
     validateBodyMedia(document, geometry, issues);
     validatePointObjectOrigins(document, geometry, issues);
     validateRefractingAngleBindings(document, geometry, issues);

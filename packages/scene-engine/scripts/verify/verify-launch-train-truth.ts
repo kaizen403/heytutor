@@ -20,3 +20,27 @@ for (const id of ['mid1', 'mid2']) {
 const bad = compileSceneDocument(train(-0.7));
 assert(!bad.ok, "an axis-parallel beam cannot focus off-axis in a centred objective");
 console.log("launch: empty focus does not bend light; axis-parallel focus is on axis");
+
+function withLensApertures(objectiveHeight: number, eyepieceHeight: number) {
+    const d = train();
+    for (const [id, centre, halfHeight] of [['objectiveBody', 'Co', objectiveHeight], ['eyepieceBody', 'Ce', eyepieceHeight]] as const) {
+        d.entities.push({ id, kind: 'polygon', role: 'converging lens' });
+        d.constructions.push({ id: `${id}_c`, operator: 'lens_section', inputs: { center: centre, axis: 'axis', radius1: 5, radius2: -5, halfHeight }, outputs: [id] });
+        d.requiredEntityIds.push(id); d.revealGroups[0]!.entityIds.push(id);
+    }
+    return d;
+}
+const inAperture = compileSceneDocument(withLensApertures(1, 1));
+assert(inAperture.ok, JSON.stringify(inAperture.report.issues));
+for (const dimensions of [[0.4, 1], [1, 0.2]] as const) {
+    const rejected = compileSceneDocument(withLensApertures(...dimensions));
+    assert(!rejected.ok && rejected.report.issues.some(i => i.code === 'invalid_optical_aperture_binding' && i.failureKind === 'truth'), 'ray bends outside a drawn lens aperture must fail');
+    assert(compileWithPolicy(withLensApertures(...dimensions), {yieldPolicy:'off'}).ok, 'aperture hardening stays default off');
+}
+console.log('launch: optical-train contacts stay inside the uniquely bound drawn lens apertures');
+
+const rotatedAperture = withLensApertures(0.4, 1);
+for (const c of rotatedAperture.constructions.filter(c => c.operator === 'point')) {
+    const x = c.inputs.x; c.inputs.x = -Number(c.inputs.y); c.inputs.y = x;
+}
+assert(compileSceneDocument(rotatedAperture).report.issues.some(i => i.code === 'invalid_optical_aperture_binding'), 'aperture checks follow the optical axis under rotation');

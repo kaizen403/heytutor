@@ -1,6 +1,8 @@
 import { strict as assert } from "node:assert";
 import { compileSceneDocument as compileWithPolicy } from "../../src/compile/compiler";
-const compileSceneDocument: typeof compileWithPolicy = (document, options) => compileWithPolicy(document, { ...options, yieldPolicy: "verified_parts" });
+import { prepareVerifiedParts } from "../../src/compile/verifiedParts";
+// Exercise production recovery too: omitted ambiguous labels cannot change geometry.
+const compileSceneDocument: typeof compileWithPolicy = (document) => prepareVerifiedParts(document, { enabled: true }).compiledScene!;
 import type { SceneDocument } from "../../src/types";
 function scene(degrees: number, wrong: boolean, quantityOnly = false): SceneDocument {
     const theta = degrees * Math.PI / 180;
@@ -17,3 +19,25 @@ for (const angle of [25, 45, 65])
         assert(!bad.ok && bad.report.issues.some(i => i.code === "marked_angle_contradicts_measure"), "an acute line proof cannot certify an obtuse angle mark");
     }
 console.log("launch: angle marks must agree with asserted and quantity-bound measures");
+
+// Conventional rounded degree data must use the same tolerance as angle_between.
+for (const quantityOnly of [false, true]) {
+    const rounded = scene(37, false, quantityOnly);
+    rounded.constructions.find(c => c.id === "b_c")!.inputs.direction = [4, 3];
+    assert(compileSceneDocument(rounded).ok, "37 degree 3-4-5 geometry stays drawable");
+    const outside = structuredClone(rounded);
+    outside.constructions.find(c => c.id === "b_c")!.inputs.direction = [Math.cos(36 * Math.PI / 180), Math.sin(36 * Math.PI / 180)];
+    assert(!compileSceneDocument(outside).ok, "a full degree mismatch still fails");
+}
+const precise = scene(37, false);
+precise.quantities = [];
+precise.constructions.find(c => c.id === "b_c")!.inputs.direction = [4, 3];
+precise.assertions[0]!.tolerance = 1e-4;
+assert(!compileSceneDocument(precise).ok, "an explicit tighter angular tolerance is respected");
+const rightAngleError = scene(45, true, true);
+assert(!compileSceneDocument(rightAngleError).ok, "90 degree wrong-half-ray residual stays blocked");
+const radians = scene(37, false, true);
+radians.quantities[0]!.value = 37 * Math.PI / 180;
+radians.quantities[0]!.unit = "rad";
+radians.constructions.find(c => c.id === "b_c")!.inputs.direction = [4, 3];
+assert(!compileSceneDocument(radians).ok, "radian claims retain their precise tolerance");

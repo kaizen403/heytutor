@@ -1,4 +1,4 @@
-import type { SceneDocument } from "../types";
+import type { RenderScene, SceneDocument } from "../types";
 import type { TurnPlanV3 } from "../contracts/contractsV3";
 
 /** Staging metadata grants no numeric authority. The complete candidate still
@@ -7,6 +7,7 @@ import type { TurnPlanV3 } from "../contracts/contractsV3";
 export function deferVerifiedAnswerLabels(
   document: SceneDocument,
   plan: TurnPlanV3,
+  renderScene?: RenderScene,
 ): SceneDocument {
   const key = (value: string) =>
     value
@@ -42,6 +43,9 @@ export function deferVerifiedAnswerLabels(
   };
   const entityIds = [
     ...new Set([
+      ...(renderScene?.primitives ?? [])
+        .filter((primitive) => !primitive.provenance?.annotationId && isAnswer(primitive.text))
+        .map((primitive) => primitive.entityId),
       ...document.entities
         .filter((entity) => isAnswer(entity.label))
         .map((entity) => entity.id),
@@ -54,14 +58,19 @@ export function deferVerifiedAnswerLabels(
         .flatMap((construction) => construction.outputs),
     ]),
   ];
-  const annotationIds = document.annotations
+  const annotationIds = [...new Set([
+    ...(renderScene?.primitives ?? [])
+      .filter((primitive) => primitive.provenance?.annotationId && isAnswer(primitive.text))
+      .map((primitive) => String(primitive.provenance!.annotationId)),
+    ...document.annotations
     .filter(
       (annotation) =>
         isAnswer(annotation.text) ||
         (annotation.quantityId !== undefined &&
           names.has(key(annotation.quantityId))),
     )
-    .map((annotation) => annotation.id);
+    .map((annotation) => annotation.id),
+  ])];
   if (!entityIds.length && !annotationIds.length) return document;
   return {
     ...document,

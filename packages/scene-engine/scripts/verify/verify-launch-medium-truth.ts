@@ -13,3 +13,22 @@ for (const side of ["above", "below"] as const) {
         assert(!result.ok && result.report.issues.some(i => i.code === "optical_medium_side_contradiction"), "medium A cannot label the opposite halfspace from its ray");
 }
 console.log("launch: medium declarations agree with ray halfspaces");
+
+// An explicit identity wins when both quantities share the printed symbol n.
+import { mediumBindings } from "../../src/compile/opticalMediumTruth";
+const shared = {
+  quantities: [{ id: "a", symbol: "n", value: 1.5 }, { id: "b", symbol: "n", value: 1 }],
+  constructions: [{ operator: "refract_at", inputs: { surface: "s", point: "o", n1: "a", n2: "b" }, outputs: ["i", "normal", "r"] }],
+  entities: [], annotations: [
+    { id: "ma", kind: "label", targetIds: ["s"], text: "n=1.5", quantityId: "a" },
+    { id: "mb", kind: "label", targetIds: ["s"], text: "n=1", quantityId: "b" },
+    { id: "ambiguous", kind: "label", targetIds: ["s"], text: "n=1" },
+  ],
+} as unknown as SceneDocument;
+const geometries = new Map<string, unknown>([
+  ["s", { kind: "path", points: [{ x: -1, y: 0 }, { x: 1, y: 0 }] }],
+  ["o", { kind: "point", point: { x: 0, y: 0 } }],
+  ["i", { kind: "path", points: [{ x: 0, y: 0 }, { x: -1, y: 1 }] }],
+  ["r", { kind: "path", points: [{ x: 0, y: 0 }, { x: 1, y: -1 }] }],
+]);
+assert.deepEqual(mediumBindings(shared, geometries).map(b => [b.annotationId, b.rayId]), [["ma", "i"], ["mb", "r"]]);

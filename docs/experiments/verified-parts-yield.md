@@ -52,103 +52,85 @@ below their uniquely declared terrain. These are reusable relation checks, not
 question-ID exceptions or topic routing.
 
 
-## Launch truth replay — 17 October 2026
+## Review follow-up — 18 October 2026
 
-**Ready for coordinator review, default off.** On the fixed main baseline
-`e219b61ca32ca1eff8dbc2e44e191d35e09a3927`, observed wrong falls **80 → 0** and
-right rises **282 → 299**. Right does not fall in any set. This is a static
-recorded-candidate result, not a live-launch certification.
+**Keep the flag off pending coordinator review. The previous zero-wrong claim
+is withdrawn.** Independent review and fresh blind judgments find surviving
+label-placement errors. A partial figure is not counted as safe when a visible
+label identifies the wrong element.
 
-| Set | Rows | Pinned main: empty / right / partial / wrong | Flag on |
-| --- | ---: | --- | --- |
-| YouTube counted tries | 42 | 18 / 1 / 22 / 1 | 24 / 1 / 17 / 0 |
-| Baseline lab | 964 | 261 / 177 / 488 / 38 | 292 / 187 / 485 / 0 |
-| Additional strict lab | 780 | 272 / 104 / 363 / 41 | 308 / 111 / 361 / 0 |
-| Production traces | 3 | 3 / 0 / 0 / 0 | 3 / 0 / 0 / 0 |
-| **Total** | **1,789** | **554 / 282 / 873 / 80** | **627 / 299 / 863 / 0** |
+The branch normally merges Fireworks main `7afb99772` and its gate-runner update
+`2f62b94b5`. The latter changes verification wiring, not engine behavior. Main's
+verification commands are retained in order; feature gates live in separate
+`gates.d` files.
 
-The truth checks trade yield for refusal: empties rise **554 → 627** (+73).
-Of 80 current-main wrong rows, 51 become empty, 19 partial and 10 right.
-Two empty rows and seven partial rows become right. Twelve empty rows recover
-(two right, ten partial), while 32 partial rows and two right rows are rejected.
-No new wrong row is observed; no row remains ungraded.
+Review fixes:
 
-The paired audit retains **two right → empty regressions**, despite the increase
-in right totals. The glass-to-air refraction row (`refraction-at-surfaces|h9b`)
-has medium placement requests opposite its constructed ray halfspaces. The
-vector-components row (`vector-components|h11a`) binds θ to 315° while its
-constructed mark takes the short 45° sweep. The new guards reject those candidate
-contradictions. Their previous rendered images were judged right; that judgment
-is retained. No claim of preserving every previously right row is made. These
-are follow-up candidates for deterministic placement/sweep repair, not grounds
-to weaken truth checks or revise the judge's grade.
+- Angle claims use the engine's 0.5-degree tolerance (including the stated
+  37-degree, 3–4–5 convention); large contradictions remain fatal.
+- Lens-face curvature is relative to an explicit facing or the lens body.
+  Default arcs are checked for actual contradictions. Missing proof alone does
+  not establish a false curvature sign.
+- Removed timeline actions memoize their surviving predecessors. A 36-level
+  dependency graph is gated; cycles still fail.
+- Answer staging also inspects compiler-generated labels such as a computed
+  coordinate distance. Early focus cannot reveal those answer values.
+- Explicit medium quantity IDs take precedence over symbol matching. Shared
+  symbols cannot bind unrelated quantities to both interfaces.
+- A conservative label-owner check omits optional labels that are much closer
+  to another stroke, including ambiguous line leaders starting inside another
+  body. It is not a complete attachment proof; some wrong figures remain.
+- Optical-train rays must meet the aperture of a uniquely bound drawn lens.
+  Missing bodies do not establish an aperture claim.
+- Production admission reuses the final verified-parts compile. Label search
+  avoids work only when it cannot affect the chosen placements or diagnostics.
+  Camera scoring prepares invariant constraints once and formats a diagnostic
+  only when that constraint becomes the worst score.
+
+The completed merged-head table and final timing sample will be recorded below
+when all changed pairs are judged. No zero-error or 50 ms claim is made while
+those checks are incomplete.
+
+### Recording providers and replay method
+
+All baseline lab (964) and strict lab (780) records identify Azure deployment
+`st-gpt-6-sol-h4`. YouTube client records say `server`; their run notes identify
+Azure `st-gpt-6-sol`. Production scene observations identify Azure `gpt-6-sol`.
+Production now uses Fireworks/Kimi K3. These deterministic engine replays of
+historical Azure documents are valid engine comparisons, not Fireworks planner
+measurements.
+
+The denominator remains 1,789 headline rows: 1,744 lab, 42 YouTube tries and
+three production traces. All 48 YouTube records and 108 candidates are replayed;
+six records outside the counted turn set are audited separately. Changed pairs
+use anonymous questions, rubrics and PNGs. Only one subagent views images at a
+time; the parent never views them. Exact question/primitive fingerprints are
+required to reuse an unchanged judgment across arms.
+
+An initial 32-card batch in this follow-up was discarded in full after literal
+label evidence was found to belong to other cards. Fresh judgments are written
+before the next image opens and include literal observed labels and the PNG
+SHA-256; hashes and label inventories are checked before aggregation. Discarded
+judgments do not contribute to the table.
 
 ### Original 99 cause accounting
 
-All 99 original wrong rows retain their original grade and cause in the evidence
-ledger. Counts: wrong angle 15; optical path 14; medium side 11; panel transform 9;
-distractor association 8; representation substitution 8; annotation semantics 6;
-curvature binding 6; direction/sense 6; source geometry relation 5; energy spacing
-4; circuit topology 2; curve parameter 2; solid anchor 2; probability topology 1.
-Each row names the check that should catch the defect and its actual disposition.
-The mapping contains 65 new implementation assignments, two upstream direction
-corrections from PR #196, and 32 adjudication-only rows. The latter are not code
-fixes: valid but incomplete schematics were accepted on fresh blind review.
-Final outcomes for the original 99 are **45 empty / 27 right / 27 partial / 0 wrong**.
-
-Historical totals were 554 empty / 258 right / 878 partial / 99 wrong. Fresh
-review of the same original 99 images found 59 wrong, 31 partial and nine right;
-that is grading disagreement, not improvement. The full pinned-main denominator
-above includes upstream changes and fresh paired judgments. Do not describe
-99 → 0 as 99 code repairs.
-
-### Method, gates and evidence
-
-All 1,744 lab rows, 108 recorded YouTube candidates (42 counted lesson rows), and
-three production traces were replayed offline. Network fetch is disabled in the
-harness. Flag-off admission/winner/full render scenes match pinned main for all
-1,744 lab rows and all 108 YouTube candidates; production output also matches.
-The complete flag-on pass used `340a6b2e2`; subsequent changes were applied with
-exhaustive impact scans: four possible analytic-semicircle rows and 26 possible
-candidate-ranking rows were rerun and merged by exact path. Timeline dependency
-repair affected no recorded candidate; prompt-only answer filtering changes no
-static primitive. Final product code is `4e1066b39801a634fb2a340a09dd3b93d02c0cdc`.
-
-Changed figures and both sides of changed pairs use fresh anonymous image
-judgments, one subagent image judge at a time; the parent inspected no images.
-Unchanged rows reuse grades only on exact question and rendered-primitive
-fingerprints, inheriting the earlier SVG/image provenance below. Equal images
-receive equal grades across arms. The final pass judged 148 unique cards plus
-six controls, after the 119-card baseline and 51-card intermediate passes.
-Four of six final controls agreed with the earlier judge; disagreements were
-applied consistently to matching images on both sides. These are model-judge
-consistency checks, not human accuracy measurements or a universal zero-error
-claim.
-
-Four engine yield gates, 14 launch truth gates and two tutor yield gates pass,
-as do the 13 repair scenarios and focused derived-label, direction and persistence
-regressions. Final engine/tutor typechecks, engine build and engine lint pass
-(zero errors, four existing warnings); core build/typecheck passed earlier.
-**65/65 actual yield/launch implementation mutations are killed.** Independent
-standards and specification reviews found and closed policy containment,
-terrain traversal, semicircle sampling, timeline ordering, answer-prompt leakage,
-callout placement and candidate-quality gaps. Full-suite chemistry-routing and
-board-restoration failures were reproduced on the earlier unchanged baseline;
-no full-suite pass is claimed.
-
-Workspace evidence is in `.context/figure-yield/`: `launch-final-grade-totals.json`,
-`launch-final-row-grades-private.json`, `launch-final-paired-audit.json`,
-`launch-final-original99-ledger.json`, `launch-wrong-causes.{json,md}`,
-`launch-cause-coverage.{json,md}`, `launch-close-manifest.json`,
-`launch-close-evidence-audit.md`, blind queues/judgments, mutation proofs and
-`launch-close-*.log`. The raw recorded inputs remain local and are not committed.
+The historical 99 wrong rows retain their original judgments and cause ledger:
+wrong angle 15; optical path 14; medium side 11; panel transform 9; distractor
+association 8; representation substitution 8; annotation semantics 6; curvature
+binding 6; direction/sense 6; source geometry relation 5; energy spacing 4;
+circuit topology 2; curve parameter 2; solid anchor 2; probability topology 1.
+The earlier mapping assigned 65 new implementations, two upstream direction
+corrections from #196, and 32 adjudication-only changes. Adjudication changes
+are not code repairs. The old zero-wrong disposition is superseded by this
+review; it must not be used for launch approval.
 
 ### Stock numbers and next coverage work
 
 [PR #201](https://github.com/kaizen403/heytutor/pull/201) isolates the archetype
 stock-number and photoelectric unit/source-binding fixes from this default-off
 experiment. Its validation is reported on that PR; its changes are not included
-in the 1,789-row table above.
+in the 1,789-row yield replay.
 
 The original **554 empty + 878 partial** rows are classified once each (1,432
 rows, none unassigned). Ranked counts: missing required construction 645;
@@ -164,7 +146,7 @@ reported as an unsupported operator (39 empty rows, 194 attempt diagnostics);
 first check whether existing optical composition suffices. These counts do not
 increase accepted topic totals.
 
-Spend is **$0**. No merge, production change or paid rerun. Live evaluation still
+Spend is **$0**. Only normal main-to-feature merges; no merge into main, production change or paid rerun. Live evaluation still
 requires coordinator approval and the $10 cap. The static replay limitations
 below continue to apply, including incomplete historical ProblemIR/repair-seed
 context, first-admitted YouTube selection and no narrated-frame validation.

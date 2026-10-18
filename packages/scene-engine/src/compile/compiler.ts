@@ -1,3 +1,4 @@
+import { validateLabelOwnerTruth } from "./labelOwnerTruth";
 import { validateSolidSourceTruth } from "./solidSourceTruth";
 import { validateDeclaredGeometryTruth } from "./declaredGeometryTruth";
 import { validateGeometryClaimTruth } from "./geometryClaimTruth";
@@ -519,6 +520,16 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       ));
     }
   }
+  if (verifiedPartsEnabled) {
+    // Text and its leaders cannot restore a region whose projected geometry
+    // collapsed to a line. Prove that core shape before searching label slots.
+    const projectedIssues: SceneIssue[] = [];
+    pushDegenerateProjectedGeometryIssues(geometry, primitives, constructionOnlyIds, projectedIssues);
+    if (projectedIssues.length) return {
+      ok: false, renderScene: null,
+      report: report(document, [...issues, ...projectedIssues.map(issue => ({ ...issue, failureKind: "truth" as const }))], primitives.length),
+    };
+  }
   appendCorrespondingTickPrimitives(document, geometry, primitives, entityToGroup, transformPlan, constructionOnlyIds);
   // Moving one lane also moves its witnesses. Recheck earlier dimensions
   // against that final ink until the bounded lane search is stable.
@@ -948,6 +959,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     if (!renderedIds.has(id) && !constructionOnlyIds.has(id)) issues.push({ code: "required_entity_not_rendered", message: `Required entity ${id} produced no render primitive`, severity: "fatal", entityIds: [id] });
   }
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
+  if (verifiedPartsEnabled) issues.push(...validateLabelOwnerTruth(document, primitives, new Set(mediumBindings(document, geometry).map(binding => binding.annotationId))));
   if (verifiedPartsEnabled) issues.push(...validateRenderedMediumTruth(document, geometry, primitives, transformPlan.transformFor));
   pushDegenerateProjectedGeometryIssues(geometry, primitives, constructionOnlyIds, issues);
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };

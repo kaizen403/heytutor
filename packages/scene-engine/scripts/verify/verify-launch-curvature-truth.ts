@@ -66,3 +66,51 @@ const generic = structuredClone(mirror);
 generic.entities.find(e => e.id === "s2")!.role = "spherical interface";
 admitted(generic, "Unclaimed schematic curvature remains allowed");
 console.log("launch curvature truth: centre binding, concavity, translations, and honest defaults passed");
+
+const correctDefault = structuredClone(mirror);
+correctDefault.entities.find(e => e.id === "s2")!.role = "convex mirror";
+admitted(correctDefault, "Actual convex default matches the declared convex mirror without added proof");
+const faced = structuredClone(declared);
+faced.entities.find(e => e.id === "s2")!.semantic = { facing: "right" };
+faced.constructions.find(c => c.id === "face2")!.inputs.signedRadius = 3;
+admitted(faced, "Explicit opposite facing reverses concavity convention");
+faced.constructions.find(c => c.id === "face2")!.inputs.signedRadius = -3;
+rejected(faced, "Explicit opposite facing still refuses contradictory curvature");
+function pairedFaces(kind: "concave" | "convex", body = true, coincident = false): SceneDocument {
+    const doc = surfaceDocument();
+    doc.entities = doc.entities.filter(e => !["c1", "c2"].includes(e.id));
+    doc.constructions = doc.constructions.filter(c => !["point_c1", "point_c2"].includes(c.id));
+    doc.requiredEntityIds = doc.requiredEntityIds.filter(id => !["c1", "c2"].includes(id));
+    doc.revealGroups[0]!.entityIds = [...doc.requiredEntityIds];
+    const r = kind === "convex" ? 3 : -3;
+    for (const [id, radius] of [["face1", r], ["face2", -r]] as const) {
+        const c = doc.constructions.find(c => c.id === id)!;
+        c.inputs.kind = kind;
+        c.inputs.signedRadius = radius;
+        if (coincident) c.inputs.vertex = "origin";
+    }
+    if (body) {
+        doc.entities.push({ id: "body", kind: "polygon", role: "refracting body" });
+        doc.constructions.push({ id: "make_body", operator: "lens_section", inputs: { center: "origin", axis: "axis", radius1: r, radius2: -r, halfHeight: 0.5, thickness: 0.6 }, outputs: ["body"] });
+        doc.requiredEntityIds.push("body");
+        doc.revealGroups[0]!.entityIds.push("body");
+    }
+    return doc;
+}
+for (const kind of ["concave", "convex"] as const) {
+    for (const coincident of [false, true]) {
+        const pair = pairedFaces(kind, true, coincident);
+        admitted(pair, `Both ${kind} faces are judged relative to their body (coincident=${coincident})`);
+        const wrongFace = structuredClone(pair);
+        const second = wrongFace.constructions.find(c => c.id === "face2")!;
+        second.inputs.signedRadius = -Number(second.inputs.signedRadius);
+        rejected(wrongFace, "A reversed second face remains a real body-relative contradiction");
+    }
+    admitted(pairedFaces(kind, false), "Unbound paired faces do not imply an incident-facing convention");
+}
+const explicitlyFacedPair = pairedFaces("concave", false);
+explicitlyFacedPair.entities.find(e => e.id === "s1")!.semantic = { facing: "left" };
+explicitlyFacedPair.entities.find(e => e.id === "s2")!.semantic = { facing: "right" };
+admitted(explicitlyFacedPair, "Explicit facing binds free surfaces without inventing a body");
+explicitlyFacedPair.constructions.find(c => c.id === "face2")!.inputs.signedRadius = -3;
+rejected(explicitlyFacedPair, "A free surface contradicting its explicit facing remains blocked");

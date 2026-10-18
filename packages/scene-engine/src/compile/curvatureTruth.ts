@@ -71,11 +71,6 @@ export function validateSphericalCurvatureTruth(document: SceneDocument, geometr
         const declaredShape = inputShape ?? roleShape;
         if (!declaredShape)
             continue;
-        const hasCurvature = ["center", "signedRadius", "radius", "kind", "facing"].some(key => inputs[key] !== undefined);
-        if (!hasCurvature) {
-            fail("A declared concave/convex surface must explicitly bind its curvature instead of using an unclaimed default", declaredShape, "implicit default");
-            continue;
-        }
         if (declaredShape === "plano") {
             if (actual?.kind !== "path")
                 fail("A declared plane surface cannot have curved ink", "plane", actual?.kind);
@@ -94,7 +89,38 @@ export function validateSphericalCurvatureTruth(document: SceneDocument, geometr
             dx = -dx;
             dy = -dy;
         }
-        const sign = (arc.center.x - vertex.x) * dx + (arc.center.y - vertex.y) * dy;
+        // Shape is relative to the side the face bounds. A lens's far face
+        // looks back toward its body, unlike a standalone incident-facing mirror.
+        // Resolve orientation from declared facing or a unique body on this axis;
+        // do not manufacture a contradiction when multiple free surfaces leave
+        // their facing unspecified.
+        const declaredFacing = entity?.semantic?.facing;
+        let inward = declaredFacing === "left" ? 1 : declaredFacing === "right" ? -1 : undefined;
+        if (inward === undefined) {
+            const bodies = document.constructions.filter(c => c.operator === "lens_section" &&
+                c.inputs.axis === inputs.axis &&
+                (entity?.semantic?.bodyId === undefined || c.outputs.includes(String(entity.semantic.bodyId))));
+            if (/\bmirror\b/.test(role(entity))) inward = 1;
+            else if (bodies.length === 1) {
+                const body = bodies[0]!;
+                const centreRef = body.inputs.center ?? body.inputs.opticalCentre ?? body.inputs.optical_center;
+                const centre = typeof centreRef === "string" ? point(geometry.get(centreRef)) : undefined;
+                if (centre) {
+                    const towardBody = (centre.x - vertex.x) * dx + (centre.y - vertex.y) * dy;
+                    if (Math.abs(towardBody) > 1e-9) inward = Math.sign(towardBody);
+                    else {
+                        // Coincident vertices are a valid thin-surface schematic;
+                        // only explicit face ordinals resolve their opposite sides.
+                        const order = ordinal(role(entity));
+                        if (order === "first") inward = 1;
+                        if (order === "second") inward = -1;
+                    }
+                }
+            }
+            else if (surfaces.length === 1) inward = 1;
+        }
+        if (inward === undefined) continue;
+        const sign = ((arc.center.x - vertex.x) * dx + (arc.center.y - vertex.y) * dy) * inward;
         if ((declaredShape === "concave" && sign >= 0) || (declaredShape === "convex" && sign <= 0)) {
             fail("Constructed signed curvature contradicts the declared surface shape", declaredShape, sign > 0 ? "convex" : sign < 0 ? "concave" : "degenerate");
         }

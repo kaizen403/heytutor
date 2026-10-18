@@ -59,7 +59,8 @@ export function mediumBindings(document: SceneDocument, geometry: ReadonlyMap<st
                 const text = key(annotation.text ?? "");
                 const namedMedium = (annotation.text ?? "").trim().toLowerCase();
                 const bound = c.operator === "reflect_at" ? annotation.id === reflectedMedium || (!!medium && new RegExp(`^(?:n_)?${medium}(?:\\b|=)`, "i").test(namedMedium)) :
-                    (typeof input === "string" && annotation.quantityId === input) || symbols.some(symbol => text.includes(symbol + "=") || text.includes(symbol + "≈")) ||
+                    annotation.quantityId !== undefined ? annotation.quantityId === input :
+                    symbols.some(symbol => document.quantities.filter(q => key(typeof q.symbol === "string" ? q.symbol : q.id) === symbol).length <= 1 && (text.includes(symbol + "=") || text.includes(symbol + "≈"))) ||
                         (!!medium && namedMedium === medium) || (input === 1 && namedMedium === "air");
                 if (bound)
                     bindings.push({ annotationId: annotation.id, surfaceId, rayId: out, contact: contact.point, far, surface });

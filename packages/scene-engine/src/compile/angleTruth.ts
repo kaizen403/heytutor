@@ -19,12 +19,23 @@ function radians(value: unknown): number | null {
         return null;
     if (typeof quantity.unit !== "string")
         return null;
-    const unit = quantity.unit.toLowerCase();
+    const unit = quantity.unit.trim().toLowerCase();
     if (["°", "deg", "degree", "degrees"].includes(unit))
         return quantity.value * Math.PI / 180;
     if (["rad", "radian", "radians"].includes(unit))
         return quantity.value;
     return null;
+}
+// Match compiler angularTolerance: explicit tolerances are radians, otherwise
+// degree claims allow half a degree and radian claims allow 1e-4 radians.
+function tolerance(value: unknown, explicit?: unknown): number {
+    if (typeof explicit === "number") return explicit;
+    const quantity = value && typeof value === "object" ? value as { value?: unknown; unit?: unknown } : undefined;
+    const unit = typeof quantity?.unit === "string" ? quantity.unit.trim().toLowerCase() : "";
+    const raw = typeof value === "number" ? value : quantity?.value;
+    const degrees = ["°", "deg", "degree", "degrees"].includes(unit) ||
+        (unit === "" && typeof raw === "number" && Math.abs(raw) > 2 * Math.PI);
+    return degrees ? 0.5 * Math.PI / 180 : 1e-4;
 }
 /** A proved angle between infinite lines cannot certify a different marked
  * half-ray angle. Compare the actual mark with its explicit assertion or
@@ -46,6 +57,7 @@ export function validateMarkedAngleTruth(document: SceneDocument, geometry: Read
         const b = construction.inputs.b ?? construction.inputs.second;
         const claims: Array<{
             expected: number;
+            tolerance: number;
             path: string;
         }> = [];
         document.assertions.forEach((assertion, index) => {
@@ -59,7 +71,7 @@ export function validateMarkedAngleTruth(document: SceneDocument, geometry: Read
                 ? (Math.abs(assertion.expected) > 2 * Math.PI ? assertion.expected * Math.PI / 180 : assertion.expected)
                 : radians(assertion.expected);
             if (expected !== null)
-                claims.push({ expected, path: `assertions[${index}]` });
+                claims.push({ expected, tolerance: tolerance(assertion.expected, assertion.tolerance), path: `assertions[${index}]` });
         });
         const entity = document.entities.find(e => e.id === output);
         const binding = document.quantities.filter(q => (q.id === output || (typeof q.symbol === "string" && entity?.label && symbolKey(q.symbol) === symbolKey(entity.label))));
@@ -71,9 +83,9 @@ export function validateMarkedAngleTruth(document: SceneDocument, geometry: Read
         for (const quantity of binding) {
             const expected = radians(quantity);
             if (expected !== null)
-                claims.push({ expected, path: `entities[${document.entities.findIndex(e => e.id === output)}]` });
+                claims.push({ expected, tolerance: tolerance(quantity), path: `entities[${document.entities.findIndex(e => e.id === output)}]` });
         }
-        if (claims.some(({ expected }) => Math.abs(Math.abs(sweep) - Math.abs(expected)) > Math.PI / 1800 ||
+        if (claims.some(({ expected, tolerance }) => Math.abs(Math.abs(sweep) - Math.abs(expected)) > tolerance ||
             (expected < 0 && sweep > 0)))
             issues.push({
                 code: "marked_angle_contradicts_measure", severity: "fatal", failureKind: "truth",

@@ -348,3 +348,104 @@ for (const chained of [false, true]) {
   assert.deepEqual(optional, original, "timeline rewiring never mutates its input");
 }
 console.log("verified-parts: omitted annotation actions preserve transitive surviving timeline dependencies");
+
+// Shared predecessors form a DAG, not a tree. Expanding every path is
+// exponential even though the surviving prerequisite set contains one action.
+const branching = scene("v=5 m/s");
+branching.annotations = [{ id: "unproved", kind: "label", targetIds: ["v"], text: "unknown=5 m/s" }];
+branching.teachingTimeline = [{ id: "prior", action: "focus", targetId: "path", dependsOn: [] }];
+for (let index = 0; index < 36; index++) branching.teachingTimeline.push({
+  id: `removed_${index}`, action: "focus", targetId: "unproved",
+  dependsOn: index < 2 ? ["prior"] : [`removed_${index - 1}`, `removed_${index - 2}`],
+});
+branching.teachingTimeline.push({ id: "survivor", action: "focus", targetId: "v", dependsOn: ["removed_35", "removed_34"] });
+const branchingStarted = performance.now();
+const branchingReduced = prepareVerifiedParts(branching, { enabled: true });
+const branchingElapsed = performance.now() - branchingStarted;
+assert(branchingElapsed < 250, `36-level shared dependency DAG must finish within 250 ms, took ${branchingElapsed.toFixed(1)} ms`);
+assert.deepEqual(branchingReduced.document.teachingTimeline.map(action => action.id), ["prior", "survivor"]);
+assert.deepEqual(branchingReduced.document.teachingTimeline.at(-1)?.dependsOn, ["prior"]);
+assert.equal(branchingReduced.compiledScene?.ok, true);
+assert.deepEqual(branchingReduced.compiledScene, compileSceneDocument(branchingReduced.document), "reused compile includes all proofs for exactly the surviving document");
+const cyclic = structuredClone(branching);
+cyclic.teachingTimeline[1]!.dependsOn = ["removed_35"];
+const cyclicReduced = prepareVerifiedParts(cyclic, { enabled: true });
+assert.equal(cyclicReduced.compiledScene?.ok, false, "omission cannot cure a cyclic prerequisite graph");
+assert(cyclicReduced.compiledScene?.report.issues.some(issue => issue.code === "dependency_cycle"));
+assert.deepEqual(cyclicReduced.document.teachingTimeline, cyclic.teachingTimeline, "invalid order is not silently rewired");
+console.log(`verified-parts: 36-level shared dependency DAG ${branchingElapsed.toFixed(1)} ms, cycle rejection and exact compile reuse passed`);
+
+// Candidate placement must not repeat a position-independent width measure
+// thousands of times. Distinct text stays distinct and each call owns its memo.
+const { placeLabels } = await import("../../src/labels/labelEngine");
+const widthOwners = [
+  { entityId: "a", anchor: { x: 600, y: 250 }, text: "alpha", viewBounds: { x: 410, y: 55, width: 740, height: 555 } },
+  { entityId: "b", anchor: { x: 800, y: 450 }, text: "beta", viewBounds: { x: 410, y: 55, width: 740, height: 555 } },
+];
+let widthCalls = 0;
+const widthResult = placeLabels(widthOwners, [], { measureTextPx: text => { widthCalls++; return text.length * 11; } });
+assert.equal(widthResult.ok, true);
+assert.equal(widthCalls, 2, "text width is measured once per distinct text and font in a placement call");
+assert.deepEqual(widthResult, placeLabels(widthOwners, [], { fontWidthPx: 11 }), "width memo keeps exact placements and diagnostics");
+const changedWidths = placeLabels(widthOwners, [], { measureTextPx: text => text.length * 14 });
+assert.notDeepEqual(changedWidths.placements, widthResult.placements, "widths never leak between measure callbacks or calls");
+console.log("verified-parts: per-call text width memo preserves placement and callback identity");
+
+// A label leader is not the area of a region. Core collapse is checked before
+// label placement, so neither expensive search nor optional-label omission can
+// manufacture a visible shape out of a line-like projection.
+const projectedRegion: SceneDocument = {
+  ...scene("v=5 m/s"),
+  source: { question: "Show the triangular region." },
+  entities: [{ id: "region", kind: "polygon", role: "triangular region", label: "region", provenance: { requireLabelLeader: true } }],
+  constructions: [{ id: "shape", operator: "polyline", inputs: { points: [[0, 0], [0.0001, 4], [0, 8]], closed: true }, outputs: ["region"] }],
+  requiredEntityIds: ["region"],
+  revealGroups: [{ id: "setup", entityIds: ["region"], dependsOn: [] }],
+};
+let collapsedInkMeasures = 0;
+const collapsedRegion = compileSceneDocument(projectedRegion, {
+  yieldPolicy: "verified_parts",
+  measureLabelInkBounds: () => { collapsedInkMeasures++; return null; },
+});
+assert.equal(collapsedRegion.ok, false);
+assert(collapsedRegion.report.issues.some(issue => issue.code === "degenerate_projected_geometry" && issue.failureKind === "truth"));
+assert.equal(collapsedInkMeasures, 0, "collapsed core shape is refused before any label candidate measurement");
+projectedRegion.constructions[0]!.inputs.points = [[0, 0], [4, 4], [0, 8]];
+assert.equal(compileSceneDocument(projectedRegion, { yieldPolicy: "verified_parts" }).ok, true, "ordinary region with a label leader remains drawable");
+console.log("verified-parts: collapsed region is a pre-layout truth failure; ordinary region retained");
+let candidateInkCalls = 0;
+let offscreenInkCalls = 0;
+const boundedCandidates = placeLabels(widthOwners, [], {
+  measureTextPx: text => text.length * 11,
+  measureTextInkBounds: (text, x, y) => {
+    candidateInkCalls++;
+    // Four-pixel padding surrounds this gate's 24px font and 11px advances.
+    if (x - 4 < 410 || y - 4 < 55 || x - 4 + text.length * 11 + 8 > 1150 || y - 4 + 32 > 610) offscreenInkCalls++;
+    return null;
+  },
+});
+assert.equal(offscreenInkCalls, 0, "intrinsically offscreen slots need no ink measure when a legal slot survives");
+assert.deepEqual(boundedCandidates, widthResult, "skipping dominated far slots preserves the same full placement result");
+assert(candidateInkCalls < 1000, `placement must avoid measuring far slots outside its unchanged top-160 domain, measured ${candidateInkCalls}`);
+console.log(`verified-parts: dominated candidate work avoided (${candidateInkCalls} ink measurements)`);
+
+const { measureTextInkBounds, measureWrittenTextInkBounds } = await import("@heytutor/drawing");
+const originalSin = Math.sin;
+const originalFloor = Math.floor;
+let handwritingFloorCalls = 0;
+let handwritingSineCalls = 0;
+let measuredInk;
+try {
+  Math.sin = value => { handwritingSineCalls++; return originalSin(value); };
+  Math.floor = value => { handwritingFloorCalls++; return originalFloor(value); };
+  measuredInk = measureTextInkBounds("abcdefghijklmnop", 521.125, 204.375, 24);
+} finally {
+  Math.sin = originalSin;
+  Math.floor = originalFloor;
+}
+assert.deepEqual(measuredInk, measureWrittenTextInkBounds("abcdefghijklmnop", 521.125, 204.375, 24), "line noise reuse preserves the actual written ink exactly");
+assert(handwritingSineCalls < 250, `line-invariant hand noise must be computed once per run, measured ${handwritingSineCalls} sine calls`);
+console.log(`verified-parts: exact per-run handwriting noise reuse (${handwritingSineCalls} sine calls)`);
+
+assert(handwritingFloorCalls < 2000, `round stroke extrema once rather than every transformed point, measured ${handwritingFloorCalls} floor calls`);
+console.log(`verified-parts: monotone stroke extrema rounding (${handwritingFloorCalls} floor calls)`);

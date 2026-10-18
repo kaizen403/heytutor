@@ -46,3 +46,45 @@ for (const pointStyle of ["filled", "cross"] as const) {
     const named=compile(d);assert(named.primitives.find(p=>p.id==="primitive_secant_label")?.provenance?.usesLeader,"named secants retain their parameter interval");
 }
 console.log("launch: crossing, interval and secant labels retain their exact owners");
+
+// Generic screen ownership: a distant label beside another stroke needs a tether.
+const { validateLabelOwnerTruth } = await import("../../src/compile/labelOwnerTruth");
+const ownerDoc = { entities: [{ id: "own", label: "length" }], annotations: [] } as unknown as import("../../src/types").SceneDocument;
+const ownInk: import("../../src/types").RenderPrimitive[] = [
+  { id: "own", entityId: "own", groupId: "g", kind: "line", points: [{ x: 0, y: 0 }, { x: 100, y: 0 }] },
+  { id: "other", entityId: "other", groupId: "g", kind: "line", points: [{ x: 0, y: 100 }, { x: 100, y: 100 }] },
+  { id: "text", entityId: "own", groupId: "g", kind: "label", text: "length", points: [{ x: 50, y: 90 }] },
+];
+assert.equal(validateLabelOwnerTruth(ownerDoc, ownInk).length, 1);
+assert.equal(validateLabelOwnerTruth(ownerDoc, ownInk.map(p => p.kind === "label" ? { ...p, points: [{ x: 50, y: 10 }] } : p)).length, 0);
+assert.equal(validateLabelOwnerTruth(ownerDoc, ownInk.map(p => p.kind === "label" ? { ...p, provenance: { usesLeader: true } } : p)).length, 0);
+
+// Render primitive kinds must match the actual renderer (there is no "arrow" kind).
+for (const kind of ["line", "polyline", "vector", "ray", "dimension"] as const) {
+  assert.equal(validateLabelOwnerTruth(ownerDoc, ownInk.map(p => p.kind === "line" ? { ...p, kind } : p)).length, 1, `${kind} strokes retain attachment checks`);
+}
+const axes = { id: "other", entityId: "other", groupId: "g", kind: "axes" as const, points: [{ x: 0, y: 100 }, { x: 100, y: 100 }, { x: 200, y: 0 }, { x: 200, y: 100 }] };
+assert.equal(validateLabelOwnerTruth(ownerDoc,[ownInk[0]!,axes,ownInk[2]!]).length,1,"coordinate axes compete with displaced line labels");
+const ownAxes = { ...axes, id: "own", entityId: "own", points: [{x:-100,y:0},{x:100,y:0},{x:0,y:-100},{x:0,y:100}] };
+const nearPhantom = { ...ownInk[1]!, points: [{x:40,y:-45},{x:60,y:-45}] };
+assert.equal(validateLabelOwnerTruth(ownerDoc,[ownAxes,nearPhantom,{...ownInk[2]!,points:[{x:50,y:-50}]}]).length,1,"axes do not draw the diagonal between their separate strokes");
+for (const kind of ["polygon","rectangle"] as const) {
+  const box = { ...ownInk[0]!, kind, points: [{x:0,y:0},{x:200,y:0},{x:200,y:200},{x:0,y:200}] };
+  assert.equal(validateLabelOwnerTruth(ownerDoc,[box,{...ownInk[1]!,points:[{x:-20,y:100},{x:-10,y:100}]},{...ownInk[2]!,points:[{x:-5,y:100}]}]).length,0,`${kind} closing edge retains its nearby label`);
+  assert.equal(validateLabelOwnerTruth(ownerDoc,[box,{...ownInk[1]!,points:[{x:50,y:100},{x:150,y:100}]},{...ownInk[2]!,points:[{x:100,y:100}]}]).length,0,`${kind} interior names remain attached to their region`);
+}
+const semicircle = { ...ownInk[0]!, kind: "arc" as const, points:[{x:0,y:0}],radius:100,startAngle:0,endAngle:Math.PI };
+assert.equal(validateLabelOwnerTruth(ownerDoc,[semicircle,{...ownInk[1]!,points:[{x:-20,y:-105},{x:20,y:-105}]},{...ownInk[2]!,points:[{x:0,y:-100}]}]).length,1,"an arc does not own the undrawn half of its circle");
+assert.equal(validateLabelOwnerTruth(ownerDoc,[{...semicircle,kind:"circle"},ownInk[1]!,{...ownInk[2]!,points:[{x:0,y:0}]}]).length,0,"circle interior names remain attached");
+assert.equal(validateLabelOwnerTruth(ownerDoc,ownInk.map(p=>p.kind === "label" ? {...p,points:[{x:50,y:21}]}:p)).length,0,"a 21px attachment is deliberately below the conservative ambiguity threshold");
+const sideLabel = ownInk.map(p => p.kind === "label" ? { ...p, provenance: { annotationId: "side" } } : p);
+assert.equal(validateLabelOwnerTruth(ownerDoc, sideLabel).length, 1, "model annotation identity alone is no attachment proof");
+assert.equal(validateLabelOwnerTruth(ownerDoc, sideLabel, new Set(["side"])).length, 0, "a separately proved halfspace label need not hug its boundary stroke");
+
+// A line's leader anchored inside a different body can name that body instead.
+const body = { id: "body", entityId: "body", groupId: "g", kind: "circle" as const, points: [{x:50,y:0}], radius: 20 };
+const tethered = { ...ownInk[2]!, id:"text", points:[{x:50,y:-100}], provenance:{usesLeader:true} };
+const tether = { id:"text_leader", entityId:"own", groupId:"g", kind:"line" as const, points:[{x:50,y:0},{x:50,y:-80}], provenance:{labelLeader:true} };
+assert.equal(validateLabelOwnerTruth(ownerDoc,[ownInk[0]!,body,tethered,tether]).length,1,"a line tether buried in another body is ambiguous");
+assert.equal(validateLabelOwnerTruth(ownerDoc,[ownInk[0]!,{...body,points:[{x:150,y:0}]},tethered,tether]).length,0,"an unobstructed line attachment retains its leader");
+assert.equal(validateLabelOwnerTruth(ownerDoc,[{...body,id:"own",entityId:"own"},tethered,tether]).length,0,"a region's own interior is a valid leader attachment");

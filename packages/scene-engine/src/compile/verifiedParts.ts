@@ -1,5 +1,5 @@
 import { compileSceneDocument } from "./compiler";
-import type { SceneDocument, SceneIssue } from "../types";
+import type { CompileResult, SceneDocument, SceneIssue } from "../types";
 import { withDiagramYieldPolicy } from "./yieldPolicy";
 
 export type DiagramYieldPolicy = "off" | "verified_parts";
@@ -14,19 +14,22 @@ export function parseDiagramYieldPolicy(value: unknown): DiagramYieldPolicy {
 export function prepareVerifiedParts(
   original: SceneDocument,
   options: { enabled?: boolean } = {},
-): { document: SceneDocument; issues: SceneIssue[] } {
+): { document: SceneDocument; issues: SceneIssue[]; compiledScene?: CompileResult } {
   const admitted = withDiagramYieldPolicy(original, options.enabled ? "verified_parts" : "off");
   if (!options.enabled) return { document: admitted, issues: [] };
   const layoutProofCodes = new Set([
     "label_overlap_unresolved",
     "label_outside_view",
     "label_too_long",
+    "label_owner_ambiguous",
   ]);
   let document = admitted;
   const issues: SceneIssue[] = [];
+  let compiledScene: CompileResult | undefined;
   // Bounded retries expose errors hidden behind an earlier failed label check.
   for (let pass = 0; pass < 4; pass++) {
     const compiled = compileSceneDocument(document);
+    compiledScene = compiled;
     if (compiled.ok) break;
     // A secondary proof error on the same label cannot mask a measured lie.
     if (
@@ -138,19 +141,34 @@ export function prepareVerifiedParts(
       .map(action => [action.id, action]));
     // Preserve the partial order through omitted annotation actions. Merely
     // deleting their edges loses prerequisites; retaining them leaves dangling IDs.
-    const survivingDependencies = (id: string, visiting = new Set<string>()): string[] => {
+    const dependencies = new Map<string, Set<string>>();
+    const visiting = new Set<string>();
+    const survivingDependencies = (id: string): Set<string> => {
+      const cached = dependencies.get(id);
+      if (cached) return cached;
       const removed = removedActions.get(id);
-      if (!removed || visiting.has(id)) return [id];
-      const ancestors = new Set(visiting).add(id);
-      return removed.dependsOn.flatMap(dependency => survivingDependencies(dependency, ancestors));
+      // Compilation rejects cycles before recovery. Keep a cyclic reference
+      // unresolved if one reaches this traversal; never erase a false order.
+      if (!removed || visiting.has(id)) return new Set([id]);
+      visiting.add(id);
+      const survivors = new Set<string>();
+      for (const dependency of removed.dependsOn) {
+        for (const predecessor of survivingDependencies(dependency)) survivors.add(predecessor);
+      }
+      visiting.delete(id);
+      dependencies.set(id, survivors);
+      return survivors;
     };
     next.teachingTimeline = next.teachingTimeline
       .filter(action => !removedActions.has(action.id))
       .map(action => action.dependsOn.some(id => removedActions.has(id)) ? {
         ...action,
-        dependsOn: [...new Set(action.dependsOn.flatMap(id => survivingDependencies(id)))],
+        dependsOn: [...new Set(action.dependsOn.flatMap(id => [...survivingDependencies(id)]))],
       } : action);
     document = next;
+    compiledScene = undefined;
   }
-  return { document, issues };
+  // The last retry may have changed the document. Return only a compilation
+  // of the exact surviving scene, so admission can reuse its complete proofs.
+  return { document, issues, compiledScene: compiledScene ?? compileSceneDocument(document) };
 }
