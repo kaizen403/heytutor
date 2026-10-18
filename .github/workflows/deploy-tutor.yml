@@ -126,6 +126,7 @@ jobs:
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-two-sum-grounding.ts
       - name: Answer reveal and teaching conditions (no model calls)
         run: |
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-label-accuracy.ts
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-export-cache-workflow.ts
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-doubt-same-board.ts
           pnpm --filter @heytutor/tutor verify:answer-label-completion

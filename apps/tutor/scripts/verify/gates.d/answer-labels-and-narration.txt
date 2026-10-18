@@ -5,3 +5,4 @@ tsx scripts/verify/verify-answer-export-cache.ts
 tsx scripts/verify/verify-export-cache-order.ts
 tsx scripts/verify/verify-doubt-same-board.ts
 tsx scripts/verify/verify-export-cache-workflow.ts
+tsx scripts/verify/verify-label-accuracy.ts
