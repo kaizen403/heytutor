@@ -1,2 +1,3 @@
 pnpm verify:youtube-lesson-qa
 tsx scripts/verify/verify-export-cache-order.ts
+tsx scripts/verify/verify-export-cache-workflow.ts
