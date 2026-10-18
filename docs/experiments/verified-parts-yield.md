@@ -59,10 +59,18 @@ is withdrawn.** Independent review and fresh blind judgments find surviving
 label-placement errors. A partial figure is not counted as safe when a visible
 label identifies the wrong element.
 
-The branch normally merges Fireworks main `7afb99772` and its gate-runner update
-`2f62b94b5`. The latter changes verification wiring, not engine behavior. Main's
-verification commands are retained in order; feature gates live in separate
-`gates.d` files.
+The branch normally merges Fireworks main `7afb99772`, its gate-runner update
+`2f62b94b5`, and current pinned main `614a3afaa`. Coordinator merge commits are
+retained. Main verification commands remain in order; feature gates live in
+`gates.d/figure-truth-182.txt`. The final replayed source is
+`3867431c4b25575a3e037f19a5ffefb9d11ef6e6`, against main
+`614a3afaa47c0ca889f20400544d0201329a2ba8`. The final diagnostic fix restores
+main-shaped default-off errors, including one generic error per output;
+richer per-label classification remains flag-only. Fresh replay confirms exact
+default-off diagnostics, admission, winner and rendering across all 1,795 rows
+(4,220 lab candidates, 108 YouTube candidates and seven production candidates).
+Flag-on results match the fully judged `25bdd43e` source; no figure changed.
+
 
 Review fixes:
 
@@ -79,17 +87,88 @@ Review fixes:
   symbols cannot bind unrelated quantities to both interfaces.
 - A conservative label-owner check omits optional labels that are much closer
   to another stroke, including ambiguous line leaders starting inside another
-  body. It is not a complete attachment proof; some wrong figures remain.
+  body. Reveal groups do not separate the shared canvas. A bare numeric summary
+  must identify its owner; a named equation can stand independently. It is not
+  a complete attachment proof; some wrong figures remain.
 - Optical-train rays must meet the aperture of a uniquely bound drawn lens.
   Missing bodies do not establish an aperture claim.
+- Plain quantity identifiers such as `u`, `v₀` and relative-velocity aliases
+  are accepted by construction; attachment and repair checks still apply. Equations and numeric labels still require
+  the existing proof; the identifier grammar does not normalize superscripts
+  into digits or accept arithmetic expressions.
 - Production admission reuses the final verified-parts compile. Label search
   avoids work only when it cannot affect the chosen placements or diagnostics.
   Camera scoring prepares invariant constraints once and formats a diagnostic
-  only when that constraint becomes the worst score.
+  only when that constraint becomes the worst score. Single-label dimension
+  feasibility uses the same constraints without selecting a final placement.
 
-The completed merged-head table and final timing sample will be recorded below
-when all changed pairs are judged. No zero-error or 50 ms claim is made while
-those checks are incomplete.
+### Completed blind replay
+
+| Set | Rows | Main: empty / right / partial / wrong | Flag on |
+| --- | ---: | --- | --- |
+| baseline964 | 964 | 224 / 183 / 499 / 58 | 278 / 182 / 492 / 12 |
+| other-strict | 780 | 257 / 102 / 358 / 63 | 317 / 101 / 353 / 9 |
+| youtube | 42 | 18 / 4 / 19 / 1 | 18 / 10 / 14 / 0 |
+| production | 3 | 3 / 0 / 0 / 0 | 3 / 0 / 0 / 0 |
+| Total | 1,789 | 502 / 289 / 876 / 122 | 616 / 293 / 859 / 21 |
+
+All rows are graded. Wrong does not rise in any set, but **21 wrong figures remain**.
+This comparison uses the fresh main replay and current paired judgments; its
+122 main wrongs supersede neither the historical 99-row ledger nor that older
+baseline. Empties rise by 114, so the yield objective is not achieved. The two
+lab sets each lose one right figure net. Across individual pairs, 25 formerly
+right rows become partial (13) or empty (12), despite the aggregate right count
+rising by four through gains elsewhere.
+
+Four pairs move from partial to wrong: a velocity graph, a toroid hole label,
+a bar-magnet field sketch and a glass-slab depth mark. Keep these grades; do not
+claim no newly wrong figures. The graph's criticized ink is unchanged except
+for an omitted label, and the magnet's field strokes are unchanged. The slab
+retains the same world geometry but is enlarged by layout recovery. These three
+pairs show judgment variation or newly apparent existing errors. The toroid
+actually selects a different candidate with a misplaced `hole` label. That
+selection regression remains unresolved and blocks enabling the flag.
+
+Of main's 122 wrong rows, 60 become empty, 35 partial and 10 right; 17 stay wrong,
+joined by the four partial-to-wrong pairs. Remaining errors include label
+ownership, clipped or misleading text, graph/field geometry, circuit topology
+and energy spacing. The generic checks reduce these failures but do not prove
+all requested relationships. The original zero-wrong and no-right-loss launch
+bars are not met.
+
+The review contributes 599 unique fresh blind cards, including three separate
+launch-label candidates. Unchanged figures reuse only matching question/render
+fingerprints with recorded provenance. Per-row grades, all 21 wrongs, all 25
+right losses and the four changed-grade pairs are retained in private evidence.
+
+### Validation and timing
+
+Engine yield and 14 launch gates, camera and quantity-symbol gates, tutor yield
+and answer-reveal gates, and all 13 repair-pipeline scenarios pass. Drawing,
+engine and core builds and tutor typecheck pass. The follow-up records 38 actual
+implementation mutation kills, separately from the historical launch mutations.
+No broad full-suite pass is claimed: known chemistry-routing and board-restoration
+failures remain disclosed.
+
+Performance preserves exact output and search budgets. The ink gate checks 191
+scenes, 328,808 measured boxes and 3,993 frozen golden records. Whole-placement
+and whole-compile comparisons cover synthetic and recorded cases, including
+failures. The final 1,094-candidate timing clears the ink cache before each policy
+arm and records one cold-ink and two warm calls; this is not a fresh process.
+No competing agent replay/build ran during the sample. Timing was captured at
+`25bdd43e`, before the final off-only diagnostic compatibility change.
+
+| Policy | Cold p50 / p99 / max (ms) | Cold cases >50 ms | Warm maximum (ms) |
+| --- | --- | ---: | ---: |
+| off | 2.48 / 39.64 / 52.60 | 3 | 38.49 |
+| verified_parts | 1.97 / 45.44 / 64.84 | 7 | 42.32 |
+
+**The strict cold maximum below 50 ms is not achieved.** The comparable initial
+flag-on sample had a 248.3 ms maximum and 152 cases over 50 ms. This is a large
+reduction, not a passed requirement. A separate deliberately stalled search
+fixture also remains over 50 ms. Further obstacle-hoisting and route-selection
+prototypes gave neutral or mixed benefits and are not shipped. Keep the flag off
+pending remaining truth and latency work.
 
 ### Recording providers and replay method
 
@@ -111,7 +190,24 @@ An initial 32-card batch in this follow-up was discarded in full after literal
 label evidence was found to belong to other cards. Fresh judgments are written
 before the next image opens and include literal observed labels and the PNG
 SHA-256; hashes and label inventories are checked before aggregation. Discarded
-judgments do not contribute to the table.
+judgments do not contribute to the table. One later literal-label mismatch was
+freshly rechecked and remained partial; its original and corrected evidence are
+retained. Equal geometry can receive different grades after a label or framing
+change, so aggregate improvements do not establish causal correctness for every
+row.
+
+### Launch-label handoff
+
+The three recorded candidates no longer fail construction because a plain
+quantity symbol is rejected. The `v₀` candidate also passes full repair replay
+and retains `v₀`. Both `u` candidates compile standalone, but attachment recovery
+omits the requested lower-velocity label and the operator still displays its
+`launch` role word. Both full repairs remain refused for losing required
+geometry. Thus the parser fix is complete, while recovery of those two requested
+`u` figures is not. These refused repairs are not counted as recovered figures
+in the headline table. All three standalone candidates are independently
+blind-graded partial, with no wrong figure among these three; this does not
+override repair refusal.
 
 ### Original 99 cause accounting
 
