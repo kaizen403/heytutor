@@ -52,7 +52,117 @@ below their uniquely declared terrain. These are reusable relation checks, not
 question-ID exceptions or topic routing.
 
 
-## Review follow-up — 18 October 2026
+## New flag-on follow-up — 18 October 2026
+
+**Ready for coordinator review, not for enabling the flag.** The replayed source
+is `fa5933393add6b48928902460f340237b525ddad`, based on pinned main
+`614a3afaa47c0ca889f20400544d0201329a2ba8` with the default-off #182 dependency
+normally merged. GitHub still reports #182 open at publication; this new branch
+makes that dependency explicit instead of assuming it has landed. #211 is also
+still open, so feeding its answer classifier remains conditional on its reaching
+main. Neither PR was merged by this worker.
+
+The carried review fixes cover the 0.5-degree angle tolerance, body-relative
+lens faces, missing curvature proof, memoized timeline dependencies,
+compiler-added answer labels, explicit medium quantity IDs and flag-off repair
+error shape. All three #182 Greptile threads are resolved. #201 was handled
+first and is pushed at `83a1bdb076669ec5e74837f426332f1090b7718e`, with 39
+actual review mutation kills and no unresolved review thread at the final check.
+
+New changes on this branch:
+
+- An untethered circular-region name outside its own circle needs an explicit
+  attachment when another circle encloses that owner. This applies both inside
+  and beyond the enclosing circle. It removes the misplaced toroid `hole`
+  label and catches the analogous charged-sphere/core labels without deleting
+  geometry. Translation, scale, interior, isolated, overlapping and tethered
+  cases are gated. Two actual mutations restore the faulty behavior and fail.
+- Leader validation prepares fixed stroke geometry once per placement. It
+  preserves intersection arithmetic, tolerances, candidate order, diagnostics
+  and search-work accounting. Exact comparisons cover 12,042 predicates,
+  120 synthetic placements and 120 recorded whole compiles. Two actual mutations
+  fail the geometry/work gate. The paired eight-case sum of medians falls 6.74%;
+  other neutral or slower prototypes are not included.
+- Flag-off teaching strings and three complete captured planner request bodies
+  (plan, proof repair and truth repair) are byte-identical to pinned main.
+  A mutation adding a newline to the actual copied teaching-template
+  implementation breaks that comparison. Capture uses a local mocked response,
+  never a model endpoint.
+
+### Final paired replay
+
+| Set | Rows | Main: empty / right / partial / wrong | Flag on |
+| --- | ---: | --- | --- |
+| baseline964 | 964 | 224 / 181 / 501 / 58 | 278 / 179 / 496 / 11 |
+| other-strict | 780 | 257 / 102 / 355 / 66 | 318 / 101 / 350 / 11 |
+| youtube | 42 | 18 / 4 / 19 / 1 | 18 / 10 / 14 / 0 |
+| production | 3 | 3 / 0 / 0 / 0 | 3 / 0 / 0 / 0 |
+| Total | 1,789 | 502 / 287 / 875 / 125 | 617 / 290 / 860 / 22 |
+
+There are no ungraded rows. Wrong falls in every nonempty set, but **22 wrong
+figures remain**. Empties rise by 115; 27 formerly right rows become partial
+(14) or empty (13). Three pairs still move from partial to wrong: the velocity
+graph, magnet field and glass-slab depth mark described in the earlier report.
+The prior toroid selection regression is fixed. The zero-wrong, no-right-loss
+and large-yield-gain launch bars are not met.
+
+Compared with the previous flag-on audit, wrong rises from 21 to 22: the toroid
+label wrong is removed, while a radial surface-tension arrow and a straight
+field through a toroid are now judged wrong. Their non-label primitives,
+construction documents and selected candidates are exactly unchanged from the
+previous flag-on replay. These are newly identified existing errors, not code
+repairs; their wrong grades remain in the table. The paired main wrong count
+also changes from 122 to 125 after fresh judgments. Do not attribute these
+adjudication changes to engine improvements.
+
+This follow-up adds 50 unique anonymous paired cards to the 599-card prior
+review evidence. The first 34 were judged twice after weak control agreement;
+a rule fixed before inspecting the second results selects the more severe grade.
+The final expanded guard required 16 additional cards. Concealed six-card
+control agreement was 2/6, 3/6 and 2/6 across the three passes. Controls retain
+their historical grades and do not overwrite the table. This low agreement is
+an explicit limitation, not evidence of human accuracy. All accepted new cards
+pass PNG-hash and literal-label audits; one control's alpha transcription was
+corrected without changing its grade. Only subagents viewed images, one judge
+at a time. Unchanged renderings reuse exact question/primitive fingerprints.
+
+All 1,795 raw rows were replayed at the final source: 1,744 lab rows, all 48
+YouTube records (108 candidates) and three production traces (seven candidates).
+Default-off diagnostics, admissions, selected candidates and complete renderings
+match pinned main exactly. The headline table counts 42 YouTube tries. Engine
+build, engine types, scoped lint, engine yield/truth/camera/symbol/attachment
+and leader gates, tutor yield gates and all 13 repair scenarios pass. Five new
+implementation mutations are killed in this follow-up, separately from the
+38 prior review mutations. No new full-suite pass is claimed.
+
+### Final-source timing and remaining dependencies
+
+Final-source timing samples 1,094 unique recorded candidates per policy, clearing
+the ink cache before each candidate/policy, with one cold-ink and two warm calls.
+This is one process with warming JIT/font state, not a fresh process per case.
+No concurrent replay, build or heavy test ran during this measurement.
+
+| Policy | Cold p50 / p99 / max (ms) | Cold cases >50 ms | Warm maximum (ms) |
+| --- | --- | ---: | ---: |
+| off | 2.68 / 35.01 / 53.90 | 2 | 25.09 |
+| verified_parts | 2.00 / 41.87 / 59.67 | 5 | 39.90 |
+
+The separate stalled fixture takes 151.92 / 62.76 / 57.25 ms under the flag.
+**The strict worst-case under 50 ms requirement remains unmet.** Earlier
+pre-final-guard timing was 50.70 ms maximum; the final-source result above
+supersedes it. Cross-run variation is not attributed to the guard or to the
+performance patch; the alternating paired comparison supports the optimization.
+
+Recordings remain historical Azure data: both lab sets identify
+`st-gpt-6-sol-h4`, YouTube run notes identify `st-gpt-6-sol` behind the client
+`server` alias, and production traces identify `gpt-6-sol`. Production now uses
+Fireworks/Kimi K3. These are free deterministic engine comparisons, not
+Fireworks planner measurements. Spend is $0; no production changes or paid
+rerun occurred. Keep the flag off. Merge the dependency from main normally
+when it lands, integrate #211 only once available on main, and rerun parity
+before considering flag activation.
+
+## Earlier review follow-up — 18 October 2026
 
 **Keep the flag off pending coordinator review. The previous zero-wrong claim
 is withdrawn.** Independent review and fresh blind judgments find surviving
