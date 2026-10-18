@@ -1,0 +1,536 @@
+{
+  "sourceHead": "c9fa0eca2918fa5425715d45a59b3571068681d2",
+  "capture": "Fresh native launch QA L02,17 Oct2026; complete spring-energy lesson",
+  "sceneDocument": {
+    "source": {
+      "question": "Explain kinetic and potential energy using a mass on a spring.",
+      "nonMetric": true,
+      "representationTier": "qualitative_verified"
+    },
+    "entities": [
+      {
+        "id": "wall",
+        "kind": "rectangle",
+        "role": "rectangle"
+      },
+      {
+        "id": "spring",
+        "kind": "polyline",
+        "role": "polyline",
+        "label": "k"
+      },
+      {
+        "id": "mass",
+        "kind": "rectangle",
+        "role": "rectangle",
+        "label": "m"
+      },
+      {
+        "id": "equilibrium",
+        "kind": "point",
+        "role": "helper point",
+        "label": "eq"
+      },
+      {
+        "id": "displacement",
+        "kind": "dimension",
+        "role": "dimension",
+        "label": "x"
+      },
+      {
+        "id": "wallCenter",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "s0",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "s1",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "s2",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "s3",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "s4",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "s5",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "s6",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "s7",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "massCenter",
+        "kind": "point",
+        "role": "construction helper"
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "assert_label_equilibrium",
+        "reason": "student-facing points must stay labeled",
+        "entities": [
+          "equilibrium"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "predicate": "label_attached"
+      }
+    ],
+    "quantities": [],
+    "annotations": [
+      {
+        "id": "aKinetic",
+        "kind": "narration",
+        "text": "A moving mass has kinetic energy: E_k = ½mv², where v is its speed.",
+        "targetIds": [
+          "mass"
+        ]
+      },
+      {
+        "id": "aPotential",
+        "kind": "narration",
+        "text": "Displacing the ideal spring from equilibrium stores elastic potential energy: E_s = ½kx².",
+        "targetIds": [
+          "spring",
+          "displacement"
+        ]
+      },
+      {
+        "id": "aExchange",
+        "kind": "narration",
+        "text": "At maximum displacement the mass is momentarily still: spring potential energy is greatest and kinetic energy is zero. Moving toward equilibrium converts potential energy to kinetic energy; at equilibrium speed and kinetic energy are greatest.",
+        "targetIds": [
+          "mass",
+          "spring",
+          "equilibrium"
+        ]
+      },
+      {
+        "id": "aConservation",
+        "kind": "narration",
+        "text": "Without friction or other energy losses, E_k + E_s remains constant.",
+        "targetIds": [
+          "mass",
+          "spring"
+        ]
+      }
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "dependsOn": [],
+        "entityIds": [
+          "wall",
+          "spring",
+          "mass",
+          "equilibrium",
+          "displacement"
+        ],
+        "narrationCue": "reveal scene"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "cWallCenter",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "wallCenter"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "cWall",
+        "inputs": {
+          "width": 0.5,
+          "center": "wallCenter",
+          "height": 3
+        },
+        "outputs": [
+          "wall"
+        ],
+        "operator": "rectangle"
+      },
+      {
+        "id": "cS0",
+        "inputs": {
+          "x": 0.25,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s0"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "cS1",
+        "inputs": {
+          "x": 1,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s1"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "cS2",
+        "inputs": {
+          "x": 1.7,
+          "y": 0.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s2"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "cS3",
+        "inputs": {
+          "x": 2.5,
+          "y": -0.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s3"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "cS4",
+        "inputs": {
+          "x": 3.3,
+          "y": 0.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s4"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "cS5",
+        "inputs": {
+          "x": 4.1,
+          "y": -0.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s5"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "cS6",
+        "inputs": {
+          "x": 4.9,
+          "y": 0.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s6"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "cS7",
+        "inputs": {
+          "x": 7,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "s7"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "cSpring",
+        "inputs": {
+          "points": [
+            "s0",
+            "s1",
+            "s2",
+            "s3",
+            "s4",
+            "s5",
+            "s6",
+            "s7"
+          ]
+        },
+        "outputs": [
+          "spring"
+        ],
+        "operator": "polyline"
+      },
+      {
+        "id": "cMassCenter",
+        "inputs": {
+          "x": 8,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "massCenter"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "cMass",
+        "inputs": {
+          "width": 2,
+          "center": "massCenter",
+          "height": 1.5
+        },
+        "outputs": [
+          "mass"
+        ],
+        "operator": "rectangle"
+      },
+      {
+        "id": "cEquilibrium",
+        "inputs": {
+          "x": 5,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "equilibrium"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "cDisplacement",
+        "inputs": {
+          "end": "massCenter",
+          "start": "equilibrium"
+        },
+        "outputs": [
+          "displacement"
+        ],
+        "operator": "dimension"
+      }
+    ],
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "planner visual decision"
+    },
+    "teachingTimeline": [],
+    "requiredEntityIds": [
+      "wall",
+      "spring",
+      "mass",
+      "equilibrium",
+      "displacement"
+    ]
+  },
+  "originalNarration": "Here is the setup. First the rectangle, then the polyline k, the rectangle m, and finally the helper point eq. That is the setup.",
+  "originalPresentationNarration": "Here is the setup. First the rectangle, then the polyline k, the rectangle m, and finally the helper point eq. That is the setup.",
+  "expectedDiagramCommands": [
+    {
+      "type": "DRAW_RECT",
+      "params": [
+        490,
+        238.45,
+        31.350000000000023,
+        188.10000000000002
+      ],
+      "semanticRef": {
+        "entityId": "wall",
+        "primitiveId": "primitive_wall"
+      }
+    },
+    {
+      "type": "DRAW_LINE",
+      "params": [
+        521.35,
+        332.5,
+        568.38,
+        332.5,
+        612.27,
+        301.15,
+        662.43,
+        363.85,
+        712.59,
+        301.15,
+        762.76,
+        363.85,
+        812.92,
+        301.15,
+        944.59,
+        332.5
+      ],
+      "semanticRef": {
+        "entityId": "spring",
+        "primitiveId": "primitive_spring"
+      }
+    },
+    {
+      "type": "DRAW_RECT",
+      "params": [
+        944.59,
+        285.47,
+        125.40999999999997,
+        94.05999999999995
+      ],
+      "semanticRef": {
+        "entityId": "mass",
+        "primitiveId": "primitive_mass"
+      }
+    },
+    {
+      "type": "DRAW_POINT",
+      "params": [
+        819.19,
+        332.5,
+        2
+      ],
+      "semanticRef": {
+        "entityId": "equilibrium",
+        "primitiveId": "primitive_equilibrium"
+      }
+    },
+    {
+      "type": "DIMENSION",
+      "params": [
+        819.19,
+        416.5,
+        1007.3,
+        416.5,
+        0
+      ],
+      "visualStyle": {
+        "dashed": false,
+        "measurementRole": "bar"
+      },
+      "semanticRef": {
+        "entityId": "displacement",
+        "primitiveId": "primitive_displacement"
+      }
+    },
+    {
+      "type": "DRAW_LINE",
+      "params": [
+        819.19,
+        332.5,
+        819.19,
+        422.5
+      ],
+      "visualStyle": {
+        "dashed": true,
+        "strokeRole": "construction",
+        "measurementRole": "witness"
+      },
+      "semanticRef": {
+        "entityId": "displacement",
+        "primitiveId": "primitive_displacement_witness_0"
+      }
+    },
+    {
+      "type": "DRAW_LINE",
+      "params": [
+        1007.3,
+        332.5,
+        1007.3,
+        422.5
+      ],
+      "visualStyle": {
+        "dashed": true,
+        "strokeRole": "construction",
+        "measurementRole": "witness"
+      },
+      "semanticRef": {
+        "entityId": "displacement",
+        "primitiveId": "primitive_displacement_witness_1"
+      }
+    },
+    {
+      "type": "LABEL",
+      "params": [
+        727.2475000000001,
+        255.14999999999998,
+        24
+      ],
+      "text": "k",
+      "anchorId": "spring",
+      "semanticRef": {
+        "entityId": "spring",
+        "primitiveId": "primitive_spring_label"
+      }
+    },
+    {
+      "type": "LABEL",
+      "params": [
+        1092,
+        320.5,
+        24
+      ],
+      "text": "m",
+      "anchorId": "mass",
+      "semanticRef": {
+        "entityId": "mass",
+        "primitiveId": "primitive_mass_label"
+      }
+    },
+    {
+      "type": "LABEL",
+      "params": [
+        837.19,
+        350.5,
+        24
+      ],
+      "text": "eq",
+      "anchorId": "equilibrium",
+      "semanticRef": {
+        "entityId": "equilibrium",
+        "primitiveId": "primitive_equilibrium_label"
+      }
+    },
+    {
+      "type": "LABEL",
+      "params": [
+        907.72068,
+        434.5,
+        24
+      ],
+      "text": "x",
+      "anchorId": "displacement",
+      "semanticRef": {
+        "entityId": "displacement",
+        "primitiveId": "primitive_displacement_label"
+      }
+    }
+  ]
+}
