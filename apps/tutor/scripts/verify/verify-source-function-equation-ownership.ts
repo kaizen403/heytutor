@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { inferSceneCapabilities } from "@heytutor/tutor-core";
-import { compileSceneDocument, parseMathExpression, parseMathExpression2D, validateSceneDocument, type TurnPlanV3 } from "@heytutor/scene-engine";
+import { compileSceneDocument, parseMathExpression, parseMathExpression2D, synthesizeFamilyScene, validateSceneDocument, type TurnPlanV3 } from "@heytutor/scene-engine";
 import {
   buildSourceGroundedRepresentation,
   selectFastVerifiedRepresentation,
   selectVerifiedRepresentation,
   selectVerifiedRepresentationExplained,
+  prepareFallbackFunctionInventory,
   type SelectedRepresentation,
 } from "../../features/tutor-session/lib/scene/representationFallback";
 
@@ -20,6 +21,8 @@ interface Fixture {
   discreteDomain: boolean;
   mustDeclineSourceCurves?: boolean;
   mustRetainNative?: boolean;
+  mustRetainFast?: boolean;
+  exactCurveExpressions?: readonly string[];
   equations: readonly SourceEquation[];
 }
 
@@ -1066,6 +1069,40 @@ lexicalOwnershipFixtures.push(
 for (const slot of ["(at x=2z)", "(at x=1/0)", "(x=2)", "+(at x=2)"])
   lexicalOwnershipFixtures.push({ id: `lexical-attached-evaluation-refusal-${slot}`, question: `Compare y=sqrt(x) ${slot} with y=log(x) using a common frame.`, mustDrawExplicitCurves: false, mustDeclineSourceCurves: true, discreteDomain: false, equations: [] });
 
+// Whole unary-body oracles: whitespace is required, and continuation is
+// intentionally limited to an additive term or the end of the expression.
+const bareUnaryOracles = [
+  { name: "sin", evaluate: Math.sin, xs: [-0.5, 0, 0.5] },
+  { name: "cos", evaluate: Math.cos, xs: [-0.5, 0, 0.5] },
+  { name: "tan", evaluate: Math.tan, xs: [-0.5, 0, 0.5] },
+  { name: "asin", evaluate: Math.asin, xs: [-0.5, 0, 0.5] },
+  { name: "acos", evaluate: Math.acos, xs: [-0.5, 0, 0.5] },
+  { name: "atan", evaluate: Math.atan, xs: [-0.5, 0, 0.5] },
+  { name: "sqrt", evaluate: Math.sqrt, xs: [0, 1, 4] },
+  { name: "abs", evaluate: Math.abs, xs: [-1, 0, 1] },
+  { name: "exp", evaluate: Math.exp, xs: [-1, 0, 1] },
+  { name: "log", evaluate: Math.log, xs: [1, 2, 4] },
+  { name: "ln", evaluate: Math.log, xs: [1, 2, 4] },
+];
+for (const { name, evaluate, xs } of bareUnaryOracles) lexicalOwnershipFixtures.push({
+  id: `bare-unary-${name}`, question: `Plot y=${name} x.`, mustDrawExplicitCurves: true, discreteDomain: false,
+  mustRetainNative: name === "sin" || name === "cos", mustRetainFast: name === "sin" || name === "cos",
+  exactCurveExpressions: [`${name}(x)`], equations: [sourceEquation(`y=${name}(x)`, xs.map(x => [x, evaluate(x)] as const))],
+});
+for (const [body, expected, evaluate] of [
+  ["sin   x", "sin(x)", Math.sin], ["cos\tx", "cos(x)", Math.cos],
+  ["sin x + 1", "sin(x)+1", (x: number) => Math.sin(x) + 1],
+  ["cos x - 1", "cos(x)-1", (x: number) => Math.cos(x) - 1],
+] as const) lexicalOwnershipFixtures.push({
+  id: `bare-unary-spacing-additive-${body}`, question: `Plot y=${body}.`, mustDrawExplicitCurves: true, discreteDomain: false,
+  exactCurveExpressions: [expected], equations: [sourceEquation(`y=${expected}`, [-0.5, 0, 0.5].map(x => [x, evaluate(x)] as const))],
+});
+for (const body of ["sinx", "cosx", "unknown x", "sin z", "cos t", "sin 2*x", "sin x^2", "sin x ^ 2", "cos x**2",
+  "sin x/2", "sin x * 2", "sin x (x+1)", "cos x(x+1)", "sin x z", "cos x 2", "sin x alpha", "cos x pi",
+  "sin x cos(x)", "sqrt x^2", "log x / 2", "atan x(x+1)", "asin x y", "pi x", "e x", "x x"])
+  lexicalOwnershipFixtures.push({ id: `bare-unary-ambiguous-${body}`, question: `Plot y=${body}.`, mustDrawExplicitCurves: false,
+    mustDeclineSourceCurves: true, discreteDomain: false, equations: [] });
+
 const gateFixtures: readonly Fixture[] = [...fixtures, ...sourceCompletenessFixtures, ...retentionFixtures, ...primeAndPluralRetentionFixtures, ...quotedPrimeOwnershipFixtures, ...quotedCloseProseFixtures, ...quotedCloseSingleProseFixtures, ...quoteArgumentClassFixtures, ...ordinaryQuoteContextFixtures, ...ordinaryQuoteCombinedFixtures, ...numericMeasurementMarkFixtures, ...lexicalOwnershipFixtures];
 
 function normalizeEquation(value: string): string {
@@ -1089,6 +1126,14 @@ function labelOwnsEquation(label: string, equation: SourceEquation): boolean {
   const normalized = normalizeEquation(label);
   if (normalized === normalizeEquation(equation.sourceText)) return true;
   return normalized.startsWith("y=") && agreesWithSamples(normalized.slice(2), equation);
+}
+
+function nativeDisplayLabelOwnsEquation(label: string, equation: SourceEquation, representation: SelectedRepresentation): boolean {
+  if (representation.sceneDocument.source.functionDisplayTransform === undefined) return labelOwnsEquation(label, equation);
+  // This native producer spells numeric multiplication without '*'. Compare
+  // the entire normalized literal body; the source-equation oracle is unchanged.
+  const canonical = (value: string) => normalizeEquation(value).replace(/(\d)(?=x\b)/g, "$1*");
+  return canonical(label) === canonical(equation.sourceText);
 }
 
 function wholeEquationAgrees(equation: string, oracle: SourceEquation): boolean {
@@ -1148,9 +1193,10 @@ function verifyOwnership(fixture: Fixture, representation: SelectedRepresentatio
   const compiled = compileSceneDocument(representation.sceneDocument);
   assert(compiled.ok && compiled.renderScene, "a returned source figure must pass the real compiler");
   if (fixture.mustDrawExplicitCurves) assert.equal(curves.length, fixture.equations.length, "retain genuine explicit source functions");
+  if (fixture.exactCurveExpressions) assert.deepEqual(curves.map(curve => unscaledCurveInput(curve.inputs.expression, representation)), fixture.exactCurveExpressions, "every complete unary body must retain its exact canonical expression");
   const owners = new Set<number>();
   for (const curve of curves) {
-    const expression = curve.inputs.expression;
+    const expression = unscaledCurveInput(curve.inputs.expression, representation);
     assert.equal(typeof expression, "string", "every plotted function has an expression");
     assert(typeof expression === "string");
     const equationIndex = fixture.equations.findIndex((equation) => curve.operator === "function_curve" ? agreesWithSamples(expression, equation) : equation.samples.every(({ x, y }) => {
@@ -1165,16 +1211,30 @@ function verifyOwnership(fixture: Fixture, representation: SelectedRepresentatio
     for (const entityId of curve.outputs) {
       const entity = representation.sceneDocument.entities.find(({ id }) => id === entityId);
       assert(entity && typeof entity.label === "string", "every copied equation has an attached label");
-      assert(labelOwnsEquation(entity.label, equation), `${entity.label} does not label its own source equation ${equation.sourceText}`);
+      assert(nativeDisplayLabelOwnsEquation(entity.label, equation, representation), `${entity.label} does not label its own source equation ${equation.sourceText}`);
       const labels = compiled.renderScene.primitives.filter((primitive) => primitive.entityId === entityId && primitive.kind === "label");
       assert(labels.length > 0, "the source-equation label must actually render on its curve");
-      assert(labels.every(({ text }) => typeof text === "string" && labelOwnsEquation(text, equation)), "rendered labels must keep whole-equation ownership");
+      assert(labels.every(({ text }) => typeof text === "string" && nativeDisplayLabelOwnsEquation(text, equation, representation)), "rendered labels must keep whole-equation ownership");
     }
   }
   if (fixture.mustDrawExplicitCurves) assert.equal(owners.size, fixture.equations.length);
   if (representation.figureSource === "source_grounded") assert(!representation.sceneDocument.constructions.some(({ operator }) =>
     operator === "function_region" || operator === "intersection"),
   "a source-only sketch must not acquire a solved region or intersection");
+}
+
+// The existing equation oracles stay unscaled. A declared native display
+// coordinate map is checked independently as an exact common literal wrapper.
+function unscaledCurveInput(value: unknown, representation: SelectedRepresentation): unknown {
+  const transform = representation.sceneDocument.source.functionDisplayTransform;
+  if (transform === undefined) return value;
+  assert(transform !== null && typeof transform === "object" && "yScale" in transform && "xScale" in transform && "schemaVersion" in transform);
+  assert.deepEqual(Reflect.ownKeys(transform).sort(), ["schemaVersion", "xScale", "yScale"]);
+  assert.equal(transform.schemaVersion, "function-display/v1"); assert.equal(transform.xScale, 1);
+  assert(typeof transform.yScale === "number" && Number.isFinite(transform.yScale) && transform.yScale > 0);
+  assert.equal(representation.tier, "qualitative_verified"); assert.equal(representation.nonMetric, true);
+  assert(typeof value === "string" && value.startsWith(`(${transform.yScale})*(`) && value.endsWith(")"));
+  return value.slice(`(${transform.yScale})*(`.length, -1);
 }
 
 let checks = 0;
@@ -1213,7 +1273,7 @@ for (const fixture of selectedFixtures) {
   check(`${fixture.id}: verified selection`, () => {
     const representation = selectVerifiedRepresentation({ question: fixture.question, turnPlan: plan });
     verifyOwnership(fixture, representation);
-    if (fixture.mustRetainNative) assert.notEqual(representation.figureSource, "source_grounded", "a wholly proved native curve must retain strict-mode availability");
+    if (fixture.mustRetainNative) assert.notEqual(representation.figureSource, "source_grounded", "a wholly proved native curve must retain its native route");
     assert.deepEqual(plan, originalPlan, "fallback selection must not rewrite its input plan");
   });
   if (lexicalOwnershipFixtures.includes(fixture)) check(`${fixture.id}: inferred-family selection`, () => {
@@ -1224,6 +1284,7 @@ for (const fixture of selectedFixtures) {
   });
   if (lexicalOwnershipFixtures.includes(fixture)) check(`${fixture.id}: fast-family selection`, () => {
     const representation = selectFastVerifiedRepresentation({ question: fixture.question, turnPlan: plan, families: inferSceneCapabilities(fixture.question).families });
+    if (fixture.mustRetainFast) assert(representation, "a whole native unary body must retain fast-family availability");
     if (representation) verifyOwnership(fixture, representation);
     assert.deepEqual(plan, originalPlan);
   });
@@ -1302,6 +1363,150 @@ check("quoted function cannot borrow plan or IR authority", () => {
   const plan: TurnPlanV3 = { schemaVersion: "turn-plan/v3", question, givens: [{ id: "quote_coefficient", symbol: "a", value: 2, sourceText: "y=x^2", provenance: "given" }], unknowns: [], derived: [], qualitativeClaims: [], lawIds: [], assumptions: [], visualRequirement: "required" };
   const selected = selectVerifiedRepresentation({ question, turnPlan: plan, families: ["analytic_curve"], problemIR: { entities: [{ kind: "function", label: "y=x^2" }], representationIntents: [{ kind: "analytic_curve" }], facts: [{ kind: "equation", statement: "y=x^2" }] } });
   assert.equal(selected.sceneDocument.constructions.length, 0, "masked-stem proof must not inherit function hints from the original plan/IR/families");
+});
+
+type NativeDisplayCandidate = NonNullable<ReturnType<typeof synthesizeFamilyScene>>;
+const inverseSourceQuestion = "Let f(x) = x^3, with domain the real numbers. Find f inverse of 8, and say whether reflecting the graph of f in the line y = x gives the graph of the inverse.";
+function nativeDisplayCandidate(question = inverseSourceQuestion): NativeDisplayCandidate {
+  const candidate = synthesizeFamilyScene({ question, families: ["analytic_curve"], turnPlan: null, problemIR: null });
+  assert(candidate, "the actual source-bound native producer must build the display fixture");
+  assert.equal(candidate.tier, "qualitative_verified"); assert.equal(candidate.nonMetric, true);
+  const transform = candidate.document.source.functionDisplayTransform;
+  assert(transform && typeof transform === "object" && "yScale" in transform && typeof transform.yScale === "number" && transform.yScale > 0);
+  return candidate;
+}
+function nativeDisplayScale(candidate: NativeDisplayCandidate): number {
+  const transform = candidate.document.source.functionDisplayTransform;
+  assert(transform && typeof transform === "object" && "yScale" in transform && typeof transform.yScale === "number");
+  return transform.yScale;
+}
+function recompiledNativeVariant(candidate: NativeDisplayCandidate, mutate: (copy: NativeDisplayCandidate) => void): NativeDisplayCandidate {
+  const copy = structuredClone(candidate);
+  mutate(copy);
+  // Prove the altered display geometry honestly before asking whether its
+  // whole bodies still belong to this source. Existence is not source proof.
+  for (const assertion of copy.document.assertions) if (assertion.predicate === "function_value") {
+    const construction = copy.document.constructions.find(c => c.outputs.includes(assertion.entities[0] ?? ""));
+    const expected = assertion.expected;
+    assert(construction && typeof construction.inputs.expression === "string" && expected && typeof expected === "object" && "x" in expected && typeof expected.x === "number");
+    assertion.expected = { ...expected, y: parseMathExpression(construction.inputs.expression).evaluate(expected.x) };
+  }
+  const compiled = compileSceneDocument(copy.document);
+  assert(compiled.ok && compiled.renderScene, "the negative control must have real, valid display geometry");
+  return { ...copy, renderScene: compiled.renderScene, validationReport: compiled.report };
+}
+check("native display: whole mixed named+y source inventory", () => {
+  const original = nativeDisplayCandidate(), before = structuredClone(original);
+  const admitted = prepareFallbackFunctionInventory(inverseSourceQuestion, original);
+  assert(admitted, "a complete declared native source display must remain available");
+  const k = nativeDisplayScale(admitted);
+  assert.deepEqual(admitted.document.constructions.filter(c => c.operator === "function_curve").map(c => c.inputs.expression).sort(), [`(${k})*(x)`, `(${k})*(x^3)`].sort());
+  assert.deepEqual(admitted.renderScene.primitives.filter(p => p.kind === "label").map(p => p.text).sort(), ["y=x", "y=x^3"]);
+  assert.deepEqual(original, before, "native admission must leave the producer candidate unchanged");
+});
+for (const route of ["normal", "inferred", "fast"] as const) check(`native display inverse-source retention: ${route}`, () => {
+  const question = inverseSourceQuestion;
+  const plan: TurnPlanV3 = { schemaVersion: "turn-plan/v3", question, givens: [], unknowns: [], derived: [], qualitativeClaims: [], lawIds: [], assumptions: [], visualRequirement: "required" };
+  const input = { question, turnPlan: plan, families: route === "normal" ? undefined : inferSceneCapabilities(question).families };
+  const selected = route === "fast" ? selectFastVerifiedRepresentation(input) : selectVerifiedRepresentation(input);
+  assert(selected && !["source_grounded", "text_only"].includes(selected.figureSource), "the complete native program must survive its real production route");
+  assert.equal(selected.nonMetric, true); assert.equal(selected.tier, "qualitative_verified");
+  assert.deepEqual(selected.sceneDocument.constructions.filter(c => c.operator === "function_curve").map(c => unscaledCurveInput(c.inputs.expression, selected)).sort(), ["x", "x^3"]);
+});
+const displayMetadataMutations: ReadonlyArray<readonly [string, unknown]> = [
+  ["zero factor", { schemaVersion: "function-display/v1", xScale: 1, yScale: 0 }],
+  ["negative factor", { schemaVersion: "function-display/v1", xScale: 1, yScale: -1 }],
+  ["infinite factor", { schemaVersion: "function-display/v1", xScale: 1, yScale: Infinity }],
+  ["NaN factor", { schemaVersion: "function-display/v1", xScale: 1, yScale: NaN }],
+  ["string factor", { schemaVersion: "function-display/v1", xScale: 1, yScale: "0.5" }],
+  ["x scaling", { schemaVersion: "function-display/v1", xScale: 2, yScale: 0.5 }],
+  ["wrong schema", { schemaVersion: "function-display/v2", xScale: 1, yScale: 0.5 }],
+  ["extra offset", { schemaVersion: "function-display/v1", xScale: 1, yScale: 0.5, yOffset: 1 }],
+  ["per-curve field", { schemaVersion: "function-display/v1", xScale: 1, yScale: 0.5, curveFactors: [0.5, 1] }],
+];
+for (const [name, declaration] of displayMetadataMutations) check(`native display rejects ${name}`, () => {
+  const copy = structuredClone(nativeDisplayCandidate()); copy.document.source.functionDisplayTransform = declaration;
+  assert.equal(prepareFallbackFunctionInventory(inverseSourceQuestion, copy), null);
+});
+for (const question of [inverseSourceQuestion, namedNativeRetention[0]!.question]) {
+  for (const mutation of ["different factor", "negative input factor", "per-curve factor", "offset", "wrong body", "wrong label", "metric authority"] as const) check(`native display source/label mutation ${mutation}: ${question}`, () => {
+    const original = nativeDisplayCandidate(question), k = nativeDisplayScale(original);
+    const copy = recompiledNativeVariant(original, candidate => {
+      const curves = candidate.document.constructions.filter(c => c.operator === "function_curve");
+      const curve = mutation === "per-curve factor" ? curves.at(-1)! : curves[0]!;
+      const expression = curve.inputs.expression;
+      assert(typeof expression === "string");
+      if (mutation === "different factor" || mutation === "per-curve factor") curve.inputs.expression = expression.replace(`(${k})*(`, `(${k * 2})*(`);
+      if (mutation === "negative input factor") curve.inputs.expression = expression.replace(`(${k})*(`, `(${-k})*(`);
+      if (mutation === "offset") curve.inputs.expression = expression + "+1";
+      if (mutation === "wrong body") curve.inputs.expression = `(${k})*(x^2)`;
+      if (mutation === "wrong label") candidate.document.entities.find(e => e.id === curve.outputs[0])!.label = "y=x^2";
+      if (mutation === "metric authority") { candidate.tier = "exact_verified"; candidate.nonMetric = false; candidate.document.source.nonMetric = false; candidate.document.source.representationTier = "exact_verified"; }
+    });
+    assert.equal(prepareFallbackFunctionInventory(question, copy), null, "a valid display proof cannot substitute for whole source-body and label ownership");
+  });
+}
+for (const mutation of ["extra entity", "annotation", "render mark", "forged leader"] as const) check(`native display rejects ${mutation}`, () => {
+  const candidate = structuredClone(nativeDisplayCandidate());
+  if (mutation === "extra entity") candidate.document.entities.push({ id: "unowned", kind: "point", role: "extra point" });
+  if (mutation === "annotation") candidate.document.annotations.push({ id: "unowned", kind: "label", targetIds: [candidate.document.entities[0]!.id], text: "unowned" });
+  if (mutation === "render mark") candidate.renderScene.primitives.push({ id: "unowned", entityId: candidate.document.entities[0]!.id, groupId: candidate.renderScene.revealGroups[0]!.id, kind: "point", points: [{ x: 600, y: 300 }] });
+  if (mutation === "forged leader") {
+    const label = candidate.renderScene.primitives.find(p => p.kind === "label")!;
+    label.provenance = { ...label.provenance, usesLeader: true };
+    candidate.renderScene.primitives.push({ id: `${label.id}_leader`, entityId: label.entityId, groupId: label.groupId, kind: "line", points: [{ x: 600, y: 300 }, { x: 900, y: 600 }], provenance: { labelLeader: true } });
+  }
+  assert.equal(prepareFallbackFunctionInventory(inverseSourceQuestion, candidate), null);
+});
+check("native display rejects genuinely compacted long labels", () => {
+  const question = "Plot y=x^3+2*x^2+3*x+4+5*x^4.";
+  const candidate = nativeDisplayCandidate(question);
+  assert(candidate.document.entities.some(entity => entity.label === "y=x^3+2x^2+3x+4+"), "the actual producer must genuinely compact this label");
+  assert.equal(prepareFallbackFunctionInventory(question, candidate), null, "a compact label cannot own a longer whole expression by prefix");
+});
+
+// Independent named declarations own curves even when this producer does not
+// recognize their names. Its labels cannot manufacture a complete inventory.
+const namedInventoryFixtures: readonly { question: string; bodies: readonly string[]; mustRetain?: boolean; mustDecline?: boolean }[] = [
+  { question: "Draw f(x)=x^3 and h(x)=x^2 on shared axes.", bodies: ["x^3", "x^2"] },
+  { question: "Draw f(x)=x^3 and g(x)=x^2 on shared axes.", bodies: ["x^3", "x^2"], mustRetain: true },
+  { question: "Compare f(x)=x and h(x)=x^2 on shared axes.", bodies: ["x", "x^2"] },
+  { question: "Display f(x)=sin(x) and h(x)=cos(x) together.", bodies: ["sin(x)", "cos(x)"] },
+  { question: "Draw f(x)=x^3, g(x)=x^2 and h(x)=x on shared axes.", bodies: ["x^3", "x^2", "x"] },
+  { question: "Draw f(x)=x^3, h(x)=x^2 and curve_2(x)=x on shared axes.", bodies: ["x^3", "x^2", "x"] },
+  { question: "Compare f(x)=x^3 and arbitraryName(x)=x^2.", bodies: ["x^3", "x^2"] },
+  { question: "Compare f(x)=x^3 and φ(x)=x^2.", bodies: ["x^3", "x^2"] },
+  { question: "Draw f(x)=x^3 and h(x)=x^3 on shared axes.", bodies: ["x^3"], mustRetain: true },
+  { question: "Draw f(x)=x^2 on shared axes.", bodies: ["x^2"], mustRetain: true },
+  { question: "Draw f(x)=x^3 and evaluate f(2)=8.", bodies: ["x^3"], mustRetain: true },
+  { question: "Draw f(x)=x^3; its derivative at the origin satisfies f'(0)=0.", bodies: ["x^3"], mustRetain: true },
+  { question: "Draw f(x)=x^3; its derivative at the origin satisfies f′(0)=0.", bodies: ["x^3"], mustRetain: true },
+  { question: "Draw f(x)=x^3 and h(2)=4.", bodies: [], mustDecline: true },
+  { question: "Draw f(x)=x^3 and f'(x)=3*x^2 on shared axes.", bodies: [], mustDecline: true },
+  { question: "Draw f(x)=x^3 and x=1 on shared axes.", bodies: [], mustDecline: true },
+  { question: "Draw f(x)=x^3 and x+y=2 on shared axes.", bodies: [], mustDecline: true },
+  { question: "Draw f(x)=x^3 and x+(h(x)=x^2) on shared axes.", bodies: [], mustDecline: true },
+  { question: "Draw f(x)=x^3 and h(x)=x^2 unknown(x) on shared axes.", bodies: [], mustDecline: true },
+];
+for (const fixture of namedInventoryFixtures) for (const route of ["normal", "inferred", "fast"] as const) check(`complete named source inventory ${route}: ${fixture.question}`, () => {
+  const turnPlan: TurnPlanV3 = { schemaVersion: "turn-plan/v3", question: fixture.question, givens: [], unknowns: [], derived: [], qualitativeClaims: [], lawIds: [], assumptions: [], visualRequirement: "required" };
+  const input = { question: fixture.question, turnPlan, families: route === "normal" ? undefined : inferSceneCapabilities(fixture.question).families };
+  const selected = route === "fast" ? selectFastVerifiedRepresentation(input) : selectVerifiedRepresentation(input);
+  if (!selected || selected.figureSource === "text_only") {
+    assert(!fixture.mustRetain, "a supported complete named function program must retain its native route");
+    if (selected) assert.equal(selected.sceneDocument.constructions.length, 0);
+    return;
+  }
+  assert(!fixture.mustDecline, "an unowned or non-function equality must decline the complete named program");
+  const curves = selected.sceneDocument.constructions.filter(c => c.operator === "function_curve");
+  assert.equal(selected.sceneDocument.constructions.length, curves.length + 1, "only owned whole curves and their axes are admitted");
+  assert.equal(curves.length, fixture.bodies.length, "a producer cannot silently omit an arbitrary named declaration");
+  const canonical = (value: string) => normalizeEquation(value).replace(/(\d)(?=x\b)/g, "$1*").replace(/(\d)\.$/, "$1");
+  assert.deepEqual(curves.map(c => { const body = unscaledCurveInput(c.inputs.expression, selected); assert(typeof body === "string"); return canonical(body); }).sort(), fixture.bodies.map(canonical).sort());
+  for (const curve of curves) for (const id of curve.outputs) {
+    const labels = selected.renderScene.primitives.filter(p => p.entityId === id && p.kind === "label");
+    assert(labels.length > 0 && labels.every(p => typeof p.text === "string" && /^y=/.test(canonical(p.text)) && fixture.bodies.map(canonical).includes(canonical(p.text).slice(2))), "every named source body keeps a complete unscaled owned label");
+  }
 });
 console.log(`source-function equation ownership: ${checks - failed}/${checks} checks passed (${selectedFixtures.length} wordings)`);
 if (failed > 0) process.exitCode = 1;

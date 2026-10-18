@@ -857,26 +857,30 @@ function buildTextOnlyRepresentation(
   };
 }
 
-function extractExplicitFunctionFacts(question: string): SourceFunctionFact[] {
+function extractExplicitFunctionFacts(question: string, nativeInventory = false): SourceFunctionFact[] {
   const normalized = normalizeMathText(question);
   const unquotedPositions = unquotedFunctionSourcePositions(normalized);
   const facts: SourceFunctionFact[] = [];
   const ownedEqualities = new Set<number>();
   const ownedExpressionEnds = new Set<number>();
+  const declaredNames = new Set<string>();
   let previousEquationEnd = -1;
-  for (const match of normalized.matchAll(/\by\s*=\s*/gi)) {
+  const equations = nativeInventory ? /(?<![\p{L}\p{N}_])(?:y|([\p{L}][\p{L}\p{N}_]*)\s*\(\s*x\s*\))\s*=\s*/giu : /\by\s*=\s*/gi;
+  for (const match of normalized.matchAll(equations)) {
     const lhs = match.index!;
     if (!unquotedPositions[lhs]) continue;
+    if (match[1] && FUNCTION_EXPRESSION_IDENTIFIERS.has(match[1].toLowerCase())) return [];
     const boundary = hasStandaloneFunctionLhs(normalized, lhs, previousEquationEnd);
     if (!boundary) return [];
     const start = lhs + match[0].length;
-    const read = readCompleteSupportedExpression(normalized.slice(start), boundary);
+    const read = readCompleteSupportedExpression(normalized.slice(start), boundary, nativeInventory);
     if (!read) return [];
-    const expression = normalizeExpression(read.expression);
+    const expression = nativeInventory ? normalizeNativeFunctionBody(read.expression) : normalizeExpression(read.expression);
     if (!expression) return [];
     ownedEqualities.add(lhs + match[0].indexOf("="));
     previousEquationEnd = start + read.end;
     ownedExpressionEnds.add(previousEquationEnd);
+    if (match[1]) declaredNames.add(match[1]);
     if (!facts.some(fact => fact.expression === expression)) facts.push({ expression, sourceText: `y=${read.expression}` });
     if (facts.length > 4) return [];
   }
@@ -885,23 +889,27 @@ function extractExplicitFunctionFacts(question: string): SourceFunctionFact[] {
   for (const match of normalized.matchAll(/=/g)) {
     const index = match.index!;
     if (!unquotedPositions[index] || ownedEqualities.has(index) || /[<>!]/.test(normalized[index - 1] ?? "")) continue;
-    if (!isAuxiliaryFunctionEquation(normalized, index, facts, ownedExpressionEnds)) return [];
+    if (!isAuxiliaryFunctionEquation(normalized, index, facts, ownedExpressionEnds) &&
+        !(nativeInventory && isNativeScalarFunctionEquation(normalized, index, declaredNames))) return [];
   }
   return facts;
 }
 
-/** Fallback curve builders may not omit, rescale, or relabel an explicit
- * function program. This applies only to constructed Cartesian curves;
- * planner priority and other geometric source programs keep their contracts. */
-function prepareFallbackFunctionInventory<T extends { document: SceneDocument; renderScene: RenderScene; validationReport: ValidationReport; tier?: string; nonMetric?: boolean }>(question: string, candidate: T | null, lastResort = false): T | null {
+/** Question-inventory admission for independently engine-validated and
+ * source-bound syntheses, not a general geometry validator. Named and explicit
+ * Cartesian declarations are independently inventoried in full. Scalar
+ * evaluation slots grant no derivative, inverse, answer, or domain authority. */
+export function prepareFallbackFunctionInventory<T extends { document: SceneDocument; renderScene: RenderScene; validationReport: ValidationReport; tier?: string; nonMetric?: boolean }>(question: string, candidate: T | null, lastResort = false): T | null {
   if (!candidate) return null;
+  const displayFactor = nativeFunctionDisplayFactor(candidate);
+  if (displayFactor === false) return null;
   const curves = candidate.document.constructions.filter(({ operator }) => operator === "function_curve" || operator === "implicit_curve");
   const bareAxes = curves.length === 0 && candidate.document.constructions.length > 0 && candidate.document.constructions.every(({ operator }) => operator === "axes");
   if (curves.length === 0 && !bareAxes) return candidate;
   const normalized = normalizeMathText(question);
   const unquoted = unquotedFunctionSourcePositions(normalized);
   const explicit = Array.from(normalized.matchAll(/\by\s*=/gi));
-  const named = Array.from(normalized.matchAll(/\b[A-Za-z][A-Za-z0-9_]*\s*\(\s*x\s*\)\s*=/gi));
+  const named = Array.from(normalized.matchAll(/(?<![\p{L}\p{N}_])[\p{L}][\p{L}\p{N}_]*\s*\(\s*x\s*\)\s*=/giu));
   const explicitProgram = explicit.some(match => unquoted[match.index!]);
   const namedProgram = named.some(match => unquoted[match.index!]);
   if (bareAxes && (explicitProgram || namedProgram)) return null;
@@ -914,11 +922,11 @@ function prepareFallbackFunctionInventory<T extends { document: SceneDocument; r
       const independent = (lastResort ? synthesizeLastResortScene : synthesizeFamilyScene)({ question: stem, turnPlan: null, problemIR: null });
       if (!independent || nativeProgramFingerprint(candidate) !== nativeProgramFingerprint(independent)) return null;
     }
-    // Named-only and implicit source programs keep their producer contract;
-    // mixed named+y Cartesian programs must still be owned whole below.
-    return candidate;
+    // Implicit programs without a function declaration retain their own
+    // native binding. Every named declaration is inventoried, scaled or not.
+    if (displayFactor === null && !namedProgram) return candidate;
   }
-  const facts = extractExplicitFunctionFacts(question);
+  const facts = explicitProgram || namedProgram ? extractExplicitFunctionFacts(question, true) : nativeBoundLabelFacts(candidate.document);
   if (facts.length === 0 || curves.length !== facts.length) return null;
   let document = candidate.document;
   const owners = new Set<number>();
@@ -926,7 +934,7 @@ function prepareFallbackFunctionInventory<T extends { document: SceneDocument; r
   for (const curve of curves) {
     if (typeof curve.inputs.expression !== "string") return null;
     const expression = curve.operator === "implicit_curve" ? sourceFunctionFromImplicitResidual(curve.inputs.expression)
-      : stripCompleteExpressionGroups(normalizeExpression(normalizeMathText(curve.inputs.expression)));
+      : nativeWholeFunctionBody(curve.inputs.expression, displayFactor);
     const owner = facts.findIndex(fact => stripCompleteExpressionGroups(fact.expression) === expression);
     if (expression === null || owner < 0 || owners.has(owner)) return null;
     owners.add(owner);
@@ -942,14 +950,83 @@ function prepareFallbackFunctionInventory<T extends { document: SceneDocument; r
       outputOwners.set(id, expression);
     }
   }
-  const compiled = document === candidate.document ? null : compileSceneDocument(document);
+  const compiled = document === candidate.document && displayFactor === null ? null : compileSceneDocument(document);
   if (compiled && (!compiled.ok || !compiled.renderScene)) return null;
+  if (displayFactor !== null && JSON.stringify(compiled?.renderScene) !== JSON.stringify(candidate.renderScene)) return null;
   const renderScene = compiled?.renderScene ?? candidate.renderScene;
   for (const [id, expression] of outputOwners) {
     const labels = renderScene.primitives.filter(primitive => primitive.entityId === id && primitive.kind === "label");
     if (labels.length === 0 || labels.some(label => !ownsCompleteFunctionLabel(label.text, expression))) return null;
   }
   return { ...candidate, document, renderScene, validationReport: compiled?.report ?? candidate.validationReport };
+}
+
+function nativeWholeFunctionBody(expression: string, displayFactor: number | null): string | null {
+  if (displayFactor === null) return stripCompleteExpressionGroups(normalizeNativeFunctionBody(expression));
+  const prefix = `(${displayFactor})*(`;
+  if (!expression.startsWith(prefix) || !expression.endsWith(")")) return null;
+  return stripCompleteExpressionGroups(normalizeNativeFunctionBody(expression.slice(prefix.length, -1)));
+}
+
+function normalizeNativeFunctionBody(expression: string): string {
+  return normalizeExpression(normalizeMathText(expression).replace(/\|([^|]+)\|/g, (_match, inner: string) => `abs(${inner})`)).replace(/(\d)\.$/, "$1");
+}
+
+/** Legacy labels already have native source binding. This reads their whole
+ * bodies to prove the declared display map, without interpreting other givens
+ * or granting derivative, answer, or inverse-domain authority. */
+function nativeBoundLabelFacts(document: SceneDocument): SourceFunctionFact[] {
+  const facts: SourceFunctionFact[] = [];
+  for (const curve of document.constructions.filter(({ operator }) => operator === "function_curve")) {
+    if (curve.outputs.length !== 1) return [];
+    const label = document.entities.find(entity => entity.id === curve.outputs[0])?.label;
+    const equation = typeof label === "string" ? /^\s*y\s*=\s*(.+?)\s*$/i.exec(normalizeMathText(label)) : null;
+    if (!equation) return [];
+    const expression = normalizeExpression(equation[1]!);
+    try { parseMathExpression(expression); }
+    catch { return []; }
+    if (facts.some(fact => fact.expression === expression)) return [];
+    facts.push({ expression, sourceText: label! });
+  }
+  return facts;
+}
+
+function nativeFunctionDisplayFactor(candidate: { document: SceneDocument; renderScene: RenderScene; tier?: string; nonMetric?: boolean }): number | null | false {
+  const document = candidate.document;
+  if (!Object.prototype.hasOwnProperty.call(document.source, "functionDisplayTransform")) return null;
+  const transform = document.source.functionDisplayTransform;
+  if (!isRecord(transform) || Reflect.ownKeys(transform).length !== 3 ||
+      !["schemaVersion", "xScale", "yScale"].every(key => Object.prototype.hasOwnProperty.call(transform, key)) ||
+      transform.schemaVersion !== "function-display/v1" || transform.xScale !== 1 ||
+      typeof transform.yScale !== "number" || !Number.isFinite(transform.yScale) || transform.yScale <= 0 ||
+      candidate.tier !== "qualitative_verified" || candidate.nonMetric !== true ||
+      document.source.nonMetric !== true || document.source.representationTier !== "qualitative_verified") return false;
+  const axes = document.constructions.filter(({ operator }) => operator === "axes");
+  const curves = document.constructions.filter(({ operator }) => operator === "function_curve");
+  if (axes.length !== 1 || curves.length === 0 || document.annotations.length > 0 ||
+      document.constructions.some(({ operator, outputs }) => !["axes", "function_curve"].includes(operator) || outputs.length !== 1)) return false;
+  const outputs = document.constructions.flatMap(({ outputs }) => outputs);
+  const ids = new Set(outputs);
+  if (ids.size !== outputs.length || document.entities.length !== ids.size || new Set(document.entities.map(entity => entity.id)).size !== ids.size || document.entities.some(entity => !ids.has(entity.id)) ||
+      document.requiredEntityIds.length !== ids.size || new Set(document.requiredEntityIds).size !== ids.size || document.requiredEntityIds.some(id => !ids.has(id))) return false;
+  for (const construction of document.constructions) {
+    const entity = document.entities.find(entity => entity.id === construction.outputs[0]);
+    if (entity?.kind !== (construction.operator === "axes" ? "axes" : "polyline")) return false;
+  }
+  for (const primitive of candidate.renderScene.primitives) {
+    if (!ids.has(primitive.entityId)) return false;
+    if (primitive.provenance?.labelLeader === true) {
+      if (!["line", "polyline"].includes(primitive.kind) || !candidate.renderScene.primitives.some(label =>
+        label.kind === "label" && label.entityId === primitive.entityId && label.provenance?.usesLeader === true && `${label.id}_leader` === primitive.id)) return false;
+    } else if (primitive.kind === "label") {
+      if (document.entities.find(entity => entity.id === primitive.entityId)?.label !== primitive.text) return false;
+    } else if (axes[0]!.outputs.includes(primitive.entityId) ? primitive.kind !== "axes" : primitive.kind !== "polyline") return false;
+  }
+  for (const construction of document.constructions) {
+    const kind = construction.operator === "axes" ? "axes" : "polyline";
+    if (candidate.renderScene.primitives.filter(primitive => primitive.entityId === construction.outputs[0] && primitive.kind === kind && primitive.provenance?.labelLeader !== true).length !== 1) return false;
+  }
+  return transform.yScale;
 }
 
 function nativeProgramFingerprint(candidate: { document: SceneDocument; tier?: string; nonMetric?: boolean }): string {
@@ -959,7 +1036,7 @@ function nativeProgramFingerprint(candidate: { document: SceneDocument; tier?: s
 function ownsCompleteFunctionLabel(label: unknown, expression: string): boolean {
   if (typeof label !== "string") return false;
   const equation = /^\s*y\s*=\s*(.+?)\s*$/i.exec(normalizeMathText(label));
-  return equation !== null && stripCompleteExpressionGroups(normalizeExpression(equation[1]!)) === expression;
+  return equation !== null && stripCompleteExpressionGroups(normalizeNativeFunctionBody(equation[1]!)) === expression;
 }
 
 function stripCompleteExpressionGroups(value: string): string {
@@ -998,6 +1075,9 @@ const FUNCTION_EXPRESSION_IDENTIFIERS = new Set([
   "x", "pi", "e", "sin", "cos", "tan", "asin", "acos", "atan",
   "sqrt", "abs", "exp", "log", "ln",
 ]);
+const BARE_UNARY_FUNCTION = new RegExp(
+  `(?<![\\p{L}\\p{N}_])(${Array.from(FUNCTION_EXPRESSION_IDENTIFIERS).filter(name => !["x", "pi", "e"].includes(name)).join("|")})\\s+x(?=\\s*(?:$|[+\\-]))`, "gu",
+);
 const FUNCTION_PRIME_SYMBOL = /^(?:[A-Za-z\u0370-\u03ff](?:[0-9\u2080-\u2089]+|_[A-Za-z0-9\u0370-\u03ff]+)?|alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|omicron|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega)$/i;
 const FUNCTION_PRIME_SCALAR = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
 const FUNCTION_QUOTED_SCALAR = /^\s*(?:[A-Za-z\u0370-\u03ff][A-Za-z0-9_\u0370-\u03ff\u2080-\u2089]*\s*=\s*)?[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?\s*$/i;
@@ -1119,16 +1199,26 @@ function hasStandaloneFunctionLhs(source: string, index: number, previousEquatio
 }
 
 interface CompleteSourceExpression { expression: string; end: number }
-function readCompleteSupportedExpression(source: string, closers: readonly string[] = []): CompleteSourceExpression | null {
-  let index = 0, depth = 0;
+function readCompleteSupportedExpression(source: string, closers: readonly string[] = [], nativeSyntax = false): CompleteSourceExpression | null {
+  let index = 0, depth = 0, absoluteDepth: number | null = null;
   const complete = (end: number): CompleteSourceExpression | null => {
     const expression = source.slice(0, index).trim();
     if (!expression || depth !== 0) return null;
-    try { parseMathExpression(normalizeExpression(expression)); return { expression, end }; }
+    try { parseMathExpression(nativeSyntax ? normalizeNativeFunctionBody(expression) : normalizeExpression(expression)); return { expression, end }; }
     catch { return null; }
   };
   while (index < source.length && index < 160) {
     const character = source[index]!;
+    if (nativeSyntax && character === "|") {
+      if (absoluteDepth === null) {
+        if (index > 0 && !/[+\-*/^(]$/.test(source.slice(0, index).trimEnd())) return null;
+        absoluteDepth = depth; depth++;
+      } else {
+        if (depth !== absoluteDepth + 1) return null;
+        depth--; absoluteDepth = null;
+      }
+      index++; continue;
+    }
     if (depth === 0 && (character === ")" || character === "$" || source.startsWith("\\)", index))) {
       if (!closers.length) return null;
       let end = index;
@@ -1192,6 +1282,20 @@ function isAuxiliaryFunctionEquation(source: string, equals: number, functions: 
   return readSourceAtEvaluation(source, evaluation.index) !== null;
 }
 
+/** A complete scalar evaluation is not a Cartesian curve declaration. Its
+ * name must be declared in this source; no numerical answer is certified. */
+function isNativeScalarFunctionEquation(source: string, equals: number, declaredNames: ReadonlySet<string>): boolean {
+  const prefix = source.slice(0, equals);
+  const scalar = "[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)(?:\\s*\\/\\s*[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+))?";
+  const evaluation = new RegExp(`(?<![\\p{L}\\p{N}_])([\\p{L}][\\p{L}\\p{N}_]*)(?:['’′]{1,2}|″)?\\s*\\(\\s*${scalar}\\s*\\)\\s*$`, "u").exec(prefix);
+  const at = /\bat\s+x\s*$/i.exec(prefix);
+  if (evaluation ? !declaredNames.has(evaluation[1]!) || !hasStandaloneFunctionLhs(source, evaluation.index, -1) : !at) return false;
+  const read = readCompleteSupportedExpression(source.slice(equals + 1));
+  if (!read || /\bx\b/.test(read.expression)) return false;
+  try { return Number.isFinite(parseMathExpression(normalizeExpression(read.expression)).evaluate(0)); }
+  catch { return false; }
+}
+
 function readSourceAtEvaluation(source: string, index: number): number | null {
   const slot = /^\(\s*at\s+x\s*=\s*([+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:\s*\/\s*[+-]?(?:\d+(?:\.\d+)?|\.\d+))?)\s*\)/i.exec(source.slice(index));
   if (!slot) return null;
@@ -1214,6 +1318,9 @@ function normalizeMathText(value: string): string {
 
 function normalizeExpression(value: string): string {
   return value
+    // Bare unary notation owns only the literal x argument. Multiplicative,
+    // power, call, identifier and digit continuations remain unsupported.
+    .replace(BARE_UNARY_FUNCTION, "$1(x)")
     .replace(/\s+/g, "")
     .replace(/(\d)(?=(?:x|pi|e|sin|cos|tan|asin|acos|atan|sqrt|abs|exp|log|ln|\())/g, "$1*")
     .replace(/x(?=\()/g, "x*")
