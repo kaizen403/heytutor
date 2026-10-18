@@ -199,6 +199,7 @@ export function useBoardViewport(
       if (
         measured &&
         !readabilityChanged &&
+        lastScrollable === scrollable &&
         lastBox.width > 0 &&
         shouldLockBoardScale({
           widthDelta: width - lastBox.width,

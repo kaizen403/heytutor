@@ -177,6 +177,25 @@ async function main(): Promise<void> {
   const shell = await import("./verify-mobile-caption-dock");
   const { phoneViewportScales, viewportFixture } = shell;
   assert.equal(phoneViewportScales.length, 4);
+  for (const [name, width, height, minimum, needsPan] of [
+    ["blank", 390, 600, null, false],
+    ["large text", 744, 1133, 27, false],
+    ["small readable text", 390, 600, 19, true],
+  ] as const) {
+    const fixture = viewportFixture(width, height, 80, "readable-scroll", 0, minimum);
+    try {
+      const initial = fixture.read();
+      assert.equal(initial.scrollable, needsPan, `${name}: initial pan follows actual text needs`);
+      for (let cycle = 0; cycle < 2; cycle++) {
+        const opened = fixture.resize({ height: 160, keyboardInset: height - 160 });
+        assert.equal(opened.scale, initial.scale, `${name}: keyboard lock preserves the accepted paper scale`);
+        assert.equal(opened.scrollable, true, `${name}: keyboard can pan the temporarily clipped paper`);
+        const closed = fixture.visualResize({ height, keyboardInset: 0 });
+        assert.equal(closed.scale, initial.scale, `${name}: same-box keyboard close retains the accepted paper scale`);
+        assert.equal(closed.scrollable, needsPan, `${name}: same-box keyboard close restores the original pan state without a font change`);
+      }
+    } finally { fixture.close(); }
+  }
   const board = mountTestWhiteboard();
   try {
     for (const [width, height, fontSize] of [[744, 1133, 27], [700, 900, 32]] as const) {
