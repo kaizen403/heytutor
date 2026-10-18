@@ -48,6 +48,12 @@ class HookMount {
   dirty = true;
   effects: Array<() => void> = [];
   react = {
+    useRef: <T,>(initial: T) => {
+      const slot = this.slots[this.cursor] ?? (this.slots[this.cursor] = {});
+      this.cursor++;
+      if (!("value" in slot)) slot.value = { current: initial };
+      return slot.value as { current: T };
+    },
     useState: <T,>(initial: T) => {
       const slot = this.slots[this.cursor] ?? (this.slots[this.cursor] = {});
       this.cursor++;
