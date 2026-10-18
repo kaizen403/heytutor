@@ -1053,6 +1053,43 @@ function readRaoult(stem: string, _quantities: readonly ChemPlanQuantity[]): Rao
         || wordPayloads.some(token=>token.end > span.end && token.start < countEnd)))) return null;
     roles.push({kind:"quantity",span:{start:cue.index!,end:countEnd+head[0].length},scalars:[span]});
   }
+  // A complete nominal pair refers to the independently resolved binary
+  // roster. It owns lexical notation only, never a scalar or argument end.
+  for (const reference of sourceMatches(/\b(pairs?)\s+of\s+/gidu)) {
+    const start = reference.index!, payload = start+reference[0].length;
+    const boundary = [...body.slice(scope.start,start).matchAll(/[;!?\n]|\.(?=\s|$)/g)].at(-1);
+    const sentenceStart = boundary ? scope.start+boundary.index!+boundary[0].length : scope.start;
+    const right = /[;!?\n]|\.(?=\s|$)/.exec(body.slice(payload));
+    const end = right ? payload+right.index : scope.end;
+    const head = /\b(?:liquids|components)\b/iu.exec(body.slice(payload,end));
+    if (!head) continue;
+    const prefix = stem.slice(sentenceStart,start);
+    const determiner = [...prefix.matchAll(/\b(?:the|this|that|an?|its)\b/giu)].at(-1);
+    const from = determiner ? sentenceStart+determiner.index! : start;
+    const modifierStart = determiner ? from+determiner[0].length : start;
+    const headStart = payload+head.index;
+    const modifierValid = (from:number,to:number): boolean => {
+      const text = stem.slice(from,to);
+      return !text.trim() || (/^\s*[\p{L}\p{M}]+(?:[\s-]+[\p{L}\p{M}]+)*\s*$/u.test(text)
+        && !/\b(?:and|or)\b/i.test(text) && !chemistryQuantityPayloadPresent(text)
+        && !wordPayloads.some(token=>token.end > from && token.start < to));
+    };
+    if (reference[1]!.toLowerCase() !== "pair"
+      || !modifierValid(modifierStart,start) || !modifierValid(payload,headStart)) return null;
+    // An attached replacement predicate cannot lend this roster's pressures
+    // to a different pair. Its object must be both actual component names;
+    // modifiers alone establish no exclusion, nor does a negated relation.
+    const pairNames = `(?:${names[0]}\\s+and\\s+${names[1]}|${names[1]}\\s+and\\s+${names[0]})`;
+    const exclusion = new RegExp(String.raw`^\s*(?:,\s*)?(?:(?:is|are)\s+(?:([\p{L}\p{M}]+)\s+)?)?(instead\s+of|rather\s+than|distinct\s+from|not)\s+${pairNames}(?![\p{L}\p{N}\p{M}_])`,"iu")
+      .exec(stem.slice(headStart+head[0].length,end));
+    if (exclusion && !/^(?:not|never)$/i.test(exclusion[1] ?? "")) return null;
+    if (!exclusion && new RegExp(String.raw`\b(?:instead\s+of|rather\s+than|distinct\s+from|not)\s+${pairNames}(?![\p{L}\p{N}\p{M}_])`,"iu")
+      .test(stem.slice(headStart+head[0].length,end))) continue;
+    // Absent nominal-prefix proof adds no role; ordinary prose alone is
+    // not a supplied-invalid quantity and retains the prior source path.
+    if (!determiner && prefix.trim()) continue;
+    roles.push({kind:"notation",span:{start:from,end:headStart+head[0].length},scalars:[]});
+  }
   // Complete parenthetical document references own only their integral ID.
   // Other numbers or property declarations in/after an aside remain checked.
   const documentReferences = sourceMatches(new RegExp(`\\(\\s*(?:[a-z]+\\s+)*(?:question|problem)\\s+${number}\\s*\\)`,"gid"));

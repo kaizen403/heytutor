@@ -2024,6 +2024,234 @@
       "oracle": {},
       "science": "A fractional count phrase is unsupported/nonintegral; the leading2 cannot consume or discardthirds.",
       "provenance": "Frozen standard count-quantity residual control before candidate outputs; original spans only, no numeric word conversion."
+    },
+    {
+      "id": "SOURCE12-PAIR-exact-review",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The pair of liquids is ideal and has 0.5 mole fraction of A. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      },
+      "science": "Complete binary component reference plusxA=.5; independently P=200*.5+100*.5=150torr."
+    },
+    {
+      "id": "SOURCE12-PAIR-volatile-reference",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. This pair of volatile liquids is ideal and contains 0.5 mole fraction of A. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      },
+      "science": "Complete binary component reference plusxA=.5; independently P=200*.5+100*.5=150torr."
+    },
+    {
+      "id": "SOURCE12-PAIR-component-reference",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The pair of components forms an ideal liquid and has 0.5 mole fraction of A. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      },
+      "science": "Complete binary component reference plusxA=.5; independently P=200*.5+100*.5=150torr."
+    },
+    {
+      "id": "SOURCE12-PAIR-modified-reference",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. An ideal pair of miscible liquids is prepared and contains 0.5 mole fraction of A. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      },
+      "science": "Complete binary component reference plusxA=.5; independently P=200*.5+100*.5=150torr."
+    },
+    {
+      "id": "SOURCE12-PAIR-pure-reference",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Consider the pair of pure liquids. The mole fraction of A is 0.5. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      },
+      "science": "Complete binary component reference plusxA=.5; independently P=200*.5+100*.5=150torr."
+    },
+    {
+      "id": "SOURCE12-PAIR-mutually-miscible-reference",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The pair of mutually miscible components is ideal and has 0.5 mole fraction of A. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      },
+      "science": "Complete binary component reference plusxA=.5; independently P=200*.5+100*.5=150torr."
+    },
+    {
+      "id": "SOURCE12-STRICT-bare-multiplier",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The two pairs of volatile liquids form an ideal mixture and have 0.5 mole fraction of A. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {},
+      "science": "Two pairs is4, incompatible with the resolved binary inventory; innerpair must not be source-owned alone."
+    },
+    {
+      "id": "SOURCE12-STRICT-mixture-multiplier",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The mixture of two pairs of volatile liquids is ideal. x_A = 0.5. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {},
+      "science": "Preserve the existing required complete count-multiplier refusal."
+    },
+    {
+      "id": "SOURCE12-STRICT-wrong-unit",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The pair of 2 kg liquids is ideal and has 0.5 mole fraction of A. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {},
+      "science": "An amount/unit inside the component-reference NP cannot be erased as a lexical modifier."
+    },
+    {
+      "id": "SOURCE12-STRICT-unread-reference",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The unreadable pair of liquids is ideal and has 0.5 mole fraction of A. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {},
+      "science": "An explicitly unread supplied reference/cardinality cannot become a valid binary proof."
+    },
+    {
+      "id": "SOURCE12-STRICT-fraction-pair",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The ideal liquid has a pair of mole fractions of A: 0.5 and 0.7. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {},
+      "science": "A fraction head is not a component-roster role, and the two compositions conflict."
+    },
+    {
+      "id": "SOURCE12-STRICT-word-unit-alternative",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The ideal liquid has quarter mol and 0.5 mole fraction of A. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {},
+      "science": "Unsupported worded/dimensional same-argument payload remains supplied-invalid; not declared a universal numeric contradiction."
+    },
+    {
+      "id": "SOURCE12-STRICT-fraction-unit-alternative",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The ideal liquid has two thirds kg and 0.5 mole fraction of A. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {},
+      "science": "Unsupported worded/wrong-dimension same-argument payload cannot be discarded."
+    },
+    {
+      "id": "SOURCE12-STRICT-competing-fraction",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The pair of liquids is ideal and has 0.5 and 0.7 mole fraction of A. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {},
+      "science": "A valid roster reference owns no later composition literal; incompatible fractions still refuse."
+    },
+    {
+      "id": "SOURCE12-STRICT-unread-fraction",
+      "family": "chem_solutions",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The pair of liquids is ideal and has unknown or 0.5 mole fraction of A. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "oracle": {},
+      "science": "A valid roster reference owns no later unread quantity alternative."
+    },
+    {
+      "id": "SOURCE12-QA-NP-prefix-consider-given",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Consider given pair of liquids as an ideal solution. x_A = 0.5. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": true,
+      "totalPressureTorr": 150,
+      "xA": 0.5,
+      "science": "Imperative consider refers to the complete stated A/B pair, not a new cardinal quantity.",
+      "family": "chem_solutions",
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE12-QA-NP-prefix-use-given",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Use given pair of liquids to form an ideal solution. x_A = 0.5. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": true,
+      "totalPressureTorr": 150,
+      "xA": 0.5,
+      "science": "The given pair is the supplied complete binary roster; ordinary imperative wording supplies no competing value.",
+      "family": "chem_solutions",
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE12-QA-NP-prefix-given-sentence",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. Given pair of liquids forms an ideal solution. x_A = 0.5. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": true,
+      "totalPressureTorr": 150,
+      "xA": 0.5,
+      "science": "Article-free given-pair reference preserves the stated complete component identity.",
+      "family": "chem_solutions",
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE12-QA-NP-prefix-for-given",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. For given pair of liquids, assume ideal behaviour. x_A = 0.5. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": true,
+      "totalPressureTorr": 150,
+      "xA": 0.5,
+      "science": "The local prepositional reference is to the already supplied A/B roster.",
+      "family": "chem_solutions",
+      "oracle": {
+        "totalPressureTorr": 150
+      }
+    },
+    {
+      "id": "SOURCE12-QA-ROSTER-replacement-instead",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The other pair of liquids is used instead of A and B and has 0.5 mole fraction of A. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "science": "The requested composition belongs to a replacement pair instead of the pressure-bound A/B roster; its source pressures are missing.",
+      "family": "chem_solutions",
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE12-QA-ROSTER-replacement-rather",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The other pair of liquids is used rather than A and B and has 0.5 mole fraction of A. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "science": "The pair governing the requested mixture explicitly replaces A/B; A/B pressure authority cannot transfer.",
+      "family": "chem_solutions",
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE12-QA-ROSTER-replacement-distinct",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The pair of liquids is distinct from A and B and has 0.5 mole fraction of A. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "science": "Distinct-from relation binds to actual pressure-bound component names, not merely the differing properties of A and B.",
+      "family": "chem_solutions",
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE12-QA-ROSTER-replacement-not",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The pair of liquids is not A and B and has 0.5 mole fraction of A. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "science": "The same-clause subject explicitly excludes the supplied A/B roster; a complete one-state numeric graph is unauthorized.",
+      "family": "chem_solutions",
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE12-QA-ROSTER-expanded-rather",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The pair of liquids is used for the graph rather than A and B and has 0.5 mole fraction of A. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "science": "The requested graph uses a pair replacing the pressure-bound A/B roster, despite a longer attached predicate; the missing pair pressures cannot be borrowed.",
+      "family": "chem_solutions",
+      "oracle": {}
+    },
+    {
+      "id": "SOURCE12-QA-ROSTER-expanded-instead",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The pair of liquids is selected for this ideal mixture instead of A and B and has 0.5 mole fraction of A. Draw the Raoult graph and find total pressure.",
+      "expectedDraw": false,
+      "science": "An expanded passive predicate still explicitly replaces actual A/B; a source-owned notation exemption cannot inherit their pressure authority.",
+      "family": "chem_solutions",
+      "oracle": {}
     }
   ]
 }
