@@ -34,7 +34,7 @@ import type { SceneDocument } from "@heytutor/scene-engine";
 import type { StoredTurn } from "../../lib/boards/boardsClient";
 import type { UseTurnLifecycleParams } from "../../features/tutor-session/hooks/turn/types";
 import { canonicalizeTurnSceneMetadata } from "../../lib/scene/turnScenePersistence";
-import { isAnswerLabel } from "../../features/tutor-session/lib/scene/answerLabelReveal";
+import { answerLabelPrimitiveIds, isAnswerLabel } from "../../features/tutor-session/lib/scene/answerLabelReveal";
 import { storedCodeLessonSegmentCommands } from "../../lib/code-lesson/persistedCodeLesson";
 import { buildReplayTimeline } from "../../lib/replay/replayTimeline";
 import { buildLecturePlayerTimeline } from "../../lib/replay/lecturePlayer";
@@ -314,6 +314,70 @@ async function consumedAnnotationControl() {
   }
 }
 
+async function displayedTextControls() {
+  const base = captured("L11");
+  const compact = structuredClone(base.document);
+  const annotation = compact.annotations.find((entry) => entry.id === "a4")!;
+  annotation.text = "R_max,up = 80/3 m";
+  delete annotation.quantityId;
+  compact.quantities.push({ id: "range", symbol: "R_max,up", value: 80 / 3, unit: "m", provenance: "derived" });
+  for (const group of compact.revealGroups) group.narrationCue = `${group.narrationCue ?? ""} R_max names the range.`;
+  const compiled = compileSceneDocument(compact);
+  assert(compiled.ok && compiled.renderScene, "the historical compact callout must compile through actual authority");
+  const label = compiled.renderScene.primitives.find((primitive) => primitive.id === "a4")!;
+  assert.equal(label.text, "R_max", "actual callout compiler displays only the bare name from the recorded result prose");
+  const shown = buildVerifiedDiagramPresentation(compact, compiled.renderScene);
+  assert(primitiveIds(shown.introSegments.flatMap(getSegmentCommands)).includes("a4"), "live must keep the displayed setup name in its named intro");
+  const commands = shown.diagram.commands.map(verifiedDiagramCommandToDrawCommand);
+  const old = { command: serializeSegmentCommands(commands, { trustedDiagramGeometry: true }), durationMs: 100 };
+  assert.deepEqual(storedCodeLessonSegmentCommands({ status: "complete", sceneDocument: compact }, old), commands, "historical actual compiled R_max must not vanish because hidden annotation prose contains a result");
+  const turn = { ...stored("L11"), sceneDocument: compact, segments: [{ ...stored("L11").segments[0]!, ...old }] };
+  const savedTurn = structuredClone(turn);
+  const replay = buildReplayTimeline([turn]);
+  const player = buildLecturePlayerTimeline([turn]);
+  assert.deepEqual(player.cues.map((cue) => cue.commands), replay.cues.map((cue) => cue.commands), "both actual history consumers retain the same compacted setup label");
+  const emitted: DrawCommand[] = [];
+  let clock = 0;
+  await drawReplayDiagramTimeline({ cues: replay.cues, getTurn: () => turn, getDiagram: () => shown.diagram,
+    executeCommand: async (command) => { emitted.push(command); }, getClockMs: () => clock,
+    waitForAdvance: async () => { clock += 50; }, shouldCancel: () => false });
+  assert.equal(primitiveIds(emitted).filter((id) => id === "a4").length, 1, "replay/export keeps the actual R_max name exactly once through completion");
+  assert.deepEqual(emitted.find((command) => command.semanticRef?.primitiveId === "a4"), commands.find((command) => command.semanticRef?.primitiveId === "a4"), "displayed name text and exact verified ink survive history and completion");
+  assert.deepEqual(turn, savedTurn, "compacted-name projection leaves stored content untouched");
+  const document: SceneDocument = { ...base.document, quantities: [
+    { id: "result", symbol: "v", value: 10, unit: "m/s", provenance: "derived" },
+    { id: "position", symbol: "x", value: 5, unit: "m", provenance: "given" },
+    { id: "time", symbol: "t", value: 5, unit: "s", provenance: "given" },
+    { id: "theta", symbol: "θ", value: 30, unit: "deg", provenance: "unknown" },
+    { id: "resistance", symbol: "R", value: 3, unit: "ohm", provenance: "derived" },
+  ], annotations: [] };
+  for (const [text, quantityId, held] of [
+    ["Circumradius", "result", false], ["First minima", "result", false], ["Final speed", "result", false],
+    ["Common frequency", "result", false], ["Positive area", "result", false], ["Negative area", "result", false],
+    ["R_max", "result", false], ["Mode2", "result", false], ["Speed at x = 5 m", "result", false],
+    ["After 5.0 s", "result", false], ["x = 5 m", "result", false],
+    ["Final speed = 10 m/s", "result", true], ["Final speed = u + a t", "result", true],
+    ["v = u cos θ", "result", true], ["v = sin(θ)", "result", true], ["R = ab", "resistance", true],
+    ["v = U ÷ R", "result", true], ["v = u × cos θ", "result", true],
+    ["R = ∞", "resistance", true], ["v = ½ u", "result", true],
+    ["v = u + a t", "result", true], ["10 m/s", "result", true],
+    ["10", "result", true], ["Final speed 10 m/s", "result", true],
+    ["θ = ?°", "theta", false], ["R = ? Ω", "resistance", false], ["v = (to find)", "result", false],
+    ["v = ? different units", "result", false], ["v = … m/s", "result", false], ["v = _ m/s", "result", false],
+    ["v = ? 10 m/s", "result", false], ["v = _5 m/s", "result", false],
+    ["x = 5 m", "position", false],
+  ] as const) {
+    const row = { id: "displayed-label", kind: "label" as const, targetIds: ["battery"], quantityId, text };
+    document.annotations = [row];
+    assert.equal(isAnswerLabel(document, { id: row.id, entityId: "battery", text }), held, `displayed value policy: ${text}`);
+    const liveIds = answerLabelPrimitiveIds(document, [{ ...label, id: row.id, text, provenance: { annotationId: row.id } }]);
+    assert.equal(liveIds.has(row.id), held, `live primitive policy agrees for the displayed text: ${text}`);
+    const command: DrawCommand = { type: "LABEL", text, params: [700, 200], charPosition: 0, narrationBefore: "", semanticRef: { entityId: "battery", primitiveId: row.id } };
+    const recording = { command: serializeSegmentCommands([command], { trustedDiagramGeometry: true }), durationMs: 100 };
+    assert.equal(storedCodeLessonSegmentCommands({ status: "complete", sceneDocument: document }, recording).length, held ? 0 : 1, `historical and live displayed-value policy agree: ${text}`);
+  }
+}
+
 function compiledOwnerControls() {
   const { document } = captured("L11");
   const current = structuredClone(document);
@@ -373,6 +437,7 @@ async function interruptedCompletion() {
 }
 
 async function main() {
+  await displayedTextControls();
   labelAndLeaderOwnership();
   compiledOwnerControls();
   await consumedAnnotationControl();

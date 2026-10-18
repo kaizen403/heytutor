@@ -59,39 +59,58 @@ export function isAnswerLabel(document: SceneDocument, primitive: {
 }): boolean {
   const consumed = consumedComponentAnnotation(document, primitive);
   const annotation = document.annotations.find((entry) => entry.id === (primitive.annotationId ?? primitive.id)) ?? consumed;
-  // A component designator prefixes the consumed text; it does not own the
-  // value's provenance. Classify the exact annotation the compiler selected.
-  const text = (consumed && annotation?.id === consumed.id ? consumed.text?.trim() : primitive.text?.trim()) || annotation?.text?.trim() || "";
-  const valueText = /^\s*[^=≈:]+[=≈:]\s*(.+)$/u.exec(text)?.[1] ?? text;
-  const placeholder = /^[?？…]+(.*)$/u.exec(valueText.trim());
-  const unitKey = (value: string) => value.normalize("NFKC").replace(/[{}_^\s]/g, "");
-  if (placeholder && (!placeholder[1]!.trim() || document.quantities.some((quantity) =>
-    typeof quantity.unit === "string" && unitKey(quantity.unit) === unitKey(placeholder[1]!),
-  ))) return false;
-  if (annotation?.quantityId) {
-    const quantity = document.quantities.find((entry) => entry.id === annotation.quantityId);
-    if (!quantity || !derived(quantity)) return false;
-    return ![quantity.id, symbolOf(quantity)].some((symbol) => symbolKey(symbol) === symbolKey(text));
-  }
-  if (!consumed && primitive.entityId && primitive.id === `primitive_${primitive.entityId}_label`) {
+  // Only unwrap a component prefix when its displayed text exactly matches
+  // the compiler's consumed annotation; source prose never replaces a name.
+  let text = (consumed && annotation?.id === consumed.id ? consumed.text : primitive.text) ?? annotation?.text ?? "";
+  text = text.trim();
+  let quantity = annotation?.quantityId ? document.quantities.find((entry) => entry.id === annotation.quantityId) : undefined;
+  if (annotation?.quantityId && (!quantity || !derived(quantity))) return false;
+  if (!annotation && primitive.entityId && primitive.id === `primitive_${primitive.entityId}_label`) {
     const entity = document.entities.find((candidate) => candidate.id === primitive.entityId);
-    const quantity = componentQuantity(document, primitive.entityId);
-    if (quantity && derived(quantity) && text && text !== entity?.label?.trim()) return true;
+    quantity = componentQuantity(document, primitive.entityId);
+    if (entity?.label && text.startsWith(`${entity.label} `)) text = text.slice(entity.label.length).trim();
   }
   if (!text) return false;
   const assigned = /^\s*([^=≈:]{1,80})\s*[=≈:]\s*(.+)\s*$/u.exec(text);
-  if (!assigned || /^[?？…\s]+$/u.test(assigned[2]!)) return false;
-  const key = symbolKey(assigned[1]!);
-  const quantities = document.quantities.filter((entry) =>
-    symbolKey(symbolOf(entry)) === key || symbolKey(entry.id) === key,
-  );
-  return quantities.length === 1 && derived(quantities[0]!);
+  const rhs = (assigned?.[2] ?? text).trim();
+  if (/^[?？…_]/u.test(rhs) || /^\(?\s*to\s+find\s*\)?(?:\s|$)/iu.test(rhs)) return false;
+  const references = (name: string) => document.quantities.filter((entry) =>
+    symbolKey(symbolOf(entry)) === symbolKey(name) || symbolKey(entry.id) === symbolKey(name));
+  if (assigned) {
+    const lhs = assigned[1]!.trim();
+    // A qualifier can show a given assignment ("... at x = 5 m") without
+    // displaying the derived quantity to which its annotation is bound.
+    const named = references(lhs);
+    const trailing = named.length ? named : references(lhs.split(/\s+/u).at(-1)!);
+    if (trailing.length === 1 && !derived(trailing[0]!)) return false;
+    if (!quantity) quantity = named.length === 1 ? named[0] : undefined;
+    if (!quantity || !derived(quantity)) return false;
+    // This is reveal timing, not an algebra parser: functions, implicit
+    // products and Unicode operators all reveal an assigned result too.
+    return /[\p{N}\p{L}\p{Sm}]/u.test(rhs);
+  }
+  if (!quantity || !derived(quantity) || /^[\p{L}_][\p{L}\p{N}_{}]*$/u.test(text)) return false;
+  // A numeric literal must be separate from an identifier (Mode2 is a name).
+  const numbers = [...text.matchAll(/(?<![\p{L}\p{N}_])[+−-]?(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?/gu)];
+  if (!numbers.length) return false;
+  if (/^[+−-]?\s*(?:\d|\.\d)/u.test(text)) return true;
+  const unitKey = (value: string) => value.normalize("NFKC").replace(/[{}_^\s]/g, "");
+  const measurementMatches = (entry: Quantity, number: RegExpMatchArray) => {
+    if (Number(entry.value) !== Number(number[0].replace("−", "-"))) return false;
+    const tail = unitKey(text.slice(number.index! + number[0].length));
+    const unit = typeof entry.unit === "string" && !/^(?:1|dimensionless)$/i.test(entry.unit.trim()) ? unitKey(entry.unit) : "";
+    return unit ? tail.startsWith(unit) && !/^[\p{L}\p{N}]/u.test(tail.slice(unit.length)) : !/^[\p{L}\p{N}]/u.test(tail);
+  };
+  // Prose mentioning only given measurements is setup ("After 5.0 s"). An
+  // actual bound result measurement still wins even when a given coincides.
+  return !numbers.every((number) => document.quantities.some((entry) => !derived(entry) && measurementMatches(entry, number))) ||
+    numbers.some((number) => measurementMatches(quantity!, number));
 }
 
 /** A label and its own compiled leader form one reveal; never its whole host. */
 export function answerLabelPrimitiveIds(document: SceneDocument, primitives: readonly RenderPrimitive[]): Set<string> {
   const ids = new Set(primitives.filter((primitive) =>
-    isAnswerLabel(document, {
+    primitive.provenance?.labelLeader !== true && isAnswerLabel(document, {
       id: primitive.id,
       entityId: primitive.entityId,
       text: primitive.text,
@@ -114,38 +133,22 @@ export function answerLabelPrimitiveIds(document: SceneDocument, primitives: rea
  * them from the current verified presentation. Work and geometry stay intact.
  */
 export function withoutEarlyAnswerLabels(document: SceneDocument, commands: readonly DrawCommand[]): DrawCommand[] {
-  const annotations = new Set(document.annotations.filter((annotation) => isAnswerLabel(document, { id: annotation.id })).map((annotation) => annotation.id));
-  const held = new Set(annotations);
+  const annotationIds = new Set(document.annotations.map((annotation) => annotation.id));
+  const held = new Set<string>();
   const measurements = answerMeasurementOwners(document);
-  for (const entity of document.entities) {
-    const annotation = componentValueAnnotation(document, entity.id);
-    if (annotation) {
-      const combined = `${entity.label} ${annotation.text}`;
-      if (combined.length <= 16 && isAnswerLabel(document, { id: `primitive_${entity.id}_label`, entityId: entity.id, text: combined, annotationId: annotation.id })) held.add(`primitive_${entity.id}_label`);
-      // A selected annotation that is too long is not consumed; the compiler
-      // keeps the bare designator, never falling back to a component quantity.
-      continue;
-    }
-    const quantity = componentQuantity(document, entity.id);
-    const value = typeof quantity?.label === "string" ? quantity.label.trim() :
-      typeof quantity?.value === "number" || typeof quantity?.value === "string" ? `${quantity.value}${typeof quantity.unit === "string" && !/^(?:1|dimensionless)$/i.test(quantity.unit.trim()) ? ` ${quantity.unit.trim()}` : ""}` : "";
-    const combined = `${entity.label} ${value}`;
-    if (quantity && derived(quantity) && value && combined.length <= 16) held.add(`primitive_${entity.id}_label`);
-  }
   const isInk = (command: DrawCommand): boolean => command.type.startsWith("DRAW_") ||
     ["LABEL", "DIMENSION", "ARROW", "UNDERLINE", "CIRCLE_AROUND", "HIGHLIGHT", "SCRIBBLE"].includes(command.type);
   for (const command of commands) {
-    if (isInk(command) && isAnswerLabel(document, {
+    if (isInk(command) && command.visualStyle?.labelLeader !== true && isAnswerLabel(document, {
       id: command.semanticRef?.primitiveId,
       entityId: command.semanticRef?.entityId,
       text: command.text,
-      annotationId: annotations.has(command.semanticRef?.entityId ?? "") ? command.semanticRef?.entityId : undefined,
+      annotationId: annotationIds.has(command.semanticRef?.entityId ?? "") ? command.semanticRef?.entityId : undefined,
     }) && command.semanticRef?.primitiveId) held.add(command.semanticRef.primitiveId);
   }
   return commands.filter((command) => {
     if (!isInk(command)) return true;
     const id = command.semanticRef?.primitiveId;
-    if (annotations.has(command.semanticRef?.entityId ?? "")) return false;
     if (measurements.has(command.semanticRef?.entityId ?? "") && (command.type === "DIMENSION" || command.visualStyle?.measurementRole === "witness")) return false;
     if (!id) return true;
     if (held.has(id)) return false;
