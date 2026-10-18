@@ -949,6 +949,11 @@ function spokenCueSentence(cue: string, groupIndex: number, language?: Narration
 function entityPhrase(entity: SceneEntity, language?: NarrationLanguage): string | null {
   const role = cleanRole(entity.role).replace(/\s+label$/i, "");
   const label = entity.label?.trim();
+  // Primitive implementation roles do not establish a physical meaning.
+  // Identify an already-labelled part without guessing from its id or topic.
+  if (label && SPEAKABLE_LABEL.test(label) && /^(?:polyline|helper point)$/i.test(role)) {
+    return language === "hinglish" ? `${label} वाला part` : `the part marked ${label}`;
+  }
   if (!role) {
     return label && SPEAKABLE_LABEL.test(label) ? label : null;
   }
