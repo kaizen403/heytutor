@@ -25,7 +25,7 @@
  */
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, round, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
-import { CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, matchedChemistryComponentAmount, readChemistryLiteral, readChemistryQuantityDeclaration, chemistryQuantityPayloadPresent, chemistryQuestionSpan, chemistryCanonicalValuesAgree, convertChemistryValue, chemistryPlanBindingsValid, type ChemistryUnit, type ChemistrySpan } from "./quantityReader";
+import { CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, matchedChemistryComponentAmount, readChemistryLiteral, readChemistryQuantityDeclaration, chemistryQuantityPayloadPresent, chemistryQuestionSpan, findChemistryQuantities, chemistryCanonicalValuesAgree, convertChemistryValue, chemistryPlanBindingsValid, type ChemistryUnit, type ChemistrySpan } from "./quantityReader";
 import { buildSolutionLessonScene, claimsSolutionLesson } from "./solutionProperties";
 
 export const SOLUTIONS_FAMILY = "chem_solutions" as const;
@@ -248,16 +248,33 @@ const SPECIES: SpeciesEntry[] = [
   { pattern: /weak (?:mono(?:acidic|basic) )?base(?:\s*\(?\s*b\s*\)?)?/, kind: "base", strength: "weak", protons: 1, name: "B", generic: true },
 ];
 
-const SPECIES_ALTERNATION = SPECIES.map((entry) => `(?:${entry.pattern.source})`).join("|");
+/** Notation aliases apply only inside a complete species token. The original
+ * question and every scalar/unit capture keep their original UTF-16 indices. */
+const SUBSCRIPT_DIGITS = "₀₁₂₃₄₅₆₇₈₉";
+function speciesNotationPattern(source: string): string {
+  return source.replace(/\\b/g, "").replace(/[0-9]/g, digit => `[${digit}${SUBSCRIPT_DIGITS[Number(digit)]}]`);
+}
+function speciesIdentity(token: string): string {
+  return token.replace(/\(aq\)$/i, "").replace(/[₀-₉]/g, digit => String(SUBSCRIPT_DIGITS.indexOf(digit))).toLowerCase();
+}
+// Prefixes, extra atoms/subscripts, charges, hydrates and unfinished groups
+// are not the neutral species this titration model supports.
+const SPECIES_LEFT = String.raw`(?<![\p{L}\p{N}\p{M}_^+−⁺⁻\-·/])`;
+const SPECIES_RIGHT = String.raw`(?![\p{L}\p{N}\p{M}_^+−⁺⁻\-·/(\[{])`;
+function completeSpeciesPattern(source: string): string {
+  return `${SPECIES_LEFT}(?:${speciesNotationPattern(source)})(?:\\(aq\\))?${SPECIES_RIGHT}`;
+}
+const SPECIES_ALTERNATION = completeSpeciesPattern(SPECIES.map(entry => `(?:${entry.pattern.source})`).join("|"));
 const CONC_UNIT = "(?:M|N|molar|normal)\\b";
 const VOLUME_UNIT = "(?:ml|cm\\^?3|cc)\\b";
 const FILLER = "(?:(?:of|a|an|aqueous|solution|the)\\s+)*";
-const VOL_CONC_SPECIES = new RegExp(`(${CHEMISTRY_SCALAR_PATTERN})\\s*${VOLUME_UNIT}\\s+${FILLER}(${CHEMISTRY_SCALAR_PATTERN})\\s*(${CONC_UNIT})\\s+${FILLER}(${SPECIES_ALTERNATION})`, "gid");
-const CONC_SPECIES = new RegExp(`(${CHEMISTRY_SCALAR_PATTERN})\\s*(${CONC_UNIT})\\s+${FILLER}(${SPECIES_ALTERNATION})`, "gid");
-const BARE_SPECIES = new RegExp(SPECIES_ALTERNATION, "gd");
+const VOL_CONC_SPECIES = new RegExp(`(${CHEMISTRY_SCALAR_PATTERN})\\s*${VOLUME_UNIT}\\s+${FILLER}(${CHEMISTRY_SCALAR_PATTERN})\\s*(${CONC_UNIT})\\s+${FILLER}(${SPECIES_ALTERNATION})`, "gidu");
+const CONC_SPECIES = new RegExp(`(${CHEMISTRY_SCALAR_PATTERN})\\s*(${CONC_UNIT})\\s+${FILLER}(${SPECIES_ALTERNATION})`, "gidu");
+const BARE_SPECIES = new RegExp(SPECIES_ALTERNATION, "gidu");
+const VOLUME_SPECIES = new RegExp(`(${CHEMISTRY_SCALAR_PATTERN})\\s*${VOLUME_UNIT}\\s+${FILLER}(${SPECIES_ALTERNATION})`, "gidu");
 
 function speciesEntry(token: string): SpeciesEntry | null {
-  return SPECIES.find((entry) => entry.pattern.test(token)) ?? null;
+  return SPECIES.find(entry => new RegExp(`^(?:${entry.pattern.source})$`, "i").test(speciesIdentity(token))) ?? null;
 }
 
 function genericName(entry: SpeciesEntry, token: string): string {
@@ -298,14 +315,24 @@ function readSpeciesMentions(stem: string): { withVolume: ReadSpecies[]; without
     if (withVolume.some((seen) => index >= seen.index && index < seen.end)) continue;
     const entry = speciesEntry(match[3]!.toLowerCase());
     if (!entry) continue;
-    withoutVolume.push({
+    const previous = [...stem.slice(0,index).matchAll(BARE_SPECIES)].at(-1);
+    const prefixStart = previous ? previous.index! + previous[0].length : 0;
+    const prefix = /([+−-]?(?:[\p{N}.][^\s,;()]*|unknown|unreadable|undefined|NaN))\s*([A-Za-z][A-Za-z0-9^/]*)\s+(?:[A-Za-z]+(?:\s+|$))*$/du.exec(stem.slice(prefixStart,index));
+    const localSpan = prefix?.indices?.[1];
+    const prefixSpan = localSpan ? [prefixStart+localSpan[0],prefixStart+localSpan[1]] : null;
+    const suppliedVolume = prefixSpan ? readChemistryQuantityDeclaration({question:stem,after:/^/,
+      within:{start:prefixSpan[0],end:index},dimension:"volume",targetUnit:"mL",owner:"analyte volume before its concentration"}) : null;
+    const record: ReadSpecies = {
       entry,
       name: genericName(entry, match[3]!.toLowerCase()),
       concentration: matchedChemistryQuantity(stem, match, 1, /^n/i.test(match[2]!) ? "normality" : "concentration") ?? NaN,
       normal: /^n/i.test(match[2]!),
       index,
       end: index + match[0].length,
-    });
+    };
+    if (suppliedVolume) withVolume.push({...record,index:prefixSpan![0],
+      volume:suppliedVolume.state === "valid" ? suppliedVolume.reading.value : NaN});
+    else withoutVolume.push(record);
   }
   return { withVolume, withoutVolume };
 }
@@ -318,7 +345,7 @@ interface SuppliedAcidBaseConstants {
  * titration. Missing is the only state that permits the species table. */
 function suppliedAcidBaseConstants(question: string): SuppliedAcidBaseConstants | null {
   const result: SuppliedAcidBaseConstants = {a:null,b:null,supplied:false,namedOwners:[]};
-  const names = String.raw`(?:CH3COOH|HCOOH|NH4OH|NH3|HCN|HF|acetic acid|ethanoic acid|formic acid|methanoic acid|ammonia|ammonium hydroxide|the acid|the base)`;
+  const names = completeSpeciesPattern(String.raw`(?:CH3COOH|HCOOH|NH4OH|NH3|HCN|HF|acetic acid|ethanoic acid|formic acid|methanoic acid|ammonia|ammonium hydroxide|the acid|the base)`);
   // Unqualified named constants do not identify which conjugate species owns
   // the value. Refuse instead of borrowing a table value for the analyte.
   if (/(?<!acid )(?<!base )\b(?:dissociation|ioni[sz]ation) constant\b/i.test(question)) return null;
@@ -334,14 +361,14 @@ function suppliedAcidBaseConstants(question: string): SuppliedAcidBaseConstants 
       // a readable later value cannot mask an earlier explicit unknown owner.
       if (declarations.length !== 1) return null;
       result.supplied = true;
-      const cue = new RegExp(String.raw`(?:${symbol}${word})(?:\s*\(([^)]*)\)|\s+(?:of|for)\s+(${names})(?![a-z0-9]))?\s*(?:value)?`,"igd");
+      const cue = new RegExp(String.raw`(?:${symbol}${word})(?:\s*\(([^)]*)\)|\s+(?:of|for)\s+(${names}))?\s*(?:value)?`,"igdu");
       const owners = [...question.matchAll(cue)];
       if (owners.length !== 1) return null;
       const owner = owners[0]!;
       const namedGroup = owner[1] !== undefined ? 1 : owner[2] !== undefined ? 2 : null;
       if (namedGroup !== null) {
         const named = owner[namedGroup]!.trim();
-        const species = SPECIES.find(entry => new RegExp(`^(?:${entry.pattern.source})$`,"i").test(named));
+        const species = speciesEntry(named);
         const span = owner.indices?.[namedGroup];
         if (!species || !span) return null;
         result.namedOwners.push({species,sourceSpan:{start:span[0],end:span[1]}});
@@ -370,6 +397,47 @@ function toSpecies(read: ReadSpecies, pK: number | null): TitrationSpecies | nul
     return { kind: read.entry.kind, strength, pK: value, protons, concentration, volume: read.volume, name: read.name };
   }
   return { kind: read.entry.kind, strength, protons, concentration, volume: read.volume, name: read.name };
+}
+
+/** Numeric-looking supplied unit arguments must pass the original reader,
+ * even when unsupported numeral glyphs produce no scalar inventory entry.
+ * This is a refusal check, not another number parser or notation conversion. */
+function titrationQuantityTokensValid(question: string): boolean {
+  const body = chemistryQuestionSpan(question);
+  for (const unit of question.slice(body.start,body.end).matchAll(/(?<![\p{L}])(?:mL|ml|cc|cm\^?3|M|N|molar|normal)\b/gu)) {
+    const at = body.start+unit.index!;
+    const argument = /(?:^|[\s,;([])([^\s,;()[\]]+)\s*$/d.exec(question.slice(body.start,at));
+    const span = argument?.indices?.[1];
+    if (!argument || !span || !/[\p{N}]|\b(?:unknown|unreadable|undefined|NaN)\b/iu.test(argument[1]!)) continue;
+    const dimension = /^(?:M|molar)$/.test(unit[0]) ? "concentration" : /^(?:N|normal)$/.test(unit[0]) ? "normality" : "volume";
+    const read = readChemistryQuantityDeclaration({question,after:/^/,
+      within:{start:body.start+span[0],end:at+unit[0].length},dimension,owner:`original titration ${dimension} payload`});
+    if (read.state !== "valid" || read.reading.value <= 0) return false;
+  }
+  return true;
+}
+
+/** Every original volume/concentration literal belongs to a supported species
+ * binding, or to an explicitly added volume of the selected titrant. */
+function titrationQuantitiesConsumed(question: string, analyte: ReadSpecies, titrant: ReadSpecies): boolean {
+  // Binding is to these actual source records, not every later equal-valued
+  // aliquot of the same material. Separate amounts need a separate solver.
+  const bound = [analyte,titrant];
+  const added: ChemistrySpan[] = [];
+  for (const match of question.matchAll(VOLUME_SPECIES)) {
+    if (speciesEntry(match[2]!) !== titrant.entry || !/^\s+(?:has\s+been\s+|is\s+)?added\b/i.test(question.slice(match.index!+match[0].length))) continue;
+    const value = matchedChemistryQuantity(question,match,1,"volume","mL");
+    const start = match.indices?.[1]?.[0];
+    if (value === null || value <= 0 || start === undefined) return false;
+    added.push({start,end:match.index!+match[0].length});
+  }
+  return (["volume","concentration","normality"] as const).every(dimension => {
+    const inventory = findChemistryQuantities({question,dimension});
+    return inventory.ok && inventory.reading.every(reading => bound.some(mention =>
+      reading.source.span.start >= mention.index && reading.source.span.end <= mention.end
+      && (dimension !== "volume" || mention.volume !== undefined))
+      || dimension === "volume" && added.some(span => reading.source.span.start >= span.start && reading.source.span.end <= span.end));
+  });
 }
 
 interface TitrationReading {
@@ -412,7 +480,7 @@ function readTitration(stem: string, quantities: readonly ChemPlanQuantity[]): T
   const titrantSpecies = toSpecies(titrant, null);
   if (!analyteSpecies || !titrantSpecies) return null;
   const curve = titrationCurve({ analyte: analyteSpecies, titrant: titrantSpecies });
-  if (!curve) return null;
+  if (!curve || !titrationQuantitiesConsumed(stem,analyte,titrant)) return null;
   return { spec: { analyte: analyteSpecies, titrant: titrantSpecies }, curve, normalisedVolume: analyte.volume === undefined };
 }
 
@@ -965,6 +1033,7 @@ export function buildSolutionsGraphScene(
   if (FIGURE_PRESENT.test(stem)) return null;
   if (claimsSolutionLesson(question)) return buildSolutionLessonScene(question, quantities, schematic);
   if (titrationCue(stem)) {
+    if (!titrationQuantityTokensValid(question)) return null;
     // Each textual concentration is checked independently here. Species
     // binding and agreement still belong to the ordinary titration reader;
     // valid acid/base concentrations are not coalesced into one owner.
@@ -981,6 +1050,12 @@ export function buildSolutionsGraphScene(
     const numeric = readTitration(question, quantities);
     if (numeric) return titrationScene(question, numeric.curve, numeric.spec, { numeric: true, normalisedVolume: numeric.normalisedVolume });
     if (supplied.supplied) return null;
+    // Supplied numeric data that failed a species/quantity binding must not
+    // disappear into a normalised or qualitative default curve.
+    if ((["volume","concentration","normality"] as const).some(dimension => {
+      const inventory = findChemistryQuantities({question,dimension});
+      return !inventory.ok || inventory.reading.length > 0;
+    })) return null;
     const kind = qualitativeTitrationKind(stem);
     if (!kind) return null;
     const analyte: TitrationSpecies = kind.startsWith("weak acid")

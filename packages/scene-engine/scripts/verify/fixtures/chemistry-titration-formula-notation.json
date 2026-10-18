@@ -1,0 +1,396 @@
+{
+  "scope": "Synthetic real-wording formula-alias/numeric-source regression gate; not capture or coverage. Stoichiometry values are independent n_acid*C_a*V_a=n_base*C_b*V_b or normality arithmetic. All original number/unit spelling stays authoritative.",
+  "rows": [
+    {
+      "id": "exact-thread",
+      "question": "25 mL of 0.2 M H₂SO₄ is titrated with 0.1 M NaOH. Draw the titration curve and find equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 100
+    },
+    {
+      "id": "nitric-acid",
+      "question": "30 mL of 0.1 M HNO₃ is titrated with 0.2 M NaOH. Sketch the pH titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 15
+    },
+    {
+      "id": "ammonia",
+      "question": "20 mL of 0.1 M NH₃ is titrated with 0.2 M HCl. Draw the titration curve and mark equivalence.",
+      "expectedDraw": true,
+      "equivalenceMl": 10
+    },
+    {
+      "id": "acetic-Ka",
+      "question": "40 mL of 0.2 M CH₃COOH is titrated with 0.1 M KOH. Ka of CH₃COOH = 1e-5. Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 80,
+      "pK": 5
+    },
+    {
+      "id": "barium-base",
+      "question": "10 mL of 0.1 M Ba(OH)₂ is titrated with 0.2 M HCl. Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 10
+    },
+    {
+      "id": "calcium-base",
+      "question": "20 mL of 0.1 M Ca(OH)₂ is titrated with 0.1 M HNO₃. Show the pH titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 40
+    },
+    {
+      "id": "sulfate-titrant",
+      "question": "25 mL of 0.1 M NaOH is titrated with 0.2 M H₂SO₄. Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 6.25
+    },
+    {
+      "id": "ammonium-hydroxide",
+      "question": "10 mL of 0.1 M NH₄OH is titrated with 0.1 M HCl. Plot the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 10
+    },
+    {
+      "id": "mixed-subscript",
+      "question": "25 mL of 0.2 M H₂SO4 is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 100
+    },
+    {
+      "id": "acetic-pKa-owner",
+      "question": "25 mL of 0.1 M CH₃COOH is titrated with 0.1 M NaOH; pKa of CH₃COOH = 4.2. Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 25,
+      "pK": 4.2
+    },
+    {
+      "id": "ammonia-pKb-owner",
+      "question": "30 mL of 0.1 M NH₃ is titrated with 0.15 M HCl; pKb of NH₃ = 4.5. Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 20,
+      "pK": 4.5
+    },
+    {
+      "id": "normality",
+      "question": "25 mL of 0.2 N H₂SO₄ is titrated with 0.1 N NaOH. Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 50
+    },
+    {
+      "id": "exact-thread-ascii",
+      "question": "25 mL of 0.2 M H2SO4 is titrated with 0.1 M NaOH. Draw the titration curve and find equivalence volume.",
+      "expectedDraw": true,
+      "equivalenceMl": 100,
+      "pairedWith": "exact-thread"
+    },
+    {
+      "id": "nitric-acid-ascii",
+      "question": "30 mL of 0.1 M HNO3 is titrated with 0.2 M NaOH. Sketch the pH titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 15,
+      "pairedWith": "nitric-acid"
+    },
+    {
+      "id": "ammonia-ascii",
+      "question": "20 mL of 0.1 M NH3 is titrated with 0.2 M HCl. Draw the titration curve and mark equivalence.",
+      "expectedDraw": true,
+      "equivalenceMl": 10,
+      "pairedWith": "ammonia"
+    },
+    {
+      "id": "acetic-Ka-ascii",
+      "question": "40 mL of 0.2 M CH3COOH is titrated with 0.1 M KOH. Ka of CH3COOH = 1e-5. Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 80,
+      "pK": 5,
+      "pairedWith": "acetic-Ka"
+    },
+    {
+      "id": "barium-base-ascii",
+      "question": "10 mL of 0.1 M Ba(OH)2 is titrated with 0.2 M HCl. Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 10,
+      "pairedWith": "barium-base"
+    },
+    {
+      "id": "calcium-base-ascii",
+      "question": "20 mL of 0.1 M Ca(OH)2 is titrated with 0.1 M HNO3. Show the pH titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 40,
+      "pairedWith": "calcium-base"
+    },
+    {
+      "id": "sulfate-titrant-ascii",
+      "question": "25 mL of 0.1 M NaOH is titrated with 0.2 M H2SO4. Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 6.25,
+      "pairedWith": "sulfate-titrant"
+    },
+    {
+      "id": "ammonium-hydroxide-ascii",
+      "question": "10 mL of 0.1 M NH4OH is titrated with 0.1 M HCl. Plot the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 10,
+      "pairedWith": "ammonium-hydroxide"
+    },
+    {
+      "id": "mixed-subscript-ascii",
+      "question": "25 mL of 0.2 M H2SO4 is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 100,
+      "pairedWith": "mixed-subscript"
+    },
+    {
+      "id": "acetic-pKa-owner-ascii",
+      "question": "25 mL of 0.1 M CH3COOH is titrated with 0.1 M NaOH; pKa of CH3COOH = 4.2. Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 25,
+      "pK": 4.2,
+      "pairedWith": "acetic-pKa-owner"
+    },
+    {
+      "id": "ammonia-pKb-owner-ascii",
+      "question": "30 mL of 0.1 M NH3 is titrated with 0.15 M HCl; pKb of NH3 = 4.5. Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 20,
+      "pK": 4.5,
+      "pairedWith": "ammonia-pKb-owner"
+    },
+    {
+      "id": "normality-ascii",
+      "question": "25 mL of 0.2 N H2SO4 is titrated with 0.1 N NaOH. Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 50,
+      "pairedWith": "normality"
+    },
+    {
+      "id": "invalid-acid-token-1",
+      "question": "25 mL of 0.2 M H₂SO₄₂ is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "invalid-acid-token-2",
+      "question": "25 mL of 0.2 M H₂SO₄X is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "invalid-acid-token-3",
+      "question": "25 mL of 0.2 M H₂SO₄⁻ is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "invalid-acid-token-4",
+      "question": "25 mL of 0.2 M H₂SO₄^2- is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "invalid-acid-token-5",
+      "question": "25 mL of 0.2 M H₂SO₄·H₂O is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "invalid-acid-token-6",
+      "question": "25 mL of 0.2 M H₂SO₅ is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "invalid-acid-token-7",
+      "question": "25 mL of 0.2 M XH₂SO₄ is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "invalid-base-token-1",
+      "question": "25 mL of 0.2 M Ba(OH)₂₃ is titrated with 0.1 M HCl. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "invalid-base-token-2",
+      "question": "25 mL of 0.2 M Ca(OH)₂+ is titrated with 0.1 M HCl. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "invalid-base-token-3",
+      "question": "25 mL of 0.2 M NH₄OHX is titrated with 0.1 M HCl. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "wrong-Ka-owner",
+      "question": "25 mL of 0.1 M HF is titrated with 0.1 M NaOH; Ka of CH₃COOH = 1e-5. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "unknown-Ka-owner",
+      "question": "25 mL of 0.1 M CH₃COOH is titrated with 0.1 M NaOH; Ka of CH₃COOHX = 1e-5. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "invalid-volume-1",
+      "question": "₂₅ mL of 0.2 M H₂SO₄ is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "invalid-volume-2",
+      "question": "25e- mL of 0.2 M H₂SO₄ is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "invalid-volume-3",
+      "question": "unreadable mL of 0.2 M H₂SO₄ is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "invalid-volume-4",
+      "question": "0 mL of 0.2 M H₂SO₄ is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "invalid-volume-5",
+      "question": "-25 mL of 0.2 M H₂SO₄ is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "invalid-concentration-1",
+      "question": "25 mL of ₀.₂ M H₂SO₄ is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "invalid-concentration-2",
+      "question": "25 mL of 0.₂ M H₂SO₄ is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "invalid-concentration-3",
+      "question": "25 mL of 0.2e- M H₂SO₄ is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "invalid-concentration-4",
+      "question": "25 mL of unknown M H₂SO₄ is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "invalid-concentration-5",
+      "question": "25 mL of 0 M H₂SO₄ is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "invalid-concentration-6",
+      "question": "25 mL of -0.2 M H₂SO₄ is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "unicode-Ka-number",
+      "question": "25 mL of 0.1 M CH₃COOH is titrated with 0.1 M NaOH; Ka of CH₃COOH = 1 × 10⁻⁵. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "symbolic-weak-acid",
+      "question": "Draw the titration curve of a weak acid with a strong base and mark the half equivalence point.",
+      "expectedDraw": true,
+      "qualitative": true
+    },
+    {
+      "id": "symbolic-strong-base",
+      "question": "Sketch the titration curve of a strong base titrated with a strong acid.",
+      "expectedDraw": true,
+      "qualitative": true
+    },
+    {
+      "id": "wrong-dimension-volume",
+      "question": "25 kg of 0.2 M H₂SO₄ is titrated with 0.1 M NaOH. Draw the titration curve and find equivalence volume.",
+      "expectedDraw": false
+    },
+    {
+      "id": "concentrations-only",
+      "question": "0.2 M H₂SO₄ is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": true,
+      "normalized": true
+    },
+    {
+      "id": "ordinary-name",
+      "question": "25 mL of 0.2 M sulfuric acid is titrated with 0.1 M sodium hydroxide. Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 100,
+      "diagnostic": true,
+      "diagnosticReason": "Actual7596 own841f declines all4: US sulfuric spelling unsupported before this patch. True positive gold retained; no vocabulary extension."
+    },
+    {
+      "id": "two-aliquots",
+      "question": "25 mL of 0.2 M H₂SO₄ is mixed with another 25 mL of 0.2 M H₂SO₄ and titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "all-unicode-quantities",
+      "question": "₂₅ mL of ₀.₂ M H₂SO₄ is titrated with ₀.₁ M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "kg-sample",
+      "question": "A 25 kg sample of 0.2 M H₂SO₄ is titrated with 0.1 M NaOH. Draw pH against added base volume and find equivalence volume.",
+      "expectedDraw": false
+    },
+    {
+      "id": "ordinary-supported-name",
+      "question": "25 mL of 0.2 M sulphuric acid is titrated with 0.1 M sodium hydroxide. Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 100
+    },
+    {
+      "id": "aqueous-unicode",
+      "question": "25 mL of 0.2 M H₂SO₄(aq) is titrated with 0.1 M NaOH(aq). Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 100
+    },
+    {
+      "id": "aqueous-ascii",
+      "question": "25 mL of 0.2 M H2SO4(aq) is titrated with 0.1 M NaOH(aq). Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 100
+    },
+    {
+      "id": "invalid-aq-suffix",
+      "question": "25 mL of 0.2 M H₂SO₄(aqX) is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "incomplete-aq-suffix",
+      "question": "25 mL of 0.2 M H₂SO₄(aq is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "sample-volume",
+      "question": "A 20 mL sample of 0.2 M H₂SO₄ is titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 80
+    },
+    {
+      "id": "aliquot-volume",
+      "question": "A 15 mL aliquot of 0.1 M HNO₃ is titrated with 0.1 M KOH. Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 15
+    },
+    {
+      "id": "portion-volume",
+      "question": "A 30 mL portion of 0.1 M Ba(OH)₂ is titrated with 0.2 M HCl. Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 30
+    },
+    {
+      "id": "Ka-named-letter-continuation",
+      "question": "25 mL of 0.1 M CH₃COOH is titrated with 0.1 M NaOH; Ka of CH₃COOHλ = 1e-5. Draw the titration curve.",
+      "expectedDraw": false
+    },
+    {
+      "id": "Ka-aqueous-owner",
+      "question": "25 mL of 0.1 M CH₃COOH(aq) is titrated with 0.1 M NaOH; Ka of CH₃COOH(aq) = 1e-5. Draw the titration curve.",
+      "expectedDraw": true,
+      "equivalenceMl": 25,
+      "pK": 5
+    },
+    {
+      "id": "two-aliquots-ascii",
+      "question": "25 mL of 0.2 M H2SO4 is mixed with another 25 mL of 0.2 M H2SO4 and titrated with 0.1 M NaOH. Draw the titration curve.",
+      "expectedDraw": false
+    }
+  ]
+}
