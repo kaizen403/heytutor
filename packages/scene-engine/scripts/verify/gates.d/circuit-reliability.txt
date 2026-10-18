@@ -1,0 +1,2 @@
+tsx scripts/verify/verify-connector-routing.ts
+tsx scripts/verify/verify-circuit-topology-guidance.ts
