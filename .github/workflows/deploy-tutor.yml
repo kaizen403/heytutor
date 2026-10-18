@@ -74,6 +74,8 @@ jobs:
         run: |
           pnpm rebuild @prisma/client @prisma/engines esbuild prisma
           pnpm --filter @heytutor/tutor exec prisma generate
+      - name: Verify gate list preservation and execution
+        run: node --test tools/verify/run-gates.test.mjs
       - name: Build shared packages
         run: pnpm turbo run build --filter='./packages/*'
       - name: Symbolic planner regressions
