@@ -261,8 +261,13 @@ function speciesIdentity(token: string): string {
 // are not the neutral species this titration model supports.
 const SPECIES_LEFT = String.raw`(?<![\p{L}\p{N}\p{M}_^+−⁺⁻\-·/])`;
 const SPECIES_RIGHT = String.raw`(?![\p{L}\p{N}\p{M}_^+−⁺⁻\-·/(\[{])`;
+const ACID_BASE_CONSTANT_SYMBOL = String.raw`(?:p\s*)?k\s*_?\s*(?:\{\s*[ab]\s*\}|[ab])(?![a-z])`;
+const ATTACHED_CONSTANT_START = String.raw`\(\s*(?=${ACID_BASE_CONSTANT_SYMBOL})`;
 function completeSpeciesPattern(source: string): string {
-  return `${SPECIES_LEFT}(?:${speciesNotationPattern(source)})(?:\\(aq\\))?${SPECIES_RIGHT}`;
+  // A typed annotation opening is only lexical presence. Its full group and
+  // every payload are independently validated before any titration can draw.
+  const right = `(?:${SPECIES_RIGHT}|(?=\\s*${ATTACHED_CONSTANT_START}))`;
+  return `${SPECIES_LEFT}(?:${speciesNotationPattern(source)})(?:\\(aq\\))?${right}`;
 }
 const SPECIES_ALTERNATION = completeSpeciesPattern(SPECIES.map(entry => `(?:${entry.pattern.source})`).join("|"));
 const CONC_UNIT = "(?:M|N|molar|normal)\\b";
@@ -317,7 +322,7 @@ function readSpeciesMentions(stem: string): { withVolume: ReadSpecies[]; without
     if (!entry) continue;
     const previous = [...stem.slice(0,index).matchAll(BARE_SPECIES)].at(-1);
     const prefixStart = previous ? previous.index! + previous[0].length : 0;
-    const prefix = /([+−-]?(?:[\p{N}.][^\s,;()]*|unknown|unreadable|undefined|NaN))\s*([A-Za-z][A-Za-z0-9^/]*)\s+(?:[A-Za-z]+(?:\s+|$))*$/du.exec(stem.slice(prefixStart,index));
+    const prefix = /([+−-]?(?:(?:\p{N}|\.(?=\p{N}))[^\s,;()]*|unknown|unreadable|undefined|NaN))\s*([A-Za-z][A-Za-z0-9^/]*)\s+(?:[A-Za-z]+(?:\s+|$))*$/du.exec(stem.slice(prefixStart,index));
     const localSpan = prefix?.indices?.[1];
     const prefixSpan = localSpan ? [prefixStart+localSpan[0],prefixStart+localSpan[1]] : null;
     const suppliedVolume = prefixSpan ? readChemistryQuantityDeclaration({question:stem,after:/^/,
@@ -340,11 +345,91 @@ function readSpeciesMentions(stem: string): { withVolume: ReadSpecies[]; without
 interface SuppliedAcidBaseConstants {
   a: number | null; b: number | null; supplied: boolean;
   namedOwners: Array<{species:SpeciesEntry;sourceSpan:ChemistrySpan}>;
+  roleOwners: Array<{kind:"acid"|"base";sourceSpan:ChemistrySpan}>;
 }
+interface ParentheticalConstantDeclaration {
+  payloadEnd: number;
+  owner: {species: SpeciesEntry; sourceSpan: ChemistrySpan} | null;
+  roleOwner: {kind:"acid"|"base";sourceSpan:ChemistrySpan} | null;
+}
+
+/** Presence is lexical, before element/catalog resolution: unknown XYZ must
+ * not become an absent owner merely because parsing its elements fails. */
+function constantOwnerPresence(before: string): {text:string;sourceSpan:ChemistrySpan;role?:"acid"|"base"} | null {
+  const terminal = /([^\s,;.!?]+)\s*$/du.exec(before);
+  const span = terminal?.indices?.[1];
+  if (!terminal || !span) return null;
+  const text = terminal[1]!;
+  if (/^(?:acid|base)$/i.test(text)) {
+    const modifier = /([\p{L}][\p{L}-]*)\s+$/du.exec(before.slice(0,span[0]));
+    const modifierSpan = modifier?.indices?.[1];
+    const sourceSpan = {start:modifierSpan?.[0] ?? span[0],end:span[1]};
+    // The supported definite reference names a role, not another species.
+    // Any other modifier is explicit ownership even outside the catalogue.
+    return {text:before.slice(sourceSpan.start,sourceSpan.end),sourceSpan,
+      ...(modifier?.[1].toLowerCase() === "the" ? {role:text.toLowerCase() as "acid"|"base"} : {})};
+  }
+  const token = text.replace(/\(aq\)$/i, "");
+  // The same element/group/charge alphabet as formula tokens, including
+  // damaged notation. This proves presence only, never chemical validity.
+  const formulaAlphabet = /^[A-Za-z\p{N}[\](){}_^+−⁺⁻-]+$/u.test(token);
+  const letters = token.replace(/[\p{N}[\](){}_^+−⁺⁻-]/gu, "");
+  const strongNotation = /^(?:\[|\()?[A-Z]/.test(token) && /[\p{N}[\](){}_^+−⁺⁻-]/u.test(token);
+  const formulaIdentifier = formulaAlphabet && (/^(?:[A-Z][a-z]?)+$/.test(letters) || strongNotation);
+  const namedIdentifier = /\b(?:molecule|compound|species|acid|base)\s+$/iu.test(before.slice(0,span[0]));
+  return formulaIdentifier || namedIdentifier ? {text,sourceSpan:{start:span[0],end:span[1]}} : null;
+}
+
+/** Inventory typed property groups independently of successful species reads.
+ * Otherwise a malformed group on another species could vanish and its scalar
+ * be borrowed by an earlier analyte as an unqualified constant. */
+function parentheticalConstantDeclarations(question: string): Map<number,ParentheticalConstantDeclaration> | null {
+  const declarations = new Map<number,ParentheticalConstantDeclaration>();
+  const openings = new RegExp(ATTACHED_CONSTANT_START,"giu");
+  for (const opening of question.matchAll(openings)) {
+    const start = opening.index!;
+    let depth = 1;
+    let end = start+1;
+    for (; end < question.length; end++) {
+      if (question[end] === "(") depth++;
+      else if (question[end] === ")" && --depth === 0) break;
+    }
+    // Supported exponent parentheses remain part of the original payload.
+    // The strict scalar reader below, not this boundary scan, validates them.
+    if (depth !== 0 || !new RegExp(`^${SPECIES_RIGHT}`,"u").test(question.slice(end+1))) return null;
+    const before = question.slice(0,start);
+    const species = new RegExp(`(${SPECIES_ALTERNATION})\\s*$`,"idu").exec(before);
+    const speciesSpan = species?.indices?.[1];
+    const entry = species ? speciesEntry(species[1]!) : null;
+    // Whitespace cannot erase a supplied chemical owner. Ordinary prose that
+    // supplies no chemical identifier retains the unqualified constant path.
+    const presence = !entry ? constantOwnerPresence(before) : null;
+    if (presence && !presence.role) return null;
+    const owner = entry && speciesSpan ? {species:entry,sourceSpan:{start:speciesSpan[0],end:speciesSpan[1]}} : null;
+    const roleOwner = presence?.role ? {kind:presence.role,sourceSpan:presence.sourceSpan} : null;
+    const contents = question.slice(start+1,end);
+    let cursor = start+1;
+    const separators = [...contents.matchAll(/[,;]|\band\b/gi)];
+    const ends = [...separators.map(separator => ({end:start+1+separator.index!,next:start+1+separator.index!+separator[0].length})),{end,next:end}];
+    for (const part of ends) {
+      const text = question.slice(cursor,part.end);
+      const property = new RegExp(`^\\s*(${ACID_BASE_CONSTANT_SYMBOL})(?:\\s*value)?`,"idu").exec(text);
+      const symbolSpan = property?.indices?.[1];
+      if (!symbolSpan) return null;
+      declarations.set(cursor+symbolSpan[0],{payloadEnd:part.end,owner,roleOwner});
+      cursor = part.next;
+    }
+  }
+  return declarations;
+}
+
 /** A mentioned constant either binds completely in the source or refuses the
  * titration. Missing is the only state that permits the species table. */
 function suppliedAcidBaseConstants(question: string): SuppliedAcidBaseConstants | null {
-  const result: SuppliedAcidBaseConstants = {a:null,b:null,supplied:false,namedOwners:[]};
+  const result: SuppliedAcidBaseConstants = {a:null,b:null,supplied:false,namedOwners:[],roleOwners:[]};
+  const parenthetical = parentheticalConstantDeclarations(question);
+  if (!parenthetical) return null;
+  const consumedParenthetical = new Set<number>();
   const names = completeSpeciesPattern(String.raw`(?:CH3COOH|HCOOH|NH4OH|NH3|HCN|HF|acetic acid|ethanoic acid|formic acid|methanoic acid|ammonia|ammonium hydroxide|the acid|the base)`);
   // Unqualified named constants do not identify which conjugate species owns
   // the value. Refuse instead of borrowing a table value for the analyte.
@@ -365,6 +450,16 @@ function suppliedAcidBaseConstants(question: string): SuppliedAcidBaseConstants 
       const owners = [...question.matchAll(cue)];
       if (owners.length !== 1) return null;
       const owner = owners[0]!;
+      const attached = parenthetical.get(owner.index!);
+      if (attached) {
+        consumedParenthetical.add(owner.index!);
+        if (attached.roleOwner) result.roleOwners.push(attached.roleOwner);
+        if (attached.owner) {
+          // A finite weak-species constant cannot be ignored by a strong model.
+          if (attached.owner.species.strength !== "weak") return null;
+          result.namedOwners.push(attached.owner);
+        }
+      }
       const namedGroup = owner[1] !== undefined ? 1 : owner[2] !== undefined ? 2 : null;
       if (namedGroup !== null) {
         const named = owner[namedGroup]!.trim();
@@ -375,15 +470,19 @@ function suppliedAcidBaseConstants(question: string): SuppliedAcidBaseConstants 
       }
       // Anchor the read after this one source declaration. Missing is fatal
       // here, rather than silently skipped by a whole-question cue scan.
-      const read = readChemistryQuantityDeclaration({question,after:/^/,within:{start:owner.index!+owner[0].length,end:question.length},dimension:"dimensionless",owner:`${logarithmic?"pK":"K"}${which}`});
+      const within = {start:owner.index!+owner[0].length,end:attached?.payloadEnd ?? question.length};
+      const read = readChemistryQuantityDeclaration({question,after:/^/,within,dimension:"dimensionless",owner:`${logarithmic?"pK":"K"}${which}`});
       const limit = logarithmic ? 14 : 1;
       if (read.state !== "valid" || !(read.reading.value > 0 && read.reading.value < limit)) return null;
+      if (attached && (read.reading.source.span.start < within.start || read.reading.source.span.end > within.end
+        || question.slice(read.reading.source.span.end,within.end).trim() !== "")) return null;
       if (logarithmic) pK = read.reading.value; else k = read.reading.value;
     }
     const fromK = k === null ? null : -Math.log10(k);
     if (pK !== null && fromK !== null && !chemistryCanonicalValuesAgree(pK,fromK)) return null;
     result[which] = pK ?? fromK;
   }
+  if ([...parenthetical.keys()].some(start => !consumedParenthetical.has(start))) return null;
   return result;
 }
 
@@ -408,7 +507,11 @@ function titrationQuantityTokensValid(question: string): boolean {
     const at = body.start+unit.index!;
     const argument = /(?:^|[\s,;([])([^\s,;()[\]]+)\s*$/d.exec(question.slice(body.start,at));
     const span = argument?.indices?.[1];
-    if (!argument || !span || !/[\p{N}]|\b(?:unknown|unreadable|undefined|NaN)\b/iu.test(argument[1]!)) continue;
+    if (!argument || !span) continue;
+    // A sentence stop is not an amount owner, but punctuation immediately
+    // before an explicit unit is still a supplied malformed payload.
+    if (!/[\p{N}]|\b(?:unknown|unreadable|undefined|NaN)\b/iu.test(argument[1]!)
+      && !/^[+−-]?\.$/u.test(argument[1]!)) continue;
     const dimension = /^(?:M|molar)$/.test(unit[0]) ? "concentration" : /^(?:N|normal)$/.test(unit[0]) ? "normality" : "volume";
     // A full original literal may contain spaces in its coefficient/exponent.
     // Cover the lexical argument too: an ASCII suffix of damaged numeral
@@ -484,6 +587,7 @@ function readTitration(stem: string, quantities: readonly ChemPlanQuantity[]): T
   // Formula and ordinary-name aliases resolve through the existing species
   // identity, with the declared owner span retained from the original source.
   if (supplied.namedOwners.some(owner => owner.species !== analyte.entry)) return null;
+  if (supplied.roleOwners.some(owner => owner.kind !== analyte.entry.kind)) return null;
   const analyteSpecies = toSpecies(analyte, supplied[which]);
   const titrantSpecies = toSpecies(titrant, null);
   if (!analyteSpecies || !titrantSpecies) return null;
