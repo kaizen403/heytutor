@@ -12,16 +12,17 @@
  * - Read: a bare number (a number, a numeric string, a `{ value }` wrapper with
  *   no unit, or a document quantity with no unit) is probed in the working
  *   unit, m/s or m. An inline `{ value, unit }` wrapper is probed in the unit it
- *   states, so `{ value: 72, unit: "m/s" }` is held like a bare 72. A document
- *   quantity that states a unit is already held by the document quantity
- *   agreement and is not read here.
+ *   states, so `{ value: 72, unit: "m/s" }` is held like a bare 72. Named document
+ *   quantities also pass this check: agreement alone cannot bind their launch role.
  * - Speed, in order:
  *   1. Launch speeds: plan givens or derived with a speed unit (SPEED_UNIT)
- *      whose symbol or id, read by `motionSymbolKey`, is a launch speed role
+ *      whose symbol or id, read by `speedRoleKey`, is a launch speed role
  *      (PROJECTILE_SPEED_ROLE; "vi" and "speed" only as givens), or a given written
  *      exactly `v`. The number must agree with every one of them, so two
  *      launch speeds that disagree (a given "vi" that is a final velocity, a
- *      wind speed under the id "speed") refuse rather than pick one.
+ *      wind speed under the id "speed") refuse rather than pick one. When
+ *      a given uses ambiguous "vi" or "speed", all given speeds participate,
+ *      including unlisted symbols, so those names cannot hide a disagreement.
  *   2. Else every plan given or derived with a speed unit: the number must
  *      agree with one of them (two bodies each keep their own launch speed).
  *   3. Else a bare number is refused when the question states a speed in a
@@ -33,14 +34,16 @@
  * Every refusal is the scene engine's fatal code for the same failure,
  * invalid_projectile_trajectory_units.
  */
-import { motionSymbolKey, validateSceneQuantityAgreement, type TurnPlanV3 } from "@heytutor/scene-engine";
+import { validateSceneQuantityAgreement, type TurnPlanV3 } from "@heytutor/scene-engine";
 
 export const PROJECTILE_UNITS_CODE = "invalid_projectile_trajectory_units";
 
-/** Launch speed role keys (motionSymbolKey: NFKC, lower case, letters and digits only). "vi" and "speed" count only as givens. */
+/** Launch speed role keys (NFKC, lower case, letters and digits only). "vi" and "speed" count only as givens. */
 export const PROJECTILE_SPEED_ROLE = /^(?:u|u0|ui|v0|vo|vi|speed|launchspeed|initialspeed|projectionspeed|launchvelocity|initialvelocity|projectionvelocity|vlaunch)$/;
 /** Plans also write "vi" loosely for a final velocity, and a derived "speed" is a speed found later, like a derived v. */
 const GIVEN_ONLY_ROLE = /^(?:vi|speed)$/;
+// Preserve Unicode letters: NFKC maps the y subscript to γ, which must not disappear from a component such as v₀ᵧ.
+const speedRoleKey = (name: string) => name.normalize("NFKC").toLowerCase().replace(/\\(?:mathrm|text)/g, "").replace(/[^\p{L}\p{N}]/gu, "");
 
 const TIME = "(?:s|secs?|seconds?|h|hrs?|hours?|mins?|minutes?|ghant[ae]|घंटा|घण्टा|घंटे|सेकंड|सेकेंड)";
 /** Per time: over a time ("km/h", "km per hr", "km prati ghanta"), a time to the power -1 ("m s⁻¹"), or a named rate. */
@@ -86,8 +89,8 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * The number an input names and the unit an inline wrapper states, or null when a document quantity states a unit
- * on the way (the document quantity agreement holds that one) or no finite number is found.
+ * The number an input names and its stated unit, including named document quantities.
+ * Unit conflicts remain the engine's responsibility; this check binds the value to its plan role.
  */
 function readNumber(value: unknown, quantities: ReadonlyMap<string, Record<string, unknown>>, unit?: string, depth = 0): ReadNumber | null {
   if (depth > 32) return null;
@@ -98,7 +101,7 @@ function readNumber(value: unknown, quantities: ReadonlyMap<string, Record<strin
   }
   if (typeof value !== "string" || !value.trim()) return null;
   const quantity = quantities.get(value);
-  if (quantity) return quantity.unit !== undefined ? null : readNumber(quantity.value, quantities, unit, depth + 1);
+  if (quantity) return readNumber(quantity, quantities, unit, depth + 1);
   const number = Number(value.trim());
   return Number.isFinite(number) ? { value: number, unit } : null;
 }
@@ -137,7 +140,7 @@ const writtenNames = (quantity: PlanQuantity) =>
   [quantity.symbol, quantity.id].filter((text): text is string => typeof text === "string" && text.trim() !== "");
 
 function isLaunchSpeed(quantity: PlanQuantity, given: boolean): boolean {
-  const keys = writtenNames(quantity).map(motionSymbolKey);
+  const keys = writtenNames(quantity).map(speedRoleKey);
   if (keys.some((key) => PROJECTILE_SPEED_ROLE.test(key) && (given || !GIVEN_ONLY_ROLE.test(key)))) return true;
   // Plain v is the launch speed only when the stem states it; a derived v is a later speed.
   return given && writtenNames(quantity).some((text) => /^v$/i.test(text.normalize("NFKC").trim()));
@@ -161,9 +164,11 @@ export function projectileSpeedLiteralIssues(
   const magnitude = (quantity: PlanQuantity, spelling: (unit: string) => string): PlanQuantity =>
     ({ ...quantity, value: Math.abs(quantity.value), unit: spelling(quantity.unit!) });
   const speedsOf = (list: PlanQuantity[], given: boolean) => list.filter((quantity) => isFiniteQuantity(quantity) && isSpeedUnit(quantity.unit))
-    .map((quantity) => ({ quantity: magnitude(quantity, speedUnitSpelling), launch: isLaunchSpeed(quantity, given) }));
+    .map((quantity) => ({ quantity: magnitude(quantity, speedUnitSpelling), launch: isLaunchSpeed(quantity, given), given,
+      ambiguous: given && writtenNames(quantity).some((name) => GIVEN_ONLY_ROLE.test(speedRoleKey(name))) }));
   const speeds = [...speedsOf(plan.givens, true), ...speedsOf(plan.derived, false)];
-  const launchSpeeds = speeds.filter((speed) => speed.launch).map((speed) => speed.quantity);
+  const ambiguousLaunch = speeds.some((speed) => speed.launch && speed.ambiguous);
+  const launchSpeeds = speeds.filter((speed) => speed.launch || (ambiguousLaunch && speed.given)).map((speed) => speed.quantity);
   const rateSpeeds = speeds.map((speed) => speed.quantity);
   const lengths = [...plan.givens, ...plan.derived]
     .filter((quantity) => isFiniteQuantity(quantity) && typeof quantity.unit === "string" && LENGTH_UNIT.test(undot(quantity.unit)))

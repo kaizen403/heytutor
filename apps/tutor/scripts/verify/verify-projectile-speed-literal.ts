@@ -86,6 +86,10 @@ function kept(label: string, result: ReturnType<typeof run>) {
 // 1. The km/h stem with the plan's launch speed u = 72 km/h.
 const kmhPlan = plan(KMH, [given("u", 72, "km/h")]);
 const twenty = run(MS, plan(MS, [given("u", 20, "m/s")]), 20);
+// NFKC turns the Unicode y subscript into Greek gamma; dropping it would make v₀ᵧ look like v₀.
+const componentPlan = plan(MS, [given("v0", 40, "m/s", "v₀")], [derived("vy0", 32, "m/s", "v₀ᵧ")]);
+kept("a Unicode vertical component cannot become a second launch speed", run(MS, componentPlan, 40));
+refused("the Unicode vertical component cannot supply the launch magnitude", run(MS, componentPlan, 32));
 refused("km/h stem, bare 72", run(KMH, kmhPlan, 72), "u = 72 km/h");
 const kmhTwenty = run(KMH, kmhPlan, 20);
 kept("km/h stem, bare 20", kmhTwenty);
@@ -268,6 +272,18 @@ refused("a derived speed is a later speed: bare 15", run(LANDS, later2, 15), "u 
 const agreeing = plan(KMH, [given("u", 72, "km/h"), given("v0", 20, "m/s", "v₀")]);
 kept("two launch speeds that agree (u = 72 km/h, v₀ = 20 m/s), bare 20", run(KMH, agreeing, 20));
 refused("two launch speeds that agree (u = 72 km/h, v₀ = 20 m/s), bare 72", run(KMH, agreeing, 72), "u = 72 km/h and v₀ = 20 m/s");
+
+// Named quantities need launch-role checks too: value/unit agreement alone also approves a wind or final speed.
+refused("wind document quantity cannot supply the launch speed", run(WIND, windPlan, "speed", [{ id: "speed", symbol: "v_w", value: 5, unit: "m/s" }]), "disagree");
+refused("final velocity document quantity cannot supply the launch speed", run(LANDS, plan(LANDS, [given("u", 20, "m/s"), given("vi", 15, "m/s")]), "vi", [{ id: "vi", value: 15, unit: "m/s" }]), "disagree");
+const unlistedFinal = plan(LANDS, [given("vel", 20, "m/s"), given("vi", 15, "m/s")]);
+refused("an ambiguous vi cannot hide an unlisted initial speed", run(LANDS, unlistedFinal, 15), "disagree");
+refused("an ambiguous vi cannot hide an unlisted initial speed in a wrapper", run(LANDS, unlistedFinal, { value: 15, unit: "m/s" }), "disagree");
+refused("ambiguous vi and vel refuse either number", run(LANDS, unlistedFinal, 20), "disagree");
+refused("an ambiguous wind id speed cannot hide an unlisted initial speed", run(WIND, plan(WIND, [given("vel", 20, "m/s"), given("speed", 5, "m/s", "v_w")]), 5), "disagree");
+kept("a named document launch speed still draws", run(MS, plan(MS, [given("u", 20, "m/s")]), "u", [{ id: "u", value: 20, unit: "m/s" }]));
+kept("a named converted launch speed still draws", run(KMH, kmhPlan, "u", [{ id: "u", value: 72, unit: "km/h" }]));
+kept("two unlisted bodies retain their named launch speeds", run(TWO_BODIES, bodies, "u_A", [{ id: "u_A", value: 15, unit: "m/s" }]));
 
 // 9. Both callers hold it: the live hook and the lab call this validation.
 for (const file of ["features/tutor-session/hooks/turn/useQuestionHandler.ts", "scripts/lecture-lab/lecturePipeline.ts"]) {
