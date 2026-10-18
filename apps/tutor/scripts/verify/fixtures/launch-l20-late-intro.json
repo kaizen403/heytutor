@@ -1,0 +1,2041 @@
+{
+  "provenance": {
+    "baseHead": "c9fa0eca2918fa5425715d45a59b3571068681d2",
+    "source": "launch-20261017/L20/saved-turns.json",
+    "observation": "Native blank array during first search-frame narration; first verified intro saved after those two POINT segments.",
+    "offlineBaseline": "Captured from unchanged c9fa producer before the display-order fix; native font metrics vary one LABEL position, while the complete scene/entity data and marks/owners remain identical."
+  },
+  "question": "Show binary search for 7 in [1, 3, 5, 7, 9], then give simple Python code.",
+  "rawResponse": "[STEP]we want the position of 7 in the sorted values 1, 3, 5, 7, 9. the answer is an index, starting from zero.[/STEP]\n\n[STEP]we could check each value from left to right. that works, but on a long list it might take a check for every value.[/STEP]\n\n[STEP]the first search frame shows all five values still in play.[FOCUS:probe0|spotlight] we start at index 0 and end at index 4, then check the middle because the values are sorted.[/STEP]\n\n[STEP]the next frame shows 5 at the middle, below 7.[FOCUS:probe1|spotlight] 5 loses the comparison, and so does everything to its left. we move the lower boundary to index 3.[/STEP]\n\n[STEP]the final frame shows 7 at index 3.[FOCUS:probe2|spotlight] it matches the target, so we return index 3 after two checks.[/STEP]\n\n[STEP]the search stops there. it never checks 9, and it does not need to: finding 7 has already settled the answer.[/STEP]\n\n[STEP]this section turns those search moves into code. we give the search its values and target, then set low and high, the boundaries around all five candidates.[TYPE:s1b1][/STEP]\n\n[STEP]while candidates remain between those boundaries, we choose their middle index. this gives us the first check at index 2.[TYPE:s1b2][/STEP]\n\n[STEP]if the middle value matches the target, we return its index. that is how the second check stops at 7.[TYPE:s1b3][/STEP]\n\n[STEP]if the middle value is too small, we move low past it. when 5 is below 7, this keeps only indices 3 and 4.[TYPE:s1b4][/STEP]\n\n[STEP]otherwise the middle value is too large, so we move high below it. if the boundaries cross without a match, we return negative one to mean not found.[TYPE:s1b5][/STEP]\n\n[STEP]we run the search on these five values with 7 as the target. it prints 3, the index where 7 sits.[TYPE:s1b6][/STEP]\n\n[STEP]the time is log n because each unsuccessful check discards about half the remaining values. the extra space is constant: for these five values, we only keep a few indices.[/STEP]",
+  "turnPlan": {
+    "givens": [],
+    "lawIds": [],
+    "derived": [],
+    "question": "Show binary search for 7 in [1, 3, 5, 7, 9], then give simple Python code.",
+    "unknowns": [],
+    "assumptions": [
+      "Turn-plan model was unavailable; visual requirement was classified conservatively."
+    ],
+    "schemaVersion": "turn-plan/v3",
+    "qualitativeClaims": [],
+    "visualRequirement": "optional"
+  },
+  "sceneDocument": {
+    "source": {
+      "question": "Show binary search for 7 in [1, 3, 5, 7, 9], then give simple Python code.",
+      "dsaFitBox": true,
+      "nonMetric": true,
+      "structure": "array",
+      "dsaTraceFrame": "probe0",
+      "synthesizedDsa": true,
+      "representationTier": "qualitative_verified"
+    },
+    "entities": [
+      {
+        "id": "extent",
+        "kind": "polygon",
+        "role": "frame extent",
+        "provenance": {
+          "dashed": true,
+          "dsaExtent": true,
+          "strokeRole": "construction"
+        }
+      },
+      {
+        "id": "cell0",
+        "kind": "rectangle",
+        "role": "array cell 0",
+        "label": "1"
+      },
+      {
+        "id": "idx0",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "0"
+      },
+      {
+        "id": "cell1",
+        "kind": "rectangle",
+        "role": "array cell 1",
+        "label": "3"
+      },
+      {
+        "id": "idx1",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "1"
+      },
+      {
+        "id": "cell2",
+        "kind": "rectangle",
+        "role": "array cell 2",
+        "label": "5"
+      },
+      {
+        "id": "idx2",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "2"
+      },
+      {
+        "id": "cell3",
+        "kind": "rectangle",
+        "role": "array cell 3",
+        "label": "7"
+      },
+      {
+        "id": "idx3",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "3"
+      },
+      {
+        "id": "cell4",
+        "kind": "rectangle",
+        "role": "array cell 4",
+        "label": "9"
+      },
+      {
+        "id": "idx4",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "4"
+      },
+      {
+        "id": "ptr0",
+        "kind": "vector",
+        "role": "pointer lo"
+      },
+      {
+        "id": "ptr0_lbl",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "lo"
+      },
+      {
+        "id": "ptr1",
+        "kind": "vector",
+        "role": "pointer hi"
+      },
+      {
+        "id": "ptr1_lbl",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "hi"
+      },
+      {
+        "id": "brk0",
+        "kind": "polyline",
+        "role": "region still possible"
+      },
+      {
+        "id": "brk0_lbl",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "still possible"
+      },
+      {
+        "id": "note0",
+        "kind": "label",
+        "role": "direction marker",
+        "label": "target = 7"
+      },
+      {
+        "id": "extent_p0",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "extent_p1",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "extent_p2",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "extent_p3",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell0_c",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "idx0_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell1_c",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "idx1_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell2_c",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "idx2_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell3_c",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "idx3_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "cell4_c",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "idx4_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ptr0_s",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ptr0_e",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ptr0_lbl_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ptr1_s",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ptr1_e",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "ptr1_lbl_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "brk0_p0",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "brk0_p1",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "brk0_p2",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "brk0_p3",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "brk0_lbl_p",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "note0_p",
+        "kind": "point",
+        "role": "construction helper"
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "cell0_value",
+        "entities": [
+          "cell0"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "predicate": "label_attached"
+      },
+      {
+        "id": "cell1_value",
+        "entities": [
+          "cell1"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "predicate": "label_attached"
+      },
+      {
+        "id": "cell2_value",
+        "entities": [
+          "cell2"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "predicate": "label_attached"
+      },
+      {
+        "id": "cell3_value",
+        "entities": [
+          "cell3"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "predicate": "label_attached"
+      },
+      {
+        "id": "cell4_value",
+        "entities": [
+          "cell4"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "predicate": "label_attached"
+      },
+      {
+        "id": "cells_exist",
+        "entities": [
+          "cell0",
+          "cell1",
+          "cell2",
+          "cell3",
+          "cell4"
+        ],
+        "expected": true,
+        "severity": "fatal",
+        "predicate": "exists"
+      },
+      {
+        "id": "cells_ordered",
+        "entities": [
+          "cell0_c",
+          "cell1_c",
+          "cell2_c",
+          "cell3_c",
+          "cell4_c"
+        ],
+        "expected": {
+          "axis": "x",
+          "direction": "increasing"
+        },
+        "severity": "fatal",
+        "predicate": "ordered_along"
+      }
+    ],
+    "quantities": [],
+    "annotations": [
+      {
+        "id": "caption",
+        "kind": "callout",
+        "text": "Search 7 in 5 sorted values",
+        "targetIds": []
+      }
+    ],
+    "revealGroups": [
+      {
+        "id": "structure",
+        "dependsOn": [],
+        "entityIds": [
+          "extent",
+          "cell0",
+          "cell1",
+          "cell2",
+          "cell3",
+          "cell4"
+        ],
+        "narrationCue": "array of 5 cells"
+      },
+      {
+        "id": "markers",
+        "dependsOn": [
+          "structure"
+        ],
+        "entityIds": [
+          "idx0",
+          "idx1",
+          "idx2",
+          "idx3",
+          "idx4",
+          "ptr0",
+          "ptr0_lbl",
+          "ptr1",
+          "ptr1_lbl",
+          "brk0",
+          "brk0_lbl",
+          "note0"
+        ],
+        "narrationCue": "Search 7 in 5 sorted values"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_extent_p0",
+        "inputs": {
+          "x": -1.26,
+          "y": 4.27,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "extent_p0"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_extent_p1",
+        "inputs": {
+          "x": 8.660000000000002,
+          "y": 4.27,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "extent_p1"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_extent_p2",
+        "inputs": {
+          "x": 8.660000000000002,
+          "y": -4.87,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "extent_p2"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_extent_p3",
+        "inputs": {
+          "x": -1.26,
+          "y": -4.87,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "extent_p3"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_extent",
+        "inputs": {
+          "points": [
+            "extent_p0",
+            "extent_p1",
+            "extent_p2",
+            "extent_p3"
+          ]
+        },
+        "outputs": [
+          "extent"
+        ],
+        "operator": "polygon"
+      },
+      {
+        "id": "make_cell0_c",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell0_c"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_cell0",
+        "inputs": {
+          "width": 1.42,
+          "center": "cell0_c",
+          "height": 1.42
+        },
+        "outputs": [
+          "cell0"
+        ],
+        "operator": "rectangle"
+      },
+      {
+        "id": "make_idx0_p",
+        "inputs": {
+          "x": 0,
+          "y": -1.43,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "idx0_p"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_idx0",
+        "inputs": {
+          "text": "0",
+          "target": "idx0_p"
+        },
+        "outputs": [
+          "idx0"
+        ],
+        "operator": "label"
+      },
+      {
+        "id": "make_cell1_c",
+        "inputs": {
+          "x": 1.58,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell1_c"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_cell1",
+        "inputs": {
+          "width": 1.42,
+          "center": "cell1_c",
+          "height": 1.42
+        },
+        "outputs": [
+          "cell1"
+        ],
+        "operator": "rectangle"
+      },
+      {
+        "id": "make_idx1_p",
+        "inputs": {
+          "x": 1.58,
+          "y": -1.43,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "idx1_p"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_idx1",
+        "inputs": {
+          "text": "1",
+          "target": "idx1_p"
+        },
+        "outputs": [
+          "idx1"
+        ],
+        "operator": "label"
+      },
+      {
+        "id": "make_cell2_c",
+        "inputs": {
+          "x": 3.16,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell2_c"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_cell2",
+        "inputs": {
+          "width": 1.42,
+          "center": "cell2_c",
+          "height": 1.42
+        },
+        "outputs": [
+          "cell2"
+        ],
+        "operator": "rectangle"
+      },
+      {
+        "id": "make_idx2_p",
+        "inputs": {
+          "x": 3.16,
+          "y": -1.43,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "idx2_p"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_idx2",
+        "inputs": {
+          "text": "2",
+          "target": "idx2_p"
+        },
+        "outputs": [
+          "idx2"
+        ],
+        "operator": "label"
+      },
+      {
+        "id": "make_cell3_c",
+        "inputs": {
+          "x": 4.74,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell3_c"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_cell3",
+        "inputs": {
+          "width": 1.42,
+          "center": "cell3_c",
+          "height": 1.42
+        },
+        "outputs": [
+          "cell3"
+        ],
+        "operator": "rectangle"
+      },
+      {
+        "id": "make_idx3_p",
+        "inputs": {
+          "x": 4.74,
+          "y": -1.43,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "idx3_p"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_idx3",
+        "inputs": {
+          "text": "3",
+          "target": "idx3_p"
+        },
+        "outputs": [
+          "idx3"
+        ],
+        "operator": "label"
+      },
+      {
+        "id": "make_cell4_c",
+        "inputs": {
+          "x": 6.32,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "cell4_c"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_cell4",
+        "inputs": {
+          "width": 1.42,
+          "center": "cell4_c",
+          "height": 1.42
+        },
+        "outputs": [
+          "cell4"
+        ],
+        "operator": "rectangle"
+      },
+      {
+        "id": "make_idx4_p",
+        "inputs": {
+          "x": 6.32,
+          "y": -1.43,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "idx4_p"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_idx4",
+        "inputs": {
+          "text": "4",
+          "target": "idx4_p"
+        },
+        "outputs": [
+          "idx4"
+        ],
+        "operator": "label"
+      },
+      {
+        "id": "make_ptr0_s",
+        "inputs": {
+          "x": 0,
+          "y": 1.96,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ptr0_s"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_ptr0_e",
+        "inputs": {
+          "x": 0,
+          "y": 1.01,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ptr0_e"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_ptr0",
+        "inputs": {
+          "end": "ptr0_e",
+          "start": "ptr0_s"
+        },
+        "outputs": [
+          "ptr0"
+        ],
+        "operator": "vector"
+      },
+      {
+        "id": "make_ptr0_lbl_p",
+        "inputs": {
+          "x": 0,
+          "y": 2.38,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ptr0_lbl_p"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_ptr0_lbl",
+        "inputs": {
+          "text": "lo",
+          "target": "ptr0_lbl_p"
+        },
+        "outputs": [
+          "ptr0_lbl"
+        ],
+        "operator": "label"
+      },
+      {
+        "id": "make_ptr1_s",
+        "inputs": {
+          "x": 6.32,
+          "y": 1.96,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ptr1_s"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_ptr1_e",
+        "inputs": {
+          "x": 6.32,
+          "y": 1.01,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ptr1_e"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_ptr1",
+        "inputs": {
+          "end": "ptr1_e",
+          "start": "ptr1_s"
+        },
+        "outputs": [
+          "ptr1"
+        ],
+        "operator": "vector"
+      },
+      {
+        "id": "make_ptr1_lbl_p",
+        "inputs": {
+          "x": 6.32,
+          "y": 2.38,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "ptr1_lbl_p"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_ptr1_lbl",
+        "inputs": {
+          "text": "hi",
+          "target": "ptr1_lbl_p"
+        },
+        "outputs": [
+          "ptr1_lbl"
+        ],
+        "operator": "label"
+      },
+      {
+        "id": "make_brk0_p0",
+        "inputs": {
+          "x": -0.71,
+          "y": -2.95,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "brk0_p0"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_brk0_p1",
+        "inputs": {
+          "x": -0.71,
+          "y": -3.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "brk0_p1"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_brk0_p2",
+        "inputs": {
+          "x": 7.03,
+          "y": -3.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "brk0_p2"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_brk0_p3",
+        "inputs": {
+          "x": 7.03,
+          "y": -2.95,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "brk0_p3"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_brk0",
+        "inputs": {
+          "points": [
+            "brk0_p0",
+            "brk0_p1",
+            "brk0_p2",
+            "brk0_p3"
+          ]
+        },
+        "outputs": [
+          "brk0"
+        ],
+        "operator": "polyline"
+      },
+      {
+        "id": "make_brk0_lbl_p",
+        "inputs": {
+          "x": 3.16,
+          "y": -4.05,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "brk0_lbl_p"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_brk0_lbl",
+        "inputs": {
+          "text": "still possible",
+          "target": "brk0_lbl_p"
+        },
+        "outputs": [
+          "brk0_lbl"
+        ],
+        "operator": "label"
+      },
+      {
+        "id": "make_note0_p",
+        "inputs": {
+          "x": 3.700000000000001,
+          "y": 3.45,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "note0_p"
+        ],
+        "operator": "point"
+      },
+      {
+        "id": "make_note0",
+        "inputs": {
+          "text": "target = 7",
+          "target": "note0_p"
+        },
+        "outputs": [
+          "note0"
+        ],
+        "operator": "label"
+      }
+    ],
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "array of 5 cells"
+    },
+    "teachingTimeline": [],
+    "requiredEntityIds": [
+      "extent",
+      "cell0",
+      "cell1",
+      "cell2",
+      "cell3",
+      "cell4",
+      "idx0",
+      "idx1",
+      "idx2",
+      "idx3",
+      "idx4",
+      "ptr0",
+      "ptr0_lbl",
+      "ptr1",
+      "ptr1_lbl",
+      "brk0",
+      "brk0_lbl",
+      "note0"
+    ]
+  },
+  "codeLesson": {
+    "title": "Binary search for 7",
+    "language": "python",
+    "question": "Show binary search for 7 in [1, 3, 5, 7, 9], then give simple Python code.",
+    "sections": [
+      {
+        "id": "s1",
+        "title": "Search the sorted values",
+        "blocks": [
+          {
+            "id": "s1b1",
+            "code": "def binary_search(values, target):\n    low = 0\n    high = len(values) - 1"
+          },
+          {
+            "id": "s1b2",
+            "code": "    while low <= high:\n        mid = (low + high) // 2"
+          },
+          {
+            "id": "s1b3",
+            "code": "        if values[mid] == target:\n            return mid"
+          },
+          {
+            "id": "s1b4",
+            "code": "        if values[mid] < target:\n            low = mid + 1"
+          },
+          {
+            "id": "s1b5",
+            "code": "        else:\n            high = mid - 1\n    return -1"
+          },
+          {
+            "id": "s1b6",
+            "code": "\nvalues = [1, 3, 5, 7, 9]\nprint(binary_search(values, 7))"
+          }
+        ],
+        "explanation": "Start with low and high around all five values. The first middle value is 5 at index 2, so move low to index 3 because 7 must be to the right. The next middle value is 7 at index 3, so return that index. The final two lines run this exact example and print 3.",
+        "typeAlongRanges": [
+          {
+            "endLine": 12,
+            "startLine": 4
+          }
+        ]
+      }
+    ],
+    "diagramHint": {
+      "steps": [
+        {
+          "id": "input",
+          "values": [
+            "1",
+            "3",
+            "5",
+            "7",
+            "9"
+          ],
+          "pointers": [
+            {
+              "name": "low",
+              "index": 0
+            },
+            {
+              "name": "mid",
+              "index": 2
+            },
+            {
+              "name": "high",
+              "index": 4
+            }
+          ]
+        },
+        {
+          "id": "go_right",
+          "values": [
+            "1",
+            "3",
+            "5",
+            "7",
+            "9"
+          ],
+          "pointers": [
+            {
+              "name": "low",
+              "index": 3
+            },
+            {
+              "name": "mid",
+              "index": 3
+            },
+            {
+              "name": "high",
+              "index": 4
+            }
+          ]
+        },
+        {
+          "id": "found",
+          "values": [
+            "1",
+            "3",
+            "5",
+            "7",
+            "9"
+          ],
+          "pointers": [
+            {
+              "name": "low",
+              "index": 3
+            },
+            {
+              "name": "mid",
+              "index": 3
+            },
+            {
+              "name": "high",
+              "index": 4
+            }
+          ]
+        }
+      ],
+      "values": [
+        "1",
+        "3",
+        "5",
+        "7",
+        "9"
+      ],
+      "caption": "Search for 7; the answer is index 3.",
+      "pointers": [
+        {
+          "name": "low",
+          "index": 0
+        },
+        {
+          "name": "mid",
+          "index": 2
+        },
+        {
+          "name": "high",
+          "index": 4
+        }
+      ],
+      "structure": "array"
+    },
+    "schemaVersion": "code-lesson/v1"
+  },
+  "givenSegments": [
+    {
+      "narration": "Show binary search for 7 in [1, 3, 5, 7, 9], then give simple Python code.",
+      "command": {
+        "text": "Binary search for 7",
+        "type": "WRITE",
+        "params": [
+          90,
+          142,
+          32
+        ],
+        "charPosition": 0,
+        "narrationBefore": "Show binary search for 7 in [1, 3, 5, 7, 9], then give simple Python code."
+      },
+      "commands": [
+        {
+          "text": "Binary search for 7",
+          "type": "WRITE",
+          "params": [
+            90,
+            142,
+            32
+          ],
+          "charPosition": 0,
+          "narrationBefore": "Show binary search for 7 in [1, 3, 5, 7, 9], then give simple Python code."
+        }
+      ]
+    },
+    {
+      "narration": "values is 1, 3, 5, 7, 9",
+      "command": {
+        "text": "values = [1, 3, 5, 7, 9]",
+        "type": "WRITE",
+        "params": [
+          90,
+          208,
+          32
+        ],
+        "charPosition": 0,
+        "narrationBefore": "values is 1, 3, 5, 7, 9"
+      },
+      "commands": [
+        {
+          "text": "values = [1, 3, 5, 7, 9]",
+          "type": "WRITE",
+          "params": [
+            90,
+            208,
+            32
+          ],
+          "charPosition": 0,
+          "narrationBefore": "values is 1, 3, 5, 7, 9"
+        }
+      ]
+    },
+    {
+      "narration": "the target is 7",
+      "command": {
+        "text": "target = 7",
+        "type": "WRITE",
+        "params": [
+          90,
+          274,
+          32
+        ],
+        "charPosition": 0,
+        "narrationBefore": "the target is 7"
+      },
+      "commands": [
+        {
+          "text": "target = 7",
+          "type": "WRITE",
+          "params": [
+            90,
+            274,
+            32
+          ],
+          "charPosition": 0,
+          "narrationBefore": "the target is 7"
+        }
+      ]
+    }
+  ],
+  "introSegments": [
+    {
+      "narration": "Here is the example we will work through: search 7 in 5 sorted values.",
+      "command": {
+        "type": "DRAW_RECT",
+        "params": [
+          685.42,
+          273.15,
+          65.88,
+          65.87
+        ],
+        "syncable": false,
+        "semanticRef": {
+          "entityId": "cell0",
+          "primitiveId": "primitive_cell0"
+        },
+        "charPosition": 0,
+        "narrationBefore": ""
+      },
+      "commands": [
+        {
+          "type": "DRAW_RECT",
+          "params": [
+            685.42,
+            273.15,
+            65.88,
+            65.87
+          ],
+          "syncable": false,
+          "semanticRef": {
+            "entityId": "cell0",
+            "primitiveId": "primitive_cell0"
+          },
+          "charPosition": 0,
+          "narrationBefore": ""
+        },
+        {
+          "type": "DRAW_RECT",
+          "params": [
+            758.72,
+            273.15,
+            65.87,
+            65.87
+          ],
+          "syncable": false,
+          "semanticRef": {
+            "entityId": "cell1",
+            "primitiveId": "primitive_cell1"
+          },
+          "charPosition": 0,
+          "narrationBefore": ""
+        },
+        {
+          "type": "DRAW_RECT",
+          "params": [
+            832.01,
+            273.15,
+            65.88,
+            65.87
+          ],
+          "syncable": false,
+          "semanticRef": {
+            "entityId": "cell2",
+            "primitiveId": "primitive_cell2"
+          },
+          "charPosition": 0,
+          "narrationBefore": ""
+        },
+        {
+          "type": "DRAW_RECT",
+          "params": [
+            905.31,
+            273.15,
+            65.87,
+            65.87
+          ],
+          "syncable": false,
+          "semanticRef": {
+            "entityId": "cell3",
+            "primitiveId": "primitive_cell3"
+          },
+          "charPosition": 0,
+          "narrationBefore": ""
+        },
+        {
+          "type": "DRAW_RECT",
+          "params": [
+            978.6,
+            273.15,
+            65.88,
+            65.87
+          ],
+          "syncable": false,
+          "semanticRef": {
+            "entityId": "cell4",
+            "primitiveId": "primitive_cell4"
+          },
+          "charPosition": 0,
+          "narrationBefore": ""
+        },
+        {
+          "text": "1",
+          "type": "LABEL",
+          "params": [
+            713.161695,
+            296.58,
+            19
+          ],
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "cell0",
+            "primitiveId": "primitive_cell0_label"
+          },
+          "charPosition": 0,
+          "narrationBefore": ""
+        },
+        {
+          "text": "3",
+          "type": "LABEL",
+          "params": [
+            786.3570275,
+            296.58,
+            19
+          ],
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "cell1",
+            "primitiveId": "primitive_cell1_label"
+          },
+          "charPosition": 0,
+          "narrationBefore": ""
+        },
+        {
+          "text": "5",
+          "type": "LABEL",
+          "params": [
+            859.7877475,
+            296.58,
+            19
+          ],
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "cell2",
+            "primitiveId": "primitive_cell2_label"
+          },
+          "charPosition": 0,
+          "narrationBefore": ""
+        },
+        {
+          "text": "7",
+          "type": "LABEL",
+          "params": [
+            933.0316025,
+            296.58,
+            19
+          ],
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "cell3",
+            "primitiveId": "primitive_cell3_label"
+          },
+          "charPosition": 0,
+          "narrationBefore": ""
+        },
+        {
+          "text": "9",
+          "type": "LABEL",
+          "params": [
+            1006.1435725,
+            296.58,
+            19
+          ],
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "cell4",
+            "primitiveId": "primitive_cell4_label"
+          },
+          "charPosition": 0,
+          "narrationBefore": ""
+        },
+        {
+          "type": "DRAW_LINE",
+          "params": [
+            685.42,
+            442.93,
+            685.42,
+            468.45,
+            1044.48,
+            468.45,
+            1044.48,
+            442.93
+          ],
+          "syncable": false,
+          "semanticRef": {
+            "entityId": "brk0",
+            "primitiveId": "primitive_brk0"
+          },
+          "charPosition": 0,
+          "narrationBefore": ""
+        },
+        {
+          "type": "ARROW",
+          "params": [
+            718.36,
+            215.16,
+            718.36,
+            259.23
+          ],
+          "syncable": false,
+          "semanticRef": {
+            "entityId": "ptr0",
+            "primitiveId": "primitive_ptr0"
+          },
+          "charPosition": 0,
+          "narrationBefore": ""
+        },
+        {
+          "type": "ARROW",
+          "params": [
+            1011.54,
+            215.16,
+            1011.54,
+            259.23
+          ],
+          "syncable": false,
+          "semanticRef": {
+            "entityId": "ptr1",
+            "primitiveId": "primitive_ptr1"
+          },
+          "charPosition": 0,
+          "narrationBefore": ""
+        },
+        {
+          "text": "0",
+          "type": "LABEL",
+          "params": [
+            713.062325,
+            362.92,
+            19
+          ],
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "idx0",
+            "primitiveId": "primitive_idx0_label"
+          },
+          "charPosition": 0,
+          "narrationBefore": ""
+        },
+        {
+          "text": "1",
+          "type": "LABEL",
+          "params": [
+            786.451695,
+            362.92,
+            19
+          ],
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "idx1",
+            "primitiveId": "primitive_idx1_label"
+          },
+          "charPosition": 0,
+          "narrationBefore": ""
+        },
+        {
+          "text": "2",
+          "type": "LABEL",
+          "params": [
+            859.61518,
+            362.92,
+            19
+          ],
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "idx2",
+            "primitiveId": "primitive_idx2_label"
+          },
+          "charPosition": 0,
+          "narrationBefore": ""
+        },
+        {
+          "text": "3",
+          "type": "LABEL",
+          "params": [
+            932.9570275,
+            362.92,
+            19
+          ],
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "idx3",
+            "primitiveId": "primitive_idx3_label"
+          },
+          "charPosition": 0,
+          "narrationBefore": ""
+        },
+        {
+          "text": "4",
+          "type": "LABEL",
+          "params": [
+            1005.99618,
+            362.92,
+            19
+          ],
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "idx4",
+            "primitiveId": "primitive_idx4_label"
+          },
+          "charPosition": 0,
+          "narrationBefore": ""
+        },
+        {
+          "text": "lo",
+          "type": "LABEL",
+          "params": [
+            712.9505729072756,
+            186.18,
+            19
+          ],
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "ptr0_lbl",
+            "primitiveId": "primitive_ptr0_lbl_label"
+          },
+          "charPosition": 0,
+          "narrationBefore": ""
+        },
+        {
+          "text": "hi",
+          "type": "LABEL",
+          "params": [
+            1004.409371235263,
+            186.18,
+            19
+          ],
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "ptr1_lbl",
+            "primitiveId": "primitive_ptr1_lbl_label"
+          },
+          "charPosition": 0,
+          "narrationBefore": ""
+        },
+        {
+          "text": "still possible",
+          "type": "LABEL",
+          "params": [
+            828.9653418967067,
+            484.46,
+            19
+          ],
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "brk0_lbl",
+            "primitiveId": "primitive_brk0_lbl_label"
+          },
+          "charPosition": 0,
+          "narrationBefore": ""
+        },
+        {
+          "text": "target = 7",
+          "type": "LABEL",
+          "params": [
+            858.3836993273893,
+            136.54,
+            19
+          ],
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "note0",
+            "primitiveId": "primitive_note0_label"
+          },
+          "charPosition": 0,
+          "narrationBefore": ""
+        }
+      ]
+    }
+  ],
+  "recordedTeaching": [
+    {
+      "narration": "we want the position of 7 in the sorted values 1, 3, 5, 7, 9. the answer is an index, starting from zero.",
+      "command": {
+        "text": "w1",
+        "type": "POINT",
+        "params": [],
+        "charPosition": 0,
+        "narrationBefore": ""
+      },
+      "commands": [
+        {
+          "text": "w1",
+          "type": "POINT",
+          "params": [],
+          "charPosition": 0,
+          "narrationBefore": ""
+        }
+      ]
+    },
+    {
+      "narration": "we could check each value from left to right. that works, but on a long list it might take a check for every value.",
+      "command": {
+        "text": "w1",
+        "type": "POINT",
+        "params": [],
+        "charPosition": 0,
+        "narrationBefore": ""
+      },
+      "commands": [
+        {
+          "text": "w1",
+          "type": "POINT",
+          "params": [],
+          "charPosition": 0,
+          "narrationBefore": ""
+        }
+      ]
+    },
+    {
+      "narration": "the first search frame shows all five values still in play.",
+      "command": {
+        "text": "cell0",
+        "type": "POINT",
+        "params": [],
+        "charPosition": 0,
+        "narrationBefore": ""
+      },
+      "commands": [
+        {
+          "text": "cell0",
+          "type": "POINT",
+          "params": [],
+          "charPosition": 0,
+          "narrationBefore": ""
+        }
+      ]
+    },
+    {
+      "narration": "we start at index 0 and end at index 4, then check the middle because the values are sorted.",
+      "command": {
+        "text": "cell0",
+        "type": "POINT",
+        "params": [],
+        "charPosition": 0,
+        "narrationBefore": ""
+      },
+      "commands": [
+        {
+          "text": "cell0",
+          "type": "POINT",
+          "params": [],
+          "charPosition": 0,
+          "narrationBefore": ""
+        }
+      ]
+    }
+  ],
+  "expectedProducedIntro": [
+    {
+      "narration": "Here is the example we will work through: search 7 in 5 sorted values.",
+      "command": {
+        "type": "DRAW_RECT",
+        "params": [
+          685.42,
+          273.15,
+          65.88,
+          65.87
+        ],
+        "charPosition": 0,
+        "narrationBefore": "",
+        "syncable": false,
+        "semanticRef": {
+          "entityId": "cell0",
+          "primitiveId": "primitive_cell0"
+        }
+      },
+      "commands": [
+        {
+          "type": "DRAW_RECT",
+          "params": [
+            685.42,
+            273.15,
+            65.88,
+            65.87
+          ],
+          "charPosition": 0,
+          "narrationBefore": "",
+          "syncable": false,
+          "semanticRef": {
+            "entityId": "cell0",
+            "primitiveId": "primitive_cell0"
+          }
+        },
+        {
+          "type": "DRAW_RECT",
+          "params": [
+            758.72,
+            273.15,
+            65.87,
+            65.87
+          ],
+          "charPosition": 0,
+          "narrationBefore": "",
+          "syncable": false,
+          "semanticRef": {
+            "entityId": "cell1",
+            "primitiveId": "primitive_cell1"
+          }
+        },
+        {
+          "type": "DRAW_RECT",
+          "params": [
+            832.01,
+            273.15,
+            65.88,
+            65.87
+          ],
+          "charPosition": 0,
+          "narrationBefore": "",
+          "syncable": false,
+          "semanticRef": {
+            "entityId": "cell2",
+            "primitiveId": "primitive_cell2"
+          }
+        },
+        {
+          "type": "DRAW_RECT",
+          "params": [
+            905.31,
+            273.15,
+            65.87,
+            65.87
+          ],
+          "charPosition": 0,
+          "narrationBefore": "",
+          "syncable": false,
+          "semanticRef": {
+            "entityId": "cell3",
+            "primitiveId": "primitive_cell3"
+          }
+        },
+        {
+          "type": "DRAW_RECT",
+          "params": [
+            978.6,
+            273.15,
+            65.88,
+            65.87
+          ],
+          "charPosition": 0,
+          "narrationBefore": "",
+          "syncable": false,
+          "semanticRef": {
+            "entityId": "cell4",
+            "primitiveId": "primitive_cell4"
+          }
+        },
+        {
+          "type": "LABEL",
+          "params": [
+            713.161695,
+            296.58,
+            19
+          ],
+          "text": "1",
+          "charPosition": 0,
+          "narrationBefore": "",
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "cell0",
+            "primitiveId": "primitive_cell0_label"
+          }
+        },
+        {
+          "type": "LABEL",
+          "params": [
+            786.3570275,
+            296.58,
+            19
+          ],
+          "text": "3",
+          "charPosition": 0,
+          "narrationBefore": "",
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "cell1",
+            "primitiveId": "primitive_cell1_label"
+          }
+        },
+        {
+          "type": "LABEL",
+          "params": [
+            859.7877475,
+            296.58,
+            19
+          ],
+          "text": "5",
+          "charPosition": 0,
+          "narrationBefore": "",
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "cell2",
+            "primitiveId": "primitive_cell2_label"
+          }
+        },
+        {
+          "type": "LABEL",
+          "params": [
+            933.0316025,
+            296.58,
+            19
+          ],
+          "text": "7",
+          "charPosition": 0,
+          "narrationBefore": "",
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "cell3",
+            "primitiveId": "primitive_cell3_label"
+          }
+        },
+        {
+          "type": "LABEL",
+          "params": [
+            1006.1435725,
+            296.58,
+            19
+          ],
+          "text": "9",
+          "charPosition": 0,
+          "narrationBefore": "",
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "cell4",
+            "primitiveId": "primitive_cell4_label"
+          }
+        },
+        {
+          "type": "DRAW_LINE",
+          "params": [
+            685.42,
+            442.93,
+            685.42,
+            468.45,
+            1044.48,
+            468.45,
+            1044.48,
+            442.93
+          ],
+          "charPosition": 0,
+          "narrationBefore": "",
+          "syncable": false,
+          "semanticRef": {
+            "entityId": "brk0",
+            "primitiveId": "primitive_brk0"
+          }
+        },
+        {
+          "type": "ARROW",
+          "params": [
+            718.36,
+            215.16,
+            718.36,
+            259.23
+          ],
+          "charPosition": 0,
+          "narrationBefore": "",
+          "syncable": false,
+          "semanticRef": {
+            "entityId": "ptr0",
+            "primitiveId": "primitive_ptr0"
+          }
+        },
+        {
+          "type": "ARROW",
+          "params": [
+            1011.54,
+            215.16,
+            1011.54,
+            259.23
+          ],
+          "charPosition": 0,
+          "narrationBefore": "",
+          "syncable": false,
+          "semanticRef": {
+            "entityId": "ptr1",
+            "primitiveId": "primitive_ptr1"
+          }
+        },
+        {
+          "type": "LABEL",
+          "params": [
+            713.062325,
+            362.92,
+            19
+          ],
+          "text": "0",
+          "charPosition": 0,
+          "narrationBefore": "",
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "idx0",
+            "primitiveId": "primitive_idx0_label"
+          }
+        },
+        {
+          "type": "LABEL",
+          "params": [
+            786.451695,
+            362.92,
+            19
+          ],
+          "text": "1",
+          "charPosition": 0,
+          "narrationBefore": "",
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "idx1",
+            "primitiveId": "primitive_idx1_label"
+          }
+        },
+        {
+          "type": "LABEL",
+          "params": [
+            859.61518,
+            362.92,
+            19
+          ],
+          "text": "2",
+          "charPosition": 0,
+          "narrationBefore": "",
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "idx2",
+            "primitiveId": "primitive_idx2_label"
+          }
+        },
+        {
+          "type": "LABEL",
+          "params": [
+            932.9570275,
+            362.92,
+            19
+          ],
+          "text": "3",
+          "charPosition": 0,
+          "narrationBefore": "",
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "idx3",
+            "primitiveId": "primitive_idx3_label"
+          }
+        },
+        {
+          "type": "LABEL",
+          "params": [
+            1005.99618,
+            362.92,
+            19
+          ],
+          "text": "4",
+          "charPosition": 0,
+          "narrationBefore": "",
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "idx4",
+            "primitiveId": "primitive_idx4_label"
+          }
+        },
+        {
+          "type": "LABEL",
+          "params": [
+            712.9505729072756,
+            186.18,
+            19
+          ],
+          "text": "lo",
+          "charPosition": 0,
+          "narrationBefore": "",
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "ptr0_lbl",
+            "primitiveId": "primitive_ptr0_lbl_label"
+          }
+        },
+        {
+          "type": "LABEL",
+          "params": [
+            1004.4093712352632,
+            186.18,
+            19
+          ],
+          "text": "hi",
+          "charPosition": 0,
+          "narrationBefore": "",
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "ptr1_lbl",
+            "primitiveId": "primitive_ptr1_lbl_label"
+          }
+        },
+        {
+          "type": "LABEL",
+          "params": [
+            828.9653418967067,
+            484.46,
+            19
+          ],
+          "text": "still possible",
+          "charPosition": 0,
+          "narrationBefore": "",
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "brk0_lbl",
+            "primitiveId": "primitive_brk0_lbl_label"
+          }
+        },
+        {
+          "type": "LABEL",
+          "params": [
+            858.3836993273893,
+            136.54,
+            19
+          ],
+          "text": "target = 7",
+          "charPosition": 0,
+          "narrationBefore": "",
+          "syncable": true,
+          "syncReason": "verified-scene-label",
+          "semanticRef": {
+            "entityId": "note0",
+            "primitiveId": "primitive_note0_label"
+          }
+        }
+      ],
+      "verifiedDiagramIntro": true,
+      "sceneText": true
+    }
+  ]
+}

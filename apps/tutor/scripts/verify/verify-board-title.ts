@@ -1,3 +1,4 @@
+import { requestBoardTitle } from "../../lib/boards/boardsClient";
 import {
   boardNeedsGeneratedTitle,
   deriveBoardTitleFromQuestion,
@@ -11,12 +12,35 @@ function assert(condition: unknown, message: string): void {
   }
 }
 
+// A title comes from the student's words, never an inferred subject category.
+const topicTitleCases = [
+  ["Explain the photoelectric effect and find the stopping potential for 400 nm light.", "Photoelectric effect"],
+  ["Explain the Doppler effect for a moving source.", "Doppler effect"],
+  ["How does temperature affect the rate of a reaction?", "How does temperature affect"],
+  ["Why is momentum conserved in an isolated system?", "Why is momentum conserved"],
+  ["Explain an isolated system in thermodynamics.", "Isolated system"],
+  ["Explain glycolysis: how glucose is broken down in respiration.", "Glycolysis"],
+  ["Draw a labelled plant cell.", "Draw a labelled plant cell"],
+  ["How does glucose enter a muscle cell?", "How does glucose enter"],
+  ["A car moves in a circle of radius 50 m at 20 m/s. Find the centripetal force.", "Car moves in a circle"],
+  ["Find the radius of curvature of a concave mirror with focal length 10 cm.", "Radius of curvature"],
+  ["Explain the radius of convergence of a power series.", "Radius of convergence"],
+  ["Explain grammar and vocabulary in this sentence.", "Grammar and vocabulary"],
+  ["Explain the greenhouse effect.", "Greenhouse effect"],
+  ["Explain a quadratic approximation to potential energy.", "Quadratic approximation"],
+  ["Explain photosynthesis in a green plant.", "Photosynthesis in a green plant"],
+  ["Find the area of a circle with radius 4 cm.", "Area of a circle"],
+] as const;
+for (const [question, prefix] of topicTitleCases) {
+  assert(finalizeBoardTitle(question).startsWith(prefix), `source title: ${question} -> ${finalizeBoardTitle(question)}`);
+}
+
 const fbdQuestion =
   "Solve: a 5 kg box is pushed with 20 N on a surface with μ = 0.3. Find acceleration and draw the free-body diagram.";
 
 assert(
-  deriveBoardTitleFromQuestion(fbdQuestion) === "5 kg box free-body diagram",
-  "FBD question should derive a concrete diagram title",
+  deriveBoardTitleFromQuestion(fbdQuestion).startsWith("5 kg box is pushed with 20 N"),
+  "a long FBD question should keep its own first clause",
 );
 
 assert(
@@ -28,8 +52,8 @@ assert(
   finalizeBoardTitle(
     fbdQuestion,
     "Wants A Topic Name For The Math Concept Covered By The Quest",
-  ) === "5 kg box free-body diagram",
-  "bad LLM title should fall back to derived title",
+  ) === deriveBoardTitleFromQuestion(fbdQuestion),
+  "bad LLM title should fall back to the question's own words",
 );
 
 assert(
@@ -82,8 +106,8 @@ assert(
   "an ionic radius is not circle geometry",
 );
 assert(
-  deriveBoardTitleFromQuestion("Find the area of a circle with radius 4 cm.") === "Circle geometry",
-  "a circle radius stays circle geometry",
+  deriveBoardTitleFromQuestion("Find the area of a circle with radius 4 cm.") === "Area of a circle with radius 4 cm",
+  "an explicit circle question keeps its complete first clause",
 );
 
 const ionisation =
@@ -93,8 +117,8 @@ assert(
   "oxygen the element is not photosynthesis",
 );
 assert(
-  deriveBoardTitleFromQuestion("Explain photosynthesis in a green plant.") === "Photosynthesis",
-  "a plant photosynthesis question stays photosynthesis",
+  deriveBoardTitleFromQuestion("Explain photosynthesis in a green plant.") === "Photosynthesis in a green plant",
+  "an explicit photosynthesis question keeps its complete first clause",
 );
 
 const zeroOrder =
@@ -140,12 +164,12 @@ for (const [question, expected] of [
   ["Explain Newton's method for finding roots", "Newton's method for finding roots"],
   ["Explain force measured in newtons", "Force measured in newtons"],
   ["Explain the second law of thermodynamics", "Second law of thermodynamics"],
-  ["Explain Newton’s 2nd law", "Newton's second law"],
+  ["Explain Newton’s 2nd law", "Newton’s 2nd law"],
   [
     "Why does a wall push back when I push it? Explain Newton's third law with a simple person-and-wall force diagram.",
     "Why does a wall push back when I push it",
   ],
-  ["Explain F = ma", "Newton's second law"],
+  ["Explain F = ma", "F = ma"],
 ] as const) {
   assert(finalizeBoardTitle(question) === expected, `Newton titles must preserve the requested topic: ${question}`);
 }
@@ -206,4 +230,45 @@ assert(afterNumber === "Sample has pH 5", `a period after a number must end the 
 const decimal = deriveBoardTitleFromQuestion("A ball moves at 2.5 m/s. Find its momentum.");
 assert(decimal === "Ball moves at 2.5 m/s", `a decimal point must not end the sentence: ${decimal}`);
 
-console.log("verify-board-title: all checks passed");
+// A literal expression is not evidence that the question solves an equation.
+async function verifyExpressionTitles(): Promise<void> {
+  const cases = [
+    ...topicTitleCases,
+    ["Integrate (2x + 3)/(x^2 + 3x + 2) and explain how to spot the substitution.", "Integrate"],
+    ["Differentiate 2x + 3 with respect to x.", "Differentiate"],
+    ["Simplify (2x + 3)^2.", "Simplify"],
+  ] as const;
+  const failures: string[] = [];
+  const check = (ok: unknown, message: string) => { if (!ok) failures.push(message); };
+  const originalFetch = globalThis.fetch;
+  let requests = 0;
+  try {
+    // The actual dashboard client must use the same honest title if its
+    // admitted board-name route is unavailable; this never dispatches network.
+    globalThis.fetch = async (url, init) => {
+      assert(String(url).endsWith("/api/board-name"), "only the actual board-name consumer may request a title");
+      assert(cases.some(([question]) => JSON.parse(String(init?.body)).question === question), "the naming request keeps the complete original question");
+      requests++;
+      return new Response(null, { status: 503 });
+    };
+    for (const [question, prefix] of cases) {
+      const title = finalizeBoardTitle(question);
+      check(title.startsWith(prefix) && title !== "Linear equation", `finalizer must preserve the actual task: ${question} -> ${title}`);
+      const clientTitle = await requestBoardTitle(question);
+      check(clientTitle.startsWith(prefix) && clientTitle === title, `real naming client fallback must preserve the actual task: ${question} -> ${clientTitle}`);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  assert(requests === cases.length, "each recorded/control question reaches the actual naming client");
+  for (const [question, expected] of [
+    ["Solve the linear equation 2x + 3 = 7.", "Linear equation 2x + 3 = 7"],
+    ["Show how to isolate x in 2x + 3 = 7.", "Isolate x in 2x + 3 = 7"],
+  ]) {
+    check(finalizeBoardTitle(question) === expected, `explicit equation wording keeps its source expression: ${question}`);
+  }
+  check(finalizeBoardTitle("Solve 2x + 3 = 7.") === "2x + 3 = 7", "an ordinary equation keeps its complete source expression instead of requiring a guessed category");
+  assert(failures.length === 0, `${failures.length}/${cases.length * 2 + 3} source-title checks failed:\n${failures.join("\n")}`);
+  console.log(`verify-board-title: all existing checks and ${cases.length * 2 + 3} source-title checks passed; actual finalizer and naming-client fallback`);
+}
+void verifyExpressionTitles().catch(error => { console.error(error); process.exitCode = 1; });

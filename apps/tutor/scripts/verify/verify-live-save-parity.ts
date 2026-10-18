@@ -121,7 +121,7 @@ async function main(): Promise<void> {
   assert(call > 0 && gate > call && commit > gate, "shared production selection runs save admission before returning drawable geometry");
   assert(hook.includes("selectProductionScene({") && hook.includes("sceneV2Document = selected?.sceneDocument ?? null;"), "the live hook commits only the shared selection result");
   const lab = readFileSync(join(__dirname, "../lecture-lab/lecturePipeline.ts"), "utf8");
-  assert(lab.includes("selectProductionScene({") && lab.includes("const sceneDocument = selected?.sceneDocument ?? null;"), "the lab commits only the same shared selection result");
+  assert(lab.includes("selectProductionScene(sceneSelectionInput)") && lab.includes("const sceneDocument = selected?.sceneDocument ?? null;"), "the lab commits only the same shared selection result");
   const persistence = readFileSync(join(__dirname, "../../lib/scene/turnScenePersistence.ts"), "utf8");
   assert(persistence.includes("sceneSaveAdmissionFailure({ document, question, turnPlan, tier })"), "the save runs the shared check");
   checks += 2;
