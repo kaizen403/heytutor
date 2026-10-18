@@ -336,8 +336,15 @@ export function estimateLabCallWorstCaseUsd(input: {
   messages: unknown;
   maxTokens: number;
   model: string;
+  inputByteMultiplier?: number;
+  addedInputBytes?: number;
 }): number {
-  const promptBytes = new TextEncoder().encode(JSON.stringify(input.messages)).length + 2_048;
+  const multiplier = input.inputByteMultiplier ?? 1;
+  const added = input.addedInputBytes ?? 0;
+  if (!Number.isSafeInteger(multiplier) || multiplier < 1 || !Number.isSafeInteger(added) || added < 0) {
+    throw new Error("invalid server-prepared input expansion bound");
+  }
+  const promptBytes = new TextEncoder().encode(JSON.stringify(input.messages)).length * multiplier + added + 2_048;
   return calculateLlmCostDetails(
     { input: promptBytes, output: Math.max(0, input.maxTokens) },
     { model: input.model },
