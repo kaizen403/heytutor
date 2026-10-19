@@ -62,7 +62,8 @@
     "verify:lecture-replay-inputs": "tsx scripts/verify/verify-lecture-replay-inputs.ts",
     "verify:youtube-lesson-qa": "pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-youtube-speech.ts && tsx scripts/verify/verify-youtube-speech-boundary.ts && tsx scripts/verify/verify-youtube-pen-clock.ts && tsx scripts/verify/verify-export-focus-clock.ts && tsx scripts/verify/verify-work-write-pages.ts",
     "verify:region-contracts": "tsx scripts/verify/verify-linear-source-set-admission.mts && tsx scripts/verify/verify-region-solver-admission.mts && tsx scripts/verify/verify-linear-source-plan-admission.ts && tsx scripts/verify/verify-linear-region-live-labels.ts",
-    "verify:completion": "node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-admission.ts && node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-boundary-admission.ts && tsx scripts/verify/verify-structured-completion-diagnostics.ts && node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-owner-admission.ts"
+    "verify:completion": "node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-admission.ts && node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-boundary-admission.ts && tsx scripts/verify/verify-structured-completion-diagnostics.ts && node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-owner-admission.ts",
+    "verify:yield": "tsx scripts/verify/verify-yield-answer-reveal.ts && tsx scripts/verify/verify-yield-admission.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1131.0",

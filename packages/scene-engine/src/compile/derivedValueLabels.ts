@@ -9,7 +9,7 @@ const NUMBER = "[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?";
 const SCALAR = new RegExp(`^(${NUMBER})(?:\\s*([^\\d].*))?$`);
 const PAIR = new RegExp(`^([([])\\s*(${NUMBER})\\s*,\\s*(${NUMBER})\\s*([)\\]])(?:\\s*(.*))?$`);
 const EPSILON = 64 * Number.EPSILON;
-type Dimension = { length: number; time: number; factor: number; identity?: string };
+type Dimension = { length: number; time: number; factor: number; identity?: string; unknown?: boolean };
 type Value = { raw: number; dimension: Dimension };
 type Authority = { allowSource: boolean; values: Map<string, Value>; tuple?: [Value, Value]; tupleKeys: Set<string>; reserved: Set<string>; bare?: Value; namedRatios?: Map<string, number> };
 type Claim = { key: string; values: number[]; unit: string; approximate: boolean; tokens: string[]; namedRatio?: true };
@@ -17,7 +17,10 @@ const UNITLESS: Dimension = { length: 0, time: 0, factor: 1 };
 const LENGTH_FACTORS: Readonly<Record<string, number>> = { m: 1, meter: 1, meters: 1, metre: 1, metres: 1, cm: 0.01, centimeter: 0.01, centimeters: 0.01, centimetre: 0.01, centimetres: 0.01, mm: 0.001, millimeter: 0.001, millimeters: 0.001, millimetre: 0.001, millimetres: 0.001, km: 1000, kilometer: 1000, kilometers: 1000, kilometre: 1000, kilometres: 1000, um: 1e-6, "µm": 1e-6, "μm": 1e-6, micrometer: 1e-6, micrometers: 1e-6, nm: 1e-9, nanometer: 1e-9, nanometers: 1e-9, ft: 0.3048, foot: 0.3048, feet: 0.3048, in: 0.0254, inch: 0.0254, inches: 0.0254 };
 const TIME_FACTORS: Readonly<Record<string, number>> = { s: 1, sec: 1, second: 1, seconds: 1, ms: 0.001, millisecond: 0.001, milliseconds: 0.001, us: 1e-6, "µs": 1e-6, "μs": 1e-6, microsecond: 1e-6, microseconds: 1e-6, min: 60, minute: 60, minutes: 60, h: 3600, hr: 3600, hour: 3600, hours: 3600 };
 function record(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null && !Array.isArray(value); }
-function fail(message: string): never { throw new Error(message); }
+class DerivedLabelError extends Error {
+  constructor(message: string, readonly failureKind: "truth" | "proof", readonly proofKind?: "unit_declaration") { super(message); }
+}
+function fail(message: string, failureKind: "truth" | "proof" = "truth"): never { throw new DerivedLabelError(message, failureKind); }
 function key(value: string): string { return value.trim().replace(/[₀₁₂₃₄₅₆₇₈₉]/g, (digit) => String("₀₁₂₃₄₅₆₇₈₉".indexOf(digit))).replace(/_/g, "").replace(/\s+/g, "").toLowerCase(); }
 function unit(value: string): Dimension {
   const normalized = value.trim().replace(/²/g, "^2").replace(/\s+/g, "").replace(/[A-Za-z]+/g, (word) => {
@@ -39,7 +42,8 @@ function unit(value: string): Dimension {
   return { length: 0, time: 0, factor: 1, identity: normalized };
 }
 function dimension(units: KinematicTrajectoryDefinition["sourceUnits"] | undefined, quantity: "position" | "velocity" | "acceleration" | "time"): Dimension {
-  if (!units || units.length === null || units.time === null || units.length === "unit" && units.time === "unit") return UNITLESS;
+  if (!units || units.length === null || units.time === null) return { ...UNITLESS, unknown: true };
+  if (units.length === "unit" && units.time === "unit") return UNITLESS;
   const length = unit(units.length); const time = unit(units.time);
   if (quantity === "time") return time;
   const power = quantity === "position" ? 0 : quantity === "velocity" ? 1 : 2;
@@ -243,7 +247,7 @@ export function readDerivedCoordinateLabelClaim(text: string): { name: string; v
 
 function parse(text: unknown): Claim | null {
   if (text === undefined) return null;
-  if (typeof text !== "string") fail("Derived labels must be text");
+  if (typeof text !== "string") fail("Derived labels must be text", "proof");
   // U+2212 is the typeset minus sign, not a different character class.
   const normalized = text.trim().replace(/−/g, "-");
   if (/(?:\bNaN\b|\bInfinity\b|∞)/i.test(normalized)) fail("Derived quantitative labels must be finite");
@@ -271,31 +275,36 @@ function parse(text: unknown): Claim | null {
   }
   const pair = right.match(PAIR);
   if (pair) {
-    if (pair[1] === "(" ? pair[4] !== ")" : pair[4] !== "]") fail("Derived coordinate/component tuple delimiters must match");
+    if (pair[1] === "(" ? pair[4] !== ")" : pair[4] !== "]") fail("Derived coordinate/component tuple delimiters must match", "proof");
     return { key: key(name), values: [Number(pair[2]), Number(pair[3])], unit: pair[5]?.trim() ?? "", approximate: normalized[separator] === "≈", tokens: [pair[2]!, pair[3]!] };
   }
   const scalar = right.match(SCALAR); if (scalar) return { key: key(name), values: [Number(scalar[1])], unit: scalar[2]?.trim() ?? "", approximate: normalized[separator] === "≈", tokens: [scalar[1]!] };
-  return fail("Quantitative derived labels require a supported scalar/component claim with explicit meaning");
+  return fail("Quantitative derived labels require a supported scalar/component claim with explicit meaning", "proof");
 }
 function preserveLiteral(value: unknown): void {
   const match = typeof value === "string" && /^([+-]?(?:\d+(?:\.\d*)?|\.\d+))(?:[eE][+-]?\d+)?$/.exec(value.trim());
-  if (match && Number(value) === 0 && /[1-9]/.test(match[1]!)) fail("A nonzero derived quantity literal cannot become certified zero");
+  if (match && Number(value) === 0 && /[1-9]/.test(match[1]!)) fail("A nonzero derived quantity literal cannot become certified zero", "truth");
 }
 function close(actual: number, expected: Value, declaredUnit: string, approximate = false, token = ""): void {
   preserveLiteral(token);
   const scale = declaredUnit ? unit(declaredUnit) : expected.dimension;
-  if (scale.length !== expected.dimension.length || scale.time !== expected.dimension.time || scale.identity !== expected.dimension.identity) fail("Derived quantity label has incompatible physical dimensions");
+  if (scale.length !== expected.dimension.length || scale.time !== expected.dimension.time || scale.identity !== expected.dimension.identity) {
+    if (expected.dimension.unknown && Number.isFinite(actual) && actual === expected.raw) {
+      throw new DerivedLabelError("Derived quantity label has incompatible physical dimensions", "proof", "unit_declaration");
+    }
+    fail("Derived quantity label has incompatible physical dimensions", "truth");
+  }
   // Compare in the evaluated source scale: multiplying both tiny source
   // values into SI can underflow them to the same zero and erase a lie.
   const conversion = scale.factor === expected.dimension.factor ? 1 : scale.factor / expected.dimension.factor;
   const value = actual * conversion; const target = expected.raw;
-  if (!(conversion > 0) || ![actual, conversion, value, target].every(Number.isFinite) || actual !== 0 && value === 0) fail("Derived value unit conversion must retain finite nonzero authority");
+  if (!(conversion > 0) || ![actual, conversion, value, target].every(Number.isFinite) || actual !== 0 && value === 0) fail("Derived value unit conversion must retain finite nonzero authority", "truth");
   let tolerance = EPSILON * Math.abs(target);
   if (approximate) {
     const [mantissa, exponent] = token.toLowerCase().split("e"); const decimals = mantissa?.split(".")[1]?.length ?? 0;
     tolerance += 0.5 * 10 ** (Number(exponent ?? 0) - decimals) * conversion;
   }
-  if (actual === 0 && expected.raw !== 0 || Math.abs(value - target) > tolerance) fail("Derived value label contradicts its evaluated mathematical value");
+  if (actual === 0 && expected.raw !== 0 || Math.abs(value - target) > tolerance) fail("Derived value label contradicts its evaluated mathematical value", "truth");
 }
 function numberValue(value: unknown, document: SceneDocument, seen = new Set<unknown>(), depth = 0): number {
   if (depth > 32 || seen.has(value)) fail("Derived annotation numeric source is cyclic or too deep");
@@ -315,9 +324,12 @@ function sourceClaim(claim: Claim, document: SceneDocument): boolean {
   if (!quantity) return false;
   const units = quantityUnits(quantity, document);
   const expected = numberValue(quantity.value, document);
-  if (units.length && units.some((value) => value.trim() !== units[0]!.trim())) fail("Source quantity label has conflicting nested units");
+  if (units.length && units.some((value) => value.trim() !== units[0]!.trim())) fail("Source quantity label has conflicting nested units", "truth");
   if (!claim.unit) { close(claim.values[0]!, { raw: expected, dimension: UNITLESS }, "", claim.approximate, claim.tokens[0]); return true; }
-  if (!units.length) fail("Source quantity claim invents undeclared physical units");
+  if (!units.length) {
+    close(claim.values[0]!, { raw: expected, dimension: UNITLESS }, "", claim.approximate, claim.tokens[0]);
+    fail("Source quantity claim invents undeclared physical units", "proof");
+  }
   try { close(claim.values[0]!, { raw: expected, dimension: unit(units[0]!) }, claim.unit, claim.approximate, claim.tokens[0]); }
   catch (error) { if (claim.unit.trim() !== units[0]!.trim()) throw error; close(claim.values[0]!, { raw: expected, dimension: UNITLESS }, "", claim.approximate, claim.tokens[0]); }
   return true;
@@ -325,18 +337,27 @@ function sourceClaim(claim: Claim, document: SceneDocument): boolean {
 function checkClaim(claim: Claim, authority: Authority, document: SceneDocument, allowSource: boolean): void {
   if (claim.namedRatio) {
     const expected = authority.namedRatios?.get(claim.key);
-    if (expected === undefined) fail("Named distance ratio requires certified endpoint and dividing-point identities");
+    if (expected === undefined) fail("Named distance ratio requires certified endpoint and dividing-point identities", "proof");
     close(claim.values[0]!, { raw: expected, dimension: UNITLESS }, claim.unit, false, claim.tokens[0]); return;
   }
   if (claim.values.length === 2) {
-    if (!authority.tuple || !authority.tupleKeys.has(claim.key)) fail("Derived coordinate/component tuple has no unambiguous evaluated authority");
-    claim.values.forEach((value, index) => close(value, authority.tuple![index]!, claim.unit, claim.approximate, claim.tokens[index])); return;
+    if (!authority.tuple || !authority.tupleKeys.has(claim.key)) fail("Derived coordinate/component tuple has no unambiguous evaluated authority", "proof");
+    // A missing unit on one component must not hide a numeric contradiction
+    // in a later component of the same tuple.
+    const failures: unknown[] = [];
+    claim.values.forEach((value, index) => {
+      try { close(value, authority.tuple![index]!, claim.unit, claim.approximate, claim.tokens[index]); }
+      catch (error) { failures.push(error); }
+    });
+    const failure = failures.find(error => !(error instanceof DerivedLabelError && error.failureKind === "proof")) ?? failures[0];
+    if (failure) throw failure;
+    return;
   }
   const value = claim.key ? authority.values.get(claim.key) : authority.bare;
   if (value) { close(claim.values[0]!, value, claim.unit, claim.approximate, claim.tokens[0]); return; }
-  if (authority.reserved.has(claim.key) || authority.tupleKeys.has(claim.key) || /^\|.+\|$/.test(claim.key)) fail("A source quantity cannot replace unsupported derived coordinate/component/magnitude authority");
+  if (authority.reserved.has(claim.key) || authority.tupleKeys.has(claim.key) || /^\|.+\|$/.test(claim.key)) fail("A source quantity cannot replace unsupported derived coordinate/component/magnitude authority", "proof");
   if (allowSource && sourceClaim(claim, document)) return;
-  fail("Derived scalar label needs an explicit supported component, magnitude, coordinate, or slope meaning");
+  fail("Derived scalar label needs an explicit supported component, magnitude, coordinate, or slope meaning", "proof");
 }
 
 /** Label descendants inherit the authority of the geometry they describe. */
@@ -361,7 +382,7 @@ export function derivedLabelTargets(document: SceneDocument, root: string): Set<
 export function validateEvaluatedDerivedValueLabels(construction: SceneConstruction, index: number, document: SceneDocument, outputs: readonly unknown[], issues: SceneIssue[]): boolean {
   if (!OPERATORS.has(construction.operator)) return false;
   construction.outputs.forEach((id, outputIndex) => {
-    const add = (error: unknown, path: string): void => { issues.push({ code: "invalid_derived_value_label", message: error instanceof Error ? error.message : "Derived value label is invalid", severity: "fatal", path, entityIds: [id] }); };
+    const add = (error: unknown, path: string): void => { issues.push({ code: "invalid_derived_value_label", message: error instanceof Error ? error.message : "Derived value label is invalid", severity: "fatal", failureKind: error instanceof DerivedLabelError ? error.failureKind : "truth", ...(error instanceof DerivedLabelError && error.proofKind ? { proofKind: error.proofKind } : {}), path, entityIds: [id] }); };
     if (construction.operator === "point_line_distance") {
       const geometry = outputs[outputIndex];
       if (record(geometry) && geometry.kind === "path") {
@@ -383,10 +404,17 @@ export function validateEvaluatedDerivedValueLabels(construction: SceneConstruct
       checkText(annotation.text, `annotations[${annotationIndex}].text`);
       if (annotation.quantityId === undefined) return;
       try {
-        const quantity = document.quantities.find((candidate) => candidate.id === annotation.quantityId); if (!quantity) fail("Derived quantity annotation must reference a known source quantity");
+        const quantity = document.quantities.find((candidate) => candidate.id === annotation.quantityId); if (!quantity) fail("Derived quantity annotation must reference a known source quantity", "proof");
         const symbol = typeof quantity.symbol === "string" ? quantity.symbol : quantity.id;
         const declared = quantityUnits(quantity, document); const authority = authorityFor(construction, outputs[outputIndex], document);
-        const value = authority.values.get(key(symbol)); if (!value) fail("Derived quantity annotation needs an unambiguous computed scalar meaning");
+        const value = authority.values.get(key(symbol)); if (!value) fail("Derived quantity annotation needs an unambiguous computed scalar meaning", "proof");
+        if (value.dimension.unknown && declared.length > 1) {
+          const first = unit(declared[0]!);
+          if (declared.some(text => {
+            const other = unit(text);
+            return other.length !== first.length || other.time !== first.time || other.factor !== first.factor || other.identity !== first.identity;
+          })) fail("Source quantity label has conflicting nested units");
+        }
         const units = declared.length ? declared : [""];
         for (const declaredUnit of units) close(numberValue(quantity.value, document), value, declaredUnit);
       } catch (error) { add(error, `annotations[${annotationIndex}].quantityId`); }
