@@ -25,7 +25,7 @@ import {
   placeLabels,
   workColumnObstacle,
 } from "@heytutor/scene-engine";
-import { CUE_DEFAULT_MS_PER_CHAR, cuedInkFloorMs, findSpokenToken, type NarrationLanguage } from "@heytutor/tutor-core";
+import { CUE_DEFAULT_MS_PER_CHAR, cuedInkCapMs, cuedInkFloorMs, findSpokenToken, mathToSpeech, type NarrationLanguage } from "@heytutor/tutor-core";
 import { DSA_CODE_PANEL_RECT, DSA_DIAGRAM_ZONE } from "../../constants";
 import { buildLabelGlossary } from "./labelGlossary";
 import { hinglishFigureNarration } from "./figureNarrationLanguage";
@@ -1044,6 +1044,40 @@ function entityPhrase(entity: SceneEntity, language?: NarrationLanguage): string
  */
 /** Ink may trail the last word of an intro beat by this much before the beat says more. */
 const CUE_OVERRUN_TOLERANCE_MS = 400;
+/**
+ * The longest the pen may stand still while an intro beat is spoken. A beat
+ * that says more than its ink parks the pen under the rest of the sentence:
+ * the 19 Oct 2026 YouTube lessons stood still for 17 s to 58 s under planner
+ * paragraphs and English captions appended to the Hinglish walk.
+ */
+export const CUE_PEN_IDLE_MAX_MS = 6_000;
+
+/** The cue's sentences, keeping a period that ends an abbreviation inside its sentence. */
+function splitCueSentences(cue: string): string[] {
+  const parts: string[] = [];
+  for (const part of cue.trim().replace(/\s+/g, " ").split(/(?<=[.!?])\s+(?=[A-Z\p{Script=Devanagari}])/u)) {
+    const previous = parts.at(-1);
+    if (previous && /\b(?:dil|conc|aq|approx|e\.g|i\.e|vs|fig|etc)\.$/i.test(previous)) {
+      parts[parts.length - 1] = `${previous} ${part}`;
+    } else if (part) {
+      parts.push(part);
+    }
+  }
+  return parts;
+}
+
+/** One short sentence that names the group's parts, for a beat whose cue outlasts its ink. */
+function namingSentence(phrases: string[], groupIndex: number, language?: NarrationLanguage): string {
+  if (language === "hinglish") {
+    if (phrases.length === 0) {
+      return groupIndex === 0 ? "पहले इस figure का setup देखते हैं." : "अब figure का अगला हिस्सा देखते हैं.";
+    }
+    const list = phrases.length < 2 ? phrases[0]! : `${phrases.slice(0, -1).join(", ")} और ${phrases.at(-1)}`;
+    return `${groupIndex === 0 ? "ये है" : "अब देखो"} ${list}.`;
+  }
+  if (phrases.length === 0) return groupIndex === 0 ? "Here is the setup." : "Next comes the rest of the figure.";
+  return capitaliseSentence(`${groupIndex === 0 ? "here is" : "now"} ${joinSpokenList(phrases)}.`);
+}
 
 function walkedSetupSentence(phrases: string[], groupIndex: number, language?: NarrationLanguage): string {
   if (language === "hinglish") {
@@ -1135,13 +1169,10 @@ function cueRevealBeat(input: {
     return matches;
   };
 
-  let narration = spokenCueSentence(input.cue, input.groupIndex, input.language);
-  let matches = matchAll(narration);
   const nameable = entityIds.filter((entityId) => {
     const entity = entitiesById.get(entityId);
     return Boolean(entity && (entity.label || entity.role));
   });
-  const named = nameable.filter((entityId) => matches.has(entityId));
   // The hand needs at least this long for the group's ink (labels the
   // sentence names included). A sentence shorter than that leaves the pen
   // running past the voice, so it too earns the rest of the names.
@@ -1152,19 +1183,6 @@ function cueRevealBeat(input: {
         ? sum + cuedInkFloorMs(verifiedDiagramCommandToDrawCommand(commands[entry.index]!))
         : sum, 0);
   const spokenMs = (sentence: string): number => sentence.length * CUE_DEFAULT_MS_PER_CHAR;
-  const tooShort = floorMs(matches) > spokenMs(narration);
-  if (named.length * 2 < nameable.length || tooShort) {
-    const phrases: string[] = [];
-    for (const entityId of nameable) {
-      if (matches.has(entityId)) continue;
-      const phrase = entityPhrase(entitiesById.get(entityId)!, input.language);
-      if (phrase && !phrases.includes(phrase)) phrases.push(phrase);
-    }
-    if (phrases.length > 0) {
-      narration = extendCueSentence(narration, phrases, named.length === 0, input.language);
-      matches = matchAll(narration);
-    }
-  }
   // Every command gets a word: its own part's when the sentence names it,
   // otherwise the word of the command before it, so scaffolding is drawn
   // with the part it belongs to. Then the beat is put in spoken order, stable,
@@ -1215,42 +1233,140 @@ function cueRevealBeat(input: {
     }
     return clockMs - spokenMs(sentence);
   };
-
-  // Every part may already be named and the sentence still be shorter than
-  // the hand: a circuit of 26 strokes needs eleven seconds and its cue
-  // ("the battery, R1 and R2") is under five, so the pen ran six seconds past
-  // the voice. A teacher who has that much to draw says more while drawing
-  // it, so the beat becomes a walk through the parts, one phrase each, in the
-  // order they go down, closing on a short clause so the last part has its
-  // time too.
-  let placed = layout(narration, matches);
-  if (overrunMs(narration, placed.ordered) > CUE_OVERRUN_TOLERANCE_MS) {
+  // The longest the pen stands still under this sentence. The parts under
+  // each word fill that word's window, never faster than their floors and
+  // never drawn out past their caps, as the runner budgets them; what is left
+  // of the window the pen waits. The opening word's window starts with the
+  // sentence. Notation is voiced longer than it is written ("m/s" is "meters
+  // per second"), so the windows are read on the spoken sentence.
+  const voicedMs = (text: string): number => mathToSpeech(text).length * CUE_DEFAULT_MS_PER_CHAR;
+  const longestIdleMs = (sentence: string, ordered: BeatItem[]): number => {
+    const totalMs = voicedMs(sentence);
+    const wordMs = (item: BeatItem): number => voicedMs(sentence.slice(0, item.position));
+    let longest = 0;
+    for (let start = 0; start < ordered.length;) {
+      let end = start;
+      let floors = 0;
+      let caps = 0;
+      while (end < ordered.length && ordered[end]!.position === ordered[start]!.position) {
+        const command = verifiedDiagramCommandToDrawCommand(commands[ordered[end]!.index]!);
+        const floor = cuedInkFloorMs(command);
+        floors += floor;
+        caps += cuedInkCapMs(command, floor);
+        end += 1;
+      }
+      const opensMs = start === 0 ? 0 : wordMs(ordered[start]!);
+      const closesMs = end < ordered.length ? wordMs(ordered[end]!) : totalMs;
+      longest = Math.max(longest, closesMs - opensMs - Math.max(caps, floors));
+      start = end;
+    }
+    return longest;
+  };
+  const phrasesFor = (skip: ReadonlyMap<string, CuedMatch> | null): string[] => {
     const phrases: string[] = [];
     for (const entityId of nameable) {
+      if (skip?.has(entityId)) continue;
       const phrase = entityPhrase(entitiesById.get(entityId)!, input.language);
       if (phrase && !phrases.includes(phrase)) phrases.push(phrase);
     }
-    if (phrases.length >= 2) {
-      const walkthrough = walkedSetupSentence(phrases, input.groupIndex, input.language);
-      // Expanding names to fill the ink's time must not replace what the cue
-      // explains. This also covers short imperatives isSpokenProse rejects.
-      const explanation = input.language === "hinglish" && cueSubject(input.cue) !== "the physical setup"
-        ? spokenCueSentence(input.cue, input.groupIndex, input.language) : "";
-      const walked = explanation ? `${walkthrough} ${explanation}` : walkthrough;
-      const walkedMatches = matchAll(walked);
-      const walkedPlaced = layout(walked, walkedMatches);
-      if (
-        walkedMatches.size >= matches.size &&
-        overrunMs(walked, walkedPlaced.ordered) < overrunMs(narration, placed.ordered)
-      ) {
-        narration = walked;
-        matches = walkedMatches;
-        placed = walkedPlaced;
+    return phrases;
+  };
+
+  interface ComposedBeat { narration: string; placed: ReturnType<typeof layout> }
+  /** The beat a cue sentence makes: named, extended and walked as before. */
+  const compose = (base: string, explanation: string): ComposedBeat => {
+    let narration = base;
+    let matches = matchAll(narration);
+    const named = nameable.filter((entityId) => matches.has(entityId));
+    const tooShort = floorMs(matches) > spokenMs(narration);
+    if (named.length * 2 < nameable.length || tooShort) {
+      const phrases = phrasesFor(matches);
+      if (phrases.length > 0) {
+        narration = extendCueSentence(narration, phrases, named.length === 0, input.language);
+        matches = matchAll(narration);
       }
     }
+    // Every part may already be named and the sentence still be shorter than
+    // the hand: a circuit of 26 strokes needs eleven seconds and its cue
+    // ("the battery, R1 and R2") is under five, so the pen ran six seconds past
+    // the voice. A teacher who has that much to draw says more while drawing
+    // it, so the beat becomes a walk through the parts, one phrase each, in the
+    // order they go down, closing on a short clause so the last part has its
+    // time too.
+    let placed = layout(narration, matches);
+    if (overrunMs(narration, placed.ordered) > CUE_OVERRUN_TOLERANCE_MS) {
+      const phrases = phrasesFor(null);
+      if (phrases.length >= 2) {
+        const walkthrough = walkedSetupSentence(phrases, input.groupIndex, input.language);
+        // Expanding names to fill the ink's time must not replace what the cue
+        // explains. This also covers short imperatives isSpokenProse rejects.
+        const walked = explanation ? `${walkthrough} ${explanation}` : walkthrough;
+        const walkedMatches = matchAll(walked);
+        const walkedPlaced = layout(walked, walkedMatches);
+        if (
+          walkedMatches.size >= matches.size &&
+          overrunMs(walked, walkedPlaced.ordered) < overrunMs(narration, placed.ordered)
+        ) {
+          narration = walked;
+          matches = walkedMatches;
+          placed = walkedPlaced;
+        }
+      }
+    }
+    return { narration, placed };
+  };
+  const explanationOf = (cue: string): string =>
+    input.language === "hinglish" && cueSubject(cue) !== "the physical setup"
+      ? spokenCueSentence(cue, input.groupIndex, input.language) : "";
+  const composeCue = (cue: string, explain: boolean): ComposedBeat =>
+    compose(spokenCueSentence(cue, input.groupIndex, input.language), explain ? explanationOf(cue) : "");
+
+  // The voice may not outrun the ink. A planner cue of four joined teaching
+  // narrations (58 s against 6 s of ink), or a Hinglish walk with the whole
+  // English caption appended after it (19 s past its ink), left the board
+  // still while the figure tour explained the lesson ahead of the lesson.
+  // Such a beat says less: the cue's leading sentences, then the walk alone,
+  // then one sentence naming the parts. The explanation is the teaching
+  // stream's, which speaks it while the pen writes.
+  const speechFits = (beat: ComposedBeat): boolean =>
+    longestIdleMs(beat.narration, beat.placed.ordered) <= CUE_PEN_IDLE_MAX_MS;
+  let beat = composeCue(input.cue, true);
+  if (!speechFits(beat)) {
+    // A shorter beat may not leave the hand further behind the voice than
+    // the full one did.
+    const overrunLimitMs = Math.max(CUE_OVERRUN_TOLERANCE_MS, overrunMs(beat.narration, beat.placed.ordered));
+    const keepsUp = (candidate: ComposedBeat): boolean =>
+      overrunMs(candidate.narration, candidate.placed.ordered) <= overrunLimitMs;
+    const variants: Array<() => ComposedBeat> = [() => composeCue(input.cue, false)];
+    const sentences = splitCueSentences(input.cue);
+    for (let count = sentences.length - 1; count >= 1; count--) {
+      const shorter = sentences.slice(0, count).join(" ");
+      variants.push(() => composeCue(shorter, true), () => composeCue(shorter, false));
+    }
+    const allPhrases = phrasesFor(null);
+    if (allPhrases.length >= 2) {
+      variants.push(() => compose(walkedSetupSentence(allPhrases, input.groupIndex, input.language), ""));
+    }
+    variants.push(() => compose(namingSentence(allPhrases, input.groupIndex, input.language), ""));
+    const tried: ComposedBeat[] = [beat];
+    let chosen: ComposedBeat | null = null;
+    for (const variant of variants) {
+      const candidate = variant();
+      if (speechFits(candidate) && keepsUp(candidate)) {
+        chosen = candidate;
+        break;
+      }
+      tried.push(candidate);
+    }
+    // Nothing fits both bounds: the shortest sentence the hand can still
+    // keep up with, so the pen parks for as little of the voice as it can.
+    beat = chosen ?? tried
+      .filter(keepsUp)
+      .sort((left, right) => left.narration.length - right.narration.length)[0] ?? beat;
   }
-  const ordered = placed.ordered;
-  const pulledIndices = placed.pulled;
+  const narration = beat.narration;
+  const ordered = beat.placed.ordered;
+  const pulledIndices = beat.placed.pulled;
 
   return {
     narration,

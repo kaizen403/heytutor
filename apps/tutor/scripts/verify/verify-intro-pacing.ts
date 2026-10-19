@@ -24,7 +24,15 @@
  * parked for 3.3 s; four of nine archetypes spoke their groups out of the
  * order they were drawn in.
  */
-import { synthesizeArchetypeScene } from "@heytutor/scene-engine";
+import { readdirSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import {
+  compileSceneDocument,
+  synthesizeArchetypeScene,
+  validateSceneDocument,
+  type RenderScene,
+} from "@heytutor/scene-engine";
 import type { DrawCommand } from "@heytutor/drawing";
 import {
   cuedInkCapMs,
@@ -40,7 +48,10 @@ import {
   selectInkPace,
   type AudioTimings,
 } from "@heytutor/tutor-core";
-import { buildVerifiedDiagramPresentation } from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
+import {
+  buildVerifiedDiagramPresentation,
+  CUE_PEN_IDLE_MAX_MS,
+} from "../../features/tutor-session/lib/scene/verifiedScenePresentation";
 import { resolveCommandInkBudgetMs } from "../../features/tutor-session/types";
 
 const MS_PER_CHAR = 86;
@@ -171,14 +182,18 @@ let cuedCommands = 0;
 let letteredInIntro = 0;
 const verbose = process.argv.includes("--print");
 
-for (const question of questions) {
-  const scene = synthesizeArchetypeScene({ question });
-  if (!scene) continue;
-  figures += 1;
-  const presentation = buildVerifiedDiagramPresentation(scene.document, scene.renderScene, {
-    figureFamily: scene.archetype,
-  });
-  const label = `${scene.archetype} (${question.slice(0, 40)}...)`;
+function checkIntroPacing(
+  label: string,
+  renderScene: RenderScene,
+  presentation: ReturnType<typeof buildVerifiedDiagramPresentation>,
+  /**
+   * Planner prose is held to the pen never standing still longer than this
+   * under its sentence: a short explanation over a small figure is allowed
+   * a ratio under the minimum. The archetype figures are held to the ratio.
+   */
+  penIdleMaxMs?: number,
+): void {
+  const scene = { renderScene };
 
   // One beat per reveal group, in the order the groups are drawn. Nothing
   // sorts them by cue length any more.
@@ -296,7 +311,17 @@ for (const question of questions) {
 
     const inkMs = scheduled.reduce((sum, entry) => sum + entry.budgetMs, 0);
     const ratio = inkMs / totalMs;
-    if (ratio < INK_OVER_CUE_MIN || ratio > INK_OVER_CUE_MAX) {
+    let longestIdleMs = 0;
+    let handFreeMs = 0;
+    for (const entry of scheduled) {
+      longestIdleMs = Math.max(longestIdleMs, entry.startMs - handFreeMs);
+      handFreeMs = Math.max(handFreeMs, entry.endMs);
+    }
+    longestIdleMs = Math.max(longestIdleMs, totalMs - handFreeMs);
+    if (penIdleMaxMs !== undefined && longestIdleMs > penIdleMaxMs) {
+      fail(`${label} beat ${beatIndex}: the pen stands still for ${longestIdleMs} ms of ${totalMs} ms (ink over cue ${ratio.toFixed(2)}): "${segment.narration}"`);
+    }
+    if ((ratio < INK_OVER_CUE_MIN && penIdleMaxMs === undefined) || ratio > INK_OVER_CUE_MAX) {
       fail(`${label} beat ${beatIndex}: ink ${inkMs} ms over cue ${totalMs} ms is ${ratio.toFixed(2)}, outside [${INK_OVER_CUE_MIN}, ${INK_OVER_CUE_MAX}]: "${segment.narration}"`);
     }
     const lastEnd = scheduled.at(-1)!.endMs;
@@ -306,9 +331,39 @@ for (const question of questions) {
   }
 }
 
+for (const question of questions) {
+  const scene = synthesizeArchetypeScene({ question });
+  if (!scene) continue;
+  figures += 1;
+  const presentation = buildVerifiedDiagramPresentation(scene.document, scene.renderScene, {
+    figureFamily: scene.archetype,
+  });
+  checkIntroPacing(`${scene.archetype} (${question.slice(0, 40)}...)`, scene.renderScene, presentation);
+}
+
+// Recorded planner documents from the 19 Oct 2026 YouTube lessons, replayed
+// in both voices. Their cues were whole teaching paragraphs (four planner
+// narrations joined into one 58 s beat) or a Hinglish walk with the full
+// English caption appended: ink over cue measured 0.06 to 0.16 and the board
+// stood still while the tour explained the lesson.
+const recordedDir = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "recorded-intro");
+let recordedBeats = 0;
+for (const file of readdirSync(recordedDir).filter((name) => name.endsWith(".scene.json")).sort()) {
+  const validated = validateSceneDocument(JSON.parse(readFileSync(join(recordedDir, file), "utf8")));
+  if (!validated.document) fail(`${file}: recorded document no longer validates`);
+  const compiled = compileSceneDocument(validated.document);
+  if (!compiled.ok || !compiled.renderScene) fail(`${file}: recorded document no longer compiles`);
+  for (const narrationLanguage of ["english", "hinglish"] as const) {
+    const presentation = buildVerifiedDiagramPresentation(validated.document, compiled.renderScene, { narrationLanguage });
+    recordedBeats += presentation.introSegments.length;
+    checkIntroPacing(`${file} ${narrationLanguage}`, compiled.renderScene, presentation, CUE_PEN_IDLE_MAX_MS);
+  }
+}
+if (recordedBeats === 0) fail("no recorded intro beats were replayed");
+
 if (figures < 9) fail(`only ${figures} archetype figures synthesised; the gate needs the ten questions to draw`);
 if (letteredInIntro === 0) fail("no label was lettered in any intro beat; cue-named labels must be lettered as they are said");
 
 console.log(
-  `verify-intro-pacing: ${figures} figures, ${beats} beats, ${cuedCommands} cued commands, ${letteredInIntro} labels lettered on their word; first strokes within ${FIRST_STROKE_SLACK_MS} ms, ink over cue within [${INK_OVER_CUE_MIN}, ${INK_OVER_CUE_MAX}]`,
+  `verify-intro-pacing: ${figures} figures, ${beats} beats (${recordedBeats} recorded), ${cuedCommands} cued commands, ${letteredInIntro} labels lettered on their word; first strokes within ${FIRST_STROKE_SLACK_MS} ms, ink over cue within [${INK_OVER_CUE_MIN}, ${INK_OVER_CUE_MAX}]`,
 );
