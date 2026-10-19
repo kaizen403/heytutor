@@ -130,10 +130,11 @@ jobs:
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-export-cache-workflow.ts
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-doubt-same-board.ts
           pnpm --filter @heytutor/tutor verify:answer-label-completion
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-given-dimension-ownership.ts
           pnpm --filter @heytutor/tutor verify:conductance-teaching
           pnpm --filter @heytutor/tutor verify:figure-sentence-boundary
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-answer-export-cache.ts
-          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-export-cache-order.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-export-render-fingerprint.ts
       - name: Live diagram picker regressions (no model calls)
         run: |
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-live-diagram-picker.ts

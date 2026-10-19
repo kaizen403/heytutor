@@ -38,11 +38,15 @@ function consumedComponentAnnotation(document: SceneDocument, primitive: { id?: 
   const combined = annotation ? `${entity!.label} ${annotation.text}` : "";
   return combined.length <= 16 && primitive.text === combined ? annotation : undefined;
 }
-function answerMeasurementOwners(document: SceneDocument): Set<string> {
+type DisplayedMeasurement = { id?: string; entityId?: string; text?: string; annotationId?: string };
+function answerMeasurementOwners(document: SceneDocument, measurements: readonly DisplayedMeasurement[]): Set<string> {
   return new Set(document.entities.filter((entity) => entity.kind === "dimension" &&
-    (isAnswerLabel(document, { text: entity.label }) || document.annotations.some((annotation) =>
-      annotation.targetIds.includes(entity.id) && isAnswerLabel(document, { id: annotation.id }),
-    )),
+    !document.quantities.some((quantity) => quantity.provenance === "given" &&
+      [quantity.id, symbolOf(quantity)].some((symbol) => symbolKey(symbol) === symbolKey((entity.label ?? "").split(/[=≈:]/u)[0]!))) &&
+    !document.annotations.some((annotation) => annotation.kind !== "narration" && annotation.targetIds.includes(entity.id) &&
+      document.quantities.some((quantity) => quantity.id === annotation.quantityId && quantity.provenance === "given")) &&
+    measurements.some((measurement) => measurement.entityId === entity.id && Boolean(measurement.text) &&
+      isAnswerLabel(document, measurement)),
   ).map((entity) => entity.id));
 }
 
@@ -59,6 +63,7 @@ export function isAnswerLabel(document: SceneDocument, primitive: {
 }): boolean {
   const consumed = consumedComponentAnnotation(document, primitive);
   const annotation = document.annotations.find((entry) => entry.id === (primitive.annotationId ?? primitive.id)) ?? consumed;
+  if (annotation?.kind === "narration") return false;
   // Only unwrap a component prefix when its displayed text exactly matches
   // the compiler's consumed annotation; source prose never replaces a name.
   let text = (consumed && annotation?.id === consumed.id ? consumed.text : primitive.text) ?? annotation?.text ?? "";
@@ -109,7 +114,13 @@ export function isAnswerLabel(document: SceneDocument, primitive: {
 
 /** A label and its own compiled leader form one reveal; never its whole host. */
 export function answerLabelPrimitiveIds(document: SceneDocument, primitives: readonly RenderPrimitive[]): Set<string> {
+  // A result callout cannot override a given measurement. Only actual
+  // displayed value labels can hold its geometry, never no-ink narration.
+  const dimensionEntities = new Set(document.entities.filter((entity) => entity.kind === "dimension").map((entity) => entity.id));
+  const measurementOwners = answerMeasurementOwners(document, primitives.filter((primitive) => primitive.kind === "dimension" || primitive.kind === "label")
+    .map((primitive) => ({ ...primitive, annotationId: typeof primitive.provenance?.annotationId === "string" ? primitive.provenance.annotationId : undefined })));
   const ids = new Set(primitives.filter((primitive) =>
+    primitive.kind === "dimension" && dimensionEntities.has(primitive.entityId) ? measurementOwners.has(primitive.entityId) :
     primitive.provenance?.labelLeader !== true && isAnswerLabel(document, {
       id: primitive.id,
       entityId: primitive.entityId,
@@ -117,7 +128,6 @@ export function answerLabelPrimitiveIds(document: SceneDocument, primitives: rea
       annotationId: typeof primitive.provenance?.annotationId === "string" ? primitive.provenance.annotationId : undefined,
     }),
   ).map((primitive) => primitive.id));
-  const measurementOwners = answerMeasurementOwners(document);
   for (const primitive of primitives) {
     if (measurementOwners.has(primitive.entityId) && (primitive.kind === "dimension" || primitive.provenance?.measurementRole === "witness")) ids.add(primitive.id);
     // The compiler names a leader after the exact label placement it owns.
@@ -135,10 +145,15 @@ export function answerLabelPrimitiveIds(document: SceneDocument, primitives: rea
 export function withoutEarlyAnswerLabels(document: SceneDocument, commands: readonly DrawCommand[]): DrawCommand[] {
   const annotationIds = new Set(document.annotations.map((annotation) => annotation.id));
   const held = new Set<string>();
-  const measurements = answerMeasurementOwners(document);
+  const dimensionEntities = new Set(document.entities.filter((entity) => entity.kind === "dimension").map((entity) => entity.id));
+  const barIds = new Set(commands.flatMap((command) => command.type === "DIMENSION" && dimensionEntities.has(command.semanticRef?.entityId ?? "") && command.semanticRef?.primitiveId ? [command.semanticRef.primitiveId] : []));
+  const measurements = answerMeasurementOwners(document, commands.filter((command) =>
+    Boolean(command.text) && (command.type === "LABEL" || command.type === "DIMENSION"),
+  ).map((command) => ({ id: command.semanticRef?.primitiveId, entityId: command.semanticRef?.entityId, text: command.text })));
   const isInk = (command: DrawCommand): boolean => command.type.startsWith("DRAW_") ||
     ["LABEL", "DIMENSION", "ARROW", "UNDERLINE", "CIRCLE_AROUND", "HIGHLIGHT", "SCRIBBLE"].includes(command.type);
   for (const command of commands) {
+    if (barIds.has(command.semanticRef?.primitiveId ?? "") && !measurements.has(command.semanticRef?.entityId ?? "")) continue;
     if (isInk(command) && command.visualStyle?.labelLeader !== true && isAnswerLabel(document, {
       id: command.semanticRef?.primitiveId,
       entityId: command.semanticRef?.entityId,

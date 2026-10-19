@@ -2,7 +2,8 @@ tsx scripts/verify/verify-answer-label-completion.ts
 tsx scripts/verify/verify-conductance-teaching.ts
 tsx scripts/verify/verify-figure-sentence-boundary.ts
 tsx scripts/verify/verify-answer-export-cache.ts
-tsx scripts/verify/verify-export-cache-order.ts
+tsx scripts/verify/verify-export-render-fingerprint.ts
 tsx scripts/verify/verify-doubt-same-board.ts
 tsx scripts/verify/verify-export-cache-workflow.ts
 tsx scripts/verify/verify-label-accuracy.ts
+tsx scripts/verify/verify-given-dimension-ownership.ts
