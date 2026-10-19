@@ -361,6 +361,12 @@ function aliasOf(quantity: PlanQuantity, aliases: readonly string[]): boolean {
  */
 export function extractFreeFallSlots(stem: string, plan: readonly PlanQuantity[], bag: SlotBag, set: (bag: SlotBag, key: string, value: number | string, source: SlotSource) => void): void {
   const text = normalized(stem);
+  // The figure draws one body. A second body (a meeting, a second ball) is a
+  // different picture; one body with the other's speed would be false.
+  if (/\b(?:two|three|both) (?:balls|stones|bodies|particles|objects|masses)\b|\b(?:second|third|another|other) (?:ball|stone|body|particle|object|mass)\b|\bballs? [a-d] and (?:ball )?[a-d]\b|\bball [a-d]\b[^]*\bball [a-d]\b/i.test(text)) {
+    set(bag, "conflict", "the stem has more than one falling body", "stem");
+    return;
+  }
   const up = /thrown (?:vertically )?up/i.test(text);
   set(bag, "direction", up ? "up" : "down", "stem");
   const found = tokens(text);

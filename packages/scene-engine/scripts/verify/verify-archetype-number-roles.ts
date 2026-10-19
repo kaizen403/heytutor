@@ -116,7 +116,10 @@ for (const [question, drop, later] of [[rebound, 1.25, "h=0.8 m"], [meeting, 180
   }
 }
 assert.equal(read(rebound, "free_fall").slots.h, 1.25, "the release height reads from 'dropped from rest N m above a floor'");
-assert.equal(read(meeting, "free_fall").slots.h, 180, "the release height reads from 'top of a N m tower'");
+for (const question of [meeting, "From the top of a tower a ball thrown vertically upward reaches the ground in 6 s. A second ball thrown vertically downward from the same point with the same speed reaches the ground in 1.5 s."]) {
+  const row = read(question, "free_fall");
+  assert.equal(row.scene, null, "two falling bodies are not one body's free fall: decline");
+}
 assert.notEqual(detectArchetype(plasma)?.id, "free_fall", "a released plasma electron is not a falling body");
 for (const question of [plasma, "A particle performs SHM with angular frequency ω = 5 rad/s and amplitude 2 cm. Draw its displacement graph."]) {
   assert.notEqual(detectArchetype(question)?.id, "resistor_network", "Ω never folds onto ω: an angular frequency is not a resistor");
@@ -125,6 +128,7 @@ assert.notEqual(detectArchetype("An LCR series circuit is driven at angular freq
 assert.equal(detectArchetype("A biconvex glass lens has R1 = 20 cm and R2 = 30 cm. Draw the lens.")?.id, "lens_maker", "a lens with R1 still reads as a lens");
 assert.notEqual(detectArchetype("A 2 µF capacitor, 100 Ω resistor and 8 H inductor are connected in series with an AC source. R1 is the coil resistance.", { plannerArchetype: "lens_maker" })?.id, "lens_maker", "a circuit vetoes the lens reader even with a hint");
 assert.ok(read(meeting, "free_fall").labels.every((label) => !/^u=\d/.test(label)), "an answer option is not the given speed");
+assert.equal(read("A ball is thrown vertically down with speed u from a 45 m high tower and reaches the ground in 2 s. Find u. Options included 10, 15, 20 m/s.", "free_fall").slots.u, undefined, "an answer option is not the given speed");
 assert.equal(read("A ball is thrown vertically down at 12 m/s from a 30 m high tower. Draw the motion.", "free_fall").slots.u, 12, "a stated throw speed still binds");
 assert.notEqual(detectArchetype("An electron is released from rest in a uniform electric field. Draw its motion.")?.id, "free_fall");
 assert.equal(read("A stone is dropped from rest 20 m above a pond. Draw the free fall.", "free_fall").slots.h, 20, "'dropped from rest N m' names the release height");
