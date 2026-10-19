@@ -21,7 +21,9 @@ const rows = fixture.flatMap(row => ["direct", "schematic", "ordinary", "lastRes
     if (document) {
       assert.ok(compiled?.ok && compiled.renderScene, "ordinary validation and compilation");
       assert.equal(document.source.question, row.question);
-      assert.ok(verifiedOrganicNeighbourhoodStructure(document, row.question), "fresh whole source structure witness");
+      const structure = verifiedOrganicNeighbourhoodStructure(document, row.question);
+      assert.ok(structure, "fresh whole source structure witness");
+      if ("names" in row) assert.deepEqual(structure.structures.map(member => member.name), row.names, "postfix owners refer to the existing whole roster, never duplicate introductions");
       assert.ok(!/NaN|Infinity|undefined/.test(compiled.renderScene.primitives.map(p => p.text ?? "").join(" ")));
     }
   } catch (caught) { error = caught instanceof Error ? caught.message : String(caught); }

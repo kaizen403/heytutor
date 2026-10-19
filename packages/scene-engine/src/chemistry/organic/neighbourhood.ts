@@ -191,7 +191,8 @@ function structuralPhraseAt(text: string, kind: CarbonSiteKind): StructuralPhras
   const object = /^(the\s+)?(?:(?:structural|skeletal)\s+)?(?:diagrams?|structures?)\b/i.exec(text);
   if (object) candidates.push({ length: object[0].length, argument: "structure-object", definite: !!object[1] });
   const reference = /^(its|their|it|them|each|every|both|all)\b/i.exec(text);
-  if (reference) candidates.push({ length: reference[0].length, argument: /^(its|it)$/i.test(reference[1]!) ? "singular-reference" : "reference" });
+  if (reference) candidates.push({ length: reference[0].length, argument: /^(its|it)$/i.test(reference[1]!) ? "singular-reference" : "reference",
+    count: /^both$/i.test(reference[1]!) ? 2 : undefined });
   const phenyl = /^phenyl\s+ring\b/i.exec(text);
   if (phenyl) candidates.push({ length: phenyl[0].length, argument: "phenyl-ring" });
   const lastTwo = /^that\s+(?:the\s+)?last\s+two\s+cannot\s+be\s+mistaken\s+for\b/i.exec(text);
@@ -290,6 +291,57 @@ function structuralPropertySiteKind(question: string): CarbonSiteKind | "unsuppo
   return supported.length === 1 ? supported[0]! : "unsupported";
 }
 
+/** A postfix locative owns the preceding structural assertion, not a new graph.
+ * Only already drawn named/ordinal/shared objects can satisfy this grammar. */
+function postfixPropertyOwners(text: string, kind: CarbonSiteKind, roster: MolecularNeighbourhood[], antecedent: MolecularNeighbourhood[], selected: MolecularNeighbourhood[] | null):
+  { state: "unclaimed" } | { state: "declined" } | { state: "valid"; length: number; models: MolecularNeighbourhood[] } {
+  const head = /^(?:in|on|of)\s+/i.exec(text);
+  if (!head) return { state: "unclaimed" };
+  const ownerAt = (tail: string): { length: number; models: MolecularNeighbourhood[] } | "declined" | null => {
+    const named = namedGraphAt(tail);
+    if (named) {
+      const existing = roster.filter(model => model.molecule.smiles === named.molecule.smiles);
+      return existing.length === 1 ? { length: named.length, models: existing } : "declined";
+    }
+    const phrase = structuralPhraseAt(tail, kind);
+    if (phrase.argument === "ordinal-reference") {
+      if (phrase.pairReference && roster.length !== 2) return "declined";
+      const models = phrase.indices!.map(index => roster[index - 1]);
+      return models.some(model => !model) ? "declined" : { length: phrase.length, models: models as MolecularNeighbourhood[] };
+    }
+    if (phrase.argument !== "reference" && phrase.argument !== "singular-reference") return null;
+    const models = phrase.argument === "reference" ? (phrase.count ? selected ?? roster : roster) : antecedent;
+    if (!models.length || (phrase.count !== undefined && models.length !== phrase.count)) return "declined";
+    const object = /^\s+(?:(?:structural|skeletal)\s+)?(?:diagrams?|structures?|molecules?)\b/i.exec(tail.slice(phrase.length));
+    return { length: phrase.length + (object?.[0].length ?? 0), models };
+  };
+  const first = ownerAt(text.slice(head[0].length));
+  if (first === "declined") return { state: "declined" };
+  if (!first) return { state: "unclaimed" };
+  let length = head[0].length + first.length;
+  const models = [...first.models];
+  for (;;) {
+    const join = /^(?:\s*,\s*(?:and\s+)?|\s+and\s+)(?:(?:in|on|of)\s+)?/i.exec(text.slice(length));
+    if (!join) break;
+    const following = text.slice(length + join[0].length);
+    const named = namedGraphAt(following);
+    const phrase = structuralPhraseAt(following, kind);
+    const ownerLength = named?.length ?? (phrase.argument === "ordinal-reference" ? phrase.length : 0);
+    if (ownerLength) {
+      const predicate = structuralPhraseAt(following.slice(ownerLength).trimStart(), kind);
+      // A coordinated subject with its own typed predicate starts a fresh
+      // local assertion; an owner list without one still shares this claim.
+      if (predicate.argument === "owner-scope" || predicate.argument === "property-predicate" || predicate.action) break;
+    }
+    const next = ownerAt(following);
+    if (next === "declined") return { state: "declined" };
+    if (!next) break;
+    length += join[0].length + next.length;
+    models.push(...next.models);
+  }
+  return { state: "valid", length, models: [...new Set(models)] };
+}
+
 /** All source arguments must be consumed; no suffix or later sentence is dropped. */
 export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind): MolecularNeighbourhood[] | null {
   const text = normalizeChemistryText(question);
@@ -300,11 +352,14 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
     context: MolecularNeighbourhood[];
     antecedent: MolecularNeighbourhood[];
     lastOwners: MolecularNeighbourhood[] | null;
+    postfixClaims: Array<{ models: MolecularNeighbourhood[] }>;
     members: Array<{ model: MolecularNeighbourhood; at: number; ownerReference: boolean }>;
     ownerScope: boolean;
     extraStructures: number[];
     objects: Array<{ at: number; reference: boolean; definite: boolean }>;
     reference: boolean;
+    sharedReference: MolecularNeighbourhood[] | null;
+    declaredCount: number | null;
     singularReference: boolean;
     selection: MolecularNeighbourhood[] | null;
     selectionBound: boolean;
@@ -326,8 +381,25 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
   let at = 0;
   while (at < text.length) {
     const separator = /^[\s,.;?!]+/.exec(text.slice(at));
-    if (separator) { at += separator[0].length; continue; }
+    if (separator) {
+      if (request && /[.;?!]/.test(separator[0])) request.postfixClaims = [];
+      at += separator[0].length; continue;
+    }
     const tail = text.slice(at);
+    if (request?.postfixClaims.length) {
+      const postfix = postfixPropertyOwners(tail, kind, models, request.lastOwners ?? [], request.selection);
+      if (postfix.state === "declined") return null;
+      if (postfix.state === "valid") {
+        for (const claim of request.postfixClaims) claim.models = postfix.models;
+        request.lastOwners = postfix.models;
+        request.selection = postfix.models;
+        request.selectionBound = true;
+        request.selectionVersion++;
+        request.sharedReference = null;
+        at += postfix.length;
+        continue;
+      }
+    }
     const named = namedGraphAt(tail);
     if (named) {
       const site = carbonSiteFacts(named.molecule, kind);
@@ -355,10 +427,12 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
         if (request.selectionBound) { request.selection = null; request.selectionVersion++; }
       }
       if (request) {
+        request.postfixClaims = [];
         // A new named owner closes earlier completed marks. Keep a pending
         // "marked with [site]" owner until this boundary or its site value,
         // without lending the previous molecule to the new site's assertion.
         request.targeted = Math.max(request.targeted, request.membersBound);
+        request.sharedReference = null;
         request.members.push({ model, at, ownerReference: !!propertyReference });
       }
       at += named.length;
@@ -370,7 +444,7 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
       const previous = requests.at(-1);
       const antecedent = previous?.lastOwners ?? previous?.selection ?? (previous?.members.length
         ? previous.members.map(member => member.model) : previous?.context ?? []);
-      request = { action: phrase.action, context: [...models], antecedent, lastOwners: null, members: [], ownerScope: false, extraStructures: [], objects: [], reference: false,
+      request = { action: phrase.action, context: [...models], antecedent, lastOwners: null, postfixClaims: [], members: [], ownerScope: false, extraStructures: [], objects: [], reference: false, sharedReference: null, declaredCount: null,
         singularReference: false, selection: null, selectionBound: false,
         selectionVersion: 0, membersBound: 0, classSelectionVersion: 0, introductions: [],
         phenyl: false, lastTwo: false, described: 0,
@@ -379,6 +453,8 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
     }
     if (phrase.argument) {
       if (!request) return null;
+      if (phrase.argument === "owner-scope" || phrase.argument === "reference" || phrase.argument === "singular-reference"
+        || phrase.argument === "ordinal-reference") request.postfixClaims = [];
       if (phrase.argument === "owner-scope" && /^(draw|sketch|compare)$/.test(request.action)
         && propertyBearingTail(text.slice(at + phrase.length), kind)) request.ownerScope = true;
       if (phrase.argument === "extra-structure") request.extraStructures.push(at + phrase.length);
@@ -386,7 +462,22 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
         reference: /\b(?:its|their|each|every|both|all)\s+$/i.test(text.slice(0, at)), definite: !!phrase.definite });
       if (phrase.argument === "phenyl-ring") request.phenyl = true;
       if (phrase.argument === "reference" || phrase.argument === "singular-reference") request.reference = true;
-      if (phrase.argument === "reference" && request.selection) { request.selection = null; request.selectionVersion++; }
+      if (phrase.argument === "reference") {
+        // A shared target owns the active drawing roster, including members
+        // whose earlier local assertions have already completed. Per-property
+        // cursors cannot narrow an explicit both/all/each/their reference.
+        if (phrase.count !== undefined && /^(draw|sketch|compare)$/.test(request.action) && !request.members.length
+          && namedGraphAt(text.slice(at + phrase.length).trimStart())) {
+          // A quantified forward declaration owns the actual completed draw
+          // roster, not a guessed property owner before any name is parsed.
+          request.declaredCount = phrase.count;
+        } else {
+          const shared = phrase.count ? request.selection ?? models : models;
+          if (phrase.count !== undefined && shared.length !== phrase.count) return null;
+          request.sharedReference = [...shared];
+          if (request.selection) { request.selection = null; request.selectionVersion++; }
+        }
+      }
       if (phrase.argument === "singular-reference") {
         request.singularReference = true;
         const pending = request.members.slice(request.membersBound).map(member => member.model);
@@ -399,6 +490,7 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
         if (!request.selection) { request.selection = referents; request.selectionVersion++; }
       }
       if (phrase.argument === "ordinal-reference") {
+        request.sharedReference = null;
         const genitive = /^\s+of\s+/i.exec(text.slice(at + phrase.length));
         const memberAt = at + phrase.length + (genitive?.[0].length ?? 0);
         if (/^(draw|sketch|compare)$/.test(request.action) && !phrase.pairReference && phrase.indices!.length === 1
@@ -434,7 +526,8 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
         const fresh = (references.length ? references : pending).map(member => member.model);
         if (consumeProperty) request![cursor] = request!.members.length;
         if (consumed) { request!.membersBound = request!.members.length; request!.selectionBound = true; }
-        const resolved = request!.selection ?? (fresh.length ? fresh : request!.members.length ? request!.members.map(member => member.model) : request!.context);
+        const resolved = request!.sharedReference ?? request!.selection
+          ?? (fresh.length ? fresh : request!.members.length ? request!.members.map(member => member.model) : request!.context);
         request!.lastOwners = resolved;
         return resolved;
       };
@@ -442,16 +535,22 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
       // but supplies no halogen value. The next site must still bind to the
       // pending named target, including when it follows "marked with".
       if (phrase.argument === "property-predicate") owners("targeted", true, false);
-      if (phrase.argument === "halogen-value" || phrase.argument === "hybrid-value") request.properties.push({
-        models: owners(phrase.argument === "halogen-value" ? "targeted" : "hybridBound"), kind: phrase.argument, values: phrase.values!,
-      });
+      if (phrase.argument === "halogen-value" || phrase.argument === "hybrid-value") {
+        const property = { models: owners(phrase.argument === "halogen-value" ? "targeted" : "hybridBound"), kind: phrase.argument, values: phrase.values! };
+        request.properties.push(property);
+        request.postfixClaims.push(property);
+      }
       if (phrase.argument === "class-options" && /^(classify|label)$/.test(request.action)) {
-        request.classes.push({ models: owners("classBound", false), values: [], alternatives: false });
+        const classification = { models: owners("classBound", false), values: [], alternatives: false };
+        request.classes.push(classification);
+        request.postfixClaims.push(classification);
         request.classSelectionVersion = request.selectionVersion;
       }
       if (phrase.argument === "class-value") {
         if (!request.classes.length || request.members.length > request.classBound || request.classSelectionVersion !== request.selectionVersion) {
-          request.classes.push({ models: owners("classBound"), values: [], alternatives: false });
+          const classification = { models: owners("classBound"), values: [], alternatives: false };
+          request.classes.push(classification);
+          request.postfixClaims.push(classification);
           request.classSelectionVersion = request.selectionVersion;
         }
         request.classes.at(-1)!.values.push(...phrase.values!);
@@ -470,6 +569,7 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
   }
   for (const part of requests) {
     const introductions = part.members.filter(member => !member.ownerReference);
+    if (part.declaredCount !== null && introductions.length !== part.declaredCount) return null;
     const scope = introductions.length ? introductions.map(member => member.model)
       : part.members.length ? part.members.map(member => member.model) : part.context;
     if (part.introductions.some(member => introductions.findIndex(candidate => candidate.at === member.at) !== member.ordinal - 1)) return null;
