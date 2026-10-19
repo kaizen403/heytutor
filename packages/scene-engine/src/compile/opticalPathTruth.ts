@@ -166,8 +166,13 @@ function validateBodyMedia(document: SceneDocument, geometry: ReadonlyMap<string
             continue;
         const indices = new Set<string>();
         for (const annotation of document.annotations.filter(a => a.targetIds.includes(body.id))) {
-            if (annotation.quantityId && refs.has(annotation.quantityId))
-                indices.add(annotation.quantityId);
+            // An explicit quantityId wins over symbol matching, as in mediumBindings:
+            // two media may share the printed symbol "n".
+            if (annotation.quantityId) {
+                if (refs.has(annotation.quantityId))
+                    indices.add(annotation.quantityId);
+                continue;
+            }
             const symbol = annotation.text?.split('=')[0]?.trim();
             if (symbol)
                 for (const ref of refs)

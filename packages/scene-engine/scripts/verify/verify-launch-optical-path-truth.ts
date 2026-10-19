@@ -101,3 +101,16 @@ for (const [oblique, optical, shouldClip] of [[true, true, true], [false, true, 
     assert(shouldClip ? Math.abs(ray.points.at(-1)!.x - left) < 0.04 : ray.points.at(-1)!.x > left + 0.04, 'Only an unsupported oblique optical extension must stop at the first declared face');
 }
 console.log('launch optical-path truth: declared optical entry clips at boundary, normal and mathematical rays preserved');
+
+// Greptile #214 (opticalPathTruth.ts:175): glass and air both print "n"; the explicit
+// quantityId binds the body to glass only, so the reversed sides are still caught.
+{
+    const shared = boundaryDocument(true);
+    shared.quantities = [{ id: 'glass', symbol: 'n', value: 1.5 }, { id: 'air', symbol: 'n', value: 1 }];
+    shared.annotations = [{ id: 'medium', kind: 'label', targetIds: ['body'], text: 'n = 1.5', quantityId: 'glass' }];
+    shared.constructions.find(c => c.id === 'event')!.inputs.n1 = 'air';
+    shared.constructions.find(c => c.id === 'event')!.inputs.n2 = 'glass';
+    const compiled = compileSceneDocument(shared);
+    assert(!compiled.ok && compiled.report.issues.some(i => i.code === 'invalid_optical_medium_binding'), 'an explicit quantityId wins over a shared printed symbol');
+    console.log('launch optical-path truth: explicit medium quantity beats a shared symbol');
+}

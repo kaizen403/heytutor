@@ -176,6 +176,23 @@ assert(
   ),
   "answer annotation is released at completion",
 );
+// Greptile #214 (verifiedScenePresentation.ts:66): a staged answer in a caption is
+// neither spoken in the code-lesson opening nor drawn as the figure caption.
+{
+  const captioned: SceneDocument = {
+    ...annotatedDocument,
+    source: { question: "Find range R.", answerLabelAnnotationIds: ["answer_caption"] },
+    annotations: [{ id: "answer_caption", kind: "caption", targetIds: [], text: "R=80 m" }],
+    revealGroups: annotatedDocument.revealGroups.map((group) => ({ ...group, narrationCue: "Here is the path." })),
+  };
+  for (const layout of ["code_lesson", "standard"] as const) {
+    const shown = buildVerifiedDiagramPresentation(captioned, { ...render, primitives: [render.primitives[0]!], revealGroups: captioned.revealGroups, caption: "R=80 m" }, { layout });
+    assert(!shown.introSegments.some((segment) => segment.narration.includes("80")), `${layout}: the answer caption is not spoken before teaching`);
+    assert(!shown.diagram.caption?.includes("80"), `${layout}: the answer caption is not drawn before teaching`);
+  }
+  const unstaged = buildVerifiedDiagramPresentation({ ...captioned, source: { question: "Find range R." } }, { ...render, primitives: [render.primitives[0]!], revealGroups: captioned.revealGroups, caption: "Range of the projectile" }, { layout: "code_lesson" });
+  assert(unstaged.introSegments.some((segment) => segment.narration.includes("range of the projectile")), "an ordinary caption is still spoken");
+}
 console.log(
   "yield-answer-reveal: geometry now, answers after teaching, no focus/tour leak, off unchanged",
 );

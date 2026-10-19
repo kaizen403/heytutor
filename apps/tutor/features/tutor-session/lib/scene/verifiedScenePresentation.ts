@@ -65,6 +65,14 @@ export function buildVerifiedDiagramPresentation(
   const answerEntityIds = new Set(Array.isArray(source?.answerLabelEntityIds) ? source.answerLabelEntityIds.filter((id): id is string => typeof id === "string") : []);
   const answerAnnotationIds = new Set(Array.isArray(source?.answerLabelAnnotationIds) ? source.answerLabelAnnotationIds.filter((id): id is string => typeof id === "string") : []);
   const answerTargets = new Set<string>();
+  // A caption or targetless callout carrying a staged answer ("R=80 m") would
+  // be drawn and spoken before teaching. Withhold that caption entirely.
+  const answerTexts = (document.annotations ?? [])
+    .filter((annotation) => answerAnnotationIds.has(annotation.id))
+    .map((annotation) => annotation.text?.trim())
+    .filter((text): text is string => Boolean(text));
+  const answerFreeCaption = (caption: string | undefined) =>
+    caption && answerTexts.some((text) => caption.includes(text)) ? undefined : caption;
   const answerGroupIds = new Set<string>();
   const nonMetric = source?.nonMetric === true;
   const representationTier = typeof source?.representationTier === "string"
@@ -351,7 +359,7 @@ export function buildVerifiedDiagramPresentation(
     // caption. Non-metric scenes used to stamp "Do not read scale from this
     // figure." under every DSA walk; the teaching prompt already forbids
     // reading scale, so the student does not need that line on the board.
-    caption: hasDrawableInk ? visibleFigureCaption(renderScene.caption) : undefined,
+    caption: hasDrawableInk ? answerFreeCaption(visibleFigureCaption(renderScene.caption)) : undefined,
     layout: options.layout === "code_lesson" ? "code_lesson" : undefined,
     deferredAnnotations: [...deferredByEntity.values()].map(({ entityId, answer, commands: deferredCommands }) => ({
       entityId,
@@ -390,7 +398,7 @@ The scene engine owns all diagram geometry, labels, annotations, directions, con
   const spokenIntro = collapseIntroSpeech(introSegments, {
     codeLesson: options.layout === "code_lesson",
     narrationLanguage: options.narrationLanguage,
-    caption: visibleFigureCaption(renderScene.caption ?? captionAnnotationOf(document)),
+    caption: answerFreeCaption(visibleFigureCaption(renderScene.caption ?? captionAnnotationOf(document))),
   }).map((segment) => (options.layout === "code_lesson"
     ? { ...segment, sceneText: true }
     : segment));

@@ -4,6 +4,7 @@ import { compileSceneDocument } from "../../src/compile/compiler";
 import { prepareVerifiedParts } from "../../src/compile/verifiedParts";
 import { compactCalloutLabel } from "../../src/compile/pointLabelText";
 import { validateLabelOwnerTruth } from "../../src/compile/labelOwnerTruth";
+import { deferVerifiedAnswerLabels } from "../../src/compile/answerLabels";
 import type { RenderPrimitive, SceneDocument } from "../../src/types";
 
 const on = (document: SceneDocument) => prepareVerifiedParts(document, { enabled: true });
@@ -77,5 +78,25 @@ function axesDocument(annotations: SceneDocument["annotations"]): SceneDocument 
   assert.equal(crossed.filter(issue => issue.code === "label_owner_ambiguous").length, 2, "both crossed names are refused");
   const straight = validateLabelOwnerTruth(document, [point("p", 500, 400), point("q", 500, 370), name("p", "P", 500, 404), name("q", "Q", 500, 366)]);
   assert.equal(straight.length, 0, "names beside their own points pass");
+}
+// 5. Greptile #214 (answerLabels.ts:48): a stated matrix's entries are givens; only a
+// computed matrix is held until the end. Asking for a determinant must not empty the brackets.
+{
+  const ids = ["given", "computed"];
+  const document: SceneDocument = { schemaVersion: "scene-document/v2", visualDecision: { mode: "scene", reason: "matrix" }, source: { question: "Find the determinant of A and the product A·B." },
+    quantities: [], entities: [...ids, "b"].map((id) => ({ id, kind: "matrix_array" as const, role: "matrix" })),
+    constructions: [
+      { id: "make_given", operator: "matrix_array", inputs: { entries: [[2, 1], [3, 4]], origin: [0, 0], displayScale: 1 }, outputs: ["given"] },
+      { id: "make_b", operator: "matrix_array", inputs: { entries: [[1, 0], [0, 2]], origin: [10, 0], displayScale: 1 }, outputs: ["b"] },
+      { id: "make_computed", operator: "matrix_product", inputs: { left: "given", right: "b", origin: [20, 0], displayScale: 1 }, outputs: ["computed"] },
+    ],
+    relations: [], assertions: [], annotations: [], requiredEntityIds: [...ids, "b"], revealGroups: [{ id: "m", entityIds: [...ids, "b"], dependsOn: [], narrationCue: "Matrices." }], teachingTimeline: [] };
+  const cell = (entityId: string, row: number, text: string): RenderPrimitive => ({ id: `${entityId}_${row}_0`, entityId, groupId: "m", kind: "label", points: [{ x: 500 + row, y: 300 }], text,
+    provenance: { matrixNonmetric: true, matrixCell: { row, column: 0, exactValue: { numerator: text, denominator: "1" }, displayAccuracy: "exact" } } } as RenderPrimitive);
+  const compiled = { renderScene: { engineVersion: "scene-engine/2.0.0", primitives: [cell("given", 0, "2"), cell("b", 0, "1"), cell("computed", 0, "2")], revealGroups: document.revealGroups, timeline: [], entityBounds: {} } as unknown as NonNullable<ReturnType<typeof compileSceneDocument>["renderScene"]> };
+  const plan = { unknowns: [{ id: "det", symbol: "D" }], derived: [], givens: [] } as unknown as Parameters<typeof deferVerifiedAnswerLabels>[1];
+  const staged = deferVerifiedAnswerLabels(document, plan, compiled.renderScene).source.answerLabelEntityIds ?? [];
+  assert(!staged.includes("given") && !staged.includes("b"), "stated matrix entries stay visible");
+  assert(staged.includes("computed"), "a computed matrix is still held until the end");
 }
 console.log("yield flag-on truth: strict callouts, axis names, hollow open endpoints, crossed point names");

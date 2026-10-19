@@ -41,9 +41,15 @@ export function deferVerifiedAnswerLabels(
     // there is an answer to derive, including scientific notation and surds.
     return names.size > 0 && /^\s*[+-]?(?:\d|\.\d|√)/u.test(normalized);
   };
+  // Entries of a stated matrix (matrix_array) are givens, not computed answers;
+  // hiding them would leave empty brackets. Computed matrices stay staged.
+  const statedMatrices = new Set(document.constructions
+    .filter((construction) => construction.operator === "matrix_array")
+    .flatMap((construction) => construction.outputs));
   const entityIds = [
     ...new Set([
       ...(renderScene?.primitives ?? [])
+        .filter((primitive) => !(primitive.provenance?.matrixCell && statedMatrices.has(primitive.entityId)))
         .filter((primitive) => !primitive.provenance?.annotationId && isAnswer(primitive.text))
         .map((primitive) => primitive.entityId),
       ...document.entities
