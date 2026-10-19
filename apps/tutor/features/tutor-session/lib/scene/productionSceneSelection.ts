@@ -3,6 +3,7 @@
  * and presentation stay in the callers; admission and its order live here.
  */
 import {
+  prepareVerifiedParts, prepareVerifiedCircularParts, normalizeVerifiedPartsInputs, deferVerifiedAnswerLabels, type DiagramYieldPolicy,
   ARCHETYPES, compileSceneDocument, completeSceneDocument, detectArchetype, isChemistryQuestion, isChemistrySceneFamily,
   normalizeClaimedClosedRouteGeometry, normalizeClaimedParaxialReflectionGeometry,
   pruneDeadSceneEntities, pruneUnverifiedSceneAnnotations, displayedSceneQuantityTexts,
@@ -104,9 +105,13 @@ export function deriveSceneGate(input: ProductionSceneInput): ProductionSceneGat
 /** Candidate validation order is unchanged: normalize/prune, quantities, source, obligations, compile. */
 export function validateProductionSceneCandidate(input: {
   candidate: Record<string, unknown>; question: string; turnPlan: TurnPlanV3;
+  yieldPolicy?: DiagramYieldPolicy;
 }): SceneCandidateValidation<ValidatedSceneCandidate> {
   const { candidate, question, turnPlan: authoritativePlan } = input;
-  let validated = validateSceneDocument(pruneDeadSceneEntities(candidate));
+  const enabled = input.yieldPolicy === "verified_parts";
+  const circular = prepareVerifiedCircularParts(candidate, question, enabled);
+  const normalized = normalizeVerifiedPartsInputs(circular.candidate, enabled);
+  let validated = validateSceneDocument(pruneDeadSceneEntities(normalized.candidate));
   if (!validated.document) {
     return {
       valid: false,
@@ -144,6 +149,11 @@ export function validateProductionSceneCandidate(input: {
       };
     }
   }
+  const prepared = prepareVerifiedParts(validated.document, { enabled });
+  const compiledScene = prepared.compiledScene ?? compileSceneDocument(prepared.document);
+  validated.document = enabled ? deferVerifiedAnswerLabels(prepared.document, authoritativePlan, compiledScene.renderScene ?? undefined) : prepared.document;
+  const yieldIssues = [...circular.issues, ...normalized.issues, ...prepared.issues];
+  if (yieldIssues.length) validated.document = { ...validated.document, source: { ...validated.document.source, yieldDemotions: yieldIssues } };
   const agreementIssues = validateSceneQuantityAgreement(
     validated.document.quantities,
     authoritativePlan,
@@ -164,7 +174,7 @@ export function validateProductionSceneCandidate(input: {
   // A literal image point at a plan-derived distance from a refracting
   // surface's vertex must be where the spherical refraction law puts it.
   const refractionImageIssues = validateSphericalRefractionImagePlacements(validated.document, authoritativePlan);
-  const compiledScene = compileSceneDocument(validated.document);
+
   // Final admission already requires readable ink. Reject the same candidates
   // here so a cheaper unlabelled scene cannot displace a drawable sibling.
   const missingReadableLabel = compiledScene.ok && compiledScene.renderScene &&
@@ -193,13 +203,16 @@ export function validateProductionSceneCandidate(input: {
   }
   return {
     valid: true,
-    errors: [...proofIssues, ...compiledScene.report.issues],
+    errors: [...proofIssues, ...compiledScene.report.issues, ...yieldIssues],
     qualityScore:
       (validated.document.visualDecision.mode === "text_only" &&
       authoritativePlan.visualRequirement !== "none"
         ? authoritativePlan.visualRequirement === "required" ? 100_000 : 10_000
         : 0) +
       compiledScene.report.issues.filter((issue) => issue.severity === "warning").length * 1_000 +
+      // Recompilation removes the failed mark, but its omission still reduces
+      // quality. Fewer surviving primitives must not reward incomplete repairs.
+      yieldIssues.filter((issue) => issue.code === "yield_label_omitted").length * 1_000 +
       compiledScene.report.stats.primitiveCount * 2 +
       compiledScene.report.stats.entityCount +
       compiledScene.report.stats.constructionCount,
