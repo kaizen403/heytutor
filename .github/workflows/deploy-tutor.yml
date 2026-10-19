@@ -72,6 +72,8 @@ jobs:
         run: |
           pnpm rebuild @prisma/client @prisma/engines esbuild prisma
           pnpm --filter @heytutor/tutor exec prisma generate
+      - name: Verify gate list preservation and execution
+        run: node --test tools/verify/run-gates.test.mjs
       - name: Build shared packages
         run: pnpm turbo run build --filter='./packages/*'
       - name: Symbolic planner regressions
@@ -97,6 +99,14 @@ jobs:
           node deploy/aws/verify-sentry-release.mjs
       - name: Diagram authority and restoration regressions
         run: pnpm --filter @heytutor/tutor verify:publication
+      - name: Atomic scene label regressions
+        run: pnpm --filter @heytutor/tutor verify:atomic-labels
+      - name: Figure tour narration regressions
+        run: pnpm --filter @heytutor/tutor verify:primitive-tour
+      - name: DSA verified intro ordering regressions
+        run: pnpm --filter @heytutor/tutor verify:dsa-intro-order
+      - name: Source-grounded board title regressions
+        run: pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-board-title.ts
       - name: Storage admission and save feedback regressions
         run: pnpm --filter @heytutor/tutor verify:storage-admission
       - name: Finished playback and MP4 board fidelity regressions
@@ -109,6 +119,7 @@ jobs:
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-live-speech-pause.ts
           pnpm --filter @heytutor/tutor verify:lesson-qa-2
           pnpm --filter @heytutor/tutor verify:lesson-qa-3
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-two-sum-grounding.ts
       - name: Live diagram picker regressions (no model calls)
         run: |
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-live-diagram-picker.ts
