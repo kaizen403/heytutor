@@ -135,6 +135,7 @@ export function buildVerifiedDiagramPresentation(
   // dimension that is waiting for its name (`named`) may be pulled forward
   // into the beat whose sentence says that name.
   const deferred: DeferredCommand[] = [];
+  const annotationTargetsById = new Map((document.annotations ?? []).map((annotation) => [annotation.id, annotation.targetIds]));
   const annotateTargetIds = new Set(
     document.teachingTimeline
       .filter((action) => action.action === "annotate")
@@ -162,7 +163,7 @@ export function buildVerifiedDiagramPresentation(
           primitiveId: primitive.id,
         },
       };
-      if (options.layout === "code_lesson" && isDsaMarkerScribble(styled)) {
+      if (options.layout === "code_lesson" && (isDsaMarkerScribble(styled) || primitive.provenance?.annotation === "highlight")) {
         continue;
       }
       const commandPhase = primitive.provenance?.matrixCell
@@ -184,7 +185,7 @@ export function buildVerifiedDiagramPresentation(
       if (deferReason !== null && index !== null) {
         deferred.push({
           index,
-          entityId: primitive.entityId,
+          entityId: deferredAnnotationKey(primitive, annotationTargetsById),
           groupId: primitive.groupId,
           pullable: deferReason === "named",
           answer: deferReason === "answer",
@@ -346,7 +347,9 @@ export function buildVerifiedDiagramPresentation(
     existing.commands.push(commands[entry.index]!);
     deferredByEntity.set(key, existing);
   }
-  const deferredIds = [...new Set([...deferredByEntity.values()].filter((entry) => !entry.answer).map((entry) => entry.entityId))].join(", ");
+  // A shading key also lists the entities it shades; ANNOTATE names its own id.
+  // An answer annotation waits for the end of the lesson and is not offered.
+  const deferredIds = [...new Set([...deferredByEntity.values()].filter((entry) => !entry.answer).map((entry) => entry.entityId.split(",")[0]!))].join(", ");
   const hasDrawableInk = verifiedDiagramHasDrawableInk({ commands });
   const diagram: VerifiedDiagram = {
     id: "verified_scene",
@@ -524,6 +527,23 @@ function emptyPhaseIndices(): Record<RevealPhase, number[]> {
   return { structure: [], marker: [], direction: [], detail: [] };
 }
 
+/**
+ * The key a FOCUS releases a held annotation by. A shading highlight is keyed
+ * by its own id and by the entities it shades, so `[FOCUS:shaded_area]`
+ * shades the area while the voice names it instead of at the end of the lesson.
+ */
+function deferredAnnotationKey(
+  primitive: RenderPrimitive,
+  annotationTargetsById: ReadonlyMap<string, readonly string[]>,
+): string {
+  if (primitive.provenance?.annotation !== "highlight") return primitive.entityId;
+  const annotationId = typeof primitive.provenance.annotationId === "string"
+    ? primitive.provenance.annotationId
+    : primitive.entityId;
+  const targets = annotationTargetsById.get(annotationId) ?? [];
+  return [...new Set([primitive.entityId, ...targets])].join(",");
+}
+
 function isDsaMarkerScribble(command: VerifiedDiagramCommand): boolean {
   if (command.type === "CIRCLE_AROUND" || command.type === "HIGHLIGHT" || command.type === "UNDERLINE") {
     return true;
@@ -575,6 +595,7 @@ function deferralReason(
   }
   if (primitive.provenance?.transient === true) return "annotation";
   if (command.type === "CIRCLE_AROUND" || command.type === "HIGHLIGHT") return "annotation";
+  if (primitive.provenance?.annotation === "highlight") return "annotation";
   if (command.visualStyle?.strokeRole === "trace") return "annotation";
 
   if (command.type === "LABEL" || command.type === "DIMENSION" || primitive.provenance?.measurementRole === "witness" || primitive.provenance?.labelLeader === true) return "named";
@@ -1425,6 +1446,17 @@ function primitiveCommands(
     return commands;
   }
   if (annotationKind === "highlight") {
+    // Shade the compiled outline itself. Only an axis aligned rectangle equals
+    // its bounding box; the region under a v against t graph is a trapezium,
+    // and filling its box shaded the triangle above the rising line too.
+    if (points.length >= 3 && !isAxisAlignedRectangle(points)) {
+      commands.push({
+        type: "DRAW_LINE",
+        params: flatten([...points, points[0]!]),
+        visualStyle: { fillRole: "region", strokeWidth: 0 },
+      });
+      return commands;
+    }
     const bounds = boundsOfPoints(points);
     if (bounds) {
       commands.push({
@@ -1678,6 +1710,16 @@ function labelBoundsFromProvenance(
     width: record.width,
     height: record.height,
   };
+}
+
+function isAxisAlignedRectangle(points: ReadonlyArray<{ x: number; y: number }>): boolean {
+  if (points.length !== 4) return false;
+  const bounds = boundsOfPoints([...points]);
+  if (!bounds) return false;
+  const near = (a: number, b: number) => Math.abs(a - b) < 0.5;
+  return points.every((point) =>
+    (near(point.x, bounds.x) || near(point.x, bounds.x + bounds.width)) &&
+    (near(point.y, bounds.y) || near(point.y, bounds.y + bounds.height)));
 }
 
 function boundsOfPoints(points: Array<{ x: number; y: number }>): { x: number; y: number; width: number; height: number } | null {

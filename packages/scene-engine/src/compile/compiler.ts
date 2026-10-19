@@ -138,6 +138,7 @@ import {
 } from "./spaceDerivations";
 import { projectSolidPoint, solidAnchorPoint, solidSectionDimensions, type SolidProjection, type SolidProjectionKind } from "./solidAnchors";
 import { validateSolidMeasurements } from "./solidMeasurements";
+import { graphRegionBoundary, piecewiseLinearGraph, type GraphBoundary } from "./graphRegion";
 
 type Point = { x: number; y: number };
 type Viewport = { x: number; y: number; width: number; height: number; padding?: number };
@@ -2339,8 +2340,16 @@ function validateAssertion(assertion: SceneAssertion, geometry: Map<string, Geom
           throw new Error("function_value expected must be {x, y}");
         }
         const sampled = values[0]?.kind === "path" ? values[0].sampledCurve : undefined;
+        const graph = !sampled && values[0]?.kind === "path" && !values[0].closed
+          ? piecewiseLinearGraph(values[0].points)
+          : null;
         if (sampled) {
           residual = sampledCurveCartesianResidual(sampled, { x: expected.x, y: expected.y }, expected);
+        } else if (graph) {
+          // A piecewise linear graph is read at x by its own vertices; a
+          // value outside its time span is not on the graph.
+          const y = expected.x >= graph.min && expected.x <= graph.max ? graph.evaluate(expected.x) : Number.NaN;
+          residual = Number.isFinite(y) ? Math.abs(y - expected.y) : Number.POSITIVE_INFINITY;
         } else {
           const expression = curveExpression(assertion.entities[0], document);
           residual = Math.abs(expression.evaluate(expected.x) - expected.y);
@@ -4648,6 +4657,28 @@ function functionCurveReference(value: unknown, geometry: Map<string, Geometry>,
   return curve;
 }
 
+/**
+ * A graph y = f(x) a region or a value check can read: a function_curve, or an
+ * open polyline (a `polyline` or a `motion_graph`) whose vertices strictly
+ * increase in x. The polyline keeps its own vertices as breakpoints.
+ */
+function graphBoundaryReference(value: unknown, geometry: Map<string, Geometry>, name: string): GraphBoundary {
+  if (typeof value !== "string") throw new Error(`${name} must reference a constructed graph`);
+  const path = geometry.get(value);
+  if (path?.kind === "path" && path.sampledCurve) {
+    const curve = functionCurveReference(value, geometry, name);
+    return {
+      min: curve.parameterMin,
+      max: curve.parameterMax,
+      breakpoints: [],
+      evaluate: (x: number) => curve.evaluate(x).y,
+    };
+  }
+  const graph = path?.kind === "path" && !path.closed ? piecewiseLinearGraph(path.points) : null;
+  if (!graph) throw new Error(`${name} must reference a function_curve or a polyline graph with strictly increasing x`);
+  return graph;
+}
+
 function sampledCurveDerivative(curve: SampledCurve, at: number): Point {
   assertParameterInDomain(curve, at, "curve derivative", true);
   if (curve.derivative) {
@@ -4751,31 +4782,30 @@ function functionRegionPoints(
   const upperId = first(inputs, ["upper", "top", "above"]);
   const lowerId = first(inputs, ["lower", "bottom", "below"]);
   if (typeof upperId !== "string" || typeof lowerId !== "string") throw new Error("function_region requires upper and lower curve IDs");
-  const upper = functionCurveReference(upperId, geometry, "function_region upper");
-  const lower = functionCurveReference(lowerId, geometry, "function_region lower");
+  const upper = graphBoundaryReference(upperId, geometry, "function_region upper");
+  const lower = graphBoundaryReference(lowerId, geometry, "function_region lower");
   const xMin = inputs.xMin === undefined
-    ? Math.max(upper.parameterMin, lower.parameterMin)
+    ? Math.max(upper.min, lower.min)
     : resolveNumber(inputs.xMin, quantities);
   const xMax = inputs.xMax === undefined
-    ? Math.min(upper.parameterMax, lower.parameterMax)
+    ? Math.min(upper.max, lower.max)
     : resolveNumber(inputs.xMax, quantities);
   if (!(xMin < xMax)) throw new Error("function_region requires a non-empty shared domain");
-  assertParameterInDomain(upper, xMin, "function_region upper boundary");
-  assertParameterInDomain(upper, xMax, "function_region upper boundary");
-  assertParameterInDomain(lower, xMin, "function_region lower boundary");
-  assertParameterInDomain(lower, xMax, "function_region lower boundary");
+  for (const [boundary, name] of [[upper, "upper"], [lower, "lower"]] as const) {
+    if (!(xMin >= boundary.min && xMax <= boundary.max)) {
+      throw new Error(`function_region ${name} boundary parameter must be within the curve domain`);
+    }
+  }
   const samples = inputs.samples === undefined ? 65 : resolveNumber(inputs.samples, quantities);
   if (!Number.isInteger(samples) || samples < 17 || samples > 161 || samples % 2 === 0) throw new Error("function_region samples must be an odd integer from 17 to 161");
-  const lowerPoints = Array.from({ length: samples }, (_, index) =>
-    lower.evaluate(xMin + (xMax - xMin) * index / (samples - 1)),
-  );
-  const upperPoints = Array.from({ length: samples }, (_, index) =>
-    upper.evaluate(xMin + (xMax - xMin) * index / (samples - 1)),
-  );
-  if (upperPoints.some((point, index) => point.y + EPSILON < lowerPoints[index]!.y)) {
+  // The grid carries every corner of a piecewise linear boundary, so the
+  // region under a motion graph is the graph's own vertices, not a chord.
+  const boundary = graphRegionBoundary(upper, lower, xMin, xMax, samples);
+  const half = boundary.length / 2;
+  if (boundary.slice(0, half).some((point, index) => boundary[boundary.length - 1 - index]!.y + EPSILON < point.y)) {
     throw new Error("function_region upper curve falls below its lower curve inside the requested domain");
   }
-  return [...lowerPoints, ...upperPoints.reverse()];
+  return boundary;
 }
 
 /**
