@@ -1,4 +1,4 @@
-import { validateSceneDocument } from "../document/validation";
+import { pruneDeadSceneEntities, validateSceneDocument } from "../document/validation";
 import { sameSceneValue } from "../document/valueEquality";
 import type { SceneDocument, SceneIssue } from "../types";
 import { readUniformCircularSource } from "./uniformCircularSource";
@@ -28,6 +28,12 @@ export function validateUniformCircularSourceInputs(document: SceneDocument, que
     entities: scene.entities.map((entity) => [entity.id, entity.kind, entity.label ?? null]),
   });
   const actual = shape(document);
+  // Admission also accepts the engine program after the same production
+  // pruning pass. Compare only complete engine-generated forms; never prune
+  // submitted ink here, which could hide an extra or altered construction.
+  const pruned = pruneDeadSceneEntities(structuredClone(generated) as unknown as Record<string, unknown>);
+  const normalizedExpected = validateSceneDocument(pruned).document;
+  if (normalizedExpected && sameSceneValue(actual, shape(normalizedExpected))) return [];
   const wanted = shape(expected);
   return (Object.keys(wanted) as Array<keyof typeof wanted>).flatMap((key): SceneIssue[] =>
     sameSceneValue(actual[key], wanted[key]) ? [] : [{
