@@ -858,6 +858,22 @@ const ROLE_PREPOSITIONS = new Set([
   "relative", "parallel", "under", "over", "with", "by", "for", "per",
 ]);
 
+/**
+ * The words of a role before its first preposition, as the role wrote them.
+ *
+ * Rejoining the split words dropped every symbol between them, so the role
+ * "reaches 20 m/s at t=4 s" was spoken "reaches 20 m s" and "t = 4 s on time
+ * axis" was spoken "t 4 s" in a recorded velocity against time tour. A head
+ * made of plain words keeps the lowercase joined form it always had.
+ */
+function roleHeadText(role: string, words: readonly string[], cut: number): string {
+  const joined = words.slice(0, cut).join(" ");
+  const start = [...role.matchAll(/[\p{L}\p{N}'′]+/gu)][cut]?.index;
+  if (start === undefined) return joined;
+  const written = role.slice(0, start).replace(/[\s,;:]+$/u, "");
+  return written.toLowerCase().replace(/[\s-]+/g, " ") === joined ? joined : written;
+}
+
 /** The last word of the role's head phrase, when it is a name in its own right. */
 function roleHeadWord(role: string): string | null {
   const words = roleWords(role);
@@ -991,7 +1007,7 @@ function entityPhrase(entity: SceneEntity, language?: NarrationLanguage): string
   if (UNSPEAKABLE_ROLE.test(role)) return null;
   const words = roleWords(role);
   const cut = words.findIndex((word) => ROLE_PREPOSITIONS.has(word));
-  const headPhrase = cut > 0 && roleHeadWord(role) ? words.slice(0, cut).join(" ") : role;
+  const headPhrase = cut > 0 && roleHeadWord(role) ? roleHeadText(role, words, cut) : role;
   const spokenLabel = label && SPEAKABLE_LABEL.test(label) && !words.includes(label.toLowerCase())
     ? ` ${label}`
     : "";

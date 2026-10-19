@@ -589,6 +589,50 @@ check(`${CUE_PAIRS.length} board labels are still found in their spoken sentence
   }
 });
 
+console.log("\nPhase 5d: axis titles, plotted points and hourly speeds, recorded 19 Oct 2026\n");
+
+/**
+ * Lines from the Accelute full lesson videos. "t (s)" was spoken "t solid",
+ * "v (m/s)" as "v (m over s)", a plotted "(4, 20)" reached the voice in its
+ * brackets, and "km/h" reached the English voice raw. The Hinglish chain
+ * through `sarvamSpeechText` is pinned by the tutor app's
+ * verify-spoken-units-roundtrip gate.
+ */
+const RECORDED_UNIT_LINES: [string, string][] = [
+  ["horizontal axis t (s) है", "horizontal axis t in seconds है"],
+  ["vertical axis v (m/s) और", "vertical axis v in meters per second और"],
+  ["figure में t (s); a (m/s²) के", "figure में t in seconds; a in meters per second squared के"],
+  ["Δt (s), t₁ (s), F (N), T (K), m (g)", "delta t in seconds, t 1 in seconds, F in newtons, T in kelvin, m in grams"],
+  ["v in m/s vertically, t in s horizontally.", "v in meters per second vertically, t in seconds horizontally."],
+  ["यह point \"(4, 20)\" है", "यह point \"4 comma 20\" है"],
+  ["notice (10,-10), ten seconds पर", "notice 10 comma minus 10, ten seconds पर"],
+  ["triangle d₁ = ½ × 4 × 20 = 40 m", "triangle d 1 equals half times 4 times 20 equals 40 m"],
+  ["At 5 km/h east, 10km/h and 60 km/hr", "At 5 kilometers per hour east, 10 kilometers per hour and 60 kilometers per hour"],
+  // Left as they were: chemistry states after a formula, function notation,
+  // a grouped number, the Planck ratio, and a point named in prose.
+  ["Fe2O3(s), CO_2 (g), Fe (s), P (s)", "Fe2O3 solid, CO 2 gas, Fe solid, P solid"],
+  ["v(8), f(2, 3), (1,000), λ = h/p, the tension in A", "v(8), f(2, 3), (1,000), lambda equals h over p, the tension in A"],
+];
+
+check(`${RECORDED_UNIT_LINES.length} recorded unit and point lines are spoken as words`, () => {
+  for (const [input, expected] of RECORDED_UNIT_LINES) {
+    const out = mathToSpeech(input);
+    assert(out === expected, `"${input}"\n    expected "${expected}"\n    got      "${out}"`);
+  }
+});
+
+check("axis titles and plotted points are still found in their sentence", () => {
+  for (const [label, narration] of [
+    ["t (s)", "जहाँ vertical axis v (m/s) और horizontal axis t (s) है."],
+    ["v (m/s)", "जहाँ vertical axis v (m/s) और horizontal axis t (s) है."],
+    ["(4, 20)", "और यह point \"(4, 20)\" है जहाँ car पहुँचती है."],
+    ["(2,10)", "notice (2,10), two seconds पर velocity positive है."],
+  ] as const) {
+    const token = mathToSpeech(label).trim();
+    assert(findSpokenToken(mathToSpeech(narration), token) >= 0, `"${label}" (spoken "${token}") lost in ${mathToSpeech(narration)}`);
+  }
+});
+
 console.log("\nNotation audit — written modifiers survive into speech and cues\n");
 
 const DECORATED_SYMBOL_READINGS: [string, string][] = [

@@ -154,6 +154,11 @@ const UNIT_WORDS: Record<string, { plural: string; singular: string }> = {
   Wb: { plural: "webers", singular: "weber" },
   eV: { plural: "electron volts", singular: "electron volt" },
   "\u03a9": { plural: "ohms", singular: "ohm" },
+  // The hour only ever reaches the voice inside a speed: `km/h` was heard as
+  // "kilometer by H". A ratio needs a number or "in" in front of it, so the
+  // Planck ratio `h/p` is still read as "h over p".
+  h: { plural: "hours", singular: "hour" },
+  hr: { plural: "hours", singular: "hour" },
 };
 
 /**
@@ -184,24 +189,29 @@ const POWER_WORDS: Record<string, string> = {
  * for the general "over" rule below rather than being read as farads per
  * ampere.
  */
+function unitWords(symbol: string): { plural: string; singular: string } | undefined {
+  const micro = symbol.startsWith("µ");
+  const unit = UNIT_WORDS[micro ? symbol.slice(1) : symbol];
+  return !unit ? undefined : micro
+    ? { plural: `micro${unit.plural}`, singular: `micro${unit.singular}` }
+    : unit;
+}
+
+const UNIT_RATIO = "(µ?[A-Za-zΩ]{1,3})\\s*/\\s*(µ?[A-Za-zΩ]{1,3})(\\^?[23]|[²³])?(?![\\p{L}0-9_])";
+
+function sayUnitRatio(numerator: string, denominator: string, power?: string): string | null {
+  const top = unitWords(numerator);
+  const bottom = unitWords(denominator);
+  if (!top || !bottom) return null;
+  const exponent = power ? POWER_WORDS[power.replace("^", "")] : undefined;
+  // "meters per second", never "meters per seconds": the denominator names
+  // one of the unit, which is why it is stored in both forms.
+  return `${top.plural} per ${bottom.singular}${exponent ? ` ${exponent}` : ""}`;
+}
+
 function expandUnitRatios(text: string): string {
-  const ratio = "(µ?[A-Za-zΩ]{1,3})\\s*/\\s*(µ?[A-Za-zΩ]{1,3})(\\^?[23]|[²³])?(?![\\p{L}0-9_])";
-  const unitWords = (symbol: string) => {
-    const micro = symbol.startsWith("µ");
-    const unit = UNIT_WORDS[micro ? symbol.slice(1) : symbol];
-    return !unit ? undefined : micro
-      ? { plural: `micro${unit.plural}`, singular: `micro${unit.singular}` }
-      : unit;
-  };
-  const say = (numerator: string, denominator: string, power?: string): string | null => {
-    const top = unitWords(numerator);
-    const bottom = unitWords(denominator);
-    if (!top || !bottom) return null;
-    const exponent = power ? POWER_WORDS[power.replace("^", "")] : undefined;
-    // "meters per second", never "meters per seconds": the denominator names
-    // one of the unit, which is why it is stored in both forms.
-    return `${top.plural} per ${bottom.singular}${exponent ? ` ${exponent}` : ""}`;
-  };
+  const ratio = UNIT_RATIO;
+  const say = sayUnitRatio;
 
   return text
     .replace(
@@ -214,6 +224,77 @@ function expandUnitRatios(text: string): string {
       (match, lead: string, top: string, bottom: string, power?: string) =>
         say(top, bottom, power) === null ? match : `${lead} ${say(top, bottom, power)}`,
     );
+}
+
+/**
+ * A quantity symbol as an axis title or column heading writes it: `t`, `v_0`,
+ * `Δx`, `θ′`. Unicode subscripts are already `_1` by the time this runs.
+ */
+const QUANTITY_SYMBOL = "(?:Δ ?)?[A-Za-z\\u0370-\\u03ff](?:_[A-Za-z0-9\\u0370-\\u03ff]+)?[′']?";
+/** Chemistry state symbols that are also unit symbols: solid or second, gas or gram. */
+const STATE_SYMBOL_UNITS = new Set(["s", "g"]);
+
+/**
+ * `t (s)`, `v (m/s)`, `a (m/s²)`, `F (N)`: a quantity with its unit in
+ * brackets, the way an axis title is lettered. The teaching model reads the
+ * title off the board, so it reaches the voice. Left to the chemistry rule,
+ * `t (s)` was spoken "t solid", and `v (m/s)` came out "v (m over s)", in two
+ * Hinglish velocity against time lessons on 19 Oct 2026. A teacher says "t in
+ * seconds".
+ *
+ * A state symbol still follows a formula, and a formula opens with a capital
+ * (`Fe (s)`, `CO_2 (g)`), so a bracketed s or g is a unit only after a
+ * lowercase or Greek symbol. A space before the bracket is required, which
+ * keeps function notation such as `f(s)` and `v(8)` out of this rule.
+ */
+function expandBracketedUnits(text: string): string {
+  const unit = `(?:${UNIT_RATIO}|(µ?[A-Za-zΩ]{1,3})(\\^?[23]|[²³])?)`;
+  return text.replace(
+    new RegExp(`(?<![\\p{L}\\p{N}_])(${QUANTITY_SYMBOL})[ \\t]+\\(\\s*${unit}\\s*\\)`, "gu"),
+    (match, symbol: string, top?: string, bottom?: string, ratioPower?: string, single?: string, power?: string) => {
+      if (single !== undefined) {
+        const words = unitWords(single);
+        if (!words) return match;
+        if (STATE_SYMBOL_UNITS.has(single) && !/^(?:Δ ?)?[a-z\u03b1-\u03c9]/u.test(symbol)) return match;
+        const exponent = power ? POWER_WORDS[power.replace("^", "")] : undefined;
+        return `${symbol} in ${words.plural}${exponent ? ` ${exponent}` : ""}`;
+      }
+      const words = sayUnitRatio(top!, bottom!, ratioPower);
+      return words === null ? match : `${symbol} in ${words}`;
+    },
+  );
+}
+
+/**
+ * `t in s`, the unit named after "in" with no number in front: a figure step
+ * caption read "t in s horizontally". The ratio form (`v in m/s`) already
+ * has a rule; this is the single unit. Only after a quantity symbol, and never
+ * a single capital, because "the tension in A" names a point, not amperes.
+ */
+function expandUnitAfterIn(text: string): string {
+  return text.replace(
+    new RegExp(`(?<![\\p{L}\\p{N}_])(${QUANTITY_SYMBOL}) in (µ?[A-Za-zΩ]{1,3})(?![\\p{L}\\p{N}_/^²³])`, "gu"),
+    (match, symbol: string, single: string) => {
+      const words = unitWords(single);
+      if (!words || /^[A-Z]$/.test(single)) return match;
+      return `${symbol} in ${words.plural}`;
+    },
+  );
+}
+
+/**
+ * A plotted point written as coordinates: `(4, 20)`, `(2,10)`, `(10,-10)`.
+ * The teaching model names a point by its board label, so the bracket reached
+ * the voice and was read as "four twenty". A teacher says "4 comma 20".
+ * `(1,000)` is one number, not a point, and is left for the number reader.
+ */
+function expandCoordinatePairs(text: string): string {
+  const coordinate = "([-\u2212]?\\d+(?:\\.\\d+)?)";
+  return text.replace(
+    new RegExp(`(?<![\\p{L}\\p{N}_])\\(\\s*${coordinate}\\s*,(\\s*)${coordinate}\\s*\\)`, "gu"),
+    (match, x: string, gap: string, y: string) =>
+      !gap && /^\d{1,3}$/.test(x) && /^\d{3}$/.test(y) ? match : `${x} comma ${y}`,
+  );
 }
 
 /**
@@ -493,6 +574,13 @@ function expandNotationSymbols(text: string): string {
     .replace(/\blog\b/g, " log ")
     .replace(/\bln\b/g, " natural log ")
     .replace(/\bexp\b/g, " e to the power of ")
+    // A figure caption wrote "d₁ = ½ × 4 × 20"; the glyph had no word.
+    .replace(/(\d)\s*½/g, "$1 and a half")
+    .replace(/½/g, " half ")
+    .replace(/¼/g, " one quarter ")
+    .replace(/¾/g, " three quarters ")
+    .replace(/⅓/g, " one third ")
+    .replace(/⅔/g, " two thirds ")
     .replace(/(\w)²/g, "$1 squared")
     .replace(/(\w)³/g, "$1 cubed")
     .replace(/√(\d+)/g, "square root of $1")
@@ -561,6 +649,11 @@ const SPEECH_STAGES: ((text: string) => string)[] = [
   expandUnicodeSubscripts,
   expandUnicodePrimes,
   expandWrittenModifiers,
+  // Before the unit ratios and the chemistry state symbols: `t (s)` is time
+  // in seconds, and `(4, 20)` is a point before it is two numbers.
+  expandBracketedUnits,
+  expandUnitAfterIn,
+  expandCoordinatePairs,
   // Read unit ratios before the standalone MICRO SIGN and Greek spacing:
   // `2µm/s²` names micrometers per second squared as a single quantity.
   expandUnitRatios,
