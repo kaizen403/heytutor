@@ -58,3 +58,9 @@ export * from "./dsa/exampleSlots";
 export * from "./dsa/traceToScene";
 export * from "./dsa/familyTeaching";
 export * from "./completion/completeSceneDocument";
+
+export { prepareVerifiedParts, parseDiagramYieldPolicy, type DiagramYieldPolicy } from "./compile/verifiedParts";
+export { normalizeVerifiedPartsInputs } from "./document/verifiedPartsInputs";
+export { validateRepairSurvivorship, validateRepairCandidateSetSurvivorship } from "./compile/repairSurvivorship";
+export { deferVerifiedAnswerLabels } from "./compile/answerLabels";
+export { prepareVerifiedCircularParts } from "./physics/verifiedCircularParts";

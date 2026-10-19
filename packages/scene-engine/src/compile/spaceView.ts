@@ -8,7 +8,7 @@
  * validation judges collapse and edge-on guards under the same projection.
  * A document without a space_frame has no plan, so nothing else changes.
  */
-import { chooseSpaceProjection, DEFAULT_SPACE_PROJECTION, projectionMetrics, projectionName, SPACE_PROJECTION_CANDIDATES, type SpaceViewConstraints } from "../math/spaceCamera";
+import { chooseSpaceProjection, DEFAULT_SPACE_PROJECTION, createProjectionMetrics, projectionName, SPACE_PROJECTION_CANDIDATES, type SpaceViewConstraints } from "../math/spaceCamera";
 import { planeFromCartesian, type SpaceProjection, type Vec3 } from "../math/space";
 import type { SceneConstruction, SceneDocument } from "../types";
 import { pointLabelText, type PointLabelText } from "./pointLabelText";
@@ -635,8 +635,9 @@ function withLabelRoom(choice: ProjectionChoice, world: World, named: NamedPoint
   const first = labelRoom(choice.projection, world, named, frames, lines, planes);
   if (enough(first)) return { choice, planes };
   let best = { choice, planes, room: first };
+  const metricsFor = createProjectionMetrics(constraints);
   const acceptable = SPACE_PROJECTION_CANDIDATES.flatMap((projection) => {
-    const metrics = projectionMetrics(projection, constraints);
+    const metrics = metricsFor(projection);
     return metrics.passesFloors && metrics.score >= 0.85 && projection !== choice.projection ? [{ projection, metrics }] : [];
   });
   const options: ProjectionChoice[] = [choice, ...acceptable.map(({ projection, metrics }): ProjectionChoice => ({
