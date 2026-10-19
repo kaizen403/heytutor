@@ -1,13 +1,12 @@
 /**
- * Two narrow readers found by replaying Kimi K3 Fast scene candidates (19 Oct 2026).
+ * A narrow reader found by replaying Kimi K3 Fast scene candidates (19 Oct 2026),
+ * and the capacitor closure it did not adopt.
  *
- * F4. A capacitor drawn as two plate segments with a battery wired to them
- * (the apparatus view of the parallel_plates archetype) was refused as
- * source_loop_not_closed, because the closure walk only follows symbol and
- * connect edges. Exactly two plate segments now count as one two-terminal
- * component that a loop may cross once. A floating battery, a battery wired to
- * one plate, a battery shorted through one plate, joined plates, a third plate
- * and a plate role on a non-segment all stay refused.
+ * F4 (not adopted). A capacitor drawn as two plate segments with a battery
+ * wired to them is refused as source_loop_not_closed. Letting the loop close
+ * across the gap admitted shorted plates, plates that do not face each other
+ * and a dielectric packed into its own panel (review of PR #228), so the check
+ * stays fail closed: every capacitor case below must stay refused.
  *
  * F3. A space_frame whose 2D anchor point gives no coordinates failed every
  * world derivation (invalid_space_*_x). The anchor only places the projected
@@ -95,15 +94,8 @@ function closureIssues(raw: Raw, label: string): string[] {
     .map((issue: { message: string }) => issue.message);
 }
 
-{
-  const positive = capacitor();
-  check(closureIssues(positive, "two-plate capacitor").length === 0, "a battery wired to two plate segments closes its loop across the capacitor");
-  const validation = engine.validateSceneDocument(positive);
-  const compiled = engine.compileSceneDocument(validation.document!);
-  check(compiled.ok && compiled.renderScene, `the two-plate capacitor compiles: ${JSON.stringify(compiled.report.issues)}`);
-}
-
 const refused: Array<[string, Raw]> = [
+  ["a battery wired across two plate segments (no closure across the gap)", capacitor()],
   ["a floating battery", capacitor({ wires: [] })],
   ["a battery wired to only one plate", capacitor({ wires: [["w1", "p1a", "batP"]] })],
   ["a battery shorted through one plate (both terminals on plate 1)", capacitor({ wires: [["w1", "p1a", "batP"], ["w2", "p1b", "batN"]] })],
