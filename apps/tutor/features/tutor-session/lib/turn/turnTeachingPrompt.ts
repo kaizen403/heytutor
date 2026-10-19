@@ -125,6 +125,22 @@ The left column is a notebook, not an editor. [WRITE] at most one short phrase p
 const CODE_LESSON_CONTINUATION_PROMPT = `Continue the code lesson exactly where the previous response stopped. Return only [STEP]...[/STEP] blocks, following the same lesson shape and the same rules: one [FOCUS:frame_id|spotlight] on a figure step, one [TYPE:blockId] on a code step, no tag on an opening, a trace-through or a close, and never [WRITE]. Do not restate anything already said, do not summarise what came before, and do not start again from the beginning.`;
 const DSA_EXPLANATION_CONTINUATION_PROMPT = `Continue the worked example exactly where the previous response stopped. Return only [STEP]...[/STEP] blocks. Use one [FOCUS:frame_id|spotlight] for each remaining figure step and no tag on the close. Never use [TYPE] or [WRITE]. Explain the actual values and decisions, then close with the reason for time and space complexity. Do not recap or restart.`;
 
+/** Presentation shape only: the existing solver audit remains numeric authority. */
+function hasSolverBindingContext(value: unknown): boolean {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const projection = value as Record<string, unknown>;
+  if (projection.schemaVersion !== "solver-authority/v1" || projection.status !== "verified" ||
+      !Array.isArray(projection.bindings) || projection.bindings.length === 0) return false;
+  return projection.bindings.every((value: unknown) => {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+    const binding = value as Record<string, unknown>;
+    const number = binding.approximate;
+    return [binding.requestId, binding.quantityId, binding.symbol].every(value => typeof value === "string" && value.trim().length > 0) &&
+      (typeof number === "number" && Number.isFinite(number) ||
+        Array.isArray(number) && number.length > 0 && number.every(value => typeof value === "number" && Number.isFinite(value)));
+  });
+}
+
 /**
  * The plan and solver blocks. Shared by a lesson and by a doubt about it, so
  * the doubt is held to the same numbers, and the same "not stated by the
@@ -163,23 +179,18 @@ function turnPlanPromptAddons(
     ),
   );
 
-  // "Verified" is only true when the independent solver signed the numbers off.
-  // Without it these are one model's working: a collision plan reached a lesson
-  // claiming 62 J of kinetic energy after a 24 J collision, with the energy
-  // lost recorded as zero, and the prompt still introduced it as verified. The
-  // teaching model ignored it and was right, which is not a guarantee worth
-  // relying on. Say what the block actually is.
-  const solverVerified = Boolean(solverProjection);
+  // A projection can confirm one output while unrelated planner working and
+  // qualitative claims remain unproved. Never give the whole plan its status.
   // The planner also stores transport and repair notes in this legacy list.
   // Those explain pipeline decisions, never conditions of the student's problem.
   const assumptions = (turnPlan?.assumptions ?? []).filter((text) =>
     !/^(?:A verified illustration is required|Turn-plan model was unavailable|Mock mode does not solve|Removed \d+ (?:invalid planner dependency|directional sign))/.test(text),
   );
   const turnPlanPromptAddon = turnPlan
-    ? `${solverVerified ? "AUTHORITATIVE TURN PLAN V3" : "TURN PLAN V3 (NOT INDEPENDENTLY CHECKED)"}
-${solverVerified
-  ? "Use these verified quantities and qualitative claims for the explanation. Do not replace them with independently guessed values or contradict them."
-  : "An independent solver did not confirm these numbers, so they are one working, not an answer key. Use them as the intended route and keep the givens, laws and assumptions. Before you speak any derived value, get it from the line of algebra you have just written; if your own line disagrees with the number below, write your line and say that value instead."}
+    ? `TURN PLAN V3 (PLANNER WORKING; NOT A GLOBAL ANSWER KEY)
+These are proposed working, not a globally verified answer key. A solver binding confirms only its own quantityId, symbol, unit and value; it does not confirm other derived quantities or qualitative claims below. Keep the question's stated givens and applicable laws, and label assumptions.
+Your own board working cannot override an explicitly solver-bound value. Recheck disagreements from the givens and applicable law and correct the working; if they cannot be resolved, state the unresolved discrepancy instead of inventing an alternative answer.
+For a quantity without a solver binding, correct an unsupported planner value only after checking its derivation from the givens, signs and units. Before using any result in a dependent calculation, check every adjacent equality in a chain. Before emitting a step, ensure its spoken quantities agree with the [WRITE] row.
 ${JSON.stringify({
   givens: turnPlan.givens,
   unknowns: turnPlan.unknowns,
@@ -198,9 +209,9 @@ Never call them given. Say "suppose" or "take, for example" the first time each 
   : ""}`
     : "";
 
-  const solverPromptAddon = solverProjection
-    ? `INDEPENDENT SOLVER AUTHORITY V1
-Use exactly these solver-verified values and formulation inputs. Do not independently replace or contradict them.
+  const solverPromptAddon = hasSolverBindingContext(solverProjection)
+    ? `INDEPENDENT SOLVER AUTHORITY V1 — EXPLICIT BINDINGS ONLY
+Only the outputs explicitly listed in bindings are solver-confirmed numeric results. Match quantityId, symbol and unit; never apply a bound value to another quantity. Use those values exactly, and do not replace them with your own board arithmetic. Expressions, constraints and representation intents are formulation context, not blanket confirmation of other planner results or unstated conditions.
 ${JSON.stringify(solverProjection)}`
     : "";
 
