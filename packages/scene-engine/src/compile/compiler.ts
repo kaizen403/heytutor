@@ -1,3 +1,12 @@
+import { validateLabelOwnerTruth } from "./labelOwnerTruth";
+import { validateSolidSourceTruth } from "./solidSourceTruth";
+import { validateDeclaredGeometryTruth } from "./declaredGeometryTruth";
+import { validateGeometryClaimTruth } from "./geometryClaimTruth";
+import { clipDeclaredOpticalIncidentPaths, validateOpticalPathTruth } from "./opticalPathTruth";
+import { mediumBindings, validateOpticalMediumTruth, validateRenderedMediumTruth } from "./opticalMediumTruth";
+import { validateSphericalCurvatureTruth } from "./curvatureTruth";
+import { validateMarkedAngleTruth } from "./angleTruth";
+import { isVerifiedPartsEnabled, withDiagramYieldPolicy } from "./yieldPolicy";
 import {
   SCENE_ENGINE_VERSION,
   type CompileOptions,
@@ -12,6 +21,7 @@ import {
 } from "../types";
 import {
   createTextInkBoundsCache,
+  canPlaceSingleLabel,
   obstaclesFromPrimitives,
   placeLabels,
   stackLabelRows,
@@ -221,6 +231,8 @@ const EPSILON = 1e-6;
 export const labelInkBoundsCache = createTextInkBoundsCache(measureTextInkBounds);
 
 export function compileSceneDocument(document: SceneDocument, options: CompileOptions = {}): CompileResult {
+  if (options.yieldPolicy !== undefined) document = withDiagramYieldPolicy(document, options.yieldPolicy);
+  const verifiedPartsEnabled = isVerifiedPartsEnabled(document);
   const measureLabelInk = options.measureLabelInkBounds ?? labelInkBoundsCache.measure;
   const structural = validateSceneDocument(document);
   if (!structural.document) return { ok: false, renderScene: null, report: structural.report };
@@ -400,6 +412,15 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
 
   validateDisplayDescendantClaims(document, geometry, checkedClaimOutputIds, issues);
   validateSolidMeasurements(document, issues, (value) => resolveNumber(value, quantities));
+  if (verifiedPartsEnabled) {
+    issues.push(...validateMarkedAngleTruth(document, geometry));
+    issues.push(...validateGeometryClaimTruth(document, geometry));
+    issues.push(...validateDeclaredGeometryTruth(document, geometry));
+    validateSphericalCurvatureTruth(document, geometry, issues);
+    validateSolidSourceTruth(document, geometry, issues);
+    validateOpticalPathTruth(document, geometry, issues);
+    issues.push(...validateOpticalMediumTruth(document, geometry));
+  }
   for (const assertion of document.assertions) validateAssertion(assertion, geometry, document, issues);
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, 0) };
   // Light stops at the optical elements it meets: cut outgoing rays at their
@@ -407,6 +428,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   const drawnEntityIds = new Set(document.requiredEntityIds);
   const drawnInk = (id: string) => drawnEntityIds.has(id) && !constructionOnlyIds.has(id) && entityToGroup.has(id) &&
     document.entities.some((entity) => entity.id === id && entity.kind !== "label");
+  if (verifiedPartsEnabled) clipDeclaredOpticalIncidentPaths(document, geometry, drawnInk);
   clipLightPathsAtElements({
     document,
     geometry,
@@ -454,7 +476,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     document.annotations.some((annotation) =>
       (annotation.kind === "label" || annotation.kind === "callout") &&
       Boolean(annotation.kind === "callout"
-        ? compactCalloutLabel(annotation.text)
+        ? compactCalloutLabel(annotation.text, isVerifiedPartsEnabled(document))
         : annotation.text),
     ) ||
     // Space frames letter their axes.
@@ -508,6 +530,16 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
         return {ok:false,renderScene:null,report:report(document,issues,0)};
       }
     }
+  }
+  if (verifiedPartsEnabled) {
+    // Text and its leaders cannot restore a region whose projected geometry
+    // collapsed to a line. Prove that core shape before searching label slots.
+    const projectedIssues: SceneIssue[] = [];
+    pushDegenerateProjectedGeometryIssues(geometry, primitives, constructionOnlyIds, projectedIssues);
+    if (projectedIssues.length) return {
+      ok: false, renderScene: null,
+      report: report(document, [...issues, ...projectedIssues.map(issue => ({ ...issue, failureKind: "truth" as const }))], primitives.length),
+    };
   }
   appendCorrespondingTickPrimitives(document, geometry, primitives, entityToGroup, transformPlan, constructionOnlyIds);
   // Moving one lane also moves its witnesses. Recheck earlier dimensions
@@ -572,7 +604,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       (annotation.kind === "label" || annotation.kind === "callout") &&
       annotation.targetIds.includes(entity.id) &&
       Boolean(annotation.kind === "callout"
-        ? compactCalloutLabel(annotation.text)
+        ? compactCalloutLabel(annotation.text, isVerifiedPartsEnabled(document))
         : annotation.text),
     )) continue;
     const valueAnnotation = entity.kind === "component" && isComponentDesignator(entity.label)
@@ -591,7 +623,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       !(annotation.kind === "callout" && isViewSummaryText(annotation.text)) &&
       annotation.targetIds.includes(entity.id) &&
       Boolean(annotation.kind === "callout"
-        ? compactCalloutLabel(annotation.text)
+        ? compactCalloutLabel(annotation.text, isVerifiedPartsEnabled(document))
         : annotation.text),
     );
     const quantityText = entity.kind === "component" && isComponentDesignator(entity.label)
@@ -616,7 +648,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       incidentTangents: target.kind === "point" && entity.kind === "point" ? screenIncidentTangents(target.point, geometry, transform) : undefined,
       tetherPx: target.kind === "point" && entity.kind === "point" ? pointLabelTether(entity.label) : undefined,
       allowLeader: entity.kind === "point" ? !isPointIdentifierText(entity.label) : true,
-      requireLeader: entity.provenance?.requireLabelLeader === true,
+      requireLeader: entity.provenance?.requireLabelLeader === true || (verifiedPartsEnabled && document.constructions.some(c => c.operator === "curve_secant" && c.outputs.includes(entity.id))),
       leaderGeometrySafe: entity.kind === "point" || entity.provenance?.leaderGeometrySafe === true,
       ...dimensionLabelPlacement(entity.id, target, primitives, transformPlan.viewportFor(entity.id)),
       ...spaceElementPlacement,
@@ -631,12 +663,37 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     if (!targetId) continue;
     const target = geometry.get(targetId);
     const targetEntity = document.entities.find((entity) => entity.id === targetId);
+    // A bare number can masquerade as the first point's coordinate. Named
+    // quantities already identify the interval and keep their proven placement.
+    const intervalTargets = verifiedPartsEnabled && annotation.kind === "callout" && annotation.targetIds.length === 2 && /^[+−-]?\d/.test((annotation.text ?? "").trim())
+      ? annotation.targetIds.map(id => ({ id, value: geometry.get(id) })) : [];
+    if (intervalTargets.length === 2 && intervalTargets.every(t => t.value?.kind === "point")) {
+      const anchors = intervalTargets.map(t => transformPlan.transformFor(t.id)((t.value as Extract<Geometry, {kind:"point"}>).point));
+      const quantity = document.quantities.find(q => q.id === annotation.quantityId);
+      const rawText = annotation.text ?? "";
+      const text = quantity?.symbol && /^[+−-]?\d/.test(rawText.trim()) ? `${quantity.symbol}=${rawText}` : rawText;
+      if (text) labelOwners.push({ labelId: annotation.id, entityId: targetId,
+        anchor: { x: (anchors[0]!.x+anchors[1]!.x)/2, y: (anchors[0]!.y+anchors[1]!.y)/2 },
+        text, useOwnerBounds: false, allowLeader: true, requireLeader: true, leaderGeometrySafe: true,
+        viewBounds: transformPlan.viewportFor(targetId) });
+      continue;
+    }
+    const medium = verifiedPartsEnabled ? mediumBindings(document, geometry).find(binding => binding.annotationId === annotation.id) : undefined;
+    if (medium && annotation.text) {
+      const transform = transformPlan.transformFor(medium.surfaceId);
+      const contact = transform(medium.contact), far = transform(medium.far);
+      const anchor = { x: contact.x + (far.x-contact.x)*0.65, y: contact.y + (far.y-contact.y)*0.65 };
+      labelOwners.push({ labelId: annotation.id, entityId: targetId, anchor, text: annotation.text,
+        preferredSlot: far.y < contact.y ? "north" : "south", useOwnerBounds: false,
+        viewBounds: transformPlan.viewportFor(targetId), allowLeader: false });
+      continue;
+    }
     const groupId = entityToGroup.get(targetId);
     const summaryText = (
       (annotation.kind === "callout" && isViewSummaryText(annotation.text)) ||
       (Boolean(annotation.quantityId) && Boolean(targetEntity?.label))
     )
-      ? compactCalloutLabel(annotation.text)
+      ? compactCalloutLabel(annotation.text, isVerifiedPartsEnabled(document))
       : undefined;
     if (groupId && summaryText) {
       summaryLabelIds.add(annotation.id);
@@ -685,7 +742,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
           }
         : { x: groupViewport.x + groupViewport.width / 2, y: groupViewport.y + 10 };
       const text = annotation.kind === "callout"
-        ? compactCalloutLabel(annotation.text)
+        ? compactCalloutLabel(annotation.text, isVerifiedPartsEnabled(document))
         : annotation.text;
       if (text) labelOwners.push({
         labelId: annotation.id,
@@ -724,9 +781,19 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       continue;
     }
     const center = screenLabelAnchor(targetId, target, primitives, transformPlan.transformFor(targetId));
+    const endpointLabel = verifiedPartsEnabled && target.kind === "point" && document.annotations.some(a => a.kind === "endpoint" && a.targetIds.includes(targetId));
+    const secantLabel = verifiedPartsEnabled && document.constructions.some(c => c.operator === "curve_secant" && c.outputs.includes(targetId));
+    if (verifiedPartsEnabled && target.kind === "axes" && (annotation.kind === "label" || annotation.kind === "callout")
+      && !/^(?:x|y|re|im|real|imaginary|horizontal|vertical)\b/i.test((annotation.text ?? "").trim())) {
+      // One label anchored at the origin cannot say which axis it names; "t (s)"
+      // beside the vertical axis reads as the wrong variable. The standard axis
+      // names keep their place; any other axis title is omitted and recompiled.
+      issues.push({ code: "annotation_geometry_unresolved", severity: "fatal", failureKind: "proof", entityIds: [annotation.id], message: `Annotation ${annotation.id} names an axes object at its origin, not one axis` });
+      continue;
+    }
     if (annotation.kind === "label" || annotation.kind === "callout") {
       const rawText = annotation.text ?? document.entities.find((entity) => entity.id === targetId)?.label;
-      const text = annotation.kind === "callout" ? compactCalloutLabel(rawText) : rawText;
+      const text = annotation.kind === "callout" ? compactCalloutLabel(rawText, isVerifiedPartsEnabled(document)) : rawText;
       if (text) labelOwners.push({
         labelId: annotation.id,
         entityId: targetId,
@@ -739,8 +806,9 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
           ? screenIncidentTangents(target.point, geometry, transformPlan.transformFor(targetId))
           : undefined,
         tetherPx: target.kind === "point" && targetEntity?.kind === "point" ? pointLabelTether(text) : undefined,
-        leaderGeometrySafe: targetEntity?.kind === "point",
-        allowLeader: targetEntity?.kind === "point" ? !isPointIdentifierText(text) : undefined,
+        ...(verifiedPartsEnabled ? { requireLeader: endpointLabel || secantLabel } : {}),
+        leaderGeometrySafe: targetEntity?.kind === "point" || secantLabel,
+        allowLeader: endpointLabel || (targetEntity?.kind === "point" ? !isPointIdentifierText(text) : undefined),
         ...dimensionLabelPlacement(targetId, target, primitives, transformPlan.viewportFor(targetId)),
       });
     }
@@ -1020,6 +1088,8 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     if (!renderedIds.has(id) && !constructionOnlyIds.has(id)) issues.push({ code: "required_entity_not_rendered", message: `Required entity ${id} produced no render primitive`, severity: "fatal", entityIds: [id] });
   }
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
+  if (verifiedPartsEnabled) issues.push(...validateLabelOwnerTruth(document, primitives, new Set(mediumBindings(document, geometry).map(binding => binding.annotationId))));
+  if (verifiedPartsEnabled) issues.push(...validateRenderedMediumTruth(document, geometry, primitives, transformPlan.transformFor));
   pushDegenerateProjectedGeometryIssues(geometry, primitives, constructionOnlyIds, issues);
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
 
@@ -1288,7 +1358,9 @@ function createEntityTransformPlan(
   // constructed independently. Separate transforms would break the proven
   // join and scale its measurements against different coordinate systems.
   const connectsComponents = document.assertions.some((assertion) =>
-    assertion.predicate === "connected" && assertion.expected !== false &&
+    // A common transform preserves every proved geometric relation, including
+    // incidence, midpoint and relative distance, not just circuit connections.
+    (isVerifiedPartsEnabled(document) || (assertion.predicate === "connected" && assertion.expected !== false)) &&
     new Set(assertion.entities.flatMap((id) => {
       const component = componentByEntity.get(id);
       return component === undefined ? [] : [component];
@@ -1298,6 +1370,9 @@ function createEntityTransformPlan(
   // into a 2-column grid shrinks each cell until the handwritten value
   // fills the box and sits on the stroke.
   const canPack = document.source.synthesizedDsa !== true &&
+    // Cartesian axes and all planar geometry share the document world frame.
+    // Reveal order cannot turn that frame into independently fitted panels.
+    (!isVerifiedPartsEnabled(document) || !renderGeometry.some(([, value]) => value.kind === "axes")) &&
     !connectsComponents &&
     components.length > 1 &&
     componentGroups.every((groups) => groups.length === 1) &&
@@ -1404,7 +1479,7 @@ function dimensionLabelText(document: SceneDocument, entityId: string): string |
     (annotation.kind === "label" || annotation.kind === "callout") && annotation.targetIds.includes(entityId) && annotation.text &&
     !(annotation.quantityId && entityLabel) && !(annotation.kind === "callout" && isViewSummaryText(annotation.text)),
   );
-  return annotation?.kind === "callout" ? compactCalloutLabel(annotation.text)
+  return annotation?.kind === "callout" ? compactCalloutLabel(annotation.text, isVerifiedPartsEnabled(document))
     : annotation?.text ?? entityLabel;
 }
 
@@ -1749,7 +1824,7 @@ function evaluateConstruction(
     case "screen_pattern": return [screenPatternGeometry(inputs, geometry, quantities)];
     case "transverse_field": return [transverseFieldGeometry(inputs, geometry, quantities)];
     case "polarizer": return [polarizerGeometry(inputs, geometry, quantities)];
-    case "optical_train": return opticalTrainGeometry(inputs, geometry, quantities);
+    case "optical_train": return opticalTrainGeometry(inputs, geometry, quantities, isVerifiedPartsEnabled(document));
     case "spherical_surface": return [sphericalSurfaceFromInputs(inputs, geometry, quantities)];
     case "lens_section": return [lensSectionFromInputs(inputs, geometry, quantities)];
     case "reflect_at": return surfaceRayBundleGeometry(inputs, geometry, quantities, "reflect");
@@ -1806,7 +1881,7 @@ function evaluateConstruction(
       const symbol = first(inputs, ["symbol"]);
       if (typeof symbol !== "string") throw new Error("symbol must be a string");
       const lane = typeof inputs.__parallelLane === "number" ? inputs.__parallelLane : 0;
-      return [{ kind: "compound", paths: routedSymbolPaths(symbol, start, end, lane, inputs.state), terminals: [start, end] }];
+      return [{ kind: "compound", paths: routedSymbolPaths(symbol, start, end, lane, isVerifiedPartsEnabled(document), inputs.state), terminals: [start, end] }];
     }
     case "vector_components": {
       const origin = point(["origin", "start"]); const vector = resolveVector(first(inputs, ["vector"]), geometry);
@@ -2899,8 +2974,8 @@ function relocateObstructedDimensions(
       };
       // Other endpoint witnesses are real ink too. A free bar alone is not
       // enough if its label would straddle another measurement's connection.
-      return placeLabels([owner], [...obstaclesFromPrimitives([...other, ...candidate]), ...pinned, workColumnObstacle()],
-        { fontHeightPx, paddingPx, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk }).ok;
+      return canPlaceSingleLabel(owner, [...obstaclesFromPrimitives([...other, ...candidate]), ...pinned, workColumnObstacle()],
+        { fontHeightPx, paddingPx, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk });
     };
     if (!dimensionBarObstructed(bar, ink) && labelClears(primitives.filter((primitive) => primitive.entityId === bar.entityId))) continue;
     const maxOffset = Math.hypot(viewport.width, viewport.height);
@@ -3019,7 +3094,18 @@ function emptyRenderScene(document: SceneDocument) {
     caption: compileSceneCaption(document),
   };
 }
-function report(document: SceneDocument, issues: SceneIssue[], primitiveCount: number): ValidationReport { return { engineVersion: SCENE_ENGINE_VERSION, valid: !issues.some((issue) => issue.severity === "fatal"), issues, stats: { entityCount: document.entities.length, constructionCount: document.constructions.length, primitiveCount, assertionCount: document.assertions.length } }; }
+function report(document: SceneDocument, issues: SceneIssue[], primitiveCount: number): ValidationReport {
+  // Repair prompts serialize these issues verbatim. Keep the pre-rollout model
+  // input shape when off; proof classifications belong to the opt-in policy.
+  const reportedIssues = isVerifiedPartsEnabled(document) ? issues : issues.map(issue => {
+    if (issue.failureKind === undefined && issue.proofKind === undefined) return issue;
+    const legacyIssue = { ...issue };
+    delete legacyIssue.failureKind;
+    delete legacyIssue.proofKind;
+    return legacyIssue;
+  });
+  return { engineVersion: SCENE_ENGINE_VERSION, valid: !issues.some((issue) => issue.severity === "fatal"), issues: reportedIssues, stats: { entityCount: document.entities.length, constructionCount: document.constructions.length, primitiveCount, assertionCount: document.assertions.length } };
+}
 function first(inputs: Record<string, unknown>, names: string[]): unknown { for (const name of names) if (inputs[name] !== undefined) return inputs[name]; throw new Error(`missing input ${names.join("|")}`); }
 function resolveNumber(value: unknown, quantities: Map<string, Record<string, unknown>>, seen = new Set<unknown>(), depth = 0): number {
   if (depth > 32 || seen.has(value)) throw new Error("numeric reference is cyclic or exceeds depth 32");
@@ -4144,6 +4230,7 @@ function opticalTrainGeometry(
   inputs: Record<string, unknown>,
   geometry: Map<string, Geometry>,
   quantities: Map<string, Record<string, unknown>>,
+  verifiedPartsEnabled: boolean,
 ): Geometry[] {
   const axis = resolveLine(first(inputs, ["axis"]), geometry);
   const objective = resolveLine(first(inputs, ["objective"]), geometry);
@@ -4189,8 +4276,7 @@ function opticalTrainGeometry(
   });
   const objectiveUpper = offset(objectiveCenter, beamHalfHeight);
   const objectiveLower = offset(objectiveCenter, -beamHalfHeight);
-  const eyepieceUpper = offset(eyepieceCenter, beamHalfHeight);
-  const eyepieceLower = offset(eyepieceCenter, -beamHalfHeight);
+
   const objectRef = inputs.object;
   const finalRef = inputs.finalImage !== undefined ? inputs.finalImage : inputs.virtualImage;
   const object = objectRef === undefined ? null : resolvePoint(objectRef, geometry);
@@ -4201,6 +4287,19 @@ function opticalTrainGeometry(
       object, focus, finalImage, beamHalfHeight, raySpan,
     });
   }
+  // Axis-parallel incoming rays focus on the axis. Between optical elements
+  // they remain straight through that focus; the focus itself cannot bend light.
+  const focusAlong = (focus.x - objectiveCenter.x) * axisDirection.x + (focus.y - objectiveCenter.y) * axisDirection.y;
+  const focusAcross = (focus.x - objectiveCenter.x) * transverse.x + (focus.y - objectiveCenter.y) * transverse.y;
+  if (verifiedPartsEnabled && (!(focusAlong > EPSILON && focusAlong < elementSeparation - EPSILON) || Math.abs(focusAcross) > EPSILON)) {
+    throw new Error("optical_train axis-parallel beam requires an on-axis focus between the elements");
+  }
+  if (verifiedPartsEnabled && finalImage && Math.abs((finalImage.x - objectiveCenter.x) * transverse.x + (finalImage.y - objectiveCenter.y) * transverse.y) > EPSILON) {
+    throw new Error("optical_train axis-parallel beam cannot form an off-axis final image");
+  }
+  const eyepieceHeight = verifiedPartsEnabled ? beamHalfHeight * (1 - elementSeparation / focusAlong) : beamHalfHeight;
+  const eyepieceUpper = offset(eyepieceCenter, eyepieceHeight);
+  const eyepieceLower = offset(eyepieceCenter, -eyepieceHeight);
   const incomingUpperStart = advance(objectiveUpper, -raySpan);
   const incomingLowerStart = advance(objectiveLower, -raySpan);
   const outgoingDirection = (hit: Point): Point => {
@@ -4959,7 +5058,16 @@ function validateDisplayDescendantClaims(document: SceneDocument, geometry: Map<
         document.annotations.some((annotation) => annotation.targetIds.includes(id) && (numericClaim(annotation.text) || annotation.quantityId !== undefined)) ||
         (construction.operator === "label" && numericClaim(construction.inputs.text));
       if (claim && hasDisplayAncestor([id], geometry, document, hasIndependentDisplayMetric)) {
-        issues.push({code:"invalid_display_derived_claim",message:"A generic descendant of scaled source geometry cannot certify numeric physical values; label its typed source owner",severity:"fatal",entityIds:[id]});
+        if (!isVerifiedPartsEnabled(document)) {
+          issues.push({ code: "invalid_display_derived_claim", message: "A generic descendant of scaled source geometry cannot certify numeric physical values; label its typed source owner", severity: "fatal", entityIds: [id] });
+          continue;
+        }
+        const add = (path: string) => issues.push({ code: "invalid_display_derived_claim", message: "A generic descendant of scaled source geometry cannot certify numeric physical values; label its typed source owner", severity: "fatal" as const, failureKind: "proof" as const, entityIds: [id], path });
+        document.entities.forEach((entity, index) => { if (entity.id === id && numericClaim(entity.label)) add(`entities[${index}].label`); });
+        document.annotations.forEach((annotation, index) => {
+          if (annotation.targetIds.includes(id) && (numericClaim(annotation.text) || annotation.quantityId !== undefined)) add(`annotations[${index}].text`);
+        });
+        if (construction.operator === "label" && numericClaim(construction.inputs.text)) add(`constructions[${document.constructions.indexOf(construction)}].inputs.text`);
       }
     }
   }
@@ -5361,7 +5469,7 @@ function compileSceneCaption(document: SceneDocument): string | undefined {
       parts.push(annotation.text);
       continue;
     }
-    if (!compactCalloutLabel(annotation.text) && !isViewSummaryText(annotation.text)) {
+    if (!compactCalloutLabel(annotation.text, isVerifiedPartsEnabled(document)) && !isViewSummaryText(annotation.text)) {
       parts.push(annotation.text);
     }
   }
@@ -5887,7 +5995,7 @@ function coincidentAxisRayAliases(
     (second.includes("axis") && first.includes("ray"));
 }
 
-function symbolPaths(symbol: string, start: Point, end: Point, state?: unknown): Point[][] {
+function symbolPaths(symbol: string, start: Point, end: Point, verifiedPartsEnabled: boolean, state?: unknown): Point[][] {
   const normalizedSymbol = symbol.trim().toLowerCase().replace(/[\s-]+/g, "_");
   const normalizedState = typeof state === "string" ? state.trim().toLowerCase() : state;
   if (state !== undefined && (normalizedSymbol !== "switch" || (normalizedState !== "open" && normalizedState !== "closed"))) {
@@ -5974,7 +6082,7 @@ function symbolPaths(symbol: string, start: Point, end: Point, state?: unknown):
       : [at(0.68, -0.17), at(0.68, 0.17)];
     return [
       [at(0), at(0.32)],
-      [at(0.32, -0.16), at(0.32, 0.16), at(0.64), at(0.32, -0.16)],
+      [at(0.32, -0.16), at(0.32, 0.16), at(verifiedPartsEnabled ? 0.68 : 0.64), at(0.32, -0.16)],
       cathode,
       [at(0.68), at(1)],
     ];
@@ -6000,8 +6108,8 @@ function symbolPaths(symbol: string, start: Point, end: Point, state?: unknown):
   throw new Error(`unsupported symbol ${normalizedSymbol}`);
 }
 
-function routedSymbolPaths(symbol: string, start: Point, end: Point, lane: number, state?: unknown): Point[][] {
-  if (Math.abs(lane) < EPSILON) return symbolPaths(symbol, start, end, state);
+function routedSymbolPaths(symbol: string, start: Point, end: Point, lane: number, verifiedPartsEnabled: boolean, state?: unknown): Point[][] {
+  if (Math.abs(lane) < EPSILON) return symbolPaths(symbol, start, end, verifiedPartsEnabled, state);
   const direction = normalize({ x: end.x - start.x, y: end.y - start.y });
   const normal = { x: -direction.y, y: direction.x };
   const offset = distance(start, end) * lane;
@@ -6009,7 +6117,7 @@ function routedSymbolPaths(symbol: string, start: Point, end: Point, lane: numbe
   const shiftedEnd = { x: end.x + normal.x * offset, y: end.y + normal.y * offset };
   return [
     [start, shiftedStart],
-    ...symbolPaths(symbol, shiftedStart, shiftedEnd, state),
+    ...symbolPaths(symbol, shiftedStart, shiftedEnd, verifiedPartsEnabled, state),
     [shiftedEnd, end],
   ];
 }

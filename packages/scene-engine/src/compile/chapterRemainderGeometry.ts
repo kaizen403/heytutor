@@ -405,7 +405,7 @@ export function evaluateChapterRemainderConstruction(operator: string, inputs: R
   return readMagnet(inputs, context);
 }
 
-export function chapterRemainderOutputLabels(operator: string, outputs: readonly unknown[], requested?: readonly unknown[]): string[] {
+export function chapterRemainderOutputLabels(operator: string, outputs: readonly unknown[], requested?: readonly unknown[], allowQuantitySymbols = false): string[] {
   if (!isOperator(operator) || outputs.length !== COUNTS[operator]) invalid("outputs", "remainder labels require every ordered output");
   return outputs.map((output, index) => {
     if (!isRecord(output) || !isRecord(output.remainder)) invalid("outputs", "remainder geometry is missing source metadata");
@@ -413,6 +413,9 @@ export function chapterRemainderOutputLabels(operator: string, outputs: readonly
     const symbol = metadata.role;
     const numeric = `${symbol}=${compactNumber(metadata.certified ?? metadata.magnitude)}`;
     const requestedText = requested?.[index];
+    // An identifier names a quantity; it does not assert its value. Do not
+    // normalize superscripts/operators into identifiers or accept equations.
+    if (allowQuantitySymbols && typeof requestedText === "string" && /^[\p{L}][\p{L}\p{M}\p{Nd}_₀-₉]*$/u.test(requestedText)) return requestedText;
     if (requestedText !== undefined && requestedText !== symbol && requestedText !== numeric) invalid("label", "remainder labels must be the role symbol or the verified magnitude");
     return requestedText === numeric ? numeric : symbol;
   });
