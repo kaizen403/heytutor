@@ -1,10 +1,11 @@
 /** Coordinate-geometry archetypes computed from the stated equations and lengths. */
 import { SceneBuilder, fmt, type Vec2 } from "../document";
-import { grounded, maybeNum, num, numbers, type GeneratorContext, type GeneratorTable } from "./context";
+import { grounded, maybeNum, numbers, type GeneratorContext, type GeneratorTable } from "./context";
 
 function circleAndPoint(context: GeneratorContext) {
-  const cx = num(context, "cx", 0);
-  const cy = num(context, "cy", 0);
+  const cx = maybeNum(context, "cx");
+  const cy = maybeNum(context, "cy");
+  if (cx === null || cy === null) return null;
   const r = maybeNum(context, "r");
   if (r === null || r <= 0) return null;
   const px = maybeNum(context, "px");
