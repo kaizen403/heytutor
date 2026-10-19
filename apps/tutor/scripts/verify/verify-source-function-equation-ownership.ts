@@ -1270,6 +1270,16 @@ function check(name: string, run: () => void): void {
 }
 
 const caseIndex = process.argv.indexOf("--case");
+if (process.argv.includes("--review-settings-only")) {
+  verifyReviewedSettings();
+  console.log(`reviewed function settings: ${checks - failed}/${checks} checks passed`);
+  process.exit(failed > 0 ? 1 : 0);
+}
+if (process.argv.includes("--review-forty-only")) {
+  verifyReviewedForty();
+  console.log(`reviewed forty settings: ${checks - failed}/${checks} checks passed`);
+  process.exit(failed > 0 ? 1 : 0);
+}
 const caseId = caseIndex < 0 ? undefined : process.argv[caseIndex + 1];
 const selectedFixtures = caseId ? gateFixtures.filter(({ id }) => id === caseId) : gateFixtures;
 assert(selectedFixtures.length > 0, `unknown fixture ${caseId}`);
@@ -1817,5 +1827,178 @@ for (const preferPlanner of [false, true]) check(`production normal-scale source
   assert(selection.representation && selection.visualStatus === "validated" && selection.saveFailure === null);
   verifyOwnership(fixture, selection.representation);
 });
+// Review delta: these are retention oracles for the unchanged source-only
+// producer, including its typed region boundaries. All earlier fixtures stay
+// intact; a curve-only substitute cannot satisfy a region retention check.
+function verifyReviewedSettings(): void {
+  const reviewedSettingFixtures = [
+    { id: "region-vertical-bounds", question: "Find the area bounded by y = x^2, the x axis and the lines x = 1 and x = 2", bodies: ["x^2", "0"], region: true },
+    { id: "region-axis-boundary", question: "Find the area of the region bounded by y = 4 - x^2 and the x axis", bodies: ["4-x^2", "0"], region: true },
+    { id: "two-curves-near", question: "Draw y = e^x and y = 1 + x near x = 0", bodies: ["e^x", "1+x"] },
+    { id: "single-curve-near", question: "Sketch y = e^x near x = 0", bodies: ["e^x"] },
+    { id: "single-curve-near-decimal-sentence", question: "Sketch y = e^x near x = 0.5.", bodies: ["e^x"] },
+    { id: "curve-evaluate-when", question: "Draw the graph of y = x^2 and find y when x = 3", bodies: ["x^2"] },
+    { id: "curve-evaluate-at", question: "Sketch y = x^3 and find its value at x = 2", bodies: ["x^3"] },
+    { id: "curve-evaluate-question", question: "Plot y = 2*x + 3. What is y when x = 0?", bodies: ["2*x+3"] },
+    { id: "curve-symbolic-range", question: "Sketch y = sin x from x = 0 to x = 2π", bodies: ["sin(x)"] },
+    { id: "curve-for-range", question: "Plot y = x^2 for x = -3 to 3", bodies: ["x^2"] },
+    { id: "curve-table-values", question: "Draw the graph of y = 2x + 3 by taking x = -1, 0, 1, 2", bodies: ["2*x+3"] },
+  ] as const;
+  for (const fixture of reviewedSettingFixtures) for (const route of ["normal", "inferred", "fast", "production"] as const) check(`reviewed settings ${fixture.id} ${route}`, () => {
+    const { question } = fixture;
+    const turnPlan: TurnPlanV3 = { schemaVersion: "turn-plan/v3", question, givens: [], unknowns: [], derived: [], qualitativeClaims: [], lawIds: [], assumptions: [], visualRequirement: "required" };
+    const native = synthesizeFamilyScene({ question, turnPlan: null, problemIR: null });
+    assert(native?.validationReport.valid, "review retention requires the real valid source-only native producer");
+    const before = structuredClone(native);
+    assert(prepareFallbackFunctionInventory(question, native) === native, "a source setting or typed region edge must preserve native admission by identity");
+    assert.deepEqual(native, before, "settings admission cannot rewrite native geometry or labels");
+    const curves = native.document.constructions.filter(c => c.operator === "function_curve" || c.operator === "implicit_curve");
+    assert.deepEqual(curves.map(c => nativeLabelBody(native.document.entities.find(e => e.id === c.outputs[0])?.label)).sort(), [...fixture.bodies].sort(), "all complete source curves and region-owned axis edges survive");
+    if ("region" in fixture) assert(native.document.constructions.some(c => c.operator === "function_region"), "the source-only baseline must contain its shaded region");
+    const input = { question, turnPlan, families: route === "normal" ? undefined : inferSceneCapabilities(question).families };
+    const selected = route === "production" ? selectProductionScene({ ...input, problemIR: null, policy: { preferPlanner: false } }).representation : route === "fast" ? selectFastVerifiedRepresentation(input) : selectVerifiedRepresentation(input);
+    assert(selected && selected.figureSource !== "source_grounded" && selected.figureSource !== "text_only", "all selection routes retain the native program");
+    assert.deepEqual(selected.sceneDocument, native.document, "native region, boundaries, proofs and complete curves survive together");
+    assert.deepEqual(selected.renderScene, native.renderScene, "the source setting cannot change native ink");
+  });
+  for (const question of [
+    "Draw y=x^2 and the line x=3 on the same axes.",
+    "Sketch y=e^x near x=0 and graph x=0.",
+    "Draw y=2*x+3 by taking x=-1,0,1,2 and x+y=4.",
+    "Sketch y=e^x near x=0z.",
+    "Draw y=x^2 and find y when x=1/0.",
+    "Sketch y=e^x near x=0.5.7.",
+    "Draw y=x^2 and find y when x=1.2.3.",
+    "Draw y=2*x+3 by taking x=-1,0,1,2.3.4.",
+    "Find the area bounded by y=x^2, the x axis and the lines x=1 and x=2.3.4.",
+    "Find the area bounded by y=x^2, the x axis and the lines x=1 and x=2, and graph x=3.",
+    '"Find the area bounded by y=x^2 and the x axis". Draw y=e^x and the line x=3.',
+    "Find the area bounded by y=x^2 and the x axis. Draw y=e^x and the line x=3.",
+  ]) for (const route of ["normal", "inferred", "fast", "production"] as const) check(`reviewed settings reject incomplete source ${route}: ${question}`, () => {
+    const turnPlan: TurnPlanV3 = { schemaVersion: "turn-plan/v3", question, givens: [], unknowns: [], derived: [], qualitativeClaims: [], lawIds: [], assumptions: [], visualRequirement: "required" };
+    const native = synthesizeFamilyScene({ question, turnPlan: null, problemIR: null });
+    if (native) assert(prepareFallbackFunctionInventory(question, native) === null, "an explicit x line, different equation or unread scalar remains unowned");
+    const input = { question, turnPlan, families: route === "normal" ? undefined : inferSceneCapabilities(question).families };
+    const selected = route === "production" ? selectProductionScene({ ...input, problemIR: null, policy: { preferPlanner: false } }).representation : route === "fast" ? selectFastVerifiedRepresentation(input) : selectVerifiedRepresentation(input);
+    assert(!selected?.sceneDocument.constructions.some(c => c.operator === "function_curve" || c.operator === "implicit_curve"), "a native or source-copy route cannot draw a curve subset");
+  });
+  for (const [question, replacement] of [
+    [reviewedSettingFixtures[0].question, "Find the area bounded by y=x^3, the x axis and the lines x=1 and x=2"],
+    [reviewedSettingFixtures[3].question, "Sketch y=e^(-x) near x=0"],
+  ] as const) check(`reviewed settings reject a different complete native curve: ${question}`, () => {
+    const other = synthesizeFamilyScene({ question: replacement, turnPlan: null, problemIR: null });
+    assert(other?.validationReport.valid, "a different-curve control needs a genuinely compiled native program");
+    other.document.source.question = question;
+    assert(prepareFallbackFunctionInventory(question, other) === null, "a setting cannot grant ownership to a different function");
+  });
+  check("reviewed settings reject an engine-valid region omission", () => {
+    const question = reviewedSettingFixtures[1].question;
+    const original = synthesizeFamilyScene({ question, turnPlan: null, problemIR: null });
+    assert(original?.validationReport.valid);
+    const noRegion = recompiledNativeVariant(original, copy => {
+      const omitted = new Set(copy.document.constructions.filter(c => c.operator === "function_region").flatMap(c => c.outputs));
+      assert(omitted.size > 0);
+      copy.document.constructions = copy.document.constructions.filter(c => c.operator !== "function_region");
+      copy.document.entities = copy.document.entities.filter(e => !omitted.has(e.id));
+      copy.document.assertions = copy.document.assertions.filter(a => a.entities.every(id => !omitted.has(id)));
+      copy.document.requiredEntityIds = copy.document.requiredEntityIds.filter(id => !omitted.has(id));
+      for (const group of copy.document.revealGroups) group.entityIds = group.entityIds.filter(id => !omitted.has(id));
+    });
+    assert(prepareFallbackFunctionInventory(question, noRegion) === null, "matching curves cannot replace the source-only native region contract");
+  });
+  check("reviewed settings reject an engine-valid curve omission", () => {
+    const question = reviewedSettingFixtures[2].question;
+    const original = synthesizeFamilyScene({ question, turnPlan: null, problemIR: null });
+    assert(original?.validationReport.valid);
+    const subset = recompiledNativeVariant(original, copy => {
+      const curve = copy.document.constructions.filter(c => c.operator === "function_curve").at(-1);
+      assert(curve && curve.outputs.length === 1);
+      const omitted = new Set(curve.outputs);
+      copy.document.constructions = copy.document.constructions.filter(c => c !== curve);
+      copy.document.entities = copy.document.entities.filter(e => !omitted.has(e.id));
+      copy.document.assertions = copy.document.assertions.filter(a => a.entities.every(id => !omitted.has(id)));
+      copy.document.requiredEntityIds = copy.document.requiredEntityIds.filter(id => !omitted.has(id));
+      for (const group of copy.document.revealGroups) group.entityIds = group.entityIds.filter(id => !omitted.has(id));
+    });
+    assert(prepareFallbackFunctionInventory(question, subset) === null, "a scalar setting cannot authorize a proper subset of the source curves");
+  });
+}
+verifyReviewedSettings();
+// Freeze every reviewed wording, including partial-source routes and the two
+// genuinely requested vertical lines. Native positives retain whole producer
+// identity; body inventories independently guard against spurious y=0 curves.
+function verifyReviewedForty(): void {
+  const fixtures: readonly { i: number; question: string; bodies: readonly string[]; native: boolean; decline: boolean; optional?: boolean }[] = [
+    {"i": 0, "question": "Show y = 2x - 1 on a graph and find y when x = 2", "bodies": ["2x-1"], "native": true, "decline": false},
+    {"i": 1, "question": "Draw the graph of y = x^2 and find y when x = 3", "bodies": ["x^2"], "native": true, "decline": false},
+    {"i": 2, "question": "Plot y = 2x + 1 and find the value of y when x = 2", "bodies": ["2x+1"], "native": true, "decline": false},
+    {"i": 3, "question": "Draw the graph of y = 3x - 2 and use it to find y when x = 1", "bodies": ["3x-2"], "native": true, "decline": false},
+    {"i": 4, "question": "Plot y = x^2 - 4 and find x when y = 0", "bodies": ["x^2-4"], "native": true, "decline": false},
+    {"i": 5, "question": "Draw the graph of y = x^2 - 5x + 6 and find where y = 0", "bodies": ["x^2-5x+6"], "native": true, "decline": false},
+    {"i": 6, "question": "Sketch y = x^2 - 4 and mark the point where x = 1", "bodies": ["x^2-4"], "native": true, "decline": false},
+    {"i": 7, "question": "Draw y = sin x and mark the maximum at x = pi/2", "bodies": ["sin(x)"], "native": true, "decline": false},
+    {"i": 8, "question": "Draw y = e^x and y = 1 + x near x = 0", "bodies": ["e^x", "1+x"], "native": true, "decline": false},
+    {"i": 9, "question": "Sketch y = e^x near x = 0", "bodies": ["e^x"], "native": true, "decline": false},
+    {"i": 10, "question": "Find the area bounded by y = x^2, the x axis and the lines x = 1 and x = 2", "bodies": ["x^2", "0"], "native": true, "decline": false},
+    {"i": 11, "question": "Find the area under y = x^2 between x = 0 and x = 2", "bodies": ["x^2"], "native": true, "decline": false},
+    {"i": 12, "question": "Find the area under the curve y = x^2 from x = 0 to x = 3", "bodies": ["x^2"], "native": false, "decline": false},
+    {"i": 13, "question": "Find the area bounded by y = sqrt(x), x = 4 and the x axis", "bodies": ["sqrt(x)"], "native": false, "decline": false},
+    {"i": 14, "question": "Sketch the region bounded by y = x^2 and the line x = 2 and the x axis", "bodies": ["x^2"], "native": true, "decline": false},
+    {"i": 15, "question": "Find the area enclosed between y = x^2 and y = x", "bodies": ["x^2", "x"], "native": true, "decline": false},
+    {"i": 16, "question": "Find the area bounded by y = x^2 and y = 4", "bodies": ["4", "x^2"], "native": true, "decline": false},
+    {"i": 17, "question": "Find the area of the region bounded by y = 4 - x^2 and the x axis", "bodies": ["4-x^2", "0"], "native": true, "decline": false},
+    {"i": 18, "question": "Draw y = 1/x and the line x = 1", "bodies": ["1/x"], "native": false, "decline": true},
+    {"i": 19, "question": "Draw y = x^2 and the vertical line x = 2", "bodies": ["x^2"], "native": false, "decline": true},
+    {"i": 20, "question": "Find the equation of the tangent to y = x^2 at x = 1 and draw it", "bodies": ["x^2"], "native": true, "decline": false},
+    {"i": 21, "question": "Draw the tangent to y = x^3 at the point x = 1", "bodies": ["x^3"], "native": true, "decline": false},
+    {"i": 22, "question": "Plot y = x^2 for x = -3 to 3", "bodies": ["x^2"], "native": true, "decline": false},
+    {"i": 23, "question": "Plot y = 2x + 3 using x = 0, 1 and 2", "bodies": ["2x+3"], "native": true, "decline": false},
+    {"i": 24, "question": "Draw the graph of y = 2x + 3 by taking x = -1, 0, 1, 2", "bodies": ["2x+3"], "native": true, "decline": false},
+    {"i": 25, "question": "Draw the graph of y = x^2 - 2x - 3 and find its minimum value", "bodies": ["x^2-2x-3"], "native": true, "decline": false},
+    {"i": 26, "question": "Draw the graph of y = x^2 - 2x - 3 and find the roots", "bodies": ["x^2-2x-3"], "native": true, "decline": false},
+    {"i": 27, "question": "Sketch y = cos x for 0 ≤ x ≤ 2π", "bodies": ["cos(x)"], "native": true, "decline": false},
+    {"i": 28, "question": "Sketch y = sin x from x = 0 to x = 2π", "bodies": ["sin(x)"], "native": true, "decline": false},
+    {"i": 29, "question": "Draw the graph of y = |x| and find y at x = -2", "bodies": ["abs(x)"], "native": true, "decline": false},
+    {"i": 30, "question": "Plot y = 2^x and find its value at x = 3", "bodies": ["2^x"], "native": true, "decline": false},
+    {"i": 31, "question": "Draw the line y = 2x + 1 and find where it cuts the y axis (x = 0)", "bodies": ["2x+1"], "native": true, "decline": false},
+    {"i": 32, "question": "The curve y = x^2 - 4x meets the x axis where y = 0. Sketch the curve.", "bodies": ["x^2-4x"], "native": true, "decline": false},
+    {"i": 33, "question": "Sketch the parabola y = x^2 and find the slope at x = 1", "bodies": ["x^2"], "native": true, "decline": false},
+    {"i": 34, "question": "Draw the graph of y = x^3 and find the gradient at x = 2", "bodies": ["x^3"], "native": true, "decline": false},
+    {"i": 35, "question": "Plot the graph of y = sin x and find the value of y when x = π/6", "bodies": ["sin(x)"], "native": true, "decline": false},
+    {"i": 36, "question": "Draw y = x + 2 and y = 4 - x and find x when they meet", "bodies": ["x+2", "4-x"], "native": true, "decline": false},
+    {"i": 37, "question": "Graph y = 3x - 1. What is y when x = 0?", "bodies": ["3x-1"], "native": true, "decline": false},
+    {"i": 38, "question": "Sketch y = log x and state the value at x = 1", "bodies": ["log(x)"], "native": false, "decline": false, "optional": true},
+    {"i": 39, "question": "Draw y = sqrt(x) and mark the point where x = 4", "bodies": ["sqrt(x)"], "native": false, "decline": false},
+  ];
+  for (const fixture of fixtures) for (const route of ["normal", "inferred", "fast", "production"] as const) check(`review forty ${fixture.i} ${route}`, () => {
+    const { question } = fixture;
+    const turnPlan: TurnPlanV3 = { schemaVersion: "turn-plan/v3", question, givens: [], unknowns: [], derived: [], qualitativeClaims: [], lawIds: [], assumptions: [], visualRequirement: "required" };
+    const native = synthesizeFamilyScene({ question, turnPlan: null, problemIR: null });
+    const input = { question, turnPlan, families: route === "normal" ? undefined : inferSceneCapabilities(question).families };
+    const selected = route === "production" ? selectProductionScene({ ...input, problemIR: null, policy: { preferPlanner: false } }).representation : route === "fast" ? selectFastVerifiedRepresentation(input) : selectVerifiedRepresentation(input);
+    const curves = selected?.sceneDocument.constructions.filter(c => c.operator === "function_curve" || c.operator === "implicit_curve") ?? [];
+    if (fixture.decline || (route === "fast" && !fixture.native)) {
+      assert.equal(curves.length, 0, "an explicit vertical line cannot be dropped; an unavailable native producer cannot be invented");
+      return;
+    }
+    if (fixture.optional && curves.length === 0) return;
+    assert(selected && curves.length > 0, "the complete reviewed curve inventory must survive its real selection route");
+    assert.deepEqual(curves.map(c => nativeLabelBody(selected.sceneDocument.entities.find(e => e.id === c.outputs[0])?.label)).sort(), fixture.bodies.map(body => nativeLabelBody(`y=${body}`)).sort(), "every complete source curve appears once; scalar conditions add no curves");
+    if (selected.figureSource === "source_grounded") assert.deepEqual(curves.map(c => nativeLabelBody(`y=${String(c.inputs.expression)}`)).sort(), fixture.bodies.map(body => nativeLabelBody(`y=${body}`)).sort(), "source-copy inputs must retain the same complete literal function bodies as their labels");
+    if (fixture.native) {
+      assert(native?.validationReport.valid);
+      assert(prepareFallbackFunctionInventory(question, native) === native, "the reviewed independent native program must be returned unchanged");
+      assert.deepEqual(selected.sceneDocument, native.document, "retain the entire source-only native document");
+      assert.deepEqual(selected.renderScene, native.renderScene, "retain the entire source-only native render");
+    }
+  });
+  for (const index of [4, 5, 32]) check(`review forty ${index} direct condition inventory`, () => {
+    const fixture = fixtures[index]!;
+    const result = buildSourceGroundedRepresentation(fixture.question);
+    const curves = result.sceneDocument.constructions.filter(c => c.operator === "function_curve");
+    assert.deepEqual(curves.map(c => nativeLabelBody(result.sceneDocument.entities.find(e => e.id === c.outputs[0])?.label)), fixture.bodies.map(body => nativeLabelBody(`y=${body}`)), "a y=0 query must not become an extra source-copy curve");
+  });
+}
+verifyReviewedForty();
 console.log(`source-function equation ownership: ${checks - failed}/${checks} checks passed (${selectedFixtures.length} original wordings; ${nativeParameterFixtures.length} native parameter wordings)`);
 if (failed > 0) process.exitCode = 1;
