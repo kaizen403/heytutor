@@ -44,3 +44,18 @@ for (const c of rotatedAperture.constructions.filter(c => c.operator === 'point'
     const x = c.inputs.x; c.inputs.x = -Number(c.inputs.y); c.inputs.y = x;
 }
 assert(compileSceneDocument(rotatedAperture).report.issues.some(i => i.code === 'invalid_optical_aperture_binding'), 'aperture checks follow the optical axis under rotation');
+
+// Greptile #182 (opticalPathTruth.ts:109): the validator and compiler accept the
+// lens centre as center, opticalCentre or optical_center; the aperture check must too.
+for (const alias of ['opticalCentre', 'optical_center'] as const) {
+    const aliased = withLensApertures(0.4, 1);
+    for (const c of aliased.constructions.filter(c => c.operator === 'lens_section')) {
+        c.inputs[alias] = c.inputs.center; delete c.inputs.center;
+    }
+    const rejected = compileSceneDocument(aliased);
+    assert(!rejected.ok && rejected.report.issues.some(i => i.code === 'invalid_optical_aperture_binding'), `aperture check resolves the ${alias} alias`);
+    const fine = withLensApertures(1, 1);
+    for (const c of fine.constructions.filter(c => c.operator === 'lens_section')) { c.inputs[alias] = c.inputs.center; delete c.inputs.center; }
+    assert(compileSceneDocument(fine).ok, `in-aperture rays with the ${alias} alias still compile`);
+}
+console.log('launch: aperture binding resolves opticalCentre and optical_center aliases');

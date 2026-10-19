@@ -106,7 +106,8 @@ function validateTrainApertures(document: SceneDocument, geometry: ReadonlyMap<s
             if (!plane) continue;
             const bodies = document.constructions.filter(c => c.operator === 'lens_section' && c.inputs.axis === train.inputs.axis).flatMap(c => {
                 const id = c.outputs[0];
-                const centre = point(geometry.get(String(c.inputs.center)));
+                // Resolve the same centre aliases as the validator and compiler.
+                const centre = point(geometry.get(String(c.inputs.center ?? c.inputs.opticalCentre ?? c.inputs.optical_center)));
                 const body = id && drawn.has(id) ? path(geometry.get(id)) : undefined;
                 const planeDirection = subtract(plane.points[1]!, plane.points[0]!);
                 return id && centre && body?.closed && Math.abs(cross(subtract(centre, plane.points[0]!), planeDirection)) <= tolerance * norm(planeDirection)

@@ -179,6 +179,7 @@ export function buildVerifiedDiagramPresentation(
           entityId: primitive.entityId,
           groupId: primitive.groupId,
           pullable: deferReason === "named",
+          answer: deferReason === "answer",
         });
       }
     }
@@ -326,14 +327,18 @@ export function buildVerifiedDiagramPresentation(
     return role ? [`[FOCUS:${anchor.id}] means ${role}`] : [];
   }).join("; ");
   const groupTargets = groups.map((group) => group.id).join(", ");
-  const deferredByEntity = new Map<string, VerifiedDiagramCommand[]>();
+  // An answer annotation ("R=80 m") and the ordinary symbol ("R") can share
+  // one entity. They stay in separate entries so only the answer waits for
+  // the end of the lesson; the symbol is still released when it is named.
+  const deferredByEntity = new Map<string, { entityId: string; answer: boolean; commands: VerifiedDiagramCommand[] }>();
   for (const entry of deferred) {
     if (pulled.has(entry.index)) continue;
-    const existing = deferredByEntity.get(entry.entityId) ?? [];
-    existing.push(commands[entry.index]!);
-    deferredByEntity.set(entry.entityId, existing);
+    const key = `${entry.answer ? "answer" : "ordinary"}:${entry.entityId}`;
+    const existing = deferredByEntity.get(key) ?? { entityId: entry.entityId, answer: entry.answer, commands: [] };
+    existing.commands.push(commands[entry.index]!);
+    deferredByEntity.set(key, existing);
   }
-  const deferredIds = [...deferredByEntity.keys()].filter(id => !answerTargets.has(id)).join(", ");
+  const deferredIds = [...new Set([...deferredByEntity.values()].filter((entry) => !entry.answer).map((entry) => entry.entityId))].join(", ");
   const hasDrawableInk = verifiedDiagramHasDrawableInk({ commands });
   const diagram: VerifiedDiagram = {
     id: "verified_scene",
@@ -348,9 +353,9 @@ export function buildVerifiedDiagramPresentation(
     // reading scale, so the student does not need that line on the board.
     caption: hasDrawableInk ? visibleFigureCaption(renderScene.caption) : undefined,
     layout: options.layout === "code_lesson" ? "code_lesson" : undefined,
-    deferredAnnotations: [...deferredByEntity.entries()].map(([entityId, deferredCommands]) => ({
+    deferredAnnotations: [...deferredByEntity.values()].map(({ entityId, answer, commands: deferredCommands }) => ({
       entityId,
-      ...(answerTargets.has(entityId) ? { revealAfterLesson: true } : {}),
+      ...(answer ? { revealAfterLesson: true } : {}),
       commands: deferredCommands,
     })),
     // Symbols on the figure stay short; the expansion and solved value travel
@@ -526,6 +531,8 @@ interface DeferredCommand {
   groupId: string;
   /** A label or dimension waiting for its name, which the intro may speak. */
   pullable: boolean;
+  /** A computed answer label, held until the lesson ends. */
+  answer: boolean;
 }
 
 /**

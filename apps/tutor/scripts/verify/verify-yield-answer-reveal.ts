@@ -131,6 +131,29 @@ const mixed = buildVerifiedDiagramPresentation(annotatedDocument, {
 });
 assert(mixed.diagram.promptAddon.includes('"R" = [FOCUS:range]'), "visible symbolic sibling remains readable");
 assert(!mixed.diagram.promptAddon.includes("80"), "hidden answer cannot replace its visible symbolic sibling");
+// Greptile #182 (verifiedScenePresentation.ts:354): the answer and the ordinary
+// symbol share entityId "range". Naming "range" must release "R" now, never "R=80 m".
+{
+  // The timeline holds the ordinary symbol for an ANNOTATE beat, so it cannot be
+  // pulled into the intro and must be released by naming the entity.
+  const held = buildVerifiedDiagramPresentation({
+    ...annotatedDocument,
+    teachingTimeline: [{ id: "show_r", action: "annotate", targetId: "range", dependsOn: [], narrationIntent: "name the range" }],
+  } as SceneDocument, {
+    ...render,
+    primitives: [
+      render.primitives[0]!,
+      { ...render.primitives[1]!, text: "R" },
+      { ...render.primitives[1]!, id: "answer_label", provenance: { annotationId: "answer" } },
+    ],
+  });
+  const introTexts = held.introSegments.flatMap((segment) => segment.commands ?? []).map((command) => command.text);
+  assert(!introTexts.includes("R"), "fixture holds the ordinary symbol for its ANNOTATE beat");
+  const taken = takeDeferredAnnotations(held.diagram, { entityIds: ["range"] }).map((command) => command.text);
+  assert(introTexts.includes("R") || taken.includes("R"), "the ordinary symbol sharing the answer's entity is released when named");
+  assert(!taken.some((text) => text?.includes("80")), "naming the entity never releases its answer");
+  assert(remainingDeferredAnnotations(held.diagram).some((command) => command.text === "R=80 m"), "the answer still appears at completion");
+}
 assert(
   !annotated.introSegments.some((segment) => segment.narration.includes("80")),
   "answer annotation cannot leak through its owning group's narration",
