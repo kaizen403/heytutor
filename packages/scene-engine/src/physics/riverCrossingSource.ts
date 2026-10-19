@@ -9,7 +9,7 @@
  * the source is unbound and no river figure is drawn.
  */
 import { STEM_NUMBER, parseStemNumber, prepareStem } from "../archetypes/slots";
-import { motionPlanConflicts, motionQuantityAuthority, motionUnitFactor, type MotionBindings, type MotionDimension, type MotionPlanConflict, type MotionQuantityAuthority, type MotionValues } from "./motionPlanAgreement";
+import { motionPlanConflicts, motionQuantityAuthority, type MotionBindings, type MotionDimension, type MotionPlanConflict, type MotionQuantityAuthority, type MotionValues } from "./motionPlanAgreement";
 
 export interface RiverCrossingSpeeds {
   readonly status: "bound";
@@ -100,20 +100,9 @@ export function riverShortestPathAsked(question: string): boolean {
   return /\b(?:shortest (?:path|route|distance)|straight across|directly (?:opposite|across)|exactly opposite|(?:point|bank) directly opposite|zero drift|without drift|no drift)\b/i.test(question);
 }
 
-const SHORTEST_TIME = /\b(?:(?:shortest|minimum|least|minimal)(?: possible)?(?: (?:crossing|travel|journey))? time|as (?:quickly|soon) as possible|quickest)\b/gi;
-
-/**
- * Shortest time: head along the bank normal and drift downstream. When the
- * question also asks to land directly opposite, "in the shortest time" or "as
- * quickly as possible" constrains that crossing; only a shortest time asked on
- * its own ("compare it with the shortest possible crossing time") counts.
- */
+/** Shortest time: head along the bank normal and drift downstream. */
 export function riverShortestTimeAsked(question: string): boolean {
-  const matches = [...question.matchAll(SHORTEST_TIME)];
-  if (matches.length === 0) return false;
-  if (!riverShortestPathAsked(question)) return true;
-  return matches.some((match) => !/^as /i.test(match[0]) &&
-    !/\bin(?: the| a)? $/i.test(question.slice(Math.max(0, match.index! - 8), match.index)));
+  return /\b(?:(?:shortest|minimum|least|minimal) time|as (?:quickly|soon) as possible|quickest)\b/i.test(question);
 }
 
 /**
@@ -157,28 +146,7 @@ const RIVER_SYMBOLS = new Set(["vc", "vriver", "vcurrent", "riverspeed", "vstrea
  * or current speed by its symbol but gives the other role's value (a swap).
  */
 export function riverCrossingPlanConflicts(speeds: RiverCrossingSpeeds, turnPlan: unknown, question: string): MotionPlanConflict[] {
-  const conflicts = motionPlanConflicts(turnPlan, riverCrossingValues(speeds, question), question, riverCrossingBindings(speeds, question));
-  const difference = riverCrossingTimeDifference(speeds, question);
-  if (difference === null) return conflicts;
-  // A question comparing both crossings asks for their difference, but only a
-  // row named as a difference may carry it: a "t" or "t_min" of 4 s is wrong.
-  return conflicts.filter((conflict) => {
-    if (!DIFFERENCE_NAME.test(conflict.symbol) && !DIFFERENCE_NAME.test(conflict.id)) return true;
-    const unit = motionUnitFactor(conflict.unit);
-    if (unit?.dimension !== "time") return true;
-    return Math.abs(conflict.value * unit.factor - difference) > Math.max(5e-3 * difference, 1e-9);
-  });
-}
-
-const DIFFERENCE_NAME = /Δ|∆|delta|diff|saved/i;
-
-/** Time difference between the straight across and shortest time crossings, SI, when the question asks for both. */
-function riverCrossingTimeDifference(speeds: RiverCrossingSpeeds, question: string): number | null {
-  if (!riverShortestPathAsked(question) || !riverShortestTimeAsked(question) || speeds.widthM === null) return null;
-  const k = speeds.unit === "km/h" ? 1000 / 3600 : 1;
-  const vb = speeds.vb * k; const vc = speeds.vc * k;
-  if (!(vb > vc)) return null;
-  return speeds.widthM / Math.sqrt(vb * vb - vc * vc) - speeds.widthM / vb;
+  return motionPlanConflicts(turnPlan, riverCrossingValues(speeds, question), question, riverCrossingBindings(speeds, question));
 }
 
 /**
