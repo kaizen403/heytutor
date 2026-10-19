@@ -1,0 +1,260 @@
+[
+  {
+    "id": "single-existing-square",
+    "input": "x²",
+    "expected": "x^2",
+    "science": {
+      "kind": "math",
+      "x": 2,
+      "value": 4
+    }
+  },
+  {
+    "id": "multi-digit-exponent",
+    "input": "x²³",
+    "expected": "x^23",
+    "science": {
+      "kind": "math",
+      "x": 2,
+      "value": 8388608
+    }
+  },
+  {
+    "id": "negative-scientific-exponent",
+    "input": "10⁻¹⁵",
+    "expected": "10^-15",
+    "science": {
+      "kind": "scalar",
+      "value": 1e-15
+    }
+  },
+  {
+    "id": "frequency-multi-positive",
+    "input": "frequency is 1.00×10¹⁵ Hz",
+    "expected": "frequency is 1.00*10^15 Hz",
+    "science": {
+      "kind": "quantity",
+      "after": "frequency is",
+      "dimension": "frequency",
+      "targetUnit": "Hz",
+      "value": 1000000000000000.0,
+      "literal": "1.00*10^15 Hz"
+    }
+  },
+  {
+    "id": "amount-negative-exponent",
+    "input": "amount is 4.00×10⁻⁵ mol",
+    "expected": "amount is 4.00*10^-5 mol",
+    "science": {
+      "kind": "quantity",
+      "after": "amount is",
+      "dimension": "amount",
+      "targetUnit": "mol",
+      "value": 4e-05,
+      "literal": "4.00*10^-5 mol"
+    }
+  },
+  {
+    "id": "magnesium-charge",
+    "input": "Mg²⁺",
+    "expected": "Mg^2+",
+    "science": {
+      "kind": "formula",
+      "charge": 2,
+      "atoms": {
+        "Mg": 1
+      }
+    }
+  },
+  {
+    "id": "sulfate-charge",
+    "input": "SO₄²⁻",
+    "expected": "SO₄^2-",
+    "science": {
+      "kind": "formula",
+      "charge": -2,
+      "atoms": {
+        "S": 1,
+        "O": 4
+      }
+    }
+  },
+  {
+    "id": "coordination-charge",
+    "input": "[Fe(CN)₆]³⁻",
+    "expected": "[Fe(CN)₆]^3-",
+    "science": {
+      "kind": "formula",
+      "charge": -3,
+      "atoms": {
+        "Fe": 1,
+        "C": 6,
+        "N": 6
+      }
+    }
+  },
+  {
+    "id": "inverse-concentration-unit",
+    "input": "concentration is 0.250 mol L⁻¹",
+    "expected": "concentration is 0.250 mol L^-1",
+    "science": {
+      "kind": "quantity",
+      "after": "concentration is",
+      "dimension": "concentration",
+      "targetUnit": "mol/L",
+      "value": 0.25,
+      "literal": "0.250 mol L^-1"
+    }
+  },
+  {
+    "id": "inverse-molar-energy-unit",
+    "input": "enthalpy is 48.0 kJ mol⁻¹",
+    "expected": "enthalpy is 48.0 kJ mol^-1",
+    "science": {
+      "kind": "quantity",
+      "after": "enthalpy is",
+      "dimension": "molar_energy",
+      "targetUnit": "kJ/mol",
+      "value": 48,
+      "literal": "48.0 kJ mol^-1"
+    }
+  },
+  {
+    "id": "symbolic-parenthesized-run",
+    "input": "x⁽ⁿ⁺¹⁾",
+    "expected": "x^(n+1)",
+    "science": {
+      "kind": "symbolic-no-inferred-value"
+    }
+  },
+  {
+    "id": "imaginary-superscript",
+    "input": "xⁱ",
+    "expected": "x^i",
+    "science": {
+      "kind": "symbolic-no-inferred-value"
+    }
+  },
+  {
+    "id": "ascii-already-canonical",
+    "input": "x^(n+1) + 10^-15",
+    "expected": "x^(n+1) + 10^-15"
+  },
+  {
+    "id": "existing-latex-wrapper",
+    "input": "$x^2$",
+    "expected": "x^2",
+    "science": {
+      "kind": "math",
+      "x": 3,
+      "value": 9
+    }
+  },
+  {
+    "id": "unsupported-glyph-retained",
+    "input": "x²ᵉ",
+    "expected": "x^2ᵉ",
+    "science": {
+      "kind": "invalid-math",
+      "unsupportedMustRemain": "ᵉ"
+    }
+  },
+  {
+    "id": "dangling-negative-exponent",
+    "input": "10⁻",
+    "expected": "10^-",
+    "science": {
+      "kind": "invalid-scalar"
+    }
+  },
+  {
+    "id": "double-sign-exponent",
+    "input": "10⁻⁻¹⁵",
+    "expected": "10^--15",
+    "science": {
+      "kind": "invalid-scalar"
+    }
+  },
+  {
+    "id": "trailing-sign-exponent",
+    "input": "4.0×10⁻¹⁵⁻",
+    "expected": "4.0*10^-15-",
+    "science": {
+      "kind": "invalid-scalar"
+    }
+  },
+  {
+    "id": "real-area-unit-preserved",
+    "input": "area is 2 m²",
+    "expected": "area is 2 m^2",
+    "science": {
+      "kind": "unit-expression",
+      "dimension": "area",
+      "coefficient": 2,
+      "unit": "m^2",
+      "note": "Existing chemistry quantity reader has noarea dimension; preserve exact mathematically correct normalized lexeme, do not call unsupported chemistry API or convert its absence into a scientific false gold."
+    }
+  },
+  {
+    "id": "two-independent-powers",
+    "input": "x² + y³",
+    "expected": "x^2 + y^3"
+  },
+  {
+    "id": "numeric-positive-expression",
+    "input": "x²⁺³",
+    "expected": "x^(2+3)",
+    "science": {
+      "kind": "math",
+      "x": 2,
+      "value": 32
+    }
+  },
+  {
+    "id": "numeric-negative-expression",
+    "input": "x²⁻³",
+    "expected": "x^(2-3)",
+    "science": {
+      "kind": "math",
+      "x": 2,
+      "value": 0.5
+    }
+  },
+  {
+    "id": "signed-expression",
+    "input": "x⁻²⁺³",
+    "expected": "x^(-2+3)",
+    "science": {
+      "kind": "math",
+      "x": 2,
+      "value": 2
+    }
+  },
+  {
+    "id": "optional-precaret",
+    "input": "x^²",
+    "expected": "x^2",
+    "science": {
+      "kind": "math",
+      "x": 2,
+      "value": 4
+    }
+  },
+  {
+    "id": "unparenthesized-symbolic-expression",
+    "input": "xⁿ⁺¹",
+    "expected": "x^(n+1)",
+    "science": {
+      "kind": "symbolic-no-inferred-value"
+    }
+  },
+  {
+    "id": "doubled-precaret-stays-invalid",
+    "input": "x^^²",
+    "expected": "x^^2",
+    "science": {
+      "kind": "invalid-math",
+      "unsupportedMustRemain": "^^"
+    }
+  }
+]

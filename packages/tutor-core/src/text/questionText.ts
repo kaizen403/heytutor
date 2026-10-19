@@ -8,8 +8,9 @@
  */
 const ZERO_WIDTH = /[\u200B-\u200D\uFEFF\u00AD]/g;
 const SUPERSCRIPTS: Readonly<Record<string, string>> = {
-  "⁰": "^0", "¹": "^1", "²": "^2", "³": "^3", "⁴": "^4",
-  "⁵": "^5", "⁶": "^6", "⁷": "^7", "⁸": "^8", "⁹": "^9",
+  "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4",
+  "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9",
+  "⁺": "+", "⁻": "-", "⁽": "(", "⁾": ")", "ⁿ": "n", "ⁱ": "i",
 };
 
 export function normalizeTutorQuestion(raw: string): string {
@@ -32,9 +33,15 @@ export function normalizeTutorQuestion(raw: string): string {
   text = text.replace(/π/g, "pi");
   text = text.replace(/[−–—]/g, "-");
   text = text.replace(/×/g, "*");
-  for (const [glyph, power] of Object.entries(SUPERSCRIPTS)) {
-    text = text.replaceAll(glyph, power);
-  }
+  // A power or charge is one source run: 10⁻¹⁵, Mg²⁺ and s⁻¹ must
+  // not acquire a separate caret for each digit or retain half a sign.
+  text = text.replace(/\^?[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁽⁾ⁿⁱ]+/g, (run) => {
+    const power = [...run.replace(/^\^/, "")].map((glyph) => SUPERSCRIPTS[glyph]).join("");
+    // Preserve the grouping of an unparenthesized superscript expression.
+    // Damaged signs and unknown glyphs stay damaged; no value is inferred.
+    const expression = /^[+-]?(?:\d+|[ni])(?:[+-](?:\d+|[ni]))+$/.test(power);
+    return `^${expression ? `(${power})` : power}`;
+  });
   text = text.replace(/\*\*(.+?)\*\*/g, "$1");
   text = text.replace(/\s{2,}/g, " ").trim();
   return text;
