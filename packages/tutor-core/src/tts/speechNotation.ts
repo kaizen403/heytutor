@@ -401,7 +401,14 @@ const ORDINAL_SUFFIXES = new Set(["st", "nd", "rd", "th"]);
  * `2gh`, `2a`, `2R`. The glue is what marks a product: the teaching prompt
  * writes a real quantity as "20 m" with a space. Heard raw, "the square root
  * of 2gh" came back as "the square root of two g f".
+ *
+ * The number keeps its glue as a no-break space (U+00A0), which every voice
+ * reads as a space. The Hinglish voice turns a number and a unit spaced by an
+ * ordinary space or tab into words ("40 m" becomes "forty meters"), so with an
+ * ordinary space `2m`, a mass, was heard as "two meters".
  */
+const GLUED_PRODUCT_SPACE = "\u00a0";
+
 function expandGluedCoefficients(text: string): string {
   return text.replace(
     /(?<![A-Za-z])(\d+(?:\.\d+)?)([A-Za-z]{1,3})(?![A-Za-z0-9])/g,
@@ -411,7 +418,7 @@ function expandGluedCoefficients(text: string): string {
       if (letters.length === 1 && ORBITAL_LETTERS.has(letters) && /^[1-7]$/.test(value)) {
         return match;
       }
-      return `${value} ${letters.split("").join(" ")}`;
+      return `${value}${GLUED_PRODUCT_SPACE}${letters.split("").join(" ")}`;
     },
   );
 }
@@ -489,8 +496,10 @@ function tidySpokenSpacing(text: string): string {
     // The narration often already says the word: "the magnitude |q|" expands
     // to "the magnitude the magnitude of q".
     .replace(/\b(?:the\s+)?magnitude\s+(?:of\s+)?(?=the magnitude of\b)/gi, "")
-    .replace(/[ \t]+/g, " ")
-    .replace(/ ([,.;:!?])/g, "$1")
+    // A run holding an ordinary space is one ordinary space; a lone no-break
+    // space is a glued product and stays.
+    .replace(/[ \t\u00a0]*[ \t][ \t\u00a0]*/g, " ")
+    .replace(/[ \u00a0]([,.;:!?])/g, "$1")
     .trim();
 }
 

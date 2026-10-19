@@ -77,10 +77,12 @@ export function sarvamSpeechText(text: string): string {
  * captions write it: "t equals 4 s से", "40 m, rectangle". The digits become
  * English words below, but the letter stayed a letter, so the Hinglish voice
  * said "four s". A spaced unit is a quantity by the teaching convention (a
- * product is glued, `2m`). Single capitals other than N, J and W also name
- * points and bodies, so they are left alone. g and h are left alone too:
- * "acceleration 2 g hai" is twice g and "height 2 h hai" twice a height, far
- * more often than grams or hours. Only the audio sees this.
+ * product is glued, `2m`, and mathToSpeech keeps that glue as a no-break
+ * space, which `[ \t]+` below does not match). Single capitals other than
+ * N, J and W also name points and bodies, so they are left alone. g and h
+ * are left alone too: "acceleration 2 g hai" is twice g and "height 2 h hai"
+ * twice a height, far more often than grams or hours. Only the audio sees
+ * this.
  */
 const SPACED_UNIT_WORDS: Record<string, [string, string]> = {
   s: ["second", "seconds"], ms: ["millisecond", "milliseconds"],

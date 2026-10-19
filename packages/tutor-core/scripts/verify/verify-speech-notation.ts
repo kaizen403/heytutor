@@ -426,7 +426,9 @@ check("a chemistry subscript keeps its own spacing", () => {
 });
 
 check('a number glued to symbols splits (2gh heard as "two g f")', () => {
-  assertContains(mathToSpeech("the square root of 2gh"), "2 g h", "2gh");
+  // The number keeps its glue as a no-break space, so the Hinglish voice
+  // never turns a glued product into a unit.
+  assertContains(mathToSpeech("the square root of 2gh"), "2\u00a0g h", "2gh");
 });
 
 check("an orbital label is left alone, and so is an ordinal", () => {

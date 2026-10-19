@@ -144,6 +144,32 @@ check("a spaced meter or second that ends its quantity is still a unit", () => {
   for (const [written, hindi] of UNITS) assert.equal(hinglish(written), hindi, `Hinglish speech for: ${written}`);
 });
 
+check("a glued product stays letters through mathToSpeech and the Hinglish rewrite", () => {
+  // mathToSpeech opens `2m` into the number and its letter. With an ordinary
+  // space the Hinglish unit rule then read a mass as "two meters"; the glue
+  // now survives as a no-break space, which the unit rule does not take.
+  // The glue is the teaching convention for a product, so `10s` and `2m`
+  // stay letters even where they might be units ("x = 10s, y = 2m"); a unit
+  // is written spaced. "distance 4 s ho jayegi" is spaced, so it stays a
+  // unit: a spaced s is a second by that convention.
+  const NBSP = " ";
+  const GLUED: [string, string, string][] = [
+    ["m₁ = 2m, m₂ = 3m", `m 1 equals 2${NBSP}m, m 2 equals 3${NBSP}m`, `m one equals two${NBSP}m, m two equals three${NBSP}m`],
+    ["2m ka block", `2${NBSP}m ka block`, `two${NBSP}m ka block`],
+    ["m aur 2m.", `m aur 2${NBSP}m.`, `m aur two${NBSP}m.`],
+    ["total mass 3m se divide karo", `total mass 3${NBSP}m se divide karo`, `total mass three${NBSP}m se divide karo`],
+    ["x = 10s, y = 2m", `x equals 10${NBSP}s, y equals 2${NBSP}m`, `x equals ten${NBSP}s, y equals two${NBSP}m`],
+    ["distance 4 s ho jayegi", "distance 4 s ho jayegi", "distance four seconds ho jayegi"],
+  ];
+  for (const [written, english, hindi] of GLUED) {
+    assert.equal(mathToSpeech(written), english, `English speech for: ${written}`);
+    assert.equal(hinglish(written), hindi, `Hinglish speech for: ${written}`);
+    if (written !== "distance 4 s ho jayegi") assert.doesNotMatch(hindi, /meters?|seconds?/, `a glued product became a unit: ${hindi}`);
+  }
+  // The English board cue still finds a glued product inside its sentence.
+  assert(findSpokenToken(mathToSpeech("m₁ = 2m, m₂ = 3m"), mathToSpeech("2m")) >= 0, "the cue 2m is lost in its sentence");
+});
+
 console.log("\nThe pen still finds each board label inside its spoken sentence\n");
 const CUES: [string, string][] = [
   ["t (s)", "देखो यह velocity-time graph है, जहाँ vertical axis v (m/s) और horizontal axis t (s) है."],
