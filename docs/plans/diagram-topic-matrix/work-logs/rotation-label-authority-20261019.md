@@ -42,6 +42,8 @@ frozen corpus for the four chapters, plus the20 authorized historical experiment
 rows. There are2,272 unique candidates from1,144 run rows. All410 previously
 graded historical rows are included;21 contain no raw planner response and are
 reported separately. Strict chapter metadata alone contributes2,226 candidates.
+Another54 physics runs have unassignable chapter metadata and remain outside
+this comparison; their topics were not guessed from question wording.
 
 | Chapter | Candidates | Main compiled | Origin + labels compiled |
 | --- | ---: | ---: | ---: |
