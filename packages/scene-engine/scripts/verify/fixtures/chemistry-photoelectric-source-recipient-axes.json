@@ -369,5 +369,32 @@
     "multiple": false,
     "phiEv": 2.3,
     "photonEv": 3
+  },
+  {
+    "id": "outer-light-copper-vapour-laser-old58",
+    "kind": "photoelectric",
+    "question": "Light from a copper vapour laser has photon energy 3 eV and falls on a potassium surface of work function 2.2 eV. Draw the photoelectric diagram.",
+    "draw": true,
+    "multiple": false,
+    "phiEv": 2.2,
+    "photonEv": 3
+  },
+  {
+    "id": "outer-light-mercury-source-photon-energy",
+    "kind": "photoelectric",
+    "question": "Light from a mercury lamp has photon energy 4 eV and falls on a sodium surface of work function 2.3 eV. Draw the photoelectric diagram.",
+    "draw": true,
+    "multiple": false,
+    "phiEv": 2.3,
+    "photonEv": 4
+  },
+  {
+    "id": "outer-light-emitted-by-helium-source-photon-energy",
+    "kind": "photoelectric",
+    "question": "Light emitted by a helium discharge tube has photon energy 3.5 eV and falls on a sodium surface of work function 2.1 eV. Draw the photoelectric diagram.",
+    "draw": true,
+    "multiple": false,
+    "phiEv": 2.1,
+    "photonEv": 3.5
   }
 ]

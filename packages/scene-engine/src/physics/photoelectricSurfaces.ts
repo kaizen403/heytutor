@@ -56,24 +56,15 @@ function radiationSourceArgument(body: string, start: number): boolean {
   return false;
 }
 
-/** A source-class noun can also be a threshold owner or radiation recipient.
- * Only a proved emitting/providing predicate exempts a radiation object;
- * an unknown predicate cannot borrow the noun's usual light-source role. */
+/** A source-class noun can also own a threshold or a relative predicate.
+ * An embedded source NP does not own its enclosing radiation's predicate;
+ * nominal source subjects separately require a proved source operation. */
 function sourceHasMaterialRole(body: string, argumentEnd: number): boolean {
   const tail = body.slice(argumentEnd).split(/[;!?\n]|\.(?=\s|$)/, 1)[0]!;
   // Modifiers belong to this immediate possessed noun head, never to a
   // later material reached through an intervening predicate/preposition.
   if (/^\s*(?:(?:has|have|had|with|of|whose)\s+|['’]s\s+)(?:(?!(?:of|from|for|on|onto|in|at|to|by|with|and|but|while|whereas|is|are|was|were)\b)[A-Za-z0-9.+−^*×-]+\s+)*work functions?\b/i.test(tail)) return true;
   if (/^\s*,?\s*(?:that|which)\b/i.test(tail) && !radiationSourcePredicates(tail.replace(/^\s*,\s*/, ""))) return true;
-  for (const particle of tail.matchAll(/\b(?:photons?|light|radiation)\b/gi)) {
-    const predicate = tail.slice(0, particle.index!).split(/\b(?:and|but|while|whereas)\b|,/i).at(-1)!;
-    // These are source operations, rather than a list of recipient verbs.
-    if (/^\s*(?:(?:that|which)\s+)?(?:emits?|produces?|releases?|supplies?|provides?|illuminates?)\b/i.test(predicate)) continue;
-    // A radiation attribute on a source NP is not a receiving predicate:
-    // "illuminated by a mercury lamp with photons ..." keeps its source.
-    if (/^\s*(?:with|of)\s*$/i.test(predicate)) continue;
-    return true;
-  }
   return false;
 }
 
