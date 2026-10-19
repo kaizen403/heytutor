@@ -1,0 +1,122 @@
+[
+  {
+    "id": "marked-bromoethane",
+    "question": "Draw chloroethane and bromoethane with bromoethane marked with the carbon carrying Br identified. Classify each site.",
+    "draw": true
+  },
+  {
+    "id": "marked-chloroethane",
+    "question": "Draw bromoethane and chloroethane with chloroethane marked with the carbon carrying Cl identified. Classify each site.",
+    "draw": true
+  },
+  {
+    "id": "marked-bromobenzene",
+    "question": "Draw chloroethane and bromobenzene with bromobenzene marked with the carbon carrying Br identified. Classify each site.",
+    "draw": true
+  },
+  {
+    "id": "marked-acetyl-chloride",
+    "question": "Draw bromoethane and acetyl chloride with acetyl chloride marked with the carbon carrying Cl identified. Classify each site.",
+    "draw": true
+  },
+  {
+    "id": "labelled-bromoethane",
+    "question": "Draw chloroethane and bromoethane with bromoethane labelled with the carbon carrying Br identified. Classify each site.",
+    "draw": true
+  },
+  {
+    "id": "labelled-chloroethane",
+    "question": "Draw bromoethane and chloroethane with chloroethane labelled with the carbon carrying Cl identified. Classify each site.",
+    "draw": true
+  },
+  {
+    "id": "labelled-bromobenzene",
+    "question": "Draw chloroethane and bromobenzene with bromobenzene labelled with the carbon carrying Br identified. Classify each site.",
+    "draw": true
+  },
+  {
+    "id": "labelled-acetyl-chloride",
+    "question": "Draw bromoethane and acetyl chloride with acetyl chloride labelled with the carbon carrying Cl identified. Classify each site.",
+    "draw": true
+  },
+  {
+    "id": "labeled-bromoethane",
+    "question": "Draw chloroethane and bromoethane with bromoethane labeled with the carbon carrying Br identified. Classify each site.",
+    "draw": true
+  },
+  {
+    "id": "labeled-chloroethane",
+    "question": "Draw bromoethane and chloroethane with chloroethane labeled with the carbon carrying Cl identified. Classify each site.",
+    "draw": true
+  },
+  {
+    "id": "labeled-bromobenzene",
+    "question": "Draw chloroethane and bromobenzene with bromobenzene labeled with the carbon carrying Br identified. Classify each site.",
+    "draw": true
+  },
+  {
+    "id": "labeled-acetyl-chloride",
+    "question": "Draw bromoethane and acetyl chloride with acetyl chloride labeled with the carbon carrying Cl identified. Classify each site.",
+    "draw": true
+  },
+  {
+    "id": "wrong-marked-bromoethane",
+    "question": "Draw chloroethane and bromoethane with bromoethane marked with the carbon carrying Cl identified. Classify each site.",
+    "draw": false
+  },
+  {
+    "id": "wrong-marked-chloroethane",
+    "question": "Draw bromoethane and chloroethane with chloroethane marked with the carbon carrying Br identified. Classify each site.",
+    "draw": false
+  },
+  {
+    "id": "wrong-marked-bromobenzene",
+    "question": "Draw chloroethane and bromobenzene with bromobenzene marked with the carbon carrying Cl identified. Classify each site.",
+    "draw": false
+  },
+  {
+    "id": "wrong-marked-acetyl-chloride",
+    "question": "Draw bromoethane and acetyl chloride with acetyl chloride marked with the carbon carrying Br identified. Classify each site.",
+    "draw": false
+  },
+  {
+    "id": "wrong-labelled-bromoethane",
+    "question": "Draw chloroethane and bromoethane with bromoethane labelled with the carbon carrying Cl identified. Classify each site.",
+    "draw": false
+  },
+  {
+    "id": "wrong-labelled-chloroethane",
+    "question": "Draw bromoethane and chloroethane with chloroethane labelled with the carbon carrying Br identified. Classify each site.",
+    "draw": false
+  },
+  {
+    "id": "wrong-labelled-bromobenzene",
+    "question": "Draw chloroethane and bromobenzene with bromobenzene labelled with the carbon carrying Cl identified. Classify each site.",
+    "draw": false
+  },
+  {
+    "id": "wrong-labelled-acetyl-chloride",
+    "question": "Draw bromoethane and acetyl chloride with acetyl chloride labelled with the carbon carrying Br identified. Classify each site.",
+    "draw": false
+  },
+  {
+    "id": "wrong-labeled-bromoethane",
+    "question": "Draw chloroethane and bromoethane with bromoethane labeled with the carbon carrying Cl identified. Classify each site.",
+    "draw": false
+  },
+  {
+    "id": "wrong-labeled-chloroethane",
+    "question": "Draw bromoethane and chloroethane with chloroethane labeled with the carbon carrying Br identified. Classify each site.",
+    "draw": false
+  },
+  {
+    "id": "wrong-labeled-bromobenzene",
+    "question": "Draw chloroethane and bromobenzene with bromobenzene labeled with the carbon carrying Cl identified. Classify each site.",
+    "draw": false
+  },
+  {
+    "id": "wrong-labeled-acetyl-chloride",
+    "question": "Draw bromoethane and acetyl chloride with acetyl chloride labeled with the carbon carrying Br identified. Classify each site.",
+    "draw": false
+  }
+]

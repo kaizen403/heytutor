@@ -422,17 +422,20 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
         request.selectionVersion++;
       }
       if (phrase.argument === "last-two-reference") request.lastTwo = true;
-      const owners = (cursor: "targeted" | "hybridBound" | "classBound", consumed = true): MolecularNeighbourhood[] => {
+      const owners = (cursor: "targeted" | "hybridBound" | "classBound", consumed = true, consumeProperty = true): MolecularNeighbourhood[] => {
         const pending = request!.members.slice(request![cursor]);
         const references = pending.filter(member => member.ownerReference);
         const fresh = (references.length ? references : pending).map(member => member.model);
-        request![cursor] = request!.members.length;
+        if (consumeProperty) request![cursor] = request!.members.length;
         if (consumed) { request!.membersBound = request!.members.length; request!.selectionBound = true; }
         const resolved = request!.selection ?? (fresh.length ? fresh : request!.members.length ? request!.members.map(member => member.model) : request!.context);
         request!.lastOwners = resolved;
         return resolved;
       };
-      if (phrase.argument === "property-predicate") owners("targeted");
+      // A completed mark records its owner and releases later introductions,
+      // but supplies no halogen value. The next site must still bind to the
+      // pending named target, including when it follows "marked with".
+      if (phrase.argument === "property-predicate") owners("targeted", true, false);
       if (phrase.argument === "halogen-value" || phrase.argument === "hybrid-value") request.properties.push({
         models: owners(phrase.argument === "halogen-value" ? "targeted" : "hybridBound"), kind: phrase.argument, values: phrase.values!,
       });
