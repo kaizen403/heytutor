@@ -249,6 +249,46 @@ command envelopes are accepted only when every command exactly matches the
 fresh server presentation. New legacy turns are normalized to text-only;
 historical `visualStatus: "legacy"` values remain readable.
 
+## Supplemental source labels
+
+`SceneAnnotation.labelMode` is an optional native layout contract. Omission or
+`"replace"` keeps the existing replacement behavior. A text-only `"label"`
+annotation can opt into `"append"` with one existing target and no `quantityId`.
+It retains the owner's original label and uses the native anchor, including an
+angle's own arc and a space point's existing projection.
+
+Append layout solves the original labels first, then treats their boxes and
+leaders as fixed obstacles while placing additions. An addition that cannot fit
+fails compilation; it cannot move an original label or produce a partial scene.
+Documents without append annotations retain the original layout path. This is
+an explicit engine capability, independent of the completion generation flag,
+so saved append documents can be recompiled when generation is disabled.
+
+Append mode supplies no numeric or source authority. Structured completion must
+prove the quantity, unit and owner before proposing it. Unsupported absolute
+lengths and ambiguous scalar owners abstain; angle values require a fatal
+own-arc proof. A generic scalar attribute needs a native closed-body or component
+carrier, a unique matching source symbol, and a recognized unit other than a
+pure spatial measure.
+A matching name alone cannot prove a radius, extent, area or vector magnitude.
+`sceneUnitSignature` exposes the existing recognized-unit signature for this
+classification; it supplies no converted value or geometric proof. Missing,
+unknown, dimensionless and unproved spatial units abstain. Symbol identity
+preserves case, signs and leading zeros, while duplicate statement comparison
+may normalize numeric display spelling.
+
+The production boundary independently checks the complete addition inventory,
+original primitives and label/leader positions, owner/reveal scope, native
+render survival and save admission. A failed proposal returns the entire
+previously verified scene. The experiment emits append annotations only when
+enabled. Generic framed world-point `label` constructors retain their existing
+refusal contract; completion uses the native annotation projection instead.
+
+Run `pnpm --filter @heytutor/scene-engine verify:completion` and
+`pnpm --filter @heytutor/tutor verify:completion` for the operator, proof,
+preservation and admission gates. No question-specific templates or teaching
+stream diagram commands participate.
+
 ## Adding Capability
 
 1. Reproduce the failure as a capability fixture and a mutation.

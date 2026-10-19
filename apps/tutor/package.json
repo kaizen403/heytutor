@@ -61,7 +61,9 @@
     "verify:dsa-intro-order": "tsx scripts/verify/verify-dsa-intro-order.ts",
     "verify:lecture-replay-inputs": "tsx scripts/verify/verify-lecture-replay-inputs.ts",
     "verify:phone-board-readability": "tsx scripts/verify/verify-phone-board-readability.ts",
-    "verify:explanation-pointing": "tsx scripts/verify/verify-explanation-pointing.ts"
+    "verify:explanation-pointing": "tsx scripts/verify/verify-explanation-pointing.ts",
+    "verify:region-contracts": "tsx scripts/verify/verify-linear-source-set-admission.mts && tsx scripts/verify/verify-region-solver-admission.mts && tsx scripts/verify/verify-linear-source-plan-admission.ts && tsx scripts/verify/verify-linear-region-live-labels.ts",
+    "verify:completion": "node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-admission.ts && node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-boundary-admission.ts && tsx scripts/verify/verify-structured-completion-diagnostics.ts && node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-owner-admission.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1131.0",

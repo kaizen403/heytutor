@@ -102,6 +102,8 @@ export interface SceneAnnotation {
   targetIds: string[];
   text?: string;
   quantityId?: string;
+  /** Opt-in text-only supplemental label; omission retains replacement semantics. */
+  labelMode?: "append" | "replace";
   placementIntent?: string;
   style?: SceneAnnotationStyle;
 }
