@@ -3,8 +3,10 @@ import { withSentryConfig } from "@sentry/nextjs/config";
 import path from "path";
 import { securityHeaderEntries } from "./lib/http/securityHeaders";
 import { SENTRY_TUNNEL_PATH } from "./lib/obs/sentryTunnel";
+import { renderFingerprint } from "./lib/lecture-export/buildRenderFingerprint.mjs";
 
 const nextConfig: NextConfig = {
+  env: { NEXT_PUBLIC_LECTURE_RENDER_HASH: renderFingerprint(path.resolve(process.cwd(), "../..")) },
   outputFileTracingRoot: path.join(process.cwd(), "../.."),
   async headers() {
     return [
@@ -26,6 +28,15 @@ const nextConfig: NextConfig = {
     "tegaki",
   ],
   webpack: (config, { dev, isServer }) => {
+    // Source gates use the Node fallback; browser bundles must never contain
+    // its filesystem traversal, even when an env transform is absent.
+    if (!isServer) {
+      config.resolve ??= {};
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        "@/lib/lecture-export/sourceRenderFingerprint$": path.join(process.cwd(), "lib/lecture-export/sourceRenderFingerprint.browser.ts"),
+      };
+    }
     // Custom server (server.ts) reads compiled route modules from .next/server in dev.
     // In-memory webpack cache can leave those files missing → ENOENT / PageNotFoundError.
     if (dev && isServer) {
