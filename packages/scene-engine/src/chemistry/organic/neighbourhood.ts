@@ -298,6 +298,8 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
   interface Request {
     action: string;
     context: MolecularNeighbourhood[];
+    antecedent: MolecularNeighbourhood[];
+    lastOwners: MolecularNeighbourhood[] | null;
     members: Array<{ model: MolecularNeighbourhood; at: number; ownerReference: boolean }>;
     ownerScope: boolean;
     extraStructures: number[];
@@ -359,7 +361,10 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
     const phrase = structuralPhraseAt(tail, kind);
     if (!phrase.length) return null;
     if (phrase.action) {
-      request = { action: phrase.action, context: [...models], members: [], ownerScope: false, extraStructures: [], objects: [], reference: false,
+      const previous = requests.at(-1);
+      const antecedent = previous?.lastOwners ?? previous?.selection ?? (previous?.members.length
+        ? previous.members.map(member => member.model) : previous?.context ?? []);
+      request = { action: phrase.action, context: [...models], antecedent, lastOwners: null, members: [], ownerScope: false, extraStructures: [], objects: [], reference: false,
         singularReference: false, selection: null, selectionBound: false,
         selectionVersion: 0, membersBound: 0, classSelectionVersion: 0, introductions: [],
         phenyl: false, lastTwo: false, described: 0,
@@ -376,7 +381,17 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
       if (phrase.argument === "phenyl-ring") request.phenyl = true;
       if (phrase.argument === "reference" || phrase.argument === "singular-reference") request.reference = true;
       if (phrase.argument === "reference" && request.selection) { request.selection = null; request.selectionVersion++; }
-      if (phrase.argument === "singular-reference") request.singularReference = true;
+      if (phrase.argument === "singular-reference") {
+        request.singularReference = true;
+        const pending = request.members.slice(request.membersBound).map(member => member.model);
+        const referents = [...new Set(request.selection ?? (pending.length ? pending : request.lastOwners
+          ?? (request.members.length ? request.members.map(member => member.model) : request.antecedent)))];
+        // Keep every possible structural owner. A supplied property must be
+        // true for every candidate below, rather than borrowing one owner's
+        // value or rejecting an equally true shared property by cardinality.
+        if (!referents.length) return null;
+        if (!request.selection) { request.selection = referents; request.selectionVersion++; }
+      }
       if (phrase.argument === "ordinal-reference") {
         const genitive = /^\s+of\s+/i.exec(text.slice(at + phrase.length));
         const memberAt = at + phrase.length + (genitive?.[0].length ?? 0);
@@ -402,6 +417,7 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
         if (request.members.slice(request.membersBound).some(member => member.ownerReference && !resolved.includes(member.model))) return null;
         request.reference = true;
         request.selection = resolved;
+        request.lastOwners = resolved;
         request.selectionBound = false;
         request.selectionVersion++;
       }
@@ -412,8 +428,11 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
         const fresh = (references.length ? references : pending).map(member => member.model);
         request![cursor] = request!.members.length;
         if (consumed) { request!.membersBound = request!.members.length; request!.selectionBound = true; }
-        return request!.selection ?? (fresh.length ? fresh : request!.members.length ? request!.members.map(member => member.model) : request!.context);
+        const resolved = request!.selection ?? (fresh.length ? fresh : request!.members.length ? request!.members.map(member => member.model) : request!.context);
+        request!.lastOwners = resolved;
+        return resolved;
       };
+      if (phrase.argument === "property-predicate") owners("targeted");
       if (phrase.argument === "halogen-value" || phrase.argument === "hybrid-value") request.properties.push({
         models: owners(phrase.argument === "halogen-value" ? "targeted" : "hybridBound"), kind: phrase.argument, values: phrase.values!,
       });
