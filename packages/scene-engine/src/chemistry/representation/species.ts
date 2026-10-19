@@ -81,7 +81,7 @@ export function resolveChemistryStructure(text: string, resolver: ChemistryStruc
         charge: atom.charge, nonbondedElectrons: 0,
       })),
       bonds: molecule.bonds.map((bond) => ({ a: `a${bond.a}`, b: `a${bond.b}`, order: bond.order })),
-      facts: { sigma_bonds: molecule.bonds.length, pi_bonds: molecule.bonds.reduce((n, b) => n + b.order - 1, 0), charge: molecule.atoms.reduce((n, a) => n + a.charge, 0) },
+      facts: { sigma_bonds: molecule.bonds.length + molecule.atoms.reduce((n, a) => n + a.hydrogens, 0), pi_bonds: molecule.bonds.reduce((n, b) => n + b.order - 1, 0), charge: molecule.atoms.reduce((n, a) => n + a.charge, 0) },
       // A locant is accepted only inside the completely resolved name; numeric captions do not inherit it.
       locants: [...text.matchAll(/(?<![A-Za-z\d])(\d+)(?=[,-])/g)].map((match) => Number(match[1])),
     };
