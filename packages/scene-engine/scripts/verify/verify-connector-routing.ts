@@ -124,4 +124,127 @@ derived.requiredEntityIds.push('axis','tap','tapLead');derived.revealGroups[0]!.
 const derivedResult=compileSceneDocument(derived);
 assert.ok(derivedResult.ok,JSON.stringify(derivedResult.report.issues));
 checks++;
+
+
+// F1: these circuits overlap only in planner coordinates; final view slots do not.
+function twoPanels(shunt=false): SceneDocument {
+  const nodes:Record<string,[number,number]> = {};
+  const parts:string[][]=[],edges:string[][]=[],groups:string[][]=[];
+  for(let index=0;index<2;index++) {
+    const prefix=`p${index}_`,dx=index;
+    const local:Record<string,[number,number]>={a:[dx,3+dx],b:[4+dx,3+dx],c:[4+dx,dx],d:[dx,dx]};
+    for(const [id,value] of Object.entries(local)) nodes[prefix+id]=value;
+    const ps=[['cell','cell','d','a'],['load','resistor','a','b'],['meter','galvanometer','b','c']];
+    if(shunt&&index===1) ps.push(['shunt','resistor','b','c']);
+    parts.push(...ps.map(([id,s,a,b])=>[prefix+id!,s!,prefix+a!,prefix+b!]));
+    edges.push([prefix+'return',prefix+'c',prefix+'d']);
+    groups.push([...Object.keys(local).map(id=>prefix+id),...ps.map(p=>prefix+p[0]),prefix+'return']);
+  }
+  const doc=scene(nodes,parts,edges);
+  doc.revealGroups=groups.map((entityIds,i)=>({id:`panel${i}`,entityIds,dependsOn:[],narrationCue:'Independent circuit'}));
+  return doc;
+}
+for(const shunt of [false,true]) {
+  const result=compileSceneDocument(twoPanels(shunt));
+  assert.ok(result.ok,JSON.stringify(result.report.issues));checks++;
+  const returns=result.renderScene!.primitives.filter(p=>p.entityId.endsWith('_return'));
+  assert.equal(returns.length,2);checks++;
+}
+// The same two components do share ink if panel packing is disabled.
+for(const disabled of ['same-group','dsa']) {
+  const doc=twoPanels();
+  if(disabled==='same-group') doc.revealGroups=[{id:'shared',entityIds:doc.requiredEntityIds,dependsOn:[],narrationCue:'Shared figure'}];
+  else doc.source.synthesizedDsa=true;
+  const result=compileSceneDocument(doc);
+  // The offset source passes through the first resistor: it cannot be repaired
+  // by pretending the separately authored components are separate view slots.
+  if(result.ok) {
+    const first=result.renderScene!.primitives.find(p=>p.entityId==='p0_a')!.points[0]!;
+    const second=result.renderScene!.primitives.find(p=>p.entityId==='p1_a')!.points[0]!;
+    assert.ok(second.x>first.x&&second.y<first.y,'Shared slot retains the common coordinate transform');
+  }
+  checks++;
+}
+// F3: dimension baselines are source measurements, not visible wire obstacles.
+for(const count of [1,2]) {
+  const doc=scene({a:[0,0],tap:[1.6,0],b:[4,0],top:[1.6,1.5]},
+    [['left','resistor','a','top'],['right','resistor','top','b'],['meter','galvanometer','top','tap']],
+    [['leftWire','a','tap'],['rightWire','tap','b']]);
+  for(let i=0;i<count;i++) {
+    const id=`measure${i}`;
+    doc.entities.push({id,kind:'dimension',role:'measured length'});
+    doc.constructions.push({id:`make_${id}`,operator:'dimension',inputs:{start:'a',end:i?'b':'tap',label:'length'},outputs:[id]});
+    doc.requiredEntityIds.push(id);doc.revealGroups[0]!.entityIds.push(id);
+  }
+  const result=compileSceneDocument(doc);
+  assert.ok(result.ok,JSON.stringify(result.report.issues));
+  assert.ok(result.renderScene!.primitives.filter(p=>p.entityId.endsWith('Wire')).every(p=>p.points.length===2),'Offset dimensions keep the bridge wires straight');
+  assert.ok(result.renderScene!.primitives.filter(p=>p.provenance?.measurementRole==='witness').every(p=>p.provenance?.dashed===true),'Nonconductive measurement witnesses retain their dashed rendering');checks+=3;
+}
+// The complete closing edge is essential: an enclosed terminal cannot escape.
+const enclosure=scene({a:[0,0],b:[-4,0],c:[-5,0]},[['load','resistor','b','c']],[['lead','a','b']]);
+enclosure.entities.push({id:'outline',kind:'polygon',role:'closed boundary'});
+enclosure.constructions.push({id:'draw_outline',operator:'polygon',inputs:{points:[{x:-1,y:-1},{x:1,y:-1},{x:1,y:1},{x:-1,y:1}],coordinateSpace:'layout'},outputs:['outline']});
+enclosure.requiredEntityIds.push('outline');enclosure.revealGroups[0]!.entityIds.push('outline');
+const enclosed=compileSceneDocument(enclosure);
+assert.equal(enclosed.ok,false);assert.ok(enclosed.report.issues.some(i=>i.code==='construction_failed'));checks+=2;
+// Invisible normal helpers are not ink even when explicitly declared.
+const hidden=scene({a:[0,0],b:[4,0],c:[5,0],u:[1,-0.5],v:[3,-0.5],contact:[2,-0.5]},[['load','resistor','b','c']],[['lead','a','b']]);
+hidden.entities.push({id:'surface',kind:'segment',role:'surface'},{id:'normal',kind:'vector',role:'construction normal'});
+hidden.constructions.push({id:'surface_make',operator:'segment',inputs:{start:'u',end:'v'},outputs:['surface']},{id:'normal_make',operator:'normal_at',inputs:{point:'contact',surface:'surface'},outputs:['normal']});
+hidden.requiredEntityIds.push('surface','normal');hidden.revealGroups[0]!.entityIds.push('surface','normal');
+const hiddenResult=compileSceneDocument(hidden);
+assert.ok(hiddenResult.ok,JSON.stringify(hiddenResult.report.issues));
+assert.ok(hiddenResult.renderScene!.primitives.every(p=>p.entityId!=='normal'));checks+=2;
+// An axis is two reference strokes, never a fictitious bounding-box diagonal.
+const withAxes=scene({a:[0,0],b:[4,0],c:[5,0]},[['load','resistor','b','c']],[['lead','a','b']]);
+withAxes.entities.push({id:'reference',kind:'axes',role:'reference axes'});
+withAxes.constructions.push({id:'axes_make',operator:'axes',inputs:{xMin:-1,xMax:6,yMin:-2,yMax:2},outputs:['reference']});
+withAxes.requiredEntityIds.push('reference');withAxes.revealGroups[0]!.entityIds.push('reference');
+assert.ok(compileSceneDocument(withAxes).ok);checks++;
+// A line spans the whole displayed viewport, not merely its defining segment.
+// Its ray counterpart can be routed around the finite origin.
+for(const operator of ['line','ray']) {
+  const doc=scene({a:[0,0],b:[4,0],c:[5,0],u:[2,1],v:[2,0.5]},[['load','resistor','b','c']],[['lead','a','b']]);
+  doc.entities.push({id:'boundary',kind:operator==='line'?'line':'ray',role:'visible boundary'});
+  doc.constructions.push({id:'boundary_make',operator,inputs:{start:'u',end:'v'},outputs:['boundary']});
+  doc.requiredEntityIds.push('boundary');doc.revealGroups[0]!.entityIds.push('boundary');
+  const result=compileSceneDocument(doc);
+  if(operator==='line') {
+    assert.equal(result.ok,false,'A viewport-spanning visible line cannot be crossed');
+    assert.ok(result.report.issues.some(i=>i.code==='construction_failed'));
+  } else {
+    assert.ok(result.ok,JSON.stringify(result.report.issues));
+    const lead=result.renderScene!.primitives.find(p=>p.entityId==='lead')!.points;
+    const boundary=result.renderScene!.primitives.find(p=>p.entityId==='boundary')!.points;
+    for(let i=1;i<lead.length;i++) assert.equal(proper(lead[i-1]!,lead[i]!,boundary[0]!,boundary.at(-1)!),false);
+  }
+  checks+=2;
+}
+// F4: a safe existing return keeps its clearance and exact shape; an unsafe
+// preferred path that skims a capacitor plate is rerouted instead.
+const kept=[{x:0,y:0},{x:0,y:20},{x:100,y:20},{x:100,y:0}];
+const plate={points:[{x:40,y:-10},{x:40,y:10}],contacts:[]};
+assert.deepEqual(routeConnector({x:0,y:0},{x:100,y:0},[plate],{preferred:[kept],clearance:6,margin:14}),kept);
+const skim=[{x:0,y:0},{x:0,y:11},{x:100,y:11},{x:100,y:0}];
+assert.notDeepEqual(routeConnector({x:0,y:0},{x:100,y:0},[plate],{preferred:[skim],clearance:6,margin:14}),skim);checks+=2;
+// The wire net explicitly declares a terminal tap on a straight component
+// lead. A coincident but unjoined branch at that same pixel must still reject.
+for(const joined of [false,true]) {
+  const doc=scene({a:[0,0],b:[6,0],tap:[1,0],c:[1,-3],d:[3,-3]},[['cap','capacitor','a','b'],['load','resistor','c','d']],
+    [['branch','tap','c'],...(joined?[['join','a','tap']]:[])]);
+  const result=compileSceneDocument(doc);
+  assert.equal(result.ok,joined,JSON.stringify(result.report.issues));checks++;
+}
+// Terminal fan-out: both axial directions are occupied by explicit shared
+// contacts, yet a diagonal escape is legal and needs several route segments.
+const junction={x:0,y:0},destination={x:174,y:145};
+const terminalObstacles=[
+  {points:[{x:0,y:-34},{x:0,y:34}],contacts:[junction]},
+  {points:[junction,{x:435,y:0}],contacts:[junction]},
+  {points:[junction,{x:-14,y:0},{x:-14,y:-145}],contacts:[junction]},
+  {points:[{x:0,y:28},{x:435,y:28}],contacts:[]},
+];
+const escaping=routeConnector(junction,destination,terminalObstacles,{clearance:6,margin:14});
+assert.ok(escaping.length>3);checks++;
 console.log(`Connector routing verification passed (${checks} checks).`);

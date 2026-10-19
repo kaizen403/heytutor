@@ -193,7 +193,7 @@ type DerivedGeometryMetadata = {
 
 type Geometry =
   | ({ kind: "point"; point: Point; space?: Vec3; spaceFrameId?: string; spaceCross?: SpaceCrossDefinition; sampledCurve?: SampledCurve } & DerivedGeometryMetadata)
-  | ({ kind: "path"; points: Point[]; closed?: boolean; directed?: boolean; infinite?: boolean; elementClip?: Point; throughFoot?: Point; sampledCurve?: SampledCurve; markedAngleRadians?: number; spaceLine?: SpaceLineDefinition; spacePlane?: SpacePlaneDefinition; spaceSegment?: SpaceSegmentDefinition; spaceAngle?: SpaceAngleDefinition; spaceCross?: SpaceCrossDefinition } & DerivedGeometryMetadata)
+  | ({ kind: "path"; points: Point[]; openConnector?: boolean; closed?: boolean; directed?: boolean; infinite?: boolean; elementClip?: Point; throughFoot?: Point; sampledCurve?: SampledCurve; markedAngleRadians?: number; spaceLine?: SpaceLineDefinition; spacePlane?: SpacePlaneDefinition; spaceSegment?: SpaceSegmentDefinition; spaceAngle?: SpaceAngleDefinition; spaceCross?: SpaceCrossDefinition } & DerivedGeometryMetadata)
   | ({
       kind: "multi_path";
       paths: Point[][];
@@ -254,7 +254,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
         ? parallelLaneOffsets.get(construction.outputs[0])
         : undefined;
       const spaceViewInput = spaceView ? spaceViewInputFor(construction, spaceView) : undefined;
-      const inputs = withEngineInputs(construction.inputs, laneOffset, spaceViewInput, portConnectorIds.has(construction.outputs[0] ?? ""));
+      const inputs = withEngineInputs(construction.inputs, laneOffset, spaceViewInput);
       const operator = construction.operator;
       if (!isExecutableSceneConstructionOperator(operator)) {
         throw new Error(`unsupported operator ${operator}`);
@@ -283,36 +283,16 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       issues.push({ code: "construction_failed", message: `${construction.id}: ${errorMessage(error)}`, severity: "fatal", path: `constructions[${originalIndex}]`, entityIds: construction.outputs });
     }
   }
-  // Route local leads before longer connections after all component ink exists.
-  // Provisional direct connectors must not become obstacles for each other: an
-  // earlier, unsafe diagonal could otherwise trap a later short meter lead.
-  const connectors = document.constructions.filter(construction => construction.operator === "connect" && construction.outputs[0]);
-  const connectorSpan = (construction: SceneConstruction): number => {
-    try {
-      return distance(resolvePoint(first(construction.inputs, ["start", "from", "a"]), geometry),
-        resolvePoint(first(construction.inputs, ["end", "to", "b"]), geometry));
-    } catch { return Infinity; }
-  };
-  const portConnectors = connectors.filter(construction => portConnectorIds.has(construction.outputs[0]!));
-  portConnectors.sort((a, b) => connectorSpan(a) - connectorSpan(b) || a.outputs[0]!.localeCompare(b.outputs[0]!));
-  for (const construction of portConnectors) geometry.delete(construction.outputs[0]!);
-  for (const construction of [...connectors.filter(construction => !portConnectorIds.has(construction.outputs[0]!)), ...portConnectors]) {
+  // Retain the established layout as the preferred route. Strict routing below
+  // only changes a path when the actual visible ink makes it unsafe.
+  for (const construction of document.constructions) {
+    if (construction.operator !== "connect" || !construction.outputs[0]) continue;
     try {
       const start = resolvePoint(first(construction.inputs, ["start", "from", "a"]), geometry);
       const end = resolvePoint(first(construction.inputs, ["end", "to", "b"]), geometry);
-      geometry.set(construction.outputs[0], {
-        kind: "path",
-        points: portConnectorIds.has(construction.outputs[0]!)
-          ? routedConnectorPoints(start, end, geometry, construction, document)
-          : legacyConnectorPoints(start, end, geometry, construction.outputs[0]),
-      });
+      geometry.set(construction.outputs[0], { kind: "path", points: legacyConnectorPoints(start, end, geometry, construction.outputs[0]) });
     } catch (error) {
-      issues.push({
-        code: "construction_failed",
-        message: `${construction.id}: ${errorMessage(error)}`,
-        severity: "fatal",
-        entityIds: construction.outputs,
-      });
+      issues.push({ code: "construction_failed", message: `${construction.id}: ${errorMessage(error)}`, severity: "fatal", entityIds: construction.outputs });
     }
   }
 
@@ -360,6 +340,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   const constructionOnlyIds = implicitSolverEntityIds(document);
   const entityToGroup = new Map<string, string>();
   document.revealGroups.forEach((group) => group.entityIds.forEach((id) => entityToGroup.set(id, group.id)));
+  const routingDimensionLanes = routePortGraph(document, geometry, portConnectorIds, constructionOnlyIds, entityToGroup, viewport, checkedClaimOutputIds, issues, measureLabelInk);
   const geometrySignatures = new Map<string, string[]>();
   const directionOverlayIds = new Set<string>();
   const coincidentPointAliases = new Map<string, string>();
@@ -459,7 +440,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   issues.push(...validateCircleLabelTraces(document));
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, 0) };
 
-  const dimensionLanes = computeDimensionLaneOffsets(document, geometry, entityToGroup, constructionOnlyIds);
+  const dimensionLanes = routingDimensionLanes ?? computeDimensionLaneOffsets(document, geometry, entityToGroup, constructionOnlyIds);
   const hasLabels = document.entities.some((entity) => Boolean(entity.label)) ||
     document.annotations.some((annotation) =>
       (annotation.kind === "label" || annotation.kind === "callout") &&
@@ -523,6 +504,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     if (!changed || issues.some((issue) => issue.severity === "fatal")) break;
   }
   assertDimensionViewport(primitives, transformPlan, issues);
+  validatePortConnectorInk(document, geometry, portConnectorIds, constructionOnlyIds, entityToGroup, primitives, transformPlan, issues);
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
 
   // Annotation ink is part of the scene's geometry. Reserve it before solving
@@ -1167,40 +1149,9 @@ function createEntityTransformPlan(
   );
   if (!fallback) return null;
 
-  const components = constructionComponents(document, geometry)
-    .map((ids) => ({
-      ids,
-      renderIds: ids.filter((id) => geometry.has(id) && !constructionOnlyIds.has(id) && entityToGroup.has(id)),
-    }))
-    .filter((component) => component.renderIds.length > 0);
-  const componentGroups = components.map((component) =>
-    [...new Set(component.renderIds.map((id) => entityToGroup.get(id)!).filter(Boolean))],
-  );
-  const distinctGroups = new Set(componentGroups.flat());
-  const componentByEntity = new Map(components.flatMap((component, index) =>
-    component.ids.map((id) => [id, index] as const),
-  ));
-  // Connected geometry is one physical figure even when its parts were
-  // constructed independently. Separate transforms would break the proven
-  // join and scale its measurements against different coordinate systems.
-  const connectsComponents = document.assertions.some((assertion) =>
-    assertion.predicate === "connected" && assertion.expected !== false &&
-    new Set(assertion.entities.flatMap((id) => {
-      const component = componentByEntity.get(id);
-      return component === undefined ? [] : [component];
-    })).size > 1,
-  );
-  // DSA example frames must keep the full diagram-zone width. Packing them
-  // into a 2-column grid shrinks each cell until the handwritten value
-  // fills the box and sits on the stroke.
-  const canPack = document.source.synthesizedDsa !== true &&
-    !connectsComponents &&
-    components.length > 1 &&
-    componentGroups.every((groups) => groups.length === 1) &&
-    distinctGroups.size === components.length;
-  if (!canPack) {
-    return { transformFor: () => fallback, viewportFor: () => viewport };
-  }
+  const components = packedConstructionComponents(document, geometry, constructionOnlyIds, entityToGroup);
+  if (!components) return { transformFor: () => fallback, viewportFor: () => viewport };
+  const componentGroups = components.map(component => [...new Set(component.renderIds.map(id => entityToGroup.get(id)!))]);
 
   const groupOrder = new Map(document.revealGroups.map((group, index) => [group.id, index]));
   const ordered = components
@@ -1234,6 +1185,35 @@ function createEntityTransformPlan(
     viewportFor: (entityId) => viewportByEntity.get(entityId) ?? viewport,
   };
 }
+function packedConstructionComponents(document: SceneDocument, geometry: Map<string, Geometry>, constructionOnlyIds: Set<string>, entityToGroup: Map<string, string>) {
+    const components = constructionComponents(document, geometry)
+        .map((ids) => ({
+        ids,
+        renderIds: ids.filter((id) => geometry.has(id) && !constructionOnlyIds.has(id) && entityToGroup.has(id)),
+    }))
+        .filter((component) => component.renderIds.length > 0);
+    const componentGroups = components.map((component) => [...new Set(component.renderIds.map((id) => entityToGroup.get(id)!).filter(Boolean))]);
+    const distinctGroups = new Set(componentGroups.flat());
+    const componentByEntity = new Map(components.flatMap((component, index) => component.ids.map((id) => [id, index] as const)));
+    // Connected geometry is one physical figure even when its parts were
+    // constructed independently. Separate transforms would break the proven
+    // join and scale its measurements against different coordinate systems.
+    const connectsComponents = document.assertions.some((assertion) => assertion.predicate === "connected" && assertion.expected !== false &&
+        new Set(assertion.entities.flatMap((id) => {
+            const component = componentByEntity.get(id);
+            return component === undefined ? [] : [component];
+        })).size > 1);
+    // DSA example frames must keep the full diagram-zone width. Packing them
+    // into a 2-column grid shrinks each cell until the handwritten value
+    // fills the box and sits on the stroke.
+    const canPack = document.source.synthesizedDsa !== true &&
+        !connectsComponents &&
+        components.length > 1 &&
+        componentGroups.every((groups) => groups.length === 1) &&
+        distinctGroups.size === components.length;
+    return canPack ? components : null;
+}
+
 
 function constructionComponents(document: SceneDocument, geometry: Map<string, Geometry>): string[][] {
   const parent = new Map<string, string>();
@@ -2301,7 +2281,7 @@ function shouldSplitPlotAxes(
 function planarRings(values: Geometry[]): Point[][] {
   return values.flatMap((value) => {
     // A world angle mark is a mark, not a region; its own operator rejects an edge-on view.
-    if (value.kind !== "path" || value.points.length < 3 || value.spaceAngle) return [];
+    if (value.kind !== "path" || value.points.length < 3 || value.spaceAngle || value.openConnector) return [];
     const first = value.points[0]!;
     const last = value.points.at(-1)!;
     const closed = value.closed === true || distance(first, last) < EPSILON;
@@ -5030,38 +5010,209 @@ function legacyConnectorPoints(
     end,
   ];
 }
-function routedConnectorPoints(
-  start: Point,
-  end: Point,
-  geometry: Map<string, Geometry>,
-  construction: SceneConstruction,
-  document: SceneDocument,
-): Point[] {
-  distinctPathPoints(start, end, "connect");
-  const endpoints = [first(construction.inputs, ["start", "from", "a"]), first(construction.inputs, ["end", "to", "b"])];
-  const obstacles = [...geometry.entries()].flatMap(([entityId, value]): ConnectorObstacle[] => {
-    if (entityId === construction.outputs[0]) return [];
-    if (value.kind === "point") return [];
-    const owner = document.constructions.find(candidate => candidate.outputs.includes(entityId));
-    const ports = owner && (owner.operator === "symbol" || owner.operator === "connect")
-      ? [first(owner.inputs, ["start", "from", "a"]), first(owner.inputs, ["end", "to", "b"])] : null;
-    // Circuit contacts require the same logical port, not coincident coordinates.
-    // Other geometric constructions may meet at explicitly supplied endpoints.
-    const contacts = [start, end].filter((_, index) => ports === null || (typeof endpoints[index] === "string" && ports.includes(endpoints[index])));
-    const obstacle = (points: Point[]): ConnectorObstacle => ({ points, contacts });
-    if (value.kind === "compound" || value.kind === "multi_path") return value.paths.map(obstacle);
-    if (value.kind === "circle" || value.kind === "arc") {
-      const a = value.kind === "arc" ? value.startAngle : 0;
-      const b = value.kind === "arc" ? value.endAngle : 2 * Math.PI;
-      return [obstacle(Array.from({ length: 49 }, (_, i) => ({
-        x: value.center.x + value.radius * Math.cos(a + (b-a) * i / 48),
-        y: value.center.y + value.radius * Math.sin(a + (b-a) * i / 48),
-      })))];
+/** Plan obstacles in the same screen slots and with the same primitive converter
+ * as final ink. A dimension baseline, hidden solver helper, or another packed
+ * panel is not an obstacle. The logical port graph is never modified. */
+function routePortGraph(document: SceneDocument, geometry: Map<string, Geometry>, connectorIds: Set<string>, constructionOnlyIds: Set<string>, entityToGroup: Map<string, string>, viewport: Viewport, checkedClaimOutputIds: ReadonlySet<string>, issues: SceneIssue[], measureLabelInk: TextInkBoundsMeasure): Map<string, number> | undefined {
+    if (!connectorIds.size)
+        return;
+    const required = new Set(document.requiredEntityIds);
+    const visible = (id: string) => required.has(id) && !constructionOnlyIds.has(id) && entityToGroup.has(id);
+    const connectors = document.constructions.filter(c => c.operator === "connect" && connectorIds.has(c.outputs[0]!) && visible(c.outputs[0]!));
+    const owners = new Map(document.constructions.flatMap(c => c.outputs.map(id => [id, c] as const)));
+    const wireNets = connectorWireNets(document);
+    const panels = packedConstructionComponents(document, geometry, constructionOnlyIds, entityToGroup);
+    const panelById = new Map(panels?.flatMap((c, i) => c.ids.map(id => [id, i] as const)) ?? []);
+    const hasLabels = document.entities.some(e => Boolean(e.label)) || document.annotations.some(a => (a.kind === "label" || a.kind === "callout") && Boolean(a.text));
+    const lanes = computeDimensionLaneOffsets(document, geometry, entityToGroup, constructionOnlyIds);
+    const preferred = new Map(connectors.map(c => [c.outputs[0]!, geometry.get(c.outputs[0]!)!]));
+    // Open connectors must never participate in the thin planar-region guard.
+    for (const c of connectors) {
+        const value = geometry.get(c.outputs[0]!);
+        if (value?.kind === "path")
+            geometry.set(c.outputs[0]!, { ...value, closed: false, openConnector: true });
     }
-    return [obstacle(pointsOf(value))];
-  });
-  return routeConnector(start, end, obstacles);
+    const span = (c: SceneConstruction) => {
+        const value = geometry.get(c.outputs[0]!);
+        return value?.kind === "path" ? distance(value.points[0]!, value.points.at(-1)!) : Infinity;
+    };
+    connectors.sort((a, b) => span(a) - span(b) || a.outputs[0]!.localeCompare(b.outputs[0]!));
+    // A route can expand its fit. Recheck with the resulting screen transform;
+    // bounded convergence keeps a final canvas-space clearance requirement.
+    for (let pass = 0; pass < 6; pass++) {
+        const plan = createEntityTransformPlan(document, geometry, constructionOnlyIds, entityToGroup, viewport, hasLabels, checkedClaimOutputIds, lanes);
+        if (!plan)
+            return;
+        let changed = false;
+        // Dimension witnesses move with their bars. Settle those visible lanes
+        // against the current wires before routing, then carry the lanes forward
+        // into the final render instead of starting its layout over.
+        if (lanes.size) {
+            const preview = document.entities.flatMap(entity => {
+                const value = geometry.get(entity.id);
+                return value && visible(entity.id) && entity.kind !== "label"
+                    ? toPrimitives(entity.id, entity.kind, value, entityToGroup.get(entity.id)!, plan.transformFor(entity.id), plan.viewportFor(entity.id), false, lanes.get(entity.id) ?? 0, undefined, entity.provenance) : [];
+            });
+            const previewIssues: SceneIssue[] = [];
+            for (let lanePass = 0; lanePass <= lanes.size; lanePass++) {
+                const moved = relocateObstructedDimensions(document, geometry, preview, plan, lanes, previewIssues, measureLabelInk);
+                changed ||= moved;
+                if (!moved || previewIssues.some(i => i.severity === "fatal"))
+                    break;
+            }
+        }
+        const pending = new Set(connectors.map(c => c.outputs[0]!));
+        for (const construction of connectors) {
+            const id = construction.outputs[0]!;
+            pending.delete(id);
+            try {
+                const start = resolvePoint(first(construction.inputs, ["start", "from", "a"]), geometry);
+                const end = resolvePoint(first(construction.inputs, ["end", "to", "b"]), geometry);
+                const transform = plan.transformFor(id);
+                const screenStart = transform(start), screenEnd = transform(end);
+                const endpoints = [first(construction.inputs, ["start", "from", "a"]), first(construction.inputs, ["end", "to", "b"])];
+                const obstacles: ConnectorObstacle[] = [];
+                for (const entity of document.entities) {
+                    if (entity.id === id || pending.has(entity.id) || !visible(entity.id) || entity.kind === "label")
+                        continue;
+                    if (panels && panelById.get(entity.id) !== panelById.get(id))
+                        continue;
+                    const value = geometry.get(entity.id);
+                    if (!value || value.kind === "point" || value.kind === "axes")
+                        continue;
+                    const owner = owners.get(entity.id);
+                    for (const primitive of toPrimitives(entity.id, entity.kind, value, entityToGroup.get(entity.id)!, plan.transformFor(entity.id), plan.viewportFor(entity.id), false, lanes.get(entity.id) ?? 0)) {
+                        const contacts = connectorContacts(endpoints, [screenStart, screenEnd], owner, primitive, wireNets, geometry, plan.transformFor(entity.id));
+                        for (const points of connectorInkPaths(primitive))
+                            obstacles.push({ points, contacts });
+                    }
+                }
+                const original = preferred.get(id);
+                const current = geometry.get(id);
+                const choices = [current, original].flatMap(v => v?.kind === "path" ? [v.points] : []);
+                const route = routeConnector(screenStart, screenEnd, obstacles, { preferred: choices.map(p => p.map(transform)), clearance: 6, margin: 14, bounds: plan.viewportFor(id) });
+                const unchanged = choices.find(p => JSON.stringify(p.map(transform)) === JSON.stringify(route));
+                // Transform rounds at the presentation boundary. Recover its affine
+                // scale over a long baseline, then preserve both exact port coordinates.
+                const origin = transform({ x: 0, y: 0 }), far = transform({ x: 1e6, y: 1e6 });
+                const points = unchanged ?? route.map((p, i) => i === 0 ? start : i === route.length - 1 ? end : ({ x: (p.x - origin.x) / ((far.x - origin.x) / 1e6), y: (p.y - origin.y) / ((far.y - origin.y) / 1e6) }));
+                if (current?.kind !== "path" || JSON.stringify(current.points) !== JSON.stringify(points))
+                    changed = true;
+                geometry.set(id, { kind: "path", points, closed: false, openConnector: true });
+            }
+            catch (error) {
+                issues.push({ code: "construction_failed", message: `${construction.id}: ${errorMessage(error)}`, severity: "fatal", entityIds: construction.outputs });
+                return;
+            }
+        }
+        if (!changed)
+            return lanes;
+    }
+    issues.push({ code: "construction_failed", message: "Connector clearance did not converge in the final view", severity: "fatal", entityIds: connectors.flatMap(c => c.outputs) });
 }
+
+/** The final dimension lane may differ from the preliminary one. Verify the
+ * committed strokes again, including every other wire, before any render exits. */
+function validatePortConnectorInk(document: SceneDocument, geometry: Map<string, Geometry>, connectorIds: Set<string>, constructionOnlyIds: Set<string>, entityToGroup: Map<string, string>, primitives: RenderPrimitive[], transformPlan: EntityTransformPlan, issues: SceneIssue[]): void {
+    if (!connectorIds.size)
+        return;
+    const owners = new Map(document.constructions.flatMap(c => c.outputs.map(id => [id, c] as const)));
+    const wireNets = connectorWireNets(document);
+    const panels = packedConstructionComponents(document, geometry, constructionOnlyIds, entityToGroup);
+    const panelById = new Map(panels?.flatMap((c, i) => c.ids.map(id => [id, i] as const)) ?? []);
+    for (const wire of primitives.filter(p => connectorIds.has(p.entityId) && p.kind !== "label")) {
+        const construction = owners.get(wire.entityId)!;
+        const endpoints = [first(construction.inputs, ["start", "from", "a"]), first(construction.inputs, ["end", "to", "b"])];
+        const start = wire.points[0]!, end = wire.points.at(-1)!;
+        const obstacles = primitives.flatMap((p): ConnectorObstacle[] => {
+            if (p.entityId === wire.entityId || (panels && panelById.get(p.entityId) !== panelById.get(wire.entityId)))
+                return [];
+            const owner = owners.get(p.entityId);
+            const contacts = connectorContacts(endpoints, [start, end], owner, p, wireNets, geometry, transformPlan.transformFor(p.entityId));
+            return connectorInkPaths(p).map(points => ({ points, contacts }));
+        });
+        try {
+            routeConnector(start, end, obstacles, { preferred: [wire.points], clearance: 6, acceptOnlyPreferred: true });
+        }
+        catch (error) {
+            issues.push({ code: "construction_failed", message: `${construction.id}: ${errorMessage(error)}`, severity: "fatal", entityIds: [wire.entityId] });
+        }
+    }
+}
+
+/** Wire edges, unlike components, identify one conductive net. A tap on a
+ * terminal's straight lead is valid only when that net is explicitly joined. */
+function connectorWireNets(document: SceneDocument): Map<string, string> {
+    const parents = new Map<string, string>();
+    const find = (id: string): string => { const p = parents.get(id); if (!p || p === id)
+        return id; const root = find(p); parents.set(id, root); return root; };
+    for (const c of document.constructions)
+        if (c.operator === "connect") {
+            const a = first(c.inputs, ["start", "from", "a"]), b = first(c.inputs, ["end", "to", "b"]);
+            if (typeof a === "string" && typeof b === "string") {
+                parents.set(find(a), find(b));
+            }
+        }
+    for (const id of parents.keys())
+        parents.set(id, find(id));
+    return parents;
+}
+
+function connectorContacts(endpoints: unknown[], locations: Point[], owner: SceneConstruction | undefined, primitive: RenderPrimitive, nets: Map<string, string>, geometry: Map<string, Geometry>, transform: (p: Point) => RenderPoint): Point[] {
+    if (!owner || (owner.operator !== "symbol" && owner.operator !== "connect"))
+        return locations;
+    const ports = [first(owner.inputs, ["start", "from", "a"]), first(owner.inputs, ["end", "to", "b"])];
+    return locations.filter((location, i) => {
+        const endpoint = endpoints[i];
+        if (typeof endpoint !== "string")
+            return false;
+        if (ports.includes(endpoint))
+            return true;
+        return ports.some(port => {
+            if (typeof port !== "string" || (nets.get(port) ?? port) !== (nets.get(endpoint) ?? endpoint))
+                return false;
+            if (owner.operator === "connect")
+                return true;
+            const terminal = transform(resolvePoint(port, geometry)), points = primitive.points;
+            if (points.length < 2)
+                return false;
+            const lead = distance(points[0]!, terminal) < 0.02 ? [points[0]!, points[1]!] as [
+                Point,
+                Point
+            ]
+                : distance(points.at(-1)!, terminal) < 0.02 ? [points.at(-1)!, points.at(-2)!] as [
+                    Point,
+                    Point
+                ] : null;
+            return lead !== null && pointSegmentResidual(location, lead) < 0.02;
+        });
+    });
+}
+
+function connectorInkPaths(primitive: RenderPrimitive): Point[][] {
+    // Dashed measurement witnesses are nonconductive construction tethers. Their
+    // crossings do not join nets; the visible ruler bar and caps still block.
+    if (primitive.provenance?.measurementRole === "witness" && primitive.provenance.dashed === true)
+        return [];
+    if (primitive.kind === "point" || primitive.kind === "label" || primitive.kind === "axes")
+        return [];
+    if (primitive.kind === "circle" || primitive.kind === "arc") {
+        const center = primitive.points[0]!;
+        const start = primitive.kind === "arc" ? primitive.startAngle ?? 0 : 0;
+        const end = primitive.kind === "arc" ? primitive.endAngle ?? 2 * Math.PI : 2 * Math.PI;
+        return [Array.from({ length: 97 }, (_, i) => ({ x: center.x + (primitive.radius ?? 0) * Math.cos(start + (end - start) * i / 96), y: center.y + (primitive.radius ?? 0) * Math.sin(start + (end - start) * i / 96) }))];
+    }
+    const points = primitive.points;
+    if (primitive.kind === "polygon" || primitive.kind === "rectangle")
+        return [[...points, points[0]!]];
+    if (primitive.kind === "dimension" && points.length >= 2) {
+        const a = points[0]!, b = points[1]!, length = distance(a, b);
+        const normal = { x: -(b.y - a.y) / length * DIMENSION_CAP_HALF_PX, y: (b.x - a.x) / length * DIMENSION_CAP_HALF_PX };
+        return [points, ...[a, b].map(p => [{ x: p.x - normal.x, y: p.y - normal.y }, { x: p.x + normal.x, y: p.y + normal.y }])];
+    }
+    return [points];
+}
+
 function dimensionLabelPlacement(entityId: string, value: Geometry, primitives: RenderPrimitive[], viewport: Viewport): Partial<LabelOwner> {
   if (value.kind !== "dimension") return {};
   const bar = primitives.find((primitive) => primitive.entityId === entityId && primitive.kind === "dimension");
