@@ -964,7 +964,7 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
   }
   // Inventory the original change owner before any successful scalar match.
   // Unread or damaged times/fold material cannot disappear behind a pair.
-  const timesOwners = [...stem.matchAll(/\b(?:rate constant|rate)\b/gi)];
+  const timesOwners = [...stem.matchAll(new RegExp(String.raw`\b(?:${caseWord("rate constant")}|${caseWord("rate")})\b|(?<!\b(?:${caseWord("ln")}|${caseWord("log")})\s*)\bk\b(?![₀-₉])`, "g"))];
   let requiresMeasuredRatio = false;
   for (const [index, owner] of timesOwners.entries()) {
     const payloadStart = owner.index! + owner[0].length;

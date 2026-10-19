@@ -1,0 +1,278 @@
+[
+  {
+    "id": "exact-review-bare-k",
+    "question": "k becomes 3 times its original value when temperature rises from 300 K to 310 K. ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+    "expectedDraw": false,
+    "scientificGold": {
+      "reason": "An unread/invalid or contradictory rate-factor declaration cannot disappear into a valid equation or measured-pair fallback. Decline the whole figure rather than lending authority from another source.",
+      "sourceFactorMustAgreeWithEveryMeasuredPairAndEquation": true,
+      "uppercaseKelvinUnitIsNotRateConstant": true
+    },
+    "required": true
+  },
+  {
+    "id": "bare-k-increases-two",
+    "question": "k increases to 2 times its original value when temperature rises from 300 K to 310 K. ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+    "expectedDraw": false,
+    "scientificGold": {
+      "reason": "An unread/invalid or contradictory rate-factor declaration cannot disappear into a valid equation or measured-pair fallback. Decline the whole figure rather than lending authority from another source.",
+      "sourceFactorMustAgreeWithEveryMeasuredPairAndEquation": true,
+      "uppercaseKelvinUnitIsNotRateConstant": true
+    },
+    "required": true
+  },
+  {
+    "id": "bare-k-fourfold",
+    "question": "k becomes 4-fold its original value when temperature rises from 300 K to 310 K. ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+    "expectedDraw": false,
+    "scientificGold": {
+      "reason": "An unread/invalid or contradictory rate-factor declaration cannot disappear into a valid equation or measured-pair fallback. Decline the whole figure rather than lending authority from another source.",
+      "sourceFactorMustAgreeWithEveryMeasuredPairAndEquation": true,
+      "uppercaseKelvinUnitIsNotRateConstant": true
+    },
+    "required": true
+  },
+  {
+    "id": "bare-k-triples",
+    "question": "k triples when temperature rises from 300 K to 310 K. ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+    "expectedDraw": false,
+    "scientificGold": {
+      "reason": "An unread/invalid or contradictory rate-factor declaration cannot disappear into a valid equation or measured-pair fallback. Decline the whole figure rather than lending authority from another source.",
+      "sourceFactorMustAgreeWithEveryMeasuredPairAndEquation": true,
+      "uppercaseKelvinUnitIsNotRateConstant": true
+    },
+    "required": true
+  },
+  {
+    "id": "bare-k-unread-many",
+    "question": "k becomes many times its original value when temperature rises from 300 K to 310 K. ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+    "expectedDraw": false,
+    "scientificGold": {
+      "reason": "An unread/invalid or contradictory rate-factor declaration cannot disappear into a valid equation or measured-pair fallback. Decline the whole figure rather than lending authority from another source.",
+      "sourceFactorMustAgreeWithEveryMeasuredPairAndEquation": true,
+      "uppercaseKelvinUnitIsNotRateConstant": true
+    },
+    "required": true
+  },
+  {
+    "id": "bare-k-malformed-factor",
+    "question": "k becomes 3/ times its original value when temperature rises from 300 K to 310 K. ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+    "expectedDraw": false,
+    "scientificGold": {
+      "reason": "An unread/invalid or contradictory rate-factor declaration cannot disappear into a valid equation or measured-pair fallback. Decline the whole figure rather than lending authority from another source.",
+      "sourceFactorMustAgreeWithEveryMeasuredPairAndEquation": true,
+      "uppercaseKelvinUnitIsNotRateConstant": true
+    },
+    "required": true
+  },
+  {
+    "id": "bare-k-negative-factor",
+    "question": "k becomes -2 times its original value when temperature rises from 300 K to 310 K. Draw the Arrhenius plot.",
+    "expectedDraw": false,
+    "scientificGold": {
+      "reason": "An unread/invalid or contradictory rate-factor declaration cannot disappear into a valid equation or measured-pair fallback. Decline the whole figure rather than lending authority from another source.",
+      "sourceFactorMustAgreeWithEveryMeasuredPairAndEquation": true,
+      "uppercaseKelvinUnitIsNotRateConstant": true
+    },
+    "required": true
+  },
+  {
+    "id": "factor-versus-measured-pair",
+    "question": "k becomes 3 times its original value when temperature rises from 300 K to 310 K. k = 1 s^-1 at 300 K and k = 2 s^-1 at 310 K. Draw the Arrhenius plot.",
+    "expectedDraw": false,
+    "scientificGold": {
+      "reason": "An unread/invalid or contradictory rate-factor declaration cannot disappear into a valid equation or measured-pair fallback. Decline the whole figure rather than lending authority from another source.",
+      "sourceFactorMustAgreeWithEveryMeasuredPairAndEquation": true,
+      "uppercaseKelvinUnitIsNotRateConstant": true
+    },
+    "required": true
+  },
+  {
+    "id": "bare-k-matching-two-only",
+    "question": "k becomes 2 times its original value when temperature rises from 300 K to 310 K. Draw the Arrhenius plot.",
+    "expectedDraw": true,
+    "scientificGold": {
+      "reason": "The two temperatures and positive rate factor determine an Arrhenius slope; no intercept is stated, so only a source-honest representation may omit absolute ln k.",
+      "sourceFactorMustAgreeWithEveryMeasuredPairAndEquation": true,
+      "uppercaseKelvinUnitIsNotRateConstant": true,
+      "slope_lnK_vs_inverseT": -6446.2687792074785,
+      "absoluteInterceptUnspecified": true,
+      "sourceRatio": 2
+    },
+    "required": true
+  },
+  {
+    "id": "bare-k-matching-threefold-only",
+    "question": "k becomes 3-fold its original value when temperature rises from 300 K to 310 K. Draw the Arrhenius plot.",
+    "expectedDraw": true,
+    "scientificGold": {
+      "reason": "The positive threefold rate factor fixes the relative ln k difference and slope, without an absolute rate intercept.",
+      "sourceFactorMustAgreeWithEveryMeasuredPairAndEquation": true,
+      "uppercaseKelvinUnitIsNotRateConstant": true,
+      "slope_lnK_vs_inverseT": -10217.0942846134,
+      "absoluteInterceptUnspecified": true,
+      "sourceRatio": 3
+    },
+    "required": true
+  },
+  {
+    "id": "factor-and-ln-equation-agree",
+    "question": "k becomes 2 times its original value when temperature rises from 300 K to 310 K. ln k = 5 - 6446.268779207478/T. Draw the Arrhenius plot.",
+    "expectedDraw": true,
+    "scientificGold": {
+      "reason": "Numeric factor and the complete ln equation agree to source precision.",
+      "sourceFactorMustAgreeWithEveryMeasuredPairAndEquation": true,
+      "uppercaseKelvinUnitIsNotRateConstant": true,
+      "axisOrdinate": "ln k",
+      "slope": -6446.2687792074785,
+      "intercept": 5,
+      "factorTolerance": 1e-09,
+      "sourceRatio": 2
+    },
+    "required": true
+  },
+  {
+    "id": "factor-and-log-equation-agree",
+    "question": "k becomes 2 times its original value when temperature rises from 300 K to 310 K. log k = 5 - 2799.578959675020/T. Draw the Arrhenius plot.",
+    "expectedDraw": true,
+    "scientificGold": {
+      "reason": "Numeric factor and the complete common-log equation agree to source precision; preserve the log base.",
+      "sourceFactorMustAgreeWithEveryMeasuredPairAndEquation": true,
+      "uppercaseKelvinUnitIsNotRateConstant": true,
+      "axisOrdinate": "log k",
+      "slope": -2799.5789596750196,
+      "intercept": 5,
+      "factorTolerance": 1e-09,
+      "sourceRatio": 2
+    },
+    "required": true
+  },
+  {
+    "id": "factor-and-measured-pair-agree",
+    "question": "k becomes 2 times its original value when temperature rises from 300 K to 310 K. k = 1 s^-1 at 300 K and k = 2 s^-1 at 310 K. Draw the Arrhenius plot.",
+    "expectedDraw": true,
+    "scientificGold": {
+      "reason": "The factor equals the explicit measured-rate ratio and the two temperatures own the fitted line.",
+      "sourceFactorMustAgreeWithEveryMeasuredPairAndEquation": true,
+      "uppercaseKelvinUnitIsNotRateConstant": true,
+      "measuredPairs": [
+        {
+          "T_K": 300,
+          "k_per_s": 1
+        },
+        {
+          "T_K": 310,
+          "k_per_s": 2
+        }
+      ]
+    },
+    "required": false,
+    "inheritedDesiredPositiveGap": "Unindexed separate measured k declarations are refused before Arrhenius inventory; unchanged current blocker scope. ExpectedDraw remains true."
+  },
+  {
+    "id": "ln-equation-no-factor",
+    "question": "ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+    "expectedDraw": true,
+    "scientificGold": {
+      "reason": "A complete ln k versus reciprocal-temperature relation remains a valid real plot without a factor declaration.",
+      "sourceFactorMustAgreeWithEveryMeasuredPairAndEquation": true,
+      "uppercaseKelvinUnitIsNotRateConstant": true,
+      "axisOrdinate": "ln k",
+      "slope": -2000,
+      "intercept": 5
+    },
+    "required": true
+  },
+  {
+    "id": "log-equation-no-factor",
+    "question": "log k = 5 - 2000/T. Draw the Arrhenius plot.",
+    "expectedDraw": true,
+    "scientificGold": {
+      "reason": "A complete common-log rate equation remains a valid plot; no invented factor or base switch.",
+      "sourceFactorMustAgreeWithEveryMeasuredPairAndEquation": true,
+      "uppercaseKelvinUnitIsNotRateConstant": true,
+      "axisOrdinate": "log k",
+      "slope": -2000,
+      "intercept": 5
+    },
+    "required": true
+  },
+  {
+    "id": "uppercase-K-temperature-units",
+    "question": "The temperature rises from 300 K to 310 K. ln k = 5 - 2000/T. Draw the Arrhenius plot.",
+    "expectedDraw": true,
+    "scientificGold": {
+      "reason": "Uppercase K labels kelvin temperatures and supplies no rate-factor owner; the equation remains source authority.",
+      "sourceFactorMustAgreeWithEveryMeasuredPairAndEquation": true,
+      "uppercaseKelvinUnitIsNotRateConstant": true,
+      "axisOrdinate": "ln k",
+      "slope": -2000,
+      "intercept": 5
+    },
+    "required": true
+  },
+  {
+    "id": "fresh-k-five-versus-ln",
+    "question": "k becomes 5 times its original value when temperature rises from 300 K to 320 K. ln k = 4 - 1500/T. Draw the Arrhenius plot.",
+    "expectedDraw": false,
+    "required": true,
+    "scientificGold": {
+      "reason": "Bare rate-symbol source factor must own complete original scalar and agree with thermal direction and every independent equation; no source intercept may be invented."
+    }
+  },
+  {
+    "id": "fresh-k-unread-versus-ln",
+    "question": "k becomes unreadable times its original value when temperature rises from 290 K to 310 K. LN k = 4 - 1800/T. Draw the Arrhenius plot.",
+    "expectedDraw": false,
+    "required": true,
+    "scientificGold": {
+      "reason": "Bare rate-symbol source factor must own complete original scalar and agree with thermal direction and every independent equation; no source intercept may be invented."
+    }
+  },
+  {
+    "id": "fresh-k-damaged-versus-log",
+    "question": "k becomes 3e- times its original value when temperature rises from 300 K to 320 K. LOG k = 4 - 1500/T. Draw the Arrhenius plot.",
+    "expectedDraw": false,
+    "required": true,
+    "scientificGold": {
+      "reason": "Bare rate-symbol source factor must own complete original scalar and agree with thermal direction and every independent equation; no source intercept may be invented."
+    }
+  },
+  {
+    "id": "fresh-k-positive-factor-wrong-temperature-direction",
+    "question": "k becomes 2 times its original value when temperature falls from 310 K to 300 K. Draw the Arrhenius plot.",
+    "expectedDraw": false,
+    "required": true,
+    "scientificGold": {
+      "reason": "Bare rate-symbol source factor must own complete original scalar and agree with thermal direction and every independent equation; no source intercept may be invented."
+    }
+  },
+  {
+    "id": "fresh-k-decimal-factor-only",
+    "question": "k becomes 1.5 fold its original value when temperature rises from 280 K to 300 K. Draw the Arrhenius plot.",
+    "expectedDraw": true,
+    "required": true,
+    "scientificGold": {
+      "reason": "Bare rate-symbol source factor must own complete original scalar and agree with thermal direction and every independent equation; no source intercept may be invented.",
+      "sourceRatio": 1.5,
+      "T1": 280,
+      "T2": 300,
+      "slope_lnK_vs_inverseT": -1702.9534540542927,
+      "absoluteInterceptUnspecified": true
+    }
+  },
+  {
+    "id": "fresh-k-cooling-factor-only",
+    "question": "k becomes 0.5 times its original value when temperature goes from 310 K to 300 K. Draw the Arrhenius plot.",
+    "expectedDraw": true,
+    "required": true,
+    "scientificGold": {
+      "reason": "Bare rate-symbol source factor must own complete original scalar and agree with thermal direction and every independent equation; no source intercept may be invented.",
+      "sourceRatio": 0.5,
+      "T1": 310,
+      "T2": 300,
+      "slope_lnK_vs_inverseT": -6446.2687792074785,
+      "absoluteInterceptUnspecified": true
+    }
+  }
+]
