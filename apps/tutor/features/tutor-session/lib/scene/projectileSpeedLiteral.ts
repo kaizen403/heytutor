@@ -34,7 +34,7 @@
  * Every refusal is the scene engine's fatal code for the same failure,
  * invalid_projectile_trajectory_units.
  */
-import { validateSceneQuantityAgreement, type TurnPlanV3 } from "@heytutor/scene-engine";
+import { sceneUnitSignature, validateSceneQuantityAgreement, type TurnPlanV3 } from "@heytutor/scene-engine";
 
 export const PROJECTILE_UNITS_CODE = "invalid_projectile_trajectory_units";
 
@@ -42,7 +42,7 @@ export const PROJECTILE_UNITS_CODE = "invalid_projectile_trajectory_units";
 export const PROJECTILE_SPEED_ROLE = /^(?:u|u0|ui|v0|vo|vi|speed|launchspeed|initialspeed|projectionspeed|launchvelocity|initialvelocity|projectionvelocity|vlaunch)$/;
 /** Plans also write "vi" loosely for a final velocity, and a derived "speed" is a speed found later, like a derived v. */
 const GIVEN_ONLY_ROLE = /^(?:vi|speed)$/;
-const PROJECTILE_HEIGHT_ROLE = /^(?:h|h0|y0|height|initialheight|launchheight|heightaboveground|tableheight|towerheight)$/;
+const PROJECTILE_HEIGHT_ROLE = /^(?:h|h0|y(?:0|initial|launch)|(?:initial|launch|table|tower)?height|(?:initial|launch)elevation|heightaboveground)$/;
 // Preserve Unicode letters: NFKC maps the y subscript to γ, which must not disappear from a component such as v₀ᵧ.
 const speedRoleKey = (name: string) => name.normalize("NFKC").toLowerCase().replace(/\\(?:mathrm|text)/g, "").replace(/[^\p{L}\p{N}]/gu, "");
 
@@ -62,6 +62,8 @@ export function isSpeedUnit(unit: unknown): unit is string {
   if (typeof unit !== "string" || !unit.trim()) return false;
   const spelled = undot(unit);
   if (ACCELERATION_UNIT.test(spelled) || ANGULAR_UNIT.test(spelled)) return false;
+  // Keep every SI length prefix in step with the same reader that checks agreement.
+  if (sceneUnitSignature(spelled) === "m^1·s^-1") return true;
   if (/^(?:mph|kph|kmph|kmh|kmhr|kmphr|fps|kn|kts?|knots?)$/i.test(spelled)) return true;
   const rate = PER_TIME_UNIT.exec(spelled);
   return rate !== null && SPEED_LENGTH_UNIT.test(spelled.slice(0, rate.index).replace(/[\s·⋅*]+$/u, ""));
@@ -72,7 +74,7 @@ const LENGTH_UNIT_SOURCE = "(?:[kcmµμnd]?m|(?:kilo|centi|milli)?met(?:re|er)s?
 const LENGTH_UNIT = new RegExp(`^${LENGTH_UNIT_SOURCE}$`, "iu");
 const SPEED_LENGTH_UNIT = new RegExp(`^(?:${LENGTH_UNIT_SOURCE}|nautical\\s+miles?)$`, "iu");
 /** A stated length, excluding area/volume, rates and accelerations. It supplies no missing geometry. */
-const STEM_LENGTH = new RegExp(`(?<![\\d.,])\\d+(?:\\.\\d+)?\\s*${LENGTH_UNIT_SOURCE}(?![\\p{L}\\p{N}]|\\s*(?:[²³^/·⋅*]|per\\b|an\\b|prati\\b|${TIME}\\b))`, "giu");
+const STEM_LENGTH = new RegExp(`(?<![\\d.,])\\d+(?:,\\d{3})*(?:\\.\\d+)?\\s*${LENGTH_UNIT_SOURCE}(?![\\p{L}\\p{N}]|\\s*(?:[²³^/·⋅*]|per\\b|an\\b|prati\\b|${TIME}\\b))`, "giu");
 
 // Per second, never per second squared (g = 980 cm/s^2 is not a speed).
 const PER_SECOND = "(?:\\s*\\/\\s*s(?:ec(?:ond)?)?(?![A-Za-z0-9]|\\s*(?:[²³^/]|squared\\b|per\\b))|[\\s·⋅*]*s(?:\\^?[-−–]1|⁻¹)(?!\\d)|\\s+per\\s+second\\b(?!\\s*(?:[²³^/]|squared\\b|per\\b)))";
@@ -162,9 +164,10 @@ const stated = (read: ReadNumber, working: string) => read.unit === undefined ? 
 
 /** A bounded written measurement, used only when the plan omitted the quantity. Unreadable spellings refuse. */
 function stemQuantity(stem: string, spelling: (unit: string) => string): PlanQuantity[] {
-  const match = /^(\d+(?:\.\d+)?)\s*(\D.*)$/.exec(stem.trim());
-  if (!match || !Number.isFinite(Number(match[1]))) return [];
-  return [{ id: "projectile_source_measurement", symbol: "", value: Number(match[1]), unit: spelling(match[2]!), provenance: "given", sourceText: stem }];
+  const match = /^(\d+(?:,\d{3})*(?:\.\d+)?)\s*([^\d,.\s].*)$/.exec(stem.trim());
+  const value = match ? Number(match[1]!.replace(/,/g, "")) : NaN;
+  if (!match || !Number.isFinite(value)) return [];
+  return [{ id: "projectile_source_measurement", symbol: "", value, unit: spelling(match[2]!), provenance: "given", sourceText: stem }];
 }
 
 /** Fatal issues for projectile_trajectory speeds and launch heights whose number the plan or question contradicts. */

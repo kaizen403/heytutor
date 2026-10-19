@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { FIGURE_SOURCES, type TurnPlanV3 } from "@heytutor/scene-engine";
 import { diagramStrategyAllowsFigureSource, liveDiagramStrategyDecision } from "../../features/tutor-session/lib/scene/diagramStrategy";
 import { selectProductionScene, validateProductionSceneCandidate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
-import { isSpeedUnit } from "../../features/tutor-session/lib/scene/projectileSpeedLiteral";
+import { isSpeedUnit, projectileSpeedLiteralIssues } from "../../features/tutor-session/lib/scene/projectileSpeedLiteral";
 
 const CODE = "invalid_projectile_trajectory_units";
 let checks = 0;
@@ -120,4 +120,30 @@ kept("an authoritative derived height is not replaced by separate source lengths
 const MAXIMUM = "A ball is launched at 20 m/s from a 50 m tower at 30° above horizontal. Take g = 10 m/s^2.";
 const maximumPlan = plan(MAXIMUM, [given("u", 20, "m/s")], [{ ...given("h", 55, "m"), provenance: "derived", dependsOn: [] } as Quantity]);
 kept("a maximum-height h cannot replace the stated launch height", run(MAXIMUM, maximumPlan, 20, [], { initialHeight: 50, displayScale: 8 }));
+for (const [written, value, unit] of [["1,000 m/s", 1000, "m/s"], ["3,600 km/h", 1000, "km/h"], ["1,000.5 m/s", 1000.5, "m/s"]] as const) {
+  const question = `A ball is launched at ${written} at 30° above horizontal. Take g = 10 m/s^2.`;
+  kept("grouped source speeds preserve their whole value", run(question, plan(question, []), unit === "m/s" ? value : { value, unit: "m/s" }, [], { displayScale: 0.001 }));
+  refused("grouped source speeds cannot lose their trailing digits", run(question, plan(question, []), { value: 1, unit }));
+}
+for (const [id, symbol] of [["launch_elevation", "y"], ["initial_elevation", "y0"], ["launch_height", "y_launch"]] as const) {
+  const renamed = structuredClone(compositePlan);
+  renamed.derived[0]!.id = id; renamed.derived[0]!.symbol = symbol;
+  kept("renamed authoritative launch heights retain their geometry", run(COMPOSITE, renamed, 20, [], { initialHeight: 80 }));
+}
+for (const [unit, value] of [["um/s", 1000000], ["µm/s", 1000000], ["μm/s", 1000000], ["pm/s", 1e12], ["nm/s", 1e9], ["Mm/s", 1e-6], ["Gm/s", 1e-9]] as const) {
+  check(isSpeedUnit(unit), `${unit}: the shared unit reader's length prefix remains a speed`);
+  const question = "A ball is launched obliquely at 30° above horizontal. Take g = 10 m/s^2.";
+  const authority = plan(question, [], [{ ...given("u", value * 20, unit), provenance: "derived", dependsOn: [] } as Quantity]);
+  const copied = projectileSpeedLiteralIssues(candidate(question, value * 20), authority, question);
+  check(copied.length === 1 && copied[0]!.path.endsWith(".speed"), `${unit}: the copied prefixed number is held by the speed guard`);
+  refused(`${unit}: prefixed derived speeds hold a drawable wrong SI value`, run(question, authority, 10));
+  kept(`${unit}: prefixed derived speeds retain their converted SI value`, run(question, authority, 20));
+}
+const GROUPED_TABLE = TABLE.replace("80 cm", "1,000 cm");
+refused("grouped source lengths cannot become bare metres", run(GROUPED_TABLE, plan(GROUPED_TABLE, [given("u", 2, "m/s")]), 2, [], { launchAngleDeg: 0, initialHeight: 1000 }), undefined, "initialHeight");
+kept("grouped source lengths retain their converted value", run(GROUPED_TABLE, plan(GROUPED_TABLE, [given("u", 2, "m/s")]), 2, [], { launchAngleDeg: 0, initialHeight: 10 }));
+for (const symbol of ["y", "elevation"]) {
+  const apex = plan(MAXIMUM, [given("u", 20, "m/s")], [{ ...given("apex_y", 55, "m", symbol), provenance: "derived", dependsOn: [] } as Quantity]);
+  refused("a later vertical position cannot supply the launch height", run(MAXIMUM, apex, 20, [], { initialHeight: 55 }), undefined, "initialHeight");
+}
 console.log(`verify-projectile-authority-followups: ${checks} checks ok`);
