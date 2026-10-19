@@ -1,0 +1,371 @@
+[
+  {
+    "id": "phase-exact",
+    "kind": "phase",
+    "question": "Cu(s) forms an fcc lattice. Draw the unit cell.",
+    "draw": true,
+    "symbol": "Cu",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "phase-silver",
+    "kind": "phase",
+    "question": "Silver, Ag(s), forms an fcc crystal. Draw its unit cell.",
+    "draw": true,
+    "symbol": "Ag",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "phase-iron",
+    "kind": "phase",
+    "question": "Fe(s) forms a bcc lattice. Show the body-centred cubic unit cell.",
+    "draw": true,
+    "symbol": "Fe",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "phase-aluminium",
+    "kind": "phase",
+    "question": "Al(s) atoms occupy an fcc lattice. Sketch the unit cell.",
+    "draw": true,
+    "symbol": "Al",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "phase-nickel",
+    "kind": "phase",
+    "question": "Ni(s) is present at the corners and face centres of a cubic unit cell. Draw the cell.",
+    "draw": true,
+    "symbol": "Ni",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "phase-gold",
+    "kind": "phase",
+    "question": "Au(s) atoms form a cubic close-packed crystal. Draw a unit cell.",
+    "draw": true,
+    "symbol": "Au",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "phase-liquid",
+    "kind": "phase",
+    "question": "Cu(l) forms a neutral metallic copper fcc lattice. Draw the unit cell.",
+    "draw": false,
+    "symbol": "Cu",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "phase-gas",
+    "kind": "phase",
+    "question": "Cu(g) forms a neutral metallic copper fcc lattice. Draw the unit cell.",
+    "draw": false,
+    "symbol": "Cu",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "phase-aqueous",
+    "kind": "phase",
+    "question": "Cu(aq) forms a neutral metallic copper fcc lattice. Draw the unit cell.",
+    "draw": false,
+    "symbol": "Cu",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "phase-unknown",
+    "kind": "phase",
+    "question": "Cu(qq) forms a neutral metallic copper fcc lattice. Draw the unit cell.",
+    "draw": false,
+    "symbol": "Cu",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "phase-broken",
+    "kind": "phase",
+    "question": "Cu(s forms a neutral metallic copper fcc lattice. Draw the unit cell.",
+    "draw": false,
+    "symbol": "Cu",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "phase-mixed",
+    "kind": "phase",
+    "question": "Cu(s, aq) forms a neutral metallic copper fcc lattice. Draw the unit cell.",
+    "draw": false,
+    "symbol": "Cu",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "phase-phase-charge",
+    "kind": "phase",
+    "question": "Cu(s+) forms a neutral metallic copper fcc lattice. Draw the unit cell.",
+    "draw": false,
+    "symbol": "Cu",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "phase-duplicated",
+    "kind": "phase",
+    "question": "Cu(s)(aq) forms a neutral metallic copper fcc lattice. Draw the unit cell.",
+    "draw": false,
+    "symbol": "Cu",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "phase-neutral-conflict",
+    "kind": "phase",
+    "question": "Cu2+(s) forms a neutral metallic copper fcc lattice. Draw the unit cell.",
+    "draw": false,
+    "symbol": "Cu",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "phase-malformed-charge",
+    "kind": "phase",
+    "question": "Cu2e+(s) forms a neutral metallic copper fcc lattice. Draw the unit cell.",
+    "draw": false,
+    "symbol": "Cu",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "phase-unknown-element",
+    "kind": "phase",
+    "question": "Xx(s) forms a neutral metallic copper fcc lattice. Draw the unit cell.",
+    "draw": false,
+    "symbol": "Cu",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "phase-wrapper",
+    "kind": "phase",
+    "question": "Copper (Cu) forms an fcc lattice. Draw the unit cell.",
+    "draw": true,
+    "symbol": "Cu",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "phase-neutral",
+    "kind": "phase",
+    "question": "Cu atoms occupy an fcc lattice. Draw the unit cell.",
+    "draw": true,
+    "symbol": "Cu",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "phase-quantity-invalid",
+    "kind": "phase",
+    "question": "Cu(s) forms an fcc lattice with edge length unknown and radius 128 pm. Draw the unit cell.",
+    "draw": false,
+    "symbol": "Cu",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "temperature-exact",
+    "kind": "temperature",
+    "question": "Draw the Maxwell Boltzmann distribution of molecular speeds. The lower temperature is 300 K. The higher temperature is 600 K.",
+    "draw": true,
+    "symbol": "",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "temperature-reverse-mention",
+    "kind": "temperature",
+    "question": "Draw the Maxwell Boltzmann distribution of molecular speeds. The higher temperature is 600 K; the lower temperature is 300 K.",
+    "draw": true,
+    "symbol": "",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "temperature-equals",
+    "kind": "temperature",
+    "question": "Draw the Maxwell Boltzmann distribution of molecular speeds. The lower temperature equals 250 K and the higher temperature equals 500 K.",
+    "draw": true,
+    "symbol": "",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "temperature-approximate",
+    "kind": "temperature",
+    "question": "Draw the Maxwell Boltzmann distribution of molecular speeds. The lower temperature is approximately 400 K; the higher temperature is approximately 800 K.",
+    "draw": true,
+    "symbol": "",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "temperature-celsius",
+    "kind": "temperature",
+    "question": "Draw the Maxwell Boltzmann distribution of molecular speeds. The lower temperature is 27 degrees Celsius; the higher temperature is 327 degrees Celsius.",
+    "draw": true,
+    "symbol": "",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "temperature-owner-repeat",
+    "kind": "temperature",
+    "question": "Draw the Maxwell Boltzmann distribution of molecular speeds. The lower temperature is 300 K. The higher temperature is 600 K. The lower temperature is 300 K.",
+    "draw": true,
+    "symbol": "",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "temperature-index-reversed-order",
+    "kind": "temperature",
+    "question": "Draw the Maxwell Boltzmann distribution of molecular speeds. At T2 = 600 K and T1 = 300 K, compare the same gas.",
+    "draw": true,
+    "symbol": "",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "temperature-index-reversed-values",
+    "kind": "temperature",
+    "question": "Draw the Maxwell Boltzmann distribution of molecular speeds. At T1 = 600 K and T2 = 300 K, compare the same gas.",
+    "draw": true,
+    "symbol": "",
+    "lowerLabel": "T_2",
+    "higherLabel": "T_1"
+  },
+  {
+    "id": "temperature-qualitative",
+    "kind": "temperature",
+    "question": "Draw the Maxwell Boltzmann distribution of molecular speeds. Explain how heating changes the two curves.",
+    "draw": true,
+    "symbol": "",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "temperature-conflict",
+    "kind": "temperature",
+    "question": "Draw the Maxwell Boltzmann distribution of molecular speeds. The lower temperature is 300 K; the higher temperature is 600 K; the lower temperature is 350 K.",
+    "draw": false,
+    "symbol": "",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "temperature-unread-first",
+    "kind": "temperature",
+    "question": "Draw the Maxwell Boltzmann distribution of molecular speeds. The lower temperature is unreadable; the lower temperature is 300 K; the higher temperature is 600 K.",
+    "draw": false,
+    "symbol": "",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "temperature-unread-last",
+    "kind": "temperature",
+    "question": "Draw the Maxwell Boltzmann distribution of molecular speeds. The lower temperature is 300 K; the higher temperature is 600 K; the higher temperature cannot be read.",
+    "draw": false,
+    "symbol": "",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "temperature-wrong-unit",
+    "kind": "temperature",
+    "question": "Draw the Maxwell Boltzmann distribution of molecular speeds. The lower temperature is 300 kg; the higher temperature is 600 K.",
+    "draw": false,
+    "symbol": "",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "temperature-reversed-role",
+    "kind": "temperature",
+    "question": "Draw the Maxwell Boltzmann distribution of molecular speeds. The lower temperature is 600 K; the higher temperature is 300 K.",
+    "draw": false,
+    "symbol": "",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "temperature-equal-role",
+    "kind": "temperature",
+    "question": "Draw the Maxwell Boltzmann distribution of molecular speeds. The lower temperature is 300 K; the higher temperature is 300 K.",
+    "draw": false,
+    "symbol": "",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "temperature-negative",
+    "kind": "temperature",
+    "question": "Draw the Maxwell Boltzmann distribution of molecular speeds. The lower temperature is -300 K; the higher temperature is 600 K.",
+    "draw": false,
+    "symbol": "",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "temperature-malformed",
+    "kind": "temperature",
+    "question": "Draw the Maxwell Boltzmann distribution of molecular speeds. The lower temperature is 3e- K; the higher temperature is 600 K.",
+    "draw": false,
+    "symbol": "",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "temperature-unowned-literal",
+    "kind": "temperature",
+    "question": "Draw the Maxwell Boltzmann distribution of molecular speeds. The lower temperature is 300 K; the higher temperature is 600 K. Another comparison uses 900 K.",
+    "draw": false,
+    "symbol": "",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "temperature-index-conflict",
+    "kind": "temperature",
+    "question": "Draw the Maxwell Boltzmann distribution of molecular speeds. At T1=300 K and T2=600 K; T1=400 K.",
+    "draw": false,
+    "symbol": "",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "temperature-index-unread",
+    "kind": "temperature",
+    "question": "Draw the Maxwell Boltzmann distribution of molecular speeds. T1 is unknown; T1=300 K; T2=600 K.",
+    "draw": false,
+    "symbol": "",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  },
+  {
+    "id": "temperature-anonymous-two",
+    "kind": "temperature",
+    "question": "Draw the Maxwell Boltzmann distribution of molecular speeds at 300 K and 600 K.",
+    "draw": true,
+    "symbol": "",
+    "lowerLabel": "T_1",
+    "higherLabel": "T_2"
+  }
+]

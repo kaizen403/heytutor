@@ -1,0 +1,199 @@
+{
+  "schemaVersion": "scene-document/v2",
+  "visualDecision": {
+    "mode": "scene",
+    "reason": "The question asks for a value to be read from the graph of y = sin x."
+  },
+  "source": {
+    "question": "The graph of y = sin x is given. Read the principal value of sin^{-1}(1/2).",
+    "representationTier": "qualitative_verified",
+    "nonMetric": true
+  },
+  "quantities": [
+    {
+      "id": "g1",
+      "symbol": "sin x",
+      "value": 0.5
+    },
+    {
+      "id": "u1",
+      "symbol": "sin\u207b\u00b9(1/2)",
+      "value": 0.5235987755982988,
+      "unit": "rad"
+    }
+  ],
+  "entities": [
+    {
+      "id": "axes",
+      "kind": "axes",
+      "role": "axes"
+    },
+    {
+      "id": "sine",
+      "kind": "polyline",
+      "role": "curve",
+      "label": "y = sin x"
+    },
+    {
+      "id": "givenLevel",
+      "kind": "point",
+      "role": "given sine value"
+    },
+    {
+      "id": "principalPoint",
+      "kind": "point",
+      "role": "principal-branch point"
+    },
+    {
+      "id": "readAcross",
+      "kind": "segment",
+      "role": "reading guide"
+    }
+  ],
+  "constructions": [
+    {
+      "id": "makeAxes",
+      "operator": "axes",
+      "inputs": {
+        "xMin": -1.7,
+        "xMax": 1.7,
+        "yMin": -1.2,
+        "yMax": 1.2
+      },
+      "outputs": [
+        "axes"
+      ]
+    },
+    {
+      "id": "makeSine",
+      "operator": "function_curve",
+      "inputs": {
+        "expression": "sin(x)",
+        "variable": "x",
+        "xMin": -1.5707963267948966,
+        "xMax": 1.5707963267948966,
+        "samples": 129
+      },
+      "outputs": [
+        "sine"
+      ]
+    },
+    {
+      "id": "makeGivenLevel",
+      "operator": "point",
+      "inputs": {
+        "x": 0,
+        "y": 0.5,
+        "coordinateSpace": "world"
+      },
+      "outputs": [
+        "givenLevel"
+      ]
+    },
+    {
+      "id": "makePrincipalPoint",
+      "operator": "point",
+      "inputs": {
+        "x": 0.5235987755982988,
+        "y": 0.5,
+        "coordinateSpace": "world"
+      },
+      "outputs": [
+        "principalPoint"
+      ]
+    },
+    {
+      "id": "makeReadAcross",
+      "operator": "segment",
+      "inputs": {
+        "start": "givenLevel",
+        "end": "principalPoint"
+      },
+      "outputs": [
+        "readAcross"
+      ]
+    }
+  ],
+  "relations": [],
+  "assertions": [
+    {
+      "id": "principalPointOnSine",
+      "predicate": "function_value",
+      "entities": [
+        "sine"
+      ],
+      "expected": {
+        "x": 0.5235987755982988,
+        "y": 0.5
+      },
+      "severity": "fatal"
+    },
+    {
+      "id": "principalPointOnGuide",
+      "predicate": "on",
+      "entities": [
+        "principalPoint",
+        "readAcross"
+      ],
+      "expected": true,
+      "severity": "fatal"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "curveLabel",
+      "kind": "label",
+      "targetIds": [
+        "sine"
+      ],
+      "text": "y = sin x"
+    },
+    {
+      "id": "givenLabel",
+      "kind": "label",
+      "targetIds": [
+        "givenLevel"
+      ],
+      "text": "1/2",
+      "quantityId": "g1"
+    },
+    {
+      "id": "answerLabel",
+      "kind": "label",
+      "targetIds": [
+        "principalPoint"
+      ],
+      "text": "\u03c0/6",
+      "quantityId": "u1"
+    }
+  ],
+  "requiredEntityIds": [
+    "axes",
+    "sine",
+    "givenLevel",
+    "principalPoint",
+    "readAcross"
+  ],
+  "revealGroups": [
+    {
+      "id": "setup",
+      "entityIds": [
+        "axes",
+        "sine",
+        "givenLevel"
+      ],
+      "dependsOn": []
+    },
+    {
+      "id": "readValue",
+      "entityIds": [
+        "principalPoint",
+        "readAcross"
+      ],
+      "dependsOn": [
+        "setup"
+      ]
+    }
+  ],
+  "teachingTimeline": []
+}

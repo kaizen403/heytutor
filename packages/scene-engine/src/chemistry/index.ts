@@ -24,6 +24,6 @@ export { ChemScene, chemStem, planQuantity, numberAfter, type ChemPlanQuantity, 
 export { parseFormula, parseComplex, formulaTokens, complexTokens, normalizeChemistryText, ligandSpec } from "./formula";
 export { ELEMENTS, elementBySymbol, elementByName, elementByZ, resolveElement, valenceElectrons } from "./elements";
 export { electronConfiguration, dElectronCount } from "./electronConfiguration";
-
 export { chemistryFamilyTeachingNotes, CONDUCTANCE_TEACHING_FAMILY } from "./familyTeaching";
 export { chemistryTeachingFamilyId } from "./teachingFamily";
+export { readChemistryLiteral, convertChemistryValue, parseChemistryScalar, readChemistryQuantity, readChemistryQuantityDeclaration, readChemistryQuantityInventoryDeclaration, resolveChemistryGiven, convertChemistryReading, findChemistryQuantities, chemistryQuestionSpan, chemistryPlanBindingsValid, type ChemistrySpan, type ChemistryDimension, type ChemistryUnit, type ChemistryReading, type ChemistryQuantityInput, type ChemistryQuantityDeclaration, type ChemistryDeclarationOccurrence, type ChemRead } from "./quantityReader";
