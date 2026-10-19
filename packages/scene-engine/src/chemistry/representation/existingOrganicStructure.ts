@@ -87,7 +87,7 @@ export function prepareExistingOrganicStructure(input:{originalQuestion:string;r
   for(const line of proof.nameLines){
    const source=proof.sourceBindings.find(s=>s.source.start===line.sourceArgument.start&&s.source.end===line.sourceArgument.end&&s.source.text===line.sourceArgument.text);
    if(!source)throw Error("unbound_existing_name_source");
-   labels.push({...membership(line.entityId,line.primitiveId,line.text),kind:"complete_source_name_line",sourceArgument:line.sourceArgument,graphIdentity:source.graphIdentity,lineIndex:line.lineIndex,originalStart:line.originalStart,originalEnd:line.originalEnd,text:line.text});
+   labels.push({...membership(line.entityId,line.primitiveId,line.text),kind:"complete_source_name_line",sourceArgument:line.sourceArgument,graphIdentity:source.graphIdentity,lineIndex:line.lineIndex,originalStart:line.originalStart,originalEnd:line.originalEnd,text:line.text,...(line.projection?{projection:line.projection}:{})});
   }
   if(scene.primitives.filter(p=>p.kind==="label").length!==labels.length)return declined("unproved_existing_extra_label");
   return {status:"verified",originalQuestion:question,document,renderScene:scene,proof:{...proof,version:"existing-organic-structure-proof/v1",scope:"source-backed-components-only",limitations:[...proof.limitations,"existing complete structural membership only; no whole-request, process or physical-value authority"]},labels};

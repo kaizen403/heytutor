@@ -39,7 +39,7 @@ import { bindOpticsLabelSides, solveWithSideBoundLabels } from "../labels/optics
 import { BOARD_TYPE_SCALE, measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
 import { evaluateTopologyAssertion, validateTopologyInvariants } from "../topology/topology";
 import { implicitSolverEntityIds, validateSceneDocument } from "../document/validation";
-import { auditChemistryRepresentation, chemistryStructureSymbolProvenance } from "../chemistry/representation/audit";
+import { auditChemistryRepresentation, chemistryNativeBondInkIssues, chemistryStructureSymbolProvenance } from "../chemistry/representation/audit";
 import { validateMatrixSourceBinding } from "./matrixSourceBinding";
 import { compactCalloutLabel, isPointIdentifierText, isViewSummaryText, pointLabelTether } from "./pointLabelText";
 import { validateCircleLabelTraces, validateCircleSourceBinding } from "./circleGeometry";
@@ -1096,6 +1096,9 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   if (verifiedPartsEnabled) issues.push(...validateLabelOwnerTruth(document, primitives, new Set(mediumBindings(document, geometry).map(binding => binding.annotationId))));
   if (verifiedPartsEnabled) issues.push(...validateRenderedMediumTruth(document, geometry, primitives, transformPlan.transformFor));
   pushDegenerateProjectedGeometryIssues(geometry, primitives, constructionOnlyIds, issues);
+  // Native bond truth is core geometry under both yield policies; labels or
+  // repair cannot turn overlapping double/triple strokes into valid ink.
+  issues.push(...chemistryNativeBondInkIssues(chemistryRepresentation, primitives));
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
 
   const entityBounds: Record<string, { x: number; y: number; width: number; height: number }> = {};

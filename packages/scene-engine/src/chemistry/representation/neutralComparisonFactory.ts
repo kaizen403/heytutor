@@ -11,7 +11,7 @@ export type NeutralPanelLabelBinding = {
   readonly graphIdentity: string; readonly compiledAnchor: { readonly x: number; readonly y: number };
 } & (
   | { readonly kind: "structure_symbol"; readonly sourceAtom: number; readonly hydrogenSlot: number | null; readonly text: "O" | "OH" | "H" }
-  | { readonly kind: "complete_source_name_line"; readonly lineIndex: number; readonly originalStart: number; readonly originalEnd: number; readonly text: string }
+  | { readonly kind: "complete_source_name_line"; readonly lineIndex: number; readonly originalStart: number; readonly originalEnd: number; readonly text: string; readonly projection?: "canonical_same_graph" }
 );
 export type NeutralPanelCheck =
   | { readonly status: "not_applicable" }

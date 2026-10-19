@@ -115,7 +115,8 @@ export function auditChemistryRepresentation(document: SceneDocument, question: 
       const operator = inkPlan?.[bondIndex];
       const inkHolds = binding.resolver === "vsepr"
         ? operator !== undefined && resolved.nodes.find((node) => node.key === bond.b)?.label === operator.ligandLabel && checkedVseprBondInk(document, bond.entityIds, nodeEntities.get(bond.a), nodeEntities.get(bond.b), operator)
-        : bond.entityIds.length === expected?.order && bond.entityIds.every((id) => bondAttached(document, id, nodeEntities.get(bond.a), nodeEntities.get(bond.b)));
+        : bond.entityIds.length === expected?.order && bond.entityIds.every((id) => bondAttached(document, id, nodeEntities.get(bond.a), nodeEntities.get(bond.b)))
+          && separateBondStrokes(document, bond.entityIds, nodeEntities.get(bond.a), nodeEntities.get(bond.b));
       if (!expected || !inkHolds) issue("chemistry_bond_topology", `species ${text} has an incomplete or detached bond ${bond.a}-${bond.b}`, bond.entityIds);
     }
     if (!sameSet(binding.entityIds, owned)) issue("chemistry_membership", `species ${text} structural membership differs from its source topology`);
@@ -240,7 +241,89 @@ function bondAttached(document: SceneDocument, id: string, first: string | undef
   const low = Math.min(fraction(start), fraction(end)), high = Math.max(fraction(start), fraction(end));
   // SceneBuilder rounds world point coordinates to four decimal places.
   const roundingTolerance = 4e-4 / Math.sqrt(lengthSquared);
-  return low >= -1e-6 && low < 0.45 && high > 0.55 && high <= 1 + 1e-6 && Math.abs(offset(start)) < 0.15 && Math.abs(offset(end)) < 0.15 && Math.abs(offset(start) - offset(end)) <= roundingTolerance;
+  return low >= -roundingTolerance && low < 0.45 && high > 0.55 && high <= 1 + roundingTolerance && Math.abs(offset(start)) < 0.15 && Math.abs(offset(end)) < 0.15 && Math.abs(offset(start) - offset(end)) <= roundingTolerance;
+}
+
+/** Multiplicity needs separate parallel ink, not several names for one axis. */
+function separateBondStrokes(document: SceneDocument, ids: readonly string[], first: string | undefined, second: string | undefined): boolean {
+  if (ids.length < 2) return true;
+  if (new Set(ids).size !== ids.length) return false;
+  const a = anchor(document, first), b = anchor(document, second);
+  if (!a || !b) return false;
+  const dx = b.x - a.x, dy = b.y - a.y, squared = dx * dx + dy * dy;
+  if (squared <= 1e-16) return false;
+  const tolerance = 4e-4 / Math.sqrt(squared);
+  const project = (point: { x: number; y: number }) => ({ t: ((point.x - a.x) * dx + (point.y - a.y) * dy) / squared,
+    n: ((point.x - a.x) * dy - (point.y - a.y) * dx) / squared });
+  const strokes: Array<{ low: number; high: number; first: number; last: number }> = [];
+  for (const id of ids) {
+    const construction = document.constructions.find(value => value.outputs.includes(id));
+    if (construction?.operator !== "segment") return false;
+    const start = anchor(document, typeof construction.inputs.start === "string" ? construction.inputs.start : undefined);
+    const end = anchor(document, typeof construction.inputs.end === "string" ? construction.inputs.end : undefined);
+    if (!start || !end) return false;
+    const points = [project(start), project(end)].sort((left, right) => left.t - right.t);
+    if (points[1]!.t <= points[0]!.t || Math.abs(points[0]!.n - points[1]!.n) > tolerance) return false;
+    strokes.push({ low: points[0]!.t, high: points[1]!.t, first: points[0]!.n, last: points[1]!.n });
+  }
+  const offset = (stroke: typeof strokes[number], t: number) => stroke.first + (stroke.last - stroke.first) * (t - stroke.low) / (stroke.high - stroke.low);
+  for (let i = 0; i < strokes.length; i += 1) for (let j = i + 1; j < strokes.length; j += 1) {
+    const left = strokes[i]!, right = strokes[j]!, low = Math.max(left.low, right.low), high = Math.min(left.high, right.high);
+    if (high - low + tolerance < .5 * Math.max(left.high - left.low, right.high - right.low)) return false;
+    const firstGap = offset(right, low) - offset(left, low), lastGap = offset(right, high) - offset(left, high);
+    if (firstGap * lastGap <= 0 || Math.min(Math.abs(firstGap), Math.abs(lastGap)) <= tolerance) return false;
+  }
+  return true;
+}
+
+/** Internal compiler guard: mathematically separate lines must remain separate
+ * native ink. World-coordinate tolerances alone cannot prove a visible bond. */
+export function chemistryNativeBondInkIssues(audit: ChemistryRepresentationAudit, primitives: readonly RenderPrimitive[]): SceneIssue[] {
+  if (!audit.applicable || audit.issues.length || !audit.representation) return [];
+  // Whiteboard SHAPE_STROKE_WIDTH and INK_THICKNESS_MAX. Use the widest
+  // supported instrument, including pen, rather than only the thinner pencil.
+  const defaultWidth = 1.15, maximumThickness = 1.6;
+  // Compiler endpoints are rounded to .01px; two endpoint differences can
+  // accumulate this bound when testing parallel projected strokes.
+  const rounding = 2 * Math.SQRT2 * .01;
+  const issues: SceneIssue[] = [];
+  for (const binding of audit.representation.species) {
+    if (binding.resolver === "vsepr") continue; // Its separate wedge/dash plan is independently checked.
+    for (const bond of binding.bonds) {
+      if (bond.entityIds.length < 2) continue;
+      const marks = bond.entityIds.map(id => primitives.filter(mark => mark.entityId === id));
+      const fail = (): void => { issues.push({ code: "chemistry_bond_native_ink", severity: "fatal", failureKind: "truth",
+        path: "source.chemistryRepresentation", entityIds: [...bond.entityIds], message: "Source multiple-bond strokes are not distinct overlapping parallel native ink" }); };
+      if (marks.some(owned => owned.length !== 1 || owned[0]!.kind !== "line" || owned[0]!.points.length !== 2)) { fail(); continue; }
+      const strokes = marks.map(owned => owned[0]!);
+      const widths = strokes.map(stroke => {
+        const provenance = stroke.provenance ?? {};
+        // Dashed/fill/annotation/alternate paint semantics cannot certify this
+        // ordinary molecular stroke. A supplied width must be real visible ink.
+        if (Object.keys(provenance).some(key => key !== "strokeWidth")) return null;
+        const width = provenance.strokeWidth ?? defaultWidth;
+        return typeof width === "number" && Number.isFinite(width) && width > 0 ? width * maximumThickness : null;
+      });
+      if (widths.some(width => width === null)) { fail(); continue; }
+      let valid = true;
+      for (let i = 0; valid && i < strokes.length; i += 1) for (let j = i + 1; valid && j < strokes.length; j += 1) {
+        const [a, b] = strokes[i]!.points, dx = b!.x - a!.x, dy = b!.y - a!.y, length = Math.hypot(dx, dy);
+        if (!(length > 0) || !Number.isFinite(length)) { valid = false; break; }
+        const projected = strokes[j]!.points.map(point => ({ t: ((point.x - a!.x) * dx + (point.y - a!.y) * dy) / length,
+          n: ((point.x - a!.x) * dy - (point.y - a!.y) * dx) / length })).sort((left, right) => left.t - right.t);
+        const [start, end] = projected;
+        if (!start || !end || ![start.t, start.n, end.t, end.n].every(Number.isFinite) || end.t <= start.t || Math.abs(end.n - start.n) > rounding) { valid = false; break; }
+        const low = Math.max(0, start.t), high = Math.min(length, end.t);
+        if (high - low + rounding < .5 * Math.max(length, end.t - start.t)) { valid = false; break; }
+        const offset = (t: number) => start.n + (end.n - start.n) * (t - start.t) / (end.t - start.t);
+        const firstGap = offset(low), lastGap = offset(high);
+        const inkRadius = (widths[i]! + widths[j]!) / 2;
+        if (firstGap * lastGap <= 0 || Math.min(Math.abs(firstGap), Math.abs(lastGap)) <= inkRadius) valid = false;
+      }
+      if (!valid) fail();
+    }
+  }
+  return issues;
 }
 
 /** Compiler calls this only with the result of a complete source audit. */

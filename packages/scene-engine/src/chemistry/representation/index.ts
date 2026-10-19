@@ -1,6 +1,7 @@
 export * from "./types";
 export * from "./species";
-export * from "./audit";
+export { readChemistryRepresentation, auditChemistryRepresentation, chemistryStructureSymbolProvenance, isChemistryStructureSymbolPrimitive } from "./audit";
+export type { ChemistryRepresentationAudit } from "./audit";
 export * from "./obligations";
 export * from "./bindings";
 export { prepareNeutralComparison, buildSourceBoundNeutralComparison } from "./neutralComparisonFactory";

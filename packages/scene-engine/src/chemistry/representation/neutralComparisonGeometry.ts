@@ -17,6 +17,8 @@ export interface StructuralSymbolProof {
 export interface CompleteNameLineProof {
   readonly entityId: string; readonly primitiveId: string; readonly sourceArgument: SourceArgument;
   readonly lineIndex: number; readonly originalStart: number; readonly originalEnd: number;
+  /** Only a complete single-line typed alias owns the whole source argument. */
+  readonly projection?: "canonical_same_graph";
   readonly text: string; readonly worldAnchor: Point; readonly compiledAnchor: Point;
 }
 export interface NeutralComparisonProof {
@@ -127,6 +129,7 @@ function auditComponentGeometry(document: e.SceneDocument, question: string, spe
     for (let component = 0; component < species.length; component++) {
       const s = species[component]!, m = s.resolved.molecule!, prefix = `m${component}`;
       const completeName = existing ? (s as ExistingOrganicComponent).renderedName : s.source.text;
+      const canonicalProjection = existing && (completeName.toLowerCase() !== s.source.text.toLowerCase() || completeName.length !== s.source.text.length);
       const laid = layoutMolecule(m);
       if (!laid || laid.hidden.size || laid.groupLabels.size) fail(`unsupported_canonical_layout:${prefix}`);
       // A first actual heteroatom fixes translation. Hydrocarbons use their
@@ -202,12 +205,13 @@ function auditComponentGeometry(document: e.SceneDocument, question: string, spe
       expectedVisible.set(frameId, { kind: "rectangle", points: [{ x: bounds.left, y: bounds.bottom }, { x: bounds.right, y: bounds.bottom }, { x: bounds.right, y: bounds.top }, { x: bounds.left, y: bounds.top }] });
       const nameIds = [...entities.keys()].filter(id => id === `${prefix}_name` || new RegExp(`^${prefix}_name_\\d+$`).test(id));
       if (!nameIds.length || nameIds.length > 10) fail(`missing_complete_source_name:${prefix}`);
+      if (canonicalProjection && nameIds.length !== 1) fail(`unsupported_existing_name_projection:${prefix}`);
       let sourceCursor = 0, previous: Point | null = null, lineSpacing: number | null = null;
       for (let index = 0; index < nameIds.length; index++) {
         const id = `${prefix}_name${index === 0 ? "" : `_${index}`}`, text = entities.get(id)?.label;
         if (typeof text !== "string" || !text.length || text !== completeName.slice(sourceCursor, sourceCursor + text.length)) fail(`incomplete_original_name_line:${id}`);
-        const originalStart = s.source.start + sourceCursor; sourceCursor += text.length;
-        const originalEnd = s.source.start + sourceCursor;
+        const originalStart = canonicalProjection ? s.source.start : s.source.start + sourceCursor; sourceCursor += text.length;
+        const originalEnd = canonicalProjection ? s.source.end : s.source.start + sourceCursor;
         while (completeName[sourceCursor] === " ") sourceCursor++;
         const anchor = label(id, text);
         if (Math.abs(anchor.x - center.x) > 0.00018 || anchor.y >= minY - 0.1 || anchor.y <= bounds.bottom + 0.1 || anchor.y < minY - 4) fail(`source_name_anchor_geometry:${id}`);
@@ -217,7 +221,8 @@ function auditComponentGeometry(document: e.SceneDocument, question: string, spe
           lineSpacing = spacing;
         }
         previous = anchor;
-        nameDraft.push({ entityId: id, sourceArgument: s.source, lineIndex: index, originalStart, originalEnd, text, worldAnchor: anchor });
+        nameDraft.push({ entityId: id, sourceArgument: s.source, lineIndex: index, originalStart, originalEnd, text, worldAnchor: anchor,
+          ...(canonicalProjection ? { projection: "canonical_same_graph" as const } : {}) });
       }
       if (sourceCursor !== completeName.length) fail(`incomplete_original_name:${prefix}`);
       if (bounds.bottom < (previous?.y ?? minY) - 1.5) fail(`frame_name_bounds:${frameId}`);

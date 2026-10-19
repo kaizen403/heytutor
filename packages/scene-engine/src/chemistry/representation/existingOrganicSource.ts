@@ -23,7 +23,9 @@ export function existingOrganicComponents(document: SceneDocument, question: str
   if(!identity||!resolvedName?.molecule)throw Error("unresolved_existing_component_name");
   const source=findChemistrySourceSpan(question,renderedName);
   if(!source||!checkedChemistrySourceIdentity(question,source,identity.key))throw Error("existing_name_not_in_complete_original_source");
-  if(source.text.toLowerCase()!==renderedName.toLowerCase()||source.text.length!==renderedName.length)throw Error("unsupported_existing_name_projection");
+  // A complete single-line canonical alias is proved by source identity and
+  // the full graph below, not by pretending its characters occur in source.
+  if((source.text.toLowerCase()!==renderedName.toLowerCase()||source.text.length!==renderedName.length)&&lines.length!==1)throw Error("unsupported_existing_name_projection");
   const resolved=resolveChemistryStructure(source.text,"organic");
   if(!resolved?.molecule||!sameOrganicGraph(resolved.molecule,resolvedName.molecule))throw Error("existing_source_graph_conflict");
   const species:ExistingOrganicComponent={source,sourceIdentity:identity.key,graphIdentity:resolved.identityKey,resolved,prefix,renderedName};
