@@ -29,6 +29,7 @@ import {
 } from "@/lib/billing/gate";
 import { recordLlmSpend } from "@/lib/billing/track";
 import {
+  isLectureLabPlannerProbe,
   lectureLabPlannerDeadlineCapMs,
   shouldSuppressLectureLabTrace,
   shouldUseLectureLabStandardModel,
@@ -602,6 +603,7 @@ interface PlannerRequestArgs {
   fastMode: boolean;
   evaluationModelOverride?: string;
   problemIRModelOverride?: string;
+  plannerProbe?: boolean;
   deadlineMs: number;
   signal: AbortSignal;
   actor: SpendActor;
@@ -628,6 +630,7 @@ async function handlePlannerRequest({
   fastMode,
   evaluationModelOverride,
   problemIRModelOverride,
+  plannerProbe = false,
   deadlineMs,
   signal,
   actor,
@@ -696,7 +699,9 @@ async function handlePlannerRequest({
       // Azure scenes are non-streaming. Keep their initial 30s candidate
       // response window intact instead of canceling at 25s to retry late.
       // The existing request/client signals still bound setup and both attempts.
-      attemptTimeoutMs: llm.provider === "azure" && semanticSceneV2 && !diagramExamplePicker
+      maxAttemptsPerModel: plannerProbe ? 1 : undefined,
+      attemptTimeoutMs: plannerProbe
+        ? 120_000 : llm.provider === "azure" && semanticSceneV2 && !diagramExamplePicker
         ? Math.min(30_000, deadlineMs)
         : undefined,
       body,
@@ -848,6 +853,10 @@ async function handlePlannerRequest({
         "x-heytutor-planner-prompt-chars": String(JSON.stringify(body.messages ?? []).length),
         "x-heytutor-service-tier-requested": String(body.service_tier ?? "auto"),
         "x-heytutor-service-tier": typeof returnedTier === "string" ? returnedTier : "unknown",
+        ...(plannerProbe ? {
+          "x-heytutor-probe-thinking": JSON.stringify(body.thinking ?? null),
+          "x-heytutor-probe-output-cap": String(completionTokenCap(body)),
+        } : {}),
       },
     });
   } catch (error: unknown) {
@@ -1025,8 +1034,9 @@ export async function POST(request: Request): Promise<Response> {
       problemIRModelOverride: problemIRV1 && shouldUseLectureLabStandardModel(request)
         ? resolveFireworksModel({ fastMode: false })
         : undefined,
+      plannerProbe: isLectureLabPlannerProbe(request),
       deadlineMs: Math.min(
-        semanticSceneV2 ? lectureLabPlannerDeadlineCapMs(request) : 60_000,
+        semanticSceneV2 || isLectureLabPlannerProbe(request) ? lectureLabPlannerDeadlineCapMs(request) : 60_000,
         Math.max(
           1_000,
           Number.parseInt(request.headers.get("x-planner-deadline-ms") ?? "60000", 10) || 60_000,

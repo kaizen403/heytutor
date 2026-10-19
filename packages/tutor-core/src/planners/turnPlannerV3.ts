@@ -78,6 +78,21 @@ export interface TurnPlanV3Response {
 const TURN_PLAN_MODEL = "server";
 const TURN_PLAN_PEER_GRACE_MS = 3_000;
 
+/** A single initial lane, for request-level diagnostics without peer censoring. */
+export function planTurnV3Lane(
+  question: string,
+  options: TurnPlannerV3Options,
+  lane: "primary" | "alternate" = "primary",
+): Promise<TurnPlanV3Response | null> {
+  const conversation = options.conversationContext?.trim()
+    ? `\nRECENT CONTEXT\n${options.conversationContext.trim()}\n` : "";
+  return requestTurnPlanV3(question, options,
+    lane === "primary" ? TURN_PLAN_V3_PROMPT : TURN_PLAN_V3_RETRY_PROMPT,
+    `${conversation}QUESTION\n${question}${lane === "alternate"
+      ? "\n\nIndependently solve every requested unknown and return one complete checked plan." : ""}`,
+    "plan", lane);
+}
+
 export async function planTurnV3(
   question: string,
   options: TurnPlannerV3Options,
@@ -86,31 +101,17 @@ export async function planTurnV3(
   const conversation = options.conversationContext?.trim()
     ? `\nRECENT CONTEXT\n${options.conversationContext.trim()}\n`
     : "";
-  const lanes = [
-    {
-      lane: "primary" as const,
-      systemPrompt: TURN_PLAN_V3_PROMPT,
-      userContent: `${conversation}QUESTION\n${question}`,
-    },
-    {
-      lane: "alternate" as const,
-      systemPrompt: TURN_PLAN_V3_RETRY_PROMPT,
-      userContent: `${conversation}QUESTION\n${question}\n\nIndependently solve every requested unknown and return one complete checked plan.`,
-    },
-  ];
+  const lanes = ["primary", "alternate"] as const;
   const controllers = lanes.map(() => new AbortController());
   const pending = new Map(lanes.map((lane, index) => {
     const controller = controllers[index]!;
     const signal = options.signal
       ? mergeAbortSignals(options.signal, controller.signal)
       : controller.signal;
-    const promise = requestTurnPlanV3(
+    const promise = planTurnV3Lane(
       question,
       { ...options, signal },
-      lane.systemPrompt,
-      lane.userContent,
-      "plan",
-      lane.lane,
+      lane,
     ).then((result) => ({ index, result }));
     return [index, promise] as const;
   }));

@@ -42,6 +42,7 @@ export function isTtsConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
 export const LECTURE_LAB_HEADER = "x-heytutor-lecture-lab";
 export const LECTURE_LAB_ZERO_RETENTION_HEADER = "x-heytutor-lecture-lab-zero-retention";
 export const LECTURE_LAB_STANDARD_MODEL_HEADER = "x-heytutor-lecture-lab-standard-model";
+export const LECTURE_LAB_PLANNER_PROBE_HEADER = "x-heytutor-lecture-lab-planner-probe";
 
 /**
  * Lecture-lab spend bypass. The header value must match LECTURE_LAB_TOKEN
@@ -77,12 +78,22 @@ export function shouldUseLectureLabStandardModel(
     isLectureLabRequest(request, env);
 }
 
+/** Request-level Fireworks timing diagnostics, never an ordinary/live override. */
+export function isLectureLabPlannerProbe(request: Request, env: NodeJS.ProcessEnv = process.env): boolean {
+  const headers = request.headers;
+  return env.LLM_PROVIDER?.trim().toLowerCase() !== "azure" &&
+    headers.get(LECTURE_LAB_PLANNER_PROBE_HEADER) === "1" &&
+    headers.get("x-planner") === "1" && shouldUseLectureLabStandardModel(request, env) &&
+    (headers.get("x-turn-planner-version") === "3") !== (headers.get("x-scene-planner-version") === "2") &&
+    !["x-problem-ir-version", "x-code-lesson-version", "x-diagram-example-picker"].some((key) => headers.has(key));
+}
+
 /** Live planners stay at 60 s; authenticated standard-K3 scene evals may use 120 s. */
 export function lectureLabPlannerDeadlineCapMs(
   request: Request,
   env: NodeJS.ProcessEnv = process.env,
 ): 60_000 | 120_000 {
-  return request.headers.get("x-scene-planner-version") === "2" &&
+  return isLectureLabPlannerProbe(request, env) || request.headers.get("x-scene-planner-version") === "2" &&
       shouldUseLectureLabStandardModel(request, env)
     ? 120_000
     : 60_000;

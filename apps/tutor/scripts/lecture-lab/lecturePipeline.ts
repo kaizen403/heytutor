@@ -26,7 +26,9 @@ import {
   normalizeTutorQuestion,
   planAndSolveProblemV1,
   planSceneDocumentWithRepair,
+  planSceneDocument,
   planTurnV3,
+  planTurnV3Lane,
   subjectFromRejectedTurnPlanOutcomes,
   questionRequiresVisual,
   revalidateScenePlanWithRepairResult,
@@ -140,6 +142,18 @@ export interface LectureRun {
   familiarity: SubjectFamiliarity;
   arm?: DiagramEvalArm;
   figureOnly?: boolean;
+  /** Primary request diagnostics only; never a production consensus/yield run. */
+  plannerProbe?: {
+    version: "primary-request-probe/v1";
+    timeoutMs: 120_000;
+    turnAccepted: boolean;
+    sceneAccepted: boolean;
+    sceneStatus: "accepted_scene" | "valid_text_only_decline" | "rejected" | "no_response";
+    authority: "accepted_turn_plan" | "fallback_no_numeric_authority";
+    responses: Array<{ kind: string; elapsedMs: number; requestSha256: string; status: number;
+      model: string | null; thinking: string | null; outputCap: string | null;
+      finishReason: unknown; rawContent: unknown; rawResponseText: string; usage: unknown }>;
+  };
   /** Full accepted inputs for offline selection replay; absent on historical runs. */
   figureReplayInputs?: {
     schemaVersion: "lecture-figure-replay-inputs/v1";
@@ -273,6 +287,7 @@ export interface RunLectureOptions {
   difficulty?: string;
   arm?: DiagramEvalArm;
   figureOnly?: boolean;
+  plannerOnly?: boolean;
   /** Evaluation-only override; live turns keep SCENE_PLANNER_DEADLINE_MS. */
   scenePlannerDeadlineMs?: number;
   /** Uses the same subject vocabulary as the live semantic planner. */
@@ -444,6 +459,65 @@ export async function runLecture(
     },
     promptChars: 0,
   };
+
+  if (options.plannerOnly) {
+    const turnStartedAt = Date.now();
+    const turn = await planTurnV3Lane(question, {
+      proxyUrl: plannerUrl, timeoutMs: 120_000, traceId, fastMode: false,
+      onRequestOutcome: (outcome) => run.turnPlanCallOutcomes?.push(outcome),
+    });
+    stages.turnPlanMs = Date.now() - turnStartedAt;
+    run.turnPlanStatus = turn ? "planned" : "fallback";
+    const turnPlan = turn?.turnPlan ?? createFallbackTurnPlanV3(question);
+    run.plan = { ...turnPlan, requiresVisualByStem: questionRequiresVisual(question) };
+    const gate = deriveProductionSceneGate({ question, turnPlan, problemIR: null });
+    const sceneStartedAt = Date.now();
+    const response = await planSceneDocument(question, {
+      ...gate.request, proxyUrl: plannerUrl, traceId, fastMode: false, timeoutMs: 120_000,
+      onRequestOutcome: (outcome) => run.diagram.plannerCallOutcomes?.push(outcome),
+    });
+    stages.scenePlannerMs = Date.now() - sceneStartedAt;
+    let validation: SceneCandidateValidation<ValidatedSceneCandidate> | null = null;
+    if (response) {
+      try { validation = validateProductionSceneCandidate({ candidate: response.document, question, turnPlan }); }
+      catch {
+        // A malformed model document that makes a validator throw is rejected,
+        // never rescued. Keep its paid raw response for the offline diagnosis.
+        validation = { valid: false, errors: [{ code: "probe_validation_exception",
+          message: "Candidate validation raised an exception; raw evidence retained.", severity: "fatal" }] };
+      }
+    }
+    const selectionInput = { question, turnPlan, problemIR: null, candidateValidation: validation,
+      fastRepresentation: null, requiredRetryEnabled: true,
+      policy: { preferPlanner: true, allowedFigureSources: ["planner", "verified_recovery", "text_only"] as const } };
+    const selection = selectProductionScene(selectionInput);
+    run.figureReplayInputs = { schemaVersion: "lecture-figure-replay-inputs/v1", selection: selectionInput,
+      authority: null, authorityAttempted: false };
+    run.diagram.candidateErrorCodes = validation?.errors.map((issue) => issue.code) ?? [];
+    run.diagram.candidateCount = response ? 1 : 0;
+    run.diagram.plannerDeclined = validation?.valid === true && validation.value?.document.visualDecision.mode === "text_only";
+    run.diagram.plannerResponses = response ? [{ phase: response.phase, lane: response.lane, selected: validation?.valid === true, rawContent: response.rawContent }] : [];
+    run.diagram.reason = selection.reason;
+    run.diagram.droppedCandidate = selection.droppedCandidate;
+    const representation = selection.representation;
+    if (representation) {
+      run.diagram.committed = true;
+      run.diagram.tier = representation.tier;
+      run.diagram.figureSource = representation.figureSource;
+      run.diagram.entityIds = representation.sceneDocument.entities.map((entity) => entity.id);
+      run.diagram.primitiveCount = representation.renderScene.primitives.length;
+      run.diagram.renderedLabels = representation.renderScene.primitives.flatMap((primitive) => primitive.text ? [primitive.text] : []);
+      run.diagram.svg = renderSceneSvg(representation.renderScene, { title: "Planner diagnostic" });
+    }
+    run.plannerProbe = { version: "primary-request-probe/v1", timeoutMs: 120_000,
+      turnAccepted: turn !== null,
+      sceneAccepted: validation?.valid === true && validation.value?.document.visualDecision.mode === "scene",
+      sceneStatus: !response ? "no_response" : !validation?.valid ? "rejected"
+        : validation.value?.document.visualDecision.mode === "text_only" ? "valid_text_only_decline" : "accepted_scene",
+      authority: turn ? "accepted_turn_plan" : "fallback_no_numeric_authority", responses: [] };
+    run.timings.planMs = run.timings.totalMs = Date.now() - startedAt;
+    return run;
+  }
 
   try {
     const plannerStartedAt = Date.now();

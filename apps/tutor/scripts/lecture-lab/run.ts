@@ -21,6 +21,7 @@ import { LAB_VISUAL_NEED_POLICY, budgetedVisualNeedFetch, parseVisualNeedReplay,
 import { applyLectureLabHeaders } from "./labAuth";
 import {
   LECTURE_LAB_STANDARD_MODEL_HEADER,
+  LECTURE_LAB_PLANNER_PROBE_HEADER,
   LECTURE_LAB_ZERO_RETENTION_HEADER,
 } from "../../lib/billing/flags";
 import { parseDiagramSubject, type DiagramSubject, type SubjectFamiliarity } from "@heytutor/tutor-core";
@@ -85,6 +86,7 @@ export interface Options {
   /** Evaluation-only end-to-end scene planning budget. */
   scenePlannerLimitMs: 60_000 | 120_000;
   figureOnly: boolean;
+  plannerOnly?: boolean;
   yes: boolean;
   maxUsd: number;
   spendMode: LabSpendMode;
@@ -233,6 +235,17 @@ export async function reserveLabRequest(cap: LabSpendCap, worstCaseUsd: number, 
   }
 }
 
+/** Fail closed before both local and direct-provider dispatch in probe mode. */
+export function assertPlannerOnlyRequest(url: string, headers: Headers, origin: string): void {
+  const turn = headers.get("x-turn-planner-version") === "3";
+  const scene = headers.get("x-scene-planner-version") === "2";
+  if (url !== `${origin}/api/chat` || headers.get("x-planner") !== "1" || turn === scene ||
+      !headers.get("x-heytutor-trace-id") ||
+      ["x-problem-ir-version", "x-code-lesson-version", "x-diagram-example-picker"].some((key) => headers.has(key))) {
+    throw new LabRequestNotDispatchedError("planner-only forbids every ancillary paid endpoint/lane");
+  }
+}
+
 export async function runBudgetedLabRows<T>(
   rows: readonly T[],
   concurrency: number,
@@ -281,7 +294,7 @@ function parseProductionStrictSubjects(flags: ReadonlyMap<string, string>): Diag
 export function parseOptions(argv: string[]): Options {
   const flags = new Map<string, string>();
   const evalFiles: string[] = [];
-  const booleans = new Set(["figure-only", "yes", "resume"]);
+  const booleans = new Set(["figure-only", "planner-only", "yes", "resume"]);
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (!token.startsWith("--")) continue;
@@ -330,6 +343,7 @@ export function parseOptions(argv: string[]): Options {
     );
   }
   const model = flags.get("model") ?? "configured";
+  const plannerOnly = flags.get("planner-only") === "true";
   if (model !== "configured" && model !== "standard" && model !== "fast") {
     throw new Error(`--model must be configured, standard or fast, received ${model}`);
   }
@@ -341,13 +355,17 @@ export function parseOptions(argv: string[]): Options {
     throw new Error("--scene-planner-limit-ms is evaluation-only");
   }
   const parsedScenePlannerLimit = scenePlannerLimitRaw === undefined
-    ? 60_000
+    ? plannerOnly ? 120_000 : 60_000
     : Number(scenePlannerLimitRaw);
   if (parsedScenePlannerLimit !== 60_000 && parsedScenePlannerLimit !== 120_000) {
     throw new Error("--scene-planner-limit-ms must be 60000 or 120000");
   }
   const maxUsdRaw = flags.get("max-usd");
   const spendMode = flags.get("spend-mode") ?? "conservative";
+  if (plannerOnly && (evalFiles.length === 0 || arm !== "current" || model !== "configured" ||
+      spendMode !== "conservative" || parsedScenePlannerLimit !== 120_000)) {
+    throw new Error("planner-only requires --eval, --arm current, --model configured, conservative spend and 120000 ms");
+  }
   if (spendMode !== "conservative" && spendMode !== "response_usage") throw new Error("--spend-mode must be conservative or response_usage");
   const sceneDeclinePolicy = flags.get("scene-decline-policy") ?? "unchanged";
   if (sceneDeclinePolicy !== "unchanged" && sceneDeclinePolicy !== "qualitative_setup_v1") {
@@ -405,6 +423,7 @@ export function parseOptions(argv: string[]): Options {
     model,
     scenePlannerLimitMs: parsedScenePlannerLimit,
     figureOnly: flags.has("figure-only") ? flags.get("figure-only") !== "false" : evalFiles.length > 0,
+    plannerOnly,
     yes: flags.get("yes") === "true",
     maxUsd,
     spendMode,
@@ -776,9 +795,15 @@ async function main(): Promise<void> {
   const configResponse = await fetch(`${options.origin}/api/lecture-lab/config`, { headers: configHeaders });
   if (!configResponse.ok) throw new Error("authenticated lab provider preflight failed");
   const serverConfig = await configResponse.json() as { provider: string; deployment: string | null; configured: boolean;
+    plannerProbe?: { version: string; timeoutMs: number; maxAttempts: number };
     modelProfile: LabModelProfile; inputBounds: Record<"picker" | "scene", { inputByteMultiplier: number; addedInputBytes: number }>;
     plannerOutputCap: number; teachingOutputCap: number; visualNeed?: Record<string, unknown>;
     planningSpeed?: { sceneEffort: string; priority: boolean; requestTier: string } };
+  if (options.plannerOnly && (endpoint.provider !== "fireworks" ||
+      serverConfig.plannerProbe?.version !== "primary-request-probe/v1" ||
+      serverConfig.plannerProbe.timeoutMs !== 120_000 || serverConfig.plannerProbe.maxAttempts !== 1)) {
+    throw new Error("planner-only requires the authenticated Fireworks 120 s single-attempt server profile");
+  }
   if (!serverConfig.configured || serverConfig.provider !== providerConfig.provider || serverConfig.deployment !== providerConfig.deployment ||
     !labModelProfilesMatch(modelProfile, serverConfig.modelProfile) ||
     !Number.isSafeInteger(serverConfig.plannerOutputCap) || serverConfig.plannerOutputCap <= 0 ||
@@ -804,6 +829,7 @@ async function main(): Promise<void> {
       priority: serverConfig.planningSpeed?.priority === true },
     figureSelectionPolicy: PRODUCTION_SCENE_SELECTION_VERSION,
     figureOnly: options.figureOnly, scenePlannerLimitMs: options.scenePlannerLimitMs,
+    ...(options.plannerOnly ? { plannerOnly: "primary-request-probe/v1" } : {}),
     familiarity: options.familiarity, narrationLanguage: options.narrationLanguage,
     exampleLibraryFingerprint: labSampleFingerprint(diagramExamples),
     sceneDeclinePolicy: options.sceneDeclinePolicy, exampleExclusionFingerprint,
@@ -903,6 +929,7 @@ async function main(): Promise<void> {
   }, null, 1)}\n`);
   checkpointSpend();
   const budgetDeniedTraces = new Set<string>();
+  const probeResponses = new Map<string, NonNullable<LectureRun["plannerProbe"]>["responses"]>();
   const budgetTerminatedRows: string[] = [];
   const writeSummary = () => {
     const judgingStatus = {
@@ -951,6 +978,10 @@ async function main(): Promise<void> {
       // authenticated lab probes/asks must not fall through to Fast IR either.
       if (endpoint.provider === "fireworks") headers.set(LECTURE_LAB_STANDARD_MODEL_HEADER, "1");
     }
+    if (options.plannerOnly) {
+      assertPlannerOnlyRequest(url, headers, options.origin);
+      headers.set(LECTURE_LAB_PLANNER_PROBE_HEADER, "1");
+    }
     const traceId = headers.get("x-heytutor-trace-id");
     if (url === `${options.origin}/api/visual-need`) {
       return budgetedVisualNeedFetch(input, { ...init, headers }, nativeFetch, {
@@ -974,7 +1005,7 @@ async function main(): Promise<void> {
         : plannerRequest && headers.get("x-scene-planner-version") === "2" && requestUrl.searchParams.get("diagramExampleIds")
           ? serverConfig.inputBounds.scene : undefined;
       // The proxy dispatches up to two planner or three teaching attempts.
-      const maxAttempts = chatRequest ? plannerRequest ? 2 : 3 : 1;
+      const maxAttempts = chatRequest ? plannerRequest ? options.plannerOnly ? 1 : 2 : 3 : 1;
       const requestWorstCaseUsd = chatRequest || directProviderRequest
         ? plannerRequestWorstCaseUsd(init, requestModel, chatRequest ? plannerRequest ? serverConfig.plannerOutputCap : serverConfig.teachingOutputCap : 0,
           inputBound) * maxAttempts * (plannerRequest && serverConfig.planningSpeed?.priority ? 2 : 1)
@@ -1011,6 +1042,24 @@ async function main(): Promise<void> {
       const requestStartedAt = Date.now();
       try {
         const response = await nativeFetch(input, { ...init, headers });
+        // Keep completed paid evidence before releasing its in-flight ceiling.
+        // If parsing or saving fails, the conservative failure path keeps it.
+        if (options.plannerOnly && traceId) {
+          const rawResponseText = await response.clone().text();
+          let payload: { choices?: Array<{ finish_reason?: unknown; message?: { content?: unknown } }>; usage?: unknown } | null = null;
+          try { payload = JSON.parse(rawResponseText); } catch { /* Retain malformed provider envelopes too. */ }
+          const values = probeResponses.get(traceId) ?? [];
+          values.push({ kind: requestProfile.requestKind, elapsedMs: Date.now() - requestStartedAt,
+            requestSha256: labSampleFingerprint([init?.body]), status: response.status,
+            model: response.headers.get("x-heytutor-planner-model"), rawResponseText,
+            thinking: response.headers.get("x-heytutor-probe-thinking"),
+            outputCap: response.headers.get("x-heytutor-probe-output-cap"),
+            finishReason: payload?.choices?.[0]?.finish_reason ?? null,
+            rawContent: payload?.choices?.[0]?.message?.content ?? null, usage: payload?.usage ?? null });
+          probeResponses.set(traceId, values);
+          mkdirSync(`${outDir}/partial`, { recursive: true });
+          writeFileSync(`${outDir}/partial/${traceId}.json`, JSON.stringify(values, null, 1), { mode: 0o600 });
+        }
         if (plannerRequest) await usageTracker.recordResponse(traceId, response, requestWorstCaseUsd, maxAttempts, requestModel, {
           ...requestProfile,
           elapsedMs: Date.now() - requestStartedAt,
@@ -1074,6 +1123,7 @@ async function main(): Promise<void> {
           difficulty: probe.difficulty,
           arm: options.arm,
           figureOnly: options.figureOnly,
+          plannerOnly: options.plannerOnly,
           fastMode: evaluationRunFastMode(Boolean(evaluationRows), options.model),
           scenePlannerDeadlineMs: evaluationRows ? options.scenePlannerLimitMs : undefined,
           subject: parseDiagramSubject(evaluationById.get(probe.id)?.subject),
@@ -1086,6 +1136,7 @@ async function main(): Promise<void> {
           spendMode: options.spendMode,
         });
         run.planner = await usageTracker.finishAsync(traceId);
+        if (run.plannerProbe) run.plannerProbe.responses = probeResponses.get(traceId) ?? [];
         if (run.visualNeed?.origin === "live_service") run.visualNeed.accounting = visualNeedAccountingByTrace.get(traceId);
         if (budgetDeniedTraces.has(traceId)) {
           budgetTerminatedRows.push(probe.id);

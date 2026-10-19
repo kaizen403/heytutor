@@ -31,6 +31,7 @@ export function labProviderConfig() {
     thinking: { type: "enabled", budget_tokens: 2048 },
   }, endpoint)));
   return {
+    plannerProbe: { version: "primary-request-probe/v1", timeoutMs: 120_000, maxAttempts: 1 },
     provider: endpoint.provider, deployment: endpoint.deployment,
     configured,
     modelProfile: configured ? buildLabModelProfile({ endpoint, env: process.env }) : null,
