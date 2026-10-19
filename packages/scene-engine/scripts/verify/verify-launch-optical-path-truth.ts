@@ -114,3 +114,30 @@ console.log('launch optical-path truth: declared optical entry clips at boundary
     assert(!compiled.ok && compiled.report.issues.some(i => i.code === 'invalid_optical_medium_binding'), 'an explicit quantityId wins over a shared printed symbol');
     console.log('launch optical-path truth: explicit medium quantity beats a shared symbol');
 }
+
+// Greptile #214 (opticalPathTruth.ts:203): an incoming vector drawn from the contact
+// point along travel still gets its media checked (the light came from behind it).
+{
+    const vectorDocument = (n1: number | string, n2: number | string) => {
+        const d = boundaryDocument();
+        for (const [id, x, y] of [['inc_tip', 1, 0.4], ['nrm_tip', -1, 0]] as const) {
+            d.entities.push({ id, kind: 'point', role: 'helper' });
+            d.constructions.push({ id: `p_${id}`, operator: 'point', inputs: { x, y, coordinateSpace: 'world' }, outputs: [id] });
+        }
+        d.entities = d.entities.filter(e => !['incoming', 'normal'].includes(e.id));
+        d.entities.push({ id: 'inc', kind: 'vector', role: 'incoming direction' }, { id: 'nrm', kind: 'vector', role: 'normal' });
+        d.constructions = d.constructions.filter(c => c.id !== 'event');
+        d.constructions.push(
+            { id: 'inc_c', operator: 'vector', inputs: { start: 'contact', end: 'inc_tip' }, outputs: ['inc'] },
+            { id: 'nrm_c', operator: 'vector', inputs: { start: 'contact', end: 'nrm_tip' }, outputs: ['nrm'] },
+            { id: 'event', operator: 'refract_direction', inputs: { origin: 'contact', incoming: 'inc', normal: 'nrm', n1, n2 }, outputs: ['outgoing'] },
+        );
+        d.requiredEntityIds = ['body', 'face', 'inc', 'nrm', 'outgoing'];
+        d.revealGroups = [{ id: 'setup', entityIds: [...d.requiredEntityIds], dependsOn: [], narrationCue: 'Boundary.' }];
+        return d;
+    };
+    const swapped = compileSceneDocument(vectorDocument('n', 1));
+    assert(!swapped.ok && swapped.report.issues.some(i => i.code === 'invalid_optical_medium_binding'), `a contact-start incoming vector cannot use the glass index outside the glass: ${JSON.stringify(swapped.report.issues.map(i => i.code))}`);
+    admit(vectorDocument(1, 'n'), 'a contact-start incoming vector entering glass with the right indices is admitted');
+    console.log('launch optical-path truth: contact-start incoming vectors are checked');
+}

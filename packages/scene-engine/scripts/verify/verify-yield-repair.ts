@@ -193,3 +193,28 @@ assert(
   setCheck([seed], fakePath).length > 0,
   "an analytic ground line is not a retained motion path",
 );
+
+// Greptile #214 (repairSurvivorship.ts:260): deleting required segment A and giving
+// segment B A's role must not let B count for both A and B.
+{
+  const segments = (roles: Record<string, string>, keep: string[]): Document => ({
+    entities: [
+      ...["p", "q", "r"].map((id) => ({ id, kind: "point", role: "corner" })),
+      ...keep.map((id) => ({ id, kind: "segment", role: roles[id] })),
+    ],
+    constructions: [
+      ...["p", "q", "r"].map((id, index) => ({ id: `make_${id}`, operator: "point", inputs: { x: index, y: index * index }, outputs: [id] })),
+      ...keep.map((id) => ({ id: `make_${id}`, operator: "segment", inputs: id === "A" ? { start: "p", end: "q" } : { start: "q", end: "r" }, outputs: [id] })),
+    ],
+    requiredEntityIds: ["p", "q", "r", ...keep],
+    revealGroups: [{ id: "setup", entityIds: ["p", "q", "r", ...keep] }],
+  });
+  const original = segments({ A: "wall", B: "floor" }, ["A", "B"]);
+  const merged = segments({ B: "wall" }, ["B"]);
+  assert(
+    repair.validateRepairSurvivorship(original, merged).length > 0,
+    "one replacement segment cannot stand in for two required segments",
+  );
+  assert.deepEqual(repair.validateRepairSurvivorship(original, structuredClone(original)), [], "an unchanged repair keeps both segments");
+}
+console.log("yield repair: one replacement serves one requirement");

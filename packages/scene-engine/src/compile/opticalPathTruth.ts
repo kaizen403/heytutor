@@ -198,7 +198,12 @@ function validateBodyMedia(document: SceneDocument, geometry: ReadonlyMap<string
             const contact = outgoing.points[0]!;
             if (!polygon.points.some((p, i) => nearSegment(contact, p, polygon.points[(i + 1) % polygon.points.length]!, tolerance)))
                 continue;
-            const before = subtract(incident.points[0]!, contact), after = subtract(outgoing.points[1]!, contact);
+            // An incoming vector drawn from the contact points along travel: the
+            // light came from the opposite side, so reverse it instead of skipping.
+            const fromStart = subtract(incident.points[0]!, contact);
+            const travel = subtract(incident.points.at(-1)!, contact);
+            const before = norm(fromStart) > tolerance ? fromStart : { x: -travel.x, y: -travel.y };
+            const after = subtract(outgoing.points[1]!, contact);
             if (norm(before) <= tolerance || norm(after) <= tolerance)
                 continue;
             const step = Math.max(tolerance * 10, span * 1e-4);

@@ -228,9 +228,11 @@ export function validateRepairSurvivorship(
   const repairedProducers = producers(replacement);
   const retained = retainedEntities(replacement, repairedProducers);
   const originalEntities = records(seed.entities);
-  return originalEntities.flatMap((entity): SceneIssue[] => {
+  // Each replacement entity can stand in for one original requirement only:
+  // B renamed into A's role cannot also count as the stable B.
+  const matches = originalEntities.map((entity): { entity: RecordValue; match: unknown } | null => {
     if (!originalRequired.has(String(entity.id)) || entity.kind === "label")
-      return [];
+      return null;
     const eligible = entities.filter(
       (candidate) =>
         retained.has(candidate.id) &&
@@ -251,16 +253,22 @@ export function validateRepairSurvivorship(
       (other) =>
         originalRequired.has(String(other.id)) && role(other) === role(entity),
     ).length;
+    if (stable.length === 1) return { entity, match: stable[0]!.id };
     if (
-      stable.length === 1 ||
-      (!entities.some((candidate) => candidate.id === entity.id) &&
-        originalRoleCount === 1 &&
-        renamed.length === 1)
+      !entities.some((candidate) => candidate.id === entity.id) &&
+      originalRoleCount === 1 &&
+      renamed.length === 1
     )
-      return [];
+      return { entity, match: renamed[0]!.id };
+    return { entity, match: undefined };
+  });
+  const uses = new Map<unknown, number>();
+  for (const item of matches) if (item?.match !== undefined) uses.set(item.match, (uses.get(item.match) ?? 0) + 1);
+  return matches.flatMap((item): SceneIssue[] => {
+    if (!item || (item.match !== undefined && uses.get(item.match) === 1)) return [];
     return [
       lost(
-        typeof entity.id === "string" ? [entity.id] : [],
+        typeof item.entity.id === "string" ? [item.entity.id] : [],
         "A repair must retain each required geometric element with compatible construction meaning and a stable ID or unambiguous role.",
       ),
     ];
