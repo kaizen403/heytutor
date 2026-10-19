@@ -45,6 +45,7 @@ import {
   reconcileTurnPlanWithSolver,
   verifyTurnPlanAgainstSolver,
   type FigureSource,
+  type SceneCompletionDiagnosticsV3,
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
 import {
@@ -74,7 +75,7 @@ import { isTeachingResponseIncomplete } from "@/features/tutor-session/lib/turn/
 import { MAX_LLM_CONTINUATIONS } from "@/features/tutor-session/constants";
 import { parseDiagramSubject, type DiagramSubject } from "@heytutor/tutor-core";
 import { sceneDeclineExperimentGuidance, type SceneDeclinePolicy } from "./sceneDeclineExperiment";
-import { createPlannerEvidence, recordPlannerResponse, recordRejectedOperatorCalls, type PlannerEvidence } from "./plannerEvidence";
+import { createPlannerEvidence, recordPlannerResponse, recordRejectedOperatorCalls, retainValidationIssue, type PlannerEvidence, type RetainedValidationIssue } from "./plannerEvidence";
 import {
   classifyDiagramEmptyCause,
   evaluationDecision,
@@ -96,6 +97,7 @@ import { fetchVisualNeedAssessment, type VisualNeedAssessment } from "@/features
 import { LAB_VISUAL_NEED_POLICY, visualNeedQuestionHash, type LabVisualNeedEvidence } from "./labVisualNeed";
 import { labStrategyDecision, pickProductionLabExamples } from "./productionLabProfile";
 import type { LabSpendMode } from "./labSpend";
+import { retainSolverEvidence, type SolverEvidence } from "./solverEvidence";
 
 export interface LectureStep {
   index: number;
@@ -173,6 +175,8 @@ export interface LectureRun {
     issueCodes: string[];
     hasProjection: boolean;
     projection: unknown;
+    /** Missing on historical captures; bounded full numeric-authority evidence. */
+    evidence?: SolverEvidence;
   } | null;
   planner?: PlannerUsageSummary;
   /** Observed TurnPlan completions only; absent on historical runs, bounded to three attempts. */
@@ -221,12 +225,15 @@ export interface LectureRun {
     plannerResponses?: Array<{ phase: string; lane: string; selected: boolean; rawContent: string }>;
     examplesUsed?: Array<Pick<DiagramExemplar,
       "id" | "sourceKind" | "question" | "depicts" | "figureKind" | "family" | "archetype">>;
-    validationIssues?: Array<{ code: string; severity: "fatal" | "warning"; message: string }>;
+    /** Final attempted representation only; full planner refusals live in candidateRejections. */
+    validationIssues?: RetainedValidationIssue[];
     degradationReason: string | null;
     /** Strict-arm fallback that compiled but was intentionally not rendered. */
     suppressedFallback?: { figureSource: FigureSource; family: string | null } | null;
     /** A candidate that passed validation as a scene but was not the figure drawn. */
     droppedCandidate?: DroppedSceneCandidate | null;
+    /** Full proposal outcome; absent when additive completion did not run. */
+    completion?: SceneCompletionDiagnosticsV3;
     /** The committed board figure as SVG, so a reviewer sees what the student saw. */
     svg: string | null;
     png?: string | null;
@@ -736,6 +743,8 @@ export async function runLecture(
       candidateValidation: result?.validation, fastRepresentation,
       exactFigureSource: planning.figureSource === "verified_recovery" ? "verified_recovery" : "planner",
       solverAuthorityBlocked, requiredRetryEnabled: REQUIRED_DIAGRAM_RETRY_ENABLED,
+      completionEnabled: process.env.NEXT_PUBLIC_SCENE_COMPLETION_BY_CONSTRUCTION === "1",
+      solverAuthority: problemAuthority ? { problemIR: problemAuthority.problemIR, solverResult: problemAuthority.solverResult } : null,
       policy: {
         preferPlanner: planning.gate.diagramStrategy.strategy === "strict",
         allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(planning.gate.diagramStrategy, source)),
@@ -753,6 +762,9 @@ export async function runLecture(
     });
     const sceneSelection = selectProductionScene(sceneSelectionInput);
     const selected = sceneSelection.representation;
+    // completion-diagnostics:begin
+    run.diagram.completion = sceneSelection.completion;
+    // completion-diagnostics:end
     const attempted = sceneSelection.attemptedRepresentation;
     const sceneDocument = selected?.sceneDocument ?? null;
     const renderScene = selected?.renderScene ?? null;
@@ -764,9 +776,7 @@ export async function runLecture(
     run.diagram.figureSource = selected?.figureSource ?? "text_only";
     run.diagram.reason = sceneSelection.reason;
     run.diagram.family = figureFamily;
-    run.diagram.validationIssues = attempted?.validationReport.issues.map((issue) => ({
-      code: issue.code, severity: issue.severity, message: issue.message,
-    })) ?? [];
+    run.diagram.validationIssues = attempted?.validationReport.issues.map(retainValidationIssue) ?? [];
     if (attempted && !sceneSelection.sourceAllowed && sceneSelection.hasReadableInk) {
       run.diagram.suppressedFallback = { figureSource: attempted.figureSource, family: attempted.family ?? null };
     }
@@ -798,12 +808,7 @@ export async function runLecture(
       assumptions: turnPlan.assumptions,
     };
     run.solver = problemAuthority
-      ? {
-          status: problemAuthority.audit.status,
-          issueCodes: problemAuthority.audit.issues.map((issue) => issue.code),
-          hasProjection: Boolean(problemAuthority.projection),
-          projection: problemAuthority.projection ?? null,
-        }
+      ? retainSolverEvidence(problemAuthority, question, turnPlan)
       : null;
 
     let diagramPromptAddon: string | null = null;

@@ -23,10 +23,11 @@
     "verify:planning-speed": "tsx scripts/verify/verify-planning-speed.ts",
     "preverify": "node ../../tools/verify/run-gates.mjs scripts/verify/pre-gates.txt",
     "verify:lab-visual-need": "tsx scripts/verify/verify-lab-visual-need.ts && tsx scripts/verify/verify-visual-need-null.ts && tsx scripts/verify/verify-visual-need-audit.ts",
-    "verify:production-selection": "tsx scripts/verify/verify-production-scene-selection.ts && tsx scripts/verify/verify-valid-candidate-parity.ts && tsx scripts/verify/verify-live-save-parity.ts && tsx scripts/verify/verify-lab-production-profile.ts && pnpm verify:lesson-save-reopen",
+    "verify:production-selection": "tsx scripts/verify/verify-production-scene-selection.ts && tsx scripts/verify/verify-projectile-speed-literal.ts && tsx scripts/verify/verify-valid-candidate-parity.ts && tsx scripts/verify/verify-live-save-parity.ts && tsx scripts/verify/verify-lab-production-profile.ts && pnpm verify:lesson-save-reopen",
     "verify:lesson-save-reopen": "node --experimental-test-module-mocks --import tsx scripts/verify/verify-lesson-save-reopen.ts",
     "verify:storage-admission": "node --experimental-test-module-mocks --import tsx scripts/verify/verify-storage-admission.ts && tsx scripts/verify/verify-storage-save-client.ts && tsx scripts/verify/verify-storage-reconciliation-cli.ts && tsx scripts/verify/verify-storage-object-metadata.ts && node --experimental-test-module-mocks --import tsx scripts/verify/verify-storage-admission-fallback.ts && tsx scripts/verify/verify-storage-audio-urls.ts && node --experimental-test-module-mocks --import tsx scripts/verify/verify-storage-historical-accounting.ts && node --experimental-test-module-mocks --import tsx scripts/verify/verify-storage-save-policy.ts",
-    "verify:diagram-experiments": "tsx scripts/verify/verify-physics-hybrid.ts && tsx scripts/verify/verify-scene-decline-experiment.ts && tsx scripts/verify/verify-planner-evidence.ts && tsx scripts/verify/verify-strict-planner-selection.ts",
+    "verify:region-contracts": "tsx scripts/verify/verify-linear-source-set-admission.mts && tsx scripts/verify/verify-region-solver-admission.mts && tsx scripts/verify/verify-linear-source-plan-admission.ts && tsx scripts/verify/verify-linear-region-live-labels.ts",
+    "verify:diagram-experiments": "tsx scripts/verify/verify-physics-hybrid.ts && tsx scripts/verify/verify-scene-decline-experiment.ts && tsx scripts/verify/verify-planner-evidence.ts && tsx scripts/verify/verify-scene-rejection-evidence.ts && tsx scripts/verify/verify-strict-planner-selection.ts && tsx scripts/verify/verify-linear-source-representation.ts && tsx scripts/verify/verify-linear-planner-first.ts && tsx scripts/verify/verify-solver-evidence.ts && tsx scripts/verify/verify-linear-readable-admission.ts && pnpm verify:region-contracts && tsx scripts/verify/verify-linear-symbol-domain-admission.ts && tsx scripts/verify/verify-linear-domain-property-admission.ts && tsx scripts/verify/verify-linear-incomplete-source-admission.ts && pnpm verify:completion",
     "verify:diagram-client-bundle": "tsx scripts/verify/verify-diagram-client-bundle.ts",
     "verify:lab-rasterization": "node scripts/verify/verify-lab-rasterization.mjs",
     "diagram:anchor-gallery": "tsx scripts/lecture-lab/anchor-gallery.ts",
@@ -60,6 +61,7 @@
     "verify:primitive-tour": "tsx scripts/verify/verify-primitive-tour.ts",
     "verify:dsa-intro-order": "tsx scripts/verify/verify-dsa-intro-order.ts",
     "verify:lecture-replay-inputs": "tsx scripts/verify/verify-lecture-replay-inputs.ts",
+    "verify:completion": "node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-admission.ts && node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-boundary-admission.ts && tsx scripts/verify/verify-structured-completion-diagnostics.ts && node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-owner-admission.ts",
     "verify:yield": "tsx scripts/verify/verify-yield-answer-reveal.ts && tsx scripts/verify/verify-yield-admission.ts"
   },
   "dependencies": {
