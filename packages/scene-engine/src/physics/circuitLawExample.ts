@@ -79,7 +79,7 @@ export function buildCircuitLawExample(question: string): SceneDocument | null {
   scene.labelled(...graph.terminals, ...polarityIds);
   scene.group("law_example", [...graph.terminals, ...branchPaths.flat(), ...arrows, heading, reference, loop, ...laws,
     ...polarityIds],
-  `Symbolic example. Reference arrows. Reference positive terminal and reference negative terminal signs are choices in this symbolic example. ${junctionRequired ? "Junction A" : "A"} and B are terminals. Loop A-B-A is a closed path. ${graph.branches.map(branch => branch.symbol).join(", ")} are unknown component symbols. ${graph.branches.map(branch => branch.current).join(", ")} are chosen reference directions, not solved currents. ${source.lawSet.includes("current") ? "ΣI = 0." : ""} ${source.lawSet.includes("voltage") ? "ΣΔV = 0." : ""}`);
+  `This Symbolic example has chosen Reference arrows ${graph.branches.map(branch => branch.current).join(", ")}, chosen + and − signs, unknown ${graph.branches.map(branch => branch.symbol).join(", ")}, terminals ${junctionRequired ? "Junction A" : "A"} and B, closed Loop A-B-A, and laws ${source.lawSet.map(law => law === "current" ? "ΣI = 0" : "ΣΔV = 0").join(" and ")}.`);
   const document = scene.build();
   document.source = { question, synthesizedFamily: true, sourceModel: "circuit_law_example", nonMetric: true,
     lawSet: source.lawSet, requestSpans: source.requestSpans };
