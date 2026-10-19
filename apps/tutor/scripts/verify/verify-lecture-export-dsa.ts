@@ -10,7 +10,7 @@ import { getMockCodeLessonPlan } from "@heytutor/tutor-core";
 import { getSegmentCommands, parseStoredSegmentCommands, serializeSegmentCommands, verifiedDiagramCommandToDrawCommand, type DrawCommand } from "@heytutor/drawing";
 import type { StoredTurn } from "../../lib/boards/boardsClient";
 import { boardContinuationArtifacts } from "../../lib/boards/boardContinuation";
-import { LECTURE_PAGE_CACHE_REVISION, lecturePageCacheKey } from "../../lib/lecture-export/canExportLectureMp4";
+import { lecturePageCacheKey } from "../../lib/lecture-export/canExportLectureMp4";
 import { resolveDsaFrames } from "../../features/tutor-session/lib/code-lesson/dsaFrames";
 import { storedCodeLessonPlan } from "../../lib/code-lesson/persistedCodeLesson";
 import { mountTestWhiteboard, unmountTestWhiteboard } from "../../../../packages/whiteboard/scripts/whiteboardTestHarness";
@@ -143,7 +143,7 @@ async function download(turns: StoredTurn[], cancelAtFrame = false, cancelAtExpi
   let result: LectureExportResult | undefined, failure: unknown;
   let api!: LectureExportApi;
   const cacheLookups: string[] = [];
-  const oldCacheKeys = [6, 7].map(revision => lecturePageCacheKey(turns).replace(/@video\d+(?=\.|$)/, `@video${revision}`));
+  const oldCacheKeys = [6, 7].map(revision => lecturePageCacheKey(turns).replace(/@render-[a-f0-9]{64}(?=\.|$)/, `@video${revision}`));
   const timers = new Set<ReturnType<typeof setTimeout>>();
   const ownedSetTimeout = (fn: () => void, ms?: number) => {
     const timer = setTimeout(() => { timers.delete(timer); fn(); }, ms);
@@ -226,56 +226,12 @@ async function download(turns: StoredTurn[], cancelAtFrame = false, cancelAtExpi
 }
 
 async function cacheUpgradePrunesPreviousRevisions(): Promise<void> {
-  const file = process.env.DSA_EXPORT_CACHE_SOURCE ?? path.join(app, "lib/lecture-export/lectureExportCache.ts");
-  const cacheModule = { exports: {} as typeof import("../../lib/lecture-export/lectureExportCache") };
-  const value = { blob: new Blob(["retained current export"]), mimeType: "video/mp4", extension: "mp4", noVoice: true, missingAudioCues: 0 };
-  const currentVersion = Number(LECTURE_PAGE_CACHE_REVISION.slice("video".length));
-  assert.ok(currentVersion >= 11, "shared media-clock exports must invalidate video10 and earlier caches");
-  const currentKey = `page@1@${LECTURE_PAGE_CACHE_REVISION}`;
-  const keys = ["page@1.25@video6", "page@1.25@video7", "page@1.25@video7.webm", "page@1.25@video8", "page@1.25@video8.webm", "page@1.25@video9", "page@1.25@video9.webm", "page@1@video10", "page@1@video10.webm", currentKey, `${currentKey}.webm`, `page@1@video${currentVersion + 1}`, "unrelated"];
-  const rows = new Map(keys.map(key => [key, value]));
-  let openedVersion: number | undefined;
-  let finishUpgrade: (() => void) | undefined;
-  const store = {
-    openCursor: () => {
-      const originalKeys = [...rows.keys()];
-      let index = 0;
-      const request = { result: null as null | { key: string; delete: () => void; continue: () => void }, onsuccess: undefined as (() => void) | undefined };
-      const next = () => queueMicrotask(() => {
-        const key = originalKeys[index++];
-        request.result = key === undefined ? null : { key, delete: () => { rows.delete(key); }, continue: next };
-        request.onsuccess?.();
-        if (key === undefined) finishUpgrade?.();
-      });
-      next();
-      return request;
-    },
-    get: (key: string) => {
-      const request = { result: rows.get(key), onsuccess: undefined as (() => void) | undefined, onerror: undefined as (() => void) | undefined };
-      queueMicrotask(() => request.onsuccess?.());
-      return request;
-    },
-  };
-  const db = { objectStoreNames: { contains: () => true }, close: () => {}, transaction: () => ({ objectStore: () => store }) };
-  const indexedDb = { open: (_name: string, version: number) => {
-    openedVersion = version;
-    const request = { result: db, transaction: { objectStore: () => store }, onupgradeneeded: undefined as (() => void) | undefined, onsuccess: undefined as (() => void) | undefined };
-    queueMicrotask(() => {
-      // The browser opens only after the upgrade transaction's cursor finishes.
-      finishUpgrade = () => queueMicrotask(() => request.onsuccess?.());
-      request.onupgradeneeded?.();
-    });
-    return request;
-  } };
-  const context = vm.createContext({ module: cacheModule, exports: cacheModule.exports, Blob, indexedDB: indexedDb, require: (name: string) => {
-    if (name === "./canExportLectureMp4") return hook(path.join(app, "lib/lecture-export/canExportLectureMp4.ts"));
-    return requireApp(name);
-  } });
-  new vm.Script(ts.transpileModule(readFileSync(file, "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText).runInContext(context);
-  const current = await cacheModule.exports.getCachedLectureExport(currentKey);
-  assert.equal(openedVersion, currentVersion, "the actual IndexedDB cache upgrades past truncated and pitched files");
-  assert.equal(current?.blob, value.blob, "the current valid cached file remains usable");
-  assert.deepEqual([...rows.keys()], keys.slice(9), "the actual cache cursor deletes older video6/video7 and video8/video9/video10 blobs, retaining current, future and unrelated keys");
+  // Shared actual-cache controls retain old DSA/pitched key pruning, current
+  // file retention, numeric schema migration and transactional abort checks.
+  const { spawnSync } = await import("node:child_process");
+  const outcome = spawnSync(process.execPath, ["--import", "tsx", path.join(app, "scripts/verify/verify-lecture-cache-revisions.ts")], { stdio: "inherit", env: process.env });
+  if (outcome.error) throw outcome.error;
+  assert.equal(outcome.status, 0, "actual persistent cache prunes old DSA exports and retains current render hashes");
 }
 
 async function main() {
