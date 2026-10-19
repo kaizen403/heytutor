@@ -1,3 +1,4 @@
+import { parseDiagramYieldPolicy, type DiagramYieldPolicy } from "@heytutor/scene-engine";
 import { resolveApiUrl, parseDiagramStrictSubjects, type DiagramSubject } from "@heytutor/tutor-core";
 import type { CheckoutPlanId } from "./catalog";
 import { isBillingErrorCode } from "./errors";
@@ -23,6 +24,7 @@ export interface BeginTurnOk {
   ttsCharsRemaining: number;
   diagramStrategy: DiagramStrategy;
   diagramStrictSubjects?: DiagramSubject[];
+  diagramYieldPolicy?: DiagramYieldPolicy;
 }
 
 export interface BeginTurnErr {
@@ -223,6 +225,7 @@ async function beginTurnOnce(input: {
     planId: typeof payload.planId === "string" ? payload.planId : "free",
     diagramStrategy: payload.diagramStrategy === "strict" ? "strict" : "current",
     diagramStrictSubjects: parseDiagramStrictSubjects(payload.diagramStrictSubjects),
+    diagramYieldPolicy: parseDiagramYieldPolicy(payload.diagramYieldPolicy),
     nextResetAt: typeof payload.nextResetAt === "number" ? payload.nextResetAt : null,
     ttsCharsRemaining: typeof payload.ttsCharsRemaining === "number" ? payload.ttsCharsRemaining : 0,
   };

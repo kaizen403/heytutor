@@ -21,6 +21,8 @@ export interface VerifiedDiagramGroup {
 }
 
 export interface VerifiedDeferredAnnotation {
+  /** Computed answers remain hidden until the teaching sequence finishes. */
+  revealAfterLesson?: boolean;
   entityId: string;
   commands: VerifiedDiagramCommand[];
 }
