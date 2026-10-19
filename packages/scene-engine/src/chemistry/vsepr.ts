@@ -456,15 +456,73 @@ function actualLonePairs(result: VseprResult): number {
   return result.lonePairs - (result.unpairedElectron ? 1 : 0);
 }
 
-type ShapeClaim = { shape: VseprShape; target: "electron" | "molecular" | null; negated: boolean };
+type ShapeClaim = { shape: VseprShape; target: "electron" | "molecular" | null; negated: boolean; owners: readonly string[] | null };
+
+interface ShapeOwnerMention { start: number; end: number; key: string }
+
+/** Keep formula case and charge: a sibling molecule cannot describe this one. */
+function shapeOwnerMentions(clause: string): ShapeOwnerMention[] {
+  let from = 0;
+  return formulaTokens(clause.replace(/,/g, " ")).flatMap(token => {
+    const start = clause.indexOf(token, from);
+    const parsed = parseFormula(token);
+    if (start < 0 || !parsed) return [];
+    from = start + token.length;
+    return [{ start, end: from, key: compositionKey(parsed) }];
+  });
+}
+
+/** A postposed "shape of X" or a local subject owns this shape, not its neighbour. */
+function localShapeOwners(
+  clause: string, start: number, end: number, nextStart: number,
+  mentions: readonly ShapeOwnerMention[], inherited: readonly string[] | null,
+): readonly string[] | null {
+  const tail = clause.slice(end, nextStart);
+  const postposed = /^\s+(?:(?:(?:molecular|electron(?:[ -](?:domain|pair))?)\s+)?(?:shapes?|geometr(?:y|ies)|arrangements?)\s+)?(?:of|for|in)\s+(?:(?:the|molecule|ion)\s+)*/i.exec(tail);
+  if (postposed) {
+    const owner = mentions.find(mention => mention.start === end + postposed[0].length);
+    if (owner) {
+      const owners = [owner.key];
+      let at = mentions.indexOf(owner);
+      while (at + 1 < mentions.length && mentions[at + 1]!.start < nextStart
+        && /^\s*(?:,\s*(?:(?:and|or)\s+)?|(?:and|or)\s+)$/i.test(clause.slice(mentions[at]!.end, mentions[at + 1]!.start))) {
+        owners.push(mentions[++at]!.key);
+      }
+      return owners;
+    }
+  }
+  const before = mentions.filter(mention => mention.end <= start);
+  const subject = [...before].reverse().find(mention => /^\s*(?:(?:molecule|ion|species)\s+)?(?:is|are|has|have|adopts?|exhibits?|shows?)\b/i.test(clause.slice(mention.end, start)));
+  if (subject) {
+    const owners = [subject.key];
+    let at = before.indexOf(subject);
+    // A shared subject ("X and Y have ...") describes both, never just Y.
+    while (at > 0 && /^\s*(?:,\s*(?:(?:and|or)\s+)?|(?:and|or)\s+)$/i.test(clause.slice(before[at - 1]!.end, before[at]!.start))) {
+      owners.push(before[--at]!.key);
+    }
+    return owners;
+  }
+  if (before.length) {
+    const keys = [...new Set(before.map(mention => mention.key))];
+    return keys.length === 1 ? keys : null;
+  }
+  return inherited;
+}
 
 /** Bind each geometry in its property clause, including compound claims. */
-function shapeClaims(text: string): ShapeClaim[] {
+function shapeClaims(text: string, result: VseprResult): ShapeClaim[] {
   const claims: ShapeClaim[] = [];
-  for (const clause of text.split(/[.;:]|\b(?:but|while|whereas|although|because)\b|,\s*derived\s+from\b/)) {
+  let inheritedOwners: readonly string[] | null = [compositionKey(parseFormula(result.formula)!)];
+  for (const rawClause of repairOcr(normalizeChemistryText(text)).split(/[.;:]|\b(?:but|while|whereas|although|because)\b|,\s*derived\s+from\b/i)) {
+    const clause = rawClause.toLowerCase();
+    const mentions = shapeOwnerMentions(rawClause);
     const shapes = SHAPE_WORDS.flatMap(([pattern, shape]) => [...clause.matchAll(new RegExp(pattern.source, "g"))]
       .map((match) => ({ shape, start: match.index, end: match.index + match[0].length })))
       .sort((left, right) => left.start - right.start);
+    if (!shapes.length && mentions.length) {
+      const owners = [...new Set(mentions.map(mention => mention.key))];
+      inheritedOwners = owners.length === 1 ? owners : null;
+    }
     const roles: { start: number; end: number; target: "electron" | "molecular" }[] = [];
     const patterns: [RegExp, "electron" | "molecular"][] = [
       [/\bmolecular\s+(?:shape|geometry|arrangement)\b|\b(?:shape|geometry)\s+of\s+(?:the\s+)?(?:molecule|ion)\b/g, "molecular"],
@@ -476,7 +534,8 @@ function shapeClaims(text: string): ShapeClaim[] {
       roles.push({ start: match.index, end: match.index + match[0].length, target });
     }
     let previousShape: { end: number; negated: boolean } | undefined;
-    for (const shape of shapes) {
+    for (const [index, shape] of shapes.entries()) {
+      const owners = localShapeOwners(rawClause, shape.start, shape.end, shapes[index + 1]?.start ?? rawClause.length, mentions, inheritedOwners);
       const targets = new Set(roles.map((role) => role.target));
       let target: ShapeClaim["target"] = "molecular";
       if (targets.size === 1) target = [...targets][0]!;
@@ -493,7 +552,8 @@ function shapeClaims(text: string): ShapeClaim[] {
       const joinedNegative = previousShape?.negated === true
         && /^(?:\s*,\s*|\s+(?:or|nor)\s+|\s*,\s*(?:or|nor)\s+)(?:an?\s+)?$/.test(clause.slice(previousShape.end, shape.start));
       const negated = explicitNegative || joinedNegative;
-      claims.push({ shape: shape.shape, target, negated });
+      claims.push({ shape: shape.shape, target, negated, owners });
+      inheritedOwners = owners;
       previousShape = { end: shape.end, negated };
     }
   }
@@ -583,9 +643,10 @@ export function vseprPlanConflict(question: string, plan: TurnPlanV3): string | 
   const result = species[0]!;
   for (const claim of plan.qualitativeClaims) {
     const rawText = `${claim.claim}${typeof claim.expected === "boolean" ? "" : ` ${claim.expected}`}`.replace(/([a-z])[-\u2010-\u2015](?=[a-z])/gi, "$1 ");
-    const text = rawText.toLowerCase();
     const facts: Array<{ truth: boolean; property: string }> = [];
-    for (const described of shapeClaims(text)) {
+    const moleculeKey = compositionKey(parseFormula(result.formula)!);
+    for (const described of shapeClaims(rawText, result)) {
+      if (!described.owners?.includes(moleculeKey)) continue;
       const sourceShapes = described.target === null ? [result.shape, result.electronGeometry]
         : [described.target === "electron" ? result.electronGeometry : result.shape];
       const equal = sourceShapes.map(shape => shape === described.shape);
