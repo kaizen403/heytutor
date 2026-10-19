@@ -1,0 +1,205 @@
+[
+  {
+    "id": "review-real",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 has a seesaw molecular shape, whereas CH4 has a tetrahedral molecular shape.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "reverse-owner-order",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "CH4 has a tetrahedral molecular shape, whereas SF4 has a seesaw molecular shape.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "semicolon-transfer",
+    "question": "Show the molecular shape of NH3.",
+    "claim": "NH3 has a trigonal pyramidal molecular shape; BF3 has a trigonal planar molecular shape.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "and-subject-transfer",
+    "question": "Show the molecular shape of H2O.",
+    "claim": "H2O is bent and CO2 is linear.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "postposed-shape-owner",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "The tetrahedral molecular shape of CH4 contrasts with the seesaw molecular shape of SF4.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "other-owner-only",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "CH4 has a tetrahedral molecular shape.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "charged-owner-transfer",
+    "question": "Show the molecular shape of NH4+.",
+    "claim": "NH4+ has tetrahedral molecular geometry, while XeF4 has square planar molecular geometry.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "normalized-subscript-owner",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF₄ is seesaw, whereas CH₄ is tetrahedral.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "target-wrong-before-other",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 has a tetrahedral molecular shape, whereas CH4 has a tetrahedral molecular shape.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "target-wrong-after-other",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "CH4 has a tetrahedral molecular shape, whereas SF4 has a tetrahedral molecular shape.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "target-wrong-and-subject",
+    "question": "Show the molecular shape of H2O.",
+    "claim": "CO2 is linear and H2O is linear.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "postposed-target-wrong",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "The tetrahedral molecular shape of SF4 contrasts with the tetrahedral molecular shape of CH4.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "target-false-claim-other-correct",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 has a seesaw molecular shape, while CH4 has a tetrahedral molecular shape.",
+    "expected": false,
+    "draw": false
+  },
+  {
+    "id": "unqualified-wrong-control",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "The molecular shape is tetrahedral.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "same-target-repeated-wrong",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 is seesaw and SF4 is tetrahedral.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "same-target-list-wrong",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 is tetrahedral and square planar.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "shared-subject-wrong",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "SF4 and CH4 have tetrahedral molecular shapes.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "shared-subject-right-transfer",
+    "question": "Show the molecular shape of CH4.",
+    "claim": "CH4 and NH4+ have tetrahedral molecular shapes.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "same-atoms-other-charge",
+    "question": "Show the molecular shape of NH4+.",
+    "claim": "NH4- has a square planar molecular shape.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "target-wrong-electron-owner",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "CH4 has tetrahedral electron geometry, while SF4 has tetrahedral electron geometry.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "target-right-electron-owner",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "CH4 has tetrahedral electron geometry, while SF4 has trigonal bipyramidal electron geometry.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "owner-pronoun-after-other",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "CH4 is tetrahedral, whereas its electron geometry is tetrahedral.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "target-wrong-negated",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "CH4 is tetrahedral, whereas SF4 is not seesaw.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "target-correct-negated",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "CH4 is tetrahedral, whereas SF4 is not tetrahedral.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "postposed-shared-target-wrong",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "The tetrahedral molecular shapes of CH4 and SF4 are shown.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "postposed-shared-target-right",
+    "question": "Show the molecular shape of CH4.",
+    "claim": "The tetrahedral molecular shapes of NH4+ and CH4 are shown.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "pronoun-owner-other-persist",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "CH4 has tetrahedral molecular geometry; its molecular shape is tetrahedral.",
+    "expected": true,
+    "draw": true
+  },
+  {
+    "id": "shared-owner-wrong-reversed",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "CH4 and SF4 have tetrahedral molecular shapes.",
+    "expected": true,
+    "draw": false
+  },
+  {
+    "id": "postposed-target-wrong-second",
+    "question": "Show the molecular shape of SF4.",
+    "claim": "The tetrahedral molecular shape of CH4 contrasts with the tetrahedral molecular shape of SF4.",
+    "expected": true,
+    "draw": false
+  }
+]

@@ -1,3 +1,4 @@
+import { isVerifiedPartsEnabled } from "./yieldPolicy";
 import type { RenderPoint, SceneConstruction, SceneDocument, SceneIssue } from "../types";
 import { probabilityTreeOutputLabels } from "./probabilityGeometry";
 import { fieldConstructionOutputLabels, validateEvaluatedFieldLabels } from "./fieldGeometry";
@@ -134,7 +135,7 @@ export function withEvaluatedOutputLabels(
     case "loop_torque":
     case "galvanometer":
     case "bar_magnet":
-      labels = chapterRemainderOutputLabels(construction.operator, outputs, construction.outputs.map((id) => document.entities.find((entity) => entity.id === id)?.label));
+      labels = chapterRemainderOutputLabels(construction.operator, outputs, construction.outputs.map((id) => document.entities.find((entity) => entity.id === id)?.label), isVerifiedPartsEnabled(document));
       break;
     case "metre_bridge":
     case "potentiometer":

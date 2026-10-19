@@ -1207,7 +1207,7 @@ export function useQuestionHandler(
           context: "search" | "revalidate" | "recovery" = "search",
         ): SceneCandidateValidation<ValidatedSceneCandidate> =>
           measureSceneCandidateValidation(tel, { validationCallIndex: ++validationCallIndex, context }, () =>
-            validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan }));
+            validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, yieldPolicy: context === "recovery" ? "off" : billed.diagramYieldPolicy }));
         const deriveSceneGate = (
           planningTurnPlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null,
         ): SceneGate => {
@@ -1370,6 +1370,7 @@ export function useQuestionHandler(
                 traceId: turnTraceId ?? undefined,
                 signal: run.signal,
                 timeoutMs: run.timeoutMs,
+                preserveRequiredGeometry: billed.diagramYieldPolicy === "verified_parts",
                 holdValidationUntil: run.holdValidationUntil,
                 maxConcurrentRequests: run.maxConcurrentRequests,
                 requestBudget: run.requestBudget,
@@ -1468,6 +1469,8 @@ export function useQuestionHandler(
           candidateValidation: result?.validation, fastRepresentation,
           exactFigureSource: planning.figureSource === "verified_recovery" ? "verified_recovery" : "planner",
           solverAuthorityBlocked, requiredRetryEnabled: REQUIRED_DIAGRAM_RETRY_ENABLED,
+          completionEnabled: process.env.NEXT_PUBLIC_SCENE_COMPLETION_BY_CONSTRUCTION === "1",
+          solverAuthority: problemAuthority ? { problemIR: problemAuthority.problemIR, solverResult: problemAuthority.solverResult } : null,
           policy: {
             preferPlanner: diagramStrategyDecision.strategy === "strict",
             allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(diagramStrategyDecision, source)),
@@ -1590,6 +1593,9 @@ export function useQuestionHandler(
             };
           }) ?? [],
           selectedCandidateId: selectedModelCandidate?.candidateId ?? null,
+          // completion-diagnostics:begin
+          completion: sceneSelection.completion,
+          // completion-diagnostics:end
           selectionReason: representationReason ?? (sceneVisualStatus === "validated"
             ? usedVerifiedRecovery ? "verified_scene_recovery" : "validated_scene"
             : sceneVisualStatus === "retry_required"

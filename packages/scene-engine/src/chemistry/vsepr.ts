@@ -456,15 +456,78 @@ function actualLonePairs(result: VseprResult): number {
   return result.lonePairs - (result.unpairedElectron ? 1 : 0);
 }
 
-type ShapeClaim = { shape: VseprShape; target: "electron" | "molecular" | null; negated: boolean };
+type ShapeClaim = { shape: VseprShape; target: "electron" | "molecular" | null; negated: boolean; owners: readonly string[] | null };
+
+interface ShapeOwnerMention { start: number; end: number; key: string }
+
+/** Keep formula case and charge: a sibling molecule cannot describe this one. */
+function shapeOwnerMentions(clause: string): ShapeOwnerMention[] {
+  let from = 0;
+  return formulaTokens(clause.replace(/,/g, " ")).flatMap(token => {
+    const start = clause.indexOf(token, from);
+    const parsed = parseFormula(token);
+    if (start < 0 || !parsed) return [];
+    from = start + token.length;
+    return [{ start, end: from, key: compositionKey(parsed) }];
+  });
+}
+
+/** A postposed property owner or a local subject owns this fact, not its neighbour. */
+function localMoleculeOwners(
+  clause: string, start: number, end: number, nextStart: number,
+  mentions: readonly ShapeOwnerMention[], inherited: readonly string[] | null,
+): readonly string[] | null {
+  const tail = clause.slice(end, nextStart);
+  const postposed = /^\s+(?:(?:(?:molecular|electron(?:[ -](?:domain|pair))?)\s+)?(?:shapes?|geometr(?:y|ies)|arrangements?)\s+|hybridi[sz](?:ed|ation)\s+)?(?:of|for|in|on|around)\s+(?:(?:the|molecule|ion|each)\s+)*(?:(?:central\s+atom|[A-Za-z]+)(?:\s+atoms?)?\s+in\s+)?/i.exec(tail);
+  if (postposed) {
+    const owner = mentions.find(mention => mention.start === end + postposed[0].length);
+    if (owner) {
+      const owners = [owner.key];
+      let at = mentions.indexOf(owner);
+      while (at + 1 < mentions.length && mentions[at + 1]!.start < nextStart
+        && /^\s*(?:,\s*(?:(?:and|or)\s+)?|(?:and|or)\s+)$/i.test(clause.slice(mentions[at]!.end, mentions[at + 1]!.start))) {
+        owners.push(mentions[++at]!.key);
+      }
+      return owners;
+    }
+  }
+  const before = mentions.filter(mention => mention.end <= start);
+  const subject = [...before].reverse().find(mention => {
+    const predicate = clause.slice(mention.end, start);
+    if (/^\s*(?:(?:molecule|ion|species)\s+)?(?:is|are|has|have|does|do|did|with|having|containing|carries|carry|contains|contain|uses|use|adopts?|exhibits?|shows?)\b/i.test(predicate)) return true;
+    const possessive = /^['\u2019]s\s+(central\s+atom|[A-Za-z]+)(?:\s+atoms?)?\s+(?:is|are|has|have|does|do|did|carries|carry|contains|contain|uses|use)\b/i.exec(predicate);
+    return possessive !== null && (/^central\s+atom$/i.test(possessive[1]!) || resolveElement(possessive[1]!) !== null);
+  });
+  if (subject) {
+    const owners = [subject.key];
+    let at = before.indexOf(subject);
+    // A shared subject ("X and Y have ...") describes both, never just Y.
+    while (at > 0 && /^\s*(?:,\s*(?:(?:and|or)\s+)?|(?:and|or)\s+)$/i.test(clause.slice(before[at - 1]!.end, before[at]!.start))) {
+      owners.push(before[--at]!.key);
+    }
+    return owners;
+  }
+  if (before.length) {
+    const keys = [...new Set(before.map(mention => mention.key))];
+    return keys.length === 1 ? keys : null;
+  }
+  return inherited;
+}
 
 /** Bind each geometry in its property clause, including compound claims. */
-function shapeClaims(text: string): ShapeClaim[] {
+function shapeClaims(text: string, result: VseprResult): ShapeClaim[] {
   const claims: ShapeClaim[] = [];
-  for (const clause of text.split(/[.;:]|\b(?:but|while|whereas|although|because)\b|,\s*derived\s+from\b/)) {
+  let inheritedOwners: readonly string[] | null = [compositionKey(parseFormula(result.formula)!)];
+  for (const rawClause of repairOcr(normalizeChemistryText(text)).split(/[.;:]|\b(?:but|while|whereas|although|because)\b|,\s*derived\s+from\b/i)) {
+    const clause = rawClause.toLowerCase();
+    const mentions = shapeOwnerMentions(rawClause);
     const shapes = SHAPE_WORDS.flatMap(([pattern, shape]) => [...clause.matchAll(new RegExp(pattern.source, "g"))]
       .map((match) => ({ shape, start: match.index, end: match.index + match[0].length })))
       .sort((left, right) => left.start - right.start);
+    if (!shapes.length && mentions.length) {
+      const owners = [...new Set(mentions.map(mention => mention.key))];
+      inheritedOwners = owners.length === 1 ? owners : null;
+    }
     const roles: { start: number; end: number; target: "electron" | "molecular" }[] = [];
     const patterns: [RegExp, "electron" | "molecular"][] = [
       [/\bmolecular\s+(?:shape|geometry|arrangement)\b|\b(?:shape|geometry)\s+of\s+(?:the\s+)?(?:molecule|ion)\b/g, "molecular"],
@@ -476,7 +539,8 @@ function shapeClaims(text: string): ShapeClaim[] {
       roles.push({ start: match.index, end: match.index + match[0].length, target });
     }
     let previousShape: { end: number; negated: boolean } | undefined;
-    for (const shape of shapes) {
+    for (const [index, shape] of shapes.entries()) {
+      const owners = localMoleculeOwners(rawClause, shape.start, shape.end, shapes[index + 1]?.start ?? rawClause.length, mentions, inheritedOwners);
       const targets = new Set(roles.map((role) => role.target));
       let target: ShapeClaim["target"] = "molecular";
       if (targets.size === 1) target = [...targets][0]!;
@@ -493,7 +557,8 @@ function shapeClaims(text: string): ShapeClaim[] {
       const joinedNegative = previousShape?.negated === true
         && /^(?:\s*,\s*|\s+(?:or|nor)\s+|\s*,\s*(?:or|nor)\s+)(?:an?\s+)?$/.test(clause.slice(previousShape.end, shape.start));
       const negated = explicitNegative || joinedNegative;
-      claims.push({ shape: shape.shape, target, negated });
+      claims.push({ shape: shape.shape, target, negated, owners });
+      inheritedOwners = owners;
       previousShape = { end: shape.end, negated };
     }
   }
@@ -502,8 +567,30 @@ function shapeClaims(text: string): ShapeClaim[] {
 
 type ElectronCountClaim = { count: number; kind: "lone-pair" | "unpaired"; negated: boolean; central: boolean };
 
+/** Counts and hybrids inherit the same typed molecule ownership as shapes. */
+function moleculePropertyOwner(text: string, start: number, end: number, result: VseprResult): boolean {
+  const target = compositionKey(parseFormula(result.formula)!);
+  let inherited: readonly string[] | null = [target];
+  let from = 0;
+  const boundaries = [...text.matchAll(/[;:]|\.(?=\s|$)|\b(?:but|while|whereas|although|because)\b|,\s*derived\s+from\b/gi)]
+    .map(match => ({ start: match.index, end: match.index + match[0].length }));
+  boundaries.push({ start: text.length, end: text.length });
+  for (const boundary of boundaries) {
+    const clause = text.slice(from, boundary.start);
+    const mentions = shapeOwnerMentions(clause);
+    if (start >= from && end <= boundary.start) {
+      const owners = localMoleculeOwners(clause, start - from, end - from, clause.length, mentions, inherited);
+      return owners?.includes(target) ?? false;
+    }
+    if (mentions.length) inherited = localMoleculeOwners(clause, clause.length, clause.length, clause.length, mentions, inherited);
+    from = boundary.end;
+  }
+  return false;
+}
+
 /** Explicit counts on another atom do not describe the central atom. */
 function centralCountOwner(text: string, start: number, end: number, result: VseprResult): boolean {
+  if (!moleculePropertyOwner(text, start, end, result)) return false;
   const owner = (token: string): boolean | null => {
     if (/^central\s+atom$/i.test(token)) return true;
     const element = resolveElement(token);
@@ -527,12 +614,28 @@ function centralCountOwner(text: string, start: number, end: number, result: Vse
 
 function electronCountClaims(text: string, result: VseprResult): ElectronCountClaim[] {
   const words: Record<string, number> = { zero: 0, no: 0, one: 1, single: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
-  return [...text.matchAll(/(?<![\w.])(-?\d+(?:\.\d+)?|zero|no|one|single|two|three|four|five|six|seven|eight|nine|ten)\s+(lone[ -]?pairs?|unpaired\s+electrons?)\b/gi)].map((match): ElectronCountClaim => ({
-    count: words[match[1]!.toLowerCase()] ?? Number(match[1]),
-    kind: /^lone/i.test(match[2]!) ? "lone-pair" : "unpaired",
-    negated: /\b(?:not|never)(?:\s+(?:have|has|contain|contains|carry|carries|exactly|even|just|a))*\s+$/i.test(text.slice(0, match.index)),
-    central: centralCountOwner(text, match.index, match.index + match[0].length, result),
-  }));
+  const count = String.raw`-?\d+(?:\.\d+)?|zero|no|one|single|two|three|four|five|six|seven|eight|nine|ten`;
+  const noun = String.raw`lone[ -]?pairs?|unpaired\s+electrons?`;
+  const candidates: Array<{ start: number; end: number; count: number; kind: ElectronCountClaim["kind"]; negative?: true }> = [];
+  const shared: Array<{ start: number; end: number }> = [];
+  // A shared final noun belongs to both explicitly negated alternatives.
+  for (const match of text.matchAll(new RegExp(`\\b(?:neither|not|never)\\s+(${count})\\s+(?:nor|or)\\s+(${count})\\s+(${noun})\\b`, "gdi"))) {
+    shared.push({ start: match.index, end: match.index + match[0].length });
+    for (const group of [1, 2]) candidates.push({ start: match.indices![group]![0], end: match.index + match[0].length,
+      count: words[match[group]!.toLowerCase()] ?? Number(match[group]), kind: /^lone/i.test(match[3]!) ? "lone-pair" : "unpaired", negative: true });
+  }
+  for (const match of text.matchAll(new RegExp(`(?<![\\w.])(${count})\\s+(${noun})\\b`, "gi"))) {
+    if (shared.some(span => span.start <= match.index && match.index < span.end)) continue;
+    candidates.push({ start: match.index, end: match.index + match[0].length, count: words[match[1]!.toLowerCase()] ?? Number(match[1]), kind: /^lone/i.test(match[2]!) ? "lone-pair" : "unpaired" });
+  }
+  let previous: { end: number; negated: boolean } | undefined;
+  return candidates.sort((a, b) => a.start - b.start).map(candidate => {
+    const explicit = /\b(?:not|never|neither)(?:\s+(?:have|has|contain|contains|carry|carries|exactly|even|just|a))*\s+$/i.test(text.slice(0, candidate.start));
+    const joined = previous?.negated === true && /^(?:\s*,\s*|\s+(?:or|nor)\s+|\s*,\s*(?:or|nor)\s+)$/i.test(text.slice(previous.end, candidate.start));
+    const negated = candidate.negative === true || explicit || joined;
+    previous = { end: candidate.end, negated };
+    return { count: candidate.count, kind: candidate.kind, negated, central: centralCountOwner(text, candidate.start, candidate.end, result) };
+  });
 }
 
 /** Each local hybrid claim retains its owner and negation; siblings cannot erase it. */
@@ -582,10 +685,11 @@ export function vseprPlanConflict(question: string, plan: TurnPlanV3): string | 
   if (species.length !== 1) return null;
   const result = species[0]!;
   for (const claim of plan.qualitativeClaims) {
-    const rawText = `${claim.claim}${typeof claim.expected === "boolean" ? "" : ` ${claim.expected}`}`.replace(/([a-z])[-\u2010-\u2015](?=[a-z])/gi, "$1 ");
-    const text = rawText.toLowerCase();
+    const rawText = repairOcr(normalizeChemistryText(`${claim.claim}${typeof claim.expected === "boolean" ? "" : ` ${claim.expected}`}`)).replace(/([a-z])[-\u2010-\u2015](?=[a-z])/gi, "$1 ");
     const facts: Array<{ truth: boolean; property: string }> = [];
-    for (const described of shapeClaims(text)) {
+    const moleculeKey = compositionKey(parseFormula(result.formula)!);
+    for (const described of shapeClaims(rawText, result)) {
+      if (!described.owners?.includes(moleculeKey)) continue;
       const sourceShapes = described.target === null ? [result.shape, result.electronGeometry]
         : [described.target === "electron" ? result.electronGeometry : result.shape];
       const equal = sourceShapes.map(shape => shape === described.shape);
