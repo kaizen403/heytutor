@@ -1,7 +1,7 @@
 /** Actual build injection, source graph, CLI fallback and browser cache identity. */
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, rmSync, symlinkSync, existsSync } from "node:fs";
-import { createRequire } from "node:module";
+import { createRequire, syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import ts from "typescript";
@@ -75,6 +75,62 @@ try {
   put("packages/drawing/src/fixture.test.ts", "throw Error('test only');");
   assert.equal(first, renderFingerprint(fixture), "unrelated source, docs and tests do not discard caches");
   assert(!renderSourceFiles(fixture).some(file => /(?:^|\/)(?:node_modules|\.context|external)\//.test(file)), "source traversal cannot enter private contexts, installed packages or symlink trees");
+  // Shared package barrels also expose non-rendering APIs. Editing an unused
+  // teaching/network source must not invalidate an already saved video.
+  put("packages/tutor-core/src/index.ts", 'export * from "./sync/speed";\nexport * from "./llm/llmAPI";');
+  put("packages/tutor-core/src/sync/speed.ts", "export const renderSpeed = 1;");
+  put("packages/tutor-core/src/llm/llmAPI.ts", "export const requestTeaching = 1;");
+  const barrelImporter = cases[1]!;
+  const beforeImport = readFileSync(path.join(fixture, barrelImporter), "utf8");
+  put(barrelImporter, beforeImport + '\nimport { renderSpeed } from "@heytutor/tutor-core";');
+  const withRuntimeImport = renderFingerprint(fixture);
+  put("packages/tutor-core/src/llm/llmAPI.ts", "export const requestTeaching = 2;");
+  assert.equal(withRuntimeImport, renderFingerprint(fixture), "unused teaching exports in a shared barrel are unrelated to rendering");
+  put("packages/tutor-core/src/sync/speed.ts", "export const renderSpeed = 2;");
+  assert.notEqual(withRuntimeImport, renderFingerprint(fixture), "the actual named rendering dependency remains watched");
+  put("packages/tutor-core/src/index.ts", 'export * as helpers from "./sync/speed";');
+  put(barrelImporter, beforeImport + '\nimport { helpers } from "@heytutor/tutor-core";');
+  const namespaceHash = renderFingerprint(fixture);
+  put("packages/tutor-core/src/sync/speed.ts", "export const renderSpeed = 3;");
+  assert.notEqual(namespaceHash, renderFingerprint(fixture), "namespace re-exports watch their full rendering target");
+  const privateTarget = path.join(outside, "private-source.ts");
+  writeFileSync(privateTarget, "export const renderSpeed = 10;");
+  symlinkSync(privateTarget, path.join(fixture, "packages/tutor-core/src/privateLink.ts"));
+  put("packages/tutor-core/src/index.ts", 'export * from "./privateLink";');
+  put(barrelImporter, beforeImport + '\nimport { renderSpeed } from "@heytutor/tutor-core";');
+  const escapedTarget = path.join(path.dirname(fixture), `${path.basename(fixture)}-outside.ts`);
+  writeFileSync(escapedTarget, "export const paint = 1;");
+  const fs = createRequire(import.meta.url)("node:fs");
+  const read = fs.readFileSync;
+  try {
+    Object.defineProperty(fs, "readFileSync", { configurable: true, writable: true, value: (...args: unknown[]) => {
+      assert(![privateTarget, escapedTarget, path.join(fixture, "packages/tutor-core/src/privateLink.ts")].includes(path.resolve(String(args[0]))), "dependency discovery cannot read through private symlinks");
+      return Reflect.apply(read, fs, args);
+    } });
+    syncBuiltinESMExports();
+    assert(!renderSourceFiles(fixture).some(file => file.endsWith("privateLink.ts")), "extension-appended symlink target is excluded before export inspection");
+    for (const id of [`@/../../../${path.basename(escapedTarget)}`, `@heytutor/unused/../../../../${path.basename(escapedTarget)}`]) {
+      put(barrelImporter, beforeImport + `\nimport { paint } from "${id}";`);
+      assert(!renderSourceFiles(fixture).some(file => file.includes("..")), "alias and package paths cannot escape the repository");
+    }
+  } finally {
+    Object.defineProperty(fs, "readFileSync", { configurable: true, writable: true, value: read });
+    syncBuiltinESMExports();
+    rmSync(escapedTarget, { force: true });
+  }
+  put("packages/tutor-core/src/index.ts", 'export * from "./sync/speed";\nexport * from "./register-palette";');
+  put("packages/tutor-core/src/register-palette.ts", 'globalThis.palette = 1; export const unused = true;');
+  put(barrelImporter, beforeImport + '\nimport { renderSpeed } from "@heytutor/tutor-core";');
+  const withEffect = renderFingerprint(fixture);
+  put("packages/tutor-core/src/register-palette.ts", 'globalThis.palette = 2; export const unused = true;');
+  assert.notEqual(withEffect, renderFingerprint(fixture), "an unrequested re-export with runtime side effects remains watched");
+  put("packages/tutor-core/src/index.ts", 'export * from "./destructured";');
+  put("packages/tutor-core/src/destructured.ts", 'export const { paint } = { paint: 1 };');
+  put(barrelImporter, beforeImport + '\nimport { paint } from "@heytutor/tutor-core";');
+  const destructured = renderFingerprint(fixture);
+  put("packages/tutor-core/src/destructured.ts", 'export const { paint } = { paint: 2 };');
+  assert.notEqual(destructured, renderFingerprint(fixture), "unrecognized exported binding syntax is watched conservatively");
+  put(barrelImporter, beforeImport);
   const importer = cases[0]!;
   const original = readFileSync(path.join(fixture, importer), "utf8");
   put(importer, original + '\nimport "@/lib/custom-render-dependency";');
