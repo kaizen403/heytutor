@@ -13,15 +13,16 @@ const BALANCED: Readonly<PlannerTimingProfile> = Object.freeze({
 
 /** K3 measured without thinking: turn max 25.2 s; accepted scenes 31.4–36.8 s.
  * The total includes turn 30 + unchanged authority 18 + scene 60 (108 s).
- * `legacy` restores the existing client AND proxy policy together. Other
- * providers and ancillary lanes retain their existing policy.
+ * The fresh repeat did not establish a usable-scene win, so this remains an
+ * explicit experiment; unset/`legacy` preserves the client AND proxy defaults.
+ * Other providers and ancillary lanes retain their existing policy.
  */
 export function resolvePlannerTimingProfile(
   provider: string,
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): Readonly<PlannerTimingProfile> | undefined {
   const setting = env.FIREWORKS_PLANNER_TIMING_PROFILE;
-  return provider === "fireworks" && (setting === undefined || setting === "balanced")
+  return provider === "fireworks" && setting === "balanced"
     ? BALANCED : undefined;
 }
 

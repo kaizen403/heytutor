@@ -199,26 +199,31 @@ bound so Azure reasoning can finish.
 
 ### Provider timing and planner-only diagnostics
 
-Fireworks turn/scene planning defaults to `fireworks-planner-timing/v1`: a
+The explicit experiment `FIREWORKS_PLANNER_TIMING_PROFILE=balanced` enables
+`fireworks-planner-timing/v1` for Fireworks turn/scene planning: a
 30 s turn request, 60 s scene candidate/repair request, and 120 s overall scene
 budget including preceding turn planning and authority. The server sends this
 non-secret profile through the existing begin-turn response; the live hook and
 lab use it. The proxy enforces the same individual request caps and keeps
 transient retries inside one request deadline, instead of restarting a slow
 generation after 25 s. IR, picker, code, teaching and Azure are unchanged.
-Set `FIREWORKS_PLANNER_TIMING_PROFILE=legacy` to restore the old client and
-proxy policy together. Missing/unknown client metadata also keeps old defaults.
+Unset/`legacy` preserves the old client and proxy policy together; no production
+default is promoted. Missing/unknown client metadata also keeps old defaults.
 An explicit `--scene-planner-limit-ms` overrides the lab's overall budget; it
 does not bypass the proxy's individual request cap.
 
-The profile was selected from 30 uncensored standard-K3 primary requests per
+The candidate was selected from 30 uncensored standard-K3 primary requests per
 lane: turn p50/p90/max 13.2/21.2/25.2 s, scene 28.8/44.0/82.0 s. Both scene
 responses over 60 s exhausted their output cap and were invalid JSON; all four
 validator-accepted scenes completed in 31.4–36.8 s. Thinking was already off,
 and reported reasoning usage was zero. Longer windows recover responses; they
 do not make generation faster or fix incorrect plans. The overall 120 s
-allocation accommodates turn 30 + unchanged authority 18 + scene 60 =108 s
+allocation accommodates turn 30 + unchanged authority 18 + scene 60 = 108 s
 plus overhead; production repair/yield gains are not established by this probe.
+The fresh identical-input comparison stopped for budget after 25 pairs plus
+one turn: zero scenes validated (two 60 s timeouts), with one upstream fetch
+failure. Matched accepted-correct turns stayed 14/25. This does not establish a
+winner, so the timing profile remains opt-in and the proposal stays draft.
 
 For cheap request-level diagnosis, `--planner-only` (requires evaluation,
 current arm, configured provider, conservative cap) makes exactly one primary

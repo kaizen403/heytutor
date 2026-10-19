@@ -139,8 +139,9 @@ async function verifyRouteWiring(): Promise<void> {
   const cases = [
     { headers: new Headers(probeHeaders), provider: "fireworks", probe: true, deadline: 120_000, outer: 125_000, attempts: 1, attemptMs: 120_000 },
     { headers: scene, provider: "fireworks", probe: true, deadline: 120_000, outer: 125_000, attempts: 1, attemptMs: 120_000 },
-    { headers: ordinary, provider: "fireworks", probe: false, deadline: 30_000, outer: 120_000, attempts: undefined, attemptMs: 30_000 },
-    { headers: anonymous, provider: "fireworks", probe: false, deadline: 30_000, outer: 120_000, attempts: undefined, attemptMs: 30_000 },
+    { headers: ordinary, provider: "fireworks", probe: false, deadline: 60_000, outer: 120_000, attempts: undefined, attemptMs: undefined },
+    { headers: anonymous, provider: "fireworks", probe: false, deadline: 60_000, outer: 120_000, attempts: undefined, attemptMs: undefined },
+    { headers: ordinary, provider: "fireworks", flag: "balanced", probe: false, deadline: 30_000, outer: 120_000, attempts: undefined, attemptMs: 30_000 },
     { headers: ordinary, provider: "fireworks", flag: "legacy", probe: false, deadline: 60_000, outer: 120_000, attempts: undefined, attemptMs: undefined },
     { headers: new Headers(probeHeaders), provider: "azure", probe: false, deadline: 60_000, outer: 120_000, attempts: undefined, attemptMs: undefined },
     { headers: scene, provider: "azure", probe: false, deadline: 120_000, outer: 125_000, attempts: undefined, attemptMs: 30_000 },

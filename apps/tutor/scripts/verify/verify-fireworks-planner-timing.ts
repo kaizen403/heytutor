@@ -66,7 +66,7 @@ function evaluate(expression: ts.Node, file: ts.SourceFile, bindings: Record<str
 function verifyServerAndLiveWiring(): void {
   const carrier = source("app/api/billing/begin-turn/route.ts");
   const carrierBody = call(carrier, carrier, "Response.json").arguments[0]!;
-  for (const provider of ["fireworks", "azure"]) for (const flag of [undefined, "legacy"]) {
+  for (const provider of ["fireworks", "azure"]) for (const flag of [undefined, "balanced", "legacy"]) {
     const env = { FIREWORKS_PLANNER_TIMING_PROFILE: flag };
     const bindings = { resolveLlmEndpoint: () => ({ provider }),
       resolvePlannerTimingProfile: (value: string) => resolvePlannerTimingProfile(value, env),
@@ -76,24 +76,27 @@ function verifyServerAndLiveWiring(): void {
     const plannerTiming = evaluate(initializer(carrier, "plannerTiming"), carrier, bindings);
     const body = evaluate(carrierBody, carrier, { ...bindings, plannerTiming });
     assert(body && typeof body === "object");
-    assert.equal("plannerTiming" in body, provider === "fireworks" && flag === undefined,
-      "Azure and rollback responses omit the new field");
+    assert.equal("plannerTiming" in body, provider === "fireworks" && flag === "balanced",
+      "Azure and default/rollback responses omit the experimental profile");
   }
 
   const route = source("app/api/chat/route.ts");
   const planner = call(route, route, "handlePlannerRequest");
   const transport = call(route, route, "fetchPlannerCompletion");
   const cases = [
-    { kind: "turn", provider: "fireworks", requested: "120000", deadline: 30_000, attempt: 30_000 },
-    { kind: "scene", provider: "fireworks", requested: "120000", deadline: 60_000, attempt: 60_000 },
-    { kind: "scene", provider: "fireworks", requested: "7000", deadline: 7_000, attempt: 7_000 },
+    { kind: "turn", provider: "fireworks", requested: "120000", deadline: 60_000, attempt: undefined },
+    { kind: "scene", provider: "fireworks", requested: "120000", deadline: 60_000, attempt: undefined },
+    { kind: "turn", provider: "fireworks", requested: "120000", flag: "balanced", deadline: 30_000, attempt: 30_000 },
+    { kind: "scene", provider: "fireworks", requested: "120000", flag: "balanced", deadline: 60_000, attempt: 60_000 },
+    { kind: "scene", provider: "fireworks", requested: "7000", flag: "balanced", deadline: 7_000, attempt: 7_000 },
     { kind: "turn", provider: "fireworks", requested: "120000", flag: "legacy", deadline: 60_000, attempt: undefined },
-    { kind: "turn", provider: "azure", requested: "120000", deadline: 60_000, attempt: undefined },
-    { kind: "scene", provider: "azure", requested: "120000", deadline: 60_000, attempt: 30_000 },
-    { kind: "ir", provider: "fireworks", requested: "120000", deadline: 60_000, attempt: undefined },
-    { kind: "code", provider: "fireworks", requested: "120000", deadline: 60_000, attempt: undefined },
-    { kind: "picker", provider: "fireworks", requested: "120000", deadline: 60_000, attempt: undefined },
+    { kind: "turn", provider: "azure", requested: "120000", flag: "balanced", deadline: 60_000, attempt: undefined },
+    { kind: "scene", provider: "azure", requested: "120000", flag: "balanced", deadline: 60_000, attempt: 30_000 },
+    { kind: "ir", provider: "fireworks", requested: "120000", flag: "balanced", deadline: 60_000, attempt: undefined },
+    { kind: "code", provider: "fireworks", requested: "120000", flag: "balanced", deadline: 60_000, attempt: undefined },
+    { kind: "picker", provider: "fireworks", requested: "120000", flag: "balanced", deadline: 60_000, attempt: undefined },
     { kind: "scene", provider: "fireworks", requested: "120000", probe: true, deadline: 120_000, attempt: 120_000 },
+    { kind: "scene", provider: "fireworks", requested: "120000", flag: "balanced", probe: true, deadline: 120_000, attempt: 120_000 },
   ];
   for (const fixture of cases) {
     const headers = new Headers({ "x-planner": "1", "x-planner-deadline-ms": fixture.requested });
@@ -124,6 +127,11 @@ function verifyServerAndLiveWiring(): void {
     assert.equal(evaluate(field(transport.arguments[0], route, "maxAttemptsPerModel"), route, bindings), fixture.probe ? 1 : undefined,
       "ordinary retry defaults remain unchanged; the authenticated probe still has one attempt");
   }
+  const transportSource = source("lib/llm/plannerTransport.ts");
+  assert.equal(evaluate(initializer(transportSource, "attemptTimeoutMs"), transportSource, { options: {} }), 25_000,
+    "omitting the profile retains the actual legacy upstream timeout");
+  assert.equal(evaluate(initializer(transportSource, "attemptsPerModel"), transportSource, { options: {} }), 2,
+    "ordinary transient retry capacity is preserved");
 
   const hook = source("features/tutor-session/hooks/turn/useQuestionHandler.ts");
   const pipeline = source("scripts/lecture-lab/lecturePipeline.ts");
@@ -151,8 +159,8 @@ function verifyServerAndLiveWiring(): void {
 }
 
 function verifyProfile(): void {
-  assert.deepEqual(resolvePlannerTimingProfile("fireworks", {}), balanced,
-    "standard Fireworks planning receives the timing profile by default");
+  assert.equal(resolvePlannerTimingProfile("fireworks", {}), undefined,
+    "an unproven experiment must not promote itself into the Fireworks default");
   assert.deepEqual(resolvePlannerTimingProfile("fireworks", { FIREWORKS_PLANNER_TIMING_PROFILE: "balanced" }), balanced);
   for (const flag of ["legacy", "unknown", "disabled"]) {
     assert.equal(resolvePlannerTimingProfile("fireworks", { FIREWORKS_PLANNER_TIMING_PROFILE: flag }), undefined,
