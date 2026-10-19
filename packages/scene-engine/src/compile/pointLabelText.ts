@@ -7,10 +7,17 @@ import { measureTextWidth } from "@heytutor/drawing";
 import { POINT_LABEL_TETHER_PX } from "../labels/labelEngine";
 import type { SceneDocument } from "../types";
 
-export function compactCalloutLabel(text: string | undefined): string | undefined {
+/**
+ * Strict mode (verified parts) never prints a cut that changes what the text
+ * says: an equation keeps all of its sides or is omitted, and a head must be
+ * balanced and must not end in an operator ("y =", "kJ/"). The full text then
+ * stays in the caption.
+ */
+export function compactCalloutLabel(text: string | undefined, strict = false): string | undefined {
   const normalized = text?.trim();
   if (!normalized) return undefined;
   if (normalized.length <= 16) return normalized;
+  if (strict) return strictCalloutHead(normalized);
   const compactResult = normalized
     .replace(/R_?eq\s*,\s*(?:series|parallel)\s*=/i, "R_eq =")
     .replace(/\s+/g, " ");
@@ -22,6 +29,21 @@ export function compactCalloutLabel(text: string | undefined): string | undefine
   const head = normalized.split(/[(:,;]/, 1)[0]?.trim();
   if (head && head.length <= 16) return head;
   return undefined;
+}
+
+function strictCalloutHead(normalized: string): string | undefined {
+  const compactResult = normalized
+    .replace(/R_?eq\s*,\s*(?:series|parallel)\s*=/i, "R_eq =")
+    .replace(/\s+/g, " ");
+  if (compactResult.length <= 16) return compactResult;
+  // A relation cut short is a different statement.
+  if (/[=<>≤≥≈≠]/.test(compactResult)) return undefined;
+  const head = compactResult.split(/[:;,]/, 1)[0]?.trim();
+  if (!head || head.length > 16) return undefined;
+  const opens = (head.match(/[([{]/g) ?? []).length;
+  const closes = (head.match(/[)\]}]/g) ?? []).length;
+  if (opens !== closes || /[-+−×÷*/^·=]\s*$/.test(head)) return undefined;
+  return head;
 }
 
 export function isViewSummaryText(text: string | undefined): boolean {

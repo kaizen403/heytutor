@@ -476,7 +476,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     document.annotations.some((annotation) =>
       (annotation.kind === "label" || annotation.kind === "callout") &&
       Boolean(annotation.kind === "callout"
-        ? compactCalloutLabel(annotation.text)
+        ? compactCalloutLabel(annotation.text, isVerifiedPartsEnabled(document))
         : annotation.text),
     ) ||
     // Space frames letter their axes.
@@ -604,7 +604,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       (annotation.kind === "label" || annotation.kind === "callout") &&
       annotation.targetIds.includes(entity.id) &&
       Boolean(annotation.kind === "callout"
-        ? compactCalloutLabel(annotation.text)
+        ? compactCalloutLabel(annotation.text, isVerifiedPartsEnabled(document))
         : annotation.text),
     )) continue;
     const valueAnnotation = entity.kind === "component" && isComponentDesignator(entity.label)
@@ -623,7 +623,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       !(annotation.kind === "callout" && isViewSummaryText(annotation.text)) &&
       annotation.targetIds.includes(entity.id) &&
       Boolean(annotation.kind === "callout"
-        ? compactCalloutLabel(annotation.text)
+        ? compactCalloutLabel(annotation.text, isVerifiedPartsEnabled(document))
         : annotation.text),
     );
     const quantityText = entity.kind === "component" && isComponentDesignator(entity.label)
@@ -693,7 +693,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       (annotation.kind === "callout" && isViewSummaryText(annotation.text)) ||
       (Boolean(annotation.quantityId) && Boolean(targetEntity?.label))
     )
-      ? compactCalloutLabel(annotation.text)
+      ? compactCalloutLabel(annotation.text, isVerifiedPartsEnabled(document))
       : undefined;
     if (groupId && summaryText) {
       summaryLabelIds.add(annotation.id);
@@ -742,7 +742,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
           }
         : { x: groupViewport.x + groupViewport.width / 2, y: groupViewport.y + 10 };
       const text = annotation.kind === "callout"
-        ? compactCalloutLabel(annotation.text)
+        ? compactCalloutLabel(annotation.text, isVerifiedPartsEnabled(document))
         : annotation.text;
       if (text) labelOwners.push({
         labelId: annotation.id,
@@ -783,9 +783,31 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     const center = screenLabelAnchor(targetId, target, primitives, transformPlan.transformFor(targetId));
     const endpointLabel = verifiedPartsEnabled && target.kind === "point" && document.annotations.some(a => a.kind === "endpoint" && a.targetIds.includes(targetId));
     const secantLabel = verifiedPartsEnabled && document.constructions.some(c => c.operator === "curve_secant" && c.outputs.includes(targetId));
+    if (verifiedPartsEnabled && target.kind === "axes" && (annotation.kind === "label" || annotation.kind === "callout")) {
+      // One label anchored at the origin cannot say which axis it names; "t (s)"
+      // beside the vertical axis reads as the wrong variable. Only the standard
+      // axis names bind to an axis; they go to that axis's end. Others are omitted.
+      const name = (annotation.text ?? "").trim();
+      const axis = /^(?:x|re|real|horizontal)\b/i.test(name) ? "horizontal" : /^(?:y|im|imaginary|vertical)\b/i.test(name) ? "vertical" : null;
+      if (!axis || name.length > 16) {
+        issues.push({ code: "annotation_geometry_unresolved", severity: "fatal", failureKind: "proof", entityIds: [annotation.id], message: `Annotation ${annotation.id} names an axes object at its origin, not one axis` });
+        continue;
+      }
+      // Each axis name is its own owner; one-label-per-entity would drop the second.
+      annotationLabelOwners.push({
+        labelId: annotation.id,
+        entityId: targetId,
+        anchor: transformPlan.transformFor(targetId)(axis === "horizontal" ? { x: target.xMax, y: 0 } : { x: 0, y: target.yMax }),
+        text: name,
+        preferredSlot: axis === "horizontal" ? "southeast" : "northeast",
+        viewBounds: transformPlan.viewportFor(targetId),
+        useOwnerBounds: false,
+      });
+      continue;
+    }
     if (annotation.kind === "label" || annotation.kind === "callout") {
       const rawText = annotation.text ?? document.entities.find((entity) => entity.id === targetId)?.label;
-      const text = annotation.kind === "callout" ? compactCalloutLabel(rawText) : rawText;
+      const text = annotation.kind === "callout" ? compactCalloutLabel(rawText, isVerifiedPartsEnabled(document)) : rawText;
       if (text) labelOwners.push({
         labelId: annotation.id,
         entityId: targetId,
@@ -1471,7 +1493,7 @@ function dimensionLabelText(document: SceneDocument, entityId: string): string |
     (annotation.kind === "label" || annotation.kind === "callout") && annotation.targetIds.includes(entityId) && annotation.text &&
     !(annotation.quantityId && entityLabel) && !(annotation.kind === "callout" && isViewSummaryText(annotation.text)),
   );
-  return annotation?.kind === "callout" ? compactCalloutLabel(annotation.text)
+  return annotation?.kind === "callout" ? compactCalloutLabel(annotation.text, isVerifiedPartsEnabled(document))
     : annotation?.text ?? entityLabel;
 }
 
@@ -5461,7 +5483,7 @@ function compileSceneCaption(document: SceneDocument): string | undefined {
       parts.push(annotation.text);
       continue;
     }
-    if (!compactCalloutLabel(annotation.text) && !isViewSummaryText(annotation.text)) {
+    if (!compactCalloutLabel(annotation.text, isVerifiedPartsEnabled(document)) && !isViewSummaryText(annotation.text)) {
       parts.push(annotation.text);
     }
   }

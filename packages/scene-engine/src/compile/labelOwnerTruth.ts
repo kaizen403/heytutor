@@ -93,5 +93,29 @@ export function validateLabelOwnerTruth(document: SceneDocument, primitives: Ren
       ...(annotation ? { path: `annotations[${annotationIndex}].text` } : entityIndex >= 0 ? { path: `entities[${entityIndex}].label` } : {}),
       message: ambiguousLeader ? "A label leader starts inside another region instead of an unambiguous part of its own stroke." : nestedRegionAmbiguity ? "An untethered name lies outside its circular owner, which is enclosed by another circle." : "An untethered label is substantially closer to another stroke than its declared owner.", expected: ownDistance, actual: otherDistance });
   }
+  // Two untethered point names are crossed when each sits nearer the other's
+  // point than its own: the reader assigns both names to the wrong points.
+  const pointNames = primitives.flatMap(label => {
+    if (label.kind !== "label" || !label.points[0] || label.provenance?.usesLeader || label.provenance?.summary) return [];
+    const annotationId = label.provenance?.annotationId ?? (document.annotations.some(a => a.id === label.id) ? label.id : undefined);
+    const annotationIndex = document.annotations.findIndex(a => a.id === annotationId);
+    const owners = document.annotations[annotationIndex]?.targetIds ?? [label.entityId];
+    const own = ink.filter(p => owners.includes(p.entityId) && p.kind === "point" && p.points[0]);
+    if (owners.length !== 1 || own.length !== 1) return [];
+    const entityIndex = document.entities.findIndex(e => e.id === label.entityId);
+    return [{ at: label.points[0], point: own[0]!.points[0]!, owners, path: annotationIndex >= 0 ? `annotations[${annotationIndex}].text` : entityIndex >= 0 ? `entities[${entityIndex}].label` : undefined }];
+  });
+  const gap = (p: Point, q: Point) => Math.hypot(p.x - q.x, p.y - q.y);
+  const crossed = new Set<number>();
+  for (let i = 0; i < pointNames.length; i++) for (let j = i + 1; j < pointNames.length; j++) {
+    const a = pointNames[i]!, b = pointNames[j]!;
+    if (a.owners[0] === b.owners[0] || gap(a.point, b.point) <= 3) continue;
+    if (gap(a.at, b.point) < gap(a.at, a.point) && gap(b.at, a.point) < gap(b.at, b.point)) crossed.add(i).add(j);
+  }
+  for (const index of crossed) {
+    const name = pointNames[index]!;
+    issues.push({ code: "label_owner_ambiguous", severity: "fatal", failureKind: "proof", entityIds: name.owners, ...(name.path ? { path: name.path } : {}),
+      message: "Two point names are crossed: each lies nearer the other's point than its own." });
+  }
   return issues;
 }

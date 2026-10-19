@@ -130,6 +130,15 @@ export function appendCompiledAnnotations(
         : groupId;
       return marks.map((primitive) => ({ primitive, groupId: markGroupId }));
     });
+    // An open endpoint excludes the point: its filled dot must not sit inside the ring.
+    if (verifiedPartsEnabled && annotation.kind === "endpoint" && (annotation.style?.pointStyle ?? "open") === "open" && extra.length) {
+      const excluded = new Set(targets.map((target) => target.entityId));
+      for (let index = 0; index < primitives.length; index++) {
+        const base = primitives[index]!;
+        // Keep the point as the same hollow ring, so ownership and reveal stay intact.
+        if (base.kind === "point" && excluded.has(base.entityId)) primitives[index] = { ...base, kind: "circle", radius: 6, provenance: { ...base.provenance, pointStyle: "open" } };
+      }
+    }
     extra.forEach(({ primitive, groupId: markGroupId }, index) => {
       primitives.push({
         ...primitive,
@@ -296,7 +305,8 @@ function geometryFor(annotation: SceneAnnotation, targets: RenderPrimitive[], ve
         ?? points[0];
       if (!point) return [];
       const style = annotation.style?.pointStyle ?? "open";
-      return endpointMark(point, style).map((mark) => ({
+      // A 2 px ring over the point's own dot reads as a filled endpoint.
+      return endpointMark(point, style, verifiedPartsEnabled && style === "open" ? 6 : 2).map((mark) => ({
         kind: mark.kind === "rectangle" ? "rectangle" : mark.kind === "circle" ? "circle" : mark.kind === "point" ? "point" : "line",
         points: mark.points,
         radius: mark.radius,
