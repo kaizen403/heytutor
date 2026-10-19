@@ -1,4 +1,5 @@
 import { resolveElement } from "./elements";
+import { binaryCovalentNameMentions } from "./binaryCovalentName";
 import { parseFormula } from "./formula";
 import { molecularShapeMethodRequested } from "./foundation/molecularShapeRequest";
 import { namedSpeciesMentions } from "./namedSpecies";
@@ -54,13 +55,21 @@ function chemicalArgument(text: string, start: number, end: number): boolean {
   return /^\s+(?:is|are|has|have)\s+(?:(?:a|an|the|molecular|electron|pair|domain)\s+)*(?:shape|geometry|linear|bent|tetrahedral|trigonal|octahedral|lone)\b/i.test(text.slice(end));
 }
 
-/** Formula parsing still owns identity; prose abbreviations are not members. */
+/** A notation operator owns its adjacent modifier, never a molecule member. */
+function notationModifier(text: string, start: number, end: number): boolean {
+  if (requestArgumentRole(text, start, end) === "member") return false;
+  return /\b(?:using|use|in|with|according to)\s+$/i.test(text.slice(0, start))
+    && /^\s+notation\b/i.test(text.slice(end));
+}
+
+/** Parsed formulas keep identity without requiring a particular request verb. */
 export function vseprFormulaArguments(text: string, formulas: readonly string[]): string[] {
-  return formulas.filter(formula => {
-    if (/[a-z\d+-]/.test(formula)) return true;
-    return [...text.matchAll(new RegExp(`(?<![A-Za-z0-9])${escape(formula)}(?![A-Za-z0-9])`, "g"))]
-      .some(match => chemicalArgument(text, match.index, match.index + match[0].length));
-  });
+  return formulas.filter(formula => [...text.matchAll(new RegExp(`(?<![A-Za-z0-9])${escape(formula)}(?![A-Za-z0-9])`, "g"))]
+    .some(match => {
+      const end = match.index + match[0].length;
+      if (notationModifier(text, match.index, end)) return false;
+      return parseFormula(formula) !== null || chemicalArgument(text, match.index, end);
+    }));
 }
 
 /** A name is an alias only when its neighbouring formula states its identity. */
@@ -78,6 +87,21 @@ function aliasFormula(sentence: string, name: Span, formulas: readonly string[])
   });
 }
 
+/** A directly adjacent name parenthesis is owned in full, not by a substring. */
+function adjacentNamesComplete(sentence: string, formulas: readonly string[], names: readonly (Span & { formula: string })[]): boolean {
+  return formulas.every(formula => [...sentence.matchAll(new RegExp(`(?<![A-Za-z0-9])${escape(formula)}(?![A-Za-z0-9])`, "g"))]
+    .every(match => {
+      const end = match.index + match[0].length;
+      const alias = /^\s*\(\s*([A-Za-z]+(?:[ -]+[A-Za-z]+)*)\s*\)/d.exec(sentence.slice(end));
+      if (!alias) return true;
+      // Standard phase suffixes are a closed state operator, not name aliases.
+      if (/^(?:g|s|l|aq)$/.test(alias[1]!)) return true;
+      const span = alias.indices![1]!;
+      return names.some(name => name.start === end + span[0] && name.end === end + span[1]
+        && composition(name.formula) === composition(formula));
+    }));
+}
+
 /**
  * Inventory chemical members, rather than rejecting unlisted English prose.
  * Every named member needs its own local formula alias. Formula-shaped unknowns
@@ -93,7 +117,10 @@ export function vseprSourceArgumentsComplete(
     return key !== null && formulas.some(formula => composition(formula) === key);
   };
   for (const sentence of sentences) {
-    const names = namedSpeciesMentions(sentence);
+    const names = [...namedSpeciesMentions(sentence), ...binaryCovalentNameMentions(sentence)]
+      .sort((a, b) => b.end - b.start - (a.end - a.start))
+      .filter((name, index, all) => !all.slice(0, index).some(other => name.start < other.end && name.end > other.start));
+    if (!adjacentNamesComplete(sentence, formulas, names)) return false;
     for (const name of names) {
       const aliases = formulas.filter(formula => composition(formula) === composition(name.formula));
       if (!aliasFormula(sentence, name, aliases)) return false;
