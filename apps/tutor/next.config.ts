@@ -34,7 +34,7 @@ const nextConfig: NextConfig = {
       config.resolve ??= {};
       config.resolve.alias = {
         ...config.resolve.alias,
-        "@/lib/lecture-export/sourceRenderFingerprint$": path.join(process.cwd(), "lib/lecture-export/sourceRenderFingerprint.browser.ts"),
+        "./sourceRenderFingerprint$": path.join(process.cwd(), "lib/lecture-export/sourceRenderFingerprint.browser.ts"),
       };
     }
     // Custom server (server.ts) reads compiled route modules from .next/server in dev.

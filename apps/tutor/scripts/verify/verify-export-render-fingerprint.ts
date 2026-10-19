@@ -88,7 +88,7 @@ const runtimeFile = path.join(root, "apps/tutor/lib/lecture-export/lectureRender
 const runtime = ts.transpileModule(readFileSync(runtimeFile, "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 const browserIdentity = (hash: unknown) => {
   const fixtureModule = { exports: {} as { LECTURE_PAGE_CACHE_REVISION: string; LECTURE_RENDER_FINGERPRINT: string | null } };
-  new Function("require", "module", "exports", "process", runtime)((id: string) => { assert.equal(id, "@/lib/lecture-export/sourceRenderFingerprint"); return { sourceFingerprint: () => null }; }, fixtureModule, fixtureModule.exports, { env: { NEXT_PUBLIC_LECTURE_RENDER_HASH: hash } });
+  new Function("require", "module", "exports", "process", runtime)((id: string) => { assert.equal(id, "./sourceRenderFingerprint"); return { sourceFingerprint: () => null }; }, fixtureModule, fixtureModule.exports, { env: { NEXT_PUBLIC_LECTURE_RENDER_HASH: hash } });
   return fixtureModule.exports;
 };
 const keySource = path.join(root, "apps/tutor/lib/lecture-export/canExportLectureMp4.ts");
@@ -115,8 +115,48 @@ assert.equal(configModule.exports.default.env.NEXT_PUBLIC_LECTURE_RENDER_HASH, a
 console.log(`verify-export-render-fingerprint: ${files.length} source files; every root/change/add/delete/order/unrelated/config/browser/fallback control passes; no Git or providers`);
 
 const server = configModule.exports.default.webpack({ resolve: { alias: {} } }, { dev: false, isServer: true });
-assert.equal(server.resolve.alias["@/lib/lecture-export/sourceRenderFingerprint$"], undefined, "server source fallback remains Node-only");
+assert.equal(server.resolve.alias["./sourceRenderFingerprint$"], undefined, "server source fallback remains Node-only");
 const client = configModule.exports.default.webpack({ resolve: { alias: {} } }, { dev: false, isServer: false });
-const browserFallback = client.resolve.alias["@/lib/lecture-export/sourceRenderFingerprint$"];
+const browserFallback = client.resolve.alias["./sourceRenderFingerprint$"];
 assert.equal(browserFallback, path.join(root, "apps/tutor/lib/lecture-export/sourceRenderFingerprint.browser.ts"), "actual Next client graph replaces Node fallback");
 assert(!/node:|buildRenderFingerprint|existsSync|createRequire|process\.cwd/.test(readFileSync(browserFallback!, "utf8")), "browser fallback contains no filesystem code or private paths");
+
+// Compile the actual browser identity import, not just an alias-shaped object.
+// A filesystem fallback in this graph must fail even when env injection works.
+async function verifyBrowserBundle(): Promise<void> {
+const bundleDir = mkdtempSync(path.join(tmpdir(), "heytutor-browser-hash-"));
+try {
+  const loader = path.join(bundleDir, "transpile.cjs");
+  writeFileSync(loader, `const ts = require(${JSON.stringify(require.resolve("typescript"))}); module.exports = function(source) { return ts.transpileModule(source, {compilerOptions: {module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022}}).outputText; };`);
+  type Compiler = {
+    run: (callback: (error: Error | null, stats?: { hasErrors: () => boolean; toString: () => string }) => void) => void;
+    close: (callback: (error: Error | null) => void) => void;
+  };
+  const webpackModule: { init: () => void; webpack: (config: unknown) => Compiler } = require("next/dist/compiled/webpack/webpack");
+  webpackModule.init();
+  const compiler = webpackModule.webpack({
+    mode: "none", target: "web", devtool: false,
+    entry: path.join(root, "apps/tutor/lib/lecture-export/lectureRenderFingerprint.ts"),
+    output: { path: bundleDir, filename: "identity.js", library: { type: "commonjs2" } },
+    resolve: { ...client.resolve, extensions: [".ts", ".js"] },
+    module: { rules: [{ test: /\.ts$/, use: loader }] },
+  });
+  try {
+    await new Promise<void>((resolve, reject) => compiler.run((error, stats) => {
+      if (error) reject(error);
+      else if (!stats || stats.hasErrors()) reject(new Error(stats?.toString() ?? "No webpack result"));
+      else resolve();
+    }));
+    const bundle = readFileSync(path.join(bundleDir, "identity.js"), "utf8");
+    assert(!/node:fs|node:crypto|buildRenderFingerprint|existsSync|process\.cwd/.test(bundle), "browser graph excludes Node source traversal");
+    const browserModule = { exports: {} as { LECTURE_RENDER_FINGERPRINT: string | null } };
+    new Function("module", "exports", "process", bundle)(browserModule, browserModule.exports, { env: {} });
+    assert.equal(browserModule.exports.LECTURE_RENDER_FINGERPRINT, null, "real browser bundle without injection disables cache");
+    console.log("verify-export-render-fingerprint: actual webpack browser graph is filesystem-free");
+  } finally {
+    await new Promise<void>((resolve, reject) => compiler.close(error => error ? reject(error) : resolve()));
+  }
+} finally { rmSync(bundleDir, { recursive: true, force: true }); }
+
+}
+void verifyBrowserBundle().catch(error => { console.error(error); process.exitCode = 1; });

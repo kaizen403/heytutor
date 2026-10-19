@@ -1,4 +1,4 @@
-import { sourceFingerprint } from "@/lib/lecture-export/sourceRenderFingerprint";
+import { sourceFingerprint } from "./sourceRenderFingerprint";
 
 /** Next replaces this literal with the exact build's rendering-source SHA256. */
 const injected = process.env.NEXT_PUBLIC_LECTURE_RENDER_HASH;
