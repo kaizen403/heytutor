@@ -288,23 +288,27 @@ export function chemistryNativeBondInkIssues(audit: ChemistryRepresentationAudit
   const rounding = 2 * Math.SQRT2 * .01;
   const issues: SceneIssue[] = [];
   for (const binding of audit.representation.species) {
-    if (binding.resolver === "vsepr") continue; // Its separate wedge/dash plan is independently checked.
     for (const bond of binding.bonds) {
-      if (bond.entityIds.length < 2) continue;
       const marks = bond.entityIds.map(id => primitives.filter(mark => mark.entityId === id));
       const fail = (): void => { issues.push({ code: "chemistry_bond_native_ink", severity: "fatal", failureKind: "truth",
         path: "source.chemistryRepresentation", entityIds: [...bond.entityIds], message: "Source multiple-bond strokes are not distinct overlapping parallel native ink" }); };
-      if (marks.some(owned => owned.length !== 1 || owned[0]!.kind !== "line" || owned[0]!.points.length !== 2)) { fail(); continue; }
+      if (marks.some(owned => owned.length !== 1)) { fail(); continue; }
       const strokes = marks.map(owned => owned[0]!);
+      // The fresh independent source audit has already proved each VSEPR
+      // wedge/dash operator. Its paint still needs positive visible width;
+      // multiple line operators also need native separation below.
+      const wedge = binding.resolver === "vsepr" && strokes.length === 1 && strokes[0]!.kind === "polygon";
+      if (!wedge && strokes.some(stroke => stroke.kind !== "line" || stroke.points.length !== 2)) { fail(); continue; }
       const widths = strokes.map(stroke => {
         const provenance = stroke.provenance ?? {};
-        // Dashed/fill/annotation/alternate paint semantics cannot certify this
-        // ordinary molecular stroke. A supplied width must be real visible ink.
-        if (Object.keys(provenance).some(key => key !== "strokeWidth")) return null;
+        // Only source-checked VSEPR operators may use the dashed style.
+        const sourceDash = binding.resolver === "vsepr" && typeof provenance.dashed === "boolean";
+        if (Object.keys(provenance).some(key => key !== "strokeWidth" && !(sourceDash && key === "dashed"))) return null;
         const width = provenance.strokeWidth ?? defaultWidth;
         return typeof width === "number" && Number.isFinite(width) && width > 0 ? width * maximumThickness : null;
       });
       if (widths.some(width => width === null)) { fail(); continue; }
+      if (strokes.length < 2) continue;
       let valid = true;
       for (let i = 0; valid && i < strokes.length; i += 1) for (let j = i + 1; valid && j < strokes.length; j += 1) {
         const [a, b] = strokes[i]!.points, dx = b!.x - a!.x, dy = b!.y - a!.y, length = Math.hypot(dx, dy);
