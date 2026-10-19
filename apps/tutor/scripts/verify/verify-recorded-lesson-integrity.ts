@@ -4,6 +4,7 @@ import {
   buildLessonSegments,
   getSegmentCommands,
   prepareVerifiedLessonSegments,
+  parseStoredSegmentCommands,
   serializeSegmentCommands,
   textToStrokePaths,
   type DrawCommand,
@@ -69,7 +70,7 @@ async function consumer(text: string) {
     id: "synthetic-turn", orderIndex: 0, question: "Explain a symbolic name.", rawResponse: response,
     speedMultiplier: 1, traceId: null, ...canonical.value, status: "complete", kind: "lesson",
     segments: canonical.value.segments.map((segment, index) => ({
-      id: `synthetic-${index}`, ...segment, audioUrl: null, durationMs: 2_000, timings: null,
+      id: `synthetic-${index}`, ...segment, command: serializeSegmentCommands(parseStoredSegmentCommands(segment.command)), audioUrl: null, durationMs: 2_000, timings: null,
     })),
   };
   // JSON storage/reopen must not rewrite, lose or duplicate a work row.
