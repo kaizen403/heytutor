@@ -1,0 +1,2 @@
+# Fireworks production check, 19 Oct: river crossing time authority (with the existing w1 relative motion cases)
+tsx scripts/verify/verify-w1-relative-authority.ts

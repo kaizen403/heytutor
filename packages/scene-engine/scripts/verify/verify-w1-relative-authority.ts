@@ -195,6 +195,13 @@ check("a question comparing both crossings keeps the shortest time and the diffe
   assert.deepEqual(riverCrossingPlanConflicts(speeds, right, both), []);
   const wrong = plan(both, [], [quantity("tmin", "t_min", 16, "s"), quantity("dt", "Δt", 5, "s")]);
   assert.deepEqual(riverCrossingPlanConflicts(speeds, wrong, both).map((c) => c.id), ["dt"]);
+  // Only a row named as a difference may carry the 4 s difference.
+  for (const [id, symbol] of [["t", "t"], ["tmin", "t_min"], ["T", "T"], ["tc", "t_cross"]] as const) {
+    assert.deepEqual(riverCrossingPlanConflicts(speeds, plan(both, [], [quantity(id, symbol, 4, "s")]), both).map((c) => c.id), [id], `${symbol} = 4 s must conflict`);
+  }
+  for (const symbol of ["Δt", "∆t", "t_diff", "delta_t", "t_saved"]) {
+    assert.deepEqual(riverCrossingPlanConflicts(speeds, plan(both, [], [quantity("d", symbol, 4, "s")]), both), [], `${symbol} = 4 s is the difference`);
+  }
   // A question asking only for the straight across crossing keeps its single time binding.
   const pathOnly = both.replace(", and compare it with the shortest possible crossing time", "");
   assert.deepEqual(riverCrossingPlanConflicts(speeds, plan(pathOnly, [], [quantity("dt", "Δt", 4, "s")]), pathOnly).map((c) => c.id), ["dt"]);

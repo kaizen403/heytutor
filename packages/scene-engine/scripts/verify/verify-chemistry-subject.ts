@@ -37,6 +37,17 @@ const CHEMISTRY: string[] = [
   "One mole of an ideal gas expands isothermally and reversibly from 10 L to 20 L at 300 K. Calculate the work done and the entropy change.",
 ];
 
+// Coordination chemistry that names a complex must stay chemistry even though
+// complex number stems ("complex z with |z - 1| <= 2") leave it.
+for (const stem of [
+  "Explain complex formation between copper ions and ammonia.",
+  "The complex formed is octahedral. State its hybridisation.",
+  "Write the formula of the complex hexaamminecobalt(III) chloride.",
+  "Complex Z is octahedral and complex Y is tetrahedral. Which shows geometric isomerism?",
+  "Which is more stable, complex Z or complex W?",
+  "A square planar complex of nickel is diamagnetic. Explain.",
+  "Name the complex ion formed when excess ammonia is added.",
+]) CHEMISTRY.push(stem);
 const NOT_CHEMISTRY: string[] = [
   "Two cells of emf 2 V and 4 V are connected in parallel across a 4 ohm resistor. Find the current.",
   "A ball is thrown at 20 m/s at 30 degrees. Find the range.",
