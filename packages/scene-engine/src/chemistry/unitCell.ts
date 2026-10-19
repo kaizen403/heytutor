@@ -16,11 +16,11 @@
  * lattice (Schottky or Frenkel defects, amorphous solids, a physics block, a
  * cell "shown below" that we do not have) draws nothing.
  */
-import { chemistryPlanBindingsValid, chemistryQuantityCuesValid, resolveChemistryGiven, CHEMISTRY_NUMBER_PATTERN, matchedChemistryScalar } from "./quantityReader";
+import { chemistryPlanBindingsValid, chemistryQuantityCuesValid, chemistryQuantityInventoryOwned, resolveChemistryGiven, readChemistryQuantityDeclaration, CHEMISTRY_NUMBER_PATTERN, matchedChemistryScalar, type ChemistryQuantityConsumption } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { normalizeChemistryText } from "./formula";
-import { elementBySymbol } from "./elements";
+import { elementByName, elementBySymbol } from "./elements";
 
 export const SOLID_FAMILY = "chem_unit_cell" as const;
 const AVOGADRO = 6.022e23;
@@ -222,8 +222,25 @@ function drawVoidMark(c: ChemScene, id: string, at: Vec2, role: string, label?: 
 
 /* ----------------------------------------------------------- readers */
 
-const EDGE_CUE = /edge(?:\s*length)?|cell edge|axial distance|lattice (?:parameter|constant)|side of (?:the )?(?:cube|cell|unit cell)|\ba\s*(?:=|is)/;
-const RADIUS_CUE = /(?:atomic|metallic|ionic|covalent)?\s*radius(?!\s*ratio)(?:\s+of\s+(?:the\s+)?(?:atom|metal|element|[a-z]+))?|\br\s*(?:=|is)/;
+const EDGE_CUE = /(?:edge(?:[ -]*length)?|cell edge(?:[ -]*length)?|axial distance|lattice (?:parameter|constant))(?:\s*\(\s*a\s*\))?(?:\s+of\s+(?:(?:an?|the)\s+)?(?:(?:fcc|bcc|simple cubic|face[ -]?centred|body[ -]?centred)\s+)?(?:unit\s+)?cell)?|side of (?:the )?(?:cube|cell|unit cell)|\ba\s*(?:=|is)/;
+const RADIUS_CUE = /(?:atomic|metallic|ionic|covalent)?\s*radius(?!\s*ratio)(?:\s+of\s+(?:(?:the|an?)\s+)?(?:(?:[a-z]+\s+)?(?:atom|ion)|metal|element|cation|anion|[a-z]+))?|\br\s*(?:=|is)/;
+
+/** A declared but unread physical value cannot be replaced by a relation. */
+function declaredQuantityCuesValid(question: string, cue: RegExp, alias: "a" | "r"): boolean {
+  for (const match of question.matchAll(new RegExp(cue.source, "gi"))) {
+    const start = match.index! + match[0].length;
+    const tail = question.slice(start)
+      .split(/\b(?:radius|radii|edge|atomic mass|molar mass|density|find|calculate|what|when|if)\b/i)[0]!;
+    const declared = /^\s*,?\s*(?:[+−\-\d]|\.(?=\d|\s+(?:pm|nm|cm|m|Å|angstrom)\b)|unknown\b|unreadable\b)/i.test(tail)
+      || new RegExp(`^\\s*,\\s*${alias}\\s*(?:=|:|is)`, "i").test(tail)
+      || /^(?:[^.;\n]|\.(?=\d)){0,70}?(?:=|:|\bis\b|\bequal to\b|\bmeasures\b|\bmeasured\b)/i.test(tail);
+    if (!declared) continue;
+    const statedAlias = new RegExp(`^\\s*,?\\s*${alias}\\s*(?:=|:|is)`, "i").exec(question.slice(start));
+    const read = readChemistryQuantityDeclaration({question, after: /^/, within: {start: start + (statedAlias?.[0].length ?? 0), end: question.length}, dimension: "length", targetUnit: "pm",owner:alias === "a" ? "unit-cell edge" : "unit-cell radius"});
+    if (read.state !== "valid" || !(read.reading.value > 0)) return false;
+  }
+  return true;
+}
 
 /** Three significant figures, keeping a trailing zero (11.0, 6.23). */
 function fmt(value: number, digits = 3): string {
@@ -343,19 +360,69 @@ function readFraction(before: string): number | null | "unknown" {
 }
 
 /** Species tokens in reading order: single capitals not in option lists, element symbols with charges, named ions. */
-function speciesIn(fragment: string): Array<{ token: string; index: number }> {
-  const found: Array<{ token: string; index: number }> = [];
+function speciesIn(
+  fragment: string,
+  source: { question: string; start: number } = { question: fragment, start: 0 },
+): Array<{ token: string; index: number; end: number }> | null {
+  const found: Array<{ token: string; index: number; end: number }> = [];
   const single = /(?<![([])\b([A-Z])(?![a-z])(?!\)|\.)(?=\s*(?:atoms?|ions?|is|are|occup|at\b|form|present|,|and\b|\(|\^|\d|$))/g;
-  for (const match of fragment.matchAll(single)) found.push({ token: match[1]!, index: match.index ?? 0 });
-  const element = /\b([A-Z][a-z])(?:\^?\(?(\d?[+-])\)?)?(?=\s*(?:atoms?|ions?|is|are|occup|at\b|form|present|,|and\b))/g;
+  for (const match of fragment.matchAll(single)) {
+    if (/[0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉^()[\]{}_+⁺⁻−–—-]/.test(fragment[(match.index ?? 0) + match[0].length] ?? "")) continue;
+    found.push({ token: match[1]!, index: match.index ?? 0, end: (match.index ?? 0) + match[0].length });
+  }
+  // Decode only a complete original species token; its original indices remain
+  // authoritative even when a Unicode charge has a longer display spelling.
+  const element = /\b([A-Z][a-z]?)(?=[0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉^()[\]{}_+⁺⁻−–—-])/g;
   for (const match of fragment.matchAll(element)) {
-    if (!elementBySymbol(match[1]!)) continue;
-    const charge = match[2] ? (match[2].length > 1 ? `^(${match[2]})` : `^${match[2]}`) : "";
-    found.push({ token: `${match[1]}${charge}`, index: match.index ?? 0 });
+    const index = match.index ?? 0;
+    const original = /^[^\s,;:!?]+/.exec(fragment.slice(index))![0];
+    const token = original.endsWith(".") ? original.slice(0, -1) : original;
+    const name = /\b([A-Za-z]+)\s*\($/.exec(fragment.slice(0,index));
+    const alias = name ? elementByName(name[1]!) : null;
+    if (alias && alias.symbol !== match[1]) return null;
+    const enclosed = fragment[index - 1] === "(" && token.endsWith(")")
+      && (index === 1 || /[\s,.;:!?]/.test(fragment[index - 2] ?? "") || alias !== null);
+    const suffix = token.slice(match[1]!.length, enclosed ? -1 : undefined);
+    const phase = /\((s|l|g|aq)\)$/.exec(suffix);
+    const rawCharge = phase ? suffix.slice(0, -phase[0].length) : suffix;
+    if (!elementBySymbol(match[1]!)) return null;
+    if (!enclosed && /[0-9⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉^()[\]{}_+⁺⁻−–—-]/.test(fragment[(match.index ?? 0) - 1] ?? "")) return null;
+    const parsedCharge = /^(?:\^?\(([1-9]\d*)?([+-])\)|\^?([1-9]\d*)?([+-]))$/.exec(normalizeChemistryText(rawCharge));
+    // A complete outer wrapper may contain a neutral element. Any nonempty
+    // suffix still needs the complete charge grammar; it cannot become neutral.
+    if (!parsedCharge && !((enclosed || phase) && rawCharge === "")) return null;
+    // A phase is not charge notation. This operator can bind neutral solid
+    // lattice sites; phase transitions and charged-phase site ownership need
+    // a separate proof rather than silently turning an ion/liquid into metal.
+    if (phase && (phase[1] !== "s" || parsedCharge)) return null;
+    const end = index + token.length;
+    if (!/^\s*(?:atoms?|ions?|is|are|occup|at\b|form|present|,|and\b)/.test(fragment.slice(end))) continue;
+    const magnitude = parsedCharge?.[1] ?? parsedCharge?.[3] ?? "";
+    const sign = parsedCharge?.[2] ?? parsedCharge?.[4] ?? "";
+    const charge = sign ? (magnitude ? `^(${magnitude}${sign})` : `^${sign}`) : "";
+    found.push({ token: `${match[1]}${charge}`, index, end });
+  }
+  const neutral = /\b([A-Z][a-z])(?=\s*(?:atoms?|ions?|is|are|occup|at\b|form|present|,|and\b))/g;
+  for (const match of fragment.matchAll(neutral)) {
+    if (elementBySymbol(match[1]!)) found.push({ token: match[1]!, index: match.index ?? 0, end: (match.index ?? 0) + match[0].length });
   }
   for (const [pattern, token] of SPECIES_WORDS) {
     const match = pattern.exec(fragment);
-    if (match) found.push({ token, index: match.index });
+    if (match) found.push({ token, index: match.index, end: match.index + match[0].length });
+  }
+  // A species-owned opening must close in the original question, even when
+  // occupancy reading splits a parenthetical sentence into several fragments.
+  // Unrelated prose/algebra parentheses do not enter this token-local check.
+  for (const species of found) {
+    const opening = source.start + species.index - 1;
+    if (source.question[opening] !== "(") continue;
+    let depth = 0;
+    let closed = false;
+    for (let index = opening; index < source.question.length; index++) {
+      if (source.question[index] === "(") depth++;
+      if (source.question[index] === ")" && --depth === 0) { closed = true; break; }
+    }
+    if (!closed) return null;
   }
   return found.sort((a, b) => a.index - b.index);
 }
@@ -399,7 +466,7 @@ function sitePhrases(sentence: string): SitePhrase[] {
  * species named before it in the sentence, or to the species carried over
  * from the previous sentence when the sentence names none first.
  */
-function readOccupancy(question: string): Occupant[] {
+function readOccupancy(question: string): Occupant[] | null {
   const text = question;
   const hcp = /\bhcp\b|hexagonal close/i.test(text);
   const sentences = text.split(/(?<=[.;:?])\s+/);
@@ -410,9 +477,13 @@ function readOccupancy(question: string): Occupant[] {
     if (!occupant) { occupant = { species, sites: {} }; occupants.push(occupant); }
     return occupant;
   };
+  let sentenceEnd = 0;
   for (const sentence of sentences) {
+    const sentenceStart = text.indexOf(sentence, sentenceEnd);
+    sentenceEnd = sentenceStart + sentence.length;
     if (/\b(?:removed|missing|absent|vacant|taken out|replace)/i.test(sentence)) continue;
-    const species = speciesIn(sentence);
+    const species = speciesIn(sentence, { question, start: sentenceStart });
+    if (!species) return null;
     const phrases = sitePhrases(sentence);
     if (phrases.length === 0) { if (species.length > 0) carried = species.at(-1)!.token; continue; }
     for (const phrase of phrases) {
@@ -518,19 +589,30 @@ interface CellNumbers {
   molarMass: number | null;
   densityGiven: number | null;
   avogadro: number;
+  lengthReadings: readonly ChemistryQuantityConsumption[];
 }
 
 function readNumbers(question: string, quantities: readonly ChemPlanQuantity[]): CellNumbers {
-  const given = (after: RegExp, aliases: readonly string[], dimension: import("./quantityReader").ChemistryDimension, targetUnit: import("./quantityReader").ChemistryUnit): number | null => {
+  const lengthReadings: ChemistryQuantityConsumption[] = [];
+  const given = (after: RegExp, aliases: readonly string[], dimension: import("./quantityReader").ChemistryDimension, targetUnit: import("./quantityReader").ChemistryUnit, owner?: "edge" | "atomic_radius"): number | null => {
     const r = resolveChemistryGiven({ question, quantities, after, aliases, dimension, targetUnit });
+    if (r.ok && owner) {
+      const prefix = question.slice(0, r.reading.source.span.start).split(/[\n;]|\.(?!\d)/).at(-1)!;
+      // Ionic and covalent radii do not own r in a metallic hard-sphere relation.
+      // Leave their literals unconsumed rather than binding them to that r.
+      if (owner === "edge" || !/\b(?:ionic|covalent|cation|anion|ion)\b/i.test(prefix)) {
+        lengthReadings.push({reading: r.reading, owner});
+      }
+    }
     return r.ok ? r.reading.value : null;
   };
   return {
-    edgePm: given(EDGE_CUE, ["a", "edge", "edge_length", "cellEdge", "lattice_parameter"], "length", "pm"),
-    radiusPm: given(RADIUS_CUE, ["r", "radius", "atomic_radius"], "length", "pm"),
+    edgePm: given(EDGE_CUE, ["a", "edge", "edge_length", "cellEdge", "lattice_parameter"], "length", "pm", "edge"),
+    radiusPm: given(RADIUS_CUE, ["r", "radius", "atomic_radius"], "length", "pm", "atomic_radius"),
     molarMass: given(/(?:atomic|molar|molecular|formula|relative atomic)\s*(?:mass|weight)(?:\s+of\s+(?:the\s+)?[a-z]+)?|\bM\s*=/, ["M", "molar_mass", "atomic_mass"], "molar_mass", "g/mol"),
     densityGiven: given(/density/, ["rho", "density", "ρ", "d"], "density", "g/cm^3"),
     avogadro: given(AVOGADRO_CUE, ["NA", "avogadro"], "avogadro_constant", "mol^-1") ?? AVOGADRO,
+    lengthReadings,
   };
 }
 
@@ -613,7 +695,14 @@ function drawLatticeCell(c: ChemScene, slot: Slot, lattice: Exclude<Lattice, "hc
   captionBits.push(`${LATTICE_NAME[lattice]}: Z = ${facts.atomsPerCell}, CN = ${facts.coordinationNumber}, packing ${facts.packingEfficiency}%, ${facts.radiusRelation}`);
   if (options.voids && lattice === "fcc") captionBits.push(`${facts.voids.octahedral} oct. and ${facts.voids.tetrahedral} tet. voids per cell`);
   c.scene.quantity(`${slot.prefix}_Z`, "Z", facts.atomsPerCell);
-  if (numbers.edgePm !== null) c.scene.quantity(`${slot.prefix}_a`, "a", numbers.edgePm, "pm");
+  if (numbers.edgePm !== null) {
+    c.scene.quantity(`${slot.prefix}_a`, "a", numbers.edgePm, "pm");
+    captionBits.push(`a = ${fmtPm(numbers.edgePm)} pm as given`);
+  }
+  if (numbers.radiusPm !== null) {
+    c.scene.quantity(`${slot.prefix}_r`, "r", numbers.radiusPm, "pm");
+    captionBits.push(`r = ${fmtPm(numbers.radiusPm)} pm as given`);
+  }
   if (computedEdge !== null) { captionBits.push(`a = ${fmtPm(computedEdge)} pm`); c.scene.quantity(`${slot.prefix}_a`, "a", computedEdge, "pm"); }
   if (computedRadius !== null) { captionBits.push(`r = ${fmtPm(computedRadius)} pm`); c.scene.quantity(`${slot.prefix}_r`, "r", computedRadius, "pm"); }
   if (edgePm !== null && numbers.molarMass !== null && numbers.densityGiven === null) {
@@ -669,7 +758,9 @@ function drawIonicCell(c: ChemScene, slot: Slot, key: IonicKey, labels: { cation
     else if (key !== "nacl") slot.ids.push(drawDiagonal(c, `${slot.prefix}_diag`, project([0, 0, 0], slot.origin), project([0.5, 0.5, 0.5], slot.origin), "quarter body diagonal", template.relation));
   }
   c.scene.quantity(`${slot.prefix}_Z`, "Z", template.z);
-  if (numbers.edgePm !== null) c.scene.quantity(`${slot.prefix}_a`, "a", numbers.edgePm, "pm");
+  if (numbers.edgePm !== null) {
+    c.scene.quantity(`${slot.prefix}_a`, "a", numbers.edgePm, "pm");
+  }
   const name = labels.cation === template.cation ? template.name : `${plainSpecies(labels.cation)}${plainSpecies(labels.anion)} (${template.typeName} type)`;
   const sitesText = template.sites.replace("{cation}", plainSpecies(labels.cation)).replace("{anion}", plainSpecies(labels.anion));
   const bits = [`${name}: ${sitesText}`, `Z = ${template.z}, CN ${template.cn}, ${template.relation}`];
@@ -736,7 +827,13 @@ export function buildUnitCellScene(question: string, quantities: ChemPlanQuantit
   if (!isUnitCellStem(question) || !chemistryPlanBindingsValid(question, quantities)) return null;
   if (!chemistryQuantityCuesValid(question, [{after: EDGE_CUE, dimensions: ["length"]}, {after: RADIUS_CUE, dimensions: ["length"]}, {after: /molar mass|atomic mass|molecular mass/, dimensions: ["molar_mass"]}, {after: /density/, dimensions: ["density"]}])) return null;
   const stem = chemStem(question);
+  if (!speciesIn(question)) return null;
   const numbers = readNumbers(question, quantities);
+  if (!chemistryQuantityInventoryOwned(question, "length", numbers.lengthReadings)) return null;
+  if (!declaredQuantityCuesValid(question, EDGE_CUE, "a")
+    || !declaredQuantityCuesValid(question, RADIUS_CUE, "r")
+    || (numbers.edgePm !== null && !(numbers.edgePm > 0))
+    || (numbers.radiusPm !== null && !(numbers.radiusPm > 0))) return null;
   if (AVOGADRO_CUE.test(question)) {
     const avogadro = resolveChemistryGiven({question,quantities,after:AVOGADRO_CUE,aliases:["NA","avogadro"],dimension:"avogadro_constant",targetUnit:"mol^-1"});
     if (!avogadro.ok || !(avogadro.reading.value > 0)) return null;
@@ -761,6 +858,7 @@ export function buildUnitCellScene(question: string, quantities: ChemPlanQuantit
     captions.push(drawIonicCell(c, slot, ionic, labels, numbers, stem));
   } else {
     const occupants = readOccupancy(question);
+    if (!occupants) return null;
     const removals = readRemovals(stem);
     const hcpOccupant = occupants.find((occupant) => occupant.hcp);
     const cubicOccupants = occupants.filter((occupant) => !occupant.hcp && Object.keys(occupant.sites).length > 0);

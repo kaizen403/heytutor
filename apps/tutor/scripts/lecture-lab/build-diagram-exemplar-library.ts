@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { basename, join, relative, resolve } from "node:path";
 import {
   compileSceneDocument,
@@ -10,13 +10,18 @@ import {
 } from "@heytutor/scene-engine";
 import {
   buildDiagramExemplarDepicts,
+  curatedDiagramExemplarSubject,
   figureKindForDiagramGroup,
+  parseDiagramExemplarSubject,
   type DiagramExemplar,
+  type DiagramExemplarSubject,
 } from "./diagramExamples";
 
 interface Stem {
   id: string;
   question: string;
+  /** Where the stem came from: its probe file's subject, or its bank unit's subject. */
+  subject: DiagramExemplarSubject | null;
 }
 
 function filesBelow(root: string): string[] {
@@ -43,7 +48,8 @@ function readableValidatedDocument(value: unknown): SceneDocument | null {
 
 function curatedExemplars(root: string): DiagramExemplar[] {
   return filesBelow(root)
-    .filter((path) => path.endsWith(".json"))
+    // `_`-prefixed files are library metadata (for example the synthesized review), not exemplars.
+    .filter((path) => path.endsWith(".json") && !basename(path).startsWith("_"))
     .sort()
     .map((path) => {
       const value = JSON.parse(readFileSync(path, "utf8")) as {
@@ -52,6 +58,8 @@ function curatedExemplars(root: string): DiagramExemplar[] {
         sceneDocument?: unknown;
       };
       const id = `curated:${relative(root, path).replace(/\.json$/, "").replaceAll("\\", "/")}`;
+      const subject = curatedDiagramExemplarSubject(id);
+      if (!subject) throw new Error(`${id}: curated exemplars live under physics/, maths/ or chemistry/`);
       if (typeof value.question !== "string") throw new Error(`${id}: missing question`);
       if (typeof value.figure_kind !== "string") throw new Error(`${id}: missing figure_kind`);
       const document = readableValidatedDocument(value.sceneDocument);
@@ -66,6 +74,7 @@ function curatedExemplars(root: string): DiagramExemplar[] {
       return {
         id,
         sourceKind: "curated" as const,
+        subject,
         question: value.question,
         depicts: buildDiagramExemplarDepicts(document as unknown as Record<string, unknown>, family, archetype),
         figureKind: value.figure_kind,
@@ -84,24 +93,73 @@ function probeStems(probesRoot: string): Stem[] {
       const value = JSON.parse(readFileSync(join(probesRoot, name), "utf8")) as {
         questions?: Array<{ id?: unknown; question?: unknown }>;
       };
+      // Probe files are named for their subject: `physics-unit-4.json`.
+      const subject = parseDiagramExemplarSubject(name.split("-")[0]);
       return (value.questions ?? []).flatMap((entry, index) =>
         typeof entry.question === "string"
-          ? [{ id: `probe:${basename(name, ".json")}:${typeof entry.id === "string" ? entry.id : index + 1}`, question: entry.question }]
+          ? [{
+              id: `probe:${basename(name, ".json")}:${typeof entry.id === "string" ? entry.id : index + 1}`,
+              question: entry.question,
+              subject,
+            }]
           : []);
     });
 }
 
-function bankStems(bankPath: string): Stem[] {
+/** Bank questions are classified into a syllabus unit; the unit belongs to one subject. */
+function bankUnitSubjects(taxonomyPath: string): Map<string, DiagramExemplarSubject> {
+  const taxonomy = JSON.parse(readFileSync(taxonomyPath, "utf8")) as {
+    subjects?: Array<{ subject_id?: unknown; units?: Array<{ name?: unknown }> }>;
+  };
+  const subjects = new Map<string, DiagramExemplarSubject>();
+  for (const entry of taxonomy.subjects ?? []) {
+    const subject = parseDiagramExemplarSubject(entry.subject_id);
+    for (const unit of entry.units ?? []) {
+      if (!subject || typeof unit.name !== "string") continue;
+      if (subjects.has(unit.name) && subjects.get(unit.name) !== subject) {
+        throw new Error(`${taxonomyPath}: unit ${unit.name} belongs to two subjects`);
+      }
+      subjects.set(unit.name, subject);
+    }
+  }
+  return subjects;
+}
+
+function bankStems(bankPath: string, unitSubjects: ReadonlyMap<string, DiagramExemplarSubject>): Stem[] {
   return readFileSync(bankPath, "utf8")
     .split(/\r?\n/)
     .filter((line) => line.trim().length > 0)
     .flatMap((line, index) => {
-      const value = JSON.parse(line) as { question_id?: unknown; text?: unknown };
+      const value = JSON.parse(line) as { question_id?: unknown; text?: unknown; topic?: unknown };
       return typeof value.text === "string" && value.text.trim()
-        ? [{ id: `bank:${typeof value.question_id === "string" ? value.question_id : index + 1}`, question: value.text }]
+        ? [{
+            id: `bank:${typeof value.question_id === "string" ? value.question_id : index + 1}`,
+            question: value.text,
+            subject: typeof value.topic === "string" ? unitSubjects.get(value.topic) ?? null : null,
+          }]
         : [];
     })
     .sort((left, right) => left.id.localeCompare(right.id));
+}
+
+interface SynthesizedReview {
+  keep: ReadonlySet<string>;
+  verdicts: Readonly<Record<string, string>>;
+}
+
+/** Audit verdicts for synthesized physics and maths entries; a missing file fails the build. */
+function synthesizedReview(path: string): SynthesizedReview {
+  if (!existsSync(path)) {
+    throw new Error(`${path}: missing; synthesized physics and maths entries are admitted only with a kept audit verdict`);
+  }
+  const value = JSON.parse(readFileSync(path, "utf8")) as { keep?: unknown; verdicts?: unknown };
+  if (!Array.isArray(value.keep) || typeof value.verdicts !== "object" || value.verdicts === null) {
+    throw new Error(`${path}: expected keep[] and verdicts{}`);
+  }
+  return {
+    keep: new Set(value.keep.filter((verdict): verdict is string => typeof verdict === "string")),
+    verdicts: value.verdicts as Record<string, string>,
+  };
 }
 
 function stableSynthesizedId(group: string, question: string): string {
@@ -134,9 +192,13 @@ export function buildDiagramExemplarLibrary(repoRoot: string): DiagramExemplar[]
     groupCounts.set(group, count);
   }
 
+  const review = synthesizedReview(resolve(exemplarsRoot, "_synthesized-review.json"));
   const stems = [
     ...probeStems(resolve(repoRoot, "data/syllabus-probes")),
-    ...bankStems(resolve(repoRoot, "data/question-bank/questions.jsonl")),
+    ...bankStems(
+      resolve(repoRoot, "data/question-bank/questions.jsonl"),
+      bankUnitSubjects(resolve(repoRoot, "data/question-bank/syllabus-taxonomy.json")),
+    ),
   ];
   for (const stem of stems) {
     const normalizedQuestion = stem.question.toLowerCase().replace(/\s+/g, " ").trim();
@@ -148,12 +210,24 @@ export function buildDiagramExemplarLibrary(repoRoot: string): DiagramExemplar[]
     const archetype = detectArchetype(stem.question)?.id ?? null;
     const group = archetype ? `archetype:${archetype}` : `family:${synthesized.family}`;
     if ((groupCounts.get(group) ?? 0) >= 2) continue;
+    const id = stableSynthesizedId(group, stem.question);
+    // Physics and maths builder output is admitted only after a figure audit kept it.
+    // Scope follows the group the entry is filed under (archetype first, as its figure
+    // kind does): chemistry output filed under a physics or maths archetype reaches
+    // those pickers as that kind, so it is audited; chemistry-filed entries are untouched.
+    const reviewScope = archetype ?? synthesized.family;
+    if (!reviewScope.startsWith("chem_") && !review.keep.has(review.verdicts[id] ?? "")) continue;
     const family = synthesized.family;
     const figureKind = figureKindForDiagramGroup(family, archetype);
     if (!figureKind) throw new Error(`${group}: missing figure_kind mapping`);
+    // The picker shows each turn only its own subject, so every entry needs one:
+    // where its stem came from, else a chemistry family; never a guess.
+    const subject = stem.subject ?? (family.startsWith("chem_") ? "chemistry" : null);
+    if (!subject) throw new Error(`${stem.id} (${group}): no subject from its stem's origin or its family`);
     exemplars.push({
-      id: stableSynthesizedId(group, stem.question),
+      id,
       sourceKind: "synthesized",
+      subject,
       question: null,
       depicts: buildDiagramExemplarDepicts(document as unknown as Record<string, unknown>, family, archetype),
       figureKind,
@@ -175,5 +249,7 @@ if (process.argv[1]?.endsWith("build-diagram-exemplar-library.ts")) {
   const groups = new Set(exemplars.map((entry) => entry.archetype
     ? `archetype:${entry.archetype}`
     : entry.family ? `family:${entry.family}` : `figure:${entry.figureKind ?? "unknown"}`));
-  console.log(JSON.stringify({ output, exemplars: exemplars.length, groups: groups.size }, null, 2));
+  const subjects = Object.fromEntries(["physics", "maths", "chemistry"].map((subject) =>
+    [subject, exemplars.filter((entry) => entry.subject === subject).length]));
+  console.log(JSON.stringify({ output, exemplars: exemplars.length, groups: groups.size, subjects }, null, 2));
 }

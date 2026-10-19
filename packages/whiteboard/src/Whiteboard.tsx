@@ -151,6 +151,13 @@ export interface WriteSchedule {
    */
   getAudioPositionMs: () => number;
   /**
+   * This schedule's live segment still owns active provider playback, including
+   * buffering. A finite positive media clock remains authoritative until this
+   * turns false. The owner must release it on speech end, failure or cancellation;
+   * absent/zero clocks retain the bounded wall-clock fallback.
+   */
+  isAudioActive?: () => boolean;
+  /**
    * Media ms per wall ms of the voice this schedule follows (1.5 at the default
    * playback speed). Glyph tweens are timed in media ms against the schedule
    * and converted to wall time with this, locked to the wall clock, so the
@@ -185,10 +192,14 @@ export interface AnnotationOptions {
   transient?: boolean;
   /** Allows the owning turn or transaction to abort stale annotation work. */
   shouldCancel?: () => boolean;
+  /** Stop a transient at its current nib position and fade without holding the pen. */
+  shouldStop?: () => boolean;
 }
 
 export interface ShapeDrawOptions {
   dashed?: boolean;
+  /** Excluded endpoint mark with an opaque board-colored center. */
+  pointStyle?: "open";
   inkSettings?: DrawCommandInkSettings;
   strokeWidth?: number;
   /**
@@ -238,6 +249,8 @@ export interface WhiteboardHandle {
     shouldCancel?: () => boolean,
     inkSettings?: DrawCommandInkSettings,
     onInkStarted?: () => void,
+    /** Preserve an instant verified label's ordinary instrument classification. */
+    letteringDurationMs?: number,
   ) => Promise<void>;
   getInkSettings: () => DrawCommandInkSettings;
   clearBoard: (duration?: number) => Promise<void>;
@@ -1214,6 +1227,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           const path = new Konva.Path(
             inkPathConfig(pathData, options?.strokeWidth ?? SHAPE_STROKE_WIDTH, inkStyle),
           );
+          if (options?.pointStyle === "open") { path.fillEnabled(true); path.fill(WHITEBOARD_COLOR); path.opacity(1); }
           if (options?.dashed) {
             path.dash([6, 5]);
           }
@@ -1251,6 +1265,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         const path = new Konva.Path(
           inkPathConfig(pathData, options?.strokeWidth ?? SHAPE_STROKE_WIDTH, inkStyle),
         );
+        if (options?.pointStyle === "open") { path.fillEnabled(true); path.fill(WHITEBOARD_COLOR); path.opacity(1); }
         tagBoardInk(path, "scene");
         if (Math.abs((options?.strokeWidth ?? SHAPE_STROKE_WIDTH) - SHAPE_STROKE_WIDTH) < 0.01) {
           path.setAttr(SCENE_LEAD_ATTR, true);
@@ -1678,7 +1693,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           path.dashOffset(totalLength - drawnLength);
           moveNib(point.x, point.y, "annotate");
           animLayer.batchDraw();
-        }, isCancelled);
+        }, () => isCancelled() || Boolean(options.transient && options.shouldStop?.()));
 
         if (isCancelled()) {
           discardNode(path, animNodesRef.current);
@@ -1692,12 +1707,19 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             animLayer.batchDraw();
             return;
           }
-          await animateOver(180, (progress) => {
-            path.opacity(1 - progress);
+          const fade = async (): Promise<void> => {
+            await animateOver(180, (progress) => {
+              path.opacity(1 - progress);
+              animLayer.batchDraw();
+            }, isCancelled);
+            discardNode(path, animNodesRef.current);
             animLayer.batchDraw();
-          }, isCancelled);
-          discardNode(path, animNodesRef.current);
-          animLayer.batchDraw();
+          };
+          // A spoken-work deadline releases the nib immediately. Only the
+          // existing partial path fades; the fade never moves the shared pen.
+          // Atomic intro owners must join their nodes before committing them.
+          if (options.shouldStop?.() && !ownership.transactionId) void fade();
+          else await fade();
           return;
         }
 
@@ -1719,6 +1741,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         originWallMs: number,
         getPlaybackRate?: () => number,
         shouldCancel?: () => boolean,
+        isAudioActive?: () => boolean,
       ): Promise<void> =>
         new Promise((resolve) => {
           let done = false;
@@ -1728,6 +1751,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           let pausedAt: number | null = null;
           let pausedTotalMs = 0;
           let maxPositionMs = 0;
+          let activeAudioClock = false;
           // The pen is parked here doing nothing while the voice catches up.
           // Rather than freeze mid-sentence it breathes, and rolls between the
           // fingers on a long hold — motion that costs the schedule nothing.
@@ -1746,6 +1770,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
 
           const currentClockMs = (): number => {
             const rawPositionMs = getAudioPositionMs();
+            activeAudioClock = Number.isFinite(rawPositionMs) && rawPositionMs > 0 && isAudioActive?.() === true;
             if (rawPositionMs > 0 && rawPositionMs === lastRawPositionMs) {
               stalledFrames += 1;
             } else {
@@ -1756,7 +1781,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             const resolved = resolveWriteWaitClockMs({
               rawPositionMs,
               elapsedMediaMs: elapsedMs,
-              stalledFrames,
+              stalledFrames: activeAudioClock ? 0 : stalledFrames,
               maxPositionMs,
             });
             maxPositionMs = resolved.maxPositionMs;
@@ -1809,7 +1834,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
                 targetMs,
                 elapsedMs,
                 clockEverStarted: positionMs > 0 || elapsedMs > 0,
-                stalledFrames,
+                stalledFrames: activeAudioClock ? 0 : stalledFrames,
               })
             ) {
               cleanup();
@@ -1896,6 +1921,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         shouldCancel?: () => boolean,
         inkSettings?: DrawCommandInkSettings,
         onInkStarted?: () => void,
+        letteringDurationMs?: number,
       ): Promise<void> => {
         let inkObserved = false;
         const markInk = () => {
@@ -1928,7 +1954,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
         // are part of the sketch and are lettered with whatever is already in
         // hand — otherwise every reveal group would pay for a swap each way.
         const labelSized =
-          !schedule && duration <= text.replace(/\s+/g, "").length * LETTERED_IN_HAND_MS_PER_CHAR;
+          !schedule && (letteringDurationMs ?? duration) <= text.replace(/\s+/g, "").length * LETTERED_IN_HAND_MS_PER_CHAR;
         const scheduledWrite = Boolean(schedule?.charStartOffsetsMs && schedule.charStartOffsetsMs.length > 0);
 
         // Whatever a caller hands down, the pen only ever writes at a step on
@@ -1945,7 +1971,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
           const pathsPromise = waitForOwnedPromise(textToStrokePaths(text, x, y, resolvedFontSize), isCancelled);
           if (!labelSized) {
             await Promise.all([
-              equipInstrumentFor("write", scheduledWrite, isCancelled, ownership),
+              equipInstrumentFor("write", scheduledWrite || duration <= 0, isCancelled, ownership),
               pathsPromise,
             ]);
             if (isCancelled()) {
@@ -2116,7 +2142,7 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             };
             await Promise.all([
               approachFirstGlyph(),
-              waitForAudioPosition(firstCue, audioPositionMs, scheduleOriginMs, playbackRate, isCancelled),
+              waitForAudioPosition(firstCue, audioPositionMs, scheduleOriginMs, playbackRate, isCancelled, schedule?.isAudioActive),
             ]);
             if (!mountedRef.current || isCancelled()) return;
           }
@@ -2140,8 +2166,9 @@ export const Whiteboard = forwardRef<WhiteboardHandle, WhiteboardProps>(
             if (scheduled && offsets && audioPositionMs) {
               const start = offsets[Math.min(ci, offsets.length - 1)] ?? 0;
               // Hold this character until the voice reaches its spoken moment.
-              // Missing/stuck clocks fall through to wall time from this WRITE start.
-              await waitForAudioPosition(start, audioPositionMs, scheduleOriginMs, playbackRate, isCancelled);
+              // Active provider playback holds a positive clock through buffering;
+              // unavailable or completed clocks retain the bounded wall fallback.
+              await waitForAudioPosition(start, audioPositionMs, scheduleOriginMs, playbackRate, isCancelled, schedule?.isAudioActive);
               if (!mountedRef.current || isCancelled()) return;
               schedule?.onCharacterStart?.({
                 char: charPath.char,

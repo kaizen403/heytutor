@@ -1,0 +1,496 @@
+{
+  "topic_id": "physics|11|parallel-plate-capacitor-with-dielectric",
+  "question": "A parallel-plate capacitor has plate area A and plate separation d. Its plates are charged to surface charge densities +σ and −σ and then disconnected from the battery. A dielectric slab of dielectric constant K and thickness t (t < d), covering the full plate area, is placed between the plates parallel to them, touching neither plate. Show the free and bound charges and the electric field in the air gaps and inside the slab, and find the new capacitance.",
+  "figure_kind": "apparatus",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "isolated capacitor with dielectric slab"
+    },
+    "source": {
+      "question": "A parallel-plate capacitor has plate area A and plate separation d. Its plates are charged to surface charge densities +σ and −σ and then disconnected from the battery. A dielectric slab of dielectric constant K and thickness t (t < d), covering the full plate area, is placed between the plates parallel to them, touching neither plate. Show the free and bound charges and the electric field in the air gaps and inside the slab, and find the new capacitance.",
+      "archetype": "parallel_plates"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "pp",
+        "kind": "segment",
+        "role": "positive plate"
+      },
+      {
+        "id": "pn",
+        "kind": "segment",
+        "role": "negative plate"
+      },
+      {
+        "id": "sl",
+        "kind": "rectangle",
+        "role": "dielectric slab",
+        "label": "K"
+      },
+      {
+        "id": "qA",
+        "kind": "point",
+        "role": "free charge"
+      },
+      {
+        "id": "qB",
+        "kind": "point",
+        "role": "free charge"
+      },
+      {
+        "id": "fT",
+        "kind": "point",
+        "role": "bound charge"
+      },
+      {
+        "id": "fB",
+        "kind": "point",
+        "role": "bound charge"
+      },
+      {
+        "id": "bT",
+        "kind": "point",
+        "role": "bound charge"
+      },
+      {
+        "id": "bB",
+        "kind": "point",
+        "role": "bound charge"
+      },
+      {
+        "id": "E1",
+        "kind": "vector",
+        "role": "field in air gap",
+        "label": "E₀"
+      },
+      {
+        "id": "E2",
+        "kind": "vector",
+        "role": "reduced field in slab",
+        "label": "E"
+      },
+      {
+        "id": "E3",
+        "kind": "vector",
+        "role": "field in air gap",
+        "label": "E₀"
+      },
+      {
+        "id": "P",
+        "kind": "vector",
+        "role": "polarization",
+        "label": "P"
+      },
+      {
+        "id": "dd",
+        "kind": "dimension",
+        "role": "plate separation",
+        "label": "d"
+      },
+      {
+        "id": "dt",
+        "kind": "dimension",
+        "role": "slab thickness",
+        "label": "t"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "kpp",
+        "operator": "segment",
+        "inputs": {
+          "start": [
+            -2,
+            2.2
+          ],
+          "end": [
+            2,
+            2.2
+          ]
+        },
+        "outputs": [
+          "pp"
+        ]
+      },
+      {
+        "id": "kpn",
+        "operator": "segment",
+        "inputs": {
+          "start": [
+            -2,
+            -2.2
+          ],
+          "end": [
+            2,
+            -2.2
+          ]
+        },
+        "outputs": [
+          "pn"
+        ]
+      },
+      {
+        "id": "ksl",
+        "operator": "rectangle",
+        "inputs": {
+          "center": [
+            0,
+            0
+          ],
+          "width": 4,
+          "height": 1.6
+        },
+        "outputs": [
+          "sl"
+        ]
+      },
+      {
+        "id": "kqA",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 2.2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "qA"
+        ]
+      },
+      {
+        "id": "kqB",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -2.2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "qB"
+        ]
+      },
+      {
+        "id": "kfT",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0.8,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "fT"
+        ]
+      },
+      {
+        "id": "kfB",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -0.8,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "fB"
+        ]
+      },
+      {
+        "id": "kbT",
+        "operator": "point",
+        "inputs": {
+          "x": 0.95,
+          "y": 0.8,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "bT"
+        ]
+      },
+      {
+        "id": "kbB",
+        "operator": "point",
+        "inputs": {
+          "x": 0.95,
+          "y": -0.8,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "bB"
+        ]
+      },
+      {
+        "id": "kE1",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            -1.3,
+            2.2
+          ],
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 1.4
+        },
+        "outputs": [
+          "E1"
+        ]
+      },
+      {
+        "id": "kE2",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            -1.3,
+            0.8
+          ],
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 0.9
+        },
+        "outputs": [
+          "E2"
+        ]
+      },
+      {
+        "id": "kE3",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            -1.3,
+            -0.8
+          ],
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 1.4
+        },
+        "outputs": [
+          "E3"
+        ]
+      },
+      {
+        "id": "kP",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            1.55,
+            0.4
+          ],
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 0.8
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "kdd",
+        "operator": "dimension",
+        "inputs": {
+          "start": [
+            2.35,
+            2.2
+          ],
+          "end": [
+            2.35,
+            -2.2
+          ]
+        },
+        "outputs": [
+          "dd"
+        ]
+      },
+      {
+        "id": "kdt",
+        "operator": "dimension",
+        "inputs": {
+          "start": [
+            -2.35,
+            0.8
+          ],
+          "end": [
+            -2.35,
+            -0.8
+          ]
+        },
+        "outputs": [
+          "dt"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "par",
+        "predicate": "parallel",
+        "entities": [
+          "pp",
+          "pn"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "onA",
+        "predicate": "on",
+        "entities": [
+          "qA",
+          "pp"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "onT",
+        "predicate": "on",
+        "entities": [
+          "fT",
+          "sl"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "gaps",
+        "predicate": "ordered_along",
+        "entities": [
+          "qB",
+          "fB",
+          "fT",
+          "qA"
+        ],
+        "expected": {
+          "axis": "y",
+          "direction": "increasing"
+        },
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "lp",
+        "kind": "label",
+        "targetIds": [
+          "pp"
+        ],
+        "text": "+σ",
+        "placementIntent": "left"
+      },
+      {
+        "id": "ln",
+        "kind": "label",
+        "targetIds": [
+          "pn"
+        ],
+        "text": "−σ",
+        "placementIntent": "left"
+      },
+      {
+        "id": "sA",
+        "kind": "label",
+        "targetIds": [
+          "qA"
+        ],
+        "text": "+ + + + + + +",
+        "placementIntent": "below"
+      },
+      {
+        "id": "sB",
+        "kind": "label",
+        "targetIds": [
+          "qB"
+        ],
+        "text": "− − − − − − −",
+        "placementIntent": "above"
+      },
+      {
+        "id": "sT",
+        "kind": "label",
+        "targetIds": [
+          "fT"
+        ],
+        "text": "− − − − − − −",
+        "placementIntent": "below"
+      },
+      {
+        "id": "sF",
+        "kind": "label",
+        "targetIds": [
+          "fB"
+        ],
+        "text": "+ + + + + + +",
+        "placementIntent": "above"
+      },
+      {
+        "id": "lT",
+        "kind": "label",
+        "targetIds": [
+          "bT"
+        ],
+        "text": "−σ′",
+        "placementIntent": "below"
+      },
+      {
+        "id": "lB",
+        "kind": "label",
+        "targetIds": [
+          "bB"
+        ],
+        "text": "+σ′",
+        "placementIntent": "above"
+      }
+    ],
+    "requiredEntityIds": [
+      "pp",
+      "pn",
+      "sl",
+      "E1",
+      "E2",
+      "E3",
+      "P",
+      "dd",
+      "dt"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "pp",
+          "pn",
+          "sl",
+          "qA",
+          "qB",
+          "fT",
+          "fB",
+          "bT",
+          "bB",
+          "E1",
+          "E2",
+          "E3",
+          "P",
+          "dd",
+          "dt"
+        ],
+        "dependsOn": [],
+        "narrationCue": "free and bound charges, fields"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "free and bound charges, fields"
+      }
+    ]
+  }
+}

@@ -1,3 +1,4 @@
+import { parseDiagramYieldPolicy } from "@heytutor/scene-engine";
 /**
  * Runs one whole lecture turn without a browser.
  *
@@ -27,6 +28,7 @@ import {
   planAndSolveProblemV1,
   planSceneDocumentWithRepair,
   planTurnV3,
+  subjectFromRejectedTurnPlanOutcomes,
   questionRequiresVisual,
   revalidateScenePlanWithRepairResult,
   streamLLMResponse,
@@ -35,6 +37,7 @@ import {
   type ScenePlannerRequestOutcome,
   type ScenePlanWithRepairResult,
   type SubjectFamiliarity,
+  type TurnPlanRequestOutcome,
 } from "@heytutor/tutor-core";
 import {
   FIGURE_SOURCES,
@@ -42,11 +45,12 @@ import {
   reconcileTurnPlanWithSolver,
   verifyTurnPlanAgainstSolver,
   type FigureSource,
+  type SceneCompletionDiagnosticsV3,
   type TurnPlanV3,
 } from "@heytutor/scene-engine";
 import {
   deriveSceneGate as deriveProductionSceneGate, selectProductionScene, validateProductionSceneCandidate,
-  type ProductionSceneGate, type ValidatedSceneCandidate,
+  settleSelectionDegradation, type DroppedSceneCandidate, type ProductionSceneGate, type ValidatedSceneCandidate,
 } from "@/features/tutor-session/lib/scene/productionSceneSelection";
 import { diagramStrategyAllowsFigureSource } from "@/features/tutor-session/lib/scene/diagramStrategy";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
@@ -71,7 +75,7 @@ import { isTeachingResponseIncomplete } from "@/features/tutor-session/lib/turn/
 import { MAX_LLM_CONTINUATIONS } from "@/features/tutor-session/constants";
 import { parseDiagramSubject, type DiagramSubject } from "@heytutor/tutor-core";
 import { sceneDeclineExperimentGuidance, type SceneDeclinePolicy } from "./sceneDeclineExperiment";
-import { createPlannerEvidence, recordPlannerResponse, recordRejectedOperatorCalls, type PlannerEvidence } from "./plannerEvidence";
+import { createPlannerEvidence, recordPlannerResponse, recordRejectedOperatorCalls, retainValidationIssue, type PlannerEvidence, type RetainedValidationIssue } from "./plannerEvidence";
 import {
   classifyDiagramEmptyCause,
   evaluationDecision,
@@ -93,6 +97,7 @@ import { fetchVisualNeedAssessment, type VisualNeedAssessment } from "@/features
 import { LAB_VISUAL_NEED_POLICY, visualNeedQuestionHash, type LabVisualNeedEvidence } from "./labVisualNeed";
 import { labStrategyDecision, pickProductionLabExamples } from "./productionLabProfile";
 import type { LabSpendMode } from "./labSpend";
+import { retainSolverEvidence, type SolverEvidence } from "./solverEvidence";
 
 export interface LectureStep {
   index: number;
@@ -136,6 +141,13 @@ export interface LectureRun {
   familiarity: SubjectFamiliarity;
   arm?: DiagramEvalArm;
   figureOnly?: boolean;
+  /** Full accepted inputs for offline selection replay; absent on historical runs. */
+  figureReplayInputs?: {
+    schemaVersion: "lecture-figure-replay-inputs/v1";
+    selection: Parameters<typeof selectProductionScene>[0];
+    authority: Pick<ProblemAuthorityV1Response, "solverResult" | "audit" | "projection"> | null;
+    authorityAttempted: boolean;
+  } | null;
   startedAt: string;
   timings: {
     planMs: number;
@@ -163,8 +175,14 @@ export interface LectureRun {
     issueCodes: string[];
     hasProjection: boolean;
     projection: unknown;
+    /** Missing on historical captures; bounded full numeric-authority evidence. */
+    evidence?: SolverEvidence;
   } | null;
   planner?: PlannerUsageSummary;
+  /** Observed TurnPlan completions only; absent on historical runs, bounded to three attempts. */
+  turnPlanCallOutcomes?: TurnPlanRequestOutcome[];
+  /** The actual admitted model result versus the existing handled fallback. */
+  turnPlanStatus?: "planned" | "fallback";
   examplePicker?: LectureExamplePickerRecord;
   /** Missing only on historical runs. Null votes mean unavailable evidence, never none. */
   visualNeed?: LabVisualNeedEvidence;
@@ -198,6 +216,7 @@ export interface LectureRun {
     assertionCount: number;
     candidateErrorCodes: string[];
     candidateCount?: number;
+    candidateTimings?: Array<{ phase: string; lane: string; pass: string; validationAndCompileMs: number | null; valid: boolean; errorCodes: string[] }>;
     /** Only true for the selected, validated text_only document, not an invalid refusal. */
     plannerDeclined?: boolean;
     /** HTTP/parse diagnostics for every scene-planner request in this turn. */
@@ -206,10 +225,15 @@ export interface LectureRun {
     plannerResponses?: Array<{ phase: string; lane: string; selected: boolean; rawContent: string }>;
     examplesUsed?: Array<Pick<DiagramExemplar,
       "id" | "sourceKind" | "question" | "depicts" | "figureKind" | "family" | "archetype">>;
-    validationIssues?: Array<{ code: string; severity: "fatal" | "warning"; message: string }>;
+    /** Final attempted representation only; full planner refusals live in candidateRejections. */
+    validationIssues?: RetainedValidationIssue[];
     degradationReason: string | null;
     /** Strict-arm fallback that compiled but was intentionally not rendered. */
     suppressedFallback?: { figureSource: FigureSource; family: string | null } | null;
+    /** A candidate that passed validation as a scene but was not the figure drawn. */
+    droppedCandidate?: DroppedSceneCandidate | null;
+    /** Full proposal outcome; absent when additive completion did not run. */
+    completion?: SceneCompletionDiagnosticsV3;
     /** The committed board figure as SVG, so a reviewer sees what the student saw. */
     svg: string | null;
     png?: string | null;
@@ -346,6 +370,7 @@ export async function runLecture(
     familiarity,
     arm: options.arm ?? "current",
     figureOnly: options.figureOnly ?? false,
+    figureReplayInputs: null,
     startedAt: new Date(startedAt).toISOString(),
     timings: {
       planMs: 0,
@@ -368,6 +393,7 @@ export async function runLecture(
       estimatedCostUsd: 0,
       modelCalls: [],
     },
+    turnPlanCallOutcomes: [],
     diagram: {
       ...createPlannerEvidence(),
       committed: false,
@@ -389,11 +415,13 @@ export async function runLecture(
       assertionCount: 0,
       candidateErrorCodes: [],
       candidateCount: 0,
+      candidateTimings: [],
       plannerCallOutcomes: [],
       examplesUsed: [],
       validationIssues: [],
       degradationReason: null,
       suppressedFallback: null,
+      droppedCandidate: null,
       svg: null,
       png: null,
     },
@@ -434,8 +462,13 @@ export async function runLecture(
       fastMode,
       traceId,
       classifySubject: (options.productionStrictSubjects?.length ?? 0) > 0,
+      onRequestOutcome: (outcome) => {
+        // Late unused peers may report after selection; the saved JSON is a snapshot, not a drain.
+        if (run.turnPlanCallOutcomes && run.turnPlanCallOutcomes.length < 3) run.turnPlanCallOutcomes.push(outcome);
+      },
     });
     stages.turnPlanMs = Date.now() - turnPlanStartedAt;
+    run.turnPlanStatus = plannedTurn ? "planned" : "fallback";
     turnPlan = selectBestAvailableTurnPlan(
       undefined,
       plannedTurn?.turnPlan,
@@ -473,17 +506,19 @@ export async function runLecture(
     run.visualNeed = { plannerRequirement, assessment, mergedRequirement: turnPlan.visualRequirement,
       origin: options.visualNeedReplay === undefined ? "live_service" : "frozen_replay",
       questionHash: visualNeedQuestionHash(question), policy: LAB_VISUAL_NEED_POLICY };
-    const classifiedSubject = plannedTurn?.subject ?? "other";
+    const classifiedSubject = plannedTurn?.subject ?? subjectFromRejectedTurnPlanOutcomes(run.turnPlanCallOutcomes ?? []);
+    // Match live: rejected-plan consensus is recorded, but cannot enable strict.
+    const strategySubject = plannedTurn ? classifiedSubject : "other";
     const pickerDecision = labStrategyDecision(options.arm ?? "current", {
       subject: parseDiagramSubject(options.subject), chemistryLane: pickerGate.chemistryLane,
       codeLesson: false, dsa: dsaClassification.isDsa, doubt: false,
-    }, options.productionStrictSubjects, classifiedSubject);
+    }, options.productionStrictSubjects, strategySubject);
     if (options.productionStrictSubjects) run.productionStrategy = { classifiedSubject, strategy: pickerDecision.strategy };
     if (pickerGate.shouldPlanExactScene && pickerDecision.usePickedExamples) {
       const examples = options.diagramExamples ?? [];
       const pickerStartedAt = Date.now();
       const picked = options.productionStrictSubjects ? await pickProductionLabExamples(examples, {
-        origin: options.origin, question, plan: turnPlan, traceId,
+        origin: options.origin, question, plan: turnPlan, traceId, subject: classifiedSubject,
       }) : await pickDiagramExamples(
         examples,
         options.diagramExampleCatalogue ?? buildDiagramExampleCatalogue(examples),
@@ -510,10 +545,22 @@ export async function runLecture(
       };
     }
 
+    const candidateClocks = new WeakMap<Record<string, unknown>, number>();
     const validateCandidateAgainstPlan = (
       candidate: Record<string, unknown>, authoritativePlan: TurnPlanV3,
-    ): SceneCandidateValidation<ValidatedSceneCandidate> =>
-      validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan });
+    ): SceneCandidateValidation<ValidatedSceneCandidate> => {
+      const startedAt = performance.now();
+      const validation = validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, yieldPolicy: parseDiagramYieldPolicy(process.env.DIAGRAM_YIELD_POLICY) });
+      candidateClocks.set(candidate, performance.now() - startedAt);
+      return validation;
+    };
+    const recordValidation = (response: Parameters<typeof recordRejectedOperatorCalls>[1], validation: SceneCandidateValidation, pass: "initial" | "authority_revalidation") => {
+      run.diagram.candidateTimings?.push({ phase: response.phase, lane: response.lane, pass,
+        validationAndCompileMs: candidateClocks.get(response.document) ?? null,
+        valid: validation.valid, errorCodes: validation.errors.map((error) => error.code),
+      });
+      recordRejectedOperatorCalls(run.diagram, response, validation, pass);
+    };
 
     type BenchSceneGate = ProductionSceneGate & {
       diagramStrategy: ReturnType<typeof evaluationDecision>;
@@ -529,7 +576,7 @@ export async function runLecture(
       const diagramStrategy = labStrategyDecision(options.arm ?? "current", {
         subject: parseDiagramSubject(options.subject), chemistryLane: gate.chemistryLane,
         codeLesson: false, dsa: dsaClassification.isDsa, doubt: false,
-      }, options.productionStrictSubjects, classifiedSubject);
+      }, options.productionStrictSubjects, strategySubject);
       const examplesUsed = diagramStrategy.usePickedExamples ? pickedExamples : [];
       return {
         ...gate, diagramStrategy, examplesUsed,
@@ -601,6 +648,7 @@ export async function runLecture(
             proxyUrl: plannerUrl,
             signal: sceneRun.signal,
             timeoutMs: sceneRun.timeoutMs,
+            preserveRequiredGeometry: parseDiagramYieldPolicy(process.env.DIAGRAM_YIELD_POLICY) === "verified_parts",
             holdValidationUntil: sceneRun.holdValidationUntil,
             maxConcurrentRequests: sceneRun.maxConcurrentRequests,
             requestBudget: sceneRun.requestBudget,
@@ -608,14 +656,14 @@ export async function runLecture(
             traceId,
             onRequestOutcome: (outcome) => run.diagram.plannerCallOutcomes?.push(outcome),
             onResponse: (response) => recordPlannerResponse(run.diagram, response),
-            onCandidateValidation: (response, validation) => recordRejectedOperatorCalls(run.diagram, response, validation, "initial"),
+            onCandidateValidation: (response, validation) => recordValidation(response, validation, "initial"),
             ...gate.request,
           },
         ).catch(() => null),
       revalidate: (sceneResult, authoritativeTurnPlan) =>
         revalidateScenePlanWithRepairResult(sceneResult, (candidate) =>
           validateCandidateAgainstPlan(candidate, authoritativeTurnPlan),
-          (response, validation) => recordRejectedOperatorCalls(run.diagram, response, validation, "authority_revalidation"),
+          (response, validation) => recordValidation(response, validation, "authority_revalidation"),
         ),
     });
     turnPlan = planning.turnPlan;
@@ -690,17 +738,33 @@ export async function runLecture(
           : "candidate_invalid";
     }
 
-    const sceneSelection = selectProductionScene({
+    const sceneSelectionInput: Parameters<typeof selectProductionScene>[0] = {
       question, turnPlan, problemIR: problemAuthority?.problemIR ?? null, sceneCapabilities,
       candidateValidation: result?.validation, fastRepresentation,
       exactFigureSource: planning.figureSource === "verified_recovery" ? "verified_recovery" : "planner",
       solverAuthorityBlocked, requiredRetryEnabled: REQUIRED_DIAGRAM_RETRY_ENABLED,
+      completionEnabled: process.env.NEXT_PUBLIC_SCENE_COMPLETION_BY_CONSTRUCTION === "1",
+      solverAuthority: problemAuthority ? { problemIR: problemAuthority.problemIR, solverResult: problemAuthority.solverResult } : null,
       policy: {
         preferPlanner: planning.gate.diagramStrategy.strategy === "strict",
         allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(planning.gate.diagramStrategy, source)),
       },
+    };
+    run.figureReplayInputs = structuredClone({
+      schemaVersion: "lecture-figure-replay-inputs/v1",
+      selection: sceneSelectionInput,
+      authority: problemAuthority ? {
+        solverResult: problemAuthority.solverResult,
+        audit: problemAuthority.audit,
+        projection: problemAuthority.projection,
+      } : null,
+      authorityAttempted: problemAuthorityPromise !== null,
     });
+    const sceneSelection = selectProductionScene(sceneSelectionInput);
     const selected = sceneSelection.representation;
+    // completion-diagnostics:begin
+    run.diagram.completion = sceneSelection.completion;
+    // completion-diagnostics:end
     const attempted = sceneSelection.attemptedRepresentation;
     const sceneDocument = selected?.sceneDocument ?? null;
     const renderScene = selected?.renderScene ?? null;
@@ -712,12 +776,20 @@ export async function runLecture(
     run.diagram.figureSource = selected?.figureSource ?? "text_only";
     run.diagram.reason = sceneSelection.reason;
     run.diagram.family = figureFamily;
-    run.diagram.validationIssues = attempted?.validationReport.issues.map((issue) => ({
-      code: issue.code, severity: issue.severity, message: issue.message,
-    })) ?? [];
+    run.diagram.validationIssues = attempted?.validationReport.issues.map(retainValidationIssue) ?? [];
     if (attempted && !sceneSelection.sourceAllowed && sceneSelection.hasReadableInk) {
       run.diagram.suppressedFallback = { figureSource: attempted.figureSource, family: attempted.family ?? null };
     }
+    // The live hook runs the same step (settleSelectionDegradation), and
+    // verify-valid-candidate-parity executes the lines between these markers.
+    // settle-selection-degradation:begin
+    run.diagram.droppedCandidate = sceneSelection.droppedCandidate;
+    const settledDegradation = settleSelectionDegradation({
+      earlier: run.diagram.degradationReason ? { reason: run.diagram.degradationReason } : null,
+      selection: sceneSelection, candidateCount: result?.candidates.length ?? 0,
+    });
+    run.diagram.degradationReason = settledDegradation.degradation?.reason ?? null;
+    // settle-selection-degradation:end
 
     run.timings.planMs = Date.now() - plannerStartedAt;
     run.plan = {
@@ -736,12 +808,7 @@ export async function runLecture(
       assumptions: turnPlan.assumptions,
     };
     run.solver = problemAuthority
-      ? {
-          status: problemAuthority.audit.status,
-          issueCodes: problemAuthority.audit.issues.map((issue) => issue.code),
-          hasProjection: Boolean(problemAuthority.projection),
-          projection: problemAuthority.projection ?? null,
-        }
+      ? retainSolverEvidence(problemAuthority, question, turnPlan)
       : null;
 
     let diagramPromptAddon: string | null = null;
@@ -750,7 +817,7 @@ export async function runLecture(
       ? buildVerifiedDiagramPresentation(
           sceneDocument,
           renderScene,
-          figureFamily ? { figureFamily } : {},
+          { narrationLanguage: options.narrationLanguage, ...(figureFamily ? { figureFamily } : {}) },
         )
       : null;
     if (presentation && renderScene && sceneDocument && verifiedDiagramHasDrawableInk(presentation.diagram)) {

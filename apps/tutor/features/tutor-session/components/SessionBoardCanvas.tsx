@@ -18,6 +18,7 @@ import type { CodeLessonController } from "../lib/code-lesson/codeLessonControll
 import type { LecturePlayerView } from "../hooks/useLecturePlayer";
 import type { LecturePlayerControls, LecturePlayerStore } from "@/lib/replay/lecturePlayer";
 import { LecturePlayerBar } from "./LecturePlayerBar";
+import { sessionCaption } from "../lib/board/sessionCaption";
 
 export interface SessionBoardCanvasProps {
   boardViewport: BoardViewport;
@@ -28,7 +29,7 @@ export interface SessionBoardCanvasProps {
   currentSegmentText: string;
   lastError: { message: string; question: string; billing?: BillingFailure } | null;
   /** A lesson that did not save: Try again resends it, it never asks again. */
-  saveFailure?: { onRetrySave: () => void; onDismiss: () => void } | null;
+  saveFailure?: { message: string; onRetrySave: () => void; onDismiss: () => void } | null;
   isReplaying: boolean;
   /** Overlay board the past is drawn on while the live lecture stays frozen. */
   rewindBoardRef: RefObject<WhiteboardHandle | null>;
@@ -49,6 +50,10 @@ export interface SessionBoardCanvasProps {
   playerFullscreen?: { active: boolean; toggle: () => void } | null;
   /** Pointer movement over this wakes the playback bar. */
   playerActivityRef?: RefObject<HTMLElement | null>;
+  /** A phone's transport is docked outside the scaled paper by its shell. */
+  showPlayerBar?: boolean;
+  /** A phone's caption is docked outside the paper by its shell. */
+  showCaption?: boolean;
   verifiedDiagram?: VerifiedDiagram | null;
   /** DSA code-lesson overlay, rendered inside the scaled board box. */
   codeLessonPanel?: ReactNode;
@@ -96,6 +101,8 @@ export function SessionBoardCanvas({
   playerFreezeRef,
   playerFullscreen,
   playerActivityRef,
+  showPlayerBar = true,
+  showCaption = true,
   verifiedDiagram,
   codeLessonPanel,
   codeLessonController,
@@ -112,6 +119,14 @@ export function SessionBoardCanvas({
   const retraceBusyRef = useRef(false);
   const [hoveringAnchor, setHoveringAnchor] = useState(false);
   const playerActive = Boolean(playerView?.active);
+  const caption = sessionCaption({
+    enabled: settings.subtitlesEnabled || codeLessonActive,
+    phase,
+    currentSegmentText,
+    rewindActive,
+    rewindSegmentText,
+    playerView,
+  });
   const idle = phase === "idle" && !isReplaying && !rewindActive && !playerActive;
   const markingArmed = Boolean(marking?.armed);
   // The marker owns every pointer while it is out: a stroke must never also
@@ -308,31 +323,22 @@ export function SessionBoardCanvas({
           ) : null}
         </div>
 
-        {playerView?.active ? (
+        {showCaption && (playerView?.active ? (
           // Lifted clear of the playback bar along the bottom edge.
-          <div className="pointer-events-none absolute inset-x-0 top-0" style={{ bottom: 64 }}>
+          <div className="pointer-events-none absolute inset-x-0 top-0" style={{ bottom: showPlayerBar ? 64 : 0 }}>
             <ResponseBubble
-              text={playerView.segmentText}
-              visible={
-                (settings.subtitlesEnabled || codeLessonActive) &&
-                playerView.revealed &&
-                playerView.segmentText.length > 0
-              }
+              text={caption.text}
+              visible={caption.visible}
             />
           </div>
         ) : (
           <ResponseBubble
-            text={rewindActive ? rewindSegmentText : currentSegmentText}
-            visible={
-              (settings.subtitlesEnabled || codeLessonActive) &&
-              (rewindActive
-                ? rewindSegmentText.length > 0
-                : phase === "speaking" || phase === "drawing")
-            }
+            text={caption.text}
+            visible={caption.visible}
           />
-        )}
+        ))}
 
-        {playerStore && playerControls ? (
+        {showPlayerBar && playerStore && playerControls ? (
           <LecturePlayerBar
             store={playerStore}
             controls={playerControls}
@@ -341,17 +347,24 @@ export function SessionBoardCanvas({
           />
         ) : null}
 
-        {phase === "idle" && lastError && !(lastError.billing && isOutOfUsageLock(lastError.billing)) && (
-          <BoardErrorBanner
-            message={lastError.message}
-            onRetry={() => onRetryError(lastError.question)}
-            onDismiss={onDismissError}
-          />
-        )}
-
-        {phase === "idle" && saveFailure && !lastError && (
-          <SaveFailureBanner onRetrySave={saveFailure.onRetrySave} onDismiss={saveFailure.onDismiss} />
-        )}
+        <div className="pointer-events-none absolute bottom-20 left-1/2 z-30 flex w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 flex-col items-center gap-3">
+          {saveFailure && (
+            <SaveFailureBanner
+              message={saveFailure.message}
+              onRetrySave={saveFailure.onRetrySave}
+              onDismiss={saveFailure.onDismiss}
+              className="relative bottom-auto left-auto max-w-full translate-x-0"
+            />
+          )}
+          {phase === "idle" && lastError && !(lastError.billing && isOutOfUsageLock(lastError.billing)) && (
+            <BoardErrorBanner
+              message={lastError.message}
+              onRetry={() => onRetryError(lastError.question)}
+              onDismiss={onDismissError}
+              className="relative bottom-auto left-auto max-w-full translate-x-0"
+            />
+          )}
+        </div>
 
       </div>
       {exportBoardMounted ? (

@@ -1,8 +1,9 @@
-import { isometricProject, planeFromCartesian, vec3Add, vec3Length, vec3Scale, type SpaceFrame, type Vec3 } from "../math/space";
+import { planeFromCartesian, projectSpace, vec3Add, vec3Length, vec3Scale, type SpaceFrame, type SpaceProjection, type Vec3 } from "../math/space";
 import type { RenderPoint, SceneConstruction, SceneDocument, SceneIssue } from "../types";
 
 export const SPACE_DERIVATION_OPERATORS = ["space_project", "space_intersection", "space_closest_points", "space_segment", "space_vector", "space_cross", "space_angle_mark", "space_right_angle_mark"] as const;
-export interface SpaceLineDefinition { frameId: string; point: Vec3; direction: Vec3 }
+/** `tMin`, `tMax`: the drawn world extent along `direction`, when the line records one. */
+export interface SpaceLineDefinition { frameId: string; point: Vec3; direction: Vec3; tMin?: number; tMax?: number }
 export interface SpacePlaneDefinition { frameId: string; point: Vec3; normal: Vec3 }
 export interface SpaceSegmentDefinition { frameId: string; a: Vec3; b: Vec3; length: number }
 /** World arms of a drawn angle: unit directions from the vertex and the angle between them. */
@@ -69,11 +70,21 @@ function reference(value: unknown, key: string, context: SpaceDerivationEvaluati
 function frameInput(value: unknown, context: SpaceDerivationEvaluationContext): { frameId: string; frame: SpaceFrame } {
   const geometry = reference(value, "frame", context);
   if (geometry.kind !== "compound" || !isRecord(geometry.spaceFrame) || !isRecord(geometry.spaceFrame.origin)) return invalid("frame", "frame must reference a space_frame output");
-  const { origin, scale } = geometry.spaceFrame;
+  const { origin, scale, projection } = geometry.spaceFrame;
   if (typeof origin.x !== "number" || typeof origin.y !== "number" || typeof scale !== "number") return invalid("frame", "frame must have finite origin and positive scale");
-  const frame = { origin: { x: bounded(origin.x, "frame"), y: bounded(origin.y, "frame") }, scale: bounded(scale, "frame") };
-  if (!(frame.scale > 0)) invalid("frame", "space frame scale must be positive");
+  const placement = { origin: { x: bounded(origin.x, "frame"), y: bounded(origin.y, "frame") }, scale: bounded(scale, "frame") };
+  if (!(placement.scale > 0)) invalid("frame", "space frame scale must be positive");
+  const frame: SpaceFrame = projection === undefined ? placement : { ...placement, projection: projectionInput(projection) };
   return { frameId: value as string, frame };
+}
+/** A frame's view: two finite rows with world z exactly screen up. */
+function projectionInput(value: unknown): SpaceProjection {
+  if (!isRecord(value) || (value.family !== "book" && value.family !== "turntable") || !Array.isArray(value.params) || value.params.length !== 2) return invalid("frame", "space frame projection must be a book or turntable view");
+  const right = finiteVector(value.right, "frame");
+  const up = finiteVector(value.up, "frame");
+  const params = value.params.map((param) => typeof param === "number" ? bounded(param, "frame") : invalid("frame", "space frame projection parameters must be finite")) as [number, number];
+  if (right.z !== 0 || !(up.z > 0) || !(vec3Length(cross(right, up)) > MIN_VECTOR)) invalid("frame", "space frame projection must keep world z screen up");
+  return { right, up, family: value.family, params };
 }
 function sameFrame(actual: unknown, expected: string, key: string): void {
   if (actual !== expected) invalid(key, `${key} must belong to the same space_frame ${expected}`);
@@ -86,8 +97,13 @@ function spacePoint(value: unknown, key: string, frameId: string, context: Space
 }
 function lineDefinition(geometry: Record<string, unknown>, key: string): SpaceLineDefinition {
   if (geometry.kind !== "path" || !isRecord(geometry.spaceLine) || typeof geometry.spaceLine.frameId !== "string") return invalid(key, `${key} must reference an infinite space_line`);
-  const result = { frameId: geometry.spaceLine.frameId, point: finiteVector(geometry.spaceLine.point, key), direction: finiteVector(geometry.spaceLine.direction, key) };
+  const result: SpaceLineDefinition = { frameId: geometry.spaceLine.frameId, point: finiteVector(geometry.spaceLine.point, key), direction: finiteVector(geometry.spaceLine.direction, key) };
   unit(result.direction, key);
+  const { tMin, tMax } = geometry.spaceLine;
+  if (typeof tMin === "number" && typeof tMax === "number" && Number.isFinite(tMin) && Number.isFinite(tMax) && tMin < tMax) {
+    result.tMin = tMin;
+    result.tMax = tMax;
+  }
   return result;
 }
 function planeDefinition(geometry: Record<string, unknown>, key: string): SpacePlaneDefinition {
@@ -98,7 +114,7 @@ function planeDefinition(geometry: Record<string, unknown>, key: string): SpaceP
 }
 function projectedPoint(space: Vec3, frameId: string, frame: SpaceFrame): Extract<SpaceDerivationGeometry, { kind: "point" }> {
   const world = finiteVector(space, "geometry");
-  const point = isometricProject(world, frame);
+  const point = projectSpace(world, frame);
   bounded(point.x, "geometry", MAX_RENDER);
   bounded(point.y, "geometry", MAX_RENDER);
   return { kind: "point", point, space: world, spaceFrameId: frameId };
@@ -106,7 +122,7 @@ function projectedPoint(space: Vec3, frameId: string, frame: SpaceFrame): Extrac
 function projectedPath(a: Vec3, b: Vec3, frameId: string, frame: SpaceFrame): RenderPoint[] {
   const first = projectedPoint(a, frameId, frame).point;
   const second = projectedPoint(b, frameId, frame).point;
-  if (!(Math.hypot(second.x - first.x, second.y - first.y) > MIN_VECTOR)) invalid("geometry", "world path collapses under this isometric projection");
+  if (!(Math.hypot(second.x - first.x, second.y - first.y) > MIN_VECTOR)) invalid("geometry", "world path collapses under this projection");
   return [first, second];
 }
 function inputKeys(inputs: Record<string, unknown>, allowed: string[]): void {
@@ -142,15 +158,22 @@ function isScreenPoint(value: unknown): value is RenderPoint {
 }
 /** Screen image of a world direction; the frame origin cancels out. */
 function screenDirection(direction: Vec3, frame: SpaceFrame): RenderPoint {
-  const base = isometricProject({ x: 0, y: 0, z: 0 }, frame);
-  const tip = isometricProject(direction, frame);
+  const base = projectSpace({ x: 0, y: 0, z: 0 }, frame);
+  const tip = projectSpace(direction, frame);
   return { x: tip.x - base.x, y: tip.y - base.y };
 }
-/** World length drawn on each side of the vertex, read back from the line's own projected extent. */
+/**
+ * World length drawn on each side of the vertex: from the line's own world
+ * extent when it records one, else read back from its projected extent
+ * (hand-built geometry carries no extent).
+ */
 function lineReach(geometry: Record<string, unknown>, line: SpaceLineDefinition, vertex: Vec3, frame: SpaceFrame): { forward: number; backward: number } {
   const length = vec3Length(line.direction);
   const along = dot(sub(vertex, line.point), line.direction) / (length * length);
-  const base = isometricProject(line.point, frame);
+  if (line.tMin !== undefined && line.tMax !== undefined) {
+    return { forward: Math.max(0, (line.tMax - along) * length), backward: Math.max(0, (along - line.tMin) * length) };
+  }
+  const base = projectSpace(line.point, frame);
   const screen = screenDirection(line.direction, frame);
   const screenSquared = screen.x * screen.x + screen.y * screen.y;
   const points = Array.isArray(geometry.points) ? geometry.points.filter(isScreenPoint) : [];
@@ -235,7 +258,7 @@ function toward(direction: Vec3, vertex: Vec3, anchor: Vec3): Vec3 {
   const offset = sub(anchor, vertex);
   return dot(direction, offset) < -localTolerance(vec3Length(offset), vertex, anchor) ? vec3Scale(direction, -1) : direction;
 }
-interface ResolvedSpaceAngle { vertex: Vec3; u: Vec3; v: Vec3; radians: number; reaches: number[] }
+export interface ResolvedSpaceAngle { vertex: Vec3; u: Vec3; v: Vec3; radians: number; reaches: number[] }
 /**
  * Two arms from one world vertex. Two planes give the dihedral angle in the
  * plane normal to their common line; a plane with a line gives the line's
@@ -313,9 +336,39 @@ function spaceAngleMark(angle: ResolvedSpaceAngle, size: number, right: boolean,
   return { kind: "path", points, markedAngleRadians: radians, spaceAngle: { frameId, vertex, u, v, radians, right } };
 }
 
-/** All derivations use world vectors; the isometric projection is a presentation step. */
+/** A derived world record before projection: what the construction is, not how it is drawn. */
+export type SpaceWorldRecord =
+  | { kind: "point"; space: Vec3; spaceCross?: SpaceCrossDefinition }
+  | { kind: "line"; start: Vec3; end: Vec3; spaceLine: SpaceLineDefinition }
+  | { kind: "segment"; a: Vec3; b: Vec3; directed: boolean; spaceSegment: SpaceSegmentDefinition; spaceCross?: SpaceCrossDefinition }
+  | { kind: "angle"; angle: ResolvedSpaceAngle; size: number; right: boolean };
+export interface SpaceWorldDerivation { frameId: string; frame: SpaceFrame; records: SpaceWorldRecord[] }
+
+/** All derivations use world vectors; the projection is a presentation step. */
 export function evaluateSpaceDerivationConstruction(operator: string, inputs: Record<string, unknown>, context: SpaceDerivationEvaluationContext): SpaceDerivationGeometry[] {
+  const { frameId, frame, records } = deriveSpaceWorld(operator, inputs, context);
+  return records.map((record) => projectSpaceRecord(record, frameId, frame));
+}
+
+/** Draw one world record in its frame, refusing a path that collapses or an angle plane seen edge-on. */
+export function projectSpaceRecord(record: SpaceWorldRecord, frameId: string, frame: SpaceFrame): SpaceDerivationGeometry {
+  if (record.kind === "point") return record.spaceCross ? { ...projectedPoint(record.space, frameId, frame), spaceCross: record.spaceCross } : projectedPoint(record.space, frameId, frame);
+  if (record.kind === "line") return { kind: "path", points: projectedPath(record.start, record.end, frameId, frame), infinite: true, spaceLine: record.spaceLine };
+  if (record.kind === "segment") {
+    const points = projectedPath(record.a, record.b, frameId, frame);
+    if (!record.directed) return { kind: "path", points, spaceSegment: record.spaceSegment };
+    return record.spaceCross
+      ? { kind: "path", points, directed: true, spaceSegment: record.spaceSegment, spaceCross: record.spaceCross }
+      : { kind: "path", points, directed: true, spaceSegment: record.spaceSegment };
+  }
+  return spaceAngleMark(record.angle, record.size, record.right, frameId, frame);
+}
+
+/** Every world check of a space derivation; nothing here reads the projection except a line's fallback reach. */
+export function deriveSpaceWorld(operator: string, inputs: Record<string, unknown>, context: SpaceDerivationEvaluationContext): SpaceWorldDerivation {
   const { frameId, frame } = frameInput(inputs.frame, context);
+  const done = (...records: SpaceWorldRecord[]): SpaceWorldDerivation => ({ frameId, frame, records });
+  const worldPoint = (space: Vec3): SpaceWorldRecord => ({ kind: "point", space: finiteVector(space, "geometry") });
   if (operator === "space_project") {
     inputKeys(inputs, ["frame", "point", "onto"]);
     const point = spacePoint(inputs.point, "point", frameId, context);
@@ -332,7 +385,7 @@ export function evaluateSpaceDerivationConstruction(operator: string, inputs: Re
       const normal = unit(plane.normal, "onto");
       foot = sub(point, vec3Scale(normal, dot(sub(point, plane.point), normal)));
     }
-    return [projectedPoint(foot, frameId, frame)];
+    return done(worldPoint(foot));
   }
   if (operator === "space_intersection") {
     const first = reference(inputs.first, "first", context);
@@ -357,7 +410,7 @@ export function evaluateSpaceDerivationConstruction(operator: string, inputs: Re
       if (!(tMin < tMax)) invalid("tMax", "plane-plane intersection requires explicit finite tMin < tMax world distances");
       const start = vec3Add(point, vec3Scale(normalized, tMin));
       const end = vec3Add(point, vec3Scale(normalized, tMax));
-      return [{ kind: "path", points: projectedPath(start, end, frameId, frame), infinite: true, spaceLine: { frameId, point, direction: normalized } }];
+      return done({ kind: "line", start, end, spaceLine: { frameId, point, direction: normalized, tMin, tMax } });
     }
     inputKeys(inputs, ["frame", "first", "second"]);
     if (firstIsPlane === secondIsPlane) invalid("second", "space_intersection supports a line and plane, or two planes");
@@ -369,7 +422,7 @@ export function evaluateSpaceDerivationConstruction(operator: string, inputs: Re
     const denominator = dot(direction, normal);
     if (!(Math.abs(denominator) > MIN_SINE)) invalid("second", "parallel line and plane, including an incident line, do not determine a unique intersection point");
     const distance = bounded(dot(sub(plane.point, line.point), normal) / denominator, "geometry");
-    return [projectedPoint(vec3Add(line.point, vec3Scale(direction, distance)), frameId, frame)];
+    return done(worldPoint(vec3Add(line.point, vec3Scale(direction, distance))));
   }
   if (operator === "space_closest_points") {
     inputKeys(inputs, ["frame", "first", "second"]);
@@ -385,12 +438,12 @@ export function evaluateSpaceDerivationConstruction(operator: string, inputs: Re
     const separation = sub(second.point, first.point);
     const firstDistance = bounded(dot(cross(separation, v), n) / sine, "geometry");
     const secondDistance = bounded(dot(cross(separation, u), n) / sine, "geometry");
-    const a = projectedPoint(vec3Add(first.point, vec3Scale(u, firstDistance)), frameId, frame);
-    const b = projectedPoint(vec3Add(second.point, vec3Scale(v, secondDistance)), frameId, frame);
-    const connector = sub(b.space, a.space);
+    const a = finiteVector(vec3Add(first.point, vec3Scale(u, firstDistance)), "geometry");
+    const b = finiteVector(vec3Add(second.point, vec3Scale(v, secondDistance)), "geometry");
+    const connector = sub(b, a);
     const tolerance = 1e-7 * Math.max(1, vec3Length(connector));
     if (Math.abs(dot(connector, u)) > tolerance || Math.abs(dot(connector, v)) > tolerance) invalid("geometry", "closest points cannot be numerically verified as perpendicular to both lines");
-    return [a, b];
+    return done({ kind: "point", space: a }, { kind: "point", space: b });
   }
   if (operator === "space_segment") {
     inputKeys(inputs, ["frame", "a", "b"]);
@@ -398,7 +451,7 @@ export function evaluateSpaceDerivationConstruction(operator: string, inputs: Re
     const b = spacePoint(inputs.b, "b", frameId, context);
     const length = bounded(vec3Length(sub(b, a)), "geometry");
     if (!(length > MIN_VECTOR)) invalid("b", "space_segment endpoints must be distinct world points");
-    return [{ kind: "path", points: projectedPath(a, b, frameId, frame), spaceSegment: { frameId, a, b, length } }];
+    return done({ kind: "segment", a, b, directed: false, spaceSegment: { frameId, a, b, length } });
   }
   if (operator === "space_vector") {
     inputKeys(inputs, ["frame", "start", "end"]);
@@ -406,7 +459,7 @@ export function evaluateSpaceDerivationConstruction(operator: string, inputs: Re
     const b = spacePoint(inputs.end, "end", frameId, context);
     const length = bounded(vec3Length(sub(b, a)), "geometry");
     if (!(length > MIN_VECTOR)) invalid("end", "space_vector start and end must be distinct world points");
-    return [{ kind: "path", points: projectedPath(a, b, frameId, frame), directed: true, spaceSegment: { frameId, a, b, length } }];
+    return done({ kind: "segment", a, b, directed: true, spaceSegment: { frameId, a, b, length } });
   }
   if (operator === "space_cross") {
     inputKeys(inputs, ["frame", "a", "b", "origin", "scale"]);
@@ -427,7 +480,7 @@ export function evaluateSpaceDerivationConstruction(operator: string, inputs: Re
     // rounding of a·b's magnitudes cannot be told from zero, so it is refused
     // rather than drawn or zeroed; any larger product is drawn at its scale.
     if (raw.x === 0 && raw.y === 0 && raw.z === 0) {
-      return [{ ...projectedPoint(origin, frameId, frame), spaceCross: { frameId, a, b, product: { x: 0, y: 0, z: 0 }, scale, zero: true } }];
+      return done({ kind: "point", space: finiteVector(origin, "geometry"), spaceCross: { frameId, a, b, product: { x: 0, y: 0, z: 0 }, scale, zero: true } });
     }
     if (!(vec3Length(raw) > 8 * Number.EPSILON * vec3Length(a) * vec3Length(b))) {
       invalid("b", "a×b is within floating rounding of zero; the inputs cannot certify parallel or not, so state exact components");
@@ -436,7 +489,7 @@ export function evaluateSpaceDerivationConstruction(operator: string, inputs: Re
     const end = vec3Add(origin, product);
     const length = bounded(vec3Length(product), "geometry");
     if (!(length > MIN_VECTOR)) invalid("scale", "scale*(a×b) is too short to draw; raise scale");
-    return [{ kind: "path", points: projectedPath(origin, end, frameId, frame), directed: true, spaceSegment: { frameId, a: origin, b: end, length }, spaceCross: { frameId, a, b, product, scale, zero: false } }];
+    return done({ kind: "segment", a: origin, b: end, directed: true, spaceSegment: { frameId, a: origin, b: end, length }, spaceCross: { frameId, a, b, product, scale, zero: false } });
   }
   if (operator === "space_angle_mark" || operator === "space_right_angle_mark") {
     const right = operator === "space_right_angle_mark";
@@ -444,7 +497,7 @@ export function evaluateSpaceDerivationConstruction(operator: string, inputs: Re
     inputKeys(inputs, ["frame", "vertex", "a", "b", sizeKey]);
     const angle = resolveSpaceAngle(inputs, context, right, frameId, frame);
     const size = markSize(inputs[sizeKey], sizeKey, angle.reaches, right ? 0.16 : 0.25, right ? 0.3 : 0.6, context);
-    return [spaceAngleMark(angle, size, right, frameId, frame)];
+    return done({ kind: "angle", angle, size, right });
   }
   return invalid("operator", `unsupported space derivation operator ${operator}`);
 }
@@ -612,7 +665,8 @@ export function spaceCollinearityResidual(pointGeometries: unknown[]): number | 
   } catch { return Infinity; }
 }
 
-function validationNumber(value: unknown, document: SceneDocument, seen = new Set<string>(), depth = 0): number {
+/** A numeric input as validation reads it: a literal or an acyclic quantity reference. */
+export function validationNumber(value: unknown, document: SceneDocument, seen = new Set<string>(), depth = 0): number {
   if (depth > 32) return invalid("number", "numeric reference nesting exceeds 32");
   if (typeof value === "number") return bounded(value, "number");
   if (isRecord(value) && "value" in value) return validationNumber(value.value, document, seen, depth + 1);
@@ -632,8 +686,12 @@ function outputEntityKinds(operator: string, result: SpaceDerivationGeometry): s
   return [result.kind === "point" ? "point" : result.spaceLine ? "line" : "segment"];
 }
 
-/** Re-evaluate the dependency graph in world units, including derived references, before any ink is committed. */
-export function validateSpaceDerivationConstruction(construction: SceneConstruction, index: number, document: SceneDocument, constructionByOutput: Map<string, SceneConstruction>, issues: SceneIssue[]): void {
+/**
+ * Re-evaluate the dependency graph in world units, including derived
+ * references, before any ink is committed. `projection` is the document's
+ * planned view, so the collapse and edge-on guards judge what compile draws.
+ */
+export function validateSpaceDerivationConstruction(construction: SceneConstruction, index: number, document: SceneDocument, constructionByOutput: Map<string, SceneConstruction>, issues: SceneIssue[], projection?: SpaceProjection): void {
   const add = (key: string, message: string, actual?: unknown): void => {
     issues.push({ code: `invalid_${construction.operator}_${key}`, message, severity: "fatal", path: `constructions[${index}].${key === "outputs" || key === "output_kind" ? "outputs" : `inputs.${key}`}`, actual });
   };
@@ -676,7 +734,7 @@ export function validateSpaceDerivationConstruction(construction: SceneConstruct
       const scale = inputs.scale === undefined ? 1 : numberInput(inputs.scale, "scale", context);
       const axisLength = inputs.axisLength === undefined ? 2 : numberInput(inputs.axisLength, "axisLength", context);
       if (!(scale > 0) || !(axisLength > 0)) return invalid("frame", "space_frame scale and axisLength must be positive");
-      return [{ kind: "compound", spaceFrame: { origin, scale } }];
+      return [{ kind: "compound", spaceFrame: projection ? { origin, scale, projection } : { origin, scale } }];
     }
     if ((SPACE_DERIVATION_OPERATORS as readonly string[]).includes(operator)) return evaluateSpaceDerivationConstruction(operator, inputs, context);
     if (!["space_point", "space_line", "plane"].includes(operator)) return [];
@@ -691,7 +749,7 @@ export function validateSpaceDerivationConstruction(construction: SceneConstruct
       if (!(tMin < tMax)) return invalid("tMax", "space_line requires finite tMin < tMax");
       const start = vec3Add(point, vec3Scale(direction, tMin));
       const end = vec3Add(point, vec3Scale(direction, tMax));
-      return [{ kind: "path", infinite: true, points: projectedPath(start, end, frameId, frame), spaceLine: { frameId, point, direction } }];
+      return [{ kind: "path", infinite: true, points: projectedPath(start, end, frameId, frame), spaceLine: { frameId, point, direction, tMin, tMax } }];
     }
     let point: Vec3;
     let normal: Vec3;

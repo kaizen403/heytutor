@@ -27,9 +27,10 @@ jobs:
     timeout-minutes: 35
     services:
       postgres:
-        # Docker Official Image mirror; same manifest as docker.io/library/postgres:17.
-        # Avoid shared GitHub runner Docker Hub pull quotas; pin reviewed bytes.
-        image: public.ecr.aws/docker/library/postgres:17@sha256:2d2b8998d31037bf721cfdf764d76ba74171b4fab3431b7f72c27c56ddbdf9e3
+        # Docker Official Image via Google's Docker Hub mirror; same pinned manifest as
+        # docker.io/library/postgres:17. public.ecr.aws hit "toomanyrequests: Data limit
+        # exceeded" on shared runners; Docker Hub has pull quotas. Pin reviewed bytes.
+        image: mirror.gcr.io/library/postgres:17@sha256:2d2b8998d31037bf721cfdf764d76ba74171b4fab3431b7f72c27c56ddbdf9e3
         env:
           POSTGRES_USER: security
           POSTGRES_PASSWORD: security_ci_only
@@ -71,6 +72,8 @@ jobs:
         run: |
           pnpm rebuild @prisma/client @prisma/engines esbuild prisma
           pnpm --filter @heytutor/tutor exec prisma generate
+      - name: Verify gate list preservation and execution
+        run: node --test tools/verify/run-gates.test.mjs
       - name: Build shared packages
         run: pnpm turbo run build --filter='./packages/*'
       - name: Symbolic planner regressions
@@ -82,14 +85,45 @@ jobs:
           pnpm --filter @heytutor/drawing verify
           pnpm --filter @heytutor/whiteboard verify
           pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-speech-notation.ts
+      - name: Preserve the development webpack cache
+        run: pnpm --filter @heytutor/tutor verify:dev-cache
       - name: Typecheck and lint
         run: |
           pnpm typecheck
           pnpm lint
       - name: Build production applications
         run: pnpm build
+      - name: Failed-turn Sentry privacy and reporting regressions (no external calls)
+        run: |
+          pnpm --filter @heytutor/tutor verify:sentry
+          node deploy/aws/verify-sentry-release.mjs
       - name: Diagram authority and restoration regressions
         run: pnpm --filter @heytutor/tutor verify:publication
+      - name: Atomic scene label regressions
+        run: pnpm --filter @heytutor/tutor verify:atomic-labels
+      - name: Figure tour narration regressions
+        run: pnpm --filter @heytutor/tutor verify:primitive-tour
+      - name: DSA verified intro ordering regressions
+        run: pnpm --filter @heytutor/tutor verify:dsa-intro-order
+      - name: Source-grounded board title regressions
+        run: pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-board-title.ts
+      - name: Storage admission and save feedback regressions
+        run: pnpm --filter @heytutor/tutor verify:storage-admission
+      - name: Finished playback and MP4 board fidelity regressions
+        run: pnpm --filter @heytutor/tutor verify:board-playback-export
+      - name: Lesson admission, voice recovery, work pages and programming sync regressions
+        run: |
+          pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-tts-native-startup.ts
+          pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-tts-pause-resume.ts
+          pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-tts-paused-arrival.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-live-speech-pause.ts
+          pnpm --filter @heytutor/tutor verify:lesson-qa-2
+          pnpm --filter @heytutor/tutor verify:lesson-qa-3
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-two-sum-grounding.ts
+      - name: Live diagram picker regressions (no model calls)
+        run: |
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-live-diagram-picker.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-diagram-eval.ts
       - name: Security and payment regressions
         run: |
           python3 deploy/aws/verify-ssm-deploy.py
@@ -97,14 +131,16 @@ jobs:
           pnpm --filter @heytutor/tutor verify:razorpay
       - name: Disposable database concurrency checks
         run: |
-          # The isolated service starts empty. Legacy migration names cannot
-          # bootstrap in lexical order; never db push a deployment database.
+          # Real empty migration deployment, including immutable legacy SQL.
+          createdb heytutor_migrations_verify_ci
+          export MIGRATION_TEST_DATABASE_URL=postgresql://security:security_ci_only@127.0.0.1:5432/heytutor_migrations_verify_ci
+          pnpm --filter @heytutor/tutor verify:fresh-migrations
           pnpm --filter @heytutor/tutor exec prisma validate
-          pnpm --filter @heytutor/tutor exec prisma db push --skip-generate
+          pnpm --filter @heytutor/tutor db:migrate:deploy
           pnpm verify:security-db
           createdb heytutor_razorpay_verify_ci
           export DATABASE_URL=postgresql://security:security_ci_only@127.0.0.1:5432/heytutor_razorpay_verify_ci
-          pnpm --filter @heytutor/tutor exec prisma db push --skip-generate
+          pnpm --filter @heytutor/tutor db:migrate:deploy
           pnpm --filter @heytutor/tutor verify:razorpay-db
       - name: Reject known dependency vulnerabilities
         run: pnpm verify:dependency-security

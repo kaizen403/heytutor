@@ -615,7 +615,7 @@ const catalogue = buildDiagramExampleCatalogue([
 ]);
 assert.ok(catalogue.estimatedTokens < 6_000, "picker catalogue must stay below its prompt budget");
 assert.equal(catalogue.entries.length, 4, "near-duplicate descriptions must be merged");
-assert.ok(catalogue.text.includes("vector-right | vectors_fbd | force vector labelled F"));
+assert.ok(catalogue.text.includes("vector-right|vectors_fbd|force vector labelled F"));
 assert.ok(!catalogue.text.includes("This entire curated question"), "catalogue uses depicts, never curated questions");
 assert.ok(catalogue.entries.every((entry) => entry.depicts.split(/\s+/).length <= 20));
 assert.deepEqual(
@@ -740,7 +740,7 @@ const curatedMathsQuestions = readdirSync(resolve(exemplarRoot, "maths"))
   .filter((file) => file.endsWith(".json"))
   .map((file) => JSON.parse(readFileSync(resolve(exemplarRoot, "maths", file), "utf8")) as { question: string })
   .map((entry) => entry.question);
-assert.equal(curatedMathsQuestions.length, 10);
+assert.equal(curatedMathsQuestions.length, 21);
 for (const question of curatedMathsQuestions) {
   assert.ok(builtLibrary.some((entry) => entry.question === question), `library must include curated exemplar: ${question}`);
 }
@@ -748,10 +748,25 @@ const curatedPhysicsQuestions = readdirSync(resolve(exemplarRoot, "physics"))
   .filter((file) => file.endsWith(".json"))
   .map((file) => JSON.parse(readFileSync(resolve(exemplarRoot, "physics", file), "utf8")) as { question: string })
   .map((entry) => entry.question);
-assert.equal(curatedPhysicsQuestions.length, 9);
+assert.equal(curatedPhysicsQuestions.length, 31);
 for (const question of curatedPhysicsQuestions) {
   assert.ok(builtLibrary.some((entry) => entry.question === question), `library must include curated exemplar: ${question}`);
 }
+// Every synthesized physics and maths entry needs a kept audit verdict, so neither a rebuild
+// without the review file nor a library conflict resolution can bring audited-out figures back.
+const synthesizedReview = JSON.parse(readFileSync(resolve(exemplarRoot, "_synthesized-review.json"), "utf8")) as {
+  keep: string[];
+  verdicts: Record<string, string>;
+};
+const unkeptSynthesized = builtLibrary.filter((entry) =>
+  entry.sourceKind === "synthesized" &&
+  !(entry.archetype ?? entry.family ?? "").startsWith("chem_") &&
+  !synthesizedReview.keep.includes(synthesizedReview.verdicts[entry.id] ?? ""));
+assert.deepEqual(
+  unkeptSynthesized.map((entry) => entry.id),
+  [],
+  "synthesized physics and maths library entries must carry a kept audit verdict",
+);
 const builtCatalogue = buildDiagramExampleCatalogue(builtLibrary);
 assert.ok(builtCatalogue.estimatedTokens < 6_000);
 assert.ok(builtCatalogue.entries.length < builtLibrary.length, "catalogue must merge near-duplicate examples");

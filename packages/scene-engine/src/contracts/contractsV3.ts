@@ -14,6 +14,7 @@ import type { SceneDocument, SceneIssue, ValidationReport, RenderScene } from ".
 import type { ProblemIR } from "../ir/problemIR";
 import type { SolverResult } from "../ir/solver";
 import type { SolverAuthorityAudit } from "../ir/solverAuthority";
+import type { SceneCompletionResult } from "../completion/completeSceneDocument";
 
 export const TURN_PLAN_V3_VERSION = "turn-plan/v3" as const;
 export const SCENE_ARTIFACTS_V3_VERSION = "scene-artifacts/v3" as const;
@@ -668,6 +669,35 @@ interface ExplicitArithmeticOptions {
   declaredValue?: number;
 }
 
+/** Read a supplied volt/ohm measurement before a binding named V can multiply it. */
+function readLiteralVoltOhmQuotient(
+  member: string,
+  expectedUnit: unknown,
+  numericBindings: Map<string, number>,
+  bindingMeta: NumericBindingMetaMap,
+): string {
+  const current = unitScale(expectedUnit);
+  const voltage = bindingMeta.get("V");
+  const voltageUnit = voltage ? unitScale(voltage.unit) : null;
+  if (current?.signature !== "A^1" || current.factor !== 1 ||
+      !voltage?.trusted || voltageUnit?.signature !== "V^1" || voltageUnit.factor !== 1) return member;
+  const ungroup = (text: string) => text.trim().replace(/^\(([^()]*)\)$/, "$1").trim();
+  const operands = ungroup(member).split("/").map(ungroup);
+  if (operands.length !== 2 || operands.some((operand) => /[()]/.test(operand))) return member;
+  const volts = parseMeasuredPart(operands[0]!);
+  const ohms = parseMeasuredPart(operands[1]!);
+  const voltsUnit = volts ? unitScale(volts.unit) : null;
+  const ohmsUnit = ohms ? unitScale(ohms.unit) : null;
+  const supplied = numericBindings.get("V");
+  if (!volts || !ohms || supplied === undefined ||
+      voltsUnit?.signature !== "V^1" || voltsUnit.factor !== 1 ||
+      ohmsUnit?.signature !== "Ω^1" || ohmsUnit.factor !== 1 || ohms.value <= 0 ||
+      !approximatelyEqual(volts.value, supplied)) return member;
+  // Only two measured operands qualify. Genuine products (12*V, k V),
+  // prefixed inputs/results and all other unit/binding collisions stay unchanged.
+  return `${volts.value}/(${ohms.value})`;
+}
+
 function evaluateExplicitArithmetic(
   sourceText: string,
   expectedUnit: unknown,
@@ -698,7 +728,8 @@ function evaluateExplicitArithmetic(
   let signConflict = false;
   let mixedUnits = false;
   for (const clause of splitArithmeticClauses(readableSource)) {
-    const equalityParts = splitEqualityParts(clause);
+    const equalityParts = splitEqualityParts(clause).map((member) =>
+      readLiteralVoltOhmQuotient(member, expectedUnit, numericBindings, bindingMeta));
     if (equalityParts.length < 2) continue;
     const clauseTargetKeys = expandDescriptiveAssignmentTargets(equalityParts, targetKeys);
     let stated: { value: number; tolerance: number } | null = null;
@@ -2334,6 +2365,13 @@ function unitScale(unit: unknown): UnitScale | null {
   return { factor, signature };
 }
 
+/** Existing recognized-unit algebra for conservative property classification.
+ * This exposes no converted value or geometric/numeric proof authority. */
+export function sceneUnitSignature(unit: unknown): string | null {
+  const resolved = unitScale(unit);
+  return resolved && Number.isFinite(resolved.factor) && resolved.factor > 0 ? resolved.signature : null;
+}
+
 function resolveUnitSymbol(symbol: string): { base: string; factor: number } | null {
   const aliased = UNIT_WORD_ALIASES[symbol] ?? UNIT_WORD_ALIASES[symbol.toLowerCase()] ??
     symbol.replace(/Ω/g, "Ω");
@@ -2573,6 +2611,7 @@ export function pruneUnverifiedSceneAnnotations(
 ): SceneDocument {
   let changed = false;
   const removedIds = new Set<string>();
+  const removedLabelIds = new Set<string>();
   const annotations = document.annotations.filter((annotation) => {
     if (!annotation.text) return true;
     const unsupported = validateSceneQuantityAgreement([], plan, [annotation.text])
@@ -2585,10 +2624,11 @@ export function pruneUnverifiedSceneAnnotations(
   });
   const entities = document.entities.map((entity) => {
     if (!entity.label || isMatrixExpressionLabel(document, entity)) return entity;
-    const label = pruneUnsupportedMeasuredFragments(entity.label, plan);
+    const label = pruneUnsupportedMeasuredLabel(entity.label, plan);
     if (label === entity.label) return entity;
     changed = true;
     if (label) return { ...entity, label };
+    removedLabelIds.add(entity.id);
     const withoutLabel = { ...entity };
     delete withoutLabel.label;
     return withoutLabel;
@@ -2598,6 +2638,11 @@ export function pruneUnverifiedSceneAnnotations(
     ...document,
     entities,
     annotations,
+    // Named-point normalization added this obligation while the label was
+    // still present. Removing optional display text removes that proof only.
+    assertions: document.assertions.filter((assertion) =>
+      assertion.predicate !== "label_attached" ||
+      !assertion.entities.some((id) => removedLabelIds.has(id))),
     teachingTimeline: document.teachingTimeline.filter((action) => !removedIds.has(action.targetId)),
   };
 }
@@ -4021,21 +4066,14 @@ function pointForEntity(
     : { x: construction.inputs.x, y: construction.inputs.y };
 }
 
-function pruneUnsupportedMeasuredFragments(text: string, plan: TurnPlanV3): string {
-  const supported = supportedSceneDisplayMeasurements(plan);
-  const pruned = text.replace(measuredValuePattern(), (measurement, _number: string, unit: string, index: number) => {
-    if (sceneMeasurementIsOwnedFormulaOperand(text, { index, length: measurement.length, unit }, plan)) return measurement;
-    const value = Number(_number.replace(/−/g, "-"));
-    const tolerance = displayedNumberTolerance(_number.replace(/−/g, "-"));
-    return supported.some((quantity) => equivalentDisplayedMeasuredQuantity(
-      quantity.value, quantity.unit, value, unit, tolerance,
-    )) ? measurement : "";
-  });
-  return pruned
-    .replace(/\s*=\s*$/g, "")
-    .replace(/\(\s*\)/g, "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
+/** Publish label text atomically; never leave a piece of a rejected formula. */
+function pruneUnsupportedMeasuredLabel(text: string, plan: TurnPlanV3): string {
+  const unsupported = validateSceneQuantityAgreement([], plan, [text])
+    .some((issue) => issue.code === "displayed_quantity_unverified");
+  if (!unsupported) return text;
+  // A complete assigned identifier is still useful without its unverified
+  // value. Bare values and compound left-hand expressions have no safe label.
+  return /^\s*([\p{L}_][\p{L}\p{N}\p{M}_]*)\s*(?:=|≈|≃|≅)/u.exec(text)?.[1] ?? "";
 }
 
 function supportedSceneDisplayMeasurements(plan: TurnPlanV3): Array<{ value: number; unit: string }> {
@@ -4911,6 +4949,7 @@ export const FIGURE_SOURCES = [
   "archetype",
   "chemistry_family",
   "matrix_source",
+  "linear_source",
   "source_grounded",
   "last_resort",
   "text_only",
@@ -4921,6 +4960,14 @@ export const FIGURE_SOURCES = [
 ] as const;
 
 export type FigureSource = (typeof FIGURE_SOURCES)[number];
+
+/** Historical proposal diagnostics only; never authority for accepted geometry. */
+export interface SceneCompletionDiagnosticsV3 {
+  adopted: boolean;
+  additions: SceneCompletionResult["additions"];
+  skipped: SceneCompletionResult["skipped"];
+  rejection?: string;
+}
 
 export interface SceneArtifactsV3 {
   schemaVersion: typeof SCENE_ARTIFACTS_V3_VERSION;
@@ -4937,6 +4984,8 @@ export interface SceneArtifactsV3 {
   candidates: SceneCandidateArtifactV3[];
   selectedCandidateId?: string | null;
   selectionReason?: string;
+  /** Absent when completion did not run; retains unchanged, skipped and rejected outcomes. */
+  completion?: SceneCompletionDiagnosticsV3;
   /** Bounded telemetry for an exact scene that was attempted but not committed. */
   degradation?: {
     attemptedTier: "exact_verified";
@@ -4945,7 +4994,9 @@ export interface SceneArtifactsV3 {
       | "candidate_invalid"
       | "missing_capability"
       | "solver_contradiction"
-      | "required_visual_unavailable";
+      | "required_visual_unavailable"
+      /** A candidate passed validation as a scene but final selection did not draw it. */
+      | "valid_candidate_dropped";
     issueCodes: string[];
     candidateCount: number;
   };

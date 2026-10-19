@@ -1,0 +1,129 @@
+[
+  {
+    "id": "thread-decomposition",
+    "question": "The first order decomposition of N2O5 has half life 20 min. Draw the fraction remaining after 60 min",
+    "kind": "kinetics",
+    "halfLife": 20,
+    "time": 60,
+    "remaining": 0.125
+  },
+  {
+    "id": "peroxide-transfer",
+    "question": "The first order decomposition of H2O2 has half life 10 min. Draw the fraction remaining after 30 min.",
+    "kind": "kinetics",
+    "halfLife": 10,
+    "time": 30,
+    "remaining": 0.125
+  },
+  {
+    "id": "name-transfer",
+    "question": "The first order decomposition of ethanal has half life 20 min. Draw the fraction remaining after 40 min.",
+    "kind": "kinetics",
+    "halfLife": 20,
+    "time": 40,
+    "remaining": 0.25
+  },
+  {
+    "id": "generic-decay",
+    "question": "A quantity decays with half-life 10 years. Find what remains of 80 g after 20 years.",
+    "kind": "no-kinetics"
+  },
+  {
+    "id": "numeric-decomposition",
+    "question": "Decompose 1/(x(x+1)) into partial fractions.",
+    "kind": "no-kinetics"
+  },
+  {
+    "id": "damaged-species",
+    "question": "The first order decomposition of N2O5x has half life 20 min. Draw the fraction remaining after 60 min.",
+    "kind": "no-kinetics"
+  },
+  {
+    "id": "thread-electron-wavelength",
+    "question": "In an atomic electron model, photon energy is 3 eV; work function is 2 eV; emitted electron wavelength is 1.227 nm. Draw the photoelectron energy balance.",
+    "kind": "photoelectric",
+    "energy": 3,
+    "phi": 2,
+    "kinetic": 1
+  },
+  {
+    "id": "decimal-owner-transfer",
+    "question": "In an atomic electron model, photon energy is 3 eV; work function is 2 eV; emitted electron has kinetic energy 1.0 eV and wavelength is 1.227 nm. Draw the photoelectron energy balance.",
+    "kind": "photoelectric",
+    "energy": 3,
+    "phi": 2,
+    "kinetic": 1
+  },
+  {
+    "id": "reordered-owner-transfer",
+    "question": "In an atomic electron model, emitted electron has kinetic energy 1.000 eV and wavelength is 1.227 nm; work function is 2 eV; photon energy is 3 eV. Draw the photoelectron energy balance.",
+    "kind": "photoelectric",
+    "energy": 3,
+    "phi": 2,
+    "kinetic": 1
+  },
+  {
+    "id": "electron-only",
+    "question": "In an atomic electron model, work function is 2 eV; emitted electron has kinetic energy 1.0 eV and wavelength is 1.227 nm. Draw the photoelectron energy balance.",
+    "kind": "decline-photoelectric"
+  },
+  {
+    "id": "photon-conflict",
+    "question": "In an atomic electron model, work function is 2 eV; photon energy is 3 eV; frequency is 1e15 Hz. Draw the photoelectron energy balance.",
+    "kind": "decline-photoelectric"
+  },
+  {
+    "id": "damaged-photon",
+    "question": "In an atomic electron model, work function is 2 eV; photon energy is 3 eV; incident light wavelength is 4e- nm. Draw the photoelectron energy balance.",
+    "kind": "decline-photoelectric"
+  },
+  {
+    "id": "matter-following-owner",
+    "question": "In an atomic electron model, work function is 2 eV; wavelength of the emitted electron is 1.227 nm. Draw the photoelectron energy balance.",
+    "kind": "decline-photoelectric"
+  },
+  {
+    "id": "rusting-main",
+    "question": "Explain the rusting of iron in moist air.",
+    "kind": "chemistry"
+  },
+  {
+    "id": "corrosion-main",
+    "question": "Explain electrochemical corrosion of iron.",
+    "kind": "chemistry"
+  },
+  {
+    "id": "hydrogen-comparison-main",
+    "question": "Draw the hydrogen atom transitions n = 3 to n = 2 and n = 4 to n = 2 and compare the wavelengths.",
+    "kind": "chemistry"
+  },
+  {
+    "id": "rutherford-main",
+    "question": "Draw the Rutherford alpha-particle scattering experiment with a gold foil and detector.",
+    "kind": "chemistry"
+  },
+  {
+    "id": "kirchhoff-bilingual",
+    "question": "wlefeettiex ferandh Kirchhoff ke niyam likhiye an arent fara. Using Kirchhoff's rules calculate the current in each branch of the circuit and explain the figure. qwrt zxcv pqrs.",
+    "kind": "physics",
+    "family": "circuit_network"
+  },
+  {
+    "id": "collision",
+    "question": "A 2 kg ball moving at 6 m/s collides head-on with a 4 kg ball at rest and sticks to it. Find the common velocity.",
+    "kind": "physics",
+    "family": "contact_body"
+  },
+  {
+    "id": "photoelectric",
+    "question": "The work function of a metal is 2.0 eV. Light of wavelength 400 nm falls on it. Find the maximum kinetic energy of the photoelectrons.",
+    "kind": "physics",
+    "family": "energy_level"
+  },
+  {
+    "id": "modern-easy-photoelectric",
+    "question": "Light of photon energy 3.0 eV falls on a metal of work function 2.0 eV. Draw an energy-balance illustration and find the maximum photoelectron kinetic energy and stopping potential.",
+    "kind": "physics",
+    "family": "energy_level"
+  }
+]

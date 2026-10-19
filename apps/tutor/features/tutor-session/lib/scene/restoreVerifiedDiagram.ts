@@ -16,6 +16,7 @@ import {
   type VerifiedDiagram,
 } from "@heytutor/drawing";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
+import type { NarrationLanguage } from "@heytutor/tutor-core";
 import { storedTurnSourceIssues } from "@/lib/scene/storedSceneSource";
 import { DSA_DIAGRAM_ZONE } from "../../constants";
 import { buildVerifiedDiagramPresentation } from "./verifiedScenePresentation";
@@ -26,6 +27,7 @@ function isDsaSceneDocument(document: SceneDocument): boolean {
 
 export function restoreVerifiedPresentationFromTurn(
   turn: (Pick<StoredTurn, "sceneDocument"> & Partial<Pick<StoredTurn, "question" | "sceneArtifacts">>) | null | undefined,
+  narrationLanguage?: NarrationLanguage,
 ): ReturnType<typeof buildVerifiedDiagramPresentation> | null {
   if (!turn?.sceneDocument) return null;
   const structural = validateSceneDocument(turn.sceneDocument);
@@ -42,7 +44,7 @@ export function restoreVerifiedPresentationFromTurn(
   const presentation = buildVerifiedDiagramPresentation(
     document,
     compiled.renderScene,
-    dsa ? { layout: "code_lesson" } : {},
+    { narrationLanguage, ...(dsa ? { layout: "code_lesson" as const } : {}) },
   );
   if (!verifiedDiagramHasDrawableInk(presentation.diagram)) return null;
   return presentation;

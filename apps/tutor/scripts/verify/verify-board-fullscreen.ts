@@ -19,6 +19,7 @@
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import ts from "typescript";
 import {
   FULLSCREEN_CHROME_IDLE_MS,
   FULLSCREEN_DOC_ATTRIBUTE,
@@ -208,19 +209,79 @@ assert(
 
 // ── The layout ──────────────────────────────────────────────────────────────
 
-const shell = read("features/tutor-session/TutorSessionShell.tsx");
+const shell = process.env.BOARD_FULLSCREEN_TEST_SOURCE
+  ? readFileSync(process.env.BOARD_FULLSCREEN_TEST_SOURCE, "utf8")
+  : read("features/tutor-session/TutorSessionShell.tsx");
 assert(
   shell.includes("useBoardFullscreen") && shell.includes("useSessionChromeHidden"),
   "the session owns the full screen state and the chrome idle timer",
 );
+// Evaluate the real AppShell prop rather than pinning its source spelling:
+// regular short screens now also fold the rail, while the student's windowed
+// preference must survive either temporary layout.
+const shellAst = ts.createSourceFile("TutorSessionShell.tsx", shell, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+const appShellElements: ts.JsxElement[] = [];
+let compactChromeExpression: ts.Expression | undefined;
+const visitRail = (node: ts.Node) => {
+  if (ts.isJsxElement(node) && node.openingElement.tagName.getText(shellAst) === "AppShell") appShellElements.push(node);
+  if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === "compactBoardChrome") compactChromeExpression = node.initializer;
+  ts.forEachChild(node, visitRail);
+};
+visitRail(shellAst);
+assert(appShellElements.length === 1, "full screen keeps one AppShell mount rather than swapping the board into a second shell");
+const appShell = appShellElements[0]!;
+const railProp = (name: string): ts.Expression => {
+  const attribute = appShell.openingElement.attributes.properties.find((prop) => ts.isJsxAttribute(prop) && prop.name.getText(shellAst) === name);
+  assert(attribute && ts.isJsxAttribute(attribute) && attribute.initializer && ts.isJsxExpression(attribute.initializer) && attribute.initializer.expression, `the actual AppShell must receive ${name}`);
+  return attribute.initializer.expression;
+};
+const collapseRail = new Function("boardFullscreen", "compactBoardChrome", "sidebarCollapsed", `return (${railProp("sidebarCollapsed").getText(shellAst)});`) as (fullscreen: boolean, short: boolean, preference: boolean) => boolean;
+for (const [fullscreen, short, preference, expected] of [
+  [false, false, false, false],
+  [false, false, true, true],
+  [true, false, false, true],
+  [true, false, true, true],
+  [false, true, false, true],
+  [false, true, true, true],
+  [true, true, false, true],
+  [true, true, true, true],
+] as const) {
+  assert(collapseRail(fullscreen, short, preference) === expected, `rail state fullscreen=${fullscreen}, short=${short} preserves preference=${preference}`);
+}
+assert(compactChromeExpression, "the regular short-screen rail reason must be derived by the actual session");
+const compactChrome = new Function("isHeadless", "can", "shortScreen", "boardFullscreen", `return (${compactChromeExpression.getText(shellAst)});`) as (headless: boolean, capabilities: { appChrome: boolean }, short: boolean, fullscreen: boolean) => boolean;
+assert(compactChrome(false, { appChrome: true }, true, false), "a regular short app screen folds its rail");
+assert(!compactChrome(false, { appChrome: true }, false, false), "an ordinary regular screen leaves the student's rail choice alone");
+assert(!compactChrome(false, { appChrome: true }, true, true), "fullscreen owns its rail independently of regular short chrome");
+assert(!compactChrome(true, { appChrome: true }, true, false), "headless recording does not activate regular short chrome");
+assert(!compactChrome(false, { appChrome: false }, true, false), "a host without app chrome does not acquire a regular short rail override");
+const preferenceSetter = railProp("onSidebarCollapsedChange");
+assert(ts.isIdentifier(preferenceSetter) && preferenceSetter.text === "setSidebarCollapsed", "the student's rail preference keeps its own setter beneath fullscreen and short overrides");
+assert(!appShell.openingElement.attributes.properties.some((prop) => ts.isJsxAttribute(prop) && prop.name.getText(shellAst) === "key"), "a temporary rail state must not key and remount the session shell");
+const bodyChildren = appShell.children.filter((child) => !ts.isJsxText(child) || child.text.trim().length > 0);
+assert(bodyChildren.length === 1 && ts.isJsxExpression(bodyChildren[0]!) && bodyChildren[0]!.expression && ts.isIdentifier(bodyChildren[0]!.expression) && bodyChildren[0]!.expression.text === "sessionBody", "fullscreen and regular short rail folding preserve the same session body");
 assert(
-  /sidebarCollapsed=\{boardFullscreen \|\| sidebarCollapsed\}/.test(shell),
-  "full screen folds the boards rail by prop, so the board is never unmounted and remounted",
-);
-assert(
-  /overlay=\{boardFullscreen\}/.test(shell) && /chromeHidden=\{chromeHidden\}/.test(shell),
+  /overlay=\{boardFullscreen\}/.test(shell),
   "the header floats over the paper in full screen rather than being swapped for another component",
 );
+// Evaluate the actual header prop across both idle-withdrawal and finished
+// phone transport states. A regression to the old prop leaves the header over
+// the finished board even though the phone's transport is already docked.
+let hiddenExpression: ts.Expression | undefined;
+const visitShell = (node: ts.Node) => {
+  if ((ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) && node.tagName.getText(shellAst) === "SessionHeader") {
+    const hidden = node.attributes.properties.find((attribute) => ts.isJsxAttribute(attribute) && attribute.name.getText(shellAst) === "chromeHidden");
+    if (hidden && ts.isJsxAttribute(hidden) && hidden.initializer && ts.isJsxExpression(hidden.initializer)) hiddenExpression = hidden.initializer.expression;
+  }
+  ts.forEachChild(node, visitShell);
+};
+visitShell(shellAst);
+assert(hiddenExpression, "the actual SessionHeader must receive its visibility prop");
+const headerHidden = new Function("chromeHidden", "fullscreenTransportOnly", `return (${hiddenExpression.getText(shellAst)});`) as (idleHidden: boolean, dockOnly: boolean) => boolean;
+assert(!headerHidden(false, false), "ordinary idle board keeps its header");
+assert(headerHidden(true, false), "a live full screen idle timer can withdraw the header");
+assert(headerHidden(false, true), "finished full screen phone transport withdraws the header without waiting for a live idle timer");
+assert(headerHidden(true, true), "both withdrawal reasons retain hidden header state");
 assert(
   /onToggleFullscreen=\{fullscreen\.toggle\}/.test(shell),
   "the header carries the toggle, so every device has a way in and a way out",
@@ -233,10 +294,28 @@ assert(
   /keyboardInset > 0\s*\n?\s*\?\s*keyboardInset \+ 6/.test(shell),
   "an absolute composer sits against the padding box, so the keyboard inset has to be added back by hand",
 );
-assert(
-  /marginTop: boardFullscreen \? 0 : PAGE_GUTTER_Y/.test(shell),
-  "full screen gives the page gutter back to the paper",
-);
+let gutterExpression: ts.Expression | undefined;
+const visitBoardGutter = (node: ts.Node) => {
+  if (ts.isJsxOpeningElement(node)) {
+    const props = node.attributes.properties;
+    const ref = props.find((prop) => ts.isJsxAttribute(prop) && prop.name.getText(shellAst) === "ref");
+    const style = props.find((prop) => ts.isJsxAttribute(prop) && prop.name.getText(shellAst) === "style");
+    if (ref && ts.isJsxAttribute(ref) && ref.initializer && ts.isJsxExpression(ref.initializer) && ref.initializer.expression?.getText(shellAst) === "boardContainerRef" && style && ts.isJsxAttribute(style) && style.initializer && ts.isJsxExpression(style.initializer) && style.initializer.expression && ts.isObjectLiteralExpression(style.initializer.expression)) {
+      const margin = style.initializer.expression.properties.find((prop) => ts.isPropertyAssignment(prop) && prop.name.getText(shellAst) === "marginTop");
+      if (margin && ts.isPropertyAssignment(margin)) gutterExpression = margin.initializer;
+    }
+  }
+  ts.forEachChild(node, visitBoardGutter);
+};
+visitBoardGutter(shellAst);
+assert(gutterExpression, "the actual measured board container must own its page gutter");
+const pageGutter = new Function("boardFullscreen", "compactBoardChrome", "PAGE_GUTTER_Y", `return (${gutterExpression.getText(shellAst)});`) as (fullscreen: boolean, short: boolean, regularGutter: number) => number;
+assert(pageGutter(true, false, 12) === 0, "full screen gives the page gutter back to the paper");
+assert(pageGutter(true, true, 12) === 0, "full screen retains its zero gutter even with a short-screen signal");
+assert(pageGutter(false, false, 12) === 12, "ordinary regular boards retain their existing page gutter");
+assert(pageGutter(false, false, 27) === 27, "ordinary boards pass through the measured page gutter rather than a fixed replacement");
+assert(pageGutter(true, false, 27) === 0 && pageGutter(false, true, 27) === 0, "fullscreen and regular short zero gutters do not depend on the ordinary gutter value");
+assert(pageGutter(false, true, 12) === 0, "regular short chrome gives the gutter back to its bounded board viewport");
 assert(
   shell.includes("fullscreen.rotateHint"),
   "the phone that could not be turned automatically must be asked",

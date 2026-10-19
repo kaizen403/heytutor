@@ -70,6 +70,12 @@ sudo -H -u ubuntu env GIT_TERMINAL_PROMPT=0 git -C "$APP_DIR" pull --ff-only
 
 require_database_url
 
+# First setup builds and starts the same production worker as later deploys.
+# Resolve the release as the checkout owner; setup itself runs as root.
+SENTRY_RELEASE="$(sudo -H -u ubuntu env GIT_TERMINAL_PROMPT=0 git -C "$APP_DIR" rev-parse HEAD)"
+export SENTRY_RELEASE
+export SENTRY_ENVIRONMENT=production
+
 if ! id heytutor >/dev/null 2>&1; then
   useradd --system --home-dir /var/lib/heytutor --create-home --shell /usr/sbin/nologin heytutor
 fi
@@ -151,13 +157,14 @@ pnpm install --frozen-lockfile --ignore-scripts
 pnpm rebuild @prisma/client @prisma/engines esbuild prisma
 pnpm --filter @heytutor/tutor exec prisma generate
 pnpm turbo run build --filter=@heytutor/tutor...
-pnpm --filter @heytutor/tutor exec prisma migrate deploy
+pnpm --filter @heytutor/tutor exec tsx scripts/live/deploy-migrations.ts
 mkdir -p "${APP_DIR}/apps/tutor/.next/cache"
 chgrp -R heytutor "${APP_DIR}/apps/tutor/.next"
 chmod -R g+rwX "${APP_DIR}/apps/tutor/.next"
 
 systemctl daemon-reload
 systemctl enable heytutor
+node "$APP_DIR/deploy/aws/set-sentry-release.mjs" "$ENV_FILE" "$SENTRY_RELEASE"
 systemctl restart heytutor
 
 echo "Tutor URL: https://${HOSTNAME_FQDN}"

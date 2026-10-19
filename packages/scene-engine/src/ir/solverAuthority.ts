@@ -2,6 +2,8 @@ import { expressionToSafeSource, validateProblemIR, type ProblemIR } from "./pro
 import { evaluateMathExpression } from "../math/expression";
 import { validateSolverResult, type SolverResult, type SolverValue } from "./solver";
 import { validateTurnPlanV3, type TurnPlanV3 } from "../contracts/contractsV3";
+import { selectSourceLinearScalar, type SourceLinearScalarSelection } from "./linearScalarBinding";
+import { readLinearSourceSetAliases } from "../compile/linearRegionSource";
 
 export type SolverAuthorityStatus =
   | "verified"
@@ -24,6 +26,7 @@ export interface SolverAuthorityBinding {
   approximate: number | number[];
   exact?: SolverValue["exact"];
   errorBound: number;
+  selection?: SourceLinearScalarSelection;
 }
 
 export interface SolverAuthorityAudit {
@@ -98,9 +101,20 @@ export function verifyTurnPlanAgainstSolver(
   const validatedProblem = problemValidation.problem;
   const validatedPlan = planValidation.plan;
   const valuesByRequest = new Map(solverValidation.result.values.map((value) => [value.requestId, value]));
+  const selectionsByRequest = new Map<string, SourceLinearScalarSelection>();
+  for (const request of validatedProblem.solveRequests) {
+    const value = valuesByRequest.get(request.id);
+    if (!value) continue;
+    const selected = selectSourceLinearScalar(validatedProblem, request, value, expectedQuestion);
+    if (selected) {
+      valuesByRequest.set(request.id, selected.value);
+      selectionsByRequest.set(request.id, selected.selection);
+    }
+  }
+  const boundaryProjectionIssues = retainCompleteBoundaryProjections(validatedProblem, validatedPlan, solverValidation.result, valuesByRequest, selectionsByRequest);
   const seenQuantityIds = new Set<string>();
   const bindings: SolverAuthorityBinding[] = [];
-  const issues: SolverAuthorityIssue[] = [];
+  const issues: SolverAuthorityIssue[] = [...boundaryProjectionIssues];
   const givenFactIds = new Set(validatedProblem.facts.filter((fact) => fact.kind === "given").map((fact) => fact.id));
   const expressionsById = new Map(validatedProblem.expressions.map((expression) => [expression.id, expression]));
   for (const constraint of validatedProblem.constraints) {
@@ -184,6 +198,7 @@ export function verifyTurnPlanAgainstSolver(
       approximate: value.approximate,
       ...(value.exact !== undefined ? { exact: value.exact } : {}),
       errorBound: value.errorBound,
+      ...(selectionsByRequest.has(request.id) ? { selection: selectionsByRequest.get(request.id)! } : {}),
     });
   }
 
@@ -243,11 +258,10 @@ export function verifyTurnPlanAgainstSolver(
       });
       continue;
     }
-    const tolerance = Math.max(
-      1e-9 * Math.max(1, Math.abs(value.approximate)),
-      value.errorBound,
-      derived.uncertainty ?? 0,
-    );
+    const tolerance = selectionsByRequest.get(request.id)?.kind === "unique_source_linear_boundary"
+      // Exact source boundaries allow machine rounding only, including at zero.
+      ? 64 * Number.EPSILON * Math.max(Math.abs(value.approximate), Math.abs(derived.value))
+      : Math.max(1e-9 * Math.max(1, Math.abs(value.approximate)), value.errorBound, derived.uncertainty ?? 0);
     if (Math.abs(derived.value - value.approximate) > tolerance) {
       issues.push({
         code: "solver_turnplan_contradiction",
@@ -261,6 +275,7 @@ export function verifyTurnPlanAgainstSolver(
   const contradictionCodes = new Set([
     "duplicate_result_binding", "symbol_mismatch", "unit_mismatch",
     "value_type_mismatch", "solver_turnplan_contradiction", "missing_solver_value", "given_equation_contradiction",
+    "unproved_source_boundary_scalar",
   ]);
   if (issues.some((issue) => contradictionCodes.has(issue.code))) {
     return { status: "contradiction", issues, bindings };
@@ -298,9 +313,31 @@ export function reconcileTurnPlanWithSolver(
   result: SolverResult,
 ): TurnPlanV3 {
   const valuesByRequest = new Map(result.values.map((value) => [value.requestId, value]));
+  // Reconciliation consumes the same independently source-certified scalar
+  // selection as the audit. A forged/partial provider result is not a scalar
+  // correction source merely because its array happens to have one element.
+  const validatedProblem = validateProblemIR(problem, plan.question).problem;
+  const validatedResult = validatedProblem ? validateSolverResult(result, validatedProblem).result : null;
+  const selections = new Map<string, SourceLinearScalarSelection>();
+  const unsupportedSourceQuantities = new Set<string>();
+  if (validatedProblem && validatedResult?.status === "solved") for (const request of validatedProblem.solveRequests) {
+    const value = valuesByRequest.get(request.id);
+    if (!value) continue;
+    const selected = selectSourceLinearScalar(validatedProblem, request, value, plan.question);
+    if (selected) {
+      valuesByRequest.set(request.id, selected.value);
+      selections.set(request.id, selected.selection);
+    }
+  }
+  if (validatedProblem && validatedResult?.status === "solved") {
+    for (const issue of retainCompleteBoundaryProjections(validatedProblem, plan, validatedResult, valuesByRequest, selections)) {
+      if (issue.quantityId) unsupportedSourceQuantities.add(issue.quantityId);
+    }
+  }
   const unknownsById = new Map(plan.unknowns.map((unknown) => [unknown.id, unknown]));
   let changed = false;
   const derived = plan.derived.map((quantity) => {
+    if (unsupportedSourceQuantities.has(quantity.id)) return quantity;
     const request = problem.solveRequests.find(
       (candidate) => candidate.resultBinding?.turnPlanQuantityId === quantity.id,
     );
@@ -315,7 +352,9 @@ export function reconcileTurnPlanWithSolver(
       normalizeUnit(binding.unit) !== normalizeUnit(unknown.unit) ||
       normalizeUnit(quantity.unit) !== normalizeUnit(unknown.unit)
     ) return quantity;
-    const tolerance = Math.max(1e-9 * Math.max(1, Math.abs(value.approximate)), value.errorBound);
+    const tolerance = selections.get(request.id)?.kind === "unique_source_linear_boundary"
+      ? 64 * Number.EPSILON * Math.max(Math.abs(value.approximate), Math.abs(quantity.value))
+      : Math.max(1e-9 * Math.max(1, Math.abs(value.approximate)), value.errorBound);
     if (Math.abs(quantity.value - value.approximate) <= tolerance) return quantity;
     changed = true;
     return {
@@ -328,6 +367,15 @@ export function reconcileTurnPlanWithSolver(
   return changed ? { ...plan, derived } : plan;
 }
 
+/**
+ * Existing auditor spelling compatibility only, not permission to bind a value.
+ * Callers must independently enforce semantic identity, source, unit and value
+ * authority. Keep this projection tied to the unchanged auditor comparison.
+ */
+export function solverAuthoritySymbolsAgree(first: string, second: string): boolean {
+  return normalizeSymbol(first) === normalizeSymbol(second);
+}
+
 function normalizeSymbol(value: string): string {
   return value
     .normalize("NFKC")
@@ -337,8 +385,68 @@ function normalizeSymbol(value: string): string {
     .replace(/[^\p{L}\p{N}]+/gu, "");
 }
 
+/**
+ * A boundary certificate proves that boundary only. It cannot certify a
+ * finite scalar attached to the whole solution set, even when an unrelated
+ * evaluate request shares its id. Independent native scalar answers retain
+ * their ordinary solver authority and do not need a boundary selection.
+ * Symbolic set unknowns have no derived finite value and need no scalar proof.
+ * Coordinate projections retain their existing independent native guard.
+ */
+function retainCompleteBoundaryProjections(
+  problem: ProblemIR,
+  plan: TurnPlanV3,
+  result: SolverResult,
+  values: Map<string, SolverValue>,
+  selections: Map<string, SourceLinearScalarSelection>,
+): SolverAuthorityIssue[] {
+  const boundaryRequests = [...selections].filter(([, selection]) => selection.kind === "unique_source_linear_boundary");
+  if (!boundaryRequests.length) return [];
+  const sourceSetSymbols = new Set([...readLinearSourceSetAliases(problem.question)].map(normalizeSymbol));
+  const wholeSetSymbol = (symbol: string): boolean => sourceSetSymbols.has(normalizeSymbol(symbol))
+    || /^(?:solutionset|solutioninterval|set|interval)$/.test(normalizeSymbol(symbol));
+  const unsupported = plan.unknowns.filter(unknown => {
+    const derived = plan.derived.find(quantity => quantity.id === unknown.id);
+    if (!derived) return false;
+    const requests = problem.solveRequests.filter(request => request.resultBinding?.turnPlanQuantityId === unknown.id);
+    if (requests.length !== 1) return true;
+    const request = requests[0]!, binding = request.resultBinding!, value = values.get(request.id);
+    const ownedScalar = normalizeSymbol(binding.symbol) === normalizeSymbol(unknown.symbol)
+      && normalizeSymbol(derived.symbol) === normalizeSymbol(unknown.symbol)
+      && normalizeUnit(binding.unit) === normalizeUnit(unknown.unit)
+      && normalizeUnit(derived.unit) === normalizeUnit(unknown.unit)
+      && value?.valueType === "scalar" && typeof value.approximate === "number";
+    const wholeSetEvidence = binding.evidenceFactIds.some(id => {
+      const fact = problem.facts.find(candidate => candidate.id === id);
+      return fact?.kind === "requested"
+        && /\b(?:solution\s+(?:set|interval)|(?:whole|complete)\s+(?:set|interval))\b/i.test(fact.evidence.quote)
+        && !/\b(?:length|cardinality|number|count|membership|whether)\b/i.test(fact.evidence.quote);
+    });
+    const nativeScalar = request.kind !== "roots" && request.kind !== "intersections"
+      && result.values.find(candidate => candidate.requestId === request.id)?.valueType === "scalar"
+      && binding.evidenceFactIds.some(id => problem.facts.some(fact => fact.id === id && fact.kind === "requested"))
+      && ![unknown.symbol, derived.symbol, binding.symbol].some(wholeSetSymbol) && !wholeSetEvidence;
+    return !(ownedScalar && (selections.get(request.id)?.kind === "unique_source_linear_boundary" || nativeScalar));
+  });
+  if (!unsupported.length) return [];
+  for (const [requestId] of boundaryRequests) {
+    values.set(requestId, result.values.find(value => value.requestId === requestId)!);
+    selections.delete(requestId);
+  }
+  // Boundaries can be intermediate derived quantities, so restoring their
+  // set values alone does not guarantee that the unknown loop will reject.
+  // Refuse the unsupported finite source role explicitly at this seam.
+  return unsupported.map(unknown => ({
+    code: "unproved_source_boundary_scalar",
+    message: `Finite requested '${unknown.symbol}' has no independent scalar authority preserving its original-source role`,
+    quantityId: unknown.id,
+  }));
+}
+
 function normalizeUnit(value: string | undefined): string {
-  return String(value ?? "1").toLowerCase().replace(/µ|μ/g, "u").replace(/\s+/g, "");
+  // A blank unit and a missing unit both mean a dimensionless value.
+  const unit = value?.trim() ? value : "1";
+  return unit.toLowerCase().replace(/µ|μ/g, "u").replace(/\s+/g, "");
 }
 
 function hasFreeVariable(root: ProblemIR["expressions"][number]["root"]): boolean {

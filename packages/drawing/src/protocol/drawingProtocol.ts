@@ -39,6 +39,8 @@ export interface DrawCommandVisualStyle {
   dashed?: boolean;
   /** Verified closed region rendered below its boundary ink. */
   fillRole?: 'region';
+  /** Engine-owned excluded endpoint; its center masks underlying figure ink. */
+  pointStyle?: 'open';
   correspondingFamily?: 1 | 2 | 3;
   /** Verified distance ink; witnesses must travel and reveal with their bar. */
   measurementRole?: 'bar' | 'witness';
@@ -132,7 +134,24 @@ export const DRAWING_TAG_SCAN_PATTERN = /\[[^\]\n]{1,256}\]/g;
 const WRITE_LABEL_HEADER_PATTERN = /^\[(WRITE|LABEL):/i;
 const WRITE_LABEL_ENDING_PATTERN =
   /,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*(?:,\s*(-?\d+(?:\.\d+)?)\s*)?\]/g;
-const WRITE_LABEL_BODY_BREAK_PATTERN = /\[(WRITE|LABEL|STEP|\/STEP|FOCUS|EMPHASIZE|SUPERSEDE|ANNOTATE|PAUSE)\b/i;
+// Semantic text tags delimit a broken row even with symbolic parameters.
+// Other command words, including numeric arguments, may be ordinary notation:
+// [Type: 1], [frame: 0] and [highlight, 3, 4]. The outer coordinate suffix
+// closes a canonical row; nested brackets alone do not introduce commands.
+// A closed row may also quote a full DRAW_LINE, HIGHLIGHT or FRAME tag. Keep
+// that tag as literal row text; only a tag outside the row is a command.
+const SEMANTIC_TEXT_COMMANDS = 'WRITE|LABEL|FOCUS|EMPHASIZE|SUPERSEDE|ANNOTATE|PAUSE';
+const TEXT_BODY_BOUNDARY = String.raw`\[\s*(?:${SEMANTIC_TEXT_COMMANDS})\s*(?=[:,])|\[(?:STEP|\/STEP)\]`;
+const WRITE_LABEL_BODY_BREAK_PATTERN = new RegExp(TEXT_BODY_BOUNDARY, 'iu');
+// Body-outside-header repair remains stricter: it cannot swallow a real tag
+// with symbolic parameters or borrow that tag's coordinates. Bare text-tag
+// boundaries also matter here, unlike names nested inside a canonical body.
+// In this malformed spelling, a command followed by numeric coordinates or
+// a colon still stops repair. A two-word comma list (e.g. [clear, undo]) is
+// text, while semantic tags retain their boundaries even with word arguments.
+// TYPE also takes a symbolic code-block id, so either separator must keep it
+// as a command when there is no canonical outer row bracket.
+const HEADER_ONLY_BODY_BOUNDARY = String.raw`\[\s*(?:${SEMANTIC_TEXT_COMMANDS}|TYPE)\s*(?=[:,])|\[\s*(?:${DRAW_COMMAND_TYPES.join('|')})\s*(?::|,(?!\s*[\p{L}_][\p{L}\p{N}_]*\s*\]))|\[(?:STEP|\/STEP)\]|(?<![\p{L}\p{N}_$)\]])\[(?:WRITE|LABEL|DIMENSION)\]`;
 
 /**
  * `[WRITE]text,x,y` instead of `[WRITE:text,x,y]`.
@@ -144,11 +163,12 @@ const WRITE_LABEL_BODY_BREAK_PATTERN = /\[(WRITE|LABEL|STEP|\/STEP|FOCUS|EMPHASI
  * two one one" and watched a blank column. The intent is unambiguous, so the
  * body is repaired back into the tag rather than spoken.
  *
- * Deliberately conservative: the coordinates must close the line, so a line
- * that carries another tag after the body is left alone.
+ * The coordinates must close the line or the teaching STEP. A body cannot
+ * cross another protocol tag and borrow that later tag's coordinates.
  */
-const HEADER_ONLY_TEXT_TAG_PATTERN =
-  /\[(WRITE|LABEL|DIMENSION)\]\s*([^\r\n]*?,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?(?:\s*,\s*-?\d+(?:\.\d+)?)?)\s*(?=\r?\n|$)/gi;
+const HEADER_ONLY_TEXT_TAG_PATTERN = new RegExp(
+  String.raw`\[(WRITE|LABEL|DIMENSION)\]\s*((?:(?!${HEADER_ONLY_BODY_BOUNDARY})[^\r\n])*?,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?(?:\s*,\s*-?\d+(?:\.\d+)?)?)\s*(?=\r?\n|\[\/STEP\]|$)`, 'giu',
+);
 
 /** The same shape with nothing after the name yet, for the streaming parser. */
 export const HEADER_ONLY_TEXT_TAG_EXACT = /^\[(WRITE|LABEL|DIMENSION)\]$/i;

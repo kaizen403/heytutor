@@ -121,9 +121,9 @@ function liveTurnAsStored(
       timings: segment.timings,
     };
   });
-  const stored: StoredTurn & { status?: unknown } = { ...live, segments };
-  delete stored.status;
-  return stored;
+  // Completion authority must survive the export snapshot: a live/stopped
+  // lesson has not performed the terminal verified-figure flush.
+  return { ...live, status: live.status === "complete" ? "complete" : live.status === "stopped" ? "stopped" : "live", segments };
 }
 
 /**

@@ -15,8 +15,16 @@ import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
+  type ReactNode,
 } from "react";
-import { Check, Maximize, Minimize, Pause, Play, RotateCcw } from "lucide-react";
+import {
+  Check,
+  Maximize,
+  Minimize,
+  Pause,
+  Play,
+  RotateCcw,
+} from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useMediaQuery } from "@/lib/client/useMediaQuery";
 import {
@@ -40,6 +48,11 @@ export interface LecturePlayerBarProps {
   fullscreen?: { active: boolean; toggle: () => void } | null;
   /** The board container. Pointer movement over it wakes the chrome; the cursor is hidden there while the chrome is hidden during playback. */
   activityTargetRef?: RefObject<HTMLElement | null>;
+  /** Small/touch boards keep the transport below the paper, clear of its ink. */
+  placement?: "overlay" | "below";
+  /** Short regular screens share one transport row with the session toggles. */
+  compact?: boolean;
+  auxiliaryControls?: ReactNode;
   className?: string;
 }
 
@@ -91,8 +104,16 @@ export function scrubMsFromPointer(
   return Math.round(msFromFraction((clientX - rect.left) / rect.width, durationMs));
 }
 
-function timelineHoverAt(clientX: number, rect: TrackRect, ms: number): TimelineHover {
-  return { ms, x: Math.max(0, Math.min(clientX - rect.left, rect.width)), width: rect.width };
+function timelineHoverAt(
+  clientX: number,
+  rect: TrackRect,
+  ms: number,
+): TimelineHover {
+  return {
+    ms,
+    x: Math.max(0, Math.min(clientX - rect.left, rect.width)),
+    width: rect.width,
+  };
 }
 
 /** Hard transparent cuts at every chapter start after the first. */
@@ -116,7 +137,9 @@ function chapterGapMask(
       `#000 calc(${at} + ${half}px)`,
     );
   }
-  return stops.length > 0 ? `linear-gradient(to right, ${stops.join(", ")})` : null;
+  return stops.length > 0
+    ? `linear-gradient(to right, ${stops.join(", ")})`
+    : null;
 }
 
 function formatRate(rate: number): string {
@@ -347,7 +370,8 @@ const SpeedControl = memo(function SpeedControl({
     if (!current) return;
     // `focus()` may scroll the clipping board surface; the menu scrolls itself instead.
     current.focus({ preventScroll: true });
-    menu.scrollTop = current.offsetTop - (menu.clientHeight - current.offsetHeight) / 2;
+    menu.scrollTop =
+      current.offsetTop - (menu.clientHeight - current.offsetHeight) / 2;
   }, [boundsRef, open]);
 
   const onButtonClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
@@ -373,7 +397,10 @@ const SpeedControl = memo(function SpeedControl({
         next = index < 0 ? 0 : (index + 1) % items.length;
         break;
       case "ArrowUp":
-        next = index < 0 ? items.length - 1 : (index - 1 + items.length) % items.length;
+        next =
+          index < 0
+            ? items.length - 1
+            : (index - 1 + items.length) % items.length;
         break;
       case "Home":
         next = 0;
@@ -448,7 +475,9 @@ const SpeedControl = memo(function SpeedControl({
                   className={cn("h-3.5 w-3.5 shrink-0 text-sky-400", !selected && "invisible")}
                   aria-hidden
                 />
-                <span className="tabular-nums">{option === 1 ? "Normal" : formatRate(option)}</span>
+                <span className="tabular-nums">
+                  {option === 1 ? "Normal" : formatRate(option)}
+                </span>
               </button>
             );
           })}
@@ -472,10 +501,23 @@ export function LecturePlayerBar({
   speedOptions = REPLAY_SPEED_OPTIONS,
   fullscreen = null,
   activityTargetRef,
+  placement = "overlay",
+  compact = false,
+  auxiliaryControls,
   className,
 }: LecturePlayerBarProps) {
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
-  const { status, active, positionMs, durationMs, loadedMs, rate, chapters, error } = snapshot;
+  const {
+    status,
+    active,
+    positionMs,
+    durationMs,
+    loadedMs,
+    rate,
+    chapters,
+    error,
+  } = snapshot;
+  const workPages = snapshot.workPages ?? [];
   const coarse = useMediaQuery("(pointer: coarse)");
 
   const stripRef = useRef<HTMLDivElement>(null);
@@ -502,11 +544,12 @@ export function LecturePlayerBar({
   const playing = status === "playing";
   const scrubbing = scrubMs !== null;
   const engaged = hovered || keyboardFocus || menuOpen || scrubbing;
-  const chromeHidden = playing && idle && !engaged;
+  const chromeHidden = placement === "overlay" && playing && idle && !engaged;
   const fullShown = !chromeHidden;
 
   const holdMs =
-    pendingSeekMs !== null && Math.abs(positionMs - pendingSeekMs) > SEEK_SETTLE_MS
+    pendingSeekMs !== null &&
+    Math.abs(positionMs - pendingSeekMs) > SEEK_SETTLE_MS
       ? pendingSeekMs
       : null;
   const seekBusy = status === "seeking";
@@ -538,7 +581,12 @@ export function LecturePlayerBar({
   // or seeking, and for the center flash when the host toggles playback.
   useEffect(() => {
     let next = settledRef.current;
-    if (!active || status === "ready" || status === "ended" || status === "unavailable") {
+    if (
+      !active ||
+      status === "ready" ||
+      status === "ended" ||
+      status === "unavailable"
+    ) {
       next = null;
     } else if (status === "playing" || status === "paused") {
       next = status;
@@ -617,7 +665,9 @@ export function LecturePlayerBar({
   const tipWidth = hover?.width ?? 0;
   const tipTime = hover ? formatPlayerTime(hover.ms) : "";
   const tipTitle =
-    hover && chapters.length > 1 ? (chapterAt(chapters, hover.ms)?.title ?? null) : null;
+    hover && chapters.length > 1
+      ? (chapterAt(chapters, hover.ms)?.title ?? null)
+      : null;
 
   useLayoutEffect(() => {
     const tip = tooltipRef.current;
@@ -694,11 +744,17 @@ export function LecturePlayerBar({
 
   // A focused button answers Space and Enter itself; the host's window
   // shortcut must not toggle playback on top of it.
-  const onStripKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if ((event.key === " " || event.key === "Enter") && event.target instanceof HTMLButtonElement) {
-      event.stopPropagation();
-    }
-  }, []);
+  const onStripKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (
+        (event.key === " " || event.key === "Enter") &&
+        event.target instanceof HTMLButtonElement
+      ) {
+        event.stopPropagation();
+      }
+    },
+    [],
+  );
 
   const onTimelinePointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -794,6 +850,144 @@ export function LecturePlayerBar({
   const chapter = chapterAt(chapters, displayMs);
   const face = playButtonFace(active, status, settled);
   const busy = status === "loading" || seekBusy;
+  const pagePicker =
+    workPages.length > 1 && controls.reviewPage ? (
+      <select
+        aria-label="Saved work page"
+        title="Read earlier saved work pages with audio paused"
+        value={snapshot.reviewPageIndex ?? ""}
+        onChange={(event) =>
+          controls.reviewPage?.(Number(event.currentTarget.value))
+        }
+        className={cn(
+          coarse ? "h-11 w-20" : "h-9 max-w-[132px]",
+          "min-w-0 rounded-lg bg-surface px-1 text-[13px] text-white outline-none focus-visible:ring-2 focus-visible:ring-sky-400",
+        )}
+      >
+        <option value="" disabled>
+          {coarse ? "Pages" : "Work pages"} ({workPages.length})
+        </option>
+        {workPages.map((page) => (
+          <option key={page.index} value={page.index}>
+            Page {page.index + 1}/{workPages.length}
+          </option>
+        ))}
+      </select>
+    ) : null;
+  const pageStatus =
+    snapshot.reviewPageIndex != null ? (
+      <span role="status" className="sr-only">
+        Saved work page {snapshot.reviewPageIndex + 1} of {workPages.length}.
+        Audio paused.
+      </span>
+    ) : null;
+  const audioNotice = snapshot.missingAudioCues != null && snapshot.missingAudioCues > 0 ? (
+    <p role="status" className="px-2 py-1 text-[13px] leading-5 text-white">
+      Some audio is missing. Those parts will be silent.
+    </p>
+  ) : null;
+
+  if (compact)
+    return (
+      <div className={cn("relative z-30 min-w-0 rounded-lg bg-surface", className)}>
+        {audioNotice}
+      <div
+        ref={stripRef}
+        role="group"
+        aria-label="Lecture player"
+        data-compact-transport
+        onClick={stopClickPropagation}
+        onKeyDown={onStripKeyDown}
+        className={cn(
+          "relative z-30 flex h-11 min-w-0 items-center gap-1 rounded-lg bg-surface text-white",
+        )}
+      >
+        <PlayButton
+          glyph={face.glyph}
+          label={face.label}
+          busy={busy}
+          interactive
+          coarse
+          onClick={handlePlay}
+        />
+        <div
+          role="slider"
+          tabIndex={0}
+          aria-label="Lecture timeline"
+          aria-valuemin={0}
+          aria-valuemax={Math.round(durationMs)}
+          aria-valuenow={Math.floor(displayMs / 1000) * 1000}
+          aria-valuetext={`${formatPlayerTime(displayMs)} of ${formatPlayerTime(durationMs)}`}
+          onPointerDown={onTimelinePointerDown}
+          onPointerMove={onTimelinePointerMove}
+          onPointerUp={onTimelinePointerUp}
+          onPointerCancel={abortScrub}
+          onLostPointerCapture={abortScrub}
+          onKeyDown={onTimelineKeyDown}
+          className="relative flex h-11 min-w-[48px] flex-1 cursor-pointer touch-none items-center outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+        >
+          <div className="h-1 w-full overflow-hidden rounded-full bg-white/22">
+            <div
+              className="h-full origin-left bg-sky-500"
+              style={{ transform: `scaleX(${playedFraction})` }}
+            />
+          </div>
+        </div>
+        <button
+          type="button"
+          aria-label="Work pages and playback options"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen(!menuOpen)}
+          className={cn(PLAYER_BUTTON, "h-11 w-11 shrink-0 text-lg")}
+        >
+          ⋯
+        </button>
+        {menuOpen ? (
+          <div
+            role="group"
+            aria-label="Playback options"
+            className="absolute bottom-full right-0 z-50 mb-1 flex w-64 max-w-[calc(100vw-16px)] flex-wrap items-center gap-2 overflow-auto rounded-lg bg-surface p-2 shadow-lg"
+            style={{ maxHeight: "min(280px, calc(100dvh - 52px))" }}
+          >
+            {pagePicker}
+            <label className="text-[13px]">
+              Speed{" "}
+              <select
+                aria-label="Playback speed"
+                value={rate}
+                className="h-11 rounded-lg bg-surface px-2"
+                onChange={(event) =>
+                  controls.setRate(Number(event.currentTarget.value))
+                }
+              >
+                {speedOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {formatRate(option)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <SkipButton direction="back" coarse onSkip={skipBack} />
+            <SkipButton direction="forward" coarse onSkip={skipForward} />
+            {error ? (
+              <p role="alert" className="text-[13px] text-danger">
+                {error}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+        {fullscreen ? (
+          <FullscreenButton
+            active={fullscreen.active}
+            coarse
+            onToggle={toggleFullscreen}
+          />
+        ) : null}
+        {auxiliaryControls}
+        {pageStatus}
+      </div>
+      </div>
+    );
 
   return (
     <>
@@ -826,31 +1020,46 @@ export function LecturePlayerBar({
         onBlur={onStripBlur}
         onKeyDown={onStripKeyDown}
         onClick={stopClickPropagation}
-        className={cn("pointer-events-none absolute inset-x-0 bottom-0 z-30 select-none", className)}
+        className={cn(
+          "pointer-events-none z-30 select-none",
+          placement === "below"
+            ? "relative rounded-lg bg-surface"
+            : "absolute inset-x-0 bottom-0",
+          className,
+        )}
       >
-        <div
+        {placement === "overlay" ? (
+          <div
           aria-hidden
           className={cn(
             "absolute inset-x-0 bottom-0 h-[108px] bg-gradient-to-t from-black/70 via-black/35 to-transparent transition-opacity duration-200",
             fullShown ? "opacity-100" : "opacity-0",
           )}
         />
+        ) : null}
 
         <div
           className={cn(
             "relative px-3 transition-[opacity,translate] duration-200 ease-out motion-reduce:transition-none sm:px-4",
-            fullscreen?.active ? "pb-[max(8px,env(safe-area-inset-bottom))]" : "pb-2",
+            fullscreen?.active
+              ? "pb-[max(8px,env(safe-area-inset-bottom))]"
+              : "pb-2",
             fullShown ? "pointer-events-auto" : "pointer-events-none",
             chromeHidden && "translate-y-1 opacity-0",
           )}
         >
+          {audioNotice}
           <div className="relative">
             {showTooltip ? (
               <div
                 ref={tooltipRef}
                 className="glass-deep pointer-events-none absolute bottom-full left-0 mb-1.5 w-max max-w-[276px] rounded-lg px-2.5 py-1.5 text-center shadow-[0_8px_24px_-8px_rgba(0,0,0,0.6)]"
               >
-                {tipTitle ? <div className="type-accent-xs truncate text-soft">{tipTitle}</div> : null}
+                {tipTitle ? (
+                  <div className="type-accent-xs truncate text-soft">
+                    {tipTitle}
+                  </div>
+                ) : null}
                 <div className="text-[12px] font-semibold leading-4 tabular-nums text-frost">
                   {tipTime}
                 </div>
@@ -879,7 +1088,9 @@ export function LecturePlayerBar({
               <div
                 className={cn(
                   "relative w-full overflow-hidden rounded-full transition-[height] duration-150 motion-reduce:transition-none",
-                  trackEngaged ? "h-1.5" : "h-1 group-focus-visible/timeline:h-1.5",
+                  trackEngaged
+                    ? "h-1.5"
+                    : "h-1 group-focus-visible/timeline:h-1.5",
                 )}
                 style={trackMaskStyle}
               >
@@ -907,7 +1118,9 @@ export function LecturePlayerBar({
                   className={cn(
                     "absolute left-0 top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-sky-500 shadow-[0_1px_4px_rgba(0,0,0,0.45)]",
                     "transition-[scale] duration-150 motion-reduce:transition-none group-focus-visible/timeline:ring-2 group-focus-visible/timeline:ring-white",
-                    trackEngaged ? "scale-100" : "scale-0 group-focus-visible/timeline:scale-100",
+                    trackEngaged
+                      ? "scale-100"
+                      : "scale-0 group-focus-visible/timeline:scale-100",
                   )}
                 />
               </div>
@@ -928,18 +1141,25 @@ export function LecturePlayerBar({
             >
               <SkipButton direction="back" coarse={coarse} onSkip={skipBack} />
               <SkipButton direction="forward" coarse={coarse} onSkip={skipForward} />
-              <span
+              {pagePicker ?? (
+                <span
                 className={cn(
                   "ml-1.5 shrink-0 whitespace-nowrap text-[13px] font-medium tabular-nums text-white",
                   TEXT_SHADOW,
                 )}
               >
-                {formatPlayerTime(displayMs)}
-                <span className="text-white/60"> / {formatPlayerTime(durationMs)}</span>
-              </span>
+                  {formatPlayerTime(displayMs)}
+                  <span className="text-white/60">
+                    {" "}
+                    / {formatPlayerTime(durationMs)}
+                  </span>
+                </span>
+              )}
               <div className="ml-2 hidden min-w-0 flex-1 items-center gap-2 sm:flex">
                 {error ? (
-                  <span className={cn("truncate text-[13px] text-danger", TEXT_SHADOW)}>{error}</span>
+                  <span className={cn("truncate text-[13px] text-danger", TEXT_SHADOW)}>
+                    {error}
+                  </span>
                 ) : chapter ? (
                   <>
                     <span aria-hidden className="h-1 w-1 shrink-0 rounded-full bg-white/45" />
@@ -970,6 +1190,7 @@ export function LecturePlayerBar({
             </div>
           </div>
         </div>
+        {pageStatus}
       </div>
     </>
   );

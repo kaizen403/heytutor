@@ -1,0 +1,1 @@
+tsx scripts/verify/verify-two-sum-grounding.ts

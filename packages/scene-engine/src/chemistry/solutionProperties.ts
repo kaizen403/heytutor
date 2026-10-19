@@ -9,7 +9,7 @@
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
 
-import { CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, findChemistryQuantities, readChemistryQuantity, convertChemistryReading, chemistryPlanBindingsValid, type ChemistryDimension, type ChemistryUnit } from "./quantityReader";
+import { chemistryQuantityPayloadPresent, CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, matchedChemistryQuantity, findChemistryQuantities, readChemistryQuantity, readChemistryQuantityDeclaration, readChemistryLiteral, matchedChemistryComponentAmount, convertChemistryReading, chemistryPlanBindingsValid, chemistryCanonicalValuesAgree, chemistryQuestionSpan, chemistryUnitSymbol, type ChemistryDimension, type ChemistryUnit } from "./quantityReader";
 
 const FAMILY = "chem_solutions" as const;
 
@@ -19,14 +19,62 @@ function fit(text: string): string {
 
 function shown(value: number): string {
   if (!Number.isFinite(value)) return "";
-  const rounded = Number(value.toFixed(3));
-  return String(rounded);
+  // Decimal rounding must never turn a finite nonzero quantity into zero.
+  if (value !== 0 && Math.abs(value) < 0.001) {
+    const [mantissa, exponent] = value.toExponential(3).split("e");
+    return `${Number(mantissa)}e${Number(exponent)}`;
+  }
+  return String(Number(value.toFixed(3)));
+}
+
+/** Keep each physical value and unit complete within the compact-label limit. */
+function physicalResultLabels(symbol: string, value: number, unit: string): string[] {
+  let number = shown(value);
+  if (`${symbol}=${number}`.length > 16) {
+    const [mantissa, exponent] = value.toExponential(3).split("e");
+    number = `${Number(mantissa)}e${Number(exponent)}`;
+  }
+  const physicalValue = `${symbol}=${number}`;
+  const full = `${physicalValue} ${unit}`;
+  return full.length <= 16 ? [full] : [physicalValue,unit];
 }
 
 function take(match: RegExpMatchArray | null, group = 1): number | null {
   if (!match) return null;
   if (match[group] === undefined) group = match.findIndex((part, index) => index > 0 && part !== undefined);
   return matchedChemistryScalar(match.input!, match, group);
+}
+/** A declared factor must be read before a default or a derived factor exists. */
+function suppliedVanthoffFactor(question: string): {value:number|null} | null {
+  const suppliedPrefix = String.raw`[=:]|[+\-−.\d]|\b(?:is|was|are|of|equals|equal\s+to|about|nearly|approximately|has|takes|with|from|at|in|value|given|stated|measured|assumed|taken|unknown|unreadable|unspecified|undefined|not|NaN)\b`;
+  const cue = new RegExp(String.raw`\bvan['’]?t[\s-]+hoff\s+factor(?:\s*\(\s*i\s*\)|\s+i\b)?|\bi\b(?=\s*(?:${suppliedPrefix}))`,"ig");
+  const owners = [...question.matchAll(cue)];
+  let value: number | null = null;
+  for (let index = 0; index < owners.length; index += 1) {
+    const owner = owners[index]!;
+    const start = owner.index! + owner[0].length;
+    const end = owners[index + 1]?.index ?? question.length;
+    const tail = question.slice(start,end);
+    const clause = question.slice(0,owner.index!).split(/[.;?!\n]/).at(-1) ?? "";
+    const directRequest = /\b(?:find|calculate|determine|evaluate|compute|what\s+(?:is|are))\s+(?:(?:the|a|an|its|their|both)\s+)*$/i.test(clause);
+    const listRequest = /\b(?:find|calculate|determine|evaluate|compute|what\s+(?:is|are))\b([^;.!?]*\b(?:and|together\s+with)\s+(?:(?:the|a|an|its|their)\s+)*)$/i.exec(clause);
+    const requested = directRequest || !!listRequest && !/\b(?:using|given|where|with|from|at|in|of)\b/i.test(listRequest[1]!.replace(/\btogether\s+with\b/ig,"and"));
+    const requestBoundary = /^\s*(?:$|[.;?!]\s*(?:$|(?:find|calculate|determine|evaluate|compute|what\s+(?:is|are))\b))/i.test(tail);
+    const suppliedMaterial = !requestBoundary && /^\s*(?:[=:]|[+\-−.\d]|\\(?:frac|dfrac|tfrac)\b|\b(?:is|was|equals|equal\s+to|unknown|unreadable|unspecified|undefined|not|NaN|given|stated|measured|taken)\b)/i.test(tail);
+    const requestContinuation = /^\s*(?:$|[;?!]|\.(?!\d)|and\s+(?:(?:the|a|an|its|their)\s+)*(?:apparent\s+(?:molar|molecular)\s+mass|van['’]?t[\s-]+hoff\s+factor)\b)/i.test(tail);
+    // A requested quantity with no supplied material has no source value.
+    // An assignment, scalar, damaged value or unread declaration remains an
+    // owner even inside the same imperative clause as a genuine request.
+    if (requested && !suppliedMaterial && requestContinuation) continue;
+    if (start >= end) return null;
+    // Read this original declaration alone: a later good i cannot hide an
+    // earlier unknown, and a supplied unit cannot disappear in a scalar match.
+    const read = readChemistryQuantityDeclaration({question,after:/^/,within:{start,end},dimension:"dimensionless",owner:"van't Hoff factor"});
+    if (read.state !== "valid" || read.reading.rawUnit !== null || !(read.reading.value > 0)) return null;
+    if (value !== null && !chemistryCanonicalValuesAgree(value,read.reading.value)) return null;
+    value = read.reading.value;
+  }
+  return {value};
 }
 function literal(question: string, dimension: ChemistryDimension, targetUnit?: ChemistryUnit): number | null {
   const result = findChemistryQuantities({question, dimension, targetUnit});
@@ -48,8 +96,17 @@ function diagramCue(stem: string): boolean {
   return /(?:elevation (?:in|of) (?:the )?boiling point|boiling point elevation|depression (?:in|of) (?:the )?freezing point|freezing point depression|ebullioscop|cryoscop).{0,200}(?:graph|diagram|curve|plot|vapou?r pressure)|(?:graph|diagram|curve|plot|vapou?r pressure).{0,200}(?:elevation (?:in|of) (?:the )?boiling point|boiling point elevation|depression (?:in|of) (?:the )?freezing point|freezing point depression)/.test(stem);
 }
 
+function claimsHenry(stem: string): boolean {
+  if (/henry/.test(stem)) return true;
+  // The declared relation and dissolved-gas quantity roles establish the
+  // intent even when the question does not name the law.
+  return /(?:p\s*=\s*k_?h\s*\*?\s*x\b|c\s*=\s*k_?h\s*\*?\s*p\b)/.test(stem)
+    && /\bk_?h\s*=/.test(stem)
+    && /dissolv|partial pressure|mole fraction/.test(stem);
+}
+
 function twoVolatilePlot(stem: string): boolean {
-  if (/non\s*-?\s*volatile|henry|relative lowering/.test(stem)) return false;
+  if (/non\s*-?\s*volatile|relative lowering/.test(stem) || claimsHenry(stem)) return false;
   return /raoult|positive deviation|negative deviation|deviations? from (?:the )?ideal|ideal solution.{0,120}(?:graph|plot|curve|deviation)|(?:graph|plot|curve).{0,120}ideal solution|vapou?r pressure.{0,160}(?:mole fraction|composition|plot|graph|deviation)|(?:mole fraction|composition|plot|graph).{0,160}vapou?r pressure/.test(stem);
 }
 
@@ -59,11 +116,111 @@ export function claimsSolutionLesson(question: string): boolean {
   if (/titr|thiosulph|thiosulf|redox|buffer|shown (?:in|below)|following (?:figure|graph)/.test(stem)) return false;
   if (diagramCue(stem) || twoVolatilePlot(stem)) return false;
   return claimsConcentration(stem)
-    || /henry/.test(stem)
+    || claimsHenry(stem)
     || /non\s*-?\s*volatile/.test(stem)
     || /relative lowering|lowering of vapou?r pressure/.test(stem)
     || /osmotic pressure|van'?t hoff|vant hoff|degree of dissociation|degree of association|molar mass|molecular mass/.test(stem)
     || (/boiling point|freezing point/.test(stem) && /k_?[bf]\b|molality|molal\b/.test(stem));
+}
+
+/** An amount unit is not a component role. Bind every stated solute owner
+ * before computing n/V or n/solvent-mass; unrelated solvent moles stay outside. */
+function sourceSoluteAmount(question: string): number | null {
+  const body = question.slice(0,chemistryQuestionSpan(question).end);
+  if (/\b(?:solute\s+is\s+(?:also\s+)?(?:the\s+)?solvent|solvent\s+is\s+(?:also\s+)?(?:the\s+)?solute)\b/i.test(body)) return null;
+  type DeclaredRole = { name: string; role: "solute" | "solvent"; start: number; end: number };
+  const roles: DeclaredRole[] = [];
+  for (const match of body.matchAll(/\b([A-Za-z][A-Za-z0-9]*)\s+is\s+(?:the\s+)?(solute|solvent)\b/gid)) {
+    const span = match.indices![1]!;
+    roles.push({name:match[1]!,role:match[2]!.toLowerCase() as "solute" | "solvent",start:span[0],end:span[1]});
+  }
+  for (const match of body.matchAll(/\b(?:the\s+)?(solute|solvent)\s+is\s+([A-Za-z][A-Za-z0-9]*)\b/gid)) {
+    const span = match.indices![2]!;
+    roles.push({name:match[2]!,role:match[1]!.toLowerCase() as "solute" | "solvent",start:span[0],end:span[1]});
+  }
+  for (const role of roles) {
+    if (roles.some(other=>other.name.toLowerCase()===role.name.toLowerCase() && other.role!==role.role)) return null;
+  }
+  let amount: number | null = null;
+  const names = new Set<string>();
+  const admit = (value: number, name?: string): boolean => {
+    if (!(value > 0) || amount !== null && !chemistryCanonicalValuesAgree(amount,value)) return false;
+    if (name) names.add(name);
+    // Different solutes are not repeated declarations of one numerator.
+    if (names.size > 1) return false;
+    amount=value;return true;
+  };
+  // Inventory every prefix, including arbitrary unread/damaged qualifiers.
+  // Only a genuine request/reuse without supplied material is a reference.
+  const prefix = /\b(?:amount\s+of(?:\s+the)?\s+solute|solute\s+amount|(?:number\s+of\s+)?moles?\s+of(?:\s+the)?\s+solute|n_?solute)\b/gid;
+  for (const owner of body.matchAll(prefix)) {
+    let start=owner.index!+owner[0].length;
+    if (/^moles?\b/i.test(owner[0]) && new RegExp(String.raw`(?:${CHEMISTRY_SCALAR_PATTERN}|unknown|unreadable|unspecified|undefined|NaN)\s*$`,"i").test(body.slice(0,owner.index!))) continue;
+    const tail=body.slice(start);
+    const clause=body.slice(0,owner.index!).split(/[;.!?\n]/).at(-1) ?? "";
+    const request=/\b(?:find|calculate|determine|compute|evaluate|what\s+(?:is|are))\s+(?:(?:the|a|an|its|their)\s+)*$/i.test(clause)
+      || /\b(?:find|calculate|determine|compute|evaluate|what\s+(?:is|are))\b[^;.!?]*\band\s+(?:(?:the|a|an|its|their)\s+)*$/i.test(clause);
+    const reuse=/\b(?:use|using|from|with)\s+(?:(?:the|given)\s+)*$/i.test(clause);
+    // A connector alone cannot omit a declared value later in the clause.
+    // Consume the entire non-declarative target of a genuine request/reuse.
+    const payload=tail.split(/[;.!?\n]/)[0]!.trim();
+    const goal=String.raw`(?:(?:the|its|a|an)\s+)?(?:molarity|molality|concentration|solute\s+amount|amount\s+of(?:\s+the)?\s+solute|(?:number\s+of\s+)?moles?\s+of(?:\s+the)?\s+solute)`;
+    const operation=String.raw`(?:find|calculate|determine|compute|evaluate|obtain|draw|plot|sketch|show)\s+${goal}`;
+    const referenceTail=new RegExp(String.raw`^(?:$|(?:to\s+|,\s*|and\s+)?${operation}|and\s+${goal}|for\s+(?:(?:this|the)\s+)?(?:calculation|formula))$`,"i").test(payload);
+    const unreadQualifier=/\b(?:unknown|unreadable|unread|unspecified|undefined|cannot|not\s+(?:known|readable))\b/i.test(tail.split(/[;.!?\n]/)[0]!);
+    if ((request || reuse) && referenceTail && !unreadQualifier) continue;
+    const named=/^\s+([A-Za-z][A-Za-z0-9]*(?:\s+[A-Za-z][A-Za-z0-9]*){0,2}?)\s*(?=[=:]|\b(?:is|was|are|were|equals)\b|[+−-]?(?:\d|\.\d))/id.exec(tail);
+    const reserved=/\b(?:is|was|are|were|equals|unknown|unreadable|unspecified|undefined|not|NaN|remains|stays|cannot|can|may|which|that|has|have|given|stated|to|for|from|and|or|of|the|a|an|will|must|be)\b/i;
+    const name=named && !reserved.test(named[1]!) ? named[1] : undefined;
+    if (name) start += named!.indices![1]![1];
+    const read=readChemistryQuantity({question,after:/^/,within:{start,end:body.length},dimension:"amount",targetUnit:"mol"});
+    if (!read.ok) return null;
+    const suffix=body.slice(read.reading.source.span.end);
+    if (/^\s*(?:of\s+)?(?:the\s+)?solvent\b/i.test(suffix)) return null;
+    if (name && (/^(?:solvent|solution|mixture)$/i.test(name) || roles.some(role=>role.name.toLowerCase()===name.toLowerCase() && role.role==="solvent"))) return null;
+    if (!admit(read.reading.value,name)) return null;
+  }
+  // A suffix proves a role only for "mol (of) solute", an independently
+  // declared named solute, or the material explicitly dissolved into a medium.
+  for (const unit of body.matchAll(/(?<![A-Za-z_])mol(?:e|es)?\b/gid)) {
+    const before=body.slice(0,unit.index!);
+    const valueMatch=new RegExp(String.raw`(${CHEMISTRY_SCALAR_PATTERN}|unknown|unreadable|unspecified|undefined|NaN|[+\-−]?\d[^\s,;]*)\s*$`,"id").exec(before);
+    if (!valueMatch?.indices?.[1]) continue; // "number of moles" is a cue, not a literal.
+    const scalar=valueMatch.indices![1]!;
+    const end=unit.index!+unit[0].length;
+    const tail=body.slice(end);
+    const explicit=/^\s*(?:of\s+)?(?:the\s+)?(solute|solvent)\b/i.exec(tail);
+    if (explicit?.[1]?.toLowerCase()==="solvent") continue;
+    if (explicit && (/^\s*(?:of\s+)?(?:the\s+)?solute(?:[-_][A-Za-z0-9]|\s+solution\b)/i.test(tail) || /^\s*(?:of\s+)?(?:the\s+)?solute\s+(?:or|and)\s+(?:the\s+)?solvent\b/i.test(tail))) return null;
+    // A generic role must end before ordinary clause prose. Unsupported
+    // component names/indices cannot be cropped into an unnamed "solute".
+    // Their amounts require separate component identity, not aggregation.
+    if (explicit && !/^\s*(?:$|[,.;?!]|\b(?:and|is|are|was|were|in|with|has|have)\b)/i.test(tail.slice(explicit[0].length))) return null;
+    let name: string | undefined;
+    let independent: DeclaredRole | undefined;
+    if (!explicit) {
+      const dissolved=/^\s*(?:of\s+)?(?:the\s+)?([A-Za-z][A-Za-z0-9]*(?:\s+[A-Za-z][A-Za-z0-9]*){0,3}?)\s+(?:(?:is|are|was|were)\s+)?dissolved\s+(?:in|into)\b/.exec(tail);
+      if (dissolved) {
+        name=dissolved[1]!;
+        if (/^(?:solvent|solution|mixture)$/i.test(name) || roles.some(role=>role.name.toLowerCase()===name!.toLowerCase() && role.role==="solvent")) return null;
+      } else {
+        independent=roles.find(role=>role.role==="solute" && new RegExp(String.raw`^\s*(?:of\s+)?${role.name}\b`).test(tail));
+        if (!independent) continue;
+        name=independent.name;
+      }
+    }
+    const read=readChemistryLiteral({question,scalarSpan:{start:scalar[0],end:scalar[1]},dimension:"amount",targetUnit:"mol"});
+    let value=read.ok?read.reading.value:null;
+    if (value===null && independent) {
+      // The reader's existing component seam requires a separate source role
+      // declaration; it never truncates a physical-unit suffix speculatively.
+      const component=new RegExp(String.raw`(${CHEMISTRY_SCALAR_PATTERN})\s*mol(?:e|es)?\s+(?:of\s+)?(${independent.name})\b`,"gd");
+      const original=[...question.matchAll(component)].find(match=>match.indices?.[1]?.[0]===scalar[0]);
+      value=matchedChemistryComponentAmount(question,original??null,1,2,{name:independent.name,sourceSpan:{start:independent.start,end:independent.end}});
+    }
+    if (value===null || !admit(value,name)) return null;
+  }
+  return amount;
 }
 
 function concentrationScene(question: string, stem: string): SceneDocument | null {
@@ -174,7 +331,7 @@ function concentrationScene(question: string, stem: string): SceneDocument | nul
     ], `Volume percent is 100 × ${part}/${whole} = ${percent.toFixed(2)} on the stated solution volume. Separate liquid volumes were not assumed to add.`);
   }
 
-  const moles = literal(question, "amount", "mol");
+  const moles = sourceSoluteAmount(question);
   const litres = numberAfter(question, /solution volume of/, "volume", "L");
   if (/molarity/.test(stem) && moles !== null && litres !== null) {
     if (!(moles > 0) || !(litres > 0)) return null;
@@ -187,7 +344,7 @@ function concentrationScene(question: string, stem: string): SceneDocument | nul
     ], `Molarity is ${moles}/${litres} = ${value} mol/L. The volume is the solution volume.`);
   }
 
-  const molalMoles = literal(question, "amount", "mol");
+  const molalMoles = sourceSoluteAmount(question);
   const solvent = new RegExp(String.raw`(${CHEMISTRY_SCALAR_PATTERN})\s*(g|kg)\s+of\s+solvent`, "id").exec(question);
   if (/molality/.test(stem) && molalMoles !== null && solvent) {
     if (!(molalMoles > 0)) return null;
@@ -209,12 +366,19 @@ function henryScene(question: string, stem: string): SceneDocument | null {
   const concentrationForm = /c\s*=\s*k_?h\s*\*?\s*p\b/.test(stem);
   if (pressureForm === concentrationForm) return null;
   if (/total pressure/.test(stem) && !/partial pressure/.test(stem)) return null;
-  const kH = numberAfter(question, /k_?h\s*=/, concentrationForm ? "concentration_pressure" : "pressure", concentrationForm ? "mol/(L atm)" : "atm");
-  if (kH === null || !(kH > 0)) return null;
-  const unit = "atm";
+  const constant = readChemistryQuantity({question,after:/k_?h\s*=/,dimension:concentrationForm?"concentration_pressure":"pressure"});
+  if (!constant.ok || !(constant.reading.value > 0)) return null;
+  // Computation stays in the reader's canonical dimension; the pressure-form
+  // board uses the actual declared unit after a checked display conversion.
+  const unit = concentrationForm
+    ? (/bar/.test(constant.reading.rawUnit ?? "") ? "bar" : "atm")
+    : chemistryUnitSymbol(constant.reading.rawUnit ?? "", "pressure");
   if (!unit) return null;
+  const display = convertChemistryReading(constant.reading,concentrationForm?(unit === "bar"?"mol/(L bar)":"mol/(L atm)"):unit);
+  if (!display.ok) return null;
+  const kH = display.reading.value;
   if (concentrationForm) {
-    const partial = numberAfter(question, /partial pressure/, "pressure", "atm");
+    const partial = numberAfter(question, /partial pressure/, "pressure", unit);
     if (partial === null || !(partial > 0)) return null;
     const concentration = kH * partial;
     return panel(question, "Henry concentration at the stated gas partial pressure", [
@@ -222,7 +386,7 @@ function henryScene(question: string, stem: string): SceneDocument | null {
       `p=${partial} ${unit}`,
       "c=kH*p",
       "T fixed",
-    ], `The declared convention is c = k_H p. At partial pressure ${partial} ${unit}, c = ${kH} × ${partial} = ${concentration}. Temperature is the stated fixed temperature, and the pressure is the gas partial pressure.`);
+    ], `The declared convention is c = k_H p. At partial pressure ${partial} ${unit}, c = ${shown(kH)} × ${shown(partial)} = ${shown(concentration)}. Temperature is the stated fixed temperature, and the pressure is the gas partial pressure.`);
   }
   const zero = /zero partial pressure|partial pressure is zero|\bp\s*=\s*0\b/.test(stem);
   const mole = take(new RegExp(String.raw`mole fraction(?:\s+of(?:\s+the)?\s+dissolved gas)?(?:\s+is)?\s*(${CHEMISTRY_SCALAR_PATTERN})|x\s*=\s*(${CHEMISTRY_SCALAR_PATTERN})`, "id").exec(question));
@@ -240,7 +404,7 @@ function henryScene(question: string, stem: string): SceneDocument | null {
   c.text("x_l", { x: 0.05, y: -0.95 }, fit(x === 0 ? "x=0" : `x=${shown(x)}`), "dissolved mole fraction");
   c.text("temp_l", { x: 0.05, y: -1.3 }, "T fixed", "temperature held fixed");
   c.text("scale_l", { x: 0.55, y: -1.3 }, "display scaled", "axis height is not the pressure unit");
-  return c.build({ caption: `Henry's law in the declared form p = k_H x gives p = ${kH} × ${x} = ${pressure} ${unit}. The line is display-scaled. k_H applies at the stated fixed temperature in the dilute range, and p is the gas partial pressure.` });
+  return c.build({ caption: `Henry's law in the declared form p = k_H x gives p = ${shown(kH)} × ${x} = ${shown(pressure)} ${unit}. The line is display-scaled. k_H applies at the stated fixed temperature in the dilute range, and p is the gas partial pressure.` });
 }
 
 function nonvolatileScene(question: string, stem: string): SceneDocument | null {
@@ -262,13 +426,15 @@ function nonvolatileScene(question: string, stem: string): SceneDocument | null 
   c.text("zero_l", { x: 0.05, y: -0.55 }, "solute p=0", "nonvolatile solute");
   c.text("x_l", { x: 0.05, y: -0.95 }, fit(`xsolv=${shown(solvent)}`), "solvent mole fraction");
   c.text("scale_l", { x: 0.05, y: -1.3 }, "display scaled", "axis height is not the pressure unit");
-  return c.build({ caption: `The nonvolatile solute adds no vapour pressure. p = x_solvent p° = ${solvent} × ${pure} = ${pressure} ${unit}. The line is display-scaled and is not a second volatile component.` });
+  return c.build({ caption: `The nonvolatile solute adds no vapour pressure. p = x_solvent p° = ${solvent} × ${shown(pure)} = ${shown(pressure)} ${unit}. The line is display-scaled and is not a second volatile component.` });
 }
 
 function colligativeScene(question: string, stem: string): SceneDocument | null {
   if (/molar mass|molecular mass|van'?t hoff|vant hoff|degree of dissociation|degree of association/.test(stem)) return null;
   const dissociating = /dissociat|associat|electrolyte/.test(stem);
-  const factor = take(new RegExp(String.raw`\bi\s*=\s*(${CHEMISTRY_SCALAR_PATTERN})`, "id").exec(question));
+  const supplied = suppliedVanthoffFactor(question);
+  if (!supplied) return null;
+  const factor = supplied.value;
   if (dissociating && factor === null) return null;
   const i = factor ?? 1;
   if (!(i > 0)) return null;
@@ -306,9 +472,9 @@ function colligativeScene(question: string, stem: string): SceneDocument | null 
     return panel(question, "relative vapour-pressure lowering for a nonvolatile solute", [
       `xsol=${solute}`,
       `dp/p=${solute}`,
-      fit(`p=${pressure} ${unit}`),
+      fit(`p=${shown(pressure)} ${unit}`),
       "nonvolatile",
-    ], `For a dilute solution of a nonvolatile solute, (p° − p)/p° = x_solute = ${solute}. With p° = ${pure} ${unit}, p = ${pressure} ${unit}.`);
+    ], `For a dilute solution of a nonvolatile solute, (p° − p)/p° = x_solute = ${solute}. With p° = ${shown(pure)} ${unit}, p = ${shown(pressure)} ${unit}.`);
   }
 
   const molality = literal(question, "molality", "mol/kg");
@@ -321,7 +487,9 @@ function colligativeScene(question: string, stem: string): SceneDocument | null 
   const constant = numberAfter(question, boiling ? /k_?b\s*=/ : /k_?f\s*=/, "colligative_constant", "K kg/mol");
   if (constant === null || !(constant > 0)) return null;
   const delta = i * constant * molality;
-  const reference = numberAfter(question, boiling ? /boiling point of (?:the )?pure solvent/ : /freezing point of (?:the )?pure solvent/, "temperature", "K");
+  const referenceRead = readChemistryQuantityDeclaration({question,after:boiling ? /boiling point of (?:the )?pure solvent/ : /freezing point of (?:the )?pure solvent/,dimension:"temperature",targetUnit:"K",owner:"pure-solvent reference temperature"});
+  if (referenceRead.state === "invalid") return null;
+  const reference = referenceRead.state === "valid" ? referenceRead.reading.value : null;
     const labels = boiling
     ? [`dTb=${shown(delta)} K`, `m=${molality}`, "boiling up", reference === null ? "Tb not given" : `Tb=${shown(reference + delta)} K`]
     : [`dTf=${shown(delta)} K`, `m=${molality}`, "freezing down", reference === null ? "Tf not given" : `Tf=${shown(reference - delta)} K`];
@@ -340,17 +508,83 @@ function colligativeScene(question: string, stem: string): SceneDocument | null 
   );
 }
 
+/** All aliases and quantified noun arguments belong to one process-count owner. */
+function molarMassMultiplicity(question: string, association: boolean): {value:number|null} | null {
+  const owner = association ? "association monomer multiplicity" : "dissociation particle multiplicity";
+  let value: number | null = null;
+  const accept = (read: ReturnType<typeof readChemistryQuantityDeclaration>, closedEnd?: number): boolean => {
+    if (read.state === "invalid") return false;
+    if (read.state === "absent") return true;
+    if (read.reading.rawUnit !== null || !Number.isInteger(read.reading.value) || read.reading.value < 2) return false;
+    // A quantified noun closes this argument. A successful first number may
+    // not hide a damaged unit, second literal, or arithmetic continuation.
+    if (closedEnd !== undefined && question.slice(read.reading.source.span.end,closedEnd).trim()) return false;
+    if (value !== null && !chemistryCanonicalValuesAgree(value,read.reading.value)) return false;
+    value = read.reading.value;
+    return true;
+  };
+  const aliases = readChemistryQuantityDeclaration({question,after:association ? /\bk\b/ : /\bnu\b|ν/i,
+    cueCaseSensitive:association,dimension:"dimensionless",owner,allowAgreeingRepeats:true});
+  if (!accept(aliases)) return null;
+  const body = chemistryQuestionSpan(question);
+  const text = question.slice(body.start,body.end);
+  const nounCue = association ? /(?<![A-Za-z])monomers\b/ig : /(?<![A-Za-z])particles\b/ig;
+  // Only an explicit count property heads a value after the noun. A bare
+  // particle/monomer subject may instead introduce foreign temperature or mass.
+  const countCue = association
+    ? /\b(?:(?:number|count) of (?:the )?monomers|monomers? (?:count|multiplicity))\b/i
+    : /\b(?:(?:number|count) of (?:the )?particles|particles? (?:count|multiplicity))\b/i;
+  if (!accept(readChemistryQuantityDeclaration({question,after:countCue,dimension:"dimensionless",owner,allowAgreeingRepeats:true}))) return null;
+  let previousEnd = 0;
+  for (const noun of text.matchAll(nounCue)) {
+    const prefix = text.slice(previousEnd,noun.index);
+    const clauseStart = [...prefix.matchAll(/[;?!\n]|\.(?=\s|$)/g)].at(-1);
+    const localStart = clauseStart ? clauseStart.index! + clauseStart[0].length : 0;
+    const local = prefix.slice(localStart);
+    const introducer = [...local.matchAll(association ? /\b(?:as|into|from)\s+/ig : /\binto\s+/ig)].at(-1);
+    const continuationCue = previousEnd > 0 && !clauseStart ? /^\s*(?:,\s*(?:(?:and|or)\b)?|(?:and|or)\b)\s*/i.exec(local) : null;
+    // A coordinated bare noun/determiner refers to the existing particles;
+    // every other sibling argument still needs a strict count read.
+    const nounReference = continuationCue && /^(?:(?:the|these|those|its|their|our)\s*)?$/i.test(local.slice(continuationCue[0].length));
+    const continuation = nounReference ? null : continuationCue;
+    const lastToken = /\S+\s*$/.exec(local);
+    // A reference such as "the number of particles" supplies no nominal
+    // value. An explicit argument/list sibling is still a declaration even
+    // when its payload is unknown or unreadable.
+    if (!introducer && !continuation && (!lastToken || !chemistryQuantityPayloadPresent(lastToken[0]))) {
+      previousEnd = noun.index! + noun[0].length;
+      continue;
+    }
+    const offset = introducer ? introducer.index! + introducer[0].length
+      : continuation ? continuation[0].length : lastToken!.index;
+    const start = body.start + previousEnd + localStart + offset;
+    const end = body.start + noun.index!;
+    const read = readChemistryQuantityDeclaration({question,after:/^/,within:{start,end},dimension:"dimensionless",owner});
+    if (!accept(read,end)) return null;
+    previousEnd = noun.index! + noun[0].length;
+  }
+  return {value};
+}
+
 function molarMassScene(question: string, stem: string): SceneDocument | null {
   const dissociation = /dissociat/.test(stem);
   const association = /associat/.test(stem);
   if (dissociation && association) return null;
-  const alpha = take(new RegExp(String.raw`alpha\s*=\s*(${CHEMISTRY_SCALAR_PATTERN})|α\s*=\s*(${CHEMISTRY_SCALAR_PATTERN})|degree of (?:dissociation|association)(?:\s+is)?\s*(${CHEMISTRY_SCALAR_PATTERN})`, "id").exec(question));
-  const nu = take(/into\s+(\d+)\s+particles|ν\s*=\s*(\d+)|\bnu\s*=\s*(\d+)/id.exec(question));
-  const monomers = take(/(\d+)\s+monomers|\bk\s*=\s*(\d+)/id.exec(question));
+  const alphaRead = readChemistryQuantityDeclaration({question,after:/\balpha\b|α|degree of (?:dissociation|association)/i,
+    dimension:"dimensionless",owner:"association or dissociation extent",allowAgreeingRepeats:true});
+  if (alphaRead.state === "invalid") return null;
+  const alpha = alphaRead.state === "valid" ? alphaRead.reading.value : null;
+  if (alpha !== null && !dissociation && !association) return null;
+  const multiplicity = dissociation || association ? molarMassMultiplicity(question,association) : {value:null};
+  if (!multiplicity) return null;
+  const nu = dissociation ? multiplicity.value : null;
+  const monomers = association ? multiplicity.value : null;
   if (alpha !== null && (alpha < 0 || alpha > 1)) return null;
   if (dissociation && (nu === null || nu < 2)) return null;
   if (association && (monomers === null || monomers < 2)) return null;
-  let factor: number | null = take(new RegExp(String.raw`\bi\s*=\s*(${CHEMISTRY_SCALAR_PATTERN})`, "id").exec(question));
+  const supplied = suppliedVanthoffFactor(question);
+  if (!supplied) return null;
+  let factor: number | null = supplied.value;
   if (dissociation && alpha !== null && nu !== null) {
     const predicted = 1 + (nu - 1) * alpha;
     if (factor !== null && Math.abs(factor - predicted) > 1e-6) return null;
@@ -363,15 +597,20 @@ function molarMassScene(question: string, stem: string): SceneDocument | null {
   }
   if ((dissociation || association) && factor === null) return null;
 
-  const trueMass = numberAfter(question, /(?:true )?molar mass/, "molar_mass", "g/mol");
+  const trueMassRead = readChemistryQuantityDeclaration({question,after:/(?:true )?molar mass/,dimension:"molar_mass",targetUnit:"g/mol",owner:"true molar mass"});
+  if (trueMassRead.state === "invalid") return null;
+  const trueMass = trueMassRead.state === "valid" ? trueMassRead.reading.value : null;
   if (trueMass !== null && factor !== null) {
+    // A given factor and mass do not change a freezing/boiling/osmotic request
+    // into an apparent-mass question.
+    if (!/\b(?:find|calculate|determine|what is)\b[^.;?]{0,60}\bapparent (?:molar|molecular) mass\b/.test(stem)) return null;
     if (!(trueMass > 0) || !(factor > 0)) return null;
     const apparent = trueMass / factor;
     return panel(question, "apparent molar mass from the van't Hoff factor", [
       `i=${shown(factor)}`,
-      `M'=${shown(apparent)} g/mol`,
+      ...physicalResultLabels("M'",apparent,"g/mol"),
       factor > 1 ? "M' < M" : factor < 1 ? "M' > M" : "M' = M",
-      `M=${trueMass} g/mol`,
+      ...physicalResultLabels("M",trueMass,"g/mol"),
     ], `M_apparent = M_true / i = ${trueMass} / ${factor} = ${apparent} g/mol. ${factor > 1 ? "Dissociation raises i, so the apparent molar mass is smaller than the true mass." : factor < 1 ? "Association lowers i, so the apparent molar mass is larger than the true mass." : "i = 1, so the apparent and true molar masses agree."}`);
   }
 
@@ -405,11 +644,13 @@ export function buildSolutionLessonScene(
   if (!chemistryPlanBindingsValid(question, planQuantities)) return null;
   const stem = chemStem(question);
   const concentration = claimsConcentration(stem)
+    && !claimsHenry(stem)
     && !/henry|osmotic|boiling point|freezing point|non\s*-?\s*volatile|relative lowering|van'?t hoff|vant hoff/.test(stem)
     && !(/molar mass|molecular mass/.test(stem) && !/density/.test(stem));
   if (concentration) return concentrationScene(question, stem);
-  if (/henry/.test(stem)) return henryScene(question, stem);
-  if (/molar mass|molecular mass|van'?t hoff|vant hoff|degree of dissociation|degree of association/.test(stem) && !/density/.test(stem)) {
+  if (claimsHenry(stem)) return henryScene(question, stem);
+  const molarMassAsk = /(?:apparent|true)\s+(?:molar|molecular) mass|(?:find|calculate|determine|what is)\b[^.;?]{0,45}\b(?:molar|molecular) mass|degree of dissociation|degree of association/.test(stem);
+  if (molarMassAsk && !/density/.test(stem)) {
     return molarMassScene(question, stem);
   }
   if (/osmotic pressure|relative lowering|lowering of vapou?r pressure|boiling point|freezing point/.test(stem) && !/non\s*-?\s*volatile/.test(stem)) {

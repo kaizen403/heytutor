@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Check, CloudOff, X } from "lucide-react";
 import type { SaveStatus } from "@/features/tutor-session/lib/turn/saveStatus";
 import { Spinner } from "@/components/ui/spinner";
@@ -40,6 +40,7 @@ export function SaveStatusChip({ status, onRetrySave, compact = false }: SaveSta
   const [savedWordShown, setSavedWordShown] = useState(true);
   const [popoverOpen, setPopoverOpen] = useState(false);
   const rootRef = useRef<HTMLSpanElement>(null);
+  const [popoverPosition, setPopoverPosition] = useState({ left: 16, top: 64 });
   const popoverId = useId();
 
   const savingNow = status.kind === "saving";
@@ -69,6 +70,23 @@ export function SaveStatusChip({ status, onRetrySave, compact = false }: SaveSta
     const timer = window.setTimeout(() => setSavedWordShown(false), left);
     return () => window.clearTimeout(timer);
   }, [savedAt]);
+
+  useLayoutEffect(() => {
+    if (!popoverOpen) return undefined;
+    const position = () => {
+      const rect = rootRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const width = Math.min(272, window.innerWidth - 32);
+      setPopoverPosition({ left: Math.max(16, Math.min(rect.left, window.innerWidth - width - 16)), top: rect.bottom + 6 });
+    };
+    position();
+    window.addEventListener("resize", position);
+    window.addEventListener("scroll", position, true);
+    return () => {
+      window.removeEventListener("resize", position);
+      window.removeEventListener("scroll", position, true);
+    };
+  }, [popoverOpen]);
 
   useEffect(() => {
     if (!popoverOpen) return undefined;
@@ -138,6 +156,7 @@ export function SaveStatusChip({ status, onRetrySave, compact = false }: SaveSta
             type="button"
             onClick={() => setPopoverOpen((open) => !open)}
             aria-label="Lesson not saved. Show details"
+            title={status.message}
             aria-haspopup="dialog"
             aria-expanded={popoverOpen}
             aria-controls={popoverOpen ? popoverId : undefined}
@@ -153,10 +172,11 @@ export function SaveStatusChip({ status, onRetrySave, compact = false }: SaveSta
             <span
               id={popoverId}
               role="alert"
-              className="surface-float animate-fade-up absolute left-0 top-full z-[80] mt-1.5 flex w-[17rem] items-start gap-2 rounded-xl px-3 py-2.5 text-left"
+              className="surface-float animate-fade-up fixed z-[80] flex w-[17rem] max-w-[calc(100vw-2rem)] items-start gap-2 rounded-xl px-3 py-2.5 text-left"
+              style={popoverPosition}
             >
               <span className="min-w-0 flex-1">
-                <span className="type-accent-s block text-frost">{SAVE_COPY.failedHeadline}</span>
+                <span className="type-accent-s block text-frost">{status.message}</span>
                 <span className="type-accent-xs mt-1 block text-soft">{SAVE_COPY.failedDetail}</span>
                 {onRetrySave ? (
                   <button

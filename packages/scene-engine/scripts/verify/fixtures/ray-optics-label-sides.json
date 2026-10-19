@@ -1,0 +1,1414 @@
+{
+ "schema": "ray-optics-label-sides/v1",
+ "note": "Scene documents from recorded round 7 physics runs (h4-p8 m1/m2), trimmed to labels and geometry, plus a plain triangle.",
+ "documents": {
+  "sphere": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "Recorded m1 refraction_at_spherical_surface_h8u"
+   },
+   "source": {
+    "representationTier": "qualitative_verified",
+    "nonMetric": true,
+    "question": "how a curved boundary between air and glass forms images"
+   },
+   "quantities": [],
+   "entities": [
+    {
+     "id": "boundary",
+     "kind": "circle",
+     "role": "illustrative curved air–glass boundary"
+    },
+    {
+     "id": "object",
+     "kind": "point",
+     "role": "object point",
+     "label": "Object"
+    },
+    {
+     "id": "contact1",
+     "kind": "point",
+     "role": "first surface contact"
+    },
+    {
+     "id": "incoming1",
+     "kind": "vector",
+     "role": "first incident ray"
+    },
+    {
+     "id": "contact2",
+     "kind": "point",
+     "role": "second surface contact"
+    },
+    {
+     "id": "incoming2",
+     "kind": "vector",
+     "role": "second incident ray"
+    },
+    {
+     "id": "outgoing1",
+     "kind": "ray",
+     "role": "first refracted ray"
+    },
+    {
+     "id": "outgoing2",
+     "kind": "ray",
+     "role": "second refracted ray"
+    },
+    {
+     "id": "center",
+     "kind": "point",
+     "role": "construction helper"
+    },
+    {
+     "id": "normal1",
+     "kind": "segment",
+     "role": "normal at geometry"
+    },
+    {
+     "id": "normal2",
+     "kind": "segment",
+     "role": "normal at geometry"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "make_center",
+     "operator": "point",
+     "inputs": {
+      "x": 2,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "center"
+     ]
+    },
+    {
+     "id": "make_boundary",
+     "operator": "circle",
+     "inputs": {
+      "center": "center",
+      "radius": 2
+     },
+     "outputs": [
+      "boundary"
+     ]
+    },
+    {
+     "id": "make_object",
+     "operator": "point",
+     "inputs": {
+      "x": -4,
+      "y": 1,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "object"
+     ]
+    },
+    {
+     "id": "first_contact",
+     "operator": "surface_contact",
+     "inputs": {
+      "origin": "object",
+      "surface": "boundary",
+      "direction": [
+       1,
+       -0.1
+      ]
+     },
+     "outputs": [
+      "contact1",
+      "incoming1"
+     ]
+    },
+    {
+     "id": "second_contact",
+     "operator": "surface_contact",
+     "inputs": {
+      "origin": "object",
+      "surface": "boundary",
+      "direction": [
+       1,
+       -0.3
+      ]
+     },
+     "outputs": [
+      "contact2",
+      "incoming2"
+     ]
+    },
+    {
+     "id": "first_normal",
+     "operator": "normal_at",
+     "inputs": {
+      "point": "contact1",
+      "surface": "boundary"
+     },
+     "outputs": [
+      "normal1"
+     ]
+    },
+    {
+     "id": "second_normal",
+     "operator": "normal_at",
+     "inputs": {
+      "point": "contact2",
+      "surface": "boundary"
+     },
+     "outputs": [
+      "normal2"
+     ]
+    },
+    {
+     "id": "first_refraction",
+     "operator": "refract_direction",
+     "inputs": {
+      "origin": "contact1",
+      "incoming": "incoming1",
+      "normal": "normal1",
+      "n1": 1,
+      "n2": 1.5
+     },
+     "outputs": [
+      "outgoing1"
+     ]
+    },
+    {
+     "id": "second_refraction",
+     "operator": "refract_direction",
+     "inputs": {
+      "origin": "contact2",
+      "incoming": "incoming2",
+      "normal": "normal2",
+      "n1": 1,
+      "n2": 1.5
+     },
+     "outputs": [
+      "outgoing2"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [],
+   "annotations": [
+    {
+     "id": "air_label",
+     "kind": "label",
+     "targetIds": [
+      "incoming1"
+     ],
+     "text": "air"
+    },
+    {
+     "id": "glass_label",
+     "kind": "label",
+     "targetIds": [
+      "outgoing1"
+     ],
+     "text": "glass"
+    }
+   ],
+   "requiredEntityIds": [
+    "boundary",
+    "object",
+    "contact1",
+    "contact2",
+    "incoming1",
+    "incoming2",
+    "outgoing1",
+    "outgoing2"
+   ],
+   "revealGroups": [
+    {
+     "id": "setup",
+     "entityIds": [
+      "boundary",
+      "object",
+      "contact1",
+      "contact2",
+      "incoming1",
+      "incoming2"
+     ],
+     "dependsOn": [],
+     "narrationCue": "setup"
+    },
+    {
+     "id": "refraction",
+     "entityIds": [
+      "outgoing1",
+      "outgoing2",
+      "incoming1",
+      "incoming2"
+     ],
+     "dependsOn": [
+      "setup"
+     ],
+     "narrationCue": "refraction"
+    }
+   ],
+   "teachingTimeline": []
+  },
+  "prism": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "Recorded m2 prism_minimum_deviation_and_dispersion_h8a"
+   },
+   "source": {
+    "representationTier": "quantitative_verified",
+    "nonMetric": false,
+    "question": "A 54° flint glass prism in air gives a minimum deviation of "
+   },
+   "quantities": [
+    {
+     "id": "A",
+     "symbol": "A",
+     "value": 54,
+     "unit": "°"
+    },
+    {
+     "id": "Dr",
+     "symbol": "δᵣ",
+     "value": 38.4,
+     "unit": "°"
+    },
+    {
+     "id": "Dv",
+     "symbol": "δᵥ",
+     "value": 41,
+     "unit": "°"
+    },
+    {
+     "id": "ir",
+     "symbol": "iᵣ",
+     "value": 46.2,
+     "unit": "°"
+    },
+    {
+     "id": "iv",
+     "symbol": "iᵥ",
+     "value": 47.5,
+     "unit": "°"
+    },
+    {
+     "id": "nr",
+     "symbol": "nᵣ",
+     "value": 1.5898135060368757,
+     "unit": ""
+    },
+    {
+     "id": "nv",
+     "symbol": "nᵥ",
+     "value": 1.623992874813676,
+     "unit": ""
+    }
+   ],
+   "entities": [
+    {
+     "id": "P",
+     "kind": "point",
+     "role": "prism apex",
+     "label": "A"
+    },
+    {
+     "id": "prism",
+     "kind": "polygon",
+     "role": "prism section"
+    },
+    {
+     "id": "leftFace",
+     "kind": "segment",
+     "role": "refracting face"
+    },
+    {
+     "id": "rightFace",
+     "kind": "segment",
+     "role": "refracting face"
+    },
+    {
+     "id": "apexAngle",
+     "kind": "angle_mark",
+     "role": "prism apex angle",
+     "label": "A"
+    },
+    {
+     "id": "contact",
+     "kind": "point",
+     "role": "entry contact"
+    },
+    {
+     "id": "incoming",
+     "kind": "ray",
+     "role": "ray entering"
+    },
+    {
+     "id": "normal",
+     "kind": "vector",
+     "role": "normal"
+    },
+    {
+     "id": "insideRay",
+     "kind": "ray",
+     "role": "ray inside prism"
+    },
+    {
+     "id": "L",
+     "kind": "point",
+     "role": "construction helper"
+    },
+    {
+     "id": "R",
+     "kind": "point",
+     "role": "construction helper"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "cP",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 2,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "P"
+     ]
+    },
+    {
+     "id": "cL",
+     "operator": "point",
+     "inputs": {
+      "x": -1.0190508989888576,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "L"
+     ]
+    },
+    {
+     "id": "cR",
+     "operator": "point",
+     "inputs": {
+      "x": 1.0190508989888576,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "R"
+     ]
+    },
+    {
+     "id": "cPrism",
+     "operator": "polygon",
+     "inputs": {
+      "points": [
+       "L",
+       "P",
+       "R"
+      ]
+     },
+     "outputs": [
+      "prism"
+     ]
+    },
+    {
+     "id": "cLeft",
+     "operator": "segment",
+     "inputs": {
+      "start": "L",
+      "end": "P"
+     },
+     "outputs": [
+      "leftFace"
+     ]
+    },
+    {
+     "id": "cRight",
+     "operator": "segment",
+     "inputs": {
+      "start": "P",
+      "end": "R"
+     },
+     "outputs": [
+      "rightFace"
+     ]
+    },
+    {
+     "id": "cApexAngle",
+     "operator": "angle_mark",
+     "inputs": {
+      "vertex": "P",
+      "a": "L",
+      "b": "R"
+     },
+     "outputs": [
+      "apexAngle"
+     ]
+    },
+    {
+     "id": "cContact",
+     "operator": "point",
+     "inputs": {
+      "x": -0.5095254494944288,
+      "y": 1,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "contact"
+     ]
+    },
+    {
+     "id": "cEntry",
+     "operator": "refract_at",
+     "inputs": {
+      "point": "contact",
+      "surface": "leftFace",
+      "incidentAngleDeg": "ir",
+      "n1": 1,
+      "n2": "nr",
+      "tangentSign": 1
+     },
+     "outputs": [
+      "incoming",
+      "normal",
+      "insideRay"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [],
+   "annotations": [
+    {
+     "id": "redDeviation",
+     "kind": "callout",
+     "targetIds": [
+      "prism"
+     ],
+     "text": "δᵣ = 38.4°"
+    },
+    {
+     "id": "violetDeviation",
+     "kind": "callout",
+     "targetIds": [
+      "prism"
+     ],
+     "text": "δᵥ = 41.0°"
+    },
+    {
+     "id": "redIncidence",
+     "kind": "callout",
+     "targetIds": [
+      "incoming"
+     ],
+     "text": "iᵣ = 46.2°"
+    },
+    {
+     "id": "violetIncidence",
+     "kind": "callout",
+     "targetIds": [
+      "incoming"
+     ],
+     "text": "iᵥ = 47.5°"
+    },
+    {
+     "id": "redIndex",
+     "kind": "callout",
+     "targetIds": [
+      "prism"
+     ],
+     "text": "nᵣ = 1.5898"
+    },
+    {
+     "id": "violetIndex",
+     "kind": "callout",
+     "targetIds": [
+      "prism"
+     ],
+     "text": "nᵥ = 1.6240"
+    }
+   ],
+   "requiredEntityIds": [
+    "prism",
+    "leftFace",
+    "rightFace",
+    "apexAngle",
+    "contact",
+    "incoming",
+    "normal",
+    "insideRay",
+    "P"
+   ],
+   "revealGroups": [
+    {
+     "id": "setup",
+     "entityIds": [
+      "prism",
+      "leftFace",
+      "rightFace",
+      "apexAngle",
+      "contact",
+      "incoming",
+      "normal",
+      "insideRay",
+      "P"
+     ],
+     "dependsOn": [],
+     "narrationCue": "setup"
+    }
+   ],
+   "teachingTimeline": []
+  },
+  "flat": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "Recorded m1 refraction_at_surfaces_h8a"
+   },
+   "source": {
+    "question": "A ray travelling in crown glass of refractive index 1.52 mee"
+   },
+   "quantities": [
+    {
+     "id": "n1",
+     "symbol": "n_glass",
+     "value": 1.52
+    },
+    {
+     "id": "n2",
+     "symbol": "n_water",
+     "value": 1.33
+    },
+    {
+     "id": "i",
+     "symbol": "i",
+     "value": 37,
+     "unit": "°"
+    },
+    {
+     "id": "r",
+     "symbol": "r",
+     "value": 43.455311150277296,
+     "unit": "°"
+    },
+    {
+     "id": "d",
+     "symbol": "δ",
+     "value": 6.455311150277296,
+     "unit": "°"
+    }
+   ],
+   "entities": [
+    {
+     "id": "interface",
+     "kind": "line",
+     "role": "interface"
+    },
+    {
+     "id": "contact",
+     "kind": "point",
+     "role": "point of incidence",
+     "label": "P"
+    },
+    {
+     "id": "incident",
+     "kind": "ray",
+     "role": "incident"
+    },
+    {
+     "id": "normal",
+     "kind": "vector",
+     "role": "normal"
+    },
+    {
+     "id": "refracted",
+     "kind": "ray",
+     "role": "refracted"
+    },
+    {
+     "id": "incidenceAngle",
+     "kind": "angle_mark",
+     "role": "angle of incidence",
+     "label": "i"
+    },
+    {
+     "id": "refractionAngle",
+     "kind": "angle_mark",
+     "role": "angle of refraction",
+     "label": "r"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "makeInterface",
+     "operator": "line",
+     "inputs": {
+      "start": "contact",
+      "direction": [
+       1,
+       0
+      ]
+     },
+     "outputs": [
+      "interface"
+     ]
+    },
+    {
+     "id": "placeContact",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "contact"
+     ]
+    },
+    {
+     "id": "refract",
+     "operator": "refract_at",
+     "inputs": {
+      "point": "contact",
+      "surface": "interface",
+      "incidentAngleDeg": "i",
+      "n1": "n1",
+      "n2": "n2",
+      "span": 3
+     },
+     "outputs": [
+      "incident",
+      "normal",
+      "refracted"
+     ]
+    },
+    {
+     "id": "markIncidence",
+     "operator": "angle_mark",
+     "inputs": {
+      "vertex": "contact",
+      "a": "incident",
+      "b": "normal"
+     },
+     "outputs": [
+      "incidenceAngle"
+     ]
+    },
+    {
+     "id": "markRefraction",
+     "operator": "angle_mark",
+     "inputs": {
+      "vertex": "contact",
+      "a": "normal",
+      "b": "refracted"
+     },
+     "outputs": [
+      "refractionAngle"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [],
+   "annotations": [
+    {
+     "id": "glassLabel",
+     "kind": "label",
+     "targetIds": [
+      "interface"
+     ],
+     "text": "crown glass",
+     "placementIntent": "incident side",
+     "quantityId": "n1"
+    },
+    {
+     "id": "waterLabel",
+     "kind": "label",
+     "targetIds": [
+      "interface"
+     ],
+     "text": "water",
+     "placementIntent": "refracted side",
+     "quantityId": "n2"
+    },
+    {
+     "id": "givenAngle",
+     "kind": "callout",
+     "targetIds": [
+      "incidenceAngle"
+     ],
+     "text": "37°",
+     "quantityId": "i"
+    },
+    {
+     "id": "resultAngle",
+     "kind": "callout",
+     "targetIds": [
+      "refractionAngle"
+     ],
+     "text": "≈43.46°",
+     "quantityId": "r"
+    },
+    {
+     "id": "resultDeviation",
+     "kind": "callout",
+     "targetIds": [
+      "refracted"
+     ],
+     "text": "δ ≈ 6.46°",
+     "quantityId": "d"
+    }
+   ],
+   "requiredEntityIds": [
+    "interface",
+    "contact",
+    "incident",
+    "normal",
+    "refracted",
+    "incidenceAngle",
+    "refractionAngle"
+   ],
+   "revealGroups": [
+    {
+     "id": "setup",
+     "entityIds": [
+      "interface",
+      "contact",
+      "incident",
+      "normal",
+      "refracted",
+      "incidenceAngle",
+      "refractionAngle"
+     ],
+     "dependsOn": [],
+     "narrationCue": "setup"
+    }
+   ],
+   "teachingTimeline": []
+  },
+  "tir": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "Recorded m1 total_internal_reflection_h8a"
+   },
+   "source": {
+    "question": "Inside a cubic zirconia gem of refractive index 2.15, one ra"
+   },
+   "quantities": [
+    {
+     "id": "n",
+     "symbol": "n_gem",
+     "value": 2.15
+    },
+    {
+     "id": "i1",
+     "symbol": "i₁",
+     "value": 13,
+     "unit": "°"
+    },
+    {
+     "id": "i2",
+     "symbol": "i₂",
+     "value": 34,
+     "unit": "°"
+    },
+    {
+     "id": "c",
+     "symbol": "θ_c",
+     "value": 27.71774768960954,
+     "unit": "°"
+    },
+    {
+     "id": "r1",
+     "symbol": "r₁",
+     "value": 28.923719320032745,
+     "unit": "°"
+    },
+    {
+     "id": "r2",
+     "symbol": "r₂",
+     "value": 34,
+     "unit": "°"
+    }
+   ],
+   "entities": [
+    {
+     "id": "face",
+     "kind": "line",
+     "role": "gem–air interface"
+    },
+    {
+     "id": "contact1",
+     "kind": "point",
+     "role": "13° contact"
+    },
+    {
+     "id": "contact2",
+     "kind": "point",
+     "role": "34° contact"
+    },
+    {
+     "id": "incident1",
+     "kind": "ray",
+     "role": "incident ray at 13°"
+    },
+    {
+     "id": "normal1",
+     "kind": "vector",
+     "role": "normal at first contact"
+    },
+    {
+     "id": "transmitted1",
+     "kind": "ray",
+     "role": "ray refracted into air"
+    },
+    {
+     "id": "incident2",
+     "kind": "ray",
+     "role": "incident ray at 34°"
+    },
+    {
+     "id": "normal2",
+     "kind": "vector",
+     "role": "normal at second contact"
+    },
+    {
+     "id": "reflected2",
+     "kind": "ray",
+     "role": "totally internally reflected ray"
+    },
+    {
+     "id": "faceOrigin",
+     "kind": "point",
+     "role": "construction helper"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "makeFaceOrigin",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "faceOrigin"
+     ]
+    },
+    {
+     "id": "makeFace",
+     "operator": "line",
+     "inputs": {
+      "start": "faceOrigin",
+      "direction": [
+       1,
+       0
+      ]
+     },
+     "outputs": [
+      "face"
+     ]
+    },
+    {
+     "id": "makeContact1",
+     "operator": "point",
+     "inputs": {
+      "x": -2,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "contact1"
+     ]
+    },
+    {
+     "id": "makeContact2",
+     "operator": "point",
+     "inputs": {
+      "x": 2,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "contact2"
+     ]
+    },
+    {
+     "id": "firstRay",
+     "operator": "refract_at",
+     "inputs": {
+      "point": "contact1",
+      "surface": "face",
+      "incidentAngleDeg": "i1",
+      "n1": "n",
+      "n2": 1
+     },
+     "outputs": [
+      "incident1",
+      "normal1",
+      "transmitted1"
+     ]
+    },
+    {
+     "id": "secondRay",
+     "operator": "reflect_at",
+     "inputs": {
+      "point": "contact2",
+      "surface": "face",
+      "incidentAngleDeg": "i2"
+     },
+     "outputs": [
+      "incident2",
+      "normal2",
+      "reflected2"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [],
+   "annotations": [
+    {
+     "id": "gemMedium",
+     "kind": "label",
+     "targetIds": [
+      "incident1"
+     ],
+     "text": "n_gem = 2.15",
+     "placementIntent": "gem side"
+    },
+    {
+     "id": "airMedium",
+     "kind": "label",
+     "targetIds": [
+      "face"
+     ],
+     "text": "air",
+     "placementIntent": "air side"
+    }
+   ],
+   "requiredEntityIds": [
+    "face",
+    "contact1",
+    "contact2",
+    "incident1",
+    "normal1",
+    "transmitted1",
+    "incident2",
+    "normal2",
+    "reflected2"
+   ],
+   "revealGroups": [
+    {
+     "id": "setup",
+     "entityIds": [
+      "face",
+      "contact1",
+      "contact2",
+      "incident1",
+      "normal1",
+      "incident2",
+      "normal2"
+     ],
+     "dependsOn": [],
+     "narrationCue": "setup"
+    },
+    {
+     "id": "outcomes",
+     "entityIds": [
+      "transmitted1",
+      "reflected2"
+     ],
+     "dependsOn": [
+      "setup"
+     ],
+     "narrationCue": "outcomes"
+    }
+   ],
+   "teachingTimeline": []
+  },
+  "pair": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "Recorded m1 refraction_at_surfaces_h8u"
+   },
+   "source": {
+    "representationTier": "qualitative_verified",
+    "nonMetric": true,
+    "question": "why does light bend going from air into glass"
+   },
+   "quantities": [],
+   "entities": [
+    {
+     "id": "interface",
+     "kind": "line",
+     "role": "air–glass boundary"
+    },
+    {
+     "id": "O",
+     "kind": "point",
+     "role": "contact point",
+     "label": "P"
+    },
+    {
+     "id": "incident",
+     "kind": "vector",
+     "role": "light in air"
+    },
+    {
+     "id": "N",
+     "kind": "point",
+     "role": "normal reference"
+    },
+    {
+     "id": "normal",
+     "kind": "segment",
+     "role": "boundary normal"
+    },
+    {
+     "id": "refracted",
+     "kind": "ray",
+     "role": "light in glass"
+    },
+    {
+     "id": "P",
+     "kind": "point",
+     "role": "construction helper"
+    },
+    {
+     "id": "S",
+     "kind": "point",
+     "role": "construction helper"
+    },
+    {
+     "id": "normal_helper",
+     "kind": "segment",
+     "role": "normal at geometry"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "p_interface",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "P"
+     ]
+    },
+    {
+     "id": "c_interface",
+     "operator": "line",
+     "inputs": {
+      "start": "P",
+      "direction": [
+       1,
+       0
+      ]
+     },
+     "outputs": [
+      "interface"
+     ]
+    },
+    {
+     "id": "p_source",
+     "operator": "point",
+     "inputs": {
+      "x": -1,
+      "y": 1,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "S"
+     ]
+    },
+    {
+     "id": "c_contact",
+     "operator": "surface_contact",
+     "inputs": {
+      "origin": "S",
+      "surface": "interface",
+      "direction": [
+       1,
+       -1
+      ]
+     },
+     "outputs": [
+      "O",
+      "incident"
+     ]
+    },
+    {
+     "id": "c_normal",
+     "operator": "normal_at",
+     "inputs": {
+      "point": "O",
+      "surface": "interface"
+     },
+     "outputs": [
+      "normal_helper"
+     ]
+    },
+    {
+     "id": "p_normal",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 1,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "N"
+     ]
+    },
+    {
+     "id": "c_visible_normal",
+     "operator": "segment",
+     "inputs": {
+      "start": "O",
+      "end": "N"
+     },
+     "outputs": [
+      "normal"
+     ]
+    },
+    {
+     "id": "c_refraction",
+     "operator": "refract_direction",
+     "inputs": {
+      "origin": "O",
+      "incoming": "incident",
+      "normal": "normal_helper",
+      "n1": 1,
+      "n2": 1.5
+     },
+     "outputs": [
+      "refracted"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [],
+   "annotations": [
+    {
+     "id": "air_label",
+     "kind": "label",
+     "targetIds": [
+      "incident"
+     ],
+     "text": "air",
+     "placementIntent": "above"
+    },
+    {
+     "id": "glass_label",
+     "kind": "label",
+     "targetIds": [
+      "refracted"
+     ],
+     "text": "glass",
+     "placementIntent": "below"
+    }
+   ],
+   "requiredEntityIds": [
+    "interface",
+    "O",
+    "incident",
+    "normal",
+    "refracted",
+    "N"
+   ],
+   "revealGroups": [
+    {
+     "id": "setup",
+     "entityIds": [
+      "interface",
+      "O",
+      "incident",
+      "N",
+      "normal",
+      "refracted"
+     ],
+     "dependsOn": [],
+     "narrationCue": "setup"
+    }
+   ],
+   "teachingTimeline": []
+  },
+  "plain": {
+   "schemaVersion": "scene-document/v2",
+   "visualDecision": {
+    "mode": "scene",
+    "reason": "A labelled triangle with no optics."
+   },
+   "source": {
+    "question": "Triangle ABC with AB = 5 cm."
+   },
+   "quantities": [
+    {
+     "id": "ab",
+     "symbol": "AB",
+     "value": 5,
+     "unit": "cm"
+    }
+   ],
+   "entities": [
+    {
+     "id": "A",
+     "kind": "point",
+     "label": "A"
+    },
+    {
+     "id": "B",
+     "kind": "point",
+     "label": "B"
+    },
+    {
+     "id": "C",
+     "kind": "point",
+     "label": "C"
+    },
+    {
+     "id": "tri",
+     "kind": "polygon"
+    },
+    {
+     "id": "base",
+     "kind": "segment"
+    },
+    {
+     "id": "side",
+     "kind": "segment"
+    }
+   ],
+   "constructions": [
+    {
+     "id": "cA",
+     "operator": "point",
+     "inputs": {
+      "x": 0,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "A"
+     ]
+    },
+    {
+     "id": "cB",
+     "operator": "point",
+     "inputs": {
+      "x": 5,
+      "y": 0,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "B"
+     ]
+    },
+    {
+     "id": "cC",
+     "operator": "point",
+     "inputs": {
+      "x": 1.5,
+      "y": 3,
+      "coordinateSpace": "world"
+     },
+     "outputs": [
+      "C"
+     ]
+    },
+    {
+     "id": "cTri",
+     "operator": "polygon",
+     "inputs": {
+      "points": [
+       "A",
+       "B",
+       "C"
+      ]
+     },
+     "outputs": [
+      "tri"
+     ]
+    },
+    {
+     "id": "cBase",
+     "operator": "segment",
+     "inputs": {
+      "start": "A",
+      "end": "B"
+     },
+     "outputs": [
+      "base"
+     ]
+    },
+    {
+     "id": "cSide",
+     "operator": "segment",
+     "inputs": {
+      "start": "B",
+      "end": "C"
+     },
+     "outputs": [
+      "side"
+     ]
+    }
+   ],
+   "relations": [],
+   "assertions": [],
+   "annotations": [
+    {
+     "id": "baseLabel",
+     "kind": "label",
+     "targetIds": [
+      "base"
+     ],
+     "text": "5 cm",
+     "quantityId": "ab",
+     "placementIntent": "below"
+    },
+    {
+     "id": "sideLabel",
+     "kind": "label",
+     "targetIds": [
+      "side"
+     ],
+     "text": "glass",
+     "placementIntent": "incident side"
+    }
+   ],
+   "requiredEntityIds": [
+    "A",
+    "B",
+    "C",
+    "tri",
+    "base",
+    "side"
+   ],
+   "revealGroups": [
+    {
+     "id": "setup",
+     "entityIds": [
+      "A",
+      "B",
+      "C",
+      "tri",
+      "base",
+      "side"
+     ],
+     "dependsOn": [],
+     "narrationCue": "setup"
+    }
+   ],
+   "teachingTimeline": []
+  }
+ }
+}

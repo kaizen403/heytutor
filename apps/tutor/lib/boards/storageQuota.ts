@@ -1,6 +1,13 @@
 import type { Prisma } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/db/prisma";
+import {
+  applyStorageAccountingPlan,
+  historicalTurnStorageCharge,
+  measureStorageAccounting,
+  readStorageAccountingSnapshot,
+  StorageVerificationError,
+} from "./storageAccounting";
 
 export const MAX_ACCOUNT_STORAGE_BYTES = 1024 * 1024 * 1024;
 export const MAX_ACCOUNT_BOARDS = 200;
@@ -11,7 +18,8 @@ export const MAX_BOARD_PREVIEW_CHARS = 2000;
 export const BOARD_PAGE_SIZE = 100;
 
 export class StorageQuotaError extends Error {
-  constructor(message: string, public readonly status: 400 | 403 | 404 | 409 | 413 | 429 = 413) {
+  constructor(message: string, public readonly status: 400 | 403 | 404 | 409 | 413 | 429 | 503 = 413,
+    public readonly code?: "storage_verification_failed" | "storage_accounting_changed" | "turn_storage_limit_reached" | "turn_audio_oversized") {
     super(message);
     this.name = "StorageQuotaError";
   }
@@ -21,53 +29,126 @@ export class StorageQuotaError extends Error {
 export async function withUserStorageLock<T>(
   userId: string,
   run: (tx: Prisma.TransactionClient) => Promise<T>,
+  options?: { timeout: number; maxWait: number },
 ): Promise<T> {
   return prisma.$transaction(async (tx) => {
     const users = await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`;
     if (!users.length) throw new StorageQuotaError("account not found", 404);
     return run(tx);
-  });
+  }, options);
 }
 
 async function storageRow(tx: Prisma.TransactionClient, userId: string) {
   const existing = await tx.userStorage.findUnique({ where: { userId } });
   if (existing) return existing;
-  // Older rows predate exact byte accounting. Charge the legacy per-audio
-  // ceiling rather than treating all existing media as free storage. Future
-  // records carry exact storageBytes. A reconciler may replace this upper bound
-  // with measured object sizes without weakening admission during migration.
+  // Measurement is prepared outside this transaction; never bootstrap from
+  // fixed audio ceilings or perform object-store I/O while holding the lock.
   const stored = await tx.turn.aggregate({ where: { userId }, _sum: { storageBytes: true } });
   const notes = await tx.boardChatMessage.aggregate({ where: { userId }, _sum: { storageBytes: true } });
   const legacyTurns = await tx.turn.count({ where: { userId, storageBytes: 0 } });
-  const legacyAudioCount = await tx.segment.count({
-    where: { turn: { userId, storageBytes: 0 }, audioUrl: { not: null } },
+  if (legacyTurns) throw new StorageQuotaError(new StorageVerificationError().message, 503, "storage_verification_failed");
+  const pending = await tx.objectDeletionJob.aggregate({ where: { userId }, _sum: { bytes: true, pendingTurns: true } });
+  const reservedBytes = (stored._sum.storageBytes ?? 0n) + (notes._sum.storageBytes ?? 0n) + (pending._sum.bytes ?? 0n);
+  return tx.userStorage.create({ data: { userId, reservedBytes, pendingTurns: pending._sum.pendingTurns ?? 0 } });
+}
+
+/** Measure outside the lock, then apply an unchanged snapshot and admission together. */
+async function withMeasuredStorageLock<T>(userId: string, incomingBytes: number, run: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+  checkBytes(0n, incomingBytes);
+  const measurementSignal = AbortSignal.timeout(15_000);
+  try {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (measurementSignal.aborted) throw new StorageQuotaError(new StorageVerificationError().message, 503, "storage_verification_failed");
+      const now = new Date();
+      const [storage, legacy, legacyNotes, expiredJob] = await Promise.all([
+        prisma.userStorage.findUnique({ where: { userId } }),
+        prisma.turn.count({ where: { userId, storageBytes: 0 } }),
+        prisma.boardChatMessage.count({ where: { userId, storageBytes: 0, content: { not: "" } } }),
+        prisma.objectDeletionJob.findFirst({ where: { userId, attempts: 0, nextAttemptAt: { lte: now },
+          createdAt: { lte: new Date(now.getTime() - 30 * 60_000) } }, select: { id: true } }),
+      ]);
+      const needsMeasurement = !storage || legacy > 0 || legacyNotes > 0 || expiredJob !== null ||
+        storage.reservedBytes + BigInt(incomingBytes) > BigInt(MAX_ACCOUNT_STORAGE_BYTES);
+      let prepared: { snapshot: Awaited<ReturnType<typeof readStorageAccountingSnapshot>>; plan: Awaited<ReturnType<typeof measureStorageAccounting>> } | null = null;
+      let measurementFailed = false;
+      if (needsMeasurement) {
+        // Query failures cannot prove a ledger safe; only provider measurement
+        // uncertainty may fall back to an already-held conservative balance.
+        const snapshot = await prisma.$transaction(tx => readStorageAccountingSnapshot(tx, userId), { timeout: 30_000, maxWait: 5_000 });
+        try {
+          prepared = { snapshot, plan: await measureStorageAccounting(snapshot, { signal: measurementSignal }) };
+        } catch {
+          measurementFailed = true;
+        }
+      }
+      const outcome = await withUserStorageLock(userId, async tx => {
+        if (measurementFailed) {
+          // Re-read after acquiring the same lock used by every admission. Never
+          // refund unverified objects or bootstrap a missing ledger from guesses.
+          const existing = await tx.userStorage.findUnique({ where: { userId } });
+          if (!existing || (incomingBytes > 0 && existing.reservedBytes + BigInt(incomingBytes) > BigInt(MAX_ACCOUNT_STORAGE_BYTES))) {
+            throw new StorageQuotaError(new StorageVerificationError().message, 503, "storage_verification_failed");
+          }
+        }
+        if (prepared && !await applyStorageAccountingPlan(tx, prepared.snapshot, prepared.plan)) return { retry: true as const };
+        return { retry: false as const, value: await run(tx) };
+      }, { timeout: 30_000, maxWait: 5_000 });
+      if (!outcome.retry) return outcome.value;
+    }
+  } catch (error) {
+    if (error instanceof StorageQuotaError) throw error;
+    throw new StorageQuotaError(new StorageVerificationError().message, 503, "storage_verification_failed");
+  }
+  throw new StorageQuotaError(new StorageVerificationError().message, 503, "storage_verification_failed");
+}
+
+/** Used before loading a turn for growth. Deletion never requires provider reads. */
+export async function prepareStorageAccounting(userId: string): Promise<void> {
+  await withMeasuredStorageLock(userId, 0, async () => {});
+}
+
+/**
+ * Transfer a removed board's already-held allocation to its cleanup receipt.
+ * Caller holds account and board locks; no provider read or refund occurs here.
+ * A historical allocation can be transferred only when the whole old baseline
+ * is covered. An inconsistent smaller cache keeps its unknown residual, while
+ * recorded receipts and other cleanup jobs always impose a lower floor.
+ */
+export async function boardDeletionStorageBytes(tx: Prisma.TransactionClient, userId: string, boardId: string): Promise<bigint> {
+  await tx.$queryRaw`SELECT id FROM object_deletion_jobs WHERE user_id = ${userId} FOR UPDATE`;
+  const [storage, turns, notes, jobs] = await Promise.all([
+    tx.userStorage.findUnique({ where: { userId } }),
+    tx.turn.findMany({ where: { userId }, select: { boardId: true, storageBytes: true,
+      _count: { select: { segments: { where: { audioUrl: { not: null } } } } } } }),
+    tx.boardChatMessage.findMany({ where: { userId }, select: { boardId: true, storageBytes: true } }),
+    tx.objectDeletionJob.aggregate({ where: { userId }, _sum: { bytes: true, pendingTurns: true } }),
+  ]);
+  const noteBytes = notes.reduce((sum, note) => sum + note.storageBytes, 0n);
+  const jobBytes = jobs._sum.bytes ?? 0n;
+  const recorded = turns.reduce((sum, turn) => sum + turn.storageBytes, 0n) + noteBytes + jobBytes;
+  const historicalCharge = (turn: typeof turns[number]) => historicalTurnStorageCharge({
+    storageBytes: turn.storageBytes, audioReferences: turn._count.segments,
   });
-  const reservedBytes = (stored._sum.storageBytes ?? 0n) + (notes._sum.storageBytes ?? 0n) +
-    BigInt(legacyTurns) * BigInt(256 * 1024) + BigInt(legacyAudioCount) * BigInt(8 * 1024 * 1024);
-  return tx.userStorage.create({ data: { userId, reservedBytes } });
-}
-
-export async function ensureStorageAccounting(tx: Prisma.TransactionClient, userId: string): Promise<void> {
-  await storageRow(tx, userId);
-}
-
-export async function boardStorageBytes(tx: Prisma.TransactionClient, boardId: string): Promise<bigint> {
-  const turns = await tx.turn.aggregate({ where: { boardId }, _sum: { storageBytes: true } });
-  const notes = await tx.boardChatMessage.aggregate({ where: { boardId }, _sum: { storageBytes: true } });
-  const legacyTurns = await tx.turn.count({ where: { boardId, storageBytes: 0 } });
-  const legacyAudio = await tx.segment.count({ where: { turn: { boardId, storageBytes: 0 }, audioUrl: { not: null } } });
-  return (turns._sum.storageBytes ?? 0n) + (notes._sum.storageBytes ?? 0n) +
-    BigInt(legacyTurns) * BigInt(256 * 1024) + BigInt(legacyAudio) * BigInt(8 * 1024 * 1024);
+  const historical = turns.reduce((sum, turn) => sum + historicalCharge(turn), 0n) + noteBytes + jobBytes;
+  const coveredHistorical = !storage || storage.reservedBytes >= historical;
+  if (!storage) {
+    await tx.userStorage.create({ data: { userId, reservedBytes: historical, pendingTurns: jobs._sum.pendingTurns ?? 0 } });
+  } else if (storage.reservedBytes < recorded) {
+    await tx.userStorage.update({ where: { userId }, data: { reservedBytes: recorded } });
+  }
+  return turns.filter(turn => turn.boardId === boardId).reduce((sum, turn) =>
+    sum + (coveredHistorical ? historicalCharge(turn) : turn.storageBytes), 0n) +
+    notes.filter(note => note.boardId === boardId).reduce((sum, note) => sum + note.storageBytes, 0n);
 }
 
 function checkBytes(current: bigint, incoming: number): void {
-  if (!Number.isSafeInteger(incoming) || incoming < 0 || current + BigInt(incoming) > BigInt(MAX_ACCOUNT_STORAGE_BYTES)) {
+  if (!Number.isSafeInteger(incoming) || incoming < 0 || (incoming > 0 && current + BigInt(incoming) > BigInt(MAX_ACCOUNT_STORAGE_BYTES))) {
     throw new StorageQuotaError("account storage quota exceeded");
   }
 }
 
 export async function reserveStorageBytes(userId: string, bytes: number): Promise<void> {
-  await withUserStorageLock(userId, async (tx) => {
+  await withMeasuredStorageLock(userId, bytes, async (tx) => {
     const storage = await storageRow(tx, userId);
     checkBytes(storage.reservedBytes, bytes);
     await tx.userStorage.update({ where: { userId }, data: { reservedBytes: { increment: BigInt(bytes) } } });
@@ -112,7 +193,7 @@ export async function reserveTurnStorage(input: {
   prefix?: string;
 }): Promise<TurnStorageReservation> {
   const cleanupId = randomUUID();
-  await withUserStorageLock(input.userId, async (tx) => {
+  await withMeasuredStorageLock(input.userId, input.bytes, async (tx) => {
     const board = await tx.board.findFirst({ where: { id: input.boardId, userId: input.userId } });
     if (!board) throw new StorageQuotaError("board not found", 404);
     const storage = await storageRow(tx, input.userId);
@@ -121,7 +202,7 @@ export async function reserveTurnStorage(input: {
     // Pending uploads consume both count allowances. Using the account's small
     // pending count for each board is conservative across simultaneous boards.
     if (userTurns + storage.pendingTurns >= MAX_ACCOUNT_TURNS || boardTurns + storage.pendingTurns >= MAX_BOARD_TURNS) {
-      throw new StorageQuotaError("turn storage quota exceeded", 429);
+      throw new StorageQuotaError("Your saved lesson limit has been reached. Delete an old lesson and try saving again.", 429, "turn_storage_limit_reached");
     }
     checkBytes(storage.reservedBytes, input.bytes);
     await tx.userStorage.update({
@@ -154,7 +235,7 @@ export async function reserveTurnGrowthStorage(input: {
     throw new StorageQuotaError("growth cleanup must cover one upload attempt only", 409);
   }
   const cleanupId = randomUUID();
-  await withUserStorageLock(input.userId, async (tx) => {
+  await withMeasuredStorageLock(input.userId, input.bytes, async (tx) => {
     const board = await tx.board.findFirst({ where: { id: input.boardId, userId: input.userId } });
     if (!board) throw new StorageQuotaError("board not found", 404);
     const storage = await storageRow(tx, input.userId);
@@ -172,7 +253,9 @@ export async function reserveTurnGrowthStorage(input: {
 }
 
 /** Settle exactly once from the handler after persistence or an abandoned save. */
-export async function settleTurnStorage(reservation: TurnStorageReservation, refundBytes = false, transaction?: Prisma.TransactionClient): Promise<void> {
+export async function settleTurnStorage(reservation: TurnStorageReservation, refundBytes = false, transaction?: Prisma.TransactionClient,
+  retainedBytes = reservation.bytes): Promise<void> {
+  if (!Number.isSafeInteger(retainedBytes) || retainedBytes < 0 || retainedBytes > reservation.bytes) throw new StorageQuotaError("invalid retained storage charge", 409);
   const settle = async (tx: Prisma.TransactionClient) => {
     await tx.$queryRaw`SELECT id FROM object_deletion_jobs WHERE id = ${reservation.cleanupId}::uuid FOR UPDATE`;
     const intent = await tx.objectDeletionJob.findUnique({ where: { id: reservation.cleanupId } });
@@ -182,7 +265,8 @@ export async function settleTurnStorage(reservation: TurnStorageReservation, ref
     }
     const storage = await tx.userStorage.findUnique({ where: { userId: reservation.userId } });
     if (!storage) throw new StorageQuotaError("account not found", 404);
-    const bytes = refundBytes ? storage.reservedBytes - BigInt(reservation.bytes) : storage.reservedBytes;
+    const refund = refundBytes ? reservation.bytes : reservation.bytes - retainedBytes;
+    const bytes = storage.reservedBytes - BigInt(refund);
     await tx.userStorage.update({
       where: { userId: reservation.userId },
       data: { reservedBytes: bytes > 0n ? bytes : 0n, pendingTurns: Math.max(0, storage.pendingTurns - slots) },
@@ -191,6 +275,15 @@ export async function settleTurnStorage(reservation: TurnStorageReservation, ref
   };
   if (transaction) await settle(transaction);
   else await withUserStorageLock(reservation.userId, settle);
+}
+
+/** Refund a saved turn's shrinking metadata inside its account-locked commit. */
+export async function refundTurnMetadataStorage(tx: Prisma.TransactionClient, userId: string, bytes: bigint): Promise<void> {
+  if (bytes <= 0n) return;
+  const storage = await tx.userStorage.findUnique({ where: { userId } });
+  if (!storage) return;
+  const remaining = storage.reservedBytes - bytes;
+  await tx.userStorage.update({ where: { userId }, data: { reservedBytes: remaining > 0n ? remaining : 0n } });
 }
 
 /** Leave bytes charged and make the pre-existing cleanup intent due. If the

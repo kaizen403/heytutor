@@ -3,7 +3,6 @@ import {
   lessonNarrationText,
   IncrementalTagParser,
   anchorToTextRect,
-  getSegmentCommands,
   prepareVerifiedLessonSegments,
   type TutorSegment,
   cancelFrame,
@@ -20,6 +19,7 @@ import {
   planSceneDocumentWithRepair,
   revalidateScenePlanWithRepairResult,
   planTurnV3,
+  subjectFromRejectedTurnPlanOutcomes,
   planAndSolveProblemV1,
   createFallbackTurnPlanV3,
   inferSceneCapabilities,
@@ -36,6 +36,7 @@ import {
   type ProblemAuthorityV1Response,
   type SceneCandidateValidation,
   type ScenePlanWithRepairResult,
+  type TurnPlanRequestOutcome,
   narrationLanguageForVoice,
 } from "@heytutor/tutor-core";
 import {
@@ -55,8 +56,9 @@ import {
   type TurnPlanV3,
   type ValidationReport,
 } from "@heytutor/scene-engine";
-import { createTurnTelemetry } from "@/lib/obs/turnTelemetry";
+import { createTurnTelemetry, measureSceneCandidateValidation, measureSceneSelection } from "@/lib/obs/turnTelemetry";
 import { pageLoadTiming } from "@/lib/obs/pageLoadTiming";
+import { readFailedTurnTelemetry, sceneRequestFailureTelemetry, turnPlanFailureTelemetry, type FailedTurnTelemetry } from "@/lib/obs/failedTurnTelemetry";
 import { boardNeedsGeneratedTitle } from "@/lib/boards/boardTitle";
 import {
   fetchBoardDetail,
@@ -82,6 +84,7 @@ import {
 import {
   codeLessonResumeNote,
   createCodeLessonConductor,
+  dsaSegmentNeedsFigure,
   fullyRevealedBlockIds,
 } from "../../lib/code-lesson/codeLessonSegments";
 import {
@@ -94,6 +97,7 @@ import { prettierSyntaxCheck } from "../../lib/code-lesson/prettierSyntaxCheck";
 import { recordingAudioCaptureComplete, recordingAudioPersistenceComplete } from "../../lib/turn/recordingAudioCapture";
 import { liveTurnSave, type LiveTurnHandle } from "../../lib/turn/liveTurnSave";
 import { lessonResumeState } from "../../lib/turn/pausedLessonRestore";
+import { buildEarlyLessonOpeningSegment, shouldStartEarlyLessonOpening } from "../../lib/turn/earlyLessonOpening";
 import { isBenignTurnAbort } from "../../lib/turn/turnFailurePolicy";
 import {
   FALLBACK_DSA_TEACHING_POLICY,
@@ -120,6 +124,7 @@ import {
 } from "../../lib/scene/representationFallback";
 import {
   deriveSceneGate as deriveProductionSceneGate, selectProductionScene, validateProductionSceneCandidate,
+  settleSelectionDegradation,
   type ProductionSceneGate, type ValidatedSceneCandidate,
 } from "../../lib/scene/productionSceneSelection";
 import { refreshSolverAuthorityForPlan } from "../../lib/turn/refreshSolverAuthority";
@@ -439,10 +444,23 @@ export function useQuestionHandler(
       // the thinking overlay is not waiting on a round trip.
       // A network failure here must not escape as an unhandled rejection: the
       // billing call just below fails on the same network and tells the student.
+      const boardCommitStartedAt = performance.now();
+      let boardCommitTotalMs: number | null = null;
+      let boardCommitResult: "created" | "not_created" | "failed" | "not_called" = "not_called";
       const boardCommitted = (commitDraftBoard
         ? commitDraftBoard()
         : Promise.resolve(false)
-      ).catch(() => false);
+      ).then((created) => {
+        if (commitDraftBoard) {
+          boardCommitTotalMs = Math.round(performance.now() - boardCommitStartedAt);
+          boardCommitResult = created ? "created" : "not_created";
+        }
+        return created;
+      }).catch(() => {
+        boardCommitTotalMs = Math.round(performance.now() - boardCommitStartedAt);
+        boardCommitResult = "failed";
+        return false;
+      });
 
       const boardIdForName = sessionId;
       if (boardIdForName) {
@@ -617,6 +635,11 @@ export function useQuestionHandler(
             })
         : lessonPageRecord(sessionId, question);
       boardPageRef.current = page;
+      const inheritedFailureTelemetry = readFailedTurnTelemetry(
+        resume?.scene?.sceneArtifacts && typeof resume.scene.sceneArtifacts === "object"
+          ? (resume.scene.sceneArtifacts as Record<string, unknown>).failureTelemetry : undefined,
+      );
+      page.failureTelemetry = { subject: inheritedFailureTelemetry?.subject ?? "other" };
       liveSave?.setPage(page);
       // What a Continue after a reload cannot rebuild from the saved turns.
       if (resume) liveTurnSave().setResumeState(cancelRef, turnGeneration, lessonResumeState(resume.solverProjection));
@@ -659,6 +682,11 @@ export function useQuestionHandler(
         pre_telemetry_ms: tel.durationMs(),
         queued_for_board_ms: queuedAsk ? Math.round(askStartedAt - queuedAsk.startedAt) : 0,
         board_commit_ms: Math.round(beginTurnStartedAt - boardCommitWaitStartedAt),
+        // Full callback and remaining await overlap; never add these durations.
+        // This is not a server-only POST/create duration. False may mean no draft.
+        board_commit_total_ms: boardCommitTotalMs,
+        board_commit_called: Boolean(commitDraftBoard),
+        board_commit_result: boardCommitResult,
         begin_turn_ms: Math.round(beginTurnMs),
         board_epoch_ms: boardEpochMs === null ? null : Math.round(boardEpochMs),
         turn_kind: doubt ? "doubt" : resume ? "resume" : "lesson",
@@ -732,6 +760,7 @@ export function useQuestionHandler(
       let turnPlan: TurnPlanV3 | null = null;
       let problemAuthority: ProblemAuthorityV1Response | null = null;
       let turnPlanMs = 0;
+      let sceneRequestFailure: Pick<FailedTurnTelemetry, "stage" | "code"> | undefined;
 
       const plannerUrl = resolveApiUrl("/api/chat");
 
@@ -746,10 +775,33 @@ export function useQuestionHandler(
       let dsaFrameSet: DsaFrameSet | null = null;
       let dsaProofAssertions: SceneAssertion[] = [];
       const dsaClassification = classifyDsaQuestion(resume?.lessonQuestion ?? question);
+      const earlyOpeningStarted = STREAM_SEGMENTS_LIVE && shouldStartEarlyLessonOpening({
+        kind: doubt ? "doubt" : resume ? "resume" : "lesson",
+        isDsa: dsaClassification.isDsa,
+        admitted: true,
+        current: isCurrentTurn(),
+        paused: isPausedRef.current,
+      });
+      let earlyOpeningWaitPhase: "planning" | "thinking" | null = earlyOpeningStarted ? "planning" : null;
+      if (earlyOpeningStarted) {
+        // Fixed acknowledgement only: figure selection and useful teaching
+        // below still receive the same original inputs and authority gates.
+        page.earlyOpeningStarted = true;
+        liveTurnSave().setResumeState(cancelRef, turnGeneration, { v: 1, earlyOpeningOnly: true });
+        tel.mark("early-lesson-opening-queued", { early_opening: true });
+        tel.meta({ early_lesson_opening: true });
+        enqueueSegment(buildEarlyLessonOpeningSegment(turnNarrationLanguage), turnGeneration);
+        // The acknowledgement owns only its spoken beat, not the wait for
+        // planning/teaching. A replaced turn must never reset its successor.
+        void segmentChainRef.current.then(() => {
+          if (earlyOpeningWaitPhase && phaseRef.current === "speaking") setPhaseIfCurrent(earlyOpeningWaitPhase);
+        }, () => {});
+      }
       let diagramSubject: import("@heytutor/tutor-core").DiagramSubject = "other";
+      let diagramStrategySubject: import("@heytutor/tutor-core").DiagramSubject = "other";
       let diagramStrategyDecision = liveDiagramStrategyDecision({
         assignedStrategy: billed.diagramStrategy,
-        subject: diagramSubject,
+        subject: diagramStrategySubject,
         strictSubjects: billed.diagramStrictSubjects,
         chemistryLane: false,
         codeLesson: dsaClassification.isDsa,
@@ -772,73 +824,17 @@ export function useQuestionHandler(
       // Resolve the walk-through first, so the program can be planned against
       // the algorithm the board will actually draw.
       let boardContext: CodeLessonBoardContext | null = null;
-      if (resume) {
-        turnPlan = resume.turnPlan;
-        if (resume.codeLesson) {
-          codeLesson = codeLessonControllerRef?.current?.getActivePlan() ?? null;
-          dsaFrameSet = codeLessonControllerRef?.current?.frames.getSet() ?? null;
-        }
-        if (resume.scene) {
-          sceneV2Document = (resume.scene.sceneDocument as SceneDocument | Record<string, unknown> | null) ?? null;
-          sceneVisualStatus =
-            resume.scene.visualStatus === "validated" || resume.scene.visualStatus === "retry_required"
-              ? resume.scene.visualStatus
-              : "text_only";
-          sceneArtifacts = (resume.scene.sceneArtifacts as SceneArtifactsV3 | null) ?? null;
-          figureSource = sceneArtifacts?.figureSource ?? "text_only";
-        }
-      } else if (!doubt && dsaClassification.isDsa) {
-        boardContext = resolveCodeLessonBoardContext(question);
-        // New and Revision already have fixed motivation rules. Only Normal
-        // needs a semantic choice, and it runs beside the code planner.
-        if (familiarityRef.current === "normal") {
-          void fetchDsaTeachingPolicy({
-            url: resolveApiUrl("/api/dsa-teaching-policy"),
-            question,
-            familiarity: familiarityRef.current,
-            technique: boardContext?.context.familyId ?? null,
-            traceId: turnTraceId,
-            signal: abortController.signal,
-          }).then((policy) => {
-            dsaTeachingPolicy.current = policy;
-          });
-        }
-        const codeLessonResponse = await awaitCurrentTurn(
-          planCodeLessonV1(question, {
-            proxyUrl: plannerUrl,
-            sessionId: sessionId ?? undefined,
-            traceId: turnTraceId ?? undefined,
-            signal: abortController.signal,
-            timeoutMs: SCENE_PLANNER_DEADLINE_MS,
-            fastMode: fastModeRef.current,
-            syntaxCheck: prettierSyntaxCheck,
-            ...(boardContext ? { context: boardContext.context } : {}),
-          }).catch(() => null),
-          isCurrentTurn,
-        );
-        codeLesson = codeLessonResponse?.plan ?? null;
-        tutorDebug("planner", "code lesson lane", {
-          classified: dsaClassification.confidence,
-          language: dsaClassification.language,
-          board_family: boardContext?.context.familyId ?? null,
-          plan_accepted: codeLesson !== null,
-          section_count: codeLesson?.sections.length ?? 0,
-          elapsed_ms: codeLessonResponse?.elapsedMs ?? null,
-        });
-      }
-
-      if (codeLesson && !resume) {
-        turnPlan = createFallbackTurnPlanV3(question);
-        // Prefer a real execution trace: when the algorithm catalog knows this
-        // family we can run it on a concrete example and draw what it actually
-        // did, frame by frame. Otherwise the planner's own hint steps are
-        // compiled one figure per frame, which still keeps the board moving.
-        // Only a hint that will not compile leaves a single static figure.
-        dsaFrameSet = resolveDsaFrames(question, codeLesson.diagramHint, codeLesson);
+      // Fresh lessons and an undrawn code Continue use the same captured
+      // plan and compiler authority. The page still withholds this planned
+      // scene until the queued verified intro actually commits.
+      let rebuildingCodeIntro = false;
+      const rebuildCodeScene = () => {
+        const capturedPlan = codeLesson;
+        if (!capturedPlan) return false;
         const firstTraceFrame = dsaFrameSet?.scenes.frames[0] ?? null;
         const dsaScene = firstTraceFrame
           ? null
-          : synthesizeDsaScene(codeLesson.diagramHint, {
+          : synthesizeDsaScene(capturedPlan.diagramHint, {
               question,
               compile: { viewport: DSA_DIAGRAM_ZONE },
             });
@@ -890,6 +886,13 @@ export function useQuestionHandler(
           // An unsupported hint never blocks the lesson: the code panel and
           // narration still teach, the canvas just stays empty.
           sceneVisualStatus = "text_only";
+          sceneV2Document = null;
+          sceneV2RenderScene = null;
+          sceneV2Report = null;
+          figureSource = "text_only";
+          representationTier = null;
+          representationNonMetric = false;
+          dsaProofAssertions = [];
           representationReason = "dsa_hint_unsupported";
         }
         sceneArtifacts = {
@@ -920,10 +923,76 @@ export function useQuestionHandler(
           },
         };
         tutorDebug("planner", "dsa scene synthesis", {
-          structure: dsaScene?.structure ?? codeLesson.diagramHint.structure ?? null,
+          structure: dsaScene?.structure ?? capturedPlan.diagramHint.structure ?? null,
           compiled: dsaScene !== null,
           primitive_count: dsaScene?.renderScene.primitives.length ?? 0,
         });
+        return sceneVisualStatus === "validated";
+      };
+
+      if (resume) {
+        turnPlan = resume.turnPlan;
+        if (resume.codeLesson) {
+          codeLesson = codeLessonControllerRef?.current?.getActivePlan() ?? null;
+          dsaFrameSet = codeLessonControllerRef?.current?.frames.getSet() ?? null;
+        }
+        if (resume.scene) {
+          sceneV2Document = (resume.scene.sceneDocument as SceneDocument | Record<string, unknown> | null) ?? null;
+          sceneVisualStatus =
+            resume.scene.visualStatus === "validated" || resume.scene.visualStatus === "retry_required"
+              ? resume.scene.visualStatus
+              : "text_only";
+          sceneArtifacts = (resume.scene.sceneArtifacts as SceneArtifactsV3 | null) ?? null;
+          figureSource = sceneArtifacts?.figureSource ?? "text_only";
+        }
+        if (codeLesson && !resume.figureDrawn) {
+          rebuildingCodeIntro = true;
+          rebuildCodeScene();
+        }
+      } else if (!doubt && dsaClassification.isDsa) {
+        boardContext = resolveCodeLessonBoardContext(question);
+        // New and Revision already have fixed motivation rules. Only Normal
+        // needs a semantic choice, and it runs beside the code planner.
+        if (familiarityRef.current === "normal") {
+          void fetchDsaTeachingPolicy({
+            url: resolveApiUrl("/api/dsa-teaching-policy"),
+            question,
+            familiarity: familiarityRef.current,
+            technique: boardContext?.context.familyId ?? null,
+            traceId: turnTraceId,
+            signal: abortController.signal,
+          }).then((policy) => {
+            dsaTeachingPolicy.current = policy;
+          });
+        }
+        const codeLessonResponse = await awaitCurrentTurn(
+          planCodeLessonV1(question, {
+            proxyUrl: plannerUrl,
+            sessionId: sessionId ?? undefined,
+            traceId: turnTraceId ?? undefined,
+            signal: abortController.signal,
+            timeoutMs: SCENE_PLANNER_DEADLINE_MS,
+            fastMode: fastModeRef.current,
+            syntaxCheck: prettierSyntaxCheck,
+            ...(boardContext ? { context: boardContext.context } : {}),
+          }).catch(() => null),
+          isCurrentTurn,
+        );
+        codeLesson = codeLessonResponse?.plan ?? null;
+        tutorDebug("planner", "code lesson lane", {
+          classified: dsaClassification.confidence,
+          language: dsaClassification.language,
+          board_family: boardContext?.context.familyId ?? null,
+          plan_accepted: codeLesson !== null,
+          section_count: codeLesson?.sections.length ?? 0,
+          elapsed_ms: codeLessonResponse?.elapsedMs ?? null,
+        });
+      }
+
+      if (codeLesson && !resume) {
+        turnPlan = createFallbackTurnPlanV3(question);
+        dsaFrameSet = resolveDsaFrames(question, codeLesson.diagramHint, codeLesson);
+        rebuildCodeScene();
       } else if (!doubt && !resume) {
         // A doubt or a resume plans nothing: the page already carries the
         // lesson's figure and rows, and the plan its numbers came from is
@@ -954,7 +1023,7 @@ export function useQuestionHandler(
             isChemistryQuestion(question);
           const decision = liveDiagramStrategyDecision({
             assignedStrategy: billed.diagramStrategy,
-            subject: diagramSubject,
+            subject: diagramStrategySubject,
             strictSubjects: billed.diagramStrictSubjects,
             chemistryLane,
             codeLesson: false,
@@ -971,6 +1040,7 @@ export function useQuestionHandler(
           diagramExamplePickerPromise = pickLiveDiagramExampleIds({
             question,
             plan,
+            subject: diagramSubject,
             traceId: turnTraceId ?? undefined,
             sessionId: sessionId ?? undefined,
             signal: abortController.signal,
@@ -1028,6 +1098,7 @@ export function useQuestionHandler(
           });
           const turnPlanStartedAt = Date.now();
           const turnPlanSpan = tel.span("turn-plan", "planner");
+          const turnPlanOutcomes: TurnPlanRequestOutcome[] = [];
           // A cancelled or failed turn plan still closes its span.
           const closeTurnPlanSpanOnFailure = (error: unknown): never => {
             turnPlanSpan.end({ aborted: true });
@@ -1042,6 +1113,17 @@ export function useQuestionHandler(
             conversationContext: recentConversation,
             fastMode: fastModeRef.current,
             classifySubject: (billed.diagramStrictSubjects?.length ?? 0) > 0,
+            onRequestOutcome: (outcome) => {
+              if (turnPlanOutcomes.length < 3) turnPlanOutcomes.push(outcome);
+              const previous = page.failureTelemetry ?? { subject: "other" };
+              page.failureTelemetry = readFailedTurnTelemetry({
+                ...previous,
+                ...turnPlanFailureTelemetry(outcome),
+                requestCount: (previous.requestCount ?? 0) + 1,
+                issueCodes: [...(previous.issueCodes ?? []), ...outcome.issueCodes],
+                unknownIssueCount: (previous.unknownIssueCount ?? 0) + outcome.unrecognizedIssueCount,
+              });
+            },
           }), isCurrentTurn).catch(closeTurnPlanSpanOnFailure);
           // The turn-plan audit used to run here: a second LLM opinion on the
           // plan, awaited before the scene planner could start. Measured on
@@ -1059,7 +1141,16 @@ export function useQuestionHandler(
           // `auditTurnPlanV3` itself is untouched in tutor-core and keeps its
           // gate, so restoring it here is a one-line change.
           turnPlanMs = Date.now() - turnPlanStartedAt;
-          diagramSubject = plannedTurn?.subject ?? "other";
+          diagramSubject = plannedTurn?.subject ?? subjectFromRejectedTurnPlanOutcomes(turnPlanOutcomes);
+          // Rejected-plan consensus is metadata; strict was measured on accepted plans.
+          diagramStrategySubject = plannedTurn ? diagramSubject : "other";
+          page.failureTelemetry = {
+            subject: diagramSubject,
+            requestCount: page.failureTelemetry?.requestCount,
+            issueCodes: page.failureTelemetry?.issueCodes,
+            unknownIssueCount: page.failureTelemetry?.unknownIssueCount,
+            ...(!plannedTurn ? { stage: page.failureTelemetry?.stage ?? "turn_plan", code: page.failureTelemetry?.code ?? "turn_plan_rejected" } as const : {}),
+          };
           tel.meta({ diagram_subject: diagramSubject });
           turnPlanSpan.end({ ok: plannedTurn !== null, latency_ms: turnPlanMs });
           turnPlan = selectBestAvailableTurnPlan(
@@ -1110,10 +1201,13 @@ export function useQuestionHandler(
           diagramStrategy: ReturnType<typeof liveDiagramStrategyDecision>;
           request: ProductionSceneGate["request"] & { diagramExampleIds?: string[] };
         };
+        let validationCallIndex = 0;
         const validateCandidateAgainstPlan = (
           candidate: Record<string, unknown>, authoritativePlan: TurnPlanV3,
+          context: "search" | "revalidate" | "recovery" = "search",
         ): SceneCandidateValidation<ValidatedSceneCandidate> =>
-          validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan });
+          measureSceneCandidateValidation(tel, { validationCallIndex: ++validationCallIndex, context }, () =>
+            validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, yieldPolicy: context === "recovery" ? "off" : billed.diagramYieldPolicy }));
         const deriveSceneGate = (
           planningTurnPlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null,
         ): SceneGate => {
@@ -1122,7 +1216,7 @@ export function useQuestionHandler(
             conversationContext: recentConversation,
           });
           const diagramStrategy = liveDiagramStrategyDecision({
-            assignedStrategy: billed.diagramStrategy, subject: diagramSubject,
+            assignedStrategy: billed.diagramStrategy, subject: diagramStrategySubject,
             strictSubjects: billed.diagramStrictSubjects, chemistryLane: gate.chemistryLane,
             codeLesson: Boolean(codeLesson), dsa: dsaClassification.isDsa, doubt: false,
           });
@@ -1222,6 +1316,7 @@ export function useQuestionHandler(
             const validation = validateCandidateAgainstPlan(
               recovery.document as unknown as Record<string, unknown>,
               planningTurnPlan,
+              "recovery",
             );
             if (!validation.valid) {
               tutorDebug("planner", "verified scene recovery rejected by current engine", {
@@ -1258,39 +1353,48 @@ export function useQuestionHandler(
               }],
             };
           },
-          selectFast: (planningTurnPlan, authority, gate) => selectFastVerifiedRepresentation({
+          selectFast: (planningTurnPlan, authority, gate, phase) => measureSceneSelection(tel, "fast", () => selectFastVerifiedRepresentation({
             question,
             turnPlan: planningTurnPlan,
             problemIR: authority?.problemIR ?? null,
             families: gate.sceneCapabilities.families,
-          }),
+          }), undefined, phase),
           planScene: (gate, planningTurnPlan, run) => {
             const { diagramExampleIds: pickedIds = [], ...plannerRequest } = gate.request;
             return planSceneDocumentWithRepair(
               question,
               (candidate) => validateCandidateAgainstPlan(candidate, planningTurnPlan),
               {
-                proxyUrl: scenePlannerUrlWithExampleIds(plannerUrl, pickedIds),
+                proxyUrl: scenePlannerUrlWithExampleIds(plannerUrl, pickedIds, diagramSubject),
                 sessionId: sessionId ?? undefined,
                 traceId: turnTraceId ?? undefined,
                 signal: run.signal,
                 timeoutMs: run.timeoutMs,
+                preserveRequiredGeometry: billed.diagramYieldPolicy === "verified_parts",
                 holdValidationUntil: run.holdValidationUntil,
                 maxConcurrentRequests: run.maxConcurrentRequests,
                 requestBudget: run.requestBudget,
                 fastMode: fastModeRef.current,
+                onRequestOutcome: outcome => {
+                  sceneRequestFailure = sceneRequestFailureTelemetry({
+                    httpStatus: outcome.httpStatus, bodyParsed: outcome.bodyParsed,
+                    errorPresent: outcome.error !== null, declined: Boolean(outcome.declineReason),
+                    timedOut: outcome.elapsedMs >= run.timeoutMs,
+                  }) ?? sceneRequestFailure;
+                },
                 ...plannerRequest,
               },
             ).catch(() => null);
           },
           revalidate: (sceneResult, authoritativeTurnPlan) => revalidateScenePlanWithRepairResult(
             sceneResult,
-            (candidate) => validateCandidateAgainstPlan(candidate, authoritativeTurnPlan),
+            (candidate) => validateCandidateAgainstPlan(candidate, authoritativeTurnPlan, "revalidate"),
           ),
         });
         turnPlan = planning.turnPlan;
         problemAuthority = planning.authority;
         const { sceneCapabilities, shouldPlanExactScene, shouldAttemptLlmScene } = planning.gate;
+        if (planning.gate.chemistryLane) page.failureTelemetry = { ...page.failureTelemetry, subject: "chemistry" };
         diagramStrategyDecision = planning.gate.diagramStrategy;
         tel.meta({ diagram_strategy: diagramStrategyDecision.strategy });
         const skippedExactForMissingCapability = shouldPlanExactScene && !shouldAttemptLlmScene;
@@ -1359,18 +1463,30 @@ export function useQuestionHandler(
             candidateCount: result?.candidates.length ?? 0,
           };
         }
-        const sceneSelection = selectProductionScene({
-          question, turnPlan, problemIR: problemAuthority?.problemIR ?? null, sceneCapabilities,
+        const selectionTurnPlan = turnPlan;
+        const sceneSelection = measureSceneSelection(tel, "final", () => selectProductionScene({
+          question, turnPlan: selectionTurnPlan, problemIR: problemAuthority?.problemIR ?? null, sceneCapabilities,
           candidateValidation: result?.validation, fastRepresentation,
           exactFigureSource: planning.figureSource === "verified_recovery" ? "verified_recovery" : "planner",
           solverAuthorityBlocked, requiredRetryEnabled: REQUIRED_DIAGRAM_RETRY_ENABLED,
+          completionEnabled: process.env.NEXT_PUBLIC_SCENE_COMPLETION_BY_CONSTRUCTION === "1",
+          solverAuthority: problemAuthority ? { problemIR: problemAuthority.problemIR, solverResult: problemAuthority.solverResult } : null,
           policy: {
             preferPlanner: diagramStrategyDecision.strategy === "strict",
             allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(diagramStrategyDecision, source)),
           },
-        });
+        }));
         const selected = sceneSelection.representation;
         const attempted = sceneSelection.attemptedRepresentation;
+        if (!selected && !page.failureTelemetry?.code) {
+          const failure = solverAuthorityBlocked ? { stage: "solver", code: "solver_contradiction" } as const
+            : sceneSelection.droppedCandidate?.code === "picture_demand_unmet" ? { stage: "validation", code: "scene_relevance_rejected" } as const
+            : attempted && !sceneSelection.sourceAllowed ? { stage: "scene_planner", code: "fallback_suppressed" } as const
+              : value?.document.visualDecision.mode === "text_only" ? { stage: "scene_planner", code: "planner_declined" } as const
+                : result && !result.validation.valid ? { stage: "validation", code: "candidate_invalid" } as const
+                  : sceneRequestFailure;
+          if (failure) page.failureTelemetry = { ...page.failureTelemetry, subject: page.failureTelemetry?.subject ?? "other", ...failure };
+        }
         if (sceneSelection.reason === "the question asks for no figure") {
           tutorDebug("planner", "no figure asked for, skipping the fallback", { law_ids: turnPlan.lawIds });
         }
@@ -1390,6 +1506,37 @@ export function useQuestionHandler(
             representation_tier: attempted.tier, reason: sceneSelection.saveFailure,
           });
         }
+        // A candidate that passed validation and still left the board names
+        // why: saved as a degradation, shown on the admin fails page, and
+        // reported to Sentry (console.warn is captured as a log).
+        const droppedCandidate = sceneSelection.droppedCandidate;
+        if (droppedCandidate) {
+          tutorDebug("planner", "valid scene candidate not drawn", {
+            code: droppedCandidate.code, reason: droppedCandidate.reason, replaced_by: droppedCandidate.replacedBy,
+          });
+        }
+        // The lab runs the same step (settleSelectionDegradation), and
+        // verify-valid-candidate-parity executes the lines between these markers.
+        // settle-selection-degradation:begin
+        const settledDegradation = settleSelectionDegradation({
+          earlier: exactDegradation, selection: sceneSelection, candidateCount: result?.candidates.length ?? 0,
+        });
+        exactDegradation = settledDegradation.degradation ?? undefined;
+        const reportedDrop = settledDegradation.reportedDrop;
+        if (reportedDrop) {
+          tel.mark("verified-scene-candidate-dropped", {
+            code: reportedDrop.code,
+            replaced_by: reportedDrop.replacedBy,
+            diagram_strategy: diagramStrategyDecision.strategy,
+            candidate_count: result?.candidates.length ?? 0,
+          });
+          console.warn("[diagram] a valid figure candidate was dropped at selection", {
+            code: reportedDrop.code,
+            replacedBy: reportedDrop.replacedBy,
+            strategy: diagramStrategyDecision.strategy,
+          });
+        }
+        // settle-selection-degradation:end
         sceneV2Document = selected?.sceneDocument ?? null;
         sceneV2RenderScene = selected?.renderScene ?? null;
         sceneV2Report = attempted?.validationReport ?? sceneV2Report;
@@ -1446,6 +1593,9 @@ export function useQuestionHandler(
             };
           }) ?? [],
           selectedCandidateId: selectedModelCandidate?.candidateId ?? null,
+          // completion-diagnostics:begin
+          completion: sceneSelection.completion,
+          // completion-diagnostics:end
           selectionReason: representationReason ?? (sceneVisualStatus === "validated"
             ? usedVerifiedRecovery ? "verified_scene_recovery" : "validated_scene"
             : sceneVisualStatus === "retry_required"
@@ -1492,6 +1642,7 @@ export function useQuestionHandler(
             sceneV2Document as SceneDocument,
             sceneV2RenderScene,
             {
+              narrationLanguage: turnNarrationLanguage,
               ...(codeLesson ? { layout: "code_lesson" as const } : {}),
               ...(representationFamily ? { figureFamily: representationFamily } : {}),
             },
@@ -1514,15 +1665,29 @@ export function useQuestionHandler(
         // still has something to point at. A figure a plain Stop caught before
         // its first beat was planned, not drawn: it is drawn whole now.
         activeDiagram = resume.figureDrawn || resume.codeLesson ? activeVerifiedDiagramRef.current : null;
+        if (rebuildingCodeIntro) {
+          activeDiagram = presentation && verifiedDiagramHasDrawableInk(presentation.diagram)
+            ? presentation.diagram : null;
+          sceneV2IntroSegments = activeDiagram ? presentation!.introSegments : null;
+          activeVerifiedDiagramRef.current = activeDiagram;
+          if (!activeDiagram) {
+            setActiveVerifiedDiagram?.(null);
+            dropDiagramRects(boardLayoutRef.current);
+            dsaFrameSet = null;
+            codeLessonControllerRef?.current?.frames.reset();
+            fbdPhaseMarkedRef.current = false;
+            fbdPhaseStartedRef.current = false;
+          }
+        }
         if (activeDiagram && !resume.codeLesson && resume.remainingIntro?.length) {
           // Stop cut the figure off: Continue draws its missing beats first.
           sceneV2IntroSegments = [...resume.remainingIntro];
           resumeIntroRemainder = true;
         }
-        if (!activeDiagram && resume.scene?.sceneDocument) {
+        if (!rebuildingCodeIntro && !activeDiagram && resume.scene?.sceneDocument) {
           const restored = restoreVerifiedPresentationFromTurn({
             sceneDocument: resume.scene.sceneDocument,
-          });
+          }, turnNarrationLanguage);
           if (restored) {
             activeDiagram = restored.diagram;
             sceneV2IntroSegments = restored.introSegments;
@@ -1554,7 +1719,7 @@ export function useQuestionHandler(
         setActiveVerifiedDiagram?.(null);
       }
 
-      if (!doubt && !resume && diagramSource === "none" && sceneVisualStatus === "validated") {
+      if (!doubt && (!resume || rebuildingCodeIntro) && diagramSource === "none" && sceneVisualStatus === "validated") {
         // Compilation can yield no executable board commands. Keep its scene
         // out of persistence and recovery, and retain a required visual failure.
         sceneVisualStatus = resolveSelectedVisualStatus(
@@ -1564,6 +1729,10 @@ export function useQuestionHandler(
         sceneV2Document = null;
         sceneV2RenderScene = null;
         sceneV2IntroSegments = null;
+        if (codeLesson) {
+          dsaFrameSet = null;
+          codeLessonControllerRef?.current?.frames.reset();
+        }
         representationTier = null;
         representationNonMetric = false;
         representationFamily = null;
@@ -1581,11 +1750,11 @@ export function useQuestionHandler(
         }
       }
 
-      if (!doubt && !resume) {
+      if (!doubt && (!resume || rebuildingCodeIntro)) {
         // A doubt asked on this page reuses what the lesson was planned from,
         // and saves the lesson's part with this scene if it stops it.
         page.turnPlan = turnPlan;
-        page.solverProjection = problemAuthority?.projection ?? null;
+        page.solverProjection = resume ? resume.solverProjection : problemAuthority?.projection ?? null;
         liveTurnSave().setResumeState(cancelRef, turnGeneration, lessonResumeState(page.solverProjection));
         page.turn.scene = {
           sceneDocument: sceneV2Document,
@@ -1767,6 +1936,7 @@ export function useQuestionHandler(
             alwaysShowUnits: teachingPrefsRef?.current.alwaysShowUnits ?? false,
             alwaysStateLawFirst: teachingPrefsRef?.current.alwaysStateLawFirst ?? false,
             narrationLanguage,
+            earlyOpeningAcknowledgement: earlyOpeningStarted,
           });
       const { givenSegments, lessonBudget, openingSegment } = teachingPrompt;
       tutorDebug("turn", "lesson budget", {
@@ -1781,9 +1951,10 @@ export function useQuestionHandler(
 
       // Transition from planning back to thinking before the LLM stream starts.
       throwIfTurnCancelled();
+      earlyOpeningWaitPhase = earlyOpeningStarted ? "thinking" : null;
       setPhaseIfCurrent("thinking");
       if (!isPausedRef.current) tts.unlockAudio?.();
-      if (STREAM_SEGMENTS_LIVE && openingSegment?.narration.trim() && !isPausedRef.current) {
+      if (!earlyOpeningStarted && STREAM_SEGMENTS_LIVE && openingSegment?.narration.trim() && !isPausedRef.current) {
         tts.prefetchSegment?.(openingSegment.narration, {
           traceId: turnTraceId ?? undefined,
           sessionId: sessionId ?? undefined,
@@ -1872,10 +2043,11 @@ export function useQuestionHandler(
         const enqueueOpeningNotes = () => {
           if (notesEnqueued || !STREAM_SEGMENTS_LIVE) return;
           notesEnqueued = true;
+          earlyOpeningWaitPhase = null;
           // First, before any row and before the figure: what this question is
           // and what we are about to do with it. A lesson that opens on
           // "Given... u equals twenty" has started in the middle of itself.
-          if (openingSegment) {
+          if (openingSegment && !earlyOpeningStarted) {
             enqueueSegment(openingSegment, turnGeneration);
           }
           for (const segment of givenSegments) {
@@ -1919,12 +2091,7 @@ export function useQuestionHandler(
           }
         };
         const segmentNeedsFigure = (segment: TutorSegment): boolean =>
-          getSegmentCommands(segment).some(
-            (command) =>
-              command.type === "FOCUS" ||
-              command.type === "FRAME" ||
-              command.type === "TYPE",
-          );
+          dsaSegmentNeedsFigure(segment, introSegments);
 
         // A resumed non-code lecture cannot become a speech-only turn: hold
         // its first words until a filtered, aligned WRITE really reaches the
@@ -2364,6 +2531,10 @@ export function useQuestionHandler(
         flushBufferedSegment();
         throwIfTurnCancelled();
         if (resumeInkGate && !resumeInkGate.hasInk()) {
+          page.failureTelemetry = {
+            ...page.failureTelemetry, subject: page.failureTelemetry?.subject ?? "other", failed: true,
+            stage: "teaching", code: "lesson_not_taught",
+          };
           const message = "The lesson could not resume with board writing. Please try Continue lesson again.";
           tel.mark("resume-without-ink", { attempts: resumeInkAttempts + 1 });
           turnCancelled = true;
@@ -2374,6 +2545,10 @@ export function useQuestionHandler(
           return;
         }
         if (STREAM_SEGMENTS_LIVE && !usableTeachingStepReceived) {
+          page.failureTelemetry = {
+            ...page.failureTelemetry, subject: page.failureTelemetry?.subject ?? "other", failed: true,
+            stage: "teaching", code: "lesson_not_taught",
+          };
           const message = "The tutor did not return a usable teaching step. Please try asking again.";
           tel.mark("thinking-unusable-response", { response_chars: rawResponse.length });
           emitError({ message, question });
@@ -2400,6 +2575,10 @@ export function useQuestionHandler(
           if (!isCurrentTurn()) {
             return;
           }
+          page.failureTelemetry = {
+            ...page.failureTelemetry, subject: page.failureTelemetry?.subject ?? "other", failed: true,
+            stage: "teaching", code: "lesson_not_taught",
+          };
           const reasoningOnly = (streamStats?.reasoningChars ?? 0) > 0;
           const message = reasoningOnly
             ? "the ai couldn't generate a response. try rephrasing"
@@ -2508,6 +2687,10 @@ export function useQuestionHandler(
         console.error("Tutor error:", error);
         resumeFailed = Boolean(resume);
         const billing = parseBillingFailureFromUnknown(error);
+        page.failureTelemetry = {
+          ...page.failureTelemetry, subject: page.failureTelemetry?.subject ?? "other", failed: true,
+          stage: "teaching", code: billing ? "budget_limit" : error instanceof TypeError ? "transport_error" : "lesson_not_taught",
+        };
         let message = "something went wrong. try asking again.";
         if (billing) {
           message = studentBillingMessage(billing.code);
@@ -2693,12 +2876,12 @@ export function useQuestionHandler(
       const admissionCurrent = () => admissionBoardRef.current === sessionId && turnGenerationRef.current === generation && phaseRef.current === "idle" && !turnActiveRef.current;
       const receipt = lessonAdmission().start(cancelRef, sessionId, {
         current: admissionCurrent,
+        // Creation must not consume the fresh-history read's bounded window.
+        prepare: isDraft && commitDraftBoard
+          ? async () => { await commitDraftBoard(); return true; }
+          : undefined,
         validate: async (signal) => {
-          // Commit a home draft under the held claim, then require an owned read.
           // A stale draft prop or unavailable GET never stands for empty history.
-          if (isDraft && commitDraftBoard) {
-            try { await commitDraftBoard(); } catch { return false; }
-          }
           if (signal.aborted || !admissionCurrent()) return false;
           const detail = await fetchBoardDetail(sessionId, { signal }).catch(() => null);
           if (signal.aborted || !admissionCurrent()) return false;

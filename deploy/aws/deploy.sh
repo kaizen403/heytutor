@@ -17,12 +17,21 @@ set -a
 source "$ENV_FILE"
 set +a
 
+# Stamp both build-time artifacts and the service's EnvironmentFile with the
+# deployed commit. Do not reuse a release left behind by an earlier deploy.
+# SSM runs this script as root, but Git trusts the ubuntu-owned checkout only
+# when read as its owner. Keep Git credentials and ownership checks in that lane.
+SENTRY_RELEASE="$(sudo -H -u ubuntu env GIT_TERMINAL_PROMPT=0 git -C "$ROOT" rev-parse HEAD)"
+export SENTRY_RELEASE
+# Explicit production-only opt-in. Local and lab servers leave this unset.
+export SENTRY_ENVIRONMENT=production
+
 if [ -z "${DATABASE_URL:-}" ]; then
   echo "DATABASE_URL is required in $ENV_FILE." >&2
   exit 1
 fi
 
-echo "==> heytutor deploy @ $(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+echo "==> heytutor deploy @ ${SENTRY_RELEASE:0:7}"
 
 if [ "$(node -p 'process.versions.node.split(".")[0]')" != "24" ]; then
   echo "Node 24 LTS is required. Run the updated deploy/aws/setup-vm.sh before deployment." >&2
@@ -45,7 +54,7 @@ pnpm turbo run build --filter=@heytutor/tutor...
 
 echo "==> migrate"
 cd apps/tutor
-pnpm exec prisma migrate deploy
+pnpm exec tsx scripts/live/deploy-migrations.ts
 cd "$ROOT"
 
 if ! sudo id heytutor >/dev/null 2>&1 && ! id heytutor >/dev/null 2>&1; then
@@ -91,6 +100,7 @@ fi
 
 if [ -f /etc/systemd/system/heytutor.service ]; then
   echo "==> restart heytutor.service"
+  sudo node "$ROOT/deploy/aws/set-sentry-release.mjs" "$ENV_FILE" "$SENTRY_RELEASE"
   sudo systemctl reset-failed heytutor || true
   sudo systemctl restart heytutor
 else

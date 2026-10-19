@@ -1,0 +1,311 @@
+{
+  "topic_id": "maths|7|maxima-and-minima",
+  "question": "For the curve y = ½(x³ − 9x² + 24x − 18), find the turning points A and B and say which is the maximum, state the interval on which y decreases, and find the tangent and the normal at the point P where x = 1.",
+  "figure_kind": "function_plot",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "exact cubic with tangent and normal"
+    },
+    "source": {
+      "question": "For the curve y = ½(x³ − 9x² + 24x − 18), find the turning points A and B and say which is the maximum, state the interval on which y decreases, and find the tangent and the normal at the point P where x = 1.",
+      "family": "analytic_curve"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "ax",
+        "kind": "axes",
+        "role": "coordinate axes"
+      },
+      {
+        "id": "curve",
+        "kind": "polyline",
+        "role": "cubic curve"
+      },
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "local maximum",
+        "label": "A"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "local minimum",
+        "label": "B"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "point of contact",
+        "label": "P"
+      },
+      {
+        "id": "X1",
+        "kind": "point",
+        "role": "x = 1 on x-axis",
+        "label": "1"
+      },
+      {
+        "id": "tangent",
+        "kind": "line",
+        "role": "tangent at P"
+      },
+      {
+        "id": "normal",
+        "kind": "line",
+        "role": "normal at P"
+      },
+      {
+        "id": "curve_lab",
+        "kind": "label",
+        "role": "curve equation",
+        "label": "½(x³−9x²+24x−18)"
+      },
+      {
+        "id": "tangent_lab",
+        "kind": "label",
+        "role": "tangent label",
+        "label": "tangent"
+      },
+      {
+        "id": "normal_lab",
+        "kind": "label",
+        "role": "normal label",
+        "label": "normal"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "mk_ax",
+        "operator": "axes",
+        "inputs": {
+          "xMin": -0.5,
+          "xMax": 5.8,
+          "yMin": -2.6,
+          "yMax": 2.6
+        },
+        "outputs": [
+          "ax"
+        ]
+      },
+      {
+        "id": "mk_curve",
+        "operator": "function_curve",
+        "inputs": {
+          "expression": "(x^3-9*x^2+24*x-18)/2",
+          "xMin": 0.75,
+          "xMax": 5.25
+        },
+        "outputs": [
+          "curve"
+        ]
+      },
+      {
+        "id": "mk_A",
+        "operator": "curve_anchor",
+        "inputs": {
+          "curve": "curve",
+          "at": 2
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "mk_B",
+        "operator": "curve_anchor",
+        "inputs": {
+          "curve": "curve",
+          "at": 4
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "mk_P",
+        "operator": "curve_anchor",
+        "inputs": {
+          "curve": "curve",
+          "at": 1
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "mk_X1",
+        "operator": "point",
+        "inputs": {
+          "x": 1,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "X1"
+        ]
+      },
+      {
+        "id": "mk_tangent",
+        "operator": "tangent_line",
+        "inputs": {
+          "curve": "curve",
+          "at": 1
+        },
+        "outputs": [
+          "tangent"
+        ]
+      },
+      {
+        "id": "mk_normal",
+        "operator": "normal_line",
+        "inputs": {
+          "curve": "curve",
+          "at": 1
+        },
+        "outputs": [
+          "normal"
+        ]
+      },
+      {
+        "id": "mk_curve_lab",
+        "operator": "label",
+        "inputs": {
+          "target": "curve",
+          "text": "½(x³−9x²+24x−18)"
+        },
+        "outputs": [
+          "curve_lab"
+        ]
+      },
+      {
+        "id": "mk_tangent_lab",
+        "operator": "label",
+        "inputs": {
+          "target": "tangent",
+          "text": "tangent"
+        },
+        "outputs": [
+          "tangent_lab"
+        ]
+      },
+      {
+        "id": "mk_normal_lab",
+        "operator": "label",
+        "inputs": {
+          "target": "normal",
+          "text": "normal"
+        },
+        "outputs": [
+          "normal_lab"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "p_on_curve",
+        "predicate": "incident",
+        "entities": [
+          "P",
+          "curve"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "p_on_tangent",
+        "predicate": "incident",
+        "entities": [
+          "P",
+          "tangent"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "p_on_normal",
+        "predicate": "incident",
+        "entities": [
+          "P",
+          "normal"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "normal_perp",
+        "predicate": "perpendicular",
+        "entities": [
+          "tangent",
+          "normal"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [
+      {
+        "id": "drop_A",
+        "kind": "drop",
+        "targetIds": [
+          "A",
+          "ax"
+        ]
+      },
+      {
+        "id": "drop_B",
+        "kind": "drop",
+        "targetIds": [
+          "B",
+          "ax"
+        ]
+      },
+      {
+        "id": "drop_P",
+        "kind": "drop",
+        "targetIds": [
+          "P",
+          "ax"
+        ]
+      }
+    ],
+    "requiredEntityIds": [
+      "ax",
+      "curve",
+      "A",
+      "B",
+      "P",
+      "X1",
+      "tangent",
+      "normal",
+      "curve_lab",
+      "tangent_lab",
+      "normal_lab"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "ax",
+          "curve",
+          "A",
+          "B",
+          "P",
+          "X1",
+          "tangent",
+          "normal",
+          "curve_lab",
+          "tangent_lab",
+          "normal_lab"
+        ],
+        "dependsOn": [],
+        "narrationCue": "curve, turning points, tangent and normal at P"
+      }
+    ],
+    "teachingTimeline": []
+  }
+}

@@ -23,6 +23,7 @@ class FakeAudio {
   currentTime = 0;
   onended: (() => void) | null = null;
   onerror: (() => void) | null = null;
+  onplaying: (() => void) | null = null;
   private rejectPlay: ((error: Error) => void) | null = null;
   private playCount = 0;
   constructor(_url: string) { FakeAudio.latest = this; }
@@ -44,6 +45,7 @@ class FakeAudio {
   }
   removeAttribute(_attribute: string) {}
   load() {}
+  advance() { this.currentTime += 0.1; this.onplaying?.(); }
   end() { this.onended?.(); }
 }
 
@@ -68,6 +70,8 @@ await new Promise((resolve) => setTimeout(resolve, 10));
 assert.equal(finished, false, "pausing during media load must not finish or discard the sentence");
 client.resume();
 await new Promise((resolve) => setTimeout(resolve, 10));
+assert.equal(started, 0, "resolved resume at clock zero must still wait for audible progress");
+FakeAudio.latest.advance();
 assert.equal(started, 1, "resuming the clip must announce audible playback once");
 assert.equal(finished, false, "resuming must keep the sentence active until its audio ends");
 FakeAudio.latest.end();
@@ -93,6 +97,7 @@ assert.equal(repeatedFinished, false, "repeated pause must not turn a pending re
 repeated.resume();
 await new Promise((resolve) => setTimeout(resolve, 5));
 assert.equal(repeatedFinished, false);
+FakeAudio.latest.advance();
 FakeAudio.latest.end();
 await repeatedSpeech;
 FakeAudio.delaySecondPlay = false;

@@ -25,9 +25,10 @@ function truncateSubtitle(text: string): string {
 export interface ResponseBubbleProps {
   text: string;
   visible: boolean;
+  placement?: "overlay" | "below";
 }
 
-export function ResponseBubble({ text, visible }: ResponseBubbleProps) {
+export function ResponseBubble({ text, visible, placement = "overlay" }: ResponseBubbleProps) {
   if (!visible || !text) {
     return null;
   }
@@ -36,7 +37,9 @@ export function ResponseBubble({ text, visible }: ResponseBubbleProps) {
 
   return (
     <div
-      className="animate-wb-bubble-fade pointer-events-none absolute bottom-3 left-1/2 z-10 max-w-[calc(100%-2rem)] -translate-x-1/2 px-4 py-3 md:bottom-5 md:max-w-xl md:px-6"
+      className={placement === "below"
+        ? "animate-wb-bubble-fade relative w-full px-4 py-3"
+        : "animate-wb-bubble-fade pointer-events-none absolute bottom-3 left-1/2 z-10 max-w-[calc(100%-2rem)] -translate-x-1/2 px-4 py-3 md:bottom-5 md:max-w-xl md:px-6"}
       style={{
         backgroundColor: "rgba(13, 34, 49, 0.94)",
         color: "var(--frost)",
@@ -47,7 +50,9 @@ export function ResponseBubble({ text, visible }: ResponseBubbleProps) {
       }}
     >
       <p
-        className="text-center text-sm font-medium leading-relaxed md:text-base"
+        className={placement === "below"
+          ? "text-center text-sm font-medium leading-relaxed"
+          : "text-center text-sm font-medium leading-relaxed md:text-base"}
         style={{
           color: "var(--frost)",
         }}

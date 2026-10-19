@@ -5,8 +5,11 @@ import {
   buildDiagramExampleCatalogue,
   diagramPlanRetrievalText,
   filterDiagramExemplarsForEvaluation,
+  filterDiagramExemplarsForSubject,
   loadDiagramExemplarLibrary,
+  parseDiagramExemplarSubject,
   type DiagramExemplar,
+  type DiagramExemplarSubject,
 } from "../../scripts/lecture-lab/diagramExamples";
 
 export type LiveDiagramExample = DiagramExemplar;
@@ -19,21 +22,35 @@ function libraryPath(): string {
   return resolve(repoRoot, "data/diagram-eval/v1/exemplars/_library.jsonl");
 }
 
-function liveLibrary(question: string): DiagramExemplar[] {
+/**
+ * The turn's subject as the client sent it. Anything other than maths,
+ * physics or chemistry (absent from an old client, or `other`) is null, and
+ * null keeps the whole library: an old browser tab still gets the examples it
+ * got before, and an unclassified turn is not denied a fitting figure.
+ */
+export function parseLiveDiagramExampleSubject(value: unknown): DiagramExemplarSubject | null {
+  return parseDiagramExemplarSubject(value);
+}
+
+function liveLibrary(question: string, subject: DiagramExemplarSubject | null): DiagramExemplar[] {
   cachedLibrary ??= loadDiagramExemplarLibrary(libraryPath(), []);
   // This is the production form of the evaluation leak guard. A curated
   // exemplar whose source question matches the live question is unavailable
-  // both to the picker catalogue and to id resolution.
-  return filterDiagramExemplarsForEvaluation(cachedLibrary, [question]);
+  // both to the picker catalogue and to id resolution. The subject filter
+  // applies to both in the same way: a physics turn never sees, nor resolves,
+  // a maths or chemistry entry.
+  return filterDiagramExemplarsForSubject(filterDiagramExemplarsForEvaluation(cachedLibrary, [question]), subject);
 }
 
 export function filterLiveDiagramExamples(
   exemplars: readonly DiagramExemplar[],
   question: string,
   ids: readonly string[],
+  subject: DiagramExemplarSubject | null = null,
 ): DiagramExemplar[] {
   const permitted = new Map(
-    filterDiagramExemplarsForEvaluation(exemplars, [question]).map((example) => [example.id, example]),
+    filterDiagramExemplarsForSubject(filterDiagramExemplarsForEvaluation(exemplars, [question]), subject)
+      .map((example) => [example.id, example]),
   );
   return [...new Set(ids)].slice(0, 3).flatMap((id) => {
     const example = permitted.get(id);
@@ -41,8 +58,12 @@ export function filterLiveDiagramExamples(
   });
 }
 
-export function resolveLiveDiagramExamples(question: string, ids: readonly string[]): DiagramExemplar[] {
-  return filterLiveDiagramExamples(liveLibrary(question), question, ids);
+export function resolveLiveDiagramExamples(
+  question: string,
+  ids: readonly string[],
+  subject: DiagramExemplarSubject | null = null,
+): DiagramExemplar[] {
+  return filterLiveDiagramExamples(liveLibrary(question, subject), question, ids, subject);
 }
 
 export function injectLiveDiagramExamples(rawBody: string, examples: readonly DiagramExemplar[]): string {
@@ -65,20 +86,26 @@ export function injectLiveDiagramExamples(rawBody: string, examples: readonly Di
   return JSON.stringify(parsed);
 }
 
-function pickerInput(rawBody: string, question: string): { plan: TurnPlanV3 | null } {
+function pickerInput(rawBody: string, question: string): {
+  plan: TurnPlanV3 | null;
+  subject: DiagramExemplarSubject | null;
+} {
   try {
     const body = JSON.parse(rawBody) as { messages?: Array<{ content?: unknown }> };
     const content = body.messages?.find((message) => typeof message.content === "string")?.content;
-    const submitted = typeof content === "string" ? JSON.parse(content) as { plan?: unknown } : {};
-    return { plan: validateTurnPlanV3(submitted.plan, question).plan };
+    const submitted = typeof content === "string" ? JSON.parse(content) as { plan?: unknown; subject?: unknown } : {};
+    return {
+      plan: validateTurnPlanV3(submitted.plan, question).plan,
+      subject: parseLiveDiagramExampleSubject(submitted.subject),
+    };
   } catch {
-    return { plan: null };
+    return { plan: null, subject: null };
   }
 }
 
 export function buildLiveDiagramPickerBody(rawBody: string, question: string): string {
-  const { plan } = pickerInput(rawBody, question);
-  const catalogue = buildDiagramExampleCatalogue(liveLibrary(question));
+  const { plan, subject } = pickerInput(rawBody, question);
+  const catalogue = buildDiagramExampleCatalogue(liveLibrary(question, subject), { question, plan });
   const planSummary = diagramPlanRetrievalText(plan);
   const prompt = [
     "Pick up to 3 catalogue examples whose DRAWN FIGURE would best guide a diagram for the student question.",
@@ -100,5 +127,5 @@ export function buildLiveDiagramPickerBody(rawBody: string, question: string): s
 export function parseLiveDiagramExampleIds(value: string | null | undefined): string[] {
   if (!value) return [];
   return [...new Set(value.split(",").map((id) => id.trim()).filter((id) =>
-    /^[a-z0-9][a-z0-9:_-]{0,127}$/i.test(id)))].slice(0, 3);
+    /^[a-z0-9][a-z0-9:/_-]{0,127}$/i.test(id)))].slice(0, 3);
 }

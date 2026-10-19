@@ -767,7 +767,7 @@ async function main() {
     assert(/parentTraceId: previousTraceId,/.test(handler), "billing gets that lineage");
     assert(/traceId: currentTraceIdRef\.current,\s*kind: doubt \? "doubt" : resume \? "resume" : "lesson",/.test(handler),
       "a resume saves under its own trace, as kind resume");
-    const plan = between(file, "page.solverProjection = problemAuthority?.projection ?? null;", "page.turn.scene = {");
+    const plan = between(file, "page.solverProjection = resume ? resume.solverProjection : problemAuthority?.projection ?? null;", "page.turn.scene = {");
     assert(plan.includes("setResumeState(cancelRef, turnGeneration, lessonResumeState(page.solverProjection))"),
       "the lesson's solver projection rides its checkpoints for a reload");
     assert(handler.includes("if (resume) liveTurnSave().setResumeState(cancelRef, turnGeneration, lessonResumeState(resume.solverProjection));"),
@@ -786,8 +786,8 @@ async function main() {
     const control = "features/tutor-session/hooks/turn/useTurnControl.ts";
     const stop = between(control, "const stopTurn = useCallback(", "liveTurnSave().closeOwner(cancelRef);");
     assert(stop.includes("pausedLessonOnStop("), "Stop takes the snapshot before its save closes");
-    const restore = between(control, "const restorePausedLesson = useCallback(", "const flushPausedLesson = useCallback(");
-    assert(restore.includes("pausedLessonFromStoredTurns(") && !restore.includes("handleQuestionRef"),
+    const restore = between(control, "const restorePausedLesson = useCallback(", "const restartEarlyLesson = useCallback(");
+    assert(restore.includes("lessonRecoveryFromStoredTurns(") && !restore.includes("handleQuestionRef"),
       "restore derives the offer and never starts the lesson");
   }
 

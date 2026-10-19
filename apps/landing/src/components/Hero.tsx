@@ -41,6 +41,21 @@ export default function Hero() {
       <div className="min-h-4 flex-[0.35] shrink-0 sm:min-h-8" />
 
       <div className="relative z-20 flex w-full min-w-0 flex-col items-center px-5 text-center sm:px-8 lg:px-10">
+        {/* Product Hunt's live badge (it carries the upvote count), so it
+            loads from their host; the CSP allows that one image origin. */}
+        <a
+          href="https://www.producthunt.com/products/accelute?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-accelute"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="animate-fade-up mb-6 block rounded-[10px] sm:mb-7"
+        >
+          <img
+            alt="Find Accelute on Product Hunt"
+            width={250}
+            height={54}
+            src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1280807&theme=neutral&t=1792025244805"
+          />
+        </a>
         <h1 className="type-h1 type-h1--hero w-full min-w-0 max-w-4xl text-frost">
           <span className="block animate-fade-up">AI that teaches you</span>
           <span className="block animate-fade-up [animation-delay:100ms]">

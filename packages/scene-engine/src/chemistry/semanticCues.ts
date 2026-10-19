@@ -1,5 +1,6 @@
 /** Positive chemical roles for vocabulary shared with other subjects. */
 import { complexTokens, ligandSpec, parseComplex, parseFormula } from "./formula";
+import { moleculeFromName } from "./organic/names";
 
 /** Bracketed unit notation such as V[V] supplies no coordinating ligand. */
 export function coordinationSpeciesTokens(question: string): string[] {
@@ -10,8 +11,20 @@ export function molecularOverlapRequested(stem: string): boolean {
 }
 
 /** Order/half-life alone can describe a differential equation or generic decay. */
-export function chemicalKineticsContext(stem: string): boolean {
+export function chemicalKineticsContext(stem: string, originalQuestion: string = stem): boolean {
   if (/\breactions?\b|\breactants?\b|\bchemical kinetics\b|\bconcentration\b|\brate (?:law|constant)\b|\barrhenius\b|\[(?:a|b)\]/.test(stem)) return true;
+  for (const match of originalQuestion.matchAll(/\bdecomposition\s+of\s+(?:the\s+)?([^.;:!?]+?)(?=\s+(?:has|is|with|at|under|follows|occurs)\b|[.;:!?]|$)/gi)) {
+    const identity = match[1]!.trim();
+    const end = match.index + match[0].length;
+    // A whole independently parsed compound occupies this local role.
+    // Do not turn a damaged formula/name prefix or a background mention into it.
+    if (originalQuestion[end] === "." && /[\p{L}\p{N}]/u.test(originalQuestion[end + 1] ?? "")) continue;
+    const prefix = originalQuestion.slice(0, match.index).split(/[.;:!?]|\b(?:but|however)\b/i).at(-1) ?? "";
+    if (/\b(?:no|not|without|excluding|background|unrelated|irrelevant)\b(?:\s+(?:a|an|the|first|second|zero|order|chemical))*\s*$/i.test(prefix)) continue;
+    if (/^\s+(?:is|was|are|were)\s+(?:not\b|absent\b|excluded\b)/i.test(originalQuestion.slice(end))) continue;
+    const formula = parseFormula(identity);
+    if ((formula && formula.atoms.length >= 2) || moleculeFromName(identity)) return true;
+  }
   // Activation energy modifies these rate/temperature axes in one clause.
   // Bare coordinates or a separate background mention supply no rate role.
   return /\bln\s*k\b[^.;!?]{0,20}(?:vs\.?|versus|against)\s*1\s*\/\s*t\b\s+(?:for|with)\s+(?:(?:an?|the)\s+)?activation energy\b/.test(stem);

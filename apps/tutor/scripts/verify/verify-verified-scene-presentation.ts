@@ -1,4 +1,4 @@
-import type { RenderScene, SceneDocument } from "@heytutor/scene-engine";
+import { compileSceneDocument, type RenderScene, type SceneDocument } from "@heytutor/scene-engine";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
@@ -699,6 +699,32 @@ if (/reveal-group ids in order/i.test(dsaWalk.diagram.promptAddon)) {
   if (unnamed.diagram.promptAddon.includes("The construction on the board is")) {
     throw new Error("a figure with no known construction must not claim one");
   }
+}
+
+// Source-grounded exclusion and strict shading must survive the live adapter,
+// rather than being correct only in the offline SVG renderer.
+for (const [operator, inputs, question] of [
+  ["number_line_set", { expression: { inequality: "x>7/3" } }, "Graph x>7/3."],
+  ["linear_half_plane", { inequality: "-5x<0" }, "Shade -5x<0."],
+  ["linear_feasible_region", { constraints: ["x>=0", "y>=0", "x+y<=7"], objective: { expression: "3x+2y", sense: "max" } }, "Maximize 3x+2y subject to x>=0, y>=0 and x+y<=7."],
+] as const) {
+  const linearDocument: SceneDocument = {
+    ...document, source: { question }, entities: [{ id: "linear", kind: "linear_region", role: "solution" }],
+    constructions: [{ id: "make_linear", operator, inputs, outputs: ["linear"] }],
+    annotations: [], requiredEntityIds: ["linear"],
+    revealGroups: [{ id: "solution", entityIds: ["linear"], dependsOn: [], narrationCue: "graphical solution" }],
+    teachingTimeline: [{ id: "reveal_solution", action: "reveal", targetId: "solution", dependsOn: [], narrationIntent: "Read the solution." }],
+  };
+  const compiled = compileSceneDocument(linearDocument);
+  if (!compiled.ok || !compiled.renderScene) throw new Error(`linear live fixture declined: ${compiled.report.issues.map(issue=>issue.message).join("; ")}`);
+  const live = buildVerifiedDiagramPresentation(linearDocument, compiled.renderScene);
+  const intro = live.introSegments.flatMap(segment=>segment.commands??[]);
+  for (const primitive of compiled.renderScene.primitives.filter(mark=>mark.kind==="label")) {
+    if (!intro.some(command=>command.type==="LABEL" && command.text===primitive.text)) throw new Error(`linear label deferred or truncated: ${primitive.text}`);
+  }
+  if (operator==="number_line_set" && !live.diagram.commands.some(command=>command.type==="DRAW_CIRCLE" && command.params[2]===4 && command.visualStyle?.pointStyle==="open")) throw new Error("excluded endpoint must have a visible opaque open center on the live board");
+  if (operator==="linear_half_plane" && !live.diagram.commands.some(command=>command.type==="DRAW_LINE" && command.visualStyle?.dashed)) throw new Error("strict boundary dash semantics were lost in presentation");
+  if (operator!=="number_line_set" && !live.diagram.commands.some(command=>command.visualStyle?.fillRole==="region" && command.visualStyle.strokeWidth===0)) throw new Error("viewport clipping must never add a visible feasible-region border");
 }
 
 console.log("verified scene presentation verification passed");

@@ -18,7 +18,7 @@ import {
   normalizeSegmentForAlignment,
 } from "../../lib/turn/segmentPlanning";
 import { placeDsaFigureIntro, resolveCodeLessonSegments } from "../../lib/code-lesson/codeLessonSegments";
-import { shouldAbandonTurn } from "../../lib/turn/turnFailurePolicy";
+import { IncompleteCodeBeatError, shouldAbandonTurn } from "../../lib/turn/turnFailurePolicy";
 import { clearSpotlight } from "../../lib/board/spotlight";
 import { workColumnRows } from "../../lib/board/boardLayout";
 import { createIntroLayoutCheckpoint } from "../../lib/board/introLayoutCheckpoint";
@@ -40,10 +40,12 @@ import {
   pausedLessonOnStop,
   resumePageRecord,
   type ActiveResume,
+  type BoardPageRecord,
   type PausedLessonReason,
   type PausedLessonRequest,
 } from "../../lib/turn/doubtTurn";
-import { pausedLessonFromStoredTurns } from "../../lib/turn/pausedLessonRestore";
+import { lessonRecoveryFromStoredTurns } from "../../lib/turn/pausedLessonRestore";
+import { classifyEarlyLessonProgress, type EarlyLessonRestartRequest } from "../../lib/turn/earlyLessonOpening";
 import type { StoredTurn } from "@/lib/boards/boardsClient";
 import { liveTurnSave } from "../../lib/turn/liveTurnSave";
 import { useSegmentRunner } from "./useSegmentRunner";
@@ -164,6 +166,7 @@ export function useTurnControl(
   const activeResumeRef = useRef<(ActiveResume & { attempt: object }) | null>(null);
   /** Resets on any segment that completes; see turnFailurePolicy. */
   const consecutiveSegmentFailuresRef = useRef(0);
+  const segmentFailureGenerationRef = useRef(turnGenerationRef.current);
 
   const finishLectureUi = useCallback((turnGeneration?: number) => {
     if (
@@ -219,6 +222,7 @@ export function useTurnControl(
       if (turnGeneration !== turnGenerationRef.current) {
         return;
       }
+      const segmentPage = boardPageRef.current?.boardId === sessionId ? boardPageRef.current : null;
       const segmentToRun = normalizeSegmentForAlignment(segment);
       collectedSegmentsRef.current.push(segmentToRun);
       const index = collectedSegmentsRef.current.length - 1;
@@ -257,6 +261,10 @@ export function useTurnControl(
           }
           return;
         }
+        if (segmentFailureGenerationRef.current !== turnGeneration) {
+          segmentFailureGenerationRef.current = turnGeneration;
+          consecutiveSegmentFailuresRef.current = 0;
+        }
 
         try {
           await runSegment(
@@ -265,8 +273,11 @@ export function useTurnControl(
             collectedSegmentsRef.current,
             turnGeneration,
           );
-          consecutiveSegmentFailuresRef.current = 0;
+          if (counted()) consecutiveSegmentFailuresRef.current = 0;
         } catch (error) {
+          // Old async speech/draw cleanup cannot change a successor's failure
+          // history or publish an error against the replacement turn.
+          if (!counted() || cancelRef.current) return;
           consecutiveSegmentFailuresRef.current += 1;
           console.error(`Segment ${index} failed:`, error);
           tutorDebug("segment", "segment failed", {
@@ -283,6 +294,31 @@ export function useTurnControl(
             stack: error instanceof Error ? (error.stack ?? "").slice(0, 600) : "",
             consecutive_failures: consecutiveSegmentFailuresRef.current,
           });
+          const markTeachingSegmentFailure = () => {
+            if (!segmentPage || segmentPage !== boardPageRef.current || segmentPage.boardId !== sessionId) return;
+            segmentPage.failureTelemetry = {
+              ...segmentPage.failureTelemetry, subject: segmentPage.failureTelemetry?.subject ?? "other",
+              failed: true, stage: "teaching", code: "teaching_segment_failed",
+            };
+          };
+          if (error instanceof IncompleteCodeBeatError) {
+            const failure = { message: error.message, question: liveQuestionRef.current };
+            turnTelemetryRef.current?.mark("code-beat-incomplete", {
+              segment_index: index,
+              block_id: error.blockId,
+              intended_chars: error.intendedChars,
+              shown_chars: error.shownChars,
+              cause: String(error.cause instanceof Error ? error.cause.message : error.cause).slice(0, 300),
+            });
+            // Stop captures the real prefix and offers Continue with the same
+            // plan. Do not admit later blocks or publish a completed lesson.
+            markTeachingSegmentFailure();
+            stopTurnRef.current?.();
+            cancelRef.current = true;
+            setLastError(failure);
+            onError?.(failure);
+            return;
+          }
           // Two in a row means the drawing pipeline is gone, not that one
           // command was unlucky. Stop the turn rather than narrate the rest of
           // the lesson to a board that has stopped moving.
@@ -293,6 +329,7 @@ export function useTurnControl(
               index,
               consecutive_failures: consecutiveSegmentFailuresRef.current,
             });
+            markTeachingSegmentFailure();
             cancelRef.current = true;
             const failure = {
               message: "The lesson could not continue playing. Please try again.",
@@ -321,7 +358,9 @@ export function useTurnControl(
       turnTelemetryRef,
       liveQuestionRef,
       setLastError,
+      stopTurnRef,
       onError,
+      boardPageRef,
     ],
   );
 
@@ -758,13 +797,41 @@ export function useTurnControl(
   );
 
   const pausedLessonRef = useRef<PausedLessonRequest | null>(null);
+  const earlyLessonRestartRef = useRef<EarlyLessonRestartRequest | null>(null);
+  const earlyLessonRestartScopeRef = useRef<{
+    page: BoardPageRecord | null; generation: number; source: "live" | "stored"; afterReplay: boolean;
+  } | null>(null);
+  const restartAttemptRef = useRef<object | null>(null);
+  const [earlyLessonRestartOfferState, setEarlyLessonRestartOfferState] = useState<
+    { boardId: string; reason: PausedLessonReason } | null
+  >(null);
   /** Board the offer belongs to, and why it stopped. Another board must not resume it. */
   const [pausedLessonOfferState, setPausedLessonOfferState] = useState<
     { boardId: string; reason: PausedLessonReason } | null
   >(null);
   const showPausedLessonOffer = useCallback((pending: PausedLessonRequest | null) => {
+    if (pending) {
+      earlyLessonRestartRef.current = null;
+      setEarlyLessonRestartOfferState(null);
+    }
     setPausedLessonOfferState(pending ? { boardId: pending.boardId, reason: pending.reason } : null);
   }, []);
+  const showEarlyLessonRestart = useCallback((pending: EarlyLessonRestartRequest,
+    source: "live" | "stored" = earlyLessonRestartScopeRef.current?.source ?? "live", afterReplay = false) => {
+    pausedLessonRef.current = null;
+    setPausedLessonOfferState(null);
+    earlyLessonRestartRef.current = pending;
+    earlyLessonRestartScopeRef.current = { page: boardPageRef.current, generation: turnGenerationRef.current, source, afterReplay };
+    setEarlyLessonRestartOfferState({ boardId: pending.boardId, reason: pending.reason });
+  }, [boardPageRef, turnGenerationRef]);
+  const captureEarlyLessonRestart = useCallback((reason: PausedLessonReason, parentTraceId: string | null, parentTurnId?: string) => {
+    const page = boardPageRef.current;
+    if (!page || page.boardId !== sessionId || page.turn.kind !== "lesson" || !page.lessonQuestion.trim() ||
+      !page.earlyOpeningStarted || page.turnPlan || page.figureDrawn || codeLessonControllerRef?.current?.getActivePlan() ||
+      classifyEarlyLessonProgress({ earlyOpeningStarted: true, spokenSegments: recordedSegmentsRef.current,
+        activeNarration: speakingNarrationRef.current, figureDrawn: page.figureDrawn }) === "substantive") return;
+    showEarlyLessonRestart({ boardId: sessionId, lessonQuestion: page.lessonQuestion, reason, parentTraceId, parentTurnId }, "live");
+  }, [boardPageRef, sessionId, codeLessonControllerRef, recordedSegmentsRef, speakingNarrationRef, showEarlyLessonRestart]);
 
   const stopTurn = useCallback((options?: { keepVisibleBoard?: boolean; supersede?: boolean }) => {
     if (typeof onSpeechStartupStatus === "function") onSpeechStartupStatus(null);
@@ -789,7 +856,15 @@ export function useTurnControl(
     const stoppedStep = lessonStop
       ? (speakingNarrationRef.current || recordedSegmentsRef.current.at(-1)?.narration || "").trim()
       : "";
-    const taught = lessonStop && (
+    const openingOnly = stopPage?.earlyOpeningStarted === true && !stopPage.turnPlan &&
+      !codeLessonControllerRef?.current?.getActivePlan() &&
+      classifyEarlyLessonProgress({
+        earlyOpeningStarted: true,
+        spokenSegments: recordedSegmentsRef.current,
+        activeNarration: speakingNarrationRef.current,
+        figureDrawn: stopPage.figureDrawn,
+      }) !== "substantive";
+    const taught = lessonStop && !openingOnly && (
       recordedSegmentsRef.current.length > 0 ||
       speakingNarrationRef.current.trim().length > 0 ||
       Boolean(stoppedProgress && (stoppedProgress.completed > 0 || stoppedProgress.inBeat)));
@@ -838,6 +913,12 @@ export function useTurnControl(
     cancelRef.current = true;
     turnActiveRef.current = false;
     turnGenerationRef.current += 1;
+    if (isReplaying && earlyLessonRestartRef.current?.boardId === sessionId) {
+      const scope = earlyLessonRestartScopeRef.current;
+      if (scope?.afterReplay && scope.page === null && boardPageRef.current === null && scope.generation === stoppedGeneration) {
+        scope.generation = turnGenerationRef.current;
+      }
+    }
     // The count is of the live turn's unfinished segments. The stopped turn's
     // stragglers are generation-guarded and never draw again, so whatever
     // starts next need not wait for them: a segment parked on a paused voice
@@ -917,6 +998,7 @@ export function useTurnControl(
           row.workId ? { workId: row.workId, text: row.text } : { text: row.text },
         ),
         interruptedStep: stoppedStep,
+        spokenSegments: recordedSegmentsRef.current,
         parentTraceId: stoppedTraceId,
         remainingIntro: stopRemainderRef.current,
       });
@@ -925,6 +1007,8 @@ export function useTurnControl(
         const savedSnapshot = { ...snapshot, parentTurnId: contributedTurnId ?? snapshot.parentTurnId };
         pausedLessonRef.current = savedSnapshot;
         showPausedLessonOffer(savedSnapshot);
+      } else if (openingOnly) {
+        captureEarlyLessonRestart("stop", stoppedTraceId, contributedTurnId);
       }
     }
     // Save what the stopped lesson taught now, not when its aborted chain
@@ -953,6 +1037,7 @@ export function useTurnControl(
     recordedSegmentsRef,
     speakingNarrationRef,
     showPausedLessonOffer,
+    captureEarlyLessonRestart,
     finishLectureUi,
     isReplaying,
     phase,
@@ -1138,7 +1223,16 @@ export function useTurnControl(
   const isReplayingRef = useRef(isReplaying);
   useEffect(() => {
     isReplayingRef.current = isReplaying;
-  }, [isReplaying]);
+    const scope = earlyLessonRestartScopeRef.current;
+    if (isReplaying && earlyLessonRestartRef.current?.boardId === sessionId && scope &&
+      scope.generation === turnGenerationRef.current &&
+      (boardPageRef.current === null || scope.page === boardPageRef.current)) {
+      // Replay owns a different visible page, not a Continue on the live ink.
+      // The original request still authorizes only a fresh admitted lesson.
+      scope.page = null;
+      scope.afterReplay = true;
+    }
+  }, [isReplaying, sessionId, boardPageRef, turnGenerationRef]);
 
   const pendingDoubtRef = useRef<DoubtTurnRequest | null>(null);
   const doubtFrameRef = useRef(0);
@@ -1189,6 +1283,8 @@ export function useTurnControl(
         // board is not the last saved page, so the doubt cannot continue it.
         afterReplay: isReplayingRef.current || boardShowsStoppedReplayRef.current,
       };
+      // Capture the exact lesson before Stop and the doubt replace its page.
+      if (!request.afterReplay) captureEarlyLessonRestart("doubt", currentTraceIdRef.current);
       // From here the page is the doubt's own record.
       boardShowsStoppedReplayRef.current = false;
       // The lesson stopped earlier is now continued after a doubt: its resume
@@ -1201,6 +1297,8 @@ export function useTurnControl(
       if (paused && paused.boardId === sessionId && paused.reason !== "doubt") {
         pausedLessonRef.current = { ...paused, reason: "doubt" };
       }
+      const restart = earlyLessonRestartRef.current;
+      if (restart?.boardId === sessionId) showEarlyLessonRestart({ ...restart, reason: "doubt" });
 
       if (!interrupting) {
         pendingDoubtRef.current = null;
@@ -1247,6 +1345,11 @@ export function useTurnControl(
       // Keep the visible figure — aborting an in-flight intro used to wipe it.
       stopTurn({ keepVisibleBoard: true });
       const interruptedTurnId = liveTurnSave().turnIdFor(cancelRef, interruptedGeneration);
+      if (earlyLessonRestartRef.current?.boardId === sessionId &&
+        boardPageRef.current?.turn.kind === "lesson") {
+        showEarlyLessonRestart({ ...earlyLessonRestartRef.current,
+          ...(interruptedTurnId ? { parentTurnId: interruptedTurnId } : {}) });
+      }
       // stop() closes the lecture AudioContext. Re-arm it in this click so the
       // doubt's first sentence is not silent after the interrupt unwind.
       ttsClientRef.current?.unlockAudio?.();
@@ -1254,7 +1357,12 @@ export function useTurnControl(
       // request it started from; otherwise the page it is teaching on.
       const resumeNotStarted = activeResume !== null &&
         (!interruptedTurnId || boardPageRef.current === resumePageBefore || boardPageRef.current?.turn.kind === "doubt");
-      const snapshot = resumeNotStarted
+      // A doubt page does not carry the opening-only lesson's marker. Its
+      // text-only snapshot must not turn that original fresh restart into a
+      // null-plan Continue when another doubt interrupts it.
+      const nestedOpeningDoubt = earlyLessonRestartRef.current?.boardId === sessionId &&
+        boardPageRef.current?.boardId === sessionId && boardPageRef.current.turn.kind === "doubt";
+      const snapshot = nestedOpeningDoubt ? null : resumeNotStarted
         ? { ...activeResume.request, reason: "doubt" as const }
         : pausedLessonFromLive({
             record: boardPageRef.current,
@@ -1264,6 +1372,7 @@ export function useTurnControl(
             figureDrawn: Boolean(activeVerifiedDiagramRef.current),
             lessonBoardRows,
             interruptedStep,
+            spokenSegments: recordedSegmentsRef.current,
             reason: "doubt",
             parentTraceId: interruptedTraceId,
             remainingIntro: stopRemainderRef.current,
@@ -1313,6 +1422,8 @@ export function useTurnControl(
       boardLayoutRef,
       boardPageRef,
       cancelDoubtFlush,
+      captureEarlyLessonRestart,
+      showEarlyLessonRestart,
       codeLessonControllerRef,
       conversationHistoryRef,
       currentTraceIdRef,
@@ -1335,18 +1446,24 @@ export function useTurnControl(
 
   const clearPausedLesson = useCallback(() => {
     pausedLessonRef.current = null;
+    earlyLessonRestartRef.current = null;
+    earlyLessonRestartScopeRef.current = null;
     activeResumeRef.current = null;
     setPausedLessonOfferState(null);
+    setEarlyLessonRestartOfferState(null);
   }, []);
 
   const offerPausedLessonResume = useCallback((resume?: PausedLessonRequest) => {
     if (resume) pausedLessonRef.current = resume;
     const pending = pausedLessonRef.current;
     if (!pending || pending.boardId !== sessionId) {
+      const restart = earlyLessonRestartRef.current;
+      if (restart?.boardId === sessionId) showEarlyLessonRestart(restart, undefined,
+        earlyLessonRestartScopeRef.current?.afterReplay === true && boardPageRef.current === null);
       return;
     }
     showPausedLessonOffer(pending);
-  }, [sessionId, showPausedLessonOffer]);
+  }, [sessionId, showPausedLessonOffer, showEarlyLessonRestart, boardPageRef]);
 
   const restoreRevisionRef = useRef(0);
   const restoreBoardRevisionRef = useRef(0);
@@ -1355,9 +1472,11 @@ export function useTurnControl(
   useEffect(() => {
     restoreRevisionRef.current += 1;
     restoreBoardRevisionRef.current += 1;
+    restartAttemptRef.current = null;
     if (restoreTimerRef.current !== null) clearTimeout(restoreTimerRef.current);
     restoreTimerRef.current = null;
-    if (pausedLessonRef.current && pausedLessonRef.current.boardId !== sessionId) clearPausedLesson();
+    if ((pausedLessonRef.current && pausedLessonRef.current.boardId !== sessionId) ||
+      (earlyLessonRestartRef.current && earlyLessonRestartRef.current.boardId !== sessionId)) clearPausedLesson();
     return () => {
       restoreRevisionRef.current += 1;
       restoreBoardRevisionRef.current += 1;
@@ -1367,14 +1486,26 @@ export function useTurnControl(
 
   const restorePausedLesson = useCallback(async function restoreFromRead(turns: readonly StoredTurn[], refreshVisible = false): Promise<PausedLessonRequest | null> {
     if (visibleRestoreRef.current?.boardId === sessionId) return null;
-    if (!sessionId || phaseRef.current !== "idle" || turnActiveRef.current || isReplayingRef.current || pendingSegmentCountRef.current > 0 || activeResumeRef.current || lessonAdmission().hasAttempt(cancelRef)) return null;
+    if (!sessionId || phaseRef.current !== "idle" || turnActiveRef.current || isReplayingRef.current || boardShowsStoppedReplayRef.current ||
+      pendingSegmentCountRef.current > 0 || activeResumeRef.current || restartAttemptRef.current || lessonAdmission().hasAttempt(cancelRef)) return null;
     const revision = ++restoreRevisionRef.current;
     const save = liveTurnSave();
     if (turns.some((turn) => save.isLiveHere(turn.id))) return null;
+    // Stop ends the local save before its checkpoint reaches the server. The
+    // idle effect may still hold an empty/raw-live read; capture its ended
+    // mirror before the asynchronous ownership probe can erase that offer.
+    const currentTurns = save.resumeTurns(sessionId, turns);
+    const boardRevision = restoreBoardRevisionRef.current;
+    const generation = turnGenerationRef.current;
+    const page = boardPageRef.current;
     const ownerState = await lessonAdmission().probe(sessionId);
-    if (revision !== restoreRevisionRef.current || phaseRef.current !== "idle" || turnActiveRef.current || activeResumeRef.current || lessonAdmission().hasAttempt(cancelRef)) return null;
-    let restored = pausedLessonFromStoredTurns(turns, { boardId: sessionId, ownerState, isLiveHere: (id) => save.isLiveHere(id) });
-    if (!restored) {
+    if (revision !== restoreRevisionRef.current || boardRevision !== restoreBoardRevisionRef.current ||
+      generation !== turnGenerationRef.current || page !== boardPageRef.current ||
+      phaseRef.current !== "idle" || turnActiveRef.current || isReplayingRef.current || boardShowsStoppedReplayRef.current ||
+      pendingSegmentCountRef.current > 0 || activeResumeRef.current || lessonAdmission().hasAttempt(cancelRef)) return null;
+    const recovery = lessonRecoveryFromStoredTurns(currentTurns, { boardId: sessionId, ownerState, isLiveHere: (id) => save.isLiveHere(id) });
+    let restored = recovery?.kind === "continue" ? recovery.request : null;
+    if (!recovery) {
       clearPausedLesson();
       // Unknown/fresh active observations expire and are re-read, never cached null.
       if (restoreTimerRef.current === null) {
@@ -1403,16 +1534,19 @@ export function useTurnControl(
       const generation = turnGenerationRef.current;
       const page = boardPageRef.current;
       const pendingBefore = pausedLessonRef.current;
+      const restartBefore = earlyLessonRestartRef.current;
       const token = { boardId: sessionId, revision };
       visibleRestoreRef.current = token;
       setPausedLessonOfferState(null);
+      setEarlyLessonRestartOfferState(null);
       const current = () => revision === restoreRevisionRef.current && boardRevision === restoreBoardRevisionRef.current &&
-        generation === turnGenerationRef.current && page === boardPageRef.current && pendingBefore === pausedLessonRef.current && phaseRef.current === "idle" &&
+        generation === turnGenerationRef.current && page === boardPageRef.current && pendingBefore === pausedLessonRef.current &&
+        restartBefore === earlyLessonRestartRef.current && phaseRef.current === "idle" &&
         !turnActiveRef.current && !isReplayingRef.current && !boardShowsStoppedReplayRef.current &&
         pendingSegmentCountRef.current === 0 && !activeResumeRef.current && !lessonAdmission().hasAttempt(cancelRef);
       try {
-        if (!current() || !(await refreshBoardFromTurns(sessionId, turns, current)) || !current()) return null;
-        boardPageRef.current = resumePageRecord({ boardId: sessionId, lessonQuestion: restored.lessonQuestion,
+        if (!current() || !(await refreshBoardFromTurns(sessionId, currentTurns, current)) || !current()) return null;
+        if (restored) boardPageRef.current = resumePageRecord({ boardId: sessionId, lessonQuestion: restored.lessonQuestion,
           turnPlan: restored.turnPlan ?? null, solverProjection: restored.solverProjection ?? null,
           scene: restored.scene ?? null, figureDrawn: restored.figureDrawn });
       } catch {
@@ -1423,6 +1557,11 @@ export function useTurnControl(
     }
     if (restoreTimerRef.current !== null) clearTimeout(restoreTimerRef.current);
     restoreTimerRef.current = null;
+    if (recovery.kind === "restart") {
+      showEarlyLessonRestart(recovery.request, "stored");
+      return null;
+    }
+    restored = recovery.request;
     const pending = pausedLessonRef.current;
     const visiblePage = boardPageRef.current;
     const sameParent = pending?.parentTurnId
@@ -1439,7 +1578,66 @@ export function useTurnControl(
     pausedLessonRef.current = restored;
     showPausedLessonOffer(restored);
     return restored;
-  }, [sessionId, phaseRef, turnActiveRef, pendingSegmentCountRef, showPausedLessonOffer, clearPausedLesson, cancelRef, boardPageRef, refreshBoardFromTurns, boardShowsStoppedReplayRef, turnGenerationRef]);
+  }, [sessionId, phaseRef, turnActiveRef, pendingSegmentCountRef, showPausedLessonOffer, showEarlyLessonRestart, clearPausedLesson, cancelRef, boardPageRef, refreshBoardFromTurns, boardShowsStoppedReplayRef, turnGenerationRef]);
+
+  const restartEarlyLesson = useCallback(() => {
+    const request = earlyLessonRestartRef.current;
+    const page = boardPageRef.current;
+    const scope = earlyLessonRestartScopeRef.current;
+    const replayRestart = scope?.afterReplay === true && page === null;
+    if (!request || request.boardId !== sessionId || !boardLoaded || restartAttemptRef.current || activeResumeRef.current ||
+      visibleRestoreRef.current?.boardId === sessionId || lessonAdmission().hasAttempt(cancelRef) ||
+      phaseRef.current !== "idle" || turnActiveRef.current || isReplayingRef.current ||
+      ((rewoundRef?.current || boardShowsStoppedReplayRef.current) && !replayRestart) || pendingSegmentCountRef.current > 0) return;
+    if (!scope || scope.page !== page || scope.generation !== turnGenerationRef.current ||
+      (page && (page.boardId !== sessionId || page.lessonQuestion.trim() !== request.lessonQuestion.trim()))) {
+      clearPausedLesson();
+      return;
+    }
+    const saved = params.storedTurnsRef.current;
+    // Saved receipts authorize a restored offer, not a newer locally captured
+    // Stop. Its stop save may still be pending; fresh admission reads authority.
+    if (scope.source === "stored" && saved.length > 0) {
+      const fresh = lessonRecoveryFromStoredTurns(saved, { boardId: sessionId, ownerState: "inactive" });
+      if (fresh?.kind !== "restart" || (request.parentTurnId && request.parentTurnId !== fresh.request.parentTurnId)) {
+        clearPausedLesson();
+        return;
+      }
+    }
+    const attempt = {};
+    const boardRevision = restoreBoardRevisionRef.current;
+    const generation = turnGenerationRef.current;
+    restartAttemptRef.current = attempt;
+    setEarlyLessonRestartOfferState(null);
+    let receivedAdmission = false;
+    const current = () => restartAttemptRef.current === attempt && boardRevision === restoreBoardRevisionRef.current;
+    const restoreDeclined = () => {
+      if (current() && generation === turnGenerationRef.current && page === boardPageRef.current &&
+        phaseRef.current === "idle" && !turnActiveRef.current && !isReplayingRef.current &&
+        (!boardShowsStoppedReplayRef.current || replayRestart)) {
+        showEarlyLessonRestart(request, scope.source, replayRestart);
+      }
+    };
+    const release = () => {
+      if (!current()) return;
+      if (!receivedAdmission) restoreDeclined();
+      restartAttemptRef.current = null;
+    };
+    // A fresh question may clear the offer before its admission callback arrives.
+    // Keep this click's exact request locally so a decline can restore it safely.
+    const finished = handleQuestionRef.current(request.lessonQuestion, { onAdmission: (admitted) => {
+      if (!current()) return;
+      receivedAdmission = true;
+      if (admitted) {
+        if (earlyLessonRestartRef.current === request) earlyLessonRestartRef.current = null;
+      } else {
+        restoreDeclined();
+        restartAttemptRef.current = null;
+      }
+    } });
+    void finished.then(release, release);
+  }, [sessionId, boardLoaded, boardPageRef, cancelRef, phaseRef, turnActiveRef, rewoundRef, boardShowsStoppedReplayRef,
+    pendingSegmentCountRef, turnGenerationRef, handleQuestionRef, showEarlyLessonRestart, clearPausedLesson, params.storedTurnsRef]);
 
   const flushPausedLesson = useCallback(() => {
     if (visibleRestoreRef.current?.boardId === sessionId || activeResumeRef.current || lessonAdmission().hasAttempt(cancelRef)) return;
@@ -1516,6 +1714,9 @@ export function useTurnControl(
     offerPausedLessonResume,
     clearPausedLesson,
     restorePausedLesson,
+    restartEarlyLesson,
+    earlyLessonRestartOffer: earlyLessonRestartOfferState?.boardId === sessionId && phase === "idle" && !isReplaying,
+    earlyLessonRestartReason: earlyLessonRestartOfferState?.boardId === sessionId ? earlyLessonRestartOfferState.reason : null,
     pausedLessonOffer: pausedLessonOfferState?.boardId === sessionId,
     pausedLessonReason: pausedLessonOfferState?.boardId === sessionId ? pausedLessonOfferState.reason : null,
     handleAskDoubt,

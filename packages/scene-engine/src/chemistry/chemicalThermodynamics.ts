@@ -7,7 +7,7 @@
  * Maxwell distributions stay in thermoGraphs.ts. A missing number is
  * not replaced with a textbook value.
  */
-import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, findChemistryQuantities, readChemistryQuantity } from "./quantityReader";
+import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityPayloadPresent, findChemistryQuantities, readChemistryQuantity, readChemistryQuantityDeclaration, readChemistryLiteral, CHEMISTRY_SCALAR_PATTERN, chemistryUnitSymbol, chemistryQuantityCuesValid, chemistryQuestionSpan, chemistryCanonicalValuesAgree, chemistryQuantityInventoryOwned, readChemistryUnitLiteral, type ChemistryReading, type ChemistryQuantityDeclaration, type ChemistryDeclarationOccurrence, type ChemistrySpan } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { chemicalHeatCapacityRequested } from "./semanticCues";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
@@ -20,6 +20,14 @@ function fit(text: string): string {
 }
 
 function temperatureKelvin(question: string): number | null {
+  // Literal inventory alone cannot see an unavailable named temperature.
+  // Each named/symbolic declaration must survive before choosing its value.
+  for (const cue of [
+    { after: /\btemperature\b(?:\s+T\b)?/, cueCaseSensitive: false },
+    { after: /(?<![\p{L}\p{N}_])T(?![\p{L}\p{N}_])/u, cueCaseSensitive: true },
+  ]) {
+    if (readChemistryQuantityDeclaration({ question, ...cue, dimension: "temperature", targetUnit: "K", owner: "thermodynamic temperature", allowAgreeingRepeats: true }).state === "invalid") return null;
+  }
   const r = findChemistryQuantities({ question, dimension: "temperature", targetUnit: "K" });
   return r.ok && r.reading.length > 0 && r.reading.every(read => read.value === r.reading[0]!.value) ? r.reading[0]!.value : null;
 }
@@ -79,7 +87,117 @@ function box(c: ChemScene, ids: string[]): void {
   ids.push(c.link("bound_r", { x: 3.2, y: 0 }, { x: 3.2, y: 2 }, "system boundary", false));
 }
 
+interface ProcessVolumes {
+  initial: ChemistryReading | null;
+  final: ChemistryReading | null;
+  change: ChemistryReading | null;
+  constant: ChemistrySpan[];
+}
+
+/** Prepositions own quantities only inside a local process/property argument.
+ * Heat-transfer source/recipient phrases are different semantic arguments. */
+function processVolumes(question: string): ProcessVolumes | null {
+  const body = question.slice(0,chemistryQuestionSpan(question).end);
+  const result: ProcessVolumes = {initial:null,final:null,change:null,
+    constant:[...body.matchAll(/\b(?:isochoric|constant volume)\b/gi)].map(cue=>({start:cue.index!,end:cue.index!+cue[0].length}))};
+  const boundaries = [...body.matchAll(/[;!?\n]|\.(?=\s|$)/g)];
+  const clauses = [...boundaries.map(boundary=>boundary.index!),body.length];
+  let clauseStart = 0;
+  const argument = (start:number,end:number,owner:string) => {
+    while (start < end && /\s/.test(question[start]!)) start++;
+    while (end > start && /\s/.test(question[end-1]!)) end--;
+    const after = /^(?:(?:an?|the|initial|final)\s+)*volume\b(?:\s+of\b)?/i.test(question.slice(start,end))
+      ? /^(?:(?:an?|the|initial|final)\s+)*volume\b(?:\s+of\b)?/i : /^/;
+    const read = readChemistryQuantityDeclaration({question,after,within:{start,end},dimension:"volume",targetUnit:"L",owner});
+    const hasPayload = chemistryQuantityPayloadPresent(question.slice(start,end));
+    const readState: ChemistryQuantityDeclaration = hasPayload ? read : {state:"absent",owner,occurrences:[]};
+    const closedLiteral = (reading: ChemistryReading) => !chemistryQuantityPayloadPresent(question.slice(reading.source.span.end,end))
+      && !/^\s*[=:+*/^×·−-]/.test(question.slice(reading.source.span.end,end));
+    const complete = readState.state === "valid" && closedLiteral(readState.reading);
+    const scalar = new RegExp(`^(${CHEMISTRY_SCALAR_PATTERN})`).exec(question.slice(start,end));
+    const literal = scalar ? readChemistryUnitLiteral({question,scalarSpan:{start,end:start+scalar[0].length}}) : null;
+    return {read:readState,complete,literal:literal?.ok && closedLiteral(literal.reading) ? literal.reading : null};
+  };
+  const context = (prefix:string) => {
+    const local = prefix.split(/\b(?:while|whereas|but)\b|\band(?=\s+(?:(?:the|a|an)\s+)*(?:heat|energy|work|matter)\b)/i).at(-1)!;
+    const volume = /\bvolume\b/i.test(local) || /(?<![\p{L}\p{N}_])V(?![\p{L}\p{N}_])/u.test(local);
+    const process = /\b(?:expan\w*|compress\w*|contract\w*)\b/i.test(local);
+    return {volume,process,foreign:!volume && !process && /\b(?:heat|energy|work|matter)\b/i.test(local)};
+  };
+  const endOfArgument = (start:number,end:number): number => {
+    const closing = /,|\b(?:by|from|to|against|at|in|under|with|during|while|whereas|but)\b|\band\s+(?=(?:the|a|an|it|this|that|heat|energy|work|matter)\b)/i.exec(question.slice(start,end));
+    return closing ? start+closing.index : end;
+  };
+  for (const clauseEnd of clauses) {
+    const clause = body.slice(clauseStart,clauseEnd);
+    // A directly stated property remains supplied even without a range/by
+    // complement. Bound each alias to its own original clause occurrence.
+    const properties = [...clause.matchAll(/\b[Vv]olume\b(?:\s+V\b)?|(?<![\p{L}\p{N}_])V(?![\p{L}\p{N}_])/gu)];
+    for (const [index,property] of properties.entries()) {
+      const start = clauseStart+property.index!;
+      const nextProperty = properties[index+1] ? clauseStart+properties[index+1]!.index! : clauseEnd;
+      const payloadStart = start+property[0].length;
+      // These are independently checked quantity owners, not arbitrary
+      // identifier assignments such as "volume of gas is unknown".
+      const otherOwner = /\b(?:q|w|du|p_?ext|temperature|external pressure|internal energy)\b|(?:δ|∆|Δ)\s*(?:u\b|\(pv\))/i.exec(question.slice(payloadStart,nextProperty));
+      const end = otherOwner ? payloadStart+otherOwner.index : nextProperty;
+      const payload = question.slice(payloadStart,end);
+      // A complete qualitative equality is a process description. A supplied
+      // number/unread value or expression continuation cannot hide after it.
+      if (/^\s*(?:is|=|remains)\s*constant\s*(?:,\s*)?(?:and\s*)?$/i.test(payload)
+        && (!/\band\s*$/i.test(payload) || otherOwner)) {
+        result.constant.push({start,end});
+        continue;
+      }
+      const read = readChemistryQuantityDeclaration({question,after:new RegExp(property[0]),cueCaseSensitive:true,
+        within:{start,end},dimension:"volume",targetUnit:"L",owner:"stated system volume"});
+      if (read.state === "invalid" || read.state === "valid" && read.reading.value <= 0) return null;
+    }
+    for (const range of clause.matchAll(/\bfrom\s+([\s\S]*?)\s+to\s+/gi)) {
+      const start = clauseStart+range.index!;
+      const fromStart = start+range[0].search(/\s/)+1;
+      const toStart = start+range[0].length;
+      const fromEnd = toStart-range[0].match(/\s+to\s+$/i)![0].length;
+      const first = argument(fromStart,fromEnd,"initial process volume");
+      const second = argument(toStart,endOfArgument(toStart,clauseEnd),"final process volume");
+      const role = context(clause.slice(0,range.index));
+      if (role.foreign) continue;
+      // A temperature range during expansion is not a volume range. An
+      // explicit volume property cannot acquire a different unit this way.
+      if (!role.volume && first.literal && second.literal && first.literal.dimension !== "volume" && second.literal.dimension !== "volume") continue;
+      const directVolume = first.complete || second.complete;
+      if (!role.volume && !directVolume && !(role.process && (first.read.state !== "absent" || second.read.state !== "absent"))) continue;
+      if (!first.complete || !second.complete || first.read.state !== "valid" || second.read.state !== "valid"
+        || first.read.reading.value <= 0 || second.read.reading.value <= 0 || result.initial || result.final) return null;
+      result.initial = first.read.reading;
+      result.final = second.read.reading;
+    }
+    for (const by of clause.matchAll(/\bby\s+/gi)) {
+      const start = clauseStart+by.index!+by[0].length;
+      const value = argument(start,endOfArgument(start,clauseEnd),"process volume change");
+      const role = context(clause.slice(0,by.index));
+      if (role.foreign || !role.volume && !role.process && !value.complete) continue;
+      // Method complements such as "by moving a piston" supply no quantity.
+      if (value.read.state === "absent") continue;
+      if (!value.complete || value.read.state !== "valid" || value.read.reading.value <= 0 || result.change) return null;
+      result.change = value.read.reading;
+    }
+    clauseStart = clauseEnd+1;
+  }
+  // A validated relation remains a constraint on the selected process, not
+  // just a lexical exception. Check it before either model consumes volumes.
+  if (result.constant.length && (result.change && result.change.value !== 0
+    || result.initial && result.final && !chemistryCanonicalValuesAgree(result.initial.value,result.final.value))) return null;
+  return result;
+}
+
 function buildSystems(question: string, stem: string): SceneDocument | null {
+  const volumes = processVolumes(question);
+  if (!volumes) return null;
+  if (!chemistryQuantityCuesValid(question,[
+    {after:/\btemperature\b/,dimensions:["temperature"],owner:"system temperature"},
+    {after:/\binternal energy\b/,dimensions:["energy"],owner:"system internal energy"},
+  ])) return null;
   const isolated = /\bisolated\b/.test(stem);
   const closed = /\bclosed\b/.test(stem);
   const open = /\bopen\b/.test(stem);
@@ -129,8 +247,8 @@ function buildSystems(question: string, stem: string): SceneDocument | null {
     ids.push(c.text("w_path", { x: 0, y: -0.6 }, "w path", "path function"));
   }
   const model = /isothermal/.test(stem) ? "isothermal" : /isobaric/.test(stem) ? "isobaric" : /adiabatic/.test(stem) ? "adiabatic" : /isochoric/.test(stem) ? "isochoric" : null;
-  const startVolume = numberAfter(question, /from\s+/, "volume", "L");
-  const endVolume = numberAfter(question, /to\s+/, "volume", "L");
+  const startVolume = volumes.initial?.value ?? null;
+  const endVolume = volumes.final?.value ?? null;
   if (model && startVolume !== null && endVolume !== null && startVolume !== endVolume) {
     ids.push(c.text("v1_l", { x: 0, y: -1.4 }, fit(`V=${startVolume} L`), "initial volume"));
     ids.push(c.text("v2_l", { x: 2.4, y: -1.4 }, fit(`V=${endVolume} L`), "final volume"));
@@ -144,36 +262,85 @@ function buildSystems(question: string, stem: string): SceneDocument | null {
 }
 
 /** Constant-pressure chemistry work, w = −Pext ΔV. Expansion makes ΔV positive. */
-function pressureVolumeWorkJ(stem: string): number | null {
+function pressureVolumeWorkJ(stem: string, change: ChemistryReading | null): number | null {
   const compressed = /compress/i.test(stem);
   const expanded = /\bexpan/i.test(stem);
   if (compressed === expanded) return null;
-  const litres = numberAfter(stem, /by\s+/, "volume", "L");
+  const litres = change?.value ?? null;
   const pressure = numberAfter(stem, /(?:external pressure(?:\s+of)?|pext(?:\s*=)?)/, "pressure", "kPa");
   if (litres === null || pressure === null || !(litres > 0) || !(pressure > 0)) return null;
-  const litreWindow = stem.slice(Math.max(0, stem.search(/by\s+/) ), stem.search(/by\s+/) + 24);
+  const litreWindow = change?.source.text;
   const pressureWindow = stem.slice(stem.search(/external pressure|pext/), stem.search(/external pressure|pext/) + 32);
   if (!litreWindow || !pressureWindow) return null;
   const magnitude = pressure * litres;
   return compressed ? magnitude : -magnitude;
 }
 
+/** The solver's complete symbolic identities supply no numeric given. */
+function firstLawDeclaration(question: string, after: RegExp, owner: string, reference?: RegExp): ChemistryQuantityDeclaration {
+  const matches = [...question.slice(0,chemistryQuestionSpan(question).end).matchAll(new RegExp(after.source,"gi"))];
+  const occurrences: ChemistryDeclarationOccurrence[] = [];
+  let reading: ChemistryReading | undefined;
+  for (const [index,cue] of matches.entries()) {
+    const end = matches[index+1]?.index ?? chemistryQuestionSpan(question).end;
+    const tail = question.slice(cue.index!+cue[0].length,end);
+    const identity = reference?.exec(tail);
+    if (identity) {
+      const rest = tail.slice(identity[0].length);
+      const otherOwner = /\b(?:q|w|du|p_?ext)\b|(?:δ|∆|Δ)\s*(?:u\b|\(pv\))|internal energy|external pressure/i.exec(rest);
+      const clause = /[;?!\n]|\.(?=\s|$)/.exec(rest);
+      const boundary = Math.min(otherOwner?.index ?? rest.length,clause?.index ?? rest.length);
+      // The identity must close before a new, independently checked owner
+      // or sentence. "and equals 900 kg" extends this same owner and cannot
+      // hide behind a correct identity prefix.
+      const bridge = rest.slice(0,boundary);
+      const extendsExpression = /[=:+*/^×·−-]/.test(bridge)
+        || /^[\s,]*(?:and\s*)?(?:is|was|are|equals|equal\s+to)\b/i.test(bridge);
+      if (!extendsExpression && !chemistryQuantityPayloadPresent(bridge)) continue;
+    }
+    const read = readChemistryQuantityDeclaration({question,after,within:{start:cue.index!,end},dimension:"energy",targetUnit:"J",owner});
+    occurrences.push(...read.occurrences);
+    if (read.state === "invalid") return {...read,occurrences};
+    if (read.state === "valid") {
+      if (reading && !chemistryCanonicalValuesAgree(reading.value,read.reading.value)) return {state:"invalid",owner,code:"source_conflict",failure:{ok:false,code:"source_conflict"},occurrences};
+      reading = read.reading;
+    }
+  }
+  return reading ? {state:"valid",owner,reading,occurrences} : {state:"absent",owner,occurrences};
+}
+
 function buildFirstLaw(question: string, stem: string): SceneDocument | null {
-  const q = /\bq\s*=/.test(stem) ? numberAfter(question, /q\s*=/, "energy", "J") : null;
-  const statedW = /\bw\s*=/.test(stem) && !/w\s*=\s*-/.test(stem) ? numberAfter(question, /w\s*=/, "energy", "J") : null;
-  const pv = pressureVolumeWorkJ(question);
-  const isochoric = /isochoric|constant volume/.test(stem);
+  const volumes = processVolumes(question);
+  if (!volumes) return null;
+  const deltaURead = firstLawDeclaration(question,/(?:δ|∆|Δ)\s*u\b|\bdu\b|internal energy(?:\s+change)?/,"first-law internal-energy change",
+    /^\s*=\s*q\s*\+\s*w\b/i);
+  if (deltaURead.state === "invalid") return null;
+  const duStated = deltaURead.state === "valid" ? deltaURead.reading.value : null;
+  const dpvRead = readChemistryQuantityDeclaration({question,after:/(?:δ|∆|Δ)\s*\(pv\)|delta\(pv\)/,dimension:"energy",targetUnit:"J",owner:"first-law pressure-volume change",allowAgreeingRepeats:true});
+  if (dpvRead.state === "invalid" || !chemistryQuantityCuesValid(question,[
+    {after:/external pressure|\bp_?ext\b/,dimensions:["pressure"],owner:"external pressure"},
+  ])) return null;
+  const heatRead = firstLawDeclaration(question,/\bq\b/,"first-law heat");
+  const workRead = firstLawDeclaration(question,/\bw\b/,"first-law work",
+    /^\s*=\s*[-−]\s*(?:p_?ext\s*(?:[*×·]\s*)?(?:δ|∆|Δ)\s*v|(?:δ|∆|Δ)\s*v\s*(?:[*×·]\s*)?p_?ext)\b/i);
+  if (heatRead.state === "invalid" || workRead.state === "invalid") return null;
+  const q = heatRead.state === "valid" ? heatRead.reading.value : null;
+  const statedW = workRead.state === "valid" ? workRead.reading.value : null;
+  const pv = pressureVolumeWorkJ(question,volumes.change);
+  const isochoric = volumes.constant.length > 0;
   const adiabatic = /adiabatic/.test(stem);
   if (isochoric && pv !== null) return null;
+  if (isochoric && statedW !== null && statedW !== 0) return null;
   if (adiabatic && q !== null && q !== 0) return null;
+  if (pv !== null && statedW !== null && !chemistryCanonicalValuesAgree(pv,statedW)) return null;
   const w = isochoric ? 0 : adiabatic && pv === null && statedW !== null ? statedW : pv ?? statedW;
   const heat = adiabatic ? 0 : q;
-  const duStated = numberAfter(question, /(?:δ|∆|Δ)\s*u\s*=|internal energy(?:\s+change)?\s*(?:=|is)/, "energy", "J");
-  const dpv = numberAfter(question, /(?:δ|∆|Δ)\s*\(pv\)\s*=|delta\(pv\)\s*=/, "energy", "J");
+  const dpv = dpvRead.state === "valid" ? dpvRead.reading.value : null;
   const c = new ChemScene(question, "chemistry first law", FAMILY);
   const ids: string[] = [];
   if (w !== null && heat !== null) {
     const du = heat + w;
+    if (duStated !== null && !chemistryCanonicalValuesAgree(duStated,du)) return null;
     ids.push(c.text("q_l", { x: 0, y: 1.6 }, fit(`q=${heat > 0 ? "+" : ""}${heat} J`), "heat"));
     ids.push(c.text("w_l", { x: 0, y: 0.6 }, fit(`w=${w > 0 ? "+" : ""}${w} J`), "work on the system"));
     ids.push(c.text("du_l", { x: 0, y: -0.4 }, fit(`dU=${du > 0 ? "+" : ""}${du} J`), "internal energy change"));
@@ -199,6 +366,90 @@ function amountMoles(question: string): number | null {
   return r.ok && r.reading.length === 1 ? r.reading[0]!.value : null;
 }
 
+const HEAT_DELTA_CUE = /(?:δ|∆|Δ)\s*t\b|\bdelta\s+t\b/i;
+
+/** The delta value and its inventory view cite one complete original literal. */
+type HeatDeltaInput = { state: "absent" | "invalid" } | { state: "valid"; value: number; literals: ChemistryReading[] };
+function heatDeltaInput(question: string): HeatDeltaInput {
+  const delta = readChemistryQuantityDeclaration({ question, after: HEAT_DELTA_CUE, dimension: "temperature_delta", targetUnit: "K", owner: "heat temperature change", allowAgreeingRepeats: true });
+  if (delta.state !== "valid") return { state: delta.state };
+  const literals: ChemistryReading[] = [];
+  for (const occurrence of delta.occurrences) {
+    if (!occurrence.read.ok) return { state: "invalid" };
+    const start = occurrence.read.reading.source.span.start;
+    const token = new RegExp(`^(${CHEMISTRY_SCALAR_PATTERN})`).exec(question.slice(start));
+    if (!token) return { state: "invalid" };
+    // Inventory uses the absolute-temperature view; only the independently
+    // checked delta enters arithmetic, so Celsius offsets never enter q.
+    const literal = readChemistryUnitLiteral({ question, scalarSpan: { start, end: start + token[0].length } });
+    if (!literal.ok || literal.reading.dimension !== "temperature") return { state: "invalid" };
+    literals.push(literal.reading);
+  }
+  return { state: "valid", value: delta.reading.value, literals };
+}
+
+/** null means no range; false means a stated range cannot be owned. */
+function heatTemperatureRange(question: string): { first: number; second: number } | null | false {
+  const body = question.slice(0, chemistryQuestionSpan(question).end);
+  const scalar = new RegExp(`^(${CHEMISTRY_SCALAR_PATTERN})`);
+  const ranges = [...body.matchAll(/\bfrom\s+([^;\n]*?)\s+to\s+/gid)].filter(range => {
+    // Prose transfers do not own temperatures. A numeric non-temperature
+    // pair is ignored only after both original unit-inclusive literals verify.
+    const part = range.indices?.[1];
+    if (!part || range.index === undefined) return true;
+    const firstToken = scalar.exec(question.slice(part[0], part[1]));
+    const secondStart = range.index + range[0].length;
+    const secondToken = scalar.exec(question.slice(secondStart));
+    if (!firstToken && !secondToken) return false;
+    if (!firstToken || !secondToken) return true;
+    const first = readChemistryUnitLiteral({ question, scalarSpan: { start: part[0], end: part[0] + firstToken[0].length } });
+    const second = readChemistryUnitLiteral({ question, scalarSpan: { start: secondStart, end: secondStart + secondToken[0].length } });
+    const heatOperands = ["temperature", "temperature_delta", "heat_capacity", "molar_heat_capacity", "amount", "energy"] as const;
+    return !(first.ok && second.ok && first.reading.dimension !== "temperature"
+      && first.reading.dimension === second.reading.dimension
+      && [first.reading, second.reading].every(reading => !!reading.rawUnit
+        && !heatOperands.some(dimension => chemistryUnitSymbol(reading.rawUnit!, dimension)))
+      && !question.slice(first.reading.source.span.end, part[1]).trim());
+  });
+  if (ranges.length === 0) return null;
+  if (ranges.length !== 1) return false;
+  const range = ranges[0]!;
+  const firstPart = range.indices?.[1];
+  if (!firstPart || range.index === undefined) return false;
+  const secondStart = range.index + range[0].length;
+  const firstToken = scalar.exec(question.slice(firstPart[0], firstPart[1]));
+  const secondToken = scalar.exec(question.slice(secondStart));
+  if (!firstToken || !secondToken) return false;
+  const firstSpan = { start: firstPart[0], end: firstPart[0] + firstToken[0].length };
+  const secondSpan = { start: secondStart, end: secondStart + secondToken[0].length };
+  const second = readChemistryLiteral({ question, scalarSpan: secondSpan, dimension: "temperature", targetUnit: "K" });
+  if (!second.ok) return false;
+  let first = readChemistryLiteral({ question, scalarSpan: firstSpan, dimension: "temperature", targetUnit: "K" });
+  // Only a bare first endpoint can borrow the complete original trailing
+  // unit. The shared reader still rejects explicit wrong or damaged units.
+  if (!first.ok && second.reading.rawUnit) {
+    const unit = chemistryUnitSymbol(second.reading.rawUnit, "temperature");
+    if (!unit) return false;
+    const sourceSpan = { start: second.reading.source.span.end - second.reading.rawUnit.length, end: second.reading.source.span.end };
+    first = readChemistryLiteral({ question, scalarSpan: firstSpan, dimension: "temperature", targetUnit: "K", unitConvention: { unit, sourceSpan } });
+  }
+  if (!first.ok || question.slice(first.reading.source.span.end, firstPart[1]).trim()) return false;
+  const consumed = [
+    ...(first.reading.rawUnit ? [{ reading: first.reading, owner: "heat_temperature_1" }] : []),
+    { reading: second.reading, owner: "heat_temperature_2" },
+  ];
+  const delta = heatDeltaInput(question);
+  if (delta.state === "invalid") return false;
+  if (delta.state === "valid") {
+    if (!chemistryCanonicalValuesAgree(delta.value, second.reading.value - first.reading.value)) return false;
+    consumed.push(...delta.literals.map(reading => ({ reading, owner: "heat_delta_T" })));
+  }
+  // Every original temperature literal must have one owner before deriving ΔT.
+  // A bare endpoint with a shared unit is not an inventory literal.
+  if (!chemistryQuantityInventoryOwned(question, "temperature", consumed)) return false;
+  return { first: first.reading.value, second: second.reading.value };
+}
+
 function buildHeat(question: string, stem: string): SceneDocument | null {
   if (/melt|boiling|boils|vapor|vapour|latent heat|fusion/.test(stem)) return null;
   if (/phase change/.test(stem) && !/no phase change/.test(stem)) return null;
@@ -211,22 +462,49 @@ function buildHeat(question: string, stem: string): SceneDocument | null {
   const c = new ChemScene(question, "heat capacity", FAMILY);
   const ids: string[] = [];
   if (ideal && asksR) {
-    const cp = numberAfter(question, /c_?p(?:,m)?(?:\s*(?:=|is))?/, "molar_heat_capacity", "J/(mol K)");
-    if (cp === null) return null;
+    const cpRead = readChemistryQuantityDeclaration({ question, after: /(?:molar\s+)?heat\s+capacity\s+at\s+constant\s+pressure(?:\s+C_?p(?:,m)?\b)?|\bC_?p(?:,m)?\b/, dimension: "molar_heat_capacity", targetUnit: "J/(mol K)", owner: "constant-pressure molar heat capacity", allowAgreeingRepeats: true });
+    if (cpRead.state !== "valid") return null;
+    const cp = cpRead.reading.value;
     const cv = cp - R_J;
+    // The complete ideal-gas identity is a reference, not a Cv assignment.
+    // Other Cv/R declarations must agree with the derived/reference values;
+    // all original molar-capacity literals keep a distinct source owner.
+    const cvRead = readChemistryQuantityDeclaration({ question, after: /\bC_?p(?:,m)?\s*[-−]\s*C_?v(?:,m)?\s*=\s*R\b(?!\s*(?:[+\-−*/÷∕^=\d]|\.\d))|(?:molar\s+)?heat\s+capacity\s+at\s+constant\s+volume(?:\s+C_?v(?:,m)?\b)?|\bC_?v(?:,m)?\b/, dimension: "molar_heat_capacity", targetUnit: "J/(mol K)", owner: "constant-volume molar heat capacity", allowAgreeingRepeats: true });
+    const rRead = readChemistryQuantityDeclaration({ question, after: /\b(?:gas\s+constant(?:\s+R\b)?|R)\b/, dimension: "molar_heat_capacity", targetUnit: "J/(mol K)", owner: "ideal gas constant", allowAgreeingRepeats: true });
+    if (cvRead.state === "invalid" || rRead.state === "invalid"
+      || cvRead.state === "valid" && !chemistryCanonicalValuesAgree(cvRead.reading.value, cv)
+      || rRead.state === "valid" && !chemistryCanonicalValuesAgree(rRead.reading.value, R_J)) return null;
+    const consumed = [cpRead, cvRead, rRead].flatMap(read => read.occurrences.flatMap(occurrence => occurrence.read.ok ? [{ reading: occurrence.read.reading, owner: read.owner }] : []));
+    if (!chemistryQuantityInventoryOwned(question, "molar_heat_capacity", consumed)) return null;
     ids.push(c.text("cp_l", { x: 0, y: 1.2 }, fit(`Cp=${cp}`), "molar heat capacity at constant pressure"));
     ids.push(c.text("cv_l", { x: 0, y: 0.2 }, fit(`Cv=${cv.toFixed(2)}`), "molar heat capacity at constant volume"));
     ids.push(c.text("r_l", { x: 0, y: -0.8 }, "ideal gas R", "ideal-gas molar relation"));
   } else {
     const molar = /molar heat capacity|j\/\(mol/.test(stem);
-    const capacity = numberAfter(question, /(?:molar )?heat capacity(?:\s+of a sample)?(?:\s+is)?|c\s*=/, molar ? "molar_heat_capacity" : "heat_capacity", molar ? "J/(mol K)" : "J/K");
-    const t1 = numberAfter(question, /from\s+/, "temperature", "K");
-    const t2 = numberAfter(question, /to\s+/, "temperature", "K");
-    const delta = t1 !== null && t2 !== null ? t2 - t1 : numberAfter(question, /(?:δ|∆|Δ)\s*t\s*=|delta t\s*=/, "temperature_delta", "K");
-    if (capacity === null || delta === null || !(capacity >= 0) || !(delta !== 0)) return null;
+    const capacityDimension = molar ? "molar_heat_capacity" : "heat_capacity";
+    const capacityRead = readChemistryQuantityDeclaration({ question, after: /(?:molar )?heat capacity(?:\s+of a sample)?(?:\s+C(?=\s*[=:]))?|\bC(?=\s*[=:])/i, dimension: capacityDimension, targetUnit: molar ? "J/(mol K)" : "J/K", owner: "heat_capacity", allowAgreeingRepeats: true });
+    if (capacityRead.state !== "valid" || !chemistryQuantityInventoryOwned(question, capacityDimension, capacityRead.occurrences.flatMap(occurrence => occurrence.read.ok ? [{ reading: occurrence.read.reading, owner: "heat_capacity" }] : []))) return null;
+    const capacity = capacityRead.reading.value;
+    const temperatures = heatTemperatureRange(question);
+    if (temperatures === false) return null;
+    let delta: number;
+    if (temperatures) delta = temperatures.second - temperatures.first;
+    else {
+      const statedDelta = heatDeltaInput(question);
+      if (statedDelta.state !== "valid" || !chemistryQuantityInventoryOwned(question, "temperature", statedDelta.literals.map(reading => ({ reading, owner: "heat_delta_T" })))) return null;
+      delta = statedDelta.value;
+    }
+    if (!(capacity >= 0) || !(delta !== 0)) return null;
     const sampleC = molar ? (moles === null ? null : capacity * moles) : capacity;
     if (sampleC === null) return null;
     const q = sampleC * delta;
+    c.scene.quantity("heat_capacity", molar ? "C_m" : "C", capacity, molar ? "J/(mol K)" : "J/K");
+    if (temperatures) {
+      c.scene.quantity("heat_temperature_1", "T_1", temperatures.first, "K");
+      c.scene.quantity("heat_temperature_2", "T_2", temperatures.second, "K");
+    }
+    c.scene.quantity("heat_delta_T", "ΔT", delta, "K");
+    c.scene.quantity("heat_q", "q", q, "J");
     ids.push(c.text("q_l", { x: 0, y: 1.2 }, fit(`q=${q} J`), "heat"));
     ids.push(c.text("kind_l", { x: 0, y: 0.2 }, molar ? "C molar" : "C sample", "heat capacity kind"));
     ids.push(c.text("law_l", { x: 0, y: -0.8 }, "q=C*dT", "constant heat capacity"));
@@ -280,19 +558,23 @@ function buildHess(question: string, _stem: string): SceneDocument | null {
   });
 }
 
-function entropyValue(stem: string, which: "sys" | "surr"): number | null {
+function entropyValue(question: string, which: "sys" | "surr"): ChemistryQuantityDeclaration {
   const phrase = which === "sys"
-    ? /(?:δ|∆|Δ)?\s*d?s_?sys\s*=|entropy of the system\s*(?:=|is)/
-    : /(?:δ|∆|Δ)?\s*d?s_?surr\s*=|entropy of the surroundings\s*(?:=|is)/;
-  return numberAfter(stem, phrase, "entropy", "J/K");
+    ? /(?:δ|∆|Δ)?\s*d?s_?sys\b|entropy of the system\b/
+    : /(?:δ|∆|Δ)?\s*d?s_?surr\b|entropy of the surroundings\b/;
+  return readChemistryQuantityDeclaration({ question, after: phrase, dimension: "entropy", targetUnit: "J/K", owner: `entropy of ${which}`, allowAgreeingRepeats: true });
 }
 
 function buildEntropy(question: string, stem: string): SceneDocument | null {
-  const sys = entropyValue(question, "sys");
-  const surr = entropyValue(question, "surr");
+  const sysRead = entropyValue(question, "sys");
+  const surrRead = entropyValue(question, "surr");
+  const qrevRead = readChemistryQuantityDeclaration({ question, after: /\bq_?rev\b|\breversible heat\b/, dimension: "energy", targetUnit: "J", owner: "reversible heat", allowAgreeingRepeats: true });
+  if ([sysRead, surrRead, qrevRead].some(read => read.state === "invalid")) return null;
+  const sys = sysRead.state === "valid" ? sysRead.reading.value : null;
+  const surr = surrRead.state === "valid" ? surrRead.reading.value : null;
   const reversible = /\breversible\b/.test(stem);
   const irreversible = /\birreversible\b/.test(stem);
-  const qrev = numberAfter(question, /q_?rev\s*=/, "energy", "J");
+  const qrev = qrevRead.state === "valid" ? qrevRead.reading.value : null;
   const temperature = temperatureKelvin(question);
   const c = new ChemScene(question, "entropy of system, surroundings and universe", FAMILY);
   const ids: string[] = [];
@@ -320,22 +602,46 @@ function buildEntropy(question: string, stem: string): SceneDocument | null {
   });
 }
 
+// The owner may include a temperature; stop only at its original assignment.
+// A qualitative less/greater-than clause is not a supplied thermodynamic K.
+// A bare request predicate is prose; numeric or damaged continuations remain owners.
+const EQUILIBRIUM_CONSTANT_CUE = /(?:equilibrium constant(?:\s+(?:of|for)\b(?:[^=,;.\n]|\.(?=\d)){0,85}?)?|\bk\b)\s*(?:\bis\b(?!\s*(?:required|needed|requested)\s*(?:[.!?](?=\s|$)|$))|=|:)(?!\s*(?:less|greater|more)\s+than\b)/i;
+
+// A recognized assignment must still belong to K, not another predicate/quantity.
+const EQUILIBRIUM_CONSTANT_OWNER = /^(?:equilibrium constant(?:\s+(?:of|for)\s+(?:(?:a|an|the|this)\s+)?reaction(?:\s+at\b(?:(?!\b(?:and|but|whose|which|where|quotient|pressure|volume)\b)[^=,;.\n]|\.(?=\d)){0,50})?)?|\bk\b)\s*(?:\bis\b|=|:)$/i;
+
+const STANDARD_GIBBS_ENERGY_CUE = /(?:δ|∆|Δ)\s*g\s*(?:°|º)\s*=|standard gibbs[^.]{0,40}?=/i;
+
 function buildEquilibrium(question: string, _stem: string): SceneDocument | null {
   const temperature = temperatureKelvin(question);
   if (temperature === null || !(temperature > 0)) return null;
-  const kGiven = numberAfter(question, /(?:equilibrium constant|\bk\b)\s*(?:=|is)/);
-  const gGiven = numberAfter(question, /(?:δ|∆|Δ)\s*g\s*(?:°|º)\s*=|standard gibbs[^.]{0,40}?=/, "molar_energy", "kJ/mol");
+  const source = question.slice(0, chemistryQuestionSpan(question).end);
+  const kOwners = [...source.matchAll(new RegExp(EQUILIBRIUM_CONSTANT_CUE.source, "gi"))];
+  // Missing-valued owners must not disappear behind a later valid literal.
+  if (kOwners.length > 1 || kOwners.some(owner => !EQUILIBRIUM_CONSTANT_OWNER.test(owner[0]))) return null;
+  if (!chemistryQuantityCuesValid(question, [{ after: EQUILIBRIUM_CONSTANT_CUE, dimensions: ["dimensionless"] }])) return null;
+  const kRead = readChemistryQuantity({ question, after: EQUILIBRIUM_CONSTANT_CUE, dimension: "dimensionless" });
+  const hasStatedK = kOwners.length > 0;
+  if (!kRead.ok && (kRead.code !== "missing" || hasStatedK)) return null;
+  const kGiven = kRead.ok ? kRead.reading.value : null;
+  const gOwners = [...source.matchAll(new RegExp(STANDARD_GIBBS_ENERGY_CUE.source, "gi"))];
+  if (gOwners.length > 1 || !chemistryQuantityCuesValid(question, [{ after: STANDARD_GIBBS_ENERGY_CUE, dimensions: ["molar_energy"] }])) return null;
+  const gRead = readChemistryQuantity({ question, after: STANDARD_GIBBS_ENERGY_CUE, dimension: "molar_energy", targetUnit: "J/mol" });
+  if (!gRead.ok && (gRead.code !== "missing" || gOwners.length > 0)) return null;
+  const gJ = gRead.ok ? gRead.reading.value : null;
+  const gGiven = gJ === null ? null : gJ / 1000;
   if (kGiven !== null && !(kGiven > 0)) return null;
   if (kGiven === null && gGiven === null) return null;
-  const gJ = gGiven === null ? null : gGiven * 1000;
+  // Both source-given operands must agree in the same canonical molar-energy unit.
+  if (kGiven !== null && gJ !== null && !chemistryCanonicalValuesAgree(gJ, -R_J * temperature * Math.log(kGiven))) return null;
   const k = kGiven ?? (gJ === null ? null : Math.exp(-gJ / (R_J * temperature)));
   const gKj = gGiven ?? (k === null ? null : (-R_J * temperature * Math.log(k)) / 1000);
-  if (k === null || gKj === null || !Number.isFinite(k) || !(k > 0)) return null;
+  if (k === null || gKj === null || !Number.isFinite(k) || !Number.isFinite(gKj) || !(k > 0)) return null;
   const c = new ChemScene(question, "standard Gibbs energy and the equilibrium constant", FAMILY);
   const ids = [
     c.text("g_l", { x: 0, y: 1.2 }, fit(`dGo=${gKj.toFixed(3)}`), "standard Gibbs energy", {preserveText:true}),
     c.text("g_unit", { x: 1.7, y: 1.2 }, "kJ/mol", "Gibbs energy unit"),
-    c.text("k_l", { x: 0, y: 0.2 }, fit(`K=${k.toFixed(2)}`), "thermodynamic equilibrium constant", {preserveText:true}),
+    c.text("k_l", { x: 0, y: 0.2 }, fit(`K=${Math.abs(k) < .01 || Math.abs(k) >= 1e6 ? k.toExponential(3).replace(/0+e/, "e").replace(/\.e/, "e") : k.toFixed(2)}`), "thermodynamic equilibrium constant", {preserveText:true}),
     c.text("law_l", { x: 0, y: -0.8 }, "dGo=-RT lnK", "standard relation"),
     c.text("t_l", { x: 0, y: -1.8 }, fit(`T=${temperature} K`), "absolute temperature"),
   ];

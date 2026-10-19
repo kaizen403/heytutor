@@ -50,6 +50,8 @@ export {
 interface SettingsDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** A compact shell can restore focus after the opening menu has unmounted. */
+  onCloseAutoFocus?: (event: Event) => void;
   settings: SettingsState;
   onSettingsChange: (settings: SettingsState) => void;
   /** Hinglish is offered only when the server holds a Sarvam key. */
@@ -253,6 +255,7 @@ function MarkerStuntPicker({
 export function SettingsDrawer({
   open,
   onOpenChange,
+  onCloseAutoFocus,
   settings,
   onSettingsChange,
   hinglishAvailable = false,
@@ -266,6 +269,7 @@ export function SettingsDrawer({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
+        onCloseAutoFocus={onCloseAutoFocus}
         className="flex w-[min(100%,24rem)] flex-col overflow-y-auto border-l sm:max-w-sm"
         style={{ borderColor: theme.border }}
       >

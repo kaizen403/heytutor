@@ -9,6 +9,7 @@ import {
   type ValidationResult,
 } from "../types";
 import { parseMathExpression, parseMathExpression2D } from "../math/expression";
+import { AXIS_BASELINE, piecewiseLinearGraph, polygonMatchesGraphRegion, regionGrid, type GraphBoundary, type GraphPoint } from "../compile/graphRegion";
 import {
   isExecutableSceneConstructionOperator,
   SUPPORTED_SCENE_COMPONENT_SYMBOLS,
@@ -21,12 +22,14 @@ import { STATISTICS_OPERATORS, validateStatisticsConstruction } from "../compile
 import { TRIANGLE_OPERATORS, validateTriangleConstruction } from "../compile/triangleGeometry";
 import { CONIC_OPERATORS, validateConicConstruction } from "../compile/conicGeometry";
 import { SPACE_DERIVATION_OPERATORS, validateSpaceDerivationConstruction } from "../compile/spaceDerivations";
+import { planSpaceView } from "../compile/spaceView";
 import { PROBABILITY_OPERATORS, validateProbabilityConstruction } from "../compile/probabilityGeometry";
 import { FIELD_OPERATORS, validateFieldConstruction } from "../compile/fieldGeometry";
 import { DIPOLE_FIELD_OPERATORS, validateDipoleFieldConstruction } from "../compile/dipoleFieldGeometry";
 import { ANALYTIC_LINE_OPERATORS, validateAnalyticLineConstruction as validateCoordinateLineConstruction } from "../compile/analyticLineGeometry";
 import { RIGID_MASS_OPERATORS, validateRigidMassConstruction } from "../compile/rigidMassGeometry";
 import { MATRIX_ARRAY_OPERATORS, validateMatrixArrayConstruction } from "../compile/matrixArrayGeometry";
+import { LINEAR_REGION_OPERATORS, validateLinearRegionConstruction } from "../compile/linearRegionGeometry";
 import { validateMatrixSourceBinding } from "../compile/matrixSourceBinding";
 import { CIRCLE_OPERATORS, validateCircleConstruction } from "../compile/circleGeometry";
 import { AFFINE_OPERATORS, validateAffineConstruction } from "../compile/affineGeometry";
@@ -149,6 +152,8 @@ const VISIBLE_ENTITY_KIND_BY_OPERATOR: Readonly<Record<string, string>> = {
   sign_badge: "vector", dimension: "dimension", connect: "connector", symbol: "component", label: "label",
   matrix_array: "matrix_array", matrix_add: "matrix_array", matrix_scale: "matrix_array",
   matrix_product: "matrix_array", matrix_transpose: "matrix_array",
+  number_line_set: "linear_region", linear_half_plane: "linear_region",
+  linear_feasible_region: "linear_region", linear_system: "linear_region",
 };
 
 function visibleConstructionKind(construction: Record<string, unknown>): string | undefined {
@@ -182,6 +187,18 @@ export function isSupportedSceneOperator(
 }
 
 const SAMPLED_CURVE_OPERATORS = new Set(["function_curve", "parametric_curve", "polar_curve"]);
+/**
+ * Open polylines that may be read as a graph y = f(x) when their vertices
+ * strictly increase in x: a hand-placed piecewise linear graph or a
+ * motion_graph. The compiler proves the x order before reading a value.
+ */
+const GRAPH_POLYLINE_OPERATORS = new Set(["polyline", "motion_graph"]);
+/**
+ * A polygon role that names a region. Only the left edge is a word boundary:
+ * `\b` misses "shaded_area", where the underscore is a word character, and a
+ * plural or "shaded" still names the region. "shadow" is an optics part.
+ */
+const GRAPH_REGION_ROLE = /(?:^|[^a-z])(?:region|area|enclosed|shad(?!ow)|displacement)/;
 const CALCULUS_OPERATORS = new Set([
   "parametric_curve", "polar_curve", "implicit_curve", "tangent_line", "normal_line",
   "representative_slice", "solid_of_revolution",
@@ -2374,6 +2391,22 @@ function finiteInstrumentDisplayLayout(quantities: unknown): Record<"O" | "Fo" |
   return { O: map(xO), Fo: map(xFo), Co: map(xCo), I: map(xI), Fe: map(xFe), Ce: map(xCe), Ip: map(xIp) };
 }
 
+/**
+ * Signed arrow heights (object up) from the chief rays: the objective centre
+ * maps the object tip to the intermediate image, the eyepiece centre maps
+ * that to the final image. The object height shrinks as the magnification
+ * grows so the largest image stays a readable size beside an 8 unit chain.
+ */
+function finiteInstrumentArrowHeights(
+  layout: Record<"O" | "Fo" | "Co" | "I" | "Fe" | "Ce" | "Ip", number>,
+): Record<"object" | "intermediate" | "final", number> {
+  const objectiveGain = Math.abs(layout.O - layout.Co) > 1e-9 ? (layout.I - layout.Co) / (layout.O - layout.Co) : -1;
+  const eyepieceGain = Math.abs(layout.I - layout.Ce) > 1e-9 ? (layout.Ip - layout.Ce) / (layout.I - layout.Ce) : 1;
+  const largest = Math.max(1, Math.abs(objectiveGain), Math.abs(objectiveGain * eyepieceGain));
+  const object = Math.min(0.55, Math.max(0.2, 2.6 / largest));
+  return { object, intermediate: object * objectiveGain, final: object * objectiveGain * eyepieceGain };
+}
+
 function deriveFiniteOpticalInstrumentChain(raw: Record<string, unknown>): Record<string, unknown> {
   const entities = (Array.isArray(raw.entities) ? raw.entities : []).filter(isRecord);
   const entityById = new Map(entities.flatMap((entity) =>
@@ -2459,18 +2492,51 @@ function deriveFiniteOpticalInstrumentChain(raw: Record<string, unknown>): Recor
   ]);
   if (objectiveFocusId) placements.set(objectiveFocusId, { x: layout.Fo, y: 0 });
   if (eyepieceFocusId) placements.set(eyepieceFocusId, { x: layout.Fe, y: 0 });
+  // Arrow heights follow the chief rays through each lens centre, so the
+  // image arrows are scaled by magnification and their tips sit on the rays
+  // optical_train draws from the object tip.
+  const heights = finiteInstrumentArrowHeights(layout);
+  const sourceVectors = (Array.isArray(raw.constructions) ? raw.constructions : []).filter(isRecord)
+    .filter((construction) => construction.operator === "vector" && isRecord(construction.inputs));
+  const tipIds = new Map<"object" | "intermediate" | "final", string>();
+  for (const [role, baseId] of [["object", objectId], ["intermediate", intermediateId], ["final", finalId]] as const) {
+    const vector = sourceVectors.find((construction) =>
+      (construction.inputs as Record<string, unknown>).start === baseId);
+    const tip = vector ? (vector.inputs as Record<string, unknown>).end : undefined;
+    if (typeof tip === "string" && tip !== baseId && entityById.get(tip)?.kind === "point" && !placements.has(tip)) {
+      tipIds.set(role, tip);
+    }
+  }
+  const tipPlacement = (role: "object" | "intermediate" | "final") => ({
+    x: role === "object" ? layout.O : role === "intermediate" ? layout.I : layout.Ip,
+    y: heights[role],
+  });
+  for (const [role, id] of tipIds) placements.set(id, tipPlacement(role));
   for (const [id, entity] of entityById) {
     if (entity.kind !== "point" || placements.has(id)) continue;
     const semantic = instrumentEntitySemantic(entity, id);
-    const height = /\b(?:bottom|base)\b/.test(semantic) ? 0 : 0.55;
-    if (/\bobject\b/.test(semantic) && /\b(?:top|bottom|tip|arrow)\b/.test(semantic)) {
-      placements.set(id, { x: layout.O, y: /\b(?:bottom|base)\b/.test(semantic) ? 0 : height });
-    } else if (/\bintermediate\b/.test(semantic) && /\b(?:top|bottom|tip|arrow)\b/.test(semantic)) {
-      placements.set(id, { x: layout.I, y: /\b(?:bottom|base)\b/.test(semantic) ? 0 : -height });
-    } else if (/\b(?:final|virtual image)\b/.test(semantic) && /\b(?:top|bottom|tip|arrow)\b/.test(semantic)) {
-      placements.set(id, { x: layout.Ip, y: /\b(?:bottom|base)\b/.test(semantic) ? 0 : -height });
+    if (!/\b(?:top|bottom|tip|arrow)\b/.test(semantic)) continue;
+    const role = /\bobject\b/.test(semantic) ? "object"
+      : /\bintermediate\b/.test(semantic) ? "intermediate"
+      : /\b(?:final|virtual image)\b/.test(semantic) ? "final"
+      : null;
+    if (!role) continue;
+    if (/\b(?:bottom|base)\b/.test(semantic)) {
+      placements.set(id, { ...tipPlacement(role), y: 0 });
+    } else {
+      placements.set(id, tipPlacement(role));
+      if (!tipIds.has(role)) tipIds.set(role, id);
     }
   }
+  const objectTipId = tipIds.get("object") ?? null;
+  const intermediateTipId = tipIds.get("intermediate") ?? null;
+  // Rays cross at the intermediate image tip. A tip that is not drawn cannot
+  // carry an assertion; the arrow-on-ray check after compile holds it then.
+  const drawnBefore = new Set((Array.isArray(raw.requiredEntityIds) ? raw.requiredEntityIds : [])
+    .filter((id): id is string => typeof id === "string"));
+  const crossingId = objectTipId
+    ? (intermediateTipId && drawnBefore.has(intermediateTipId) ? intermediateTipId : null)
+    : intermediateId;
 
   const existingRayIds = [...entityById].flatMap(([id, entity]) => entity.kind === "ray" ? [id] : []);
   const trainRayIds = [...existingRayIds.slice(0, 6)];
@@ -2570,7 +2636,7 @@ function deriveFiniteOpticalInstrumentChain(raw: Record<string, unknown>): Recor
         objective: objectiveId,
         eyepiece: eyepieceId,
         focus: intermediateId,
-        object: objectId,
+        object: objectTipId ?? objectId,
         finalImage: finalId,
       },
       outputs: trainRayIds,
@@ -2596,7 +2662,7 @@ function deriveFiniteOpticalInstrumentChain(raw: Record<string, unknown>): Recor
     { id: allocate("assert_final_on_axis"), predicate: "on", entities: [finalId, axisId], expected: true, severity: "fatal" },
     { id: allocate("assert_intermediate_between"), predicate: "between", entities: [intermediateId, objectiveCenterId, eyepieceCenterId], expected: true, severity: "fatal" },
     { id: allocate("assert_virtual_same_side"), predicate: "same_side", entities: [intermediateId, finalId, eyepieceCenterId], expected: true, severity: "fatal" },
-    { id: allocate("assert_intermediate_focus"), predicate: "converges", entities: [trainRayIds[2], trainRayIds[3], intermediateId], expected: true, severity: "fatal" },
+    ...(crossingId ? [{ id: allocate("assert_intermediate_focus"), predicate: "converges", entities: [trainRayIds[2], trainRayIds[3], crossingId], expected: true, severity: "fatal" }] : []),
   ];
 
   for (const id of [objectiveId, eyepieceId]) {
@@ -4355,13 +4421,14 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
       if (STATISTICAL_CONSTRUCTIONS.has(construction.operator)) validateStatisticsConstruction(construction, index, document, constructionByOutput, issues);
       if (TRIANGLE_CONSTRUCTIONS.has(construction.operator)) validateTriangleConstruction(construction, index, document, constructionByOutput, issues);
       if (CONIC_CONSTRUCTIONS.has(construction.operator)) validateConicConstruction(construction, index, document, constructionByOutput, issues);
-      if (SPACE_DERIVATION_CONSTRUCTIONS.has(construction.operator)) validateSpaceDerivationConstruction(construction, index, document, constructionByOutput, issues);
+      if (SPACE_DERIVATION_CONSTRUCTIONS.has(construction.operator)) validateSpaceDerivationConstruction(construction, index, document, constructionByOutput, issues, planSpaceView(document)?.projection);
       if (PROBABILITY_CONSTRUCTIONS.has(construction.operator)) validateProbabilityConstruction(construction, index, document, constructionByOutput, issues);
       if (FIELD_CONSTRUCTIONS.has(construction.operator)) validateFieldConstruction(construction, index, document, constructionByOutput, issues);
       if (DIPOLE_FIELD_CONSTRUCTIONS.has(construction.operator)) validateDipoleFieldConstruction(construction, index, document, constructionByOutput, issues);
       if (COORDINATE_LINE_CONSTRUCTIONS.has(construction.operator)) validateCoordinateLineConstruction(construction, index, document, constructionByOutput, issues);
       if (RIGID_MASS_CONSTRUCTIONS.has(construction.operator)) validateRigidMassConstruction(construction, index, document, constructionByOutput, issues);
       if (MATRIX_ARRAY_CONSTRUCTIONS.has(construction.operator)) validateMatrixArrayConstruction(construction, index, document, constructionByOutput, issues);
+      if ((LINEAR_REGION_OPERATORS as readonly string[]).includes(construction.operator)) validateLinearRegionConstruction(construction, index, document, issues);
       if (CIRCLE_CONSTRUCTIONS.has(construction.operator)) validateCircleConstruction(construction, index, document, constructionByOutput, issues);
       if (AFFINE_CONSTRUCTIONS.has(construction.operator)) validateAffineConstruction(construction, index, document, constructionByOutput, issues);
       if (VECTOR_CONSTRUCTIONS.has(construction.operator)) validateVectorConstruction(construction, index, document, constructionByOutput, issues);
@@ -4438,12 +4505,14 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
     }
     if (construction.operator === "polygon" && Array.isArray(construction.outputs)) {
       const output = construction.outputs[0];
-      const entity = document.entities.find((candidate) => candidate.id === output);
-      const role = `${String(entity?.role ?? "")} ${String(entity?.label ?? "")}`.toLowerCase();
-      if (/\b(?:region|area|enclosed)\b/.test(role) && document.constructions.some((candidate) => candidate.operator === "function_curve")) {
+      if (
+        polygonHasRegionRole(construction, document) &&
+        polygonClaimsGraphRegion(construction, document, constructionByOutput) &&
+        !polygonIsGraphRegion(construction, document, constructionByOutput)
+      ) {
         issues.push({
           code: "function_region_requires_deterministic_operator",
-          message: "A region bounded by function curves must use function_region; a guessed polygon is not accepted",
+          message: "A region bounded by a graph must use function_region with that graph as a boundary; a polygon is accepted only when it is exactly the region under the graph's own points",
           severity: "fatal",
           path: `constructions[${index}].operator`,
           entityIds: typeof output === "string" ? [output] : undefined,
@@ -4491,7 +4560,7 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
       const operator = constructionByOutput.get(assertion.entities[0] ?? "")?.operator;
       if (
         assertion.entities.length !== 1 ||
-        !SAMPLED_CURVE_OPERATORS.has(String(operator ?? "")) ||
+        (!SAMPLED_CURVE_OPERATORS.has(String(operator ?? "")) && !GRAPH_POLYLINE_OPERATORS.has(String(operator ?? ""))) ||
         !isRecord(assertion.expected) ||
         typeof assertion.expected.x !== "number" ||
         !Number.isFinite(assertion.expected.x) ||
@@ -4500,7 +4569,7 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
       ) {
         issues.push({
           code: "invalid_function_assertion",
-          message: "function_value requires one sampled curve entity and finite expected {x, y}",
+          message: "function_value requires one sampled curve or polyline graph entity and finite expected {x, y}",
           severity: "fatal",
           path: `assertions[${index}]`,
         });
@@ -4527,6 +4596,11 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
   });
   validateOpticalInstrumentProofContract(document, issues);
   document.annotations.forEach((annotation, index) => {
+    if (annotation.labelMode !== undefined &&
+        ((annotation.labelMode !== "append" && annotation.labelMode !== "replace") || annotation.kind !== "label" ||
+          (annotation.labelMode === "append" && (annotation.quantityId !== undefined || annotation.targetIds.length !== 1 || !annotation.text?.trim())))) {
+      issues.push({ code: "invalid_annotation_label_mode", message: "labelMode is append or replace on labels; append requires one target, literal text and no quantityId", severity: "fatal", path: `annotations[${index}].labelMode`, entityIds: annotation.targetIds });
+    }
     annotation.targetIds.forEach((id, ref) => requireEntity(id, `annotations[${index}].targetIds[${ref}]`));
     if (!(SCENE_ANNOTATION_KINDS as readonly string[]).includes(annotation.kind)) {
       issues.push({
@@ -4777,11 +4851,41 @@ function normalizeGenericPlannerSchema(raw: Record<string, unknown>): Record<str
       }
     }
   }
+  normalizeBareSpaceFrameAnchor(constructions);
   return {
     ...raw,
     entities,
     constructions,
   };
+}
+
+/**
+ * A space_frame origin is only the page anchor of a projected 3D frame; every
+ * world coordinate, angle and proof is measured inside the frame. When the
+ * document has exactly one frame, its anchor point gives no coordinates at
+ * all, and the whole figure lives in that frame, anchor it at (0, 0). A second
+ * frame or any other 2D construction makes the anchor meaningful, so the
+ * document is left for the validator.
+ */
+function normalizeBareSpaceFrameAnchor(constructions: unknown[]): void {
+  const frames = constructions.filter((construction) => isRecord(construction) && construction.operator === "space_frame");
+  if (frames.length !== 1) return;
+  const frameInputs = (frames[0] as Record<string, unknown>).inputs;
+  const originId = isRecord(frameInputs) ? frameInputs.origin ?? frameInputs.center : undefined;
+  if (typeof originId !== "string") return;
+  const frameOperators = new Set(["space_frame", "space_point", "space_line", "plane", ...SPACE_DERIVATION_OPERATORS]);
+  let anchor: Record<string, unknown> | null = null;
+  for (const construction of constructions) {
+    if (!isRecord(construction)) return;
+    const outputs = Array.isArray(construction.outputs) ? construction.outputs : [];
+    if (anchor === null && construction.operator === "point" && outputs.length === 1 && outputs[0] === originId) {
+      anchor = construction;
+      continue;
+    }
+    if (!frameOperators.has(String(construction.operator ?? ""))) return;
+  }
+  if (!anchor || !isRecord(anchor.inputs) || anchor.inputs.x !== undefined || anchor.inputs.y !== undefined) return;
+  anchor.inputs = { ...anchor.inputs, x: 0, y: 0 };
 }
 
 export function implicitSolverEntityIds(document: SceneDocument): Set<string> {
@@ -5341,28 +5445,56 @@ function validateFunctionRegionConstruction(
       entityIds: output ? [output] : undefined,
     });
   }
-  if (upper?.operator !== "function_curve" || lower?.operator !== "function_curve") {
+  const isGraph = (candidate: SceneDocument["constructions"][number] | undefined): boolean =>
+    candidate?.operator === "function_curve" || GRAPH_POLYLINE_OPERATORS.has(String(candidate?.operator ?? ""));
+  if (!isGraph(upper) || !isGraph(lower)) {
     issues.push({
       code: "invalid_function_region_reference",
-      message: "function_region upper and lower must reference constructed function curves",
+      message: "function_region upper and lower must reference constructed function curves or polyline graphs",
       severity: "fatal",
       path: `constructions[${index}].inputs`,
       entityIds: [upperId, lowerId].filter((id): id is string => typeof id === "string"),
     });
     return;
   }
-  const upperDomain = sampledCurveDomain(upper, document);
-  const lowerDomain = sampledCurveDomain(lower, document);
+  if ([upper!, lower!].some((candidate) => motionGraphPlacement(candidate, document, constructionByOutput) === "scaled")) {
+    issues.push({
+      code: "invalid_function_region_reference",
+      message: "a motion_graph bounds a function_region only at timeScale 1 with its origin at (0, 0): the other boundary and xMin/xMax are written in seconds, while the graph is drawn at origin + t * timeScale",
+      severity: "fatal",
+      path: `constructions[${index}].inputs`,
+      entityIds: [upperId, lowerId].filter((id): id is string => typeof id === "string"),
+    });
+    return;
+  }
+  const upperGraph = validationGraphBoundary(upper!, document, constructionByOutput);
+  const lowerGraph = validationGraphBoundary(lower!, document, constructionByOutput);
+  if (upperGraph === "invalid" || lowerGraph === "invalid") {
+    issues.push({
+      code: "invalid_function_region_reference",
+      message: "a polyline bounding a function_region must be a graph whose vertices strictly increase in x",
+      severity: "fatal",
+      path: `constructions[${index}].inputs`,
+      entityIds: [upperId, lowerId].filter((id): id is string => typeof id === "string"),
+    });
+    return;
+  }
+  // A polyline whose vertices are themselves derived (an intersection, say)
+  // cannot be read statically; the compiler reads it and fails closed.
+  if (upperGraph === "unresolved" || lowerGraph === "unresolved") {
+    validateCurveSamples(inputs.samples, index, document, issues, "function_region");
+    return;
+  }
   const xMin = inputs.xMin === undefined
-    ? upperDomain && lowerDomain ? Math.max(upperDomain.min, lowerDomain.min) : null
+    ? Math.max(upperGraph.min, lowerGraph.min)
     : validationNumber(inputs.xMin, document);
   const xMax = inputs.xMax === undefined
-    ? upperDomain && lowerDomain ? Math.min(upperDomain.max, lowerDomain.max) : null
+    ? Math.min(upperGraph.max, lowerGraph.max)
     : validationNumber(inputs.xMax, document);
   if (
-    !upperDomain || !lowerDomain || xMin === null || xMax === null || !(xMin < xMax) ||
-    xMin < upperDomain.min || xMax > upperDomain.max ||
-    xMin < lowerDomain.min || xMax > lowerDomain.max
+    xMin === null || xMax === null || !(xMin < xMax) ||
+    xMin < upperGraph.min || xMax > upperGraph.max ||
+    xMin < lowerGraph.min || xMax > lowerGraph.max
   ) {
     issues.push({
       code: "invalid_function_region_domain",
@@ -5374,25 +5506,324 @@ function validateFunctionRegionConstruction(
     return;
   }
   validateCurveSamples(inputs.samples, index, document, issues, "function_region");
-  try {
-    const upperExpression = parseMathExpression(String(upper.inputs.expression));
-    const lowerExpression = parseMathExpression(String(lower.inputs.expression));
-    const reversedAt = Array.from({ length: 65 }, (_, sampleIndex) =>
-      xMin + (xMax - xMin) * sampleIndex / 64
-    ).find((x) => upperExpression.evaluate(x) + 1e-6 < lowerExpression.evaluate(x));
-    if (reversedAt !== undefined) {
-      issues.push({
-        code: "invalid_function_region_order",
-        message: "function_region upper curve must not fall below its lower curve in the requested interval",
-        severity: "fatal",
-        path: `constructions[${index}].inputs`,
-        expected: "upper(x) >= lower(x)",
-        actual: { x: reversedAt },
-      });
-    }
-  } catch {
-    // Referenced function_curve validation owns expression diagnostics.
+  const reversedAt = regionGrid(upperGraph, lowerGraph, xMin, xMax, 65)
+    .find((x) => upperGraph.evaluate(x) + 1e-6 < lowerGraph.evaluate(x));
+  if (reversedAt !== undefined) {
+    issues.push({
+      code: "invalid_function_region_order",
+      message: "function_region upper curve must not fall below its lower curve in the requested interval",
+      severity: "fatal",
+      path: `constructions[${index}].inputs`,
+      expected: "upper(x) >= lower(x)",
+      actual: { x: reversedAt },
+    });
   }
+}
+
+/**
+ * A graph y = f(x) read statically from the document: a function_curve over
+ * its stated domain, or a polyline or motion_graph whose vertices are literal
+ * world points. `unresolved` means the vertices are derived and only the
+ * compiler can read them; `invalid` means the vertices do not increase in x.
+ */
+function validationGraphBoundary(
+  construction: SceneDocument["constructions"][number],
+  document: SceneDocument,
+  constructionByOutput: Map<string, SceneDocument["constructions"][number]>,
+): GraphBoundary | "unresolved" | "invalid" {
+  if (construction.operator === "function_curve") {
+    // A curve without a readable domain has an empty one, so the region
+    // domain check rejects it; an unparsable expression is reported by the
+    // curve's own validation and simply never orders the region.
+    const domain = sampledCurveDomain(construction, document) ?? { min: Number.NaN, max: Number.NaN };
+    let evaluate: (x: number) => number = () => Number.NaN;
+    try {
+      const expression = parseMathExpression(String(construction.inputs.expression));
+      evaluate = (x: number) => expression.evaluate(x);
+    } catch {
+      // Referenced function_curve validation owns expression diagnostics.
+    }
+    return { min: domain.min, max: domain.max, breakpoints: [], evaluate };
+  }
+  const points = validationGraphVertices(construction, document, constructionByOutput);
+  if (!points) return "unresolved";
+  return piecewiseLinearGraph(points) ?? "invalid";
+}
+
+/**
+ * Where a motion graph sits on the board. Its samples are drawn at
+ * origin + t * timeScale, so only timeScale 1 with the origin at (0, 0) keeps
+ * its x in the seconds a region's other boundary and xMin/xMax are written
+ * in. `unresolved` leaves the decision to the compiler, which checks the same.
+ */
+function motionGraphPlacement(
+  construction: SceneDocument["constructions"][number],
+  document: SceneDocument,
+  constructionByOutput: Map<string, SceneDocument["constructions"][number]>,
+): "identity" | "scaled" | "unresolved" | "none" {
+  if (construction.operator !== "motion_graph") return "none";
+  const timeScale = validationNumber(construction.inputs.timeScale, document);
+  const origin = construction.inputs.origin === undefined
+    ? { x: 0, y: 0 }
+    : validationWorldPoint(construction.inputs.origin, document, constructionByOutput);
+  if (timeScale === null || !origin) return "unresolved";
+  return timeScale === 1 && origin.x === 0 && origin.y === 0 ? "identity" : "scaled";
+}
+
+function validationGraphVertices(
+  construction: SceneDocument["constructions"][number],
+  document: SceneDocument,
+  constructionByOutput: Map<string, SceneDocument["constructions"][number]>,
+): GraphPoint[] | null {
+  const inputs = construction.inputs;
+  if (construction.operator === "polyline" || construction.operator === "polygon") {
+    const ids = inputs.points ?? inputs.vertices;
+    if (!Array.isArray(ids) || ids.length < 2) return null;
+    const points = ids.map((id) => validationWorldPoint(id, document, constructionByOutput));
+    return points.every((point): point is GraphPoint => point !== null) ? points : null;
+  }
+  if (construction.operator === "motion_graph") {
+    const timeScale = validationNumber(inputs.timeScale, document);
+    const ordinateScale = validationNumber(inputs.ordinateScale, document);
+    const origin = inputs.origin === undefined ? { x: 0, y: 0 } : validationWorldPoint(inputs.origin, document, constructionByOutput);
+    if (timeScale === null || ordinateScale === null || !origin || !Array.isArray(inputs.points)) return null;
+    const points = inputs.points.map((sample) => {
+      const pairValue = Array.isArray(sample) && sample.length === 2 ? { t: sample[0], value: sample[1] } : sample;
+      if (!isRecord(pairValue)) return null;
+      const t = validationNumber(pairValue.t, document);
+      const value = validationNumber(pairValue.value, document);
+      return t === null || value === null ? null : { x: origin.x + t * timeScale, y: origin.y + value * ordinateScale };
+    });
+    return points.every((point): point is GraphPoint => point !== null) ? points : null;
+  }
+  return null;
+}
+
+function validationWorldPoint(
+  value: unknown,
+  document: SceneDocument,
+  constructionByOutput: Map<string, SceneDocument["constructions"][number]>,
+): GraphPoint | null {
+  if (Array.isArray(value) && value.length === 2) {
+    const x = validationNumber(value[0], document);
+    const y = validationNumber(value[1], document);
+    return x === null || y === null ? null : { x, y };
+  }
+  if (isRecord(value)) {
+    const x = validationNumber(value.x, document);
+    const y = validationNumber(value.y, document);
+    return x === null || y === null ? null : { x, y };
+  }
+  if (typeof value !== "string") return null;
+  const producer = constructionByOutput.get(value);
+  if (producer?.operator !== "point") return null;
+  const space = producer.inputs.coordinateSpace ?? "world";
+  if (space !== "world") return null;
+  const x = validationNumber(producer.inputs.x, document);
+  const y = validationNumber(producer.inputs.y, document);
+  return x === null || y === null ? null : { x, y };
+}
+
+/** Whether a polygon's entity names a region, an area or a displacement. */
+function polygonHasRegionRole(
+  polygon: SceneDocument["constructions"][number],
+  document: SceneDocument,
+): boolean {
+  const output = polygon.outputs[0];
+  const entity = document.entities.find((candidate) => candidate.id === output);
+  return GRAPH_REGION_ROLE.test(`${String(entity?.role ?? "")} ${String(entity?.label ?? "")}`.toLowerCase());
+}
+
+/**
+ * Whether a region polygon sits on a graph: the document draws a function
+ * curve or a motion graph, or the polygon claims a polyline graph on axes.
+ * It claims the graph when two of its vertices lie on it, or when its x span
+ * stays inside the graph's domain: the rectangle under the last point of a
+ * graph that starts above zero touches it once, and a rectangle too tall or
+ * too short for the graph touches it nowhere. A vertex lies on the graph by
+ * sharing a point id with it or by sitting at the graph's coordinates under
+ * a new id. The caller asks only for a polygon with a region role, so a
+ * triangle that merely shares a corner with a median, and reaches past the
+ * median's x span, is never claimed. Such a polygon must then be the region
+ * under that graph.
+ */
+function polygonClaimsGraphRegion(
+  polygon: SceneDocument["constructions"][number],
+  document: SceneDocument,
+  constructionByOutput: Map<string, SceneDocument["constructions"][number]>,
+): boolean {
+  if (document.constructions.some((candidate) => candidate.operator === "function_curve" || candidate.operator === "motion_graph")) return true;
+  if (!document.constructions.some((candidate) => candidate.operator === "axes")) return false;
+  const ids = polygon.inputs.points ?? polygon.inputs.vertices;
+  if (!Array.isArray(ids)) return false;
+  const vertices = ids.map((id) => ({ id, point: validationWorldPoint(id, document, constructionByOutput) }));
+  const resolved = vertices.map((vertex) => vertex.point).filter((point): point is GraphPoint => point !== null);
+  const xMin = Math.min(...resolved.map((point) => point.x));
+  const xMax = Math.max(...resolved.map((point) => point.x));
+  return document.constructions.some((candidate) => {
+    if (candidate.operator !== "polyline") return false;
+    const graph = validationGraphBoundary(candidate, document, constructionByOutput);
+    if (typeof graph !== "object") return false;
+    const graphIds = new Set((candidate.inputs.points ?? candidate.inputs.vertices) as unknown[]);
+    const onGraph = vertices.filter(({ id, point }) => {
+      if (typeof id === "string" && graphIds.has(id)) return true;
+      if (!point) return false;
+      // Points redeclared at the graph's coordinates under new ids.
+      const y = graph.evaluate(point.x);
+      return Number.isFinite(y) && Math.abs(y - point.y) <= Math.max(1, graph.max - graph.min, Math.abs(y)) * 1e-6;
+    }).length;
+    if (onGraph >= 2) return true;
+    const span = Math.max(1e-9, (graph.max - graph.min) * 1e-6);
+    // With no vertex on the graph, every vertex must be read before its x
+    // span can be said to sit inside the graph's domain.
+    const spanRead = onGraph === 1 ? resolved.length > 0 : resolved.length > 0 && resolved.length === vertices.length;
+    return spanRead && xMin >= graph.min - span && xMax <= graph.max + span;
+  });
+}
+
+/**
+ * Whether a polygon with a region role is exactly the region between one
+ * graph of the document and its baseline, the axis y = 0 or a motion graph's
+ * own zero line (a curve that is identically zero draws the axis), over the
+ * polygon's own x span, with no other graph of
+ * the document passing through it. Such a polygon is built from the graph's
+ * own points. A shape between two graphs, or between a guide line and the
+ * axis with the real graph running through it, is a guess: the area between
+ * curves must use function_region. The one exception is a straight graph's
+ * area split along its own first or last height, read by
+ * `polygonIsSplitGraphRegion`.
+ */
+function polygonIsGraphRegion(
+  polygon: SceneDocument["constructions"][number],
+  document: SceneDocument,
+  constructionByOutput: Map<string, SceneDocument["constructions"][number]>,
+): boolean {
+  const vertices = validationGraphVertices(polygon, document, constructionByOutput);
+  if (!vertices || vertices.length < 3) return false;
+  const graphs = document.constructions
+    .filter((candidate) => candidate !== polygon && (candidate.operator === "function_curve" || GRAPH_POLYLINE_OPERATORS.has(candidate.operator)))
+    .map((candidate) => ({
+      operator: candidate.operator,
+      boundary: validationGraphBoundary(candidate, document, constructionByOutput),
+      baseline: graphBaseline(candidate, document, constructionByOutput),
+    }))
+    .filter((graph): graph is DocumentGraph =>
+      typeof graph.boundary === "object" && graph.baseline !== null);
+  // A graph below the axis (a negative velocity) bounds its region from below.
+  const underGraph = graphs.some(({ operator, boundary, baseline }) => {
+    // A motion graph is a declared quantity against time, never a guide, so
+    // the area under it stays that area when a second graph (another car)
+    // passes beneath. A polyline or a function curve may be a guide line,
+    // so the region under it must be one cell no other graph cuts.
+    const others = operator === "motion_graph"
+      ? []
+      : graphs.filter((other) => other.boundary !== boundary).map((other) => other.boundary);
+    return polygonMatchesGraphRegion(vertices, boundary, baseline, others) ||
+      polygonMatchesGraphRegion(vertices, baseline, boundary, others);
+  });
+  return underGraph || polygonIsSplitGraphRegion(polygon, vertices, graphs, document, constructionByOutput);
+}
+
+interface DocumentGraph {
+  operator: string;
+  boundary: GraphBoundary;
+  baseline: GraphBoundary;
+}
+
+/**
+ * The graphical derivation of s = ut + ½at²: the area under a straight v
+ * against t graph is cut by the line v = u into the rectangle ut and the
+ * triangle ½at² above it. A polyline or motion graph (never a function curve)
+ * may be split this way along y = c, where c is the height of its own first
+ * or last vertex and lies between the graph and its baseline across the
+ * polygon's x span. A polygon is one piece when it is exactly the band
+ * between the graph and y = c, or between y = c and the baseline, with no
+ * other graph passing through it. A piece is accepted only when its
+ * complement is drawn too, as a region polygon over the same x span and the
+ * same c: a lone ut rectangle labelled as the whole displacement is still a
+ * guess at the area under the graph.
+ */
+function polygonIsSplitGraphRegion(
+  polygon: SceneDocument["constructions"][number],
+  vertices: GraphPoint[],
+  graphs: DocumentGraph[],
+  document: SceneDocument,
+  constructionByOutput: Map<string, SceneDocument["constructions"][number]>,
+): boolean {
+  const span = polygonXSpan(vertices);
+  if (!span) return false;
+  const complements = document.constructions
+    .filter((candidate) => candidate !== polygon && candidate.operator === "polygon" && polygonHasRegionRole(candidate, document))
+    .map((candidate) => validationGraphVertices(candidate, document, constructionByOutput))
+    .filter((points): points is GraphPoint[] => {
+      if (!points || points.length < 3) return false;
+      const other = polygonXSpan(points);
+      return other !== null && Math.abs(other.min - span.min) <= span.tolerance && Math.abs(other.max - span.max) <= span.tolerance;
+    });
+  if (complements.length === 0) return false;
+  const piece = (points: GraphPoint[], one: GraphBoundary, two: GraphBoundary, others: GraphBoundary[]) =>
+    polygonMatchesGraphRegion(points, one, two, others) || polygonMatchesGraphRegion(points, two, one, others);
+  return graphs.some((graph) => {
+    if (!GRAPH_POLYLINE_OPERATORS.has(graph.operator)) return false;
+    const { boundary, baseline } = graph;
+    const others = graphs.filter((other) => other !== graph).map((other) => other.boundary);
+    const heights = [boundary.evaluate(boundary.min), boundary.evaluate(boundary.max)];
+    return [...new Set(heights)].some((c) => {
+      if (!splitLineInsideRegion(boundary, baseline, c, span)) return false;
+      const line: GraphBoundary = { ...AXIS_BASELINE, evaluate: () => c };
+      const upper = (points: GraphPoint[]) => piece(points, boundary, line, others);
+      const lower = (points: GraphPoint[]) => piece(points, line, baseline, others);
+      return (upper(vertices) && complements.some(lower)) || (lower(vertices) && complements.some(upper));
+    });
+  });
+}
+
+function polygonXSpan(points: readonly GraphPoint[]): { min: number; max: number; tolerance: number } | null {
+  const xs = points.map((point) => point.x);
+  const min = Math.min(...xs);
+  const max = Math.max(...xs);
+  if (!(max > min)) return null;
+  return { min, max, tolerance: Math.max(1e-9, (max - min) * 1e-6) };
+}
+
+/**
+ * Whether y = c stays between a graph and its baseline over the span, at
+ * every vertex of the graph inside it, and strictly between them at the
+ * span's middle, so both pieces it cuts are real areas.
+ */
+function splitLineInsideRegion(
+  graph: GraphBoundary,
+  baseline: GraphBoundary,
+  c: number,
+  span: { min: number; max: number },
+): boolean {
+  if (!Number.isFinite(c)) return false;
+  const stations = [span.min, span.max, ...graph.breakpoints.filter((x) => x > span.min && x < span.max)];
+  const values = stations.flatMap((x) => [graph.evaluate(x), baseline.evaluate(x)]);
+  if (!values.every(Number.isFinite)) return false;
+  const tolerance = Math.max(1, Math.max(...values, c) - Math.min(...values, c)) * 1e-6;
+  const between = (x: number, strict: boolean) => {
+    const low = Math.min(graph.evaluate(x), baseline.evaluate(x));
+    const high = Math.max(graph.evaluate(x), baseline.evaluate(x));
+    return strict ? c > low + tolerance && c < high - tolerance : c >= low - tolerance && c <= high + tolerance;
+  };
+  return stations.every((x) => between(x, false)) && between((span.min + span.max) / 2, true);
+}
+
+/**
+ * The line a graph's region closes on: the axis y = 0, except for a motion
+ * graph, whose zero value is drawn at its own origin's y. A motion graph whose
+ * origin cannot be read has no baseline here.
+ */
+function graphBaseline(
+  construction: SceneDocument["constructions"][number],
+  document: SceneDocument,
+  constructionByOutput: Map<string, SceneDocument["constructions"][number]>,
+): GraphBoundary | null {
+  if (construction.operator !== "motion_graph" || construction.inputs.origin === undefined) return AXIS_BASELINE;
+  const origin = validationWorldPoint(construction.inputs.origin, document, constructionByOutput);
+  if (!origin) return null;
+  return origin.y === 0 ? AXIS_BASELINE : { ...AXIS_BASELINE, evaluate: () => origin.y };
 }
 
 function validateMensurationConstruction(
@@ -6328,7 +6759,7 @@ function validateParameterizedCurveInputs(
       });
     }
   }
-  validateCurveSamples(inputs.samples, index, document, issues, contract.operator);
+  validateCurveSamples(inputs.samples, index, document, issues, contract.operator, LOOP_CURVE_MAX_SAMPLES);
 }
 
 function sampledCurveDomain(
@@ -6348,18 +6779,22 @@ function sampledCurveDomain(
   return min !== null && max !== null && min < max ? { min, max } : null;
 }
 
+/** Parametric and polar curves often close a full loop; like conics they may ask for up to 513 samples. */
+const LOOP_CURVE_MAX_SAMPLES = 513;
+
 function validateCurveSamples(
   value: unknown,
   index: number,
   document: SceneDocument,
   issues: SceneIssue[],
   operator: string,
+  maxSamples = 161,
 ): void {
   const samples = value === undefined ? 65 : validationNumber(value, document);
-  if (samples === null || !Number.isInteger(samples) || samples < 17 || samples > 161 || samples % 2 === 0) {
+  if (samples === null || !Number.isInteger(samples) || samples < 17 || samples > maxSamples || samples % 2 === 0) {
     issues.push({
       code: `invalid_${operator}_samples`,
-      message: `${operator} samples must be an odd integer from 17 to 161`,
+      message: `${operator} samples must be an odd integer from 17 to ${maxSamples}`,
       severity: "fatal",
       path: `constructions[${index}].inputs.samples`,
       actual: samples,
@@ -6515,6 +6950,7 @@ function isImplicitConstructionPoint(entityId: string, document: SceneDocument):
 }
 
 function isGenericHelperPointRole(role: string): boolean {
+  if (typeof role !== "string") return false;
   const normalized = role.replace(/[_-]+/g, " ");
   if (/\b(?:observation|target|charge|object|image|focus|focal|pole|vertex|midpoint|intersection|incidence|source|curvature|mass)\b/i.test(normalized)) {
     return false;

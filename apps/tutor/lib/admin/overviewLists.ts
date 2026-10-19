@@ -27,6 +27,8 @@ export async function fetchOverviewLists(windows: {
         id: true,
         question: true,
         visualStatus: true,
+        status: true,
+        _count: { select: { segments: true } },
         sceneArtifacts: true,
         createdAt: true,
         userId: true,
@@ -83,7 +85,8 @@ export async function fetchOverviewLists(windows: {
   const latestTurns: OverviewLatestTurn[] = latestRows.map((turn) => ({
     turnId: turn.id,
     question: turn.question,
-    outcome: classifyOutcome(turn.visualStatus),
+    outcome: classifyOutcome(turn.visualStatus, { status: turn.status,
+      sceneArtifacts: turn.sceneArtifacts, segmentCount: turn._count.segments }),
     tier: extractArtifactSummary(turn.sceneArtifacts)?.representationTier ?? null,
     userLabel: userLabel({
       userId: turn.userId,

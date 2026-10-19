@@ -355,6 +355,90 @@ for (const values of [
   chemistryFigure(`In an atomic electron model, ${values}; work function is 2 eV. Draw the photoelectron energy balance.`, "chem_orbital");
 });
 
+// Public source-role regressions: decomposition identity and photon ownership.
+for (const species of ["N2O5", "N₂O₅", "H2O2", "ethanol", "propan-2-ol"]) check(`complete compound decomposition retains kinetics: ${species}`, () => {
+  const question = `The first order decomposition of ${species} has half life 20 min. Draw the fraction remaining after 60 min.`;
+  chemistryFigure(question, "chem_kinetics");
+  const direct = chemistryFamilyBuilder("chem_kinetics")?.(question, [], false);
+  assert.ok(direct);
+  assert.ok(direct.quantities.some(quantity => quantity.symbol === "t_1/2" && quantity.value === 20));
+  assert.ok(direct.annotations.some(annotation => /1\/8|0\.125|12\.5/.test(annotation.text ?? "")), "three half lives leave one eighth");
+});
+for (const question of [
+  "The first order decomposition of N2O5foo has half life 20 min. Draw the fraction remaining after 60 min.",
+  "The first order decomposition of N2O5^bad has half life 20 min. Draw the fraction remaining after 60 min.",
+  "The first order decomposition of N2O5/O2 has half life 20 min. Draw the fraction remaining after 60 min.",
+  "The first order decomposition of n2o5 has half life 20 min. Draw the fraction remaining after 60 min.",
+  "The first order decomposition of a sample has half life 20 min. Draw the fraction remaining after 60 min.",
+  "A radioactive nucleus has half life 20 min. Draw the fraction remaining after 60 min.",
+  "N2O5 is background. A sample has first order decomposition with half life 20 min. Draw the fraction remaining after 60 min.",
+  "There is no first order decomposition of N2O5. A sample has half life 20 min. Draw the fraction remaining after 60 min.",
+  "Without decomposition of N2O5, a sample has half life 20 min. Draw the fraction remaining after 60 min.",
+  "The first order decomposition of N2O5 is not occurring. A sample has half life 20 min. Draw the fraction remaining after 60 min.",
+]) check(`unbound or excluded decomposition cannot admit kinetics: ${question}`, () => {
+  assert.equal(inferChemistryFamilies(question).includes("chem_kinetics"), false);
+  assert.equal(chemistryFamilyBuilder("chem_kinetics")?.(question, [], false), null);
+  assert.notEqual(synthesizeFamilyScene({ question })?.family, "chem_kinetics");
+});
+for (const values of [
+  "photon energy is 3 eV; work function is 2 eV; emitted electron wavelength is 1.227 nm",
+  "emitted electron wavelength is 1.227 nm; work function is 2 eV; photon energy is 3 eV",
+  "photon energy is 3 eV; work function is 2 eV; emitted electron wavelength is 1.227 nm; incident light wavelength is 413.2806614440008 nm",
+  "emitted electron wavelength is 1.227 nm; incident light frequency is 7.253967726254754e14 Hz; work function is 2 eV; photon energy is 3 eV",
+  "work function is 2 eV; incident light wavelength is 413.2806614440008 nm; emitted electron wavelength is 1.227 nm",
+  "work function is 2 eV; photon energy is 3 eV; unrelated sound wavelength is 1.227 nm",
+  "work function is 2 eV; photon energy is 3 eV; background wavelength is 1.227 nm",
+  "work function is 2 eV and photon energy is 3 eV and emitted electron wavelength is 1.227 nm",
+]) check(`photon energy excludes separate matter or unrelated wavelength role: ${values}`, () => {
+  const question = `In an atomic electron model, ${values}. Draw the photoelectron energy balance.`;
+  chemistryFigure(question, "chem_orbital");
+  const scene = synthesizeFamilyScene({ question }); assert.ok(scene);
+  const labels = scene.renderScene.primitives.filter(primitive => primitive.kind === "label").map(primitive => primitive.text);
+  for (const expected of ["phi=2.00 eV", "E=3.00 eV", "K=1.00 eV"]) assert.ok(labels.includes(expected), expected);
+});
+for (const values of [
+  "work function is 2 eV; emitted electron wavelength is 1.227 nm",
+  "photon energy is 3 eV; work function is 2 eV; emitted electron wavelength is 1.227 nm; incident light wavelength is 400 nm",
+  "photon energy is 3 eV; work function is 2 eV; emitted electron wavelength is 1.227 nm; incident light frequency is 1e15 Hz",
+  "photon energy is 3 eV; work function is 2 eV; incident light wavelength is 4e- nm; emitted electron wavelength is 1.227 nm",
+  "photon energy is 3 eV; work function is 2 eV; incident light wavelength is 400 M; emitted electron wavelength is 1.227 nm",
+  "photon energy is 3 eV; work function is 2 eV; incident light wavelength is 413.2806614440008 nm; incident light wavelength is 413.2806614440008 nm",
+  "work function is 2 eV; incident light wavelength is 400 nm; incident light frequency is 1e15 Hz; emitted electron wavelength is 1.227 nm",
+  "photon energy is 3.10 eV; work function is 2 eV; incident light wavelength is 400 nm; emitted electron wavelength is 1.227 nm",
+]) check(`incident photon input retains strict damage duplicate and consistency refusals: ${values}`, () => {
+  const question = `In an atomic electron model, ${values}. Draw the photoelectron energy balance.`;
+  assert.equal(chemistryFamilyBuilder("chem_orbital")?.(question, [], false), null);
+  assert.equal(synthesizeFamilyScene({ question }), null);
+});
+
+// Decimal points do not terminate the original local measurement owner.
+for (const [values, energy, kinetic] of [
+  ["photon energy is 3 eV; work function is 2 eV; emitted electron has kinetic energy 1.0 eV and wavelength is 1.227 nm", "3.00", "1.00"],
+  ["emitted electron has kinetic energy 1.0 eV and wavelength is 1.227 nm; work function is 2 eV; photon energy is 3 eV", "3.00", "1.00"],
+  ["photon energy is 3 eV; work function is 2 eV; emitted electron has kinetic energy 1.000 eV and wavelength is 1.227 nm; incident light wavelength is 413.2806614440008 nm", "3.00", "1.00"],
+  ["photon energy is 2.5 eV; work function is 2 eV; emitted electron has kinetic energy .5 eV and wavelength is 1.735 nm", "2.50", "0.50"],
+] as const) check(`decimal electron quantity preserves its wavelength owner: ${values}`, () => {
+  const question = `In an atomic electron model, ${values}. Draw the photoelectron energy balance.`;
+  chemistryFigure(question, "chem_orbital");
+  const scene = synthesizeFamilyScene({ question }); assert.ok(scene);
+  const labels = scene.renderScene.primitives.filter(primitive => primitive.kind === "label").map(primitive => primitive.text);
+  for (const expected of ["phi=2.00 eV", `E=${energy} eV`, `K=${kinetic} eV`]) assert.ok(labels.includes(expected), expected);
+});
+for (const values of [
+  "work function is 2 eV; emitted electron has kinetic energy 1.0 eV and wavelength is 1.227 nm",
+  "work function is 2 eV; emitted electron has kinetic energy .5 eV and wavelength is 1.735 nm",
+  "photon energy is 3 eV; work function is 2 eV; emitted electron has kinetic energy 1.0 eV and wavelength is 1.227 nm; incident light wavelength is 400 nm",
+  "photon energy is 3 eV; work function is 2 eV; emitted electron has kinetic energy 1.0 eV and wavelength is 1.227 nm; incident light frequency is 1e15 Hz",
+  "photon energy is 3 eV; work function is 2 eV; emitted electron has kinetic energy 1.0 eV and wavelength is 1.227 nm; incident light wavelength is 4e- nm",
+  "photon energy is 3 eV; work function is 2 eV; emitted electron has kinetic energy 1.0 eV and wavelength is 1.227 nm; incident light wavelength is 413.2806614440008 nm/s",
+  "work function is 2 eV; not incident light wavelength is 1.227 nm",
+  "work function is 2 eV; emitted electron has kinetic energy 1.0 eV and wavelength is 1.227 nm, not incident light",
+]) check(`decimal separate owner cannot supply or hide damaged photon input: ${values}`, () => {
+  const question = `In an atomic electron model, ${values}. Draw the photoelectron energy balance.`;
+  assert.equal(chemistryFamilyBuilder("chem_orbital")?.(question, [], false), null);
+  assert.equal(synthesizeFamilyScene({ question }), null);
+});
+
 // The frozen public corpus remains external: fixtures are oracles, never routing inputs.
 const args = process.argv.slice(2);
 const argument = (name: string): string | undefined => {

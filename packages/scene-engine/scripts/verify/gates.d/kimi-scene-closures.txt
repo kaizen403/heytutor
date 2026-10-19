@@ -1,0 +1,2 @@
+# Kimi K3 Fast replay: two-plate capacitor loops and bare 3D frame anchors.
+tsx scripts/verify/verify-kimi-scene-closures.ts

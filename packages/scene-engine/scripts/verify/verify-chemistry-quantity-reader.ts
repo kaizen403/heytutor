@@ -71,7 +71,11 @@ check("source binding origin and conflict", () => {
   const given = { id: "Ea", symbol: "Ea", value: 50, unit: "kJ/mol", origin: "given", sourceText: "50 kJ/mol" };
   near(reader.resolveChemistryGiven({ ...base, quantities: [{ ...given, origin: "derived", value: 99 }] }).reading?.value, 50);
   near(reader.resolveChemistryGiven({ ...base, quantities: [given] }).reading?.value, 50);
-  for (const bad of [{ ...given, value: 99 }, { ...given, unit: "K" }, { ...given, sourceText: "50 kJ/mol elsewhere" }]) assert.equal(reader.resolveChemistryGiven({ ...base, quantities: [bad] }).ok, false);
+  for (const bad of [{ ...given, value: 99 }, { ...given, unit: "K" }]) assert.equal(reader.resolveChemistryGiven({ ...base, quantities: [bad] }).ok, false);
+  // Owner-approved policy supersedes the old refusal of unbound planner prose.
+  const unbound = reader.resolveChemistryGiven({ ...base, quantities: [{ ...given, sourceText: "50 kJ/mol elsewhere" }] });
+  assert.ok(unbound.ok); near(unbound.reading.value, 50); assert.equal(unbound.reading.source.kind, "stem_given");
+  assert.equal(unbound.reading.source.planQuantityId, undefined);
   assert.equal(reader.resolveChemistryGiven({ ...base, question: "Plot an energy profile.", quantities: [{ ...given, origin: "derived" }] }).ok, false);
   assert.equal(reader.resolveChemistryGiven({ ...base, question: "Plot an energy profile.", quantities: [{ ...given, origin: undefined }] }).ok, false);
 });
@@ -432,5 +436,138 @@ check("complete inverse-mole Faraday unit supports actual electrolysis source", 
   const question="Aqueous CuSO4 is electrolysed by a 2.0 A current for 30 minutes. Cu = 63.5 g mol^-1 and F = 96500 C mol^-1. Find the mass of copper deposited.";
   assert.match(compiled("electrolysis-inverse-mole",buildElectrochemScene(question,[],false)),/1.19 g/);
 });
+
+// PR137 caller-review additions; one old no-span refusal is superseded above.
+check("Unbound alias values are ignored without plan provenance",()=>{
+ assert.ok(reader);
+ const question="Activation energy is 50 kJ/mol. Plot the energy profile.";
+ const base={question,aliases:["Ea"],after:/activation energy/,dimension:"molar_energy",targetUnit:"kJ/mol"};
+ for(const sourceText of [undefined,"Ea = 50","50 kJ/mol elsewhere"]){
+  const given={id:"Ea",symbol:"Ea",value:Infinity,unit:"nonsense",origin:"given",sourceText};
+  assert.equal(reader.chemistryPlanBindingsValid(question,[given]),true);
+  const read=reader.resolveChemistryGiven({...base,quantities:[given]});assert.ok(read.ok);near(read.reading.value,50);
+  assert.equal(read.reading.source.kind,"stem_given");assert.equal(read.reading.source.planQuantityId,undefined);
+ }
+ const ignored={id:"Ea",symbol:"Ea",value:99,unit:"K",origin:"given",sourceText:"Ea = 99"};
+ const bound={id:"Ea-real",symbol:"Ea",value:50,unit:"kJ/mol",origin:"given",sourceText:"50 kJ/mol"};
+ const result=reader.resolveChemistryGiven({...base,quantities:[ignored,bound]});assert.ok(result.ok);assert.equal(result.reading.source.planQuantityId,"Ea-real");
+});
+check("Explicit damaged binding and genuinely bound conflict are distinct from free text",()=>{
+ assert.ok(reader);const question="Activation energy is 50 kJ/mol. Plot the energy profile.";const start=question.indexOf("50");
+ const base={question,aliases:["Ea"],after:/activation energy/,dimension:"molar_energy",targetUnit:"kJ/mol"};
+ const good={id:"Ea",symbol:"Ea",value:50,unit:"kJ/mol",origin:"given",sourceText:"50 kJ/mol",sourceSpan:{start,end:start+9}};
+ for(const bad of [{...good,value:Infinity},{...good,value:51},{...good,unit:"K"},{...good,unit:"nonsense"},{...good,sourceSpan:{start:-1,end:3}},{...good,sourceSpan:{start,end:question.length+1}},{...good,sourceText:"Ea = 50"}]){
+  assert.equal(reader.chemistryPlanBindingsValid(question,[bad]),false,JSON.stringify(bad));
+  assert.equal(reader.resolveChemistryGiven({...base,quantities:[bad]}).ok,false,JSON.stringify(bad));
+ }
+ const valid=reader.resolveChemistryGiven({...base,quantities:[good]});assert.ok(valid.ok);assert.equal(valid.reading.source.kind,"plan_given");
+});
+check("Inventory cannot rescue suffix digits from damaged joined literals",()=>{
+ assert.ok(reader);
+ for(const [question,dimension] of [["96,500 C/mol","faraday_constant"],["1,000 J","energy"],["0,5 M","concentration"],["9.65 X 10^4 C/mol","faraday_constant"],["9.65·10^4 C/mol","faraday_constant"]] as const){
+  const result=reader.findChemistryQuantities({question,dimension});assert.equal(result.ok,false,JSON.stringify(result));
+ }
+});
+check("Bounded conventional unit spellings retain dimensions and original spans",()=>{
+ for(const [literal,dimension,unit,expected] of [["1.13 Volt","potential","V",1.13],["2 Volts","potential","V",2],["25 ºC","temperature","K",298.15],["25 oC","temperature","K",298.15],["2 amp","current","A",2],["75 percent","dimensionless","1",.75],[".2 mol kg-1","molality","mol/kg",.2],["1 dm3","volume","L",1],["2 g/cc","density","g/cm^3",2],["40 KPa","pressure","kPa",40],["760 mm of Hg","pressure","atm",1],["2 kg mol^-1","molar_mass","g/mol",2000],["1.86 °C kg/mol","colligative_constant","K kg/mol",1.86],["2 s-1","frequency","Hz",2]] as const){
+  const result=quantity("value="+literal,dimension,unit);assert.ok(result.ok,JSON.stringify(result));near(result.reading.value,expected);assert.equal(result.reading.source.text,literal);
+ }
+ for(const literal of ["1 Voltgarbage","2 amps/m","25 oCJunk","2 g/cc/s"])assert.equal(quantity("value="+literal,"potential").ok,false,literal);
+});
+
+
+check("Sensitive semantic symbol cue is opt-in and default word parity is retained",()=>{
+ assert.ok(reader);const input={question:"K=4 s^-1",after:/k/,dimension:"rate_constant_first"};
+ const old=reader.readChemistryQuantity(input);assert.ok(old.ok);near(old.reading.value,4);
+ const explicit=reader.readChemistryQuantity({...input,cueCaseSensitive:false});assert.deepEqual(explicit,old);
+ assert.equal(reader.readChemistryQuantity({...input,cueCaseSensitive:true}).ok,false);
+ const lower=reader.readChemistryQuantity({...input,question:"k=4 s^-1",cueCaseSensitive:true});assert.ok(lower.ok);near(lower.reading.value,4);
+ assert.equal(reader.chemistryQuantityCuesValid("K=4",[{after:/k/,dimensions:["rate_constant_first"],cueCaseSensitive:true}]),true);
+ assert.equal(reader.chemistryQuantityCuesValid("k=4",[{after:/k/,dimensions:["rate_constant_first"],cueCaseSensitive:true}]),false);
+});
+
+
+// A free complete-scalar citation corroborates only its contiguous original unit.
+for(const [question,sourceText,value,unit,dimension,targetUnit,expected] of [
+ ["Ea = 42 kJ/mol.","Ea = 42",42,"kJ/mol","molar_energy","kJ/mol",42],
+ ["Ea = 42 kJ/mol.","Ea = 42",42000,"J/mol","molar_energy","J/mol",42000],
+ ["R = 8.314 J K^-1 mol^-1.","R = 8.314",8.314,"J/(mol K)","gas_constant","J/(mol K)",8.314],
+ ["Ea = 1.25e3 J/mol.","Ea = 1.25e3",1.25,"kJ/mol","molar_energy","J/mol",1250],
+ ["Ea = 42   kJ/mol.","Ea = 42 ",42,"kJ/mol","molar_energy","kJ/mol",42],
+ ["Ea = 42 kJ/mol.","Ea = 42 kJ/mol",42,"kJ/mol","molar_energy","kJ/mol",42],
+] as const)check("Original-unit complete free citation: "+question+sourceText+unit,()=>{
+ assert.ok(reader);const given={id:"x",symbol:"x",value,unit,origin:"given",sourceText};
+ assert.equal(reader.chemistryPlanBindingsValid(question,[given]),true);
+ const result=reader.resolveChemistryGiven({question,after:/=/,dimension,targetUnit,quantities:[given],aliases:["x"]});assert.ok(result.ok,JSON.stringify(result));near(result.reading.value,expected);
+ assert.equal(result.reading.source.kind,"plan_given");assert.equal(result.reading.source.planQuantityId,"x");assert.ok(result.reading.rawUnit);assert.equal(result.reading.source.text,question.slice(result.reading.source.span.start,result.reading.source.span.end));
+});
+for(const [question,sourceText,value,unit] of [
+ ["Ea = 42 kJ/mol.","Ea = 42",43,"kJ/mol"],
+ ["Ea = 42 kJ/mol.","Ea = 42",42,"J/mol"],
+ ["Ea = 42 kJ/mol.","Ea = 42",42,"K"],
+ ["Ea = 42 kJ/mol.","Ea = 4",42,"kJ/mol"],
+ ["Ea = 42 kJ/mol.","Ea = 42 kJ",42,"kJ/mol"],
+ ["R = 8.314 J K^-1 mol^-1.","R = 8.31",8.314,"J/(mol K)"],
+ ["R = 8.314 J K^-1 mol^-1.","R = 8.314 J K^-1",8.314,"J/(mol K)"],
+ ["Ea = 42 kJ/mo.","Ea = 42",42,"kJ/mol"],
+ ["Ea = 42 kJ/mol s.","Ea = 42",42,"kJ/mol"],
+ ["Ea = 4e- kJ/mol.","Ea = 4",4,"kJ/mol"],
+ ["Ea = 42 kJ/mol.","Ea = 42",Infinity,"kJ/mol"],
+] as const)check("Damaged or contradictory free citation refuses: "+question+sourceText+unit+value,()=>{
+ assert.ok(reader);const given={id:"x",symbol:"x",value,unit,origin:"given",sourceText};assert.equal(reader.chemistryPlanBindingsValid(question,[given]),false);
+ assert.equal(reader.resolveChemistryGiven({question,after:/=/,dimension:question.startsWith("R")?"gas_constant":"molar_energy",quantities:[given],aliases:["x"]}).ok,false);
+});
+for(const sourceSpan of [{start:0,end:7},{start:0,end:6},{start:-1,end:7}])check("Explicit span remains a hard citation boundary: "+JSON.stringify(sourceSpan),()=>{
+ assert.ok(reader);const question="Ea = 42 kJ/mol.";const given={id:"x",symbol:"x",value:42,unit:"kJ/mol",origin:"given",sourceSpan,sourceText:question.slice(sourceSpan.start,sourceSpan.end)};
+ assert.equal(reader.chemistryPlanBindingsValid(question,[given]),false);assert.equal(reader.resolveChemistryGiven({question,after:/=/,dimension:"molar_energy",quantities:[given],aliases:["x"]}).ok,false);
+});
+for(const sourceText of ["Ea = 42 elsewhere","Ea = 41",undefined])check("Absent or nonliteral free citation has no authority: "+sourceText,()=>{
+ assert.ok(reader);const question="Ea = 42 kJ/mol.";const given={id:"x",symbol:"x",value:999,unit:"K",origin:"given",sourceText};assert.equal(reader.chemistryPlanBindingsValid(question,[given]),true);
+ const result=reader.resolveChemistryGiven({question,after:/=/,dimension:"molar_energy",targetUnit:"kJ/mol",quantities:[given],aliases:["x"]});assert.ok(result.ok);near(result.reading.value,42);assert.equal(result.reading.source.kind,"stem_given");assert.equal(result.reading.source.planQuantityId,undefined);
+});
+check("Duplicate free citation is ambiguous prose and creates no authority",()=>{
+ assert.ok(reader);const question="Ea = 42 kJ/mol; Ea = 42 kJ/mol.";const given={id:"x",symbol:"x",value:999,unit:"K",origin:"given",sourceText:"Ea = 42"};assert.equal(reader.chemistryPlanBindingsValid(question,[given]),true);
+ const result=reader.resolveChemistryGiven({question,after:/=/,dimension:"molar_energy",quantities:[given],aliases:["x"]});assert.equal(result.ok,false);assert.equal(result.code,"ambiguous");
+});
+
+// BEGIN PR137 V9: complete Unicode cell tokens and lowercase temperature denominator.
+check("Raw Unicode cell concentrations retain independent owners and UTF-16 spans",()=>{
+ assert.ok(reader);
+ const question="🧪 Draw the cell Zn | Zn²⁺(0.1 M) || Cu²⁺(0.01 M) | Cu.";
+ const spec=parseCellNotation(question);assert.ok(spec);near(spec.anode.concentrations["Zn2+"],.1);near(spec.cathode.concentrations["Cu2+"],.01);near(cellEmf(spec)?.q,10);near(cellEmf(spec)?.e,1.0705);
+ const inventory=reader.findChemistryQuantities({question,dimension:"concentration",targetUnit:"mol/L"});assert.ok(inventory.ok);assert.equal(inventory.reading.length,2);
+ for(const [index,literal] of [[0,"0.1 M"],[1,"0.01 M"]] as const){const value=inventory.reading[index]!;assert.equal(value.source.text,literal);assert.equal(value.source.span.start,question.indexOf(literal));assert.equal(question.slice(value.source.span.start,value.source.span.end),literal);}
+ compiled("unicode-cell-raw-concentrations",buildElectrochemScene(question,[],false));
+});
+for(const expression of ["ln k = 5 - 2000/t","log k = 5 - 2000/t","k = A e^(-2000/t)","k = A e(-2000/t)","k = A e^-2000/t","ln k = 5 - 2×10^3 K/t"])check("Complete original lowercase temperature equation: "+expression,()=>{
+ assert.ok(reader);const question="For an Arrhenius reaction, "+expression+". Draw the Arrhenius plot.";const read=reader.readChemistryArrheniusEquation(question);assert.ok(read.ok,JSON.stringify(read));
+ near(read.reading.coefficient.value,2000);assert.equal(read.reading.coefficient.text,expression.includes("×")?"2×10^3":"2000");assert.equal(question.slice(read.reading.coefficient.span.start,read.reading.coefficient.span.end),read.reading.coefficient.text);assert.equal(question.slice(read.reading.source.span.start,read.reading.source.span.end),read.reading.source.text);assert.ok(read.reading.source.text.includes("/t"));
+});
+for(const expression of ["ln k = 5 - 2000/t2","ln k = 5 - 2000/t^2","ln k = 5 - 2000/tα","ln k = 5 - 2000/t ÷2","ln k = 5 - 2000/t ∕2","ln k = 5 - 2000/t; ln k = 5 - 2000/T"])check("Lowercase equation retains full expression refusal: "+expression,()=>{
+ assert.ok(reader);assert.equal(reader.readChemistryArrheniusEquation(expression).ok,false);
+});
+// END PR137 V9: complete Unicode cell tokens and lowercase temperature denominator.
+
+// BEGIN PR137 V9 REPAIR4: original complete atomic activities are not charge scalars.
+for (const [question,dimension,expected,text] of [
+ ["Zn^2+(0.1 M)","concentration",.1,"0.1 M"],
+ ["Zn^(2+)(0.1 M)","concentration",.1,"0.1 M"],
+ ["Zn^(2+)(aq, 0.1 M)","concentration",.1,"0.1 M"],
+ ["Cu^(2+)(l, 0.01 M)","concentration",.01,"0.01 M"],
+ ["Zn^(2+)(1 bar)","pressure",100000,"1 bar"],
+ ["Zn^2+(g, 1 bar)","pressure",100000,"1 bar"],
+] as const) check("Complete original atomic activity inventory: "+question,()=>{
+ assert.ok(reader);const read=reader.findChemistryQuantities({question,dimension});assert.ok(read.ok,JSON.stringify(read));assert.equal(read.reading.length,1);
+ const value=read.reading[0];near(value.value,expected);assert.equal(value.source.text,text);assert.equal(question.slice(value.source.span.start,value.source.span.end),text);
+});
+for(const [question,dimension] of [
+ ["Zn^(2+(0.1 M)","concentration"], ["Zn^(2+)(1e- M)","concentration"],
+ ["Zn^(2+)(0.1 M)x","concentration"], ["Zn^(2+)(0.1 M)/s","concentration"],
+ ["Zn^(2+)(0.1 K)","temperature"], ["value = 2^ K","temperature"],
+] as const) check("Atomic phase proof never exempts malformed physical source: "+question,()=>{
+ assert.ok(reader);assert.equal(reader.findChemistryQuantities({question,dimension}).ok,false);
+});
+// END PR137 V9 REPAIR4: original complete atomic activities are not charge scalars.
+
 console.log(JSON.stringify({ passed, failed: failures.length, failures, capturedQA: "unavailable" }, null, 2));
 process.exitCode = failures.length ? 1 : 0;

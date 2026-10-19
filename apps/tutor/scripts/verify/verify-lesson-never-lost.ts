@@ -174,7 +174,7 @@ const check = (condition: unknown, message: string) => {
     "for (const local of liveTurnSave().reopen(boardId)) mirrorLiveTurnRef.current(local);",
     "const turns = storedTurnsRef.current;",
     "conversationHistoryRef.current = compactConversationHistory(",
-    "for (const turn of turns) {",
+    "for (const [turnIndex, turn] of turns.entries()) {",
   );
   checks += 1;
   check(restore.includes('if (codeLesson && storedTurnStatus(turn) === "complete") {'),

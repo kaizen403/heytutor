@@ -1,7 +1,9 @@
 import {
+  parseDiagramSubject,
   resolveApiUrl,
   withFastModeHeader,
   withTurnTraceHeaders,
+  type DiagramSubject,
 } from "@heytutor/tutor-core";
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
 
@@ -35,15 +37,27 @@ function parseIds(payload: unknown): string[] {
     const parsed = JSON.parse(content) as { ids?: unknown };
     if (!Array.isArray(parsed.ids)) return [];
     return [...new Set(parsed.ids.filter((id): id is string =>
-      typeof id === "string" && /^[a-z0-9][a-z0-9:_-]{0,127}$/i.test(id)))].slice(0, 3);
+      typeof id === "string" && /^[a-z0-9][a-z0-9:/_-]{0,127}$/i.test(id)))].slice(0, 3);
   } catch {
     return [];
   }
 }
 
+/**
+ * The turn's subject travels with both requests so the server shows and
+ * resolves only that subject's examples. `other` (or none) is not sent; the
+ * server then keeps the whole library.
+ */
+function librarySubject(subject: DiagramSubject | undefined): Exclude<DiagramSubject, "other"> | null {
+  const parsed = parseDiagramSubject(subject);
+  return parsed === "other" ? null : parsed;
+}
+
 export async function pickLiveDiagramExampleIds(input: {
   question: string;
   plan: TurnPlanV3;
+  /** The same subject `decideDiagramStrategy` used for this turn. */
+  subject?: DiagramSubject;
   traceId?: string;
   sessionId?: string;
   signal?: AbortSignal;
@@ -77,7 +91,10 @@ export async function pickLiveDiagramExampleIds(input: {
         max_tokens: 60,
         temperature: 0,
         stream: false,
-        messages: [{ role: "user", content: JSON.stringify({ plan: input.plan }) }],
+        messages: [{ role: "user", content: JSON.stringify({
+          plan: input.plan,
+          ...(librarySubject(input.subject) ? { subject: librarySubject(input.subject) } : {}),
+        }) }],
       }),
     });
     if (!response.ok) {
@@ -100,9 +117,15 @@ export async function pickLiveDiagramExampleIds(input: {
   }
 }
 
-export function scenePlannerUrlWithExampleIds(baseUrl: string, ids: readonly string[]): string {
+export function scenePlannerUrlWithExampleIds(
+  baseUrl: string,
+  ids: readonly string[],
+  subject?: DiagramSubject,
+): string {
   if (ids.length === 0) return baseUrl;
   const url = new URL(baseUrl, typeof window === "undefined" ? "http://localhost" : window.location.origin);
   url.searchParams.set("diagramExampleIds", [...new Set(ids)].slice(0, 3).join(","));
+  const shelf = librarySubject(subject);
+  if (shelf) url.searchParams.set("diagramSubject", shelf);
   return /^https?:\/\//i.test(baseUrl) ? url.toString() : `${url.pathname}${url.search}`;
 }

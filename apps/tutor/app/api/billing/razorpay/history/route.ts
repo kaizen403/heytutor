@@ -9,7 +9,7 @@ export async function GET(request: Request): Promise<Response> {
   if (!isSpendActor(actor)) return actor;
   if (!usesRazorpay()) return Response.json({ purchases: [] });
   const where = { userId: actor.userId, testMode: razorpayTestMode() };
-  const select = { id: true, planId: true, amount: true, currency: true, status: true, orderId: true, refundAmount: true, createdAt: true, accessStartsAt: true, accessEndsAt: true } satisfies Prisma.BillingPurchaseSelect;
+  const select = { id: true, planId: true, amount: true, currency: true, promoCode: true, status: true, orderId: true, refundAmount: true, createdAt: true, accessStartsAt: true, accessEndsAt: true } satisfies Prisma.BillingPurchaseSelect;
   // Unsuccessful preparation attempts cannot displace payment receipts.
   const [completed, pending] = await prisma.$transaction([
     prisma.billingPurchase.findMany({

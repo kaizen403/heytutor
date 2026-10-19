@@ -39,6 +39,7 @@ import type { SpendActor } from "@/lib/billing/actor";
 import { reservePaidUsage, maximumLlmCost, actualLlmCost, holdPaidUsage, type PaidUsageReservation } from "@/lib/billing/paidUsage";
 import { readBoundedText, RequestBodyError } from "@/lib/http/requestBody";
 import { isTeachingHedge, serverChatBody } from "@/lib/llm/chatRequest";
+import { applyPlannerSpeedSettings, plannerTierCostMultiplier } from "@/lib/llm/planningSpeed";
 import {
   resolveCheapFireworksModel,
   DEFAULT_FIREWORKS_MODEL,
@@ -57,6 +58,7 @@ import {
   buildLiveDiagramPickerBody,
   injectLiveDiagramExamples,
   parseLiveDiagramExampleIds,
+  parseLiveDiagramExampleSubject,
   resolveLiveDiagramExamples,
 } from "@/lib/scene/diagramExampleLibrary.server";
 import {
@@ -592,6 +594,8 @@ interface PlannerRequestArgs {
   codeLessonV1: boolean;
   diagramExamplePicker: boolean;
   diagramExampleIds: string[];
+  /** The turn's subject; null (old client, or `other`) resolves from the whole library. */
+  diagramExampleSubject: ReturnType<typeof parseLiveDiagramExampleSubject>;
   question: string;
   plannerPhase: "plan" | "repair";
   plannerLane: "primary" | "alternate";
@@ -617,6 +621,7 @@ async function handlePlannerRequest({
   codeLessonV1,
   diagramExamplePicker,
   diagramExampleIds,
+  diagramExampleSubject,
   question,
   plannerPhase,
   plannerLane,
@@ -650,7 +655,7 @@ async function handlePlannerRequest({
     const preparedBody = diagramExamplePicker
       ? buildLiveDiagramPickerBody(rawBody, question)
       : semanticSceneV2 && diagramExampleIds.length > 0
-        ? injectLiveDiagramExamples(rawBody, resolveLiveDiagramExamples(question, diagramExampleIds))
+        ? injectLiveDiagramExamples(rawBody, resolveLiveDiagramExamples(question, diagramExampleIds, diagramExampleSubject))
         : rawBody;
     const parsed = serverChatBody(JSON.parse(preparedBody), "planner");
     delete parsed.reasoning_effort;
@@ -677,9 +682,10 @@ async function handlePlannerRequest({
     }
     parsed.stream = false;
     parsed.response_format = { type: "json_object" };
-    const body = providerChatBody(parsed, llm);
+    const body = providerChatBody(applyPlannerSpeedSettings(parsed, { provider: llm.provider }), llm);
+    const requestedPriority = body.service_tier === "priority";
 
-    const reserved = await reservePaidUsage({ actor, grant, kind: "planner", traceId, usd: maximumLlmCost(body.messages, completionTokenCap(body), plannerModels, plannerModels.length * 2) });
+    const reserved = await reservePaidUsage({ actor, grant, kind: "planner", traceId, usd: maximumLlmCost(body.messages, completionTokenCap(body), plannerModels, plannerModels.length * 2) * (requestedPriority ? 2 : 1) });
     if (reserved instanceof Response) return reserved;
     reservation = reserved;
     const upstreamStartedAt = Date.now();
@@ -687,6 +693,12 @@ async function handlePlannerRequest({
     const transport = await fetchPlannerCompletion({
       url: llm.url,
       apiKey,
+      // Azure scenes are non-streaming. Keep their initial 30s candidate
+      // response window intact instead of canceling at 25s to retry late.
+      // The existing request/client signals still bound setup and both attempts.
+      attemptTimeoutMs: llm.provider === "azure" && semanticSceneV2 && !diagramExamplePicker
+        ? Math.min(30_000, deadlineMs)
+        : undefined,
       body,
       fetchImpl: (input, init) => {
         finalAttemptStartedAt = Date.now();
@@ -755,17 +767,22 @@ async function handlePlannerRequest({
     const jsonBody = await response.text();
 
     // Trace the planner output (non-streaming, so accumulate at once).
+    let returnedTier: "default" | "priority" | undefined;
     try {
       const parsedResponse = JSON.parse(jsonBody) as {
         choices?: { message?: { content?: string; reasoning_content?: string } }[];
         usage?: unknown;
         perf_metrics?: unknown;
+        service_tier?: unknown;
       };
+      returnedTier = parsedResponse.service_tier === "default" || parsedResponse.service_tier === "priority"
+        ? parsedResponse.service_tier : undefined;
       const content = parsedResponse.choices?.[0]?.message?.content ?? "";
       const reasoning = parsedResponse.choices?.[0]?.message?.reasoning_content ?? "";
       const usage = readUsage(parsedResponse.usage);
       endLlmGeneration(turnTrace, {
         output: content,
+        costMultiplier: plannerTierCostMultiplier(returnedTier, requestedPriority),
         usageDetails: usageDetailsFromParsed(usage),
         metadata: {
           ...providerPerfMetadata(readProviderPerf(parsedResponse), {
@@ -785,6 +802,10 @@ async function handlePlannerRequest({
           planner_model: transport.model,
           planner_lane: plannerLane,
           planner_attempts: transport.attemptCount,
+          reasoning_effort: body.reasoning_effort,
+          service_tier_requested: body.service_tier ?? "auto",
+          service_tier: typeof returnedTier === "string" ? returnedTier : null,
+          planner_cost_multiplier: plannerTierCostMultiplier(returnedTier, requestedPriority),
           diagram_example_picker: diagramExamplePicker || undefined,
           usage_status: usage.known ? "known" : "unknown",
           cached_input_tokens: usage.cachedInput ?? 0,
@@ -801,7 +822,10 @@ async function handlePlannerRequest({
           usage: usageDetailsFromParsed(usage),
         });
       }
-      if (usage.known && transport.attemptCount === 1) await reservation.settle(actualLlmCost(usageDetailsFromParsed(usage), transport.model));
+      if (usage.known && transport.attemptCount === 1) {
+        const actual = actualLlmCost(usageDetailsFromParsed(usage), transport.model);
+        await reservation.settle(actual === undefined ? undefined : actual * plannerTierCostMultiplier(returnedTier, requestedPriority));
+      }
     } catch {
       endLlmGeneration(turnTrace, {
         output: jsonBody.slice(0, 2_000),
@@ -820,6 +844,10 @@ async function handlePlannerRequest({
         "x-heytutor-planner-model": transport.model,
         "x-heytutor-planner-lane": plannerLane,
         "x-heytutor-upstream-attempts": String(transport.attemptCount),
+        "x-heytutor-reasoning-effort": String(body.reasoning_effort ?? "unknown"),
+        "x-heytutor-planner-prompt-chars": String(JSON.stringify(body.messages ?? []).length),
+        "x-heytutor-service-tier-requested": String(body.service_tier ?? "auto"),
+        "x-heytutor-service-tier": typeof returnedTier === "string" ? returnedTier : "unknown",
       },
     });
   } catch (error: unknown) {
@@ -970,6 +998,7 @@ export async function POST(request: Request): Promise<Response> {
     const codeLessonV1 = request.headers.get("x-code-lesson-version") === "1";
     const semanticSceneV2 = !turnPlanV3 && !problemIRV1 && !codeLessonV1 &&
       request.headers.get("x-scene-planner-version") === "2";
+    const requestUrl = new URL(request.url);
     return handlePlannerRequest({
       rawBody,
       llm,
@@ -982,7 +1011,8 @@ export async function POST(request: Request): Promise<Response> {
       problemIRV1,
       codeLessonV1,
       diagramExamplePicker,
-      diagramExampleIds: parseLiveDiagramExampleIds(new URL(request.url).searchParams.get("diagramExampleIds")),
+      diagramExampleIds: parseLiveDiagramExampleIds(requestUrl.searchParams.get("diagramExampleIds")),
+      diagramExampleSubject: parseLiveDiagramExampleSubject(requestUrl.searchParams.get("diagramSubject")),
       question: question ?? "",
       plannerPhase: request.headers.get("x-scene-planner-phase") === "repair" ? "repair" : "plan",
       plannerLane: (

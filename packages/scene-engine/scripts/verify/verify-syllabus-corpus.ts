@@ -427,6 +427,8 @@ function fatalAssertion(
 }
 
 /** Two parallel interfaces: air→glass then glass→air, plus a reflection on the first face. */
+const SLAB_REFRACTION_DEG = 28.1255;
+
 function physics16MediumSlab(): Record<string, unknown> {
   return probeScene(
     "physics|16",
@@ -459,7 +461,9 @@ function physics16MediumSlab(): Record<string, unknown> {
         pointConstruction("bottom_start", -2, -1.5),
         pointConstruction("bottom_end", 2, -1.5),
         pointConstruction("hit1", 0, 0),
-        pointConstruction("hit2", 0, -1.5),
+        // The refracted ray meets the second face where it leaves the glass,
+        // and the incident ray there starts back at the first face.
+        pointConstruction("hit2", 1.5 * Math.tan(SLAB_REFRACTION_DEG * Math.PI / 180), -1.5),
         pointConstruction("reflect_hit", 1, 0),
         { id: "make_interface1", operator: "segment", inputs: { start: "top_start", end: "top_end" }, outputs: ["interface1"] },
         { id: "make_interface2", operator: "segment", inputs: { start: "bottom_start", end: "bottom_end" }, outputs: ["interface2"] },
@@ -478,7 +482,7 @@ function physics16MediumSlab(): Record<string, unknown> {
         {
           id: "make_refraction2",
           operator: "refract_at",
-          inputs: { point: "hit2", surface: "interface2", incidentAngleDeg: 28.1255, n1: 1.5, n2: 1 },
+          inputs: { point: "hit2", surface: "interface2", incidentAngleDeg: SLAB_REFRACTION_DEG, n1: 1.5, n2: 1, span: 1.5 / Math.cos(SLAB_REFRACTION_DEG * Math.PI / 180) },
           outputs: ["incident2", "normal2", "refracted2"],
         },
       ],

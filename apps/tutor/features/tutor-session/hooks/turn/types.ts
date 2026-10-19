@@ -41,6 +41,8 @@ export type ExecuteCommandOptions = {
   /** Explicit metadata owner for atomic scene-intro commands. */
   introLayoutCheckpoint?: IntroLayoutCheckpoint;
   durationScale?: number;
+  /** Finish committed intro marks without changing their normal label instrument. */
+  finishVerifiedDiagramIntro?: boolean;
   speechDurationMs?: number;
   /** This command's slice of the segment's spoken time. */
   speechShareMs?: number;
@@ -48,6 +50,8 @@ export type ExecuteCommandOptions = {
     charStartOffsetsMs: number[];
     charDurationsMs: number[];
     getAudioPositionMs: () => number;
+    /** Live segment playback ownership; keeps a positive buffered clock authoritative. */
+    isAudioActive?: () => boolean;
     /** Media ms per wall ms, so a glyph's spoken slot is drawn in wall time. */
     getPlaybackRate?: () => number;
     onCharacterStart?: (info: {
@@ -69,10 +73,20 @@ export type ExecuteCommandOptions = {
   inkPace?: InkPace;
   /** One trace per named part, each on its spoken word (see focusSchedule.ts). */
   focusSchedule?: FocusTargetSchedule;
+  /** A following work cue bounds this gesture's transient motion, in media ms. */
+  focusDeadlineMs?: number;
+  /** Final alignment can replace estimates while a focus is waiting. */
+  getFocusTiming?: () => { schedule: FocusTargetSchedule; deadlineMs: number };
+  /** A paused segment cannot consume a gesture deadline or catch up ink. */
+  isPaused?: () => boolean;
   /** Media ms from the segment's audio start; the FOCUS and cue waits read it. */
   getAudioPositionMs?: () => number;
   /** Media ms per wall ms; default 1. */
   getPlaybackRate?: () => number;
+  /** Waits for `getAudioPositionMs` on a pumped export clock instead of wall-time polling. */
+  waitUntilAudioMs?: (targetMs: number, getTargetMs?: () => number) => Promise<void>;
+  /** A following work cue bounds transient POINT motion; final timing may arrive late. */
+  getPointDeadlineMs?: () => number | null;
   /** The sentence's narration, alignment and audio clock; the code-lesson branches follow its words. */
   spokenClock?: SpokenSegmentClock;
   /** Placed on its spoken cue and given that window; keeps it instead of the scene ceiling. */
@@ -307,13 +321,17 @@ export type TurnControlApi = {
   pausedLessonOffer: boolean;
   /** Why it stopped ("stop" or "doubt"), for the bar's copy; null with no offer. */
   pausedLessonReason: PausedLessonReason | null;
+  /** This opening had no completed authority; the action starts a fresh lesson. */
+  earlyLessonRestartOffer: boolean;
+  earlyLessonRestartReason: PausedLessonReason | null;
+  restartEarlyLesson: () => void;
   /**
    * After a board is restored, offer the stopped lesson its saved turns leave
    * (`pausedLessonFromStoredTurns`). Never continues on its own. Runs once per
    * opened board; a no-op while a turn or a replay owns the board, so call it
    * again when that ends. Returns what is offered.
    */
-  restorePausedLesson: (turns: readonly StoredTurn[]) => Promise<PausedLessonRequest | null>;
+  restorePausedLesson: (turns: readonly StoredTurn[], refreshVisible?: boolean) => Promise<PausedLessonRequest | null>;
   /**
    * `options.prompt` carries an already-composed, board-grounded doubt and
    * `options.title` what it is saved under.

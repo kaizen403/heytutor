@@ -4,6 +4,7 @@ import { completionTokenCap, providerChatBody, resolveLlmEndpoint } from "../../
 import { calculateLlmCostDetails } from "../../lib/obs/usageCost";
 import { parseProviderUsage } from "../../lib/obs/providerUsage";
 import {
+  buildDiagramExampleCatalogue,
   diagramPlanRetrievalText,
   retrieveDiagramExemplars,
   type DiagramExampleCatalogue,
@@ -21,6 +22,7 @@ export interface DiagramExamplePickerRecord {
   elapsedMs: number;
   catalogueEntries: number;
   catalogueEstimatedTokens: number;
+  catalogueOmittedEntries?: number;
   ids: string[];
   attempts: number;
   usageKnown: boolean;
@@ -180,6 +182,11 @@ export async function pickDiagramExamples(
   catalogue: DiagramExampleCatalogue,
   options: DiagramExamplePickerOptions,
 ): Promise<DiagramExamplePickerResult> {
+  // A round-wide bounded index may omit this turn's best example. Repack from
+  // the full leak-filtered library using this turn's evidence before dispatch.
+  if (catalogue.omittedEntries > 0) catalogue = buildDiagramExampleCatalogue(exemplars, {
+    question: options.question, plan: options.plan,
+  });
   const startedAt = Date.now();
   const endpoint = resolveLlmEndpoint(options.env);
   const model = resolveCheapFireworksModel({ env: options.env });
@@ -202,6 +209,7 @@ export async function pickDiagramExamples(
     elapsedMs: Date.now() - startedAt,
     catalogueEntries: catalogue.entries.length,
     catalogueEstimatedTokens: catalogue.estimatedTokens,
+    catalogueOmittedEntries: catalogue.omittedEntries,
     attempts,
     usageKnown: attempts > 0 && usageKnownCalls === attempts,
     usageKnownCalls,

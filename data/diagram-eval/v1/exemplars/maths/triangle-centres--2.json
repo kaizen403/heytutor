@@ -1,0 +1,459 @@
+{
+  "topic_id": "maths|10|triangle-centre-incentre",
+  "question": "In triangle ABC, the bisectors of angles A, B and C meet at the incentre I. The perpendiculars from I meet BC, CA and AB at D, E and F. Draw them and the incircle of radius r touching all three sides.",
+  "figure_kind": "geometry",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "incentre construction"
+    },
+    "source": {
+      "question": "In triangle ABC, the bisectors of angles A, B and C meet at the incentre I. The perpendiculars from I meet BC, CA and AB at D, E and F. Draw them and the incircle of radius r touching all three sides.",
+      "family": "triangle_centres"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "triangle vertex",
+        "label": "A"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "triangle vertex",
+        "label": "B"
+      },
+      {
+        "id": "C",
+        "kind": "point",
+        "role": "triangle vertex",
+        "label": "C"
+      },
+      {
+        "id": "AB",
+        "kind": "segment",
+        "role": "triangle side"
+      },
+      {
+        "id": "BC",
+        "kind": "segment",
+        "role": "triangle side"
+      },
+      {
+        "id": "CA",
+        "kind": "segment",
+        "role": "triangle side"
+      },
+      {
+        "id": "I",
+        "kind": "point",
+        "role": "incentre",
+        "label": "I"
+      },
+      {
+        "id": "AI",
+        "kind": "segment",
+        "role": "bisector of angle A"
+      },
+      {
+        "id": "BI",
+        "kind": "segment",
+        "role": "bisector of angle B"
+      },
+      {
+        "id": "CI",
+        "kind": "segment",
+        "role": "bisector of angle C"
+      },
+      {
+        "id": "D",
+        "kind": "point",
+        "role": "point of contact",
+        "label": "D"
+      },
+      {
+        "id": "E",
+        "kind": "point",
+        "role": "point of contact",
+        "label": "E"
+      },
+      {
+        "id": "F",
+        "kind": "point",
+        "role": "point of contact",
+        "label": "F"
+      },
+      {
+        "id": "ID",
+        "kind": "segment",
+        "role": "inradius",
+        "label": "r"
+      },
+      {
+        "id": "rD",
+        "kind": "right_angle_mark",
+        "role": "right angle"
+      },
+      {
+        "id": "IE",
+        "kind": "segment",
+        "role": "inradius"
+      },
+      {
+        "id": "rE",
+        "kind": "right_angle_mark",
+        "role": "right angle"
+      },
+      {
+        "id": "IF",
+        "kind": "segment",
+        "role": "inradius"
+      },
+      {
+        "id": "rF",
+        "kind": "right_angle_mark",
+        "role": "right angle"
+      },
+      {
+        "id": "ic",
+        "kind": "circle",
+        "role": "incircle",
+        "label": "incircle"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "kA",
+        "operator": "point",
+        "inputs": {
+          "x": 4.2,
+          "y": 7.6,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "kB",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "kC",
+        "operator": "point",
+        "inputs": {
+          "x": 11,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "C"
+        ]
+      },
+      {
+        "id": "kAB",
+        "operator": "segment",
+        "inputs": {
+          "start": "A",
+          "end": "B"
+        },
+        "outputs": [
+          "AB"
+        ]
+      },
+      {
+        "id": "kBC",
+        "operator": "segment",
+        "inputs": {
+          "start": "B",
+          "end": "C"
+        },
+        "outputs": [
+          "BC"
+        ]
+      },
+      {
+        "id": "kCA",
+        "operator": "segment",
+        "inputs": {
+          "start": "C",
+          "end": "A"
+        },
+        "outputs": [
+          "CA"
+        ]
+      },
+      {
+        "id": "kI",
+        "operator": "triangle_center",
+        "inputs": {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "kind": "incenter"
+        },
+        "outputs": [
+          "I"
+        ]
+      },
+      {
+        "id": "kAI",
+        "operator": "segment",
+        "inputs": {
+          "start": "A",
+          "end": "I"
+        },
+        "outputs": [
+          "AI"
+        ]
+      },
+      {
+        "id": "kBI",
+        "operator": "segment",
+        "inputs": {
+          "start": "B",
+          "end": "I"
+        },
+        "outputs": [
+          "BI"
+        ]
+      },
+      {
+        "id": "kCI",
+        "operator": "segment",
+        "inputs": {
+          "start": "C",
+          "end": "I"
+        },
+        "outputs": [
+          "CI"
+        ]
+      },
+      {
+        "id": "kD",
+        "operator": "project",
+        "inputs": {
+          "point": "I",
+          "line": "BC"
+        },
+        "outputs": [
+          "D"
+        ]
+      },
+      {
+        "id": "kE",
+        "operator": "project",
+        "inputs": {
+          "point": "I",
+          "line": "CA"
+        },
+        "outputs": [
+          "E"
+        ]
+      },
+      {
+        "id": "kF",
+        "operator": "project",
+        "inputs": {
+          "point": "I",
+          "line": "AB"
+        },
+        "outputs": [
+          "F"
+        ]
+      },
+      {
+        "id": "kID",
+        "operator": "segment",
+        "inputs": {
+          "start": "I",
+          "end": "D"
+        },
+        "outputs": [
+          "ID"
+        ]
+      },
+      {
+        "id": "krD",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "D",
+          "a": "ID",
+          "b": "B"
+        },
+        "outputs": [
+          "rD"
+        ]
+      },
+      {
+        "id": "kIE",
+        "operator": "segment",
+        "inputs": {
+          "start": "I",
+          "end": "E"
+        },
+        "outputs": [
+          "IE"
+        ]
+      },
+      {
+        "id": "krE",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "E",
+          "a": "IE",
+          "b": "A"
+        },
+        "outputs": [
+          "rE"
+        ]
+      },
+      {
+        "id": "kIF",
+        "operator": "segment",
+        "inputs": {
+          "start": "I",
+          "end": "F"
+        },
+        "outputs": [
+          "IF"
+        ]
+      },
+      {
+        "id": "krF",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "F",
+          "a": "IF",
+          "b": "A"
+        },
+        "outputs": [
+          "rF"
+        ]
+      },
+      {
+        "id": "kic",
+        "operator": "circle_from_three_points",
+        "inputs": {
+          "a": "D",
+          "b": "E",
+          "c": "F"
+        },
+        "outputs": [
+          "ic"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "bisA",
+        "predicate": "equal_angle",
+        "entities": [
+          "AB",
+          "AI",
+          "AI",
+          "CA"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "bisB",
+        "predicate": "equal_angle",
+        "entities": [
+          "AB",
+          "BI",
+          "BI",
+          "BC"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "bisC",
+        "predicate": "equal_angle",
+        "entities": [
+          "BC",
+          "CI",
+          "CI",
+          "CA"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "A",
+      "B",
+      "C",
+      "AB",
+      "BC",
+      "CA",
+      "I",
+      "AI",
+      "BI",
+      "CI",
+      "D",
+      "E",
+      "F",
+      "ID",
+      "rD",
+      "IE",
+      "rE",
+      "IF",
+      "rF",
+      "ic"
+    ],
+    "revealGroups": [
+      {
+        "id": "figure",
+        "entityIds": [
+          "A",
+          "B",
+          "C",
+          "AB",
+          "BC",
+          "CA",
+          "I",
+          "AI",
+          "BI",
+          "CI",
+          "D",
+          "E",
+          "F",
+          "ID",
+          "rD",
+          "IE",
+          "rE",
+          "IF",
+          "rF",
+          "ic"
+        ],
+        "dependsOn": [],
+        "narrationCue": "bisectors meet at I; incircle"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "show",
+        "action": "reveal",
+        "targetId": "figure",
+        "dependsOn": [],
+        "narrationIntent": "construct the incentre and incircle"
+      }
+    ]
+  }
+}

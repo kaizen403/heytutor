@@ -230,6 +230,12 @@ allowance to this mode. The offline gate uses zero network/model calls and is in
 lab checks: `pnpm --filter @heytutor/tutor verify:lab`.
 
 The `planner_examples` arm reads `data/diagram-eval/v1/exemplars/_library.jsonl`.
+The shared picker catalogue keeps exact library IDs (including curated subject
+slashes), deduplicates figure descriptions and stays below 6,000 estimated
+tokens. On overflow, it packs a deterministic question/turn-plan shortlist;
+`omittedEntries` counts budget omissions. It never includes source questions or
+raises the live picker's 4-second deadline. Ordinary lab arms rebuild an
+overflowed catalogue per turn rather than reusing a global truncated shortlist.
 Synthesized entries are keyed by `depicts`: plain family/archetype language,
 construction and entity kinds, relations, and readable labels extracted from
 the validated document. Their source questions are neither stored nor prompted;
@@ -262,6 +268,13 @@ This uses the existing turn planner's actual subject consensus, the live subject
 policy and the live four-second `/api/chat` picker without word fallback. Rows
 classified as unknown or non-maths stay current, recorded in
 `productionStrategy`; corpus subject labels never override that decision.
+`--production-strict-subjects maths,physics` puts physics on the same strict
+path (a candidate production setting); `maths` keeps physics on the current
+production path. The list is recorded in the run's execution config.
+Like the live client, the picker request carries the classified subject. Physics
+and chemistry turns see only their own subject's examples, and IDs from another
+subject are never admitted for those turns. Maths keeps the whole library, as do
+turns classified `other` and old clients that send no subject.
 Picked IDs must also survive the lab's full-sample exemplar exclusions. The
 picker is pinned to the configured lab origin's `/api/chat`, even if a public
 API origin is set, so it cannot bypass authentication or hard-cap accounting.

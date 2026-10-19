@@ -12,6 +12,7 @@ import {
   type SceneDocument,
   type SceneIssue,
 } from "../types";
+import { isVerifiedPartsEnabled } from "./yieldPolicy";
 import {
   bracePoints,
   congruenceCount,
@@ -48,8 +49,18 @@ export function appendCompiledAnnotations(
   issues: SceneIssue[],
   anchorPrimitives: RenderPrimitive[] = [],
 ): void {
+  const verifiedPartsEnabled = isVerifiedPartsEnabled(document);
   for (const annotation of document.annotations) {
     if (TEXT_KINDS.has(annotation.kind)) continue;
+    // Text is not an endpoint reference. Never turn "+ toward B" into "+ "
+    // and silently put the positive terminal on the opposite end.
+    if (verifiedPartsEnabled && annotation.kind === "polarity" && annotation.text !== undefined &&
+        !/^(?:\+[-−]|[-−]\+)$/.test(annotation.text.trim())) {
+      issues.push({ code: "polarity_binding_ambiguous", severity: "fatal", failureKind: "truth",
+        entityIds: [annotation.id, ...annotation.targetIds],
+        message: "Polarity requires ordered +- or -+ terminal marks; prose cannot establish a terminal binding." });
+      continue;
+    }
     if (!isSceneAnnotationKind(annotation.kind)) {
       issues.push({
         code: "unknown_annotation_kind",
@@ -95,7 +106,18 @@ export function appendCompiledAnnotations(
       ? [...new Set(targets.map((target) => target.entityId))].map((id) => targets.filter((target) => target.entityId === id))
       : [targets];
     const extra = targetSets.flatMap((targetSet) => {
-      const marks = geometryFor(annotation, targetSet);
+      let marks: ReturnType<typeof geometryFor>;
+      try {
+        marks = geometryFor(annotation, targetSet, verifiedPartsEnabled);
+      } catch (error) {
+        issues.push({
+          code: "annotation_geometry_unresolved",
+          message: `Annotation ${annotation.id}: ${error instanceof Error ? error.message : "invalid geometry"}`,
+          severity: "fatal",
+          entityIds: [annotation.id, ...targetSet.map((target) => target.entityId)],
+        });
+        return [];
+      }
       // One arc is the existing verified arc, so count=1 needs no extra ink.
       const existingArc = annotation.kind === "equal_arc" && (annotation.style?.count ?? 1) === 1 && targetSet.some((target) => target.kind === "arc");
       if (marks.length === 0 && !existingArc) {
@@ -108,6 +130,15 @@ export function appendCompiledAnnotations(
         : groupId;
       return marks.map((primitive) => ({ primitive, groupId: markGroupId }));
     });
+    // An open endpoint excludes the point: its filled dot must not sit inside the ring.
+    if (verifiedPartsEnabled && annotation.kind === "endpoint" && (annotation.style?.pointStyle ?? "open") === "open" && extra.length) {
+      const excluded = new Set(targets.map((target) => target.entityId));
+      for (let index = 0; index < primitives.length; index++) {
+        const base = primitives[index]!;
+        // Keep the point as the same hollow ring, so ownership and reveal stay intact.
+        if (base.kind === "point" && excluded.has(base.entityId)) primitives[index] = { ...base, kind: "circle", radius: 6, provenance: { ...base.provenance, pointStyle: "open" } };
+      }
+    }
     extra.forEach(({ primitive, groupId: markGroupId }, index) => {
       primitives.push({
         ...primitive,
@@ -143,7 +174,7 @@ function groupFor(annotation: SceneAnnotation, entityToGroup: Map<string, string
   return undefined;
 }
 
-function geometryFor(annotation: SceneAnnotation, targets: RenderPrimitive[]): Omit<RenderPrimitive, "id" | "entityId" | "groupId">[] {
+function geometryFor(annotation: SceneAnnotation, targets: RenderPrimitive[], verifiedPartsEnabled: boolean): Omit<RenderPrimitive, "id" | "entityId" | "groupId">[] {
   const count = congruenceCount(annotation.style?.count ?? 1);
   const ink = targets;
   const points = ink.flatMap((primitive) => primitive.points);
@@ -196,7 +227,7 @@ function geometryFor(annotation: SceneAnnotation, targets: RenderPrimitive[]): O
     case "spin": {
       const path = lineEnds(ink);
       if (!path) return [];
-      const badge = signBadgeGeometry(path, annotation.text ?? "clockwise");
+      const badge = signBadgeGeometry(path, annotation.text ?? "", 0.72, "down");
       return badge.paths.map((segment) => ({
         kind: "polyline" as const,
         points: segment,
@@ -274,7 +305,8 @@ function geometryFor(annotation: SceneAnnotation, targets: RenderPrimitive[]): O
         ?? points[0];
       if (!point) return [];
       const style = annotation.style?.pointStyle ?? "open";
-      return endpointMark(point, style).map((mark) => ({
+      // A 2 px ring over the point's own dot reads as a filled endpoint.
+      return endpointMark(point, style, verifiedPartsEnabled && style === "open" ? 6 : 2).map((mark) => ({
         kind: mark.kind === "rectangle" ? "rectangle" : mark.kind === "circle" ? "circle" : mark.kind === "point" ? "point" : "line",
         points: mark.points,
         radius: mark.radius,
@@ -362,7 +394,9 @@ function geometryFor(annotation: SceneAnnotation, targets: RenderPrimitive[]): O
       const start = path?.start ?? points[0];
       const end = path?.end ?? points.at(-1);
       if (!start || !end) return [];
-      const marks = (annotation.text && annotation.text.length >= 2 ? annotation.text : "+-").slice(0, 2);
+      const marks = verifiedPartsEnabled
+        ? annotation.text?.trim().replace(/−/g, "-") ?? "+-"
+        : (annotation.text && annotation.text.length >= 2 ? annotation.text : "+-").slice(0, 2);
       return [
         { kind: "label" as const, points: [start], text: marks[0]!, labelPlacement: "automatic", provenance: { annotation: "polarity" } },
         { kind: "label" as const, points: [end], text: marks[1]!, labelPlacement: "automatic", provenance: { annotation: "polarity" } },

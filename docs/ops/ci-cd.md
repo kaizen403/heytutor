@@ -45,9 +45,15 @@ Push to `dev` or `main`. The workflow always does this in order:
    audit advisories. The original braces depth advisory stays visible under a
    temporary, hash-pinned backport exception: [dependency gate](braces-depth-guard.md).
    The security database is disposable and never uses production
-   credentials. Its empty schema uses `prisma db push` because historical
-   migration names do not sort in their original application order. Production
-   continues to use `prisma migrate deploy` against its existing history.
+   credentials. Empty database gates and deployments use `db:migrate:deploy`,
+   which exposes pending legacy files to the actual `prisma migrate deploy`
+   consumer in numeric order. Original directory names, SQL, checksums and
+   Prisma migration records stay intact. A fully applied database uses one
+   normal deploy call; unfinished or changed history requires explicit recovery.
+   CI also proves empty deployment and a lexical-order failure mutation.
+   The unchanged legacy SQL retains one extra billing index and the home-pack
+   JSON default; the schema gate pins those two known model differences and
+   rejects additional drift.
 2. **Cloudflare Pages (dev)** — build `@heytutor/landing` and
    `wrangler pages deploy --branch=dev`.
 3. **Keep `dev` and `main` in sync** — fast-forward both long-lived
@@ -92,7 +98,8 @@ git reset --hard origin/main
 - Uses checked-in interface fonts with `next/font/local`; build availability
   does not depend on Google Fonts responses. Sources and licenses are recorded
   in `apps/tutor/public/fonts/variable-fonts.md`.
-- Runs `prisma migrate deploy` against `DATABASE_URL`
+- Runs `db:migrate:deploy` against `DATABASE_URL`, retaining Prisma's original
+  names/checksums while ordering pending legacy files numerically
 - Restarts `heytutor.service`; service startup does not run schema migrations
 
 Postgres is not started on this machine.
@@ -144,6 +151,10 @@ with `[tutor:` stay on the machine because they include the question. Source
 maps upload when `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, and `SENTRY_PROJECT` are
 set. A missing token does not fail the build. `SENTRY_ENABLED=0` stops the
 server SDK on the next process start.
+
+Persisted turn failures use a bounded durable Sentry queue. See
+[failed-turn events and owner alert setup](failed-turn-sentry.md) for the release
+setting, historical backfill and the two alert rules.
 
 Because `setup-vm.sh` and `deploy.sh` `source` `.env.production`, keep it
 shell-compatible: quote values that contain `#`, spaces, or other

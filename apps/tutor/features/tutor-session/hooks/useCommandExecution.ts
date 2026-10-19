@@ -60,12 +60,12 @@ import { waitUntilDrawClock } from "@/lib/replay/replayAudio";
 import { CODE_FOCUS_SPOTLIGHT_MS, DIAGRAM_ZONE, DSA_DIAGRAM_ZONE, TEXT_LAYOUT } from "../constants";
 import type { CodeLessonController } from "../lib/code-lesson/codeLessonController";
 import { frameAdvanceRole } from "../lib/code-lesson/codeLessonSegments";
-import type { SpokenSegmentClock } from "../lib/code-lesson/codeSpokenSync";
+import { spokenTimeline, type SpokenSegmentClock } from "../lib/code-lesson/codeSpokenSync";
 import { runFrameWalkBeat, runTypedBlockBeat, walkSpokenStops, frameWalkPlan } from "../lib/code-lesson/spokenWalk";
 import type { BoardTextRect, BoardLayoutState } from "../types";
 import type { IntroLayoutCheckpoint } from "../lib/board/introLayoutCheckpoint";
 import { commitWorkRowInk, isInDiagramZone, registerBoardAnchor, resolveVisibleEmphasisRow, workColumnMaxWidth } from "../lib/board/boardLayout";
-import { wrapWorkRow } from "./useBoardLayout";
+import { fitRecordedWorkRow } from "../lib/board/workTextPresentation";
 import { resolveSnappedAnnotationParams } from "../lib/board/annotationSnap";
 import { withSpotlight } from "../lib/board/spotlight";
 import {
@@ -211,9 +211,13 @@ export function useCommandExecution({
         onInkStarted?: () => void;
         introLayoutCheckpoint?: IntroLayoutCheckpoint;
         durationScale?: number;
+        /** Instant remaining intro marks retain the ordinary label instrument. */
+        finishVerifiedDiagramIntro?: boolean;
         speechDurationMs?: number;
         writeSchedule?: WriteSchedule;
         applyLayout?: boolean;
+        /** Static saved-page review keeps captured WRITE rows and page erases. */
+        recordedWorkPlacement?: boolean;
         segmentNarration?: string;
         /**
          * This command's slice of the segment's spoken time. A ceiling for
@@ -232,10 +236,18 @@ export function useCommandExecution({
          * lettered and traced when its name is spoken. Needs the audio clock.
          */
         focusSchedule?: FocusTargetSchedule;
+        /** The following work cue bounds only this gesture's transient motion. */
+        focusDeadlineMs?: number;
+        getFocusTiming?: () => { schedule: FocusTargetSchedule; deadlineMs: number };
+        isPaused?: () => boolean;
         /** The segment's audio clock, media ms from its start. */
         getAudioPositionMs?: () => number;
         /** Media ms per wall ms; default 1. Only the waits need it. */
         getPlaybackRate?: () => number;
+        /** Waits for the audio clock on a pumped export clock instead of wall-time polling. */
+        waitUntilAudioMs?: (targetMs: number, getTargetMs?: () => number) => Promise<void>;
+        /** A following work cue bounds transient POINT motion. */
+        getPointDeadlineMs?: () => number | null;
         /**
          * The sentence this command sits under, with its alignment and audio
          * clock. The code-lesson branches (TYPE, FRAME, FOCUS) follow its
@@ -300,6 +312,9 @@ export function useCommandExecution({
           return Promise.resolve();
         }
         if (rawCommand.visualStyle?.fillRole === "region") {
+          if (rawCommand.visualStyle.strokeWidth === 0) return wb.drawAnnotation("highlight", path, duration, {
+            inkSettings, fillColor: "#9CCBFF", fillOpacity: 0.18, shouldCancel: commandCancelled,
+          });
           return Promise.all([
             wb.drawAnnotation("highlight", path, duration, {
               inkSettings,
@@ -333,6 +348,7 @@ export function useCommandExecution({
           dashed: shapeOptions?.dashed
             ?? rawCommand.visualStyle?.dashed
             ?? rawCommand.visualStyle?.correspondingFamily === 3,
+          pointStyle: shapeOptions?.pointStyle ?? rawCommand.visualStyle?.pointStyle,
           shouldCancel: commandCancelled,
         });
       };
@@ -343,7 +359,8 @@ export function useCommandExecution({
         duration: number,
         schedule?: WriteSchedule,
         fontSize?: number,
-      ) => wb.writeText(text, x, y, duration, schedule, fontSize, commandCancelled, inkSettings, options.onInkStarted);
+        letteringDurationMs?: number,
+      ) => wb.writeText(text, x, y, duration, schedule, fontSize, commandCancelled, inkSettings, options.onInkStarted, letteringDurationMs);
       const drawAnnotation: WhiteboardHandle["drawAnnotation"] = (
         kind,
         path,
@@ -355,7 +372,7 @@ export function useCommandExecution({
         shouldCancel: commandCancelled,
       });
 
-      const command = rawCommand;
+      let command = rawCommand;
       const activeDiagram = activeVerifiedDiagramRef.current;
       const trustedDiagramGeometry = options.trustedDiagramGeometry === true;
       if (!activeDiagram && !trustedDiagramGeometry && isUnsafeUncompiledDiagramCommand(command)) {
@@ -420,14 +437,17 @@ export function useCommandExecution({
       // 0 is a seek and 0.05 is a board restore. Both want the finished mark.
       // Flooring the restore at 50ms made every saved stroke take real time,
       // so reopening a lecture sat on "loading the board".
-      const scaledDuration = (duration: number) =>
-        durationScale <= 0.05 ? 0 : Math.max(Math.round(duration * durationScale), 50);
+      const scaledDuration = (duration: number, scale = durationScale) =>
+        scale <= 0.05 ? 0 : Math.max(Math.round(duration * scale), 50);
 
-      const speechSplit = (command: DrawCommand) => {
+      const speechSplit = (command: DrawCommand, scale = durationScale) => {
+        // Explicit seek/restore still means instant ink when a spoken budget
+        // is present; it must not resurrect cursor flights or stroke time.
+        if (scale <= 0.05) return { flightMs: 0, drawMs: 0 };
         if (speechDurationMs === undefined) {
           return {
-            flightMs: scaledDuration(getFlightDuration(command, inkPace)),
-            drawMs: scaledDuration(getDrawingDuration(command, inkPace)),
+            flightMs: scaledDuration(getFlightDuration(command, inkPace), scale),
+            drawMs: scaledDuration(getDrawingDuration(command, inkPace), scale),
           };
         }
 
@@ -653,9 +673,11 @@ export function useCommandExecution({
         }
         case "WRITE":
         case "LABEL": {
-          const [x, y, maybeFontSize] = command.params;
+          const [x, y, requestedFontSize] = command.params;
+          let maybeFontSize = requestedFontSize;
           if (
             command.type === "WRITE" &&
+            !options.recordedWorkPlacement &&
             !options.textPlacementReserved &&
             command.text &&
             Number.isFinite(x) &&
@@ -665,7 +687,7 @@ export function useCommandExecution({
               boardLayoutRef.current,
               fbdPhaseStartedRef.current,
             );
-            const { fontSize: wrappedSize, lines } = wrapWorkRow(command.text, columnWidth);
+            const { fontSize: wrappedSize, lines } = fitRecordedWorkRow(command.text, columnWidth, requestedFontSize);
             if (lines.length > 1) {
               for (const [index, line] of lines.entries()) {
                 if (commandCancelled()) return;
@@ -681,6 +703,10 @@ export function useCommandExecution({
               }
               break;
             }
+            // A captured one-line row needs the same column fit as a wrapped
+            // row. Use it for both registered layout bounds and permanent ink.
+            maybeFontSize = wrappedSize;
+            command = { ...command, params: [x, y, wrappedSize] };
           }
           if (command.text && Number.isFinite(x) && Number.isFinite(y)) {
             // Every size that reaches the pen is a step on the board's scale.
@@ -697,7 +723,9 @@ export function useCommandExecution({
                   command,
                   x,
                   y,
-                  command.type === "WRITE" || options.applyLayout !== false,
+                  command.type === "WRITE" && options.recordedWorkPlacement
+                    ? false
+                    : command.type === "WRITE" || options.applyLayout !== false,
                   options.introLayoutCheckpoint,
                 );
             if (isInDiagramZone(placement.x, placement.y)) {
@@ -740,6 +768,12 @@ export function useCommandExecution({
                 inkPace === "follow" && !isSeekCatchUp
                   ? Math.max(drawMs, getDrawingDuration(command, "follow"))
                   : drawMs;
+              // Whiteboard chooses pen vs pencil from the ordinary lettering
+              // budget. Finishing this intro skips its animation, not that style.
+              const normalLabelDrawMs = options.finishVerifiedDiagramIntro &&
+                trustedDiagramGeometry && command.type === "LABEL" && durationScale === 0
+                ? speechSplit(command, 1).drawMs
+                : undefined;
               await writeText(
                 command.text,
                 placement.x,
@@ -747,6 +781,9 @@ export function useCommandExecution({
                 penDrawMs,
                 undefined,
                 fontSize,
+                normalLabelDrawMs === undefined ? undefined : inkPace === "follow"
+                  ? Math.max(normalLabelDrawMs, getDrawingDuration(command, "follow"))
+                  : normalLabelDrawMs,
               );
             }
             // A WRITE row used to release withheld figure labels whose text it
@@ -852,6 +889,7 @@ export function useCommandExecution({
           // in that pass is being watched. Walking a whole spoken step per
           // pointing command would make scrubbing take as long as the lesson.
           if (isSeekCatchUp || durationScale <= 0.05) break;
+          const spokenClock = options.spokenClock;
           const cancelledTour = await tourMarker(
             wb,
             markerTourStops(targets, pointBeatsRef.current),
@@ -864,6 +902,24 @@ export function useCommandExecution({
               isCancelled: commandCancelled,
               delay: cancellableDelay,
               now: nowMs,
+              ...(spokenClock ? {
+                speechClock: {
+                  getAudioPositionMs: spokenClock.getAudioPositionMs,
+                  remainingWallMs: () => {
+                    const totalMs = spokenTimeline(spokenClock.narration, spokenClock.getTimings(), {
+                      estimatedTotalMs: spokenClock.estimatedTotalMs,
+                      msPerChar: spokenClock.msPerChar,
+                    }).totalMs;
+                    const nextWorkMs = options.getPointDeadlineMs?.();
+                    const deadlineMs = nextWorkMs !== undefined && nextWorkMs !== null && Number.isFinite(nextWorkMs)
+                      ? Math.min(totalMs, nextWorkMs)
+                      : totalMs;
+                    return (deadlineMs - spokenClock.getAudioPositionMs()) / Math.max(spokenClock.getPlaybackRate(), 0.1);
+                  },
+                  isComplete: () => spokenClock.isSpeechComplete?.() ?? false,
+                  isPaused: () => options.isPaused?.() ?? false,
+                },
+              } : {}),
             },
           );
           pointBeatsRef.current += 1;
@@ -1129,18 +1185,41 @@ export function useCommandExecution({
                 flyCursorTo: (x, y, durationMs, rotation, shouldCancel) =>
                   wb.flyCursorTo(x, y, durationMs, rotation, shouldCancel),
                 drawAnnotation: (kind, path, durationMs, annotationOptions) =>
-                  drawAnnotation(kind, path, durationMs, annotationOptions),
+                  wb.drawAnnotation(kind, path, durationMs, {
+                    ...annotationOptions,
+                    inkSettings,
+                    shouldCancel: () => commandCancelled() || Boolean(annotationOptions.shouldCancel?.()),
+                  }),
               },
               scheduled,
               {
                 emphasis,
                 veil: DIAGRAM_ZONE,
                 getAudioPositionMs: focusAudioClock,
-                waitUntilAudioMs: (targetMs) =>
-                  waitUntilDrawClock(focusAudioClock, targetMs, {
-                    shouldCancel: commandCancelled,
-                    getPlaybackRate: options.getPlaybackRate,
-                  }),
+                deadlineMs: options.focusDeadlineMs,
+                isPaused: options.isPaused,
+                getTiming: options.getFocusTiming ? () => {
+                  const timing = options.getFocusTiming!();
+                  return { targets: timing.schedule.targets, deadlineMs: timing.deadlineMs };
+                } : undefined,
+                // A recorded export clock moves only when its frames are
+                // pumped; its own wait follows that pump.
+                waitUntilAudioMs: async (targetMs, getTargetMs) => {
+                  if (options.waitUntilAudioMs) return options.waitUntilAudioMs(targetMs, getTargetMs);
+                  let nextTarget = targetMs;
+                  while (!commandCancelled()) {
+                    const waitingFor = nextTarget;
+                    await waitUntilDrawClock(focusAudioClock, waitingFor, {
+                      shouldCancel: () => commandCancelled() || Boolean(getTargetMs && getTargetMs() !== waitingFor),
+                      getPlaybackRate: options.getPlaybackRate,
+                      isPaused: options.isPaused,
+                    });
+                    const freshTarget = getTargetMs?.() ?? waitingFor;
+                    // An unchanged clock wait keeps its existing stall bound.
+                    if (freshTarget === waitingFor || focusAudioClock() + 10 >= freshTarget) return;
+                    nextTarget = freshTarget;
+                  }
+                },
                 flightBudgetMs: (audioMs) => {
                   // Lettering can leave the board at scene pace while the
                   // voice keeps its playback rate. Budget against the slowest
@@ -1627,6 +1706,7 @@ export function useCommandExecution({
         speechDurationMs?: number;
         writeSchedule?: WriteSchedule;
         applyLayout?: boolean;
+        recordedWorkPlacement?: boolean;
         segmentNarration?: string;
         speechShareMs?: number;
         trustedDiagramGeometry?: boolean;

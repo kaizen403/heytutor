@@ -1,0 +1,40 @@
+# Harness 2 board fidelity — completed measurement
+
+[PR #135](https://github.com/kaizen403/heytutor/pull/135) preserves completed engine-owned reveals, captured work typography and independent lesson page boundaries. All **23 accepted lessons** now have the same frozen compiled reference, lesson-end board and actual saved/reloaded/reopened board measured BEFORE and AFTER. The PR remains open and unmerged; no production changes or accepted topic count changes were made.
+
+## Results
+
+| Subject | Phase | Lessons | Compiled R/P/W | Live R/P/W | Reopened R/P/W |
+| --- | --- | ---: | --- | --- | --- |
+| Maths | BEFORE | 13 | 4/8/1 | 4/8/1 | 4/8/1 |
+| Maths | AFTER | 13 | 4/8/1 | 4/8/1 | 4/8/1 |
+| Physics | BEFORE | 10 | 4/4/2 | 4/4/2 | 4/4/2 |
+| Physics | AFTER | 10 | 4/4/2 | 4/4/2 | 4/4/2 |
+| Total | BEFORE | 23 | 8/12/3 | 8/12/3 | 8/12/3 |
+| Total | AFTER | 23 | 8/12/3 | 8/12/3 | 8/12/3 |
+
+R/P/W means right/partial/wrong. Category counts are unchanged: the board preserves the source figure's quality. This does not mean zero earlier fidelity loss. **One BEFORE lesson lost a permanent engine-owned area highlight on stable reopen; the same frozen AFTER lesson retains it.** Both final work rows were always present in its original pixels; the earlier missing-row reading was explicitly corrected. No confirmed owned diagram loss remains in the 23 judged AFTER triptychs.
+
+Engine defects remain: nine lessons omit required labels/elements/associations, three have ambiguous source layout, one has contradictory tangent geometry, and one lacks required circuit topology. These groups overlap the highlight-loss case. Another historical figure is W/W/W under its frozen two-path rubric but separately R/R/R under the literal broad one-path stem. The rubric was not changed between phases. Correct teaching work does not repair a missing figure label, and preserving an engine-wrong figure is a board-fidelity match.
+
+## Three general fixes
+
+- **Complete validated finished reveals:** old restore kept two intro marks where actual terminal completion emitted six. Completion releases deferred engine-owned marks only for compatible completed lineage. Thirteen reopen and 13 replay cases cover completed/resume positives and stopped/live/doubt/code/wrong-page/changed/invalid negatives. The one observed permanent highlight loss is fixed in the actual paired saved-board capture.
+- **Preserve bounded captured work typography:** four historical lessons directly show 55 submitted WRITE rows changing 27→32 px; one fresh lesson directly captures the same change for one incoming row. Canonical save now retains bounded font/y, and one-line/wrapped execution fits its supplied column. A complete paired fresh lesson preserves all 21 WRITE text/x/y/27 px values and 137 native work nodes. Eighteen actual save/reopen checkpoints pass. The 11 newly collected paired lessons also have matching live/reopened work geometry.
+- **Reset independent pages before installing their diagrams:** an actual-consumer regression retained 151 nodes instead of 132 and shifted the next row from y=142 to y=262. Runtime-owned page clearing now precedes diagram installation across restore, Replay and Player's shared timeline; clock/async-clear/cancellation controls pass. Resumes/doubts retain ink. This is separate regression evidence, not an extra primary-cohort loss count.
+
+SVG arrowhead/cap/unowned-fill conventions and readable pen/pencil hue changes are separately documented. One dynamic work row extends beyond x=400 while remaining readable before the figure; no overlap or fixed-boundary patch is claimed. Chemistry-only findings went to `yaren/.context/monitor/board-fidelity-for-chemistry.md`; chemistry and engine code were not changed.
+
+## Measurement limits and exclusions
+
+Six historical BEFORE lessons are source-qualified zero-duration reconstructions through actual React/Konva/Whiteboard/TurnControl, API save, canonical database readback, reload and reopen. Original historical timing and complete solver/artifact records were unavailable. Seventeen fresh BEFORE lessons use ordinary native Ask and scheduling with local macOS speech fixtures, not paid ElevenLabs. Source model is `st-gpt-6-sol`, Jev off; actual maths policy remains recorded, including two current fallbacks from configured strict. All 17 have stronger native stable reopen confirmation: six advancing samples after a ≥15-second ready hold, byte-identical to original PNGs. The newest three also preserve complete saved board/turn/segments before and after the free read; one zero-sample startup failure and its GET-only retry remain preserved.
+
+AFTER preserves exact question, scene, teaching and compiled PNG through actual TurnControl/SegmentRunner, estimated schedules and browser media clocks with synthetic local WAV/SSE. It is timed frozen reconstruction; original production audio/network timing is unavailable and synthetic AFTER audio is not persisted. Normal signed admission, API save, database readback, native reload and six fresh stable reopen samples have receipts. A free CDP failure retains 27 prior requests; its successful retry uses the same unused, unexpired trace/cache without another admission and fulfills 26 saved spoken rows. Two separate free prepares fail before speech: a 3.41×10⁻¹³ label-collision-height difference and an optional undefined caption omitted by the original JSON contract. Both remain ungraded; the reconstructed first-run archive matches published source hashes. The transparent private fixture uses the original JSON boundary and bounds finite collision metadata by both 1e−9 px and 128ε-scaled magnitude; geometry/text/fonts/structure stay exact. Seventeen comparator controls pass; production/engine/input/reference bytes remain unchanged. Fresh HTTP speech fulfillment is not audible-delivery or saved-audio proof; three earlier lessons have incomplete exact-text coverage, early upload failures and missing as-run fixture hashes remain qualified.
+
+Original anchor agreement is 33/40; resumed anchors 9/10. These are reference consistency checks, not human accuracy or independent panels. Of 34 frozen new/reserve inputs, 17 are accepted figure lessons, four complete without a validated figure, two stop, one times out at start, one lacks final capture after collector timeout, and nine remain undispatched. Historical reuse separately excludes one missing-full-plan lesson. Failed free attempts and unavailable outcomes are preserved and never blank-graded or counted as extra lessons; no paid rerolls were made.
+
+## Validation and spend
+
+Recorded typecheck/lint/build pass. Full recorded verification completed with **14 inherited failures**, whose normalized full logs match recorded main snapshot `eba4b7a1` byte-for-byte; this is not a claim about subsequently advanced main. Earlier 334/320 leaf totals were incorrect: the record contains 337 execution rows including a build and repeated gates; 322 originally exit 0 and 15 exit 1. The sole candidate failure was then fixed in a scoped 26-check run retaining six ordered overlay/history/draw assertions and negative controls. No inherited gate was weakened. Actual Security stdout at `ff39f514` proves both new consumer gates run once after shared build. Recorded Security/Greptile checks passed at measured source `ff39f514`, with zero review threads; Vercel retains its external deployment-rate-limit failure. No deployment/retrigger was made.
+
+New Azure usage estimate: **$3.1637360, 172 measured responses of 176 calls**. Four zero-byte round 07 failures remain unresolved, with **up to $0.446364 additional exposure**, not zero bills or measured charges. All 172 response token/cache records match original bytes at recorded rates; these are estimates, not invoices. Paid runtimes are stopped. Jev/paid speech calls: zero; free paired work adds $0. Historical eligible-six generation cost is separate: $0.509555 with six old unknown attempts; reuse costs $0 new. All-seven inventory: $0.577258 with eight unknown attempts, including the excluded lesson. Private original images and failed receipts remain local in the portable comparison gallery.

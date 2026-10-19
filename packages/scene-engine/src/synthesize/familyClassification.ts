@@ -313,6 +313,11 @@ export function inferFamiliesFromQuestion(question: string): SceneVisualFamily[]
       }
     }
   }
+  // Chemistry species and physical givens retain their original notation.
+  // Shared math/physics stem normalization remains exclusive to that table.
+  for (const family of inferChemistryFamilies(question)) {
+    if (!matches.includes(family)) matches.push(family);
+  }
   return matches;
 }
 

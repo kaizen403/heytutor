@@ -236,6 +236,7 @@ export function CodeLessonPanel({
     <div
         ref={panelRef}
         data-testid="code-lesson-panel"
+        data-board-code-panel={variant}
         data-editor-theme="solarized-dark"
         style={{
           ...(variant === "board"
@@ -249,14 +250,15 @@ export function CodeLessonPanel({
             : {
                 position: "relative" as const,
                 width: "100%",
-                // A fixed, viewport-relative height: the slot sits inside the
-                // element useBoardViewport measures, so a content-derived
+                // A viewport-relative height capped by the measured phone
+                // deck budget. The editor scrolls within the remaining space.
+                // The slot sits inside the measured board container, so a content-derived
                 // height would feed back into the board's own scale and
                 // oscillate. Same space whether the panel is empty or full.
-                height: "min(42vh, 340px)",
+                height: "var(--board-panel-height, min(42vh, 340px, var(--board-panel-max-height, 340px)))",
                 marginTop: 12,
               }),
-          display: "flex",
+          display: variant === "below" ? "var(--board-panel-display, flex)" : "flex",
           flexDirection: "column",
           backgroundColor: SOLARIZED_EDITOR.background,
           border: `1px solid ${SOLARIZED_EDITOR.border}`,
@@ -269,7 +271,7 @@ export function CodeLessonPanel({
       >
         <div
           style={{
-            display: "flex",
+            display: variant === "below" ? "var(--board-panel-display, flex)" : "flex",
             alignItems: "stretch",
             height: SOLARIZED_CHROME.titleBarHeight,
             borderBottom: `1px solid ${SOLARIZED.base02}`,
@@ -281,7 +283,7 @@ export function CodeLessonPanel({
           <span
             title={tabLabel}
             style={{
-              display: "flex",
+              display: variant === "below" ? "var(--board-panel-display, flex)" : "flex",
               alignItems: "center",
               maxWidth: "70%",
               padding: "0 12px",
@@ -302,7 +304,7 @@ export function CodeLessonPanel({
           </span>
           <span
             style={{
-              display: "flex",
+              display: variant === "below" ? "var(--board-panel-display, flex)" : "flex",
               alignItems: "center",
               padding: "0 10px",
               color: SOLARIZED_EDITOR.muted,
@@ -315,7 +317,7 @@ export function CodeLessonPanel({
           <span
             style={{
               marginLeft: "auto",
-              display: "flex",
+              display: variant === "below" ? "var(--board-panel-display, flex)" : "flex",
               alignItems: "center",
               gap: 6,
               flexShrink: 0,
@@ -399,7 +401,7 @@ export function CodeLessonPanel({
                 left: "50%",
                 bottom: 14,
                 transform: "translateX(-50%)",
-                display: "flex",
+                display: variant === "below" ? "var(--board-panel-display, flex)" : "flex",
                 alignItems: "center",
                 gap: 7,
                 border: `1px solid ${SOLARIZED.cyan}55`,
@@ -425,7 +427,7 @@ export function CodeLessonPanel({
                 left: "50%",
                 bottom: 14,
                 transform: "translateX(-50%)",
-                display: "flex",
+                display: variant === "below" ? "var(--board-panel-display, flex)" : "flex",
                 alignItems: "center",
                 gap: 8,
                 border: `1px solid ${SOLARIZED.green}55`,
@@ -448,7 +450,7 @@ export function CodeLessonPanel({
 
         <div
           style={{
-            display: "flex",
+            display: variant === "below" ? "var(--board-panel-display, flex)" : "flex",
             alignItems: "center",
             height: SOLARIZED_CHROME.statusBarHeight,
             padding: "0 12px",

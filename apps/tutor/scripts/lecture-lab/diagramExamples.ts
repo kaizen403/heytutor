@@ -1,10 +1,19 @@
 import { readFileSync } from "node:fs";
-import { compactSceneExampleDocument } from "@heytutor/tutor-core";
+import { compactSceneExampleDocument, type DiagramSubject } from "@heytutor/tutor-core";
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
+
+/** The library shelves: every entry belongs to exactly one. */
+export type DiagramExemplarSubject = Exclude<DiagramSubject, "other">;
 
 export interface DiagramExemplar {
   id: string;
   sourceKind: "curated" | "synthesized";
+  /**
+   * Recorded at build time: curated entries by their directory, synthesized
+   * entries by where their stem came from. An entry without one (a library
+   * built before subjects) is never shown to a turn of a known subject.
+   */
+  subject?: DiagramExemplarSubject | null;
   question: string | null;
   depicts: string;
   figureKind: string | null;
@@ -32,6 +41,8 @@ export interface DiagramExampleCatalogue {
   text: string;
   /** Conservative approximation used to keep the cheap-model prompt bounded. */
   estimatedTokens: number;
+  /** Distinct candidates omitted by the prompt budget, not semantic deduplication. */
+  omittedEntries: number;
 }
 
 const STOP_WORDS = new Set([
@@ -104,6 +115,32 @@ const GROUP_PLAIN_NAMES: Record<string, string> = {
   xt_graph: "position time graph",
 };
 
+export function parseDiagramExemplarSubject(value: unknown): DiagramExemplarSubject | null {
+  return value === "maths" || value === "physics" || value === "chemistry" ? value : null;
+}
+
+/** Curated exemplars are filed under their subject: `curated:physics/...`. */
+export function curatedDiagramExemplarSubject(id: string): DiagramExemplarSubject | null {
+  return parseDiagramExemplarSubject(/^curated:([^/]+)\//.exec(id)?.[1]);
+}
+
+/**
+ * One turn's shelf. A known subject sees only its own entries. No subject
+ * (null: an old client that sends none, or a turn classified `other`) keeps
+ * the whole library, which is what every turn saw before subjects existed.
+ */
+/**
+ * Physics and chemistry turns see only their own shelf. Maths keeps the whole library for now: generated
+ * maths shapes (a bare parabola, a quartic) are filed under the physics question they came from, and maths
+ * strict was measured on the whole library.
+ */
+export function filterDiagramExemplarsForSubject(
+  exemplars: readonly DiagramExemplar[],
+  subject: DiagramExemplarSubject | null,
+): DiagramExemplar[] {
+  return subject === null || subject === "maths" ? [...exemplars] : exemplars.filter((exemplar) => exemplar.subject === subject);
+}
+
 /** Stable scoring taxonomy; evaluation labels never enter runtime retrieval. */
 export function figureKindForDiagramGroup(family: string | null, archetype: string | null): string | null {
   return FIGURE_KIND_BY_GROUP.get(archetype ?? "") ?? FIGURE_KIND_BY_GROUP.get(family ?? "") ?? null;
@@ -140,8 +177,9 @@ function firstWords(value: string, count: number): string {
 /** Compact semantic index sent to the cheap picker; source questions never enter it. */
 export function buildDiagramExampleCatalogue(
   exemplars: readonly DiagramExemplar[],
+  context: { question?: string; plan?: TurnPlanV3 | null } = {},
 ): DiagramExampleCatalogue {
-  const entries: DiagramExampleCatalogueEntry[] = [];
+  const candidates: Array<DiagramExampleCatalogueEntry & { curated: boolean }> = [];
   const ordered = [...exemplars].sort((left, right) =>
     Number(right.sourceKind === "curated") - Number(left.sourceKind === "curated") ||
     left.id.localeCompare(right.id));
@@ -153,21 +191,39 @@ export function buildDiagramExampleCatalogue(
       // Sixteen leaves room for long stable ids while remaining below the
       // brief's twenty-word ceiling and approximate 6k-token catalogue cap.
       depicts: firstWords(exemplar.depicts, 16),
+      curated: exemplar.sourceKind === "curated",
     };
-    const duplicate = entries.some((entry) =>
+    const duplicate = candidates.some((entry) =>
       entry.figureKind === candidate.figureKind &&
       diagramQuestionsNearDuplicate(entry.depicts, candidate.depicts));
-    if (!duplicate) entries.push(candidate);
+    if (!duplicate) candidates.push(candidate);
+  }
+  const line = (entry: DiagramExampleCatalogueEntry) => `${entry.id}|${entry.figureKind}|${entry.depicts}`;
+  const characters = (entries: readonly DiagramExampleCatalogueEntry[]) => entries.map(line).join("\n").length;
+  const fits = (length: number) => Math.ceil(length / 4) < MAX_CATALOGUE_TOKENS;
+  if (!fits(characters(candidates))) {
+    // This only shortlists examples for the semantic picker, never selects or
+    // authors geometry. Source questions and evaluation labels are not used.
+    const query = new Set(diagramQuestionTokens(`${context.question ?? ""} ${diagramPlanRetrievalText(context.plan)}`));
+    const relevance = new Map(candidates.map(entry => [entry,
+      diagramQuestionTokens(entry.depicts).filter(token => query.has(token)).length]));
+    candidates.sort((left, right) => (relevance.get(right) ?? 0) - (relevance.get(left) ?? 0) ||
+      Number(right.curated) - Number(left.curated) || left.id.localeCompare(right.id));
+  }
+  const entries: DiagramExampleCatalogueEntry[] = [];
+  let usedCharacters = 0;
+  for (const { id, figureKind, depicts } of candidates) {
+    const entry = { id, figureKind, depicts };
+    const nextCharacters = usedCharacters + Number(entries.length > 0) + line(entry).length;
+    // Skip an oversized line and keep packing; growth must never disable the
+    // entire live picker or increase its existing prompt/deadline limits.
+    if (!fits(nextCharacters)) continue;
+    entries.push(entry);
+    usedCharacters = nextCharacters;
   }
   entries.sort((left, right) => left.id.localeCompare(right.id));
-  const text = entries
-    .map((entry) => `${entry.id} | ${entry.figureKind} | ${entry.depicts}`)
-    .join("\n");
-  const estimatedTokens = Math.ceil(text.length / 4);
-  if (estimatedTokens >= MAX_CATALOGUE_TOKENS) {
-    throw new Error(`diagram example catalogue is ${estimatedTokens} estimated tokens; expected under ${MAX_CATALOGUE_TOKENS}`);
-  }
-  return { entries, text, estimatedTokens };
+  const text = entries.map(line).join("\n");
+  return { entries, text, estimatedTokens: Math.ceil(text.length / 4), omittedEntries: candidates.length - entries.length };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -335,6 +391,8 @@ export function loadDiagramExemplarLibrary(
       return {
         id: value.id,
         sourceKind,
+        subject: parseDiagramExemplarSubject(value.subject) ??
+          (sourceKind === "curated" ? curatedDiagramExemplarSubject(value.id) : null),
         question: sourceKind === "curated" ? value.question : null,
         depicts: typeof value.depicts === "string" && value.depicts.trim()
           ? value.depicts

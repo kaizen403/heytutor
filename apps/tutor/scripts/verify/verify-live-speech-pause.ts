@@ -90,6 +90,79 @@ function verifyRestartedBrowserSpeechDoesNotLeadInk(runner: string) {
   assert.equal(liveAudioPositionMs(), 180, "draw clock must follow restarted speech, not the old 1.6s high water");
 }
 
+/** Run the live consumer's failure branch, including a failure after onStart. */
+function verifyTerminalSpeechFailureReachesQueue(runner: string) {
+  const source = ts.createSourceFile("useSegmentRunner.ts", runner, ts.ScriptTarget.Latest, true);
+  let failureBody: ts.Block | undefined;
+  const visit = (node: ts.Node) => {
+    if (ts.isCatchClause(node) && node.block.getText(source).includes('"segment speech failed"')) {
+      failureBody = node.block;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  assert(failureBody, "execute the actual live speech consumer catch, not a copied policy");
+  const compiled = ts.transpileModule(`function fail(error: Error, state: { cancelled: boolean; started: boolean; browser: boolean; recovery: boolean; ownsFallback?: boolean }, observe: (value: unknown) => void) {
+    let speechAborted = false, terminalSpeechFailure = false;
+    let stopped = 0, abandoned = 0;
+    const isCancelled = () => state.cancelled;
+    const browserFallbackOwnerRef = { current: state.ownsFallback === false ? "successor" : "owner" }, segmentFallbackOwner = "owner";
+    const stopFallbackSpeech = () => { stopped++; };
+    const tutorDebug = () => {}, tel = { mark() {} }, index = 0, timedOut = false;
+    const tts = { abandonSpeaking: () => { abandoned++; } };
+    const providerRecoveryAttempted = state.recovery;
+    const audioStartedAtMs = state.started ? 100 : null, usingBrowserFallback = state.browser;
+    try ${failureBody.getText(source)} finally {
+      // Observe the actual consumer's state and media cleanup even when it
+      // propagates the original error to the queue.
+      observe?.({ speechAborted, terminalSpeechFailure, stopped, abandoned });
+    }
+    return { speechAborted, terminalSpeechFailure, stopped, abandoned };
+  }`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+  const fail = new Function(`${compiled}\nreturn fail;`)() as (error: Error, state: {
+    cancelled: boolean; started: boolean; browser: boolean; recovery: boolean; ownsFallback?: boolean;
+  }, observe?: (value: { speechAborted: boolean; terminalSpeechFailure: boolean; stopped: number; abandoned: number }) => void) => {
+    speechAborted: boolean; terminalSpeechFailure: boolean; stopped: number; abandoned: number;
+  };
+  const error = new Error("partial playback stalled");
+  for (const started of [false, true]) {
+    for (const browser of [false, true]) {
+      for (const ownsFallback of [true, false]) {
+        let observed: unknown;
+        assert.throws(() => fail(error, { cancelled: false, started, browser, recovery: false, ownsFallback }, value => { observed = value; }),
+          (actual) => actual === error,
+          "provider and browser failures must reach the queue even after audio started");
+        assert.deepEqual(observed, { speechAborted: true, terminalSpeechFailure: true, stopped: ownsFallback ? 1 : 0, abandoned: 1 },
+          "a terminal speech failure cleans its own fallback without stopping a replacement browser voice");
+      }
+    }
+  }
+  for (const started of [false, true]) {
+    for (const browser of [false, true]) {
+      for (const ownsFallback of [true, false]) {
+        let cancelled: unknown;
+        assert.doesNotThrow(() => { cancelled = fail(error, { cancelled: true, started, browser, recovery: false, ownsFallback }); },
+          "cancelled/superseded speech failures do not reach the queue");
+        assert.deepEqual(cancelled, { speechAborted: true, terminalSpeechFailure: false, stopped: ownsFallback ? 1 : 0, abandoned: 1 },
+          "a cancelled/superseded turn stays quiet and never stops a replacement browser voice");
+      }
+    }
+  }
+  for (const ownsFallback of [true, false]) {
+    let observed: unknown;
+    assert.throws(() => fail(error, { cancelled: false, started: true, browser: false, recovery: true, ownsFallback }, value => { observed = value; }),
+      (actual) => actual instanceof Error && actual.message === "Provider voice recovery failed" && actual.cause === error,
+      "failed recovery is not tolerated as an intro startup miss");
+    assert.deepEqual(observed, { speechAborted: true, terminalSpeechFailure: true, stopped: ownsFallback ? 1 : 0, abandoned: 1 },
+      "failed recovery retains terminal state and cleans only its owned fallback");
+    let cancelledRecovery: unknown;
+    assert.doesNotThrow(() => { cancelledRecovery = fail(error, { cancelled: true, started: true, browser: false, recovery: true, ownsFallback }); },
+      "cancelled recovery does not report a new terminal error");
+    assert.deepEqual(cancelledRecovery, { speechAborted: true, terminalSpeechFailure: false, stopped: ownsFallback ? 1 : 0, abandoned: 1 },
+      "cancelled recovery neither throws a terminal failure nor stops successor speech");
+  }
+}
+
 async function main() {
   assert.equal(browserRecoveryPlaybackRate(1.5), 1, "browser TTS must not pitch up at lesson speed");
   assert.equal(browserRecoveryPlaybackRate(0.75), 0.75, "slower-than-natural speech remains available");
@@ -221,7 +294,7 @@ async function main() {
     pauseGeneration: () => 0,
   }), /Browser speech did not complete/, "a silent browser fallback cannot advance the lesson");
 
-  const runner = readFileSync(new URL("../../features/tutor-session/hooks/turn/useSegmentRunner.ts", import.meta.url), "utf8");
+  const runner = readFileSync(process.env.LIVE_SPEECH_PAUSE_TEST_SOURCE ?? new URL("../../features/tutor-session/hooks/turn/useSegmentRunner.ts", import.meta.url), "utf8");
   const control = readFileSync(new URL("../../features/tutor-session/hooks/turn/useTurnControl.ts", import.meta.url), "utf8");
   assert.match(runner, /clock\.elapsedMs\(\)/, "live runner must use active time for playback and hard deadlines");
   assert.match(runner, /waitClock\.elapsedMs\(\)/, "the live initial ink wait must exclude pauses too");
@@ -231,15 +304,15 @@ async function main() {
   assert.match(runner, /audioStartedAtMs = performance\.now\(\);\s*audioStartedAtActiveMs = clock\.elapsedMs\(\);/, "browser speech restarting after pause must reset its media clock");
   assert.match(runner, /playbackRate: segmentPlaybackRate\(\)/);
   assert.match(runner, /getPlaybackRate: segmentPlaybackRate/g);
-  assert.match(runner, /if \(\(audioStartedAtMs === null \|\| usingBrowserFallback\) && !isCancelled\(\)\) throw error;/, "failed browser recovery must not count as a successful lesson beat even after partial audio");
+  verifyTerminalSpeechFailureReachesQueue(runner);
   assert.match(runner, /if \(providerRecoveryAttempted && !isCancelled\(\)\)[\s\S]*?throw new Error\("Provider voice recovery failed"/, "failed provider recovery must not be swallowed as a tolerable intro startup miss");
-  assert.match(runner, /speechAborted = true;\s*if \(browserFallbackOwnerRef\.current === segmentFallbackOwner\) stopFallbackSpeech\(\);/, "an obsolete segment must not stop a newer turn's browser voice");
+
   assert.match(control, /pauseFallbackSpeech\(\)/);
   assert.match(control, /resumeFallbackSpeech\(\)/);
   assert.match(runner, /const stopFallbackSpeech = \(\) => \{[\s\S]*?speechClockRef\.current\?\.resume\(\);/, "stopping a paused turn must release its pending startup deadline");
   assert.match(control, /stopFallbackSpeech\(\)/);
   verifyRestartedBrowserSpeechDoesNotLeadInk(runner);
-  console.log("verified live speech deadlines, browser fallback, and restarted-voice ink clock");
+  console.log("verified live speech deadlines, owned/superseded fallback failure cleanup, and restarted-voice ink clock");
 }
 
 void main().catch((error) => { console.error(error); process.exitCode = 1; });
