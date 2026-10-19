@@ -1,0 +1,2 @@
+tsx scripts/verify/verify-incline-source-units.ts
+pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-incline-operator-contract.ts

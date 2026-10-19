@@ -1,6 +1,6 @@
 import type { RenderPoint, SceneConstruction, SceneDocument, SceneIssue } from "../types";
 import {
-  add2, canonicalUnit, compactNumber, hypot2, invalid, isRecord, placement, rejectUnknownKeys,
+  add2, canonicalUnit, compactNumber, hypot2, invalid, isRecord, placement, rejectUnknownKeys, requireUnits,
   scale2, scalar, sourceUnits, SourceInputError, validationNumber,
   type SourceContext,
 } from "./sourceScalars";
@@ -34,6 +34,8 @@ const LENGTH: Readonly<Record<string, string>> = { m: "m", metre: "m", meter: "m
 const VOLT: Readonly<Record<string, string>> = { V: "V", volt: "V" };
 const MASS: Readonly<Record<string, string>> = { kg: "kg" };
 const GRAVITY: Readonly<Record<string, string>> = { "m/s^2": "m/s^2", "m/s²": "m/s^2" };
+const DEGREES: Readonly<Record<string, string>> = { deg: "deg", "°": "deg", degree: "deg", degrees: "deg" };
+const DIMENSIONLESS: Readonly<Record<string, string>> = { "1": "1", dimensionless: "1", unitless: "1" };
 const CHARGE: Readonly<Record<string, string>> = { C: "C" };
 const TESLA: Readonly<Record<string, string>> = { T: "T" };
 const SPEED: Readonly<Record<string, string>> = { "m/s": "m/s" };
@@ -103,7 +105,13 @@ function positiveDeclared(
   if (!(number > 0)) invalid(key, `${key} must be positive`);
   return number;
 }
-function unitOf(inputs: Record<string, unknown>, key: string, aliases: Readonly<Record<string, string>>, expected: string): void {
+function unitOf(inputs: Record<string, unknown>, key: string, aliases: Readonly<Record<string, string>>, expected: string, document?: SceneDocument): void {
+  // A missing redundant block is unambiguous only when every declaration on
+  // the operand's reference/wrapper chain already states the SI working unit.
+  if (inputs.units === undefined && document) {
+    const declared = sourceUnits(inputs[key], document);
+    if (declared.length > 0 && declared.every((unit) => canonicalUnit(unit, aliases) === expected)) return;
+  }
   if (!isRecord(inputs.units) || canonicalUnit(inputs.units[key], aliases) !== expected) invalid("units", `${key} must declare ${expected}`);
 }
 function agreeDeclared(actual: number, supplied: unknown, key: string, dimension: Dimension, workingUnit: string, context: SourceContext, document?: SceneDocument): number {
@@ -166,12 +174,14 @@ function readPotentiometer(inputs: Record<string, unknown>, context: SourceConte
 
 function readIncline(inputs: Record<string, unknown>, context: SourceContext, document?: SceneDocument): InstrumentGeometry[] {
   rejectUnknownKeys(inputs, ["mass", "gravity", "angleDeg", "mu", "motion", "origin", "displayScale", "forceScale", "accelScale", "units"]);
-  unitOf(inputs, "mass", MASS, "kg");
-  unitOf(inputs, "gravity", GRAVITY, "m/s^2");
+  unitOf(inputs, "mass", MASS, "kg", document);
+  unitOf(inputs, "gravity", GRAVITY, "m/s^2", document);
   const mass = positiveDeclared(inputs.mass, "mass", "mass", "kg", context, document);
   const gravity = positiveDeclared(inputs.gravity, "gravity", "gravity", "m/s^2", context, document);
+  requireUnits(inputs.angleDeg, "deg", DEGREES, document);
   const angle = scalar(inputs.angleDeg, "angleDeg", context, 90) * Math.PI / 180;
   if (!(angle > 0) || !(angle < Math.PI / 2)) invalid("angleDeg", "the incline angle must lie strictly between 0 and 90 degrees");
+  requireUnits(inputs.mu, "1", DIMENSIONLESS, document);
   const mu = scalar(inputs.mu, "mu", context);
   if (mu < 0) invalid("mu", "the friction coefficient cannot be negative");
   if (inputs.motion !== "rest" && inputs.motion !== "down" && inputs.motion !== "up") invalid("motion", "motion must be rest, down, or up");
