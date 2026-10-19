@@ -212,6 +212,18 @@ function structuralPhraseAt(text: string, kind: CarbonSiteKind): StructuralPhras
   return candidates.reduce((best, candidate) => candidate.length >= best.length ? candidate : best, { length: 0 });
 }
 
+/** A typed optional drawing object may introduce a source-named roster. */
+function startsNamedDrawingRoster(text: string, kind: CarbonSiteKind): boolean {
+  let tail = text.trimStart();
+  const object = structuralPhraseAt(tail, kind);
+  if (object.argument === "structure-object") {
+    const of = /^\s+of\s+/i.exec(tail.slice(object.length));
+    if (!of) return false;
+    tail = tail.slice(object.length + of[0].length);
+  }
+  return namedGraphAt(tail) !== null;
+}
+
 /** A with-clause qualifies properties only when its closed typed arguments carry one. */
 function propertyBearingTail(text: string, kind: CarbonSiteKind): boolean {
   let at = 0;
@@ -391,6 +403,7 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
       if (postfix.state === "declined") return null;
       if (postfix.state === "valid") {
         for (const claim of request.postfixClaims) claim.models = postfix.models;
+        request.postfixClaims = [];
         request.lastOwners = postfix.models;
         request.selection = postfix.models;
         request.selectionBound = true;
@@ -467,7 +480,7 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
         // whose earlier local assertions have already completed. Per-property
         // cursors cannot narrow an explicit both/all/each/their reference.
         if (phrase.count !== undefined && /^(draw|sketch|compare)$/.test(request.action) && !request.members.length
-          && namedGraphAt(text.slice(at + phrase.length).trimStart())) {
+          && startsNamedDrawingRoster(text.slice(at + phrase.length), kind)) {
           // A quantified forward declaration owns the actual completed draw
           // roster, not a guessed property owner before any name is parsed.
           request.declaredCount = phrase.count;

@@ -809,5 +809,93 @@
     "id": "forward-both-compare-wrong-property",
     "question": "Compare both chloroethane and bromoethane with both C-Br sites identified. Classify each site.",
     "draw": false
+  },
+  {
+    "id": "review2-postfix-exact",
+    "question": "Draw chlorobenzene and chloroethane with the carbon carrying Cl identified. Label sp2 in the first structure and sp3 in the second structure.",
+    "draw": true,
+    "names": [
+      "chlorobenzene",
+      "chloroethane"
+    ]
+  },
+  {
+    "id": "review2-postfix-order-transfer",
+    "question": "Draw chloroethane and chlorobenzene with the carbon carrying Cl identified. Label sp3 in the first structure and sp2 in the second structure.",
+    "draw": true,
+    "names": [
+      "chloroethane",
+      "chlorobenzene"
+    ]
+  },
+  {
+    "id": "review2-postfix-named-transfer",
+    "question": "Draw chlorobenzene and chloroethane with the carbon carrying Cl identified. Label sp2 in chlorobenzene and sp3 in chloroethane.",
+    "draw": true,
+    "names": [
+      "chlorobenzene",
+      "chloroethane"
+    ]
+  },
+  {
+    "id": "review2-postfix-class-transfer",
+    "question": "Draw chlorobenzene and chloroethane with the carbon carrying Cl identified. Label aryl in the first structure and primary alkyl in the second structure.",
+    "draw": true,
+    "names": [
+      "chlorobenzene",
+      "chloroethane"
+    ]
+  },
+  {
+    "id": "review2-postfix-wrong-first",
+    "question": "Draw chlorobenzene and chloroethane with the carbon carrying Cl identified. Label sp3 in the first structure and sp3 in the second structure.",
+    "draw": false
+  },
+  {
+    "id": "review2-postfix-wrong-second",
+    "question": "Draw chlorobenzene and chloroethane with the carbon carrying Cl identified. Label sp2 in the first structure and sp2 in the second structure.",
+    "draw": false
+  },
+  {
+    "id": "review2-roster-exact",
+    "question": "Draw both structures of propan-1-ol and propan-2-ol with their OH-bearing carbon marked.",
+    "draw": true,
+    "names": [
+      "propan-1-ol",
+      "propan-2-ol"
+    ]
+  },
+  {
+    "id": "review2-roster-sketch-transfer",
+    "question": "Sketch both structural diagrams of chloroethane and chlorobenzene with their halogen-bearing carbon marked. Classify each site.",
+    "draw": true,
+    "names": [
+      "chloroethane",
+      "chlorobenzene"
+    ]
+  },
+  {
+    "id": "review2-roster-compare-transfer",
+    "question": "Compare both skeletal structures of butan-1-ol and butan-2-ol with their OH-bearing carbon marked.",
+    "draw": true,
+    "names": [
+      "butan-1-ol",
+      "butan-2-ol"
+    ]
+  },
+  {
+    "id": "review2-roster-one",
+    "question": "Draw both structures of propan-1-ol with its OH-bearing carbon marked.",
+    "draw": false
+  },
+  {
+    "id": "review2-roster-three",
+    "question": "Draw both structures of propan-1-ol, propan-2-ol and ethanol with their OH-bearing carbon marked.",
+    "draw": false
+  },
+  {
+    "id": "review2-roster-property-contradiction",
+    "question": "Draw both structures of propan-1-ol and propan-2-ol with their OH-bearing carbon labelled sp2.",
+    "draw": false
   }
 ]
