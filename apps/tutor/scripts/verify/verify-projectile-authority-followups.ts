@@ -85,7 +85,7 @@ refused("missing plan height: bare 80 cannot become an 80 m table", run(TABLE, n
 for (const speed of [{ value: 72, unit: "ms^-1" }, { value: { value: 72, unit: "m/s" } }, { value: 20, unit: "km/h" }]) {
   refused("missing plan speed: wrapper must match the question measurement", run(KMH, plan(KMH, []), speed));
 }
-for (const gravity of ["980 cm/s ^2", "980 cm/s ²", "980 centimetres per second ^2", "980 cm/sec squared", "980 cm/s /s"]) {
+for (const gravity of ["980 cm/s ^2", "980 cm/s ²", "980 centimetres per second ^2", "980 cm/sec squared", "980 cm/s /s", "9.8e2 cm/s ^2"]) {
   const question = `A ball is thrown at 20 m/s at 30° above horizontal. Take g = ${gravity}. Find its range.`;
   kept(`${gravity} cannot hold a launch speed`, run(question, plan(question, []), 20));
 }
@@ -145,5 +145,23 @@ kept("grouped source lengths retain their converted value", run(GROUPED_TABLE, p
 for (const symbol of ["y", "elevation"]) {
   const apex = plan(MAXIMUM, [given("u", 20, "m/s")], [{ ...given("apex_y", 55, "m", symbol), provenance: "derived", dependsOn: [] } as Quantity]);
   refused("a later vertical position cannot supply the launch height", run(MAXIMUM, apex, 20, [], { initialHeight: 55 }), undefined, "initialHeight");
+}
+for (const written of ["2e1 m/s", "2E+1 m/s", "200e-1 m/s", "200e−1 m/s", "2,000e-2 m/s", "2.0e1 m/s", "7.2e1 km/h", ".2e2 m/s", "2.e1 m/s"]) {
+  const question = `A ball is launched at ${written} at 30° above horizontal. Take g = 10 m/s^2.`;
+  kept("scientific source speeds retain the entire value", run(question, plan(question, []), written.endsWith("km/h") ? { value: 20, unit: "m/s" } : 20));
+  refused("a scientific source speed cannot become its exponent", run(question, plan(question, []), { value: 1, unit: "m/s" }, [], { displayScale: 300 }));
+}
+for (const written of ["1e2 cm", ".1e3 cm", "100.e0 cm"]) {
+  const question = TABLE.replace("80 cm", written);
+  kept("scientific source heights retain their converted value", run(question, plan(question, [given("u", 2, "m/s")]), 2, [], { launchAngleDeg: 0, initialHeight: 1, displayScale: 100 }));
+  refused("a scientific source height cannot become its exponent", run(question, plan(question, [given("u", 2, "m/s")]), 2, [], { launchAngleDeg: 0, initialHeight: 0.02, displayScale: 100 }), undefined, "initialHeight");
+}
+for (const written of ["20,5 m/s", "1,00,000 km/h", "2..0 m/s", "2e1.2 m/s", "2e1,000 m/s", "2e1e2 m/s", "2e+1.2 m/s"]) {
+  const question = `A ball is launched at ${written} at 30° above horizontal. Take g = 10 m/s^2.`;
+  refused("an unreadable source speed keeps its refusal", run(question, plan(question, []), { value: 20, unit: "m/s" }));
+}
+for (const written of ["2e1.2 cm", "2e1,000 cm"]) {
+  const question = TABLE.replace("80 cm", written);
+  refused("an unreadable source length cannot leave height authority empty", run(question, plan(question, [given("u", 2, "m/s")]), 2, [], { launchAngleDeg: 0, initialHeight: 0.5, displayScale: 100 }), undefined, "initialHeight");
 }
 console.log(`verify-projectile-authority-followups: ${checks} checks ok`);
