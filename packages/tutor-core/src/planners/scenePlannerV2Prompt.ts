@@ -346,7 +346,7 @@ export const SCENE_CONSTRUCTION_INPUT_CONTRACTS = `Exact keys below. Entity refe
 - bar_magnet: {moment,displayScale}. Full shape: {moment:[mx,my],origin?,displayScale,units:{moment:"A m^2"}}. Gives [bar, four dipole field lines]. Field lines follow r proportional to sin^2 of the polar angle about the moment axis.
 - metre_bridge: {known,wireLength,displayLength}. Full shape: {knownResistance,unknownResistance?,balanceFromLeft?,wireLength,origin?,displayLength,units:{resistance:"ohm",length:"m"|"cm"}}. Gives [wire,jockey,left gap,right gap]. Unknown is in the right gap. X/R=(L-l)/l. A supplied pair must agree.
 - potentiometer: {driverEmf,cellEmf,wireLength,displayLength}. Full shape: {driverEmf,cellEmf,wireLength,balanceLength?,origin?,displayLength,units:{emf:"V",length:"m"|"cm"}}. Gives [wire,jockey]. l/L=cell/driver. No null point when the cell exceeds the driver.
-- incline_friction: {mass,gravity,angleDeg,mu,motion}. Full shape: {mass,gravity,angleDeg,mu,motion:"rest"|"down"|"up",origin?,displayScale,forceScale,accelScale,units:{mass:"kg",gravity:"m/s^2"}}. Gives [incline,body,weight,normal,friction,acceleration]. Rest requires tan(angle)<=mu. Motion is instantaneous slip direction, not acceleration: downhill sliding may decelerate uphill.
+- incline_friction: {mass,gravity,angleDeg,mu,motion,displayScale,forceScale,accelScale,units}. Full shape: {mass,gravity,angleDeg,mu,motion:"rest"|"down"|"up",origin?,displayScale,forceScale,accelScale,units:{mass:"kg",gravity:"m/s^2"}}. Gives [incline,body,weight,normal,friction,acceleration]. Rest requires tan(angle)<=mu. Motion is instantaneous slip direction, not acceleration: downhill sliding may decelerate uphill.
 - cyclotron: {charge,mass,field,speed,displayScale}. Full shape: {charge,mass,field,speed,origin?,displayScale,units:{charge:"C",mass:"kg",field:"T",speed:"m/s"}}. Gives [orbit,left dee,right dee,velocity,field]. Radius is m v/(|q| B). The dee gap is display-only.
 Every required visible entity must be the output of exactly one construction unless it is a pure group. Logical layout coordinates may arrange a topology but must not imply measured distance or angle. When the scene cannot be faithfully expressed with these operators, select text_only.`;
 
@@ -415,7 +415,7 @@ const COMPACT_OUTPUT_CONTRACTS: Readonly<Record<string, string>> = {
   bar_magnet: "Outputs [bar,4 field lines].",
   metre_bridge: "Outputs [wire,jockey,left gap,right gap].",
   potentiometer: "Outputs [wire,jockey].",
-  incline_friction: "Outputs [incline,body,weight,normal,friction,acceleration].",
+  incline_friction: 'Outputs [incline,body,weight,normal,friction,acceleration]. units:{mass:"kg",gravity:"m/s^2"}.',
   cyclotron: "Outputs [orbit,left dee,right dee,velocity,field].",
 };
 
