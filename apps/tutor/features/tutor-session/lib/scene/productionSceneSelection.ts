@@ -223,6 +223,8 @@ export interface ProductionSceneSelectionInput extends ProductionSceneInput {
   requiredRetryEnabled?: boolean;
   /** Additive completion is an explicit final-selection experiment, off by default. */
   completionEnabled?: boolean;
+  /** Constructor-law marks are a separate default-off rollout; explicit input wins over the environment. */
+  constructorLawsEnabled?: boolean;
   solverAuthority?: unknown;
   policy?: { preferPlanner?: boolean; allowedFigureSources?: readonly FigureSource[] };
 }
@@ -446,6 +448,7 @@ function completeSelectedScene(
     // caller-owned authority isolated from that speculative work.
     proposal = completeSceneDocument(structuredClone(selected.sceneDocument), {
       enabled: true, turnPlan: structuredClone(turnPlan),
+      constructorLawsEnabled: input.constructorLawsEnabled ?? process.env.NEXT_PUBLIC_SCENE_COMPLETION_CONSTRUCTOR_LAWS === "1",
       baseRenderScene: structuredClone(selected.renderScene), solverAuthority: structuredClone(input.solverAuthority),
     });
     if (!completionRetainsDocument(selected.sceneDocument, proposal.document)) return rejected("completion changed existing document data");
