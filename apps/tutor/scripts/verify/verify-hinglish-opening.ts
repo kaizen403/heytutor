@@ -146,8 +146,18 @@ for (const unknownCue of [
   "Trace the ray from O to I and then extend it backward.",
 ]) {
   const unknownDocument = { ...mirrorDocument, revealGroups: [{ ...mirrorDocument.revealGroups[0]!, narrationCue: unknownCue }] };
-  const unknownPresentation = buildVerifiedDiagramPresentation(unknownDocument, { ...mirrorScene, revealGroups: unknownDocument.revealGroups }, { narrationLanguage: "hinglish" });
+  // Grammar is checked on the dense figure, as the clauses above are: its ink
+  // fills the sentence, so pacing never shortens the beat.
+  const unknownPresentation = buildVerifiedDiagramPresentation(unknownDocument, { ...denseMirrorScene, revealGroups: unknownDocument.revealGroups }, { narrationLanguage: "hinglish" });
   if (!unknownPresentation.introSegments.some(segment => segment.narration.includes(unknownCue))) lostUnknownCues.push(unknownCue);
+  // Over three strokes the same sentence may park the pen for longer than
+  // CUE_PEN_IDLE_MAX_MS; the beat then leaves the explanation to the
+  // teaching stream. It is dropped whole: never cut mid clause, and never
+  // a condition kept without its consequence.
+  const sparse = buildVerifiedDiagramPresentation(unknownDocument, { ...mirrorScene, revealGroups: unknownDocument.revealGroups }, { narrationLanguage: "hinglish" });
+  const sparseIntro = sparse.introSegments.map(segment => segment.narration).join(" ");
+  assert(sparseIntro.includes(unknownCue) || !/impedance|nonlinearly|spectral|necessarily|horizontally|backward|switch/i.test(sparseIntro),
+    `a paced beat keeps "${unknownCue}" whole or leaves it out whole: ${sparseIntro}`);
 }
 assert.deepEqual(lostUnknownCues, [], "unsupported technical grammar preserves its entire condition, relationship and negation; it is not replaced by an entity list");
 
