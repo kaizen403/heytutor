@@ -103,7 +103,7 @@ has(henryZero, "p=0 kPa", "zero partial pressure gives zero pressure");
 has(henryZero, "x=0", "the zero-pressure limit is zero mole fraction");
 
 const HENRY_C = "Henry's law is written c = k_H p. k_H = 0.034 mol/(L kPa) and the gas partial pressure is 20 kPa. Find c.";
-has(drawn(HENRY_C), `c=${Number((0.034 * 20).toFixed(3))} mol/L`, "the declared concentration convention uses partial pressure");
+declined(HENRY_C, "the complete mol/(L kPa) concentration-pressure unit is unsupported and must decline");
 
 declined("Use Henry's law p = k_H x. The mole fraction is 1.2 and k_H = 200 kPa. Find the partial pressure.", "a mole fraction above one is rejected");
 declined("The total pressure of the mixture is 100 kPa. Henry's law is p = k_H x with k_H = 200 kPa. Find the dissolved mole fraction.", "total pressure is not the gas partial pressure");
@@ -195,15 +195,15 @@ const DISSOCIATION = "The true molar mass is 180 g/mol. The solute dissociates i
 const dissociationI = 1 + (2 - 1) * 0.5;
 const dissociation = drawn(DISSOCIATION);
 has(dissociation, `i=${Number(dissociationI.toFixed(3))}`, "i = 1 + (nu - 1) alpha");
-has(dissociation, `Mapp=${Number((180 / dissociationI).toFixed(3))} g/mol`, "apparent molar mass is the true mass divided by i");
-has(dissociation, "Mapp < M", "dissociation makes the apparent molar mass smaller");
+has(dissociation, `M'=${Number((180 / dissociationI).toFixed(3))} g/mol`, "apparent molar mass is the true mass divided by i");
+has(dissociation, "M' < M", "dissociation makes the apparent molar mass smaller");
 
 const ASSOCIATION = "The true molar mass is 60 g/mol. The solute associates as 2 monomers with alpha = 0.8. Find the apparent molar mass.";
 const associationI = 1 - 0.8 + 0.8 / 2;
 const association = drawn(ASSOCIATION);
 has(association, `i=${Number(associationI.toFixed(3))}`, "association uses 1 - alpha + alpha/k");
-has(association, `Mapp=${Number((60 / associationI).toFixed(3))} g/mol`, "association raises the apparent molar mass");
-has(association, "Mapp > M", "association is labelled as a larger apparent mass");
+has(association, `M'=${Number((60 / associationI).toFixed(3))} g/mol`, "association raises the apparent molar mass");
+has(association, "M' > M", "association is labelled as a larger apparent mass");
 
 declined("The solute dissociates into 2 particles with alpha = 1.5. The true molar mass is 180 g/mol.", "a dissociation extent above one is rejected");
 declined("The solute dissociates into 1 particles with alpha = 0.5. The true molar mass is 180 g/mol.", "a one-particle dissociation is rejected");
