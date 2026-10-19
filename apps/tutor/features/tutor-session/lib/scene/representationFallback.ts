@@ -1386,6 +1386,9 @@ function hasStandaloneFunctionLhs(source: string, index: number, previousEquatio
 interface CompleteSourceExpression { expression: string; end: number }
 function readCompleteSupportedExpression(source: string, closers: readonly string[] = [], nativeSyntax = false): CompleteSourceExpression | null {
   let index = 0, depth = 0, absoluteDepth: number | null = null;
+  const startsDeclaration = (suffix: string): boolean => nativeSyntax
+    ? /^\s*(?:y|[\p{L}][\p{L}\p{N}_]*\s*\(\s*x\s*\))\s*=/iu.test(suffix)
+    : /^\s*y\s*=/i.test(suffix);
   const complete = (end: number): CompleteSourceExpression | null => {
     const expression = source.slice(0, index).trim();
     if (!expression || depth !== 0) return null;
@@ -1414,7 +1417,7 @@ function readCompleteSupportedExpression(source: string, closers: readonly strin
       }
       let next = end;
       while (/\s/.test(source[next] ?? "") && next < source.length) next++;
-      const nextEquation = /[\r\n]/.test(source.slice(end, next)) && /^y\s*=/i.test(source.slice(next));
+      const nextEquation = /[\r\n]/.test(source.slice(end, next)) && startsDeclaration(source.slice(next));
       const evaluation = next > end && readSourceAtEvaluation(source, next) !== null;
       if (next < source.length && !/[;,.?]/.test(source[next]!) && !nextEquation && !evaluation && !isSourceFunctionProseEndpoint(source, next)) return null;
       return complete(end);
@@ -1424,7 +1427,7 @@ function readCompleteSupportedExpression(source: string, closers: readonly strin
       if (/^\s*[+-]?(?:[0-9]|\.[0-9])/.test(source.slice(index + 1))) return null;
       return closers.length ? null : complete(index);
     }
-    if (/[\r\n]/.test(character) && /^\s*y\s*=/i.test(source.slice(index + 1))) return closers.length ? null : complete(index);
+    if (/[\r\n]/.test(character) && startsDeclaration(source.slice(index + 1))) return closers.length ? null : complete(index);
     if (character === "." && !/[0-9]/.test(source[index + 1] ?? "")) {
       if (index === 0 || !/^(?:\s|$)/.test(source.slice(index + 1))) return null;
       return closers.length ? null : complete(index);
@@ -1498,6 +1501,7 @@ function normalizeMathText(value: string): string {
     .replace(/[−–—]/g, "-")
     .replace(/×/g, "*")
     .replace(/÷/g, "/")
+    .replace(/π/g, "pi")
     .replace(/²/g, "^2")
     .replace(/³/g, "^3");
 }

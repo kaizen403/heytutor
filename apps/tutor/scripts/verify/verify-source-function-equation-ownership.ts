@@ -1270,6 +1270,11 @@ function check(name: string, run: () => void): void {
 }
 
 const caseIndex = process.argv.indexOf("--case");
+if (process.argv.includes("--review-pi-newline-only")) {
+  verifyReviewedPiAndNamedNewlines();
+  console.log(`reviewed pi and named newlines: ${checks - failed}/${checks} checks passed`);
+  process.exit(failed > 0 ? 1 : 0);
+}
 if (process.argv.includes("--review-settings-only")) {
   verifyReviewedSettings();
   console.log(`reviewed function settings: ${checks - failed}/${checks} checks passed`);
@@ -2000,5 +2005,110 @@ function verifyReviewedForty(): void {
   });
 }
 verifyReviewedForty();
+// Literal bodies are authored independently of the reader. Native routes must
+// preserve the whole source-only producer; source-copy routes must draw every
+// requested body even when the current native producer cannot build the pair.
+function verifyReviewedPiAndNamedNewlines(): void {
+  const piFixtures = [
+    { id: "reported-pi-pair", question: "Sketch y=sin(x)+π and y=cos(x).", bodies: ["sin(x)+pi", "cos(x)"] },
+    { id: "pi-coefficient-and-offset", question: "Graph y=2π*x and y=x^2-π.", bodies: ["2*pi*x", "x^2-pi"] },
+    { id: "pi-constant-and-offset", question: "Draw y=π and y=x+π.", bodies: ["pi", "x+pi"] },
+  ];
+  const namedFixtures = [
+    { id: "reported-named-lf", question: "Draw f(x)=x^2\ng(x)=x^3", bodies: ["x^2", "x^3"] },
+    { id: "named-crlf", question: "Plot f(x)=x^2-1\r\ng(x)=2*x+1.", bodies: ["x^2-1", "2*x+1"] },
+    { id: "named-order", question: "Plot f(x)=x^3\ng(x)=x^2.", bodies: ["x^3", "x^2"] },
+  ];
+  const select = (question: string, route: "normal" | "inferred" | "fast" | "production") => {
+    const turnPlan: TurnPlanV3 = { schemaVersion: "turn-plan/v3", question, givens: [], unknowns: [], derived: [], qualitativeClaims: [], lawIds: [], assumptions: [], visualRequirement: "required" };
+    const input = { question, turnPlan, families: route === "normal" ? undefined : inferSceneCapabilities(question).families };
+    return route === "production" ? selectProductionScene({ ...input, problemIR: null, policy: { preferPlanner: false } }).representation
+      : route === "fast" ? selectFastVerifiedRepresentation(input) : selectVerifiedRepresentation(input);
+  };
+  const assertBodies = (selected: SelectedRepresentation, question: string, bodies: readonly string[]) => {
+    assert.equal(selected.sceneDocument.source.question, question, "retain the original source spelling");
+    const curves = selected.sceneDocument.constructions.filter(c => c.operator === "function_curve" || c.operator === "implicit_curve");
+    assert.equal(curves.length, bodies.length, "no complete declaration may disappear or duplicate");
+    assert.deepEqual(curves.map(c => nativeLabelBody(selected.sceneDocument.entities.find(e => e.id === c.outputs[0])?.label)).sort(), [...bodies].sort(), "attached labels retain every whole literal body");
+    const compiled = compileSceneDocument(selected.sceneDocument);
+    assert(compiled.ok && compiled.renderScene, "the retained whole program must pass the real compiler");
+    assert.deepEqual(compiled.renderScene, selected.renderScene);
+    for (const curve of curves) {
+      const labels = selected.renderScene.primitives.filter(p => p.kind === "label" && curve.outputs.includes(p.entityId ?? ""));
+      assert.equal(labels.length, 1);
+      assert.equal(nativeLabelBody(labels[0]!.text), nativeLabelBody(selected.sceneDocument.entities.find(e => e.id === curve.outputs[0])?.label), "rendered labels keep their own complete curve body");
+    }
+    if (selected.figureSource === "source_grounded") assert.deepEqual(curves.map(c => c.inputs.expression).sort(), [...bodies].sort(), "source-copy geometry retains the same whole body as its label");
+  };
+  for (const fixture of piFixtures) {
+    check(`${fixture.id}: direct source copy`, () => assertBodies(buildSourceGroundedRepresentation(fixture.question), fixture.question, fixture.bodies));
+    for (const route of ["normal", "inferred", "fast", "production"] as const) check(`${fixture.id}: ${route}`, () => {
+      const selected = select(fixture.question, route);
+      if (route === "fast" && !selected) return;
+      assert(selected); assertBodies(selected, fixture.question, fixture.bodies);
+    });
+  }
+  for (const fixture of namedFixtures) {
+    check(`${fixture.id}: unchanged native admission`, () => {
+      const native = synthesizeFamilyScene({ question: fixture.question, turnPlan: null, problemIR: null });
+      assert(native?.validationReport.valid, "the real native producer independently owns both declarations");
+      const before = structuredClone(native);
+      assert(prepareFallbackFunctionInventory(fixture.question, native) === native, "return the whole native program by identity");
+      assert.deepEqual(native, before, "admission cannot rewrite the producer's document or ink");
+    });
+    for (const route of ["normal", "inferred", "fast", "production"] as const) check(`${fixture.id}: ${route}`, () => {
+      const native = synthesizeFamilyScene({ question: fixture.question, turnPlan: null, problemIR: null });
+      assert(native?.validationReport.valid);
+      const selected = select(fixture.question, route);
+      assert(selected); assertBodies(selected, fixture.question, fixture.bodies);
+      assert.deepEqual(selected.sceneDocument, native.document, "retain every native construction, proof and reveal");
+      assert.deepEqual(selected.renderScene, native.renderScene, "retain every native primitive");
+    });
+  }
+  const unsafe = [
+    "Draw f(x)=x^2\ng(x)=x^3+z.",
+    "Draw f(x)=x^2\ng(x+1)=x^3.",
+    "Draw f(x)=x^2 g(x)=x^3.",
+    "Draw f(x)=x^2\ng(x)=x^3\nx+y=4.",
+    "Draw f(x)=x^2\nsin(x)=x^3.",
+    "Sketch f(x)=x^2\ng(x)=x^3\nh(x)=x+1.",
+    "Sketch y=sin(x)+π+z and y=cos(x).",
+  ];
+  for (const question of unsafe) for (const route of ["normal", "inferred", "fast", "production"] as const) check(`complete declaration safety ${route}: ${question}`, () => {
+    const selected = select(question, route);
+    assert.equal(selected?.sceneDocument.constructions.length ?? 0, 0, "an unsupported or omitted declaration must decline the entire program");
+  });
+  for (const question of ["Plot y=x+π.", "Graph y=2π*x and y=x^2-π."]) check(`pi native mismatch: ${question}`, () => {
+    const native = synthesizeFamilyScene({ question, turnPlan: null, problemIR: null });
+    assert(native?.validationReport.valid, "the negative control is a real engine-valid partial program");
+    const before = structuredClone(native);
+    assert.equal(prepareFallbackFunctionInventory(question, native), null, "canonical pi spelling cannot authorize a different curve or a subset");
+    assert.deepEqual(native, before);
+  });
+  for (const mismatch of ["different-body", "omitted-curve"] as const) check(`named newline native mismatch: ${mismatch}`, () => {
+    const question = namedFixtures[0]!.question;
+    const native = synthesizeFamilyScene({ question, turnPlan: null, problemIR: null });
+    assert(native?.validationReport.valid);
+    if (mismatch === "different-body") {
+      const replacement = synthesizeFamilyScene({ question: "Draw f(x)=x^2\ng(x)=x^4", turnPlan: null, problemIR: null });
+      assert(replacement?.validationReport.valid, "the mismatched complete program must independently compile");
+      replacement.document.source.question = question;
+      assert.equal(prepareFallbackFunctionInventory(question, replacement), null, "a valid fourth-power curve cannot impersonate the requested cubic");
+      return;
+    }
+    const changed = recompiledNativeVariant(native, copy => {
+      const curve = copy.document.constructions.filter(c => c.operator === "function_curve").at(-1);
+      assert(curve && curve.outputs.length === 1);
+      const omitted = new Set(curve.outputs);
+      copy.document.constructions = copy.document.constructions.filter(c => c !== curve);
+      copy.document.entities = copy.document.entities.filter(e => !omitted.has(e.id));
+      copy.document.assertions = copy.document.assertions.filter(a => a.entities.every(id => !omitted.has(id)));
+      copy.document.requiredEntityIds = copy.document.requiredEntityIds.filter(id => !omitted.has(id));
+      for (const group of copy.document.revealGroups) group.entityIds = group.entityIds.filter(id => !omitted.has(id));
+    });
+    assert.equal(prepareFallbackFunctionInventory(question, changed), null, "newline recognition cannot weaken whole-program source proof");
+  });
+}
+verifyReviewedPiAndNamedNewlines();
 console.log(`source-function equation ownership: ${checks - failed}/${checks} checks passed (${selectedFixtures.length} original wordings; ${nativeParameterFixtures.length} native parameter wordings)`);
 if (failed > 0) process.exitCode = 1;

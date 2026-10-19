@@ -1,1 +1,2 @@
+# Includes complete pi bodies, named newline retention and whole-program mismatch controls.
 tsx scripts/verify/verify-source-function-equation-ownership.ts
