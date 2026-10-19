@@ -100,9 +100,20 @@ export function riverShortestPathAsked(question: string): boolean {
   return /\b(?:shortest (?:path|route|distance)|straight across|directly (?:opposite|across)|exactly opposite|(?:point|bank) directly opposite|zero drift|without drift|no drift)\b/i.test(question);
 }
 
-/** Shortest time: head along the bank normal and drift downstream. */
+const SHORTEST_TIME = /\b(?:(?:shortest|minimum|least|minimal)(?: possible)?(?: (?:crossing|travel|journey))? time|as (?:quickly|soon) as possible|quickest)\b/gi;
+
+/**
+ * Shortest time: head along the bank normal and drift downstream. When the
+ * question also asks to land directly opposite, "in the shortest time" or "as
+ * quickly as possible" constrains that crossing; only a shortest time asked on
+ * its own ("compare it with the shortest possible crossing time") counts.
+ */
 export function riverShortestTimeAsked(question: string): boolean {
-  return /\b(?:(?:shortest|minimum|least|minimal)(?: possible)?(?: (?:crossing|travel|journey))? time|as (?:quickly|soon) as possible|quickest)\b/i.test(question);
+  const matches = [...question.matchAll(SHORTEST_TIME)];
+  if (matches.length === 0) return false;
+  if (!riverShortestPathAsked(question)) return true;
+  return matches.some((match) => !/^as /i.test(match[0]) &&
+    !/\bin(?: the| a)? $/i.test(question.slice(Math.max(0, match.index! - 8), match.index)));
 }
 
 /**

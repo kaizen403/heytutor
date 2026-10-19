@@ -202,6 +202,22 @@ check("a question comparing both crossings keeps the shortest time and the diffe
   for (const symbol of ["Δt", "∆t", "t_diff", "delta_t", "t_saved"]) {
     assert.deepEqual(riverCrossingPlanConflicts(speeds, plan(both, [], [quantity("d", symbol, 4, "s")]), both), [], `${symbol} = 4 s is the difference`);
   }
+  // "Land directly opposite in the shortest possible crossing time" is one constrained
+  // crossing (20 s), not a comparison: the 16 s drifting crossing must conflict.
+  for (const constrained of [
+    "A boat must land directly opposite in the shortest possible crossing time. The river is 80 m wide, the boat speed is 5.0 m/s in still water and the current is 3.0 m/s. Find the heading and the time.",
+    "Reach the point directly opposite as quickly as possible on an 80 m wide river with boat speed 5.0 m/s in still water and current 3.0 m/s. Find the time.",
+    "Cross straight across in the minimum time on an 80 m wide river with boat speed 5.0 m/s in still water and current 3.0 m/s. Find the time.",
+  ]) {
+    assert.equal(riverShortestTimeAsked(constrained), false, constrained);
+    const s = riverCrossingSpeeds(constrained);
+    assert.equal(s.status, "bound");
+    if (s.status !== "bound") continue;
+    assert.deepEqual(riverCrossingPlanConflicts(s, plan(constrained, [], [quantity("t", "t", 16, "s")]), constrained).map((c) => c.id), ["t"]);
+    assert.deepEqual(riverCrossingPlanConflicts(s, plan(constrained, [], [quantity("t", "t", 20, "s")]), constrained), []);
+  }
+  // Without a directly opposite request, "in the shortest time" is the shortest time crossing.
+  assert.equal(riverShortestTimeAsked("Cross the river in the shortest possible time."), true);
   // A question asking only for the straight across crossing keeps its single time binding.
   const pathOnly = both.replace(", and compare it with the shortest possible crossing time", "");
   assert.deepEqual(riverCrossingPlanConflicts(speeds, plan(pathOnly, [], [quantity("dt", "Δt", 4, "s")]), pathOnly).map((c) => c.id), ["dt"]);
