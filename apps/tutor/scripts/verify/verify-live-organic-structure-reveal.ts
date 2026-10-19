@@ -18,6 +18,10 @@ interface RequiredLabel { entityId: string; text: string; kind: "atom" | "name" 
 interface Fixture { id: string; question: string; expectedNames: string[]; requiredOpeningLabels: RequiredLabel[] }
 const bytes = readFileSync(new URL("./fixtures/organic-neighbourhood-openings.json", import.meta.url));
 const fixture = JSON.parse(bytes.toString()) as { provenance: { original94GateSha256: string }; cases: Fixture[]; parityControls: Array<{ id: string; family: engine.ChemistrySceneFamily; question: string; documentSha256: string; renderSha256: string; openingCommandsSha256: string; fullDiagramSha256: string }> };
+// Main's answer-hold presentation changed after these scientific controls froze.
+// Keep their document/render/opening golds; the whole-diagram hashes below were
+// independently replayed against this PR's actual updated base, without edits.
+const currentBaseDiagrams = JSON.parse(readFileSync(new URL("./fixtures/organic-neighbourhood-current-base-parity.json", import.meta.url), "utf8")) as { diagrams: Array<{ id: string; fullDiagramSha256: string }> };
 const sha = (value: unknown): string => createHash("sha256").update(typeof value === "string" || Buffer.isBuffer(value) ? value : JSON.stringify(value)).digest("hex");
 const json = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 const rows: Array<{ name: string; pass: boolean; error?: string }> = [];
@@ -112,7 +116,9 @@ for (const f of fixture.parityControls) await check(`unchanged-other-family:${f.
   const compiled = engine.compileSceneDocument(normalized.document); assert(compiled.ok && compiled.renderScene);
   const p = buildVerifiedDiagramPresentation(normalized.document, compiled.renderScene, { originalQuestion: f.question, figureFamily: f.family });
   assert.equal(sha(normalized.document), f.documentSha256); assert.equal(sha(compiled.renderScene), f.renderSha256);
-  assert.equal(sha(p.introSegments.flatMap(drawing.getSegmentCommands)), f.openingCommandsSha256); assert.equal(sha(p.diagram), f.fullDiagramSha256);
+  assert.equal(sha(p.introSegments.flatMap(drawing.getSegmentCommands)), f.openingCommandsSha256);
+  const baseDiagram = currentBaseDiagrams.diagrams.find(row => row.id === f.id); assert(baseDiagram);
+  assert.equal(sha(p.diagram), baseDiagram.fullDiagramSha256);
 });
 await check("carbonyl-qualitative-complete-without-numeric-angle", () => {
   const question = "Draw hexanal and hexan-2-one so that the three atoms directly attached to each carbonyl carbon are explicit. Mark the approximately trigonal-planar carbonyl centres and show which has a carbonyl-bound H and which has two carbon substituents.";
