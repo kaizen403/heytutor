@@ -14,7 +14,7 @@ import { parseProbeFile, type ProbeQuestion } from "@/features/admin/lib/probes"
 import { unitIdFromTopicId } from "@/features/admin/lib/probes";
 import { gradeLecture, type LectureGrade } from "./grade";
 import { printSummary, summarize } from "./summarize";
-import { runLecture, type LectureRun } from "./lecturePipeline";
+import { runLecture, type LectureRun, type RunLectureOptions } from "./lecturePipeline";
 import { PRODUCTION_SCENE_SELECTION_VERSION } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import { LAB_VISUAL_NEED_POLICY, budgetedVisualNeedFetch, parseVisualNeedReplay, summarizeVisualNeedCalls,
   type VisualNeedCallAccounting } from "./labVisualNeed";
@@ -24,7 +24,8 @@ import {
   LECTURE_LAB_PLANNER_PROBE_HEADER,
   LECTURE_LAB_ZERO_RETENTION_HEADER,
 } from "../../lib/billing/flags";
-import { parseDiagramSubject, type DiagramSubject, type SubjectFamiliarity } from "@heytutor/tutor-core";
+import { createFallbackTurnPlanV3, parseDiagramSubject, type DiagramSubject, type SubjectFamiliarity } from "@heytutor/tutor-core";
+import { validateTurnPlanV3 } from "@heytutor/scene-engine";
 import {
   assertEvaluationCostAllowed,
   assertUniqueArtifactIds,
@@ -52,6 +53,7 @@ import {
 } from "./diagramExamples";
 import { completionTokenCap, providerChatBody, resolveLlmEndpoint } from "../../lib/llm/llmProvider";
 import { buildLabModelProfile, expectedLabRequestModel, labModelProfilesMatch, type LabModelProfile } from "../../lib/llm/labModelProfile";
+import { parsePlannerTimingProfile } from "../../lib/llm/plannerTiming";
 import { parseProviderUsage } from "../../lib/obs/providerUsage";
 import { normalizeTutorQuestion } from "@heytutor/tutor-core";
 import { calculateLlmCostDetails, resolveLlmRates } from "../../lib/obs/usageCost";
@@ -85,8 +87,11 @@ export interface Options {
   model: DiagramEvalModel;
   /** Evaluation-only end-to-end scene planning budget. */
   scenePlannerLimitMs: 60_000 | 120_000;
+  scenePlannerLimitExplicit?: boolean;
   figureOnly: boolean;
   plannerOnly?: boolean;
+  plannerProviderDefaults?: boolean;
+  plannerSceneContextRound?: string | null;
   yes: boolean;
   maxUsd: number;
   spendMode: LabSpendMode;
@@ -294,7 +299,7 @@ function parseProductionStrictSubjects(flags: ReadonlyMap<string, string>): Diag
 export function parseOptions(argv: string[]): Options {
   const flags = new Map<string, string>();
   const evalFiles: string[] = [];
-  const booleans = new Set(["figure-only", "planner-only", "yes", "resume"]);
+  const booleans = new Set(["figure-only", "planner-only", "planner-provider-defaults", "yes", "resume"]);
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (!token.startsWith("--")) continue;
@@ -344,6 +349,10 @@ export function parseOptions(argv: string[]): Options {
   }
   const model = flags.get("model") ?? "configured";
   const plannerOnly = flags.get("planner-only") === "true";
+  const plannerProviderDefaults = flags.get("planner-provider-defaults") === "true";
+  if (plannerProviderDefaults && !plannerOnly) throw new Error("--planner-provider-defaults requires --planner-only");
+  const plannerSceneContextRound = flags.get("planner-scene-context-round") ?? null;
+  if (plannerSceneContextRound && !plannerProviderDefaults) throw new Error("frozen planner scene context requires --planner-provider-defaults");
   if (model !== "configured" && model !== "standard" && model !== "fast") {
     throw new Error(`--model must be configured, standard or fast, received ${model}`);
   }
@@ -422,8 +431,11 @@ export function parseOptions(argv: string[]): Options {
     arm,
     model,
     scenePlannerLimitMs: parsedScenePlannerLimit,
+    scenePlannerLimitExplicit: scenePlannerLimitRaw !== undefined,
     figureOnly: flags.has("figure-only") ? flags.get("figure-only") !== "false" : evalFiles.length > 0,
     plannerOnly,
+    plannerProviderDefaults,
+    plannerSceneContextRound,
     yes: flags.get("yes") === "true",
     maxUsd,
     spendMode,
@@ -434,6 +446,27 @@ export function parseOptions(argv: string[]): Options {
     exampleExclusions: flags.get("example-exclusions") ?? null,
     productionStrictSubjects,
   };
+}
+
+/** Frozen input, not model output reuse: every candidate still pays for both lanes. */
+export function parsePlannerSceneContexts(rows: readonly LectureRun[], probes: readonly Pick<ProbeQuestion, "id" | "question">[]) {
+  if (rows.length !== probes.length) throw new Error("frozen planner scene context requires the complete identical sample");
+  const expected = new Map(probes.map(probe => [probe.id, normalizeTutorQuestion(probe.question)]));
+  const contexts = new Map<string, NonNullable<RunLectureOptions["plannerSceneContext"]>>();
+  for (const row of rows) {
+    const question = expected.get(row.probeId);
+    if (question === undefined || row.question !== question || contexts.has(row.probeId) ||
+        row.plannerProbe?.version !== "primary-request-probe/v1" || typeof row.plannerProbe.turnAccepted !== "boolean") {
+      throw new Error("frozen planner scene context identity does not match this sample");
+    }
+    const validation = validateTurnPlanV3(row.figureReplayInputs?.selection.turnPlan, question);
+    if (!validation.valid || !validation.plan) throw new Error("frozen planner scene context has an invalid turn plan");
+    if (!row.plannerProbe.turnAccepted && JSON.stringify(validation.plan) !== JSON.stringify(createFallbackTurnPlanV3(question))) {
+      throw new Error("a rejected frozen turn must retain the no-authority fallback");
+    }
+    contexts.set(row.probeId, { turnPlan: validation.plan, turnAccepted: row.plannerProbe.turnAccepted });
+  }
+  return contexts;
 }
 
 /** Keep the full original evaluation for retrieval exclusions; skip only execution. */
@@ -787,6 +820,11 @@ async function main(): Promise<void> {
     ? estimateEvaluationCostUsd(probes.length, options.arm, options.model)
     : null;
   assertUniqueArtifactIds(probes);
+  const sceneContexts = options.plannerSceneContextRound ? parsePlannerSceneContexts(
+    readdirSync(resolve(options.plannerSceneContextRound, "runs")).filter(file => file.endsWith(".json"))
+      .map(file => JSON.parse(readFileSync(resolve(options.plannerSceneContextRound!, "runs", file), "utf8")) as LectureRun), probes,
+  ) : null;
+  const sceneContextFingerprint = sceneContexts ? labSampleFingerprint(probes.map(probe => sceneContexts.get(probe.id))) : null;
   const replayText = options.visualNeedReplay ? readFileSync(resolve(options.visualNeedReplay), "utf8") : null;
   const visualNeedReplay = replayText === null ? null : parseVisualNeedReplay(replayText, probes);
   // Verify the server (not just this CLI's environment) before sending any model call.
@@ -796,6 +834,7 @@ async function main(): Promise<void> {
   if (!configResponse.ok) throw new Error("authenticated lab provider preflight failed");
   const serverConfig = await configResponse.json() as { provider: string; deployment: string | null; configured: boolean;
     plannerProbe?: { version: string; timeoutMs: number; maxAttempts: number };
+    plannerTiming?: unknown;
     modelProfile: LabModelProfile; inputBounds: Record<"picker" | "scene", { inputByteMultiplier: number; addedInputBytes: number }>;
     plannerOutputCap: number; teachingOutputCap: number; visualNeed?: Record<string, unknown>;
     planningSpeed?: { sceneEffort: string; priority: boolean; requestTier: string } };
@@ -804,6 +843,14 @@ async function main(): Promise<void> {
       serverConfig.plannerProbe.timeoutMs !== 120_000 || serverConfig.plannerProbe.maxAttempts !== 1)) {
     throw new Error("planner-only requires the authenticated Fireworks 120 s single-attempt server profile");
   }
+  const configuredPlannerTiming = parsePlannerTimingProfile(serverConfig.plannerTiming);
+  if (options.plannerProviderDefaults && !configuredPlannerTiming) throw new Error("server has no supported provider planner timing profile");
+  if (!options.plannerOnly && configuredPlannerTiming && !options.scenePlannerLimitExplicit) {
+    options.scenePlannerLimitMs = configuredPlannerTiming.sceneMs;
+  }
+  // An uncensored baseline deliberately keeps 120/120. The fresh candidate
+  // and whole-lecture runs use the exact server-owned live profile instead.
+  const plannerTiming = options.plannerOnly && !options.plannerProviderDefaults ? undefined : configuredPlannerTiming;
   if (!serverConfig.configured || serverConfig.provider !== providerConfig.provider || serverConfig.deployment !== providerConfig.deployment ||
     !labModelProfilesMatch(modelProfile, serverConfig.modelProfile) ||
     !Number.isSafeInteger(serverConfig.plannerOutputCap) || serverConfig.plannerOutputCap <= 0 ||
@@ -830,6 +877,8 @@ async function main(): Promise<void> {
     figureSelectionPolicy: PRODUCTION_SCENE_SELECTION_VERSION,
     figureOnly: options.figureOnly, scenePlannerLimitMs: options.scenePlannerLimitMs,
     ...(options.plannerOnly ? { plannerOnly: "primary-request-probe/v1" } : {}),
+    ...(plannerTiming ? { plannerTiming } : {}),
+    ...(sceneContexts ? { sceneContextFingerprint } : {}),
     familiarity: options.familiarity, narrationLanguage: options.narrationLanguage,
     exampleLibraryFingerprint: labSampleFingerprint(diagramExamples),
     sceneDeclinePolicy: options.sceneDeclinePolicy, exampleExclusionFingerprint,
@@ -1124,6 +1173,8 @@ async function main(): Promise<void> {
           arm: options.arm,
           figureOnly: options.figureOnly,
           plannerOnly: options.plannerOnly,
+          plannerTiming,
+          plannerSceneContext: sceneContexts?.get(probe.id),
           fastMode: evaluationRunFastMode(Boolean(evaluationRows), options.model),
           scenePlannerDeadlineMs: evaluationRows ? options.scenePlannerLimitMs : undefined,
           subject: parseDiagramSubject(evaluationById.get(probe.id)?.subject),

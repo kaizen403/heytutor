@@ -9,6 +9,7 @@ import ts from "typescript";
 import { type TurnPlanV3 } from "@heytutor/scene-engine";
 import { planTurnV3Lane } from "../../../../packages/tutor-core/src/planners/turnPlannerV3";
 import { fetchPlannerCompletion } from "../../lib/llm/plannerTransport";
+import { plannerTimingRequestCap, resolvePlannerTimingProfile } from "../../lib/llm/plannerTiming";
 import { validateProductionSceneCandidate } from "../../features/tutor-session/lib/scene/productionSceneSelection";
 import {
   isLectureLabPlannerProbe,
@@ -18,7 +19,7 @@ import {
   LECTURE_LAB_STANDARD_MODEL_HEADER,
 } from "../../lib/billing/flags";
 import { runLecture } from "../lecture-lab/lecturePipeline";
-import { parseOptions } from "../lecture-lab/run";
+import { assertPlannerOnlyRequest, labSampleFingerprint, parseOptions } from "../lecture-lab/run";
 
 // Synthetic fixture only. Fetch never falls through to the network, and these
 // tests never load .env.local, start the app, use a DB or call a paid provider.
@@ -107,9 +108,10 @@ function variable(root: ts.Node, name: string): ts.VariableDeclaration {
 }
 function property(object: ts.Node | undefined, file: ts.SourceFile, name: string): ts.Expression {
   assert(object && ts.isObjectLiteralExpression(object));
-  const found = object.properties.find((entry) => ts.isPropertyAssignment(entry) && entry.name.getText(file) === name);
-  assert(found && ts.isPropertyAssignment(found), `${name} must be explicitly wired`);
-  return found.initializer;
+  const found = object.properties.find((entry) =>
+    (ts.isPropertyAssignment(entry) || ts.isShorthandPropertyAssignment(entry)) && entry.name.getText(file) === name);
+  assert(found && (ts.isPropertyAssignment(found) || ts.isShorthandPropertyAssignment(found)), `${name} must be wired`);
+  return ts.isShorthandPropertyAssignment(found) ? found.name : found.initializer;
 }
 function evaluateExpression(node: ts.Node, file: ts.SourceFile, bindings: Record<string, unknown>): unknown {
   const context = createContext({ exports: {}, ...bindings });
@@ -137,27 +139,35 @@ async function verifyRouteWiring(): Promise<void> {
   const cases = [
     { headers: new Headers(probeHeaders), provider: "fireworks", probe: true, deadline: 120_000, outer: 125_000, attempts: 1, attemptMs: 120_000 },
     { headers: scene, provider: "fireworks", probe: true, deadline: 120_000, outer: 125_000, attempts: 1, attemptMs: 120_000 },
-    { headers: ordinary, provider: "fireworks", probe: false, deadline: 60_000, outer: 120_000, attempts: undefined, attemptMs: undefined },
-    { headers: anonymous, provider: "fireworks", probe: false, deadline: 60_000, outer: 120_000, attempts: undefined, attemptMs: undefined },
+    { headers: ordinary, provider: "fireworks", probe: false, deadline: 30_000, outer: 120_000, attempts: undefined, attemptMs: 30_000 },
+    { headers: anonymous, provider: "fireworks", probe: false, deadline: 30_000, outer: 120_000, attempts: undefined, attemptMs: 30_000 },
+    { headers: ordinary, provider: "fireworks", flag: "legacy", probe: false, deadline: 60_000, outer: 120_000, attempts: undefined, attemptMs: undefined },
     { headers: new Headers(probeHeaders), provider: "azure", probe: false, deadline: 60_000, outer: 120_000, attempts: undefined, attemptMs: undefined },
     { headers: scene, provider: "azure", probe: false, deadline: 120_000, outer: 125_000, attempts: undefined, attemptMs: 30_000 },
   ];
   for (const fixture of cases) {
-    const env = { ...syntheticEnv, LLM_PROVIDER: fixture.provider };
+    const env = { ...syntheticEnv, LLM_PROVIDER: fixture.provider, FIREWORKS_PLANNER_TIMING_PROFILE: fixture.flag };
     const input = request(fixture.headers);
     const bindings = {
       request: input,
       isLectureLabPlannerProbe: (candidate: Request) => isLectureLabPlannerProbe(candidate, env),
       lectureLabPlannerDeadlineCapMs: (candidate: Request) => lectureLabPlannerDeadlineCapMs(candidate, env),
       semanticSceneV2: fixture.headers.get("x-turn-planner-version") !== "3" && fixture.headers.get("x-scene-planner-version") === "2",
+      turnPlanV3: fixture.headers.get("x-turn-planner-version") === "3",
+      problemIRV1: false,
+      codeLessonV1: false,
       diagramExamplePicker: false,
       llm: { provider: fixture.provider },
       deadlineMs: fixture.deadline,
       plannerProbe: fixture.probe,
+      resolvePlannerTimingProfile: (provider: string) => resolvePlannerTimingProfile(provider, env),
+      plannerTimingRequestCap,
     };
+    const timingCap = evaluateExpression(variable(route, "timingCap").initializer!, route, bindings);
+    const deadlineBindings = { ...bindings, timingCap };
     assert.equal(evaluateExpression(property(handle.arguments[0], route, "plannerProbe"), route, bindings), fixture.probe,
       "the actual POST call must pass authenticated eligibility to the planner handler");
-    assert.equal(evaluateExpression(property(handle.arguments[0], route, "deadlineMs"), route, bindings), fixture.deadline);
+    assert.equal(evaluateExpression(property(handle.arguments[0], route, "deadlineMs"), route, deadlineBindings), fixture.deadline);
     const extendedValue = evaluateExpression(extended, route, bindings);
     assert.equal(evaluateExpression(outerDeadline, route, { ...bindings, extendedEvaluationScenePlanner: extendedValue }), fixture.outer);
     assert.equal(evaluateExpression(property(transport.arguments[0], route, "maxAttemptsPerModel"), route, bindings), fixture.attempts);
@@ -215,6 +225,106 @@ async function verifyInitialPromptParity(): Promise<void> {
   } finally { globalThis.fetch = nativeFetch; }
   const hash = (body: string) => createHash("sha256").update(body).digest("hex");
   assert.deepEqual(bodies.map(hash), expected.map(hash), "both extracted initial lanes retain byte-identical bodies/prompts");
+}
+
+/** Inspect actual capped-fetch wiring and execute its private response capture in memory. */
+async function verifyCappedFetchWiring(): Promise<void> {
+  const runner = sourceFile("scripts/lecture-lab/run.ts");
+  const assignments = nodesWhere(runner, (node): node is ts.BinaryExpression =>
+    ts.isBinaryExpression(node) && node.left.getText(runner) === "globalThis.fetch" &&
+    node.right.getText(runner).includes("async (input:"));
+  assert.equal(assignments.length, 1);
+  const arrows = nodesWhere(assignments[0]!.right, ts.isArrowFunction);
+  const wrapper = arrows[0]!;
+  assert(wrapper && ts.isBlock(wrapper.body));
+  const topLevelGuard = wrapper.body.statements.find((statement): statement is ts.IfStatement =>
+    ts.isIfStatement(statement) && statement.expression.getText(runner) === "options.plannerOnly");
+  assert(topLevelGuard, "the no-ancillary guard must run outside the allowed-origin header branch");
+  singleCall(topLevelGuard, runner, "assertPlannerOnlyRequest");
+  const dispatch = singleCall(wrapper, runner, "nativeFetch");
+  const reservation = singleCall(wrapper, runner, "reserveLabRequest");
+  assert(topLevelGuard.getStart(runner) < reservation.getStart(runner));
+  assert(reservation.getStart(runner) < dispatch.getStart(runner), "every probe dispatch must reserve first");
+  const headers = new Headers(probeHeaders);
+  headers.set("x-heytutor-trace-id", "synthetic-probe-trace");
+  assert.doesNotThrow(() => assertPlannerOnlyRequest("http://offline.test/api/chat", headers, "http://offline.test"));
+  for (const url of ["https://forbidden.invalid/api/chat", "http://offline.test/api/visual-need", "http://offline.test/api/notes"]) {
+    assert.throws(() => assertPlannerOnlyRequest(url, headers, "http://offline.test"), /planner.only/i,
+      "other origins and ancillary endpoints fail before paid dispatch");
+  }
+  for (const forbiddenHeader of ["x-problem-ir-version", "x-code-lesson-version", "x-diagram-example-picker", "x-scene-planner-version"]) {
+    const mixed = new Headers(headers);
+    mixed.set(forbiddenHeader, forbiddenHeader === "x-scene-planner-version" ? "2" : "1");
+    assert.throws(() => assertPlannerOnlyRequest("http://offline.test/api/chat", mixed, "http://offline.test"), /planner.only/i);
+  }
+  const anonymous = new Headers(headers);
+  anonymous.delete("x-heytutor-trace-id");
+  assert.throws(() => assertPlannerOnlyRequest("http://offline.test/api/chat", anonymous, "http://offline.test"), /planner.only/i,
+    "a missing accounting trace cannot bypass reservation classification");
+  const attempts = variable(wrapper, "maxAttempts").initializer!;
+  assert.equal(evaluateExpression(attempts, runner, { chatRequest: true, plannerRequest: true, options: { plannerOnly: true } }), 1);
+  assert.equal(evaluateExpression(attempts, runner, { chatRequest: true, plannerRequest: true, options: { plannerOnly: false } }), 2);
+  assert.equal(evaluateExpression(attempts, runner, { chatRequest: true, plannerRequest: false, options: { plannerOnly: false } }), 3);
+  const ceiling = variable(wrapper, "requestWorstCaseUsd").initializer!;
+  const costBindings = { chatRequest: true, plannerRequest: true, directProviderRequest: false, init: {},
+    requestModel: "accounts/fireworks/models/kimi-k3", inputBound: undefined,
+    serverConfig: { plannerOutputCap: 5200, planningSpeed: { priority: false } },
+    plannerRequestWorstCaseUsd: (_init: unknown, _model: string, cap: number) => {
+      assert.equal(cap, 5200, "the existing cap wrapper must still honor the effective server output bound");
+      return 0.125;
+    } };
+  assert.equal(evaluateExpression(ceiling, runner, { ...costBindings, maxAttempts: 1 }), 0.125);
+  assert.equal(evaluateExpression(ceiling, runner, { ...costBindings, maxAttempts: 2 }), 0.25);
+
+  const captures = nodesWhere(wrapper, (node): node is ts.IfStatement => ts.isIfStatement(node) &&
+    node.expression.getText(runner) === "options.plannerOnly && traceId");
+  assert.equal(captures.length, 1);
+  const capture = captures[0]!;
+  const settlement = singleCall(wrapper, runner, "usageTracker.recordResponse");
+  assert(capture.getStart(runner) < settlement.getStart(runner), "raw paid evidence must be saved before usage settlement/checkpoint");
+  const attachment = nodesWhere(runner, (node): node is ts.BinaryExpression => ts.isBinaryExpression(node) &&
+    node.left.getText(runner) === "run.plannerProbe.responses");
+  assert.equal(attachment.length, 1, "completed probe raw responses must be attached to saved row evidence");
+  for (const rawResponseText of [
+    JSON.stringify({ choices: [{ message: { content: "synthetic-private-content" }, finish_reason: "length" }],
+      usage: { prompt_tokens: 200, completion_tokens: 100, completion_tokens_details: { reasoning_tokens: 7 } } }),
+    "synthetic-malformed-response-envelope",
+  ]) {
+    const responses = new Map<string, Array<Record<string, unknown>>>();
+    let clock = 1000;
+    let releaseBody: (() => void) | undefined;
+    const response = new Response(new ReadableStream<Uint8Array>({ start(controller) {
+      releaseBody = () => { controller.enqueue(new TextEncoder().encode(rawResponseText)); controller.close(); };
+    } }), { headers: { "x-heytutor-planner-model": "accounts/fireworks/models/kimi-k3" } });
+    const writes: string[] = [];
+    const context = createContext({
+      response, Date: { now: () => clock }, traceId: "raw-probe", requestStartedAt: 1000,
+      requestProfile: { requestKind: "turn_plan" }, init: { body: "synthetic-request" },
+      labSampleFingerprint, probeResponses: responses, outDir: "/offline-only",
+      mkdirSync: () => {}, writeFileSync: (_path: string, content: string, options: { mode: number }) => {
+        assert.equal(options.mode, 0o600, "private raw evidence is created with private file permissions");
+        writes.push(content);
+      },
+    });
+    const code = ts.transpileModule(`(async () => ${capture.thenStatement.getText(runner)})()`, { compilerOptions: {
+      target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS,
+    } }).outputText;
+    const pending = new Script(code, { filename: "actual-private-probe-capture.cjs" }).runInContext(context);
+    await Promise.resolve();
+    assert.equal(writes.length, 0, "a header-only response cannot become completed raw evidence");
+    clock = 1800;
+    assert(releaseBody);
+    releaseBody();
+    await pending;
+    const saved = responses.get("raw-probe");
+    assert(saved && saved.length === 1);
+    assert.equal(saved[0]!.elapsedMs, 800, "reported latency includes full response-body completion");
+    assert.equal(saved[0]!.rawResponseText, rawResponseText, "malformed envelopes survive private raw capture");
+    assert.equal(writes.length, 1);
+    const run = { plannerProbe: { responses: [] } };
+    const attached = evaluateExpression(attachment[0]!, runner, { run, probeResponses: responses, traceId: "raw-probe" });
+    assert.equal(attached, saved, "the row receives its own complete raw per-call evidence");
+  }
 }
 
 function verifyAdmission(): void {
@@ -335,6 +445,7 @@ async function main(): Promise<void> {
   verifyAdmission();
   await verifyRouteWiring();
   await verifyInitialPromptParity();
+  await verifyCappedFetchWiring();
   const declined = await runOffline(declinedScene);
   assert.equal(declined.diagram.committed, false, "a validated text-only decline must not render");
   assert.equal(declined.diagram.candidateErrorCodes.length, 0,

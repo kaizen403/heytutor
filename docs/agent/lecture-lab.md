@@ -152,8 +152,8 @@ pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.json
 # planner-with-examples uses the same ordering plus up to three cheap-model-picked examples
 pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm planner_examples --figure-only --max-usd 5 --out .lecture-lab/eval-planner-examples --yes
 # strict uses the same planner+examples path and teaches text-only if it fails.
-# Every paid lab uses the configured provider and production 60 s budget.
-pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm planner_examples_strict --model configured --scene-planner-limit-ms 60000 --figure-only --max-usd 5 --out .lecture-lab/eval-strict --yes
+# Every paid lab uses the configured provider and its production timing profile.
+pnpm exec tsx scripts/lecture-lab/run.ts --eval public.jsonl --eval private.jsonl --sample 20 --seed 7 --arm planner_examples_strict --model configured --figure-only --max-usd 5 --out .lecture-lab/eval-strict --yes
 # rebuild the validated example library after exemplar branches are merged
 pnpm exec tsx scripts/lecture-lab/build-diagram-exemplar-library.ts
 # compare legacy and current top-three retrieval without model calls; this adds
@@ -177,7 +177,7 @@ diagram evaluations, `gallery.html` plus PNGs under `frames/`. `summarize.ts`
 owns that summary for both the runner and the regrader, so the two cannot drift.
 
 Paid lab runs load `.env.local` and require a fully configured provider.
-Use `--model configured` (the default), the production 60,000 ms scene limit,
+Use `--model configured` (the default), the server's production timing profile,
 and a positive `--max-usd` on every run. Azure lanes use the configured
 deployment; Azure fallback is rejected before dispatch. On Fireworks, the
 authenticated standard-evaluation header pins planner, ProblemIR and teaching
@@ -196,6 +196,48 @@ Fireworks deployment is null. Every completed planner call retains its actual
 model and measured usage. `--model standard` remains a
 compatibility alias for the configured provider. The offline picker has a 15 s
 bound so Azure reasoning can finish.
+
+### Provider timing and planner-only diagnostics
+
+Fireworks turn/scene planning defaults to `fireworks-planner-timing/v1`: a
+30 s turn request, 60 s scene candidate/repair request, and 120 s overall scene
+budget including preceding turn planning and authority. The server sends this
+non-secret profile through the existing begin-turn response; the live hook and
+lab use it. The proxy enforces the same individual request caps and keeps
+transient retries inside one request deadline, instead of restarting a slow
+generation after 25 s. IR, picker, code, teaching and Azure are unchanged.
+Set `FIREWORKS_PLANNER_TIMING_PROFILE=legacy` to restore the old client and
+proxy policy together. Missing/unknown client metadata also keeps old defaults.
+An explicit `--scene-planner-limit-ms` overrides the lab's overall budget; it
+does not bypass the proxy's individual request cap.
+
+The profile was selected from 30 uncensored standard-K3 primary requests per
+lane: turn p50/p90/max 13.2/21.2/25.2 s, scene 28.8/44.0/82.0 s. Both scene
+responses over 60 s exhausted their output cap and were invalid JSON; all four
+validator-accepted scenes completed in 31.4–36.8 s. Thinking was already off,
+and reported reasoning usage was zero. Longer windows recover responses; they
+do not make generation faster or fix incorrect plans. The overall 120 s
+allocation accommodates turn 30 + unchanged authority 18 + scene 60 =108 s
+plus overhead; production repair/yield gains are not established by this probe.
+
+For cheap request-level diagnosis, `--planner-only` (requires evaluation,
+current arm, configured provider, conservative cap) makes exactly one primary
+turn and one primary scene call per question, with 120 s deadlines and one
+upstream attempt. It makes no picker, IR, Jev, teaching, notes or TTS requests.
+Use `--planner-provider-defaults` to measure the advertised timing profile.
+For a paired comparison, add `--planner-scene-context-round <baseline-dir>`:
+scene inputs are revalidated and frozen from the complete identical baseline,
+while both lanes still make fresh paid requests. Identity/fingerprint checks
+reject missing, duplicate or mismatched inputs and bind them on resume.
+
+Probe artifacts retain private raw responses before spend settlement,
+full-body latency, finish reasons, actual thinking/output settings and usage.
+Keep HTTP completions, parser acceptance, final selection and correctness
+separate. This single-primary experiment omits production races/authority/
+repairs and must not be presented as full live-turn yield. Every paid phase
+needs its own hard `--max-usd`, deducted from the shared approval after all
+previous charges **and** outstanding reservations. Do not reset a phase budget
+or treat missing usage as free. Do not build/run verifiers during paid rounds.
 
 For provider-metric reconciled experiments, opt into `--spend-mode response_usage
 --max-usd 10`. This is a cap on the known response-usage subtotal, priced at the
@@ -299,7 +341,7 @@ remains authoritative.
 Part 15 decline experiment (lab only): `--scene-decline-policy
 qualitative_setup_v1` clarifies faithful nonmetric concept setups, without
 relaxing operator/source/proof gates. Keep `--model configured`, the production
-`--scene-planner-limit-ms 60000`, and a hard `--max-usd` cap. Subsample rounds
+server timing profile, and a hard `--max-usd` cap. Subsample rounds
 can preserve their original full-sample leak guard with `--example-exclusions
 <full-sample.jsonl>`; resume rejects changed experiment or exclusions. Private
 run artifacts retain raw candidate responses separately from deterministic

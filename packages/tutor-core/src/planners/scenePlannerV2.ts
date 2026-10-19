@@ -48,6 +48,8 @@ export interface ScenePlannerOptions extends ScenePlannerPromptContext {
   signal?: AbortSignal;
   /** Total plan/repair hard deadline. Defaults to sixty seconds. */
   timeoutMs?: number;
+  /** Provider-owned per-candidate cap; omitted preserves the existing 30 s. */
+  candidateTimeoutMs?: number;
   fastMode?: boolean;
   /** Evaluation diagnostics for every HTTP attempt, including null candidates. */
   onRequestOutcome?: (outcome: ScenePlannerRequestOutcome) => void;
@@ -359,6 +361,9 @@ export async function planSceneDocumentWithRepair<T>(
   const maxInFlight = maxConcurrentRequests ?? Number.POSITIVE_INFINITY;
   const budgetLeft = () => requestBudget?.remaining ?? Number.POSITIVE_INFINITY;
   const timeoutMs = plannerOptions.timeoutMs ?? SCENE_PLANNER_TIMEOUT_MS;
+  const requestedCandidateMs = plannerOptions.candidateTimeoutMs;
+  const perCandidateMs = typeof requestedCandidateMs === "number" && Number.isFinite(requestedCandidateMs)
+    ? Math.max(1, Math.min(60_000, requestedCandidateMs)) : INITIAL_CANDIDATE_TIMEOUT_MS;
   const remainingMs = () => timeoutMs - (Date.now() - startedAt);
   const initialStrategies = [
     "Build the smallest sufficient scene. Derive every result, and add only assertions required to prove the question's stated relationships.",
@@ -492,7 +497,7 @@ export async function planSceneDocumentWithRepair<T>(
       pending_initial: [...inFlight.values()].filter((entry) => entry.kind === "plan").length,
       fatal_count: seed.validation.errors.filter((error) => error.severity === "fatal").length,
     });
-    const callTimeoutMs = Math.min(budgetMs, INITIAL_CANDIDATE_TIMEOUT_MS);
+    const callTimeoutMs = Math.min(budgetMs, perCandidateMs);
     roundStrategies.forEach((strategy, index) => {
       launch("repair", round, (signal) => repairSceneDocument(
         question,
@@ -505,7 +510,7 @@ export async function planSceneDocumentWithRepair<T>(
     });
   };
 
-  const candidateTimeoutMs = Math.min(timeoutMs, INITIAL_CANDIDATE_TIMEOUT_MS);
+  const candidateTimeoutMs = Math.min(timeoutMs, perCandidateMs);
   initialStrategies.slice(0, Math.max(0, Math.min(budgetLeft(), maxInFlight))).forEach((strategy, index) => {
     launch("plan", null, (signal) => planSceneDocument(
       question,

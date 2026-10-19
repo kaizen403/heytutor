@@ -575,6 +575,8 @@ export function useQuestionHandler(
       }
       // Billed: from here every exit saves this turn (`handleQuestion`'s
       // finally, or Stop). The id is minted now; rows go out as they are taught.
+      const scenePlannerDeadlineMs = billed.plannerTiming?.sceneMs ?? SCENE_PLANNER_DEADLINE_MS;
+      const turnPlanDeadlineMs = billed.plannerTiming?.turnPlanMs ?? TURN_PLAN_DEADLINE_MS;
       const liveSave = sessionId
         ? liveTurnSave().begin({
             owner: cancelRef,
@@ -1081,7 +1083,7 @@ export function useQuestionHandler(
             sessionId: sessionId ?? undefined,
             traceId: turnTraceId ?? undefined,
             signal: abortController.signal,
-            timeoutMs: Math.min(PROBLEM_AUTHORITY_DEADLINE_MS, SCENE_PLANNER_DEADLINE_MS),
+            timeoutMs: Math.min(PROBLEM_AUTHORITY_DEADLINE_MS, scenePlannerDeadlineMs),
             fastMode: fastModeRef.current,
           }));
           tutorDebug("planner", "found verified scene recovery candidate", {
@@ -1109,7 +1111,7 @@ export function useQuestionHandler(
             sessionId: sessionId ?? undefined,
             traceId: turnTraceId ?? undefined,
             signal: abortController.signal,
-            timeoutMs: TURN_PLAN_DEADLINE_MS,
+            timeoutMs: turnPlanDeadlineMs,
             conversationContext: recentConversation,
             fastMode: fastModeRef.current,
             classifySubject: (billed.diagramStrictSubjects?.length ?? 0) > 0,
@@ -1160,7 +1162,7 @@ export function useQuestionHandler(
             plannedTurn?.peerTurnPlans,
           );
           if (plannedTurn && turnPlanNeedsNumericAuthority(question, turnPlan)) {
-            const remainingAuthorityMs = Math.max(1_000, SCENE_PLANNER_DEADLINE_MS - (Date.now() - plannerStartedAt));
+            const remainingAuthorityMs = Math.max(1_000, scenePlannerDeadlineMs - (Date.now() - plannerStartedAt));
             problemAuthorityPromise = traceProblemAuthority(planAndSolveProblemV1(question, turnPlan, {
               proxyUrl: plannerUrl,
               sessionId: sessionId ?? undefined,
@@ -1283,7 +1285,7 @@ export function useQuestionHandler(
           // A recovered scene is revalidated on the final facts, never planned.
           speculationAllowed: recoveredScene === null,
           plannerStartedAt,
-          deadlineMs: SCENE_PLANNER_DEADLINE_MS,
+          deadlineMs: scenePlannerDeadlineMs,
           signal: abortController.signal,
           guard: (operation) => awaitCurrentTurn(operation, isCurrentTurn),
           telemetry: tel,
@@ -1370,6 +1372,7 @@ export function useQuestionHandler(
                 traceId: turnTraceId ?? undefined,
                 signal: run.signal,
                 timeoutMs: run.timeoutMs,
+                candidateTimeoutMs: billed.plannerTiming?.sceneCandidateMs,
                 holdValidationUntil: run.holdValidationUntil,
                 maxConcurrentRequests: run.maxConcurrentRequests,
                 requestBudget: run.requestBudget,
@@ -1621,7 +1624,7 @@ export function useQuestionHandler(
               })
             : [],
           budgets: {
-            deadlineMs: SCENE_PLANNER_DEADLINE_MS,
+            deadlineMs: scenePlannerDeadlineMs,
             planMs: turnPlanMs,
             candidatesMs: Math.max(0, Date.now() - plannerStartedAt - turnPlanMs),
           },

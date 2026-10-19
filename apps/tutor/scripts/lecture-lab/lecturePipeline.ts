@@ -54,6 +54,7 @@ import {
   settleSelectionDegradation, type DroppedSceneCandidate, type ProductionSceneGate, type ValidatedSceneCandidate,
 } from "@/features/tutor-session/lib/scene/productionSceneSelection";
 import { diagramStrategyAllowsFigureSource } from "@/features/tutor-session/lib/scene/diagramStrategy";
+import type { PlannerTimingProfile } from "../../lib/llm/plannerTiming";
 import { buildVerifiedDiagramPresentation } from "@/features/tutor-session/lib/scene/verifiedScenePresentation";
 import {
   selectFastVerifiedRepresentation,
@@ -146,6 +147,10 @@ export interface LectureRun {
   plannerProbe?: {
     version: "primary-request-probe/v1";
     timeoutMs: 120_000;
+    timingProfile?: Readonly<PlannerTimingProfile>;
+    turnTimeoutMs?: number;
+    sceneTimeoutMs?: number;
+    sceneContext?: "fresh_turn_plan" | "frozen_turn_plan";
     turnAccepted: boolean;
     sceneAccepted: boolean;
     sceneStatus: "accepted_scene" | "valid_text_only_decline" | "rejected" | "no_response";
@@ -288,7 +293,11 @@ export interface RunLectureOptions {
   arm?: DiagramEvalArm;
   figureOnly?: boolean;
   plannerOnly?: boolean;
-  /** Evaluation-only override; live turns keep SCENE_PLANNER_DEADLINE_MS. */
+  /** Authenticated server policy, also carried by live begin-turn. */
+  plannerTiming?: Readonly<PlannerTimingProfile>;
+  /** Paired request diagnostics only; keep the scene's source input identical. */
+  plannerSceneContext?: { turnPlan: TurnPlanV3; turnAccepted: boolean };
+  /** Evaluation-only override of the provider's end-to-end scene budget. */
   scenePlannerDeadlineMs?: number;
   /** Uses the same subject vocabulary as the live semantic planner. */
   subject?: DiagramSubject;
@@ -360,7 +369,7 @@ export async function runLecture(
   const plannerUrl = `${options.origin}/api/chat`;
   const traceId = options.traceId ?? crypto.randomUUID();
   const startedAt = Date.now();
-  const scenePlannerDeadlineMs = options.scenePlannerDeadlineMs ?? SCENE_PLANNER_DEADLINE_MS;
+  const scenePlannerDeadlineMs = options.scenePlannerDeadlineMs ?? options.plannerTiming?.sceneMs ?? SCENE_PLANNER_DEADLINE_MS;
   const dsaClassification = classifyDsaQuestion(question);
 
   const stages: LecturePlanningStages = {
@@ -461,25 +470,29 @@ export async function runLecture(
   };
 
   if (options.plannerOnly) {
+    const turnTimeoutMs = options.plannerTiming?.turnPlanMs ?? 120_000;
+    const sceneTimeoutMs = options.plannerTiming?.sceneCandidateMs ?? 120_000;
     const turnStartedAt = Date.now();
     const turn = await planTurnV3Lane(question, {
-      proxyUrl: plannerUrl, timeoutMs: 120_000, traceId, fastMode: false,
+      proxyUrl: plannerUrl, timeoutMs: turnTimeoutMs, traceId, fastMode: false,
       onRequestOutcome: (outcome) => run.turnPlanCallOutcomes?.push(outcome),
     });
     stages.turnPlanMs = Date.now() - turnStartedAt;
     run.turnPlanStatus = turn ? "planned" : "fallback";
     const turnPlan = turn?.turnPlan ?? createFallbackTurnPlanV3(question);
     run.plan = { ...turnPlan, requiresVisualByStem: questionRequiresVisual(question) };
-    const gate = deriveProductionSceneGate({ question, turnPlan, problemIR: null });
+    const sceneTurnPlan = options.plannerSceneContext?.turnPlan ?? turnPlan;
+    const sceneTurnAccepted = options.plannerSceneContext?.turnAccepted ?? (turn !== null);
+    const gate = deriveProductionSceneGate({ question, turnPlan: sceneTurnPlan, problemIR: null });
     const sceneStartedAt = Date.now();
     const response = await planSceneDocument(question, {
-      ...gate.request, proxyUrl: plannerUrl, traceId, fastMode: false, timeoutMs: 120_000,
+      ...gate.request, proxyUrl: plannerUrl, traceId, fastMode: false, timeoutMs: sceneTimeoutMs,
       onRequestOutcome: (outcome) => run.diagram.plannerCallOutcomes?.push(outcome),
     });
     stages.scenePlannerMs = Date.now() - sceneStartedAt;
     let validation: SceneCandidateValidation<ValidatedSceneCandidate> | null = null;
     if (response) {
-      try { validation = validateProductionSceneCandidate({ candidate: response.document, question, turnPlan }); }
+      try { validation = validateProductionSceneCandidate({ candidate: response.document, question, turnPlan: sceneTurnPlan }); }
       catch {
         // A malformed model document that makes a validator throw is rejected,
         // never rescued. Keep its paid raw response for the offline diagnosis.
@@ -487,7 +500,7 @@ export async function runLecture(
           message: "Candidate validation raised an exception; raw evidence retained.", severity: "fatal" }] };
       }
     }
-    const selectionInput = { question, turnPlan, problemIR: null, candidateValidation: validation,
+    const selectionInput = { question, turnPlan: sceneTurnPlan, problemIR: null, candidateValidation: validation,
       fastRepresentation: null, requiredRetryEnabled: true,
       policy: { preferPlanner: true, allowedFigureSources: ["planner", "verified_recovery", "text_only"] as const } };
     const selection = selectProductionScene(selectionInput);
@@ -510,11 +523,13 @@ export async function runLecture(
       run.diagram.svg = renderSceneSvg(representation.renderScene, { title: "Planner diagnostic" });
     }
     run.plannerProbe = { version: "primary-request-probe/v1", timeoutMs: 120_000,
+      ...(options.plannerTiming ? { timingProfile: options.plannerTiming } : {}), turnTimeoutMs, sceneTimeoutMs,
+      sceneContext: options.plannerSceneContext ? "frozen_turn_plan" : "fresh_turn_plan",
       turnAccepted: turn !== null,
       sceneAccepted: validation?.valid === true && validation.value?.document.visualDecision.mode === "scene",
       sceneStatus: !response ? "no_response" : !validation?.valid ? "rejected"
         : validation.value?.document.visualDecision.mode === "text_only" ? "valid_text_only_decline" : "accepted_scene",
-      authority: turn ? "accepted_turn_plan" : "fallback_no_numeric_authority", responses: [] };
+      authority: sceneTurnAccepted ? "accepted_turn_plan" : "fallback_no_numeric_authority", responses: [] };
     run.timings.planMs = run.timings.totalMs = Date.now() - startedAt;
     return run;
   }
@@ -531,7 +546,7 @@ export async function runLecture(
     const turnPlanStartedAt = Date.now();
     const plannedTurn = await planTurnV3(question, {
       proxyUrl: plannerUrl,
-      timeoutMs: TURN_PLAN_DEADLINE_MS,
+      timeoutMs: options.plannerTiming?.turnPlanMs ?? TURN_PLAN_DEADLINE_MS,
       fastMode,
       traceId,
       classifySubject: (options.productionStrictSubjects?.length ?? 0) > 0,
@@ -721,6 +736,7 @@ export async function runLecture(
             proxyUrl: plannerUrl,
             signal: sceneRun.signal,
             timeoutMs: sceneRun.timeoutMs,
+            candidateTimeoutMs: options.plannerTiming?.sceneCandidateMs,
             holdValidationUntil: sceneRun.holdValidationUntil,
             maxConcurrentRequests: sceneRun.maxConcurrentRequests,
             requestBudget: sceneRun.requestBudget,

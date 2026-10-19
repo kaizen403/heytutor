@@ -8,6 +8,7 @@ import { VISUAL_NEED_CLIENT_TIMEOUT_MS, VISUAL_NEED_EVIDENCE_VERSION } from "../
 import { plannerSpeedSettings } from "./planningSpeed";
 import { buildLabModelProfile } from "./labModelProfile";
 import { liveDiagramPromptInputBounds } from "../scene/diagramExampleLibrary.server";
+import { resolvePlannerTimingProfile } from "./plannerTiming";
 
 /** Non-secret, authenticated preflight from the actual server configuration. */
 export function labProviderConfig() {
@@ -31,8 +32,11 @@ export function labProviderConfig() {
     thinking: { type: "enabled", budget_tokens: 2048 },
   }, endpoint)));
   return {
-    plannerProbe: { version: "primary-request-probe/v1", timeoutMs: 120_000, maxAttempts: 1 },
+    ...(endpoint.provider === "fireworks" ? {
+      plannerProbe: { version: "primary-request-probe/v1", timeoutMs: 120_000, maxAttempts: 1 },
+    } : {}),
     provider: endpoint.provider, deployment: endpoint.deployment,
+    ...(resolvePlannerTimingProfile(endpoint.provider) ? { plannerTiming: resolvePlannerTimingProfile(endpoint.provider) } : {}),
     configured,
     modelProfile: configured ? buildLabModelProfile({ endpoint, env: process.env }) : null,
     inputBounds: liveDiagramPromptInputBounds(),

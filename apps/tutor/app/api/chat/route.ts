@@ -41,6 +41,7 @@ import { reservePaidUsage, maximumLlmCost, actualLlmCost, holdPaidUsage, type Pa
 import { readBoundedText, RequestBodyError } from "@/lib/http/requestBody";
 import { isTeachingHedge, serverChatBody } from "@/lib/llm/chatRequest";
 import { applyPlannerSpeedSettings, plannerTierCostMultiplier } from "@/lib/llm/planningSpeed";
+import { plannerTimingRequestCap, resolvePlannerTimingProfile } from "@/lib/llm/plannerTiming";
 import {
   resolveCheapFireworksModel,
   DEFAULT_FIREWORKS_MODEL,
@@ -699,9 +700,14 @@ async function handlePlannerRequest({
       // Azure scenes are non-streaming. Keep their initial 30s candidate
       // response window intact instead of canceling at 25s to retry late.
       // The existing request/client signals still bound setup and both attempts.
+      // Fireworks turn/scene requests use their entire server-capped deadline:
+      // a slow generation must not be restarted halfway through that window.
+      // Quick transient-status retries still share the same boundedSignal.
       maxAttemptsPerModel: plannerProbe ? 1 : undefined,
       attemptTimeoutMs: plannerProbe
-        ? 120_000 : llm.provider === "azure" && semanticSceneV2 && !diagramExamplePicker
+        ? 120_000 : plannerTimingRequestCap(resolvePlannerTimingProfile(llm.provider), {
+          semanticSceneV2, turnPlanV3, problemIRV1, codeLessonV1, diagramExamplePicker,
+        }) !== undefined ? deadlineMs : llm.provider === "azure" && semanticSceneV2 && !diagramExamplePicker
         ? Math.min(30_000, deadlineMs)
         : undefined,
       body,
@@ -1007,6 +1013,10 @@ export async function POST(request: Request): Promise<Response> {
     const codeLessonV1 = request.headers.get("x-code-lesson-version") === "1";
     const semanticSceneV2 = !turnPlanV3 && !problemIRV1 && !codeLessonV1 &&
       request.headers.get("x-scene-planner-version") === "2";
+    const plannerProbe = isLectureLabPlannerProbe(request);
+    const timingCap = plannerTimingRequestCap(resolvePlannerTimingProfile(llm.provider), {
+      turnPlanV3, semanticSceneV2, problemIRV1, codeLessonV1, diagramExamplePicker,
+    });
     const requestUrl = new URL(request.url);
     return handlePlannerRequest({
       rawBody,
@@ -1034,9 +1044,9 @@ export async function POST(request: Request): Promise<Response> {
       problemIRModelOverride: problemIRV1 && shouldUseLectureLabStandardModel(request)
         ? resolveFireworksModel({ fastMode: false })
         : undefined,
-      plannerProbe: isLectureLabPlannerProbe(request),
+      plannerProbe,
       deadlineMs: Math.min(
-        semanticSceneV2 || isLectureLabPlannerProbe(request) ? lectureLabPlannerDeadlineCapMs(request) : 60_000,
+        plannerProbe ? 120_000 : timingCap ?? (semanticSceneV2 ? lectureLabPlannerDeadlineCapMs(request) : 60_000),
         Math.max(
           1_000,
           Number.parseInt(request.headers.get("x-planner-deadline-ms") ?? "60000", 10) || 60_000,

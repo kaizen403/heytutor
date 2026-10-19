@@ -5,6 +5,7 @@ import { isOutOfCreditsCode } from "./studentCopy";
 import { patchEntitlementSnapshot, setEntitlementSnapshot, type Entitlement } from "./entitlementState";
 import { openRazorpayCheckout, type RazorpayCheckout } from "./razorpayCheckout";
 import type { DiagramStrategy } from "@/features/tutor-session/lib/scene/diagramStrategy";
+import { parsePlannerTimingProfile, type PlannerTimingProfile } from "../llm/plannerTiming";
 
 export type BillingTurnKind = "lesson" | "doubt" | "resume";
 
@@ -23,6 +24,7 @@ export interface BeginTurnOk {
   ttsCharsRemaining: number;
   diagramStrategy: DiagramStrategy;
   diagramStrictSubjects?: DiagramSubject[];
+  plannerTiming?: Readonly<PlannerTimingProfile>;
 }
 
 export interface BeginTurnErr {
@@ -216,6 +218,7 @@ async function beginTurnOnce(input: {
     if (mayRemember) rememberRemainingPct(err.remaining);
     return err;
   }
+  const plannerTiming = parsePlannerTimingProfile(payload.plannerTiming);
   const ok: BeginTurnOk = {
     ok: true,
     remainingPct,
@@ -223,6 +226,7 @@ async function beginTurnOnce(input: {
     planId: typeof payload.planId === "string" ? payload.planId : "free",
     diagramStrategy: payload.diagramStrategy === "strict" ? "strict" : "current",
     diagramStrictSubjects: parseDiagramStrictSubjects(payload.diagramStrictSubjects),
+    ...(plannerTiming ? { plannerTiming } : {}),
     nextResetAt: typeof payload.nextResetAt === "number" ? payload.nextResetAt : null,
     ttsCharsRemaining: typeof payload.ttsCharsRemaining === "number" ? payload.ttsCharsRemaining : 0,
   };
