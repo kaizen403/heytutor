@@ -102,9 +102,39 @@ function recordedStructures(): void {
   assert.equal(bars, 16, "all sixteen reviewed given bars have durable structural regression coverage");
 }
 
+
+function hintedDisplayedControls(): void {
+  for (const [text, held] of [["D = 2 m", false], ["Z", false], ["Z = ? N m", false], ["Z = 3 N m", true]] as const) {
+    const document = dimensionDocument("narration");
+    document.entities = [{ id: "span", kind: "segment", role: "rod", label: text }];
+    document.annotations = [{ id: "caption", kind: "caption", targetIds: [], text }];
+    document.source = { ...document.source, answerLabelEntityIds: ["span"], answerLabelAnnotationIds: ["caption"] };
+    document.revealGroups = [{ id: "setup", entityIds: ["span"], dependsOn: [], narrationCue: `The rod shows ${text}.` }];
+    const render: RenderScene = {
+      engineVersion: "scene-engine/2.0.0", caption: text,
+      primitives: [{ id: "rod", entityId: "span", groupId: "setup", kind: "line", points: [{ x: 500, y: 300 }, { x: 900, y: 300 }] },
+        { id: "primitive_span_label", entityId: "span", groupId: "setup", kind: "label", points: [{ x: 700, y: 325 }], text, labelPlacement: "absolute" }],
+      revealGroups: document.revealGroups, timeline: [], entityBounds: { span: { x: 500, y: 300, width: 400, height: 25 } },
+    };
+    const presentation = buildVerifiedDiagramPresentation(document, render);
+    const answers = presentation.diagram.deferredAnnotations?.filter(entry => entry.revealAfter || entry.revealAfterLesson).flatMap(entry => entry.commands) ?? [];
+    assert.equal(answers.some(command => command.text === text), held, `staging hints cannot override displayed given/name/placeholder policy: ${text}`);
+    assert.equal(presentation.diagram.caption === undefined, held, `caption follows actual computed text, not staging hints: ${text}`);
+    assert.equal(presentation.diagram.promptAddon.includes(`"${text}" = [FOCUS:span]`), !held, `readable target follows actual displayed ink: ${text}`);
+    if (!held) assert(presentation.introSegments.some(segment => segment.narration.includes(text)), `ordinary hinted setup keeps its tour: ${text}`);
+    else assert(!presentation.introSegments.some(segment => segment.narration.includes(text)), "computed hinted text cannot leak through tour");
+  }
+}
+
 async function main(): Promise<void> {
+  hintedDisplayedControls();
   recordedStructures();
   for (const kind of ["narration", "callout"] as const) await verifyDocument(dimensionDocument(kind), kind);
+  for (const kind of ["narration", "callout"] as const) {
+    const hinted = dimensionDocument(kind);
+    hinted.source = { ...hinted.source, answerLabelEntityIds: ["measure"], answerLabelAnnotationIds: ["source-value", "computed"] };
+    await verifyDocument(hinted, `hinted-given-${kind}`);
+  }
   const entityGiven = dimensionDocument("callout");
   entityGiven.annotations = entityGiven.annotations.filter(annotation => annotation.id !== "source-value");
   await verifyDocument(entityGiven, "given-entity-label");

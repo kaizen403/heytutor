@@ -136,7 +136,7 @@ export function takeDeferredAnnotations(
   if (entityIds.size === 0) return [];
   const taken: VerifiedDiagramCommand[] = [];
   diagram.deferredAnnotations = diagram.deferredAnnotations.filter((entry) => {
-    if (entry.revealAfter === "teaching_complete") return true;
+    if (entry.revealAfter === "teaching_complete" || entry.revealAfterLesson) return true;
     const matchesEntity = entityIds.has(entry.entityId.toLowerCase()) ||
       entry.entityId.split(",").some((id) => entityIds.has(id.trim().toLowerCase()));
     if (!matchesEntity) return true;

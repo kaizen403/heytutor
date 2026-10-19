@@ -64,6 +64,11 @@ export function isAnswerLabel(document: SceneDocument, primitive: {
   const consumed = consumedComponentAnnotation(document, primitive);
   const annotation = document.annotations.find((entry) => entry.id === (primitive.annotationId ?? primitive.id)) ?? consumed;
   if (annotation?.kind === "narration") return false;
+  const source = document.source as Record<string, unknown>;
+  // Engine staging hints affect timing only. Displayed givens, names and
+  // placeholders still win; a hint never grants numeric authority.
+  const staged = Array.isArray(source.answerLabelEntityIds) && source.answerLabelEntityIds.includes(primitive.entityId) ||
+    Array.isArray(source.answerLabelAnnotationIds) && source.answerLabelAnnotationIds.includes(annotation?.id ?? primitive.annotationId);
   // Only unwrap a component prefix when its displayed text exactly matches
   // the compiler's consumed annotation; source prose never replaces a name.
   let text = (consumed && annotation?.id === consumed.id ? consumed.text : primitive.text) ?? annotation?.text ?? "";
@@ -89,16 +94,16 @@ export function isAnswerLabel(document: SceneDocument, primitive: {
     const trailing = named.length ? named : references(lhs.split(/\s+/u).at(-1)!);
     if (trailing.length === 1 && !derived(trailing[0]!)) return false;
     if (!quantity) quantity = named.length === 1 ? named[0] : undefined;
-    if (!quantity || !derived(quantity)) return false;
+    if (quantity ? !derived(quantity) : !staged) return false;
     // This is reveal timing, not an algebra parser: functions, implicit
     // products and Unicode operators all reveal an assigned result too.
     return /[\p{N}\p{L}\p{Sm}]/u.test(rhs);
   }
-  if (!quantity || !derived(quantity) || /^[\p{L}_][\p{L}\p{N}_{}]*$/u.test(text)) return false;
+  if ((quantity ? !derived(quantity) : !staged) || /^[\p{L}_][\p{L}\p{N}_{}]*$/u.test(text)) return false;
   // A numeric literal must be separate from an identifier (Mode2 is a name).
   const numbers = [...text.matchAll(/(?<![\p{L}\p{N}_])[+−-]?(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?/gu)];
   if (!numbers.length) return false;
-  if (/^[+−-]?\s*(?:\d|\.\d)/u.test(text)) return true;
+  if (quantity && /^[+−-]?\s*(?:\d|\.\d)/u.test(text)) return true;
   const unitKey = (value: string) => value.normalize("NFKC").replace(/[{}_^\s]/g, "");
   const measurementMatches = (entry: Quantity, number: RegExpMatchArray) => {
     if (Number(entry.value) !== Number(number[0].replace("−", "-"))) return false;
@@ -109,7 +114,7 @@ export function isAnswerLabel(document: SceneDocument, primitive: {
   // Prose mentioning only given measurements is setup ("After 5.0 s"). An
   // actual bound result measurement still wins even when a given coincides.
   return !numbers.every((number) => document.quantities.some((entry) => !derived(entry) && measurementMatches(entry, number))) ||
-    numbers.some((number) => measurementMatches(quantity!, number));
+    Boolean(quantity && numbers.some((number) => measurementMatches(quantity, number)));
 }
 
 /** A label and its own compiled leader form one reveal; never its whole host. */

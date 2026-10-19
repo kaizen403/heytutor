@@ -64,7 +64,8 @@
     "verify:answer-label-completion": "tsx scripts/verify/verify-answer-label-completion.ts",
     "verify:conductance-teaching": "tsx scripts/verify/verify-conductance-teaching.ts",
     "verify:figure-sentence-boundary": "tsx scripts/verify/verify-figure-sentence-boundary.ts",
-    "verify:completion": "node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-admission.ts && node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-boundary-admission.ts && tsx scripts/verify/verify-structured-completion-diagnostics.ts && node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-owner-admission.ts"
+    "verify:completion": "node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-admission.ts && node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-boundary-admission.ts && tsx scripts/verify/verify-structured-completion-diagnostics.ts && node --experimental-test-module-mocks --import tsx scripts/verify/verify-structured-completion-owner-admission.ts",
+    "verify:yield": "tsx scripts/verify/verify-yield-answer-reveal.ts && tsx scripts/verify/verify-yield-admission.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1131.0",
