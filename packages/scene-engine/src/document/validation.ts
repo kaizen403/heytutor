@@ -4851,11 +4851,41 @@ function normalizeGenericPlannerSchema(raw: Record<string, unknown>): Record<str
       }
     }
   }
+  normalizeBareSpaceFrameAnchor(constructions);
   return {
     ...raw,
     entities,
     constructions,
   };
+}
+
+/**
+ * A space_frame origin is only the page anchor of a projected 3D frame; every
+ * world coordinate, angle and proof is measured inside the frame. When the
+ * document has exactly one frame, its anchor point gives no coordinates at
+ * all, and the whole figure lives in that frame, anchor it at (0, 0). A second
+ * frame or any other 2D construction makes the anchor meaningful, so the
+ * document is left for the validator.
+ */
+function normalizeBareSpaceFrameAnchor(constructions: unknown[]): void {
+  const frames = constructions.filter((construction) => isRecord(construction) && construction.operator === "space_frame");
+  if (frames.length !== 1) return;
+  const frameInputs = (frames[0] as Record<string, unknown>).inputs;
+  const originId = isRecord(frameInputs) ? frameInputs.origin ?? frameInputs.center : undefined;
+  if (typeof originId !== "string") return;
+  const frameOperators = new Set(["space_frame", "space_point", "space_line", "plane", ...SPACE_DERIVATION_OPERATORS]);
+  let anchor: Record<string, unknown> | null = null;
+  for (const construction of constructions) {
+    if (!isRecord(construction)) return;
+    const outputs = Array.isArray(construction.outputs) ? construction.outputs : [];
+    if (anchor === null && construction.operator === "point" && outputs.length === 1 && outputs[0] === originId) {
+      anchor = construction;
+      continue;
+    }
+    if (!frameOperators.has(String(construction.operator ?? ""))) return;
+  }
+  if (!anchor || !isRecord(anchor.inputs) || anchor.inputs.x !== undefined || anchor.inputs.y !== undefined) return;
+  anchor.inputs = { ...anchor.inputs, x: 0, y: 0 };
 }
 
 export function implicitSolverEntityIds(document: SceneDocument): Set<string> {

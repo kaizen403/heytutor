@@ -160,10 +160,7 @@ function parseNumber(raw: string): number | null {
 export function prepareStem(question: string): string {
   return question
     .replace(/[–—−]/g, "-")
-    .replace(/⁻¹/g, "^-1")
-    .replace(/⁻²/g, "^-2")
-    .replace(/²/g, "^2")
-    .replace(/³/g, "^3")
+    .replace(/[⁻⁺⁰¹²³⁴⁵⁶⁷⁸⁹]+/g, (exponent) => `^${[...exponent].map((digit) => ({ "⁻": "-", "⁺": "+", "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4", "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9" })[digit]).join("")}`)
     .replace(/µ/g, "μ")
     .replace(/\s+/g, " ")
     .trim();
@@ -174,7 +171,7 @@ export function prepareStem(question: string): string {
  * must end there: "m/s" is not the start of "m/s^2".
  */
 export function numbersWithUnit(stem: string, unit: RegExp): number[] {
-  const pattern = new RegExp(`${NUMBER}\\s*(?:${unit.source})(?![a-z]|\\s*\\^)`, "gi");
+  const pattern = new RegExp(`${NUMBER}\\s*(?:${unit.source})(?![a-z]|\\s*[\\^/])`, "gi");
   const values: number[] = [];
   for (const match of stem.matchAll(pattern)) {
     const value = parseNumber(match[1]!);
@@ -253,6 +250,45 @@ export function symbolLengthInCm(stem: string, symbol: RegExp): number | null {
   );
   const match = pattern.exec(stem);
   return match ? lengthToCm(match[1]!, match[2]!) : null;
+}
+
+/** A named length requires its unit and cannot cross another quantity or clause. */
+export function lengthAfterInMetres(stem: string, phrase: RegExp): number | null {
+  const pattern = new RegExp(`(?:${phrase.source})\\s*(?:(?:is|of|equals?|equal to|[=:])\\s*)?${NUMBER}\\s*(km|cm|mm|metres?|meters?|m)(?![a-z]|\\s*[\\^/])`, "gi");
+  const values = [...stem.matchAll(pattern)].flatMap((match) => {
+    const value = parseNumber(match[1]!);
+    const unit = match[2]!.toLowerCase();
+    return value === null ? [] : [value * (unit === "km" ? 1000 : unit === "cm" ? 0.01 : unit === "mm" ? 0.001 : 1)];
+  });
+  const first = values[0];
+  return first !== undefined && values.every((value) => value === first) ? first : null;
+}
+
+/** A role-bound energy must carry its unit and agree across all mentions. */
+export function readEnergyAfterInEv(stem: string, phrase: RegExp): { value: number | null; conflicting: boolean } {
+  const pattern = new RegExp(`(?:${phrase.source})\\s*(?:(?:is|of|equals?|equal to|[=:])\\s*)?${NUMBER}\\s*(eV|J|joules?|electron[- ]?volts?)\\b`, "gi");
+  const values = [...stem.matchAll(pattern)].flatMap((match) => {
+    const value = parseNumber(match[1]!);
+    return value === null ? [] : [/^(?:J|joules?)$/i.test(match[2]!) ? value / 1.602176634e-19 : value];
+  });
+  const first = values[0];
+  const conflicting = first !== undefined && values.some((value) => Math.abs(value - first) > 1e-9 * Math.max(1, Math.abs(first), Math.abs(value)));
+  return { value: conflicting ? null : first ?? null, conflicting };
+}
+
+/** Wavelength extraction carries its unit and declines conflicting source values. */
+export function wavelengthAfterInNm(stem: string, phrase: RegExp): number | null {
+  const pattern = new RegExp(`(?:${phrase.source})[^0-9\\-]{0,24}${NUMBER}\\s*(nm|pm|[μu]m|mm|cm|m|angstroms?|Å)(?![\\p{L}\\p{N}_])`, "giu");
+  const values: number[] = [];
+  for (const match of stem.matchAll(pattern)) {
+    const value = parseNumber(match[1]!);
+    if (value === null) continue;
+    const unit = match[2]!.toLowerCase();
+    const factor = ({ nm: 1, pm: 0.001, μm: 1000, um: 1000, mm: 1e6, cm: 1e7, m: 1e9 } as Record<string, number>)[unit] ?? 0.1;
+    values.push(value * factor);
+  }
+  const first = values[0];
+  return first !== undefined && values.every((value) => Math.abs(value - first) <= 1e-9 * Math.max(1, Math.abs(first))) ? first : null;
 }
 
 /** A number followed by a phrase, e.g. "30 cm from a concave mirror". */
