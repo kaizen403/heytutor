@@ -428,6 +428,8 @@ function computePlan(document: SceneDocument): SpaceViewPlan | null {
     frames.set(frame.id, { axisMin: { x: axisMin[0]!, y: axisMin[1]!, z: axisMin[2]! }, axisMax: { x: axisMax[0]!, y: axisMax[1]!, z: axisMax[2]! } });
   }
 
+  // pointLabelText uses the native policy here: enhanced attachment must not
+  // change projection, plane extents or physical framing between attempts.
   const named = world.points.flatMap((item) => {
     const label = item.id ? pointLabelText(document, item.id) : null;
     return label ? [{ ...item, label }] : [];

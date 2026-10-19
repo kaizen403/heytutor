@@ -1,0 +1,783 @@
+{
+  "schema": "label-placement-regression-oracles/v1",
+  "baseline": "aeb3eb11 MAIN",
+  "source": "unchanged public archetype and chemistry probes, native MAIN compiler",
+  "records": [
+    {
+      "id": "vt-three-phases",
+      "kind": "archetype",
+      "question": "A car accelerates uniformly from rest to 20 m/s in 10 s, then moves at constant speed for 20 s, then decelerates to rest in 5 s. Draw the velocity-time graph and find the total distance travelled.",
+      "inputSha256": "526774aa17ffded1654cc892777ab051fd86c5a86d0e4084508bcbe70596129f",
+      "geometrySha256": "3ff3edb3b630b199948975894d56340af5866ab333a63841212a2d909db36ce7",
+      "labels": [
+        {
+          "entityId": "axes",
+          "text": "v-t"
+        },
+        {
+          "entityId": "p0",
+          "text": "0"
+        },
+        {
+          "entityId": "p1",
+          "text": "(10 s, 20 m/s)"
+        },
+        {
+          "entityId": "phase1",
+          "text": "uniform accelera"
+        },
+        {
+          "entityId": "foot1",
+          "text": "t=10 s"
+        },
+        {
+          "entityId": "p2",
+          "text": "(30 s, 20 m/s)"
+        },
+        {
+          "entityId": "phase2",
+          "text": "constant velocit"
+        },
+        {
+          "entityId": "foot2",
+          "text": "t=30 s"
+        },
+        {
+          "entityId": "p3",
+          "text": "(35 s, 0 m/s)"
+        },
+        {
+          "entityId": "phase3",
+          "text": "uniform decelera"
+        },
+        {
+          "entityId": "foot3",
+          "text": "t=35 s"
+        }
+      ],
+      "revealGroups": [
+        {
+          "id": "axes_group",
+          "entityIds": [
+            "axes",
+            "p0",
+            "p1",
+            "foot1",
+            "p2",
+            "foot2",
+            "p3",
+            "foot3"
+          ],
+          "dependsOn": [],
+          "narrationCue": "velocity on the vertical axis, time on the horizontal"
+        },
+        {
+          "id": "graph",
+          "entityIds": [
+            "p1",
+            "p2",
+            "p3",
+            "phase1",
+            "phase2",
+            "phase3",
+            "foot1",
+            "foot2",
+            "foot3",
+            "drop1",
+            "drop2"
+          ],
+          "dependsOn": [
+            "axes_group"
+          ],
+          "narrationCue": "each phase of the motion as one straight piece"
+        },
+        {
+          "id": "area_group",
+          "entityIds": [
+            "area",
+            "origin_ref"
+          ],
+          "dependsOn": [
+            "graph"
+          ],
+          "narrationCue": "the area under the graph is the distance travelled"
+        }
+      ]
+    },
+    {
+      "id": "vt-train",
+      "kind": "archetype",
+      "question": "A train starts from rest and accelerates at 2 m/s^2 for 10 s, then travels at constant velocity for 30 s and finally retards uniformly to rest in 20 s. Draw the v-t graph.",
+      "inputSha256": "0884f5a98c3fcdfae12965d8ee494122cd3e9bcd55ff30d16868dce4bac5fa20",
+      "geometrySha256": "0843f13fb8277ae3cc2e691b33530daf6c4a50f1bb5b7ecf2783b7d0fd956543",
+      "labels": [
+        {
+          "entityId": "axes",
+          "text": "v-t"
+        },
+        {
+          "entityId": "p0",
+          "text": "0"
+        },
+        {
+          "entityId": "p1",
+          "text": "(10 s, 20 m/s)"
+        },
+        {
+          "entityId": "phase1",
+          "text": "uniform accelera"
+        },
+        {
+          "entityId": "foot1",
+          "text": "t=10 s"
+        },
+        {
+          "entityId": "p2",
+          "text": "(40 s, 20 m/s)"
+        },
+        {
+          "entityId": "phase2",
+          "text": "constant velocit"
+        },
+        {
+          "entityId": "foot2",
+          "text": "t=40 s"
+        },
+        {
+          "entityId": "p3",
+          "text": "(60 s, 0 m/s)"
+        },
+        {
+          "entityId": "phase3",
+          "text": "uniform decelera"
+        },
+        {
+          "entityId": "foot3",
+          "text": "t=60 s"
+        }
+      ],
+      "revealGroups": [
+        {
+          "id": "axes_group",
+          "entityIds": [
+            "axes",
+            "p0",
+            "p1",
+            "foot1",
+            "p2",
+            "foot2",
+            "p3",
+            "foot3"
+          ],
+          "dependsOn": [],
+          "narrationCue": "velocity on the vertical axis, time on the horizontal"
+        },
+        {
+          "id": "graph",
+          "entityIds": [
+            "p1",
+            "p2",
+            "p3",
+            "phase1",
+            "phase2",
+            "phase3",
+            "foot1",
+            "foot2",
+            "foot3",
+            "drop1",
+            "drop2"
+          ],
+          "dependsOn": [
+            "axes_group"
+          ],
+          "narrationCue": "each phase of the motion as one straight piece"
+        },
+        {
+          "id": "area_group",
+          "entityIds": [
+            "area",
+            "origin_ref"
+          ],
+          "dependsOn": [
+            "graph"
+          ],
+          "narrationCue": "the area under the graph is the distance travelled"
+        }
+      ]
+    },
+    {
+      "id": "banked",
+      "kind": "archetype",
+      "question": "A road is banked at 15 degrees for a curve of radius 100 m. Find the speed at which no friction is needed.",
+      "inputSha256": "5b9eab93dca503c26cdc7d289acb37b9e2f49a8a9720ba050f55031173f504c8",
+      "geometrySha256": "8c69461776b3a041719c40ca554dc771e22c31de27f0dc01d12a088954ce8914",
+      "labels": [
+        {
+          "entityId": "B",
+          "text": "B"
+        },
+        {
+          "entityId": "angle",
+          "text": "θ=15°"
+        },
+        {
+          "entityId": "C",
+          "text": "P"
+        },
+        {
+          "entityId": "vehicle",
+          "text": "m"
+        },
+        {
+          "entityId": "normal",
+          "text": "N"
+        },
+        {
+          "entityId": "weight",
+          "text": "mg"
+        },
+        {
+          "entityId": "centripetal",
+          "text": "to centre"
+        }
+      ],
+      "revealGroups": [
+        {
+          "id": "setup",
+          "entityIds": [
+            "B",
+            "T",
+            "F",
+            "incline",
+            "ground",
+            "rise",
+            "angle",
+            "C",
+            "G",
+            "vehicle_c0",
+            "vehicle_c1",
+            "vehicle_c2",
+            "vehicle_c3",
+            "vehicle",
+            "normal_dir",
+            "normal",
+            "weight",
+            "centripetal"
+          ],
+          "dependsOn": [],
+          "narrationCue": "vehicle on a road banked at 15°"
+        }
+      ]
+    },
+    {
+      "id": "dipole",
+      "kind": "archetype",
+      "question": "An electric dipole of dipole moment 6 x 10^-30 C m is placed in a uniform field of 10^5 N/C at 30 degrees. Find the torque on the dipole.",
+      "inputSha256": "4efbc3803853a51a0caa339612647eb5b65aa883bbce85f1a118c13f63891c9a",
+      "geometrySha256": "e19f46dd726a50f6e5aff4449e8e26083db53477ae13e4489cfc11fb1386c71a",
+      "labels": [
+        {
+          "entityId": "E3",
+          "text": "E"
+        },
+        {
+          "entityId": "neg",
+          "text": "−q"
+        },
+        {
+          "entityId": "pos",
+          "text": "+q"
+        },
+        {
+          "entityId": "dipole",
+          "text": "2a"
+        },
+        {
+          "entityId": "O",
+          "text": "O"
+        },
+        {
+          "entityId": "p",
+          "text": "p"
+        },
+        {
+          "entityId": "angle",
+          "text": "θ=30°"
+        },
+        {
+          "entityId": "F_pos",
+          "text": "qE"
+        },
+        {
+          "entityId": "F_neg",
+          "text": "qE"
+        }
+      ],
+      "revealGroups": [
+        {
+          "id": "setup",
+          "entityIds": [
+            "E0_a",
+            "E0",
+            "E1_a",
+            "E1",
+            "E2_a",
+            "E2",
+            "E3_a",
+            "E3",
+            "neg",
+            "pos",
+            "dipole",
+            "O",
+            "p",
+            "ref_end",
+            "ref",
+            "angle",
+            "F_pos",
+            "F_neg"
+          ],
+          "dependsOn": [],
+          "narrationCue": "electric dipole at 30° to a uniform field"
+        }
+      ]
+    },
+    {
+      "id": "solenoid",
+      "kind": "archetype",
+      "question": "A solenoid of 1000 turns per metre carries a current of 2 A. Find the magnetic field inside the solenoid.",
+      "inputSha256": "01b5a9e487d20d9fccdf9b31145aab42142181106c0a0b919a4ad718e4a80acc",
+      "geometrySha256": "77504b3de7d0506f7ec3b0ed471031d0dd9b3b8e0b85f26ed3acf5bb09c4466c",
+      "labels": [
+        {
+          "entityId": "solenoid",
+          "text": "n=1000 /m"
+        },
+        {
+          "entityId": "B1",
+          "text": "B"
+        },
+        {
+          "entityId": "current",
+          "text": "I=2 A"
+        }
+      ],
+      "revealGroups": [
+        {
+          "id": "setup",
+          "entityIds": [
+            "body_centre",
+            "solenoid",
+            "t0_a",
+            "t0_b",
+            "turn0",
+            "t1_a",
+            "t1_b",
+            "turn1",
+            "t2_a",
+            "t2_b",
+            "turn2",
+            "t3_a",
+            "t3_b",
+            "turn3",
+            "t4_a",
+            "t4_b",
+            "turn4",
+            "t5_a",
+            "t5_b",
+            "turn5",
+            "t6_a",
+            "t6_b",
+            "turn6",
+            "t7_a",
+            "t7_b",
+            "turn7",
+            "t8_a",
+            "t8_b",
+            "turn8",
+            "axis_a",
+            "axis_b",
+            "axis",
+            "B0_a",
+            "B0",
+            "B1_a",
+            "B1",
+            "B2_a",
+            "B2",
+            "I_at",
+            "current"
+          ],
+          "dependsOn": [],
+          "narrationCue": "solenoid with its turns and the axial field inside"
+        }
+      ]
+    },
+    {
+      "id": "topic-wave-types",
+      "kind": "archetype",
+      "question": "Draw a labelled diagram for Wave motion and longitudinal and transverse waves.",
+      "inputSha256": "deee94fbc5f9ad2487264e52239e90d77d1ce57476121eaee94806d2957f90c9",
+      "geometrySha256": "6a6ecc1816b278d4b502b1543dbdbc6663c27bf18c76d64d6a4ae9a0fa58b138",
+      "labels": [
+        {
+          "entityId": "transverse",
+          "text": "transverse"
+        },
+        {
+          "entityId": "t_osc",
+          "text": "oscillation"
+        },
+        {
+          "entityId": "propagation",
+          "text": "v"
+        },
+        {
+          "entityId": "comp",
+          "text": "compression"
+        },
+        {
+          "entityId": "rare",
+          "text": "rarefaction"
+        },
+        {
+          "entityId": "l_osc",
+          "text": "oscillation"
+        }
+      ],
+      "revealGroups": [
+        {
+          "id": "setup",
+          "entityIds": [
+            "axes",
+            "transverse",
+            "t_particle",
+            "t_osc",
+            "prop_a",
+            "propagation",
+            "l0_a",
+            "l0_b",
+            "l0",
+            "l1_a",
+            "l1_b",
+            "l1",
+            "l2_a",
+            "l2_b",
+            "l2",
+            "l3_a",
+            "l3_b",
+            "l3",
+            "l4_a",
+            "l4_b",
+            "l4",
+            "l5_a",
+            "l5_b",
+            "l5",
+            "l6_a",
+            "l6_b",
+            "l6",
+            "l7_a",
+            "l7_b",
+            "l7",
+            "l8_a",
+            "l8_b",
+            "l8",
+            "l9_a",
+            "l9_b",
+            "l9",
+            "l10_a",
+            "l10_b",
+            "l10",
+            "l11_a",
+            "l11_b",
+            "l11",
+            "l12_a",
+            "l12_b",
+            "l12",
+            "l13_a",
+            "l13_b",
+            "l13",
+            "l14_a",
+            "l14_b",
+            "l14",
+            "l15_a",
+            "l15_b",
+            "l15",
+            "l16_a",
+            "l16_b",
+            "l16",
+            "l17_a",
+            "l17_b",
+            "l17",
+            "l18_a",
+            "l18_b",
+            "l18",
+            "l19_a",
+            "l19_b",
+            "l19",
+            "l20_a",
+            "l20_b",
+            "l20",
+            "l21_a",
+            "l21_b",
+            "l21",
+            "l22_a",
+            "l22_b",
+            "l22",
+            "l23_a",
+            "l23_b",
+            "l23",
+            "l24_a",
+            "l24_b",
+            "l24",
+            "l25_a",
+            "l25_b",
+            "l25",
+            "l26_a",
+            "l26_b",
+            "l26",
+            "l27_a",
+            "l27_b",
+            "l27",
+            "l28_a",
+            "l28_b",
+            "l28",
+            "l29_a",
+            "l29_b",
+            "l29",
+            "l30_a",
+            "l30_b",
+            "l30",
+            "l31_a",
+            "l31_b",
+            "l31",
+            "l32_a",
+            "l32_b",
+            "l32",
+            "l33_a",
+            "l33_b",
+            "l33",
+            "l34_a",
+            "l34_b",
+            "l34",
+            "l35_a",
+            "l35_b",
+            "l35",
+            "l36_a",
+            "l36_b",
+            "l36",
+            "l37_a",
+            "l37_b",
+            "l37",
+            "l38_a",
+            "l38_b",
+            "l38",
+            "l39_a",
+            "l39_b",
+            "l39",
+            "comp",
+            "rare",
+            "l_particle",
+            "l_osc"
+          ],
+          "dependsOn": [],
+          "narrationCue": "a transverse wave above a longitudinal wave, with the direction of propagation"
+        }
+      ]
+    },
+    {
+      "id": "topic-magnetic-dipole-torque",
+      "kind": "archetype",
+      "question": "Draw a labelled diagram for Torque on a magnetic dipole in a uniform magnetic field. Show the magnet, the field and the forces.",
+      "inputSha256": "dd020c3b93061680772015f5aa7522b28b43d12cc996fb2002acb74d0f553c0e",
+      "geometrySha256": "4fc5a8cb6ab0aec727aa0c99f85d2e0ae79acb2755aa190cea589c3f1c363666",
+      "labels": [
+        {
+          "entityId": "B3",
+          "text": "B"
+        },
+        {
+          "entityId": "S",
+          "text": "S"
+        },
+        {
+          "entityId": "N",
+          "text": "N"
+        },
+        {
+          "entityId": "F_N",
+          "text": "mB"
+        },
+        {
+          "entityId": "F_S",
+          "text": "mB"
+        },
+        {
+          "entityId": "angle",
+          "text": "θ=30°"
+        }
+      ],
+      "revealGroups": [
+        {
+          "id": "setup",
+          "entityIds": [
+            "B0_a",
+            "B0",
+            "B1_a",
+            "B1",
+            "B2_a",
+            "B2",
+            "B3_a",
+            "B3",
+            "magnet_c0",
+            "magnet_c1",
+            "magnet_c2",
+            "magnet_c3",
+            "magnet",
+            "S",
+            "N",
+            "axis",
+            "F_N",
+            "F_S",
+            "ref_end",
+            "centre_ref",
+            "ref",
+            "half_axis",
+            "angle"
+          ],
+          "dependsOn": [],
+          "narrationCue": "bar magnet at 30° to a uniform field: equal and opposite forces on the poles form a couple"
+        }
+      ]
+    },
+    {
+      "id": "prism-min-dev",
+      "kind": "archetype",
+      "question": "A prism has apex angle 60° and refractive index √3. A ray passes through it at minimum deviation. Find the angle of incidence and the angle of minimum deviation.",
+      "inputSha256": "76faddd7d7706f09824edc24630058bef5ab42d79df9467df704f4cd612d51e6",
+      "geometrySha256": "5e284ef24a4a8cf68405348676ba40a15cba127201a98c828440fc7cfc7eff90",
+      "labels": [
+        {
+          "entityId": "B",
+          "text": "B"
+        },
+        {
+          "entityId": "C",
+          "text": "C"
+        },
+        {
+          "entityId": "Apex",
+          "text": "A"
+        },
+        {
+          "entityId": "prism",
+          "text": "A=60°"
+        },
+        {
+          "entityId": "P1",
+          "text": "P"
+        },
+        {
+          "entityId": "incident",
+          "text": "incident"
+        },
+        {
+          "entityId": "P2",
+          "text": "Q"
+        },
+        {
+          "entityId": "emergent",
+          "text": "emergent"
+        },
+        {
+          "entityId": "delta_note",
+          "text": "δ=60°"
+        },
+        {
+          "entityId": "angle_i",
+          "text": "i=60°"
+        }
+      ],
+      "revealGroups": [
+        {
+          "id": "setup",
+          "entityIds": [
+            "B",
+            "C",
+            "Apex",
+            "prism",
+            "face1",
+            "face2",
+            "P1",
+            "incident",
+            "normal1",
+            "refracted",
+            "P2",
+            "internal",
+            "normal2",
+            "emergent",
+            "delta_note",
+            "angle_i"
+          ],
+          "dependsOn": [],
+          "narrationCue": "ray through a prism of angle 60°, n=1.73, incidence 60° (minimum deviation)"
+        }
+      ]
+    },
+    {
+      "id": "cscl",
+      "kind": "unit-cell",
+      "question": "In the CsCl unit cell, Cl- ions are at the corners and Cs+ at the body centre. What is the coordination number of each ion and the relation between the edge length a and the ionic radii?",
+      "inputSha256": "1fc46b418c889b4402a4b4fbdd62c47a520a3f07fc1a288549bcb00d43c41630",
+      "geometrySha256": "9f5eceb6c474bcfcca82d2dcf0178c3fe574abd3fef7bc4368037170c443f40d",
+      "labels": [
+        {
+          "entityId": "cell_atom1",
+          "text": "Cl^-"
+        },
+        {
+          "entityId": "cell_atom9",
+          "text": "Cs^+"
+        },
+        {
+          "entityId": "cell_dim",
+          "text": "a"
+        },
+        {
+          "entityId": "cell_diag",
+          "text": "√3a = 2(r+ + r-)"
+        }
+      ],
+      "revealGroups": [
+        {
+          "id": "cell",
+          "entityIds": [
+            "cell_edge1",
+            "cell_edge2",
+            "cell_edge3",
+            "cell_edge4",
+            "cell_edge5",
+            "cell_edge6",
+            "cell_edge7",
+            "cell_edge8",
+            "cell_edge9",
+            "cell_edge10",
+            "cell_edge11",
+            "cell_edge12",
+            "cell_atom1",
+            "cell_atom2",
+            "cell_atom3",
+            "cell_atom4",
+            "cell_atom5",
+            "cell_atom6",
+            "cell_atom7",
+            "cell_atom8",
+            "cell_atom9",
+            "cell_dim",
+            "cell_diag"
+          ],
+          "dependsOn": [],
+          "narrationCue": "cell unit cell"
+        }
+      ]
+    }
+  ]
+}

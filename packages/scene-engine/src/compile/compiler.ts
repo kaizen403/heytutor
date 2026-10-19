@@ -4,6 +4,7 @@ import {
   type CompileResult,
   type RenderPoint,
   type RenderPrimitive,
+  type SceneAnnotation,
   type SceneAssertion,
   type SceneConstruction,
   type SceneDocument,
@@ -14,6 +15,7 @@ import {
   createTextInkBoundsCache,
   obstaclesFromPrimitives,
   placeLabels,
+  pointInAngleWedge,
   stackLabelRows,
   workColumnObstacle,
   POINT_LABEL_TETHER_PX,
@@ -24,13 +26,14 @@ import {
   type TextInkBoundsMeasure,
 } from "../labels/labelEngine";
 import { bindOpticsLabelSides, solveWithSideBoundLabels } from "../labels/opticsLabelSides";
+import { createStrokeAttachment, labelRespectsStrokeAttachment, type DirectedLabelStroke, type StrokeLabelPlacement } from "../labels/strokeAttachment";
 // The engine reserves the room the board will letter into, so it measures with
 // the board's own glyph metrics rather than an average character box.
 import { BOARD_TYPE_SCALE, measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
 import { evaluateTopologyAssertion, validateTopologyInvariants } from "../topology/topology";
 import { implicitSolverEntityIds, validateSceneDocument } from "../document/validation";
 import { validateMatrixSourceBinding } from "./matrixSourceBinding";
-import { compactCalloutLabel, isPointIdentifierText, isViewSummaryText, pointLabelTether } from "./pointLabelText";
+import { compactCalloutLabel, composeCarrierLabel, isBareCarrierLabel, isPointIdentifierText, isViewSummaryAnnotation, isViewSummaryText, pointLabelTether } from "./pointLabelText";
 import { validateCircleLabelTraces, validateCircleSourceBinding } from "./circleGeometry";
 import { validateRelativeMotionSourceInputs } from "../synthesize/relativeMotionScene";
 import { validateUniformCircularSourceInputs } from "../physics/uniformCircularSourceBinding";
@@ -61,6 +64,7 @@ import {
   congruenceTickSegments,
   formatAngleMeasureDegrees,
   labelAnchorForPath,
+  pointAlongPolyline,
   sceneCaptionText,
   signBadgeGeometry,
 } from "./annotationMarks";
@@ -220,7 +224,78 @@ const EPSILON = 1e-6;
  */
 export const labelInkBoundsCache = createTextInkBoundsCache(measureTextInkBounds);
 
+type LabelPolicy = "attached" | "native";
+interface LabelAttemptWork {
+  searchWork: number;
+  solverCalls: number;
+  retryable: boolean;
+  physicalInk: RenderPrimitive[];
+}
+interface LabelAttempt extends LabelAttemptWork {
+  policy: LabelPolicy;
+  result: CompileResult;
+  elapsedMs: number;
+}
+interface LabelTransactionDiagnostics {
+  selectedPolicy: LabelPolicy | null;
+  attempts: LabelAttempt[];
+  elapsedMs: number;
+  searchWork: number;
+  solverCalls: number;
+  physicalInkMatches: boolean | null;
+}
+const labelTransactions = new WeakMap<CompileResult, LabelTransactionDiagnostics>();
+
+/** Read-only evidence for an already completed compile; never selects a policy. */
+export function getLabelTransactionDiagnostics(result: CompileResult): Readonly<LabelTransactionDiagnostics> | undefined {
+  return labelTransactions.get(result);
+}
+
 export function compileSceneDocument(document: SceneDocument, options: CompileOptions = {}): CompileResult {
+  const started = performance.now();
+  const attempts: LabelAttempt[] = [];
+  const run = (policy: LabelPolicy): LabelAttempt => {
+    const work: LabelAttemptWork = { searchWork: 0, solverCalls: 0, retryable: false, physicalInk: [] };
+    const before = performance.now();
+    const result = compileSceneDocumentAttempt(document, options, policy, work);
+    const attempt = { policy, result, ...work, elapsedMs: performance.now() - before };
+    attempts.push(attempt);
+    return attempt;
+  };
+  const attached = run("attached");
+  let selected = attached;
+  let physicalInkMatches: boolean | null = null;
+  // Native append proposals reserve existing placements in their own first
+  // pass. A later failure must reject the whole proposal, never reset that
+  // first pass through this outer transaction (including on older documents).
+  if (!attached.result.ok && attached.retryable) {
+    const hasAppend = Array.isArray(document.annotations) && document.annotations.some(annotation =>
+      isRecord(annotation) && annotation.labelMode === "append");
+    if (!hasAppend) {
+      const native = run("native");
+      physicalInkMatches = JSON.stringify(attached.physicalInk) === JSON.stringify(native.physicalInk);
+      if (native.result.ok && native.result.renderScene && native.result.report.valid && physicalInkMatches) selected = native;
+    }
+  }
+  const result = selected.result;
+  labelTransactions.set(result, {
+    selectedPolicy: result.ok ? selected.policy : null,
+    attempts,
+    elapsedMs: performance.now() - started,
+    searchWork: attempts.reduce((sum, attempt) => sum + attempt.searchWork, 0),
+    solverCalls: attempts.reduce((sum, attempt) => sum + attempt.solverCalls, 0),
+    physicalInkMatches,
+  });
+  return result;
+}
+
+function compileSceneDocumentAttempt(document: SceneDocument, options: CompileOptions, policy: LabelPolicy, attempt: LabelAttemptWork): CompileResult {
+  const place: typeof placeLabels = (...args) => {
+    const result = placeLabels(...args);
+    attempt.searchWork += result.searchWork;
+    attempt.solverCalls++;
+    return result;
+  };
   const measureLabelInk = options.measureLabelInkBounds ?? labelInkBoundsCache.measure;
   const structural = validateSceneDocument(document);
   if (!structural.document) return { ok: false, renderScene: null, report: structural.report };
@@ -513,7 +588,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   // Moving one lane also moves its witnesses. Recheck earlier dimensions
   // against that final ink until the bounded lane search is stable.
   for (let pass = 0; pass <= dimensionLanes.size; pass++) {
-    const changed = relocateObstructedDimensions(document, geometry, primitives, transformPlan, dimensionLanes, issues, measureLabelInk);
+    const changed = relocateObstructedDimensions(document, geometry, primitives, transformPlan, dimensionLanes, issues, measureLabelInk, place);
     if (!changed || issues.some((issue) => issue.severity === "fatal")) break;
   }
   assertDimensionViewport(primitives, transformPlan, issues);
@@ -575,11 +650,13 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
         ? compactCalloutLabel(annotation.text)
         : annotation.text),
     )) continue;
-    const valueAnnotation = entity.kind === "component" && isComponentDesignator(entity.label)
+    const geometricCarrier = policy === "attached" && isFiniteValueCarrier(target, entity.kind);
+    const valueAnnotation = (entity.kind === "component" && isComponentDesignator(entity.label)) || (geometricCarrier && isBareCarrierLabel(entity.label))
       ? document.annotations.find((annotation) =>
           annotation.labelMode !== "append" &&
-          annotation.kind === "label" &&
-          annotation.targetIds.includes(entity.id) &&
+          (annotation.kind === "label" || (geometricCarrier && annotation.kind === "callout")) &&
+          (entity.kind === "component" || Boolean(annotation.quantityId)) &&
+          (policy === "native" ? annotation.targetIds.includes(entity.id) : annotation.targetIds[0] === entity.id) &&
           Boolean(annotation.text) &&
           annotation.text !== entity.label,
         )
@@ -588,6 +665,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       annotation.labelMode !== "append" &&
       (annotation.kind === "label" || annotation.kind === "callout") &&
       !annotation.quantityId &&
+      // Moving an independent result beside a stroke does not rename it.
       !(annotation.kind === "callout" && isViewSummaryText(annotation.text)) &&
       annotation.targetIds.includes(entity.id) &&
       Boolean(annotation.kind === "callout"
@@ -599,7 +677,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       : undefined;
     const supplementalText = valueAnnotation?.text ?? quantityText;
     const combinedText = supplementalText
-      ? `${entity.label} ${supplementalText}`
+      ? policy === "attached" ? composeCarrierLabel(entity.label, supplementalText) : `${entity.label} ${supplementalText}`
       : entity.label;
     const useCombinedText = Boolean(supplementalText) && combinedText.length <= 16;
     if (valueAnnotation && useCombinedText) consumedAnnotationIds.add(valueAnnotation.id);
@@ -607,7 +685,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     const transform = transformPlan.transformFor(entity.id);
     const spaceElementPlacement = spaceElementLabelPlacement(entity.id, target, primitives);
     labelOwners.push({
-      labelId: `primitive_${entity.id}_label`,
+      labelId: geometricCarrier && valueAnnotation && useCombinedText ? valueAnnotation.id : `primitive_${entity.id}_label`,
       entityId: entity.id,
       anchor: screenLabelAnchor(entity.id, target, primitives, transform),
       text: useCombinedText ? combinedText : entity.label,
@@ -632,10 +710,10 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     const target = geometry.get(targetId);
     const targetEntity = document.entities.find((entity) => entity.id === targetId);
     const groupId = entityToGroup.get(targetId);
-    const summaryText = (
-      (annotation.kind === "callout" && isViewSummaryText(annotation.text)) ||
-      (Boolean(annotation.quantityId) && Boolean(targetEntity?.label))
-    )
+    const summaryText = (policy === "attached"
+      ? isLabelSummary(annotation, target, targetEntity?.label, targetEntity?.kind)
+      : (annotation.kind === "callout" && isViewSummaryText(annotation.text)) ||
+        (Boolean(annotation.quantityId) && Boolean(targetEntity?.label)))
       ? compactCalloutLabel(annotation.text)
       : undefined;
     if (groupId && summaryText) {
@@ -761,7 +839,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     // The live pen snaps every smaller size to this floor. Prove its actual
     // glyph ink; shrinking a checked box cannot make the live lettering fit.
     const fontPx = BOARD_TYPE_SCALE.annotation;
-    const solve = (marks: RenderPrimitive[]) => placeLabels(
+    const solve = (marks: RenderPrimitive[]) => place(
       ownersFor(marks.filter(primitive => primitive.kind === "label" && primitive.provenance?.linearSolution)),
       [...obstaclesFromPrimitives(marks.filter(primitive => primitive.kind !== "label" && primitive.provenance?.fillOnly !== true)), workColumnObstacle()],
       {fontHeightPx:fontPx,maxLabelChars:80,paddingPx:2,minGapPx:3,measureTextPx:measureTextWidth,measureTextInkBounds:measureLabelInk},
@@ -830,10 +908,10 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       useOwnerBounds: false,
     }));
     let fontPx = 24;
-    let cells = placeLabels(cellOwners, [workColumnObstacle()], { fontHeightPx: fontPx, measureTextPx: measureTextWidth, measureTextInkBounds });
+    let cells = place(cellOwners, [workColumnObstacle()], { fontHeightPx: fontPx, measureTextPx: measureTextWidth, measureTextInkBounds });
     while (!cells.ok && fontPx > 12) {
       fontPx--;
-      cells = placeLabels(cellOwners, [workColumnObstacle()], { fontHeightPx: fontPx, measureTextPx: measureTextWidth, measureTextInkBounds });
+      cells = place(cellOwners, [workColumnObstacle()], { fontHeightPx: fontPx, measureTextPx: measureTextWidth, measureTextInkBounds });
     }
     for (const issue of cells.issues) {
       const owner = matrixCells.find((primitive) => primitive.id === issue.entityId);
@@ -856,15 +934,70 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
 
   // A label on a refraction or reflection keeps its medium's side; a medium
   // label on a refraction interface that names no side is dropped.
+  const directedLabelStrokes: DirectedLabelStroke[] = primitives.flatMap(primitive => {
+    const value = geometry.get(primitive.entityId);
+    const entity = document.entities.find(candidate => candidate.id === primitive.entityId);
+    return primitive.kind === "vector" && entity?.kind !== "component" &&
+      value?.kind === "path" && value.directed && !value.infinite && !value.closed && isOpenLabelPath(value)
+      ? [{ entityId: primitive.entityId, points: primitive.points }] : [];
+  });
+  const angleMarkIds = new Set(document.constructions.filter((construction) => construction.operator === "angle_mark").flatMap((construction) => construction.outputs));
   const uniqueLabelOwners = bindOpticsLabelSides(document, geometry, transformPlan.transformFor, [...labelOwners.filter((owner, index, all) => {
     if (owner.labelId && (summaryLabelIds.has(owner.labelId) || appendLabelIds.has(owner.labelId))) {
       return all.findIndex((candidate) => candidate.labelId === owner.labelId) === index;
     }
-    return all.findIndex((candidate) =>
-      candidate.entityId === owner.entityId &&
-      (!candidate.labelId || (!summaryLabelIds.has(candidate.labelId) && !appendLabelIds.has(candidate.labelId)))
-    ) === index;
-  }), ...annotationLabelOwners], summaryLabelIds);
+    return all.findIndex((candidate) => candidate.entityId === owner.entityId && (policy === "native" || candidate.text === owner.text) && !summaryLabelIds.has(candidate.labelId ?? "") && !appendLabelIds.has(candidate.labelId ?? "")) === index;
+  }), ...annotationLabelOwners].map((owner) => {
+    if (policy === "native") return owner;
+    const value = geometry.get(owner.entityId);
+    if (summaryLabelIds.has(owner.labelId ?? "") || !value) return owner;
+    if (value.kind === "arc" && angleMarkIds.has(owner.entityId)) {
+      const transform = transformPlan.transformFor(owner.entityId);
+      const middle = (value.startAngle + value.endAngle) / 2;
+      const center = transform(value.center);
+      const anchor = transform({ x: value.center.x + value.radius * Math.cos(middle), y: value.center.y + value.radius * Math.sin(middle) });
+      const viewport = transformPlan.viewportFor(owner.entityId);
+      return {
+        ...owner,
+        anchor,
+        angleWedge: { center, startAngle: -value.endAngle, endAngle: -value.startAngle },
+        // Acute wedges need room for a full text run between their arms.
+        // Search nearby within the wedge, without a connector through them.
+        useOwnerBounds: false,
+        tetherPx: Math.hypot(viewport.width, viewport.height),
+        allowLeader: false,
+      };
+    }
+    const annotation = document.annotations.find((candidate) => candidate.id === owner.labelId);
+    // A line or ray supplies no bounded owner for an annotation-only scalar.
+    // Keep its existing summary/medium placement; do not infer a region here.
+    if (value.kind === "path" && value.infinite && annotation) return owner;
+    const entity = document.entities.find((candidate) => candidate.id === owner.entityId);
+    // A component's path is its electrical/mechanical symbol, not a generic
+    // value carrier. Preserve its native designator and summary placement.
+    if (entity?.kind === "component") return owner;
+    const nativeName = owner.labelId === `primitive_${owner.entityId}_label` && owner.text === entity?.label;
+    const pathName = owner.labelId === `primitive_${owner.entityId}_label` || consumedAnnotationIds.has(owner.labelId ?? "") || Boolean(entity?.label && annotation);
+    const vectorValue = entity?.kind === "vector" && Boolean(annotation?.quantityId);
+    const geometricCallout = annotation?.kind === "callout" && isViewSummaryText(annotation.text);
+    if (!isOpenLabelPath(value) || (!pathName && !vectorValue && !geometricCallout)) return owner;
+    const stroke = primitives.find((primitive) => primitive.entityId === owner.entityId && primitive.kind !== "label");
+    return {
+      ...owner,
+      // Keep an already attached native name's legal bounds candidate. Values
+      // and coalesced annotations instead start from their exact stroke anchor.
+      useOwnerBounds: nativeName ? owner.useOwnerBounds : false,
+      tetherPx: pointLabelTether(owner.text),
+      leaderGeometrySafe: true,
+      alternateAnchors: stroke ? [0.25, 0.75, 0.1, 0.9, 0.02, 0.98].map((at) => pointAlongPolyline(stroke.points, at)) : undefined,
+    };
+  // Compiler policies retry only as complete transactions. In particular,
+  // no local native-name retry may discard a requested safe-leader constraint.
+  }).map(owner => {
+    if (policy !== "attached" || summaryLabelIds.has(owner.labelId ?? "")) return owner;
+    const strokeAttachment = createStrokeAttachment(owner.entityId, directedLabelStrokes);
+    return strokeAttachment ? { ...owner, strokeAttachment, leaderGeometrySafe: true } : owner;
+  }), summaryLabelIds);
   const pinDsaLabels = document.source.synthesizedDsa === true;
   // A chemistry figure pins its atom symbols on the atom itself (an element
   // symbol beside a bond junction reads as a substituent) while its bond
@@ -908,9 +1041,9 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     const stackedOwners = pinDsaLabels
       ? null
       : stackSummaryLabelOwners(document, owners, summaryLabelIds, primitives, obstacles, labelOptions);
-    let solved = placeLabels(stackedOwners ?? owners, obstacles, labelOptions);
+    let solved = place(stackedOwners ?? owners, obstacles, labelOptions);
     if (stackedOwners && solved.issues.length > 0) {
-      const unstacked = placeLabels(owners, obstacles, labelOptions);
+      const unstacked = place(owners, obstacles, labelOptions);
       if (unstacked.issues.length < solved.issues.length) solved = unstacked;
     }
     if (axisLetterOwners.length > 0 && solved.issues.length > 0) {
@@ -918,9 +1051,9 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       // their room keeps those labels and draws its axes unlettered.
       const letterIds = new Set(axisLetterOwners.map((owner) => owner.labelId));
       const withoutLetters = (list: LabelOwner[]) => list.filter((owner) => !letterIds.has(owner.labelId));
-      let plain = placeLabels(withoutLetters(stackedOwners ?? owners), obstacles, labelOptions);
+      let plain = place(withoutLetters(stackedOwners ?? owners), obstacles, labelOptions);
       if (stackedOwners && plain.issues.length > 0) {
-        const unstacked = placeLabels(withoutLetters(owners), obstacles, labelOptions);
+        const unstacked = place(withoutLetters(owners), obstacles, labelOptions);
         if (unstacked.issues.length < plain.issues.length) plain = unstacked;
       }
       if (plain.issues.length < solved.issues.length) solved = plain;
@@ -972,6 +1105,8 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       entityIds: [issue.entityId, ...(issue.overlappingIds ?? [])],
     });
   }
+  // Comparison evidence only: geometry admission below uses MAIN's final ink.
+  attempt.physicalInk = primitives.filter(primitive => primitive.kind !== "label");
   for (const placement of labels.placements) {
     const groupId = entityToGroup.get(placement.entityId);
     if (!groupId) continue;
@@ -1009,7 +1144,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       });
     }
   }
-  assertScreenAttachedLabels(document, geometry, primitives, transformPlan, issues);
+  assertScreenAttachedLabels(document, geometry, primitives, transformPlan, issues, policy, placementOwners);
 
   const renderedIds = new Set([
     ...primitives.map((primitive) => primitive.entityId),
@@ -1019,7 +1154,11 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   for (const id of document.requiredEntityIds) {
     if (!renderedIds.has(id) && !constructionOnlyIds.has(id)) issues.push({ code: "required_entity_not_rendered", message: `Required entity ${id} produced no render primitive`, severity: "fatal", entityIds: [id] });
   }
-  if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
+  if (issues.some((issue) => issue.severity === "fatal")) {
+    const labelFailureCodes = new Set(["label_overlap_unresolved", "label_outside_view", "label_too_long", "label_duplicate", "label_unattached", "label_outside_angle_wedge"]);
+    attempt.retryable = issues.filter(issue => issue.severity === "fatal").every(issue => labelFailureCodes.has(issue.code));
+    return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
+  }
   pushDegenerateProjectedGeometryIssues(geometry, primitives, constructionOnlyIds, issues);
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
 
@@ -2864,6 +3003,7 @@ function relocateObstructedDimensions(
   dimensionLanes: Map<string, number>,
   issues: SceneIssue[],
   measureLabelInk: TextInkBoundsMeasure,
+  place: typeof placeLabels = placeLabels,
 ): boolean {
   let changed = false;
   const fontHeightPx = document.source.synthesizedDsa === true ? DSA_LABEL_FONT_PX : 24;
@@ -2899,7 +3039,7 @@ function relocateObstructedDimensions(
       };
       // Other endpoint witnesses are real ink too. A free bar alone is not
       // enough if its label would straddle another measurement's connection.
-      return placeLabels([owner], [...obstaclesFromPrimitives([...other, ...candidate]), ...pinned, workColumnObstacle()],
+      return place([owner], [...obstaclesFromPrimitives([...other, ...candidate]), ...pinned, workColumnObstacle()],
         { fontHeightPx, paddingPx, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk }).ok;
     };
     if (!dimensionBarObstructed(bar, ink) && labelClears(primitives.filter((primitive) => primitive.entityId === bar.entityId))) continue;
@@ -5302,13 +5442,64 @@ function screenIncidentTangents(
   return tangents;
 }
 
+function isOpenLabelPath(value: Geometry | undefined): value is Extract<Geometry, { kind: "path" }> {
+  // Some contours close by repeating the first point without a closed flag.
+  // They keep contour-bound placement instead of acquiring an open-stroke tether.
+  return value?.kind === "path" && !value.closed &&
+    (value.points.length < 3 || distance(value.points[0]!, value.points.at(-1)!) > EPSILON);
+}
+
+function isFiniteValueCarrier(value: Geometry | undefined, entityKind?: string): boolean {
+  return entityKind !== "component" && (value?.kind === "arc" || value?.kind === "dimension" || (isOpenLabelPath(value) && !value.infinite));
+}
+
+function isLabelSummary(annotation: SceneAnnotation, value: Geometry | undefined, entityLabel?: string, entityKind?: string): boolean {
+  if (entityKind === "component") return (annotation.kind === "callout" && isViewSummaryText(annotation.text)) ||
+    (Boolean(annotation.quantityId) && Boolean(entityLabel));
+  if (value?.kind === "path" && value.infinite && annotation.quantityId && entityLabel) return true;
+  return isViewSummaryAnnotation(annotation, value && isFiniteValueCarrier(value, entityKind) ? value.kind : undefined, entityLabel);
+}
+
 function assertScreenAttachedLabels(
   document: SceneDocument,
   geometry: Map<string, Geometry>,
   primitives: RenderPrimitive[],
   transformPlan: EntityTransformPlan,
   issues: SceneIssue[],
+  policy: LabelPolicy,
+  owners: LabelOwner[],
 ): void {
+  // Corroborate candidate ownership against final rounded label and complete
+  // leader ink, using the same compiler-owned finite native stroke relation.
+  if (policy === "attached") for (const owner of owners) {
+    if (!owner.strokeAttachment) continue;
+    const label = primitives.find(primitive => primitive.id === (owner.labelId ?? `primitive_${owner.entityId}_label`) && primitive.kind === "label");
+    if (!label) continue; // Missing required labels are checked below.
+    const bounds = label.provenance?.labelBounds as StrokeLabelPlacement["bounds"] | undefined;
+    const leader = primitives.find(primitive => primitive.id === `${label.id}_leader`);
+    const placement: StrokeLabelPlacement | undefined = bounds ? {
+      bounds: label.points[0] ? { ...bounds,
+        x: label.points[0].x - bounds.width / 2,
+        y: label.points[0].y - bounds.height / 2,
+      } : bounds,
+      usesLeader: label.provenance?.usesLeader === true,
+      ...(leader ? { leaderFrom: leader.points[0], leaderTo: leader.points.at(-1), leaderPath: leader.points } : {}),
+    } : undefined;
+    if (!placement || !labelRespectsStrokeAttachment(owner.strokeAttachment, placement)) issues.push({
+      code: "label_unattached", message: `Label ${label.id} is not attached to its own finite directed stroke`,
+      severity: "fatal", entityIds: [owner.entityId, label.id],
+    });
+  }
+  // An angle's rendered label must keep the same wedge as its evaluated arc,
+  // regardless of which owner path (entity, annotation, or measure) made it.
+  const angleMarkIds = new Set(document.constructions.filter((construction) => construction.operator === "angle_mark").flatMap((construction) => construction.outputs));
+  for (const label of primitives.filter((primitive) => policy === "attached" && primitive.kind === "label" && angleMarkIds.has(primitive.entityId))) {
+    const arc = primitives.find((primitive) => primitive.entityId === label.entityId && primitive.kind === "arc");
+    if (!arc?.points[0] || arc.startAngle === undefined || arc.endAngle === undefined || !label.points[0]) continue;
+    if (!pointInAngleWedge(label.points[0], { center: arc.points[0], startAngle: arc.startAngle, endAngle: arc.endAngle })) {
+      issues.push({ code: "label_outside_angle_wedge", message: `Label ${label.id} left the angle wedge of ${arc.entityId}`, severity: "fatal", entityIds: [label.entityId, label.id] });
+    }
+  }
   for (const assertion of document.assertions) {
     if (assertion.predicate !== "label_attached") continue;
     const entityId = assertion.entities[0];

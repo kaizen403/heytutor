@@ -1,0 +1,2863 @@
+{
+  "schemaVersion": "label-own-arrow-oracles/v1",
+  "fixtureSHA256": "e9d205ce9b974eab06446726945321ba6d7e79d898bd825ff00600a98d8bc6b4",
+  "baselineCommit": "1d34a4d21f4cf85b227bf8216535b28a5c9c8f32",
+  "cases": [
+    {
+      "id": "exact H4",
+      "physical": [
+        {
+          "id": "primitive_O",
+          "entityId": "O",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 780,
+              "y": 341.04
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_A",
+          "entityId": "v_A",
+          "groupId": "frame",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 780,
+              "y": 341.04
+            },
+            {
+              "x": 933.72,
+              "y": 341.04
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_B",
+          "entityId": "v_B",
+          "groupId": "frame",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 780,
+              "y": 341.04
+            },
+            {
+              "x": 780,
+              "y": 136.08
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_AB",
+          "entityId": "v_AB",
+          "groupId": "subtract",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 780,
+              "y": 341.04
+            },
+            {
+              "x": 933.72,
+              "y": 546
+            }
+          ]
+        },
+        {
+          "id": "primitive_TA",
+          "entityId": "TA",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 933.72,
+              "y": 341.04
+            }
+          ]
+        },
+        {
+          "id": "primitive_TB",
+          "entityId": "TB",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 780,
+              "y": 136.08
+            }
+          ]
+        },
+        {
+          "id": "primitive_minus_B",
+          "entityId": "minus_B",
+          "groupId": "subtract",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 933.72,
+              "y": 341.04
+            },
+            {
+              "x": 933.72,
+              "y": 546
+            }
+          ]
+        },
+        {
+          "id": "primitive_phi",
+          "entityId": "phi",
+          "groupId": "subtract",
+          "kind": "arc",
+          "points": [
+            {
+              "x": 780,
+              "y": 341.04
+            }
+          ],
+          "radius": 51.24000000000001,
+          "startAngle": 0,
+          "endAngle": 0.9272952180016122
+        },
+        {
+          "id": "primitive_N1",
+          "entityId": "N1",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 626.28,
+              "y": 119
+            }
+          ]
+        },
+        {
+          "id": "primitive_E1",
+          "entityId": "E1",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 694.6,
+              "y": 187.32
+            }
+          ]
+        },
+        {
+          "id": "primitive_north",
+          "entityId": "north",
+          "groupId": "frame",
+          "kind": "line",
+          "points": [
+            {
+              "x": 626.28,
+              "y": 187.32
+            },
+            {
+              "x": 626.28,
+              "y": 119
+            }
+          ]
+        },
+        {
+          "id": "primitive_east",
+          "entityId": "east",
+          "groupId": "frame",
+          "kind": "line",
+          "points": [
+            {
+              "x": 626.28,
+              "y": 187.32
+            },
+            {
+              "x": 694.6,
+              "y": 187.32
+            }
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "id": "primitive_O_label",
+          "entityId": "O",
+          "groupId": "frame",
+          "text": "O"
+        },
+        {
+          "id": "primitive_v_A_label",
+          "entityId": "v_A",
+          "groupId": "frame",
+          "text": "vA"
+        },
+        {
+          "id": "primitive_v_B_label",
+          "entityId": "v_B",
+          "groupId": "frame",
+          "text": "vB"
+        },
+        {
+          "id": "primitive_v_AB_label",
+          "entityId": "v_AB",
+          "groupId": "subtract",
+          "text": "vRel"
+        },
+        {
+          "id": "primitive_TA_label",
+          "entityId": "TA",
+          "groupId": "frame",
+          "text": "A: 9 m/s"
+        },
+        {
+          "id": "primitive_TB_label",
+          "entityId": "TB",
+          "groupId": "frame",
+          "text": "B: 12 m/s"
+        },
+        {
+          "id": "primitive_minus_B_label",
+          "entityId": "minus_B",
+          "groupId": "subtract",
+          "text": "-vB"
+        },
+        {
+          "id": "primitive_phi_label",
+          "entityId": "phi",
+          "groupId": "subtract",
+          "text": "\u03c6"
+        },
+        {
+          "id": "primitive_north_label",
+          "entityId": "north",
+          "groupId": "frame",
+          "text": "N"
+        },
+        {
+          "id": "primitive_east_label",
+          "entityId": "east",
+          "groupId": "frame",
+          "text": "E"
+        }
+      ]
+    },
+    {
+      "id": "rotate 90",
+      "physical": [
+        {
+          "id": "primitive_O",
+          "entityId": "O",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 791.86,
+              "y": 332.5
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_A",
+          "entityId": "v_A",
+          "groupId": "frame",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 791.86,
+              "y": 332.5
+            },
+            {
+              "x": 791.86,
+              "y": 119
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_B",
+          "entityId": "v_B",
+          "groupId": "frame",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 791.86,
+              "y": 332.5
+            },
+            {
+              "x": 507.19,
+              "y": 332.5
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_AB",
+          "entityId": "v_AB",
+          "groupId": "subtract",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 791.86,
+              "y": 332.5
+            },
+            {
+              "x": 1076.53,
+              "y": 119
+            }
+          ]
+        },
+        {
+          "id": "primitive_TA",
+          "entityId": "TA",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 791.86,
+              "y": 119
+            }
+          ]
+        },
+        {
+          "id": "primitive_TB",
+          "entityId": "TB",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 507.19,
+              "y": 332.5
+            }
+          ]
+        },
+        {
+          "id": "primitive_minus_B",
+          "entityId": "minus_B",
+          "groupId": "subtract",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 791.86,
+              "y": 119
+            },
+            {
+              "x": 1076.53,
+              "y": 119
+            }
+          ]
+        },
+        {
+          "id": "primitive_phi",
+          "entityId": "phi",
+          "groupId": "subtract",
+          "kind": "arc",
+          "points": [
+            {
+              "x": 791.86,
+              "y": 332.5
+            }
+          ],
+          "radius": 71.16999999999996,
+          "startAngle": -1.5707963267948966,
+          "endAngle": -0.6435011087932844
+        },
+        {
+          "id": "primitive_N1",
+          "entityId": "N1",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 483.47,
+              "y": 546
+            }
+          ]
+        },
+        {
+          "id": "primitive_E1",
+          "entityId": "E1",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 578.36,
+              "y": 451.11
+            }
+          ]
+        },
+        {
+          "id": "primitive_north",
+          "entityId": "north",
+          "groupId": "frame",
+          "kind": "line",
+          "points": [
+            {
+              "x": 578.36,
+              "y": 546
+            },
+            {
+              "x": 483.47,
+              "y": 546
+            }
+          ]
+        },
+        {
+          "id": "primitive_east",
+          "entityId": "east",
+          "groupId": "frame",
+          "kind": "line",
+          "points": [
+            {
+              "x": 578.36,
+              "y": 546
+            },
+            {
+              "x": 578.36,
+              "y": 451.11
+            }
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "id": "primitive_O_label",
+          "entityId": "O",
+          "groupId": "frame",
+          "text": "O"
+        },
+        {
+          "id": "primitive_v_A_label",
+          "entityId": "v_A",
+          "groupId": "frame",
+          "text": "vA"
+        },
+        {
+          "id": "primitive_v_B_label",
+          "entityId": "v_B",
+          "groupId": "frame",
+          "text": "vB"
+        },
+        {
+          "id": "primitive_v_AB_label",
+          "entityId": "v_AB",
+          "groupId": "subtract",
+          "text": "vRel"
+        },
+        {
+          "id": "primitive_TA_label",
+          "entityId": "TA",
+          "groupId": "frame",
+          "text": "A: 9 m/s"
+        },
+        {
+          "id": "primitive_TB_label",
+          "entityId": "TB",
+          "groupId": "frame",
+          "text": "B: 12 m/s"
+        },
+        {
+          "id": "primitive_minus_B_label",
+          "entityId": "minus_B",
+          "groupId": "subtract",
+          "text": "-vB"
+        },
+        {
+          "id": "primitive_phi_label",
+          "entityId": "phi",
+          "groupId": "subtract",
+          "text": "\u03c6"
+        },
+        {
+          "id": "primitive_north_label",
+          "entityId": "north",
+          "groupId": "frame",
+          "text": "N"
+        },
+        {
+          "id": "primitive_east_label",
+          "entityId": "east",
+          "groupId": "frame",
+          "text": "E"
+        }
+      ]
+    },
+    {
+      "id": "rotate 180",
+      "physical": [
+        {
+          "id": "primitive_O",
+          "entityId": "O",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 780,
+              "y": 323.96
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_A",
+          "entityId": "v_A",
+          "groupId": "frame",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 780,
+              "y": 323.96
+            },
+            {
+              "x": 626.28,
+              "y": 323.96
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_B",
+          "entityId": "v_B",
+          "groupId": "frame",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 780,
+              "y": 323.96
+            },
+            {
+              "x": 780,
+              "y": 528.92
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_AB",
+          "entityId": "v_AB",
+          "groupId": "subtract",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 780,
+              "y": 323.96
+            },
+            {
+              "x": 626.28,
+              "y": 119
+            }
+          ]
+        },
+        {
+          "id": "primitive_TA",
+          "entityId": "TA",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 626.28,
+              "y": 323.96
+            }
+          ]
+        },
+        {
+          "id": "primitive_TB",
+          "entityId": "TB",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 780,
+              "y": 528.92
+            }
+          ]
+        },
+        {
+          "id": "primitive_minus_B",
+          "entityId": "minus_B",
+          "groupId": "subtract",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 626.28,
+              "y": 323.96
+            },
+            {
+              "x": 626.28,
+              "y": 119
+            }
+          ]
+        },
+        {
+          "id": "primitive_phi",
+          "entityId": "phi",
+          "groupId": "subtract",
+          "kind": "arc",
+          "points": [
+            {
+              "x": 780,
+              "y": 323.96
+            }
+          ],
+          "radius": 51.24000000000001,
+          "startAngle": -3.141592653589793,
+          "endAngle": -2.214297435588181
+        },
+        {
+          "id": "primitive_N1",
+          "entityId": "N1",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 933.72,
+              "y": 546
+            }
+          ]
+        },
+        {
+          "id": "primitive_E1",
+          "entityId": "E1",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 865.4,
+              "y": 477.68
+            }
+          ]
+        },
+        {
+          "id": "primitive_north",
+          "entityId": "north",
+          "groupId": "frame",
+          "kind": "line",
+          "points": [
+            {
+              "x": 933.72,
+              "y": 477.68
+            },
+            {
+              "x": 933.72,
+              "y": 546
+            }
+          ]
+        },
+        {
+          "id": "primitive_east",
+          "entityId": "east",
+          "groupId": "frame",
+          "kind": "line",
+          "points": [
+            {
+              "x": 933.72,
+              "y": 477.68
+            },
+            {
+              "x": 865.4,
+              "y": 477.68
+            }
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "id": "primitive_O_label",
+          "entityId": "O",
+          "groupId": "frame",
+          "text": "O"
+        },
+        {
+          "id": "primitive_v_A_label",
+          "entityId": "v_A",
+          "groupId": "frame",
+          "text": "vA"
+        },
+        {
+          "id": "primitive_v_B_label",
+          "entityId": "v_B",
+          "groupId": "frame",
+          "text": "vB"
+        },
+        {
+          "id": "primitive_v_AB_label",
+          "entityId": "v_AB",
+          "groupId": "subtract",
+          "text": "vRel"
+        },
+        {
+          "id": "primitive_TA_label",
+          "entityId": "TA",
+          "groupId": "frame",
+          "text": "A: 9 m/s"
+        },
+        {
+          "id": "primitive_TB_label",
+          "entityId": "TB",
+          "groupId": "frame",
+          "text": "B: 12 m/s"
+        },
+        {
+          "id": "primitive_minus_B_label",
+          "entityId": "minus_B",
+          "groupId": "subtract",
+          "text": "-vB"
+        },
+        {
+          "id": "primitive_phi_label",
+          "entityId": "phi",
+          "groupId": "subtract",
+          "text": "\u03c6"
+        },
+        {
+          "id": "primitive_north_label",
+          "entityId": "north",
+          "groupId": "frame",
+          "text": "N"
+        },
+        {
+          "id": "primitive_east_label",
+          "entityId": "east",
+          "groupId": "frame",
+          "text": "E"
+        }
+      ]
+    },
+    {
+      "id": "rotate 37",
+      "physical": [
+        {
+          "id": "primitive_O",
+          "entityId": "O",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 786.26,
+              "y": 388.83
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_A",
+          "entityId": "v_A",
+          "groupId": "frame",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 786.26,
+              "y": 388.83
+            },
+            {
+              "x": 935.77,
+              "y": 276.17
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_B",
+          "entityId": "v_B",
+          "groupId": "frame",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 786.26,
+              "y": 388.83
+            },
+            {
+              "x": 636.04,
+              "y": 189.48
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_AB",
+          "entityId": "v_AB",
+          "groupId": "subtract",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 786.26,
+              "y": 388.83
+            },
+            {
+              "x": 1086,
+              "y": 475.52
+            }
+          ]
+        },
+        {
+          "id": "primitive_TA",
+          "entityId": "TA",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 935.77,
+              "y": 276.17
+            }
+          ]
+        },
+        {
+          "id": "primitive_TB",
+          "entityId": "TB",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 636.03,
+              "y": 189.48
+            }
+          ]
+        },
+        {
+          "id": "primitive_minus_B",
+          "entityId": "minus_B",
+          "groupId": "subtract",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 935.77,
+              "y": 276.17
+            },
+            {
+              "x": 1086,
+              "y": 475.52
+            }
+          ]
+        },
+        {
+          "id": "primitive_phi",
+          "entityId": "phi",
+          "groupId": "subtract",
+          "kind": "arc",
+          "points": [
+            {
+              "x": 786.26,
+              "y": 388.83
+            }
+          ],
+          "radius": 62.39999999999998,
+          "startAngle": -0.6457718232379019,
+          "endAngle": 0.28152339476371024
+        },
+        {
+          "id": "primitive_N1",
+          "entityId": "N1",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 474,
+              "y": 285.54
+            }
+          ]
+        },
+        {
+          "id": "primitive_E1",
+          "entityId": "E1",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 590.53,
+              "y": 301.91
+            }
+          ]
+        },
+        {
+          "id": "primitive_north",
+          "entityId": "north",
+          "groupId": "frame",
+          "kind": "line",
+          "points": [
+            {
+              "x": 524.07,
+              "y": 351.99
+            },
+            {
+              "x": 474,
+              "y": 285.54
+            }
+          ]
+        },
+        {
+          "id": "primitive_east",
+          "entityId": "east",
+          "groupId": "frame",
+          "kind": "line",
+          "points": [
+            {
+              "x": 524.07,
+              "y": 351.99
+            },
+            {
+              "x": 590.53,
+              "y": 301.91
+            }
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "id": "primitive_O_label",
+          "entityId": "O",
+          "groupId": "frame",
+          "text": "O"
+        },
+        {
+          "id": "primitive_v_A_label",
+          "entityId": "v_A",
+          "groupId": "frame",
+          "text": "vA"
+        },
+        {
+          "id": "primitive_v_B_label",
+          "entityId": "v_B",
+          "groupId": "frame",
+          "text": "vB"
+        },
+        {
+          "id": "primitive_v_AB_label",
+          "entityId": "v_AB",
+          "groupId": "subtract",
+          "text": "vRel"
+        },
+        {
+          "id": "primitive_TA_label",
+          "entityId": "TA",
+          "groupId": "frame",
+          "text": "A: 9 m/s"
+        },
+        {
+          "id": "primitive_TB_label",
+          "entityId": "TB",
+          "groupId": "frame",
+          "text": "B: 12 m/s"
+        },
+        {
+          "id": "primitive_minus_B_label",
+          "entityId": "minus_B",
+          "groupId": "subtract",
+          "text": "-vB"
+        },
+        {
+          "id": "primitive_phi_label",
+          "entityId": "phi",
+          "groupId": "subtract",
+          "text": "\u03c6"
+        },
+        {
+          "id": "primitive_north_label",
+          "entityId": "north",
+          "groupId": "frame",
+          "text": "N"
+        },
+        {
+          "id": "primitive_east_label",
+          "entityId": "east",
+          "groupId": "frame",
+          "text": "E"
+        }
+      ]
+    },
+    {
+      "id": "reflect",
+      "physical": [
+        {
+          "id": "primitive_O",
+          "entityId": "O",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 780,
+              "y": 341.04
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_A",
+          "entityId": "v_A",
+          "groupId": "frame",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 780,
+              "y": 341.04
+            },
+            {
+              "x": 626.28,
+              "y": 341.04
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_B",
+          "entityId": "v_B",
+          "groupId": "frame",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 780,
+              "y": 341.04
+            },
+            {
+              "x": 780,
+              "y": 136.08
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_AB",
+          "entityId": "v_AB",
+          "groupId": "subtract",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 780,
+              "y": 341.04
+            },
+            {
+              "x": 626.28,
+              "y": 546
+            }
+          ]
+        },
+        {
+          "id": "primitive_TA",
+          "entityId": "TA",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 626.28,
+              "y": 341.04
+            }
+          ]
+        },
+        {
+          "id": "primitive_TB",
+          "entityId": "TB",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 780,
+              "y": 136.08
+            }
+          ]
+        },
+        {
+          "id": "primitive_minus_B",
+          "entityId": "minus_B",
+          "groupId": "subtract",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 626.28,
+              "y": 341.04
+            },
+            {
+              "x": 626.28,
+              "y": 546
+            }
+          ]
+        },
+        {
+          "id": "primitive_phi",
+          "entityId": "phi",
+          "groupId": "subtract",
+          "kind": "arc",
+          "points": [
+            {
+              "x": 780,
+              "y": 341.04
+            }
+          ],
+          "radius": 51.24000000000001,
+          "startAngle": 3.141592653589793,
+          "endAngle": 2.214297435588181
+        },
+        {
+          "id": "primitive_N1",
+          "entityId": "N1",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 933.72,
+              "y": 119
+            }
+          ]
+        },
+        {
+          "id": "primitive_E1",
+          "entityId": "E1",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 865.4,
+              "y": 187.32
+            }
+          ]
+        },
+        {
+          "id": "primitive_north",
+          "entityId": "north",
+          "groupId": "frame",
+          "kind": "line",
+          "points": [
+            {
+              "x": 933.72,
+              "y": 187.32
+            },
+            {
+              "x": 933.72,
+              "y": 119
+            }
+          ]
+        },
+        {
+          "id": "primitive_east",
+          "entityId": "east",
+          "groupId": "frame",
+          "kind": "line",
+          "points": [
+            {
+              "x": 933.72,
+              "y": 187.32
+            },
+            {
+              "x": 865.4,
+              "y": 187.32
+            }
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "id": "primitive_O_label",
+          "entityId": "O",
+          "groupId": "frame",
+          "text": "O"
+        },
+        {
+          "id": "primitive_v_A_label",
+          "entityId": "v_A",
+          "groupId": "frame",
+          "text": "vA"
+        },
+        {
+          "id": "primitive_v_B_label",
+          "entityId": "v_B",
+          "groupId": "frame",
+          "text": "vB"
+        },
+        {
+          "id": "primitive_v_AB_label",
+          "entityId": "v_AB",
+          "groupId": "subtract",
+          "text": "vRel"
+        },
+        {
+          "id": "primitive_TA_label",
+          "entityId": "TA",
+          "groupId": "frame",
+          "text": "A: 9 m/s"
+        },
+        {
+          "id": "primitive_TB_label",
+          "entityId": "TB",
+          "groupId": "frame",
+          "text": "B: 12 m/s"
+        },
+        {
+          "id": "primitive_minus_B_label",
+          "entityId": "minus_B",
+          "groupId": "subtract",
+          "text": "-vB"
+        },
+        {
+          "id": "primitive_phi_label",
+          "entityId": "phi",
+          "groupId": "subtract",
+          "text": "\u03c6"
+        },
+        {
+          "id": "primitive_north_label",
+          "entityId": "north",
+          "groupId": "frame",
+          "text": "N"
+        },
+        {
+          "id": "primitive_east_label",
+          "entityId": "east",
+          "groupId": "frame",
+          "text": "E"
+        }
+      ]
+    },
+    {
+      "id": "reflect rotate",
+      "physical": [
+        {
+          "id": "primitive_O",
+          "entityId": "O",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 787.93,
+              "y": 290.55
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_A",
+          "entityId": "v_A",
+          "groupId": "frame",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 787.93,
+              "y": 290.55
+            },
+            {
+              "x": 895.56,
+              "y": 433.38
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_B",
+          "entityId": "v_B",
+          "groupId": "frame",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 787.93,
+              "y": 290.55
+            },
+            {
+              "x": 597.5,
+              "y": 434.06
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_AB",
+          "entityId": "v_AB",
+          "groupId": "subtract",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 787.94,
+              "y": 290.55
+            },
+            {
+              "x": 1086,
+              "y": 289.88
+            }
+          ]
+        },
+        {
+          "id": "primitive_TA",
+          "entityId": "TA",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 895.56,
+              "y": 433.38
+            }
+          ]
+        },
+        {
+          "id": "primitive_TB",
+          "entityId": "TB",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 597.5,
+              "y": 434.06
+            }
+          ]
+        },
+        {
+          "id": "primitive_minus_B",
+          "entityId": "minus_B",
+          "groupId": "subtract",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 895.56,
+              "y": 433.38
+            },
+            {
+              "x": 1086,
+              "y": 289.88
+            }
+          ]
+        },
+        {
+          "id": "primitive_phi",
+          "entityId": "phi",
+          "groupId": "subtract",
+          "kind": "arc",
+          "points": [
+            {
+              "x": 787.93,
+              "y": 290.55
+            }
+          ],
+          "radius": 59.620000000000005,
+          "startAngle": 0.9250245035569945,
+          "endAngle": -0.002270714444617705
+        },
+        {
+          "id": "primitive_N1",
+          "entityId": "N1",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 474,
+              "y": 303.19
+            }
+          ]
+        },
+        {
+          "id": "primitive_E1",
+          "entityId": "E1",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 585.31,
+              "y": 318.83
+            }
+          ]
+        },
+        {
+          "id": "primitive_north",
+          "entityId": "north",
+          "groupId": "frame",
+          "kind": "line",
+          "points": [
+            {
+              "x": 537.48,
+              "y": 255.36
+            },
+            {
+              "x": 474,
+              "y": 303.19
+            }
+          ]
+        },
+        {
+          "id": "primitive_east",
+          "entityId": "east",
+          "groupId": "frame",
+          "kind": "line",
+          "points": [
+            {
+              "x": 537.48,
+              "y": 255.36
+            },
+            {
+              "x": 585.31,
+              "y": 318.83
+            }
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "id": "primitive_O_label",
+          "entityId": "O",
+          "groupId": "frame",
+          "text": "O"
+        },
+        {
+          "id": "primitive_v_A_label",
+          "entityId": "v_A",
+          "groupId": "frame",
+          "text": "vA"
+        },
+        {
+          "id": "primitive_v_B_label",
+          "entityId": "v_B",
+          "groupId": "frame",
+          "text": "vB"
+        },
+        {
+          "id": "primitive_v_AB_label",
+          "entityId": "v_AB",
+          "groupId": "subtract",
+          "text": "vRel"
+        },
+        {
+          "id": "primitive_TA_label",
+          "entityId": "TA",
+          "groupId": "frame",
+          "text": "A: 9 m/s"
+        },
+        {
+          "id": "primitive_TB_label",
+          "entityId": "TB",
+          "groupId": "frame",
+          "text": "B: 12 m/s"
+        },
+        {
+          "id": "primitive_minus_B_label",
+          "entityId": "minus_B",
+          "groupId": "subtract",
+          "text": "-vB"
+        },
+        {
+          "id": "primitive_phi_label",
+          "entityId": "phi",
+          "groupId": "subtract",
+          "text": "\u03c6"
+        },
+        {
+          "id": "primitive_north_label",
+          "entityId": "north",
+          "groupId": "frame",
+          "text": "N"
+        },
+        {
+          "id": "primitive_east_label",
+          "entityId": "east",
+          "groupId": "frame",
+          "text": "E"
+        }
+      ]
+    },
+    {
+      "id": "shorter",
+      "physical": [
+        {
+          "id": "primitive_O",
+          "entityId": "O",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 780,
+              "y": 341.04
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_A",
+          "entityId": "v_A",
+          "groupId": "frame",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 780,
+              "y": 341.04
+            },
+            {
+              "x": 933.72,
+              "y": 341.04
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_B",
+          "entityId": "v_B",
+          "groupId": "frame",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 780,
+              "y": 341.04
+            },
+            {
+              "x": 780,
+              "y": 136.08
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_AB",
+          "entityId": "v_AB",
+          "groupId": "subtract",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 780,
+              "y": 341.04
+            },
+            {
+              "x": 933.72,
+              "y": 546
+            }
+          ]
+        },
+        {
+          "id": "primitive_TA",
+          "entityId": "TA",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 933.72,
+              "y": 341.04
+            }
+          ]
+        },
+        {
+          "id": "primitive_TB",
+          "entityId": "TB",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 780,
+              "y": 136.08
+            }
+          ]
+        },
+        {
+          "id": "primitive_minus_B",
+          "entityId": "minus_B",
+          "groupId": "subtract",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 933.72,
+              "y": 341.04
+            },
+            {
+              "x": 933.72,
+              "y": 546
+            }
+          ]
+        },
+        {
+          "id": "primitive_phi",
+          "entityId": "phi",
+          "groupId": "subtract",
+          "kind": "arc",
+          "points": [
+            {
+              "x": 780,
+              "y": 341.04
+            }
+          ],
+          "radius": 51.24000000000001,
+          "startAngle": 0,
+          "endAngle": 0.9272952180016122
+        },
+        {
+          "id": "primitive_N1",
+          "entityId": "N1",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 626.28,
+              "y": 119
+            }
+          ]
+        },
+        {
+          "id": "primitive_E1",
+          "entityId": "E1",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 694.6,
+              "y": 187.32
+            }
+          ]
+        },
+        {
+          "id": "primitive_north",
+          "entityId": "north",
+          "groupId": "frame",
+          "kind": "line",
+          "points": [
+            {
+              "x": 626.28,
+              "y": 187.32
+            },
+            {
+              "x": 626.28,
+              "y": 119
+            }
+          ]
+        },
+        {
+          "id": "primitive_east",
+          "entityId": "east",
+          "groupId": "frame",
+          "kind": "line",
+          "points": [
+            {
+              "x": 626.28,
+              "y": 187.32
+            },
+            {
+              "x": 694.6,
+              "y": 187.32
+            }
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "id": "primitive_O_label",
+          "entityId": "O",
+          "groupId": "frame",
+          "text": "O"
+        },
+        {
+          "id": "primitive_v_A_label",
+          "entityId": "v_A",
+          "groupId": "frame",
+          "text": "vA"
+        },
+        {
+          "id": "primitive_v_B_label",
+          "entityId": "v_B",
+          "groupId": "frame",
+          "text": "vB"
+        },
+        {
+          "id": "primitive_v_AB_label",
+          "entityId": "v_AB",
+          "groupId": "subtract",
+          "text": "vRel"
+        },
+        {
+          "id": "primitive_TA_label",
+          "entityId": "TA",
+          "groupId": "frame",
+          "text": "A: 9 m/s"
+        },
+        {
+          "id": "primitive_TB_label",
+          "entityId": "TB",
+          "groupId": "frame",
+          "text": "B: 12 m/s"
+        },
+        {
+          "id": "primitive_minus_B_label",
+          "entityId": "minus_B",
+          "groupId": "subtract",
+          "text": "-vB"
+        },
+        {
+          "id": "primitive_phi_label",
+          "entityId": "phi",
+          "groupId": "subtract",
+          "text": "\u03c6"
+        },
+        {
+          "id": "primitive_north_label",
+          "entityId": "north",
+          "groupId": "frame",
+          "text": "N"
+        },
+        {
+          "id": "primitive_east_label",
+          "entityId": "east",
+          "groupId": "frame",
+          "text": "E"
+        }
+      ]
+    },
+    {
+      "id": "longer",
+      "physical": [
+        {
+          "id": "primitive_O",
+          "entityId": "O",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 780,
+              "y": 341.04
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_A",
+          "entityId": "v_A",
+          "groupId": "frame",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 780,
+              "y": 341.04
+            },
+            {
+              "x": 933.72,
+              "y": 341.04
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_B",
+          "entityId": "v_B",
+          "groupId": "frame",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 780,
+              "y": 341.04
+            },
+            {
+              "x": 780,
+              "y": 136.08
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_AB",
+          "entityId": "v_AB",
+          "groupId": "subtract",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 780,
+              "y": 341.04
+            },
+            {
+              "x": 933.72,
+              "y": 546
+            }
+          ]
+        },
+        {
+          "id": "primitive_TA",
+          "entityId": "TA",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 933.72,
+              "y": 341.04
+            }
+          ]
+        },
+        {
+          "id": "primitive_TB",
+          "entityId": "TB",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 780,
+              "y": 136.08
+            }
+          ]
+        },
+        {
+          "id": "primitive_minus_B",
+          "entityId": "minus_B",
+          "groupId": "subtract",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 933.72,
+              "y": 341.04
+            },
+            {
+              "x": 933.72,
+              "y": 546
+            }
+          ]
+        },
+        {
+          "id": "primitive_phi",
+          "entityId": "phi",
+          "groupId": "subtract",
+          "kind": "arc",
+          "points": [
+            {
+              "x": 780,
+              "y": 341.04
+            }
+          ],
+          "radius": 51.24000000000001,
+          "startAngle": 0,
+          "endAngle": 0.9272952180016122
+        },
+        {
+          "id": "primitive_N1",
+          "entityId": "N1",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 626.28,
+              "y": 119
+            }
+          ]
+        },
+        {
+          "id": "primitive_E1",
+          "entityId": "E1",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 694.6,
+              "y": 187.32
+            }
+          ]
+        },
+        {
+          "id": "primitive_north",
+          "entityId": "north",
+          "groupId": "frame",
+          "kind": "line",
+          "points": [
+            {
+              "x": 626.28,
+              "y": 187.32
+            },
+            {
+              "x": 626.28,
+              "y": 119
+            }
+          ]
+        },
+        {
+          "id": "primitive_east",
+          "entityId": "east",
+          "groupId": "frame",
+          "kind": "line",
+          "points": [
+            {
+              "x": 626.28,
+              "y": 187.32
+            },
+            {
+              "x": 694.6,
+              "y": 187.32
+            }
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "id": "primitive_O_label",
+          "entityId": "O",
+          "groupId": "frame",
+          "text": "O"
+        },
+        {
+          "id": "primitive_v_A_label",
+          "entityId": "v_A",
+          "groupId": "frame",
+          "text": "vA"
+        },
+        {
+          "id": "primitive_v_B_label",
+          "entityId": "v_B",
+          "groupId": "frame",
+          "text": "vB"
+        },
+        {
+          "id": "primitive_v_AB_label",
+          "entityId": "v_AB",
+          "groupId": "subtract",
+          "text": "vRel"
+        },
+        {
+          "id": "primitive_TA_label",
+          "entityId": "TA",
+          "groupId": "frame",
+          "text": "A: 9 m/s"
+        },
+        {
+          "id": "primitive_TB_label",
+          "entityId": "TB",
+          "groupId": "frame",
+          "text": "B: 12 m/s"
+        },
+        {
+          "id": "primitive_minus_B_label",
+          "entityId": "minus_B",
+          "groupId": "subtract",
+          "text": "-vB"
+        },
+        {
+          "id": "primitive_phi_label",
+          "entityId": "phi",
+          "groupId": "subtract",
+          "text": "\u03c6"
+        },
+        {
+          "id": "primitive_north_label",
+          "entityId": "north",
+          "groupId": "frame",
+          "text": "N"
+        },
+        {
+          "id": "primitive_east_label",
+          "entityId": "east",
+          "groupId": "frame",
+          "text": "E"
+        }
+      ]
+    },
+    {
+      "id": "renamed",
+      "physical": [
+        {
+          "id": "primitive_renamed_0",
+          "entityId": "renamed_0",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 780,
+              "y": 341.04
+            }
+          ]
+        },
+        {
+          "id": "primitive_renamed_1",
+          "entityId": "renamed_1",
+          "groupId": "frame",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 780,
+              "y": 341.04
+            },
+            {
+              "x": 933.72,
+              "y": 341.04
+            }
+          ]
+        },
+        {
+          "id": "primitive_renamed_2",
+          "entityId": "renamed_2",
+          "groupId": "frame",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 780,
+              "y": 341.04
+            },
+            {
+              "x": 780,
+              "y": 136.08
+            }
+          ]
+        },
+        {
+          "id": "primitive_renamed_3",
+          "entityId": "renamed_3",
+          "groupId": "subtract",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 780,
+              "y": 341.04
+            },
+            {
+              "x": 933.72,
+              "y": 546
+            }
+          ]
+        },
+        {
+          "id": "primitive_renamed_4",
+          "entityId": "renamed_4",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 933.72,
+              "y": 341.04
+            }
+          ]
+        },
+        {
+          "id": "primitive_renamed_5",
+          "entityId": "renamed_5",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 780,
+              "y": 136.08
+            }
+          ]
+        },
+        {
+          "id": "primitive_renamed_7",
+          "entityId": "renamed_7",
+          "groupId": "subtract",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 933.72,
+              "y": 341.04
+            },
+            {
+              "x": 933.72,
+              "y": 546
+            }
+          ]
+        },
+        {
+          "id": "primitive_renamed_8",
+          "entityId": "renamed_8",
+          "groupId": "subtract",
+          "kind": "arc",
+          "points": [
+            {
+              "x": 780,
+              "y": 341.04
+            }
+          ],
+          "radius": 51.24000000000001,
+          "startAngle": 0,
+          "endAngle": 0.9272952180016122
+        },
+        {
+          "id": "primitive_renamed_10",
+          "entityId": "renamed_10",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 626.28,
+              "y": 119
+            }
+          ]
+        },
+        {
+          "id": "primitive_renamed_11",
+          "entityId": "renamed_11",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 694.6,
+              "y": 187.32
+            }
+          ]
+        },
+        {
+          "id": "primitive_renamed_12",
+          "entityId": "renamed_12",
+          "groupId": "frame",
+          "kind": "line",
+          "points": [
+            {
+              "x": 626.28,
+              "y": 187.32
+            },
+            {
+              "x": 626.28,
+              "y": 119
+            }
+          ]
+        },
+        {
+          "id": "primitive_renamed_13",
+          "entityId": "renamed_13",
+          "groupId": "frame",
+          "kind": "line",
+          "points": [
+            {
+              "x": 626.28,
+              "y": 187.32
+            },
+            {
+              "x": 694.6,
+              "y": 187.32
+            }
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "id": "primitive_renamed_0_label",
+          "entityId": "renamed_0",
+          "groupId": "frame",
+          "text": "renamed_0"
+        },
+        {
+          "id": "primitive_renamed_1_label",
+          "entityId": "renamed_1",
+          "groupId": "frame",
+          "text": "vA"
+        },
+        {
+          "id": "primitive_renamed_2_label",
+          "entityId": "renamed_2",
+          "groupId": "frame",
+          "text": "vB"
+        },
+        {
+          "id": "primitive_renamed_3_label",
+          "entityId": "renamed_3",
+          "groupId": "subtract",
+          "text": "vRel"
+        },
+        {
+          "id": "primitive_renamed_4_label",
+          "entityId": "renamed_4",
+          "groupId": "frame",
+          "text": "A: 9 m/s"
+        },
+        {
+          "id": "primitive_renamed_5_label",
+          "entityId": "renamed_5",
+          "groupId": "frame",
+          "text": "B: 12 m/s"
+        },
+        {
+          "id": "primitive_renamed_7_label",
+          "entityId": "renamed_7",
+          "groupId": "subtract",
+          "text": "-vB"
+        },
+        {
+          "id": "primitive_renamed_8_label",
+          "entityId": "renamed_8",
+          "groupId": "subtract",
+          "text": "\u03c6"
+        },
+        {
+          "id": "primitive_renamed_12_label",
+          "entityId": "renamed_12",
+          "groupId": "frame",
+          "text": "N"
+        },
+        {
+          "id": "primitive_renamed_13_label",
+          "entityId": "renamed_13",
+          "groupId": "frame",
+          "text": "E"
+        }
+      ]
+    },
+    {
+      "id": "lengths 5 12",
+      "physical": [
+        {
+          "id": "primitive_O",
+          "entityId": "O",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 814.16,
+              "y": 341.04
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_A",
+          "entityId": "v_A",
+          "groupId": "frame",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 814.16,
+              "y": 341.04
+            },
+            {
+              "x": 899.56,
+              "y": 341.04
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_B",
+          "entityId": "v_B",
+          "groupId": "frame",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 814.16,
+              "y": 341.04
+            },
+            {
+              "x": 814.16,
+              "y": 136.08
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_AB",
+          "entityId": "v_AB",
+          "groupId": "subtract",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 814.16,
+              "y": 341.04
+            },
+            {
+              "x": 899.56,
+              "y": 546
+            }
+          ]
+        },
+        {
+          "id": "primitive_TA",
+          "entityId": "TA",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 899.56,
+              "y": 341.04
+            }
+          ]
+        },
+        {
+          "id": "primitive_TB",
+          "entityId": "TB",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 814.16,
+              "y": 136.08
+            }
+          ]
+        },
+        {
+          "id": "primitive_minus_B",
+          "entityId": "minus_B",
+          "groupId": "subtract",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 899.56,
+              "y": 341.04
+            },
+            {
+              "x": 899.56,
+              "y": 546
+            }
+          ]
+        },
+        {
+          "id": "primitive_phi",
+          "entityId": "phi",
+          "groupId": "subtract",
+          "kind": "arc",
+          "points": [
+            {
+              "x": 814.16,
+              "y": 341.04
+            }
+          ],
+          "radius": 51.24000000000001,
+          "startAngle": 0,
+          "endAngle": 1.1760052070951352
+        },
+        {
+          "id": "primitive_N1",
+          "entityId": "N1",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 660.44,
+              "y": 119
+            }
+          ]
+        },
+        {
+          "id": "primitive_E1",
+          "entityId": "E1",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 728.76,
+              "y": 187.32
+            }
+          ]
+        },
+        {
+          "id": "primitive_north",
+          "entityId": "north",
+          "groupId": "frame",
+          "kind": "line",
+          "points": [
+            {
+              "x": 660.44,
+              "y": 187.32
+            },
+            {
+              "x": 660.44,
+              "y": 119
+            }
+          ]
+        },
+        {
+          "id": "primitive_east",
+          "entityId": "east",
+          "groupId": "frame",
+          "kind": "line",
+          "points": [
+            {
+              "x": 660.44,
+              "y": 187.32
+            },
+            {
+              "x": 728.76,
+              "y": 187.32
+            }
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "id": "primitive_O_label",
+          "entityId": "O",
+          "groupId": "frame",
+          "text": "O"
+        },
+        {
+          "id": "primitive_v_A_label",
+          "entityId": "v_A",
+          "groupId": "frame",
+          "text": "vA"
+        },
+        {
+          "id": "primitive_v_B_label",
+          "entityId": "v_B",
+          "groupId": "frame",
+          "text": "vB"
+        },
+        {
+          "id": "primitive_v_AB_label",
+          "entityId": "v_AB",
+          "groupId": "subtract",
+          "text": "vRel"
+        },
+        {
+          "id": "primitive_TA_label",
+          "entityId": "TA",
+          "groupId": "frame",
+          "text": "A: 5 m/s"
+        },
+        {
+          "id": "primitive_TB_label",
+          "entityId": "TB",
+          "groupId": "frame",
+          "text": "B: 12 m/s"
+        },
+        {
+          "id": "primitive_minus_B_label",
+          "entityId": "minus_B",
+          "groupId": "subtract",
+          "text": "-vB"
+        },
+        {
+          "id": "primitive_phi_label",
+          "entityId": "phi",
+          "groupId": "subtract",
+          "text": "\u03c6"
+        },
+        {
+          "id": "primitive_north_label",
+          "entityId": "north",
+          "groupId": "frame",
+          "text": "N"
+        },
+        {
+          "id": "primitive_east_label",
+          "entityId": "east",
+          "groupId": "frame",
+          "text": "E"
+        }
+      ]
+    },
+    {
+      "id": "lengths 12 5",
+      "physical": [
+        {
+          "id": "primitive_O",
+          "entityId": "O",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 744.41,
+              "y": 427.39
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_A",
+          "entityId": "v_A",
+          "groupId": "frame",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 744.41,
+              "y": 427.39
+            },
+            {
+              "x": 1029.08,
+              "y": 427.39
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_B",
+          "entityId": "v_B",
+          "groupId": "frame",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 744.42,
+              "y": 427.39
+            },
+            {
+              "x": 744.42,
+              "y": 308.78
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_AB",
+          "entityId": "v_AB",
+          "groupId": "subtract",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 744.42,
+              "y": 427.39
+            },
+            {
+              "x": 1029.09,
+              "y": 546
+            }
+          ]
+        },
+        {
+          "id": "primitive_TA",
+          "entityId": "TA",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 1029.08,
+              "y": 427.39
+            }
+          ]
+        },
+        {
+          "id": "primitive_TB",
+          "entityId": "TB",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 744.41,
+              "y": 308.78
+            }
+          ]
+        },
+        {
+          "id": "primitive_minus_B",
+          "entityId": "minus_B",
+          "groupId": "subtract",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 1029.08,
+              "y": 427.39
+            },
+            {
+              "x": 1029.08,
+              "y": 546
+            }
+          ]
+        },
+        {
+          "id": "primitive_phi",
+          "entityId": "phi",
+          "groupId": "subtract",
+          "kind": "arc",
+          "points": [
+            {
+              "x": 744.41,
+              "y": 427.39
+            }
+          ],
+          "radius": 71.17000000000007,
+          "startAngle": 0,
+          "endAngle": 0.39479111969976155
+        },
+        {
+          "id": "primitive_N1",
+          "entityId": "N1",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 530.91,
+              "y": 119
+            }
+          ]
+        },
+        {
+          "id": "primitive_E1",
+          "entityId": "E1",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 625.8,
+              "y": 213.89
+            }
+          ]
+        },
+        {
+          "id": "primitive_north",
+          "entityId": "north",
+          "groupId": "frame",
+          "kind": "line",
+          "points": [
+            {
+              "x": 530.91,
+              "y": 213.89
+            },
+            {
+              "x": 530.91,
+              "y": 119
+            }
+          ]
+        },
+        {
+          "id": "primitive_east",
+          "entityId": "east",
+          "groupId": "frame",
+          "kind": "line",
+          "points": [
+            {
+              "x": 530.91,
+              "y": 213.89
+            },
+            {
+              "x": 625.8,
+              "y": 213.89
+            }
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "id": "primitive_O_label",
+          "entityId": "O",
+          "groupId": "frame",
+          "text": "O"
+        },
+        {
+          "id": "primitive_v_A_label",
+          "entityId": "v_A",
+          "groupId": "frame",
+          "text": "vA"
+        },
+        {
+          "id": "primitive_v_B_label",
+          "entityId": "v_B",
+          "groupId": "frame",
+          "text": "vB"
+        },
+        {
+          "id": "primitive_v_AB_label",
+          "entityId": "v_AB",
+          "groupId": "subtract",
+          "text": "vRel"
+        },
+        {
+          "id": "primitive_TA_label",
+          "entityId": "TA",
+          "groupId": "frame",
+          "text": "A: 12 m/s"
+        },
+        {
+          "id": "primitive_TB_label",
+          "entityId": "TB",
+          "groupId": "frame",
+          "text": "B: 5 m/s"
+        },
+        {
+          "id": "primitive_minus_B_label",
+          "entityId": "minus_B",
+          "groupId": "subtract",
+          "text": "-vB"
+        },
+        {
+          "id": "primitive_phi_label",
+          "entityId": "phi",
+          "groupId": "subtract",
+          "text": "\u03c6"
+        },
+        {
+          "id": "primitive_north_label",
+          "entityId": "north",
+          "groupId": "frame",
+          "text": "N"
+        },
+        {
+          "id": "primitive_east_label",
+          "entityId": "east",
+          "groupId": "frame",
+          "text": "E"
+        }
+      ]
+    },
+    {
+      "id": "lengths 8 15",
+      "physical": [
+        {
+          "id": "primitive_O",
+          "entityId": "O",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 787.12,
+              "y": 332.5
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_A",
+          "entityId": "v_A",
+          "groupId": "frame",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 787.12,
+              "y": 332.5
+            },
+            {
+              "x": 900.98,
+              "y": 332.5
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_B",
+          "entityId": "v_B",
+          "groupId": "frame",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 787.12,
+              "y": 332.5
+            },
+            {
+              "x": 787.12,
+              "y": 119
+            }
+          ]
+        },
+        {
+          "id": "primitive_v_AB",
+          "entityId": "v_AB",
+          "groupId": "subtract",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 787.12,
+              "y": 332.5
+            },
+            {
+              "x": 900.98,
+              "y": 546
+            }
+          ]
+        },
+        {
+          "id": "primitive_TA",
+          "entityId": "TA",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 900.98,
+              "y": 332.5
+            }
+          ]
+        },
+        {
+          "id": "primitive_TB",
+          "entityId": "TB",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 787.12,
+              "y": 119
+            }
+          ]
+        },
+        {
+          "id": "primitive_minus_B",
+          "entityId": "minus_B",
+          "groupId": "subtract",
+          "kind": "vector",
+          "points": [
+            {
+              "x": 900.98,
+              "y": 332.5
+            },
+            {
+              "x": 900.98,
+              "y": 546
+            }
+          ]
+        },
+        {
+          "id": "primitive_phi",
+          "entityId": "phi",
+          "groupId": "subtract",
+          "kind": "arc",
+          "points": [
+            {
+              "x": 787.12,
+              "y": 332.5
+            }
+          ],
+          "radius": 42.700000000000045,
+          "startAngle": 0,
+          "endAngle": 1.0808390005411683
+        },
+        {
+          "id": "primitive_N1",
+          "entityId": "N1",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 659.02,
+              "y": 147.47
+            }
+          ]
+        },
+        {
+          "id": "primitive_E1",
+          "entityId": "E1",
+          "groupId": "frame",
+          "kind": "point",
+          "points": [
+            {
+              "x": 715.95,
+              "y": 204.4
+            }
+          ]
+        },
+        {
+          "id": "primitive_north",
+          "entityId": "north",
+          "groupId": "frame",
+          "kind": "line",
+          "points": [
+            {
+              "x": 659.02,
+              "y": 204.4
+            },
+            {
+              "x": 659.02,
+              "y": 147.47
+            }
+          ]
+        },
+        {
+          "id": "primitive_east",
+          "entityId": "east",
+          "groupId": "frame",
+          "kind": "line",
+          "points": [
+            {
+              "x": 659.02,
+              "y": 204.4
+            },
+            {
+              "x": 715.95,
+              "y": 204.4
+            }
+          ]
+        }
+      ],
+      "labels": [
+        {
+          "id": "primitive_O_label",
+          "entityId": "O",
+          "groupId": "frame",
+          "text": "O"
+        },
+        {
+          "id": "primitive_v_A_label",
+          "entityId": "v_A",
+          "groupId": "frame",
+          "text": "vA"
+        },
+        {
+          "id": "primitive_v_B_label",
+          "entityId": "v_B",
+          "groupId": "frame",
+          "text": "vB"
+        },
+        {
+          "id": "primitive_v_AB_label",
+          "entityId": "v_AB",
+          "groupId": "subtract",
+          "text": "vRel"
+        },
+        {
+          "id": "primitive_TA_label",
+          "entityId": "TA",
+          "groupId": "frame",
+          "text": "A: 8 m/s"
+        },
+        {
+          "id": "primitive_TB_label",
+          "entityId": "TB",
+          "groupId": "frame",
+          "text": "B: 15 m/s"
+        },
+        {
+          "id": "primitive_minus_B_label",
+          "entityId": "minus_B",
+          "groupId": "subtract",
+          "text": "-vB"
+        },
+        {
+          "id": "primitive_phi_label",
+          "entityId": "phi",
+          "groupId": "subtract",
+          "text": "\u03c6"
+        },
+        {
+          "id": "primitive_north_label",
+          "entityId": "north",
+          "groupId": "frame",
+          "text": "N"
+        },
+        {
+          "id": "primitive_east_label",
+          "entityId": "east",
+          "groupId": "frame",
+          "text": "E"
+        }
+      ]
+    }
+  ]
+}

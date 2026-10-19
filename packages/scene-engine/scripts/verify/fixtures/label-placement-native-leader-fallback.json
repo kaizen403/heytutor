@@ -1,0 +1,215 @@
+{
+  "schemaVersion": "label-placement-native-leader-fallback/v1",
+  "baseCommit": "614a3afaa47c0ca889f20400544d0201329a2ba8",
+  "document": {
+    "schemaVersion": "scene-document/v2",
+    "source": {
+      "question": "Show the supplied finite directed stroke and closed contour with an explicit label connector."
+    },
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "explicit finite vector and closed contour"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "frame",
+        "kind": "polygon",
+        "role": "supplied closed contour"
+      },
+      {
+        "id": "arrow",
+        "kind": "vector",
+        "role": "supplied directed stroke",
+        "label": "v",
+        "provenance": {
+          "requireLabelLeader": true
+        }
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_frame",
+        "operator": "polygon",
+        "inputs": {
+          "points": [
+            [
+              -1,
+              -0.05
+            ],
+            [
+              1,
+              -0.05
+            ],
+            [
+              1,
+              0.05
+            ],
+            [
+              -1,
+              0.05
+            ]
+          ]
+        },
+        "outputs": [
+          "frame"
+        ]
+      },
+      {
+        "id": "make_arrow",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            -0.25,
+            0
+          ],
+          "end": [
+            0.25,
+            0
+          ]
+        },
+        "outputs": [
+          "arrow"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [],
+    "annotations": [],
+    "requiredEntityIds": [
+      "frame",
+      "arrow"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "frame",
+          "arrow"
+        ],
+        "dependsOn": [],
+        "narrationCue": "Show the supplied geometry."
+      }
+    ],
+    "teachingTimeline": []
+  },
+  "nativeRenderScene": {
+    "engineVersion": "scene-engine/2.0.0",
+    "primitives": [
+      {
+        "id": "primitive_frame",
+        "entityId": "frame",
+        "groupId": "setup",
+        "kind": "rectangle",
+        "points": [
+          {
+            "x": 474,
+            "y": 485.5
+          },
+          {
+            "x": 1086,
+            "y": 485.5
+          },
+          {
+            "x": 1086,
+            "y": 454.9
+          },
+          {
+            "x": 474,
+            "y": 454.9
+          }
+        ]
+      },
+      {
+        "id": "primitive_arrow",
+        "entityId": "arrow",
+        "groupId": "setup",
+        "kind": "vector",
+        "points": [
+          {
+            "x": 703.5,
+            "y": 470.2
+          },
+          {
+            "x": 856.5,
+            "y": 470.2
+          }
+        ],
+        "provenance": {
+          "requireLabelLeader": true
+        }
+      },
+      {
+        "id": "primitive_arrow_label",
+        "entityId": "arrow",
+        "groupId": "setup",
+        "kind": "label",
+        "points": [
+          {
+            "x": 828.96,
+            "y": 430.2
+          }
+        ],
+        "text": "v",
+        "labelPlacement": "absolute",
+        "provenance": {
+          "labelBounds": {
+            "x": 819.42146,
+            "y": 414.2,
+            "width": 19.077080000000002,
+            "height": 32
+          },
+          "usesLeader": true
+        }
+      },
+      {
+        "id": "primitive_arrow_label_leader",
+        "entityId": "arrow",
+        "groupId": "setup",
+        "kind": "line",
+        "points": [
+          {
+            "x": 828.96,
+            "y": 470.2
+          },
+          {
+            "x": 828.96,
+            "y": 451.2
+          }
+        ],
+        "provenance": {
+          "annotation": "callout",
+          "dashed": true,
+          "strokeRole": "construction",
+          "labelLeader": true
+        }
+      }
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "frame",
+          "arrow"
+        ],
+        "dependsOn": [],
+        "narrationCue": "Show the supplied geometry."
+      }
+    ],
+    "timeline": [],
+    "entityBounds": {
+      "frame": {
+        "x": 474,
+        "y": 454.9,
+        "width": 612,
+        "height": 30.600000000000023
+      },
+      "arrow": {
+        "x": 703.5,
+        "y": 430.2,
+        "width": 153,
+        "height": 40
+      }
+    }
+  }
+}

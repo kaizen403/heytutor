@@ -1,7 +1,7 @@
 /**
- * A figure's quantity summaries ("v_i = +3.0 m/s", "m = 2.0 kg") are one block
- * of givens, stacked in rows, not four labels fanned around a shared anchor
- * with a leader pointing at empty paper.
+ * Point/body givens retain their summary block. Values explicitly bound to
+ * geometric vectors stay on those vectors. The original fixture is unchanged;
+ * its earlier four-row oracle incorrectly classified vector values as givens.
  */
 import assert from "node:assert/strict";
 import { compileSceneDocument, type SceneDocument } from "../../src/index";
@@ -42,7 +42,20 @@ const document: SceneDocument = {
 const compiled = compileSceneDocument(document);
 assert.ok(compiled.ok && compiled.renderScene, `fixture must compile: ${compiled.report.issues.map((issue) => issue.code).join(", ")}`);
 const primitives = compiled.renderScene.primitives;
-const summaryIds = ["ann_vi", "ann_vf", "ann_m", "ann_dt"];
+for (const [id, entityId] of [["ann_vi", "vi_vec"], ["ann_vf", "vf_vec"]]) {
+  const label = primitives.find((primitive) => primitive.id === id && primitive.kind === "label");
+  const vector = primitives.find((primitive) => primitive.entityId === entityId && primitive.kind === "vector");
+  assert.ok(label && vector, `${id} retains its vector and value`);
+  assert.equal(label.entityId, entityId, `${id} retains its source carrier`);
+  assert.notEqual(label.provenance?.summary, true, `${id} must not become a detached view summary`);
+  const [start, end] = [vector.points[0]!, vector.points.at(-1)!];
+  const center = label.points[0]!, dx = end.x - start.x, dy = end.y - start.y;
+  const t = Math.max(0, Math.min(1, ((center.x - start.x) * dx + (center.y - start.y) * dy) / (dx * dx + dy * dy)));
+  const bounds = label.provenance?.labelBounds as { width: number; height: number };
+  assert.ok(Math.hypot(center.x - start.x - t * dx, center.y - start.y - t * dy) <= Math.hypot(bounds.width, bounds.height) / 2 + 32, `${id} stays beside its vector stroke`);
+}
+
+const summaryIds = ["ann_m", "ann_dt"];
 const summaries = summaryIds.map((id) => {
   const primitive = primitives.find((candidate) => candidate.id === id);
   assert.ok(primitive, `${id} is drawn`);
@@ -77,4 +90,4 @@ assert.ok(
   `the particle's box (top ${Math.round(particleBox.y)}) must not reach the givens block (bottom ${Math.round(givensBottom)})`,
 );
 
-console.log("verify-summary-label-stack: quantity summaries stack as one block of givens");
+console.log("verify-summary-label-stack: geometric values stay on vectors; point givens stack as one block");

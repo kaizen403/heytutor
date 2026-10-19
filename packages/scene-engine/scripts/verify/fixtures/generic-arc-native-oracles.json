@@ -1,0 +1,280 @@
+{
+  "schemaVersion": "generic-arc-native-oracles/v1",
+  "sourceCommit": "aeb3eb11e4d5cbc5e074fa2b590a09fdb4734eb6",
+  "compilerSha256": "a2abde1edd5feb7e479429e48fe1b05c1064296c28191fd936f20a5636272cb5",
+  "capture": "Unchanged MAIN compiler; the same fixed 270/360 degree input scenes as the original generic arc attachment controls. Complete serialized native render and labels.",
+  "records": [
+    {
+      "degrees": 270,
+      "document": {
+        "schemaVersion": "scene-document/v2",
+        "visualDecision": {
+          "mode": "scene",
+          "reason": "geometric attachment"
+        },
+        "source": {
+          "question": "Show the labelled geometric objects and their stated values."
+        },
+        "quantities": [],
+        "entities": [
+          {
+            "id": "O",
+            "kind": "point",
+            "role": "construction helper"
+          },
+          {
+            "id": "curve",
+            "kind": "arc",
+            "role": "curve",
+            "label": "c"
+          }
+        ],
+        "constructions": [
+          {
+            "id": "make_O",
+            "operator": "point",
+            "inputs": {
+              "x": 0,
+              "y": 0,
+              "coordinateSpace": "world"
+            },
+            "outputs": [
+              "O"
+            ]
+          },
+          {
+            "id": "make_curve",
+            "operator": "arc",
+            "inputs": {
+              "center": "O",
+              "radius": 2,
+              "startAngle": 0,
+              "endAngle": 270,
+              "angleUnit": "degrees"
+            },
+            "outputs": [
+              "curve"
+            ]
+          }
+        ],
+        "relations": [],
+        "assertions": [],
+        "annotations": [],
+        "requiredEntityIds": [
+          "curve"
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "O",
+              "curve"
+            ],
+            "dependsOn": [],
+            "narrationCue": "Show the geometry."
+          }
+        ],
+        "teachingTimeline": []
+      },
+      "renderScene": {
+        "engineVersion": "scene-engine/2.0.0",
+        "primitives": [
+          {
+            "id": "primitive_curve",
+            "entityId": "curve",
+            "groupId": "setup",
+            "kind": "arc",
+            "points": [
+              {
+                "x": 780,
+                "y": 332.5
+              }
+            ],
+            "radius": 213.5,
+            "startAngle": -4.71238898038469,
+            "endAngle": 0
+          },
+          {
+            "id": "primitive_curve_label",
+            "entityId": "curve",
+            "groupId": "setup",
+            "kind": "label",
+            "points": [
+              {
+                "x": 996.6,
+                "y": 525.74
+              }
+            ],
+            "text": "c",
+            "labelPlacement": "absolute",
+            "provenance": {
+              "labelBounds": {
+                "x": 987.24,
+                "y": 509.74,
+                "width": 18.71756,
+                "height": 32
+              },
+              "usesLeader": false
+            }
+          }
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "O",
+              "curve"
+            ],
+            "dependsOn": [],
+            "narrationCue": "Show the geometry."
+          }
+        ],
+        "timeline": [],
+        "entityBounds": {
+          "curve": {
+            "x": 566.5,
+            "y": 119,
+            "width": 430.1,
+            "height": 427
+          }
+        }
+      }
+    },
+    {
+      "degrees": 360,
+      "document": {
+        "schemaVersion": "scene-document/v2",
+        "visualDecision": {
+          "mode": "scene",
+          "reason": "geometric attachment"
+        },
+        "source": {
+          "question": "Show the labelled geometric objects and their stated values."
+        },
+        "quantities": [],
+        "entities": [
+          {
+            "id": "O",
+            "kind": "point",
+            "role": "construction helper"
+          },
+          {
+            "id": "curve",
+            "kind": "arc",
+            "role": "curve",
+            "label": "c"
+          }
+        ],
+        "constructions": [
+          {
+            "id": "make_O",
+            "operator": "point",
+            "inputs": {
+              "x": 0,
+              "y": 0,
+              "coordinateSpace": "world"
+            },
+            "outputs": [
+              "O"
+            ]
+          },
+          {
+            "id": "make_curve",
+            "operator": "arc",
+            "inputs": {
+              "center": "O",
+              "radius": 2,
+              "startAngle": 0,
+              "endAngle": 360,
+              "angleUnit": "degrees"
+            },
+            "outputs": [
+              "curve"
+            ]
+          }
+        ],
+        "relations": [],
+        "assertions": [],
+        "annotations": [],
+        "requiredEntityIds": [
+          "curve"
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "O",
+              "curve"
+            ],
+            "dependsOn": [],
+            "narrationCue": "Show the geometry."
+          }
+        ],
+        "teachingTimeline": []
+      },
+      "renderScene": {
+        "engineVersion": "scene-engine/2.0.0",
+        "primitives": [
+          {
+            "id": "primitive_curve",
+            "entityId": "curve",
+            "groupId": "setup",
+            "kind": "arc",
+            "points": [
+              {
+                "x": 780,
+                "y": 332.5
+              }
+            ],
+            "radius": 213.5,
+            "startAngle": -6.283185307179586,
+            "endAngle": 0
+          },
+          {
+            "id": "primitive_curve_label",
+            "entityId": "curve",
+            "groupId": "setup",
+            "kind": "label",
+            "points": [
+              {
+                "x": 1076.64,
+                "y": 332.5
+              }
+            ],
+            "text": "c",
+            "labelPlacement": "absolute",
+            "provenance": {
+              "labelBounds": {
+                "x": 1067.28,
+                "y": 316.5,
+                "width": 18.71756,
+                "height": 32
+              },
+              "usesLeader": false
+            }
+          }
+        ],
+        "revealGroups": [
+          {
+            "id": "setup",
+            "entityIds": [
+              "O",
+              "curve"
+            ],
+            "dependsOn": [],
+            "narrationCue": "Show the geometry."
+          }
+        ],
+        "timeline": [],
+        "entityBounds": {
+          "curve": {
+            "x": 566.5,
+            "y": 119,
+            "width": 510.1400000000001,
+            "height": 427
+          }
+        }
+      }
+    }
+  ]
+}

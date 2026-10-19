@@ -6,6 +6,7 @@
  */
 
 import type { RenderPoint, RenderPrimitive } from "../types";
+import { labelRespectsStrokeAttachment, type StrokeAttachment } from "./strokeAttachment";
 
 export interface LabelBounds {
   x: number;
@@ -15,11 +16,18 @@ export interface LabelBounds {
 }
 
 export interface LabelOwner {
+  /** Retry an original native name's previous layout when no local slot exists.
+   * Semantic identity, text and final view/side/wedge constraints stay intact. */
+  fallbackPlacement?: Pick<LabelOwner, "anchor" | "useOwnerBounds" | "tetherPx" | "allowLeader" | "leaderGeometrySafe" | "alternateAnchors">;
   /** Stable primitive/annotation id. Defaults to the semantic entity id. */
   labelId?: string;
   entityId: string;
   /** Preferred anchor in screen space (center of owner). */
   anchor: RenderPoint;
+  /** Other exact points on the same stroke where a nearby name can fit. */
+  alternateAnchors?: RenderPoint[];
+  /** Exact native finite directed stroke and its competing visible strokes. */
+  strokeAttachment?: StrokeAttachment;
   text: string;
   /** Preferred semantic direction from annotation placementIntent. */
   preferredSlot?: Exclude<LabelSlot, "leader">;
@@ -51,6 +59,21 @@ export interface LabelOwner {
    * label that has no slot left.
    */
   sideRegions?: LabelSideRegion[];
+  /** The text centre must remain inside this rendered minor-angle sweep. */
+  angleWedge?: LabelAngleWedge;
+}
+
+export interface LabelAngleWedge {
+  center: RenderPoint;
+  startAngle: number;
+  endAngle: number;
+}
+
+export function pointInAngleWedge(point: RenderPoint, wedge: LabelAngleWedge): boolean {
+  const normalize = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
+  const sweep = normalize(wedge.endAngle - wedge.startAngle);
+  const delta = normalize(Math.atan2(point.y - wedge.center.y, point.x - wedge.center.x) - wedge.startAngle);
+  return sweep >= 0 ? delta >= -1e-6 && delta <= sweep + 1e-6 : delta <= 1e-6 && delta >= sweep - 1e-6;
 }
 
 /** A screen region bounded by an interface, keeping a label in one medium. */
@@ -482,7 +505,7 @@ export function placeLabels(
   });
   const solverObstacles = pinnedObstacles.length > 0 ? [...obstacles, ...pinnedObstacles] : obstacles;
 
-  const prepared = owners.map((owner, originalIndex): PreparedLabelOwner => {
+  const prepareOwner = (owner: LabelOwner, originalIndex: number): PreparedLabelOwner => {
     if (owner.pinToAnchor) {
       const bounds = centeredTextBounds(owner.text, owner.anchor, options);
       const ink = pinnedInkBounds[originalIndex];
@@ -500,6 +523,7 @@ export function placeLabels(
       const overlaps = [
         ...(outside ? ["view_clip"] : []),
         ...(offSide(collisionBounds, owner) ? [LABEL_WRONG_SIDE] : []),
+        ...(offAngleWedge(bounds, owner) ? ["angle_wedge"] : []),
         ...protectedHits,
         ...pinnedHits,
       ];
@@ -511,6 +535,7 @@ export function placeLabels(
         overlaps,
         usesLeader: false,
       };
+      if (owner.strokeAttachment && !labelRespectsStrokeAttachment(owner.strokeAttachment, candidate)) overlaps.push("stroke_attachment");
       return {
         owner,
         originalIndex,
@@ -527,8 +552,8 @@ export function placeLabels(
     // Point labels can use a closer compass slot when the usual margin wastes
     // clear interior space. Every candidate still clears ink by minGapPx.
     const anchorGaps = owner.tetherPx === undefined ? [minGapPx + 8] : [minGapPx + 8, minGapPx + 4, minGapPx];
-    const candidates: LabelPlacementCandidate[] = owner.requireLeader ? [] : anchorGaps.flatMap((anchorGap, gapIndex) => SLOT_OFFSETS.map((slot) => {
-      const anchor = ownerBounds ? anchorOnBounds(ownerBounds, slot.slot) : owner.anchor;
+    const candidates: LabelPlacementCandidate[] = owner.requireLeader ? [] : [owner.anchor, ...(owner.alternateAnchors ?? [])].flatMap((attachment, attachmentIndex) => anchorGaps.flatMap((anchorGap, gapIndex) => SLOT_OFFSETS.map((slot) => {
+      const anchor = ownerBounds && attachmentIndex === 0 ? anchorOnBounds(ownerBounds, slot.slot) : attachment;
       const bounds = textBoundsAtSlot(owner.text, anchor, slot.slot, options, anchorGap);
       const collisionBounds = textCollisionBounds(owner.text, bounds, options);
       const overlaps = solverObstacles
@@ -537,20 +562,27 @@ export function placeLabels(
       const outside = outsideOwnerView(collisionBounds, owner);
       if (outside) overlaps.push("view_clip");
       if (offSide(collisionBounds, owner)) overlaps.push(LABEL_WRONG_SIDE);
-      if (beyondTether(bounds, owner.anchor, owner.tetherPx)) overlaps.push("tether");
+      if (offAngleWedge(bounds, owner)) overlaps.push("angle_wedge");
+      if (beyondTether(bounds, attachment, owner.tetherPx)) overlaps.push("tether");
       const incident = incidentAligned(slot.slot, owner.incidentTangents);
       const drift = Math.hypot(anchor.x - owner.anchor.x, anchor.y - owner.anchor.y);
       return {
         slot: slot.slot,
         bounds,
         collisionBounds,
-        score: slot.preference + gapIndex * 8 + (owner.preferredSlot === slot.slot ? -20 : 0) + overlaps.length * 10 + (outside ? 50 : 0) + (incident ? 40 : 0) + drift * 0.08,
+        score: slot.preference + gapIndex * 8 + attachmentIndex * 8 + (owner.preferredSlot === slot.slot ? -20 : 0) + overlaps.length * 10 + (outside ? 50 : 0) + (incident ? 40 : 0) + drift * 0.08,
         overlaps,
         usesLeader: false,
       };
-    }));
+    })));
 
     const leaderDirections = [
+      ...(owner.angleWedge ? (() => {
+        const dx = owner.anchor.x - owner.angleWedge.center.x;
+        const dy = owner.anchor.y - owner.angleWedge.center.y;
+        const length = Math.hypot(dx, dy);
+        return length > 0 ? [{ dx: dx / length, dy: dy / length, preference: -1, slot: undefined }] : [];
+      })() : []),
       ...SLOT_OFFSETS.map((direction) => ({
         dx: direction.dx === 0 ? 0 : direction.dx / Math.hypot(direction.dx, direction.dy),
         dy: direction.dy === 0 ? 0 : direction.dy / Math.hypot(direction.dx, direction.dy),
@@ -579,6 +611,7 @@ export function placeLabels(
           const outside = outsideOwnerView(collisionBounds, owner);
           if (outside) overlaps.push("view_clip");
           if (offSide(collisionBounds, owner)) overlaps.push(LABEL_WRONG_SIDE);
+          if (offAngleWedge(bounds, owner)) overlaps.push("angle_wedge");
           if (beyondTether(bounds, owner.anchor, owner.tetherPx)) overlaps.push("tether");
           // The line stops outside the text. Running it to `center` — which is
           // what the board drew for years — strikes the label through.
@@ -609,22 +642,42 @@ export function placeLabels(
           return candidate;
         }),
     );
-    const nearbyCandidates: LabelPlacementCandidate[] = owner.tetherPx !== undefined
-      ? nearbyTetheredCenters(owner, solverObstacles, options, minGapPx).map((center) => {
+    const nearbyCandidates: LabelPlacementCandidate[] = owner.tetherPx !== undefined && !owner.requireLeader
+      ? [owner.anchor, ...(owner.alternateAnchors ?? [])].flatMap((attachment, attachmentIndex) => nearbyTetheredCenters({ ...owner, anchor: attachment }, solverObstacles, options, minGapPx).map((center) => {
           const bounds = centeredTextBounds(owner.text, center, options);
           const collisionBounds = textCollisionBounds(owner.text, bounds, options);
           const overlaps = solverObstacles.filter((obstacle) => labelOverlapsObstacle(collisionBounds, obstacle, minGapPx)).map((obstacle) => obstacle.id);
           if (outsideOwnerView(collisionBounds, owner)) overlaps.push("view_clip");
           if (offSide(collisionBounds, owner)) overlaps.push(LABEL_WRONG_SIDE);
-          if (beyondTether(bounds, owner.anchor, owner.tetherPx)) overlaps.push("tether");
-          return { slot: "leader", bounds, collisionBounds, score: 150 + Math.hypot(center.x - owner.anchor.x, center.y - owner.anchor.y), overlaps, usesLeader: false };
-        })
+          if (offAngleWedge(bounds, owner)) overlaps.push("angle_wedge");
+          if (beyondTether(bounds, attachment, owner.tetherPx)) overlaps.push("tether");
+          return { slot: "leader", bounds, collisionBounds, score: 150 + attachmentIndex * 8 + Math.hypot(center.x - attachment.x, center.y - attachment.y), overlaps, usesLeader: false };
+        }))
       : [];
-    const allCandidates = deduplicateCandidates([...candidates, ...leaderCandidates, ...nearbyCandidates])
+    // Apply the same relation after every family has built its complete path.
+    // Local native-name retries retain this owner relation through the spread.
+    const attachedCandidates = [...candidates, ...leaderCandidates, ...nearbyCandidates].map((candidate) => {
+      if (owner.strokeAttachment && !labelRespectsStrokeAttachment(owner.strokeAttachment, candidate)) candidate.overlaps.push("stroke_attachment");
+      return candidate;
+    });
+    const allCandidates = deduplicateCandidates(attachedCandidates)
       .sort((a, b) => a.score - b.score);
     const validCandidates = allCandidates
       .filter((candidate) => candidate.overlaps.length === 0)
       .slice(0, 160);
+    if (validCandidates.length === 0 && owner.fallbackPlacement) {
+      const previous = owner.fallbackPlacement;
+      return prepareOwner({
+        ...owner,
+        fallbackPlacement: undefined,
+        anchor: previous.anchor,
+        useOwnerBounds: previous.useOwnerBounds,
+        tetherPx: previous.tetherPx,
+        allowLeader: previous.allowLeader,
+        leaderGeometrySafe: previous.leaderGeometrySafe,
+        alternateAnchors: previous.alternateAnchors,
+      }, originalIndex);
+    }
     const estimated = centeredTextBounds(owner.text, owner.anchor, options);
     return {
       owner,
@@ -633,7 +686,8 @@ export function placeLabels(
       validCandidates,
       area: estimated.width * estimated.height,
     };
-  });
+  };
+  const prepared = owners.map(prepareOwner);
 
   // Pinned labels stay on their anchors. They do not enter the compass-slot
   // solver — that solver's leader fallback is what drew dashed scribbles
@@ -1160,6 +1214,15 @@ function outsideOwnerView(bounds: LabelBounds, owner: LabelOwner): boolean {
 
 function offSide(bounds: LabelBounds, owner: LabelOwner): boolean {
   return Boolean(owner.sideRegions?.some((region) => !boundsInSideRegion(bounds, region)));
+}
+
+function offAngleWedge(bounds: LabelBounds, owner: LabelOwner): boolean {
+  // Compile emits the text centre at hundredth-pixel precision. Check that
+  // actual anchor, so rounding cannot carry a boundary slot across an arm.
+  return Boolean(owner.angleWedge && !pointInAngleWedge({
+    x: Math.round((bounds.x + bounds.width / 2) * 100) / 100,
+    y: Math.round((bounds.y + bounds.height / 2) * 100) / 100,
+  }, owner.angleWedge));
 }
 
 /** True when the whole box lies in the region (touching its edge is legal). */
