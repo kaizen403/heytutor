@@ -783,26 +783,12 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     const center = screenLabelAnchor(targetId, target, primitives, transformPlan.transformFor(targetId));
     const endpointLabel = verifiedPartsEnabled && target.kind === "point" && document.annotations.some(a => a.kind === "endpoint" && a.targetIds.includes(targetId));
     const secantLabel = verifiedPartsEnabled && document.constructions.some(c => c.operator === "curve_secant" && c.outputs.includes(targetId));
-    if (verifiedPartsEnabled && target.kind === "axes" && (annotation.kind === "label" || annotation.kind === "callout")) {
+    if (verifiedPartsEnabled && target.kind === "axes" && (annotation.kind === "label" || annotation.kind === "callout")
+      && !/^(?:x|y|re|im|real|imaginary|horizontal|vertical)\b/i.test((annotation.text ?? "").trim())) {
       // One label anchored at the origin cannot say which axis it names; "t (s)"
-      // beside the vertical axis reads as the wrong variable. Only the standard
-      // axis names bind to an axis; they go to that axis's end. Others are omitted.
-      const name = (annotation.text ?? "").trim();
-      const axis = /^(?:x|re|real|horizontal)\b/i.test(name) ? "horizontal" : /^(?:y|im|imaginary|vertical)\b/i.test(name) ? "vertical" : null;
-      if (!axis || name.length > 16) {
-        issues.push({ code: "annotation_geometry_unresolved", severity: "fatal", failureKind: "proof", entityIds: [annotation.id], message: `Annotation ${annotation.id} names an axes object at its origin, not one axis` });
-        continue;
-      }
-      // Each axis name is its own owner; one-label-per-entity would drop the second.
-      annotationLabelOwners.push({
-        labelId: annotation.id,
-        entityId: targetId,
-        anchor: transformPlan.transformFor(targetId)(axis === "horizontal" ? { x: target.xMax, y: 0 } : { x: 0, y: target.yMax }),
-        text: name,
-        preferredSlot: axis === "horizontal" ? "southeast" : "northeast",
-        viewBounds: transformPlan.viewportFor(targetId),
-        useOwnerBounds: false,
-      });
+      // beside the vertical axis reads as the wrong variable. The standard axis
+      // names keep their place; any other axis title is omitted and recompiled.
+      issues.push({ code: "annotation_geometry_unresolved", severity: "fatal", failureKind: "proof", entityIds: [annotation.id], message: `Annotation ${annotation.id} names an axes object at its origin, not one axis` });
       continue;
     }
     if (annotation.kind === "label" || annotation.kind === "callout") {

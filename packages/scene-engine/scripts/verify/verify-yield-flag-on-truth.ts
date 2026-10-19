@@ -12,10 +12,13 @@ const texts = (primitives: RenderPrimitive[] | undefined) => (primitives ?? []).
 
 // 1. A callout cut short is a different statement (hyperbola "y =", "c_i = 2.05 kJ/").
 assert.equal(compactCalloutLabel("y = (3/4)x; y = −(3/4)x"), "y =", "default-off compaction is unchanged");
-for (const text of ["y = (3/4)x; y = −(3/4)x", "c_i = 2.05 kJ/(kg K)", "y − y₁ = m(x − x₁)", "Force (on the wire, east"]) {
+for (const text of ["y = (3/4)x; y = −(3/4)x", "c_i = 2.05 kJ/(kg K)", "y − y₁ = m(x − x₁)"]) {
   assert.equal(compactCalloutLabel(text, true), undefined, `strict compaction never prints a truncated statement: ${text}`);
 }
 assert.equal(compactCalloutLabel("Normal reaction: perpendicular to the plane", true), "Normal reaction", "a complete head before a colon survives");
+for (const text of ["g=9.8 m/s², vertically down", "Lyman series (UV region)", "Check: coplanar if zero"]) {
+  assert.equal(compactCalloutLabel(text, true), compactCalloutLabel(text), `a true default cut is kept unchanged: ${text}`);
+}
 assert.equal(compactCalloutLabel("R = 5 Ω", true), "R = 5 Ω", "a short label is untouched");
 
 function axesDocument(annotations: SceneDocument["annotations"]): SceneDocument {
@@ -49,18 +52,9 @@ function axesDocument(annotations: SceneDocument["annotations"]): SceneDocument 
   assert(texts(off(document).renderScene?.primitives).includes("t (s)"), "flag off is unchanged");
 }
 {
-  const prepared = on(axesDocument([
-    { id: "x_name", kind: "label", targetIds: ["axes"], text: "x" },
-    { id: "y_name", kind: "label", targetIds: ["axes"], text: "y" },
-  ]));
-  assert(prepared.compiledScene?.ok, JSON.stringify(prepared.compiledScene?.report.issues));
-  const primitives = prepared.compiledScene!.renderScene!.primitives;
-  const axes = primitives.find(p => p.kind === "axes")!;
-  const [xStart, xEnd, yStart, yEnd] = axes.points as [{ x: number; y: number }, { x: number; y: number }, { x: number; y: number }, { x: number; y: number }];
-  const label = (text: string) => primitives.find(p => p.kind === "label" && p.text === text)!.points[0]!;
-  const near = (p: { x: number; y: number }, q: { x: number; y: number }) => Math.hypot(p.x - q.x, p.y - q.y);
-  assert(near(label("x"), xEnd) < near(label("x"), xStart) && near(label("x"), xEnd) < near(label("x"), yEnd), "x sits at the end of the horizontal axis");
-  assert(near(label("y"), yEnd) < near(label("y"), yStart) && near(label("y"), yEnd) < near(label("y"), xEnd), "y sits at the end of the vertical axis");
+  // The standard axis names keep their existing placement (moving them displaced other labels).
+  const document = axesDocument([{ id: "x_name", kind: "label", targetIds: ["axes"], text: "x" }]);
+  assert.deepEqual(texts(on(document).compiledScene?.renderScene?.primitives), texts(off(document).renderScene?.primitives), "standard axis names are untouched");
 }
 
 // 3. An open endpoint is hollow: the point's own filled dot does not sit inside the ring.

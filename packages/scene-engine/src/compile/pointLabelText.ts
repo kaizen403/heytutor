@@ -8,10 +8,10 @@ import { POINT_LABEL_TETHER_PX } from "../labels/labelEngine";
 import type { SceneDocument } from "../types";
 
 /**
- * Strict mode (verified parts) never prints a cut that changes what the text
- * says: an equation keeps all of its sides or is omitted, and a head must be
- * balanced and must not end in an operator ("y =", "kJ/"). The full text then
- * stays in the caption.
+ * Strict mode (verified parts) keeps the default cut unless that cut says
+ * something else: a relation cut at its bracket, an unbalanced head, or a
+ * head ending in an operator ("y =", "kJ/"). The full text then stays in
+ * the caption.
  */
 export function compactCalloutLabel(text: string | undefined, strict = false): string | undefined {
   const normalized = text?.trim();
@@ -32,18 +32,15 @@ export function compactCalloutLabel(text: string | undefined, strict = false): s
 }
 
 function strictCalloutHead(normalized: string): string | undefined {
-  const compactResult = normalized
-    .replace(/R_?eq\s*,\s*(?:series|parallel)\s*=/i, "R_eq =")
-    .replace(/\s+/g, " ");
-  if (compactResult.length <= 16) return compactResult;
-  // A relation cut short is a different statement.
-  if (/[=<>≤≥≈≠]/.test(compactResult)) return undefined;
-  const head = compactResult.split(/[:;,]/, 1)[0]?.trim();
-  if (!head || head.length > 16) return undefined;
-  const opens = (head.match(/[([{]/g) ?? []).length;
-  const closes = (head.match(/[)\]}]/g) ?? []).length;
-  if (opens !== closes || /[-+−×÷*/^·=]\s*$/.test(head)) return undefined;
-  return head;
+  const compact = compactCalloutLabel(normalized);
+  if (!compact || compact === normalized) return compact;
+  const cutAtParenthesis = normalized.startsWith(compact) && normalized.slice(compact.length).trimStart().startsWith("(");
+  const opens = (compact.match(/[([{]/g) ?? []).length;
+  const closes = (compact.match(/[)\]}]/g) ?? []).length;
+  // A relation cut at its bracket ("y − y₁ = m"), an unbalanced head, or a
+  // head ending in an operator ("y =", "kJ/") says something else.
+  if ((cutAtParenthesis && /[=<>≤≥≈≠]/.test(compact)) || opens !== closes || /[-+−×÷*/^·=<>≤≥≈≠]\s*$/.test(compact)) return undefined;
+  return compact;
 }
 
 export function isViewSummaryText(text: string | undefined): boolean {
