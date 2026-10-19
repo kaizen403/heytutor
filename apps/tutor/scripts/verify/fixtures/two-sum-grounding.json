@@ -1,0 +1,106 @@
+{
+  "source": "Saved launch L21, 17 Oct 2026; transcript and committed plan only, without account, board, audio or provider identifiers. Historical narration remains unchanged evidence.",
+  "question": "Python mein two sum samjhao: nums = [2, 7, 11, 15], target = 9. Nested loops se better way chahiye. Explanation chhoti rakhna, please.",
+  "recordedFalseStep": "input में values sorted नहीं हैं. [FOCUS:input|spotlight] इसलिए दोनों ends से अंदर आना भरोसेमंद नहीं होगा. हम left to right चलेंगे और गुज़री हुई value का index याद रखेंगे.",
+  "plan": {
+    "title": "Two Sum with a Hash Map",
+    "language": "python",
+    "question": "Python mein two sum samjhao: nums = [2, 7, 11, 15], target = 9. Nested loops se better way chahiye. Explanation chhoti rakhna, please.",
+    "sections": [
+      {
+        "id": "s1",
+        "title": "Ek scan mein pair dhoondo",
+        "blocks": [
+          {
+            "id": "s1b1",
+            "code": "def two_sum(nums, target):\n    seen = {}"
+          },
+          {
+            "id": "s1b2",
+            "code": "    for index, value in enumerate(nums):\n        need = target - value"
+          },
+          {
+            "id": "s1b3",
+            "code": "        if need in seen:\n            return [seen[need], index]\n        seen[value] = index"
+          },
+          {
+            "id": "s1b4",
+            "code": "    return []\n\nnums = [2, 7, 11, 15]"
+          },
+          {
+            "id": "s1b5",
+            "code": "target = 9\nprint(two_sum(nums, target))"
+          }
+        ],
+        "explanation": "Hum nums ko ek baar scan karte hain aur guzri hui values ke indices map mein rakhte hain. Pehle 2 ke liye 7 chahiye, lekin map khaali hai, isliye 2 store hota hai. Phir 7 ke liye 2 chahiye, jo map mein milta hai; result [0, 1] hai.",
+        "typeAlongRanges": [
+          {
+            "endLine": 8,
+            "startLine": 4
+          }
+        ]
+      }
+    ],
+    "diagramHint": {
+      "steps": [
+        {
+          "id": "input",
+          "values": [
+            "2",
+            "7",
+            "11",
+            "15"
+          ],
+          "caption": "Do values ka sum 9 dhoondo"
+        },
+        {
+          "id": "store_2",
+          "values": [
+            "2",
+            "7",
+            "11",
+            "15"
+          ],
+          "caption": "2 ko 7 chahiye; map mein nahi, 2 store karo",
+          "pointers": [
+            {
+              "name": "index",
+              "index": 0
+            }
+          ]
+        },
+        {
+          "id": "find_pair",
+          "values": [
+            "2",
+            "7",
+            "11",
+            "15"
+          ],
+          "caption": "7 ko 2 chahiye; 2 + 7 = 9, answer [0, 1]",
+          "pointers": [
+            {
+              "name": "index",
+              "index": 1
+            }
+          ]
+        }
+      ],
+      "values": [
+        "2",
+        "7",
+        "11",
+        "15"
+      ],
+      "caption": "Target 9: pehle 2 store, phir 7 par pair mila",
+      "pointers": [
+        {
+          "name": "index",
+          "index": 1
+        }
+      ],
+      "structure": "array"
+    },
+    "schemaVersion": "code-lesson/v1"
+  }
+}

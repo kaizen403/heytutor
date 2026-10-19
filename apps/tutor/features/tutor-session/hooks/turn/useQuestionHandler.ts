@@ -1468,6 +1468,8 @@ export function useQuestionHandler(
           candidateValidation: result?.validation, fastRepresentation,
           exactFigureSource: planning.figureSource === "verified_recovery" ? "verified_recovery" : "planner",
           solverAuthorityBlocked, requiredRetryEnabled: REQUIRED_DIAGRAM_RETRY_ENABLED,
+          completionEnabled: process.env.NEXT_PUBLIC_SCENE_COMPLETION_BY_CONSTRUCTION === "1",
+          solverAuthority: problemAuthority ? { problemIR: problemAuthority.problemIR, solverResult: problemAuthority.solverResult } : null,
           policy: {
             preferPlanner: diagramStrategyDecision.strategy === "strict",
             allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(diagramStrategyDecision, source)),
@@ -1590,6 +1592,9 @@ export function useQuestionHandler(
             };
           }) ?? [],
           selectedCandidateId: selectedModelCandidate?.candidateId ?? null,
+          // completion-diagnostics:begin
+          completion: sceneSelection.completion,
+          // completion-diagnostics:end
           selectionReason: representationReason ?? (sceneVisualStatus === "validated"
             ? usedVerifiedRecovery ? "verified_scene_recovery" : "validated_scene"
             : sceneVisualStatus === "retry_required"
