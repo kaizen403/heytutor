@@ -151,6 +151,23 @@ const wrongUnitPlan = structuredClone(areaTurnPlan);
 wrongUnitPlan.unknowns[0]!.unit = "cm";
 wrongUnitPlan.derived[0]!.unit = "cm";
 assert.ok(verifyTurnPlanAgainstSolver(problem, result, wrongUnitPlan, question).issues.some((issue) => issue.code === "unit_mismatch"));
+// A dimensionless answer: the plan writes a blank unit and the solver binding
+// carries none. Both mean "no unit", so the figure must not be dropped as a
+// unit mismatch (Fireworks check 19 Oct: max sin x = 1).
+const unitlessProblem = structuredClone(problem);
+const unitlessArea = unitlessProblem.solveRequests.find((request) => request.id === "findArea");
+if (!unitlessArea?.resultBinding) throw new Error("missing area binding");
+delete (unitlessArea.resultBinding as { unit?: string }).unit;
+const blankUnitPlan = structuredClone(areaTurnPlan);
+blankUnitPlan.unknowns[0]!.unit = "";
+blankUnitPlan.derived[0]!.unit = "";
+assert.ok(!verifyTurnPlanAgainstSolver(unitlessProblem, result, blankUnitPlan, question).issues.some((issue) => issue.code === "unit_mismatch"));
+const spacesUnitPlan = structuredClone(blankUnitPlan);
+spacesUnitPlan.unknowns[0]!.unit = "  ";
+spacesUnitPlan.derived[0]!.unit = " ";
+assert.ok(!verifyTurnPlanAgainstSolver(unitlessProblem, result, spacesUnitPlan, question).issues.some((issue) => issue.code === "unit_mismatch"));
+// A blank plan unit against a real solver unit is still a mismatch.
+assert.ok(verifyTurnPlanAgainstSolver(problem, result, blankUnitPlan, question).issues.some((issue) => issue.code === "unit_mismatch"));
 const unboundProblem = structuredClone(problem);
 const unboundArea = unboundProblem.solveRequests.find((request) => request.id === "findArea");
 if (!unboundArea) throw new Error("missing area request");

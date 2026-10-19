@@ -37,6 +37,18 @@ const CHEMISTRY: string[] = [
   "One mole of an ideal gas expands isothermally and reversibly from 10 L to 20 L at 300 K. Calculate the work done and the entropy change.",
 ];
 
+// Coordination chemistry that names a complex must stay chemistry even though
+// complex number stems ("complex z with |z - 1| <= 2") leave it.
+for (const stem of [
+  "Explain complex formation between copper ions and ammonia.",
+  "The complex formed is octahedral. State its hybridisation.",
+  "Write the formula of the complex hexaamminecobalt(III) chloride.",
+  "Complex Z is octahedral and complex Y is tetrahedral. Which shows geometric isomerism?",
+  "Which is more stable, complex Z or complex W?",
+  "Complex Z with an octahedral shape is coloured.",
+  "A square planar complex of nickel is diamagnetic. Explain.",
+  "Name the complex ion formed when excess ammonia is added.",
+]) CHEMISTRY.push(stem);
 const NOT_CHEMISTRY: string[] = [
   "Two cells of emf 2 V and 4 V are connected in parallel across a 4 ohm resistor. Find the current.",
   "A ball is thrown at 20 m/s at 30 degrees. Find the range.",
@@ -47,6 +59,12 @@ const NOT_CHEMISTRY: string[] = [
   "Explain the objective and eyepiece stages of a compound microscope and an astronomical telescope with separate, ordered image planes.",
   "A compound pendulum of length 1 m oscillates. Find the period.",
   "Find the modulus of the complex number 3 + 4i and plot it on the Argand plane.",
+  "Describe the set of complex z with |z − 1| ≤ 2, and find the greatest possible value of |z|.",
+  "For complex w with |w + 2i| = 3, sketch the locus on the Argand diagram.",
+  "For complex z, sketch |z − 1| ≤ 2.",
+  "Complex z lies on the circle |z| = 3. Find the greatest value of |z + 4|.",
+  "Write the complex-valued function f(z) = z^2 in terms of x and y.",
+  "Express the complex form of 1 + i in modulus argument form.",
   "Triangle ABC has vertices at B(0,0) and C(4,0). Find the length BC.",
   "Calculate the rms speed of molecules of an ideal gas at 300 K.",
   "A wire has thermal conductivity 400 W/mK. Find the heat flow.",
