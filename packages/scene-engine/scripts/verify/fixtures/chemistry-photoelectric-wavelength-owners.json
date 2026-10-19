@@ -278,20 +278,12 @@
     {
       "id": "metal-threshold-curve",
       "question": "Plot the threshold energy curve of a metal surface.",
-      "draw": false,
-      "diagnosticRoutes": [
-        "lastResort"
-      ],
-      "deferredReason": "CF4 last-resort analytic-axes fallback already admits this non-reaction request; false draw oracle retained. The reaction family itself must keep refusing."
+      "draw": false
     },
     {
       "id": "ownerless-threshold-graph",
       "question": "Plot the threshold energy graph.",
-      "draw": false,
-      "diagnosticRoutes": [
-        "lastResort"
-      ],
-      "deferredReason": "CF4 last-resort analytic-axes fallback already admits this non-reaction request; false draw oracle retained. The reaction family itself must keep refusing."
+      "draw": false
     },
     {
       "id": "photoelectric-threshold-no-reaction",

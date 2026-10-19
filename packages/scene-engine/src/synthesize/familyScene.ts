@@ -1629,13 +1629,9 @@ function buildAnalyticCurve(
       const well = /U\(x\)|equilibrium/i.test(question) ? "x^4/4-x^2/2" : "x";
       return plotExpressions(question, [well], domain);
     }
-    // Last-resort draws bare axes only when the stem actually asks for a graph;
-    // it never paints a canned curve the stem did not name.
-    if (schematic) {
-      return /(?:graph|curve|plot|sketch|versus|against)/i.test(question)
-        ? axesOnly(question, "analytic display axes")
-        : null;
-    }
+    // Axes alone do not represent an unread curve. This family needs a
+    // source-bound relation even on the last-resort path; explicit coordinate
+    // axis requests have their own coordinate-figure builder.
     return null;
   }
   return plotExpressions(question, plots, domain);

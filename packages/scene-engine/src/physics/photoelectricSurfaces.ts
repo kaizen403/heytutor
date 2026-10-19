@@ -1,12 +1,12 @@
 /** A single-threshold figure must not borrow another illuminated material's value. */
 import { elementByName, resolveElement } from "../chemistry/elements";
-import { chemistryCanonicalValuesAgree, readChemistryQuantityDeclaration } from "../chemistry/quantityReader";
+import { CHEMISTRY_SCALAR_PATTERN, chemistryCanonicalValuesAgree, readChemistryQuantityDeclaration } from "../chemistry/quantityReader";
 import { photonEnergyEvFromFrequencyHz, photonEnergyEvFromWavelengthMetres } from "./photonEnergy";
 
-const SURFACE_NOUN = "metal|surface|plate|cathode|anode|emitter|electrode|target|sample|collector";
+const SURFACE_NOUN = "metal|surface|plate|sheet|foil|cathode|anode|emitter|electrode|target|sample|collector";
 const LABEL = /^(?:[A-Z][A-Z0-9]*|\d+)$/;
 
-/** One nominal argument: a source/material head or predicate ends its scope. */
+/** One nominal argument, never an open-ended scan across an unknown predicate. */
 function surfaceArgument(body: string, start: number): { kind: "material" | "source" | "other"; elements: Set<string>; end: number } {
   const tail = body.slice(start);
   const elements = new Set<string>();
@@ -17,19 +17,69 @@ function surfaceArgument(body: string, start: number): { kind: "material" | "sou
     const word = token[0];
     const element = resolveElement(word);
     if (element) { elements.add(`element:${element.symbol}`); end = token.index! + word.length; continue; }
-    if (/^(?:lamps?|lights?|vapou?rs?|arcs?|lines?|spectr(?:um|a)|lasers?|beams?|photons?)$/i.test(word)) {
+    if (/^(?:lamps?|lights?|vapou?rs?|arcs?|lines?|spectr(?:um|a)|lasers?|beams?|photons?|discharges?|tubes?)$/i.test(word)) {
       kind ??= "source";
     } else if (new RegExp(`^(?:${SURFACE_NOUN})s?$`, "i").test(word)) {
       kind ??= "material";
-    } else if (/^(?:readings?|measurements?|energies|energy|frequenc(?:y|ies)|wavelengths?|intensit(?:y|ies)|properties|electrons?|experiments?|methods?|calculations?)$/i.test(word)) {
-      kind ??= "other";
+    } else if (kind === "material" && LABEL.test(word)) {
+      end = token.index! + word.length;
       break;
-    } else if (/^(?:and|or|but|while|whereas|although|with|of|for|to|on|at|from|in|into|by|under|over|as|where|when|then|is|are|was|were|has|have|had|can|could|may|might|will|would|shall|should|must|illuminates?|strikes?|hits?|falls?|emits?|needs?|requires?|remains?|draw|explain|find|calculate|compare|show)\b$/i.test(word)) {
-      break;
-    }
+    } else if (!/^(?:a|an|the|one|two|another|other|second|different|distinct|separate|thin|thick|clean|smooth|freshly|polished|bright|bare|flat|solid|metallic|alkali|gas|ultraviolet|visible|monochromatic)$/i.test(word)) break;
     end = token.index! + word.length;
   }
   return { kind: kind ?? (elements.size ? "material" : "other"), elements, end: start + end };
+}
+
+/** A source-governed element is excluded only inside a radiation noun phrase.
+ * The named target check below still takes precedence over this source role. */
+function radiationSourceArgument(body: string, start: number): boolean {
+  const prefix = body.slice(0,start);
+  const connector = /\b(?:(?:emitted|produced|released)\s+by|from)\s+(?:(?:a|an|the)\s+)?$/i.exec(prefix);
+  if (!connector) return false;
+  for (const particle of prefix.matchAll(/\b(?:photons?|light|radiation)\b/gi)) {
+    const begin = particle.index! + particle[0].length;
+    const end = connector.index;
+    if (begin > end) continue;
+    const attribute = prefix.slice(begin,end);
+    if (!attribute.trim()) return true;
+    const role = /^\s+of\s+(?:photon\s+)?(energy|frequency|wavelength)\b/i.exec(attribute);
+    if (!role) continue;
+    const dimension = role[1]!.toLowerCase() === "energy" ? "energy"
+      : role[1]!.toLowerCase() === "frequency" ? "frequency" : "length";
+    const read = readChemistryQuantityDeclaration({question:body,
+      within:{start:begin+role[0].length,end},after:/^/,
+      owner:"radiation source noun-phrase attribute",dimension});
+    // Only a whole radiation NP can govern the source. A target made from a
+    // material is not the radiation's source, even if photons precede it.
+    if (read.state === "valid" && !body.slice(read.reading.source.span.end,end).trim()) return true;
+  }
+  return false;
+}
+
+/** Parallel samples can omit the repeated material/work-function noun. Bind a
+ * bare parallel value through the shared quantity reader, never photon prose. */
+function ellipticalWorkFunctionOwner(body: string): boolean {
+  const stated = readChemistryQuantityDeclaration({question:body,
+    after:/\bwork functions?(?:\s+of\s+(?:(?:a|the)\s+)?[a-z]+)?/i,
+    owner:"photoelectric sample work function",dimension:"energy",targetUnit:"eV",allowAgreeingRepeats:true});
+  const thresholds = stated.occurrences.flatMap(occurrence => occurrence.read.ok ? [occurrence.read.reading] : []);
+  for (const cue of body.matchAll(/\b(?:another|other|second(?:\s+one)?|latter|former)\b/gi)) {
+    if (thresholds.length > 1) return true;
+    if (!thresholds.some(reading => reading.source.span.end <= cue.index!)) continue;
+    const start = cue.index! + cue[0].length;
+    const tail = body.slice(start);
+    const parallelRole = /^\s*(?:one\s+)?(?:(?:has|have|had|is|are|was|were|=)\s*)?(?:(?:a|an|the)\s+)?(?:(?:unknown|unreadable|undefined)\s+)?work functions?\b/i;
+    if (parallelRole.test(tail)) return true;
+    const payload = new RegExp(`^\\s*(?:one\\s+)?(?:(?:has|have|had|is|are|was|were|=)\\s*)?(?:(?:a|an|the)\\s+)?(${CHEMISTRY_SCALAR_PATTERN}|unknown|unreadable|undefined)`, "i").exec(tail);
+    if (!payload) continue;
+    const scalarStart = start + payload[0].lastIndexOf(payload[1]!);
+    const read = readChemistryQuantityDeclaration({question:body,after:/^/,
+      within:{start:scalarStart,end:body.length},owner:"parallel sample work function",dimension:"energy",targetUnit:"eV"});
+    // A supplied-invalid parallel threshold is still a second owner; it
+    // cannot disappear and let the first sample lend its readable value.
+    if (read.state !== "absent") return true;
+  }
+  return false;
 }
 
 /** A nominal argument identifies a sample, not just its material class. */
@@ -129,6 +179,9 @@ function collectorRoles(body: string, identities: Set<string>, labelBindings: Ma
     ? labelBindings.get(identity.slice("generic:".length)) ?? identity : identity;
   const resolved = new Map<CollectorReference,string>();
   for (const clause of body.split(/[;!?\n]|\.(?=\s|$)/)) {
+    // A pure diagram request supplies no factual collector role. Extra
+    // predicates (including illumination) must still pass the role audit.
+    if (/^\s*(?:draw|show|label)\s+it\s*$/i.test(clause)) continue;
     if (!/\bcollectors?\b|\bit\b/i.test(clause)) continue;
     const predicates = collectorClauseRoles(clause);
     if (!predicates) return null;
@@ -158,6 +211,7 @@ function photoelectricSurfaceScope(question: string): SurfaceScope {
   let restored = false;
   const options = /\boptions?\s*:|\(a\)\s+[^()]{3,}\(b\)/i.exec(question);
   const body = question.slice(0, options?.index ?? question.length);
+  if (ellipticalWorkFunctionOwner(body)) return {multiple:true,restored};
   const suppliedMaterial = /\b\d+(?:\.\d+)?\s*(?:eV|J|Hz|nm)\b|\b(?:unknown|unreadable|undefined)\b/i.test(body);
   for (const cue of body.matchAll(/\b(another|other|second|two|multiple|different|distinct|separate)\b/gi)) {
     // A general comparison between metal classes supplies no second sample.
@@ -228,7 +282,7 @@ function photoelectricSurfaceScope(question: string): SurfaceScope {
     const before = body.slice(0, at);
     const after = body.slice(at + token.length);
     // Lamps and spectral lines provide photons rather than the emitting sample.
-    const photonSource = surfaceArgument(body, at).kind === "source";
+    const photonSource = surfaceArgument(body, at).kind === "source" || radiationSourceArgument(body,at);
     if (photonSource && !targets.has(`element:${element.symbol}`)) continue;
     if (/^lead$/i.test(token) && /\b(?:can|could|may|might|will|would|shall|should|must|to)\s+$/i.test(before)) continue;
     // A bare qualitative comparison does not introduce a second sample/value.
