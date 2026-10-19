@@ -18,7 +18,11 @@ function checkScience(text: string, gold?: Science): void {
   if (gold.kind === "math") { near(evaluateMathExpression(text, gold.x!), gold.value!); return; }
   if (gold.kind === "scalar" || gold.kind === "invalid-scalar") {
     const result = parseChemistryScalar(text, {start:0,end:text.length});
-    if (gold.kind === "invalid-scalar") { assert.equal(result.ok, false); return; }
+    if (gold.kind === "invalid-scalar") {
+      assert.equal(result.ok, false);
+      assert.throws(() => parseMathExpression(text), "malformed source must not become valid ordinary math");
+      return;
+    }
     assert.ok(result.ok); near(result.reading, gold.value!); return;
   }
   if (gold.kind === "quantity") {

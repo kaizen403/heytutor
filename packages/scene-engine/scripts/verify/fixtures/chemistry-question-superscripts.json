@@ -170,7 +170,7 @@
   {
     "id": "double-sign-exponent",
     "input": "10⁻⁻¹⁵",
-    "expected": "10^--15",
+    "expected": "10⁻⁻¹⁵",
     "science": {
       "kind": "invalid-scalar"
     }
@@ -178,7 +178,7 @@
   {
     "id": "trailing-sign-exponent",
     "input": "4.0×10⁻¹⁵⁻",
-    "expected": "4.0*10^-15-",
+    "expected": "4.0*10⁻¹⁵⁻",
     "science": {
       "kind": "invalid-scalar"
     }

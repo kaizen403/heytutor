@@ -13,6 +13,43 @@ const SUPERSCRIPTS: Readonly<Record<string, string>> = {
   "⁺": "+", "⁻": "-", "⁽": "(", "⁾": ")", "ⁿ": "n", "ⁱ": "i",
 };
 
+/** Count only outer operators; a balanced inner group already owns its scope. */
+function superscriptOuterOperators(power: string): number | null {
+  if (power.length > 256) return null;
+  let cursor = 0;
+  function atom(depth: number): boolean {
+    if (power[cursor] === "(") {
+      cursor += 1;
+      if (expression(depth + 1) === null || power[cursor] !== ")") return false;
+      cursor += 1;
+      return true;
+    }
+    const start = cursor;
+    while (/[0-9]/.test(power[cursor] ?? "")) cursor += 1;
+    if (cursor > start) return true;
+    if (power[cursor] === "n" || power[cursor] === "i") {
+      cursor += 1;
+      return true;
+    }
+    return false;
+  }
+  function expression(depth: number): number | null {
+    if (depth > 32) return null;
+    if (power[cursor] === "+" || power[cursor] === "-") cursor += 1;
+    if (!atom(depth)) return null;
+    let operators = 0;
+    while (power[cursor] === "+" || power[cursor] === "-") {
+      cursor += 1;
+      // A second sign is not repaired into an ordinary unary expression.
+      if (!atom(depth)) return null;
+      operators += 1;
+    }
+    return operators;
+  }
+  const operators = expression(0);
+  return cursor === power.length ? operators : null;
+}
+
 export function normalizeTutorQuestion(raw: string): string {
   let text = raw.normalize("NFC").replace(ZERO_WIDTH, "");
   text = text.replace(/\\\(([\s\S]*?)\\\)/g, "$1");
@@ -37,10 +74,13 @@ export function normalizeTutorQuestion(raw: string): string {
   // not acquire a separate caret for each digit or retain half a sign.
   text = text.replace(/\^?[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁽⁾ⁿⁱ]+/g, (run) => {
     const power = [...run.replace(/^\^/, "")].map((glyph) => SUPERSCRIPTS[glyph]).join("");
-    // Preserve the grouping of an unparenthesized superscript expression.
-    // Damaged signs and unknown glyphs stay damaged; no value is inferred.
-    const expression = /^[+-]?(?:\d+|[ni])(?:[+-](?:\d+|[ni]))+$/.test(power);
-    return `^${expression ? `(${power})` : power}`;
+    // Preserve existing charge notation separately from arithmetic validity.
+    if (/^(?:\d*[+-]|\(\d*[+-]\))$/.test(power)) return `^${power}`;
+    const operators = superscriptOuterOperators(power);
+    // Lowering malformed signs can create valid unary arithmetic. Keep the
+    // original run unsupported rather than silently assigning it a value.
+    if (operators === null) return run;
+    return `^${operators > 0 ? `(${power})` : power}`;
   });
   text = text.replace(/\*\*(.+?)\*\*/g, "$1");
   text = text.replace(/\s{2,}/g, " ").trim();
