@@ -388,6 +388,104 @@ function expectRefused(raw: unknown, code: string, label: string): void {
   check(!result.ok, "function_region over a motion_graph whose origin sits at x = 1 must fail closed in the compiler");
 }
 
+/** World points added to a graph document, each with its own point entity. */
+function extraPoints(points: Record<string, [number, number]>) {
+  return {
+    constructions: Object.entries(points).map(([id, [x, y]]) => ({ id: `make_${id}`, operator: "point", inputs: { x, y, coordinateSpace: "world" }, outputs: [id] })),
+    entities: Object.keys(points).map((id) => ({ id, kind: "point" as const, role: `point ${id}` })),
+  };
+}
+
+/** The compiled region's share of its own bounding box, which an affine board mapping keeps. */
+function boxShare(scene: NonNullable<ReturnType<typeof compiled>>, regionId: string): number {
+  const region = scene.primitives.find((primitive) => primitive.entityId === regionId && (primitive.kind === "polygon" || primitive.kind === "rectangle"))?.points ?? [];
+  const xs = region.map((point) => point.x);
+  const ys = region.map((point) => point.y);
+  return shoelace(region) / ((Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys)));
+}
+
+const displacementRole = "area under the v-t graph = displacement";
+{
+  // u is not zero: v rises from 10 to 20 m/s in 4 s. The graph shares only
+  // its end point p1 with the full rectangle 0 to 4 s by 0 to 20 m/s, which
+  // shades 80 m where the displacement is 60 m.
+  const extra = extraPoints({ u0: [0, 10] });
+  const graph = { id: "make_graph", operator: "polyline", inputs: { points: ["u0", "p1"] }, outputs: ["graph"] };
+  const wrong = graphDocument({
+    constructions: [...extra.constructions, graph,
+      { id: "make_area", operator: "polygon", inputs: { points: ["p0", "f1", "p1", "top0"] }, outputs: ["area"] }],
+    entities: [...extra.entities, polylineGraph.entity, { id: "area", kind: "polygon", role: displacementRole }],
+  });
+  expectRefused(wrong, "function_region_requires_deterministic_operator", "u = 10 m/s: the rectangle sharing one vertex with the graph");
+  const right = graphDocument({
+    constructions: [...extra.constructions, graph,
+      { id: "make_area", operator: "polygon", inputs: { points: ["p0", "u0", "p1", "f1"] }, outputs: ["area"] }],
+    entities: [...extra.entities, polylineGraph.entity, { id: "area", kind: "polygon", role: displacementRole }],
+  });
+  check(codes(right).length === 0, `u = 10 m/s: the trapezium under the graph must be accepted, got ${codes(right).join(",")}`);
+  const scene = compiled(right, "u = 10 m/s trapezium");
+  if (scene) check(Math.abs(boxShare(scene, "area") - 60 / 80) < 0.005, `u = 10 m/s: the shaded area must be 60 of its 80 bounding box, got ${(boxShare(scene, "area") * 80).toFixed(2)}`);
+}
+{
+  // A three point graph from u = 10 m/s, and the full 0 to 10 s by 20 m/s
+  // rectangle on corners redeclared under new ids: only its corner (10, 20)
+  // lies on the graph.
+  const extra = extraPoints({ u0: [0, 10], c0: [0, 0], c1: [10, 0], c2: [10, 20], c3: [0, 20] });
+  const graph = { id: "make_graph", operator: "polyline", inputs: { points: ["u0", "p1", "p2"] }, outputs: ["graph"] };
+  const wrong = graphDocument({
+    constructions: [...extra.constructions, graph,
+      { id: "make_area", operator: "polygon", inputs: { points: ["c0", "c1", "c2", "c3"] }, outputs: ["area"] }],
+    entities: [...extra.entities, polylineGraph.entity, { id: "area", kind: "polygon", role: displacementRole }],
+  });
+  expectRefused(wrong, "function_region_requires_deterministic_operator", "three point graph from u = 10 m/s: the rectangle on redeclared corners");
+  const right = graphDocument({
+    constructions: [...extra.constructions, graph,
+      { id: "make_area", operator: "polygon", inputs: { points: ["c0", "u0", "p1", "c2", "c1"] }, outputs: ["area"] }],
+    entities: [...extra.entities, polylineGraph.entity, { id: "area", kind: "polygon", role: displacementRole }],
+  });
+  check(codes(right).length === 0, `three point graph from u = 10 m/s: the region under it must be accepted, got ${codes(right).join(",")}`);
+  const scene = compiled(right, "three point graph from u = 10 m/s");
+  if (scene) check(Math.abs(boxShare(scene, "area") - 180 / 200) < 0.005, `three point graph from u = 10 m/s: the shaded area must be 180 of its 200 bounding box, got ${(boxShare(scene, "area") * 200).toFixed(2)}`);
+}
+{
+  // Coordinate geometry on axes: triangle ABC with the median from A drawn
+  // as a polyline, which is a graph of x. The triangle shares only A with it
+  // and reaches past the median's x span, so it is never claimed as a region
+  // under that graph, with or without a region word in its role.
+  const extra = extraPoints({ a: [1, 1], b: [9, 1], c: [5, 9], m: [7, 5] });
+  for (const role of ["triangle ABC", "shaded region of triangle ABC"]) {
+    const raw = graphDocument({
+      constructions: [...extra.constructions,
+        { id: "make_median", operator: "polyline", inputs: { points: ["a", "m"] }, outputs: ["median"] },
+        { id: "make_triangle", operator: "polygon", inputs: { points: ["a", "b", "c"] }, outputs: ["triangle"] }],
+      entities: [...extra.entities, { id: "median", kind: "polyline", role: "median from A" }, { id: "triangle", kind: "polygon", role }],
+    });
+    check(codes(raw).length === 0, `triangle sharing one vertex with a median (role "${role}") must not be claimed, got ${codes(raw).join(",")}`);
+  }
+}
+{
+  // A motion graph drawn from an origin at (1, 2): its zero velocity line is
+  // y = 2, so the polygon through the graph's own drawn points down to y = 2
+  // is the area under it, and the same shape closed on y = 0 is not.
+  const extra = extraPoints({ graph_origin: [1, 2], o0: [1, 0], o9: [10, 0], g9: [10, 2] });
+  const graph = { id: "make_graph", operator: "motion_graph", inputs: { quantity: "velocity", points: [[0, 0], [4, 20], [9, 20]], origin: "graph_origin", timeScale: 1, ordinateScale: 1 }, outputs: ["graph"] };
+  const drawn = extraPoints({ d1: [5, 22], d2: [10, 22] });
+  const right = graphDocument({
+    constructions: [...extra.constructions, ...drawn.constructions, graph,
+      { id: "make_area", operator: "polygon", inputs: { points: ["graph_origin", "d1", "d2", "g9"] }, outputs: ["area"] }],
+    entities: [...extra.entities, ...drawn.entities, polylineGraph.entity, { id: "area", kind: "polygon", role: displacementRole }],
+  });
+  check(codes(right).length === 0, `motion graph from origin (1, 2): the region down to its own zero line must be accepted, got ${codes(right).join(",")}`);
+  const scene = compiled(right, "motion graph from origin (1, 2)");
+  if (scene) check(Math.abs(boxShare(scene, "area") - 140 / 180) < 0.005, `motion graph from origin (1, 2): the shaded area must be 140 of its 180 bounding box, got ${(boxShare(scene, "area") * 180).toFixed(2)}`);
+  const wrong = graphDocument({
+    constructions: [...extra.constructions, ...drawn.constructions, graph,
+      { id: "make_area", operator: "polygon", inputs: { points: ["o0", "graph_origin", "d1", "d2", "o9"] }, outputs: ["area"] }],
+    entities: [...extra.entities, ...drawn.entities, polylineGraph.entity, { id: "area", kind: "polygon", role: displacementRole }],
+  });
+  expectRefused(wrong, "function_region_requires_deterministic_operator", "motion graph from origin (1, 2): the region closed on y = 0");
+}
+
 if (failures.length > 0) {
   console.error(failures.map((failure) => `FAIL ${failure}`).join("\n"));
   process.exit(1);

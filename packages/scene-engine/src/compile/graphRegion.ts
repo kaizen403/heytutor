@@ -10,7 +10,8 @@
  *
  * `polygonMatchesGraphRegion` proves that a polygon a planner wrote by hand is
  * exactly the set between two boundaries over its own x span. The validator
- * asks it only for a graph and the axis y = 0, with no other graph passing
+ * asks it only for a graph and its baseline (the axis y = 0, or the zero
+ * line a motion graph draws at its origin), with no other graph passing
  * through. A polygon that matches is the deterministic region; anything else,
  * such as the full bounding rectangle of a trapezium, is a guessed shape.
  */

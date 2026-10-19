@@ -5598,9 +5598,14 @@ function validationWorldPoint(
 
 /**
  * Whether a region polygon sits on a graph: the document draws a function
- * curve or a motion graph, or the polygon shares two vertices with a polyline
- * graph on axes, by point id or by two of its vertices lying on the graph.
- * Such a polygon must then be the region under that graph.
+ * curve or a motion graph, or the polygon touches a polyline graph on axes.
+ * It touches the graph when two of its vertices lie on it, or when one does
+ * and the polygon's x span stays inside the graph's domain: the rectangle
+ * under the last point of a graph that starts above zero touches it once.
+ * A vertex lies on the graph by sharing a point id with it or by sitting at
+ * the graph's coordinates under a new id. The caller asks only for a polygon
+ * with a region role, so a triangle that merely shares a corner with a median
+ * is never claimed. Such a polygon must then be the region under that graph.
  */
 function polygonClaimsGraphRegion(
   polygon: SceneDocument["constructions"][number],
@@ -5611,28 +5616,33 @@ function polygonClaimsGraphRegion(
   if (!document.constructions.some((candidate) => candidate.operator === "axes")) return false;
   const ids = polygon.inputs.points ?? polygon.inputs.vertices;
   if (!Array.isArray(ids)) return false;
-  const vertexIds = new Set(ids.filter((id): id is string => typeof id === "string"));
-  const vertices = ids
-    .map((id) => validationWorldPoint(id, document, constructionByOutput))
-    .filter((point): point is GraphPoint => point !== null);
+  const vertices = ids.map((id) => ({ id, point: validationWorldPoint(id, document, constructionByOutput) }));
+  const resolved = vertices.map((vertex) => vertex.point).filter((point): point is GraphPoint => point !== null);
+  const xMin = Math.min(...resolved.map((point) => point.x));
+  const xMax = Math.max(...resolved.map((point) => point.x));
   return document.constructions.some((candidate) => {
     if (candidate.operator !== "polyline") return false;
     const graph = validationGraphBoundary(candidate, document, constructionByOutput);
     if (typeof graph !== "object") return false;
-    const graphIds = candidate.inputs.points ?? candidate.inputs.vertices;
-    if (Array.isArray(graphIds) && graphIds.filter((id) => typeof id === "string" && vertexIds.has(id)).length >= 2) return true;
-    // Points redeclared at the graph's coordinates under new ids.
-    return vertices.filter((vertex) => {
-      const y = graph.evaluate(vertex.x);
-      return Number.isFinite(y) && Math.abs(y - vertex.y) <= Math.max(1, graph.max - graph.min, Math.abs(y)) * 1e-6;
-    }).length >= 2;
+    const graphIds = new Set((candidate.inputs.points ?? candidate.inputs.vertices) as unknown[]);
+    const onGraph = vertices.filter(({ id, point }) => {
+      if (typeof id === "string" && graphIds.has(id)) return true;
+      if (!point) return false;
+      // Points redeclared at the graph's coordinates under new ids.
+      const y = graph.evaluate(point.x);
+      return Number.isFinite(y) && Math.abs(y - point.y) <= Math.max(1, graph.max - graph.min, Math.abs(y)) * 1e-6;
+    }).length;
+    if (onGraph >= 2) return true;
+    const span = Math.max(1e-9, (graph.max - graph.min) * 1e-6);
+    return onGraph === 1 && resolved.length > 0 && xMin >= graph.min - span && xMax <= graph.max + span;
   });
 }
 
 /**
  * Whether a polygon with a region role is exactly the region between one
- * graph of the document and the axis y = 0 (a curve that is identically zero
- * draws that same line) over the polygon's own x span, with no other graph of
+ * graph of the document and its baseline, the axis y = 0 or a motion graph's
+ * own zero line (a curve that is identically zero draws the axis), over the
+ * polygon's own x span, with no other graph of
  * the document passing through it. Such a polygon is built from the graph's
  * own points. A shape between two graphs, or between a guide line and the
  * axis with the real graph running through it, is a guess: the area between
@@ -5647,10 +5657,15 @@ function polygonIsGraphRegion(
   if (!vertices || vertices.length < 3) return false;
   const graphs = document.constructions
     .filter((candidate) => candidate !== polygon && (candidate.operator === "function_curve" || GRAPH_POLYLINE_OPERATORS.has(candidate.operator)))
-    .map((candidate) => ({ operator: candidate.operator, boundary: validationGraphBoundary(candidate, document, constructionByOutput) }))
-    .filter((graph): graph is { operator: string; boundary: GraphBoundary } => typeof graph.boundary === "object");
+    .map((candidate) => ({
+      operator: candidate.operator,
+      boundary: validationGraphBoundary(candidate, document, constructionByOutput),
+      baseline: graphBaseline(candidate, document, constructionByOutput),
+    }))
+    .filter((graph): graph is { operator: string; boundary: GraphBoundary; baseline: GraphBoundary } =>
+      typeof graph.boundary === "object" && graph.baseline !== null);
   // A graph below the axis (a negative velocity) bounds its region from below.
-  return graphs.some(({ operator, boundary }) => {
+  return graphs.some(({ operator, boundary, baseline }) => {
     // A motion graph is a declared quantity against time, never a guide, so
     // the area under it stays that area when a second graph (another car)
     // passes beneath. A polyline or a function curve may be a guide line,
@@ -5658,9 +5673,25 @@ function polygonIsGraphRegion(
     const others = operator === "motion_graph"
       ? []
       : graphs.filter((other) => other.boundary !== boundary).map((other) => other.boundary);
-    return polygonMatchesGraphRegion(vertices, boundary, AXIS_BASELINE, others) ||
-      polygonMatchesGraphRegion(vertices, AXIS_BASELINE, boundary, others);
+    return polygonMatchesGraphRegion(vertices, boundary, baseline, others) ||
+      polygonMatchesGraphRegion(vertices, baseline, boundary, others);
   });
+}
+
+/**
+ * The line a graph's region closes on: the axis y = 0, except for a motion
+ * graph, whose zero value is drawn at its own origin's y. A motion graph whose
+ * origin cannot be read has no baseline here.
+ */
+function graphBaseline(
+  construction: SceneDocument["constructions"][number],
+  document: SceneDocument,
+  constructionByOutput: Map<string, SceneDocument["constructions"][number]>,
+): GraphBoundary | null {
+  if (construction.operator !== "motion_graph" || construction.inputs.origin === undefined) return AXIS_BASELINE;
+  const origin = validationWorldPoint(construction.inputs.origin, document, constructionByOutput);
+  if (!origin) return null;
+  return origin.y === 0 ? AXIS_BASELINE : { ...AXIS_BASELINE, evaluate: () => origin.y };
 }
 
 function validateMensurationConstruction(
