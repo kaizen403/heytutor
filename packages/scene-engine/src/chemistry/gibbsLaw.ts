@@ -8,6 +8,7 @@ import { requestedSourceRoleStarts } from "./sourceRoleRequests";
 import { buildSourceLawGraphFigure } from "./lawGraphFigure";
 import type { LawBinding, SourceLawGraph } from "./sourceLawGraph";
 import type { ChemPlanQuantity } from "./sceneKit";
+import { SourceLawClauses, lawWord, type LawAxisMeaning } from "./sourceLawClauses";
 const delta=String.raw`(?:[Δδ∆]|\bDelta)\s*`;
 const h=new RegExp(`(?:enthalpy\\s+change\\s*)?${delta}H\\b|\\benthalpy(?:\\s+change)?\\b`,"i");
 const s=new RegExp(`(?:entropy\\s+change\\s*)?${delta}S\\b|\\bentropy(?:\\s+change)?\\b`,"i");
@@ -19,6 +20,38 @@ function binding(question:string,reading:ChemistryReading,role:string):LawBindin
   const scalar={start:reading.source.span.start,end:reading.source.span.start+token[0].trimEnd().length};
   const unit=reading.rawUnit?{start:reading.source.span.end-reading.rawUnit.length,end:reading.source.span.end}:undefined;
   return{role,value:reading.value,dimension:reading.dimension,unit:reading.canonicalUnit,scalarSource:src(question,scalar),...(unit?{unitSource:src(question,unit)}:{})};
+}
+/** A Gibbs line owns the whole requested representation as well as every
+ * scalar. Unknown required marks or opposed axes cannot borrow a valid law. */
+function completeGibbsSource(question: string, equation: ChemistrySpan, range: ChemistrySpan, declarations: ChemistrySpan[]): boolean {
+  const clauses = new SourceLawClauses(question);
+  const d = `(?:[Δδ∆]|${lawWord("Delta")})\\s*`;
+  const change = `${d}G\\b`;
+  const temperature = `(?:T\\b|${lawWord("temperature")})`;
+  const energy = `(?:${change}|${lawWord("Gibbs")}\\s+(?:${lawWord("free")}\\s+)?${lawWord("energy")}(?:\\s+${lawWord("change")})?)`;
+  const x: LawAxisMeaning = { symbol: "T", operation: "quantity", syntax: [temperature] };
+  const y: LawAxisMeaning = { symbol: "ΔG", operation: "quantity", syntax: [energy] };
+  const article = `(?:(?:${lawWord("the")}|${lawWord("a")})\\s+)?`;
+  const verbs = ["draw", "plot", "sketch"].map(lawWord).join("|");
+  const object = `(?:(?:${lawWord("line")}|${lawWord("graph")}|${lawWord("plot")})\\s+(?:${lawWord("of")}|${lawWord("for")})\\s+)?`;
+  clauses.consume(`(?:${verbs})\\s+${article}${object}${energy}(?:\\s+(?:${lawWord("against")}|${lawWord("versus")})\\s+${article}${temperature})?`, "graph");
+  if (!clauses.repeatedAxes(x, y)) return false;
+  clauses.bind(equation, "relation"); clauses.bind(range, "domain");
+  for (const declaration of declarations) clauses.bind(declaration, "declaration");
+  const owner = /\b(?:show|use|using)\s+(?:(?:the|a)\s+)?(?:(?:relation|equation)\s*:?\s*)?$/i.exec(question.slice(0, equation.start));
+  if (owner) clauses.bind({ start: owner.index, end: equation.end }, "relation");
+  // Closed physical assumptions/grammar operators; arbitrary contextual prose
+  // remains unowned even when it contains no scalar or drawing verb.
+  clauses.consume(`${lawWord("for")}\\s+${article}(?:(?:${lawWord("chemical-change model")}|${lawWord("reaction")})\\s+${lawWord("at constant pressure")}|${lawWord("constant-pressure")}\\s+(?:${lawWord("reaction")}|${lawWord("model")}))`, "context");
+  clauses.consume(`(?:${lawWord("using")}\\s+)?${lawWord("temperature-independent")}`, "context");
+  clauses.consume(lawWord("independent of temperature"), "context");
+  const mark = ["mark", "show", "label", "find", "determine"].map(lawWord).join("|");
+  const zero = `(?:${lawWord("the")}\\s+)?(?:${lawWord("zero crossing")}|${change}\\s*=\\s*0)`;
+  const signs = `(?:${lawWord("positive and negative")}|${lawWord("negative and positive")})`;
+  const regions = `(?:(?:${lawWord("the")}|${lawWord("both")})\\s+)?(?:${lawWord("regions of")}\\s+${signs}(?:\\s+${change})?|${signs}\\s+(?:${change}\\s+)?${lawWord("regions")}|${lawWord("sign regions")})`;
+  clauses.consume(`(?:${mark})\\s+${zero}(?:\\s+${lawWord("and")}\\s+${regions})?`, "mark");
+  clauses.consume(`(?:${mark})\\s+${regions}`, "mark");
+  return clauses.complete();
 }
 /** Claims a requested affine Gibbs plot with an explicit interval; no topic/ID lookup. */
 export function claimsMeasuredGibbsGraph(question:string):boolean {
@@ -48,7 +81,7 @@ export function buildMeasuredGibbsGraph(question:string,quantities:ChemPlanQuant
     .filter((owner,index,all)=>!all.some((other,k)=>k!==index && other.start<=owner.start&&other.end>=owner.end&&(other.start<owner.start||other.end>owner.end)))
     .sort((a,b)=>a.start-b.start);
   const requested=requestedSourceRoleStarts(body,owners.map(owner=>({start:owner.start,end:owner.end})));
-  const consumed:ChemistryQuantityConsumption[]=[]; const hs:Partial<Record<"H"|"S",ChemistryReading>>={};
+  const consumed:ChemistryQuantityConsumption[]=[]; const declarations:ChemistrySpan[]=[]; const hs:Partial<Record<"H"|"S",ChemistryReading>>={};
   for(const[index,owner]of owners.entries()) {
     const next=owners[index+1];const boundary=/[;!?\n]|\.(?=\s|$)/.exec(body.slice(owner.end,next?.start??body.length));
     const end=boundary?owner.end+boundary.index:next?.start??body.length;
@@ -62,7 +95,8 @@ export function buildMeasuredGibbsGraph(question:string,quantities:ChemPlanQuant
       const read=readChemistryQuantity({question,after:new RegExp(`^(?:${owner.phrase.source})`,"i"),within:{start:owner.start,end},dimension,targetUnit});
       if(read.ok){reading=read.reading;break;}
     }
-    if(!reading)return null;
+    if(!reading || !/^\s*(?:=|is)\s*$/i.test(body.slice(owner.end,reading.source.span.start)))return null;
+    declarations.push({start:owner.start,end:reading.source.span.end});
     const previous=hs[owner.role];if(previous&&(previous.dimension!==reading.dimension||!chemistryCanonicalValuesAgree(previous.value,reading.value)))return null;
     hs[owner.role]=reading;consumed.push({reading,owner:owner.role});
   }
@@ -97,6 +131,7 @@ export function buildMeasuredGibbsGraph(question:string,quantities:ChemPlanQuant
     const start=literal.index!+literal[0].length-literal[0].trimStart().length,end=literal.index!+literal[0].trimEnd().length;
     if(!owned.some(span=>span.start<=start&&span.end>=end))return null;
   }
+  if(!completeGibbsSource(body,equationSpan,range.span,declarations))return null;
   const H=hs.H.value, slope=-hs.S.value/1000;
   const [a,b]=range.domain;const ya=H+slope*a,yb=H+slope*b;
   if(!Number.isFinite(ya)||!Number.isFinite(yb)||slope===0)return null;

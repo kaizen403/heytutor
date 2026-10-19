@@ -200,8 +200,13 @@ function proportional(question: string, inputs: SourceOperands): SourceLawGraph 
     const binding = inputs.bindings.find(value=>value.scalarSource.span.start===spanOf(given,1).start)!;
     inputs.clauses.bind({start:spanOf(given,0).start,end:binding.unitSource!.span.end},"declaration");
   }
-  if (!inputs.syntax(`${word("for")}\\s+(?:${word("a")}\\s+)?${word("hypothetical gas")}\\s+[A-Za-z]+\\s+${word("obeying")}`)
+  // A formal model identifier is one capital symbol with an optional
+  // subscript, not an arbitrary prose word. Its governing clause must attach
+  // to this exact supplied relation; gas and variable subscripts need not match.
+  const subject = one(question,new RegExp(`${word("for")}\\s+(?:${word("a")}\\s+)?${word("hypothetical gas")}\\s+([A-Z](?:_[A-Za-z]+)?)\\s+${word("obeying")}\\s+`));
+  if (!subject || spanOf(subject,0).end!==spanOf(eq,0).start
     || !inputs.syntax(`${word("assume")}\\s+(?:${word("a")}\\s+)?${word("dilute solution")}\\s+${word("and")}\\s+${word("ideal gas")}`)) return null;
+  inputs.statement(subject,"context");
   inputs.request(`${word("mark")}\\s+(?:${word("the")}\\s+)?${word("point for")}\\s+${esc(y)}\\s*=\\s*${scalar}\\s*(?:bar|atm|kPa|Pa)`);
   const model = base(question,"chem_solutions",source(question,spanOf(eq,0)),inputs,
     {symbol:x,label:`${x} / 1`,unit:"1",domain:range,transform:"linear"},
