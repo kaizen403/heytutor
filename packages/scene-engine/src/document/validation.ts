@@ -193,6 +193,12 @@ const SAMPLED_CURVE_OPERATORS = new Set(["function_curve", "parametric_curve", "
  * motion_graph. The compiler proves the x order before reading a value.
  */
 const GRAPH_POLYLINE_OPERATORS = new Set(["polyline", "motion_graph"]);
+/**
+ * A polygon role that names a region. Only the left edge is a word boundary:
+ * `\b` misses "shaded_area", where the underscore is a word character, and a
+ * plural or "shaded" still names the region. "shadow" is an optics part.
+ */
+const GRAPH_REGION_ROLE = /(?:^|[^a-z])(?:region|area|enclosed|shad(?!ow)|displacement)/;
 const CALCULUS_OPERATORS = new Set([
   "parametric_curve", "polar_curve", "implicit_curve", "tangent_line", "normal_line",
   "representative_slice", "solid_of_revolution",
@@ -4502,7 +4508,7 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
       const entity = document.entities.find((candidate) => candidate.id === output);
       const role = `${String(entity?.role ?? "")} ${String(entity?.label ?? "")}`.toLowerCase();
       if (
-        /\b(?:region|area|enclosed)\b/.test(role) &&
+        GRAPH_REGION_ROLE.test(role) &&
         polygonClaimsGraphRegion(construction, document, constructionByOutput) &&
         !polygonIsGraphRegion(construction, document, constructionByOutput)
       ) {
@@ -5593,7 +5599,8 @@ function validationWorldPoint(
 /**
  * Whether a region polygon sits on a graph: the document draws a function
  * curve or a motion graph, or the polygon shares two vertices with a polyline
- * graph on axes. Such a polygon must then be the region under that graph.
+ * graph on axes, by point id or by two of its vertices lying on the graph.
+ * Such a polygon must then be the region under that graph.
  */
 function polygonClaimsGraphRegion(
   polygon: SceneDocument["constructions"][number],
@@ -5605,11 +5612,20 @@ function polygonClaimsGraphRegion(
   const ids = polygon.inputs.points ?? polygon.inputs.vertices;
   if (!Array.isArray(ids)) return false;
   const vertexIds = new Set(ids.filter((id): id is string => typeof id === "string"));
+  const vertices = ids
+    .map((id) => validationWorldPoint(id, document, constructionByOutput))
+    .filter((point): point is GraphPoint => point !== null);
   return document.constructions.some((candidate) => {
     if (candidate.operator !== "polyline") return false;
+    const graph = validationGraphBoundary(candidate, document, constructionByOutput);
+    if (typeof graph !== "object") return false;
     const graphIds = candidate.inputs.points ?? candidate.inputs.vertices;
-    if (!Array.isArray(graphIds) || graphIds.filter((id) => typeof id === "string" && vertexIds.has(id)).length < 2) return false;
-    return typeof validationGraphBoundary(candidate, document, constructionByOutput) === "object";
+    if (Array.isArray(graphIds) && graphIds.filter((id) => typeof id === "string" && vertexIds.has(id)).length >= 2) return true;
+    // Points redeclared at the graph's coordinates under new ids.
+    return vertices.filter((vertex) => {
+      const y = graph.evaluate(vertex.x);
+      return Number.isFinite(y) && Math.abs(y - vertex.y) <= Math.max(1, graph.max - graph.min, Math.abs(y)) * 1e-6;
+    }).length >= 2;
   });
 }
 
@@ -5631,13 +5647,19 @@ function polygonIsGraphRegion(
   if (!vertices || vertices.length < 3) return false;
   const graphs = document.constructions
     .filter((candidate) => candidate !== polygon && (candidate.operator === "function_curve" || GRAPH_POLYLINE_OPERATORS.has(candidate.operator)))
-    .map((candidate) => validationGraphBoundary(candidate, document, constructionByOutput))
-    .filter((graph): graph is GraphBoundary => typeof graph === "object");
+    .map((candidate) => ({ operator: candidate.operator, boundary: validationGraphBoundary(candidate, document, constructionByOutput) }))
+    .filter((graph): graph is { operator: string; boundary: GraphBoundary } => typeof graph.boundary === "object");
   // A graph below the axis (a negative velocity) bounds its region from below.
-  return graphs.some((graph) => {
-    const others = graphs.filter((other) => other !== graph);
-    return polygonMatchesGraphRegion(vertices, graph, AXIS_BASELINE, others) ||
-      polygonMatchesGraphRegion(vertices, AXIS_BASELINE, graph, others);
+  return graphs.some(({ operator, boundary }) => {
+    // A motion graph is a declared quantity against time, never a guide, so
+    // the area under it stays that area when a second graph (another car)
+    // passes beneath. A polyline or a function curve may be a guide line,
+    // so the region under it must be one cell no other graph cuts.
+    const others = operator === "motion_graph"
+      ? []
+      : graphs.filter((other) => other.boundary !== boundary).map((other) => other.boundary);
+    return polygonMatchesGraphRegion(vertices, boundary, AXIS_BASELINE, others) ||
+      polygonMatchesGraphRegion(vertices, AXIS_BASELINE, boundary, others);
   });
 }
 

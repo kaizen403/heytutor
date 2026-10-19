@@ -310,6 +310,53 @@ function expectRefused(raw: unknown, code: string, label: string): void {
   expectRefused(raw, "function_region_requires_deterministic_operator", "the full rectangle under a constant curve y = 20 that the graph crosses");
 }
 {
+  // Two cars on one v against t graph: car A speeds up from 0 to 20 m/s in
+  // 4 s then holds 20 m/s, car B holds 10 m/s. B passes under A's region, but
+  // a motion graph is a declared quantity, never a guide, so the polygon that
+  // is exactly the area under A is still that area.
+  const raw = graphDocument({
+    constructions: [
+      { id: "make_car_a", operator: "motion_graph", inputs: { quantity: "velocity", points: [[0, 0], [4, 20], [10, 20]], timeScale: 1, ordinateScale: 1 }, outputs: ["car_a"] },
+      { id: "make_car_b", operator: "motion_graph", inputs: { quantity: "velocity", points: [[0, 10], [10, 10]], timeScale: 1, ordinateScale: 1 }, outputs: ["car_b"] },
+      { id: "make_area", operator: "polygon", inputs: { points: ["p0", "p1", "p2", "f2"] }, outputs: ["area"] }],
+    entities: [{ id: "car_a", kind: "polyline", role: "velocity of car A against time" },
+      { id: "car_b", kind: "polyline", role: "velocity of car B against time" },
+      { id: "area", kind: "polygon", role: "area under car A's v against t graph" }],
+  });
+  check(codes(raw).length === 0, `two cars: the polygon exactly under car A must be accepted, got ${codes(raw).join(",")}`);
+  const scene = compiled(raw, "two cars, area under car A");
+  if (scene) expectRegionUnderGraph(scene, "two cars", "car_a", "area");
+}
+{
+  // The full bounding rectangle, with a role whose region word is joined by
+  // an underscore ("shaded_area") or names the quantity instead
+  // ("displacement under the graph"), is still not the area under the graph.
+  for (const role of ["shaded_area", "displacement under the graph"]) {
+    const raw = graphDocument({
+      constructions: [polylineGraph.construction,
+        { id: "make_area", operator: "polygon", inputs: { points: ["p0", "f2", "p2", "top0"] }, outputs: ["area"] }],
+      entities: [polylineGraph.entity, { id: "area", kind: "polygon", role }],
+    });
+    expectRefused(raw, "function_region_requires_deterministic_operator", `the bounding rectangle with role "${role}"`);
+  }
+}
+{
+  // The same rectangle on corners redeclared under new ids, so it shares no
+  // point id with the polyline graph; two of its corners lie on the graph.
+  const raw = graphDocument({
+    constructions: [polylineGraph.construction,
+      { id: "make_c0", operator: "point", inputs: { x: 0, y: 0, coordinateSpace: "world" }, outputs: ["c0"] },
+      { id: "make_c1", operator: "point", inputs: { x: 10, y: 0, coordinateSpace: "world" }, outputs: ["c1"] },
+      { id: "make_c2", operator: "point", inputs: { x: 10, y: 20, coordinateSpace: "world" }, outputs: ["c2"] },
+      { id: "make_c3", operator: "point", inputs: { x: 0, y: 20, coordinateSpace: "world" }, outputs: ["c3"] },
+      { id: "make_area", operator: "polygon", inputs: { points: ["c0", "c1", "c2", "c3"] }, outputs: ["area"] }],
+    entities: [polylineGraph.entity,
+      ...["c0", "c1", "c2", "c3"].map((id) => ({ id, kind: "point" as const, role: `corner ${id}` })),
+      { id: "area", kind: "polygon", role: "area under the v against t graph" }],
+  });
+  expectRefused(raw, "function_region_requires_deterministic_operator", "the bounding rectangle on redeclared corners");
+}
+{
   // A motion graph drawn at 0.4 board units per second: a zero curve written
   // in seconds (0 to 4 s) is compared in board units, so the "0 to 4 s"
   // region would span the whole 10 s graph.
