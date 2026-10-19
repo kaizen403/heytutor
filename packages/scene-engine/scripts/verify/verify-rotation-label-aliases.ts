@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { evaluateRotationConstruction, rotationGeometryLabel, validateEvaluatedRotationLabels, type RotationEvaluationContext } from "../../src/compile/rotationGeometry";
 import type { SceneDocument, SceneIssue } from "../../src/types";
+import { compileSceneDocument, pruneDeadSceneEntities, validateSceneDocument } from "../../src/index";
 
 let checks = 0;
 const context: RotationEvaluationContext = { number: Number, point() { throw Error("foreign coordinates"); }, geometry() { throw Error("foreign geometry"); } };
@@ -42,4 +43,11 @@ const rounded = torque(1 / 3);
 equal(rounded, "τ=0.6667 N*m", "tau=0.6667 N*m");
 reject(rounded, "τ=0.6668 N*m");
 reject(torque(1e-100), "τ=0 N*m");
+const endToEnd: SceneDocument = { schemaVersion: "scene-document/v2", visualDecision: { mode: "scene", reason: "Synthetic source-derived planar torque" }, source: {}, quantities: [], entities: [{ id: "tau", kind: "polyline", role: "signed torque", label: "τ_z=6 N*m" }], constructions: [{ id: "torque", operator: "planar_torque", inputs: { leverArm: [2, 0], force: [0, 3], lengthUnit: "m", forceUnit: "N", displayLength: 2 }, outputs: ["tau"] }], relations: [], assertions: [], annotations: [], requiredEntityIds: ["tau"], revealGroups: [{ id: "all", entityIds: ["tau"] }], teachingTimeline: [] };
+const valid = validateSceneDocument(pruneDeadSceneEntities(structuredClone(endToEnd) as unknown as Record<string, unknown>));
+assert.ok(valid.document, JSON.stringify(valid.report.issues)); checks++;
+const compiled = compileSceneDocument(valid.document);
+assert.ok(compiled.ok && compiled.renderScene?.primitives.some(p => p.kind === "label" && p.text === "tau=6 N*m"), JSON.stringify(compiled.report.issues)); checks++;
+const wrong = structuredClone(endToEnd); wrong.entities[0]!.label = "τ_z=-6 N*m";
+assert.equal(validateSceneDocument(pruneDeadSceneEntities(wrong as unknown as Record<string, unknown>)).document, null, "the complete admission boundary still rejects an aliased wrong sign"); checks++;
 console.log(`Rotation label aliases: ${checks} checks passed.`);
