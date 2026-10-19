@@ -20,6 +20,7 @@ import {
   FAST_MODE_TEACHING_ADDON,
   TUTOR_CONTINUATION_PROMPT,
   TUTOR_SYSTEM_PROMPT,
+  TEACHING_STATEMENT_TRUTH_ADDON,
   buildGivenValueSegments,
   buildDsaOpeningSegments,
   buildLessonOpeningSegment,
@@ -173,7 +174,7 @@ function turnPlanPromptAddons(
         // g, c and h are quoted, not invented. Asking the tutor to say
         // "suppose the speed of light is three times ten to the eight" would
         // be worse than the fabricated givens this rule exists to catch.
-        if (isQuotedPhysicalConstant(symbol, value)) return [];
+        if (isQuotedPhysicalConstant(symbol.normalize("NFKC"), value)) return [];
         return [symbol];
       }),
     ),
@@ -200,8 +201,8 @@ ${JSON.stringify({
   assumptions,
 })}${assumptions.length > 0 ? `
 PROBLEM CONDITIONS
-The assumptions listed above are modelling conditions, not extra givens. Read the user's exact question to distinguish stated conditions from unstated assumptions; neither the drawing nor a qualitative claim establishes an unstated condition.
-Before the first calculation that depends on an unstated assumption, explicitly say "assuming" and explain the condition. Say which requested result is not uniquely determined without it.
+The assumptions listed above are proposed modelling conditions, not established facts, extra givens or automatic prerequisites. Check each against the exact question and the applicable law. Keep conditions actually stated by the question as facts; neither a drawing nor a qualitative claim establishes an unstated condition. Do not impose an incidental process assumption on an end result already fixed by the givens.
+Before the first calculation that genuinely depends on a needed unstated assumption, explicitly say "assuming" and explain the condition. Say which requested result is not uniquely determined without that necessary condition; do not invent a dependency just because the plan listed it.
 When giving that dependent answer, say "under that assumption" in the SAME STEP as its numeric value. The answer's [WRITE] row must carry a compact condition too, or follow a row stating it, so the student's saved notes remain conditional. This applies even when some other quantity in the plan is solver-verified. Do not silently drop the condition at the final answer.` : ""}${assumedSymbols.length > 0
   ? `
 NOT STATED BY THE QUESTION: ${assumedSymbols.join(", ")}. The question never supplies these; they are illustrative values chosen so the idea can be worked through.
@@ -476,7 +477,7 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
     givenSegments: [],
     lessonBudget: DOUBT_LESSON_BUDGET,
     systemPrompt: `${TUTOR_SYSTEM_PROMPT}\n\n--- current lesson (runtime) ---\n${runtimeAddon}`,
-    continuationPrompt: `${DOUBT_CONTINUATION_PROMPT}\n\n--- this lesson ---\n${runtimeAddon}`,
+    continuationPrompt: `${DOUBT_CONTINUATION_PROMPT}${codeBoard ? "" : `\n\n${TEACHING_STATEMENT_TRUTH_ADDON}`}\n\n--- this lesson ---\n${runtimeAddon}`,
   };
 }
 
@@ -702,7 +703,7 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
       ? resolveLessonBudget(lessonQuestion, input.familiarity)
       : DOUBT_LESSON_BUDGET,
     systemPrompt: `${basePrompt}\n\n--- current lesson (runtime) ---\n${runtimeAddon}`,
-    continuationPrompt: `${afterStop ? RESUME_AFTER_STOP_CONTINUATION_PROMPT : RESUME_CONTINUATION_PROMPT}\n\n--- this lesson ---\n${runtimeAddon}`,
+    continuationPrompt: `${afterStop ? RESUME_AFTER_STOP_CONTINUATION_PROMPT : RESUME_CONTINUATION_PROMPT}${codeBoard ? "" : `\n\n${TEACHING_STATEMENT_TRUTH_ADDON}`}\n\n--- this lesson ---\n${runtimeAddon}`,
   };
 }
 
