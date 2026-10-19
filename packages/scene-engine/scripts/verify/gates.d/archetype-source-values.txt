@@ -1,1 +1,1 @@
-pnpm verify:archetype-source-values
+tsx scripts/verify/verify-archetype-source-values.ts

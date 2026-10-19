@@ -370,45 +370,55 @@ function doubleSlit(context: GeneratorContext) {
   return scene.build();
 }
 
+/** Photon energy in eV for a wavelength in nm. Switch to #181's shared
+ * converter (photonEnergyEvFromWavelengthMetres) once it is on main. */
+function photonFromLambda(lambdaNm: number): number {
+  return 1240 / lambdaNm;
+}
+
 function photoelectric(context: GeneratorContext) {
   const phi = maybeNum(context, "workFunction");
   const lambda = maybeNum(context, "lambda");
   const photon = maybeNum(context, "photonEnergy") ?? (lambda !== null ? 1240 / lambda : null);
+  const phiValue = phi ?? 2;
+  // #181 owns the shared photon conversion and surface guards above; this
+  // reader only decides which energies the question states.
   const phiGiven = phi !== null && grounded(context, "workFunction");
   const directPhoton = maybeNum(context, "photonEnergy");
-  const conflictingPhoton = context.slots.photonEnergyUnresolved === "conflicting" || directPhoton !== null && lambda !== null
+  const lambdaPhoton = lambda !== null ? photonFromLambda(lambda) : null;
+  const conflictingPhoton = context.slots.photonEnergyUnresolved === "conflicting" || directPhoton !== null && lambdaPhoton !== null
     && grounded(context, "photonEnergy") && grounded(context, "lambda")
-    && Math.abs(directPhoton - 1240 / lambda) > 1e-6 * Math.max(1, Math.abs(directPhoton), Math.abs(1240 / lambda));
+    && Math.abs(directPhoton - lambdaPhoton) > 1e-6 * Math.max(1, Math.abs(directPhoton), Math.abs(lambdaPhoton));
   const photonGiven = !conflictingPhoton && ((directPhoton !== null && grounded(context, "photonEnergy")) || (lambda !== null && grounded(context, "lambda")));
   // Unknown work function is a schematic level below the incident energy,
   // never an assumed physical threshold that can veto a sourced photon.
-  const phiValue = phiGiven ? phi : photonGiven ? photon! * 2 / 3 : 2;
-  const photonValue = photonGiven ? photon! : Math.max(phiValue * 1.5, phiValue + 1);
-  if (phiGiven && photonGiven && photonValue <= phiValue) return null;
-  const kMax = photonValue - phiValue;
+  const phiLevel = phiGiven ? phiValue : photonGiven ? photon! * 2 / 3 : phiValue;
+  const photonValue = photonGiven ? photon! : Math.max(phiLevel * 1.5, phiLevel + 1);
+  if (phiGiven && photonGiven && photonValue <= phiLevel) return null;
+  const kMax = photonValue - phiLevel;
   const scene = new SceneBuilder(context.question, "photoelectric energy balance: photon energy, work function and maximum kinetic energy", "photoelectric");
   if (phi !== null && grounded(context, "workFunction")) scene.quantity("phi", "phi", phi, "eV");
   if (photonGiven) scene.quantity("E", "E", photonValue, "eV");
   scene.axes("axes", -0.5, 4, -0.2 * photonValue, 1.25 * photonValue, "energy axis", "E (eV)");
   scene.point("zero", { x: 0, y: 0 }, "zero of energy");
-  scene.point("phi_top", { x: 0, y: phiValue }, "work function mark", phiGiven ? `φ=${fmt(phiValue)} eV` : "φ");
+  scene.point("phi_top", { x: 0, y: phiLevel }, "work function mark", phiGiven ? `φ=${fmt(phiLevel)} eV` : "φ");
   scene.point("E_top", { x: 0, y: photonValue }, "photon energy mark", photonGiven ? `hν=${fmt(photonValue)} eV` : "hν");
-  scene.point("phi_bar_end", { x: 3, y: phiValue }, "work function line end");
+  scene.point("phi_bar_end", { x: 3, y: phiLevel }, "work function line end");
   scene.segment("phi_level", "phi_top", "phi_bar_end", "work function line");
   scene.point("E_bar_end", { x: 3, y: photonValue }, "photon energy line end");
   scene.segment("E_level", "E_top", "E_bar_end", "photon energy line");
   scene.point("photon_base", { x: 1, y: 0 }, "photon arrow base");
   scene.point("photon_tip", { x: 1, y: photonValue }, "photon arrow tip");
   scene.vector("photon", "photon_base", { end: "photon_tip" }, "photon energy", "hν");
-  scene.point("k_base", { x: 2.2, y: phiValue }, "kinetic energy base");
+  scene.point("k_base", { x: 2.2, y: phiLevel }, "kinetic energy base");
   scene.point("k_tip", { x: 2.2, y: photonValue }, "kinetic energy tip");
   scene.vector("kinetic", "k_base", { end: "k_tip" }, "maximum kinetic energy", phiGiven && photonGiven ? `K=${fmt(kMax)} eV` : "K");
   scene.point("w_base", { x: 2.2, y: 0 }, "work function base");
-  scene.point("w_tip", { x: 2.2, y: phiValue }, "work function tip");
+  scene.point("w_tip", { x: 2.2, y: phiLevel }, "work function tip");
   scene.vector("work", "w_base", { end: "w_tip" }, "work function", "φ");
   scene.assert("levels_parallel", "parallel", ["phi_level", "E_level"]);
   if (phiGiven && photonGiven) {
-    scene.assert("energy_ratio", "distance_ratio", ["w_base", "w_tip", "photon_base", "photon_tip"], Number((phiValue / photonValue).toFixed(6)));
+    scene.assert("energy_ratio", "distance_ratio", ["w_base", "w_tip", "photon_base", "photon_tip"], Number((phiLevel / photonValue).toFixed(6)));
   }
   scene.labelled("phi_top", "E_top");
   return scene.build();
