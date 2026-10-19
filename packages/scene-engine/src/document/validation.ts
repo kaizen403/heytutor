@@ -5423,6 +5423,16 @@ function validateFunctionRegionConstruction(
     });
     return;
   }
+  if ([upper!, lower!].some((candidate) => motionGraphPlacement(candidate, document, constructionByOutput) === "scaled")) {
+    issues.push({
+      code: "invalid_function_region_reference",
+      message: "a motion_graph bounds a function_region only at timeScale 1 with its origin at (0, 0): the other boundary and xMin/xMax are written in seconds, while the graph is drawn at origin + t * timeScale",
+      severity: "fatal",
+      path: `constructions[${index}].inputs`,
+      entityIds: [upperId, lowerId].filter((id): id is string => typeof id === "string"),
+    });
+    return;
+  }
   const upperGraph = validationGraphBoundary(upper!, document, constructionByOutput);
   const lowerGraph = validationGraphBoundary(lower!, document, constructionByOutput);
   if (upperGraph === "invalid" || lowerGraph === "invalid") {
@@ -5506,6 +5516,26 @@ function validationGraphBoundary(
   return piecewiseLinearGraph(points) ?? "invalid";
 }
 
+/**
+ * Where a motion graph sits on the board. Its samples are drawn at
+ * origin + t * timeScale, so only timeScale 1 with the origin at (0, 0) keeps
+ * its x in the seconds a region's other boundary and xMin/xMax are written
+ * in. `unresolved` leaves the decision to the compiler, which checks the same.
+ */
+function motionGraphPlacement(
+  construction: SceneDocument["constructions"][number],
+  document: SceneDocument,
+  constructionByOutput: Map<string, SceneDocument["constructions"][number]>,
+): "identity" | "scaled" | "unresolved" | "none" {
+  if (construction.operator !== "motion_graph") return "none";
+  const timeScale = validationNumber(construction.inputs.timeScale, document);
+  const origin = construction.inputs.origin === undefined
+    ? { x: 0, y: 0 }
+    : validationWorldPoint(construction.inputs.origin, document, constructionByOutput);
+  if (timeScale === null || !origin) return "unresolved";
+  return timeScale === 1 && origin.x === 0 && origin.y === 0 ? "identity" : "scaled";
+}
+
 function validationGraphVertices(
   construction: SceneDocument["constructions"][number],
   document: SceneDocument,
@@ -5584,10 +5614,13 @@ function polygonClaimsGraphRegion(
 }
 
 /**
- * Whether a polygon with a region role is exactly the region between two
- * graphs of the document, or between one graph and the axis y = 0, over the
- * polygon's own x span. Such a polygon is built from the graph's own points;
- * any other shape bounded by a graph is a guess.
+ * Whether a polygon with a region role is exactly the region between one
+ * graph of the document and the axis y = 0 (a curve that is identically zero
+ * draws that same line) over the polygon's own x span, with no other graph of
+ * the document passing through it. Such a polygon is built from the graph's
+ * own points. A shape between two graphs, or between a guide line and the
+ * axis with the real graph running through it, is a guess: the area between
+ * curves must use function_region.
  */
 function polygonIsGraphRegion(
   polygon: SceneDocument["constructions"][number],
@@ -5600,8 +5633,12 @@ function polygonIsGraphRegion(
     .filter((candidate) => candidate !== polygon && (candidate.operator === "function_curve" || GRAPH_POLYLINE_OPERATORS.has(candidate.operator)))
     .map((candidate) => validationGraphBoundary(candidate, document, constructionByOutput))
     .filter((graph): graph is GraphBoundary => typeof graph === "object");
-  return graphs.some((upper) =>
-    [AXIS_BASELINE, ...graphs].some((lower) => lower !== upper && polygonMatchesGraphRegion(vertices, upper, lower)));
+  // A graph below the axis (a negative velocity) bounds its region from below.
+  return graphs.some((graph) => {
+    const others = graphs.filter((other) => other !== graph);
+    return polygonMatchesGraphRegion(vertices, graph, AXIS_BASELINE, others) ||
+      polygonMatchesGraphRegion(vertices, AXIS_BASELINE, graph, others);
+  });
 }
 
 function validateMensurationConstruction(

@@ -279,6 +279,68 @@ for (const withZero of [false, true]) {
     "a chord polygon under a curved function graph must still be refused");
 }
 
+/** A document the validator must refuse, and that must not compile either. */
+function expectRefused(raw: unknown, code: string, label: string): void {
+  check(codes(raw).includes(code), `${label}: expected ${code}, got ${codes(raw).join(",") || "no fatal issue"}`);
+  const result = compileSceneDocument(raw as SceneDocument);
+  check(!result.ok, `${label}: must not compile`);
+}
+{
+  // The triangle ABOVE the rising line, between the graph and a horizontal
+  // guide at 20 m/s, is not the area under the graph.
+  const raw = graphDocument({
+    constructions: [polylineGraph.construction, zeroCurve.construction,
+      { id: "make_guide", operator: "polyline", inputs: { points: ["top0", "p1"] }, outputs: ["guide"] },
+      { id: "make_area", operator: "polygon", inputs: { points: ["p0", "p1", "top0"] }, outputs: ["area"] }],
+    entities: [polylineGraph.entity, zeroCurve.entity, { id: "guide", kind: "polyline", role: "guide line at 20 m/s" },
+      { id: "area", kind: "polygon", role: "shaded area under the v against t graph" }],
+  });
+  expectRefused(raw, "function_region_requires_deterministic_operator", "the triangle between the graph and a guide polyline above it");
+}
+{
+  // Under a constant curve y = 20 the full rectangle is a region, but the
+  // v against t graph runs through it, so it is not the area under that graph.
+  const raw = graphDocument({
+    constructions: [polylineGraph.construction, zeroCurve.construction,
+      { id: "make_top", operator: "function_curve", inputs: { expression: "20", variable: "x", xMin: 0, xMax: 10, samples: 17 }, outputs: ["top"] },
+      { id: "make_area", operator: "polygon", inputs: { points: ["p0", "f2", "p2", "top0"] }, outputs: ["area"] }],
+    entities: [polylineGraph.entity, zeroCurve.entity, { id: "top", kind: "polyline", role: "line v = 20 m/s" },
+      { id: "area", kind: "polygon", role: "shaded area under the v against t graph" }],
+  });
+  expectRefused(raw, "function_region_requires_deterministic_operator", "the full rectangle under a constant curve y = 20 that the graph crosses");
+}
+{
+  // A motion graph drawn at 0.4 board units per second: a zero curve written
+  // in seconds (0 to 4 s) is compared in board units, so the "0 to 4 s"
+  // region would span the whole 10 s graph.
+  const raw = graphDocument({
+    constructions: [
+      { id: "make_graph", operator: "motion_graph", inputs: { quantity: "velocity", points: [[0, 0], [4, 20], [10, 20]], timeScale: 0.4, ordinateScale: 1 }, outputs: ["graph"] },
+      { id: "make_zero", operator: "function_curve", inputs: { expression: "0", variable: "x", xMin: 0, xMax: 4, samples: 17 }, outputs: ["zero"] },
+      { id: "make_area", operator: "function_region", inputs: { upper: "graph", lower: "zero" }, outputs: ["area"] },
+    ],
+    entities: [polylineGraph.entity, zeroCurve.entity, { id: "area", kind: "polygon", role: "area under the v against t graph from 0 to 4 s" }],
+  });
+  expectRefused(raw, "invalid_function_region_reference", "function_region over a motion_graph with timeScale 0.4");
+}
+{
+  // The same mismatch behind a layout space origin, which the validator
+  // cannot read as world coordinates: the compiler must fail closed itself.
+  const raw = graphDocument({
+    constructions: [
+      { id: "make_origin", operator: "point", inputs: { x: 1, y: 0, coordinateSpace: "layout" }, outputs: ["graph_origin"] },
+      { id: "make_graph", operator: "motion_graph", inputs: { quantity: "velocity", points: [[0, 0], [4, 20], [9, 20]], origin: "graph_origin", timeScale: 1, ordinateScale: 1 }, outputs: ["graph"] },
+      zeroCurve.construction,
+      { id: "make_area", operator: "function_region", inputs: { upper: "graph", lower: "zero", xMin: 1, xMax: 5 }, outputs: ["area"] },
+    ],
+    entities: [{ id: "graph_origin", kind: "point", role: "graph origin" },
+      polylineGraph.entity, zeroCurve.entity, { id: "area", kind: "polygon", role: "area under the v against t graph from 0 to 4 s" }],
+  });
+  check(codes(raw).length === 0, `layout space motion graph origin: the validator leaves it to the compiler, got ${codes(raw).join(",")}`);
+  const result = compileSceneDocument(raw as SceneDocument);
+  check(!result.ok, "function_region over a motion_graph whose origin sits at x = 1 must fail closed in the compiler");
+}
+
 if (failures.length > 0) {
   console.error(failures.map((failure) => `FAIL ${failure}`).join("\n"));
   process.exit(1);

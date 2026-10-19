@@ -1796,7 +1796,7 @@ function evaluateConstruction(
     case "polygon":
     case "polyline": return [{ kind: "path", closed: operator === "polygon", points: resolvePointArray(first(inputs, ["points", "vertices"]), geometry) }];
     case "axes": return [{ kind: "axes", xMin: number(["xMin", "x_min"]), xMax: number(["xMax", "x_max"]), yMin: number(["yMin", "y_min"]), yMax: number(["yMax", "y_max"]) }];
-    case "function_region": return [{ kind: "path", closed: true, points: functionRegionPoints(inputs, geometry, quantities) }];
+    case "function_region": return [{ kind: "path", closed: true, points: functionRegionPoints(inputs, geometry, quantities, document) }];
     case "constraint_region": return [{ kind: "path", closed: true, points: constraintRegionPoints(inputs, quantities) }];
     case "implicit_curve": return [implicitCurveGeometry(inputs, quantities)];
     case "parametric_curve": return [parametricCurveGeometry(inputs, quantities)];
@@ -4778,10 +4778,23 @@ function functionRegionPoints(
   inputs: Record<string, unknown>,
   geometry: Map<string, Geometry>,
   quantities: Map<string, Record<string, unknown>>,
+  document: SceneDocument,
 ): Point[] {
   const upperId = first(inputs, ["upper", "top", "above"]);
   const lowerId = first(inputs, ["lower", "bottom", "below"]);
   if (typeof upperId !== "string" || typeof lowerId !== "string") throw new Error("function_region requires upper and lower curve IDs");
+  // A motion graph is drawn at origin + t * timeScale, while the other
+  // boundary and xMin/xMax are written in seconds. Only the identity
+  // placement keeps the two in the same units.
+  for (const id of [upperId, lowerId]) {
+    const producer = document.constructions.find((construction) => construction.outputs.includes(id));
+    if (producer?.operator !== "motion_graph") continue;
+    const timeScale = resolveNumber(producer.inputs.timeScale, quantities);
+    const origin = producer.inputs.origin === undefined ? { x: 0, y: 0 } : resolvePoint(producer.inputs.origin, geometry);
+    if (timeScale !== 1 || origin.x !== 0 || origin.y !== 0) {
+      throw new Error("function_region over a motion_graph requires timeScale 1 and its origin at (0, 0)");
+    }
+  }
   const upper = graphBoundaryReference(upperId, geometry, "function_region upper");
   const lower = graphBoundaryReference(lowerId, geometry, "function_region lower");
   const xMin = inputs.xMin === undefined

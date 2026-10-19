@@ -9,9 +9,10 @@
  * uniform sample grid.
  *
  * `polygonMatchesGraphRegion` proves that a polygon a planner wrote by hand is
- * exactly the set between two graphs (or a graph and the axis y = 0) over its
- * own x span. A polygon that matches is the deterministic region; anything
- * else, such as the full bounding rectangle of a trapezium, is a guessed shape.
+ * exactly the set between two boundaries over its own x span. The validator
+ * asks it only for a graph and the axis y = 0, with no other graph passing
+ * through. A polygon that matches is the deterministic region; anything else,
+ * such as the full bounding rectangle of a trapezium, is a guessed shape.
  */
 
 export interface GraphPoint {
@@ -100,12 +101,16 @@ export function regionGrid(
 /**
  * True when `polygon` is exactly the set between `lower` and `upper` over the
  * polygon's own x span: every vertical line through the interior crosses the
- * polygon boundary twice, at lower(x) and upper(x).
+ * polygon boundary twice, at lower(x) and upper(x). When `others` is given,
+ * none of those graphs may pass strictly between the two boundaries at any
+ * probe, so the polygon is one cell of the figure and not a band that another
+ * graph cuts through.
  */
 export function polygonMatchesGraphRegion(
   polygon: readonly GraphPoint[],
   upper: GraphBoundary,
   lower: GraphBoundary,
+  others: readonly GraphBoundary[] = [],
 ): boolean {
   if (polygon.length < 3) return false;
   const xs = polygon.map((point) => point.x);
@@ -136,6 +141,11 @@ export function polygonMatchesGraphRegion(
     const bottom = lower.evaluate(x);
     if (!Number.isFinite(top) || !Number.isFinite(bottom) || top + yTolerance < bottom) return false;
     if (Math.abs(crossings[0]! - bottom) > yTolerance || Math.abs(crossings[1]! - top) > yTolerance) return false;
+    for (const other of others) {
+      if (x < other.min - span || x > other.max + span) continue;
+      const y = other.evaluate(x);
+      if (Number.isFinite(y) && y > bottom + yTolerance && y < top - yTolerance) return false;
+    }
   }
   return true;
 }
