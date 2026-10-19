@@ -181,6 +181,35 @@ for(const count of [1,2]) {
   assert.ok(result.renderScene!.primitives.filter(p=>p.entityId.endsWith('Wire')).every(p=>p.points.length===2),'Offset dimensions keep the bridge wires straight');
   assert.ok(result.renderScene!.primitives.filter(p=>p.provenance?.measurementRole==='witness').every(p=>p.provenance?.dashed===true),'Nonconductive measurement witnesses retain their dashed rendering');checks+=3;
 }
+// Relocating a measurement bar must not feed its pixel offset back into
+// symmetric figure padding. A straight wire and the same explicit line have
+// identical apparatus geometry; routing cannot shrink all of its symbols.
+for (const scale of [0.8, 1, 1.5]) {
+const measured=scene({a:[0,0],j:[3,0],b:[8,0],r:[8,-3],s:[3,-3],u:[1,3],v:[1,5],w:[4,4]},
+  [['leftLoad','resistor','a','j'],['rightLoad','resistor','j','b'],['lowerLoad','resistor','r','s'],['source','battery','s','a'],['cellLow','battery','a','u'],['cellHigh','battery','a','v'],['selectorLow','switch','u','w'],['selectorHigh','switch','v','w'],['meter','galvanometer','w','j']],
+  [['lead','b','r']]);
+measured.entities.find(e=>e.id==='leftLoad')!.label='R';
+measured.entities.push({id:'span',kind:'dimension',role:'measured span',label:'length'});
+measured.constructions.push({id:'spanMake',operator:'dimension',inputs:{start:'a',end:'j'},outputs:['span']});
+measured.requiredEntityIds.push('span');measured.revealGroups[0]!.entityIds.push('span');
+const control=structuredClone(measured);control.constructions.find(c=>c.id==='make_lead')!.operator='line';
+
+for (const doc of [measured, control]) for (const c of doc.constructions) if (c.operator === 'point') {
+  c.inputs.x = Number(c.inputs.x) * scale;
+  c.inputs.y = Number(c.inputs.y) * scale;
+}
+const routed = compileSceneDocument(measured), fixed = compileSceneDocument(control);
+assert.ok(routed.ok && routed.renderScene, JSON.stringify(routed.report.issues));
+assert.ok(fixed.ok && fixed.renderScene, JSON.stringify(fixed.report.issues));
+const apparatus = (result: typeof routed) => result.renderScene!.primitives
+  .filter(p => measured.entities.some(e => e.id === p.entityId && e.kind === 'component') && p.kind !== 'label');
+assert.deepEqual(apparatus(routed), apparatus(fixed), 'Dimension relocation must preserve the initial apparatus fit');
+const dimensionInk = routed.renderScene.primitives.filter(p => p.entityId === 'span' && p.kind !== 'label');
+assert.ok(dimensionInk.some(p => p.kind === 'dimension'), 'Relocated measurement bar remains present');
+assert.ok(dimensionInk.every(p => p.points.every(v => v.x >= 400 && v.x <= 1160 && v.y >= 0 && v.y <= 700)), 'Relocated bar and witnesses remain in the diagram viewport');
+assert.ok(dimensionInk.filter(p => p.provenance?.measurementRole === 'witness').every(p => p.provenance?.dashed === true));
+checks += 6;
+}
 // The complete closing edge is essential: an enclosed terminal cannot escape.
 const enclosure=scene({a:[0,0],b:[-4,0],c:[-5,0]},[['load','resistor','b','c']],[['lead','a','b']]);
 enclosure.entities.push({id:'outline',kind:'polygon',role:'closed boundary'});

@@ -1,5 +1,8 @@
 # Circuit connector routing — 18 October 2026
 
+19 October review results supersede this preliminary evidence:
+`circuit-routing-review-20261019.md` records the full corpus and blind comparison.
+
 Owner: circuit geometry worker; integration owner retains release acceptance.
 Base: `7afb99772` on `main`.
 

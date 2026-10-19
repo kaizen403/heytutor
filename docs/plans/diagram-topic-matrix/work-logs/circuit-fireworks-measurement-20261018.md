@@ -1,5 +1,9 @@
 # Final local Fireworks circuit measurement — 18 October 2026
 
+19 October scope update: the retry feedback and topology fix were split into
+PR #215. This is the historical measurement; the router-only review evidence is
+in `circuit-routing-review-20261019.md`. No paid calls were made for that review.
+
 This is a failed, budget-interrupted measurement, not chapter certification.
 The user separately approved a $2 cap. No earlier budget was reused.
 
@@ -37,7 +41,7 @@ paid-run diagram to visually certify and no teaching/audio result.
 The captured capabilities also revealed an engine defect: component inventory
 size was incorrectly treated as proof of a two-loop graph. For this one-source
 series circuit it instructed the model to draw both sources and a shared branch.
-That deterministic inference is addressed separately in this change; the model
+That deterministic inference is addressed separately in PR #215; the model
 was not rerun after that fix, and the failure cannot be attributed solely to it.
 
 ## Accounting

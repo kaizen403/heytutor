@@ -458,7 +458,10 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     viewport,
     hasLabels,
     checkedClaimOutputIds,
-    dimensionLanes,
+    // Relocation is a screen-space placement inside the existing viewport.
+    // Feeding its larger offset back into symmetric fit padding shrinks every
+    // component even when no wire has moved. Match the original fit reserve.
+    routingDimensionLanes ? computeDimensionLaneOffsets(document, geometry, entityToGroup, constructionOnlyIds) : dimensionLanes,
   );
   if (!transformPlan) {
     issues.push({ code: "empty_geometry", message: "Scene has no finite geometry to render", severity: "fatal" });
@@ -5025,6 +5028,10 @@ function routePortGraph(document: SceneDocument, geometry: Map<string, Geometry>
     const panelById = new Map(panels?.flatMap((c, i) => c.ids.map(id => [id, i] as const)) ?? []);
     const hasLabels = document.entities.some(e => Boolean(e.label)) || document.annotations.some(a => (a.kind === "label" || a.kind === "callout") && Boolean(a.text));
     const lanes = computeDimensionLaneOffsets(document, geometry, entityToGroup, constructionOnlyIds);
+    // Keep fitting independent of the lanes moved by collision resolution.
+    // Routes may alter geometry bounds; relocated pixel offsets must not also
+    // reserve the same free space on all four sides of the apparatus.
+    const fitLanes = new Map(lanes);
     const preferred = new Map(connectors.map(c => [c.outputs[0]!, geometry.get(c.outputs[0]!)!]));
     // Open connectors must never participate in the thin planar-region guard.
     for (const c of connectors) {
@@ -5040,7 +5047,7 @@ function routePortGraph(document: SceneDocument, geometry: Map<string, Geometry>
     // A route can expand its fit. Recheck with the resulting screen transform;
     // bounded convergence keeps a final canvas-space clearance requirement.
     for (let pass = 0; pass < 6; pass++) {
-        const plan = createEntityTransformPlan(document, geometry, constructionOnlyIds, entityToGroup, viewport, hasLabels, checkedClaimOutputIds, lanes);
+        const plan = createEntityTransformPlan(document, geometry, constructionOnlyIds, entityToGroup, viewport, hasLabels, checkedClaimOutputIds, fitLanes);
         if (!plan)
             return;
         let changed = false;
