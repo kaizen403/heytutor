@@ -60,7 +60,10 @@ function validSpan(question: string, span: ChemistrySpan): boolean {
   return Number.isInteger(span.start) && Number.isInteger(span.end) && span.start >= 0 && span.end <= question.length && span.end > span.start;
 }
 function continuesScalar(tail: string): boolean {
-  return /^[eE\d/^~!"×*]|^\.(?=[.\d])|^[+\-−](?=\s*(?:\d|\.\d))|^\s*[x×*]\s*10|^\s*10\s*[°~!^"0-9]/.test(tail);
+  // An unresolved superscript/modifier is still part of the source token,
+  // even when notation normalization deliberately left a damaged run raw.
+  return /^\s*[\p{No}\p{Lm}⁺⁻⁽⁾]/u.test(tail)
+    || /^[eE\d/^~!"×*]|^\.(?=[.\d])|^[+\-−](?=\s*(?:\d|\.\d))|^\s*[x×*]\s*10|^\s*10\s*[°~!^"0-9]/.test(tail);
 }
 /** Match against the original question, never a caller's truncated substring. */
 function completeScalarSpan(question: string, span: ChemistrySpan): boolean {
