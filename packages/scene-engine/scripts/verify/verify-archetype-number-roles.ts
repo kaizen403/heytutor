@@ -2,6 +2,8 @@
 import assert from "node:assert/strict";
 import { detectArchetype } from "../../src/archetypes/detect";
 import { generatorFor } from "../../src/archetypes/generators";
+import { compileSceneDocument } from "../../src/compile/compiler";
+import { readRadiationSource } from "../../src/physics/radiationSource";
 import type { ArchetypeId } from "../../src/archetypes/catalog";
 import { numbersWithUnit, prepareStem, UNIT } from "../../src/archetypes/slots";
 
@@ -82,8 +84,22 @@ for (const question of [
 for (const threshold of ["maximum", "longest", "maximum allowed", "longest permitted", "maximum physically possible", "threshold", "cutoff"]) {
   const row = read(`The ${threshold} wavelength for photoemission is 600 nm and the work function is 1.5 eV.`, "photoelectric");
   assert.equal(row.slots.lambda, undefined, "threshold wavelength cannot become incident energy");
-  assert.equal(row.scene?.entities.find((entity) => entity.id === "E_top")?.label, "hν");
-  assert.equal(row.scene?.entities.find((entity) => entity.id === "kinetic")?.label, "K");
+  // Independently reviewed source contradiction: λ0=600 nm cannot agree
+  // with stated φ=1.5 eV. Keep the detector role assertion above unchanged.
+  assert.equal(row.scene, null, "incompatible threshold/work-function sources decline as a whole");
+}
+function assertIncident400(row: ReturnType<typeof read>): void {
+  assert.ok(row.scene);
+  const compiled = compileSceneDocument(row.scene); assert.ok(compiled.ok && compiled.renderScene);
+  const label = row.scene.entities.find(entity => entity.id === "E_top")?.label;
+  assert.ok(label && /^hν=[\d.]+ eV$/.test(label));
+  assert.equal(Number(label.slice(3, -3)).toFixed(1), "3.1", "original one-decimal display precision");
+  const energy = row.scene.quantities.find(quantity => quantity.symbol === "E");
+  assert.ok(energy && typeof energy.value === "number" && energy.unit === "eV");
+  const source = readRadiationSource(row.scene.source.question ?? "");
+  assert.ok(source.status === "source" && source.model.kind === "photoelectric");
+  assert.ok(Math.abs(source.model.photonEnergyEV - 3.0996049608300065) < 1e-12, "fresh 400 nm photon source computation");
+  assert.equal(energy.value, Number(source.model.photonEnergyEV.toFixed(6)), "document's existing six-decimal quantity serialization");
 }
 for (const source of [
   "maximum allowed wavelength is 600 nm; incident wavelength is 400 nm",
@@ -93,13 +109,16 @@ for (const source of [
 ]) {
   const row = read(`Photoelectric emission: ${source}; work function is 2 eV.`, "photoelectric");
   assert.equal(row.slots.lambda, 400, "threshold modifiers must stop at a quantity or clause boundary");
-  assert.equal(row.scene?.entities.find((entity) => entity.id === "E_top")?.label, "hν=3.1 eV");
+  // Three nominal threshold/phi pairs lack an exact-source agreement
+  // contract. The fourth row's efficiency is not a wavelength modifier.
+  if (source.startsWith("maximum efficiency")) assertIncident400(row);
+  else assert.equal(row.scene, null, "unsupported exact threshold/work-function pair declines");
 }
 for (const energy of ["3.2 × 10⁻¹⁹ J", "3.2e-19 J", "2 eV"]) {
   const row = read(`The work function of the metal is ${energy}; incident wavelength is 400 nm.`, "photoelectric");
   assert.ok(Math.abs(Number(row.slots.workFunction) - 2) < 0.01, "positive role-bound energies retain exponent/unit conversion");
   assert.equal(row.slots.lambda, 400);
-  assert.equal(row.scene?.entities.find((entity) => entity.id === "E_top")?.label, "hν=3.1 eV");
+  assertIncident400(row);
 }
 // PR 201 delta: a later height is a second state, not the release height.
 // The three stems are the real eval rows, verbatim; detection runs with no hint as live does.

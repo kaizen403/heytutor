@@ -14,14 +14,14 @@ export function molecularOverlapRequested(stem: string): boolean {
 /** Order/half-life alone can describe a differential equation or generic decay. */
 export function chemicalKineticsContext(stem: string, originalQuestion: string = stem): boolean {
   if (/\breactions?\b|\breactants?\b|\bchemical kinetics\b|\bconcentration\b|\brate (?:law|constant)\b|\barrhenius\b|\[(?:a|b)\]/.test(stem)) return true;
-  for (const match of originalQuestion.matchAll(/\bdecomposition\s+of\s+(?:the\s+)?([^.;:!?]+?)(?=\s+(?:has|is|with|at|under|follows|occurs)\b|[.;:!?]|$)/gi)) {
+  for (const match of originalQuestion.matchAll(/\bdecomposition\s+of\s+(?:the\s+)?([^.;:!?]+?)(?=\s+(?:has|is|with|at|under|follows|occurs)\b|,\s*(?:(?:the|its)\s+)?(?:half[ -]?life|rate constant|initial concentration)\b|[.;:!?]|$)/gi)) {
     const identity = match[1]!.trim();
     const end = match.index + match[0].length;
     // A whole independently parsed compound occupies this local role.
     // Do not turn a damaged formula/name prefix or a background mention into it.
     if (originalQuestion[end] === "." && /[\p{L}\p{N}]/u.test(originalQuestion[end + 1] ?? "")) continue;
     const prefix = originalQuestion.slice(0, match.index).split(/[.;:!?]|\b(?:but|however)\b/i).at(-1) ?? "";
-    if (/\b(?:no|not|without|excluding|background|unrelated|irrelevant)\b(?:\s+(?:a|an|the|first|second|zero|order|chemical))*\s*$/i.test(prefix)) continue;
+    if (/\b(?:no|not|without|excluding|background|unrelated|irrelevant)\b(?:\s+(?:a|an|the|(?:first|second|zero)[ -]?order|first|second|zero|order|chemical))*\s*$/i.test(prefix)) continue;
     if (/^\s+(?:is|was|are|were)\s+(?:not\b|absent\b|excluded\b)/i.test(originalQuestion.slice(end))) continue;
     const formula = parseFormula(identity);
     if ((formula && formula.atoms.length >= 2) || moleculeFromName(identity)) return true;
@@ -56,7 +56,8 @@ export function chemicalHeatCapacityRequested(stem: string, originalQuestion: st
   if (/\b(?:molar)?c_?[pv](?:,m)?\b/.test(stem)) return true;
   // A mass-specific capacity is a different property/operator from the
   // whole-sample C (J/K) and molar Cp/Cv account supported in this lane.
-  if (!/(?<!\bspecific\s+)\bheat capacity\b/.test(stem)) return false;
+  const molarSpecific = /\bmolar\s+specific\s+heat capacity\b/.test(stem);
+  if (!molarSpecific && !/(?<!\bspecific\s+)\bheat capacity\b/.test(stem)) return false;
   if (/\bmolar\b|\bper mole\b|\bmol\b|\bgas\b|\bchemical\b|\breaction\b|\bsolution\b/.test(stem)) return true;
   return readChemistryQuantityDeclaration({ question: originalQuestion, after: /(?<!\bspecific\s+)\bheat capacity\b/,
     dimension: "heat_capacity", targetUnit: "J/K", owner: "whole-sample heat capacity", allowAgreeingRepeats: true }).state !== "absent";

@@ -13,7 +13,7 @@
  * overrides the table. The pure solvers (cell notation, standard potential,
  * cell emf, electrolysis products) are exported for other lanes.
  */
-import { chemistryCanonicalValuesAgree, chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityInventoryOwned, findChemistryQuantities, CHEMISTRY_SCALAR_PATTERN, chemistryQuantityCuesValid, readChemistryQuantity, readChemistryQuantityDeclaration, readChemistryQuantityInventoryDeclaration, readChemistryLiteral, type ChemistrySpan, type ChemistryReading, type ChemistryQuantityConsumption, type ChemistryQuantityDeclaration } from "./quantityReader";
+import { chemistryCanonicalValuesAgree, chemistryReferenceConstantValid, chemistryUnitSymbol, chemistryPlanBindingsValid, chemistryQuantityInventoryOwned, findChemistryQuantities, CHEMISTRY_SCALAR_PATTERN, chemistryQuantityCuesValid, readChemistryQuantity, readChemistryQuantityDeclaration, readChemistryQuantityInventoryDeclaration, readChemistryLiteral, type ChemistrySpan, type ChemistryReading, type ChemistryQuantityConsumption, type ChemistryQuantityDeclaration } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { normalizeChemistryText, parseFormula } from "./formula";
@@ -877,6 +877,12 @@ function readTemperature(text: string): number | undefined | null {
       within: {start: cue.index! + cue[0].length, end: text.length}, dimension: "temperature", targetUnit: "K"});
     if (!read.ok) {
       if (read.code !== "missing" || !/^at$/i.test(cue[0])) return null;
+      // A whole local placeholder plus a registered temperature unit is an
+      // unread datum. Unrelated at-the-cathode/at-equilibrium phrases have no
+      // such unit ownership and must not acquire a temperature declaration.
+      const tail = text.slice(cue.index! + cue[0].length).split(/[;.!?]|\b(?:and|with|while|but|whereas|then)\b/i, 1)[0]!;
+      const placeholder = /^\s*[A-Za-z][A-Za-z_-]*\s+/.exec(tail);
+      if (placeholder && chemistryUnitSymbol(tail.slice(placeholder[0].length).trim(), "temperature")) return null;
     } else if (temperature === undefined || !chemistryCanonicalValuesAgree(read.reading.value, temperature)) return null;
   }
   return temperature;
@@ -1839,7 +1845,8 @@ function drawGalvanicCell(question: string, spec: CellSpec, emf: CellEmf | null,
     c.scene.quantity("E0_cell", "E°", emf.e0, "V");
     c.scene.quantity("n_electrons", "n", emf.n, "");
     c.scene.quantity("dG0", "ΔG°", emf.dG0kJ, "kJ/mol");
-    if (emf.e !== null) c.scene.quantity("E_cell", "E", emf.e, "V");
+    if (spec.statedE !== undefined) c.scene.quantity("E_cell", "E", spec.statedE, "V");
+    else if (emf.e !== null) c.scene.quantity("E_cell", "E", emf.e, "V");
   } else if (spec.statedE0 !== undefined) {
     c.scene.quantity("E0_cell", "E°", spec.statedE0, "V");
   }
@@ -1880,7 +1887,11 @@ function buildGalvanic(question: string, _quantities: ChemPlanQuantity[], schema
       || /\||‖|¦/.test(question) || new RegExp(COUPLE).test(question)) return null;
     return buildSchematicGalvanic(question, lower);
   }
-  const emf = cellEmf(spec);
+  const computed = cellEmf(spec);
+  // The solver's documented reference-temperature default is not an actual
+  // source temperature. Keep the complete cell but omit unproved Nernst ink.
+  const emf = computed && spec.temperatureK === undefined && spec.nernstFactor === undefined
+    ? { ...computed, e: null } : computed;
   const labels: GalvanicLabels = {};
   if (emf) {
     labels.e0Text = `E° = ${fmtPotential(emf.e0)} V`;

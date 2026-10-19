@@ -96,7 +96,21 @@ function buildPhotoelectric(question: string, model: Extract<RadiationModel, { k
     ids.push(c.arrow("k_arrow", { x: -1.5, y: 0 }, { x: -1.5, y: 1.4 }, "kinetic energy above threshold"));
     ids.push(c.text("k_l", { x: -1.5, y: -0.55 }, evText("K", kinetic).slice(0, 16), "maximum kinetic energy"));
   }
-  c.scene.group("photoelectric", ids, "work function and photon energy");
+  const sourceLabels: string[] = [];
+  if (model.stoppingPotentialV !== null) {
+    const label = `Vstop=${Number(model.stoppingPotentialV.toPrecision(8))} V`;
+    ids.push(c.text("stopping_l", { x: 0, y: -1.1 }, label, "stated stopping potential", { preserveText: true }));
+    c.scene.quantity("Vstop_given", "Vstop", model.stoppingPotentialV, "V");
+    sourceLabels.push(label);
+  }
+  if (model.thresholdWavelengthM !== null) {
+    const nm = model.thresholdWavelengthM * 1e9;
+    const label = `λ0=${Number(nm.toPrecision(8))} nm`;
+    ids.push(c.text("threshold_l", { x: 0, y: -1.65 }, label, "stated threshold wavelength", { preserveText: true }));
+    c.scene.quantity("lambda0", "lambda0", nm, "nm");
+    sourceLabels.push(label);
+  }
+  c.scene.group("photoelectric", ids, ["work function and photon energy", ...sourceLabels].join(". "));
   const caption = kinetic === null
     ? `Below threshold: E = ${energy.toFixed(2)} eV is less than phi = ${phi.toFixed(2)} eV, so no electron is emitted and K is not drawn.`
     : `Kmax = h*nu - phi = ${kinetic.toFixed(2)} eV. Units are electronvolts. c = lambda*nu relates wavelength to frequency.`;

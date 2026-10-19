@@ -2,8 +2,9 @@
  * A damaged declaration is terminal; it is never an absent display default. */
 import { SceneBuilder, compact, type Vec2 } from "../archetypes/document";
 import { chemStem } from "../chemistry/sceneKit";
+import { atomicElectronContext } from "../chemistry/semanticCues";
 import {
-  chemistryCanonicalValuesAgree, chemistryReferenceConstantValid,
+  chemistryCanonicalValuesAgree, chemistryReferenceConstantValid, chemistryQuantityInventoryOwned,
   readChemistryQuantityDeclaration, type ChemistryDimension, type ChemistryReading, type ChemistryUnit,
 } from "../chemistry/quantityReader";
 import type { SceneDocument } from "../types";
@@ -15,23 +16,79 @@ const HBAR = 1.054571817e-34;
 const ELECTRON_MASS = 9.109e-31;
 const WORK = /work function(?:\s+of\s+(?:(?:a|the)\s+)?[a-z]+)?/;
 const PHOTON = /photon energy|photons? of energy|energy of (?:the )?photons?/;
+const KINETIC = /(?:maximum )?kinetic energy(?: of (?:the )?(?:emitted )?(?:photo)?electrons?)?/;
+const STOPPING = /stopping potential/;
 type Kind = "photoelectric" | "matter_wave" | "uncertainty";
 interface Binding { role: string; reading: ChemistryReading }
-interface Source { question: string; bindings: Binding[] }
+interface Source { question: string; bindings: Binding[]; constantAuthority: "atomic_reference" | "particle_reference" | "source_parameterized" }
 export type RadiationModel = Source & (
-  | { kind: "photoelectric"; workFunctionEV: number; photonEnergyEV: number; kineticEV: number | null }
+  | { kind: "photoelectric"; workFunctionEV: number; photonEnergyEV: number; kineticEV: number | null; thresholdWavelengthM: number | null; givenKineticEV: number | null; stoppingPotentialV: number | null }
   | { kind: "matter_wave"; momentumKgMS: number; wavelengthM: number; statedMomentum: boolean; statedSpeedMS: number | null; statedMassKg: number | null; nominalMomentumFromSpeed: number | null }
   | { kind: "uncertainty"; positionM: number; momentumKgMS: number; productJS: number; floorJS: number; holds: boolean }
 );
 export type RadiationSourceOutcome = { status: "not_applicable" }
+  | { status: "symbolic"; kind: "photoelectric"; question: string; missing: "work_function"; bindings: Binding[]; photonEnergyEV: number | null; givenKineticEV: number | null; stoppingPotentialV: number | null }
+  | { status: "symbolic"; kind: "photoelectric"; question: string; missing: "incident_photon"; bindings: Binding[]; workFunctionEV: number; thresholdWavelengthM: number }
   | { status: "declined"; kind: Kind; reason: string }
   | { status: "source"; model: RadiationModel };
+
+/** Threshold is a source role, not an incident measurement. Only the
+ * complete positively parsed modifier/noun span is excluded from incident. */
+function thresholdCues(question: string): Array<{ start: number; end: number }> {
+  return [...question.matchAll(/\b(?:maximum(?:\s+(?:allowed|physically possible))?|longest(?:\s+permitted)?|threshold|cutoff)\s+wavelength(?:\s+for\s+photoemission)?\b/gi)]
+    .map(match => ({ start: match.index, end: match.index + match[0].length }));
+}
+function originalCues(question: string, spans: Array<{ start: number; end: number }>): RegExp {
+  return new RegExp(spans.map(span => `(?<=^[\\s\\S]{${span.start}})${question.slice(span.start, span.end).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).join("|") || "(?!)", "i");
+}
+
+/** A positively named frequency/wavelength/energy head owns its argument
+ * before a bare radiation noun can claim the following energy literal. */
+function photonEnergyCue(question: string): RegExp {
+  const spans = [...question.matchAll(new RegExp(PHOTON.source, "gi"))]
+    .map(match => ({ start: match.index, end: match.index + match[0].length }));
+  for (const bare of question.matchAll(/\b(?:light|photons?)\s+of\b/gi)) {
+    const start = bare.index, end = start + bare[0].length;
+    if (spans.some(span => start >= span.start && start < span.end)) continue;
+    if (/^\s*(?:frequency|wavelength|photon energy|energy of (?:the )?photons?)\b/i.test(question.slice(end))) continue;
+    spans.push({ start, end });
+  }
+  return originalCues(question, spans);
+}
+
+/** A named incoming/foreign particle cannot lend its energy to the
+ * emitted photoelectrons. Bare quantities retain the question's active law. */
+function photoelectronKineticCue(question: string): { cue: RegExp; unowned: boolean } {
+  const spans: Array<{ start: number; end: number }> = [];
+  let unowned = false;
+  for (const match of question.matchAll(new RegExp(KINETIC.source, "gi"))) {
+    const start = match.index, end = start + match[0].length;
+    const prefix = question.slice(0, start).split(/[;!?]|\.(?!\d)/).at(-1) ?? "";
+    const owner = [...prefix.matchAll(/\b(?:photoelectrons?|electrons?|particles?)\b/gi)].at(-1);
+    const followingEmittedOwner = /\bof (?:the )?(?:emitted (?:photo)?electrons?|photoelectrons?)\b/i.test(match[0]);
+    const beforeOwner = owner ? prefix.slice(0, owner.index) : "";
+    const sourceEmission = /\b(?:emitted|ejected|released|ejects?|emits?|releases?)\s+(?:(?:a|an|the)\s+)?$/i.test(beforeOwner);
+    const photoOwner = owner && /^photoelectrons?$/i.test(owner[0])
+      && !/\b[a-z]+\s+$/i.test(beforeOwner.replace(/\b(?:a|an|the|their|these|those)\s+$/i, ""));
+    if (owner && !followingEmittedOwner && !sourceEmission && !photoOwner) {
+      // A requested result is not a supplied foreign-particle declaration.
+      // The same original-span reader distinguishes absent from unread givens.
+      const declaration = readChemistryQuantityDeclaration({ question, after: originalCues(question, [{ start, end }]),
+        dimension: "energy", targetUnit: "eV", owner: "foreign particle kinetic energy" });
+      if (declaration.state !== "absent") unowned = true;
+      continue;
+    }
+    spans.push({ start, end });
+  }
+  return { cue: originalCues(question, spans), unowned };
+}
 
 /** A positively owned following argument is stronger than a previous noun.
  * Every selected cue retains its complete original span for the shared reader. */
 function incidentCue(question: string, kind: "frequency" | "wavelength"): RegExp {
   const selected: string[] = [];
   for (const match of question.matchAll(new RegExp(`\\b${kind}\\b`, "gi"))) {
+    if (kind === "wavelength" && thresholdCues(question).some(span => match.index >= span.start && match.index < span.end)) continue;
     let end = match.index + match[0].length;
     const following = /^\s+(?:of|for)\s+(?:the\s+)?((?:(?:incident|emitted|released)\s+)?(?:photons?|light|radiation|electrons?|photoelectrons?|matter waves?|sound))\b/i.exec(question.slice(end));
     if (following) {
@@ -50,7 +107,7 @@ function incidentCue(question: string, kind: "frequency" | "wavelength"): RegExp
   return new RegExp(selected.join("|") || "(?!)", "i");
 }
 
-interface RequestArgument { start: number; end: number; positive: boolean }
+interface RequestArgument { start: number; end: number; positive: boolean; visual: boolean }
 /** One bounded request grammar for source applicability and source preference.
  * Each verb owns its argument; coordinated exclusion owns only its conjunct. */
 function requestArguments(question: string): RequestArgument[] {
@@ -68,7 +125,8 @@ function requestArguments(question: string): RequestArgument[] {
     for (const join of [...argument.matchAll(/\b(?:and|but|or|however)\b/gi), { index: argument.length, 0: "" }]) {
       const to = join.index!;
       if (to > from) arguments_.push({ start: start + from, end: start + to,
-        positive: positive && !/^\s*(?:not|no|never|without)\b/i.test(argument.slice(from, to)) });
+        positive: positive && !/^\s*(?:not|no|never|without)\b/i.test(argument.slice(from, to)),
+        visual: /^(?:draw|sketch|show|represent|plot)$/i.test(verb[0]) });
       from = to + join[0]!.length;
     }
   }
@@ -86,10 +144,18 @@ export function requestedPhotoelectricResult(question: string): boolean {
 /** Apparatus material data do not claim an irradiated photoelectric target.
  * The exemption belongs to that positive noun-phrase role, not another topic. */
 function backgroundWorkFunctionOnly(question: string): boolean {
+  const arguments_ = requestArguments(question);
+  const photoelectricView = /\b(?:photoelectric|photo-electric|photoelectron)\b/i;
+  // Explicit model exclusion owns all its input roles. Another positively
+  // requested view may still compile, but no positive photoelectric result
+  // may be hidden by an earlier or coordinated negative request.
+  if (!requestedPhotoelectricResult(question)
+    && arguments_.some(argument => !argument.positive && photoelectricView.test(question.slice(argument.start, argument.end)))
+    && arguments_.some(argument => argument.positive && argument.visual
+      && !photoelectricView.test(question.slice(argument.start, argument.end)))) return true;
   const declarations = [...question.matchAll(/\bwork function\b/gi)];
   if (!declarations.length || declarations.some(declaration => !/\b(?:source\s+)?(?:lamp|laser)(?:\s+cathode)?\s+(?:has|with|of)\s+(?:a\s+)?$/i
     .test(question.slice(0, declaration.index)))) return false;
-  const arguments_ = requestArguments(question);
   for (const mention of question.matchAll(/\bphotoelectric|\bphotoelectrons?|\bstopping potential/gi)) {
     const owner = arguments_.find(argument => mention.index >= argument.start && mention.index < argument.end);
     if (owner) { if (owner.positive) return false; continue; }
@@ -108,6 +174,8 @@ export function readRadiationSource(question: string): RadiationSourceOutcome {
     : /de broglie/.test(stem) ? "matter_wave"
       : /heisenberg|uncertainty principle|uncertainty in position|uncertainty in momentum/.test(stem) ? "uncertainty" : null;
   if (!kind || kind === "photoelectric" && backgroundWorkFunctionOnly(question)) return { status: "not_applicable" };
+  const constantAuthority: Source["constantAuthority"] = kind !== "photoelectric" ? "particle_reference"
+    : atomicElectronContext(question) ? "atomic_reference" : "source_parameterized";
   const bindings: Binding[] = [];
   let invalid = false;
   const value = (after: RegExp, dimension: ChemistryDimension, unit: ChemistryUnit, role: string,
@@ -120,7 +188,12 @@ export function readRadiationSource(question: string): RadiationSourceOutcome {
   };
   const decline = (reason: string): RadiationSourceOutcome => ({ status: "declined", kind, reason });
   const work = kind === "photoelectric" ? value(WORK, "energy", "eV", "work function") : null;
-  const stated = kind === "photoelectric" ? value(PHOTON, "energy", "eV", "photon energy") : null;
+  const stated = kind === "photoelectric" ? value(photonEnergyCue(question), "energy", "eV", "photon energy") : null;
+  const kineticOwner = kind === "photoelectric" ? photoelectronKineticCue(question) : null;
+  const givenKinetic = kineticOwner ? value(kineticOwner.cue, "energy", "eV", "photoelectron kinetic energy") : null;
+  if (kineticOwner?.unowned) invalid = true;
+  const stopping = kind === "photoelectric" ? value(STOPPING, "potential", "V", "stopping potential") : null;
+  const threshold = kind === "photoelectric" ? value(originalCues(question, thresholdCues(question)), "length", "m", "threshold photon wavelength") : null;
   const frequency = kind === "photoelectric" ? value(incidentCue(question, "frequency"), "frequency", "Hz", "incident photon frequency") : null;
   const wavelength = kind === "photoelectric" ? value(incidentCue(question, "wavelength"), "length", "m", "incident photon wavelength") : null;
   const hCue = /\bh\s*=|Planck(?:'s)? constant\s*(?:is|=)/i;
@@ -130,6 +203,13 @@ export function readRadiationSource(question: string): RadiationSourceOutcome {
   const cGiven = value(cCue, "speed", "m/s", "speed of light");
   const hcGiven = value(hcCue, "energy_length", "J m", "photon wavelength constant");
   if (invalid) return decline("supplied radiation quantity is unreadable or conflicting");
+  // The historical atomic issuer is a fixed-reference computation. Source-
+  // parameterized physics is a separate explicit contract, never a tolerance
+  // change or an override of an atomic reference declaration.
+  if (constantAuthority === "atomic_reference" && (
+    !chemistryReferenceConstantValid(question, hCue, "action", "J s", H)
+    || !chemistryReferenceConstantValid(question, cCue, "speed", "m/s", C)
+    || !chemistryReferenceConstantValid(question, hcCue, "energy_length", "J m", H * C))) return decline("unsupported atomic reference constant");
   let h = hGiven ?? H, c = cGiven ?? C;
   if (!(h > 0 && c > 0) || hcGiven !== null && !(hcGiven > 0)) return decline("nonpositive radiation constant");
   // A supplied product and one factor determine the other factor. They cannot
@@ -141,19 +221,43 @@ export function readRadiationSource(question: string): RadiationSourceOutcome {
     else h = hcGiven / c;
   }
   if (![h, c].every(n => Number.isFinite(n) && n > 0)) return decline("nonfinite radiation constants");
-  // Only genuinely absent scalar declarations retain the qualitative path.
-  // All explicit constant declarations have already been inventoried above.
-  if (kind === "photoelectric" && [work, stated, frequency, wavelength].every(n => n === null)) return { status: "not_applicable" };
   if (kind === "photoelectric") {
-    if (work === null || !(work > 0)) return decline("source work function is required");
+    const owned = (dimension: ChemistryDimension) => bindings.filter(binding => binding.reading.dimension === dimension)
+      .map(binding => ({ reading: binding.reading, owner: binding.role }));
+    if (!chemistryQuantityInventoryOwned(question, "energy", owned("energy"))
+      || STOPPING.test(question) && !chemistryQuantityInventoryOwned(question, "potential", owned("potential"))) return decline("unconsumed radiation source quantity");
+    if (givenKinetic !== null && !(givenKinetic >= 0) || stopping !== null && !(stopping >= 0)) return decline("negative supplied photoelectron result");
+    if (givenKinetic !== null && stopping !== null && !chemistryCanonicalValuesAgree(givenKinetic, stopping)) return decline("kinetic energy and stopping potential disagree");
+    // One electron gains one eV per volt; the original potential binding and
+    // its visible given remain distinct from this exact unit conversion.
+    const givenKineticEV = givenKinetic ?? stopping;
     const energies = [stated, frequency === null ? null : h * frequency / EV,
       wavelength === null ? null : (hcGiven ?? h * c) / wavelength / EV].filter((n): n is number => n !== null);
-    if (energies.length === 0 || energies.some(n => !Number.isFinite(n) || !(n > 0))
-      || frequency !== null && !(frequency > 0) || wavelength !== null && !(wavelength > 0)) return decline("source incident photon is required");
+    if (energies.some(n => !Number.isFinite(n) || !(n > 0))
+      || frequency !== null && !(frequency > 0) || wavelength !== null && !(wavelength > 0)) return decline("invalid source incident photon");
     if (energies.some(n => !chemistryCanonicalValuesAgree(n, energies[0]!))) return decline("independent photon measurements disagree");
-    const energy = energies[0]!;
-    return { status: "source", model: { question, bindings, kind, workFunctionEV: work, photonEnergyEV: energy,
-      kineticEV: energy + 1e-9 >= work ? Math.max(0, energy - work) : null } };
+    const energy = energies[0] ?? null;
+    const requestedWork = requestArguments(question).some(argument => argument.positive
+      && /\bwork function\b/i.test(question.slice(argument.start, argument.end)));
+    if (work === null) {
+      const numericKineticRequest = requestArguments(question).some(argument => argument.positive && !argument.visual
+        && /\b(?:kinetic energy|stopping potential)\b/i.test(question.slice(argument.start, argument.end)));
+      if (numericKineticRequest && !requestedWork && givenKineticEV === null) return decline("numeric photoelectron result needs source work function");
+      // A threshold/no-emission condition cannot be replaced by an emitting
+      // possibility. Unknown declarations already failed the scalar ledger.
+      if (givenKineticEV === 0 || threshold !== null || /\bat (?:the )?threshold\b|\bno (?:photoelectric )?emission\b/i.test(question)) return decline("unsupported symbolic emission condition");
+      if (energy !== null && givenKineticEV !== null && !(energy > givenKineticEV)) return decline("source E and K leave no positive work function");
+      if (energy !== null || givenKineticEV !== null || requestedWork) return { status: "symbolic", kind, question, missing: "work_function", bindings, photonEnergyEV: energy, givenKineticEV, stoppingPotentialV: stopping };
+      return { status: "not_applicable" };
+    }
+    if (!(work > 0)) return decline("source work function is required");
+    if (threshold !== null && (!(threshold > 0) || !chemistryCanonicalValuesAgree((hcGiven ?? h * c) / threshold / EV, work))) return decline("threshold wavelength and work function disagree");
+    if (energy === null && threshold !== null) return { status: "symbolic", kind, question, missing: "incident_photon", bindings, workFunctionEV: work, thresholdWavelengthM: threshold };
+    if (energy === null) return decline("source incident photon is required");
+    const kineticEV = energy + 1e-9 >= work ? Math.max(0, energy - work) : null;
+    if (givenKineticEV !== null && (kineticEV === null || !chemistryCanonicalValuesAgree(givenKineticEV, kineticEV))) return decline("given photoelectron result disagrees with source energies");
+    return { status: "source", model: { question, bindings, constantAuthority, kind, workFunctionEV: work, photonEnergyEV: energy,
+      kineticEV, thresholdWavelengthM: threshold, givenKineticEV, stoppingPotentialV: stopping } };
   }
   // The old fixed-reference matter-wave/uncertainty contract is preserved;
   // no formerly unsupported rounded-constant species is silently admitted.
@@ -168,7 +272,7 @@ export function readRadiationSource(question: string): RadiationSourceOutcome {
     const p = momentum ?? (speed !== null ? speed * (mass ?? (/\belectron\b/.test(stem) ? ELECTRON_MASS : NaN)) : NaN);
     const lambda = h / p;
     if (!(p > 0) || !Number.isFinite(lambda) || !(lambda > 0)) return decline("complete matter-wave state is required");
-    return { status: "source", model: { question, bindings, kind, momentumKgMS: p, wavelengthM: lambda,
+    return { status: "source", model: { question, bindings, constantAuthority, kind, momentumKgMS: p, wavelengthM: lambda,
       statedMomentum: momentum !== null, statedSpeedMS: speed, statedMassKg: mass,
       nominalMomentumFromSpeed: speed !== null && (mass !== null || /\belectron\b/.test(stem))
         ? speed * (mass ?? ELECTRON_MASS) : null } };
@@ -178,7 +282,7 @@ export function readRadiationSource(question: string): RadiationSourceOutcome {
     || /both .{0,40}exactly|known exactly|simultaneous(?:ly)? exact|exact position and .{0,20}momentum|position and .{0,30}momentum known exactly/.test(stem)) return decline("complete uncertainty intervals are required");
   const product = position * momentum, floor = HBAR / 2;
   if (!Number.isFinite(product) || !(product > 0)) return decline("nonfinite uncertainty product");
-  return { status: "source", model: { question, bindings, kind, positionM: position, momentumKgMS: momentum,
+  return { status: "source", model: { question, bindings, constantAuthority, kind, positionM: position, momentumKgMS: momentum,
     productJS: product, floorJS: floor, holds: product + 1e-45 >= floor } };
 }
 

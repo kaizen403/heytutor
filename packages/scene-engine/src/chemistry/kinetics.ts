@@ -284,7 +284,7 @@ function requestedKineticsContinuationValid(question: string, start: number, end
   const time = readChemistryQuantity({question, after: /^/, within: {start:timeStart, end}, dimension:"time"});
   if (!time.ok || !(time.reading.value > 0) || body.slice(time.reading.source.span.end, end).trim() !== "") return false;
   const asked = readTimesAsked(tail, []);
-  return asked.length === 1 && convertTime(asked[0]!.value, asked[0]!.unit, "s") === time.reading.value;
+  return asked !== null && asked.length === 1 && convertTime(asked[0]!.value, asked[0]!.unit, "s") === time.reading.value;
 }
 /** A conditional input belongs to the requested half-life, not a later copula. */
 function requestedHalfLifeConditionValid(question: string, ownerStart: number, conditionStart: number, predicateRequest = false): boolean {
@@ -826,7 +826,7 @@ function readFractionsAsked(stem: string, givenSpans: readonly [number, number][
 }
 
 /** Instants asked for ("after 60 min", "at t = 40 s"), in their own units. */
-function readTimesAsked(stem: string, givenSpans: readonly [number, number][]): Array<{ value: number; unit: string }> {
+function readTimesAsked(stem: string, givenSpans: readonly [number, number][]): Array<{ value: number; unit: string }> | null {
   const out: Array<{ value: number; unit: string }> = [];
   const pattern = new RegExp(String.raw`(?:after|at\s*t\s*=|at the end of|in the next|elapsed)\s*${NUMBER}\s*${TIME_UNIT}\b`, "gid");
   for (const match of stem.matchAll(pattern)) {
@@ -836,6 +836,24 @@ function readTimesAsked(stem: string, givenSpans: readonly [number, number][]): 
     if (!unit) continue;
     const value = numberFrom(match as RegExpExecArray, 1);
     if (value > 0 && !out.some((entry) => entry.value === value && entry.unit === unit)) out.push({ value, unit });
+  }
+  // A requested mark owns its exact original operand, including an unread
+  // declaration. The shared scalar/unit reader decides validity; no prefix
+  // number or given half-life can substitute for a missing requested instant.
+  for (const mark of stem.matchAll(/\bmark\s+(?:t|time)\s*=/gi)) {
+    const start = mark.index;
+    if (givenSpans.some(span => start >= span[0] && start < span[1])) continue;
+    const prefix = stem.slice(0, start).split(/[;!?]|\.(?!\d)/).at(-1) ?? "";
+    if (/\b(?:not|never|without)\s*$/i.test(prefix)) continue;
+    const read = readChemistryQuantityDeclaration({ question: stem, after: /^/,
+      within: { start: start + mark[0].length, end: stem.length }, dimension: "time", owner: "requested time mark" });
+    if (read.state !== "valid" || !(read.reading.value > 0)) return null;
+    const unit = canonicalTimeUnit(read.reading.rawUnit ?? undefined);
+    if (!unit) return null;
+    const converted = convertChemistryReading(read.reading, unit as ChemistryUnit);
+    if (!converted.ok) return null;
+    const value = converted.reading.value;
+    if (!out.some(entry => entry.value === value && entry.unit === unit)) out.push({ value, unit });
   }
   return out;
 }
@@ -1111,6 +1129,7 @@ export function kineticsFromStem(question: string, quantities: readonly ChemPlan
     if (!statedTimes.ok || statedTimes.reading.length > 0) return null;
   }
   const timesAskedRaw = readTimesAsked(body, givens.map(entry=>entry.span));
+  if (timesAskedRaw === null) return null;
   const asked = readFractionsAsked(body, givens.map(entry=>entry.span));
   const fractionsAsked = asked.completion;
   const remainingAsked = asked.remaining;
