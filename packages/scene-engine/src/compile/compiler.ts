@@ -18,6 +18,7 @@ import {
   workColumnObstacle,
   POINT_LABEL_TETHER_PX,
   type LabelEngineOptions,
+  type LabelEngineResult,
   type LabelObstacle,
   type LabelOwner,
   type TextInkBoundsMeasure,
@@ -25,7 +26,7 @@ import {
 import { bindOpticsLabelSides, solveWithSideBoundLabels } from "../labels/opticsLabelSides";
 // The engine reserves the room the board will letter into, so it measures with
 // the board's own glyph metrics rather than an average character box.
-import { measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
+import { BOARD_TYPE_SCALE, measureTextInkBounds, measureTextWidth } from "@heytutor/drawing";
 import { evaluateTopologyAssertion, validateTopologyInvariants } from "../topology/topology";
 import { implicitSolverEntityIds, validateSceneDocument } from "../document/validation";
 import { validateMatrixSourceBinding } from "./matrixSourceBinding";
@@ -102,6 +103,8 @@ import { evaluateDipoleFieldConstruction, type DipoleFieldMetadata, type DipoleG
 import { evaluateAnalyticLineConstruction, type AnalyticLineGeometry, type AnalyticLineRecord } from "./analyticLineGeometry";
 import { evaluateRigidMassConstruction, type RigidMassGeometry, type RigidMassRecord } from "./rigidMassGeometry";
 import { evaluateMatrixArrayConstruction, matrixArrayPrimitives, type MatrixArrayGeometry } from "./matrixArrayGeometry";
+import { evaluateLinearRegionConstruction, linearRegionPrimitives, type LinearRegionGeometry } from "./linearRegionGeometry";
+import { validateLinearSourceBinding, validateLinearClaims } from "./linearRegionSource";
 import { evaluateDistributedFieldsConstruction, type GaussFluxDefinition, type LineChargeFieldDefinition, type LoopFieldDefinition, type SinusoidalFluxDefinition, type SinusoidStateDefinition, type WireFieldDefinition } from "./distributedFieldsGeometry";
 import { evaluateTriangleConstruction } from "./triangleGeometry";
 import { conicPointResidual, evaluateConicConstruction, type ConicDefinition } from "./conicGeometry";
@@ -205,7 +208,8 @@ type Geometry =
   | { kind: "axes"; xMin: number; xMax: number; yMin: number; yMax: number }
   | { kind: "dimension"; a: Point; b: Point }
   | { kind: "compound"; paths: Point[][]; terminals: [Point, Point]; solidProjection?: SolidProjection; polyhedralSolid?: { spec: PolyhedralSolid; center: Point }; spaceFrame?: SpaceFrame; conic?: ConicDefinition }
-  | MatrixArrayGeometry;
+  | MatrixArrayGeometry
+  | LinearRegionGeometry;
 
 const EPSILON = 1e-6;
 
@@ -222,6 +226,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   if (!structural.document) return { ok: false, renderScene: null, report: structural.report };
   const matrixSourceIssues = [
     ...validateMatrixSourceBinding(document),
+    ...validateLinearSourceBinding(document),
     // A document claiming the admitted relative-motion source must be exactly
     // the one that source computes; a stale relative velocity cannot compile.
     ...validateRelativeMotionSourceInputs(document, document.source.question),
@@ -261,6 +266,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
         throw new Error("Dimensions cannot measure independently scaled source geometry; use its verified source values");
       }
       const outputs = withPlannedSpaceLineExtent(evaluateConstruction(operator, inputs, geometry, quantities, document), construction, spaceView, geometry);
+      for (const output of outputs) if (output.kind === "linear_region") validateLinearClaims(document, originalIndex, output, issues);
       if (construction.operator === "point" && construction.outputs[0]) {
         const override = layoutOverrides.get(construction.outputs[0]);
         if (override) outputs[0] = { kind: "point", point: override };
@@ -484,7 +490,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     const value = geometry.get(entity.id);
     const groupId = entityToGroup.get(entity.id);
     if (value && groupId && !constructionOnlyIds.has(entity.id) && entity.kind !== "label") {
-      primitives.push(...toPrimitives(
+      try { primitives.push(...toPrimitives(
         entity.id,
         entity.kind,
         value,
@@ -496,7 +502,11 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
         undefined,
         entity.provenance,
         directionOverlayIds.has(entity.id),
-      ));
+      )); } catch(error) {
+        if(value.kind!=="linear_region")throw error;
+        issues.push({code:"linear_display_unproved",message:errorMessage(error),severity:"fatal",entityIds:[entity.id]});
+        return {ok:false,renderScene:null,report:report(document,issues,0)};
+      }
     }
   }
   appendCorrespondingTickPrimitives(document, geometry, primitives, entityToGroup, transformPlan, constructionOnlyIds);
@@ -550,12 +560,15 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   const labelOwners: LabelOwner[] = [];
   const consumedAnnotationIds = new Set<string>();
   const summaryLabelIds = new Set<string>();
+  const appendLabelIds = new Set(document.annotations.filter(annotation => annotation.labelMode === "append").map(annotation => annotation.id));
   for (const entity of document.entities) {
     if (!entity.label || !renderableIds.has(entity.id) || constructionOnlyIds.has(entity.id)) continue;
     const target = geometry.get(entity.id);
     if (!target) continue;
+    if (target.kind === "linear_region") continue;
     const semanticDirectionMarker = entity.kind === "label" && isPageNormalMarker(entity.label);
     if (entity.kind === "label" && !semanticDirectionMarker && document.annotations.some((annotation) =>
+      annotation.labelMode !== "append" &&
       (annotation.kind === "label" || annotation.kind === "callout") &&
       annotation.targetIds.includes(entity.id) &&
       Boolean(annotation.kind === "callout"
@@ -564,6 +577,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     )) continue;
     const valueAnnotation = entity.kind === "component" && isComponentDesignator(entity.label)
       ? document.annotations.find((annotation) =>
+          annotation.labelMode !== "append" &&
           annotation.kind === "label" &&
           annotation.targetIds.includes(entity.id) &&
           Boolean(annotation.text) &&
@@ -571,6 +585,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
         )
       : undefined;
     const explicitAnnotation = document.annotations.find((annotation) =>
+      annotation.labelMode !== "append" &&
       (annotation.kind === "label" || annotation.kind === "callout") &&
       !annotation.quantityId &&
       !(annotation.kind === "callout" && isViewSummaryText(annotation.text)) &&
@@ -733,6 +748,75 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
 
   attachAngleMeasureLabels(document, geometry, labelOwners, transformPlan, consumedAnnotationIds);
 
+  let linearLabels = primitives.filter((primitive) => primitive.kind === "label" && primitive.provenance?.linearSolution);
+  if (linearLabels.length) {
+    const ownersFor = (labels: RenderPrimitive[]): LabelOwner[] => labels.map((primitive) => ({
+      labelId: primitive.id, entityId: primitive.id, anchor: primitive.points[0]!, text: primitive.text!,
+      viewBounds: transformPlan.viewportFor(primitive.entityId), useOwnerBounds: false,
+      pinToAnchor: primitive.provenance?.linearRole === "caption", allowLeader: primitive.provenance?.linearRole !== "caption",
+      ...(primitive.provenance?.linearRole === "source_reference_label" && isPointIdentifierText(primitive.text!)
+        ? { tetherPx: pointLabelTether(primitive.text!), allowLeader: false } : {}),
+      leaderGeometrySafe: true,
+    }));
+    // The live pen snaps every smaller size to this floor. Prove its actual
+    // glyph ink; shrinking a checked box cannot make the live lettering fit.
+    const fontPx = BOARD_TYPE_SCALE.annotation;
+    const solve = (marks: RenderPrimitive[]) => placeLabels(
+      ownersFor(marks.filter(primitive => primitive.kind === "label" && primitive.provenance?.linearSolution)),
+      [...obstaclesFromPrimitives(marks.filter(primitive => primitive.kind !== "label" && primitive.provenance?.fillOnly !== true)), workColumnObstacle()],
+      {fontHeightPx:fontPx,maxLabelChars:80,paddingPx:2,minGapPx:3,measureTextPx:measureTextWidth,measureTextInkBounds:measureLabelInk},
+    );
+    let placed = solve(primitives);
+    if (!placed.ok) {
+      // A long fact can be trapped in a cell enclosed by verified boundaries.
+      // Give that mark a short unique name and retain its whole fact in a
+      // measured legend. One bounded retry, with the same ink/tether guards.
+      const legendIds = new Set(placed.issues.flatMap(issue => {
+        const label = linearLabels.find(primitive => primitive.id === issue.entityId);
+        return label && ["corner_label", "boundary_label", "intersection_label"].includes(String(label.provenance?.linearRole)) ? [label.id] : [];
+      }));
+      if (legendIds.size) {
+        const replacements = new Map<string, RenderPrimitive[]>();
+        for (const entityId of new Set(linearLabels.filter(label => legendIds.has(label.id)).map(label => label.entityId))) {
+          const value = geometry.get(entityId);
+          if (value?.kind !== "linear_region") continue;
+          const world = linearRegionLegendPrimitives(linearRegionPrimitives(value, entityId, entityToGroup.get(entityId)!), legendIds);
+          if (!world) continue;
+          try {
+            replacements.set(entityId, compileLinearRegionPrimitives(world, transformPlan.transformFor(entityId), transformPlan.viewportFor(entityId)));
+          } catch { /* An indistinguishable alternative stays atomically refused. */ }
+        }
+        const emitted = new Set<string>();
+        const alternative = primitives.flatMap(primitive => {
+          const replacement = replacements.get(primitive.entityId);
+          if (!replacement) return [primitive];
+          if (emitted.has(primitive.entityId)) return [];
+          emitted.add(primitive.entityId);
+          return replacement;
+        });
+        const retried = solve(alternative);
+        if (retried.ok) {
+          primitives.splice(0, primitives.length, ...alternative);
+          linearLabels = primitives.filter(primitive => primitive.kind === "label" && primitive.provenance?.linearSolution);
+          placed = retried;
+        }
+      }
+    }
+    for (const issue of placed.issues) issues.push({code:issue.code,message:issue.message,severity:"fatal",entityIds:linearLabels.filter((primitive)=>primitive.id===issue.entityId).map((primitive)=>primitive.entityId)});
+    if (placed.ok) for (const placement of placed.placements) {
+      const primitive=linearLabels.find((item)=>item.id===placement.labelId)!;
+      const labelAnchor = primitive.points[0]!;
+      primitive.points=[{x:round(placement.bounds.x+placement.bounds.width/2),y:round(placement.bounds.y+placement.bounds.height/2)}];
+      primitive.labelPlacement="absolute";
+      primitive.provenance={...primitive.provenance,fontPx,labelPad:0,labelAnchor,labelBounds:placement.bounds,labelCollisionBounds:placement.collisionBounds??placement.bounds};
+      if(placement.usesLeader && placement.leaderFrom && placement.leaderTo) primitives.push({
+        id:`${primitive.id}_leader`,entityId:primitive.entityId,groupId:primitive.groupId,kind:"line",
+        points:placement.leaderPath??[placement.leaderFrom,placement.leaderTo],
+        provenance:{linearSolution:primitive.provenance.linearSolution,linearRole:"label_leader",labelLeader:true,strokeRole:"construction",strokeWidth:1},
+      });
+    }
+  }
+
   const matrixCells = primitives.filter((primitive) => primitive.kind === "label" && primitive.provenance?.matrixNonmetric === true && primitive.provenance?.matrixCell);
   if (matrixCells.length > 0) {
     const cellOwners: LabelOwner[] = matrixCells.map((primitive) => ({
@@ -773,12 +857,12 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   // A label on a refraction or reflection keeps its medium's side; a medium
   // label on a refraction interface that names no side is dropped.
   const uniqueLabelOwners = bindOpticsLabelSides(document, geometry, transformPlan.transformFor, [...labelOwners.filter((owner, index, all) => {
-    if (owner.labelId && summaryLabelIds.has(owner.labelId)) {
+    if (owner.labelId && (summaryLabelIds.has(owner.labelId) || appendLabelIds.has(owner.labelId))) {
       return all.findIndex((candidate) => candidate.labelId === owner.labelId) === index;
     }
     return all.findIndex((candidate) =>
       candidate.entityId === owner.entityId &&
-      (!candidate.labelId || !summaryLabelIds.has(candidate.labelId))
+      (!candidate.labelId || (!summaryLabelIds.has(candidate.labelId) && !appendLabelIds.has(candidate.labelId)))
     ) === index;
   }), ...annotationLabelOwners], summaryLabelIds);
   const pinDsaLabels = document.source.synthesizedDsa === true;
@@ -820,13 +904,13 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     // rejected labels the document had already accepted.
     ? { fontHeightPx: DSA_LABEL_FONT_PX, paddingPx: 3, minGapPx: 4, maxLabelChars: 16, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk }
     : { measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk };
-  const solveOwners = (owners: LabelOwner[]) => {
+  const solveOwners = (owners: LabelOwner[], obstacles: LabelObstacle[] = labelObstacles) => {
     const stackedOwners = pinDsaLabels
       ? null
-      : stackSummaryLabelOwners(document, owners, summaryLabelIds, primitives, labelObstacles, labelOptions);
-    let solved = placeLabels(stackedOwners ?? owners, labelObstacles, labelOptions);
+      : stackSummaryLabelOwners(document, owners, summaryLabelIds, primitives, obstacles, labelOptions);
+    let solved = placeLabels(stackedOwners ?? owners, obstacles, labelOptions);
     if (stackedOwners && solved.issues.length > 0) {
-      const unstacked = placeLabels(owners, labelObstacles, labelOptions);
+      const unstacked = placeLabels(owners, obstacles, labelOptions);
       if (unstacked.issues.length < solved.issues.length) solved = unstacked;
     }
     if (axisLetterOwners.length > 0 && solved.issues.length > 0) {
@@ -834,16 +918,52 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       // their room keeps those labels and draws its axes unlettered.
       const letterIds = new Set(axisLetterOwners.map((owner) => owner.labelId));
       const withoutLetters = (list: LabelOwner[]) => list.filter((owner) => !letterIds.has(owner.labelId));
-      let plain = placeLabels(withoutLetters(stackedOwners ?? owners), labelObstacles, labelOptions);
+      let plain = placeLabels(withoutLetters(stackedOwners ?? owners), obstacles, labelOptions);
       if (stackedOwners && plain.issues.length > 0) {
-        const unstacked = placeLabels(withoutLetters(owners), labelObstacles, labelOptions);
+        const unstacked = placeLabels(withoutLetters(owners), obstacles, labelOptions);
         if (unstacked.issues.length < plain.issues.length) plain = unstacked;
       }
       if (plain.issues.length < solved.issues.length) solved = plain;
     }
     return solved;
   };
-  const labels = solveWithSideBoundLabels(placementOwners, solveOwners);
+  const solveAppendedLabels = (): LabelEngineResult => {
+    const oldOwners = placementOwners.filter(owner => !owner.labelId || !appendLabelIds.has(owner.labelId));
+    const appendedOwners = placementOwners.filter(owner => owner.labelId && appendLabelIds.has(owner.labelId));
+    // The stock solve owns every existing label and leader. Supplemental text
+    // may use the remaining room; it cannot change the first pass's placement.
+    const first = solveWithSideBoundLabels(oldOwners, solveOwners);
+    if (!first.ok) return first;
+    const duplicate = appendedOwners.find(owner => oldOwners.some(old => old.entityId === owner.entityId && old.text === owner.text));
+    if (duplicate) return { ...first, ok: false, issues: [{ code: "label_duplicate", entityId: duplicate.entityId, message: `Duplicate label "${duplicate.text}" for ${duplicate.entityId}` }] };
+    const fixed: RenderPrimitive[] = [];
+    for (const placement of first.placements) {
+      const groupId = entityToGroup.get(placement.entityId);
+      if (!groupId) continue;
+      fixed.push({ id: placement.labelId, entityId: placement.entityId, groupId, kind: "label", text: placement.text,
+        points: [{ x: round(placement.bounds.x + placement.bounds.width / 2), y: round(placement.bounds.y + placement.bounds.height / 2) }],
+        provenance: { labelBounds: placement.bounds, labelCollisionBounds: placement.collisionBounds ?? placement.bounds } });
+      if (!pinDsaLabels && placement.usesLeader && placement.leaderFrom && placement.leaderTo) fixed.push({
+        id: `${placement.labelId}_leader`, entityId: placement.entityId, groupId, kind: placement.leaderPath ? "polyline" : "line",
+        points: (placement.leaderPath ?? [placement.leaderFrom, placement.leaderTo]).map(point => ({ x: round(point.x), y: round(point.y) })),
+        provenance: { labelLeader: true },
+      });
+    }
+    const fixedObstacles = obstaclesFromPrimitives(fixed);
+    // Pinned labels use the solver's protected-ink contract. Keep label boxes
+    // as labels too, so native leader routing also treats them as fixed ink.
+    const pinnedObstacles: LabelObstacle[] = appendedOwners.some(owner => owner.pinToAnchor)
+      ? fixedObstacles.map(obstacle => ({ ...obstacle, kind: "protected" })) : [];
+    const second = solveWithSideBoundLabels(appendedOwners, owners => solveOwners(owners, [...labelObstacles, ...fixedObstacles, ...pinnedObstacles]));
+    const missing = appendedOwners.filter(owner => !second.placements.some(placement => placement.labelId === owner.labelId));
+    const missingIssues: LabelEngineResult["issues"] = missing.map(owner => ({ code: "label_unattached", entityId: owner.entityId, message: `Appended label ${owner.labelId} has no native placement` }));
+    return { ...second, ok: second.ok && missing.length === 0,
+      placements: [...first.placements, ...second.placements], issues: [...first.issues, ...second.issues, ...missingIssues],
+      searchWork: first.searchWork + second.searchWork, solvedBy: second.solvedBy ?? first.solvedBy };
+  };
+  const labels = appendLabelIds.size === 0
+    ? solveWithSideBoundLabels(placementOwners, solveOwners)
+    : solveAppendedLabels();
   for (const issue of labels.issues) {
     issues.push({
       code: issue.code,
@@ -1441,7 +1561,6 @@ function evaluateConstruction(
     case "relative_velocity":
     case "motion_graph":
     case "uniform_circular_motion":
-    case "projectile_trajectory":
     case "work_interval":
     case "spring_energy":
     case "potential_curve":
@@ -1449,6 +1568,8 @@ function evaluateConstruction(
     case "loop_torque":
     case "galvanometer":
     case "bar_magnet": return evaluateChapterRemainderConstruction(operator, inputs, constructionContext);
+    // The projectile reads its source units from the quantities it names.
+    case "projectile_trajectory": return evaluateChapterRemainderConstruction(operator, inputs, constructionContext, document);
     case "metre_bridge":
     case "potentiometer":
     case "incline_friction":
@@ -1478,6 +1599,10 @@ function evaluateConstruction(
     case "line_intersection_angle":
     case "line_concurrence":
     case "point_line_distance": return evaluateAnalyticLineConstruction(operator, inputs, constructionContext).map(adaptAnalyticLineGeometry);
+    case "number_line_set":
+    case "linear_half_plane":
+    case "linear_feasible_region":
+    case "linear_system": return evaluateLinearRegionConstruction(operator, inputs, typeof document.source.question === "string" ? document.source.question : "");
     case "centre_of_mass":
     case "com_motion":
     case "point_mass_inertia":
@@ -1548,10 +1673,7 @@ function evaluateConstruction(
     case "space_angle_mark":
     case "space_right_angle_mark": return evaluateSpaceDerivationConstruction(operator, inputs, constructionContext);
     case "point": return [{ kind: "point", point: { x: number(["x"]), y: number(["y"]) } }];
-    case "label": return [{
-      kind: "point",
-      point: centerOf(resolveGeometry(first(inputs, ["target", "at", "point"]), geometry)),
-    }];
+    case "label": return [labelAnchorGeometry(inputs, geometry)];
     case "segment": return [{
       kind: "path",
       points: distinctPathPoints(point(["start", "from", "a"]), point(["end", "to", "b"]), operator),
@@ -2371,7 +2493,87 @@ function pushDegenerateProjectedGeometryIssues(
   });
 }
 
+function linearRegionLegendPrimitives(world: RenderPrimitive[], legendIds: ReadonlySet<string>): RenderPrimitive[] | null {
+  const used = new Set(world.filter(primitive => primitive.kind === "label").map(primitive => primitive.text));
+  const available = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").filter(name => !used.has(name));
+  const legends: RenderPrimitive[] = [];
+  const marks = world.map(primitive => {
+    if (!legendIds.has(primitive.id)) return primitive;
+    const name = available.shift();
+    if (!name) return primitive;
+    legends.push({ ...primitive, id: `${primitive.id}_legend`, text: `${name}: ${primitive.text}`,
+      provenance: { ...primitive.provenance, linearRole: "caption", linearLegendTargetId: primitive.id } });
+    return { ...primitive, text: name,
+      provenance: { ...primitive.provenance, linearRole: "source_reference_label", linearLegendRole: primitive.provenance?.linearRole } };
+  });
+  return legends.length === world.filter(primitive => legendIds.has(primitive.id)).length ? [...marks, ...legends] : null;
+}
+
+/** Captions are text rows, not metric points in the plot's coordinate frame. */
+function layoutLinearRegionPrimitives(world: RenderPrimitive[], viewport: Viewport): RenderPrimitive[] | null {
+  const captions = world.filter(primitive => primitive.provenance?.linearRole === "caption");
+  if (!captions.length) return null;
+  const options: LabelEngineOptions = {
+    fontHeightPx: BOARD_TYPE_SCALE.annotation, paddingPx: 2, minGapPx: 3,
+    measureTextPx: measureTextWidth, measureTextInkBounds,
+  };
+  const padding = viewport.padding ?? 24;
+  const inner = { x: viewport.x + padding, y: viewport.y + padding,
+    width: viewport.width - 2 * padding, height: viewport.height - 2 * padding };
+  const widest = Math.max(...captions.map(primitive => measureTextWidth(primitive.text!, options.fontHeightPx) + 4));
+  const gap = options.minGapPx! + 2;
+  const columns = captions.length > 4 && widest + gap <= (inner.width - gap) / 2 ? 2 : 1;
+  const columnWidth = (inner.width - gap * (columns - 1)) / columns;
+  const rowsPerColumn = Math.ceil(captions.length / columns);
+  const captionAnchors = new Map<string, RenderPoint>();
+  let bottom = inner.y;
+  for (let column = 0; column < columns; column++) {
+    const members = captions.slice(column * rowsPerColumn, (column + 1) * rowsPerColumn);
+    const columnView = { ...inner, x: inner.x + column * (columnWidth + gap), width: columnWidth };
+    const rows = stackLabelRows(members.map(primitive => ({
+      labelId: primitive.id, entityId: primitive.id, anchor: primitive.points[0]!, text: primitive.text!,
+    })), [{ x: columnView.x + gap, y: columnView.y + gap, align: "left" }], columnView, [], options);
+    if (!rows) return null;
+    for (const row of rows) {
+      captionAnchors.set(row.labelId!, row.anchor);
+      const width = measureTextWidth(row.text, options.fontHeightPx) + 4;
+      const ink = measureTextInkBounds(row.text, row.anchor.x - width / 2 + 2,
+        row.anchor.y - (options.fontHeightPx! + 4) / 2 + 2, options.fontHeightPx!);
+      bottom = Math.max(bottom, row.anchor.y + (options.fontHeightPx! + 4) / 2, ink ? ink.y + ink.height : 0);
+    }
+  }
+  const plotTop = bottom + gap;
+  const plotView = { ...viewport, y: plotTop, height: viewport.y + viewport.height - plotTop };
+  const plot = world.filter(primitive => primitive.provenance?.linearRole !== "caption");
+  const plotTransform = createTransform([{ kind: "path", points: plot.flatMap(primitive => primitive.points) }], plotView);
+  if (!plotTransform) return null;
+  return world.map(primitive => ({ ...primitive, points: captionAnchors.has(primitive.id)
+    ? [captionAnchors.get(primitive.id)!] : primitive.points.map(plotTransform) }));
+}
+
+function compileLinearRegionPrimitives(world: RenderPrimitive[], transform: (point: Point) => RenderPoint, viewport: Viewport): RenderPrimitive[] {
+    const result = layoutLinearRegionPrimitives(world, viewport) ?? world.map((primitive) => ({
+      ...primitive,
+      points: primitive.points.map(transform),
+      provenance: primitive.provenance,
+    }));
+    const corners=result.filter((primitive)=>primitive.kind==="point" && ["closure_corner","solution_endpoint","source_reference_point"].includes(String(primitive.provenance?.linearRole)));
+    for (let i=0;i<corners.length;i++) for(let j=0;j<i;j++) {
+      const a=corners[i]!,b=corners[j]!;
+      if(JSON.stringify(a.provenance?.worldPoints)!==JSON.stringify(b.provenance?.worldPoints) && distance(a.points[0]!,b.points[0]!)<8)throw new Error("Distinct exact endpoints or corners are not distinguishable at display precision");
+    }
+    for(const polygon of result.filter(primitive=>primitive.kind==="polygon"&&primitive.provenance?.linearRole==="feasible_fill")) {
+      let twiceArea=0,perimeter=0;
+      for(let i=0;i<polygon.points.length;i++){const a=polygon.points[i]!,b=polygon.points[(i+1)%polygon.points.length]!;twiceArea+=a.x*b.y-a.y*b.x;perimeter+=distance(a,b);}
+      if(!Number.isFinite(twiceArea)||perimeter===0||Math.abs(twiceArea)/perimeter<4)throw new Error("Shaded region is not distinguishable at display precision");
+    }
+    return result;
+}
+
 function toPrimitives(entityId: string, entityKind: string, value: Geometry, groupId: string, transform: (point: Point) => RenderPoint, viewport: { x: number; y: number; width: number; height: number; padding?: number }, forceFinite: boolean, dimensionOffsetPx = 0, label?: string, provenance?: Record<string, unknown>, directionOverlay = false): RenderPrimitive[] {
+  if (value.kind === "linear_region") {
+    return compileLinearRegionPrimitives(linearRegionPrimitives(value, entityId, groupId), transform, viewport);
+  }
   if (value.kind === "matrix_array") {
     const sourceProvenance = { ...provenance };
     delete sourceProvenance.matrixCell;
@@ -4817,6 +5019,12 @@ function resolveVector(value: unknown, geometry: Map<string, Geometry>): Point {
   }
   throw new Error("invalid vector");
 }
+/** Label constructions retain the native planar contract; world text uses annotations. */
+function labelAnchorGeometry(inputs: Record<string, unknown>, geometry: Map<string, Geometry>): Extract<Geometry, { kind: "point" }> {
+  const target = resolveGeometry(first(inputs, ["target", "at", "point"]), geometry);
+  return { kind: "point", point: centerOf(target) };
+}
+
 function resolveGeometry(value: unknown, geometry: Map<string, Geometry>, allowWorld = false): Geometry {
   if (typeof value !== "string") throw new Error("surface must reference constructed geometry");
   const resolved = geometry.get(value);
@@ -4946,7 +5154,7 @@ function angleOnArc(value: number, start: number, end: number): boolean {
 function projectPoint(p: Point, a: Point, b: Point): Point { const dx=b.x-a.x,dy=b.y-a.y; const denominator=dx*dx+dy*dy; if(denominator<EPSILON) throw new Error("degenerate line"); const t=((p.x-a.x)*dx+(p.y-a.y)*dy)/denominator; return {x:a.x+t*dx,y:a.y+t*dy}; }
 function reflectPoint(p: Point,a:Point,b:Point):Point { const q=projectPoint(p,a,b); return{x:2*q.x-p.x,y:2*q.y-p.y}; }
 function refract(i:Point,n:Point,eta:number):Point { let normal=n; let cosi=Math.max(-1,Math.min(1,i.x*n.x+i.y*n.y)); let ratio=eta; if(cosi>0){normal={x:-n.x,y:-n.y};ratio=1/eta;}else cosi=-cosi; const k=1-ratio*ratio*(1-cosi*cosi); if(k<0) throw new Error("total internal reflection"); return normalize({x:ratio*i.x+(ratio*cosi-Math.sqrt(k))*normal.x,y:ratio*i.y+(ratio*cosi-Math.sqrt(k))*normal.y}); }
-function pointsOf(value:Geometry):Point[]{ if(value.kind==="point")return[value.point]; if(value.kind==="path")return value.points; if(value.kind==="multi_path")return value.paths.flat(); if(value.kind==="circle"||value.kind==="arc")return[{x:value.center.x-value.radius,y:value.center.y-value.radius},{x:value.center.x+value.radius,y:value.center.y+value.radius}]; if(value.kind==="axes")return[{x:value.xMin,y:value.yMin},{x:value.xMax,y:value.yMax}]; if(value.kind==="compound")return value.paths.flat(); if(value.kind==="matrix_array")return matrixArrayPrimitives(value,"layout","layout").flatMap((primitive)=>primitive.points); return[value.a,value.b]; }
+function pointsOf(value:Geometry):Point[]{ if(value.kind==="point")return[value.point]; if(value.kind==="path")return value.points; if(value.kind==="multi_path")return value.paths.flat(); if(value.kind==="circle"||value.kind==="arc")return[{x:value.center.x-value.radius,y:value.center.y-value.radius},{x:value.center.x+value.radius,y:value.center.y+value.radius}]; if(value.kind==="axes")return[{x:value.xMin,y:value.yMin},{x:value.xMax,y:value.yMax}]; if(value.kind==="compound")return value.paths.flat(); if(value.kind==="matrix_array")return matrixArrayPrimitives(value,"layout","layout").flatMap((primitive)=>primitive.points); if(value.kind==="linear_region")return linearRegionPrimitives(value,"layout","layout").flatMap((primitive)=>primitive.points); return[value.a,value.b]; }
 function routedConnectorPoints(
   start: Point,
   end: Point,
@@ -5167,14 +5375,16 @@ function attachAngleMeasureLabels(
   transformPlan: EntityTransformPlan,
   consumedAnnotationIds: Set<string>,
 ): void {
+  const appendIds = new Set(document.annotations.filter(annotation => annotation.labelMode === "append").map(annotation => annotation.id));
   for (const construction of document.constructions) {
     if (construction.operator !== "angle_mark" || !construction.outputs[0]) continue;
     const entityId = construction.outputs[0];
-    if (labelOwners.some((owner) => owner.entityId === entityId)) continue;
+    if (labelOwners.some((owner) => owner.entityId === entityId && (!owner.labelId || !appendIds.has(owner.labelId)))) continue;
     const value = geometry.get(entityId);
     if (value?.kind !== "arc") continue;
     const entity = document.entities.find((candidate) => candidate.id === entityId);
     const annotation = document.annotations.find((candidate) =>
+      candidate.labelMode !== "append" &&
       candidate.targetIds.includes(entityId) && Boolean(candidate.text || candidate.quantityId),
     );
     if (annotation) consumedAnnotationIds.add(annotation.id);
@@ -5489,6 +5699,7 @@ function geometrySignature(value: Geometry): string {
   if (value.kind === "circle") return `circle:${pointKey(value.center)}:${signatureNumber(value.radius)}`;
   if (value.kind === "arc") return `arc:${pointKey(value.center)}:${signatureNumber(value.radius)}:${signatureNumber(value.startAngle)}:${signatureNumber(value.endAngle)}`;
   if (value.kind === "axes") return `axes:${value.xMin}:${value.xMax}:${value.yMin}:${value.yMax}`;
+  if (value.kind === "linear_region") return `linear:${JSON.stringify(value)}`;
   if (value.kind === "matrix_array") return `matrix:${value.matrixArray.operation}:${value.matrixArray.rows}x${value.matrixArray.columns}:${JSON.stringify(value.matrixArray.exactEntries)}:${pointKey(value.matrixArray.origin)}:${signatureNumber(value.matrixArray.displayScale)}`;
   return `dimension:${pointKey(value.a)}:${pointKey(value.b)}`;
 }

@@ -39,6 +39,8 @@ export interface DrawCommandVisualStyle {
   dashed?: boolean;
   /** Verified closed region rendered below its boundary ink. */
   fillRole?: 'region';
+  /** Engine-owned excluded endpoint; its center masks underlying figure ink. */
+  pointStyle?: 'open';
   correspondingFamily?: 1 | 2 | 3;
   /** Verified distance ink; witnesses must travel and reveal with their bar. */
   measurementRole?: 'bar' | 'witness';

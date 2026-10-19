@@ -75,6 +75,7 @@ function fixture(id: string, drawn: boolean, need: DiagramEvalRow["figure_need"]
     solver: null,
     diagram: {
       plannerDeclineReason: null, plannerDeclines: [], rejectedOperatorCalls: [],
+      candidateRejections: [], rejectionEvidenceTruncation: { candidateRecords: 0, candidateIssues: 0, operatorRecords: 0 },
       committed: drawn, declinedUnreadable: false, emptyCause: drawn ? null : "planner_no_output",
       tier: drawn ? "qualitative_verified" : null, nonMetric: true,
       figureSource: drawn ? "source_grounded" : "text_only", reason: null,

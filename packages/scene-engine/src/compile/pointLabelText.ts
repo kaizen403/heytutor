@@ -62,6 +62,7 @@ export function pointLabelText(document: SceneDocument, entityId: string): Point
   const annotations = Array.isArray(document.annotations) ? document.annotations : [];
   const textOf = (annotation: (typeof annotations)[number]) => annotation.kind === "callout" ? compactCalloutLabel(annotation.text) : annotation.text;
   const explicit = annotations.some((annotation) =>
+    annotation.labelMode !== "append" &&
     (annotation.kind === "label" || annotation.kind === "callout") &&
     !annotation.quantityId &&
     !(annotation.kind === "callout" && isViewSummaryText(annotation.text)) &&
@@ -70,6 +71,7 @@ export function pointLabelText(document: SceneDocument, entityId: string): Point
   let text: string | undefined = entity.label && !explicit ? entity.label : undefined;
   if (!text) {
     for (const annotation of annotations) {
+      if (annotation.labelMode === "append") continue;
       if ((annotation.kind !== "label" && annotation.kind !== "callout") || !Array.isArray(annotation.targetIds) || annotation.targetIds[0] !== entityId) continue;
       const summary = (annotation.kind === "callout" && isViewSummaryText(annotation.text)) || (Boolean(annotation.quantityId) && Boolean(entity.label));
       if (summary && compactCalloutLabel(annotation.text)) continue;

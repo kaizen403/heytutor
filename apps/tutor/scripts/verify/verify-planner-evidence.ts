@@ -15,6 +15,8 @@ assert.deepEqual(
   {
     plannerDeclineReason: null,
     plannerDeclines: [],
+    candidateRejections: [],
+    rejectionEvidenceTruncation: { candidateRecords: 0, candidateIssues: 0, operatorRecords: 0 },
     rejectedOperatorCalls: [],
   },
 );
