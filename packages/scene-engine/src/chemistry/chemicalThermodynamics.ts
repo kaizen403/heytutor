@@ -55,8 +55,8 @@ function claimsFirstLaw(stem: string): boolean {
   return law && pieces;
 }
 
-function claimsHeat(stem: string): boolean {
-  return chemicalHeatCapacityRequested(stem) && !/rate constant|arrhenius/.test(stem);
+function claimsHeat(stem: string, originalQuestion: string): boolean {
+  return chemicalHeatCapacityRequested(stem, originalQuestion) && !/rate constant|arrhenius/.test(stem);
 }
 
 function claimsHess(stem: string): boolean {
@@ -77,7 +77,7 @@ function claimsEquilibrium(stem: string): boolean {
 export function claimsChemicalThermodynamics(question: string): boolean {
   const stem = chemStem(question);
   if (veto(stem)) return false;
-  return claimsSystems(stem) || claimsFirstLaw(stem) || claimsHeat(stem) || claimsHess(stem) || claimsEntropy(stem) || claimsEquilibrium(stem);
+  return claimsSystems(stem) || claimsFirstLaw(stem) || claimsHeat(stem, question) || claimsHess(stem) || claimsEntropy(stem) || claimsEquilibrium(stem);
 }
 
 function box(c: ChemScene, ids: string[]): void {
@@ -662,7 +662,7 @@ export function buildChemicalThermodynamicsScene(
   if (!chemistryReferenceConstantValid(question, /\bR\s*=/, "gas_constant", "J/(mol K)", R_J)) return null;
   if (claimsSystems(stem)) return buildSystems(question, stem);
   if (claimsFirstLaw(stem)) return buildFirstLaw(question, stem);
-  if (claimsHeat(stem)) return buildHeat(question, stem);
+  if (claimsHeat(stem, question)) return buildHeat(question, stem);
   if (claimsHess(stem)) return buildHess(question, stem);
   if (claimsEntropy(stem)) return buildEntropy(question, stem);
   if (claimsEquilibrium(stem)) return buildEquilibrium(question, stem);

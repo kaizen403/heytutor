@@ -1668,8 +1668,10 @@ function buildEquilibriumPlot(question: string, spec: KineticsSpec): SceneDocume
 
 /** The kinetics figure, or null when the stem does not ground one. */
 export function buildKineticsScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
-  if (!isKineticsStem(question)) return null;
   const stem = chemStem(question);
+  // Routing vocabulary may be narrower than the complete source parser. A
+  // directly requested chemical source still faces every parser/solver guard.
+  if (!chemicalKineticsContext(stem, question)) return null;
   if (HARD_VETO.test(stem)) return null;
   if (figureAbsent(stem)) return null;
   if (/half[ -]?lives\b/.test(stem) && /\brespectively\b|\band\b[^.]{0,20}\bmin\b|two (?:independent|different)/.test(stem)) return null;

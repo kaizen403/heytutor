@@ -4,6 +4,8 @@
  * planner-authored pixels.
  */
 import { stemKnowns } from "../archetypes/generators/constantAcceleration";
+import { buildNeutralDecayScene, readNeutralDecaySource } from "../physics/neutralDecaySource";
+import { buildParticleRadiationScene, readRadiationSource } from "../physics/radiationSource";
 import { compileSceneDocument } from "../compile/compiler";
 import { groundedOhmScene } from "../compile/ohmTopicGeometry";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../document/validation";
@@ -159,6 +161,11 @@ function synthesizeFromFamilies(
 ): SynthesizedFamilyScene | null {
   const question = input.question.trim();
   if (!question) return null;
+  // A supplied but unread radiation state is terminal on both public routes;
+  // an archetype or last-resort schematic cannot substitute display defaults.
+  if (readRadiationSource(question).status === "declined") return null;
+  const neutralDecay = readNeutralDecaySource(question);
+  if (neutralDecay.status === "declined") return null;
   const circleSource = extractCircleSource(question);
   if (circleSource?.kind === "invalid") return null;
   // A section stem that cannot be read whole, whose stated point disagrees
@@ -197,6 +204,24 @@ function synthesizeFromFamilies(
   const obligations: VisualObligationSet | null = isFullProblemIRStructure(input.problemIR)
     ? deriveVisualObligations(input.problemIR)
     : null;
+  if (neutralDecay.status === "source") {
+    const document = buildNeutralDecayScene(question);
+    const compiled = document ? tryCompile(document) : null;
+    if (!compiled || demandRejection(compiled.document, demand)
+      || obligations && visualObligationRejection(obligations, compiled.document)) return null;
+    return { ...compiled, family: "analytic_curve", tier: schematic ? "question_representation" : "qualitative_verified",
+      nonMetric: true, reason: "Computed first-order fraction at the source times; axis display scales are nonmetric." };
+  }
+  const particleSource = readRadiationSource(question);
+  if (particleSource.status === "source" && particleSource.model.kind !== "photoelectric" && !families.includes("chem_orbital")) {
+    const document = buildParticleRadiationScene(question);
+    const compiled = document ? tryCompile(document) : null;
+    if (!compiled || demandRejection(compiled.document, demand)
+      || obligations && visualObligationRejection(obligations, compiled.document)) return null;
+    const conditioned = particleSource.model.kind === "matter_wave" && particleSource.model.statedMomentum && particleSource.model.statedSpeedMS !== null;
+    return { ...compiled, family: "energy_level", tier: schematic || conditioned ? "question_representation" : "qualitative_verified",
+      nonMetric: true, reason: "Radiation values are computed from the original source; display geometry is qualitative." };
+  }
   const groundedCircuit = groundedOhmScene(question, input.problemIR);
   if (groundedCircuit.handled) {
     const compiled = groundedCircuit.document ? tryCompile(groundedCircuit.document) : null;
@@ -4133,6 +4158,8 @@ function currentSegmentFieldDocument(question: string): SceneDocument {
 }
 
 function buildEnergyLevel(question: string, _quantities: PlanQuantity[], _schematic: boolean): SceneDocument | null {
+  const particle = buildParticleRadiationScene(question);
+  if (particle) return particle;
   const stem = normalizeStem(question);
   if (isJunctionSpatialStem(stem) && !isSemiconductorBandStem(stem)) {
     return semiconductorJunctionDocument(question);

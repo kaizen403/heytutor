@@ -1,6 +1,7 @@
 /** Positive chemical roles for vocabulary shared with other subjects. */
 import { complexTokens, ligandSpec, parseComplex, parseFormula } from "./formula";
 import { moleculeFromName } from "./organic/names";
+import { readChemistryQuantityDeclaration } from "./quantityReader";
 
 /** Bracketed unit notation such as V[V] supplies no coordinating ligand. */
 export function coordinationSpeciesTokens(question: string): string[] {
@@ -34,6 +35,10 @@ export function chemicalKineticsContext(stem: string, originalQuestion: string =
 export function coordinationContext(stem: string): boolean {
   if (/\bcoordination (?:complex|compound|entity|number)\b|\bmetal complexes?\b|\bligands?\b/.test(stem)) return true;
   if (!/\bcomplex(?:es)?\b/.test(stem)) return false;
+  if (/\bcomplex ions?\b|\bcomplex formation\b[^.;!?]*\bions?\b/.test(stem)) return true;
+  // Comparative stability is a chemical property of the named complex;
+  // a capital mathematical variable alone supplies no chemical role.
+  if (/\b(?:more|less) stable\b[^.;!?]*\bcomplex(?:es)?\b|\bcomplex(?:es)?\b[^.;!?]*\b(?:more|less) stable\b/.test(stem)) return true;
   if (/\b(?:dsp\^?2|d\^?2sp\^?3|sp\^?3d(?:\^?2)?|sp\^?3|sp\^?2)\b|octahedral|tetrahedral|square planar|hybridi[sz]/.test(stem)) return true;
   // Reuse the chemical ligand registry; ordinary complex variables carry no ligand identity.
   return [...stem.matchAll(/\b[A-Za-z][A-Za-z0-9]{2,}\b/g)].some(match => ligandSpec(match[0]) !== null);
@@ -45,11 +50,16 @@ export function electronicMagnetismContext(stem: string): boolean {
     && /\borbitals?\b|\belectrons?\b|\belectron(?:ic)? configuration\b|\b(?:atoms?|ions?|molecules?)\b|\bspin[ -]?only\b|\bligands?\b/.test(stem);
 }
 
-/** Heat capacity needs its molar/chemical role or a complete Cp/Cv symbol. */
-export function chemicalHeatCapacityRequested(stem: string): boolean {
+/** The heat-capacity property includes a whole sample as well as a mole.
+ * Its scalar, unit and process inventory is checked by the source operator. */
+export function chemicalHeatCapacityRequested(stem: string, originalQuestion: string = stem): boolean {
   if (/\b(?:molar)?c_?[pv](?:,m)?\b/.test(stem)) return true;
-  return /\bheat capacity\b/.test(stem)
-    && /\bmolar\b|\bper mole\b|\bmol\b|\bgas\b|\bchemical\b|\breaction\b|\bsolution\b/.test(stem);
+  // A mass-specific capacity is a different property/operator from the
+  // whole-sample C (J/K) and molar Cp/Cv account supported in this lane.
+  if (!/(?<!\bspecific\s+)\bheat capacity\b/.test(stem)) return false;
+  if (/\bmolar\b|\bper mole\b|\bmol\b|\bgas\b|\bchemical\b|\breaction\b|\bsolution\b/.test(stem)) return true;
+  return readChemistryQuantityDeclaration({ question: originalQuestion, after: /(?<!\bspecific\s+)\bheat capacity\b/,
+    dimension: "heat_capacity", targetUnit: "J/K", owner: "whole-sample heat capacity", allowAgreeingRepeats: true }).state !== "absent";
 }
 
 type AtomicMention = { start: number; end: number; species?: { symbol: string; charge: number } };
