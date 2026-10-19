@@ -169,8 +169,11 @@ const stated = (read: ReadNumber, working: string) => read.unit === undefined ? 
 /** A bounded written measurement, used only when the plan omitted the quantity. Unreadable spellings refuse. */
 function stemQuantity(stem: string, spelling: (unit: string) => string): PlanQuantity[] {
   const match = STEM_MEASUREMENT.exec(stem.trim());
-  if (!match || !STEM_VALUE.test(match[1]!)) return [];
-  const value = Number(match[1]!.replace(/,/g, "").replace(/[−–]/g, "-"));
+  if (!match) return [];
+  // A trailing hyphen separates the matched unit; exponent signs stay inside the number.
+  const token = match[1]!.replace(/[-−–]$/u, "");
+  if (!STEM_VALUE.test(token)) return [];
+  const value = Number(token.replace(/,/g, "").replace(/[−–]/g, "-"));
   if (!Number.isFinite(value)) return [];
   return [{ id: "projectile_source_measurement", symbol: "", value, unit: spelling(match[2]!), provenance: "given", sourceText: stem }];
 }
