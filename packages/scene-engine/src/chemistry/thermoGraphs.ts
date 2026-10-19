@@ -100,7 +100,7 @@ export function isThermoGraphStem(question: string): boolean {
 
 /* --------------------------------------------------------- number reading */
 
-import { readChemistryQuantity, readChemistryQuantityDeclaration, chemistryQuantityPayloadPresent, findChemistryQuantities, chemistryPlanBindingsValid, chemistryQuantityCuesValid, chemistryCanonicalValuesAgree, chemistryQuestionSpan, type ChemistryDimension } from "./quantityReader";
+import { readChemistryQuantity, readChemistryQuantityDeclaration, chemistryQuantityPayloadPresent, findChemistryQuantities, chemistryPlanBindingsValid, chemistryQuantityCuesValid, chemistryQuantityInventoryOwned, chemistryCanonicalValuesAgree, chemistryQuestionSpan, type ChemistryDimension, type ChemistryReading, type ChemistryQuantityConsumption } from "./quantityReader";
 
 interface Energy {
   value: number;
@@ -1053,8 +1053,69 @@ function buildEllingham(question: string, stem: string): SceneDocument {
 
 /* -------------------------------------------------------------- maxwell */
 
+/** Source roles validate a qualitative comparison; they grant no numeric curve. */
+function maxwellTemperatureRoles(question: string): { lower: string; higher: string } | null {
+  const body = chemistryQuestionSpan(question);
+  const cue = /\b(?:(lower|higher)\s+temperature(?:\s+T_?([12])\b)?|T_?([12])\b|temperatures?\b)/gi;
+  const matches = [...question.slice(body.start, body.end).matchAll(cue)];
+  const values = new Map<string, number>();
+  const consumed: ChemistryQuantityConsumption[] = [];
+  const unnamed: ChemistryReading[] = [];
+  let typed = false;
+  for (const [index, match] of matches.entries()) {
+    const role = match[1]?.toLowerCase();
+    const symbol = match[2] ?? match[3];
+    const owners = role ? [role, ...(symbol ? [`T${symbol}`] : [])] : [symbol ? `T${symbol}` : "unspecified"];
+    const start = body.start + match.index!;
+    const end = matches[index + 1] ? body.start + matches[index + 1]!.index! : body.end;
+    const after = new RegExp(match[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+    const read = readChemistryQuantityDeclaration({ question, after, within: { start, end },
+      dimension: "temperature", targetUnit: "K", owner: `Maxwell ${owners[0]}` });
+    if (read.state === "invalid") return null;
+    if (read.state === "absent") continue;
+    if (!(read.reading.value > 0)) return null;
+    for (const owner of owners) {
+      const previous = values.get(owner);
+      if (previous !== undefined && !chemistryCanonicalValuesAgree(previous, read.reading.value)) return null;
+      values.set(owner, read.reading.value);
+    }
+    if (owners[0] === "unspecified") unnamed.push(read.reading);
+    else {
+      typed = true;
+      consumed.push({ reading: read.reading, owner: `Maxwell ${owners[0]}` });
+    }
+  }
+  if (!typed) {
+    // An anonymous list still has distinct original operands. Preserve the
+    // established qualitative two-temperature ask without merging its owners.
+    const inventory = findChemistryQuantities({ question, dimension: "temperature", targetUnit: "K" });
+    if (!inventory.ok || inventory.reading.length > 2 || inventory.reading.some(reading => !(reading.value > 0))) return null;
+    if (inventory.reading.length === 2 && chemistryCanonicalValuesAgree(inventory.reading[0]!.value, inventory.reading[1]!.value)) return null;
+    inventory.reading.forEach((reading, index) => consumed.push({ reading, owner: `Maxwell anonymous ${index + 1}` }));
+  } else if (unnamed.length) return null;
+  if (!chemistryQuantityInventoryOwned(question, "temperature", consumed)) return null;
+  const lower = values.get("lower"), higher = values.get("higher");
+  if (lower !== undefined && higher !== undefined && !(lower < higher)) return null;
+  const t1 = values.get("T1"), t2 = values.get("T2");
+  let reversed = false;
+  if (t1 !== undefined && t2 !== undefined) {
+    if (chemistryCanonicalValuesAgree(t1, t2)) return null;
+    reversed = t1 > t2;
+    if ((lower !== undefined && !chemistryCanonicalValuesAgree(lower, Math.min(t1, t2)))
+      || (higher !== undefined && !chemistryCanonicalValuesAgree(higher, Math.max(t1, t2)))) return null;
+  } else if (t1 !== undefined || t2 !== undefined) {
+    // A lone numbered value does not prove which of two curves is hotter.
+    if (lower === undefined || higher === undefined) return null;
+    const indexed = t1 ?? t2!;
+    if (!chemistryCanonicalValuesAgree(indexed, lower) && !chemistryCanonicalValuesAgree(indexed, higher)) return null;
+    reversed = t1 !== undefined ? chemistryCanonicalValuesAgree(indexed, higher) : chemistryCanonicalValuesAgree(indexed, lower);
+  }
+  return reversed ? { lower: "T_2", higher: "T_1" } : { lower: "T_1", higher: "T_2" };
+}
+
 function buildMaxwell(question: string, stem: string): SceneDocument | null {
-  if (!chemistryQuantityCuesValid(question,[{after:/\btemperatures?\b/,dimensions:["temperature"],owner:"Maxwell temperature"}])) return null;
+  const temperatures = maxwellTemperatureRoles(question);
+  if (!temperatures) return null;
   const speeds = /speed|velocit/.test(stem) && !/energy/.test(stem);
   const c = new ChemScene(question, "Maxwell Boltzmann distribution at two temperatures", THERMO_FAMILY);
   const s = c.scene;
@@ -1062,8 +1123,8 @@ function buildMaxwell(question: string, stem: string): SceneDocument | null {
   c.text("x_title", { x: 4.35, y: -0.14 }, speeds ? "speed" : "kinetic energy", "axis title");
   c.text("y_title", { x: 0.9, y: 1.02 }, "fraction", "axis title");
   // Equal areas: the T2 curve is flatter and its most probable value larger.
-  s.curve("t1", "2*x^2*exp(-x^2)", 0, 4.6, "distribution at the lower temperature", "T_1", 97);
-  s.curve("t2", "0.7071*x^2*exp(-x^2/2)", 0, 4.6, "distribution at the higher temperature", "T_2", 97);
+  s.curve("t1", "2*x^2*exp(-x^2)", 0, 4.6, "distribution at the lower temperature", temperatures.lower, 97);
+  s.curve("t2", "0.7071*x^2*exp(-x^2/2)", 0, 4.6, "distribution at the higher temperature", temperatures.higher, 97);
   s.labelled("t1", "t2");
   proveOnCurve(c, "t1_peak", "t1", 1, 2 * Math.exp(-1));
   proveOnCurve(c, "t2_peak", "t2", Math.SQRT2, 0.7071 * 2 * Math.exp(-1));
@@ -1075,8 +1136,8 @@ function buildMaxwell(question: string, stem: string): SceneDocument | null {
     s.labelled("ea_line");
   }
   const caption = speeds
-    ? "Raising the temperature from T_1 to T_2 shifts the most probable speed to the right and flattens the curve; the area under each curve is the same because it counts all the molecules."
-    : "Raising the temperature from T_1 to T_2 flattens and broadens the curve. The fraction of molecules with energy above E_a (the area to the right of the dashed line) grows sharply, which is why the rate rises so fast with temperature.";
+    ? `Raising the temperature from ${temperatures.lower} to ${temperatures.higher} shifts the most probable speed to the right and flattens the curve; the area under each curve is the same because it counts all the molecules.`
+    : `Raising the temperature from ${temperatures.lower} to ${temperatures.higher} flattens and broadens the curve. The fraction of molecules with energy above E_a (the area to the right of the dashed line) grows sharply, which is why the rate rises so fast with temperature.`;
   return c.build({ caption });
 }
 

@@ -1,0 +1,269 @@
+{
+  "schemaVersion": "scene-document/v2",
+  "visualDecision": {
+    "mode": "scene",
+    "reason": "Aligned schematic field profiles show the common wavelength and phase; a separate three-dimensional frame identifies their perpendicular physical axes."
+  },
+  "source": {
+    "question": "Sketch electric and magnetic field oscillations of a plane wave travelling along x. Show their common wavelength, phase relationship and perpendicular oscillation axes.",
+    "representationTier": "qualitative_verified",
+    "nonMetric": true
+  },
+  "quantities": [],
+  "entities": [
+    {
+      "id": "origin",
+      "kind": "point",
+      "role": "origin of physical axes"
+    },
+    {
+      "id": "frame",
+      "kind": "polyline",
+      "role": "physical x, y, z axes"
+    },
+    {
+      "id": "axes",
+      "kind": "axes",
+      "role": "aligned schematic profiles versus x"
+    },
+    {
+      "id": "electric",
+      "kind": "polyline",
+      "role": "electric-field profile",
+      "label": "E"
+    },
+    {
+      "id": "magnetic",
+      "kind": "polyline",
+      "role": "magnetic-field profile",
+      "label": "B"
+    },
+    {
+      "id": "e_peak_1",
+      "kind": "point",
+      "role": "first electric-field peak"
+    },
+    {
+      "id": "e_peak_2",
+      "kind": "point",
+      "role": "next electric-field peak"
+    },
+    {
+      "id": "wavelength",
+      "kind": "dimension",
+      "role": "common wavelength",
+      "label": "\u03bb"
+    }
+  ],
+  "constructions": [
+    {
+      "id": "make_origin",
+      "operator": "point",
+      "inputs": {
+        "x": 0,
+        "y": 0,
+        "coordinateSpace": "layout"
+      },
+      "outputs": [
+        "origin"
+      ]
+    },
+    {
+      "id": "make_frame",
+      "operator": "space_frame",
+      "inputs": {
+        "origin": "origin"
+      },
+      "outputs": [
+        "frame"
+      ]
+    },
+    {
+      "id": "make_axes",
+      "operator": "axes",
+      "inputs": {
+        "xMin": -0.5,
+        "xMax": 8.5,
+        "yMin": -4.5,
+        "yMax": 1.5
+      },
+      "outputs": [
+        "axes"
+      ]
+    },
+    {
+      "id": "make_electric",
+      "operator": "function_curve",
+      "inputs": {
+        "expression": "sin(1.5707963267948966*x)",
+        "variable": "x",
+        "xMin": 0,
+        "xMax": 8,
+        "samples": 97
+      },
+      "outputs": [
+        "electric"
+      ]
+    },
+    {
+      "id": "make_magnetic",
+      "operator": "function_curve",
+      "inputs": {
+        "expression": "sin(1.5707963267948966*x)-3",
+        "variable": "x",
+        "xMin": 0,
+        "xMax": 8,
+        "samples": 97
+      },
+      "outputs": [
+        "magnetic"
+      ]
+    },
+    {
+      "id": "make_e_peak_1",
+      "operator": "curve_anchor",
+      "inputs": {
+        "curve": "electric",
+        "at": 1
+      },
+      "outputs": [
+        "e_peak_1"
+      ]
+    },
+    {
+      "id": "make_e_peak_2",
+      "operator": "curve_anchor",
+      "inputs": {
+        "curve": "electric",
+        "at": 5
+      },
+      "outputs": [
+        "e_peak_2"
+      ]
+    },
+    {
+      "id": "make_wavelength",
+      "operator": "dimension",
+      "inputs": {
+        "start": "e_peak_1",
+        "end": "e_peak_2"
+      },
+      "outputs": [
+        "wavelength"
+      ]
+    }
+  ],
+  "relations": [],
+  "assertions": [
+    {
+      "id": "electric_first_peak",
+      "predicate": "on",
+      "entities": [
+        "e_peak_1",
+        "electric"
+      ],
+      "expected": true,
+      "severity": "fatal"
+    },
+    {
+      "id": "electric_next_peak",
+      "predicate": "on",
+      "entities": [
+        "e_peak_2",
+        "electric"
+      ],
+      "expected": true,
+      "severity": "fatal"
+    },
+    {
+      "id": "electric_label",
+      "predicate": "label_attached",
+      "entities": [
+        "electric"
+      ],
+      "expected": true,
+      "severity": "fatal"
+    },
+    {
+      "id": "magnetic_label",
+      "predicate": "label_attached",
+      "entities": [
+        "magnetic"
+      ],
+      "expected": true,
+      "severity": "fatal"
+    },
+    {
+      "id": "wavelength_label",
+      "predicate": "label_attached",
+      "entities": [
+        "wavelength"
+      ],
+      "expected": true,
+      "severity": "fatal"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "frame_orientation",
+      "kind": "narration",
+      "targetIds": [
+        "frame"
+      ],
+      "text": "Propagation is along +x, E oscillates along y, and B oscillates along z. E and B are perpendicular to each other and to x; E \u00d7 B points along +x."
+    },
+    {
+      "id": "profile_interpretation",
+      "kind": "narration",
+      "targetIds": [
+        "electric",
+        "magnetic",
+        "wavelength"
+      ],
+      "text": "The profiles are vertically separated for visibility, not displaced physical fields. Their peaks, troughs and zero crossings align in x: they are in phase and share wavelength \u03bb."
+    }
+  ],
+  "requiredEntityIds": [
+    "frame",
+    "axes",
+    "electric",
+    "magnetic",
+    "wavelength"
+  ],
+  "revealGroups": [
+    {
+      "id": "orientation",
+      "entityIds": [
+        "origin",
+        "frame"
+      ],
+      "dependsOn": [],
+      "narrationCue": "Identify the mutually perpendicular x, y and z directions."
+    },
+    {
+      "id": "profiles",
+      "entityIds": [
+        "axes",
+        "electric",
+        "magnetic",
+        "e_peak_1",
+        "e_peak_2",
+        "wavelength"
+      ],
+      "dependsOn": [
+        "orientation"
+      ],
+      "narrationCue": "Compare the aligned oscillations and their common wavelength."
+    }
+  ],
+  "teachingTimeline": [
+    {
+      "id": "orient",
+      "revealGroupId": "orientation"
+    },
+    {
+      "id": "compare",
+      "revealGroupId": "profiles"
+    }
+  ]
+}

@@ -43,7 +43,7 @@ const FRAMES: CodeLessonFigureFrame[] = [
     id: "input",
     caption: "Find two values summing to 26",
     narrationIntent:
-      "The array is not sorted, so two pointers will not work. Instead we remember every value we have already passed.",
+      "The hash-map method does not require sorted input. Look up the complement among values already passed before storing the current value with its original index.",
   },
   {
     id: "store0",

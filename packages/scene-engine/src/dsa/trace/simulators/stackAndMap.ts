@@ -165,7 +165,7 @@ export function simulateHashMapTwoSum(input: TwoSumInput): AlgorithmTrace | null
   frames.push({
     id: "input",
     caption: `Find two values summing to ${input.target}`,
-    narrationIntent: `The array is not sorted, so walking in from both ends will not work. Instead we go left to right and remember every value we pass in a map from the value to the index it was at, so the partner we need can be looked up in one step.`,
+    narrationIntent: `The hash-map method does not require sorted input. We scan left to right and look up the complement, target minus the current value, among values already passed before storing the current value with its original index. A match gives two different original indices.`,
     state: state(-1, null, null),
   });
 
