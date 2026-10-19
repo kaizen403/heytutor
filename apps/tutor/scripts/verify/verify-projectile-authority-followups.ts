@@ -115,7 +115,7 @@ const SI_TABLE = TABLE.replace("80 cm", "0.8 m");
 refused("missing plan height: SI source still binds the height", run(SI_TABLE, plan(SI_TABLE, []), 2, [], { launchAngleDeg: 0, initialHeight: 80 }), undefined, "initialHeight");
 kept("missing plan height: correct SI height stays valid", run(SI_TABLE, plan(SI_TABLE, []), 2, [], { launchAngleDeg: 0, initialHeight: 0.8 }));
 const COMPOSITE = "A ball is launched at 20 m/s from a 30 m platform on a 50 m building. Take g = 10 m/s^2.";
-const compositePlan = plan(COMPOSITE, [given("u", 20, "m/s"), given("platform", 30, "m"), given("building", 50, "m")], [{ ...given("h", 80, "m"), provenance: "derived", dependsOn: ["platform", "building"] } as Quantity]);
+const compositePlan = plan(COMPOSITE, [given("u", 20, "m/s"), given("platform", 30, "m"), given("building", 50, "m")], [{ ...given("initial_height", 80, "m", "h"), provenance: "derived", dependsOn: ["platform", "building"] } as Quantity]);
 kept("an authoritative derived height is not replaced by separate source lengths", run(COMPOSITE, compositePlan, 20, [], { initialHeight: 80, displayScale: 8 }));
 const MAXIMUM = "A ball is launched at 20 m/s from a 50 m tower at 30° above horizontal. Take g = 10 m/s^2.";
 const maximumPlan = plan(MAXIMUM, [given("u", 20, "m/s")], [{ ...given("h", 55, "m"), provenance: "derived", dependsOn: [] } as Quantity]);
@@ -174,4 +174,52 @@ for (const [written, value] of [["80-cm-high", 0.8], ["1e2-cm-high", 1]] as cons
   kept("a number-unit separator is outside the height value", run(question, plan(question, [given("u", 2, "m/s")]), 2, [], { launchAngleDeg: 0, initialHeight: value, displayScale: 50 }));
   refused("a separated centimetre height cannot become metres", run(question, plan(question, [given("u", 2, "m/s")]), 2, [], { launchAngleDeg: 0, initialHeight: 80, displayScale: 50 }), undefined, "initialHeight");
 }
+for (const suffix of [" Its horizontal range is 80 m.", " It lands 80 m away."]) {
+  const question = TABLE + suffix;
+  for (const extra of [[], [given("R", 80, "m")], [given("R", 8000, "cm")]]) {
+    const authority = plan(question, [given("u", 2, "m/s"), ...extra]);
+    for (const initialHeight of [80, 0.8]) {
+      refused("conflicting source lengths cannot select an omitted launch height", run(question, authority, 2, [], { launchAngleDeg: 0, initialHeight, displayScale: 8 }), undefined, "initialHeight");
+    }
+  }
+  const authority = plan(question, [given("u", 2, "m/s"), given("initial_height", 0.8, "m")]);
+  kept("an identified plan height resolves conflicting source lengths", run(question, authority, 2, [], { launchAngleDeg: 0, initialHeight: 0.8 }));
+  refused("an unrelated range cannot override an identified plan height", run(question, authority, 2, [], { launchAngleDeg: 0, initialHeight: 80 }), undefined, "initialHeight");
+}
+const REPEATED_HEIGHT = TABLE + " The drop is 0.8 m.";
+kept("equivalent source lengths support the same height", run(REPEATED_HEIGHT, plan(REPEATED_HEIGHT, [given("u", 2, "m/s")]), 2, [], { launchAngleDeg: 0, initialHeight: 0.8 }));
+for (const [written, value, denominator] of [["1/2", 0.5, 2], ["1 / 2", 0.5, 2], ["1/ 2", 0.5, 2], ["1 /2", 0.5, 2], ["1⁄2", 0.5, 2], ["1∕2", 0.5, 2], ["1e2/4", 25, 4]] as const) {
+  const speedQuestion = MS.replace("20 m/s", `${written} m/s`).replace("from level ground", "from a 1 m platform");
+  kept("whole fractional source speeds preserve their value", run(speedQuestion, plan(speedQuestion, []), value, [], { initialHeight: 1, displayScale: value < 1 ? 100 : 1 }));
+  refused("a fractional speed cannot become its denominator", run(speedQuestion, plan(speedQuestion, []), denominator, [], { displayScale: 20 }));
+  const heightQuestion = TABLE.replace("80 cm", `${written} m`);
+  const heightPlan = plan(heightQuestion, [given("u", 2, "m/s")]);
+  kept("whole fractional source heights preserve their value", run(heightQuestion, heightPlan, 2, [], { launchAngleDeg: 0, initialHeight: value }));
+  refused("a fractional height cannot become its denominator", run(heightQuestion, heightPlan, 2, [], { launchAngleDeg: 0, initialHeight: denominator }), undefined, "initialHeight");
+}
+for (const written of ["1/0", "1//2", "1 / / 2", "1/2/3", "1 1/2", "1e1.2/4", "1/-2", "1 / -2", "1 / - 2", "1/--2", "1 / - - 2"]) {
+  const question = MS.replace("20 m/s", `${written} m/s`);
+  refused("unreadable fractions retain source-speed refusal", run(question, plan(question, []), { value: 2, unit: "m/s" }));
+  const heightQuestion = TABLE.replace("80 cm", `${written} m`);
+  refused("unreadable fractions retain source-height refusal", run(heightQuestion, plan(heightQuestion, [given("u", 2, "m/s")]), 2, [], { launchAngleDeg: 0, initialHeight: 2 }), undefined, "initialHeight");
+}
+refused("a derived apex h cannot authorize launch height", run(MAXIMUM, maximumPlan, 20, [], { initialHeight: 55 }), undefined, "initialHeight");
+const UNREADABLE_AND_RANGE = TABLE.replace("80 cm", "2e1.2 cm") + " Its range is 80 m.";
+refused("a range cannot mask an unreadable source height", run(UNREADABLE_AND_RANGE, plan(UNREADABLE_AND_RANGE, [given("u", 2, "m/s")]), 2, [], { initialHeight: 80 }), undefined, "initialHeight");
+const RANGE_ONLY = "A ball is launched at 2 m/s and lands 80 m away. Take g = 10 m/s^2.";
+const namedHeight = plan(RANGE_ONLY, [given("u", 2, "m/s"), given("initial_height", 0.8, "m")]);
+kept("an explicit launch height takes precedence over an unrelated source length", run(RANGE_ONLY, namedHeight, 2, [], { launchAngleDeg: 0, initialHeight: 0.8 }));
+refused("a lone source range cannot override explicit launch height", run(RANGE_ONLY, namedHeight, 2, [], { launchAngleDeg: 0, initialHeight: 80 }), undefined, "initialHeight");
+const conflictingHeights = plan(TABLE, [given("u", 2, "m/s"), given("initial_height", 0.8, "m"), given("launch_elevation", 80, "m")]);
+for (const initialHeight of [0.8, 80]) {
+  refused("conflicting explicit launch heights cannot pick an authority", run(TABLE, conflictingHeights, 2, [], { launchAngleDeg: 0, initialHeight }), undefined, "initialHeight");
+}
+const SYMBOLIC_HEIGHT = "A ball is launched horizontally at 2 m/s from height h. Take g = 10 m/s^2.";
+for (const initialHeight of [80, 800]) {
+  refused("an ambiguous symbolic h cannot leave launch height unguarded", run(SYMBOLIC_HEIGHT, plan(SYMBOLIC_HEIGHT, [given("u", 2, "m/s"), given("h", 80, "m")]), 2, [], { launchAngleDeg: 0, initialHeight }), undefined, "initialHeight");
+}
+kept("an explicit symbolic launch-height role retains its authority", run(SYMBOLIC_HEIGHT, plan(SYMBOLIC_HEIGHT, [given("u", 2, "m/s"), given("initial_height", 80, "m", "h")]), 2, [], { launchAngleDeg: 0, initialHeight: 80 }));
+const weakComposite = structuredClone(compositePlan);
+weakComposite.derived[0]!.id = "h";
+refused("a composite height also requires its explicit launch role", run(COMPOSITE, weakComposite, 20, [], { initialHeight: 80 }), undefined, "initialHeight");
 console.log(`verify-projectile-authority-followups: ${checks} checks ok`);

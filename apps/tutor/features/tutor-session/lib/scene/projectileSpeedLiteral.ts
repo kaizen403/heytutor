@@ -27,8 +27,9 @@
  *      agree with one of them (two bodies each keep their own launch speed).
  *   3. Else hold stated wrappers to the question's speed measurements; conflicting
  *      measurements refuse. Bare non-SI numbers still require plan authority.
- * - Launch height: when some plan length is not in metres, the number must
- *   agree with one plan length. Otherwise use identified plan heights and the question's stated lengths.
+ * - Launch height: preserve the plan's non-metre unit constraint, and require
+ *   an identified plan height or agreement with every stated source length.
+ *   Conflicting source lengths cannot pick a launch role for an omitted height.
  *   Zero is the same in every unit and is not held.
  *
  * Every refusal is the scene engine's fatal code for the same failure,
@@ -42,7 +43,7 @@ export const PROJECTILE_UNITS_CODE = "invalid_projectile_trajectory_units";
 export const PROJECTILE_SPEED_ROLE = /^(?:u|u0|ui|v0|vo|vi|speed|launchspeed|initialspeed|projectionspeed|launchvelocity|initialvelocity|projectionvelocity|vlaunch)$/;
 /** Plans also write "vi" loosely for a final velocity, and a derived "speed" is a speed found later, like a derived v. */
 const GIVEN_ONLY_ROLE = /^(?:vi|speed)$/;
-const PROJECTILE_HEIGHT_ROLE = /^(?:h|h0|y(?:0|initial|launch)|(?:initial|launch|table|tower)?height|(?:initial|launch)elevation|heightaboveground)$/;
+const PROJECTILE_HEIGHT_ROLE = /^(?:h0|y(?:0|initial|launch)|(?:initial|launch|table|tower)height|(?:initial|launch)elevation|heightaboveground)$/;
 // Preserve Unicode letters: NFKC maps the y subscript to γ, which must not disappear from a component such as v₀ᵧ.
 const speedRoleKey = (name: string) => name.normalize("NFKC").toLowerCase().replace(/\\(?:mathrm|text)/g, "").replace(/[^\p{L}\p{N}]/gu, "");
 
@@ -70,7 +71,9 @@ export function isSpeedUnit(unit: unknown): unit is string {
 }
 
 /** Whole numeric tokens, including unreadable ones, so a refusal cannot disappear. */
-const STEM_NUMBER = "(?<![\\d.,])(?:\\d|\\.\\d)[\\d.,eE+−–-]*";
+const STEM_ATOM = "(?:\\d|\\.\\d)[\\d.,eE+−–-]*";
+// Keep fractions (and malformed/mixed fractions) intact; never restart at a denominator.
+const STEM_NUMBER = `(?<![\\d.,])${STEM_ATOM}(?:\\s+${STEM_ATOM}(?=\\s*[/⁄∕]))?(?:(?:\\s*[/⁄∕]\\s*)+(?:[+−–-]\\s*)*${STEM_ATOM})*`;
 const STEM_MEASUREMENT = new RegExp(`^(${STEM_NUMBER})\\s*([^\\d,.\\s].*)$`, "u");
 const STEM_VALUE = /^(?:\d+(?:,\d{3})*(?:\.\d*)?|\.\d+)(?:[eE][+−–-]?\d+)?$/u;
 /** Shared length vocabulary for plan quantities and speeds stated per minute. */
@@ -172,8 +175,10 @@ function stemQuantity(stem: string, spelling: (unit: string) => string): PlanQua
   if (!match) return [];
   // A trailing hyphen separates the matched unit; exponent signs stay inside the number.
   const token = match[1]!.replace(/[-−–]$/u, "");
-  if (!STEM_VALUE.test(token)) return [];
-  const value = Number(token.replace(/,/g, "").replace(/[−–]/g, "-"));
+  const parts = token.split(/\s*[/⁄∕]\s*/u);
+  if (parts.length > 2 || parts.some((part) => !STEM_VALUE.test(part))) return [];
+  const numbers = parts.map((part) => Number(part.replace(/,/g, "").replace(/[−–]/g, "-")));
+  const value = numbers[0]! / (numbers[1] ?? 1);
   if (!Number.isFinite(value)) return [];
   return [{ id: "projectile_source_measurement", symbol: "", value, unit: spelling(match[2]!), provenance: "given", sourceText: stem }];
 }
@@ -207,7 +212,6 @@ export function projectileSpeedLiteralIssues(
   const questionLengths = questionLengthReads.flat();
   const hasUnreadableQuestionLength = questionLengthReads.some((read) => read.length === 0);
   const planHeights = lengths.filter((quantity) => writtenNames(quantity).some((name) => PROJECTILE_HEIGHT_ROLE.test(speedRoleKey(name))));
-  const heightLengths = lengthsHeld ? lengths : [...planHeights, ...questionLengths];
   // Qualitative claims never support a literal. A probe id no plan writes, so agreement matches by value and unit.
   const agrees = (id: string, read: ReadNumber, working: string, against: PlanQuantity[]) =>
     validateSceneQuantityAgreement([{ id, value: read.value, unit: read.unit ?? working }],
@@ -246,11 +250,18 @@ export function projectileSpeedLiteralIssues(
     }
 
     const height = construction.inputs.initialHeight === undefined ? null : readNumber(construction.inputs.initialHeight, quantities);
-    if (height && height.value !== 0 && (heightLengths.length > 0 || hasUnreadableQuestionLength)) {
+    if (height && height.value !== 0 && (lengths.length > 0 || questionLengthReads.length > 0)) {
       const read = height.unit === undefined ? height : { ...height, unit: lengthUnitSpelling(height.unit) };
-      if (!agrees(`projectile_trajectory:${name}:initialHeight`, read, "m", heightLengths)) {
-        const evidence = heightLengths.length > 0
-          ? `the plan or question states lengths (${heightLengths.map(describe).join(", ")}) and none of them is that height`
+      const probe = `projectile_trajectory:${name}:initialHeight`;
+      const sourceLengthsAgree = questionLengths.length > 0 && !hasUnreadableQuestionLength
+        && questionLengths.every((quantity) => agrees(probe, read, "m", [quantity]));
+      const heightAgrees = planHeights.length > 0
+        ? planHeights.every((quantity) => agrees(probe, read, "m", [quantity]))
+        : sourceLengthsAgree;
+      if ((lengthsHeld && !agrees(probe, read, "m", lengths)) || !heightAgrees) {
+        const statedLengths = [...lengths, ...questionLengths];
+        const evidence = statedLengths.length > 0
+          ? `the plan or question states lengths (${statedLengths.map(describe).join(", ")}) without an agreeing plan height or unanimous source lengths`
           : "a source length has an unreadable numeric format and the plan names no supported height";
         refuse("initialHeight", `${name} initialHeight is ${stated(height, "m")}, but ${evidence}; write the height as that plan quantity or as { value, unit }`);
       }
