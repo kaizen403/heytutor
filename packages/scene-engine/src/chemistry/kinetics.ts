@@ -18,6 +18,7 @@
 import type { SceneDocument } from "../types";
 import { fmt } from "../archetypes/document";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
+import { findSymbolicArrheniusSources, readSymbolicArrheniusSource } from "./symbolicArrheniusSource";
 
 import { chemistryCanonicalValuesAgree, chemistryReferenceConstantValid, CHEMISTRY_NUMBER_PATTERN, CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, chemistryQuestionSpan, chemistryPlanBindingsValid, chemistryQuantityCuesValid, readChemistryQuantity, readChemistryQuantityDeclaration, readChemistryLiteral, readChemistryArrheniusEquation, findChemistryQuantities, convertChemistryReading, convertChemistryValue, chemistryUnitSymbol, type ChemistryUnit, type ChemistryReading, type ChemistrySpan } from "./quantityReader";
 
@@ -532,11 +533,7 @@ function readOwnedTemperatureRates(question: string, start: number, end: number)
 /** A complete symbolic Arrhenius identity supplies no physical rate scalar. */
 function symbolicArrheniusRateOwnerOnly(body: string, owner: RegExpMatchArray, start: number, end: number): boolean {
   if (!/^k\b/.test(owner[0])) return false;
-  const tail = body.slice(start,end);
-  const formula = /^\s*=\s*A\s*(?:e\s*\^\s*\(\s*[-−]\s*E_?a\s*\/\s*(?:R\s*T|\(\s*R\s*T\s*\))\s*\)|exp\s*\(\s*[-−]\s*E_?a\s*\/\s*(?:R\s*T|\(\s*R\s*T\s*\))\s*\))/.exec(tail);
-  if (!formula) return false;
-  const rest = tail.slice(formula[0].length);
-  return rest.trim() === "" || /^\s*,\s*(?:find|calculate|determine|compute|evaluate)\s+(?:the\s+)?activation energy\s+(?:if|when)\s+(?:(?:the|a)\s+)?$/i.test(rest);
+  return start === owner.index! + owner[0].length && readSymbolicArrheniusSource(body, { start: owner.index!, end }) !== null;
 }
 /** Each supplied rate owns its original literal; absence and unread are distinct. */
 function readRateConstant(stem: string, order: ReactionOrder | null = 1): { value: number; unit: string | null; source: ChemistryReading } | null | false {
@@ -1078,6 +1075,11 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
     energies.push(measuredEnergy);
   }
   if (energies.some(energy => !(energy > 0) || !chemistryCanonicalValuesAgree(energy,energies[0]!))) return false;
+  // A restored symbolic context cannot lend an absolute log intercept to
+  // inconsistent measured rates. Historical measured-only plots retain their
+  // existing path; the source-equation path below proves its absolute values.
+  if (equation.ok && equation.reading.intercept && findSymbolicArrheniusSources(stem).length
+    && !absoluteArrheniusSourcesAgree(equation.reading, { A, k1, k2, T1, T2 })) return false;
   if (Ea === null && ratio === null && k1 === null && statedSlope === null) return null;
   return {T1, T2, k1, k2, ratio, Ea, A, statedSlope};
 }
@@ -1603,8 +1605,67 @@ function buildSecondOrderNumeric(question: string, spec: KineticsSpec, solution:
 /* ------------------------------------------------------------------------- */
 /* Figure 3: Arrhenius                                                        */
 
+type ArrheniusEquation = Extract<ReturnType<typeof readChemistryArrheniusEquation>, { ok: true }>["reading"];
+function absoluteArrheniusSourcesAgree(equation: ArrheniusEquation, values: Pick<ArrheniusSpec, "A" | "k1" | "k2" | "T1" | "T2">): boolean {
+  if (!equation.intercept) return false;
+  const logarithm = equation.natural ? Math.log : Math.log10, C = equation.intercept.value, B = equation.coefficient.value;
+  if (values.A !== null && (!(values.A > 0) || !chemistryCanonicalValuesAgree(logarithm(values.A), C))) return false;
+  for (const [rate, temperature] of [[values.k1, values.T1], [values.k2, values.T2]]) {
+    if (rate !== null && (temperature === null || !(rate > 0 && temperature > 0)
+      || !chemistryCanonicalValuesAgree(logarithm(rate), C - B / temperature))) return false;
+  }
+  return true;
+}
+
+/** An explicit log equation supplies the entire affine relation, not merely Ea.
+ * The finite plotting window is a display choice within 1/T >= 0, never a
+ * fabricated measured temperature. Source-valued ticks expose both mappings. */
+function buildSourceArrhenius(question: string, equation: ArrheniusEquation, arr: ArrheniusSpec, solution: KineticsSolution): SceneDocument | null {
+  if (!equation.intercept || !absoluteArrheniusSourcesAgree(equation, arr)) return null;
+  const C = equation.intercept.value, B = equation.coefficient.value, ordinate = equation.natural ? "ln k" : "log k";
+  const temperatures = [arr.T1, solution.T2].filter((value): value is number => value !== null);
+  const inverseMax = Math.max(2 * Math.max(1, Math.abs(C)) / B, ...temperatures.map(value => 1.2 / value));
+  const endValue = C - B * inverseMax, yMin = endValue, yMax = Math.max(0, C);
+  const sx = X_SPAN / inverseMax, sy = Y_SPAN / (yMax - yMin), yZero = -yMin * sy;
+  if (![C, B, inverseMax, endValue, sx, sy, yZero].every(Number.isFinite) || !(B > 0 && inverseMax > 0 && sx > 0 && sy > 0)) return null;
+  const yOf = (value: number) => (value - yMin) * sy;
+  const c = new ChemScene(question, `${ordinate} = C - B/T: source affine relation`, KINETICS_FAMILY);
+  c.arrow("ar_xaxis", { x: -.4, y: yZero }, { x: X_SPAN + .6, y: yZero }, "inverse temperature axis");
+  c.arrow("ar_yaxis", { x: 0, y: -.4 }, { x: 0, y: Y_SPAN + .6 }, "log rate axis");
+  c.text("ar_xl", { x: X_SPAN + .6, y: yZero - 1.3 }, "1/T (K^-1)", "axis label");
+  c.text("ar_yl", { x: .15, y: Y_SPAN + 1 }, ordinate, "axis label");
+  c.link("ar_xtick_mark", { x: X_SPAN, y: yZero - .1 }, { x: X_SPAN, y: yZero + .1 }, "axis tick", false);
+  c.text("ar_xtick", { x: X_SPAN, y: yZero - .4 }, fmt(inverseMax, 8), "tick");
+  c.link("ar_ytick_mark", { x: -.1, y: yOf(endValue) }, { x: .1, y: yOf(endValue) }, "axis tick", false);
+  c.text("ar_ytick", { x: -.7, y: yOf(endValue) }, fmt(endValue, 8), "tick");
+  c.text("ar_zero", { x: -.4, y: yZero + .25 }, "0", "origin");
+  const intercept = yOf(C), gradient = -B * sy / sx;
+  const line = c.scene.curve("line", `${intercept} - ${Math.abs(gradient)}*x`, 0, X_SPAN, `${ordinate} against 1/T`, undefined, 33);
+  for (const [index, x] of [0, X_SPAN / 2, X_SPAN].entries()) c.scene.assert(`ar_source_${index}`, "function_value", [line], { x, y: yOf(C - B * x / sx) });
+  c.text("slope", { x: 6.8, y: Y_SPAN + 1 }, `m=${fmt(-B, 4)}K`, "slope label");
+  c.text("lnA", { x: 6.8, y: Y_SPAN + .35 }, `${equation.natural ? "lnA" : "logA"}=${fmt(C, 4)}`, "intercept");
+  for (const [index, temperature] of temperatures.entries()) {
+    const x = sx / temperature, y = yOf(C - B / temperature);
+    dot(c, `p${index + 1}`, { x, y }, "source temperature point", `T_${index + 1}=${fmt(temperature, 5)} K`);
+    c.scene.assert(`ar_temperature_${index}`, "function_value", [line], { x, y });
+    c.scene.quantities.push({ id: `T${index + 1}`, symbol: `T_${index + 1}`, value: temperature, unit: "K" });
+  }
+  // These are source/solver values, not world coordinates. The display
+  // builder's six-decimal rounding must not alter their numeric authority.
+  c.scene.quantities.push({ id: "arrhenius_B", symbol: "B", value: B, unit: "K" }, { id: "arrhenius_C", symbol: "C", value: C, unit: "1" });
+  if (solution.Ea !== null) c.scene.quantities.push({ id: "Ea", symbol: "E_a", value: solution.Ea, unit: "J/mol" });
+  if (solution.ratio !== null) c.scene.quantities.push({ id: "ratio", symbol: "k_2/k_1", value: solution.ratio, unit: "1" });
+  const visibleNames = c.scene.entities.flatMap(entity => entity.label ? [entity.label] : []);
+  c.scene.group("arrhenius_source", c.scene.entities.map(entity => entity.id), `${ordinate} = ${C} - ${B}/T. The plotted source labels are ${visibleNames.join(", ")}.`);
+  const eaText = solution.Ea === null ? "" : ` E_a = ${fmt(solution.Ea / 1000, 3)} kJ/mol.`;
+  return c.build({ caption: `${ordinate} = ${C} - ${B}/T (${equation.natural ? "natural logarithm" : "base 10"}). Slope = -${B} K; intercept = ${C}. Both axis scales are linear; 1/T = 0 is the infinite-temperature limit.${eaText}` });
+}
+
 function buildArrhenius(question: string, spec: KineticsSpec, solution: KineticsSolution, qualitative: boolean): SceneDocument | null {
   const arr = spec.arrhenius;
+  const equation = readChemistryArrheniusEquation(question);
+  const measuredPair = arr?.k1 !== null && arr?.k1 !== undefined && arr?.k2 !== null && arr?.k2 !== undefined;
+  if (arr && equation.ok && equation.reading.intercept && (!measuredPair || findSymbolicArrheniusSources(question).length)) return buildSourceArrhenius(question, equation.reading, arr, solution);
   const c = new ChemScene(question, "Arrhenius: ln k against 1/T is a straight line of slope -E_a/R", KINETICS_FAMILY);
   const panel: Panel = { x0: 0, y0: 0, ids: [] };
   axesWithLabels(c, "ar", 0, "1/T", "ln k", panel);

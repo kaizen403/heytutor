@@ -2,6 +2,7 @@
  * Chemistry-only physical givens. Original JS spans and unit case are authority. */
 import type { ChemPlanQuantity } from "./sceneKit";
 import { parseFormula } from "./formula";
+import { findSymbolicArrheniusSources } from "./symbolicArrheniusSource";
 
 export interface ChemistrySpan { start: number; end: number }
 export type ChemistryDimension = "dimensionless" | "time" | "temperature" | "temperature_delta"
@@ -102,6 +103,8 @@ function scalarValue(question: string, span: ChemistrySpan): ChemRead<number> {
 export interface ChemistryArrheniusEquation {
   natural: boolean;
   coefficient: { value: number; span: ChemistrySpan; text: string };
+  /** Only an explicit log assignment supplies an absolute log intercept. */
+  intercept?: { value: number; span: ChemistrySpan; text: string };
   source: { span: ChemistrySpan; text: string };
 }
 /** A coefficient is authority only inside a complete original Arrhenius
@@ -119,21 +122,26 @@ export function readChemistryArrheniusEquation(question: string): ChemRead<Chemi
     if (/(?:\p{L}|\p{N}|\p{M}|_)$/u.test(question.slice(0,start)) || /(?:\p{Sm}|[/^*·∙·-])\s*$/u.test(question.slice(0,start))
       || /^(?:\p{L}|\p{N}|\p{M}|[_⁺⁻])/u.test(question.slice(stop))
       || /^(?:\p{Sm}|[/^*·∙·-])|^\.(?=\p{L}|\p{N}|\p{M}|[_.])/u.test(question.slice(stop).trimStart())) return fail("malformed", {start,end:stop});
+    let interceptReading: ChemistryArrheniusEquation["intercept"];
     if (group === 3) {
       const intercept = match.indices![2]!;
-      if (!scalarValue(question,{start:intercept[0],end:intercept[1]}).ok) return fail("malformed",{start:intercept[0],end:intercept[1]});
+      const span = { start: intercept[0], end: intercept[1] }, value = scalarValue(question, span);
+      if (!value.ok) return fail("malformed", span);
+      interceptReading = { value: value.reading, span, text: question.slice(span.start, span.end) };
     }
     const pair = match.indices![group]!; const span = {start:pair[0],end:pair[1]};
     const value = scalarValue(question,span);
     if (!value.ok || !(value.reading > 0)) return fail("malformed",span);
-    readings.push({natural:match[1]?.toLowerCase() !== "log",coefficient:{value:value.reading,span,text:question.slice(span.start,span.end)},source:{span:{start,end:stop},text:match[0]}});
+    readings.push({natural:match[1]?.toLowerCase() !== "log",coefficient:{value:value.reading,span,text:question.slice(span.start,span.end)},source:{span:{start,end:stop},text:match[0]},...(interceptReading ? {intercept:interceptReading} : {})});
   }
   // Inventory declarations before accepting one successful expression. An
   // unread log assignment or exponential sibling cannot disappear behind it.
   // An uppercase equilibrium K assignment is supplied unsupported material,
   // never a lowercase rate k or an absent expression permitting a generic plot.
   const owners = /\b(?:[lL](?:[nN]|[oO][gG])\s*[kK]\s*=|e\s*(?:\^\s*|\(\s*|[-−]))/g;
+  const symbolic = findSymbolicArrheniusSources(question.slice(0, end));
   for (const owner of question.slice(0,end).matchAll(owners)) {
+    if (symbolic.some(source => source.exponential.span.start === owner.index)) continue;
     if (!readings.some(reading => reading.source.span.start === owner.index))
       return fail("malformed", {start:owner.index!,end:owner.index!+owner[0].length});
   }
