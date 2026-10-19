@@ -71,6 +71,18 @@ export function buildVerifiedDiagramPresentation(
     ? new Set(molecule!.structures.flatMap((structure) => structure.atomIds)) : new Set<string>();
   const layout = labelLayoutFor(options.layout ?? "standard");
   const source = document.source as Record<string, unknown> | undefined;
+  const answerEntityIds = new Set(Array.isArray(source?.answerLabelEntityIds) ? source.answerLabelEntityIds.filter((id): id is string => typeof id === "string") : []);
+  const answerAnnotationIds = new Set(Array.isArray(source?.answerLabelAnnotationIds) ? source.answerLabelAnnotationIds.filter((id): id is string => typeof id === "string") : []);
+  const answerTargets = new Set<string>();
+  // A caption or targetless callout carrying a staged answer ("R=80 m") would
+  // be drawn and spoken before teaching. Withhold that caption entirely.
+  const answerTexts = (document.annotations ?? [])
+    .filter((annotation) => answerAnnotationIds.has(annotation.id))
+    .map((annotation) => annotation.text?.trim())
+    .filter((text): text is string => Boolean(text));
+  const answerFreeCaption = (caption: string | undefined) =>
+    caption && answerTexts.some((text) => caption.includes(text)) ? undefined : caption;
+  const answerGroupIds = new Set<string>();
   const nonMetric = source?.nonMetric === true;
   const representationTier = typeof source?.representationTier === "string"
     ? source.representationTier
@@ -166,7 +178,13 @@ export function buildVerifiedDiagramPresentation(
       const commandPhase = primitive.provenance?.matrixCell || structuralSymbol
         ? "structure"
         : command.type === "LABEL" || command.type === "DIMENSION" ? "detail" : phase;
-      const deferReason = (structuralSymbol ? null : deferralReason(
+      const answerLabel = !structuralSymbol && (command.type === "LABEL" || command.type === "DIMENSION") &&
+        (answerEntityIds.has(primitive.entityId) || answerAnnotationIds.has(String(primitive.provenance?.annotationId)));
+      if (answerLabel) {
+        answerTargets.add(primitive.entityId);
+        answerGroupIds.add(primitive.groupId);
+      }
+      const deferReason = (structuralSymbol ? null : answerLabel ? "answer" : deferralReason(
         primitive,
         command,
         annotateTargetIds,
@@ -179,6 +197,7 @@ export function buildVerifiedDiagramPresentation(
           entityId: primitive.entityId,
           groupId: primitive.groupId,
           pullable: deferReason === "named",
+          answer: deferReason === "answer",
         });
       }
     }
@@ -186,7 +205,7 @@ export function buildVerifiedDiagramPresentation(
 
   const introSegments: TutorSegment[] = [];
   const reveals: VerifiedDiagram["reveals"] = [];
-  const entitiesById = new Map(document.entities.map((entity) => [entity.id, entity]));
+  const entitiesById = new Map(document.entities.map((entity) => [entity.id, answerEntityIds.has(entity.id) ? { ...entity, label: undefined } : entity]));
   const pulled = new Set<number>();
   orderedGroupIds.forEach((groupId, groupIndex) => {
     const phaseIndices = indicesByGroup.get(groupId) ?? emptyPhaseIndices();
@@ -200,7 +219,7 @@ export function buildVerifiedDiagramPresentation(
       .map((entry) => entry.narrationIntent?.trim())
       .filter((cue): cue is string => Boolean(cue && isSpokenProse(cue))))];
     // Prefer planner prose when present; short group cues still drive the fallback templates.
-    const cue = (timelineCue && isSpokenProse(timelineCue) ? timelineCue : null)
+    const cue = answerGroupIds.has(groupId) || [...memberIds].some(id => answerTargets.has(id)) ? "Here is the setup." : (timelineCue && isSpokenProse(timelineCue) ? timelineCue : null)
       || (group?.narrationCue && isSpokenProse(group.narrationCue) ? group.narrationCue : null)
       || memberCues.join(" ")
       || group?.narrationCue
@@ -302,6 +321,7 @@ export function buildVerifiedDiagramPresentation(
   const drawnTextByEntity = new Map<string, string>();
   for (const primitive of renderScene.primitives) {
     if (primitive.kind !== "label" && primitive.kind !== "dimension") continue;
+    if (answerEntityIds.has(primitive.entityId) || answerAnnotationIds.has(String(primitive.provenance?.annotationId))) continue;
     const text = primitive.text?.trim();
     if (!text) continue;
     // Composite entities carry content glyphs as well as their own name.
@@ -325,14 +345,18 @@ export function buildVerifiedDiagramPresentation(
     return role ? [`[FOCUS:${anchor.id}] means ${role}`] : [];
   }).join("; ");
   const groupTargets = groups.map((group) => group.id).join(", ");
-  const deferredByEntity = new Map<string, VerifiedDiagramCommand[]>();
+  // An answer annotation ("R=80 m") and the ordinary symbol ("R") can share
+  // one entity. They stay in separate entries so only the answer waits for
+  // the end of the lesson; the symbol is still released when it is named.
+  const deferredByEntity = new Map<string, { entityId: string; answer: boolean; commands: VerifiedDiagramCommand[] }>();
   for (const entry of deferred) {
     if (pulled.has(entry.index)) continue;
-    const existing = deferredByEntity.get(entry.entityId) ?? [];
-    existing.push(commands[entry.index]!);
-    deferredByEntity.set(entry.entityId, existing);
+    const key = `${entry.answer ? "answer" : "ordinary"}:${entry.entityId}`;
+    const existing = deferredByEntity.get(key) ?? { entityId: entry.entityId, answer: entry.answer, commands: [] };
+    existing.commands.push(commands[entry.index]!);
+    deferredByEntity.set(key, existing);
   }
-  const deferredIds = [...deferredByEntity.keys()].join(", ");
+  const deferredIds = [...new Set([...deferredByEntity.values()].filter((entry) => !entry.answer).map((entry) => entry.entityId))].join(", ");
   const hasDrawableInk = verifiedDiagramHasDrawableInk({ commands });
   const diagram: VerifiedDiagram = {
     id: "verified_scene",
@@ -345,10 +369,11 @@ export function buildVerifiedDiagramPresentation(
     // caption. Non-metric scenes used to stamp "Do not read scale from this
     // figure." under every DSA walk; the teaching prompt already forbids
     // reading scale, so the student does not need that line on the board.
-    caption: hasDrawableInk ? visibleFigureCaption(renderScene.caption) : undefined,
+    caption: hasDrawableInk ? answerFreeCaption(visibleFigureCaption(renderScene.caption)) : undefined,
     layout: options.layout === "code_lesson" ? "code_lesson" : undefined,
-    deferredAnnotations: [...deferredByEntity.entries()].map(([entityId, deferredCommands]) => ({
+    deferredAnnotations: [...deferredByEntity.values()].map(({ entityId, answer, commands: deferredCommands }) => ({
       entityId,
+      ...(answer ? { revealAfterLesson: true } : {}),
       commands: deferredCommands,
     })),
     // Symbols on the figure stay short; the expansion and solved value travel
@@ -357,6 +382,7 @@ export function buildVerifiedDiagramPresentation(
     promptAddon: `${nonMetric
       ? `A source-grounded conceptual representation (${representationTier}) has already been compiled and is being explained as it is revealed. It is intentionally non-metric: do not infer scale, missing connections, intersections, regions, directions, or solved values from it.`
       : "A complete metric diagram has already been compiled, validated, and is being explained as it is revealed."}
+${answerTargets.size ? "Computed answer labels stay hidden until this teaching sequence ends. Derive their values in narration and WRITE before the lesson ends; FOCUS only traces their geometry." : ""}
 Do not emit DRAW_*, LABEL, DIMENSION, ARROW, SCRIBBLE, CIRCLE_AROUND, HIGHLIGHT, UNDERLINE, ERASE, or CLEAR tags.
 When you name a listed diagram part, put one [FOCUS:entity_id] for that part inside the sentence, directly after the spoken name (for example "its pole [FOCUS:P] is on the axis"). One id per tag: a sentence that names three parts carries three tags, each right after its own name. Never place the tag at the end of the step after a WRITE row, and never write two ids in one tag. Never provide coordinates.
 Parts the student can read, written as the drawn label then its tag: ${namedTargets || "none"}. Speak the label, never the id; the id belongs inside the tag only. The quotation marks are there to delimit the label and are not spoken.
@@ -364,7 +390,7 @@ Verified meaning of each focus target: ${targetMeanings || "none"}. A target den
 Parts with no label on the board: ${unnamedTargets || "none"}. You may FOCUS these, but do not give them a name aloud and do not claim the figure marks them.
 Reveal groups, which are sets of the parts above and not objects in their own right: ${groupTargets || "none"}. Never describe a group as a component, a block, an instrument, or a piece of apparatus.
 Optional FOCUS forms: [FOCUS:entity_id], [FOCUS:entity_id|spotlight], [FOCUS:entity_id|pulse], or a reveal-group id.
-When you say what a labeled point is, for example the object O or the image I, the tag follows the name inside the sentence. FOCUS also reveals that entity's withheld label.
+When you say what a labeled point is, for example the object O or the image I, the tag follows the name inside the sentence. ${answerTargets.size ? "FOCUS may reveal ordinary withheld labels; computed answer labels wait for completion." : "FOCUS also reveals that entity's withheld label."}
 To box the current work-area equation and highlight its result, use [EMPHASIZE:last]. To reveal a withheld measurement, enclose, or other compiled annotation, use [ANNOTATE:entity_id] with one of: ${deferredIds || "none"}.
 Do not describe marker movement or pretend to add, point at, circle, or redraw anything. Say "notice", "follow", "look at", or "this is" the named entity when using FOCUS.
 Refer to diagram entities by their visible labels in narration.
@@ -382,7 +408,7 @@ The scene engine owns all diagram geometry, labels, annotations, directions, con
   const spokenIntro = collapseIntroSpeech(introSegments, {
     codeLesson: options.layout === "code_lesson",
     narrationLanguage: options.narrationLanguage,
-    caption: visibleFigureCaption(renderScene.caption ?? captionAnnotationOf(document)),
+    caption: answerFreeCaption(visibleFigureCaption(renderScene.caption ?? captionAnnotationOf(document))),
   }).map((segment) => (options.layout === "code_lesson"
     ? { ...segment, sceneText: true }
     : segment));
@@ -523,6 +549,8 @@ interface DeferredCommand {
   groupId: string;
   /** A label or dimension waiting for its name, which the intro may speak. */
   pullable: boolean;
+  /** A computed answer label, held until the lesson ends. */
+  answer: boolean;
 }
 
 /**
