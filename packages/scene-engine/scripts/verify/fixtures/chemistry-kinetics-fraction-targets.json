@@ -1,0 +1,435 @@
+[
+  {
+    "id": "exact-thread",
+    "question": "A first order reaction has half life 20 min. Find when 1/4 of the initial concentration remains.",
+    "draw": true,
+    "minutes": 40,
+    "role": "remaining"
+  },
+  {
+    "id": "word-control",
+    "question": "A first order reaction has half life 20 min. Find when one fourth of the initial concentration remains.",
+    "draw": true,
+    "minutes": 40,
+    "role": "remaining"
+  },
+  {
+    "id": "numeric-eighth-left",
+    "question": "A first order reaction has half life 15 min. Calculate the time when 1/8 of the starting concentration is left.",
+    "draw": true,
+    "minutes": 45,
+    "role": "remaining"
+  },
+  {
+    "id": "numeric-sixteenth-remaining",
+    "question": "The half life of a first order reaction is 30 min. Determine when 1/16 of its initial concentration remains.",
+    "draw": true,
+    "minutes": 120,
+    "role": "remaining"
+  },
+  {
+    "id": "numeric-three-fourths-unreacted",
+    "question": "A first order reaction has half life 10 min. Find when 3/4 of the initial concentration is unreacted.",
+    "draw": true,
+    "minutes": 4.150374992788438,
+    "role": "remaining"
+  },
+  {
+    "id": "numeric-two-thirds-remaining",
+    "question": "A first order reaction has half life 12 min. Find the time for 2/3 of the starting concentration remains.",
+    "draw": true,
+    "minutes": 7.019550008653875,
+    "role": "remaining"
+  },
+  {
+    "id": "numeric-unlisted-five-eighths",
+    "question": "A first order reaction has half life 20 min. Compute when 5/8 of the initial concentration remains.",
+    "draw": true,
+    "minutes": 13.561438102252755,
+    "role": "remaining"
+  },
+  {
+    "id": "numeric-equivalent-two-eighths",
+    "question": "A first order reaction has half life 20 min. Calculate when 2/8 of the initial concentration is remaining.",
+    "draw": true,
+    "minutes": 40,
+    "role": "remaining"
+  },
+  {
+    "id": "numeric-reactant-decayed",
+    "question": "A first order reaction has half life 20 min. Find when 3/4 of the reaction has decayed.",
+    "draw": true,
+    "minutes": 40,
+    "role": "completion"
+  },
+  {
+    "id": "numeric-initial-decayed",
+    "question": "A first order reaction has half life 20 min. Find when 3/4 of the initial concentration has decayed.",
+    "draw": true,
+    "minutes": 40,
+    "role": "completion"
+  },
+  {
+    "id": "word-initial-decayed",
+    "question": "A first order reaction has half life 20 min. Find when three fourths of the initial concentration has decayed.",
+    "draw": true,
+    "minutes": 40,
+    "role": "completion"
+  },
+  {
+    "id": "numeric-completion-control",
+    "question": "A first order reaction has half life 20 min. Calculate the time for 1/4 completion.",
+    "draw": true,
+    "minutes": 8.300749985576877,
+    "role": "completion"
+  },
+  {
+    "id": "given-concentration-and-target",
+    "question": "A first order reaction has half life 20 min. The initial concentration is 0.1 M. Find when 1/4 of the initial concentration remains.",
+    "draw": true,
+    "minutes": 40,
+    "role": "remaining"
+  },
+  {
+    "id": "malformed-zero-denominator",
+    "question": "A first order reaction has half life 20 min. Find when 1/0 of the initial concentration remains.",
+    "draw": false
+  },
+  {
+    "id": "malformed-fraction-exponent",
+    "question": "A first order reaction has half life 20 min. Find when 1/4e- of the initial concentration remains.",
+    "draw": false
+  },
+  {
+    "id": "wrong-unit-fraction",
+    "question": "A first order reaction has half life 20 min. Find when 1/4 kg of the initial concentration remains.",
+    "draw": false
+  },
+  {
+    "id": "unknown-initial-then-readable",
+    "question": "A first order reaction has half life 20 min. The initial concentration is unknown; initial concentration is 0.1 M. Find when 1/4 of the initial concentration remains.",
+    "draw": false
+  },
+  {
+    "id": "conflicting-initial-givens",
+    "question": "A first order reaction has half life 20 min. The initial concentration is 0.1 M; initial concentration is 0.2 M. Find when 1/4 of the initial concentration remains.",
+    "draw": false
+  },
+  {
+    "id": "conflicting-half-lives",
+    "question": "A first order reaction has half life 20 min and half life 30 min. Find when 1/4 of the initial concentration remains.",
+    "draw": false
+  },
+  {
+    "id": "unsupported-initial-unit",
+    "question": "A first order reaction has half life 20 min. The initial concentration is 0.1 kg. Find when one fourth of the initial concentration remains.",
+    "draw": false
+  },
+  {
+    "id": "subject-reactant-decayed",
+    "question": "A first order reaction has half life 20 min. Find when 3/4 of the initial concentration of reactant A has decayed.",
+    "draw": true,
+    "minutes": 40,
+    "role": "completion"
+  },
+  {
+    "id": "subject-A-decayed-word",
+    "question": "A first order reaction has half life 20 min. Find when three fourths of the starting concentration of A has decayed.",
+    "draw": true,
+    "minutes": 40,
+    "role": "completion"
+  },
+  {
+    "id": "subject-reactant-numeric-remaining",
+    "question": "A first order reaction has half life 20 min. Find when 1/4 of the initial concentration of reactant A remains.",
+    "draw": true,
+    "minutes": 40,
+    "role": "remaining"
+  },
+  {
+    "id": "subject-A-word-remaining",
+    "question": "A first order reaction has half life 20 min. Find when one fourth of the starting concentration of A remains.",
+    "draw": true,
+    "minutes": 40,
+    "role": "remaining"
+  },
+  {
+    "id": "subject-unreadable-stays-invalid",
+    "question": "A first order reaction has half life 20 min. The initial concentration of reactant A is unknown; initial concentration of reactant A is 0.1 M. Find when 1/4 of the initial concentration of reactant A remains.",
+    "draw": false
+  },
+  {
+    "id": "given-present-decomposes",
+    "question": "For a first order reaction, 50% decomposes in 10 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": true,
+    "role": "completion",
+    "minutes": 15.849625007211564
+  },
+  {
+    "id": "given-present-reacts",
+    "question": "For a first order reaction, 50% reacts within 10 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": true,
+    "role": "completion",
+    "minutes": 15.849625007211564
+  },
+  {
+    "id": "given-present-converts",
+    "question": "For a first order reaction, 50% of A converts after 10 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": true,
+    "role": "completion",
+    "minutes": 15.849625007211564
+  },
+  {
+    "id": "given-passive-consumed",
+    "question": "For a first order reaction, 50% of A is consumed in 10 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": true,
+    "role": "completion",
+    "minutes": 15.849625007211564
+  },
+  {
+    "id": "given-perfect-reacted",
+    "question": "For a first order reaction, 50% has reacted in 10 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": true,
+    "role": "completion",
+    "minutes": 15.849625007211564
+  },
+  {
+    "id": "given-different-completion",
+    "question": "For a first order reaction, 25% decomposes in 10 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": true,
+    "role": "completion",
+    "minutes": 38.188416793064185
+  },
+  {
+    "id": "given-time-first-present",
+    "question": "For a first order reaction, in 10 min, the reaction gets 50% complete. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": true,
+    "role": "completion",
+    "minutes": 15.849625007211564
+  },
+  {
+    "id": "given-time-nominal",
+    "question": "For a first order reaction, the time required for 50% completion is 10 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": true,
+    "role": "completion",
+    "minutes": 15.849625007211564
+  },
+  {
+    "id": "given-takes-nominal",
+    "question": "For a first order reaction, it takes 10 min for 50% completion. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": true,
+    "role": "completion",
+    "minutes": 15.849625007211564
+  },
+  {
+    "id": "given-agreeing-independent",
+    "question": "For a first order reaction, 50% decomposes in 10 min; 75% decomposes in 20 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": true,
+    "role": "completion",
+    "minutes": 15.849625007211564
+  },
+  {
+    "id": "given-agreeing-half-life",
+    "question": "For a first order reaction, the half life is 10 min; 50% decomposes in 10 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": true,
+    "role": "completion",
+    "minutes": 15.849625007211564
+  },
+  {
+    "id": "given-unread-time",
+    "question": "For a first order reaction, 50% decomposes in unknown min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": false
+  },
+  {
+    "id": "given-damaged-time",
+    "question": "For a first order reaction, 50% decomposes in 10e- min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": false
+  },
+  {
+    "id": "given-wrong-time-unit",
+    "question": "For a first order reaction, 50% decomposes in 10 kg. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": false
+  },
+  {
+    "id": "given-zero-time",
+    "question": "For a first order reaction, 50% decomposes in 0 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": false
+  },
+  {
+    "id": "given-negative-time",
+    "question": "For a first order reaction, 50% decomposes in -10 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": false
+  },
+  {
+    "id": "given-unread-percent",
+    "question": "For a first order reaction, unknown% decomposes in 10 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": false
+  },
+  {
+    "id": "given-damaged-percent",
+    "question": "For a first order reaction, 50e-% decomposes in 10 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": false
+  },
+  {
+    "id": "given-complete-at-finite-time",
+    "question": "For a first order reaction, 100% decomposes in 10 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": false
+  },
+  {
+    "id": "given-zero-percent",
+    "question": "For a first order reaction, 0% decomposes in 10 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": false
+  },
+  {
+    "id": "given-conflicting-sibling",
+    "question": "For a first order reaction, 50% decomposes in 10 min; 50% decomposes in 20 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": false
+  },
+  {
+    "id": "given-unread-sibling",
+    "question": "For a first order reaction, 50% decomposes in unknown min; 50% decomposes in 10 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": false
+  },
+  {
+    "id": "given-conflicting-half-life",
+    "question": "For a first order reaction, the half life is 20 min; 50% decomposes in 10 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": false
+  },
+  {
+    "id": "given-time-arithmetic-tail",
+    "question": "For a first order reaction, 50% decomposes in 10 min+2 kg. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": false
+  },
+  {
+    "id": "rounded-rate-half",
+    "question": "For a first order reaction, k=0.0231 min^-1, the half life is 30 min, and 50% decomposes in 30 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": true,
+    "role": "completion",
+    "minutes": 47.55897353541601
+  },
+  {
+    "id": "rounded-exp-rate",
+    "question": "For a first order reaction, k=2.31e-2 min^-1 and 50% decomposes in 30 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": true,
+    "role": "completion",
+    "minutes": 47.55897353541601
+  },
+  {
+    "id": "rounded-half",
+    "question": "For a first order reaction, the half life is 30 min and 50% decomposes in 30 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": true,
+    "role": "completion",
+    "minutes": 47.54887502163469
+  },
+  {
+    "id": "conflicting-rate",
+    "question": "For a first order reaction, k=0.05 min^-1 and 50% decomposes in 30 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": false
+  },
+  {
+    "id": "participant-reactant-A",
+    "question": "For a first order reaction, 50% of reactant A decomposes in 10 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": true,
+    "minutes": 15.849625007211564,
+    "role": "completion"
+  },
+  {
+    "id": "participant-substrate-B",
+    "question": "For a first order reaction, 50% of the substrate B reacts in 10 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": true,
+    "minutes": 15.849625007211564,
+    "role": "completion"
+  },
+  {
+    "id": "participant-species-A",
+    "question": "For a first order reaction, 50% of species [A] has reacted in 10 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": true,
+    "minutes": 15.849625007211564,
+    "role": "completion"
+  },
+  {
+    "id": "participant-unread-time",
+    "question": "For a first order reaction, 50% of reactant A decomposes in unknown min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": false
+  },
+  {
+    "id": "percent-arithmetic",
+    "question": "For a first order reaction, 50%+25% decomposes in 10 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": false
+  },
+  {
+    "id": "percent-division",
+    "question": "For a first order reaction, 50%/2 decomposes in 10 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": false
+  },
+  {
+    "id": "actual-rate-outside-given",
+    "question": "For a first order reaction, k=0.1 min^-1 and 50% decomposes in 10 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": false
+  },
+  {
+    "id": "actual-rate-compatible",
+    "question": "For a first order reaction, k=0.07 min^-1 and 50% decomposes in 10 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": true,
+    "role": "completion",
+    "minutes": 15.69446126668728
+  },
+  {
+    "id": "actual-first-given-outside-tight-sibling",
+    "question": "For a first order reaction, 50% decomposes in 10 min; 50.000% decomposes in 9.500 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": false
+  },
+  {
+    "id": "actual-precise-first-compatible",
+    "question": "For a first order reaction, 50.000% decomposes in 9.500 min; 50% decomposes in 10 min. Find the time when two-thirds of the initial concentration is consumed.",
+    "draw": true,
+    "role": "completion",
+    "minutes": 15.057143756850985
+  },
+  {
+    "id": "drawn-half-anchor-conflict",
+    "question": "A first order reaction has half life 10 min. 75% decomposes in 19 min. Find when 1/4 of the initial concentration remains.",
+    "draw": false
+  },
+  {
+    "id": "drawn-half-anchor-compatible",
+    "question": "A first order reaction has half life 20 min. 75% decomposes in 40 min. Find when 1/4 of the initial concentration remains.",
+    "draw": true,
+    "role": "remaining",
+    "minutes": 40
+  },
+  {
+    "id": "unbound-coordinated-percent",
+    "question": "A first order reaction: 50% and 75% of reactant A are consumed in 10 min. Find when 1/4 of the initial concentration remains.",
+    "draw": false
+  },
+  {
+    "id": "unbound-coordinated-participants",
+    "question": "A first order reaction: 50% of reactant A and 75% of reactant A are consumed in 10 min. Find when 1/4 of the initial concentration remains.",
+    "draw": false
+  },
+  {
+    "id": "unbound-comma-percent",
+    "question": "A first order reaction: 50%, 75% of reactant A are consumed in 10 min. Find when 1/4 of the initial concentration remains.",
+    "draw": false
+  },
+  {
+    "id": "unbound-three-percent",
+    "question": "A first order reaction: 25%, 50% and 75% of reactant A are consumed in 10 min. Find when 1/4 of the initial concentration remains.",
+    "draw": false
+  },
+  {
+    "id": "given-then-coordinated-request",
+    "question": "A first order reaction: 50% decomposes in 10 min and find the time for 25% and 75% completion.",
+    "draw": true,
+    "role": "completion",
+    "minutes": 4.150374992788437
+  },
+  {
+    "id": "requested-percent-before-given",
+    "question": "A first order reaction: find the time for 75% completion when 50% decomposes in 10 min.",
+    "draw": true,
+    "role": "completion",
+    "minutes": 20
+  }
+]
