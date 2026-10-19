@@ -28,6 +28,7 @@ import {
   workColumnObstacle,
   POINT_LABEL_TETHER_PX,
   type LabelEngineOptions,
+  type LabelEngineResult,
   type LabelObstacle,
   type LabelOwner,
   type TextInkBoundsMeasure,
@@ -591,6 +592,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   const labelOwners: LabelOwner[] = [];
   const consumedAnnotationIds = new Set<string>();
   const summaryLabelIds = new Set<string>();
+  const appendLabelIds = new Set(document.annotations.filter(annotation => annotation.labelMode === "append").map(annotation => annotation.id));
   for (const entity of document.entities) {
     if (!entity.label || !renderableIds.has(entity.id) || constructionOnlyIds.has(entity.id)) continue;
     const target = geometry.get(entity.id);
@@ -598,6 +600,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     if (target.kind === "linear_region") continue;
     const semanticDirectionMarker = entity.kind === "label" && isPageNormalMarker(entity.label);
     if (entity.kind === "label" && !semanticDirectionMarker && document.annotations.some((annotation) =>
+      annotation.labelMode !== "append" &&
       (annotation.kind === "label" || annotation.kind === "callout") &&
       annotation.targetIds.includes(entity.id) &&
       Boolean(annotation.kind === "callout"
@@ -606,6 +609,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     )) continue;
     const valueAnnotation = entity.kind === "component" && isComponentDesignator(entity.label)
       ? document.annotations.find((annotation) =>
+          annotation.labelMode !== "append" &&
           annotation.kind === "label" &&
           annotation.targetIds.includes(entity.id) &&
           Boolean(annotation.text) &&
@@ -613,6 +617,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
         )
       : undefined;
     const explicitAnnotation = document.annotations.find((annotation) =>
+      annotation.labelMode !== "append" &&
       (annotation.kind === "label" || annotation.kind === "callout") &&
       !annotation.quantityId &&
       !(annotation.kind === "callout" && isViewSummaryText(annotation.text)) &&
@@ -912,12 +917,12 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   // A label on a refraction or reflection keeps its medium's side; a medium
   // label on a refraction interface that names no side is dropped.
   const uniqueLabelOwners = bindOpticsLabelSides(document, geometry, transformPlan.transformFor, [...labelOwners.filter((owner, index, all) => {
-    if (owner.labelId && summaryLabelIds.has(owner.labelId)) {
+    if (owner.labelId && (summaryLabelIds.has(owner.labelId) || appendLabelIds.has(owner.labelId))) {
       return all.findIndex((candidate) => candidate.labelId === owner.labelId) === index;
     }
     return all.findIndex((candidate) =>
       candidate.entityId === owner.entityId &&
-      (!candidate.labelId || !summaryLabelIds.has(candidate.labelId))
+      (!candidate.labelId || (!summaryLabelIds.has(candidate.labelId) && !appendLabelIds.has(candidate.labelId)))
     ) === index;
   }), ...annotationLabelOwners], summaryLabelIds);
   const pinDsaLabels = document.source.synthesizedDsa === true;
@@ -959,13 +964,13 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     // rejected labels the document had already accepted.
     ? { fontHeightPx: DSA_LABEL_FONT_PX, paddingPx: 3, minGapPx: 4, maxLabelChars: 16, measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk }
     : { measureTextPx: measureTextWidth, measureTextInkBounds: measureLabelInk };
-  const solveOwners = (owners: LabelOwner[]) => {
+  const solveOwners = (owners: LabelOwner[], obstacles: LabelObstacle[] = labelObstacles) => {
     const stackedOwners = pinDsaLabels
       ? null
-      : stackSummaryLabelOwners(document, owners, summaryLabelIds, primitives, labelObstacles, labelOptions);
-    let solved = placeLabels(stackedOwners ?? owners, labelObstacles, labelOptions);
+      : stackSummaryLabelOwners(document, owners, summaryLabelIds, primitives, obstacles, labelOptions);
+    let solved = placeLabels(stackedOwners ?? owners, obstacles, labelOptions);
     if (stackedOwners && solved.issues.length > 0) {
-      const unstacked = placeLabels(owners, labelObstacles, labelOptions);
+      const unstacked = placeLabels(owners, obstacles, labelOptions);
       if (unstacked.issues.length < solved.issues.length) solved = unstacked;
     }
     if (axisLetterOwners.length > 0 && solved.issues.length > 0) {
@@ -973,16 +978,52 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       // their room keeps those labels and draws its axes unlettered.
       const letterIds = new Set(axisLetterOwners.map((owner) => owner.labelId));
       const withoutLetters = (list: LabelOwner[]) => list.filter((owner) => !letterIds.has(owner.labelId));
-      let plain = placeLabels(withoutLetters(stackedOwners ?? owners), labelObstacles, labelOptions);
+      let plain = placeLabels(withoutLetters(stackedOwners ?? owners), obstacles, labelOptions);
       if (stackedOwners && plain.issues.length > 0) {
-        const unstacked = placeLabels(withoutLetters(owners), labelObstacles, labelOptions);
+        const unstacked = placeLabels(withoutLetters(owners), obstacles, labelOptions);
         if (unstacked.issues.length < plain.issues.length) plain = unstacked;
       }
       if (plain.issues.length < solved.issues.length) solved = plain;
     }
     return solved;
   };
-  const labels = solveWithSideBoundLabels(placementOwners, solveOwners);
+  const solveAppendedLabels = (): LabelEngineResult => {
+    const oldOwners = placementOwners.filter(owner => !owner.labelId || !appendLabelIds.has(owner.labelId));
+    const appendedOwners = placementOwners.filter(owner => owner.labelId && appendLabelIds.has(owner.labelId));
+    // The stock solve owns every existing label and leader. Supplemental text
+    // may use the remaining room; it cannot change the first pass's placement.
+    const first = solveWithSideBoundLabels(oldOwners, solveOwners);
+    if (!first.ok) return first;
+    const duplicate = appendedOwners.find(owner => oldOwners.some(old => old.entityId === owner.entityId && old.text === owner.text));
+    if (duplicate) return { ...first, ok: false, issues: [{ code: "label_duplicate", entityId: duplicate.entityId, message: `Duplicate label "${duplicate.text}" for ${duplicate.entityId}` }] };
+    const fixed: RenderPrimitive[] = [];
+    for (const placement of first.placements) {
+      const groupId = entityToGroup.get(placement.entityId);
+      if (!groupId) continue;
+      fixed.push({ id: placement.labelId, entityId: placement.entityId, groupId, kind: "label", text: placement.text,
+        points: [{ x: round(placement.bounds.x + placement.bounds.width / 2), y: round(placement.bounds.y + placement.bounds.height / 2) }],
+        provenance: { labelBounds: placement.bounds, labelCollisionBounds: placement.collisionBounds ?? placement.bounds } });
+      if (!pinDsaLabels && placement.usesLeader && placement.leaderFrom && placement.leaderTo) fixed.push({
+        id: `${placement.labelId}_leader`, entityId: placement.entityId, groupId, kind: placement.leaderPath ? "polyline" : "line",
+        points: (placement.leaderPath ?? [placement.leaderFrom, placement.leaderTo]).map(point => ({ x: round(point.x), y: round(point.y) })),
+        provenance: { labelLeader: true },
+      });
+    }
+    const fixedObstacles = obstaclesFromPrimitives(fixed);
+    // Pinned labels use the solver's protected-ink contract. Keep label boxes
+    // as labels too, so native leader routing also treats them as fixed ink.
+    const pinnedObstacles: LabelObstacle[] = appendedOwners.some(owner => owner.pinToAnchor)
+      ? fixedObstacles.map(obstacle => ({ ...obstacle, kind: "protected" })) : [];
+    const second = solveWithSideBoundLabels(appendedOwners, owners => solveOwners(owners, [...labelObstacles, ...fixedObstacles, ...pinnedObstacles]));
+    const missing = appendedOwners.filter(owner => !second.placements.some(placement => placement.labelId === owner.labelId));
+    const missingIssues: LabelEngineResult["issues"] = missing.map(owner => ({ code: "label_unattached", entityId: owner.entityId, message: `Appended label ${owner.labelId} has no native placement` }));
+    return { ...second, ok: second.ok && missing.length === 0,
+      placements: [...first.placements, ...second.placements], issues: [...first.issues, ...second.issues, ...missingIssues],
+      searchWork: first.searchWork + second.searchWork, solvedBy: second.solvedBy ?? first.solvedBy };
+  };
+  const labels = appendLabelIds.size === 0
+    ? solveWithSideBoundLabels(placementOwners, solveOwners)
+    : solveAppendedLabels();
   for (const issue of labels.issues) {
     issues.push({
       code: issue.code,
@@ -1699,10 +1740,7 @@ function evaluateConstruction(
     case "space_angle_mark":
     case "space_right_angle_mark": return evaluateSpaceDerivationConstruction(operator, inputs, constructionContext);
     case "point": return [{ kind: "point", point: { x: number(["x"]), y: number(["y"]) } }];
-    case "label": return [{
-      kind: "point",
-      point: centerOf(resolveGeometry(first(inputs, ["target", "at", "point"]), geometry)),
-    }];
+    case "label": return [labelAnchorGeometry(inputs, geometry)];
     case "segment": return [{
       kind: "path",
       points: distinctPathPoints(point(["start", "from", "a"]), point(["end", "to", "b"]), operator),
@@ -5081,6 +5119,12 @@ function resolveVector(value: unknown, geometry: Map<string, Geometry>): Point {
   }
   throw new Error("invalid vector");
 }
+/** Label constructions retain the native planar contract; world text uses annotations. */
+function labelAnchorGeometry(inputs: Record<string, unknown>, geometry: Map<string, Geometry>): Extract<Geometry, { kind: "point" }> {
+  const target = resolveGeometry(first(inputs, ["target", "at", "point"]), geometry);
+  return { kind: "point", point: centerOf(target) };
+}
+
 function resolveGeometry(value: unknown, geometry: Map<string, Geometry>, allowWorld = false): Geometry {
   if (typeof value !== "string") throw new Error("surface must reference constructed geometry");
   const resolved = geometry.get(value);
@@ -5431,14 +5475,16 @@ function attachAngleMeasureLabels(
   transformPlan: EntityTransformPlan,
   consumedAnnotationIds: Set<string>,
 ): void {
+  const appendIds = new Set(document.annotations.filter(annotation => annotation.labelMode === "append").map(annotation => annotation.id));
   for (const construction of document.constructions) {
     if (construction.operator !== "angle_mark" || !construction.outputs[0]) continue;
     const entityId = construction.outputs[0];
-    if (labelOwners.some((owner) => owner.entityId === entityId)) continue;
+    if (labelOwners.some((owner) => owner.entityId === entityId && (!owner.labelId || !appendIds.has(owner.labelId)))) continue;
     const value = geometry.get(entityId);
     if (value?.kind !== "arc") continue;
     const entity = document.entities.find((candidate) => candidate.id === entityId);
     const annotation = document.annotations.find((candidate) =>
+      candidate.labelMode !== "append" &&
       candidate.targetIds.includes(entityId) && Boolean(candidate.text || candidate.quantityId),
     );
     if (annotation) consumedAnnotationIds.add(annotation.id);

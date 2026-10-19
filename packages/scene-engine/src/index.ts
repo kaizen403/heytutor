@@ -56,6 +56,7 @@ export * from "./dsa/detectAlgorithm";
 export * from "./dsa/exampleSlots";
 export * from "./dsa/traceToScene";
 export * from "./dsa/familyTeaching";
+export * from "./completion/completeSceneDocument";
 
 export { prepareVerifiedParts, parseDiagramYieldPolicy, type DiagramYieldPolicy } from "./compile/verifiedParts";
 export { normalizeVerifiedPartsInputs } from "./document/verifiedPartsInputs";

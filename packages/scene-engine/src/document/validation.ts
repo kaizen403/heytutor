@@ -4581,6 +4581,11 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
   });
   validateOpticalInstrumentProofContract(document, issues);
   document.annotations.forEach((annotation, index) => {
+    if (annotation.labelMode !== undefined &&
+        ((annotation.labelMode !== "append" && annotation.labelMode !== "replace") || annotation.kind !== "label" ||
+          (annotation.labelMode === "append" && (annotation.quantityId !== undefined || annotation.targetIds.length !== 1 || !annotation.text?.trim())))) {
+      issues.push({ code: "invalid_annotation_label_mode", message: "labelMode is append or replace on labels; append requires one target, literal text and no quantityId", severity: "fatal", path: `annotations[${index}].labelMode`, entityIds: annotation.targetIds });
+    }
     annotation.targetIds.forEach((id, ref) => requireEntity(id, `annotations[${index}].targetIds[${ref}]`));
     if (!(SCENE_ANNOTATION_KINDS as readonly string[]).includes(annotation.kind)) {
       issues.push({
