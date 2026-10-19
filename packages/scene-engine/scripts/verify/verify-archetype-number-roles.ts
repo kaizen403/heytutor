@@ -142,6 +142,11 @@ assert.equal(read("A stone falls 20 m in the last second of its fall. Draw the f
   assert.ok(one.scene, "the same ball named twice is one body");
   assert.equal(one.slots.h, 20);
   assert.equal(read("A ball reaches the ground 2 s after being dropped from a height of 20 m. Draw the free fall.", "free_fall").slots.h, 20, "an arrival clause before the release does not discard the release height");
+  for (const question of ["A ball is dropped and rebounds from the floor to a height of 0.80 m. Draw the motion.", "A ball is dropped from a height of 20 m and rebounds from the floor to a height of 0.80 m. Draw the motion."]) {
+    const row = read(question, "free_fall");
+    assert.ok(row.slots.h === undefined || row.slots.h === 20, `a rebound height is never the drop height: ${question}`);
+  }
+  assert.equal(read("A ball is dropped from a height of 20 m and rebounds from the floor to a height of 0.80 m. Draw the motion.", "free_fall").slots.h, 20, "the stated release height survives a rebound clause");
   assert.equal(read("A ball dropped from the top of a 45 m tall tower passes a window of height 2 m. Draw the free fall.", "free_fall").slots.h, 45, "a window passed on the way down is not the release height");
 }
 console.log("archetype number-role review gates passed");
