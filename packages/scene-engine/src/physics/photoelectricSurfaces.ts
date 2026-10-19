@@ -17,14 +17,14 @@ function surfaceArgument(body: string, start: number): { kind: "material" | "sou
     const word = token[0];
     const element = resolveElement(word);
     if (element) { elements.add(`element:${element.symbol}`); end = token.index! + word.length; continue; }
-    if (/^(?:lamps?|lights?|vapou?rs?|arcs?|lines?|spectr(?:um|a)|lasers?|beams?|photons?|discharges?|tubes?)$/i.test(word)) {
+    if (/^(?:lamps?|lights?|radiation|vapou?rs?|arcs?|lines?|spectr(?:um|a)|lasers?|beams?|photons?|discharges?|tubes?)$/i.test(word)) {
       kind ??= "source";
     } else if (new RegExp(`^(?:${SURFACE_NOUN})s?$`, "i").test(word)) {
-      kind ??= "material";
+      kind = "material";
     } else if (kind === "material" && LABEL.test(word)) {
       end = token.index! + word.length;
       break;
-    } else if (!/^(?:a|an|the|one|two|another|other|second|different|distinct|separate|thin|thick|clean|smooth|freshly|polished|bright|bare|flat|solid|metallic|alkali|gas|ultraviolet|visible|monochromatic)$/i.test(word)) break;
+    } else if (!/^(?:a|an|the|one|two|another|other|second|different|distinct|separate|thin|thick|clean|smooth|freshly|polished|bright|bare|flat|solid|metallic|alkali|gas|ultraviolet|visible|monochromatic|atoms?)$/i.test(word)) break;
     end = token.index! + word.length;
   }
   return { kind: kind ?? (elements.size ? "material" : "other"), elements, end: start + end };
@@ -33,27 +33,89 @@ function surfaceArgument(body: string, start: number): { kind: "material" | "sou
 /** A source-governed element is excluded only inside a radiation noun phrase.
  * The named target check below still takes precedence over this source role. */
 function radiationSourceArgument(body: string, start: number): boolean {
-  const prefix = body.slice(0,start);
-  const connector = /\b(?:(?:emitted|produced|released)\s+by|from)\s+(?:(?:a|an|the)\s+)?$/i.exec(prefix);
-  if (!connector) return false;
-  for (const particle of prefix.matchAll(/\b(?:photons?|light|radiation)\b/gi)) {
-    const begin = particle.index! + particle[0].length;
-    const end = connector.index;
-    if (begin > end) continue;
-    const attribute = prefix.slice(begin,end);
-    if (!attribute.trim()) return true;
-    const role = /^\s+of\s+(?:photon\s+)?(energy|frequency|wavelength)\b/i.exec(attribute);
-    if (!role) continue;
-    const dimension = role[1]!.toLowerCase() === "energy" ? "energy"
-      : role[1]!.toLowerCase() === "frequency" ? "frequency" : "length";
-    const read = readChemistryQuantityDeclaration({question:body,
-      within:{start:begin+role[0].length,end},after:/^/,
-      owner:"radiation source noun-phrase attribute",dimension});
-    // Only a whole radiation NP can govern the source. A target made from a
-    // material is not the radiation's source, even if photons precede it.
-    if (read.state === "valid" && !body.slice(read.reading.source.span.end,end).trim()) return true;
+  for (const connector of body.matchAll(/\b(?:(?:emitted|produced|released)\s+by|from)\s+/gi)) {
+    const argumentStart = connector.index! + connector[0].length;
+    if (start < argumentStart || start >= surfaceArgument(body,argumentStart).end) continue;
+    const prefix = body.slice(0,connector.index!);
+    for (const particle of prefix.matchAll(/\b(?:photons?|light|radiation)\b/gi)) {
+      const begin = particle.index! + particle[0].length;
+      const end = connector.index!;
+      const attribute = prefix.slice(begin,end);
+      if (!attribute.trim()) return true;
+      const role = /^\s+of\s+(?:photon\s+)?(energy|frequency|wavelength)\b/i.exec(attribute);
+      if (!role) continue;
+      const dimension = role[1]!.toLowerCase() === "energy" ? "energy"
+        : role[1]!.toLowerCase() === "frequency" ? "frequency" : "length";
+      const read = readChemistryQuantityDeclaration({question:body,
+        within:{start:begin+role[0].length,end},after:/^/,
+        owner:"radiation source noun-phrase attribute",dimension});
+      // A target made from a material is not the radiation's source.
+      if (read.state === "valid" && !body.slice(read.reading.source.span.end,end).trim()) return true;
+    }
   }
   return false;
+}
+
+/** A source-class noun can also be a threshold owner or radiation recipient.
+ * Only a proved emitting/providing predicate exempts a radiation object;
+ * an unknown predicate cannot borrow the noun's usual light-source role. */
+function sourceHasMaterialRole(body: string, argumentEnd: number): boolean {
+  const tail = body.slice(argumentEnd).split(/[;!?\n]|\.(?=\s|$)/, 1)[0]!;
+  // Modifiers belong to this immediate possessed noun head, never to a
+  // later material reached through an intervening predicate/preposition.
+  if (/^\s*(?:(?:has|have|had|with|of|whose)\s+|['’]s\s+)(?:(?!(?:of|from|for|on|onto|in|at|to|by|with|and|but|while|whereas|is|are|was|were)\b)[A-Za-z0-9.+−^*×-]+\s+)*work functions?\b/i.test(tail)) return true;
+  if (/^\s*,?\s*(?:that|which)\b/i.test(tail) && !radiationSourcePredicates(tail.replace(/^\s*,\s*/, ""))) return true;
+  for (const particle of tail.matchAll(/\b(?:photons?|light|radiation)\b/gi)) {
+    const predicate = tail.slice(0, particle.index!).split(/\b(?:and|but|while|whereas)\b|,/i).at(-1)!;
+    // These are source operations, rather than a list of recipient verbs.
+    if (/^\s*(?:(?:that|which)\s+)?(?:emits?|produces?|releases?|supplies?|provides?|illuminates?)\b/i.test(predicate)) continue;
+    // A radiation attribute on a source NP is not a receiving predicate:
+    // "illuminated by a mercury lamp with photons ..." keeps its source.
+    if (/^\s*(?:with|of)\s*$/i.test(predicate)) continue;
+    return true;
+  }
+  return false;
+}
+
+/** The source NP must be governed as a source; its usual purpose is no proof.
+ * Coordinated unknown predicates cannot disappear behind an emitting one. */
+function nominalRadiationSource(body: string, start: number, argumentEnd: number): boolean {
+  for (const cue of body.matchAll(/\b(?:illuminated|irradiated)\s+by\s+/gi)) {
+    const argumentStart = cue.index! + cue[0].length;
+    if (start >= argumentStart && start < surfaceArgument(body,argumentStart).end) return true;
+  }
+  const tail = body.slice(argumentEnd).split(/[;!?\n]|\.(?=\s|$)/, 1)[0]!;
+  return radiationSourcePredicates(tail);
+}
+
+function radiationSourcePredicates(tail: string): boolean {
+  return tail.split(/\b(?:and|but|while|whereas)\b|,/i).every(predicate => {
+    const operation = /^\s*(?:(?:that|which)\s+)?(?:(?:in|at)\s+(?:(?!(?:and|but|while|whereas)\b)[A-Za-z]+\s+)+)?(emits?|produces?|releases?|supplies?|provides?|illuminates?)\s+(.+)$/i.exec(predicate);
+    if (!operation) return false;
+    if (/^illuminates?$/i.test(operation[1]!)) return true;
+    const object = operation[2]!;
+    if (/^(?:(?:a|an|the)\s+)?(?:(?:ultraviolet|visible|monochromatic)\s+)*(?:photons?|light|radiation|beams?)\b/i.test(object)) return true;
+    if (!/^emits?$/i.test(operation[1]!) || !/^at\s+/i.test(object)) return false;
+    return (["length","frequency"] as const).some(dimension => {
+      const read = readChemistryQuantityDeclaration({question:object,after:/^at\s+/i,
+        owner:"stated radiation-source emission channel",dimension});
+      return read.state === "valid" && read.reading.value > 0 && read.reading.source.span.end === object.trimEnd().length;
+    });
+  });
+}
+
+/** A material-qualified radiation NP ("sodium light") is itself light,
+ * unlike a lamp. Prove its supplied channel and transport to a named target. */
+function transportedRadiationArgument(body: string, start: number, argumentEnd: number): boolean {
+  if (!/\b(?:light|radiation|photons?|beams?)\s*$/i.test(body.slice(start,argumentEnd))) return false;
+  const tail = body.slice(argumentEnd).split(/[;!?\n]|\.(?=\s|$)/, 1)[0]!;
+  const transport = /^(.*?)\s+(?:falls?\s+(?:on|onto)|(?:is|are)\s+incident\s+on|strikes?|hits?|illuminates?)\s+(.+)$/i.exec(tail);
+  if (!transport || surfaceArgument(transport[2]!,0).elements.size === 0) return false;
+  const attribute = /^(?:of|with)\s+(?:photon\s+)?(energy|frequency|wavelength)\s+(.+)$/i.exec(transport[1]!.trim());
+  if (!attribute) return false;
+  const dimension = attribute[1]!.toLowerCase() === "energy" ? "energy"
+    : attribute[1]!.toLowerCase() === "frequency" ? "frequency" : "length";
+  return completeQuantity(attribute[2]!,dimension);
 }
 
 /** Parallel samples can omit the repeated material/work-function noun. Bind a
@@ -261,6 +323,10 @@ function photoelectricSurfaceScope(question: string): SurfaceScope {
   }
   const tokens = [...body.matchAll(/\b[A-Za-z]+\b/g)];
   const targets = new Set<string>();
+  const thresholdOwners = new Set<string>();
+  for (const cue of body.matchAll(/\bwork functions?\s+(?:of|for)\s+/gi)) {
+    for (const identity of surfaceArgument(body, cue.index! + cue[0].length).elements) thresholdOwners.add(identity);
+  }
   for (const cue of body.matchAll(/\b(?:(?:falls?|incident|shone)\s+(?:on|onto)|(?:directed|aimed)\s+at|strikes?|hits?|illuminates?)\s+/gi)) {
     const argument = surfaceArgument(body, cue.index! + cue[0].length);
     for (const identity of argument.elements) targets.add(identity);
@@ -281,8 +347,13 @@ function photoelectricSurfaceScope(question: string): SurfaceScope {
     if (!element) continue;
     const before = body.slice(0, at);
     const after = body.slice(at + token.length);
-    // Lamps and spectral lines provide photons rather than the emitting sample.
-    const photonSource = surfaceArgument(body, at).kind === "source" || radiationSourceArgument(body,at);
+    // Material ownership/receiving roles outrank the usual role of a lamp,
+    // spectral line or discharge. Source-class names alone prove no target.
+    const argument = surfaceArgument(body, at);
+    const materialRole = thresholdOwners.has(`element:${element.symbol}`) || sourceHasMaterialRole(body, argument.end);
+    const photonSource = !materialRole && (radiationSourceArgument(body,at)
+      || argument.kind === "source" && (nominalRadiationSource(body,at,argument.end)
+        || transportedRadiationArgument(body,at,argument.end)));
     if (photonSource && !targets.has(`element:${element.symbol}`)) continue;
     if (/^lead$/i.test(token) && /\b(?:can|could|may|might|will|would|shall|should|must|to)\s+$/i.test(before)) continue;
     // A bare qualitative comparison does not introduce a second sample/value.

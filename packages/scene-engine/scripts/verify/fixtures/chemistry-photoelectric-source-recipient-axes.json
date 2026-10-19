@@ -1,0 +1,373 @@
+[
+  {
+    "id": "review-lamp-recipient",
+    "kind": "photoelectric",
+    "question": "The work function of sodium is 2.3 eV. A mercury lamp receives photons of energy 3 eV. Draw the photoelectric diagram.",
+    "draw": false,
+    "multiple": true
+  },
+  {
+    "id": "transfer-lamp-absorbs",
+    "kind": "photoelectric",
+    "question": "The work function of sodium is 2.3 eV. A neon discharge lamp absorbs photons of energy 3 eV. Draw the photoelectric diagram.",
+    "draw": false,
+    "multiple": true
+  },
+  {
+    "id": "transfer-lamp-catches",
+    "kind": "photoelectric",
+    "question": "The work function of sodium is 2.3 eV. A mercury vapour lamp catches photons of energy 3 eV. Draw the photoelectric diagram.",
+    "draw": false,
+    "multiple": true
+  },
+  {
+    "id": "transfer-source-intercepts",
+    "kind": "photoelectric",
+    "question": "The work function of sodium is 2.3 eV. A xenon arc intercepts photons of energy 3 eV. Draw the photoelectric diagram.",
+    "draw": false,
+    "multiple": true
+  },
+  {
+    "id": "transfer-source-accepts",
+    "kind": "photoelectric",
+    "question": "The work function of sodium is 2.3 eV. A helium discharge tube accepts photons of energy 3 eV. Draw the photoelectric diagram.",
+    "draw": false,
+    "multiple": true
+  },
+  {
+    "id": "transfer-source-retains",
+    "kind": "photoelectric",
+    "question": "The work function of sodium is 2.3 eV. A hydrogen discharge retains photons of energy 3 eV. Draw the photoelectric diagram.",
+    "draw": false,
+    "multiple": true
+  },
+  {
+    "id": "transfer-source-subject-light",
+    "kind": "photoelectric",
+    "question": "The work function of sodium is 2.3 eV. A mercury lamp absorbs light of photon energy 3 eV. Draw the photoelectric diagram.",
+    "draw": false,
+    "multiple": true
+  },
+  {
+    "id": "transfer-material-head",
+    "kind": "photoelectric",
+    "question": "The work function of sodium is 2.3 eV. A mercury lamp cathode catches photons of energy 3 eV. Draw the photoelectric diagram.",
+    "draw": false,
+    "multiple": true
+  },
+  {
+    "id": "transfer-source-own-threshold",
+    "kind": "photoelectric",
+    "question": "The work function of sodium is 2.3 eV. A mercury lamp with work function 4 eV emits photons of energy 3 eV. Draw the photoelectric diagram.",
+    "draw": false,
+    "multiple": true
+  },
+  {
+    "id": "transfer-source-reverse-threshold",
+    "kind": "photoelectric",
+    "question": "The work function of sodium is 2.3 eV. The work function of a mercury lamp is 4 eV. It emits photons of energy 3 eV. Draw the photoelectric diagram.",
+    "draw": false,
+    "multiple": true
+  },
+  {
+    "id": "transfer-coordinated-source-recipient",
+    "kind": "photoelectric",
+    "question": "The work function of sodium is 2.3 eV. A mercury lamp emits photons of energy 3 eV and absorbs photons of energy 3 eV. Draw the photoelectric diagram.",
+    "draw": false,
+    "multiple": true
+  },
+  {
+    "id": "transfer-relative-source-recipient",
+    "kind": "photoelectric",
+    "question": "The work function of sodium is 2.3 eV. A mercury lamp that catches photons of energy 3 eV is present. Draw the photoelectric diagram.",
+    "draw": false,
+    "multiple": true
+  },
+  {
+    "id": "preserve-P01",
+    "kind": "photoelectric",
+    "question": "Light of photon energy 10.2 eV from a hydrogen discharge tube falls on a potassium surface of work function 2.3 eV. Draw the photoelectric diagram.",
+    "draw": true,
+    "multiple": false,
+    "phiEv": 2.3,
+    "photonEv": 10.2
+  },
+  {
+    "id": "preserve-P02",
+    "kind": "photoelectric",
+    "question": "A photon of energy 10.2 eV emitted by a hydrogen atom falls on a sodium surface of work function 2.3 eV. Draw the photoelectric diagram.",
+    "draw": true,
+    "multiple": false,
+    "phiEv": 2.3,
+    "photonEv": 10.2
+  },
+  {
+    "id": "preserve-q4",
+    "kind": "photoelectric",
+    "question": "The work function of sodium is 2.3 eV. Light of wavelength 400 nm falls on it, and a hydrogen discharge in the same practical emits at 656 nm. Take hc = 1240 eV nm. Find the maximum kinetic energy of the photoelectrons from the sodium, in eV.",
+    "draw": true,
+    "multiple": false,
+    "phiEv": 2.3,
+    "photonEv": 3.1
+  },
+  {
+    "id": "preserve-emission",
+    "kind": "photoelectric",
+    "question": "A mercury vapour lamp emits photons of energy 3 eV onto a sodium plate of work function 2 eV. Draw the photoelectric diagram.",
+    "draw": true,
+    "multiple": false,
+    "phiEv": 2,
+    "photonEv": 3
+  },
+  {
+    "id": "preserve-provision",
+    "kind": "photoelectric",
+    "question": "The work function of sodium is 2.3 eV. A bright neon gas-discharge lamp provides photons of energy 3 eV incident on sodium. Draw the photoelectric diagram.",
+    "draw": true,
+    "multiple": false,
+    "phiEv": 2.3,
+    "photonEv": 3
+  },
+  {
+    "id": "preserve-source-with-radiation",
+    "kind": "photoelectric",
+    "question": "The work function of sodium is 2.3 eV. The sodium surface is illuminated by a bright mercury-vapour lamp with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "draw": true,
+    "multiple": false,
+    "phiEv": 2.3,
+    "photonEv": 3
+  },
+  {
+    "id": "preserve-active-source",
+    "kind": "photoelectric",
+    "question": "The work function of sodium is 2.3 eV. The clean neon gas-discharge lamp illuminates the sodium surface with photons of energy 3 eV. Draw the photoelectric diagram.",
+    "draw": true,
+    "multiple": false,
+    "phiEv": 2.3,
+    "photonEv": 3
+  },
+  {
+    "id": "preserve-recipient-own-single-material",
+    "kind": "photoelectric",
+    "question": "A sodium lamp cathode has work function 2.3 eV and receives photons of energy 3 eV. Draw the photoelectric diagram.",
+    "draw": true,
+    "multiple": false,
+    "phiEv": 2.3,
+    "photonEv": 3
+  },
+  {
+    "id": "review-cartesian-on-graph",
+    "kind": "axes",
+    "question": "Sketch the Cartesian coordinate axes on a graph.",
+    "draw": true,
+    "families": [
+      "coordinate_figure"
+    ]
+  },
+  {
+    "id": "axes-no-family-hint",
+    "kind": "axes",
+    "question": "Sketch the Cartesian coordinate axes on a graph.",
+    "draw": true,
+    "families": null
+  },
+  {
+    "id": "axes-coordinate-plane",
+    "kind": "axes",
+    "question": "Draw the coordinate axes in the coordinate plane.",
+    "draw": true,
+    "families": [
+      "coordinate_figure"
+    ]
+  },
+  {
+    "id": "axes-cartesian",
+    "kind": "axes",
+    "question": "Show the Cartesian axes.",
+    "draw": true,
+    "families": [
+      "analytic_curve",
+      "coordinate_figure"
+    ]
+  },
+  {
+    "id": "axes-rectangular",
+    "kind": "axes",
+    "question": "Plot the rectangular coordinate axes on a graph.",
+    "draw": true,
+    "families": [
+      "coordinate_figure"
+    ]
+  },
+  {
+    "id": "axes-existing-control",
+    "kind": "axes",
+    "question": "Draw the Cartesian coordinate axes.",
+    "draw": true,
+    "families": [
+      "coordinate_figure"
+    ]
+  },
+  {
+    "id": "axes-unread-curve",
+    "kind": "axes",
+    "question": "Sketch the Cartesian coordinate axes on a graph and plot the unknown curve.",
+    "draw": false,
+    "families": [
+      "coordinate_figure"
+    ]
+  },
+  {
+    "id": "axes-threshold-metal",
+    "kind": "axes",
+    "question": "Sketch the Cartesian coordinate axes and plot the threshold energy curve of a metal surface.",
+    "draw": false,
+    "families": [
+      "coordinate_figure"
+    ]
+  },
+  {
+    "id": "axes-threshold-unspecified",
+    "kind": "axes",
+    "question": "Sketch the Cartesian coordinate axes on a threshold energy graph.",
+    "draw": false,
+    "families": [
+      "coordinate_figure"
+    ]
+  },
+  {
+    "id": "axes-unread-tangent",
+    "kind": "axes",
+    "question": "Draw the coordinate axes and the tangent to an unspecified curve.",
+    "draw": false,
+    "families": [
+      "coordinate_figure"
+    ]
+  },
+  {
+    "id": "axes-extra-region",
+    "kind": "axes",
+    "question": "Draw the coordinate axes and shade an unspecified region.",
+    "draw": false,
+    "families": [
+      "coordinate_figure"
+    ]
+  },
+  {
+    "id": "axes-extra-body",
+    "kind": "axes",
+    "question": "Draw the coordinate axes and add a block.",
+    "draw": false,
+    "families": [
+      "coordinate_figure"
+    ]
+  },
+  {
+    "id": "axes-extra-sentence",
+    "kind": "axes",
+    "question": "Draw the Cartesian coordinate axes. Also show an unspecified graph.",
+    "draw": false,
+    "families": [
+      "coordinate_figure"
+    ]
+  },
+  {
+    "id": "axes-unread-only",
+    "kind": "axes",
+    "question": "Sketch the unknown coordinate figure.",
+    "draw": false,
+    "families": [
+      "coordinate_figure"
+    ]
+  },
+  {
+    "id": "preserve-readable-parabola",
+    "kind": "curve",
+    "question": "Sketch the curve y=x^2.",
+    "draw": true,
+    "families": null
+  },
+  {
+    "id": "preserve-readable-coordinate-curve",
+    "kind": "curve",
+    "question": "Sketch y=x^3 on Cartesian coordinate axes.",
+    "draw": true,
+    "families": [
+      "coordinate_figure"
+    ]
+  },
+  {
+    "id": "source-unread-threshold",
+    "kind": "photoelectric",
+    "question": "The work function of sodium is 2.3 eV. A mercury lamp has an unknown work function. Photons of energy 3 eV fall on sodium. Draw the photoelectric diagram.",
+    "draw": false,
+    "multiple": true
+  },
+  {
+    "id": "source-modified-threshold",
+    "kind": "photoelectric",
+    "question": "The work function of sodium is 2.3 eV. A neon discharge tube has a poorly measured work function. Photons of energy 3 eV fall on sodium. Draw the photoelectric diagram.",
+    "draw": false,
+    "multiple": true
+  },
+  {
+    "id": "source-attributed-unread-threshold",
+    "kind": "photoelectric",
+    "question": "The work function of sodium is 2.3 eV. A helium discharge tube with an unreadable work function is present. Photons of energy 3 eV fall on sodium. Draw the photoelectric diagram.",
+    "draw": false,
+    "multiple": true
+  },
+  {
+    "id": "source-receives-energy",
+    "kind": "photoelectric",
+    "question": "The work function of sodium is 2.3 eV. A mercury lamp receives energy 3 eV. Draw the photoelectric diagram.",
+    "draw": false,
+    "multiple": true
+  },
+  {
+    "id": "source-catches-beam-energy",
+    "kind": "photoelectric",
+    "question": "The work function of sodium is 2.3 eV. A mercury lamp catches a beam of energy 3 eV. Draw the photoelectric diagram.",
+    "draw": false,
+    "multiple": true
+  },
+  {
+    "id": "source-catches-beam-with-incident-energy",
+    "kind": "photoelectric",
+    "question": "The work function of sodium is 2.3 eV. The incident photon energy is 3 eV. A mercury lamp catches a beam. Draw the photoelectric diagram.",
+    "draw": false,
+    "multiple": true
+  },
+  {
+    "id": "axes-x-y-graph-paper",
+    "kind": "axes",
+    "question": "Sketch the x and y coordinate axes on graph paper.",
+    "draw": true,
+    "families": [
+      "coordinate_figure"
+    ]
+  },
+  {
+    "id": "source-emits-and-catches-beam",
+    "kind": "photoelectric",
+    "question": "The work function of sodium is 2.3 eV. A mercury lamp emits photons of energy 3 eV and catches a beam. Draw the photoelectric diagram.",
+    "draw": false,
+    "multiple": true
+  },
+  {
+    "id": "source-from-relative-receiver",
+    "kind": "photoelectric",
+    "question": "The work function of sodium is 2.3 eV. The incident photon energy is 3 eV. Light from a mercury lamp that catches a beam falls on sodium. Draw the photoelectric diagram.",
+    "draw": false,
+    "multiple": true
+  },
+  {
+    "id": "source-from-relative-emitter",
+    "kind": "photoelectric",
+    "question": "The work function of sodium is 2.3 eV. The incident photon energy is 3 eV. Light from a mercury lamp that emits photons falls on sodium. Draw the photoelectric diagram.",
+    "draw": true,
+    "multiple": false,
+    "phiEv": 2.3,
+    "photonEv": 3
+  }
+]

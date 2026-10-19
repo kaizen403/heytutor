@@ -180,7 +180,13 @@ function synthesizeFromFamilies(
   // Parameterized archetypes compute geometry from typed slots and have
   // already faced the same picture demand. Complete source-bound geometry
   // keeps the existing family selection's priority over generic lexical cues.
-  const families = resolveRequestedFamilies(question, input.families, input.problemIR);
+  const resolvedFamilies = resolveRequestedFamilies(question, input.families, input.problemIR);
+  // Axes are a complete display only when the whole request asks for axes.
+  // An incidental "graph" must not turn that operator request into a missing
+  // analytic curve, while additional source requirements still decline.
+  const families = pureCoordinateAxesRequest(question)
+    ? ["coordinate_figure" as const, ...resolvedFamilies.filter(family => family !== "coordinate_figure")]
+    : resolvedFamilies;
   const sourceFamilies = familiesFromProblemStructure(sourceMensurationStructure(question));
   // A complete source-bound solid or region is stronger than a generic
   // archetype cue such as "height of". The existing family selection still
@@ -3727,11 +3733,16 @@ function buildTransverseField(question: string, _quantities: PlanQuantity[], _sc
   });
 }
 
+function pureCoordinateAxesRequest(question: string): boolean {
+  return /^\s*(?:please\s+)?(?:draw|sketch|show|plot|represent|depict|illustrate)\s+(?:only\s+)?(?:the\s+)?(?:Cartesian(?:\s+coordinate)?|rectangular(?:\s+coordinate)?|(?:x\s+and\s+y\s+)?coordinate)\s+axes(?:\s+(?:on|in)\s+(?:a\s+|the\s+)?(?:graph(?:\s+paper)?|(?:Cartesian\s+|coordinate\s+)?plane))?\s*[.!?]?\s*$/i.test(question);
+}
+
 function buildCoordinateFigure(
   question: string,
   quantities: PlanQuantity[],
   schematic: boolean,
 ): SceneDocument | null {
+  if (pureCoordinateAxesRequest(question)) return axesOnly(question, "coordinate display axes");
   const circleSource = extractCircleSource(question);
   if (circleSource?.kind === "invalid") return null;
   if (circleSource) return coordinateCircleDocument(question, quantities, normalizeStem(question));
@@ -3759,7 +3770,7 @@ function buildCoordinateFigure(
   if (expressions.length > 0) {
     return plotExpressions(question, expressions, extractXInterval(question) ?? [-3, 3]);
   }
-  return axesOnly(question, "coordinate display axes");
+  return null;
 }
 
 function coordinateConicDocument(question: string, stem: string): SceneDocument {
