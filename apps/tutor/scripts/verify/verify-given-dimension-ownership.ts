@@ -60,6 +60,7 @@ async function verifyDocument(input: SceneDocument, name: string, computedBar = 
   const commands = presentation.diagram.commands.map(verifiedDiagramCommandToDrawCommand);
   const projected = withoutEarlyAnswerLabels(document, commands);
   for (const command of measurement) assert.equal(projected.some(item => item.semanticRef?.primitiveId === command.semanticRef?.primitiveId), !computedBar, `${name}: historical measurement policy matches live`);
+  assert(typeof document.source.question === "string", `${name}: synthetic source retains a question string`);
   const saved = await canonicalizeTurnSceneMetadata({ question: document.source.question!, sceneDocument: document, visualStatus: "validated", segments: [],
     sceneArtifacts: { schemaVersion: "scene-artifacts/v3", turnPlan: null, representationTier: "qualitative_verified", nonMetric: true, diagramResultStatus: "ready" } });
   assert(saved.ok, `${name}: current save boundary admits unchanged geometry: ${saved.ok ? "" : saved.error}`);

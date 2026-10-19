@@ -6,6 +6,7 @@ import path from "node:path";
 import ts from "typescript";
 import { LECTURE_PAGE_CACHE_REVISION } from "../../lib/lecture-export/canExportLectureMp4";
 import { LECTURE_RENDER_FINGERPRINT } from "../../lib/lecture-export/lectureRenderFingerprint";
+import type { CachedLectureExport } from "../../lib/lecture-export/lectureExportCache";
 
 type Handler = (() => void) | null;
 function fakeIdb(initialVersion: number, seed: Map<IDBValidKey, unknown>, abortWrites = false) {
@@ -68,7 +69,7 @@ function load(indexedDB?: ReturnType<typeof fakeIdb>["indexedDB"], hash: string 
   new Function("require", "module", "exports", "indexedDB", js)((id: string) => id === "./lectureRenderFingerprint" ? { LECTURE_RENDER_FINGERPRINT: hash } : require(id), fixtureModule, fixtureModule.exports, indexedDB);
   return fixtureModule.exports;
 }
-const value = { blob: new Blob(["current export"]), noVoice: false, missingAudioCues: 0, mimeType: "video/mp4", extension: "mp4" as const };
+const value: CachedLectureExport = { blob: new Blob(["current export"]), noVoice: false, missingAudioCues: 0, mimeType: "video/mp4", extension: "mp4" as const };
 const key = `revision-gate:1:@1@${LECTURE_PAGE_CACHE_REVISION}`;
 const legacyKeys = [6, 7, 8, 9, 10, 11, 12, 13].flatMap(version => [`revision-gate:1:@1.25@video${version}`, `revision-gate:1:@1.25@video${version}.webm`]);
 const stale = `revision-gate:1:@1@render-${"f".repeat(64)}`;
