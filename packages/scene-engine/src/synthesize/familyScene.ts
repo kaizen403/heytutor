@@ -276,6 +276,12 @@ function synthesizeFromFamilies(
     const builder = FAMILY_BUILDERS[family] ?? chemistryBuilder;
     if (!builder) continue;
     const document = builder(chemistryBuilder ? input.question : question, chemistryBuilder ? collectChemistryPlanQuantities(input.turnPlan) : quantities, schematic);
+    // An unread curve cannot be represented by axes alone, or by a later
+    // unrelated family after those axes are declined. Refuse the whole turn.
+    // Explicit coordinate-axis requests keep their coordinate-figure path.
+    if (family === "analytic_curve" && document && document.entities.length > 0
+      && document.entities.every(entity => entity.kind === "axes")
+      && document.constructions.every(construction => construction.operator === "axes")) return null;
     const compiled = document ? tryCompile(document) : null;
     if (!compiled) continue;
     // Compiling proves the geometry is valid, not that it is this question's
@@ -1629,9 +1635,13 @@ function buildAnalyticCurve(
       const well = /U\(x\)|equilibrium/i.test(question) ? "x^4/4-x^2/2" : "x";
       return plotExpressions(question, [well], domain);
     }
-    // Axes alone do not represent an unread curve. This family needs a
-    // source-bound relation even on the last-resort path; explicit coordinate
-    // axis requests have their own coordinate-figure builder.
+    // Keep the unread graph candidate explicit: the family selector refuses
+    // axes-only analytic candidates for the whole turn before compilation.
+    if (schematic) {
+      return /(?:graph|curve|plot|sketch|versus|against)/i.test(question)
+        ? axesOnly(question, "analytic display axes")
+        : null;
+    }
     return null;
   }
   return plotExpressions(question, plots, domain);

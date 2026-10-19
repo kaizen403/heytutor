@@ -7,6 +7,7 @@ import { compileSceneDocument } from "../../src/compile/compiler";
 import { synthesizeFamilyScene, synthesizeLastResortScene } from "../../src/synthesize/familyScene";
 import type { SceneDocument } from "../../src/types";
 import fixtures from "./fixtures/chemistry-photoelectric-source-roles-delta.json";
+import analyticFixtures from "./fixtures/chemistry-analytic-fallback-completeness.json";
 const results: Array<{id:string;passed:boolean;error?:string;document:SceneDocument|null;compiled:ReturnType<typeof compileSceneDocument>|null}>=[];
 for (const row of fixtures) for (const path of ["direct","schematic","ordinary","lastResort"] as const) {
   let document:SceneDocument|null=null,compiled:ReturnType<typeof compileSceneDocument>|null=null;
@@ -28,6 +29,21 @@ for (const row of fixtures) for (const path of ["direct","schematic","ordinary",
     }
     results.push({id:`${row.id}/${path}`,passed:true,document,compiled});
   } catch(error) {results.push({id:`${row.id}/${path}`,passed:false,error:error instanceof Error?error.message:String(error),document,compiled});}
+}
+// A partial analytic candidate must terminate fallback, not expose a canned
+// state plot; actual recorded plans reproduce the former fallthrough.
+for (const row of analyticFixtures) {
+  let document:SceneDocument|null=null,compiled:ReturnType<typeof compileSceneDocument>|null=null;
+  try {
+    const scene=synthesizeLastResortScene({question:row.question,turnPlan:row.turnPlan??undefined,families:row.families??undefined});
+    document=scene?.document??null;assert.equal(Boolean(document),row.draw);
+    if(document){
+      compiled=compileSceneDocument(document);assert.ok(compiled.ok&&compiled.renderScene);
+      if(!row.allowAxes)assert.ok(document.entities.some(entity=>entity.kind!=="axes"),"readable curves retain geometry beyond axes");
+      else assert.equal(scene!.family,"coordinate_figure","explicit coordinate-axis family is preserved");
+    }
+    results.push({id:`${row.id}/lastResort`,passed:true,document,compiled});
+  } catch(error){results.push({id:`${row.id}/lastResort`,passed:false,error:error instanceof Error?error.message:String(error),document,compiled});}
 }
 const summary={passed:results.filter(row=>row.passed).length,failed:results.filter(row=>!row.passed).length,results};
 const out=process.argv.indexOf("--out");if(out>=0)writeFileSync(process.argv[out+1]!,JSON.stringify(summary,null,2)+"\n",{flag:"wx"});
