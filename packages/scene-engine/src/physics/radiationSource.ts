@@ -192,6 +192,24 @@ function purelySymbolicUnusedPlanck(question: string): boolean {
   return unread === 1 && visual > 0;
 }
 
+/** A separately emitting lamp/tube is a photon-source role, not the bound
+ * electron whose fixed atomic reference constants govern photoionization.
+ * Only this authority predicate examines clauses; every numeric reader below
+ * continues to bind complete spans in the unchanged original question. */
+function activeAtomicRadiationContext(question: string): boolean {
+  if (!atomicElectronContext(question)) return false;
+  return question.split(/[;!?]|\.(?!\d)|\b(?:and|but|however)\b/i).some(clause => {
+    if (!atomicElectronContext(clause)) return false;
+    const emitter = /\b(?:discharge|lamp|tube|source)\b[\s\S]*\b(?:emits?|radiates?|produces?)\b[\s\S]*(?:\b(?:line|spectrum|spectral|light|radiation)\b|\d\s*(?:nm|pm|angstroms?|Å)\b)/i.exec(clause);
+    if (!emitter) return true;
+    const prefix = clause.slice(0, emitter.index);
+    if (/\b(?:not|never|no|without|excluding)\b/i.test(prefix + emitter[0])) return true;
+    // A supplied active atomic target or bound-electron result cannot be
+    // erased by an emitting-source noun in the same clause.
+    return /\b(?:atomic|bound)\s+electrons?\b|\b(?:photoelectrons?|photoionization|work function|ionization energy|binding energy)\b/i.test(clause);
+  });
+}
+
 /** The exact original source is the only input; callers cannot supply scalars. */
 export function readRadiationSource(question: string): RadiationSourceOutcome {
   const stem = chemStem(question);
@@ -203,7 +221,7 @@ export function readRadiationSource(question: string): RadiationSourceOutcome {
     return { status: "symbolic", kind, question, missing: "unused_planck_constant", bindings: [] };
   }
   const constantAuthority: Source["constantAuthority"] = kind !== "photoelectric" ? "particle_reference"
-    : atomicElectronContext(question) ? "atomic_reference" : "source_parameterized";
+    : activeAtomicRadiationContext(question) ? "atomic_reference" : "source_parameterized";
   const bindings: Binding[] = [];
   let invalid = false;
   const value = (after: RegExp, dimension: ChemistryDimension, unit: ChemistryUnit, role: string,

@@ -712,13 +712,31 @@ assert(kirchhoffScene.family === "circuit_network", "Kirchhoff must use circuit_
 assert(
   kirchhoffScene.document.constructions.some((item) => item.operator === "symbol" && item.inputs.symbol === "battery") &&
     kirchhoffScene.document.constructions.some((item) => item.operator === "connect"),
-  "Kirchhoff must compile a two-loop network with batteries and wires, not a resistor chain",
+  "Kirchhoff law illustration must use actual circuit symbols and connected wires",
 );
-assert(
-  kirchhoffScene.document.entities.some((entity) => entity.id === "v1") &&
-    kirchhoffScene.document.entities.some((entity) => entity.id === "r3"),
-  "Kirchhoff two-loop must mark both sources and the shared branch",
-);
+// The source requests a law illustration, not a particular two-source/R3
+// network. Verify the chosen symbolic example and its actual graph instead.
+assert(kirchhoffScene.document.source.sourceModel === "circuit_law_example", "Kirchhoff illustration must be explicitly an example");
+assert(kirchhoffScene.document.quantities.length === 0, "A conceptual example must not invent numerical givens or currents");
+assert(kirchhoffScene.renderScene.primitives.some((mark) => mark.text === "Symbolic example"), "The example qualification must be visible");
+assert(kirchhoffScene.renderScene.primitives.some((mark) => mark.text === "Reference arrows"), "Current directions must be qualified as references");
+const lawEdges = kirchhoffScene.document.constructions.filter((step) => step.operator === "symbol" || step.operator === "connect");
+const lawIncidence = new Map<string, string[]>();
+for (const edge of lawEdges) {
+  const a = String(edge.inputs.start), b = String(edge.inputs.end);
+  lawIncidence.set(a, [...lawIncidence.get(a) ?? [], b]);
+  lawIncidence.set(b, [...lawIncidence.get(b) ?? [], a]);
+}
+assert([...lawIncidence.values()].some((neighbours) => neighbours.length >= 3), "Current conservation needs an actual connected junction");
+const reachedLawNodes = new Set<string>(), lawQueue = [lawIncidence.keys().next().value!];
+while (lawQueue.length) {
+  const node = lawQueue.pop()!;
+  if (reachedLawNodes.has(node)) continue;
+  reachedLawNodes.add(node);
+  lawQueue.push(...lawIncidence.get(node) ?? []);
+}
+assert(reachedLawNodes.size === lawIncidence.size && lawEdges.length >= lawIncidence.size, "A connected graph must actually contain a closed loop");
+assert(kirchhoffScene.document.assertions.some((item) => item.predicate === "path" && item.severity === "fatal"), "The ordinary compiler must prove the example path");
 
 const depletionQuestion =
   "With the help of a suitable diagram, explain the formation of depletion-region in a p-n junction. How does its width change when the junction is forward biased and reverse biased?";

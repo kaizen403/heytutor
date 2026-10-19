@@ -1,0 +1,69 @@
+[
+  {
+    "id": "original422-row26-background-hydrogen",
+    "question": "The work function of sodium is 2.3 eV. Light of wavelength 400 nm falls on it, and a hydrogen discharge in the same practical emits at 656 nm. Take hc = 1240 eV nm. Find the maximum kinetic energy of the photoelectrons from the sodium, in eV.",
+    "expected": {
+      "publicDraw": true,
+      "constantAuthority": "source_parameterized",
+      "photonEnergyEV": 3.1,
+      "workFunctionEV": 2.3,
+      "kineticEV": 0.8,
+      "foreignLineNotIncident": true
+    },
+    "scope": "Exact original422 preexisting regression, root authentic unsupported-atomic-reference trace retained."
+  },
+  {
+    "id": "background-helium-transfer",
+    "question": "The work function of the metal is 2 eV. Incident light has wavelength 400 nm. A separate helium discharge emits a spectral line at 588 nm. Take hc = 1240 eV nm. Draw the photoelectric energy balance for the metal.",
+    "expected": {
+      "publicDraw": true,
+      "constantAuthority": "source_parameterized",
+      "photonEnergyEV": 3.1,
+      "workFunctionEV": 2,
+      "kineticEV": 1.1,
+      "foreignLineNotIncident": true
+    }
+  },
+  {
+    "id": "background-first-source-owner-transfer",
+    "question": "A hydrogen discharge in a separate tube emits a line at 656 nm. Sodium has work function 2.3 eV and is illuminated by light of wavelength 400 nm. Take hc = 1240 eV nm. Draw the sodium photoelectron energy balance.",
+    "expected": {
+      "publicDraw": true,
+      "constantAuthority": "source_parameterized",
+      "photonEnergyEV": 3.1,
+      "workFunctionEV": 2.3,
+      "kineticEV": 0.8,
+      "foreignLineNotIncident": true
+    }
+  },
+  {
+    "id": "preserved-active-bound-source",
+    "question": "For a bound electron, work function is 2 eV; incident light wavelength is 400 nm. Draw the photoelectron energy balance.",
+    "expected": {
+      "publicDraw": true,
+      "constantAuthority": "atomic_reference",
+      "photonEnergyEV": 3.0996049608300065,
+      "workFunctionEV": 2,
+      "kineticEV": 1.0996049608300065
+    },
+    "scope": "Exact unchanged original independent source36 positive."
+  },
+  {
+    "id": "active-atomic-stated-product-remains-fixed",
+    "question": "For an atomic electron, work function is 2 eV; incident photon wavelength is 400 nm. Take hc = 1240 eV nm. Draw the photoelectron energy balance.",
+    "expected": {
+      "publicDraw": false,
+      "constantAuthority": "atomic_reference"
+    },
+    "reason": "Preserve the existing fixed atomic reference contract: rounded1240 differs nominally from h_ref*c_ref. This is unsupported exact-source authority, not a claim rounded1240 is physically contradictory."
+  },
+  {
+    "id": "active-bound-stated-h-remains-fixed",
+    "question": "For a bound electron, work function is 2 eV; incident light frequency is 6e14 Hz. Planck's constant is 6.6e-34 J s. Draw the photoelectron energy balance.",
+    "expected": {
+      "publicDraw": false,
+      "constantAuthority": "atomic_reference"
+    },
+    "reason": "Actual active bound-electron role keeps the original fixed-reference h requirement. A rounded stated h does not become source-parameterized by the unrelated-emitter ownership correction."
+  }
+]

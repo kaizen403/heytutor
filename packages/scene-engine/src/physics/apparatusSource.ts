@@ -157,3 +157,65 @@ export function readTwoLoopTopology(question: string): TwoLoopSource | null {
   return { question, left: left.resistor, right: right.resistor, shared, leftSource: left.source, rightSource: right.source,
     positiveTerminal: polarity[0]![1]!.toLowerCase() as "top" | "bottom", spans };
 }
+
+export interface CircuitLawExampleSource {
+  question: string;
+  lawSet: Array<"current" | "voltage">;
+  requestSpans: Span[];
+}
+type CircuitLawExampleOutcome = { status: "not_applicable" } | { status: "declined" }
+  | { status: "example"; source: CircuitLawExampleSource };
+
+/** A law illustration chooses an explicitly qualified example. Every clause
+ * must request that illustration or its symbolic marks: no supplied network,
+ * current calculation or unread component is inferred from the law's name. */
+export function readCircuitLawExample(question: string): CircuitLawExampleOutcome {
+  if (!/\bKirchhoff(?:['’]s)?\b/i.test(question)) return { status: "not_applicable" };
+  const requestSpans: Span[] = [], lawSet = new Set<"current" | "voltage">();
+  const depiction = "(?:(?:a|an|the)\\s+)?(?:(?:labelled|labeled|illustrative|symbolic|example|suitable|standard)\\s+)*(?:diagram|circuit|illustration|setup)";
+  const marks = /^(?:(?:a|an|the)\s+)?(?:junction|(?:closed\s+)?loop|(?:circuit\s+)?symbols|(?:labelled\s+|labeled\s+)?terminals(?:\s+of\s+the\s+components)?|source\s+polarities|reference\s+current\s+directions)$/i;
+  const requests: Array<{ text: string; span: Span }> = [];
+  for (const clause of question.matchAll(/[^.;!?]+/g)) {
+    // A coordinated mark verb starts a separate owned request. Only this
+    // positive conjunction is consumed; unknown coordinated actions remain
+    // in the original argument and fail its complete grammar.
+    const cuts = [...clause[0].matchAll(/\s+and\s+(?=(?:label|mark|show)\s+)/gi)];
+    let start = 0;
+    for (const cut of [...cuts, { index: clause[0].length, 0: "" }]) {
+      const raw = clause[0].slice(start, cut.index), text = raw.trim();
+      if (text) {
+        const offset = clause.index + start + raw.indexOf(text);
+        requests.push({ text, span: { start: offset, end: offset + text.length } });
+      }
+      start = cut.index + cut[0].length;
+    }
+  }
+  for (const { text, span } of requests) {
+    // This is a source constraint, not a negation exemption for any drawing.
+    if (/^Do\s+not\s+assign\s+numerical\s+values$/i.test(text)) { requestSpans.push(span); continue; }
+    const request = /^(draw|show|sketch|illustrate|represent|explain|label|mark)\s+(.+)$/i.exec(text);
+    if (!request) return { status: "declined" };
+    let argument = request[2]!;
+    const law = /\bKirchhoff(?:['’]s)?\s+(?:(?:current|voltage)\s+(?:and\s+(?:current|voltage)\s+)?laws?|laws?|rules?)(?:\s+and\s+(?:(?:Kirchhoff(?:['’]s)?\s+)?(?:current|voltage)\s+laws?))?(?:\s+and\s+their\s+applications)?/i.exec(argument);
+    if (law) {
+      const hasCurrent = /\bcurrent\b/i.test(law[0]), hasVoltage = /\bvoltage\b/i.test(law[0]);
+      if (hasCurrent || !hasVoltage) lawSet.add("current");
+      if (hasVoltage || !hasCurrent) lawSet.add("voltage");
+      argument = `${argument.slice(0, law.index)}LAW${argument.slice(law.index + law[0].length)}`;
+      const lawView = new RegExp(`^(?:${depiction}\\s+(?:for|of|to\\s+explain)\\s+LAW|LAW(?:\\s+with\\s+${depiction})?)$`, "i");
+      if (!lawView.test(argument) || /^(?:label|mark)$/i.test(request[1]!)) return { status: "declined" };
+    } else {
+      // Positive independently parsed mark list; an unknown coordinated object
+      // or verb cannot disappear into an allowed-word mask.
+      const named = /^(?:the|any)\s+named\s+/i.test(argument);
+      const memberText = argument.replace(/\s+on\s+the\s+figure$/i, "").replace(/^(?:the|any)\s+named\s+/i, "");
+      const members = memberText.split(/\s*,\s*(?:or\s+)?|\s+(?:and|or)\s+/i);
+      if (!/^(?:show|label|mark)$/i.test(request[1]!) || !members.length
+        || members.some(member => !(marks.test(member) || named && /^(?:quantities|directions|levels|components)$/i.test(member)))) return { status: "declined" };
+    }
+    requestSpans.push(span);
+  }
+  return lawSet.size && requestSpans.length
+    ? { status: "example", source: { question, lawSet: [...lawSet], requestSpans } }
+    : { status: "declined" };
+}

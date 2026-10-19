@@ -6,8 +6,9 @@
 import { stemKnowns } from "../archetypes/generators/constantAcceleration";
 import { buildNeutralDecayScene, readNeutralDecaySource } from "../physics/neutralDecaySource";
 import { buildParticleRadiationScene, readRadiationSource } from "../physics/radiationSource";
-import { readApertureSource, readTwoLoopTopology, twoLoopTopologyClaimed, type TwoLoopSource } from "../physics/apparatusSource";
+import { readApertureSource, readTwoLoopTopology, twoLoopTopologyClaimed, readCircuitLawExample, type TwoLoopSource } from "../physics/apparatusSource";
 import { compileSceneDocument } from "../compile/compiler";
+import { buildCircuitLawExample } from "../physics/circuitLawExample";
 import { groundedOhmScene } from "../compile/ohmTopicGeometry";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../document/validation";
 import { parseMathExpression, parseMathExpression2D } from "../math/expression";
@@ -239,6 +240,16 @@ function synthesizeFromFamilies(
       || obligations && visualObligationRejection(obligations, compiled.document)) return null;
     return { ...compiled, family: "circuit_network", tier: "question_representation", nonMetric: true,
       reason: "Source-bound left, right and shared circuit branches; displayed layout is nonmetric." };
+  }
+  const circuitExample = readCircuitLawExample(question);
+  if (circuitExample.status !== "not_applicable") {
+    if (circuitExample.status !== "example") return null;
+    const document = buildCircuitLawExample(question);
+    const compiled = document ? tryCompile(document) : null;
+    if (!compiled || demandRejection(compiled.document, demand)
+      || obligations && visualObligationRejection(obligations, compiled.document)) return null;
+    return { ...compiled, family: "circuit_network", tier: "question_representation", nonMetric: true,
+      reason: "Explicitly illustrative symbolic law example; reference arrows are not solved currents or supplied topology." };
   }
   // A section-formula stem read whole draws its own endpoints and section
   // point; the section_point operator certifies the point.
@@ -1260,9 +1271,6 @@ function buildCircuit(
   const count = Math.max(2, Math.min(resistors.length || (namedNetwork ? 4 : 3), 4));
   const wantsParallel = /\bparallel\b/i.test(question) && !/\bin series except\b/i.test(question);
   const wantsSeries = /\bseries\b/i.test(question) || (namedNetwork && !wantsParallel);
-  // A named method is not a connectivity statement. If the source does not
-  // bind the two-loop graph, it cannot become a stock series network either.
-  if (namedNetwork && !/\b(?:in\s+)?(?:series|parallel)\b/i.test(question)) return null;
   if (!schematic && !wantsParallel && !wantsSeries && resistors.length < 2) return null;
   if (wantsParallel && !wantsSeries && statedOhms.length > 3) return null;
   if (wantsSeries && wantsParallel) {
