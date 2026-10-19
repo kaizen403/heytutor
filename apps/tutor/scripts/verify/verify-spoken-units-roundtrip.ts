@@ -107,6 +107,43 @@ check("chemistry state symbols after a formula are still states", () => {
   assert.equal(hinglish("so 2 m g sinθ and 4 m squared"), "so two m g sine theta and four m squared");
 });
 
+check("a spaced variable after a number is not read as a unit", () => {
+  // g, m and h name a quantity as often as a unit: "2 g" is twice the
+  // acceleration of free fall, "2 m" twice a mass, "2 h" twice a height.
+  const VARIABLES: [string, string, string][] = [
+    ["acceleration 2 g hai", "acceleration 2 g hai", "acceleration two g hai"],
+    ["block ka mass 2 m hai", "block ka mass 2 m hai", "block ka mass two m hai"],
+    ["masses m aur 2 m hain", "masses m aur 2 m hain", "masses m aur two m hain"],
+    ["height 2 h hai", "height 2 h hai", "height two h hai"],
+  ];
+  for (const [written, english, hindi] of VARIABLES) {
+    assert.equal(mathToSpeech(written), english, `English speech for: ${written}`);
+    assert.equal(hinglish(written), hindi, `Hinglish speech for: ${written}`);
+  }
+  // A bare h is never an hour outside a speed.
+  assert.equal(mathToSpeech("y (h)"), "y (h)");
+  assert.equal(mathToSpeech("plug x in h"), "plug x in h");
+  assert.equal(mathToSpeech("10 km/h and 60 km/hr"), "10 kilometers per hour and 60 kilometers per hour");
+});
+
+check("a spaced meter or second that ends its quantity is still a unit", () => {
+  const UNITS: [string, string][] = [
+    ["t equals 4 s se", "t equals four seconds se"],
+    ["4 s", "four seconds"],
+    ["40 m, rectangle", "forty meters, rectangle"],
+    ["total 160 m.", "total one hundred sixty meters."],
+    ["total 160 m", "total one hundred sixty meters"],
+    ["40 m se", "forty meters se"],
+    ["40 m me", "forty meters me"],
+    ["40 m ka", "forty meters ka"],
+    ["40 m ki", "forty meters ki"],
+    ["40 m ko", "forty meters ko"],
+    ["40 m से", "forty meters से"],
+    ["कुल 160 m।", "कुल one hundred sixty meters."],
+  ];
+  for (const [written, hindi] of UNITS) assert.equal(hinglish(written), hindi, `Hinglish speech for: ${written}`);
+});
+
 console.log("\nThe pen still finds each board label inside its spoken sentence\n");
 const CUES: [string, string][] = [
   ["t (s)", "देखो यह velocity-time graph है, जहाँ vertical axis v (m/s) और horizontal axis t (s) है."],

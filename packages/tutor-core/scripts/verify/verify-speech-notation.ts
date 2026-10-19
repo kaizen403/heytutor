@@ -612,6 +612,9 @@ const RECORDED_UNIT_LINES: [string, string][] = [
   // a grouped number, the Planck ratio, and a point named in prose.
   ["Fe2O3(s), CO_2 (g), Fe (s), P (s)", "Fe2O3 solid, CO 2 gas, Fe solid, P solid"],
   ["v(8), f(2, 3), (1,000), λ = h/p, the tension in A", "v(8), f(2, 3), (1,000), lambda equals h over p, the tension in A"],
+  // A bare h is a height or a step, never an hour outside a speed.
+  ["y (h)", "y (h)"],
+  ["plug x in h", "plug x in h"],
 ];
 
 check(`${RECORDED_UNIT_LINES.length} recorded unit and point lines are spoken as words`, () => {

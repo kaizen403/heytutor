@@ -154,9 +154,15 @@ const UNIT_WORDS: Record<string, { plural: string; singular: string }> = {
   Wb: { plural: "webers", singular: "weber" },
   eV: { plural: "electron volts", singular: "electron volt" },
   "\u03a9": { plural: "ohms", singular: "ohm" },
-  // The hour only ever reaches the voice inside a speed: `km/h` was heard as
-  // "kilometer by H". A ratio needs a number or "in" in front of it, so the
-  // Planck ratio `h/p` is still read as "h over p".
+};
+
+/**
+ * The hour only ever reaches the voice inside a speed: `km/h` was heard as
+ * "kilometer by H". A bare h is a height or a step (`y (h)`, "plug x in h"),
+ * so h and hr are read only as the denominator of a unit ratio, which also
+ * leaves the Planck ratio `h/p` as "h over p".
+ */
+const RATIO_DENOMINATOR_UNIT_WORDS: Record<string, { plural: string; singular: string }> = {
   h: { plural: "hours", singular: "hour" },
   hr: { plural: "hours", singular: "hour" },
 };
@@ -201,7 +207,7 @@ const UNIT_RATIO = "(µ?[A-Za-zΩ]{1,3})\\s*/\\s*(µ?[A-Za-zΩ]{1,3})(\\^?[23]|[
 
 function sayUnitRatio(numerator: string, denominator: string, power?: string): string | null {
   const top = unitWords(numerator);
-  const bottom = unitWords(denominator);
+  const bottom = unitWords(denominator) ?? RATIO_DENOMINATOR_UNIT_WORDS[denominator];
   if (!top || !bottom) return null;
   const exponent = power ? POWER_WORDS[power.replace("^", "")] : undefined;
   // "meters per second", never "meters per seconds": the denominator names
