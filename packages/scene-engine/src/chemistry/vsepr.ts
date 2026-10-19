@@ -30,6 +30,7 @@ import {
 import { formulaTokens, normalizeChemistryText, parseFormula, type ParsedFormula } from "./formula";
 import { isMonovalent, valenceElectrons, type ElementRecord } from "./elements";
 import { isDiscreteVseprCandidate } from "./foundation/formulaState";
+import type { VseprBondInkPlan } from "./representation/bondInk";
 
 export const VSEPR_FAMILY = "chem_vsepr" as const;
 
@@ -718,6 +719,15 @@ function drawOrders(result: VseprResult): boolean {
     if (pairs > 4) return false;
   }
   return true;
+}
+
+/** Same source-derived layout/seating policy consumed by production and audit. */
+export function vseprBondInkPlan(result: VseprResult): VseprBondInkPlan[] | null {
+  const layout = layoutFor(result);
+  const seated = layout ? seatLigands(result, layout) : null;
+  if (!seated) return null;
+  return seated.map(({ slot, ligand }) => ({ ligandLabel: ligand.label, style: slot.style,
+    strokeCount: drawOrders(result) && slot.style !== "wedge" ? ligand.bondOrder : 1 }));
 }
 
 interface DrawnSpecies { readonly ids: string[]; readonly frameIds: string[]; readonly detailIds: string[] }

@@ -1,4 +1,5 @@
 export * from "./types";
+export * from "./chemistry/representation";
 export * from "./capability/capabilityManifest";
 export * from "./document/validation";
 export * from "./document/namedPoints";

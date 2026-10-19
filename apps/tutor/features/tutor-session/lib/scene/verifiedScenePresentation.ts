@@ -1,3 +1,6 @@
+import { prepareNeutralPanelPresentation } from "./neutralPanelPresentation";
+export { NeutralPanelPresentationDeclined } from "./neutralPanelPresentation";
+
 import {
   measureTextInkBounds,
   measureTextWidth,
@@ -60,6 +63,25 @@ export function buildVerifiedDiagramPresentation(
   renderScene: RenderScene,
   options: VerifiedScenePresentationOptions = {},
 ): VerifiedDiagramPresentation {
+  return buildDiagramPresentation(document, renderScene, options, null);
+}
+
+/** Explicit source-checked entry; existing callers retain the legacy entry above. */
+export function buildSourceBoundChemistryPresentation(
+  document: SceneDocument,
+  renderScene: RenderScene,
+  options: VerifiedScenePresentationOptions & { originalQuestion: string },
+): VerifiedDiagramPresentation {
+  const policy = prepareNeutralPanelPresentation(document, renderScene, options?.originalQuestion);
+  return buildDiagramPresentation(document, renderScene, options ?? {}, policy);
+}
+
+function buildDiagramPresentation(
+  document: SceneDocument,
+  renderScene: RenderScene,
+  options: VerifiedScenePresentationOptions,
+  neutralPolicy: ReturnType<typeof prepareNeutralPanelPresentation>,
+): VerifiedDiagramPresentation {
   const layout = labelLayoutFor(options.layout ?? "standard");
   const source = document.source as Record<string, unknown> | undefined;
   const nonMetric = source?.nonMetric === true;
@@ -96,7 +118,7 @@ export function buildVerifiedDiagramPresentation(
     groupId: string,
     phase: RevealPhase,
     command: VerifiedDiagramCommand,
-    options: { reveal?: boolean } = {},
+    options: { reveal?: boolean; structuralIdentity?: boolean } = {},
   ): number | null => {
     const key = [
       command.type,
@@ -108,7 +130,7 @@ export function buildVerifiedDiagramPresentation(
       command.visualStyle?.labelLeader ? "labelLeader" : "",
       command.visualStyle?.measurementRole ? command.semanticRef?.entityId ?? "" : "",
       command.semanticRef?.actionId ?? "",
-    ].join(":");
+    ].join(":") + (options.structuralIdentity ? `:${command.semanticRef?.entityId}:${command.semanticRef?.primitiveId}` : "");
     if (commandKeys.has(key)) return null;
     commandKeys.add(key);
     const index = commands.push(command) - 1;
@@ -153,16 +175,17 @@ export function buildVerifiedDiagramPresentation(
       if (options.layout === "code_lesson" && isDsaMarkerScribble(styled)) {
         continue;
       }
-      const commandPhase = primitive.provenance?.matrixCell
+      const atomicNeutralLabel = neutralPolicy?.isAtomicLabel(primitive, styled) === true;
+      const commandPhase = atomicNeutralLabel || primitive.provenance?.matrixCell
         ? "structure"
         : command.type === "LABEL" || command.type === "DIMENSION" ? "detail" : phase;
-      const deferReason = deferralReason(
+      const deferReason = atomicNeutralLabel ? null : deferralReason(
         primitive,
         command,
         annotateTargetIds,
         options.layout === "code_lesson",
       ) ?? (holdLaterDsaFrames && primitive.groupId !== introGroupId ? "frame" : null);
-      const index = add(primitive.groupId, commandPhase, styled, { reveal: deferReason === null });
+      const index = add(primitive.groupId, commandPhase, styled, { reveal: deferReason === null, structuralIdentity: atomicNeutralLabel });
       if (deferReason !== null && index !== null) {
         deferred.push({
           index,
@@ -377,7 +400,9 @@ The scene engine owns all diagram geometry, labels, annotations, directions, con
     ? { ...segment, sceneText: true }
     : segment));
 
-  return { diagram, introSegments: spokenIntro };
+  const presentation = { diagram, introSegments: spokenIntro };
+  neutralPolicy?.assertComplete(presentation);
+  return presentation;
 }
 
 const SCALE_DISCLAIMER = /Do not read scale from this figure\.?/gi;
