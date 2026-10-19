@@ -102,7 +102,7 @@ export function riverShortestPathAsked(question: string): boolean {
 
 /** Shortest time: head along the bank normal and drift downstream. */
 export function riverShortestTimeAsked(question: string): boolean {
-  return /\b(?:(?:shortest|minimum|least|minimal) time|as (?:quickly|soon) as possible|quickest)\b/i.test(question);
+  return /\b(?:(?:shortest|minimum|least|minimal)(?: possible)?(?: (?:crossing|travel|journey))? time|as (?:quickly|soon) as possible|quickest)\b/i.test(question);
 }
 
 /**
@@ -135,6 +135,8 @@ export function riverCrossingValues(speeds: RiverCrossingSpeeds, question = ""):
     angle.push(heading, 90 - heading, 90 + heading);
     if (w !== null) time.push(w / Math.sqrt(vb * vb - vc * vc));
   }
+  // A question that compares the two crossings asks for their difference.
+  if (path && quick && w !== null && time.length === 2) time.push(Math.abs(time[1]! - time[0]!));
   return { velocity, angle, ...(w === null ? {} : { time, length }) };
 }
 

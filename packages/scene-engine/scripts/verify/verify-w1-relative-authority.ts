@@ -10,6 +10,7 @@ import {
   type TurnPlanQuantityV3,
   type TurnPlanV3,
 } from "../../src/index";
+import { riverCrossingPlanConflicts, riverShortestTimeAsked } from "../../src/physics/riverCrossingSource";
 
 let checks = 0;
 const failures: string[] = [];
@@ -180,6 +181,23 @@ check("shortest path and shortest time use separate equations, angles and drift"
   close(value(corrected(plan(path, [], [quantity("t", "t", 48, "s")])).plan, "t"), pathTime);
   const fast = corrected(plan(fractions, [], [quantity("t", "t", pathTime, "s"), quantity("a", "alpha", angle, "rad"), quantity("drift", "drift", 99, "m")]));
   close(value(fast.plan, "t"), 48); assert.equal(value(fast.plan, "a"), undefined); assert.equal(value(fast.plan, "drift"), undefined);
+});
+check("a question comparing both crossings keeps the shortest time and the difference", () => {
+  // Public eval stem physics|2|river-boat-problems|q2: 80 m, vb 5, vc 3.
+  // Straight across: 80/4 = 20 s. Shortest time: 80/5 = 16 s. Difference 4 s.
+  const both = "Using an 80 m wide river, boat speed 5.0 m/s in still water, current 3.0 m/s: find the heading so that the resultant is straight across, the time for that crossing, and compare it with the shortest possible crossing time. Draw the two velocity triangles.";
+  assert.equal(riverShortestTimeAsked(both), true);
+  for (const phrase of ["the shortest possible time", "the minimum crossing time", "the least possible travel time"]) assert.equal(riverShortestTimeAsked(`Find ${phrase}.`), true);
+  const speeds = riverCrossingSpeeds(both);
+  assert.equal(speeds.status, "bound");
+  if (speeds.status !== "bound") return;
+  const right = plan(both, [], [quantity("t", "t", 20, "s"), quantity("tmin", "t_min", 16, "s"), quantity("dt", "Δt", 4, "s")]);
+  assert.deepEqual(riverCrossingPlanConflicts(speeds, right, both), []);
+  const wrong = plan(both, [], [quantity("tmin", "t_min", 16, "s"), quantity("dt", "Δt", 5, "s")]);
+  assert.deepEqual(riverCrossingPlanConflicts(speeds, wrong, both).map((c) => c.id), ["dt"]);
+  // A question asking only for the straight across crossing keeps its single time binding.
+  const pathOnly = both.replace(", and compare it with the shortest possible crossing time", "");
+  assert.deepEqual(riverCrossingPlanConflicts(speeds, plan(pathOnly, [], [quantity("dt", "Δt", 4, "s")]), pathOnly).map((c) => c.id), ["dt"]);
 });
 check("downstream and upstream speeds remain independent of crossing time", () => {
   const question = river("5/2 m/s", "1/2 m/s", "120 m", "speeds downstream and upstream");
