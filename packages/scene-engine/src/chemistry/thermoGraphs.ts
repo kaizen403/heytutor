@@ -565,12 +565,10 @@ function buildUnspecifiedProductProfile(question: string, spec: UnspecifiedProdu
     proveOnCurve(c,`${prefix}ts_left`,left,xTS,yTS);
     proveOnCurve(c,`${prefix}ts_right`,right,xTS,yTS);
     proveOnCurve(c,`${prefix}p_join`,right,xP,yP);
-    if (spec.forward) {
-      const foot=s.helper(`${prefix}ea_foot`,{x:origin+.65,y:yR},"forward gap foot helper");
-      const top=s.helper(`${prefix}ea_top`,{x:origin+.65,y:yTS},"forward gap top helper");
-      s.dimension(`${prefix}ea`,foot,top,"source-supported forward activation gap","E_a");
-      s.labelled(`${prefix}ea`);
-    }
+    const foot=s.helper(`${prefix}ea_foot`,{x:origin+.65,y:yR},"forward gap foot helper");
+    const top=s.helper(`${prefix}ea_top`,{x:origin+.65,y:yTS},"forward gap top helper");
+    s.dimension(`${prefix}ea`,foot,top,"forward activation gap from R to TS","E_a");
+    s.labelled(`${prefix}ea`);
   }
   if (spec.forward) {
     s.quantity("Ea_forward","E_a",spec.forward.value,spec.forward.unit);
@@ -579,9 +577,11 @@ function buildUnspecifiedProductProfile(question: string, spec: UnspecifiedProdu
   // The existing presentation matches exact names in this factual cue. Start
   // with uncertainty so its label precedes any conditional profile ink.
   const values = s.entities.filter(entity=>entity.id.startsWith("forward_value")&&entity.label).map(entity=>entity.label!);
-  const cue = `ΔH not given; Possibilities for potential energy, not to scale: If ΔH < 0, If ΔH = 0, and If ΔH > 0 are separate possible ${spec.reactants}, TS and ${spec.products} paths along the reaction coord., with no actual product order specified${spec.forward?`; E_a is the common forward gap, labelled ${values.join(" ")}`:""}`;
+  const cue = `ΔH not given; Possibilities for potential energy, not to scale: If ΔH < 0, If ΔH = 0, and If ΔH > 0 are separate possible ${spec.reactants}, TS and ${spec.products} paths along the reaction coord., with no actual product order specified; E_a is the forward gap from ${spec.reactants} to TS${spec.forward?`, labelled ${values.join(" ")}`:""}`;
   s.group("conditional_profiles",s.entities.map(entity=>entity.id),cue);
-  return c.build({caption:"Product energy is unspecified. The three conditional profiles illustrate lower, equal and higher product energies; none asserts the reaction's enthalpy sign. Coordinates are qualitative, not an absolute energy scale."});
+  const document=c.build({caption:"Qualitative possibilities: ΔH is not given. Products may lie below, equal to or above reactants; none of these conditional profiles asserts the reaction's enthalpy sign."});
+  document.source={...document.source,nonMetric:true,representationTier:"qualitative_verified"};
+  return document;
 }
 
 function buildProfile(question: string, spec: ProfileSpec | UnspecifiedProductProfile): SceneDocument {

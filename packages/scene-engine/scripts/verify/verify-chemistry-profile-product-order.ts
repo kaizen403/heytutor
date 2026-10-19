@@ -26,6 +26,9 @@ for(const row of fixtures)for(const route of ["direct","schematic","ordinary","l
       const rLabel="reactants"in row?row.reactants!:"R",pLabel="products"in row?row.products!:"P";
       for(const label of [rLabel,pLabel,"TS"])assert.ok(labels.includes(label),`visible ${label}`);
       if(row.mode==="alternatives"){
+        assert.equal(document.source.nonMetric,true,"qualitative display cannot imply metric measurements");
+        assert.equal(document.source.representationTier,"qualitative_verified");
+        assert.match(compiled.renderScene.caption??"",/qualitative/i,"compiled caption retains qualitative scope");
         assert.ok(labels.includes("ΔH not given"));assert.ok(labels.includes("Possibilities"));
         for(const text of ["If ΔH < 0","If ΔH = 0","If ΔH > 0","potential energy","not to scale"])assert.ok(labels.includes(text),`visible ${text}`);
         assert.equal(labels.filter(t=>t===rLabel).length,3);assert.equal(labels.filter(t=>t===pLabel).length,3);assert.equal(labels.filter(t=>t==="TS").length,3);
@@ -43,6 +46,11 @@ for(const row of fixtures)for(const route of ["direct","schematic","ordinary","l
           assert.ok(ts>r&&ts>p,"activated path above both endpoints");
           assert.ok(panel===0?p<r:panel===1?Math.abs(p-r)<1e-8:p>r,"lower/equal/higher alternatives");
           assert.ok(document.assertions.filter(a=>a.predicate==="function_value"&&a.severity==="fatal").length>=12,"endpoints and joins independently asserted");
+          const gap=document.constructions.find(c=>c.outputs.includes(`case_${panel}_ea`));
+          assert.equal(gap?.operator,"dimension","each possible activated path retains the symbolic forward gap");
+          const foot=document.constructions.find(c=>c.outputs.includes(`case_${panel}_ea_foot`));
+          const top=document.constructions.find(c=>c.outputs.includes(`case_${panel}_ea_top`));
+          assert.ok(foot&&top);assert.ok(Math.abs(Number(foot.inputs.y)-r)<1e-8);assert.ok(Math.abs(Number(top.inputs.y)-ts)<1e-8);
         }
         const reveal=document.revealGroups;assert.equal(reveal.length,1,"one engine group owns all qualifiers and alternatives; app ordering is independently checked");
         const curveIds=new Set(curves.flatMap(c=>c.outputs));
