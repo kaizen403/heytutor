@@ -147,6 +147,9 @@ assert.equal(read("A stone falls 20 m in the last second of its fall. Draw the f
     assert.ok(row.slots.h === undefined || row.slots.h === 20, `a rebound height is never the drop height: ${question}`);
   }
   assert.equal(read("A ball is dropped from a height of 20 m and rebounds from the floor to a height of 0.80 m. Draw the motion.", "free_fall").slots.h, 20, "the stated release height survives a rebound clause");
+  for (const [question, h] of [["A ball is dropped from a 30 m cliff. Draw the free fall.", 30], ["A stone is released from the 12 m bridge. Draw the free fall.", 12]] as const) {
+    assert.equal(read(question, "free_fall").slots.h, h, `a release from a numbered structure binds: ${question}`);
+  }
   assert.equal(read("A ball dropped from the top of a 45 m tall tower passes a window of height 2 m. Draw the free fall.", "free_fall").slots.h, 45, "a window passed on the way down is not the release height");
 }
 console.log("archetype number-role review gates passed");

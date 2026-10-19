@@ -409,7 +409,7 @@ export function extractFreeFallSlots(stem: string, plan: readonly PlanQuantity[]
       if (last && !/\b(?:dropped|released|thrown|let go)\b/i.test(clause.slice(last.index! + last[0].length))) return false;
       return /(?:\bheight(?: of| is| =)?|\b(?:tower|cliff|building)(?: of height| is| of)?|\b(?:dropped|released)(?: from)?(?: rest)?(?: from)?(?: a height of)?)\s*$/i.test(before)
         || /^\s*(?:high|tall|above (?:the |a )?(?:[a-z-]+ ){0,3}(?:ground|floor|earth|surface))\b/i.test(after)
-        || (/\btop of (?:a|the)\s*$/i.test(before) && /^\s*(?:tall |high )?(?:tower|cliff|building)\b/i.test(after));
+        || (/\b(?:top of|(?:dropped|released) from(?: the top of)?) (?:a|the)\s*$/i.test(before) && /^\s*(?:tall |high )?(?:tower|cliff|building|bridge|roof)\b/i.test(after));
     });
     h = pick(HEIGHT_ALIASES, "length") ?? (dropLengths.length === 1 ? { value: dropLengths[0]!.value, source: "stem" as const } : null);
   }
