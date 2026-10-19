@@ -26,6 +26,12 @@ const stringCases = [
   ["Draw a second–harmonic standing wave on a string", 2],
   ["Draw a standing wave in the fundamental mode on a string", 1],
   ["Draw the third harmonic on a string with fundamental frequency 100 Hz", 3],
+  // A mode word with no number of its own refers back to the mode already read.
+  // Real eval row physics|10|standing-waves-harmonics-and-beats|q2, verbatim.
+  ["A.50 m string fixed at both ends has fourth-harmonic frequency 400 Hz. Its largest displacement amplitude in that mode is 1.0 mm. Determine wave speed,wavelength,node and antinode counts and spacings, and write a standing-wave equation with an antinode at maximum positive displacement at t=0. Find maximum particle acceleration and the lowest allowed frequency when the string tension is quadrupled without changing length or linear density.", 4],
+  ["A string vibrates in its third harmonic. Sketch this mode and mark the nodes.", 3],
+  ["A string vibrates in the second harmonic. How many loops are there? Draw the standing wave.", 2],
+  ["Explain standing waves in strings, fundamental mode, and harmonics.", 1],
 ] as const;
 for (const [question, n] of stringCases) {
   const { match, scene } = read(question);
@@ -109,7 +115,22 @@ for (const question of [
   "Draw a standing wave in an organ pipe", // Boundary condition not given.
   "Draw standing waves in organ pipes", // Topic name does not imply fixed ends.
   "Draw a standing wave with three loops in an open pipe", // Pipe half-loop convention is ambiguous.
+  // A leftover mode word that carries its own number, step or article asks for another mode.
+  "A string vibrates in its third harmonic. Draw the next harmonic.",
+  "A string vibrates in its third harmonic. Draw the next higher harmonic and mark its nodes.",
+  "Draw the third harmonic on a string and compare it with the fifth harmonics of the same string.",
+  "Draw the third and fourth harmonics on a string",
+  "Draw the third harmonic on a string, then mode 5.",
+  "Draw the third harmonic on a string and the harmonic k = 5",
+  "Draw the third harmonic on a string and the mode with n = 5",
+  "Draw the third harmonic on a string; also show a higher overtone.",
+  "Draw the third harmonic on a string and all harmonics up to it",
+  "A string vibrates in its third harmonic. Sketch this mode and then another mode.",
 ]) assert.equal(read(question).scene, null, `unread or unsupported state must decline: ${question}`);
+// The reader itself marks a mode word with nothing read; the generator guard is a second layer.
+for (const question of ["Draw a standing wave on a string in an unfamiliar mode", "Draw standing waves on a string and their harmonics"]) {
+  assert.equal(read(question).match.slots.harmonicUnresolved, "unread", `reader marks an unread mode: ${question}`);
+}
 const direct = generatorFor("standing_wave")!;
 assert.equal(direct({ question: "Draw the standing wave in an unknown mode on a string", slots: {}, sources: {}, quantities: [], schematic: true }), null, "direct callers cannot turn an unread mode into the fundamental");
 for (const question of ["Draw a standing wave on a string", "Draw a standing wave on the first string", "Draw a standing wave on a string with fundamental frequency 100 Hz"]) {
@@ -117,4 +138,4 @@ for (const question of ["Draw a standing wave on a string", "Draw a standing wav
   assert.equal(match.slots.harmonic, undefined, question);
   assert.equal(scene?.entities.find((entity) => entity.id === "wave")?.label, "envelope", question);
 }
-console.log(`archetype wave source gate: ${stringCases.length} string modes, 8 pipe modes, declined requests and direct/conceptual boundaries pass`);
+console.log(`archetype wave source gate: ${stringCases.length} string modes (including the verbatim fourth-harmonic eval row), 8 pipe modes, declined requests and direct/conceptual boundaries pass`);

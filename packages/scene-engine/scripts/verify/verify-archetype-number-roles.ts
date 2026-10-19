@@ -101,4 +101,34 @@ for (const energy of ["3.2 × 10⁻¹⁹ J", "3.2e-19 J", "2 eV"]) {
   assert.equal(row.slots.lambda, 400);
   assert.equal(row.scene?.entities.find((entity) => entity.id === "E_top")?.label, "hν=3.1 eV");
 }
+// PR 201 delta: a later height is a second state, not the release height.
+// The three stems are the real eval rows, verbatim; detection runs with no hint as live does.
+const rebound = "A ball is dropped from rest 1.25 m above a rigid horizontal floor and rebounds to a height of 0.80 m. Take g = 10 m/s² and neglect air resistance. Find its coefficient of restitution with the floor.";
+const meeting = "Two balls A and B are placed at the top of a 180 m tower. Ball A is released from rest at t = 0. Ball B is thrown vertically down with speed u at t = 2 s. They meet 100 m above the ground. Take g = 10 m/s². Find u. Options included 10, 20, 30 m/s. There is no horizontal velocity.";
+const plasma = "A dense collection of equal numbers of electrons and positive ions is a neutral plasma. Let N be the number density of free electrons, each of mass m. When displaced and released they oscillate at the plasma frequency ω_p. Taking electronic charge e and permittivity ε0, use dimensional analysis to choose the correct expression for ω_p among forms built from N, e, m, ε0 (the paper’s options are equivalent to ω_p = sqrt(N e² / (ε0 m)) and three dimensionally wrong variants).";
+for (const [question, drop, later] of [[rebound, 1.25, "h=0.8 m"], [meeting, 180, "h=100 m"]] as const) {
+  for (const match of [detectArchetype(question), detectArchetype(question, { plannerArchetype: "free_fall" })]) {
+    if (!match || match.id !== "free_fall") continue;
+    assert.ok(match.slots.h === undefined || match.slots.h === drop, `only the release height may bind: ${question}`);
+    const scene = generatorFor("free_fall")!({ question, slots: match.slots, sources: match.sources, quantities: [], schematic: true });
+    const printed = scene?.entities.flatMap((entity) => entity.label ? [entity.label] : []) ?? [];
+    assert.ok(!printed.includes(later), `a later height is never printed as the drop: ${later}`);
+  }
+}
+assert.equal(read(rebound, "free_fall").slots.h, 1.25, "the release height reads from 'dropped from rest N m above a floor'");
+assert.equal(read(meeting, "free_fall").slots.h, 180, "the release height reads from 'top of a N m tower'");
+assert.notEqual(detectArchetype(plasma)?.id, "free_fall", "a released plasma electron is not a falling body");
+for (const question of [plasma, "A particle performs SHM with angular frequency ω = 5 rad/s and amplitude 2 cm. Draw its displacement graph."]) {
+  assert.notEqual(detectArchetype(question)?.id, "resistor_network", "Ω never folds onto ω: an angular frequency is not a resistor");
+}
+assert.notEqual(detectArchetype("An LCR series circuit is driven at angular frequency ω. For two resistances R1 and R2 (R1 > R2), sketch the current i against ω.")?.id, "lens_maker", "R1 alone is not a lens face");
+assert.equal(detectArchetype("A biconvex glass lens has R1 = 20 cm and R2 = 30 cm. Draw the lens.")?.id, "lens_maker", "a lens with R1 still reads as a lens");
+assert.notEqual(detectArchetype("A 2 µF capacitor, 100 Ω resistor and 8 H inductor are connected in series with an AC source. R1 is the coil resistance.", { plannerArchetype: "lens_maker" })?.id, "lens_maker", "a circuit vetoes the lens reader even with a hint");
+assert.ok(read(meeting, "free_fall").labels.every((label) => !/^u=\d/.test(label)), "an answer option is not the given speed");
+assert.equal(read("A ball is thrown vertically down at 12 m/s from a 30 m high tower. Draw the motion.", "free_fall").slots.u, 12, "a stated throw speed still binds");
+assert.notEqual(detectArchetype("An electron is released from rest in a uniform electric field. Draw its motion.")?.id, "free_fall");
+assert.equal(read("A stone is dropped from rest 20 m above a pond. Draw the free fall.", "free_fall").slots.h, 20, "'dropped from rest N m' names the release height");
+assert.equal(read("A stone is dropped from the top of a 45 m tall tower. Draw the free fall.", "free_fall").slots.h, 45);
+assert.equal(read("A stone is dropped from the top of a 45 m tower. Draw the free fall.", "free_fall").slots.h, 45);
+assert.equal(read("A stone falls 20 m in the last second of its fall. Draw the free fall.", "free_fall").slots.h, undefined, "a distance fallen is not the release height");
 console.log("archetype number-role review gates passed");

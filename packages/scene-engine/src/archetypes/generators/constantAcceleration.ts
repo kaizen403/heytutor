@@ -371,8 +371,11 @@ export function extractFreeFallSlots(stem: string, plan: readonly PlanQuantity[]
     const value = quantity ? siValue(quantity, dimension) : null;
     return value === null ? null : { value: Math.abs(value), source: "plan" };
   };
-  const speeds = found.filter((token) => token.dimension === "speed");
-  const lengths = found.filter((token) => token.dimension === "length");
+  // An answer choice ("options 10, 20, 30 m/s") is not a given.
+  const choice = (token: Token) => /\d\s*(?:,|\bor\b|\band\b)\s*$/i.test(text.slice(0, token.start))
+    || /\b(?:options?|choices?|answers?)\b/i.test(text.slice(0, token.start).split(/[.;?!](?:\s|$)/).pop() ?? "");
+  const speeds = found.filter((token) => token.dimension === "speed" && !choice(token));
+  const lengths = found.filter((token) => token.dimension === "length" && !choice(token));
   const accels = found.filter((token) => token.dimension === "accel");
   const u = pick(SPEED_ALIASES, "speed") ?? (/thrown/i.test(text) && speeds.length === 1 ? { value: speeds[0]!.value, source: "stem" as const } : null);
   const g = pick(GRAVITY_ALIASES, "accel") ?? (accels.length === 1 ? { value: Math.abs(accels[0]!.value), source: "stem" as const } : null);
@@ -385,11 +388,17 @@ export function extractFreeFallSlots(stem: string, plan: readonly PlanQuantity[]
   } else {
     // A sole length is not necessarily a drop height (for example, a planet
     // radius in a tunnel question). Bind the length to its vertical role.
+    // A height reached later (a rebound, a meeting point, a height passed on
+    // the way down) is a second state, never the release height.
+    const sentenceBefore = (start: number) => text.slice(0, start).split(/[.;?!](?:\s|$)/).pop() ?? "";
+    const laterState = /\b(?:rebounds?|rebounded|bounces?|bounced|rises?|rose|reach(?:es|ed)?|meet|meets|met|collides?|collided|pass(?:es|ed)?|cross(?:es|ed)?|caught|catches|strikes?|struck)\b/i;
     const dropLengths = lengths.filter((token) => {
       const before = text.slice(0, token.start);
       const after = text.slice(token.end);
-      return /(?:\bheight(?: of| is| =)?|\b(?:tower|cliff|building)(?: of height| is| of)?|\bdropped from|\breleased from)\s*$/i.test(before)
-        || /^\s*(?:high|above (?:the )?ground)\b/i.test(after);
+      if (laterState.test(sentenceBefore(token.start))) return false;
+      return /(?:\bheight(?: of| is| =)?|\b(?:tower|cliff|building)(?: of height| is| of)?|\b(?:dropped|released)(?: from)?(?: rest)?(?: from)?(?: a height of)?)\s*$/i.test(before)
+        || /^\s*(?:high|tall|above (?:the |a )?(?:[a-z-]+ ){0,3}(?:ground|floor|earth|surface))\b/i.test(after)
+        || (/\btop of (?:a|the)\s*$/i.test(before) && /^\s*(?:tall |high )?(?:tower|cliff|building)\b/i.test(after));
     });
     h = pick(HEIGHT_ALIASES, "length") ?? (dropLengths.length === 1 ? { value: dropLengths[0]!.value, source: "stem" as const } : null);
   }

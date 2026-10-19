@@ -231,8 +231,9 @@ const speedsOf = (stem: string): number[] => numbersWithUnit(stem, UNIT.speed);
 
 // Ω is not a word character, so a trailing \b never matched "6 Ω resistor":
 // every Ω value was dropped and the network fell back to stock resistors.
+// Case-insensitive matching folds Ω onto ω; an angular frequency is never an ohm.
 function ohms(stem: string): number[] {
-  return [...stem.matchAll(new RegExp(`${STEM_NUMBER}\\s*(kΩ|MΩ|k\\s*ohms?|M\\s*ohms?|Ω|ohms?)(?![A-Za-z0-9]|\\s*[·*]?\\s*(?:m|metres?|meters?)\\b)`, "gi"))].map((match) => {
+  return [...stem.matchAll(new RegExp(`${STEM_NUMBER}\\s*(kΩ|MΩ|k\\s*ohms?|M\\s*ohms?|Ω|ohms?)(?![A-Za-z0-9]|\\s*[·*]?\\s*(?:m|metres?|meters?)\\b)`, "gi"))].filter((match) => !(match[2] ?? "").includes("ω")).map((match) => {
     const value = parseStemNumber(match[1]!) ?? Number.NaN;
     const prefix = (match[2] ?? "")[0];
     return prefix === "k" || prefix === "K" ? value * 1000 : prefix === "M" ? value * 1e6 : prefix === "m" ? value / 1000 : value;
@@ -380,7 +381,9 @@ const CUE_SETS: readonly CueSet[] = [
       [/\b(?:top of a|from a height|height of|tower|cliff|building|reach(?:es)? the ground|hits the ground)\b/i, 2],
       [/\b(?:balloon|helicopter)\b/i, 1],
     ],
-    vetoes: [/\bincline|pulley|spring|projectile|angle\b/i, /\bhorizontally\b/i],
+    // "Released" alone does not mean a body falling under gravity: charges,
+    // plasmas, oscillators and dimension questions are other physics.
+    vetoes: [/\bincline|pulley|spring|projectile|angle\b/i, /\bhorizontally\b/i, /\b(?:plasma|electrons?|protons?|ions?|charged?|electric field|magnetic field|permittivity|oscillat\w*|dimensional analysis|dimensionally)\b/i],
     extract: (stem, plan, bag) => extractFreeFallSlots(stem, plan, bag, setSlot),
   },
   {
@@ -857,7 +860,8 @@ const CUE_SETS: readonly CueSet[] = [
     id: "resistor_network",
     cues: [
       [/\bresistors?\b/i, 2],
-      [/Ω|\bohms?\b/i, 2],
+      // No i flag on Ω: it would fold onto the angular frequency ω.
+      [/[ΩΩ]|\b[Oo][Hh][Mm][Ss]?\b/, 2],
       [/\b(?:in series|in parallel|series combination|parallel combination|equivalent resistance|effective resistance|total current|current drawn)\b/i, 2],
       [/\b(?:battery|cell|emf|volt)\b/i, 1],
       [/\binternal resistance\b/i, 2],
@@ -992,7 +996,8 @@ const CUE_SETS: readonly CueSet[] = [
       [/\bradii\b/i, 3],
       [/\b(?:R\s*1|R1|radius of curvature)\b/i, 2],
     ],
-    vetoes: [/\b(?:microscope|telescope|eyepiece|objective)\b/i, /\bmirror\b/i, COORDINATE_POINT_REFLECTION],
+    // "R1" in a circuit names a resistance, not a lens face.
+    vetoes: [/\b(?:microscope|telescope|eyepiece|objective)\b/i, /\bmirror\b/i, COORDINATE_POINT_REFLECTION, /\b(?:LCR|LR|RC|resistors?|resistances?|circuits?|capacitors?|inductors?|a\.c\.)/i],
     extract: (stem, plan, bag) => {
       const kind = /\bbiconcave\b/i.test(stem) || /\bplano[- ]concave\b/i.test(stem)
         ? (/\bplano\b/i.test(stem) ? "plano-concave" : "biconcave")
@@ -1241,7 +1246,24 @@ const CUE_SETS: readonly CueSet[] = [
       // Giving the fundamental frequency does not select the displayed mode.
       remaining = remaining.replace(/\bfundamental\s+frequency\b/gi, "");
       remaining = remaining.replace(/\bfundamental(?:\s+(?:harmonic|mode))?\b/gi, () => { harmonics.push(1); return ""; });
-      const unresolved = /\b(?:harmonics?|overtones?|modes?|loops?)\b|\bn\s*=/i.test(remaining)
+      // A leftover mode word cancels a read mode only when it carries its own
+      // number: an ordinal or count ("third and fourth harmonics"), a trailing
+      // index ("mode 3"), a relative step ("the next harmonic"), or an unread
+      // "n =". A back reference ("in that mode") or a topic word ("harmonics")
+      // names the mode already read. With nothing read, any mode word stays
+      // unread rather than defaulting to the fundamental.
+      const modeWord = "(?:harmonics?|overtones?|modes?|loops?)";
+      const counted = `(?:${ordinals}|one|two|three|four|five|six|seven|eight|nine|ten|\\d+)`;
+      const numberedMode = new RegExp([
+        `\\b${counted}(?:\\s*(?:,|&|\\band\\b|\\bor\\b|\\bto\\b)\\s*(?:the\\s+)?${counted})*${separator}${modeWord}\\b`,
+        `\\b${modeWord}\\s*(?:(?:number|no\\.?|index|order|#)\\s*)?(?:of\\s+order\\s*)?[:=]?\\s*\\d+\\b(?!\\s*(?:\\.\\d|[\\p{L}µ°%]))`,
+        `\\b${modeWord}\\s*[:=]?\\s*[jkmnp]\\b`,
+        // Relative and indefinite phrases introduce another mode, not this one.
+        `\\b(?:next|higher|lower|highest|lowest|successive|consecutive|subsequent|following|previous|preceding|adjacent|another|other|a|an|some|any|several|various|all)\\s+(?:[\\p{L}-]+\\s+)?${modeWord}\\b`,
+      ].join("|"), "iu");
+      const unresolved = /\bn\s*=/i.test(remaining)
+        || numberedMode.test(remaining)
+        || (harmonics.length === 0 && new RegExp(`\\b${modeWord}\\b`, "i").test(remaining))
         || new Set(harmonics).size > 1;
       setSlot(bag, "harmonic", unresolved ? null : harmonics[0] ?? null, "stem");
       setSlot(bag, "harmonicUnresolved", unresolved ? "unread" : null, "stem");
