@@ -3682,6 +3682,20 @@ function validatePoweredCircuitClosure(
     return /\b(?:(?:ac|dc|voltage|current|power)[_ -]?source|battery|cell|supply|generator)\b/i
       .test(semantic);
   });
+  // A capacitor drawn as two plate segments (the apparatus view, as in the
+  // parallel_plates archetype) is one two-terminal component: the loop may
+  // cross its gap once, from one plate to the other. Only segment entities
+  // whose role names a plate count, and only when there are exactly two.
+  const plates = document.constructions.flatMap((construction) => {
+    if (construction.operator !== "segment") return [];
+    const id = construction.outputs[0];
+    const entity = id ? entityById.get(id) : undefined;
+    const start = firstStringValue(construction.inputs, ["start", "from", "a"]);
+    const end = firstStringValue(construction.inputs, ["end", "to", "b"]);
+    return entity?.kind === "segment" && /\bplates?\b/i.test(entity.role ?? "") && start && end && start !== end
+      ? [new Set([start, end])]
+      : [];
+  });
   const issues: SceneIssue[] = [];
   for (const source of sources) {
     const adjacency = new Map<string, string[]>();
@@ -3690,17 +3704,33 @@ function validatePoweredCircuitClosure(
       adjacency.set(edge.start, [...(adjacency.get(edge.start) ?? []), edge.end]);
       adjacency.set(edge.end, [...(adjacency.get(edge.end) ?? []), edge.start]);
     }
-    const pending = [source.start];
-    const visited = new Set(pending);
-    while (pending.length > 0) {
-      const node = pending.shift()!;
-      for (const next of adjacency.get(node) ?? []) {
-        if (visited.has(next)) continue;
-        visited.add(next);
-        pending.push(next);
+    const reach = (from: string): Set<string> => {
+      const pending = [from];
+      const seen = new Set(pending);
+      while (pending.length > 0) {
+        const node = pending.shift()!;
+        for (const next of adjacency.get(node) ?? []) {
+          if (seen.has(next)) continue;
+          seen.add(next);
+          pending.push(next);
+        }
       }
-    }
-    if (!visited.has(source.end)) {
+      return seen;
+    };
+    const visited = reach(source.start);
+    const touches = (side: Set<string>, plate: Set<string>) => [...plate].some((node) => side.has(node));
+    const closedThroughPlates = (): boolean => {
+      if (plates.length !== 2) return false;
+      const [first, second] = plates as [Set<string>, Set<string>];
+      // Plates that share an end point are one conductor, not a capacitor.
+      if ([...first].some((node) => second.has(node))) return false;
+      const fromEnd = reach(source.end);
+      // Each terminal reaches a different plate and neither plate is wired to
+      // both terminals, so the only closure is across the gap.
+      return [[first, second], [second, first]].some(([a, b]) =>
+        touches(visited, a!) && touches(fromEnd, b!) && !touches(visited, b!) && !touches(fromEnd, a!));
+    };
+    if (!visited.has(source.end) && !closedThroughPlates()) {
       issues.push({
         code: "source_loop_not_closed",
         message: `Source ${source.id} is not part of a closed component path`,
