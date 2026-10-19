@@ -692,6 +692,12 @@ gate("G31 a computed vector tip is not drawn on an unrelated marked point", () =
   return gap < 12 ? `the cross product tip is drawn ${gap.toFixed(1)} px from Q` : null;
 });
 
+// One hash was re-pinned on purpose since the base commit, each after a
+// before and after render was compared:
+//   physics-probe:modern-easy-photoelectric (label owner placement, Oct 2026):
+//   "Ef" sat 17 px from the energy axis but 22 px from its own Fermi line,
+//   straight under the photon arrow's tip; it now sits under the Fermi line,
+//   off the arrow, nearer its line than the axis.
 gate("G15 byte identity of documents without a space_frame", () => {
   const fixture = JSON.parse(readFileSync(identityFixture, "utf8")) as IdentityFixture;
   const ids = Object.keys(fixture.hashes);
