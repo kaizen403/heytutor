@@ -855,6 +855,12 @@ function entityNameCandidates(
   };
   const role = cleanRole(entity?.role);
   if (role && /\s/.test(role)) push(role, true, "phrase");
+  // A head phrase spoken with its notation ("reaches 20 m/s") is voiced as
+  // words ("20 meters per second"), so its last written word "s" is not in
+  // the spoken sentence there; the runtime found the next bare "s" and drew
+  // the point under a later part's words. The whole head phrase is the name.
+  const writtenHead = role ? writtenRoleHead(role.replace(/\s+label$/i, "")) : null;
+  if (writtenHead && /\s/.test(writtenHead)) push(writtenHead, true, "phrase");
   for (const text of drawnTexts) push(text, true, "lettered");
   push(entity?.label, true, "lettered");
   if (role) {
@@ -893,6 +899,18 @@ function roleHeadText(role: string, words: readonly string[], cut: number): stri
   if (start === undefined) return joined;
   const written = role.slice(0, start).replace(/[\s,;:]+$/u, "");
   return written.toLowerCase().replace(/[\s-]+/g, " ") === joined ? joined : written;
+}
+
+/**
+ * The head phrase `entityPhrase` speaks when it keeps the role's own notation
+ * ("reaches 20 m/s", not "reaches 20 m s"); null when the head is plain words.
+ */
+function writtenRoleHead(role: string): string | null {
+  const words = roleWords(role);
+  const cut = words.findIndex((word) => ROLE_PREPOSITIONS.has(word));
+  if (!(cut > 0) || !roleHeadWord(role)) return null;
+  const head = roleHeadText(role, words, cut);
+  return head === words.slice(0, cut).join(" ") ? null : head;
 }
 
 /** The last word of the role's head phrase, when it is a name in its own right. */
@@ -1079,10 +1097,26 @@ function namingSentence(phrases: string[], groupIndex: number, language?: Narrat
   return capitaliseSentence(`${groupIndex === 0 ? "here is" : "now"} ${joinSpokenList(phrases)}.`);
 }
 
-function walkedSetupSentence(phrases: string[], groupIndex: number, language?: NarrationLanguage): string {
+/**
+ * Closing clauses of a walk, shortest first. A walk whose last word still
+ * has more ink under it than the closing gives it time for (two labels
+ * that each need a leader to their arrow) closes on a longer clause.
+ */
+const WALK_CLOSINGS = {
+  english: [
+    { first: " That is the setup.", next: " All in place." },
+    { first: " And that is the whole setup.", next: " Now all of it is in place." },
+    { first: " And that is the whole setup, drawn on the board.", next: " Now every part of it is in place on the board." },
+  ],
+  hinglish: ["इतना setup तैयार है.", "अब पूरा setup तैयार है.", "अब पूरा setup board पर पूरी तरह तैयार है."],
+} as const;
+const WALK_CLOSING_TIERS = WALK_CLOSINGS.english.length;
+
+function walkedSetupSentence(phrases: string[], groupIndex: number, language?: NarrationLanguage, closingTier = 0): string {
+  const tier = Math.max(0, Math.min(closingTier, WALK_CLOSING_TIERS - 1));
   if (language === "hinglish") {
     const parts = phrases.map((phrase, index) => `${index === 0 ? "पहले" : index === phrases.length - 1 ? "और आखिर में" : "फिर"} ${phrase}`);
-    return `${groupIndex === 0 ? "ये setup है" : "अब अगला हिस्सा देखते हैं"}. ${parts.join(", ")}. इतना setup तैयार है.`;
+    return `${groupIndex === 0 ? "ये setup है" : "अब अगला हिस्सा देखते हैं"}. ${parts.join(", ")}. ${WALK_CLOSINGS.hinglish[tier]}`;
   }
   const opening = groupIndex === 0 ? "Here is the setup. " : "Next, ";
   const parts = phrases.map((phrase, index) => {
@@ -1091,7 +1125,7 @@ function walkedSetupSentence(phrases: string[], groupIndex: number, language?: N
     return index % 2 === 1 ? `then ${phrase}` : phrase;
   });
   const body = parts.join(", ");
-  const closing = groupIndex === 0 ? " That is the setup." : " All in place.";
+  const closing = groupIndex === 0 ? WALK_CLOSINGS.english[tier]!.first : WALK_CLOSINGS.english[tier]!.next;
   const sentence = groupIndex === 0 ? `${body.charAt(0).toUpperCase()}${body.slice(1)}` : body;
   return `${opening}${sentence}.${closing}`;
 }
@@ -1274,7 +1308,7 @@ function cueRevealBeat(input: {
 
   interface ComposedBeat { narration: string; placed: ReturnType<typeof layout> }
   /** The beat a cue sentence makes: named, extended and walked as before. */
-  const compose = (base: string, explanation: string): ComposedBeat => {
+  const compose = (base: string, explanation: string, closingTiers = 1): ComposedBeat => {
     let narration = base;
     let matches = matchAll(narration);
     const named = nameable.filter((entityId) => matches.has(entityId));
@@ -1296,8 +1330,16 @@ function cueRevealBeat(input: {
     let placed = layout(narration, matches);
     if (overrunMs(narration, placed.ordered) > CUE_OVERRUN_TOLERANCE_MS) {
       const phrases = phrasesFor(null);
-      if (phrases.length >= 2) {
-        const walkthrough = walkedSetupSentence(phrases, input.groupIndex, input.language);
+      // A longer closing is tried only for the cue's own beat, once the walk
+      // has replaced the cue and still leaves the hand behind the voice by
+      // more than the tolerance, and only for a walk with no explanation
+      // after it: an explanation already gives the last part its time. A cue
+      // the walk did not beat keeps its own words, and the shorter fallback
+      // beats below keep the single closing.
+      const tiers = explanation ? 1 : closingTiers;
+      for (let tier = 0; phrases.length >= 2 && tier < tiers; tier += 1) {
+        if (tier > 0 && narration !== walkedSetupSentence(phrases, input.groupIndex, input.language, tier - 1)) break;
+        const walkthrough = walkedSetupSentence(phrases, input.groupIndex, input.language, tier);
         // Expanding names to fill the ink's time must not replace what the cue
         // explains. This also covers short imperatives isSpokenProse rejects.
         const walked = explanation ? `${walkthrough} ${explanation}` : walkthrough;
@@ -1311,6 +1353,7 @@ function cueRevealBeat(input: {
           matches = walkedMatches;
           placed = walkedPlaced;
         }
+        if (overrunMs(narration, placed.ordered) <= CUE_OVERRUN_TOLERANCE_MS) break;
       }
     }
     return { narration, placed };
@@ -1318,8 +1361,8 @@ function cueRevealBeat(input: {
   const explanationOf = (cue: string): string =>
     input.language === "hinglish" && cueSubject(cue) !== "the physical setup"
       ? spokenCueSentence(cue, input.groupIndex, input.language) : "";
-  const composeCue = (cue: string, explain: boolean): ComposedBeat =>
-    compose(spokenCueSentence(cue, input.groupIndex, input.language), explain ? explanationOf(cue) : "");
+  const composeCue = (cue: string, explain: boolean, closingTiers = 1): ComposedBeat =>
+    compose(spokenCueSentence(cue, input.groupIndex, input.language), explain ? explanationOf(cue) : "", closingTiers);
 
   // The voice may not outrun the ink. A planner cue of four joined teaching
   // narrations (58 s against 6 s of ink), or a Hinglish walk with the whole
@@ -1330,7 +1373,7 @@ function cueRevealBeat(input: {
   // stream's, which speaks it while the pen writes.
   const speechFits = (beat: ComposedBeat): boolean =>
     longestIdleMs(beat.narration, beat.placed.ordered) <= CUE_PEN_IDLE_MAX_MS;
-  let beat = composeCue(input.cue, true);
+  let beat = composeCue(input.cue, true, WALK_CLOSING_TIERS);
   if (!speechFits(beat)) {
     // A shorter beat may not leave the hand further behind the voice than
     // the full one did.
