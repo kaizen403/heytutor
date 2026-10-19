@@ -1,5 +1,11 @@
 /** Measured Gibbs affine law on a source-owned domain; schematic one-point mode stays separate. */
-import type { SceneDocument } from "../types";
+import type { SceneDocument, RenderScene } from "../types";
+import { compileSceneDocument } from "../compile/compiler";
+import { pruneDeadSceneEntities, validateSceneDocument } from "../document/validation";
+import { parseMathExpression } from "../math/expression";
+import { sourceLawExpressionMatches } from "./sourceLawExpression";
+import { round } from "../archetypes/document";
+import { lawLabelLines } from "./sourceLawContext";
 import { CHEMISTRY_SCALAR_PATTERN, chemistryQuestionSpan, chemistryPlanBindingsValid,
   chemistryCanonicalValuesAgree, readChemistryQuantity, readChemistryQuantityDeclaration,
   type ChemistryDimension, type ChemistryQuantityConsumption, type ChemistryReading, type ChemistrySpan } from "./quantityReader";
@@ -59,7 +65,7 @@ export function claimsMeasuredGibbsGraph(question:string):boolean {
     && (new RegExp(`${delta}G\\b`,"i").test(question)||/\bGibbs\s+(?:free\s+)?energy\b/i.test(question))
     && /\b(?:from|over|between|for)\s+(?:[+−–—.\d-]|unknown\b|unreadable\b|unspecified\b)/i.test(question);
 }
-export function buildMeasuredGibbsGraph(question:string,quantities:ChemPlanQuantity[]):SceneDocument|null {
+function readMeasuredGibbsModel(question:string,quantities:ChemPlanQuantity[]):SourceLawGraph|null {
   if(!claimsMeasuredGibbsGraph(question)||!chemistryPlanBindingsValid(question,quantities))return null;
   const body=question.slice(0,chemistryQuestionSpan(question).end);
   const plotOwner=new RegExp(`\\b(?:draw|plot|sketch)\\s+(?:(?:the|a)\\s+)?(?:(?:line|graph|plot)\\s+(?:of|for)\\s+)?(?:${delta}G\\b|Gibbs\\s+(?:free\\s+)?energy(?:\\s+change)?\\b)`,"i");
@@ -144,5 +150,77 @@ export function buildMeasuredGibbsGraph(question:string,quantities:ChemPlanQuant
     points:[{curveId:"gibbs_line",x:a,y:ya},{curveId:"gibbs_line",x:b,y:yb}],notes:[`slope=${slope} ${unit}/K`]};
   if(crossing>=a&&crossing<=b){model.points.push({curveId:"gibbs_line",x:crossing,y:0,label:`ΔG=0 at ${crossing} K`});model.notes.push(`T<${crossing} K: ΔG${slope<0?">":"<"}0`,`T>${crossing} K: ΔG${slope<0?"<":">"}0`);}
   else model.notes.push(`ΔG${ya<0?"<":">"}0 on the source domain`);
-  return buildSourceLawGraphFigure(model);
+  const boundaries=[a,...(crossing>a&&crossing<b?[crossing]:[]),b];
+  model.regions=[];
+  for(let index=1;index<boundaries.length;index++) {
+    const lo=boundaries[index-1]!,hi=boundaries[index]!,mid=lo+(hi-lo)/2,value=H+slope*mid;
+    if(!(mid>lo&&mid<hi)||!Number.isFinite(value)||value===0)return null;
+    model.regions.push({domain:[lo,hi],label:value>0?"ΔG > 0":"ΔG < 0",meaning:value>0?"positive":"negative"});
+  }
+  return model;
+}
+
+const same=(a:unknown,b:unknown)=>JSON.stringify(a)===JSON.stringify(b);
+const fmt=(value:number)=>value===0?"0":(Math.abs(value)>=1e4||Math.abs(value)<.001?Number(value.toPrecision(4)).toExponential():Number(value.toPrecision(6)).toString()).replace(/e\+?(-?)0*(\d+)/,"e$1$2");
+/** Private original-question witness for the affine sign-region operator.
+ * It certifies this issuer's output, never arbitrary persisted/cache documents. */
+export function verifyMeasuredGibbsRegionInk(document:SceneDocument,originalQuestion:string,suppliedPaint?:RenderScene):boolean {
+  try {
+    const model=readMeasuredGibbsModel(originalQuestion,[]);
+    if(!model||document.source.question!==originalQuestion||!same(document.source.sourceLawGraph,model))return false;
+    const relation=model.curves[0]!.relation;
+    if(relation.operator!=="affine")return false;
+    const texts=[model.x.label,model.y.label,...model.x.domain.map(fmt),...model.y.domain.map(fmt),
+      ...model.points.flatMap((point,index)=>[`${String.fromCharCode(65+index)}: x=${fmt(point.x)}`,`y=${fmt(point.y)}`]),
+      ...model.regions!.map(region=>region.label)];
+    const labels=document.entities.filter(e=>e.kind==="label");
+    if(!same(labels.map(e=>e.label).sort(),texts.flatMap(lawLabelLines).sort()))return false;
+    const other=[model.curves[0]!.label,...model.points.map((_,i)=>String.fromCharCode(65+i)),
+      ...(model.y.domain[0]<0&&model.y.domain[1]>0?["y=0"]:[])].sort();
+    if(!same(document.entities.filter(e=>e.kind!=="label"&&e.label!==undefined).map(e=>e.label).sort(),other))return false;
+    if(document.annotations.length!==1||document.annotations[0]!.kind!=="callout"||document.annotations[0]!.targetIds.length!==0||document.annotations[0]!.text!==[model.relationSource.text,...model.notes].join(" "))return false;
+    const curves=document.constructions.filter(c=>c.operator==="function_curve");
+    if(curves.length!==1||typeof curves[0]!.inputs.expression!=="string"||curves[0]!.inputs.xMin!==0||curves[0]!.inputs.xMax!==8)return false;
+    const expression=parseMathExpression(curves[0]!.inputs.expression);
+    // Whole-expression affine identity against the fresh source-derived display
+    // coefficients is structural; finite samples remain rounding checks only.
+    if(!sourceLawExpressionMatches(curves[0]!.inputs.expression,model,relation))return false;
+    // Secondary source-value checks retain the existing physical rounding bar.
+    for(let index=0;index<=128;index++) {
+      const t=index/128,x=model.x.domain[0]+t*(model.x.domain[1]-model.x.domain[0]);
+      const expected=(relation.slope*x+relation.intercept-model.y.domain[0])*5/(model.y.domain[1]-model.y.domain[0]);
+      if(Math.abs(expression.evaluate(t*8)-expected)>1e-9)return false;
+    }
+    for(const region of model.regions!) {
+      const entity=labels.find(e=>e.label===region.label&&e.role===region.meaning);if(!entity)return false;
+      const construction=document.constructions.filter(c=>c.outputs.includes(entity.id));
+      if(construction.length!==1||construction[0]!.operator!=="label"||construction[0]!.inputs.text!==region.label||!document.revealGroups.some(g=>g.entityIds.includes(entity.id)))return false;
+      const anchor=document.constructions.find(c=>c.operator==="point"&&c.outputs.includes(String(construction[0]!.inputs.target)));
+      const mid=region.domain[0]+(region.domain[1]-region.domain[0])/2;
+      const x=(mid-model.x.domain[0])*8/(model.x.domain[1]-model.x.domain[0]);
+      if(!anchor||anchor.inputs.x!==round(x)||anchor.inputs.y!==2.75)return false;
+    }
+    const validated=validateSceneDocument(pruneDeadSceneEntities(structuredClone(document)as unknown as Record<string,unknown>));if(!validated.document)return false;
+    const compiled=compileSceneDocument(validated.document);if(!compiled.ok||!compiled.renderScene)return false;
+    if(suppliedPaint&&!same(suppliedPaint,compiled.renderScene))return false;
+    for(const region of model.regions!) {
+      const entity=labels.find(e=>e.label===region.label&&e.role===region.meaning)!;
+      const native=compiled.renderScene.primitives.filter(p=>p.entityId===entity.id&&p.kind==="label");
+      if(native.length!==1||native[0]!.text!==region.label||!native[0]!.points.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)))return false;
+      const b=native[0]!.provenance?.labelBounds as {x:number;y:number;width:number;height:number}|undefined;
+      if(!b||![b.x,b.y,b.width,b.height].every(Number.isFinite)||b.width<=0||b.height<=0||b.x<400||b.x+b.width>1160||b.y<0||b.y+b.height>700)return false;
+    }
+    return true;
+  }catch{return false;}
+}
+export function buildMeasuredGibbsGraph(question:string,quantities:ChemPlanQuantity[]):SceneDocument|null {
+  const model=readMeasuredGibbsModel(question,quantities);if(!model)return null;
+  const document=buildSourceLawGraphFigure(model,question);if(!document)return null;
+  const relation=model.curves[0]!.relation;if(relation.operator!=="affine")return null;
+  for(const[index,region]of model.regions!.entries()) {
+    const x=region.domain[0]+(region.domain[1]-region.domain[0])/2;
+    document.assertions.push({id:`gibbs_sign_region_${index}`,predicate:"function_value",entities:[model.curves[0]!.id],
+      expected:{x:(x-model.x.domain[0])*8/(model.x.domain[1]-model.x.domain[0]),y:(relation.slope*x+relation.intercept-model.y.domain[0])*5/(model.y.domain[1]-model.y.domain[0])},severity:"fatal",reason:`source affine value inside ${region.meaning} interval`});
+  }
+  return verifyMeasuredGibbsRegionInk(document,question)?document:null;
 }

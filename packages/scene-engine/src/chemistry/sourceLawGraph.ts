@@ -3,6 +3,7 @@
  * catalogue values acquire source authority here. */
 import { CHEMISTRY_SCALAR_PATTERN, parseChemistryScalar, readChemistryLiteral, chemistryUnitSymbol, convertChemistryValue, type ChemistrySpan, type ChemistryDimension, type ChemistryUnit } from "./quantityReader";
 import { parseFormula } from "./formula";
+import { ionicAccount } from "./bondingFigures";
 import { parseMathExpression } from "../math/expression";
 import { SourceLawClauses, lawWord, type LawAxisMeaning, type LawClauseKind } from "./sourceLawClauses";
 
@@ -18,12 +19,24 @@ export type SourceLawRelation =
   | { operator: "affine" | "threshold_affine" | "log_coordinate"; slope: number; intercept: number }
   | { operator: "ratio_complements"; pK: number; complement: boolean }
   | { operator: "positive_quadratic"; product: number };
+/** Source facts are typed separately from derived chemical consequences. */
+export type LawChemicalContext = {
+  kind: "solubility_equilibrium"; solid: LawSource; donor: LawSource; retained: LawSource;
+  solubility: LawSource; concentration: LawSource; suppliedRelation: LawSource;
+  cation: { symbol: string; charge: number }; anion: { symbol: string; charge: number };
+  assumptions: { concentrationConvention: LawSource; activities: LawSource; excludedReactions: LawSource };
+} | {
+  kind: "ideal_monoprotic_acid"; acid: LawSource; concentration: LawSource;
+  ionisation: LawSource; waterNeglect: LawSource; suppliedRelation: LawSource;
+  derivedBalance: "one_proton_per_formula_unit";
+};
 export interface SourceLawGraph {
   version: "chemistry-source-law-graph/v1"; question: string; family: string;
   relationSource: LawSource; bindings: LawBinding[]; x: LawAxis; y: LawAxis;
   curves: Array<{ id: string; label: string; relation: SourceLawRelation; domain: [number, number] }>;
   points: Array<{ curveId: string; x: number; y: number; label?: string; detached?: boolean }>;
   notes: string[];
+  chemicalContext?: LawChemicalContext;
   regions?: Array<{ domain: [number,number]; label: string; meaning: "no_emission" | "positive" | "negative" }>;
 }
 export type SourceLawRead = { state: "unclaimed" } | { state: "declined" } | { state: "valid"; model: SourceLawGraph };
@@ -123,6 +136,30 @@ function agreeingAxes(question: string, pattern: RegExp): RegExpMatchArray[] | n
 function sourceIdentity(formula: string): string | null {
   const parsed = parseFormula(formula);
   return parsed ? `${parsed.atoms.map(atom=>`${atom.symbol}:${atom.count}`).sort().join("|")}/${parsed.charge}` : null;
+}
+
+/** A charge-balanced candidate is not automatically a supported monatomic
+ * solution ion. Ag(I) is explicit domain data; alkali facts reuse ionicAccount. */
+function supportedSolutionCation(symbol: string, charge: number): boolean {
+  const parsed = parseFormula(`${symbol}^(${charge}+)`);
+  if (!parsed || parsed.charge !== charge || parsed.atoms.length !== 1 || parsed.atoms[0]!.count !== 1) return false;
+  const alkali = ionicAccount(`${symbol}Cl`);
+  return (alkali?.cation.symbol === symbol && alkali.cation.group === 1 && alkali.cationCharge === charge)
+    || (symbol === "Ag" && charge === 1); // Silver(I), not a transition-metal default.
+}
+function supportedCommonIons(solidText: string, donorText: string): { cation: { symbol: string; charge: number }; anion: { symbol: string; charge: number } } | null {
+  const solid = parseFormula(solidText), donor = ionicAccount(donorText);
+  if (!solid || !donor || donor.cation.group !== 1 || donor.cation.block !== "s"
+    || donor.anion.group !== 17 || donor.cationCount !== 1 || donor.anionCount !== 1 || donor.anionCharge !== -1
+    || solid.charge !== 0 || solid.atoms.length !== 2 || solid.atoms.some(atom => atom.count !== 1)) return null;
+  const anion = solid.atoms.find(atom => atom.symbol === donor.anion.symbol);
+  const cation = solid.atoms.find(atom => atom.symbol !== donor.anion.symbol);
+  if (!anion || !cation) return null;
+  const charge = -donor.anionCharge * anion.count / cation.count;
+  if (!Number.isInteger(charge) || !supportedSolutionCation(cation.symbol, charge)) return null;
+  const ion = parseFormula(`${anion.symbol}^(${Math.abs(donor.anionCharge)}-)`);
+  if (!ion || ion.charge !== donor.anionCharge || ion.atoms.length !== 1 || ion.atoms[0]!.count !== 1) return null;
+  return { cation: { symbol: cation.symbol, charge }, anion: { symbol: anion.symbol, charge: donor.anionCharge } };
 }
 
 function base(question: string, family: SourceLawFamily, relationSource: LawSource, inputs: SourceOperands, x: LawAxis, y: LawAxis, relation: SourceLawRelation): SourceLawGraph {
@@ -283,6 +320,8 @@ function product(question: string, inputs: SourceOperands): SourceLawGraph | nul
   // this is unit stoichiometry, never a general inference of ionic bonding.
   if ([solid,donor].some(formula=>formula.charge!==0 || formula.atoms.length!==2 || formula.atoms.some(atom=>atom.count!==1))
     || solid.atoms.filter(atom=>donor.atoms.some(other=>other.symbol===atom.symbol)).length!==1) return null;
+  const ions = supportedCommonIons(equilibrated[1]!,initial[1]!);
+  if (!ions) return null;
   for (const [match,group] of [[equilibrated,1],[initial,1],[requested,2],[kept,1]] as const) inputs.own(spanOf(match,group));
   for (const match of [equilibrated,initial,kept]) inputs.statement(match,"context");
   inputs.statement(constant,"declaration"); inputs.statement(eq,"relation");
@@ -300,6 +339,15 @@ function product(question: string, inputs: SourceOperands): SourceLawGraph | nul
     {symbol:x,label:`${x}/M (log10)`,unit:"mol/L",domain:[lo,hi],transform:"log10"},
     {symbol:y,label:`${y}/M (log10)`,unit:"mol/L",domain:[value(hi),value(lo)],transform:"log10"},
     {operator:"positive_quadratic",product:K});
+  const convention = one(question,new RegExp(word("in the concentration convention")));
+  const activities = one(question,new RegExp(word("treat activities as concentrations")));
+  const excluded = one(question,new RegExp(word("ignore complex formation and all other reactions")));
+  if (!convention || !activities || !excluded) return null;
+  model.chemicalContext = { kind: "solubility_equilibrium", solid: source(question,spanOf(equilibrated,1)),
+    donor: source(question,spanOf(initial,1)), retained: source(question,spanOf(kept,1)),
+    solubility: source(question,spanOf(requested,1)), concentration: source(question,spanOf(initial,2)),
+    suppliedRelation: source(question,spanOf(eq,0)), ...ions,
+    assumptions: { concentrationConvention: source(question,spanOf(convention,0)), activities: source(question,spanOf(activities,0)), excludedReactions: source(question,spanOf(excluded,0)) } };
   model.points = values.values.map(x=>({curveId:"law_curve",x,y:value(x),...(x===0?{detached:true}:{})}));
   inputs.bindings.find(binding=>binding.role===k)!.symbol=k;
   model.notes.push(`Positive root; total common-ion concentration is ${x}+${y}.`, `Excess ${equilibrated[1]} retained; supplied concentration-equilibrium model.`, "Zero datum is separate from logarithmic axes.");
@@ -329,6 +377,12 @@ function negativeLog(question: string, inputs: SourceOperands): SourceLawGraph |
     {symbol:`log10(${x}/(mol L^-1))`,label:`log10(${x}/M)`,unit:"1",domain:[lo,hi],transform:"linear"},
     {symbol:"pH",label:"pH / 1",unit:"1",domain:[-hi,-lo],transform:"linear"},
     {operator:"log_coordinate",slope:-1,intercept:0});
+  const ionisation = one(question,new RegExp(acidDescription));
+  const water = one(question,new RegExp(word("neglect water self-ionisation over this range")));
+  if (!ionisation || !water) return null;
+  model.chemicalContext = { kind: "ideal_monoprotic_acid", acid: source(question,spanOf(acid!,1)), concentration: source(question,spanOf(axis,1)),
+    ionisation: source(question,spanOf(ionisation,0)), waterNeglect: source(question,spanOf(water,0)),
+    suppliedRelation: source(question,spanOf(eq,0)), derivedBalance: "one_proton_per_formula_unit" };
   model.points = xs.map(x=>({curveId:"law_curve",x,y:-x}));
   model.notes.push(`Fully ionised ${acid![1]}: [H+] = ${x}; water self-ionisation neglected only over supplied range.`);
   return model;

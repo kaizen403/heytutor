@@ -1464,7 +1464,7 @@ export function buildSolutionsGraphScene(
   const sourceLaw = readSourceLawGraph(question, "chem_solutions");
   if (sourceLaw.state !== "unclaimed") {
     if (!chemistryPlanBindingsValid(question, quantities) || sourceLaw.state === "declined") return null;
-    return buildSourceLawGraphFigure(sourceLaw.model);
+    return buildSourceLawGraphFigure(sourceLaw.model, question);
   }
   void schematic;
   if (!chemistryPlanBindingsValid(question, quantities)) return null;

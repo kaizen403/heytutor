@@ -2024,7 +2024,7 @@ export function buildElectrochemScene(question: string, quantities: ChemPlanQuan
   const sourceLaw = readSourceLawGraph(question, "chem_electrochem");
   if (sourceLaw.state !== "unclaimed") {
     if (!chemistryPlanBindingsValid(question, quantities) || sourceLaw.state === "declined") return null;
-    return buildSourceLawGraphFigure(sourceLaw.model);
+    return buildSourceLawGraphFigure(sourceLaw.model, question);
   }
   if (!chemistryPlanBindingsValid(question, quantities)) return null;
   if (statedPotentials(question) === null) return null;

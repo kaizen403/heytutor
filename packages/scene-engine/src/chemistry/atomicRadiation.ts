@@ -319,7 +319,7 @@ export function buildAtomicRadiationScene(
   const sourceLaw = readSourceLawGraph(question, "chem_orbital");
   if (sourceLaw.state !== "unclaimed") {
     if (!chemistryPlanBindingsValid(question, quantities) || sourceLaw.state === "declined") return null;
-    return buildSourceLawGraphFigure(sourceLaw.model);
+    return buildSourceLawGraphFigure(sourceLaw.model, question);
   }
   if (!isAtomicRadiationStem(question)) return null;
   const stem = chemStem(question);
