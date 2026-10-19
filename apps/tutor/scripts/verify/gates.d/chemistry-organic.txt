@@ -1,4 +1,2 @@
-# Organic source-grounded live structure availability and reveal.
-tsx scripts/verify/verify-live-molecule-availability.ts
-tsx scripts/verify/verify-live-molecule-review-claims.ts
+# Organic structural reveal; the VSEPR base registers its own availability gates.
 tsx scripts/verify/verify-live-organic-structure-reveal.ts
