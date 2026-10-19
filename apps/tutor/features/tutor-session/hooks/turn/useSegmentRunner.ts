@@ -917,8 +917,8 @@ export function useSegmentRunner({
             }),
           ]));
         } catch (error) {
-          speechAborted = true;
           terminalSpeechFailure = !isCancelled();
+          speechAborted = true;
           if (browserFallbackOwnerRef.current === segmentFallbackOwner) stopFallbackSpeech();
           tutorDebug("tts", "segment speech failed", {
             index,
@@ -930,8 +930,9 @@ export function useSegmentRunner({
             error: error instanceof Error ? error.message : String(error),
             timed_out: timedOut,
           });
-          // Kill zombie WS/HTTP work so the next paragraph is not blocked.
-          tts.abandonSpeaking?.();
+          // The shared provider may already be playing a successor turn.
+          // Kill zombie work only while this segment still owns the turn.
+          if (terminalSpeechFailure) tts.abandonSpeaking?.();
           // Do not count a silent fallback as a successful lecture beat. Let
           // the queue stop after repeated failures and show its retry message.
           // Browser recovery only succeeds after its utterance actually ends.
@@ -988,7 +989,9 @@ export function useSegmentRunner({
           // promises are independent: Promise.all rejects on the draw side
           // while the speech carries on narrating a board that has frozen.
           startOwnedDraw = () => {
-            ownedDraw = guardDrawWithSpeech(runDraw(estimateSpeechMs, null, drawGeneration), (error) => {
+            const generation = drawGeneration;
+            ownedDraw = guardDrawWithSpeech(runDraw(estimateSpeechMs, null, generation), (error) => {
+              if (isCancelled() || generation !== drawGeneration) return;
               speechAborted = true;
               if (browserFallbackOwnerRef.current === segmentFallbackOwner) stopFallbackSpeech();
               tutorDebug("segment", "draw failed; silencing narration", {

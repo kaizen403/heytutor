@@ -10,6 +10,7 @@ import {
 } from "@heytutor/drawing";
 import {
   streamLLMResponse,
+  TeachingTransportError,
   TEACHING_HEDGE_AFTER_MS,
   type TeachingAttemptKind,
   type TeachingStartupRetryReason,
@@ -2688,12 +2689,12 @@ export function useQuestionHandler(
         const billing = parseBillingFailureFromUnknown(error);
         page.failureTelemetry = {
           ...page.failureTelemetry, subject: page.failureTelemetry?.subject ?? "other", failed: true,
-          stage: "teaching", code: billing ? "budget_limit" : error instanceof TypeError ? "transport_error" : "lesson_not_taught",
+          stage: "teaching", code: billing ? "budget_limit" : error instanceof TeachingTransportError ? "transport_error" : "lesson_not_taught",
         };
         let message = "something went wrong. try asking again.";
         if (billing) {
           message = studentBillingMessage(billing.code);
-        } else if (error instanceof TypeError && /fetch|network|failed to fetch/i.test(error.message)) {
+        } else if (error instanceof TeachingTransportError) {
           message = "network error. check your connection";
         } else if (error instanceof Error && /tts|audio|elevenlabs|speech/i.test(error.message)) {
           message = "audio generation failed. the lesson continues without voice";
