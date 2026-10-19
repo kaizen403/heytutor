@@ -354,7 +354,13 @@ export function molecularNeighbourhoods(question: string, kind: CarbonSiteKind):
         if (!request.selectionBound && !request.selection.includes(model)) return null;
         if (request.selectionBound) { request.selection = null; request.selectionVersion++; }
       }
-      request?.members.push({ model, at, ownerReference: !!propertyReference });
+      if (request) {
+        // A new named owner closes earlier completed marks. Keep a pending
+        // "marked with [site]" owner until this boundary or its site value,
+        // without lending the previous molecule to the new site's assertion.
+        request.targeted = Math.max(request.targeted, request.membersBound);
+        request.members.push({ model, at, ownerReference: !!propertyReference });
+      }
       at += named.length;
       continue;
     }
