@@ -614,12 +614,28 @@ function centralCountOwner(text: string, start: number, end: number, result: Vse
 
 function electronCountClaims(text: string, result: VseprResult): ElectronCountClaim[] {
   const words: Record<string, number> = { zero: 0, no: 0, one: 1, single: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
-  return [...text.matchAll(/(?<![\w.])(-?\d+(?:\.\d+)?|zero|no|one|single|two|three|four|five|six|seven|eight|nine|ten)\s+(lone[ -]?pairs?|unpaired\s+electrons?)\b/gi)].map((match): ElectronCountClaim => ({
-    count: words[match[1]!.toLowerCase()] ?? Number(match[1]),
-    kind: /^lone/i.test(match[2]!) ? "lone-pair" : "unpaired",
-    negated: /\b(?:not|never)(?:\s+(?:have|has|contain|contains|carry|carries|exactly|even|just|a))*\s+$/i.test(text.slice(0, match.index)),
-    central: centralCountOwner(text, match.index, match.index + match[0].length, result),
-  }));
+  const count = String.raw`-?\d+(?:\.\d+)?|zero|no|one|single|two|three|four|five|six|seven|eight|nine|ten`;
+  const noun = String.raw`lone[ -]?pairs?|unpaired\s+electrons?`;
+  const candidates: Array<{ start: number; end: number; count: number; kind: ElectronCountClaim["kind"]; negative?: true }> = [];
+  const shared: Array<{ start: number; end: number }> = [];
+  // A shared final noun belongs to both explicitly negated alternatives.
+  for (const match of text.matchAll(new RegExp(`\\b(?:neither|not|never)\\s+(${count})\\s+(?:nor|or)\\s+(${count})\\s+(${noun})\\b`, "gdi"))) {
+    shared.push({ start: match.index, end: match.index + match[0].length });
+    for (const group of [1, 2]) candidates.push({ start: match.indices![group]![0], end: match.index + match[0].length,
+      count: words[match[group]!.toLowerCase()] ?? Number(match[group]), kind: /^lone/i.test(match[3]!) ? "lone-pair" : "unpaired", negative: true });
+  }
+  for (const match of text.matchAll(new RegExp(`(?<![\\w.])(${count})\\s+(${noun})\\b`, "gi"))) {
+    if (shared.some(span => span.start <= match.index && match.index < span.end)) continue;
+    candidates.push({ start: match.index, end: match.index + match[0].length, count: words[match[1]!.toLowerCase()] ?? Number(match[1]), kind: /^lone/i.test(match[2]!) ? "lone-pair" : "unpaired" });
+  }
+  let previous: { end: number; negated: boolean } | undefined;
+  return candidates.sort((a, b) => a.start - b.start).map(candidate => {
+    const explicit = /\b(?:not|never|neither)(?:\s+(?:have|has|contain|contains|carry|carries|exactly|even|just|a))*\s+$/i.test(text.slice(0, candidate.start));
+    const joined = previous?.negated === true && /^(?:\s*,\s*|\s+(?:or|nor)\s+|\s*,\s*(?:or|nor)\s+)$/i.test(text.slice(previous.end, candidate.start));
+    const negated = candidate.negative === true || explicit || joined;
+    previous = { end: candidate.end, negated };
+    return { count: candidate.count, kind: candidate.kind, negated, central: centralCountOwner(text, candidate.start, candidate.end, result) };
+  });
 }
 
 /** Each local hybrid claim retains its owner and negation; siblings cannot erase it. */
