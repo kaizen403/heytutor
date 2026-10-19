@@ -187,6 +187,12 @@ Authenticated preflight compares the effective lane models and prices between
 server and runner. Unknown model/price identities fail before paid dispatch.
 Use effective local price overrides when the published rates change; do not
 reprice historical runs or change production settings for a measurement.
+For Fireworks credit-capped probes use the higher DeepSeek Flash rates:
+`FIREWORKS_DEEPSEEK_FLASH_INPUT_USD_PER_1M=0.30` and
+`FIREWORKS_DEEPSEEK_FLASH_OUTPUT_USD_PER_1M=1.20`, supplied to **both** CLI and
+dev-server processes before the round. K3 rates are $3 input, $0.30 cached and
+$15 output per million tokens. Do not edit `.env.local` during a round: the
+server may reload a different model or price after preflight.
 By default (`--spend-mode conservative`), unknown usage is charged conservatively
 with server output headroom and proxy retry bounds included. Server-prepared
 picker catalogue and scene-example additions also reserve input headroom.
@@ -196,6 +202,16 @@ Fireworks deployment is null. Every completed planner call retains its actual
 model and measured usage. `--model standard` remains a
 compatibility alias for the configured provider. The offline picker has a 15 s
 bound so Azure reasoning can finish.
+
+The exported `assertLabBudgetPreflight` and `labRequestBudgetDecision` in
+`apps/tutor/scripts/lecture-lab/run.ts` own the actual runner's per-request
+reservation policy. The latter is pure: it uses the captured endpoint, profile
+prices and server bounds, not fresh environment lookups. Query-string chat
+requests cannot bypass the cap; picker and scene additions keep their input
+bounds, and teaching reserves all three upstream attempts. The offline
+`verify-lab-request-budget.ts` gate checks those outcomes and the main wiring,
+including five mutation controls. Use conservative mode for these probes;
+`response_usage` below is not a hard provider-bill cap.
 
 For provider-metric reconciled experiments, opt into `--spend-mode response_usage
 --max-usd 10`. This is a cap on the known response-usage subtotal, priced at the

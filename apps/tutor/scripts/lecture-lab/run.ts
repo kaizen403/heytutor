@@ -49,11 +49,11 @@ import {
   buildDiagramExampleCatalogue,
   loadDiagramExemplarLibrary,
 } from "./diagramExamples";
-import { completionTokenCap, providerChatBody, resolveLlmEndpoint } from "../../lib/llm/llmProvider";
+import { completionTokenCap, providerChatBody, resolveLlmEndpoint, type LlmEndpoint } from "../../lib/llm/llmProvider";
 import { buildLabModelProfile, expectedLabRequestModel, labModelProfilesMatch, type LabModelProfile } from "../../lib/llm/labModelProfile";
 import { parseProviderUsage } from "../../lib/obs/providerUsage";
 import { normalizeTutorQuestion } from "@heytutor/tutor-core";
-import { calculateLlmCostDetails, resolveLlmRates } from "../../lib/obs/usageCost";
+import { calculateLlmCostDetails, resolveLlmRates, type LlmRate } from "../../lib/obs/usageCost";
 import { assertLabSpendMode, assertLabUsageCheckpoint, hasPricedUsage, LabRequestNotDispatchedError, type LabSpendMode, type LabUnresolvedCall, type LabUsageObservation } from "./labSpend";
 import type { SceneDeclinePolicy } from "./sceneDeclineExperiment";
 
@@ -486,12 +486,14 @@ export function plannerRequestWorstCaseUsd(
   model: string,
   serverOutputCap = 0,
   inputBound: { inputByteMultiplier: number; addedInputBytes: number } = { inputByteMultiplier: 1, addedInputBytes: 0 },
+  pricing?: { endpoint: Pick<LlmEndpoint, "provider">; rates: LlmRate },
 ): number {
   let messages: unknown = [];
   let maxTokens = 4_000;
   if (typeof init?.body === "string") {
     try {
-      const body = providerChatBody(JSON.parse(init.body) as Record<string, unknown>, resolveLlmEndpoint());
+      const body = providerChatBody(JSON.parse(init.body) as Record<string, unknown>,
+        pricing?.endpoint ?? resolveLlmEndpoint(), pricing ? {} : process.env);
       messages = body.messages ?? [];
       const cap = completionTokenCap(body);
       if (Number.isFinite(cap)) {
@@ -501,7 +503,91 @@ export function plannerRequestWorstCaseUsd(
       // The output ceiling still provides a conservative charge for malformed bodies.
     }
   }
-  return estimateLabCallWorstCaseUsd({ messages, maxTokens: Math.max(maxTokens, serverOutputCap), model, ...inputBound });
+  return estimateLabCallWorstCaseUsd({ messages, maxTokens: Math.max(maxTokens, serverOutputCap), model,
+    ...inputBound, rates: pricing?.rates });
+}
+
+type LabInputBound = { inputByteMultiplier: number; addedInputBytes: number };
+
+export interface LabBudgetServerConfig {
+  configured: boolean;
+  provider: string;
+  deployment: string | null;
+  modelProfile: LabModelProfile;
+  inputBounds: Record<"picker" | "scene", LabInputBound>;
+  plannerOutputCap: number;
+  teachingOutputCap: number;
+  planningSpeed?: { priority?: boolean };
+}
+
+/** Fail before dispatch if the authenticated server's models, prices or bounds drift. */
+export function assertLabBudgetPreflight(profile: LabModelProfile, serverConfig: LabBudgetServerConfig): void {
+  if (!serverConfig.configured || serverConfig.provider !== profile.provider || serverConfig.deployment !== profile.deployment ||
+    !labModelProfilesMatch(profile, serverConfig.modelProfile) ||
+    !Number.isSafeInteger(serverConfig.plannerOutputCap) || serverConfig.plannerOutputCap <= 0 ||
+    !Number.isSafeInteger(serverConfig.teachingOutputCap) || serverConfig.teachingOutputCap <= 0) {
+    throw new Error("server provider/models/prices do not match the configured lab");
+  }
+  for (const kind of ["picker", "scene"] as const) {
+    const bound = serverConfig.inputBounds?.[kind];
+    if (!bound || !Number.isSafeInteger(bound.inputByteMultiplier) || bound.inputByteMultiplier < 1 ||
+      !Number.isSafeInteger(bound.addedInputBytes) || bound.addedInputBytes < 0) {
+      throw new Error("server lacks a valid prepared-input expansion bound");
+    }
+  }
+}
+
+export interface LabRequestBudgetInput {
+  url: string;
+  origin: string;
+  headers: Headers;
+  init?: RequestInit;
+  endpoint: Pick<LlmEndpoint, "provider" | "deployment" | "url">;
+  profile: LabModelProfile;
+  serverConfig: LabBudgetServerConfig;
+}
+
+export interface LabRequestBudgetDecision {
+  shouldBudget: boolean;
+  chatRequest: boolean;
+  plannerRequest: boolean;
+  directProviderRequest: boolean;
+  model: string;
+  inputBound: LabInputBound | undefined;
+  maxAttempts: number;
+  worstCaseUsd: number;
+}
+
+/** Pure reservation policy used by the real fetch wrapper; no env, network or cap mutation. */
+export function labRequestBudgetDecision(input: LabRequestBudgetInput): LabRequestBudgetDecision {
+  const { url, origin, headers, init, endpoint, profile, serverConfig } = input;
+  assertLabBudgetPreflight(profile, serverConfig);
+  if (endpoint.provider !== profile.provider || endpoint.deployment !== profile.deployment) {
+    throw new Error("budget endpoint does not match the configured lab");
+  }
+  const requestUrl = new URL(url);
+  const chatRequest = requestUrl.origin === origin && requestUrl.pathname === "/api/chat"
+    && Boolean(headers.get("x-heytutor-trace-id"));
+  const plannerRequest = chatRequest && headers.get("x-planner") === "1";
+  const directProviderRequest = url === endpoint.url;
+  const model = directProviderRequest ? directProviderRequestModel(init, endpoint) : expectedLabRequestModel(profile, headers);
+  const lane = directProviderRequest
+    ? (Object.keys(profile.models) as Array<keyof LabModelProfile["models"]>).find(key => profile.models[key] === model)
+    : headers.get("x-diagram-example-picker") === "1" ? "picker"
+      : headers.get("x-problem-ir-version") === "1" ? "problemIR" : plannerRequest ? "planner" : "teaching";
+  if (!lane) throw new Error("direct provider model is not in the captured lab profile");
+  const inputBound = plannerRequest && headers.get("x-diagram-example-picker") === "1"
+    ? serverConfig.inputBounds.picker
+    : plannerRequest && headers.get("x-scene-planner-version") === "2" && requestUrl.searchParams.get("diagramExampleIds")
+      ? serverConfig.inputBounds.scene : undefined;
+  const shouldBudget = chatRequest || directProviderRequest;
+  // The proxy can dispatch two planner attempts or three teaching attempts.
+  const maxAttempts = chatRequest ? plannerRequest ? 2 : 3 : 1;
+  const worstCaseUsd = shouldBudget
+    ? plannerRequestWorstCaseUsd(init, model, chatRequest ? plannerRequest ? serverConfig.plannerOutputCap : serverConfig.teachingOutputCap : 0,
+      inputBound, { endpoint, rates: profile.rates[lane] }) * maxAttempts * (plannerRequest && serverConfig.planningSpeed?.priority ? 2 : 1)
+    : 0;
+  return { shouldBudget, chatRequest, plannerRequest, directProviderRequest, model, inputBound, maxAttempts, worstCaseUsd };
 }
 
 /** Deterministic shuffle so a "sample one per unit" run is reproducible. */
@@ -775,23 +861,9 @@ async function main(): Promise<void> {
   applyLectureLabHeaders(configHeaders);
   const configResponse = await fetch(`${options.origin}/api/lecture-lab/config`, { headers: configHeaders });
   if (!configResponse.ok) throw new Error("authenticated lab provider preflight failed");
-  const serverConfig = await configResponse.json() as { provider: string; deployment: string | null; configured: boolean;
-    modelProfile: LabModelProfile; inputBounds: Record<"picker" | "scene", { inputByteMultiplier: number; addedInputBytes: number }>;
-    plannerOutputCap: number; teachingOutputCap: number; visualNeed?: Record<string, unknown>;
+  const serverConfig = await configResponse.json() as LabBudgetServerConfig & { visualNeed?: Record<string, unknown>;
     planningSpeed?: { sceneEffort: string; priority: boolean; requestTier: string } };
-  if (!serverConfig.configured || serverConfig.provider !== providerConfig.provider || serverConfig.deployment !== providerConfig.deployment ||
-    !labModelProfilesMatch(modelProfile, serverConfig.modelProfile) ||
-    !Number.isSafeInteger(serverConfig.plannerOutputCap) || serverConfig.plannerOutputCap <= 0 ||
-    !Number.isSafeInteger(serverConfig.teachingOutputCap) || serverConfig.teachingOutputCap <= 0) {
-    throw new Error("server provider/models/prices do not match the configured lab");
-  }
-  for (const kind of ["picker", "scene"] as const) {
-    const bound = serverConfig.inputBounds?.[kind];
-    if (!bound || !Number.isSafeInteger(bound.inputByteMultiplier) || bound.inputByteMultiplier < 1 ||
-      !Number.isSafeInteger(bound.addedInputBytes) || bound.addedInputBytes < 0) {
-      throw new Error("server lacks a valid prepared-input expansion bound");
-    }
-  }
+  assertLabBudgetPreflight(modelProfile, serverConfig);
   if (!serverConfig.visualNeed || Object.entries(LAB_VISUAL_NEED_POLICY).some(([key, value]) => serverConfig.visualNeed?.[key] !== value)) {
     throw new Error("server visual-need policy does not match the live-matching lab");
   }
@@ -961,25 +1033,12 @@ async function main(): Promise<void> {
         onDenied: () => { if (traceId) budgetDeniedTraces.add(traceId); },
       });
     }
-    const requestUrl = new URL(url);
-    const chatRequest = requestUrl.origin === options.origin && requestUrl.pathname === "/api/chat" && traceId;
+    const budget = labRequestBudgetDecision({ url, origin: options.origin, headers, init, endpoint, profile: modelProfile, serverConfig });
+    const { plannerRequest, directProviderRequest, model: requestModel, maxAttempts, worstCaseUsd: requestWorstCaseUsd } = budget;
+    const chatRequest = budget.chatRequest && traceId;
     if (chatRequest) usageTracker.assertTraceOpen(traceId);
     const operation = (async () => {
-      const plannerRequest = chatRequest && headers.get("x-planner") === "1";
-      const directProviderRequest = url === endpoint.url;
-      const requestModel = directProviderRequest ? directProviderRequestModel(init, endpoint)
-        : expectedLabRequestModel(modelProfile, headers);
-      const inputBound = plannerRequest && headers.get("x-diagram-example-picker") === "1"
-        ? serverConfig.inputBounds.picker
-        : plannerRequest && headers.get("x-scene-planner-version") === "2" && requestUrl.searchParams.get("diagramExampleIds")
-          ? serverConfig.inputBounds.scene : undefined;
-      // The proxy dispatches up to two planner or three teaching attempts.
-      const maxAttempts = chatRequest ? plannerRequest ? 2 : 3 : 1;
-      const requestWorstCaseUsd = chatRequest || directProviderRequest
-        ? plannerRequestWorstCaseUsd(init, requestModel, chatRequest ? plannerRequest ? serverConfig.plannerOutputCap : serverConfig.teachingOutputCap : 0,
-          inputBound) * maxAttempts * (plannerRequest && serverConfig.planningSpeed?.priority ? 2 : 1)
-        : 0;
-      if (chatRequest || directProviderRequest) {
+      if (budget.shouldBudget) {
         try {
           await reserveLabRequest(spendCap, requestWorstCaseUsd, init?.signal);
         } catch (error) {
@@ -987,7 +1046,7 @@ async function main(): Promise<void> {
           throw error;
         }
       }
-      if (chatRequest || directProviderRequest) checkpointSpend();
+      if (budget.shouldBudget) checkpointSpend();
       if (chatRequest) {
         usageTracker.recordRequest(traceId, requestWorstCaseUsd, plannerRequest ? "planner" : "teaching", maxAttempts);
       }
@@ -1011,7 +1070,7 @@ async function main(): Promise<void> {
       const requestStartedAt = Date.now();
       try {
         const response = await nativeFetch(input, { ...init, headers });
-        if (plannerRequest) await usageTracker.recordResponse(traceId, response, requestWorstCaseUsd, maxAttempts, requestModel, {
+        if (plannerRequest && traceId) await usageTracker.recordResponse(traceId, response, requestWorstCaseUsd, maxAttempts, requestModel, {
           ...requestProfile,
           elapsedMs: Date.now() - requestStartedAt,
         });
