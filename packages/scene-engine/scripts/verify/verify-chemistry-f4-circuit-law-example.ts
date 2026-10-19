@@ -24,7 +24,19 @@ const results = fixtures.map(gold => {
         assert.equal(result.document.source.sourceModel, "circuit_law_example");
         assert.ok(text.includes("Symbolic example"));
         assert.ok(text.includes("Reference arrows"));
-        assert.ok(text.includes("A") && text.includes("B"), "Terminals visible");
+        const requiredLabel = (entityId: string, expected: string): void => {
+          assert.ok(compiled.renderScene.primitives.some(mark => mark.kind === "label"
+            && mark.entityId === entityId && mark.text === expected), `${entityId} must have its own visible ${expected} label`);
+          assert.ok(result.document.assertions.some(item => item.predicate === "label_attached" && item.severity === "fatal"
+            && item.entities.length === 1 && item.entities[0] === entityId), `${entityId} needs a fatal normal label obligation`);
+        };
+        const currentLaw = !("lawSet" in gold) || gold.lawSet?.includes("current");
+        requiredLabel("terminal_a", currentLaw ? "Junction A" : "A");
+        requiredLabel("terminal_b", "B");
+        for (const symbol of result.document.constructions.filter(step => step.operator === "symbol")) {
+          requiredLabel(`${symbol.outputs[0]}_positive`, "+");
+          requiredLabel(`${symbol.outputs[0]}_negative`, "−");
+        }
         const wires = result.document.constructions.filter(step => step.operator === "connect");
         const symbols = result.document.constructions.filter(step => step.operator === "symbol");
         assert.ok(symbols.some(step => step.inputs.symbol === "battery"));

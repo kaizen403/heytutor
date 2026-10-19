@@ -52,18 +52,112 @@
     "id": "active-atomic-stated-product-remains-fixed",
     "question": "For an atomic electron, work function is 2 eV; incident photon wavelength is 400 nm. Take hc = 1240 eV nm. Draw the photoelectron energy balance.",
     "expected": {
-      "publicDraw": false,
-      "constantAuthority": "atomic_reference"
+      "publicDraw": true,
+      "constantAuthority": "atomic_reference",
+      "photonEnergyEV": 3.1,
+      "workFunctionEV": 2,
+      "kineticEV": 1.1,
+      "givenConstantsUsedInArithmetic": true,
+      "SIReferenceRetainedForCompatibilityOnly": true
     },
-    "reason": "Preserve the existing fixed atomic reference contract: rounded1240 differs nominally from h_ref*c_ref. This is unsupported exact-source authority, not a claim rounded1240 is physically contradictory."
+    "reason": "Original complete source gives a conventional rounded physical constant compatible with SI at its written last decimal place; source arithmetic must use that stated constant, never silently replace it. A fixed-reference exact-equality refusal was an unsupported availability restriction."
   },
   {
     "id": "active-bound-stated-h-remains-fixed",
     "question": "For a bound electron, work function is 2 eV; incident light frequency is 6e14 Hz. Planck's constant is 6.6e-34 J s. Draw the photoelectron energy balance.",
     "expected": {
+      "publicDraw": true,
+      "constantAuthority": "atomic_reference",
+      "photonEnergyEV": 2.471637593486462,
+      "workFunctionEV": 2,
+      "kineticEV": 0.471637593486462,
+      "givenConstantsUsedInArithmetic": true,
+      "SIReferenceRetainedForCompatibilityOnly": true
+    },
+    "reason": "Original complete source gives a conventional rounded physical constant compatible with SI at its written last decimal place; source arithmetic must use that stated constant, never silently replace it. A fixed-reference exact-equality refusal was an unsupported availability restriction."
+  },
+  {
+    "id": "hc-one-decimal-compatible",
+    "question": "For a bound electron, work function is 2 eV; incident light wavelength is 400 nm. Take hc = 1239.8 eV nm. Draw the photoelectron energy balance.",
+    "expected": {
+      "publicDraw": true,
+      "constantAuthority": "atomic_reference",
+      "photonEnergyEV": 3.0995,
+      "workFunctionEV": 2,
+      "kineticEV": 1.0995
+    },
+    "sourcePrecision": {
+      "role": "hc",
+      "raw": "1239.8",
+      "unit": "eV nm",
+      "value": 1239.8,
+      "lastPlaceQuantum": 0.1
+    }
+  },
+  {
+    "id": "hc-explicit-trailing-decimal-inconsistent",
+    "question": "For a bound electron, work function is 2 eV; incident light wavelength is 400 nm. Take hc = 1240.0 eV nm. Draw the photoelectron energy balance.",
+    "expected": {
       "publicDraw": false,
       "constantAuthority": "atomic_reference"
     },
-    "reason": "Actual active bound-electron role keeps the original fixed-reference h requirement. A rounded stated h does not become source-parameterized by the unrelated-emitter ownership correction."
+    "sourcePrecision": {
+      "role": "hc",
+      "raw": "1240.0",
+      "unit": "eV nm",
+      "value": 1240,
+      "lastPlaceQuantum": 0.1
+    },
+    "reason": "SIhc≈1239.8419843320025 does not round to1240.0 at0.1eVnm resolution; cannot erase the explicit decimal precision."
+  },
+  {
+    "id": "h-explicit-three-digit-inconsistent",
+    "question": "For an atomic electron, work function is 2 eV; incident light frequency is 6e14 Hz. Planck's constant is 6.60e-34 J s. Draw the photoelectron energy balance.",
+    "expected": {
+      "publicDraw": false,
+      "constantAuthority": "atomic_reference"
+    },
+    "sourcePrecision": {
+      "role": "h",
+      "raw": "6.60e-34",
+      "unit": "J s",
+      "value": 6.6e-34,
+      "lastPlaceQuantum": 1e-36
+    },
+    "reason": "ExactSIh rounds to6.63e-34 at0.01e-34 resolution, not6.60e-34."
+  },
+  {
+    "id": "c-four-digit-compatible",
+    "question": "For a bound electron, work function is 2 eV; incident light wavelength is 400 nm. The speed of light is 2.998e8 m/s. Draw the photoelectron energy balance.",
+    "expected": {
+      "publicDraw": true,
+      "constantAuthority": "atomic_reference",
+      "photonEnergyEV": 3.099682938844432,
+      "workFunctionEV": 2,
+      "kineticEV": 1.099682938844432
+    },
+    "sourcePrecision": {
+      "role": "c",
+      "raw": "2.998e8",
+      "unit": "m/s",
+      "value": 299800000.0,
+      "lastPlaceQuantum": 100000.0
+    }
+  },
+  {
+    "id": "c-four-digit-inconsistent",
+    "question": "For a bound electron, work function is 2 eV; incident light wavelength is 400 nm. The speed of light is 2.990e8 m/s. Draw the photoelectron energy balance.",
+    "expected": {
+      "publicDraw": false,
+      "constantAuthority": "atomic_reference"
+    },
+    "sourcePrecision": {
+      "role": "c",
+      "raw": "2.990e8",
+      "unit": "m/s",
+      "value": 299000000.0,
+      "lastPlaceQuantum": 100000.0
+    },
+    "reason": "ExactSIc299792458 does not lie in2.990e8±0.5e5m/s."
   }
 ]

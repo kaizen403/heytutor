@@ -3,6 +3,7 @@
 import { SceneBuilder, compact, type Vec2 } from "../archetypes/document";
 import { chemStem } from "../chemistry/sceneKit";
 import { atomicElectronContext } from "../chemistry/semanticCues";
+import { atomicReferenceReadingCompatible } from "./atomicReferencePrecision";
 import {
   chemistryCanonicalValuesAgree, chemistryReferenceConstantValid, chemistryQuantityInventoryOwned,
   readChemistryQuantityDeclaration, type ChemistryDimension, type ChemistryReading, type ChemistryUnit,
@@ -249,13 +250,14 @@ export function readRadiationSource(question: string): RadiationSourceOutcome {
   const cGiven = value(cCue, "speed", "m/s", "speed of light");
   const hcGiven = value(hcCue, "energy_length", "J m", "photon wavelength constant");
   if (invalid) return decline("supplied radiation quantity is unreadable or conflicting");
-  // The historical atomic issuer is a fixed-reference computation. Source-
-  // parameterized physics is a separate explicit contract, never a tolerance
-  // change or an override of an atomic reference declaration.
-  if (constantAuthority === "atomic_reference" && (
-    !chemistryReferenceConstantValid(question, hCue, "action", "J s", H)
-    || !chemistryReferenceConstantValid(question, cCue, "speed", "m/s", C)
-    || !chemistryReferenceConstantValid(question, hcCue, "energy_length", "J m", H * C))) return decline("unsupported atomic reference constant");
+  // A rounded atomic constant must be compatible with its reference at the
+  // complete literal's written precision. Accepted givens still parameterize
+  // the calculation below; the reference never replaces their source value.
+  if (constantAuthority === "atomic_reference" && bindings.some(binding => {
+    const reference = binding.role === "Planck constant" ? H
+      : binding.role === "speed of light" ? C : binding.role === "photon wavelength constant" ? H * C : null;
+    return reference !== null && !atomicReferenceReadingCompatible(question, binding.reading, reference);
+  })) return decline("unsupported atomic reference constant");
   let h = hGiven ?? H, c = cGiven ?? C;
   if (!(h > 0 && c > 0) || hcGiven !== null && !(hcGiven > 0)) return decline("nonpositive radiation constant");
   // A supplied product and one factor determine the other factor. They cannot

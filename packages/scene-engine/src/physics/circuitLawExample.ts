@@ -37,7 +37,10 @@ export function buildCircuitLawExample(question: string): SceneDocument | null {
   const halfHeight = 3, spacing = 4;
   scene.point(graph.terminals[0], { x: 0, y: halfHeight }, "example circuit junction terminal", junctionRequired ? "Junction A" : "A");
   scene.point(graph.terminals[1], { x: 0, y: -halfHeight }, "example circuit junction terminal", "B");
-  const branchPaths: string[][] = [], arrows: string[] = [];
+  // These are explicit reference names in this chosen example, not spare
+  // generated helper labels. Preserve them through ordinary normalization.
+  for (const id of graph.terminals) scene.entities.find(entity => entity.id === id)!.semantic = { labelRequired: true };
+  const branchPaths: string[][] = [], arrows: string[] = [], polarityIds: string[] = [];
   for (const [index, branch] of graph.branches.entries()) {
     const x = (index - (graph.branches.length - 1) / 2) * spacing;
     const top = x === 0 ? branch.from : scene.helper(`${branch.id}_top`, { x, y: halfHeight }, "branch corner");
@@ -53,8 +56,8 @@ export function buildCircuitLawExample(question: string): SceneDocument | null {
     if (x !== 0) addWire(`${branch.id}_bottom_wire`, bottom, branch.to);
     // Battery long/positive plate is at START. These signs and arrows are
     // reference choices in the labelled example, not supplied circuit facts.
-    scene.labelAt(`${branch.id}_positive`, { x: x - 0.7, y: 0.9 }, "reference positive terminal", "+");
-    scene.labelAt(`${branch.id}_negative`, { x: x - 0.7, y: -0.9 }, "reference negative terminal", "−");
+    polarityIds.push(scene.labelAt(`${branch.id}_positive`, { x: x - 0.7, y: 0.9 }, "reference positive terminal", "+"));
+    polarityIds.push(scene.labelAt(`${branch.id}_negative`, { x: x - 0.7, y: -0.9 }, "reference negative terminal", "−"));
     const upwards = branch.kind === "battery";
     const at = scene.helper(`${branch.id}_arrow_at`, { x: x + 0.7, y: upwards ? -0.65 : 0.65 }, "reference current anchor");
     arrows.push(scene.vector(`${branch.id}_current`, at, { direction: { x: 0, y: upwards ? 1 : -1 }, length: 1.3 }, "arbitrary reference current direction", branch.current));
@@ -73,9 +76,10 @@ export function buildCircuitLawExample(question: string): SceneDocument | null {
   const laws: string[] = [];
   if (source.lawSet.includes("current")) laws.push(scene.labelAt("current_law", { x: -2, y: 5.3 }, "current conservation identity", "ΣI = 0"));
   if (source.lawSet.includes("voltage")) laws.push(scene.labelAt("voltage_law", { x: 2, y: 5.3 }, "closed path voltage conservation identity", "ΣΔV = 0"));
+  scene.labelled(...graph.terminals, ...polarityIds);
   scene.group("law_example", [...graph.terminals, ...branchPaths.flat(), ...arrows, heading, reference, loop, ...laws,
-    ...scene.entities.filter(entity => entity.id.endsWith("_positive") || entity.id.endsWith("_negative")).map(entity => entity.id)],
-  `Symbolic example. Reference arrows. ${junctionRequired ? "Junction A" : "A"} and B are terminals. Loop A-B-A is a closed path. ${graph.branches.map(branch => branch.symbol).join(", ")} are unknown component symbols. ${graph.branches.map(branch => branch.current).join(", ")} are chosen reference directions, not solved currents. ${source.lawSet.includes("current") ? "ΣI = 0." : ""} ${source.lawSet.includes("voltage") ? "ΣΔV = 0." : ""}`);
+    ...polarityIds],
+  `Symbolic example. Reference arrows. Reference positive terminal and reference negative terminal signs are choices in this symbolic example. ${junctionRequired ? "Junction A" : "A"} and B are terminals. Loop A-B-A is a closed path. ${graph.branches.map(branch => branch.symbol).join(", ")} are unknown component symbols. ${graph.branches.map(branch => branch.current).join(", ")} are chosen reference directions, not solved currents. ${source.lawSet.includes("current") ? "ΣI = 0." : ""} ${source.lawSet.includes("voltage") ? "ΣΔV = 0." : ""}`);
   const document = scene.build();
   document.source = { question, synthesizedFamily: true, sourceModel: "circuit_law_example", nonMetric: true,
     lawSet: source.lawSet, requestSpans: source.requestSpans };
