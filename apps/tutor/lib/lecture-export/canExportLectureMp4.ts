@@ -4,6 +4,7 @@ import { lectureExportCacheKey } from "./lectureExportFrames";
 import { LECTURE_EXPORT_PLAYBACK_RATE } from "./lectureExportSpeed";
 import type { LectureContainer } from "./lectureExportProfile";
 import type { TutorPhase } from "@/features/tutor-session/types";
+import { LECTURE_PAGE_CACHE_REVISION } from "./lectureRenderFingerprint";
 
 export type LectureEncoderGlobals = {
   VideoEncoder?: unknown;
@@ -61,18 +62,7 @@ export function pageHasExportableAudio(turns: readonly StoredTurn[]): boolean {
   return turns.some(turnHasExportableAudio);
 }
 
-/**
- * Bump when an already-cached file would be wrong for the same page.
- * `video6` drops files that omitted completed verified-figure marks or page resets.
- * `video7` drops DSA files that stopped on the first worked-example frame.
- * `video8` drops truncated DSA files whose short opening exhausted the drawing tail.
- * `video9` is reserved by the YouTube board-timing fixes.
- * `video10` frees pitched 1.25x downloads from either prior release.
- * #211 takes the next free revision first; this PR follows it at merge.
- * `video12` keeps transient explanation pointing on the recorded speech clock.
- * Renumber above actual main at merge if another export change lands first.
- */
-export const LECTURE_PAGE_CACHE_REVISION = "video12";
+export { LECTURE_PAGE_CACHE_REVISION } from "./lectureRenderFingerprint";
 
 /**
  * Cache identity of a page export. It changes whenever a doubt adds a turn to

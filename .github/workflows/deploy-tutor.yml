@@ -129,7 +129,7 @@ jobs:
           pnpm --filter @heytutor/tutor verify:phone-board-readability
           pnpm --filter @heytutor/tutor verify:explanation-pointing
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-export-cache-workflow.ts
-          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-export-cache-order.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-export-render-fingerprint.ts
       - name: Live diagram picker regressions (no model calls)
         run: |
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-live-diagram-picker.ts
