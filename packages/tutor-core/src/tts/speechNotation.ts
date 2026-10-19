@@ -282,7 +282,9 @@ function expandUnitAfterIn(text: string): string {
     new RegExp(`(?<![\\p{L}\\p{N}_])(${QUANTITY_SYMBOL}) in (µ?[A-Za-zΩ]{1,3})(?![\\p{L}\\p{N}_/^²³])`, "gu"),
     (match, symbol: string, single: string) => {
       const words = unitWords(single);
-      if (!words || /^[A-Z]$/.test(single)) return match;
+      // "a in g" counts an acceleration in multiples of g, never grams; the
+      // spaced unit rule reads a bare g as a letter for the same reason.
+      if (!words || /^[A-Z]$/.test(single) || single === "g") return match;
       return `${symbol} in ${words.plural}`;
     },
   );
@@ -590,7 +592,9 @@ function expandNotationSymbols(text: string): string {
     .replace(/\bln\b/g, " natural log ")
     .replace(/\bexp\b/g, " e to the power of ")
     // A figure caption wrote "d₁ = ½ × 4 × 20"; the glyph had no word.
-    .replace(/(\d)\s*½/g, "$1 and a half")
+    // Only a glued mixed number (2½) is "two and a half": a spaced ½ starts
+    // the next term, so "0 to 4 ½ × 4 × 20" is "4 half times 4 times 20".
+    .replace(/(\d)½/g, "$1 and a half")
     .replace(/½/g, " half ")
     .replace(/¼/g, " one quarter ")
     .replace(/¾/g, " three quarters ")

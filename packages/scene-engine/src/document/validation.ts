@@ -4505,10 +4505,8 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
     }
     if (construction.operator === "polygon" && Array.isArray(construction.outputs)) {
       const output = construction.outputs[0];
-      const entity = document.entities.find((candidate) => candidate.id === output);
-      const role = `${String(entity?.role ?? "")} ${String(entity?.label ?? "")}`.toLowerCase();
       if (
-        GRAPH_REGION_ROLE.test(role) &&
+        polygonHasRegionRole(construction, document) &&
         polygonClaimsGraphRegion(construction, document, constructionByOutput) &&
         !polygonIsGraphRegion(construction, document, constructionByOutput)
       ) {
@@ -5596,16 +5594,28 @@ function validationWorldPoint(
   return x === null || y === null ? null : { x, y };
 }
 
+/** Whether a polygon's entity names a region, an area or a displacement. */
+function polygonHasRegionRole(
+  polygon: SceneDocument["constructions"][number],
+  document: SceneDocument,
+): boolean {
+  const output = polygon.outputs[0];
+  const entity = document.entities.find((candidate) => candidate.id === output);
+  return GRAPH_REGION_ROLE.test(`${String(entity?.role ?? "")} ${String(entity?.label ?? "")}`.toLowerCase());
+}
+
 /**
  * Whether a region polygon sits on a graph: the document draws a function
- * curve or a motion graph, or the polygon touches a polyline graph on axes.
- * It touches the graph when two of its vertices lie on it, or when one does
- * and the polygon's x span stays inside the graph's domain: the rectangle
- * under the last point of a graph that starts above zero touches it once.
- * A vertex lies on the graph by sharing a point id with it or by sitting at
- * the graph's coordinates under a new id. The caller asks only for a polygon
- * with a region role, so a triangle that merely shares a corner with a median
- * is never claimed. Such a polygon must then be the region under that graph.
+ * curve or a motion graph, or the polygon claims a polyline graph on axes.
+ * It claims the graph when two of its vertices lie on it, or when its x span
+ * stays inside the graph's domain: the rectangle under the last point of a
+ * graph that starts above zero touches it once, and a rectangle too tall or
+ * too short for the graph touches it nowhere. A vertex lies on the graph by
+ * sharing a point id with it or by sitting at the graph's coordinates under
+ * a new id. The caller asks only for a polygon with a region role, so a
+ * triangle that merely shares a corner with a median, and reaches past the
+ * median's x span, is never claimed. Such a polygon must then be the region
+ * under that graph.
  */
 function polygonClaimsGraphRegion(
   polygon: SceneDocument["constructions"][number],
@@ -5634,7 +5644,10 @@ function polygonClaimsGraphRegion(
     }).length;
     if (onGraph >= 2) return true;
     const span = Math.max(1e-9, (graph.max - graph.min) * 1e-6);
-    return onGraph === 1 && resolved.length > 0 && xMin >= graph.min - span && xMax <= graph.max + span;
+    // With no vertex on the graph, every vertex must be read before its x
+    // span can be said to sit inside the graph's domain.
+    const spanRead = onGraph === 1 ? resolved.length > 0 : resolved.length > 0 && resolved.length === vertices.length;
+    return spanRead && xMin >= graph.min - span && xMax <= graph.max + span;
   });
 }
 
@@ -5646,7 +5659,9 @@ function polygonClaimsGraphRegion(
  * the document passing through it. Such a polygon is built from the graph's
  * own points. A shape between two graphs, or between a guide line and the
  * axis with the real graph running through it, is a guess: the area between
- * curves must use function_region.
+ * curves must use function_region. The one exception is a straight graph's
+ * area split along its own first or last height, read by
+ * `polygonIsSplitGraphRegion`.
  */
 function polygonIsGraphRegion(
   polygon: SceneDocument["constructions"][number],
@@ -5662,10 +5677,10 @@ function polygonIsGraphRegion(
       boundary: validationGraphBoundary(candidate, document, constructionByOutput),
       baseline: graphBaseline(candidate, document, constructionByOutput),
     }))
-    .filter((graph): graph is { operator: string; boundary: GraphBoundary; baseline: GraphBoundary } =>
+    .filter((graph): graph is DocumentGraph =>
       typeof graph.boundary === "object" && graph.baseline !== null);
   // A graph below the axis (a negative velocity) bounds its region from below.
-  return graphs.some(({ operator, boundary, baseline }) => {
+  const underGraph = graphs.some(({ operator, boundary, baseline }) => {
     // A motion graph is a declared quantity against time, never a guide, so
     // the area under it stays that area when a second graph (another car)
     // passes beneath. A polyline or a function curve may be a guide line,
@@ -5676,6 +5691,93 @@ function polygonIsGraphRegion(
     return polygonMatchesGraphRegion(vertices, boundary, baseline, others) ||
       polygonMatchesGraphRegion(vertices, baseline, boundary, others);
   });
+  return underGraph || polygonIsSplitGraphRegion(polygon, vertices, graphs, document, constructionByOutput);
+}
+
+interface DocumentGraph {
+  operator: string;
+  boundary: GraphBoundary;
+  baseline: GraphBoundary;
+}
+
+/**
+ * The graphical derivation of s = ut + ½at²: the area under a straight v
+ * against t graph is cut by the line v = u into the rectangle ut and the
+ * triangle ½at² above it. A polyline or motion graph (never a function curve)
+ * may be split this way along y = c, where c is the height of its own first
+ * or last vertex and lies between the graph and its baseline across the
+ * polygon's x span. A polygon is one piece when it is exactly the band
+ * between the graph and y = c, or between y = c and the baseline, with no
+ * other graph passing through it. A piece is accepted only when its
+ * complement is drawn too, as a region polygon over the same x span and the
+ * same c: a lone ut rectangle labelled as the whole displacement is still a
+ * guess at the area under the graph.
+ */
+function polygonIsSplitGraphRegion(
+  polygon: SceneDocument["constructions"][number],
+  vertices: GraphPoint[],
+  graphs: DocumentGraph[],
+  document: SceneDocument,
+  constructionByOutput: Map<string, SceneDocument["constructions"][number]>,
+): boolean {
+  const span = polygonXSpan(vertices);
+  if (!span) return false;
+  const complements = document.constructions
+    .filter((candidate) => candidate !== polygon && candidate.operator === "polygon" && polygonHasRegionRole(candidate, document))
+    .map((candidate) => validationGraphVertices(candidate, document, constructionByOutput))
+    .filter((points): points is GraphPoint[] => {
+      if (!points || points.length < 3) return false;
+      const other = polygonXSpan(points);
+      return other !== null && Math.abs(other.min - span.min) <= span.tolerance && Math.abs(other.max - span.max) <= span.tolerance;
+    });
+  if (complements.length === 0) return false;
+  const piece = (points: GraphPoint[], one: GraphBoundary, two: GraphBoundary, others: GraphBoundary[]) =>
+    polygonMatchesGraphRegion(points, one, two, others) || polygonMatchesGraphRegion(points, two, one, others);
+  return graphs.some((graph) => {
+    if (!GRAPH_POLYLINE_OPERATORS.has(graph.operator)) return false;
+    const { boundary, baseline } = graph;
+    const others = graphs.filter((other) => other !== graph).map((other) => other.boundary);
+    const heights = [boundary.evaluate(boundary.min), boundary.evaluate(boundary.max)];
+    return [...new Set(heights)].some((c) => {
+      if (!splitLineInsideRegion(boundary, baseline, c, span)) return false;
+      const line: GraphBoundary = { ...AXIS_BASELINE, evaluate: () => c };
+      const upper = (points: GraphPoint[]) => piece(points, boundary, line, others);
+      const lower = (points: GraphPoint[]) => piece(points, line, baseline, others);
+      return (upper(vertices) && complements.some(lower)) || (lower(vertices) && complements.some(upper));
+    });
+  });
+}
+
+function polygonXSpan(points: readonly GraphPoint[]): { min: number; max: number; tolerance: number } | null {
+  const xs = points.map((point) => point.x);
+  const min = Math.min(...xs);
+  const max = Math.max(...xs);
+  if (!(max > min)) return null;
+  return { min, max, tolerance: Math.max(1e-9, (max - min) * 1e-6) };
+}
+
+/**
+ * Whether y = c stays between a graph and its baseline over the span, at
+ * every vertex of the graph inside it, and strictly between them at the
+ * span's middle, so both pieces it cuts are real areas.
+ */
+function splitLineInsideRegion(
+  graph: GraphBoundary,
+  baseline: GraphBoundary,
+  c: number,
+  span: { min: number; max: number },
+): boolean {
+  if (!Number.isFinite(c)) return false;
+  const stations = [span.min, span.max, ...graph.breakpoints.filter((x) => x > span.min && x < span.max)];
+  const values = stations.flatMap((x) => [graph.evaluate(x), baseline.evaluate(x)]);
+  if (!values.every(Number.isFinite)) return false;
+  const tolerance = Math.max(1, Math.max(...values, c) - Math.min(...values, c)) * 1e-6;
+  const between = (x: number, strict: boolean) => {
+    const low = Math.min(graph.evaluate(x), baseline.evaluate(x));
+    const high = Math.max(graph.evaluate(x), baseline.evaluate(x));
+    return strict ? c > low + tolerance && c < high - tolerance : c >= low - tolerance && c <= high + tolerance;
+  };
+  return stations.every((x) => between(x, false)) && between((span.min + span.max) / 2, true);
 }
 
 /**

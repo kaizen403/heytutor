@@ -486,6 +486,93 @@ const displacementRole = "area under the v-t graph = displacement";
   expectRefused(wrong, "function_region_requires_deterministic_operator", "motion graph from origin (1, 2): the region closed on y = 0");
 }
 
+/** Shoelace area of a compiled region, in board pixels. */
+function regionArea(scene: NonNullable<ReturnType<typeof compiled>>, regionId: string): number {
+  const region = scene.primitives.find((primitive) => primitive.entityId === regionId && (primitive.kind === "polygon" || primitive.kind === "rectangle"))?.points ?? [];
+  return shoelace(region);
+}
+
+{
+  // The graphical derivation of s = ut + ½at²: v rises from u to v over t,
+  // and the area under it is split by the line v = u into the rectangle ut
+  // and the triangle ½at² above it. Each piece is a region of the graph, and
+  // the two together are the whole area, so each is accepted when the other
+  // is drawn too. Board corners are written in drawn units: a motion graph
+  // at timeScale 2 puts t = 4 s at x = 8.
+  type Form = { label: string; graph: Record<string, unknown>; xEnd: number; low: number; high: number; guide: boolean };
+  const rising = (samples: unknown) => ({ id: "make_graph", operator: "motion_graph", inputs: { quantity: "velocity", points: samples, timeScale: 2, ordinateScale: 1 }, outputs: ["graph"] });
+  const forms: Form[] = [];
+  for (const guide of [false, true]) {
+    forms.push({ label: `polyline${guide ? " with a guide at v = u" : ""}`, graph: { id: "make_graph", operator: "polyline", inputs: { points: ["s_u", "s_v"] }, outputs: ["graph"] }, xEnd: 4, low: 10, high: 20, guide });
+    forms.push({ label: `motion_graph [t, value] at timeScale 2${guide ? " with a guide at v = u" : ""}`, graph: rising([[0, 10], [4, 20]]), xEnd: 8, low: 10, high: 20, guide });
+    forms.push({ label: `motion_graph {t, value} at timeScale 2${guide ? " with a guide at v = u" : ""}`, graph: rising([{ t: 0, value: 10 }, { t: 4, value: 20 }]), xEnd: 8, low: 10, high: 20, guide });
+  }
+  // Slowing down from 20 to 10 m/s: the split line is the graph's last height.
+  forms.push({ label: "motion_graph slowing down, split at its last height", graph: rising([[0, 20], [4, 10]]), xEnd: 8, low: 10, high: 20, guide: false });
+  for (const form of forms) {
+    const slowing = form.label.includes("slowing");
+    const { xEnd, low, high } = form;
+    const extra = extraPoints({
+      s_o: [0, 0], s_e: [xEnd, 0], s_low_end: [xEnd, low], s_low_start: [0, low],
+      s_u: [0, slowing ? high : low], s_v: [xEnd, slowing ? low : high],
+    });
+    const rectangle = { id: "make_rect", operator: "polygon", inputs: { points: ["s_o", "s_e", "s_low_end", "s_low_start"] }, outputs: ["rect"] };
+    const triangle = slowing
+      ? { id: "make_tri", operator: "polygon", inputs: { points: ["s_u", "s_v", "s_low_start"] }, outputs: ["tri"] }
+      : { id: "make_tri", operator: "polygon", inputs: { points: ["s_u", "s_v", "s_low_end"] }, outputs: ["tri"] };
+    const guide = form.guide ? [{ id: "make_guide", operator: "polyline", inputs: { points: ["s_low_start", "s_low_end"] }, outputs: ["guide"] }] : [];
+    const guideEntity = form.guide ? [{ id: "guide", kind: "polyline" as const, role: "guide line at v = u" }] : [];
+    const both = graphDocument({
+      constructions: [...extra.constructions, form.graph, ...guide, rectangle, triangle] as SceneDocument["constructions"],
+      entities: [...extra.entities, polylineGraph.entity, ...guideEntity,
+        { id: "rect", kind: "polygon", role: "area = ut" }, { id: "tri", kind: "polygon", role: "area = ½at²" }],
+    });
+    check(codes(both).length === 0, `s = ut + ½at², ${form.label}: the rectangle and the triangle must both be accepted, got ${codes(both).join(",")}`);
+    const scene = compiled(both, `s = ut + ½at², ${form.label}`);
+    if (scene) {
+      // ut = 10 × 4 = 40 m and ½at² = ½ × 2.5 × 16 = 20 m, so 2 to 1 on any board scale.
+      const ratio = regionArea(scene, "rect") / regionArea(scene, "tri");
+      check(Math.abs(ratio - 2) < 0.01, `s = ut + ½at², ${form.label}: ut must be twice ½at² on the board, got ${ratio.toFixed(3)}`);
+    }
+    // The rectangle alone, labelled as the whole displacement, is a quarter
+    // short of it: the triangle that completes it is not drawn.
+    const lone = graphDocument({
+      constructions: [...extra.constructions, form.graph, ...guide, rectangle] as SceneDocument["constructions"],
+      entities: [...extra.entities, polylineGraph.entity, ...guideEntity, { id: "rect", kind: "polygon", role: displacementRole }],
+    });
+    if (!form.guide) expectRefused(lone, "function_region_requires_deterministic_operator", `s = ut + ½at², ${form.label}: the lone ut rectangle as the whole displacement`);
+  }
+  {
+    // A function curve is read only through function_region: the same two
+    // pieces under v = 10 + 2.5t written as a curve are not split pieces.
+    const extra = extraPoints({ s_o: [0, 0], s_e: [4, 0], s_low_end: [4, 10], s_low_start: [0, 10], s_v: [4, 20] });
+    const raw = graphDocument({
+      constructions: [...extra.constructions,
+        { id: "make_curve", operator: "function_curve", inputs: { expression: "10 + 2.5*x", variable: "x", xMin: 0, xMax: 4, samples: 17 }, outputs: ["curve"] },
+        { id: "make_rect", operator: "polygon", inputs: { points: ["s_o", "s_e", "s_low_end", "s_low_start"] }, outputs: ["rect"] },
+        { id: "make_tri", operator: "polygon", inputs: { points: ["s_low_start", "s_v", "s_low_end"] }, outputs: ["tri"] }],
+      entities: [...extra.entities, { id: "curve", kind: "polyline", role: "v against t curve" },
+        { id: "rect", kind: "polygon", role: "area = ut" }, { id: "tri", kind: "polygon", role: "area = ½at²" }],
+    });
+    expectRefused(raw, "function_region_requires_deterministic_operator", "s = ut + ½at² pieces under a function_curve");
+  }
+}
+{
+  // Rectangles 0 to 4 s tall 15 and 25 m/s under a graph from (0, 10) to
+  // (4, 20): neither has a corner on the graph, but both sit inside its x
+  // range, and neither is the area under it.
+  for (const height of [15, 25]) {
+    const extra = extraPoints({ u0: [0, 10], r0: [0, 0], r1: [4, 0], r2: [4, height], r3: [0, height] });
+    const raw = graphDocument({
+      constructions: [...extra.constructions,
+        { id: "make_graph", operator: "polyline", inputs: { points: ["u0", "p1"] }, outputs: ["graph"] },
+        { id: "make_area", operator: "polygon", inputs: { points: ["r0", "r1", "r2", "r3"] }, outputs: ["area"] }],
+      entities: [...extra.entities, polylineGraph.entity, { id: "area", kind: "polygon", role: displacementRole }],
+    });
+    expectRefused(raw, "function_region_requires_deterministic_operator", `a rectangle ${height} m/s tall with no corner on the graph`);
+  }
+}
+
 if (failures.length > 0) {
   console.error(failures.map((failure) => `FAIL ${failure}`).join("\n"));
   process.exit(1);

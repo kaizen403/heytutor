@@ -107,6 +107,16 @@ check("chemistry state symbols after a formula are still states", () => {
   assert.equal(hinglish("so 2 m g sinθ and 4 m squared"), "so two m g sine theta and four m squared");
 });
 
+check("an acceleration in g and a spaced half keep their meaning", () => {
+  // "a in g" counts multiples of g in both voices, never grams.
+  assert.equal(mathToSpeech("a in g"), "a in g");
+  assert.doesNotMatch(hinglish("a in g"), /gram/);
+  // A spaced ½ starts the next term; only a glued 2½ is two and a half.
+  assert.equal(mathToSpeech("0 to 4 ½ × 4 × 20"), "0 to 4 half times 4 times 20");
+  assert.doesNotMatch(hinglish("0 to 4 ½ × 4 × 20"), /and a half/);
+  assert.match(mathToSpeech("after 2½ s"), /2 and a half/);
+});
+
 check("a spaced variable after a number is not read as a unit", () => {
   // g, m and h name a quantity as often as a unit: "2 g" is twice the
   // acceleration of free fall, "2 m" twice a mass, "2 h" twice a height.

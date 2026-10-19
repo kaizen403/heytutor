@@ -617,6 +617,12 @@ const RECORDED_UNIT_LINES: [string, string][] = [
   // A bare h is a height or a step, never an hour outside a speed.
   ["y (h)", "y (h)"],
   ["plug x in h", "plug x in h"],
+  // "a in g" counts multiples of g, never grams; "m (g)" above is still grams.
+  ["a in g", "a in g"],
+  ["plot a in g against t", "plot a in g against t"],
+  // Only a glued mixed number joins the half: a spaced ½ starts the next term.
+  ["0 to 4 ½ × 4 × 20", "0 to 4 half times 4 times 20"],
+  ["after 2½ s", "after 2 and a half s"],
 ];
 
 check(`${RECORDED_UNIT_LINES.length} recorded unit and point lines are spoken as words`, () => {
