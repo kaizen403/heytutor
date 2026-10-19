@@ -1218,7 +1218,7 @@ const CUE_SETS: readonly CueSet[] = [
       const ordinals = "first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|\\d+(?:st|nd|rd|th)";
       const separator = "[\\s\\u2010-\\u2015-]+";
       // A suffix of "1/2", "2^3", or "2 + 3" is not an independent mode number.
-      const modeTokenStart = "(?<![\\w.−-])(?<![+/*^×÷⁄−-]\\s*)(?<!\\bx\\s+)\\b";
+      const modeTokenStart = "(?<![\\w.−-])(?<![+/*^×÷⁄·⋅∙∗∕−-]\\s*)(?<!\\bx\\s+)\\b";
       const harmonics: number[] = [];
       // Consume every understood specification; an unread or conflicting one is
       // a requested physical state, never permission to use a display default.

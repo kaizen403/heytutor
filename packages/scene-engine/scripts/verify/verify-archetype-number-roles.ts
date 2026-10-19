@@ -135,4 +135,13 @@ assert.equal(read("A stone is dropped from rest 20 m above a pond. Draw the free
 assert.equal(read("A stone is dropped from the top of a 45 m tall tower. Draw the free fall.", "free_fall").slots.h, 45);
 assert.equal(read("A stone is dropped from the top of a 45 m tower. Draw the free fall.", "free_fall").slots.h, 45);
 assert.equal(read("A stone falls 20 m in the last second of its fall. Draw the free fall.", "free_fall").slots.h, undefined, "a distance fallen is not the release height");
+// Greptile #201: repeated references to one ball are one body; a release height
+// stated after an arrival clause still binds.
+{
+  const one = read("Ball A is dropped from a height of 20 m. Draw the motion of ball A.", "free_fall");
+  assert.ok(one.scene, "the same ball named twice is one body");
+  assert.equal(one.slots.h, 20);
+  assert.equal(read("A ball reaches the ground 2 s after being dropped from a height of 20 m. Draw the free fall.", "free_fall").slots.h, 20, "an arrival clause before the release does not discard the release height");
+  assert.equal(read("A ball dropped from the top of a 45 m tall tower passes a window of height 2 m. Draw the free fall.", "free_fall").slots.h, 45, "a window passed on the way down is not the release height");
+}
 console.log("archetype number-role review gates passed");

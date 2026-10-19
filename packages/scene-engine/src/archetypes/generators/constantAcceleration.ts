@@ -363,7 +363,7 @@ export function extractFreeFallSlots(stem: string, plan: readonly PlanQuantity[]
   const text = normalized(stem);
   // The figure draws one body. A second body (a meeting, a second ball) is a
   // different picture; one body with the other's speed would be false.
-  if (/\b(?:two|three|both) (?:balls|stones|bodies|particles|objects|masses)\b|\b(?:second|third|another|other) (?:ball|stone|body|particle|object|mass)\b|\bballs? [a-d] and (?:ball )?[a-d]\b|\bball [a-d]\b[^]*\bball [a-d]\b/i.test(text)) {
+  if (/\b(?:two|three|both) (?:balls|stones|bodies|particles|objects|masses)\b|\b(?:second|third|another|other) (?:ball|stone|body|particle|object|mass)\b|\bballs? [a-d] and (?:ball )?[a-d]\b|\bball ([a-d])\b[^]*\bball (?!\1\b)[a-d]\b/i.test(text)) {
     set(bag, "conflict", "the stem has more than one falling body", "stem");
     return;
   }
@@ -401,7 +401,12 @@ export function extractFreeFallSlots(stem: string, plan: readonly PlanQuantity[]
     const dropLengths = lengths.filter((token) => {
       const before = text.slice(0, token.start);
       const after = text.slice(token.end);
-      if (laterState.test(sentenceBefore(token.start))) return false;
+      // The verb must govern this height: "reaches the ground 2 s after being
+      // dropped from 20 m" names the release after the arrival.
+      const clause = sentenceBefore(token.start);
+      const verbs = [...clause.matchAll(new RegExp(laterState.source, "gi"))];
+      const last = verbs.at(-1);
+      if (last && !/\b(?:dropped|released|thrown|let go|from)\b/i.test(clause.slice(last.index! + last[0].length))) return false;
       return /(?:\bheight(?: of| is| =)?|\b(?:tower|cliff|building)(?: of height| is| of)?|\b(?:dropped|released)(?: from)?(?: rest)?(?: from)?(?: a height of)?)\s*$/i.test(before)
         || /^\s*(?:high|tall|above (?:the |a )?(?:[a-z-]+ ){0,3}(?:ground|floor|earth|surface))\b/i.test(after)
         || (/\btop of (?:a|the)\s*$/i.test(before) && /^\s*(?:tall |high )?(?:tower|cliff|building)\b/i.test(after));
