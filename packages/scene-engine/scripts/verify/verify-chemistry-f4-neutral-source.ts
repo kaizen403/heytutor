@@ -99,6 +99,15 @@ const rows = (fixture as Gold[]).map(gold => {
             assert.ok(result, "background/excluded photoelectric state cannot veto requested Young diagram");
             assert.equal(result.document.source.archetype, "double_slit"); paint(result.document, gold.question);
           }
+        } else if (gold.expectedSourceOutcome === "symbolic-unused-h") {
+          assert.ok(source.status === "symbolic" && source.missing === "unused_planck_constant");
+          for (const result of [ordinary, lastResort]) {
+            assert.ok(result); assert.equal(result.document.source.nonMetric, true);
+            assert.deepEqual(result.document.quantities, []);
+            const labels = paint(result.document, gold.question);
+            assert.ok(labels.includes("hν") && labels.includes("φ") && labels.includes("K"));
+            assert.ok(!labels.some(label => /\d/.test(label)), "no numerical energy or borrowed constant");
+          }
         } else if (gold.expectedSourceOutcome === "declined") {
           assert.equal(source.status, "declined"); assert.equal(ordinary, null); assert.equal(lastResort, null);
         } else {

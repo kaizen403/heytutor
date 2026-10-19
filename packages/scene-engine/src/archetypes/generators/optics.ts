@@ -6,6 +6,7 @@
  */
 import { evaluateOpticsLaw } from "../../physics/opticsLaws";
 import { readRadiationSource } from "../../physics/radiationSource";
+import { readApertureSource } from "../../physics/apparatusSource";
 import { sagOf } from "../../compile/opticsSurfaces";
 import { DEG, SceneBuilder, fmt, withUnit, type Vec2 } from "../document";
 import { angleLabel, valueLabel, derivedLabel, grounded, maybeNum, num, text, type GeneratorContext, type GeneratorTable } from "./context";
@@ -322,6 +323,8 @@ function prism(context: GeneratorContext) {
 }
 
 function doubleSlit(context: GeneratorContext) {
+  const source = readApertureSource(context.question);
+  if (!source || source.kind !== "double_slit") return null;
   const d = maybeNum(context, "d");
   const D = maybeNum(context, "D");
   const lambda = maybeNum(context, "lambda");
@@ -380,6 +383,31 @@ function photonFromLambda(lambdaNm: number): number {
 function photoelectric(context: GeneratorContext) {
   const source = readRadiationSource(context.question);
   if (source.status === "declined") return null;
+  if (source.status === "symbolic" && source.missing === "unused_planck_constant") {
+    // These coordinates are a symbolic partition, never physical energies.
+    // In particular no caller/planner slot may turn this into a numeric model.
+    const scene = new SceneBuilder(context.question, "symbolic photoelectric energy relation; not to scale", "photoelectric");
+    scene.point("axis_base", { x: -0.5, y: 0 }, "symbolic axis base");
+    scene.vector("energy_axis", "axis_base", { direction: { x: 0, y: 1 }, length: 3.2 }, "energy axis", "E");
+    scene.point("zero", { x: 0, y: 0 }, "symbolic energy origin");
+    scene.point("phi_top", { x: 0, y: 2 }, "symbolic work function", "φ");
+    scene.point("E_top", { x: 0, y: 3 }, "symbolic photon energy", "hν");
+    scene.point("phi_end", { x: 3, y: 2 }, "symbolic work level end");
+    scene.point("E_end", { x: 3, y: 3 }, "symbolic photon level end");
+    scene.segment("phi_level", "phi_top", "phi_end", "work-function level");
+    scene.segment("E_level", "E_top", "E_end", "photon-energy level");
+    scene.point("work_base", { x: 1, y: 0 }, "symbolic work base");
+    scene.point("work_tip", { x: 1, y: 2 }, "symbolic work tip");
+    scene.vector("work", "work_base", { end: "work_tip" }, "work function", "φ");
+    scene.point("k_base", { x: 2, y: 2 }, "symbolic kinetic base");
+    scene.point("k_tip", { x: 2, y: 3 }, "symbolic kinetic tip");
+    scene.vector("kinetic", "k_base", { end: "k_tip" }, "symbolic kinetic energy", "K");
+    scene.point("symbolic_qualification", { x: 1.5, y: 3.6 }, "conditional symbolic relation", "if hν > φ");
+    scene.point("symbolic_scale", { x: 1.5, y: 4 }, "symbolic display scale", "not to scale");
+    scene.assert("symbolic_levels_parallel", "parallel", ["phi_level", "E_level"]);
+    scene.group("symbolic_balance", scene.entities.map(entity => entity.id), "if hν > φ. not to scale. hν. φ. K.");
+    const document = scene.build(); document.source.nonMetric = true; return document;
+  }
   const model = source.status === "source" && source.model.kind === "photoelectric" ? source.model : null;
   if (model && model.question !== context.question) return null;
   const symbolic = source.status === "symbolic" ? source : null;

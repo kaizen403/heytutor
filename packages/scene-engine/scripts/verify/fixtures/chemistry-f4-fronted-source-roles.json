@@ -39,13 +39,21 @@
     "id": "fronted-negative-0",
     "group": "fronted",
     "question": "For the first-order decomposition of N2O5.2, the half-life is 20 min. Plot the fraction remaining after 60 min.",
-    "draw": false
+    "draw": false,
+    "neutralDraw": true,
+    "halfLife": 20,
+    "requested": 60,
+    "fraction": 0.125
   },
   {
     "id": "fronted-negative-1",
     "group": "fronted",
     "question": "For the first-order decomposition of N2Q5, the half-life is 20 min. Plot the fraction remaining after 60 min.",
-    "draw": false
+    "draw": false,
+    "neutralDraw": true,
+    "halfLife": 20,
+    "requested": 60,
+    "fraction": 0.125
   },
   {
     "id": "fronted-negative-2",

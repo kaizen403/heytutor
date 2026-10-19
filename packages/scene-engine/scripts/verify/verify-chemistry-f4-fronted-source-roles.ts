@@ -12,7 +12,7 @@ import { readRadiationSource } from "../../src/physics/radiationSource";
 import { synthesizeFamilyScene, synthesizeLastResortScene } from "../../src/synthesize/familyScene";
 import type { SceneDocument } from "../../src/types";
 import fixtures from "./fixtures/chemistry-f4-fronted-source-roles.json";
-interface Gold { id: string; group: string; question: string; draw?: boolean; halfLife?: number; requested?: number; fraction?: number;
+interface Gold { id: string; group: string; question: string; draw?: boolean; neutralDraw?: boolean; halfLife?: number; requested?: number; fraction?: number;
   archetype?: string; heatJ?: number; photonEnergyEV?: number; kineticEV?: number }
 const close = (actual: number, expected: number): void => assert.ok(Number.isFinite(actual)
   && Math.abs(actual - expected) <= Math.max(Number.MIN_VALUE, Math.abs(expected) * 1e-12), `${actual} != ${expected}`);
@@ -27,10 +27,19 @@ const results = (fixtures as Gold[]).map(gold => {
     const lastResort = synthesizeLastResortScene({ question: gold.question });
     if (gold.group === "fronted") {
       const direct = buildKineticsScene(gold.question, [], false);
-      for (const document of [direct, ordinary?.document, lastResort?.document]) {
-        assert.equal(!!document, gold.draw);
+      for (const [route, document] of [["direct", direct], ["ordinary", ordinary?.document], ["lastResort", lastResort?.document]] as const) {
+        const neutral = gold.neutralDraw && route !== "direct";
+        assert.equal(!!document, neutral || gold.draw);
         if (!document) continue;
         const labels = text(document, gold.question);
+        if (neutral) {
+          assert.equal(document.source.sourceModel, "mathematical_fraction_decay");
+          assert.equal(document.source.chemistryFamily, undefined);
+          assert.ok(labels.includes("First-order law"));
+          assert.ok(!labels.some(label => /N2O5|N2Q5/.test(label)), "no validated species identity");
+          close(document.quantities.find(quantity => quantity.id === "requested_fraction")!.value, gold.fraction!);
+          close(document.quantities.find(quantity => quantity.id === "requested_time")!.value, gold.requested!);
+        }
         const spec = kineticsFromStem(gold.question); assert.ok(spec);
         const solved = solveKinetics(spec); close(solved.tHalf!, gold.halfLife!); assert.equal(solved.timeUnit, "min");
         close(Math.exp(-solved.k! * gold.requested!), gold.fraction!);

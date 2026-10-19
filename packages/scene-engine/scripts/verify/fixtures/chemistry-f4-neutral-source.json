@@ -232,10 +232,10 @@
   {
     "id": "conceptual-explicit-unread-constant",
     "question": "Explain the photoelectric effect. The Planck constant is unreadable J s. Draw a photoelectric energy schematic.",
-    "expectedSourceOutcome": "declined",
-    "scope": "radiation source outcome only; no unrelated complete-figure grade claimed",
+    "expectedSourceOutcome": "symbolic-unused-h",
+    "scope": "pure conceptual zero-numeric symbol relation; no constant/default authority",
     "scientificGold": {
-      "reason": "An explicitly unread declared radiation constant cannot be returned as absent/not_applicable and replaced by a default source state."
+      "reason": "Unused word-unreadable Planck constant does not prevent a purely symbolic qualitative relation; no numerical source claim is emitted."
     },
     "group": "static"
   },

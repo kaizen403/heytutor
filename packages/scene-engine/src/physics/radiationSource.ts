@@ -27,6 +27,7 @@ export type RadiationModel = Source & (
   | { kind: "uncertainty"; positionM: number; momentumKgMS: number; productJS: number; floorJS: number; holds: boolean }
 );
 export type RadiationSourceOutcome = { status: "not_applicable" }
+  | { status: "symbolic"; kind: "photoelectric"; question: string; missing: "unused_planck_constant"; bindings: [] }
   | { status: "symbolic"; kind: "photoelectric"; question: string; missing: "work_function"; bindings: Binding[]; photonEnergyEV: number | null; givenKineticEV: number | null; stoppingPotentialV: number | null }
   | { status: "symbolic"; kind: "photoelectric"; question: string; missing: "incident_photon"; bindings: Binding[]; workFunctionEV: number; thresholdWavelengthM: number }
   | { status: "declined"; kind: Kind; reason: string }
@@ -167,6 +168,30 @@ function backgroundWorkFunctionOnly(question: string): boolean {
   return !activeTarget && !passiveTarget;
 }
 
+/** Closed conceptual clauses own the symbolic relation; an unread number or
+ * any other source declaration cannot be hidden by this zero-authority mode. */
+function purelySymbolicUnusedPlanck(question: string): boolean {
+  if (/[\p{N}⁺⁻⁽⁾]/u.test(question)) return false;
+  const clauses = question.split(/[.;!?]/).map(clause => clause.trim()).filter(Boolean);
+  let unread = 0, visual = 0;
+  for (const clause of clauses) {
+    if (/^(?:the\s+)?(?:value\s+of\s+(?:the\s+)?)?Planck(?:'s)?\s+constant\s+(?:is\s+(?:unreadable|unknown)(?:\s+J\s*s)?|cannot\s+be\s+read)$/i.test(clause)) { unread++; continue; }
+    const request = /^(explain|draw|show|sketch|represent)\s+(.+)$/i.exec(clause);
+    if (!request) return false;
+    const words = request[2]!.replace(/photoelectric|photon[- ]energy|work[- ]function|kinetic[- ]energy/gi, " ")
+      .replace(/\b(?:the|a|an|only|symbolic|qualitative|qualitatively|energy|schematic|balance|effect|emission|and)\b/gi, " ");
+    if (/[^\s,-]/.test(words)) return false;
+    if (/^explain$/i.test(request[1]!)) {
+      if (!/\bphotoelectric\b/i.test(request[2]!)) return false;
+    } else {
+      if (!/\b(?:schematic|balance)\b/i.test(request[2]!) || !/\benergy\b/i.test(request[2]!)) return false;
+      if (!/\bphotoelectric\b/i.test(request[2]!) && !/photon[- ]energy/i.test(request[2]!)) return false;
+      visual++;
+    }
+  }
+  return unread === 1 && visual > 0;
+}
+
 /** The exact original source is the only input; callers cannot supply scalars. */
 export function readRadiationSource(question: string): RadiationSourceOutcome {
   const stem = chemStem(question);
@@ -174,6 +199,9 @@ export function readRadiationSource(question: string): RadiationSourceOutcome {
     : /de broglie/.test(stem) ? "matter_wave"
       : /heisenberg|uncertainty principle|uncertainty in position|uncertainty in momentum/.test(stem) ? "uncertainty" : null;
   if (!kind || kind === "photoelectric" && backgroundWorkFunctionOnly(question)) return { status: "not_applicable" };
+  if (kind === "photoelectric" && purelySymbolicUnusedPlanck(question)) {
+    return { status: "symbolic", kind, question, missing: "unused_planck_constant", bindings: [] };
+  }
   const constantAuthority: Source["constantAuthority"] = kind !== "photoelectric" ? "particle_reference"
     : atomicElectronContext(question) ? "atomic_reference" : "source_parameterized";
   const bindings: Binding[] = [];

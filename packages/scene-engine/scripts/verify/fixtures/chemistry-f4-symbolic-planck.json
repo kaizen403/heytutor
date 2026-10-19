@@ -1,0 +1,78 @@
+[
+  {
+    "id": "pure-symbolic-unread-h",
+    "question": "Explain the photoelectric effect. The Planck constant is unreadable J s. Draw a photoelectric energy schematic.",
+    "domain": "symbolic-photoelectric",
+    "expected": {
+      "publicDraw": true,
+      "numericAuthority": false,
+      "quantities": [],
+      "nonMetric": true
+    },
+    "scientificGold": {
+      "marks": [
+        "h\u03bd",
+        "\u03c6",
+        "K"
+      ],
+      "relation": "Symbolic photon input partitions into work function and maximum kinetic energy for the illustrated emitting case; no numeric h,E,phi,K or stopping voltage."
+    },
+    "provenance": "Exact closed prior scientific right-loss reproduction; old negative guard gold retained as historical artifact"
+  },
+  {
+    "id": "pure-symbolic-word-unread-transfer",
+    "question": "Explain photoelectric emission qualitatively. The value of the Planck constant cannot be read. Sketch only the symbolic photon-energy, work-function and kinetic-energy balance.",
+    "domain": "symbolic-photoelectric",
+    "expected": {
+      "publicDraw": true,
+      "numericAuthority": false,
+      "quantities": [],
+      "nonMetric": true
+    },
+    "scientificGold": {
+      "marks": [
+        "h\u03bd",
+        "\u03c6",
+        "K"
+      ],
+      "noNumericAxesTicksOrEnergyValues": true
+    },
+    "provenance": "Independent heldout frozen before new-head outputs"
+  },
+  {
+    "id": "malformed-numeric-h-not-symbolic-exemption",
+    "question": "Explain the photoelectric effect. The Planck constant is 6e- J s. Draw a photoelectric energy schematic.",
+    "domain": "symbolic-photoelectric",
+    "expected": {
+      "draw": false
+    },
+    "scientificGold": {
+      "reason": "A damaged numeric declaration is terminal; symbolic request does not waive a supplied malformed scalar."
+    },
+    "provenance": "Independent heldout frozen before new-head outputs"
+  },
+  {
+    "id": "unread-work-function-not-h-exemption",
+    "question": "Explain the photoelectric effect. The work function is unreadable eV. Draw a photoelectric energy schematic.",
+    "domain": "symbolic-photoelectric",
+    "expected": {
+      "draw": false
+    },
+    "scientificGold": {
+      "reason": "Narrow exemption is only unused word-unreadable h; unknown work function is not silently exempted."
+    },
+    "provenance": "Independent heldout frozen before new-head outputs"
+  },
+  {
+    "id": "numeric-request-unread-h-terminal",
+    "question": "The Planck constant is unreadable J s. Light of frequency 6e14 Hz falls on a metal of work function 2 eV. Draw the energy balance and calculate the maximum kinetic energy.",
+    "domain": "symbolic-photoelectric",
+    "expected": {
+      "draw": false
+    },
+    "scientificGold": {
+      "reason": "Numerical source/solve requires h; no reference default or symbolic workaround may replace the unread authority."
+    },
+    "provenance": "Independent heldout frozen before new-head outputs"
+  }
+]

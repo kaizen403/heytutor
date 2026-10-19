@@ -15,21 +15,60 @@ interface FractionDecay {
 type DecayOutcome = { status: "not_applicable" } | { status: "declined" }
   | { status: "source"; model: FractionDecay };
 
+function negativeArgument(question: string, start: number): boolean {
+  const prefix = question.slice(0, start).split(/[;!?]|\.(?!\d)|\b(?:and|but|or|however)\b/i).at(-1) ?? "";
+  return /\b(?:no|not|never|without|excluding|unrelated|irrelevant|background)(?:\s+(?:use|follow|obey|apply|assume|a|an|the|assumed))*\s*$/i.test(prefix);
+}
+
+/** An asserted law and one supported requested view are independent of the
+ * material name. Neither a negated law nor another requested figure is owned. */
+function normalizedFirstOrderRequested(question: string): boolean {
+  const laws = [...question.matchAll(/\bfirst[ -]?order\b/gi)];
+  // Every occurrence must assert this law. A later exclusion cannot be
+  // discarded merely because an earlier sentence contained its positive name.
+  if (!laws.length || laws.some(law => negativeArgument(question, law.index)
+    || /^\s*(?:(?:process|law|model|decay|decomposition|kinetics|differential equation)\s+)?(?:(?:is|was|does|do|did|will|would|should|can|could|must)\s+(?:not|never)\b|cannot\b)/i.test(question.slice(law.index + law[0].length)))) return false;
+  const views = [...question.matchAll(/\b(?:draw|plot|graph|show|sketch|represent)\s+(?:(?:only|the|a|normalized)\s+)*(?:(?:graph|curve|plot)\s+of\s+)?(?:the\s+)?(?:normalized\s+)?fraction remaining\b/gi)]
+    .filter(view => !negativeArgument(question, view.index));
+  if (!views.length) return false;
+  const otherInk = /\b(?:molecular\s+structures?|structures?|bonds?|mechanisms?|stereoisomers?|orbitals?|apparatus|circuits?|mass|concentrations?)\b/gi;
+  const requests = [...question.matchAll(/\b(?:draw|plot|graph|show|sketch|represent|mark)\b/gi)];
+  for (const [index, request] of requests.entries()) {
+    if (negativeArgument(question, request.index)) continue;
+    const owned = views.some(view => request.index >= view.index && request.index < view.index + view[0].length);
+    const timeMark = /^mark$/i.test(request[0]) && /^\s+(?:t|time)\s*=/i.test(question.slice(request.index + request[0].length));
+    if (!owned && !timeMark) return false;
+    const argument = question.slice(request.index + request[0].length, requests[index + 1]?.index)
+      .split(/[;!?]|\.(?!\d)/, 1)[0]!;
+    // One verb may request several views. Only the normalized fraction and
+    // separately recognized time marks are owned; another coordinated object
+    // cannot silently disappear from an otherwise valid mathematical plot.
+    if (/\band\s+\S/i.test(argument)) return false;
+    for (const other of argument.matchAll(otherInk)) {
+      if (!negativeArgument(argument, other.index)) return false;
+    }
+  }
+  return true;
+}
+
 export function readNeutralDecaySource(question: string): DecayOutcome {
   const stem = chemStem(question);
-  if (!/half[ -]?life|first[ -]?order differential equation|exponential decay/.test(stem)
+  if (!/half[ -]?life|first[ -]?order|exponential decay/.test(stem)
     || chemicalKineticsContext(stem, question)
     || /\b(?:radioactiv\w*|isotopes?|nucl(?:eus|ei|ide)|nuclear|disintegrat\w*)\b/.test(stem)) return { status: "not_applicable" };
   // This issuer owns a first-order mathematical fraction law, not an arbitrary
   // differential equation, a mass account, or a multi-part physical process.
-  if (!/\bfirst[ -]?order differential equation\b/.test(stem)
-    || !/\b(?:plot|graph|show|draw)\b[^.;!?]*\bfraction remaining\b/.test(stem)
-    || /[=]|\b(?:dy|df)\s*\/\s*dt\b/.test(question)) return { status: "declined" };
-  const requested = readChemistryQuantityDeclaration({ question, after: /\bafter\b|\bat\s+t\s*=/,
+  const assignments = new Set([...question.matchAll(/\b(?:at\s+t|mark\s+(?:t|time)|half[ -]?life|k)\s*=/gi)]
+    .map(match => match.index + match[0].length - 1));
+  if (!normalizedFirstOrderRequested(question)
+    || [...question.matchAll(/=/g)].some(match => !assignments.has(match.index))
+    || /\b(?:dy|df)\s*\/\s*dt\b/.test(question)) return { status: "declined" };
+  const requested = readChemistryQuantityDeclaration({ question, after: /\bafter\b|\bat\s+t\s*=|\bmark\s+(?:t|time)\s*=/,
     dimension: "time", targetUnit: "s", owner: "requested fraction time" });
   if (requested.state !== "valid") return { status: "declined" };
   const spec = kineticsFromStem(question);
-  if (!spec || spec.order !== 1 || spec.arrhenius || spec.equilibriumK !== null || spec.linear
+  if (!spec || spec.order !== 1 || spec.ordersNamed.some(order => order !== 1)
+    || spec.k === null && spec.tHalf === null || spec.arrhenius || spec.equilibriumK !== null || spec.linear
     || spec.a0 !== null || spec.completion || spec.timesAsked.length !== 1
     || spec.fractionsAsked.length || spec.remainingAsked.length || spec.concentrationsAsked.length) return { status: "declined" };
   const solution = solveKinetics(spec);
@@ -61,6 +100,7 @@ export function buildNeutralDecayScene(question: string): SceneDocument | null {
   };
   text("time_axis", 7.5, -0.75, `time (${model.timeUnit})`, "source time unit");
   text("fraction_axis", 1, 5.3, "f(t)/f(0)", "normalized fraction");
+  text("law_source", 5.5, 5.3, "First-order law", "stated mathematical law");
   const marks = [{ time: 0, remaining: 1 }, { time: model.halfLife, remaining: 0.5 },
     { time: 2 * model.halfLife, remaining: 0.25 }, model.requested]
     .filter((mark, index, all) => all.findIndex(other => Math.abs(other.time - mark.time) < 1e-9) === index);

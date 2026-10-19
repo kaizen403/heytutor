@@ -6,6 +6,7 @@
 import { stemKnowns } from "../archetypes/generators/constantAcceleration";
 import { buildNeutralDecayScene, readNeutralDecaySource } from "../physics/neutralDecaySource";
 import { buildParticleRadiationScene, readRadiationSource } from "../physics/radiationSource";
+import { readApertureSource, readTwoLoopTopology, twoLoopTopologyClaimed, type TwoLoopSource } from "../physics/apparatusSource";
 import { compileSceneDocument } from "../compile/compiler";
 import { groundedOhmScene } from "../compile/ohmTopicGeometry";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../document/validation";
@@ -229,6 +230,15 @@ function synthesizeFromFamilies(
       || (obligations && visualObligationRejection(obligations, compiled.document))) return null;
     return { ...compiled, tier: "question_representation", nonMetric: true,
       reason: "Compiled a source-bound two-terminal DC schematic with exact signed values; display geometry is nonmetric.", family: "circuit_network" };
+  }
+  const twoLoopSource = readTwoLoopTopology(question);
+  if (twoLoopSource || twoLoopTopologyClaimed(question)) {
+    if (!twoLoopSource) return null;
+    const compiled = tryCompile(buildTwoLoopCircuit(question, twoLoopSource));
+    if (!compiled || demandRejection(compiled.document, demand)
+      || obligations && visualObligationRejection(obligations, compiled.document)) return null;
+    return { ...compiled, family: "circuit_network", tier: "question_representation", nonMetric: true,
+      reason: "Source-bound left, right and shared circuit branches; displayed layout is nonmetric." };
   }
   // A section-formula stem read whole draws its own endpoints and section
   // point; the section_point operator certifies the point.
@@ -1212,6 +1222,8 @@ function buildCircuit(
   ) {
     return null;
   }
+  const twoLoop = readTwoLoopTopology(question);
+  if (twoLoop) return buildTwoLoopCircuit(question, twoLoop);
   // Resistances the stem writes with their unit. Ω is not a word character,
   // so this reads to the next letter rather than a word boundary.
   const statedOhms = [...question.matchAll(/(\d+(?:\.\d+)?)\s*(kΩ|MΩ|Ω|k?\s*ohms?)(?![A-Za-z0-9])/g)]
@@ -1248,13 +1260,16 @@ function buildCircuit(
   const count = Math.max(2, Math.min(resistors.length || (namedNetwork ? 4 : 3), 4));
   const wantsParallel = /\bparallel\b/i.test(question) && !/\bin series except\b/i.test(question);
   const wantsSeries = /\bseries\b/i.test(question) || (namedNetwork && !wantsParallel);
+  // A named method is not a connectivity statement. If the source does not
+  // bind the two-loop graph, it cannot become a stock series network either.
+  if (namedNetwork && !/\b(?:in\s+)?(?:series|parallel)\b/i.test(question)) return null;
   if (!schematic && !wantsParallel && !wantsSeries && resistors.length < 2) return null;
   if (wantsParallel && !wantsSeries && statedOhms.length > 3) return null;
   if (wantsSeries && wantsParallel) {
     return buildSeparatedCircuitViews(question, resistors, count);
   }
   if (isTwoLoopNetworkStem(question)) {
-    return buildTwoLoopCircuit(question, resistors, extractNamedVoltages(question, quantities));
+    return null;
   }
   const topology = wantsParallel || (!wantsSeries && schematic) ? "parallel" : "series";
   return buildSingleCircuitView(question, resistors, count, topology, 0, "");
@@ -1329,20 +1344,19 @@ function buildSingleCircuitView(
 
 function buildTwoLoopCircuit(
   question: string,
-  resistors: Array<{ symbol: string; value: number; unit?: string }>,
-  sources: Array<{ symbol: string; value: number; unit?: string }>,
+  source: TwoLoopSource,
 ): SceneDocument {
-  const r1 = resistors[0]?.symbol ?? "R1";
-  const r2 = resistors[1]?.symbol ?? "R2";
-  const r3 = resistors[2]?.symbol ?? "R3";
+  const resistors = [source.left, source.right, source.shared];
+  const sources = [source.leftSource, source.rightSource];
+  const label = (component: TwoLoopSource["left"], unit: string): string => component.value === null
+    ? component.symbol : `${component.symbol}=${component.value} ${unit}`;
+  const top = source.positiveTerminal === "top";
   return baseDocument({
     question,
     reason: "two-loop network from the question wording",
     quantities: [
-      ...resistors.slice(0, 3).map((resistor, index) =>
-        quantityRecord(`R${index + 1}`, resistor.symbol, resistor.value, resistor.unit ?? "ohm")),
-      ...sources.slice(0, 2).map((source, index) =>
-        quantityRecord(`V${index + 1}`, source.symbol, source.value, source.unit ?? "V")),
+      ...resistors.flatMap((resistor, index) => resistor.value === null ? [] : [quantityRecord(`R${index + 1}`, resistor.symbol, resistor.value, "ohm")]),
+      ...sources.flatMap((battery, index) => battery.value === null ? [] : [quantityRecord(`V${index + 1}`, battery.symbol, battery.value, "V")]),
     ],
     entities: [
       { id: "n_tl", kind: "point", role: "node" },
@@ -1351,11 +1365,11 @@ function buildTwoLoopCircuit(
       { id: "n_bl", kind: "point", role: "node" },
       { id: "n_bc", kind: "point", role: "node" },
       { id: "n_br", kind: "point", role: "node" },
-      { id: "r1", kind: "component", role: "resistor", label: compactLabel(r1) },
-      { id: "r2", kind: "component", role: "resistor", label: compactLabel(r2) },
-      { id: "r3", kind: "component", role: "resistor", label: compactLabel(r3) },
-      { id: "v1", kind: "component", role: "source", label: "V1" },
-      { id: "v2", kind: "component", role: "source", label: "V2" },
+      { id: "r1", kind: "component", role: "resistor", label: compactLabel(label(source.left, "ohm")) },
+      { id: "r2", kind: "component", role: "resistor", label: compactLabel(label(source.right, "ohm")) },
+      { id: "r3", kind: "component", role: "resistor", label: compactLabel(label(source.shared, "ohm")) },
+      { id: "v1", kind: "component", role: "source", label: compactLabel(label(source.leftSource, "V")) },
+      { id: "v2", kind: "component", role: "source", label: compactLabel(label(source.rightSource, "V")) },
       { id: "w_bl", kind: "connector", role: "return path" },
       { id: "w_br", kind: "connector", role: "return path" },
     ],
@@ -1369,8 +1383,8 @@ function buildTwoLoopCircuit(
       { id: "make_r1", operator: "symbol", inputs: { symbol: "resistor", start: "n_tl", end: "n_tc" }, outputs: ["r1"] },
       { id: "make_r2", operator: "symbol", inputs: { symbol: "resistor", start: "n_tc", end: "n_tr" }, outputs: ["r2"] },
       { id: "make_r3", operator: "symbol", inputs: { symbol: "resistor", start: "n_tc", end: "n_bc" }, outputs: ["r3"] },
-      { id: "make_v1", operator: "symbol", inputs: { symbol: "battery", start: "n_bl", end: "n_tl" }, outputs: ["v1"] },
-      { id: "make_v2", operator: "symbol", inputs: { symbol: "battery", start: "n_br", end: "n_tr" }, outputs: ["v2"] },
+      { id: "make_v1", operator: "symbol", inputs: { symbol: "battery", start: top ? "n_tl" : "n_bl", end: top ? "n_bl" : "n_tl" }, outputs: ["v1"] },
+      { id: "make_v2", operator: "symbol", inputs: { symbol: "battery", start: top ? "n_tr" : "n_br", end: top ? "n_br" : "n_tr" }, outputs: ["v2"] },
       { id: "make_w_bl", operator: "connect", inputs: { start: "n_bl", end: "n_bc" }, outputs: ["w_bl"] },
       { id: "make_w_br", operator: "connect", inputs: { start: "n_bc", end: "n_br" }, outputs: ["w_br"] },
     ],
@@ -3630,8 +3644,9 @@ function buildAperturePattern(
   _quantities: PlanQuantity[],
   _schematic: boolean,
 ): SceneDocument | null {
-  if (!/(?:slit|interference|diffraction|aperture|fringe|central maximum|resolving power|limit of resolution|rayleigh|phase difference)/i.test(question)) return null;
-  const slits = /single/i.test(question) ? 1 : 2;
+  const source = readApertureSource(question);
+  if (!source) return null;
+  const slits = source.slitCount;
   return baseDocument({
     question,
     reason: "aperture and screen pattern from the wave-optics family",
@@ -3663,7 +3678,7 @@ function buildAperturePattern(
       {
         id: "make_pattern",
         operator: "screen_pattern",
-        inputs: { start: "screen_a", end: "screen_b", pattern: "interference", count: 7, spacing: 0.45, centralWidth: 0.7 },
+        inputs: { start: "screen_a", end: "screen_b", pattern: slits === 1 ? "diffraction" : "interference", count: 7, spacing: 0.45, centralWidth: 0.7 },
         outputs: ["pattern"],
       },
     ],
@@ -4626,26 +4641,6 @@ function angleDegrees(quantities: PlanQuantity[], question: string): number | nu
   if (!match) return null;
   const value = Number(match[1]);
   return Number.isFinite(value) ? value : null;
-}
-
-function extractNamedVoltages(
-  question: string,
-  quantities: PlanQuantity[],
-): Array<{ symbol: string; value: number; unit?: string }> {
-  const fromQuestion: Array<{ symbol: string; value: number; unit?: string }> = [];
-  for (const match of question.matchAll(/\b(V[_-]?\d+)\s*=\s*(\d+(?:\.\d+)?)\s*(mV|kV|volts?|V)?/gi)) {
-    fromQuestion.push({
-      symbol: match[1]!.replace(/[_-]/g, ""),
-      value: Number(match[2]),
-      unit: "V",
-    });
-  }
-  if (fromQuestion.length > 0) return fromQuestion;
-  return quantities.filter((quantity) => /^v\d+$/i.test(quantity.symbol) || /^v\d+$/i.test(quantity.id)).map((quantity) => ({
-    symbol: quantity.symbol,
-    value: quantity.value,
-    unit: quantity.unit ?? "V",
-  }));
 }
 
 function extractResistors(

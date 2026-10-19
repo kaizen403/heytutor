@@ -106,7 +106,8 @@
     "id": "kirchhoff-bilingual",
     "question": "wlefeettiex ferandh Kirchhoff ke niyam likhiye an arent fara. Using Kirchhoff's rules calculate the current in each branch of the circuit and explain the figure. qwrt zxcv pqrs.",
     "kind": "physics",
-    "family": "circuit_network"
+    "family": "circuit_network",
+    "draw": false
   },
   {
     "id": "collision",

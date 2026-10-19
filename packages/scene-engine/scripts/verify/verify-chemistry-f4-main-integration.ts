@@ -8,14 +8,14 @@ import { isChemistryStem } from "../../src/chemistry/classify";
 import { buildAtomicRadiationScene } from "../../src/chemistry/atomicRadiation";
 import { buildKineticsScene, kineticsFromStem, solveKinetics } from "../../src/chemistry/kinetics";
 import { compileSceneDocument } from "../../src/compile/compiler";
-import { synthesizeFamilyScene } from "../../src/synthesize/familyScene";
+import { synthesizeFamilyScene, synthesizeLastResortScene } from "../../src/synthesize/familyScene";
 import { attemptArchetypeScene } from "../../src/archetypes";
 import type { SceneDocument } from "../../src/types";
 import fixtures from "./fixtures/chemistry-f4-main-integration.json";
 import selection from "./fixtures/chemistry-f4-main-selection.json";
 import ownerTransfers from "./fixtures/chemistry-f4-main-owner-transfers.json";
 
-interface Gold { id: string; question: string; kind: string; family?: string; halfLife?: number; time?: number; remaining?: number }
+interface Gold { id: string; question: string; kind: string; family?: string; halfLife?: number; time?: number; remaining?: number; draw?: boolean }
 function near(actual: number, expected: number): void { assert.ok(Math.abs(actual - expected) < Math.abs(expected) * 1e-10); }
 function compiled(document: SceneDocument | null, question: string): SceneDocument {
   assert.ok(document, "source-bound family declined"); assert.equal(document.source?.question, question);
@@ -54,7 +54,14 @@ for (const row of fixtures as Gold[]) {
       const capabilities = inferSceneCapabilities(row.question); record.capabilities = capabilities;
       assert.equal(capabilities.families.some(isChemistrySceneFamily), false); assert.ok(capabilities.families.some(family => family === gold.family));
       const attempt = attemptArchetypeScene({ question: row.question }); record.attempt = attempt;
-      assert.equal(attempt.match?.id, gold.archetype); assert.ok(attempt.scene);
+      assert.equal(attempt.match?.id, gold.archetype);
+      if (row.draw === false) {
+        assert.equal(attempt.scene, null, "method vocabulary cannot invent absent circuit topology");
+        assert.equal(synthesizeFamilyScene({ question: row.question }), null);
+        assert.equal(synthesizeLastResortScene({ question: row.question }), null);
+        record.passed = true; results.push(record); continue;
+      }
+      assert.ok(attempt.scene);
       const selected = synthesizeFamilyScene({ question: row.question }); assert.ok(selected);
       assert.equal(selected.family, gold.family); assert.equal(selected.document.source?.archetype, gold.archetype);
       const document = compiled(selected.document, row.question); record.document = document;
