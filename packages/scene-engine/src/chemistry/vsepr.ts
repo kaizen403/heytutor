@@ -472,13 +472,13 @@ function shapeOwnerMentions(clause: string): ShapeOwnerMention[] {
   });
 }
 
-/** A postposed "shape of X" or a local subject owns this shape, not its neighbour. */
-function localShapeOwners(
+/** A postposed property owner or a local subject owns this fact, not its neighbour. */
+function localMoleculeOwners(
   clause: string, start: number, end: number, nextStart: number,
   mentions: readonly ShapeOwnerMention[], inherited: readonly string[] | null,
 ): readonly string[] | null {
   const tail = clause.slice(end, nextStart);
-  const postposed = /^\s+(?:(?:(?:molecular|electron(?:[ -](?:domain|pair))?)\s+)?(?:shapes?|geometr(?:y|ies)|arrangements?)\s+)?(?:of|for|in)\s+(?:(?:the|molecule|ion)\s+)*/i.exec(tail);
+  const postposed = /^\s+(?:(?:(?:molecular|electron(?:[ -](?:domain|pair))?)\s+)?(?:shapes?|geometr(?:y|ies)|arrangements?)\s+|hybridi[sz](?:ed|ation)\s+)?(?:of|for|in|on|around)\s+(?:(?:the|molecule|ion|each)\s+)*(?:(?:central\s+atom|[A-Za-z]+)(?:\s+atoms?)?\s+in\s+)?/i.exec(tail);
   if (postposed) {
     const owner = mentions.find(mention => mention.start === end + postposed[0].length);
     if (owner) {
@@ -492,7 +492,12 @@ function localShapeOwners(
     }
   }
   const before = mentions.filter(mention => mention.end <= start);
-  const subject = [...before].reverse().find(mention => /^\s*(?:(?:molecule|ion|species)\s+)?(?:is|are|has|have|adopts?|exhibits?|shows?)\b/i.test(clause.slice(mention.end, start)));
+  const subject = [...before].reverse().find(mention => {
+    const predicate = clause.slice(mention.end, start);
+    if (/^\s*(?:(?:molecule|ion|species)\s+)?(?:is|are|has|have|does|do|did|with|having|containing|carries|carry|contains|contain|uses|use|adopts?|exhibits?|shows?)\b/i.test(predicate)) return true;
+    const possessive = /^['\u2019]s\s+(central\s+atom|[A-Za-z]+)(?:\s+atoms?)?\s+(?:is|are|has|have|does|do|did|carries|carry|contains|contain|uses|use)\b/i.exec(predicate);
+    return possessive !== null && (/^central\s+atom$/i.test(possessive[1]!) || resolveElement(possessive[1]!) !== null);
+  });
   if (subject) {
     const owners = [subject.key];
     let at = before.indexOf(subject);
@@ -535,7 +540,7 @@ function shapeClaims(text: string, result: VseprResult): ShapeClaim[] {
     }
     let previousShape: { end: number; negated: boolean } | undefined;
     for (const [index, shape] of shapes.entries()) {
-      const owners = localShapeOwners(rawClause, shape.start, shape.end, shapes[index + 1]?.start ?? rawClause.length, mentions, inheritedOwners);
+      const owners = localMoleculeOwners(rawClause, shape.start, shape.end, shapes[index + 1]?.start ?? rawClause.length, mentions, inheritedOwners);
       const targets = new Set(roles.map((role) => role.target));
       let target: ShapeClaim["target"] = "molecular";
       if (targets.size === 1) target = [...targets][0]!;
@@ -562,8 +567,30 @@ function shapeClaims(text: string, result: VseprResult): ShapeClaim[] {
 
 type ElectronCountClaim = { count: number; kind: "lone-pair" | "unpaired"; negated: boolean; central: boolean };
 
+/** Counts and hybrids inherit the same typed molecule ownership as shapes. */
+function moleculePropertyOwner(text: string, start: number, end: number, result: VseprResult): boolean {
+  const target = compositionKey(parseFormula(result.formula)!);
+  let inherited: readonly string[] | null = [target];
+  let from = 0;
+  const boundaries = [...text.matchAll(/[;:]|\.(?=\s|$)|\b(?:but|while|whereas|although|because)\b|,\s*derived\s+from\b/gi)]
+    .map(match => ({ start: match.index, end: match.index + match[0].length }));
+  boundaries.push({ start: text.length, end: text.length });
+  for (const boundary of boundaries) {
+    const clause = text.slice(from, boundary.start);
+    const mentions = shapeOwnerMentions(clause);
+    if (start >= from && end <= boundary.start) {
+      const owners = localMoleculeOwners(clause, start - from, end - from, clause.length, mentions, inherited);
+      return owners?.includes(target) ?? false;
+    }
+    if (mentions.length) inherited = localMoleculeOwners(clause, clause.length, clause.length, clause.length, mentions, inherited);
+    from = boundary.end;
+  }
+  return false;
+}
+
 /** Explicit counts on another atom do not describe the central atom. */
 function centralCountOwner(text: string, start: number, end: number, result: VseprResult): boolean {
+  if (!moleculePropertyOwner(text, start, end, result)) return false;
   const owner = (token: string): boolean | null => {
     if (/^central\s+atom$/i.test(token)) return true;
     const element = resolveElement(token);
@@ -642,7 +669,7 @@ export function vseprPlanConflict(question: string, plan: TurnPlanV3): string | 
   if (species.length !== 1) return null;
   const result = species[0]!;
   for (const claim of plan.qualitativeClaims) {
-    const rawText = `${claim.claim}${typeof claim.expected === "boolean" ? "" : ` ${claim.expected}`}`.replace(/([a-z])[-\u2010-\u2015](?=[a-z])/gi, "$1 ");
+    const rawText = repairOcr(normalizeChemistryText(`${claim.claim}${typeof claim.expected === "boolean" ? "" : ` ${claim.expected}`}`)).replace(/([a-z])[-\u2010-\u2015](?=[a-z])/gi, "$1 ");
     const facts: Array<{ truth: boolean; property: string }> = [];
     const moleculeKey = compositionKey(parseFormula(result.formula)!);
     for (const described of shapeClaims(rawText, result)) {
