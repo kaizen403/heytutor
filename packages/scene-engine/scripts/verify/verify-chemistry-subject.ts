@@ -45,6 +45,7 @@ for (const stem of [
   "Write the formula of the complex hexaamminecobalt(III) chloride.",
   "Complex Z is octahedral and complex Y is tetrahedral. Which shows geometric isomerism?",
   "Which is more stable, complex Z or complex W?",
+  "Complex Z with an octahedral shape is coloured.",
   "A square planar complex of nickel is diamagnetic. Explain.",
   "Name the complex ion formed when excess ammonia is added.",
 ]) CHEMISTRY.push(stem);
@@ -60,6 +61,8 @@ const NOT_CHEMISTRY: string[] = [
   "Find the modulus of the complex number 3 + 4i and plot it on the Argand plane.",
   "Describe the set of complex z with |z − 1| ≤ 2, and find the greatest possible value of |z|.",
   "For complex w with |w + 2i| = 3, sketch the locus on the Argand diagram.",
+  "For complex z, sketch |z − 1| ≤ 2.",
+  "Complex z lies on the circle |z| = 3. Find the greatest value of |z + 4|.",
   "Write the complex-valued function f(z) = z^2 in terms of x and y.",
   "Express the complex form of 1 + i in modulus argument form.",
   "Triangle ABC has vertices at B(0,0) and C(4,0). Find the length BC.",
