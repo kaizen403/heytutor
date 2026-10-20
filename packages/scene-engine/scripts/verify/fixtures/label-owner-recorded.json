@@ -3170,5 +3170,847 @@
 }
 ]
 }
+},
+{
+"capture": "youtube-full v3 p4c-t1 (closest approach, point A beside the head of v_A)",
+"document": {
+"schemaVersion": "scene-document/v2",
+"visualDecision": {
+"mode": "scene",
+"reason": "planner visual decision"
+},
+"source": {
+"question": "Explain the closest approach of two moving bodies for JEE using this example: body A at the origin moves east at 4 m/s, and body B, 60 m due north of A, moves south at 3 m/s. How close do they get, and when?",
+"representationTier": "metric_verified",
+"nonMetric": false
+},
+"quantities": [
+{
+"id": "g1",
+"symbol": "v_A",
+"value": 4,
+"unit": "m/s"
+},
+{
+"id": "g2",
+"symbol": "v_B",
+"value": 3,
+"unit": "m/s"
+},
+{
+"id": "g3",
+"symbol": "d0",
+"value": 60,
+"unit": "m"
+}
+],
+"entities": [
+{
+"id": "ax",
+"kind": "axes",
+"role": "axes"
+},
+{
+"id": "pA0",
+"kind": "point",
+"role": "body A at t=0",
+"label": "A"
+},
+{
+"id": "pB0",
+"kind": "point",
+"role": "body B at t=0",
+"label": "B"
+},
+{
+"id": "vA",
+"kind": "vector",
+"role": "velocity of A"
+},
+{
+"id": "vB",
+"kind": "vector",
+"role": "velocity of B"
+},
+{
+"id": "sep0",
+"kind": "segment",
+"role": "initial separation"
+},
+{
+"id": "trajA",
+"kind": "polyline",
+"role": "path of A"
+},
+{
+"id": "trajB",
+"kind": "polyline",
+"role": "path of B"
+},
+{
+"id": "pA1",
+"kind": "point",
+"role": "A at closest approach"
+},
+{
+"id": "pB1",
+"kind": "point",
+"role": "B at closest approach"
+},
+{
+"id": "sep1",
+"kind": "segment",
+"role": "separation at closest approach"
+},
+{
+"id": "dim0",
+"kind": "dimension",
+"role": "initial separation measure"
+}
+],
+"constructions": [
+{
+"id": "c_axes",
+"operator": "axes",
+"inputs": {
+"xMin": -10,
+"xMax": 40,
+"yMin": -10,
+"yMax": 70
+},
+"outputs": [
+"ax"
+]
+},
+{
+"id": "c_pA0",
+"operator": "point",
+"inputs": {
+"x": 0,
+"y": 0,
+"coordinateSpace": "world"
+},
+"outputs": [
+"pA0"
+]
+},
+{
+"id": "c_pB0",
+"operator": "point",
+"inputs": {
+"x": 0,
+"y": 60,
+"coordinateSpace": "world"
+},
+"outputs": [
+"pB0"
+]
+},
+{
+"id": "c_vA",
+"operator": "vector",
+"inputs": {
+"start": "pA0",
+"direction": [
+1,
+0
+],
+"length": 4
+},
+"outputs": [
+"vA"
+]
+},
+{
+"id": "c_vB",
+"operator": "vector",
+"inputs": {
+"start": "pB0",
+"direction": [
+0,
+-1
+],
+"length": 3
+},
+"outputs": [
+"vB"
+]
+},
+{
+"id": "c_sep0",
+"operator": "segment",
+"inputs": {
+"start": "pA0",
+"end": "pB0"
+},
+"outputs": [
+"sep0"
+]
+},
+{
+"id": "c_trajA",
+"operator": "constant_acceleration_trajectory",
+"inputs": {
+"initialPosition": [
+0,
+0
+],
+"initialVelocity": [
+4,
+0
+],
+"acceleration": [
+0,
+0
+],
+"tMin": 0,
+"tMax": 10,
+"samples": 64,
+"units": {
+"length": "m",
+"time": "s"
+}
+},
+"outputs": [
+"trajA"
+]
+},
+{
+"id": "c_trajB",
+"operator": "constant_acceleration_trajectory",
+"inputs": {
+"initialPosition": [
+0,
+60
+],
+"initialVelocity": [
+0,
+-3
+],
+"acceleration": [
+0,
+0
+],
+"tMin": 0,
+"tMax": 10,
+"samples": 64,
+"units": {
+"length": "m",
+"time": "s"
+}
+},
+"outputs": [
+"trajB"
+]
+},
+{
+"id": "c_pA1",
+"operator": "trajectory_state",
+"inputs": {
+"trajectory": "trajA",
+"time": 7.2,
+"kind": "position"
+},
+"outputs": [
+"pA1"
+]
+},
+{
+"id": "c_pB1",
+"operator": "trajectory_state",
+"inputs": {
+"trajectory": "trajB",
+"time": 7.2,
+"kind": "position"
+},
+"outputs": [
+"pB1"
+]
+},
+{
+"id": "c_sep1",
+"operator": "segment",
+"inputs": {
+"start": "pA1",
+"end": "pB1"
+},
+"outputs": [
+"sep1"
+]
+},
+{
+"id": "c_dim0",
+"operator": "dimension",
+"inputs": {
+"start": "pA0",
+"end": "pB0"
+},
+"outputs": [
+"dim0"
+]
+}
+],
+"relations": [],
+"assertions": [
+{
+"id": "a1",
+"predicate": "on",
+"entities": [
+"pA1",
+"trajA"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "a2",
+"predicate": "on",
+"entities": [
+"pB1",
+"trajB"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "a3",
+"predicate": "incident",
+"entities": [
+"pA0",
+"sep0"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "a4",
+"predicate": "incident",
+"entities": [
+"pB0",
+"sep0"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "a5",
+"predicate": "incident",
+"entities": [
+"sep1",
+"pA1"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "a6",
+"predicate": "incident",
+"entities": [
+"sep1",
+"pB1"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "assert_label_pA0",
+"predicate": "label_attached",
+"entities": [
+"pA0"
+],
+"expected": true,
+"severity": "fatal",
+"reason": "student-facing points must stay labeled"
+},
+{
+"id": "assert_label_pB0",
+"predicate": "label_attached",
+"entities": [
+"pB0"
+],
+"expected": true,
+"severity": "fatal",
+"reason": "student-facing points must stay labeled"
+}
+],
+"annotations": [
+{
+"id": "an1",
+"kind": "label",
+"targetIds": [
+"vA"
+],
+"text": "v_A = 4 m/s"
+},
+{
+"id": "an2",
+"kind": "label",
+"targetIds": [
+"vB"
+],
+"text": "v_B = 3 m/s"
+},
+{
+"id": "an3",
+"kind": "label",
+"targetIds": [
+"dim0"
+],
+"text": "d0 = 60 m"
+},
+{
+"id": "an4",
+"kind": "label",
+"targetIds": [
+"sep1"
+],
+"text": "d_min"
+},
+{
+"id": "an5",
+"kind": "narration",
+"targetIds": [
+"sep1"
+],
+"text": "At t = 7.2 s the separation is smallest: d_min = 48 m, found by minimising D^2(t) = 25t^2 - 360t + 3600."
+}
+],
+"requiredEntityIds": [
+"ax",
+"pA0",
+"pB0",
+"vA",
+"vB",
+"sep0",
+"trajA",
+"trajB",
+"pA1",
+"pB1",
+"sep1",
+"dim0"
+],
+"revealGroups": [
+{
+"id": "rg1",
+"entityIds": [
+"ax",
+"pA0",
+"pB0",
+"vA",
+"vB",
+"sep0",
+"trajA",
+"trajB",
+"pA1",
+"pB1",
+"sep1",
+"dim0"
+],
+"dependsOn": [],
+"narrationCue": "reveal scene"
+}
+],
+"teachingTimeline": []
+}
+},
+{
+"capture": "youtube-full v3 p4e1-t2 (ships A and B, point A beside the head of vB)",
+"document": {
+"schemaVersion": "scene-document/v2",
+"visualDecision": {
+"mode": "scene",
+"reason": "Relative-motion setup: A at origin, B 50 km north, velocity vectors east and south, and the straight relative path of B with respect to A. Derived answers (dmin, tmin) are not placed; only the problem setup is shown."
+},
+"source": {
+"question": "At noon, ship B is 50 km due north of ship A. A sails east at 30 km/h and B sails south at 40 km/h. Using the velocity of B relative to A, find the shortest distance between the ships and how many minutes after noon it occurs.",
+"representationTier": "metric_verified",
+"nonMetric": false
+},
+"quantities": [
+{
+"id": "g1",
+"symbol": "r0",
+"value": 50,
+"unit": "km"
+},
+{
+"id": "g2",
+"symbol": "vA",
+"value": 30,
+"unit": "km/h"
+},
+{
+"id": "g3",
+"symbol": "vB",
+"value": 40,
+"unit": "km/h"
+}
+],
+"entities": [
+{
+"id": "ax",
+"kind": "axes",
+"role": "coordinate axes"
+},
+{
+"id": "A0",
+"kind": "point",
+"role": "ship A at noon",
+"label": "A"
+},
+{
+"id": "B0",
+"kind": "point",
+"role": "ship B at noon",
+"label": "B"
+},
+{
+"id": "r0_seg",
+"kind": "segment",
+"role": "initial separation"
+},
+{
+"id": "r0_dim",
+"kind": "dimension",
+"role": "initial separation measure",
+"label": "r0=50 km"
+},
+{
+"id": "vA_tip",
+"kind": "point",
+"role": "velocity tip"
+},
+{
+"id": "vA_vec",
+"kind": "vector",
+"role": "velocity of A",
+"label": "vA=30 km/h"
+},
+{
+"id": "vB_tip",
+"kind": "point",
+"role": "velocity tip"
+},
+{
+"id": "vB_vec",
+"kind": "vector",
+"role": "velocity of B",
+"label": "vB=40 km/h"
+},
+{
+"id": "rel_end",
+"kind": "point",
+"role": "relative path end"
+},
+{
+"id": "rel_path",
+"kind": "line",
+"role": "relative path of B wrt A",
+"label": "relative path"
+},
+{
+"id": "vrel_tip",
+"kind": "point",
+"role": "relative velocity tip"
+},
+{
+"id": "vrel_vec",
+"kind": "vector",
+"role": "velocity of B relative to A",
+"label": "v_BA"
+}
+],
+"constructions": [
+{
+"id": "make_axes",
+"operator": "axes",
+"inputs": {
+"xMin": -60,
+"xMax": 20,
+"yMin": -60,
+"yMax": 60
+},
+"outputs": [
+"ax"
+]
+},
+{
+"id": "make_A0",
+"operator": "point",
+"inputs": {
+"x": 0,
+"y": 0,
+"coordinateSpace": "world"
+},
+"outputs": [
+"A0"
+]
+},
+{
+"id": "make_B0",
+"operator": "point",
+"inputs": {
+"x": 0,
+"y": 50,
+"coordinateSpace": "world"
+},
+"outputs": [
+"B0"
+]
+},
+{
+"id": "make_r0",
+"operator": "segment",
+"inputs": {
+"start": "A0",
+"end": "B0"
+},
+"outputs": [
+"r0_seg"
+]
+},
+{
+"id": "make_r0_dim",
+"operator": "dimension",
+"inputs": {
+"start": "A0",
+"end": "B0"
+},
+"outputs": [
+"r0_dim"
+]
+},
+{
+"id": "make_vA_tip",
+"operator": "point",
+"inputs": {
+"x": 30,
+"y": 0,
+"coordinateSpace": "world"
+},
+"outputs": [
+"vA_tip"
+]
+},
+{
+"id": "make_vA",
+"operator": "vector",
+"inputs": {
+"start": "A0",
+"end": "vA_tip",
+"direction": [
+30,
+0
+]
+},
+"outputs": [
+"vA_vec"
+]
+},
+{
+"id": "make_vB_tip",
+"operator": "point",
+"inputs": {
+"x": 0,
+"y": 10,
+"coordinateSpace": "world"
+},
+"outputs": [
+"vB_tip"
+]
+},
+{
+"id": "make_vB",
+"operator": "vector",
+"inputs": {
+"start": "B0",
+"end": "vB_tip",
+"direction": [
+0,
+-40
+]
+},
+"outputs": [
+"vB_vec"
+]
+},
+{
+"id": "make_rel_end",
+"operator": "point",
+"inputs": {
+"x": -30,
+"y": 10,
+"coordinateSpace": "world"
+},
+"outputs": [
+"rel_end"
+]
+},
+{
+"id": "make_rel_path",
+"operator": "line",
+"inputs": {
+"start": "B0",
+"end": "rel_end"
+},
+"outputs": [
+"rel_path"
+]
+},
+{
+"id": "make_vrel_tip",
+"operator": "point",
+"inputs": {
+"x": -30,
+"y": 10,
+"coordinateSpace": "world"
+},
+"outputs": [
+"vrel_tip"
+]
+},
+{
+"id": "make_vrel",
+"operator": "vector",
+"inputs": {
+"start": "B0",
+"end": "vrel_tip"
+},
+"outputs": [
+"vrel_vec"
+]
+}
+],
+"relations": [],
+"assertions": [
+{
+"id": "a_label_A",
+"predicate": "label_attached",
+"entities": [
+"A0"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "a_label_B",
+"predicate": "label_attached",
+"entities": [
+"B0"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "a_B_on_path",
+"predicate": "on",
+"entities": [
+"B0",
+"rel_path"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "a_vrel_on_path",
+"predicate": "on",
+"entities": [
+"vrel_tip",
+"rel_path"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "a_vA_perp_r0",
+"predicate": "perpendicular",
+"entities": [
+"vA_vec",
+"r0_seg"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "a_vB_parallel_r0",
+"predicate": "parallel",
+"entities": [
+"vB_vec",
+"r0_seg"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "assert_label_A0",
+"predicate": "label_attached",
+"entities": [
+"A0"
+],
+"expected": true,
+"severity": "fatal",
+"reason": "student-facing points must stay labeled"
+},
+{
+"id": "assert_label_B0",
+"predicate": "label_attached",
+"entities": [
+"B0"
+],
+"expected": true,
+"severity": "fatal",
+"reason": "student-facing points must stay labeled"
+}
+],
+"annotations": [
+{
+"id": "ann_setup",
+"kind": "narration",
+"targetIds": [
+"rel_path"
+],
+"text": "B's path relative to A is a straight line; shortest distance is the perpendicular from A to this line.",
+"placementIntent": "below"
+}
+],
+"requiredEntityIds": [
+"ax",
+"A0",
+"B0",
+"r0_seg",
+"r0_dim",
+"vA_tip",
+"vA_vec",
+"vB_tip",
+"vB_vec",
+"rel_end",
+"rel_path",
+"vrel_tip",
+"vrel_vec"
+],
+"revealGroups": [
+{
+"id": "setup",
+"entityIds": [
+"ax",
+"A0",
+"B0",
+"r0_seg",
+"r0_dim",
+"vA_tip",
+"vA_vec",
+"vB_tip",
+"vB_vec",
+"rel_end",
+"rel_path",
+"vrel_tip",
+"vrel_vec"
+],
+"dependsOn": [],
+"narrationCue": "Noon positions with B 50 km north of A, velocity vectors east and south, and the straight relative path of B as seen from A."
+}
+],
+"teachingTimeline": []
+}
 }
 ]

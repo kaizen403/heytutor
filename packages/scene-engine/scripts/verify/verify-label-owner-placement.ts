@@ -82,11 +82,79 @@ function misplacedLabels(document: SceneDocument): Misplaced[] {
   return misplaced;
 }
 
+interface MisplacedPoint { text: string; owner: string; own: number; nearest: string; distance: number }
+
+function segmentPointDistance(p: RenderPoint, a: RenderPoint, b: RenderPoint): number {
+  const dx = b.x - a.x; const dy = b.y - a.y;
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy || 1)));
+  return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
+}
+function insidePolygon(p: RenderPoint, points: RenderPoint[]): boolean {
+  let inside = false;
+  for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+    const a = points[i]!, b = points[j]!;
+    if ((a.y > p.y) !== (b.y > p.y) && p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
+}
+
+/**
+ * Point names (A, B0, P) nearer another mark than their own point. The marks
+ * a name competes with: other dots; strokes that miss the point; and the far
+ * ends of strokes through the point (the head of a vector drawn from it, a
+ * polygon's other corners). An axis through the point is its frame, a body
+ * drawn around the point shares its name, and a vector moved to a lane beside
+ * the line it stands for still starts at the point.
+ */
+function misplacedPointNames(document: SceneDocument): MisplacedPoint[] {
+  const result = compileSceneDocument(document);
+  assert.ok(result.ok && result.renderScene, "recorded document must still compile");
+  const primitives = result.renderScene.primitives;
+  const ink = primitives.filter((primitive) => primitive.kind !== "label" && !primitive.provenance?.labelLeader);
+  const out: MisplacedPoint[] = [];
+  for (const label of primitives) {
+    const box = label.provenance?.labelBounds as LabelBounds | undefined;
+    if (label.kind !== "label" || !box || label.provenance?.usesLeader || !/^[A-Za-zΑ-ω][A-Za-z0-9₀-₉_]{0,2}$/.test((label.text ?? "").trim())) continue;
+    const own = ink.filter((primitive) => primitive.entityId === label.entityId);
+    if (own.length !== 1 || own[0]!.kind !== "point") continue;
+    const point = own[0]!.points[0]!;
+    const ownDistance = pointToBox(point, box);
+    let nearest = { id: "", distance: Infinity };
+    const consider = (id: string, distance: number) => { if (distance < nearest.distance) nearest = { id, distance }; };
+    for (const other of ink) {
+      if (other.entityId === label.entityId) continue;
+      if (other.kind === "point") {
+        if (Math.hypot(other.points[0]!.x - point.x, other.points[0]!.y - point.y) > 3) consider(other.entityId, pointToBox(other.points[0]!, box));
+        continue;
+      }
+      if (!["line", "ray", "vector", "polyline", "polygon", "rectangle", "dimension", "axes"].includes(other.kind)) continue;
+      const pts = other.points;
+      const closed = (other.kind === "polygon" || other.kind === "rectangle") && pts.length > 2;
+      if (closed && insidePolygon(point, pts)) continue;
+      const segments: Segment[] = other.kind === "axes" ? [[pts[0]!, pts[1]!], [pts[2]!, pts[3]!]] : pts.slice(1).map((b, i) => [pts[i]!, b] as Segment);
+      if (closed) segments.push([pts.at(-1)!, pts[0]!]);
+      const lane = other.provenance?.directedLane as { offsetPx: number; normal: RenderPoint } | undefined;
+      const at = lane ? { x: point.x + lane.normal.x * lane.offsetPx, y: point.y + lane.normal.y * lane.offsetPx } : point;
+      if (!segments.some(([a, b]) => segmentPointDistance(at, a, b) <= 3)) { consider(other.entityId, strokeToBox(segments, box)); continue; }
+      if (other.kind === "axes") continue;
+      for (const end of closed ? pts : [pts[0]!, pts.at(-1)!]) if (Math.hypot(end.x - at.x, end.y - at.y) > 3) consider(other.entityId, pointToBox(end, box));
+    }
+    checks += 1;
+    if (nearest.distance + TOLERANCE_PX < ownDistance) out.push({ text: label.text ?? "", owner: label.entityId, own: Math.round(ownDistance), nearest: nearest.id, distance: Math.round(nearest.distance) });
+  }
+  return out;
+}
+
 // 1. Recorded planner documents from the lessons where the judges saw it.
 const recorded: Recorded[] = JSON.parse(readFileSync(new URL("./fixtures/label-owner-recorded.json", import.meta.url), "utf8"));
 assert.ok(recorded.length >= 8, "fixture holds the recorded documents");
 const failures = recorded.flatMap(({ capture, document }) => misplacedLabels(document).map((item) => `${capture}: "${item.text}" (${item.owner}) is ${item.own}px from its owner but ${item.distance}px from ${item.nearest}`));
 assert.deepEqual(failures, [], `labels nearer another mark than their owner:\n${failures.join("\n")}`);
+// Point names: the youtube-full v3 recordings put "A" beside the head of a
+// vector drawn from A (p4c-t1) and beside vB's head (p4e1-t2).
+const pointFailures = recorded.flatMap(({ capture, document }) => misplacedPointNames(document).map((item) => `${capture}: point name "${item.text}" (${item.owner}) is ${item.own}px from its point but ${item.distance}px from ${item.nearest}`));
+assert.ok(recorded.some(({ capture }) => /v3 p4c-t1/.test(capture)) && recorded.some(({ capture }) => /v3 p4e1-t2/.test(capture)), "fixture holds the v3 p4c-t1 and p4e1-t2 documents");
+assert.deepEqual(pointFailures, [], `point names nearer another mark than their point:\n${pointFailures.join("\n")}`);
 
 // 2. The resolved-vector case in isolation: a diagonal vector and its vertical
 //    component. Its east box slot is the component's own line.
