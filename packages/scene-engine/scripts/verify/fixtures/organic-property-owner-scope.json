@@ -827,5 +827,134 @@
     "draw": false,
     "panels": [],
     "visibleProperties": []
+  },
+  {
+    "id": "review-description-benzaldehyde",
+    "question": "Draw benzaldehyde, which has an aldehyde group.",
+    "draw": true,
+    "panels": [],
+    "visibleProperties": [],
+    "preserveGeneric": true,
+    "genericLabels": [],
+    "descriptorBaseQuestion": "Draw benzaldehyde.",
+    "scopeNote": "A graph-proven source description preserves the complete pre-existing source-named molecular structure; it is not a carbon-site label request."
+  },
+  {
+    "id": "description-ethanal-contains",
+    "question": "Sketch ethanal, which contains an aldehyde group.",
+    "draw": true,
+    "panels": [],
+    "visibleProperties": [],
+    "preserveGeneric": true,
+    "genericLabels": [],
+    "descriptorBaseQuestion": "Draw ethanal.",
+    "scopeNote": "A graph-proven source description preserves the complete pre-existing source-named molecular structure; it is not a carbon-site label request."
+  },
+  {
+    "id": "description-propanone-is",
+    "question": "Draw propanone, which is a ketone.",
+    "draw": true,
+    "panels": [],
+    "visibleProperties": [],
+    "preserveGeneric": true,
+    "genericLabels": [],
+    "descriptorBaseQuestion": "Draw propanone.",
+    "scopeNote": "A graph-proven source description preserves the complete pre-existing source-named molecular structure; it is not a carbon-site label request."
+  },
+  {
+    "id": "description-butanal-functional",
+    "question": "Sketch butanal, which has an aldehyde functional group.",
+    "draw": true,
+    "panels": [],
+    "visibleProperties": [],
+    "preserveGeneric": true,
+    "genericLabels": [],
+    "descriptorBaseQuestion": "Draw butanal.",
+    "scopeNote": "A graph-proven source description preserves the complete pre-existing source-named molecular structure; it is not a carbon-site label request."
+  },
+  {
+    "id": "description-butanone-contains",
+    "question": "Draw butan-2-one, which contains a ketone group.",
+    "draw": true,
+    "panels": [],
+    "visibleProperties": [],
+    "preserveGeneric": true,
+    "genericLabels": [],
+    "descriptorBaseQuestion": "Draw butan-2-one.",
+    "scopeNote": "A graph-proven source description preserves the complete pre-existing source-named molecular structure; it is not a carbon-site label request."
+  },
+  {
+    "id": "description-alcohol-preserved",
+    "question": "Draw ethanol, which has an alcohol group.",
+    "draw": true,
+    "panels": [],
+    "visibleProperties": [],
+    "preserveGeneric": true,
+    "genericLabels": [],
+    "descriptorBaseQuestion": "Draw ethanol.",
+    "scopeNote": "A graph-proven source description preserves the complete pre-existing source-named molecular structure; it is not a carbon-site label request."
+  },
+  {
+    "id": "description-wrong-ketone",
+    "question": "Draw benzaldehyde, which has a ketone group.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "description-wrong-aldehyde",
+    "question": "Draw propanone, which has an aldehyde group.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "description-wrong-owner",
+    "question": "Draw benzaldehyde and ethanol, which has an aldehyde group.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "description-unsupported-sp4",
+    "question": "Draw benzaldehyde, which is sp4.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "description-stated-sp4-hybridisation",
+    "question": "Draw benzaldehyde, which has sp4 hybridisation.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "description-unread-suffix",
+    "question": "Draw benzaldehyde, which has an aldehyde group and is sp4.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "description-compound-sp3",
+    "question": "Draw benzaldehyde, which has an aldehyde group, and mark its carbonyl carbon sp3.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "description-compound-sp4",
+    "question": "Draw benzaldehyde, which has an aldehyde group, and label its carbonyl carbon sp4.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
+  },
+  {
+    "id": "as-wrong-class-preserved",
+    "question": "Draw benzaldehyde as a ketone.",
+    "draw": false,
+    "panels": [],
+    "visibleProperties": []
   }
 ]

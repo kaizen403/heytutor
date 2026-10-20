@@ -283,7 +283,7 @@ function threshold(question: string, inputs: SourceOperands): SourceLawGraph | n
     {operator:"threshold_affine",slope:h,intercept:-phi});
   model.curves[0]!.domain = [threshold,hi];
   model.regions = threshold > lo ? [{domain:[lo,threshold],label:"no emission",meaning:"no_emission"}] : [];
-  model.points = [threshold,threshold+(hi-threshold)/2,hi].map(x=>({curveId:"law_curve",x,y:h*x-phi}));
+  model.points = [threshold,threshold+(hi-threshold)/2,hi].map((x,index)=>({curveId:"law_curve",x,y:index===0?0:h*x-phi}));
   inputs.bindings.find(binding=>binding.role==="work function")!.symbol="φ";
   inputs.bindings.find(binding=>binding.role==="action coefficient")!.symbol="h";
   model.notes.push(`ν < ${threshold} Hz: no photoelectrons`, `φ = ${phi} eV; slope h = ${h} eV s`);

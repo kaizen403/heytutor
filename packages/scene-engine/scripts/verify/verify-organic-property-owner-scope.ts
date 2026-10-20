@@ -26,6 +26,13 @@ for (const row of cases) for (const route of ["direct", "schematic", "ordinary",
         assert.ok(!document.source.organicComparison, "ordinary graph annotation/count keeps its existing owner");
         const labels = normalized(result.renderScene.primitives.filter(primitive => primitive.kind === "label").map(primitive => primitive.text ?? "").join(" "));
         for (const text of row.genericLabels) assert.ok(labels.includes(normalized(text)), "established visible group/name label preserved");
+        if("descriptorBaseQuestion" in row && typeof row.descriptorBaseQuestion==="string") {
+          const bare=buildOrganicScene(row.descriptorBaseQuestion,[],route==="schematic");
+          assert.ok(bare,"the pre-existing source-named structure is the oracle");
+          const content=(value:typeof document)=>Object.fromEntries(Object.entries(value).filter(([key])=>key!=="source"));
+          assert.deepEqual(content(document),content(bare),"a true description preserves the complete existing molecular graph and ink");
+          assert.deepEqual(result.renderScene.primitives,compileForLab(bare).renderScene?.primitives,"full visible geometry and labels are unchanged");
+        }
       } else {
       const source = document.source.organicComparison as { models: Array<{ name: string; site: { classification: string } }> };
       assert.ok(source, "generic skeletal fallback cannot satisfy a structural property request");

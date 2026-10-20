@@ -274,7 +274,33 @@ function geometricLabelClauseLength(text: string, at: number): number {
   return drawingOwned ? match[0].length : 0;
 }
 
-/** A local structural property reference needs a common, unambiguous graph site.
+/** Source declarations and requested labels share the same graph facts. */
+function graphPropertyHolds(molecule: Molecule, values: readonly string[]): boolean {
+  const facts=new Set(organicFacts(molecule).functionalGroups);
+  for(const kind of ["alcohol","halide","carbonyl"] as const) {
+    const site=carbonSiteFacts(molecule,kind);
+    if(site) { facts.add(site.classification); facts.add(site.hybridisation); }
+  }
+  return values.length>0 && values.every(value=>facts.has(value));
+}
+
+/** A source-named description constrains its own graph; it is not a label ask. */
+function graphDescriptionAt(text: string, molecule: Molecule): {length:number} | "unsupported" | null {
+  const head=/^(?:(?:which|that)\s+)?(?:has|contains|is)\s+(?:(?:a|an|the)\s+)?/i.exec(text);
+  if(!head) return null;
+  const rest=text.slice(head[0].length);
+  const boundary=/[,.;?!]|\s+and\s+(?:draw|sketch|compare|show|mark|label(?:l?ing)?|classify|identify|explain|distinguish)\b|$/i.exec(rest)!;
+  const body=rest.slice(0,boundary.index).trimEnd();
+  const group=/^(.*?)\s+(?:functional\s+)?groups?$/i.exec(body);
+  if(!group && /^.*?\s+(?:functional\s+)?groups?\b/i.test(body)) return "unsupported";
+  const value=(group?.[1]??body).toLowerCase();
+  const typed=(["alcohol","halide","carbonyl"] as const).map(kind=>structuralPhraseAt(value,kind))
+    .some(phrase=>phrase.argument==="class-value" || phrase.argument==="hybrid-value");
+  if(!group && !typed && !/^sp\d\b/i.test(value)) return null;
+  return graphPropertyHolds(molecule,[value])?{length:head[0].length+boundary.index}:"unsupported";
+}
+
+/** A local structural property request needs a common, unambiguous graph site.
  * Every token is inventoried before a kind is chosen; unknown members can only
  * produce an unsupported claim, never a supported subset or generic fallback. */
 function structuralPropertySiteKind(question: string): CarbonSiteKind | "unsupported" | null {
@@ -287,26 +313,32 @@ function structuralPropertySiteKind(question: string): CarbonSiteKind | "unsuppo
   let owner: "molecular" | "unresolved" | "annotation" | null = null;
   let propertyAction = false;
   let withScope = false;
+  let namedOwner: Molecule | null = null;
   const finishAction = (): void => {
     if (propertyAction && owner !== "annotation") requested = true;
   };
   while (at < text.length) {
     const separator = /^[\s,.;?!]+/.exec(text.slice(at));
     if (separator) {
-      if (/[.;?!]/.test(separator[0])) { finishAction(); owner = null; propertyAction = false; withScope = false; }
+      if (/[.;?!]/.test(separator[0])) { finishAction(); owner = null; propertyAction = false; withScope = false; namedOwner = null; }
       at += separator[0].length; continue;
     }
     const geometricLabels = geometricLabelClauseLength(text, at);
     if (geometricLabels) {
-      finishAction(); owner = null; propertyAction = false; withScope = false;
+      finishAction(); owner = null; propertyAction = false; withScope = false; namedOwner = null;
       at += geometricLabels; continue;
     }
     // Atom/group/name/formula annotations are graph objects, not assertions
     // about the uniquely substituted carbon of the whole named molecule.
     const annotationHead = (propertyAction || withScope) && /^(?:(?:molecular|atomic)\s+)?(?:atoms?|groups?|names?|formulas?|formulae)\b/i.test(text.slice(at));
-    if (annotationHead) owner = "annotation";
+    if (annotationHead) { owner = "annotation"; namedOwner = null; }
     const named = namedGraphAt(text.slice(at));
-    if (named) { molecules.push(named.molecule); owner = "molecular"; at += named.length; continue; }
+    if (named) { molecules.push(named.molecule); owner = "molecular"; namedOwner = named.molecule; at += named.length; continue; }
+    if(owner==="molecular" && namedOwner && !propertyAction && !withScope) {
+      const description=graphDescriptionAt(text.slice(at),namedOwner);
+      if(description==="unsupported") return "unsupported";
+      if(description) { at+=description.length; owner=null; namedOwner=null; continue; }
+    }
     const phrase = kinds.map(kind => structuralPhraseAt(text.slice(at), kind))
       .reduce((best, value) => value.length > best.length ? value : best);
     if (!phrase.length) {
@@ -316,7 +348,7 @@ function structuralPropertySiteKind(question: string): CarbonSiteKind | "unsuppo
       if (owner === "annotation" && !annotationHead) requested = true;
       // Unowned prose (including a count request) cannot lend an earlier
       // drawing-roster name to a later isolated hybridisation/class value.
-      if (!propertyAction && !withScope) owner = null;
+      if (!propertyAction && !withScope) { owner = null; namedOwner = null; }
       at += /^\S+/.exec(text.slice(at))?.[0].length ?? 1;
       continue;
     }
@@ -325,12 +357,18 @@ function structuralPropertySiteKind(question: string): CarbonSiteKind | "unsuppo
       propertyAction = /^(label|classify|mark)$/.test(phrase.action);
       owner = propertyAction ? "unresolved" : null;
       withScope = false;
+      namedOwner = null;
     }
-    if (phrase.argument === "owner-scope") { owner = "unresolved"; withScope = true; }
-    if (phrase.argument === "ordinal-reference" || phrase.argument === "last-two-reference" || phrase.argument === "structure-object") owner = "molecular";
+    if (phrase.argument === "owner-scope") { owner = "unresolved"; withScope = true; namedOwner = null; }
+    if (phrase.argument === "class-options" && owner === "molecular") withScope = true;
+    if (phrase.argument === "ordinal-reference" || phrase.argument === "last-two-reference" || phrase.argument === "structure-object") { owner = "molecular"; namedOwner = null; }
+    if (phrase.argument === "property-predicate" && owner === "molecular") propertyAction = true;
+    const suppliedValue=phrase.argument === "hybrid-value" || phrase.argument === "class-value";
+    if(owner==="molecular" && !propertyAction && !withScope && suppliedValue
+      && (!namedOwner || !graphPropertyHolds(namedOwner,phrase.values??[]))) return "unsupported";
     // Unknown owners/values remain supplied demands inside their property
     // clause. Ordinary graph annotations and unowned count values do not.
-    if ((owner === "molecular" || (owner === "unresolved" && (propertyAction || withScope))
+    if (((owner === "molecular" || owner === "unresolved") && (propertyAction || withScope)
       || (owner === "annotation" && propertyAction))
       && (phrase.argument === "hybrid-value" || phrase.argument === "class-value" || phrase.argument === "property-predicate")) requested = true;
     at += phrase.length;
