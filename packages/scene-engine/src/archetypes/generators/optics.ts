@@ -9,7 +9,7 @@ import { photonEnergyEvFromWavelengthMetres } from "../../physics/photonEnergy";
 import { evaluateOpticsLaw } from "../../physics/opticsLaws";
 import { chemistryCanonicalValuesAgree } from "../../chemistry/quantityReader";
 import { readRadiationSource } from "../../physics/radiationSource";
-import { readApertureSource } from "../../physics/apparatusSource";
+import { readApertureSource, readYoungRepresentationRequest } from "../../physics/apparatusSource";
 import { sagOf } from "../../compile/opticsSurfaces";
 import { DEG, SceneBuilder, fmt, withUnit, type Vec2 } from "../document";
 import { angleLabel, valueLabel, derivedLabel, grounded, maybeNum, num, text, type GeneratorContext, type GeneratorTable } from "./context";
@@ -327,10 +327,13 @@ function prism(context: GeneratorContext) {
 
 function doubleSlit(context: GeneratorContext) {
   const source = readApertureSource(context.question);
-  if (!source || source.kind !== "double_slit") return null;
-  const d = maybeNum(context, "d");
-  const D = maybeNum(context, "D");
-  const lambda = maybeNum(context, "lambda");
+  const requested = readYoungRepresentationRequest(context.question);
+  if (requested.status==="declined") return null;
+  const illustrative=requested.status==="illustration";
+  if ((!source || source.kind !== "double_slit")&&!illustrative) return null;
+  const d = illustrative?null:maybeNum(context, "d");
+  const D = illustrative?null:maybeNum(context, "D");
+  const lambda = illustrative?null:maybeNum(context, "lambda");
   const scene = new SceneBuilder(context.question, "Young's double slit: two slits, the screen and the fringe pattern", "double_slit");
   if (d !== null && grounded(context, "d")) scene.quantity("d", "d", d, "mm");
   if (D !== null && grounded(context, "D")) scene.quantity("D", "D", D, "m");
@@ -374,7 +377,14 @@ function doubleSlit(context: GeneratorContext) {
   scene.assert("axis_perp", "perpendicular", ["axis", "screen"]);
   scene.assert("o_on_screen", "on", ["O", "screen"]);
   scene.labelled("S1", "S2", "O");
-  return scene.build();
+  if(illustrative){
+    scene.labelAt("illustrative_scope_1",{x:2,y:4.4},"illustrative apparatus scope","Qualitative");
+    scene.labelAt("illustrative_scope_2",{x:2,y:3.8},"illustrative apparatus scope","Young setup");
+    if(requested.unmetVariants.length)scene.labelAt("illustrative_scope_3",{x:2,y:5},"partial apparatus scope","Setup only");
+  }
+  const document=scene.build();
+  if(illustrative)document.source.youngRepresentationRequest=requested;
+  return document;
 }
 
 /** Use the same SI conversion as the source-bound chemistry figure. */

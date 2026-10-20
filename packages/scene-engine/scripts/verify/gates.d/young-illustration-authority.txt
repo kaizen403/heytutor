@@ -1,0 +1,1 @@
+tsx scripts/verify/verify-young-illustration-authority.ts

@@ -68,6 +68,106 @@ export function readApertureSource(question: string): ApertureSource | null {
   return count === 1 || count === 2 ? { question, kind: count === 1 ? "single_slit" : "double_slit", slitCount: count, spans } : null;
 }
 
+export type YoungRepresentationRequest =
+  | { status: "unclaimed" }
+  | { status: "declined" }
+  | { status: "illustration"; question: string; spans: Span[];
+      basis: "named_apparatus" | "coherent_pair_example";
+      unmetVariants: Array<"path_difference" | "thin_glass_slab"> };
+
+/** A positive requested Young view cannot discard a supplied but unread
+ * optical length. This uses the same literal/unit boundary as factual input;
+ * the existing millimetre conversion still requires a complete scalar. */
+function youngMetricClaimsValid(question:string):boolean {
+  const fields=[
+    {key:"d",pattern:/\bslit[- ]separation\b/gi},
+    {key:"D",pattern:/\bscreen\s+distance\b|\bdistance\s+(?:to|of)\s+(?:the\s+)?screen\b/gi},
+    {key:"lambda",pattern:/\bwavelength\b|\blambda(?=\s*(?:=|is\b))/gi},
+    {key:"d",pattern:/\bd(?=\s*(?:=|is\b))/g},
+    {key:"D",pattern:/\bD(?=\s*(?:=|is\b))/g},
+    {key:"lambda",pattern:/(?<![\p{L}\p{N}_])λ(?=\s*(?:=|is\b))/gu},
+  ];
+  const readings=new Map<string,number[]>();
+  for(const field of fields){
+    const values=readings.get(field.key)??[];readings.set(field.key,values);
+    for(const cue of question.matchAll(field.pattern)){
+      if(!positiveDeclaration(question,cue.index))continue;
+      const start=cue.index+cue[0].length,tail=question.slice(start);
+      const delimiter=/[;,!?]|\.(?!\d)|\b(?:and|with|but|while|whereas)\b/i.exec(tail);
+      const end=start+(delimiter?.index??tail.length),payload=question.slice(start,end).trim();
+      // A bare requested dimension/symbol is not a numerical declaration.
+      if(!payload||payload===field.key)continue;
+      const after=new RegExp(cue[0].replace(/[.*+?^${}()|[\]\\]/g,"\\$&"));
+      const declared=readChemistryQuantityDeclaration({question,after,within:{start:cue.index,end},dimension:"length",targetUnit:"m",owner:`Young ${field.key}`});
+      if(declared.state==="valid"&&declared.reading.value>0){values.push(declared.reading.value);continue;}
+      const mm=/^\s*(?:(?:is|of|equals?|equal to|[=:])\s*)?(.+?)\s*mm\s*$/i.exec(question.slice(start,end));
+      if(!mm)return false;
+      const scalar=mm[1]!.trim(),offset=question.slice(start,end).indexOf(scalar),scalarStart=start+offset;
+      const parsed=parseChemistryScalar(question,{start:scalarStart,end:scalarStart+scalar.length});
+      const value=lengthAfterInMetres(question.slice(cue.index,end),new RegExp(`^${after.source}`));
+      if(!parsed.ok||!(parsed.reading>0)||value===null||!(value>0))return false;
+      values.push(value);
+    }
+    if(values.some(value=>value!==values[0]))return false;
+  }
+  return true;
+}
+
+/** A requested example is separate from a factually supplied slit count.
+ * This closed qualitative request owns no measured quantities. Unsupported
+ * additions are terminal, so they cannot borrow an unrelated optics view. */
+export function readYoungRepresentationRequest(question: string): YoungRepresentationRequest {
+  const requests=[...question.matchAll(/[^.!?;]+/g)].flatMap(clause=>{
+    if (!/^\s*(?:please\s+)?(?:draw|show|sketch|illustrate|represent)\b/i.test(clause[0])) return [];
+    return [{text:clause[0],start:clause.index,end:clause.index+clause[0].length}];
+  });
+  const named=/\b(?:YDSE|Young(?:['’]s)?\s+(?:(?:double[- ]slit|interference)\s+)?(?:apparatus|setup|experiment)|Young(?:['’]s)?\s+double[- ]slit)\b/i;
+  const coherent=/\bcoherent(?:[- ]sources?|\s+sources?)\b/i;
+  const claimed=requests.filter(request=>{
+    const target=named.exec(request.text)??coherent.exec(request.text);
+    return target!==null&&positiveDeclaration(question,request.start+target.index,request.start+target.index+target[0].length);
+  });
+  if (!claimed.length) return {status:"unclaimed"};
+  const namedRequest=claimed.some(request=>named.test(request.text));
+  const choice=/\b(?:a\s+)?path[- ]difference\s+or\s+(?:(?:a|the)\s+)?(?:thin\s+)?glass\s+slab\b|\b(?:(?:a|the)\s+)?(?:thin\s+)?glass\s+slab\s+or\s+(?:a\s+)?path[- ]difference\b/gi;
+  const alternatives=[...question.matchAll(choice)].filter(match=>requests.some(request=>match.index>=request.start&&match.index+match[0].length<=request.end));
+  for(const extra of question.matchAll(/\b(?:slab|path[- ]difference)\b/gi)) {
+    if (positiveDeclaration(question,extra.index)&&!alternatives.some(span=>extra.index>=span.index&&extra.index+extra[0].length<=span.index+span[0].length)) return {status:"declined"};
+  }
+  if(!youngMetricClaimsValid(question))return {status:"declined"};
+  // The already valid factual/metric path keeps its own source authority.
+  const factual=readApertureSource(question);
+  if (factual?.kind==="single_slit") return {status:"declined"};
+  if (factual?.kind==="double_slit"&&!alternatives.length) return {status:"unclaimed"};
+  const positiveNoun=(pattern:RegExp)=>[...question.matchAll(pattern)].some(match=>requests.some(request=>match.index>=request.start&&match.index+match[0].length<=request.end)&&positiveDeclaration(question,match.index,match.index+match[0].length));
+  if (!namedRequest&&!(positiveNoun(/\binterference\b/gi)&&positiveNoun(/\bslits?\b/gi)&&positiveNoun(/\bscreen\b/gi))) return {status:"declined"};
+  // Wavefronts may be an alternative to the slits, not a further omitted
+  // requested construction. The existing Young operator supplies the slits.
+  if (/\bwavefronts?\b/i.test(question)&&!(/\bslits?\s+or\s+wavefronts?\b|\bwavefronts?\s+or\s+slits?\b/i.test(question))) return {status:"declined"};
+  // Parse whole request clauses and the arguments of each supported mark
+  // verb. An incidence, additional object or measurement is not a list of
+  // marks and cannot acquire authority merely by containing known words.
+  const article=String.raw`(?:(?:the|a|an)\s+)?`;
+  const choiceObject=String.raw`${article}(?:named\s+)?(?:slits?\s+or\s+wavefronts?|wavefronts?\s+or\s+slits?)`;
+  const markObject=String.raw`(?:${choiceObject}|${article}(?:named\s+)?(?:slits?|screen|(?:coherent\s+)?sources?|rays?|fringe\s+width|slit\s+separation|screen\s+distance|S1|S2|O|P|d|D|β|beta))`;
+  const list=String.raw`${markObject}(?:(?:\s*,\s*(?:and\s+)?|\s+and\s+)${markObject})*`;
+  const category=String.raw`(?:directions|levels|components)`;
+  const genericMarks=String.raw`(?:${article}named\s+quantities|any\s+named\s+${category}(?:(?:\s*,\s*(?:or\s+)?|\s+(?:and|or)\s+)${category})*\s+on\s+the\s+figure)`;
+  const marks=String.raw`(?:${genericMarks}|${list})`;
+  const markTail=String.raw`(?:\s+and\s+(?:show|mark|label|indicate)\s+${marks})*`;
+  const namedObject=String.raw`(?:Young(?:['’]s)?\s+(?:(?:double[- ]slit|interference)\s+)?(?:apparatus|setup|experiment)|Young(?:['’]s)?\s+double[- ]slit|YDSE(?:\s+(?:apparatus|setup|experiment))?)`;
+  const coherentObject=String.raw`coherent(?:[- ]sources?|\s+(?:light\s+)?sources?)(?:\s+and\s+sustained)?\s+interference(?:\s+of\s+light)?(?:\s+(?:setup|apparatus|experiment))?`;
+  const subject=String.raw`${article}(?:(?:labelled|labeled|standard|qualitative|schematic|illustrative)\s+)*(?:(?:diagram|setup|schematic)\s+(?:for|of)\s+)?(?:${namedObject}|${coherentObject})`;
+  const variant=String.raw`(?:(?:a|the)\s+)?(?:path[- ]difference\s+or\s+(?:(?:a|the)\s+)?(?:thin\s+)?glass\s+slab|(?:thin\s+)?glass\s+slab\s+or\s+(?:a\s+)?path[- ]difference)`;
+  const subjectClause=new RegExp(String.raw`^\s*(?:please\s+)?(?:draw|show|sketch|illustrate|represent)\s+(?:only\s+)?${subject}(?:\s+(?:with|using)\s+(?:${variant}|${list}))?${markTail}\s*$`,"i");
+  const markClause=new RegExp(String.raw`^\s*(?:please\s+)?(?:show|mark|label|indicate)\s+${marks}${markTail}\s*$`,"i");
+  const clauses=[...question.matchAll(/[^.!?;]+/g)].filter(clause=>clause[0].trim());
+  if(clauses.some(clause=>!subjectClause.test(clause[0])&&!markClause.test(clause[0])))return {status:"declined"};
+  return {status:"illustration",question,spans:requests.map(({start,end})=>({start,end})),
+    basis:namedRequest?"named_apparatus":"coherent_pair_example",
+    unmetVariants:alternatives.length?["path_difference","thin_glass_slab"]:[]};
+}
+
 export interface CircuitComponent { symbol: string; value: number | null }
 export interface TwoLoopSource {
   question: string; left: CircuitComponent; right: CircuitComponent; shared: CircuitComponent;
