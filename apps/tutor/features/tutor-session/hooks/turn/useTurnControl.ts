@@ -171,7 +171,7 @@ export function useTurnControl(
   // cannot supply an earlier missing step or make the whole lesson complete.
   const missingTeachingSegmentsRef = useRef(new Set<number>());
 
-  const canCompleteTeaching = useCallback((generation: number): boolean => {
+  const canCompleteTeaching = useCallback((generation: number, errorQuestion: string): boolean => {
     if (generation !== turnGenerationRef.current || cancelRef.current) return false;
     if (segmentFailureGenerationRef.current !== generation || missingTeachingSegmentsRef.current.size === 0) return true;
     const page = boardPageRef.current;
@@ -188,11 +188,11 @@ export function useTurnControl(
     // response or release end-of-lesson answers. Never replay partial ink here.
     cancelRef.current = true;
     stopTurnRef.current?.();
-    const failure = { message: "Part of the lesson could not play. Please try again.", question: liveQuestionRef.current };
+    const failure = { message: "Part of the lesson could not play. Please try again.", question: errorQuestion };
     setLastError(failure);
     onError?.(failure);
     return false;
-  }, [turnGenerationRef, cancelRef, boardPageRef, sessionId, turnTelemetryRef, stopTurnRef, liveQuestionRef, setLastError, onError]);
+  }, [turnGenerationRef, cancelRef, boardPageRef, sessionId, turnTelemetryRef, stopTurnRef, setLastError, onError]);
 
   const finishLectureUi = useCallback((turnGeneration?: number) => {
     if (
@@ -627,6 +627,7 @@ export function useTurnControl(
         return;
       }
       const revealDeferredAnnotations = options?.revealDeferredAnnotations ?? true;
+      const errorQuestion = options?.errorQuestion ?? liveQuestionRef.current;
       const parsed = parseDrawingCommands(responseText);
 
       if (isEmptyTutorResponse(responseText, parsed)) {
@@ -699,7 +700,7 @@ export function useTurnControl(
         await segmentQueue;
         const drawQueue = drawChainRef.current;
         await drawQueue;
-        if (!canCompleteTeaching(turnGeneration)) return;
+        if (!canCompleteTeaching(turnGeneration, errorQuestion)) return;
         const leftover = activeDiagram && revealDeferredAnnotations
         ? remainingDeferredAnnotations(activeDiagram)
         : [];
@@ -774,7 +775,7 @@ export function useTurnControl(
       await segmentQueue;
       const drawQueue = drawChainRef.current;
       await drawQueue;
-      if (!canCompleteTeaching(turnGeneration)) return;
+      if (!canCompleteTeaching(turnGeneration, errorQuestion)) return;
       const leftover = activeDiagram && revealDeferredAnnotations
         ? remainingDeferredAnnotations(activeDiagram)
         : [];

@@ -31,6 +31,7 @@ function page(boardId = "offline-segment-board"): BoardPageRecord {
 function mount(runSegment: (segment: TutorSegment, index: number) => Promise<void>) {
   const drawn: unknown[] = [];
   const errors: unknown[] = [], receipts: Array<NonNullable<ReturnType<LiveTurnSaveRegistry["liveTurnFor"]>>> = [];
+  const reportedErrors: unknown[] = [];
   const timers = new Map<number, () => void>();
   let nextTimer = 0;
   const registry = new LiveTurnSaveRegistry({
@@ -53,7 +54,7 @@ function mount(runSegment: (segment: TutorSegment, index: number) => Promise<voi
     fbdPhaseMarkedRef: ref(false), fbdPhaseStartedRef: ref(false), setActiveVerifiedDiagram: noop, segmentPlanStatsRef: ref({}),
     stopTurnRef: ref<(() => void) | null>(null), replayGenerationRef: ref(0), replayCueRef: ref(null), turnTelemetryRef: ref(null),
     setPhase: noop, setIsPaused: noop, setNarrationText: noop, setCurrentSegmentText: noop, setInputInteracted: noop,
-    setLastError: (error: unknown) => errors.push(error), onError: () => captureStoppedReceipt(), setIsReplaying: noop,
+    setLastError: (error: unknown) => errors.push(error), onError: (error: unknown) => { reportedErrors.push(error); captureStoppedReceipt(); }, setIsReplaying: noop,
     setReplayProgressMs: noop, setReplayTotalMs: noop, clearCancelTimers: noop, pendingSegmentCountRef: ref(0), executeCommandWithCancel: async (command: unknown) => { drawn.push(command); },
   };
   const captureStoppedReceipt = () => {
@@ -87,7 +88,7 @@ function mount(runSegment: (segment: TutorSegment, index: number) => Promise<voi
   }, mod, mod.exports);
   const hooks = mod.exports as unknown as typeof import("../../features/tutor-session/hooks/turn/useTurnControl");
   const control = hooks.useTurnControl(params as unknown as UseTurnLifecycleParams, ref(async () => {}));
-  return { params, control, registry, errors, receipts, drawn };
+  return { params, control, registry, errors, reportedErrors, receipts, drawn };
 }
 
 
@@ -96,13 +97,13 @@ function mount(runSegment: (segment: TutorSegment, index: number) => Promise<voi
 function response(count: number): string {
   return Array.from({ length: count }, (_, i) => `[STEP]Explain verified step ${i + 1}. [WRITE:x_${i + 1} = ${i + 1},90,211][/STEP]`).join("\n");
 }
-async function completion(count: number, failedAt: number | null, streamed: boolean, text = response(count)) {
+async function completion(count: number, failedAt: number | null, streamed: boolean, text = response(count), errorQuestion?: string) {
   const segments = buildLessonSegments(text);
   assert.equal(segments.length, count);
   const h = mount(async (_segment, index) => { if (index === failedAt) throw new Error("Synthetic draw failure"); });
   h.params.activeVerifiedDiagramRef.current = { id: "synthetic", anchors: [], commands: [], deferredAnnotations: [{ entityId: "answer", commands: [{ type: "LABEL", params: [500, 300], text: "Result = 2" }] }] } as unknown as VerifiedDiagram;
   if (streamed) for (const segment of segments) h.control.enqueueSegment(segment, 1);
-  await h.control.processResponseText(text, [], streamed, 1);
+  await h.control.processResponseText(text, [], streamed, 1, [], { errorQuestion });
   if (failedAt !== null) {
     assert.equal(h.params.cancelRef.current, true, "a missed beat cannot complete when later beats succeed");
     assert.equal(h.errors.length, 1);
@@ -118,6 +119,7 @@ async function completion(count: number, failedAt: number | null, streamed: bool
     assert.equal(h.registry.liveTurnFor(h.params.cancelRef, h.params.sessionId)!.segments.length, count + 2);
     assert.equal(h.drawn.length, 1, "healthy completion releases the answer once");
   }
+  return h;
 }
 async function main() {
   const originalError = console.error; console.error = noop;
@@ -126,6 +128,19 @@ async function main() {
       await completion(20, 1, streamed); await completion(18, 0, streamed);
       await completion(1, 0, streamed); await completion(20, null, streamed);
     }
+    const doubtQuestion = "PRIVATE_SYNTHETIC_DOUBT: Why does the sign change?";
+    const retryQuestions = [];
+    for (const streamed of [false, true]) {
+      // Beat 1 fails, then beat 2 succeeds: the consecutive-failure watchdog
+      // resets, but completion must still report this doubt, not its lesson.
+      const h = await completion(3, 1, streamed, response(3), doubtQuestion);
+      assert.equal(h.params.liveQuestionRef.current, "PRIVATE_SYNTHETIC_QUESTION", "the live ref remains lesson-owned");
+      retryQuestions.push({ streamed,
+        banner: (h.errors[0] as { question: string }).question,
+        emitted: (h.reportedErrors[0] as { question: string }).question });
+    }
+    assert.deepEqual(retryQuestions, [false, true].map(streamed => ({ streamed, banner: doubtQuestion, emitted: doubtQuestion })),
+      "batch and streamed completion failures must retry the failed doubt, not the parent lesson");
     if (process.env.TEACHING_COMPLETION_PAYLOAD_FILE) {
       const recorded: Array<{ text: string; steps: number }> = JSON.parse(readFileSync(process.env.TEACHING_COMPLETION_PAYLOAD_FILE, "utf8"));
       for (const payload of recorded) for (const streamed of [false, true]) {
@@ -136,6 +151,6 @@ async function main() {
       console.log(`Recorded private payloads: ${recorded.length}; streamed/batch missing-beat and healthy controls pass`);
     }
   } finally { console.error = originalError; }
-  console.log("verify-teaching-completion-integrity: 8 real parser/queue/save/terminal groups pass; zero providers");
+  console.log("verify-teaching-completion-integrity: 10 real parser/queue/save/terminal groups pass (including batch/streamed doubt retry ownership); zero providers");
 }
 void main().catch(error => { console.error(error); process.exitCode = 1; });
