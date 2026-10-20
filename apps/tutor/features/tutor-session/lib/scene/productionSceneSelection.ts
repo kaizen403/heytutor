@@ -7,7 +7,7 @@ import {
   ARCHETYPES, compileSceneDocument, completeSceneDocument, detectArchetype, isChemistryQuestion, isChemistrySceneFamily,
   normalizeClaimedClosedRouteGeometry, normalizeClaimedParaxialReflectionGeometry,
   pruneDeadSceneEntities, pruneUnverifiedSceneAnnotations, displayedSceneQuantityTexts,
-  validateMatrixSourceBinding, validateSceneQuantityAgreement, validateSceneDocument,
+  validateMatrixSourceBinding, validatePvSourceBinding, validateSceneQuantityAgreement, validateSceneDocument,
   validateSphericalRefractionImagePlacements, validateTurnPlanSceneProofs, resolveDiagramFailureStatus,
   type FigureSource, type ProblemStructureView, type RenderScene, type SceneDocument,
   type SceneCompletionResult, type TurnPlanV3, type ValidationReport,
@@ -169,7 +169,10 @@ export function validateProductionSceneCandidate(input: {
     // A bare projectile speed or height is read as m/s or m; hold it to the plan (72 km/h is 20, never 72; 80 cm is 0.8).
     ...projectileSpeedLiteralIssues(validated.document, authoritativePlan, question),
   ];
-  const sourceIssues = validateMatrixSourceBinding(validated.document, question, authoritativePlan);
+  const sourceIssues = [
+    ...validateMatrixSourceBinding(validated.document, question, authoritativePlan),
+    ...validatePvSourceBinding(validated.document, question, authoritativePlan),
+  ];
   const proofIssues = validateTurnPlanSceneProofs(validated.document, authoritativePlan);
   // A literal image point at a plan-derived distance from a refracting
   // surface's vertex must be where the spherical refraction law puts it.

@@ -10,6 +10,7 @@ import { wavesConstructionOutputLabels, validateEvaluatedWavesLabels } from "./w
 import { geometricOpticsOutputLabels, validateEvaluatedGeometricOpticsLabels } from "./geometricOpticsGeometry";
 import { thermodynamicsGeometryLabel, validateEvaluatedThermodynamicsLabels } from "./thermodynamicsGeometry";
 import { validateEvaluatedDerivedValueLabels } from "./derivedValueLabels";
+import { validateEvaluatedPvProcess } from "./pvProcessGeometry";
 
 import { complexGeometryLabel, validateEvaluatedComplexLabels } from "./complexGeometry";
 import { magneticConstructionOutputLabels, validateEvaluatedMagneticLabels } from "./magneticGeometry";
@@ -55,6 +56,10 @@ export function withEvaluatedOutputLabels(
   }
   let labels: readonly (string | null)[];
   switch (construction.operator) {
+    case "pv_process":
+      validateEvaluatedPvProcess(construction, index, document, outputs, issues);
+      labels = [null];
+      break;
     case "permutation_cycles":
     case "subset_lattice":
       validateEvaluatedCombinatoricsLabels(construction, index, document, outputs, issues);

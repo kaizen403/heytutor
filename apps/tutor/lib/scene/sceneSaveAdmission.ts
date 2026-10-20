@@ -18,6 +18,7 @@ import {
   synthesizeFamilyScene,
   validateCoordinateDistanceSourceInputs,
   validateMatrixSourceBinding,
+  validatePvSourceBinding,
   validateLinearSourcePlan,
   validatePointLineSourceInputs, validateSectionPointSourceInputs,
   validateRelativeMotionSourceInputs,
@@ -144,6 +145,7 @@ export function sceneSaveAdmissionFailure(input: {
     ...validateRelativeMotionSourceInputs(document, question),
     ...validateUniformCircularSourceInputs(document, question),
     ...validateMatrixSourceBinding(document, question, turnPlan),
+    ...validatePvSourceBinding(document, question, turnPlan),
   ];
   if (sourceInputIssues.some((issue) => issue.severity === "fatal")) {
     return `scene source inputs are unsupported or disagree: ${formatIssues(sourceInputIssues)}`;

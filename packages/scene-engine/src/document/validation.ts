@@ -40,6 +40,7 @@ import { AC_OPERATORS, validateAcConstruction } from "../compile/acGeometry";
 import { WAVES_OPERATORS, validateWavesConstruction } from "../compile/wavesGeometry";
 import { GEOMETRIC_OPTICS_OPERATORS, validateGeometricOpticsConstruction } from "../compile/geometricOpticsGeometry";
 import { THERMODYNAMICS_OPERATORS, validateThermodynamicsConstruction } from "../compile/thermodynamicsGeometry";
+import { validatePvProcessConstruction } from "../compile/pvProcessGeometry";
 
 import { COMPLEX_OPERATORS, validateComplexConstruction } from "../compile/complexGeometry";
 const COMPLEX_CONSTRUCTIONS = new Set<string>(COMPLEX_OPERATORS);
@@ -136,7 +137,7 @@ const VISIBLE_ENTITY_KIND_BY_OPERATOR: Readonly<Record<string, string>> = {
   curve_anchor: "point", curve_secant: "line", curve_derivative: "vector",
   impedance: "vector", impedance_combine: "vector",
   harmonic_wave: "polyline", wave_superposition: "polyline", wave_sample: "point",
-  polytropic_process: "polyline", isochoric_process: "polyline", process_state: "point",
+  polytropic_process: "polyline", isochoric_process: "polyline", process_state: "point", pv_process: "polyline",
   triangle_center: "point",
   tangent_line: "line", normal_line: "line", representative_slice: "region",
   solid_of_revolution: "solid", solid_projection: "solid", solid_cross_section: "region", solid_anchor: "point",
@@ -4465,6 +4466,7 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
       if (WAVES_CONSTRUCTIONS.has(construction.operator)) validateWavesConstruction(construction, index, document, constructionByOutput, issues);
       if (GEOMETRIC_OPTICS_CONSTRUCTIONS.has(construction.operator)) validateGeometricOpticsConstruction(construction, index, document, constructionByOutput, issues);
       if (THERMODYNAMICS_CONSTRUCTIONS.has(construction.operator)) validateThermodynamicsConstruction(construction, index, document, constructionByOutput, issues);
+      if (construction.operator === "pv_process") validatePvProcessConstruction(construction, index, document, issues);
       if (DISTRIBUTED_FIELDS_CONSTRUCTIONS.has(construction.operator)) validateDistributedFieldsConstruction(construction, index, document, constructionByOutput, issues);
     }
     if (construction.operator === "function_curve" && isRecord(construction.inputs)) {
