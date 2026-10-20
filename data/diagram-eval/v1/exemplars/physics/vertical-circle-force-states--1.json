@@ -1,0 +1,384 @@
+{
+  "topic_id": "physics|4|motion-in-a-vertical-circle",
+  "question": "A small bead of mass m moves on the inside of a smooth vertical circular track of radius r. Its speed is high enough to maintain contact. Draw the track and separate top and bottom force diagrams with tangential velocity directions for clockwise motion.",
+  "figure_kind": "vectors_fbd",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "Vertical circular track with separate top and bottom force and velocity diagrams"
+    },
+    "source": {
+      "question": "A small bead of mass m moves on the inside of a smooth vertical circular track of radius r. Its speed is high enough to maintain contact. Draw the track and separate top and bottom force diagrams with tangential velocity directions for clockwise motion.",
+      "archetype": "vertical_circle"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "C",
+        "kind": "point",
+        "role": "C",
+        "label": "O"
+      },
+      {
+        "id": "track",
+        "kind": "circle",
+        "role": "track"
+      },
+      {
+        "id": "top",
+        "kind": "point",
+        "role": "top",
+        "label": "A"
+      },
+      {
+        "id": "bottom",
+        "kind": "point",
+        "role": "bottom",
+        "label": "B"
+      },
+      {
+        "id": "right",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "r",
+        "kind": "segment",
+        "role": "r",
+        "label": "r"
+      },
+      {
+        "id": "vt",
+        "kind": "vector",
+        "role": "vt",
+        "label": "v_A"
+      },
+      {
+        "id": "vb",
+        "kind": "vector",
+        "role": "vb",
+        "label": "v_B"
+      },
+      {
+        "id": "P_topcase",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "bead_topcase",
+        "kind": "circle",
+        "role": "bead topcase"
+      },
+      {
+        "id": "N_topcase",
+        "kind": "vector",
+        "role": "N topcase",
+        "label": "N_A"
+      },
+      {
+        "id": "W_topcase",
+        "kind": "vector",
+        "role": "W topcase",
+        "label": "mg"
+      },
+      {
+        "id": "P_bottomcase",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "bead_bottomcase",
+        "kind": "circle",
+        "role": "bead bottomcase"
+      },
+      {
+        "id": "N_bottomcase",
+        "kind": "vector",
+        "role": "N bottomcase",
+        "label": "N_B"
+      },
+      {
+        "id": "W_bottomcase",
+        "kind": "vector",
+        "role": "W bottomcase",
+        "label": "mg"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_C",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "C"
+        ]
+      },
+      {
+        "id": "make_track",
+        "operator": "circle",
+        "inputs": {
+          "center": "C",
+          "radius": 2
+        },
+        "outputs": [
+          "track"
+        ]
+      },
+      {
+        "id": "make_top",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "top"
+        ]
+      },
+      {
+        "id": "make_bottom",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "bottom"
+        ]
+      },
+      {
+        "id": "make_right",
+        "operator": "point",
+        "inputs": {
+          "x": 2,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "right"
+        ]
+      },
+      {
+        "id": "make_r",
+        "operator": "segment",
+        "inputs": {
+          "start": "C",
+          "end": "right"
+        },
+        "outputs": [
+          "r"
+        ]
+      },
+      {
+        "id": "make_vt",
+        "operator": "vector",
+        "inputs": {
+          "start": "top",
+          "direction": [
+            1,
+            0
+          ],
+          "length": 1.6
+        },
+        "outputs": [
+          "vt"
+        ]
+      },
+      {
+        "id": "make_vb",
+        "operator": "vector",
+        "inputs": {
+          "start": "bottom",
+          "direction": [
+            -1,
+            0
+          ],
+          "length": 1.6
+        },
+        "outputs": [
+          "vb"
+        ]
+      },
+      {
+        "id": "make_P_topcase",
+        "operator": "point",
+        "inputs": {
+          "x": 5,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "P_topcase"
+        ]
+      },
+      {
+        "id": "make_bead_topcase",
+        "operator": "circle",
+        "inputs": {
+          "center": "P_topcase",
+          "radius": 0.12
+        },
+        "outputs": [
+          "bead_topcase"
+        ]
+      },
+      {
+        "id": "make_N_topcase",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            4.7,
+            2
+          ],
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 1.25
+        },
+        "outputs": [
+          "N_topcase"
+        ]
+      },
+      {
+        "id": "make_W_topcase",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            5.3,
+            2
+          ],
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 1
+        },
+        "outputs": [
+          "W_topcase"
+        ]
+      },
+      {
+        "id": "make_P_bottomcase",
+        "operator": "point",
+        "inputs": {
+          "x": 5,
+          "y": -2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "P_bottomcase"
+        ]
+      },
+      {
+        "id": "make_bead_bottomcase",
+        "operator": "circle",
+        "inputs": {
+          "center": "P_bottomcase",
+          "radius": 0.12
+        },
+        "outputs": [
+          "bead_bottomcase"
+        ]
+      },
+      {
+        "id": "make_N_bottomcase",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            4.7,
+            -2
+          ],
+          "direction": [
+            0,
+            1
+          ],
+          "length": 1.25
+        },
+        "outputs": [
+          "N_bottomcase"
+        ]
+      },
+      {
+        "id": "make_W_bottomcase",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            5.3,
+            -2
+          ],
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 1
+        },
+        "outputs": [
+          "W_bottomcase"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [],
+    "annotations": [],
+    "requiredEntityIds": [
+      "C",
+      "track",
+      "top",
+      "bottom",
+      "right",
+      "r",
+      "vt",
+      "vb",
+      "P_topcase",
+      "bead_topcase",
+      "N_topcase",
+      "W_topcase",
+      "P_bottomcase",
+      "bead_bottomcase",
+      "N_bottomcase",
+      "W_bottomcase"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "C",
+          "track",
+          "top",
+          "bottom",
+          "right",
+          "r",
+          "vt",
+          "vb",
+          "P_topcase",
+          "bead_topcase",
+          "N_topcase",
+          "W_topcase",
+          "P_bottomcase",
+          "bead_bottomcase",
+          "N_bottomcase",
+          "W_bottomcase"
+        ],
+        "dependsOn": [],
+        "narrationCue": "Vertical circular track with separate top and bottom force and velocity diagrams"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "Vertical circular track with separate top and bottom force and velocity diagrams"
+      }
+    ]
+  }
+}
