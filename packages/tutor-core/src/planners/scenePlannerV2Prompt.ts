@@ -161,7 +161,8 @@ AUTHORITY
 RELATIONS
 - Physical vectors/angles:world points,named proofs. on:[point,path];converges:[path1,path2,target];between:[middle,end1,end2];same_side:[point,point,origin]. between/equal_length:geometry only.
 - Incoming ray:surface_contact -> normal_at -> reflect_direction/refract_direction. Given contact incidence:reflect_at/refract_at. One representation per ray.
-- Circuit components use symbol,two distinct terminals; never connect/segment or duplicate its edge. Series shares consecutive terminals; parallel shares a pair. Prove path,sameTerminalPair,pathCount,connected or degree.
+- Circuit components use symbol,two distinct terminals; never connect/segment or duplicate its edge. Series shares consecutive terminals; parallel shares a pair. Prove path,sameTerminalPair,pathCount,loadBranchCount,connected or degree.
+- loadBranchCount: entities:[a,b],expected:integer; direct resistor/lamp branches; source branch excluded. One battery/cell spans the same wire-contracted nodes. Prove all loads with fatal sameTerminalPair. pathCount counts all simple paths including sources. Use identity labels; no unproved polarity/current ink.
 - Closed routes:shared p0...p(N-1),edge i:p(i)->p(i+1 mod N). Split contacts at shared IDs. Overlap,crossing,on or equal coordinates with distinct IDs never prove connectivity. Named sides use shared terminals. Up/down vertical; left/right horizontal.
 - Page normal:[0,0,-1] into-page cross;[0,0,1] out-of-page dot,never planar arrows. Separate views:disjoint reveal groups;cross-view connectors need explicit short/bypass.
 - requiredEntityIds:existence; omit exists. At most6 assertions. equal_angle:four paths; angle_between:two,or one space angle mark,expected:{value,unit:"degree"|"radian"}; function_value:[curve],expected:{x,y},no anchor entity; root:[curve],expected:x|{x}.

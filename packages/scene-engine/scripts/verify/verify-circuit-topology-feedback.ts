@@ -51,13 +51,23 @@ for (const loads of [2, 3, 5]) {
 const mismatch = parallel();
 mismatch.assertions[1]!.expected = 2;
 mismatch.assertions[1]!.reason = "Planner insists there are two paths";
+// Without a complete fatal load proof this remains a strict graph-path claim.
+mismatch.assertions[0]!.severity = "warning";
 const refused = compileSceneDocument(mismatch);
-check(!refused.ok, "omitting the source branch from pathCount must remain refused");
+check(!refused.ok, "omitting the source branch without a complete fatal load proof must remain refused");
 const issue = refused.report.issues.find((x) => x.code === "assertion_failed" && x.expected === 2 && x.actual === 3);
 check(issue, "branch mismatch must retain the machine-readable expected and actual counts");
 check(/all.*(?:symbol|edge)/i.test(issue.message) && /source.*(?:included|counted)|(?:included|counted).*source/i.test(issue.message), "repair must explain all edges including sources count");
 check(issue.message.includes("supply") && issue.message.includes("load_1") && issue.message.includes("load_2"), "repair must show the three concrete path witnesses even with planner reason");
 check(issue.message.includes("rail_a") && issue.message.includes("rail_b") && issue.message.includes("all_paths"), "repair must name failed assertion and terminal nodes");
+
+const compatible = parallel();
+compatible.assertions[1]!.expected = 2;
+const admitted = compileSceneDocument(compatible);
+check(admitted.ok, "a complete fatal parallel load proof enables the bounded legacy interpretation");
+const compatibility = admitted.report.issues.find((x) => x.code === "path_count_load_branch_compatibility");
+check(compatibility?.severity === "warning" && JSON.stringify(compatibility.actual) === JSON.stringify({ graphPaths: 3, loadBranches: 2 }),
+  "compatibility must preserve both measured counts instead of silently changing graph paths");
 
 const series = parallel();
 series.entities.push({ id: "middle", kind: "point", role: "node" });
@@ -98,6 +108,7 @@ check(evaluateTopologyAssertion(separatedTerminals.assertions[0]!, separatedTerm
 
 const manyPaths = parallel(5);
 manyPaths.assertions[1]!.expected = 5;
+manyPaths.assertions[0]!.severity = "warning";
 const manyIssues: SceneIssue[] = [];
 check(evaluateTopologyAssertion(manyPaths.assertions[1]!, manyPaths, manyIssues) === false, "a bounded witness list must not reduce the total path count");
 check(manyIssues[0]?.actual === 6 && manyIssues[0].message.includes("; ..."), "diagnostics must show the true count while truncating concrete witnesses");

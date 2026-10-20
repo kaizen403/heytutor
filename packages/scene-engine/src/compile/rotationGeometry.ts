@@ -164,17 +164,25 @@ function claimUnit(value: string, kind: string): Unit {
 }
 function equalPhysical(actual: number, expected: number): boolean { return Number.isFinite(actual) && Math.abs(actual - expected) <= RELATIVE_ERROR * Math.abs(expected); }
 function compactClaim(claim: Claim, declared: string): string { const selected = claimUnit(declared, claim.kind); return `${claim.symbol}=${Number(product(claim.expected, 1 / selected.factor, "label", Number.MAX_VALUE).toPrecision(4))} ${selected.canonical}`; }
+// Aliases name an existing physical claim; they cannot create a new axis,
+// quantity or value. The torque claim is the signed page-normal component.
+const ROTATION_SYMBOL_ALIASES = new Map([
+  ["τ", "tau"], ["τ_z", "tau"], ["τz", "tau"], ["tau_z", "tau"], ["tauz", "tau"],
+  ["ω", "omega"], ["α", "alpha"], ["θ", "theta"],
+]);
+function canonicalRotationSymbol(symbol: string): string { return ROTATION_SYMBOL_ALIASES.get(symbol) ?? symbol; }
 function checkedText(text: unknown, geometry: unknown): { claim: Claim; declared: string } | null {
   const authority = labelAuthority(geometry); if (!authority) invalid("label", "rotational output is missing physical source authority"); if (text === undefined) return null; if (typeof text !== "string") invalid("label", "rotation labels must be mathematical symbols or verified physical values");
   // A source point name (P, A) on the circular position is an identity, not a physical claim.
   if (isRecord(geometry) && isRecord(geometry.rotationalMotion) && /^[A-Z]$/.test(text)) return null;
-  if (text === authority.defaultLabel || authority.claims.some((claim) => text === claim.symbol)) return null;
-  const match = /^\s*([A-Za-z_][A-Za-z_0-9]*)\s*=\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*([^\s]+)\s*$/.exec(text.replaceAll("−", "-")); const claim = match && authority.claims.find((entry) => entry.symbol === match[1]);
-  if (match && claim) { preserveLiteral(match[2], "label"); const declared = match[3]!; const selected = claimUnit(declared, claim.kind); if (equalPhysical(product(Number(match[2]), selected.factor, "label"), claim.expected) || text.trim() === compactClaim(claim, declared)) return { claim, declared }; } return invalid("label", "rotation labels must agree with source-derived physical values and units; display lengths are not physical magnitudes");
+  const symbol = canonicalRotationSymbol(text);
+  if (symbol === authority.defaultLabel || authority.claims.some((claim) => symbol === claim.symbol)) return null;
+  const match = /^\s*([A-Za-z_τωαθ][A-Za-z_0-9τωαθ]*)\s*=\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)\s*([^\s]+)\s*$/.exec(text.replaceAll("−", "-")); const claim = match && authority.claims.find((entry) => entry.symbol === canonicalRotationSymbol(match[1]!));
+  if (match && claim) { preserveLiteral(match[2], "label"); const declared = match[3]!; const selected = claimUnit(declared, claim.kind); if (equalPhysical(product(Number(match[2]), selected.factor, "label"), claim.expected) || text.trim().replace(match[1]!, claim.symbol) === compactClaim(claim, declared)) return { claim, declared }; } return invalid("label", "rotation labels must agree with source-derived physical values and units; display lengths are not physical magnitudes");
 }
 export function rotationGeometryLabel(geometry: unknown, requestedText?: unknown): string | null { const authority = labelAuthority(geometry); if (!authority) return null; const requested = checkedText(requestedText, geometry); const text = requested ? compactClaim(requested.claim, requested.declared) : typeof requestedText === "string" ? requestedText : authority.defaultLabel; return text.length <= 16 ? text : requested?.claim.symbol ?? authority.defaultLabel; }
 function annotationAuthority(geometry: unknown, declared: string, text: unknown): { claim: Claim; factor: number } {
-  const authority = labelAuthority(geometry); if (!authority) invalid("label", "rotation annotations require computed physical authority"); const requested = checkedText(text, geometry); const explicit = requested?.claim ?? authority.claims.find((claim) => claim.symbol === text);
+  const authority = labelAuthority(geometry); if (!authority) invalid("label", "rotation annotations require computed physical authority"); const requested = checkedText(text, geometry); const explicit = requested?.claim ?? authority.claims.find((claim) => claim.symbol === (typeof text === "string" ? canonicalRotationSymbol(text) : text));
   const candidates = authority.claims.filter((claim) => !explicit || explicit.symbol === claim.symbol).flatMap((claim) => { try { return [{ claim, factor: claimUnit(declared, claim.kind).factor }]; } catch { return []; } });
   if (candidates.length !== 1) invalid("label", "rotation annotations require an unambiguous physical quantity and matching unit"); return candidates[0]!;
 }

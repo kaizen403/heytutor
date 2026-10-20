@@ -1,0 +1,186 @@
+{
+  "topic_id": "physics|4|work-by-forces",
+  "question": "A constant force F pulls a block through a horizontal displacement s to the right, making an angle θ above the direction of motion. Show the force, displacement, angle and force component that does work.",
+  "figure_kind": "vectors_fbd",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "Work by an inclined force with displacement, marked angle and parallel force component"
+    },
+    "source": {
+      "question": "A constant force F pulls a block through a horizontal displacement s to the right, making an angle θ above the direction of motion. Show the force, displacement, angle and force component that does work.",
+      "family": "vector_diagram"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "block",
+        "kind": "rectangle",
+        "role": "block",
+        "label": "m"
+      },
+      {
+        "id": "force",
+        "kind": "vector",
+        "role": "force",
+        "label": "F"
+      },
+      {
+        "id": "parallel",
+        "kind": "vector",
+        "role": "parallel",
+        "label": "F cosθ"
+      },
+      {
+        "id": "angle",
+        "kind": "angle_mark",
+        "role": "angle",
+        "label": "θ"
+      },
+      {
+        "id": "displacement",
+        "kind": "vector",
+        "role": "displacement",
+        "label": "s"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_O",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "make_block",
+        "operator": "rectangle",
+        "inputs": {
+          "center": "O",
+          "width": 1,
+          "height": 0.8
+        },
+        "outputs": [
+          "block"
+        ]
+      },
+      {
+        "id": "make_force",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "direction": [
+            0.8,
+            0.6
+          ],
+          "length": 3
+        },
+        "outputs": [
+          "force"
+        ]
+      },
+      {
+        "id": "make_parallel",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "direction": [
+            1,
+            0
+          ],
+          "length": 2.4
+        },
+        "outputs": [
+          "parallel"
+        ]
+      },
+      {
+        "id": "make_angle",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "O",
+          "a": "parallel",
+          "b": "force"
+        },
+        "outputs": [
+          "angle"
+        ]
+      },
+      {
+        "id": "make_displacement",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            -0.4,
+            -1.4
+          ],
+          "direction": [
+            1,
+            0
+          ],
+          "length": 3.4
+        },
+        "outputs": [
+          "displacement"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "proof_0",
+        "predicate": "parallel",
+        "entities": [
+          "parallel",
+          "displacement"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "O",
+      "block",
+      "force",
+      "parallel",
+      "angle",
+      "displacement"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "O",
+          "block",
+          "force",
+          "parallel",
+          "angle",
+          "displacement"
+        ],
+        "dependsOn": [],
+        "narrationCue": "Work by an inclined force with displacement, marked angle and parallel force component"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "Work by an inclined force with displacement, marked angle and parallel force component"
+      }
+    ]
+  }
+}
