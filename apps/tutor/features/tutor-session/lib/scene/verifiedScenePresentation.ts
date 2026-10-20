@@ -19,6 +19,8 @@ import type {
   SceneDocument,
 } from "@heytutor/scene-engine";
 import {
+  compileSceneDocument,
+  verifiedVseprStructure,
   describeSceneFamily,
   directedCurveInk,
   obstaclesFromPrimitives,
@@ -35,6 +37,8 @@ import { isDsaConstructionGuide } from "./diagramInk";
 const DIAGRAM_POINT_RADIUS = 2;
 
 export interface VerifiedScenePresentationOptions {
+  /** External turn source for independently recomputed molecular structure. */
+  originalQuestion?: string;
   /** Narration follows the turn's voice; every figure label stays unchanged. */
   narrationLanguage?: NarrationLanguage;
   /**
@@ -60,6 +64,11 @@ export function buildVerifiedDiagramPresentation(
   renderScene: RenderScene,
   options: VerifiedScenePresentationOptions = {},
 ): VerifiedDiagramPresentation {
+  const molecule = verifiedVseprStructure(document, options.originalQuestion);
+  const freshMolecule = molecule ? compileSceneDocument(molecule.document) : null;
+  const structuralSymbolIds = freshMolecule?.ok && freshMolecule.renderScene &&
+    JSON.stringify(freshMolecule.renderScene) === JSON.stringify(renderScene)
+    ? new Set(molecule!.structures.flatMap((structure) => structure.atomIds)) : new Set<string>();
   const layout = labelLayoutFor(options.layout ?? "standard");
   const source = document.source as Record<string, unknown> | undefined;
   const answerEntityIds = new Set(Array.isArray(source?.answerLabelEntityIds) ? source.answerLabelEntityIds.filter((id): id is string => typeof id === "string") : []);
@@ -166,21 +175,22 @@ export function buildVerifiedDiagramPresentation(
       if (options.layout === "code_lesson" && (isDsaMarkerScribble(styled) || primitive.provenance?.annotation === "highlight")) {
         continue;
       }
-      const commandPhase = primitive.provenance?.matrixCell
+      const structuralSymbol = primitive.kind === "label" && command.type === "LABEL" && structuralSymbolIds.has(primitive.entityId);
+      const commandPhase = primitive.provenance?.matrixCell || structuralSymbol
         ? "structure"
         : command.type === "LABEL" || command.type === "DIMENSION" ? "detail" : phase;
-      const answerLabel = (command.type === "LABEL" || command.type === "DIMENSION") &&
+      const answerLabel = !structuralSymbol && (command.type === "LABEL" || command.type === "DIMENSION") &&
         (answerEntityIds.has(primitive.entityId) || answerAnnotationIds.has(String(primitive.provenance?.annotationId)));
       if (answerLabel) {
         answerTargets.add(primitive.entityId);
         answerGroupIds.add(primitive.groupId);
       }
-      const deferReason = answerLabel ? "answer" : deferralReason(
+      const deferReason = (structuralSymbol ? null : answerLabel ? "answer" : deferralReason(
         primitive,
         command,
         annotateTargetIds,
         options.layout === "code_lesson",
-      ) ?? (holdLaterDsaFrames && primitive.groupId !== introGroupId ? "frame" : null);
+      )) ?? (holdLaterDsaFrames && primitive.groupId !== introGroupId ? "frame" : null);
       const index = add(primitive.groupId, commandPhase, styled, { reveal: deferReason === null });
       if (deferReason !== null && index !== null) {
         deferred.push({
