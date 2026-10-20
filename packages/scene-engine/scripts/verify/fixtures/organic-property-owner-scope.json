@@ -870,6 +870,7 @@
     "preserveGeneric": true,
     "genericLabels": [],
     "descriptorBaseQuestion": "Draw butanal.",
+    "descriptorExtraCaption": "groups: aldehyde",
     "scopeNote": "A graph-proven source description preserves the complete pre-existing source-named molecular structure; it is not a carbon-site label request."
   },
   {

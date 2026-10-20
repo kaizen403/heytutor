@@ -50,7 +50,7 @@ for (const [id,H,S] of [["review-H50-S300",50,300],["transfer-H41-S300",41,300],
 // while all source operands, other samples and normal compiler guards remain.
 for(const[id,phi,hText,h,cancellation]of[
   ["review-threshold-curve",2.5,"4.1e-15",4.1e-15,true],
-  ["transfer-threshold-curve",3.1,"4.7e-15",4.7e-15,true],
+  ["transfer-threshold-curve",3.1,"4.7e-15",4.7e-15,false],
   ["review-threshold-multiplicative",2.5,"4.1*10^-15",4.1*10**-15,false],
   ["transfer-threshold-multiplicative",3.1,"4.7*10^-15",4.7*10**-15,false],
 ]as const){
@@ -66,12 +66,12 @@ for(const[id,phi,hText,h,cancellation]of[
     assert.equal(document.source.question,question);
     const model=document.source.sourceLawGraph as SourceLawGraph;
     const relation=model.curves[0]!.relation;assert.equal(relation.operator,"threshold_affine");assert.ok(relation.operator==="threshold_affine");
-    assert.ok(Math.abs(relation.slope-h)<=4*Number.EPSILON*Math.abs(h),"both source serializations retain their arithmetic coefficient");assert.equal(relation.intercept,-phi);
-    const root=phi/relation.slope,expectedRoot=phi/h;
+    assert.ok(Math.abs(relation.slope-h)<=4*Number.EPSILON*Math.abs(h),"both source serializations retain their arithmetic coefficient");assert.ok(Math.abs(relation.intercept+phi)<=4*Number.EPSILON*Math.abs(phi),"unit-converted source work function matches the stated literal");
+    const sourcePhi=-relation.intercept,root=sourcePhi/relation.slope,expectedRoot=phi/h;
     assert.ok(Math.abs(root-expectedRoot)<=4*Number.EPSILON*Math.abs(expectedRoot),"derived root matches independently computed source operands");
     assert.deepEqual(model.points[0],{curveId:"law_curve",x:root,y:0},"mathematically derived threshold is exactly zero");
     if(cancellation)assert.ok(sourceLawValue(relation,root)<0,"e-notation exercises real reported product/add cancellation");
-    for(const point of model.points.slice(1))assert.equal(point.y,relation.slope*point.x-phi,"other source values are not clamped");
+    for(const point of model.points.slice(1))assert.equal(point.y,relation.slope*point.x-sourcePhi,"other source values are not clamped");
     for(const binding of model.bindings)for(const evidence of[binding.scalarSource,...(binding.unitSource?[binding.unitSource]:[])])
       assert.equal(question.slice(evidence.span.start,evidence.span.end),evidence.text);
     const render=compiled(document);

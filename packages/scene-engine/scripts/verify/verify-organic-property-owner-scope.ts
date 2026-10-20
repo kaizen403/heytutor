@@ -27,8 +27,18 @@ for (const row of cases) for (const route of ["direct", "schematic", "ordinary",
         const labels = normalized(result.renderScene.primitives.filter(primitive => primitive.kind === "label").map(primitive => primitive.text ?? "").join(" "));
         for (const text of row.genericLabels) assert.ok(labels.includes(normalized(text)), "established visible group/name label preserved");
         if("descriptorBaseQuestion" in row && typeof row.descriptorBaseQuestion==="string") {
-          const bare=buildOrganicScene(row.descriptorBaseQuestion,[],route==="schematic");
-          assert.ok(bare,"the pre-existing source-named structure is the oracle");
+          const bareCandidate=route==="direct" || route==="schematic" ? buildOrganicScene(row.descriptorBaseQuestion,[],route==="schematic")
+            : route==="ordinary" ? synthesizeFamilyScene({question:row.descriptorBaseQuestion}) : synthesizeLastResortScene({question:row.descriptorBaseQuestion});
+          assert.ok(bareCandidate,"the same ordinary producer supplies the pre-existing source-named structure oracle");
+          let bare="document" in bareCandidate?bareCandidate.document:bareCandidate;
+          if("descriptorExtraCaption" in row && typeof row.descriptorExtraCaption==="string") {
+            const caption=bare.annotations.find(annotation=>annotation.id==="figure_caption");
+            assert.ok(caption&&typeof caption.text==="string");
+            // The one functional-group wording legitimately adds this exact
+            // graph-derived fact; retain every other annotation and mark.
+            bare={...bare,annotations:bare.annotations.map(annotation=>annotation.id==="figure_caption"
+              ?{...annotation,text:`${caption.text}; ${row.descriptorExtraCaption}`} :annotation)};
+          }
           const content=(value:typeof document)=>Object.fromEntries(Object.entries(value).filter(([key])=>key!=="source"));
           assert.deepEqual(content(document),content(bare),"a true description preserves the complete existing molecular graph and ink");
           assert.deepEqual(result.renderScene.primitives,compileForLab(bare).renderScene?.primitives,"full visible geometry and labels are unchanged");
