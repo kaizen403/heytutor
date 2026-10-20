@@ -55,6 +55,7 @@ export function prepareVerifiedParts(
         ].includes(issue.code) &&
           issue.failureKind === "proof") ||
         issue.code === "annotation_geometry_unresolved" ||
+        issue.code === "equation_label_unbound_parameter" ||
         layoutProofCodes.has(issue.code),
     );
     if (!proof.length) break;
