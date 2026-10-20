@@ -441,8 +441,10 @@ function suppliedAcidBaseConstants(question: string): SuppliedAcidBaseConstants 
   for (const which of ["a","b"] as const) {
     let pK: number | null = null; let k: number | null = null;
     for (const logarithmic of [true,false]) {
-      const symbol = String.raw`(?<![a-z])${logarithmic?"p\\s*":"(?<!p)"}k\s*_?\s*(?:\{\s*${which}\s*\}|${which})(?![a-z])`;
-      const word = !logarithmic ? String.raw`|\b${which==="a"?"acid":"base"}\s+(?:dissociation|ioni[sz]ation) constant\b` : "";
+      const subscript = which === "a" ? "ₐ|ᵃ" : "ᵦ|ᵇ";
+      const role = String.raw`(?:\{\s*${which}\s*\}|\(\s*${which}\s*\)|${which}|${subscript})`;
+      const symbol = String.raw`(?<![a-z])${logarithmic?"p\\s*":"(?<!\\bp\\s*)"}k\s*_?\s*${role}(?![a-z])`;
+      const word = !logarithmic ? String.raw`|\b(?:${which==="a"?"acid":"base"}\s+(?:dissociation|ioni[sz]ation)|${which==="a"?"acidity":"basicity"}) constant\b` : "";
       const mention = new RegExp(`(?:${symbol}${word})`,"ig");
       const declarations = [...body.matchAll(mention)];
       if (declarations.length === 0) continue;

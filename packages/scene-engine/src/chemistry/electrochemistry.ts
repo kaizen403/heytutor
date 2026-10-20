@@ -319,7 +319,7 @@ export interface CellSpec {
 }
 
 const E_NAUGHT = String.raw`E(?:°|º|˚|⁰|₀|®|\^\s*(?:0|o|\(0\))|0(?![.\d])|o\b)`;
-const SPECIES = String.raw`[A-Z][a-z]?(?:[A-Za-z0-9₀₁₂₃₄₅₆₇₈₉]*?)(?:\^?\(?\d*[+-]\)?|\+{2,}|[⁰¹²³⁴⁵⁶⁷⁸⁹]*[⁺⁻])?`;
+const SPECIES = String.raw`[A-Z][a-z]?(?:[A-Za-z0-9₀₁₂₃₄₅₆₇₈₉]*?)(?:\^?(?:\(\d*[+-]\)|\d*[+-])|\+{2,}|[⁰¹²³⁴⁵⁶⁷⁸⁹]*[⁺⁻])?`;
 const COUPLE = String.raw`(${SPECIES})\s*(?:\(\s*(?:aq|s|g|l)\s*\))?\s*[\/|]\s*(${SPECIES})(?:\s*\(\s*(?:aq|s|g|l)\s*\))?`;
 const VALUE = `(${CHEMISTRY_SCALAR_PATTERN})\\s*(?:V|volt|volts)\\b`;
 interface StatedPotential { e0:number; n?:number; sourceSpan:ChemistrySpan; sourceText:string; readings:ChemistryReading[] }
@@ -342,22 +342,41 @@ function statedPotentials(question: string): Map<string, StatedPotential> | null
     const read = readChemistryQuantity({question:text,after:/^/,within:{start:match.index!+match[0].length,end:text.length},dimension:"potential",targetUnit:"V"});
     if (!read.ok) return null;
   }
-  const store = (rawCouple: string, match:RegExpMatchArray, group:number, n?: number): void => {
-    const key = coupleKey(rawCouple);
-    const pair = match.indices?.[group];
-    const read = pair ? readChemistryLiteral({question:text,scalarSpan:{start:pair[0],end:pair[1]},dimension:"potential",targetUnit:"V"}) : null;
-    if (!key || !read?.ok) { invalid = true; return; }
-    const index = match.index!; const value = read.reading.value;
-    const before = text.slice(Math.max(0, index - 80), index).toLowerCase();
-    const e0 = /oxidation potential/.test(before) ? -value : value;
+  const clauses = /[;\n]|\.(?!\d)|\b(?:and|while|whereas|but)\b/gi;
+  const clauseStart = (prefix: string): number => {
+    const boundary = [...prefix.matchAll(clauses)].at(-1);
+    return boundary ? boundary.index! + boundary[0].length : 0;
+  };
+  // E° retains a direction; a plural header owns comma/semicolon/and list members.
+  const oxidationDirection = (start: number, end: number): boolean => {
+    const prefix = text.slice(0, end);
+    const localStart = Math.max(start, clauseStart(prefix));
+    const boundary = [...prefix.matchAll(/\n|\.(?!\d)|\b(?:while|whereas|but)\b/gi)].at(-1);
+    const statementStart = boundary ? boundary.index! + boundary[0].length : 0;
+    const direction = [...text.slice(statementStart, end).matchAll(/\b(?:(?:standard\s+)?(?:oxidation|reduction|electrode)\s+potentials?|standard\s+potentials?)\b/gi)].at(-1);
+    if (!direction) return false;
+    const roleStart = statementStart + direction.index!;
+    const sharedList = /\bpotentials$/i.test(direction[0])
+      && /[,;]|\band\b/i.test(text.slice(roleStart + direction[0].length, end));
+    return /\boxidation\b/i.test(direction[0]) && (roleStart >= localStart || sharedList);
+  };
+  const storeReading = (key: string, reading: ChemistryReading, oxidation: boolean, n?: number): void => {
+    const e0 = oxidation ? -reading.value : reading.value;
     const record = findCouple(key);
     const canonical = record ? record.key : key;
     const previous = found.get(canonical);
     if (previous && previous.e0 !== e0) { invalid = true; return; }
     if (previous) {
-      if (!previous.readings.some(r => r.source.span.start === read.reading.source.span.start
-        && r.source.span.end === read.reading.source.span.end)) previous.readings.push(read.reading);
-    } else found.set(canonical, { e0, ...(n !== undefined ? { n } : {}),sourceSpan:read.reading.source.span,sourceText:read.reading.source.text,readings:[read.reading] });
+      if (!previous.readings.some(r => r.source.span.start === reading.source.span.start
+        && r.source.span.end === reading.source.span.end)) previous.readings.push(reading);
+    } else found.set(canonical, { e0, ...(n !== undefined ? { n } : {}), sourceSpan: reading.source.span, sourceText: reading.source.text, readings: [reading] });
+  };
+  const store = (rawCouple: string, match: RegExpMatchArray, group: number, n?: number): void => {
+    const key = coupleKey(rawCouple);
+    const pair = match.indices?.[group];
+    const read = pair ? readChemistryLiteral({question:text,scalarSpan:{start:pair[0],end:pair[1]},dimension:"potential",targetUnit:"V"}) : null;
+    if (!key || !read?.ok) { invalid = true; return; }
+    storeReading(key, read.reading, oxidationDirection(0, match.index!), n);
   };
   const direct = new RegExp(`${E_NAUGHT}\\s*(?:for|of|value\\s+of|_)?\\s*[\\(\\[]?\\s*${COUPLE}\\s*[\\)\\]]?\\s*(?:=|is|:|as)?\\s*${VALUE}`, "gdi");
   for (const match of text.matchAll(direct)) {
@@ -385,7 +404,103 @@ function statedPotentials(question: string): Map<string, StatedPotential> | null
     store(`${match[1]}/${match[2]}`, match, 5);
     store(`${match[3]}/${match[4]}`, match, 6);
   }
+  // Semantic owners bind the original literal inventory; they never introduce
+  // another scalar or unit grammar. Names defer to the selected complete couple.
+  const literals = findChemistryQuantities({question:text,dimension:"potential",targetUnit:"V"});
+  if (!literals.ok) return null;
+  const roleCue = new RegExp(`${E_NAUGHT}|(?:standard\\s+)?(?:reduction|oxidation|electrode)\\s+potentials?|standard\\s+potentials?`, "gi");
+  const metal = [...Object.keys(METAL_NAMES), ...new Set(Object.values(METAL_NAMES))].join("|");
+  const ownerPattern = new RegExp(`(?<![A-Za-z0-9])(?:${COUPLE}|${metal})(?![A-Za-z0-9])`, "gi");
+  const ownerKey = (raw: string): string | null => {
+    if (/[/|]/.test(raw)) return coupleKey(raw);
+    const element = METAL_NAMES[raw.toLowerCase()] ?? Object.values(METAL_NAMES).find(symbol => symbol.toLowerCase() === raw.toLowerCase());
+    return element ? `@${element}` : null;
+  };
+  const temperatures = findChemistryQuantities({question:text,dimension:"temperature",targetUnit:"K"});
+  if (!temperatures.ok) return null;
+  // A unit in a complete source quantity is not an electrode declaration.
+  const temperatureOwns = (start: number, end: number): boolean => temperatures.reading.some(reading =>
+    start >= reading.source.span.start && end <= reading.source.span.end);
+  const owners = (region: string, offset: number): string[] => [...new Set([...region.matchAll(ownerPattern)]
+    .filter(match => !temperatureOwns(offset + match.index!, offset + match.index! + match[0].length))
+    .map(match => ownerKey(match[0])).filter((key): key is string => key !== null))];
+  for (const [index, reading] of literals.reading.entries()) {
+    if ([...found.values()].some(value => value.readings.some(r => r.source.span.start === reading.source.span.start && r.source.span.end === reading.source.span.end))) continue;
+    const prefix = text.slice(0, reading.source.span.start);
+    // An unsupported dash sign cannot be cropped into a positive scalar.
+    if (/[–—]\s*$/.test(prefix)) return null;
+    const sentenceStart = [...prefix.matchAll(/\n|\.(?!\d)/g)].at(-1);
+    const start = sentenceStart ? sentenceStart.index! + sentenceStart[0].length : 0;
+    const cues = [...text.slice(start, reading.source.span.start).matchAll(roleCue)];
+    if (cues.length === 0) continue; // Observed/standard cell E has its own reader.
+    const firstCue = start + cues[0]!.index!;
+    const beforeCue = text.slice(start, firstCue);
+    const precedingOwner = owners(beforeCue, start).length === 1 && !/[|]|\b(?:draw|find|calculate|determine)\b/i.test(beforeCue);
+    const previousEnd = literals.reading[index - 1]?.source.span.end ?? 0;
+    const localStart = Math.max(precedingOwner ? start : firstCue, previousEnd, clauseStart(prefix));
+    if (previousEnd <= firstCue && owners(text.slice(precedingOwner ? start : firstCue, reading.source.span.start), precedingOwner ? start : firstCue).length > 1) continue;
+    const before = owners(text.slice(localStart, reading.source.span.start), localStart);
+    const tail = text.slice(reading.source.span.end, literals.reading[index + 1]?.source.span.start ?? text.length);
+    const after = owners(tail.split(/[,;\n]|\.(?!\d)|\b(?:and|while|whereas|but)\b/i)[0]!, reading.source.span.end);
+    const keys = before.length > 0 ? before : after;
+    if (keys.length !== 1 || (before.length > 0 && after.some(key => key !== before[0]))) continue;
+    storeReading(keys[0]!, reading, oxidationDirection(localStart, reading.source.span.start));
+  }
+  // An unread declaration has an owner even when no scalar enters the
+  // inventory. Validate each assignment instead of borrowing a later value.
+  for (const owner of text.matchAll(ownerPattern)) {
+    if (temperatureOwns(owner.index!, owner.index! + owner[0].length)) continue;
+    const prefix = text.slice(0, owner.index!);
+    const sentence = prefix.slice([...prefix.matchAll(/\n|\.(?!\d)/g)].at(-1)?.index ?? 0);
+    const tail = text.slice(owner.index! + owner[0].length);
+    if (!new RegExp(roleCue.source, "i").test(sentence + tail.split(/[;\n]|\.(?!\d)/)[0])) continue;
+    const declaration = /^\s*[)\]]?\s*(?:[=:]|\b(?:is|was|equals|equal\s+to|comes\s+to|unknown|unreadable)\b)/i.exec(tail);
+    if (!declaration) continue;
+    const localStart = clauseStart(prefix);
+    // The terminal electrode in a whole-cell voltage declaration does not
+    // inherit a prior clause's electrode-potential cue.
+    if (/\b(?:emf|cell\s+potential|potential\s+of\s+the\s+cell|voltage)\b|e\.m\.f\./i.test(text.slice(localStart, owner.index!))) {
+      const read = readChemistryQuantity({question:text,after:/^/,within:{start:owner.index! + owner[0].length + declaration[0].length,end:text.length},dimension:"potential",targetUnit:"V"});
+      if (read.ok && observedCellOwner(text, localStart, read.reading)) continue;
+    }
+    const key = ownerKey(owner[0]);
+    const canonical = key && (findCouple(key)?.key ?? key);
+    const next = [...text.matchAll(ownerPattern)].find(candidate => candidate.index! > owner.index!);
+    const consumed = canonical && found.get(canonical)?.readings.some(reading =>
+      reading.source.span.start >= owner.index! + owner[0].length
+      && reading.source.span.end <= (next?.index ?? text.length));
+    if (!consumed) return null;
+  }
   return invalid ? null : found;
+}
+
+/** Element names nominate a source couple; finish requires a unique selected role. */
+function potentialForCouple(key: string, overrides: Map<string, StatedPotential>): StatedPotential | undefined | null {
+  const explicit = overrides.get(key) ?? overrides.get(reverseKey(key));
+  const [ox, red] = key.split("/");
+  const oxidised = parseFormula(ox!); const reduced = parseFormula(red!);
+  const element = oxidised?.atoms[0]?.symbol;
+  const named = element !== undefined && reduced?.atoms[0]?.symbol === element ? overrides.get(`@${element}`) : undefined;
+  if (named && (oxidised?.atoms.length !== 1 || reduced?.atoms.length !== 1
+    || oxidised.atoms[0]?.count !== 1 || reduced.atoms[0]?.count !== 1)) return null;
+  if (explicit && named && !chemistryCanonicalValuesAgree(explicit.e0, named.e0)) return null;
+  return explicit ?? named;
+}
+
+/** One named-element literal may own one selected couple, not two redox roles. */
+function namedPotentialsHaveOneSelectedCouple(overrides: ReadonlyMap<string, StatedPotential>, halves: readonly HalfCell[]): boolean {
+  const selected = new Set(halves.map(half => half.couple));
+  return [...overrides.keys()].filter(key => key.startsWith("@")).every(key => {
+    const element = key.slice(1);
+    const owners = [...selected].filter(couple => {
+      const [ox, red] = couple.split("/");
+      const oxidised = parseFormula(ox!); const reduced = parseFormula(red!);
+      return oxidised?.atoms.length === 1 && reduced?.atoms.length === 1
+        && oxidised.atoms[0]?.symbol === element && reduced.atoms[0]?.symbol === element
+        && oxidised.atoms[0]?.count === 1 && reduced.atoms[0]?.count === 1;
+    });
+    return owners.length === 1;
+  });
 }
 
 const METAL_NAMES: Readonly<Record<string, string>> = {
@@ -804,7 +919,8 @@ function resolveHalfCell(electrode: string, tokens: SpeciesToken[], overrides: M
   if (!key) return null;
   record = findCouple(key);
   const canonical = record ? record.key : key;
-  const override = overrides.get(canonical) ?? overrides.get(reverseKey(canonical));
+  const override = potentialForCouple(canonical, overrides);
+  if (override === null) return null;
   // A complete but unsupported charged couple must not become a generic
   // common-ion/default cell. Explicitly sourced custom potentials still work.
   if (!record && !override) return null;
@@ -1007,7 +1123,8 @@ function readStatedCellPotentials(text: string): { e0?: number; e?: number } | n
 function halfCellFromCouple(key: string, overrides: Map<string, StatedPotential>, concentrations: Record<string, number> = {}): HalfCell | null {
   const record = findCouple(key);
   const canonical = record ? record.key : key;
-  const override = overrides.get(canonical) ?? overrides.get(reverseKey(canonical));
+  const override = potentialForCouple(canonical, overrides);
+  if (override === null) return null;
   const [ox, red] = canonical.split("/");
   const oxParsed = parseFormula(ox!);
   const redParsed = parseFormula(red!);
@@ -1077,6 +1194,7 @@ export function parseCellNotation(text: string): CellSpec | null {
   const finish = (anode: HalfCell | null, cathode: HalfCell | null, kind: CellSpec["source"]): CellSpec | null => {
     if (!anode || !cathode) return null;
     const halves = [anode, cathode];
+    if (!namedPotentialsHaveOneSelectedCouple(overrides, halves)) return null;
     if (!selectedCellReactionsValid(source, anode, cathode)) return null;
     const activities = halves.map(half => ({...half.concentrations}));
     for (const [ion, value] of Object.entries(sourceConcentrations)) {
