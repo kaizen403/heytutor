@@ -2,6 +2,7 @@
 import { normalizeChemistryText } from "../formula";
 import { organicFacts, type Hybridisation } from "./facts";
 import { moleculeFromName } from "./names";
+import { findMentions } from "./namedMentions";
 import { neighbours, type Molecule } from "./smiles";
 
 export type CarbonSiteKind = "halide" | "alcohol" | "carbonyl";
@@ -240,6 +241,39 @@ function propertyBearingTail(text: string, kind: CarbonSiteKind): boolean {
   return false;
 }
 
+/** A cis/trans name belongs to both computed stereographs, not a carbon-site
+ * property. Only a closed positive label clause over one proved alkene is
+ * owned here; unread values or a later property action remain independent. */
+function geometricLabelClauseLength(text: string, at: number): number {
+  const match = /^(?:label|mark)\s+(?:each\s+isomer|both\s+isomers|the\s+two\s+isomers)\s+(?:as\s+)?cis\s+(?:or|and)\s+trans\b(?=\s*(?:[.;?!]|$|and\s+(?:explain|label|mark|classify|show|draw)\b))/i.exec(text.slice(at));
+  if (!match || /\b(?:do\s+not|don't|never)\s*$/i.test(text.slice(0,at))) return 0;
+  const unique = new Map(findMentions(text).filter(mention => !mention.weak).map(mention => [mention.molecule.smiles,mention]));
+  if (unique.size !== 1) return 0;
+  const named = [...unique.values()][0]!;
+  const cis = moleculeFromName(`cis-${named.text}`), trans = moleculeFromName(`trans-${named.text}`);
+  if (cis?.stereo?.kind !== "cis" || trans?.stereo?.kind !== "trans") return 0;
+  const requests = [...text.matchAll(/\b(draw|show|sketch|display|depict|include|label|mark|classify|identify|explain)\b/gi)];
+  const first = requests[0];
+  if (!first || named.end > first.index! || !/^(?:For\s+)?$/i.test(text.slice(0,named.start))
+    || !/^[\s,:]*$/.test(text.slice(named.end,first.index))) return 0;
+  let drawingOwned = false;
+  for (const [index, request] of requests.entries()) {
+    const end = requests[index+1]?.index ?? text.length;
+    const argument = text.slice(request.index!+request[0].length,end).trim().replace(/[\s.;!?]+$/,"");
+    if (/^explain$/i.test(request[1]!)) continue;
+    if (request.index === at) {
+      if (!/^[\s.;!?]*(?:and\s*)?$/i.test(text.slice(at+match[0].length,end))) return 0;
+      continue;
+    }
+    // An additional requested view never disappears behind a valid label.
+    // The two computed stereographs own only their isomer/projection object.
+    if (!/^(?:draw|show|sketch)$/i.test(request[1]!)
+      || !/^(?:(?:the|both)\s+)?(?:two\s+)?geometr(?:ic|ical)\s+isomers(?:\s+with\s+(?:the\s+)?substituents\s+around\s+(?:the\s+)?C\s*=\s*C\s+bond\s+(?:shown\s+)?in\s+(?:the\s+)?double[- ]bond\s+plane)?(?:\s+and)?$/i.test(argument)) return 0;
+    drawingOwned = true;
+  }
+  return drawingOwned ? match[0].length : 0;
+}
+
 /** A local structural property reference needs a common, unambiguous graph site.
  * Every token is inventoried before a kind is chosen; unknown members can only
  * produce an unsupported claim, never a supported subset or generic fallback. */
@@ -261,6 +295,11 @@ function structuralPropertySiteKind(question: string): CarbonSiteKind | "unsuppo
     if (separator) {
       if (/[.;?!]/.test(separator[0])) { finishAction(); owner = null; propertyAction = false; withScope = false; }
       at += separator[0].length; continue;
+    }
+    const geometricLabels = geometricLabelClauseLength(text, at);
+    if (geometricLabels) {
+      finishAction(); owner = null; propertyAction = false; withScope = false;
+      at += geometricLabels; continue;
     }
     // Atom/group/name/formula annotations are graph objects, not assertions
     // about the uniquely substituted carbon of the whole named molecule.

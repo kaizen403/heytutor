@@ -193,7 +193,7 @@
     "question": "The equilibrium constant K = 10⁻¹⁵ at 300 K.",
     "cue": "\\bK\\s*=",
     "dimension": "dimensionless",
-    "raw": false,
+    "raw": true,
     "canonical": true,
     "value": 1e-15
   },
@@ -202,7 +202,7 @@
     "question": "The equilibrium constant K = 10¹⁵ at 300 K.",
     "cue": "\\bK\\s*=",
     "dimension": "dimensionless",
-    "raw": false,
+    "raw": true,
     "canonical": true,
     "value": 1000000000000000.0
   },
@@ -273,7 +273,7 @@
     "question": "The equilibrium constant K = 10⁻¹⁵ at 300 K. Draw the Gibbs energy and equilibrium constant diagram.",
     "cue": "\\bK\\s*=",
     "dimension": "dimensionless",
-    "raw": false,
+    "raw": true,
     "canonical": true,
     "figure": true,
     "value": 1e-15,

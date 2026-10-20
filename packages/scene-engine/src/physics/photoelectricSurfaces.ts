@@ -86,9 +86,10 @@ function radiationSourcePredicates(tail: string): boolean {
     if (/^illuminates?$/i.test(operation[1]!)) return true;
     const object = operation[2]!;
     if (/^(?:(?:a|an|the)\s+)?(?:(?:ultraviolet|visible|monochromatic)\s+)*(?:photons?|light|radiation|beams?)\b/i.test(object)) return true;
-    if (!/^emits?$/i.test(operation[1]!) || !/^at\s+/i.test(object)) return false;
+    const emissionChannel = /^(?:(?:(?:a|the)\s+)?(?:spectral\s+)?line\s+)?at\s+/i;
+    if (!/^emits?$/i.test(operation[1]!) || !emissionChannel.test(object)) return false;
     return (["length","frequency"] as const).some(dimension => {
-      const read = readChemistryQuantityDeclaration({question:object,after:/^at\s+/i,
+      const read = readChemistryQuantityDeclaration({question:object,after:emissionChannel,
         owner:"stated radiation-source emission channel",dimension});
       return read.state === "valid" && read.reading.value > 0 && read.reading.source.span.end === object.trimEnd().length;
     });

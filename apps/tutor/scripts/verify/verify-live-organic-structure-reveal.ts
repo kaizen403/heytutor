@@ -22,6 +22,14 @@ const fixture = JSON.parse(bytes.toString()) as { provenance: { original94GateSh
 // Keep their document/render/opening golds; the whole-diagram hashes below were
 // independently replayed against this PR's actual updated base, without edits.
 const currentBaseDiagrams = JSON.parse(readFileSync(new URL("./fixtures/organic-neighbourhood-current-base-parity.json", import.meta.url), "utf8")) as { diagrams: Array<{ id: string; fullDiagramSha256: string }> };
+// The203 source-affine Arrhenius operator intentionally replaces one older
+// generic curve. Keep both historical fixtures intact; this independently
+// reviewed one-case oracle includes physical scale/law checks below.
+const arrhenius203 = JSON.parse(readFileSync(new URL("./fixtures/organic-neighbourhood-pr203-arrhenius-parity.json", import.meta.url), "utf8")) as { schema: string; cases: typeof fixture.parityControls };
+assert.equal(arrhenius203.schema,"organic-neighbourhood-parity-pr203-arrhenius/v1");
+assert.equal(arrhenius203.cases.length,1);
+assert.equal(arrhenius203.cases[0]!.id,"kinetics-ln");
+assert.equal(arrhenius203.cases[0]!.question,"ln k = 5 - 2000/T. Draw the Arrhenius plot.");
 const sha = (value: unknown): string => createHash("sha256").update(typeof value === "string" || Buffer.isBuffer(value) ? value : JSON.stringify(value)).digest("hex");
 const json = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 const rows: Array<{ name: string; pass: boolean; error?: string }> = [];
@@ -110,15 +118,33 @@ for (const mutation of ["missing-source", "shifted-render", "renamed-render"] as
   const atoms = new Set(anchorFixture.requiredOpeningLabels.filter(l => l.kind === "atom").map(l => l.entityId));
   assert(!p.introSegments.flatMap(drawing.getSegmentCommands).some(c => c.type === "LABEL" && c.semanticRef?.entityId && atoms.has(c.semanticRef.entityId)));
 });
-for (const f of fixture.parityControls) await check(`unchanged-other-family:${f.id}`, () => {
+for (const f of fixture.parityControls) await check(`${arrhenius203.cases.some(row=>row.id===f.id&&row.question===f.question)?"source-law-composition-203":"unchanged-other-family"}:${f.id}`, () => {
   const raw = engine.chemistryFamilyBuilder(f.family)!(f.question, [], false); assert(raw);
   const normalized = engine.validateSceneDocument(engine.pruneDeadSceneEntities(Object.fromEntries(Object.entries(raw)))); assert(normalized.document);
   const compiled = engine.compileSceneDocument(normalized.document); assert(compiled.ok && compiled.renderScene);
   const p = buildVerifiedDiagramPresentation(normalized.document, compiled.renderScene, { originalQuestion: f.question, figureFamily: f.family });
-  assert.equal(sha(normalized.document), f.documentSha256); assert.equal(sha(compiled.renderScene), f.renderSha256);
-  assert.equal(sha(p.introSegments.flatMap(drawing.getSegmentCommands)), f.openingCommandsSha256);
+  const sourceAffine = arrhenius203.cases.find(row=>row.id===f.id&&row.question===f.question);
+  const oracle = sourceAffine ?? f;
+  assert.equal(sha(normalized.document), oracle.documentSha256); assert.equal(sha(compiled.renderScene), oracle.renderSha256);
+  assert.equal(sha(p.introSegments.flatMap(drawing.getSegmentCommands)), oracle.openingCommandsSha256);
   const baseDiagram = currentBaseDiagrams.diagrams.find(row => row.id === f.id); assert(baseDiagram);
-  assert.equal(sha(p.diagram), baseDiagram.fullDiagramSha256);
+  assert.equal(sha(p.diagram), sourceAffine?.fullDiagramSha256 ?? baseDiagram.fullDiagramSha256);
+  if(sourceAffine){
+    const document=normalized.document;
+    for(const[id,value,unit]of [["arrhenius_C",5,"1"],["arrhenius_B",2000,"K"],["Ea",16628,"J/mol"]]as const){const quantity=document.quantities.find(q=>q.id===id);assert.equal(quantity?.value,value);assert.equal(quantity?.unit,unit);}
+    assert.equal(document.quantities.find(q=>q.id==="Ea")!.value,8.314*2000,"Ea follows the source B, never a new given");
+    const line=document.constructions.find(c=>c.operator==="function_curve");assert.ok(line);
+    assert.deepEqual(line.inputs,{expression:"6 - 0.6*x",variable:"x",xMin:0,xMax:10,samples:33});
+    const input=(id:string)=>document.constructions.find(c=>c.id===id)!.inputs;
+    assert.equal(input("make_ar_xtick_p").x,10);assert.equal(input("make_ar_xtick").text,"0.005");
+    assert.equal(input("make_ar_ytick_p").y,0);assert.equal(input("make_ar_ytick").text,"-5");
+    assert.equal(input("make_ar_xaxis_t").y,3);assert.equal(input("make_ar_xaxis_h").y,3);assert.equal(input("make_ar_zero").text,"0");
+    const samples=document.assertions.filter(a=>a.predicate==="function_value").map(a=>a.expected as {x:number;y:number});
+    assert.deepEqual(samples,[{x:0,y:6},{x:5,y:3},{x:10,y:0}]);
+    for(const point of samples){const inverseTemperature=point.x*0.005/10;const lnK=-5+point.y*10/6;assert.ok(Math.abs(lnK-(5-2000*inverseTemperature))<1e-12);}
+    assert.equal(1/(5/2000),400,"source zero crossing T=400K");
+    const labels=compiled.renderScene.primitives.flatMap(mark=>mark.text?[mark.text]:[]);for(const label of["1/T (K^-1)","ln k","m=-2000K","lnA=5"])assert.ok(labels.includes(label));
+  }
 });
 await check("carbonyl-qualitative-complete-without-numeric-angle", () => {
   const question = "Draw hexanal and hexan-2-one so that the three atoms directly attached to each carbonyl carbon are explicit. Mark the approximately trigonal-planar carbonyl centres and show which has a carbonyl-bound H and which has two carbon substituents.";

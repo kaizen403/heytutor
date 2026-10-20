@@ -20,7 +20,7 @@ import { estimatePxPerUnit, renderMolecule, structureCaption } from "./render";
 import { organicFacts } from "./facts";
 import { carbonSiteRequest } from "./neighbourhood";
 import { buildNeighbourhoodComparison } from "./neighbourhoodPanel";
-import { heavyAtomCount, parseSmiles, type Molecule } from "./smiles";
+import { parseSmiles, type Molecule } from "./smiles";
 
 import { molecularShapeRequested } from "../foundation/molecularShapeRequest";
 import { requiresConformationProjection } from "../foundation/conformationRequest";
@@ -365,13 +365,16 @@ function factsLine(stem: string, molecule: Molecule): string {
  */
 export function buildOrganicScene(question: string, _quantities: ChemPlanQuantity[], _schematic: boolean): SceneDocument | null {
   if (!isOrganicStem(question)) return null;
+  // This operator owns every original source/request span and proves the
+  // complete graph result. Do not let a narrower structural-label heuristic
+  // reinterpret its carbon-count or named-product request as a site claim.
+  const sourceReaction = readOrganicReactionSource(question, findMentions(question));
+  if (sourceReaction.status === "source") return buildOrganicReactionFigure(question, sourceReaction.model);
   const requestedSite = carbonSiteRequest(question);
   if (requestedSite === "unsupported") return null;
   if (requestedSite) return buildNeighbourhoodComparison(question, requestedSite);
   if (molecularShapeRequested(question)) return null;
-  const sourceReaction = readOrganicReactionSource(question, findMentions(question));
   if (sourceReaction.status === "declined") return null;
-  if (sourceReaction.status === "source") return buildOrganicReactionFigure(question, sourceReaction.model);
   // One text for every index: mentions, cues and roles are all read from the
   // same normalised string. Mixing raw-question indices with a whitespace-
   // collapsed copy shifted every cue on an OCR stem.

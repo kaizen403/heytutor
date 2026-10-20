@@ -10,6 +10,7 @@ import { synthesizeFamilyScene } from "../../src/synthesize/familyScene";
 import { compileSceneDocument } from "../../src/compile/compiler";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../../src/document/validation";
 import { isAtomicRadiationStem } from "../../src/chemistry/atomicRadiation";
+import { readRadiationSource } from "../../src/physics/radiationSource";
 
 const failures: string[] = [];
 const results: Array<{ name: string; passed: boolean; error?: string }> = [];
@@ -182,7 +183,19 @@ for (const [values, after] of [
   const read = readChemistryQuantity({ question, after, dimension: "energy", targetUnit: "eV" });
   assert.equal(read.ok, false);
   if (!read.ok) assert.equal(read.code, "ambiguous");
-  assert.equal(chemistryFamilyBuilder("chem_orbital")?.(question, [], false), null);
+  if (after.source === "work function") {
+    // The default reader is deliberately still ambiguous. The radiation
+    // operator alone opts into equal repetitions and binds both full spans.
+    const source = readRadiationSource(question);
+    assert.ok(source.status === "source" && source.model.kind === "photoelectric");
+    assert.equal(source.model.workFunctionEV, 2); assert.equal(source.model.photonEnergyEV, 3); assert.equal(source.model.kineticEV, 1);
+    const bindings = source.model.bindings.filter(binding => binding.role === "work function");
+    assert.deepEqual(bindings.map(binding => binding.reading.source.text), ["2 eV", "3.204353268e-19 J"]);
+    for (const binding of bindings) assert.equal(question.slice(binding.reading.source.span.start,binding.reading.source.span.end),binding.reading.source.text);
+    chemistryFigure(question,"chem_orbital");
+    const labels = synthesizeFamilyScene({question})!.renderScene.primitives.flatMap(p=>p.text?[p.text]:[]);
+    for(const label of ["phi=2.00 eV","E=3.00 eV","K=1.00 eV"]) assert.ok(labels.includes(label));
+  } else assert.equal(chemistryFamilyBuilder("chem_orbital")?.(question, [], false), null);
 });
 for (const question of [
   "Draw photoelectric emission with work function 2 eV and frequency 9.65×10^14 Hz.",
@@ -407,8 +420,21 @@ for (const values of [
   "photon energy is 3.10 eV; work function is 2 eV; incident light wavelength is 400 nm; emitted electron wavelength is 1.227 nm",
 ]) check(`incident photon input retains strict damage duplicate and consistency refusals: ${values}`, () => {
   const question = `In an atomic electron model, ${values}. Draw the photoelectron energy balance.`;
-  assert.equal(chemistryFamilyBuilder("chem_orbital")?.(question, [], false), null);
-  assert.equal(synthesizeFamilyScene({ question }), null);
+  const equalIncidentWavelengths = values === "photon energy is 3 eV; work function is 2 eV; incident light wavelength is 413.2806614440008 nm; incident light wavelength is 413.2806614440008 nm";
+  if(equalIncidentWavelengths) {
+    // Same bounded opt-in as181: preserve raw default-reader ambiguity while
+    // the source model explicitly consumes every agreeing original lambda.
+    const read=readChemistryQuantity({question,after:/incident light wavelength/,dimension:"length",targetUnit:"m"});assert.equal(read.ok,false);if(!read.ok)assert.equal(read.code,"ambiguous");
+    const source=readRadiationSource(question);assert.ok(source.status==="source"&&source.model.kind==="photoelectric");
+    assert.equal(source.model.workFunctionEV,2);assert.ok(Math.abs(source.model.photonEnergyEV-3)<1e-12);assert.ok(Math.abs(source.model.kineticEV!-1)<1e-12);
+    const bindings=source.model.bindings.filter(binding=>binding.role==="incident photon wavelength");assert.equal(bindings.length,2);
+    for(const binding of bindings){assert.equal(question.slice(binding.reading.source.span.start,binding.reading.source.span.end),binding.reading.source.text);assert.equal(binding.reading.source.text,"413.2806614440008 nm");}
+    chemistryFigure(question,"chem_orbital");const labels=synthesizeFamilyScene({question})!.renderScene.primitives.flatMap(p=>p.text?[p.text]:[]);
+    for(const label of ["phi=2.00 eV","E=3.00 eV","K=1.00 eV"])assert.ok(labels.includes(label));
+  } else {
+    assert.equal(chemistryFamilyBuilder("chem_orbital")?.(question, [], false), null);
+    assert.equal(synthesizeFamilyScene({ question }), null);
+  }
 });
 
 // Decimal points do not terminate the original local measurement owner.
