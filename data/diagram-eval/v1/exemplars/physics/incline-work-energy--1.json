@@ -1,0 +1,555 @@
+{
+  "topic_id": "physics|4|work-energy-theorem",
+  "question": "A block of mass m is released from rest at point A and slides down a rough incline to B, losing vertical height h over distance s. The plane is at angle θ and has kinetic friction coefficient μk. Show both positions, height, travel distance, final velocity, and the forces on the moving block.",
+  "figure_kind": "apparatus",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "Incline energy transfer with initial and final states, height, distance and resisting friction"
+    },
+    "source": {
+      "question": "A block of mass m is released from rest at point A and slides down a rough incline to B, losing vertical height h over distance s. The plane is at angle θ and has kinetic friction coefficient μk. Show both positions, height, travel distance, final velocity, and the forces on the moving block.",
+      "family": "contact_body"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "B",
+        "label": "B"
+      },
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "A",
+        "label": "A"
+      },
+      {
+        "id": "H",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "slope",
+        "kind": "segment",
+        "role": "slope"
+      },
+      {
+        "id": "distance",
+        "kind": "dimension",
+        "role": "distance",
+        "label": "s"
+      },
+      {
+        "id": "ground",
+        "kind": "segment",
+        "role": "ground"
+      },
+      {
+        "id": "height",
+        "kind": "dimension",
+        "role": "height",
+        "label": "h"
+      },
+      {
+        "id": "theta",
+        "kind": "angle_mark",
+        "role": "theta",
+        "label": "θ"
+      },
+      {
+        "id": "initial",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "initialcorner0",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "initialcorner1",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "initialcorner2",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "initialcorner3",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "start",
+        "kind": "polygon",
+        "role": "start",
+        "label": "v_A = 0"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corner0",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corner1",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corner2",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "corner3",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "body",
+        "kind": "polygon",
+        "role": "body",
+        "label": "m"
+      },
+      {
+        "id": "W",
+        "kind": "vector",
+        "role": "W",
+        "label": "mg"
+      },
+      {
+        "id": "N",
+        "kind": "vector",
+        "role": "N",
+        "label": "N"
+      },
+      {
+        "id": "f",
+        "kind": "vector",
+        "role": "f",
+        "label": "f_k"
+      },
+      {
+        "id": "velocity",
+        "kind": "vector",
+        "role": "velocity",
+        "label": "v_B"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_B",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "make_A",
+        "operator": "point",
+        "inputs": {
+          "x": 6.237045669318575,
+          "y": 3.1779334981768277,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "make_H",
+        "operator": "point",
+        "inputs": {
+          "x": 6.237045669318575,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "H"
+        ]
+      },
+      {
+        "id": "make_slope",
+        "operator": "segment",
+        "inputs": {
+          "start": "B",
+          "end": "A"
+        },
+        "outputs": [
+          "slope"
+        ]
+      },
+      {
+        "id": "make_distance",
+        "operator": "dimension",
+        "inputs": {
+          "start": [
+            0.9079809994790936,
+            -1.7820130483767358
+          ],
+          "end": [
+            7.1450266687976685,
+            1.395920449800092
+          ]
+        },
+        "outputs": [
+          "distance"
+        ]
+      },
+      {
+        "id": "make_ground",
+        "operator": "segment",
+        "inputs": {
+          "start": "B",
+          "end": "H"
+        },
+        "outputs": [
+          "ground"
+        ]
+      },
+      {
+        "id": "make_height",
+        "operator": "dimension",
+        "inputs": {
+          "start": "H",
+          "end": "A"
+        },
+        "outputs": [
+          "height"
+        ]
+      },
+      {
+        "id": "make_theta",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "B",
+          "a": "ground",
+          "b": "slope"
+        },
+        "outputs": [
+          "theta"
+        ]
+      },
+      {
+        "id": "make_initial",
+        "operator": "point",
+        "inputs": {
+          "x": 6.100848519396711,
+          "y": 3.445235455433338,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "initial"
+        ]
+      },
+      {
+        "id": "make_initialcorner0",
+        "operator": "point",
+        "inputs": {
+          "x": 5.969743712062065,
+          "y": 3.0417363482549638,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "initialcorner0"
+        ]
+      },
+      {
+        "id": "make_initialcorner1",
+        "operator": "point",
+        "inputs": {
+          "x": 6.504347626575085,
+          "y": 3.3141306480986916,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "initialcorner1"
+        ]
+      },
+      {
+        "id": "make_initialcorner2",
+        "operator": "point",
+        "inputs": {
+          "x": 6.2319533267313565,
+          "y": 3.848734562611712,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "initialcorner2"
+        ]
+      },
+      {
+        "id": "make_initialcorner3",
+        "operator": "point",
+        "inputs": {
+          "x": 5.697349412218336,
+          "y": 3.5763402627679843,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "initialcorner3"
+        ]
+      },
+      {
+        "id": "make_start",
+        "operator": "polygon",
+        "inputs": {
+          "points": [
+            "initialcorner0",
+            "initialcorner1",
+            "initialcorner2",
+            "initialcorner3"
+          ]
+        },
+        "outputs": [
+          "start"
+        ]
+      },
+      {
+        "id": "make_P",
+        "operator": "point",
+        "inputs": {
+          "x": -0.13619714992186405,
+          "y": 0.26730195725651035,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "make_corner0",
+        "operator": "point",
+        "inputs": {
+          "x": -0.26730195725651035,
+          "y": -0.13619714992186405,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corner0"
+        ]
+      },
+      {
+        "id": "make_corner1",
+        "operator": "point",
+        "inputs": {
+          "x": 0.26730195725651035,
+          "y": 0.13619714992186405,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corner1"
+        ]
+      },
+      {
+        "id": "make_corner2",
+        "operator": "point",
+        "inputs": {
+          "x": -0.005092342587217746,
+          "y": 0.6708010644348847,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corner2"
+        ]
+      },
+      {
+        "id": "make_corner3",
+        "operator": "point",
+        "inputs": {
+          "x": -0.5396962571002384,
+          "y": 0.39840676459115665,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "corner3"
+        ]
+      },
+      {
+        "id": "make_body",
+        "operator": "polygon",
+        "inputs": {
+          "points": [
+            "corner0",
+            "corner1",
+            "corner2",
+            "corner3"
+          ]
+        },
+        "outputs": [
+          "body"
+        ]
+      },
+      {
+        "id": "make_W",
+        "operator": "vector",
+        "inputs": {
+          "start": "P",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 1.7
+        },
+        "outputs": [
+          "W"
+        ]
+      },
+      {
+        "id": "make_N",
+        "operator": "vector",
+        "inputs": {
+          "start": "P",
+          "direction": [
+            -0.4539904997395468,
+            0.8910065241883679
+          ],
+          "length": 1.4
+        },
+        "outputs": [
+          "N"
+        ]
+      },
+      {
+        "id": "make_f",
+        "operator": "vector",
+        "inputs": {
+          "start": "P",
+          "direction": [
+            0.8910065241883679,
+            0.4539904997395468
+          ],
+          "length": 1.7
+        },
+        "outputs": [
+          "f"
+        ]
+      },
+      {
+        "id": "make_velocity",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            1.4,
+            -0.7
+          ],
+          "direction": [
+            -0.8910065241883679,
+            -0.4539904997395468
+          ],
+          "length": 1.4
+        },
+        "outputs": [
+          "velocity"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "proof_0",
+        "predicate": "parallel",
+        "entities": [
+          "f",
+          "slope"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      },
+      {
+        "id": "proof_1",
+        "predicate": "perpendicular",
+        "entities": [
+          "N",
+          "slope"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "B",
+      "A",
+      "H",
+      "slope",
+      "distance",
+      "ground",
+      "height",
+      "theta",
+      "initial",
+      "initialcorner0",
+      "initialcorner1",
+      "initialcorner2",
+      "initialcorner3",
+      "start",
+      "P",
+      "corner0",
+      "corner1",
+      "corner2",
+      "corner3",
+      "body",
+      "W",
+      "N",
+      "f",
+      "velocity"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "B",
+          "A",
+          "H",
+          "slope",
+          "distance",
+          "ground",
+          "height",
+          "theta",
+          "initial",
+          "initialcorner0",
+          "initialcorner1",
+          "initialcorner2",
+          "initialcorner3",
+          "start",
+          "P",
+          "corner0",
+          "corner1",
+          "corner2",
+          "corner3",
+          "body",
+          "W",
+          "N",
+          "f",
+          "velocity"
+        ],
+        "dependsOn": [],
+        "narrationCue": "Incline energy transfer with initial and final states, height, distance and resisting friction"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "Incline energy transfer with initial and final states, height, distance and resisting friction"
+      }
+    ]
+  }
+}

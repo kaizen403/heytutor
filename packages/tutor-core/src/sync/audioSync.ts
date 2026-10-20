@@ -29,12 +29,11 @@ export const WRITE_INK_FLOOR_MS_PER_CHAR = 90;
 export const WRITE_INK_CEILING_MS_PER_CHAR = 350;
 
 /**
- * An estimated schedule is a guess at where the words fall; if it puts the
- * first cue past this share of the sentence the pen starts there instead,
- * so a wrong guess never leaves the row unwritten until the voice is done.
- * An exact schedule is the truth and is never shifted.
+ * A script-matched estimate may wait for the whole estimated sentence.
+ * An explanatory prefix is real speech, not permission to write its later
+ * formula early. Unusable schedules still take the bounded fallback below.
  */
-export const ESTIMATED_FIRST_CUE_MAX_FRACTION = 0.6;
+export const ESTIMATED_FIRST_CUE_MAX_FRACTION = 1;
 
 export interface SegmentTiming {
   narrationText: string;
@@ -666,12 +665,12 @@ function letterForms(
   const lower = run.toLowerCase();
   const plain = letterRunWords(run).join(" ");
   const forms: string[] = [];
-  const unitForms = UNIT_SPOKEN_FORMS[lower];
+  const unitForms = Object.hasOwn(UNIT_SPOKEN_FORMS, lower) ? UNIT_SPOKEN_FORMS[lower] : undefined;
   const isUnit = unitForms && (options.numericContext || UNAMBIGUOUS_UNITS.has(lower));
   if (isUnit) {
     forms.push(...unitForms);
   }
-  const functionForms = FUNCTION_SPOKEN_FORMS[lower];
+  const functionForms = Object.hasOwn(FUNCTION_SPOKEN_FORMS, lower) ? FUNCTION_SPOKEN_FORMS[lower] : undefined;
   if (functionForms && !isUnit) {
     forms.push(...functionForms);
   }
@@ -758,8 +757,10 @@ function boardTokenUnits(token: string, previousToken: string | undefined): Toke
           standaloneOperand: pieces.length === 1 && previousToken !== undefined,
         }),
       });
-      if (next === "(" && !FUNCTION_SPOKEN_FORMS[piece.toLowerCase()]) {
-        units.push({ forms: ["", "times"] });
+      if (next === "(" && !Object.hasOwn(FUNCTION_SPOKEN_FORMS, piece.toLowerCase())) {
+        // A named application can be read "c of n"; adjacent multiplication
+        // can still be read "m times g" or omit the join altogether.
+        units.push({ forms: ["", "times", "of"] });
       }
       continue;
     }
@@ -1729,7 +1730,9 @@ export function getBestWriteCharScheduleMs(
  * may wait. Pass the schedule's own `maxInitialWaitMs`: an exact schedule
  * never moves (the alignment says when the word is spoken, and the pen goes
  * to the row and waits for it), an estimated one may wait for
- * ESTIMATED_FIRST_CUE_MAX_FRACTION of the sentence. The old 250 ms cap
+ * ESTIMATED_FIRST_CUE_MAX_FRACTION of the sentence. Both the old 250 ms and
+ * 60% caps wrote genuinely late formula words before they were spoken; the
+ * estimate now retains cues anywhere inside its own sentence. The old cap
  * dragged "v = ?" from 2055 ms to 250 ms and the row was done 5 s before the
  * voice reached it.
  */
