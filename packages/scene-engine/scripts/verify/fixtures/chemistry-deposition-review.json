@@ -1,0 +1,172 @@
+[
+  {
+    "id": "mg-thread-exact",
+    "question": "Molten MgCl2 is electrolysed with inert electrodes using a current of 1 A for 20 min. Calculate the mass of magnesium deposited at the cathode.",
+    "expectedDraw": true,
+    "depositSymbol": "Mg",
+    "electronsPerAtom": 2
+  },
+  {
+    "id": "Mg-source-M",
+    "question": "Molten MgCl2 is electrolysed with inert electrodes using a current of 1 A for 20 min. The molar mass of magnesium is 24.3 g/mol and F = 96500 C/mol. Calculate the mass of magnesium deposited at the cathode.",
+    "expectedDraw": true,
+    "depositSymbol": "Mg",
+    "molarMass": 24.3,
+    "electronsPerAtom": 2
+  },
+  {
+    "id": "Ca-source-M",
+    "question": "Molten CaCl2 is electrolysed with inert electrodes using a current of 1 A for 20 min. The molar mass of calcium is 40.1 g/mol and F = 96500 C/mol. Calculate the mass of calcium deposited at the cathode.",
+    "expectedDraw": true,
+    "depositSymbol": "Ca",
+    "molarMass": 40.1,
+    "electronsPerAtom": 2
+  },
+  {
+    "id": "cu-base",
+    "question": "An aqueous CuSO4 solution is electrolysed with inert electrodes at a current of 2 A for 30 min. Calculate the mass of copper deposited at the cathode. M(Cu) = 63.5 g/mol; F = 96500 C/mol.",
+    "expectedDraw": true,
+    "depositSymbol": "Cu",
+    "molarMass": 63.5,
+    "electronsPerAtom": 2
+  },
+  {
+    "id": "cu-repeat-F",
+    "question": "An aqueous CuSO4 solution is electrolysed with inert electrodes at a current of 2 A for 30 min. Calculate the mass of copper deposited at the cathode. M(Cu) = 63.5 g/mol; F = 96500 C/mol. Faraday constant is 96500 C/mol.",
+    "expectedDraw": true,
+    "depositSymbol": "Cu",
+    "molarMass": 63.5,
+    "electronsPerAtom": 2
+  },
+  {
+    "id": "cu-repeat-M",
+    "question": "An aqueous CuSO4 solution is electrolysed with inert electrodes at a current of 2 A for 30 min. Calculate the mass of copper deposited at the cathode. M(Cu) = 63.5 g/mol. The molar mass of copper is 63.5 g/mol; F = 96500 C/mol.",
+    "expectedDraw": true,
+    "depositSymbol": "Cu",
+    "molarMass": 63.5,
+    "electronsPerAtom": 2
+  },
+  {
+    "id": "cu-repeat-both",
+    "question": "An aqueous CuSO4 solution is electrolysed with inert electrodes at a current of 2 A for 30 min. Calculate the mass of copper deposited at the cathode. M(Cu) = 63.5 g/mol. The molar mass of copper is 63.5 g/mol; F = 96500 C/mol. Faraday constant is 96500 C/mol.",
+    "expectedDraw": true,
+    "depositSymbol": "Cu",
+    "molarMass": 63.5,
+    "electronsPerAtom": 2
+  },
+  {
+    "id": "cu-repeat-F-unit-spelling",
+    "question": "An aqueous CuSO4 solution is electrolysed with inert electrodes at a current of 2 A for 30 min. Calculate the mass of copper deposited at the cathode. M(Cu) = 63.5 g/mol; F = 96500 C/mol. F = 96500 C mol^-1.",
+    "expectedDraw": true,
+    "depositSymbol": "Cu",
+    "molarMass": 63.5,
+    "electronsPerAtom": 2
+  },
+  {
+    "id": "F-conflict",
+    "question": "An aqueous CuSO4 solution is electrolysed with inert electrodes at a current of 2 A for 30 min. Calculate the mass of copper deposited at the cathode. M(Cu) = 63.5 g/mol; F = 96500 C/mol. F = 96400 C/mol.",
+    "expectedDraw": false
+  },
+  {
+    "id": "M-conflict",
+    "question": "An aqueous CuSO4 solution is electrolysed with inert electrodes at a current of 2 A for 30 min. Calculate the mass of copper deposited at the cathode. M(Cu) = 63.5 g/mol; the molar mass of copper is 64 g/mol; F = 96500 C/mol.",
+    "expectedDraw": false
+  },
+  {
+    "id": "M-foreign-equal",
+    "question": "An aqueous CuSO4 solution is electrolysed with inert electrodes at a current of 2 A for 30 min. Calculate the mass of copper deposited at the cathode. M(Cu) = 63.5 g/mol; M(Ag) = 63.5 g/mol; F = 96500 C/mol.",
+    "expectedDraw": false
+  },
+  {
+    "id": "M-foreign-different",
+    "question": "An aqueous CuSO4 solution is electrolysed with inert electrodes at a current of 2 A for 30 min. Calculate the mass of copper deposited at the cathode. M(Cu) = 63.5 g/mol; the molar mass of silver is 108 g/mol; F = 96500 C/mol.",
+    "expectedDraw": false
+  },
+  {
+    "id": "F-repeated-malformed",
+    "question": "An aqueous CuSO4 solution is electrolysed with inert electrodes at a current of 2 A for 30 min. Calculate the mass of copper deposited at the cathode. M(Cu) = 63.5 g/mol; F = 96500 C/mol. F = 10^--2 C/mol.",
+    "expectedDraw": false
+  },
+  {
+    "id": "M-repeated-malformed",
+    "question": "An aqueous CuSO4 solution is electrolysed with inert electrodes at a current of 2 A for 30 min. Calculate the mass of copper deposited at the cathode. M(Cu) = 63.5 g/mol; the molar mass of copper is 10^--2 g/mol; F = 96500 C/mol.",
+    "expectedDraw": false
+  },
+  {
+    "id": "F-unowned-equal",
+    "question": "An aqueous CuSO4 solution is electrolysed with inert electrodes at a current of 2 A for 30 min. Calculate the mass of copper deposited at the cathode. M(Cu) = 63.5 g/mol; F = 96500 C/mol. A separate reference value is 96500 C/mol.",
+    "expectedDraw": false
+  },
+  {
+    "id": "M-unowned-equal",
+    "question": "An aqueous CuSO4 solution is electrolysed with inert electrodes at a current of 2 A for 30 min. Calculate the mass of copper deposited at the cathode. M(Cu) = 63.5 g/mol; F = 96500 C/mol. A separate reference value is 63.5 g/mol.",
+    "expectedDraw": false
+  },
+  {
+    "id": "Cu-wrong-mass-owner",
+    "question": "An aqueous CuSO4 solution is electrolysed with inert electrodes at a current of 2 A for 30 min. Calculate the mass of copper deposited at the cathode. M(Ag) = 108 g/mol; F = 96500 C/mol.",
+    "expectedDraw": false
+  },
+  {
+    "id": "Cu-request-foreign",
+    "question": "An aqueous CuSO4 solution is electrolysed with inert electrodes at a current of 2 A for 30 min. Calculate the mass of magnesium deposited at the cathode. M(Cu) = 63.5 g/mol; F = 96500 C/mol.",
+    "expectedDraw": false
+  },
+  {
+    "id": "Cu-incomplete-efficiency",
+    "question": "An aqueous CuSO4 solution is electrolysed with inert electrodes at a current of 2 A for 30 min. Calculate the mass of copper deposited at the cathode. M(Cu) = 63.5 g/mol; F = 96500 C/mol. The current efficiency is 80%.",
+    "expectedDraw": false
+  },
+  {
+    "id": "Al-supported-source-M",
+    "question": "Molten alumina dissolved in cryolite is electrolysed with carbon electrodes using a current of 1 A for 20 min. The molar mass of aluminium is 27 g/mol and F = 96500 C/mol. Calculate the mass of aluminium deposited at the cathode.",
+    "expectedDraw": true,
+    "depositSymbol": "Al",
+    "molarMass": 27,
+    "electronsPerAtom": 3
+  },
+  {
+    "id": "Ag-supported-repeat-both",
+    "question": "Aqueous AgNO3 is electrolysed with inert electrodes using a current of 1 A for 10 min. Calculate the mass of silver deposited at the cathode. M(Ag) = 108 g/mol; the molar mass of silver is 108 g/mol; F = 96500 C/mol; Faraday constant is 96500 C/mol.",
+    "expectedDraw": true,
+    "depositSymbol": "Ag",
+    "molarMass": 108,
+    "electronsPerAtom": 1
+  },
+  {
+    "id": "lowercase-foreign-molar-mass-symbol",
+    "question": "A current of 1 A passes through aqueous CuSO4 for 20 min using inert electrodes. Calculate the mass of copper deposited at the cathode. m(Ag) = 108 g/mol; F = 96500 C/mol.",
+    "expectedDraw": false
+  },
+  {
+    "id": "lowercase-owned-molar-mass-symbol",
+    "question": "A current of 1 A passes through aqueous CuSO4 for 20 min using inert electrodes. Calculate the mass of copper deposited at the cathode. m(Cu) = 64 g/mol; F = 96500 C/mol.",
+    "expectedDraw": true,
+    "depositSymbol": "Cu",
+    "molarMass": 64,
+    "electronsPerAtom": 2
+  },
+  {
+    "id": "lower-m-foreign-symbol",
+    "question": "An aqueous CuSO4 solution is electrolysed with inert electrodes at a current of 2 A for 30 min. Calculate the mass of copper deposited at the cathode. m(Ag) = 108 g/mol; F = 96500 C/mol.",
+    "expectedDraw": false
+  },
+  {
+    "id": "lower-m-foreign-equal-value",
+    "question": "An aqueous CuSO4 solution is electrolysed with inert electrodes at a current of 2 A for 30 min. Calculate the mass of copper deposited at the cathode. M(Cu) = 63.5 g/mol; m(Ag) = 63.5 g/mol; F = 96500 C/mol.",
+    "expectedDraw": false
+  },
+  {
+    "id": "lower-m-unresolved-symbol",
+    "question": "An aqueous CuSO4 solution is electrolysed with inert electrodes at a current of 2 A for 30 min. Calculate the mass of copper deposited at the cathode. m(ZZ) = 63.5 g/mol; F = 96500 C/mol.",
+    "expectedDraw": false
+  },
+  {
+    "id": "upper-M-source-control",
+    "question": "An aqueous CuSO4 solution is electrolysed with inert electrodes at a current of 2 A for 30 min. Calculate the mass of copper deposited at the cathode. M(Cu) = 63.5 g/mol; F = 96500 C/mol.",
+    "expectedDraw": true,
+    "depositSymbol": "Cu",
+    "molarMass": 63.5,
+    "electronsPerAtom": 2
+  }
+]

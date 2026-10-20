@@ -39,6 +39,7 @@ import { sectionFormulaDimensionIsCarried } from "../ir/sectionFormulaSource";
 import type { SceneDocument, SceneIssue } from "../types";
 import { parseFormula } from "../chemistry/formula";
 import { sourceAdditionProductEntityHolds } from "../chemistry/organic/reactionBinding";
+import { sourceDepositedMetalEntityHolds } from "../chemistry/depositionBinding";
 
 export const VISUAL_OBLIGATIONS_VERSION = "visual-obligations/v1" as const;
 
@@ -443,7 +444,8 @@ function mapProblemEntities(
     problemLabel === null ||
     (typeof entity.label === "string" &&
       (sameObligationLabel(entity.label, problemLabel)
-        || originalQuestion !== undefined && sourceAdditionProductEntityHolds(originalQuestion, document, entity, problemLabel)));
+        || originalQuestion !== undefined && (sourceAdditionProductEntityHolds(originalQuestion, document, entity, problemLabel)
+          || sourceDepositedMetalEntityHolds(originalQuestion, document, entity, problemLabel))));
   // Text is not a physical body. Structural kinds constrain identity even
   // when the label is exact: a trajectory's name on a point cannot name a curve.
   const kindHolds = (entity: SceneDocument["entities"][number], obligation: NamedBodyObligation): boolean => {

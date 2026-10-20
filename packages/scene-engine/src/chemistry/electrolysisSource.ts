@@ -1,6 +1,6 @@
 /** Original-question authority for a requested electrode-deposition mass. */
 import { elementByName, elementBySymbol } from "./elements";
-import { chemistryQuantityInventoryOwned, readChemistryQuantityDeclaration, readChemistryQuantityInventoryDeclaration, type ChemistryReading, type ChemistryQuantityConsumption } from "./quantityReader";
+import { chemistryQuantityInventoryOwned, readChemistryQuantityDeclaration, readChemistryQuantityInventoryDeclaration, type ChemistryReading, type ChemistryQuantityConsumption, type ChemistryQuantityDeclaration } from "./quantityReader";
 
 const MASS_REQUEST = /\b(?:mass\s+of\s+(?:the\s+)?([a-z]+)|deposited\s+([a-z]+)\s+mass)\b/gi;
 
@@ -47,7 +47,7 @@ export function readDepositionMassSource(question: string, deposit: { symbol: st
 
   const current = readChemistryQuantityInventoryDeclaration({ question, dimension: "current", targetUnit: "A", owner: "deposition current" });
   const time = readChemistryQuantityInventoryDeclaration({ question, dimension: "time", targetUnit: "s", owner: "deposition duration" });
-  const massCue = /\bmolar\s+mass(?:\s+of\s+([A-Za-z]+))?\s*(?:is|=)|\bM\s*\(\s*([A-Z][a-z]?)\s*\)\s*=/g;
+  const massCue = /\bmolar\s+mass(?:\s+of\s+([A-Za-z]+))?\s*(?:is|=)|\bM\s*\(\s*([A-Z][a-z]?)\s*\)\s*=/gi;
   for (const match of question.matchAll(massCue)) {
     const owner = match[1] ?? match[2];
     if (owner && (elementByName(owner) ?? elementBySymbol(owner))?.symbol !== deposit.symbol) return null;
@@ -65,10 +65,14 @@ export function readDepositionMassSource(question: string, deposit: { symbol: st
   }
   const bindings: ChemistryQuantityConsumption[] = [];
   const consume = (reading: ChemistryReading, owner: string) => { bindings.push({ reading, owner }); return reading.value; };
+  const consumeRepeated = (declaration: Extract<ChemistryQuantityDeclaration, { state: "valid" }>, owner: string): number => {
+    for (const occurrence of declaration.occurrences) if (occurrence.read.ok) consume(occurrence.read.reading, owner);
+    return declaration.reading.value;
+  };
   const ampere = consume(current.reading, "deposition current");
   const seconds = consume(time.reading, "deposition duration");
-  const molarMass = mass.state === "valid" ? consume(mass.reading, "molar mass") : element.mass;
-  const f = faraday.state === "valid" ? consume(faraday.reading, "Faraday constant") : 96500;
+  const molarMass = mass.state === "valid" ? consumeRepeated(mass, "molar mass") : element.mass;
+  const f = faraday.state === "valid" ? consumeRepeated(faraday, "Faraday constant") : 96500;
   for (const dimension of ["current", "time", "molar_mass", "faraday_constant"] as const) {
     if (!chemistryQuantityInventoryOwned(question, dimension, bindings.filter(item => item.reading.dimension === dimension))) return null;
   }

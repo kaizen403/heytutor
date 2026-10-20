@@ -1974,7 +1974,9 @@ function drawElectrolyticCell(question: string, products: ElectrolysisProducts, 
   c.scene.labelled("role_a", "role_c", "product_a", "product_c", ...(!sourceMass ? ["electrolyte"] : []), "electron_flow");
   if (sourceMass) {
     const metal = elementBySymbol(sourceMass.symbol)!;
-    for (const [id, label] of [["beaker", products.electrolyte], ["cathode_bar", "cathode"], ["deposit", `deposited ${metal.name.toLowerCase()}`]] as const) {
+    const depositName = `deposited ${metal.name.toLowerCase()}`;
+    const depositLabel = depositName.length <= 16 ? depositName : `deposited ${metal.symbol}`;
+    for (const [id, label] of [["beaker", products.electrolyte], ["cathode_bar", "cathode"], ["deposit", depositLabel]] as const) {
       const entity = c.scene.entities.find(candidate => candidate.id === id);
       if (!entity || label.length > 16) return null;
       entity.label = label;
@@ -2064,7 +2066,12 @@ function buildConductancePlot(question: string): SceneDocument | null {
 export function buildElectrochemScene(question: string, quantities: ChemPlanQuantity[], schematic: boolean): SceneDocument | null {
   if (!chemistryPlanBindingsValid(question, quantities)) return null;
   if (statedPotentials(question) === null) return null;
-  if (!chemistryReferenceConstantValid(question, FARADAY_ASSIGNMENT, "faraday_constant", "C/mol", FARADAY) || !chemistryReferenceConstantValid(question, /\bR\s*=/, "gas_constant", "J/(mol K)", 8.314)) return null;
+  const deposition = claimsElectrodeDepositionMass(question);
+  const depositionFaraday = deposition ? readChemistryQuantityDeclaration({ question, after: FARADAY_ASSIGNMENT, dimension: "faraday_constant", targetUnit: "C/mol", owner: "Faraday constant", allowAgreeingRepeats: true }) : null;
+  const faradayValid = depositionFaraday !== null
+    ? depositionFaraday.state === "absent" || depositionFaraday.state === "valid" && chemistryCanonicalValuesAgree(depositionFaraday.reading.value, FARADAY)
+    : chemistryReferenceConstantValid(question, FARADAY_ASSIGNMENT, "faraday_constant", "C/mol", FARADAY);
+  if (!faradayValid || !chemistryReferenceConstantValid(question, /\bR\s*=/, "gas_constant", "J/(mol K)", 8.314)) return null;
   if (!isElectrochemStem(question)) return null;
   const lower = chemStem(question);
   if (conductancePlotCue(lower)) return buildConductancePlot(question);
