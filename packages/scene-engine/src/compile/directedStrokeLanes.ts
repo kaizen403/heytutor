@@ -16,6 +16,13 @@ import type { RenderPoint, RenderPrimitive, SceneDocument } from "../types";
  *   moves (a reference ray beside the closing side of a vector triangle, not
  *   the closing side); a ray moves before a vector, then the later stroke.
  * Rays move only beside a vector: a light ray along an optical axis is on it.
+ *
+ * A vector with an end where another vector starts or ends (a tip to tail
+ * sum, a triangle, a resultant, components from one tail) never moves: a lane
+ * would detach it. The other directed stroke moves instead when it is free to.
+ * An undirected finite stroke under it is trimmed off the vector's span when
+ * one piece remains (a reference line running on past the head); otherwise
+ * both stay where they are.
  */
 export const DIRECTED_OVERLAP_PX = 12;
 export const DIRECTED_LANE_PX = 12;
@@ -24,6 +31,8 @@ const LANE_STEPS_PX = [12, 16, 20, 24, 30, 36];
 const ANGLE_SIN = Math.sin(2.5 * Math.PI / 180);
 const OFF_LINE_PX = 3;
 const ANCHOR_PX = 1.5;
+/** A trimmed reference stops this far short of the vector it ran along. */
+const TRIM_GAP_PX = 6;
 
 type Point = { x: number; y: number };
 interface Segment { owner: number; entityId: string; a: Point; b: Point }
@@ -124,6 +133,8 @@ export function separateDirectedStrokes(
 ): number {
   const units = directedUnits(document, primitives);
   if (units.length === 0) return 0;
+  const kindOf = new Map(document.entities.map((entity) => [entity.id, entity.kind]));
+  let trimmed = 0;
   const unitByPrimitive = new Map<RenderPrimitive, Unit>();
   for (const candidate of units) for (const primitive of candidate.primitives) unitByPrimitive.set(primitive, candidate);
   const segments = (): Segment[] => primitives.flatMap((primitive, index) => {
@@ -133,6 +144,10 @@ export function separateDirectedStrokes(
     return segmentsOf(primitive, index);
   });
   const pointInk = primitives.filter((primitive) => primitive.kind === "point" && primitive.points[0]).map((primitive) => primitive.points[0]!);
+  // A vector that starts or ends where another vector starts or ends is part
+  // of a sum, a triangle or a pair of components: moving it would detach it.
+  const pinned = new Set(units.filter((candidate) => candidate.kind === "vector" && units.some((other) => other !== candidate && other.kind === "vector" &&
+    candidate.shaft().some((end) => other.shaft().some((otherEnd) => length(end, otherEnd) <= ANCHOR_PX)))));
 
   const conflicts = (subject: Unit, shaft: [Point, Point], all: Segment[]): Segment[] => all.filter((segment) =>
     segment.entityId !== subject.entityId && collinearOverlapPx(shaft, [segment.a, segment.b]) >= DIRECTED_OVERLAP_PX);
@@ -153,6 +168,15 @@ export function separateDirectedStrokes(
         // shares it. A vector whose head is where other directed ink meets
         // (an image arrow's tip on its rays) is where it is.
         mover = subject.kind === "ray" || headMetByDirectedInk(subject, conflict.entityId, all, units, primitives) ? null : subject;
+        if (mover && pinned.has(mover)) {
+          const stroke = primitives[conflict.owner];
+          if (stroke && trimOffShaft(subject.shaft(), stroke, kindOf.get(stroke.entityId))) {
+            stroke.provenance = { ...stroke.provenance, trimmedOffVector: subject.entityId };
+            trimmed += 1;
+            all = segments();
+          }
+          continue;
+        }
       } else if (sameArrow(subject.shaft(), other.shaft())) {
         // One arrow drawn twice (a light path and the direction it carries)
         // has one head at one end: nothing is hidden or stacked.
@@ -168,12 +192,47 @@ export function separateDirectedStrokes(
           : subject.kind === "ray" ? subject : other.kind === "ray" ? other
           : subject.index > other.index ? subject : other;
       }
+      if (mover && pinned.has(mover)) {
+        // The other directed stroke moves instead when it is free to; else both stay.
+        const alternative = mover === subject ? other : subject;
+        mover = alternative && !pinned.has(alternative) && !alternative.moved && (alternative.kind !== "ray" || other !== undefined) ? alternative : null;
+      }
       if (!mover || mover.moved) continue;
       moveIntoLane(mover, all, conflicts, viewportFor(mover.entityId), pointInk, primitives);
       all = segments();
     }
   }
-  return units.filter((candidate) => candidate.moved).length;
+  return units.filter((candidate) => candidate.moved).length + trimmed;
+}
+
+/**
+ * Cut a finite undirected stroke off the span of the vector it runs along,
+ * leaving a small gap at the vector's end. Only a stroke that keeps one
+ * readable piece is trimmed: one the vector covers whole, or one running on
+ * past both ends, stays as it is. Infinite lines, measurement bars and
+ * leaders are never trimmed.
+ */
+function trimOffShaft(shaft: [Point, Point], stroke: RenderPrimitive, entityKind: string | undefined): boolean {
+  if ((stroke.kind !== "line" && stroke.kind !== "polyline") || stroke.points.length !== 2) return false;
+  if (entityKind !== "segment" && entityKind !== "polyline") return false;
+  if (stroke.id !== `primitive_${stroke.entityId}` || stroke.provenance?.measurementRole !== undefined || stroke.provenance?.labelLeader === true) return false;
+  const [a, b] = shaft;
+  const u = unit(a, b);
+  const span = length(a, b);
+  const [p, q] = stroke.points as [RenderPoint, RenderPoint];
+  const tp = along(p, a, u); const tq = along(q, a, u);
+  if (Math.abs(tq - tp) < 1e-6) return false;
+  const low = Math.min(tp, tq); const high = Math.max(tp, tq);
+  const before = -TRIM_GAP_PX - low; const after = high - span - TRIM_GAP_PX;
+  if ((before > 0) === (after > 0)) return false;
+  const [from, to] = before > 0 ? [low, -TRIM_GAP_PX] : [span + TRIM_GAP_PX, high];
+  if (to - from < DIRECTED_OVERLAP_PX) return false;
+  const at = (t: number): RenderPoint => {
+    const k = (t - tp) / (tq - tp);
+    return { ...p, x: round(p.x + (q.x - p.x) * k), y: round(p.y + (q.y - p.y) * k) };
+  };
+  stroke.points = tp < tq ? [at(from), at(to)] : [at(to), at(from)];
+  return true;
 }
 
 function moveIntoLane(

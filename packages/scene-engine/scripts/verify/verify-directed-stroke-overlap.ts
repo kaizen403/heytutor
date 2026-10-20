@@ -7,9 +7,10 @@
  *
  * 1. Recorded replay (fixtures/directed-stroke-overlap-recorded.json, written
  *    by scripts/extract-recorded-scene-documents.ts): every document that
- *    compiles draws every required vector, no directed stroke lies along
- *    other ink for 12 px or more (so no head sits inside another stroke and
- *    no helper runs past a head), no unnamed dot sits on a shaft, the display
+ *    compiles draws every required vector, a lane never detaches a vector end
+ *    from another vector end it met, a directed stroke lies along other ink
+ *    for 12 px or more only where a vector is pinned by such a junction (the
+ *    count is printed), no unnamed dot sits on a shaft, the display
  *    scale lifts exactly the listed vectors, and every shaft under 40 px is
  *    listed with the reason its unit group keeps its true length.
  * 2. The named recordings, checked one by one.
@@ -40,14 +41,14 @@ type Raw = Record<string, unknown>;
 interface Recorded { id: string; question: string; document: Raw }
 interface Replay { stage: "validate" | "compile" | "ok"; issues: SceneIssue[]; document: SceneDocument | null; primitives: RenderPrimitive[] }
 
-function replay(recorded: Pick<Recorded, "question" | "document">): Replay {
+function replay(recorded: Pick<Recorded, "question" | "document">, lanes = true): Replay {
   const raw = structuredClone(recorded.document);
   const source = typeof raw.source === "object" && raw.source !== null ? raw.source as Raw : {};
   raw.source = { ...source, question: typeof source.question === "string" ? source.question : recorded.question };
   const normalized = normalizeVerifiedPartsInputs(raw, false).candidate;
   const validated = validateSceneDocument(pruneDeadSceneEntities(normalized));
   if (!validated.document) return { stage: "validate", issues: validated.report.issues, document: null, primitives: [] };
-  const compiled = compileSceneDocument(validated.document);
+  const compiled = compileSceneDocument(validated.document, lanes ? {} : { directedLanes: false } as Parameters<typeof compileSceneDocument>[1]);
   const issues = [...validated.report.issues, ...compiled.report.issues];
   if (!compiled.ok || !compiled.renderScene) return { stage: "compile", issues, document: validated.document, primitives: [] };
   return { stage: "ok", issues, document: validated.document, primitives: compiled.renderScene.primitives };
@@ -56,6 +57,28 @@ function compileDocument(document: Raw): Replay { return replay({ question: "", 
 const fatal = (result: Replay) => result.issues.filter((issue) => issue.severity === "fatal").map((issue) => `${issue.code}: ${issue.message}`);
 const stroke = (result: Replay, entityId: string) => result.primitives.find((primitive) => primitive.entityId === entityId && (primitive.kind === "vector" || primitive.kind === "ray"));
 const len = (a: RenderPoint, b: RenderPoint) => Math.hypot(b.x - a.x, b.y - a.y);
+
+const JUNCTION_PX = 1.5;
+/** Each vector's drawn [tail, head]. */
+function vectorEnds(document: SceneDocument, primitives: RenderPrimitive[]): Map<string, [RenderPoint, RenderPoint]> {
+  const vectors = new Set(document.entities.filter((entity) => entity.kind === "vector").map((entity) => entity.id));
+  return new Map(primitives
+    .filter((primitive) => primitive.kind === "vector" && primitive.points.length === 2 && primitive.id === `primitive_${primitive.entityId}` && vectors.has(primitive.entityId))
+    .map((primitive) => [primitive.entityId, [primitive.points[0]!, primitive.points[1]!]]));
+}
+/** Pairs of vector ends drawn at one point. */
+function vectorJunctions(document: SceneDocument, primitives: RenderPrimitive[]): Array<{ a: string; aEnd: 0 | 1; b: string; bEnd: 0 | 1 }> {
+  const ends = [...vectorEnds(document, primitives)];
+  const out: Array<{ a: string; aEnd: 0 | 1; b: string; bEnd: 0 | 1 }> = [];
+  for (const [i, [a, aPoints]] of ends.entries()) {
+    for (const [b, bPoints] of ends.slice(i + 1)) {
+      for (const aEnd of [0, 1] as const) for (const bEnd of [0, 1] as const) {
+        if (len(aPoints[aEnd], bPoints[bEnd]) <= JUNCTION_PX) out.push({ a, aEnd, b, bEnd });
+      }
+    }
+  }
+  return out;
+}
 
 // ------------------------------------------------------------ 1. recorded replay
 const recorded = JSON.parse(readFileSync(join(here, "fixtures/directed-stroke-overlap-recorded.json"), "utf8")) as Recorded[];
@@ -83,9 +106,13 @@ const SHORT_TRUE_LENGTH = new Map([
   ["v2/p3e2-t2#7:landing_velocity", "a trajectory_state velocity, not free"],
   ["v3/p4c-t1#6:vA", "the figure has axes"],
   ["v3/p4c-t1#6:vB", "the figure has axes"],
+  ["yt/q14-t2#5:west", "a direction reference with no unit, drawn at its true 1 m in a 75 m frame"],
 ]);
 const scaledSeen = new Set<string>();
 const shortSeen: string[] = [];
+const overlapsSeen: string[] = [];
+let overlapsUnlaned = 0;
+let junctionCount = 0;
 let compiledCount = 0;
 for (const document of recorded) {
   const result = replay(document);
@@ -99,9 +126,26 @@ for (const document of recorded) {
   compiledCount += 1;
   const audit = auditDirectedStrokes(result.document, result.primitives);
   check(audit.missing.length === 0, `${document.id}: required vectors not drawn: ${audit.missing.join(", ")}`);
-  for (const overlap of audit.overlaps) {
-    check(false, `${document.id}: ${overlap.directed} lies along ${overlap.other} for ${overlap.overlapPx} px${overlap.runsPastHead ? " and the stroke runs past its head" : ""}`);
+  // A lane never detaches a vector from another vector it met (a tip to tail
+  // sum, a triangle, components from one tail).
+  const unlaned = replay(document, false);
+  const junctions = vectorJunctions(result.document, unlaned.primitives);
+  const laned = vectorEnds(result.document, result.primitives);
+  for (const junction of junctions) {
+    const [a, b] = [laned.get(junction.a)?.[junction.aEnd], laned.get(junction.b)?.[junction.bEnd]];
+    check(a && b && len(a, b) <= JUNCTION_PX, `${document.id}: ${junction.a} ${junction.aEnd ? "head" : "tail"} lost its junction with ${junction.b} ${junction.bEnd ? "head" : "tail"} (${a && b ? len(a, b).toFixed(1) : "missing"} px apart)`);
   }
+  junctionCount += junctions.length;
+  // Directed ink left on other ink only where a vector is pinned by a junction.
+  const pinnedVectors = new Set(junctions.flatMap((junction) => [junction.a, junction.b]));
+  // A trace annotation is drawn along its target vector and follows it.
+  const pinned = (id: string) => pinnedVectors.has(id) ||
+    result.document!.annotations.some((annotation) => annotation.id === id && annotation.targetIds.some((target) => pinnedVectors.has(target)));
+  for (const overlap of audit.overlaps) {
+    overlapsSeen.push(`${document.id}:${overlap.directed}~${overlap.other}`);
+    check(pinned(overlap.directed) || pinned(overlap.other), `${document.id}: ${overlap.directed} lies along ${overlap.other} for ${overlap.overlapPx} px${overlap.runsPastHead ? " and the stroke runs past its head" : ""}, and neither is pinned by a junction`);
+  }
+  overlapsUnlaned += auditDirectedStrokes(result.document, unlaned.primitives).overlaps.length;
   for (const dot of audit.dotsOnVector) check(false, `${document.id}: unnamed point ${dot.point} is drawn as a dot on ${dot.vector}`);
   for (const primitive of result.primitives) {
     if (primitive.kind === "vector" && primitive.provenance?.displayLengthScale !== undefined) scaledSeen.add(`${document.id}:${primitive.entityId}`);
@@ -135,14 +179,13 @@ function labelCenter(result: Replay, entityId: string): RenderPoint | undefined 
 }
 
 // v2 p1c-t3: the A to B arrow was aliased to the track through A and B and never drawn.
+// The B to C leg starts at its head, so neither leg moves off that junction.
 {
   const result = recordedResult("v2/p1c-t3#5");
-  const outbound = stroke(result, "outbound"); const back = stroke(result, "return"); const track = result.primitives.find((primitive) => primitive.entityId === "track");
+  const outbound = stroke(result, "outbound"); const back = stroke(result, "return");
   check(outbound && back, "v2 p1c-t3: both the A to B and the B to C arrows are drawn");
-  if (outbound && back && track) {
-    const sideOf = (p: RenderPoint) => Math.sign(p.y - track.points[0]!.y);
-    check(sideOf(outbound.points[0]!) !== 0 && sideOf(back.points[0]!) !== 0 && sideOf(outbound.points[0]!) !== sideOf(back.points[0]!),
-      "v2 p1c-t3: the outbound and return legs sit in lanes on either side of the track");
+  if (outbound && back) {
+    check(len(outbound.points[1]!, back.points[0]!) <= 1.5, "v2 p1c-t3: the return leg still starts at the outbound leg's head");
     const at = (id: string) => result.primitives.find((primitive) => primitive.kind === "point" && primitive.entityId === id)?.points[0];
     const [a, b] = [at("A"), at("B")];
     check(a && b && Math.abs(len(outbound.points[0]!, outbound.points[1]!) - len(a, b)) < 0.5, "v2 p1c-t3: the A to B arrow keeps the full length A to B");
@@ -191,13 +234,24 @@ function labelCenter(result: Replay, entityId: string): RenderPoint | undefined 
   }
 }
 // Point names beside the wrong mark (p4c-t1, p4e1-t2) are gated in verify-label-owner-placement.
-// v3 p2e2-t1 and p4e1-t2: vectors drawn on the crossing line, the bank and the separation.
+// v3 p2e2-t1: v_boat ran along the crossing line, v_current along the bank.
+// Both start at the boat with v_ground, so they stay; the crossing line is
+// trimmed off v_boat, and the bank (running on past both ends) stays.
 {
   const result = recordedResult("v3/p2e2-t1#5");
-  for (const id of ["v_boat", "v_current"]) {
-    const vector = stroke(result, id);
-    check(vector?.provenance?.directedLane, `v3 p2e2-t1: ${id} is drawn in a lane beside the line it ran along`);
+  const [boat, current, ground] = ["v_boat", "v_current", "v_ground"].map((id) => stroke(result, id));
+  check(boat && current && ground && !boat.provenance?.directedLane && !current.provenance?.directedLane, "v3 p2e2-t1: the velocity triangle is drawn and not moved");
+  if (boat && current && ground) check(len(boat.points[0]!, current.points[0]!) <= 1.5 && len(boat.points[0]!, ground.points[0]!) <= 1.5, "v3 p2e2-t1: the three velocities still share the boat's tail");
+  const cross = result.primitives.find((primitive) => primitive.entityId === "cross_line" && primitive.kind === "line");
+  if (boat && cross) {
+    const overlap = collinearOverlap({ a: boat.points[0]!, b: boat.points[1]! }, { a: cross.points[0]!, b: cross.points[1]! });
+    check(cross.provenance?.trimmedOffVector === "v_boat" && (!overlap || overlap.overlap < 12), "v3 p2e2-t1: the crossing line is trimmed off v_boat, not drawn under it");
   }
+}
+// A moved vector never loses a junction: v3 p2e1-t1 (resultant from the boat), yt q03 (the wind triangle).
+for (const id of ["v3/p2e1-t1#7", "yt/q03-t1#5", "yt/q03-t2#4"]) {
+  const result = recordedResult(id);
+  check(result.stage === "ok" && result.document && vectorJunctions(result.document, result.primitives).length > 0, `${id}: the vector triangle keeps its junctions`);
 }
 // v1 p2c-t1: -B shares B's segment in the opposite sense and was dropped.
 {
@@ -389,5 +443,6 @@ if (failures.length) {
   for (const failure of failures) console.error(`  - ${failure}`);
   process.exit(1);
 }
+console.log(`verify-directed-stroke-overlap: ${junctionCount} vector junctions kept; directed overlaps ${overlapsSeen.length} with lanes (${overlapsUnlaned} without): ${overlapsSeen.join(", ")}`);
 console.log(`verify-directed-stroke-overlap: short shafts kept at true length (${shortSeen.length}): ${shortSeen.join(", ")}`);
 console.log(`verify-directed-stroke-overlap: ${recorded.length} recorded documents (${compiledCount} compiled), ${scaledSeen.size} vectors display scaled, ${checks} checks passed`);
