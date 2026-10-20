@@ -1885,7 +1885,9 @@ function normalizeMechanicalPlannerArtifacts(raw: Record<string, unknown>): Reco
     }
     if (isRecord(inputs)) {
       for (const [key, value] of Object.entries(inputs)) {
-        if (key === "origin" && typeof operator === "string" && MATRIX_ARRAY_CONSTRUCTIONS.has(operator)) continue;
+        // These operator contracts consume a coordinate value, not a point-entity reference.
+        if (key === "origin" && typeof operator === "string" &&
+          (MATRIX_ARRAY_CONSTRUCTIONS.has(operator) || ROTATION_CONSTRUCTIONS.has(operator))) continue;
         const inlinePoint = isInlineCoordinatePoint(value)
           ? value
           : inlinePointInputKeys.has(key) &&
