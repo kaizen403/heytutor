@@ -1,0 +1,4 @@
+tsx scripts/verify/verify-native-cartesian-labels.ts
+tsx scripts/verify/verify-native-curve-label-attachment.ts
+tsx scripts/verify/verify-short-arrowhead-svg.ts
+pnpm --filter @heytutor/drawing exec tsx scripts/verify-short-arrowheads.ts

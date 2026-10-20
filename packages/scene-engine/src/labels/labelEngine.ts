@@ -34,6 +34,8 @@ export interface LabelOwner {
   incidentTangents?: RenderPoint[];
   /** Max center-to-anchor distance for a tethered owner (point letters). */
   tetherPx?: number;
+  /** Native analytic curve ink. Unconnected names must remain near this path. */
+  attachmentPath?: RenderPoint[];
   /** Distant leader slots. Default true; point letters set false. */
   allowLeader?: boolean;
   /** A moved callout must retain an explicit connector to its exact anchor. */
@@ -439,8 +441,8 @@ export function boundsInside(inner: LabelBounds, outer: LabelBounds): boolean {
  */
 /** Query the same constraints for one label without selecting a final slot. */
 export function canPlaceSingleLabel(owner: LabelOwner, obstacles: LabelObstacle[], options: LabelEngineOptions = {}): boolean {
-  const result = placeLabelsInternal([owner], obstacles, options, true).ok;
-  return result;
+  return placeLabelsInternal([owner], obstacles, options, true).ok || Boolean(owner.attachmentPath &&
+    placeLabelsInternal([owner], obstacles, options, true, true).ok);
 }
 
 export function placeLabels(
@@ -448,7 +450,15 @@ export function placeLabels(
   obstacles: LabelObstacle[],
   options: LabelEngineOptions = {},
 ): LabelEngineResult {
-  return placeLabelsInternal(owners, obstacles, options);
+  const first = placeLabelsInternal(owners, obstacles, options);
+  if (first.ok || !owners.some(owner=>owner.attachmentPath)) return first;
+  const remaining = (options.searchWorkBudget ?? LABEL_SEARCH_WORK_BUDGET) - first.searchWork;
+  if (remaining <= 0) return first;
+  // One bounded retry can slide full curve names into obstacle-clearance
+  // pockets that fixed compass slots miss. Every original constraint remains.
+  const retry = placeLabelsInternal(owners, obstacles, {...options,searchWorkBudget:remaining}, false, true);
+  return {...retry,searchWork:first.searchWork+retry.searchWork,
+    issues:retry.ok?retry.issues:[...first.issues,...retry.issues]};
 }
 
 function placeLabelsInternal(
@@ -456,6 +466,7 @@ function placeLabelsInternal(
   obstacles: LabelObstacle[],
   options: LabelEngineOptions = {},
   feasibilityOnly = false,
+  curveClearanceFallback = false,
 ): LabelEngineResult {
   // Every candidate for one label uses the same text and font height.
   // Width is independent of its position; measure it once per call, while
@@ -526,6 +537,17 @@ function placeLabelsInternal(
 
   const prepared = owners.map((owner, originalIndex): PreparedLabelOwner => {
     const prepareOwner = (exhaustive = false): PreparedLabelOwner => {
+      const anchorCount = exhaustive ? Math.min(owner.attachmentPath?.length ?? 0,33) : 9;
+      const pathAnchors = owner.attachmentPath ? Array.from({length:anchorCount}, (_, index) =>
+        owner.attachmentPath![Math.round(index * (owner.attachmentPath!.length - 1) / Math.max(1,anchorCount-1))]!).filter(Boolean) : [];
+      const detachedFromPath = (bounds: LabelBounds): boolean => {
+        const path = owner.attachmentPath;
+        if (!path || path.length < 2) return false;
+        // A long name's edge can be near its curve even when its center is
+        // farther away. Preserve the stock padded diagonal compass clearance.
+        const gap = Math.SQRT2 * (minGapPx + 8 + (options.paddingPx ?? DEFAULTS.paddingPx));
+        return !path.slice(1).some((end, index) => segmentToBoundsDistance(path[index]!, end, bounds) <= gap + 1e-6);
+      };
       let deferredInk = false;
       const candidateInkBounds = (text: string, bounds: LabelBounds, settings: LabelEngineOptions): LabelBounds => {
         // The final collision box contains the complete layout box. Ink can
@@ -554,6 +576,7 @@ function placeLabelsInternal(
         });
         const overlaps = [
           ...(outside ? ["view_clip"] : []),
+          ...(detachedFromPath(bounds) ? ["path_attachment"] : []),
           ...(offSide(collisionBounds, owner) ? [LABEL_WRONG_SIDE] : []),
           ...protectedHits,
           ...pinnedHits,
@@ -589,12 +612,13 @@ function placeLabelsInternal(
         // and gains slots taken along the stroke itself, for when the box slot
         // sits nearer another mark than its owner.
         const placements = [
-          { anchor: boxAnchor, bounds: textBoundsAtSlot(owner.text, boxAnchor, slot.slot, options, anchorGap) },
+          { anchor: boxAnchor, bounds: textBoundsAtSlot(owner.text, boxAnchor, slot.slot, options, anchorGap), penalty:0 },
+          ...pathAnchors.map(anchor => ({anchor, bounds:textBoundsAtSlot(owner.text, anchor, slot.slot, options, anchorGap), penalty:1000})),
           ...(ownership && ownerBounds && !onInk(boxAnchor, ownership.ink)
-            ? strokeSlotPlacements(owner, ownership, slot, options, anchorGap)
+            ? strokeSlotPlacements(owner, ownership, slot, options, anchorGap).map(placement=>({...placement,penalty:0}))
             : []),
         ];
-        return placements.map(({ anchor, bounds }) => {
+        return placements.map(({ anchor, bounds, penalty }) => {
           const collisionBounds = candidateInkBounds(owner.text, bounds, options);
           const overlaps = solverObstacles
             .filter((obstacle) => labelOverlapsObstacle(collisionBounds, obstacle, minGapPx))
@@ -605,17 +629,30 @@ function placeLabelsInternal(
           if (outside) overlaps.push("view_clip");
           if (offSide(collisionBounds, owner)) overlaps.push(LABEL_WRONG_SIDE);
           if (beyondTether(bounds, owner.anchor, owner.tetherPx)) overlaps.push("tether");
+          if (detachedFromPath(bounds)) overlaps.push("path_attachment");
           const incident = incidentAligned(slot.slot, owner.incidentTangents);
           const drift = Math.hypot(anchor.x - owner.anchor.x, anchor.y - owner.anchor.y);
-          return {
+          const candidate: LabelPlacementCandidate = {
             slot: slot.slot,
             bounds,
             collisionBounds,
-            score: slot.preference + gapIndex * 8 + (owner.preferredSlot === slot.slot ? -20 : 0) + overlaps.length * 10 + (outside ? 50 : 0) + (incident ? 40 : 0) + drift * 0.08 +
+            score: penalty + slot.preference + gapIndex * 8 + (owner.preferredSlot === slot.slot ? -20 : 0) + overlaps.length * 10 + (outside ? 50 : 0) + (incident ? 40 : 0) + drift * 0.08 +
               (margin < OWNERSHIP_CLEAR_MARGIN_PX ? AMBIGUOUS_OWNER_PENALTY : 0),
             overlaps,
             usesLeader: false,
           };
+          if (owner.allowLeader !== false && overlaps.length === 1 && overlaps[0] === "path_attachment") {
+            const center = {x:bounds.x+bounds.width/2,y:bounds.y+bounds.height/2};
+            for (const anchor of pathAnchors) {
+              const endpoint = leaderEndpoint(anchor, center, collisionBounds);
+              if (!endpoint) continue;
+              const routed = routeLeader({...candidate, overlaps:[], usesLeader:true, leaderFrom:anchor, leaderTo:endpoint},
+                fixedLabelBounds, owner.viewBounds, minGapPx,
+                owner.leaderGeometrySafe ? leaderGeometry : [], [], owner.leaderGeometrySafe ? geometryQuery : undefined);
+              if (routed) return routed;
+            }
+          }
+          return candidate;
         });
       }));
 
@@ -695,6 +732,7 @@ function placeLabelsInternal(
               ...(owner.allowLeader !== false && leaderTo ? { leaderFrom: owner.anchor, leaderTo } : {}),
             };
             if (owner.requireLeader && !candidate.usesLeader) overlaps.push("leader_required");
+            if (!candidate.usesLeader && detachedFromPath(bounds)) overlaps.push("path_attachment");
             // Without a drawn leader nothing ties the text to its owner but
             // proximity, so it must sit nearest its owner like a slot label.
             if (overlaps.length === 0 && !candidate.usesLeader && ownership && ownershipMargin(collisionBounds, ownership) < -OWNERSHIP_TOLERANCE_PX) overlaps.push(LABEL_NEARER_FOREIGN);
@@ -702,8 +740,18 @@ function placeLabelsInternal(
             // those candidates for diagnostics without exploring their elbows.
             if (overlaps.length > 0) return candidate;
             const fixedLabels = fixedLabelObstacles;
-            const routed = routeLeader(candidate, fixedLabelBounds, owner.viewBounds, minGapPx,
+            let routed = routeLeader(candidate, fixedLabelBounds, owner.viewBounds, minGapPx,
               owner.leaderGeometrySafe ? leaderGeometry : [], [], owner.leaderGeometrySafe ? geometryQuery : undefined);
+            // A midpoint can be trapped between other marks. Retry only
+            // existing points on this curve, with the same routing guards.
+            if (!routed && candidate.usesLeader) for (const anchor of pathAnchors) {
+              const endpoint = leaderEndpoint(anchor, center, collisionBounds);
+              if (!endpoint) continue;
+              routed = routeLeader({...candidate, leaderFrom:anchor, leaderTo:endpoint, leaderPath:undefined},
+                fixedLabelBounds, owner.viewBounds, minGapPx,
+                owner.leaderGeometrySafe ? leaderGeometry : [], [], owner.leaderGeometrySafe ? geometryQuery : undefined);
+              if (routed) break;
+            }
             if (routed) return routed;
             for (const obstacle of fixedLabels) {
               if (leaderCrosses(candidate, obstacle.bounds, minGapPx) && !overlaps.includes(obstacle.id)) overlaps.push(obstacle.id);
@@ -715,17 +763,33 @@ function placeLabelsInternal(
         atDistance.forEach(rememberCandidate);
         if (feasibilityOnly && legalLeaderDomain.length) return feasible(legalLeaderDomain[0]!);
       }
-      const nearbyCandidates: LabelPlacementCandidate[] = owner.tetherPx !== undefined
-        ? nearbyTetheredCenters(owner, solverObstacles, options, minGapPx).map((center) => {
+      const curveSlideCenters: RenderPoint[] = [];
+      if (exhaustive && owner.attachmentPath) {
+        const size = centeredTextBounds(owner.text, owner.anchor, options);
+        for (const point of pathAnchors) for (const fraction of [-0.8,-0.4,0,0.4,0.8]) {
+          for (const extra of [4,8,12,16]) for (const sign of [-1,1]) {
+            const gap = minGapPx + extra;
+            curveSlideCenters.push(
+              {x:point.x+fraction*size.width/2,y:point.y+sign*(size.height/2+gap)},
+              {x:point.x+sign*(size.width/2+gap),y:point.y+fraction*size.height/2},
+            );
+          }
+        }
+      }
+      const clearanceCenters = owner.tetherPx !== undefined
+        ? nearbyTetheredCenters(owner, solverObstacles, options, minGapPx)
+        : [];
+      const nearbyCandidates: LabelPlacementCandidate[] = [...clearanceCenters,...curveSlideCenters].filter(center =>
+        !owner.attachmentPath || !detachedFromPath(centeredTextBounds(owner.text,center,options))).map((center) => {
             const bounds = centeredTextBounds(owner.text, center, options);
             const collisionBounds = candidateInkBounds(owner.text, bounds, options);
             const overlaps = solverObstacles.filter((obstacle) => labelOverlapsObstacle(collisionBounds, obstacle, minGapPx)).map((obstacle) => obstacle.id);
             if (outsideOwnerView(collisionBounds, owner)) overlaps.push("view_clip");
             if (offSide(collisionBounds, owner)) overlaps.push(LABEL_WRONG_SIDE);
             if (beyondTether(bounds, owner.anchor, owner.tetherPx)) overlaps.push("tether");
+            if (detachedFromPath(bounds)) overlaps.push("path_attachment");
             return { slot: "leader", bounds, collisionBounds, score: 150 + Math.hypot(center.x - owner.anchor.x, center.y - owner.anchor.y), overlaps, usesLeader: false };
-          })
-        : [];
+          });
       const allCandidates = deduplicateCandidates([...candidates, ...leaderCandidates, ...nearbyCandidates])
         .sort((a, b) => a.score - b.score);
       const validCandidates = allCandidates
@@ -743,7 +807,7 @@ function placeLabelsInternal(
         area: estimated.width * estimated.height,
       };
     };
-    return prepareOwner();
+    return prepareOwner(curveClearanceFallback && Boolean(owner.attachmentPath));
   });
 
   // Pinned labels stay on their anchors. They do not enter the compass-slot

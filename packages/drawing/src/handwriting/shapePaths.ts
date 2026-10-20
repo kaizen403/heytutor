@@ -178,6 +178,11 @@ export function emphasisEllipsePath(
   ].join(" ");
 }
 
+/** Head leg in board pixels; a short arrow must retain a visible shaft. */
+export function arrowHeadLength(span: number): number {
+  return span < 2 ? 0 : Math.min(Math.max(span * 0.14, 10), 22, span * 0.45);
+}
+
 /** Line with arrowhead at the end point. */
 export function arrowPath(
   x1: number,
@@ -193,7 +198,7 @@ export function arrowPath(
     return linePath(x1, y1, x2, y2);
   }
 
-  const headLen = Math.min(Math.max(length * 0.14, 10), 22);
+  const headLen = arrowHeadLength(length);
   const angle = Math.atan2(dy, dx);
   const leftAngle = angle + Math.PI * 0.82;
   const rightAngle = angle - Math.PI * 0.82;

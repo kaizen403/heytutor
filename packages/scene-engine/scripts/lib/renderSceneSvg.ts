@@ -9,6 +9,8 @@
  * Board geometry mirrors `@heytutor/drawing` boardZones: canvas 1200×700,
  * diagram zone x 400–1160 / y 140–520, compiler default viewport 410,55 740×555.
  */
+import { arrowPath } from "../../../drawing/src/handwriting/shapePaths";
+import { directedCurveInk } from "../../src/compile/directedCurve";
 import type { RenderPrimitive, RenderScene } from "../../src/types";
 
 export const BOARD_WIDTH = 1200;
@@ -81,6 +83,16 @@ export function primitiveToSvg(primitive: RenderPrimitive, marker: string, ink: 
       const start = points[0];
       const end = points.at(-1);
       if (!start || !end) return "";
+      if (points.some(point => !Number.isFinite(point.x) || !Number.isFinite(point.y))) return "";
+      const head = directedCurveInk(points).arrow;
+      const headSpan = head ? Math.hypot(head[1].x - head[0].x, head[1].y - head[0].y) : 0;
+      if (!Number.isFinite(headSpan)) return "";
+      // Keep the stock long-arrow marker style. Short heads use the live
+      // glyph, including its no-head contract below two board pixels.
+      if (head && headSpan < 23) {
+        const curve = points.length > 2 ? `<polyline points="${poly(points)}" ${stroke}/>` : "";
+        return `${curve}<path d="${arrowPath(head[0].x, head[0].y, head[1].x, head[1].y)}" ${stroke}/>${inlineLabel}`;
+      }
       if (points.length > 2) {
         return `<polyline points="${poly(points)}" ${stroke} marker-end="url(#${marker})"/>${inlineLabel}`;
       }

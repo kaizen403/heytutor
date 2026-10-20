@@ -653,6 +653,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       leaderGeometrySafe: entity.kind === "point" || entity.provenance?.leaderGeometrySafe === true,
       ...dimensionLabelPlacement(entity.id, target, primitives, transformPlan.viewportFor(entity.id)),
       ...spaceElementPlacement,
+      ...curvedPathLabelPlacement(target, transform),
     });
   }
   for (const annotation of document.annotations) {
@@ -811,6 +812,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
         leaderGeometrySafe: targetEntity?.kind === "point" || secantLabel,
         allowLeader: endpointLabel || (targetEntity?.kind === "point" ? !isPointIdentifierText(text) : undefined),
         ...dimensionLabelPlacement(targetId, target, primitives, transformPlan.viewportFor(targetId)),
+        ...curvedPathLabelPlacement(target, transformPlan.transformFor(targetId)),
       });
     }
   }
@@ -1078,6 +1080,9 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       });
     }
   }
+  // Coordinate identity comes from the native axes operator. Add it after
+  // existing labels are fixed; an optional name cannot move or erase old ink.
+  appendCartesianAxisLetters(document, geometry, primitives, renderableIds, constructionOnlyIds, entityToGroup, transformPlan, labelOptions);
   assertScreenAttachedLabels(document, geometry, primitives, transformPlan, issues);
 
   const renderedIds = new Set([
@@ -1137,6 +1142,59 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
 
 /** Shorter drawn axes than this carry no letter; three letters would crowd one point. */
 const MIN_LETTERED_AXIS_PX = 16;
+
+function appendCartesianAxisLetters(
+  document: SceneDocument,
+  geometry: Map<string, Geometry>,
+  primitives: RenderPrimitive[],
+  renderableIds: ReadonlySet<string>,
+  constructionOnlyIds: ReadonlySet<string>,
+  entityToGroup: ReadonlyMap<string, string>,
+  transformPlan: EntityTransformPlan,
+  options: LabelEngineOptions,
+): void {
+  const declaredIds = new Set([...document.entities, ...document.annotations, ...document.constructions, ...document.assertions, ...document.quantities].map(item => item.id));
+  for (const entity of document.entities) {
+    const value = geometry.get(entity.id), groupId = entityToGroup.get(entity.id);
+    if (value?.kind !== "axes" || !groupId || !renderableIds.has(entity.id) || constructionOnlyIds.has(entity.id)) continue;
+    // Do not reinterpret caller-supplied names, units or annotation prose.
+    if (entity.label?.trim() || document.annotations.some(a =>
+      ["label", "callout"].includes(a.kind) && a.targetIds.includes(entity.id) && a.text?.trim()) ||
+      document.constructions.some(c => c.operator === "label" && [c.inputs.target, c.inputs.at, c.inputs.point].includes(entity.id))) continue;
+    const axes = primitives.find(p => p.entityId === entity.id && p.kind === "axes");
+    if (!axes || axes.points.length !== 4) continue;
+    const owners: LabelOwner[] = [];
+    for (const [letter, start, end] of [["x", 0, 1], ["y", 2, 3]] as const) {
+      const origin = axes.points[start]!, tip = axes.points[end]!;
+      const length = Math.hypot(tip.x-origin.x, tip.y-origin.y);
+      if (length < MIN_LETTERED_AXIS_PX || primitives.some(p => p.kind === "label" && p.groupId === groupId && p.text === letter &&
+        p.points.some(point => Math.hypot(point.x-tip.x, point.y-tip.y) < 65))) break;
+      owners.push({ labelId: `primitive_${entity.id}_cartesian_${letter}`, entityId: entity.id, anchor: tip, text: letter,
+        viewBounds: transformPlan.viewportFor(entity.id), useOwnerBounds: false,
+        incidentTangents: [{x:(origin.x-tip.x)/length,y:(origin.y-tip.y)/length}],
+        tetherPx: pointLabelTether(letter), allowLeader: false, leaderGeometrySafe: true });
+    }
+    if (owners.length !== 2) continue;
+    if (owners.some(owner => declaredIds.has(owner.labelId!) || primitives.some(p => p.id === owner.labelId))) continue;
+    const placed = placeLabels(owners, [...obstaclesFromPrimitives(primitives), workColumnObstacle()], options);
+    if (!placed.ok || owners.some(o => !placed.placements.some(p => p.labelId === o.labelId))) continue;
+    for (const placement of placed.placements) primitives.push({
+      id: placement.labelId, entityId: entity.id, groupId, kind: "label", text: placement.text,
+      points: [{x:round(placement.bounds.x+placement.bounds.width/2),y:round(placement.bounds.y+placement.bounds.height/2)}],
+      labelPlacement: "absolute", provenance: { labelBounds: placement.bounds,
+        labelCollisionBounds: placement.collisionBounds ?? placement.bounds, usesLeader: false, cartesianCoordinateIdentity: true },
+    });
+  }
+}
+
+/** An analytic curve owns its path; component outlines keep their own layout. */
+function curvedPathLabelPlacement(value: Geometry, transform: (point: Point) => RenderPoint): Partial<LabelOwner> {
+  if (value.kind !== "path" || !value.sampledCurve || value.closed || value.infinite || value.directed || value.points.length < 3) return {};
+  const first=value.points[0]!,last=value.points.at(-1)!,dx=last.x-first.x,dy=last.y-first.y;
+  const span=Math.hypot(dx,dy);
+  if (span < EPSILON || !value.points.some(p=>Math.abs(dx*(p.y-first.y)-dy*(p.x-first.x)) > EPSILON*span)) return {};
+  return { attachmentPath: value.points.map(transform), leaderGeometrySafe: true };
+}
 
 /**
  * Engine-owned letters x, y, z at the positive tips of every drawn space
