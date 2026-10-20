@@ -137,6 +137,25 @@ const mutate = (relations: unknown[]): Raw => ({ ...structuredClone(base.documen
   check(result.issues.filter((issue) => issue.code === "relation_dropped").length === 5, "each malformed relation is recorded");
 }
 
+{
+  // Pruning reads relations as validation keeps them: a kept relation shields
+  // its helper; one validation drops (no predicate, an undeclared entity)
+  // shields nothing, and the raw entry stays so validation records the drop.
+  const pruneCase = (relations: unknown[]) => engine.pruneDeadSceneEntities({
+    schemaVersion: "scene-document/v2", visualDecision: { mode: "scene", reason: "relations" }, source: { question: "Draw AB." }, quantities: [],
+    entities: [{ id: "A", kind: "point", role: "end", label: "A" }, { id: "B", kind: "point", role: "end", label: "B" }, { id: "AB", kind: "segment", role: "side" }, { id: "H", kind: "point", role: "helper" }],
+    constructions: [{ id: "mA", operator: "point", inputs: { x: 0, y: 0 }, outputs: ["A"] }, { id: "mB", operator: "point", inputs: { x: 4, y: 0 }, outputs: ["B"] },
+      { id: "mAB", operator: "segment", inputs: { start: "A", end: "B" }, outputs: ["AB"] }, { id: "mH", operator: "midpoint", inputs: { a: "A", b: "B" }, outputs: ["H"] }],
+    relations, assertions: [], annotations: [], requiredEntityIds: ["A", "B", "AB"],
+    revealGroups: [{ id: "g", entityIds: ["A", "B", "AB"], dependsOn: [], narrationCue: "AB" }], teachingTimeline: [],
+  }) as { entities: Raw[]; relations: unknown[] };
+  const keeps = (relations: unknown[]) => pruneCase(relations).entities.some((entity) => entity.id === "H");
+  check(keeps([{ on: ["H", "AB"] }]), "a relation validation keeps shields its helper from pruning");
+  check(!keeps([{ note: "helper", entities: ["H"] }]), "a relation with no predicate shields nothing");
+  check(!keeps([{ predicate: "near", entities: ["H", "ghost"] }]), "a relation naming an undeclared entity shields nothing");
+  check(pruneCase([{ note: "helper", entities: ["H"] }]).relations.length === 1, "pruning leaves the raw relation for validation to record");
+}
+
 // ------------------------------------------------------------ right angle mark
 const DEG = Math.PI / 180;
 function rightAngleScene(degrees: number, arm: "line" | "segment" | "ray_ahead" | "ray_behind" | "offset_line"): Raw {

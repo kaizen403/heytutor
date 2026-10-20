@@ -21,7 +21,9 @@ function nonEmptyString(value: unknown): value is string {
 
 /**
  * `relations` are never compiled, proven or rendered; their only effect is to
- * keep the entities they name from orphan pruning. Planners write them as
+ * keep the entities they name from orphan pruning. `pruneDeadSceneEntities`
+ * reads them through this normalizer too, so a relation dropped here shields
+ * nothing there. Planners write them as
  * `{kind, entities}`, `{predicate, entities}` or `{on: [a, b]}`, mostly with
  * no id, and the id stage then refused the whole document before any real
  * error reached the repair prompt.

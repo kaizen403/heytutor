@@ -263,6 +263,12 @@ export function pruneDeadSceneEntities(raw: Record<string, unknown>): Record<str
   ) {
     return retainCircuitRepairEvidence(raw);
   }
+  // Only the relations validation keeps shield an entity from pruning: one it
+  // drops (no predicate, no entity list, an undeclared entity) names nothing.
+  // The raw relations stay in the output, so validation still records each drop.
+  const shieldingRelations = normalizeSceneRelations(raw).relations;
+  const pruningField = (field: "assertions" | "relations" | "annotations" | "teachingTimeline"): unknown =>
+    field === "relations" ? shieldingRelations : raw[field];
 
   const entityIds = new Set(raw.entities.flatMap((entity) =>
     isRecord(entity) && typeof entity.id === "string" ? [entity.id] : [],
@@ -329,10 +335,11 @@ export function pruneDeadSceneEntities(raw: Record<string, unknown>): Record<str
     }
   }
   for (const field of ["relations", "annotations", "teachingTimeline"] as const) {
-    if (Array.isArray(raw[field])) collectEntityReferences(raw[field]);
-    if (Array.isArray(raw[field])) {
-      collectEntityReferencesInto(raw[field], entityIds, nonAssertionReferenced);
-      collectEntityReferencesInto(raw[field], entityIds, contractReferenced);
+    const value = pruningField(field);
+    if (Array.isArray(value)) {
+      collectEntityReferences(value);
+      collectEntityReferencesInto(value, entityIds, nonAssertionReferenced);
+      collectEntityReferencesInto(value, entityIds, contractReferenced);
     }
   }
   if (Array.isArray(raw.assertions)) {
@@ -544,7 +551,7 @@ export function pruneDeadSceneEntities(raw: Record<string, unknown>): Record<str
   ]);
   const nonConstructionReferences = new Set<string>();
   for (const field of ["assertions", "relations", "annotations", "teachingTimeline"] as const) {
-    collectStrings(raw[field], (value) => nonConstructionReferences.add(value));
+    collectStrings(pruningField(field), (value) => nonConstructionReferences.add(value));
   }
   let constructions = retainedConstructions;
   while (true) {
