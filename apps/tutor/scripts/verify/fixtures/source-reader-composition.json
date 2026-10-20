@@ -25,5 +25,21 @@
   { "id": "named-unsupported-reagent", "kind": "reaction", "question": "Propene reacts with HCl in presence of peroxide to give 1-chloropropane. Draw the product.", "draw": false },
   {"id": "whole-expression-trailing-operator", "kind": "function", "question": "Plot the exponential decay y = exp(-x)+.", "draw": false},
   {"id": "whole-expression-unread-suffix", "kind": "function", "question": "Plot the exponential decay y = exp(-x)+mystery.", "draw": false},
-  {"id": "whole-expression-negated-plot", "kind": "function", "question": "Do not plot the exponential decay y = exp(-x).", "draw": false}
+  {"id": "whole-expression-negated-plot", "kind": "function", "question": "Do not plot the exponential decay y = exp(-x).", "draw": false},
+  {"id": "complete-term-real-atan", "kind": "function", "question": "Plot the exponential decay y = exp(-x)+atan(x).", "draw": false},
+  {"id": "complete-term-changed-atan", "kind": "function", "question": "Plot the exponential decay y = 2*exp(-3*x)+atan(2*x).", "draw": false},
+  {"id": "complete-term-asin", "kind": "function", "question": "Plot the exponential decay y = exp(-x)+asin(x).", "draw": false},
+  {"id": "complete-term-acos", "kind": "function", "question": "Plot the exponential decay y = exp(-x)+acos(x).", "draw": false},
+  {"id": "complete-term-product", "kind": "function", "question": "Plot the exponential decay y = exp(-x)*atan(x).", "draw": false},
+  {"id": "complete-term-nested", "kind": "function", "question": "Plot the exponential decay y = atan(exp(-x)).", "draw": false},
+  {"id": "complete-term-firstorder-sibling", "kind": "function", "question": "For a first-order differential equation, plot y = exp(-x)+atan(x).", "draw": false},
+  {"id": "complete-term-space-positive", "kind": "function", "question": "Plot the exponential decay y = exp ( - x ).", "draw": true, "expression": "exp(-x)"},
+  {"id": "complete-term-decimal-positive", "kind": "function", "question": "Sketch the exponential decay y = 0.25 * exp ( - 1.5 * x ).", "draw": true, "expression": "0.25*exp(-1.5*x)"},
+  {"id": "complete-term-unicode-positive", "kind": "function", "question": "Plot the exponential decay y = exp(−x).", "draw": true, "expression": "exp(-x)"},
+  {"id": "complete-term-unary-plus-positive", "kind": "function", "question": "Plot the exponential decay y = +exp(-x).", "draw": true, "expression": "exp(-x)"},
+  {"id": "complete-term-supported-spaced-compound", "kind": "function", "question": "Plot the exponential decay y = exp ( - x ) + sin ( x ).", "draw": true, "expression": "exp(-x)+sin(x)"},
+  {"id": "complete-term-protected-repeated-solution", "kind": "function", "question": "A first-order ODE has solution y = exp(-x). Plot y = exp(-x).", "draw": true, "expression": "exp(-x)"},
+  {"id": "complete-term-protected-repeated-scaled-solution", "kind": "function", "question": "A first-order differential equation has solution y = 2*exp(-3*x). Plot y = 2*exp(-3*x).", "draw": true, "expression": "2*exp(-3*x)"},
+  {"id": "complete-term-firstorder-whole-positive", "kind": "function", "question": "For a first-order differential equation, plot y = exp(-x).", "draw": true, "expression": "exp(-x)"},
+  {"id": "complete-term-stated-source-not-droppable", "kind": "function", "question": "A first-order ODE has solution y = exp(-x)+atan(x). Plot y = exp(-x).", "draw": false}
 ]

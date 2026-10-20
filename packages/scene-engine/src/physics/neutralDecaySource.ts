@@ -24,18 +24,34 @@ function negativeArgument(question: string, start: number): boolean {
 
 /** Unlike explicitFunctions' recovering extractor, this owns the whole RHS. */
 function completeRequestedFunction(question: string): string[] | null {
-  const assignment = /\b(?:y|f\s*\(\s*x\s*\)|g\s*\(\s*x\s*\)|F|F\s*\(\s*x\s*\))\s*=\s*/.exec(question);
-  if (!assignment) return null;
-  const request = [...question.matchAll(/\b(?:draw|plot|graph|show|sketch|represent)\b/gi)]
-    .filter(match => match.index < assignment.index).at(-1);
-  if (!request || negativeArgument(question, request.index)) return null;
-  // Additional clauses, unparsed variables and dangling operators are not
-  // truncated into a different function. Only final sentence punctuation is
-  // outside the mathematical operand passed to the ordinary curve parser.
-  const rawRhs = question.slice(assignment.index + assignment[0].length).trim().replace(/[.!?]$/, "").trim();
-  try { parseMathExpression(rawRhs); } catch { return null; }
-  const expressions = explicitFunctions(question);
-  return expressions.length === 1 ? expressions : null;
+  const assignments = [...question.matchAll(/\b(?:y|f\s*\(\s*x\s*\)|g\s*\(\s*x\s*\)|F|F\s*\(\s*x\s*\))\s*=\s*/g)];
+  if (!assignments.length) return null;
+  const checked: string[] = [];
+  let clauseStart = 0, positiveRequest = false;
+  for (const [index, assignment] of assignments.entries()) {
+    const start = assignment.index + assignment[0].length;
+    const next = assignments[index + 1];
+    const between = question.slice(start, next?.index);
+    // A repeated source solution followed by its plot is supported, but an
+    // extra intervening sentence/request cannot disappear between assignments.
+    const boundary = next ? /[;!?]|\.(?=\s|$)/.exec(between) : null;
+    if (next && (!boundary || /[;!?]|\.(?=\s|$)/.test(between.slice(boundary.index + boundary[0].length)))) return null;
+    const rawRhs = (boundary ? between.slice(0, boundary.index) : between.trim().replace(/[.!?]$/, "")).trim();
+    const request = [...question.slice(clauseStart, assignment.index).matchAll(/\b(?:draw|plot|graph|show|sketch|represent)\b/gi)].at(-1);
+    if (request) {
+      if (negativeArgument(question, clauseStart + request.index)) return null;
+      positiveRequest = true;
+    }
+    let whole: string;
+    try { whole = parseMathExpression(rawRhs).source.replace(/\s+/g, "").replace(/^\+/, ""); } catch { return null; }
+    if (!checked.includes(whole)) checked.push(whole);
+    if (boundary) clauseStart = start + boundary.index + boundary[0].length;
+  }
+  const recovered = explicitFunctions(question);
+  // The recovering slot reader may omit an otherwise parser-supported term
+  // such as atan(x). Only whole literal identity may establish its authority.
+  return positiveRequest && recovered.length === checked.length
+    && checked.every((whole, index) => whole === recovered[index]) ? checked : null;
 }
 
 /** An asserted law and one supported requested view are independent of the
@@ -80,8 +96,13 @@ export function readNeutralDecaySource(question: string): DecayOutcome {
     if (expressions) return { status: "not_applicable", explicitFunctionContext: expressions };
   }
   if (/first[ -]?order/.test(stem) && !/half[ -]?life|\bdecay\b|fraction remaining/.test(stem)) {
-    const expressions = explicitFunctions(question);
-    return { status: "not_applicable", ...(expressions.length ? { explicitFunctionContext: expressions } : {}) };
+    const claimed = /\b(?:y|[fg]\s*\(\s*x\s*\)|F(?:\s*\(\s*x\s*\))?)\s*=/.test(question);
+    if (!claimed) {
+      const existing = explicitFunctions(question);
+      return { status: "not_applicable", ...(existing.length ? { explicitFunctionContext: existing } : {}) };
+    }
+    const expressions = completeRequestedFunction(question);
+    return expressions ? { status: "not_applicable", explicitFunctionContext: expressions } : { status: "declined" };
   }
   if (!/half[ -]?life|first[ -]?order|exponential decay/.test(stem)
     || !/half[ -]?life|\bdecay\b|fraction remaining/.test(stem)
