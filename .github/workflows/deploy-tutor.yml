@@ -96,6 +96,13 @@ jobs:
       - name: Failed-turn Sentry privacy and reporting regressions (no external calls)
         run: |
           pnpm --filter @heytutor/tutor verify:sentry
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-sentry-runtime.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-sentry-log-privacy.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-tts-relay-cancellation.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-worker-failure-log.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-billing-failure-telemetry.ts
+          pnpm --filter @heytutor/tutor exec node --experimental-test-module-mocks --import tsx scripts/verify/verify-teaching-reservation-budget.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-home-suggestion-race.ts
           node deploy/aws/verify-sentry-release.mjs
       - name: Diagram authority and restoration regressions
         run: pnpm --filter @heytutor/tutor verify:publication

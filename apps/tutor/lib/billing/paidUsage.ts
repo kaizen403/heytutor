@@ -3,11 +3,13 @@ import { calculateLlmCostDetails, type UsageCounts } from "../obs/usageCost";
 import { billingResponse } from "./errors";
 import type { SpendActor } from "./actor";
 import { acquirePaidCall, getTurnGrant, syncGrantUsdRemaining, type PaidCallKind, type TurnGrant, PAID_CALL_LIMITS } from "./grant";
-import { reservePeriodUsage, settlePeriodUsage, loadPeriodBalance } from "./ledger";
+import { reservePeriodUsage, settlePeriodUsage, loadPeriodBalance, type UsageReservationDenial } from "./ledger";
 import { prisma } from "../db/prisma";
 import { BILLING_PLANS, isKnownPlanId } from "./catalog";
 
 export interface PaidUsageReservation {
+  /** Fund the cumulative maximum before another upstream attempt dispatches. */
+  ensureReserved(totalUsd: number): Promise<Response | null>;
   settle(actualUsd?: number): Promise<void>;
   finish(): Promise<void>;
   cancelBeforeDispatch(): Promise<void>;
@@ -28,8 +30,24 @@ export async function reservePaidUsage(input: {
   // This helper is called only for configured, real providers. A missing LLM
   // key must not make an independently configured speech provider free.
   const bypass = input.actor.skipGates;
+  const reservationTraceId = input.traceId ?? grant?.lessonTraceId ?? randomUUID();
+  const unavailable = () => Response.json({ error: "Usage service is temporarily unavailable." }, { status: 503 });
+  const budgetDenial = async () => {
+    if (bypass) return billingResponse("retry_budget", null);
+    // Ancillary calls may have no grant, and the account may have changed plan
+    // since its grant was minted. A denial must describe the current account.
+    const user = await prisma.user.findUnique({ where: { id: input.actor.userId }, select: { planId: true } });
+    if (!user) return Response.json({ error: "unauthorized" }, { status: 401 });
+    const balance = await loadPeriodBalance({ userId: input.actor.userId, planId: isKnownPlanId(user.planId) ? user.planId : BILLING_PLANS.free });
+    syncGrantUsdRemaining(input.actor.userId, balance.remainingMillicents);
+    return billingResponse(balance.remainingMillicents > 0 ? "retry_budget" : "out_of_credits", balance.remainingPct);
+  };
   const millicents = Math.max(1, Math.ceil(input.usd * 1000));
-  if (!Number.isSafeInteger(millicents) || millicents > 100_000) { acquired.release(); return billingResponse("out_of_credits", 0); }
+  if (!Number.isSafeInteger(millicents)) { acquired.release(); return unavailable(); }
+  if (millicents > 100_000) {
+    acquired.release();
+    try { return await budgetDenial(); } catch { return unavailable(); }
+  }
   let receipt: Awaited<ReturnType<typeof reservePeriodUsage>> = null;
   try {
     // Ancillary work (notes and suggestions) can start without a lesson grant.
@@ -40,12 +58,18 @@ export async function reservePaidUsage(input: {
       if (!user) { acquired.release(); return Response.json({ error: "unauthorized" }, { status: 401 }); }
       planId = isKnownPlanId(user.planId) ? user.planId : BILLING_PLANS.free;
     }
+    let denial: UsageReservationDenial | undefined;
     if (!bypass) receipt = await reservePeriodUsage({
       userId: input.actor.userId, planId: planId ?? BILLING_PLANS.free,
-      traceId: input.traceId ?? grant?.lessonTraceId ?? randomUUID(),
+      traceId: reservationTraceId,
       kind: input.kind, millicents, maxCalls: PAID_CALL_LIMITS[input.kind],
+      onDenied: reason => { denial = reason; },
     });
-    if (!bypass && !receipt) { acquired.release(); return billingResponse("out_of_credits", 0); }
+    if (!bypass && !receipt) {
+      acquired.release();
+      if (denial === "concurrent_limit" || denial === "call_limit") return billingResponse(denial === "call_limit" ? "rate_limited" : "concurrent_limit", null);
+      return await budgetDenial();
+    }
     if (receipt) syncGrantUsdRemaining(input.actor.userId, receipt.remainingMillicents);
   } catch (error) {
     acquired.release();
@@ -53,7 +77,43 @@ export async function reservePaidUsage(input: {
     return Response.json({ error: "Usage service is temporarily unavailable." }, { status: 503 });
   }
   let finished = false;
-  const settle = async (usd?: number) => {
+  let reservedMillicents = millicents;
+  let operation = Promise.resolve();
+  const serialize = <T>(run: () => Promise<T>): Promise<T> => {
+    const next = operation.then(run);
+    operation = next.then(() => undefined, () => undefined);
+    return next;
+  };
+  const ensureReserved = (totalUsd: number): Promise<Response | null> => serialize(async () => {
+    if (finished) return unavailable();
+    const total = Math.max(1, Math.ceil(totalUsd * 1000));
+    if (!Number.isSafeInteger(total)) return unavailable();
+    if (total > 100_000) {
+      try { return await budgetDenial(); } catch { return unavailable(); }
+    }
+    if (total <= reservedMillicents) return null;
+    if (bypass) { reservedMillicents = total; return null; }
+    if (!receipt) return unavailable();
+    try {
+      let denial: UsageReservationDenial | undefined;
+      const extended = await reservePeriodUsage({
+        userId: input.actor.userId, planId: receipt.planId,
+        traceId: reservationTraceId, kind: input.kind,
+        reservationId: receipt.id, millicents: total - reservedMillicents,
+        maxCalls: PAID_CALL_LIMITS[input.kind],
+        onDenied: reason => { denial = reason; },
+      });
+      if (!extended) return denial === "insufficient_balance" || denial === "request_limit" ? await budgetDenial() : unavailable();
+      receipt = extended;
+      reservedMillicents = extended.amountMillicents;
+      syncGrantUsdRemaining(input.actor.userId, extended.remainingMillicents);
+      return null;
+    } catch {
+      // The existing funded attempt remains charged; no unreserved retry runs.
+      return unavailable();
+    }
+  });
+  const settle = (usd?: number) => serialize(async () => {
     if (finished) return;
     finished = true;
     try {
@@ -66,8 +126,8 @@ export async function reservePaidUsage(input: {
         syncGrantUsdRemaining(input.actor.userId, balance.remainingMillicents);
       }
     } finally { acquired.release(); }
-  };
-  return { settle, finish: () => settle(), cancelBeforeDispatch: () => settle(0) };
+  });
+  return { ensureReserved, settle, finish: () => settle(), cancelBeforeDispatch: () => settle(0) };
 }
 
 /** Text-only input upper bound: at most one token per UTF-8 byte plus protocol
