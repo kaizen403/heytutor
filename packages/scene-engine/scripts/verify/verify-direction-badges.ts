@@ -140,5 +140,49 @@ for (const [label, candidate] of [["no sense text", spinScene(undefined, false)]
   }
 }
 
+// A straight badge sits beside its target line, never on it: its shaft on the
+// line read as the line's own arrowhead (v3 p1e2-t1, 20 Oct 2026).
+for (const end of [{ x: 4, y: 0 }, { x: 0, y: 4 }, { x: 3, y: 4 }, { x: -4, y: 0 }]) {
+  for (const sense of ["positive", "negative"]) {
+    const validated = validateSceneDocument(scene(sense, end, 0.5));
+    const result = validated.document ? compileSceneDocument(validated.document) : null;
+    if (!result?.ok || !result.renderScene) { check(false, `badge ${sense} (${end.x},${end.y}) must compile`); continue; }
+    const [a, b] = result.renderScene.primitives.find((p) => p.entityId === "axis")!.points as [{ x: number; y: number }, { x: number; y: number }];
+    const shaft = result.renderScene.primitives.filter((p) => p.entityId === "badge")[0]!.points;
+    const span = Math.hypot(b.x - a.x, b.y - a.y);
+    const off = (p: { x: number; y: number }) => Math.abs((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x)) / span;
+    check(Math.min(off(shaft[0]!), off(shaft.at(-1)!)) >= 10, `badge ${sense} (${end.x},${end.y}) shaft must sit beside its line, got ${off(shaft[0]!).toFixed(1)} px off it`);
+    check(Math.abs(off(shaft[0]!) - off(shaft.at(-1)!)) < 0.5, `badge ${sense} (${end.x},${end.y}) shaft stays parallel to its line`);
+  }
+}
+
+// A badge marks a direction convention. A value on it (u_p=0) is placed by
+// the line, not by the body it belongs to, and landed beside another car in
+// v3 p1e2-t1. It is refused with a repair that names a label on the body.
+function labelledBadge(label: string | undefined, annotation?: { text?: string; quantityId?: string }): SceneDocument {
+  const candidate = scene("positive");
+  candidate.entities = candidate.entities.map((entity) => entity.id === "badge" && label !== undefined ? { ...entity, label } : entity);
+  if (annotation) candidate.annotations = [{ id: "badge_value", kind: "label", targetIds: ["badge"], ...annotation }];
+  if (annotation?.quantityId) candidate.quantities = [{ id: annotation.quantityId, symbol: "u", value: 0, unit: "m/s" }];
+  return candidate;
+}
+for (const [name, candidate] of [
+  ["label u_p=0", labelledBadge("u_p=0")],
+  ["label v = 20 m/s", labelledBadge("v = 20 m/s")],
+  ["label 0", labelledBadge("0")],
+  ["label 0 m/s", labelledBadge("0 m/s")],
+  ["annotation u(0) = 0", labelledBadge(undefined, { text: "u(0) = 0" })],
+  ["annotation bound to a quantity", labelledBadge(undefined, { text: "u", quantityId: "u" })],
+] as const) {
+  const validated = validateSceneDocument(candidate);
+  const issue = validated.report.issues.find((candidateIssue) => candidateIssue.code === "sign_badge_binds_quantity");
+  check(!validated.document && issue?.severity === "fatal", `badge ${name} must be refused with sign_badge_binds_quantity`);
+  check(Boolean(issue && /"kind":"label"/.test(issue.message) && /body/.test(issue.message)), `badge ${name}: the repair must name a label on the owning body: ${issue?.message}`);
+}
+for (const label of ["+", "+x", "positive", "east +", "x"]) {
+  const validated = validateSceneDocument(labelledBadge(label));
+  check(!validated.report.issues.some((issue) => issue.code === "sign_badge_binds_quantity"), `a direction badge labelled ${label} stays valid`);
+}
+
 assert.equal(failures.length, 0, failures.join("\n"));
 console.log(`Direction badge verification passed (${checks} checks).`);

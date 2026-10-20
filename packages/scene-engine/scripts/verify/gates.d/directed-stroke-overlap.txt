@@ -1,0 +1,2 @@
+# Directed ink on other ink: lanes, vector aliases, helper dots, sign badges, display length, point names, triangle labels.
+tsx scripts/verify/verify-directed-stroke-overlap.ts

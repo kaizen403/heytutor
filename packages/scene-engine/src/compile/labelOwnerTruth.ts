@@ -1,3 +1,4 @@
+import { isPointIdentifierText } from "./pointLabelText";
 import type { RenderPrimitive, SceneDocument, SceneIssue } from "../types";
 type Point = { x: number; y: number };
 function segmentDistance(p: Point, a: Point, b: Point): number {
@@ -47,6 +48,43 @@ function distance(p: Point, primitive: RenderPrimitive, owner = false): number {
   if (closed && points.length > 2) distances.push(segmentDistance(p,points.at(-1)!,points[0]!));
   return Math.min(...distances);
 }
+type Box = { x: number; y: number; width: number; height: number };
+function boxDistance(p: Point, box: Box): number {
+  return Math.hypot(Math.max(box.x - p.x, 0, p.x - (box.x + box.width)), Math.max(box.y - p.y, 0, p.y - (box.y + box.height)));
+}
+function segmentBoxDistance(a: Point, b: Point, box: Box): number {
+  const corners = [{ x: box.x, y: box.y }, { x: box.x + box.width, y: box.y }, { x: box.x + box.width, y: box.y + box.height }, { x: box.x, y: box.y + box.height }];
+  const cross = (p: Point, q: Point, r: Point) => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+  const crosses = corners.some((c, i) => {
+    const d = corners[(i + 1) % 4]!;
+    return cross(a, b, c) * cross(a, b, d) <= 0 && cross(c, d, a) * cross(c, d, b) <= 0;
+  });
+  if (crosses || boxDistance(a, box) === 0) return 0;
+  return Math.min(boxDistance(a, box), boxDistance(b, box), ...corners.map(c => segmentDistance(c, a, b)));
+}
+/** Distances from a point name's box to another primitive's marks, as the label engine ranks them. */
+function foreignMarkDistances(point: Point, other: RenderPrimitive, box: Box): number[] {
+  if (other.kind === "point") return other.points[0] && Math.hypot(other.points[0].x - point.x, other.points[0].y - point.y) > 3 ? [boxDistance(other.points[0], box)] : [];
+  if (!["line", "ray", "vector", "polyline", "polygon", "rectangle", "dimension", "axes"].includes(other.kind)) return [];
+  const pts = other.points;
+  const closed = (other.kind === "polygon" || other.kind === "rectangle") && pts.length > 2;
+  const segments: Array<[Point, Point]> = other.kind === "axes" && pts.length === 4 ? [[pts[0]!, pts[1]!], [pts[2]!, pts[3]!]]
+    : pts.slice(1).map((b, i) => [pts[i]!, b] as [Point, Point]);
+  if (closed) segments.push([pts.at(-1)!, pts[0]!]);
+  // A body drawn around the point shares its name.
+  if (closed && insidePolygon(point, pts)) return [];
+  // A vector drawn in a lane beside the line it stands for still starts at the point.
+  const lane = other.provenance?.directedLane as { offsetPx?: number; normal?: Point } | undefined;
+  const shift = lane?.normal && typeof lane.offsetPx === "number" ? { x: lane.normal.x * lane.offsetPx, y: lane.normal.y * lane.offsetPx } : { x: 0, y: 0 };
+  const at = { x: point.x + shift.x, y: point.y + shift.y };
+  const through = segments.some(([a, b]) => segmentDistance(at, a, b) <= 3);
+  if (!through) return segments.map(([a, b]) => segmentBoxDistance(a, b, box));
+  // An axis through the point is its frame. Otherwise only far ends compete: a vector's head, other corners.
+  if (other.kind === "axes") return [];
+  const ends = closed ? pts : [pts[0]!, pts.at(-1)!];
+  return ends.filter(end => Math.hypot(end.x - at.x, end.y - at.y) > 3).map(end => boxDistance(end, box));
+}
+
 /** An untethered, displaced label cannot identify an unrelated nearby stroke.
  * This is a localized missing attachment proof, not a claim about the topic.
  */
@@ -92,6 +130,34 @@ export function validateLabelOwnerTruth(document: SceneDocument, primitives: Ren
     issues.push({ code: "label_owner_ambiguous", severity: "fatal", failureKind: "proof", entityIds: owners,
       ...(annotation ? { path: `annotations[${annotationIndex}].text` } : entityIndex >= 0 ? { path: `entities[${entityIndex}].label` } : {}),
       message: ambiguousLeader ? "A label leader starts inside another region instead of an unambiguous part of its own stroke." : nestedRegionAmbiguity ? "An untethered name lies outside its circular owner, which is enclosed by another circle." : "An untethered label is substantially closer to another stroke than its declared owner.", expected: ownDistance, actual: otherDistance });
+  }
+  // A point name is read as naming the nearest mark. It sits no nearer any
+  // other dot, any stroke that misses its point, or the far end of a stroke
+  // through its point (a vector's head) than its own point. The label engine
+  // ranks slots by this rule; a remaining case is recorded, not fatal.
+  for (const label of primitives) {
+    if (label.kind !== "label" || !label.points[0] || label.provenance?.usesLeader || label.provenance?.summary || !isPointIdentifierText(label.text ?? "")) continue;
+    const box = label.provenance?.labelBounds as { x: number; y: number; width: number; height: number } | undefined;
+    if (!box) continue;
+    const annotationId = label.provenance?.annotationId ?? (document.annotations.some(a => a.id === label.id) ? label.id : undefined);
+    const annotationIndex = document.annotations.findIndex(a => a.id === annotationId);
+    const owners = document.annotations[annotationIndex]?.targetIds ?? [label.entityId];
+    const own = ink.filter(p => owners.includes(p.entityId));
+    if (owners.length !== 1 || own.length !== 1 || own[0]!.kind !== "point" || !own[0]!.points[0]) continue;
+    const point = own[0]!.points[0];
+    const ownDistance = boxDistance(point, box);
+    let nearest = { id: "", distance: Infinity };
+    for (const other of ink) {
+      if (other.entityId === owners[0]) continue;
+      for (const distanceToMark of foreignMarkDistances(point, other, box)) {
+        if (distanceToMark < nearest.distance) nearest = { id: other.entityId, distance: distanceToMark };
+      }
+    }
+    if (nearest.distance + 1 >= ownDistance) continue;
+    const entityIndex = document.entities.findIndex(e => e.id === label.entityId);
+    issues.push({ code: "point_name_nearer_foreign", severity: "warning", failureKind: "proof", entityIds: [...owners, nearest.id],
+      ...(annotationIndex >= 0 ? { path: `annotations[${annotationIndex}].text` } : entityIndex >= 0 ? { path: `entities[${entityIndex}].label` } : {}),
+      message: `The point name "${label.text ?? ""}" sits nearer ${nearest.id} than its own point.`, expected: ownDistance, actual: nearest.distance });
   }
   // Two untethered point names are crossed when each sits nearer the other's
   // point than its own: the reader assigns both names to the wrong points.

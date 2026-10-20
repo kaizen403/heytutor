@@ -7,6 +7,7 @@
 
 import type { RenderPoint, RenderPrimitive } from "../types";
 import { createLeaderGeometryQuery } from "./leaderGeometryQuery";
+import { isPointIdentifierText } from "../compile/pointLabelText";
 
 export interface LabelBounds {
   x: number;
@@ -52,6 +53,12 @@ export interface LabelOwner {
    * label that has no slot left.
    */
   sideRegions?: LabelSideRegion[];
+  /**
+   * The closed figure this owner is a side of, such as a vector triangle. A
+   * side is named from outside the figure; a slot inside ranks behind every
+   * slot outside it, and is never illegal for that alone.
+   */
+  outsideOf?: RenderPoint[];
 }
 
 /** A screen region bounded by an interface, keeping a label in one medium. */
@@ -80,6 +87,8 @@ export interface LabelObstacle {
   segments?: Array<[RenderPoint, RenderPoint]>;
   /** Kind of the primitive this obstacle was built from, when known. */
   primitiveKind?: RenderPrimitive["kind"];
+  /** A directed stroke drawn in a parallel lane: the shift from the line it stands for. */
+  laneShift?: RenderPoint;
 }
 
 export type LabelSlot =
@@ -580,6 +589,11 @@ function placeLabelsInternal(
             obstacles.filter((obstacle) => obstacle.entityId === owner.entityId).map((obstacle) => obstacle.bounds),
           );
       const ownership = owner.useOwnerBounds === false ? null : strokeOwnership(owner, obstacles);
+      const pointOwner = ownership ? null : pointOwnership(owner, obstacles);
+      // A point name ranks every slot nearer another mark behind every slot
+      // nearer its own point. It never makes the figure fail on its own.
+      const rankPenalty = (box: LabelBounds) => (pointOwner ? pointOwnershipPenalty(box, pointOwner) : 0) +
+        (owner.outsideOf && owner.outsideOf.length >= 3 && insidePolygonPoints({ x: box.x + box.width / 2, y: box.y + box.height / 2 }, owner.outsideOf) ? INSIDE_FIGURE_PENALTY : 0);
       // Point labels can use a closer compass slot when the usual margin wastes
       // clear interior space. Every candidate still clears ink by minGapPx.
       const anchorGaps = owner.tetherPx === undefined ? [minGapPx + 8] : [minGapPx + 8, minGapPx + 4, minGapPx];
@@ -612,7 +626,7 @@ function placeLabelsInternal(
             bounds,
             collisionBounds,
             score: slot.preference + gapIndex * 8 + (owner.preferredSlot === slot.slot ? -20 : 0) + overlaps.length * 10 + (outside ? 50 : 0) + (incident ? 40 : 0) + drift * 0.08 +
-              (margin < OWNERSHIP_CLEAR_MARGIN_PX ? AMBIGUOUS_OWNER_PENALTY : 0),
+              (margin < OWNERSHIP_CLEAR_MARGIN_PX ? AMBIGUOUS_OWNER_PENALTY : 0) + rankPenalty(collisionBounds),
             overlaps,
             usesLeader: false,
           };
@@ -689,7 +703,9 @@ function placeLabelsInternal(
               collisionBounds,
               score: 100 + distance + direction.preference +
                 (owner.preferredSlot && direction.slot === owner.preferredSlot ? -24 : 0) +
-                overlaps.length * 10 + (outside ? 50 : 0),
+                overlaps.length * 10 + (outside ? 50 : 0) +
+                (owner.allowLeader === false ? rankPenalty(collisionBounds) : 0) +
+                (owner.allowLeader !== false && owner.outsideOf && owner.outsideOf.length >= 3 && insidePolygonPoints({ x: center.x, y: center.y }, owner.outsideOf) ? INSIDE_FIGURE_PENALTY : 0),
               overlaps,
               usesLeader: owner.allowLeader !== false && Boolean(leaderTo),
               ...(owner.allowLeader !== false && leaderTo ? { leaderFrom: owner.anchor, leaderTo } : {}),
@@ -723,7 +739,7 @@ function placeLabelsInternal(
             if (outsideOwnerView(collisionBounds, owner)) overlaps.push("view_clip");
             if (offSide(collisionBounds, owner)) overlaps.push(LABEL_WRONG_SIDE);
             if (beyondTether(bounds, owner.anchor, owner.tetherPx)) overlaps.push("tether");
-            return { slot: "leader", bounds, collisionBounds, score: 150 + Math.hypot(center.x - owner.anchor.x, center.y - owner.anchor.y), overlaps, usesLeader: false };
+            return { slot: "leader", bounds, collisionBounds, score: 150 + Math.hypot(center.x - owner.anchor.x, center.y - owner.anchor.y) + rankPenalty(collisionBounds), overlaps, usesLeader: false };
           })
         : [];
       const allCandidates = deduplicateCandidates([...candidates, ...leaderCandidates, ...nearbyCandidates])
@@ -1523,12 +1539,14 @@ export function obstaclesFromPrimitives(primitives: RenderPrimitive[]): LabelObs
       : primitive.kind === "axes" && obstaclePoints.length >= 4
         ? [[obstaclePoints[0]!, obstaclePoints[1]!], [obstaclePoints[2]!, obstaclePoints[3]!]]
         : pathSegments(obstaclePoints, primitive.kind === "polygon" || primitive.kind === "rectangle" || primitive.kind === "circle");
+    const lane = primitive.provenance?.directedLane as { offsetPx?: number; normal?: RenderPoint } | undefined;
     return [{
       id: primitive.id,
       entityId: primitive.entityId,
       kind: primitive.kind === "label" ? "label" as const : "geometry" as const,
       primitiveKind: primitive.kind,
       segments,
+      ...(lane?.normal && typeof lane.offsetPx === "number" ? { laneShift: { x: lane.normal.x * lane.offsetPx, y: lane.normal.y * lane.offsetPx } } : {}),
       bounds: {
         x: minX - pad,
         y: minY - pad,
@@ -1686,6 +1704,93 @@ function strokeOwnership(owner: LabelOwner, obstacles: LabelObstacle[]): StrokeO
     .filter((obstacle) => obstacle.kind === "geometry" && obstacle.entityId !== undefined && obstacle.entityId !== owner.entityId && obstacle.segments?.length)
     .map((obstacle) => obstacle.segments!);
   return { ink, stroke, foreign };
+}
+
+interface PointOwnership {
+  point: RenderPoint;
+  /** Strokes that do not pass through the point. */
+  strokes: Array<[RenderPoint, RenderPoint]>;
+  /** Other dots, and the far ends of strokes that do pass through the point (an arrowhead, a corner). */
+  marks: RenderPoint[];
+}
+
+/** Within this distance a stroke passes through the named point. */
+const POINT_INCIDENT_PX = 3;
+/** Ranks a point name nearer another mark behind every clear slot; never a failure. */
+const POINT_FOREIGN_PENALTY = 60;
+
+/**
+ * A point name reads as naming the nearest mark. The marks it competes with
+ * are other dots, strokes that miss the point, and the far ends of strokes
+ * through the point: the head of a vector drawn from the point is a mark of
+ * its own, its shaft is not.
+ */
+function pointOwnership(owner: LabelOwner, obstacles: LabelObstacle[]): PointOwnership | null {
+  if (owner.sideRegions?.length || owner.placementBounds || owner.pinToAnchor || !isPointIdentifierText(owner.text)) return null;
+  const own = obstacles.filter((obstacle) => obstacle.kind === "geometry" && obstacle.entityId === owner.entityId);
+  if (own.length !== 1 || own[0]!.primitiveKind !== "point") return null;
+  const point = owner.anchor;
+  const strokes: Array<[RenderPoint, RenderPoint]> = [];
+  const marks: RenderPoint[] = [];
+  for (const obstacle of obstacles) {
+    if (obstacle.kind !== "geometry" || obstacle.entityId === undefined || obstacle.entityId === owner.entityId) continue;
+    if (obstacle.primitiveKind === "point") {
+      const center = { x: obstacle.bounds.x + obstacle.bounds.width / 2, y: obstacle.bounds.y + obstacle.bounds.height / 2 };
+      if (Math.hypot(center.x - point.x, center.y - point.y) > POINT_INCIDENT_PX) marks.push(center);
+      continue;
+    }
+    const segments = obstacle.segments ?? [];
+    if (segments.length === 0) continue;
+    const at = { x: point.x, y: point.y, width: 0, height: 0 };
+    // A body drawn around the point (a car centred on its position) shares its name.
+    const closed = segments.length > 2 && Math.hypot(segments[0]![0].x - segments.at(-1)![1].x, segments[0]![0].y - segments.at(-1)![1].y) < 0.5;
+    if (closed && insideSegments(point, segments)) continue;
+    // A stroke moved to a lane beside the point still starts there.
+    const shift = obstacle.laneShift ?? { x: 0, y: 0 };
+    const unshifted = { x: at.x + shift.x, y: at.y + shift.y, width: 0, height: 0 };
+    if (obstacle.primitiveKind === "axes" && segments.some(([start, end]) => segmentToBoundsDistance(start, end, at) <= POINT_INCIDENT_PX)) continue;
+    if (!segments.some(([start, end]) => segmentToBoundsDistance(start, end, unshifted) <= POINT_INCIDENT_PX)) {
+      strokes.push(...segments);
+      continue;
+    }
+    // A stroke through the point competes only with its far ends: a vector's
+    // head, a polygon's other corners, the end of a path leaving the point.
+    // An axis through the point is its frame, not a competing mark.
+    const ends = closed ? segments.map(([start]) => start) : [segments[0]![0], segments.at(-1)![1]];
+    for (const end of ends) if (Math.hypot(end.x - shift.x - point.x, end.y - shift.y - point.y) > POINT_INCIDENT_PX) marks.push(end);
+  }
+  return { point, strokes, marks };
+}
+
+/** Ranks a side's name inside its closed figure behind every slot outside. */
+const INSIDE_FIGURE_PENALTY = 40;
+
+function insidePolygonPoints(point: RenderPoint, points: RenderPoint[]): boolean {
+  return insideSegments(point, points.map((start, index) => [start, points[(index + 1) % points.length]!] as [RenderPoint, RenderPoint]));
+}
+
+function insideSegments(point: RenderPoint, segments: Array<[RenderPoint, RenderPoint]>): boolean {
+  let inside = false;
+  for (const [a, b] of segments) {
+    if ((a.y > point.y) !== (b.y > point.y) && point.x < (b.x - a.x) * (point.y - a.y) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
+}
+
+function pointOwnershipPenalty(box: LabelBounds, ownership: PointOwnership): number {
+  const own = pointToBoundsDistance(ownership.point, box);
+  let foreign = Infinity;
+  for (const mark of ownership.marks) foreign = Math.min(foreign, pointToBoundsDistance(mark, box));
+  if (foreign >= own - OWNERSHIP_TOLERANCE_PX) foreign = Math.min(foreign, segmentsToBoundsDistance(ownership.strokes, box));
+  const margin = foreign - own;
+  return margin < -OWNERSHIP_TOLERANCE_PX ? POINT_FOREIGN_PENALTY - margin : 0;
+}
+
+function pointToBoundsDistance(point: RenderPoint, box: LabelBounds): number {
+  return Math.hypot(
+    Math.max(box.x - point.x, 0, point.x - (box.x + box.width)),
+    Math.max(box.y - point.y, 0, point.y - (box.y + box.height)),
+  );
 }
 
 function isOpenStroke(obstacle: LabelObstacle): boolean {
