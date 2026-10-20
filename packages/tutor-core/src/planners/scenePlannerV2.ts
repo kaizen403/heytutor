@@ -17,6 +17,8 @@ export interface SceneRepairError {
   message: string;
   severity: "fatal" | "warning";
   path?: string;
+  assertionId?: string;
+  constructionId?: string;
   entityIds?: string[];
   expected?: unknown;
   actual?: unknown;

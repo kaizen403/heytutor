@@ -8,7 +8,7 @@ const items = (value: unknown): Record<string, unknown>[] => Array.isArray(value
 const indexedItems = (value: unknown) => Array.isArray(value)
   ? value.flatMap((item, index) => record(item) ? [{ item, index }] : []) : [];
 const namedAssertion = (message: string, id: unknown) => typeof id === "string" &&
-  new RegExp(`\\bAssertion\\s+["']?${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?=["']?(?::\\s|\\s|$))`, "i").test(message);
+  message.match(/\bAssertion\s+["']?(.+?)(?:["']?:\s|["']?\s|$)/i)?.[1] === id;
 
 /** Diagnostic context only: never changes a candidate, proof, or authoritative expected value. */
 export function scenePlannerRepairFeedback(candidate: SceneDocumentCandidate, errors: readonly SceneRepairError[]) {
@@ -19,10 +19,14 @@ export function scenePlannerRepairFeedback(candidate: SceneDocumentCandidate, er
   const implicated = new Set<number>();
   for (const error of assertionFailures) {
     const index = error.path?.match(/^assertions\[(\d+)\]/)?.[1];
-    const indexed = assertions.filter(entry => String(entry.index) === index);
+    const identified = typeof error.assertionId === "string" ? assertions.filter(entry => entry.item.id === error.assertionId) : [];
+    // Real reader diagnostics carry stable IDs. Legacy callback indexes are
+    // safe only for a single original record; never guess after removals.
+    const indexed = !error.assertionId && assertions.length === 1
+      ? assertions.filter(entry => String(entry.index) === index) : [];
     const named = assertions.filter(entry => namedAssertion(error.message, entry.item.id));
     const operands = assertions.filter(entry => strings(entry.item.entities).some(id => error.entityIds?.includes(id)));
-    const scoped = indexed.length ? indexed : named.length ? named : operands.length ? operands
+    const scoped = identified.length ? identified : named.length ? named : operands.length ? operands : indexed.length ? indexed
       : !error.path && !error.entityIds?.length ? assertions : [];
     for (const entry of scoped) implicated.add(entry.index);
   }
@@ -46,10 +50,33 @@ export function scenePlannerRepairFeedback(candidate: SceneDocumentCandidate, er
   const constructions = items(candidate.constructions);
   for (const error of fatal) {
     const index = error.path?.match(/^constructions\[(\d+)\]/)?.[1];
-    const call = index === undefined ? undefined : indexedItems(candidate.constructions).find(entry => entry.index === Number(index))?.item;
+    const call = (typeof error.constructionId === "string" ? constructions.find(entry => entry.id === error.constructionId) : undefined) ??
+      (!error.constructionId && constructions.length === 1 && index !== undefined ? indexedItems(candidate.constructions).find(entry => entry.index === Number(index))?.item : undefined);
     if (call) for (const id of strings(call.outputs)) affected.add(id);
   }
-  const focus = constructions.filter(call => call.operator === "axes" || strings(call.outputs).some(id => affected.has(id)));
+  // Terminal producers alone hide the graph whose path count failed. Follow
+  // shared endpoint IDs, not visual proximity, and retain exact bounded inputs.
+  const incident: Record<string, unknown>[] = [];
+  if (matches.some(entry => entry.item.predicate === "pathCount")) {
+    const terminals = new Set(affected);
+    const edges = constructions.filter(call => ["symbol", "connect", "segment"].includes(String(call.operator)) &&
+      record(call.inputs) && typeof call.inputs.start === "string" && typeof call.inputs.end === "string");
+    let expanded = true;
+    while (expanded) {
+      expanded = false;
+      for (const call of edges) {
+        if (incident.includes(call)) continue;
+        const input = record(call.inputs) ? call.inputs : {};
+        const endpoints = strings([input.start, input.end]);
+        if (!endpoints.some(id => terminals.has(id))) continue;
+        incident.push(call);
+        for (const id of endpoints) { terminals.add(id); affected.add(id); }
+        expanded = true;
+      }
+    }
+  }
+  const focus = [...incident, ...constructions.filter(call => !incident.includes(call) &&
+    (call.operator === "axes" || strings(call.outputs).some(id => affected.has(id))))];
   const dependencies = new Set(focus.flatMap(call => strings(call.inputs)));
   // Exact small inputs, then direct dependencies; never resend a full invalid
   // program or silently truncate an expression/point list into different facts.
@@ -65,10 +92,10 @@ export function scenePlannerRepairFeedback(candidate: SceneDocumentCandidate, er
   const guidance: string[] = [];
   for (const assertion of failedAssertions) {
     const expected = JSON.stringify(assertion.expected);
-    guidance.push(`Claim ${assertion.id}: ${assertion.predicate}(${strings(assertion.entities).join(",")}) expects ${expected && expected.length <= 100 ? expected : "the unchanged source value"}. Repair its own geometry,not just its label.`);
+    guidance.push(`Claim ${assertion.id} (candidate-authored): ${assertion.predicate}(${strings(assertion.entities).join(",")}),expected ${expected && expected.length <= 100 ? expected : "see authoritative facts"}. Check its predicate scope against source facts,then repair geometry.`);
   }
   if (failedAssertions.some(assertion => assertion.predicate === "pathCount")) {
-    guidance.push("pathCount includes the source branch and all terminal paths,not just loads. sameTerminalPair proves load parallelism; preserve the source's load count. Correct a planner-authored total-path count to its predicate scope while retaining required load-parallel proofs. Never replace an authoritative expected value with the measured actual value.");
+    guidance.push("pathCount includes the source branch and all terminal paths,not just loads. Operands:two terminal point IDs,never a component. sameTerminalPair proves load parallelism; preserve the source's load count. Correct a planner-authored total-path count to its predicate scope while retaining required load-parallel proofs. Never replace an authoritative expected value with the measured actual value.");
   }
   if (assertionFailures.length && constructions.some(call => String(call.operator).startsWith("space_"))) {
     guidance.push("Direction cosine angles need directed space_vector arms from the origin toward positive axes. An undirected space_line gives the acute angle; it cannot prove an obtuse directed angle. Keep the authoritative angle.");

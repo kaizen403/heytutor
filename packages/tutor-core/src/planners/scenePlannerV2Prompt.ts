@@ -105,7 +105,7 @@ export function buildSceneDocumentPlannerPrompt(
     ? `\nSELECTED VISUAL INVARIANTS\n${context.planningGuidance.map((item) => `- ${item}`).join("\n")}\n`
     : "";
   const workedExamples = context.workedExamples?.length
-    ? `\nWORKED SCENE EXAMPLES\nCoordinates and engine-only metadata are deliberately omitted. Reuse the structural operator patterns, but derive valid inputs and facts from the current question.\n${context.workedExamples.slice(0, 3).map((example, index) =>
+    ? `\nWORKED SCENE EXAMPLES\nCoordinates and engine-only metadata are deliberately omitted. These are non-executable skeletons: complete every point's x,y from the current question; never copy bare point inputs. Reuse structural patterns,not their facts.\n${context.workedExamples.slice(0, 3).map((example, index) =>
       `EXAMPLE ${index + 1} (${example.id})\n${example.sourceKind === "curated" && example.question
         ? `QUESTION\n${example.question}`
         : `Figure: ${example.depicts}`}\nSCENE\n${JSON.stringify(compactSceneExampleDocument(example.document))}`,
@@ -161,7 +161,7 @@ AUTHORITY
 RELATIONS
 - Physical vectors/angles:world points,named proofs. on:[point,path];converges:[path1,path2,target];between:[middle,end1,end2];same_side:[point,point,origin]. between/equal_length:geometry only.
 - Incoming ray:surface_contact -> normal_at -> reflect_direction/refract_direction. Given contact incidence:reflect_at/refract_at. One representation per ray.
-- Symbols:distinct terminals,no wire bypass/duplicate. Series:consecutive; parallel:shared pair. pathCount includes source branch; loads:sameTerminalPair.
+- Symbols:distinct terminals,no wire bypass/duplicate. Series:consecutive; parallel:shared pair. pathCount:[terminal1,terminal2],includes source branch; loads:sameTerminalPair.
 - Direction cosines:directed space_vector to positive axes; space_line:acute.
 - Independent-axis plots:label units/ratios; convert curves,bounds,points,proofs together; keep source quantities. No metric rescale or function_curve xScale/yScale.
 - Closed routes:shared p0...p(N-1),edge i:p(i)->p(i+1 mod N). Split contacts at shared IDs. Overlap,crossing,on or equal coordinates with distinct IDs never prove connectivity. Named sides use shared terminals. Up/down vertical; left/right horizontal.

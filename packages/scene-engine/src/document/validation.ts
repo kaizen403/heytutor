@@ -5148,10 +5148,20 @@ function checkAcyclic(nodes: Array<{ id: string; deps: string[] }>, path: string
 
 function result(document: SceneDocument | null, issues: SceneIssue[], statsDocument?: SceneDocument): ValidationResult {
   const source = statsDocument ?? document;
+  const diagnosticIssues = issues.map((issue) => {
+    const assertionIndex = issue.path?.match(/^assertions\[(\d+)\]/)?.[1];
+    const constructionIndex = issue.path?.match(/^constructions\[(\d+)\]/)?.[1];
+    const assertionId = assertionIndex === undefined ? undefined : source?.assertions?.[Number(assertionIndex)]?.id;
+    const constructionId = constructionIndex === undefined ? undefined : source?.constructions?.[Number(constructionIndex)]?.id;
+    return { ...issue,
+      ...(typeof assertionId === "string" ? { assertionId } : {}),
+      ...(typeof constructionId === "string" ? { constructionId } : {}),
+    };
+  });
   const report: ValidationReport = {
     engineVersion: SCENE_ENGINE_VERSION,
     valid: !issues.some((issue) => issue.severity === "fatal"),
-    issues,
+    issues: diagnosticIssues,
     stats: { entityCount: source?.entities.length ?? 0, constructionCount: source?.constructions.length ?? 0, primitiveCount: 0, assertionCount: source?.assertions.length ?? 0 },
   };
   return { document, report };
