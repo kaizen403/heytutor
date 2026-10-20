@@ -154,6 +154,35 @@ check("a spaced meter or second that ends its quantity is still a unit", () => {
   for (const [written, hindi] of UNITS) assert.equal(hinglish(written), hindi, `Hinglish speech for: ${written}`);
 });
 
+check("a bare m ends its quantity wherever nothing continues it", () => {
+  // Recorded 20 Oct 2026: a figure label read aloud then pointed at,
+  // "x=40 m [FOCUS:B] turnaround position", reaches speech without its tag,
+  // so the quantity is followed by a noun. 28 such quantities in 18 lessons
+  // were spoken "forty m". A semicolon, a colon, a bracket, a preposition and
+  // a direction end a length too, and a grouped number is one number.
+  const UNITS: [string, string][] = [
+    ["अब x equals 40 m turnaround position है", "अब x equals forty meters turnaround position है"],
+    ["diagram का 70 m पूरे travelled path की length", "diagram का seventy meters पूरे travelled path की length"],
+    ["figure में 240 m east पहले walk की distance है", "figure में two hundred forty meters east पहले walk की distance है"],
+    ["average speed is 70 m divided by Δt", "average speed is seventy meters divided by delta t"],
+    ["C at x equals 10 m; first leg", "C at x equals ten meters; first leg"],
+    ["the distance up the incline is 21 m: the landing point", "the distance up the incline is twenty one meters: the landing point"],
+    ["y(20 m) equals 15 m", "y(twenty meters) equals fifteen meters"],
+    ["the packet is 75 m above the ground", "the packet is seventy five meters above the ground"],
+    ["A ball leaves the 40 m roof", "A ball leaves the forty meters roof"],
+    ["a 1,000 m track", "a one thousand meters track"],
+    ["1 m away", "one meter away"],
+  ];
+  for (const [written, hindi] of UNITS) assert.equal(hinglish(written), hindi, `Hinglish speech for: ${written}`);
+  // A verb of being still marks a mass, and a product still continues.
+  const MASSES: [string, string][] = [
+    ["block ka mass 2 m है", "block ka mass two m है"],
+    ["the mass 2 m is at rest", "the mass two m is at rest"],
+    ["so 2 m g sinθ and 4 m squared", "so two m g sine theta and four m squared"],
+  ];
+  for (const [written, hindi] of MASSES) assert.equal(hinglish(written), hindi, `Hinglish speech for: ${written}`);
+});
+
 check("a glued product stays letters through mathToSpeech and the Hinglish rewrite", () => {
   // mathToSpeech opens `2m` into the number and its letter. With an ordinary
   // space the Hinglish unit rule then read a mass as "two meters"; the glue
