@@ -9,6 +9,8 @@ export * from "./protocol/verifiedDiagram";
 export {
   isBlockedVerifiedDiagramCommand,
   prepareVerifiedLessonSegments,
+  foldWritelessFocusRuns,
+  createWritelessFocusFolder,
   isDevanagariWrite,
   spokenFocusTarget,
   anchorToTextRect,

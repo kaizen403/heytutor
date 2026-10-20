@@ -1,5 +1,6 @@
 import { useCallback, useRef, type RefObject } from "react";
 import {
+  emphasisBoxPath,
   fitBoardText,
   snapToBoardTypeScale,
   BOARD_TYPE_SCALE,
@@ -12,7 +13,7 @@ import type { WhiteboardHandle } from "@heytutor/whiteboard";
 import { tutorDebug } from "@heytutor/tutor-core";
 import type { NotesEpoch } from "@/lib/client/exportNotesPdf";
 import { useBoardViewport, type BoardViewportMode } from "./useBoardViewport";
-import { TEXT_LAYOUT, DIAGRAM_ZONE, WORK_ROW_FONT_SIZE, BOARD_WIDTH } from "../constants";
+import { TEXT_LAYOUT, DIAGRAM_ZONE, WORK_ROW_FONT_SIZE, BOARD_WIDTH, BOARD_WORK_ROWS_PER_PAGE } from "../constants";
 import type { BoardTextRect, BoardLayoutState } from "../types";
 import type { IntroLayoutCheckpoint } from "../lib/board/introLayoutCheckpoint";
 import {
@@ -46,6 +47,64 @@ export interface UseBoardLayoutParams {
  * this is the rare case rather than the normal one it used to be.
  */
 export const MIN_WORK_ROW_FONT_SIZE = MIN_BOARD_FONT_SIZE;
+
+/**
+ * How long a finished page stays up before a live page turn wipes it.
+ *
+ * The wipe used to start on the next WRITE with no pause at all: in v3 p1e2
+ * the answer box finished at 175,215 ms and the wipe began 11 ms later; 37 of
+ * 160 page turns came within 3 s of a box. The turn is taken at the start of
+ * the next segment, after the previous voice has finished, so this hold is
+ * the time the student has with the finished page.
+ */
+export const PAGE_TURN_HOLD_MS = 1_500;
+
+/**
+ * Boxed answers a page turn carries to the top of the new page, the latest
+ * first. Half a page at most, so the new page still has room for its work.
+ */
+export const MAX_CARRIED_ANSWER_ROWS = Math.max(1, Math.floor(BOARD_WORK_ROWS_PER_PAGE / 2));
+
+/** Boxed work rows on the board, top to bottom, the latest few kept. */
+export function boxedAnswerRowsToCarry(rects: readonly BoardTextRect[]): BoardTextRect[] {
+  const boxed = rects
+    .filter((rect) => rect.boxed === true && !rect.pendingInk && rect.x < DIAGRAM_ZONE.x &&
+      rect.y >= TEXT_LAYOUT.headingBottomY && (rect.text ?? "").trim().length > 0)
+    .sort((a, b) => a.y - b.y || a.x - b.x);
+  return boxed.slice(Math.max(0, boxed.length - MAX_CARRIED_ANSWER_ROWS));
+}
+
+/**
+ * Where carried answers land on a fresh page: the work column's first rows,
+ * in order, at their own size. A row too wide for the column is not shrunk;
+ * it is left behind (the board type scale never shrinks a row).
+ */
+export function placeCarriedAnswerRows(
+  layout: BoardLayoutState,
+  rows: readonly BoardTextRect[],
+  diagramActive: boolean,
+): BoardTextRect[] {
+  const placed: BoardTextRect[] = [];
+  const scratch: BoardLayoutState = { rects: [...layout.rects], nextY: layout.nextY };
+  for (const row of rows) {
+    const slot = findWorkTextSlot({
+      layout: scratch,
+      requestedX: TEXT_LAYOUT.marginX,
+      requestedY: getWorkAreaFlowStartY(scratch),
+      width: row.width,
+      height: row.height,
+      diagramActive,
+      sequential: true,
+      runtimeOwnsX: true,
+    });
+    if (!slot || row.width > slot.maxWidth) continue;
+    const carried: BoardTextRect = { ...row, x: slot.x, y: slot.y, pendingInk: false, boxed: true };
+    scratch.rects.push(carried);
+    scratch.nextY = Math.max(scratch.nextY, slot.y + TEXT_LAYOUT.lineHeight);
+    placed.push(carried);
+  }
+  return placed;
+}
 
 /**
  * Base size for a row, decided by the column it lands in. Constant for a whole
@@ -180,23 +239,60 @@ export function useBoardLayout({
     return command.type === "WRITE" ? WORK_ROW_FONT_SIZE : BOARD_TYPE_SCALE.label;
   }, []);
 
-  const eraseWorkColumnForNewPage = useCallback(async (text?: string): Promise<void> => {
+  const eraseWorkColumnForNewPage = useCallback(async (
+    text?: string,
+    options: {
+      /** Live turns hold the finished page; replay follows its recording. */
+      hold?: boolean;
+      /** A recorded row that starts the new page: carry only above it. */
+      incoming?: BoardTextRect;
+    } = {},
+  ): Promise<void> => {
     const wb = whiteboardRef.current;
+    const boxedRows = boxedAnswerRowsToCarry(boardLayoutRef.current.rects);
+    if (options.hold && wb && !cancelRef.current) {
+      const until = performance.now() + PAGE_TURN_HOLD_MS;
+      while (!cancelRef.current && performance.now() < until) {
+        await new Promise<void>((resolve) => setTimeout(resolve, Math.min(100, Math.max(until - performance.now(), 0))));
+      }
+    }
     if (wb && !cancelRef.current) {
       tutorDebug("draw", "layout erasing work area", {
         text: text?.slice(0, 60),
         rect_count: boardLayoutRef.current.rects.length,
+        carried_answers: boxedRows.length,
       });
       captureNotesEpoch();
       await wb.eraseWorkInk(700, () => cancelRef.current);
     }
-    const survivingDiagramRects = fbdPhaseStartedRef.current
+    const diagramActive = fbdPhaseStartedRef.current;
+    const survivingDiagramRects = diagramActive
       ? boardLayoutRef.current.rects.filter(
           (r) => r.x >= DIAGRAM_ZONE.x && r.y >= TEXT_LAYOUT.headingBottomY,
         )
       : [];
     resetBoardLayout(true, true);
     boardLayoutRef.current.rects.push(...survivingDiagramRects);
+    if (boxedRows.length === 0 || cancelRef.current) return;
+    const carried = placeCarriedAnswerRows(boardLayoutRef.current, boxedRows, diagramActive);
+    // A recording made before answers were carried starts its page at the
+    // top. Writing the answers there would stack two rows on one line.
+    const incoming = options.incoming;
+    if (incoming && carried.some((row) => textRectsOverlap(row, incoming))) return;
+    for (const row of carried) {
+      if (cancelRef.current) return;
+      const fontSize = row.fontSize ?? WORK_ROW_FONT_SIZE;
+      if (wb) {
+        const inkSettings = wb.getInkSettings();
+        await wb.writeText(row.text!, row.x, row.y, 0, undefined, fontSize, () => cancelRef.current, inkSettings);
+        await wb.drawAnnotation("box", emphasisBoxPath(row.x, row.y, row.width, row.height), 0, {
+          inkSettings,
+          shouldCancel: () => cancelRef.current,
+        });
+      }
+      registerBoardAnchor(boardLayoutRef.current, row);
+      boardLayoutRef.current.nextY = Math.max(boardLayoutRef.current.nextY, row.y + TEXT_LAYOUT.lineHeight);
+    }
   }, [captureNotesEpoch, cancelRef, fbdPhaseStartedRef, resetBoardLayout, whiteboardRef]);
 
   const resolveTextPlacement = useCallback(
@@ -217,6 +313,7 @@ export function useBoardLayout({
             height: TEXT_LAYOUT.textHeight,
             text: command.text,
             pendingInk: command.type === "WRITE",
+            ...(command.type === "WRITE" ? { fontSize: textCommandFontSize(command) } : {}),
           };
           // Restore/replay keep the stored x,y, but a long lesson reuses those
           // y values after a live page-turn whose erase was never recorded.
@@ -228,7 +325,7 @@ export function useBoardLayout({
               fbdPhaseStartedRef.current,
             )
           ) {
-            await eraseWorkColumnForNewPage(command.text);
+            await eraseWorkColumnForNewPage(command.text, { incoming: rect });
           }
           if (introLayoutCheckpoint) introLayoutCheckpoint.registerAnchor(rect);
           else registerBoardAnchor(
@@ -275,7 +372,7 @@ export function useBoardLayout({
       let slot = findSlot();
 
       if (slot === null) {
-        await eraseWorkColumnForNewPage(command.text);
+        await eraseWorkColumnForNewPage(command.text, { hold: true });
         layout = boardLayoutRef.current;
         slot = findSlot() ?? {
           x: TEXT_LAYOUT.marginX,
@@ -291,6 +388,7 @@ export function useBoardLayout({
         height,
         text: command.text,
         pendingInk: command.type === "WRITE",
+        ...(command.type === "WRITE" ? { fontSize } : {}),
       };
       registerBoardAnchor(
         boardLayoutRef.current,
