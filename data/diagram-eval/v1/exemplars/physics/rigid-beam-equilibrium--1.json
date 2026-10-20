@@ -1,0 +1,380 @@
+{
+  "topic_id": "physics|5|equilibrium-of-rigid-bodies",
+  "question": "A uniform horizontal beam of mass m is hinged at its left end O. A load M hangs at its right end A, which is held by a cable running upward and left to a wall. The cable makes angle θ with the beam. Draw every external force on the beam, the cable angle, and the lever arms needed for moments about O.",
+  "figure_kind": "vectors_fbd",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "Hinged beam with cable tension, beam and load weights, both hinge reactions and lever arms"
+    },
+    "source": {
+      "question": "A uniform horizontal beam of mass m is hinged at its left end O. A load M hangs at its right end A, which is held by a cable running upward and left to a wall. The cable makes angle θ with the beam. Draw every external force on the beam, the cable angle, and the lever arms needed for moments about O.",
+      "archetype": "hinged_rod"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "O",
+        "label": "O"
+      },
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "A",
+        "label": "A"
+      },
+      {
+        "id": "mid",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "walltop",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "wallbottom",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "wall",
+        "kind": "segment",
+        "role": "wall"
+      },
+      {
+        "id": "beam",
+        "kind": "segment",
+        "role": "beam"
+      },
+      {
+        "id": "cable",
+        "kind": "segment",
+        "role": "cable"
+      },
+      {
+        "id": "T",
+        "kind": "vector",
+        "role": "T",
+        "label": "T"
+      },
+      {
+        "id": "W",
+        "kind": "vector",
+        "role": "W",
+        "label": "mg"
+      },
+      {
+        "id": "load",
+        "kind": "vector",
+        "role": "load",
+        "label": "Mg"
+      },
+      {
+        "id": "Rx",
+        "kind": "vector",
+        "role": "Rx",
+        "label": "R_x"
+      },
+      {
+        "id": "Ry",
+        "kind": "vector",
+        "role": "Ry",
+        "label": "R_y"
+      },
+      {
+        "id": "angle",
+        "kind": "angle_mark",
+        "role": "angle",
+        "label": "θ"
+      },
+      {
+        "id": "half",
+        "kind": "dimension",
+        "role": "half",
+        "label": "L/2"
+      },
+      {
+        "id": "full",
+        "kind": "dimension",
+        "role": "full",
+        "label": "L"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_O",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "make_A",
+        "operator": "point",
+        "inputs": {
+          "x": 6,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "make_mid",
+        "operator": "point",
+        "inputs": {
+          "x": 3,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "mid"
+        ]
+      },
+      {
+        "id": "make_walltop",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "walltop"
+        ]
+      },
+      {
+        "id": "make_wallbottom",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "wallbottom"
+        ]
+      },
+      {
+        "id": "make_wall",
+        "operator": "segment",
+        "inputs": {
+          "start": "walltop",
+          "end": "wallbottom"
+        },
+        "outputs": [
+          "wall"
+        ]
+      },
+      {
+        "id": "make_beam",
+        "operator": "segment",
+        "inputs": {
+          "start": "O",
+          "end": "A"
+        },
+        "outputs": [
+          "beam"
+        ]
+      },
+      {
+        "id": "make_cable",
+        "operator": "segment",
+        "inputs": {
+          "start": "A",
+          "end": "walltop"
+        },
+        "outputs": [
+          "cable"
+        ]
+      },
+      {
+        "id": "make_T",
+        "operator": "vector",
+        "inputs": {
+          "start": "A",
+          "direction": [
+            -6,
+            3
+          ],
+          "length": 2
+        },
+        "outputs": [
+          "T"
+        ]
+      },
+      {
+        "id": "make_W",
+        "operator": "vector",
+        "inputs": {
+          "start": "mid",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 1.5
+        },
+        "outputs": [
+          "W"
+        ]
+      },
+      {
+        "id": "make_load",
+        "operator": "vector",
+        "inputs": {
+          "start": "A",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 2
+        },
+        "outputs": [
+          "load"
+        ]
+      },
+      {
+        "id": "make_Rx",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "direction": [
+            1,
+            0
+          ],
+          "length": 1.3
+        },
+        "outputs": [
+          "Rx"
+        ]
+      },
+      {
+        "id": "make_Ry",
+        "operator": "vector",
+        "inputs": {
+          "start": "O",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 1.3
+        },
+        "outputs": [
+          "Ry"
+        ]
+      },
+      {
+        "id": "make_angle",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "A",
+          "a": "beam",
+          "b": "cable"
+        },
+        "outputs": [
+          "angle"
+        ]
+      },
+      {
+        "id": "make_half",
+        "operator": "dimension",
+        "inputs": {
+          "start": [
+            0,
+            -2.8
+          ],
+          "end": [
+            3,
+            -2.8
+          ]
+        },
+        "outputs": [
+          "half"
+        ]
+      },
+      {
+        "id": "make_full",
+        "operator": "dimension",
+        "inputs": {
+          "start": [
+            0,
+            -3.6
+          ],
+          "end": [
+            6,
+            -3.6
+          ]
+        },
+        "outputs": [
+          "full"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [],
+    "annotations": [],
+    "requiredEntityIds": [
+      "O",
+      "A",
+      "mid",
+      "walltop",
+      "wallbottom",
+      "wall",
+      "beam",
+      "cable",
+      "T",
+      "W",
+      "load",
+      "Rx",
+      "Ry",
+      "angle",
+      "half",
+      "full"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "O",
+          "A",
+          "mid",
+          "walltop",
+          "wallbottom",
+          "wall",
+          "beam",
+          "cable",
+          "T",
+          "W",
+          "load",
+          "Rx",
+          "Ry",
+          "angle",
+          "half",
+          "full"
+        ],
+        "dependsOn": [],
+        "narrationCue": "Hinged beam with cable tension, beam and load weights, both hinge reactions and lever arms"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "Hinged beam with cable tension, beam and load weights, both hinge reactions and lever arms"
+      }
+    ]
+  }
+}

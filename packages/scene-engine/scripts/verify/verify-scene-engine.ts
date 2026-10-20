@@ -1469,6 +1469,30 @@ const compiledSeriesPath = compileSceneDocument(validatedSeriesPath.document);
 if (!compiledSeriesPath.ok) {
   throw new Error(`topology path/degree assertions failed: ${JSON.stringify(compiledSeriesPath.report.issues)}`);
 }
+// Counts may be wrapped like other scalar expectations: Kimi writes the
+// series midpoint check as { value: 2 }. Number({ value: 2 }) was NaN, so a
+// right circuit lost its exact tier (Fireworks production lesson, 20 Oct).
+for (const [label, degreeExpected, pathExpected, shouldPass] of [
+  ["wrapped degree and path count", { value: 2 }, { value: 1 }, true],
+  ["numeric string degree", "2", 1, true],
+  ["wrapped wrong degree", { value: 3 }, 1, false],
+  ["wrapped wrong path count", 2, { value: 2 }, false],
+  ["fractional wrapped degree", { value: 2.5 }, 1, false],
+  ["wrapped string degree", { value: "2" }, 1, false],
+  ["missing degree", null, 1, false],
+] as const) {
+  const doc = structuredClone(seriesPathDoc) as Record<string, any>;
+  doc.assertions = [
+    { id: "n1_degree", predicate: "degree", entities: ["n1"], expected: degreeExpected, severity: "fatal" },
+    { id: "ends_paths", predicate: "pathCount", entities: ["n0", "n3"], expected: pathExpected, severity: "fatal" },
+  ];
+  const validated = validateSceneDocument(doc);
+  const compiled = validated.document ? compileSceneDocument(validated.document) : null;
+  const failed = !compiled?.ok || compiled.report.issues.some((issue) => issue.code === "assertion_failed");
+  if (failed === shouldPass) {
+    throw new Error(`topology expected count (${label}) should ${shouldPass ? "pass" : "fail"}: ${JSON.stringify(compiled?.report.issues ?? validated.report.issues)}`);
+  }
+}
 const nodeInterleavedPath = structuredClone(seriesPathDoc) as Record<string, any>;
 nodeInterleavedPath.assertions[0].entities = ["n0", "r1", "n1", "r2", "n2", "r3", "n3"];
 const normalizedNodePath = validateSceneDocument(
