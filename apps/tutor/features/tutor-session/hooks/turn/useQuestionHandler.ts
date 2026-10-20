@@ -1672,6 +1672,7 @@ export function useQuestionHandler(
             sceneV2RenderScene,
             {
               narrationLanguage: turnNarrationLanguage,
+              ...(turnPlan ? { turnPlan } : {}),
               ...(codeLesson ? { layout: "code_lesson" as const } : {}),
               ...(representationFamily ? { figureFamily: representationFamily } : {}),
             },
@@ -1716,6 +1717,8 @@ export function useQuestionHandler(
         if (!rebuildingCodeIntro && !activeDiagram && resume.scene?.sceneDocument) {
           const restored = restoreVerifiedPresentationFromTurn({
             sceneDocument: resume.scene.sceneDocument,
+            sceneArtifacts: resume.scene.sceneArtifacts,
+            question: resume.lessonQuestion,
           }, turnNarrationLanguage);
           if (restored) {
             activeDiagram = restored.diagram;
