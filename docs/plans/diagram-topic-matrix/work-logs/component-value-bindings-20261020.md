@@ -16,7 +16,8 @@ The compiler preserves physical symbol case, prefers unambiguous declared
 symbols over opaque inventory ids, and checks conflicting aliases instead of
 choosing by order. Case-exact ids remain usable when symbolic metadata is absent;
 legacy opaque-id aliases remain supported when no declared physical case conflicts.
-A single explicit quantity binding with matching or absent symbolic metadata can
+A single explicit quantity binding with matching symbolic metadata, or absent
+symbolic metadata and a unit of the executable component's value dimension, can
 disambiguate a component value. This new path formats the finite stored scalar
 and unit, not an unchecked display label or unresolved reference. No numerical
 solver, topology, admission, or planner-prompt check is weakened.
@@ -63,3 +64,26 @@ in ignored workspace context; public fixtures are synthetic only.
 ## Merge review follow-up
 
 An angle annotation's explicit quantity ID could be mistaken for another quantity's physical symbol. Explicit angle bindings now use exact ID lookup, preserving their stored scalar/unit and rejecting missing or case-distinct IDs; implicit angle and component symbol inference remains unchanged. The actual compiler reproduced 60 degrees in place of 30 before the fix. Six added compiler regressions pass (31 total), and reverting the exact-ID argument turns the gate red again. Typecheck and focused lint pass; no paid calls.
+
+
+## Merge review: symbol-less binding dimensions
+
+An explicit quantity without symbolic metadata could bind current, voltage or
+power to a resistor and replace a correct resistance label. The actual compiler
+regression was red (`R 2 A` instead of `R 4 Ω`). Such bindings now require a unit
+consistent with the executable `symbol` construction: resistance for resistors,
+lamps and galvanometers; voltage for voltage sources and diodes; capacitance and
+inductance for capacitors and coils; meter dimensions also permit their own
+resistance. Unknown/missing units and unsupported component kinds do not gain
+binding authority. A rejected binding falls through to the existing implicit
+lookup, retaining `R 4 Ω` for current/voltage annotations or bare `R` for an
+unbound power quantity. Role prose does not determine dimension.
+
+The owned compiler gate now passes 135 checks, including all three review
+counterexamples, valid and mismatched dimensions, SI prefixes, missing units,
+operator aliases and the existing angle-ID cases. Removing the unit gate in an
+isolated source copy reproduces the wrong current label and fails the gate.
+Engine typecheck, focused compiler lint, golden corpus, summary-label stack,
+operator primitives, derived-value-labels (220), and circuit topology feedback
+(40) pass. The branch incorporates current main through a normal merge; no
+rebase or paid calls.

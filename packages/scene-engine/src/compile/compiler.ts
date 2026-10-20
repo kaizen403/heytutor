@@ -637,8 +637,9 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     const boundQuantity = quantityBindings.length === 1
       ? document.quantities.find((quantity) => quantity.id === quantityBindings[0]!.quantityId)
       : undefined;
-    const bindingMatchesSymbol = boundQuantity && (boundQuantity.symbol === undefined ||
-      (typeof boundQuantity.symbol === "string" && normalizeIdentifier(boundQuantity.symbol) === normalizeIdentifier(entity.label)));
+    const bindingMatchesSymbol = boundQuantity && (boundQuantity.symbol === undefined
+      ? componentValueUnitMatches(entity.id, boundQuantity.unit, document)
+      : typeof boundQuantity.symbol === "string" && normalizeIdentifier(boundQuantity.symbol) === normalizeIdentifier(entity.label));
     const quantityText = entity.kind === "component" && isComponentDesignator(entity.label)
       ? bindingMatchesSymbol
         ? matchingQuantityText(boundQuantity.id, document.quantities, true)
@@ -1201,6 +1202,38 @@ function isPageNormalMarker(value: string): boolean {
 
 function isComponentDesignator(text: string): boolean {
   return /^[A-Za-z][A-Za-z0-9_₀-₉]{0,7}$/.test(text.trim());
+}
+
+// SI prefix case is significant even though this check only proves dimension.
+const COMPONENT_VALUE_UNIT_PREFIX = "(?:da|[qryzafpnμumcdhkMGTPEZYRQ])?";
+const COMPONENT_VALUE_UNITS = {
+  resistance: new RegExp(`^${COMPONENT_VALUE_UNIT_PREFIX}(?:Ω|[oO]hms?)$`),
+  voltage: new RegExp(`^${COMPONENT_VALUE_UNIT_PREFIX}V$`),
+  current: new RegExp(`^${COMPONENT_VALUE_UNIT_PREFIX}A$`),
+  capacitance: new RegExp(`^${COMPONENT_VALUE_UNIT_PREFIX}F$`),
+  inductance: new RegExp(`^${COMPONENT_VALUE_UNIT_PREFIX}H$`),
+};
+
+/** A quantity without a symbol needs a dimension tied to the executable glyph. */
+function componentValueUnitMatches(entityId: string, unit: unknown, document: SceneDocument): boolean {
+  if (typeof unit !== "string" || !unit.trim()) return false;
+  const construction = document.constructions.find((candidate) =>
+    candidate.operator === "symbol" && candidate.outputs.includes(entityId));
+  const symbol = construction?.inputs.symbol;
+  if (typeof symbol !== "string") return false;
+  const kind = symbol.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const normalizedUnit = unit.trim().normalize("NFKC");
+  const matches = (dimension: keyof typeof COMPONENT_VALUE_UNITS) => COMPONENT_VALUE_UNITS[dimension].test(normalizedUnit);
+  switch (kind) {
+    case "resistor": case "lamp": case "galvanometer": return matches("resistance");
+    case "battery": case "cell": case "ac_source": case "alternating_source":
+    case "diode": case "zener": return matches("voltage");
+    case "voltmeter": return matches("voltage") || matches("resistance");
+    case "ammeter": return matches("current") || matches("resistance");
+    case "capacitor": return matches("capacitance");
+    case "inductor": case "coil": return matches("inductance");
+    default: return false;
+  }
 }
 
 function matchingQuantityText(
