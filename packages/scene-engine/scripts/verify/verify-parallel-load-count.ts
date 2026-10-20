@@ -345,7 +345,7 @@ check(evaluate(tooLarge, "pathCount", 2).passed === false, "Complex legacy graph
 
 // Actual validation/compile boundary: topology truth must survive normal ink
 // compilation, and shorts must remain fatal even with a matching count claim.
-const { validateSceneDocument, compileSceneDocument } = await import("../../src/index");
+const { validateSceneDocument, compileSceneDocument, pruneDeadSceneEntities } = await import("../../src/index");
 for (const [name, document, expectedValid] of [
   ["explicit direct loads", parallel(), true],
   ["explicit wrong load count", wrongCount, false],
@@ -483,5 +483,127 @@ check(compileSceneDocument(unlabeledNumeric).ok, "Unlabeled numeric geometry rem
 const validIdentityScene = structuredClone(identityLabels);
 validIdentityScene.assertions.push({ id: "count", predicate: "loadBranchCount", entities: ["A", "B"], expected: 2, severity: "fatal" });
 check(compileSceneDocument(validIdentityScene).ok, "The ordinary identity-only label scene still compiles");
+
+// Pruning must not turn an unproved original electrical graph into a new
+// two-load admission. These snapshots exercise the actual production seam.
+function unown(document: SceneDocument, ids: string[]) {
+  document.requiredEntityIds = document.requiredEntityIds.filter((id) => !ids.includes(id));
+  for (const group of document.revealGroups) group.entityIds = group.entityIds.filter((id) => !ids.includes(id));
+}
+const removedBranches: [string, SceneDocument, string[]][] = [];
+const crossView = structuredClone(bypass);
+unown(crossView, ["X", "w1", "w2"]);
+crossView.revealGroups.push({ id: "other_view", entityIds: ["X", "w1", "w2"], dependsOn: [], narrationCue: "Other view" });
+removedBranches.push(["cross-view two-wire bypass", crossView, ["w1", "w2"]]);
+const unownedBypass = structuredClone(bypass);
+unown(unownedBypass, ["w1", "w2"]);
+removedBranches.push(["unowned two-wire bypass", unownedBypass, ["w1", "w2"]]);
+const unownedLoad = parallel();
+branch(unownedLoad, "R3", "resistor");
+unown(unownedLoad, ["R3"]);
+const originalThreeLoads = readParallelLoadCount(unownedLoad, "A", "B");
+check(originalThreeLoads.ok && originalThreeLoads.count === 3,
+  "Unowned third load is present in the original graph");
+removedBranches.push(["unowned third load", unownedLoad, ["R3"]]);
+const unownedSource = parallel();
+branch(unownedSource, "V2", "battery");
+unown(unownedSource, ["V2"]);
+removedBranches.push(["unowned second source", unownedSource, ["V2"]]);
+const degenerate = parallel();
+wire(degenerate, "degenerate", "A", "A");
+removedBranches.push(["degenerate connector", degenerate, ["degenerate"]]);
+const duplicate = parallel();
+point(duplicate, "X");
+point(duplicate, "Y", 4, 1);
+wire(duplicate, "first", "X", "Y");
+wire(duplicate, "duplicate", "Y", "X");
+removedBranches.push(["duplicate connector", duplicate, ["duplicate"]]);
+const closing = parallel();
+point(closing, "X");
+point(closing, "Y", 4, 1);
+point(closing, "Z", 5, 1);
+branch(closing, "R3", "resistor", "X", "Y");
+branch(closing, "R4", "resistor", "Y", "Z");
+wire(closing, "closing", "X", "Z");
+closing.assertions.push({ id: "chain", predicate: "path", entities: ["R3", "R4"], expected: true, severity: "fatal" });
+removedBranches.push(["component-chain closing connector", closing, ["closing"]]);
+for (const [name, original, removed] of removedBranches) {
+  for (const predicate of ["pathCount", "loadBranchCount"]) {
+    const candidate = structuredClone(original);
+    candidate.source.circuitTopologyRepaired = false;
+    candidate.assertions.push({ id: "count", predicate, entities: ["A", "B"], expected: 2, severity: "warning" });
+    const before = JSON.stringify(candidate);
+    const pruned = pruneDeadSceneEntities({ ...candidate });
+    const document = validateSceneDocument(pruned).document;
+    check(Boolean(document), `${name}/${predicate}: repaired graph reaches the compiler`);
+    check(JSON.stringify(candidate) === before, `${name}/${predicate}: pruning leaves original evidence intact`);
+    check(removed.every((id) => !document!.constructions.some((construction) => construction.outputs.includes(id))),
+      `${name}/${predicate}: concrete branch pruning is reproduced`);
+    check(document!.source.circuitTopologyRepaired === true, `${name}/${predicate}: every removed branch records monotone provenance`);
+    const result = compileSceneDocument(document!);
+    check(!result.ok && result.report.issues.some((issue) => issue.code === "parallel_topology_repaired" && issue.severity === "fatal"),
+      `${name}/${predicate}: removed branches cannot grant a new count admission`);
+    const second = validateSceneDocument(pruneDeadSceneEntities(JSON.parse(JSON.stringify(pruned)))).document;
+    check(second?.source.circuitTopologyRepaired === true && !compileSceneDocument(second).ok,
+      `${name}/${predicate}: repeat pruning and JSON preserve the refusal`);
+  }
+  const strict = structuredClone(original);
+  strict.assertions.push({ id: "old_graph_count", predicate: "pathCount", entities: ["A", "B"], expected: 3, severity: "fatal" });
+  const strictDocument = validateSceneDocument(pruneDeadSceneEntities({ ...strict })).document;
+  check(strictDocument?.source.circuitTopologyRepaired === true && compileSceneDocument(strictDocument).ok,
+    `${name}: pre-existing strict pathCount success is preserved`);
+}
+const pointOnly = parallel();
+point(pointOnly, "helper");
+unown(pointOnly, ["helper"]);
+pointOnly.assertions.push({ id: "count", predicate: "loadBranchCount", entities: ["A", "B"], expected: 2, severity: "fatal" });
+const pointOnlyDocument = validateSceneDocument(pruneDeadSceneEntities({ ...pointOnly })).document;
+check(pointOnlyDocument?.source.circuitTopologyRepaired !== true && compileSceneDocument(pointOnlyDocument!).ok,
+  "Removing only a helper point does not invent electrical repair provenance");
+
+// Production removes a direct ordinary-role connector before compiling. A
+// new count proof cannot certify topology from which a bypass was removed.
+for (const predicate of ["pathCount", "loadBranchCount"]) {
+  const candidate = structuredClone(directShort);
+  candidate.source.circuitTopologyRepaired = false; // A model cannot mask an actual repair.
+  candidate.assertions.push({ id: "count", predicate, entities: ["A", "B"], expected: 2, severity: "warning" });
+  const before = structuredClone(candidate);
+  const pruned = pruneDeadSceneEntities({ ...candidate });
+  check(JSON.stringify(candidate) === JSON.stringify(before), `${predicate}: pruning cannot mutate caller evidence`);
+  const validated = validateSceneDocument(pruned);
+  check(Boolean(validated.document), `${predicate}: pruned short reaches the actual count proof`);
+  const document = validated.document!;
+  check(document.source.circuitTopologyRepaired === true, `${predicate}: actual removal overwrites a spoofed false flag`);
+  check(!document.entities.some((entity) => entity.id === "short"), `${predicate}: existing pruning behavior is preserved`);
+  const count = readParallelLoadCount(document, "A", "B");
+  check(count.ok && count.count === 2, `${predicate}: query remains a pure measurement of the repaired graph`);
+  const compiled = compileSceneDocument(document);
+  check(!compiled.ok && compiled.report.issues.some((issue) => issue.code === "parallel_topology_repaired" && issue.severity === "fatal"),
+    `${predicate}: production pruning must not newly admit a shorted circuit, even with warning severity`);
+  const twice = pruneDeadSceneEntities(JSON.parse(JSON.stringify(pruned)));
+  const twiceValidated = validateSceneDocument(twice);
+  check(twiceValidated.document?.source.circuitTopologyRepaired === true, `${predicate}: JSON round-trip and repeated pruning keep the monotone flag`);
+  check(!compileSceneDocument(twiceValidated.document!).ok, `${predicate}: repeated admission cannot erase repair evidence`);
+
+  const multiWire = structuredClone(bypass);
+  multiWire.assertions.push({ id: "count", predicate, entities: ["A", "B"], expected: 2, severity: "fatal" });
+  const multiValidated = validateSceneDocument(pruneDeadSceneEntities({ ...multiWire }));
+  check(Boolean(multiValidated.document), `${predicate}: multi-wire short reaches the compiler`);
+  check(multiValidated.document!.source.circuitTopologyRepaired !== true, `${predicate}: a retained multi-wire short needs no removal flag`);
+  check(!compileSceneDocument(multiValidated.document!).ok, `${predicate}: multi-wire bypass still fails the unchanged topology guard`);
+
+  const clean = parallel();
+  clean.source.circuitTopologyRepaired = false;
+  clean.assertions.push({ id: "count", predicate, entities: ["A", "B"], expected: 2, severity: "fatal" });
+  const cleanValidated = validateSceneDocument(pruneDeadSceneEntities({ ...clean }));
+  check(Boolean(cleanValidated.document), `${predicate}: clean count remains structurally valid`);
+  check(cleanValidated.document!.source.circuitTopologyRepaired === false, `${predicate}: no topology removal does not set the flag`);
+  check(compileSceneDocument(cleanValidated.document!).ok, `${predicate}: clean count remains admissible`);
+}
+const legacyStrict = structuredClone(directShort);
+legacyStrict.assertions.push({ id: "old_graph_count", predicate: "pathCount", entities: ["A", "B"], expected: 3, severity: "fatal" });
+const legacyStrictValidated = validateSceneDocument(pruneDeadSceneEntities({ ...legacyStrict }));
+check(legacyStrictValidated.document?.source.circuitTopologyRepaired === true, "Strict legacy case retains topology repair provenance");
+check(compileSceneDocument(legacyStrictValidated.document!).ok, "Existing strict pathCount success keeps its previous pruning behavior");
 
 console.log(`parallel load count: ${checks} checks passed`);
