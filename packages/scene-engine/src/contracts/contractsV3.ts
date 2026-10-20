@@ -2383,7 +2383,7 @@ function resolveUnitSymbol(symbol: string): { base: string; factor: number } | n
 }
 
 /** Convert between units only when they provably measure the same thing. */
-function convertMeasuredValue(value: number, fromUnit: unknown, toUnit: unknown): number | null {
+export function convertMeasuredValue(value: number, fromUnit: unknown, toUnit: unknown): number | null {
   const from = unitScale(fromUnit);
   const to = unitScale(toUnit);
   if (from && to) {
