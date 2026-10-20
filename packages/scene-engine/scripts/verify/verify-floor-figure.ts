@@ -97,6 +97,27 @@ function drawn(input: FloorFigureInput, kind: string) {
     .some((issue) => issue.code === "floor_question"), "a figure built for another question is refused");
 }
 
+// 1b. A ProblemIR part named only by its id ("acSource") is still read as words.
+{
+  const question = "A series RL circuit with R = 20 Ω and L = 50 mH is connected to an ac source V = 100 sin(200t). Find the impedance.";
+  const facts = [quote(question, "R = 20 Ω", "f1"), quote(question, "L = 50 mH", "f2"), quote(question, "ac source V = 100 sin(200t)", "f3")];
+  const problemIR = {
+    schemaVersion: "problem-ir/v1", id: "rl", question, facts,
+    entities: [
+      { id: "resistor", kind: "component", label: "R", evidenceFactIds: ["f1"] },
+      { id: "inductor", kind: "component", label: "L", evidenceFactIds: ["f2"] },
+      { id: "acSource", kind: "component", label: "V", evidenceFactIds: ["f3"] },
+    ],
+    expressions: [], constraints: [], representationIntents: [{ id: "i1", kind: "apparatus", entityIds: ["resistor", "inductor", "acSource"], evidenceFactIds: ["f1"] }],
+    solveRequests: [],
+  };
+  const figure = drawn({ question, turnPlan: plan(question, [["R", 20, "Ω", "R = 20 Ω"], ["L", 50, "mH", "L = 50 mH"]], [["Z", "Ω"]]), problemIR }, "circuit");
+  check(figure.document.constructions.some((construction) => construction.operator === "symbol" && construction.inputs.symbol === "ac_source"),
+    "an ac source named by its id draws as an ac source");
+  const valueOf = (id: string) => figure.document.annotations.find((annotation) => annotation.targetIds[0] === id)?.text;
+  check(valueOf("resistor") === "20 Ω" && valueOf("inductor") === "50 mH", "each stated value is written beside its own part");
+}
+
 // 2. Circuit without a ProblemIR: stated values become parts; a stated count must match.
 {
   const question = "Three resistors of 2 Ω, 4 Ω and 6 Ω are connected in series across a 12 V battery. Find the current.";

@@ -22,7 +22,8 @@ const SOURCE: ReadonlySet<Glyph> = new Set(["battery", "ac_source"]);
 
 /** The glyph a component's own source name asks for; null when the name is not a part the floor can draw. */
 function glyphFor(object: FloorObject, label: string | null): Glyph | null {
-  const text = `${label ?? ""} ${object.id}`.toLowerCase().replace(/[_-]+/g, " ");
+  // Ids are read as words too: "acSource" is "ac Source", "r_1" is "r 1".
+  const text = `${label ?? ""} ${object.id.replace(/([a-z])([A-Z])/g, "$1 $2")}`.toLowerCase().replace(/[_-]+/g, " ");
   if (/\b(?:switch|key|diode|transistor|bridge|potentiometer|jockey|rheostat|motor|generator|transformer|led)\b/.test(text)) return null;
   if (/\b(?:ammeter)\b/.test(text)) return "ammeter";
   if (/\b(?:voltmeter)\b/.test(text)) return "voltmeter";

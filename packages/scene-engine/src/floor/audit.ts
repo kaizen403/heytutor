@@ -36,6 +36,15 @@ export function floorAllowedTexts(facts: FloorFacts, names: readonly string[]): 
   }
   for (const object of facts.objects) if (object.name) add(object.name);
   for (const name of names) if (digitFree(name)) add(name);
+  // A stated value appended to its own stated name renders as one text ("R 20 Ω"):
+  // the name is the value's symbol, or the question's span for the value names it.
+  const key = (text: string) => text.toLowerCase().replace(/[\s_₀-₉0-9]+/g, "");
+  const owners = [...facts.objects.flatMap((object) => object.name ? [object.name] : []), ...names.filter(digitFree)];
+  for (const owner of owners) {
+    for (const value of facts.values) {
+      if (key(owner) === key(value.symbol) || value.context.toLowerCase().includes(owner.toLowerCase())) add(`${owner} ${value.valueText}`);
+    }
+  }
   return allowed;
 }
 
