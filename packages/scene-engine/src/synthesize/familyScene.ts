@@ -7,7 +7,7 @@ import { stemKnowns } from "../archetypes/generators/constantAcceleration";
 import { buildNeutralDecayScene, readNeutralDecaySource } from "../physics/neutralDecaySource";
 import { buildParticleRadiationScene, readRadiationSource } from "../physics/radiationSource";
 import { readSourceLawGraph } from "../chemistry/sourceLawGraph";
-import { readApertureSource, readTwoLoopTopology, twoLoopTopologyClaimed, readCircuitLawExample, readSeriesParallelSourceComparison, type TwoLoopSource } from "../physics/apparatusSource";
+import { readApertureSource, readYoungRepresentationRequest, readTwoLoopTopology, twoLoopTopologyClaimed, readCircuitLawExample, readSeriesParallelSourceComparison, type TwoLoopSource } from "../physics/apparatusSource";
 import { compileSceneDocument } from "../compile/compiler";
 import { buildCircuitLawExample } from "../physics/circuitLawExample";
 import { groundedOhmScene } from "../compile/ohmTopicGeometry";
@@ -164,6 +164,8 @@ function synthesizeFromFamilies(
 ): SynthesizedFamilyScene | null {
   const question = input.question.trim();
   if (!question) return null;
+  const youngRequest=readYoungRepresentationRequest(question);
+  if(youngRequest.status==="declined")return null;
   // A supplied but unread radiation state is terminal on both public routes;
   // an archetype or last-resort schematic cannot substitute display defaults.
   // A complete source-owned frequency law has its own operands and domain;
@@ -322,10 +324,11 @@ function synthesizeFromFamilies(
   const relativeOutOfModel = relativeMotion?.status === "rejected" && relativeMotion.kind === "out_of_model";
   const archetypeCandidate = preferSourceGeometry || circleSource ? null : synthesizeArchetypeScene({
     question,
-    turnPlan: input.turnPlan,
+    turnPlan: youngRequest.status==="illustration"?undefined:input.turnPlan,
     problemIR: input.problemIR ?? null,
-    schematic,
+    schematic:schematic||youngRequest.status==="illustration",
   });
+  if(youngRequest.status==="illustration"&&archetypeCandidate?.archetype!=="double_slit")return null;
   const statedVerticalThrow = archetypeCandidate?.archetype === "free_fall"
     && /\bthrown\s+vertically\s+(?:up(?:ward)?s?|down(?:ward)?s?)\b/i.test(question);
   const projectileSource = isProjectileStem(question) && !statedVerticalThrow;
