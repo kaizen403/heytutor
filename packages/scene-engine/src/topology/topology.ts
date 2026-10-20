@@ -159,6 +159,22 @@ export function buildTopologyGraph(document: SceneDocument): TopologyGraph {
   return { nodes, edges, edgeById, adjacency };
 }
 
+/**
+ * A count may be written bare (2, "2") or wrapped like the other scalar
+ * expectations ({ value: 2 }), as the angle readers accept. Anything that is
+ * not a whole non-negative number is NaN, so the assertion still fails.
+ */
+function expectedCount(expected: unknown): number {
+  const raw = typeof expected === "number"
+    ? expected
+    : typeof expected === "string" && /^\s*\d+\s*$/.test(expected)
+      ? Number(expected)
+      : expected !== null && typeof expected === "object" && typeof (expected as { value?: unknown }).value === "number"
+        ? (expected as { value: number }).value
+        : NaN;
+  return Number.isInteger(raw) && raw >= 0 ? raw : NaN;
+}
+
 export function evaluateTopologyAssertion(
   assertion: SceneAssertion,
   document: SceneDocument,
@@ -218,7 +234,7 @@ export function evaluateTopologyAssertion(
         return false;
       }
       const { count, witnesses } = paths;
-      const expected = Number(assertion.expected);
+      const expected = expectedCount(assertion.expected);
       const passed = count === expected;
       if (!passed) {
         issues.push({
@@ -289,7 +305,7 @@ export function evaluateTopologyAssertion(
       }
       const nodeId = assertion.entities[0]!;
       const degree = graph.adjacency.get(nodeId)?.length ?? 0;
-      const expected = Number(assertion.expected);
+      const expected = expectedCount(assertion.expected);
       const passed = degree === expected;
       if (!passed) {
         issues.push({
