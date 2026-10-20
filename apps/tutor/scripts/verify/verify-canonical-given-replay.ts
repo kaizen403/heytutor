@@ -88,12 +88,28 @@ async function main(): Promise<void> {
   sourcePlan.givens = sourcePlan.givens.map(given => given.id === "I"
     ? { ...given, value: 3, sourceText: "current of 3.0 A" }
     : given.id === "t" ? { ...given, value: 15, sourceText: "for 15 minutes" } : given);
-  // A transfer has its own source givens; never reuse the old solved values or
-  // manufacture new ProblemIR/solver evidence for a different question.
-  sourcePlan.unknowns = [];
-  sourcePlan.derived = [];
+  // This synthetic transfer plan recomputes every derived value from its own
+  // source givens. CuSO4 supplies Cu(II): Cu2+ + 2e- -> Cu. Never reuse the
+  // original solved values or manufacture new ProblemIR/solver artifacts.
+  const given = (id: string): number => {
+    const quantity = sourcePlan.givens.find(item => item.id === id);
+    assert.ok(quantity && Number.isFinite(quantity.value));
+    return quantity.value;
+  };
+  const seconds = given("t") * 60;
+  const charge = given("I") * seconds;
+  const moles = charge / (2 * given("F"));
+  const mass = given("M") * moles;
+  assert.equal(seconds, 900);
+  assert.equal(charge, 2700);
+  sourcePlan.derived = [
+    { id: "ts", symbol: "t", value: seconds, unit: "s", sourceText: `${given("t")} min * 60 s/min = ${seconds} s`, provenance: "derived", dependsOn: ["t"] },
+    { id: "Q", symbol: "Q", value: charge, unit: "C", sourceText: `Q = I*t = ${given("I")} A * ${seconds} s = ${charge} C`, provenance: "derived", dependsOn: ["I", "ts"] },
+    { id: "n", symbol: "n(Cu)", value: moles, unit: "mol", sourceText: `n = Q/(2F) = ${charge}/(2*${given("F")}) = ${moles} mol`, provenance: "derived", dependsOn: ["Q", "F"] },
+    { id: "m", symbol: "m(Cu)", value: mass, unit: "g", sourceText: `m = n*M = ${moles} mol * ${given("M")} g/mol = ${mass} g`, provenance: "derived", dependsOn: ["n", "M"] },
+  ];
   sourcePlan.qualitativeClaims = [];
-  await check("changed-current-time-source-transfer", async () => {
+  await check("changed-current-time-fresh-derived-transfer", async () => {
     const transfer = validateTurnPlanV3(sourcePlan, question);
     assert.ok(transfer.plan, JSON.stringify(transfer.issues));
     await roundTrip({ ...plain(recorded), question, turnPlan: transfer.plan, problemIR: null, solverAuthority: null }, null, "I=3 A");
@@ -133,7 +149,7 @@ async function main(): Promise<void> {
     });
     assert.equal(saved.ok, false, "existing source and solver authority still reject the forged result");
   });
-  const report = { scope: "Real recorded Cu row and a source-given transfer through public selection, presentation, canonical save and JSON reopen; offline modules only.",
+  const report = { scope: "Real recorded Cu row and a fresh source-derived synthetic transfer plan through public selection, presentation, canonical save and JSON reopen; offline modules only.",
     passed: results.filter(row => row.passed).length, failed: results.filter(row => !row.passed).length, results };
   const out = process.argv.indexOf("--out");
   if (out >= 0) writeFileSync(process.argv[out + 1]!, JSON.stringify(report, null, 2) + "\n", { flag: "wx" });
