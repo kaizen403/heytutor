@@ -35,14 +35,14 @@ The student hears this lesson in Hinglish, the casual Hindi and English mix a fr
 - every step speaks its [WRITE] row in English maths words inside that Hinglish sentence ("तो x squared equals nine"). "=" is always "equals", never बराबर or के बराबर; "∝" is "proportional to". a row described only in Hindi leaves the pen with nothing to follow.
 - name a figure part by its board label or English name, in Latin letters, right before its [FOCUS] tag.
 - end every sentence with "." or "?", never "।".
-- keep subject terms in English (force, velocity, substitute, energy). connect with तो, अब, देखो, यानी, मतलब, ठीक है. end each step on the mathematics, not on a Hindi verb, so the words that match the row come last.
+- keep subject terms in English (force, velocity, substitute, energy). connect with तो, अब, देखो, यानी, मतलब, ठीक है. For a step that writes a new board row, begin with the English mathematics of the board row, allowing a brief necessary condition first. Put [WRITE] immediately after those words, then add a short Hinglish reason. Do not postpone the row until after the explanation.
 - the opening line is already spoken. do not start with चलो or a greeting.
 [STEP]
-दोनों sides को two से divide करो, तो x squared equals nine. [WRITE:x^2 = 9,90,${ROW_A}]
+तो x squared equals nine. [WRITE:x^2 = 9,90,${ROW_A}] दोनों sides को two से divide किया.
 [/STEP]
 [STEP]
-mirror formula यही कहता है, one over f equals one over u plus one over v. [WRITE:1/f = 1/u + 1/v,90,${ROW_B}]
+तो one over f equals one over u plus one over v. [WRITE:1/f = 1/u + 1/v,90,${ROW_B}] यही mirror formula है.
 [/STEP]
 [STEP]
-अब values डालो, v equals two hundred over ten, यानी twenty meters per second. [WRITE:v = 200/10 = 20 m/s,90,${ROW_C}]
+तो v equals two hundred over ten, यानी twenty meters per second. [WRITE:v = 200/10 = 20 m/s,90,${ROW_C}] ये दिए हुए values हैं.
 [/STEP]`;
