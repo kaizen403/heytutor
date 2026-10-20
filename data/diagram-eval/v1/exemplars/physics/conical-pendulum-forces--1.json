@@ -1,0 +1,317 @@
+{
+  "topic_id": "physics|3|conical-pendulum",
+  "question": "A bob of mass m moves in a horizontal circle on a taut string of length L, inclined at angle θ to the vertical. Draw a perspective setup and a separate force diagram showing T, mg and the horizontal inward resultant.",
+  "figure_kind": "vectors_fbd",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "Conical pendulum horizontal orbit, vertical axis, string angle and radial force decomposition"
+    },
+    "source": {
+      "question": "A bob of mass m moves in a horizontal circle on a taut string of length L, inclined at angle θ to the vertical. Draw a perspective setup and a separate force diagram showing T, mg and the horizontal inward resultant.",
+      "archetype": "conical_pendulum"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "pivot",
+        "kind": "point",
+        "role": "pivot",
+        "label": "O"
+      },
+      {
+        "id": "center",
+        "kind": "point",
+        "role": "center",
+        "label": "C"
+      },
+      {
+        "id": "bob",
+        "kind": "point",
+        "role": "bob",
+        "label": "m"
+      },
+      {
+        "id": "axis",
+        "kind": "segment",
+        "role": "axis"
+      },
+      {
+        "id": "string",
+        "kind": "segment",
+        "role": "string",
+        "label": "L"
+      },
+      {
+        "id": "radius",
+        "kind": "segment",
+        "role": "radius",
+        "label": "r"
+      },
+      {
+        "id": "orbit",
+        "kind": "polyline",
+        "role": "orbit"
+      },
+      {
+        "id": "theta",
+        "kind": "angle_mark",
+        "role": "theta",
+        "label": "θ"
+      },
+      {
+        "id": "P",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "particle",
+        "kind": "circle",
+        "role": "particle"
+      },
+      {
+        "id": "tension",
+        "kind": "vector",
+        "role": "tension",
+        "label": "T"
+      },
+      {
+        "id": "weight",
+        "kind": "vector",
+        "role": "weight",
+        "label": "mg"
+      },
+      {
+        "id": "radial",
+        "kind": "vector",
+        "role": "radial",
+        "label": "F_net"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_pivot",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 3.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "pivot"
+        ]
+      },
+      {
+        "id": "make_center",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "center"
+        ]
+      },
+      {
+        "id": "make_bob",
+        "operator": "point",
+        "inputs": {
+          "x": 2.4,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "bob"
+        ]
+      },
+      {
+        "id": "make_axis",
+        "operator": "segment",
+        "inputs": {
+          "start": "pivot",
+          "end": "center"
+        },
+        "outputs": [
+          "axis"
+        ]
+      },
+      {
+        "id": "make_string",
+        "operator": "segment",
+        "inputs": {
+          "start": "pivot",
+          "end": "bob"
+        },
+        "outputs": [
+          "string"
+        ]
+      },
+      {
+        "id": "make_radius",
+        "operator": "segment",
+        "inputs": {
+          "start": "center",
+          "end": "bob"
+        },
+        "outputs": [
+          "radius"
+        ]
+      },
+      {
+        "id": "make_orbit",
+        "operator": "parametric_curve",
+        "inputs": {
+          "xExpression": "2.4*cos(t)",
+          "yExpression": ".65*sin(t)",
+          "tMin": 0,
+          "tMax": 6.283185307179586
+        },
+        "outputs": [
+          "orbit"
+        ]
+      },
+      {
+        "id": "make_theta",
+        "operator": "angle_mark",
+        "inputs": {
+          "vertex": "pivot",
+          "a": "axis",
+          "b": "string"
+        },
+        "outputs": [
+          "theta"
+        ]
+      },
+      {
+        "id": "make_P",
+        "operator": "point",
+        "inputs": {
+          "x": 5.4,
+          "y": 1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "make_particle",
+        "operator": "circle",
+        "inputs": {
+          "center": "P",
+          "radius": 0.12
+        },
+        "outputs": [
+          "particle"
+        ]
+      },
+      {
+        "id": "make_tension",
+        "operator": "vector",
+        "inputs": {
+          "start": "P",
+          "direction": [
+            -2.4,
+            3.5
+          ],
+          "length": 2.3
+        },
+        "outputs": [
+          "tension"
+        ]
+      },
+      {
+        "id": "make_weight",
+        "operator": "vector",
+        "inputs": {
+          "start": "P",
+          "direction": [
+            0,
+            -1
+          ],
+          "length": 1.9
+        },
+        "outputs": [
+          "weight"
+        ]
+      },
+      {
+        "id": "make_radial",
+        "operator": "vector",
+        "inputs": {
+          "start": "P",
+          "direction": [
+            -1,
+            0
+          ],
+          "length": 1.6
+        },
+        "outputs": [
+          "radial"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "proof_0",
+        "predicate": "perpendicular",
+        "entities": [
+          "axis",
+          "radius"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "pivot",
+      "center",
+      "bob",
+      "axis",
+      "string",
+      "radius",
+      "orbit",
+      "theta",
+      "P",
+      "particle",
+      "tension",
+      "weight",
+      "radial"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "pivot",
+          "center",
+          "bob",
+          "axis",
+          "string",
+          "radius",
+          "orbit",
+          "theta",
+          "P",
+          "particle",
+          "tension",
+          "weight",
+          "radial"
+        ],
+        "dependsOn": [],
+        "narrationCue": "Conical pendulum horizontal orbit, vertical axis, string angle and radial force decomposition"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "Conical pendulum horizontal orbit, vertical axis, string angle and radial force decomposition"
+      }
+    ]
+  }
+}
