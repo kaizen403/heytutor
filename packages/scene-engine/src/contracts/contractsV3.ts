@@ -14,6 +14,7 @@ import type { SceneDocument, SceneIssue, ValidationReport, RenderScene } from ".
 import type { ProblemIR } from "../ir/problemIR";
 import type { SolverResult } from "../ir/solver";
 import type { SolverAuthorityAudit } from "../ir/solverAuthority";
+import type { SceneCompletionResult } from "../completion/completeSceneDocument";
 
 export const TURN_PLAN_V3_VERSION = "turn-plan/v3" as const;
 export const SCENE_ARTIFACTS_V3_VERSION = "scene-artifacts/v3" as const;
@@ -2364,6 +2365,13 @@ function unitScale(unit: unknown): UnitScale | null {
   return { factor, signature };
 }
 
+/** Existing recognized-unit algebra for conservative property classification.
+ * This exposes no converted value or geometric/numeric proof authority. */
+export function sceneUnitSignature(unit: unknown): string | null {
+  const resolved = unitScale(unit);
+  return resolved && Number.isFinite(resolved.factor) && resolved.factor > 0 ? resolved.signature : null;
+}
+
 function resolveUnitSymbol(symbol: string): { base: string; factor: number } | null {
   const aliased = UNIT_WORD_ALIASES[symbol] ?? UNIT_WORD_ALIASES[symbol.toLowerCase()] ??
     symbol.replace(/Ω/g, "Ω");
@@ -2759,7 +2767,7 @@ export function validateTurnPlanSceneProofs(
 
 const CLOSED_ROUTE_EDGE_OPERATORS = new Set(["segment", "connect", "symbol"]);
 const CLOSED_ROUTE_TOPOLOGY_PREDICATES = new Set([
-  "connected", "path", "pathCount", "sameTerminalPair", "degree", "on",
+  "connected", "path", "pathCount", "loadBranchCount", "sameTerminalPair", "degree", "on",
 ]);
 const CLOSED_ROUTE_SYMBOLS = new Set([
   "resistor", "battery", "cell", "capacitor", "inductor", "lamp",
@@ -4880,6 +4888,7 @@ export interface ProofObligation {
 export const TOPOLOGY_ASSERTION_PREDICATES = [
   "path",
   "pathCount",
+  "loadBranchCount",
   "sameTerminalPair",
   "degree",
   "connected",
@@ -4941,6 +4950,7 @@ export const FIGURE_SOURCES = [
   "archetype",
   "chemistry_family",
   "matrix_source",
+  "linear_source",
   "source_grounded",
   "last_resort",
   "text_only",
@@ -4951,6 +4961,14 @@ export const FIGURE_SOURCES = [
 ] as const;
 
 export type FigureSource = (typeof FIGURE_SOURCES)[number];
+
+/** Historical proposal diagnostics only; never authority for accepted geometry. */
+export interface SceneCompletionDiagnosticsV3 {
+  adopted: boolean;
+  additions: SceneCompletionResult["additions"];
+  skipped: SceneCompletionResult["skipped"];
+  rejection?: string;
+}
 
 export interface SceneArtifactsV3 {
   schemaVersion: typeof SCENE_ARTIFACTS_V3_VERSION;
@@ -4967,6 +4985,8 @@ export interface SceneArtifactsV3 {
   candidates: SceneCandidateArtifactV3[];
   selectedCandidateId?: string | null;
   selectionReason?: string;
+  /** Absent when completion did not run; retains unchanged, skipped and rejected outcomes. */
+  completion?: SceneCompletionDiagnosticsV3;
   /** Bounded telemetry for an exact scene that was attempted but not committed. */
   degradation?: {
     attemptedTier: "exact_verified";

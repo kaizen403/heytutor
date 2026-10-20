@@ -111,6 +111,19 @@ jobs:
         run: pnpm --filter @heytutor/tutor verify:storage-admission
       - name: Finished playback and MP4 board fidelity regressions
         run: pnpm --filter @heytutor/tutor verify:board-playback-export
+      - name: Teaching truth and scoped solver authority (no model calls)
+        run: |
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-teaching-truth-authority.ts
+          pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-code-teaching-truth.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-programming-example-integrity.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-teaching-statement-truth.ts
+      - name: Recorded lesson scheduling and persistence (no external calls)
+        run: pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-recorded-lesson-integrity.ts
+      - name: Kimi board and voice sync regressions (no model calls)
+        run: |
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-row-focus-sync.ts
+          pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-kimi-lesson-pacing.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-kimi-code-obligations.ts
       - name: Lesson admission, voice recovery, work pages and programming sync regressions
         run: |
           pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-tts-native-startup.ts
@@ -119,6 +132,7 @@ jobs:
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-live-speech-pause.ts
           pnpm --filter @heytutor/tutor verify:lesson-qa-2
           pnpm --filter @heytutor/tutor verify:lesson-qa-3
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-two-sum-grounding.ts
       - name: Live diagram picker regressions (no model calls)
         run: |
           pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-live-diagram-picker.ts

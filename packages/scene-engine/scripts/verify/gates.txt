@@ -48,6 +48,7 @@ tsx scripts/verify/verify-vsepr-label-geometry.ts
 tsx scripts/verify/verify-pinned-label-precision.ts
 tsx scripts/verify/verify-instrument-labels.ts
 tsx scripts/verify/verify-label-ink-clearance.ts
+tsx scripts/verify/verify-label-owner-placement.ts
 tsx scripts/verify/verify-archetype-point-ownership.ts
 tsx scripts/verify/verify-solid-measurement-proof.ts
 pnpm verify:startup
@@ -69,3 +70,4 @@ tsx scripts/verify/verify-direction-badges.ts
 tsx scripts/verify/verify-mechanics-state-consistency.ts
 tsx scripts/verify/verify-switch-states.ts
 tsx scripts/verify/verify-picture-demand-conic-operator.ts
+tsx scripts/verify/verify-projectile-units.ts

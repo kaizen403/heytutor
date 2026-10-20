@@ -98,6 +98,7 @@ import { recordingAudioCaptureComplete, recordingAudioPersistenceComplete } from
 import { liveTurnSave, type LiveTurnHandle } from "../../lib/turn/liveTurnSave";
 import { lessonResumeState } from "../../lib/turn/pausedLessonRestore";
 import { buildEarlyLessonOpeningSegment, shouldStartEarlyLessonOpening } from "../../lib/turn/earlyLessonOpening";
+import { prepareLessonOpening, shouldPrepareLessonOpening } from "../../lib/turn/lessonOpeningPreparation";
 import { isBenignTurnAbort } from "../../lib/turn/turnFailurePolicy";
 import {
   FALLBACK_DSA_TEACHING_POLICY,
@@ -797,6 +798,32 @@ export function useQuestionHandler(
           if (earlyOpeningWaitPhase && phaseRef.current === "speaking") setPhaseIfCurrent(earlyOpeningWaitPhase);
         }, () => {});
       }
+      let openingPreparationAttempted = false;
+      const prepareOriginalOpening = (authoritativePlan?: TurnPlanV3) => {
+        if (openingPreparationAttempted || !STREAM_SEGMENTS_LIVE || !shouldPrepareLessonOpening({
+          kind: doubt ? "doubt" : resume ? "resume" : "lesson",
+          isDsa: dsaClassification.isDsa, earlyAcknowledgement: earlyOpeningStarted,
+          current: isCurrentTurn(), paused: isPausedRef.current,
+        })) return;
+        const opening = prepareLessonOpening({ question, narrationLanguage: turnNarrationLanguage,
+          turnPlan: authoritativePlan, authoritySettled: authoritativePlan !== undefined });
+        if (!opening?.narration.trim() || !tts.prefetchSegment) return;
+        // No enqueue/save/playback here. A rejected, cancelled, or silent
+        // teaching attempt must remain silent. The normal final prefetch is
+        // retained: the TTS client deduplicates it, or retries a lost prefetch.
+        try {
+          tts.prefetchSegment(opening.narration, {
+            traceId: turnTraceId ?? undefined, sessionId: sessionId ?? undefined,
+            voiceSettings: voiceSettingsForDelivery(opening.delivery),
+          });
+          openingPreparationAttempted = true;
+          // The provider can decline lookahead; this is not an audio-ready receipt.
+          tel.mark("lesson-opening-prefetch-requested", { stage: authoritativePlan ? "authority" : "question" });
+        } catch {
+          // Optional preparation cannot prevent the unchanged final path.
+        }
+      };
+      prepareOriginalOpening();
       let diagramSubject: import("@heytutor/tutor-core").DiagramSubject = "other";
       let diagramStrategySubject: import("@heytutor/tutor-core").DiagramSubject = "other";
       let diagramStrategyDecision = liveDiagramStrategyDecision({
@@ -1207,7 +1234,7 @@ export function useQuestionHandler(
           context: "search" | "revalidate" | "recovery" = "search",
         ): SceneCandidateValidation<ValidatedSceneCandidate> =>
           measureSceneCandidateValidation(tel, { validationCallIndex: ++validationCallIndex, context }, () =>
-            validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan }));
+            validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, yieldPolicy: context === "recovery" ? "off" : billed.diagramYieldPolicy }));
         const deriveSceneGate = (
           planningTurnPlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null,
         ): SceneGate => {
@@ -1262,6 +1289,7 @@ export function useQuestionHandler(
         // Also run when the turn has no numeric ProblemIR request. The overlap
         // callback repeats this on final IR before deriving any final gate.
         turnPlan = applyDeterministicSourceAuthority(turnPlan, null);
+        if (!problemAuthorityPromise) prepareOriginalOpening(turnPlan);
         let usedVerifiedRecovery = false;
         // One bounded join for numeric and nonnumeric plans, before either
         // speculative or final scene requests capture their example IDs.
@@ -1298,6 +1326,7 @@ export function useQuestionHandler(
             ), authority);
             const refreshedAuthority = refreshSolverAuthorityForPlan(authority, reconciledPlan, question);
             const authorityAudit = refreshedAuthority.audit;
+            if (authorityAudit.status !== "contradiction") prepareOriginalOpening(reconciledPlan);
             tutorDebug("planner", "solver authority audit", {
               status: authorityAudit.status,
               issue_codes: authorityAudit.issues.map((issue) => issue.code),
@@ -1370,6 +1399,7 @@ export function useQuestionHandler(
                 traceId: turnTraceId ?? undefined,
                 signal: run.signal,
                 timeoutMs: run.timeoutMs,
+                preserveRequiredGeometry: billed.diagramYieldPolicy === "verified_parts",
                 holdValidationUntil: run.holdValidationUntil,
                 maxConcurrentRequests: run.maxConcurrentRequests,
                 requestBudget: run.requestBudget,
@@ -1468,6 +1498,8 @@ export function useQuestionHandler(
           candidateValidation: result?.validation, fastRepresentation,
           exactFigureSource: planning.figureSource === "verified_recovery" ? "verified_recovery" : "planner",
           solverAuthorityBlocked, requiredRetryEnabled: REQUIRED_DIAGRAM_RETRY_ENABLED,
+          completionEnabled: process.env.NEXT_PUBLIC_SCENE_COMPLETION_BY_CONSTRUCTION === "1",
+          solverAuthority: problemAuthority ? { problemIR: problemAuthority.problemIR, solverResult: problemAuthority.solverResult } : null,
           policy: {
             preferPlanner: diagramStrategyDecision.strategy === "strict",
             allowedFigureSources: FIGURE_SOURCES.filter((source) => diagramStrategyAllowsFigureSource(diagramStrategyDecision, source)),
@@ -1590,6 +1622,9 @@ export function useQuestionHandler(
             };
           }) ?? [],
           selectedCandidateId: selectedModelCandidate?.candidateId ?? null,
+          // completion-diagnostics:begin
+          completion: sceneSelection.completion,
+          // completion-diagnostics:end
           selectionReason: representationReason ?? (sceneVisualStatus === "validated"
             ? usedVerifiedRecovery ? "verified_scene_recovery" : "validated_scene"
             : sceneVisualStatus === "retry_required"

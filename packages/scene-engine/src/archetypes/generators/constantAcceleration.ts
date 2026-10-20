@@ -361,6 +361,12 @@ function aliasOf(quantity: PlanQuantity, aliases: readonly string[]): boolean {
  */
 export function extractFreeFallSlots(stem: string, plan: readonly PlanQuantity[], bag: SlotBag, set: (bag: SlotBag, key: string, value: number | string, source: SlotSource) => void): void {
   const text = normalized(stem);
+  // The figure draws one body. A second body (a meeting, a second ball) is a
+  // different picture; one body with the other's speed would be false.
+  if (/\b(?:two|three|both) (?:balls|stones|bodies|particles|objects|masses)\b|\b(?:second|third|another|other) (?:ball|stone|body|particle|object|mass)\b|\bballs? [a-d] and (?:ball )?[a-d]\b|\bball ([a-d])\b[^]*\bball (?!\1\b)[a-d]\b/i.test(text)) {
+    set(bag, "conflict", "the stem has more than one falling body", "stem");
+    return;
+  }
   const up = /thrown (?:vertically )?up/i.test(text);
   set(bag, "direction", up ? "up" : "down", "stem");
   const found = tokens(text);
@@ -371,8 +377,11 @@ export function extractFreeFallSlots(stem: string, plan: readonly PlanQuantity[]
     const value = quantity ? siValue(quantity, dimension) : null;
     return value === null ? null : { value: Math.abs(value), source: "plan" };
   };
-  const speeds = found.filter((token) => token.dimension === "speed");
-  const lengths = found.filter((token) => token.dimension === "length");
+  // An answer choice ("options 10, 20, 30 m/s") is not a given.
+  const choice = (token: Token) => /\d\s*(?:,|\bor\b|\band\b)\s*$/i.test(text.slice(0, token.start))
+    || /\b(?:options?|choices?|answers?)\b/i.test(text.slice(0, token.start).split(/[.;?!](?:\s|$)/).pop() ?? "");
+  const speeds = found.filter((token) => token.dimension === "speed" && !choice(token));
+  const lengths = found.filter((token) => token.dimension === "length" && !choice(token));
   const accels = found.filter((token) => token.dimension === "accel");
   const u = pick(SPEED_ALIASES, "speed") ?? (/thrown/i.test(text) && speeds.length === 1 ? { value: speeds[0]!.value, source: "stem" as const } : null);
   const g = pick(GRAVITY_ALIASES, "accel") ?? (accels.length === 1 ? { value: Math.abs(accels[0]!.value), source: "stem" as const } : null);
@@ -383,7 +392,26 @@ export function extractFreeFallSlots(stem: string, plan: readonly PlanQuantity[]
       h = { value: u.value * u.value / (2 * g.value), source: u.source === "plan" && g.source === "plan" ? "plan" : "stem" };
     }
   } else {
-    h = pick(HEIGHT_ALIASES, "length") ?? (lengths.length === 1 ? { value: lengths[0]!.value, source: "stem" as const } : null);
+    // A sole length is not necessarily a drop height (for example, a planet
+    // radius in a tunnel question). Bind the length to its vertical role.
+    // A height reached later (a rebound, a meeting point, a height passed on
+    // the way down) is a second state, never the release height.
+    const sentenceBefore = (start: number) => text.slice(0, start).split(/[.;?!](?:\s|$)/).pop() ?? "";
+    const laterState = /\b(?:rebounds?|rebounded|bounces?|bounced|rises?|rose|reach(?:es|ed)?|meet|meets|met|collides?|collided|pass(?:es|ed)?|cross(?:es|ed)?|caught|catches|strikes?|struck)\b/i;
+    const dropLengths = lengths.filter((token) => {
+      const before = text.slice(0, token.start);
+      const after = text.slice(token.end);
+      // The verb must govern this height: "reaches the ground 2 s after being
+      // dropped from 20 m" names the release after the arrival.
+      const clause = sentenceBefore(token.start);
+      const verbs = [...clause.matchAll(new RegExp(laterState.source, "gi"))];
+      const last = verbs.at(-1);
+      if (last && !/\b(?:dropped|released|thrown|let go)\b/i.test(clause.slice(last.index! + last[0].length))) return false;
+      return /(?:\bheight(?: of| is| =)?|\b(?:tower|cliff|building)(?: of height| is| of)?|\b(?:dropped|released)(?: from)?(?: rest)?(?: from)?(?: a height of)?)\s*$/i.test(before)
+        || /^\s*(?:high|tall|above (?:the |a )?(?:[a-z-]+ ){0,3}(?:ground|floor|earth|surface))\b/i.test(after)
+        || (/\b(?:top of|(?:dropped|released) from(?: the top of)?) (?:a|the)\s*$/i.test(before) && /^\s*(?:tall |high )?(?:tower|cliff|building|bridge|roof)\b/i.test(after));
+    });
+    h = pick(HEIGHT_ALIASES, "length") ?? (dropLengths.length === 1 ? { value: dropLengths[0]!.value, source: "stem" as const } : null);
   }
   const disagrees = (aliases: readonly string[], dimension: Dimension, value: number) => claims.some((claim) => {
     if (!aliasOf(claim, aliases)) return false;

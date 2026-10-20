@@ -1,0 +1,502 @@
+{
+  "topic_id": "physics|4|spring-potential-energy",
+  "question": "A block m compresses a horizontal spring of stiffness k by x on a smooth table. Compare the compressed release state with the later equilibrium crossing, showing displacement, restoring force and velocity; the wall is fixed.",
+  "figure_kind": "apparatus",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "Compressed spring at release and equilibrium crossing, restoring force and velocity"
+    },
+    "source": {
+      "question": "A block m compresses a horizontal spring of stiffness k by x on a smooth table. Compare the compressed release state with the later equilibrium crossing, showing displacement, restoring force and velocity; the wall is fixed.",
+      "archetype": "spring_mass"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "walltop_compressed",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "wallbottom_compressed",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "wall_compressed",
+        "kind": "segment",
+        "role": "wall compressed"
+      },
+      {
+        "id": "floorend_compressed",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "floorstart_compressed",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "floor_compressed",
+        "kind": "segment",
+        "role": "floor compressed"
+      },
+      {
+        "id": "spring_compressed",
+        "kind": "polyline",
+        "role": "spring compressed",
+        "label": "k"
+      },
+      {
+        "id": "O_compressed",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "block_compressed",
+        "kind": "rectangle",
+        "role": "block compressed",
+        "label": "m"
+      },
+      {
+        "id": "walltop_equilibrium",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "wallbottom_equilibrium",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "wall_equilibrium",
+        "kind": "segment",
+        "role": "wall equilibrium"
+      },
+      {
+        "id": "floorend_equilibrium",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "floorstart_equilibrium",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "floor_equilibrium",
+        "kind": "segment",
+        "role": "floor equilibrium"
+      },
+      {
+        "id": "spring_equilibrium",
+        "kind": "polyline",
+        "role": "spring equilibrium",
+        "label": "k"
+      },
+      {
+        "id": "O_equilibrium",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "block_equilibrium",
+        "kind": "rectangle",
+        "role": "block equilibrium",
+        "label": "m"
+      },
+      {
+        "id": "x",
+        "kind": "dimension",
+        "role": "x",
+        "label": "x"
+      },
+      {
+        "id": "F",
+        "kind": "vector",
+        "role": "F",
+        "label": "F_s"
+      },
+      {
+        "id": "v",
+        "kind": "vector",
+        "role": "v",
+        "label": "v"
+      },
+      {
+        "id": "rest",
+        "kind": "point",
+        "role": "rest",
+        "label": "v = 0"
+      },
+      {
+        "id": "zero",
+        "kind": "point",
+        "role": "zero",
+        "label": "F_s = 0"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_walltop_compressed",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "walltop_compressed"
+        ]
+      },
+      {
+        "id": "make_wallbottom_compressed",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "wallbottom_compressed"
+        ]
+      },
+      {
+        "id": "make_wall_compressed",
+        "operator": "segment",
+        "inputs": {
+          "start": "walltop_compressed",
+          "end": "wallbottom_compressed"
+        },
+        "outputs": [
+          "wall_compressed"
+        ]
+      },
+      {
+        "id": "make_floorend_compressed",
+        "operator": "point",
+        "inputs": {
+          "x": 6,
+          "y": 1.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "floorend_compressed"
+        ]
+      },
+      {
+        "id": "make_floorstart_compressed",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 1.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "floorstart_compressed"
+        ]
+      },
+      {
+        "id": "make_floor_compressed",
+        "operator": "segment",
+        "inputs": {
+          "start": "floorstart_compressed",
+          "end": "floorend_compressed"
+        },
+        "outputs": [
+          "floor_compressed"
+        ]
+      },
+      {
+        "id": "make_spring_compressed",
+        "operator": "parametric_curve",
+        "inputs": {
+          "xExpression": "2.0*t",
+          "yExpression": "2+.16*sin(12*pi*t)",
+          "tMin": 0,
+          "tMax": 1
+        },
+        "outputs": [
+          "spring_compressed"
+        ]
+      },
+      {
+        "id": "make_O_compressed",
+        "operator": "point",
+        "inputs": {
+          "x": 2.5,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O_compressed"
+        ]
+      },
+      {
+        "id": "make_block_compressed",
+        "operator": "rectangle",
+        "inputs": {
+          "center": "O_compressed",
+          "width": 1,
+          "height": 1
+        },
+        "outputs": [
+          "block_compressed"
+        ]
+      },
+      {
+        "id": "make_walltop_equilibrium",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -1,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "walltop_equilibrium"
+        ]
+      },
+      {
+        "id": "make_wallbottom_equilibrium",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "wallbottom_equilibrium"
+        ]
+      },
+      {
+        "id": "make_wall_equilibrium",
+        "operator": "segment",
+        "inputs": {
+          "start": "walltop_equilibrium",
+          "end": "wallbottom_equilibrium"
+        },
+        "outputs": [
+          "wall_equilibrium"
+        ]
+      },
+      {
+        "id": "make_floorend_equilibrium",
+        "operator": "point",
+        "inputs": {
+          "x": 6,
+          "y": -2.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "floorend_equilibrium"
+        ]
+      },
+      {
+        "id": "make_floorstart_equilibrium",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -2.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "floorstart_equilibrium"
+        ]
+      },
+      {
+        "id": "make_floor_equilibrium",
+        "operator": "segment",
+        "inputs": {
+          "start": "floorstart_equilibrium",
+          "end": "floorend_equilibrium"
+        },
+        "outputs": [
+          "floor_equilibrium"
+        ]
+      },
+      {
+        "id": "make_spring_equilibrium",
+        "operator": "parametric_curve",
+        "inputs": {
+          "xExpression": "3.5*t",
+          "yExpression": "-2+.16*sin(12*pi*t)",
+          "tMin": 0,
+          "tMax": 1
+        },
+        "outputs": [
+          "spring_equilibrium"
+        ]
+      },
+      {
+        "id": "make_O_equilibrium",
+        "operator": "point",
+        "inputs": {
+          "x": 4,
+          "y": -2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O_equilibrium"
+        ]
+      },
+      {
+        "id": "make_block_equilibrium",
+        "operator": "rectangle",
+        "inputs": {
+          "center": "O_equilibrium",
+          "width": 1,
+          "height": 1
+        },
+        "outputs": [
+          "block_equilibrium"
+        ]
+      },
+      {
+        "id": "make_x",
+        "operator": "dimension",
+        "inputs": {
+          "start": [
+            2.5,
+            3.5
+          ],
+          "end": [
+            4,
+            3.5
+          ]
+        },
+        "outputs": [
+          "x"
+        ]
+      },
+      {
+        "id": "make_F",
+        "operator": "vector",
+        "inputs": {
+          "start": "O_compressed",
+          "direction": [
+            1,
+            0
+          ],
+          "length": 1.4
+        },
+        "outputs": [
+          "F"
+        ]
+      },
+      {
+        "id": "make_v",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            4,
+            -0.4
+          ],
+          "direction": [
+            1,
+            0
+          ],
+          "length": 1.6
+        },
+        "outputs": [
+          "v"
+        ]
+      },
+      {
+        "id": "make_rest",
+        "operator": "point",
+        "inputs": {
+          "x": 5,
+          "y": 2.8,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "rest"
+        ]
+      },
+      {
+        "id": "make_zero",
+        "operator": "point",
+        "inputs": {
+          "x": 5,
+          "y": -3.2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "zero"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [],
+    "annotations": [],
+    "requiredEntityIds": [
+      "walltop_compressed",
+      "wallbottom_compressed",
+      "wall_compressed",
+      "floorend_compressed",
+      "floorstart_compressed",
+      "floor_compressed",
+      "spring_compressed",
+      "O_compressed",
+      "block_compressed",
+      "walltop_equilibrium",
+      "wallbottom_equilibrium",
+      "wall_equilibrium",
+      "floorend_equilibrium",
+      "floorstart_equilibrium",
+      "floor_equilibrium",
+      "spring_equilibrium",
+      "O_equilibrium",
+      "block_equilibrium",
+      "x",
+      "F",
+      "v",
+      "rest",
+      "zero"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "walltop_compressed",
+          "wallbottom_compressed",
+          "wall_compressed",
+          "floorend_compressed",
+          "floorstart_compressed",
+          "floor_compressed",
+          "spring_compressed",
+          "O_compressed",
+          "block_compressed",
+          "walltop_equilibrium",
+          "wallbottom_equilibrium",
+          "wall_equilibrium",
+          "floorend_equilibrium",
+          "floorstart_equilibrium",
+          "floor_equilibrium",
+          "spring_equilibrium",
+          "O_equilibrium",
+          "block_equilibrium",
+          "x",
+          "F",
+          "v",
+          "rest",
+          "zero"
+        ],
+        "dependsOn": [],
+        "narrationCue": "Compressed spring at release and equilibrium crossing, restoring force and velocity"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "Compressed spring at release and equilibrium crossing, restoring force and velocity"
+      }
+    ]
+  }
+}

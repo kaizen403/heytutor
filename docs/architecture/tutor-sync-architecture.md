@@ -32,6 +32,20 @@ The flag does not enter planner requests or selection inputs. Run
 `pnpm --filter @heytutor/tutor verify:early-opening` for actual-hook OFF/ON figure
 parity, and measure useful teaching separately from acknowledgement readiness.
 
+### Optional preparation of the unchanged opening
+
+`NEXT_PUBLIC_LESSON_OPENING_PREFETCH=1` is build-time and default off. On fresh
+non-code lessons, it prepares (never plays) the original question-specific
+opening while planning runs. Before authority it must be identical for both
+possible Given-row states; otherwise it waits for the reconciled authority and
+requires identical openings at both board widths. Doubts, resumes, paused or
+superseded turns, and the separate early-acknowledgement path are excluded.
+The final teaching prompt, original prefetch fallback, first-usable-step release,
+figure reveal and persistence order are unchanged. Prefetch can generate unused
+audio on a later failure; it cannot make that failure speak. No first-audio
+improvement can be inferred from TTS-free lecture-lab recordings. Gate:
+`pnpm --filter @heytutor/tutor verify:opening-preparation`.
+
 ## High-Level Flow
 
 The main live path is:
