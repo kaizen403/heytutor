@@ -67,10 +67,14 @@ async function until(predicate: () => boolean, message: string) {
 }
 
 /** Mount the complete production hook; only React, speech transport and persistence are inert. */
-async function verifyRunner(mode: "onEnd" | "finally" | "failure" | "cancel" | "late-timings" | "browser" | "stale-onEnd" | "intro-failure" | "intro-cancel") {
+async function verifyRunner(mode: "onEnd" | "finally" | "failure" | "cancel" | "late-timings" | "browser" | "stale-onEnd" | "intro-failure" | "intro-cancel" | "heard-failure" | "intro-heard-failure") {
   const narration = "t minus one";
   const command: DrawCommand = { type: "WRITE", text: "t-1", params: [90, 208], charPosition: 0, narrationBefore: narration };
   const intro = mode.startsWith("intro-");
+  // "failure" modes model a voice that started but was never heard (no
+  // media clock). A heard clip whose local playback froze finishes its segment.
+  const unheardFailure = mode === "failure" || mode === "intro-failure";
+  const heardFailure = mode === "heard-failure" || mode === "intro-heard-failure";
   const introCommands = probabilityIntroFixture.commands.filter(row => row.type.startsWith("DRAW_")).slice(0, 2);
   const segment: TutorSegment = intro
     ? { narration, command: null, commands: structuredClone(introCommands), verifiedDiagramIntro: true }
@@ -87,7 +91,7 @@ async function verifyRunner(mode: "onEnd" | "finally" | "failure" | "cancel" | "
   const timings = { charStartTimes: [...spoken].map((_, i) => i * .6), charDurations: [...spoken].map(() => .6), totalDuration: spoken.length * .6 };
   const tts = {
     speakSegment: (_text: string, options: SpeakSegmentOptions) => { providerOptions = options; return voice.promise; },
-    getPlaybackPositionMs: () => 3050, getPlaybackRate: () => 1.25,
+    getPlaybackPositionMs: () => unheardFailure ? null : 3050, getPlaybackRate: () => 1.25,
     peekSegmentTimings: () => mode === "late-timings" || mode === "browser" ? null : timings,
     abandonSpeaking() {}, stop() {}, resume() {},
   } as unknown as TTSClient;
@@ -153,7 +157,8 @@ async function verifyRunner(mode: "onEnd" | "finally" | "failure" | "cancel" | "
       if (mode === "onEnd") {
         providerOptions?.onEnd?.();
         assert.equal(seenSchedule?.isAudioActive?.(), false, "accepted onEnd releases the exact schedule before the provider promise settles");
-      } else if (mode === "failure" || mode === "intro-failure") voice.reject(new Error("offline provider failed after starting"));
+      } else if (unheardFailure) voice.reject(new Error("offline provider failed after starting"));
+      else if (heardFailure) voice.reject(new Error("Native audio playback clock did not advance"));
       else if (mode === "cancel" || mode === "intro-cancel") { params.cancelRef.current = true; cancellation.resolve(); }
       else if (mode === "stale-onEnd") {
         params.turnGenerationRef.current++;
@@ -166,11 +171,20 @@ async function verifyRunner(mode: "onEnd" | "finally" | "failure" | "cancel" | "
     await until(() => seenClock?.isAudioActive?.() === false, `${mode}: the actual speech finally path releases positive-clock authority`);
     if (intro) {
       assert.equal(seenClock?.isSpeechComplete?.(), true, "failure finally releases the speech wait");
-      assert.equal(executed[0]?.isCancelled?.(), true, "actual speechAborted/Stop ownership cancels the retained figure draw");
+      if (heardFailure) assert.equal(executed[0]?.isCancelled?.(), false, "a heard voice that fails keeps drawing its verified figure");
+      else assert.equal(executed[0]?.isCancelled?.(), true, "actual speechAborted/Stop ownership cancels the retained figure draw");
     }
     draw.resolve();
     const outcome = await joined;
-    if (mode === "failure" || mode === "intro-failure") assert(outcome instanceof Error && outcome.message === "offline provider failed after starting", "failed started speech rejects to its queue/transaction owner, never silently succeeds");
+    if (heardFailure) {
+      assert.equal(outcome, undefined, `${mode}: a heard voice that fails finishes its segment instead of rejecting`);
+      assert.equal(params.recordedSegmentsRef.current.length, 1, `${mode}: the finished segment is recorded`);
+      if (board) assert(executed.length >= 2, "every verified mark of the figure beat is drawn");
+      if (board && transaction) { board.abortDrawTransaction(transaction); board.finishAbortedDrawTransaction(transaction); }
+      console.log(`live runner ${mode}: heard voice failed, segment finished`);
+      return;
+    }
+    if (unheardFailure) assert(outcome instanceof Error && outcome.message === "offline provider failed after starting", "failed started speech rejects to its queue/transaction owner, never silently succeeds");
     else assert.equal(outcome, undefined, `${mode}: the actual consumer settles after its owned speech outcome`);
     assert.equal(seenClock?.isAudioActive?.(), false, "a retained schedule never follows a later segment's speech state");
     if (board && transaction) {
@@ -194,7 +208,7 @@ async function main() {
   Object.defineProperty(globalThis, "window", { configurable: true, value: { setTimeout, clearTimeout } });
   try {
     await verifyForwarding();
-    for (const mode of ["onEnd", "finally", "failure", "cancel", "late-timings", "browser", "stale-onEnd", "intro-failure", "intro-cancel"] as const) await verifyRunner(mode);
+    for (const mode of ["onEnd", "finally", "failure", "cancel", "late-timings", "browser", "stale-onEnd", "intro-failure", "intro-cancel", "heard-failure", "intro-heard-failure"] as const) await verifyRunner(mode);
   } finally { Object.defineProperty(globalThis, "window", { configurable: true, value: previousWindow }); }
 }
 const watchdog = setTimeout(() => { console.error("live audio ownership verifier exceeded its 10s watchdog"); process.exit(1); }, 10_000);

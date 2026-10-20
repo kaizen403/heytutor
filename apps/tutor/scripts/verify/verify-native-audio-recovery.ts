@@ -17,7 +17,7 @@ const requireApp = createRequire(path.join(app, "package.json"));
 const runnerPath = path.join(app, "features/tutor-session/hooks/turn/useSegmentRunner.ts");
 const savePath = path.join(app, "features/tutor-session/lib/turn/liveTurnSave.ts");
 const clientPath = fileURLToPath(new URL("../../../../packages/tutor-core/src/tts/streamingSpeechClient.ts", import.meta.url));
-const cases = ["recover", "healthy", "start", "capture", "ws-capture", "stall-all", "partial", "pause", "cancel", "capture-cancel", "successor", "runner-positive", "runner-zero", "runner-intro", "runner-stop", "runner-stale", "runner-healthy", "runner-slow", "capture-cancel-http", "healthy-pause", "prefetch-cancel", "ws-prefetch-cancel", "ended-zero", "runner-error", "cancel-retry", "ws-no-final", "ws-no-final-healthy", "runner-ws-positive", "runner-ws-healthy", "ws-no-final-webaudio", "ws-no-final-webaudio-healthy", "gesture-delay", "gesture-zero-repeated", "relay-final-skip", "relay-final-error", "relay-final-close", "relay-final-pause", "relay-final-stop", "relay-final-successor", "relay-final-zero", "relay-final-decode-error", "relay-final-media-error", "relay-unfinished-skip", "relay-old-close-owner", "relay-prefetch-pump-race"];
+const cases = ["recover", "healthy", "start", "capture", "ws-capture", "stall-all", "partial", "pause", "cancel", "capture-cancel", "successor", "runner-positive", "runner-zero", "runner-intro", "runner-stop", "runner-stale", "runner-healthy", "runner-slow", "capture-cancel-http", "healthy-pause", "prefetch-cancel", "ws-prefetch-cancel", "ended-zero", "runner-error", "cancel-retry", "ws-no-final", "ws-no-final-healthy", "runner-ws-positive", "runner-ws-healthy", "ws-no-final-webaudio", "ws-no-final-webaudio-healthy", "gesture-delay", "gesture-zero-repeated", "relay-final-skip", "relay-final-error", "relay-final-close", "relay-final-pause", "relay-final-stop", "relay-final-successor", "relay-final-zero", "relay-final-decode-error", "relay-final-media-error", "relay-unfinished-skip", "relay-old-close-owner", "relay-prefetch-pump-race", "browser-paused-resume", "browser-paused-wedged"];
 const noop = () => {};
 const ref = <T,>(current: T) => ({ current });
 
@@ -82,14 +82,16 @@ async function main() {
   let gesturePermitted = !gestureCase;
   const relayCase = selected.startsWith("relay-");
   let rejectDecode: ((error: Error) => void) | undefined;
-  const healthy = relayCase || ["healthy", "healthy-pause", "runner-healthy", "runner-slow", "ws-no-final-healthy", "ws-no-final-webaudio-healthy", "runner-ws-healthy", "gesture-delay"].includes(selected);
+  // v3 p4e1-t2: the browser paused a fully local clip by itself at 1.6 s.
+  const browserPaused = selected.startsWith("browser-paused");
+  const healthy = relayCase || browserPaused || ["healthy", "healthy-pause", "runner-healthy", "runner-slow", "ws-no-final-healthy", "ws-no-final-webaudio-healthy", "runner-ws-healthy", "gesture-delay"].includes(selected);
   const allStalled = selected === "relay-final-zero" || selected === "stall-all" || selected.startsWith("runner-") && !healthy;
   const positivePlateau = ["runner-positive", "runner-ws-positive", "runner-intro", "runner-stop", "runner-stale"].includes(selected);
   class NativeAudio {
     static instances: NativeAudio[] = [];
     playbackRate = 1; preservesPitch = false; muted = false; volume = 1; paused = true;
     onplaying: (() => void) | null = null; onended: (() => void) | null = null; onerror: (() => void) | null = null;
-    started: number | null = null; playedOffsets: number[] = []; seekOffset = 0; endTimer: number | null = null;
+    started: number | null = null; playedOffsets: number[] = []; seekOffset = 0; endTimer: number | null = null; selfPaused = false;
     constructor(public src: string) { NativeAudio.instances.push(this); }
     get currentTime(): number {
       if (this.started === null || this.paused) return this.seekOffset;
@@ -103,6 +105,11 @@ async function main() {
     set currentTime(value: number) { this.seekOffset = value; this.started = now; }
     async play() {
       if (!gesturePermitted) throw new DOMException("offline native gesture required", "NotAllowedError");
+      if (browserPaused && NativeAudio.instances[0] === this) {
+        // A wedged element accepts play() but never moves again.
+        if (this.selfPaused && selected === "browser-paused-wedged") return;
+        if (!this.selfPaused) schedule(() => { if (!this.paused) { this.pause(); this.selfPaused = true; } }, (1.6 - this.seekOffset) * 1_000 / this.playbackRate);
+      }
       this.playedOffsets.push(this.seekOffset); this.paused = false; this.started = now; this.onplaying?.();
       if (selected === "runner-error") schedule(() => this.onerror?.(), 50);
       if (selected === "relay-final-media-error") schedule(() => this.onerror?.(), 600);
@@ -357,10 +364,17 @@ async function main() {
         assert.equal(outcome, null, "cancelled/stale failure stays quiet");
         assert(rows.every(row => !row.audioBytes), "intentional cancellation cannot publish failed-playback audio");
         assert.equal(NativeAudio.instances.length, 1, "cancel/stale cannot create late recovery output");
-      } else if (selected === "runner-intro") {
-        assert(outcome instanceof Error, "failed intro reports terminal voice failure");
-        assert.equal(rows.length, 0, "uncommitted figure intro cannot publish speculative bytes or ink");
-        assert.equal(params.recordedSegmentsRef.current.length, 0);
+      } else if (positivePlateau) {
+        // Heard (0.2 s), then the clock froze on both native attempts. The
+        // segment finishes: its ink completes and it is recorded with the
+        // exact generated clip, rather than failing toward a cancelled turn.
+        assert.equal(outcome, null, "a heard voice that freezes finishes its segment");
+        assert.equal(NativeAudio.instances.length, 2, "one bounded native retry before finishing silently");
+        assert.equal(params.recordedSegmentsRef.current.length, 1, "the heard segment completes once");
+        const row = params.recordedSegmentsRef.current[0]!;
+        assert.deepEqual(row.audioBytes, wav, "the recorded row keeps the exact generated clip for replay");
+        assert(parseStoredSegmentCommands(row.command).some(command => command.text === "F = ma"), "its ink completed");
+        assert.deepEqual(drawn, ["F = ma"]);
       } else {
         assert.equal(rows.length, 1, "one claimed narration row retained");
         const row = rows[0]!;
@@ -441,6 +455,24 @@ async function main() {
       client.stop(); playbackOwner = 2; settled = "pending";
       void client.playAudio(wav, { onStart: () => starts++ }).then(() => { settled = "resolved"; }, () => { settled = "rejected"; }); await flush();
       lateStart?.(); lateEnd?.();
+    }
+    if (browserPaused) {
+      await advance(1_400);
+      const first = NativeAudio.instances[0]!;
+      assert(first.selfPaused, "the browser paused the element without the client asking");
+      await advance(10_000);
+      assert.equal(settled, "resolved", "a clip the browser paused by itself still plays to its end");
+      assert.equal(starts, 1, "one audible start");
+      assert.equal(fetches, 0, "local bytes, no new synthesis");
+      if (selected === "browser-paused-resume") {
+        assert.equal(NativeAudio.instances.length, 1, "the same element was asked to continue");
+        assert.equal(first.playedOffsets.length, 2); assert(first.playedOffsets[1]! >= 1.6 - 1e-6, "it continued from where it stopped");
+      } else {
+        assert.equal(NativeAudio.instances.length, 2, "a wedged element is replaced once");
+        assert(NativeAudio.instances[1]!.playedOffsets[0]! >= 1.6 - 0.01, "the retry continues from the last heard position");
+      }
+      console.log(`native audio ${selected}: GREEN; no providers`);
+      return;
     }
     await advance(3_000);
     if (selected === "stall-all") {

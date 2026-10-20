@@ -425,6 +425,8 @@ export class StreamingSpeechClient implements TTSClient {
   private currentHtmlOnStart: (() => void) | null = null;
   private cancelHtmlAudio: (() => void) | null = null;
   private failHtmlAudio: ((error: unknown) => void) | null = null;
+  /** A clip whose play() was refused until a user gesture. */
+  private blockedHtmlAudio: HTMLAudioElement | null = null;
   private muted = false;
   private playbackBlockedCallback: SpeakSegmentOptions["onPlaybackBlocked"];
   private voicePreferences: TutorVoicePreferences = { ...DEFAULT_VOICE_PREFERENCES };
@@ -2361,6 +2363,7 @@ export class StreamingSpeechClient implements TTSClient {
       let lastPosition = resumeAtSec;
       let lastProgressAt = performance.now();
       let progressTimer: ReturnType<typeof setTimeout> | null = null;
+      let unexpectedPauseResumed = false;
       const unload = () => {
         audio.pause();
         audio.removeAttribute("src");
@@ -2387,6 +2390,7 @@ export class StreamingSpeechClient implements TTSClient {
         audio.onplaying = null;
         unload();
         URL.revokeObjectURL(url);
+        if (this.blockedHtmlAudio === audio) this.blockedHtmlAudio = null;
         if (this.currentHtmlAudio === audio) {
           this.currentHtmlAudio = null;
           this.currentHtmlOnStart = null;
@@ -2415,18 +2419,34 @@ export class StreamingSpeechClient implements TTSClient {
         if (settled || this.currentHtmlAudio !== audio) return;
         const now = performance.now();
         const position = audio.currentTime;
-        if (this.paused || audio.paused) lastProgressAt = now;
+        // Only our own pause, or a clip held for a user gesture, stops the
+        // clock. An element the browser paused by itself used to count as
+        // healthy forever: a fully local clip froze at 1.63 s of 8.7 s and
+        // only the runner's 25 s segment timeout ever noticed.
+        if (this.paused || this.blockedHtmlAudio === audio) lastProgressAt = now;
         else if (Number.isFinite(position) && position > lastPosition + 0.005) {
           lastPosition = position;
           lastProgressAt = now;
+          unexpectedPauseResumed = false;
           announceStart();
         } else if (now - lastProgressAt >= NATIVE_PLAYBACK_STALL_MS) {
+          // Retried once from the last heard position on a fresh element.
           finish(new NativePlaybackStalledError(Math.max(lastPosition, 0)));
           return;
+        } else if (audio.paused && !audio.ended && !unexpectedPauseResumed) {
+          // Ask the same element to continue first. If it stays still, the
+          // deadline above retries the same bytes from the last position.
+          unexpectedPauseResumed = true;
+          const pauseEpoch = this.pauseEpoch;
+          void Promise.resolve().then(() => audio.play()).then(observePlaying, (error: unknown) => {
+            if (settled || this.currentHtmlAudio !== audio || this.pauseEpoch !== pauseEpoch) return;
+            this.holdBlockedHtmlAudio(error, audio);
+          });
         }
         progressTimer = setTimeout(checkProgress, 100);
       };
       const observePlaying = () => {
+        if (this.blockedHtmlAudio === audio) this.blockedHtmlAudio = null;
         announceStart();
         if (!watching && !settled) {
           watching = true;
@@ -2553,6 +2573,8 @@ export class StreamingSpeechClient implements TTSClient {
   private holdBlockedHtmlAudio(error: unknown, audio: HTMLAudioElement): boolean {
     if (this.currentHtmlAudio !== audio || !this.playbackBlockedCallback || this.paused || this.muted || this.halted ||
       !(error instanceof Error) || error.name !== "NotAllowedError") return false;
+    // Waiting on a gesture is not a stalled clock.
+    this.blockedHtmlAudio = audio;
     this.reportPlaybackBlocked("not-allowed");
     return true;
   }
