@@ -30,7 +30,7 @@
         "id": "G",
         "kind": "component",
         "role": "galvanometer",
-        "label": "G"
+        "label": "G, I_G = 0"
       },
       {
         "id": "Rh",
@@ -107,6 +107,11 @@
         "kind": "dimension",
         "role": "balance length",
         "label": "ℓ"
+      },
+      {
+        "id": "adjustment",
+        "kind": "vector",
+        "role": "rheostat adjustment marker"
       }
     ],
     "constructions": [
@@ -311,6 +316,24 @@
         "outputs": [
           "dl"
         ]
+      },
+      {
+        "id": "kadjustment",
+        "operator": "vector",
+        "inputs": {
+          "start": [
+            9.5,
+            0.65
+          ],
+          "direction": [
+            1,
+            1
+          ],
+          "length": 1.6
+        },
+        "outputs": [
+          "adjustment"
+        ]
       }
     ],
     "relations": [],
@@ -374,7 +397,8 @@
       "cell",
       "G",
       "i",
-      "dl"
+      "dl",
+      "adjustment"
     ],
     "revealGroups": [
       {
@@ -396,7 +420,8 @@
           "cell",
           "w2",
           "G",
-          "dl"
+          "dl",
+          "adjustment"
         ],
         "dependsOn": [],
         "narrationCue": "both + terminals at A; null point J"

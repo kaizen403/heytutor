@@ -14,6 +14,7 @@ import type { SceneDocument, SceneIssue, ValidationReport, RenderScene } from ".
 import type { ProblemIR } from "../ir/problemIR";
 import type { SolverResult } from "../ir/solver";
 import type { SolverAuthorityAudit } from "../ir/solverAuthority";
+import type { SceneCompletionResult } from "../completion/completeSceneDocument";
 
 export const TURN_PLAN_V3_VERSION = "turn-plan/v3" as const;
 export const SCENE_ARTIFACTS_V3_VERSION = "scene-artifacts/v3" as const;
@@ -2364,6 +2365,13 @@ function unitScale(unit: unknown): UnitScale | null {
   return { factor, signature };
 }
 
+/** Existing recognized-unit algebra for conservative property classification.
+ * This exposes no converted value or geometric/numeric proof authority. */
+export function sceneUnitSignature(unit: unknown): string | null {
+  const resolved = unitScale(unit);
+  return resolved && Number.isFinite(resolved.factor) && resolved.factor > 0 ? resolved.signature : null;
+}
+
 function resolveUnitSymbol(symbol: string): { base: string; factor: number } | null {
   const aliased = UNIT_WORD_ALIASES[symbol] ?? UNIT_WORD_ALIASES[symbol.toLowerCase()] ??
     symbol.replace(/Ω/g, "Ω");
@@ -2664,10 +2672,7 @@ export function validateTurnPlanSceneProofs(
   ].join(" ").toLowerCase();
   issues.push(...validateSemanticVectorGeometry(document, plan));
   issues.push(...validateClaimedClosedRouteMembers(document, plan));
-  issues.push(...validatePoweredCircuitClosure(
-    document,
-    [plan.question, evidenceText, ...plan.assumptions].join(" ").toLowerCase(),
-  ));
+  issues.push(...validateCircuitTerminalClosure(document, plan.question, plan));
   const resistorIds = document.constructions.flatMap((construction) =>
     construction.operator === "symbol" &&
     typeof construction.inputs.symbol === "string" &&
@@ -2759,7 +2764,7 @@ export function validateTurnPlanSceneProofs(
 
 const CLOSED_ROUTE_EDGE_OPERATORS = new Set(["segment", "connect", "symbol"]);
 const CLOSED_ROUTE_TOPOLOGY_PREDICATES = new Set([
-  "connected", "path", "pathCount", "sameTerminalPair", "degree", "on",
+  "connected", "path", "pathCount", "loadBranchCount", "sameTerminalPair", "degree", "on",
 ]);
 const CLOSED_ROUTE_SYMBOLS = new Set([
   "resistor", "battery", "cell", "capacitor", "inductor", "lamp",
@@ -3652,10 +3657,24 @@ function claimedCurrentMemberHints(claim: string): string[] {
     match[1]?.trim() ? [match[1].trim()] : []);
 }
 
-function validatePoweredCircuitClosure(
+/**
+ * Prove only the declared electrical source terminals have a component path.
+ * Shared by plan admission and every save tier; no coordinates or full-plan
+ * obligations are inferred. The actual question, not submitted source/plan
+ * question metadata, supplies wording; validated plan facts retain open states.
+ */
+export function validateCircuitTerminalClosure(
   document: SceneDocument,
-  evidenceText: string,
+  question: string,
+  plan: Pick<TurnPlanV3, "lawIds" | "qualitativeClaims" | "assumptions"> | null = null,
 ): SceneIssue[] {
+  if (document.visualDecision.mode !== "scene") return [];
+  const evidenceText = [
+    question,
+    ...(plan?.lawIds ?? []),
+    ...(plan?.qualitativeClaims ?? []).flatMap((claim) => [claim.id, claim.claim]),
+    ...(plan?.assumptions ?? []),
+  ].join(" ").toLowerCase();
   if (/\b(?:open circuit|open switch|switch is open|disconnected circuit)\b/.test(evidenceText)) {
     return [];
   }
@@ -3675,6 +3694,10 @@ function validatePoweredCircuitClosure(
       .test(semantic);
   });
   const issues: SceneIssue[] = [];
+  // This selects repair wording only; it never creates a component or join.
+  const capacitorRepair = evidenceText.includes("capacitor") || document.constructions.some((construction) =>
+    construction.operator === "symbol" && construction.inputs.symbol === "capacitor") ||
+    document.entities.some((entity) => entity.role?.toLowerCase().includes("capacitor"));
   for (const source of sources) {
     const adjacency = new Map<string, string[]>();
     for (const edge of edges) {
@@ -3693,9 +3716,15 @@ function validatePoweredCircuitClosure(
       }
     }
     if (!visited.has(source.end)) {
+      const componentContract = capacitorRepair
+        ? 'If the required component is a capacitor, use symbol {symbol:"capacitor",start:point_id,end:point_id} with one component output. '
+        : "Use symbol {symbol:component_kind,start:point_id,end:point_id} with one component output for each required component. ";
       issues.push({
         code: "source_loop_not_closed",
-        message: `Source ${source.id} is not part of a closed component path`,
+        message: `Source ${source.id} terminals ${source.start} and ${source.end} have no closed component path. ` +
+          componentContract +
+          "Attach connect wires to the declared outer terminal point IDs and their intended circuit nodes; never bypass a component to fake closure. " +
+          "Free plate segments and coincident coordinates do not establish a component edge. Preserve declared terminal IDs; do not invent a wire to close the path.",
         severity: "fatal",
         entityIds: [source.id],
       });
@@ -4880,6 +4909,7 @@ export interface ProofObligation {
 export const TOPOLOGY_ASSERTION_PREDICATES = [
   "path",
   "pathCount",
+  "loadBranchCount",
   "sameTerminalPair",
   "degree",
   "connected",
@@ -4941,6 +4971,7 @@ export const FIGURE_SOURCES = [
   "archetype",
   "chemistry_family",
   "matrix_source",
+  "linear_source",
   "source_grounded",
   "last_resort",
   "text_only",
@@ -4951,6 +4982,14 @@ export const FIGURE_SOURCES = [
 ] as const;
 
 export type FigureSource = (typeof FIGURE_SOURCES)[number];
+
+/** Historical proposal diagnostics only; never authority for accepted geometry. */
+export interface SceneCompletionDiagnosticsV3 {
+  adopted: boolean;
+  additions: SceneCompletionResult["additions"];
+  skipped: SceneCompletionResult["skipped"];
+  rejection?: string;
+}
 
 export interface SceneArtifactsV3 {
   schemaVersion: typeof SCENE_ARTIFACTS_V3_VERSION;
@@ -4967,6 +5006,8 @@ export interface SceneArtifactsV3 {
   candidates: SceneCandidateArtifactV3[];
   selectedCandidateId?: string | null;
   selectionReason?: string;
+  /** Absent when completion did not run; retains unchanged, skipped and rejected outcomes. */
+  completion?: SceneCompletionDiagnosticsV3;
   /** Bounded telemetry for an exact scene that was attempted but not committed. */
   degradation?: {
     attemptedTier: "exact_verified";

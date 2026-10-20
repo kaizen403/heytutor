@@ -117,7 +117,12 @@ const denseRender: RenderScene = {
   ],
 };
 const denseHinglish = buildVerifiedDiagramPresentation(denseDocument, denseRender, { narrationLanguage: "hinglish" });
-check(denseHinglish.introSegments.some((segment) => segment.narration.includes("इतना setup तैयार है.")), "dense answer-cue fixture reaches the Hinglish spoken walkthrough");
+const denseWalkthroughClosings = ["इतना setup तैयार है.", "अब पूरा setup तैयार है.", "अब पूरा setup board पर पूरी तरह तैयार है."];
+check(denseHinglish.introSegments.some((segment) =>
+  segment.narration.startsWith("ये setup है. पहले ")
+  && segment.narration.includes("और आखिर में ")
+  && denseWalkthroughClosings.some((closing) => segment.narration.endsWith(closing))),
+"dense answer-cue fixture reaches the Hinglish spoken walkthrough");
 for (const segment of denseHinglish.introSegments) {
   check(!/\b(?:3|75|impact|strikes)\b|नीचे होता है/.test(segment.narration), "dense Hinglish walkthrough cannot append the solved impact cue");
   for (const command of getSegmentCommands(segment)) {

@@ -1,0 +1,197 @@
+[
+  {
+    "id": "neutral-1",
+    "question": "Copper (Cu) forms an fcc lattice. Draw the unit cell.",
+    "draw": true
+  },
+  {
+    "id": "neutral-2",
+    "question": "Silver (Ag) atoms form a face-centred cubic lattice. Sketch the unit cell.",
+    "draw": true
+  },
+  {
+    "id": "neutral-3",
+    "question": "Aluminium (Al) forms a face-centered cubic crystal. Show the unit cell.",
+    "draw": true
+  },
+  {
+    "id": "neutral-4",
+    "question": "Iron (Fe) atoms occupy a bcc lattice. Draw the unit cell.",
+    "draw": true
+  },
+  {
+    "id": "neutral-5",
+    "question": "Sodium (Na) forms a body-centred cubic crystal. Sketch the unit cell.",
+    "draw": true
+  },
+  {
+    "id": "neutral-6",
+    "question": "Magnesium (Mg) atoms form an hcp lattice. Draw the crystal structure.",
+    "draw": true
+  },
+  {
+    "id": "bare-wrapper",
+    "question": "(Cu) atoms form an fcc lattice. Draw the unit cell.",
+    "draw": true
+  },
+  {
+    "id": "name-no-space",
+    "question": "Copper(Cu) forms an fcc lattice. Draw the unit cell.",
+    "draw": true
+  },
+  {
+    "id": "one-letter-wrapper",
+    "question": "Tungsten (W) atoms form a bcc lattice. Draw the unit cell.",
+    "draw": true
+  },
+  {
+    "id": "alias-comma",
+    "question": "Copper (Cu), forms an fcc lattice. Sketch the unit cell.",
+    "draw": true
+  },
+  {
+    "id": "neutral-bare-control",
+    "question": "Cu atoms form an fcc lattice. Draw the unit cell.",
+    "draw": true
+  },
+  {
+    "id": "charged-unwrapped",
+    "question": "Cl^- ions form an fcc lattice and Na^+ ions occupy all octahedral voids. Draw the unit cell.",
+    "draw": true
+  },
+  {
+    "id": "charged-wrapped",
+    "question": "(Cl^-) ions form an fcc lattice and (Na^+) ions occupy all octahedral voids. Draw the unit cell.",
+    "draw": true
+  },
+  {
+    "id": "charged-magnitude",
+    "question": "O^(2-) ions form an fcc lattice and Mg^(2+) ions occupy all octahedral voids. Draw the unit cell.",
+    "draw": true
+  },
+  {
+    "id": "charged-unicode",
+    "question": "Cl\u207b ions form an fcc lattice and Na\u207a ions occupy all octahedral voids. Draw the unit cell.",
+    "draw": true
+  },
+  {
+    "id": "unmatched-close",
+    "question": "Cu) atoms form an fcc lattice. Draw the unit cell.",
+    "draw": false
+  },
+  {
+    "id": "extra-close",
+    "question": "(Cu)) atoms form an fcc lattice. Draw the unit cell.",
+    "draw": false
+  },
+  {
+    "id": "empty-charge",
+    "question": "(Cu^) atoms form an fcc lattice. Draw the unit cell.",
+    "draw": false
+  },
+  {
+    "id": "empty-charge-pair",
+    "question": "(Cu()) atoms form an fcc lattice. Draw the unit cell.",
+    "draw": false
+  },
+  {
+    "id": "unsigned-stoichiometry",
+    "question": "(Cu2) atoms form an fcc lattice. Draw the unit cell.",
+    "draw": false
+  },
+  {
+    "id": "zero-charge",
+    "question": "(Cu^0+) atoms form an fcc lattice. Draw the unit cell.",
+    "draw": false
+  },
+  {
+    "id": "fractional-charge",
+    "question": "(Cu^1.5+) atoms form an fcc lattice. Draw the unit cell.",
+    "draw": false
+  },
+  {
+    "id": "damaged-charge",
+    "question": "(Cu^2x+) atoms form an fcc lattice. Draw the unit cell.",
+    "draw": false
+  },
+  {
+    "id": "unknown-neutral",
+    "question": "(Xx) atoms form an fcc lattice. Draw the unit cell.",
+    "draw": false
+  },
+  {
+    "id": "unknown-charged",
+    "question": "(Xx^+) atoms form an fcc lattice. Draw the unit cell.",
+    "draw": false
+  },
+  {
+    "id": "conflicting-name-symbol",
+    "question": "Copper (Ag) forms an fcc lattice. Draw the unit cell.",
+    "draw": false
+  },
+  {
+    "id": "conflicting-symbol-name-nospace",
+    "question": "Sodium(Cl^-) ions form an fcc lattice. Draw the unit cell.",
+    "draw": false
+  },
+  {
+    "id": "invalid-edge-not-default",
+    "question": "Copper (Cu) forms an fcc lattice. Its edge length is 400 kg. Draw the unit cell.",
+    "draw": false
+  },
+  {
+    "id": "conflicting-edge-readings",
+    "question": "Copper (Cu) forms an fcc lattice. Its edge length is 400 pm; edge length is 450 pm. Draw the unit cell.",
+    "draw": false
+  },
+  {
+    "id": "unknown-edge-not-default",
+    "question": "Copper (Cu) forms an fcc lattice. Its edge length is unknown; edge length is 400 pm. Draw the unit cell.",
+    "draw": false
+  },
+  {
+    "id": "species-unclosed-opening",
+    "question": "(Cu atoms form an fcc lattice. Draw the unit cell.",
+    "draw": false
+  },
+  {
+    "id": "named-species-unclosed-opening",
+    "question": "Copper (Cu atoms form an fcc lattice. Draw the unit cell.",
+    "draw": false
+  },
+  {
+    "id": "species-parenthetical-sentence",
+    "question": "(Cu atoms form an fcc lattice. Draw the unit cell.)",
+    "draw": true
+  },
+  {
+    "id": "species-parenthetical-multiple-sentences",
+    "question": "(Cu atoms form an fcc lattice. Use the conventional cell.) Draw the unit cell.",
+    "draw": true
+  },
+  {
+    "id": "species-parenthetical-nested-prose",
+    "question": "(Cu atoms form an fcc lattice (ignore thermal expansion). Draw the unit cell.)",
+    "draw": true
+  },
+  {
+    "id": "nested-outer-charge-balanced",
+    "question": "(Ca^(2+)) ions form an fcc lattice. (F^-) ions occupy all tetrahedral voids. Draw the unit cell and find the formula.",
+    "draw": true
+  },
+  {
+    "id": "nested-outer-charge-unclosed",
+    "question": "(Ca^(2+) ions form an fcc lattice. (F^-) ions occupy all tetrahedral voids. Draw the unit cell and find the formula.",
+    "draw": false
+  },
+  {
+    "id": "unrelated-algebra-parenthesis",
+    "question": "Cu atoms form an fcc lattice. Draw the unit cell. For unrelated algebra write (x+y.",
+    "draw": true
+  },
+  {
+    "id": "neutral-wrapper-unrelated-algebra-parenthesis",
+    "question": "Copper (Cu) forms an fcc lattice. Draw the unit cell. For unrelated algebra write (x+y.",
+    "draw": true
+  }
+]

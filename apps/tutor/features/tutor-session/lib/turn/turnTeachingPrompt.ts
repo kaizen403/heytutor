@@ -20,6 +20,8 @@ import {
   FAST_MODE_TEACHING_ADDON,
   TUTOR_CONTINUATION_PROMPT,
   TUTOR_SYSTEM_PROMPT,
+  ROW_FIRST_TEACHING_PROMPT,
+  TEACHING_STATEMENT_TRUTH_ADDON,
   buildGivenValueSegments,
   buildDsaOpeningSegments,
   buildLessonOpeningSegment,
@@ -102,8 +104,20 @@ export interface TurnTeachingPrompt {
 
 const TEXT_ONLY_DIAGRAM_ADDON = `The semantic scene engine selected text-only mode because no fully validated diagram was available.
 Do not emit any drawing, label, annotation, erase, highlight, or marker-movement tags.
-WRITE the left work column as the student notebook: names, definitions, relations, substitutions, and results (x below 360). Every step must [WRITE] a short board line. Do not speak while the marker stays parked.
+WRITE the available work area as the student notebook: names, definitions, relations, substitutions, and results. Every step must [WRITE] a short board line. Do not speak while the marker stays parked.
 With no figure available, carry the setup in words and on the board: name every object, direction, and relation the question describes and write those names down before you use them.`;
+
+const NO_FIGURE_NARRATION_ADDON = `BOARD STATE: NO VERIFIED FIGURE
+There is no diagram, plot, picture or worked-example figure on this board. This overrides any earlier example, opening or subject instruction that assumes a figure was revealed or tells you to read one.
+A diagram mentioned by the question or plan is not a picture on this board. Describe the stated setup and relations in words and symbolic notebook rows, without inventing visible geometry, labels, directions or apparatus.
+Never say "look at the figure", "as shown", "this arrow", "the graph on the right", or otherwise claim that an absent part is visible. Do not promise to draw or reveal a figure, announce that one failed, or explain internal tooling.
+You may discuss a graph, axis, curve or geometric object as mathematics: explain its definition or the relation it would represent, rather than saying the student can see it. Keep the question's actual quantities, reasoning and requested solution.
+Do not emit [FOCUS] or [ANNOTATE]. Existing notebook rows may still be referenced with [EMPHASIZE] under the normal visible-row rules. Keep this turn's existing WRITE or TYPE ownership; the absence of a figure does not change it.`;
+
+function noFigurePromptAddon(codeBoard: boolean): string {
+  return codeBoard ? NO_FIGURE_NARRATION_ADDON : `${NO_FIGURE_NARRATION_ADDON}
+The notebook uses the full available board width rather than a narrow column beside an empty figure area. Keep rows readable; the runtime wraps lines and turns pages when needed.`;
+}
 
 const CODE_LESSON_NO_DIAGRAM_ADDON = `No verified diagram is available for this code lesson.
 Do not emit any drawing, label, annotation, erase, highlight, or marker-movement tags, and never use [WRITE].
@@ -124,6 +138,22 @@ The left column is a notebook, not an editor. [WRITE] at most one short phrase p
  */
 const CODE_LESSON_CONTINUATION_PROMPT = `Continue the code lesson exactly where the previous response stopped. Return only [STEP]...[/STEP] blocks, following the same lesson shape and the same rules: one [FOCUS:frame_id|spotlight] on a figure step, one [TYPE:blockId] on a code step, no tag on an opening, a trace-through or a close, and never [WRITE]. Do not restate anything already said, do not summarise what came before, and do not start again from the beginning.`;
 const DSA_EXPLANATION_CONTINUATION_PROMPT = `Continue the worked example exactly where the previous response stopped. Return only [STEP]...[/STEP] blocks. Use one [FOCUS:frame_id|spotlight] for each remaining figure step and no tag on the close. Never use [TYPE] or [WRITE]. Explain the actual values and decisions, then close with the reason for time and space complexity. Do not recap or restart.`;
+
+/** Presentation shape only: the existing solver audit remains numeric authority. */
+function hasSolverBindingContext(value: unknown): boolean {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const projection = value as Record<string, unknown>;
+  if (projection.schemaVersion !== "solver-authority/v1" || projection.status !== "verified" ||
+      !Array.isArray(projection.bindings) || projection.bindings.length === 0) return false;
+  return projection.bindings.every((value: unknown) => {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+    const binding = value as Record<string, unknown>;
+    const number = binding.approximate;
+    return [binding.requestId, binding.quantityId, binding.symbol].every(value => typeof value === "string" && value.trim().length > 0) &&
+      (typeof number === "number" && Number.isFinite(number) ||
+        Array.isArray(number) && number.length > 0 && number.every(value => typeof value === "number" && Number.isFinite(value)));
+  });
+}
 
 /**
  * The plan and solver blocks. Shared by a lesson and by a doubt about it, so
@@ -157,29 +187,24 @@ function turnPlanPromptAddons(
         // g, c and h are quoted, not invented. Asking the tutor to say
         // "suppose the speed of light is three times ten to the eight" would
         // be worse than the fabricated givens this rule exists to catch.
-        if (isQuotedPhysicalConstant(symbol, value)) return [];
+        if (isQuotedPhysicalConstant(symbol.normalize("NFKC"), value)) return [];
         return [symbol];
       }),
     ),
   );
 
-  // "Verified" is only true when the independent solver signed the numbers off.
-  // Without it these are one model's working: a collision plan reached a lesson
-  // claiming 62 J of kinetic energy after a 24 J collision, with the energy
-  // lost recorded as zero, and the prompt still introduced it as verified. The
-  // teaching model ignored it and was right, which is not a guarantee worth
-  // relying on. Say what the block actually is.
-  const solverVerified = Boolean(solverProjection);
+  // A projection can confirm one output while unrelated planner working and
+  // qualitative claims remain unproved. Never give the whole plan its status.
   // The planner also stores transport and repair notes in this legacy list.
   // Those explain pipeline decisions, never conditions of the student's problem.
   const assumptions = (turnPlan?.assumptions ?? []).filter((text) =>
     !/^(?:A verified illustration is required|Turn-plan model was unavailable|Mock mode does not solve|Removed \d+ (?:invalid planner dependency|directional sign))/.test(text),
   );
   const turnPlanPromptAddon = turnPlan
-    ? `${solverVerified ? "AUTHORITATIVE TURN PLAN V3" : "TURN PLAN V3 (NOT INDEPENDENTLY CHECKED)"}
-${solverVerified
-  ? "Use these verified quantities and qualitative claims for the explanation. Do not replace them with independently guessed values or contradict them."
-  : "An independent solver did not confirm these numbers, so they are one working, not an answer key. Use them as the intended route and keep the givens, laws and assumptions. Before you speak any derived value, get it from the line of algebra you have just written; if your own line disagrees with the number below, write your line and say that value instead."}
+    ? `TURN PLAN V3 (PLANNER WORKING; NOT A GLOBAL ANSWER KEY)
+These are proposed working, not a globally verified answer key. A solver binding confirms only its own quantityId, symbol, unit and value; it does not confirm other derived quantities or qualitative claims below. Keep the question's stated givens and applicable laws, and label assumptions.
+Your own board working cannot override an explicitly solver-bound value. Recheck disagreements from the givens and applicable law and correct the working; if they cannot be resolved, state the unresolved discrepancy instead of inventing an alternative answer.
+For a quantity without a solver binding, correct an unsupported planner value only after checking its derivation from the givens, signs and units. Before using any result in a dependent calculation, check every adjacent equality in a chain. Before emitting a step, ensure its spoken quantities agree with the [WRITE] row.
 ${JSON.stringify({
   givens: turnPlan.givens,
   unknowns: turnPlan.unknowns,
@@ -189,17 +214,17 @@ ${JSON.stringify({
   assumptions,
 })}${assumptions.length > 0 ? `
 PROBLEM CONDITIONS
-The assumptions listed above are modelling conditions, not extra givens. Read the user's exact question to distinguish stated conditions from unstated assumptions; neither the drawing nor a qualitative claim establishes an unstated condition.
-Apply DERIVATION BEFORE RESULTS: distinguish stated conditions from unstated assumptions, introduce each genuinely unstated condition once before its first use, and write one condition row so the saved notes scope all dependent working and results. Say once which result is not uniquely determined without that condition. Preserve that scope even when other quantities are solver-verified; a new condition starts a new case, not a repeated suffix on each answer.` : ""}${assumedSymbols.length > 0
+The assumptions listed above are proposed modelling conditions, not established facts, extra givens or automatic prerequisites. Check each against the exact question and the applicable law. Keep conditions actually stated by the question as facts; neither a drawing nor a qualitative claim establishes an unstated condition. Do not impose an incidental process assumption on an end result already fixed by the givens.
+Apply DERIVATION BEFORE RESULTS: introduce each genuinely necessary unstated condition once before its first use, explicitly say "assuming", and write one condition row so the saved notes scope all dependent working and results. Say once which requested result is not uniquely determined without that necessary condition; do not invent a dependency just because the plan listed it. Preserve that scope through the final answer even when other quantities are solver-verified; a new condition starts a new case, not a repeated suffix on each answer.` : ""}${assumedSymbols.length > 0
   ? `
 NOT STATED BY THE QUESTION: ${assumedSymbols.join(", ")}. The question never supplies these; they are illustrative values chosen so the idea can be worked through.
 Never call them given. Say "suppose" or "take, for example" the first time each one is spoken, and [WRITE] that word on the row that carries it. Never present a result computed from them as a fact about the world.`
   : ""}`
     : "";
 
-  const solverPromptAddon = solverProjection
-    ? `INDEPENDENT SOLVER AUTHORITY V1
-Use exactly these solver-verified values and formulation inputs. Do not independently replace or contradict them.
+  const solverPromptAddon = hasSolverBindingContext(solverProjection)
+    ? `INDEPENDENT SOLVER AUTHORITY V1 — EXPLICIT BINDINGS ONLY
+Only the outputs explicitly listed in bindings are solver-confirmed numeric results. Match quantityId, symbol and unit; never apply a bound value to another quantity. Use those values exactly, and do not replace them with your own board arithmetic. Expressions, constraints and representation intents are formulation context, not blanket confirmation of other planner results or unstated conditions.
 ${JSON.stringify(solverProjection)}`
     : "";
 
@@ -236,6 +261,8 @@ export interface DoubtTeachingPromptInput {
    * doubt does not run, so it is named in words and never pointed at.
    */
   codeLessonBoard?: boolean;
+  /** Visible DSA ink on this page; this never grants a doubt FOCUS permission. */
+  codeFigureVisible?: boolean;
   /** The code revealed on the panel, section titles and lines, when it is showing. */
   codePanelText?: string | null;
   turnPlan: TurnPlanV3 | null;
@@ -378,7 +405,8 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
   const lessonQuestion = input.lessonQuestion.trim();
   const panelShowing = input.codePanelShowing;
   const codeBoard = panelShowing || Boolean(input.codeLessonBoard);
-  const figureOnBoard = !codeBoard && Boolean(input.diagramPromptAddon);
+  const hasFigure = Boolean(input.diagramPromptAddon?.trim()) || Boolean(codeBoard && input.codeFigureVisible);
+  const figureOnBoard = !codeBoard && hasFigure;
   // A code lesson's turn plan is a fallback that carries only the question,
   // and printing it invites the tutor to talk about givens.
   const { turnPlanPromptAddon, solverPromptAddon } = turnPlanPromptAddons(
@@ -399,9 +427,11 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
   const rules = panelShowing
     ? [
         "- Answer what the student asked and nothing else. Do not greet, do not read the question back, do not open the lesson again, and do not carry on with the rest of the lesson once the doubt is answered.",
-        "- In your first step say which line of the code or which part of the worked example you mean, quoting the line as it reads on the panel above.",
+        hasFigure
+          ? "- In your first step say which line of the code or which part of the worked example you mean, quoting the line as it reads on the panel above."
+          : "- In your first step identify the visible code line the doubt concerns, quoting it as it reads on the panel above.",
         `- Explain it a different way from the first time: a smaller step, the reason behind the line, or the example traced by hand with its values said out loud. ${example} When the student asks you to go through the whole thing again, go through all of it, one line per step.`,
-        "- The left of the board is the code editor and the right is the worked example, and both stay as they are. Never [WRITE], never [TYPE] and never [FOCUS] in this turn: teach it in speech, one idea per step. On this board a step with no tag is correct.",
+        `${hasFigure ? "- The left of the board is the code editor and the right is the worked example, and both stay as they are." : "- The code editor stays as it is; there is no worked-example figure beside it."} Never [WRITE], never [TYPE] and never [FOCUS] in this turn: teach it in speech, one idea per step. On this board a step with no tag is correct.`,
         noAnnotate,
         emptyMark,
         closing,
@@ -425,7 +455,7 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
     ? ""
     : figureOnBoard
       ? "The figure on the right is drawn and stays. Its parts are listed above. Point only at the parts the doubt is about, and do not read the whole figure to the student again."
-      : codeBoard
+      : codeBoard && hasFigure
         ? "The worked example on the right stays as it is. Do not point at it with [FOCUS] in this turn; say in words which part you mean."
         : "No figure is on this board. Do not use [FOCUS] or [ANNOTATE].";
 
@@ -452,7 +482,9 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
       alwaysShowUnits: input.alwaysShowUnits,
       alwaysStateLawFirst: input.alwaysStateLawFirst,
     }),
+    !hasFigure ? noFigurePromptAddon(codeBoard) : "",
     [DOUBT_LENGTH_ADDON, DOUBT_FAMILIARITY_LINES[input.familiarity] ?? ""].filter(Boolean).join("\n"),
+    !codeBoard ? ROW_FIRST_TEACHING_PROMPT : "",
     doubtBlock,
     input.narrationLanguage === "hinglish" ? HINGLISH_NARRATION_ADDON : "",
   ]
@@ -468,6 +500,7 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
     continuationPrompt: [
       codeBoard ? "" : TUTOR_CONTINUATION_PROMPT,
       DOUBT_CONTINUATION_PROMPT,
+      codeBoard ? "" : TEACHING_STATEMENT_TRUTH_ADDON,
       `--- this lesson ---\n${runtimeAddon}`,
     ].filter(Boolean).join("\n\n"),
   };
@@ -606,7 +639,8 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
   const noRepeat = afterStop ? "do not recap" : "do not recap, do not repeat the doubt";
   const panelShowing = input.codePanelShowing;
   const codeBoard = panelShowing || Boolean(input.codeLessonBoard) || Boolean(input.codeLesson);
-  const figureOnBoard = !codeBoard && Boolean(input.diagramPromptAddon);
+  const hasFigure = Boolean(input.diagramPromptAddon?.trim()) || Boolean(codeBoard && input.codeLessonFrames?.length);
+  const figureOnBoard = !codeBoard && hasFigure;
   const remainingSteps = remainingCodeLessonStepsBlock(input);
   const { turnPlanPromptAddon, solverPromptAddon } = turnPlanPromptAddons(
     lessonQuestion,
@@ -616,8 +650,12 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
 
   const rules = input.codeLesson && input.codeLessonIncludeCode === false
     ? [
-        "- Continue the worked example at its next frame. The student asked for an explanation, so no code editor appears and no [TYPE] tags are allowed.",
-        "- Explain the actual values and decisions on each remaining frame, then close with the reason for time and space complexity.",
+        hasFigure
+          ? "- Continue the worked example at its next frame. The student asked for an explanation, so no code editor appears and no [TYPE] tags are allowed."
+          : "- Continue the original explanation in words. No worked-example figure or code editor is available; do not use [FOCUS] or [TYPE].",
+        hasFigure
+          ? "- Explain the actual values and decisions on each remaining frame, then close with the reason for time and space complexity."
+          : "- Explain the remaining algorithm decisions and values in words, then close with the reason for time and space complexity.",
         input.codeLessonResumeNote?.trim() ? `- ${input.codeLessonResumeNote.trim()}` : "",
         "- Do not recap or restart the example.",
       ]
@@ -625,7 +663,9 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
     ? [
         `- Continue the original lesson from the next unwritten step. Do not greet, ${noRepeat}, and do not start the lesson again.`,
         "- The original question is still the question of this lesson. Teach it to the end, including the complexity close.",
-        "- The left of the board is the code editor and the right is the worked example, and both stay as they are. Never [WRITE]. Reveal remaining code with [TYPE:blockId] and remaining frames with [FOCUS:frame_id].",
+        hasFigure
+          ? "- The left of the board is the code editor and the right is the worked example, and both stay as they are. Never [WRITE]. Reveal remaining code with [TYPE:blockId] and remaining frames with [FOCUS:frame_id]."
+          : "- The code editor stays as it is; no worked-example figure is available. Never [WRITE] or [FOCUS]. Reveal remaining code with [TYPE:blockId].",
         input.codeLessonResumeNote?.trim() ? `- ${input.codeLessonResumeNote.trim()}` : "",
         "- End after the last remaining beat of the original lesson. No recap, and no question back to the student.",
       ]
@@ -677,7 +717,9 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
       alwaysShowUnits: input.alwaysShowUnits,
       alwaysStateLawFirst: input.alwaysStateLawFirst,
     }),
+    !hasFigure ? noFigurePromptAddon(codeBoard) : "",
     RESUME_LENGTH_ADDON,
+    !codeBoard ? ROW_FIRST_TEACHING_PROMPT : "",
     resumeBlock,
     input.narrationLanguage === "hinglish" ? HINGLISH_NARRATION_ADDON : "",
   ]
@@ -698,6 +740,7 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
     continuationPrompt: [
       codeBoard ? "" : basePrompt,
       afterStop ? RESUME_AFTER_STOP_CONTINUATION_PROMPT : RESUME_CONTINUATION_PROMPT,
+      codeBoard ? "" : TEACHING_STATEMENT_TRUTH_ADDON,
       `--- this lesson ---\n${runtimeAddon}`,
     ].filter(Boolean).join("\n\n"),
   };
@@ -705,14 +748,15 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
 
 export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTeachingPrompt {
   const { question, codeLesson, turnPlan } = input;
+  const hasFigure = Boolean(input.diagramPromptAddon?.trim()) || Boolean(codeLesson && input.codeLessonFrames?.length);
 
   // A code lesson's figure contract is the frame list inside its own addon.
   // The scene addon speaks the physics language ("read the figure before you
   // calculate with it", "[ANNOTATE:entity_id]") and lists every cell id as a
   // focus target, which is exactly what the code addon then forbids.
   const diagramPromptAddon = codeLesson
-    ? (input.codeLessonFrames?.length || input.diagramPromptAddon ? "" : CODE_LESSON_NO_DIAGRAM_ADDON)
-    : (input.diagramPromptAddon ?? TEXT_ONLY_DIAGRAM_ADDON);
+    ? (hasFigure ? "" : CODE_LESSON_NO_DIAGRAM_ADDON)
+    : (input.diagramPromptAddon?.trim() ? input.diagramPromptAddon : TEXT_ONLY_DIAGRAM_ADDON);
 
   const { turnPlanPromptAddon, solverPromptAddon } = turnPlanPromptAddons(
     question,
@@ -731,7 +775,7 @@ export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTea
         language: input.narrationLanguage,
       })
     : buildGivenValueSegments(question, turnPlan, {
-        maxWidth: input.diagramPromptAddon ? WORK_ZONE.maxTextWidth : WORK_ZONE.fullWidthTextWidth,
+        maxWidth: hasFigure ? WORK_ZONE.maxTextWidth : WORK_ZONE.fullWidthTextWidth,
         language: input.narrationLanguage,
       });
 
@@ -801,6 +845,7 @@ export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTea
     !codeLesson && isChemistryQuestion(question) ? CHEMISTRY_LESSON_RUNTIME_ADDON : "",
     !codeLesson && input.fastMode ? FAST_MODE_TEACHING_ADDON : "",
     !codeLesson ? (FAMILIARITY_ADDONS[input.familiarity] ?? "") : "",
+    !hasFigure ? noFigurePromptAddon(Boolean(codeLesson)) : "",
     // Last, so it is the final word on step count: how long THIS question's
     // lesson should be. Without it every question got the same short lesson
     // and stopped at the bottom of the first board page.

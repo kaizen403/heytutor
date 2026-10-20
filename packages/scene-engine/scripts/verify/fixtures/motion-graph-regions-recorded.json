@@ -1,0 +1,3256 @@
+{
+ "recordedOn": "main 6ca8b616a, Fireworks Kimi K3, 17 Oct 2026",
+ "rows": [
+  {
+   "id": "p4c-t1/doc-4",
+   "source": ".context/youtube-full/v2/lessons/p4c-t1/chat.json response 4",
+   "note": "motion_graph samples written as [t, value] pairs",
+   "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "The specified velocity–time graph and its shaded area can be constructed from the stated values."
+    },
+    "source": {
+     "question": "Explain motion graphs for JEE from the basics. Cover: x against t graph, tangent slope as velocity, shapes for rest, uniform velocity and uniform acceleration; v against t graph, slope as acceleration, area as displacement, area below the axis negative; distance as total area ignoring signs; a against t graph, area as change in velocity; impossible graphs. Draw one simple diagram: a v against t graph rising from 0 to 20 m/s in 4 s then flat to 10 s, with the area under it shaded. Label only the given values (20 m/s, 4 s, 10 s); say the 160 m area in words, not as a label.",
+     "representationTier": "qualitative_verified",
+     "nonMetric": true
+    },
+    "quantities": [
+     {
+      "id": "v",
+      "symbol": "v(4 s)",
+      "value": 20,
+      "unit": "m/s"
+     },
+     {
+      "id": "t1",
+      "symbol": "t₁",
+      "value": 4,
+      "unit": "s"
+     },
+     {
+      "id": "t2",
+      "symbol": "t₂",
+      "value": 10,
+      "unit": "s"
+     },
+     {
+      "id": "a1",
+      "symbol": "a on rising segment",
+      "value": 5,
+      "unit": "m/s²"
+     },
+     {
+      "id": "d",
+      "symbol": "displacement",
+      "value": 160,
+      "unit": "m"
+     }
+    ],
+    "entities": [
+     {
+      "id": "axes",
+      "kind": "axes",
+      "role": "v-t axes"
+     },
+     {
+      "id": "origin",
+      "kind": "point",
+      "role": "start"
+     },
+     {
+      "id": "peak",
+      "kind": "point",
+      "role": "end of rising phase"
+     },
+     {
+      "id": "finish",
+      "kind": "point",
+      "role": "end of constant-velocity phase"
+     },
+     {
+      "id": "first_time",
+      "kind": "point",
+      "role": "time-axis point at 4 s"
+     },
+     {
+      "id": "last_time",
+      "kind": "point",
+      "role": "time-axis point at 10 s"
+     },
+     {
+      "id": "phase",
+      "kind": "polyline",
+      "role": "velocity–time motion phases"
+     },
+     {
+      "id": "area",
+      "kind": "polygon",
+      "role": "shaded area under the velocity–time graph"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "make_axes",
+      "operator": "axes",
+      "inputs": {
+       "xMin": -0.4,
+       "xMax": 4.5,
+       "yMin": -0.3,
+       "yMax": 2.5
+      },
+      "outputs": [
+       "axes"
+      ]
+     },
+     {
+      "id": "make_origin",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "origin"
+      ]
+     },
+     {
+      "id": "make_peak",
+      "operator": "point",
+      "inputs": {
+       "x": 1.6,
+       "y": 2,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "peak"
+      ]
+     },
+     {
+      "id": "make_finish",
+      "operator": "point",
+      "inputs": {
+       "x": 4,
+       "y": 2,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "finish"
+      ]
+     },
+     {
+      "id": "make_first_time",
+      "operator": "point",
+      "inputs": {
+       "x": 1.6,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "first_time"
+      ]
+     },
+     {
+      "id": "make_last_time",
+      "operator": "point",
+      "inputs": {
+       "x": 4,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "last_time"
+      ]
+     },
+     {
+      "id": "make_phase",
+      "operator": "motion_graph",
+      "inputs": {
+       "quantity": "velocity",
+       "points": [
+        [
+         0,
+         0
+        ],
+        [
+         4,
+         20
+        ],
+        [
+         10,
+         20
+        ]
+       ],
+       "timeScale": 0.4,
+       "ordinateScale": 0.1
+      },
+      "outputs": [
+       "phase"
+      ]
+     },
+     {
+      "id": "make_area",
+      "operator": "polygon",
+      "inputs": {
+       "points": [
+        "origin",
+        "peak",
+        "finish",
+        "last_time"
+       ]
+      },
+      "outputs": [
+       "area"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "rise_order",
+      "predicate": "ordered_along",
+      "entities": [
+       "origin",
+       "peak",
+       "finish"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "velocity_value",
+      "kind": "label",
+      "targetIds": [
+       "peak"
+      ],
+      "text": "20 m/s",
+      "quantityId": "v"
+     },
+     {
+      "id": "first_time_value",
+      "kind": "label",
+      "targetIds": [
+       "first_time"
+      ],
+      "text": "4 s",
+      "quantityId": "t1"
+     },
+     {
+      "id": "last_time_value",
+      "kind": "label",
+      "targetIds": [
+       "last_time"
+      ],
+      "text": "10 s",
+      "quantityId": "t2"
+     },
+     {
+      "id": "shade",
+      "kind": "hatch",
+      "targetIds": [
+       "area"
+      ]
+     }
+    ],
+    "requiredEntityIds": [
+     "axes",
+     "origin",
+     "peak",
+     "finish",
+     "first_time",
+     "last_time",
+     "phase",
+     "area"
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "entityIds": [
+       "axes",
+       "origin",
+       "peak",
+       "finish",
+       "first_time",
+       "last_time",
+       "phase",
+       "area"
+      ],
+      "dependsOn": [],
+      "narrationCue": "Velocity rises linearly from zero to 20 metres per second at 4 seconds, then stays constant until 10 seconds. The shaded region is the area under the graph."
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "id": "read_graph",
+      "targetIds": [
+       "axes",
+       "phase",
+       "area"
+      ],
+      "narration": "On a position–time graph, tangent slope gives velocity: rest is horizontal, uniform velocity is a straight line, and uniform acceleration gives a parabola. On a velocity–time graph, slope gives acceleration. Here the rising phase has an acceleration of five metres per second squared, and the flat phase has zero acceleration."
+     },
+     {
+      "id": "calculate_area",
+      "targetIds": [
+       "area"
+      ],
+      "narration": "Calculate the shaded triangle and rectangle after reading the setup. Their combined area gives a displacement of one hundred sixty metres. Because velocity is never negative here, the distance is also one hundred sixty metres. In general, area below the time axis counts negatively toward displacement; distance adds the magnitudes of all areas."
+     },
+     {
+      "id": "other_graphs",
+      "targetIds": [
+       "axes"
+      ],
+      "narration": "Signed area under an acceleration–time graph gives the change in velocity. A vertical segment in a position–time or velocity–time graph would assign multiple values to one time, so it cannot represent single-valued motion. For ordinary finite velocity or acceleration, respectively, those graphs also cannot have a vertical tangent."
+     }
+    ]
+   }
+  },
+  {
+   "id": "p4c-t1/doc-5",
+   "source": ".context/youtube-full/v2/lessons/p4c-t1/chat.json response 5",
+   "note": "motion_graph samples written as [t, value] pairs, hatch annotation",
+   "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "The specified velocity–time phases and values determine a graph and its shaded area."
+    },
+    "source": {
+     "question": "Explain motion graphs for JEE from the basics. Cover: x against t graph, tangent slope as velocity, shapes for rest, uniform velocity and uniform acceleration; v against t graph, slope as acceleration, area as displacement, area below the axis negative; distance as total area ignoring signs; a against t graph, area as change in velocity; impossible graphs. Draw one simple diagram: a v against t graph rising from 0 to 20 m/s in 4 s then flat to 10 s, with the area under it shaded. Label only the given values (20 m/s, 4 s, 10 s); say the 160 m area in words, not as a label.",
+     "representationTier": "quantitative_verified",
+     "nonMetric": false
+    },
+    "quantities": [
+     {
+      "id": "v",
+      "symbol": "v(4 s)",
+      "value": 20,
+      "unit": "m/s"
+     },
+     {
+      "id": "t1",
+      "symbol": "t₁",
+      "value": 4,
+      "unit": "s"
+     },
+     {
+      "id": "t2",
+      "symbol": "t₂",
+      "value": 10,
+      "unit": "s"
+     },
+     {
+      "id": "a1",
+      "symbol": "a on rising segment",
+      "value": 5,
+      "unit": "m/s²"
+     },
+     {
+      "id": "d",
+      "symbol": "displacement",
+      "value": 160,
+      "unit": "m"
+     }
+    ],
+    "entities": [
+     {
+      "id": "axes",
+      "kind": "axes",
+      "role": "v-t axes"
+     },
+     {
+      "id": "origin",
+      "kind": "point",
+      "role": "start"
+     },
+     {
+      "id": "peak",
+      "kind": "point",
+      "role": "end of rising phase"
+     },
+     {
+      "id": "finish",
+      "kind": "point",
+      "role": "end of constant-velocity phase"
+     },
+     {
+      "id": "foot4",
+      "kind": "point",
+      "role": "time-axis point at 4 s"
+     },
+     {
+      "id": "foot10",
+      "kind": "point",
+      "role": "time-axis point at 10 s"
+     },
+     {
+      "id": "graph",
+      "kind": "polyline",
+      "role": "phase"
+     },
+     {
+      "id": "area",
+      "kind": "polygon",
+      "role": "shaded area under the v-t graph"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "make_axes",
+      "operator": "axes",
+      "inputs": {
+       "xMin": -0.7,
+       "xMax": 11,
+       "yMin": -0.7,
+       "yMax": 5
+      },
+      "outputs": [
+       "axes"
+      ]
+     },
+     {
+      "id": "make_origin",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "origin"
+      ]
+     },
+     {
+      "id": "make_peak",
+      "operator": "point",
+      "inputs": {
+       "x": 4,
+       "y": 4,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "peak"
+      ]
+     },
+     {
+      "id": "make_finish",
+      "operator": "point",
+      "inputs": {
+       "x": 10,
+       "y": 4,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "finish"
+      ]
+     },
+     {
+      "id": "make_foot4",
+      "operator": "point",
+      "inputs": {
+       "x": 4,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "foot4"
+      ]
+     },
+     {
+      "id": "make_foot10",
+      "operator": "point",
+      "inputs": {
+       "x": 10,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "foot10"
+      ]
+     },
+     {
+      "id": "make_graph",
+      "operator": "motion_graph",
+      "inputs": {
+       "quantity": "velocity",
+       "points": [
+        [
+         0,
+         0
+        ],
+        [
+         4,
+         20
+        ],
+        [
+         10,
+         20
+        ]
+       ],
+       "timeScale": 1,
+       "ordinateScale": 0.2
+      },
+      "outputs": [
+       "graph"
+      ]
+     },
+     {
+      "id": "make_area",
+      "operator": "polygon",
+      "inputs": {
+       "points": [
+        "origin",
+        "peak",
+        "finish",
+        "foot10"
+       ]
+      },
+      "outputs": [
+       "area"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "rise_start",
+      "predicate": "on",
+      "entities": [
+       "origin",
+       "graph"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "rise_end",
+      "predicate": "on",
+      "entities": [
+       "peak",
+       "graph"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "cruise_end",
+      "predicate": "on",
+      "entities": [
+       "finish",
+       "graph"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "value_v",
+      "kind": "label",
+      "targetIds": [
+       "peak"
+      ],
+      "text": "20 m/s",
+      "quantityId": "v"
+     },
+     {
+      "id": "value_t1",
+      "kind": "label",
+      "targetIds": [
+       "foot4"
+      ],
+      "text": "4 s",
+      "quantityId": "t1"
+     },
+     {
+      "id": "value_t2",
+      "kind": "label",
+      "targetIds": [
+       "foot10"
+      ],
+      "text": "10 s",
+      "quantityId": "t2"
+     },
+     {
+      "id": "shade",
+      "kind": "highlight",
+      "targetIds": [
+       "area"
+      ]
+     },
+     {
+      "id": "position_explanation",
+      "kind": "narration",
+      "targetIds": [
+       "axes"
+      ],
+      "text": "On a position–time graph, tangent slope is velocity. Rest gives a horizontal line, uniform velocity a straight line, and uniform acceleration a parabola."
+     },
+     {
+      "id": "velocity_explanation",
+      "kind": "narration",
+      "targetIds": [
+       "graph"
+      ],
+      "text": "On a velocity–time graph, slope is acceleration. Signed area gives displacement: area below the time axis is negative. Distance adds the absolute areas."
+     },
+     {
+      "id": "acceleration_explanation",
+      "kind": "narration",
+      "targetIds": [
+       "axes"
+      ],
+      "text": "On an acceleration–time graph, signed area gives change in velocity."
+     },
+     {
+      "id": "impossible_explanation",
+      "kind": "narration",
+      "targetIds": [
+       "graph"
+      ],
+      "text": "A vertical segment on a position–time or velocity–time graph assigns multiple values to one time. With ordinary finite velocity or acceleration, the corresponding graph cannot have a vertical tangent."
+     },
+     {
+      "id": "rise_result",
+      "kind": "narration",
+      "targetIds": [
+       "graph"
+      ],
+      "text": "After the graph is set up, the rising slope gives an acceleration of five metres per second squared; the flat phase has zero acceleration.",
+      "quantityId": "a1"
+     },
+     {
+      "id": "area_result",
+      "kind": "narration",
+      "targetIds": [
+       "area"
+      ],
+      "text": "The shaded triangle and rectangle together represent a displacement and distance of one hundred sixty metres.",
+      "quantityId": "d"
+     }
+    ],
+    "requiredEntityIds": [
+     "axes",
+     "origin",
+     "peak",
+     "finish",
+     "foot4",
+     "foot10",
+     "graph",
+     "area"
+    ],
+    "revealGroups": [
+     {
+      "id": "setup",
+      "entityIds": [
+       "axes",
+       "origin",
+       "peak",
+       "finish",
+       "foot4",
+       "foot10",
+       "graph"
+      ],
+      "dependsOn": [],
+      "narrationCue": "Set up the velocity–time graph and its three given values."
+     },
+     {
+      "id": "shaded_area",
+      "entityIds": [
+       "area"
+      ],
+      "dependsOn": [
+       "setup"
+      ],
+      "narrationCue": "Shade the region between the graph and the time axis."
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "id": "show_setup",
+      "revealGroupId": "setup"
+     },
+     {
+      "id": "show_area",
+      "revealGroupId": "shaded_area"
+     },
+     {
+      "id": "explain_basics",
+      "annotationIds": [
+       "position_explanation",
+       "velocity_explanation",
+       "acceleration_explanation",
+       "impossible_explanation"
+      ]
+     },
+     {
+      "id": "calculate_after_setup",
+      "annotationIds": [
+       "rise_result",
+       "area_result"
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "id": "p4c-t2/doc-4",
+   "source": ".context/youtube-full/v2/lessons/p4c-t2/chat.json response 4",
+   "note": "rendered lesson whose shading filled the whole rectangle",
+   "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "The specified velocity–time graph has a straight rise, a flat continuation, and a shaded area under both portions."
+    },
+    "source": {
+     "question": "Explain motion graphs for JEE from the basics. Cover: x against t graph, tangent slope as velocity, shapes for rest, uniform velocity and uniform acceleration; v against t graph, slope as acceleration, area as displacement, area below the axis negative; distance as total area ignoring signs; a against t graph, area as change in velocity; impossible graphs. Draw one simple diagram: a v against t graph rising from 0 to 20 m/s in 4 s then flat to 10 s, with the area under it shaded. Label only the given values (20 m/s, 4 s, 10 s); say the 160 m area in words, not as a label.",
+     "representationTier": "qualitative_verified",
+     "nonMetric": true
+    },
+    "quantities": [
+     {
+      "id": "v",
+      "symbol": "v",
+      "value": 20,
+      "unit": "m/s",
+      "provenance": "given"
+     },
+     {
+      "id": "t1",
+      "symbol": "t₁",
+      "value": 4,
+      "unit": "s",
+      "provenance": "given"
+     },
+     {
+      "id": "t2",
+      "symbol": "t₂",
+      "value": 10,
+      "unit": "s",
+      "provenance": "given"
+     },
+     {
+      "id": "a",
+      "symbol": "a",
+      "value": 5,
+      "unit": "m/s²",
+      "provenance": "derived",
+      "dependsOn": [
+       "v",
+       "t1"
+      ]
+     },
+     {
+      "id": "dx",
+      "symbol": "Δx",
+      "value": 160,
+      "unit": "m",
+      "provenance": "derived",
+      "dependsOn": [
+       "v",
+       "t1",
+       "t2"
+      ]
+     },
+     {
+      "id": "d",
+      "symbol": "distance",
+      "value": 160,
+      "unit": "m",
+      "provenance": "derived",
+      "dependsOn": [
+       "dx"
+      ]
+     }
+    ],
+    "entities": [
+     {
+      "id": "axes",
+      "kind": "axes",
+      "role": "velocity against time"
+     },
+     {
+      "id": "origin",
+      "kind": "point",
+      "role": "start from rest"
+     },
+     {
+      "id": "peak",
+      "kind": "point",
+      "role": "end of rising portion",
+      "label": "20 m/s"
+     },
+     {
+      "id": "finish",
+      "kind": "point",
+      "role": "end of flat portion"
+     },
+     {
+      "id": "first_time",
+      "kind": "point",
+      "role": "first time on axis",
+      "label": "4 s"
+     },
+     {
+      "id": "last_time",
+      "kind": "point",
+      "role": "final time on axis",
+      "label": "10 s"
+     },
+     {
+      "id": "velocity_graph",
+      "kind": "polyline",
+      "role": "velocity–time graph"
+     },
+     {
+      "id": "shaded_area",
+      "kind": "polygon",
+      "role": "area between velocity graph and time axis"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "make_axes",
+      "operator": "axes",
+      "inputs": {
+       "xMin": -0.2,
+       "xMax": 2.8,
+       "yMin": -0.2,
+       "yMax": 2.4
+      },
+      "outputs": [
+       "axes"
+      ]
+     },
+     {
+      "id": "make_origin",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "origin"
+      ]
+     },
+     {
+      "id": "make_peak",
+      "operator": "point",
+      "inputs": {
+       "x": 1,
+       "y": 2,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "peak"
+      ]
+     },
+     {
+      "id": "make_finish",
+      "operator": "point",
+      "inputs": {
+       "x": 2.5,
+       "y": 2,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "finish"
+      ]
+     },
+     {
+      "id": "make_first_time",
+      "operator": "point",
+      "inputs": {
+       "x": 1,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "first_time"
+      ]
+     },
+     {
+      "id": "make_last_time",
+      "operator": "point",
+      "inputs": {
+       "x": 2.5,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "last_time"
+      ]
+     },
+     {
+      "id": "make_graph",
+      "operator": "polyline",
+      "inputs": {
+       "points": [
+        "origin",
+        "peak",
+        "finish"
+       ]
+      },
+      "outputs": [
+       "velocity_graph"
+      ]
+     },
+     {
+      "id": "make_area",
+      "operator": "polygon",
+      "inputs": {
+       "points": [
+        "origin",
+        "first_time",
+        "last_time",
+        "finish",
+        "peak"
+       ]
+      },
+      "outputs": [
+       "shaded_area"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "peak_label",
+      "predicate": "label_attached",
+      "entities": [
+       "peak"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "first_time_label",
+      "predicate": "label_attached",
+      "entities": [
+       "first_time"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "last_time_label",
+      "predicate": "label_attached",
+      "entities": [
+       "last_time"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "shade",
+      "kind": "highlight",
+      "targetIds": [
+       "shaded_area"
+      ],
+      "style": {
+       "transient": false
+      }
+     }
+    ],
+    "requiredEntityIds": [
+     "axes",
+     "origin",
+     "peak",
+     "finish",
+     "first_time",
+     "last_time",
+     "velocity_graph",
+     "shaded_area"
+    ],
+    "revealGroups": [
+     {
+      "id": "diagram",
+      "entityIds": [
+       "axes",
+       "origin",
+       "peak",
+       "finish",
+       "first_time",
+       "last_time",
+       "velocity_graph",
+       "shaded_area"
+      ],
+      "dependsOn": [],
+      "narrationCue": "Velocity rises uniformly from rest, then remains constant. The shaded region is the area under both portions."
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "id": "basics",
+      "targetIds": [
+       "axes"
+      ],
+      "narration": "A motion graph plots a quantity against time. On a position–time graph, a secant slope gives average velocity and a tangent slope gives instantaneous velocity. A horizontal line means rest; a straight sloping line means uniform velocity; a parabolic curve represents uniform nonzero acceleration."
+     },
+     {
+      "id": "read_graph",
+      "targetIds": [
+       "velocity_graph"
+      ],
+      "narration": "On a velocity–time graph, slope gives acceleration. Here the rise from zero to twenty metres per second in four seconds gives an acceleration of five metres per second squared. The flat portion has zero acceleration."
+     },
+     {
+      "id": "read_area",
+      "targetIds": [
+       "shaded_area"
+      ],
+      "narration": "Signed area under a velocity–time graph gives displacement. The triangle contributes forty metres and the rectangle contributes one hundred and twenty metres, for a displacement of one hundred and sixty metres. Because velocity is never negative here, the distance is also one hundred and sixty metres. In general, area below the time axis contributes negatively to displacement, while distance adds area magnitudes without cancelling signs."
+     },
+     {
+      "id": "other_graphs",
+      "targetIds": [
+       "axes"
+      ],
+      "narration": "On an acceleration–time graph, signed area gives the change in velocity. A graph assigning more than one position, velocity, or acceleration to the same time is impossible as a graph of that quantity against time; a vertical velocity–time segment fails this test."
+     }
+    ]
+   }
+  },
+  {
+   "id": "p4c-t4/doc-4",
+   "source": ".context/youtube-full/v2/lessons/p4c-t4/chat.json response 4",
+   "note": "function_value checks on a polyline v against t graph",
+   "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "v-t graph rising from 0 to 20 m/s in 4 s then flat to 10 s, with labelled axes and corner points; no region shaded"
+    },
+    "source": {
+     "question": "Explain motion graphs for JEE from the basics. Draw one simple diagram: a v against t graph rising from 0 to 20 m/s in 4 s then flat to 10 s, with labelled v and t axes and its corner points marked. Do not shade any region. Label only the given values (20 m/s, 4 s, 10 s); explain the 160 m area in words.",
+     "representationTier": "metric_verified"
+    },
+    "quantities": [
+     {
+      "id": "g1",
+      "symbol": "v_max",
+      "value": 20,
+      "unit": "m/s"
+     },
+     {
+      "id": "g2",
+      "symbol": "t1",
+      "value": 4,
+      "unit": "s"
+     },
+     {
+      "id": "g3",
+      "symbol": "t2",
+      "value": 10,
+      "unit": "s"
+     }
+    ],
+    "entities": [
+     {
+      "id": "axes",
+      "kind": "axes",
+      "role": "v-t axes"
+     },
+     {
+      "id": "v_end",
+      "kind": "point",
+      "role": "velocity axis end"
+     },
+     {
+      "id": "v_title",
+      "kind": "label",
+      "role": "velocity axis title",
+      "label": "v (m/s)"
+     },
+     {
+      "id": "t_end",
+      "kind": "point",
+      "role": "time axis end"
+     },
+     {
+      "id": "t_title",
+      "kind": "label",
+      "role": "time axis title",
+      "label": "t (s)"
+     },
+     {
+      "id": "p0",
+      "kind": "point",
+      "role": "start at origin",
+      "label": "0"
+     },
+     {
+      "id": "p1",
+      "kind": "point",
+      "role": "corner at end of rise"
+     },
+     {
+      "id": "p2",
+      "kind": "point",
+      "role": "end of flat part"
+     },
+     {
+      "id": "graph",
+      "kind": "polyline",
+      "role": "v(t): rise then flat"
+     },
+     {
+      "id": "v_tick",
+      "kind": "point",
+      "role": "velocity level marker",
+      "label": "20 m/s"
+     },
+     {
+      "id": "t1_tick",
+      "kind": "point",
+      "role": "time marker at corner",
+      "label": "4 s"
+     },
+     {
+      "id": "t2_tick",
+      "kind": "point",
+      "role": "time marker at end",
+      "label": "10 s"
+     },
+     {
+      "id": "drop1",
+      "kind": "segment",
+      "role": "ordinate at the corner"
+     },
+     {
+      "id": "drop2",
+      "kind": "segment",
+      "role": "ordinate at the end"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "make_axes",
+      "operator": "axes",
+      "inputs": {
+       "xMin": -0.8,
+       "xMax": 11.5,
+       "yMin": -2.5,
+       "yMax": 24
+      },
+      "outputs": [
+       "axes"
+      ]
+     },
+     {
+      "id": "make_v_end",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 23,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "v_end"
+      ]
+     },
+     {
+      "id": "make_v_title",
+      "operator": "label",
+      "inputs": {
+       "target": "v_end",
+       "text": "v (m/s)"
+      },
+      "outputs": [
+       "v_title"
+      ]
+     },
+     {
+      "id": "make_t_end",
+      "operator": "point",
+      "inputs": {
+       "x": 11,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "t_end"
+      ]
+     },
+     {
+      "id": "make_t_title",
+      "operator": "label",
+      "inputs": {
+       "target": "t_end",
+       "text": "t (s)"
+      },
+      "outputs": [
+       "t_title"
+      ]
+     },
+     {
+      "id": "make_p0",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "p0"
+      ]
+     },
+     {
+      "id": "make_p1",
+      "operator": "point",
+      "inputs": {
+       "x": 4,
+       "y": 20,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "p1"
+      ]
+     },
+     {
+      "id": "make_p2",
+      "operator": "point",
+      "inputs": {
+       "x": 10,
+       "y": 20,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "p2"
+      ]
+     },
+     {
+      "id": "make_graph",
+      "operator": "polyline",
+      "inputs": {
+       "points": [
+        "p0",
+        "p1",
+        "p2"
+       ]
+      },
+      "outputs": [
+       "graph"
+      ]
+     },
+     {
+      "id": "make_v_tick",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 20,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "v_tick"
+      ]
+     },
+     {
+      "id": "make_t1_tick",
+      "operator": "point",
+      "inputs": {
+       "x": 4,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "t1_tick"
+      ]
+     },
+     {
+      "id": "make_t2_tick",
+      "operator": "point",
+      "inputs": {
+       "x": 10,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "t2_tick"
+      ]
+     },
+     {
+      "id": "make_drop1",
+      "operator": "segment",
+      "inputs": {
+       "start": "p1",
+       "end": "t1_tick"
+      },
+      "outputs": [
+       "drop1"
+      ]
+     },
+     {
+      "id": "make_drop2",
+      "operator": "segment",
+      "inputs": {
+       "start": "p2",
+       "end": "t2_tick"
+      },
+      "outputs": [
+       "drop2"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "starts_at_origin",
+      "predicate": "function_value",
+      "entities": [
+       "graph"
+      ],
+      "expected": {
+       "x": 0,
+       "y": 0
+      },
+      "severity": "fatal"
+     },
+     {
+      "id": "corner_at_4s",
+      "predicate": "function_value",
+      "entities": [
+       "graph"
+      ],
+      "expected": {
+       "x": 4,
+       "y": 20
+      },
+      "severity": "fatal"
+     },
+     {
+      "id": "flat_to_10s",
+      "predicate": "function_value",
+      "entities": [
+       "graph"
+      ],
+      "expected": {
+       "x": 10,
+       "y": 20
+      },
+      "severity": "fatal"
+     },
+     {
+      "id": "label_v_tick",
+      "predicate": "label_attached",
+      "entities": [
+       "v_tick"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "label_t1_tick",
+      "predicate": "label_attached",
+      "entities": [
+       "t1_tick"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "label_t2_tick",
+      "predicate": "label_attached",
+      "entities": [
+       "t2_tick"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "narrate_slope",
+      "kind": "narration",
+      "targetIds": [
+       "graph"
+      ],
+      "text": "From 0 to 4 s the straight rising line means uniform acceleration: its slope is the acceleration. From 4 s to 10 s the flat line means constant velocity 20 m/s, so zero acceleration.",
+      "placementIntent": "above"
+     },
+     {
+      "id": "narrate_area",
+      "kind": "narration",
+      "targetIds": [
+       "graph"
+      ],
+      "text": "The area under this v-t graph is the displacement: a triangle of base 4 s and height 20 m/s giving 40 m, plus a rectangle of width 6 s and height 20 m/s giving 120 m, totalling 160 m. Since v is never negative, distance equals displacement here.",
+      "placementIntent": "below"
+     },
+     {
+      "id": "narrate_xt",
+      "kind": "narration",
+      "targetIds": [
+       "axes"
+      ],
+      "text": "On an x-t graph the tangent slope at any instant is the velocity: horizontal means rest, a straight sloped line means uniform velocity, and a parabola means uniform acceleration.",
+      "placementIntent": "left"
+     },
+     {
+      "id": "narrate_at",
+      "kind": "narration",
+      "targetIds": [
+       "axes"
+      ],
+      "text": "On an a-t graph the area under the curve is the change in velocity over that interval.",
+      "placementIntent": "right"
+     },
+     {
+      "id": "narrate_impossible",
+      "kind": "narration",
+      "targetIds": [
+       "axes"
+      ],
+      "text": "Impossible graphs: a vertical x-t or v-t segment (two positions or velocities at one time), a body at two places at one instant, or a v-t graph with infinite slope implying infinite acceleration. Graphs must be single-valued functions of t with finite slope.",
+      "placementIntent": "below"
+     },
+     {
+      "id": "corner_drops",
+      "kind": "drop",
+      "targetIds": [
+       "p1",
+       "axes"
+      ]
+     },
+     {
+      "id": "end_drop",
+      "kind": "drop",
+      "targetIds": [
+       "p2",
+       "axes"
+      ]
+     }
+    ],
+    "requiredEntityIds": [
+     "axes",
+     "v_end",
+     "v_title",
+     "t_end",
+     "t_title",
+     "p0",
+     "p1",
+     "p2",
+     "graph",
+     "v_tick",
+     "t1_tick",
+     "t2_tick",
+     "drop1",
+     "drop2"
+    ],
+    "revealGroups": [
+     {
+      "id": "axes_group",
+      "entityIds": [
+       "axes",
+       "v_end",
+       "v_title",
+       "t_end",
+       "t_title"
+      ],
+      "dependsOn": [],
+      "narrationCue": "velocity up the side in m/s, time along the bottom in s"
+     },
+     {
+      "id": "graph_group",
+      "entityIds": [
+       "p0",
+       "p1",
+       "p2",
+       "graph"
+      ],
+      "dependsOn": [
+       "axes_group"
+      ],
+      "narrationCue": "rise from 0 to 20 m/s in 4 s, then flat to 10 s"
+     },
+     {
+      "id": "marker_group",
+      "entityIds": [
+       "v_tick",
+       "t1_tick",
+       "t2_tick",
+       "drop1",
+       "drop2"
+      ],
+      "dependsOn": [
+       "graph_group"
+      ],
+      "narrationCue": "mark the corner points and the given values 20 m/s, 4 s, 10 s"
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "id": "step_axes",
+      "action": "reveal",
+      "targetIds": [
+       "axes_group"
+      ],
+      "narration": "Start with the v-t axes: velocity in m/s upward, time in s along the bottom."
+     },
+     {
+      "id": "step_graph",
+      "action": "reveal",
+      "targetIds": [
+       "graph_group"
+      ],
+      "narration": "The graph rises in a straight line from the origin to the corner, then stays flat: uniform acceleration then uniform velocity."
+     },
+     {
+      "id": "step_markers",
+      "action": "reveal",
+      "targetIds": [
+       "marker_group"
+      ],
+      "narration": "Mark the corner points and label only the given values: 20 m/s, 4 s and 10 s."
+     },
+     {
+      "id": "step_slope",
+      "action": "annotate",
+      "targetIds": [
+       "narrate_slope"
+      ],
+      "narration": "The slope of a v-t graph is the acceleration: steepening means speeding up, flat means constant velocity."
+     },
+     {
+      "id": "step_area",
+      "action": "annotate",
+      "targetIds": [
+       "narrate_area"
+      ],
+      "narration": "The area under the v-t graph is the displacement: 40 m triangle plus 120 m rectangle, 160 m in words, with no region shaded."
+     },
+     {
+      "id": "step_xt",
+      "action": "annotate",
+      "targetIds": [
+       "narrate_xt"
+      ],
+      "narration": "On an x-t graph the tangent slope is the velocity: horizontal is rest, straight sloped is uniform velocity, parabola is uniform acceleration."
+     },
+     {
+      "id": "step_at",
+      "action": "annotate",
+      "targetIds": [
+       "narrate_at"
+      ],
+      "narration": "On an a-t graph the area under the curve is the change in velocity."
+     },
+     {
+      "id": "step_impossible",
+      "action": "annotate",
+      "targetIds": [
+       "narrate_impossible"
+      ],
+      "narration": "Impossible graphs: vertical segments, two places at one instant, or infinite slope; graphs must be single-valued in t with finite slope."
+     }
+    ]
+   }
+  },
+  {
+   "id": "p4c-t5/doc-6",
+   "source": ".context/youtube-full/v2/lessons/p4c-t5/chat.json response 6",
+   "note": "two hand polygons under a polyline graph beside a y = 0 function_curve",
+   "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "velocity-time graph for the car: straight rise from (0,0) to (4,20), then horizontal at v=20 until t=10; slope gives acceleration and area under the graph gives distance"
+    },
+    "source": {
+     "question": "Explain velocity time graphs for JEE using this example: a car speeds up from 0 to 20 m/s in 4 s, then moves at a steady 20 m/s until t = 10 s. How do slope and area give acceleration and distance?",
+     "representationTier": "quantitative_verified"
+    },
+    "quantities": [
+     {
+      "id": "v0",
+      "symbol": "v₀",
+      "value": 0,
+      "unit": "m/s"
+     },
+     {
+      "id": "v1",
+      "symbol": "v",
+      "value": 20,
+      "unit": "m/s"
+     },
+     {
+      "id": "t1",
+      "symbol": "t₁",
+      "value": 4,
+      "unit": "s"
+     },
+     {
+      "id": "t2",
+      "symbol": "t₂",
+      "value": 10,
+      "unit": "s"
+     }
+    ],
+    "entities": [
+     {
+      "id": "axes",
+      "kind": "axes",
+      "role": "v-t axes"
+     },
+     {
+      "id": "v_end",
+      "kind": "point",
+      "role": "velocity axis end"
+     },
+     {
+      "id": "v_title",
+      "kind": "label",
+      "role": "velocity axis title",
+      "label": "v (m/s)"
+     },
+     {
+      "id": "t_end",
+      "kind": "point",
+      "role": "time axis end"
+     },
+     {
+      "id": "t_title",
+      "kind": "label",
+      "role": "time axis title",
+      "label": "t (s)"
+     },
+     {
+      "id": "p0",
+      "kind": "point",
+      "role": "car at rest, t = 0",
+      "label": "0"
+     },
+     {
+      "id": "p1",
+      "kind": "point",
+      "role": "reaches 20 m/s at t = 4 s",
+      "label": "(4, 20)"
+     },
+     {
+      "id": "p2",
+      "kind": "point",
+      "role": "steady until t = 10 s"
+     },
+     {
+      "id": "graph",
+      "kind": "polyline",
+      "role": "velocity-time graph of the car"
+     },
+     {
+      "id": "zero1",
+      "kind": "polyline",
+      "role": "time axis under the speeding-up part"
+     },
+     {
+      "id": "area1",
+      "kind": "polygon",
+      "role": "area 0 to 4 s = distance while speeding up"
+     },
+     {
+      "id": "zero2",
+      "kind": "polyline",
+      "role": "time axis under the steady part"
+     },
+     {
+      "id": "area2",
+      "kind": "polygon",
+      "role": "area 4 to 10 s = distance at steady speed"
+     },
+     {
+      "id": "f1",
+      "kind": "point",
+      "role": "foot at t = 4 s",
+      "label": "t = 4 s"
+     },
+     {
+      "id": "f2",
+      "kind": "point",
+      "role": "foot at t = 10 s",
+      "label": "t = 10 s"
+     },
+     {
+      "id": "drop1",
+      "kind": "segment",
+      "role": "ordinate at t = 4 s"
+     },
+     {
+      "id": "drop2",
+      "kind": "segment",
+      "role": "ordinate at t = 10 s"
+     },
+     {
+      "id": "slope_at",
+      "kind": "point",
+      "role": "slope label anchor"
+     },
+     {
+      "id": "slope_label",
+      "kind": "label",
+      "role": "slope gives acceleration",
+      "label": "slope = a"
+     },
+     {
+      "id": "area1_at",
+      "kind": "point",
+      "role": "first area label anchor"
+     },
+     {
+      "id": "area1_label",
+      "kind": "label",
+      "role": "area gives distance, speeding up",
+      "label": "area = d"
+     },
+     {
+      "id": "area2_at",
+      "kind": "point",
+      "role": "second area label anchor"
+     },
+     {
+      "id": "area2_label",
+      "kind": "label",
+      "role": "area gives distance, steady",
+      "label": "area = d"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "make_axes",
+      "operator": "axes",
+      "inputs": {
+       "xMin": -0.6,
+       "xMax": 11.5,
+       "yMin": -1.4,
+       "yMax": 24
+      },
+      "outputs": [
+       "axes"
+      ]
+     },
+     {
+      "id": "make_v_end",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 23,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "v_end"
+      ]
+     },
+     {
+      "id": "make_v_title",
+      "operator": "label",
+      "inputs": {
+       "target": "v_end",
+       "text": "v (m/s)"
+      },
+      "outputs": [
+       "v_title"
+      ]
+     },
+     {
+      "id": "make_t_end",
+      "operator": "point",
+      "inputs": {
+       "x": 11,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "t_end"
+      ]
+     },
+     {
+      "id": "make_t_title",
+      "operator": "label",
+      "inputs": {
+       "target": "t_end",
+       "text": "t (s)"
+      },
+      "outputs": [
+       "t_title"
+      ]
+     },
+     {
+      "id": "make_p0",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "p0"
+      ]
+     },
+     {
+      "id": "make_p1",
+      "operator": "point",
+      "inputs": {
+       "x": 4,
+       "y": 20,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "p1"
+      ]
+     },
+     {
+      "id": "make_p2",
+      "operator": "point",
+      "inputs": {
+       "x": 10,
+       "y": 20,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "p2"
+      ]
+     },
+     {
+      "id": "make_graph",
+      "operator": "polyline",
+      "inputs": {
+       "points": [
+        "p0",
+        "p1",
+        "p2"
+       ]
+      },
+      "outputs": [
+       "graph"
+      ]
+     },
+     {
+      "id": "make_zero1",
+      "operator": "function_curve",
+      "inputs": {
+       "expression": "0",
+       "variable": "x",
+       "xMin": 0,
+       "xMax": 4,
+       "samples": 17
+      },
+      "outputs": [
+       "zero1"
+      ]
+     },
+     {
+      "id": "make_area1",
+      "operator": "polygon",
+      "inputs": {
+       "points": [
+        "p0",
+        "p1",
+        "f1"
+       ]
+      },
+      "outputs": [
+       "area1"
+      ]
+     },
+     {
+      "id": "make_zero2",
+      "operator": "function_curve",
+      "inputs": {
+       "expression": "0",
+       "variable": "x",
+       "xMin": 4,
+       "xMax": 10,
+       "samples": 17
+      },
+      "outputs": [
+       "zero2"
+      ]
+     },
+     {
+      "id": "make_area2",
+      "operator": "polygon",
+      "inputs": {
+       "points": [
+        "p1",
+        "p2",
+        "f2",
+        "f1"
+       ]
+      },
+      "outputs": [
+       "area2"
+      ]
+     },
+     {
+      "id": "make_f1",
+      "operator": "point",
+      "inputs": {
+       "x": 4,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "f1"
+      ]
+     },
+     {
+      "id": "make_f2",
+      "operator": "point",
+      "inputs": {
+       "x": 10,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "f2"
+      ]
+     },
+     {
+      "id": "make_drop1",
+      "operator": "segment",
+      "inputs": {
+       "start": "p1",
+       "end": "f1"
+      },
+      "outputs": [
+       "drop1"
+      ]
+     },
+     {
+      "id": "make_drop2",
+      "operator": "segment",
+      "inputs": {
+       "start": "p2",
+       "end": "f2"
+      },
+      "outputs": [
+       "drop2"
+      ]
+     },
+     {
+      "id": "make_slope_at",
+      "operator": "point",
+      "inputs": {
+       "x": 2,
+       "y": 13,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "slope_at"
+      ]
+     },
+     {
+      "id": "make_slope_label",
+      "operator": "label",
+      "inputs": {
+       "target": "slope_at",
+       "text": "slope = a"
+      },
+      "outputs": [
+       "slope_label"
+      ]
+     },
+     {
+      "id": "make_area1_at",
+      "operator": "point",
+      "inputs": {
+       "x": 1.6,
+       "y": 6,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "area1_at"
+      ]
+     },
+     {
+      "id": "make_area1_label",
+      "operator": "label",
+      "inputs": {
+       "target": "area1_at",
+       "text": "area = d"
+      },
+      "outputs": [
+       "area1_label"
+      ]
+     },
+     {
+      "id": "make_area2_at",
+      "operator": "point",
+      "inputs": {
+       "x": 7,
+       "y": 10,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "area2_at"
+      ]
+     },
+     {
+      "id": "make_area2_label",
+      "operator": "label",
+      "inputs": {
+       "target": "area2_at",
+       "text": "area = d"
+      },
+      "outputs": [
+       "area2_label"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "starts_at_rest",
+      "predicate": "on",
+      "entities": [
+       "p0",
+       "graph"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "reaches_v1_at_t1",
+      "predicate": "on",
+      "entities": [
+       "p1",
+       "graph"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "steady_until_t2",
+      "predicate": "on",
+      "entities": [
+       "p2",
+       "graph"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "label_p1",
+      "predicate": "label_attached",
+      "entities": [
+       "p1"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "label_f1",
+      "predicate": "label_attached",
+      "entities": [
+       "f1"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "label_f2",
+      "predicate": "label_attached",
+      "entities": [
+       "f2"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "slope_triangle_rise",
+      "kind": "slope_triangle",
+      "targetIds": [
+       "graph"
+      ],
+      "text": "slope = Δv/Δt = a"
+     },
+     {
+      "id": "area1_shade",
+      "kind": "hatch",
+      "targetIds": [
+       "area1"
+      ],
+      "text": "area = distance"
+     },
+     {
+      "id": "area2_shade",
+      "kind": "hatch",
+      "targetIds": [
+       "area2"
+      ],
+      "text": "area = distance"
+     },
+     {
+      "id": "steady_note",
+      "kind": "narration",
+      "targetIds": [
+       "graph"
+      ],
+      "text": "flat part: zero slope, zero acceleration"
+     }
+    ],
+    "requiredEntityIds": [
+     "axes",
+     "v_end",
+     "v_title",
+     "t_end",
+     "t_title",
+     "p0",
+     "p1",
+     "p2",
+     "graph",
+     "zero1",
+     "area1",
+     "zero2",
+     "area2",
+     "f1",
+     "f2",
+     "drop1",
+     "drop2",
+     "slope_at",
+     "slope_label",
+     "area1_at",
+     "area1_label",
+     "area2_at",
+     "area2_label"
+    ],
+    "revealGroups": [
+     {
+      "id": "axes_group",
+      "entityIds": [
+       "axes",
+       "v_end",
+       "v_title",
+       "t_end",
+       "t_title"
+      ],
+      "dependsOn": [],
+      "narrationCue": "velocity up the side in m/s, time along the bottom in s"
+     },
+     {
+      "id": "graph_group",
+      "entityIds": [
+       "p0",
+       "p1",
+       "p2",
+       "graph",
+       "f1",
+       "f2",
+       "drop1",
+       "drop2",
+       "slope_at",
+       "slope_label"
+      ],
+      "dependsOn": [
+       "axes_group"
+      ],
+      "narrationCue": "straight line from (0,0) to (4,20), then flat at 20 until t = 10; slope is acceleration"
+     },
+     {
+      "id": "area_group",
+      "entityIds": [
+       "zero1",
+       "area1",
+       "zero2",
+       "area2",
+       "area1_at",
+       "area1_label",
+       "area2_at",
+       "area2_label"
+      ],
+      "dependsOn": [
+       "graph_group"
+      ],
+      "narrationCue": "area under the graph: triangle then rectangle; each area is a distance"
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "action": "reveal",
+      "targetIds": [
+       "axes_group"
+      ],
+      "narration": "Draw the velocity-time axes: v in m/s vertically, t in s horizontally."
+     },
+     {
+      "action": "reveal",
+      "targetIds": [
+       "graph_group"
+      ],
+      "narration": "Plot the motion: from rest the line rises to (4, 20), then stays flat at 20 m/s until t = 10 s. The slope of each part is the acceleration: rising part has positive constant slope, flat part has zero slope."
+     },
+     {
+      "action": "reveal",
+      "targetIds": [
+       "area_group"
+      ],
+      "narration": "The area under the graph gives distance: a triangle under 0-4 s and a rectangle under 4-10 s. Adding the two areas gives the total distance."
+     }
+    ]
+   }
+  },
+  {
+   "id": "p4c-t6/doc-4",
+   "source": ".context/youtube-full/v2/lessons/p4c-t6/chat.json response 4",
+   "note": "trapezium polygon under a polyline graph beside a y = 0 function_curve",
+   "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "velocity-time graph with a rising segment 0–4 s and a flat segment 4–10 s; slope gives acceleration and the area under the graph gives distance"
+    },
+    "source": {
+     "question": "Explain velocity time graphs for JEE using this example: a car speeds up from 0 to 20 m/s in 4 s, then moves at a steady 20 m/s until t = 10 s. How do slope and area give acceleration and distance?",
+     "representationTier": "quantitative_verified"
+    },
+    "quantities": [
+     {
+      "id": "v0",
+      "symbol": "v₀",
+      "value": 0,
+      "unit": "m/s"
+     },
+     {
+      "id": "v1",
+      "symbol": "v₁",
+      "value": 20,
+      "unit": "m/s"
+     },
+     {
+      "id": "t1",
+      "symbol": "t₁",
+      "value": 4,
+      "unit": "s"
+     },
+     {
+      "id": "t2",
+      "symbol": "t₂",
+      "value": 10,
+      "unit": "s"
+     }
+    ],
+    "entities": [
+     {
+      "id": "axes",
+      "kind": "axes",
+      "role": "v-t axes"
+     },
+     {
+      "id": "v_end",
+      "kind": "point",
+      "role": "velocity axis end"
+     },
+     {
+      "id": "v_title",
+      "kind": "label",
+      "role": "velocity axis title",
+      "label": "v (m/s)"
+     },
+     {
+      "id": "t_end",
+      "kind": "point",
+      "role": "time axis end"
+     },
+     {
+      "id": "t_title",
+      "kind": "label",
+      "role": "time axis title",
+      "label": "t (s)"
+     },
+     {
+      "id": "p0",
+      "kind": "point",
+      "role": "start, car at rest",
+      "label": "0"
+     },
+     {
+      "id": "p1",
+      "kind": "point",
+      "role": "reaches 20 m/s at t = 4 s"
+     },
+     {
+      "id": "p2",
+      "kind": "point",
+      "role": "still 20 m/s at t = 10 s"
+     },
+     {
+      "id": "graph",
+      "kind": "polyline",
+      "role": "velocity-time graph v(t)"
+     },
+     {
+      "id": "zero",
+      "kind": "polyline",
+      "role": "time axis under the area"
+     },
+     {
+      "id": "area",
+      "kind": "polygon",
+      "role": "area under the v-t graph = distance"
+     },
+     {
+      "id": "f1",
+      "kind": "point",
+      "role": "foot at t = 4 s",
+      "label": "t = 4 s"
+     },
+     {
+      "id": "f2",
+      "kind": "point",
+      "role": "foot at t = 10 s",
+      "label": "t = 10 s"
+     },
+     {
+      "id": "d1",
+      "kind": "segment",
+      "role": "ordinate at t = 4 s"
+     },
+     {
+      "id": "d2",
+      "kind": "segment",
+      "role": "ordinate at t = 10 s"
+     },
+     {
+      "id": "vlab_at",
+      "kind": "point",
+      "role": "velocity value anchor"
+     },
+     {
+      "id": "vlab",
+      "kind": "label",
+      "role": "steady velocity value",
+      "label": "v = 20 m/s"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "make_axes",
+      "operator": "axes",
+      "inputs": {
+       "xMin": -0.6,
+       "xMax": 11,
+       "yMin": -1.6,
+       "yMax": 3.2
+      },
+      "outputs": [
+       "axes"
+      ]
+     },
+     {
+      "id": "make_v_end",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 2.9,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "v_end"
+      ]
+     },
+     {
+      "id": "make_v_title",
+      "operator": "label",
+      "inputs": {
+       "target": "v_end",
+       "text": "v (m/s)"
+      },
+      "outputs": [
+       "v_title"
+      ]
+     },
+     {
+      "id": "make_t_end",
+      "operator": "point",
+      "inputs": {
+       "x": 10.6,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "t_end"
+      ]
+     },
+     {
+      "id": "make_t_title",
+      "operator": "label",
+      "inputs": {
+       "target": "t_end",
+       "text": "t (s)"
+      },
+      "outputs": [
+       "t_title"
+      ]
+     },
+     {
+      "id": "make_p0",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "p0"
+      ]
+     },
+     {
+      "id": "make_p1",
+      "operator": "point",
+      "inputs": {
+       "x": 4,
+       "y": 2,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "p1"
+      ]
+     },
+     {
+      "id": "make_p2",
+      "operator": "point",
+      "inputs": {
+       "x": 10,
+       "y": 2,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "p2"
+      ]
+     },
+     {
+      "id": "make_graph",
+      "operator": "polyline",
+      "inputs": {
+       "points": [
+        "p0",
+        "p1",
+        "p2"
+       ]
+      },
+      "outputs": [
+       "graph"
+      ]
+     },
+     {
+      "id": "make_zero",
+      "operator": "function_curve",
+      "inputs": {
+       "expression": "0",
+       "variable": "x",
+       "xMin": 0,
+       "xMax": 10,
+       "samples": 17
+      },
+      "outputs": [
+       "zero"
+      ]
+     },
+     {
+      "id": "make_area",
+      "operator": "polygon",
+      "inputs": {
+       "points": [
+        "p0",
+        "p1",
+        "p2",
+        "f2",
+        "f1"
+       ]
+      },
+      "outputs": [
+       "area"
+      ]
+     },
+     {
+      "id": "make_f1",
+      "operator": "point",
+      "inputs": {
+       "x": 4,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "f1"
+      ]
+     },
+     {
+      "id": "make_f2",
+      "operator": "point",
+      "inputs": {
+       "x": 10,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "f2"
+      ]
+     },
+     {
+      "id": "make_d1",
+      "operator": "segment",
+      "inputs": {
+       "start": "p1",
+       "end": "f1"
+      },
+      "outputs": [
+       "d1"
+      ]
+     },
+     {
+      "id": "make_d2",
+      "operator": "segment",
+      "inputs": {
+       "start": "p2",
+       "end": "f2"
+      },
+      "outputs": [
+       "d2"
+      ]
+     },
+     {
+      "id": "make_vlab_at",
+      "operator": "point",
+      "inputs": {
+       "x": 7,
+       "y": 2,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "vlab_at"
+      ]
+     },
+     {
+      "id": "make_vlab",
+      "operator": "label",
+      "inputs": {
+       "target": "vlab_at",
+       "text": "v = 20 m/s"
+      },
+      "outputs": [
+       "vlab"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "starts_at_rest",
+      "predicate": "on",
+      "entities": [
+       "p0",
+       "graph"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "peak_on_graph",
+      "predicate": "on",
+      "entities": [
+       "p1",
+       "graph"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "end_on_graph",
+      "predicate": "on",
+      "entities": [
+       "p2",
+       "graph"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "flat_segment",
+      "predicate": "parallel",
+      "entities": [
+       "d1",
+       "d2"
+      ],
+      "expected": true,
+      "severity": "warning"
+     },
+     {
+      "id": "label_f1",
+      "predicate": "label_attached",
+      "entities": [
+       "f1"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "label_f2",
+      "predicate": "label_attached",
+      "entities": [
+       "f2"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "boost_slope",
+      "kind": "slope_triangle",
+      "targetIds": [
+       "graph"
+      ],
+      "text": "slope = a"
+     },
+     {
+      "id": "area_note",
+      "kind": "hatch",
+      "targetIds": [
+       "area"
+      ],
+      "text": "area = distance"
+     },
+     {
+      "id": "flat_note",
+      "kind": "callout",
+      "targetIds": [
+       "p2"
+      ],
+      "text": "zero slope, a = 0"
+     }
+    ],
+    "requiredEntityIds": [
+     "axes",
+     "v_end",
+     "v_title",
+     "t_end",
+     "t_title",
+     "p0",
+     "p1",
+     "p2",
+     "graph",
+     "zero",
+     "area",
+     "f1",
+     "f2",
+     "d1",
+     "d2",
+     "vlab_at",
+     "vlab"
+    ],
+    "revealGroups": [
+     {
+      "id": "axes_group",
+      "entityIds": [
+       "axes",
+       "v_end",
+       "v_title",
+       "t_end",
+       "t_title"
+      ],
+      "dependsOn": [],
+      "narrationCue": "velocity up the side in m/s, time along the bottom in s"
+     },
+     {
+      "id": "graph_group",
+      "entityIds": [
+       "p0",
+       "p1",
+       "p2",
+       "graph",
+       "f1",
+       "f2",
+       "d1",
+       "d2",
+       "vlab_at",
+       "vlab",
+       "boost_slope",
+       "flat_note"
+      ],
+      "dependsOn": [
+       "axes_group"
+      ],
+      "narrationCue": "straight rise to 20 m/s by 4 s, then flat to 10 s; the slope of each part is the acceleration"
+     },
+     {
+      "id": "area_group",
+      "entityIds": [
+       "zero",
+       "area",
+       "area_note"
+      ],
+      "dependsOn": [
+       "graph_group"
+      ],
+      "narrationCue": "the area under the graph, a triangle plus a rectangle, is the distance travelled"
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "action": "reveal",
+      "targetId": "axes_group",
+      "narration": "Draw a velocity-time graph: v in m/s upward, t in s along the axis."
+     },
+     {
+      "action": "reveal",
+      "targetId": "graph_group",
+      "narration": "From 0 to 4 s the line rises from 0 to 20 m/s; its slope, Δv/Δt, is the acceleration. From 4 s to 10 s the line is flat, so the slope and the acceleration are zero while v stays 20 m/s."
+     },
+     {
+      "action": "reveal",
+      "targetId": "area_group",
+      "narration": "The area under the graph equals the distance: a triangle for 0–4 s plus a rectangle for 4–10 s. Slope gives acceleration, area gives displacement."
+     }
+    ]
+   }
+  },
+  {
+   "id": "p4c-t6/doc-6",
+   "source": ".context/youtube-full/v2/lessons/p4c-t6/chat.json response 6",
+   "note": "trapezium polygon plus function_value checks on the polyline",
+   "document": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+     "mode": "scene",
+     "reason": "velocity-time graph for a car that accelerates uniformly from 0 to 20 m/s in 4 s, then cruises at 20 m/s until t = 10 s; slope gives acceleration and the area under the graph gives distance"
+    },
+    "source": {
+     "question": "Explain velocity time graphs for JEE using this example: a car speeds up from 0 to 20 m/s in 4 s, then moves at a steady 20 m/s until t = 10 s. How do slope and area give acceleration and distance?",
+     "representationTier": "quantitative_verified",
+     "nonMetric": false
+    },
+    "quantities": [
+     {
+      "id": "v0",
+      "symbol": "v₀",
+      "value": 0,
+      "unit": "m/s"
+     },
+     {
+      "id": "v1",
+      "symbol": "v₁",
+      "value": 20,
+      "unit": "m/s"
+     },
+     {
+      "id": "t1",
+      "symbol": "t₁",
+      "value": 4,
+      "unit": "s"
+     },
+     {
+      "id": "t2",
+      "symbol": "t₂",
+      "value": 10,
+      "unit": "s"
+     }
+    ],
+    "entities": [
+     {
+      "id": "axes",
+      "kind": "axes",
+      "role": "v-t axes"
+     },
+     {
+      "id": "v_end",
+      "kind": "point",
+      "role": "velocity axis end"
+     },
+     {
+      "id": "v_title",
+      "kind": "label",
+      "role": "velocity axis title",
+      "label": "v (m/s)"
+     },
+     {
+      "id": "t_end",
+      "kind": "point",
+      "role": "time axis end"
+     },
+     {
+      "id": "t_title",
+      "kind": "label",
+      "role": "time axis title",
+      "label": "t (s)"
+     },
+     {
+      "id": "p0",
+      "kind": "point",
+      "role": "start, car at rest",
+      "label": "0"
+     },
+     {
+      "id": "p1",
+      "kind": "point",
+      "role": "end of speeding up",
+      "label": "v₁ = 20 m/s"
+     },
+     {
+      "id": "p2",
+      "kind": "point",
+      "role": "end of cruise"
+     },
+     {
+      "id": "graph",
+      "kind": "polyline",
+      "role": "velocity v(t)"
+     },
+     {
+      "id": "zero",
+      "kind": "polyline",
+      "role": "time axis under the area"
+     },
+     {
+      "id": "area",
+      "kind": "polygon",
+      "role": "area under the v-t graph = distance"
+     },
+     {
+      "id": "f1",
+      "kind": "point",
+      "role": "foot at t₁",
+      "label": "t₁ = 4 s"
+     },
+     {
+      "id": "f2",
+      "kind": "point",
+      "role": "foot at t₂",
+      "label": "t₂ = 10 s"
+     },
+     {
+      "id": "d1",
+      "kind": "segment",
+      "role": "ordinate at t₁"
+     },
+     {
+      "id": "d2",
+      "kind": "segment",
+      "role": "ordinate at t₂"
+     },
+     {
+      "id": "vlab_at",
+      "kind": "point",
+      "role": "velocity label anchor"
+     },
+     {
+      "id": "vlab",
+      "kind": "label",
+      "role": "steady velocity value",
+      "label": "20"
+     }
+    ],
+    "constructions": [
+     {
+      "id": "make_axes",
+      "operator": "axes",
+      "inputs": {
+       "xMin": -0.5,
+       "xMax": 11,
+       "yMin": -1,
+       "yMax": 23
+      },
+      "outputs": [
+       "axes"
+      ]
+     },
+     {
+      "id": "make_v_end",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 22,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "v_end"
+      ]
+     },
+     {
+      "id": "make_v_title",
+      "operator": "label",
+      "inputs": {
+       "target": "v_end",
+       "text": "v (m/s)"
+      },
+      "outputs": [
+       "v_title"
+      ]
+     },
+     {
+      "id": "make_t_end",
+      "operator": "point",
+      "inputs": {
+       "x": 10.6,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "t_end"
+      ]
+     },
+     {
+      "id": "make_t_title",
+      "operator": "label",
+      "inputs": {
+       "target": "t_end",
+       "text": "t (s)"
+      },
+      "outputs": [
+       "t_title"
+      ]
+     },
+     {
+      "id": "make_p0",
+      "operator": "point",
+      "inputs": {
+       "x": 0,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "p0"
+      ]
+     },
+     {
+      "id": "make_p1",
+      "operator": "point",
+      "inputs": {
+       "x": 4,
+       "y": 20,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "p1"
+      ]
+     },
+     {
+      "id": "make_p2",
+      "operator": "point",
+      "inputs": {
+       "x": 10,
+       "y": 20,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "p2"
+      ]
+     },
+     {
+      "id": "make_graph",
+      "operator": "polyline",
+      "inputs": {
+       "points": [
+        "p0",
+        "p1",
+        "p2"
+       ]
+      },
+      "outputs": [
+       "graph"
+      ]
+     },
+     {
+      "id": "make_zero",
+      "operator": "function_curve",
+      "inputs": {
+       "expression": "0",
+       "variable": "x",
+       "xMin": 0,
+       "xMax": 10,
+       "samples": 17
+      },
+      "outputs": [
+       "zero"
+      ]
+     },
+     {
+      "id": "make_area",
+      "operator": "polygon",
+      "inputs": {
+       "points": [
+        "p0",
+        "p1",
+        "p2",
+        "f2"
+       ]
+      },
+      "outputs": [
+       "area"
+      ]
+     },
+     {
+      "id": "make_f1",
+      "operator": "point",
+      "inputs": {
+       "x": 4,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "f1"
+      ]
+     },
+     {
+      "id": "make_f2",
+      "operator": "point",
+      "inputs": {
+       "x": 10,
+       "y": 0,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "f2"
+      ]
+     },
+     {
+      "id": "make_d1",
+      "operator": "segment",
+      "inputs": {
+       "start": "p1",
+       "end": "f1"
+      },
+      "outputs": [
+       "d1"
+      ]
+     },
+     {
+      "id": "make_d2",
+      "operator": "segment",
+      "inputs": {
+       "start": "p2",
+       "end": "f2"
+      },
+      "outputs": [
+       "d2"
+      ]
+     },
+     {
+      "id": "make_vlab_at",
+      "operator": "point",
+      "inputs": {
+       "x": 7,
+       "y": 20,
+       "coordinateSpace": "world"
+      },
+      "outputs": [
+       "vlab_at"
+      ]
+     },
+     {
+      "id": "make_vlab",
+      "operator": "label",
+      "inputs": {
+       "target": "vlab_at",
+       "text": "20"
+      },
+      "outputs": [
+       "vlab"
+      ]
+     }
+    ],
+    "relations": [],
+    "assertions": [
+     {
+      "id": "starts_at_rest",
+      "predicate": "function_value",
+      "entities": [
+       "graph"
+      ],
+      "expected": {
+       "x": 0,
+       "y": 0
+      },
+      "severity": "fatal"
+     },
+     {
+      "id": "peak_on_graph",
+      "predicate": "function_value",
+      "entities": [
+       "graph"
+      ],
+      "expected": {
+       "x": 4,
+       "y": 20
+      },
+      "severity": "fatal"
+     },
+     {
+      "id": "end_on_graph",
+      "predicate": "function_value",
+      "entities": [
+       "graph"
+      ],
+      "expected": {
+       "x": 10,
+       "y": 20
+      },
+      "severity": "fatal"
+     },
+     {
+      "id": "flat_segment",
+      "predicate": "equal_length",
+      "entities": [
+       "d1",
+       "d2"
+      ],
+      "expected": true,
+      "severity": "info"
+     },
+     {
+      "id": "label_f1",
+      "predicate": "label_attached",
+      "entities": [
+       "f1"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     },
+     {
+      "id": "label_f2",
+      "predicate": "label_attached",
+      "entities": [
+       "f2"
+      ],
+      "expected": true,
+      "severity": "fatal"
+     }
+    ],
+    "annotations": [
+     {
+      "id": "boost_slope",
+      "kind": "slope_triangle",
+      "targetIds": [
+       "graph"
+      ],
+      "text": "slope = a₁"
+     },
+     {
+      "id": "cruise_flat",
+      "kind": "narration",
+      "targetIds": [
+       "graph"
+      ],
+      "text": "zero slope, a₂ = 0"
+     },
+     {
+      "id": "area_note",
+      "kind": "narration",
+      "targetIds": [
+       "area"
+      ],
+      "text": "area = distance"
+     }
+    ],
+    "requiredEntityIds": [
+     "axes",
+     "v_end",
+     "v_title",
+     "t_end",
+     "t_title",
+     "p0",
+     "p1",
+     "p2",
+     "graph",
+     "zero",
+     "area",
+     "f1",
+     "f2",
+     "d1",
+     "d2",
+     "vlab_at",
+     "vlab"
+    ],
+    "revealGroups": [
+     {
+      "id": "axes_group",
+      "entityIds": [
+       "axes",
+       "v_end",
+       "v_title",
+       "t_end",
+       "t_title"
+      ],
+      "dependsOn": [],
+      "narrationCue": "velocity up the side in m/s, time along the bottom in s"
+     },
+     {
+      "id": "graph_group",
+      "entityIds": [
+       "p0",
+       "p1",
+       "p2",
+       "graph",
+       "f1",
+       "f2",
+       "d1",
+       "d2",
+       "vlab_at",
+       "vlab"
+      ],
+      "dependsOn": [
+       "axes_group"
+      ],
+      "narrationCue": "straight rise from 0 to 20 m/s in 4 s, then flat at 20 m/s until 10 s"
+     },
+     {
+      "id": "area_group",
+      "entityIds": [
+       "zero",
+       "area"
+      ],
+      "dependsOn": [
+       "graph_group"
+      ],
+      "narrationCue": "the area under the graph, a triangle plus a rectangle, is the distance travelled"
+     }
+    ],
+    "teachingTimeline": [
+     {
+      "action": "reveal",
+      "targetIds": [
+       "axes_group"
+      ],
+      "narration": "Draw the velocity-time axes: v in m/s vertically, t in s horizontally."
+     },
+     {
+      "action": "reveal",
+      "targetIds": [
+       "graph_group"
+      ],
+      "narration": "Plot the motion: a straight line from (0,0) to (4,20) while the car speeds up, then horizontal from (4,20) to (10,20) at steady speed."
+     },
+     {
+      "action": "annotate",
+      "targetIds": [
+       "boost_slope"
+      ],
+      "narration": "The slope of the rising part is Δv/Δt = (20−0)/4 = 5 m/s², the acceleration."
+     },
+     {
+      "action": "annotate",
+      "targetIds": [
+       "cruise_flat"
+      ],
+      "narration": "The flat part has zero slope, so acceleration is zero and velocity stays 20 m/s."
+     },
+     {
+      "action": "reveal",
+      "targetIds": [
+       "area_group"
+      ],
+      "narration": "The area under the graph gives distance: triangle ½×4×20 = 40 m plus rectangle 20×6 = 120 m, total 160 m."
+     }
+    ]
+   }
+  }
+ ]
+}

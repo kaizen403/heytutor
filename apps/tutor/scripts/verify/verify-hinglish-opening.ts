@@ -96,7 +96,12 @@ const denseMirrorScene: RenderScene = {
   ],
 };
 const denseMirrorHinglish = buildVerifiedDiagramPresentation(mirrorDocument, denseMirrorScene, { narrationLanguage: "hinglish" });
-assert(denseMirrorHinglish.introSegments.some(segment => segment.narration.includes("इतना setup तैयार है.")), "the dense fixture must actually exercise the spoken walkthrough used when ink outlasts its cue");
+const denseWalkthroughClosings = ["इतना setup तैयार है.", "अब पूरा setup तैयार है.", "अब पूरा setup board पर पूरी तरह तैयार है."];
+assert(denseMirrorHinglish.introSegments.some(segment =>
+  segment.narration.startsWith("ये setup है. पहले ")
+  && segment.narration.includes("और आखिर में ")
+  && denseWalkthroughClosings.some(closing => segment.narration.endsWith(closing))),
+"the dense fixture must actually exercise the spoken walkthrough used when ink outlasts its cue");
 assertNeutralHinglishIntro(denseMirrorHinglish, mirrorDocument.revealGroups[0]!.narrationCue!);
 const denseMirrorEnglish = buildVerifiedDiagramPresentation(mirrorDocument, denseMirrorScene);
 assert.deepEqual(buildVerifiedDiagramPresentation(mirrorDocument, denseMirrorScene, { narrationLanguage: "english" }), denseMirrorEnglish, "meaning preservation leaves the existing English presentation unchanged");
@@ -168,6 +173,10 @@ for (const unknownCue of [
   const unknownPresentation = buildVerifiedDiagramPresentation(unknownDocument, { ...mirrorScene, revealGroups: unknownDocument.revealGroups }, { narrationLanguage: "hinglish" });
   if (!hinglishFigureNarration(unknownCue).includes(unknownCue)) lostUnknownCues.push(unknownCue);
   assertNeutralHinglishIntro(unknownPresentation, unknownCue);
+  // Both sparse and dense tours leave explanations to teaching. Translator
+  // grammar is checked independently above, never by reading a solved cue.
+  const denseUnknown = buildVerifiedDiagramPresentation(unknownDocument, { ...denseMirrorScene, revealGroups: unknownDocument.revealGroups }, { narrationLanguage: "hinglish" });
+  assertNeutralHinglishIntro(denseUnknown, unknownCue);
 }
 assert.deepEqual(lostUnknownCues, [], "unsupported technical grammar preserves its entire condition, relationship and negation; it is not replaced by an entity list");
 

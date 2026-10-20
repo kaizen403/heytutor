@@ -1,7 +1,7 @@
 import type { RenderPoint, SceneConstruction, SceneDocument, SceneIssue } from "../types";
 import {
-  add2, canonicalUnit, compactNumber, hypot2, invalid, isRecord, pair, placement, rejectUnknownKeys,
-  requireUnits, scale2, scalar, SourceInputError, unit2, validationNumber,
+  add2, bounded, canonicalUnit, compactNumber, hypot2, invalid, isRecord, pair, placement, rejectUnknownKeys,
+  requireUnits, scale2, scalar, SourceInputError, sourceUnits, unit2, validationNumber,
   type SourceContext,
 } from "./sourceScalars";
 
@@ -96,6 +96,11 @@ function readGraph(inputs: Record<string, unknown>, context: SourceContext): Rem
   if (inputs.quantity !== "position" && inputs.quantity !== "velocity") invalid("quantity", "motion_graph quantity must be position or velocity");
   if (!Array.isArray(inputs.points) || inputs.points.length < 2 || inputs.points.length > 64) invalid("points", "motion_graph needs 2 to 64 samples");
   const samples = inputs.points.map((point, index) => {
+    // A [t, value] pair names the same sample as {t, value}; the order is the
+    // graph's own axis order, time first.
+    if (Array.isArray(point) && point.length === 2) {
+      return { t: scalar(point[0], `points[${index}].t`, context), value: scalar(point[1], `points[${index}].value`, context) };
+    }
     if (!isRecord(point)) invalid("points", "each sample needs t and value");
     rejectUnknownKeys(point, ["t", "value"], "points");
     return { t: scalar(point.t, `points[${index}].t`, context), value: scalar(point.value, `points[${index}].value`, context) };
@@ -149,13 +154,62 @@ function landingTime(speed: number, angle: number, gravity: number, incline: num
   return time;
 }
 
-function readProjectile(inputs: Record<string, unknown>, context: SourceContext): RemainderGeometry[] {
+/**
+ * projectile_trajectory works in m/s, m/s^2, m and degrees. A unit stated on
+ * an input (its {value, unit} wrapper or the quantity it names) must be one of
+ * these or km/h, which is converted to m/s. Any other stated unit is refused,
+ * never read as SI. A value with no stated unit is read in the working unit,
+ * as the operator contract says.
+ */
+const SI = "si";
+const KM_PER_HOUR = "km/h";
+const PROJECTILE_UNITS = {
+  speed: {
+    "m/s": SI, "ms^-1": SI, "m/sec": SI, "metre/s": SI, "metres/s": SI, "meter/s": SI, "meters/s": SI,
+    metrepersecond: SI, metrespersecond: SI, meterpersecond: SI, meterspersecond: SI,
+    "km/h": KM_PER_HOUR, "km/hr": KM_PER_HOUR, "km/hour": KM_PER_HOUR, "kmh^-1": KM_PER_HOUR, kmph: KM_PER_HOUR,
+    kilometreperhour: KM_PER_HOUR, kilometresperhour: KM_PER_HOUR, kilometerperhour: KM_PER_HOUR, kilometersperhour: KM_PER_HOUR,
+  },
+  acceleration: {
+    "m/s^2": SI, "m/s2": SI, "ms^-2": SI, "m/s/s": SI, "m/sec^2": SI,
+    metrepersecondsquared: SI, metrespersecondsquared: SI, meterpersecondsquared: SI, meterspersecondsquared: SI,
+  },
+  length: { m: SI, metre: SI, metres: SI, meter: SI, meters: SI },
+  angle: { "°": SI, "º": SI, deg: SI, degree: SI, degrees: SI },
+} as const satisfies Record<string, Readonly<Record<string, typeof SI | typeof KM_PER_HOUR>>>;
+type ProjectileDimension = keyof typeof PROJECTILE_UNITS;
+
+function projectileUnitSpelling(unit: string): string {
+  return unit.trim()
+    .replace(/[−–]/g, "-").replace(/⁻²/g, "^-2").replace(/⁻¹/g, "^-1").replace(/²/g, "^2")
+    .replace(/[\s·⋅*]+/g, "")
+    .replace(/[A-Za-z]{3,}/g, (word) => word.toLowerCase());
+}
+
+/** The input in its working unit; a stated unit the operator cannot read is fatal. */
+function projectileScalar(value: unknown, key: string, dimension: ProjectileDimension, context: SourceContext, document: SceneDocument | undefined, cap?: number): number {
+  const number = scalar(value, key, context, cap);
+  const units: Readonly<Record<string, typeof SI | typeof KM_PER_HOUR>> = PROJECTILE_UNITS[dimension];
+  const stated = sourceUnits(value, document).map((unit) => {
+    const spelling = projectileUnitSpelling(unit);
+    const reading = Object.hasOwn(units, spelling) ? units[spelling] : undefined;
+    if (reading === undefined) invalid("units", `${key} unit ${unit} is not a ${dimension} unit projectile_trajectory reads; it is not treated as SI`);
+    return reading;
+  });
+  if (stated.some((reading) => reading !== stated[0])) invalid("units", `${key} source units disagree`);
+  // Exact for whole km/h: 72 km/h is 72000 / 3600 = 20 m/s, not 20.000000000000004.
+  return stated[0] === KM_PER_HOUR ? bounded(number * 1000 / 3600, key, cap) : number;
+}
+
+function readProjectile(inputs: Record<string, unknown>, context: SourceContext, document?: SceneDocument): RemainderGeometry[] {
   rejectUnknownKeys(inputs, ["speed", "launchAngleDeg", "gravity", "inclineAngleDeg", "initialHeight", "direction", "origin", "displayScale", "samples"]);
-  const speed = positive(inputs.speed, "speed", context);
-  const launch = scalar(inputs.launchAngleDeg, "launchAngleDeg", context, 1e6) * Math.PI / 180;
-  const gravity = positive(inputs.gravity, "gravity", context);
-  const incline = (inputs.inclineAngleDeg === undefined ? 0 : scalar(inputs.inclineAngleDeg, "inclineAngleDeg", context, 360)) * Math.PI / 180;
-  const height = inputs.initialHeight === undefined ? 0 : scalar(inputs.initialHeight, "initialHeight", context);
+  const speed = projectileScalar(inputs.speed, "speed", "speed", context, document);
+  if (!(speed > 0)) invalid("speed", "speed must be positive");
+  const launch = projectileScalar(inputs.launchAngleDeg, "launchAngleDeg", "angle", context, document, 1e6) * Math.PI / 180;
+  const gravity = projectileScalar(inputs.gravity, "gravity", "acceleration", context, document);
+  if (!(gravity > 0)) invalid("gravity", "gravity must be positive");
+  const incline = (inputs.inclineAngleDeg === undefined ? 0 : projectileScalar(inputs.inclineAngleDeg, "inclineAngleDeg", "angle", context, document, 360)) * Math.PI / 180;
+  const height = inputs.initialHeight === undefined ? 0 : projectileScalar(inputs.initialHeight, "initialHeight", "length", context, document);
   if (height < 0) invalid("initialHeight", "initial height cannot be negative");
   const direction = inputs.direction === "down" ? -1 : 1;
   if (inputs.direction !== undefined && inputs.direction !== "up" && inputs.direction !== "down") invalid("direction", "incline direction must be up or down");
@@ -346,7 +400,7 @@ export function evaluateChapterRemainderConstruction(operator: string, inputs: R
   if (operator === "relative_velocity") return readRelative(inputs, context, document);
   if (operator === "motion_graph") return readGraph(inputs, context);
   if (operator === "uniform_circular_motion") return readCircular(inputs, context);
-  if (operator === "projectile_trajectory") return readProjectile(inputs, context);
+  if (operator === "projectile_trajectory") return readProjectile(inputs, context, document);
   if (operator === "work_interval") return readWork(inputs, context);
   if (operator === "spring_energy") return readSpring(inputs, context);
   if (operator === "potential_curve") return readPotential(inputs, context);
@@ -356,7 +410,7 @@ export function evaluateChapterRemainderConstruction(operator: string, inputs: R
   return readMagnet(inputs, context);
 }
 
-export function chapterRemainderOutputLabels(operator: string, outputs: readonly unknown[], requested?: readonly unknown[]): string[] {
+export function chapterRemainderOutputLabels(operator: string, outputs: readonly unknown[], requested?: readonly unknown[], allowQuantitySymbols = false): string[] {
   if (!isOperator(operator) || outputs.length !== COUNTS[operator]) invalid("outputs", "remainder labels require every ordered output");
   return outputs.map((output, index) => {
     if (!isRecord(output) || !isRecord(output.remainder)) invalid("outputs", "remainder geometry is missing source metadata");
@@ -364,6 +418,9 @@ export function chapterRemainderOutputLabels(operator: string, outputs: readonly
     const symbol = metadata.role;
     const numeric = `${symbol}=${compactNumber(metadata.certified ?? metadata.magnitude)}`;
     const requestedText = requested?.[index];
+    // An identifier names a quantity; it does not assert its value. Do not
+    // normalize superscripts/operators into identifiers or accept equations.
+    if (allowQuantitySymbols && typeof requestedText === "string" && /^[\p{L}][\p{L}\p{M}\p{Nd}_₀-₉]*$/u.test(requestedText)) return requestedText;
     if (requestedText !== undefined && requestedText !== symbol && requestedText !== numeric) invalid("label", "remainder labels must be the role symbol or the verified magnitude");
     return requestedText === numeric ? numeric : symbol;
   });
