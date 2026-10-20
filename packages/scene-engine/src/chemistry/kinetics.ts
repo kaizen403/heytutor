@@ -18,6 +18,7 @@
 import type { SceneDocument } from "../types";
 import { fmt } from "../archetypes/document";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
+import { findSymbolicArrheniusSources, readSymbolicArrheniusSource } from "./symbolicArrheniusSource";
 
 import { chemistryCanonicalValuesAgree, chemistryReferenceConstantValid, CHEMISTRY_NUMBER_PATTERN, CHEMISTRY_SCALAR_PATTERN, matchedChemistryScalar, chemistryQuestionSpan, chemistryPlanBindingsValid, chemistryQuantityCuesValid, readChemistryQuantity, readChemistryQuantityDeclaration, readChemistryLiteral, readChemistryArrheniusEquation, findChemistryQuantities, convertChemistryReading, convertChemistryValue, chemistryUnitSymbol, type ChemistryUnit, type ChemistryReading, type ChemistrySpan } from "./quantityReader";
 
@@ -450,10 +451,17 @@ function quantityUseReferenceOnly(body: string, ownerStart: number, payloadStart
   return /\buse\s+(?:(?:the|its|a)\s+)?$/i.test(body.slice(0, ownerStart))
     && delimiter && request !== null && pureKineticsPlotSubject(tail.slice(request[0].length));
 }
-/** A qualitative rate change contains only its complete thermal payload. */
+/** A relative rate change contains only its complete thermal payload. */
 function qualitativeRateChangeOnly(question: string, ownerStart: number, start: number, end: number): boolean {
   const tail = question.slice(start, end);
-  const change = String.raw`(?:(?:is|was|becomes|become)\s+)?(?:doubl\w*|tripl\w*|quadrupl\w*|halved|twice(?:\s+(?:its|the)\s+value)?)`;
+  // The Arrhenius reader below validates the original multiplier scalar and
+  // source span. This audit only keeps that relative input out of the
+  // absolute-k slot; it does not assign a physical rate constant.
+  const multiplier = String.raw`(?:(?:is|was|becomes?|increases?)\s+)?${SCALAR}(?:\s+times|\s*[-–]?\s*fold)(?:\s+(?:its|the)\s+(?:original\s+)?value)?`;
+  const qualitative = String.raw`(?:(?:is|was|becomes|become)\s+)?(?:doubl\w*|tripl\w*|quadrupl\w*|halved|twice(?:\s+(?:its|the)\s+value)?)`;
+  // "By N times" has an ambiguous final magnitude; "decreases N-fold"
+  // would require the reciprocal. Neither supplies this positive ratio.
+  const change = String.raw`(?:${qualitative}|${multiplier})`;
   let payloadStart = start;
   let payload = tail;
   if (!new RegExp(String.raw`^\s*${change}(?:\s+(?:when|as|on|from|for|between|at|with)\b[\s\S]*)?\s*$`, "i").test(tail)) {
@@ -525,11 +533,7 @@ function readOwnedTemperatureRates(question: string, start: number, end: number)
 /** A complete symbolic Arrhenius identity supplies no physical rate scalar. */
 function symbolicArrheniusRateOwnerOnly(body: string, owner: RegExpMatchArray, start: number, end: number): boolean {
   if (!/^k\b/.test(owner[0])) return false;
-  const tail = body.slice(start,end);
-  const formula = /^\s*=\s*A\s*(?:e\s*\^\s*\(\s*[-−]\s*E_?a\s*\/\s*(?:R\s*T|\(\s*R\s*T\s*\))\s*\)|exp\s*\(\s*[-−]\s*E_?a\s*\/\s*(?:R\s*T|\(\s*R\s*T\s*\))\s*\))/.exec(tail);
-  if (!formula) return false;
-  const rest = tail.slice(formula[0].length);
-  return rest.trim() === "" || /^\s*,\s*(?:find|calculate|determine|compute|evaluate)\s+(?:the\s+)?activation energy\s+(?:if|when)\s+(?:(?:the|a)\s+)?$/i.test(rest);
+  return start === owner.index! + owner[0].length && readSymbolicArrheniusSource(body, { start: owner.index!, end }) !== null;
 }
 /** Each supplied rate owns its original literal; absence and unread are distinct. */
 function readRateConstant(stem: string, order: ReactionOrder | null = 1): { value: number; unit: string | null; source: ChemistryReading } | null | false {
@@ -957,7 +961,8 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
   }
   // Inventory the original change owner before any successful scalar match.
   // Unread or damaged times/fold material cannot disappear behind a pair.
-  const timesOwners = [...stem.matchAll(/\b(?:rate constant|rate)\b/gi)];
+  const timesOwners = [...stem.matchAll(new RegExp(String.raw`\b(?:${caseWord("rate constant")}|${caseWord("rate")})\b|(?<!\b(?:${caseWord("ln")}|${caseWord("log")})\s*)\bk\b(?![₀-₉])`, "g"))];
+  let requiresMeasuredRatio = false;
   for (const [index, owner] of timesOwners.entries()) {
     const payloadStart = owner.index! + owner[0].length;
     let ownerEnd = timesOwners[index + 1]?.index ?? stem.length;
@@ -969,14 +974,26 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
     if (!marker) continue;
     if (marker.index > 80) return false;
     const payload = [payloadStart, payloadStart + marker.index] as const;
-    const prefix = /^\s*(?:of\s+(?:(?:the|a|this)\s+)?reaction\s*)?(?:(?:becomes?|increases?|decreases?|changes?)(?:\s+by)?\s+)?/i.exec(stem.slice(payload[0],payload[1]))!;
+    const prefix = /^\s*(?:of\s+(?:(?:the|a|this)\s+)?reaction\s*)?(?:(?:is|was|becomes?|increases?|decreases?|changes?)(?:\s+by)?\s+)?/i.exec(stem.slice(payload[0],payload[1]))!;
+    // Decreases need reciprocal/ascending-line support. Ambiguous change/by
+    // language is usable only when complete measured k,T pairs confirm it.
+    if (/\bdecreases?\b/i.test(prefix[0])) return false;
+    if (/\b(?:changes?|by)\b/i.test(prefix[0])) {
+      if (!/^fold$/i.test(marker[0])) return false;
+      requiresMeasuredRatio = true;
+    }
     const start = payload[0] + prefix[0].length;
     const read = readChemistryQuantity({question:stem,after:/^/,within:{start,end:payload[1]},dimension:"dimensionless"});
     if (!read.ok || !(read.reading.value > 0)) return false;
+    // Neutral final-value wording also describes cooling. An explicit
+    // increase still requires a multiplier above one; measured pairs and
+    // positive activation energy below independently bind the direction.
+    if (/\bincreases?\b/i.test(prefix[0]) && !(read.reading.value > 1)) return false;
     const scalarTail = stem.slice(read.reading.source.span.end,payload[1]);
     // A single original sentence dot may separate scalar2 from "times";
     // the shared strict scalar proof remains unchanged and owns the value.
-    if (scalarTail.trim() !== "" && !/^\.\s*$/.test(scalarTail)) return false;
+    const foldSeparator = /^fold$/i.test(marker[0]) && /^\s*[-–]\s*$/.test(scalarTail);
+    if (scalarTail.trim() !== "" && !/^\.\s*$/.test(scalarTail) && !foldSeparator) return false;
     const suffixStart = payload[1] + marker[0].length;
     const clause = /[;?\n]|\.(?=\s|$)/.exec(stem.slice(suffixStart));
     const suffixEnd = clause ? suffixStart + clause.index : stem.length;
@@ -989,7 +1006,7 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
       }
     }
     suffix = suffix.replace(/\b[Tt]_?[12]\s*=\s*(?=\s|$)/g," ");
-    if (!/^\s*(?:(?:its|the|original|value|when|as|on|from|for|between|in|of|an?|temperature|temperatures|is|was|are|raised|rises|rise|increased|increases|increase|change|by|to|at|and|starting|starts|start|goes|go|went|up)\b\s*)*$/i.test(suffix)) return false;
+    if (!/^\s*(?:(?:its|the|original|value|when|as|on|from|for|between|in|of|an?|temperature|temperatures|is|was|are|raised|rises|rise|increased|increases|increase|changes?|by|to|at|and|starting|starts|start|goes|go|went|up)\b\s*)*$/i.test(suffix)) return false;
     const change = read.reading.value;
     if (ratio !== null && !chemistryCanonicalValuesAgree(ratio,change)) return false;
     ratio = change;
@@ -1041,8 +1058,28 @@ function readArrhenius(stem: string, _quantities: readonly ChemPlanQuantity[]): 
     if (measured !== undefined && !chemistryCanonicalValuesAgree(measured,value)) return false;
   }
   const k1 = indexedRates.get(1) ?? constants[0] ?? null; const k2 = indexedRates.get(2) ?? constants[1] ?? null;
+  // A non-flat positive ratio is meaningful in either temperature direction.
+  // Its derived activation energy below must still be positive and agree
+  // with every independently supplied Arrhenius source.
+  if (ratio !== null && (!(ratio > 0) || ratio === 1)) return false;
   if (k1 !== null && k2 !== null && ratio !== null
     && (!(k1 > 0 && k2 > 0 && ratio > 0) || !chemistryCanonicalValuesAgree(k2 / k1, ratio))) return false;
+  if (requiresMeasuredRatio && (k1 === null || k2 === null || T1 === null || T2 === null || T1 === T2)) return false;
+  // Every independent source must agree before one may drive the figure.
+  const energies: number[] = Ea === null ? [] : [Ea];
+  if (statedSlope) energies.push(statedSlope.b * GAS_CONSTANT * (statedSlope.natural ? 1 : Math.LN10));
+  const observedRatio = ratio ?? (k1 !== null && k2 !== null ? k2 / k1 : null);
+  if (observedRatio !== null && T1 !== null && T2 !== null) {
+    const measuredEnergy = activationEnergyFromRatio(observedRatio,T1,T2);
+    if (measuredEnergy === null || !Number.isFinite(measuredEnergy)) return false;
+    energies.push(measuredEnergy);
+  }
+  if (energies.some(energy => !(energy > 0) || !chemistryCanonicalValuesAgree(energy,energies[0]!))) return false;
+  // A restored symbolic context cannot lend an absolute log intercept to
+  // inconsistent measured rates. Historical measured-only plots retain their
+  // existing path; the source-equation path below proves its absolute values.
+  if (equation.ok && equation.reading.intercept && findSymbolicArrheniusSources(stem).length
+    && !absoluteArrheniusSourcesAgree(equation.reading, { A, k1, k2, T1, T2 })) return false;
   if (Ea === null && ratio === null && k1 === null && statedSlope === null) return null;
   return {T1, T2, k1, k2, ratio, Ea, A, statedSlope};
 }
@@ -1568,8 +1605,67 @@ function buildSecondOrderNumeric(question: string, spec: KineticsSpec, solution:
 /* ------------------------------------------------------------------------- */
 /* Figure 3: Arrhenius                                                        */
 
+type ArrheniusEquation = Extract<ReturnType<typeof readChemistryArrheniusEquation>, { ok: true }>["reading"];
+function absoluteArrheniusSourcesAgree(equation: ArrheniusEquation, values: Pick<ArrheniusSpec, "A" | "k1" | "k2" | "T1" | "T2">): boolean {
+  if (!equation.intercept) return false;
+  const logarithm = equation.natural ? Math.log : Math.log10, C = equation.intercept.value, B = equation.coefficient.value;
+  if (values.A !== null && (!(values.A > 0) || !chemistryCanonicalValuesAgree(logarithm(values.A), C))) return false;
+  for (const [rate, temperature] of [[values.k1, values.T1], [values.k2, values.T2]]) {
+    if (rate !== null && (temperature === null || !(rate > 0 && temperature > 0)
+      || !chemistryCanonicalValuesAgree(logarithm(rate), C - B / temperature))) return false;
+  }
+  return true;
+}
+
+/** An explicit log equation supplies the entire affine relation, not merely Ea.
+ * The finite plotting window is a display choice within 1/T >= 0, never a
+ * fabricated measured temperature. Source-valued ticks expose both mappings. */
+function buildSourceArrhenius(question: string, equation: ArrheniusEquation, arr: ArrheniusSpec, solution: KineticsSolution): SceneDocument | null {
+  if (!equation.intercept || !absoluteArrheniusSourcesAgree(equation, arr)) return null;
+  const C = equation.intercept.value, B = equation.coefficient.value, ordinate = equation.natural ? "ln k" : "log k";
+  const temperatures = [arr.T1, solution.T2].filter((value): value is number => value !== null);
+  const inverseMax = Math.max(2 * Math.max(1, Math.abs(C)) / B, ...temperatures.map(value => 1.2 / value));
+  const endValue = C - B * inverseMax, yMin = endValue, yMax = Math.max(0, C);
+  const sx = X_SPAN / inverseMax, sy = Y_SPAN / (yMax - yMin), yZero = -yMin * sy;
+  if (![C, B, inverseMax, endValue, sx, sy, yZero].every(Number.isFinite) || !(B > 0 && inverseMax > 0 && sx > 0 && sy > 0)) return null;
+  const yOf = (value: number) => (value - yMin) * sy;
+  const c = new ChemScene(question, `${ordinate} = C - B/T: source affine relation`, KINETICS_FAMILY);
+  c.arrow("ar_xaxis", { x: -.4, y: yZero }, { x: X_SPAN + .6, y: yZero }, "inverse temperature axis");
+  c.arrow("ar_yaxis", { x: 0, y: -.4 }, { x: 0, y: Y_SPAN + .6 }, "log rate axis");
+  c.text("ar_xl", { x: X_SPAN + .6, y: yZero - 1.3 }, "1/T (K^-1)", "axis label");
+  c.text("ar_yl", { x: .15, y: Y_SPAN + 1 }, ordinate, "axis label");
+  c.link("ar_xtick_mark", { x: X_SPAN, y: yZero - .1 }, { x: X_SPAN, y: yZero + .1 }, "axis tick", false);
+  c.text("ar_xtick", { x: X_SPAN, y: yZero - .4 }, fmt(inverseMax, 8), "tick");
+  c.link("ar_ytick_mark", { x: -.1, y: yOf(endValue) }, { x: .1, y: yOf(endValue) }, "axis tick", false);
+  c.text("ar_ytick", { x: -.7, y: yOf(endValue) }, fmt(endValue, 8), "tick");
+  c.text("ar_zero", { x: -.4, y: yZero + .25 }, "0", "origin");
+  const intercept = yOf(C), gradient = -B * sy / sx;
+  const line = c.scene.curve("line", `${intercept} - ${Math.abs(gradient)}*x`, 0, X_SPAN, `${ordinate} against 1/T`, undefined, 33);
+  for (const [index, x] of [0, X_SPAN / 2, X_SPAN].entries()) c.scene.assert(`ar_source_${index}`, "function_value", [line], { x, y: yOf(C - B * x / sx) });
+  c.text("slope", { x: 6.8, y: Y_SPAN + 1 }, `m=${fmt(-B, 4)}K`, "slope label");
+  c.text("lnA", { x: 6.8, y: Y_SPAN + .35 }, `${equation.natural ? "lnA" : "logA"}=${fmt(C, 4)}`, "intercept");
+  for (const [index, temperature] of temperatures.entries()) {
+    const x = sx / temperature, y = yOf(C - B / temperature);
+    dot(c, `p${index + 1}`, { x, y }, "source temperature point", `T_${index + 1}=${fmt(temperature, 5)} K`);
+    c.scene.assert(`ar_temperature_${index}`, "function_value", [line], { x, y });
+    c.scene.quantities.push({ id: `T${index + 1}`, symbol: `T_${index + 1}`, value: temperature, unit: "K" });
+  }
+  // These are source/solver values, not world coordinates. The display
+  // builder's six-decimal rounding must not alter their numeric authority.
+  c.scene.quantities.push({ id: "arrhenius_B", symbol: "B", value: B, unit: "K" }, { id: "arrhenius_C", symbol: "C", value: C, unit: "1" });
+  if (solution.Ea !== null) c.scene.quantities.push({ id: "Ea", symbol: "E_a", value: solution.Ea, unit: "J/mol" });
+  if (solution.ratio !== null) c.scene.quantities.push({ id: "ratio", symbol: "k_2/k_1", value: solution.ratio, unit: "1" });
+  const visibleNames = c.scene.entities.flatMap(entity => entity.label ? [entity.label] : []);
+  c.scene.group("arrhenius_source", c.scene.entities.map(entity => entity.id), `${ordinate} = ${C} - ${B}/T. The plotted source labels are ${visibleNames.join(", ")}.`);
+  const eaText = solution.Ea === null ? "" : ` E_a = ${fmt(solution.Ea / 1000, 3)} kJ/mol.`;
+  return c.build({ caption: `${ordinate} = ${C} - ${B}/T (${equation.natural ? "natural logarithm" : "base 10"}). Slope = -${B} K; intercept = ${C}. Both axis scales are linear; 1/T = 0 is the infinite-temperature limit.${eaText}` });
+}
+
 function buildArrhenius(question: string, spec: KineticsSpec, solution: KineticsSolution, qualitative: boolean): SceneDocument | null {
   const arr = spec.arrhenius;
+  const equation = readChemistryArrheniusEquation(question);
+  const measuredPair = arr?.k1 !== null && arr?.k1 !== undefined && arr?.k2 !== null && arr?.k2 !== undefined;
+  if (arr && equation.ok && equation.reading.intercept && (!measuredPair || findSymbolicArrheniusSources(question).length)) return buildSourceArrhenius(question, equation.reading, arr, solution);
   const c = new ChemScene(question, "Arrhenius: ln k against 1/T is a straight line of slope -E_a/R", KINETICS_FAMILY);
   const panel: Panel = { x0: 0, y0: 0, ids: [] };
   axesWithLabels(c, "ar", 0, "1/T", "ln k", panel);
@@ -1622,7 +1718,7 @@ function buildArrhenius(question: string, spec: KineticsSpec, solution: Kinetics
   c.scene.quantity("T2", "T_2", T2!, "K");
   c.scene.quantity("ratio", "k_2/k_1", ratio!, "");
   const ratioText = arr?.ratio !== null && arr?.ratio !== undefined
-    ? `k rises ${fmt(ratio!, 3)} times from ${Number(T1!.toFixed(2))} K to ${Number(T2!.toFixed(2))} K`
+    ? `k ${ratio! > 1 ? "rises" : "falls to"} ${fmt(ratio!, 3)} times from ${Number(T1!.toFixed(2))} K to ${Number(T2!.toFixed(2))} K`
     : arr?.k1 !== null && arr?.k2 !== null
       ? `k goes from ${fmt(arr!.k1!, 3)} at ${Number(T1!.toFixed(2))} K to ${fmt(arr!.k2!, 3)} at ${Number(T2!.toFixed(2))} K`
       : `between ${Number(T1!.toFixed(2))} K and ${Number(T2!.toFixed(2))} K, k changes by a factor ${fmt(ratio!, 3)}`;
