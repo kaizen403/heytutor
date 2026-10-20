@@ -18,6 +18,7 @@
     "postinstall": "prisma generate",
     "verify:mobile": "tsx scripts/verify/verify-mobile-session.ts && tsx scripts/verify/verify-mobile-controls.ts",
     "verify:early-opening": "tsx scripts/verify/verify-early-lesson-opening.ts && tsx scripts/verify/verify-early-opening-figure-parity.ts && tsx scripts/verify/verify-early-opening-restart.ts && tsx scripts/verify/verify-startup-turn.ts early-stop && tsx scripts/verify/verify-startup-turn.ts early-doubt && tsx scripts/verify/verify-startup-turn.ts early-pause && tsx scripts/verify/verify-startup-turn.ts early-late-ack && tsx scripts/verify/verify-startup-turn.ts entrypoint",
+    "verify:opening-preparation": "tsx scripts/verify/verify-opening-preparation.ts && tsx scripts/verify/verify-opening-preparation-hook.ts",
     "verify:planner-boundary": "pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-request50-binding-boundary.ts && pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-turn-plan-outcomes.ts && tsx scripts/verify/verify-request50-binding-admission.ts && tsx scripts/verify/verify-turn-plan-outcomes.ts && pnpm verify:fallback-subject && tsx scripts/verify/verify-voltage-unit-admission.ts && pnpm verify:planning-speed",
     "verify:fallback-subject": "tsx scripts/verify/verify-fallback-subject-consensus.ts",
     "verify:planning-speed": "tsx scripts/verify/verify-planning-speed.ts",
