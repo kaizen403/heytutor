@@ -4,6 +4,8 @@
  * and the read-only Bohr authorities. A missing work function, a nonpositive
  * momentum, an impossible level or a reversed emission draws nothing.
  */
+import { claimsSourceLawGraph, readSourceLawGraph } from "./sourceLawGraph";
+import { buildSourceLawGraphFigure } from "./lawGraphFigure";
 import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityCuesValid, readChemistryQuantityDeclaration } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { deriveBohrOrbit } from "../physics/bohrOrbitAuthority";
@@ -105,6 +107,7 @@ function isUncertaintyStem(stem: string): boolean {
 }
 
 export function isAtomicRadiationStem(question: string): boolean {
+  if (claimsSourceLawGraph(question, "chem_orbital")) return true;
   const stem = chemStem(question);
   if (SHARED_LEVEL_SENTENCE.test(stem)) return false;
   return isPhotoelectricStem(stem) || isDebroglieStem(stem) || isBohrModelStem(stem) || isUncertaintyStem(stem);
@@ -317,6 +320,11 @@ export function buildAtomicRadiationScene(
   quantities: ChemPlanQuantity[],
   _schematic: boolean,
 ): SceneDocument | null {
+  const sourceLaw = readSourceLawGraph(question, "chem_orbital");
+  if (sourceLaw.state !== "unclaimed") {
+    if (!chemistryPlanBindingsValid(question, quantities) || sourceLaw.state === "declined") return null;
+    return buildSourceLawGraphFigure(sourceLaw.model, question);
+  }
   if (!isAtomicRadiationStem(question)) return null;
   const stem = chemStem(question);
   if (!chemistryQuantityCuesValid(question, [
