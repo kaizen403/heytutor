@@ -33,6 +33,7 @@ import {
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
 import {
   deriveSceneGate,
+  isLabelOwnerWarning,
   sceneCandidateQualityScore,
   sceneQuantityCoverage,
   selectProductionScene,
@@ -101,6 +102,22 @@ assert.ok(changedFromSparser >= 3, "the richer figure now wins where the old sco
   assert.ok(score({ labels: ["v_A = 20 m/s"] }) >= plain, "a repeated label adds no coverage");
   assert.ok(score({ primitives: 12 }) > plain, "unlabelled extra ink is not a reason to win");
   assert.equal(plain, base.validation.qualityScore, "the replay scores the candidate exactly as validation does");
+}
+
+// A label that reads as naming another mark outranks coverage: a richer
+// candidate with a misowned label loses to a clean, sparser one.
+{
+  const score = (covered: number, labelOwnerWarningCount: number) => sceneCandidateQualityScore({
+    textOnly: false, visualRequirement: "required", warningCount: labelOwnerWarningCount, labelOwnerWarningCount, omittedLabelCount: 0,
+    coverage: { total: 4, covered, valued: covered, bound: covered }, structuralCost: 40,
+  });
+  assert.ok(score(1, 0) < score(4, 1), "a clean figure showing 1 of 4 quantities beats one showing 4 of 4 with a misowned label");
+  assert.ok(score(4, 1) < sceneCandidateQualityScore({
+    textOnly: true, visualRequirement: "required", warningCount: 0, omittedLabelCount: 0,
+    coverage: { total: 4, covered: 0, valued: 0, bound: 0 }, structuralCost: 0,
+  }), "a misowned label still beats declining a required figure");
+  assert.ok(isLabelOwnerWarning({ code: "point_name_nearer_foreign", severity: "warning" }) && !isLabelOwnerWarning({ code: "label_collision", severity: "warning" }),
+    "the scene engine's label owner finding is the one ranked");
 }
 
 // --- 1. exact source first, end to end through the planner search ------------

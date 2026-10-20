@@ -179,18 +179,28 @@ export function sceneQuantityCoverage(
   return { total: quantities.length, covered, valued, bound };
 }
 
+/** Label owner truth findings: a name drawn nearer another mark than its own. */
+const LABEL_OWNER_WARNING = /^(?:label_owner_|point_name_)/;
+export function isLabelOwnerWarning(issue: { code: string; severity: string }): boolean {
+  return issue.severity === "warning" && LABEL_OWNER_WARNING.test(issue.code);
+}
+
 /**
  * Lower wins, compared in this order: a declined scene when one was wanted;
- * fewer given and asked quantities shown; fewer values shown (an omitted label
- * counts as a lost value); more warnings; fewer bound labels; and only then,
- * as the last tie break, the smaller construction. A richer figure therefore
- * beats a sparser one, while extra marks that show no new quantity never help.
+ * any label that reads as naming another mark; fewer given and asked
+ * quantities shown; fewer values shown (an omitted label counts as a lost
+ * value); more warnings; fewer bound labels; and only then, as the last tie
+ * break, the smaller construction. A richer figure therefore beats a sparser
+ * one, unless it misowns a label; extra marks that show no new quantity never
+ * help.
  */
 export function sceneCandidateQualityScore(input: {
   textOnly: boolean;
   visualRequirement: TurnPlanV3["visualRequirement"];
   coverage: SceneQuantityCoverage;
   warningCount: number;
+  /** Warnings that a label sits nearer another mark than its owner. */
+  labelOwnerWarningCount?: number;
   omittedLabelCount: number;
   structuralCost: number;
 }): number {
@@ -199,6 +209,7 @@ export function sceneCandidateQualityScore(input: {
   return (input.textOnly && input.visualRequirement !== "none"
       ? input.visualRequirement === "required" ? 500_000_000 : 400_000_000
       : 0) +
+    ((input.labelOwnerWarningCount ?? 0) > 0 ? 100_000_000 : 0) +
     band(coverage.total - coverage.covered) * 1_000_000 +
     band(coverage.total - coverage.valued + input.omittedLabelCount) * 10_000 +
     band(input.warningCount) * 100 +
@@ -313,6 +324,7 @@ export function validateProductionSceneCandidate(input: {
       visualRequirement: authoritativePlan.visualRequirement,
       coverage: sceneQuantityCoverage(validated.document, compiledScene.renderScene, authoritativePlan),
       warningCount: compiledScene.report.issues.filter((issue) => issue.severity === "warning").length,
+      labelOwnerWarningCount: compiledScene.report.issues.filter(isLabelOwnerWarning).length,
       // Recompilation removes the failed mark, but its omission still reduces
       // quality. Fewer surviving primitives must not reward incomplete repairs.
       omittedLabelCount: yieldIssues.filter((issue) => issue.code === "yield_label_omitted").length,
