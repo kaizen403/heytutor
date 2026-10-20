@@ -34,8 +34,21 @@ function completeRequestedFunction(question: string): string[] | null {
     const between = question.slice(start, next?.index);
     // A repeated source solution followed by its plot is supported, but an
     // extra intervening sentence/request cannot disappear between assignments.
-    const boundary = next ? /[;!?]|\.(?=\s|$)/.exec(between) : null;
+    const boundary = /[;!?]|\.(?=\s|$)/.exec(between);
     if (next && (!boundary || /[;!?]|\.(?=\s|$)/.test(between.slice(boundary.index + boundary[0].length)))) return null;
+    if (!next && boundary) {
+      const tail = between.slice(boundary.index + boundary[0].length);
+      if (tail.trim()) {
+        // A later anaphor owns exactly one supplied function, and the whole
+        // remaining request must name only that function. No extra object,
+        // negation or second source is silently discarded after the RHS.
+        const later = /^\s*(?:please\s+)?(draw|plot|graph|show|sketch|represent)\s+(?:(?:the|this)\s+(?:given\s+)?(?:solution|function)|it)\s*[.!?]?\s*$/i.exec(tail);
+        if (assignments.length !== 1 || !later) return null;
+        const requestAt = start + boundary.index + boundary[0].length + later[0].indexOf(later[1]!);
+        if (negativeArgument(question, requestAt)) return null;
+        positiveRequest = true;
+      }
+    }
     const rawRhs = (boundary ? between.slice(0, boundary.index) : between.trim().replace(/[.!?]$/, "")).trim();
     const request = [...question.slice(clauseStart, assignment.index).matchAll(/\b(?:draw|plot|graph|show|sketch|represent)\b/gi)].at(-1);
     if (request) {

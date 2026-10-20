@@ -41,5 +41,14 @@
   {"id": "complete-term-protected-repeated-solution", "kind": "function", "question": "A first-order ODE has solution y = exp(-x). Plot y = exp(-x).", "draw": true, "expression": "exp(-x)"},
   {"id": "complete-term-protected-repeated-scaled-solution", "kind": "function", "question": "A first-order differential equation has solution y = 2*exp(-3*x). Plot y = 2*exp(-3*x).", "draw": true, "expression": "2*exp(-3*x)"},
   {"id": "complete-term-firstorder-whole-positive", "kind": "function", "question": "For a first-order differential equation, plot y = exp(-x).", "draw": true, "expression": "exp(-x)"},
-  {"id": "complete-term-stated-source-not-droppable", "kind": "function", "question": "A first-order ODE has solution y = exp(-x)+atan(x). Plot y = exp(-x).", "draw": false}
+  {"id": "complete-term-stated-source-not-droppable", "kind": "function", "question": "A first-order ODE has solution y = exp(-x)+atan(x). Plot y = exp(-x).", "draw": false},
+  {"id": "later-solution-real", "kind": "function", "question": "A first-order ODE has solution y = exp(-x). Plot the solution.", "draw": true, "expression": "exp(-x)"},
+  {"id": "later-solution-scaled-transfer", "kind": "function", "question": "A first-order differential equation has solution y = 2*exp(-3*x). Sketch the solution.", "draw": true, "expression": "2*exp(-3*x)"},
+  {"id": "later-solution-it-transfer", "kind": "function", "question": "A first-order ODE has solution y = 0.5*exp(-2*x). Draw it.", "draw": true, "expression": "0.5*exp(-2*x)"},
+  {"id": "later-solution-keeps-whole-atan", "kind": "function", "question": "A first-order ODE has solution y = exp(-x)+atan(x). Plot the solution.", "draw": false},
+  {"id": "later-solution-negation", "kind": "function", "question": "A first-order ODE has solution y = exp(-x). Do not plot the solution.", "draw": false},
+  {"id": "later-solution-extra-object", "kind": "function", "question": "A first-order ODE has solution y = exp(-x). Plot the solution and draw a phase portrait.", "draw": false},
+  {"id": "later-solution-foreign-equation", "kind": "function", "question": "A first-order ODE has solution y = exp(-x). Plot the solution of another equation.", "draw": false},
+  {"id": "later-solution-unread-source", "kind": "function", "question": "A first-order ODE has solution y = exp(-x)+mystery. Plot the solution.", "draw": false},
+  {"id": "later-solution-multiple-sources", "kind": "function", "question": "A first-order ODE has solution y = exp(-x). Another first-order ODE has solution y = exp(-2*x). Plot the solution.", "draw": false}
 ]
