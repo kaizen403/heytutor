@@ -178,3 +178,70 @@ for (const points of [collinear, collinear.flatMap(p => [p, p])]) {
 }
 assert.deepEqual(fieldFailures, [], "subdividing straight sides cannot certify a sharp polygon as a smooth field line");
 console.log(`pr246 blocker 3: ${fieldCases} real compiler field-line cases; sparse/dense/subdivided hexagons refused, smooth/duplicate/collinear samples retained`);
+
+// Axes render as exactly [x0,x1] and [y0,y1], not a polyline or bounds box.
+type XY = [number, number];
+const axisCases: Array<{ name: string; start: XY; end: XY; expected: boolean; bounds?: [number, number, number, number]; point?: boolean }> = [
+  { name: "horizontal y-axis interior", start: [0, 2], end: [3, 2], expected: true },
+  { name: "vertical x-axis interior", start: [2, 0], end: [2, 3], expected: true },
+  { name: "horizontal negative y-axis", start: [0, -2], end: [-3, -2], expected: true },
+  { name: "vertical negative x-axis", start: [-2, 0], end: [-2, -3], expected: true },
+  { name: "y-axis finite endpoint", start: [0, 4], end: [3, 4], expected: true },
+  { name: "x-axis finite endpoint", start: [4, 0], end: [4, 3], expected: true },
+  { name: "beyond y-axis extent", start: [0, 6], end: [3, 6], expected: false },
+  { name: "beyond x-axis extent", start: [6, 0], end: [6, 3], expected: false },
+  { name: "imaginary bounding edge", start: [2, 4], end: [3, 4], expected: false },
+  { name: "imaginary inter-axis connector", start: [2, -2], end: [3, -2], expected: false },
+  { name: "parallel x-axis interior", start: [2, 0], end: [3, 0], expected: false },
+  { name: "parallel y-axis interior", start: [0, 2], end: [0, 3], expected: false },
+  { name: "collinear x-axis endpoint", start: [4, 0], end: [6, 0], expected: false },
+  { name: "collinear y-axis endpoint", start: [0, 4], end: [0, 6], expected: false },
+  { name: "degenerate y-axis", start: [0, 2], end: [3, 2], bounds: [-4, 4, 2, 2], expected: false },
+  { name: "degenerate x-axis", start: [2, 0], end: [2, 3], bounds: [2, 2, -4, 4], expected: false },
+  { name: "origin independent perpendicular y-axis", start: [0, 0], end: [3, 0], expected: true },
+  { name: "origin independent perpendicular x-axis", start: [0, 0], end: [0, 3], expected: true },
+  { name: "explicit point still anchors", start: [2, 2], end: [3, 2], point: true, expected: true },
+];
+const axisFailures: string[] = [];
+for (const test of axisCases) {
+  const [xMin, xMax, yMin, yMax] = test.bounds ?? [-4, 4, -4, 4];
+  const horizontal = test.start[1] === test.end[1];
+  const doc: SceneDocument = {
+    ...scene(), source: { question: "Show coordinate axes and a distance to a drawn line." },
+    entities: [{ id: "axes", kind: "axes", role: "coordinate axes" }, { id: "edge", kind: "line", role: "drawn edge" }, { id: "dim", kind: "dimension", role: "distance" }],
+    constructions: [
+      { id: "make_axes", operator: "axes", inputs: { xMin, xMax, yMin, yMax }, outputs: ["axes"] },
+      { id: "make_edge", operator: "line", inputs: { start: horizontal ? [test.end[0], test.end[1] - 1] : [test.end[0] - 1, test.end[1]], end: horizontal ? [test.end[0], test.end[1] + 1] : [test.end[0] + 1, test.end[1]] }, outputs: ["edge"] },
+      { id: "make_dim", operator: "dimension", inputs: { start: test.start, end: test.end }, outputs: ["dim"] },
+    ],
+    requiredEntityIds: ["axes", "edge", "dim"], revealGroups: [{ id: "all", entityIds: ["axes", "edge", "dim"], dependsOn: [], narrationCue: "Show the distance." }],
+  };
+  if (test.point) {
+    doc.entities.push({ id: "anchor", kind: "point", role: "point" });
+    doc.constructions.push({ id: "make_anchor", operator: "point", inputs: { x: test.start[0], y: test.start[1], coordinateSpace: "world" }, outputs: ["anchor"] });
+    doc.requiredEntityIds.push("anchor"); doc.revealGroups[0]!.entityIds.push("anchor");
+  }
+  const off = compileSceneDocument(doc);
+  assert.equal(off.ok, true, `${test.name} native control: ${JSON.stringify(off.report.issues)}`);
+  const axes = off.renderScene!.primitives.find(p => p.kind === "axes")!;
+  assert.equal(axes.points.length, 4);
+  assert.equal(off.renderScene!.primitives.filter(p => p.kind === "point").length, Number(!!test.point), "no hidden endpoint dots may mask the axis check");
+  const on = compileSceneDocument(doc, { yieldPolicy: "verified_parts" });
+  if (on.ok !== test.expected) axisFailures.push(`${test.name}: expected ${test.expected}, got ${on.ok}: ${JSON.stringify(on.report.issues)}`);
+  if (!test.expected) assert(on.report.issues.some(issue => issue.code === "dimension_end_unanchored" && issue.failureKind === "truth"), test.name);
+  if (test.expected && !test.point) {
+    // An axis mentioned in prose is not visible ink: removing its drawing
+    // must remove the anchor, even though the mathematical axis still exists.
+    const withoutAxes: SceneDocument = {
+      ...doc, entities: doc.entities.filter(e => e.id !== "axes"),
+      constructions: doc.constructions.filter(c => c.id !== "make_axes"),
+      requiredEntityIds: doc.requiredEntityIds.filter(id => id !== "axes"),
+      revealGroups: doc.revealGroups.map(g => ({ ...g, entityIds: g.entityIds.filter(id => id !== "axes") })),
+    };
+    const absent = compileSceneDocument(withoutAxes, { yieldPolicy: "verified_parts" });
+    assert.equal(absent.ok, false, `${test.name}: undrawn axis cannot anchor`);
+    assert(absent.report.issues.some(issue => issue.code === "dimension_end_unanchored" && issue.failureKind === "truth"), test.name);
+  }
+}
+assert.deepEqual(axisFailures, [], "actual finite perpendicular axis strokes must anchor dimensions independently");
+console.log(`pr246 blocker 4: ${axisCases.length} actual compiler axes/dimension cases and native controls passed`);

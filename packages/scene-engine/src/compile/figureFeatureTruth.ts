@@ -44,6 +44,16 @@ export function validateDimensionAnchors(primitives: RenderPrimitive[]): SceneIs
       if (p.entityId === dimension.entityId) return false;
       if (p.kind === "point") return p.points[0] !== undefined && gap(end, p.points[0]) <= 4;
       if (p.kind === "circle" || p.kind === "arc") return circularStrokeDistance(end, p) <= 3;
+      if (p.kind === "axes") {
+        // The renderer draws two independent finite strokes, never the
+        // bounding box or the connector between the x and y strokes.
+        if (p.points.length !== 4) return false;
+        return [[p.points[0]!, p.points[1]!], [p.points[2]!, p.points[3]!]].some(([s, t]) => {
+          if (!s || !t || gap(s, t) <= 0 || segmentDistance(end, s, t) > 3) return false;
+          const angle = Math.abs(Math.atan2(t.y - s.y, t.x - s.x) - along) % Math.PI;
+          return Math.min(angle, Math.PI - angle) > (20 * Math.PI) / 180;
+        });
+      }
       if (!STROKES.has(p.kind)) return false;
       if (p.points.some((q) => gap(end, q) <= 4)) return true; // a vertex or end
       return segments(p).some(([s, t]) => {
