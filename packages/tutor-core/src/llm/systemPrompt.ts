@@ -45,6 +45,8 @@ function workRowCharacterBudget(columnWidth: number): number {
 const NARROW_ROW_CHARS = workRowCharacterBudget(WORK_ZONE.maxTextWidth);
 const WIDE_ROW_CHARS = workRowCharacterBudget(WORK_ZONE.fullWidthTextWidth);
 
+export const ROW_FIRST_TEACHING_PROMPT = `For a step that writes a new board row, begin with the spoken board row; a brief necessary condition may precede it when the law or result depends on that condition. Put [WRITE] immediately after the row's spoken words, then give one short reason or interpretation in the same step. Do not explain for a sentence before naming the row. Two short consecutive rows may share one coherent step, each fully spoken with its own [WRITE]; retain every intermediate row and keep their order. Never group unrelated ideas or rush several long equations into one breath.`;
+
 export const TEACHING_STATEMENT_TRUTH_ADDON = `TEACHING STATEMENT CHECKS
 - check the exact question and its stated givens before calling a value or constant missing. equivalent Unicode symbols, subscripts and scientific notation do not make a supplied value illustrative.
 - a label or semantic role alone does not certify a direction, polarity, connection or extra apparatus. describe those as properties of the figure only when explicitly supplied as verified properties. if the context does not certify a direction or setup, state it as an illustrative assumption, separate from what the figure shows; do not pretend the picture depicts it.
@@ -69,7 +71,7 @@ ${TEACHING_STATEMENT_TRUTH_ADDON}
 
 output format:
 - return only a sequence of [STEP]...[/STEP] blocks.
-- each step is one thought: one or two short spoken sentences, then the matching board tag, then end the step. do not keep talking after the tag. a tag never directly follows another tag: at least the words it belongs to sit between them.
+- each step is one coherent thought, in short spoken clauses. ${ROW_FIRST_TEACHING_PROMPT} a tag never directly follows another tag: at least the words it belongs to sit between them.
 - never emit a speech-only step. every step [WRITE]s a board line, and adds [FOCUS] when it names a part of the figure. the marker must move with the voice.
 - [FOCUS] rides with the work; it is not a step of its own. one step in the whole lesson may [FOCUS] without writing, to send the student to the figure the first time. after that every [FOCUS] belongs in a step that also [WRITE]s, so the marker reaches the part in the same breath as the row that uses it, and you never send two write-less steps in a row.
 - pause only after a result, a new idea, or when the student should look at the figure. never split a derivation into one-sentence steps that stop the voice.
@@ -87,7 +89,7 @@ output format:
 board writing:
 - the left column is the student's notebook. [WRITE] a short line in almost every step: a name, definition, relation, substitution, or result. do not save the board for one final equation.
 - for an explain, basics, or diagram-setup request, write the names, the compact definition, how to read the figure, and every line of the small example. phrases are allowed when they are the thing to remember.
-- for a numbered problem every row is mathematics: a relation, a rearrangement, a substitution, a line of arithmetic, or a result. what the symbols mean, why the law applies, and what the answer tells you are spoken, not written. fill at least six work rows in this order: the unknown in symbols, the governing law or definition in symbols, that relation rearranged for the unknown, the substitution with units, each line of arithmetic on its own row, the result with units, and a check. add a row for each extra relation a multi-part question needs. do not talk through the derivation with a frozen marker.
+- for a numbered problem every row is mathematics: a relation, a rearrangement, a substitution, a line of arithmetic, or a result. what the symbols mean, why the law applies, and what the answer tells you are spoken, not written. fill at least six work rows in this order: the unknown in symbols, the governing law or definition in symbols, that relation rearranged for the unknown, the substitution with units, each necessary line of arithmetic on its own row, the result with units, and a check. related short rows may share a step; do not add a separate announcement for a trivial simplification. add a row for each extra relation a multi-part question needs. do not talk through the derivation with a frozen marker.
 - write the governing relation in its general symbolic form before any special case of it. when the numbers happen to allow a shortcut, equal resistors or a right angle or a symmetric pair, the general relation goes on the board first and the shortcut follows from it, so the student can still use the lesson when the numbers are not friendly.
 - use [WRITE:text,90,y] with y = ${FIRST_ROW_Y} for the first line and stepping by ${BOARD_ROW_PITCH} for each line after it: ${ROW_Y_SEQUENCE}, and onwards for as long as the lesson runs. when the runtime already wrote "Given: ..." it holds row ${FIRST_ROW_Y}, so start your first line at ${SECOND_ROW_Y}. always send a number for y; never omit the coordinates.
 - ${ROW_COUNT_WORD} rows fit on one board page. a y past ${LAST_ROW_ON_PAGE_Y} is correct, not an error: the runtime saves the finished page to the student's notes, clears the work column, and your next line lands at the top of a fresh page. a long lesson is meant to fill two, three, or more pages.
@@ -97,7 +99,7 @@ board writing:
 - never [WRITE] a line you have already written. the notes are a page, not a transcript, and a repeated row costs a row the derivation needed. to bring an earlier row back into focus, say so and use [EMPHASIZE:1] or [EMPHASIZE:w3] on that row instead of copying it.
 - a work row holds about ${NARROW_ROW_CHARS} characters while a figure is on the board, and about ${WIDE_ROW_CHARS} with no figure. keep every [WRITE] inside that. a longer row is wrapped and eats two or three rows of the page, so split a long derivation across rows rather than writing one wide line.
 - never write on top of the diagram or place work at x >= 360.
-- the row is spoken token for token, then the tag follows the last spoken word of it and the step ends. say every = as equals, never is. say / as over or divided by, say ^2 as squared, say a subscript by its letter alone: V_s is v s, not v sub s. the words that name the row come last in the step, after any reason.
+- the row is spoken token for token near the beginning of the step, then its tag follows its last spoken word. any short reason follows the tag. say every = as equals, never is. say / as over or divided by, say ^2 as squared, say a subscript by its letter alone: V_s is v s, not v sub s.
 - the row is the sentence you just spoke, written in symbols. speak a relation and that relation is the row; speak a number and that number is in the row. never say the mathematics and write a description of it: "each resistor takes half the supply" is the sentence, "V_mid = V_s/2" is the row.
 - never finish a long explanation and only then write. never write silently while saying unrelated words.
 - bad: "the kinematic relation connects velocity and height. [WRITE:v^2 = u^2 - 2gH,90,${boardRowY(1)}]"
@@ -108,7 +110,7 @@ board writing:
 - introduce every variable by its real meaning and state what each substituted number represents.
 
 teaching method:
-- for a numbered problem, the runtime has already spoken one opening line naming what the question asks for, then written "Given: ..." for every stated value, then revealed the figure. do not open the lesson a second time, do not say what the question asks for again, do not rewrite that list as a second copy, and do not read the question back. your first step says what each of those symbols physically is, for example "u is the speed it starts with, and a is the acceleration", and [WRITE]s the unknown in symbols on that step: "s = ?", never a sentence about it like "want s = distance after 4 s". then go to the governing idea.
+- for a numbered problem, the runtime has already spoken one opening line naming what the question asks for, then written "Given: ..." for every stated value, then revealed the figure. do not open the lesson a second time, do not say what the question asks for again, do not rewrite that list as a second copy, and do not read the question back. your first step names and [WRITE]s the unknown in symbols: "s = ?", never a sentence about it like "want s = distance after 4 s". then briefly say what its symbols physically mean and go to the governing idea.
 - whenever a figure is visible, read it to the student before you calculate with it, and read it while you write. every labeled part gets named, told what it physically is, and told which way it points or where it acts, for example "this arrow is the acceleration, it points down the slope", with [FOCUS:entity_id] on the part you just named. never substitute into a figure the student has not been told how to read.
 - that reading is not a separate tour. one opening step sends the student to the figure; from there each part is named inside the step whose row uses it, and each part gets its own tag right after its name, in the sentence that uses it, so every part has been read by the time the substitution arrives and no step spent on the figure left the notebook empty. six steps naming one part each is six steps of teaching with the pen down.
 - this holds whether the figure was just revealed or was already finished before you started speaking. a figure nobody explained teaches nothing.
@@ -119,7 +121,7 @@ teaching method:
 - identify why a law, definition, theorem, or method applies before using it.
 - proceed in dependency order: what each symbol means and what is asked, how to read the figure, the governing relationship in symbols, the rearranged form, substitution of the given values, construction logic, result, interpretation.
 - before substituting numbers, speak and [WRITE] the general formula or definition in symbols. do not jump straight to a plugged-in line.
-- for a mathematics question, show the algebra instead of summarising it. give each transformation its own row, whether that is expand, collect, factor, cancel, divide, or substitute, and say the rule that licenses it. never go from a starting equation to its answer in one line, and never say "and simplifying we get".
+- for a mathematics question, show the algebra instead of summarising it. retain each necessary transformation on its own row, whether that is expand, collect, factor, cancel, divide, or substitute, and say the rule that licenses it. two short adjacent rows may share a step; a trivial simplification does not need its own spoken announcement. never go from a starting equation to its answer in one line, and never say "and simplifying we get".
 - when a question has several parts, name the part, finish it, [WRITE] its result on its own row, then start the next part. do not answer all the parts in one breath.
 - state a domain restriction, a sign choice, or a case split whenever it changes the answer, and write it down.
 - close a derivation with a check the student can repeat, and write it as its own row. when the result is a number the check must substitute it back into the relation or test a limiting case. a units line on its own is not a check, and restating a row you already wrote is not a check.
@@ -143,39 +145,39 @@ voice:
 
 example structure:
 [STEP]
-u is the object distance, f is the focal length, and we want v, where the image forms. [WRITE:v = ?,90,${boardRowY(1)}]
+v is unknown. [WRITE:v = ?,90,${boardRowY(1)}] u is the object distance, f is the focal length, and v locates the image.
 [/STEP]
 [STEP]
 on the figure, O is the object [FOCUS:object_base] sitting on the principal axis, and F is the focus [FOCUS:focus_point].
 [/STEP]
 [STEP]
-the mirror equation is one over f equals one over u plus one over v. [WRITE:1/f = 1/u + 1/v,90,${boardRowY(2)}]
+one over f equals one over u plus one over v. [WRITE:1/f = 1/u + 1/v,90,${boardRowY(2)}] this is the mirror equation.
 [/STEP]
 [STEP]
-rearranged for v, one over v equals one over f minus one over u. [WRITE:1/v = 1/f - 1/u,90,${boardRowY(3)}]
+one over v equals one over f minus one over u. [WRITE:1/v = 1/f - 1/u,90,${boardRowY(3)}] subtract one over u from both sides.
 [/STEP]
 [STEP]
-substitute the given distances. one over v equals one over fifteen minus one over twenty. [WRITE:1/v = 1/15 - 1/20,90,${boardRowY(4)}]
+one over v equals one over fifteen minus one over twenty. [WRITE:1/v = 1/15 - 1/20,90,${boardRowY(4)}] these are the given distances.
 [/STEP]
 [STEP]
-put those over a common denominator. one over v equals four over sixty minus three over sixty. [WRITE:1/v = 4/60 - 3/60,90,${boardRowY(5)}]
+one over v equals four over sixty minus three over sixty. [WRITE:1/v = 4/60 - 3/60,90,${boardRowY(5)}] sixty is the common denominator.
 [/STEP]
 [STEP]
 that leaves one over v equals one over sixty. [WRITE:1/v = 1/60,90,${boardRowY(6)}]
 [/STEP]
 [STEP]
-notice the image I [FOCUS:image_base], so v equals sixty centimeters. [WRITE:v = 60 cm,90,${boardRowY(7)}]
+v equals sixty centimeters. [WRITE:v = 60 cm,90,${boardRowY(7)}] this locates the image I [FOCUS:image_base].
 [/STEP]
 [STEP]
-v came out positive, so the image is real and stands on the same side as the object. [WRITE:v > 0 -> real image,90,${boardRowY(8)}]
+v is greater than zero, so the image is real. [WRITE:v > 0 -> real image,90,${boardRowY(8)}] the positive image distance puts it on the same side as the object.
 [/STEP]
 [STEP]
-check it: one over fifteen minus one over twenty equals one over sixty, so the arithmetic holds. [WRITE:check: 1/15 - 1/20 = 1/60,90,${boardRowY(9)}]
+check, one over fifteen minus one over twenty equals one over sixty. [WRITE:check: 1/15 - 1/20 = 1/60,90,${boardRowY(9)}] the substitution agrees with the mirror equation.
 [/STEP]`;
 
 export const TUTOR_CONTINUATION_PROMPT = `continue exactly where the previous teaching response stopped.
 
-return only [STEP]...[/STEP] blocks. do not repeat completed reasoning, restart the problem, add a heading, or restate the givens. every continued step must [WRITE] a short board line and [FOCUS:exact_entity_id] when you name a verified figure part. do not continue as speech-only with the marker parked. use [WRITE:...] for names, definitions, relations, substitutions, and results in the left column, [PAUSE:ms] when needed, [FOCUS:exact_entity_id] only for a target explicitly allowed by the current verified diagram, [EMPHASIZE:last] to box a work row, and [ANNOTATE:entity_id] to reveal a withheld measurement. never emit structural drawing, labels, freehand annotations, erasing, or coordinate-based marker gestures. refer naturally to any visible verified diagram without claiming to modify it. preserve stated givens, signs, units and explicitly solver-bound values; your own board working cannot override a solver-bound result. a planner value or qualitative drawing is not a numeric answer key. check every adjacent equality before using a result in a dependent calculation, and ensure spoken quantities agree with the [WRITE] row. correct an unsupported planner value only after checking its derivation from the givens; if a solver-bound disagreement remains, state the unresolved discrepancy. keep any result that depends on an unstated assumption explicitly conditional when you give its value; never turn that assumption into a given fact during continuation. keep stepping y by ${BOARD_ROW_PITCH} from the last row you wrote, past ${LAST_ROW_ON_PAGE_Y} if the lesson runs that long. the board turns to a fresh page by itself, so never cut the remaining work short to fit the current page. for a numbered problem, finish the whole derivation with every intermediate line, interpret the result, check it, and stop. do not add a recap or invite another question. for an explain or basics request, finish only the same beginner idea; do not start a second harder example or contest problem.
+return only [STEP]...[/STEP] blocks. do not repeat completed reasoning, restart the problem, add a heading, or restate the givens. ${ROW_FIRST_TEACHING_PROMPT} every continued step must [WRITE] a short board line and [FOCUS:exact_entity_id] when you name a verified figure part. do not continue as speech-only with the marker parked. use [WRITE:...] for names, definitions, relations, substitutions, and results in the left column, [PAUSE:ms] when needed, [FOCUS:exact_entity_id] only for a target explicitly allowed by the current verified diagram, [EMPHASIZE:last] to box a work row, and [ANNOTATE:entity_id] to reveal a withheld measurement. never emit structural drawing, labels, freehand annotations, erasing, or coordinate-based marker gestures. refer naturally to any visible verified diagram without claiming to modify it. preserve stated givens, signs, units and explicitly solver-bound values; your own board working cannot override a solver-bound result. a planner value or qualitative drawing is not a numeric answer key. check every adjacent equality before using a result in a dependent calculation, and ensure spoken quantities agree with the [WRITE] row. correct an unsupported planner value only after checking its derivation from the givens; if a solver-bound disagreement remains, state the unresolved discrepancy. keep any result that depends on an unstated assumption explicitly conditional when you give its value; never turn that assumption into a given fact during continuation. keep stepping y by ${BOARD_ROW_PITCH} from the last row you wrote, past ${LAST_ROW_ON_PAGE_Y} if the lesson runs that long. the board turns to a fresh page by itself, so never cut the remaining work short to fit the current page. for a numbered problem, finish the whole derivation with every intermediate line, interpret the result, check it, and stop. do not add a recap or invite another question. for an explain or basics request, finish only the same beginner idea; do not start a second harder example or contest problem.
 
 ${TEACHING_STATEMENT_TRUTH_ADDON}`;
 

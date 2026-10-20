@@ -94,7 +94,9 @@ export interface DsaTeachingPolicy {
 /** An explicit request to understand a technique without asking for a program. */
 export function isExplanationOnlyDsaQuestion(question: string): boolean {
   const asksToExplain = /\b(?:explain\w*|teach me|intuition|how (?:does|do)|walk (?:me )?through|show (?:me )?how)\b/i.test(question);
-  if (asksToExplain && /\b(?:(?:without|no)\s+(?:(?:writing|showing|including|typing|using)\s+)?|(?:do not|don['’]t)\s+(?:write|show|include|type|use)\s+)(?:any\s+)?(?:code|implementation|programs?)\b/i.test(question)) return true;
+  // A no-code request ends at its object or continues with a polite qualifier.
+  // "no code duplication" is a quality constraint, not a request to hide code.
+  if (asksToExplain && /\b(?:(?:without|no)\s+(?:(?:writing|showing|including|typing|using)\s+)?|(?:do not|don['’]t)\s+(?:write|show|include|type|use)\s+)(?:(?:any|a|an)\s+)?(?:code|implementations?|programs?)(?=\s*(?:[.!?,;:]|$)|\s+(?:examples?|snippets?|please|at all|using|and|in)\b)/i.test(question)) return true;
   // "programming" stays out: "explain dynamic programming" is not a code request.
   const asksForImplementation = /\b(?:cod(?:e|es|ed|ing)|implement\w*|writ(?:e|es|ing|ten)|programs?|functions?|solv(?:e|es|ed|ing)|solutions?)\b/i.test(question);
   // A concept requested in the context of programming needs a concrete code
