@@ -331,6 +331,12 @@ function normalizedLogRoute(value: string): string | undefined {
   return undefined;
 }
 function approvedLog(message: string, attributes: Record<string, unknown>) {
+  if (message === "[billing] retry reservation failed" || message.startsWith("[billing] retry reservation failed ")) {
+    const fields = { ...attributes, ...logObject(attributes["sentry.message.parameter.0"]) };
+    return { message: "[billing] retry reservation failed", attributes: {
+      error_code: typeof fields.error_code === "string" && WORKER_ERROR_CODES.has(fields.error_code) ? fields.error_code : "unknown",
+    } };
+  }
   const worker = OPERATIONAL_LOGS.find(known => message === known || message.startsWith(`${known} `));
   if (worker) {
     const kind = WORKER_MESSAGES[worker];

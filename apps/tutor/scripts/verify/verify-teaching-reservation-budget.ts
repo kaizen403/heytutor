@@ -71,7 +71,7 @@ const tx = {
       return receipt?.userId === where.userId ? structuredClone(receipt) : null;
     },
     update: async ({ where, data }: { where: { id: string }; data: { settledMillicents?: number; amountMillicents?: number | { increment: number }; allocations?: Allocation[] } }) => {
-      if (failReceiptUpdate) throw new Error("synthetic transaction failure");
+      if (failReceiptUpdate) throw Object.assign(new Error("Synthetic private retry detail fixture@example.test"), { code: "P1001", turnId: "synthetic-private-turn" });
       const receipt = receipts.get(where.id);
       assert(receipt);
       if (data.amountMillicents !== undefined) receipt.amountMillicents = typeof data.amountMillicents === "number" ? data.amountMillicents : receipt.amountMillicents + data.amountMillicents.increment;
@@ -199,7 +199,15 @@ assert.equal(spent, 10, "the existing request-wide 100000 millicent ceiling is u
 reset();
 const rolledBack = await reserve(0.3); assert(!(rolledBack instanceof Response));
 failReceiptUpdate = true;
-const unavailable = await rolledBack.ensureReserved(0.7);
+const retryLogs: unknown[][] = [];
+const originalError = console.error;
+let unavailable: Response | null;
+try {
+  console.error = (...args: unknown[]) => { retryLogs.push(args); };
+  unavailable = await rolledBack.ensureReserved(0.7);
+} finally { console.error = originalError; }
+assert.deepEqual(retryLogs, [["[billing] retry reservation failed", { error_code: "database_unavailable" }]],
+  "retry funding reports only the bounded SDK category, never raw error details");
 assert(unavailable instanceof Response && unavailable.status === 503);
 assert.equal(spent, 300, "a failed receipt extension rolls back its spend increment");
 assert.equal([...receipts.values()][0]!.amountMillicents, 300);

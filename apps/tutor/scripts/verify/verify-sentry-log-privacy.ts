@@ -29,6 +29,12 @@ check(clean !== null && !JSON.stringify(clean).includes(privateText), "approved 
 const http = privacy.sentryBeforeSendLog({ message: `[http] GET /api/boards/synthetic-board-id/turns/synthetic-turn-id?token=secret 403 12ms token=raw` });
 check(http?.message === "[http] GET /api/boards/:boardId/turns/:turnId 403 12ms", "HTTP routes replace identities and drop query/trailing text entirely");
 check(privacy.sentryBeforeSendLog({ message: `[http] GET /api/${privateText.replaceAll(" ", "_")} 200 12ms` }) === null, "unknown request routes cannot carry arbitrary path text");
+const retryInput: realPrivacy.SentryLogEvent = { message: "[billing] retry reservation failed", attributes: {
+  "sentry.message.parameter.0": { error_code: "database_unavailable", message: privateText, turnId: privateText }, question: privateText,
+} };
+const retry = privacy.sentryBeforeSendLog(retryInput);
+check(retry?.attributes?.error_code === "database_unavailable" && !JSON.stringify(retry).includes(privateText), "retry funding retains only an approved error category");
+check(privacy.sentryBeforeSendLog({ message: "[billing] retry reservation failed", attributes: { error_code: privateText } })?.attributes?.error_code === "unknown", "unknown retry categories cannot carry prose");
 for (let i = 0; i < 2000; i++) {
   const sentinel = `${privateText}_${i}`;
   const output = privacy.sentryBeforeSendLog({ message: "[turn-save-rejected] arbitrary trailing content", attributes: {
@@ -85,6 +91,7 @@ async function main() {
     Sentry.logger.warn("[sentry] failed-turn recovery unavailable; events remain queued", { error_code: "database_schema", suppressed: 14, arbitrary: { nested: privateText } });
     Sentry.logger.warn("[turn-save-rejected]", { code: "trace_mismatch", status: 409, entryPoint: "checkpoint_put", boardId: privateText });
     Sentry.logger.warn(privateText);
+    Sentry.logger.error("[billing] retry reservation failed", { error_code: "database_unavailable", error: privateText });
   });
   check(await client.flush(2000), "actual installed SDK flushes into fake in-process transport");
   const wire = JSON.stringify(sent);
@@ -92,6 +99,7 @@ async function main() {
   check(wire.includes("failed-turn recovery unavailable") && wire.includes("trace_mismatch"), "known worker and save rejection diagnostics survive actual serialization");
   check(wire.includes('"timestamp"') && wire.includes('"level"') && wire.includes('"trace_id":"' + "d".repeat(32)), "SDK timestamp/level/generated trace protocol fields survive");
   check(wire.includes("database_schema") && wire.includes('"suppressed"'), "bounded worker diagnostics survive actual final serialization");
+  check(wire.includes("retry reservation failed") && wire.includes("database_unavailable"), "bounded retry cause survives the real final SDK envelope");
   await client.close();
   console.log(`Sentry log privacy: ${checks} checks passed, 2000 nested synthetic cases and real SDK fake transport; no network`);
 }

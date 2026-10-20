@@ -6,6 +6,7 @@ import { acquirePaidCall, getTurnGrant, syncGrantUsdRemaining, type PaidCallKind
 import { reservePeriodUsage, settlePeriodUsage, loadPeriodBalance, type UsageReservationDenial } from "./ledger";
 import { prisma } from "../db/prisma";
 import { BILLING_PLANS, isKnownPlanId } from "./catalog";
+import { workerErrorCode } from "../obs/workerFailureLog";
 
 export interface PaidUsageReservation {
   /** Fund the cumulative maximum before another upstream attempt dispatches. */
@@ -32,6 +33,10 @@ export async function reservePaidUsage(input: {
   const bypass = input.actor.skipGates;
   const reservationTraceId = input.traceId ?? grant?.lessonTraceId ?? randomUUID();
   const unavailable = () => Response.json({ error: "Usage service is temporarily unavailable." }, { status: 503 });
+  const retryUnavailable = (error: unknown) => {
+    console.error("[billing] retry reservation failed", { error_code: workerErrorCode(error) });
+    return unavailable();
+  };
   const budgetDenial = async () => {
     if (bypass) return billingResponse("retry_budget", null);
     // Ancillary calls may have no grant, and the account may have changed plan
@@ -89,7 +94,7 @@ export async function reservePaidUsage(input: {
     const total = Math.max(1, Math.ceil(totalUsd * 1000));
     if (!Number.isSafeInteger(total)) return unavailable();
     if (total > 100_000) {
-      try { return await budgetDenial(); } catch { return unavailable(); }
+      try { return await budgetDenial(); } catch (error) { return retryUnavailable(error); }
     }
     if (total <= reservedMillicents) return null;
     if (bypass) { reservedMillicents = total; return null; }
@@ -108,9 +113,9 @@ export async function reservePaidUsage(input: {
       reservedMillicents = extended.amountMillicents;
       syncGrantUsdRemaining(input.actor.userId, extended.remainingMillicents);
       return null;
-    } catch {
+    } catch (error) {
       // The existing funded attempt remains charged; no unreserved retry runs.
-      return unavailable();
+      return retryUnavailable(error);
     }
   });
   const settle = (usd?: number) => serialize(async () => {
