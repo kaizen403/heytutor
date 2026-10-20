@@ -24,5 +24,18 @@ cross-package core checks in
 `apps/tutor/scripts/verify/gates.d/plan-retry-topology.txt` (tutor-core has no
 registered gate-list runner on this base). Original gate sequences are preserved.
 
-This split changes no diagram geometry or routing code. No new image judgments or live model acceptance gains are claimed. No paid
+The topology helper also feeds the `sceneDemand` rejection boundary. Planner
+guidance uses only an explicit graph, while demand retains main's inventory
+veto and ORs it with explicit multi-loop evidence. An inventory never authorizes
+invented loop/source guidance, and missing or conflicting graph evidence never
+removes the existing `resistor_chain` veto. Main's conservative false declines
+for inventories such as series circuits with meters remain declines.
+
+The review regression is covered by the owned `verify-circuit-demand-veto.ts`
+gate: an independently drawable all-series candidate cannot replace a possible
+multi-loop network. A private recorded production-selector reproduction is kept
+outside the public repo; its known wrong chain changes from planner admission
+to `picture_demand_unmet`. No student text or IDs are included here.
+
+No diagram geometry or routing code changes. No new image judgments or live model acceptance gains are claimed. No paid
 requests, production access, coverage acceptance changes or student data.
