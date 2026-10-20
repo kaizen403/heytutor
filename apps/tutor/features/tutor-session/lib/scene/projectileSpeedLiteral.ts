@@ -25,16 +25,17 @@
  *      including unlisted symbols, so those names cannot hide a disagreement.
  *   2. Else every plan given or derived with a speed unit: the number must
  *      agree with one of them (two bodies each keep their own launch speed).
- *   3. Else a bare number is refused when the question states a speed in a
- *      unit other than m/s (NON_SI_STEM_SPEED); otherwise it keeps the
- *      operator contract's meaning, m/s.
- * - Launch height: when some plan length is not in metres, the number must
- *   agree with one plan length. Zero is the same in every unit and is not held.
+ *   3. Else hold stated wrappers to the question's speed measurements; conflicting
+ *      measurements refuse. Bare non-SI numbers still require plan authority.
+ * - Launch height: preserve the plan's non-metre unit constraint, and require
+ *   an identified plan height or agreement with every stated source length.
+ *   Conflicting source lengths cannot pick a launch role for an omitted height.
+ *   Zero is the same in every unit and is not held.
  *
  * Every refusal is the scene engine's fatal code for the same failure,
  * invalid_projectile_trajectory_units.
  */
-import { validateSceneQuantityAgreement, type TurnPlanV3 } from "@heytutor/scene-engine";
+import { sceneUnitSignature, validateSceneQuantityAgreement, type TurnPlanV3 } from "@heytutor/scene-engine";
 
 export const PROJECTILE_UNITS_CODE = "invalid_projectile_trajectory_units";
 
@@ -42,6 +43,7 @@ export const PROJECTILE_UNITS_CODE = "invalid_projectile_trajectory_units";
 export const PROJECTILE_SPEED_ROLE = /^(?:u|u0|ui|v0|vo|vi|speed|launchspeed|initialspeed|projectionspeed|launchvelocity|initialvelocity|projectionvelocity|vlaunch)$/;
 /** Plans also write "vi" loosely for a final velocity, and a derived "speed" is a speed found later, like a derived v. */
 const GIVEN_ONLY_ROLE = /^(?:vi|speed)$/;
+const PROJECTILE_HEIGHT_ROLE = /^(?:h0|y(?:0|initial|launch)|(?:initial|launch|table|tower)height|(?:initial|launch)elevation|heightaboveground)$/;
 // Preserve Unicode letters: NFKC maps the y subscript to γ, which must not disappear from a component such as v₀ᵧ.
 const speedRoleKey = (name: string) => name.normalize("NFKC").toLowerCase().replace(/\\(?:mathrm|text)/g, "").replace(/[^\p{L}\p{N}]/gu, "");
 
@@ -60,15 +62,29 @@ const undot = (unit: string) => unit.replace(/(?<!\d)\.|\.(?!\d)/g, "").trim().r
 export function isSpeedUnit(unit: unknown): unit is string {
   if (typeof unit !== "string" || !unit.trim()) return false;
   const spelled = undot(unit);
-  return PER_TIME_UNIT.test(spelled) && !ACCELERATION_UNIT.test(spelled) && !ANGULAR_UNIT.test(spelled);
+  if (ACCELERATION_UNIT.test(spelled) || ANGULAR_UNIT.test(spelled)) return false;
+  // Keep every SI length prefix in step with the same reader that checks agreement.
+  if (sceneUnitSignature(spelled) === "m^1·s^-1") return true;
+  if (/^(?:mph|kph|kmph|kmh|kmhr|kmphr|fps|kn|kts?|knots?)$/i.test(spelled)) return true;
+  const rate = PER_TIME_UNIT.exec(spelled);
+  return rate !== null && SPEED_LENGTH_UNIT.test(spelled.slice(0, rate.index).replace(/[\s·⋅*]+$/u, ""));
 }
 
+/** Whole numeric tokens, including unreadable ones, so a refusal cannot disappear. */
+const STEM_ATOM = "(?:\\d|\\.\\d)[\\d.,eE+−–-]*";
+// Keep fractions (and malformed/mixed fractions) intact; never restart at a denominator.
+const STEM_NUMBER = `(?<![\\d.,])${STEM_ATOM}(?:\\s+${STEM_ATOM}(?=\\s*[/⁄∕]))?(?:(?:\\s*[/⁄∕]\\s*)+(?:[+−–-]\\s*)*${STEM_ATOM})*`;
+const STEM_MEASUREMENT = new RegExp(`^(${STEM_NUMBER})\\s*([^\\d,.\\s].*)$`, "u");
+const STEM_VALUE = /^(?:\d+(?:,\d{3})*(?:\.\d*)?|\.\d+)(?:[eE][+−–-]?\d+)?$/u;
 /** Shared length vocabulary for plan quantities and speeds stated per minute. */
 const LENGTH_UNIT_SOURCE = "(?:[kcmµμnd]?m|(?:kilo|centi|milli)?met(?:re|er)s?|ft|feet|foot|in|inch(?:es)?|yds?|yards?|mi|miles?|सेमी|सेंटीमीटर|मिमी|मीटर|मी|किमी)";
 const LENGTH_UNIT = new RegExp(`^${LENGTH_UNIT_SOURCE}$`, "iu");
+const SPEED_LENGTH_UNIT = new RegExp(`^(?:${LENGTH_UNIT_SOURCE}|nautical\\s+miles?)$`, "iu");
+/** A stated length, excluding area/volume, rates and accelerations. It supplies no missing geometry. */
+const STEM_LENGTH = new RegExp(`${STEM_NUMBER}\\s*${LENGTH_UNIT_SOURCE}(?![\\p{L}\\p{N}]|\\s*(?:[²³^/·⋅*]|per\\b|an\\b|prati\\b|${TIME}\\b))`, "giu");
 
 // Per second, never per second squared (g = 980 cm/s^2 is not a speed).
-const PER_SECOND = "(?:\\s*\\/\\s*s(?:ec(?:ond)?)?(?![A-Za-z0-9^²³]|\\s*\\/)|[\\s·⋅*]*s(?:\\^?[-−–]1|⁻¹)(?!\\d)|\\s+per\\s+second\\b(?!\\s+(?:squared|per)))";
+const PER_SECOND = "(?:\\s*\\/\\s*s(?:ec(?:ond)?)?(?![A-Za-z0-9]|\\s*(?:[²³^/]|squared\\b|per\\b))|[\\s·⋅*]*s(?:\\^?[-−–]1|⁻¹)(?!\\d)|\\s+per\\s+second\\b(?!\\s*(?:[²³^/]|squared\\b|per\\b)))";
 const PER_HOUR = "(?:\\.?\\s*\\/\\s*h(?:r|our)?\\b\\.?|[\\s·⋅*]*h(?:r|our)?(?:\\^?[-−–]1|⁻¹)(?!\\d)|\\.?\\s+(?:per|prati)\\s+(?:hour|hr|ghant[ae])\\b|\\s+an\\s+hour\\b|\\s*\\/\\s*ghant[ae]\\b)";
 const PER_MINUTE = "(?:\\s*\\/\\s*min(?:ute)?s?(?![A-Za-z0-9]|\\s*(?:[²³^/]|squared\\b|per\\b))|[\\s·⋅*]*min(?:ute)?s?(?:\\^?[-−–]1|⁻¹)(?!\\d)|\\s+(?:per|a)\\s+min(?:ute)?s?\\b(?!\\s*(?:[²³^]|squared\\b|per\\b)))";
 /**
@@ -78,9 +94,10 @@ const PER_MINUTE = "(?:\\s*\\/\\s*min(?:ute)?s?(?![A-Za-z0-9]|\\s*(?:[²³^/]|sq
  * ft/s, fps, cm/s, mm/s, km/s, lengths per minute and knots. m/s itself, and accelerations such as
  * cm/s^2, never match.
  */
-const NON_SI_STEM_SPEED = new RegExp(`(?<![\\d.,])\\d(?:[\\d.,]*\\d)?\\s*(?:(?:km|k\\.m|kilomet(?:re|er)s?)${PER_HOUR}|kmph\\b|kmh\\b|kmhr\\b|kmphr\\b|kph\\b|mph\\b|m\\.p\\.h\\b|(?:mi|(?:nautical\\s+)?miles?)${PER_HOUR}|(?:ft|feet|foot)${PER_SECOND}|fps\\b|(?:cm|mm|km|(?:centi|milli|kilo)met(?:re|er)s?)${PER_SECOND}|${LENGTH_UNIT_SOURCE}${PER_MINUTE}|knots?\\b|किमी\\s*(?:\\/|प्रति)\\s*(?:घंटा|घण्टा))`, "iu");
+const NON_SI_STEM_SPEED = new RegExp(`${STEM_NUMBER}\\s*(?:(?:km|k\\.m|kilomet(?:re|er)s?)${PER_HOUR}|kmph\\b|kmh\\b|kmhr\\b|kmphr\\b|kph\\b|mph\\b|m\\.p\\.h\\b|(?:mi|(?:nautical\\s+)?miles?)${PER_HOUR}|(?:ft|feet|foot)${PER_SECOND}|fps\\b|(?:cm|mm|km|(?:centi|milli|kilo)met(?:re|er)s?)${PER_SECOND}|${LENGTH_UNIT_SOURCE}${PER_MINUTE}|knots?\\b|किमी\\s*(?:\\/|प्रति)\\s*(?:घंटा|घण्टा))`, "iu");
 /** Knots written "kn"; case sensitive so a force in kN never reads as a speed. */
-const STEM_KNOTS = /(?<![\d.,])\d(?:[\d.,]*\d)?\s*kn\b/;
+const STEM_KNOTS = new RegExp(`${STEM_NUMBER}\\s*kn\\b`, "u");
+const SI_STEM_SPEED = new RegExp(`${STEM_NUMBER}\\s*(?:m|met(?:re|er)s?)${PER_SECOND}`, "giu");
 
 
 type PlanQuantity = TurnPlanV3["givens"][number];
@@ -152,6 +169,20 @@ function isLaunchSpeed(quantity: PlanQuantity, given: boolean): boolean {
 const describe = (quantity: PlanQuantity) => `${quantity.symbol ?? quantity.id} = ${Math.abs(quantity.value)} ${quantity.unit}`;
 const stated = (read: ReadNumber, working: string) => read.unit === undefined ? `the bare number ${read.value}, which projectile_trajectory reads as ${read.value} ${working}` : `${read.value} ${read.unit}`;
 
+/** A bounded written measurement, used only when the plan omitted the quantity. Unreadable spellings refuse. */
+function stemQuantity(stem: string, spelling: (unit: string) => string): PlanQuantity[] {
+  const match = STEM_MEASUREMENT.exec(stem.trim());
+  if (!match) return [];
+  // A trailing hyphen separates the matched unit; exponent signs stay inside the number.
+  const token = match[1]!.replace(/[-−–]$/u, "");
+  const parts = token.split(/\s*[/⁄∕]\s*/u);
+  if (parts.length > 2 || parts.some((part) => !STEM_VALUE.test(part))) return [];
+  const numbers = parts.map((part) => Number(part.replace(/,/g, "").replace(/[−–]/g, "-")));
+  const value = numbers[0]! / (numbers[1] ?? 1);
+  if (!Number.isFinite(value)) return [];
+  return [{ id: "projectile_source_measurement", symbol: "", value, unit: spelling(match[2]!), provenance: "given", sourceText: stem }];
+}
+
 /** Fatal issues for projectile_trajectory speeds and launch heights whose number the plan or question contradicts. */
 export function projectileSpeedLiteralIssues(
   document: { quantities?: unknown; constructions?: unknown },
@@ -177,11 +208,16 @@ export function projectileSpeedLiteralIssues(
     .filter((quantity) => isFiniteQuantity(quantity) && typeof quantity.unit === "string" && LENGTH_UNIT.test(undot(quantity.unit)))
     .map((quantity) => magnitude(quantity, lengthUnitSpelling));
   const lengthsHeld = lengths.some((quantity) => quantity.unit !== "m");
+  const questionLengthReads = [...question.matchAll(STEM_LENGTH)].map((match) => stemQuantity(match[0], lengthUnitSpelling));
+  const questionLengths = questionLengthReads.flat();
+  const hasUnreadableQuestionLength = questionLengthReads.some((read) => read.length === 0);
+  const planHeights = lengths.filter((quantity) => writtenNames(quantity).some((name) => PROJECTILE_HEIGHT_ROLE.test(speedRoleKey(name))));
   // Qualitative claims never support a literal. A probe id no plan writes, so agreement matches by value and unit.
   const agrees = (id: string, read: ReadNumber, working: string, against: PlanQuantity[]) =>
     validateSceneQuantityAgreement([{ id, value: read.value, unit: read.unit ?? working }],
       { ...plan, givens: against, derived: [], qualitativeClaims: [] }).length === 0;
-  const stemSpeed = (NON_SI_STEM_SPEED.exec(question) ?? STEM_KNOTS.exec(question))?.[0];
+  const nonSiSpeeds = [...question.matchAll(new RegExp(NON_SI_STEM_SPEED, "giu")), ...question.matchAll(new RegExp(STEM_KNOTS, "gu"))].map((match) => match[0]);
+  const stemSpeeds = [...nonSiSpeeds, ...Array.from(question.matchAll(SI_STEM_SPEED), (match) => match[0])];
   const issues: UnitsIssue[] = [];
   constructions.forEach((construction, index) => {
     if (!isPlainRecord(construction) || construction.operator !== "projectile_trajectory" || !isPlainRecord(construction.inputs)) return;
@@ -207,16 +243,27 @@ export function projectileSpeedLiteralIssues(
         if (!agrees(probe, read, "m/s", rateSpeeds)) {
           refuse("speed", `${name} speed is ${stated(speed, "m/s")}, which is none of the plan's speeds (${rateSpeeds.map(describe).join(", ")}); ${fix}`);
         }
-      } else if (speed.unit === undefined && stemSpeed) {
-        refuse("speed", `${name} speed is ${stated(speed, "m/s")}, but the question states a speed as "${stemSpeed.trim()}" and the plan names no speed to hold it to; write the speed as { value, unit }`);
+      } else if (stemSpeeds.length > 0 && ((speed.unit === undefined && nonSiSpeeds.length > 0)
+        || !stemSpeeds.every((stem) => agrees(probe, read, "m/s", stemQuantity(stem, speedUnitSpelling))))) {
+        refuse("speed", `${name} speed is ${stated(speed, "m/s")}, but the question states "${stemSpeeds.join('" and "')}" and the plan names no speed to hold it to; write the speed as { value, unit }`);
       }
     }
 
     const height = construction.inputs.initialHeight === undefined ? null : readNumber(construction.inputs.initialHeight, quantities);
-    if (height && height.value !== 0 && lengthsHeld) {
+    if (height && height.value !== 0 && (lengths.length > 0 || questionLengthReads.length > 0)) {
       const read = height.unit === undefined ? height : { ...height, unit: lengthUnitSpelling(height.unit) };
-      if (!agrees(`projectile_trajectory:${name}:initialHeight`, read, "m", lengths)) {
-        refuse("initialHeight", `${name} initialHeight is ${stated(height, "m")}, but the plan states lengths in other units (${lengths.map(describe).join(", ")}) and none of them is that height; write the height as that plan quantity or as { value, unit }`);
+      const probe = `projectile_trajectory:${name}:initialHeight`;
+      const sourceLengthsAgree = questionLengths.length > 0 && !hasUnreadableQuestionLength
+        && questionLengths.every((quantity) => agrees(probe, read, "m", [quantity]));
+      const heightAgrees = planHeights.length > 0
+        ? planHeights.every((quantity) => agrees(probe, read, "m", [quantity]))
+        : sourceLengthsAgree;
+      if ((lengthsHeld && !agrees(probe, read, "m", lengths)) || !heightAgrees) {
+        const statedLengths = [...lengths, ...questionLengths];
+        const evidence = statedLengths.length > 0
+          ? `the plan or question states lengths (${statedLengths.map(describe).join(", ")}) without an agreeing plan height or unanimous source lengths`
+          : "a source length has an unreadable numeric format and the plan names no supported height";
+        refuse("initialHeight", `${name} initialHeight is ${stated(height, "m")}, but ${evidence}; write the height as that plan quantity or as { value, unit }`);
       }
     }
   });

@@ -1,0 +1,8 @@
+pnpm verify:yield
+pnpm verify:launch-truth
+tsx scripts/verify/verify-yield-camera-cost.ts
+tsx scripts/verify/verify-yield-quantity-symbols.ts
+tsx scripts/verify/verify-yield-nested-labels.ts
+
+tsx scripts/verify/verify-leader-geometry-work.ts
+tsx scripts/verify/verify-yield-flag-on-truth.ts

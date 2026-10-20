@@ -2767,7 +2767,7 @@ export function validateTurnPlanSceneProofs(
 
 const CLOSED_ROUTE_EDGE_OPERATORS = new Set(["segment", "connect", "symbol"]);
 const CLOSED_ROUTE_TOPOLOGY_PREDICATES = new Set([
-  "connected", "path", "pathCount", "sameTerminalPair", "degree", "on",
+  "connected", "path", "pathCount", "loadBranchCount", "sameTerminalPair", "degree", "on",
 ]);
 const CLOSED_ROUTE_SYMBOLS = new Set([
   "resistor", "battery", "cell", "capacitor", "inductor", "lamp",
@@ -4888,6 +4888,7 @@ export interface ProofObligation {
 export const TOPOLOGY_ASSERTION_PREDICATES = [
   "path",
   "pathCount",
+  "loadBranchCount",
   "sameTerminalPair",
   "degree",
   "connected",

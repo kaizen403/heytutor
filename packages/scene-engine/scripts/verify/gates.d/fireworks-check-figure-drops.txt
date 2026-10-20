@@ -1,0 +1,2 @@
+# Existing w1 relative motion and river crossing authority gate, previously in no gate list (19 Oct)
+tsx scripts/verify/verify-w1-relative-authority.ts
