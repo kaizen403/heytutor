@@ -158,6 +158,8 @@ function unit(unit: ChemistryUnit, dimensions: ChemistryDimension | readonly Che
   units.push({ unit, dimensions: typeof dimensions === "string" ? [dimensions] : dimensions, factor, pattern: new RegExp(`^(?:${pattern})(?![A-Za-z0-9])`), offset });
 }
 const perMol = String.raw`(?:/\s*mol|mol\s*\^?\s*\(?[-−]1\)?)`;
+// The existing molar-mass/Faraday units also allow a balanced denominator.
+const enclosedPerMol = String.raw`(?:/\s*\(\s*mol\s*\)|${perMol})`;
 const thermalMol = String.raw`(?:/\s*\(\s*mol\s*K\s*\)|/\s*mol\s*/?\s*K|/\s*K\s*/\s*mol|mol\s*\^?\(?[-−]1\)?\s*K\s*\^?\(?[-−]1\)?|K\s*\^?\(?[-−]1\)?\s*mol\s*\^?\(?[-−]1\)?|/\s*K\s*mol)`;
 for (const [symbol, factor] of [["kJ", 1000], ["J", 1], ["kcal", 4184], ["cal", 4.184]] as const) {
   if (symbol === "J" || symbol === "kJ") {
@@ -168,8 +170,8 @@ for (const [symbol, factor] of [["kJ", 1000], ["J", 1], ["kcal", 4184], ["cal", 
   unit(symbol, "energy", factor, symbol);
 }
 unit("eV", "energy", 1.602176634e-19, "eV");
-unit("g/mol", "molar_mass", 1, String.raw`g\s*(?:/\s*mol|mol\s*\^?\(?-1\)?)|amu|u`);
-unit("kg/mol", "molar_mass", 1000, String.raw`kg\s*(?:/\s*mol|mol\s*\^?\(?-1\)?)`);
+unit("g/mol", "molar_mass", 1, String.raw`g\s*${enclosedPerMol}|amu|u`);
+unit("kg/mol", "molar_mass", 1000, String.raw`kg\s*${enclosedPerMol}`);
 unit("g/cm^3", "density", 1, String.raw`g\s*(?:/\s*(?:cm\s*\^?3|mL|cc)|cm\s*\^?\(?-3\)?)`);
 unit("kg/m^3", "density", .001, String.raw`kg\s*(?:/\s*m\s*\^?3|m\s*\^?\(?-3\)?)`);
 unit("mol/L", "concentration", 1, String.raw`M|molar|mol\s*(?:/\s*[Ll]|[Ll]\s*\^?\(?-1\)?|dm\s*\^?\(?-3\)?|/\s*dm\s*\^?3|per litre)`);
@@ -182,7 +184,7 @@ unit("L bar/(mol K)", "gas_constant", 100, String.raw`(?:[Ll]\s*bar|bar\s*[Ll])\
 unit("mol/(L atm)", "concentration_pressure", 1, String.raw`mol\s*/\s*\(\s*[Ll]\s*atm\s*\)`);
 unit("mol/(L bar)", "concentration_pressure", 1.01325, String.raw`mol\s*/\s*\(\s*[Ll]\s*bar\s*\)`);
 unit("K kg/mol", "colligative_constant", 1, String.raw`(?:K|°\s*C)\s*kg\s*/\s*mol|(?:K|°\s*C)\s*kg\s*mol\s*\^?\(?-1\)?`);
-unit("C/mol", "faraday_constant", 1, String.raw`C\s*${perMol}`);
+unit("C/mol", "faraday_constant", 1, String.raw`C\s*${enclosedPerMol}`);
 unit("mol^-1", "avogadro_constant", 1, String.raw`mol\s*\^?\(?-1\)?|/\s*mol`);
 unit("kg m/s", "momentum", 1, String.raw`kg\s*m\s*/\s*s`);
 unit("m/s", "speed", 1, String.raw`m\s*/\s*s|m\s*s\s*\^?\(?-1\)?`);
@@ -232,7 +234,25 @@ function unitAt(text: string): { def: UnitDefinition; text: string } | null {
       normalized += ascii[superscript.indexOf(ch)]!; sourceEnds.push(i+1);
     } else { normalized += /[·⋅]/.test(ch) ? " " : ch; sourceEnds.push(i+1); }
   }
-  const matches = units.flatMap(def => { const m = def.pattern.exec(normalized); return m ? [{ def, text: text.slice(0, sourceEnds[m[0].length-1]) }] : []; });
+  const matches = units.flatMap(def => {
+    const m = def.pattern.exec(normalized);
+    if (!m) return [];
+    const candidate = text.slice(0, sourceEnds[m[0].length - 1]);
+    // A unit's own exponent/denominator parentheses must balance. A closing
+    // question delimiter after an unparenthesized exponent is not unit ink.
+    const open: string[] = [];
+    let end = candidate.length;
+    for (let index = 0; index < candidate.length; index++) {
+      const char = candidate[index]!;
+      if (char === "(") open.push(char);
+      else if (char === ")") {
+        if (open.length) open.pop();
+        else if (/^\)+$/.test(candidate.slice(index))) { end = index; break; }
+        else return [];
+      }
+    }
+    return open.length ? [] : [{ def, text: candidate.slice(0, end) }];
+  });
   return matches.sort((a,b) => b.text.length - a.text.length)[0] ?? null;
 }
 // Internal compound factors and aliases come from the same finite registry.
@@ -244,6 +264,7 @@ function continuesUnit(tail: string): boolean {
   const rest = tail.trimStart();
   const factor = /^[A-Za-zÅå°]+/.exec(rest)?.[0];
   return /^(?:\s*[/^~!*·⋅⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻]|[A-Za-z0-9])/.test(tail)
+    || /^\.(?=[\p{L}\p{N}\p{M}_])/u.test(tail)
     || (rest.length < tail.length && (!!unitAt(rest) || (!!factor && unitFactors.has(factor))));
 }
 /** The plain component role cannot certify a prefix of a name, charged
@@ -491,7 +512,14 @@ function inventoryNotationSpans(question: string, end: number, dimension?: Chemi
     const start = match.index!;
     if (/[A-Za-z0-9_]/.test(body[start - 1] ?? "")) continue;
     const parsed = unitAt(body.slice(start));
-    if (parsed && !continuesUnit(body.slice(start + parsed.text.length))) spans.push({ start, end: start + parsed.text.length });
+    if (parsed && !continuesUnit(body.slice(start + parsed.text.length))) {
+      const unitEnd = start + parsed.text.length;
+      // The scalar lexer can include a sentence's full stop in an exponent
+      // token ("-1."). Only this internal notation mask owns that punctuation;
+      // the physical reading and its exact original unit span still end at 1.
+      const sentenceStop = body[unitEnd] === "." && (unitEnd + 1 === body.length || /\s/.test(body[unitEnd + 1]!));
+      spans.push({ start, end: unitEnd + (sentenceStop ? 1 : 0) });
+    }
   }
   // Integral electrons between reaction separators are chemical notation,
   // not the start of a broken scientific-notation voltage (e.g. 2e- V).

@@ -297,7 +297,7 @@ function synthesizeFromFamilies(
     // A candidate that compiles yet drops a named body, a connection, a given
     // dimension, or a proved relation is a partial scene: reject it the same
     // way, so only whole figures reach the board.
-    if (obligations && visualObligationRejection(obligations, compiled.document, question)) continue;
+    if (obligations && visualObligationRejection(obligations, compiled.document, chemistryBuilder ? input.question : question)) continue;
     // Tier honesty (P0): exact_verified needs a fatal plan-backed metric
     // assertion (a real refraction angle, a real image-distance ratio) — never
     // `exists`/`label_attached`/topology proofs alone. Display-scale families
