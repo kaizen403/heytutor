@@ -1481,6 +1481,8 @@ export function useCommandExecution({
             Math.min(drawMs, 460),
           );
           if (commandCancelled()) return;
+          // A boxed answer survives the next page turn (useBoardLayout).
+          row.boxed = true;
 
           // Then run the highlighter over the part the student writes down.
           // The span is measured from the row's own text, so it lands on the

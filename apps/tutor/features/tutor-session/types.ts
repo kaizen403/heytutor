@@ -32,6 +32,10 @@ export interface BoardTextRect {
   workId?: string;
   /** Space is reserved, but the pen has not finished this row yet. */
   pendingInk?: boolean;
+  /** The size the row was written at, so a page turn can carry it unchanged. */
+  fontSize?: number;
+  /** `[EMPHASIZE]` drew its box: an answer the next page carries to its top. */
+  boxed?: boolean;
 }
 
 export interface BoardLayoutState {
