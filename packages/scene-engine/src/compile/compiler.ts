@@ -1,4 +1,6 @@
 import { validateLabelOwnerTruth } from "./labelOwnerTruth";
+import { separateDirectedStrokes, unnamedPointsOnVectors } from "./directedStrokeLanes";
+import { freeLengthVectors, scaleFreeVectors } from "./vectorDisplayScale";
 import { validateSolidSourceTruth } from "./solidSourceTruth";
 import { validateDeclaredGeometryTruth } from "./declaredGeometryTruth";
 import { validateGeometryClaimTruth } from "./geometryClaimTruth";
@@ -231,7 +233,34 @@ const EPSILON = 1e-6;
  */
 export const labelInkBoundsCache = createTextInkBoundsCache(measureTextInkBounds);
 
+/** Compile options the engine passes to itself. */
+type InternalCompileOptions = CompileOptions & {
+  /** Draw directed ink that lies along other ink in a parallel lane (default on). */
+  directedLanes?: boolean;
+};
+
 export function compileSceneDocument(document: SceneDocument, options: CompileOptions = {}): CompileResult {
+  const lanes = { moved: 0 };
+  const result = compileSceneDocumentOnce(document, options, lanes);
+  if (result.ok || lanes.moved === 0) return result;
+  // A lane is a display refinement. When the moved strokes leave no room for
+  // the figure's labels, the figure is still drawn as before, never dropped.
+  const withoutLanes = compileSceneDocumentOnce(document, { ...options, directedLanes: false }, lanes);
+  if (!withoutLanes.ok) return result;
+  return {
+    ...withoutLanes,
+    report: {
+      ...withoutLanes.report,
+      issues: [...withoutLanes.report.issues, {
+        code: "directed_lane_withdrawn",
+        message: "Directed strokes stay on the ink they run along: their parallel lanes left no room for the labels.",
+        severity: "warning",
+      }],
+    },
+  };
+}
+
+function compileSceneDocumentOnce(document: SceneDocument, options: InternalCompileOptions, lanes: { moved: number }): CompileResult {
   if (options.yieldPolicy !== undefined) document = withDiagramYieldPolicy(document, options.yieldPolicy);
   const verifiedPartsEnabled = isVerifiedPartsEnabled(document);
   const measureLabelInk = options.measureLabelInkBounds ?? labelInkBoundsCache.measure;
@@ -394,6 +423,11 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
           coincidentPointAliases.set(entityId, existing);
         }
       }
+      // A vector on the line it runs along, or two opposite vectors on one
+      // segment, are separate marks: both are drawn, in parallel lanes.
+      else if (sameRevealGroup && separateDirectedMarks(document, existing, existingValue, entityId, value)) {
+        directionOverlayIds.add(entityId);
+      }
       else if (
         sameRevealGroup &&
         (explicitlyParallelPathAliases(document, existing, existingValue, entityId, value) ||
@@ -482,7 +516,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     ) ||
     // Space frames letter their axes.
     spaceView !== null;
-  const transformPlan = createEntityTransformPlan(
+  const planTransforms = () => createEntityTransformPlan(
     document,
     geometry,
     constructionOnlyIds,
@@ -492,6 +526,17 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     checkedClaimOutputIds,
     dimensionLanes,
   );
+  let plannedTransform = planTransforms();
+  // A velocity or force in a length frame keeps its tail and direction; its
+  // drawn length is lifted to a readable shaft, one factor per unit.
+  const freeVectors = freeLengthVectors(document, geometry, constructionOnlyIds);
+  const vectorDisplayScales = new Map<string, number>();
+  for (let pass = 0; plannedTransform && freeVectors.length > 0 && pass < 3; pass += 1) {
+    const plan = plannedTransform;
+    if (!scaleFreeVectors(freeVectors, geometry, (id) => plan.transformFor(id), (id) => plan.viewportFor(id), vectorDisplayScales)) break;
+    plannedTransform = planTransforms();
+  }
+  const transformPlan = plannedTransform;
   if (!transformPlan) {
     issues.push({ code: "empty_geometry", message: "Scene has no finite geometry to render", severity: "fatal" });
     return { ok: false, renderScene: null, report: report(document, issues, 0) };
@@ -524,7 +569,6 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
         dimensionLanes.get(entity.id) ?? 0,
         undefined,
         entity.provenance,
-        directionOverlayIds.has(entity.id),
       )); } catch(error) {
         if(value.kind!=="linear_region")throw error;
         issues.push({code:"linear_display_unproved",message:errorMessage(error),severity:"fatal",entityIds:[entity.id]});
@@ -532,6 +576,17 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       }
     }
   }
+  for (const primitive of primitives) {
+    const scale = vectorDisplayScales.get(primitive.entityId);
+    if (scale !== undefined && primitive.kind === "vector") primitive.provenance = { ...primitive.provenance, displayLengthScale: round(scale) };
+  }
+  // Unnamed helper points never sit as dots on an arrow, and directed ink
+  // never shares a line with other ink: it moves to a parallel lane.
+  const hiddenHelperPoints = unnamedPointsOnVectors(document, primitives);
+  for (let index = primitives.length - 1; index >= 0; index -= 1) {
+    if (hiddenHelperPoints.has(primitives[index]!.entityId) && primitives[index]!.kind === "point") primitives.splice(index, 1);
+  }
+  lanes.moved = options.directedLanes === false ? 0 : separateDirectedStrokes(document, primitives, (entityId) => transformPlan.viewportFor(entityId));
   if (verifiedPartsEnabled) {
     // Text and its leaders cannot restore a region whose projected geometry
     // collapsed to a line. Prove that core shape before searching label slots.
@@ -816,6 +871,12 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
   }
 
   attachAngleMeasureLabels(document, geometry, labelOwners, transformPlan, consumedAnnotationIds);
+  // The sides of a closed vector triangle are named from outside it.
+  for (const owner of labelOwners) {
+    if (owner.outsideOf) continue;
+    const loop = closedVectorLoop(owner.entityId, primitives);
+    if (loop) owner.outsideOf = loop;
+  }
 
   let linearLabels = primitives.filter((primitive) => primitive.kind === "label" && primitive.provenance?.linearSolution);
   if (linearLabels.length) {
@@ -1084,12 +1145,19 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     ...primitives.map((primitive) => primitive.entityId),
     ...coincidentPointAliases.keys(),
     ...coincidentPathAliases.keys(),
+    // An unnamed helper point under an arrow is drawn by that arrow.
+    ...hiddenHelperPoints,
   ]);
   for (const id of document.requiredEntityIds) {
     if (!renderedIds.has(id) && !constructionOnlyIds.has(id)) issues.push({ code: "required_entity_not_rendered", message: `Required entity ${id} produced no render primitive`, severity: "fatal", entityIds: [id] });
   }
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
-  if (verifiedPartsEnabled) issues.push(...validateLabelOwnerTruth(document, primitives, new Set(mediumBindings(document, geometry).map(binding => binding.annotationId))));
+  // Label ownership is checked under every policy. Outside verified parts a
+  // finding is recorded for the label it names and never drops the figure.
+  {
+    const ownerTruth = validateLabelOwnerTruth(document, primitives, new Set(mediumBindings(document, geometry).map(binding => binding.annotationId)));
+    issues.push(...(verifiedPartsEnabled ? ownerTruth : ownerTruth.map((issue) => ({ ...issue, severity: "warning" as const }))));
+  }
   if (verifiedPartsEnabled) issues.push(...validateRenderedMediumTruth(document, geometry, primitives, transformPlan.transformFor));
   pushDegenerateProjectedGeometryIssues(geometry, primitives, constructionOnlyIds, issues);
   if (issues.some((issue) => issue.severity === "fatal")) return { ok: false, renderScene: null, report: report(document, issues, primitives.length) };
@@ -2662,7 +2730,7 @@ function compileLinearRegionPrimitives(world: RenderPrimitive[], transform: (poi
     return result;
 }
 
-function toPrimitives(entityId: string, entityKind: string, value: Geometry, groupId: string, transform: (point: Point) => RenderPoint, viewport: { x: number; y: number; width: number; height: number; padding?: number }, forceFinite: boolean, dimensionOffsetPx = 0, label?: string, provenance?: Record<string, unknown>, directionOverlay = false): RenderPrimitive[] {
+function toPrimitives(entityId: string, entityKind: string, value: Geometry, groupId: string, transform: (point: Point) => RenderPoint, viewport: { x: number; y: number; width: number; height: number; padding?: number }, forceFinite: boolean, dimensionOffsetPx = 0, label?: string, provenance?: Record<string, unknown>): RenderPrimitive[] {
   if (value.kind === "linear_region") {
     return compileLinearRegionPrimitives(linearRegionPrimitives(value, entityId, groupId), transform, viewport);
   }
@@ -2813,28 +2881,7 @@ function toPrimitives(entityId: string, entityKind: string, value: Geometry, gro
     const clip = transform(value.elementClip);
     renderPoints = truncateRenderedPath(renderPoints, { x: round(clip.x), y: round(clip.y) });
   }
-  if (directionOverlay && renderPoints.length >= 2) {
-    renderPoints = offsetDirectionMarker(renderPoints[0]!, renderPoints.at(-1)!);
-  }
   return [{ id: `primitive_${entityId}`, entityId, groupId, kind, points: renderPoints, text: label, provenance }];
-}
-
-function offsetDirectionMarker(start: RenderPoint, end: RenderPoint): RenderPoint[] {
-  const dx = end.x - start.x;
-  const dy = end.y - start.y;
-  const length = Math.hypot(dx, dy);
-  if (length < EPSILON) return [start, end];
-  const ux = dx / length;
-  const uy = dy / length;
-  const nx = -uy;
-  const ny = ux;
-  const markerLength = Math.min(88, Math.max(30, length * 0.34));
-  const offset = 10;
-  const center = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
-  return [
-    { x: round(center.x - ux * markerLength / 2 + nx * offset), y: round(center.y - uy * markerLength / 2 + ny * offset) },
-    { x: round(center.x + ux * markerLength / 2 + nx * offset), y: round(center.y + uy * markerLength / 2 + ny * offset) },
-  ];
 }
 
 function computeDimensionLaneOffsets(
@@ -5428,7 +5475,40 @@ function dimensionLabelPlacement(entityId: string, value: Geometry, primitives: 
   };
 }
 
+/**
+ * The triangle a vector closes with two other vectors, joined end to end.
+ * Ends meet within a stroke width; a side moved to a lane beside other ink
+ * does not close a loop.
+ */
+function closedVectorLoop(entityId: string, primitives: RenderPrimitive[]): RenderPoint[] | null {
+  const sides = primitives.filter((primitive) => primitive.kind === "vector" && primitive.points.length === 2 && primitive.id === `primitive_${primitive.entityId}`);
+  const own = sides.find((primitive) => primitive.entityId === entityId);
+  if (!own) return null;
+  const near = (a: RenderPoint, b: RenderPoint) => Math.hypot(a.x - b.x, a.y - b.y) <= 2;
+  const [a, b] = own.points as [RenderPoint, RenderPoint];
+  for (const second of sides) {
+    if (second === own) continue;
+    const [p, q] = second.points as [RenderPoint, RenderPoint];
+    const far = near(p, b) || near(p, a) ? q : near(q, b) || near(q, a) ? p : null;
+    const shared = far === q ? p : q;
+    if (!far || near(far, a) || near(far, b)) continue;
+    const open = near(shared, a) ? b : a;
+    for (const third of sides) {
+      if (third === own || third === second) continue;
+      const [r, t] = third.points as [RenderPoint, RenderPoint];
+      if ((near(r, far) && near(t, open)) || (near(t, far) && near(r, open))) {
+        const area = (shared.x - open.x) * (far.y - open.y) - (shared.y - open.y) * (far.x - open.x);
+        if (Math.abs(area) > 100) return [open, shared, far];
+      }
+    }
+  }
+  return null;
+}
+
 function screenLabelAnchor(entityId: string, value: Geometry, primitives: RenderPrimitive[], transform: (point: Point) => RenderPoint): RenderPoint {
+  // A stroke moved to a parallel lane is named where it is drawn.
+  const laned = primitives.find((primitive) => primitive.entityId === entityId && primitive.provenance?.directedLane && primitive.kind !== "label");
+  if (laned && laned.points.length >= 2 && value.kind === "path") return labelAnchorForPath(laned.points, true, false);
   if (value.kind === "path" && value.infinite) {
     const rendered = primitives.find((primitive) => primitive.entityId === entityId && primitive.kind !== "label");
     const start = rendered?.points[0];
@@ -5920,11 +6000,34 @@ function directionOverlayEntity(
   return directedGeometry.infinite ? null : directedId;
 }
 
+function separateDirectedMarks(
+  document: SceneDocument,
+  existingId: string,
+  existing: Geometry | undefined,
+  candidateId: string,
+  candidate: Geometry,
+): boolean {
+  if (existing?.kind !== "path" || candidate.kind !== "path" || existing.points.length < 2 || candidate.points.length < 2) return false;
+  const kind = (id: string) => document.entities.find((entity) => entity.id === id)?.kind;
+  if (existing.directed === true && candidate.directed === true) {
+    // Opposite senses: B and -B share a segment but are different vectors.
+    return distance(existing.points[0]!, candidate.points.at(-1)!) < EPSILON &&
+      distance(existing.points.at(-1)!, candidate.points[0]!) < EPSILON &&
+      distance(existing.points[0]!, existing.points.at(-1)!) > EPSILON;
+  }
+  if (existing.directed === true) return kind(existingId) === "vector" && existing.infinite !== true;
+  if (candidate.directed === true) return kind(candidateId) === "vector" && candidate.infinite !== true;
+  return false;
+}
+
 function coincidentSupportingLineAliases(
   existing: Geometry | undefined,
   candidate: Geometry,
 ): boolean {
   if (existing?.kind !== "path" || candidate.kind !== "path") return false;
+  // A directed path is never the same mark as the line it runs along: the
+  // vector A to B on the track through A and B is drawn in its own lane.
+  if (existing.directed === true || candidate.directed === true) return false;
   if (existing.infinite !== true && candidate.infinite !== true) return false;
   if (existing.points.length < 2 || candidate.points.length < 2) return false;
   const first: [Point, Point] = [existing.points[0]!, existing.points.at(-1)!];

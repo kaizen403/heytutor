@@ -4084,6 +4084,23 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/**
+ * A sign badge is a direction convention drawn beside a reference line. A
+ * quantity written on it (`u_p=0`, a bare `0`) is placed by the line, not by
+ * the body the value belongs to, so it lands beside another body.
+ */
+function signBadgeBoundValue(entity: SceneDocument["entities"][number], annotations: SceneDocument["annotations"]): { text: string; path?: string } | null {
+  const bindsValue = (text: string | undefined) => {
+    const value = text?.trim() ?? "";
+    return /^[\p{L}][\p{L}\p{M}\p{N}_₀-₉'′]*(?:\s*\([^)]*\))?\s*=\s*\S/u.test(value) || /^[+−-]?\s*0+(?:\.0+)?(?:\s*[\p{L}/²³·^\d-]*)?$/u.test(value);
+  };
+  if (bindsValue(entity.label)) return { text: entity.label!.trim() };
+  const index = annotations.findIndex((annotation) =>
+    (annotation.kind === "label" || annotation.kind === "callout") && annotation.targetIds.includes(entity.id) &&
+    (Boolean(annotation.quantityId) || bindsValue(annotation.text)));
+  return index >= 0 ? { text: (annotations[index]!.text ?? annotations[index]!.quantityId ?? "").trim(), path: `annotations[${index}].text` } : null;
+}
+
 export function validateSceneDocument(raw: unknown): ValidationResult {
   const issues: SceneIssue[] = [];
   if (!isRecord(raw)) {
@@ -4371,6 +4388,19 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
         : requiredOperator === "refract_direction"
           ? actualOperator === "refract_direction" || actualOperator === "refract_at"
           : actualOperator === requiredOperator);
+    const badgeValue = (entity.kind === "sign_badge" || actualOperator === "sign_badge") ? signBadgeBoundValue(entity, document.annotations) : null;
+    if (badgeValue) {
+      issues.push({
+        code: "sign_badge_binds_quantity",
+        message: `${entity.id} is a sign_badge: it marks a direction convention on its target line and cannot carry "${badgeValue.text}". ` +
+          "Drop that text from the badge (leave it unlabelled or name only the direction, such as +x), and put the value on the body it describes: " +
+          `an annotation {"kind":"label","targetIds":["<that body's entity id>"],"text":"${badgeValue.text}"}, or a vector from that body when it has a nonzero value.`,
+        severity: "fatal",
+        path: badgeValue.path ?? `entities[${index}].label`,
+        entityIds: [entity.id],
+        actual: badgeValue.text,
+      });
+    }
     if (requiredOperator && actualOperator && !derivedOperatorAccepted) {
       issues.push({
         code: "derived_role_operator_mismatch",
