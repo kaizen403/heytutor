@@ -3,7 +3,7 @@
 import { SceneBuilder, compact, type Vec2 } from "../archetypes/document";
 import { chemStem } from "../chemistry/sceneKit";
 import { atomicElectronContext } from "../chemistry/semanticCues";
-import { atomicReferenceReadingCompatible } from "./atomicReferencePrecision";
+import { atomicComputationalReadingOwned, atomicReferenceReadingCompatible } from "./atomicReferencePrecision";
 import {
   chemistryCanonicalValuesAgree, chemistryReferenceConstantValid, chemistryQuantityInventoryOwned,
   readChemistryQuantityDeclaration, type ChemistryDimension, type ChemistryReading, type ChemistryUnit,
@@ -23,7 +23,8 @@ type Kind = "photoelectric" | "matter_wave" | "uncertainty";
 interface Binding { role: string; reading: ChemistryReading }
 interface Source { question: string; bindings: Binding[]; constantAuthority: "atomic_reference" | "particle_reference" | "source_parameterized" }
 export type RadiationModel = Source & (
-  | { kind: "photoelectric"; workFunctionEV: number; photonEnergyEV: number; kineticEV: number | null; thresholdWavelengthM: number | null; givenKineticEV: number | null; stoppingPotentialV: number | null }
+  | { kind: "photoelectric"; workFunctionEV: number; photonEnergyEV: number; kineticEV: number | null; thresholdWavelengthM: number | null; givenKineticEV: number | null; stoppingPotentialV: number | null;
+      photonEnergyBasis?: "conservation_from_emitted_result" }
   | { kind: "matter_wave"; momentumKgMS: number; wavelengthM: number; statedMomentum: boolean; statedSpeedMS: number | null; statedMassKg: number | null; nominalMomentumFromSpeed: number | null }
   | { kind: "uncertainty"; positionM: number; momentumKgMS: number; productJS: number; floorJS: number; holds: boolean }
 );
@@ -70,9 +71,13 @@ function photoelectronKineticCue(question: string): { cue: RegExp; unowned: bool
     const followingEmittedOwner = /\bof (?:the )?(?:emitted (?:photo)?electrons?|photoelectrons?)\b/i.test(match[0]);
     const beforeOwner = owner ? prefix.slice(0, owner.index) : "";
     const sourceEmission = /\b(?:emitted|ejected|released|ejects?|emits?|releases?)\s+(?:(?:a|an|the)\s+)?$/i.test(beforeOwner);
+    // A postnominal emitted modifier belongs to this same closed electron NP.
+    // An incoming/foreign/beam modifier cannot disappear before its head.
+    const postnominalEmission = owner && /^\s*(?:(?:a|an|the|these|those)\s+)?$/i.test(beforeOwner)
+      && /^\s+(?:(?:that|which)\s+(?:are|were)\s+)?(?:emitted|released|ejected)\s+(?:from|by)\s+(?:(?:a|an|the)\s+)?(?:metal|surface|cathode)\s+(?:have|has|with)\s*$/i.test(prefix.slice(owner.index + owner[0].length));
     const photoOwner = owner && /^photoelectrons?$/i.test(owner[0])
       && !/\b[a-z]+\s+$/i.test(beforeOwner.replace(/\b(?:a|an|the|their|these|those)\s+$/i, ""));
-    if (owner && !followingEmittedOwner && !sourceEmission && !photoOwner) {
+    if (owner && !followingEmittedOwner && !sourceEmission && !postnominalEmission && !photoOwner) {
       // A requested result is not a supplied foreign-particle declaration.
       // The same original-span reader distinguishes absent from unread givens.
       const declaration = readChemistryQuantityDeclaration({ question, after: originalCues(question, [{ start, end }]),
@@ -250,13 +255,14 @@ export function readRadiationSource(question: string): RadiationSourceOutcome {
   const cGiven = value(cCue, "speed", "m/s", "speed of light");
   const hcGiven = value(hcCue, "energy_length", "J m", "photon wavelength constant");
   if (invalid) return decline("supplied radiation quantity is unreadable or conflicting");
-  // A rounded atomic constant must be compatible with its reference at the
-  // complete literal's written precision. Accepted givens still parameterize
-  // the calculation below; the reference never replaces their source value.
+  // Each atomic constant either retains fixed-reference compatibility at its
+  // written precision, or has its own positive computational directive.
+  // Neither authority replaces the stated value used in the calculation.
   if (constantAuthority === "atomic_reference" && bindings.some(binding => {
     const reference = binding.role === "Planck constant" ? H
       : binding.role === "speed of light" ? C : binding.role === "photon wavelength constant" ? H * C : null;
-    return reference !== null && !atomicReferenceReadingCompatible(question, binding.reading, reference);
+    return reference !== null && !atomicReferenceReadingCompatible(question, binding.reading, reference)
+      && !atomicComputationalReadingOwned(question, binding.reading, binding.role);
   })) return decline("unsupported atomic reference constant");
   let h = hGiven ?? H, c = cGiven ?? C;
   if (!(h > 0 && c > 0) || hcGiven !== null && !(hcGiven > 0)) return decline("nonpositive radiation constant");
@@ -284,7 +290,8 @@ export function readRadiationSource(question: string): RadiationSourceOutcome {
     if (energies.some(n => !Number.isFinite(n) || !(n > 0))
       || frequency !== null && !(frequency > 0) || wavelength !== null && !(wavelength > 0)) return decline("invalid source incident photon");
     if (energies.some(n => !chemistryCanonicalValuesAgree(n, energies[0]!))) return decline("independent photon measurements disagree");
-    const energy = energies[0] ?? null;
+    let energy = energies[0] ?? null;
+    let photonEnergyBasis: "conservation_from_emitted_result" | undefined;
     const requestedWork = requestArguments(question).some(argument => argument.positive
       && /\bwork function\b/i.test(question.slice(argument.start, argument.end)));
     if (work === null) {
@@ -300,12 +307,27 @@ export function readRadiationSource(question: string): RadiationSourceOutcome {
     }
     if (!(work > 0)) return decline("source work function is required");
     if (threshold !== null && (!(threshold > 0) || !chemistryCanonicalValuesAgree((hcGiven ?? h * c) / threshold / EV, work))) return decline("threshold wavelength and work function disagree");
+    if (energy === null && givenKineticEV !== null) {
+      if (!chemistryQuantityInventoryOwned(question, "length", owned("length"))
+        || !chemistryQuantityInventoryOwned(question, "frequency", owned("frequency"))) return decline("unconsumed quantity before incident-energy derivation");
+      const declaredLength = readChemistryQuantityDeclaration({ question,
+        after: /\b(?:thickness|width|height|length|distance|radius|diameter|wavelength)\b/,
+        dimension: "length", targetUnit: "m", owner: "declared length before incident-energy derivation", allowAgreeingRepeats: true });
+      if (declaredLength.state === "invalid") return decline("unread length before incident-energy derivation");
+      // No incident reading is manufactured. A positive emitted result and
+      // the work function determine photon energy by energy conservation.
+      // Zero retarding voltage alone cannot establish threshold emission.
+      if (!(givenKineticEV > 0)) return decline("zero emitted result needs an independent incident source");
+      energy = work + givenKineticEV;
+      photonEnergyBasis = "conservation_from_emitted_result";
+    }
     if (energy === null && threshold !== null) return { status: "symbolic", kind, question, missing: "incident_photon", bindings, workFunctionEV: work, thresholdWavelengthM: threshold };
     if (energy === null) return decline("source incident photon is required");
     const kineticEV = energy + 1e-9 >= work ? Math.max(0, energy - work) : null;
     if (givenKineticEV !== null && (kineticEV === null || !chemistryCanonicalValuesAgree(givenKineticEV, kineticEV))) return decline("given photoelectron result disagrees with source energies");
     return { status: "source", model: { question, bindings, constantAuthority, kind, workFunctionEV: work, photonEnergyEV: energy,
-      kineticEV, thresholdWavelengthM: threshold, givenKineticEV, stoppingPotentialV: stopping } };
+      kineticEV, thresholdWavelengthM: threshold, givenKineticEV, stoppingPotentialV: stopping,
+      ...(photonEnergyBasis ? { photonEnergyBasis } : {}) } };
   }
   // The old fixed-reference matter-wave/uncertainty contract is preserved;
   // no formerly unsupported rounded-constant species is silently admitted.

@@ -440,6 +440,10 @@ function photoelectric(context: GeneratorContext) {
   const scene = new SceneBuilder(context.question, "photoelectric energy balance: photon energy, work function and maximum kinetic energy", "photoelectric");
   if (phi !== null && phiGiven) scene.quantity("phi", "phi", phi, "eV");
   if (photonGiven) scene.quantity("E", "E", photonValue, "eV");
+  if (model?.photonEnergyBasis === "conservation_from_emitted_result") {
+    scene.quantities.find(quantity => quantity.id === "E")!.provenance = "derived";
+    scene.point("energy_basis", { x: 3.2, y: photonValue * 1.15 }, "photon energy derived by conservation", "Derived E=φ+K");
+  }
   if (givenKinetic !== null) scene.quantity("K_given", "K", givenKinetic, "eV");
   if (stopping !== null) {
     scene.quantity("Vstop_given", "Vstop", stopping, "V");
@@ -487,6 +491,7 @@ function photoelectric(context: GeneratorContext) {
   scene.labelled("phi_top", "E_top");
   const document = scene.build();
   if (symbolic) document.source.nonMetric = true;
+  if (model?.photonEnergyBasis) document.source.photonEnergyBasis = model.photonEnergyBasis;
   return document;
 }
 

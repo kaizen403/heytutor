@@ -163,6 +163,46 @@ export interface CircuitLawExampleSource {
   lawSet: Array<"current" | "voltage">;
   requestSpans: Span[];
 }
+
+/** Complete comparison of one source roster in two distinct arrangements.
+ * The existing resistor reader owns its numbers. This ledger only binds the
+ * count/topologies and each requested view/result; unknown clauses refuse. */
+export function readSeriesParallelSourceComparison(question: string): {
+  count: number; rosterSpan: Span; scalarSpan: Span; unitSpan: Span;
+  rawValue: number; rawUnit: string; resistanceOhm: number;
+} | null {
+  const counts: Record<string, number> = { two: 2, three: 3, four: 4, 2: 2, 3: 3, 4: 4 };
+  let roster: { count: number; rosterSpan: Span; scalarSpan: Span; unitSpan: Span;
+    rawValue: number; rawUnit: string; resistanceOhm: number } | null = null;
+  let views = false, equivalents = false;
+  for (const clause of question.matchAll(/(?:\.(?=\d)|[^.;!?])+/g)) {
+    const raw = clause[0], text = raw.trim();
+    const declared = /^(two|three|four|[2-4])\s+(\d+(?:\.\d+)?)\s+(ohms?|Ω|kΩ)\s+resistors\s+(?:are\s+connected\s+)?in\s+(?:series\s+and\s+(?:in\s+)?parallel|parallel\s+and\s+(?:in\s+)?series)$/i.exec(text);
+    if (declared) {
+      if (roster) return null;
+      const start = clause.index + raw.indexOf(text);
+      const scalarStart = start + text.indexOf(declared[2]!, declared[1]!.length);
+      const scalarSpan = { start: scalarStart, end: scalarStart + declared[2]!.length };
+      const parsed = parseChemistryScalar(question, scalarSpan);
+      const rawUnit = declared[3]!;
+      if (!parsed.ok || !(parsed.reading > 0) || !["ohm", "ohms", "Ω", "kΩ"].includes(rawUnit)) return null;
+      const unitStart = start + text.indexOf(rawUnit, scalarSpan.end - start);
+      roster = { count: counts[declared[1]!.toLowerCase()]!, rosterSpan: { start, end: start + text.length },
+        scalarSpan, unitSpan: { start: unitStart, end: unitStart + rawUnit.length }, rawValue: parsed.reading,
+        rawUnit, resistanceOhm: parsed.reading * (rawUnit === "kΩ" ? 1000 : 1) };
+      continue;
+    }
+    const argument = text.replace(/^(?:Using|Apply)\s+Kirchhoff(?:['’]s)?\s+laws\s*,?\s*(?:and\s+)?/i, "");
+    for (const request of argument.split(/\s+and\s+(?=(?:draw|sketch|find|calculate)\b)/i)) {
+      if (/^(?:find|calculate)\s+both\s+equivalent\s+resistances$/i.test(request)) equivalents = true;
+      else if (/^(?:draw|sketch)\s+(?:both|each)\s+(?:circuits?|arrangements)(?:\s+with\s+their\s+equivalent\s+resistances)?$/i.test(request)) {
+        views = true;
+        if (/with\s+their\s+equivalent\s+resistances$/i.test(request)) equivalents = true;
+      } else return null;
+    }
+  }
+  return roster && views && equivalents ? roster : null;
+}
 type CircuitLawExampleOutcome = { status: "not_applicable" } | { status: "declined" }
   | { status: "example"; source: CircuitLawExampleSource };
 

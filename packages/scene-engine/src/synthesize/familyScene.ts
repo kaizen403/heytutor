@@ -6,7 +6,7 @@
 import { stemKnowns } from "../archetypes/generators/constantAcceleration";
 import { buildNeutralDecayScene, readNeutralDecaySource } from "../physics/neutralDecaySource";
 import { buildParticleRadiationScene, readRadiationSource } from "../physics/radiationSource";
-import { readApertureSource, readTwoLoopTopology, twoLoopTopologyClaimed, readCircuitLawExample, type TwoLoopSource } from "../physics/apparatusSource";
+import { readApertureSource, readTwoLoopTopology, twoLoopTopologyClaimed, readCircuitLawExample, readSeriesParallelSourceComparison, type TwoLoopSource } from "../physics/apparatusSource";
 import { compileSceneDocument } from "../compile/compiler";
 import { buildCircuitLawExample } from "../physics/circuitLawExample";
 import { groundedOhmScene } from "../compile/ohmTopicGeometry";
@@ -243,6 +243,23 @@ function synthesizeFromFamilies(
   }
   const circuitExample = readCircuitLawExample(question);
   if (circuitExample.status !== "not_applicable") {
+    // A method mention is not a request to replace two complete supplied
+    // arrangements with an illustrative circuit. Reuse the ordinary graph
+    // lowering only after the entire source comparison is positively owned.
+    const comparison = readSeriesParallelSourceComparison(question);
+    if (comparison) {
+      const resistors = Array.from({ length: comparison.count }, (_, index) => ({
+        symbol: `R${index + 1}`, value: comparison.resistanceOhm, unit: "ohm",
+      }));
+      if (!Number.isFinite(comparison.resistanceOhm) || !(comparison.resistanceOhm > 0)) return null;
+      const document = buildSeparatedCircuitViews(question, resistors, comparison.count, true);
+      document.source.resistanceSource = comparison;
+      const compiled = tryCompile(document);
+      if (!compiled || demandRejection(compiled.document, demand)
+        || obligations && visualObligationRejection(obligations, compiled.document)) return null;
+      return { ...compiled, family: "circuit_network", tier: "question_representation", nonMetric: true,
+        reason: "Both source resistor arrangements and their deterministically computed equivalent resistances." };
+    }
     if (circuitExample.status !== "example") return null;
     const document = buildCircuitLawExample(question);
     const compiled = document ? tryCompile(document) : null;
@@ -304,12 +321,30 @@ function synthesizeFromFamilies(
   const archetype = (relativeOutOfModel && archetypeCandidate?.archetype === "relative_motion_line")
     || (projectileSource && archetypeCandidate?.archetype !== "projectile") ? null : archetypeCandidate;
   if (archetype && !(obligations && visualObligationRejection(obligations, archetype.document))) {
+    const explicitFirstOrderFunction = neutralDecay.status === "not_applicable" && neutralDecay.explicitFunctionContext
+      && archetype.archetype === "function_graph";
+    if (explicitFirstOrderFunction) {
+      const sourceExpressions = neutralDecay.explicitFunctionContext!;
+      const curves = archetype.document.constructions.filter(step => step.operator === "function_curve");
+      if (curves.length !== sourceExpressions.length) return null;
+      const scales = curves.map((curve, index) => {
+        const expression = String(curve.inputs.expression), source = sourceExpressions[index]!;
+        if (expression === source) return 1;
+        const suffix = `*(${source})`, coefficient = expression.endsWith(suffix) ? expression.slice(0, -suffix.length) : "";
+        return /^\([\d.eE+-]+\)$/.test(coefficient) ? Number(coefficient.slice(1, -1)) : NaN;
+      });
+      if (scales.some(scale => !Number.isFinite(scale) || !(scale > 0) || scale !== scales[0])) return null;
+      // The existing function operator owns this one uniform display map.
+      // It is not a metric y-axis or a redefinition of the source function.
+      archetype.document.source.displayScale = { x: 1, y: scales[0] };
+      archetype.document.source.nonMetric = true;
+    }
     return {
       document: archetype.document,
       renderScene: archetype.renderScene,
       validationReport: archetype.validationReport,
-      tier: archetype.tier,
-      nonMetric: archetype.nonMetric,
+      tier: explicitFirstOrderFunction ? schematic ? "question_representation" : "qualitative_verified" : archetype.tier,
+      nonMetric: explicitFirstOrderFunction ? true : archetype.nonMetric,
       reason: archetype.reason,
       family: archetype.family,
     };
@@ -1425,10 +1460,11 @@ function buildSeparatedCircuitViews(
   question: string,
   resistors: Array<{ symbol: string; value: number; unit?: string }>,
   count: number,
+  equivalentValues = false,
 ): SceneDocument {
   const series = buildSingleCircuitView(question, resistors, count, "series", 3, "series_");
   const parallel = buildSingleCircuitView(question, resistors, count, "parallel", -3, "parallel_");
-  return baseDocument({
+  const document = baseDocument({
     question,
     reason: "series and parallel resistor networks from the question wording",
     quantities: series.quantities,
@@ -1440,6 +1476,25 @@ function buildSeparatedCircuitViews(
       { id: "parallel_group", entityIds: parallel.entities.map((entity) => entity.id), dependsOn: [], narrationCue: "parallel circuit" },
     ],
   });
+  if (equivalentValues) {
+    const values = resistors.slice(0, count).map(item => item.value);
+    for (const topology of ["series", "parallel"]) for (const [index, resistor] of resistors.slice(0, count).entries()) {
+      document.entities.find(entity => entity.id === `${topology}_r${index + 1}`)!.label = `${resistor.symbol}=${resistor.value}Ω`;
+    }
+    const results = [{ id: "series", symbol: "Req(s)", y: 4.2, value: values.reduce((sum, value) => sum + value, 0) },
+      { id: "parallel", symbol: "Req(p)", y: -1.8, value: 1 / values.reduce((sum, value) => sum + 1 / value, 0) }];
+    for (const result of results) {
+      const id = `${result.id}_equivalent`, anchor = `${id}_anchor`;
+      const label = Number.isInteger(result.value) ? `${result.symbol}=${result.value} ohm` : `${result.symbol}=${values[0]}/${count}Ω`;
+      document.quantities.push({ id: `q_${id}`, symbol: result.symbol, value: result.value, unit: "ohm", provenance: "derived" });
+      document.entities.push({ id: anchor, kind: "point", role: "equivalent resistance label anchor" },
+        { id, kind: "label", role: "derived equivalent resistance", label });
+      document.constructions.push(pointAt(anchor, 2, result.y),
+        { id: `make_${id}`, operator: "label", inputs: { target: anchor, text: label }, outputs: [id] });
+      document.revealGroups.find(group => group.id === `${result.id}_group`)!.entityIds.push(anchor, id);
+    }
+  }
+  return document;
 }
 
 

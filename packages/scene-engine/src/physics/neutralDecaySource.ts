@@ -2,6 +2,7 @@
  * solver. A claimed unsupported decay source is terminal before catalog
  * defaults; it is never silently described as radioactive nuclei. */
 import { SceneBuilder } from "../archetypes/document";
+import { explicitFunctions } from "../archetypes/slots";
 import { kineticsFromStem, solveKinetics } from "../chemistry/kinetics";
 import { chemicalKineticsContext } from "../chemistry/semanticCues";
 import { chemStem } from "../chemistry/sceneKit";
@@ -12,7 +13,7 @@ interface FractionDecay {
   question: string; halfLife: number; rate: number; timeUnit: string;
   requested: { time: number; remaining: number };
 }
-type DecayOutcome = { status: "not_applicable" } | { status: "declined" }
+type DecayOutcome = { status: "not_applicable"; explicitFunctionContext?: string[] } | { status: "declined" }
   | { status: "source"; model: FractionDecay };
 
 function negativeArgument(question: string, start: number): boolean {
@@ -53,7 +54,12 @@ function normalizedFirstOrderRequested(question: string): boolean {
 
 export function readNeutralDecaySource(question: string): DecayOutcome {
   const stem = chemStem(question);
+  if (/first[ -]?order/.test(stem) && !/half[ -]?life|\bdecay\b|fraction remaining/.test(stem)) {
+    const expressions = explicitFunctions(question);
+    return { status: "not_applicable", ...(expressions.length ? { explicitFunctionContext: expressions } : {}) };
+  }
   if (!/half[ -]?life|first[ -]?order|exponential decay/.test(stem)
+    || !/half[ -]?life|\bdecay\b|fraction remaining/.test(stem)
     || chemicalKineticsContext(stem, question)
     || /\b(?:radioactiv\w*|isotopes?|nucl(?:eus|ei|ide)|nuclear|disintegrat\w*)\b/.test(stem)) return { status: "not_applicable" };
   // This issuer owns a first-order mathematical fraction law, not an arbitrary

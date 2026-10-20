@@ -84,12 +84,13 @@ function buildPhotoelectric(question: string, model: Extract<RadiationModel, { k
   const kinetic = above ? energy - phi : null;
   if (kinetic !== null && kinetic < -1e-9) return null;
   const c = new ChemScene(question, "photoelectric threshold from a stated work function", ORBITAL_FAMILY);
+  const derivedPhoton = model.photonEnergyBasis === "conservation_from_emitted_result";
   const ids: string[] = [];
   ids.push(c.level("phi_level", { x: 0, y: 0 }, 2.4, "work function mark"));
   ids.push(c.level("photon_level", { x: 0, y: above ? 1.4 : 0.7 }, 2.4, "photon energy mark"));
   ids.push(c.text("phi_l", { x: 1.55, y: 0 }, evText("phi", phi).slice(0, 16), "work function value"));
   ids.push(c.text("e_l", { x: 1.55, y: above ? 1.4 : 0.7 }, evText("E", energy).slice(0, 16), "photon energy value"));
-  ids.push(c.text("units_l", { x: 0, y: 2.15 }, "E = h*nu", "photon energy relation"));
+  ids.push(c.text("units_l", { x: 0, y: 2.15 }, derivedPhoton ? "Derived E=phi+K" : "E = h*nu", "photon energy relation"));
   if (kinetic === null) {
     ids.push(c.text("none_l", { x: 0, y: -0.7 }, "no emission", "below threshold"));
   } else {
@@ -110,11 +111,19 @@ function buildPhotoelectric(question: string, model: Extract<RadiationModel, { k
     c.scene.quantity("lambda0", "lambda0", nm, "nm");
     sourceLabels.push(label);
   }
+  if (derivedPhoton) {
+    c.scene.quantity("E_derived", "E", energy, "eV");
+    c.scene.quantities.find(quantity => quantity.id === "E_derived")!.provenance = "derived";
+    c.scene.quantity("phi_given", "phi", phi, "eV");
+    c.scene.quantity("K_source", "K", model.givenKineticEV!, "eV");
+  }
   c.scene.group("photoelectric", ids, ["work function and photon energy", ...sourceLabels].join(". "));
   const caption = kinetic === null
     ? `Below threshold: E = ${energy.toFixed(2)} eV is less than phi = ${phi.toFixed(2)} eV, so no electron is emitted and K is not drawn.`
     : `Kmax = h*nu - phi = ${kinetic.toFixed(2)} eV. Units are electronvolts. c = lambda*nu relates wavelength to frequency.`;
-  return c.build({ caption });
+  const document = c.build({ caption: derivedPhoton ? `Photon E is derived by E=phi+K from the stated emitted result. ${caption}` : caption });
+  if (derivedPhoton) document.source.photonEnergyBasis = model.photonEnergyBasis;
+  return document;
 }
 
 function buildParticleRadiation(question: string, model: Exclude<RadiationModel, { kind: "photoelectric" }>): SceneDocument {

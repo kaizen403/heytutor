@@ -6,6 +6,24 @@ import {
   type ChemistryReading,
 } from "../chemistry/quantityReader";
 
+/** A stipulated computation coefficient is not a new universal reference.
+ * Only a positive closed directive governing this exact typed head owns it;
+ * another declaration or an unrelated Take cannot lend that authority. */
+export function atomicComputationalReadingOwned(
+  question: string, reading: ChemistryReading, role: string,
+): boolean {
+  if (reading.source.kind !== "stem_given" || !reading.rawUnit
+    || ![reading.value, reading.rawValue].every(value => Number.isFinite(value) && value > 0)) return false;
+  const { span, text } = reading.source;
+  if (question.slice(span.start, span.end) !== text) return false;
+  const head = role === "Planck constant" ? "(?:h|Planck(?:'s)?\\s+constant)"
+    : role === "speed of light" ? "(?:c|speed\\s+of\\s+light)"
+      : role === "photon wavelength constant" ? "hc" : null;
+  if (!head) return false;
+  const clauseHead = question.slice(0, span.start).split(/[;!?]|\.(?!\d)/).at(-1) ?? "";
+  return new RegExp(`^\\s*(?:Take|Use|Assume|Let)\\s+(?:the\\s+)?${head}\\s*(?:=|is|be|to\\s+be)?\\s*$`, "i").test(clauseHead);
+}
+
 function decimalQuantum(validatedScalar: string): number | null {
   // Decode notation only after complete original-span validation. Explicit
   // decimal zeros remain meaningful; a fraction is not a rounded decimal.

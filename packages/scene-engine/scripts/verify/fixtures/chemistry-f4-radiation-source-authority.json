@@ -98,8 +98,11 @@
     "id": "hc-explicit-trailing-decimal-inconsistent",
     "question": "For a bound electron, work function is 2 eV; incident light wavelength is 400 nm. Take hc = 1240.0 eV nm. Draw the photoelectron energy balance.",
     "expected": {
-      "publicDraw": false,
-      "constantAuthority": "atomic_reference"
+      "publicDraw": true,
+      "constantAuthority": "atomic_reference",
+      "photonEnergyEV": 3.1,
+      "workFunctionEV": 2,
+      "kineticEV": 1.1
     },
     "sourcePrecision": {
       "role": "hc",
@@ -108,7 +111,13 @@
       "value": 1240,
       "lastPlaceQuantum": 0.1
     },
-    "reason": "SIhc≈1239.8419843320025 does not round to1240.0 at0.1eVnm resolution; cannot erase the explicit decimal precision."
+    "reason": "SIhc\u22481239.8419843320025 does not round to1240.0 at0.1eVnm resolution; cannot erase the explicit decimal precision.",
+    "scientificCorrection": {
+      "contract": "qa138-main-integration-v1/atomic-computational-directive-v1/SCIENTIFIC-CONTRACT-REVIEW-CLOSED.json",
+      "goldSHA256": "cc3b52d78b48441fcf79db4c095c7968a94c445f7d914550287ad729ed2db210",
+      "originalFalseGoldPreserved": "pr138-computational-constant-v1/ORIGINAL-radiation-source-authority11.json",
+      "reason": "Explicit Take owns hc as a computational coefficient. Use its source value; fixed-reference precision remains required for every non-directed constant."
+    }
   },
   {
     "id": "h-explicit-three-digit-inconsistent",
@@ -158,6 +167,6 @@
       "value": 299000000.0,
       "lastPlaceQuantum": 100000.0
     },
-    "reason": "ExactSIc299792458 does not lie in2.990e8±0.5e5m/s."
+    "reason": "ExactSIc299792458 does not lie in2.990e8\u00b10.5e5m/s."
   }
 ]
