@@ -221,5 +221,57 @@ const rejectedPlan = {
   ]);
   assert.deepEqual(best?.givens.map((given) => given.id), ["vr", "vm"]);
 }
+// --- 3b. salvage keeps no wrong unit, flagged given or swapped role ----------
+{
+  // A unit must end where the stated one ends.
+  assert.ok(!questionStatesQuantity("a car moves at 20 m/s", 20, "m"), "(20, m) is not stated by 20 m/s");
+  assert.ok(!questionStatesQuantity("a cyclist rides at 4 km/h", 4, "km"), "(4, km) is not stated by 4 km/h");
+  assert.ok(!questionStatesQuantity("a car moves at 20 m s^-1", 20, "m"), "(20, m) is not stated by 20 m s^-1");
+  assert.ok(!questionStatesQuantity("a car moves at 20 m·s⁻¹", 20, "m"), "(20, m) is not stated by 20 m·s⁻¹");
+  assert.ok(!questionStatesQuantity("an area of 20 m² is", 20, "m"), "(20, m) is not stated by 20 m²");
+  assert.ok(questionStatesQuantity("a car moves at 20 m s^-1", 20, "m/s"), "a spaced power spelling still states m/s");
+  assert.ok(questionStatesQuantity("a river 400 m wide flows", 400, "m"), "a unit followed by a word is stated");
+  assert.ok(questionStatesQuantity("the rod is 20 m.", 20, "m"), "a unit at a sentence end is stated");
+  // A unitless given is a bare number.
+  assert.ok(!questionStatesQuantity("a car moves at 20 m/s", 20), "a unitless 20 is not the 20 of 20 m/s");
+  assert.ok(!questionStatesQuantity("a 4 kg block", 4), "a unitless 4 is not the 4 of 4 kg");
+  assert.ok(!questionStatesQuantity("rain at 60° to the vertical", 60), "a unitless 60 is not the 60 of 60°");
+  assert.ok(questionStatesQuantity("a glass of refractive index 1.5 and 3 identical slabs", 1.5), "a bare number is stated");
+  assert.ok(questionStatesQuantity("a glass of refractive index 1.5 and 3 identical slabs", 3), "a count before a noun is stated");
+
+  // Wrong unit prefixes: the plan's (8, m) and (6, km) are not the question's 8 m/s and 6 m/s.
+  const wrongUnits = { ...rejectedPlan, givens: [
+    { id: "vm", symbol: "v_m", value: 8, unit: "m", sourceText: "8 m/s", provenance: "given" },
+    { id: "vr", symbol: "v_r", value: 6, unit: "m/s", sourceText: "6 m/s", provenance: "given" },
+  ] };
+  assert.deepEqual(salvageRejectedTurnPlanV3(question, [{ lane: "primary", requestKind: "initial", plan: wrongUnits, issues: [] }])?.givens.map((given) => given.id), ["vr"],
+    "a given whose unit is a prefix of the stated unit is dropped");
+  const unitless = { ...rejectedPlan, givens: [{ id: "n", symbol: "n", value: 8, sourceText: "8", provenance: "given" }, rejectedPlan.givens[0]!] };
+  assert.deepEqual(salvageRejectedTurnPlanV3(question, [{ lane: "primary", requestKind: "initial", plan: unitless, issues: [] }])?.givens.map((given) => given.id), ["vr"],
+    "a unitless given never matches a number followed by a unit");
+
+  // A given the rejection's issues name is dropped.
+  const flaggedIssues = [{ code: "given_role_mismatch", path: "givens[1].symbol", message: "v_m is the rain's speed" }];
+  assert.deepEqual(salvageRejectedTurnPlanV3(question, [{ lane: "primary", requestKind: "initial", plan: rejectedPlan, issues: flaggedIssues }])?.givens.map((given) => given.id), ["vr"],
+    "a given named in the rejection's issue paths is dropped");
+  assert.deepEqual(salvageRejectedTurnPlanV3(question, [{ lane: "primary", requestKind: "initial", plan: rejectedPlan, issues: [{ code: "x", path: "givens[0]", message: "x" }, { code: "y", path: "givens[1].value", message: "y" }] }]),
+    null, "with every stated given flagged there is nothing to salvage");
+
+  // Swapped roles: two lanes bind 6 and 8 to opposite symbols; neither value survives.
+  const swappedPlan = { ...rejectedPlan, givens: [
+    { ...rejectedPlan.givens[0]!, value: 8, sourceText: "8 m/s" },
+    { ...rejectedPlan.givens[1]!, value: 6, sourceText: "6 m/s" },
+  ] };
+  assert.equal(salvageRejectedTurnPlanV3(question, [
+    { lane: "primary", requestKind: "initial", plan: rejectedPlan, issues: [] },
+    { lane: "alternate", requestKind: "initial", plan: swappedPlan, issues: [] },
+  ]), null, "values the rejected lanes bind to different symbols are dropped");
+  // Lanes that agree keep both; a lane naming one more symbol is not a swap.
+  const extraSymbol = { ...rejectedPlan, givens: [...rejectedPlan.givens.slice(0, 2), { id: "vw", symbol: "v_w", value: 9, unit: "m/s", provenance: "given" }] };
+  assert.deepEqual(salvageRejectedTurnPlanV3(question, [
+    { lane: "primary", requestKind: "initial", plan: rejectedPlan, issues: [] },
+    { lane: "alternate", requestKind: "initial", plan: extraSymbol, issues: [] },
+  ])?.givens.map((given) => given.id), ["vr", "vm"], "agreeing lanes keep their givens");
+}
 
 console.log("verify-v3-planner-selection: exact-source ranking and grace, retry feedback and budget, and question-stated salvage hold");

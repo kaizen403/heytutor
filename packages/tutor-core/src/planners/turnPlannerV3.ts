@@ -476,9 +476,19 @@ function unitSpellings(unit: string): string[] {
 }
 
 /**
+ * A unit continues past this point: "/s", "^-1", "⁻¹", "·s", a letter or a
+ * digit, or a spaced power or "per" ("m s^-1", "m per second").
+ */
+const UNIT_CONTINUES = /^(?:[/^⁻·⋅\p{L}\p{N}]|\s+(?:per\b|[a-zA-Z]{1,3}\s*(?:\^|⁻)))/u;
+/** A unit word or symbol right after a number ("6 m/s", "60°", "4 kg", "3 seconds"). */
+const UNIT_AFTER_NUMBER = /^\s*(?:[°º%Ω]|(?:[kcmµμnMG]?(?:m|s|g|N|J|W|V|A|Pa|Hz|K|C|F|T|L|eV|mol|rad|h|min|hr)|kmph|deg|degrees?|radians?|met(?:re|er)s?|seconds?|secs?|hours?|minutes?|kilo(?:gram|metre|meter)s?|grams?|newtons?|joules?|watts?|volts?|amps?|amperes?|ohms?|kelvin|lit(?:re|er)s?)(?![a-zA-Z]))/u;
+
+/**
  * True when the question states this number at face value, immediately
- * followed by this unit ("6 m/s", "60°", "20 km/h"). A unitless value must
- * appear as a bare number. No rescaling: "20 cm" does not state 0.2 m.
+ * followed by this unit ("6 m/s", "60°", "20 km/h"), and the unit ends there:
+ * (20, "m") is not stated by "20 m/s". A unitless value must appear as a bare
+ * number, not one followed by a unit. No rescaling: "20 cm" does not state
+ * 0.2 m.
  */
 export function questionStatesQuantity(question: string, value: number, unit?: string): boolean {
   if (!Number.isFinite(value)) return false;
@@ -487,19 +497,41 @@ export function questionStatesQuantity(question: string, value: number, unit?: s
   const spellings = unit && unit.trim() ? unitSpellings(unit) : null;
   for (const match of text.matchAll(numberPattern)) {
     if (Number(match[0]) !== value) continue;
-    if (!spellings) return true;
-    const rest = text.slice((match.index ?? 0) + match[0].length).replace(/^\s+/, "");
+    const after = text.slice((match.index ?? 0) + match[0].length);
+    if (!spellings) {
+      if (!UNIT_AFTER_NUMBER.test(after)) return true;
+      continue;
+    }
+    const rest = after.replace(/^\s+/, "");
     if (spellings.some((spelling) => rest.startsWith(spelling) &&
-      !/^[\p{L}\p{N}]/u.test(rest.slice(spelling.length)))) return true;
+      !UNIT_CONTINUES.test(rest.slice(spelling.length)))) return true;
   }
   return false;
+}
+
+const symbolKey = (symbol: string) => symbol.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+function quantityKey(value: number, unit: string | undefined): string {
+  const compact = (unit ?? "").trim().replace(/\s+/g, "");
+  const known = UNIT_WORDS.find(([pattern]) => pattern.test(compact));
+  return `${value}|${known?.[1][0] ?? compact}`;
+}
+
+/** Indices of `givens` that a rejection's issue paths name ("givens[2].value"). */
+function flaggedGivenIndices(issues: readonly { path?: unknown }[]): Set<number> {
+  const out = new Set<number>();
+  for (const issue of issues) {
+    const match = typeof issue.path === "string" ? issue.path.match(/(?:^|\.)givens\[(\d+)\]/) : null;
+    if (match) out.add(Number(match[1]));
+  }
+  return out;
 }
 
 /**
  * Every lane was rejected. Rather than a plan with no facts (which runs no
  * scene planning), keep only what the question itself states: the best
  * rejected plan's givens whose value and unit appear in the question, and its
- * law ids. Every derived value, unknown and claim is withdrawn, so nothing the
+ * law ids. A given the rejection's issues name is dropped, and so is a value
+ * the rejected lanes bind to different symbols (swapped roles). Every derived value, unknown and claim is withdrawn, so nothing the
  * validator refused can reach a label or the narration as authority. Returns
  * null when no given survives or the result fails validation.
  */
@@ -509,17 +541,44 @@ export function salvageRejectedTurnPlanV3(
 ): TurnPlanV3 | null {
   const record = (value: unknown): Record<string, unknown> | null =>
     typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : null;
+  // Swapped roles: one stated value bound to different symbols by different
+  // lanes ("vr = 6, vm = 8" against "vr = 8, vm = 6") cannot be trusted.
+  const symbolsByLane = rejections.map((rejection) => {
+    const bySymbol = new Map<string, Set<string>>();
+    const plan = record(rejection.plan);
+    for (const raw of Array.isArray(plan?.givens) ? plan.givens : []) {
+      const given = record(raw);
+      if (!given || typeof given.symbol !== "string" || typeof given.value !== "number") continue;
+      const key = quantityKey(given.value, typeof given.unit === "string" ? given.unit : undefined);
+      bySymbol.set(key, (bySymbol.get(key) ?? new Set()).add(symbolKey(given.symbol)));
+    }
+    return bySymbol;
+  });
+  const swapped = new Set<string>();
+  for (const [index, lane] of symbolsByLane.entries()) {
+    for (const other of symbolsByLane.slice(index + 1)) {
+      for (const [key, symbols] of lane) {
+        const otherSymbols = other.get(key);
+        if (otherSymbols && [...symbols].some((symbol) => !otherSymbols.has(symbol)) &&
+            [...otherSymbols].some((symbol) => !symbols.has(symbol))) swapped.add(key);
+      }
+    }
+  }
   const candidates = rejections.flatMap((rejection, order) => {
     const plan = record(rejection.plan);
     if (!plan || !Array.isArray(plan.givens)) return [];
     const seen = new Set<string>();
-    const givens = plan.givens.flatMap((raw) => {
+    // A given the validator named in its issues is not salvaged.
+    const flagged = flaggedGivenIndices(rejection.issues);
+    const givens = plan.givens.flatMap((raw, index) => {
       const given = record(raw);
+      if (flagged.has(index)) return [];
       if (!given || typeof given.id !== "string" || !given.id.trim() || seen.has(given.id) ||
           typeof given.symbol !== "string" || !given.symbol.trim() ||
           typeof given.value !== "number" || !Number.isFinite(given.value)) return [];
       const unit = typeof given.unit === "string" && given.unit.trim() ? given.unit.trim() : undefined;
       if (!questionStatesQuantity(question, given.value, unit)) return [];
+      if (swapped.has(quantityKey(given.value, unit))) return [];
       seen.add(given.id);
       return [{
         id: given.id,
