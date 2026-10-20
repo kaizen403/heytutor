@@ -799,6 +799,9 @@ for (const [written, spoken] of SCRIPT_GROUPS) {
     assert(out === spoken, `mathToSpeech("${written}") = "${out}", expected "${spoken}"`);
   });
 }
+check("a constant name in a code lesson is not spelled out", () => {
+  assertContains(mathToSpeech("INT_MAX and MAX_INT"), "INT MAX and MAX INT", "INT_MAX and MAX_INT");
+});
 check("a chemistry subscript group keeps the chemistry reading", () => {
   assertContains(mathToSpeech("H_{2}O"), "H 2 O", "H_{2}O");
 });

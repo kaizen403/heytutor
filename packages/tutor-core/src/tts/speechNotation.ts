@@ -403,10 +403,11 @@ const SUBSCRIPT_WORDS: Record<string, string> = {
  * frames or points (`v_AB`, `V_CE`), so each is its own letter; a letter run
  * glued to a digit (`v_x0`) is the letter, then the digit.
  */
-function saySubscript(subscript: string): string {
+function saySubscript(subscript: string, loneSymbol: boolean): string {
   const word = SUBSCRIPT_WORDS[subscript.toLowerCase()];
   if (word) return word;
-  if (/^[A-Z]{2,3}$/.test(subscript)) return subscript.split("").join(" ");
+  // Only on a one letter symbol: `INT_MAX` in a code lesson is a name.
+  if (loneSymbol && /^[A-Z]{2,3}$/.test(subscript)) return subscript.split("").join(" ");
   return subscript.replace(/(?<=[A-Za-zͰ-Ͽ])(?=\d)|(?<=\d)(?=[A-Za-zͰ-Ͽ])/gu, " ");
 }
 
@@ -426,8 +427,8 @@ function expandSubscripts(text: string): string {
   const numbered = new RegExp(`([a-z\\u0370-\\u03ff])_(\\d+)`, "g");
   const once = (input: string): string =>
     input
-      .replace(lettered, (_match, base: string, subscript: string) =>
-        `${base} ${saySubscript(subscript)}`)
+      .replace(lettered, (_match, base: string, subscript: string, offset: number, whole: string) =>
+        `${base} ${saySubscript(subscript, !/[\p{L}\p{N}_]/u.test(whole[offset - 1] ?? ""))}`)
       .replace(numbered, "$1 $2");
   // `max_path_sum` holds two underscores whose matches overlap by one letter,
   // so a single pass left the second one in ("max path_sum"). Three passes
