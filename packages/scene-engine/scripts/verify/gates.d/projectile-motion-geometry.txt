@@ -1,0 +1,2 @@
+tsx scripts/verify/verify-projectile-motion-geometry.ts
+pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-projectile-motion-contract.ts

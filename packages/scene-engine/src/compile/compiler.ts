@@ -1,4 +1,5 @@
 import { validateLabelOwnerTruth } from "./labelOwnerTruth";
+import { validateLaunchVelocityTruth } from "./launchVelocityTruth";
 import { validateSolidSourceTruth } from "./solidSourceTruth";
 import { validateDeclaredGeometryTruth } from "./declaredGeometryTruth";
 import { validateGeometryClaimTruth } from "./geometryClaimTruth";
@@ -93,7 +94,7 @@ import { evaluateRelativeMotionConstruction, type RelativeMotionMark } from "./r
 import { evaluateNetworkConstruction, type NetworkBranchDefinition } from "./networkGeometry";
 import { evaluateMechanicsDiagramConstruction, type MechanicsMark } from "./mechanicsDiagramGeometry";
 import { evaluateCurrentFieldConstruction, type CurrentFieldMark } from "./currentFieldGeometry";
-import { evaluateChapterRemainderConstruction, type RemainderMark } from "./chapterRemainderGeometry";
+import { evaluateChapterRemainderConstruction, validateProjectileMeasurementProjection, type RemainderMark } from "./chapterRemainderGeometry";
 import { evaluateChapterInstrumentConstruction, type InstrumentMark } from "./chapterInstrumentGeometry";
 import { evaluateFluidConstruction, type HydrostaticProfileDefinition, type HydrostaticStateDefinition, type BuoyancyDefinition } from "./fluidGeometry";
 import { withEvaluatedOutputLabels } from "./outputLabels";
@@ -217,7 +218,7 @@ type Geometry =
   | ({ kind: "circle"; center: Point; radius: number } & DerivedGeometryMetadata)
   | { kind: "arc"; center: Point; radius: number; startAngle: number; endAngle: number; count?: number }
   | { kind: "axes"; xMin: number; xMax: number; yMin: number; yMax: number }
-  | { kind: "dimension"; a: Point; b: Point }
+  | ({ kind: "dimension"; a: Point; b: Point } & DerivedGeometryMetadata)
   | { kind: "compound"; paths: Point[][]; terminals: [Point, Point]; solidProjection?: SolidProjection; polyhedralSolid?: { spec: PolyhedralSolid; center: Point }; spaceFrame?: SpaceFrame; conic?: ConicDefinition }
   | MatrixArrayGeometry
   | LinearRegionGeometry;
@@ -413,6 +414,7 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
 
   validateDisplayDescendantClaims(document, geometry, checkedClaimOutputIds, issues);
   validateSolidMeasurements(document, issues, (value) => resolveNumber(value, quantities));
+  issues.push(...validateLaunchVelocityTruth(document, geometry));
   if (verifiedPartsEnabled) {
     issues.push(...validateMarkedAngleTruth(document, geometry));
     issues.push(...validateGeometryClaimTruth(document, geometry));
@@ -532,6 +534,8 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
       }
     }
   }
+  const projectileProjectionIssues = validateProjectileMeasurementProjection(document, primitives);
+  if (projectileProjectionIssues.length) return { ok: false, renderScene: null, report: report(document, [...issues, ...projectileProjectionIssues], primitives.length) };
   if (verifiedPartsEnabled) {
     // Text and its leaders cannot restore a region whose projected geometry
     // collapsed to a line. Prove that core shape before searching label slots.
