@@ -6,8 +6,8 @@
  * with T, and the Maxwell Boltzmann energy distribution at two temperatures.
  *
  * Every number on a figure is read from the stem or the plan. A profile whose
- * enthalpy sign the stem never states is declined rather than drawn with a
- * guessed product level; the Born Haber ladder only carries values when the
+ * enthalpy sign the stem never states shows explicitly conditional product
+ * orderings rather than a guessed level; the Born Haber ladder carries values when the
  * cycle closes from the stem's own steps.
  */
 import { fmt } from "../archetypes/document";
@@ -36,6 +36,14 @@ const ARRHENIUS =
 const PROFILE_EXPLICIT = /reaction\s+coordinate|energy\s+profile|potential\s+energy\s+(?:diagram|curve|graph|profile)|energy\s+(?:level\s+)?diagram\s+(?:of|for)\s+(?:the\s+)?reaction/;
 
 const DRAW_CUE = /\b(?:draw|sketch|plot|show|represent|illustrate|depict)\b|\bdiagram\b|\bprofile\b|\bgraph\b|\bcurve\b/;
+
+/** An unqualified threshold is not itself a reaction-coordinate model. */
+function thresholdHasReactionOwner(stem: string): boolean {
+  return PROFILE_REACTANT_CUE.test(stem) || PROFILE_PRODUCT_CUE.test(stem)
+    || /\bthreshold\s+energy\s+(?:(?:graph|diagram|curve|profile)\s+)?(?:of|for)\s+(?:(?:the|a|an|forward|reverse|backward)\s+)*reaction\b/.test(stem)
+    || /\b(?:for|in)\s+(?:(?:the|a|an|forward|reverse|backward)\s+)*reaction\s*[,;:]?\s*(?:the\s+)?threshold\s+energy\b/.test(stem)
+    || /\breaction\s+(?:has|with)\s+(?:(?:a|the)\s+)?threshold\s+energy\b/.test(stem);
+}
 
 function classifyThermoStem(question: string): ThermoKind | null {
   const stem = chemStem(question);
@@ -71,7 +79,8 @@ function classifyThermoStem(question: string): ThermoKind | null {
   }
   const profileCue =
     PROFILE_EXPLICIT.test(stem) ||
-    /activation\s+energy|energy\s+barrier|threshold\s+energy|catalyst\s+(?:lowers|reduces|decreases|provides)|energy\s+of\s+activation/.test(stem) ||
+    /activation\s+energy|energy\s+barrier|catalyst\s+(?:lowers|reduces|decreases|provides)|energy\s+of\s+activation/.test(stem) ||
+    (PROFILE_THRESHOLD_CUE.test(stem) && thresholdHasReactionOwner(stem)) ||
     (/transition\s+state|activated\s+complex/.test(stem) && /energy|diagram|profile|activation|reaction\s+coordinate/.test(stem)) ||
     (/exothermic|endothermic|evolution\s+of\s+heat|heat\s+is\s+(?:evolved|absorbed)/.test(stem) && /diagram|profile|graph|draw|sketch|plot|curve/.test(stem)) ||
     (/rate\s+determining\s+step|slow\s+step/.test(stem) && /energy|mechanism|reaction\s+coordinate/.test(stem));
@@ -91,7 +100,7 @@ export function isThermoGraphStem(question: string): boolean {
 
 /* --------------------------------------------------------- number reading */
 
-import { readChemistryQuantity, readChemistryQuantityDeclaration, chemistryQuantityPayloadPresent, findChemistryQuantities, chemistryPlanBindingsValid, chemistryQuantityCuesValid, chemistryQuantityInventoryOwned, chemistryCanonicalValuesAgree, chemistryQuestionSpan, type ChemistryDimension, type ChemistryReading, type ChemistryQuantityConsumption } from "./quantityReader";
+import { CHEMISTRY_SCALAR_PATTERN, readChemistryUnitLiteral, readChemistryQuantity, readChemistryQuantityDeclaration, chemistryQuantityPayloadPresent, findChemistryQuantities, chemistryPlanBindingsValid, chemistryQuantityCuesValid, chemistryQuantityInventoryOwned, chemistryCanonicalValuesAgree, chemistryQuestionSpan, type ChemistryDimension, type ChemistryReading, type ChemistryQuantityConsumption } from "./quantityReader";
 
 interface Energy {
   value: number;
@@ -243,6 +252,13 @@ interface ProfileSpec {
   caption: string;
 }
 
+interface UnspecifiedProductProfile {
+  productOrder: "unspecified";
+  reactants: string;
+  products: string;
+  forward: Energy | null;
+}
+
 const EXOTHERMIC = /exothermic|evolution\s+of\s+heat|heat\s+is\s+(?:evolved|released|liberated)|releases?\s+heat|liberates?\s+heat/;
 const ENDOTHERMIC = /endothermic|absorption\s+of\s+heat|heat\s+is\s+absorbed|absorbs?\s+heat/;
 const BACKWARD_ACTIVATION = /activation\s+energy\s+(?:of|for)\s+(?:the\s+)?(?:backward|reverse)\s+(?:reaction|step|process)|\be_?a\s*\(?\s*(?:backward|reverse|back|rev|b)\b\s*\)?|(?:backward|reverse)\s+activation\s+energy/;
@@ -314,7 +330,7 @@ function profileEnergyReferenceOnly(body: string, start: number, end: number, ow
   const before = body.slice(0,start);
   const payload = body.slice(end,ownerEnd);
   const requestPrefix = before.split(/[;!?\n]|\.(?=\s|$)/).at(-1)!;
-  if (/^\s*(?:(?:draw|sketch|plot|show|illustrate|depict|display)\s+)?(?:(?:the|an?|its)\s+)?$/i.test(requestPrefix)
+  if (/^\s*(?:(?:draw|sketch|plot|show|represent|illustrate|depict|display)\s+)?(?:(?:the|an?|its)\s+)?$/i.test(requestPrefix)
     && /^\s+(?:diagram|profile|graph|curve)(?:\s+(?:of|for)\s+(?:(?:the|an?)\s+)?(?:(?:exothermic|endothermic)\s+)?reaction)?\s*$/i.test(payload)) return true;
   if (payload.trim() === "" && /\b(?:find|calculate|compute|determine|mark|show)\s+(?:(?:the|an?|its)\s+)*$/i.test(before)) return true;
   if (payload.trim() === "" && /\bwithout\s+changing\s*$/i.test(before)) return true;
@@ -381,7 +397,39 @@ function readProfileEnergyInputs(question: string): Map<string,Energy> | null {
   return enthalpy === undefined || qualitativeSigns.every(sign=>sign===Math.sign(enthalpy.value)) ? values : null;
 }
 
-function readProfile(stem: string, question: string, _quantities: ChemPlanQuantity[], schematic: boolean): ProfileSpec | null {
+/** The conditional operator consumes only a forward gap, either directly or
+ * through E_TS-E_R. Every physical occurrence still needs its original owner. */
+function unspecifiedProfileInventory(question: string, source: ReadonlyMap<string,Energy>): boolean {
+  const roles = [
+    {role:"forward",cue:FORWARD_ACTIVATION}, {role:"forward",cue:GENERIC_ACTIVATION},
+    {role:"threshold",cue:PROFILE_THRESHOLD_CUE}, {role:"reactants",cue:PROFILE_REACTANT_CUE},
+  ];
+  if ([...source.keys()].some(role => !roles.some(candidate => candidate.role === role))) return false;
+  if ((source.has("threshold") || source.has("reactants")) && !(source.has("threshold") && source.has("reactants"))) return false;
+  const body = question.slice(0,chemistryQuestionSpan(question).end);
+  for (const token of body.matchAll(new RegExp(CHEMISTRY_SCALAR_PATTERN,"g"))) {
+    const start=token.index!+token[0].length-token[0].trimStart().length;
+    const read=readChemistryUnitLiteral({question,scalarSpan:{start,end:token.index!+token[0].trimEnd().length}});
+    // Registered-unit literals with damaged/attached scalar syntax cannot
+    // disappear through the general inventory's notation boundary filter.
+    if (!read.ok && (read.code === "malformed" || read.code === "source_conflict")) return false;
+  }
+  for (const [dimension,targetUnit] of [["energy","kJ"],["molar_energy","kJ/mol"]] as const) {
+    const consumed: ChemistryQuantityConsumption[] = [];
+    for (const {role,cue} of roles) {
+      if (!source.has(role)) continue;
+      const read = readChemistryQuantityDeclaration({question,after:energyCueAfter(cue),dimension,targetUnit,
+        owner:`conditional profile ${role}`,allowAgreeingRepeats:true});
+      if (read.state === "valid") for (const occurrence of read.occurrences) {
+        if (occurrence.read.ok) consumed.push({reading:occurrence.read.reading,owner:`conditional profile ${role}`});
+      }
+    }
+    if (!chemistryQuantityInventoryOwned(question,dimension,consumed)) return false;
+  }
+  return true;
+}
+
+function readProfile(stem: string, question: string, _quantities: ChemPlanQuantity[], schematic: boolean): ProfileSpec | UnspecifiedProductProfile | null {
   // These with/without-catalyst owners are not handled by the current role
   // reader. Their stated values must never be replaced by qualitative heights.
   const body = question.slice(0, chemistryQuestionSpan(question).end);
@@ -438,12 +486,15 @@ function readProfile(stem: string, question: string, _quantities: ChemPlanQuanti
 
   const exothermic = EXOTHERMIC.test(stem);
   const endothermic = ENDOTHERMIC.test(stem);
-  let sign: number | null = dH !== null ? Math.sign(dH) : exothermic && !endothermic ? -1 : endothermic && !exothermic ? 1 : null;
-  let assumed = false;
+  if (exothermic && endothermic || dH !== null && (exothermic && dH >= 0 || endothermic && dH <= 0)) return null;
+  const sign: number | null = dH !== null ? Math.sign(dH) : exothermic && !endothermic ? -1 : endothermic && !exothermic ? 1 : null;
   if (sign === null) {
     if (!(schematic || DRAW_CUE.test(stem))) return null;
-    sign = -1;
-    assumed = true;
+    // No net ordering follows from a forward barrier. Keep its measured gap,
+    // but never place an actual product below R just to complete a picture.
+    if (exothermic || endothermic || /catalys(?:t|ed|is|e)/.test(stem)
+      || !unspecifiedProfileInventory(question,source) || ea !== null && !(ea > 0)) return null;
+    return {productOrder:"unspecified",reactants,products,forward:ea === null ? null : {value:ea,unit}};
   }
 
   const exact = ea !== null && dH !== null;
@@ -474,9 +525,7 @@ function readProfile(stem: string, question: string, _quantities: ChemPlanQuanti
   } else if (ea !== null) {
     parts.push(`E_a(forward) = ${fmt(ea)} ${u}; the product level is drawn ${sign < 0 ? "below" : "above"} the reactants because the stem calls the reaction ${sign < 0 ? "exothermic" : "endothermic"}, with ΔH not to scale.`);
   } else {
-    parts.push(assumed
-      ? "Heights are qualitative and the exothermic case is drawn; for an endothermic reaction the product level sits above R."
-      : `Heights are qualitative: the reaction is ${sign < 0 ? "exothermic, so P lies below R" : "endothermic, so P lies above R"}.`);
+    parts.push(`Heights are qualitative: the reaction is ${sign < 0 ? "exothermic, so P lies below R" : "endothermic, so P lies above R"}.`);
   }
   if (catalyst !== null) {
     parts.push(typeof catalyst === "number"
@@ -486,7 +535,57 @@ function readProfile(stem: string, question: string, _quantities: ChemPlanQuanti
   return { steps: [step], exact, eaKnown: ea !== null, unit: u, catalyst, reactants, products, caption: parts.join(" ") };
 }
 
-function buildProfile(question: string, spec: ProfileSpec): SceneDocument {
+/** Three conditional orderings of one unresolved state; display coordinates
+ * carry neither an absolute energy zero nor a measured enthalpy magnitude. */
+function buildUnspecifiedProductProfile(question: string, spec: UnspecifiedProductProfile): SceneDocument {
+  const c = new ChemScene(question,"possible reaction profiles with unspecified product energy",THERMO_FAMILY);
+  const s = c.scene;
+  c.text("alternatives",{x:9.5,y:8.9},"Possibilities","conditional alternatives");
+  c.text("energy_title",{x:2,y:7.8},"potential energy","qualitative ordinate");
+  c.text("scale_note",{x:16,y:7.8},"not to scale","qualitative scale");
+  for (const [index,order] of [-1,0,1].entries()) {
+    const prefix = `case_${index}_`, origin = 6.5*index;
+    const xR = origin+1.1, xTS = origin+3, xP = origin+4.9;
+    const yR = 2, yTS = 5.2, yP = yR+order*1.2;
+    c.arrow(`${prefix}ordinate`,{x:origin+.4,y:.2},{x:origin+.4,y:6},"qualitative potential energy axis");
+    c.arrow(`${prefix}abscissa`,{x:origin+.4,y:.2},{x:origin+5.5,y:.2},"reaction progress axis",index===0?"ΔH not given":undefined);
+    if (index===0) s.labelled(`${prefix}abscissa`);
+    c.text(`${prefix}progress`,{x:xTS,y:-.8},"reaction coord.","reaction progress title");
+    c.level(`${prefix}r`,{x:xR,y:yR},1.1,"conditional reactant level");
+    c.level(`${prefix}p`,{x:xP,y:yP},1.1,"conditional product level");
+    c.text(`${prefix}r_name`,{x:xR,y:yR+.4},spec.reactants,"reactant name");
+    c.text(`${prefix}p_name`,{x:xP,y:yP+.4},spec.products,"possible product name");
+    s.point(`${prefix}ts`,{x:xTS,y:yTS},"conditional transition state","TS");
+    s.labelled(`${prefix}ts`);
+    const left = `${prefix}rise`, right = `${prefix}fall`;
+    s.curve(left,`${num(yTS)}-${num(yTS-yR)}*((x-${num(xTS)})/${num(xTS-xR)})^2`,xR,xTS,"conditional forward path",`If ΔH ${order<0?"<":order>0?">":"="} 0`,49);
+    s.labelled(left);
+    s.curve(right,`${num(yTS)}-${num(yTS-yP)}*((x-${num(xTS)})/${num(xP-xTS)})^2`,xTS,xP,"conditional product path",undefined,49);
+    proveOnCurve(c,`${prefix}r_join`,left,xR,yR);
+    proveOnCurve(c,`${prefix}ts_left`,left,xTS,yTS);
+    proveOnCurve(c,`${prefix}ts_right`,right,xTS,yTS);
+    proveOnCurve(c,`${prefix}p_join`,right,xP,yP);
+    const foot=s.helper(`${prefix}ea_foot`,{x:origin+.65,y:yR},"forward gap foot helper");
+    const top=s.helper(`${prefix}ea_top`,{x:origin+.65,y:yTS},"forward gap top helper");
+    s.dimension(`${prefix}ea`,foot,top,"forward activation gap from R to TS","E_a");
+    s.labelled(`${prefix}ea`);
+  }
+  if (spec.forward) {
+    s.quantity("Ea_forward","E_a",spec.forward.value,spec.forward.unit);
+    physicalValueText(c,"forward_value",{x:9.5,y:-2.2},`E_a=${fmt(spec.forward.value)}`,spec.forward.unit,"given forward activation energy");
+  }
+  // The existing presentation matches exact names in this factual cue. Start
+  // with uncertainty so its label precedes any conditional profile ink.
+  const values = s.entities.filter(entity=>entity.id.startsWith("forward_value")&&entity.label).map(entity=>entity.label!);
+  const cue = `ΔH not given; Possibilities for potential energy, not to scale: If ΔH < 0, If ΔH = 0, and If ΔH > 0 are separate possible ${spec.reactants}, TS and ${spec.products} paths along the reaction coord., with no actual product order specified; E_a is the forward gap from ${spec.reactants} to TS${spec.forward?`, labelled ${values.join(" ")}`:""}`;
+  s.group("conditional_profiles",s.entities.map(entity=>entity.id),cue);
+  const document=c.build({caption:"Qualitative possibilities: ΔH is not given. Products may lie below, equal to or above reactants; none of these conditional profiles asserts the reaction's enthalpy sign."});
+  document.source={...document.source,nonMetric:true,representationTier:"qualitative_verified"};
+  return document;
+}
+
+function buildProfile(question: string, spec: ProfileSpec | UnspecifiedProductProfile): SceneDocument {
+  if ("productOrder" in spec) return buildUnspecifiedProductProfile(question,spec);
   const n = spec.steps.length;
   const levels: number[] = [0];
   const peaks: number[] = [];

@@ -8,6 +8,8 @@ import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQ
 import type { SceneDocument } from "../types";
 import { deriveBohrOrbit } from "../physics/bohrOrbitAuthority";
 import { deriveBohrTransition } from "../physics/bohrTransitionAuthority";
+import { multiplePhotoelectricSurfaces, restoredPhotoelectricInputsValid } from "../physics/photoelectricSurfaces";
+import { photonEnergyEvFromFrequencyHz, photonEnergyEvFromWavelengthMetres } from "../physics/photonEnergy";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
 
 const ORBITAL_FAMILY = "chem_orbital" as const;
@@ -57,7 +59,7 @@ function photonEnergyEv(stem: string): number | null {
   if (stated !== null && stated > 0 && /ev/.test(stem.slice(stem.search(/photon energy|photons? of energy|energy of (?:the )?photons?/), stem.search(/photon energy|photons? of energy|energy of (?:the )?photons?/) + 48))) return stated;
   const hertz = photoelectricNumberAfter(stem, /frequency/);
   if (hertz !== null && hertz > 0 && /hz/.test(stem.slice(stem.indexOf("frequency"), stem.indexOf("frequency") + 40))) {
-    return (PLANCK_J_S * hertz) / JOULE_PER_EV;
+    return photonEnergyEvFromFrequencyHz(hertz);
   }
   const wave = /wavelength(?:[^0-9]{0,24})(\d+(?:\.\d+)?)\s*(nm|pm|angstrom|angstroms|a|m)\b/.exec(stem);
   if (!wave) return null;
@@ -68,7 +70,7 @@ function photonEnergyEv(stem: string): number | null {
       : unit === "m" ? magnitude
         : magnitude * 1e-10;
   if (!(metres > 0)) return null;
-  return (PLANCK_J_S * LIGHT_M_PER_S) / metres / JOULE_PER_EV;
+  return photonEnergyEvFromWavelengthMetres(metres);
 }
 
 function isPhotoelectricStem(stem: string): boolean {
@@ -114,8 +116,10 @@ function evText(symbol: string, value: number): string {
 }
 
 function buildPhotoelectric(question: string, stem: string): SceneDocument | null {
+  if (multiplePhotoelectricSurfaces(question)) return null;
   const phi = workFunctionEv(stem);
   const energy = photonEnergyEv(stem);
+  if (!restoredPhotoelectricInputsValid(question,phi,energy)) return null;
   if (phi === null || energy === null) return null;
   const above = energy + 1e-9 >= phi;
   const kinetic = above ? energy - phi : null;

@@ -180,7 +180,13 @@ function synthesizeFromFamilies(
   // Parameterized archetypes compute geometry from typed slots and have
   // already faced the same picture demand. Complete source-bound geometry
   // keeps the existing family selection's priority over generic lexical cues.
-  const families = resolveRequestedFamilies(question, input.families, input.problemIR);
+  const resolvedFamilies = resolveRequestedFamilies(question, input.families, input.problemIR);
+  // Axes are a complete display only when the whole request asks for axes.
+  // An incidental "graph" must not turn that operator request into a missing
+  // analytic curve, while additional source requirements still decline.
+  const families = pureCoordinateAxesRequest(question)
+    ? ["coordinate_figure" as const, ...resolvedFamilies.filter(family => family !== "coordinate_figure")]
+    : resolvedFamilies;
   const sourceFamilies = familiesFromProblemStructure(sourceMensurationStructure(question));
   // A complete source-bound solid or region is stronger than a generic
   // archetype cue such as "height of". The existing family selection still
@@ -276,6 +282,12 @@ function synthesizeFromFamilies(
     const builder = FAMILY_BUILDERS[family] ?? chemistryBuilder;
     if (!builder) continue;
     const document = builder(chemistryBuilder ? input.question : question, chemistryBuilder ? collectChemistryPlanQuantities(input.turnPlan) : quantities, schematic);
+    // An unread curve cannot be represented by axes alone, or by a later
+    // unrelated family after those axes are declined. Refuse the whole turn.
+    // Explicit coordinate-axis requests keep their coordinate-figure path.
+    if (family === "analytic_curve" && document && document.entities.length > 0
+      && document.entities.every(entity => entity.kind === "axes")
+      && document.constructions.every(construction => construction.operator === "axes")) return null;
     const compiled = document ? tryCompile(document) : null;
     if (!compiled) continue;
     // Compiling proves the geometry is valid, not that it is this question's
@@ -1629,8 +1641,8 @@ function buildAnalyticCurve(
       const well = /U\(x\)|equilibrium/i.test(question) ? "x^4/4-x^2/2" : "x";
       return plotExpressions(question, [well], domain);
     }
-    // Last-resort draws bare axes only when the stem actually asks for a graph;
-    // it never paints a canned curve the stem did not name.
+    // Keep the unread graph candidate explicit: the family selector refuses
+    // axes-only analytic candidates for the whole turn before compilation.
     if (schematic) {
       return /(?:graph|curve|plot|sketch|versus|against)/i.test(question)
         ? axesOnly(question, "analytic display axes")
@@ -3721,11 +3733,16 @@ function buildTransverseField(question: string, _quantities: PlanQuantity[], _sc
   });
 }
 
+function pureCoordinateAxesRequest(question: string): boolean {
+  return /^\s*(?:please\s+)?(?:draw|sketch|show|plot|represent|depict|illustrate)\s+(?:only\s+)?(?:the\s+)?(?:Cartesian(?:\s+coordinate)?|rectangular(?:\s+coordinate)?|(?:x\s+and\s+y\s+)?coordinate)\s+axes(?:\s+(?:on|in)\s+(?:a\s+|the\s+)?(?:graph(?:\s+paper)?|(?:Cartesian\s+|coordinate\s+)?plane))?\s*[.!?]?\s*$/i.test(question);
+}
+
 function buildCoordinateFigure(
   question: string,
   quantities: PlanQuantity[],
   schematic: boolean,
 ): SceneDocument | null {
+  if (pureCoordinateAxesRequest(question)) return axesOnly(question, "coordinate display axes");
   const circleSource = extractCircleSource(question);
   if (circleSource?.kind === "invalid") return null;
   if (circleSource) return coordinateCircleDocument(question, quantities, normalizeStem(question));
@@ -3753,7 +3770,7 @@ function buildCoordinateFigure(
   if (expressions.length > 0) {
     return plotExpressions(question, expressions, extractXInterval(question) ?? [-3, 3]);
   }
-  return axesOnly(question, "coordinate display axes");
+  return null;
 }
 
 function coordinateConicDocument(question: string, stem: string): SceneDocument {

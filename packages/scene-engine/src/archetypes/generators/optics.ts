@@ -4,6 +4,8 @@
  * uses the engine's refract_at / surface_contact / refract_direction chain so
  * Snell's law is asserted, never approximated.
  */
+import { multiplePhotoelectricSurfaces, restoredPhotoelectricInputsValid } from "../../physics/photoelectricSurfaces";
+import { photonEnergyEvFromWavelengthMetres } from "../../physics/photonEnergy";
 import { evaluateOpticsLaw } from "../../physics/opticsLaws";
 import { sagOf } from "../../compile/opticsSurfaces";
 import { DEG, SceneBuilder, fmt, withUnit, type Vec2 } from "../document";
@@ -377,9 +379,11 @@ function photonFromLambda(lambdaNm: number): number {
 }
 
 function photoelectric(context: GeneratorContext) {
+  if (multiplePhotoelectricSurfaces(context.question)) return null;
   const phi = maybeNum(context, "workFunction");
   const lambda = maybeNum(context, "lambda");
-  const photon = maybeNum(context, "photonEnergy") ?? (lambda !== null ? 1240 / lambda : null);
+  const photon = maybeNum(context, "photonEnergy") ?? (lambda !== null ? photonEnergyEvFromWavelengthMetres(lambda * 1e-9) : null);
+  if (!restoredPhotoelectricInputsValid(context.question,phi,photon)) return null;
   const phiValue = phi ?? 2;
   // #181 owns the shared photon conversion and surface guards above; this
   // reader only decides which energies the question states.
