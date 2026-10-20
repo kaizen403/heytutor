@@ -161,12 +161,14 @@ export function selectFastVerifiedRepresentation(
         ? [primitive.text] : []));
   if (agreement.length > 0 || (result.tier === "exact_verified" &&
       validateTurnPlanSceneProofs(result.document, plan).some((issue) => issue.severity === "fatal"))) return null;
+  const complete = prepareFallbackFunctionInventory(input.question, result);
+  if (!complete) return null;
   return {
-    tier: result.tier,
-    nonMetric: result.nonMetric,
-    sceneDocument: result.document,
-    renderScene: result.renderScene,
-    validationReport: result.validationReport,
+    tier: complete.tier,
+    nonMetric: complete.nonMetric,
+    sceneDocument: complete.document,
+    renderScene: complete.renderScene,
+    validationReport: complete.validationReport,
     figureSource: "fast_family",
     reason: result.reason,
     family: result.family,
@@ -265,8 +267,8 @@ export function selectVerifiedRepresentationExplained(
   // figure (bodies, frame, signed velocities, encounter); a planner scene
   // cannot replace it with differently signed or stale motion.
   const relativeMotion = input.exact && relativeMotionSource(input.question)?.status === "admitted";
-  const sourceFigure = circular?.status === "drawn" ? circular.scene
-    : unprovenMensuration || unprovenPlannerScene || relativeMotion ? synthesize() : null;
+  const sourceFigure = prepareFallbackFunctionInventory(input.question, circular?.status === "drawn" ? circular.scene
+    : unprovenMensuration || unprovenPlannerScene || relativeMotion ? synthesize() : null);
   const preferSourceFigure = circular?.status === "drawn"
     || sourceFigure?.family === "solid_figure" || sourceFigure?.family === "bounded_region"
     || sourceFigure?.document.source.sourceModel === RELATIVE_MOTION_SOURCE_MODEL
@@ -339,7 +341,7 @@ export function selectVerifiedRepresentationExplained(
     }
   }
 
-  const synthesized = sourceFigure ?? synthesize();
+  const synthesized = sourceFigure ?? prepareFallbackFunctionInventory(input.question, synthesize());
   if (synthesized) {
     return explained({
       tier: synthesized.tier,
@@ -356,12 +358,12 @@ export function selectVerifiedRepresentationExplained(
   try {
     return explained(buildSourceGroundedRepresentation(input.question, input.turnPlan));
   } catch {
-    const lastResort = synthesizeLastResortScene({
+    const lastResort = prepareFallbackFunctionInventory(input.question, synthesizeLastResortScene({
       question: input.question,
       turnPlan: input.turnPlan,
       families,
       problemIR: input.problemIR ?? null,
-    });
+    }), true);
     if (lastResort) {
       return explained({
         tier: lastResort.tier,
@@ -902,47 +904,596 @@ function buildTextOnlyRepresentation(
   };
 }
 
-function extractExplicitFunctionFacts(question: string): SourceFunctionFact[] {
-  const normalized = normalizeMathText(question);
-  const facts: SourceFunctionFact[] = [];
-  const matches = normalized.matchAll(/\by\s*=\s*/gi);
-  for (const match of matches) {
-    const start = (match.index ?? 0) + match[0].length;
-    const rawExpression = readSupportedExpressionPrefix(normalized.slice(start, start + 160));
-    const expression = normalizeExpression(rawExpression);
-    if (!expression || facts.some((fact) => fact.expression === expression)) continue;
-    try {
-      parseMathExpression(expression);
-      facts.push({ expression, sourceText: `y=${rawExpression.trim()}` });
-    } catch {
-      // Unsupported expressions stay available as literal source facts instead
-      // of being approximated or repaired into a different equation.
-    }
-  }
-  return facts.slice(0, 4);
+// A certified scale noun phrase describes presentation, not perpendicular
+// geometry. Keep the modifier grammar closed: logarithmic axes are not proved.
+const NORMAL_SCALE_MODIFIER = String.raw`(?:linear|horizontal|vertical|coordinate|Cartesian|[xy][\s-]+axis|\(\s*linear\s*\))`;
+const NORMAL_SCALE_ADJECTIVE = new RegExp(`^[\\s-]+(?:${NORMAL_SCALE_MODIFIER}[\\s-]+)?(?:scales?|scaling)(?![\\p{L}\\p{N}_])`, "iu");
+const NORMAL_SCALE_PREDICATE = new RegExp(`(?:^|[.!?;,()]|\\bwith)\\s*(?:(?:the\\s+)?(?:${NORMAL_SCALE_MODIFIER}\\s+)?scale\\s+is|(?:the\\s+)?(?:${NORMAL_SCALE_MODIFIER}\\s+)?scales\\s+are|both\\s+(?:${NORMAL_SCALE_MODIFIER}\\s+)?scales)\\s+$`, "iu");
+
+function isProvedNormalScaleRole(source: string, start: number, end: number): boolean {
+  // One lookahead character proves the real word boundary within a bounded
+  // role span. Clipping can refuse a long phrase, never invent a boundary.
+  const after = source.slice(end, end + 129);
+  const adjective = NORMAL_SCALE_ADJECTIVE.exec(after);
+  if (adjective && adjective[0].length <= 128) return true;
+  const completePredicate = /^\s*[.!?,;:)]/u.test(after) ||
+    (end + after.length === source.length && /^\s*$/u.test(after));
+  if (!completePredicate) return false; // "scale is normal to ..." is not prose.
+  const offset = Math.max(0, start - 128);
+  const before = source.slice(offset, start);
+  const predicate = NORMAL_SCALE_PREDICATE.exec(before);
+  return predicate !== null && (offset === 0 || predicate.index > 0);
 }
 
-function readSupportedExpressionPrefix(source: string): string {
-  const allowedIdentifiers = new Set([
-    "x", "pi", "e", "sin", "cos", "tan", "asin", "acos", "atan",
-    "sqrt", "abs", "exp", "log", "ln",
-  ]);
-  let index = 0;
-  while (index < source.length) {
-    const character = source[index]!;
-    if (/\s/.test(character) || /[0-9.+\-*/^()]/.test(character)) {
-      index += 1;
+function isProvedNormalFunctionRole(source: string, start: number, end: number): boolean {
+  const after = source.slice(end, end + 129);
+  const property = /^[\s-]+(?:distributions?|notation)(?![\p{L}\p{N}_])/iu.exec(after);
+  if (property && property[0].length <= 128) return true;
+  return isProvedNormalScaleRole(source, start, end);
+}
+
+function hasUnprovedNormalFunctionRole(source: string, unquotedPositions: Uint8Array): boolean {
+  const normalRoles = /(?<![\p{L}\p{N}_])normals?(?![\p{L}\p{N}_])/giu;
+  for (const match of source.matchAll(normalRoles)) {
+    const start = match.index!;
+    if (!unquotedPositions[start]) continue;
+    if (match[0].toLowerCase() === "normal" &&
+        isProvedNormalFunctionRole(source, start, start + match[0].length)) continue;
+    return true;
+  }
+  return false;
+}
+
+function extractExplicitFunctionFacts(question: string, nativeInventory = false, nativeDocument?: SceneDocument): SourceFunctionFact[] {
+  const normalized = normalizeMathText(question);
+  const unquotedPositions = unquotedFunctionSourcePositions(normalized);
+  // The producer owns tangents, not an unproved normal role. Prove every
+  // unquoted occurrence independently; a presentation role cannot own another.
+  if (hasUnprovedNormalFunctionRole(normalized, unquotedPositions)) return [];
+  const facts: SourceFunctionFact[] = [];
+  const ownedEqualities = new Set<number>();
+  const ownedExpressionEnds = new Set<number>();
+  const declaredNames = new Set<string>();
+  let previousEquationEnd = -1;
+  const equations = nativeInventory ? /(?<![\p{L}\p{N}_])(?:y|([\p{L}][\p{L}\p{N}_]*)\s*\(\s*x\s*\))\s*=\s*/giu : /\by\s*=\s*/gi;
+  for (const match of normalized.matchAll(equations)) {
+    const lhs = match.index!;
+    if (!unquotedPositions[lhs]) continue;
+    if (match[1] && FUNCTION_EXPRESSION_IDENTIFIERS.has(match[1].toLowerCase())) return [];
+    const boundary = hasStandaloneFunctionLhs(normalized, lhs, previousEquationEnd);
+    if (!boundary) return [];
+    const start = lhs + match[0].length;
+    const read = readCompleteSupportedExpression(normalized.slice(start), boundary, nativeInventory);
+    if (!read) return [];
+    // A scalar condition on an already declared curve is not another curve.
+    // "draw y=0" still declares a full horizontal line; "where y=0" asks
+    // about the existing curve. Neither condition nor its answer adds ink.
+    if (facts.length > 0 && /\b(?:when|where)\s*$/iu.test(normalized.slice(0, lhs)) && !match[1]) {
+      try {
+        const expression = normalizeNativeFunctionBody(read.expression);
+        if (/\bx\b/iu.test(expression) || !Number.isFinite(parseMathExpression(expression).evaluate(0))) return [];
+      } catch { return []; }
+      ownedEqualities.add(lhs + match[0].indexOf("="));
       continue;
     }
-    if (/[A-Za-z_]/.test(character)) {
-      const identifier = source.slice(index).match(/^[A-Za-z_][A-Za-z0-9_]*/)?.[0] ?? "";
-      if (!allowedIdentifiers.has(identifier.toLowerCase())) break;
+    const expression = nativeInventory ? normalizeNativeFunctionBody(read.expression) : normalizeExpression(read.expression);
+    if (!expression) return [];
+    ownedEqualities.add(lhs + match[0].indexOf("="));
+    previousEquationEnd = start + read.end;
+    ownedExpressionEnds.add(previousEquationEnd);
+    if (match[1]) declaredNames.add(match[1]);
+    if (!facts.some(fact => fact.expression === expression)) facts.push({ expression, sourceText: `y=${read.expression}` });
+    if (facts.length > 4) return [];
+  }
+  // Every unquoted equality is accounted for. A rejected/later/implicit
+  // Cartesian equation cannot leave the other curves as a partial figure.
+  const parameters = nativeInventory
+    ? nativeFunctionParameterEqualities(normalized, unquotedPositions, ownedExpressionEnds)
+    : new Set<number>();
+  for (const index of sourceFunctionSettingEqualities(normalized, unquotedPositions, ownedExpressionEnds, nativeDocument)) parameters.add(index);
+  for (const match of normalized.matchAll(/=/g)) {
+    const index = match.index!;
+    if (!unquotedPositions[index] || ownedEqualities.has(index) || /[<>!]/.test(normalized[index - 1] ?? "")) continue;
+    // A complete evaluation attached directly to an owned curve expression
+    // already has scalar authority. Preserve it before the bare-x parameter
+    // check; unrelated or typed-point contexts still need their native slot.
+    if (nativeInventory && isAuxiliaryFunctionEquation(normalized, index, facts, ownedExpressionEnds, true)) continue;
+    // A bare x equality belongs to an exact native parameter occurrence,
+    // never to a scalar-query exemption merely because its value is numeric.
+    if (/(?<![\p{L}\p{N}_])x\s*$/iu.test(normalized.slice(0, index))) {
+      if (!parameters.has(index) && (nativeInventory || !isAuxiliaryFunctionEquation(normalized, index, facts, ownedExpressionEnds))) return [];
+      continue;
+    }
+    if (!isAuxiliaryFunctionEquation(normalized, index, facts, ownedExpressionEnds) &&
+        !(nativeInventory && isNativeScalarFunctionEquation(normalized, index, declaredNames))) return [];
+  }
+  return facts;
+}
+
+/** Prove each parameter clause against the engine's existing stem-owned
+ * interval/point slots. The public detector is read-only here: neither its
+ * figure nor a proposed candidate supplies the parameter or its ownership. */
+function nativeFunctionParameterEqualities(source: string, unquoted: Uint8Array, expressionEnds: ReadonlySet<number>): Set<number> {
+  const owned = new Set<number>();
+  const literal = "-?\\d+(?:\\.\\d+)?";
+  const interval = new RegExp(`(?<![\\p{L}\\p{N}_])(?:(from|between)\\s+)?x\\s*=\\s*(${literal})\\s*(to|and|,)\\s*x\\s*=\\s*(${literal})`, "giu");
+  const point = new RegExp(`(?<![\\p{L}\\p{N}_])(?:at|where|when)\\s+(?:the\\s+point\\s+(?:where\\s+)?)?x\\s*=\\s*(${literal})`, "giu");
+  const previousExpressionEnd = (start: number): number => {
+    let previous = -1;
+    for (const end of expressionEnds) if (end <= start && end > previous) previous = end;
+    return previous;
+  };
+  const boundary = (start: number): readonly string[] | null => {
+    return hasStandaloneFunctionLhs(source, start, previousExpressionEnd(start));
+  };
+  const completeLiteral = (start: number, value: string, closers: readonly string[]): boolean => {
+    const read = readCompleteSupportedExpression(source.slice(start), closers);
+    return read !== null && normalizeExpression(read.expression) === value;
+  };
+  const unquotedClause = (start: number, end: number): boolean => {
+    for (let index = start; index < end; index++) if (!unquoted[index]) return false;
+    return true;
+  };
+  let nativeSlots: ReturnType<typeof detectArchetype> | undefined;
+  const sourceSlots = (): ReturnType<typeof detectArchetype> => {
+    if (nativeSlots === undefined) nativeSlots = detectArchetype(source, { turnPlan: null, problemIR: null });
+    return nativeSlots;
+  };
+  for (const match of source.matchAll(interval)) {
+    const head = match[1]?.toLowerCase(), join = match[3]!.toLowerCase();
+    if (head === "from" ? join !== "to" : head === "between" ? join !== "and" : join !== "to") continue;
+    const start = match.index!, end = start + match[0].length;
+    const previous = previousExpressionEnd(start);
+    // This is a range attached to the complete curve, not an arbitrary
+    // occurrence of two x equalities somewhere in its surrounding prose.
+    if (previous < 0 || !/^\s*,?\s*$/.test(source.slice(previous, start))) continue;
+    const closers = boundary(start);
+    if (!closers || !unquotedClause(start, end) || !completeLiteral(end - match[4]!.length, match[4]!, closers)) continue;
+    const intervalSlots = sourceSlots();
+    const lo = Number(match[2]), hi = Number(match[4]);
+    if (!Number.isFinite(lo) || !Number.isFinite(hi) || lo === hi ||
+        intervalSlots?.sources.xMin !== "stem" || intervalSlots.sources.xMax !== "stem" ||
+        intervalSlots.slots.xMin !== Math.min(lo, hi) || intervalSlots.slots.xMax !== Math.max(lo, hi)) continue;
+    for (const equality of match[0].matchAll(/=/g)) owned.add(start + equality.index!);
+  }
+  let previousPointEnd = -1;
+  for (const match of source.matchAll(point)) {
+    const start = match.index!, end = start + match[0].length;
+    const closers = boundary(start);
+    if (!closers || !unquotedClause(start, end) || !completeLiteral(end - match[1]!.length, match[1]!, closers)) continue;
+    const previous = Math.max(previousExpressionEnd(start), previousPointEnd);
+    const wrapper = /\(\s*$/.exec(source.slice(0, start));
+    const wrappedEvaluation = wrapper && readSourceAtEvaluation(source, wrapper.index) !== null;
+    const attachment = source.slice(Math.max(0, previous), wrappedEvaluation ? wrapper.index : start);
+    // Native tangent/point roles and the existing differentiability query
+    // are complete grammatical attachments. Unknown or excluded point
+    // contexts cannot acquire ownership merely by sharing the x0 number.
+    const pointAttachment = /^\s*(?:,?\s*and\s+|,\s*)?(?:(?:its|the|a)\s+)?(?:tangents?|slope\s+of\s+the\s+(?:tangent|curve))?\s*$/i.test(attachment);
+    const scalarQuery = /^at\b/i.test(match[0]) && previousExpressionEnd(start) >= 0 &&
+      /^\s*(?:is\s+)?(?:not\s+)?differentiable\s*$/i.test(attachment);
+    if (!pointAttachment && !scalarQuery) continue;
+    const pointSlots = scalarQuery ? null : sourceSlots();
+    const value = Number(match[1]);
+    if (!Number.isFinite(value) || (!scalarQuery && (pointSlots?.id !== "tangent_to_curve" || pointSlots.sources.x0 !== "stem" || pointSlots.slots.x0 !== value))) continue;
+    owned.add(start + match[0].indexOf("="));
+    previousPointEnd = end;
+  }
+  return owned;
+}
+
+/** Scalar settings do not add Cartesian curves. Read complete occurrences,
+ * rather than exempting every numeric x equality in a graphing question.
+ * Native point/tangent slots above retain their stricter geometry contract. */
+function sourceFunctionSettingEqualities(source: string, unquoted: Uint8Array, expressionEnds: ReadonlySet<number>, nativeDocument?: SceneDocument): ReadonlySet<number> {
+  const owned = new Set<number>();
+  const number = String.raw`[+-]?(?:\d+(?:\.\d+)?|\.\d+)`;
+  const atom = String.raw`(?:${number}\s*\*?\s*(?:π|pi)|${number}|[+-]?(?:π|pi))`;
+  const scalar = String.raw`(?:${atom})(?:\s*/\s*${number})?`;
+  const finiteAtom = (value: string): boolean => {
+    try { return Number.isFinite(parseMathExpression(normalizeExpression(value.replace(/π/gu, "pi"))).evaluate(0)); }
+    catch { return false; }
+  };
+  const unquotedSource = source.split("").map((character, index) => unquoted[index] ? character : " ").join("");
+  const boundedRegionClause = (start: number): boolean => {
+    const prefix = unquotedSource.slice(0, start);
+    let clauseStart = 0;
+    for (const delimiter of prefix.matchAll(/\.(?=\s|$)|[;?!]/gu)) clauseStart = delimiter.index! + delimiter[0].length;
+    const clause = prefix.slice(clauseStart);
+    const declaration = Array.from(clause.matchAll(/\b(?:bounded|enclosed)\s+by\b/giu)).at(-1);
+    return declaration !== undefined && /\b(?:area|region)\b/iu.test(clause.slice(0, declaration.index!)) &&
+      !/\b(?:draw|graph|plot|sketch|represent|show)\b/iu.test(clause.slice(declaration.index! + declaration[0].length));
+  };
+  const completeClause = (start: number, end: number): boolean => {
+    for (let index = start; index < end; index++) if (!unquoted[index]) return false;
+    const tail = source.slice(end);
+    return /^\s*(?:$|[;?)]|\.(?![\d.])|,(?!\s*[\d.])|\b(?:and|then)\b)/iu.test(tail);
+  };
+  const attached = (start: number): boolean => Array.from(expressionEnds).some(end => end <= start && /^\s*,?\s*$/u.test(source.slice(end, start)));
+  const add = (match: RegExpMatchArray): void => {
+    const start = match.index!;
+    for (const equality of match[0].matchAll(/=/gu)) owned.add(start + equality.index!);
+  };
+  // A neighbourhood is a display setting. Evaluation has an explicit scalar
+  // target (y or a value/rate noun), which a bare "at x=..." does not supply.
+  const evaluation = new RegExp(String.raw`(?<![\p{L}\p{N}_])(?:(near)\s+|(?:y|value|gradient|slope|point|maximum|minimum)\s+(?:when|at|where)\s+)x\s*=\s*(${scalar})`, "giu");
+  for (const match of source.matchAll(evaluation)) {
+    const start = match.index!, end = start + match[0].length;
+    if (!completeClause(start, end) || !finiteAtom(match[2]!)) continue;
+    if (match[1] ? !attached(start) : !Array.from(expressionEnds).some(end => end < start)) continue;
+    add(match);
+  }
+  // Display intervals use scalar atoms. Expressions such as 2+1, 2/3 and
+  // unknown identifiers remain outside this interval grammar. Scalar
+  // evaluations above separately allow a finite atom divided by a number.
+  const interval = new RegExp(String.raw`(?<![\p{L}\p{N}_])(from|for|between)\s+x\s*=\s*(${atom})\s+(to|and)\s+(?:x\s*=\s*)?(${atom})`, "giu");
+  const intervals = Array.from(source.matchAll(interval));
+  for (const match of intervals) {
+    const start = match.index!, end = start + match[0].length;
+    const between = match[1]!.toLowerCase() === "between";
+    if (intervals.length !== 1 || between !== (match[3]!.toLowerCase() === "and") || !attached(start) ||
+        !completeClause(start, end) || !finiteAtom(match[2]!) || !finiteAtom(match[4]!)) continue;
+    add(match);
+  }
+  const table = new RegExp(String.raw`(?<![\p{L}\p{N}_])(?:by\s+taking|using)\s+x\s*=\s*${number}(?:\s*(?:,|and)\s*${number})+`, "giu");
+  for (const match of source.matchAll(table)) {
+    const start = match.index!, end = start + match[0].length;
+    const values = match[0].slice(match[0].indexOf("=") + 1).split(/,|\band\b/iu);
+    if (attached(start) && completeClause(start, end) && values.every(finiteAtom)) add(match);
+  }
+  // A typed function_region owns its vertical interval boundaries. Values
+  // must match that source-only region contract; another requested line is
+  // still an unowned equality and invalidates the complete inventory.
+  const regionBounds = new RegExp(String.raw`(?<![\p{L}\p{N}_])(?:the\s+)?lines\s+x\s*=\s*(${number})\s+and\s+x\s*=\s*(${number})`, "giu");
+  for (const match of source.matchAll(regionBounds)) {
+    const start = match.index!, end = start + match[0].length;
+    const lo = Number(match[1]), hi = Number(match[2]);
+    if (boundedRegionClause(start) && completeClause(start, end) && nativeDocument?.constructions.some(c => c.operator === "function_region" && c.inputs.xMin === Math.min(lo, hi) && c.inputs.xMax === Math.max(lo, hi))) add(match);
+  }
+  // A bounded-region declaration supplies boundary settings even when only
+  // its complete source curves can be drawn. It does not request an unrelated
+  // vertical line elsewhere in the sentence, and grants no region ink.
+  const boundary = new RegExp(String.raw`(?<![\p{L}\p{N}_])x\s*=\s*(${atom})`, "giu");
+  for (const match of source.matchAll(boundary)) {
+    const start = match.index!, end = start + match[0].length;
+    if (boundedRegionClause(start) && /(?:,|\band)\s+(?:(?:the\s+)?lines?\s+)?$/iu.test(source.slice(0, start)) &&
+        completeClause(start, end) && finiteAtom(match[1]!)) add(match);
+  }
+  const axisCoordinate = new RegExp(String.raw`(?<![\p{L}\p{N}_])y[\s-]+axis\s*\(\s*x\s*=\s*(${scalar})\s*\)`, "giu");
+  for (const match of source.matchAll(axisCoordinate)) {
+    const start = match.index!, end = start + match[0].length;
+    if (Array.from(expressionEnds).some(end => end < start) && completeClause(start, end) && finiteAtom(match[1]!) &&
+        parseMathExpression(normalizeExpression(match[1]!.replace(/π/gu, "pi"))).evaluate(0) === 0) add(match);
+  }
+  return owned;
+}
+
+/** Source-inventory admission for independently validated native syntheses.
+ * The unchanged engine owns geometry, numeric proofs and tiers. This reader
+ * neither decodes display coordinates nor grants derivative/answer authority:
+ * it accepts only the whole program independently re-derived from the same
+ * unquoted source, with no plan, IR or family hints, and returns it unchanged. */
+export function prepareFallbackFunctionInventory<T extends { document: SceneDocument; renderScene: RenderScene; validationReport: ValidationReport; tier?: string; nonMetric?: boolean; family?: string }>(question: string, candidate: T | null, lastResort = false): T | null {
+  if (!candidate) return null;
+  const curves = candidate.document.constructions.filter(({ operator }) => operator === "function_curve" || operator === "implicit_curve");
+  if (candidate.document.source.archetype === "function_graph" && curves.length === 0) return null;
+  const bareAxes = curves.length === 0 && candidate.document.constructions.length > 0 && candidate.document.constructions.every(({ operator }) => operator === "axes");
+  if (curves.length === 0 && !bareAxes) return candidate;
+  const normalized = normalizeMathText(question);
+  const unquoted = unquotedFunctionSourcePositions(normalized);
+  const explicit = Array.from(normalized.matchAll(/\by\s*=/gi));
+  const named = Array.from(normalized.matchAll(/(?<![\p{L}\p{N}_])[\p{L}][\p{L}\p{N}_]*\s*\(\s*x\s*\)\s*=/giu));
+  const sourceProgram = [...explicit, ...named].some(match => unquoted[match.index!]);
+  const quotedProgram = [...explicit, ...named].some(match => !unquoted[match.index!]);
+  if (!sourceProgram && !quotedProgram) return candidate;
+  if (bareAxes) return null;
+  // Derive native contracts from the unquoted source, never from a proposed
+  // candidate's region or parameter declarations.
+  const stem = normalized.split("").map((character, index) => unquoted[index] ? character : " ").join("");
+  const independent = (lastResort ? synthesizeLastResortScene : synthesizeFamilyScene)({ question: stem, turnPlan: null, problemIR: null });
+  if (!independent?.validationReport.valid) return null;
+  if (sourceProgram) {
+    const facts = extractExplicitFunctionFacts(question, true, independent.document);
+    if (facts.length === 0) return null;
+    const regionBoundaries = new Set(independent.document.constructions.filter(c => c.operator === "function_region").flatMap(c => [c.inputs.upper, c.inputs.lower]));
+    const sourceAxis = /(?<![\p{L}\p{N}_])x[\s-]+axis(?![\p{L}\p{N}_])/iu.test(stem);
+    const owners = new Set<number>(), outputIds = new Set<string>();
+    for (const curve of curves) {
+      if (curve.outputs.length !== 1 || outputIds.has(curve.outputs[0]!)) return null;
+      const id = curve.outputs[0]!; outputIds.add(id);
+      const entity = candidate.document.entities.find(entity => entity.id === id);
+      const owner = facts.findIndex(fact => ownsCompleteFunctionLabel(entity?.label, stripCompleteExpressionGroups(fact.expression)));
+      const axisBoundary = owner < 0 && sourceAxis && regionBoundaries.has(id) && ownsCompleteFunctionLabel(entity?.label, "0");
+      if (!axisBoundary && (owner < 0 || owners.has(owner))) return null;
+      if (!axisBoundary) owners.add(owner);
+      const labels = candidate.renderScene.primitives.filter(primitive => primitive.entityId === id && primitive.kind === "label");
+      if (labels.length !== 1 || !ownsCompleteFunctionLabel(labels[0]!.text, axisBoundary ? "0" : stripCompleteExpressionGroups(facts[owner]!.expression))) return null;
+    }
+    if (owners.size !== facts.length) return null;
+  }
+  // A same-engine whole-program identity is a provenance check, not a new
+  // numeric proof. Never adopt masked-source ink or remove candidate marks.
+  if (nativeProgramFingerprint(candidate) !== nativeProgramFingerprint(independent) ||
+      JSON.stringify(candidate.renderScene) !== JSON.stringify(independent.renderScene)) return null;
+  if (candidate.family !== independent.family) {
+    // A contextual family name also reaches narration. It needs its own
+    // source-only corroboration, after the unhinted whole program is proved.
+    // This sole tag may not introduce any mark or rescue a primary mismatch.
+    if (typeof candidate.family !== "string" || !candidate.family.trim()) return null;
+    const corroborated = (lastResort ? synthesizeLastResortScene : synthesizeFamilyScene)({
+      question: stem, turnPlan: null, problemIR: null, families: [candidate.family],
+    });
+    if (!corroborated?.validationReport.valid || corroborated.family !== candidate.family ||
+        nativeProgramFingerprint(corroborated) !== nativeProgramFingerprint(independent) ||
+        JSON.stringify(corroborated.renderScene) !== JSON.stringify(independent.renderScene)) return null;
+  }
+  return candidate;
+}
+
+function normalizeNativeFunctionBody(expression: string): string {
+  return normalizeExpression(normalizeMathText(expression).replace(/\|([^|]+)\|/g, (_match, inner: string) => `abs(${inner})`)).replace(/(\d)\.$/, "$1");
+}
+
+function nativeProgramFingerprint(candidate: { document: SceneDocument; tier?: string; nonMetric?: boolean; family?: string }): string {
+  return JSON.stringify({ document: { ...candidate.document, source: { ...candidate.document.source, question: "" } }, tier: candidate.tier, nonMetric: candidate.nonMetric });
+}
+
+function ownsCompleteFunctionLabel(label: unknown, expression: string): boolean {
+  if (typeof label !== "string") return false;
+  const equation = /^\s*y\s*=\s*(.+?)\s*$/i.exec(normalizeMathText(label));
+  return equation !== null && stripCompleteExpressionGroups(normalizeNativeFunctionBody(equation[1]!)) === expression;
+}
+
+function stripCompleteExpressionGroups(value: string): string {
+  while (value.startsWith("(") && value.endsWith(")")) {
+    let depth = 0, end = 0;
+    for (; end < value.length; end++) {
+      if (value[end] === "(") depth++;
+      if (value[end] === ")" && --depth === 0) break;
+    }
+    if (end !== value.length - 1) break;
+    value = value.slice(1, -1);
+  }
+  return value;
+}
+
+const FUNCTION_EXPRESSION_IDENTIFIERS = new Set([
+  "x", "pi", "e", "sin", "cos", "tan", "asin", "acos", "atan",
+  "sqrt", "abs", "exp", "log", "ln",
+]);
+const BARE_UNARY_FUNCTION = new RegExp(
+  `(?<![\\p{L}\\p{N}_])(${Array.from(FUNCTION_EXPRESSION_IDENTIFIERS).filter(name => !["x", "pi", "e"].includes(name)).join("|")})\\s+x(?=\\s*(?:$|[+\\-]))`, "gu",
+);
+const FUNCTION_PRIME_SYMBOL = /^(?:[A-Za-z\u0370-\u03ff](?:[0-9\u2080-\u2089]+|_[A-Za-z0-9\u0370-\u03ff]+)?|alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|omicron|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega)$/i;
+const FUNCTION_PRIME_SCALAR = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
+const FUNCTION_QUOTED_SCALAR = /^\s*(?:[A-Za-z\u0370-\u03ff][A-Za-z0-9_\u0370-\u03ff\u2080-\u2089]*\s*=\s*)?[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?\s*$/i;
+
+function unquotedFunctionSourcePositions(source: string): Uint8Array {
+  // State bits: outside=1, single-quoted=2, double-quoted=4. Each row maps
+  // those three input states to possible output states for the same token.
+  const transitions = [
+    [1, 2, 4], // ordinary text, contraction, or the start of a prime run
+    [2, 1, 4], // nonattached single quotation boundary
+    [4, 2, 1], // double quotation boundary
+    [1, 3, 4], // attached run: all primes, or its last mark closes a quote
+    [0, 3, 4], // ordinary closer: ambiguous inside, never a prime outside
+  ] as const;
+  const tokens = new Uint8Array(source.length);
+  let rawSingleQuote = -1;
+  let rawSingleQuoteCanOpen = false;
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index]!;
+    if (/['’]/.test(character) && /[A-Za-z\u0370-\u03ff]/.test(source[index - 1] ?? "") &&
+        /[A-Za-z\u0370-\u03ff]/.test(source[index + 1] ?? "")) continue;
+    if (/['’]/.test(character) && /[A-Za-z0-9_\u0370-\u03ff\u2080-\u2089)]/.test(source[index - 1] ?? "")) {
+      let start = index;
+      while (start > 0 && /[A-Za-z0-9_\u0370-\u03ff\u2080-\u2089]/.test(source[start - 1]!)) start -= 1;
+      const token = source.slice(start, index);
+      const firstMark = index;
+      let scalarStart = start;
+      while (scalarStart > 0 && /[0-9.eE+\-]/.test(source[scalarStart - 1]!)) scalarStart -= 1;
+      const numeric = FUNCTION_PRIME_SCALAR.test(source.slice(scalarStart, index)) &&
+        !/[A-Za-z0-9_\u0370-\u03ff\u2080-\u2089]/.test(source[scalarStart - 1] ?? "");
+      // Consecutive raw quote spans are disjoint. A quoted scalar/equality
+      // can close a quote without making a bare measurement mark invalid.
+      const literalScalar = numeric && rawSingleQuoteCanOpen &&
+        FUNCTION_QUOTED_SCALAR.test(source.slice(rawSingleQuote + 1, firstMark));
+      while (/['’]/.test(source[index + 1] ?? "")) index += 1;
+      let following = index + 1;
+      while (/\s/.test(source[following] ?? "") && following < source.length) following += 1;
+      const literalWord = /^[A-Za-z]{2,}$/.test(token) && /['‘’]/.test(source[start - 1] ?? "");
+      const symbol = FUNCTION_PRIME_SYMBOL.test(token) || FUNCTION_EXPRESSION_IDENTIFIERS.has(token.toLowerCase());
+      const application = /^[A-Za-z_\u0370-\u03ff]/.test(token) && source[following] === "(" &&
+        (following === index + 1 || !literalWord);
+      // A possible plural possessive retains its open-quote path, even
+      // before punctuation. A directly quoted ordinary word need not be a
+      // valid outside possessive/prime to preserve that same inside path.
+      const possessive = /s$/i.test(token) && !literalWord;
+      tokens[index] = source[start - 1] === ")" || symbol || application || possessive || (numeric && !literalScalar) ? 3 : 4;
+      rawSingleQuote = index;
+      rawSingleQuoteCanOpen = false;
+      continue;
+    }
+    if (/['‘’]/.test(character)) {
+      tokens[index] = 1;
+      rawSingleQuote = index;
+      rawSingleQuoteCanOpen = true;
+    }
+    else if (/["“”]/.test(character)) tokens[index] = 2;
+  }
+  const forward = new Uint8Array(source.length + 1);
+  const backward = new Uint8Array(source.length + 1);
+  forward[0] = 1;
+  backward[source.length] = 1;
+  for (let index = 0; index < source.length; index += 1) {
+    const transition = transitions[tokens[index]!]!;
+    for (let state = 0; state < 3; state += 1) {
+      if (forward[index]! & (1 << state)) forward[index + 1]! |= transition[state]!;
+    }
+  }
+  for (let index = source.length - 1; index >= 0; index -= 1) {
+    const transition = transitions[tokens[index]!]!;
+    for (let state = 0; state < 3; state += 1) {
+      if (transition[state]! & backward[index + 1]!) backward[index]! |= 1 << state;
+    }
+  }
+  const unquoted = new Uint8Array(source.length + 1);
+  for (let index = 0; index <= source.length; index += 1) {
+    // No balanced interpretation, or any viable quoted interpretation,
+    // withholds source ownership at this position.
+    unquoted[index] = (forward[index]! & backward[index]!) === 1 ? 1 : 0;
+  }
+  return unquoted;
+}
+
+function isSourceFunctionProseEndpoint(source: string, index: number): boolean {
+  const identifier = /^[\p{L}\p{N}_]+/u.exec(source.slice(index))?.[0];
+  const suffix = identifier === undefined ? "" : source.slice(index + identifier.length);
+  let afterIdentifier = suffix.trimStart();
+  const separatedWrapper = afterIdentifier.length < suffix.length;
+  while (afterIdentifier.startsWith("(") || afterIdentifier.startsWith("\\(") || afterIdentifier.startsWith("$")) {
+    afterIdentifier = afterIdentifier.slice(afterIdentifier.startsWith("\\(") ? 2 : 1).trimStart();
+  }
+  const nextEquationWrapper = separatedWrapper && /^y\s*=/i.test(afterIdentifier);
+  return identifier !== undefined && index > 0 && /\s/.test(source[index - 1]!) && /^[\p{L}]{2,}$/u.test(identifier) &&
+    !/\p{Script=Greek}/u.test(identifier) && !FUNCTION_PRIME_SYMBOL.test(identifier) &&
+    !FUNCTION_EXPRESSION_IDENTIFIERS.has(identifier.toLowerCase()) && (!suffix.trimStart().startsWith("(") || nextEquationWrapper);
+}
+
+/** Prove only lexical separation from the complete mathematical LHS. */
+function hasStandaloneFunctionLhs(source: string, index: number, previousEquationEnd: number): string[] | null {
+  const rawPrefix = source.slice(0, index);
+  if (previousEquationEnd >= 0 && /^\s*(?:,|and)?\s*$/i.test(rawPrefix.slice(previousEquationEnd))) return [];
+  let prefix = rawPrefix.trimEnd();
+  const closers: string[] = [];
+  while (true) {
+    if (prefix.endsWith("\\(") || prefix.endsWith("(")) {
+      const latex = prefix.endsWith("\\("), before = prefix.slice(0, latex ? -2 : -1);
+      if (/[\p{L}\p{N}_\])}]$/u.test(before)) return null;
+      closers.push(latex ? "\\)" : ")"); prefix = before.trimEnd();
+    }
+    else if (prefix.endsWith("$")) { closers.push("$"); prefix = prefix.slice(0, -1).trimEnd(); }
+    else break;
+  }
+  prefix = prefix.replace(/:$/, "").trimEnd();
+  if (!prefix || /[.,;?]$/.test(prefix)) return closers;
+  const token = /[\p{L}\p{N}_]+$/u.exec(prefix);
+  if (!token || !/^[\p{L}]{2,}$/u.test(token[0]) || /\p{Script=Greek}/u.test(token[0]) ||
+      FUNCTION_PRIME_SYMBOL.test(token[0]) || FUNCTION_EXPRESSION_IDENTIFIERS.has(token[0].toLowerCase())) return null;
+  if (/[+\-*/^=([\\]$/.test(prefix.slice(0, token.index).trimEnd())) return null;
+  return closers;
+}
+
+interface CompleteSourceExpression { expression: string; end: number }
+function readCompleteSupportedExpression(source: string, closers: readonly string[] = [], nativeSyntax = false): CompleteSourceExpression | null {
+  let index = 0, depth = 0, absoluteDepth: number | null = null;
+  const startsDeclaration = (suffix: string): boolean => nativeSyntax
+    ? /^\s*(?:y|[\p{L}][\p{L}\p{N}_]*\s*\(\s*x\s*\))\s*=/iu.test(suffix)
+    : /^\s*y\s*=/i.test(suffix);
+  const complete = (end: number): CompleteSourceExpression | null => {
+    const expression = source.slice(0, index).trim();
+    if (!expression || depth !== 0) return null;
+    try { parseMathExpression(nativeSyntax ? normalizeNativeFunctionBody(expression) : normalizeExpression(expression)); return { expression, end }; }
+    catch { return null; }
+  };
+  while (index < source.length && index < 160) {
+    const character = source[index]!;
+    if (nativeSyntax && character === "|") {
+      if (absoluteDepth === null) {
+        if (index > 0 && !/[+\-*/^(]$/.test(source.slice(0, index).trimEnd())) return null;
+        absoluteDepth = depth; depth++;
+      } else {
+        if (depth !== absoluteDepth + 1) return null;
+        depth--; absoluteDepth = null;
+      }
+      index++; continue;
+    }
+    if (depth === 0 && (character === ")" || character === "$" || source.startsWith("\\)", index))) {
+      if (!closers.length) return null;
+      let end = index;
+      for (const closer of closers) {
+        while (/\s/.test(source[end] ?? "") && end < source.length) end++;
+        if (!source.startsWith(closer, end)) return null;
+        end += closer.length;
+      }
+      let next = end;
+      while (/\s/.test(source[next] ?? "") && next < source.length) next++;
+      const nextEquation = /[\r\n]/.test(source.slice(end, next)) && startsDeclaration(source.slice(next));
+      const evaluation = next > end && readSourceAtEvaluation(source, next) !== null;
+      if (next < source.length && !/[;,.?]/.test(source[next]!) && !nextEquation && !evaluation && !isSourceFunctionProseEndpoint(source, next)) return null;
+      return complete(end);
+    }
+    if (/[;?]/.test(character)) return closers.length ? null : complete(index);
+    if (character === ",") {
+      if (/^\s*[+-]?(?:[0-9]|\.[0-9])/.test(source.slice(index + 1))) return null;
+      return closers.length ? null : complete(index);
+    }
+    if (/[\r\n]/.test(character) && startsDeclaration(source.slice(index + 1))) return closers.length ? null : complete(index);
+    if (character === "." && !/[0-9]/.test(source[index + 1] ?? "")) {
+      if (index === 0 || !/^(?:\s|$)/.test(source.slice(index + 1))) return null;
+      return closers.length ? null : complete(index);
+    }
+    if (character === "(") {
+      if (depth === 0 && !closers.length && index > 0 && /\s/.test(source[index - 1]!) && readSourceAtEvaluation(source, index)) return complete(index);
+      depth++; index++; continue;
+    }
+    if (character === ")") { if (depth === 0) return null; depth--; index++; continue; }
+    if (/\s/.test(character) || /[0-9.+\-*/^]/.test(character)) { index++; continue; }
+    if (/[\p{L}_]/u.test(character)) {
+      const identifier = /^[\p{L}\p{N}_]+/u.exec(source.slice(index))![0];
+      if (!FUNCTION_EXPRESSION_IDENTIFIERS.has(identifier.toLowerCase())) {
+        return isSourceFunctionProseEndpoint(source, index) && !closers.length ? complete(index) : null;
+      }
       index += identifier.length;
       continue;
     }
-    break;
+    return null;
   }
-  return source.slice(0, index).trim();
+  return index >= 160 && index < source.length || closers.length ? null : complete(index);
+}
+
+/** A function definition is owned only as an alias of a curve already drawn.
+ * Complete parenthetical at-x scalars are separate evaluation slots. */
+function isAuxiliaryFunctionEquation(source: string, equals: number, functions: readonly SourceFunctionFact[], ownedExpressionEnds: ReadonlySet<number>, attachedEvaluationOnly = false): boolean {
+  const prefix = source.slice(0, equals);
+  const definition = /([A-Za-z][A-Za-z0-9_]*)\s*\(\s*x\s*\)\s*$/i.exec(prefix);
+  if (definition && !FUNCTION_EXPRESSION_IDENTIFIERS.has(definition[1]!.toLowerCase())) {
+    const boundary = hasStandaloneFunctionLhs(source, definition.index, -1);
+    if (boundary) {
+      const read = readCompleteSupportedExpression(source.slice(equals + 1), boundary);
+      return read !== null && functions.some(fact => fact.expression === normalizeExpression(read.expression));
+    }
+  }
+  const evaluation = /\(\s*at\s+x\s*$/i.exec(prefix);
+  if (!evaluation) return false;
+  const attached = Array.from(ownedExpressionEnds).some(end => end <= evaluation.index && /^\s*$/.test(source.slice(end, evaluation.index)));
+  if (attachedEvaluationOnly && !attached) return false;
+  if (!attached && !hasStandaloneFunctionLhs(source, evaluation.index, -1) && !/['"‘’“”]$/.test(source.slice(0, evaluation.index).trimEnd())) return false;
+  return readSourceAtEvaluation(source, evaluation.index) !== null;
+}
+
+/** A complete scalar evaluation or declared prime-function scalar query is
+ * not a Cartesian curve declaration. No derivative or answer is certified. */
+function isNativeScalarFunctionEquation(source: string, equals: number, declaredNames: ReadonlySet<string>): boolean {
+  const prefix = source.slice(0, equals);
+  const scalar = "[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+)(?:\\s*\\/\\s*[+-]?(?:\\d+(?:\\.\\d+)?|\\.\\d+))?";
+  const evaluation = new RegExp(`(?<![\\p{L}\\p{N}_])([\\p{L}][\\p{L}\\p{N}_]*)(?:(?:['’′]{1,2}|″)\\s*\\(\\s*(?:${scalar}|x)\\s*\\)|\\s*\\(\\s*${scalar}\\s*\\))\\s*$`, "u").exec(prefix);
+  const at = /\bat\s+x\s*$/i.exec(prefix);
+  if (evaluation ? !declaredNames.has(evaluation[1]!) || !hasStandaloneFunctionLhs(source, evaluation.index, -1) : !at) return false;
+  const read = readCompleteSupportedExpression(source.slice(equals + 1));
+  if (!read || /\bx\b/.test(read.expression)) return false;
+  try { return Number.isFinite(parseMathExpression(normalizeExpression(read.expression)).evaluate(0)); }
+  catch { return false; }
+}
+
+function readSourceAtEvaluation(source: string, index: number): number | null {
+  const slot = /^\(\s*at\s+x\s*=\s*([+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:\s*\/\s*[+-]?(?:\d+(?:\.\d+)?|\.\d+))?)\s*\)/i.exec(source.slice(index));
+  if (!slot) return null;
+  const end = index + slot[0].length;
+  let next = end;
+  while (next < source.length && /\s/.test(source[next]!)) next++;
+  if (next < source.length && !/[;,.?]/.test(source[next]!) && !isSourceFunctionProseEndpoint(source, next)) return null;
+  try { return Number.isFinite(parseMathExpression(normalizeExpression(slot[1]!)).evaluate(0)) ? end : null; }
+  catch { return null; }
 }
 
 function normalizeMathText(value: string): string {
@@ -950,12 +1501,16 @@ function normalizeMathText(value: string): string {
     .replace(/[−–—]/g, "-")
     .replace(/×/g, "*")
     .replace(/÷/g, "/")
+    .replace(/π/g, "pi")
     .replace(/²/g, "^2")
     .replace(/³/g, "^3");
 }
 
 function normalizeExpression(value: string): string {
   return value
+    // Bare unary notation owns only the literal x argument. Multiplicative,
+    // power, call, identifier and digit continuations remain unsupported.
+    .replace(BARE_UNARY_FUNCTION, "$1(x)")
     .replace(/\s+/g, "")
     .replace(/(\d)(?=(?:x|pi|e|sin|cos|tan|asin|acos|atan|sqrt|abs|exp|log|ln|\())/g, "$1*")
     .replace(/x(?=\()/g, "x*")

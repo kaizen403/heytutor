@@ -9,6 +9,7 @@
 import {
   compileSceneDocument,
   validateSceneDocument,
+  validateTurnPlanV3,
   type SceneDocument,
 } from "@heytutor/scene-engine";
 import {
@@ -41,10 +42,14 @@ export function restoreVerifiedPresentationFromTurn(
     dsa ? { viewport: DSA_DIAGRAM_ZONE } : {},
   );
   if (!compiled.ok || !compiled.renderScene) return null;
+  const rawPlan = turn.sceneArtifacts && typeof turn.sceneArtifacts === "object"
+    ? Object.getOwnPropertyDescriptor(turn.sceneArtifacts, "turnPlan")?.value
+    : undefined;
+  const plan = validateTurnPlanV3(rawPlan, turn.question ?? String(document.source.question ?? "")).plan;
   const presentation = buildVerifiedDiagramPresentation(
     document,
     compiled.renderScene,
-    { narrationLanguage, ...(dsa ? { layout: "code_lesson" as const } : {}) },
+    { narrationLanguage, ...(plan ? { turnPlan: plan } : {}), ...(dsa ? { layout: "code_lesson" as const } : {}) },
   );
   if (!verifiedDiagramHasDrawableInk(presentation.diagram)) return null;
   return presentation;
