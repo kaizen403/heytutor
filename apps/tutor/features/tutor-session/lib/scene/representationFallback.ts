@@ -1014,6 +1014,11 @@ function extractExplicitFunctionFacts(question: string, nativeInventory = false,
     if (!isAuxiliaryFunctionEquation(normalized, index, facts, ownedExpressionEnds) &&
         !(nativeInventory && isNativeScalarFunctionEquation(normalized, index, declaredNames))) return [];
   }
+  if (!nativeInventory && facts.length > 1) {
+    const stem = normalized.split("").map((ch, i) => unquotedPositions[i] ? ch : " ").join("");
+    if (/[<>≤≥]/u.test(stem) || /\[\s*-?[\d.]+\s*,\s*-?[\d.]+\s*[\])]/u.test(stem) || /\b(?:on|in|over)\s+\(\s*-?[\d.]+\s*,/iu.test(stem) ||
+        /\b(?:otherwise|elsewhere|outside|beyond|afterwards?|after\s+that|greater\s+than|less\s+than|more\s+than|piecewise|(?:negative|positive)\s+x|x\s+is\s+(?:negative|positive))\b/iu.test(stem)) return [];
+  }
   return facts;
 }
 

@@ -2126,6 +2126,19 @@ function verifyPiecewiseDefinitionsDecline(): void {
     "Sketch y = x^2 from x = 0 to x = 2 and y = 4 beyond that",
     "Sketch y = x + 1 between x = -1 and x = 1, and y = 2 elsewhere",
     "Plot y = 2x from x = 0 to x = 3, then y = 6",
+    // Domains written without an interval equality (reviews/pr-252.md fix 1).
+    "Sketch y = x^2 for x < 2 and y = 4 for x >= 2",
+    "Sketch y = x^2 for x < 2 and y = 4 for x ≥ 2",
+    "Sketch y = x^2 for -2 ≤ x ≤ 2 and y = 4 otherwise",
+    "Sketch y = x^2 for -2 <= x <= 2, otherwise y = 4",
+    "Sketch y = x^2 on [-2, 2] and y = 4 elsewhere",
+    "Sketch y = x^2 on the interval [-2, 2] and y = 4 otherwise",
+    "Sketch y = x^2 for x in [-2, 2] and y = 4 otherwise",
+    "Sketch y = x^2 for |x| ≤ 2 and y = 4 otherwise",
+    "Sketch y = x^2 for x from -2 to 2 and y = 4 outside that",
+    "Sketch y = x^2 and y = 4 for x greater than 2",
+    "Draw the piecewise function y = x + 1 if x < 1, y = 2 if x ≥ 1",
+    "Sketch y = 2x for x between 0 and 3, and y = 6 after that",
   ];
   for (const question of piecewise) {
     const turnPlan: TurnPlanV3 = { schemaVersion: "turn-plan/v3", question, givens: [], unknowns: [], derived: [], qualitativeClaims: [], lawIds: [], assumptions: [], visualRequirement: "required" };
