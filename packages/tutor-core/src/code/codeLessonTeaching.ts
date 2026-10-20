@@ -75,6 +75,9 @@ how to teach code:
 - say notation for the ear: "target minus num", "i is not equal to j", "n log n".
 - name a variable by its meaning the first time: "seen, the map from a value to where we passed it".
 - the first code step of a section opens with one sentence saying what the section is for.
+- explain every statement in the current block, including a branch or update at its boundary. do not move a clause into the next or previous block's explanation: the tag names exactly the source printed beside this beat, not a convenient conceptual chunk.
+- use the actual loop condition to say whether pointers meet or cross and when a return runs. do not substitute a stock ending from a different two-pointer algorithm.
+- derive complexity from this implementation: count input copies, slices, buffers, maps and recursion stack frames as well as scalar variables. sorting a copy in place does not make the whole program use constant extra space. distinguish auxiliary storage, returned output and any input-sized allocation, stating which cost you mean.
 - every step says something new. never restate a sentence, never re-explain a block already revealed, never summarise what you have already said.
 
 voice:
@@ -99,7 +102,7 @@ Use short clauses and a breath after a result. Do not repeat a step, read a capt
 const FAMILIARITY_SHAPE: Record<SubjectFamiliarity, { words: number; guidance: string }> = {
   new: {
     words: CODE_LESSON_STEP_WORDS.new,
-    guidance: `FAMILIARITY: NEW. Introduce unfamiliar tools in plain words. Give the slow way and why it struggles. Use the actual example values to explain each figure move. Connect code to the move it implements.`,
+    guidance: `FAMILIARITY: NEW. Introduce unfamiliar tools in plain words. Compare a natural baseline honestly, including when it has the same time bound. Use the actual example values to explain each figure move. Connect code to the move it implements.`,
   },
   normal: {
     words: CODE_LESSON_STEP_WORDS.normal,
@@ -176,6 +179,7 @@ Hard rules for this turn:
 ${includeCode
     ? "- Reveal every block exactly once, in the order listed. Never invent, repeat or skip a block id."
     : "- Do not discuss code lines, functions, or implementation details. Explain the decisions and intermediate states on the worked example."}
+${includeCode ? "- Explain all statements in the tagged block, including branch boundaries; do not shift an update or return to a neighbouring beat. State the complexity of the committed program, including its allocations and call stack, rather than quoting the usual bound for the family." : ""}
 - Never write code, values, or expressions as board ink. This turn owns no handwriting.
 - Close with the complexity and the reason for it. Do not end on a recap of the lesson.
 
