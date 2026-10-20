@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import vm from "node:vm";
 import { lectureExportFileMs } from "../../lib/lecture-export/lectureExportSpeed";
+import { LECTURE_PAGE_CACHE_REVISION } from "../../lib/lecture-export/canExportLectureMp4";
 
 const app = resolve(import.meta.dirname, "../..");
 const load = createRequire(resolve(app, "package.json"));
@@ -207,6 +208,9 @@ async function main() {
   assert.ok(voiced.audioSamples[0]! > 0, "actual audio preparation keeps decoded voiced samples");
   assert.equal(missing.result!.missingAudioCues, 1); assert.equal(missing.result!.noVoice, true);
   assert.equal(missing.audioSamples[0], 0, "a missing speaking clip remains silence");
+  // A file cached before the 2 s end hold (video11 and earlier) ends on the
+  // last stroke; the revision keys it out of every cache so it is rebuilt.
+  assert.ok(Number(LECTURE_PAGE_CACHE_REVISION.slice("video".length)) >= 12, `exports cached before the end hold are rebuilt (${LECTURE_PAGE_CACHE_REVISION})`);
   console.log("verify-lecture-export-final-frame: final main/tail flush ink, unchanged duration, cancellation, error, truncation and voice metadata");
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

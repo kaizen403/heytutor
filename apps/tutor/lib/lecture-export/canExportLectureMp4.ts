@@ -70,8 +70,10 @@ export function pageHasExportableAudio(turns: readonly StoredTurn[]): boolean {
  * `video10` frees pitched 1.25x downloads from either prior release.
  * `video11` drops files whose figure ink was all drawn at the top of its
  * sentence when the voice had no word timings (Sarvam).
+ * `video12` drops files cut on the last stroke, cached before the finished
+ * page was held for 2 s at the end.
  */
-export const LECTURE_PAGE_CACHE_REVISION = "video11";
+export const LECTURE_PAGE_CACHE_REVISION = "video12";
 
 /**
  * Cache identity of a page export. It changes whenever a doubt adds a turn to
