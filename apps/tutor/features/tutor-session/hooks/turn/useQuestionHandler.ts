@@ -1910,6 +1910,8 @@ export function useQuestionHandler(
             ...pagePromptInput,
             lessonQuestion: doubt.lessonQuestion,
             codeLessonBoard,
+            codeFigureVisible: Boolean(codeLessonBoard && doubtPage?.figureOnPage &&
+              activeVerifiedDiagramRef.current && verifiedDiagramHasDrawableInk(activeVerifiedDiagramRef.current)),
             solverProjection: inherited?.solverProjection ?? null,
           })
         : resume
