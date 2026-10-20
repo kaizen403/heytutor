@@ -148,7 +148,7 @@ function legacyParallelLoadInterpretation(
   if (assertion.entities.length !== 2 || typeof assertion.expected !== "number" ||
       !Number.isInteger(assertion.expected) || assertion.expected < 2 ||
       document.source.nonMetric !== true || document.source.representationTier !== "qualitative_verified" ||
-      document.quantities.length !== 0) return null;
+      document.quantities.length !== 0 || document.source.circuitTopologyRepaired === true) return null;
   const result = readParallelLoadCount(document, assertion.entities[0]!, assertion.entities[1]!);
   if (!result.ok || result.count !== assertion.expected) return null;
   const loadIds = new Set(result.loadIds);
@@ -159,6 +159,17 @@ function legacyParallelLoadInterpretation(
   if (!completeProof) return null;
   if (hasUnverifiedParallelInk(document)) return null;
   return result;
+}
+
+function parallelTopologyRepairIssue(assertion: SceneAssertion, actual?: number): SceneIssue {
+  return {
+    code: "parallel_topology_repaired",
+    message: `Assertion ${assertion.id}: a circuit branch was removed before validation; the load count cannot certify the original circuit. Supply an unaltered canonical network`,
+    severity: "fatal",
+    entityIds: assertion.entities,
+    expected: assertion.expected,
+    ...(actual === undefined ? {} : { actual }),
+  };
 }
 
 /** A short mathematical identity is a name, not a physical value or polarity. */
@@ -445,6 +456,9 @@ export function evaluateTopologyAssertion(
         });
       }
       if (!passed) {
+        if (document.source.circuitTopologyRepaired === true) {
+          issues.push(parallelTopologyRepairIssue(assertion, count));
+        }
         issues.push({
           code: "assertion_failed",
           message: `Assertion ${assertion.id}: pathCount between ${from} and ${to} expected ${expected} paths, found ${count}. ` +
@@ -479,6 +493,10 @@ export function evaluateTopologyAssertion(
           expected: assertion.expected,
           ...(result.ok ? { actual: result.count } : {}),
         });
+      }
+      if (document.source.circuitTopologyRepaired === true) {
+        issues.push(parallelTopologyRepairIssue(assertion, result.ok ? result.count : undefined));
+        return false;
       }
       // A correct topology count must not newly admit unrelated physical ink.
       // In particular, arbitrary current arrows are not derived from battery

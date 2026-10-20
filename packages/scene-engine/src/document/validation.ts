@@ -219,6 +219,21 @@ const SOLID_PROJECTION_KINDS = new Set(["cylinder", "cone", "frustum", "sphere",
  * as an intentional short/bypass and no semantic reference consumes it.
  */
 export function pruneDeadSceneEntities(raw: Record<string, unknown>): Record<string, unknown> {
+  // Snapshot the electrical edges before any normalization/pruning helper can
+  // remove them. New load-count admission must not certify a repaired graph as
+  // evidence that the original circuit had no extra load, source, or bypass.
+  const originalBranchOutputs = circuitBranchOutputs(raw);
+  const alreadyRepaired = isRecord(raw.source) && raw.source.circuitTopologyRepaired === true;
+  const retainCircuitRepairEvidence = (document: Record<string, unknown>): Record<string, unknown> => {
+    const retainedBranchOutputs = circuitBranchOutputs(document);
+    const removedBranch = [...originalBranchOutputs].some((id) => !retainedBranchOutputs.has(id));
+    if (!alreadyRepaired && !removedBranch) return document;
+    return {
+      ...document,
+      // Content-free and monotone across JSON round trips and repeated repair.
+      source: { ...(isRecord(document.source) ? document.source : {}), circuitTopologyRepaired: true },
+    };
+  };
   raw = normalizeConstructedLabels(raw);
   raw = pruneSelfReferentialConstructedLabels(raw);
   raw = promoteAssertedEntityOwnership(raw);
@@ -245,7 +260,7 @@ export function pruneDeadSceneEntities(raw: Record<string, unknown>): Record<str
     !Array.isArray(raw.requiredEntityIds) ||
     !Array.isArray(raw.revealGroups)
   ) {
-    return raw;
+    return retainCircuitRepairEvidence(raw);
   }
 
   const entityIds = new Set(raw.entities.flatMap((entity) =>
@@ -566,7 +581,7 @@ export function pruneDeadSceneEntities(raw: Record<string, unknown>): Record<str
           typeof id === "string" && executableEntityIds.has(id)))
     : raw.assertions;
 
-  return ensureStudentFacingPointMarks({
+  return retainCircuitRepairEvidence(ensureStudentFacingPointMarks({
     ...raw,
     requiredEntityIds: raw.requiredEntityIds.filter((id) =>
       typeof id !== "string" || !prunable.has(id),
@@ -583,7 +598,17 @@ export function pruneDeadSceneEntities(raw: Record<string, unknown>): Record<str
       (!prunable.has(entity.id) && !solverOnlyPointDeclarations.has(entity.id)),
     ),
     constructions,
-  });
+  }));
+}
+
+/** Output identities, never role prose, identify the original circuit edges. */
+function circuitBranchOutputs(document: Record<string, unknown>): Set<string> {
+  return new Set(Array.isArray(document.constructions) ? document.constructions.flatMap((construction) =>
+    isRecord(construction) && (construction.operator === "connect" || construction.operator === "symbol") &&
+    Array.isArray(construction.outputs)
+      ? construction.outputs.filter((output): output is string => typeof output === "string")
+      : [],
+  ) : []);
 }
 
 function normalizeMissingReferenceLineEndpoints(raw: Record<string, unknown>): Record<string, unknown> {

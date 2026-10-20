@@ -51,6 +51,13 @@ kinds and identity-only ink are also required. Acceptance emits
 it never silently subtracts a source from an arbitrary network. Without that
 independent proof, the example's `pathCount = 2` remains false.
 
+Pruning that removes an original `symbol` or `connect` branch records the
+content-free, monotone `source.circuitTopologyRepaired` flag. Both new load-count
+admission paths refuse such a repaired topology with `parallel_topology_repaired`;
+removing a short, load or source cannot establish a branch-count proof. The flag survives repeat
+normalization and JSON round trips. Existing strict graph-path successes retain
+their prior behavior.
+
 ## Repair feedback and authority
 
 A failed `pathCount` reports its assertion id, requested terminal nodes, expected
