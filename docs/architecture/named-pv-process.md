@@ -74,7 +74,7 @@ states and collapsed changing axes. Nonlinear paths use at most 513 analytic
 vertices, with final-screen chord and tangent checks. Arrows follow `from` to
 `to`, including compression. All plot labels pass the native screen-space
 placement solver at the board's real font floor; an unreadable atomic plot
-refuses. Yield policy cannot demote a false law, state or claim into success.
+refuses. Yield policy cannot demote a false law, state or claim into success. At finite screen resolution, a permitted near-one adiabat can resemble an isotherm; the explicit law label identifies the verified path. Numerical ticks and state-value labels are outside this first interface.
 
 ## Source authority
 

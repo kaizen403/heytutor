@@ -50,13 +50,61 @@ an independent holdout claim. Replay and synthetic native artifacts remain
 private, with source/manifests/render hashes; no private questions or blind
 verdicts are committed.
 
-At this evidence draft, old thermodynamics accuracy passes 496 checks, native
-engine refusals cover direct/normalized/yield paths, and actual native
-admission/selection/save passes 33 checks. Original reusable capability gates
-pass 33 requests and 76 contracts. Scoped PV transport fits existing budgets.
-The pre-existing unscoped repair budget failure (27,611 > 27,000 on the base)
-remains separately reported; no threshold is raised.
+## Final verification
 
-Final source replay, mutations, blind native review and package builds are
-recorded by the integration owner before publication. They are not implied by
-the algebra tests or by this draft log.
+Serialized engine/core package builds and engine/core/tutor typechecks pass.
+Engine/core lint passes with five existing warnings; focused changed app files
+also pass lint. The engine gate has 216 strict direct/yield/normalized refusals
+plus positive controls for all four laws, both directions, units, work, model
+separation and display accuracy. Existing thermodynamics accuracy passes 496
+checks. Actual production/selection/save passes 33 checks; source binding adds
+187 source/production/selection/server checks. Independent review confirms 21
+source-scope negatives and six original wrong-state/law/overlay counterexamples
+are refused while a supported physical control still selects and saves.
+
+Eight isolated operator mutations fail actual assertions: remove the endpoint
+law check; replace curves with chords; reverse ink direction; admit physical
+literals; ignore units; leak conceptual SI work; remove the ideal-gas caption;
+remove scene sealing. Two additional mutations fail the source/save gate:
+skipping named-state value agreement and removing only the shared server-save
+source check. No frozen runtime source was edited for these mutations.
+
+Mocked scoped planner transport is 20,828/11,776 characters (initial/repair), below
+the unchanged 24,500/27,000 budgets. Original reusable capabilities pass 33
+requests and 76 contracts. Five existing state-plot cards retain complete full
+shapes while using coarse compact input shapes, preserving room for the new
+operator. Golden corpus, structure-driven scenes and all 31 space-view checks
+pass.
+
+The final recorded thermodynamics replay has exactly zero status, phase,
+fatal-code or full-render-hash differences: 149 development candidates retain
+57 compilable figures; 74 separate validation candidates retain 48. Both use
+the same frozen normalizer as the pre-edit baseline. The six malformed motivating
+drafts remain refused. The circuit nonregression replay also has zero changes:
+1,709 historical circuits retain 1,245 compilable/986 production-valid candidates;
+624 mixed candidates retain 405 compilable/346 production-valid candidates.
+These overlapping cohorts are not distinct student or run counts.
+
+The new native matrix has 32 synthetic programs, all production-admitted and
+selected, with 31 distinct render hashes. A blind judge viewed every distinct
+figure: **31 right, 0 partial, 0 wrong**. This covers both modes/directions,
+all four laws, shared comparisons, cycles, equivalent units, alternate fit,
+steep curves, adjacent segments and representative exponents near one/at 64.
+At screen resolution, a near-one adiabat can resemble an isotherm; an initially
+flagged verdict was withdrawn after the judge recognized that unspecified gamma
+cannot establish a false curve. A steep adiabat can similarly resemble an
+isochor while retaining visible volume change. Physical plots show units and
+state names without numeric ticks or state-value text. No complete arbitrary
+prose coverage or new recorded-model gain is claimed.
+
+Two baseline core-suite failures remain explicit. Generic unscoped repair size
+is 27,597 versus base 27,611, both over the unchanged 27,000 limit. The old
+capability gate's proof-enum expectations are synchronized with main's existing
+loadBranchCount; beyond that stale fixture, the photoelectric expectation still
+asks for energy_level while both base main and this branch infer chem_orbital.
+That unrelated family-routing behavior is unchanged. No full-suite pass claimed.
+
+All fixtures committed here are synthetic. Recorded questions, IDs, payloads,
+images and blind keys stay in ignored private evidence. $0; no paid/provider
+calls, manual production change or merge for this PR. No accepted-topic counter
+changed. The merge agent owns integration after review.
