@@ -22,6 +22,7 @@ import { CodeLessonController } from "../../features/tutor-session/lib/code-less
 import type { StoredTurn } from "../../lib/boards/boardsClient";
 import { lessonRecoveryFromStoredTurns } from "../../features/tutor-session/lib/turn/pausedLessonRestore";
 import { taughtSegmentCount, unsavedLessonBoard, unsavedNoticeAction } from "../../features/tutor-session/lib/board/unsavedBoard";
+import * as teachingAPI from "../../../../packages/tutor-core/src/llm/llmAPI";
 
 const app = fileURLToPath(new URL("../../", import.meta.url));
 const requireApp = createRequire(new URL("../../package.json", import.meta.url));
@@ -124,6 +125,8 @@ export interface FrozenStartupFixture {
   requireGivenRows?: boolean;
   /** A test-only fault at the actual selector boundary proves the parity gate is red-capable. */
   dropSelectedFigureWhenEarly?: boolean;
+  /** Synthetic failures at real teaching boundaries; never dispatch a provider. */
+  teachingFailure?: "fetch" | "read" | "callback" | "internal" | "auth" | "forbidden" | "cancel";
   /** Load the real preparation module afresh for each OFF/ON comparison. */
   openingPrefetchEnabled?: boolean;
   /** Hold fake scene responses so authority-only preparation has a measurable overlap. */
@@ -360,6 +363,13 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
     const hedgeRequest = headers.get("x-heytutor-teaching-hedge") === "1";
     record("teaching-request", { retry: headers.get("x-heytutor-reasoning-retry") === "1", hedge: hedgeRequest });
     teachingRequestBodies.push(JSON.parse(String(init?.body)));
+    if (fixture?.teachingFailure === "fetch") throw new TypeError("synthetic request network failure");
+    if (fixture?.teachingFailure === "auth" || fixture?.teachingFailure === "forbidden") {
+      return new Response("synthetic authorization denied", { status: fixture.teachingFailure === "auth" ? 401 : 403 });
+    }
+    if (fixture?.teachingFailure === "cancel") return await new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true });
+    });
     if (mode === "startup-timeout") throw new DOMException("The operation timed out", "TimeoutError");
     if (hedgeRequest && mode === "hedge-fails") {
       return new Response("provider busy", { status: 503 });
@@ -378,6 +388,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       cancelled: false,
     };
     streams.push(stream);
+    if (fixture?.teachingFailure === "read") controller.error(new TypeError("synthetic response network failure"));
     return stream.response;
   });
 
@@ -480,10 +491,21 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
     onError(error: unknown) { record("turn-error", error); },
   };
   const loaded = new Map<string, Record<string, unknown>>();
+  if (fixture?.teachingFailure === "internal") {
+    let currentTrace: unknown = null;
+    Object.defineProperty(params.currentTraceIdRef, "current", { configurable: true,
+      get: () => currentTrace,
+      set: (value: unknown) => {
+        if (value === "offline-teaching-trace") throw new TypeError("synthetic internal fetch trace bug");
+        currentTrace = value;
+      },
+    });
+  }
   function loadHook(file: string): Record<string, unknown> {
     const cached = loaded.get(file);
     if (cached) return cached;
-    const source = readFileSync(file, "utf8");
+    const source = readFileSync(file.endsWith("/useQuestionHandler.ts")
+      ? process.env.STARTUP_TURN_HANDLER_SOURCE ?? file : file, "utf8");
     let compiled = compiledHooks.get(source);
     if (!compiled) {
       compiled = ts.transpileModule(source, {
@@ -494,6 +516,14 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
     const hookModule = { exports: {} };
     const localRequire = (specifier: string) => {
       if (specifier === "react") return mounted?.api ?? react;
+      if (specifier === "@heytutor/tutor-core" && fixture?.teachingFailure) return {
+        ...requireApp(specifier), ...teachingAPI,
+        streamLLMResponse: (options: teachingAPI.StreamLLMResponseParams, onDelta?: (chunk: string) => void) =>
+          teachingAPI.streamLLMResponse(options, chunk => {
+            if (fixture.teachingFailure === "callback") throw new TypeError("synthetic internal fetch callback bug");
+            onDelta?.(chunk);
+          }),
+      };
       if (specifier === "@/lib/billing/billingClient") return {
         ...requireApp(path.join(app, "lib/billing/billingClient.ts")),
         beginTurn: async () => { record("turn-admission"); return { ok: true }; },
@@ -607,6 +637,37 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
     assert(claimAt >= 0 && historyAt >= 0 && billingAt >= 0, "startup requires positive claim, history and billing receipts");
     assert(claimAt < historyAt, "fresh history is read under the held claim");
     assert(historyAt < billingAt, "successful owned history precedes billing");
+    if (fixture?.teachingFailure) {
+      await pump(() => events.some(event => event.name === "teaching-request"));
+      if (fixture.teachingFailure === "cancel") renderControl().stopTurn({ keepVisibleBoard: true });
+      if (fixture.teachingFailure === "callback") {
+        await pump(() => streams.length === 1);
+        content(0, "[STEP]Synthetic callback input.[/STEP]");
+      }
+      await pump(() => done);
+      await turn;
+      const errors = events.filter(event => event.name === "turn-error").map(event => event.data as { message: string });
+      const failure = lifecycle.boardPageRef.current?.failureTelemetry;
+      const network = fixture.teachingFailure === "fetch" || fixture.teachingFailure === "read";
+      const cancelled = fixture.teachingFailure === "cancel";
+      assert.equal(errors.length, cancelled ? 0 : 1, "Stop stays quiet; a current failure reaches the student exactly once");
+      if (!cancelled) {
+        assert.equal(failure?.code, network ? "transport_error" : "lesson_not_taught", "only boundary-typed network failures get the transport code");
+        assert.equal(errors[0]?.message, network ? "network error. check your connection" : "something went wrong. try asking again.");
+      } else assert.notEqual(failure?.failed, true, "Stop cannot classify a failed teaching attempt");
+      const requests = events.filter(event => event.name === "teaching-request").length;
+      assert.equal(requests, network && hedgeEnabled ? 2 : 1, "classification cannot introduce an extra request allowance");
+      assert.equal(lifecycle.turnAbortRef.current, null);
+      assert.equal(lifecycle.turnActiveRef.current, false);
+      assert.equal(lifecycle.phaseRef.current, "idle");
+      assert.equal(lifecycle.pendingSegmentCountRef.current, 0);
+      assert.equal(lifecycle.turnTelemetryRef.current, null);
+      assert.equal(heldLocks.size, 0, "failure settlement releases native lesson ownership");
+      for (const stream of streams) assert.equal(stream.response.body?.locked, false);
+      assert.equal(timers.size, 0, "failure settlement leaves no startup/queue timers");
+      return { mode, teachingFailure: fixture.teachingFailure, requests, code: failure?.code ?? null,
+        message: errors[0]?.message ?? null };
+    }
     assert(heldLocks.has(`heytutor-lesson:${boardId}`), "the native claim remains held throughout the live teaching turn");
     const outputs = () => events.filter((event) => ["enqueue", "enqueue-intro", "playback", "board-command"].includes(event.name));
     const startupProjection = (): FrozenStartupProjection => {
