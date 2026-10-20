@@ -1,0 +1,460 @@
+{
+  "topic_id": "physics|12|wheatstone-and-metre-bridge",
+  "question": "In a metre bridge, resistance X is in the left gap and resistance S in the right gap. A uniform 100 cm wire runs from A to B. A jockey J at distance l from A connects through a galvanometer to the junction C between X and S. A driver cell is connected across A and B, positive at A. Draw the complete null circuit and both wire lengths.",
+  "figure_kind": "circuit",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "Metre bridge with two gaps, uniform wire, jockey, galvanometer, driver cell and both lengths"
+    },
+    "source": {
+      "question": "In a metre bridge, resistance X is in the left gap and resistance S in the right gap. A uniform 100 cm wire runs from A to B. A jockey J at distance l from A connects through a galvanometer to the junction C between X and S. A driver cell is connected across A and B, positive at A. Draw the complete null circuit and both wire lengths.",
+      "archetype": "meter_bridge"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "A",
+        "label": "A"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "B",
+        "label": "B"
+      },
+      {
+        "id": "J",
+        "kind": "point",
+        "role": "J",
+        "label": "J"
+      },
+      {
+        "id": "C",
+        "kind": "point",
+        "role": "C",
+        "label": "C"
+      },
+      {
+        "id": "AL",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "BR",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "DL",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "DR",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "left",
+        "kind": "connector",
+        "role": "left"
+      },
+      {
+        "id": "X",
+        "kind": "component",
+        "role": "resistor",
+        "label": "X"
+      },
+      {
+        "id": "S",
+        "kind": "component",
+        "role": "resistor",
+        "label": "S"
+      },
+      {
+        "id": "right",
+        "kind": "connector",
+        "role": "right"
+      },
+      {
+        "id": "AJ",
+        "kind": "component",
+        "role": "wire"
+      },
+      {
+        "id": "JB",
+        "kind": "component",
+        "role": "wire"
+      },
+      {
+        "id": "G",
+        "kind": "component",
+        "role": "galvanometer",
+        "label": "G"
+      },
+      {
+        "id": "downA",
+        "kind": "connector",
+        "role": "downA"
+      },
+      {
+        "id": "cell",
+        "kind": "component",
+        "role": "cell",
+        "label": "E"
+      },
+      {
+        "id": "downB",
+        "kind": "connector",
+        "role": "downB"
+      },
+      {
+        "id": "l",
+        "kind": "dimension",
+        "role": "l",
+        "label": "l"
+      },
+      {
+        "id": "rest",
+        "kind": "dimension",
+        "role": "rest",
+        "label": "100 cm - l"
+      },
+      {
+        "id": "I",
+        "kind": "sign_badge",
+        "role": "current direction",
+        "label": "I"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_A",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "make_B",
+        "operator": "point",
+        "inputs": {
+          "x": 7,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "make_J",
+        "operator": "point",
+        "inputs": {
+          "x": 2.8,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "J"
+        ]
+      },
+      {
+        "id": "make_C",
+        "operator": "point",
+        "inputs": {
+          "x": 3.5,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "C"
+        ]
+      },
+      {
+        "id": "make_AL",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "AL"
+        ]
+      },
+      {
+        "id": "make_BR",
+        "operator": "point",
+        "inputs": {
+          "x": 7,
+          "y": 3,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "BR"
+        ]
+      },
+      {
+        "id": "make_DL",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "DL"
+        ]
+      },
+      {
+        "id": "make_DR",
+        "operator": "point",
+        "inputs": {
+          "x": 7,
+          "y": -2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "DR"
+        ]
+      },
+      {
+        "id": "make_left",
+        "operator": "connect",
+        "inputs": {
+          "start": "A",
+          "end": "AL"
+        },
+        "outputs": [
+          "left"
+        ]
+      },
+      {
+        "id": "make_X",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "resistor",
+          "start": "AL",
+          "end": "C"
+        },
+        "outputs": [
+          "X"
+        ]
+      },
+      {
+        "id": "make_S",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "resistor",
+          "start": "C",
+          "end": "BR"
+        },
+        "outputs": [
+          "S"
+        ]
+      },
+      {
+        "id": "make_right",
+        "operator": "connect",
+        "inputs": {
+          "start": "BR",
+          "end": "B"
+        },
+        "outputs": [
+          "right"
+        ]
+      },
+      {
+        "id": "make_AJ",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "wire",
+          "start": "A",
+          "end": "J"
+        },
+        "outputs": [
+          "AJ"
+        ]
+      },
+      {
+        "id": "make_JB",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "wire",
+          "start": "J",
+          "end": "B"
+        },
+        "outputs": [
+          "JB"
+        ]
+      },
+      {
+        "id": "make_G",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "galvanometer",
+          "start": "C",
+          "end": "J"
+        },
+        "outputs": [
+          "G"
+        ]
+      },
+      {
+        "id": "make_downA",
+        "operator": "connect",
+        "inputs": {
+          "start": "A",
+          "end": "DL"
+        },
+        "outputs": [
+          "downA"
+        ]
+      },
+      {
+        "id": "make_cell",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "cell",
+          "start": "DL",
+          "end": "DR"
+        },
+        "outputs": [
+          "cell"
+        ]
+      },
+      {
+        "id": "make_downB",
+        "operator": "connect",
+        "inputs": {
+          "start": "DR",
+          "end": "B"
+        },
+        "outputs": [
+          "downB"
+        ]
+      },
+      {
+        "id": "make_l",
+        "operator": "dimension",
+        "inputs": {
+          "start": [
+            0,
+            -0.65
+          ],
+          "end": [
+            2.8,
+            -0.65
+          ]
+        },
+        "outputs": [
+          "l"
+        ]
+      },
+      {
+        "id": "make_rest",
+        "operator": "dimension",
+        "inputs": {
+          "start": [
+            2.8,
+            -0.65
+          ],
+          "end": [
+            7,
+            -0.65
+          ]
+        },
+        "outputs": [
+          "rest"
+        ]
+      },
+      {
+        "id": "make_I",
+        "operator": "sign_badge",
+        "inputs": {
+          "target": "AJ",
+          "sense": "positive",
+          "at": 0.22
+        },
+        "outputs": [
+          "I"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [],
+    "annotations": [],
+    "requiredEntityIds": [
+      "A",
+      "B",
+      "J",
+      "C",
+      "AL",
+      "BR",
+      "DL",
+      "DR",
+      "left",
+      "X",
+      "S",
+      "right",
+      "AJ",
+      "JB",
+      "G",
+      "downA",
+      "cell",
+      "downB",
+      "l",
+      "rest",
+      "I"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "A",
+          "B",
+          "J",
+          "C",
+          "AL",
+          "BR",
+          "DL",
+          "DR",
+          "left",
+          "X",
+          "S",
+          "right",
+          "AJ",
+          "JB",
+          "G",
+          "downA",
+          "cell",
+          "downB",
+          "l",
+          "rest",
+          "I"
+        ],
+        "dependsOn": [],
+        "narrationCue": "Metre bridge with two gaps, uniform wire, jockey, galvanometer, driver cell and both lengths"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "Metre bridge with two gaps, uniform wire, jockey, galvanometer, driver cell and both lengths"
+      }
+    ]
+  }
+}
