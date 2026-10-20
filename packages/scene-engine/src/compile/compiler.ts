@@ -1,5 +1,6 @@
 import { validateLabelOwnerTruth } from "./labelOwnerTruth";
 import { validateLaunchVelocityTruth } from "./launchVelocityTruth";
+import { bindTrajectoryLabelPlacement } from "../labels/trajectoryLabelPlacement";
 import { validateSolidSourceTruth } from "./solidSourceTruth";
 import { validateDeclaredGeometryTruth } from "./declaredGeometryTruth";
 import { validateGeometryClaimTruth } from "./geometryClaimTruth";
@@ -980,12 +981,12 @@ export function compileSceneDocument(document: SceneDocument, options: CompileOp
     };
   };
   const axisLetterOwners = spaceAxisLetterOwners(document, geometry, renderableIds, constructionOnlyIds, entityToGroup, transformPlan);
-  const placementOwners = [
+  const placementOwners = bindTrajectoryLabelPlacement(document, primitives, [
     ...(pinDsaLabels
       ? uniqueLabelOwners.map(pinOwner)
       : uniqueLabelOwners.map((owner) => (pinnedEntityIds.has(owner.entityId) ? pinOwner(owner) : owner))),
     ...axisLetterOwners,
-  ];
+  ], summaryLabelIds);
   const labelObstacles = [...obstaclesFromPrimitives(primitives), workColumnObstacle()];
   const labelOptions: LabelEngineOptions = pinDsaLabels
     // 16 is the validator's own compact-label ceiling; a lower cap here

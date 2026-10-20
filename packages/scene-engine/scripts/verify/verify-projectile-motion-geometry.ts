@@ -60,6 +60,13 @@ check(compiled.renderScene.primitives.some(p => p.entityId === "range" && p.kind
 check(compiled.renderScene.primitives.some(p => p.entityId === "height" && p.kind === "dimension"), "maximum rise reaches native dimension ink");
 check(compiled.renderScene.primitives.some(p => p.entityId === "range" && p.text === "R"), "R label stays attached to range");
 check(compiled.renderScene.primitives.some(p => p.entityId === "height" && p.text === "H"), "H label stays attached to height");
+const nativePath = compiled.renderScene.primitives.find(p => p.entityId === "path" && p.kind === "polyline")!;
+const nativeName = compiled.renderScene.primitives.find(p => p.entityId === "path" && p.kind === "label")!;
+const nativeBox = nativeName.provenance?.labelCollisionBounds ?? nativeName.provenance?.labelBounds;
+check(!!nativeBox && nativeBox.y + nativeBox.height <= Math.min(...nativePath.points.map(p => p.y)) + 1e-6,
+  "a native projectile name stays above its path when a competing H dimension is present");
+check(compiled.renderScene.primitives.some(p => p.entityId === "path" && p.provenance?.labelLeader),
+  "the native trajectory name connects to the curve, never the H dimension");
 const context: SourceContext = { number: value => validationNumber(value, shot), point: () => { throw new Error("literal fixture"); }, geometry: () => undefined };
 const values = evaluateChapterRemainderConstruction("projectile_trajectory", shot.constructions[0]!.inputs, context, shot);
 check(values.length === 4 && values[2]!.kind === "dimension" && values[3]!.kind === "dimension", "four ordered computed outputs");
@@ -125,4 +132,24 @@ legacy.entities = legacy.entities.slice(0, 2); legacy.requiredEntityIds = ["path
 const legacyGeometry = evaluateChapterRemainderConstruction("projectile_trajectory", legacy.constructions[0]!.inputs, context, legacy);
 check(JSON.stringify(values.slice(0, 2)) === JSON.stringify(legacyGeometry), "legacy two-output path/launch geometry is retained");
 check(compileSceneDocument(legacy).ok, "legacy two-output documents remain supported");
+// A trajectory label must identify the flight path, never the ground below it.
+for (const annotation of [false, true]) for (const policy of ["strict", "verified_parts"] as const) {
+  const document = curveLaunch(1);
+  document.entities.push({ id: "ground", kind: "segment", role: "level ground" });
+  document.constructions.push({ id: "ground_line", operator: "segment", inputs: { start: [0, 0], end: [8, 0] }, outputs: ["ground"] });
+  document.requiredEntityIds.push("ground"); document.revealGroups[0]!.entityIds.push("ground");
+  if (annotation) {
+    delete document.entities.find(e => e.id === "path")!.label;
+    document.annotations.push({ id: "path_name", kind: "label", targetIds: ["path"], text: "trajectory", placementIntent: "below" });
+  }
+  const result = compileSceneDocument(document, { yieldPolicy: policy });
+  check(result.ok && result.renderScene, "a trajectory name retains a legal position under both policies");
+  const path = result.renderScene.primitives.find(p => p.entityId === "path" && p.kind === "polyline")!;
+  const label = result.renderScene.primitives.find(p => p.entityId === "path" && p.kind === "label")!;
+  const box = label.provenance?.labelCollisionBounds ?? label.provenance?.labelBounds;
+  check(!!box && box.y + box.height <= Math.min(...path.points.map(p => p.y)) + 1e-6,
+    "the entire trajectory name stays above its path apex, even when the model requests below");
+  check(result.renderScene.primitives.some(p => p.entityId === "path" && p.provenance?.labelLeader),
+    "the trajectory name has a verified connector to its own path");
+}
 console.log(`projectile motion geometry: ${checks} checks passed`);
