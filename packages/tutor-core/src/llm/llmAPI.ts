@@ -9,6 +9,14 @@ export interface ConversationExchange {
 
 export type TeachingAttemptKind = "primary" | "hedge";
 
+/** A Fetch network failure, identified at the request or stream-read boundary. */
+export class TeachingTransportError extends Error {
+  constructor(readonly phase: "fetch" | "read", cause: TypeError) {
+    super(cause.message, { cause });
+    this.name = "TeachingTransportError";
+  }
+}
+
 /**
  * How long the first teaching request may stay silent before a second,
  * reasoning-off request races it. Measured from the first request's start.
@@ -59,7 +67,8 @@ export interface StreamLLMResponseParams {
   /**
    * Race a reasoning-off copy of this request when no content token has
    * arrived `afterMs` after the request started. The first request to send a
-   * content token wins and the other is aborted. Off unless given.
+   * content token wins and the other is aborted. A network failure before any
+   * content opens that same copy early. Off unless given; at most two requests.
    */
   hedge?: { afterMs: number };
   /** Every request this call opens, with its `performance.now()` start. */
@@ -235,6 +244,23 @@ function raceAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
       },
     );
   });
+}
+
+async function transportBoundary<T>(
+  phase: TeachingTransportError["phase"],
+  signal: AbortSignal,
+  operation: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error: unknown) {
+    // Fetch reports network failures as TypeError. Callback errors, HTTP
+    // responses and deliberate cancellation never pass through this boundary.
+    if (error instanceof TypeError && !signal.aborted) {
+      throw new TeachingTransportError(phase, error);
+    }
+    throw error;
+  }
 }
 
 interface TeachingAttempt {
@@ -447,9 +473,11 @@ export async function streamLLMResponse(
 
   const onAttemptSettled = () => {
     if (attempts.some((attempt) => attempt.outcome === "pending")) return;
-    // Every request has ended. A pending hedge has nothing left to race:
-    // the first request finished (or failed) without speaking, which is
-    // today's reasoning-only or error path.
+    const primary = attempts[0];
+    if (primary?.outcome === "failed" && primary.contentChars === 0 &&
+      primary.error instanceof TeachingTransportError && startHedge()) return;
+    // A completed reasoning-only request or a non-network failure keeps the
+    // existing caller-owned retry/error path.
     clearTimeout(hedgeTimer);
     hedgeTimer = undefined;
     settle();
@@ -479,12 +507,12 @@ export async function streamLLMResponse(
         headers["x-heytutor-teaching-hedge"] = "1";
       }
 
-      const response = await raceAbort(fetch(proxyUrl, {
+      const response = await transportBoundary("fetch", attempt.controller.signal, () => raceAbort(fetch(proxyUrl, {
         method: "POST",
         headers,
         signal: attempt.controller.signal,
         body: requestBody,
-      }), attempt.controller.signal);
+      }), attempt.controller.signal));
 
       tutorDebug("llm", "fetch headers received", {
         attempt: attempt.kind,
@@ -518,7 +546,7 @@ export async function streamLLMResponse(
           break;
         }
 
-        const { value, done } = await reader.read();
+        const { value, done } = await transportBoundary("read", attempt.controller.signal, () => reader.read());
 
         if (done || attempt.controller.signal.aborted) {
           break;
@@ -602,6 +630,17 @@ export async function streamLLMResponse(
     return attempt;
   };
 
+  const startHedge = (): boolean => {
+    if (!hedging || winner || firstContentTimedOut || signal?.aborted || attempts.length !== 1) return false;
+    clearTimeout(hedgeTimer);
+    hedgeTimer = undefined;
+    hedgeStartedAfterMs = Math.round(performance.now() - streamStart);
+    const afterMs = hedgeStartedAfterMs;
+    tutorDebug("llm", "teaching hedge start", { after_ms: afterMs });
+    startAttempt("hedge", () => onHedgeStart?.({ afterMs }));
+    return true;
+  };
+
   try {
     if (!signal?.aborted) {
       signal?.addEventListener("abort", onExternalAbort, { once: true });
@@ -617,11 +656,7 @@ export async function streamLLMResponse(
       if (hedgeAfterMs !== null) {
         hedgeTimer = setTimeout(() => {
           hedgeTimer = undefined;
-          if (winner || firstContentTimedOut || signal?.aborted) return;
-          hedgeStartedAfterMs = Math.round(performance.now() - streamStart);
-          const afterMs = hedgeStartedAfterMs;
-          tutorDebug("llm", "teaching hedge start", { after_ms: afterMs });
-          startAttempt("hedge", () => onHedgeStart?.({ afterMs }));
+          startHedge();
         }, hedgeAfterMs);
       }
     }

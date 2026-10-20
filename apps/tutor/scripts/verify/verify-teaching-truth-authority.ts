@@ -72,7 +72,10 @@ try {
     assert(text.includes("spoken quantities agree with the [WRITE] row"));
     assert(text.includes("correct an unsupported planner value only after"), "unsupported planner arithmetic remains correctable after a check");
     assert(text.includes("state the unresolved discrepancy"), "do not invent a replacement answer when authority disagrees");
-    assert(text.includes('say "under that assumption" in the SAME STEP'), "solver confirmation of another value cannot remove conditional answers");
+    assert(text.includes("Preserve that scope through the final answer even when other quantities are solver-verified"), "solver confirmation of another value cannot remove conditional answers");
+    assert(text.includes("introduce each genuinely necessary unstated condition once before its first use"), "conditional authority must be stated before use, not inferred from a different solver binding");
+    assert(text.includes("write one condition row so the saved notes scope all dependent working and results"), "saved answers retain their explicit modelling condition");
+    assert(text.includes("a new condition starts a new case, not a repeated suffix on each answer"), "case changes remain explicit without imposing a repeated hedge");
     assert(!text.includes("AUTHORITATIVE TURN PLAN V3"));
     assert(!text.includes("Use these verified quantities and qualitative claims"));
     assert(!text.includes("trust the board"));
