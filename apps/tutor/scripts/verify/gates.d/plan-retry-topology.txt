@@ -1,0 +1,2 @@
+pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-turn-plan-repair-feedback.ts
+pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-circuit-topology-capabilities.ts

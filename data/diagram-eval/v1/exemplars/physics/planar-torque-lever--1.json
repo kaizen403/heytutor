@@ -1,0 +1,206 @@
+{
+  "topic_id": "physics|5|torque-and-angular-momentum",
+  "question": "A horizontal light lever pivots at O. At A, 0.75 m to the right of O, a vertical upward force of 18 N is applied. Draw the lever arm and force, their right angle and the torque direction about O.",
+  "figure_kind": "vectors_fbd",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "Pivoted lever with source arm, upward force and computed out-of-page torque"
+    },
+    "source": {
+      "question": "A horizontal light lever pivots at O. At A, 0.75 m to the right of O, a vertical upward force of 18 N is applied. Draw the lever arm and force, their right angle and the torque direction about O."
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "O",
+        "kind": "point",
+        "role": "O",
+        "label": "O"
+      },
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "A",
+        "label": "A"
+      },
+      {
+        "id": "lever",
+        "kind": "segment",
+        "role": "lever",
+        "label": "r = 0.75 m"
+      },
+      {
+        "id": "force",
+        "kind": "vector",
+        "role": "force",
+        "label": "F = 18 N"
+      },
+      {
+        "id": "angle",
+        "kind": "right_angle_mark",
+        "role": "angle"
+      },
+      {
+        "id": "torque_place",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "torque",
+        "kind": "polyline",
+        "role": "torque",
+        "label": "tau"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_O",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "O"
+        ]
+      },
+      {
+        "id": "make_A",
+        "operator": "point",
+        "inputs": {
+          "x": 3,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "make_torque_place",
+        "operator": "point",
+        "inputs": {
+          "x": -0.8,
+          "y": 1.5,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "torque_place"
+        ]
+      },
+      {
+        "id": "make_torque",
+        "operator": "planar_torque",
+        "inputs": {
+          "origin": [
+            -0.8,
+            1.5
+          ],
+          "leverArm": [
+            0.75,
+            0
+          ],
+          "force": [
+            0,
+            18
+          ],
+          "lengthUnit": "m",
+          "forceUnit": "N",
+          "displayLength": 0.6
+        },
+        "outputs": [
+          "torque"
+        ]
+      },
+      {
+        "id": "make_lever",
+        "operator": "segment",
+        "inputs": {
+          "start": "O",
+          "end": "A"
+        },
+        "outputs": [
+          "lever"
+        ]
+      },
+      {
+        "id": "make_force",
+        "operator": "vector",
+        "inputs": {
+          "start": "A",
+          "direction": [
+            0,
+            1
+          ],
+          "length": 2
+        },
+        "outputs": [
+          "force"
+        ]
+      },
+      {
+        "id": "make_angle",
+        "operator": "right_angle_mark",
+        "inputs": {
+          "vertex": "A",
+          "a": "lever",
+          "b": "force"
+        },
+        "outputs": [
+          "angle"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [
+      {
+        "id": "proof_0",
+        "predicate": "perpendicular",
+        "entities": [
+          "lever",
+          "force"
+        ],
+        "expected": true,
+        "severity": "fatal"
+      }
+    ],
+    "annotations": [],
+    "requiredEntityIds": [
+      "O",
+      "A",
+      "lever",
+      "force",
+      "angle",
+      "torque_place",
+      "torque"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "O",
+          "A",
+          "lever",
+          "force",
+          "angle",
+          "torque_place",
+          "torque"
+        ],
+        "dependsOn": [],
+        "narrationCue": "Pivoted lever with source arm, upward force and computed out-of-page torque"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "Pivoted lever with source arm, upward force and computed out-of-page torque"
+      }
+    ]
+  }
+}
