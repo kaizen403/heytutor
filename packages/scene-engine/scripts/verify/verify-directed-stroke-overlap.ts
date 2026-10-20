@@ -9,8 +9,9 @@
  *    by scripts/extract-recorded-scene-documents.ts): every document that
  *    compiles draws every required vector, no directed stroke lies along
  *    other ink for 12 px or more (so no head sits inside another stroke and
- *    no helper runs past a head), no unnamed dot sits on a shaft, and no
- *    vector shaft is under 40 px except the operators listed below.
+ *    no helper runs past a head), no unnamed dot sits on a shaft, the display
+ *    scale lifts exactly the listed vectors, and every shaft under 40 px is
+ *    listed with the reason its unit group keeps its true length.
  * 2. The named recordings, checked one by one.
  * 3. Synthetic documents for each mechanism.
  *
@@ -27,6 +28,7 @@ import {
   type RenderPoint, type RenderPrimitive, type SceneDocument, type SceneIssue,
 } from "../../src/index";
 import { validateLabelOwnerTruth } from "../../src/compile/labelOwnerTruth";
+import { canonicalVectorUnit } from "../../src/compile/vectorDisplayScale";
 import { auditDirectedStrokes, collinearOverlap, READABLE_SHAFT_PX } from "./directedStrokeAudit";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -62,11 +64,28 @@ const byId = new Map(recorded.map((document) => [document.id, document]));
 /** A sign badge carrying a body's value is refused with a repair, not drawn on the wrong body. */
 const REFUSED_BADGE_VALUE = new Set(["v3/p1e2-t1#6"]);
 /**
- * Short shafts the display scale does not reach yet: a component from
- * vector_components and a trajectory_state velocity follow their source
- * vector's scale. Listed so a new one fails.
+ * Vectors the display scale lifts. A unit group is scaled whole or not at
+ * all, so a vector that loses its factor (or a new one that gains it) fails.
  */
-const SHORT_SHAFT_ALLOWED = new Set(["v1/p3c-t1#5:downhill", "v2/p3e2-t2#7:landing_velocity"]);
+const DISPLAY_SCALED = new Set([
+  "v2/p3e2-t1#6:up_velocity", "v2/p3e2-t1#6:gravity", "v2/p3e2-t2#7:gravity", "v2/p5e2-t1#4:initial_velocity",
+  "v3/p1e1-t1#6:vA", "v3/p1e1-t1#6:vB",
+]);
+/**
+ * Short shafts kept at their true length, reported rather than hidden. Each is
+ * in a unit group the display scale declines: a component that follows its
+ * source vector, a velocity group with a trajectory_state velocity in it
+ * (v2 p3e2-t2), and velocities drawn on axes (v3 p4c-t1).
+ */
+const SHORT_TRUE_LENGTH = new Map([
+  ["v1/p3c-t1#5:downhill", "a vector_components component follows its source vector"],
+  ["v2/p3e2-t2#7:initial_velocity", "its m/s group holds the trajectory_state landing velocity"],
+  ["v2/p3e2-t2#7:landing_velocity", "a trajectory_state velocity, not free"],
+  ["v3/p4c-t1#6:vA", "the figure has axes"],
+  ["v3/p4c-t1#6:vB", "the figure has axes"],
+]);
+const scaledSeen = new Set<string>();
+const shortSeen: string[] = [];
 let compiledCount = 0;
 for (const document of recorded) {
   const result = replay(document);
@@ -84,11 +103,19 @@ for (const document of recorded) {
     check(false, `${document.id}: ${overlap.directed} lies along ${overlap.other} for ${overlap.overlapPx} px${overlap.runsPastHead ? " and the stroke runs past its head" : ""}`);
   }
   for (const dot of audit.dotsOnVector) check(false, `${document.id}: unnamed point ${dot.point} is drawn as a dot on ${dot.vector}`);
+  for (const primitive of result.primitives) {
+    if (primitive.kind === "vector" && primitive.provenance?.displayLengthScale !== undefined) scaledSeen.add(`${document.id}:${primitive.entityId}`);
+  }
   for (const short of audit.shortShafts) {
-    check(SHORT_SHAFT_ALLOWED.has(`${document.id}:${short.entity}`), `${document.id}: ${short.entity} is ${short.lengthPx} px long, under ${READABLE_SHAFT_PX} px`);
+    const key = `${document.id}:${short.entity}`;
+    shortSeen.push(`${key} ${short.lengthPx} px`);
+    check(SHORT_TRUE_LENGTH.has(key) && !scaledSeen.has(key), `${document.id}: ${short.entity} is ${short.lengthPx} px long, under ${READABLE_SHAFT_PX} px${scaledSeen.has(key) ? " after its display scale" : ", and no listed reason keeps it at its true length"}`);
   }
 }
 check(compiledCount >= 40, `expected at least 40 recorded documents to compile, got ${compiledCount}`);
+for (const key of DISPLAY_SCALED) check(scaledSeen.has(key), `${key}: lost its display scale`);
+for (const key of scaledSeen) check(DISPLAY_SCALED.has(key), `${key}: gained a display scale`);
+for (const key of SHORT_TRUE_LENGTH.keys()) check(shortSeen.some((entry) => entry.startsWith(`${key} `)), `${key}: listed as a short true length shaft but is no longer short`);
 
 // ------------------------------------------------------------ 2. named recordings
 function recordedResult(id: string): Replay {
@@ -149,18 +176,18 @@ function labelCenter(result: Replay, entityId: string): RenderPoint | undefined 
     check(Math.abs(len(rain.points[0]!, rain.points[1]!) - 230) < 1, "v3 p3c-t2: v_rain keeps its full length in its lane");
   }
 }
-// v3 p4c-t1: 4 m/s and 3 m/s in a 60 m frame were 14 and 11 px; "A" sat beside the head of v_A.
+// v3 p4c-t1: 4 m/s and 3 m/s in a 60 m frame are 14 and 11 px. The figure has
+// axes, which give the vectors a scale, so they keep their true length.
 {
   const result = recordedResult("v3/p4c-t1#6");
   const vA = stroke(result, "vA"); const vB = stroke(result, "vB");
   check(vA && vB, "v3 p4c-t1: both velocities are drawn");
   if (vA && vB) {
     const a = len(vA.points[0]!, vA.points[1]!); const b = len(vB.points[0]!, vB.points[1]!);
-    check(Math.min(a, b) >= READABLE_SHAFT_PX, `v3 p4c-t1: velocity shafts are readable (${a.toFixed(1)}, ${b.toFixed(1)} px)`);
     check(Math.abs(a / b - 4 / 3) < 0.02, `v3 p4c-t1: v_A and v_B stay proportional 4:3, got ${(a / b).toFixed(3)}`);
     check(Math.abs(vA.points[1]!.y - vA.points[0]!.y) < 0.01 && vA.points[1]!.x > vA.points[0]!.x, "v3 p4c-t1: v_A points exactly east");
     check(Math.abs(vB.points[1]!.x - vB.points[0]!.x) < 0.01 && vB.points[1]!.y > vB.points[0]!.y, "v3 p4c-t1: v_B points exactly south");
-    check(vA.provenance?.displayLengthScale !== undefined, "v3 p4c-t1: the display scale is recorded on the vector");
+    check(vA.provenance?.displayLengthScale === undefined && vB.provenance?.displayLengthScale === undefined, "v3 p4c-t1: velocities on axes carry no display scale");
   }
 }
 // Point names beside the wrong mark (p4c-t1, p4e1-t2) are gated in verify-label-owner-placement.
@@ -275,6 +302,69 @@ function frame(length: number, unit: string, extra: Partial<{ usedElsewhere: boo
   const d = stroke(displacement, "v");
   check(d && d.provenance?.displayLengthScale === undefined, "synthetic: a 4 m displacement in a 60 m frame keeps its true length");
 }
+// 3f'. The display scale never breaks a vector sum or a proportion of one unit.
+{
+  // Tip to tail in a 60 m river: vc starts at its own point placed at vb's tip, vr = vb + vc.
+  const result = compileDocument(withPoints([point("O", 0, 0, "O"), point("Q", 0, 5), point("R", 3, 5), point("bankL", -10, 60), point("bankR", 50, 60)],
+    [{ id: "far_bank", kind: "segment", role: "far bank" }, { id: "vb", kind: "vector", role: "boat" }, { id: "vc", kind: "vector", role: "current" }, { id: "vr", kind: "vector", role: "resultant" }],
+    [{ id: "make_far_bank", operator: "segment", inputs: { start: "bankL", end: "bankR" }, outputs: ["far_bank"] },
+      { id: "make_vb", operator: "vector", inputs: { start: "O", direction: [0, 1], length: 5 }, outputs: ["vb"] },
+      { id: "make_vc", operator: "vector", inputs: { start: "Q", direction: [1, 0], length: 3 }, outputs: ["vc"] },
+      { id: "make_vr", operator: "vector", inputs: { start: "O", end: "R" }, outputs: ["vr"] }],
+    { annotations: [{ id: "vb_label", kind: "label", targetIds: ["vb"], text: "v_b = 5 m/s" }, { id: "vc_label", kind: "label", targetIds: ["vc"], text: "v_c = 3 m s⁻¹" }, { id: "vr_label", kind: "label", targetIds: ["vr"], text: "v_r = 5.83 ms^-1" }] }));
+  const [vb, vc, vr] = ["vb", "vc", "vr"].map((id) => stroke(result, id));
+  check(result.stage === "ok" && vb && vc && vr, `synthetic river sum compiles: ${fatal(result).join(" | ")}`);
+  if (vb && vc && vr) {
+    check(len(vb.points[1]!, vc.points[0]!) < 0.5, `synthetic river sum: vc still starts at vb's tip (${len(vb.points[1]!, vc.points[0]!).toFixed(1)} px apart)`);
+    check(len(vr.points[0]!, vb.points[0]!) < 0.5 && len(vr.points[1]!, vc.points[1]!) < 0.5, `synthetic river sum: vr = vb + vc is drawn exactly (head ${len(vr.points[1]!, vc.points[1]!).toFixed(1)} px off vc's tip)`);
+  }
+}
+{
+  // A parallelogram of forces keeps its diagonal and its sides.
+  const result = compileDocument(withPoints([point("O", 0, 0, "O"), point("P1", 4, 0), point("P2", 0, 3), point("R", 4, 3), point("G1", -10, -60), point("G2", 50, -60)],
+    [{ id: "ground", kind: "segment", role: "frame" }, { id: "F1", kind: "vector", role: "force" }, { id: "F2", kind: "vector", role: "force" }, { id: "F", kind: "vector", role: "resultant" },
+      { id: "side1", kind: "segment", role: "parallelogram side" }, { id: "side2", kind: "segment", role: "parallelogram side" }],
+    [{ id: "make_ground", operator: "segment", inputs: { start: "G1", end: "G2" }, outputs: ["ground"] },
+      { id: "make_F1", operator: "vector", inputs: { start: "O", direction: [1, 0], length: 4 }, outputs: ["F1"] },
+      { id: "make_F2", operator: "vector", inputs: { start: "O", direction: [0, 1], length: 3 }, outputs: ["F2"] },
+      { id: "make_F", operator: "vector", inputs: { start: "O", end: "R" }, outputs: ["F"] },
+      { id: "make_side1", operator: "segment", inputs: { start: "P1", end: "R" }, outputs: ["side1"] },
+      { id: "make_side2", operator: "segment", inputs: { start: "P2", end: "R" }, outputs: ["side2"] }],
+    { annotations: [{ id: "F1_label", kind: "label", targetIds: ["F1"], text: "F_1 = 4 N" }, { id: "F2_label", kind: "label", targetIds: ["F2"], text: "F_2 = 3 N" }, { id: "F_label", kind: "label", targetIds: ["F"], text: "F = 5 N" }] }));
+  const [f1, f2, f] = ["F1", "F2", "F"].map((id) => stroke(result, id));
+  check(result.stage === "ok" && f1 && f2 && f, `synthetic parallelogram compiles: ${fatal(result).join(" | ")}`);
+  if (f1 && f2 && f) {
+    const sum = { x: f1.points[1]!.x + f2.points[1]!.x - f1.points[0]!.x, y: f1.points[1]!.y + f2.points[1]!.y - f1.points[0]!.y };
+    check(len(sum, f.points[1]!) < 0.5, `synthetic parallelogram: the diagonal is F1 + F2 (${len(sum, f.points[1]!).toFixed(1)} px off)`);
+    const side1 = result.primitives.find((primitive) => primitive.entityId === "side1");
+    check(side1 && len(side1.points[0]!, f1.points[1]!) < 0.5, "synthetic parallelogram: the side starts at F1's tip");
+  }
+}
+{
+  // One unit in three spellings is one group: 4 m/s and 3 ms⁻¹ stay 4:3.
+  const result = compileDocument(withPoints([point("A", 0, 0, "A"), point("B", 0, 60, "B"), point("F", 60, 0)],
+    [{ id: "sep", kind: "segment", role: "separation" }, { id: "ground", kind: "segment", role: "ground" }, { id: "vA", kind: "vector", role: "velocity" }, { id: "vB", kind: "vector", role: "velocity" }],
+    [{ id: "make_sep", operator: "segment", inputs: { start: "A", end: "B" }, outputs: ["sep"] }, { id: "make_ground", operator: "segment", inputs: { start: "A", end: "F" }, outputs: ["ground"] },
+      { id: "make_vA", operator: "vector", inputs: { start: "A", direction: [1, 1], length: 4 }, outputs: ["vA"] },
+      { id: "make_vB", operator: "vector", inputs: { start: "B", direction: [1, -1], length: 3 }, outputs: ["vB"] }],
+    { annotations: [{ id: "vA_label", kind: "label", targetIds: ["vA"], text: "v_A = 4 m/s" }, { id: "vB_label", kind: "label", targetIds: ["vB"], text: "v_B = 3 ms⁻¹" }] }));
+  const [vA, vB] = ["vA", "vB"].map((id) => stroke(result, id));
+  if (vA && vB) {
+    const ratio = len(vA.points[0]!, vA.points[1]!) / len(vB.points[0]!, vB.points[1]!);
+    check(Math.abs(ratio - 4 / 3) < 0.02 && vA.provenance?.displayLengthScale !== undefined, `synthetic spellings: 4 m/s and 3 ms⁻¹ share one display factor, ratio ${ratio.toFixed(3)}`);
+  } else check(false, `synthetic spellings compiles: ${fatal(result).join(" | ")}`);
+  for (const spelling of ["m/s", "ms⁻¹", "m s^-1", "m·s⁻¹", "m s⁻¹", "m/sec"]) check(canonicalVectorUnit(spelling) === "m/s", `canonicalVectorUnit(${spelling}) is m/s, got ${canonicalVectorUnit(spelling)}`);
+  for (const spelling of ["m/s²", "m s⁻²", "ms^-2"]) check(canonicalVectorUnit(spelling) === "m/s²", `canonicalVectorUnit(${spelling}) is m/s², got ${canonicalVectorUnit(spelling)}`);
+}
+{
+  // Axes give vectors a scale of their own: no display factor.
+  const result = compileDocument(withPoints([point("O", 0, 0, "O")], [{ id: "ax", kind: "axes", role: "frame" }, { id: "v", kind: "vector", role: "velocity" }],
+    [{ id: "make_ax", operator: "axes", inputs: { xMin: -10, xMax: 60, yMin: -10, yMax: 60 }, outputs: ["ax"] },
+      { id: "make_v", operator: "vector", inputs: { start: "O", direction: [1, 0], length: 4 }, outputs: ["v"] }],
+    { annotations: [{ id: "v_label", kind: "label", targetIds: ["v"], text: "v = 4 m/s" }] }));
+  const v = stroke(result, "v");
+  check(result.stage === "ok" && v && v.provenance?.displayLengthScale === undefined, `synthetic axes: a velocity on axes keeps its true length: ${fatal(result).join(" | ")}`);
+}
 
 // 3g. The owner truth check judges point names strictly: "A" beside the head
 // of a vector drawn from A is recorded (a warning; placement ranks it last).
@@ -299,4 +389,5 @@ if (failures.length) {
   for (const failure of failures) console.error(`  - ${failure}`);
   process.exit(1);
 }
-console.log(`verify-directed-stroke-overlap: ${recorded.length} recorded documents (${compiledCount} compiled), ${checks} checks passed`);
+console.log(`verify-directed-stroke-overlap: short shafts kept at true length (${shortSeen.length}): ${shortSeen.join(", ")}`);
+console.log(`verify-directed-stroke-overlap: ${recorded.length} recorded documents (${compiledCount} compiled), ${scaledSeen.size} vectors display scaled, ${checks} checks passed`);
