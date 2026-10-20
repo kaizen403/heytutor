@@ -325,6 +325,7 @@ export const SCENE_CAPABILITY_MANIFEST = defineSceneCapabilityManifest({
     { id: "wave_cycles", plannerVisible: true, evaluator: "geometry" },
     { id: "path", plannerVisible: true, evaluator: "topology" },
     { id: "pathCount", plannerVisible: true, evaluator: "topology" },
+    { id: "loadBranchCount", plannerVisible: true, evaluator: "topology" },
     { id: "sameTerminalPair", plannerVisible: true, evaluator: "topology" },
     { id: "degree", plannerVisible: true, evaluator: "topology" },
   ],
