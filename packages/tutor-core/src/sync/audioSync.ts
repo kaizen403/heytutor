@@ -665,12 +665,12 @@ function letterForms(
   const lower = run.toLowerCase();
   const plain = letterRunWords(run).join(" ");
   const forms: string[] = [];
-  const unitForms = UNIT_SPOKEN_FORMS[lower];
+  const unitForms = Object.hasOwn(UNIT_SPOKEN_FORMS, lower) ? UNIT_SPOKEN_FORMS[lower] : undefined;
   const isUnit = unitForms && (options.numericContext || UNAMBIGUOUS_UNITS.has(lower));
   if (isUnit) {
     forms.push(...unitForms);
   }
-  const functionForms = FUNCTION_SPOKEN_FORMS[lower];
+  const functionForms = Object.hasOwn(FUNCTION_SPOKEN_FORMS, lower) ? FUNCTION_SPOKEN_FORMS[lower] : undefined;
   if (functionForms && !isUnit) {
     forms.push(...functionForms);
   }
@@ -757,7 +757,7 @@ function boardTokenUnits(token: string, previousToken: string | undefined): Toke
           standaloneOperand: pieces.length === 1 && previousToken !== undefined,
         }),
       });
-      if (next === "(" && !FUNCTION_SPOKEN_FORMS[piece.toLowerCase()]) {
+      if (next === "(" && !Object.hasOwn(FUNCTION_SPOKEN_FORMS, piece.toLowerCase())) {
         // A named application can be read "c of n"; adjacent multiplication
         // can still be read "m times g" or omit the join altogether.
         units.push({ forms: ["", "times", "of"] });

@@ -1,0 +1,1 @@
+tsx --tsconfig tsconfig.json scripts/verify/verify-rotation-origin-source-admission.ts

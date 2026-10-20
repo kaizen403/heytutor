@@ -97,9 +97,11 @@ export function isExplanationOnlyDsaQuestion(question: string): boolean {
   // A no-code request ends at its object or continues with a polite qualifier.
   // "no code duplication" is a quality constraint, not a request to hide code.
   if (asksToExplain && /\b(?:(?:without|no)\s+(?:(?:writing|showing|including|typing|using)\s+)?|(?:do not|don['’]t)\s+(?:write|show|include|type|use)\s+)(?:(?:any|a|an)\s+)?(?:code|implementations?|programs?)(?=\s*(?:[.!?,;:]|$)|\s+(?:examples?|snippets?|please|at all|using|and|in)\b)/i.test(question)) return true;
-  const programmingContext = /\bin\s+(?:computer\s+)?programming\b/i.test(question);
   // "programming" stays out: "explain dynamic programming" is not a code request.
   const asksForImplementation = /\b(?:cod(?:e|es|ed|ing)|implement\w*|writ(?:e|es|ing|ten)|programs?|functions?|solv(?:e|es|ed|ing)|solutions?)\b/i.test(question);
+  // A concept requested in the context of programming needs a concrete code
+  // example. This does not treat the technique "dynamic programming" as code.
+  const programmingContext = /\bin\s+(?:computer\s+)?programming\b/i.test(question);
   // "Reverse the list in Python. Explain prev and curr" asks for a program
   // even though its variables need explaining. A language named on its own
   // ("explain Python references") is still a concept question.
@@ -188,11 +190,11 @@ export function codeLessonBeatPlan(input: CodeLessonBeatPlanInput): CodeLessonBe
   if (familiarity !== "revision" && (familiarity === "new" || input.motivation !== "start_worked_example")) {
     beats.push({
       kind: "brute_force",
-      brief: "the obvious slow way, and why it is too slow on a long input",
+      brief: "a natural baseline and its actual cost; if it has the same complexity, say so and explain the useful difference without inventing a speedup",
     });
   }
   if (familiarity === "new") {
-    beats.push({ kind: "idea", brief: "the idea behind the fast approach, in one or two sentences" });
+    beats.push({ kind: "idea", brief: "the idea behind this approach and why it works, in one or two sentences" });
   }
 
   frames.forEach((frame, index) => {
