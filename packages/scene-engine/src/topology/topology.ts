@@ -24,6 +24,7 @@ export interface TopologyGraph {
 const MAX_PATH_COUNT_EDGES = 48;
 const MAX_PATH_COUNT_STEPS = 20_000;
 const MAX_PATH_COUNT_RESULTS = 4_096;
+const MAX_PATH_WITNESSES = 4;
 
 const PARALLEL_DC_SOURCE_SYMBOLS = new Set(["battery", "cell"]);
 const PARALLEL_PASSIVE_LOAD_SYMBOLS = new Set(["resistor", "lamp"]);
@@ -179,23 +180,26 @@ function parallelComponentWord(document: SceneDocument, entityId: string, text: 
     (word === "load" && PARALLEL_PASSIVE_LOAD_SYMBOLS.has(symbol));
 }
 
-/** Mirror matchingQuantityText's actual component lookup, including case folds. */
+/** Check every possible alias; compiler lookup priority must not hide claim ink. */
 function hasUnverifiedParallelQuantityInk(document: SceneDocument, entityId: string, label: string): boolean {
   if (!/^[A-Za-z][A-Za-z0-9_₀-₉]{0,7}$/.test(label.trim())) return false;
   const keyFor = (text: string) => text.trim().toLowerCase().replace(/[₀-₉]/g, (digit) =>
     String("₀₁₂₃₄₅₆₇₈₉".indexOf(digit)));
   const key = keyFor(label);
-  const quantity = document.quantities.find((candidate) =>
+  const quantities = document.quantities.filter((candidate) =>
     keyFor(candidate.id) === key || (typeof candidate.symbol === "string" && keyFor(candidate.symbol) === key));
-  if (!quantity) return false;
-  // A matching quantity can silently add text to an otherwise identity-only
-  // component label. The count does not certify that value, unit or polarity.
-  if (typeof quantity.label === "string" && quantity.label.trim()) {
-    const identity = parallelMathIdentity(quantity.label);
-    return !parallelComponentWord(document, entityId, quantity.label) &&
-      (!identity || identity !== parallelMathIdentity(label));
-  }
-  return typeof quantity.value === "number" || typeof quantity.value === "string";
+  // A benign first ID alias cannot certify another alias selected by physical
+  // symbol precedence. Inspect all matches, independent of inventory order.
+  // This is intentionally conservative even when the compiler would omit a
+  // conflicting value; the count does not establish value, unit, or polarity.
+  return quantities.some((quantity) => {
+    if (typeof quantity.label === "string" && quantity.label.trim()) {
+      const identity = parallelMathIdentity(quantity.label);
+      return !parallelComponentWord(document, entityId, quantity.label) &&
+        (!identity || identity !== parallelMathIdentity(label));
+    }
+    return typeof quantity.value === "number" || typeof quantity.value === "string";
+  });
 }
 
 /** Counts cannot establish additional geometry, values, current, or polarity. */
@@ -414,8 +418,8 @@ export function evaluateTopologyAssertion(
         return false;
       }
       const [from, to] = assertion.entities;
-      const count = countSimplePaths(graph, from!, to!);
-      if (count === null) {
+      const paths = countSimplePaths(graph, from!, to!);
+      if (paths === null) {
         issues.push({
           code: "assertion_failed",
           message: assertion.reason ?? `Assertion ${assertion.id}: pathCount graph is too complex for deterministic validation limits`,
@@ -424,6 +428,7 @@ export function evaluateTopologyAssertion(
         });
         return false;
       }
+      const { count, witnesses } = paths;
       const expected = Number(assertion.expected);
       // Preserve the established graph-path meaning before trying the narrow,
       // independently proved load-branch interpretation for legacy planners.
@@ -442,7 +447,10 @@ export function evaluateTopologyAssertion(
       if (!passed) {
         issues.push({
           code: "assertion_failed",
-          message: `${assertion.reason ? `${assertion.reason}. ` : ""}Assertion ${assertion.id}: expected ${expected} graph paths, found ${count}. pathCount includes source branches; use loadBranchCount for supported parallel load branches`,
+          message: `Assertion ${assertion.id}: pathCount between ${from} and ${to} expected ${expected} paths, found ${count}. ` +
+            "All symbol and connector edges are counted, including source branches; pathCount does not count only loads. " +
+            (witnesses.length > 0 ? `Counted paths: ${witnesses.map((path) => path.join(" -> ")).join("; ")}${count > witnesses.length ? "; ..." : ""}. ` : "") +
+            "Use sameTerminalPair on load component ids to prove they share electrical nodes, and loadBranchCount for supported parallel load branches. Do not change the count without checking the intended network.",
           severity,
           entityIds: assertion.entities,
           expected,
@@ -508,7 +516,8 @@ export function evaluateTopologyAssertion(
       if (terminals.some((pair) => !pair)) {
         issues.push({
           code: "assertion_failed",
-          message: assertion.reason ?? `Assertion ${assertion.id}: missing edge in topology graph`,
+          message: `Assertion ${assertion.id}: sameTerminalPair is missing component/connector edges: ${edgeIds.filter((_, index) => !terminals[index]).join(", ")}. ` +
+            "Pass symbol/connect output ids, not node ids.",
           severity,
           entityIds: assertion.entities,
         });
@@ -519,7 +528,9 @@ export function evaluateTopologyAssertion(
       if (!passed) {
         issues.push({
           code: "assertion_failed",
-          message: assertion.reason ?? `Assertion ${assertion.id}: edges do not share the same terminal pair`,
+          message: `Assertion ${assertion.id}: sameTerminalPair expected ${assertion.expected !== false}, found ${same} after joining nodes connected by wires. ` +
+            edgeIds.map((id, index) => `${id}=(${terminals[index]!.join(", ")})`).join("; ") +
+            ". Parallel loads must each connect across both of the same electrical nodes; coincident points do not join nodes.",
           severity,
           entityIds: assertion.entities,
           expected: assertion.expected ?? true,
@@ -599,20 +610,22 @@ function edgesFormOrderedPath(graph: TopologyGraph, edgeIds: string[]): boolean 
   return false;
 }
 
-function countSimplePaths(graph: TopologyGraph, from: string, to: string): number | null {
-  if (from === to) return 0;
-  if (!graph.nodes.has(from) || !graph.nodes.has(to)) return 0;
+function countSimplePaths(graph: TopologyGraph, from: string, to: string): { count: number; witnesses: string[][] } | null {
+  if (from === to) return { count: 0, witnesses: [] };
+  if (!graph.nodes.has(from) || !graph.nodes.has(to)) return { count: 0, witnesses: [] };
   if (graph.edges.length > MAX_PATH_COUNT_EDGES) return null;
 
   let count = 0;
   let steps = 0;
-  const visit = (node: string, visitedNodes: Set<string>) => {
+  const witnesses: string[][] = [];
+  const visit = (node: string, visitedNodes: Set<string>, path: string[]) => {
     steps += 1;
     if (steps > MAX_PATH_COUNT_STEPS || count > MAX_PATH_COUNT_RESULTS) {
       throw new Error("path_count_limit");
     }
     if (node === to) {
       count += 1;
+      if (witnesses.length < MAX_PATH_WITNESSES) witnesses.push([...path]);
       return;
     }
     for (const edgeId of graph.adjacency.get(node) ?? []) {
@@ -621,13 +634,15 @@ function countSimplePaths(graph: TopologyGraph, from: string, to: string): numbe
       const next = edge.a === node ? edge.b : edge.a;
       if (visitedNodes.has(next)) continue;
       visitedNodes.add(next);
-      visit(next, visitedNodes);
+      path.push(edgeId);
+      visit(next, visitedNodes, path);
+      path.pop();
       visitedNodes.delete(next);
     }
   };
   try {
-    visit(from, new Set([from]));
-    return count;
+    visit(from, new Set([from]), []);
+    return { count, witnesses };
   } catch (error) {
     if (error instanceof Error && error.message === "path_count_limit") return null;
     throw error;
