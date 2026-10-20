@@ -1,0 +1,4 @@
+tsx scripts/verify/verify-teaching-truth-authority.ts
+pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-code-teaching-truth.ts
+tsx scripts/verify/verify-programming-example-integrity.ts
+tsx scripts/verify/verify-teaching-statement-truth.ts
