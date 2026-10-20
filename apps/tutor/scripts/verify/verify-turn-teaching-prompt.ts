@@ -152,6 +152,14 @@ assert(
 // them. Each names the failure it prevents.
 const CONTRACT_RULES: [needle: string, why: string][] = [
   [
+    "is always P relative to Q: how P moves as seen by Q",
+    "v3 relative velocity lesson p1c-t1 (20 Oct 2026) said \"v_BA is A's velocity as seen by B\", which is backwards: v_BA is B as seen by A",
+  ],
+  [
+    "v_QP = \u2212v_PQ",
+    "the swap rule is the check a student can run on any relative velocity row",
+  ],
+  [
     "the figure can be the wrong figure",
     "without an exit clause the tutor narrates whatever picture it is handed: a double slit rig was taught as a capillary tube, two point charges as Earth's magnetic field",
   ],
