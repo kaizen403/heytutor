@@ -418,6 +418,68 @@ for (const [name, document] of outputKindCandidates) {
   }
 }
 
+// Integration: component symbol preference must not let a benign first ID
+// alias conceal unproved ink on the quantity the compiler actually selects.
+const aliasCollision = parallel();
+remove(aliasCollision, "R1");
+branch(aliasCollision, "load_one", "resistor");
+aliasCollision.entities.find((entity) => entity.id === "load_one")!.label = "R1";
+aliasCollision.assertions[0]!.entities = ["load_one", "R2"];
+aliasCollision.quantities = [
+  { id: "R1", symbol: "unused", label: "R1", value: 6, unit: "ohm" },
+  { id: "physical", symbol: "R1", label: "−", value: 7, unit: "ohm" },
+];
+aliasCollision.assertions.push({ id: "count", predicate: "loadBranchCount", entities: ["A", "B"], expected: 2, severity: "fatal" });
+const collisionValidation = validateSceneDocument(aliasCollision);
+check(Boolean(collisionValidation.document), "Symbol-priority collision must reach the actual count compiler");
+const collisionCompiled = compileSceneDocument(collisionValidation.document!);
+check(!collisionCompiled.ok, `A benign first ID must not conceal the compiler-selected polarity label: ${JSON.stringify(collisionCompiled.renderScene?.primitives.filter((primitive) => primitive.kind === "label"))}`);
+
+for (const owner of ["load", "source"]) {
+  for (const reverse of [false, true]) {
+    for (const ink of ["polarity", "physical prose", "numeric value"]) {
+      const candidate = structuredClone(aliasCollision);
+      const designator = owner === "load" ? "R1" : "E";
+      const unit = owner === "load" ? "ohm" : "V";
+      if (owner === "source") {
+        delete candidate.entities.find((entity) => entity.id === "load_one")!.label;
+        candidate.entities.find((entity) => entity.id === "V")!.label = designator;
+      }
+      candidate.quantities = [
+        { id: designator, symbol: "unused", label: designator, value: 6, unit },
+        { id: "physical", symbol: designator, value: 7, unit,
+          ...(ink === "numeric value" ? {} : { label: ink === "polarity" ? "−" : "negative terminal" }) },
+      ];
+      if (reverse) candidate.quantities.reverse();
+      const name = `${owner}/${ink}/${reverse ? "reversed" : "original"}`;
+      check(readParallelLoadCount(candidate, "A", "B").ok, `${name}: aliases cannot change pure topology`);
+      check(evaluate(candidate, "pathCount", 3).passed === true, `${name}: existing strict graph-path meaning is unchanged`);
+      const result = evaluate(candidate, "loadBranchCount", 2);
+      check(result.passed === false && result.issues.some((issue) => issue.code === "parallel_direction_unverified"),
+        `${name}: every possible matching alias must have identity-only ink`);
+      const normalized = validateSceneDocument(candidate);
+      check(Boolean(normalized.document), `${name}: normalized alias collision reaches the count proof`);
+      check(!compileSceneDocument(normalized.document!).ok, `${name}: normalized compiler refuses matching physical/numeric aliases`);
+    }
+    const benign = structuredClone(aliasCollision);
+    const designator = owner === "load" ? "R1" : "E";
+    if (owner === "source") {
+      delete benign.entities.find((entity) => entity.id === "load_one")!.label;
+      benign.entities.find((entity) => entity.id === "V")!.label = designator;
+    }
+    benign.quantities = [
+      { id: designator, symbol: "unused", label: designator, value: 6, unit: "1" },
+      { id: "physical", symbol: designator, label: designator, value: 7, unit: "1" },
+    ];
+    if (reverse) benign.quantities.reverse();
+    check(evaluate(benign, "loadBranchCount", 2).passed === true, `${owner}: benign identity-only aliases remain available`);
+    check(compileSceneDocument(benign).ok, `${owner}: identity-only alias collision still compiles in either inventory order`);
+  }
+}
+const unlabeledNumeric = structuredClone(explicitNumeric);
+unlabeledNumeric.assertions.push({ id: "count", predicate: "loadBranchCount", entities: ["A", "B"], expected: 2, severity: "fatal" });
+check(compileSceneDocument(unlabeledNumeric).ok, "Unlabeled numeric geometry remains available to the explicit topology API");
+
 const validIdentityScene = structuredClone(identityLabels);
 validIdentityScene.assertions.push({ id: "count", predicate: "loadBranchCount", entities: ["A", "B"], expected: 2, severity: "fatal" });
 check(compileSceneDocument(validIdentityScene).ok, "The ordinary identity-only label scene still compiles");

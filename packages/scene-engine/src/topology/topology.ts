@@ -180,23 +180,26 @@ function parallelComponentWord(document: SceneDocument, entityId: string, text: 
     (word === "load" && PARALLEL_PASSIVE_LOAD_SYMBOLS.has(symbol));
 }
 
-/** Mirror matchingQuantityText's actual component lookup, including case folds. */
+/** Check every possible alias; compiler lookup priority must not hide claim ink. */
 function hasUnverifiedParallelQuantityInk(document: SceneDocument, entityId: string, label: string): boolean {
   if (!/^[A-Za-z][A-Za-z0-9_₀-₉]{0,7}$/.test(label.trim())) return false;
   const keyFor = (text: string) => text.trim().toLowerCase().replace(/[₀-₉]/g, (digit) =>
     String("₀₁₂₃₄₅₆₇₈₉".indexOf(digit)));
   const key = keyFor(label);
-  const quantity = document.quantities.find((candidate) =>
+  const quantities = document.quantities.filter((candidate) =>
     keyFor(candidate.id) === key || (typeof candidate.symbol === "string" && keyFor(candidate.symbol) === key));
-  if (!quantity) return false;
-  // A matching quantity can silently add text to an otherwise identity-only
-  // component label. The count does not certify that value, unit or polarity.
-  if (typeof quantity.label === "string" && quantity.label.trim()) {
-    const identity = parallelMathIdentity(quantity.label);
-    return !parallelComponentWord(document, entityId, quantity.label) &&
-      (!identity || identity !== parallelMathIdentity(label));
-  }
-  return typeof quantity.value === "number" || typeof quantity.value === "string";
+  // A benign first ID alias cannot certify another alias selected by physical
+  // symbol precedence. Inspect all matches, independent of inventory order.
+  // This is intentionally conservative even when the compiler would omit a
+  // conflicting value; the count does not establish value, unit, or polarity.
+  return quantities.some((quantity) => {
+    if (typeof quantity.label === "string" && quantity.label.trim()) {
+      const identity = parallelMathIdentity(quantity.label);
+      return !parallelComponentWord(document, entityId, quantity.label) &&
+        (!identity || identity !== parallelMathIdentity(label));
+    }
+    return typeof quantity.value === "number" || typeof quantity.value === "string";
+  });
 }
 
 /** Counts cannot establish additional geometry, values, current, or polarity. */
