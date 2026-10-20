@@ -44,6 +44,7 @@ export * from "./synthesize/sourceMensuration";
 export * from "./synthesize/relativeMotionScene";
 export * from "./synthesize/uniformCircularFamily";
 export * from "./synthesize/conceptSchematic";
+export * from "./floor";
 export * from "./synthesize/dsaFamilies";
 export * from "./chemistry";
 

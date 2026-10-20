@@ -1,0 +1,2 @@
+# DIAGRAM_FLOOR_FIGURE through the production selector: off unchanged, on only after planner failure, never over contradiction, veto or a valid planner figure.
+tsx scripts/verify/verify-floor-figure-selection.ts

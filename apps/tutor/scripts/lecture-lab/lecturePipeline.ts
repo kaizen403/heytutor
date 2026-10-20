@@ -1,4 +1,4 @@
-import { parseDiagramYieldPolicy } from "@heytutor/scene-engine";
+import { parseDiagramFloorFigure, parseDiagramYieldPolicy } from "@heytutor/scene-engine";
 /**
  * Runs one whole lecture turn without a browser.
  *
@@ -234,6 +234,8 @@ export interface LectureRun {
     droppedCandidate?: DroppedSceneCandidate | null;
     /** Full proposal outcome; absent when additive completion did not run. */
     completion?: SceneCompletionDiagnosticsV3;
+    /** DIAGRAM_FLOOR_FIGURE: whether the floor figure was considered, drawn, and why. */
+    floor?: { attempted: true; drawn: boolean; kind: string | null; reason: string };
     /** The committed board figure as SVG, so a reviewer sees what the student saw. */
     svg: string | null;
     png?: string | null;
@@ -744,6 +746,7 @@ export async function runLecture(
       exactFigureSource: planning.figureSource === "verified_recovery" ? "verified_recovery" : "planner",
       solverAuthorityBlocked, requiredRetryEnabled: REQUIRED_DIAGRAM_RETRY_ENABLED,
       completionEnabled: process.env.NEXT_PUBLIC_SCENE_COMPLETION_BY_CONSTRUCTION === "1",
+      floorFigureEnabled: parseDiagramFloorFigure(process.env.DIAGRAM_FLOOR_FIGURE),
       solverAuthority: problemAuthority ? { problemIR: problemAuthority.problemIR, solverResult: problemAuthority.solverResult } : null,
       policy: {
         preferPlanner: planning.gate.diagramStrategy.strategy === "strict",
@@ -765,6 +768,7 @@ export async function runLecture(
     // completion-diagnostics:begin
     run.diagram.completion = sceneSelection.completion;
     // completion-diagnostics:end
+    if (sceneSelection.floor) run.diagram.floor = sceneSelection.floor;
     const attempted = sceneSelection.attemptedRepresentation;
     const sceneDocument = selected?.sceneDocument ?? null;
     const renderScene = selected?.renderScene ?? null;

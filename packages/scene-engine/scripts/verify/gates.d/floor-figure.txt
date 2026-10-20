@@ -1,0 +1,2 @@
+# DIAGRAM_FLOOR_FIGURE: stated-setup floor kinds, declines, and the floor audit mutations.
+tsx scripts/verify/verify-floor-figure.ts

@@ -203,7 +203,12 @@ export function selectVerifiedRepresentation(
  */
 export function selectVerifiedRepresentationExplained(
   input: RepresentationSelectionInput,
-): { selected: SelectedRepresentation; exactDecline: ExactCandidateDecline | null } {
+): {
+  selected: SelectedRepresentation;
+  exactDecline: ExactCandidateDecline | null;
+  /** Set when the source itself refused every figure (a stated value the plan contradicts); no later tier may draw. */
+  veto?: string;
+} {
   // The question fixes these motion numbers. A plan that would narrate a
   // different value gets no figure at all, so a stale number is never spoken
   // over a correct (or a planner-drawn) picture.
@@ -213,6 +218,7 @@ export function selectVerifiedRepresentationExplained(
     return {
       selected: { ...textOnly, reason: motionConflict },
       exactDecline: input.exact ? { code: "motion_plan_conflict", reason: motionConflict, preferred: false } : null,
+      veto: "motion_plan_conflict",
     };
   }
   const linearConflict = linearSourcePlanConflict(input.question, input.turnPlan);
@@ -220,6 +226,7 @@ export function selectVerifiedRepresentationExplained(
     return {
       selected: { ...buildTextOnlySelected(input.question), reason: linearConflict },
       exactDecline: input.exact ? { code: "linear_source_plan_conflict", reason: linearConflict, preferred: false } : null,
+      veto: "linear_source_plan_conflict",
     };
   }
   const exactCheck = input.exact
@@ -259,7 +266,7 @@ export function selectVerifiedRepresentationExplained(
     if (currentCompile) {
       exactDecline = { code: "circular_source_declined", reason: "the stated circular motion was declined, so no figure is drawn", preferred: false };
     }
-    return explained(buildTextOnlySelected(input.question));
+    return { ...explained(buildTextOnlySelected(input.question)), veto: "circular_source_declined" };
   }
   // An admitted constant-velocity relative-motion source owns its whole
   // figure (bodies, frame, signed velocities, encounter); a planner scene

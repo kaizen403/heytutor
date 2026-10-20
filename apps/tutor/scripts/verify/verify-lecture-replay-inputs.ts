@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
 import {
-  FIGURE_SOURCES, buildSolverAuthorityProjection, verifyTurnPlanAgainstSolver,
+  FIGURE_SOURCES, buildSolverAuthorityProjection, parseDiagramFloorFigure, verifyTurnPlanAgainstSolver,
   validateProblemIR, validateSolverResult, validateTurnPlanV3,
   type ProblemIR, type SolverResult,
 } from "@heytutor/scene-engine";
@@ -19,7 +19,7 @@ assert(end > 0 && (start > 0 || oldStart > 0), "actual stock final-selection cal
 const lines = source.slice(start > 0 ? start : oldStart, end);
 const execute = new Function("question", "turnPlan", "problemAuthority", "sceneCapabilities", "result", "fastRepresentation",
   "planning", "solverAuthorityBlocked", "REQUIRED_DIAGRAM_RETRY_ENABLED", "FIGURE_SOURCES", "diagramStrategyAllowsFigureSource",
-  "selectProductionScene", "problemAuthorityPromise", "run",
+  "selectProductionScene", "problemAuthorityPromise", "run", "parseDiagramFloorFigure",
   ts.transpileModule(lines, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText + "\nreturn {run,sceneSelection};");
 
 const question = "Draw the Lewis structure of the H2O molecule with 2 O-H bonds, 0 pi bonds, 2 oxygen lone pairs and a bond angle of 104.5 degrees.";
@@ -59,7 +59,7 @@ function capture(withAuthority: boolean, attempted: boolean, extra: Partial<Prod
     { figureSource: "planner", gate: { diagramStrategy: { strategy: extra.policy?.preferPlanner ? "strict" : "current" } } },
     false, true, FIGURE_SOURCES,
     (_strategy: unknown, figureSource: typeof FIGURE_SOURCES[number]) => extra.policy?.allowedFigureSources?.includes(figureSource) ?? true,
-    selectProductionScene, attempted ? Promise.resolve(null) : null, run);
+    selectProductionScene, attempted ? Promise.resolve(null) : null, run, parseDiagramFloorFigure);
 }
 const full = capture(true, true);
 assert(full.run.figureReplayInputs, "stock artifact must retain full selection inputs instead of only run.plan summaries");

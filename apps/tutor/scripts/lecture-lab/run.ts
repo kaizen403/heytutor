@@ -1,4 +1,4 @@
-import { parseDiagramYieldPolicy } from "@heytutor/scene-engine";
+import { parseDiagramFloorFigure, parseDiagramYieldPolicy } from "@heytutor/scene-engine";
 /**
  * Lecture lab batch runner.
  *
@@ -791,6 +791,7 @@ async function main(): Promise<void> {
       priority: serverConfig.planningSpeed?.priority === true },
     figureSelectionPolicy: PRODUCTION_SCENE_SELECTION_VERSION,
     diagramYieldPolicy: parseDiagramYieldPolicy(process.env.DIAGRAM_YIELD_POLICY),
+    diagramFloorFigure: parseDiagramFloorFigure(process.env.DIAGRAM_FLOOR_FIGURE),
     figureOnly: options.figureOnly, scenePlannerLimitMs: options.scenePlannerLimitMs,
     familiarity: options.familiarity, narrationLanguage: options.narrationLanguage,
     exampleLibraryFingerprint: labSampleFingerprint(diagramExamples),
