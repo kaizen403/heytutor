@@ -1,0 +1,2 @@
+# Video 3 replay: relation ids, right-angle arms through the vertex, planar space_project, river heading.
+tsx scripts/verify/verify-v3-scene-validity.ts

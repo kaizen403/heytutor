@@ -1,0 +1,370 @@
+[
+{
+"schemaVersion": "turn-plan/v3",
+"subject": "physics",
+"question": "Explain river and boat problems for JEE using this example: a river 100 m wide flows east at 3 m/s, and a boat heads due north at 4 m/s relative to the water. How do the crossing time, the drift and the heading to go straight across work?",
+"givens": [
+{
+"id": "w",
+"symbol": "w",
+"value": 100,
+"unit": "m",
+"sourceText": "river 100 m wide",
+"provenance": "given"
+},
+{
+"id": "vr",
+"symbol": "v_r",
+"value": 3,
+"unit": "m/s",
+"sign": "+",
+"sourceText": "flows east at 3 m/s",
+"provenance": "given"
+},
+{
+"id": "vb",
+"symbol": "v_b",
+"value": 4,
+"unit": "m/s",
+"sign": "+",
+"sourceText": "boat heads due north at 4 m/s relative to the water",
+"provenance": "given"
+}
+],
+"unknowns": [
+{
+"id": "t",
+"symbol": "t",
+"unit": "s"
+},
+{
+"id": "d",
+"symbol": "d",
+"unit": "m"
+},
+{
+"id": "th",
+"symbol": "theta",
+"unit": "deg"
+},
+{
+"id": "vs",
+"symbol": "v_straight",
+"unit": "m/s"
+},
+{
+"id": "ts",
+"symbol": "t_straight",
+"unit": "s"
+}
+],
+"derived": [
+{
+"id": "t",
+"symbol": "t",
+"value": 25,
+"unit": "s",
+"sign": "+",
+"sourceText": "t = w/v_b = 100/4 = 25",
+"provenance": "derived",
+"dependsOn": [
+"w",
+"vb"
+]
+},
+{
+"id": "d",
+"symbol": "d",
+"value": 75,
+"unit": "m",
+"sign": "+",
+"sourceText": "d = v_r*t = 3*25 = 75",
+"provenance": "derived",
+"dependsOn": [
+"vr",
+"t"
+]
+},
+{
+"id": "th",
+"symbol": "theta",
+"value": 48.59,
+"unit": "deg",
+"sign": "+",
+"sourceText": "theta = arcsin(v_r/v_b) = arcsin(3/4) = 48.59",
+"provenance": "derived",
+"dependsOn": [
+"vr",
+"vb"
+]
+},
+{
+"id": "vs",
+"symbol": "v_straight",
+"value": 2.646,
+"unit": "m/s",
+"sign": "+",
+"sourceText": "v_straight = sqrt(v_b^2 - v_r^2) = sqrt(16-9) = sqrt(7) = 2.646",
+"provenance": "derived",
+"dependsOn": [
+"vb",
+"vr"
+]
+},
+{
+"id": "ts",
+"symbol": "t_straight",
+"value": 37.8,
+"unit": "s",
+"sign": "+",
+"sourceText": "t_straight = w/v_straight = 100/2.646 = 37.8",
+"provenance": "derived",
+"dependsOn": [
+"w",
+"vs"
+]
+}
+],
+"qualitativeClaims": [
+{
+"id": "c1",
+"claim": "Crossing time depends only on the river width and the boat's velocity component perpendicular to the banks; the current does not affect it.",
+"expected": "t = w/v_b = 25 s",
+"relatedQuantityIds": [
+"t",
+"w",
+"vb"
+]
+},
+{
+"id": "c2",
+"claim": "Drift is the downstream displacement caused by the current during the crossing; the boat lands 75 m east of the point directly opposite.",
+"expected": "d = v_r * t = 75 m east",
+"relatedQuantityIds": [
+"d",
+"vr",
+"t"
+]
+},
+{
+"id": "c3",
+"claim": "To go straight across, the boat must head upstream (west of north) at angle theta so its upstream component cancels the current.",
+"expected": "theta = arcsin(v_r/v_b) = 48.59 deg west of north",
+"relatedQuantityIds": [
+"th",
+"vr",
+"vb"
+]
+},
+{
+"id": "c4",
+"claim": "When heading straight across, the resultant speed across the river is reduced to sqrt(v_b^2 - v_r^2), so the crossing takes longer (37.8 s vs 25 s).",
+"expected": "v_straight = sqrt(7) = 2.646 m/s, t_straight = 37.8 s",
+"relatedQuantityIds": [
+"vs",
+"ts",
+"vb",
+"vr"
+]
+},
+{
+"id": "c5",
+"claim": "Heading due north gives the minimum crossing time; heading upstream to cancel drift gives the shortest path but a longer time.",
+"expected": "t_min = 25 s (due north); straight-across path takes 37.8 s",
+"relatedQuantityIds": [
+"t",
+"ts"
+]
+},
+{
+"id": "c6",
+"claim": "Straight-across heading is possible only if v_b > v_r; here 4 > 3 so it is achievable.",
+"expected": "v_b > v_r required",
+"relatedQuantityIds": [
+"vb",
+"vr"
+]
+}
+],
+"lawIds": [
+"relative velocity addition",
+"vector decomposition",
+"uniform motion x = v*t",
+"Pythagorean theorem",
+"inverse trig for heading angle"
+],
+"assumptions": [
+"River current is uniform and steady at 3 m/s east everywhere",
+"Boat speed relative to water is constant at 4 m/s",
+"River banks are parallel and straight, 100 m apart",
+"East is +x, north is +y; boat starts at the south bank",
+"No wind, waves, or acceleration; boat instantly reaches heading"
+],
+"visualRequirement": "required"
+},
+{
+"schemaVersion": "turn-plan/v3",
+"subject": "physics",
+"question": "Explain river and boat problems for JEE using this example: a river 100 m wide flows east at 3 m/s, and a boat heads due north at 4 m/s relative to the water. How do the crossing time, the drift and the heading to go straight across work?",
+"givens": [
+{
+"id": "w",
+"symbol": "w",
+"value": 100,
+"unit": "m",
+"sourceText": "river 100 m wide",
+"provenance": "given"
+},
+{
+"id": "vr",
+"symbol": "v_r",
+"value": 3,
+"unit": "m/s",
+"sign": "+",
+"sourceText": "flows east at 3 m/s",
+"provenance": "given"
+},
+{
+"id": "vb",
+"symbol": "v_b",
+"value": 4,
+"unit": "m/s",
+"sign": "+",
+"sourceText": "boat heads due north at 4 m/s relative to the water",
+"provenance": "given"
+}
+],
+"unknowns": [
+{
+"id": "t",
+"symbol": "t",
+"unit": "s"
+},
+{
+"id": "d",
+"symbol": "d",
+"unit": "m"
+},
+{
+"id": "theta",
+"symbol": "\u03b8",
+"unit": "\u00b0"
+}
+],
+"derived": [
+{
+"id": "t",
+"symbol": "t",
+"value": 25,
+"unit": "s",
+"sign": "+",
+"sourceText": "t = w / v_b = 100 / 4 = 25",
+"provenance": "derived",
+"dependsOn": [
+"w",
+"vb"
+]
+},
+{
+"id": "d",
+"symbol": "d",
+"value": 75,
+"unit": "m",
+"sign": "+",
+"sourceText": "d = v_r * t = 3 * 25 = 75",
+"provenance": "derived",
+"dependsOn": [
+"vr",
+"t"
+]
+},
+{
+"id": "theta",
+"symbol": "\u03b8",
+"value": 48.59,
+"unit": "\u00b0",
+"sign": "+",
+"sourceText": "\u03b8 = arcsin(v_r / v_b) = arcsin(3/4) \u2248 48.59",
+"provenance": "derived",
+"dependsOn": [
+"vr",
+"vb"
+]
+}
+],
+"qualitativeClaims": [
+{
+"id": "c1",
+"claim": "Crossing time depends only on the river width and the boat's velocity component perpendicular to the banks (here the full 4 m/s northward), not on the current.",
+"expected": "t = w / v_b = 25 s",
+"relatedQuantityIds": [
+"t",
+"w",
+"vb"
+]
+},
+{
+"id": "c2",
+"claim": "While crossing, the current carries the boat downstream (east); drift equals current speed times crossing time.",
+"expected": "d = v_r * t = 75 m east of the point directly opposite the start",
+"relatedQuantityIds": [
+"d",
+"vr",
+"t"
+]
+},
+{
+"id": "c3",
+"claim": "The boat's resultant velocity relative to ground is the vector sum of 4 m/s north and 3 m/s east, magnitude 5 m/s, directed about 36.87\u00b0 east of north.",
+"expected": "v_ground = sqrt(v_b^2 + v_r^2) = 5 m/s at arctan(3/4) \u2248 36.87\u00b0 east of north",
+"relatedQuantityIds": [
+"vb",
+"vr"
+]
+},
+{
+"id": "c4",
+"claim": "To go straight across (zero drift), the boat must head upstream (west of north) so its eastward component cancels the current: v_b sin\u03b8 = v_r.",
+"expected": "\u03b8 = arcsin(v_r / v_b) = arcsin(3/4) \u2248 48.59\u00b0 west of north",
+"relatedQuantityIds": [
+"theta",
+"vb",
+"vr"
+]
+},
+{
+"id": "c5",
+"claim": "When heading upstream to cancel drift, the effective crossing speed drops to v_b cos\u03b8, so the crossing takes longer than 25 s.",
+"expected": "t_straight = w / (v_b cos\u03b8) = 100 / sqrt(4^2 - 3^2) = 100 / sqrt(7) \u2248 37.8 s",
+"relatedQuantityIds": [
+"theta",
+"w",
+"vb"
+]
+},
+{
+"id": "c6",
+"claim": "JEE key idea: minimum time crossing means heading straight across (perpendicular to banks) and accepting drift; minimum drift (zero) means aiming upstream, costing more time.",
+"expected": "Fastest crossing: head due north, t = 25 s, drift 75 m. Straight-across path: head 48.59\u00b0 upstream, t \u2248 37.8 s, drift 0.",
+"relatedQuantityIds": [
+"t",
+"d",
+"theta"
+]
+}
+],
+"lawIds": [
+"relative velocity vector addition",
+"kinematics with constant velocity (x = v t)",
+"velocity component decomposition",
+"condition for zero resultant downstream component"
+],
+"assumptions": [
+"Current speed is uniform across the river's width",
+"Boat's speed relative to water is constant at 4 m/s",
+"East is +x, north is +y; banks are straight and parallel",
+"No wind, acceleration, or other forces affect the boat"
+],
+"visualRequirement": "required"
+}
+]
