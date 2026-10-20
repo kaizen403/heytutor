@@ -1,0 +1,162 @@
+[
+  {
+    "id": "review-exact",
+    "question": "Draw chloroethane and chlorobenzene with the carbon carrying Cl identified. Classify the second structure as aryl and label its hybridisation sp2.",
+    "draw": true
+  },
+  {
+    "id": "first-owner",
+    "question": "Draw chloroethane and chlorobenzene with the carbon carrying Cl identified. Classify the first structure as primary alkyl and label its hybridisation sp3.",
+    "draw": true
+  },
+  {
+    "id": "named-owner",
+    "question": "Draw chloroethane and chlorobenzene with the carbon carrying Cl identified. Classify chlorobenzene as aryl and label its hybridisation sp2.",
+    "draw": true
+  },
+  {
+    "id": "latter-owner",
+    "question": "Draw chloroethane and chlorobenzene with the carbon carrying Cl identified. Classify the latter structure as aryl and mark its hybridisation sp2.",
+    "draw": true
+  },
+  {
+    "id": "former-owner",
+    "question": "Draw chloroethane and chlorobenzene with the carbon carrying Cl identified. Classify the former structure as primary alkyl and mark its hybridisation sp3.",
+    "draw": true
+  },
+  {
+    "id": "across-sentence",
+    "question": "Draw chloroethane and chlorobenzene with the carbon carrying Cl identified. Classify the second structure as aryl. Label its hybridisation sp2.",
+    "draw": true
+  },
+  {
+    "id": "chained-owner",
+    "question": "Draw chloroethane and chlorobenzene with the carbon carrying Cl identified. Classify the second structure as aryl and label its hybridisation sp2 and mark its hybridisation sp2.",
+    "draw": true
+  },
+  {
+    "id": "source-order-transfer",
+    "question": "Draw chlorobenzene and chloroethane with the carbon carrying Cl identified. Classify the first structure as aryl and label its hybridisation sp2.",
+    "draw": true
+  },
+  {
+    "id": "bromide-transfer",
+    "question": "Draw bromoethane and bromobenzene with the carbon carrying Br identified. Classify the second structure as aryl and label its hybridisation sp2.",
+    "draw": true
+  },
+  {
+    "id": "singleton-owner",
+    "question": "Draw chlorobenzene with the carbon carrying Cl identified. Label its hybridisation sp2.",
+    "draw": true
+  },
+  {
+    "id": "wrong-second-hybrid",
+    "question": "Draw chloroethane and chlorobenzene with the carbon carrying Cl identified. Classify the second structure as aryl and label its hybridisation sp3.",
+    "draw": false
+  },
+  {
+    "id": "wrong-first-hybrid",
+    "question": "Draw chloroethane and chlorobenzene with the carbon carrying Cl identified. Classify the first structure as primary alkyl and label its hybridisation sp2.",
+    "draw": false
+  },
+  {
+    "id": "contradictory-chain",
+    "question": "Draw chloroethane and chlorobenzene with the carbon carrying Cl identified. Classify the second structure as aryl and label its hybridisation sp2 and mark its hybridisation sp3.",
+    "draw": false
+  },
+  {
+    "id": "plural-override",
+    "question": "Draw chloroethane and chlorobenzene with the carbon carrying Cl identified. Classify the second structure as aryl and label their hybridisation sp2.",
+    "draw": false
+  },
+  {
+    "id": "wrong-class",
+    "question": "Draw chloroethane and chlorobenzene with the carbon carrying Cl identified. Classify the second structure as primary alkyl and label its hybridisation sp2.",
+    "draw": false
+  },
+  {
+    "id": "plural-class",
+    "question": "Draw chloroethane and chlorobenzene with the carbon carrying Cl identified. Classify both as aryl and label its hybridisation sp2.",
+    "draw": false
+  },
+  {
+    "id": "new-explicit-owner",
+    "question": "Draw chloroethane and chlorobenzene with the carbon carrying Cl identified. Classify the second structure as aryl and label the first structure hybridisation sp2.",
+    "draw": false
+  },
+  {
+    "id": "unbound-singular",
+    "question": "Draw chloroethane and chlorobenzene with the carbon carrying Cl identified. Label its hybridisation sp2.",
+    "draw": false
+  },
+  {
+    "id": "ambiguous-equal-property",
+    "question": "Draw chloroethane and bromoethane with the halogen-bearing carbon identified. Label its hybridisation sp3.",
+    "draw": true
+  },
+  {
+    "id": "valid-plural-source",
+    "question": "Draw chloroethane and chlorobenzene with the carbon carrying Cl identified. Classify the second structure as aryl and label both hybridisation sp2 or sp3.",
+    "draw": true
+  },
+  {
+    "id": "distributive-original-real",
+    "question": "Draw chlorobenzene, benzyl chloride and 1-chloro-1-phenylethane as three separate structural diagrams. Identify the carbon carrying Cl in each, label its hybridisation, and classify the C\u2013Cl site as aryl, primary benzylic or secondary benzylic. Show enough carbon connectivity that the last two cannot be mistaken for ring-bound chloride.",
+    "draw": true
+  },
+  {
+    "id": "distributive-mixed-symbolic",
+    "question": "Draw chloroethane and chlorobenzene with the carbon carrying Cl identified. Identify the carbon carrying Cl in each and label its hybridisation.",
+    "draw": true
+  },
+  {
+    "id": "distributive-mixed-wrong-value",
+    "question": "Draw chloroethane and chlorobenzene with the carbon carrying Cl identified. Identify the carbon carrying Cl in each and label its hybridisation sp2.",
+    "draw": false
+  },
+  {
+    "id": "distributive-equal-explicit-value",
+    "question": "Draw chloroethane and bromoethane with the halogen-bearing carbon identified. Classify each site and label its hybridisation sp3.",
+    "draw": true
+  },
+  {
+    "id": "interleaved-original",
+    "question": "Draw butan-1-ol with its OH-bearing carbon labelled and butan-2-ol with its OH-bearing carbon labelled. Classify each alcohol.",
+    "draw": true
+  },
+  {
+    "id": "site-symbolic-original",
+    "question": "Draw benzyl chloride and acetyl chloride with the carbon carrying Cl identified; classify the C-Cl site and label its hybridisation.",
+    "draw": true
+  },
+  {
+    "id": "interleaved-transfer",
+    "question": "Draw propan-1-ol with its OH-bearing carbon labelled and propan-2-ol with its OH-bearing carbon labelled. Classify each alcohol.",
+    "draw": true
+  },
+  {
+    "id": "interleaved-wrong-first-hybrid",
+    "question": "Draw butan-1-ol with its OH-bearing carbon labelled sp2 and butan-2-ol with its OH-bearing carbon labelled. Classify each alcohol.",
+    "draw": false
+  },
+  {
+    "id": "site-candidates-wrong-sp3",
+    "question": "Draw benzyl chloride and acetyl chloride with the carbon carrying Cl identified; classify the C-Cl site and label its hybridisation sp3.",
+    "draw": false
+  },
+  {
+    "id": "site-candidates-wrong-sp2",
+    "question": "Draw benzyl chloride and acetyl chloride with the carbon carrying Cl identified; classify the C-Cl site and label its hybridisation sp2.",
+    "draw": false
+  },
+  {
+    "id": "same-property-candidates-sp3",
+    "question": "Draw bromoethane and chloroethane with the halogen-bearing carbon identified. Label its hybridisation sp3.",
+    "draw": true
+  },
+  {
+    "id": "same-property-candidates-wrong-sp2",
+    "question": "Draw bromoethane and chloroethane with the halogen-bearing carbon identified. Label its hybridisation sp2.",
+    "draw": false
+  }
+]

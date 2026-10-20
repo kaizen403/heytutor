@@ -2328,6 +2328,134 @@
       "oracle": {
         "totalPressureTorr": 150
       }
+    },
+    {
+      "id": "PR204-DETERMINER-exact-the-two",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The mixture of the two liquids is ideal. x_A = 0.5. Draw the Raoult graph and find total pressure.",
+      "family": "chem_solutions",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      },
+      "science": "A/B independently specify exactly two pure pressures. A grammatical determiner changes no number; unsupported/incompatible/incomplete cardinality must refuse the whole figure."
+    },
+    {
+      "id": "PR204-DETERMINER-the-numeric",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The mixture of the 2 liquids is ideal. x_A = 0.5. Draw the Raoult graph and find total pressure.",
+      "family": "chem_solutions",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      },
+      "science": "A/B independently specify exactly two pure pressures. A grammatical determiner changes no number; unsupported/incompatible/incomplete cardinality must refuse the whole figure."
+    },
+    {
+      "id": "PR204-DETERMINER-these-two",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The mixture of these two liquids is ideal. x_A = 0.5. Draw the Raoult graph and find total pressure.",
+      "family": "chem_solutions",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      },
+      "science": "A/B independently specify exactly two pure pressures. A grammatical determiner changes no number; unsupported/incompatible/incomplete cardinality must refuse the whole figure."
+    },
+    {
+      "id": "PR204-DETERMINER-those-numeric-modifier",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The mixture of those 2 volatile liquids is ideal. x_A = 0.5. Draw the Raoult graph and find total pressure.",
+      "family": "chem_solutions",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      },
+      "science": "A/B independently specify exactly two pure pressures. A grammatical determiner changes no number; unsupported/incompatible/incomplete cardinality must refuse the whole figure."
+    },
+    {
+      "id": "PR204-DETERMINER-contains-the-two",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The solution contains the two liquid components. x_A = 0.5. Draw the Raoult graph and find total pressure.",
+      "family": "chem_solutions",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      },
+      "science": "A/B independently specify exactly two pure pressures. A grammatical determiner changes no number; unsupported/incompatible/incomplete cardinality must refuse the whole figure."
+    },
+    {
+      "id": "PR204-DETERMINER-consists-those-numeric",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The mixture consists of those 2 components. x_A = 0.5. Draw the Raoult graph and find total pressure.",
+      "family": "chem_solutions",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      },
+      "science": "A/B independently specify exactly two pure pressures. A grammatical determiner changes no number; unsupported/incompatible/incomplete cardinality must refuse the whole figure."
+    },
+    {
+      "id": "PR204-DETERMINER-these-uppercase",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The mixture of these TWO volatile liquids is ideal. x_A = 0.5. Draw the Raoult graph and find total pressure.",
+      "family": "chem_solutions",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      },
+      "science": "A/B independently specify exactly two pure pressures. A grammatical determiner changes no number; unsupported/incompatible/incomplete cardinality must refuse the whole figure."
+    },
+    {
+      "id": "PR204-DETERMINER-whitespace-the",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The mixture of the\t two volatile liquids is ideal. x_A = 0.5. Draw the Raoult graph and find total pressure.",
+      "family": "chem_solutions",
+      "expectedDraw": true,
+      "oracle": {
+        "totalPressureTorr": 150
+      },
+      "science": "A/B independently specify exactly two pure pressures. A grammatical determiner changes no number; unsupported/incompatible/incomplete cardinality must refuse the whole figure."
+    },
+    {
+      "id": "PR204-DETERMINER-wrong-three",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The mixture of the three liquids is ideal. x_A = 0.5. Draw the Raoult graph and find total pressure.",
+      "family": "chem_solutions",
+      "expectedDraw": false,
+      "oracle": {},
+      "science": "A/B independently specify exactly two pure pressures. A grammatical determiner changes no number; unsupported/incompatible/incomplete cardinality must refuse the whole figure."
+    },
+    {
+      "id": "PR204-DETERMINER-unknown",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The mixture of the unknown liquids is ideal. x_A = 0.5. Draw the Raoult graph and find total pressure.",
+      "family": "chem_solutions",
+      "expectedDraw": false,
+      "oracle": {},
+      "science": "A/B independently specify exactly two pure pressures. A grammatical determiner changes no number; unsupported/incompatible/incomplete cardinality must refuse the whole figure."
+    },
+    {
+      "id": "PR204-DETERMINER-wrong-unit",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The mixture of the 2 kg liquids is ideal. x_A = 0.5. Draw the Raoult graph and find total pressure.",
+      "family": "chem_solutions",
+      "expectedDraw": false,
+      "oracle": {},
+      "science": "A/B independently specify exactly two pure pressures. A grammatical determiner changes no number; unsupported/incompatible/incomplete cardinality must refuse the whole figure."
+    },
+    {
+      "id": "PR204-DETERMINER-alternative",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The mixture of these two or three liquids is ideal. x_A = 0.5. Draw the Raoult graph and find total pressure.",
+      "family": "chem_solutions",
+      "expectedDraw": false,
+      "oracle": {},
+      "science": "A/B independently specify exactly two pure pressures. A grammatical determiner changes no number; unsupported/incompatible/incomplete cardinality must refuse the whole figure."
+    },
+    {
+      "id": "PR204-DETERMINER-multiplier",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The mixture of the two hundred liquids is ideal. x_A = 0.5. Draw the Raoult graph and find total pressure.",
+      "family": "chem_solutions",
+      "expectedDraw": false,
+      "oracle": {},
+      "science": "A/B independently specify exactly two pure pressures. A grammatical determiner changes no number; unsupported/incompatible/incomplete cardinality must refuse the whole figure."
+    },
+    {
+      "id": "PR204-DETERMINER-repeated-determiner",
+      "question": "Vapour pressures of pure A and B are 200 torr and 100 torr. The mixture of the the two liquids is ideal. x_A = 0.5. Draw the Raoult graph and find total pressure.",
+      "family": "chem_solutions",
+      "expectedDraw": false,
+      "oracle": {},
+      "science": "A/B independently specify exactly two pure pressures. A grammatical determiner changes no number; unsupported/incompatible/incomplete cardinality must refuse the whole figure."
     }
   ]
 }
