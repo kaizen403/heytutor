@@ -180,4 +180,3 @@ fast-figure authority assertion at line 144 (null vs
 `qualitative_verified/contact_body`). Those sources, engine/core packages and
 representation fallback are identical to the base. No validator changes were
 made to make these unrelated checks pass.
-
