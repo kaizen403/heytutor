@@ -31,7 +31,7 @@ import {
   riverCrossingSpeeds,
   RELATIVE_MOTION_SOURCE_MODEL,
 } from "@heytutor/scene-engine";
-import { isQuotedPhysicalConstant, questionStatesValue } from "@heytutor/tutor-core";
+import { isQuotedPhysicalConstant, normalizeSceneSourceQuestion as normalizeQuestion, questionStatesValue } from "@heytutor/tutor-core";
 
 export type RepresentationTier =
   | "exact_verified"
@@ -709,10 +709,6 @@ function sameJsonStructure(
 function isPlainRecord(value: object): boolean {
   const prototype: unknown = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
-}
-
-function normalizeQuestion(value: string): string {
-  return normalizeMathText(value).toLowerCase().replace(/\s+/g, " ").trim();
 }
 
 function usesMensurationSolidOnContactProblem(
