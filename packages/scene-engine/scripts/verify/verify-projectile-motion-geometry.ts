@@ -4,6 +4,8 @@ import { compileSceneDocument } from "../../src/compile/compiler";
 import { evaluateChapterRemainderConstruction } from "../../src/compile/chapterRemainderGeometry";
 import { validationNumber, type SourceContext } from "../../src/compile/sourceScalars";
 import type { SceneDocument } from "../../src/types";
+import type { TurnPlanV3 } from "../../src/contracts/contractsV3";
+import { validateProjectileMeasurementPlan } from "../../src/physics/projectileMeasurementPlan";
 
 let checks = 0;
 function check(value: unknown, message: string): asserts value { checks++; assert(value, message); }
@@ -152,4 +154,26 @@ for (const annotation of [false, true]) for (const policy of ["strict", "verifie
   check(result.renderScene.primitives.some(p => p.entityId === "path" && p.provenance?.labelLeader),
     "the trajectory name has a verified connector to its own path");
 }
+// A solved non-integer range must agree with the precision narrated by the plan.
+const roundedShot = measured({ speed: 20, launchAngleDeg: 45, gravity: 9.8, displayScale: 1 });
+const roundedPlan: TurnPlanV3 = { schemaVersion: "turn-plan/v3", question: "Synthetic projectile", visualRequirement: "required",
+  givens: [], derived: [{ id: "range", symbol: "R", value: 40.82, unit: "m", provenance: "derived" }],
+  unknowns: [], qualitativeClaims: [], lawIds: [], assumptions: [] };
+check(validateProjectileMeasurementPlan(roundedShot, roundedPlan).length === 0, "correctly rounded R=40.82 m must retain its figure");
+for (const [value, unit] of [[40.81, "m"], [40.83, "m"], [40.8201, "m"], [-40.82, "m"], [40.82, "s"]] as const) {
+  const wrongPlan = structuredClone(roundedPlan); Object.assign(wrongPlan.derived[0]!, { value, unit });
+  check(validateProjectileMeasurementPlan(roundedShot, wrongPlan).some(i => i.code === "projectile_measurement_plan_mismatch"), "wrong values, precision, signs and dimensions remain rejected");
+}
+for (const [value, unit] of [[4082, "cm"], [0.04082, "km"], [40.8, "m"], [41, "m"]] as const) {
+  const converted = structuredClone(roundedPlan); Object.assign(converted.derived[0]!, { value, unit });
+  check(validateProjectileMeasurementPlan(roundedShot, converted).length === 0, "rounding follows the plan's own unit and last digit");
+}
+const roundedGiven = structuredClone(roundedPlan);
+roundedGiven.givens = [{ ...roundedGiven.derived[0]!, provenance: "given", sourceText: "R = 40.82 m" }]; roundedGiven.derived = [];
+check(validateProjectileMeasurementPlan(roundedShot, roundedGiven).some(i => i.code === "projectile_measurement_plan_mismatch"), "source givens remain exact rather than acquiring rounding slack");
+const zeroPlan = structuredClone(roundedPlan); zeroPlan.derived[0]!.value = 0;
+const tinyShot = measured({ speed: 1, launchAngleDeg: 45, gravity: 9.8, displayScale: 1 });
+check(validateProjectileMeasurementPlan(tinyShot, zeroPlan).some(i => i.code === "projectile_measurement_plan_mismatch"), "positive range cannot be rounded into a false zero");
+const invalidShot = structuredClone(roundedShot); invalidShot.constructions[0]!.inputs.gravity = -9.8;
+check(validateProjectileMeasurementPlan(invalidShot, roundedPlan).some(i => i.code === "projectile_measurement_unproven"), "rounded agreement cannot bypass invalid geometry");
 console.log(`projectile motion geometry: ${checks} checks passed`);

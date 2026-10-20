@@ -1,5 +1,5 @@
 import type { SceneDocument, SceneIssue } from "../types";
-import { validateSceneQuantityAgreement, type TurnPlanV3 } from "../contracts/contractsV3";
+import { equivalentRoundedMeasuredQuantity, validateSceneQuantityAgreement, type TurnPlanV3 } from "../contracts/contractsV3";
 import { evaluateChapterRemainderConstruction, validateProjectileMeasurementLabels } from "../compile/chapterRemainderGeometry";
 import { validationNumber } from "../compile/sourceScalars";
 
@@ -19,7 +19,10 @@ export function validateProjectileMeasurementPlan(document: SceneDocument, plan:
       for (const value of values.slice(2)) {
         const computed = value.remainder;
         const quantities = [...plan.givens, ...plan.derived].filter(q => q.symbol.normalize("NFKC").trim() === computed.role);
-        const agreement = validateSceneQuantityAgreement(quantities.map(q => ({ id: q.id, value: computed.magnitude, unit: computed.unit })), plan);
+        // Only derived answers may round; source givens retain the strict audit.
+        const strictQuantities = quantities.filter(q => !plan.derived.includes(q) ||
+          !equivalentRoundedMeasuredQuantity(computed.magnitude, computed.unit, q.value, q.unit));
+        const agreement = validateSceneQuantityAgreement(strictQuantities.map(q => ({ id: q.id, value: computed.magnitude, unit: computed.unit })), plan);
         for (const issue of agreement) issues.push({ code: "projectile_measurement_plan_mismatch", severity: "fatal", failureKind: "truth",
           entityIds: construction.outputs.slice(2), message: `Computed ${computed.role} disagrees with its TurnPlan scalar: ${issue.message}` });
       }
