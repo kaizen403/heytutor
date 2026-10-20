@@ -24,6 +24,7 @@ export interface TopologyGraph {
 const MAX_PATH_COUNT_EDGES = 48;
 const MAX_PATH_COUNT_STEPS = 20_000;
 const MAX_PATH_COUNT_RESULTS = 4_096;
+const MAX_PATH_WITNESSES = 4;
 
 /**
  * Invariants that are always true for a well-formed port graph. These do not
@@ -158,6 +159,22 @@ export function buildTopologyGraph(document: SceneDocument): TopologyGraph {
   return { nodes, edges, edgeById, adjacency };
 }
 
+/**
+ * A count may be written bare (2, "2") or wrapped like the other scalar
+ * expectations ({ value: 2 }), as the angle readers accept. Anything that is
+ * not a whole non-negative number is NaN, so the assertion still fails.
+ */
+function expectedCount(expected: unknown): number {
+  const raw = typeof expected === "number"
+    ? expected
+    : typeof expected === "string" && /^\s*\d+\s*$/.test(expected)
+      ? Number(expected)
+      : expected !== null && typeof expected === "object" && typeof (expected as { value?: unknown }).value === "number"
+        ? (expected as { value: number }).value
+        : NaN;
+  return Number.isInteger(raw) && raw >= 0 ? raw : NaN;
+}
+
 export function evaluateTopologyAssertion(
   assertion: SceneAssertion,
   document: SceneDocument,
@@ -206,8 +223,8 @@ export function evaluateTopologyAssertion(
         return false;
       }
       const [from, to] = assertion.entities;
-      const count = countSimplePaths(graph, from!, to!);
-      if (count === null) {
+      const paths = countSimplePaths(graph, from!, to!);
+      if (paths === null) {
         issues.push({
           code: "assertion_failed",
           message: assertion.reason ?? `Assertion ${assertion.id}: pathCount graph is too complex for deterministic validation limits`,
@@ -216,12 +233,16 @@ export function evaluateTopologyAssertion(
         });
         return false;
       }
-      const expected = Number(assertion.expected);
+      const { count, witnesses } = paths;
+      const expected = expectedCount(assertion.expected);
       const passed = count === expected;
       if (!passed) {
         issues.push({
           code: "assertion_failed",
-          message: assertion.reason ?? `Assertion ${assertion.id}: expected ${expected} paths, found ${count}`,
+          message: `Assertion ${assertion.id}: pathCount between ${from} and ${to} expected ${expected} paths, found ${count}. ` +
+            "All symbol and connector edges are counted, including source branches; pathCount does not count only loads. " +
+            (witnesses.length > 0 ? `Counted paths: ${witnesses.map((path) => path.join(" -> ")).join("; ")}${count > witnesses.length ? "; ..." : ""}. ` : "") +
+            "Use sameTerminalPair on load component ids to prove they share electrical nodes. Do not change the count without checking the intended network.",
           severity,
           entityIds: assertion.entities,
           expected,
@@ -249,7 +270,8 @@ export function evaluateTopologyAssertion(
       if (terminals.some((pair) => !pair)) {
         issues.push({
           code: "assertion_failed",
-          message: assertion.reason ?? `Assertion ${assertion.id}: missing edge in topology graph`,
+          message: `Assertion ${assertion.id}: sameTerminalPair is missing component/connector edges: ${edgeIds.filter((_, index) => !terminals[index]).join(", ")}. ` +
+            "Pass symbol/connect output ids, not node ids.",
           severity,
           entityIds: assertion.entities,
         });
@@ -260,7 +282,9 @@ export function evaluateTopologyAssertion(
       if (!passed) {
         issues.push({
           code: "assertion_failed",
-          message: assertion.reason ?? `Assertion ${assertion.id}: edges do not share the same terminal pair`,
+          message: `Assertion ${assertion.id}: sameTerminalPair expected ${assertion.expected !== false}, found ${same} after joining nodes connected by wires. ` +
+            edgeIds.map((id, index) => `${id}=(${terminals[index]!.join(", ")})`).join("; ") +
+            ". Parallel loads must each connect across both of the same electrical nodes; coincident points do not join nodes.",
           severity,
           entityIds: assertion.entities,
           expected: assertion.expected ?? true,
@@ -281,7 +305,7 @@ export function evaluateTopologyAssertion(
       }
       const nodeId = assertion.entities[0]!;
       const degree = graph.adjacency.get(nodeId)?.length ?? 0;
-      const expected = Number(assertion.expected);
+      const expected = expectedCount(assertion.expected);
       const passed = degree === expected;
       if (!passed) {
         issues.push({
@@ -340,20 +364,22 @@ function edgesFormOrderedPath(graph: TopologyGraph, edgeIds: string[]): boolean 
   return false;
 }
 
-function countSimplePaths(graph: TopologyGraph, from: string, to: string): number | null {
-  if (from === to) return 0;
-  if (!graph.nodes.has(from) || !graph.nodes.has(to)) return 0;
+function countSimplePaths(graph: TopologyGraph, from: string, to: string): { count: number; witnesses: string[][] } | null {
+  if (from === to) return { count: 0, witnesses: [] };
+  if (!graph.nodes.has(from) || !graph.nodes.has(to)) return { count: 0, witnesses: [] };
   if (graph.edges.length > MAX_PATH_COUNT_EDGES) return null;
 
   let count = 0;
   let steps = 0;
-  const visit = (node: string, visitedNodes: Set<string>) => {
+  const witnesses: string[][] = [];
+  const visit = (node: string, visitedNodes: Set<string>, path: string[]) => {
     steps += 1;
     if (steps > MAX_PATH_COUNT_STEPS || count > MAX_PATH_COUNT_RESULTS) {
       throw new Error("path_count_limit");
     }
     if (node === to) {
       count += 1;
+      if (witnesses.length < MAX_PATH_WITNESSES) witnesses.push([...path]);
       return;
     }
     for (const edgeId of graph.adjacency.get(node) ?? []) {
@@ -362,13 +388,15 @@ function countSimplePaths(graph: TopologyGraph, from: string, to: string): numbe
       const next = edge.a === node ? edge.b : edge.a;
       if (visitedNodes.has(next)) continue;
       visitedNodes.add(next);
-      visit(next, visitedNodes);
+      path.push(edgeId);
+      visit(next, visitedNodes, path);
+      path.pop();
       visitedNodes.delete(next);
     }
   };
   try {
-    visit(from, new Set([from]));
-    return count;
+    visit(from, new Set([from]), []);
+    return { count, witnesses };
   } catch (error) {
     if (error instanceof Error && error.message === "path_count_limit") return null;
     throw error;

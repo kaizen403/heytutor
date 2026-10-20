@@ -88,6 +88,61 @@ for (const value of ["unknown", "1e-400", "1e400", Number.POSITIVE_INFINITY]) {
   else assert.equal(result.renderScene, null, "existing source refusal remains atomic");
   checks++;
 }
+// Explicit quantities without symbols still need the component's value
+// dimension: a current or potential drop is not a resistance designator.
+for (const [id, value, unit, hasResistance] of [
+  ["I_R", 2, "A", true], ["V_R", 8, "V", true], ["P", 16, "W", false],
+] as const) {
+  const d = fixture();
+  d.quantities = hasResistance ? [{ id: "resistance", symbol: "R", value: 4, unit: "Ω" }] : [];
+  d.quantities.push({ id, value, unit });
+  d.annotations.push({ id: "bound_value", kind: "label", quantityId: id, targetIds: ["load"] });
+  assert.equal(labels(d).get("load"), hasResistance ? "R 4 Ω" : "R",
+    `${unit} bound to a resistor must fall through to the existing resistance lookup`); checks++;
+}
+
+function symbolLessBinding(symbol: string, unit?: string): SceneDocument {
+  const d = fixture();
+  d.constructions.find((construction) => construction.outputs.includes("load"))!.inputs.symbol = symbol;
+  d.entities.find((entity) => entity.id === "load")!.role = "component";
+  d.quantities = [{ id: "bound", value: 2, ...(unit === undefined ? {} : { unit }) }];
+  d.annotations.push({ id: "bound_value", kind: "label", quantityId: "bound", targetIds: ["load"] });
+  return d;
+}
+for (const [symbol, accepted, rejected] of [
+  ["resistor", ["Ω", "kΩ", "MΩ", "ohm", "kohm", "mΩ"], ["A", "V", "W", "1", "Ω/m"]],
+  ["lamp", ["Ω", "kΩ"], ["W", "V"]],
+  ["battery", ["V", "mV", "kV"], ["A", "Ω", "V/m"]],
+  ["cell", ["V"], ["F"]],
+  ["ac_source", ["V"], ["A"]],
+  ["alternating-source", ["mV"], ["W"]],
+  ["diode", ["V", "mV"], ["Ω"]],
+  ["zener", ["V"], ["A"]],
+  ["voltmeter", ["V", "mV", "Ω", "MΩ"], ["A"]],
+  ["ammeter", ["A", "mA", "µA", "μA", "uA", "Ω"], ["V", "F"]],
+  ["galvanometer", ["Ω"], ["A", "V"]],
+  ["capacitor", ["F", "mF", "µF", "nF", "pF"], ["H", "f", "F/m"]],
+  ["inductor", ["H", "mH", "µH"], ["F", "h"]],
+  ["coil", ["mH"], ["Ω"]],
+  ["switch", [], ["Ω", "V", "A"]],
+  ["open", [], ["Ω"]],
+] as const) {
+  for (const unit of accepted) {
+    assert.equal(labels(symbolLessBinding(symbol, unit)).get("load"), `R 2 ${unit}`,
+      `${symbol} accepts its own ${unit} dimension without symbolic metadata`); checks++;
+  }
+  for (const unit of [...rejected, undefined, ""]) {
+    assert.equal(labels(symbolLessBinding(symbol, unit)).get("load"), "R",
+      `${symbol} refuses symbol-less ${String(unit)} dimension`); checks++;
+  }
+}
+const spoofedRole = symbolLessBinding("resistor", "V");
+spoofedRole.entities.find((entity) => entity.id === "load")!.role = "battery";
+assert.equal(compileSceneDocument(spoofedRole).ok, false, "role prose cannot change the executable component dimension"); checks++;
+const noSymbolConstruction = symbolLessBinding("resistor", "Ω");
+noSymbolConstruction.constructions.find((construction) => construction.outputs.includes("load"))!.operator = "connect";
+assert.equal(labels(noSymbolConstruction).get("load"), "R", "a component role without a symbol operator cannot confer a value dimension"); checks++;
+
 function angleFixture(): SceneDocument {
   const points = [{ id: "O", x: 0, y: 0 }, { id: "A", x: 3, y: 0 }, { id: "B", x: 3 * Math.cos(Math.PI / 6), y: 1.5 }];
   return {
