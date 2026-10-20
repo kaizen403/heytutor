@@ -53,8 +53,8 @@ a wrong drawing or an unsupported current arrow.
 
 These diagnostics alone add no accepted figure and do not fill the conceptual
 lesson's empty result; Harness 1 must supply a corrected candidate (or Harness 4
-an independently admitted fallback). Three synthetic contract renders were
-queued for independent blind review. They demonstrate existing expressiveness,
+an independently admitted fallback). Independent blind review graded all three synthetic contract renders right
+(3 right, 0 partial, 0 wrong). They demonstrate existing expressiveness,
 not a before/after coverage gain. Private replay payloads and judge artifacts
 stay in the ignored workspace context; none are committed. No paid calls,
 production changes or merges.
