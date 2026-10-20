@@ -2,6 +2,7 @@ import { validateRepairSurvivorship, validateRepairCandidateSetSurvivorship } fr
 import { withFastModeHeader } from "../llm/fastMode";
 import { withTurnTraceHeaders } from "../llm/traceHeaders";
 import { tutorDebug } from "../tutorDebug";
+import { scenePlannerRepairFeedback } from "./scenePlannerRepairFeedback";
 import {
   buildSceneDocumentPlannerPrompt,
   SCENE_DOCUMENT_VERSION,
@@ -174,7 +175,11 @@ export async function repairSceneDocument(
 ): Promise<ScenePlannerResponse | null> {
   if (errors.length === 0) return null;
 
-  const previousStructure = summarizeSceneCandidateForRepair(candidate);
+  const feedback = scenePlannerRepairFeedback(candidate, errors);
+  const previousStructure = { ...summarizeSceneCandidateForRepair(candidate),
+    ...(feedback.failedAssertions.length ? { failedAssertions: feedback.failedAssertions } : {}),
+    ...(feedback.omittedAssertions.length ? { omittedAssertions: feedback.omittedAssertions } : {}),
+    ...(feedback.repairInputs.length ? { repairInputs: feedback.repairInputs } : {}) };
   const usedOperators = Array.isArray(candidate.constructions)
     ? candidate.constructions.flatMap((construction) =>
       isPlainObject(construction) && typeof construction.operator === "string" ? [construction.operator] : [])
@@ -182,7 +187,7 @@ export async function repairSceneDocument(
   const prompt = `${buildSceneDocumentPlannerPrompt(question, options, usedOperators)}
 
 REPAIR REQUEST
-The previous candidate failed deterministic validation. Return a complete replacement document, not a patch. Rebuild the failing subgraph from the authoritative facts and supported operators.
+Return a full replacement,not a patch. Rebuild with authoritative facts and supported operators.
 
 PREVIOUS STRUCTURE
 ${JSON.stringify(previousStructure)}
@@ -190,17 +195,17 @@ ${JSON.stringify(previousStructure)}
 STRUCTURED VALIDATION ERRORS
 ${JSON.stringify(errors)}
 
-Resolve every fatal error. Preserve correct stable IDs when useful, but delete invalid, duplicate, or unnecessary entities. Keep consumed construction helpers out of visible ownership. Attach compact labels to their real target. Preserve authoritative claims and required proofs; repair geometry instead of weakening assertions. Return only the replacement JSON object.`;
+Fix fatal errors. Keep stable IDs,authoritative claims and required proofs; repair geometry,never weaken required proofs. Delete invalid/duplicate/unneeded entities; hide consumed helpers; labels on real targets. JSON only.`;
   const connectivityGuidance = errors.some((error) =>
     (error.code === "assertion_failed" && /connect|path|terminal/i.test(error.message)) ||
     error.code === "turnplan_loop_member_not_proven",
   )
-    ? "\nA failed connectivity or path assertion requires rebuilding the involved structural graph so adjacent paths/components share the exact same endpoint IDs. Visual proximity is not connectivity. Do not keep disconnected geometry and merely rewrite the assertion."
+    ? "\nRebuild failed graphs with shared endpoint IDs. Visual proximity is not connectivity. Keep authoritative path/terminal claims; fix wiring,not authoritative expected values."
     : "";
   const closedRouteMembers = [...new Set(errors.flatMap((error) =>
     error.code === "turnplan_loop_member_not_proven" ? error.entityIds ?? [] : []))];
   const closedRouteGuidance = closedRouteMembers.length > 0
-    ? `\nCLOSED-ROUTE REBUILD (mandatory): ${closedRouteMembers.join(", ")} must each be an edge of one non-degenerate closed route. Discard the old route geometry and rebuild it from one cyclic list of shared point IDs p0...pN. Adjacent members must reuse the exact same point ID; do not use duplicate coordinates, crossings, overlaps, on assertions, or a decorative polyline as connectivity. A component symbol replaces its side segment. Preserve the authoritative cardinal directions while choosing the route order.`
+    ? `\nCLOSED-ROUTE REBUILD (mandatory): ${closedRouteMembers.join(", ")} must be edges of one non-degenerate cyclic route p0...pN; adjacent members reuse endpoint IDs. Rebuild,do not annotate a disconnected route. A component replaces its wire; preserve authoritative cardinal directions. The closed-route rules above still apply.`
     : "";
   const bypassedMembers = [...new Set(errors.flatMap((error) =>
     error.code === "turnplan_loop_member_bypassed" ? error.entityIds ?? [] : []))];
@@ -216,7 +221,7 @@ Resolve every fatal error. Preserve correct stable IDs when useful, but delete i
   const waveOpticsGuidance = buildWaveOpticsRepairGuidance(errors);
   const opticalInstrumentGuidance = buildOpticalInstrumentRepairGuidance(errors);
 
-  const diversifiedPrompt = `${prompt}${connectivityGuidance}${closedRouteGuidance}${bypassGuidance}${orderedRouteGuidance}${pageNormalGuidance}${waveOpticsGuidance}${opticalInstrumentGuidance}\n\nREPAIR STRATEGY\n${strategy}`;
+  const diversifiedPrompt = `${prompt}${feedback.guidance}${connectivityGuidance}${closedRouteGuidance}${bypassGuidance}${orderedRouteGuidance}${pageNormalGuidance}${waveOpticsGuidance}${opticalInstrumentGuidance}\n\nREPAIR STRATEGY\n${strategy}`;
 
   const response = await requestSceneDocument("repair", diversifiedPrompt, options, lane, question);
   return response
@@ -274,7 +279,7 @@ function summarizeSceneCandidateForRepair(
   candidate: SceneDocumentCandidate,
 ): Record<string, unknown> {
   const shortMetadata = Object.fromEntries(Object.entries(candidate).flatMap(([key, value]) =>
-    (typeof value === "string" && value.length <= 120) || typeof value === "number" || typeof value === "boolean"
+    key !== "schemaVersion" && ((typeof value === "string" && value.length <= 120) || typeof value === "number" || typeof value === "boolean")
       ? [[key, value]]
       : []));
   const ids = (field: string): string[] => Array.isArray(candidate[field])
@@ -292,7 +297,7 @@ function summarizeSceneCandidateForRepair(
         }]
       : [])
     : [];
-  return {
+  return Object.fromEntries(Object.entries({
     ...shortMetadata,
     quantityIds: ids("quantities"),
     entityIds: ids("entities"),
@@ -302,7 +307,7 @@ function summarizeSceneCandidateForRepair(
       ? candidate.requiredEntityIds.filter((id): id is string => typeof id === "string")
       : [],
     revealGroupIds: ids("revealGroups"),
-  };
+  }).filter(([, value]) => !Array.isArray(value) || value.length > 0));
 }
 
 /**
