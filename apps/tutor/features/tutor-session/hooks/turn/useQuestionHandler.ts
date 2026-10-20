@@ -126,6 +126,7 @@ import {
   resumeInkRetryUserPrompt,
 } from "../../lib/turn/turnTeachingPrompt";
 import { LectureMarkupBuffer } from "../../lib/turn/lectureCueRepair";
+import { createStreamedFocusFold } from "../../lib/turn/streamedFocusFold";
 import { restoreVerifiedPresentationFromTurn } from "../../lib/scene/restoreVerifiedDiagram";
 import {
   selectFastVerifiedRepresentation,
@@ -2173,29 +2174,31 @@ export function useQuestionHandler(
             })
           : null;
         let conductor = createTurnConductor();
+        // A run of write-less FOCUS steps is spoken as one segment, as the
+        // batch path does. Writing segments are never held, and nothing is
+        // held before the lesson has started.
+        let focusFold = createStreamedFocusFold(activeDiagram, { codeLesson: Boolean(codeLesson) });
 
-        const flushBufferedSegment = () => {
-          if (!bufferedSegment) return;
-          // A resumed lecture must not queue its opening figure until a
-          // spoken-and-written step passes the ink gate. Otherwise an intro
-          // can keep drawing after a no-ink resume reports failure.
-          const prepared = prepareVerifiedLessonSegments([bufferedSegment], activeDiagram);
+        const queuePreparedSegments = (
+          preparedSegments: TutorSegment[],
+          prepared: { blockedCommandCount: number; droppedSegmentCount: number },
+        ) => {
           // DSA turns own no handwriting: [TYPE] resolves to its committed
           // block in plan order, frame advances are inserted between blocks,
           // and everything except FOCUS/PAUSE narration ink is dropped.
-          const resolved = conductor ? conductor.resolve(prepared.segments) : null;
+          const resolved = conductor ? conductor.resolve(preparedSegments) : null;
           // A doubt conducts no code lesson, and beside the code panel it has
           // no notebook: `doubtSegment` keeps its words and only the ink it can
           // put on this page.
           const outgoing = doubt
-            ? prepared.segments.flatMap((segment) => {
+            ? preparedSegments.flatMap((segment) => {
                 const kept = doubtSegment(segment, {
                   codePanelShowing,
                   boardRows: pagePromptInput.boardRows,
                 });
                 return kept ? [kept] : [];
               })
-            : (resolved?.segments ?? prepared.segments);
+            : (resolved?.segments ?? preparedSegments);
           const hasTeachingContent = outgoing.some((segment) => /[\p{L}\p{N}]/u.test(segment.narration));
           if (!usableTeachingStepReceived && !hasTeachingContent) startupControlSegments.push(...outgoing);
           const queuedSegments = !usableTeachingStepReceived && !hasTeachingContent
@@ -2235,11 +2238,27 @@ export function useQuestionHandler(
               unknown_block_ids: resolved?.unknownBlockIds ?? [],
             });
           }
-          bufferedSegment = null;
           if (usableTeachingStepReceived && !teachingFirstStepMarked) {
             teachingFirstStepMarked = true;
             tel.mark("teaching-first-step", { ms_since_request: msSinceTeachingRequest(), attempt: teachingAttempt });
           }
+        };
+
+        const flushBufferedSegment = () => {
+          if (!bufferedSegment) return;
+          // A resumed lecture must not queue its opening figure until a
+          // spoken-and-written step passes the ink gate. Otherwise an intro
+          // can keep drawing after a no-ink resume reports failure.
+          const prepared = prepareVerifiedLessonSegments([bufferedSegment], activeDiagram);
+          const ready = focusFold.take(prepared.segments, { lessonStarted: usableTeachingStepReceived });
+          queuePreparedSegments(ready, prepared);
+          bufferedSegment = null;
+        };
+
+        // The response has ended: queue the pointing run still held.
+        const flushFocusFold = () => {
+          const held = focusFold.finish();
+          if (held.length > 0) queuePreparedSegments(held, { blockedCommandCount: 0, droppedSegmentCount: 0 });
         };
 
         let markup = codeLesson ? null : new LectureMarkupBuffer();
@@ -2437,6 +2456,7 @@ export function useQuestionHandler(
               });
               resumeInkGate?.reset();
               conductor = createTurnConductor();
+              focusFold = createStreamedFocusFold(activeDiagram, { codeLesson: Boolean(codeLesson) });
             }
             continue;
           }
@@ -2556,6 +2576,7 @@ export function useQuestionHandler(
         parser.flush();
         // Flush the final segment through verified-scene ownership filtering.
         flushBufferedSegment();
+        flushFocusFold();
         throwIfTurnCancelled();
         if (resumeInkGate && !resumeInkGate.hasInk()) {
           page.failureTelemetry = {

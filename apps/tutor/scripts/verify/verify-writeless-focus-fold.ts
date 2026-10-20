@@ -11,16 +11,27 @@
  * still lands on its own words. It also measures why the run is not folded
  * into the row after it. The streaming folder gives the same segments as the
  * batch form.
+ *
+ * The live turn prepares one streamed segment at a time. The streamed half
+ * runs the lesson through the real incremental parser and the turn's fold
+ * (`createStreamedFocusFold`) the way `useQuestionHandler` does, and checks
+ * that it queues what the batch path does, never holds a writing segment,
+ * never holds a lesson that opens by pointing, and that the hook really
+ * takes every prepared segment through the fold and flushes it at the end.
  */
 import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { buildLessonSegments, getSegmentCommands, resolveVerifiedDiagramFocusTargets, type DrawCommand, type TutorSegment, type VerifiedDiagram } from "@heytutor/drawing";
+import { readFileSync } from "node:fs";
+import { buildLessonSegments, getSegmentCommands, IncrementalTagParser, resolveVerifiedDiagramFocusTargets, type DrawCommand, type TutorSegment, type VerifiedDiagram } from "@heytutor/drawing";
 import { getFocusTargetSchedule, getWriteCharScheduleMs, mathToSpeech, validateAudioTimingsForNarration } from "@heytutor/tutor-core";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const placementPath = process.env.FOCUS_FOLD_SOURCE ?? path.resolve(here, "../../../../packages/drawing/src/protocol/commandPlacement.ts");
 type Placement = typeof import("../../../../packages/drawing/src/protocol/commandPlacement");
+const streamedFoldPath = path.resolve(here, "../../features/tutor-session/lib/turn/streamedFocusFold.ts");
+const handlerPath = path.resolve(here, "../../features/tutor-session/hooks/turn/useQuestionHandler.ts");
+type StreamedFold = typeof import("../../features/tutor-session/lib/turn/streamedFocusFold");
 
 const anchor = (id: string, labels: string[], x: number, y: number) => ({ id, labels, x, y, width: 40, height: 40 });
 const diagram: VerifiedDiagram = {
@@ -180,6 +191,81 @@ async function main() {
   const codeLesson = placement.foldWritelessFocusRuns(raw, { ...diagram, layout: "code_lesson" } as VerifiedDiagram);
   assert.equal(codeLesson.foldedFocusSegmentCount, 0, "a code lesson's FOCUS beats are never folded");
 
-  console.log(`verify-writeless-focus-fold: ${prepared.foldedFocusSegmentCount} folded, ${checkedFocus} FOCUS cues on their words, rows untouched`);
+  // The streamed path, as useQuestionHandler runs it.
+  const { createStreamedFocusFold } = await import(pathToFileURL(streamedFoldPath).href) as StreamedFold;
+  const hasWrite = (segment: TutorSegment) => getSegmentCommands(segment).some(command => command.type === "WRITE");
+  const streamLesson = (text: string, chunk: number) => {
+    const fold = createStreamedFocusFold(diagram, { codeLesson: false });
+    const raws: TutorSegment[] = [];
+    const queued: TutorSegment[] = [];
+    const heldWrites: string[] = [];
+    let firstTake: TutorSegment[] | null = null;
+    let buffered: TutorSegment | null = null;
+    let started = false;
+    const flush = () => {
+      if (!buffered) return;
+      raws.push(buffered);
+      const ready = placement.prepareVerifiedLessonSegments([buffered], diagram).segments;
+      const out = fold.take(ready, { lessonStarted: started });
+      firstTake ??= out;
+      for (const segment of ready) if (hasWrite(segment) && !out.includes(segment)) heldWrites.push(segment.narration);
+      queued.push(...out);
+      if (out.some(segment => /[\p{L}\p{N}]/u.test(segment.narration))) started = true;
+      buffered = null;
+    };
+    const parser = new IncrementalTagParser({ preserveStepSpeech: true, onSegmentReady: segment => { flush(); buffered = segment; } });
+    for (let at = 0; at < text.length; at += chunk) parser.push(text.slice(at, at + chunk));
+    parser.flush();
+    flush();
+    queued.push(...fold.finish());
+    return { raws, queued, heldWrites, firstTake: firstTake ?? [], folded: fold.foldedFocusSegmentCount() };
+  };
+  for (const chunk of [7, 23, 101]) {
+    const streamed = streamLesson(lesson, chunk);
+    const batch = placement.prepareVerifiedLessonSegments(streamed.raws, diagram);
+    assert.deepEqual(streamed.queued.map(segment => segment.narration), batch.segments.map(segment => segment.narration),
+      `streamed (${chunk} char chunks) queues the segments the batch path speaks`);
+    assert.deepEqual(streamed.queued.map(segment => getSegmentCommands(segment).map(commandKey)), batch.segments.map(segment => getSegmentCommands(segment).map(commandKey)));
+    assert(longestWritelessRun(streamed.queued) <= 1, `streamed: at most one write-less FOCUS segment in a row (found ${longestWritelessRun(streamed.queued)})`);
+    assert.equal(streamed.folded, batch.foldedFocusSegmentCount, "streamed folds every run the batch path folds");
+    assert(streamed.folded >= 4, `streamed folds the fixture runs (${streamed.folded})`);
+    assert.deepEqual(streamed.heldWrites, [], "a writing segment is queued on the call that prepared it");
+  }
+  // A lesson that opens by pointing starts on its first step, not the next.
+  const opensPointing = streamLesson([
+    "[STEP]\nIn the figure v_air [FOCUS:v_air] is the plane through the air.\n[/STEP]",
+    "[STEP]\nAnd v_wind [FOCUS:v_wind] blows east.\n[/STEP]",
+    "[STEP]\nNotice θ [FOCUS:theta_mark].\n[/STEP]",
+    "[STEP]\nSo we add them. [WRITE:v_ground = v_air + v_wind,90,211]\n[/STEP]",
+  ].join("\n"), 13);
+  assert.equal(opensPointing.firstTake.length, 1, "the opening pointing step is queued at once");
+  assert(longestWritelessRun(opensPointing.queued) <= 2, "after the opening step the run still folds");
+  assert.equal(opensPointing.folded, 1, "the two pointing steps after the opening one are spoken as one");
+  // A code lesson's FOCUS beats pass through untouched.
+  const codeFold = createStreamedFocusFold(diagram, { codeLesson: true });
+  const codeOut = buildLessonSegments(lesson).flatMap(segment => codeFold.take([segment], { lessonStarted: true }));
+  assert.equal(codeOut.length + codeFold.finish().length, buildLessonSegments(lesson).length, "a code lesson never folds");
+
+  // The hook takes every prepared streamed segment through the fold and
+  // flushes it once the response ends. Both ends of every slice are checked.
+  const handler = readFileSync(handlerPath, "utf8");
+  const slice = (start: string, end: string) => {
+    const from = handler.indexOf(start);
+    assert(from >= 0, `useQuestionHandler still has ${JSON.stringify(start)}`);
+    const to = handler.indexOf(end, from + start.length);
+    assert(to > from, `useQuestionHandler: ${JSON.stringify(end)} follows ${JSON.stringify(start)}`);
+    return handler.slice(from, to);
+  };
+  const flushBody = slice("const flushBufferedSegment = () => {", "\n        };");
+  assert(/const prepared = prepareVerifiedLessonSegments\(\[bufferedSegment\], activeDiagram\);/.test(flushBody), "the streamed segment is prepared on its own");
+  assert(/focusFold\.take\(prepared\.segments,\s*\{\s*lessonStarted:\s*usableTeachingStepReceived\s*\}\)/.test(flushBody), "every prepared streamed segment goes through the fold");
+  assert(!/queuePreparedSegments\(prepared\.segments/.test(flushBody), "no prepared segment skips the fold");
+  const finishBody = slice("const flushFocusFold = () => {", "\n        };");
+  assert(/focusFold\.finish\(\)/.test(finishBody) && /queuePreparedSegments\(held/.test(finishBody), "the held run is queued at the end");
+  const tail = slice("// Flush the final segment through verified-scene ownership filtering.", "throwIfTurnCancelled();");
+  assert(/flushBufferedSegment\(\);\s*flushFocusFold\(\);\s*$/.test(tail), "the fold is flushed right after the final segment");
+  assert(/let focusFold = createStreamedFocusFold\(activeDiagram, \{ codeLesson: Boolean\(codeLesson\) \}\);/.test(handler), "one fold per turn, off for code lessons");
+
+  console.log(`verify-writeless-focus-fold: ${prepared.foldedFocusSegmentCount} folded, ${checkedFocus} FOCUS cues on their words, rows untouched; streamed path folds the same and holds no row`);
 }
 void main().catch(error => { console.error(error); process.exitCode = 1; });
