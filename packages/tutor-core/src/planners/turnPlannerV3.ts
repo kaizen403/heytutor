@@ -541,26 +541,34 @@ export function salvageRejectedTurnPlanV3(
 ): TurnPlanV3 | null {
   const record = (value: unknown): Record<string, unknown> | null =>
     typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : null;
-  // Swapped roles: one stated value bound to different symbols by different
-  // lanes ("vr = 6, vm = 8" against "vr = 8, vm = 6") cannot be trusted.
-  const symbolsByLane = rejections.map((rejection) => {
-    const bySymbol = new Map<string, Set<string>>();
+  // Swapped roles: lanes that exchange values between the same symbols
+  // ("vr = 6, vm = 8" against "vr = 8, vm = 6") make both values untrustworthy.
+  // A lane that only spells a symbol differently ("theta_app" and
+  // "theta_app2" for one 60°) is no swap: no symbol changes its value.
+  const lanes = rejections.map((rejection) => {
+    const symbolsOf = new Map<string, Set<string>>();
+    const valuesOf = new Map<string, Set<string>>();
     const plan = record(rejection.plan);
     for (const raw of Array.isArray(plan?.givens) ? plan.givens : []) {
       const given = record(raw);
       if (!given || typeof given.symbol !== "string" || typeof given.value !== "number") continue;
-      const key = quantityKey(given.value, typeof given.unit === "string" ? given.unit : undefined);
-      bySymbol.set(key, (bySymbol.get(key) ?? new Set()).add(symbolKey(given.symbol)));
+      const value = quantityKey(given.value, typeof given.unit === "string" ? given.unit : undefined);
+      const symbol = symbolKey(given.symbol);
+      symbolsOf.set(value, (symbolsOf.get(value) ?? new Set()).add(symbol));
+      valuesOf.set(symbol, (valuesOf.get(symbol) ?? new Set()).add(value));
     }
-    return bySymbol;
+    return { symbolsOf, valuesOf };
   });
   const swapped = new Set<string>();
-  for (const [index, lane] of symbolsByLane.entries()) {
-    for (const other of symbolsByLane.slice(index + 1)) {
-      for (const [key, symbols] of lane) {
-        const otherSymbols = other.get(key);
-        if (otherSymbols && [...symbols].some((symbol) => !otherSymbols.has(symbol)) &&
-            [...otherSymbols].some((symbol) => !symbols.has(symbol))) swapped.add(key);
+  for (const first of lanes) {
+    for (const second of lanes) {
+      if (first === second) continue;
+      for (const [value, symbols] of first.symbolsOf) {
+        for (const symbol of symbols) {
+          const elsewhere = second.valuesOf.get(symbol);
+          // The same symbol carries another value in the other lane, which binds this value to another symbol.
+          if (elsewhere && !elsewhere.has(value) && [...(second.symbolsOf.get(value) ?? [])].some((other) => other !== symbol)) swapped.add(value);
+        }
       }
     }
   }

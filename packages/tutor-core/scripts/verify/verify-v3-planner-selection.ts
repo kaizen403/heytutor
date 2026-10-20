@@ -272,6 +272,12 @@ const rejectedPlan = {
     { lane: "primary", requestKind: "initial", plan: rejectedPlan, issues: [] },
     { lane: "alternate", requestKind: "initial", plan: extraSymbol, issues: [] },
   ])?.givens.map((given) => given.id), ["vr", "vm"], "agreeing lanes keep their givens");
+  // A lane that only respells a symbol (v_r and v_rain for one 6 m/s) is no swap.
+  const respelled = { ...rejectedPlan, givens: [{ ...rejectedPlan.givens[0]!, symbol: "v_rain" }, rejectedPlan.givens[1]!] };
+  assert.deepEqual(salvageRejectedTurnPlanV3(question, [
+    { lane: "primary", requestKind: "initial", plan: rejectedPlan, issues: [] },
+    { lane: "alternate", requestKind: "initial", plan: respelled, issues: [] },
+  ])?.givens.map((given) => given.id), ["vr", "vm"], "a respelled symbol with the same value is no swap");
 }
 
 console.log("verify-v3-planner-selection: exact-source ranking and grace, retry feedback and budget, and question-stated salvage hold");
