@@ -1,3 +1,8 @@
+import type { ChemistryRepresentation, ChemistryStructureSymbolProvenance } from "./chemistry/representation/types";
+
+export interface SceneSource extends Record<string, unknown> { chemistryRepresentation?: ChemistryRepresentation }
+export interface SceneProvenance extends Record<string, unknown> { chemistryRepresentation?: ChemistryStructureSymbolProvenance }
+
 export const SCENE_DOCUMENT_VERSION = "scene-document/v2" as const;
 export const SCENE_ENGINE_VERSION = "scene-engine/2.0.0" as const;
 
@@ -37,7 +42,7 @@ export interface SceneEntity {
   role: string;
   label?: string;
   semantic?: Record<string, unknown>;
-  provenance?: Record<string, unknown>;
+  provenance?: SceneProvenance;
 }
 
 export interface SceneConstruction {
@@ -130,7 +135,7 @@ export interface SceneTeachingAction {
 export interface SceneDocument {
   schemaVersion: typeof SCENE_DOCUMENT_VERSION;
   visualDecision: { mode: VisualMode; reason: string };
-  source: Record<string, unknown>;
+  source: SceneSource;
   quantities: Array<Record<string, unknown> & { id: string }>;
   entities: SceneEntity[];
   constructions: SceneConstruction[];
@@ -169,7 +174,7 @@ export interface RenderPrimitive {
   endAngle?: number;
   text?: string;
   labelPlacement?: string;
-  provenance?: Record<string, unknown>;
+  provenance?: SceneProvenance;
 }
 
 export interface RenderScene {
