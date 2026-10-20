@@ -22,6 +22,8 @@ import {
   subjectFromRejectedTurnPlanOutcomes,
   planAndSolveProblemV1,
   createFallbackTurnPlanV3,
+  salvageRejectedTurnPlanV3,
+  type RejectedTurnPlanV3,
   inferSceneCapabilities,
   normalizeTutorQuestion,
   questionRequiresVisual,
@@ -99,6 +101,13 @@ import { liveTurnSave, type LiveTurnHandle } from "../../lib/turn/liveTurnSave";
 import { lessonResumeState } from "../../lib/turn/pausedLessonRestore";
 import { buildEarlyLessonOpeningSegment, shouldStartEarlyLessonOpening } from "../../lib/turn/earlyLessonOpening";
 import { isBenignTurnAbort } from "../../lib/turn/turnFailurePolicy";
+import {
+  markTurnCompleted,
+  markTurnExitReason,
+  markTurnStarted,
+  settleTurnTerminalRecord,
+  turnTerminalRecordFor,
+} from "../../lib/turn/turnTerminalEvent";
 import {
   FALLBACK_DSA_TEACHING_POLICY,
   fetchDsaTeachingPolicy,
@@ -418,6 +427,10 @@ export function useQuestionHandler(
         : null;
       const turnGeneration = turnGenerationRef.current + 1;
       turnGenerationRef.current = turnGeneration;
+      // From here every exit writes one terminal line: `turn complete` below,
+      // or `turn failed {reason}` from handleQuestion's finally.
+      const terminal = turnTerminalRecordFor(saveExit);
+      markTurnStarted(terminal, turnGeneration);
       onSpeechStartupStatus?.(null);
       cancelRef.current = false;
       isPausedRef.current = false;
@@ -1099,6 +1112,7 @@ export function useQuestionHandler(
           const turnPlanStartedAt = Date.now();
           const turnPlanSpan = tel.span("turn-plan", "planner");
           const turnPlanOutcomes: TurnPlanRequestOutcome[] = [];
+          const rejectedTurnPlans: RejectedTurnPlanV3[] = [];
           // A cancelled or failed turn plan still closes its span.
           const closeTurnPlanSpanOnFailure = (error: unknown): never => {
             turnPlanSpan.end({ aborted: true });
@@ -1113,6 +1127,7 @@ export function useQuestionHandler(
             conversationContext: recentConversation,
             fastMode: fastModeRef.current,
             classifySubject: (billed.diagramStrictSubjects?.length ?? 0) > 0,
+            onRejectedPlan: (rejected) => { rejectedTurnPlans.push(rejected); },
             onRequestOutcome: (outcome) => {
               if (turnPlanOutcomes.length < 3) turnPlanOutcomes.push(outcome);
               const previous = page.failureTelemetry ?? { subject: "other" };
@@ -1153,10 +1168,21 @@ export function useQuestionHandler(
           };
           tel.meta({ diagram_subject: diagramSubject });
           turnPlanSpan.end({ ok: plannedTurn !== null, latency_ms: turnPlanMs });
+          // Every lane rejected: keep the givens the question itself states
+          // (and the law ids) so scene planning still runs; no rejected
+          // derived value or claim survives (v3 p3c-t1, p3e1-t1).
+          const salvagedTurnPlan = plannedTurn ? null : salvageRejectedTurnPlanV3(question, rejectedTurnPlans);
+          if (salvagedTurnPlan) {
+            tutorDebug("planner", "turn plan salvaged from rejected lanes", {
+              given_ids: salvagedTurnPlan.givens.map((given) => given.id),
+              law_ids: salvagedTurnPlan.lawIds,
+              rejected_lanes: rejectedTurnPlans.length,
+            });
+          }
           turnPlan = selectBestAvailableTurnPlan(
             undefined,
             plannedTurn?.turnPlan,
-            createFallbackTurnPlanV3(question),
+            salvagedTurnPlan ?? createFallbackTurnPlanV3(question),
             plannedTurn?.peerTurnPlans,
           );
           if (plannedTurn && turnPlanNeedsNumericAuthority(question, turnPlan)) {
@@ -1806,6 +1832,7 @@ export function useQuestionHandler(
       });
 
       if (problemAuthority?.audit.status === "contradiction") {
+        markTurnExitReason(terminal, "solver_authority_contradiction");
         emitError({
           message: "The independent solution checks disagreed, so the tutor stopped before presenting an unverified answer. Retry the question.",
           question,
@@ -2762,6 +2789,7 @@ export function useQuestionHandler(
           total_draw_ms: turnStatsRef.current.drawMs,
           total_tts_chars: turnStatsRef.current.ttsChars,
         });
+        markTurnCompleted(terminal);
 
         // A finished DSA lesson keeps its panel up and unlocks type-along. A
         // doubt finishes nothing: the lesson it paused continues after this.
@@ -2900,17 +2928,40 @@ export function useQuestionHandler(
           return true;
         },
         run: async () => {
+          let threw = false;
+          let cancelled = false;
           try {
             return await teachQuestion(rawQuestion, admittedOptions, saveExit);
+          } catch (error) {
+            threw = true;
+            cancelled = isBenignTurnAbort(error);
+            const terminal = turnTerminalRecordFor(saveExit);
+            // An exception thrown while planning escaped the body's own catch.
+            // Release the turn it left in "thinking" instead of hanging there.
+            if (!cancelled && terminal.started && terminal.generation === turnGenerationRef.current) {
+              console.error("Tutor error:", error);
+              turnAbortRef.current?.abort();
+              turnAbortRef.current = null;
+              emitError({ message: "something went wrong. try asking again.", question: rawQuestion });
+              finishLectureUi(terminal.generation);
+            }
+            throw error;
           } finally {
             saveExit.handle?.close();
+            const terminal = turnTerminalRecordFor(saveExit);
+            // Early returns that cannot carry a reason of their own: a newer
+            // turn or Stop took over, or begin-turn refused before the save.
+            const inferredReason = terminal.generation !== turnGenerationRef.current ? "superseded"
+              : cancelRef.current ? "stopped" : saveExit.handle === null ? "begin_turn_refused" : null;
+            settleTurnTerminalRecord(terminal, { threw, cancelled, inferredReason },
+              (event, details) => tutorDebug("turn", event, details));
           }
         },
       });
       void receipt.admitted.then((admitted) => options?.onAdmission?.(admitted));
       return receipt.finished;
     },
-    [teachQuestion, boardLoaded, sessionId, isDraft, commitDraftBoard, cancelRef, ensureTTSClient, phaseRef, turnActiveRef, turnGenerationRef, pendingSegmentCountRef, whiteboardRef, emitError],
+    [teachQuestion, boardLoaded, sessionId, isDraft, commitDraftBoard, cancelRef, ensureTTSClient, phaseRef, turnActiveRef, turnGenerationRef, turnAbortRef, pendingSegmentCountRef, whiteboardRef, emitError, finishLectureUi],
   );
 
   useEffect(() => {

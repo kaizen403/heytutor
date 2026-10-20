@@ -27,7 +27,30 @@ export interface TurnPlannerV3Options {
   classifySubject?: boolean;
   /** Content-free, completion-only diagnostics; observer failures never affect admission. */
   onRequestOutcome?: (outcome: TurnPlanRequestOutcome) => void;
+  /**
+   * Every plan the deterministic validator refused, with its issues. Never
+   * authority: the caller may only salvage question-stated givens from it
+   * (`salvageRejectedTurnPlanV3`).
+   */
+  onRejectedPlan?: (rejected: RejectedTurnPlanV3) => void;
 }
+
+export interface RejectedTurnPlanV3 {
+  lane: "primary" | "alternate";
+  requestKind: TurnPlanRequestOutcome["requestKind"];
+  /** The normalized, arithmetic-reconciled plan object the validator refused. */
+  plan: unknown;
+  issues: TurnPlanValidationIssue[];
+}
+
+/**
+ * A corrected retry needs time for a full plan. The leftover budget after two
+ * rejected lanes was 5.2 s in v3 p3e1-t1, and the retry aborted. Planner
+ * lanes take about 6 to 13 s, so a retry that has validator issues to fix
+ * gets at least this much (never more than the caller's whole budget).
+ */
+export const TURN_PLAN_RETRY_MIN_MS = 10_000;
+const RETRY_ISSUE_LIMIT = 12;
 
 export type TurnPlanOutcomeCode =
   | "accepted" | "http_error" | "response_json_failed" | "content_missing"
@@ -99,6 +122,7 @@ export async function planTurnV3(
     },
   ];
   const controllers = lanes.map(() => new AbortController());
+  const rejections: RejectedTurnPlanV3[] = [];
   const pending = new Map(lanes.map((lane, index) => {
     const controller = controllers[index]!;
     const signal = options.signal
@@ -111,6 +135,8 @@ export async function planTurnV3(
       lane.userContent,
       "plan",
       lane.lane,
+      "initial",
+      rejections,
     ).then((result) => ({ index, result }));
     return [index, promise] as const;
   }));
@@ -140,16 +166,24 @@ export async function planTurnV3(
   }
   for (const index of pending.keys()) controllers[index]?.abort();
   if (completed.length === 0) {
-    const remainingMs = Math.max(0, options.timeoutMs - (Date.now() - startedAt));
-    if (remainingMs < 500) return null;
+    const leftoverMs = Math.max(0, options.timeoutMs - (Date.now() - startedAt));
+    // An expired budget still skips the retry, as before.
+    if (leftoverMs < 500) return null;
+    // Validator issues are something the retry can fix, so it gets a minimum
+    // budget; lanes that only timed out or failed transport keep the leftover.
+    const feedback = turnPlanRetryFeedback(rejections);
+    const remainingMs = feedback
+      ? Math.max(leftoverMs, Math.min(TURN_PLAN_RETRY_MIN_MS, options.timeoutMs))
+      : leftoverMs;
     return requestTurnPlanV3(
       question,
       { ...options, timeoutMs: remainingMs },
       TURN_PLAN_V3_RETRY_PROMPT,
-      `${conversation}QUESTION\n${question}\n\nReturn a complete corrected plan. Missing requested numeric answers are fatal.`,
+      `${conversation}QUESTION\n${question}\n\n${feedback ? `${feedback}\n\n` : ""}Return a complete corrected plan. Missing requested numeric answers are fatal.`,
       "plan",
       "alternate",
       "retry",
+      rejections,
     );
   }
   const selectedPlan = selectTurnPlanV3Consensus(
@@ -200,6 +234,7 @@ async function requestTurnPlanV3(
   phase: "plan" | "audit",
   lane: "primary" | "alternate",
   requestKind: TurnPlanRequestOutcome["requestKind"] = "initial",
+  rejections?: RejectedTurnPlanV3[],
 ): Promise<TurnPlanV3Response | null> {
   const startedAt = Date.now();
   let httpStatus: number | null = null;
@@ -275,9 +310,17 @@ async function requestTurnPlanV3(
     if (typeof content !== "string") return null;
     if (options.classifySubject) subject = subjectFromTurnPlanContent(content);
     outcomeCode = "plan_processing_failed";
-    const turnPlan = parseTurnPlanV3ContentObserved(content, question, undefined, parseOutcome);
+    const trace: TurnPlanV3ParseTrace = {};
+    const turnPlan = parseTurnPlanV3ContentObserved(content, question, trace, parseOutcome);
     outcomeCode = parseOutcome.code;
-    if (!turnPlan) return null;
+    if (!turnPlan) {
+      if (trace.arithmetic && trace.issues && trace.issues.length > 0) {
+        const rejected: RejectedTurnPlanV3 = { lane, requestKind, plan: trace.arithmetic.plan, issues: trace.issues };
+        rejections?.push(rejected);
+        try { options.onRejectedPlan?.(rejected); } catch { /* Diagnostics must never change planning behavior. */ }
+      }
+      return null;
+    }
     outcomeCode = "accepted";
 
     return {
@@ -347,6 +390,144 @@ export function createFallbackTurnPlanV3(question: string): TurnPlanV3 {
     assumptions: ["Turn-plan model was unavailable; visual requirement was classified conservatively."],
     visualRequirement: questionRequiresVisual(question) ? "required" : "optional",
   };
+}
+
+/**
+ * The validator's findings on the rejected lanes, for the corrected retry.
+ * Each path is resolved to the quantity or claim id it points at, so the
+ * model can act on "derived[1]" without seeing the rejected plan.
+ */
+export function turnPlanRetryFeedback(rejections: readonly RejectedTurnPlanV3[]): string | null {
+  const seen = new Set<string>();
+  const lines: string[] = [];
+  for (const rejection of rejections) {
+    for (const issue of rejection.issues) {
+      const path = describeIssuePath(rejection.plan, issue.path);
+      const message = issue.message.replace(/\s+/g, " ").trim().slice(0, 240);
+      const key = `${issue.code}|${path}|${message}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (lines.length < RETRY_ISSUE_LIMIT) lines.push(`- ${path} (${issue.code}): ${message}`);
+    }
+  }
+  if (lines.length === 0) return null;
+  return `REJECTED BY THE DETERMINISTIC VALIDATOR\nThe earlier plans for this question failed these checks:\n${lines.join("\n")}\nFix every listed issue. Each derived value must equal its own sourceText arithmetic, and every claim must state the same value, unit and reference direction as the quantity it cites.`;
+}
+
+function describeIssuePath(plan: unknown, path: string): string {
+  const match = path.match(/^(givens|derived|unknowns|qualitativeClaims)\[(\d+)\](.*)$/);
+  if (!match || typeof plan !== "object" || plan === null) return path;
+  const entries = (plan as Record<string, unknown>)[match[1]!];
+  const entry = Array.isArray(entries) ? entries[Number(match[2])] : undefined;
+  const id = typeof entry === "object" && entry !== null && typeof (entry as Record<string, unknown>).id === "string"
+    ? (entry as Record<string, unknown>).id as string
+    : null;
+  return id ? `${match[1]}[${match[2]}] (${id.slice(0, 40)})${match[3]}` : path;
+}
+
+const UNIT_WORDS: ReadonlyArray<readonly [RegExp, readonly string[]]> = [
+  [/^(?:deg|degs|degree|degrees|°)$/i, ["°", "degrees", "degree", "deg"]],
+  [/^(?:rad|rads|radian|radians)$/i, ["radians", "radian", "rad"]],
+  [/^m\/s$/, ["m/s", "m s^-1", "m s⁻¹", "ms^-1", "ms⁻¹", "m s-1", "metres per second", "meters per second"]],
+  [/^km\/h$/i, ["km/h", "km/hr", "kmph", "km h^-1", "km h⁻¹", "kilometres per hour", "kilometers per hour"]],
+  [/^m\/s(?:\^2|²)$/, ["m/s²", "m/s^2", "m s^-2", "m s⁻²", "ms^-2", "ms⁻²", "metres per second squared", "meters per second squared"]],
+  [/^s$/, ["s", "sec", "secs", "second", "seconds"]],
+  [/^m$/, ["m", "metre", "metres", "meter", "meters"]],
+  [/^km$/i, ["km", "kilometre", "kilometres", "kilometer", "kilometers"]],
+  [/^cm$/, ["cm", "centimetre", "centimetres", "centimeter", "centimeters"]],
+  [/^kg$/, ["kg", "kilogram", "kilograms"]],
+  [/^n$/i, ["N", "newton", "newtons"]],
+  [/^j$/i, ["J", "joule", "joules"]],
+  [/^w$/i, ["W", "watt", "watts"]],
+  [/^v$/i, ["V", "volt", "volts"]],
+  [/^a$/i, ["A", "amp", "amps", "ampere", "amperes"]],
+  [/^(?:ohm|ohms|Ω)$/i, ["Ω", "ohm", "ohms"]],
+];
+
+function unitSpellings(unit: string): string[] {
+  const trimmed = unit.trim();
+  const compact = trimmed.replace(/\s+/g, "");
+  const known = UNIT_WORDS.find(([pattern]) => pattern.test(compact));
+  return [...new Set([trimmed, compact, compact.replace(/\^2/g, "²").replace(/\^3/g, "³"),
+    compact.replace(/²/g, "^2").replace(/³/g, "^3"), ...(known?.[1] ?? [])])]
+    .filter(Boolean)
+    .sort((first, second) => second.length - first.length);
+}
+
+/**
+ * True when the question states this number at face value, immediately
+ * followed by this unit ("6 m/s", "60°", "20 km/h"). A unitless value must
+ * appear as a bare number. No rescaling: "20 cm" does not state 0.2 m.
+ */
+export function questionStatesQuantity(question: string, value: number, unit?: string): boolean {
+  if (!Number.isFinite(value)) return false;
+  const text = question.normalize("NFC").replace(/[−–—]/g, "-");
+  const numberPattern = /(?<![\w.^])-?(?:\d+(?:\.\d+)?|\.\d+)(?![\d.]*\d)/g;
+  const spellings = unit && unit.trim() ? unitSpellings(unit) : null;
+  for (const match of text.matchAll(numberPattern)) {
+    if (Number(match[0]) !== value) continue;
+    if (!spellings) return true;
+    const rest = text.slice((match.index ?? 0) + match[0].length).replace(/^\s+/, "");
+    if (spellings.some((spelling) => rest.startsWith(spelling) &&
+      !/^[\p{L}\p{N}]/u.test(rest.slice(spelling.length)))) return true;
+  }
+  return false;
+}
+
+/**
+ * Every lane was rejected. Rather than a plan with no facts (which runs no
+ * scene planning), keep only what the question itself states: the best
+ * rejected plan's givens whose value and unit appear in the question, and its
+ * law ids. Every derived value, unknown and claim is withdrawn, so nothing the
+ * validator refused can reach a label or the narration as authority. Returns
+ * null when no given survives or the result fails validation.
+ */
+export function salvageRejectedTurnPlanV3(
+  question: string,
+  rejections: readonly RejectedTurnPlanV3[],
+): TurnPlanV3 | null {
+  const record = (value: unknown): Record<string, unknown> | null =>
+    typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : null;
+  const candidates = rejections.flatMap((rejection, order) => {
+    const plan = record(rejection.plan);
+    if (!plan || !Array.isArray(plan.givens)) return [];
+    const seen = new Set<string>();
+    const givens = plan.givens.flatMap((raw) => {
+      const given = record(raw);
+      if (!given || typeof given.id !== "string" || !given.id.trim() || seen.has(given.id) ||
+          typeof given.symbol !== "string" || !given.symbol.trim() ||
+          typeof given.value !== "number" || !Number.isFinite(given.value)) return [];
+      const unit = typeof given.unit === "string" && given.unit.trim() ? given.unit.trim() : undefined;
+      if (!questionStatesQuantity(question, given.value, unit)) return [];
+      seen.add(given.id);
+      return [{
+        id: given.id,
+        symbol: given.symbol,
+        value: given.value,
+        ...(unit ? { unit } : {}),
+        ...(typeof given.sourceText === "string" && given.sourceText.trim() ? { sourceText: given.sourceText.trim().slice(0, 240) } : {}),
+        provenance: "given" as const,
+      }];
+    });
+    const lawIds = Array.isArray(plan.lawIds)
+      ? [...new Set(plan.lawIds.filter((id): id is string => typeof id === "string" && id.trim() !== "").map((id) => id.trim()))].slice(0, 12)
+      : [];
+    const visual = plan.visualRequirement === "required" || plan.visualRequirement === "optional" ? plan.visualRequirement : null;
+    return givens.length > 0 ? [{ givens, lawIds, visual, issues: rejection.issues.length, order }] : [];
+  });
+  const best = candidates.sort((first, second) =>
+    second.givens.length - first.givens.length || first.issues - second.issues || first.order - second.order)[0];
+  if (!best) return null;
+  const fallback = createFallbackTurnPlanV3(question);
+  const salvaged: TurnPlanV3 = {
+    ...fallback,
+    givens: best.givens,
+    lawIds: best.lawIds,
+    assumptions: ["Every turn-plan lane was rejected; only givens stated in the question were kept, and no derived value or claim is authoritative."],
+    visualRequirement: fallback.visualRequirement === "required" || best.visual === "required" ? "required" : "optional",
+  };
+  const validation = validateTurnPlanV3(salvaged, question);
+  return validation.valid && validation.plan ? validation.plan : null;
 }
 
 export function explicitDiagramRequest(question: string): boolean {

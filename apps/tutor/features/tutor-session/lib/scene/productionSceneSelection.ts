@@ -102,6 +102,110 @@ export function deriveSceneGate(input: ProductionSceneInput): ProductionSceneGat
   };
 }
 
+/** How many of the plan's given and asked quantities a compiled scene shows. */
+export interface SceneQuantityCoverage {
+  /** Given and asked quantities the plan names (capped at 99). */
+  total: number;
+  /** Shown by value, by symbol, or by a label bound to the quantity. */
+  covered: number;
+  /** Shown with their value in readable ink. */
+  valued: number;
+  /** Carried by a rendered label whose annotation is bound to the quantity id. */
+  bound: number;
+}
+
+const COVERAGE_CAP = 99;
+
+function coverageSymbolKey(value: string): string {
+  return value.normalize("NFKC").replace(/[\s_{}\\$]/g, "");
+}
+
+/** Numbers a label displays, with the tolerance its printed precision implies. */
+function displayedNumbers(text: string): Array<{ value: number; tolerance: number }> {
+  const normalized = text.normalize("NFKC").replace(/[−–—]/g, "-");
+  return [...normalized.matchAll(/(?<![A-Za-z_^\d.])-?(?:\d+(?:\.(\d+))?|\.(\d+))(?:e([+-]?\d+))?/gi)].flatMap((match) => {
+    const value = Number(match[0]);
+    if (!Number.isFinite(value)) return [];
+    const decimals = (match[1] ?? match[2] ?? "").length;
+    return [{ value, tolerance: 0.5 * 10 ** (Number(match[3] ?? 0) - decimals) }];
+  });
+}
+
+/**
+ * Coverage of the authoritative plan by readable ink. Only rendered label and
+ * dimension text counts, and each plan quantity counts once, so repeating a
+ * label or adding unlabelled marks never raises it.
+ */
+export function sceneQuantityCoverage(
+  document: Pick<SceneDocument, "annotations">,
+  renderScene: Pick<RenderScene, "primitives"> | null | undefined,
+  plan: Pick<TurnPlanV3, "givens" | "derived" | "unknowns">,
+): SceneQuantityCoverage {
+  const texts = (renderScene?.primitives ?? []).flatMap((primitive) =>
+    (primitive.kind === "label" || primitive.kind === "dimension") &&
+    typeof primitive.text === "string" && primitive.text.trim()
+      ? [{ id: primitive.id, text: primitive.text.trim() }]
+      : []);
+  const numbers = texts.flatMap((entry) => displayedNumbers(entry.text));
+  const keys = texts.map((entry) => coverageSymbolKey(entry.text));
+  const renderedIds = new Set(texts.map((entry) => entry.id));
+  const boundIds = new Set(document.annotations.flatMap((annotation) =>
+    annotation.quantityId !== undefined && renderedIds.has(annotation.id) ? [annotation.quantityId] : []));
+  const unknownKeys = new Set(plan.unknowns.flatMap((unknown) => [unknown.id, unknown.symbol]));
+  // A concept lesson asks for no unknown; its derived values are its results.
+  const answers = plan.unknowns.length === 0
+    ? plan.derived
+    : plan.derived.filter((quantity) => unknownKeys.has(quantity.id) || unknownKeys.has(quantity.symbol));
+  const answered = new Set(answers.flatMap((quantity) => [quantity.id, quantity.symbol]));
+  const quantities: Array<{ id: string; symbol: string; value?: number }> = [
+    ...plan.givens,
+    ...answers,
+    ...plan.unknowns.filter((unknown) => !answered.has(unknown.id) && !answered.has(unknown.symbol)),
+  ].slice(0, COVERAGE_CAP);
+  let covered = 0, valued = 0, bound = 0;
+  for (const quantity of quantities) {
+    const value = quantity.value;
+    const showsValue = typeof value === "number" && Number.isFinite(value) && numbers.some((shown) =>
+      Math.min(Math.abs(shown.value - value), Math.abs(Math.abs(shown.value) - Math.abs(value))) <=
+        shown.tolerance + Math.max(1, Math.abs(value)) * 1e-9);
+    const symbol = coverageSymbolKey(quantity.symbol);
+    const showsSymbol = symbol.length > 0 && keys.some((key) =>
+      key === symbol || (key.startsWith(symbol) && !/[\p{L}\p{N}]/u.test(key.charAt(symbol.length))));
+    const isBound = boundIds.has(quantity.id);
+    if (showsValue) valued += 1;
+    if (isBound) bound += 1;
+    if (showsValue || showsSymbol || isBound) covered += 1;
+  }
+  return { total: quantities.length, covered, valued, bound };
+}
+
+/**
+ * Lower wins, compared in this order: a declined scene when one was wanted;
+ * fewer given and asked quantities shown; fewer values shown (an omitted label
+ * counts as a lost value); more warnings; fewer bound labels; and only then,
+ * as the last tie break, the smaller construction. A richer figure therefore
+ * beats a sparser one, while extra marks that show no new quantity never help.
+ */
+export function sceneCandidateQualityScore(input: {
+  textOnly: boolean;
+  visualRequirement: TurnPlanV3["visualRequirement"];
+  coverage: SceneQuantityCoverage;
+  warningCount: number;
+  omittedLabelCount: number;
+  structuralCost: number;
+}): number {
+  const band = (count: number) => Math.min(COVERAGE_CAP, Math.max(0, count));
+  const { coverage } = input;
+  return (input.textOnly && input.visualRequirement !== "none"
+      ? input.visualRequirement === "required" ? 500_000_000 : 400_000_000
+      : 0) +
+    band(coverage.total - coverage.covered) * 1_000_000 +
+    band(coverage.total - coverage.valued + input.omittedLabelCount) * 10_000 +
+    band(input.warningCount) * 100 +
+    band(coverage.total - coverage.bound) +
+    Math.min(9_999, Math.max(0, input.structuralCost)) / 10_000;
+}
+
 /** Candidate validation order is unchanged: normalize/prune, quantities, source, obligations, compile. */
 export function validateProductionSceneCandidate(input: {
   candidate: Record<string, unknown>; question: string; turnPlan: TurnPlanV3;
@@ -204,18 +308,18 @@ export function validateProductionSceneCandidate(input: {
   return {
     valid: true,
     errors: [...proofIssues, ...compiledScene.report.issues, ...yieldIssues],
-    qualityScore:
-      (validated.document.visualDecision.mode === "text_only" &&
-      authoritativePlan.visualRequirement !== "none"
-        ? authoritativePlan.visualRequirement === "required" ? 100_000 : 10_000
-        : 0) +
-      compiledScene.report.issues.filter((issue) => issue.severity === "warning").length * 1_000 +
+    qualityScore: sceneCandidateQualityScore({
+      textOnly: validated.document.visualDecision.mode === "text_only",
+      visualRequirement: authoritativePlan.visualRequirement,
+      coverage: sceneQuantityCoverage(validated.document, compiledScene.renderScene, authoritativePlan),
+      warningCount: compiledScene.report.issues.filter((issue) => issue.severity === "warning").length,
       // Recompilation removes the failed mark, but its omission still reduces
       // quality. Fewer surviving primitives must not reward incomplete repairs.
-      yieldIssues.filter((issue) => issue.code === "yield_label_omitted").length * 1_000 +
-      compiledScene.report.stats.primitiveCount * 2 +
-      compiledScene.report.stats.entityCount +
-      compiledScene.report.stats.constructionCount,
+      omittedLabelCount: yieldIssues.filter((issue) => issue.code === "yield_label_omitted").length,
+      structuralCost: compiledScene.report.stats.primitiveCount * 2 +
+        compiledScene.report.stats.entityCount +
+        compiledScene.report.stats.constructionCount,
+    }),
     value: {
       document: validated.document,
       renderScene: compiledScene.renderScene,

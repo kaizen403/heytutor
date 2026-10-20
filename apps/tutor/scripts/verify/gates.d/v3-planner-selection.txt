@@ -1,0 +1,2 @@
+tsx scripts/verify/verify-v3-candidate-selection.ts
+tsx scripts/verify/verify-turn-terminal-event.ts
