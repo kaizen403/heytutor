@@ -10,6 +10,11 @@
  * own size and boxed, new work flows below it, and a replay of the recorded
  * rows rebuilds the same pages without a hold. An older recording whose page
  * starts at the top is never overdrawn by a carried row.
+ *
+ * The Replay button, the lecture player, export and board restore send a
+ * WRITE through the flow placement (applyLayout is forced on for WRITE), not
+ * the stored coordinates, so the flow replay below must add no hold either:
+ * only the live reservation path holds.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -204,6 +209,31 @@ async function replay(recorded: Awaited<ReturnType<typeof live>>, legacy: boolea
   } finally { h.close(); }
 }
 
+/**
+ * Replay the way the app does: every WRITE through the flow placement, the
+ * call useCommandExecution makes for replay, the lecture player, export and
+ * board restore. Their page turns follow the recording and never hold.
+ */
+async function replayFlow(recorded: Awaited<ReturnType<typeof live>>) {
+  const h = mount();
+  try {
+    let pageTurns = 0;
+    for (const row of recorded) {
+      const erasesBefore = h.calls.filter(call => call.kind === "erase").length;
+      const startedAt = h.now();
+      await h.settle(h.board.resolveTextPlacement({ type: "WRITE", text: row.text, params: [row.x, row.y, row.fontSize], charPosition: 0, narrationBefore: "" }, row.x, row.y, true));
+      if (h.calls.filter(call => call.kind === "erase").length > erasesBefore) {
+        pageTurns++;
+        assert.equal(h.now() - startedAt, 0, "a flowed replay page turn follows its recording and adds no hold");
+      }
+      finishInk(h.board.boardLayoutRef.current);
+      if (row.boxedAfter) box(h, "last");
+    }
+    assert(pageTurns >= 3, `the flowed replay finds the page turns (${pageTurns})`);
+    console.log(`page turn answers flowed replay: ${pageTurns} page turns, no hold`);
+  } finally { h.close(); }
+}
+
 /** The EMPHASIZE executor marks the row it boxed, after the box is drawn. */
 function executorMarksBoxedRows() {
   const source = readFileSync(executorPath, "utf8");
@@ -222,6 +252,7 @@ async function main() {
   const recorded = await live();
   await replay(recorded, false);
   await replay(recorded, true);
+  await replayFlow(recorded);
   console.log("verify-page-turn-answers: passed");
 }
 void main().catch(error => { console.error(error); process.exitCode = 1; });

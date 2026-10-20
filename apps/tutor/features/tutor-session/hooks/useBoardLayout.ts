@@ -302,6 +302,12 @@ export function useBoardLayout({
       y: number,
       applyLayout: boolean,
       introLayoutCheckpoint?: IntroLayoutCheckpoint,
+      /**
+       * Only the live segment runner holds a finished page before the wipe.
+       * Replay, the lecture player, export and board restore flow the same
+       * rows through here and follow their recording without a hold.
+       */
+      placement: { holdPageTurn?: boolean } = {},
       /** `maxWidth` is the work column at this row — callers must fit ink to it. */
     ): Promise<{ x: number; y: number; maxWidth: number }> => {
       if (!applyLayout || !command.text) {
@@ -372,7 +378,7 @@ export function useBoardLayout({
       let slot = findSlot();
 
       if (slot === null) {
-        await eraseWorkColumnForNewPage(command.text, { hold: true });
+        await eraseWorkColumnForNewPage(command.text, { hold: placement.holdPageTurn === true });
         layout = boardLayoutRef.current;
         slot = findSlot() ?? {
           x: TEXT_LAYOUT.marginX,
@@ -438,10 +444,11 @@ export function useBoardLayout({
           text: line,
           params: [TEXT_LAYOUT.marginX + indent, y, fontSize],
         };
-        const placement = await resolveTextPlacement(row, row.params[0]!, y, true);
+        // Reservation is the live turn's own placement: a page turn here holds.
+        const slot = await resolveTextPlacement(row, row.params[0]!, y, true, undefined, { holdPageTurn: true });
         placed.push({
           ...row,
-          params: [placement.x, placement.y, fontSize],
+          params: [slot.x, slot.y, fontSize],
         });
       }
       return placed;
