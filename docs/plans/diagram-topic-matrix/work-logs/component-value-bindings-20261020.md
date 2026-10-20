@@ -59,3 +59,7 @@ full chapter coverage or repair missing apparatus, source topology or lesson
 selection. Runtime model success was not measured. No paid calls, merges or
 production changes. Recorded questions, ids, payloads, images and judge keys stay
 in ignored workspace context; public fixtures are synthetic only.
+
+## Merge review follow-up
+
+An angle annotation's explicit quantity ID could be mistaken for another quantity's physical symbol. Explicit angle bindings now use exact ID lookup, preserving their stored scalar/unit and rejecting missing or case-distinct IDs; implicit angle and component symbol inference remains unchanged. The actual compiler reproduced 60 degrees in place of 30 before the fix. Six added compiler regressions pass (31 total), and reverting the exact-ID argument turns the gate red again. Typecheck and focused lint pass; no paid calls.

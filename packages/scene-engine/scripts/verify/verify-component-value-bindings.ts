@@ -88,4 +88,39 @@ for (const value of ["unknown", "1e-400", "1e400", Number.POSITIVE_INFINITY]) {
   else assert.equal(result.renderScene, null, "existing source refusal remains atomic");
   checks++;
 }
+function angleFixture(): SceneDocument {
+  const points = [{ id: "O", x: 0, y: 0 }, { id: "A", x: 3, y: 0 }, { id: "B", x: 3 * Math.cos(Math.PI / 6), y: 1.5 }];
+  return {
+    schemaVersion: "scene-document/v2", visualDecision: { mode: "scene", reason: "synthetic explicit angle binding" }, source: {},
+    quantities: [{ id: "theta", symbol: "alpha", value: 30, unit: "deg" }, { id: "other", symbol: "theta", value: 60, unit: "deg" }],
+    entities: [...points.map(({ id }) => ({ id, kind: "point", role: "angle arm point" })),
+      { id: "arc", kind: "angle_mark", role: "given angle" }],
+    constructions: [...points.map(({ id, x, y }) => ({ id: `make_${id}`, operator: "point", inputs: { x, y }, outputs: [id] })),
+      { id: "make_arc", operator: "angle_mark", inputs: { vertex: "O", a: "A", b: "B" }, outputs: ["arc"] }],
+    relations: [], assertions: [],
+    annotations: [{ id: "angle_value", kind: "label", quantityId: "theta", targetIds: ["arc"] }],
+    requiredEntityIds: ["arc"],
+    revealGroups: [{ id: "angle", entityIds: ["O", "A", "B", "arc"], dependsOn: [], narrationCue: "given angle" }],
+    teachingTimeline: [],
+  };
+}
+for (const reverse of [false, true]) {
+  const explicitAngle = angleFixture();
+  if (reverse) explicitAngle.quantities.reverse();
+  assert.equal(labels(explicitAngle).get("arc"), "30 deg", "an explicit angle quantityId must beat another quantity's matching symbol, regardless of inventory order"); checks++;
+}
+const staleAngleLabel = angleFixture();
+staleAngleLabel.quantities[0]!.label = "90 deg";
+assert.equal(labels(staleAngleLabel).get("arc"), "30 deg", "an explicit angle binding uses its stored scalar instead of stale display text"); checks++;
+const missingAngleId = angleFixture();
+missingAngleId.quantities[0]!.id = "renamed";
+assert.equal(labels(missingAngleId).get("arc"), undefined, "a missing explicit angle id cannot fall through to a matching symbol"); checks++;
+const caseDistinctAngleId = angleFixture();
+caseDistinctAngleId.quantities[0]!.id = "Theta";
+assert.equal(labels(caseDistinctAngleId).get("arc"), undefined, "explicit quantity ids remain case-sensitive opaque references"); checks++;
+const implicitAngle = angleFixture();
+implicitAngle.annotations = [];
+implicitAngle.quantities = [{ id: "angle_value", symbol: "arc", value: 30, unit: "deg" }];
+assert.equal(labels(implicitAngle).get("arc"), "30 deg", "unbound angle labels retain implicit physical-symbol lookup"); checks++;
+
 console.log(`verify-component-value-bindings: ${checks} checks passed`);

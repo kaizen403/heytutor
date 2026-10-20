@@ -5579,7 +5579,7 @@ function attachAngleMeasureLabels(
     );
     if (annotation) consumedAnnotationIds.add(annotation.id);
     const quantityText = annotation?.quantityId
-      ? matchingQuantityText(annotation.quantityId, document.quantities)
+      ? matchingQuantityText(annotation.quantityId, document.quantities, true)
       : matchingQuantityText(entityId, document.quantities);
     const assertion = document.assertions.find((candidate) =>
       candidate.predicate === "angle_between" &&
