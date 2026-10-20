@@ -18,6 +18,19 @@ export function buildOrganicReactionFigure(question: string, model: OrganicReact
   const reactant = layoutMolecule(model.reactant), product = layoutMolecule(model.product);
   if (!reactant || !product) return null;
   const c = new ChemScene(question, "source-bound molecular graph transformation", "chem_organic");
+  // These glyphs determine what the connected vertices are, rather than an
+  // answer to be taught later. Name their actual ink in the molecule's own
+  // reveal cue so the normal adapter reveals identity with its bond skeleton.
+  const structuralAtoms = (ids: readonly string[]): string => {
+    const labels: string[] = [];
+    for (const id of ids) {
+      const entity = c.scene.entities.find(candidate => candidate.id === id);
+      if (!entity?.label) continue;
+      entity.semantic = { ...entity.semantic, labelRequired: true };
+      labels.push(entity.label);
+    }
+    return [...new Set(labels)].join(", ");
+  };
   const bounds = [reactant, product].map(laid => layoutBounds(laid));
   const width = bounds.reduce((sum, b) => sum + b.maxX - b.minX + 0.3, 0) + 4.2;
   const height = Math.max(...bounds.map(b => b.maxY - b.minY)) + 3;
@@ -29,7 +42,8 @@ export function buildOrganicReactionFigure(question: string, model: OrganicReact
   const reagent = model.kind === "radical_hbr" ? "HBr / ROOR" : "Br2/NaOH reagent";
   const arrow = c.arrow("reaction_arrow", { x: arrowStart, y: 0 }, { x: arrowEnd, y: 0 }, "source reagent reaction", reagent);
   c.scene.labelled(...initial.labelledAtomIds, "reactant_name", arrow);
-  c.scene.group("reaction_source", [...initial.ids, arrow], `Source reactant ${model.reactant.name ?? "molecule"}, ${reagent}.`);
+  const reactantAtoms = structuralAtoms(initial.labelledAtomIds);
+  c.scene.group("reaction_source", [...initial.ids, arrow], `${reactantAtoms ? `Atoms ${reactantAtoms} in the source reactant` : "Source reactant"} ${model.reactant.name ?? "molecule"}, ${reagent}.`);
   const productOrigin = { x: arrowEnd + 0.6 - right.minX, y: -(right.minY + right.maxY) / 2 };
   const variable = /^addition product ([A-Z])$/.exec(model.productRole)?.[1];
   const result = renderMolecule(c, product, "product", productOrigin, model.product.name ?? (variable ? `Product ${variable}` : model.productRole), pxPerUnit);
@@ -40,7 +54,8 @@ export function buildOrganicReactionFigure(question: string, model: OrganicReact
     productIds.push(c.text(`stereocentre_${atom}`, { x: at.x + productOrigin.x, y: at.y + productOrigin.y + 0.38 }, "C*", "computed stereocentre"));
     c.scene.labelled(`stereocentre_${atom}`);
   }
-  c.scene.group("computed_product", productIds, `Computed product ${model.product.name ?? model.productRole}; ${model.stereo ? "marked carbon stereocentres" : "retained amine graph"}.`, ["reaction_source"]);
+  const productAtoms = structuralAtoms(result.labelledAtomIds);
+  c.scene.group("computed_product", productIds, `${productAtoms ? `Atoms ${productAtoms} in the computed product` : "Computed product"} ${model.product.name ?? model.productRole}; ${model.stereo ? "marked carbon stereocentres" : "retained amine graph"}.`, ["reaction_source"]);
   const answerY = Math.min(initial.bounds.minY, result.bounds.minY) - 0.7;
   const middle = (result.bounds.minX + result.bounds.maxX) / 2;
   const answerIds: string[] = [];
