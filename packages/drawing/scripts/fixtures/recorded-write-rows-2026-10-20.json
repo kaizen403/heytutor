@@ -1,0 +1,165 @@
+{
+ "source": "Every distinct [WRITE] row in the same recorded lessons (all physics) that typed ASCII math: sqrt(, a product star, atan, arcsin, arccos, or the spoken words square root of and times.",
+ "rows": [
+  {
+   "id": "v1/p4c-t1",
+   "row": "θ = arccos((A·B)/(|A||B|))"
+  },
+  {
+   "id": "v3/p1e1-t1",
+   "row": "d_A = v_A * t_b"
+  },
+  {
+   "id": "v3/p1e1-t1",
+   "row": "d_A = 20 * 30"
+  },
+  {
+   "id": "v3/p2c-t1",
+   "row": "θ = arctan(3/4) ≈ 37°"
+  },
+  {
+   "id": "v3/p2e1-t1",
+   "row": "θ = arcsin(1/2) = 30°"
+  },
+  {
+   "id": "v3/p2e2-t1",
+   "row": "d = v_r * t"
+  },
+  {
+   "id": "v3/p2e2-t1",
+   "row": "d = 2 * 60"
+  },
+  {
+   "id": "v3/p2e2-t1",
+   "row": "check: 2*60 = 120, 4*60 = 240"
+  },
+  {
+   "id": "v3/p3c-t1",
+   "row": "|v_r/m| = sqrt(v_rain^2 + v_man^2)"
+  },
+  {
+   "id": "v3/p3c-t1",
+   "row": "|v_r/m| = sqrt(6^2 + 8^2)"
+  },
+  {
+   "id": "v3/p3c-t2",
+   "row": "v_rel = sqrt(v_r^2 + v_m^2)"
+  },
+  {
+   "id": "v3/p3c-t2",
+   "row": "v_rel = sqrt(6^2 + 8^2)"
+  },
+  {
+   "id": "v3/p3c-t2",
+   "row": "v_rel = sqrt(36 + 64)"
+  },
+  {
+   "id": "v3/p3c-t2",
+   "row": "v_rel = sqrt(100)"
+  },
+  {
+   "id": "v3/p3c-t2",
+   "row": "theta = atan(8/6) = 53.13°"
+  },
+  {
+   "id": "v3/p3e1-t1",
+   "row": "sqrt(3) = 15/v_y"
+  },
+  {
+   "id": "v3/p3e1-t1",
+   "row": "v_y = 15/sqrt(3)"
+  },
+  {
+   "id": "v3/p3e1-t1",
+   "row": "v_y = 5*sqrt(3) = 8.66 km/h"
+  },
+  {
+   "id": "v3/p3e1-t1",
+   "row": "v = sqrt(v_x^2 + v_y^2)"
+  },
+  {
+   "id": "v3/p3e1-t1",
+   "row": "v = sqrt(5^2 + (5*sqrt(3))^2)"
+  },
+  {
+   "id": "v3/p3e1-t1",
+   "row": "v = sqrt(25 + 75)"
+  },
+  {
+   "id": "v3/p3e1-t1",
+   "row": "v = sqrt(100)"
+  },
+  {
+   "id": "v3/p3e1-t1",
+   "row": "tan(theta) = 5/(5*sqrt(3))"
+  },
+  {
+   "id": "v3/p3e1-t1",
+   "row": "tan(theta) = 1/sqrt(3)"
+  },
+  {
+   "id": "v3/p3e1-t1",
+   "row": "check: 10*sin(30) = 5 km/h"
+  },
+  {
+   "id": "v3/p4c-t1",
+   "row": "v_rel = sqrt(v_A^2 + v_B^2)"
+  },
+  {
+   "id": "v3/p4c-t1",
+   "row": "v_rel = sqrt(16+9) = 5 m/s"
+  },
+  {
+   "id": "v3/p4c-t1",
+   "row": "d_min = d0 * v_A / v_rel"
+  },
+  {
+   "id": "v3/p4c-t1",
+   "row": "d_min = 60*4/5 = 48 m"
+  },
+  {
+   "id": "v3/p4c-t1",
+   "row": "t_min = d0 * v_B / v_rel^2"
+  },
+  {
+   "id": "v3/p4e1-t1",
+   "row": "|v_BA| = sqrt(30^2 + 40^2)"
+  },
+  {
+   "id": "v3/p4e1-t1",
+   "row": "|v_BA| = sqrt(2500) = 50 km/h"
+  },
+  {
+   "id": "v3/p4e1-t2",
+   "row": "vrel = sqrt(30^2 + 40^2)"
+  },
+  {
+   "id": "v3/p4e1-t2",
+   "row": "vrel = sqrt(900+1600) = 50 km/h"
+  },
+  {
+   "id": "v3/p4e1-t2",
+   "row": "|r0 x v_BA| = 50 * 30"
+  },
+  {
+   "id": "v3/p4e1-t2",
+   "row": "dmin = (50*30)/50"
+  },
+  {
+   "id": "v3/p4e1-t2",
+   "row": "sqrt(18^2+24^2)=sqrt(900)=30 km"
+  },
+  {
+   "id": "youtube/q05-t1",
+   "row": "s = sqrt(v_x^2 + v_y^2)"
+  },
+  {
+   "id": "youtube/q05-t1",
+   "row": "s_up = sqrt(24^2 + 10^2) = sqrt(676) m/s"
+  },
+  {
+   "id": "youtube/q05-t1",
+   "row": "s_down = sqrt(24^2 + (-10)^2) = 26 m/s (no drag)"
+  }
+ ]
+}
