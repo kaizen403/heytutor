@@ -43,13 +43,13 @@ export function sarvamSpeechText(text: string): string {
       // "2 m g" is the spaced product m g, and "4 m squared" or "6 m times"
       // are still arithmetic; only a quantity that ends here gets a unit word.
       const rest = whole.slice(offset + match.length);
-      if (/^\s+(?:[A-Za-z](?![\p{L}\p{N}_])|(?:times|squared|cubed|over|plus|minus|into|by|divided|per)\b)/u
+      if (/^\s+(?:[A-Za-z](?![\p{L}\p{N}_])|(?:times|squared|cubed|over|plus|minus|into|by|per)\b)/u
         .test(rest)) return match;
-      // A bare m is a mass as often as a meter ("block ka mass 2 m hai"), so
-      // it is a meter only where the quantity visibly ends.
-      if (unit === "m" && !BARE_METER_END.test(rest)) return match;
+      // A bare m names a mass in "block ka mass 2 m hai", so a bare m that a
+      // verb of being follows stays a letter.
+      if (unit === "m" && BARE_MASS_NEXT.test(rest)) return match;
       const words = SPACED_UNIT_WORDS[unit]!;
-      return `${value} ${Number(value) === 1 ? words[0] : words[1]}`;
+      return `${value} ${Number(value.replace(/,/g, "")) === 1 ? words[0] : words[1]}`;
     })
     .replace(ORDINAL, (_match, digits: string) => ordinalWords(digits))
     .replace(CLOCK_TIME, (_match, hours: string, minutes: string) =>
@@ -92,11 +92,32 @@ const SPACED_UNIT_WORDS: Record<string, [string, string]> = {
   W: ["watt", "watts"], Hz: ["hertz", "hertz"], Pa: ["pascal", "pascals"],
 };
 const SPACED_UNIT = new RegExp(
-  `(?<![\\p{L}\\p{N}_.,])(\\d+(?:\\.\\d+)?)[ \\t]+(${Object.keys(SPACED_UNIT_WORDS).join("|")})(?![\\p{L}\\p{N}_/^²³'′])`,
+  // "1,000 m" is one number. Without the grouped form the lookbehind refused
+  // the "000" and the whole quantity kept its letter.
+  `(?<![\\p{L}\\p{N}_.,])(\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?|\\d+(?:\\.\\d+)?)[ \\t]+(${Object.keys(SPACED_UNIT_WORDS).join("|")})(?![\\p{L}\\p{N}_/^²³'′])`,
   "gu",
 );
-/** Where a bare m ends its quantity: a comma, a full stop (or ।), the end, or a postposition. */
-const BARE_METER_END = /^(?:[,.।]|\s*$|\s+(?:se|me|ka|ki|ko|से|में|का|की|को)(?![\p{L}\p{M}\p{N}_]))/u;
+/**
+ * A bare m after a number is a meter wherever its quantity ends, and the
+ * quantity ends at anything that does not continue it. A product continues
+ * with a letter or an arithmetic word (checked above), and a verb of being
+ * makes the m the thing described: "block ka mass 2 m hai" is a mass.
+ *
+ * This used to be the other way round: a meter only before a comma, a full
+ * stop, the end, or se, me, ka, ki, ko. On 20 Oct 2026 that missed 28 spoken
+ * quantities in 18 recorded lessons, and the reason was the board, not the
+ * words. The teaching model reads a figure label aloud and points at it,
+ * "x=40 m [FOCUS:B] turnaround position", so the label's quantity ends at
+ * the pointing tag. Speech never sees the tag, only "40 m turnaround
+ * position", and the voice said "forty m". The rest were a semicolon, a
+ * colon, a closing bracket, English prepositions ("75 m above the ground")
+ * and directions ("240 m east"). Across every stored lesson and lab corpus
+ * a spaced number before a bare m was a length thousands of times and a mass
+ * not once: a product is written glued (`2m`), and mathToSpeech keeps that
+ * glue as a no-break space, which this rule never matches.
+ */
+const BARE_MASS_NEXT =
+  /^\s+(?:hai|hain|tha|thi|ho|hoga|hogi|hota|hoti|hote|है|हैं|था|थी|थे|हो|होगा|होगी|होता|होती|होते|is|are|was|were|equals)(?![\p{L}\p{M}\p{N}_])/u;
 const ORDINAL = /\b(\d+)(?:st|nd|rd|th)\b/gi;
 const CLOCK_TIME = /\b(\d{1,2}):([0-5]\d)\b/g;
 const NUMBER = /\.?\d[\d,]*(?:\.\d+)?/g;
