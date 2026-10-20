@@ -6,7 +6,7 @@ import {
   type SceneDocument,
   type SceneEntity,
 } from "../../types";
-import { FLOOR_FIGURE_VERSION, type FloorFacts, type FloorObject, type FloorStatedValue } from "../facts";
+import { FLOOR_FIGURE_VERSION, type FloorFacts, type FloorObject } from "../facts";
 
 export interface FloorGroup {
   id: string;
@@ -47,30 +47,9 @@ export function point(id: string, x: number, y: number): SceneConstruction {
   return { id: `place_${id}`, operator: "point", inputs: { x, y, coordinateSpace: "world" }, outputs: [id] };
 }
 
-/** "R = 4.7 kΩ" for a stated value; a bare spelling when the symbol already shows. */
-export function valueLabel(value: FloorStatedValue): string {
-  return `${value.symbol} = ${value.valueText}`;
-}
-
 /** A supplemental value label beside an entity whose own label is a source name. */
 export function appendLabel(id: string, target: string, text: string): SceneAnnotation {
   return { id, kind: "label", targetIds: [target], text, labelMode: "append" };
-}
-
-/** Unit dimension of a plan unit, for matching stated values to the parts they belong to. */
-export function unitDimension(unit: string | undefined): "resistance" | "voltage" | "current" | "capacitance" | "inductance" | "length" | "angle" | "mass" | "charge" | "other" | "none" {
-  const text = (unit ?? "").trim();
-  if (!text || text === "1") return "none";
-  if (/^(?:[kMm]?Ω|[kM]?ohms?)$/i.test(text) || /^[kM]?ohm$/i.test(text)) return "resistance";
-  if (/^(?:[kmµμ]?V|volts?)$/.test(text)) return "voltage";
-  if (/^(?:[mµμ]?A|amps?|amperes?)$/.test(text)) return "current";
-  if (/^(?:[mµμnp]?F|farads?)$/.test(text)) return "capacitance";
-  if (/^(?:[mµμ]?H|henr(?:y|ies))$/.test(text)) return "inductance";
-  if (/^(?:[kcm]?m|metres?|meters?)$/.test(text)) return "length";
-  if (/^(?:deg|degrees?|°|rad|radians?)$/i.test(text)) return "angle";
-  if (/^(?:[km]?g|kilograms?|grams?)$/.test(text)) return "mass";
-  if (/^(?:[mµμnp]?C|coulombs?)$/.test(text)) return "charge";
-  return "other";
 }
 
 /** The document envelope every floor kind shares: source, tier, stated quantities, staged reveal. */

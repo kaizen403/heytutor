@@ -10,6 +10,7 @@
  * today, with no figure.
  */
 import { compileSceneDocument } from "../compile/compiler";
+import { prepareVerifiedParts } from "../compile/verifiedParts";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../document/validation";
 import { demandRejection, sceneDemand } from "../synthesize/sceneDemand";
 import { deriveVisualObligations, isFullProblemIRStructure, visualObligationRejection, type VisualObligationSet } from "../synthesize/visualObligations";
@@ -19,7 +20,8 @@ import { readFloorFacts, type FloorFacts } from "./facts";
 import { FLOOR_KIND_BUILDERS, floorKindOrder, type FloorKind } from "./kinds";
 
 export { readFloorFacts, FLOOR_FIGURE_VERSION, type FloorFacts, type FloorStatedValue, type FloorUnknown, type FloorObject } from "./facts";
-export { auditFloorFigure, floorAllowedTexts, type FloorAuditIssue } from "./audit";
+export { auditFloorFigure, allowedTextsFor, type FloorAuditIssue } from "./audit";
+export { readFloorBindings, type FloorBinding } from "./bindings";
 export type { FloorKind } from "./kinds";
 
 /** DIAGRAM_FLOOR_FIGURE: only the exact value "on" enables the floor tier; anything else is off. */
@@ -90,7 +92,7 @@ export function buildFloorFigure(input: FloorFigureInput): FloorFigureResult {
   if (!facts) return { figure: null, attempts };
   const demand = sceneDemand(facts.question, facts.problem);
   const obligations = isFullProblemIRStructure(facts.problem) ? floorObligations(deriveVisualObligations(facts.problem), facts.question, facts.problem) : null;
-  for (const kind of floorKindOrder(facts, input.families ?? [])) {
+  for (const kind of floorKindOrder(facts)) {
     let built: ReturnType<(typeof FLOOR_KIND_BUILDERS)[FloorKind]>;
     try {
       built = FLOOR_KIND_BUILDERS[kind](facts);
@@ -120,7 +122,14 @@ export function buildFloorFigure(input: FloorFigureInput): FloorFigureResult {
       attempts.push({ kind, outcome: "invalid", reason: "visual obligations unmet" });
       continue;
     }
-    const audit = auditFloorFigure(compiled.document, compiled.renderScene, facts, built);
+    // The verified-parts truth checks must accept the figure untouched: a label
+    // they would omit (nearer another part than its own) refuses the figure.
+    const truth = prepareVerifiedParts(compiled.document, { enabled: true });
+    if (truth.issues.length > 0) {
+      attempts.push({ kind, outcome: "invalid", reason: `truth checks would trim it: ${truth.issues.map((issue) => issue.expected ?? issue.code).join(", ")}` });
+      continue;
+    }
+    const audit = auditFloorFigure(compiled.document, compiled.renderScene, facts);
     if (audit.length > 0) {
       attempts.push({ kind, outcome: "invalid", reason: audit.map((issue) => `${issue.code}: ${issue.message}`).join("; ") });
       continue;

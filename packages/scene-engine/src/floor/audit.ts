@@ -1,112 +1,111 @@
 /**
- * The floor's own honesty audit, run on the compiled render after every other
- * engine check passed. It does not trust the builder: the allowed texts are
- * recomputed from the stated facts, so a builder bug that writes a solved or
- * invented number, or draws analysis ink its kind does not allow, refuses the
- * whole figure.
+ * The floor's binding audit, run on the compiled render after every other
+ * engine check passed. It does not trust the builder. For each rendered text
+ * it recomputes, from ProblemIR alone, which texts that exact element may
+ * carry: its own ProblemIR name, the values bound to it through a shared
+ * evidence fact (spelled as the question writes them), a "?" bound to it by a
+ * solve request, or, for a plotted curve, the question's own spelling of the
+ * equation bound to it. A value on the wrong part, an invented or solved
+ * number, a name the question does not use, or any arrow refuses the whole
+ * figure.
  */
+import type { ExpressionNodeIR } from "../ir/problemIR";
 import type { RenderScene, SceneDocument } from "../types";
+import { readFloorBindings } from "./bindings";
 import { FLOOR_FIGURE_VERSION, flattenText, type FloorFacts } from "./facts";
-import { statedInQuestion } from "./statedText";
+import { boundEquationSpellings } from "./statedText";
 
 export interface FloorAuditIssue {
   code: string;
   message: string;
 }
 
-export interface FloorAuditAllowance {
-  /** Digit-free names the kind writes (axis names, element names); each is checked again here. */
-  names: readonly string[];
-  /** Primitive kinds that carry direction; only a kind that draws a stated direction may use them. */
-  directedInk: boolean;
-}
-
-/** Every label text the stated facts allow, normalised for comparison. */
-export function floorAllowedTexts(facts: FloorFacts, names: readonly string[]): Set<string> {
-  const allowed = new Set<string>();
-  const add = (text: string) => allowed.add(normaliseLabel(text));
-  for (const value of facts.values) {
-    add(value.valueText);
-    add(`${value.symbol} = ${value.valueText}`);
-    add(value.symbol);
-  }
-  for (const unknown of facts.unknowns) {
-    add(`${unknown.symbol} = ?`);
-    add(unknown.symbol);
-  }
-  for (const object of facts.objects) if (object.name) add(object.name);
-  for (const name of names) if (digitFree(name)) add(name);
-  // A stated value appended to its own stated name renders as one text ("R 20 Ω"):
-  // the name is the value's symbol, or the question's span for the value names it.
-  const key = (text: string) => text.toLowerCase().replace(/[\s_₀-₉0-9]+/g, "");
-  const owners = [...facts.objects.flatMap((object) => object.name ? [object.name] : []), ...names.filter(digitFree)];
-  for (const owner of owners) {
-    for (const value of facts.values) {
-      if (key(owner) === key(value.symbol) || value.context.toLowerCase().includes(owner.toLowerCase())) add(`${owner} ${value.valueText}`);
-    }
-  }
-  return allowed;
-}
-
 export function normaliseLabel(text: string): string {
   return text.replace(/\s+/g, " ").replace(/\s*=\s*/g, " = ").trim();
 }
 
-function digitFree(text: string): boolean {
-  return !/[0-9]/.test(text);
+/** Asked values a solve request binds to a node or a branch: "V_m = ?". */
+export function boundUnknownTexts(facts: FloorFacts, entityId: string): string[] {
+  const problem = facts.problem;
+  if (!problem) return [];
+  return problem.solveRequests.flatMap((request) => {
+    if (request.kind !== "dc_network" || request.output.id !== entityId || !request.resultBinding) return [];
+    const unknown = facts.plan.unknowns.find((candidate) => candidate.id === request.resultBinding!.turnPlanQuantityId);
+    return unknown ? [`${unknown.symbol} = ?`] : [];
+  });
 }
 
-/** Digits a label may carry: only those inside a stated value spelling or a symbol subscript. */
-function statedDigitsOnly(text: string, facts: FloorFacts): boolean {
-  let rest = normaliseLabel(text);
-  for (const value of [...facts.values].sort((a, b) => b.valueText.length - a.valueText.length)) {
-    rest = rest.split(normaliseLabel(value.valueText)).join(" ");
+/** Every text the stated facts let one ProblemIR entity carry. */
+export function allowedTextsFor(facts: FloorFacts, entityId: string): Set<string> {
+  const allowed = new Set<string>();
+  const add = (text: string) => allowed.add(normaliseLabel(text));
+  const object = facts.objects.find((candidate) => candidate.id === entityId);
+  if (object?.name) add(object.name);
+  for (const binding of readFloorBindings(facts)) {
+    if (!binding.entityIds.includes(entityId)) continue;
+    add(binding.valueText);
+    if (object?.name) add(`${object.name} ${binding.valueText}`);
+    if (binding.quantity) add(`${binding.quantity.symbol} = ${binding.valueText}`);
   }
-  for (const symbol of [...facts.values.map((value) => value.symbol), ...facts.unknowns.map((unknown) => unknown.symbol)]) {
-    rest = rest.split(symbol).join(" ");
+  for (const text of boundUnknownTexts(facts, entityId)) {
+    add(text);
+    if (object?.name) add(`${object.name} ${text}`);
   }
-  return digitFree(rest);
+  for (const spelling of boundEquationSpellings(facts, entityId)) add(spelling);
+  return allowed;
+}
+
+export function freeVariables(root: ExpressionNodeIR): string[] {
+  switch (root.kind) {
+    case "variable": return [root.name];
+    case "unary": return freeVariables(root.operand);
+    case "binary": return [...freeVariables(root.left), ...freeVariables(root.right)];
+    case "call": return freeVariables(root.argument);
+    default: return [];
+  }
 }
 
 export function auditFloorFigure(
   document: SceneDocument,
   render: RenderScene,
   facts: FloorFacts,
-  allowance: FloorAuditAllowance,
 ): FloorAuditIssue[] {
   const issues: FloorAuditIssue[] = [];
   const source = document.source as Record<string, unknown>;
-  if (source.floorFigure !== FLOOR_FIGURE_VERSION) {
-    issues.push({ code: "floor_version", message: "the document is not a floor figure" });
-  }
+  if (source.floorFigure !== FLOOR_FIGURE_VERSION) issues.push({ code: "floor_version", message: "the document is not a floor figure" });
   if (typeof source.question !== "string" || flattenText(source.question) !== flattenText(facts.question)) {
     issues.push({ code: "floor_question", message: "the floor figure was built for a different question" });
   }
   if (source.representationTier !== "question_representation" || source.nonMetric !== true) {
     issues.push({ code: "floor_tier", message: "a floor figure is a nonmetric question representation" });
   }
+  if (!facts.problem) issues.push({ code: "floor_without_structure", message: "a floor figure needs a ProblemIR for this question" });
   if (document.quantities.some((quantity) => typeof quantity.value === "number" &&
       !facts.values.some((value) => value.quantityId === quantity.id && value.value === quantity.value))) {
     issues.push({ code: "floor_unstated_quantity", message: "a floor quantity is not a stated given" });
   }
-  const allowed = floorAllowedTexts(facts, allowance.names);
-  for (const primitive of render.primitives) {
-    if ((primitive.kind === "label" || primitive.kind === "dimension") && typeof primitive.text === "string") {
-      const text = normaliseLabel(primitive.text);
-      if (!text) continue;
-      const fromFacts = allowed.has(text) && statedDigitsOnly(text, facts);
-      if (!fromFacts && !statedInQuestion(text, facts.question)) {
-        issues.push({ code: "floor_unstated_text", message: `"${text}" is not a stated value, unknown or name` });
-      }
-    }
-    if (!allowance.directedInk && (primitive.kind === "vector" || primitive.kind === "ray")) {
-      issues.push({ code: "floor_analysis_ink", message: `${primitive.kind} ink on ${primitive.entityId} draws analysis the floor never draws` });
-    }
-  }
+  const entities = new Map(document.entities.map((entity) => [entity.id, entity]));
   for (const entity of document.entities) {
     const provenance = entity.provenance as Record<string, unknown> | undefined;
-    if (!provenance || provenance.floor !== true) {
-      issues.push({ code: "floor_unsourced_entity", message: `${entity.id} carries no floor provenance` });
+    if (!provenance || provenance.floor !== true) issues.push({ code: "floor_unsourced_entity", message: `${entity.id} carries no floor provenance` });
+  }
+  const axisNames = new Set(facts.problem?.expressions.flatMap((expression) =>
+    expression.valueType === "function" ? freeVariables(expression.root) : []) ?? []);
+  for (const primitive of render.primitives) {
+    if (primitive.kind === "vector" || primitive.kind === "ray") {
+      issues.push({ code: "floor_analysis_ink", message: `${primitive.kind} ink on ${primitive.entityId}: the floor draws no arrow` });
+      continue;
+    }
+    if ((primitive.kind !== "label" && primitive.kind !== "dimension") || typeof primitive.text !== "string") continue;
+    const text = normaliseLabel(primitive.text);
+    if (!text) continue;
+    const owner = entities.get(primitive.entityId);
+    const provenance = (owner?.provenance ?? {}) as Record<string, unknown>;
+    const allowed = typeof provenance.objectId === "string" ? allowedTextsFor(facts, provenance.objectId)
+      : provenance.role === "axis_name" && typeof provenance.axisName === "string" && axisNames.has(provenance.axisName)
+        ? new Set([provenance.axisName]) : new Set<string>();
+    if (!allowed.has(text)) {
+      issues.push({ code: "floor_unbound_text", message: `"${text}" is not bound to ${String(provenance.objectId ?? primitive.entityId)} by the ProblemIR` });
     }
   }
   return issues;

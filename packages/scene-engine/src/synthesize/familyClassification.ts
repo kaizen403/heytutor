@@ -485,6 +485,26 @@ export interface CircuitTopology {
  * a two-loop Kirchhoff/Wheatstone network is told apart from a plain resistor
  * chain without an English override regex.
  */
+/** Independent loops of a network whose every component joins exactly two stated node points, else null. */
+function statedNodeLoopCount(problemIR: ProblemStructureView, pointIds: ReadonlySet<string>): number | null {
+  const components = (problemIR.entities ?? []).filter((entity) => entity.kind === "component")
+    .map((entity) => (entity as { id?: string }).id).filter((id): id is string => typeof id === "string");
+  if (components.length === 0) return null;
+  const edges: Array<[string, string]> = [];
+  for (const component of components) {
+    const joins = (problemIR.constraints ?? []).filter((constraint) => constraint.kind === "connected" && constraint.entityIds?.includes(component));
+    const ends = joins.length === 1 ? (joins[0]!.entityIds ?? []).filter((id) => id !== component) : [];
+    if (ends.length !== 2 || !ends.every((id) => pointIds.has(id)) || ends[0] === ends[1]) return null;
+    edges.push([ends[0]!, ends[1]!]);
+  }
+  const parent = new Map<string, string>();
+  const find = (node: string): string => { const up = parent.get(node) ?? node; if (up === node) return node; const root = find(up); parent.set(node, root); return root; };
+  const nodes = new Set(edges.flat());
+  for (const [a, b] of edges) parent.set(find(a), find(b));
+  const parts = new Set([...nodes].map(find)).size;
+  return edges.length - nodes.size + parts;
+}
+
 export function circuitTopologyFromProblemStructure(
   problemIR?: ProblemStructureView | null,
 ): CircuitTopology | null {
@@ -504,11 +524,19 @@ export function circuitTopologyFromProblemStructure(
       connectedDegree.set(entityId, (connectedDegree.get(entityId) ?? 0) + 1);
     }
   }
-  const junctions = [...connectedDegree.values()].filter((degree) => degree >= 2).length;
+  // A stated node point that joins only two parts is a bend in one path, not a
+  // junction; a node is a junction when three or more parts meet there.
+  const pointIds = new Set(entities.filter((entity) => entity.kind === "point")
+    .map((entity) => (entity as { id?: string }).id).filter((id): id is string => typeof id === "string"));
+  const junctions = [...connectedDegree].filter(([id, degree]) => degree >= (pointIds.has(id) ? 3 : 2)).length;
   const branches = components.length;
-  // Two voltage sources driving a shared branch (Kirchhoff), or a five-plus
-  // branch bridge (Wheatstone), or an explicitly connected multi-junction net.
-  const twoLoop = (sources >= 2 && branches >= 3)
+  // When every component is joined to exactly two stated node points, the
+  // number of independent loops is exact: branches - nodes + connected parts.
+  const nodeLoops = statedNodeLoopCount(problemIR, pointIds);
+  // Otherwise: two voltage sources driving a shared branch (Kirchhoff), or a
+  // five-plus branch bridge (Wheatstone), or an explicitly connected
+  // multi-junction net.
+  const twoLoop = nodeLoops !== null ? nodeLoops >= 2 : (sources >= 2 && branches >= 3)
     || branches >= 5
     || (networkIntent && junctions >= 2 && branches >= 3);
   return { sources, branches, junctions, twoLoop };
