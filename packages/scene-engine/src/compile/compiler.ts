@@ -5068,6 +5068,11 @@ function routePortGraph(document: SceneDocument, geometry: Map<string, Geometry>
                     break;
             }
         }
+        // Correspondence marks are appended after geometry primitives in the
+        // final render. Plan against those exact marks now too: otherwise the
+        // final ink check can reject a wire that still has a valid detour.
+        const correspondingTicks: RenderPrimitive[] = [];
+        appendCorrespondingTickPrimitives(document, geometry, correspondingTicks, entityToGroup, plan, constructionOnlyIds);
         const pending = new Set(connectors.map(c => c.outputs[0]!));
         for (const construction of connectors) {
             const id = construction.outputs[0]!;
@@ -5093,6 +5098,13 @@ function routePortGraph(document: SceneDocument, geometry: Map<string, Geometry>
                         for (const points of connectorInkPaths(primitive))
                             obstacles.push({ points, contacts });
                     }
+                }
+                for (const primitive of correspondingTicks) {
+                    if (primitive.entityId === id || (panels && panelById.get(primitive.entityId) !== panelById.get(id)))
+                        continue;
+                    const contacts = connectorContacts(endpoints, [screenStart, screenEnd], owners.get(primitive.entityId), primitive, wireNets, geometry, plan.transformFor(primitive.entityId));
+                    for (const points of connectorInkPaths(primitive))
+                        obstacles.push({ points, contacts });
                 }
                 const original = preferred.get(id);
                 const current = geometry.get(id);

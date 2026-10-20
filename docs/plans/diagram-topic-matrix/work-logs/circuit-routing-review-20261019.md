@@ -1,10 +1,43 @@
 # Circuit routing review fixes — 19 October 2026
 
-**FIX FIRST — one original right-figure oracle remains rejected.**
+**DRAFT REQUIRED — one original right-figure oracle remains rejected.**
 
 Owner: Sentry/circuit lane. Review update to PR #212. Retry feedback and topology
 inference moved to PR #215, independently based on main. This update contains
 router review fixes only. Frozen replay baseline: main `6ca8b616a`. $0; no merge or production change.
+
+## Final open review item — 20 October 2026
+
+Automatic equal-length ticks were added after connector routing. The final ink
+check correctly refused a wire crossing those marks, but the router had never
+seen them and could not choose an available detour. Each routing pass now uses
+the same corresponding-tick primitive generator and transform as the final
+render. Panel isolation, logical contacts, 6px clearance and final ink validation
+remain enforced.
+
+An owned synthetic gate covers 12 scale, mirror and rotation variants (96
+checks): the plain circuit compiles, both correspondence marks stay visible,
+the wire reroutes with independently measured 6px clearance, exact terminals
+are retained, and the logical input stays unchanged. It reproduces the late-ink
+refusal before the fix. A mutation that removes the preview marks restores
+that refusal and is caught by this gate; the mutation was reverted. The existing
+2,731-check routing gate, all 31 space-view
+gates (including G15), typecheck and lint pass.
+
+The final replay recompiles all 1,709 candidates on this source. Every status
+and complete render hash is identical to the prior corrected router, so the
+existing blind judgments remain applicable without a new image judgment. The
+original oracle is still 14/15 recovered overall and 8/9 recovered among the
+originally production-admissible right figures. One right loss and two
+production-admissible wrong gains remain. The open mark review item is fixed;
+the PR does not meet its acceptance condition and must stay draft.
+
+A separate replay against current main `565cb178` preserves all 1,709 baseline
+compile statuses and fatal codes, with 1,245 draws. Its complete renders differ
+from the frozen baseline in 468 cases, including label placements. Against
+current main the branch comparison is 1189 identical, 492 changed, 6 gained
+and 22 lost. The historical blind scores below are explicitly frozen-baseline
+scores, not a new visual acceptance claim against current main.
 
 ## Review causes and changes
 
