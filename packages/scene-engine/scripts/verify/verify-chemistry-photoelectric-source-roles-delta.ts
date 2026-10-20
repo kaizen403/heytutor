@@ -1,5 +1,6 @@
 /** Reviewed source/surface roles, elliptical samples and pure drawing requests. */
 import assert from "node:assert/strict";
+import { assertPhysicsEnergy } from "../lib/assertPhotoelectricPhysics";
 import { writeFileSync } from "node:fs";
 import "../../src/chemistry/families";
 import { buildAtomicRadiationScene } from "../../src/chemistry/atomicRadiation";
@@ -8,6 +9,8 @@ import { synthesizeFamilyScene, synthesizeLastResortScene } from "../../src/synt
 import type { SceneDocument } from "../../src/types";
 import fixtures from "./fixtures/chemistry-photoelectric-source-roles-delta.json";
 import analyticFixtures from "./fixtures/chemistry-analytic-fallback-completeness.json";
+
+const atomicRows = new Set(["P01", "P02", "eval-hydrogen-discharge-q4", "transfer-helium-atom", "positive-source-from-no-attribute"]);
 const results: Array<{id:string;passed:boolean;error?:string;document:SceneDocument|null;compiled:ReturnType<typeof compileSceneDocument>|null}>=[];
 for (const row of fixtures) for (const path of ["direct","schematic","ordinary","lastResort"] as const) {
   let document:SceneDocument|null=null,compiled:ReturnType<typeof compileSceneDocument>|null=null;
@@ -18,13 +21,19 @@ for (const row of fixtures) for (const path of ["direct","schematic","ordinary",
     assert.equal(Boolean(document),row.draw,`${row.id} source oracle stays ${row.draw?"draw":"decline"}`);
     if (document) {
       compiled=compileSceneDocument(document);assert.ok(compiled.ok&&compiled.renderScene,JSON.stringify(compiled.report.issues));
-      assert.equal(document.source.question,row.question);assert.equal(document.source.chemistryFamily,"chem_orbital");
+      assert.equal(document.source.question,row.question);
       const labels=compiled.renderScene.primitives.flatMap(primitive=>primitive.text?[primitive.text]:[]);
       assert.ok("phiEv" in row && "photonEv" in row);
-      for(const [symbol,value] of [["phi",row.phiEv!],["E",row.photonEv!],["K",row.photonEv!-row.phiEv!]] as const) {
-        const printed=labels.map(text=>new RegExp(`^${symbol}=([+\\-]?[0-9]+(?:\\.[0-9]+)?) eV$`).exec(text)).find(Boolean);
-        assert.ok(printed,`${row.id} missing physical ${symbol} label`);
-        assert.ok(Math.abs(Number(printed[1])-value)<=0.005,`${row.id} ${symbol} must agree with the independent physical value ${value}`);
+      if ((path === "ordinary" || path === "lastResort") && !atomicRows.has(row.id)) {
+        assert.ok(result && "family" in result && result.family === "energy_level");
+        assertPhysicsEnergy(document, labels, row.phiEv!, row.photonEv!, row.photonEv! - row.phiEv!, true);
+      } else {
+        assert.equal(document.source.chemistryFamily,"chem_orbital");
+        for(const [symbol,value] of [["phi",row.phiEv!],["E",row.photonEv!],["K",row.photonEv!-row.phiEv!]] as const) {
+          const printed=labels.map(text=>new RegExp(`^${symbol}=([+\\-]?[0-9]+(?:\\.[0-9]+)?) eV$`).exec(text)).find(Boolean);
+          assert.ok(printed,`${row.id} missing physical ${symbol} label`);
+          assert.ok(Math.abs(Number(printed[1])-value)<=0.005,`${row.id} ${symbol} must agree with the independent physical value ${value}`);
+        }
       }
     }
     results.push({id:`${row.id}/${path}`,passed:true,document,compiled});

@@ -4,9 +4,12 @@
  * uses the engine's refract_at / surface_contact / refract_direction chain so
  * Snell's law is asserted, never approximated.
  */
-import { multiplePhotoelectricSurfaces, restoredPhotoelectricInputsValid } from "../../physics/photoelectricSurfaces";
+import { multiplePhotoelectricSurfaces, restoredPhotoelectricInputsValid, sourcePhotoelectricSurfaceScopeHolds } from "../../physics/photoelectricSurfaces";
 import { photonEnergyEvFromWavelengthMetres } from "../../physics/photonEnergy";
 import { evaluateOpticsLaw } from "../../physics/opticsLaws";
+import { chemistryCanonicalValuesAgree } from "../../chemistry/quantityReader";
+import { readRadiationSource } from "../../physics/radiationSource";
+import { readApertureSource } from "../../physics/apparatusSource";
 import { sagOf } from "../../compile/opticsSurfaces";
 import { DEG, SceneBuilder, fmt, withUnit, type Vec2 } from "../document";
 import { angleLabel, valueLabel, derivedLabel, grounded, maybeNum, num, text, type GeneratorContext, type GeneratorTable } from "./context";
@@ -323,6 +326,8 @@ function prism(context: GeneratorContext) {
 }
 
 function doubleSlit(context: GeneratorContext) {
+  const source = readApertureSource(context.question);
+  if (!source || source.kind !== "double_slit") return null;
   const d = maybeNum(context, "d");
   const D = maybeNum(context, "D");
   const lambda = maybeNum(context, "lambda");
@@ -372,38 +377,93 @@ function doubleSlit(context: GeneratorContext) {
   return scene.build();
 }
 
-/** Photon energy in eV for a wavelength in nm. Switch to #181's shared
- * converter (photonEnergyEvFromWavelengthMetres) once it is on main. */
+/** Use the same SI conversion as the source-bound chemistry figure. */
 function photonFromLambda(lambdaNm: number): number {
-  return 1240 / lambdaNm;
+  return photonEnergyEvFromWavelengthMetres(lambdaNm * 1e-9);
 }
 
 function photoelectric(context: GeneratorContext) {
   if (multiplePhotoelectricSurfaces(context.question)) return null;
-  const phi = maybeNum(context, "workFunction");
-  const lambda = maybeNum(context, "lambda");
-  const photon = maybeNum(context, "photonEnergy") ?? (lambda !== null ? photonEnergyEvFromWavelengthMetres(lambda * 1e-9) : null);
-  if (!restoredPhotoelectricInputsValid(context.question,phi,photon)) return null;
+  const source = readRadiationSource(context.question);
+  if (source.status === "declined") return null;
+  if (source.status === "symbolic" && source.missing === "unused_planck_constant") {
+    // These coordinates are a symbolic partition, never physical energies.
+    // In particular no caller/planner slot may turn this into a numeric model.
+    const scene = new SceneBuilder(context.question, "symbolic photoelectric energy relation; not to scale", "photoelectric");
+    scene.point("axis_base", { x: -0.5, y: 0 }, "symbolic axis base");
+    scene.vector("energy_axis", "axis_base", { direction: { x: 0, y: 1 }, length: 3.2 }, "energy axis", "E");
+    scene.point("zero", { x: 0, y: 0 }, "symbolic energy origin");
+    scene.point("phi_top", { x: 0, y: 2 }, "symbolic work function", "φ");
+    scene.point("E_top", { x: 0, y: 3 }, "symbolic photon energy", "hν");
+    scene.point("phi_end", { x: 3, y: 2 }, "symbolic work level end");
+    scene.point("E_end", { x: 3, y: 3 }, "symbolic photon level end");
+    scene.segment("phi_level", "phi_top", "phi_end", "work-function level");
+    scene.segment("E_level", "E_top", "E_end", "photon-energy level");
+    scene.point("work_base", { x: 1, y: 0 }, "symbolic work base");
+    scene.point("work_tip", { x: 1, y: 2 }, "symbolic work tip");
+    scene.vector("work", "work_base", { end: "work_tip" }, "work function", "φ");
+    scene.point("k_base", { x: 2, y: 2 }, "symbolic kinetic base");
+    scene.point("k_tip", { x: 2, y: 3 }, "symbolic kinetic tip");
+    scene.vector("kinetic", "k_base", { end: "k_tip" }, "symbolic kinetic energy", "K");
+    scene.point("symbolic_qualification", { x: 1.5, y: 3.6 }, "conditional symbolic relation", "if hν > φ");
+    scene.point("symbolic_scale", { x: 1.5, y: 4 }, "symbolic display scale", "not to scale");
+    scene.assert("symbolic_levels_parallel", "parallel", ["phi_level", "E_level"]);
+    scene.group("symbolic_balance", scene.entities.map(entity => entity.id), "if hν > φ. not to scale. hν. φ. K.");
+    const document = scene.build(); document.source.nonMetric = true; return document;
+  }
+  const model = source.status === "source" && source.model.kind === "photoelectric" ? source.model : null;
+  if (model && model.question !== context.question) return null;
+  const symbolic = source.status === "symbolic" ? source : null;
+  const symbolicWork = symbolic?.missing === "work_function" ? symbolic : null;
+  const symbolicThreshold = source.status === "symbolic" && source.missing === "incident_photon" ? source : null;
+  const phi = model?.workFunctionEV ?? symbolicThreshold?.workFunctionEV ?? (symbolic ? null : maybeNum(context, "workFunction"));
+  const lambda = symbolic ? null : maybeNum(context, "lambda");
+  const photon = model?.photonEnergyEV ?? (symbolicWork ? symbolicWork.photonEnergyEV
+    : symbolic ? null : maybeNum(context, "photonEnergy") ?? (lambda !== null ? photonFromLambda(lambda) : null));
+  const givenKinetic = model?.givenKineticEV ?? symbolicWork?.givenKineticEV ?? null;
+  const stopping = model?.stoppingPotentialV ?? symbolicWork?.stoppingPotentialV ?? null;
+  if (model && !sourcePhotoelectricSurfaceScopeHolds(context.question, false)) {
+    // Newly restored sample scopes must keep caller slots on the same source.
+    const suppliedPhi = maybeNum(context, "workFunction");
+    const suppliedPhoton = maybeNum(context, "photonEnergy");
+    const incidentWavelength = model.bindings.find(binding => binding.role === "incident photon wavelength");
+    if (suppliedPhi !== null && !chemistryCanonicalValuesAgree(suppliedPhi, model.workFunctionEV)
+      || suppliedPhoton !== null && !chemistryCanonicalValuesAgree(suppliedPhoton, model.photonEnergyEV)
+      || lambda !== null && incidentWavelength && !chemistryCanonicalValuesAgree(lambda * 1e-9, incidentWavelength.reading.value)) return null;
+  }
+  if (!model && !symbolic && !restoredPhotoelectricInputsValid(context.question, phi, photon)) return null;
+
   const phiValue = phi ?? 2;
   // #181 owns the shared photon conversion and surface guards above; this
   // reader only decides which energies the question states.
-  const phiGiven = phi !== null && grounded(context, "workFunction");
-  const directPhoton = maybeNum(context, "photonEnergy");
+  const phiGiven = model !== null || symbolicThreshold !== null || !symbolic && phi !== null && grounded(context, "workFunction");
+  const directPhoton = symbolic ? null : maybeNum(context, "photonEnergy");
   const lambdaPhoton = lambda !== null ? photonFromLambda(lambda) : null;
-  const conflictingPhoton = context.slots.photonEnergyUnresolved === "conflicting" || directPhoton !== null && lambdaPhoton !== null
+  const conflictingPhoton = !model && !symbolic && (context.slots.photonEnergyUnresolved === "conflicting" || directPhoton !== null && lambdaPhoton !== null
     && grounded(context, "photonEnergy") && grounded(context, "lambda")
-    && Math.abs(directPhoton - lambdaPhoton) > 1e-6 * Math.max(1, Math.abs(directPhoton), Math.abs(lambdaPhoton));
-  const photonGiven = !conflictingPhoton && ((directPhoton !== null && grounded(context, "photonEnergy")) || (lambda !== null && grounded(context, "lambda")));
+    && Math.abs(directPhoton - lambdaPhoton) > 1e-6 * Math.max(1, Math.abs(directPhoton), Math.abs(lambdaPhoton)));
+  const photonGiven = symbolicWork?.photonEnergyEV !== null && symbolicWork?.photonEnergyEV !== undefined || !symbolic && (model !== null || !conflictingPhoton && ((directPhoton !== null && grounded(context, "photonEnergy")) || (lambda !== null && grounded(context, "lambda"))));
   // Unknown work function is a schematic level below the incident energy,
   // never an assumed physical threshold that can veto a sourced photon.
-  const phiLevel = phiGiven ? phiValue : photonGiven ? photon! * 2 / 3 : phiValue;
-  const photonValue = photonGiven ? photon! : Math.max(phiLevel * 1.5, phiLevel + 1);
-  if (phiGiven && photonGiven && photonValue <= phiLevel) return null;
+  const phiLevel = phiGiven ? phiValue : photonGiven ? givenKinetic !== null ? photon! - givenKinetic : photon! * 2 / 3
+    : givenKinetic !== null ? Math.max(1, givenKinetic / 2) : phiValue;
+  const photonValue = photonGiven ? photon! : givenKinetic !== null ? phiLevel + givenKinetic : Math.max(phiLevel * 1.5, phiLevel + 1);
+  const emission = model ? model.kineticEV !== null : !(phiGiven && photonGiven && photonValue <= phiLevel);
+  if (!model && !emission) return null;
   const kMax = photonValue - phiLevel;
   const scene = new SceneBuilder(context.question, "photoelectric energy balance: photon energy, work function and maximum kinetic energy", "photoelectric");
-  if (phi !== null && grounded(context, "workFunction")) scene.quantity("phi", "phi", phi, "eV");
+  if (phi !== null && phiGiven) scene.quantity("phi", "phi", phi, "eV");
   if (photonGiven) scene.quantity("E", "E", photonValue, "eV");
-  scene.axes("axes", -0.5, 4, -0.2 * photonValue, 1.25 * photonValue, "energy axis", "E (eV)");
+  if (model?.photonEnergyBasis === "conservation_from_emitted_result") {
+    scene.quantities.find(quantity => quantity.id === "E")!.provenance = "derived";
+    scene.point("energy_basis", { x: 3.2, y: photonValue * 1.15 }, "photon energy derived by conservation", "Derived E=φ+K");
+  }
+  if (givenKinetic !== null) scene.quantity("K_given", "K", givenKinetic, "eV");
+  if (stopping !== null) {
+    scene.quantity("Vstop_given", "Vstop", stopping, "V");
+    scene.point("stopping_source", { x: 3.4, y: photonValue * 0.6 }, "stated stopping potential", `Vstop=${fmt(stopping)} V`);
+  }
+  scene.axes("axes", -0.5, 4, -0.2 * photonValue, 1.25 * Math.max(photonValue, phiLevel), "energy axis", "E (eV)");
   scene.point("zero", { x: 0, y: 0 }, "zero of energy");
   scene.point("phi_top", { x: 0, y: phiLevel }, "work function mark", phiGiven ? `φ=${fmt(phiLevel)} eV` : "φ");
   scene.point("E_top", { x: 0, y: photonValue }, "photon energy mark", photonGiven ? `hν=${fmt(photonValue)} eV` : "hν");
@@ -414,9 +474,16 @@ function photoelectric(context: GeneratorContext) {
   scene.point("photon_base", { x: 1, y: 0 }, "photon arrow base");
   scene.point("photon_tip", { x: 1, y: photonValue }, "photon arrow tip");
   scene.vector("photon", "photon_base", { end: "photon_tip" }, "photon energy", "hν");
-  scene.point("k_base", { x: 2.2, y: phiLevel }, "kinetic energy base");
-  scene.point("k_tip", { x: 2.2, y: photonValue }, "kinetic energy tip");
-  scene.vector("kinetic", "k_base", { end: "k_tip" }, "maximum kinetic energy", phiGiven && photonGiven ? `K=${fmt(kMax)} eV` : "K");
+  if (emission && kMax > 0) {
+    scene.point("k_base", { x: 2.2, y: phiLevel }, "kinetic energy base");
+    scene.point("k_tip", { x: 2.2, y: photonValue }, "kinetic energy tip");
+    scene.vector("kinetic", "k_base", { end: "k_tip" }, "maximum kinetic energy", givenKinetic !== null ? `K=${fmt(givenKinetic)} eV` : phiGiven && photonGiven ? `K=${fmt(kMax)} eV` : "K");
+  } else {
+    const anchor = scene.helper("emission_p", { x: 3, y: Math.max(photonValue, phiLevel) * 0.5 }, "emission statement anchor helper");
+    const text = emission ? "K=0 eV" : "no emission";
+    scene.entities.push({ id: "emission", kind: "label", role: "kinetic energy emission condition", label: text });
+    scene.constructions.push({ id: "make_emission", operator: "label", inputs: { target: anchor, text }, outputs: ["emission"] });
+  }
   scene.point("w_base", { x: 2.2, y: 0 }, "work function base");
   scene.point("w_tip", { x: 2.2, y: phiLevel }, "work function tip");
   scene.vector("work", "w_base", { end: "w_tip" }, "work function", "φ");
@@ -424,8 +491,22 @@ function photoelectric(context: GeneratorContext) {
   if (phiGiven && photonGiven) {
     scene.assert("energy_ratio", "distance_ratio", ["w_base", "w_tip", "photon_base", "photon_tip"], Number((phiLevel / photonValue).toFixed(6)));
   }
+  const threshold = model?.thresholdWavelengthM ?? symbolicThreshold?.thresholdWavelengthM ?? null;
+  if (threshold !== null) {
+    scene.quantity("lambda0", "lambda0", threshold * 1e9, "nm");
+    scene.point("threshold_source", { x: 3.4, y: phiLevel * 0.45 }, "stated threshold wavelength", `λ0=${fmt(threshold * 1e9)} nm`);
+    if (symbolicThreshold) scene.point("incident_missing", { x: 3.4, y: photonValue * 1.12 }, "incident photon not given", "hν not given");
+  }
+  if (symbolicWork) {
+    scene.point("emission_case", { x: 3.4, y: photonValue * 1.12 }, "conditional emitting case", "if hν > φ");
+    scene.point("phi_missing", { x: 3.4, y: photonValue * 0.25 }, "work function not given", "φ not given");
+    scene.group("conditional_energy", scene.entities.map(entity => entity.id), `φ not given. if hν > φ. hν. φ. ${givenKinetic !== null ? `K=${fmt(givenKinetic)} eV` : "K"}. ${stopping !== null ? `Vstop=${fmt(stopping)} V` : ""}`);
+  }
   scene.labelled("phi_top", "E_top");
-  return scene.build();
+  const document = scene.build();
+  if (symbolic) document.source.nonMetric = true;
+  if (model?.photonEnergyBasis) document.source.photonEnergyBasis = model.photonEnergyBasis;
+  return document;
 }
 
 function lensMaker(context: GeneratorContext) {

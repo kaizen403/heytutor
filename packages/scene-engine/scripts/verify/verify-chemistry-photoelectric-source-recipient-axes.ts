@@ -1,5 +1,6 @@
 /** A source-class noun cannot hide a photon recipient; pure axes are complete only when requested alone. */
 import assert from "node:assert/strict";
+import { assertPhysicsEnergy } from "../lib/assertPhotoelectricPhysics";
 import { writeFileSync } from "node:fs";
 import "../../src/chemistry/families";
 import { buildAtomicRadiationScene } from "../../src/chemistry/atomicRadiation";
@@ -9,6 +10,7 @@ import { synthesizeFamilyScene, synthesizeLastResortScene } from "../../src/synt
 import type { SceneDocument } from "../../src/types";
 import fixtures from "./fixtures/chemistry-photoelectric-source-recipient-axes.json";
 
+const atomicRows = new Set(["preserve-P01", "preserve-P02", "preserve-q4"]);
 const results: Array<{ id: string; passed: boolean; error?: string; document: SceneDocument | null }> = [];
 function record(id: string, run: () => SceneDocument | null): void {
   try { results.push({ id, passed: true, document: run() }); }
@@ -32,10 +34,15 @@ for (const row of fixtures) {
         assert.equal(document.source.question, row.question);
         assert.ok("phiEv" in row && "photonEv" in row);
         const labels = compiled.renderScene.primitives.flatMap(primitive => primitive.text ? [primitive.text] : []);
-        for (const [symbol, value] of [["phi", row.phiEv!], ["E", row.photonEv!], ["K", row.photonEv! - row.phiEv!]] as const) {
-          const printed = labels.map(text => new RegExp(`^${symbol}=([+\\-]?[0-9]+(?:\\.[0-9]+)?) eV$`).exec(text)).find(Boolean);
-          assert.ok(printed, `missing ${symbol} physical label`);
-          assert.ok(Math.abs(Number(printed[1]) - value) <= 0.005, `${symbol} follows actual work function and photon energy`);
+        if ((route === "ordinary" || route === "lastResort") && !atomicRows.has(row.id)) {
+          assert.ok(result && "family" in result && result.family === "energy_level");
+          assertPhysicsEnergy(document, labels, row.phiEv!, row.photonEv!, row.photonEv! - row.phiEv!, true);
+        } else {
+          for (const [symbol, value] of [["phi", row.phiEv!], ["E", row.photonEv!], ["K", row.photonEv! - row.phiEv!]] as const) {
+            const printed = labels.map(text => new RegExp(`^${symbol}=([+\\-]?[0-9]+(?:\\.[0-9]+)?) eV$`).exec(text)).find(Boolean);
+            assert.ok(printed, `missing ${symbol} physical label`);
+            assert.ok(Math.abs(Number(printed[1]) - value) <= 0.005, `${symbol} follows actual work function and photon energy`);
+          }
         }
       }
       return document;

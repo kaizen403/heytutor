@@ -1,0 +1,2 @@
+# Actual engine-owned circuit-law cue reveals all compiled labels in English and Hinglish.
+tsx scripts/verify/verify-circuit-law-example-opening.ts

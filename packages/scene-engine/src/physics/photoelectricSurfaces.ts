@@ -390,6 +390,13 @@ function photoelectricSurfaceScope(question: string): SurfaceScope {
   return {multiple:identities.size > 1,restored};
 }
 
+/** Restored sample identities require a complete source-bound energy model.
+ * The radiation reader owns photon channels and constants, including derived E. */
+export function sourcePhotoelectricSurfaceScopeHolds(question: string, completeSource: boolean): boolean {
+  const scope = photoelectricSurfaceScope(question);
+  return !scope.multiple && (!scope.restored || completeSource);
+}
+
 export function multiplePhotoelectricSurfaces(question: string): boolean {
   return photoelectricSurfaceScope(question).multiple;
 }

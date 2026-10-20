@@ -5,6 +5,7 @@ import "./verify-archetype-bridge-source";
 import assert from "node:assert/strict";
 import { detectArchetype } from "../../src/archetypes/detect";
 import { generatorFor } from "../../src/archetypes/generators";
+import { readRadiationSource } from "../../src/physics/radiationSource";
 import type { ArchetypeId, Slots } from "../../src/archetypes/catalog";
 import type { SlotSource } from "../../src/archetypes/slots";
 
@@ -223,9 +224,13 @@ for (const [source, energy] of [
   assert.equal(scene.entities.find(entity => entity.id === "E_top")?.label, `hν=${energy} eV`);
   assert.equal(scene.entities.find(entity => entity.id === "phi_top")?.label, "φ");
   assert.equal(scene.entities.find(entity => entity.id === "kinetic")?.label, "K");
-  assert.deepEqual(scene.quantities.map(({ id, value }) => ({ id, value })), [{ id: "E", value: energy }]);
+  const sourceRead = readRadiationSource(question);
+  assert.ok(sourceRead.status === "symbolic" && sourceRead.missing === "work_function");
+  const physicalEnergy = source.startsWith("incident wavelength") ? 0.9998725680096795 : energy;
+  assert.ok(sourceRead.photonEnergyEV !== null && Math.abs(sourceRead.photonEnergyEV - physicalEnergy) < 1e-12);
+  assert.deepEqual(scene.quantities.map(({ id, value }) => ({ id, value })), [{ id: "E", value: Number(physicalEnergy.toFixed(6)) }]);
   const height = (id: string) => Number(scene.constructions.find(item => item.id === `make_${id}`)?.inputs.y);
-  assert.equal(height("E_top"), energy, "incident geometry preserves the given energy");
+  assert.equal(height("E_top"), Number(physicalEnergy.toFixed(4)), "incident geometry uses the builder's existing coordinate serialization");
   assert.ok(height("phi_top") > 0 && height("phi_top") < energy, "symbolic work function leaves a positive qualitative kinetic-energy arrow");
   assert.ok(height("k_tip") > height("k_base"), "kinetic-energy arrow points upward");
 }

@@ -1,5 +1,6 @@
 /** Exact source/render photon conversion and bounded reaction figure owners. */
 import assert from "node:assert/strict";
+import { assertPhysicsEnergy } from "../lib/assertPhotoelectricPhysics";
 import { writeFileSync } from "node:fs";
 import "../../src/chemistry/families";
 import { buildAtomicRadiationScene } from "../../src/chemistry/atomicRadiation";
@@ -28,9 +29,10 @@ for (const row of fixtures.photoelectric) for (const route of ["direct", "schema
     const compiled = compileSceneDocument(document);
     assert.ok(compiled.ok && compiled.renderScene, "normal compiler must accept the complete document");
     if (!("expectedPhotonEv" in row)) return;
-    if (route === "physics") {
-      assert.equal(document.quantities?.find(quantity => quantity.id === "E")?.value, Number(row.expectedPhotonEv!.toFixed(6)), "actual photon quantity uses exact SI conversion at its persisted precision");
-      assert.equal(document.constructions.find(construction => construction.id === "make_E_top")?.inputs.y, Number(row.expectedPhotonEv!.toFixed(4)), "the drawn photon level uses the same source energy");
+    if (route === "physics" || route === "ordinary" || route === "lastResort") {
+      if (route !== "physics") assert.ok("family" in result && result.family === "energy_level", "generic photoelectric physics family");
+      const phi = "expectedPhiEv" in row ? row.expectedPhiEv! : row.phiEv;
+      assertPhysicsEnergy(document, compiled.renderScene.primitives.flatMap(primitive => primitive.text ? [primitive.text] : []), phi, row.expectedPhotonEv!, row.expectedKineticEv!);
     } else {
       const phi = "expectedPhiEv" in row ? row.expectedPhiEv! : row.phiEv;
       const labels = compiled.renderScene.primitives.flatMap(primitive => primitive.text ? [primitive.text] : []);

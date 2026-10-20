@@ -1,5 +1,6 @@
 /** Local sample aliases and passive collectors; no numeric parser expansion. */
 import assert from "node:assert/strict";
+import { assertPhysicsEnergy } from "../lib/assertPhotoelectricPhysics";
 import { writeFileSync } from "node:fs";
 import "../../src/chemistry/families";
 import { buildAtomicRadiationScene } from "../../src/chemistry/atomicRadiation";
@@ -30,9 +31,14 @@ for (const row of [...fixtures.restorations, ...fixtures.collectorBoundaries, ..
       assert.equal(document.source.question, row.question);
       if ("phiEv" in row && row.phiEv !== undefined) {
         const labels = compiled.renderScene.primitives.flatMap(primitive => primitive.text ? [primitive.text] : []);
-        assert.ok(labels.includes(`phi=${row.phiEv.toFixed(2)} eV`));
-        assert.ok(labels.includes(`E=${row.photonEv!.toFixed(2)} eV`));
-        assert.ok(labels.includes(`K=${(row.photonEv!-row.phiEv).toFixed(2)} eV`));
+        if (route === "ordinary" || route === "lastResort") {
+          assert.ok("family" in result && result.family === "energy_level", "generic photoelectric physics family");
+          assertPhysicsEnergy(document, labels, row.phiEv, row.photonEv!);
+        } else {
+          assert.ok(labels.includes(`phi=${row.phiEv.toFixed(2)} eV`));
+          assert.ok(labels.includes(`E=${row.photonEv!.toFixed(2)} eV`));
+          assert.ok(labels.includes(`K=${(row.photonEv!-row.phiEv).toFixed(2)} eV`));
+        }
       }
     }, required);
   }

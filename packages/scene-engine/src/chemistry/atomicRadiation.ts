@@ -6,13 +6,14 @@
  */
 import { claimsSourceLawGraph, readSourceLawGraph } from "./sourceLawGraph";
 import { buildSourceLawGraphFigure } from "./lawGraphFigure";
-import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityCuesValid, readChemistryQuantityDeclaration } from "./quantityReader";
+import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityCuesValid } from "./quantityReader";
+import { atomicElectronContext } from "./semanticCues";
+import { populateParticleRadiation, readRadiationSource, type RadiationModel } from "../physics/radiationSource";
 import type { SceneDocument } from "../types";
 import { deriveBohrOrbit } from "../physics/bohrOrbitAuthority";
 import { deriveBohrTransition } from "../physics/bohrTransitionAuthority";
-import { multiplePhotoelectricSurfaces, restoredPhotoelectricInputsValid } from "../physics/photoelectricSurfaces";
-import { photonEnergyEvFromFrequencyHz, photonEnergyEvFromWavelengthMetres } from "../physics/photonEnergy";
-import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
+import { ChemScene, chemStem, type ChemPlanQuantity } from "./sceneKit";
+
 
 const ORBITAL_FAMILY = "chem_orbital" as const;
 
@@ -25,8 +26,6 @@ const HYDROGEN_GROUND_SPEED_M_PER_S = 2.187e6;
 const PLANCK_J_S = 6.62607015e-34;
 const LIGHT_M_PER_S = 299792458;
 const JOULE_PER_EV = 1.602176634e-19;
-const HBAR_J_S = 1.054571817e-34;
-const ELECTRON_MASS_KG = 9.109e-31;
 
 /** Sentences the shared energy-level ladder already owns. */
 const SHARED_LEVEL_SENTENCE = /draw the energy level diagram|emits a photon during the transition|absorbs a photon during the transition/;
@@ -37,47 +36,11 @@ function fit(text: string): string {
 
 const WORK_FUNCTION_CUE = /work function(?:\s+of\s+(?:(?:a|the)\s+)?[a-z]+)?/;
 const PHOTON_ENERGY_CUE = /photon energy|photons? of energy|energy of (?:the )?photons?/;
-/** Main's photoelectric parser, isolated from the shared quantity-reader lane. */
-function photoelectricNumberAfter(stem: string, keyword: RegExp): number | null {
-  const found = keyword.exec(stem);
-  if (!found) return null;
-  const slice = stem.slice(found.index + found[0].length, found.index + found[0].length + 48);
-  const match = /^(?:[^0-9]{0,24})(\d+(?:\.\d+)?)(?:e([+-]?\d+)|\s*\*\s*10\^?\(?\s*([+-]?\d+))?/.exec(slice);
-  if (!match) return null;
-  const exp = match[2] ?? match[3];
-  const value = Number(match[1]) * 10 ** (exp !== undefined ? Number(exp) : 0);
-  return Number.isFinite(value) ? value : null;
-}
+function isPhotoelectricStem(question: string): boolean {
+  const source = readRadiationSource(question);
+  return source.status === "source" ? source.model.kind === "photoelectric"
+    : source.status === "declined" && source.kind === "photoelectric";
 
-function workFunctionEv(stem: string): number | null {
-  const value = photoelectricNumberAfter(stem, /work function/);
-  if (value === null || !(value > 0)) return null;
-  const slice = stem.slice(stem.indexOf("work function"));
-  return /ev/.test(slice.slice(0, 40)) ? value : null;
-}
-
-function photonEnergyEv(stem: string): number | null {
-  const stated = photoelectricNumberAfter(stem, /photon energy|photons? of energy|energy of (?:the )?photons?/);
-  if (stated !== null && stated > 0 && /ev/.test(stem.slice(stem.search(/photon energy|photons? of energy|energy of (?:the )?photons?/), stem.search(/photon energy|photons? of energy|energy of (?:the )?photons?/) + 48))) return stated;
-  const hertz = photoelectricNumberAfter(stem, /frequency/);
-  if (hertz !== null && hertz > 0 && /hz/.test(stem.slice(stem.indexOf("frequency"), stem.indexOf("frequency") + 40))) {
-    return photonEnergyEvFromFrequencyHz(hertz);
-  }
-  const wave = /wavelength(?:[^0-9]{0,24})(\d+(?:\.\d+)?)\s*(nm|pm|angstrom|angstroms|a|m)\b/.exec(stem);
-  if (!wave) return null;
-  const magnitude = Number(wave[1]);
-  const unit = wave[2]!;
-  const metres = unit === "nm" ? magnitude * 1e-9
-    : unit === "pm" ? magnitude * 1e-12
-      : unit === "m" ? magnitude
-        : magnitude * 1e-10;
-  if (!(metres > 0)) return null;
-  return photonEnergyEvFromWavelengthMetres(metres);
-}
-
-function isPhotoelectricStem(stem: string): boolean {
-  if (!/(?:photoelectric|photoelectron|work function)/.test(stem)) return false;
-  return workFunctionEv(stem) !== null || photonEnergyEv(stem) !== null;
 }
 
 function hydrogenicZ(stem: string): number | null {
@@ -110,7 +73,8 @@ export function isAtomicRadiationStem(question: string): boolean {
   if (claimsSourceLawGraph(question, "chem_orbital")) return true;
   const stem = chemStem(question);
   if (SHARED_LEVEL_SENTENCE.test(stem)) return false;
-  return isPhotoelectricStem(stem) || isDebroglieStem(stem) || isBohrModelStem(stem) || isUncertaintyStem(stem);
+  return isBohrModelStem(stem) || (atomicElectronContext(question)
+    && (isPhotoelectricStem(question) || isDebroglieStem(stem) || isUncertaintyStem(stem)));
 }
 
 function evText(symbol: string, value: number): string {
@@ -118,86 +82,60 @@ function evText(symbol: string, value: number): string {
   return fit(`${symbol}=${value.toFixed(digits)} eV`);
 }
 
-function buildPhotoelectric(question: string, stem: string): SceneDocument | null {
-  if (multiplePhotoelectricSurfaces(question)) return null;
-  const phi = workFunctionEv(stem);
-  const energy = photonEnergyEv(stem);
-  if (!restoredPhotoelectricInputsValid(question,phi,energy)) return null;
-  if (phi === null || energy === null) return null;
+function buildPhotoelectric(question: string, model: Extract<RadiationModel, { kind: "photoelectric" }>): SceneDocument | null {
+  const phi = model.workFunctionEV;
+  const energy = model.photonEnergyEV;
+
   const above = energy + 1e-9 >= phi;
   const kinetic = above ? energy - phi : null;
   if (kinetic !== null && kinetic < -1e-9) return null;
   const c = new ChemScene(question, "photoelectric threshold from a stated work function", ORBITAL_FAMILY);
+  const derivedPhoton = model.photonEnergyBasis === "conservation_from_emitted_result";
   const ids: string[] = [];
   ids.push(c.level("phi_level", { x: 0, y: 0 }, 2.4, "work function mark"));
   ids.push(c.level("photon_level", { x: 0, y: above ? 1.4 : 0.7 }, 2.4, "photon energy mark"));
   ids.push(c.text("phi_l", { x: 1.55, y: 0 }, evText("phi", phi).slice(0, 16), "work function value"));
   ids.push(c.text("e_l", { x: 1.55, y: above ? 1.4 : 0.7 }, evText("E", energy).slice(0, 16), "photon energy value"));
-  ids.push(c.text("units_l", { x: 0, y: 2.15 }, "E = h*nu", "photon energy relation"));
+  ids.push(c.text("units_l", { x: 0, y: 2.15 }, derivedPhoton ? "Derived E=phi+K" : "E = h*nu", "photon energy relation"));
   if (kinetic === null) {
     ids.push(c.text("none_l", { x: 0, y: -0.7 }, "no emission", "below threshold"));
   } else {
     ids.push(c.arrow("k_arrow", { x: -1.5, y: 0 }, { x: -1.5, y: 1.4 }, "kinetic energy above threshold"));
     ids.push(c.text("k_l", { x: -1.5, y: -0.55 }, evText("K", kinetic).slice(0, 16), "maximum kinetic energy"));
   }
-  c.scene.group("photoelectric", ids, "work function and photon energy");
+  const sourceLabels: string[] = [];
+  if (model.stoppingPotentialV !== null) {
+    const label = `Vstop=${Number(model.stoppingPotentialV.toPrecision(8))} V`;
+    ids.push(c.text("stopping_l", { x: 0, y: -1.1 }, label, "stated stopping potential", { preserveText: true }));
+    c.scene.quantity("Vstop_given", "Vstop", model.stoppingPotentialV, "V");
+    sourceLabels.push(label);
+  }
+  if (model.thresholdWavelengthM !== null) {
+    const nm = model.thresholdWavelengthM * 1e9;
+    const label = `λ0=${Number(nm.toPrecision(8))} nm`;
+    ids.push(c.text("threshold_l", { x: 0, y: -1.65 }, label, "stated threshold wavelength", { preserveText: true }));
+    c.scene.quantity("lambda0", "lambda0", nm, "nm");
+    sourceLabels.push(label);
+  }
+  if (derivedPhoton) {
+    c.scene.quantity("E_derived", "E", energy, "eV");
+    c.scene.quantities.find(quantity => quantity.id === "E_derived")!.provenance = "derived";
+    c.scene.quantity("phi_given", "phi", phi, "eV");
+    c.scene.quantity("K_source", "K", model.givenKineticEV!, "eV");
+  }
+  c.scene.group("photoelectric", ids, ["work function and photon energy", ...sourceLabels].join(". "));
   const caption = kinetic === null
     ? `Below threshold: E = ${energy.toFixed(2)} eV is less than phi = ${phi.toFixed(2)} eV, so no electron is emitted and K is not drawn.`
     : `Kmax = h*nu - phi = ${kinetic.toFixed(2)} eV. Units are electronvolts. c = lambda*nu relates wavelength to frequency.`;
-  return c.build({ caption });
+  const document = c.build({ caption: derivedPhoton ? `Photon E is derived by E=phi+K from the stated emitted result. ${caption}` : caption });
+  if (derivedPhoton) document.source.photonEnergyBasis = model.photonEnergyBasis;
+  return document;
 }
 
-function momentumKgMPerS(question: string): number | null {
-  const stated = readChemistryQuantityDeclaration({question,after:/\bmomentum\b/,owner:"particle momentum",dimension:"momentum",targetUnit:"kg m/s",allowAgreeingRepeats:true});
-  if (stated.state === "invalid") return null;
-  if (stated.state === "valid") return stated.reading.value;
-  const speedRead = readChemistryQuantityDeclaration({question,after:/speed|velocity|moving at/,owner:"particle speed",dimension:"speed",targetUnit:"m/s",allowAgreeingRepeats:true});
-  if (speedRead.state === "invalid") return null;
-  const speed = speedRead.state === "valid" ? speedRead.reading.value : null;
-  if (speed === null || !(speed > 0)) return speed;
-  if (/\belectron\b/i.test(question)) return ELECTRON_MASS_KG * speed;
-  const mass = numberAfter(question, /mass/, "mass", "kg");
-  return mass !== null && mass > 0 ? mass * speed : null;
-}
-
-function buildDebroglie(question: string, _stem: string): SceneDocument | null {
-  const momentum = momentumKgMPerS(question);
-  if (momentum === null || !(momentum > 0)) return null;
-  const lambdaM = PLANCK_J_S / momentum;
-  if (!Number.isFinite(lambdaM) || !(lambdaM > 0)) return null;
-  const lambdaNm = lambdaM * 1e9;
-  const c = new ChemScene(question, "de Broglie wavelength from a stated momentum", ORBITAL_FAMILY);
-  const ids: string[] = [];
-  ids.push(c.arrow("wave", { x: -1.6, y: 0 }, { x: 1.6, y: 0 }, "matter wave"));
-  ids.push(c.text("rel_l", { x: 0, y: 0.7 }, "lambda = h/p", "de Broglie relation"));
-  ids.push(c.text("lam_l", { x: 0, y: -0.7 }, fit(`L=${lambdaNm.toFixed(3)} nm`), "wavelength"));
-  ids.push(c.text("unit_l", { x: 0, y: -1.25 }, "h in J s", "planck unit"));
-  c.scene.group("matter", ids, "de Broglie wavelength");
-  return c.build({ caption: `lambda = h/p = ${lambdaM.toExponential(3)} m for the stated momentum. Zero momentum is not given a finite wavelength.` });
-}
-
-function buildUncertainty(question: string, stem: string): SceneDocument | null {
-  if (/both .{0,40}exactly|known exactly|simultaneous(?:ly)? exact|exact position and .{0,20}momentum|position and .{0,30}momentum known exactly/.test(stem)) {
-    return null;
-  }
-  const dx = numberAfter(question, /position/, "length", "m");
-  const dp = numberAfter(question, /momentum/, "momentum", "kg m/s");
-  if (dx === null || dp === null || !(dx > 0) || !(dp > 0)) return null;
-  const product = dx * dp;
-  const floor = HBAR_J_S / 2;
-  const holds = product + 1e-45 >= floor;
-  const c = new ChemScene(question, "Heisenberg uncertainty product against hbar/2", ORBITAL_FAMILY);
-  const ids: string[] = [];
-  ids.push(c.text("dx_l", { x: -1.2, y: 0.4 }, "delta x", "position interval"));
-  ids.push(c.text("dp_l", { x: 1.2, y: 0.4 }, "delta p", "momentum interval"));
-  ids.push(c.text("rel_l", { x: 0, y: -0.3 }, "dx*dp >= hbar/2", "uncertainty relation"));
-  ids.push(c.text("verdict_l", { x: 0, y: -1.0 }, holds ? "above hbar/2" : "below hbar/2", "uncertainty comparison"));
-  c.scene.group("uncertainty", ids, "position and momentum intervals");
-  return c.build({
-    caption: holds
-      ? `The stated product ${product.toExponential(2)} J s meets hbar/2 = ${floor.toExponential(2)} J s. The intervals are not exact values.`
-      : `The stated product is below hbar/2, so those two intervals cannot both be right.`,
-  });
+function buildParticleRadiation(question: string, model: Exclude<RadiationModel, { kind: "photoelectric" }>): SceneDocument {
+  const reason = model.kind === "matter_wave" ? "de Broglie wavelength from a stated momentum" : "Heisenberg uncertainty product against hbar/2";
+  const c = new ChemScene(question, reason, ORBITAL_FAMILY);
+  return c.build({ caption: populateParticleRadiation(c.scene, model) });
 }
 
 function bohrLevels(stem: string): { nFrom: number; nTo: number } | null {
@@ -325,6 +263,17 @@ export function buildAtomicRadiationScene(
     if (!chemistryPlanBindingsValid(question, quantities) || sourceLaw.state === "declined") return null;
     return buildSourceLawGraphFigure(sourceLaw.model, question);
   }
+  if (!chemistryPlanBindingsValid(question, quantities)) return null;
+  // Direct source computation remains compatible with historical callers;
+  // isAtomicRadiationStem separately owns chemistry routing admission.
+  const radiation = readRadiationSource(question);
+  if (radiation.status === "declined") return null;
+  if (radiation.status === "source") {
+    if (radiation.model.question !== question) return null;
+    return radiation.model.kind === "photoelectric"
+      ? buildPhotoelectric(question, radiation.model) : buildParticleRadiation(question, radiation.model);
+
+  }
   if (!isAtomicRadiationStem(question)) return null;
   const stem = chemStem(question);
   if (!chemistryQuantityCuesValid(question, [
@@ -336,14 +285,10 @@ export function buildAtomicRadiationScene(
     {after: /speed|velocity|moving at/, dimensions: ["speed"],owner:"speed"},
     {after: /\bmass\b/, dimensions: ["mass"],owner:"particle mass"},
   ])) return null;
-  if (isPhotoelectricStem(stem)) return buildPhotoelectric(question, stem);
-  if (!chemistryPlanBindingsValid(question, quantities)) return null;
   const hcCue = /\bhc\s*(?:=|is\b)/i;
   if (!chemistryReferenceConstantValid(question, hcCue, "energy_length", "J m", PLANCK_J_S * LIGHT_M_PER_S)) return null;
   if (!chemistryReferenceConstantValid(question, /\bh\s*=|Planck(?:'s)? constant\s*(?:is|=)/i, "action", "J s", PLANCK_J_S)
     || !chemistryReferenceConstantValid(question, /\bc\s*=|speed of light\s*(?:is|=)/i, "speed", "m/s", LIGHT_M_PER_S)) return null;
-  if (isDebroglieStem(stem)) return buildDebroglie(question, stem);
-  if (isUncertaintyStem(stem)) return buildUncertainty(question, stem);
   if (isBohrModelStem(stem)) return buildBohr(question, stem);
   return null;
 }

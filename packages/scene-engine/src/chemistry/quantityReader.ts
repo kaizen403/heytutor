@@ -50,7 +50,8 @@ export type ChemistryQuantityDeclaration =
 
 const DECIMAL = String.raw`(?:\d+(?:\.\d+|\.(?!\s+[A-Za-z]))?|\.\d+)`;
 const EXPONENT = String.raw`(?:[+\-−]?\d{1,4}|\(\s*[+\-−]?\d{1,4}\s*\))`;
-const SCALAR = String.raw`[+\-−]?\s*(?:${DECIMAL}\s*/\s*${DECIMAL}(?:st|nd|rd|th)?|(?:${DECIMAL}\s*[x×*]\s*)?10\s*\^\s*${EXPONENT}|${DECIMAL}(?:[eE][+\-−]?\d{1,4})?)`;
+const UNICODE_EXPONENT = String.raw`[⁺⁻]?[⁰¹²³⁴⁵⁶⁷⁸⁹]{1,4}`;
+const SCALAR = String.raw`[+\-−]?\s*(?:${DECIMAL}\s*/\s*${DECIMAL}(?:st|nd|rd|th)?|(?:${DECIMAL}\s*[x×*]\s*)?10\s*(?:\^\s*${EXPONENT}|${UNICODE_EXPONENT})|${DECIMAL}(?:[eE][+\-−]?\d{1,4})?)`;
 /** One whole token plus two empty compatibility captures; all parsing lives here. */
 export const CHEMISTRY_NUMBER_PATTERN = `(${SCALAR})()()`;
 export const CHEMISTRY_SCALAR_PATTERN = SCALAR;
@@ -63,7 +64,8 @@ function validSpan(question: string, span: ChemistrySpan): boolean {
 function continuesScalar(tail: string): boolean {
   // An unresolved superscript/modifier is still part of the source token,
   // even when notation normalization deliberately left a damaged run raw.
-  return /^\s*[\p{No}\p{Lm}⁺⁻⁽⁾]/u.test(tail)
+  return /^\s*(?:10\s*)?[\p{No}\p{Lm}⁺⁻⁽⁾]/u.test(tail)
+
     || /^[eE\d/^~!"×*]|^\.(?=[.\d])|^[+\-−](?=\s*(?:\d|\.\d))|^\s*[x×*]\s*10|^\s*10\s*[°~!^"0-9]/.test(tail);
 }
 /** Match against the original question, never a caller's truncated substring. */
@@ -92,13 +94,20 @@ function scalarValue(question: string, span: ChemistrySpan): ChemRead<number> {
   const clean = token.replace(/\s/g, "");
   let value: number; let nonzero: boolean;
   const fraction = /^([+-]?(?:\d+(?:\.\d*)?|\.\d+))\/((?:\d+(?:\.\d*)?|\.\d+))(?:st|nd|rd|th)?$/.exec(clean);
-  const power = /^([+-]?(?:\d+(?:\.\d*)?|\.\d+)|[+-])?[x×*]?10\^\(?([+-]?\d+)\)?$/.exec(clean);
+  const power = /^([+-]?(?:\d+(?:\.\d*)?|\.\d+)|[+-])?[x×*]?10\^\(?([+-]?\d+)\)?$/.exec(clean)
+    ?? /^([+-]?(?:\d+(?:\.\d*)?|\.\d+)|[+-])?[x×*]?10([⁺⁻]?[⁰¹²³⁴⁵⁶⁷⁸⁹]{1,4})$/.exec(clean);
   if (fraction) {
     if (Number(fraction[2]) === 0) return fail("malformed", span);
     value = Number(fraction[1]) / Number(fraction[2]); nonzero = Number(fraction[1]) !== 0;
   } else if (power) {
     const mantissa = power[1] === undefined ? (clean.startsWith("-") ? -1 : 1) : power[1] === "-" ? -1 : power[1] === "+" ? 1 : Number(power[1]);
-    value = mantissa * 10 ** Number(power[2]); nonzero = mantissa !== 0;
+    // Decode only the complete captured exponent after original-span and
+    // full-token validation. No transformed question or prefix is authority.
+    const exponent = [...power[2]!].map(character => {
+      const digit = "⁰¹²³⁴⁵⁶⁷⁸⁹".indexOf(character);
+      return digit >= 0 ? String(digit) : character === "⁻" ? "-" : character === "⁺" ? "+" : character;
+    }).join("");
+    value = mantissa * 10 ** Number(exponent); nonzero = mantissa !== 0;
   } else { value = Number(clean); nonzero = /[1-9]/.test(clean.split(/[eE]/)[0]!); }
   return Number.isFinite(value) && !(nonzero && value === 0) ? { ok: true, reading: value } : fail("malformed", span);
 }
