@@ -315,6 +315,7 @@ export async function canonicalizeTurnSceneMetadata(
     renderScene,
     {
       originalQuestion: question,
+      ...(turnPlan ? { turnPlan } : {}),
       ...(isDsaSceneDocument(document) ? { layout: "code_lesson" as const } : {}),
       ...(narrationLanguage ? { narrationLanguage } : {}),
     },
