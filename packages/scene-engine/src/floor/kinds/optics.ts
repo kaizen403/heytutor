@@ -90,6 +90,17 @@ export function buildOpticsFloor(facts: FloorFacts): FloorKindBuild | { declined
     names.push("C");
   }
   names.push(elementName);
+  // The element's name sits just above its top end, never where the label
+  // engine might push it (a convex mirror's name once landed on the object).
+  const elementEntity = built.entities.find((entity) => entity.id === "element")!;
+  delete elementEntity.label;
+  const tagY = lens ? 2.2 + 0.55 : Math.min(2.2, 2 * focal * 0.8) + 0.55;
+  built.entities.push(
+    floorEntity("element_tag", "point", "label anchor point", null, { stated: elementName }),
+    floorEntity("element_name", "label", `name of the stated ${elementName}`, null, { stated: elementName }),
+  );
+  built.constructions.push(point("element_tag", 0, tagY),
+    { id: "draw_element_name", operator: "label", inputs: { target: "element_tag", text: elementName }, outputs: ["element_name"] });
   if (fAbs !== null) {
     // Real focus on the object side for a concave mirror; behind a convex mirror; both sides of a lens.
     const focusX = element === "convex_mirror" ? focal : -focal;

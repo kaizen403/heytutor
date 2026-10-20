@@ -7,6 +7,7 @@
  */
 import { pruneDeadSceneEntities, validateSceneDocument } from "../../document/validation";
 import { synthesizeFamilyScene } from "../../synthesize/familyScene";
+import { parseMathExpression } from "../../math/expression";
 import type { SceneDocument } from "../../types";
 import { FLOOR_FIGURE_VERSION, type FloorFacts } from "../facts";
 import { floorAllowedTexts, normaliseLabel } from "../audit";
@@ -80,6 +81,7 @@ export function buildGraphFloor(facts: FloorFacts): FloorKindBuild | { declined:
   // A floor figure declares only stated values; the engine's own computed quantities go.
   document.quantities = document.quantities.filter((quantity) => facts.values.some((value) =>
     value.quantityId === quantity.id && value.value === quantity.value));
+  pinCurveLabels(document);
   for (const entity of document.entities) entity.provenance = { ...(entity.provenance ?? {}), floor: true, reusedFamily: scene.family };
   document.source = {
     question: facts.question,
@@ -99,4 +101,56 @@ export function buildGraphFloor(facts: FloorFacts): FloorKindBuild | { declined:
     directedInk: false,
     reason: `the stated equations plotted as ${scene.family}`,
   };
+}
+
+/**
+ * A curve's equation is written beside its own curve: a hidden anchor on the
+ * curve where it is farthest from every other plotted curve, inside the axes.
+ * Left to the label engine, two equations once floated between two curves and
+ * the nearer curve was the wrong one.
+ */
+function pinCurveLabels(document: SceneDocument): void {
+  const curves = document.constructions.filter((construction) => construction.operator === "function_curve" &&
+    typeof construction.inputs.expression === "string" && (construction.inputs.variable ?? "x") === "x" &&
+    typeof construction.inputs.xMin === "number" && typeof construction.inputs.xMax === "number");
+  const parsed = curves.flatMap((construction) => {
+    try { return [{ construction, curve: parseMathExpression(String(construction.inputs.expression)) }]; } catch { return []; }
+  });
+  const axes = document.constructions.find((construction) => construction.operator === "axes")?.inputs ?? {};
+  const yMin = typeof axes.yMin === "number" ? axes.yMin : -Infinity, yMax = typeof axes.yMax === "number" ? axes.yMax : Infinity;
+  const xLow = typeof axes.xMin === "number" ? axes.xMin : -Infinity, xHigh = typeof axes.xMax === "number" ? axes.xMax : Infinity;
+  const value = (curve: ReturnType<typeof parseMathExpression>, x: number) => { try { const y = curve.evaluate(x); return Number.isFinite(y) ? y : null; } catch { return null; } };
+  for (const { construction, curve } of parsed) {
+    const id = construction.outputs[0]!;
+    const entity = document.entities.find((candidate) => candidate.id === id);
+    if (!entity?.label) continue;
+    const from = Math.max(Number(construction.inputs.xMin), xLow), to = Math.min(Number(construction.inputs.xMax), xHigh);
+    let best: { x: number; y: number; gap: number } | null = null;
+    for (let step = 1; step < 20; step += 1) {
+      const x = from + ((to - from) * step) / 20, y = value(curve, x);
+      if (y === null || y < yMin || y > yMax) continue;
+      const gaps = parsed.filter((other) => other.construction !== construction).flatMap((other) => {
+        const otherY = value(other.curve, x);
+        return otherY === null ? [] : [Math.abs(otherY - y)];
+      });
+      const gap = gaps.length ? Math.min(...gaps) : Infinity;
+      const preferRight = step / 20;
+      if (!best || gap + preferRight * 1e-6 > best.gap) best = { x, y, gap: gap + preferRight * 1e-6 };
+    }
+    if (!best) continue;
+    const anchor = `${id}_tag`, name = `${id}_name`;
+    document.entities.push(
+      { id: anchor, kind: "point", role: "label anchor point" },
+      { id: name, kind: "label", role: `equation of ${id}`, label: entity.label },
+    );
+    document.constructions.push(
+      { id: `place_${anchor}`, operator: "point", inputs: { x: best.x, y: best.y, coordinateSpace: "world" }, outputs: [anchor] },
+      { id: `write_${name}`, operator: "label", inputs: { target: anchor, text: entity.label }, outputs: [name] },
+    );
+    document.assertions = document.assertions.filter((assertion) => !(assertion.predicate === "label_attached" && assertion.entities.includes(id)));
+    delete entity.label;
+    document.requiredEntityIds.push(anchor, name);
+    const group = document.revealGroups.find((candidate) => candidate.entityIds.includes(id));
+    group?.entityIds.push(anchor, name);
+  }
 }
