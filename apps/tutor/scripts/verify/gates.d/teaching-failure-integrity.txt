@@ -1,0 +1,4 @@
+pnpm --filter @heytutor/tutor-core exec tsx scripts/verify/verify-teaching-network-recovery.ts
+tsx scripts/verify/verify-teaching-completion-integrity.ts
+tsx scripts/verify/verify-teaching-failure-classification.ts
+tsx scripts/verify/verify-segment-speech-ownership.ts

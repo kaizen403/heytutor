@@ -2,14 +2,15 @@
  * Floor figure (DIAGRAM_FLOOR_FIGURE), structure-only design: values bind to
  * parts only through shared ProblemIR evidence, the binding audit refuses a
  * text that is not bound to the element that carries it, the floor never runs
- * without a ProblemIR, and a stated node network's loop count is exact.
+ * without a ProblemIR, and it never draws a chain over the conservative
+ * circuit demand veto.
  * Synthetic questions only; the adversarial set has its own gate.
  */
 import assert from "node:assert/strict";
 import {
   auditFloorFigure,
   buildFloorFigure,
-  circuitTopologyFromProblemStructure,
+  circuitDemandMayBeMultiLoop,
   compileSceneDocument,
   readFloorBindings,
   readFloorFacts,
@@ -37,12 +38,12 @@ for (const item of FLOOR_ADVERSARIAL_CASES.filter((candidate) => candidate.probl
   check(result.figure === null && result.attempts.length === 0, `${item.id}: no kind is tried without a ProblemIR`);
 }
 
-// 3. The binding audit: the drawn divider passes; each mutation is refused.
+// 3. The binding audit: the drawn parallel pair passes; each mutation is refused.
 {
-  const divider = byId("circuit-divider-nodes");
-  const facts = readFloorFacts(divider)!;
-  const figure = buildFloorFigure(divider).figure!;
-  check(figure.kind === "circuit", "the node divider draws");
+  const ladder = byId("circuit-parallel-cell");
+  const facts = readFloorFacts(ladder)!;
+  const figure = buildFloorFigure(ladder).figure!;
+  check(figure.kind === "circuit", "the parallel pair across a cell draws");
   check(auditFloorFigure(figure.document, figure.renderScene, facts).length === 0, "the unmutated figure passes the binding audit");
   const mutate = (change: (document: SceneDocument) => void) => {
     const document = structuredClone(figure.document);
@@ -54,17 +55,18 @@ for (const item of FLOOR_ADVERSARIAL_CASES.filter((candidate) => candidate.probl
   const retarget = (id: string, target: string) => (document: SceneDocument) => {
     document.annotations = document.annotations.map((annotation) => annotation.id === id ? { ...annotation, targetIds: [target] } : annotation);
   };
-  check(mutate(retarget("value_sup", "r1")).includes("floor_unbound_text"), "the supply's 9 V written on a resistor is refused");
-  check(mutate(retarget("value_r1", "sup")).includes("floor_unbound_text"), "a resistor's 4.7 kΩ written on the supply is refused");
-  check(mutate((document) => { document.annotations.push({ id: "solved", kind: "label", targetIds: ["r1"], text: "4.5 V", labelMode: "append" }); })
+  check(mutate(retarget("value_cell", "r1")).includes("floor_unbound_text"), "the cell's 9 V written on a resistor is refused");
+  check(mutate(retarget("value_r1", "cell")).includes("floor_unbound_text"), "a resistor's 6 Ω written on the cell is refused");
+  check(mutate(retarget("value_r1", "r2")).includes("floor_unbound_text"), "one resistor's 6 Ω written on the other is refused");
+  check(mutate((document) => { document.annotations.push({ id: "solved", kind: "label", targetIds: ["r1"], text: "1.5 A", labelMode: "append" }); })
     .includes("floor_unbound_text"), "a solved value is refused");
   check(mutate((document) => { document.annotations.push({ id: "invented", kind: "label", targetIds: ["r2"], text: "10 kΩ", labelMode: "append" }); })
     .includes("floor_unbound_text"), "an invented value is refused");
-  check(mutate((document) => { document.entities.find((entity) => entity.id === "r1")!.label = "battery"; }).includes("floor_unbound_text"),
+  check(mutate((document) => { document.entities.find((entity) => entity.id === "r1")!.label = "cell"; }).includes("floor_unbound_text"),
     "another part's name is refused");
   check(mutate((document) => {
     document.entities.push({ id: "arrow", kind: "vector", role: "current", provenance: { floor: true } });
-    document.constructions.push({ id: "draw_arrow", operator: "vector", inputs: { start: "n1", end: "n2" }, outputs: ["arrow"] });
+    document.constructions.push({ id: "draw_arrow", operator: "vector", inputs: { start: "a", end: "b" }, outputs: ["arrow"] });
     document.requiredEntityIds.push("arrow");
     document.revealGroups[0]!.entityIds.push("arrow");
   }).includes("floor_analysis_ink"), "any arrow is refused");
@@ -72,13 +74,12 @@ for (const item of FLOOR_ADVERSARIAL_CASES.filter((candidate) => candidate.probl
   check(mutate((document) => { document.source = { ...document.source, question: "Another question." }; }).includes("floor_question"), "a figure built for another question is refused");
 }
 
-// 4. A stated node network's loops are exact: a series chain of five is one loop, a bridge is not.
-{
-  const series = circuitTopologyFromProblemStructure(byId("circuit-five-resistors").problemIR);
-  check(series && !series.twoLoop, "five resistors in one stated loop are one loop");
-  check(circuitTopologyFromProblemStructure(byId("circuit-bridge").problemIR)?.twoLoop === true, "a stated bridge is more than one loop");
-  const divider = circuitTopologyFromProblemStructure(byId("circuit-divider-nodes").problemIR);
-  check(divider && !divider.twoLoop, "a node that joins two parts is not a junction");
+// 4. Node joins never prove one loop: where the conservative circuit demand veto
+// says a network may have several loops, the floor draws no chain.
+for (const id of ["circuit-divider-nodes", "circuit-five-resistors"]) {
+  const item = byId(id);
+  check(circuitDemandMayBeMultiLoop(item.problemIR), `${id}: the demand veto treats node joins as a possible network`);
+  check(buildFloorFigure(item).figure === null, `${id}: the floor draws no chain over the demand veto`);
 }
 
 // 5. Every drawn adversarial case passes the audit independently of the builder.

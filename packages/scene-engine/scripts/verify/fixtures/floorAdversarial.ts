@@ -116,7 +116,7 @@ const add = (item: FloorCase) => cases.push(item);
 // ---------- circuits that must draw ----------
 {
   const q = "A 9 V supply and two 4.7 kΩ resistors are connected in series. Find the voltage across each resistor.";
-  add({ id: "circuit-divider-nodes", kind: "circuit", question: q, expect: "draw", shows: ["9 V", "4.7 kΩ"], never: ["4.5 V"], why: "series loop from node joins, one value shared by the counted pair",
+  add({ id: "circuit-divider-nodes", kind: "circuit", question: q, expect: "decline", why: "node joins with no dc_network branches cannot prove one loop, so the picture demand veto (#215) refuses a resistor chain",
     turnPlan: plan(q, [["V", 9, "V", "9 V supply"], ["R", 4.7, "kΩ", "two 4.7 kΩ resistors"]], [["V_R", "V"]]),
     problemIR: new IR(q).fact("f1", "9 V supply").fact("f2", "two 4.7 kΩ resistors").fact("f3", "connected in series")
       .entity("sup", "component", "supply", ["f1"]).entity("r1", "component", "resistor", ["f2"]).entity("r2", "component", "resistor", ["f2"])
@@ -215,7 +215,7 @@ const add = (item: FloorCase) => cases.push(item);
   full.join("bat", "n0", "n1", ["f3"]);
   parts.forEach((id, index) => full.join(id, `n${index + 1}`, index === 4 ? "n0" : `n${index + 2}`, ["f3"]));
   const givens: Array<[string, number, string, string]> = [["R", 2, "Ω", "2 Ω each"], ["V", 10, "V", "10 V battery"]];
-  add({ id: "circuit-five-resistors", kind: "circuit", question: q, expect: "draw", shows: ["2 Ω", "10 V"], never: ["1 A"], why: "review case 2 with all five resistors in the ProblemIR",
+  add({ id: "circuit-five-resistors", kind: "circuit", question: q, expect: "decline", why: "review case 2 with all five resistors in the ProblemIR: five branches may be a network, so the picture demand veto (#215) refuses a chain",
     turnPlan: plan(q, givens), problemIR: full.number("e1", 2, ["f1"]).number("e2", 10, ["f2"]).intent("network", ["bat", ...parts], ["f3"]).build() });
   add({ id: "circuit-five-as-one", kind: "circuit", question: q, expect: "decline", why: "review case 2: \"five resistors\" with one resistor in the ProblemIR",
     turnPlan: plan(q, givens), problemIR: new IR(q).fact("f1", "Five resistors of 2 Ω each").fact("f2", "10 V battery").fact("f3", "connected in series")

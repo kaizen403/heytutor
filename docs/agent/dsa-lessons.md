@@ -67,7 +67,9 @@ is upper guidance for most steps, not a word floor. Jev may select motivation
 and a teaching emphasis from the student's question; it cannot remove a frame
 or code block. If Jev is unavailable, the default shape still teaches.
 
-An explicit explanation request without a request to code or solve stays on
+An explanation requested “in programming” includes a short program alongside
+the worked example. An explicit “without code” request keeps the editor hidden.
+Other explicit explanation requests without a request to code or solve stay on
 the verified frame walk and closes with complexity. The planner still grounds
 the family and example, but the editor remains hidden and the conductor owes
 no code blocks, including when the family drew no frames. A question that asks

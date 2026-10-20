@@ -50,14 +50,11 @@ import {
   buildDiagramExampleCatalogue,
   loadDiagramExemplarLibrary,
 } from "./diagramExamples";
-import {
-  resolveFireworksModel,
-  resolveTeachingFireworksModel,
-} from "../../lib/llm/fireworksModels";
-import { completionTokenCap, providerChatBody, resolveLlmEndpoint } from "../../lib/llm/llmProvider";
+import { completionTokenCap, providerChatBody, resolveLlmEndpoint, type LlmEndpoint } from "../../lib/llm/llmProvider";
+import { buildLabModelProfile, expectedLabRequestModel, labModelProfilesMatch, type LabModelProfile } from "../../lib/llm/labModelProfile";
 import { parseProviderUsage } from "../../lib/obs/providerUsage";
 import { normalizeTutorQuestion } from "@heytutor/tutor-core";
-import { calculateLlmCostDetails, resolveLlmRates } from "../../lib/obs/usageCost";
+import { calculateLlmCostDetails, resolveLlmRates, type LlmRate } from "../../lib/obs/usageCost";
 import { assertLabSpendMode, assertLabUsageCheckpoint, hasPricedUsage, LabRequestNotDispatchedError, type LabSpendMode, type LabUnresolvedCall, type LabUsageObservation } from "./labSpend";
 import type { SceneDeclinePolicy } from "./sceneDeclineExperiment";
 
@@ -436,9 +433,9 @@ export function labResponseUsagePricing(deployment: string) {
 
 export function selectResumeProbes<T extends { id: string; question: string }>(
   probes: readonly T[],
-  saved: readonly { probeId: string; question: string; evaluation?: { question: string } | null; arm?: string; providerConfig?: { provider: string; deployment?: string }; executionConfig?: Record<string, unknown> }[],
+  saved: readonly { probeId: string; question: string; evaluation?: { question: string } | null; arm?: string; providerConfig?: { provider: string; deployment?: string | null }; executionConfig?: Record<string, unknown> }[],
   arm: string,
-  provider: { provider: string; deployment?: string },
+  provider: { provider: string; deployment?: string | null },
   executionConfig?: Record<string, unknown>,
 ): T[] {
   const byId = new Map(probes.map((probe) => [probe.id, probe]));
@@ -489,12 +486,15 @@ export function plannerRequestWorstCaseUsd(
   init: RequestInit | undefined,
   model: string,
   serverOutputCap = 0,
+  inputBound: { inputByteMultiplier: number; addedInputBytes: number } = { inputByteMultiplier: 1, addedInputBytes: 0 },
+  pricing?: { endpoint: Pick<LlmEndpoint, "provider">; rates: LlmRate },
 ): number {
   let messages: unknown = [];
   let maxTokens = 4_000;
   if (typeof init?.body === "string") {
     try {
-      const body = providerChatBody(JSON.parse(init.body) as Record<string, unknown>, resolveLlmEndpoint());
+      const body = providerChatBody(JSON.parse(init.body) as Record<string, unknown>,
+        pricing?.endpoint ?? resolveLlmEndpoint(), pricing ? {} : process.env);
       messages = body.messages ?? [];
       const cap = completionTokenCap(body);
       if (Number.isFinite(cap)) {
@@ -504,7 +504,91 @@ export function plannerRequestWorstCaseUsd(
       // The output ceiling still provides a conservative charge for malformed bodies.
     }
   }
-  return estimateLabCallWorstCaseUsd({ messages, maxTokens: Math.max(maxTokens, serverOutputCap), model });
+  return estimateLabCallWorstCaseUsd({ messages, maxTokens: Math.max(maxTokens, serverOutputCap), model,
+    ...inputBound, rates: pricing?.rates });
+}
+
+type LabInputBound = { inputByteMultiplier: number; addedInputBytes: number };
+
+export interface LabBudgetServerConfig {
+  configured: boolean;
+  provider: string;
+  deployment: string | null;
+  modelProfile: LabModelProfile;
+  inputBounds: Record<"picker" | "scene", LabInputBound>;
+  plannerOutputCap: number;
+  teachingOutputCap: number;
+  planningSpeed?: { priority?: boolean };
+}
+
+/** Fail before dispatch if the authenticated server's models, prices or bounds drift. */
+export function assertLabBudgetPreflight(profile: LabModelProfile, serverConfig: LabBudgetServerConfig): void {
+  if (!serverConfig.configured || serverConfig.provider !== profile.provider || serverConfig.deployment !== profile.deployment ||
+    !labModelProfilesMatch(profile, serverConfig.modelProfile) ||
+    !Number.isSafeInteger(serverConfig.plannerOutputCap) || serverConfig.plannerOutputCap <= 0 ||
+    !Number.isSafeInteger(serverConfig.teachingOutputCap) || serverConfig.teachingOutputCap <= 0) {
+    throw new Error("server provider/models/prices do not match the configured lab");
+  }
+  for (const kind of ["picker", "scene"] as const) {
+    const bound = serverConfig.inputBounds?.[kind];
+    if (!bound || !Number.isSafeInteger(bound.inputByteMultiplier) || bound.inputByteMultiplier < 1 ||
+      !Number.isSafeInteger(bound.addedInputBytes) || bound.addedInputBytes < 0) {
+      throw new Error("server lacks a valid prepared-input expansion bound");
+    }
+  }
+}
+
+export interface LabRequestBudgetInput {
+  url: string;
+  origin: string;
+  headers: Headers;
+  init?: RequestInit;
+  endpoint: Pick<LlmEndpoint, "provider" | "deployment" | "url">;
+  profile: LabModelProfile;
+  serverConfig: LabBudgetServerConfig;
+}
+
+export interface LabRequestBudgetDecision {
+  shouldBudget: boolean;
+  chatRequest: boolean;
+  plannerRequest: boolean;
+  directProviderRequest: boolean;
+  model: string;
+  inputBound: LabInputBound | undefined;
+  maxAttempts: number;
+  worstCaseUsd: number;
+}
+
+/** Pure reservation policy used by the real fetch wrapper; no env, network or cap mutation. */
+export function labRequestBudgetDecision(input: LabRequestBudgetInput): LabRequestBudgetDecision {
+  const { url, origin, headers, init, endpoint, profile, serverConfig } = input;
+  assertLabBudgetPreflight(profile, serverConfig);
+  if (endpoint.provider !== profile.provider || endpoint.deployment !== profile.deployment) {
+    throw new Error("budget endpoint does not match the configured lab");
+  }
+  const requestUrl = new URL(url);
+  const chatRequest = requestUrl.origin === origin && requestUrl.pathname === "/api/chat"
+    && Boolean(headers.get("x-heytutor-trace-id"));
+  const plannerRequest = chatRequest && headers.get("x-planner") === "1";
+  const directProviderRequest = url === endpoint.url;
+  const model = directProviderRequest ? directProviderRequestModel(init, endpoint) : expectedLabRequestModel(profile, headers);
+  const lane = directProviderRequest
+    ? (Object.keys(profile.models) as Array<keyof LabModelProfile["models"]>).find(key => profile.models[key] === model)
+    : headers.get("x-diagram-example-picker") === "1" ? "picker"
+      : headers.get("x-problem-ir-version") === "1" ? "problemIR" : plannerRequest ? "planner" : "teaching";
+  if (!lane) throw new Error("direct provider model is not in the captured lab profile");
+  const inputBound = plannerRequest && headers.get("x-diagram-example-picker") === "1"
+    ? serverConfig.inputBounds.picker
+    : plannerRequest && headers.get("x-scene-planner-version") === "2" && requestUrl.searchParams.get("diagramExampleIds")
+      ? serverConfig.inputBounds.scene : undefined;
+  const shouldBudget = chatRequest || directProviderRequest;
+  // The proxy can dispatch two planner attempts or three teaching attempts.
+  const maxAttempts = chatRequest ? plannerRequest ? 2 : 3 : 1;
+  const worstCaseUsd = shouldBudget
+    ? plannerRequestWorstCaseUsd(init, model, chatRequest ? plannerRequest ? serverConfig.plannerOutputCap : serverConfig.teachingOutputCap : 0,
+      inputBound, { endpoint, rates: profile.rates[lane] }) * maxAttempts * (plannerRequest && serverConfig.planningSpeed?.priority ? 2 : 1)
+    : 0;
+  return { shouldBudget, chatRequest, plannerRequest, directProviderRequest, model, inputBound, maxAttempts, worstCaseUsd };
 }
 
 /** Deterministic shuffle so a "sample one per unit" run is reproducible. */
@@ -731,11 +815,13 @@ export function summarizeEvaluation(runs: readonly LectureRun[]) {
 async function main(): Promise<void> {
   if (existsSync(resolve(process.cwd(), ".env.local"))) process.loadEnvFile(resolve(process.cwd(), ".env.local"));
   const endpoint = resolveLlmEndpoint();
-  if (endpoint.provider !== "azure" || endpoint.fallbackReason || !endpoint.apiKey || !endpoint.deployment) {
-    throw new Error("paid lecture-lab runs require a fully configured Azure provider; Fireworks calls are disabled");
-  }
-  const providerConfig = { provider: endpoint.provider, deployment: endpoint.deployment, model: endpoint.deployment };
+  const modelProfile = buildLabModelProfile({ endpoint, env: process.env });
+  const providerConfig = { provider: endpoint.provider, deployment: endpoint.deployment,
+    model: modelProfile.models.planner, modelProfile };
   const options = parseOptions(process.argv.slice(2));
+  if (endpoint.provider === "fireworks" && options.model === "fast") {
+    throw new Error("paid Fireworks lab runs require the standard configured model, not Fast");
+  }
   const repoRoot = resolve(process.cwd(), "../..");
   if (options.evalFiles.length > 0 && options.ask) throw new Error("--eval and --ask cannot be combined");
   const evaluationRows = options.evalFiles.length > 0
@@ -776,16 +862,16 @@ async function main(): Promise<void> {
   applyLectureLabHeaders(configHeaders);
   const configResponse = await fetch(`${options.origin}/api/lecture-lab/config`, { headers: configHeaders });
   if (!configResponse.ok) throw new Error("authenticated lab provider preflight failed");
-  const serverConfig = await configResponse.json() as { provider: string; deployment: string; configured: boolean; plannerOutputCap: number; teachingOutputCap: number; visualNeed?: Record<string, unknown>; planningSpeed?: { sceneEffort: string; priority: boolean; requestTier: string } };
-  if (!serverConfig.configured || serverConfig.provider !== providerConfig.provider || serverConfig.deployment !== providerConfig.deployment ||
-    !Number.isFinite(serverConfig.plannerOutputCap) || !Number.isFinite(serverConfig.teachingOutputCap)) {
-    throw new Error("server provider/deployment does not match the configured Azure lab");
-  }
+  const serverConfig = await configResponse.json() as LabBudgetServerConfig & { visualNeed?: Record<string, unknown>;
+    planningSpeed?: { sceneEffort: string; priority: boolean; requestTier: string } };
+  assertLabBudgetPreflight(modelProfile, serverConfig);
   if (!serverConfig.visualNeed || Object.entries(LAB_VISUAL_NEED_POLICY).some(([key, value]) => serverConfig.visualNeed?.[key] !== value)) {
     throw new Error("server visual-need policy does not match the live-matching lab");
   }
   execFileSync(process.execPath, [resolve(process.cwd(), "scripts/lecture-lab/svg2png.mjs"), "--check-browser"], { stdio: "pipe" });
   const executionConfig = {
+    modelProfile: serverConfig.modelProfile, inputBounds: serverConfig.inputBounds,
+    plannerOutputCap: serverConfig.plannerOutputCap, teachingOutputCap: serverConfig.teachingOutputCap,
     planningSpeed: { sceneEffort: serverConfig.planningSpeed?.sceneEffort ?? "low",
       requestTier: serverConfig.planningSpeed?.requestTier ?? "auto",
       priority: serverConfig.planningSpeed?.priority === true },
@@ -801,13 +887,13 @@ async function main(): Promise<void> {
     ...(options.productionStrictSubjects ? { productionStrictSubjects: options.productionStrictSubjects,
       examplePickerProfile: "live-client-4000ms-subject-shelf/v2", subjectClassification: "existing-turn-plan" } : {}),
     ...(options.spendMode === "response_usage" ? { spendMode: options.spendMode,
-      ...labResponseUsagePricing(providerConfig.deployment),
+      ...labResponseUsagePricing(providerConfig.model),
       plannerOutputCap: serverConfig.plannerOutputCap, teachingOutputCap: serverConfig.teachingOutputCap,
     } : {}),
   };
   if (preflightEstimateUsd !== null) {
     console.log(
-      `diagram eval: ${probes.length} rows, arm ${options.arm}, provider ${endpoint.provider}, deployment ${endpoint.deployment}, scene planner limit ${options.scenePlannerLimitMs}ms, figure-only ${options.figureOnly}, estimated cost $${preflightEstimateUsd.toFixed(2)}`,
+      `diagram eval: ${probes.length} rows, arm ${options.arm}, provider ${endpoint.provider}, model ${providerConfig.model}, deployment ${endpoint.deployment}, scene planner limit ${options.scenePlannerLimitMs}ms, figure-only ${options.figureOnly}, estimated cost $${preflightEstimateUsd.toFixed(2)}`,
     );
     if (evaluationUsesExamples(options.arm)) {
       console.log(`diagram eval: ${diagramExamples.length} leak-filtered examples available`);
@@ -876,10 +962,10 @@ async function main(): Promise<void> {
   spendCap.recordCost(priorChargeUsd);
   if (options.spendMode === "response_usage") {
     spendCap.restoreKnownUsage(priorChargeUsd);
-    if (oldCheckpoint) spendCap.restoreUnresolvedCheckpoint(oldCheckpoint, providerConfig.deployment);
+    if (oldCheckpoint) spendCap.restoreUnresolvedCheckpoint(oldCheckpoint, providerConfig.model);
   } else {
     spendCap.restoreKnownUsage(oldCheckpoint?.knownUsageUsd ?? 0);
-    if (oldCheckpoint?.unresolvedCalls) spendCap.restoreUnresolvedCheckpoint(oldCheckpoint, providerConfig.deployment);
+    if (oldCheckpoint?.unresolvedCalls) spendCap.restoreUnresolvedCheckpoint(oldCheckpoint, providerConfig.model);
   }
   const visualNeedCalls: VisualNeedCallAccounting[] = [...(oldCheckpoint?.visualNeedCalls ?? [])];
   const visualNeedAccountingByTrace = new Map<string, VisualNeedCallAccounting>();
@@ -919,7 +1005,6 @@ async function main(): Promise<void> {
     return summary;
   };
   writeSummary();
-  const worstCasePlannerModel = resolveFireworksModel({ fastMode: options.model === "fast" });
   const settleSpend = (reservedUsd: number, usd: number, observation?: LabUsageObservation, context?: Pick<LabUnresolvedCall, "traceId" | "kind">) => {
     spendCap.settleCall(reservedUsd, usd, observation, context); checkpointSpend();
   };
@@ -937,6 +1022,9 @@ async function main(): Promise<void> {
           headers.set(LECTURE_LAB_STANDARD_MODEL_HEADER, "1");
         }
       }
+      // The advertised Fireworks lab profile is standard in every lane;
+      // authenticated lab probes/asks must not fall through to Fast IR either.
+      if (endpoint.provider === "fireworks") headers.set(LECTURE_LAB_STANDARD_MODEL_HEADER, "1");
     }
     const traceId = headers.get("x-heytutor-trace-id");
     if (url === `${options.origin}/api/visual-need`) {
@@ -948,20 +1036,12 @@ async function main(): Promise<void> {
         onDenied: () => { if (traceId) budgetDeniedTraces.add(traceId); },
       });
     }
-    const chatRequest = url === `${options.origin}/api/chat` && traceId;
+    const budget = labRequestBudgetDecision({ url, origin: options.origin, headers, init, endpoint, profile: modelProfile, serverConfig });
+    const { plannerRequest, directProviderRequest, model: requestModel, maxAttempts, worstCaseUsd: requestWorstCaseUsd } = budget;
+    const chatRequest = budget.chatRequest && traceId;
     if (chatRequest) usageTracker.assertTraceOpen(traceId);
     const operation = (async () => {
-      const plannerRequest = chatRequest && headers.get("x-planner") === "1";
-      const directProviderRequest = url === endpoint.url;
-      const requestModel = directProviderRequest ? directProviderRequestModel(init, endpoint) : plannerRequest
-        ? worstCasePlannerModel
-        : resolveTeachingFireworksModel({ fastMode: options.model === "fast" });
-      // The proxy dispatches up to two planner or three teaching attempts.
-      const maxAttempts = chatRequest ? plannerRequest ? 2 : 3 : 1;
-      const requestWorstCaseUsd = chatRequest || directProviderRequest
-        ? plannerRequestWorstCaseUsd(init, requestModel, chatRequest ? plannerRequest ? serverConfig.plannerOutputCap : serverConfig.teachingOutputCap : 0) * maxAttempts * (plannerRequest && serverConfig.planningSpeed?.priority ? 2 : 1)
-        : 0;
-      if (chatRequest || directProviderRequest) {
+      if (budget.shouldBudget) {
         try {
           await reserveLabRequest(spendCap, requestWorstCaseUsd, init?.signal);
         } catch (error) {
@@ -969,7 +1049,7 @@ async function main(): Promise<void> {
           throw error;
         }
       }
-      if (chatRequest || directProviderRequest) checkpointSpend();
+      if (budget.shouldBudget) checkpointSpend();
       if (chatRequest) {
         usageTracker.recordRequest(traceId, requestWorstCaseUsd, plannerRequest ? "planner" : "teaching", maxAttempts);
       }
@@ -993,7 +1073,7 @@ async function main(): Promise<void> {
       const requestStartedAt = Date.now();
       try {
         const response = await nativeFetch(input, { ...init, headers });
-        if (plannerRequest) await usageTracker.recordResponse(traceId, response, requestWorstCaseUsd, maxAttempts, requestModel, {
+        if (plannerRequest && traceId) await usageTracker.recordResponse(traceId, response, requestWorstCaseUsd, maxAttempts, requestModel, {
           ...requestProfile,
           elapsedMs: Date.now() - requestStartedAt,
         });
@@ -1014,7 +1094,7 @@ async function main(): Promise<void> {
           }, { traceId, kind: "picker" });
         }
         accounted = true;
-        if (chatRequest && response.ok && response.headers.get(plannerRequest ? "x-heytutor-planner-model" : "x-heytutor-model") !== providerConfig.deployment) {
+        if (chatRequest && response.ok && response.headers.get(plannerRequest ? "x-heytutor-planner-model" : "x-heytutor-model") !== requestModel) {
           throw new Error("lab received an unexpected or unrecorded server model; paid usage has been retained");
         }
         return response;

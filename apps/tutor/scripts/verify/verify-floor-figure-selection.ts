@@ -62,22 +62,22 @@ for (const item of FLOOR_ADVERSARIAL_CASES) {
 }
 
 // Never over a solver contradiction, a valid planner figure, or a turn that asks for no figure.
-const divider = FLOOR_ADVERSARIAL_CASES.find((item) => item.id === "circuit-divider-nodes")!;
-const drawn = select(divider.question, divider.turnPlan, divider.problemIR, { floorFigureEnabled: true });
-check(drawn.representation?.figureSource === "floor", "the node divider draws a floor figure");
-check(select(divider.question, divider.turnPlan, divider.problemIR, { floorFigureEnabled: true, solverAuthorityBlocked: true }).representation === null,
+const ladder = FLOOR_ADVERSARIAL_CASES.find((item) => item.id === "circuit-parallel-cell")!;
+const drawn = select(ladder.question, ladder.turnPlan, ladder.problemIR, { floorFigureEnabled: true });
+check(drawn.representation?.figureSource === "floor", "the parallel pair across a cell draws a floor figure");
+check(select(ladder.question, ladder.turnPlan, ladder.problemIR, { floorFigureEnabled: true, solverAuthorityBlocked: true }).representation === null,
   "no floor over a solver contradiction");
 {
   const document = structuredClone(drawn.representation!.sceneDocument) as unknown as Record<string, unknown>;
-  document.source = { question: divider.question };
-  const planner = validateProductionSceneCandidate({ candidate: document, question: divider.question, turnPlan: divider.turnPlan as unknown as TurnPlanV3 });
+  document.source = { question: ladder.question };
+  const planner = validateProductionSceneCandidate({ candidate: document, question: ladder.question, turnPlan: ladder.turnPlan as unknown as TurnPlanV3 });
   check(planner.valid, "the planner-shaped control validates");
-  const kept = select(divider.question, divider.turnPlan, divider.problemIR, { floorFigureEnabled: true, candidateValidation: planner });
+  const kept = select(ladder.question, ladder.turnPlan, ladder.problemIR, { floorFigureEnabled: true, candidateValidation: planner });
   check(kept.representation?.figureSource === "planner" && kept.floor === undefined, "a valid planner figure is drawn and the floor is not tried");
 }
 {
   const plain = "What is the sum of 2 and 3?";
-  const none = select(plain, { ...(divider.turnPlan as object), question: plain, visualRequirement: "none", givens: [], unknowns: [] }, null, { floorFigureEnabled: true });
+  const none = select(plain, { ...(ladder.turnPlan as object), question: plain, visualRequirement: "none", givens: [], unknowns: [] }, null, { floorFigureEnabled: true });
   check(none.representation === null && none.floor === undefined && none.reason === "the question asks for no figure", "a turn that asks for no figure gets no floor");
 }
 

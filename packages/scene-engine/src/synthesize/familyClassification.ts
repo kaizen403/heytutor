@@ -64,6 +64,11 @@ export interface ProblemStructureView {
   representationIntents?: ReadonlyArray<{ kind?: string }>;
   constraints?: ReadonlyArray<{ kind?: string; entityIds?: readonly string[] }>;
   facts?: ReadonlyArray<{ kind?: string; statement?: string }>;
+  solveRequests?: ReadonlyArray<{ kind?: string; network?: {
+    model?: string;
+    nodes?: readonly string[];
+    branches?: ReadonlyArray<{ id?: string; kind?: string; from?: string; to?: string }>;
+  } }>;
 }
 
 export function normalizeStem(question: string): string {
@@ -475,40 +480,22 @@ export interface CircuitTopology {
   sources: number;
   branches: number;
   junctions: number;
-  /** Kirchhoff/Wheatstone-style network: two loops or a bridge, not a chain. */
+  /** Multiple cycles in one displayed branch graph, including open branches;
+   * this does not assert conducting loops, a source count, or current flow. */
   twoLoop: boolean;
 }
 
 /**
- * Derive the circuit loop/branch structure from ProblemIR entities and
- * connected-constraints — sources, branch components, and junction hubs — so
- * a two-loop Kirchhoff/Wheatstone network is told apart from a plain resistor
- * chain without an English override regex.
+ * Inventory identifies a circuit family, not its topology. Only explicit DC
+ * branch endpoints can prove independent cycles; component/source counts and
+ * repeated membership in `connected` constraints carry no such evidence.
  */
-/** Independent loops of a network whose every component joins exactly two stated node points, else null. */
-function statedNodeLoopCount(problemIR: ProblemStructureView, pointIds: ReadonlySet<string>): number | null {
-  const components = (problemIR.entities ?? []).filter((entity) => entity.kind === "component")
-    .map((entity) => (entity as { id?: string }).id).filter((id): id is string => typeof id === "string");
-  if (components.length === 0) return null;
-  const edges: Array<[string, string]> = [];
-  for (const component of components) {
-    const joins = (problemIR.constraints ?? []).filter((constraint) => constraint.kind === "connected" && constraint.entityIds?.includes(component));
-    const ends = joins.length === 1 ? (joins[0]!.entityIds ?? []).filter((id) => id !== component) : [];
-    if (ends.length !== 2 || !ends.every((id) => pointIds.has(id)) || ends[0] === ends[1]) return null;
-    edges.push([ends[0]!, ends[1]!]);
-  }
-  const parent = new Map<string, string>();
-  const find = (node: string): string => { const up = parent.get(node) ?? node; if (up === node) return node; const root = find(up); parent.set(node, root); return root; };
-  const nodes = new Set(edges.flat());
-  for (const [a, b] of edges) parent.set(find(a), find(b));
-  const parts = new Set([...nodes].map(find)).size;
-  return edges.length - nodes.size + parts;
-}
-
 export function circuitTopologyFromProblemStructure(
   problemIR?: ProblemStructureView | null,
 ): CircuitTopology | null {
   if (!problemIR) return null;
+  const explicit = explicitCircuitTopology(problemIR);
+  if (explicit) return explicit;
   const entities = problemIR.entities ?? [];
   const components = entities.filter((entity) =>
     entity.kind === "component" || CIRCUIT_BRANCH_LABEL.test(entity.label ?? "")
@@ -517,6 +504,23 @@ export function circuitTopologyFromProblemStructure(
     .some((intent) => intent.kind === "network");
   if (components.length === 0 && !networkIntent) return null;
   const sources = components.filter((entity) => CIRCUIT_SOURCE_LABEL.test(entity.label ?? "")).length;
+  return { sources, branches: components.length, junctions: 0, twoLoop: false };
+}
+
+/**
+ * A picture-demand veto is intentionally more conservative than planner
+ * guidance. Keep main's inventory rule as a refusal boundary: absence of a
+ * proved branch graph cannot authorize collapsing a possible network into a
+ * series chain. Even an explicit one-loop graph does not relax that boundary.
+ */
+export function circuitDemandMayBeMultiLoop(problemIR?: ProblemStructureView | null): boolean {
+  if (!problemIR) return false;
+  if (circuitTopologyFromProblemStructure(problemIR)?.twoLoop) return true;
+  const components = (problemIR.entities ?? []).filter((entity) =>
+    entity.kind === "component" || CIRCUIT_BRANCH_LABEL.test(entity.label ?? "")
+    || CIRCUIT_SOURCE_LABEL.test(entity.label ?? ""));
+  const sources = components.filter((entity) => CIRCUIT_SOURCE_LABEL.test(entity.label ?? "")).length;
+  const networkIntent = (problemIR.representationIntents ?? []).some((intent) => intent.kind === "network");
   const connectedDegree = new Map<string, number>();
   for (const constraint of problemIR.constraints ?? []) {
     if (constraint.kind !== "connected") continue;
@@ -524,22 +528,65 @@ export function circuitTopologyFromProblemStructure(
       connectedDegree.set(entityId, (connectedDegree.get(entityId) ?? 0) + 1);
     }
   }
-  // A stated node point that joins only two parts is a bend in one path, not a
-  // junction; a node is a junction when three or more parts meet there.
-  const pointIds = new Set(entities.filter((entity) => entity.kind === "point")
-    .map((entity) => (entity as { id?: string }).id).filter((id): id is string => typeof id === "string"));
-  const junctions = [...connectedDegree].filter(([id, degree]) => degree >= (pointIds.has(id) ? 3 : 2)).length;
+  const junctions = [...connectedDegree.values()].filter((degree) => degree >= 2).length;
   const branches = components.length;
-  // When every component is joined to exactly two stated node points, the
-  // number of independent loops is exact: branches - nodes + connected parts.
-  const nodeLoops = statedNodeLoopCount(problemIR, pointIds);
-  // Otherwise: two voltage sources driving a shared branch (Kirchhoff), or a
-  // five-plus branch bridge (Wheatstone), or an explicitly connected
-  // multi-junction net.
-  const twoLoop = nodeLoops !== null ? nodeLoops >= 2 : (sources >= 2 && branches >= 3)
-    || branches >= 5
-    || (networkIntent && junctions >= 2 && branches >= 3);
-  return { sources, branches, junctions, twoLoop };
+  return (sources >= 2 && branches >= 3) || branches >= 5 ||
+    (networkIntent && junctions >= 2 && branches >= 3);
+}
+
+function explicitCircuitTopology(problemIR: ProblemStructureView): CircuitTopology | null {
+  const requests: NonNullable<ProblemStructureView["solveRequests"]> = Array.isArray(problemIR.solveRequests)
+    ? problemIR.solveRequests.filter(request => request && typeof request === "object" && request.kind === "dc_network") : [];
+  if (requests.length === 0) return null;
+  let signature: string | undefined;
+  let result: CircuitTopology | null = null;
+  for (const { network } of requests) {
+    if (network?.model !== "ideal_dc" || !Array.isArray(network.nodes) || !network.nodes.length
+      || !Array.isArray(network.branches) || !network.branches.length) return null;
+    const nodes = new Set<string>(network.nodes);
+    if (nodes.size !== network.nodes.length || [...nodes].some(node => typeof node !== "string" || !node)) return null;
+    const ids = new Set<string>();
+    const adjacency = new Map([...nodes].map(node => [node, [] as string[]]));
+    const branches: NonNullable<NonNullable<typeof network>["branches"]> = network.branches;
+    for (const branch of branches) {
+      if (!branch || typeof branch !== "object" || typeof branch.id !== "string" || !branch.id || ids.has(branch.id)
+        || typeof branch.from !== "string" || typeof branch.to !== "string" || !branch.from || !branch.to || branch.from === branch.to
+        || !nodes.has(branch.from) || !nodes.has(branch.to)
+        || !["resistor", "voltage_source", "current_source", "wire", "open"].includes(branch.kind ?? "")) return null;
+      ids.add(branch.id);
+      adjacency.get(branch.from)!.push(branch.to);
+      adjacency.get(branch.to)!.push(branch.from);
+    }
+    // Several outputs may request the same network. Never add their cycles
+    // together or merge distinct/inconsistent networks into an invented one.
+    const nextSignature = JSON.stringify({ nodes: [...nodes].sort(), branches: branches.map(branch =>
+      JSON.stringify([branch.id, branch.kind, ...[branch.from!, branch.to!].sort()])).sort() });
+    if (signature !== undefined && signature !== nextSignature) return null;
+    signature = nextSignature;
+    const visited = new Set<string>();
+    let twoLoop = false;
+    for (const node of nodes) {
+      if (visited.has(node)) continue;
+      const pending = [node];
+      let vertices = 0, degreeSum = 0;
+      while (pending.length) {
+        const current = pending.pop()!;
+        if (visited.has(current)) continue;
+        visited.add(current); vertices++;
+        const neighbors = adjacency.get(current)!;
+        degreeSum += neighbors.length;
+        pending.push(...neighbors);
+      }
+      if (degreeSum / 2 - vertices + 1 >= 2) twoLoop = true;
+    }
+    result = {
+      sources: branches.filter(branch => branch.kind === "voltage_source" || branch.kind === "current_source").length,
+      branches: branches.length,
+      junctions: [...adjacency.values()].filter(neighbors => neighbors.length >= 3).length,
+      twoLoop,
+    };
+  }
+  return result;
 }
 
 /**

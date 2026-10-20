@@ -1,4 +1,4 @@
-import { calculateLlmCostDetails } from "../../lib/obs/usageCost";
+import { calculateLlmCostDetails, roundUsd, type LlmRate } from "../../lib/obs/usageCost";
 import { parseProviderUsage } from "../../lib/obs/providerUsage";
 import { plannerTierCostMultiplier } from "../../lib/llm/planningSpeed";
 import type { FigureSource } from "@heytutor/scene-engine";
@@ -336,8 +336,21 @@ export function estimateLabCallWorstCaseUsd(input: {
   messages: unknown;
   maxTokens: number;
   model: string;
+  inputByteMultiplier?: number;
+  addedInputBytes?: number;
+  /** Frozen preflight prices; legacy callers still resolve their model rates. */
+  rates?: LlmRate;
 }): number {
-  const promptBytes = new TextEncoder().encode(JSON.stringify(input.messages)).length + 2_048;
+  const multiplier = input.inputByteMultiplier ?? 1;
+  const added = input.addedInputBytes ?? 0;
+  if (!Number.isSafeInteger(multiplier) || multiplier < 1 || !Number.isSafeInteger(added) || added < 0) {
+    throw new Error("invalid server-prepared input expansion bound");
+  }
+  const promptBytes = new TextEncoder().encode(JSON.stringify(input.messages)).length * multiplier + added + 2_048;
+  if (input.rates) {
+    return roundUsd(roundUsd(promptBytes / 1_000_000 * input.rates.inputUsdPer1M)
+      + roundUsd(Math.max(0, input.maxTokens) / 1_000_000 * input.rates.outputUsdPer1M));
+  }
   return calculateLlmCostDetails(
     { input: promptBytes, output: Math.max(0, input.maxTokens) },
     { model: input.model },
