@@ -132,4 +132,21 @@ check(none.representation === null && none.floor === undefined && none.reason ==
   check(declined.representation === null && declined.floor?.drawn === false, `an undrawable stated part declines: ${declined.floor?.reason}`);
 }
 
+// A plan that claims both series and parallel resistors holds the floor to both proofs.
+for (const question of [
+  "A 2 Ω resistor is in series with a parallel pair of 4 Ω and 12 Ω across a 10 V battery. Find the current from the battery.",
+  "A 3 Ω resistor and a 6 Ω resistor are connected first in series and then in parallel across a 9 V battery. Find the current each time.",
+]) {
+  const values = [...question.matchAll(/(\d+) (Ω|V)/g)].map((match) => [Number(match[1]), match[2]!] as const);
+  const mixedPlan: TurnPlanV3 = {
+    schemaVersion: "turn-plan/v3", question, visualRequirement: "required",
+    givens: values.map(([value, unit], index) => ({ id: `q${index}`, symbol: unit === "V" ? "V" : `R_${index + 1}`, value, unit,
+      provenance: "given" as const, sourceText: `${value} ${unit}` })),
+    unknowns: [{ id: "I", symbol: "I", unit: "A" }], derived: [], lawIds: ["ohm"], assumptions: [],
+    qualitativeClaims: [{ id: "c1", claim: "resistors in series add", expected: true }, { id: "c2", claim: "resistors in parallel combine by reciprocals", expected: true }],
+  };
+  const mixed = selectProductionScene({ ...base(), question, turnPlan: mixedPlan, problemIR: null, floorFigureEnabled: true });
+  check(mixed.representation?.figureSource === "floor", `series and parallel plan proofs hold on the floor: ${mixed.floor?.reason}`);
+}
+
 console.log(`verify-floor-figure-selection: ${checks} checks passed`);

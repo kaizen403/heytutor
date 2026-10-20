@@ -266,7 +266,17 @@ function layOutCircuit(
       entities: series.length === 0 && source ? [copy(source).id, ...bank] : bank, expected: true,
       severity: "fatal", reason: "the stated parallel parts share one terminal pair" });
   };
-  layouts.forEach((layout, index) => panel(layout, index * (span * (loads.length + 2)), index === 0 ? "" : "__second"));
+  const panelGroups: Array<{ id: string; entityIds: string[]; cue: string }> = [];
+  layouts.forEach((layout, index) => {
+    const before = new Set(built.entities.map((entity) => entity.id));
+    panel(layout, index * (span * (loads.length + 2)), index === 0 ? "" : "__second");
+    // A mixed ladder's group names neither arrangement, so the plan's series and
+    // parallel proofs each find their own stated pair instead of all three parts.
+    const name = typeof layout === "string" ? layout : "mixed";
+    panelGroups.push({ id: `floor_${name}`, entityIds: built.entities.filter((entity) => !before.has(entity.id)).map((entity) => entity.id),
+      cue: typeof layout === "string" ? `The ${layout} arrangement the question states, with its stated values.`
+        : "The arrangement the question states, with its stated values." });
+  });
   for (const [meterId, partnerId] of across) {
     const meter = parts.find((part) => part.id === meterId)!;
     const ends = terminals.get(partnerId);
@@ -278,8 +288,10 @@ function layOutCircuit(
       severity: "fatal", reason: "the stated parallel relation" });
   }
   const described = layouts.map((layout) => typeof layout === "string" ? layout : "series and parallel").join(" then ");
-  built.groups.push({ id: "floor_circuit", entityIds: built.entities.map((entity) => entity.id),
-    cue: `The ${described} circuit the question describes, with its stated values.` });
+  // One reveal group per stated arrangement (meters join the first), so each arrangement is staged and proved on its own.
+  const grouped = new Set(panelGroups.flatMap((group) => group.entityIds));
+  panelGroups[0]!.entityIds.push(...built.entities.filter((entity) => !grouped.has(entity.id)).map((entity) => entity.id));
+  built.groups.push(...panelGroups);
   const labelled = parts.filter((part) => part.name || part.value).length;
   if (labelled === 0) return { declined: "no part carries a stated name or value" };
   return {
