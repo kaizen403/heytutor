@@ -519,7 +519,9 @@ function localMoleculeOwners(
 function shapeClaims(text: string, result: VseprResult): ShapeClaim[] {
   const claims: ShapeClaim[] = [];
   let inheritedOwners: readonly string[] | null = [compositionKey(parseFormula(result.formula)!)];
-  for (const rawClause of repairOcr(normalizeChemistryText(text)).split(/[.;:]|\b(?:but|while|whereas|although|because)\b|,\s*derived\s+from\b/i)) {
+  // A colon connects a typed property to its value (electron geometry:
+  // tetrahedral); it must not turn that value into a free molecular claim.
+  for (const rawClause of repairOcr(normalizeChemistryText(text)).split(/[.;]|\b(?:but|while|whereas|although|because)\b|,\s*derived\s+from\b/i)) {
     const clause = rawClause.toLowerCase();
     const mentions = shapeOwnerMentions(rawClause);
     const shapes = SHAPE_WORDS.flatMap(([pattern, shape]) => [...clause.matchAll(new RegExp(pattern.source, "g"))]

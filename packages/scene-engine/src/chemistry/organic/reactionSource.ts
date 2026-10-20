@@ -75,6 +75,18 @@ export function readOrganicReactionSource(question: string, mentions: readonly R
     productRole = role;
     own(match.index!, match.index! + match[0].length, "formed product role");
   }
+  // A named product is an independently checkable declaration, not a reason
+  // to bypass the computed transformation or fall through to a name-only row.
+  for (const match of question.matchAll(/\bto\s+(?:form|give|produce)\s+(?:(?:an?|the)\s+)?/gi)) {
+    const start = match.index! + match[0].length;
+    const mention = mentions.find(item => item.start === start);
+    if (!mention) continue; // Unread names remain unconsumed and decline below.
+    const name = question.slice(start, mention.end).replace(/[.,;:?!]+$/, "");
+    if (!sameMolecularGraph(mention.molecule, transformed.product)) return decline("named product contradicts computed graph");
+    if (productRole !== "product" && productRole !== name) return decline("conflicting product declarations");
+    productRole = name;
+    own(match.index!, start + name.length, "formed product name");
+  }
   let gabrielExcluded = false;
   const gabriel = /\bWhy can (?:the )?Gabriel phthalimide synthesis not be used to prepare\s+/i.exec(question);
   if (gabriel) {

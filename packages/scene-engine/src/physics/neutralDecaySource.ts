@@ -7,6 +7,7 @@ import { kineticsFromStem, solveKinetics } from "../chemistry/kinetics";
 import { chemicalKineticsContext } from "../chemistry/semanticCues";
 import { chemStem } from "../chemistry/sceneKit";
 import { chemistryCanonicalValuesAgree, readChemistryQuantityDeclaration } from "../chemistry/quantityReader";
+import { parseMathExpression } from "../math/expression";
 import type { SceneDocument } from "../types";
 
 interface FractionDecay {
@@ -19,6 +20,22 @@ type DecayOutcome = { status: "not_applicable"; explicitFunctionContext?: string
 function negativeArgument(question: string, start: number): boolean {
   const prefix = question.slice(0, start).split(/[;!?]|\.(?!\d)|\b(?:and|but|or|however)\b/i).at(-1) ?? "";
   return /\b(?:no|not|never|without|excluding|unrelated|irrelevant|background)(?:\s+(?:use|follow|obey|apply|assume|a|an|the|assumed))*\s*$/i.test(prefix);
+}
+
+/** Unlike explicitFunctions' recovering extractor, this owns the whole RHS. */
+function completeRequestedFunction(question: string): string[] | null {
+  const assignment = /\b(?:y|f\s*\(\s*x\s*\)|g\s*\(\s*x\s*\)|F|F\s*\(\s*x\s*\))\s*=\s*/.exec(question);
+  if (!assignment) return null;
+  const request = [...question.matchAll(/\b(?:draw|plot|graph|show|sketch|represent)\b/gi)]
+    .filter(match => match.index < assignment.index).at(-1);
+  if (!request || negativeArgument(question, request.index)) return null;
+  // Additional clauses, unparsed variables and dangling operators are not
+  // truncated into a different function. Only final sentence punctuation is
+  // outside the mathematical operand passed to the ordinary curve parser.
+  const rawRhs = question.slice(assignment.index + assignment[0].length).trim().replace(/[.!?]$/, "").trim();
+  try { parseMathExpression(rawRhs); } catch { return null; }
+  const expressions = explicitFunctions(question);
+  return expressions.length === 1 ? expressions : null;
 }
 
 /** An asserted law and one supported requested view are independent of the
@@ -54,6 +71,14 @@ function normalizedFirstOrderRequested(question: string): boolean {
 
 export function readNeutralDecaySource(question: string): DecayOutcome {
   const stem = chemStem(question);
+  // A supplied mathematical function owns its own curve. Merely describing
+  // it as exponential decay does not request a half-life/fraction model.
+  // Actual fraction-model operands still face the strict source reader below.
+  if (/exponential decay/.test(stem)
+    && !/half[ -]?life|fraction remaining|\brate(?: constant| coefficient)?\b|\bk\s*=/.test(stem)) {
+    const expressions = completeRequestedFunction(question);
+    if (expressions) return { status: "not_applicable", explicitFunctionContext: expressions };
+  }
   if (/first[ -]?order/.test(stem) && !/half[ -]?life|\bdecay\b|fraction remaining/.test(stem)) {
     const expressions = explicitFunctions(question);
     return { status: "not_applicable", ...(expressions.length ? { explicitFunctionContext: expressions } : {}) };

@@ -90,6 +90,7 @@ async function main(): Promise<void> {
     : given.id === "t" ? { ...given, value: 15, sourceText: "for 15 minutes" } : given);
   // A transfer has its own source givens; never reuse the old solved values or
   // manufacture new ProblemIR/solver evidence for a different question.
+  sourcePlan.unknowns = [];
   sourcePlan.derived = [];
   sourcePlan.qualitativeClaims = [];
   await check("changed-current-time-source-transfer", async () => {
