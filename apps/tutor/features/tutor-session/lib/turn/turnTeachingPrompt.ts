@@ -20,6 +20,7 @@ import {
   FAST_MODE_TEACHING_ADDON,
   TUTOR_CONTINUATION_PROMPT,
   TUTOR_SYSTEM_PROMPT,
+  ROW_FIRST_TEACHING_PROMPT,
   TEACHING_STATEMENT_TRUTH_ADDON,
   buildGivenValueSegments,
   buildDsaOpeningSegments,
@@ -465,6 +466,7 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
       alwaysStateLawFirst: input.alwaysStateLawFirst,
     }),
     [DOUBT_LENGTH_ADDON, DOUBT_FAMILIARITY_LINES[input.familiarity] ?? ""].filter(Boolean).join("\n"),
+    !codeBoard ? ROW_FIRST_TEACHING_PROMPT : "",
     doubtBlock,
     input.narrationLanguage === "hinglish" ? HINGLISH_NARRATION_ADDON : "",
   ]
@@ -686,6 +688,7 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
       alwaysStateLawFirst: input.alwaysStateLawFirst,
     }),
     RESUME_LENGTH_ADDON,
+    !codeBoard ? ROW_FIRST_TEACHING_PROMPT : "",
     resumeBlock,
     input.narrationLanguage === "hinglish" ? HINGLISH_NARRATION_ADDON : "",
   ]

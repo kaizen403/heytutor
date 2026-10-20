@@ -301,7 +301,7 @@ assert(
   assert(
     estimated.maxInitialWaitMs ===
       Math.round(mathToSpeech(narration).length * defaultSpeechMsPerChar * ESTIMATED_FIRST_CUE_MAX_FRACTION),
-    "an estimated schedule may wait for 60% of the estimated sentence",
+    "an estimated schedule may wait for its cue throughout the estimated sentence",
   );
   const fallbackDefault = getFallbackWriteCharScheduleMs("no board words here at all.", command("5x + 3"));
   const fallbackSlow = getFallbackWriteCharScheduleMs("no board words here at all.", command("5x + 3"), 120);
@@ -489,12 +489,12 @@ assert(
 );
 
 // Lead rule. Exact: the pen goes to the row and waits for its word, however
-// late. Estimated: the guess may be wrong, so the first cue waits for at
-// most 60% of the estimated sentence and the rest shift with it.
+// late. A matched script estimate also retains cues throughout its sentence.
+// The generic lead utility still honors an explicit caller-supplied bound.
 {
   const exact = leadWriteScheduleToSpeech([4081, 4300, 4600, 5000], 0);
   assert(exact.join(",") === "4081,4300,4600,5000", "an exact cue at 4 s must keep its place");
-  const estimatedCap = Math.round(5000 * ESTIMATED_FIRST_CUE_MAX_FRACTION);
+  const estimatedCap = Math.round(5000 * 0.6);
   const led = leadWriteScheduleToSpeech([4081, 4300, 4600, 5000], 0, estimatedCap);
   assert((led[0] ?? 999) <= estimatedCap, "an estimated cue past 60% of the sentence starts at 60%");
   assert((led[3] ?? 0) < 5000 && led[3]! - led[0]! === 5000 - 4081, "later characters shift with the first");
