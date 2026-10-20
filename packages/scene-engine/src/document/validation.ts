@@ -22,6 +22,7 @@ import { STATISTICS_OPERATORS, validateStatisticsConstruction } from "../compile
 import { TRIANGLE_OPERATORS, validateTriangleConstruction } from "../compile/triangleGeometry";
 import { CONIC_OPERATORS, validateConicConstruction } from "../compile/conicGeometry";
 import { SPACE_DERIVATION_OPERATORS, validateSpaceDerivationConstruction } from "../compile/spaceDerivations";
+import { normalizePlanarSpaceProjections, normalizeSceneRelations } from "./plannerArtifactNormalizers";
 import { planSpaceView } from "../compile/spaceView";
 import { PROBABILITY_OPERATORS, validateProbabilityConstruction } from "../compile/probabilityGeometry";
 import { FIELD_OPERATORS, validateFieldConstruction } from "../compile/fieldGeometry";
@@ -4251,6 +4252,14 @@ export function validateSceneDocument(raw: unknown): ValidationResult {
   }
   Object.assign(normalizedRaw, promoteAngleMarkVertices(normalizedRaw));
   reconcileConstructionOwnership(normalizedRaw);
+  const planarProjection = normalizePlanarSpaceProjections(normalizedRaw);
+  normalizedRaw.constructions = planarProjection.constructions;
+  issues.push(...planarProjection.issues);
+  // Relations only shield entities from orphan pruning; give each a fresh id
+  // and drop the unreadable ones here so the id stage cannot hide real errors.
+  const relationNormalization = normalizeSceneRelations(normalizedRaw);
+  normalizedRaw.relations = relationNormalization.relations;
+  issues.push(...relationNormalization.issues);
   if (normalizedRaw.schemaVersion !== SCENE_DOCUMENT_VERSION) {
     issues.push({ code: "schema_version", message: `Expected ${SCENE_DOCUMENT_VERSION}`, severity: "fatal", path: "schemaVersion", expected: SCENE_DOCUMENT_VERSION, actual: normalizedRaw.schemaVersion });
   }

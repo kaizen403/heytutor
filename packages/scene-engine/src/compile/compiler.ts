@@ -1942,8 +1942,8 @@ function evaluateConstruction(
     }
     case "right_angle_mark": {
       const vertex = point(["vertex"]);
-      const a = resolveAngleArmPoint(first(inputs, ["a", "first"]), vertex, geometry);
-      const b = resolveAngleArmPoint(first(inputs, ["b", "second"]), vertex, geometry);
+      const a = resolveRightAngleArmPoint(first(inputs, ["a", "first"]), vertex, geometry);
+      const b = resolveRightAngleArmPoint(first(inputs, ["b", "second"]), vertex, geometry);
       const u = normalize({ x: a.x - vertex.x, y: a.y - vertex.y });
       const v = normalize({ x: b.x - vertex.x, y: b.y - vertex.y });
       // A square corner asserts perpendicularity. Normalize first so the
@@ -2565,9 +2565,17 @@ function pushDegenerateProjectedGeometryIssues(
     })) return;
     const points = rendered.flatMap((primitive) => primitive.points);
     if (points.length < 3) return;
-    const width = Math.max(...points.map((point) => point.x)) - Math.min(...points.map((point) => point.x));
-    const height = Math.max(...points.map((point) => point.y)) - Math.min(...points.map((point) => point.y));
-    if (Math.min(width, height) >= MIN_PLANAR_SCREEN_PX) return;
+    // A right-angle mark is a corner glyph, so its size is its two rendered
+    // arms. Its bounding box is that size only when the corner is axis
+    // aligned; on a tilted line the box is shorter than either arm.
+    if (value.kind === "path" && value.markedAngleRadians !== undefined && points.length === 3) {
+      const arms = [distance(points[0]!, points[1]!), distance(points[1]!, points[2]!)];
+      if (Math.min(...arms) >= MIN_PLANAR_SCREEN_PX - 0.5) return;
+    } else {
+      const width = Math.max(...points.map((point) => point.x)) - Math.min(...points.map((point) => point.x));
+      const height = Math.max(...points.map((point) => point.y)) - Math.min(...points.map((point) => point.y));
+      if (Math.min(width, height) >= MIN_PLANAR_SCREEN_PX) return;
+    }
     issues.push({
       code: "degenerate_projected_geometry",
       message: `${id} is a 2D region that collapsed to a line on the canvas`,
@@ -5155,6 +5163,45 @@ function resolveAngleArmPoint(value: unknown, vertex: Point, geometry: Map<strin
   if (distance(firstPoint, vertex) < EPSILON && distance(lastPoint, vertex) >= EPSILON) return lastPoint;
   if (distance(lastPoint, vertex) < EPSILON && distance(firstPoint, vertex) >= EPSILON) return firstPoint;
   throw new Error("angle arm path must meet the angle vertex at exactly one endpoint");
+}
+/**
+ * A right-angle arm may also be a line through the vertex: both directions
+ * along it make the same angle with the other arm, so the arm runs toward the
+ * line's farther defining point. The vertex must lie on the drawn line (inside
+ * a straight piece of a finite path, on an undirected infinite line, or ahead
+ * of a ray's start); the caller still proves the two arms perpendicular.
+ */
+function resolveRightAngleArmPoint(value: unknown, vertex: Point, geometry: Map<string, Geometry>): Point {
+  try {
+    return resolveAngleArmPoint(value, vertex, geometry);
+  } catch (error) {
+    const through = typeof value === "string" ? lineThroughVertexArm(geometry.get(value), vertex) : null;
+    if (!through) throw error;
+    return through;
+  }
+}
+function lineThroughVertexArm(resolved: Geometry | undefined, vertex: Point): Point | null {
+  if (resolved?.kind !== "path" || resolved.points.length < 2) return null;
+  const points = resolved.points;
+  const infinite = resolved.infinite === true && points.length === 2;
+  for (let index = 0; index + 1 < points.length; index += 1) {
+    const a = points[index]!;
+    const b = points[index + 1]!;
+    const length = distance(a, b);
+    if (length < EPSILON) continue;
+    const ux = (b.x - a.x) / length;
+    const uy = (b.y - a.y) / length;
+    const along = (vertex.x - a.x) * ux + (vertex.y - a.y) * uy;
+    const across = Math.abs((vertex.x - a.x) * uy - (vertex.y - a.y) * ux);
+    const tolerance = EPSILON * Math.max(1, length, Math.abs(along));
+    if (across > tolerance) continue;
+    const inside = infinite
+      ? !resolved.directed || along > tolerance
+      : along > tolerance && along < length - tolerance;
+    if (!inside) continue;
+    return distance(vertex, a) >= distance(vertex, b) ? a : b;
+  }
+  return null;
 }
 function resolveLine(value: unknown, geometry: Map<string, Geometry>): [Point, Point] { if (typeof value === "string") { const resolved = geometry.get(value); assertPlanarGeometry(resolved); return asLine(resolved); } if (Array.isArray(value) && value.length === 2) return [resolvePoint(value[0], geometry), resolvePoint(value[1], geometry)]; throw new Error(`invalid line reference ${String(value)}`); }
 function resolveVector(value: unknown, geometry: Map<string, Geometry>): Point {

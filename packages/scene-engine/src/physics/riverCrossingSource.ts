@@ -95,14 +95,52 @@ export function riverCrossingSpeeds(question: string): RiverCrossingBinding {
   return { status: "bound", vb, vc, unit: units[0] as "km/h" | "m/s", widthM };
 }
 
-/** Shortest path: head upstream so the boat lands directly opposite. */
-export function riverShortestPathAsked(question: string): boolean {
-  return /\b(?:shortest (?:path|route|distance)|straight across|directly (?:opposite|across)|exactly opposite|(?:point|bank) directly opposite|zero drift|without drift|no drift)\b/i.test(question);
+/**
+ * A verb that sets the boat's heading (where it points, not where it goes).
+ * "heading" is a noun in "the heading to go straight across", so it counts
+ * only when the direction follows it at once. Rowing and swimming verbs name
+ * a heading with "perpendicular to the current", but "swim straight across"
+ * usually names the path, so they never read "straight across" as a heading.
+ */
+const POINTING_VERB = String.raw`(?:heads?|headed|heading|steers?|steered|steering|points?|pointed|pointing|aims?|aimed|aiming|directed|oriented)`;
+const HEADING_VERB = String.raw`(?:${POINTING_VERB}|rows?|rowed|rowing|swims?|swam|swimming|paddles?|paddled|paddling)`;
+/** "heads straight across", "rows perpendicular to the current", "steers at right angles to the bank". */
+const HEADING_ACROSS = new RegExp(String.raw`\b(?:${POINTING_VERB}\s+(?:(?:the\s+)?boat\s+)?(?:straight|directly|perpendicularly|normally|squarely)\s+across\b|${HEADING_VERB}\s+(?:perpendicular|normal|at\s+right\s+angles?)\s+to\s+(?:the\s+)?(?:river\s*)?(?:banks?|current|stream|flow|river|water\s+flow)\b)`, "gi");
+/** A pure compass direction: never "north-east", "north of west" or "north at an angle". */
+const CARDINAL = String.raw`(north|south|east|west)(?:wards?)?\b(?!\s*-|\s+(?:of|by)\b|\s+at\s+(?:an?\s+)?angle\b|\s+at\s+\d[\d.]*\s*(?:°|deg))`;
+const FLOW_DIRECTION = new RegExp(String.raw`\b(?:flows?|flowing)\s+(?:(?:due|towards?|to\s+the)\s+)?${CARDINAL}`, "i");
+const CARDINAL_HEADING = new RegExp(String.raw`\b${HEADING_VERB}\s+(?:(?:due|towards?|to\s+the)\s+)?${CARDINAL}`, "gi");
+const NORMAL_TO: Record<string, readonly string[]> = {
+  north: ["east", "west"], south: ["east", "west"], east: ["north", "south"], west: ["north", "south"],
+};
+
+/**
+ * The stem sets the boat's heading along the bank normal: "heads straight
+ * across", "rows perpendicular to the current", or a compass heading at right
+ * angles to a stated compass flow ("flows east ... heads due north"). That
+ * crossing is the least-time case whatever else the question asks.
+ */
+export function riverNormalHeadingStated(question: string): boolean {
+  if (new RegExp(HEADING_ACROSS.source, "i").test(question)) return true;
+  const flow = question.match(FLOW_DIRECTION)?.[1]?.toLowerCase();
+  if (!flow) return false;
+  return [...question.matchAll(CARDINAL_HEADING)].some((match) => NORMAL_TO[match[1]!.toLowerCase()]!.includes(flow));
 }
 
-/** Shortest time: head along the bank normal and drift downstream. */
+/**
+ * Shortest path: head upstream so the boat lands directly opposite. A stated
+ * heading "straight across" is where the boat points, the least-time case,
+ * so it is removed before the path cues are read.
+ */
+export function riverShortestPathAsked(question: string): boolean {
+  const withoutHeadings = question.replace(HEADING_ACROSS, " ");
+  return /\b(?:shortest (?:path|route|distance)|straight across|directly (?:opposite|across)|exactly opposite|(?:point|bank) directly opposite|zero drift|without drift|no drift)\b/i.test(withoutHeadings);
+}
+
+/** Shortest time: head along the bank normal and drift downstream, asked or stated as the heading. */
 export function riverShortestTimeAsked(question: string): boolean {
-  return /\b(?:(?:shortest|minimum|least|minimal) time|as (?:quickly|soon) as possible|quickest)\b/i.test(question);
+  return /\b(?:(?:shortest|minimum|least|minimal) time|as (?:quickly|soon) as possible|quickest)\b/i.test(question) ||
+    riverNormalHeadingStated(question);
 }
 
 /**
