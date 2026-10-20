@@ -114,6 +114,24 @@ const fixtures: Fixture[] = [project, curve, reflection, refraction,
   }),
 ];
 
+// Both completion passes can prove the same vertex from different owners.
+{
+  const doc = projected().document;
+  construction(doc, "perp", "perpendicular_through", { through: "foot", line: "base" });
+  const baseline = compileSceneDocument(doc);
+  assert.ok(baseline.ok && baseline.renderScene, JSON.stringify(baseline.report.issues));
+  const turnPlan: TurnPlanV3 = { schemaVersion: "turn-plan/v3", question: String(doc.source.question), givens: [], unknowns: [], derived: [],
+    qualitativeClaims: [{ id: "construction", claim: "constructed incidence", expected: true }], lawIds: [], assumptions: [], visualRequirement: "required" };
+  const original = completeSceneDocument(doc, { enabled: true, turnPlan, baseRenderScene: baseline.renderScene });
+  assert.equal(original.additions.filter(addition => addition.kind === "right_angle").length, 1);
+  const extended = completeSceneDocument(doc, { enabled: true, constructorLawsEnabled: true, turnPlan, baseRenderScene: baseline.renderScene });
+  assert.deepEqual(extended.additions, original.additions, "accepted original mark prevents an overlapping constructor-law square");
+  assert.deepEqual(extended.document, original.document, "no duplicate vertex ink is appended");
+  assert.ok(extended.skipped.some(skip => skip.code === "right_angle_already_present" &&
+    skip.entityIds?.includes("drop")), "constructor candidate sees the accepted original-pass mark");
+  console.log("PASS original-and-constructor-pass-share-one-vertex-mark");
+}
+
 const failures: string[] = [];
 for (const fixture of fixtures) {
   try {

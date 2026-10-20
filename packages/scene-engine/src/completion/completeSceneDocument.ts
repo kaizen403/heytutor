@@ -288,7 +288,7 @@ class CompletionContext {
     if (group === null || owners.some(owner => this.ownerGroup(owner) !== group)) {
       this.skip("ambiguous_right_angle_scope", undefined, owners); return;
     }
-    if (this.document.constructions.some(construction => ["right_angle_mark", "space_right_angle_mark"].includes(construction.operator) && construction.inputs.vertex === vertex)) {
+    if ((this.next ?? this.document).constructions.some(construction => ["right_angle_mark", "space_right_angle_mark"].includes(construction.operator) && construction.inputs.vertex === vertex)) {
       this.skip("right_angle_already_present", undefined, owners); return;
     }
     const id = stableId("right_angle", [vertex, ...owners]);
