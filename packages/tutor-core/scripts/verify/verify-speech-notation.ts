@@ -770,6 +770,42 @@ check("ordinary accents, apostrophes, numeric angle marks and code punctuation s
 
 // The actual prefetch producer must send the same normalized text to HTTP.
 // The fake transport terminates before audio/credentials, with no network.
+console.log("\nScript groups and letter subscripts (recorded 20 Oct 2026)\n");
+
+// v3/p1c-t2 spoke "v_{A over B}" eight times, v2/p3e2-t1 "v_(zero)", and the
+// projectile lessons "vₓ_zero" and the givens row's "v {x 0}".
+const SCRIPT_GROUPS: [string, string][] = [
+  ["v_{A/B} = 5", "v A relative to B equals 5"],
+  ["v_{B/A} equals minus v_{A/B}", "v B relative to A equals minus v A relative to B"],
+  ["v_{A over B} equals 5", "v A relative to B equals 5"],
+  ["v_{AB} and v_{BA}", "v A B and v B A"],
+  ["v_AB equals minus v_BA", "v A B equals minus v B A"],
+  ["v_(0) equals?", "v 0 equals?"],
+  ["y_(ground) equals 0", "y ground equals 0"],
+  ["x^{2} and y^{2}", "x squared and y squared"],
+  ["e^{kt}", "e to the power of (kt)"],
+  ["v_{rms}", "v r m s"],
+  ["vₓ₀ = 24 m/s", "v x 0 equals 24 meters per second"],
+  ["vᵧ", "v gamma"],
+  ["v {x 0} equals 24", "v x 0 equals 24"],
+  ["{1, 2, 3}", "1, 2, 3"],
+  ["g equals 10 m over s²", "g equals 10 meters per second squared"],
+  ["θ = tan^(-1)(8/6)", "theta equals tangent inverse (8 over 6)"],
+  ["θ = atan(3/4)", "theta equals tangent inverse (3 over 4)"],
+];
+for (const [written, spoken] of SCRIPT_GROUPS) {
+  check(`${written} is spoken "${spoken}"`, () => {
+    const out = mathToSpeech(written);
+    assert(out === spoken, `mathToSpeech("${written}") = "${out}", expected "${spoken}"`);
+  });
+}
+check("a chemistry subscript group keeps the chemistry reading", () => {
+  assertContains(mathToSpeech("H_{2}O"), "H 2 O", "H_{2}O");
+});
+check("an integral limit group is not a subscript", () => {
+  assertNotContains(mathToSpeech("∫_(-2)^(2) x dx"), "relative", "∫_(-2)^(2) x dx");
+});
+
 const fetchDescriptor = Object.getOwnPropertyDescriptor(globalThis, "fetch");
 const socketDescriptor = Object.getOwnPropertyDescriptor(globalThis, "WebSocket");
 let receiveText!: (text: string) => void;
