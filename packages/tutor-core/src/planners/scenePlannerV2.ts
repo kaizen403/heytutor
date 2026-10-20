@@ -106,6 +106,8 @@ export function scenePlannerCandidateDiagnostics(
 }
 
 export interface ScenePlanWithRepairResult<T> {
+  /** The asked question; revalidation ranks exact-source candidates first. */
+  question?: string;
   response: ScenePlannerResponse;
   validation: SceneCandidateValidation<T>;
   repaired: boolean;
@@ -226,6 +228,31 @@ Resolve every fatal error. Preserve correct stable IDs when useful, but delete i
         strategy,
       }
     : null;
+}
+
+/**
+ * The one normalisation under which a scene's `source.question` must equal the
+ * asked question. Final selection (representationFallback) refuses a scene
+ * whose source question differs under it, so candidate ranking uses the same
+ * function: a planner restatement is never accepted, it only ranks lower.
+ */
+export function normalizeSceneSourceQuestion(value: string): string {
+  return value
+    .replace(/[−–—]/g, "-")
+    .replace(/×/g, "*")
+    .replace(/÷/g, "/")
+    .replace(/²/g, "^2")
+    .replace(/³/g, "^3")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** True when the candidate was planned for exactly the asked question. */
+export function sceneSourceQuestionMatches(document: SceneDocumentCandidate, question: string): boolean {
+  const source = isPlainObject(document.source) ? document.source : null;
+  return typeof source?.question === "string" &&
+    normalizeSceneSourceQuestion(source.question) === normalizeSceneSourceQuestion(question);
 }
 
 const ENGINE_ONLY_SOURCE_KEYS = ["diagramYieldPolicy", "yieldDemotions", "verifiedPartsPolicy", "answerLabelEntityIds", "answerLabelAnnotationIds", "synthesizedDsa", "dsaTraceFrame", "dsaFitBox"] as const;
@@ -462,8 +489,14 @@ export async function planSceneDocumentWithRepair<T>(
       fatal_count: candidateValidation.errors.filter((error) => error.severity === "fatal").length,
     });
     evaluated.push({ response: candidate, validation: candidateValidation, seededRepair: false });
-    if (candidateValidation.valid && firstValidAt === null) firstValidAt = Date.now();
+    // A valid candidate planned for a restated question is refused at final
+    // selection. It must not open the grace window that cancels a sibling
+    // still planning the asked question (v3 p1e1-t1).
+    if (candidateValidation.valid && firstValidAt === null &&
+        sceneSourceQuestionMatches(candidate.document, question)) firstValidAt = Date.now();
   };
+  const rank = (first: Evaluated, second: Evaluated) =>
+    compareSceneCandidates(question, first, second);
 
   // Every initial plan settled without a parseable candidate: one serial plan
   // with the rest of the budget, exactly as before.
@@ -587,7 +620,7 @@ export async function planSceneDocumentWithRepair<T>(
       notifySceneObserver(() => plannerOptions.onCandidateValidation?.(entry.response, entry.validation));
     }
   }
-  const ranked = [...evaluated].sort((a, b) => compareValidations(a.validation, b.validation));
+  const ranked = [...evaluated].sort(rank);
   const selected = ranked[0]!;
   const { response, validation } = selected;
   tutorDebug("planner", "semantic scene validation", {
@@ -599,6 +632,7 @@ export async function planSceneDocumentWithRepair<T>(
   });
 
   return {
+    question,
     response,
     validation,
     // As before: a repair round ran and produced at least one candidate.
@@ -638,8 +672,9 @@ export async function revalidateScenePlanWithRepairResult<T>(
     return { ...candidate, validation };
   }));
   const selected = [...candidates].sort((first, second) =>
-    compareValidations(first.validation, second.validation))[0]!;
+    compareSceneCandidates(result.question, first, second))[0]!;
   return {
+    ...(result.question !== undefined ? { question: result.question } : {}),
     response: selected.response,
     validation: selected.validation,
     repaired: result.repaired,
@@ -665,6 +700,26 @@ function compareValidations(
 ): number {
   if (first.valid !== second.valid) return first.valid ? -1 : 1;
   return validationScore(first) - validationScore(second);
+}
+
+/**
+ * Selection order: valid first; among valid candidates, one planned for exactly
+ * the asked question before any restatement (final selection refuses those);
+ * then the deterministic quality score. With no question every candidate is
+ * treated alike, which is the previous order.
+ */
+export function compareSceneCandidates(
+  question: string | undefined,
+  first: { response: Pick<ScenePlannerResponse, "document">; validation: SceneCandidateValidation<unknown> },
+  second: { response: Pick<ScenePlannerResponse, "document">; validation: SceneCandidateValidation<unknown> },
+): number {
+  if (first.validation.valid !== second.validation.valid) return first.validation.valid ? -1 : 1;
+  if (first.validation.valid && question !== undefined) {
+    const firstMatches = sceneSourceQuestionMatches(first.response.document, question);
+    const secondMatches = sceneSourceQuestionMatches(second.response.document, question);
+    if (firstMatches !== secondMatches) return firstMatches ? -1 : 1;
+  }
+  return validationScore(first.validation) - validationScore(second.validation);
 }
 
 async function requestSceneDocument(
