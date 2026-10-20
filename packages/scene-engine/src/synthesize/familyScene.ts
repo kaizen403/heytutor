@@ -6,6 +6,7 @@
 import { stemKnowns } from "../archetypes/generators/constantAcceleration";
 import { buildNeutralDecayScene, readNeutralDecaySource } from "../physics/neutralDecaySource";
 import { buildParticleRadiationScene, readRadiationSource } from "../physics/radiationSource";
+import { readSourceLawGraph } from "../chemistry/sourceLawGraph";
 import { readApertureSource, readTwoLoopTopology, twoLoopTopologyClaimed, readCircuitLawExample, readSeriesParallelSourceComparison, type TwoLoopSource } from "../physics/apparatusSource";
 import { compileSceneDocument } from "../compile/compiler";
 import { buildCircuitLawExample } from "../physics/circuitLawExample";
@@ -165,7 +166,11 @@ function synthesizeFromFamilies(
   if (!question) return null;
   // A supplied but unread radiation state is terminal on both public routes;
   // an archetype or last-resort schematic cannot substitute display defaults.
-  if (readRadiationSource(question).status === "declined") return null;
+  // A complete source-owned frequency law has its own operands and domain;
+  // it is not one incident-photon state. Retain the existing family/compiler
+  // path only when that whole law is independently proved.
+  if (readRadiationSource(question).status === "declined"
+    && readSourceLawGraph(question, "chem_orbital").state !== "valid") return null;
   const neutralDecay = readNeutralDecaySource(question);
   if (neutralDecay.status === "declined") return null;
   const circleSource = extractCircleSource(question);
@@ -1498,7 +1503,7 @@ function buildSeparatedCircuitViews(
       { id: "parallel", symbol: "Req(p)", y: -1.8, value: 1 / values.reduce((sum, value) => sum + 1 / value, 0) }];
     for (const result of results) {
       const id = `${result.id}_equivalent`, anchor = `${id}_anchor`;
-      const label = Number.isInteger(result.value) ? `${result.symbol}=${result.value} ohm` : `${result.symbol}=${values[0]}/${count}Ω`;
+      const label = result.id === "series" || Number.isInteger(result.value) ? `${result.symbol}=${displayNumber(result.value)} ohm` : `${result.symbol}=${values[0]}/${count}Ω`;
       document.quantities.push({ id: `q_${id}`, symbol: result.symbol, value: result.value, unit: "ohm", provenance: "derived" });
       document.entities.push({ id: anchor, kind: "point", role: "equivalent resistance label anchor" },
         { id, kind: "label", role: "derived equivalent resistance", label });

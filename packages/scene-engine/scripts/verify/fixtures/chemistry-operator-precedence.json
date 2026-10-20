@@ -1,0 +1,198 @@
+[
+  {
+    "id": "actual-gabriel-hofmann-carbon-count",
+    "kind": "reaction",
+    "question": "Why can the Gabriel phthalimide synthesis not be used to prepare aniline? Name the product when benzamide is treated with Br2 and aqueous NaOH, and state how its number of carbon atoms compares with the amide.",
+    "draw": true
+  },
+  {
+    "id": "hofmann-aliphatic-carbon-count",
+    "kind": "reaction",
+    "question": "Name the product when propanamide is treated with Br2 and aqueous NaOH, and state how its number of carbon atoms compares with the amide.",
+    "draw": true
+  },
+  {
+    "id": "reaction-sp4",
+    "kind": "reaction",
+    "question": "Why can the Gabriel phthalimide synthesis not be used to prepare aniline? Name the product when benzamide is treated with Br2 and aqueous NaOH, and state how its number of carbon atoms compares with the amide. Label the amine carbon sp4.",
+    "draw": false
+  },
+  {
+    "id": "reaction-molecular-shape",
+    "kind": "reaction",
+    "question": "Why can the Gabriel phthalimide synthesis not be used to prepare aniline? Name the product when benzamide is treated with Br2 and aqueous NaOH, and state how its number of carbon atoms compares with the amide. Show its molecular geometry.",
+    "draw": false
+  },
+  {
+    "id": "reaction-foreign-property",
+    "kind": "reaction",
+    "question": "Why can the Gabriel phthalimide synthesis not be used to prepare aniline? Name the product when benzamide is treated with Br2 and aqueous NaOH, and state how its number of carbon atoms compares with the amide. Label molecule XYZ sp3.",
+    "draw": false
+  },
+  {
+    "id": "reaction-unimplemented-mechanism",
+    "kind": "reaction",
+    "question": "Why can the Gabriel phthalimide synthesis not be used to prepare aniline? Name the product when benzamide is treated with Br2 and aqueous NaOH, and state how its number of carbon atoms compares with the amide. Draw the reaction mechanism.",
+    "draw": false
+  },
+  {
+    "id": "actual-pentene-layout-label",
+    "kind": "geometric",
+    "question": "For pent-2-ene, draw the two geometrical isomers with the substituents around the C=C bond shown in the double-bond plane. Label each isomer cis or trans and explain the spatial relation that changes while the molecular formula and connectivity stay the same.",
+    "draw": true
+  },
+  {
+    "id": "butene-layout-label",
+    "kind": "geometric",
+    "question": "For but-2-ene, draw the two geometrical isomers with the substituents around the C=C bond shown in the double-bond plane. Label each isomer cis or trans and explain the spatial relation that changes while the molecular formula and connectivity stay the same.",
+    "draw": true
+  },
+  {
+    "id": "geometric-extra-sp4",
+    "kind": "geometric",
+    "question": "For pent-2-ene, draw the two geometrical isomers with the substituents around the C=C bond shown in the double-bond plane. Label each isomer cis or trans and explain the spatial relation that changes while the molecular formula and connectivity stay the same. Label the second structure sp4.",
+    "draw": false
+  },
+  {
+    "id": "geometric-extra-foreign-owner",
+    "kind": "geometric",
+    "question": "For pent-2-ene, draw the two geometrical isomers with the substituents around the C=C bond shown in the double-bond plane. Label each isomer cis or trans and explain the spatial relation that changes while the molecular formula and connectivity stay the same. Label molecule XYZ sp3.",
+    "draw": false
+  },
+  {
+    "id": "geometric-extra-shape",
+    "kind": "geometric",
+    "question": "For pent-2-ene, draw the two geometrical isomers with the substituents around the C=C bond shown in the double-bond plane. Label each isomer cis or trans and explain the spatial relation that changes while the molecular formula and connectivity stay the same. Show the bond angles.",
+    "draw": false
+  },
+  {
+    "id": "geometric-unbound-label",
+    "kind": "geometric",
+    "question": "For ethane, draw the two geometrical isomers with the substituents around the C=C bond shown in the double-bond plane. Label each isomer cis or trans and explain the spatial relation that changes while the molecular formula and connectivity stay the same.",
+    "draw": false
+  },
+  {
+    "id": "geometric-multiple-source",
+    "kind": "geometric",
+    "question": "For pent-2-ene and but-2-ene, draw the two geometrical isomers with the substituents around the C=C bond shown in the double-bond plane. Label each isomer cis or trans and explain the spatial relation that changes while the molecular formula and connectivity stay the same.",
+    "draw": false
+  },
+  {
+    "id": "geometric-unread-label-tail",
+    "kind": "geometric",
+    "question": "For pent-2-ene, draw the two geometrical isomers with the substituents around the C=C bond shown in the double-bond plane. Label each isomer cis or trans sp4 and explain the spatial relation that changes while the molecular formula and connectivity stay the same.",
+    "draw": false
+  },
+  {
+    "id": "actual-background-spectral-line",
+    "kind": "source-role",
+    "question": "A hydrogen discharge in a separate tube emits a line at 656 nm. Sodium has work function 2.3 eV and is illuminated by light of wavelength 400 nm. Take hc = 1240 eV nm. Draw the sodium photoelectron energy balance.",
+    "draw": true
+  },
+  {
+    "id": "mercury-background-spectral-line",
+    "kind": "source-role",
+    "question": "A mercury lamp in a separate tube emits the spectral line at 656 nm. Sodium has work function 2.3 eV and is illuminated by light of wavelength 400 nm. Take hc = 1240 eV nm. Draw the sodium photoelectron energy balance.",
+    "draw": true
+  },
+  {
+    "id": "neon-background-frequency-line",
+    "kind": "source-role",
+    "question": "A neon lamp in a separate tube emits a spectral line at 5e14 Hz. Sodium has work function 2.3 eV and is illuminated by light of wavelength 400 nm. Take hc = 1240 eV nm. Draw the sodium photoelectron energy balance.",
+    "draw": true
+  },
+  {
+    "id": "background-malformed-channel",
+    "kind": "source-role",
+    "question": "A hydrogen discharge in a separate tube emits a line at 656 kg. Sodium has work function 2.3 eV and is illuminated by light of wavelength 400 nm. Take hc = 1240 eV nm. Draw the sodium photoelectron energy balance.",
+    "draw": false
+  },
+  {
+    "id": "background-second-lit-target",
+    "kind": "source-role",
+    "question": "A hydrogen discharge in a separate tube is illuminated by light of wavelength 656 nm. Sodium has work function 2.3 eV and is illuminated by light of wavelength 400 nm. Take hc = 1240 eV nm. Draw the sodium photoelectron energy balance.",
+    "draw": false
+  },
+  {
+    "id": "background-line-with-material-role",
+    "kind": "source-role",
+    "question": "A hydrogen discharge in a separate tube emits a line at 656 nm and has work function 4 eV. Sodium has work function 2.3 eV and is illuminated by light of wavelength 400 nm. Take hc = 1240 eV nm. Draw the sodium photoelectron energy balance.",
+    "draw": false
+  },
+  {
+    "id": "actual-full-frequency-law",
+    "kind": "source-law",
+    "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2.000 eV, over 0 to 1.00*10^15 Hz. Use K_max = h\u03bd-\u03c6 and h = 4.136*10^-15 eV s. Mark the threshold and the region with no photoelectron emission.",
+    "draw": true
+  },
+  {
+    "id": "law-extra-work-function",
+    "kind": "source-law",
+    "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2.000 eV, over 0 to 1.00*10^15 Hz. Use K_max = h\u03bd-\u03c6 and h = 4.136*10^-15 eV s. Mark the threshold and the region with no photoelectron emission. The work function is 3 eV.",
+    "draw": false
+  },
+  {
+    "id": "law-extra-incident-wavelength",
+    "kind": "source-law",
+    "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2.000 eV, over 0 to 1.00*10^15 Hz. Use K_max = h\u03bd-\u03c6 and h = 4.136*10^-15 eV s. Mark the threshold and the region with no photoelectron emission. Incident light wavelength is 400 nm.",
+    "draw": false
+  },
+  {
+    "id": "law-extra-malformed-planck",
+    "kind": "source-law",
+    "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2.000 eV, over 0 to 1.00*10^15 Hz. Use K_max = h\u03bd-\u03c6 and h = 4.136*10^-15 eV s. Mark the threshold and the region with no photoelectron emission. The Planck constant h = 6e- J s.",
+    "draw": false
+  },
+  {
+    "id": "law-extra-unowned-value",
+    "kind": "source-law",
+    "question": "Plot maximum photoelectron kinetic energy against incident-light frequency for a metal with work function 2.000 eV, over 0 to 1.00*10^15 Hz. Use K_max = h\u03bd-\u03c6 and h = 4.136*10^-15 eV s. Mark the threshold and the region with no photoelectron emission. An unrelated energy is 5 eV.",
+    "draw": false
+  },
+  {
+    "id": "geometric-extra-resonance-view",
+    "kind": "geometric",
+    "question": "For pent-2-ene, draw the two geometrical isomers with the substituents around the C=C bond shown in the double-bond plane. Label each isomer cis or trans and explain the spatial relation that changes while the molecular formula and connectivity stay the same. Also draw both charged resonance contributors and show every lone pair.",
+    "draw": false
+  },
+  {
+    "id": "actual-series-noninteger-label",
+    "kind": "series-parallel",
+    "question": "Three 2.5 ohm resistors in series and in parallel. Using Kirchhoff laws, find both equivalent resistances and draw each circuit.",
+    "draw": true,
+    "count": 3,
+    "resistance": 2.5,
+    "series": 7.5,
+    "parallel": 0.8333333333333334
+  },
+  {
+    "id": "two-noninteger-series-transfer",
+    "kind": "series-parallel",
+    "question": "Two 1.25 ohm resistors in series and in parallel. Using Kirchhoff laws, find both equivalent resistances and draw each circuit.",
+    "draw": true,
+    "count": 2,
+    "resistance": 1.25,
+    "series": 2.5,
+    "parallel": 0.625
+  },
+  {
+    "id": "four-noninteger-series-transfer",
+    "kind": "series-parallel",
+    "question": "Four 0.625 ohm resistors in series and in parallel. Using Kirchhoff laws, find both equivalent resistances and draw each circuit.",
+    "draw": true,
+    "count": 4,
+    "resistance": 0.625,
+    "series": 2.5,
+    "parallel": 0.15625
+  },
+  {
+    "id": "three-float-dust-series-transfer",
+    "kind": "series-parallel",
+    "question": "Three 2.7 ohm resistors in series and in parallel. Using Kirchhoff laws, find both equivalent resistances and draw each circuit.",
+    "draw": true,
+    "count": 3,
+    "resistance": 2.7,
+    "series": 8.1,
+    "parallel": 0.9
+  }
+]
