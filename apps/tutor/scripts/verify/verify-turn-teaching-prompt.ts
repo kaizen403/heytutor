@@ -12,9 +12,12 @@ import {
   CONCEPT_LESSON_RUNTIME_ADDON,
   LESSON_OPENING_PROMPT_ADDON,
   TUTOR_SYSTEM_PROMPT,
+  defaultSpeechMsPerChar,
+  getBestWriteCharScheduleMs,
   getMockCodeLessonPlan,
+  mathToSpeech,
 } from "@heytutor/tutor-core";
-import { WORK_ZONE, fitBoardText } from "@heytutor/drawing";
+import { WORK_ZONE, fitBoardText, parseDrawingCommands } from "@heytutor/drawing";
 import type { TurnPlanV3 } from "@heytutor/scene-engine";
 import { buildResumeTeachingPrompt, buildTurnTeachingPrompt } from "../../features/tutor-session/lib/turn/turnTeachingPrompt";
 
@@ -231,8 +234,8 @@ const CONTRACT_RULES: [needle: string, why: string][] = [
     "\"v sub s\" never matches the row V_s, so a subscripted symbol was the token most often left unmatched",
   ],
   [
-    "the words that name the row come last in the step",
-    "29% of rows had their first matched token past 35% of the sentence because the reason came after the row; the runtime then dragged the cue to the sentence start",
+    "the row is spoken token for token near the beginning of the step",
+    "putting a reason before the row delays its first cue; name the row early and explain afterward",
   ],
   // FOCUS placement: 1277 tags, 26% carried several ids, 98.7% sat at the end of
   // the step, and the label was inside the runtime's clause anchor in 28%.
@@ -257,6 +260,7 @@ const CONTRACT_RULES: [needle: string, why: string][] = [
 // Wording that taught the failure. Each of these was the sentence the model
 // obeyed, so its return is a regression whatever else the prompt says.
 const RETIRED_WORDING: [needle: string, why: string][] = [
+  ["the words that name the row come last in the step", "the reason-first instruction directly conflicts with early row cues"],
   ["[FOCUS:id_a,id_b]", "the combined tag form was offered as an optional form and used in 26% of tags"],
   ["several at once", "the tour rule told the model to combine ids that the placement rule tells it to separate"],
   ["immediately after the spoken name", "said the placement without forbidding the end of the step, and 98.7% of tags landed there"],
@@ -328,9 +332,13 @@ for (const step of exampleSteps) {
       );
     }
     if (type === "WRITE") {
+      const before = step.slice(0, tag.index).replace(TAG, "").trim();
+      const command = parseDrawingCommands(tag[0]).commands[0];
+      assert(command, "the example WRITE must parse as the actual command");
+      const cue = getBestWriteCharScheduleMs(before, command, null);
       assert(
-        after.length === 0,
-        `the example keeps talking after [WRITE:${body.split(",")[0]}]: the row's words come last and the step ends on the tag`,
+        cue?.matched && (cue.offsetsMs[0] ?? 0) <= mathToSpeech(before).length * defaultSpeechMsPerChar * 0.35,
+        `the example row "${body.split(",")[0]}" needs its own early spoken cue before WRITE; a short reason may follow`,
       );
       const spoken = step.replace(TAG, "").toLowerCase();
       // The unknown row "v = ?" is the one = with no spoken form: the sentence
