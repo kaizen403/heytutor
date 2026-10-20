@@ -1280,6 +1280,11 @@ if (process.argv.includes("--review-settings-only")) {
   console.log(`reviewed function settings: ${checks - failed}/${checks} checks passed`);
   process.exit(failed > 0 ? 1 : 0);
 }
+if (process.argv.includes("--review-piecewise-only")) {
+  verifyPiecewiseDefinitionsDecline();
+  console.log(`piecewise definitions decline: ${checks - failed}/${checks} checks passed`);
+  process.exit(failed > 0 ? 1 : 0);
+}
 if (process.argv.includes("--review-forty-only")) {
   verifyReviewedForty();
   console.log(`reviewed forty settings: ${checks - failed}/${checks} checks passed`);
@@ -2109,6 +2114,40 @@ function verifyReviewedPiAndNamedNewlines(): void {
     assert.equal(prepareFallbackFunctionInventory(question, changed), null, "newline recognition cannot weaken whole-program source proof");
   });
 }
+// The source-grounded producer draws every curve over its own default window
+// and ignores intervals. Two curves plus an interval read as a piecewise
+// definition must decline; drawing both full curves crosses them and shows the
+// parabola outside its piece. Each wording drew both full curves through the
+// source-grounded fallback on 3b22885f (merged #179) before the guard.
+function verifyPiecewiseDefinitionsDecline(): void {
+  const piecewise = [
+    "y = x^2 for x = -2 to 2, otherwise y = 4. Sketch it.",
+    "Sketch y = x^2 for x = 0 to 2 and y = 4 for x > 2",
+    "Sketch y = x^2 from x = 0 to x = 2 and y = 4 beyond that",
+    "Sketch y = x + 1 between x = -1 and x = 1, and y = 2 elsewhere",
+    "Plot y = 2x from x = 0 to x = 3, then y = 6",
+  ];
+  for (const question of piecewise) {
+    const turnPlan: TurnPlanV3 = { schemaVersion: "turn-plan/v3", question, givens: [], unknowns: [], derived: [], qualitativeClaims: [], lawIds: [], assumptions: [], visualRequirement: "required" };
+    check(`piecewise direct source fallback: ${question}`, () => {
+      let representation: SelectedRepresentation | null = null;
+      try { representation = buildSourceGroundedRepresentation(question, turnPlan); }
+      catch (error) {
+        assert.match(error instanceof Error ? error.message : String(error), /required visual representation unavailable/, "a piecewise source declines explicitly");
+      }
+      assert.equal(representation, null, "the source-grounded producer cannot draw a piecewise definition as whole curves");
+    });
+    for (const route of ["normal", "inferred", "fast", "production"] as const) check(`piecewise declines ${route}: ${question}`, () => {
+      const input = { question, turnPlan: structuredClone(turnPlan), families: route === "normal" ? undefined : inferSceneCapabilities(question).families };
+      const selected = route === "production" ? selectProductionScene({ ...input, problemIR: null, policy: { preferPlanner: false } }).representation
+        : route === "fast" ? selectFastVerifiedRepresentation(input) : selectVerifiedRepresentation(input);
+      assert.notEqual(selected?.figureSource, "source_grounded", "no source-grounded whole-curve figure for a piecewise definition");
+      const curves = selected?.sceneDocument.constructions.filter(c => c.operator === "function_curve" || c.operator === "implicit_curve") ?? [];
+      assert.equal(curves.length, 0, "a piecewise definition draws nothing rather than whole crossing curves");
+    });
+  }
+}
+verifyPiecewiseDefinitionsDecline();
 verifyReviewedPiAndNamedNewlines();
 console.log(`source-function equation ownership: ${checks - failed}/${checks} checks passed (${selectedFixtures.length} original wordings; ${nativeParameterFixtures.length} native parameter wordings)`);
 if (failed > 0) process.exitCode = 1;

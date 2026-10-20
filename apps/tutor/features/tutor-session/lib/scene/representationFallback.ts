@@ -990,7 +990,14 @@ function extractExplicitFunctionFacts(question: string, nativeInventory = false,
   const parameters = nativeInventory
     ? nativeFunctionParameterEqualities(normalized, unquotedPositions, ownedExpressionEnds)
     : new Set<number>();
-  for (const index of sourceFunctionSettingEqualities(normalized, unquotedPositions, ownedExpressionEnds, nativeDocument)) parameters.add(index);
+  // The source-grounded producer draws every curve over its own default
+  // window and ignores intervals. With two or more curves an interval cannot
+  // be told apart from a piecewise definition ("y = x^2 for x = -2 to 2,
+  // otherwise y = 4"), so only a native program or a single curve may own a
+  // scalar setting; otherwise the unowned equality declines the figure.
+  if (nativeInventory || facts.length === 1) {
+    for (const index of sourceFunctionSettingEqualities(normalized, unquotedPositions, ownedExpressionEnds, nativeDocument)) parameters.add(index);
+  }
   for (const match of normalized.matchAll(/=/g)) {
     const index = match.index!;
     if (!unquotedPositions[index] || ownedEqualities.has(index) || /[<>!]/.test(normalized[index - 1] ?? "")) continue;
