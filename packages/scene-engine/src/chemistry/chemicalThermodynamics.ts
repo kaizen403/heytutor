@@ -10,6 +10,7 @@
 import { chemistryReferenceConstantValid, chemistryPlanBindingsValid, chemistryQuantityPayloadPresent, findChemistryQuantities, readChemistryQuantity, readChemistryQuantityDeclaration, readChemistryLiteral, CHEMISTRY_SCALAR_PATTERN, chemistryUnitSymbol, chemistryQuantityCuesValid, chemistryQuestionSpan, chemistryCanonicalValuesAgree, chemistryQuantityInventoryOwned, readChemistryUnitLiteral, type ChemistryReading, type ChemistryQuantityDeclaration, type ChemistryDeclarationOccurrence, type ChemistrySpan } from "./quantityReader";
 import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity } from "./sceneKit";
+import { buildSymbolicStatePathLaw } from "./statePathLaw";
 
 const FAMILY = "chem_thermo" as const;
 const R_J = 8.314;
@@ -540,6 +541,7 @@ function hessSteps(question: string): HessStep[] | null {
 
 function buildHess(question: string, _stem: string): SceneDocument | null {
   const steps = hessSteps(question);
+  if (steps?.length === 0) return buildSymbolicStatePathLaw(question);
   if (!steps || steps.length < 2 || steps.some((step) => !(step.factor > 0))) return null;
   const signed = steps.map((step) => step.value * step.factor * (step.reversed ? -1 : 1));
   const net = signed.reduce((sum, value) => sum + value, 0);

@@ -18,6 +18,7 @@ import type { SceneDocument } from "../types";
 import { ChemScene, chemStem, numberAfter, type ChemPlanQuantity, type Vec2 } from "./sceneKit";
 import { normalizeChemistryText, parseFormula } from "./formula";
 import { elementBySymbol } from "./elements";
+import { claimsElectrodeDepositionMass, readDepositionMassSource, type DepositionMassSource } from "./electrolysisSource";
 
 export const ELECTROCHEM_FAMILY = "chem_electrochem" as const;
 
@@ -1662,6 +1663,7 @@ export function isElectrochemStem(question: string): boolean {
   if (PHYSICS_WORDS.test(lower) && !REDOX_WORDS.test(lower)) return false;
   if (conductancePlotCue(lower)) return true;
   if (electrolysisCue(lower)) return true;
+  if (claimsElectrodeDepositionMass(question)) return true;
   if (galvanicCue(lower) || /\bSHE\b/.test(question)) return true;
   if (/\|\s*\||‖/.test(lower) && (REDOX_WORDS.test(lower) || parseCellNotation(question) !== null)) return true;
   if (/\b(?:electrode|reduction|oxidation|standard) potential\b|E°|E⁰/i.test(lower)
@@ -1917,7 +1919,7 @@ function buildSchematicGalvanic(question: string, lower: string): SceneDocument 
 /* Electrolytic cell figure                                                  */
 /* ------------------------------------------------------------------------- */
 
-function drawElectrolyticCell(question: string, products: ElectrolysisProducts, massText: string | null, caption: string): SceneDocument | null {
+function drawElectrolyticCell(question: string, products: ElectrolysisProducts, massText: string | null, caption: string, sourceMass?: DepositionMassSource): SceneDocument | null {
   const c = new ChemScene(question, `electrolysis of ${products.name}`, ELECTROCHEM_FAMILY);
   const x0 = 0;
   const width = 5.0;
@@ -1956,7 +1958,7 @@ function drawElectrolyticCell(question: string, products: ElectrolysisProducts, 
     c.text("material_a", { x: anodeX - 0.4, y: rim + 0.25 }, electrodeMaterial, "anode material label");
     c.text("material_c", { x: cathodeX + 0.4, y: rim + 0.25 }, electrodeMaterial, "cathode material label");
   }
-  c.text("electrolyte", { x: midX, y: 0.7 }, products.electrolyte.slice(0, 16), "electrolyte label");
+  if (!sourceMass) c.text("electrolyte", { x: midX, y: 0.7 }, products.electrolyte.slice(0, 16), "electrolyte label");
 
   if (products.anodeGas) bubbles(c, "gas_a", anodeX - barW / 2, 0.8, -1);
   if (products.cathodeGas) bubbles(c, "gas_c", cathodeX + barW / 2, 0.8, 1);
@@ -1969,8 +1971,42 @@ function drawElectrolyticCell(question: string, products: ElectrolysisProducts, 
   }
   if (products.solution) c.text("solution", { x: midX, y: 1.3 }, products.solution.slice(0, 16), "solution product label");
   if (massText) c.text("mass", { x: midX, y: products.solution ? 1.7 : 1.3 }, massText, "deposited mass label");
-  c.scene.labelled("role_a", "role_c", "product_a", "product_c", "electrolyte", "electron_flow");
-  return c.build({ caption });
+  c.scene.labelled("role_a", "role_c", "product_a", "product_c", ...(!sourceMass ? ["electrolyte"] : []), "electron_flow");
+  if (sourceMass) {
+    const metal = elementBySymbol(sourceMass.symbol)!;
+    for (const [id, label] of [["beaker", products.electrolyte], ["cathode_bar", "cathode"], ["deposit", `deposited ${metal.name.toLowerCase()}`]] as const) {
+      const entity = c.scene.entities.find(candidate => candidate.id === id);
+      if (!entity || label.length > 16) return null;
+      entity.label = label;
+      entity.semantic = { ...entity.semantic, labelRequired: true };
+      c.scene.labelled(id);
+    }
+    const facts = [
+      ["I", sourceMass.ampere, "A"], ["t", sourceMass.seconds, "s"],
+      ["M", sourceMass.molarMass, "g/mol"], ["F", sourceMass.faraday, "C/mol"],
+      ["Q", sourceMass.charge, "C"], ["m", sourceMass.grams, "g"],
+    ] as const;
+    for (const [symbol, value, unit] of facts) {
+      if (!Number.isFinite(value)) return null;
+      // These source-law quantities cross canonical numeric admission; only text is rounded.
+      c.scene.quantities.push({ id: `deposition_${symbol}`, symbol, value, unit });
+    }
+    const labels = [
+      `I=${sourceMass.ampere} A`, `t=${sourceMass.seconds} s`,
+      `M=${sourceMass.molarMass} g/mol`, `F=${sourceMass.faraday} C/mol`,
+      `Q=It=${sourceMass.charge} C`, `z=${sourceMass.electrons} e^-/${sourceMass.symbol}`, "m=MIt/(zF)",
+      products.cathodeReaction.replace(/\s+/g, ""),
+    ];
+    const ids = labels.map((text, index) => c.text(`deposition_fact_${index}`, { x: 7.2, y: 4.1 - index * 0.58 }, text, "deposition source and law", { preserveText: true }));
+    c.scene.labelled(...ids, "mass");
+    const setupFacts = [ids[0]!, ids[1]!, ids[2]!, ids[3]!, ids[5]!, ids[7]!];
+    const apparatus = c.scene.entities.filter(entity => !ids.includes(entity.id) && entity.id !== "mass").map(entity => entity.id);
+    c.scene.group("electrolysis_setup", [...apparatus, ...setupFacts], `Electrolysis: ${products.electrolyte}, cathode, deposited ${metal.name.toLowerCase()}; ${[0, 1, 2, 3, 5, 7].map(index => labels[index]).join(", ")}.`);
+    c.scene.group("deposition_result", [ids[4]!, ids[6]!, "mass"], "Use the charge and cathode electron count in Faraday's mass relation.", ["electrolysis_setup"]);
+  }
+  const document = c.build({ caption });
+  if (sourceMass) document.source = { ...document.source, electrolysisMass: sourceMass };
+  return document;
 }
 
 function buildElectrolytic(question: string): SceneDocument | null {
@@ -1980,6 +2016,14 @@ function buildElectrolytic(question: string): SceneDocument | null {
   const captionParts = [`Electrolysis of ${products.name}: cathode ${products.cathodeReaction}, anode ${products.anodeReaction}`];
   if (products.solution) captionParts.push(`${products.solution} left in solution`);
   if (products.deposit) {
+    if (claimsElectrodeDepositionMass(question)) {
+      const sourceMass = readDepositionMassSource(question, products.deposit);
+      if (!sourceMass) return null;
+      const grams = Number(sourceMass.grams.toPrecision(3));
+      massText = `m(${products.deposit.symbol})=${grams} g`;
+      captionParts.push(`Faraday: m=MIt/(zF)=${grams} g, Q=${sourceMass.charge} C, z=${sourceMass.electrons} electrons per ${sourceMass.symbol}. M and F use ${sourceMass.molarMassBasis} and ${sourceMass.faradayBasis} respectively. This uses complete deposition at 100% current efficiency.`);
+      return drawElectrolyticCell(question, products, massText, captionParts.join("; "), sourceMass);
+    }
     const faraday = faradayMass(question, products.deposit);
     if (faraday) {
       const grams = Number(faraday.grams.toPrecision(3));
@@ -2026,7 +2070,7 @@ export function buildElectrochemScene(question: string, quantities: ChemPlanQuan
   if (conductancePlotCue(lower)) return buildConductancePlot(question);
   const galvanic = buildGalvanicIfReadable(question, quantities);
   if (galvanic) return galvanic;
-  if (electrolysisCue(lower)) {
+  if (electrolysisCue(lower) || claimsElectrodeDepositionMass(question)) {
     const electrolytic = buildElectrolytic(question);
     if (electrolytic) return electrolytic;
   }
