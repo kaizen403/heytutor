@@ -80,19 +80,25 @@ assert(
   "values the question does state must not be demoted to assumptions",
 );
 assert(
-  unchecked.systemPrompt.includes("TURN PLAN V3 (NOT INDEPENDENTLY CHECKED)"),
+  unchecked.systemPrompt.includes("TURN PLAN V3 (PLANNER WORKING; NOT A GLOBAL ANSWER KEY)"),
   "without a solver projection the plan must not be introduced as verified",
 );
 assert(
-  unchecked.systemPrompt.includes("if your own line disagrees with the number below"),
-  "an unchecked plan must tell the tutor to trust its own written working",
+  unchecked.systemPrompt.includes("correct an unsupported planner value only after checking its derivation"),
+  "unsupported planner numbers remain correctable after checking the derivation",
 );
+
+const solverProjection = {
+  schemaVersion: "solver-authority/v1", problemId: "synthetic-collision", status: "verified",
+  expressions: [], constraints: [], representationIntents: [],
+  bindings: [{ requestId: "first_velocity", quantityId: "v1f", symbol: "v1f", unit: "m/s", approximate: 2.5, errorBound: 0 }],
+};
 
 const verified = buildTurnTeachingPrompt({
   question,
   diagramPromptAddon: "FIGURE ADDON MARKER",
   turnPlan: plan,
-  solverProjection: { verified: true },
+  solverProjection,
   codeLesson: null,
   isDsa: false,
   familiarity: "new",
@@ -108,7 +114,7 @@ const conditional = buildTurnTeachingPrompt({
     "Turn-plan model was unavailable; visual requirement was classified conservatively.",
     "Removed 2 invalid planner dependency references.",
   ] },
-  solverProjection: { verified: true },
+  solverProjection,
   codeLesson: null,
   isDsa: false,
   familiarity: "normal",
@@ -120,8 +126,9 @@ assert(!conditional.systemPrompt.includes("Turn-plan model was unavailable"), "d
 assert(!conditional.systemPrompt.includes("Removed 2 invalid planner dependency"), "do not teach planner repair notes");
 
 assert(
-  verified.systemPrompt.includes("AUTHORITATIVE TURN PLAN V3"),
-  "a solver-verified plan keeps its authority",
+  verified.systemPrompt.includes("INDEPENDENT SOLVER AUTHORITY V1 — EXPLICIT BINDINGS ONLY") &&
+    !verified.systemPrompt.includes("AUTHORITATIVE TURN PLAN V3"),
+  "explicit solver outputs keep their authority without certifying the whole planner block",
 );
 assert(
   verified.systemPrompt.includes("FIGURE ADDON MARKER"),
@@ -160,8 +167,8 @@ const CONTRACT_RULES: [needle: string, why: string][] = [
     "lessons announced terminals, curves and fragments that were never on the board",
   ],
   [
-    "trust the board",
-    "a plan claiming 62 J after a 24 J collision must not override the tutor's own written working",
+    "your own board working cannot override a solver-bound value",
+    "unchecked board arithmetic cannot override an independently confirmed result",
   ],
   [
     "a units line on its own is not a check",
