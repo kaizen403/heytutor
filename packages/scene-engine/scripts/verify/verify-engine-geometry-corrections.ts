@@ -232,7 +232,8 @@ await section("4 directed multi path keeps arrow semantics", async () => {
   check(svg.includes(`<polyline points="${svgPoints}"`), "SVG field lines keep every curved sample in order");
   check(svg.includes('marker-end="url(#arrowhead)"'), "SVG field lines have a head on their final segment");
   const straightSvg = primitiveToSvg({ ...strokes[0]!, points: [{ x: 1, y: 2 }, { x: 3, y: 4 }] }, "arrowhead", "#111", "#222");
-  check(straightSvg.startsWith('<line x1="1" y1="2" x2="3" y2="4"'), "two-point SVG arrows retain their straight-line rendering");
+  // Tiny arrows use the live capped head; the exact straight shaft survives.
+  check(straightSvg.startsWith('<path d="M 1 2 L 3 4 M '), "two-point SVG arrows retain their exact straight shaft");
   // Guard: an undirected curve from the same family stays plain ink.
   const level = await compiledPrimitives(scene("equipotential", {
     source: "dipole", charges: [{ position: { x: 1, y: 0 }, charge: 1 }, { position: { x: -1, y: 0 }, charge: -1 }],

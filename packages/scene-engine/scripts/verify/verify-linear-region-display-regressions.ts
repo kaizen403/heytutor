@@ -3,11 +3,12 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { buildLinearSourceDocument, compileSceneDocument, pruneDeadSceneEntities, validateSceneDocument } from "../../src/index";
 
-// Authored planner captures. Hash the complete MAIN render, including labels,
-// transforms and reveal groups: a region fix must not move unrelated figures.
+// Authored planner captures. Full native hashes include Cartesian names and
+// own-curve attachment from e591bf31; source geometry and literal text survive.
+// A future region fix must preserve these complete unrelated figures.
 for (const [fixture, expected] of [
-  ["inverse-trig-read", "d73e94ac49cc5227290166406f863753198f55f0d6b66be91cd08376d20a5603"],
-  ["plane-wave", "214479c35cae229e89ee2bfe4d294fbf0869feb73cb2fb34c8bcf871b8cb7c65"],
+  ["inverse-trig-read", "b9015670485d42f93a3c50cb8905615faa2349dee75f1f7e53c94b690d38a824"],
+  ["plane-wave", "76762a62ac540d9bbcc5c3e713d43e8a63ad513439912d428d35daa3d36610dc"],
 ] as const) {
   const raw = JSON.parse(readFileSync(new URL(`../../fixtures/regression/linear-region-review/${fixture}.json`, import.meta.url), "utf8"));
   const validated = validateSceneDocument(pruneDeadSceneEntities(raw));
@@ -15,7 +16,7 @@ for (const [fixture, expected] of [
   const result = compileSceneDocument(validated.document);
   assert.ok(result.ok && result.renderScene, JSON.stringify(result.report.issues));
   const actual = createHash("sha256").update(JSON.stringify(result.renderScene)).digest("hex");
-  assert.equal(actual, expected, `${fixture}: region changes must preserve the complete MAIN render`);
+  assert.equal(actual, expected, `${fixture}: region changes must preserve the complete frozen native render`);
 }
 
 // Coincident systems retain one source-owned stroke without joining arbitrary
@@ -65,4 +66,4 @@ for (const [question, exactFacts] of [
     assert.ok(!refused.ok && refused.renderScene === null, "A planner cannot replace a source tuple or equation through a legend caption");
   }
 }
-console.log("verify-linear-region-display-regressions: exact non-region MAIN renders, coincident systems, dense exact legends and forged-caption refusals passed");
+console.log("verify-linear-region-display-regressions: exact frozen non-region renders, coincident systems, dense exact legends and forged-caption refusals passed");
