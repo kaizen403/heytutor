@@ -102,8 +102,20 @@ export interface TurnTeachingPrompt {
 
 const TEXT_ONLY_DIAGRAM_ADDON = `The semantic scene engine selected text-only mode because no fully validated diagram was available.
 Do not emit any drawing, label, annotation, erase, highlight, or marker-movement tags.
-WRITE the left work column as the student notebook: names, definitions, relations, substitutions, and results (x below 360). Every step must [WRITE] a short board line. Do not speak while the marker stays parked.
+WRITE the available work area as the student notebook: names, definitions, relations, substitutions, and results. Every step must [WRITE] a short board line. Do not speak while the marker stays parked.
 With no figure available, carry the setup in words and on the board: name every object, direction, and relation the question describes and write those names down before you use them.`;
+
+const NO_FIGURE_NARRATION_ADDON = `BOARD STATE: NO VERIFIED FIGURE
+There is no diagram, plot, picture or worked-example figure on this board. This overrides any earlier example, opening or subject instruction that assumes a figure was revealed or tells you to read one.
+A diagram mentioned by the question or plan is not a picture on this board. Describe the stated setup and relations in words and symbolic notebook rows, without inventing visible geometry, labels, directions or apparatus.
+Never say "look at the figure", "as shown", "this arrow", "the graph on the right", or otherwise claim that an absent part is visible. Do not promise to draw or reveal a figure, announce that one failed, or explain internal tooling.
+You may discuss a graph, axis, curve or geometric object as mathematics: explain its definition or the relation it would represent, rather than saying the student can see it. Keep the question's actual quantities, reasoning and requested solution.
+Do not emit [FOCUS] or [ANNOTATE]. Existing notebook rows may still be referenced with [EMPHASIZE] under the normal visible-row rules. Keep this turn's existing WRITE or TYPE ownership; the absence of a figure does not change it.`;
+
+function noFigurePromptAddon(codeBoard: boolean): string {
+  return codeBoard ? NO_FIGURE_NARRATION_ADDON : `${NO_FIGURE_NARRATION_ADDON}
+The notebook uses the full available board width rather than a narrow column beside an empty figure area. Keep rows readable; the runtime wraps lines and turns pages when needed.`;
+}
 
 const CODE_LESSON_NO_DIAGRAM_ADDON = `No verified diagram is available for this code lesson.
 Do not emit any drawing, label, annotation, erase, highlight, or marker-movement tags, and never use [WRITE].
@@ -237,6 +249,8 @@ export interface DoubtTeachingPromptInput {
    * doubt does not run, so it is named in words and never pointed at.
    */
   codeLessonBoard?: boolean;
+  /** Visible DSA ink on this page; this never grants a doubt FOCUS permission. */
+  codeFigureVisible?: boolean;
   /** The code revealed on the panel, section titles and lines, when it is showing. */
   codePanelText?: string | null;
   turnPlan: TurnPlanV3 | null;
@@ -378,7 +392,8 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
   const lessonQuestion = input.lessonQuestion.trim();
   const panelShowing = input.codePanelShowing;
   const codeBoard = panelShowing || Boolean(input.codeLessonBoard);
-  const figureOnBoard = !codeBoard && Boolean(input.diagramPromptAddon);
+  const hasFigure = Boolean(input.diagramPromptAddon?.trim()) || Boolean(codeBoard && input.codeFigureVisible);
+  const figureOnBoard = !codeBoard && hasFigure;
   // A code lesson's turn plan is a fallback that carries only the question,
   // and printing it invites the tutor to talk about givens.
   const { turnPlanPromptAddon, solverPromptAddon } = turnPlanPromptAddons(
@@ -399,9 +414,11 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
   const rules = panelShowing
     ? [
         "- Answer what the student asked and nothing else. Do not greet, do not read the question back, do not open the lesson again, and do not carry on with the rest of the lesson once the doubt is answered.",
-        "- In your first step say which line of the code or which part of the worked example you mean, quoting the line as it reads on the panel above.",
+        hasFigure
+          ? "- In your first step say which line of the code or which part of the worked example you mean, quoting the line as it reads on the panel above."
+          : "- In your first step identify the visible code line the doubt concerns, quoting it as it reads on the panel above.",
         `- Explain it a different way from the first time: a smaller step, the reason behind the line, or the example traced by hand with its values said out loud. ${example} When the student asks you to go through the whole thing again, go through all of it, one line per step.`,
-        "- The left of the board is the code editor and the right is the worked example, and both stay as they are. Never [WRITE], never [TYPE] and never [FOCUS] in this turn: teach it in speech, one idea per step. On this board a step with no tag is correct.",
+        `${hasFigure ? "- The left of the board is the code editor and the right is the worked example, and both stay as they are." : "- The code editor stays as it is; there is no worked-example figure beside it."} Never [WRITE], never [TYPE] and never [FOCUS] in this turn: teach it in speech, one idea per step. On this board a step with no tag is correct.`,
         noAnnotate,
         emptyMark,
         closing,
@@ -425,7 +442,7 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
     ? ""
     : figureOnBoard
       ? "The figure on the right is drawn and stays. Its parts are listed above. Point only at the parts the doubt is about, and do not read the whole figure to the student again."
-      : codeBoard
+      : codeBoard && hasFigure
         ? "The worked example on the right stays as it is. Do not point at it with [FOCUS] in this turn; say in words which part you mean."
         : "No figure is on this board. Do not use [FOCUS] or [ANNOTATE].";
 
@@ -452,6 +469,7 @@ export function buildDoubtTeachingPrompt(input: DoubtTeachingPromptInput): TurnT
       alwaysShowUnits: input.alwaysShowUnits,
       alwaysStateLawFirst: input.alwaysStateLawFirst,
     }),
+    !hasFigure ? noFigurePromptAddon(codeBoard) : "",
     [DOUBT_LENGTH_ADDON, DOUBT_FAMILIARITY_LINES[input.familiarity] ?? ""].filter(Boolean).join("\n"),
     doubtBlock,
     input.narrationLanguage === "hinglish" ? HINGLISH_NARRATION_ADDON : "",
@@ -602,7 +620,8 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
   const noRepeat = afterStop ? "do not recap" : "do not recap, do not repeat the doubt";
   const panelShowing = input.codePanelShowing;
   const codeBoard = panelShowing || Boolean(input.codeLessonBoard) || Boolean(input.codeLesson);
-  const figureOnBoard = !codeBoard && Boolean(input.diagramPromptAddon);
+  const hasFigure = Boolean(input.diagramPromptAddon?.trim()) || Boolean(codeBoard && input.codeLessonFrames?.length);
+  const figureOnBoard = !codeBoard && hasFigure;
   const remainingSteps = remainingCodeLessonStepsBlock(input);
   const { turnPlanPromptAddon, solverPromptAddon } = turnPlanPromptAddons(
     lessonQuestion,
@@ -612,8 +631,12 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
 
   const rules = input.codeLesson && input.codeLessonIncludeCode === false
     ? [
-        "- Continue the worked example at its next frame. The student asked for an explanation, so no code editor appears and no [TYPE] tags are allowed.",
-        "- Explain the actual values and decisions on each remaining frame, then close with the reason for time and space complexity.",
+        hasFigure
+          ? "- Continue the worked example at its next frame. The student asked for an explanation, so no code editor appears and no [TYPE] tags are allowed."
+          : "- Continue the original explanation in words. No worked-example figure or code editor is available; do not use [FOCUS] or [TYPE].",
+        hasFigure
+          ? "- Explain the actual values and decisions on each remaining frame, then close with the reason for time and space complexity."
+          : "- Explain the remaining algorithm decisions and values in words, then close with the reason for time and space complexity.",
         input.codeLessonResumeNote?.trim() ? `- ${input.codeLessonResumeNote.trim()}` : "",
         "- Do not recap or restart the example.",
       ]
@@ -621,7 +644,9 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
     ? [
         `- Continue the original lesson from the next unwritten step. Do not greet, ${noRepeat}, and do not start the lesson again.`,
         "- The original question is still the question of this lesson. Teach it to the end, including the complexity close.",
-        "- The left of the board is the code editor and the right is the worked example, and both stay as they are. Never [WRITE]. Reveal remaining code with [TYPE:blockId] and remaining frames with [FOCUS:frame_id].",
+        hasFigure
+          ? "- The left of the board is the code editor and the right is the worked example, and both stay as they are. Never [WRITE]. Reveal remaining code with [TYPE:blockId] and remaining frames with [FOCUS:frame_id]."
+          : "- The code editor stays as it is; no worked-example figure is available. Never [WRITE] or [FOCUS]. Reveal remaining code with [TYPE:blockId].",
         input.codeLessonResumeNote?.trim() ? `- ${input.codeLessonResumeNote.trim()}` : "",
         "- End after the last remaining beat of the original lesson. No recap, and no question back to the student.",
       ]
@@ -673,6 +698,7 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
       alwaysShowUnits: input.alwaysShowUnits,
       alwaysStateLawFirst: input.alwaysStateLawFirst,
     }),
+    !hasFigure ? noFigurePromptAddon(codeBoard) : "",
     RESUME_LENGTH_ADDON,
     resumeBlock,
     input.narrationLanguage === "hinglish" ? HINGLISH_NARRATION_ADDON : "",
@@ -697,14 +723,15 @@ export function buildResumeTeachingPrompt(input: ResumeTeachingPromptInput): Tur
 
 export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTeachingPrompt {
   const { question, codeLesson, turnPlan } = input;
+  const hasFigure = Boolean(input.diagramPromptAddon?.trim()) || Boolean(codeLesson && input.codeLessonFrames?.length);
 
   // A code lesson's figure contract is the frame list inside its own addon.
   // The scene addon speaks the physics language ("read the figure before you
   // calculate with it", "[ANNOTATE:entity_id]") and lists every cell id as a
   // focus target, which is exactly what the code addon then forbids.
   const diagramPromptAddon = codeLesson
-    ? (input.codeLessonFrames?.length || input.diagramPromptAddon ? "" : CODE_LESSON_NO_DIAGRAM_ADDON)
-    : (input.diagramPromptAddon ?? TEXT_ONLY_DIAGRAM_ADDON);
+    ? (hasFigure ? "" : CODE_LESSON_NO_DIAGRAM_ADDON)
+    : (input.diagramPromptAddon?.trim() ? input.diagramPromptAddon : TEXT_ONLY_DIAGRAM_ADDON);
 
   const { turnPlanPromptAddon, solverPromptAddon } = turnPlanPromptAddons(
     question,
@@ -723,7 +750,7 @@ export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTea
         language: input.narrationLanguage,
       })
     : buildGivenValueSegments(question, turnPlan, {
-        maxWidth: input.diagramPromptAddon ? WORK_ZONE.maxTextWidth : WORK_ZONE.fullWidthTextWidth,
+        maxWidth: hasFigure ? WORK_ZONE.maxTextWidth : WORK_ZONE.fullWidthTextWidth,
         language: input.narrationLanguage,
       });
 
@@ -793,6 +820,7 @@ export function buildTurnTeachingPrompt(input: TurnTeachingPromptInput): TurnTea
     !codeLesson && isChemistryQuestion(question) ? CHEMISTRY_LESSON_RUNTIME_ADDON : "",
     !codeLesson && input.fastMode ? FAST_MODE_TEACHING_ADDON : "",
     !codeLesson ? (FAMILIARITY_ADDONS[input.familiarity] ?? "") : "",
+    !hasFigure ? noFigurePromptAddon(Boolean(codeLesson)) : "",
     // Last, so it is the final word on step count: how long THIS question's
     // lesson should be. Without it every question got the same short lesson
     // and stopped at the bottom of the first board page.
