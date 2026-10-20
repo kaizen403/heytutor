@@ -507,6 +507,33 @@ export function circuitTopologyFromProblemStructure(
   return { sources, branches: components.length, junctions: 0, twoLoop: false };
 }
 
+/**
+ * A picture-demand veto is intentionally more conservative than planner
+ * guidance. Keep main's inventory rule as a refusal boundary: absence of a
+ * proved branch graph cannot authorize collapsing a possible network into a
+ * series chain. Even an explicit one-loop graph does not relax that boundary.
+ */
+export function circuitDemandMayBeMultiLoop(problemIR?: ProblemStructureView | null): boolean {
+  if (!problemIR) return false;
+  if (circuitTopologyFromProblemStructure(problemIR)?.twoLoop) return true;
+  const components = (problemIR.entities ?? []).filter((entity) =>
+    entity.kind === "component" || CIRCUIT_BRANCH_LABEL.test(entity.label ?? "")
+    || CIRCUIT_SOURCE_LABEL.test(entity.label ?? ""));
+  const sources = components.filter((entity) => CIRCUIT_SOURCE_LABEL.test(entity.label ?? "")).length;
+  const networkIntent = (problemIR.representationIntents ?? []).some((intent) => intent.kind === "network");
+  const connectedDegree = new Map<string, number>();
+  for (const constraint of problemIR.constraints ?? []) {
+    if (constraint.kind !== "connected") continue;
+    for (const entityId of constraint.entityIds ?? []) {
+      connectedDegree.set(entityId, (connectedDegree.get(entityId) ?? 0) + 1);
+    }
+  }
+  const junctions = [...connectedDegree.values()].filter((degree) => degree >= 2).length;
+  const branches = components.length;
+  return (sources >= 2 && branches >= 3) || branches >= 5 ||
+    (networkIntent && junctions >= 2 && branches >= 3);
+}
+
 function explicitCircuitTopology(problemIR: ProblemStructureView): CircuitTopology | null {
   const requests: NonNullable<ProblemStructureView["solveRequests"]> = Array.isArray(problemIR.solveRequests)
     ? problemIR.solveRequests.filter(request => request && typeof request === "object" && request.kind === "dc_network") : [];

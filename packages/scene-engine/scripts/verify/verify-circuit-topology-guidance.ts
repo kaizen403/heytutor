@@ -11,7 +11,8 @@ let checks=0;
 for (const [sources,loads] of [[1,5],[1,12],[2,3],[0,5]]) {
   const coarse=inventory(sources!,loads!);
   assert.equal(circuitTopologyFromProblemStructure(coarse)?.twoLoop,false,'An inventory or repeated membership cannot prove multiple loops');
-  assert.equal(sceneDemand('Draw the stated circuit.',coarse).forbids.includes('resistor_chain'),false,'Unknown topology cannot forbid a series circuit');
+  // Inventory cannot prove topology for guidance, but keeps main's fail-closed demand veto.
+  assert.equal(sceneDemand('Draw the stated circuit.',coarse).forbids.includes('resistor_chain'),true,'Unknown graph evidence cannot remove the existing inventory demand veto');
   checks+=2;
 }
 const explicit = (edges:Array<[string,string,string]>, copies=1) => ({...inventory(1,5),
