@@ -85,7 +85,12 @@ const SUBSCRIPT_MAP: Record<string, string> = {
  * Models often emit `∫_{-2}^{2}`; braces must become paren script groups or
  * the board literally draws "{" and "}".
  */
+// Label search measures the same run at many coordinates. Normalization is
+// position/font independent; bound both entry count and retained string size.
+const normalizedStrokeTextCache = new Map<string, string>();
 export function normalizeStrokeText(text: string): string {
+  const cached = normalizedStrokeTextCache.get(text);
+  if (cached !== undefined) return cached;
   // Do not use \b after the command name: LaTeX often continues with "_" / "^".
   let source = scriptChemicalFormulas(text.replace(/\u2212/g, "-"))
     .replace(/\\int(?![A-Za-z])/g, "∫")
@@ -164,10 +169,15 @@ export function normalizeStrokeText(text: string): string {
 
   // Canonically accented letters (â, ẋ, ẍ) use the same attached strokes as
   // explicit base + combining mark. Leave non-accent decompositions alone.
-  return out.replace(/[\u0080-\u{10FFFF}]/gu, (char) => {
+  const normalized = out.replace(/[\u0080-\u{10FFFF}]/gu, (char) => {
     const decomposed = char.normalize("NFD");
     return /^\p{L}\p{M}+$/u.test(decomposed) ? decomposed : char;
   });
+  if (text.length <= 1024 && normalized.length <= 1024) {
+    if (normalizedStrokeTextCache.size >= 256) normalizedStrokeTextCache.clear();
+    normalizedStrokeTextCache.set(text, normalized);
+  }
+  return normalized;
 }
 
 function rewriteLatexScriptBraces(text: string): string {
@@ -1305,9 +1315,9 @@ function lineSeedFor(text: string, x: number, y: number, fontSize: number): numb
  * across a line, and both are slow against a letter: neighbours a third of an em
  * apart share nearly all of their value, which is the whole point.
  */
-function handWander(emAlongLine: number, seed: number, wavelengthEm: number): number {
+function handWander(emAlongLine: number, seed: number, wavelengthEm: number, signedSeed?: number): number {
   const u = emAlongLine / Math.max(wavelengthEm, 0.5);
-  const phase = handSigned(seed) * Math.PI;
+  const phase = (signedSeed ?? handSigned(seed)) * Math.PI;
   return 0.64 * Math.sin(u * 2 * Math.PI + phase) + 0.36 * Math.sin(u * 1.13 + phase * 1.7);
 }
 
@@ -1317,9 +1327,33 @@ function baselineDrift(
   originX: number,
   fontSize: number,
   lineSeed: number,
+  signedSeed?: number,
 ): number {
   const em = (x - originX) / Math.max(fontSize, 1);
-  return fontSize * BASELINE_DRIFT_RATIO * handWander(em, lineSeed, BASELINE_DRIFT_WAVELENGTH_EM);
+  return fontSize * BASELINE_DRIFT_RATIO * handWander(em, lineSeed, BASELINE_DRIFT_WAVELENGTH_EM, signedSeed);
+}
+
+/** Seeded values shared by every glyph in one measured text run. */
+interface HandLineNoise {
+  baseline: number;
+  slant: number;
+  slantWander: number;
+  size: number;
+  sizeWander: number;
+  weight: number;
+  weightWander: number;
+}
+
+function handLineNoise(lineSeed: number): HandLineNoise {
+  return {
+    baseline: handSigned(lineSeed),
+    slant: handSigned(lineSeed + 61),
+    slantWander: handSigned(lineSeed + 137),
+    size: handSigned(lineSeed + 71),
+    sizeWander: handSigned(lineSeed + 149),
+    weight: handSigned(lineSeed + 83),
+    weightWander: handSigned(lineSeed + 163),
+  };
 }
 
 /** What the hand is doing at this point of this line. */
@@ -1337,21 +1371,21 @@ interface HandStyle {
  * glyph seeded `glyphSeed`. Line and drift are shared with the neighbours;
  * only the third term is this letter's own.
  */
-function handStyleAt(emAlongLine: number, lineSeed: number, glyphSeed: number): HandStyle {
+function handStyleAt(emAlongLine: number, lineSeed: number, glyphSeed: number, lineNoise?: HandLineNoise): HandStyle {
   return {
     slantDeg:
-      handSigned(lineSeed + 61) * SLANT_LINE_DEG +
-      handWander(emAlongLine, lineSeed + 137, SLANT_WAVELENGTH_EM) * SLANT_DRIFT_DEG +
+      (lineNoise?.slant ?? handSigned(lineSeed + 61)) * SLANT_LINE_DEG +
+      handWander(emAlongLine, lineSeed + 137, SLANT_WAVELENGTH_EM, lineNoise?.slantWander) * SLANT_DRIFT_DEG +
       handSigned(glyphSeed) * SLANT_GLYPH_DEG,
     size:
       1 +
-      handSigned(lineSeed + 71) * SIZE_LINE +
-      handWander(emAlongLine, lineSeed + 149, SIZE_WAVELENGTH_EM) * SIZE_DRIFT +
+      (lineNoise?.size ?? handSigned(lineSeed + 71)) * SIZE_LINE +
+      handWander(emAlongLine, lineSeed + 149, SIZE_WAVELENGTH_EM, lineNoise?.sizeWander) * SIZE_DRIFT +
       handSigned(glyphSeed + 101) * SIZE_GLYPH,
     weight:
       1 +
-      handSigned(lineSeed + 83) * WEIGHT_LINE +
-      handWander(emAlongLine, lineSeed + 163, WEIGHT_WAVELENGTH_EM) * WEIGHT_DRIFT +
+      (lineNoise?.weight ?? handSigned(lineSeed + 83)) * WEIGHT_LINE +
+      handWander(emAlongLine, lineSeed + 163, WEIGHT_WAVELENGTH_EM, lineNoise?.weightWander) * WEIGHT_DRIFT +
       handSigned(glyphSeed + 401) * WEIGHT_GLYPH,
   };
 }
@@ -1878,13 +1912,14 @@ function handAt(
   x: number,
   fontSize: number,
   lineSeed: number,
+  lineNoise?: HandLineNoise,
 ): { seed: number; driftY: number; style: HandStyle } {
   const glyphSeed = lineSeed + index * 977 + (path.char.codePointAt(0) ?? 0) * 13;
   const emAlongLine = (path.x - x) / Math.max(fontSize, 1);
   return {
     seed: glyphSeed,
-    driftY: baselineDrift(path.x, x, fontSize, lineSeed),
-    style: handStyleAt(emAlongLine, lineSeed, glyphSeed),
+    driftY: baselineDrift(path.x, x, fontSize, lineSeed, lineNoise?.baseline),
+    style: handStyleAt(emAlongLine, lineSeed, glyphSeed, lineNoise),
   };
 }
 
@@ -2067,13 +2102,14 @@ export function measureTextInkBounds(
   const ink = new InkExtent();
   const { text, paths } = layOutStrokePaths(rawText, x, y, fontSize, false);
   const lineSeed = lineSeedFor(text, x, y, fontSize);
+  const lineNoise = paths.length > 1 ? handLineNoise(lineSeed) : undefined;
   for (let index = 0; index < paths.length; index++) {
     const character = paths[index]!;
     if (character.strokes.length === 0) {
       ink.includeBox(character, fontSize);
       continue;
     }
-    const { seed, driftY, style } = handAt(character, index, x, fontSize, lineSeed);
+    const { seed, driftY, style } = handAt(character, index, x, fontSize, lineSeed, lineNoise);
     const hand = handTransformFor(character, seed, fontSize, driftY, style);
     for (const stroke of character.strokes) {
       const pad = handStrokeWidth(stroke.width, style.weight) / 2;
@@ -2131,11 +2167,26 @@ function includeHandwrittenStroke(
 ): boolean {
   const coordinates = stroke.coordinates;
   if (coordinates) {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
     for (let index = 0; index + 1 < coordinates.length; index += 2) {
       const sourceX = printedHundredths(coordinates[index]!);
       const sourceY = printedHundredths(coordinates[index + 1]!);
       if (!Number.isFinite(sourceX) || !Number.isFinite(sourceY)) return false;
-      if (!includeHandPoint(sourceX, sourceY, hand, pad, ink)) return false;
+      const point = transformPoint(sourceX, sourceY, hand);
+      if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return false;
+      minX = Math.min(minX, point.x);
+      minY = Math.min(minY, point.y);
+      maxX = Math.max(maxX, point.x);
+      maxY = Math.max(maxY, point.y);
+    }
+    if (minX !== Infinity) {
+      // Decimal rounding and padding are monotone. Each stroke has one pad,
+      // so rounding its extrema is identical to rounding every point first.
+      ink.include(printedHundredths(minX), printedHundredths(minY), pad);
+      ink.include(printedHundredths(maxX), printedHundredths(maxY), pad);
     }
     return true;
   }

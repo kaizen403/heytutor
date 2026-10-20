@@ -1,18 +1,31 @@
+import { provesVerifiedCircularParts, VERIFIED_CIRCULAR_PARTS_POLICY } from "./verifiedCircularParts";
 import { pruneDeadSceneEntities, validateSceneDocument } from "../document/validation";
 import { sameSceneValue } from "../document/valueEquality";
 import type { SceneDocument, SceneIssue } from "../types";
-import { readUniformCircularSource } from "./uniformCircularSource";
+import { readUniformCircularSource, UNSUPPORTED_CIRCULAR_LAW } from "./uniformCircularSource";
 import { UNIFORM_CIRCULAR_ARCHETYPE, uniformCircularNumericDocument, uniformCircularSymbolicDocument } from "./uniformCircularScene";
 
 /** Recompute a claimed source program from the actual question at every trust boundary. */
 export function validateUniformCircularSourceInputs(document: SceneDocument, question: unknown): SceneIssue[] {
   if (document.visualDecision.mode === "text_only") return [];
+  if (document.source.verifiedPartsPolicy === VERIFIED_CIRCULAR_PARTS_POLICY) {
+    return provesVerifiedCircularParts(document, question) ? [] : [{
+      code: "ucm_source_mismatch", severity: "fatal", path: "source.verifiedPartsPolicy",
+      message: "The circular interval graph no longer proves its source radius, speed, sweep and sense.",
+    }];
+  }
   const claimedSource = document.source.archetype === UNIFORM_CIRCULAR_ARCHETYPE;
   const source = typeof question === "string"
     ? readUniformCircularSource(question, claimedSource ? { planNamesCircularMotion: true } : {})
     : null;
   // A numeric state bound by the actual question remains authoritative when
   // submitted source markers are removed. Metadata cannot opt out of proof.
+  // Declining an unsupported law must not release its stated numeric circular
+  // state from source authority when a planner omits the archetype marker.
+  if (typeof question === "string" && UNSUPPORTED_CIRCULAR_LAW.test(question) &&
+    readUniformCircularSource(question, { ignoreUnsupportedLaw: true, ...(claimedSource ? { planNamesCircularMotion: true } : {}) })?.status === "numeric") {
+    return [{ code: "ucm_source_unsupported", severity: "fatal", path: "source.question", message: "The stated circular state is bound, but the requested SHM or projection law is not certified by this source program." }];
+  }
   if (!claimedSource && source?.status !== "numeric") return [];
   if (!source || source.status === "reject") {
     return [{ code: "ucm_source_unsupported", severity: "fatal", path: "source.question", message: "A circular source program needs a complete supported radius, rate and stated position." }];

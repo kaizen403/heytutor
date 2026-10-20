@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {compileSceneDocument,pruneDeadSceneEntities,synthesizeUniformCircularScene,validateSceneDocument,type SceneDocument} from '../../src/index';
 import {validateUniformCircularSourceInputs} from '../../src/physics/uniformCircularSourceBinding';
+import {circularPlannerCases} from './fixtures/rotation-origin-source-cases';
 let checks=0;
 const questions=[
  'A car moves clockwise with a constant speed of 12 m/s on a circular track of radius 24 m. Find its centripetal acceleration.',
@@ -57,3 +58,18 @@ for(const request of [
  assert.equal(synthesizeUniformCircularScene(question,{turnPlan:plan}),null,'complete circular inputs cannot turn an unsupported projection law into a plain circular figure');checks++;
 }
 console.log(`Source-domain controls passed; total ${checks} checks.`);
+
+for(const {question,variant,document} of circularPlannerCases()){
+ assert.equal(synthesizeUniformCircularScene(question,{turnPlan:plan}),null,'the producer must continue declining unsupported circular laws');
+ assert.ok(validateUniformCircularSourceInputs(document,question).some(i=>i.code==='ucm_source_unsupported'&&i.severity==='fatal'),`${variant}: omitted archetype markers cannot release numeric source authority`);
+ const compiled=compileSceneDocument(document);
+ assert.equal(compiled.ok,false,`${variant}: a numeric circular state with an unsupported law must fail closed`);
+ assert.ok(compiled.report.issues.some(i=>i.code==='ucm_source_unsupported'&&i.severity==='fatal'),`${variant}: the compile boundary reports the unsupported law`);checks+=4;
+}
+for(const {question,variant,document} of circularPlannerCases([''])){
+ const compiled=compileSceneDocument(document);
+ assert.equal(compiled.ok,variant==='plain program','plain numeric circular source behavior remains unchanged without source markers');
+ if(variant!=='plain program')assert.ok(validateUniformCircularSourceInputs(document,question).some(i=>i.code==='ucm_source_mismatch'));
+ checks+=variant==='plain program'?1:2;
+}
+console.log(`Numeric circular source-veto verification passed; total ${checks} checks.`);

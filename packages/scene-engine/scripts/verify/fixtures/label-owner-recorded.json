@@ -1,0 +1,3174 @@
+[
+{
+"capture": "v1/p3c-t1 chat.json #4",
+"document": {
+"schemaVersion": "scene-document/v2",
+"visualDecision": {
+"mode": "scene",
+"reason": "A vector and an incline can be shown with plan-backed perpendicular components."
+},
+"source": {
+"question": "Explain resolution of a vector into components for JEE from the basics with a clear diagram. Cover: vector A at angle θ to the x axis, components Ax = A cos θ, Ay = A sin θ; A = sqrt(Ax^2 + Ay^2), tan θ = Ay/Ax; component signs per quadrant; weight mg on an incline of angle θ resolved into mg sin θ along the slope and mg cos θ normal to it. Use one small worked number example.",
+"representationTier": "qualitative_verified",
+"nonMetric": true
+},
+"quantities": [
+{
+"id": "Ax",
+"symbol": "A_x",
+"value": 3
+},
+{
+"id": "Ay",
+"symbol": "A_y",
+"value": 4
+},
+{
+"id": "A",
+"symbol": "A",
+"value": 5
+}
+],
+"entities": [
+{
+"id": "axes",
+"kind": "axes",
+"role": "standard x-right, y-up axes"
+},
+{
+"id": "O",
+"kind": "point",
+"role": "vector origin"
+},
+{
+"id": "P",
+"kind": "point",
+"role": "vector tip"
+},
+{
+"id": "Avec",
+"kind": "vector",
+"role": "original vector",
+"label": "A"
+},
+{
+"id": "vx",
+"kind": "vector",
+"role": "x component",
+"label": "A_x"
+},
+{
+"id": "vy",
+"kind": "vector",
+"role": "y component",
+"label": "A_y"
+},
+{
+"id": "thetaA",
+"kind": "angle_mark",
+"role": "angle from positive x to A",
+"label": "θ"
+},
+{
+"id": "B",
+"kind": "point",
+"role": "incline foot"
+},
+{
+"id": "T",
+"kind": "point",
+"role": "incline top"
+},
+{
+"id": "H",
+"kind": "point",
+"role": "horizontal reference endpoint"
+},
+{
+"id": "slope",
+"kind": "segment",
+"role": "inclined surface"
+},
+{
+"id": "horizontal",
+"kind": "segment",
+"role": "horizontal reference"
+},
+{
+"id": "thetaSlope",
+"kind": "angle_mark",
+"role": "incline angle",
+"label": "θ"
+},
+{
+"id": "G",
+"kind": "point",
+"role": "weight application point"
+},
+{
+"id": "weight",
+"kind": "vector",
+"role": "vertical weight",
+"label": "mg"
+},
+{
+"id": "downhill",
+"kind": "vector",
+"role": "weight component downhill",
+"label": "mg sinθ"
+},
+{
+"id": "inward",
+"kind": "vector",
+"role": "weight component into the surface",
+"label": "mg cosθ"
+}
+],
+"constructions": [
+{
+"id": "c_axes",
+"operator": "axes",
+"inputs": {
+"xMin": -1,
+"xMax": 5,
+"yMin": -1,
+"yMax": 5
+},
+"outputs": [
+"axes"
+]
+},
+{
+"id": "c_O",
+"operator": "point",
+"inputs": {
+"x": 0,
+"y": 0,
+"coordinateSpace": "world"
+},
+"outputs": [
+"O"
+]
+},
+{
+"id": "c_P",
+"operator": "point",
+"inputs": {
+"x": 3,
+"y": 4,
+"coordinateSpace": "world"
+},
+"outputs": [
+"P"
+]
+},
+{
+"id": "c_A",
+"operator": "vector",
+"inputs": {
+"start": "O",
+"end": "P"
+},
+"outputs": [
+"Avec"
+]
+},
+{
+"id": "c_components",
+"operator": "vector_components",
+"inputs": {
+"origin": "O",
+"vector": "Avec"
+},
+"outputs": [
+"vx",
+"vy"
+]
+},
+{
+"id": "c_thetaA",
+"operator": "angle_mark",
+"inputs": {
+"vertex": "O",
+"a": "vx",
+"b": "Avec"
+},
+"outputs": [
+"thetaA"
+]
+},
+{
+"id": "c_B",
+"operator": "point",
+"inputs": {
+"x": 8,
+"y": 0,
+"coordinateSpace": "world"
+},
+"outputs": [
+"B"
+]
+},
+{
+"id": "c_T",
+"operator": "point",
+"inputs": {
+"x": 12,
+"y": 3,
+"coordinateSpace": "world"
+},
+"outputs": [
+"T"
+]
+},
+{
+"id": "c_H",
+"operator": "point",
+"inputs": {
+"x": 12,
+"y": 0,
+"coordinateSpace": "world"
+},
+"outputs": [
+"H"
+]
+},
+{
+"id": "c_slope",
+"operator": "segment",
+"inputs": {
+"start": "B",
+"end": "T"
+},
+"outputs": [
+"slope"
+]
+},
+{
+"id": "c_horizontal",
+"operator": "segment",
+"inputs": {
+"start": "B",
+"end": "H"
+},
+"outputs": [
+"horizontal"
+]
+},
+{
+"id": "c_thetaSlope",
+"operator": "angle_mark",
+"inputs": {
+"vertex": "B",
+"a": "horizontal",
+"b": "slope"
+},
+"outputs": [
+"thetaSlope"
+]
+},
+{
+"id": "c_G",
+"operator": "point",
+"inputs": {
+"x": 10,
+"y": 3,
+"coordinateSpace": "world"
+},
+"outputs": [
+"G"
+]
+},
+{
+"id": "c_weight",
+"operator": "vector",
+"inputs": {
+"start": "G",
+"direction": [
+0,
+-1
+],
+"length": 2
+},
+"outputs": [
+"weight"
+]
+},
+{
+"id": "c_weight_components",
+"operator": "vector_components",
+"inputs": {
+"origin": "G",
+"vector": "weight",
+"basis": "slope"
+},
+"outputs": [
+"downhill",
+"inward"
+]
+}
+],
+"relations": [],
+"assertions": [
+{
+"id": "xy_orthogonal",
+"predicate": "perpendicular",
+"entities": [
+"vx",
+"vy"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "slope_reference",
+"predicate": "angle_between",
+"entities": [
+"slope",
+"horizontal"
+],
+"expected": {
+"value": 36.86989764584402,
+"unit": "degree"
+},
+"severity": "fatal"
+},
+{
+"id": "downhill_parallel",
+"predicate": "parallel",
+"entities": [
+"downhill",
+"slope"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "inward_perpendicular",
+"predicate": "perpendicular",
+"entities": [
+"inward",
+"slope"
+],
+"expected": true,
+"severity": "fatal"
+}
+],
+"annotations": [
+{
+"id": "formula_xy",
+"kind": "narration",
+"targetIds": [
+"vx",
+"vy"
+],
+"text": "Resolve A into perpendicular components: A_x = A cos θ and A_y = A sin θ."
+},
+{
+"id": "formula_recover",
+"kind": "narration",
+"targetIds": [
+"Avec",
+"thetaA"
+],
+"text": "Recover A = √(A_x² + A_y²). When A_x ≠ 0, tan θ = A_y/A_x; use both signs to select the quadrant."
+},
+{
+"id": "quadrants",
+"kind": "narration",
+"targetIds": [
+"axes"
+],
+"text": "Signs (A_x, A_y): I (+,+), II (−,+), III (−,−), IV (+,−)."
+},
+{
+"id": "incline_convention",
+"kind": "narration",
+"targetIds": [
+"slope",
+"weight",
+"downhill",
+"inward"
+],
+"text": "Choose downhill as positive parallel and outward as positive normal. Weight is +mg sin θ downhill and −mg cos θ on the outward-normal axis: mg cos θ points into the surface."
+},
+{
+"id": "worked",
+"kind": "narration",
+"targetIds": [
+"vx",
+"vy",
+"Avec"
+],
+"text": "Example, in arbitrary common units: A_x = 3, A_y = 4, so A = √(3² + 4²) = 5. tan θ = 4/3, with θ in quadrant I."
+}
+],
+"requiredEntityIds": [
+"axes",
+"O",
+"P",
+"Avec",
+"vx",
+"vy",
+"thetaA",
+"B",
+"T",
+"H",
+"slope",
+"horizontal",
+"thetaSlope",
+"G",
+"weight",
+"downhill",
+"inward"
+],
+"revealGroups": [
+{
+"id": "vector_setup",
+"entityIds": [
+"axes",
+"O",
+"P",
+"Avec",
+"vx",
+"vy",
+"thetaA"
+],
+"dependsOn": [],
+"narrationCue": "A and its perpendicular x and y components"
+},
+{
+"id": "incline_setup",
+"entityIds": [
+"B",
+"T",
+"H",
+"slope",
+"horizontal",
+"thetaSlope",
+"G",
+"weight",
+"downhill",
+"inward"
+],
+"dependsOn": [
+"vector_setup"
+],
+"narrationCue": "Resolve vertical weight along and perpendicular to the incline"
+}
+],
+"teachingTimeline": [
+{
+"id": "introduce",
+"revealGroupId": "vector_setup",
+"annotationIds": [
+"formula_xy",
+"formula_recover",
+"quadrants"
+]
+},
+{
+"id": "incline",
+"revealGroupId": "incline_setup",
+"annotationIds": [
+"incline_convention"
+]
+},
+{
+"id": "example",
+"revealGroupId": "vector_setup",
+"annotationIds": [
+"worked"
+]
+}
+]
+}
+},
+{
+"capture": "v1/p3c-t2 chat.json #5",
+"document": {
+"schemaVersion": "scene-document/v2",
+"visualDecision": {
+"mode": "scene",
+"reason": "The stated magnitude and angle determine a vector and its orthogonal components. The incline is explained in equations only."
+},
+"source": {
+"question": "Explain resolution of a vector into components for JEE from the basics. Cover: Ax = A cos θ, Ay = A sin θ; A = sqrt(Ax^2 + Ay^2), tan θ = Ay/Ax; component signs in each quadrant; on an incline of angle θ, weight mg splits into mg sin θ along the slope and mg cos θ normal to it. Draw one simple diagram: a vector A of 10 units at 37° to the x axis with its Ax and Ay component arrows on xy axes. Explain the incline case in equations only.",
+"representationTier": "quantitative_verified",
+"nonMetric": false
+},
+"quantities": [
+{
+"id": "gA",
+"symbol": "A",
+"value": 10,
+"unit": "units"
+},
+{
+"id": "gt",
+"symbol": "θ",
+"value": 37,
+"unit": "degrees"
+},
+{
+"id": "uAx",
+"symbol": "Ax",
+"value": 7.9863551,
+"unit": "units"
+},
+{
+"id": "uAy",
+"symbol": "Ay",
+"value": 6.018150231520483,
+"unit": "units"
+}
+],
+"entities": [
+{
+"id": "axes",
+"kind": "axes",
+"role": "positive x and y reference axes"
+},
+{
+"id": "O",
+"kind": "point",
+"role": "shared vector origin"
+},
+{
+"id": "tip",
+"kind": "point",
+"role": "resultant endpoint"
+},
+{
+"id": "A",
+"kind": "vector",
+"role": "resultant",
+"label": "A = 10 units"
+},
+{
+"id": "Ax",
+"kind": "vector",
+"role": "positive x component",
+"label": "Ax"
+},
+{
+"id": "Ay",
+"kind": "vector",
+"role": "positive y component",
+"label": "Ay"
+},
+{
+"id": "theta",
+"kind": "angle_mark",
+"role": "angle from positive x",
+"label": "θ = 37°"
+}
+],
+"constructions": [
+{
+"id": "c_axes",
+"operator": "axes",
+"inputs": {
+"xMin": -1,
+"xMax": 1.2,
+"yMin": -1,
+"yMax": 1.2
+},
+"outputs": [
+"axes"
+]
+},
+{
+"id": "c_O",
+"operator": "point",
+"inputs": {
+"x": 0,
+"y": 0,
+"coordinateSpace": "world"
+},
+"outputs": [
+"O"
+]
+},
+{
+"id": "c_tip",
+"operator": "point",
+"inputs": {
+"x": 0.79863551,
+"y": 0.6018150231520483,
+"coordinateSpace": "world"
+},
+"outputs": [
+"tip"
+]
+},
+{
+"id": "c_A",
+"operator": "vector",
+"inputs": {
+"start": "O",
+"end": "tip"
+},
+"outputs": [
+"A"
+]
+},
+{
+"id": "c_components",
+"operator": "vector_components",
+"inputs": {
+"origin": "O",
+"vector": "A"
+},
+"outputs": [
+"Ax",
+"Ay"
+]
+},
+{
+"id": "c_theta",
+"operator": "angle_mark",
+"inputs": {
+"vertex": "O",
+"a": "A",
+"b": "Ax"
+},
+"outputs": [
+"theta"
+]
+}
+],
+"relations": [],
+"assertions": [
+{
+"id": "component_perpendicularity",
+"predicate": "perpendicular",
+"entities": [
+"Ax",
+"Ay"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "stated_angle",
+"predicate": "angle_between",
+"entities": [
+"A",
+"Ax"
+],
+"expected": {
+"value": 37,
+"unit": "degree"
+},
+"severity": "fatal"
+}
+],
+"annotations": [
+{
+"id": "basic",
+"kind": "narration",
+"targetIds": [
+"A",
+"Ax",
+"Ay"
+],
+"text": "Resolution replaces a vector with perpendicular components whose vector sum is the original: A⃗ = Ax x̂ + Ay ŷ. Ax = A cos θ; Ay = A sin θ."
+},
+{
+"id": "recover",
+"kind": "narration",
+"targetIds": [
+"Ax",
+"Ay"
+],
+"text": "Recover the magnitude using A = √(Ax² + Ay²). When Ax ≠ 0, tan θ = Ay/Ax; use the signs to choose the quadrant. If Ax = 0, the vector lies on the y axis."
+},
+{
+"id": "signs",
+"kind": "narration",
+"targetIds": [
+"axes"
+],
+"text": "With x right and y up, the component signs (Ax, Ay) are I (+,+), II (−,+), III (−,−), IV (+,−)."
+},
+{
+"id": "results",
+"kind": "narration",
+"targetIds": [
+"Ax",
+"Ay"
+],
+"text": "For this vector, Ax = 10 cos 37° ≈ 7.9863551 units and Ay = 10 sin 37° ≈ 6.018150231520483 units."
+},
+{
+"id": "incline",
+"kind": "narration",
+"targetIds": [],
+"text": "For an incline at angle θ to the horizontal, take the directions along the slope as downhill and normal as into the plane: W∥ = mg sin θ; W⊥ = mg cos θ; W⃗ = (mg sin θ)êdownhill + (mg cos θ)êinto-plane."
+}
+],
+"requiredEntityIds": [
+"axes",
+"O",
+"tip",
+"A",
+"Ax",
+"Ay",
+"theta"
+],
+"revealGroups": [
+{
+"id": "diagram",
+"entityIds": [
+"axes",
+"O",
+"tip",
+"A",
+"Ax",
+"Ay",
+"theta"
+],
+"dependsOn": []
+}
+],
+"teachingTimeline": [
+{
+"id": "setup",
+"revealGroupIds": [
+"diagram"
+],
+"annotationIds": [
+"basic"
+]
+},
+{
+"id": "methods",
+"annotationIds": [
+"recover",
+"signs"
+]
+},
+{
+"id": "calculate",
+"annotationIds": [
+"results"
+]
+},
+{
+"id": "incline_equations",
+"annotationIds": [
+"incline"
+]
+}
+]
+}
+},
+{
+"capture": "v1/p3c-t3 chat.json #6",
+"document": {
+"schemaVersion": "scene-document/v2",
+"visualDecision": {
+"mode": "scene",
+"reason": "The given magnitude and angle determine a vector and its perpendicular projections onto the axes."
+},
+"source": {
+"question": "Explain resolution of a vector into components for JEE from the basics. Cover: Ax = A cos θ, Ay = A sin θ; A = sqrt(Ax^2 + Ay^2), tan θ = Ay/Ax; component signs in each quadrant; on an incline of angle θ, weight mg splits into mg sin θ along the slope and mg cos θ normal to it. Draw one simple diagram: a vector A of 10 units from the origin at 37° to the x axis, dashed lines from its tip to both axes, and the components drawn as arrows along the axes themselves: Ax along the x axis and Ay along the y axis. Explain the incline case in equations only.",
+"representationTier": "verified"
+},
+"quantities": [
+{
+"id": "gA",
+"symbol": "A",
+"value": 10,
+"unit": "units"
+},
+{
+"id": "gt",
+"symbol": "θ",
+"value": 37,
+"unit": "°"
+},
+{
+"id": "uAx",
+"symbol": "Ax",
+"value": 7.986355100472928,
+"unit": "units"
+},
+{
+"id": "uAy",
+"symbol": "Ay",
+"value": 6.018150231520483,
+"unit": "units"
+}
+],
+"entities": [
+{
+"id": "axes",
+"kind": "axes",
+"role": "Cartesian axes"
+},
+{
+"id": "O",
+"kind": "point",
+"role": "origin"
+},
+{
+"id": "X",
+"kind": "point",
+"role": "horizontal projection"
+},
+{
+"id": "Y",
+"kind": "point",
+"role": "vertical projection"
+},
+{
+"id": "T",
+"kind": "point",
+"role": "vector tip"
+},
+{
+"id": "A",
+"kind": "vector",
+"role": "given vector",
+"label": "A"
+},
+{
+"id": "Ax",
+"kind": "vector",
+"role": "x-axis component",
+"label": "Ax"
+},
+{
+"id": "Ay",
+"kind": "vector",
+"role": "y-axis component",
+"label": "Ay"
+},
+{
+"id": "dropX",
+"kind": "segment",
+"role": "dashed projection from tip to x axis"
+},
+{
+"id": "dropY",
+"kind": "segment",
+"role": "dashed projection from tip to y axis"
+},
+{
+"id": "theta",
+"kind": "angle_mark",
+"role": "angle from positive x axis",
+"label": "θ"
+}
+],
+"constructions": [
+{
+"id": "cAxes",
+"operator": "axes",
+"inputs": {
+"xMin": -1,
+"xMax": 11,
+"yMin": -1,
+"yMax": 9
+},
+"outputs": [
+"axes"
+]
+},
+{
+"id": "cO",
+"operator": "point",
+"inputs": {
+"x": 0,
+"y": 0,
+"coordinateSpace": "world"
+},
+"outputs": [
+"O"
+]
+},
+{
+"id": "cX",
+"operator": "point",
+"inputs": {
+"x": 7.986355100472928,
+"y": 0,
+"coordinateSpace": "world"
+},
+"outputs": [
+"X"
+]
+},
+{
+"id": "cY",
+"operator": "point",
+"inputs": {
+"x": 0,
+"y": 6.018150231520483,
+"coordinateSpace": "world"
+},
+"outputs": [
+"Y"
+]
+},
+{
+"id": "cT",
+"operator": "point",
+"inputs": {
+"x": 7.986355100472928,
+"y": 6.018150231520483,
+"coordinateSpace": "world"
+},
+"outputs": [
+"T"
+]
+},
+{
+"id": "cA",
+"operator": "vector",
+"inputs": {
+"start": "O",
+"end": "T"
+},
+"outputs": [
+"A"
+]
+},
+{
+"id": "cAx",
+"operator": "vector",
+"inputs": {
+"start": "O",
+"end": "X"
+},
+"outputs": [
+"Ax"
+]
+},
+{
+"id": "cAy",
+"operator": "vector",
+"inputs": {
+"start": "O",
+"end": "Y"
+},
+"outputs": [
+"Ay"
+]
+},
+{
+"id": "cDropX",
+"operator": "segment",
+"inputs": {
+"start": "T",
+"end": "X"
+},
+"outputs": [
+"dropX"
+]
+},
+{
+"id": "cDropY",
+"operator": "segment",
+"inputs": {
+"start": "T",
+"end": "Y"
+},
+"outputs": [
+"dropY"
+]
+},
+{
+"id": "cTheta",
+"operator": "angle_mark",
+"inputs": {
+"vertex": "O",
+"a": "Ax",
+"b": "A"
+},
+"outputs": [
+"theta"
+]
+}
+],
+"relations": [],
+"assertions": [
+{
+"id": "givenAngle",
+"predicate": "angle_between",
+"entities": [
+"Ax",
+"A"
+],
+"expected": {
+"value": 37,
+"unit": "degree"
+},
+"severity": "fatal"
+},
+{
+"id": "horizontalDrop",
+"predicate": "parallel",
+"entities": [
+"dropY",
+"Ax"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "verticalDrop",
+"predicate": "perpendicular",
+"entities": [
+"dropX",
+"Ax"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "orthogonalComponents",
+"predicate": "perpendicular",
+"entities": [
+"Ax",
+"Ay"
+],
+"expected": true,
+"severity": "fatal"
+}
+],
+"annotations": [
+{
+"id": "givenMagnitude",
+"kind": "callout",
+"targetIds": [
+"A"
+],
+"text": "10 units",
+"quantityId": "gA"
+},
+{
+"id": "givenAngleValue",
+"kind": "callout",
+"targetIds": [
+"theta"
+],
+"text": "37°",
+"quantityId": "gt"
+},
+{
+"id": "resolve",
+"kind": "narration",
+"targetIds": [
+"A",
+"Ax",
+"Ay"
+],
+"text": "Perpendicular components add to the original vector: A⃗ = Ax x̂ + Ay ŷ. Ax = A cos θ; Ay = A sin θ."
+},
+{
+"id": "recover",
+"kind": "narration",
+"targetIds": [
+"Ax",
+"Ay"
+],
+"text": "A = √(Ax² + Ay²). If Ax ≠ 0, tan θ = Ay/Ax; use both signs to choose the quadrant."
+},
+{
+"id": "signs",
+"kind": "narration",
+"targetIds": [
+"Ax",
+"Ay"
+],
+"text": "Signs (Ax, Ay): I (+,+), II (−,+), III (−,−), IV (+,−). On an axis, one component is zero."
+},
+{
+"id": "incline",
+"kind": "narration",
+"targetIds": [],
+"text": "With positive directions down the slope and into the plane: W∥ = mg sin θ; W⊥ = mg cos θ; |W| = √(W∥² + W⊥²) = mg."
+},
+{
+"id": "computedX",
+"kind": "callout",
+"targetIds": [
+"Ax"
+],
+"text": "≈7.986 units",
+"quantityId": "uAx"
+},
+{
+"id": "computedY",
+"kind": "callout",
+"targetIds": [
+"Ay"
+],
+"text": "≈6.018 units",
+"quantityId": "uAy"
+}
+],
+"requiredEntityIds": [
+"axes",
+"O",
+"X",
+"Y",
+"T",
+"A",
+"Ax",
+"Ay",
+"dropX",
+"dropY",
+"theta"
+],
+"revealGroups": [
+{
+"id": "setup",
+"entityIds": [
+"axes",
+"O",
+"X",
+"Y",
+"T",
+"A",
+"Ax",
+"Ay",
+"dropX",
+"dropY",
+"theta"
+],
+"dependsOn": [],
+"narrationCue": "Draw the vector, its axis-aligned component arrows, and dashed projection lines."
+}
+],
+"teachingTimeline": [
+{
+"id": "setupStep",
+"revealGroupId": "setup",
+"annotationIds": [
+"givenMagnitude",
+"givenAngleValue",
+"resolve"
+]
+},
+{
+"id": "principlesStep",
+"revealGroupId": "setup",
+"annotationIds": [
+"recover",
+"signs",
+"incline"
+]
+},
+{
+"id": "calculationStep",
+"revealGroupId": "setup",
+"annotationIds": [
+"computedX",
+"computedY"
+]
+}
+]
+}
+},
+{
+"capture": "v1/p3c-t4 chat.json #5",
+"document": {
+"schemaVersion": "scene-document/v2",
+"visualDecision": {
+"mode": "scene",
+"reason": "Force F of 10 N from the origin at 37° to the x axis, resolved into components Fx along the x axis and Fy along the y axis on xy axes; incline case is equations only per the question."
+},
+"source": {
+"question": "Explain resolution of a vector into components for JEE from the basics. Cover: Fx = F cos θ, Fy = F sin θ; F = sqrt(Fx^2 + Fy^2), tan θ = Fy/Fx; component signs in each quadrant; on an incline of angle θ, weight mg splits into mg sin θ along the slope and mg cos θ normal to it. Draw one simple diagram on xy axes: a force F of 10 N from the origin at 37° to the x axis, with Fx drawn as an arrow along the x axis and Fy as an arrow along the y axis. Explain the incline case in equations only.",
+"representationTier": "metric_verified",
+"nonMetric": false
+},
+"quantities": [
+{
+"id": "g1",
+"symbol": "F",
+"value": 10,
+"unit": "N",
+"sourceText": "a force F of 10 N from the origin",
+"provenance": "given"
+},
+{
+"id": "g2",
+"symbol": "θ",
+"value": 37,
+"unit": "°",
+"sourceText": "at 37° to the x axis",
+"provenance": "given"
+}
+],
+"entities": [
+{
+"id": "O",
+"kind": "point",
+"role": "origin",
+"label": "O"
+},
+{
+"id": "ax",
+"kind": "axes",
+"role": "xy axes"
+},
+{
+"id": "tip",
+"kind": "point",
+"role": "force tip"
+},
+{
+"id": "F",
+"kind": "vector",
+"role": "force",
+"label": "F = 10 N"
+},
+{
+"id": "px",
+"kind": "point",
+"role": "x projection"
+},
+{
+"id": "py",
+"kind": "point",
+"role": "y projection"
+},
+{
+"id": "Fx",
+"kind": "vector",
+"role": "x component",
+"label": "Fx"
+},
+{
+"id": "Fy",
+"kind": "vector",
+"role": "y component",
+"label": "Fy"
+},
+{
+"id": "dx",
+"kind": "segment",
+"role": "projection guide"
+},
+{
+"id": "dy",
+"kind": "segment",
+"role": "projection guide"
+},
+{
+"id": "theta",
+"kind": "angle_mark",
+"role": "angle mark",
+"label": "θ = 37°"
+}
+],
+"constructions": [
+{
+"id": "make_O",
+"operator": "point",
+"inputs": {
+"x": 0,
+"y": 0,
+"coordinateSpace": "world"
+},
+"outputs": [
+"O"
+]
+},
+{
+"id": "make_ax",
+"operator": "axes",
+"inputs": {
+"xMin": -1,
+"xMax": 9,
+"yMin": -1,
+"yMax": 7
+},
+"outputs": [
+"ax"
+]
+},
+{
+"id": "make_tip",
+"operator": "point",
+"inputs": {
+"x": 7.986355100472928,
+"y": 6.018150231520483,
+"coordinateSpace": "world"
+},
+"outputs": [
+"tip"
+]
+},
+{
+"id": "make_F",
+"operator": "vector",
+"inputs": {
+"start": "O",
+"end": "tip"
+},
+"outputs": [
+"F"
+]
+},
+{
+"id": "make_px",
+"operator": "point",
+"inputs": {
+"x": 7.986355100472928,
+"y": 0,
+"coordinateSpace": "world"
+},
+"outputs": [
+"px"
+]
+},
+{
+"id": "make_py",
+"operator": "point",
+"inputs": {
+"x": 0,
+"y": 6.018150231520483,
+"coordinateSpace": "world"
+},
+"outputs": [
+"py"
+]
+},
+{
+"id": "make_Fx",
+"operator": "vector",
+"inputs": {
+"start": "O",
+"end": "px"
+},
+"outputs": [
+"Fx"
+]
+},
+{
+"id": "make_Fy",
+"operator": "vector",
+"inputs": {
+"start": "O",
+"end": "py"
+},
+"outputs": [
+"Fy"
+]
+},
+{
+"id": "make_dx",
+"operator": "segment",
+"inputs": {
+"start": "px",
+"end": "tip"
+},
+"outputs": [
+"dx"
+]
+},
+{
+"id": "make_dy",
+"operator": "segment",
+"inputs": {
+"start": "py",
+"end": "tip"
+},
+"outputs": [
+"dy"
+]
+},
+{
+"id": "make_theta",
+"operator": "angle_mark",
+"inputs": {
+"vertex": "O",
+"a": "Fx",
+"b": "F",
+"radius": 1.2
+},
+"outputs": [
+"theta"
+]
+}
+],
+"relations": [],
+"assertions": [
+{
+"id": "angle_F_x",
+"predicate": "angle_between",
+"entities": [
+"Fx",
+"F"
+],
+"expected": {
+"value": 37,
+"unit": "degree"
+},
+"severity": "fatal"
+},
+{
+"id": "Fx_perp_Fy",
+"predicate": "perpendicular",
+"entities": [
+"Fx",
+"Fy"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "label_F",
+"predicate": "label_attached",
+"entities": [
+"F"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "label_Fx",
+"predicate": "label_attached",
+"entities": [
+"Fx"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "label_Fy",
+"predicate": "label_attached",
+"entities": [
+"Fy"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "label_O",
+"predicate": "label_attached",
+"entities": [
+"O"
+],
+"expected": true,
+"severity": "fatal"
+}
+],
+"annotations": [
+{
+"id": "narr_resolve",
+"kind": "narration",
+"targetIds": [
+"F",
+"Fx",
+"Fy"
+],
+"text": "Resolving a vector means replacing it by two perpendicular components whose vector sum is the original vector: F = Fx î + Fy ĵ."
+},
+{
+"id": "narr_project",
+"kind": "narration",
+"targetIds": [
+"theta"
+],
+"text": "Projecting onto the axes: Fx = F cos θ, Fy = F sin θ. Recover with F = sqrt(Fx² + Fy²), tan θ = Fy/Fx."
+},
+{
+"id": "narr_quadrants",
+"kind": "narration",
+"targetIds": [
+"ax"
+],
+"text": "Signs by quadrant of θ from +x: Q1 (+,+); Q2 (−,+); Q3 (−,−); Q4 (+,−). Here θ = 37° is Q1, so Fx and Fy are both positive."
+},
+{
+"id": "narr_incline",
+"kind": "narration",
+"targetIds": [
+"ax"
+],
+"text": "On an incline of angle θ, take axes along and normal to the slope: weight mg splits into mg sin θ along the slope and mg cos θ normal to it, and sqrt((mg sin θ)² + (mg cos θ)²) = mg."
+}
+],
+"requiredEntityIds": [
+"O",
+"ax",
+"tip",
+"F",
+"px",
+"py",
+"Fx",
+"Fy",
+"dx",
+"dy",
+"theta"
+],
+"revealGroups": [
+{
+"id": "setup",
+"entityIds": [
+"O",
+"ax",
+"tip",
+"F",
+"px",
+"py",
+"Fx",
+"Fy",
+"dx",
+"dy",
+"theta"
+],
+"dependsOn": [],
+"narrationCue": "A 10 N force from the origin at 37° to the x axis, resolved into Fx along the x axis and Fy along the y axis."
+}
+],
+"teachingTimeline": [
+{
+"step": 1,
+"targetIds": [
+"O",
+"ax",
+"F",
+"theta"
+],
+"action": "reveal",
+"narration": "Draw xy axes and the force F = 10 N from the origin at θ = 37° to the x axis."
+},
+{
+"step": 2,
+"targetIds": [
+"Fx",
+"Fy",
+"px",
+"py",
+"dx",
+"dy"
+],
+"action": "reveal",
+"narration": "Drop perpendiculars to the axes: Fx = F cos θ along x, Fy = F sin θ along y; their vector sum is F."
+},
+{
+"step": 3,
+"targetIds": [
+"ax"
+],
+"action": "emphasize",
+"narration": "F = sqrt(Fx² + Fy²), tan θ = Fy/Fx. Signs by quadrant: Q1 (+,+), Q2 (−,+), Q3 (−,−), Q4 (+,−). On an incline of angle θ: mg sin θ along the slope, mg cos θ normal to it."
+}
+]
+}
+},
+{
+"capture": "v1/p2c-t3 chat.json #4",
+"document": {
+"schemaVersion": "scene-document/v2",
+"visualDecision": {
+"mode": "scene",
+"reason": "The stated perpendicular vectors determine an exact parallelogram and its resultant."
+},
+"source": {
+"question": "Explain vector addition and subtraction for JEE from the basics. Cover: the triangle law (head to tail); the parallelogram law with A and B tail to tail at angle θ; R^2 = A^2 + B^2 + 2AB cos θ; direction tan α = B sin θ/(A + B cos θ); subtraction as A + (-B). Draw one simple parallelogram diagram: A = 3 units along the x axis, B = 4 units at 90° to A, and the diagonal R, with short labels. Explain subtraction in equations only."
+},
+"quantities": [
+{
+"id": "A",
+"symbol": "A",
+"value": 3,
+"unit": "units",
+"provenance": "given"
+},
+{
+"id": "B",
+"symbol": "B",
+"value": 4,
+"unit": "units",
+"provenance": "given"
+},
+{
+"id": "theta",
+"symbol": "θ",
+"value": 90,
+"unit": "degrees",
+"provenance": "given"
+},
+{
+"id": "R",
+"symbol": "R",
+"value": 5,
+"unit": "units",
+"provenance": "derived",
+"dependsOn": [
+"A",
+"B",
+"theta"
+]
+},
+{
+"id": "alpha",
+"symbol": "α",
+"value": 53.13010235415598,
+"unit": "degrees",
+"provenance": "derived",
+"dependsOn": [
+"A",
+"B",
+"theta"
+]
+}
+],
+"entities": [
+{
+"id": "O",
+"kind": "point",
+"role": "origin"
+},
+{
+"id": "tipA",
+"kind": "point",
+"role": "tip of A"
+},
+{
+"id": "tipB",
+"kind": "point",
+"role": "tip of B"
+},
+{
+"id": "corner",
+"kind": "point",
+"role": "opposite corner"
+},
+{
+"id": "vecA",
+"kind": "vector",
+"role": "vector",
+"label": "A"
+},
+{
+"id": "vecB",
+"kind": "vector",
+"role": "vector",
+"label": "B"
+},
+{
+"id": "farA",
+"kind": "segment",
+"role": "parallelogram side parallel to A"
+},
+{
+"id": "farB",
+"kind": "segment",
+"role": "parallelogram side parallel to B"
+},
+{
+"id": "vecR",
+"kind": "vector",
+"role": "resultant",
+"label": "R"
+},
+{
+"id": "thetaMark",
+"kind": "angle_mark",
+"role": "angle between A and B",
+"label": "θ"
+},
+{
+"id": "alphaMark",
+"kind": "angle_mark",
+"role": "direction from A toward B",
+"label": "α"
+}
+],
+"constructions": [
+{
+"id": "cO",
+"operator": "point",
+"inputs": {
+"x": 0,
+"y": 0,
+"coordinateSpace": "world"
+},
+"outputs": [
+"O"
+]
+},
+{
+"id": "cTipA",
+"operator": "point",
+"inputs": {
+"x": 3,
+"y": 0,
+"coordinateSpace": "world"
+},
+"outputs": [
+"tipA"
+]
+},
+{
+"id": "cTipB",
+"operator": "point",
+"inputs": {
+"x": 0,
+"y": 4,
+"coordinateSpace": "world"
+},
+"outputs": [
+"tipB"
+]
+},
+{
+"id": "cCorner",
+"operator": "point",
+"inputs": {
+"x": 3,
+"y": 4,
+"coordinateSpace": "world"
+},
+"outputs": [
+"corner"
+]
+},
+{
+"id": "cA",
+"operator": "vector",
+"inputs": {
+"start": "O",
+"end": "tipA"
+},
+"outputs": [
+"vecA"
+]
+},
+{
+"id": "cB",
+"operator": "vector",
+"inputs": {
+"start": "O",
+"end": "tipB"
+},
+"outputs": [
+"vecB"
+]
+},
+{
+"id": "cFarA",
+"operator": "segment",
+"inputs": {
+"start": "tipB",
+"end": "corner"
+},
+"outputs": [
+"farA"
+]
+},
+{
+"id": "cFarB",
+"operator": "segment",
+"inputs": {
+"start": "tipA",
+"end": "corner"
+},
+"outputs": [
+"farB"
+]
+},
+{
+"id": "cR",
+"operator": "vector_sum",
+"inputs": {
+"vectors": [
+"vecA",
+"vecB"
+],
+"origin": "O"
+},
+"outputs": [
+"vecR"
+]
+},
+{
+"id": "cTheta",
+"operator": "angle_mark",
+"inputs": {
+"vertex": "O",
+"a": "vecA",
+"b": "vecB",
+"radius": 0.7
+},
+"outputs": [
+"thetaMark"
+]
+},
+{
+"id": "cAlpha",
+"operator": "angle_mark",
+"inputs": {
+"vertex": "O",
+"a": "vecA",
+"b": "vecR",
+"radius": 1.15
+},
+"outputs": [
+"alphaMark"
+]
+}
+],
+"relations": [],
+"assertions": [
+{
+"id": "rightAngle",
+"predicate": "angle_between",
+"entities": [
+"vecA",
+"vecB"
+],
+"expected": {
+"value": 90,
+"unit": "degree"
+},
+"severity": "fatal"
+},
+{
+"id": "oppositeA",
+"predicate": "parallel",
+"entities": [
+"vecA",
+"farA"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "oppositeB",
+"predicate": "parallel",
+"entities": [
+"vecB",
+"farB"
+],
+"expected": true,
+"severity": "fatal"
+}
+],
+"annotations": [],
+"requiredEntityIds": [
+"O",
+"tipA",
+"tipB",
+"corner",
+"vecA",
+"vecB",
+"farA",
+"farB",
+"vecR",
+"thetaMark",
+"alphaMark"
+],
+"revealGroups": [
+{
+"id": "setup",
+"entityIds": [
+"O",
+"tipA",
+"tipB",
+"corner",
+"vecA",
+"vecB",
+"farA",
+"farB",
+"vecR",
+"thetaMark"
+],
+"dependsOn": [],
+"narrationCue": "Triangle law: move B’s tail to A’s head; the sum runs from A’s tail to B’s head. Equivalently, with A and B tail to tail, R is the parallelogram diagonal."
+},
+{
+"id": "direction",
+"entityIds": [
+"alphaMark"
+],
+"dependsOn": [
+"setup"
+],
+"narrationCue": "The direction α is measured from A toward B."
+}
+],
+"teachingTimeline": [
+{
+"revealGroupId": "setup",
+"narration": "A = 3 units along +x and B = 4 units along +y, so θ = 90°. The head-to-tail triangle and the tail-to-tail parallelogram give the same resultant: R⃗ = A⃗ + B⃗."
+},
+{
+"revealGroupId": "direction",
+"narration": "In general, R² = A² + B² + 2AB cos θ and tan α = B sin θ/(A + B cos θ). Here R = √(3² + 4² + 2·3·4·cos 90°) = 5 units, and α = arctan(4/3) ≈ 53.13010235415598°."
+},
+{
+"revealGroupId": "direction",
+"narration": "Subtraction uses the additive inverse: A⃗ − B⃗ = A⃗ + (−B⃗). In components, (3, 0) − (0, 4) = (3, −4) units."
+}
+]
+}
+},
+{
+"capture": "v1/p2c-t2 chat.json #4",
+"document": {
+"schemaVersion": "scene-document/v2",
+"visualDecision": {
+"mode": "scene",
+"reason": "The stated vector magnitudes and right angle determine the requested parallelogram."
+},
+"source": {
+"question": "Explain vector addition and subtraction for JEE from the basics. Cover the triangle law, parallelogram law, resultant magnitude and direction, and subtraction as A + (-B). Draw A = 3 units along the x axis, B = 4 units at 90° to A, and the diagonal R. Explain subtraction in equations only.",
+"representationTier": "quantitative_verified",
+"nonMetric": false
+},
+"quantities": [
+{
+"id": "a",
+"symbol": "A",
+"value": 3,
+"unit": "units"
+},
+{
+"id": "b",
+"symbol": "B",
+"value": 4,
+"unit": "units"
+},
+{
+"id": "theta",
+"symbol": "θ",
+"value": 90,
+"unit": "degrees"
+},
+{
+"id": "r",
+"symbol": "R",
+"value": 5,
+"unit": "units",
+"provenance": "derived",
+"dependsOn": [
+"a",
+"b",
+"theta"
+]
+},
+{
+"id": "alpha",
+"symbol": "α",
+"value": 53.13010235415598,
+"unit": "degrees",
+"provenance": "derived",
+"dependsOn": [
+"a",
+"b",
+"theta"
+]
+}
+],
+"entities": [
+{
+"id": "O",
+"kind": "point",
+"role": "origin"
+},
+{
+"id": "P",
+"kind": "point",
+"role": "tip of A"
+},
+{
+"id": "Q",
+"kind": "point",
+"role": "tip of B"
+},
+{
+"id": "S",
+"kind": "point",
+"role": "opposite parallelogram corner"
+},
+{
+"id": "A",
+"kind": "vector",
+"role": "vector",
+"label": "A = 3 units"
+},
+{
+"id": "B",
+"kind": "vector",
+"role": "vector",
+"label": "B = 4 units"
+},
+{
+"id": "R",
+"kind": "vector",
+"role": "resultant",
+"label": "R"
+},
+{
+"id": "PS",
+"kind": "segment",
+"role": "parallelogram side"
+},
+{
+"id": "QS",
+"kind": "segment",
+"role": "parallelogram side"
+},
+{
+"id": "right",
+"kind": "right_angle_mark",
+"role": "given right angle"
+},
+{
+"id": "alphaMark",
+"kind": "angle_mark",
+"role": "resultant direction",
+"label": "α"
+}
+],
+"constructions": [
+{
+"id": "cO",
+"operator": "point",
+"inputs": {
+"x": 0,
+"y": 0,
+"coordinateSpace": "world"
+},
+"outputs": [
+"O"
+]
+},
+{
+"id": "cP",
+"operator": "point",
+"inputs": {
+"x": 3,
+"y": 0,
+"coordinateSpace": "world"
+},
+"outputs": [
+"P"
+]
+},
+{
+"id": "cQ",
+"operator": "point",
+"inputs": {
+"x": 0,
+"y": 4,
+"coordinateSpace": "world"
+},
+"outputs": [
+"Q"
+]
+},
+{
+"id": "cS",
+"operator": "point",
+"inputs": {
+"x": 3,
+"y": 4,
+"coordinateSpace": "world"
+},
+"outputs": [
+"S"
+]
+},
+{
+"id": "cA",
+"operator": "vector",
+"inputs": {
+"start": "O",
+"end": "P"
+},
+"outputs": [
+"A"
+]
+},
+{
+"id": "cB",
+"operator": "vector",
+"inputs": {
+"start": "O",
+"end": "Q"
+},
+"outputs": [
+"B"
+]
+},
+{
+"id": "cR",
+"operator": "vector_sum",
+"inputs": {
+"vectors": [
+"A",
+"B"
+],
+"origin": "O"
+},
+"outputs": [
+"R"
+]
+},
+{
+"id": "cPS",
+"operator": "segment",
+"inputs": {
+"start": "P",
+"end": "S"
+},
+"outputs": [
+"PS"
+]
+},
+{
+"id": "cQS",
+"operator": "segment",
+"inputs": {
+"start": "Q",
+"end": "S"
+},
+"outputs": [
+"QS"
+]
+},
+{
+"id": "cRight",
+"operator": "right_angle_mark",
+"inputs": {
+"vertex": "O",
+"a": "P",
+"b": "Q"
+},
+"outputs": [
+"right"
+]
+},
+{
+"id": "cAlpha",
+"operator": "angle_mark",
+"inputs": {
+"vertex": "O",
+"a": "P",
+"b": "R"
+},
+"outputs": [
+"alphaMark"
+]
+}
+],
+"relations": [],
+"assertions": [
+{
+"id": "givenAngle",
+"predicate": "angle_between",
+"entities": [
+"A",
+"B"
+],
+"expected": {
+"value": 90,
+"unit": "degree"
+},
+"severity": "fatal"
+},
+{
+"id": "oppositeA",
+"predicate": "parallel",
+"entities": [
+"A",
+"QS"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "oppositeB",
+"predicate": "parallel",
+"entities": [
+"B",
+"PS"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "resultantDirection",
+"predicate": "angle_between",
+"entities": [
+"A",
+"R"
+],
+"expected": {
+"value": 53.13010235415598,
+"unit": "degree"
+},
+"severity": "fatal"
+}
+],
+"annotations": [
+{
+"id": "givenTheta",
+"kind": "callout",
+"targetIds": [
+"right"
+],
+"text": "θ = 90°"
+},
+{
+"id": "triangleLaw",
+"kind": "narration",
+"targetIds": [
+"A",
+"PS",
+"R"
+],
+"text": "Triangle law: place B’s tail at A’s head. The vector from A’s tail to B’s new head is A + B."
+},
+{
+"id": "parallelogramLaw",
+"kind": "narration",
+"targetIds": [
+"A",
+"B",
+"R"
+],
+"text": "Parallelogram law: place A and B tail to tail at angle θ. Their resultant R is the diagonal from the shared tail."
+},
+{
+"id": "generalMagnitude",
+"kind": "narration",
+"targetIds": [
+"R"
+],
+"text": "R² = A² + B² + 2AB cos θ."
+},
+{
+"id": "generalDirection",
+"kind": "narration",
+"targetIds": [
+"alphaMark"
+],
+"text": "Measured from A toward B: tan α = B sin θ/(A + B cos θ). Choose the quadrant from the resultant’s components."
+},
+{
+"id": "computedMagnitude",
+"kind": "narration",
+"targetIds": [
+"R"
+],
+"text": "For the given right angle, R = √(3² + 4² + 2·3·4 cos 90°) = 5 units.",
+"quantityId": "r"
+},
+{
+"id": "computedDirection",
+"kind": "narration",
+"targetIds": [
+"alphaMark"
+],
+"text": "α = arctan(4/3) ≈ 53.13°.",
+"quantityId": "alpha"
+},
+{
+"id": "subtraction",
+"kind": "narration",
+"targetIds": [
+"A",
+"B"
+],
+"text": "Subtraction uses the additive inverse: A − B = A + (−B). Thus |A − B|² = A² + B² − 2AB cos θ."
+}
+],
+"requiredEntityIds": [
+"O",
+"P",
+"Q",
+"S",
+"A",
+"B",
+"R",
+"PS",
+"QS",
+"right",
+"alphaMark"
+],
+"revealGroups": [
+{
+"id": "figure",
+"entityIds": [
+"O",
+"P",
+"Q",
+"S",
+"A",
+"B",
+"PS",
+"QS",
+"right",
+"R",
+"alphaMark"
+],
+"dependsOn": []
+}
+],
+"teachingTimeline": [
+{
+"id": "setup",
+"revealGroupIds": [
+"figure"
+],
+"annotationIds": [
+"givenTheta",
+"triangleLaw",
+"parallelogramLaw"
+]
+},
+{
+"id": "rules",
+"revealGroupIds": [],
+"annotationIds": [
+"generalMagnitude",
+"generalDirection"
+]
+},
+{
+"id": "calculate",
+"revealGroupIds": [],
+"annotationIds": [
+"computedMagnitude",
+"computedDirection"
+]
+},
+{
+"id": "subtract",
+"revealGroupIds": [],
+"annotationIds": [
+"subtraction"
+]
+}
+]
+}
+},
+{
+"capture": "v1/p1c-t1 chat.json #4",
+"document": {
+"schemaVersion": "scene-document/v2",
+"visualDecision": {
+"mode": "scene",
+"reason": "A Cartesian frame shows the unit directions, position vectors, and displacement."
+},
+"source": {
+"question": "Explain scalars, vectors and unit vectors for JEE from the basics with a clear diagram. Cover: how a vector differs from a scalar; the unit vectors î, ĵ, k̂ along the x, y, z axes; writing A = Axî + Ayĵ + Azk̂ with magnitude sqrt(Ax^2 + Ay^2 + Az^2); the unit vector Â = A/|A|; position vectors of two points from the origin on xy axes and the displacement vector joining them. Use one small worked number example.",
+"representationTier": "qualitative_verified",
+"nonMetric": true
+},
+"quantities": [
+{
+"id": "exLen",
+"symbol": "|Δr| for the example",
+"value": 5
+}
+],
+"entities": [
+{
+"id": "base",
+"kind": "point"
+},
+{
+"id": "frame",
+"kind": "polyline"
+},
+{
+"id": "O",
+"kind": "point",
+"label": "O"
+},
+{
+"id": "X",
+"kind": "point"
+},
+{
+"id": "Y",
+"kind": "point"
+},
+{
+"id": "Z",
+"kind": "point"
+},
+{
+"id": "ix",
+"kind": "vector",
+"role": "positive x unit vector",
+"label": "î"
+},
+{
+"id": "iy",
+"kind": "vector",
+"role": "positive y unit vector",
+"label": "ĵ"
+},
+{
+"id": "iz",
+"kind": "vector",
+"role": "positive z unit vector",
+"label": "k̂"
+},
+{
+"id": "Aend",
+"kind": "point"
+},
+{
+"id": "A",
+"kind": "vector",
+"role": "symbolic representative",
+"label": "A"
+},
+{
+"id": "P",
+"kind": "point",
+"label": "P = (3, 0)"
+},
+{
+"id": "Q",
+"kind": "point",
+"label": "Q = (0, 4)"
+},
+{
+"id": "rP",
+"kind": "vector",
+"role": "position vector of P",
+"label": "rₚ"
+},
+{
+"id": "rQ",
+"kind": "vector",
+"role": "position vector of Q",
+"label": "rᵩ"
+},
+{
+"id": "d",
+"kind": "vector",
+"role": "displacement from P to Q",
+"label": "Δr"
+}
+],
+"constructions": [
+{
+"id": "c_base",
+"operator": "point",
+"inputs": {
+"x": 0,
+"y": 0,
+"coordinateSpace": "world"
+},
+"outputs": [
+"base"
+]
+},
+{
+"id": "c_frame",
+"operator": "space_frame",
+"inputs": {
+"origin": "base"
+},
+"outputs": [
+"frame"
+]
+},
+{
+"id": "c_O",
+"operator": "space_point",
+"inputs": {
+"frame": "frame",
+"x": 0,
+"y": 0,
+"z": 0
+},
+"outputs": [
+"O"
+]
+},
+{
+"id": "c_X",
+"operator": "space_point",
+"inputs": {
+"frame": "frame",
+"x": 1,
+"y": 0,
+"z": 0
+},
+"outputs": [
+"X"
+]
+},
+{
+"id": "c_Y",
+"operator": "space_point",
+"inputs": {
+"frame": "frame",
+"x": 0,
+"y": 1,
+"z": 0
+},
+"outputs": [
+"Y"
+]
+},
+{
+"id": "c_Z",
+"operator": "space_point",
+"inputs": {
+"frame": "frame",
+"x": 0,
+"y": 0,
+"z": 1
+},
+"outputs": [
+"Z"
+]
+},
+{
+"id": "c_ix",
+"operator": "space_vector",
+"inputs": {
+"frame": "frame",
+"start": "O",
+"end": "X"
+},
+"outputs": [
+"ix"
+]
+},
+{
+"id": "c_iy",
+"operator": "space_vector",
+"inputs": {
+"frame": "frame",
+"start": "O",
+"end": "Y"
+},
+"outputs": [
+"iy"
+]
+},
+{
+"id": "c_iz",
+"operator": "space_vector",
+"inputs": {
+"frame": "frame",
+"start": "O",
+"end": "Z"
+},
+"outputs": [
+"iz"
+]
+},
+{
+"id": "c_Aend",
+"operator": "space_point",
+"inputs": {
+"frame": "frame",
+"x": 1.2,
+"y": 1.1,
+"z": 0.8
+},
+"outputs": [
+"Aend"
+]
+},
+{
+"id": "c_A",
+"operator": "space_vector",
+"inputs": {
+"frame": "frame",
+"start": "O",
+"end": "Aend"
+},
+"outputs": [
+"A"
+]
+},
+{
+"id": "c_P",
+"operator": "space_point",
+"inputs": {
+"frame": "frame",
+"x": 3,
+"y": 0,
+"z": 0
+},
+"outputs": [
+"P"
+]
+},
+{
+"id": "c_Q",
+"operator": "space_point",
+"inputs": {
+"frame": "frame",
+"x": 0,
+"y": 4,
+"z": 0
+},
+"outputs": [
+"Q"
+]
+},
+{
+"id": "c_rP",
+"operator": "space_vector",
+"inputs": {
+"frame": "frame",
+"start": "O",
+"end": "P"
+},
+"outputs": [
+"rP"
+]
+},
+{
+"id": "c_rQ",
+"operator": "space_vector",
+"inputs": {
+"frame": "frame",
+"start": "O",
+"end": "Q"
+},
+"outputs": [
+"rQ"
+]
+},
+{
+"id": "c_d",
+"operator": "space_vector",
+"inputs": {
+"frame": "frame",
+"start": "P",
+"end": "Q"
+},
+"outputs": [
+"d"
+]
+}
+],
+"relations": [],
+"assertions": [
+{
+"id": "xy",
+"predicate": "perpendicular",
+"entities": [
+"ix",
+"iy"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "xz",
+"predicate": "perpendicular",
+"entities": [
+"ix",
+"iz"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "yz",
+"predicate": "perpendicular",
+"entities": [
+"iy",
+"iz"
+],
+"expected": true,
+"severity": "fatal"
+}
+],
+"annotations": [
+{
+"id": "scalar_vector",
+"kind": "narration",
+"targetIds": [
+"A"
+],
+"text": "A scalar needs magnitude only, such as mass. A vector needs both magnitude and direction, such as displacement."
+},
+{
+"id": "unit_axes",
+"kind": "narration",
+"targetIds": [
+"ix",
+"iy",
+"iz"
+],
+"text": "î, ĵ and k̂ point along positive x, y and z respectively. Each has magnitude 1."
+},
+{
+"id": "decomposition",
+"kind": "narration",
+"targetIds": [
+"A",
+"ix",
+"iy",
+"iz"
+],
+"text": "A = Axî + Ayĵ + Azk̂. Its magnitude is |A| = √(Ax² + Ay² + Az²)."
+},
+{
+"id": "normalization",
+"kind": "narration",
+"targetIds": [
+"A"
+],
+"text": "For A ≠ 0, Â = A/|A| = (Axî + Ayĵ + Azk̂)/√(Ax² + Ay² + Az²), so |Â| = 1. Â is undefined for the zero vector."
+},
+{
+"id": "general_positions",
+"kind": "narration",
+"targetIds": [
+"O",
+"P",
+"Q",
+"rP",
+"rQ"
+],
+"text": "In general, for P = (p, 0) and Q = (0, q), with p, q > 0, the position vectors are rₚ = pî and rᵩ = qĵ."
+},
+{
+"id": "general_displacement",
+"kind": "narration",
+"targetIds": [
+"rP",
+"rQ",
+"d"
+],
+"text": "Displacement runs from the initial point to the final point: Δr = rᵩ − rₚ = −pî + qĵ, with |Δr| = √(p² + q²)."
+},
+{
+"id": "worked_components",
+"kind": "narration",
+"targetIds": [
+"P",
+"Q",
+"rP",
+"rQ",
+"d"
+],
+"text": "For the illustrated P = (3, 0) and Q = (0, 4), rₚ = 3î, rᵩ = 4ĵ and Δr = −3î + 4ĵ."
+},
+{
+"id": "worked_result",
+"kind": "narration",
+"targetIds": [
+"d"
+],
+"quantityId": "exLen",
+"text": "The displacement length is √(9 + 16) = 5. Its unit vector is −(3/5)î + (4/5)ĵ."
+}
+],
+"requiredEntityIds": [
+"frame",
+"O",
+"ix",
+"iy",
+"iz",
+"A",
+"P",
+"Q",
+"rP",
+"rQ",
+"d"
+],
+"revealGroups": [
+{
+"id": "setup",
+"entityIds": [
+"base",
+"frame",
+"O",
+"X",
+"Y",
+"Z",
+"ix",
+"iy",
+"iz",
+"Aend",
+"A",
+"P",
+"Q",
+"rP",
+"rQ",
+"d"
+],
+"dependsOn": []
+}
+],
+"teachingTimeline": [
+{
+"id": "basics",
+"targetIds": [
+"A",
+"ix",
+"iy",
+"iz"
+],
+"annotationIds": [
+"scalar_vector",
+"unit_axes",
+"decomposition",
+"normalization"
+]
+},
+{
+"id": "positions",
+"targetIds": [
+"O",
+"P",
+"Q",
+"rP",
+"rQ",
+"d"
+],
+"annotationIds": [
+"general_positions",
+"general_displacement",
+"worked_components"
+]
+},
+{
+"id": "calculate",
+"targetIds": [
+"d"
+],
+"annotationIds": [
+"worked_result"
+]
+}
+]
+}
+},
+{
+"capture": "yt/q03-t1 chat.json #4",
+"document": {
+"schemaVersion": "scene-document/v2",
+"visualDecision": {
+"mode": "scene",
+"reason": "A head-to-tail velocity diagram shows the northwest air velocity, northeast wind, and due-north ground velocity."
+},
+"source": {
+"question": "An aeroplane flies at 200 km/h relative to the air. A steady wind blows from the south west toward the north east at 100sqrt(2) km/h. The pilot wants the plane to travel due north over the ground. At what angle from north, toward the west, must the pilot point the plane, and what is the plane's speed relative to the ground?",
+"representationTier": "qualitative_verified",
+"nonMetric": true
+},
+"quantities": [
+{
+"id": "airspeed",
+"symbol": "v_a",
+"value": 200,
+"unit": "km/h"
+},
+{
+"id": "angle",
+"symbol": "θ",
+"value": 30,
+"unit": "degrees"
+},
+{
+"id": "groundSpeed",
+"symbol": "v_g",
+"value": 273.2050807568877,
+"unit": "km/h"
+}
+],
+"entities": [
+{
+"id": "origin",
+"kind": "point",
+"role": "common velocity origin"
+},
+{
+"id": "air_tip",
+"kind": "point",
+"role": "air-velocity tip and wind tail"
+},
+{
+"id": "ground_tip",
+"kind": "point",
+"role": "wind tip and ground-velocity tip"
+},
+{
+"id": "north_tip",
+"kind": "point",
+"role": "north reference"
+},
+{
+"id": "air_velocity",
+"kind": "vector",
+"role": "plane relative to air",
+"label": "v_a"
+},
+{
+"id": "wind_velocity",
+"kind": "vector",
+"role": "wind toward northeast",
+"label": "100√2 km/h"
+},
+{
+"id": "ground_velocity",
+"kind": "vector",
+"role": "plane relative to ground",
+"label": "v_g"
+},
+{
+"id": "north_reference",
+"kind": "vector",
+"role": "due north"
+},
+{
+"id": "heading_angle",
+"kind": "angle_mark",
+"role": "heading west of north",
+"label": "θ"
+}
+],
+"constructions": [
+{
+"id": "make_origin",
+"operator": "point",
+"inputs": {
+"x": 0,
+"y": 0,
+"coordinateSpace": "world"
+},
+"outputs": [
+"origin"
+]
+},
+{
+"id": "make_air_tip",
+"operator": "point",
+"inputs": {
+"x": -1,
+"y": 1.7320508075688772,
+"coordinateSpace": "world"
+},
+"outputs": [
+"air_tip"
+]
+},
+{
+"id": "make_ground_tip",
+"operator": "point",
+"inputs": {
+"x": 0,
+"y": 2.732050807568877,
+"coordinateSpace": "world"
+},
+"outputs": [
+"ground_tip"
+]
+},
+{
+"id": "make_north_tip",
+"operator": "point",
+"inputs": {
+"x": 0,
+"y": 2,
+"coordinateSpace": "world"
+},
+"outputs": [
+"north_tip"
+]
+},
+{
+"id": "make_air_velocity",
+"operator": "vector",
+"inputs": {
+"start": "origin",
+"end": "air_tip"
+},
+"outputs": [
+"air_velocity"
+]
+},
+{
+"id": "make_wind_velocity",
+"operator": "vector",
+"inputs": {
+"start": "air_tip",
+"end": "ground_tip"
+},
+"outputs": [
+"wind_velocity"
+]
+},
+{
+"id": "make_ground_velocity",
+"operator": "vector",
+"inputs": {
+"start": "origin",
+"end": "ground_tip"
+},
+"outputs": [
+"ground_velocity"
+]
+},
+{
+"id": "make_north_reference",
+"operator": "vector",
+"inputs": {
+"start": "origin",
+"end": "north_tip"
+},
+"outputs": [
+"north_reference"
+]
+},
+{
+"id": "make_heading_angle",
+"operator": "angle_mark",
+"inputs": {
+"vertex": "origin",
+"a": "north_reference",
+"b": "air_velocity"
+},
+"outputs": [
+"heading_angle"
+]
+}
+],
+"relations": [],
+"assertions": [
+{
+"id": "ground_due_north",
+"predicate": "parallel",
+"entities": [
+"ground_velocity",
+"north_reference"
+],
+"expected": true,
+"severity": "fatal"
+},
+{
+"id": "heading_angle_value",
+"predicate": "angle_between",
+"entities": [
+"north_reference",
+"air_velocity"
+],
+"expected": {
+"value": 30,
+"unit": "degree"
+},
+"severity": "fatal"
+}
+],
+"annotations": [
+{
+"id": "airspeed_given",
+"kind": "callout",
+"targetIds": [
+"air_velocity"
+],
+"text": "200 km/h",
+"quantityId": "airspeed"
+},
+{
+"id": "wind_direction",
+"kind": "narration",
+"targetIds": [
+"wind_velocity"
+],
+"text": "Wind blows from southwest toward northeast."
+},
+{
+"id": "angle_result",
+"kind": "callout",
+"targetIds": [
+"heading_angle"
+],
+"text": "30° west of north",
+"quantityId": "angle"
+},
+{
+"id": "speed_result",
+"kind": "callout",
+"targetIds": [
+"ground_velocity"
+],
+"text": "273.2050807568877 km/h",
+"quantityId": "groundSpeed"
+}
+],
+"requiredEntityIds": [
+"origin",
+"air_tip",
+"ground_tip",
+"north_tip",
+"air_velocity",
+"wind_velocity",
+"ground_velocity",
+"north_reference",
+"heading_angle"
+],
+"revealGroups": [
+{
+"id": "setup",
+"entityIds": [
+"origin",
+"air_tip",
+"ground_tip",
+"north_tip",
+"air_velocity",
+"wind_velocity",
+"ground_velocity",
+"north_reference",
+"heading_angle"
+],
+"dependsOn": []
+}
+],
+"teachingTimeline": [
+{
+"id": "show_setup",
+"targetIds": [
+"air_velocity",
+"wind_velocity",
+"ground_velocity",
+"north_reference",
+"heading_angle"
+],
+"annotationIds": [
+"airspeed_given",
+"wind_direction"
+]
+},
+{
+"id": "derive_angle",
+"targetIds": [
+"heading_angle"
+],
+"annotationIds": [
+"angle_result"
+]
+},
+{
+"id": "derive_ground_speed",
+"targetIds": [
+"ground_velocity"
+],
+"annotationIds": [
+"speed_result"
+]
+}
+]
+}
+}
+]

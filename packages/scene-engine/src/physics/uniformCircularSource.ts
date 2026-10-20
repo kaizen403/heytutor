@@ -181,7 +181,8 @@ const UNIFORM_CLAUSE = new RegExp([
 // friction limits, pendula, charged particles in fields, gravitation and
 // rigid-body rotation. SHM and projection requests require a different
 // position law or construction; a plain circular state cannot certify them.
-const OTHER_TOPIC = /\bvertical circle|\bloop\b|conical pendulum|\bpendulum\b|\bbank(?:ed|ing)?\b|friction|coefficient|magnetic|electric field|\bcharge[ds]?\b|\belectron\b|\bproton\b|\bion\b|gravitational constant|universal gravitation|mass of the earth|\bplanet\b|torque|moment of inertia|\brolling\b|\bdisc\b|\bdisk\b|\bwheel\b|\bflywheel\b|\bfan\b|lowest point|highest point|\bbohr\b|\bnucleus\b|\bspring\b|\brod\b|\bbar\b|rigid body|\bblade\b|\bcylinder\b|\bsphere\b|simple harmonic|\bshm\b|\bproject(?:ions?|ed|ing)?\b/i;
+const OTHER_TOPIC = /\bvertical circle|\bloop\b|conical pendulum|\bpendulum\b|\bbank(?:ed|ing)?\b|friction|coefficient|magnetic|electric field|\bcharge[ds]?\b|\belectron\b|\bproton\b|\bion\b|gravitational constant|universal gravitation|mass of the earth|\bplanet\b|torque|moment of inertia|\brolling\b|\bdisc\b|\bdisk\b|\bwheel\b|\bflywheel\b|\bfan\b|lowest point|highest point|\bbohr\b|\bnucleus\b|\bspring\b|\brod\b|\bbar\b|rigid body|\bblade\b|\bcylinder\b|\bsphere\b/i;
+export const UNSUPPORTED_CIRCULAR_LAW = /simple harmonic|\bshm\b|\bproject(?:ions?|ed|ing)?\b/i;
 const PARTICLE_RATE = /\b(?:particle|body|point mass|bead)\b[^.]*\b(?:omega|ω|angular (?:speed|velocity))\b/i;
 const NONUNIFORM = /angular acceleration|tangential acceleration|non-?uniform|speed (?:increases|decreases|is increasing|is decreasing)|(?:increasing|decreasing) speed|accelerat(?:es|ing) (?:uniformly )?from rest/i;
 
@@ -207,7 +208,7 @@ export function isUniformCircularQuestion(question: string): boolean {
   // A particle moving uniformly with a stated angular rate is on a circle even
   // when the word is left out ("at P=(-3,4) m relative to O ... angular speed").
   const circular = CIRCLE.test(text) || (PARTICLE_RATE.test(text) && /\buniform(?:ly)?\b/i.test(text));
-  return circular && UNIFORM_CLAUSE.test(text) && !OTHER_TOPIC.test(text);
+  return circular && UNIFORM_CLAUSE.test(text) && !OTHER_TOPIC.test(text) && !UNSUPPORTED_CIRCULAR_LAW.test(text);
 }
 
 export interface UniformCircularReadOptions {
@@ -217,14 +218,16 @@ export interface UniformCircularReadOptions {
    * only read for its quantities, and other-topic vetoes still apply.
    */
   planNamesCircularMotion?: boolean;
+  /** Binding probe only: retain source authority when the requested law is unsupported. */
+  ignoreUnsupportedLaw?: boolean;
 }
 
 export function readUniformCircularSource(question: string, options: UniformCircularReadOptions = {}): Readonly<UniformCircularSource> | null {
   if (typeof question !== "string" || question.length > 4000) return null;
   const text = question.trim().replace(/[−–]/g, "-");
   const admitted = options.planNamesCircularMotion
-    ? !OTHER_TOPIC.test(text) && !/\bG\s*=/.test(text)
-    : isUniformCircularQuestion(text);
+    ? !OTHER_TOPIC.test(text) && !/\bG\s*=/.test(text) && (options.ignoreUnsupportedLaw || !UNSUPPORTED_CIRCULAR_LAW.test(text))
+    : isUniformCircularQuestion(options.ignoreUnsupportedLaw ? text.replace(new RegExp(UNSUPPORTED_CIRCULAR_LAW.source, "gi"), " ") : text);
   if (!admitted) return null;
   if (NONUNIFORM.test(text)) return reject("nonuniform", "the source states a changing speed; a uniform circular state would omit its tangential acceleration");
   const sense = senseOf(text);

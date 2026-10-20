@@ -1207,7 +1207,7 @@ export function useQuestionHandler(
           context: "search" | "revalidate" | "recovery" = "search",
         ): SceneCandidateValidation<ValidatedSceneCandidate> =>
           measureSceneCandidateValidation(tel, { validationCallIndex: ++validationCallIndex, context }, () =>
-            validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan }));
+            validateProductionSceneCandidate({ candidate, question, turnPlan: authoritativePlan, yieldPolicy: context === "recovery" ? "off" : billed.diagramYieldPolicy }));
         const deriveSceneGate = (
           planningTurnPlan: TurnPlanV3, authority: ProblemAuthorityV1Response | null,
         ): SceneGate => {
@@ -1370,6 +1370,7 @@ export function useQuestionHandler(
                 traceId: turnTraceId ?? undefined,
                 signal: run.signal,
                 timeoutMs: run.timeoutMs,
+                preserveRequiredGeometry: billed.diagramYieldPolicy === "verified_parts",
                 holdValidationUntil: run.holdValidationUntil,
                 maxConcurrentRequests: run.maxConcurrentRequests,
                 requestBudget: run.requestBudget,
