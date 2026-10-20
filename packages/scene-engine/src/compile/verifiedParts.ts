@@ -105,7 +105,7 @@ export function prepareVerifiedParts(
           (entity) => entity.id === issue.entityIds?.[0],
         );
         if (
-          !owner?.label ||
+          !owner ||
           next.annotations.some(
             (annotation) =>
               annotation.targetIds.includes(owner.id) &&
@@ -113,7 +113,15 @@ export function prepareVerifiedParts(
           )
         )
           continue;
-        delete owner.label;
+        if (owner.label) {
+          delete owner.label;
+        } else {
+          // Placement reports the entity owner even when its text was generated
+          // by an operator and is absent from the input document.
+          const previous = Array.isArray(next.source.yieldUnlabelledPoints) ? next.source.yieldUnlabelledPoints : [];
+          if (previous.includes(owner.id)) continue;
+          next.source = { ...next.source, yieldUnlabelledPoints: [...previous, owner.id] };
+        }
       } else if (issue.code === "annotation_geometry_unresolved") {
         const index = next.annotations.findIndex(
           (annotation) =>

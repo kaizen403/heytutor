@@ -11,6 +11,7 @@
  */
 import type { RenderPrimitive, SceneDocument, SceneIssue } from "../types";
 import { isPointIdentifierText } from "./pointLabelText";
+import { circularStrokeDistance } from "./circularStrokeDistance";
 
 type Point = { x: number; y: number };
 const gap = (p: Point, q: Point) => Math.hypot(p.x - q.x, p.y - q.y);
@@ -42,7 +43,7 @@ export function validateDimensionAnchors(primitives: RenderPrimitive[]): SceneIs
     const anchored = (end: Point) => ink.some((p) => {
       if (p.entityId === dimension.entityId) return false;
       if (p.kind === "point") return p.points[0] !== undefined && gap(end, p.points[0]) <= 4;
-      if (p.kind === "circle" || p.kind === "arc") return p.points[0] !== undefined && Math.abs(gap(end, p.points[0]) - (p.radius ?? 0)) <= 3;
+      if (p.kind === "circle" || p.kind === "arc") return circularStrokeDistance(end, p) <= 3;
       if (!STROKES.has(p.kind)) return false;
       if (p.points.some((q) => gap(end, q) <= 4)) return true; // a vertex or end
       return segments(p).some(([s, t]) => {
@@ -66,9 +67,10 @@ export function validateFieldLineShape(document: SceneDocument, primitives: Rend
   for (const id of ids) {
     const strokes = primitives.filter((p) => p.entityId === id && STROKES.has(p.kind) && p.points.length >= 3);
     const sharp = strokes.some((p) => {
-      const points = p.points;
-      // Densely sampled curves turn a little at each sample; a polygon turns a lot at few corners.
-      if (points.length > 16) return false;
+      // Sample count is not smoothness: subdividing a polygon's straight sides
+      // leaves its corner turns unchanged. Ignore zero-length samples so they
+      // cannot invent a direction or hide the turn at a repeated vertex.
+      const points = p.points.filter((point, i, all) => i === 0 || point.x !== all[i - 1]!.x || point.y !== all[i - 1]!.y);
       return points.slice(1, -1).some((q, i) => {
         const before = points[i]!, after = points[i + 2]!;
         const a1 = Math.atan2(q.y - before.y, q.x - before.x), a2 = Math.atan2(after.y - q.y, after.x - q.x);
@@ -104,10 +106,8 @@ export function validatePointLabelPlacement(document: SceneDocument, primitives:
     const nearer = ink.some((p) => {
       if (owners.includes(p.entityId) || p.kind === "point") return false;
       if (p.kind === "circle" || p.kind === "arc") {
-        const centre = p.points[0]; if (!centre) return false;
-        const r = p.radius ?? 0;
-        if (Math.abs(gap(dot, centre) - r) <= 3) return false;
-        return Math.abs(gap(at, centre) - r) + 4 < own;
+        if (circularStrokeDistance(dot, p) <= 3) return false;
+        return circularStrokeDistance(at, p) + 4 < own;
       }
       if (!STROKES.has(p.kind)) return false;
       const pairs = segments(p);
