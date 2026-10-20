@@ -109,7 +109,7 @@ const HELD_PLANNER_MS = 15_000;
 export interface FrozenStartupFixture {
   plan: TurnPlanV3;
   /** Replay recorded teaching through the real DSA planner/handler/queue. */
-  recordedCodeLesson?: { plan: CodeLessonPlan; response: string };
+  recordedCodeLesson?: { plan: CodeLessonPlan; response: string; continuationResponses?: string[]; revealCommittedCode?: boolean };
   /** A language selected since the previous turn, applied by the real handler. */
   voiceKey?: TutorVoiceKey;
   /** Require the real Given-row request and committed WRITE path, not a no-givens prompt. */
@@ -382,6 +382,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
   };
   const ref = <T,>(current: T) => ({ current });
   const cancelTimers = new Map<number, () => void>();
+  const fixtureCodeController = fixture?.recordedCodeLesson ? new CodeLessonController() : null;
   const params = {
     sessionId: boardId, boards: [{ id: boardId, title: "Projectile lesson", createdAt: 0, preview: "" }],
     phase: "idle", boardLoaded: true, narrationText: "", isReplaying: false, enableKeyboardControls: false,
@@ -399,7 +400,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
     stopTurnRef: ref(null), rewoundRef: ref(false), replayAudioRef: ref(null), replayDrawClockRef: ref(null),
     replayAudioPreloadRef: ref(new Map()), replayGenerationRef: ref(0), replayCueRef: ref(null),
     ttsClientRef: ref(provider), ensureTTSClient: () => provider as unknown as TTSClient,
-    ...(fixture?.recordedCodeLesson ? { codeLessonControllerRef: ref(new CodeLessonController()) } : {}),
+    ...(fixtureCodeController ? { codeLessonControllerRef: ref(fixtureCodeController) } : {}),
     voicePreferencesRef: ref<TutorVoicePreferences>({ voiceKey: "en-IN", lowLatency: false }),
     pendingVoicePreferencesRef: ref<TutorVoicePreferences | null>(fixture?.voiceKey || mode === "hinglish-opening"
       ? { voiceKey: fixture?.voiceKey ?? "hi-IN", lowLatency: false } : null),
@@ -415,7 +416,17 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
     setIsPaused() {}, setInputInteracted() {}, setIsReplaying() {}, setReplayProgressMs() {}, setReplayTotalMs() {},
     setStoredTurnsCount() {}, setBoards() {}, setActiveVerifiedDiagram() {},
     beginBoardEpoch: async () => { record("board-epoch"); }, resetBoardLayout() {},
-    executeCommandWithCancel: async (command: DrawCommand) => { record("board-command", command); },
+    executeCommandWithCancel: async (command: DrawCommand) => {
+      record("board-command", command);
+      if (fixture?.recordedCodeLesson?.revealCommittedCode && command.type === "TYPE") {
+        const controller = fixtureCodeController;
+        const id = command.semanticRef?.entityId ?? command.text ?? "";
+        let typedMs = 0;
+        await controller?.typeBlock(id, { clock: () => (typedMs += 1_000), delay: async ms => { typedMs += ms; } });
+        const block = controller?.getActivePlan()?.sections.flatMap(section => section.blocks).find(block => block.id === id);
+        record("typed-code", { id, code: block?.code.slice(0, controller?.getState().revealedChars[id] ?? 0) });
+      }
+    },
     reserveTextCommandPlacements: async (command: DrawCommand) => [command],
     raceWithCancel: <T,>(promise: Promise<T>) => promise,
     cancellableDelay: (delay: number) => new Promise<void>((resolve) => {
@@ -553,6 +564,12 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       await pump(() => streams.length === 1);
       content(0, fixture.recordedCodeLesson.response);
       finishStream(0);
+      for (const [index, response] of (fixture.recordedCodeLesson.continuationResponses ?? []).entries()) {
+        await pump(() => streams.length > index + 1 || done);
+        assert(!done, "a missing committed code block must request continuation rather than silently finish");
+        content(index + 1, response);
+        finishStream(index + 1);
+      }
       await pump(() => done);
       await turn;
       await pump(() => lifecycle.pendingSegmentCountRef.current === 0);
@@ -560,7 +577,7 @@ export async function scenario(mode: Mode, hedgeEnabled = false, earlyEnabled = 
       assert.equal(lifecycle.turnActiveRef.current, false);
       assert.equal(lifecycle.phaseRef.current, "idle");
       assert.equal(timers.size, 0);
-      return { mode, recordedCodeEvents: events };
+      return { mode, recordedCodeEvents: events, recordedCodeTeachingRequests: teachingRequestBodies };
     }
     if (earlyMode) {
       const opening = buildEarlyLessonOpeningSegment();
