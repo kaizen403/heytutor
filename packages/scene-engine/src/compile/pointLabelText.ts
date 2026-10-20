@@ -7,10 +7,17 @@ import { measureTextWidth } from "@heytutor/drawing";
 import { POINT_LABEL_TETHER_PX } from "../labels/labelEngine";
 import type { SceneDocument } from "../types";
 
-export function compactCalloutLabel(text: string | undefined): string | undefined {
+/**
+ * Strict mode (verified parts) keeps the default cut unless that cut says
+ * something else: a relation cut at its bracket, an unbalanced head, or a
+ * head ending in an operator ("y =", "kJ/"). The full text then stays in
+ * the caption.
+ */
+export function compactCalloutLabel(text: string | undefined, strict = false): string | undefined {
   const normalized = text?.trim();
   if (!normalized) return undefined;
   if (normalized.length <= 16) return normalized;
+  if (strict) return strictCalloutHead(normalized);
   const compactResult = normalized
     .replace(/R_?eq\s*,\s*(?:series|parallel)\s*=/i, "R_eq =")
     .replace(/\s+/g, " ");
@@ -22,6 +29,18 @@ export function compactCalloutLabel(text: string | undefined): string | undefine
   const head = normalized.split(/[(:,;]/, 1)[0]?.trim();
   if (head && head.length <= 16) return head;
   return undefined;
+}
+
+function strictCalloutHead(normalized: string): string | undefined {
+  const compact = compactCalloutLabel(normalized);
+  if (!compact || compact === normalized) return compact;
+  const cutAtParenthesis = normalized.startsWith(compact) && normalized.slice(compact.length).trimStart().startsWith("(");
+  const opens = (compact.match(/[([{]/g) ?? []).length;
+  const closes = (compact.match(/[)\]}]/g) ?? []).length;
+  // A relation cut at its bracket ("y − y₁ = m"), an unbalanced head, or a
+  // head ending in an operator ("y =", "kJ/") says something else.
+  if ((cutAtParenthesis && /[=<>≤≥≈≠]/.test(compact)) || opens !== closes || /[-+−×÷*/^·=<>≤≥≈≠]\s*$/.test(compact)) return undefined;
+  return compact;
 }
 
 export function isViewSummaryText(text: string | undefined): boolean {

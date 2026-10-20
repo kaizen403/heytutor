@@ -22,6 +22,11 @@ import { ARCHETYPES, isArchetypeId, type ArchetypeId, type Slots } from "./catal
 import { formatResistorTree, readResistorTree } from "./resistorTree";
 import {
   UNIT,
+  STEM_NUMBER,
+  parseStemNumber,
+  lengthAfterInMetres,
+  readEnergyAfterInEv,
+  wavelengthAfterInNm,
   lengthAfterInCm,
   lengthBeforeInCm,
   symbolLengthInCm,
@@ -47,6 +52,25 @@ import {
   type SlotBag,
   type SlotSource,
 } from "./slots";
+
+/** Bridge quantities require an adjacent length unit and an explicit role.
+ * Stop at prose instead of borrowing a wire length or a cell voltage. */
+function bridgeLengthValueInCm(match: RegExpMatchArray): number | null {
+  const value = parseStemNumber(match[1]!);
+  return value === null ? null : value * (match[2]!.toLowerCase() === "mm" ? 0.1 : match[2]!.toLowerCase() === "cm" ? 1 : 100);
+}
+function bridgeLengthInCm(stem: string, role: RegExp): number | null {
+  const pattern = new RegExp(`(?:${role.source})\\s*(?:(?:is|of|at|equals|found|obtained)\\s*)*(?:[=:]\\s*)?${STEM_NUMBER}\\s*(cm|mm|metres?|meters?|m)\\b(?!\\s*[/²³^])`, "gi");
+  const values = [...stem.matchAll(pattern)].map(bridgeLengthValueInCm).filter((value): value is number => value !== null);
+  return values.length && values.every(value => Math.abs(value - values[0]!) < 1e-8) ? values[0]! : null;
+}
+function bridgeWireLengthInCm(stem: string): number | null {
+  const after = bridgeLengthInCm(stem, /\bwire\s+(?:of\s+)?length|\blength\s+of\s+(?:the\s+)?wire|\bwire(?=\s+is\b)/);
+  const pattern = new RegExp(`${STEM_NUMBER}\\s*(cm|mm|metres?|meters?|m)\\s+wire\\b`, "gi");
+  const before = [...stem.matchAll(pattern)].map(bridgeLengthValueInCm).filter((value): value is number => value !== null);
+  const values = [...(after === null ? [] : [after]), ...before];
+  return values.length && values.every(value => Math.abs(value - values[0]!) < 1e-8) ? values[0]! : null;
+}
 
 /**
  * Where the object sits, in every phrasing a ray-optics stem uses for it.
@@ -207,9 +231,10 @@ const speedsOf = (stem: string): number[] => numbersWithUnit(stem, UNIT.speed);
 
 // Ω is not a word character, so a trailing \b never matched "6 Ω resistor":
 // every Ω value was dropped and the network fell back to stock resistors.
+// Case-insensitive matching folds Ω onto ω; an angular frequency is never an ohm.
 function ohms(stem: string): number[] {
-  return [...stem.matchAll(/(\d+(?:\.\d+)?)\s*(kΩ|MΩ|k\s*ohms?|M\s*ohms?|Ω|ohms?)(?![A-Za-z0-9])/gi)].map((match) => {
-    const value = Number(match[1]);
+  return [...stem.matchAll(new RegExp(`${STEM_NUMBER}\\s*(kΩ|MΩ|k\\s*ohms?|M\\s*ohms?|Ω|ohms?)(?![A-Za-z0-9]|\\s*[·*]?\\s*(?:m|metres?|meters?)\\b)`, "gi"))].filter((match) => !(match[2] ?? "").includes("ω")).map((match) => {
+    const value = parseStemNumber(match[1]!) ?? Number.NaN;
     const prefix = (match[2] ?? "")[0];
     return prefix === "k" || prefix === "K" ? value * 1000 : prefix === "M" ? value * 1e6 : prefix === "m" ? value / 1000 : value;
   }).filter(Number.isFinite);
@@ -356,7 +381,9 @@ const CUE_SETS: readonly CueSet[] = [
       [/\b(?:top of a|from a height|height of|tower|cliff|building|reach(?:es)? the ground|hits the ground)\b/i, 2],
       [/\b(?:balloon|helicopter)\b/i, 1],
     ],
-    vetoes: [/\bincline|pulley|spring|projectile|angle\b/i, /\bhorizontally\b/i],
+    // "Released" alone does not mean a body falling under gravity: charges,
+    // plasmas, oscillators and dimension questions are other physics.
+    vetoes: [/\bincline|pulley|spring|projectile|angle\b/i, /\bhorizontally\b/i, /\b(?:plasma|electrons?|protons?|ions?|charged?|electric field|magnetic field|permittivity|oscillat\w*|dimensional analysis|dimensionally)\b/i],
     extract: (stem, plan, bag) => extractFreeFallSlots(stem, plan, bag, setSlot),
   },
   {
@@ -808,12 +835,12 @@ const CUE_SETS: readonly CueSet[] = [
   {
     id: "satellite_orbit",
     cues: [[/\bsatellite\b/i, 4], [/\b(?:orbit|orbital|revolves? around|geostationary)\b/i, 2], [/\b(?:earth|planet|moon)\b/i, 1]],
-    extract: (stem, plan, bag) => {
-      setSlot(bag, "radius", planNumber(plan, ["r", "radius", "orbitalradius"]), "plan");
-      setSlot(bag, "radius", numberAfter(stem, /radius(?: of)?/, UNIT.kilometre) !== null ? numberAfter(stem, /radius(?: of)?/, UNIT.kilometre)! * 1000 : numberAfter(stem, /radius(?: of)?/, UNIT.metre), "stem");
-      setSlot(bag, "height", planNumber(plan, ["h", "height", "altitude"]), "plan");
-      setSlot(bag, "height", numberAfter(stem, /height(?: of)?|altitude(?: of)?/, UNIT.kilometre) !== null ? numberAfter(stem, /height(?: of)?|altitude(?: of)?/, UNIT.kilometre)! * 1000 : null, "stem");
-      setSlot(bag, "planetRadius", planNumber(plan, ["re", "radiusofearth", "earthradius", "rearth"]), "plan");
+    extract: (stem, _plan, bag) => {
+      // A planet radius and an orbital radius have the same dimension, but
+      // different roles. Require the orbit role and the stated length unit.
+      setSlot(bag, "radius", lengthAfterInMetres(stem, /\borbital radius|\bradius of (?:the |its )?orbit|\borbit(?: of| with| has| has a| with a)? radius/), "stem");
+      setSlot(bag, "height", lengthAfterInMetres(stem, /\b(?:height|altitude)(?: above (?:the )?(?:surface|planet|earth|moon))?/), "stem");
+      setSlot(bag, "planetRadius", lengthAfterInMetres(stem, /\b(?:planet|earth|moon)(?:'s)? radius|\bradius of (?:the )?(?:planet|earth|moon)|\b(?:planet|earth|moon) (?:of|with)(?: a)? radius/), "stem");
     },
   },
   {
@@ -833,7 +860,8 @@ const CUE_SETS: readonly CueSet[] = [
     id: "resistor_network",
     cues: [
       [/\bresistors?\b/i, 2],
-      [/Ω|\bohms?\b/i, 2],
+      // No i flag on Ω: it would fold onto the angular frequency ω.
+      [/[ΩΩ]|\b[Oo][Hh][Mm][Ss]?\b/, 2],
       [/\b(?:in series|in parallel|series combination|parallel combination|equivalent resistance|effective resistance|total current|current drawn)\b/i, 2],
       [/\b(?:battery|cell|emf|volt)\b/i, 1],
       [/\binternal resistance\b/i, 2],
@@ -903,7 +931,7 @@ const CUE_SETS: readonly CueSet[] = [
     cues: [[/\bmet(?:er|re) bridge\b/i, 5], [/\b(?:balance point|balancing length|null point|jockey)\b/i, 2], [/\b(?:left gap|right gap)\b/i, 1]],
     extract: (stem, plan, bag) => {
       setSlot(bag, "balance", planNumber(plan, ["l", "l1", "balancinglength", "balancepoint"]), "plan");
-      setSlot(bag, "balance", numberAfter(stem, /(?:balance|balancing|null) (?:point|length)(?: is| of| at)?(?: obtained at| found at)?/, UNIT.centimetre) ?? firstNumberWithUnit(stem, UNIT.centimetre), "stem");
+      setSlot(bag, "balance", bridgeLengthInCm(stem, /\b(?:balance|balancing|null) (?:point|length)\b/), "stem");
       setSlot(bag, "known", ohms(stem)[0] ?? null, "stem");
     },
   },
@@ -926,8 +954,8 @@ const CUE_SETS: readonly CueSet[] = [
     cues: [[/\bpotentiometer\b/i, 5], [/\b(?:balancing length|balance point|null point|driver cell|jockey)\b/i, 1]],
     extract: (stem, plan, bag) => {
       setSlot(bag, "balance", planNumber(plan, ["l", "l1", "balancinglength"]), "plan");
-      setSlot(bag, "balance", numberAfter(stem, /(?:balanc(?:e|ing)|null) (?:point|length)(?: is| of| at)?(?: obtained at)?/, UNIT.centimetre), "stem");
-      setSlot(bag, "wireLength", numberAfter(stem, /wire (?:of length|is|of)/, UNIT.metre), "stem");
+      setSlot(bag, "balance", bridgeLengthInCm(stem, /\b(?:balance|balancing|null) (?:point|length)\b/), "stem");
+      setSlot(bag, "wireLength", bridgeWireLengthInCm(stem), "stem");
     },
   },
   {
@@ -968,7 +996,8 @@ const CUE_SETS: readonly CueSet[] = [
       [/\bradii\b/i, 3],
       [/\b(?:R\s*1|R1|radius of curvature)\b/i, 2],
     ],
-    vetoes: [/\b(?:microscope|telescope|eyepiece|objective)\b/i, /\bmirror\b/i, COORDINATE_POINT_REFLECTION],
+    // "R1" in a circuit names a resistance, not a lens face.
+    vetoes: [/\b(?:microscope|telescope|eyepiece|objective)\b/i, /\bmirror\b/i, COORDINATE_POINT_REFLECTION, /\b(?:LCR|LR|RC|resistors?|resistances?|circuits?|capacitors?|inductors?|a\.c\.)/i],
     extract: (stem, plan, bag) => {
       const kind = /\bbiconcave\b/i.test(stem) || /\bplano[- ]concave\b/i.test(stem)
         ? (/\bplano\b/i.test(stem) ? "plano-concave" : "biconcave")
@@ -1113,11 +1142,20 @@ const CUE_SETS: readonly CueSet[] = [
   {
     id: "photoelectric",
     cues: [[/\b(?:photoelectric|photo-electric|photoelectron|work function|stopping potential|threshold (?:frequency|wavelength))\b/i, 5], [/\b(?:einstein|photon)\b/i, 1]],
-    extract: (stem, plan, bag) => {
-      setSlot(bag, "workFunction", planNumber(plan, ["phi", "w", "w0", "workfunction"]), "plan");
-      setSlot(bag, "workFunction", numberAfter(stem, /work function(?: of (?:a |the )?(?:metal|surface))?(?: is| of| =)?/, UNIT.ev), "stem");
-      setSlot(bag, "lambda", numberAfter(stem, /wavelength(?: of| is| =)?/, UNIT.nm), "stem");
-      setSlot(bag, "photonEnergy", planNumber(plan, ["e", "hv", "hf", "photonenergy"]), "plan");
+    extract: (stem, _plan, bag) => {
+      // A planner's derived value is a claim, not a solver result. Bind energy
+      // roles to the question and convert units before publishing numeric ink.
+      setSlot(bag, "workFunction", readEnergyAfterInEv(stem, /work function(?: of (?:a |the )?(?:metal|surface))?(?: is| of| =)?|(?:φ|phi)\s*=/).value, "stem");
+      // The cutoff (including bounded modifiers such as "maximum allowed")
+      // describes the surface, not the incident photon. A clause boundary
+      // stops the prefix; a later incident wavelength remains eligible. Conflicting
+      // remaining wavelengths are ambiguous and the reader returns no value.
+      setSlot(bag, "lambda", wavelengthAfterInNm(stem, /(?<!\b(?:threshold|cut[- ]?off|maximum|longest)(?:\s+(?!(?:and|or|but|while|whereas)\b)[a-z-]+){0,4}\s+)(?:\bwavelength(?!\s+(?:threshold|cut[- ]?off|maximum|longest))(?: of| is| =)?|(?:λ|lambda)\s*=)/), "stem");
+      const photon = readEnergyAfterInEv(stem, /photon energy(?: of| is| =)?|energy of (?:the |a )?photon(?: is| of| =)?|(?:hν|hv|hf)\s*=/);
+      setSlot(bag, "photonEnergy", photon.value, "stem");
+      // Distinguish contradictory source values from an absent photon energy:
+      // an independent wavelength cannot silently settle the contradiction.
+      setSlot(bag, "photonEnergyUnresolved", photon.conflicting ? "conflicting" : null, "stem");
     },
   },
   {
@@ -1168,10 +1206,69 @@ const CUE_SETS: readonly CueSet[] = [
     cues: [[/\b(?:standing|stationary) waves?\b/i, 5], [/\b(?:node|antinode|harmonic|overtone|organ pipes?|fundamental|resonance tube|closed pipe|open pipe)\b/i, 2], [/\b(?:string|pipe|tube)\b[^.]{0,30}\b(?:fixed|closed|open)\b/i, 2]],
     vetoes: [/\bsimple harmonic\b|\bSHM\b/i],
     extract: (stem, _plan, bag) => {
-      const harmonic = /\b(?:first|fundamental)\b/i.test(stem) ? 1 : /\bsecond\b/i.test(stem) ? 2 : /\bthird\b/i.test(stem) ? 3 : /\bfourth\b/i.test(stem) ? 4 : (/(\d)(?:st|nd|rd|th) harmonic/i.exec(stem)?.[1] ? Number(/(\d)(?:st|nd|rd|th) harmonic/i.exec(stem)![1]) : 1);
-      setSlot(bag, "harmonic", harmonic, "stem");
+      const closed = /\b(?:closed (?:organ )?pipes?|closed at one end|one end (?:is )?closed|closed end)\b/i.test(stem);
+      const open = /\b(?:open (?:organ )?pipes?|open at both ends|both ends (?:are )?open)\b/i.test(stem);
+      const pipe = /\b(?:pipes?|tubes?)\b/i.test(stem);
+      const bothClosed = /\b(?:(?:both|two) ends (?:are )?closed|closed at (?:both|two) ends)\b/i.test(stem);
+      const ends = bothClosed || (closed && open) ? "unknown" : closed ? "closed_open" : open ? "open" : pipe ? "unknown" : "fixed";
+      const namedNumbers: Record<string, number> = {
+        first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10,
+        one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+      };
+      const ordinals = "first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|\\d+(?:st|nd|rd|th)";
+      const separator = "[\\s\\u2010-\\u2015-]+";
+      // A suffix of "1/2", "2^3", or "2 + 3" is not an independent mode number.
+      const modeTokenStart = "(?<![\\w.−-])(?<![+/*^×÷⁄·⋅∙∗∕−-]\\s*)(?<!\\bx\\s+)\\b";
+      const harmonics: number[] = [];
+      // Consume every understood specification; an unread or conflicting one is
+      // a requested physical state, never permission to use a display default.
+      // Unwrap only a complete named-mode explanation. Its value still joins
+      // the conflict check; numeric/algebraic parentheses remain expressions.
+      let remaining = stem.replace(new RegExp(`\\(\\s*(?:the\\s+)?((?:${ordinals})${separator}(?:harmonic|mode|overtone))\\s*\\)`, "gi"), " $1 ");
+      remaining = remaining.replace(new RegExp(`${modeTokenStart}(${ordinals})${separator}(harmonic|mode|overtone)\\b`, "gi"), (_match, ordinal: string, kind: string) => {
+        const value = namedNumbers[ordinal.toLowerCase()] ?? Number.parseInt(ordinal, 10);
+        const role = kind.toLowerCase();
+        harmonics.push(role === "overtone" ? (closed ? 2 * value + 1 : value + 1)
+          : role === "mode" && closed ? 2 * value - 1 : value);
+        return "";
+      });
+      // Consume a complete integer only; Unicode operators and superscripts
+      // must leave the requested expression unresolved, not select its prefix.
+      remaining = remaining.replace(/\bn\s*=\s*(\d+)\b(?!\.\d|\s*(?:[\p{Sm}\p{N}/*^⁄·(-]|\bx\b))/giu, (_match, value: string) => {
+        harmonics.push(Number(value));
+        return "";
+      });
+      remaining = remaining.replace(new RegExp(`${modeTokenStart}(one|two|three|four|five|six|seven|eight|nine|ten|\\d+)\\s+loops?\\b`, "gi"), (match, value: string) => {
+        if (ends !== "fixed") return match; // A pipe's half-loop is not a string loop.
+        harmonics.push(namedNumbers[value.toLowerCase()] ?? Number(value));
+        return "";
+      });
+      // Giving the fundamental frequency does not select the displayed mode.
+      remaining = remaining.replace(/\bfundamental\s+frequency\b/gi, "");
+      remaining = remaining.replace(/\bfundamental(?:\s+(?:harmonic|mode))?\b/gi, () => { harmonics.push(1); return ""; });
+      // A leftover mode word cancels a read mode only when it carries its own
+      // number: an ordinal or count ("third and fourth harmonics"), a trailing
+      // index ("mode 3"), a relative step ("the next harmonic"), or an unread
+      // "n =". A back reference ("in that mode") or a topic word ("harmonics")
+      // names the mode already read. With nothing read, any mode word stays
+      // unread rather than defaulting to the fundamental.
+      const modeWord = "(?:harmonics?|overtones?|modes?|loops?)";
+      const counted = `(?:${ordinals}|one|two|three|four|five|six|seven|eight|nine|ten|\\d+)`;
+      const numberedMode = new RegExp([
+        `\\b${counted}(?:\\s*(?:,|&|\\band\\b|\\bor\\b|\\bto\\b)\\s*(?:the\\s+)?${counted})*${separator}${modeWord}\\b`,
+        `\\b${modeWord}\\s*(?:(?:number|no\\.?|index|order|#)\\s*)?(?:of\\s+order\\s*)?[:=]?\\s*\\d+\\b(?!\\s*(?:\\.\\d|[\\p{L}µ°%]))`,
+        `\\b${modeWord}\\s*[:=]?\\s*[jkmnp]\\b`,
+        // Relative and indefinite phrases introduce another mode, not this one.
+        `\\b(?:next|higher|lower|highest|lowest|successive|consecutive|subsequent|following|previous|preceding|adjacent|another|other|a|an|some|any|several|various|all)\\s+(?:[\\p{L}-]+\\s+)?${modeWord}\\b`,
+      ].join("|"), "iu");
+      const unresolved = /\bn\s*=/i.test(remaining)
+        || numberedMode.test(remaining)
+        || (harmonics.length === 0 && new RegExp(`\\b${modeWord}\\b`, "i").test(remaining))
+        || new Set(harmonics).size > 1;
+      setSlot(bag, "harmonic", unresolved ? null : harmonics[0] ?? null, "stem");
+      setSlot(bag, "harmonicUnresolved", unresolved ? "unread" : null, "stem");
       setSlot(bag, "length", firstNumberWithUnit(stem, UNIT.metre), "stem");
-      setSlot(bag, "ends", /closed at one end|one end closed/i.test(stem) ? "closed_open" : /open (?:at both ends|pipe)/i.test(stem) ? "open" : "fixed", "stem");
+      setSlot(bag, "ends", ends, "stem");
     },
   },
   {
@@ -1430,7 +1527,10 @@ const CUE_SETS: readonly CueSet[] = [
     extract: (stem, plan, bag) => {
       setSlot(bag, "mainScaleReading", planNumber(plan, ["msr", "mainscalereading"]), "plan");
       setSlot(bag, "vernierDivision", planNumber(plan, ["vsd", "vernierdivision", "vernierscaledivision"]), "plan");
-      setSlot(bag, "mainScaleReading", numberAfter(stem, /main scale reading(?: is| of| =)?/, /mm|cm/), "stem");
+      const mainCm = lengthAfterInCm(stem, /main scale reading(?: is| of| =)?/);
+      setSlot(bag, "mainScaleReading", mainCm === null ? null : 10 * mainCm, "stem");
+      const lcCm = lengthAfterInCm(stem, /least count(?: is| of| =)?|LC\s*=/);
+      setSlot(bag, "leastCount", lcCm === null ? null : 10 * lcCm, "stem");
       const ordinal = /\b(\d{1,2})(?:st|nd|rd|th)\s+(?:vernier|division)/i.exec(stem) ?? /\bvernier (?:scale )?(?:division|reading)\s*(?:is|=|of)?\s*(\d{1,2})\b/i.exec(stem) ?? /\bVSD\s*(?:is|=)?\s*(\d{1,2})\b/.exec(stem);
       setSlot(bag, "vernierDivision", ordinal ? Number(ordinal[1]) : null, "stem");
       setSlot(bag, "zeroError", /\bzero error\b/i.test(stem) ? (/\bnegative\b/i.test(stem) ? "negative" : "positive") : "none", "stem");
@@ -1441,7 +1541,8 @@ const CUE_SETS: readonly CueSet[] = [
     cues: [[/\bscrew gauge\b|\bmicrometer(?: screw gauge)?\b/i, 5], [/\bpitch\b|\bcircular scale\b|\bthimble\b|\bleast count\b/i, 1]],
     extract: (stem, plan, bag) => {
       setSlot(bag, "pitch", planNumber(plan, ["pitch", "p"]), "plan");
-      setSlot(bag, "pitch", numberAfter(stem, /pitch(?: of the screw)?(?: is| of| =)?/, /mm/), "stem");
+      const pitchCm = lengthAfterInCm(stem, /pitch(?: of the screw)?(?: is| of| =)?/);
+      setSlot(bag, "pitch", pitchCm === null ? null : 10 * pitchCm, "stem");
       setSlot(bag, "divisions", planNumber(plan, ["n", "divisions", "circularscaledivisions"]), "plan");
       setSlot(bag, "divisions", numberBefore(stem, /(?:divisions|circular scale divisions)/), "stem");
       setSlot(bag, "zeroError", /\bzero error\b/i.test(stem) ? (/\bnegative\b/i.test(stem) ? "negative" : "positive") : "none", "stem");

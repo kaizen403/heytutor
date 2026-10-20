@@ -104,7 +104,10 @@ export const ARCHETYPE_PROBES: readonly ArchetypeProbe[] = [
   { id: "topic-shm", archetype: "spring_mass", question: "Draw a labelled diagram for Simple harmonic motion and its equation." },
   { id: "topic-shm-energy", archetype: "shm_energy", question: "Draw a labelled diagram for Kinetic and potential energies in simple harmonic motion." },
   { id: "topic-wave-types", archetype: "wave_types", question: "Draw a labelled diagram for Wave motion and longitudinal and transverse waves." },
-  { id: "topic-organ-pipes", archetype: "standing_wave", question: "Draw a labelled diagram for Standing waves in organ pipes." },
+  // Unspecified pipe ends cannot be represented as a fixed string.
+  { id: "topic-organ-pipes", archetype: "standing_wave", question: "Draw a labelled diagram for Standing waves in organ pipes.", declines: true },
+  { id: "open-pipe-third-harmonic", archetype: "standing_wave", question: "Draw the third-harmonic standing wave in an open organ pipe." },
+  { id: "closed-pipe-third-harmonic", archetype: "standing_wave", question: "Draw the third harmonic in a pipe closed at one end." },
   { id: "topic-force-conductor", archetype: "force_on_conductor", question: "Draw a labelled diagram for Force on a current-carrying conductor in a uniform magnetic field." },
   { id: "topic-parallel-conductors", archetype: "parallel_wires", question: "Draw a labelled diagram for Force between two parallel current-carrying conductors." },
   { id: "topic-loop-torque", archetype: "current_loop_torque", question: "Draw a labelled diagram for Torque experienced by a current loop in a uniform magnetic field." },

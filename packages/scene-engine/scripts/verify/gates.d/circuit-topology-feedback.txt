@@ -1,0 +1,2 @@
+# Parallel branch/node contracts and deterministic repair feedback.
+tsx scripts/verify/verify-circuit-topology-feedback.ts

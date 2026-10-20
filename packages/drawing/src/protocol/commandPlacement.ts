@@ -84,7 +84,8 @@ export function isBlockedVerifiedDiagramCommand(
     const requested = (command.text ?? command.semanticRef?.entityId ?? "").trim().toLowerCase();
     if (!requested || !diagram) return true;
     return resolveVerifiedDiagramFocusTargets({ ...command, type: "FOCUS" }, diagram).length === 0 &&
-      !diagram.deferredAnnotations?.some((entry) => entry.entityId.toLowerCase() === requested);
+      !diagram.deferredAnnotations?.some((entry) =>
+        entry.entityId.split(",").some((id) => id.trim().toLowerCase() === requested));
   }
   // WRITE coordinates are only suggestions. The runtime fits and allocates
   // symbolic work in the left column before execution.

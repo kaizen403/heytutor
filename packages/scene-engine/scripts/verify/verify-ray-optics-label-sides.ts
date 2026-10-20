@@ -204,7 +204,11 @@ for (const [variant, edit] of [
       primitive_B_label: [1086, 546.1],
       primitive_C_label: [657.6, 118.9],
       baseLabel: [780, 554.1],
-      sideLabel: [871.8, 114.9],
+      // Main floated "glass" 138 px above the side, level with C, from the
+      // north edge of the side's ink box. Label owner placement (Oct 2026)
+      // puts it beside the middle of the side it names; re-pinned after a
+      // before and after render was compared.
+      sideLabel: [943.48, 332.5],
     });
   }
 }
