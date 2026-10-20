@@ -39,6 +39,18 @@ export function sarvamSpeechText(text: string): string {
         : quantity ? Number(quantity[1]!.replace(/,/g, "")) === 1 : false;
       return `${singular ? "kilometer" : "kilometers"} per hour`;
     })
+    .replace(SPACED_UNIT, (match: string, value: string, unit: string, offset: number, whole: string) => {
+      // "2 m g" is the spaced product m g, and "4 m squared" or "6 m times"
+      // are still arithmetic; only a quantity that ends here gets a unit word.
+      const rest = whole.slice(offset + match.length);
+      if (/^\s+(?:[A-Za-z](?![\p{L}\p{N}_])|(?:times|squared|cubed|over|plus|minus|into|by|divided|per)\b)/u
+        .test(rest)) return match;
+      // A bare m is a mass as often as a meter ("block ka mass 2 m hai"), so
+      // it is a meter only where the quantity visibly ends.
+      if (unit === "m" && !BARE_METER_END.test(rest)) return match;
+      const words = SPACED_UNIT_WORDS[unit]!;
+      return `${value} ${Number(value) === 1 ? words[0] : words[1]}`;
+    })
     .replace(ORDINAL, (_match, digits: string) => ordinalWords(digits))
     .replace(CLOCK_TIME, (_match, hours: string, minutes: string) =>
       `${numberToSpokenWords(hours)} ${minutes === "00" ? "o'clock" : minutes.startsWith("0") ? `oh ${numberToSpokenWords(minutes)}` : numberToSpokenWords(minutes)}`)
@@ -60,6 +72,31 @@ export function sarvamSpeechText(text: string): string {
     .replace(/।/g, ".");
 }
 
+/**
+ * A unit symbol spaced after a number, as the runtime given lines and figure
+ * captions write it: "t equals 4 s से", "40 m, rectangle". The digits become
+ * English words below, but the letter stayed a letter, so the Hinglish voice
+ * said "four s". A spaced unit is a quantity by the teaching convention (a
+ * product is glued, `2m`, and mathToSpeech keeps that glue as a no-break
+ * space, which `[ \t]+` below does not match). Single capitals other than
+ * N, J and W also name points and bodies, so they are left alone. g and h
+ * are left alone too: "acceleration 2 g hai" is twice g and "height 2 h hai"
+ * twice a height, far more often than grams or hours. Only the audio sees
+ * this.
+ */
+const SPACED_UNIT_WORDS: Record<string, [string, string]> = {
+  s: ["second", "seconds"], ms: ["millisecond", "milliseconds"],
+  m: ["meter", "meters"], cm: ["centimeter", "centimeters"], mm: ["millimeter", "millimeters"],
+  km: ["kilometer", "kilometers"], kg: ["kilogram", "kilograms"],
+  N: ["newton", "newtons"], J: ["joule", "joules"], kJ: ["kilojoule", "kilojoules"],
+  W: ["watt", "watts"], Hz: ["hertz", "hertz"], Pa: ["pascal", "pascals"],
+};
+const SPACED_UNIT = new RegExp(
+  `(?<![\\p{L}\\p{N}_.,])(\\d+(?:\\.\\d+)?)[ \\t]+(${Object.keys(SPACED_UNIT_WORDS).join("|")})(?![\\p{L}\\p{N}_/^²³'′])`,
+  "gu",
+);
+/** Where a bare m ends its quantity: a comma, a full stop (or ।), the end, or a postposition. */
+const BARE_METER_END = /^(?:[,.।]|\s*$|\s+(?:se|me|ka|ki|ko|से|में|का|की|को)(?![\p{L}\p{M}\p{N}_]))/u;
 const ORDINAL = /\b(\d+)(?:st|nd|rd|th)\b/gi;
 const CLOCK_TIME = /\b(\d{1,2}):([0-5]\d)\b/g;
 const NUMBER = /\.?\d[\d,]*(?:\.\d+)?/g;

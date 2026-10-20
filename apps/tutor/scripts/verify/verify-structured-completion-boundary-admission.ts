@@ -56,7 +56,10 @@ function reflectionFixture(id: string, incidence: number, boundaryDegrees = 0, m
 const fixtures: Fixture[] = [
   reflectionFixture("actual-native-angle-completion-cannot-cross-old-annotation-boundary-36", 36),
   reflectionFixture("actual-native-angle-completion-cannot-cross-old-annotation-boundary-41", 41),
-  reflectionFixture("injected-native-proposal-cannot-cross-old-annotation-boundary", 36, 0, "native_proposal"),
+  // Label owner placement (Oct 2026) keeps "air" on its side of a 0° boundary
+  // when the injected label is added; the same proposal still flips it across
+  // the boundary drawn the other way round (180°), under both engines.
+  reflectionFixture("injected-native-proposal-cannot-cross-old-annotation-boundary", 36, 180, "native_proposal"),
   reflectionFixture("same-side-old-annotation-motion-remains-adoptable", 36, 15),
 ];
 function nativeProposal(document: engine.SceneDocument, turnPlan: engine.TurnPlanV3): engine.SceneCompletionResult {
