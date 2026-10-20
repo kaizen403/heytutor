@@ -242,6 +242,31 @@ for (const [stem, normal] of [
 check(engine.riverShortestPathAsked("A swimmer wants to swim straight across a river flowing at 1 m/s."), "a desired path straight across is still the shortest-path case");
 check(!engine.riverShortestPathAsked(HEADS_ACROSS), "a heading straight across is not a path request");
 
+// "The point directly across" is a place, and a heading after "to" is an
+// intent: neither may turn a straight-across question into the least-time
+// crossing (v = 5, u = 3, w = 400: straight across t = 100 s, least time 80 s).
+const RIVER_400 = [["vb", 5, "m/s"], ["vc", 3, "m/s"], ["w", 400, "m"]] as Array<[string, number, string]>;
+for (const [stem, path, heading, t] of [
+  ["A boat moves at 5 m/s in still water. A river 400 m wide flows at 3 m/s. The boat must reach the point directly across the river. Find the time taken to cross.", true, false, 100],
+  ["To steer straight across a 400 m wide river flowing at 3 m/s, a boat that moves at 5 m/s in still water must head upstream at what angle? Find the time taken to cross.", true, false, 100],
+  ["A boatman wants to head straight across a 400 m wide river flowing at 3 m/s. His boat moves at 5 m/s in still water. Find the time taken to cross.", true, false, 100],
+  ["A river 400 m wide flows east at 3 m/s. A man who can swim at 5 m/s in still water wishes to swim due north. In which direction should he head? Find the time taken to cross.", false, false, null],
+  ["A river 400 m wide flows east at 3 m/s. A boat which can row at 5 m/s in still water wants to row due north. In which direction should it head? Find the time taken to cross.", false, false, null],
+  ["A boat that moves at 5 m/s in still water heads straight across a river 400 m wide that flows at 3 m/s. Find the time to cross.", false, true, 80],
+  ["A boat that moves at 5 m/s in still water aims directly across a river 400 m wide that flows at 3 m/s. Find the time to cross.", false, true, 80],
+  ["A boat that moves at 5 m/s in still water heads straight across a river 400 m wide that flows at 3 m/s. Will it reach the point directly opposite? Find the time to cross.", true, true, null],
+] as Array<[string, boolean, boolean, number | null]>) {
+  check(engine.riverShortestPathAsked(stem) === path, `riverShortestPathAsked(${JSON.stringify(stem)}) must be ${path}`);
+  check(engine.riverNormalHeadingStated(stem) === heading, `riverNormalHeadingStated(${JSON.stringify(stem)}) must be ${heading}`);
+  // One crossing read: the other crossing's t is rewritten to it. Both read:
+  // t is unbound, so either crossing's t stands untouched.
+  for (const planned of [80, 100]) {
+    const result = riverTime(riverPlan(stem, [["t", planned, "s"]], RIVER_400));
+    const expected = t === null ? planned : t;
+    check(result.t === expected && (t !== null || result.corrections.length === 0), `${JSON.stringify(stem)} with plan t = ${planned}: t must be ${expected} s, got ${JSON.stringify(result)}`);
+  }
+}
+
 // ------------------------------------------------------------ optional full count
 const recordedFlag = process.argv.indexOf("--recorded");
 if (recordedFlag >= 0) {

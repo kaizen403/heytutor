@@ -101,8 +101,10 @@ export function riverCrossingSpeeds(question: string): RiverCrossingBinding {
  * only when the direction follows it at once. Rowing and swimming verbs name
  * a heading with "perpendicular to the current", but "swim straight across"
  * usually names the path, so they never read "straight across" as a heading.
+ * Bare "point" is left out: "the point directly across" is a place on the far
+ * bank (a path), and "points" is as often the noun.
  */
-const POINTING_VERB = String.raw`(?:heads?|headed|heading|steers?|steered|steering|points?|pointed|pointing|aims?|aimed|aiming|directed|oriented)`;
+const POINTING_VERB = String.raw`(?:heads?|headed|heading|steers?|steered|steering|pointed|pointing|aims?|aimed|aiming|directed|oriented)`;
 const HEADING_VERB = String.raw`(?:${POINTING_VERB}|rows?|rowed|rowing|swims?|swam|swimming|paddles?|paddled|paddling)`;
 /** "heads straight across", "rows perpendicular to the current", "steers at right angles to the bank". */
 const HEADING_ACROSS = new RegExp(String.raw`\b(?:${POINTING_VERB}\s+(?:(?:the\s+)?boat\s+)?(?:straight|directly|perpendicularly|normally|squarely)\s+across\b|${HEADING_VERB}\s+(?:perpendicular|normal|at\s+right\s+angles?)\s+to\s+(?:the\s+)?(?:river\s*)?(?:banks?|current|stream|flow|river|water\s+flow)\b)`, "gi");
@@ -120,20 +122,37 @@ const NORMAL_TO: Record<string, readonly string[]> = {
  * angles to a stated compass flow ("flows east ... heads due north"). That
  * crossing is the least-time case whatever else the question asks.
  */
+/**
+ * A heading phrase after "to" is an intent ("wants to head straight across",
+ * "to steer straight across", "wishes to swim due north"): the place the boat
+ * should reach, not a stated heading.
+ */
+function statedHeadings(question: string, pattern: RegExp): RegExpMatchArray[] {
+  return [...question.matchAll(new RegExp(pattern.source, "gi"))]
+    .filter((match) => !/\bto\s+$/i.test(question.slice(0, match.index ?? 0)));
+}
+
 export function riverNormalHeadingStated(question: string): boolean {
-  if (new RegExp(HEADING_ACROSS.source, "i").test(question)) return true;
+  if (statedHeadings(question, HEADING_ACROSS).length > 0) return true;
   const flow = question.match(FLOW_DIRECTION)?.[1]?.toLowerCase();
   if (!flow) return false;
-  return [...question.matchAll(CARDINAL_HEADING)].some((match) => NORMAL_TO[match[1]!.toLowerCase()]!.includes(flow));
+  return statedHeadings(question, CARDINAL_HEADING).some((match) => NORMAL_TO[match[1]!.toLowerCase()]!.includes(flow));
 }
 
 /**
  * Shortest path: head upstream so the boat lands directly opposite. A stated
  * heading "straight across" is where the boat points, the least-time case,
- * so it is removed before the path cues are read.
+ * so it is removed before the path cues are read. An intended heading ("to
+ * steer straight across") stays: it names where the boat must go. When both a
+ * stated heading and a path cue are read, both crossings stand and no single
+ * crossing time is bound.
  */
 export function riverShortestPathAsked(question: string): boolean {
-  const withoutHeadings = question.replace(HEADING_ACROSS, " ");
+  let withoutHeadings = question;
+  for (const match of statedHeadings(question, HEADING_ACROSS).reverse()) {
+    const start = match.index ?? 0;
+    withoutHeadings = `${withoutHeadings.slice(0, start)}${" ".repeat(match[0].length)}${withoutHeadings.slice(start + match[0].length)}`;
+  }
   return /\b(?:shortest (?:path|route|distance)|straight across|directly (?:opposite|across)|exactly opposite|(?:point|bank) directly opposite|zero drift|without drift|no drift)\b/i.test(withoutHeadings);
 }
 
