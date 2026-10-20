@@ -103,6 +103,10 @@ jobs:
         run: pnpm --filter @heytutor/tutor verify:atomic-labels
       - name: Figure tour narration regressions
         run: pnpm --filter @heytutor/tutor verify:primitive-tour
+      - name: Text-only lesson narration and board regressions (offline)
+        run: |
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-text-only-narration.ts
+          pnpm --filter @heytutor/tutor exec tsx scripts/verify/verify-text-only-board.ts
       - name: DSA verified intro ordering regressions
         run: pnpm --filter @heytutor/tutor verify:dsa-intro-order
       - name: Source-grounded board title regressions

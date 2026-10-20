@@ -94,6 +94,30 @@ check("reservation honors the server output ceiling, not the smaller client cap"
   assert(cost >= 8096 * 10 / 1_000_000);
 });
 
+check("reservation covers server-prepared multibyte input before dispatch", () => {
+  const request = { body: JSON.stringify({ messages: [{ role: "user", content: "चित्र" }], max_tokens: 60 }) };
+  const base = plannerRequestWorstCaseUsd(request, "accounts/fireworks/models/deepseek-v4p1-flash", 60);
+  const expanded = plannerRequestWorstCaseUsd(request, "accounts/fireworks/models/deepseek-v4p1-flash", 60,
+    { inputByteMultiplier: 2, addedInputBytes: 100_000 });
+  assert(expanded > base + 0.02, "server catalogue/example additions cannot vanish from the conservative reservation");
+  assert.throws(() => plannerRequestWorstCaseUsd(request, "accounts/fireworks/models/kimi-k3", 5200,
+    { inputByteMultiplier: 0, addedInputBytes: -1 }), /bound|input|expansion/i);
+});
+
+check("Fireworks null deployment does not hide changed lane models or prices on resume", () => {
+  const fireworks = { provider: "fireworks", deployment: null };
+  const identity = { modelProfile: { models: { planner: "accounts/fireworks/models/kimi-k3" }, rates: { input: 3, output: 15 } },
+    plannerOutputCap: 5200, inputBounds: { addedInputBytes: 1000 } };
+  const rows = [{ ...saved[0]!, providerConfig: fireworks, executionConfig: identity }];
+  assert.deepEqual(selectResumeProbes(probes, rows, "current", fireworks, identity), []);
+  for (const changed of [
+    { ...identity, modelProfile: { ...identity.modelProfile, models: { planner: "accounts/fireworks/routers/kimi-k3-fast" } } },
+    { ...identity, modelProfile: { ...identity.modelProfile, rates: { input: 4, output: 15 } } },
+    { ...identity, plannerOutputCap: 6000 },
+    { ...identity, inputBounds: { addedInputBytes: 2000 } },
+  ]) assert.throws(() => selectResumeProbes(probes, rows, "current", fireworks, changed), /incompatible/i);
+});
+
 check("a recovered PNG restores the path from the saved SVG", () => {
   assert.equal(restoredDiagramPng({ svg: "frames/synthetic.svg", png: null }, (path) => path === "frames/synthetic.png"), "frames/synthetic.png");
   assert.equal(restoredDiagramPng({ svg: "frames/synthetic.svg", png: "frames/synthetic.png" }, () => false), null);

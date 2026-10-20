@@ -6,6 +6,8 @@ import { angleUnit, isRecord, norm, perpendicular, PlanarGeometry, samePoint, su
 
 export interface SceneCompletionInput {
   enabled?: boolean;
+  /** Separate default-off extension; the original label/mark contract is unchanged. */
+  constructorLawsEnabled?: boolean;
   turnPlan: TurnPlanV3;
   baseRenderScene: RenderScene;
   solverAuthority?: unknown;
@@ -280,20 +282,21 @@ class CompletionContext {
     return texts.every(text => text === undefined || (typeof text === "string" &&
       (!text.trim() || isPointIdentifierText(text) || text === unknown.symbol || text === expected)));
   }
-  rightAngle(vertex: string, firstArm: string, secondArm: string, owners: string[]): void {
+  rightAngle(vertex: string, firstArm: string, secondArm: string, owners: string[], incidentLineArms = false): void {
     if (!owners.every(owner => this.rendered(owner))) return;
     const group = this.ownerGroup(owners[0]!);
     if (group === null || owners.some(owner => this.ownerGroup(owner) !== group)) {
       this.skip("ambiguous_right_angle_scope", undefined, owners); return;
     }
-    if (this.document.constructions.some(construction => ["right_angle_mark", "space_right_angle_mark"].includes(construction.operator) && construction.inputs.vertex === vertex)) {
+    if ((this.next ?? this.document).constructions.some(construction => ["right_angle_mark", "space_right_angle_mark"].includes(construction.operator) && construction.inputs.vertex === vertex)) {
       this.skip("right_angle_already_present", undefined, owners); return;
     }
     const id = stableId("right_angle", [vertex, ...owners]);
     if (this.entities.has(id) || this.additions.some(addition => addition.id === id)) return;
     if (this.additions.length >= MAX_ADDITIONS) { this.skip("addition_budget", undefined, owners); return; }
     const entity = { id, kind: "right_angle_mark", role: "native perpendicular incidence mark" };
-    const construction = { id: `construct_${id}`, operator: "right_angle_mark", inputs: { vertex, a: firstArm, b: secondArm }, outputs: [id] };
+    const construction = { id: `construct_${id}`, operator: "right_angle_mark", inputs: { vertex, a: firstArm, b: secondArm,
+      ...(incidentLineArms ? { incidentLineArms: true } : {}) }, outputs: [id] };
     const assertions: SceneDocument["assertions"] = [
       { id: `assert_${id}_perpendicular`, predicate: "perpendicular", entities: owners, expected: true, severity: "fatal" },
       ...owners.map((owner, index) => ({ id: `assert_${id}_incident_${index}`, predicate: "on", entities: [vertex, owner], expected: true, severity: "fatal" as const })),
@@ -488,6 +491,54 @@ function rightAngleMarks(context: CompletionContext): void {
   }
 }
 
+/** A scalar equality never joins constructors: these are the same native input slots. */
+function sameParameter(first: unknown, second: unknown, depth = 0): boolean {
+  if (depth >= MAX_REFERENCE_DEPTH) return false;
+  if (typeof first === "number" || typeof first === "string") return first === second;
+  return isRecord(first) && isRecord(second) && Object.keys(first).every(key => ["value", "unit"].includes(key)) &&
+    Object.keys(second).every(key => ["value", "unit"].includes(key)) && "value" in first && "value" in second &&
+    first.unit === second.unit && sameParameter(first.value, second.value, depth + 1);
+}
+
+/** Constructor laws authorize marks on existing strokes, never a force inventory or graph intent. */
+function constructorRightAngleMarks(context: CompletionContext): void {
+  const constructions = context.document.constructions;
+  const mark = (vertex: unknown, reference: unknown, other: unknown): void => {
+    if (typeof vertex !== "string" || typeof reference !== "string" || typeof other !== "string" ||
+        reference === other || context.entities.get(vertex)?.kind !== "point" || !context.producers.has(vertex)) return;
+    // Native incident-line mode proves both world incidences and extents itself;
+    // its arms retain the existing owner ids, so normalization adds no helpers.
+    context.rightAngle(vertex, reference, other, [reference, other], true);
+  };
+  for (const construction of constructions) {
+    const inputs = construction.inputs;
+    if (construction.operator === "project" && construction.outputs.length === 1) {
+      const source = inputs.point ?? inputs.source, reference = inputs.line ?? inputs.onto, vertex = construction.outputs[0]!;
+      if (typeof source !== "string" || typeof reference !== "string") continue;
+      const connectors = constructions.filter(candidate => {
+        const start = candidate.inputs.start ?? candidate.inputs.from ?? candidate.inputs.a, end = candidate.inputs.end ?? candidate.inputs.to ?? candidate.inputs.b;
+        return candidate.operator === "segment" && candidate.outputs.length === 1 && typeof start === "string" && typeof end === "string" && sameIds([start, end], [source, vertex]);
+      });
+      if (connectors.length === 1) mark(vertex, reference, connectors[0]!.outputs[0]);
+    } else if (construction.operator === "tangent_line" && construction.outputs.length === 1) {
+      const curve = inputs.curve ?? inputs.target, at = inputs.at ?? inputs.parameter ?? inputs.atX;
+      if (typeof curve !== "string" || context.producers.get(curve)?.operator !== "function_curve") continue;
+      const normals = constructions.filter(candidate => candidate.operator === "normal_line" && candidate.outputs.length === 1 &&
+        (candidate.inputs.curve ?? candidate.inputs.target) === curve && sameParameter(candidate.inputs.at ?? candidate.inputs.parameter ?? candidate.inputs.atX, at));
+      const tangents = constructions.filter(candidate => candidate.operator === "tangent_line" && candidate.outputs.length === 1 &&
+        (candidate.inputs.curve ?? candidate.inputs.target) === curve && sameParameter(candidate.inputs.at ?? candidate.inputs.parameter ?? candidate.inputs.atX, at));
+      const anchors = constructions.filter(candidate => candidate.operator === "curve_anchor" && candidate.outputs.length === 1 &&
+        candidate.inputs.curve === curve && sameParameter(candidate.inputs.at, at));
+      if (tangents.length === 1 && normals.length === 1 && anchors.length === 1) mark(anchors[0]!.outputs[0], construction.outputs[0], normals[0]!.outputs[0]);
+    } else if (["reflect_at", "refract_at"].includes(construction.operator) && construction.outputs.length === 3) {
+      const surface = inputs.surface;
+      if (typeof surface !== "string" || !["line", "segment", "ray"].includes(context.producers.get(surface)?.operator ?? "")) continue;
+      // The middle output is the normal. The ray outputs do not inherit its law.
+      mark(inputs.point ?? inputs.contact, surface, construction.outputs[1]);
+    }
+  }
+}
+
 /**
  * Propose append-only marks for the actual admitted document and render.
  * The caller remains responsible for normal admission and save checks.
@@ -512,6 +563,7 @@ export function completeSceneDocument(
   incidenceLabels(context);
   annotationLabels(context);
   rightAngleMarks(context);
+  if (input.constructorLawsEnabled === true) constructorRightAngleMarks(context);
   for (const given of input.turnPlan.givens) {
     if (!context.additions.some(addition => addition.quantityIds.includes(given.id)) &&
         !context.skipped.some(skip => skip.quantityId === given.id)) context.skip("no_eligible_structured_attachment", given.id);

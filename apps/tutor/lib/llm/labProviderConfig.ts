@@ -6,10 +6,13 @@ import { EVALUATION_POLICY_VERSION, JEV_GATEWAY_MODEL } from "./evaluation/types
 import { rubricVersionForJob } from "./evaluation/rubrics";
 import { VISUAL_NEED_CLIENT_TIMEOUT_MS, VISUAL_NEED_EVIDENCE_VERSION } from "../../features/tutor-session/lib/scene/visualNeedClient";
 import { plannerSpeedSettings } from "./planningSpeed";
+import { buildLabModelProfile } from "./labModelProfile";
+import { liveDiagramPromptInputBounds } from "../scene/diagramExampleLibrary.server";
 
 /** Non-secret, authenticated preflight from the actual server configuration. */
 export function labProviderConfig() {
   const endpoint = resolveLlmEndpoint();
+  const configured = Boolean(endpoint.apiKey && !endpoint.fallbackReason);
   const plannerBodies = ["primary", "alternate"].flatMap((plannerLane) => [
     { semanticSceneV2: true, turnPlanV3: false },
     { semanticSceneV2: false, turnPlanV3: true },
@@ -29,7 +32,9 @@ export function labProviderConfig() {
   }, endpoint)));
   return {
     provider: endpoint.provider, deployment: endpoint.deployment,
-    configured: Boolean(endpoint.apiKey && !endpoint.fallbackReason),
+    configured,
+    modelProfile: configured ? buildLabModelProfile({ endpoint, env: process.env }) : null,
+    inputBounds: liveDiagramPromptInputBounds(),
     // The first translated body is the primary scene request, including Azure's floor.
     planningSpeed: { sceneEffort: endpoint.provider === "azure" ? String(plannerBodies[0]?.reasoning_effort ?? "unknown") : "low",
       ...(endpoint.provider === "azure" ? plannerSpeedSettings() : { priority: false }),

@@ -5,11 +5,30 @@
  */
 const ANGLE_MARK_OPERATORS = new Set(["angle_mark", "right_angle_mark", "space_angle_mark", "space_right_angle_mark"]);
 
+/** Only the new native incident-arm mode may retain an already declared
+ * vertex scope. A legacy mark sharing that vertex keeps its old promotion. */
+function ownedIncidentAngleVertices(raw: Record<string, unknown>): Set<string> {
+  const owned = new Set<string>((Array.isArray(raw.revealGroups) ? raw.revealGroups : []).flatMap(group =>
+    isRecord(group) && Array.isArray(group.entityIds)
+      ? group.entityIds.filter((id): id is string => typeof id === "string") : []));
+  const retained = new Set<string>(), legacy = new Set<string>();
+  for (const construction of Array.isArray(raw.constructions) ? raw.constructions : []) {
+    if (!isRecord(construction) || !ANGLE_MARK_OPERATORS.has(String(construction.operator)) ||
+        !isRecord(construction.inputs) || typeof construction.inputs.vertex !== "string") continue;
+    const vertex = construction.inputs.vertex;
+    if (construction.operator === "right_angle_mark" && construction.inputs.incidentLineArms === true && owned.has(vertex)) retained.add(vertex);
+    else legacy.add(vertex);
+  }
+  for (const vertex of legacy) retained.delete(vertex);
+  return retained;
+}
+
 /** Keep angle vertices visible before dead-entity pruning. */
 export function promoteAngleMarkVertices(raw: Record<string, unknown>): Record<string, unknown> {
   if (!Array.isArray(raw.constructions) || !Array.isArray(raw.requiredEntityIds) || !Array.isArray(raw.revealGroups)) {
     return raw;
   }
+  const retainedVertices = ownedIncidentAngleVertices(raw);
   const vertices = raw.constructions.flatMap((construction) => {
     if (!isRecord(construction)) return [];
     if (!ANGLE_MARK_OPERATORS.has(String(construction.operator))) return [];
@@ -23,13 +42,14 @@ export function promoteAngleMarkVertices(raw: Record<string, unknown>): Record<s
   ])];
   const revealGroups = raw.revealGroups.map((group, index) => {
     if (!isRecord(group) || !Array.isArray(group.entityIds) || index !== 0) return group;
-    return { ...group, entityIds: [...new Set([...group.entityIds.filter((id): id is string => typeof id === "string"), ...vertices])] };
+    return { ...group, entityIds: [...new Set([...group.entityIds.filter((id): id is string => typeof id === "string"), ...vertices.filter(vertex => !retainedVertices.has(vertex))])] };
   });
   return { ...raw, requiredEntityIds: required, revealGroups };
 }
 
 export function ensureStudentFacingPointMarks(raw: Record<string, unknown>): Record<string, unknown> {
   if (!Array.isArray(raw.entities)) return raw;
+  const retainedVertices = ownedIncidentAngleVertices(raw);
   const question = sourceQuestion(raw);
   const usedLabels = new Set<string>();
   const entities = raw.entities.map((entity) => {
@@ -78,7 +98,7 @@ export function ensureStudentFacingPointMarks(raw: Record<string, unknown>): Rec
     ? raw.revealGroups.map((group, index) => {
         if (!isRecord(group) || !Array.isArray(group.entityIds)) return group;
         if (index !== 0) return group;
-        return { ...group, entityIds: [...new Set([...group.entityIds, ...markedPointIds])] };
+        return { ...group, entityIds: [...new Set([...group.entityIds, ...markedPointIds.filter(id => !retainedVertices.has(id))])] };
       })
     : [{
         id: "setup",
