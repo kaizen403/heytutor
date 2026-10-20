@@ -34,7 +34,20 @@ export function buildSourceLawGraphFigure(model: SourceLawGraph, originalQuestio
   if (model.bindings.some(value=>!finite(value.value))) return null;
   for (const point of model.points) {
     const curve = model.curves.find(curve=>curve.id===point.curveId);
-    if (!curve || !finite(point.x) || !finite(point.y) || Math.abs(sourceLawValue(curve.relation,point.x)-point.y)>1e-9*Math.max(Math.abs(point.y),1e-30)) return null;
+    if (!curve || !finite(point.x) || !finite(point.y)) return null;
+    const actual=sourceLawValue(curve.relation,point.x);
+    if (!finite(actual)) return null;
+    let tolerance=1e-9*Math.max(Math.abs(point.y),1e-30);
+    const relation=curve.relation;
+    if (relation.operator==="affine" || relation.operator==="threshold_affine" || relation.operator==="log_coordinate") {
+      const product=relation.slope*point.x;
+      if (!finite(product) || !finite(relation.intercept)) return null;
+      // A rounded derived root can leave product/add cancellation roundoff.
+      // Scale only by those operands, never the axis range or a default unit.
+      const roundoff=4*Number.EPSILON*Math.max(Math.abs(product),Math.abs(relation.intercept));
+      tolerance=Math.max(tolerance,roundoff);
+    }
+    if (!finite(tolerance) || Math.abs(actual-point.y)>tolerance) return null;
     if (point.detached ? !(point.x===0 && model.x.transform==="log10" && curve.relation.operator==="positive_quadratic") : point.x<curve.domain[0] || point.x>curve.domain[1]) return null;
   }
   const requiresContext=model.chemicalContext!==undefined || model.curves.some(curve=>curve.relation.operator==="positive_quadratic" || curve.relation.operator==="log_coordinate");
