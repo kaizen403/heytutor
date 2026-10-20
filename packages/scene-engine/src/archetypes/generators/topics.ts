@@ -5,7 +5,7 @@
  * real question a student asks, and an honest generic figure beats no figure.
  */
 import { DEG, SceneBuilder, fmt, withUnit, type Vec2 } from "../document";
-import { grounded, maybeNum, num, numbers, text, valueLabel, type GeneratorContext, type GeneratorTable } from "./context";
+import { angleLabel, derivedLabel, grounded, maybeNum, num, numbers, text, valueLabel, type GeneratorContext, type GeneratorTable } from "./context";
 
 function pageNormalGrid(scene: SceneBuilder, prefix: string, origin: Vec2, columns: number, rows: number, spacing: number, into: boolean, role: string, label?: string): void {
   for (let row = 0; row < rows; row += 1) {
@@ -44,14 +44,14 @@ function shmSuperposition(context: GeneratorContext) {
   const omega = 2 * Math.PI / 4;
   const phi = phase * DEG;
   const resultant = 2 * A * Math.cos(phi / 2);
-  const scene = new SceneBuilder(context.question, `two SHMs with phase difference ${fmt(phase)}° and their superposition`, "shm_superposition");
+  const scene = new SceneBuilder(context.question, "two SHMs with a phase difference and their superposition", "shm_superposition");
   if (grounded(context, "phase")) scene.quantity("phi", "phi", phase, "degree");
   scene.axes("axes", -0.3, 8.5, -2.4, 2.6, "displacement–time axes", "x-t");
   scene.curve("x1", `${A}*sin(${omega}*x)`, 0, 8, "first SHM x1", "x1", 97);
-  scene.curve("x2", `${A}*sin(${omega}*x+${phi})`, 0, 8, "second SHM x2", `x2 (φ=${fmt(phase)}°)`, 97);
+  scene.curve("x2", `${A}*sin(${omega}*x+${phi})`, 0, 8, "second SHM x2", derivedLabel(context, ["phase"], `x2 (φ=${fmt(phase)}°)`, "x2"), 97);
   scene.curve("sum", `${A}*sin(${omega}*x)+${A}*sin(${omega}*x+${phi})`, 0, 8, "resultant x1+x2", "x1+x2", 97);
   const tPeak = (Math.PI / 2 - phi / 2) / omega;
-  scene.point("peak", { x: tPeak, y: resultant }, "resultant amplitude", `A'=${fmt(Math.abs(resultant))}`);
+  scene.point("peak", { x: tPeak, y: resultant }, "resultant amplitude", "A'");
   scene.assert("peak_on_sum", "function_value", ["sum"], { x: Number(tPeak.toFixed(6)), y: Number(resultant.toFixed(6)) });
   scene.assert("x1_zero", "function_value", ["x1"], { x: 0, y: 0 });
   scene.labelled("x1", "x2", "sum");
@@ -188,8 +188,8 @@ function barMagnet(context: GeneratorContext) {
 
 function barMagnetInField(context: GeneratorContext) {
   const theta = num(context, "theta", 30);
-  const scene = new SceneBuilder(context.question, `bar magnet at ${fmt(theta)}° to a uniform field: equal and opposite forces on the poles form a couple`, "bar_magnet_in_field");
-  scene.quantity("theta", "theta", theta, "degree");
+  const scene = new SceneBuilder(context.question, "bar magnet in a uniform field: equal and opposite forces on the poles form a couple", "bar_magnet_in_field");
+  if (grounded(context, "theta")) scene.quantity("theta", "theta", theta, "degree");
   for (let index = 0; index < 4; index += 1) {
     scene.point(`B${index}_a`, { x: -4, y: -2.1 + index * 1.4 }, "field line start");
     scene.vector(`B${index}`, `B${index}_a`, { direction: { x: 1, y: 0 }, length: 8 }, "uniform magnetic field", index === 3 ? "B" : undefined);
@@ -201,7 +201,7 @@ function barMagnetInField(context: GeneratorContext) {
   scene.point("centre_ref", { x: 0, y: 0 }, "magnet centre");
   scene.segment("ref", "centre_ref", "ref_end", "field direction reference");
   scene.segment("half_axis", "centre_ref", "N", "axis from the centre to the north pole");
-  scene.angleMark("angle", "centre_ref", "half_axis", "ref", `θ=${fmt(theta)}°`);
+  scene.angleMark("angle", "centre_ref", "half_axis", "ref", angleLabel(context, "theta"));
   scene.assert("axis_angle", "angle_between", ["half_axis", "ref"], { value: theta, unit: "degree" });
   scene.assert("forces_opposite", "opposite_direction", ["F_N", "F_S"]);
   scene.labelled("N", "S");
@@ -365,12 +365,13 @@ function logicGates(context: GeneratorContext) {
 function centreOfMass(context: GeneratorContext) {
   const masses = numbers(context, "masses");
   const given = masses.length >= 2 ? masses.slice(0, 3) : [2, 3];
+  const massesGiven = grounded(context, "masses") && masses.length === given.length;
   const positions = numbers(context, "positions");
   const xs = positions.length === given.length ? positions : given.map((_, index) => index * (6 / (given.length - 1)));
   const total = given.reduce((sum, mass) => sum + mass, 0);
   const xcm = given.reduce((sum, mass, index) => sum + mass * xs[index]!, 0) / total;
   const scene = new SceneBuilder(context.question, `${given.length} masses on a line with their centre of mass at the mass-weighted mean position`, "centre_of_mass");
-  given.forEach((mass, index) => scene.quantity(`q_m${index + 1}`, `m${index + 1}`, mass, "kg"));
+  if (massesGiven) given.forEach((mass, index) => scene.quantity(`q_m${index + 1}`, `m${index + 1}`, mass, "kg"));
   const xMin = Math.min(...xs);
   const xMax = Math.max(...xs);
   scene.point("line_a", { x: xMin - 1, y: 0 }, "line end");
@@ -383,15 +384,15 @@ function centreOfMass(context: GeneratorContext) {
   scene.segment("coordinate_axis", "coordinate_axis_a", "coordinate_axis_b", "position coordinate axis");
   given.forEach((mass, index) => {
     scene.helper(`P${index + 1}`, { x: xs[index]!, y: 0 }, "body position");
-    scene.circle(`body${index + 1}`, `P${index + 1}`, 0.25 + 0.35 * mass / heaviest, "body", grounded(context, "masses") ? `m${index + 1}=${withUnit(mass, "kg")}` : `m${index + 1}`);
-    const coordinate = scene.point(`coordinate${index + 1}`, { x: xs[index]!, y: coordinateY }, "body position coordinate marker", `x${index + 1}=${fmt(xs[index]!)}`);
+    scene.circle(`body${index + 1}`, `P${index + 1}`, 0.25 + 0.35 * mass / heaviest, "body", massesGiven ? `m${index + 1}=${withUnit(mass, "kg")}` : `m${index + 1}`);
+    const coordinate = scene.point(`coordinate${index + 1}`, { x: xs[index]!, y: coordinateY }, "body position coordinate marker", derivedLabel(context, positions.length === given.length ? ["positions"] : ["unprovidedPositions"], `x${index + 1}=${fmt(xs[index]!)}`, `x${index + 1}`));
     const guide = scene.segment(`position_guide${index + 1}`, `P${index + 1}`, coordinate, "position coordinate projection");
     scene.entities.find((entity) => entity.id === guide)!.provenance = { dashed: true, strokeRole: "construction" };
     scene.assert(`coordinate_on_axis${index + 1}`, "on", [coordinate, "coordinate_axis"]);
     scene.assert(`coordinate_projected${index + 1}`, "perpendicular", [guide, "coordinate_axis"]);
     scene.labelled(coordinate);
   });
-  scene.point("CM", { x: xcm, y: 0 }, "centre of mass", `CM x=${fmt(xcm)}`);
+  scene.point("CM", { x: xcm, y: 0 }, "centre of mass", derivedLabel(context, positions.length === given.length && masses.length === given.length ? ["masses", "positions"] : ["unprovidedPositions"], `CM x=${fmt(xcm)}`, "CM"));
   scene.helper("CM_mark_top", { x: xcm, y: 0.9 }, "centre of mass mark");
   scene.segment("CM_mark", "CM", "CM_mark_top", "centre of mass marker");
   if (given.length === 2 && given[0]! > 0 && given[1]! > 0) {

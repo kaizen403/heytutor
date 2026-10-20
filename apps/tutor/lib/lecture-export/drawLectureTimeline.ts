@@ -1,4 +1,4 @@
-import type { DrawCommand } from "@heytutor/drawing";
+import type { DrawCommand, VerifiedDiagram } from "@heytutor/drawing";
 import {
   capSceneBatchDurations,
   isCuedSceneBatch,
@@ -11,23 +11,15 @@ import {
   leadWriteScheduleToSpeech,
   mathToSpeech,
   selectInkPace,
-  type InkPace,
 } from "@heytutor/tutor-core";
 import { isStoredCommandTrustedGeometry } from "@heytutor/drawing";
-import type { WriteSchedule } from "@heytutor/whiteboard";
+import type { ExecuteCommandOptions } from "@/features/tutor-session/hooks/turn/types";
+import { drawSegmentInk, planSegmentInk } from "@/features/tutor-session/lib/turn/segmentInk";
 import type { ReplayCue } from "@/lib/replay/replayTimeline";
 
 export type ExportExecuteCommand = (
   command: DrawCommand,
-  options?: {
-    durationScale?: number;
-    speechDurationMs?: number;
-    writeSchedule?: WriteSchedule;
-    applyLayout?: boolean;
-    trustedDiagramGeometry?: boolean;
-    isCancelled?: () => boolean;
-    inkPace?: InkPace;
-  },
+  options?: ExecuteCommandOptions,
 ) => Promise<void>;
 
 export async function waitUntilExportClock(
@@ -48,6 +40,8 @@ export async function drawLectureTimeline(options: {
   waitForAdvance: () => Promise<void>;
   shouldCancel: () => boolean;
   setAnimationSpeed?: (rate: number) => void;
+  /** The committed figure FOCUS traces resolve against, read per command. */
+  getDiagram?: () => VerifiedDiagram | null;
   /** Cues before this one are already on the board. */
   startCueIndex?: number;
   /** Runs as each cue begins, before it draws. */
@@ -70,12 +64,16 @@ export async function drawLectureTimeline(options: {
     options.setAnimationSpeed?.(1);
 
     if (cue.commands.length > 0) {
-      await drawExportCue({
+      const getDiagram = options.getDiagram ?? (() => null);
+      const codeLesson = getDiagram()?.layout === "code_lesson" ||
+        cue.commands.some((command) => command.type === "TYPE" || command.type === "FRAME");
+      await (codeLesson ? drawCodeLessonExportCue : drawExportCue)({
         cue,
         executeCommand,
         getClockMs,
         waitForAdvance,
         shouldCancel,
+        getDiagram,
       });
     }
 
@@ -83,12 +81,98 @@ export async function drawLectureTimeline(options: {
   }
 }
 
+/**
+ * One recorded sentence, drawn by the same engine as the live lesson and the
+ * replay (`drawSegmentInk`), on the recording's clock.
+ *
+ * This used to be its own scheduler. Without a word alignment (always the case
+ * for the Sarvam voice) every shape started at 0 ms, so a figure intro's parts
+ * were all drawn in the first seconds of the sentence and the board then stood
+ * still under the rest of it (17 s to 39 s of a 203 s lesson, 19 Oct 2026).
+ * FOCUS also had no schedule and traced at the top of its sentence. Now every
+ * cued part waits for its word, estimated across the clip's real length when
+ * there is no alignment, and FOCUS traces each part as it is named.
+ */
 async function drawExportCue(options: {
   cue: ReplayCue;
   executeCommand: ExportExecuteCommand;
   getClockMs: () => number;
   waitForAdvance: () => Promise<void>;
   shouldCancel: () => boolean;
+  getDiagram: () => VerifiedDiagram | null;
+}): Promise<void> {
+  const { cue, executeCommand, getClockMs, waitForAdvance, shouldCancel } = options;
+  const narration = cue.narration;
+  const durationMs = cue.durationMs;
+  const trustedDiagramGeometry =
+    cue.trustedDiagramGeometry || isStoredCommandTrustedGeometry(cue.segment.command);
+  const plan = planSegmentInk({
+    commands: cue.commands,
+    verifiedDiagramIntro: trustedDiagramGeometry,
+    hasNarration: narration.length > 0,
+  });
+  // The cue (recorded audio, or its replay estimate) owns speech time.
+  // Notation expands when spoken; a fixed per-character rate can place
+  // estimated targets after that cue and exhaust the bounded tail.
+  const spokenChars = mathToSpeech(narration.trim()).length;
+  const getDrawClockMs = createScheduledWriteClock({
+    getRawPositionMs: () => Math.max(0, getClockMs() - cue.startMs),
+    nowMs: getClockMs,
+  });
+  // The export clock only moves when the encoder pumps it, so a wait is a
+  // wait for the next pump, never wall-time polling.
+  const waitUntilMs = async (targetMs: number, getTargetMs?: () => number): Promise<void> => {
+    while (!shouldCancel() && getDrawClockMs() + 10 < (getTargetMs?.() ?? targetMs)) {
+      await waitForAdvance();
+    }
+  };
+
+  await drawSegmentInk({
+    plan,
+    verifiedDiagramIntro: trustedDiagramGeometry,
+    clock: {
+      narration,
+      getTimings: () => cue.segment.timings,
+      totalSpeechMs: narration ? durationMs : Math.max(plan.totalDrawWeight, 200),
+      estimatedSpeechMs: durationMs,
+      // Without an alignment, cue words are estimated across the clip's
+      // real length rather than the default speaking rate.
+      msPerChar: !cue.segment.timings && spokenChars > 0 ? durationMs / spokenChars : undefined,
+      getAudioPositionMs: getDrawClockMs,
+      // The board's time source is this media clock.
+      getPlaybackRate: () => 1,
+      nowMs: getClockMs,
+      // No isSpeechComplete: a figure part still drawing when its sentence
+      // ends keeps its pace in the file (the next cue waits for it) instead
+      // of landing instantly.
+      canAdvanceAfterSpeech: () => true,
+      waitUntilMs,
+    },
+    getDiagram: options.getDiagram,
+    isCancelled: shouldCancel,
+    waitWhilePaused: async () => !shouldCancel(),
+    execute: executeCommand,
+    commandOptions: () => ({
+      applyLayout: false,
+      isCancelled: shouldCancel,
+      trustedDiagramGeometry,
+    }),
+  });
+}
+
+/**
+ * A code lesson keeps the export scheduler its walk-through was tuned on: the
+ * code panel is drawn from lecture time and its FRAME and TYPE beats settle
+ * on this clock. The live runner's spoken walks would run them past the
+ * bounded export tail.
+ */
+async function drawCodeLessonExportCue(options: {
+  cue: ReplayCue;
+  executeCommand: ExportExecuteCommand;
+  getClockMs: () => number;
+  waitForAdvance: () => Promise<void>;
+  shouldCancel: () => boolean;
+  getDiagram?: () => VerifiedDiagram | null;
 }): Promise<void> {
   const { cue, executeCommand, getClockMs, waitForAdvance, shouldCancel } = options;
   const segmentCommands = cue.commands;

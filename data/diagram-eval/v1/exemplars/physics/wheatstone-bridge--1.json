@@ -1,0 +1,358 @@
+{
+  "topic_id": "physics|12|wheatstone-and-metre-bridge",
+  "question": "Draw a balanced Wheatstone bridge with arms P=8 Ω (A to B), Q=12 Ω (B to C), R=10 Ω (A to D) and S=15 Ω (D to C). A galvanometer joins B and D; a 6 V cell is across A and C with A positive. Mark branch current directions and the zero galvanometer current.",
+  "figure_kind": "circuit",
+  "sceneDocument": {
+    "schemaVersion": "scene-document/v2",
+    "visualDecision": {
+      "mode": "scene",
+      "reason": "Balanced four-arm Wheatstone bridge, galvanometer diagonal, source polarity and currents"
+    },
+    "source": {
+      "question": "Draw a balanced Wheatstone bridge with arms P=8 Ω (A to B), Q=12 Ω (B to C), R=10 Ω (A to D) and S=15 Ω (D to C). A galvanometer joins B and D; a 6 V cell is across A and C with A positive. Mark branch current directions and the zero galvanometer current.",
+      "archetype": "wheatstone_bridge"
+    },
+    "quantities": [],
+    "entities": [
+      {
+        "id": "A",
+        "kind": "point",
+        "role": "A",
+        "label": "A"
+      },
+      {
+        "id": "B",
+        "kind": "point",
+        "role": "B",
+        "label": "B"
+      },
+      {
+        "id": "C",
+        "kind": "point",
+        "role": "C",
+        "label": "C"
+      },
+      {
+        "id": "D",
+        "kind": "point",
+        "role": "D",
+        "label": "D"
+      },
+      {
+        "id": "L",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "Rnode",
+        "kind": "point",
+        "role": "construction helper"
+      },
+      {
+        "id": "P",
+        "kind": "component",
+        "role": "resistor",
+        "label": "P = 8 Ω"
+      },
+      {
+        "id": "Q",
+        "kind": "component",
+        "role": "resistor",
+        "label": "Q = 12 Ω"
+      },
+      {
+        "id": "R",
+        "kind": "component",
+        "role": "resistor",
+        "label": "R = 10 Ω"
+      },
+      {
+        "id": "S",
+        "kind": "component",
+        "role": "resistor",
+        "label": "S = 15 Ω"
+      },
+      {
+        "id": "G",
+        "kind": "component",
+        "role": "galvanometer",
+        "label": "G, I_G = 0"
+      },
+      {
+        "id": "wA",
+        "kind": "connector",
+        "role": "wA"
+      },
+      {
+        "id": "cell",
+        "kind": "component",
+        "role": "cell",
+        "label": "6 V"
+      },
+      {
+        "id": "wC",
+        "kind": "connector",
+        "role": "wC"
+      },
+      {
+        "id": "I1",
+        "kind": "sign_badge",
+        "role": "current direction",
+        "label": "I1"
+      },
+      {
+        "id": "I2",
+        "kind": "sign_badge",
+        "role": "current direction",
+        "label": "I2"
+      }
+    ],
+    "constructions": [
+      {
+        "id": "make_A",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "A"
+        ]
+      },
+      {
+        "id": "make_B",
+        "operator": "point",
+        "inputs": {
+          "x": 3,
+          "y": 4,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "B"
+        ]
+      },
+      {
+        "id": "make_C",
+        "operator": "point",
+        "inputs": {
+          "x": 6,
+          "y": 2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "C"
+        ]
+      },
+      {
+        "id": "make_D",
+        "operator": "point",
+        "inputs": {
+          "x": 3,
+          "y": 0,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "D"
+        ]
+      },
+      {
+        "id": "make_L",
+        "operator": "point",
+        "inputs": {
+          "x": 0,
+          "y": -2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "L"
+        ]
+      },
+      {
+        "id": "make_Rnode",
+        "operator": "point",
+        "inputs": {
+          "x": 6,
+          "y": -2,
+          "coordinateSpace": "world"
+        },
+        "outputs": [
+          "Rnode"
+        ]
+      },
+      {
+        "id": "make_P",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "resistor",
+          "start": "A",
+          "end": "B"
+        },
+        "outputs": [
+          "P"
+        ]
+      },
+      {
+        "id": "make_Q",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "resistor",
+          "start": "B",
+          "end": "C"
+        },
+        "outputs": [
+          "Q"
+        ]
+      },
+      {
+        "id": "make_R",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "resistor",
+          "start": "A",
+          "end": "D"
+        },
+        "outputs": [
+          "R"
+        ]
+      },
+      {
+        "id": "make_S",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "resistor",
+          "start": "D",
+          "end": "C"
+        },
+        "outputs": [
+          "S"
+        ]
+      },
+      {
+        "id": "make_G",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "galvanometer",
+          "start": "B",
+          "end": "D"
+        },
+        "outputs": [
+          "G"
+        ]
+      },
+      {
+        "id": "make_wA",
+        "operator": "connect",
+        "inputs": {
+          "start": "A",
+          "end": "L"
+        },
+        "outputs": [
+          "wA"
+        ]
+      },
+      {
+        "id": "make_cell",
+        "operator": "symbol",
+        "inputs": {
+          "symbol": "cell",
+          "start": "L",
+          "end": "Rnode"
+        },
+        "outputs": [
+          "cell"
+        ]
+      },
+      {
+        "id": "make_wC",
+        "operator": "connect",
+        "inputs": {
+          "start": "Rnode",
+          "end": "C"
+        },
+        "outputs": [
+          "wC"
+        ]
+      },
+      {
+        "id": "make_I1",
+        "operator": "sign_badge",
+        "inputs": {
+          "target": "P",
+          "sense": "positive",
+          "at": 0.22
+        },
+        "outputs": [
+          "I1"
+        ]
+      },
+      {
+        "id": "make_I2",
+        "operator": "sign_badge",
+        "inputs": {
+          "target": "R",
+          "sense": "positive",
+          "at": 0.22
+        },
+        "outputs": [
+          "I2"
+        ]
+      }
+    ],
+    "relations": [],
+    "assertions": [],
+    "annotations": [],
+    "requiredEntityIds": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "L",
+      "Rnode",
+      "P",
+      "Q",
+      "R",
+      "S",
+      "G",
+      "wA",
+      "cell",
+      "wC",
+      "I1",
+      "I2"
+    ],
+    "revealGroups": [
+      {
+        "id": "setup",
+        "entityIds": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "L",
+          "Rnode",
+          "P",
+          "Q",
+          "R",
+          "S",
+          "G",
+          "wA",
+          "cell",
+          "wC",
+          "I1",
+          "I2"
+        ],
+        "dependsOn": [],
+        "narrationCue": "Balanced four-arm Wheatstone bridge, galvanometer diagonal, source polarity and currents"
+      }
+    ],
+    "teachingTimeline": [
+      {
+        "id": "reveal_setup",
+        "action": "reveal",
+        "targetId": "setup",
+        "dependsOn": [],
+        "narrationIntent": "Balanced four-arm Wheatstone bridge, galvanometer diagonal, source polarity and currents"
+      }
+    ]
+  }
+}
