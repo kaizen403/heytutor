@@ -108,6 +108,19 @@ function drawn(input: FloorFigureInput, kind: string) {
   check(!buildFloorFigure({ question, turnPlan: short }).figure, "three stated resistors but two values declines");
 }
 
+// 2b. Two stated arrangements draw as two panels; a series part with a parallel pair draws as one ladder.
+{
+  const question = "A 3 Ω resistor and a 6 Ω resistor are connected first in series and then in parallel across a 9 V battery. Find the current each time.";
+  const figure = drawn({ question, turnPlan: plan(question, [["R_1", 3, "Ω", "3 Ω"], ["R_2", 6, "Ω", "6 Ω"], ["V", 9, "V", "9 V battery"]], [["I", "A"]]) }, "circuit");
+  check(figure.document.assertions.some((assertion) => assertion.predicate === "path") &&
+    figure.document.assertions.some((assertion) => assertion.predicate === "sameTerminalPair"), "both stated arrangements are proved");
+  check(texts(figure.renderScene).filter((text) => text === "R_1 = 3 Ω").length === 2, "each panel carries the stated values");
+  const mixed = "A 2 Ω resistor is in series with a parallel pair of 4 Ω and 12 Ω across a 10 V battery. Find the current from the battery.";
+  const ladder = drawn({ question: mixed, turnPlan: plan(mixed, [["R_1", 2, "Ω", "2 Ω"], ["R_2", 4, "Ω", "4 Ω"], ["R_3", 12, "Ω", "12 Ω"], ["V", 10, "V", "10 V battery"]], [["I", "A"]]) }, "circuit");
+  const pair = ladder.document.assertions.find((assertion) => assertion.predicate === "sameTerminalPair")!;
+  check(pair.entities.length === 2 && pair.entities.includes("load_2") && pair.entities.includes("load_3"), "only the stated pair shares a terminal pair");
+}
+
 // 3. Concept circuit: the stated arrangement only, no values.
 {
   const question = "Explain how a parallel circuit works.";
@@ -211,8 +224,10 @@ function drawn(input: FloorFigureInput, kind: string) {
   check(shown.some((text) => /x\^2|x²/.test(text)), "the stated curve is named");
   check(!shown.some((text) => /\(\s*1\s*,\s*1\s*\)|1\/6/.test(text)), "computed intersections and the area are never written");
   // Each equation is written from an anchor on its own curve, where the curves are farthest apart.
+  const curveIds = new Set(figure.document.constructions.filter((construction) => construction.operator === "function_curve").map((construction) => construction.outputs[0]));
   check(figure.document.constructions.filter((construction) => construction.operator === "label" &&
-    String(construction.inputs.target).endsWith("_tag")).length === 2, "both stated equations are written from anchors");
+    curveIds.has(String(construction.inputs.target).replace(/_tag$/, ""))).length === 2, "both stated equations are written from anchors");
+  check(shown.includes("x") && shown.includes("y"), "the axes carry their plain names");
   for (const curve of figure.document.constructions.filter((construction) => construction.operator === "function_curve")) {
     const id = curve.outputs[0]!;
     const anchor = figure.document.constructions.find((construction) => construction.outputs[0] === `${id}_tag`);

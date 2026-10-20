@@ -82,6 +82,7 @@ export function buildGraphFloor(facts: FloorFacts): FloorKindBuild | { declined:
   document.quantities = document.quantities.filter((quantity) => facts.values.some((value) =>
     value.quantityId === quantity.id && value.value === quantity.value));
   pinCurveLabels(document);
+  nameAxes(document);
   for (const entity of document.entities) entity.provenance = { ...(entity.provenance ?? {}), floor: true, reusedFamily: scene.family };
   document.source = {
     question: facts.question,
@@ -94,7 +95,9 @@ export function buildGraphFloor(facts: FloorFacts): FloorKindBuild | { declined:
   };
   document.visualDecision = { mode: "scene", reason: "the stated equations, plotted by the engine" };
   const validated = validateSceneDocument(pruneDeadSceneEntities(document as unknown as Record<string, unknown>));
-  if (!validated.document) return { declined: "the stated graph does not survive label removal" };
+  if (!validated.document) {
+    return { declined: `the stated graph does not survive label removal: ${validated.report.issues.filter((issue) => issue.severity === "fatal").map((issue) => issue.code).join(", ")}` };
+  }
   return {
     document: validated.document,
     names: AXIS_NAMES,
@@ -125,7 +128,9 @@ function pinCurveLabels(document: SceneDocument): void {
     const entity = document.entities.find((candidate) => candidate.id === id);
     if (!entity?.label) continue;
     const from = Math.max(Number(construction.inputs.xMin), xLow), to = Math.min(Number(construction.inputs.xMax), xHigh);
-    let best: { x: number; y: number; gap: number } | null = null;
+    // Candidates inside the frame; among those at least 70% as far from the other
+    // curves as the best, the rightmost, away from the y axis and its name.
+    const candidates: Array<{ x: number; y: number; gap: number }> = [];
     for (let step = 1; step < 20; step += 1) {
       const x = from + ((to - from) * step) / 20, y = value(curve, x);
       if (y === null || y < yMin || y > yMax) continue;
@@ -133,24 +138,50 @@ function pinCurveLabels(document: SceneDocument): void {
         const otherY = value(other.curve, x);
         return otherY === null ? [] : [Math.abs(otherY - y)];
       });
-      const gap = gaps.length ? Math.min(...gaps) : Infinity;
-      const preferRight = step / 20;
-      if (!best || gap + preferRight * 1e-6 > best.gap) best = { x, y, gap: gap + preferRight * 1e-6 };
+      candidates.push({ x, y, gap: gaps.length ? Math.min(...gaps) : Infinity });
     }
-    if (!best) continue;
+    if (candidates.length === 0) continue;
+    const widest = Math.max(...candidates.map((candidate) => candidate.gap));
+    const best = candidates.filter((candidate) => candidate.gap >= widest * 0.7).at(-1)!;
+    // A written label is compact (16 characters); the question's own spelling, closed up if needed.
+    const text = entity.label.length <= 16 ? entity.label : entity.label.replace(/\s+/g, "");
+    if (text.length > 16) continue;
     const anchor = `${id}_tag`, name = `${id}_name`;
     document.entities.push(
       { id: anchor, kind: "point", role: "label anchor point" },
-      { id: name, kind: "label", role: `equation of ${id}`, label: entity.label },
+      { id: name, kind: "label", role: `equation of ${id}`, label: text },
     );
     document.constructions.push(
       { id: `place_${anchor}`, operator: "point", inputs: { x: best.x, y: best.y, coordinateSpace: "world" }, outputs: [anchor] },
-      { id: `write_${name}`, operator: "label", inputs: { target: anchor, text: entity.label }, outputs: [name] },
+      { id: `write_${name}`, operator: "label", inputs: { target: anchor, text }, outputs: [name] },
     );
     document.assertions = document.assertions.filter((assertion) => !(assertion.predicate === "label_attached" && assertion.entities.includes(id)));
     delete entity.label;
     document.requiredEntityIds.push(anchor, name);
     const group = document.revealGroups.find((candidate) => candidate.entityIds.includes(id));
     group?.entityIds.push(anchor, name);
+  }
+}
+
+/** Plain axis names at the positive ends of a planar frame that has none: "x" and "y", never a scale. */
+function nameAxes(document: SceneDocument): void {
+  const axes = document.constructions.find((construction) => construction.operator === "axes");
+  const id = axes?.outputs[0];
+  if (!axes || !id) return;
+  const { xMax, yMax } = axes.inputs as Record<string, unknown>;
+  if (typeof xMax !== "number" || typeof yMax !== "number" || xMax <= 0 || yMax <= 0) return;
+  const written = new Set(document.constructions.flatMap((construction) =>
+    construction.operator === "label" && typeof construction.inputs.text === "string" ? [construction.inputs.text.trim()] : []));
+  const group = document.revealGroups.find((candidate) => candidate.entityIds.includes(id));
+  for (const [name, x, y] of [["x", xMax, 0], ["y", 0, yMax]] as const) {
+    if (written.has(name)) continue;
+    const anchor = `${id}_${name}_tag`, label = `${id}_${name}_name`;
+    document.entities.push({ id: anchor, kind: "point", role: "label anchor point" }, { id: label, kind: "label", role: `${name} axis name`, label: name });
+    document.constructions.push(
+      { id: `place_${anchor}`, operator: "point", inputs: { x, y, coordinateSpace: "world" }, outputs: [anchor] },
+      { id: `write_${label}`, operator: "label", inputs: { target: anchor, text: name }, outputs: [label] },
+    );
+    document.requiredEntityIds.push(anchor, label);
+    group?.entityIds.push(anchor, label);
   }
 }

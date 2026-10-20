@@ -36,6 +36,8 @@ function glyphFor(object: FloorObject, label: string | null): Glyph | null {
   return null;
 }
 
+type Arrangement = "series" | "parallel" | { series: Part[]; parallel: Part[] };
+
 interface Part {
   id: string;
   glyph: Glyph;
@@ -138,12 +140,30 @@ function layOutCircuit(
   if (sources.length > 1) return { declined: "more than one source" };
   if (loads.length === 0 || loads.length > 4) return { declined: "no load, or more loads than the floor lays out" };
   const topology = statedTopology(facts.question);
-  if (topology === "both") return { declined: "a series and parallel combination needs stated connections" };
-  const layout = topology ?? (loads.length === 1 ? "series" : null);
-  if (!layout) return { declined: "the question does not state how the parts are joined" };
-  if (layout === "parallel" && loads.length < 2) return { declined: "parallel needs two or more loads" };
-  if (junction && !(layout === "series" && loads.length === 2)) return { declined: "a junction is placed only between two series loads" };
   assignValues(parts, objects, facts);
+  // "First in series and then in parallel": both stated arrangements, one panel each.
+  const sequence = facts.question.match(/\bfirst\b[^.?]*?\b(series|parallel)\b[^.?]*?\bthen\b[^.?]*?\b(series|parallel)\b/i);
+  // "R in series with a parallel pair of P and Q": the parts the question names after the phrase form the parallel group.
+  const groupPhrase = /\bin series with (?:a |the )?parallel (?:pair|combination|arrangement|group|set)\b/i.exec(facts.question);
+  let layouts: Arrangement[];
+  if (sequence && sequence[1]!.toLowerCase() !== sequence[2]!.toLowerCase()) {
+    if (across.size > 0 || junction) return { declined: "meters and junctions are not drawn in two arrangements" };
+    layouts = [sequence[1]!.toLowerCase() as "series" | "parallel", sequence[2]!.toLowerCase() as "series" | "parallel"];
+  } else if (groupPhrase && !sequence) {
+    const after = loads.filter((load) => load.value && load.value.sourceIndex > groupPhrase.index);
+    const before = loads.filter((load) => !after.includes(load));
+    if (after.length !== 2 || before.length !== 1 || loads.some((load) => !load.value) || across.size > 0 || junction) {
+      return { declined: "the series and parallel parts are not each stated by value" };
+    }
+    layouts = [{ series: before, parallel: after }];
+  } else {
+    if (topology === "both") return { declined: "a series and parallel combination needs stated connections" };
+    const layout = topology ?? (loads.length === 1 ? "series" : null);
+    if (!layout) return { declined: "the question does not state how the parts are joined" };
+    layouts = [layout];
+  }
+  if (layouts.some((layout) => layout === "parallel") && loads.length < 2) return { declined: "parallel needs two or more loads" };
+  if (junction && !(layouts.length === 1 && layouts[0] === "series" && loads.length === 2)) return { declined: "a junction is placed only between two series loads" };
 
   const built = emptyParts();
   const names: string[] = [];
@@ -175,58 +195,78 @@ function layOutCircuit(
     return id;
   };
   const source = sources[0] ?? null;
-  if (layout === "series") {
-    const width = span * loads.length;
-    addNode("n_bl", 0, 0);
-    addNode("n_tl", 0, height);
-    loads.forEach((_, index) => addNode(`n_t${index + 1}`, span * (index + 1), height));
-    addNode("n_br", width, 0);
-    if (junction) {
-      // The junction is the stated point itself, under its source name.
-      const junctionNode = built.entities.find((entity) => entity.id === "n_t1")!;
-      junctionNode.id = junction.id;
-      junctionNode.label = junction.name!;
-      junctionNode.role = "stated junction between the two series loads";
-      junctionNode.provenance = { floor: true, objectId: junction.id };
-      built.constructions.find((construction) => construction.outputs[0] === "n_t1")!.outputs = [junction.id];
-      nodes[nodes.indexOf("n_t1")] = junction.id;
-      names.push(junction.name!);
-      const asked = facts.problem?.facts.filter((fact) => fact.kind === "requested" &&
-        fact.evidence.quote.toLowerCase().includes(junction.name!.toLowerCase())) ?? [];
-      const voltages = facts.unknowns.filter((unknown) =>
-        unitDimension(facts.plan.unknowns.find((planned) => planned.id === unknown.quantityId)?.unit) === "voltage");
-      if (asked.length === 1 && voltages.length === 1 && facts.unknowns.length === 1) {
-        built.annotations.push(appendLabel(`asked_${junction.id}`, junction.id, `${voltages[0]!.symbol} = ?`));
+  const panel = (layout: Arrangement, offset: number, suffix: string) => {
+    const at = (id: string) => `${id}${suffix}`;
+    const copy = (part: Part): Part => suffix ? { ...part, id: `${part.id}${suffix}` } : part;
+    if (layout === "series") {
+      const width = span * loads.length;
+      addNode(at("n_bl"), offset, 0);
+      addNode(at("n_tl"), offset, height);
+      loads.forEach((_, index) => addNode(at(`n_t${index + 1}`), offset + span * (index + 1), height));
+      addNode(at("n_br"), offset + width, 0);
+      if (junction) {
+        // The junction is the stated point itself, under its source name.
+        const junctionNode = built.entities.find((entity) => entity.id === "n_t1")!;
+        junctionNode.id = junction.id;
+        junctionNode.label = junction.name!;
+        junctionNode.role = "stated junction between the two series loads";
+        junctionNode.provenance = { floor: true, objectId: junction.id };
+        built.constructions.find((construction) => construction.outputs[0] === "n_t1")!.outputs = [junction.id];
+        nodes[nodes.indexOf("n_t1")] = junction.id;
+        names.push(junction.name!);
+        const asked = facts.problem?.facts.filter((fact) => fact.kind === "requested" &&
+          fact.evidence.quote.toLowerCase().includes(junction.name!.toLowerCase())) ?? [];
+        const voltages = facts.unknowns.filter((unknown) =>
+          unitDimension(facts.plan.unknowns.find((planned) => planned.id === unknown.quantityId)?.unit) === "voltage");
+        if (asked.length === 1 && voltages.length === 1 && facts.unknowns.length === 1) {
+          built.annotations.push(appendLabel(`asked_${junction.id}`, junction.id, `${voltages[0]!.symbol} = ?`));
+        }
       }
+      const node = (id: string) => junction && id === "n_t1" ? junction.id : at(id);
+      const pathIds: string[] = [];
+      if (source) { const part = copy(source); partEntity(part, at("n_bl"), at("n_tl")); pathIds.push(part.id); }
+      else pathIds.push(wire(at("n_bl"), at("n_tl")));
+      loads.forEach((load, index) => {
+        const part = copy(load);
+        partEntity(part, index === 0 ? at("n_tl") : node(`n_t${index}`), node(`n_t${index + 1}`));
+        pathIds.push(part.id);
+      });
+      pathIds.push(wire(node(`n_t${loads.length}`), at("n_br")));
+      if (source) pathIds.push(wire(at("n_br"), at("n_bl")));
+      built.assertions.push({ id: at("floor_series_path"), predicate: "path", entities: pathIds, expected: true, severity: "fatal",
+        reason: "the stated parts form one series path" });
+      return;
     }
-    const node = (id: string) => junction && id === "n_t1" ? junction.id : id;
-    const pathIds: string[] = [];
-    if (source) { partEntity(source, "n_bl", "n_tl"); pathIds.push(source.id); }
-    else pathIds.push(wire("n_bl", "n_tl"));
-    loads.forEach((load, index) => {
-      partEntity(load, index === 0 ? "n_tl" : node(`n_t${index}`), node(`n_t${index + 1}`));
-      pathIds.push(load.id);
+    // A ladder: the source (or the two terminals) on the left, then any stated
+    // series part on the top rail, then each parallel load on its own rung.
+    const series = layout === "parallel" ? [] : layout.series;
+    const rungs = layout === "parallel" ? loads : layout.parallel;
+    addNode(at("n_bl"), offset, 0);
+    addNode(at("n_tl"), offset, height);
+    if (source) partEntity(copy(source), at("n_bl"), at("n_tl"));
+    let top = at("n_tl");
+    series.forEach((load, index) => {
+      const next = at(`n_s${index + 1}`);
+      addNode(next, offset + span * (index + 1), height);
+      partEntity(copy(load), top, next);
+      top = next;
     });
-    pathIds.push(wire(node(`n_t${loads.length}`), "n_br"));
-    if (source) pathIds.push(wire("n_br", "n_bl"));
-    built.assertions.push({ id: "floor_series_path", predicate: "path", entities: pathIds, expected: true, severity: "fatal",
-      reason: "the stated parts form one series path" });
-  } else {
-    // A ladder: the source (or the two terminals) on the left, each load on its
-    // own rung between the top and bottom rails, so every part closes its own loop.
-    addNode("n_bl", 0, 0);
-    addNode("n_tl", 0, height);
-    loads.forEach((_, index) => { addNode(`n_b${index + 1}`, span * (index + 1), 0); addNode(`n_t${index + 1}`, span * (index + 1), height); });
-    if (source) partEntity(source, "n_bl", "n_tl");
-    loads.forEach((load, index) => {
-      wire(index === 0 ? "n_tl" : `n_t${index}`, `n_t${index + 1}`);
-      wire(index === 0 ? "n_bl" : `n_b${index}`, `n_b${index + 1}`);
-      partEntity(load, `n_b${index + 1}`, `n_t${index + 1}`);
+    let bottom = at("n_bl");
+    rungs.forEach((load, index) => {
+      const x = offset + span * (series.length + index + 1);
+      addNode(at(`n_b${index + 1}`), x, 0);
+      addNode(at(`n_t${index + 1}`), x, height);
+      wire(index === 0 ? top : at(`n_t${index}`), at(`n_t${index + 1}`));
+      wire(index === 0 ? bottom : at(`n_b${index}`), at(`n_b${index + 1}`));
+      partEntity(copy(load), at(`n_b${index + 1}`), at(`n_t${index + 1}`));
     });
-    const bank = [...(source ? [source] : []), ...loads];
-    built.assertions.push({ id: "floor_parallel_pair", predicate: "sameTerminalPair", entities: bank.map((part) => part.id), expected: true,
-      severity: "fatal", reason: "the stated parts share one terminal pair" });
-  }
+    bottom = at("n_bl");
+    const bank = rungs.map((load) => copy(load).id);
+    built.assertions.push({ id: at("floor_parallel_pair"), predicate: "sameTerminalPair",
+      entities: series.length === 0 && source ? [copy(source).id, ...bank] : bank, expected: true,
+      severity: "fatal", reason: "the stated parallel parts share one terminal pair" });
+  };
+  layouts.forEach((layout, index) => panel(layout, index * (span * (loads.length + 2)), index === 0 ? "" : "__second"));
   for (const [meterId, partnerId] of across) {
     const meter = parts.find((part) => part.id === meterId)!;
     const ends = terminals.get(partnerId);
@@ -237,15 +277,16 @@ function layOutCircuit(
     built.assertions.push({ id: `floor_parallel_${meterId}`, predicate: "parallel", entities: [meterId, partnerId], expected: true,
       severity: "fatal", reason: "the stated parallel relation" });
   }
+  const described = layouts.map((layout) => typeof layout === "string" ? layout : "series and parallel").join(" then ");
   built.groups.push({ id: "floor_circuit", entityIds: built.entities.map((entity) => entity.id),
-    cue: `The ${layout} circuit the question describes, with its stated values.` });
+    cue: `The ${described} circuit the question describes, with its stated values.` });
   const labelled = parts.filter((part) => part.name || part.value).length;
   if (labelled === 0) return { declined: "no part carries a stated name or value" };
   return {
-    document: floorDocument(facts, "circuit", built, `stated ${layout} circuit`),
+    document: floorDocument(facts, "circuit", built, `stated ${described} circuit`),
     names,
     directedInk: false,
-    reason: `the stated ${layout} circuit: ${parts.map((part) => part.glyph).join(", ")}`,
+    reason: `the stated ${described} circuit: ${parts.map((part) => part.glyph).join(", ")}`,
   };
 }
 
@@ -262,7 +303,7 @@ const COUNT_WORDS: Record<string, number> = { two: 2, three: 3, four: 4, "2": 2,
 function inventoryWithoutProblem(facts: FloorFacts): { parts: Part[] } | { declined: string } | null {
   const text = facts.question.toLowerCase();
   if (!/\b(?:circuit|resistors?|capacitors?|inductors?|battery|cell)\b/.test(text)) return null;
-  if (/\b(?:ammeter|voltmeter|galvanometer|switch|key|lamp|bulb|diode|transistor|bridge|potentiometer|rheostat|jockey|internal resistance|kirchhoff|loop|branch(?:es)?|node|junction|between [a-z] and [a-z])\b/.test(text)) {
+  if (/\b(?:ammeter|voltmeter|galvanometer|switch|key|lamp|bulb|diode|transistor|bridge|potentiometer|rheostat|jockey|internal resistance|kirchhoff|loop|(?:first|second|third|each|one|two|three) branch(?:es)?|node|junction|between [a-z] and [a-z])\b/.test(text)) {
     return { declined: "the question names a part or node the floor cannot place without a ProblemIR" };
   }
   const glyphOfValue = (value: FloorStatedValue): Glyph | null => {
