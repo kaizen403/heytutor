@@ -1985,6 +1985,7 @@ function evaluateConstruction(
       return [{ kind: "path", infinite: true, points: [vertex, { x: vertex.x + u.x + v.x, y: vertex.y + u.y + v.y }] }];
     }
     case "angle_mark": {
+      if (Object.hasOwn(inputs, "incidentLineArms")) throw new Error("incidentLineArms is only supported by right_angle_mark");
       const vertex = point(["vertex"]);
       const aRef = first(inputs, ["a", "first"]);
       const bRef = first(inputs, ["b", "second"]);
@@ -2018,9 +2019,13 @@ function evaluateConstruction(
       }];
     }
     case "right_angle_mark": {
+      if (Object.hasOwn(inputs, "incidentLineArms") && typeof inputs.incidentLineArms !== "boolean") {
+        throw new Error("right_angle_mark incidentLineArms must be boolean");
+      }
       const vertex = point(["vertex"]);
-      const a = resolveAngleArmPoint(first(inputs, ["a", "first"]), vertex, geometry);
-      const b = resolveAngleArmPoint(first(inputs, ["b", "second"]), vertex, geometry);
+      const arm = inputs.incidentLineArms === true ? resolveIncidentLineArmPoint : resolveAngleArmPoint;
+      const a = arm(first(inputs, ["a", "first"]), vertex, geometry);
+      const b = arm(first(inputs, ["b", "second"]), vertex, geometry);
       const u = normalize({ x: a.x - vertex.x, y: a.y - vertex.y });
       const v = normalize({ x: b.x - vertex.x, y: b.y - vertex.y });
       // A square corner asserts perpendicularity. Normalize first so the
@@ -5232,6 +5237,26 @@ function resolveAngleArmPoint(value: unknown, vertex: Point, geometry: Map<strin
   if (distance(firstPoint, vertex) < EPSILON && distance(lastPoint, vertex) >= EPSILON) return lastPoint;
   if (distance(lastPoint, vertex) < EPSILON && distance(firstPoint, vertex) >= EPSILON) return firstPoint;
   throw new Error("angle arm path must meet the angle vertex at exactly one endpoint");
+}
+/** Opt-in straight-owner incidence; default angle-arm endpoint semantics stay unchanged. */
+function resolveIncidentLineArmPoint(value: unknown, vertex: Point, geometry: Map<string, Geometry>): Point {
+  if (typeof value !== "string") throw new Error("incident angle arm must reference an existing straight path");
+  const resolved = geometry.get(value);
+  assertPlanarGeometry(resolved);
+  if (resolved?.kind !== "path" || resolved.closed || resolved.sampledCurve !== undefined || resolved.points.length !== 2) {
+    throw new Error("incident angle arm must reference an existing straight path");
+  }
+  const [a, b] = resolved.points as [Point, Point], span = distance(a, b);
+  if (!(span > EPSILON)) throw new Error("incident angle arm is degenerate");
+  if (pointGeometryResidual({ kind: "point", point: vertex }, resolved) > EPSILON) {
+    throw new Error("incident angle vertex is not on its straight arm");
+  }
+  if (!geometryCanReachTarget(resolved, vertex, EPSILON)) {
+    throw new Error("incident angle vertex is behind its ray origin");
+  }
+  if (distance(b, vertex) > EPSILON) return b;
+  if (distance(a, vertex) > EPSILON) return a;
+  throw new Error("incident angle arm has no noncoincident endpoint");
 }
 function resolveLine(value: unknown, geometry: Map<string, Geometry>): [Point, Point] { if (typeof value === "string") { const resolved = geometry.get(value); assertPlanarGeometry(resolved); return asLine(resolved); } if (Array.isArray(value) && value.length === 2) return [resolvePoint(value[0], geometry), resolvePoint(value[1], geometry)]; throw new Error(`invalid line reference ${String(value)}`); }
 function resolveVector(value: unknown, geometry: Map<string, Geometry>): Point {

@@ -1,0 +1,2 @@
+tsx scripts/verify/verify-text-only-narration.ts
+tsx scripts/verify/verify-text-only-board.ts
