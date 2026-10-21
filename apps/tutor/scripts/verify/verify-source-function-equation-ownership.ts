@@ -23,6 +23,11 @@ interface Fixture {
   mustDeclineSourceCurves?: boolean;
   mustRetainNative?: boolean;
   mustRetainFast?: boolean;
+  /** Two or more curves while the stem still speaks about x (a set domain,
+   * f'(x), an evaluation at x = 2) or carries a numeral outside the curve
+   * equations: the whole-curve source-grounded producer must decline. Native
+   * routes keep their own proof; mustDrawExplicitCurves then applies to them. */
+  sourceGroundedDeclines?: boolean;
   exactCurveExpressions?: readonly string[];
   equations: readonly SourceEquation[];
 }
@@ -204,7 +209,7 @@ const fixtures: readonly Fixture[] = [
   {
     id: "bare-constant-controls",
     question: "Graph y=4 and y=2. x,y ∈ N.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: true,
     equations: [
       sourceEquation("y=4", [[-1.0, 4.0], [0.0, 4.0], [1.0, 4.0]]),
@@ -214,7 +219,7 @@ const fixtures: readonly Fixture[] = [
   {
     id: "bare-affine-controls",
     question: "Graph y=x+1 and y=2*x-3. x,y ∈ N.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: true,
     equations: [
       sourceEquation("y=x+1", [[-1.0, 0.0], [0.0, 1.0], [1.0, 2.0]]),
@@ -224,7 +229,7 @@ const fixtures: readonly Fixture[] = [
   {
     id: "bare-fraction-controls",
     question: "Graph y=(4-x)/3 and y=(x-2)/2. x,y ∈ N.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: true,
     equations: [
       sourceEquation("y=(4-x)/3", [[-1.0, 1.6666666666666667], [0.0, 1.3333333333333333], [1.0, 1.0]]),
@@ -234,7 +239,7 @@ const fixtures: readonly Fixture[] = [
   {
     id: "bare-unicode-controls",
     question: "Graph y=4−x and y=x−2. x,y ∈ ℕ.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: true,
     equations: [
       sourceEquation("y=4−x", [[-1.0, 5.0], [0.0, 4.0], [1.0, 3.0]]),
@@ -264,7 +269,7 @@ const fixtures: readonly Fixture[] = [
   {
     id: "bare-spaced-controls",
     question: "Plot y = -x + 4 and y = x - 2. x,y ∈ N.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: true,
     equations: [
       sourceEquation("y = -x + 4", [[-1.0, 5.0], [0.0, 4.0], [1.0, 3.0]]),
@@ -394,7 +399,7 @@ const primeAndPluralRetentionFixtures: readonly Fixture[] = [
   {
     id: "retention-ascii-derivative-prime",
     question: "Find f'(x) for f(x)=x^2. Graph y=x^2 and y=2*x.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -404,7 +409,7 @@ const primeAndPluralRetentionFixtures: readonly Fixture[] = [
   {
     id: "retention-unicode-derivative-prime",
     question: "Determine g′(x) when g(x)=x^3. Plot y=x^3 and y=3*x^2.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^3", [[-1, -1], [0, 0], [1, 1], [2, 8]]),
@@ -414,7 +419,7 @@ const primeAndPluralRetentionFixtures: readonly Fixture[] = [
   {
     id: "retention-ascii-second-derivative",
     question: "Calculate f''(x) for f(x)=x^3-2*x. Sketch y=x^3-2*x and y=6*x.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^3-2*x", [[-1, 1], [0, 0], [1, -1], [2, 4]]),
@@ -424,7 +429,7 @@ const primeAndPluralRetentionFixtures: readonly Fixture[] = [
   {
     id: "retention-unicode-second-derivative",
     question: "Find h″(x) for h(x)=x^3. Draw y=x^3 and y=6*x.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^3", [[-1, -1], [0, 0], [1, 1], [2, 8]]),
@@ -434,7 +439,7 @@ const primeAndPluralRetentionFixtures: readonly Fixture[] = [
   {
     id: "retention-ascii-prime-trigonometric",
     question: "First evaluate h'(x) for h(x)=sin(x). Then plot y=sin(x) and y=cos(x).",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=sin(x)", [[0, 0], [0.5, 0.479425538604203], [1, 0.8414709848078965], [2, 0.9092974268256817]]),
@@ -528,7 +533,7 @@ const primeAndPluralRetentionFixtures: readonly Fixture[] = [
   {
     id: "retention-bare-first-and-second-primes",
     question: "Find f' and f'' for f(x)=x^3. Graph y=x^3 and y=3*x^2.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^3", [[-1, -1], [0, 0], [1, 1], [2, 8]]),
@@ -558,7 +563,7 @@ const primeAndPluralRetentionFixtures: readonly Fixture[] = [
   {
     id: "retention-bare-typographic-prime",
     question: "Determine f’ for f(x)=sin(x), then plot y=sin(x) and y=cos(x).",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=sin(x)", [[0, 0], [0.5, 0.479425538604203], [1, 0.8414709848078965], [2, 0.9092974268256817]]),
@@ -800,7 +805,7 @@ const quoteArgumentClassFixtures: readonly Fixture[] = [
   {
     id: "quote-argument-closing-prose-with-math",
     question: "The note says 'y=x' (at x=0). Graph y=x^2 and y=2*x.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -927,7 +932,7 @@ const numericMeasurementMarkFixtures: readonly Fixture[] = [
   {
     id: "reported-numeric-foot-mark-retains-genuine-graphs",
     question: "A ball starts at a height of 5'. Graph y=-x^2+5 and y=0.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=-x^2+5", [[-1, 4], [0, 5], [1, 4], [2, 1]]),
@@ -937,7 +942,7 @@ const numericMeasurementMarkFixtures: readonly Fixture[] = [
   {
     id: "decimal-foot-mark-retains-genuine-graphs",
     question: "The marker stands 5.5' above the floor. Graph y=-x^2+5.5 and y=0.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=-x^2+5.5", [[-1, 4.5], [0, 5.5], [1, 4.5], [2, 1.5]]),
@@ -947,7 +952,7 @@ const numericMeasurementMarkFixtures: readonly Fixture[] = [
   {
     id: "curly-numeric-measurement-retains-genuine-graphs",
     question: "A ball starts at a height of 5’. Graph y=-x^2+5 and y=0.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=-x^2+5", [[-1, 4], [0, 5], [1, 4], [2, 1]]),
@@ -957,7 +962,7 @@ const numericMeasurementMarkFixtures: readonly Fixture[] = [
   {
     id: "typographic-prime-measurement-retains-genuine-graphs",
     question: "A platform is 7′ high. Graph y=x^2 and y=2*x.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -967,7 +972,7 @@ const numericMeasurementMarkFixtures: readonly Fixture[] = [
   {
     id: "numeric-foot-mark-before-plural-curve-instruction",
     question: "The stated length is 12'. Graph the curves y=x^2 and y=2*x.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -977,7 +982,7 @@ const numericMeasurementMarkFixtures: readonly Fixture[] = [
   {
     id: "signed-numeric-mark-before-plot-instruction",
     question: "The survey records a signed offset of -2'. Plot y=x^2 and y=2*x.",
-    mustDrawExplicitCurves: true,
+    mustDrawExplicitCurves: true, sourceGroundedDeclines: true,
     discreteDomain: false,
     equations: [
       sourceEquation("y=x^2", [[-1, 1], [0, 0], [1, 1], [2, 4]]),
@@ -1058,7 +1063,7 @@ lexicalOwnershipFixtures.push(
   { id: "lexical-named-function-unmatched-f", question: "Draw f(x)=sqrt(x) and y=x^2 on the same axes.", mustDrawExplicitCurves: false, mustDeclineSourceCurves: true, discreteDomain: false, equations: [] },
   { id: "lexical-named-function-unmatched-y", question: "Draw y(x)=x^2 and y=2*x on the same axes.", mustDrawExplicitCurves: false, mustDeclineSourceCurves: true, discreteDomain: false, equations: [] },
   { id: "lexical-named-function-owned-alias", question: "Draw f(x)=sqrt(x) and y=sqrt(x) on the same axes.", mustDrawExplicitCurves: true, discreteDomain: false, equations: [rootCurve] },
-  { id: "lexical-named-function-owned-y-alias", question: "Draw y(x)=x^2, y=x^2 and y=2*x on the same axes.", mustDrawExplicitCurves: true, discreteDomain: false, equations: [squareCurve, sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2]])] },
+  { id: "lexical-named-function-owned-y-alias", question: "Draw y(x)=x^2, y=x^2 and y=2*x on the same axes.", mustDrawExplicitCurves: true, sourceGroundedDeclines: true, discreteDomain: false, equations: [squareCurve, sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2]])] },
   { id: "lexical-named-function-normalized-alias", question: "Draw f(x)=2x and y=2*x on the same axes.", mustDrawExplicitCurves: true, discreteDomain: false, equations: [sourceEquation("y=2*x", [[-1, -2], [0, 0], [1, 2]])] },
   { id: "lexical-family-inventory-overflow", question: "Plot y=x, y=x^2, y=x^3, y=sqrt(x), and y=log(x) on one set of axes.", mustDrawExplicitCurves: false, mustDeclineSourceCurves: true, discreteDomain: false, equations: [] },
   { id: "lexical-family-wrapped-inventory", question: "Plot (y = log(x)) together with (y = x^2) on the same axes.", mustDrawExplicitCurves: true, discreteDomain: false, equations: [logCurve, squareCurve] },
@@ -1066,8 +1071,8 @@ lexicalOwnershipFixtures.push(
   // that document; immutable native admission instead uses a complete source copy.
   { id: "lexical-native-implicit-single", question: "Plot (y = x^2) on the same axes.", mustDrawExplicitCurves: true, mustRetainNative: false, discreteDomain: false, equations: [squareCurve] },
   { id: "lexical-separated-equation-wrapper", question: "For comparison display (y = log(x)) beside (y = sin(x)) on shared axes.", mustDrawExplicitCurves: true, discreteDomain: false, equations: [logCurve, sourceEquation("y=sin(x)", [[0, 0], [1, Math.sin(1)], [2, Math.sin(2)]])] },
-  { id: "lexical-attached-evaluation", question: "Compare y=sqrt(x) (at x=2) with y=log(x) using a common frame.", mustDrawExplicitCurves: true, discreteDomain: false, equations: [rootCurve, logCurve] },
-  { id: "lexical-wrapped-attached-evaluation", question: "Compare (y=sqrt(x)) (at x=2) with (y=log(x)) using a common frame.", mustDrawExplicitCurves: true, discreteDomain: false, equations: [rootCurve, logCurve] },
+  { id: "lexical-attached-evaluation", question: "Compare y=sqrt(x) (at x=2) with y=log(x) using a common frame.", mustDrawExplicitCurves: false, sourceGroundedDeclines: true, discreteDomain: false, equations: [rootCurve, logCurve] },
+  { id: "lexical-wrapped-attached-evaluation", question: "Compare (y=sqrt(x)) (at x=2) with (y=log(x)) using a common frame.", mustDrawExplicitCurves: false, sourceGroundedDeclines: true, discreteDomain: false, equations: [rootCurve, logCurve] },
   { id: "lexical-zero-curve-native", question: "In a joint graph show y(x)=x^2 together with y=sin(x).", mustDrawExplicitCurves: false, mustDeclineSourceCurves: true, discreteDomain: false, equations: [] },
 );
 for (const slot of ["(at x=2z)", "(at x=1/0)", "(x=2)", "+(at x=2)"])
@@ -1212,6 +1217,7 @@ function verifyOwnership(fixture: Fixture, representation: SelectedRepresentatio
   const curves = representation.sceneDocument.constructions.filter(({ operator }) => ["function_curve", "implicit_curve"].includes(operator));
   const bareAxes = representation.sceneDocument.constructions.length > 0 && representation.sceneDocument.constructions.every(({ operator }) => operator === "axes");
   if (fixture.mustDeclineSourceCurves) assert(!bareAxes, "bare Cartesian axes cannot stand in for an unowned source program");
+  if (fixture.sourceGroundedDeclines) assert.notEqual(representation.figureSource, "source_grounded", "no whole-curve source figure when the stem speaks about x outside its curves");
   if (fixture.mustDrawExplicitCurves && lexicalOwnershipFixtures.includes(fixture)) assert(curves.length > 0 || String(representation.figureSource) === "linear_source", "genuine explicit equations must retain a complete source figure");
   if (String(representation.figureSource) === "linear_source") {
     verifyNativeEquationOwnership(fixture, representation);
@@ -1280,6 +1286,11 @@ if (process.argv.includes("--review-settings-only")) {
   console.log(`reviewed function settings: ${checks - failed}/${checks} checks passed`);
   process.exit(failed > 0 ? 1 : 0);
 }
+if (process.argv.includes("--review-piecewise-only")) {
+  verifyPiecewiseDefinitionsDecline();
+  console.log(`piecewise definitions decline: ${checks - failed}/${checks} checks passed`);
+  process.exit(failed > 0 ? 1 : 0);
+}
 if (process.argv.includes("--review-forty-only")) {
   verifyReviewedForty();
   console.log(`reviewed forty settings: ${checks - failed}/${checks} checks passed`);
@@ -1298,11 +1309,12 @@ for (const fixture of selectedFixtures) {
     let representation: SelectedRepresentation;
     try { representation = buildSourceGroundedRepresentation(fixture.question, plan); }
     catch (error) {
-      assert(!fixture.mustDrawExplicitCurves, "genuine explicit y-functions must remain drawable");
+      assert(fixture.sourceGroundedDeclines || !fixture.mustDrawExplicitCurves, "genuine explicit y-functions must remain drawable");
       assert.match(error instanceof Error ? error.message : String(error), /required visual representation unavailable/,
         "unsupported equations may explicitly decline, not fail for an unrelated reason");
       return;
     }
+    assert(!fixture.sourceGroundedDeclines, "a stem that speaks about x outside two or more curve equations declines the whole-curve producer");
     if (fixture.mustDrawExplicitCurves) assert(["source_grounded", "linear_source"].includes(representation.figureSource));
     verifyOwnership(fixture, representation);
   });
@@ -2109,6 +2121,68 @@ function verifyReviewedPiAndNamedNewlines(): void {
     assert.equal(prepareFallbackFunctionInventory(question, changed), null, "newline recognition cannot weaken whole-program source proof");
   });
 }
+// The source-grounded producer draws every curve over its own default window
+// and ignores intervals. Two curves plus an interval read as a piecewise
+// definition must decline; drawing both full curves crosses them and shows the
+// parabola outside its piece. Each wording drew both full curves through the
+// source-grounded fallback on 3b22885f (merged #179) before the guard.
+function verifyPiecewiseDefinitionsDecline(): void {
+  const piecewise = [
+    "y = x^2 for x = -2 to 2, otherwise y = 4. Sketch it.",
+    "Sketch y = x^2 for x = 0 to 2 and y = 4 for x > 2",
+    "Sketch y = x^2 from x = 0 to x = 2 and y = 4 beyond that",
+    "Sketch y = x + 1 between x = -1 and x = 1, and y = 2 elsewhere",
+    "Plot y = 2x from x = 0 to x = 3, then y = 6",
+    // Domains written without an interval equality (reviews/pr-252.md fix 1).
+    "Sketch y = x^2 for x < 2 and y = 4 for x >= 2",
+    "Sketch y = x^2 for x < 2 and y = 4 for x ≥ 2",
+    "Sketch y = x^2 for -2 ≤ x ≤ 2 and y = 4 otherwise",
+    "Sketch y = x^2 for -2 <= x <= 2, otherwise y = 4",
+    "Sketch y = x^2 on [-2, 2] and y = 4 elsewhere",
+    "Sketch y = x^2 on the interval [-2, 2] and y = 4 otherwise",
+    "Sketch y = x^2 for x in [-2, 2] and y = 4 otherwise",
+    "Sketch y = x^2 for |x| ≤ 2 and y = 4 otherwise",
+    "Sketch y = x^2 for x from -2 to 2 and y = 4 outside that",
+    "Sketch y = x^2 and y = 4 for x greater than 2",
+    "Draw the piecewise function y = x + 1 if x < 1, y = 2 if x ≥ 1",
+    "Sketch y = 2x for x between 0 and 3, and y = 6 after that",
+    // The structural rule: with two or more curves, any mention of x, a
+    // numeral, interval notation or a comparison outside the curve equations
+    // declines. The first wording is the Greptile thread on #252; marker words
+    // alone kept leaking new paraphrases.
+    "Sketch y = x^2 for x from -2 to 2, and y = 4 for the remaining x",
+    "Sketch y = x^2 for x from -2 to 2 and y = 4 for all other x",
+    "Sketch y = x^2 for x from -2 to 2 and y = 4 for other values of x",
+    "Sketch y = x^2 when x is between 0 and 2, and y = 4 when it is not",
+    "Sketch y = x^2 for x from -2 to 2 and y = 4 on the rest of the domain",
+    "Sketch y = x^2 between -2 and 2 and y = 4 everywhere else",
+    "Sketch y = x^2 for x from 0 to 2, and y = 4 for the other x values",
+    "Sketch y = x^2, and y = 4 beyond x of 2",
+    "Sketch y = x^2 for x up to 2 then y = 4",
+    "Sketch y = x^2 up to 2, then y = 4",
+    "Sketch y = 2x until 3, and y = 6 from there on",
+  ];
+  for (const question of piecewise) {
+    const turnPlan: TurnPlanV3 = { schemaVersion: "turn-plan/v3", question, givens: [], unknowns: [], derived: [], qualitativeClaims: [], lawIds: [], assumptions: [], visualRequirement: "required" };
+    check(`piecewise direct source fallback: ${question}`, () => {
+      let representation: SelectedRepresentation | null = null;
+      try { representation = buildSourceGroundedRepresentation(question, turnPlan); }
+      catch (error) {
+        assert.match(error instanceof Error ? error.message : String(error), /required visual representation unavailable/, "a piecewise source declines explicitly");
+      }
+      assert.equal(representation, null, "the source-grounded producer cannot draw a piecewise definition as whole curves");
+    });
+    for (const route of ["normal", "inferred", "fast", "production"] as const) check(`piecewise declines ${route}: ${question}`, () => {
+      const input = { question, turnPlan: structuredClone(turnPlan), families: route === "normal" ? undefined : inferSceneCapabilities(question).families };
+      const selected = route === "production" ? selectProductionScene({ ...input, problemIR: null, policy: { preferPlanner: false } }).representation
+        : route === "fast" ? selectFastVerifiedRepresentation(input) : selectVerifiedRepresentation(input);
+      assert.notEqual(selected?.figureSource, "source_grounded", "no source-grounded whole-curve figure for a piecewise definition");
+      const curves = selected?.sceneDocument.constructions.filter(c => c.operator === "function_curve" || c.operator === "implicit_curve") ?? [];
+      assert.equal(curves.length, 0, "a piecewise definition draws nothing rather than whole crossing curves");
+    });
+  }
+}
+verifyPiecewiseDefinitionsDecline();
 verifyReviewedPiAndNamedNewlines();
 console.log(`source-function equation ownership: ${checks - failed}/${checks} checks passed (${selectedFixtures.length} original wordings; ${nativeParameterFixtures.length} native parameter wordings)`);
 if (failed > 0) process.exitCode = 1;
