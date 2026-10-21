@@ -27,7 +27,7 @@ export function prepareVerifiedParts(
   const issues: SceneIssue[] = [];
   let compiledScene: CompileResult | undefined;
   // Bounded retries expose errors hidden behind an earlier failed label check.
-  for (let pass = 0; pass < 4; pass++) {
+  for (let pass = 0; pass < 6; pass++) {
     const compiled = compileSceneDocument(document);
     compiledScene = compiled;
     if (compiled.ok) break;
@@ -84,6 +84,13 @@ export function prepareVerifiedParts(
       );
       if (entity && next.entities[Number(entity[1])]?.label) {
         delete next.entities[Number(entity[1])]!.label;
+      } else if (entity && next.entities[Number(entity[1])] && layoutProofCodes.has(issue.code)) {
+        // The label was generated during compilation (an inferred point name or
+        // an operator's value label); stop generating it.
+        const id = next.entities[Number(entity[1])]!.id;
+        const previous = Array.isArray(next.source.yieldUnlabelledPoints) ? next.source.yieldUnlabelledPoints : [];
+        if (previous.includes(id)) continue;
+        next.source = { ...next.source, yieldUnlabelledPoints: [...previous, id] };
       } else if (
         annotation &&
         ["label", "callout", "badge"].includes(
@@ -98,7 +105,7 @@ export function prepareVerifiedParts(
           (entity) => entity.id === issue.entityIds?.[0],
         );
         if (
-          !owner?.label ||
+          !owner ||
           next.annotations.some(
             (annotation) =>
               annotation.targetIds.includes(owner.id) &&
@@ -106,7 +113,15 @@ export function prepareVerifiedParts(
           )
         )
           continue;
-        delete owner.label;
+        if (owner.label) {
+          delete owner.label;
+        } else {
+          // Placement reports the entity owner even when its text was generated
+          // by an operator and is absent from the input document.
+          const previous = Array.isArray(next.source.yieldUnlabelledPoints) ? next.source.yieldUnlabelledPoints : [];
+          if (previous.includes(owner.id)) continue;
+          next.source = { ...next.source, yieldUnlabelledPoints: [...previous, owner.id] };
+        }
       } else if (issue.code === "annotation_geometry_unresolved") {
         const index = next.annotations.findIndex(
           (annotation) =>
@@ -165,6 +180,18 @@ export function prepareVerifiedParts(
         ...action,
         dependsOn: [...new Set(action.dependsOn.flatMap(id => [...survivingDependencies(id)]))],
       } : action);
+    // An omitted label leaves its point unlabelled, which is not false. Drop
+    // the engine's "must stay labeled" claim for points that lost every label.
+    const stillLabelled = (id: unknown) => next.entities.some((entity) => entity.id === id && entity.label) ||
+      next.annotations.some((annotation) => annotation.targetIds.includes(String(id)) && ["label", "callout"].includes(annotation.kind));
+    // Only the engine's own named-point claim; an explicit planner obligation stays.
+    const droppedLabelClaims = next.assertions.filter((assertion) => assertion.predicate === "label_attached" && assertion.entities.length === 1
+      && assertion.id === `assert_label_${assertion.entities[0]}` && (assertion as { reason?: unknown }).reason === "student-facing points must stay labeled"
+      && !stillLabelled(assertion.entities[0]));
+    if (droppedLabelClaims.length) {
+      next.assertions = next.assertions.filter((assertion) => !droppedLabelClaims.includes(assertion));
+      issues.push(...droppedLabelClaims.map((assertion): SceneIssue => ({ code: "yield_label_claim_dropped", severity: "warning", failureKind: "proof", entityIds: [...assertion.entities], message: `Label claim ${assertion.id} dropped with its omitted label` })));
+    }
     document = next;
     compiledScene = undefined;
   }
