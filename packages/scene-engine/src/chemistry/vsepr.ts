@@ -30,7 +30,7 @@ import {
 import { formulaTokens, normalizeChemistryText, parseFormula, type ParsedFormula } from "./formula";
 import { isMonovalent, resolveElement, valenceElectrons, type ElementRecord } from "./elements";
 import { isDiscreteVseprCandidate } from "./foundation/formulaState";
-import { vseprFormulaArguments, vseprSourceArgumentsComplete } from "./vseprSource";
+import { vseprFormulaArguments, vseprSourceArgumentsComplete, hasValidatedVseprNotation } from "./vseprSource";
 import type { TurnPlanV3 } from "../contracts/contractsV3";
 
 export const VSEPR_FAMILY = "chem_vsepr" as const;
@@ -729,7 +729,7 @@ export function vseprSpecies(question: string): VseprResult[] {
   const tokens = vseprFormulaArguments(text, formulaTokens(text));
   const species = uniqueSpecies(tokens);
   if (species.length === 0 || species.length > MAX_SPECIES) return [];
-  return vseprSourceArgumentsComplete(sentencesOf(text), tokens) ? species : [];
+  return vseprSourceArgumentsComplete(sentencesOf(text), tokens, species) ? species : [];
 }
 
 function dipoleInputs(question: string): DipoleInput[] {
@@ -750,8 +750,12 @@ export function isVseprStem(question: string): boolean {
   if (HARD_VETO.test(stem) || ORGANIC_VETO.test(stem)) return false;
   if (!shapeIsTheAsk(stem) && fajanAsked(stem)) return true;
   if (dipoleIsTheAsk(stem) && dipoleInputs(question).some((input) => dipoleAccount(input) !== null)) return true;
-  if (!CUE.test(stem)) return false;
-  return vseprSpecies(question).length > 0;
+  const species=vseprSpecies(question);
+  if (!CUE.test(stem)) {
+    const text=repairOcr(normalizeChemistryText(question));
+    if(!hasValidatedVseprNotation(sentencesOf(text),vseprFormulaArguments(text,formulaTokens(text)),species))return false;
+  }
+  return species.length > 0;
 }
 
 /* ------------------------------------------------------------------------- */

@@ -608,7 +608,7 @@ export const ARCHETYPES: Readonly<Record<ArchetypeId, ArchetypeSpec>> = {
   },
   vernier_calliper: {
     id: "vernier_calliper", family: "fluid_apparatus", label: "vernier calliper with main scale, vernier scale and jaws",
-    slots: { mainScaleReading: num("mm", { metric: true }), vernierDivision: num(undefined, { metric: true }), zeroError: choice(["none", "positive", "negative"]) },
+    slots: { leastCount: num("mm"), mainScaleReading: num("mm", { metric: true }), vernierDivision: num(undefined, { metric: true }), zeroError: choice(["none", "positive", "negative"]) },
     contract: { roles: ["main scale", "vernier scale", "jaw"], minRoleCount: { jaw: 2 }, metric: ["distance_ratio"] },
   },
   screw_gauge: {

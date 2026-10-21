@@ -1,6 +1,7 @@
-const BILLING_ERROR_CODES = [
+export const BILLING_ERROR_CODES = [
   "unauthorized",
   "out_of_credits",
+  "retry_budget",
   "rate_limited",
   "concurrent_limit",
   "daily_usd_limit",
@@ -28,6 +29,7 @@ export function billingStatus(code: BillingErrorCode): 401 | 402 | 429 | 503 {
     case "unauthorized":
       return 401;
     case "out_of_credits":
+    case "retry_budget":
     case "no_grant":
     case "daily_usd_limit":
     case "notes_limit":

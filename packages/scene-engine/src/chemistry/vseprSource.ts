@@ -12,6 +12,69 @@ function composition(formula: string): string | null {
   return parsed ? `${parsed.atoms.map(atom => `${atom.symbol}:${atom.count}`).sort().join("|")}/${parsed.charge}` : null;
 }
 
+/** Counts come only from the freshly solved source species, never the planner. */
+export interface VseprNotationSpecies {
+  formula: string; bondPairs: number; lonePairs: number; unpairedElectron: boolean;
+}
+interface FormulaOwner extends Span { key: string }
+function formulaOwners(text: string, formulas: readonly string[]): FormulaOwner[] {
+  return [...new Set(formulas)].flatMap(formula => {
+    const key=composition(formula);if(!key)return [];
+    return [...text.matchAll(new RegExp(`(?<![A-Za-z0-9])${escape(formula)}(?![A-Za-z0-9])`,"g"))]
+      .map(match=>({start:match.index,end:match.index+match[0].length,key}));
+  }).sort((a,b)=>a.start-b.start||b.end-a.end)
+    .filter((owner,index,all)=>!all.slice(0,index).some(previous=>owner.start>=previous.start&&owner.end<=previous.end));
+}
+const ownerJoin=/^\s*(?:,\s*(?:(?:and|or)\s+)?|(?:and|or)\s+)(?:the\s+)?(?:(?:molecule|ion|species)\s+)?$/i;
+/** Only a closed notation operator can own an AX literal. Every local/shared
+ * owner must independently agree; matching one member never selects a subset. */
+function notationSpans(text:string,formulas:readonly string[],species:readonly VseprNotationSpecies[]):Span[]|null {
+  const headers=[...text.matchAll(/\b(?:using|use|in|with|according\s+to)\s+(?:the\s+)?(?:VSEPR\s+)?(AX[A-Za-z0-9_+-]*)\s+notation\b/gdi)];
+  const candidates=[...text.matchAll(/\bAX\d[A-Za-z0-9_]*\b/gi)].map(match=>({start:match.index,end:match.index+match[0].length}));
+  for(const header of headers){const span=header.indices![1]!;candidates.push({start:span[0],end:span[1]});}
+  if(!candidates.length)return [];
+  if(candidates.some(span=>!headers.some(header=>header.indices![1]![0]===span.start&&header.indices![1]![1]===span.end)))return null;
+  const mentions=formulaOwners(text,formulas),out:Span[]=[];
+  let previousEnd=0;
+  for(const header of headers){
+    const count=/^AX([1-7])(?:E([0-7])?)?$/i.exec(header[1]!);if(!count)return null;
+    const x=Number(count[1]),e=/E/i.test(header[1]!)?Number(count[2]??1):0;
+    const headerEnd=header.index+header[0].length;
+    const post=/^\s+(?:for|of)\s+(?:(?:the|molecular|shapes?|geometr(?:y|ies)|of|molecule|ion|species|both)\s+)*/i.exec(text.slice(headerEnd));
+    let owners:readonly string[],consumedEnd=headerEnd;
+    if(post){
+      const first=mentions.find(mention=>mention.start===headerEnd+post[0].length);if(!first)return null;
+      const roster=[first];let index=mentions.indexOf(first);
+      while(index+1<mentions.length&&ownerJoin.test(text.slice(mentions[index]!.end,mentions[index+1]!.start)))roster.push(mentions[++index]!);
+      owners=[...new Set(roster.map(owner=>owner.key))];consumedEnd=roster.at(-1)!.end;
+      if(/\bboth\s+$/i.test(post[0])&&owners.length!==2)return null;
+    }else{
+      const before=mentions.filter(mention=>mention.start>=previousEnd&&mention.end<=header.index);
+      if(before.length){
+        if(before.slice(1).some((owner,index)=>!ownerJoin.test(text.slice(before[index]!.end,owner.start)))
+          ||!/^\s*(?:(?:molecule|ion|species)\s*)?$/i.test(text.slice(before.at(-1)!.end,header.index)))return null;
+        owners=[...new Set(before.map(owner=>owner.key))];
+        if(/\bboth\s+$/i.test(text.slice(previousEnd,before[0]!.start))&&owners.length!==2)return null;
+      }else{
+        if(species.length!==1)return null;
+        owners=[composition(species[0]!.formula)!];
+      }
+    }
+    if(!owners.length||owners.some(key=>{
+      const actual=species.find(item=>composition(item.formula)===key);
+      return !actual||actual.unpairedElectron||actual.bondPairs!==x||actual.lonePairs!==e;
+    }))return null;
+    const span=header.indices![1]!;out.push({start:span[0],end:span[1]});previousEnd=consumedEnd;
+  }
+  return out;
+}
+/** A validated source operator can supply VSEPR intent without a token router. */
+export function hasValidatedVseprNotation(sentences:readonly string[],formulas:readonly string[],species:readonly VseprNotationSpecies[]):boolean {
+  let found=false;
+  for(const sentence of sentences){const owned=notationSpans(sentence,formulas,species);if(!owned)return false;found ||= owned.length>0;}
+  return found;
+}
+
 const argumentArticles = "(?:(?:the|a|an|molecular|molecules?|compounds?|species|ions?|shapes?|structures?|geometr(?:y|ies))\\s+)*";
 
 /** Every nominal request owns its members; only a method head can exempt a modifier. */
@@ -111,12 +174,14 @@ function adjacentNamesComplete(sentence: string, formulas: readonly string[], na
 export function vseprSourceArgumentsComplete(
   sentences: readonly string[],
   formulas: readonly string[],
+  species: readonly VseprNotationSpecies[] = [],
 ): boolean {
   const knownFormula = (token: string): boolean => {
     const key = composition(token);
     return key !== null && formulas.some(formula => composition(formula) === key);
   };
   for (const sentence of sentences) {
+    const notation=notationSpans(sentence,formulas,species);if(!notation)return false;
     const names = [...namedSpeciesMentions(sentence), ...binaryCovalentNameMentions(sentence)]
       .sort((a, b) => b.end - b.start - (a.end - a.start))
       .filter((name, index, all) => !all.slice(0, index).some(other => name.start < other.end && name.end > other.start));
@@ -138,6 +203,7 @@ export function vseprSourceArgumentsComplete(
     }
     for (const match of sentence.matchAll(/(?<![\p{L}\p{N}])\[?(?:[A-Z][a-z]?\d*){1,}\]?\d*(?:\^?\(?\d*[+-]\)?)?(?![\p{L}\p{N}])/gu)) {
       const token = match[0];
+      if(notation.some(span=>span.start===match.index&&span.end===match.index+token.length))continue;
       if (/^[A-Z][a-z]?$/.test(token)) continue;
       if (!/[\d+-]/.test(token) && !(token.length > 2 && /[a-z]/.test(token))
         && !chemicalArgument(sentence, match.index, match.index + token.length)) continue;

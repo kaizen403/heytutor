@@ -303,10 +303,26 @@ export async function canonicalizeTurnSceneMetadata(
   if (!report.valid || report.issues.some((issue) => issue.severity === "fatal")) {
     return failure("scene_validation_report_invalid", "current scene engine did not produce a valid report");
   }
+  // The intro's ink is rebuilt here, and each part carries the word it is
+  // drawn under. Rebuilt in English under a Hinglish recording, those words
+  // were not in the stored sentence, so replay and export found no cue and
+  // drew every part at the top of it. The voice is read from the recording.
+  const narrationLanguage = metadata.segments.some((segment) =>
+    isStoredCommandTrustedGeometry(segment.command) && /\p{Script=Devanagari}/u.test(segment.narration),
+  ) ? "hinglish" as const : undefined;
   const expectedPresentation = buildVerifiedDiagramPresentation(
     document,
     renderScene,
-    { originalQuestion: question, ...(isDsaSceneDocument(document) ? { layout: "code_lesson" as const } : {}) },
+    {
+      originalQuestion: question,
+      ...(isDsaSceneDocument(document) ? { layout: "code_lesson" as const } : {}),
+      ...(narrationLanguage ? { narrationLanguage } : {}),
+      // The live intro letters a source given ("x = -2") with the plan, and
+      // restore reads the same saved plan, so without it the saved intro
+      // dropped that label and replay never drew it. Only a plan validated
+      // against this question is passed; no plan keeps every value deferred.
+      ...(turnPlan ? { turnPlan } : {}),
+    },
   );
   // A turn that continues a page (a resume after Stop, or a doubt) teaches
   // under a figure an earlier turn on the page already drew. It keeps its

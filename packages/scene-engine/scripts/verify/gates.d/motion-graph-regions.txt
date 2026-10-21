@@ -1,0 +1,2 @@
+# Region under a motion graph comes from the graph's own points; hatching stays inside its region.
+tsx scripts/verify/verify-motion-graph-regions.ts

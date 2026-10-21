@@ -96,6 +96,11 @@ function readGraph(inputs: Record<string, unknown>, context: SourceContext): Rem
   if (inputs.quantity !== "position" && inputs.quantity !== "velocity") invalid("quantity", "motion_graph quantity must be position or velocity");
   if (!Array.isArray(inputs.points) || inputs.points.length < 2 || inputs.points.length > 64) invalid("points", "motion_graph needs 2 to 64 samples");
   const samples = inputs.points.map((point, index) => {
+    // A [t, value] pair names the same sample as {t, value}; the order is the
+    // graph's own axis order, time first.
+    if (Array.isArray(point) && point.length === 2) {
+      return { t: scalar(point[0], `points[${index}].t`, context), value: scalar(point[1], `points[${index}].value`, context) };
+    }
     if (!isRecord(point)) invalid("points", "each sample needs t and value");
     rejectUnknownKeys(point, ["t", "value"], "points");
     return { t: scalar(point.t, `points[${index}].t`, context), value: scalar(point.value, `points[${index}].value`, context) };
