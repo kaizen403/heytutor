@@ -7,6 +7,7 @@ import { buildFailedTurnSentryEvent, type FailedTurnInput, type FailedTurnSentry
 import { LIVE_TURN_IDLE_MS } from "../boards/turnStatus";
 import { failedTurnWhere } from "../admin/turnFilters";
 import { failedTurnDeliveryEnabled } from "./failedTurnRuntime";
+import { logWorkerFailure } from "./workerFailureLog";
 
 const POLL_MS = 10_000;
 const LEASE_MS = 60_000;
@@ -205,13 +206,15 @@ export async function runFailedTurnSentryBatch(
       const eventId = delivery.capture({ ...job.sentryFailureEvent, event_id: job.sentryEventId });
       if (eventId !== job.sentryEventId || !await delivery.flush(2_000) || !delivery.acknowledged(eventId)) {
         result.pending++;
+        logWorkerFailure("failed_turn_delivery", undefined, "delivery_unacknowledged");
         continue;
       }
       await delivery.complete(job, now);
       result.reported++;
-    } catch {
+    } catch (error) {
       // No exception body or turn identifier leaves this process.
       result.pending++;
+      logWorkerFailure("failed_turn_delivery", error);
     }
   }
   return result;
@@ -225,12 +228,12 @@ export function startFailedTurnSentryWorker(): () => void {
     if (running || stopped) return;
     running = true;
     try {
-      try { await queueAbandonedFailedTurns(); } catch {
-        console.error("[sentry] failed-turn recovery unavailable; events remain queued");
+      try { await queueAbandonedFailedTurns(); } catch (error) {
+        logWorkerFailure("failed_turn_recovery", error);
       }
       await runFailedTurnSentryBatch();
-    } catch {
-      console.error("[sentry] failed-turn delivery unavailable; events remain queued");
+    } catch (error) {
+      logWorkerFailure("failed_turn_delivery", error);
     } finally {
       running = false;
     }

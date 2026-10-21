@@ -1,0 +1,3 @@
+tsx scripts/verify/verify-lab-model-profile.ts
+tsx scripts/verify/verify-live-diagram-input-bounds.ts
+tsx scripts/verify/verify-lab-request-budget.ts
