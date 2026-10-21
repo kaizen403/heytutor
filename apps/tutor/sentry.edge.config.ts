@@ -1,26 +1,22 @@
 import * as Sentry from "@sentry/nextjs";
 import {
-  sentryBeforeBreadcrumb,
-  sentryBeforeSend,
-  sentryBeforeSendLog,
   sentryDataCollection,
+  sentryLogPrivacyIntegration,
   sentryServerDsn,
-  sentryTracesSampler,
 } from "@/lib/obs/sentryPrivacy";
+
+import { sentryServerRuntimeEnabled, sentryServerRuntimeOptions } from "@/lib/obs/sentryRuntime";
 
 const dsn = sentryServerDsn();
 
-if (dsn) {
+if (dsn && sentryServerRuntimeEnabled()) {
   Sentry.init({
     dsn,
-    environment: process.env.NODE_ENV,
+    ...sentryServerRuntimeOptions(),
     dataCollection: sentryDataCollection(),
-    tracesSampler: sentryTracesSampler,
-    beforeSend: sentryBeforeSend,
-    beforeSendLog: sentryBeforeSendLog,
-    beforeBreadcrumb: sentryBeforeBreadcrumb,
     integrations: (defaults) => [
       ...defaults,
+      sentryLogPrivacyIntegration(),
       Sentry.consoleLoggingIntegration({ levels: ["log", "warn", "error"] }),
     ],
   });

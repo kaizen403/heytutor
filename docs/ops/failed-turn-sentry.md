@@ -22,7 +22,11 @@ events. Missing historical evidence remains visible as Unverified in All logs.
 
 The event uses fingerprint `turn-failure / stage / code / subject`, with tags
 `area=turn-failure`, `subject`, `stage`, `code`, `figure_need`, `strict_subjects`,
-`provider`, `deployment`, `release`, `environment` and `reporting_origin`.
+`provider`, `deployment`, `release`, `environment`, `reporting_origin` and
+`billing_code`. The last tag contains an approved admission denial enum, `none`
+for non-billing failures, or `unknown` for an unrecognized historical value.
+Teaching admission HTTP 402 groups as `budget_limit`, 429 as `rate_limit`, and
+authentication/service failures as `provider_error`; none includes response prose.
 Live reports carry `reporting_origin=live`; manual backfills carry
 `reporting_origin=backfill`, including after refresh, recovery or resume. Taught lessons use warning;
 failed teaching or a lesson with no meaningful teaching uses error. Muted
@@ -42,6 +46,15 @@ dedicated Sentry client has no automatic integrations or inherited request
 scope. The final privacy hook rebuilds the approved event, dropping user,
 request, exception, breadcrumb, context and arbitrary extra data.
 
+Generic crash/log clients use the same production opt-in. Browser capture also
+requires `NEXT_PUBLIC_SENTRY_ENVIRONMENT=production` at build time and the exact
+`app.accelute.co` hostname. Console logs use a fixed operational-message and
+bounded-field allowlist. HTTP logs normalize dynamic routes and remove all
+queries. Save rejection logs contain only code, status and entry point. Unknown
+console prose stays local. A final log-envelope guard reapplies this policy
+after the SDK merges scope attributes; the dedicated failed-turn client is
+independent of that log policy.
+
 Delivery requires a successful HTTP response, not just an SDK flush. Failed or
 unacknowledged attempts retain their payload and retry after a one-minute
 lease with the same event ID and persisted timestamp. A crash after Sentry
@@ -52,6 +65,16 @@ one durable event identity per turn, not a distributed exactly-once guarantee.
 Reported queue payloads are cleared. Pending rows and content-free cancelled
 reservations follow turn deletion and
 retention. Workers do not extend the turn's activity timestamp.
+
+Recovery, delivery and object-cleanup failures log a fixed worker name,
+`error_code` and suppressed count. The error category comes only from approved
+SDK codes, never exception text or SQL. Repeated worker/code pairs log at most
+once per five minutes; polling, delivery leases and cleanup backoff continue.
+`delivery_unacknowledged` means delivery lacked a successful HTTP acknowledgement.
+Check database availability/auth/schema/timeouts for their corresponding codes;
+check bucket configuration for `object_store_unavailable`. `unknown` means the
+safe code is insufficient, not that the operation succeeded. Check queue age and
+the server health endpoint before treating a historical worker storm as current.
 
 The admin row shows the event ID and a **View in Sentry** link only for pending
 or reported receipts. A queued event
@@ -76,7 +99,8 @@ Before the owner deploys an approved commit:
    setting must exist before the build. No new DSN is indicated by this audit.
 2. Keep **`SENTRY_RELEASE` equal to the exact deployed 40-character git SHA** in
    the server's `.env.production`. This PR stamps it and
-   `SENTRY_ENVIRONMENT=production` automatically for the build and service on
+   `SENTRY_ENVIRONMENT=production` and `NEXT_PUBLIC_SENTRY_ENVIRONMENT=production`
+   automatically for the build and service on
    each AWS deployment, preserving other settings and permissions. Ensure
    `NODE_ENV=production`; leave `SENTRY_ENABLED` unset or enabled. Leave
    `SENTRY_ENVIRONMENT` unset locally, or set `development`, `test` or `lab`.
